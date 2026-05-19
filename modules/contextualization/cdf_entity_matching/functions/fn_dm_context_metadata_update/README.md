@@ -293,4 +293,4 @@ data = {
 
 ## 📄 License
 
-This module is part of the Cognite Templates repository. 
+This module is part of the [Cognite library](https://github.com/cognitedata/library) repository. 

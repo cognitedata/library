@@ -98,7 +98,7 @@ This allows the Toolkit to retrieve official library packages, including RMDM.
 > | `[library.toolkit-data]` | `[library.cognite]` |
 > | `github.com/cognitedata/toolkit-data/...` | `github.com/cognitedata/library/...` |
 >
-> The `library.cognite` package includes all Deployment Packs developed by the Value Delivery Accelerator team (RMDM, RCA agents, Context Quality Dashboard, etc.).
+> The `library.cognite` package includes Deployment Packs developed by the Value Delivery Accelerator team (RMDM, Atlas AI, Context Quality Dashboard, etc.).
 
 > **⚠️ Checksum Warning**
 >
@@ -143,13 +143,15 @@ This opens the interactive module selection interface.
 
 ### Step 4: Select the RMDM Data Models Package
 
-From the menu, select:
+Either add the pack directly:
 
-```
-Data models: Data models that extend the core data model
+```bash
+cdf modules add dp:models
 ```
 
-Follow the prompts. Toolkit will:
+Or from `cdf modules init`, select **Data models: Data models that extend the core data model**.
+
+Toolkit will:
 
 - Download the RMDM module
 - Update the Toolkit configuration
@@ -162,7 +164,7 @@ After installation, your project should now contain:
 ```
 modules/
     └── data_models/
-        └── rmdm_v1/
+        └── rmdm/
 ```
 
 If you see this structure, RMDM has been successfully added to your project.
@@ -188,7 +190,7 @@ After deployment, the RMDM models, containers, and views will be available in yo
 ## Module Structure
 
 ```
-rmdm_v1/
+rmdm/
 ├── data_models/
 │   ├── containers/
 │   │   ├── Asset.container.yaml

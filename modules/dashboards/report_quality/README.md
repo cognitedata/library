@@ -34,7 +34,7 @@ The CDF Quality Reports module is designed to:
 ## 🏗️ Module Architecture
 
 ```
-rpt_quality/
+report_quality/
 ├── 📁 data_sets/                           # Dataset definitions
 │   └── 📄 dataset.yaml                            # Quality reports dataset
 ├── 📁 raw/                                 # RAW table definitions
@@ -126,7 +126,7 @@ Update your `config.<env>.yaml` under the module variables section:
 ```yaml
 variables:
   modules:
-    rpt_quality:
+    report_quality:
       organization: YOUR_ORG
       schemaSpace: sp_enterprise_process_industry
       datamodelVersion: v1.0
@@ -196,5 +196,5 @@ Reports are written to RAW table `tbl_contextualization_rate_report` in `db_qual
 
 ## 📄 License
 
-This module is part of the Cognite Templates repository and follows the same licensing terms.
+This module is part of the [Cognite library](https://github.com/cognitedata/library) repository (`modules/dashboards/report_quality/`) and follows the same licensing terms.
 

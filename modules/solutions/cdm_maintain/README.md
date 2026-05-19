@@ -1,12 +1,14 @@
-# CDM Maintain Quickstart
+# CDM Maintain
 
-This quickstart package provides a complete, ready-to-deploy configuration for Cognite Maintain. It includes everything needed to get maintenance operations, workflows, and asset contextualization set up.
+Library path: `modules/solutions/cdm_maintain/` · Deployment pack: `dp:cdm_maintain`
+
+This deployment pack provides a complete, ready-to-deploy configuration for Cognite Maintain. It includes everything needed to get maintenance operations, workflows, and asset contextualization set up.
 
 ## Why Use This Package?
 
 **Pre-built Data Models & Configuration**
 
-This quickstart includes pre-configured data models, views, containers, and foundational setup templates for Maintain.
+It includes pre-configured data models, views, containers, and foundational setup templates for Maintain.
 
 **Key Benefits:**
 
@@ -24,7 +26,7 @@ This quickstart includes pre-configured data models, views, containers, and foun
 
 ## 🎯 Overview
 
-The CDM Maintain Quickstart package enables you to:
+The CDM Maintain package enables you to:
 - **Deploy Maintain infrastructure** with pre-built data models and configurations
 - **Organize maintenance data** with structured containers and views
 - **Track work orders** with asset and location hierarchies
@@ -167,9 +169,15 @@ variables:
       location: <your_location_id>
 ```
 
-### 3. Deploy the Package
+### 3. Add and deploy the package
 
-Deploy using the Cognite Toolkit. See [Cognite Toolkit Usage Guide](https://docs.cognite.com/cdf/deploy/cdf_toolkit/guides/usage) for deployment instructions.
+```bash
+cdf modules add dp:cdm_maintain
+cdf build
+cdf deploy --env your-environment
+```
+
+See the [Cognite Toolkit usage guide](https://docs.cognite.com/cdf/deploy/cdf_toolkit/guides/usage) for more detail.
 
 ## 🔧 Customization
 
@@ -206,4 +214,4 @@ Modify `cdf_maintain_location` to match your organization:
 
 ## 📄 License
 
-This module is part of the Cognite Templates repository and follows the same licensing terms.
+This module is part of the [Cognite library](https://github.com/cognitedata/library) repository and follows the same licensing terms.

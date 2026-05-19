@@ -48,7 +48,7 @@ _(If videos fail to load, try loading the page in incognito or re-sign into GitH
 
 Follow the [CDF Toolkit guide](https://docs.cognite.com/cdf/deploy/cdf_toolkit/) to set up your project.
 
-Optionally, initialize the quickstart package using toolkit CLI:
+Optionally, add the Quickstart deployment pack (`dp:quickstart`) using the Toolkit CLI:
 
 ```bash
 poetry init
@@ -73,7 +73,7 @@ poetry run cdf modules init <project-name>
 
 ### Step 3: Build and Deploy the Module
 
-1. (Optional) Build and deploy the quickstart template modules
+1. (Optional) Build and deploy modules from `dp:quickstart` (for example `common/cdf_common`, `common/cdf_ingestion`)
 2. Build and deploy this module:
 
 ```bash
@@ -97,7 +97,7 @@ environment:
 
 variables:
   modules:
-    # stuff from quickstart package...
+    # modules from dp:quickstart (if used)...
     organization: tx
 
     # ...
@@ -172,8 +172,8 @@ After deployment, the annotation process is managed by a workflow that orchestra
 
 **Optional preparatory steps:**
 
-1. Run the ingestion workflow from the quickstart package to create instances of `<org>File`, `<org>Asset`, etc.
-2. Check out the instantiated files that have been annotated using the annotation function from the quickstart package
+1. Run the ingestion workflow from `common/cdf_ingestion` (via `dp:quickstart`) to create instances of `<org>File`, `<org>Asset`, etc.
+2. Check out the instantiated files that have been annotated using the annotation function from this module
 3. Run the `local_setup.ipynb` notebook to set up the files for annotation
 
 **Run the File Annotation Workflow** in the CDF UI and monitor its progress.

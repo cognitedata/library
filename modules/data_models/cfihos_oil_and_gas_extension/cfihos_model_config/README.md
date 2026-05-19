@@ -22,11 +22,11 @@ Details of the original author or contributor of this artefact and information a
 
 Provide step-by-step instructions on how to use this artefact. Be clear and specific.
 
-1. Clone or download the GSS Knowledge Base repository.
+1. Clone or download the [Cognite library](https://github.com/cognitedata/library) repository.
 
-2. Navigate to the `[others]/[cfihos_oil_and_gas_extension]` directory.
+2. Open `modules/data_models/cfihos_oil_and_gas_extension/cfihos_model_config/` (this folder).
 
-3. Copy the contents of this folder into your project repository.
+3. Copy the contents of this folder into your project repository, or run the generator from this path in the library checkout.
 
 4. Setup the virtual environment with the defined dependencies in the pyproject.toml or defined below.
    - poetry lock    # build lock file and .venv folder

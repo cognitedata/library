@@ -30,7 +30,7 @@ modules/
 │   └── qs_enterprise_dm/
 │
 ├── solutions/                   # Product verticals (CDM-backed)
-│   ├── cdm_maintain/            # Maintain quickstart (5 submodules)
+│   ├── cdm_maintain/            # CDM Maintain (5 submodules)
 │   └── cdf_ai_extractor/        # Atlas AI property extractor
 │
 ├── infield/                     # Infield on CDM (per-location modules)

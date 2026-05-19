@@ -47,8 +47,12 @@ propertiesToExtract: '["discipline", "priority", "category"]'
 
 ### 2. Deploy
 
+Library path: `modules/solutions/cdf_ai_extractor/`
+
 ```bash
-cdf modules deploy atlas_ai:ai_extractor
+cdf modules add dp:atlas_ai
+cdf build
+cdf deploy
 ```
 
 ### 3. Run

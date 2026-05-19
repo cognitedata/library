@@ -1,6 +1,6 @@
 # Upload Data Share-Readiness Report
 
-Scope: `modules/models/cfihos_oil_and_gas_extension/upload_data`
+Scope: `modules/data_models/cfihos_oil_and_gas_extension/upload_data`
 
 Date: 2026-03-23
 
