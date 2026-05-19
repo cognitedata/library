@@ -2,15 +2,14 @@
 Time Series processing and metrics computation.
 """
 
-from typing import Optional
 from cognite.client import CogniteClient
-from cognite.client.data_classes.data_modeling import ViewId, NodeId
+from cognite.client.data_classes.data_modeling import NodeId, ViewId
 
 from .common import (
-    get_props,
-    get_external_id,
-    normalize_timestamp,
     CombinedAccumulator,
+    get_external_id,
+    get_props,
+    normalize_timestamp,
 )
 
 

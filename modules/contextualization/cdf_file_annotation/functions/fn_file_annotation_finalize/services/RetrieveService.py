@@ -1,5 +1,4 @@
 import abc
-from typing import cast
 
 from cognite.client import CogniteClient
 from cognite.client.data_classes.data_modeling import (

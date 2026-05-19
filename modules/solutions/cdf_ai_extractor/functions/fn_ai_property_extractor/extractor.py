@@ -14,14 +14,13 @@ Main Features:
 """
 
 import json
-from typing import Optional, List, Dict, Any
+from typing import Any, Dict, List, Optional
 
+import cognite.client.data_classes.data_modeling.data_types as dtypes
 from cognite.client import CogniteClient
 from cognite.client.data_classes.agents import Message
-from cognite.client.data_classes.data_modeling import View, NodeApply, NodeOrEdgeData
-import cognite.client.data_classes.data_modeling.data_types as dtypes
+from cognite.client.data_classes.data_modeling import NodeApply, NodeOrEdgeData, View
 from cognite.client.data_classes.data_modeling.views import MultiReverseDirectRelation, SingleReverseDirectRelation
-
 from config import PropertyConfig, WriteMode
 
 
@@ -472,13 +471,13 @@ Example output for 2 items:
             if current_value is None or current_value == "" or current_value == []:
                 return new_value, True
             else:
-                self._log("debug", f"Skipping (add_new_only): target already has value")
+                self._log("debug", "Skipping (add_new_only): target already has value")
                 return current_value, False
         
         if write_mode == WriteMode.APPEND:
             # Append mode - only valid for lists
             if not prop_is_list:
-                self._log("warning", f"Append mode not supported for non-list properties, treating as add_new_only")
+                self._log("warning", "Append mode not supported for non-list properties, treating as add_new_only")
                 if current_value is None or current_value == "":
                     return new_value, True
                 else:
@@ -498,7 +497,7 @@ Example output for 2 items:
             if len(merged) > len(current_list):
                 return merged, True
             else:
-                self._log("debug", f"Skipping (append): no new items to add")
+                self._log("debug", "Skipping (append): no new items to add")
                 return current_list, False
         
         # Default fallback (should not reach here)

@@ -8,23 +8,23 @@ performance monitoring, error handling, and logging as the default implementatio
 import os
 import sys
 from pathlib import Path
-from typing import Dict, Any
+from typing import Any, Dict
 
 from cognite.client import ClientConfig, CogniteClient
 from cognite.client.credentials import OAuthClientCredentials
 
 sys.path.append(str(Path(__file__).parent))
 
-from logger import CogniteFunctionLogger
 from config import load_config_parameters
-from pipeline import metadata_update
+from logger import CogniteFunctionLogger
 from metadata_optimizations import (
-    time_operation,
-    monitor_memory_usage,
-    cleanup_memory,
     PerformanceBenchmark,
-    optimize_metadata_processing
+    cleanup_memory,
+    monitor_memory_usage,
+    optimize_metadata_processing,
+    time_operation,
 )
+from pipeline import metadata_update
 
 # ---------------------------------------------------------------------------
 # Usage tracking
@@ -37,6 +37,7 @@ _TRACKER_VERSION = "1"
 def _report_usage(client: CogniteClient) -> None:
     try:
         import threading
+
         from mixpanel import Consumer, Mixpanel
         mp = Mixpanel("8f28374a6614237dd49877a0d27daa78", consumer=Consumer(api_host="api-eu.mixpanel.com"))
         distinct_id = f"{client.config.project}:{client.config.cdf_cluster}"

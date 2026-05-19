@@ -7,6 +7,7 @@ import os
 import sys
 
 from dotenv import load_dotenv
+
 load_dotenv()
 
 # Add function directory to path

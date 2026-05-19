@@ -6,6 +6,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+
 def run_tests():
     """Run all tests for the entity matching function."""
     print("Running tests for entity matching function...")

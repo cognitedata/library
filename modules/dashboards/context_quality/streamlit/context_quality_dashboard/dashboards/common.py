@@ -3,9 +3,7 @@
 Common UI components and color functions for the dashboard.
 """
 
-import streamlit as st
 import plotly.graph_objects as go
-
 
 # ----------------------------------------------------
 # COLOR FUNCTIONS

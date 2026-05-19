@@ -6,19 +6,18 @@ Features user input boxes for reference numbers (files in scope, expected tags)
 to calculate metrics that require baseline data not available in the data model.
 """
 
-import streamlit as st
 import plotly.graph_objects as go
+import streamlit as st
 
+from .ai_summary import (
+    format_file_annotation_metrics,
+    get_file_annotation_prompt,
+    render_ai_summary_section,
+)
 from .common import (
-    get_status_color_hierarchy,
-    metric_card,
     gauge,
     gauge_na,
-)
-from .ai_summary import (
-    render_ai_summary_section,
-    get_file_annotation_prompt,
-    format_file_annotation_metrics,
+    metric_card,
 )
 
 
@@ -171,9 +170,9 @@ def render_file_annotation_dashboard(metrics: dict):
         elif avg_confidence >= 90:
             st.success(f"Excellent! {high_conf_pct:.0f}% are high confidence.")
         elif avg_confidence >= 70:
-            st.warning(f"Good quality. Review medium/low confidence annotations.")
+            st.warning("Good quality. Review medium/low confidence annotations.")
         else:
-            st.error(f"Many annotations may need manual review.")
+            st.error("Many annotations may need manual review.")
     
     st.markdown("---")
     

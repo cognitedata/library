@@ -5,24 +5,20 @@ This module provides optimization utilities for metadata update functions to imp
 performance, reduce memory usage, and enhance reliability.
 """
 
-import time
 import gc
-import concurrent.futures
-from contextlib import contextmanager
-from typing import List, Dict, Any, Optional, Tuple, Set, Callable, Union
-from functools import lru_cache
-from collections import defaultdict
 import re
-import psutil
+import time
+from contextlib import contextmanager
 from dataclasses import dataclass
+from functools import lru_cache
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
+import psutil
 from cognite.client import CogniteClient
-from cognite.client.data_classes.data_modeling import NodeApply, NodeOrEdgeData, ViewId, NodeList, Node
+from cognite.client.data_classes.data_modeling import Node, NodeApply, NodeList, NodeOrEdgeData, ViewId
 from cognite.client.exceptions import CogniteAPIError
-from tenacity import retry, stop_after_attempt, wait_exponential
-
 from logger import CogniteFunctionLogger
-
+from tenacity import retry, stop_after_attempt, wait_exponential
 
 # ===== PERFORMANCE MONITORING =====
 

@@ -7,7 +7,6 @@ from typing import Any, Dict, Iterator, List, Set, cast
 from cognite.client import CogniteClient
 from cognite.client.data_classes import Row, RowWrite
 from cognite.client.data_classes.data_modeling import (
-    Node,
     NodeList,
 )
 from cognite.client.exceptions import CogniteNotFoundError
@@ -165,7 +164,7 @@ class GeneralCacheService(ICacheService):
             row=row_to_write,
             ensure_parent=True,
         )
-        self.logger.info(f"Successfully updated RAW cache")
+        self.logger.info("Successfully updated RAW cache")
         return
 
     def _validate_cache(self, last_update_datetime_str: str) -> bool:
@@ -350,12 +349,12 @@ class GeneralCacheService(ICacheService):
 
             return "".join(full_template_key_parts), all_variable_parts
 
-        for entity in entities:
-            key = entity["resource_type"]
+        for entity_row in entities:
+            key = entity_row["resource_type"]
             if pattern_builders[key]["annotation_type"] is None:
-                pattern_builders[key]["annotation_type"] = entity.get("annotation_type")
+                pattern_builders[key]["annotation_type"] = entity_row.get("annotation_type")
 
-            aliases = entity.get("search_property", [])
+            aliases = entity_row.get("search_property", [])
 
             if not aliases:
                 continue

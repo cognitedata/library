@@ -23,28 +23,22 @@ from constants import (
     BATCH_SIZE_API_SUBMIT,
     BATCH_SIZE_ENTITIES,
     COL_KEY_MAN_CONTEXTUALIZED,
-    COL_KEY_MAN_MAPPING_TARGET,
     COL_KEY_MAN_MAPPING_ENTITY,
-    COL_KEY_RULE_REGEXP_TARGET,
+    COL_KEY_MAN_MAPPING_TARGET,
     COL_KEY_RULE_REGEXP_ENTITY,
+    COL_KEY_RULE_REGEXP_TARGET,
     COL_MATCH_KEY,
     FILTER_PATH_NODE_EXTERNAL_ID,
     FUNCTION_ID,
     JOB_RESULT_ITEMS,
-    KEY_TARGET_EXT_ID,
-    KEY_TARGET_MATCH_VALUE,
-    KEY_TARGET_NAME,
-    KEY_TARGET_VIEW_ID,
-    KEY_TARGET_LINKS,
     KEY_ENTITY_EXISTING_TARGETS,
     KEY_ENTITY_EXT_ID,
-    KEY_ENTITY_RULE_KEYS,
-    KEY_TARGET_RULE_KEYS,
     KEY_ENTITY_MATCH_VALUE,
     KEY_ENTITY_NAME,
+    KEY_ENTITY_RULE_KEYS,
     KEY_ENTITY_VIEW_ID,
-    KEY_MATCHES,
     KEY_MATCH_TYPE,
+    KEY_MATCHES,
     KEY_NAME,
     KEY_ORG_NAME,
     KEY_RULE,
@@ -52,22 +46,28 @@ from constants import (
     KEY_SCORE,
     KEY_SOURCE,
     KEY_TARGET,
+    KEY_TARGET_EXT_ID,
+    KEY_TARGET_LINKS,
+    KEY_TARGET_MATCH_VALUE,
+    KEY_TARGET_NAME,
+    KEY_TARGET_RULE_KEYS,
+    KEY_TARGET_VIEW_ID,
     LOG_LEVEL_DEBUG,
     LOG_LEVEL_INFO,
-    MATCHING_LIMIT_SOURCES_TARGETS,
     MATCH_TYPE_ENTITY,
     MATCH_TYPE_MANUAL,
     MATCH_TYPE_RULE,
+    MATCHING_LIMIT_SOURCES_TARGETS,
     MAX_LINKS_PER_ENTITY,
     ML_MODEL_FEATURE_TYPE,
     PLACEHOLDER_NO_MATCH,
     PLACEHOLDER_NO_MATCH_TARGET,
     PROP_COL_EXTERNAL_ID,
-    PROP_COL_SPACE,
     PROP_COL_LINK_NAME,
     PROP_COL_NAME,
-    QUERY_FILTER_TYPE_TARGETS,
+    PROP_COL_SPACE,
     QUERY_FILTER_TYPE_ENTITIES,
+    QUERY_FILTER_TYPE_TARGETS,
     SCORE_MANUAL_RULE_MATCH,
     STAT_STORE_MATCH_MODEL_ID,
     STAT_STORE_VALUE,
@@ -119,8 +119,8 @@ def entity_matching(
     good_matches = []
     len_good_matches, len_bad_matches = 0, 0
 
+    pipeline_ext_id = data["ExtractionPipelineExtId"]
     try:
-        pipeline_ext_id = data["ExtractionPipelineExtId"]
         logger.info(f"Starting entity matching function: {FUNCTION_ID} with loglevel = {data.get('logLevel', LOG_LEVEL_INFO)},  reading parameters from extraction pipeline config: {pipeline_ext_id}")
 
         not_matches_count, match_count = 0, 0
@@ -180,9 +180,9 @@ def entity_matching(
         len_good_matches = cnt_manual_mappings + cnt_rule_mappings + cnt_entity_matching
         len_bad_matches = len(bad_matches)
         if config.parameters.dm_update:
-            msg = f"Relationships updated in the DM (dmUpdate: True)"
+            msg = "Relationships updated in the DM (dmUpdate: True)"
         else:
-            msg = f"Relationships NOT updated in DM, only updated the RAW tables (dmUpdate: False)"
+            msg = "Relationships NOT updated in DM, only updated the RAW tables (dmUpdate: False)"
         update_pipeline_run(client, logger, pipeline_ext_id, STATUS_SUCCESS, len_good_matches, len_bad_matches, msg)
 
     except Exception as e:
@@ -479,7 +479,7 @@ def get_links_from_entity(
 def list_instances_by_external_id_direct(
     client: CogniteClient,
     config: Config,
-    external_id: [str],
+    external_id: list[str],
     logger: CogniteFunctionLogger = None
 ) -> list:
     """
@@ -1139,7 +1139,7 @@ def add_to_items(
         )
     )       
 
-    logger.debug(f"Added entity: {entity_ext_id} to target: {target_ext_id}")
+    logger.debug(f"Added entity: {entity_ext_id} to targets: {target_ext_ids}")
     return item_update
 
 

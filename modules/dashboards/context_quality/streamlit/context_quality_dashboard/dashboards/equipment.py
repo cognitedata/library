@@ -5,16 +5,16 @@ Equipment-Asset Quality Dashboard.
 
 import streamlit as st
 
+from .ai_summary import (
+    format_equipment_metrics,
+    get_equipment_prompt,
+    render_ai_summary_section,
+)
 from .common import (
-    get_status_color_equipment,
-    metric_card,
     gauge,
     gauge_na,
-)
-from .ai_summary import (
-    render_ai_summary_section,
-    get_equipment_prompt,
-    format_equipment_metrics,
+    get_status_color_equipment,
+    metric_card,
 )
 
 

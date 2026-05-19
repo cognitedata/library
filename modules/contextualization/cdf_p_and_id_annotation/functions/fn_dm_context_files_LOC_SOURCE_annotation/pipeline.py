@@ -1,53 +1,45 @@
-from enum import Enum
-
-from cognite.client.data_classes.data_modeling import (
-    DirectRelationReference,
-    EdgeApply,
-    EdgeId,
-    NodeId,
-    NodeOrEdgeData,
-    ViewId,
-    NodeList,
-    Node,
-)
-from cognite.client.data_classes.filters import In, Or
-
-import sys
 import json
-from hashlib import sha256
-from datetime import datetime, timezone
+import sys
 import traceback
 from dataclasses import dataclass
+from datetime import datetime, timezone
+from enum import Enum
+from hashlib import sha256
 from pathlib import Path
 from typing import Any
 
 from cognite.client import CogniteClient
+from cognite.client import data_modeling as dm
 from cognite.client.data_classes import (
     ExtractionPipelineRun,
+    Row,
 )
-from cognite.client.data_classes.contextualization import DiagramDetectResults, DiagramDetectConfig
-from cognite.client import data_modeling as dm
-from cognite.client.utils._auxiliary import split_into_chunks
+from cognite.client.data_classes.contextualization import DiagramDetectConfig, DiagramDetectResults
+from cognite.client.data_classes.data_modeling import (
+    DirectRelationReference,
+    EdgeApply,
+    EdgeId,
+    Node,
+    NodeId,
+    NodeList,
+    NodeOrEdgeData,
+    ViewId,
+)
+from cognite.client.data_classes.data_modeling.query import NodeResultSetExpression, Query, Select, SourceSelector
+from cognite.client.exceptions import CogniteAPIError
 from cognite.client.utils._text import shorten
 from cognite.extractorutils.uploader import RawUploadQueue
-from cognite.client.data_classes import Row
-from cognite.client.exceptions import CogniteAPIError
-
-from cognite.client.data_classes.data_modeling.query import Query, NodeResultSetExpression, Select, SourceSelector
-
 from config import Config, ViewPropertyConfig
-from logger import CogniteFunctionLogger
-
 from constants import (
+    BATCH_SIZE,
+    EXTERNAL_ID_LIMIT,
     FILE_LINK_EXTERNAL_ID,
+    FUNCTION_ID,
     STAT_STORE_CURSOR,
     STAT_STORE_NUM_IN_BATCH,
     STAT_STORE_VALUE,
-    BATCH_SIZE,
-    ANNOTATE_BATCH_SIZE,
-    EXTERNAL_ID_LIMIT,
-    FUNCTION_ID
 )
+from logger import CogniteFunctionLogger
 
 sys.path.append(str(Path(__file__).parent))
 
@@ -84,31 +76,30 @@ def annotate_p_and_id(
         client: An instantiated CogniteClient
         config: A dataclass containing the configuration for the annotation process
     """
+    global ANNOTATE_BATCH_SIZE
+    pipeline_ext_id = data["ExtractionPipelineExtId"]
+    error_count, annotated_count = 0, 0
     try:
-        global ANNOTATE_BATCH_SIZE
-        pipeline_ext_id = data["ExtractionPipelineExtId"]
-
-        error_count, annotated_count = 0, 0
         file_cursor = None
         file_num = 0
         if config.parameters.debug:
             logger = CogniteFunctionLogger("DEBUG")
-            logger.debug(f"**** Write debug messages and only process one file *****")
+            logger.debug("**** Write debug messages and only process one file *****")
             ANNOTATE_BATCH_SIZE = 1
 
-        logger.debug(f"Initiate RAW upload queue used to store output from Diagram parsing")
+        logger.debug("Initiate RAW upload queue used to store output from Diagram parsing")
         raw_uploader = RawUploadQueue(cdf_client=client, max_queue_size=500000, trigger_log_level="INFO")
 
         # Check if we should run all files (then delete state content in RAW) or just new files
         if config.parameters.run_all:
-            logger.debug(f"Run all files, delete state content in RAW since we are rerunning based on all input")
+            logger.debug("Run all files, delete state content in RAW since we are rerunning based on all input")
             delete_table(client, config.parameters.raw_db, config.parameters.raw_table_doc_tag)
             delete_table(client, config.parameters.raw_db, config.parameters.raw_table_doc_doc)
             delete_table(client, config.parameters.raw_db, config.parameters.raw_table_state)
         elif config.parameters.debug_file and config.parameters.debug:
             logger.debug(f"Since debugging with one file name: {config.parameters.debug_file} - ignore cursor and batch number")
         else:
-            logger.debug(f"Get file cursor and batch number from RAW, to continue processing from last run")
+            logger.debug("Get file cursor and batch number from RAW, to continue processing from last run")
             file_cursor = read_state_store(client, logger, STAT_STORE_CURSOR, config.parameters.raw_db, config.parameters.raw_table_state)
             file_num = read_state_store(client, logger, STAT_STORE_NUM_IN_BATCH, config.parameters.raw_db, config.parameters.raw_table_state)
 
@@ -257,7 +248,7 @@ def read_state_store(
     for row in row_list:
         if row.key == key:
             value = row.columns[STAT_STORE_VALUE]
-    if value == 0 or value == None:
+    if value == 0 or value is None:
         logger.debug(f"State not found for key: {key} -> read all values")
 
     return value
@@ -427,6 +418,7 @@ def get_new_files(
 
     num_retry = 0
     retry = True
+    sync_result = None
 
     while retry:
         sync_query.cursors["files"] = file_cursor
@@ -466,7 +458,7 @@ def get_file_filter(
         file_view_config.as_property_ref("mimeType"), ["application/pdf", "image/jpeg", "image/png", "image/tiff"]
     )
     is_selected = dm.filters.And(is_view, is_uploaded, is_file_type)
-    dbg_msg = f"File filter: isUploaded=True, mimeType IN [application/pdf, image/jpeg, image/png, image/tiff]"
+    dbg_msg = "File filter: isUploaded=True, mimeType IN [application/pdf, image/jpeg, image/png, image/tiff]"
 
     if debug_file:
         is_debug_file = dm.filters.Equals(file_view_config.as_property_ref("name"), debug_file)

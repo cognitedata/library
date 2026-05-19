@@ -5,19 +5,18 @@ This module provides optimization utilities that can be used with the existing p
 to improve performance without breaking the existing functionality.
 """
 
-import time
-import gc
-import psutil
 import concurrent.futures
-from functools import lru_cache
-from contextlib import contextmanager
-from typing import List, Dict, Any, Optional, Tuple, Set, Callable
-from collections import defaultdict
+import gc
 import re
-from tenacity import retry, stop_after_attempt, wait_exponential
+import time
+from collections import defaultdict
+from contextlib import contextmanager
+from functools import lru_cache
+from typing import Any, Callable, Dict, List, Optional, Set, Tuple
 
+import psutil
 from logger import CogniteFunctionLogger
-
+from tenacity import retry, stop_after_attempt, wait_exponential
 
 # ===== PERFORMANCE MONITORING =====
 
