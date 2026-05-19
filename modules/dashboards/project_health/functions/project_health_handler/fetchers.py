@@ -45,7 +45,7 @@ def _sort_runs_failed_first(runs: list, status_key: str = "status") -> list:
         return 0
 
     def is_failed(s: str) -> bool:
-        return s and s.lower() in FAILED_STATUSES
+        return bool(s and s.lower() in FAILED_STATUSES)
 
     def sort_key(run: dict) -> tuple:
         status = run.get(status_key, "")

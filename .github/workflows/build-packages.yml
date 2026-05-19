@@ -24,6 +24,9 @@ jobs:
     - name: Lint with ruff
       uses: astral-sh/ruff-action@v3
 
+    - name: Type check with pyright
+      uses: jakebailey/pyright-action@v2
+
     - name: Validate packages.toml
       run: |
         python validate_packages.py

@@ -76,11 +76,10 @@ def annotate_p_and_id(
         client: An instantiated CogniteClient
         config: A dataclass containing the configuration for the annotation process
     """
+    global ANNOTATE_BATCH_SIZE
+    pipeline_ext_id = data["ExtractionPipelineExtId"]
+    error_count, annotated_count = 0, 0
     try:
-        global ANNOTATE_BATCH_SIZE
-        pipeline_ext_id = data["ExtractionPipelineExtId"]
-
-        error_count, annotated_count = 0, 0
         file_cursor = None
         file_num = 0
         if config.parameters.debug:
@@ -419,6 +418,7 @@ def get_new_files(
 
     num_retry = 0
     retry = True
+    sync_result = None
 
     while retry:
         sync_query.cursors["files"] = file_cursor

@@ -1,0 +1,21 @@
+{
+  "pythonVersion": "3.11",
+  "typeCheckingMode": "standard",
+  "reportMissingImports": "none",
+  "reportMissingModuleSource": "none",
+  "reportGeneralTypeIssues": "none",
+  "reportCallIssue": "none",
+  "reportArgumentType": "none",
+  "reportAssignmentType": "none",
+  "reportOperatorIssue": "none",
+  "reportUnusedExpression": "none",
+  "reportAttributeAccessIssue": "none",
+  "reportReturnType": "none",
+  "reportOptionalMemberAccess": "none",
+  "reportOptionalSubscript": "none",
+  "ignore": [
+    "modules/**/streamlit/**",
+    "modules/tools/notebooks/**",
+    "modules/models/**"
+  ]
+}

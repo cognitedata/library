@@ -119,8 +119,8 @@ def entity_matching(
     good_matches = []
     len_good_matches, len_bad_matches = 0, 0
 
+    pipeline_ext_id = data["ExtractionPipelineExtId"]
     try:
-        pipeline_ext_id = data["ExtractionPipelineExtId"]
         logger.info(f"Starting entity matching function: {FUNCTION_ID} with loglevel = {data.get('logLevel', LOG_LEVEL_INFO)},  reading parameters from extraction pipeline config: {pipeline_ext_id}")
 
         not_matches_count, match_count = 0, 0
@@ -479,7 +479,7 @@ def get_links_from_entity(
 def list_instances_by_external_id_direct(
     client: CogniteClient,
     config: Config,
-    external_id: [str],
+    external_id: list[str],
     logger: CogniteFunctionLogger = None
 ) -> list:
     """
@@ -1139,7 +1139,7 @@ def add_to_items(
         )
     )       
 
-    logger.debug(f"Added entity: {entity_ext_id} to target: {target_ext_id}")
+    logger.debug(f"Added entity: {entity_ext_id} to targets: {target_ext_ids}")
     return item_update
 
 
