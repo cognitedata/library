@@ -6,10 +6,10 @@ from datetime import datetime, timezone
 from urllib.parse import urlparse
 
 from .config import (
-    STATUS_COLORS,
-    STATUS_EMOJIS,
     COLORS,
     FAILED_STATUSES,
+    STATUS_COLORS,
+    STATUS_EMOJIS,
 )
 
 

@@ -22,12 +22,16 @@ except ImportError:
     pass
 from typing import Any, Optional
 
-import streamlit as st
-import pandas as pd
-
 import analysis as _analysis_module
+import pandas as pd
+import streamlit as st
 from analysis import (
     ClientAdapter,
+    _aggregate_resource,
+    _data_set_filter_aggregate,
+    _documents_data_set_filter,
+    _project_path,
+    _unique_properties_keys_documents,
     get_aggregate_count_no_filter,
     get_dataset_resource_counts,
     get_datasets_list,
@@ -36,13 +40,9 @@ from analysis import (
     get_total_count,
 )
 from analysis import (
-    _aggregate_resource,
-    _data_set_filter_aggregate,
-    _documents_data_set_filter,
     _parse_count_response as _analysis_parse_count_response,
-    _project_path,
-    _unique_properties_keys_documents,
 )
+
 _analysis_unwrap = getattr(_analysis_module, "_unwrap_maybe_coro", None)
 
 from key_selection import PRIMARY_FILTER_KEYS, select_filter_keys_for_analysis, slug_for_file_name
@@ -76,9 +76,10 @@ def _report_usage(cdf_client) -> None:
     if st.session_state.get("_usage_tracked"):
         return
     try:
-        import re
-        import json
         import base64
+        import json
+        import re
+
         import requests
         cluster = getattr(cdf_client.config, "cdf_cluster", None)
         if not cluster:
@@ -152,7 +153,7 @@ def _resolve_base_url() -> str:
 def get_client_and_project() -> tuple[Any, str] | None:
     """Build CogniteClient and project from env/secrets. Returns (client, project) or None."""
     try:
-        from cognite.client import CogniteClient, ClientConfig
+        from cognite.client import ClientConfig, CogniteClient
         from cognite.client.credentials import OAuthClientCredentials, Token
     except ImportError:
         st.error("Install cognite-sdk >= 7: `pip install cognite-sdk`")

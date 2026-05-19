@@ -5,43 +5,42 @@ This module provides optimized metadata update functionality for timeseries and 
 with improved performance, caching, batch processing, and error handling.
 """
 
+import gc
 import sys
 import traceback
 from pathlib import Path
-from typing import Any, Optional, List, Dict, Tuple, Union
-import gc
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 from cognite.client import CogniteClient
+from cognite.client import data_modeling as dm
+from cognite.client.data_classes import ExtractionPipelineRun, Row
 from cognite.client.data_classes.data_modeling import (
+    Node,
     NodeApply,
+    NodeList,
     NodeOrEdgeData,
     ViewId,
-    NodeList,
-    Node,
 )
-from cognite.client.data_classes.filters import In, HasData, Equals
-from cognite.client.utils._text import shorten
-from cognite.client.data_classes import ExtractionPipelineRun, Row
-from cognite.client import data_modeling as dm
+from cognite.client.data_classes.filters import Equals, HasData, In
 from cognite.client.exceptions import CogniteAPIError
-
+from cognite.client.utils._text import shorten
 from config import Config, ViewPropertyConfig
-from logger import CogniteFunctionLogger
 from constants import (
+    ASSET_NODE,
     BATCH_SIZE,
     TS_NODE,
-    ASSET_NODE,
 )
+from logger import CogniteFunctionLogger
 
 # Import optimizations
 from metadata_optimizations import (
-    time_operation,
-    monitor_memory_usage,
-    cleanup_memory,
-    OptimizedMetadataProcessor,
     BatchProcessor,
+    OptimizedMetadataProcessor,
     PerformanceBenchmark,
-    optimize_metadata_processing
+    cleanup_memory,
+    monitor_memory_usage,
+    optimize_metadata_processing,
+    time_operation,
 )
 
 sys.path.append(str(Path(__file__).parent))
@@ -346,7 +345,7 @@ def get_ts_filter(
         has_alias = dm.filters.Exists(view_config.as_property_ref("aliases"))
         not_alias = dm.filters.Not(has_alias)
         filters.append(not_alias)
-        dbg_msg = f"Entity filtering on: 'aliases' - NOT EXISTS"
+        dbg_msg = "Entity filtering on: 'aliases' - NOT EXISTS"
     
     if debug_ts:
         logger.debug(f"Debug timeseries filter: {dbg_msg} {debug_ts}")

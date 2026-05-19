@@ -1,8 +1,9 @@
 import os
 import sys
-import pytest
-from unittest.mock import Mock, patch
 from pathlib import Path
+from unittest.mock import Mock, patch
+
+import pytest
 
 # Add the current directory to the path so we can import the modules
 sys.path.append(str(Path(__file__).parent))

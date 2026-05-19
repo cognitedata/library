@@ -16,18 +16,18 @@ sys.path.append(str(Path(__file__).parent))
 
 from logger import CogniteFunctionLogger
 from pipeline_optimizations import (
-    time_operation,
-    monitor_memory_usage,
-    cleanup_memory,
-    MatchTracker,
-    OptimizedRuleMapper,
     BatchProcessor,
     ConcurrentDataLoader,
+    MatchTracker,
     OptimizedMatchingEngine,
+    OptimizedRuleMapper,
+    PerformanceBenchmark,
     RobustAPIClient,
     SimpleCache,
-    PerformanceBenchmark,
-    patch_existing_pipeline
+    cleanup_memory,
+    monitor_memory_usage,
+    patch_existing_pipeline,
+    time_operation,
 )
 
 

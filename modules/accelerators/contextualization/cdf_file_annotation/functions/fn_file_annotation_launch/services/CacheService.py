@@ -165,7 +165,7 @@ class GeneralCacheService(ICacheService):
             row=row_to_write,
             ensure_parent=True,
         )
-        self.logger.info(f"Successfully updated RAW cache")
+        self.logger.info("Successfully updated RAW cache")
         return
 
     def _validate_cache(self, last_update_datetime_str: str) -> bool:
@@ -350,12 +350,12 @@ class GeneralCacheService(ICacheService):
 
             return "".join(full_template_key_parts), all_variable_parts
 
-        for entity in entities:
-            key = entity["resource_type"]
+        for ent in entities:
+            key = ent["resource_type"]
             if pattern_builders[key]["annotation_type"] is None:
-                pattern_builders[key]["annotation_type"] = entity.get("annotation_type")
+                pattern_builders[key]["annotation_type"] = ent.get("annotation_type")
 
-            aliases = entity.get("search_property", [])
+            aliases = ent.get("search_property", [])
 
             if not aliases:
                 continue

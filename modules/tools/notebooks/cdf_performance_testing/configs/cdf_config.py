@@ -6,7 +6,8 @@ and running performance tests.
 """
 
 import os
-from typing import Dict, Any
+from typing import Any, Dict
+
 from dotenv import load_dotenv
 
 # Load environment variables from .env file

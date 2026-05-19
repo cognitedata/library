@@ -8,8 +8,9 @@ The dashboard loads that file and filters the view by your config: selected data
 """
 
 import json
-import streamlit as st
 from datetime import datetime
+
+import streamlit as st
 
 try:
     import pyodide_http  # type: ignore[import-untyped]
@@ -18,15 +19,14 @@ except ImportError:
     pass
 
 from cognite.client import CogniteClient
-
-from src.tabs import (
-    render_overview_tab,
-    render_extraction_pipelines_tab,
-    render_workflows_tab,
-    render_transformations_tab,
-    render_functions_tab,
-)
 from src.configuration import render_configuration_tab
+from src.tabs import (
+    render_extraction_pipelines_tab,
+    render_functions_tab,
+    render_overview_tab,
+    render_transformations_tab,
+    render_workflows_tab,
+)
 from src.utils import _base_url_to_origin
 
 # ----------------------------------------------------
@@ -65,9 +65,10 @@ def _report_usage(cdf_client) -> None:
     if st.session_state.get("_usage_tracked"):
         return
     try:
-        import re
-        import json
         import base64
+        import json
+        import re
+
         import requests
         cluster = getattr(cdf_client.config, "cdf_cluster", None)
         if not cluster:

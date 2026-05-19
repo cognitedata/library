@@ -10,23 +10,23 @@ import sys
 import time
 import unittest
 from pathlib import Path
-from unittest.mock import Mock, MagicMock, patch
-from typing import List, Dict, Any
+from typing import Any, Dict, List
+from unittest.mock import MagicMock, Mock, patch
 
 # Add current directory to path
 sys.path.append(str(Path(__file__).parent))
 
 from logger import CogniteFunctionLogger
 from metadata_optimizations import (
-    time_operation,
-    monitor_memory_usage,
-    cleanup_memory,
-    OptimizedDisciplineCache,
-    RegexPatternCache,
     BatchProcessor,
+    OptimizedDisciplineCache,
     OptimizedMetadataProcessor,
     PerformanceBenchmark,
-    optimize_metadata_processing
+    RegexPatternCache,
+    cleanup_memory,
+    monitor_memory_usage,
+    optimize_metadata_processing,
+    time_operation,
 )
 
 
@@ -373,7 +373,7 @@ def run_performance_comparison():
     # Calculate improvement
     improvement = ((non_opt_time - opt_time) / non_opt_time) * 100
     
-    print(f"\n📊 Performance Results:")
+    print("\n📊 Performance Results:")
     print(f"   Non-optimized: {non_opt_time:.3f}s")
     print(f"   Optimized:     {opt_time:.3f}s")
     print(f"   Improvement:   {improvement:.1f}% faster")

@@ -114,13 +114,13 @@ class GeneralLaunchService(AbstractLaunchService):
             CogniteAPIError: If query timeout (408) or max jobs reached (429), handled gracefully.
         """
         self.logger.info(
-            message=f"Starting Launch Function",
+            message="Starting Launch Function",
             section="START",
         )
         try:
             file_nodes, file_to_state_map = self.data_model_service.get_files_to_process()
             if not file_nodes or not file_to_state_map:
-                self.logger.info(message=f"No files found to launch")
+                self.logger.info(message="No files found to launch")
                 return "Done"
             self.logger.info(message=f"Launching {len(file_nodes)} files", section="END")
         except CogniteAPIError as e:
@@ -251,7 +251,7 @@ class GeneralLaunchService(AbstractLaunchService):
             or self._cached_secondary_scope != secondary_scope_value
             or not self.in_memory_cache
         ):
-            self.logger.info(f"Refreshing in memory cache")
+            self.logger.info("Refreshing in memory cache")
             try:
                 self.in_memory_cache, self.in_memory_patterns = self.cache_service.get_entities(
                     self.data_model_service,

@@ -112,7 +112,7 @@ class GeneralFinalizeService(AbstractFinalizeService):
         except CogniteAPIError as e:
             if e.code == 400 and e.message == "A version conflict caused the ingest to fail.":
                 self.logger.info(
-                    message=f"Retrieved job that has already been claimed. Grabbing another job.",
+                    message="Retrieved job that has already been claimed. Grabbing another job.",
                     section="END",
                 )
                 return
@@ -491,7 +491,7 @@ class GeneralFinalizeService(AbstractFinalizeService):
             self.logger.info(f"- set annotation status to {status}")
         except Exception as e:
             self.logger.error(
-                f"Ran into the following error. Trying again in 30 seconds",
+                "Ran into the following error. Trying again in 30 seconds",
                 error=e,
                 section="END",
             )

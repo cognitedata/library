@@ -3,19 +3,19 @@
 Asset Hierarchy Quality Dashboard.
 """
 
-import streamlit as st
 import pandas as pd
 import plotly.express as px
+import streamlit as st
 
+from .ai_summary import (
+    format_hierarchy_metrics,
+    get_hierarchy_prompt,
+    render_ai_summary_section,
+)
 from .common import (
+    gauge,
     get_status_color_hierarchy,
     metric_card,
-    gauge,
-)
-from .ai_summary import (
-    render_ai_summary_section,
-    get_hierarchy_prompt,
-    format_hierarchy_metrics,
 )
 
 
@@ -98,7 +98,7 @@ def render_asset_hierarchy_dashboard(metrics: dict):
         incomplete = non_root - int(non_root * hierarchy_completion_rate / 100) if non_root > 0 else 0
         
         if hierarchy_completion_rate >= 95:
-            st.success(f"Excellent hierarchy structure!")
+            st.success("Excellent hierarchy structure!")
         elif hierarchy_completion_rate >= 80:
             st.warning(f"~{incomplete:,} assets may have missing parent links.")
         else:

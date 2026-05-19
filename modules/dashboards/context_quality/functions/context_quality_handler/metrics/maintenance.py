@@ -2,17 +2,18 @@
 Maintenance workflow processing and metrics computation (RMDM v1).
 """
 
-from typing import Optional, List
+from typing import List, Optional
+
 from cognite.client.data_classes.data_modeling import ViewId
 
 from .common import (
-    get_props,
-    get_external_id,
-    normalize_timestamp,
-    NotificationData,
-    MaintenanceOrderData,
-    FailureNotificationData,
     CombinedAccumulator,
+    FailureNotificationData,
+    MaintenanceOrderData,
+    NotificationData,
+    get_external_id,
+    get_props,
+    normalize_timestamp,
 )
 
 
