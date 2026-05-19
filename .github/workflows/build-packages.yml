@@ -21,11 +21,8 @@ jobs:
       with:
         python-version: '3.11'
 
-    - name: Install ruff
-      run: pip install ruff
-
     - name: Lint with ruff
-      run: ruff check .
+      uses: astral-sh/ruff-action@v3
 
     - name: Validate packages.toml
       run: |
