@@ -13,7 +13,6 @@ from .ai_summary import (
 )
 from .common import (
     gauge,
-    gauge_na,
     get_status_color_files,
     metric_card,
 )

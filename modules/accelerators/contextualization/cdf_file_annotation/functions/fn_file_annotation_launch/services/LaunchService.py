@@ -8,7 +8,6 @@ from cognite.client import CogniteClient
 from cognite.client.data_classes.contextualization import FileReference
 from cognite.client.data_classes.data_modeling import (
     Node,
-    NodeApply,
     NodeList,
 )
 from cognite.client.exceptions import CogniteAPIError

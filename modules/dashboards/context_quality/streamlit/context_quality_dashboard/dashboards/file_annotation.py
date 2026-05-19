@@ -17,7 +17,6 @@ from .ai_summary import (
 from .common import (
     gauge,
     gauge_na,
-    get_status_color_hierarchy,
     metric_card,
 )
 

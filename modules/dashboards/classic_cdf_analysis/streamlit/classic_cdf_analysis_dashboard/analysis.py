@@ -4,7 +4,6 @@ Port of the TypeScript analysis module for use with the Python Cognite SDK.
 """
 from __future__ import annotations
 
-import re
 from typing import Any, Optional
 
 CDF_FILTER_MAX_LEN = 64

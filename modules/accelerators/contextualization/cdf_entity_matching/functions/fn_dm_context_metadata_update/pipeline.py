@@ -5,23 +5,20 @@ This module provides optimized metadata update functionality for timeseries and 
 with improved performance, caching, batch processing, and error handling.
 """
 
-import gc
 import sys
 import traceback
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional
 
 from cognite.client import CogniteClient
 from cognite.client import data_modeling as dm
-from cognite.client.data_classes import ExtractionPipelineRun, Row
+from cognite.client.data_classes import ExtractionPipelineRun
 from cognite.client.data_classes.data_modeling import (
     Node,
-    NodeApply,
     NodeList,
-    NodeOrEdgeData,
     ViewId,
 )
-from cognite.client.data_classes.filters import Equals, HasData, In
+from cognite.client.data_classes.filters import Equals, HasData
 from cognite.client.exceptions import CogniteAPIError
 from cognite.client.utils._text import shorten
 from config import Config, ViewPropertyConfig

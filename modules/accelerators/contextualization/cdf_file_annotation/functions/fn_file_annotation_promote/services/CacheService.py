@@ -5,7 +5,6 @@ from typing import Any, Callable
 
 from cognite.client import CogniteClient
 from cognite.client.data_classes.data_modeling import Node, NodeList
-from cognite.client.data_classes.data_modeling.ids import ViewId
 from cognite.client.data_classes.raw import Row
 from services.ConfigService import Config, ViewPropertyConfig
 from services.LoggerService import CogniteFunctionLogger

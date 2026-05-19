@@ -8,7 +8,6 @@ import asyncio
 import html
 import os
 import re
-import time
 import warnings
 
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="pandas")
@@ -27,7 +26,6 @@ import pandas as pd
 import streamlit as st
 from analysis import (
     ClientAdapter,
-    _aggregate_resource,
     _data_set_filter_aggregate,
     _documents_data_set_filter,
     _project_path,

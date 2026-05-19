@@ -1033,7 +1033,6 @@ def run_wfj_export(
     See COMMON_JSONL_FORMAT.md for format specification.
     """
 
-    import threading as _threading  # Local import, prefixed to avoid conflicts
     import traceback as _traceback  # Local import, prefixed to avoid conflicts
 
     # Check if client is ready (local variable, prefixed with _)

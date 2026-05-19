@@ -26,14 +26,11 @@ from cognite.client.data_classes.data_modeling import (
     ViewId,
 )
 from cognite.client.data_classes.data_modeling.query import NodeResultSetExpression, Query, Select, SourceSelector
-from cognite.client.data_classes.filters import In, Or
 from cognite.client.exceptions import CogniteAPIError
-from cognite.client.utils._auxiliary import split_into_chunks
 from cognite.client.utils._text import shorten
 from cognite.extractorutils.uploader import RawUploadQueue
 from config import Config, ViewPropertyConfig
 from constants import (
-    ANNOTATE_BATCH_SIZE,
     BATCH_SIZE,
     EXTERNAL_ID_LIMIT,
     FILE_LINK_EXTERNAL_ID,

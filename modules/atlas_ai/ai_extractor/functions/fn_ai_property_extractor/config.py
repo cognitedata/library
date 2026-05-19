@@ -6,7 +6,7 @@ Uses Pydantic for validation and parsing of extraction pipeline configuration.
 
 import json
 from enum import Enum
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional
 
 import yaml
 from cognite.client import CogniteClient

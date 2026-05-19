@@ -5,15 +5,13 @@ This module provides optimization utilities for metadata update functions to imp
 performance, reduce memory usage, and enhance reliability.
 """
 
-import concurrent.futures
 import gc
 import re
 import time
-from collections import defaultdict
 from contextlib import contextmanager
 from dataclasses import dataclass
 from functools import lru_cache
-from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import psutil
 from cognite.client import CogniteClient

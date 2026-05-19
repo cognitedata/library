@@ -7,7 +7,6 @@ from typing import Any, Dict, Iterator, List, Set, cast
 from cognite.client import CogniteClient
 from cognite.client.data_classes import Row, RowWrite
 from cognite.client.data_classes.data_modeling import (
-    Node,
     NodeList,
 )
 from cognite.client.exceptions import CogniteNotFoundError

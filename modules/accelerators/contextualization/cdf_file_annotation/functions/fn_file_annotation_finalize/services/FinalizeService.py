@@ -8,7 +8,6 @@ from cognite.client.data_classes.data_modeling import (
     Node,
     NodeApply,
     NodeId,
-    NodeList,
     NodeOrEdgeData,
 )
 from cognite.client.exceptions import CogniteAPIError

@@ -8,7 +8,6 @@ The dashboard loads that file and filters the view by your config: selected data
 """
 
 import json
-from datetime import datetime
 
 import streamlit as st
 
