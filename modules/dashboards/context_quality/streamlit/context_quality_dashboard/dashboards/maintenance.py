@@ -5,16 +5,16 @@ Maintenance Workflow Quality Dashboard (RMDM v1).
 
 import streamlit as st
 
+from .ai_summary import (
+    format_maintenance_metrics,
+    get_maintenance_prompt,
+    render_ai_summary_section,
+)
 from .common import (
-    get_status_color_maintenance,
-    metric_card,
     gauge,
     gauge_na,
-)
-from .ai_summary import (
-    render_ai_summary_section,
-    get_maintenance_prompt,
-    format_maintenance_metrics,
+    get_status_color_maintenance,
+    metric_card,
 )
 
 
@@ -144,11 +144,11 @@ def render_maintenance_dashboard(metrics: dict):
         if total_orders == 0:
             st.info("No work orders found in RMDM.")
         elif order_asset_rate >= 95:
-            st.success(f"Excellent work order coverage!")
+            st.success("Excellent work order coverage!")
         elif order_asset_rate >= 80:
-            st.warning(f"Some work orders need asset links.")
+            st.warning("Some work orders need asset links.")
         else:
-            st.error(f"Many work orders are missing asset links!")
+            st.error("Many work orders are missing asset links!")
     
     st.markdown("---")
     

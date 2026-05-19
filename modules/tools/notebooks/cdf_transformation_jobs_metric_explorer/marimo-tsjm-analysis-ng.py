@@ -50,11 +50,12 @@ def chapter1_setup_header(mo):
 
 @app.cell(hide_code=True)
 def import_core_libraries():
-    import polars as pl
-    import altair as alt
-    from pathlib import Path
-    import json
     import datetime
+    import json
+    from pathlib import Path
+
+    import altair as alt
+    import polars as pl
 
     # deactivate the '...' menu in altair charts to download the graph in different formats
     alt.renderers.set_embed_options(actions=False)
@@ -111,6 +112,7 @@ def init_cdf_client(Path, config_form, mo):
     """
 
     import os
+
     from dotenv import load_dotenv
 
     cdf_client = None
@@ -200,13 +202,13 @@ def init_cdf_client(Path, config_form, mo):
 
 
 @app.cell
-def track_usage(cdf_client):
+def track_usage(cdf_client, json):
     """Usage tracking - fires once when CDF client is established."""
     if cdf_client is not None:
         try:
-            # json from import_core_libraries — do not import json here (marimo multiple-definitions)
             import base64
             import re
+
             import requests as _req
             _cluster = getattr(cdf_client.config, "cdf_cluster", None)
             if not _cluster:
@@ -2440,7 +2442,7 @@ def create_daily_aggregation_chart(
                     ]
                 )
             else:
-                _output = mo.md(f"No data found for selected metrics in date range")
+                _output = mo.md("No data found for selected metrics in date range")
         else:
             _output = mo.md("Select at least one metric to see aggregation.")
     else:

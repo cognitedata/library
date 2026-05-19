@@ -12,7 +12,7 @@ import traceback
 from pathlib import Path
 from typing import Literal
 
-from cognite.client import CogniteClient, ClientConfig
+from cognite.client import ClientConfig, CogniteClient
 from cognite.client.credentials import OAuthClientCredentials
 from cognite.client.data_classes import ExtractionPipelineRunWrite
 from cognite.client.data_classes.data_modeling import NodeApply, NodeOrEdgeData
@@ -22,10 +22,9 @@ sys.path.append(str(Path(__file__).parent))
 
 from datetime import datetime, timezone
 
-from config import load_config, Config, WriteMode
+from config import Config, WriteMode, load_config
 from extractor import LLMPropertyExtractor
 from state_store import StateStoreHandler, _now_iso
-
 
 # ---------------------------------------------------------------------------
 # Usage tracking
@@ -38,6 +37,7 @@ _TRACKER_VERSION = "1"
 def _report_usage(client: CogniteClient) -> None:
     try:
         import threading
+
         from mixpanel import Consumer, Mixpanel
         mp = Mixpanel("8f28374a6614237dd49877a0d27daa78", consumer=Consumer(api_host="api-eu.mixpanel.com"))
         distinct_id = f"{client.config.project}:{client.config.cdf_cluster}"
@@ -424,7 +424,7 @@ def query_instances(
         List of instances ready for extraction
     """
     from cognite.client import data_modeling as dm
-    from config import PropertyConfig, WriteMode
+    from config import PropertyConfig
     
     filters: list[dm.filters.Filter] = []
     

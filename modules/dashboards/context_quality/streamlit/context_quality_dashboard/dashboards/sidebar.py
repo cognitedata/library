@@ -3,18 +3,19 @@
 Sidebar metadata display component.
 """
 
-import streamlit as st
 from datetime import datetime
 
+import streamlit as st
+
 from .reports import (
-    generate_full_report,
+    generate_3d_model_report,
     generate_asset_hierarchy_report,
     generate_equipment_report,
-    generate_timeseries_report,
-    generate_maintenance_report,
     generate_file_annotation_report,
-    generate_3d_model_report,
     generate_files_report,
+    generate_full_report,
+    generate_maintenance_report,
+    generate_timeseries_report,
 )
 
 

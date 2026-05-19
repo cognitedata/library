@@ -5,13 +5,14 @@ Measures file contextualization quality based on the CogniteFile view from CDM.
 """
 
 from typing import Dict, List, Optional, Tuple
+
 from cognite.client.data_classes.data_modeling import ViewId
 
 from .common import (
-    get_props,
-    get_external_id,
-    FileData,
     CombinedAccumulator,
+    FileData,
+    get_external_id,
+    get_props,
 )
 
 

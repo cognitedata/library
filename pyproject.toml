@@ -1,0 +1,17 @@
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+ignore = [
+    "E501",  # line too long — address per-file as needed
+    "E701",  # multiple statements on one line (colon)
+    "E722",  # bare except
+    "E402",  # module level import not at top of file
+    "F401",  # imported but unused — address separately
+    "F841",  # local variable assigned but never used
+]
+
+[tool.ruff.lint.per-file-ignores]
+"**/__init__.py" = ["F401"]
+"**/*.ipynb" = ["E741", "F402"]

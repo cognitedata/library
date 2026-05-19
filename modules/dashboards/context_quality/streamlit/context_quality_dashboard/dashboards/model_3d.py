@@ -11,14 +11,15 @@ Displays metrics for 3D model associations:
 Features creative visualizations since there are only a few primary metrics.
 """
 
-import streamlit as st
-import plotly.graph_objects as go
 from typing import Optional
 
+import plotly.graph_objects as go
+import streamlit as st
+
 from .ai_summary import (
-    render_ai_summary_section,
-    get_3d_model_prompt,
     format_3d_model_metrics,
+    get_3d_model_prompt,
+    render_ai_summary_section,
 )
 
 

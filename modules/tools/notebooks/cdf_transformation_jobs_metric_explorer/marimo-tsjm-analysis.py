@@ -19,26 +19,27 @@ app = marimo.App(width="columns", app_title="TSJM bench")
 
 with app.setup(hide_code=True):
     # Standard library imports
+    import datetime
     import json
     import os
     import re
+    import threading
     import time
     import traceback
-    import threading
     from concurrent.futures import ThreadPoolExecutor, as_completed
     from pathlib import Path
     from typing import Any
-    import datetime
+
+    import altair as alt
 
     # Third-party library imports
     import marimo as mo
-    import polars as pl
-    import altair as alt
     import pandas as pd
-    from dotenv import load_dotenv
-    from wigglystuff import CellTour
+    import polars as pl
     from cognite.client.credentials import OAuthInteractive
     from cognite_toolkit._cdf_tk.utils.auth import EnvironmentVariables
+    from dotenv import load_dotenv
+    from wigglystuff import CellTour
 
 
     # Configure Altair to disable download menu
@@ -434,6 +435,7 @@ def track_usage(cdf_client):
         try:
             # json, re from app.setup — local import here would duplicate cell defs (marimo)
             import base64
+
             import requests as _req
             _cluster = getattr(cdf_client.config, "cdf_cluster", None)
             if not _cluster:
@@ -2860,7 +2862,7 @@ def generate_download(
 
             _output = mo.vstack(
                 [
-                    mo.md(f"### Download Ready"),
+                    mo.md("### Download Ready"),
                     mo.callout(
                         mo.vstack(
                             [

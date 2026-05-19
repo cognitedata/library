@@ -19,9 +19,10 @@ def _report_usage(cdf_client) -> None:
     if cdf_client is None or st.session_state.get("_usage_tracked"):
         return
     try:
-        import re
-        import json
         import base64
+        import json
+        import re
+
         import requests
         cluster = getattr(cdf_client.config, "cdf_cluster", None)
         if not cluster:

@@ -6,10 +6,11 @@ Generates downloadable PDF reports for each dashboard tab.
 Uses fpdf2 for lightweight, pure-Python PDF generation.
 """
 
-from fpdf import FPDF
+import io
 from datetime import datetime
 from typing import Optional
-import io
+
+from fpdf import FPDF
 
 
 class ContextQualityReport(FPDF):

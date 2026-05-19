@@ -2,11 +2,11 @@
 Common utilities, data classes, and accumulator for metrics computation.
 """
 
-from typing import Optional, Dict, Set, List
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
-from cognite.client.data_classes.data_modeling import ViewId
+from typing import Dict, List, Optional, Set
 
+from cognite.client.data_classes.data_modeling import ViewId
 
 # ----------------------------------------------------
 # CONSTANTS

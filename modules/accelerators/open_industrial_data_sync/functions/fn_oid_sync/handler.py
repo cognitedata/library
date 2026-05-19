@@ -26,6 +26,7 @@ _TRACKER_VERSION = "1"
 def _report_usage(client: CogniteClient) -> None:
     try:
         import threading
+
         from mixpanel import Consumer, Mixpanel
         mp = Mixpanel("8f28374a6614237dd49877a0d27daa78", consumer=Consumer(api_host="api-eu.mixpanel.com"))
         distinct_id = f"{client.config.project}:{client.config.cdf_cluster}"

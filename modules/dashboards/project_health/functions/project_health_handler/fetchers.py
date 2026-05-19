@@ -8,6 +8,7 @@ but without caching or Streamlit.
 
 from abc import ABC, abstractmethod
 from typing import Any, Optional
+
 from cognite.client import CogniteClient
 
 # Shared status sets (must match dashboard config)
