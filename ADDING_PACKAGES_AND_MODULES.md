@@ -85,7 +85,6 @@ description = "Deploy all Atlas AI modules in one package."
 canCherryPick = true
 modules = [
     "atlas_ai/ootb_agents/",
-    "atlas_ai/rca_with_rmdm"
 ]
 ```
 
