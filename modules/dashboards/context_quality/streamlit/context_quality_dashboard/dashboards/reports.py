@@ -6,7 +6,6 @@ Generates downloadable PDF reports for each dashboard tab.
 Uses fpdf2 for lightweight, pure-Python PDF generation.
 """
 
-import io
 from datetime import datetime
 from typing import Optional
 

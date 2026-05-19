@@ -10,8 +10,7 @@ import sys
 import time
 import unittest
 from pathlib import Path
-from typing import Any, Dict, List
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import MagicMock
 
 # Add current directory to path
 sys.path.append(str(Path(__file__).parent))

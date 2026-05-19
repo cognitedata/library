@@ -17,10 +17,10 @@ from cognite.client.data_classes.data_modeling import (
     NodeOrEdgeData,
     ViewId,
 )
-from cognite.client.data_classes.filters import Equals, In
+from cognite.client.data_classes.filters import Equals
 from services.ConfigService import Config
 from services.LoggerService import CogniteFunctionLogger
-from utils.DataStructures import DiagramAnnotationStatus, remove_protected_properties
+from utils.DataStructures import DiagramAnnotationStatus
 
 
 class IApplyService(abc.ABC):

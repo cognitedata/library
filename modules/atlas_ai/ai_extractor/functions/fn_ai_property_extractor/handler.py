@@ -20,7 +20,6 @@ from cognite.client.data_classes.data_modeling import NodeApply, NodeOrEdgeData
 # Add current directory to path for local imports
 sys.path.append(str(Path(__file__).parent))
 
-from datetime import datetime, timezone
 
 from config import Config, WriteMode, load_config
 from extractor import LLMPropertyExtractor
@@ -424,7 +423,6 @@ def query_instances(
         List of instances ready for extraction
     """
     from cognite.client import data_modeling as dm
-    from config import PropertyConfig
     
     filters: list[dm.filters.Filter] = []
     
