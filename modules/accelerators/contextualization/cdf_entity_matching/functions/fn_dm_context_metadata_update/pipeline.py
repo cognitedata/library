@@ -61,9 +61,8 @@ def metadata_update(
     # Initialize performance monitoring
     benchmark = PerformanceBenchmark(logger)
     
+    pipeline_ext_id = data["ExtractionPipelineExtId"]
     try:
-        pipeline_ext_id = data["ExtractionPipelineExtId"]
-        
         # Monitor initial memory usage
         monitor_memory_usage(logger, "Pipeline start")
         
@@ -338,7 +337,8 @@ def get_ts_filter(
     
 
         # Check if the view entity already is matched or not
-    if not run_all:  
+    dbg_msg = ""
+    if not run_all:
         has_alias = dm.filters.Exists(view_config.as_property_ref("aliases"))
         not_alias = dm.filters.Not(has_alias)
         filters.append(not_alias)

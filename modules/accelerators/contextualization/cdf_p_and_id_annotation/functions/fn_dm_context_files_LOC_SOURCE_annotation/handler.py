@@ -44,9 +44,9 @@ def _report_usage(client: CogniteClient) -> None:
 
 def handle(data: dict, client: CogniteClient) -> dict:
     _report_usage(client)
+    loglevel = data.get("logLevel", "INFO")
+    logger = CogniteFunctionLogger(loglevel)
     try:
-        loglevel = data.get("logLevel", "INFO")
-        logger = CogniteFunctionLogger(loglevel)
         logger.info(f"Starting diagram parsing annotation with loglevel = {loglevel},  reading parameters from extraction pipeline config: {data.get('ExtractionPipelineExtId')}")
         config = load_config_parameters(client, data)
         logger.debug("Loaded config successfully")

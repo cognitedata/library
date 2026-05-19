@@ -11,7 +11,7 @@ import zipfile
 from pathlib import Path
 
 
-def create_modules_zip(output_name: str = None) -> str:
+def create_modules_zip(output_name: str | None = None) -> str:
     """
     Create a zip archive of the modules folder.
 
