@@ -39,11 +39,11 @@ documentation: |
 
   | Variable                | Purpose                                                |
   | ----------------------- | ------------------------------------------------------ |
-  | `CDF_PROJECT`       | CDF project name                                       |
-  | `CDF_URL`          | CDF base URL (e.g. `https://api.cognitedata.com`)      |
-  | `IDP_TENANT_ID`     | IdP tenant ID                                          |
-  | `IDP_CLIENT_ID`     | Service account client ID                              |
-  | `IDP_CLIENT_SECRET` | Service account client secret                          |
+  | `CDF_PROJECT`           | CDF project name                                       |
+  | `CDF_URL`               | CDF base URL (e.g. `https://api.cognitedata.com`)      |
+  | `IDP_TENANT_ID`         | IdP tenant ID                                          |
+  | `IDP_CLIENT_ID`         | Service account client ID                              |
+  | `IDP_CLIENT_SECRET`     | Service account client secret                          |
   | `PI_HOST`               | PI Data Archive hostname or IP                         |
   | `PI_USER`               | PI server username (omit for Windows authentication)   |
   | `PI_PASSWORD`           | PI server password (omit for Windows authentication)   |
