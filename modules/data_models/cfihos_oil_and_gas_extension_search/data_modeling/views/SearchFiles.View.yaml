@@ -1,0 +1,398 @@
+space: "{{search_space}}"
+externalId: Files
+name: Files
+description: Search-optimized files view. Maps to enterprise Files and CogniteFile
+  containers. Flattens document/revision/file metadata for one-shot retrieval.
+implements:
+- space: cdf_cdm
+  externalId: CogniteDescribable
+  version: v1
+  type: view
+version: "{{search_dm_version}}"
+properties:
+  assets:
+    name: Tags
+    description: A list of tags the file is related to.
+    container:
+      space: cdf_cdm
+      externalId: CogniteFile
+      type: container
+    containerPropertyIdentifier: assets
+    source:
+      space: "{{search_space}}"
+      externalId: Tag
+      version: "{{search_dm_version}}"
+      type: view
+  mainAsset:
+    name: Main Asset
+    description: Main asset reference
+    container:
+      space: "{{enterprise_space}}"
+      externalId: Files
+      type: container
+    containerPropertyIdentifier: mainAsset
+  area:
+    name: Area
+    description: Area code
+    container:
+      space: "{{enterprise_space}}"
+      externalId: Files
+      type: container
+    containerPropertyIdentifier: area
+  facility:
+    name: Facility
+    description: Facility code
+    container:
+      space: "{{enterprise_space}}"
+      externalId: Files
+      type: container
+    containerPropertyIdentifier: facility
+  system:
+    name: System
+    description: System code
+    container:
+      space: "{{enterprise_space}}"
+      externalId: Files
+      type: container
+    containerPropertyIdentifier: system
+  documentTypeCode:
+    name: Document Type Code
+    description: Document type code
+    container:
+      space: "{{enterprise_space}}"
+      externalId: Files
+      type: container
+    containerPropertyIdentifier: documentTypeCode
+  documentClassId:
+    name: Document Class Id
+    description: Document class identifier
+    container:
+      space: "{{enterprise_space}}"
+      externalId: Files
+      type: container
+    containerPropertyIdentifier: documentClassId
+  documentClassName:
+    name: Document Class Name
+    description: Document class name
+    container:
+      space: "{{enterprise_space}}"
+      externalId: Files
+      type: container
+    containerPropertyIdentifier: documentClassName
+  documentNumber:
+    name: Document Number
+    description: Document number
+    container:
+      space: "{{enterprise_space}}"
+      externalId: Files
+      type: container
+    containerPropertyIdentifier: documentNumber
+  disciplineCode:
+    name: Discipline Code
+    description: Discipline code
+    container:
+      space: "{{enterprise_space}}"
+      externalId: Files
+      type: container
+    containerPropertyIdentifier: disciplineCode
+  disciplineCodeDesc:
+    name: Discipline Code Description
+    description: Discipline code description
+    container:
+      space: "{{enterprise_space}}"
+      externalId: Files
+      type: container
+    containerPropertyIdentifier: disciplineCodeDesc
+  documentHasMarkup:
+    name: Document Has Markup
+    description: Whether the document has markup
+    container:
+      space: "{{enterprise_space}}"
+      externalId: Files
+      type: container
+    containerPropertyIdentifier: documentHasMarkup
+  documentSource:
+    name: Document Source
+    description: Source of the document
+    container:
+      space: "{{enterprise_space}}"
+      externalId: Files
+      type: container
+    containerPropertyIdentifier: documentSource
+  documentStorage:
+    name: Document Storage
+    description: Storage location of the document
+    container:
+      space: "{{enterprise_space}}"
+      externalId: Files
+      type: container
+    containerPropertyIdentifier: documentStorage
+  documentTitle:
+    name: Document Title
+    description: Title of the document
+    container:
+      space: "{{enterprise_space}}"
+      externalId: Files
+      type: container
+    containerPropertyIdentifier: documentTitle
+  equipmentPackage:
+    name: Equipment Package
+    description: Equipment package reference
+    container:
+      space: "{{enterprise_space}}"
+      externalId: Files
+      type: container
+    containerPropertyIdentifier: equipmentPackage
+  issueDate:
+    name: Issue Date
+    description: Issue date
+    container:
+      space: "{{enterprise_space}}"
+      externalId: Files
+      type: container
+    containerPropertyIdentifier: issueDate
+  originatingContractor:
+    name: Originating Contractor
+    description: Originating contractor
+    container:
+      space: "{{enterprise_space}}"
+      externalId: Files
+      type: container
+    containerPropertyIdentifier: originatingContractor
+  project:
+    name: Project
+    description: Project reference
+    container:
+      space: "{{enterprise_space}}"
+      externalId: Files
+      type: container
+    containerPropertyIdentifier: project
+  purchaseOrderNumber:
+    name: Purchase Order Number
+    description: Purchase order number
+    container:
+      space: "{{enterprise_space}}"
+      externalId: Files
+      type: container
+    containerPropertyIdentifier: purchaseOrderNumber
+  remarks:
+    name: Remarks
+    description: Remarks
+    container:
+      space: "{{enterprise_space}}"
+      externalId: Files
+      type: container
+    containerPropertyIdentifier: remarks
+  useProjectStatus:
+    name: Use Project Status
+    description: Use project status
+    container:
+      space: "{{enterprise_space}}"
+      externalId: Files
+      type: container
+    containerPropertyIdentifier: useProjectStatus
+  vendorDocumentNumber:
+    name: Vendor Document Number
+    description: Vendor document number
+    container:
+      space: "{{enterprise_space}}"
+      externalId: Files
+      type: container
+    containerPropertyIdentifier: vendorDocumentNumber
+  workflowStatus:
+    name: Workflow Status
+    description: Workflow status
+    container:
+      space: "{{enterprise_space}}"
+      externalId: Files
+      type: container
+    containerPropertyIdentifier: workflowStatus
+  workingSetId:
+    name: Working Set Id
+    description: Working set identifier
+    container:
+      space: "{{enterprise_space}}"
+      externalId: Files
+      type: container
+    containerPropertyIdentifier: workingSetId
+  referenceDocumentNumber:
+    name: Reference Document Number
+    description: Reference to another document
+    container:
+      space: "{{enterprise_space}}"
+      externalId: Files
+      type: container
+    containerPropertyIdentifier: referenceDocumentNumber
+  supersededByDocument:
+    name: Superseded By Document
+    description: Document that supersedes this one
+    container:
+      space: "{{enterprise_space}}"
+      externalId: Files
+      type: container
+    containerPropertyIdentifier: supersededByDocument
+  currentRevision:
+    name: Current Revision
+    description: Current revision
+    container:
+      space: "{{enterprise_space}}"
+      externalId: Files
+      type: container
+    containerPropertyIdentifier: currentRevision
+  revisionFiles:
+    name: Revision Files
+    description: List of revision files
+    container:
+      space: "{{enterprise_space}}"
+      externalId: Files
+      type: container
+    containerPropertyIdentifier: revisionFiles
+  site:
+    name: Site
+    description: Site code
+    container:
+      space: "{{enterprise_space}}"
+      externalId: Files
+      type: container
+    containerPropertyIdentifier: site
+  documentRevision:
+    name: Document Revision
+    description: Document revision code
+    container:
+      space: "{{enterprise_space}}"
+      externalId: Files
+      type: container
+    containerPropertyIdentifier: documentRevision
+  documentRevisionRemark:
+    name: Document Revision Remark
+    description: Document revision remark
+    container:
+      space: "{{enterprise_space}}"
+      externalId: Files
+      type: container
+    containerPropertyIdentifier: documentRevisionRemark
+  createSvgFile:
+    name: Create SVG File
+    description: Create SVG file flag
+    container:
+      space: "{{enterprise_space}}"
+      externalId: Files
+      type: container
+    containerPropertyIdentifier: createSvgFile
+  updatedDate:
+    name: Updated Date
+    description: Updated date
+    container:
+      space: "{{enterprise_space}}"
+      externalId: Files
+      type: container
+    containerPropertyIdentifier: updatedDate
+  annotatedDate:
+    name: Annotated Date
+    description: Annotated date
+    container:
+      space: "{{enterprise_space}}"
+      externalId: Files
+      type: container
+    containerPropertyIdentifier: annotatedDate
+  extension:
+    name: Extension
+    description: File extension
+    container:
+      space: "{{enterprise_space}}"
+      externalId: Files
+      type: container
+    containerPropertyIdentifier: extension
+  state:
+    name: State
+    description: File state
+    container:
+      space: "{{enterprise_space}}"
+      externalId: Files
+      type: container
+    containerPropertyIdentifier: state
+  subject:
+    name: Subject
+    description: Subject
+    container:
+      space: "{{enterprise_space}}"
+      externalId: Files
+      type: container
+    containerPropertyIdentifier: subject
+  additionalProperties:
+    name: Additional Properties
+    description: Additional properties as JSON
+    container:
+      space: "{{enterprise_space}}"
+      externalId: Files
+      type: container
+    containerPropertyIdentifier: additionalProperties
+  name:
+    name: Name
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: name
+    description: Name of the file
+  description:
+    name: Description
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: description
+    description: Description of the file
+  labels:
+    name: Labels
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: tags
+    description: Text-based labels for generic use, limited to 1000.
+  aliases:
+    name: Aliases
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: aliases
+    description: Alternative names for the node
+  sourceId:
+    name: Source Id
+    container:
+      space: cdf_cdm
+      externalId: CogniteSourceable
+      type: container
+    containerPropertyIdentifier: sourceId
+    description: Identifier from the source system
+  source:
+    name: Source
+    container:
+      space: cdf_cdm
+      externalId: CogniteSourceable
+      type: container
+    containerPropertyIdentifier: source
+    description: Direct relation to a source system
+    source:
+      space: cdf_cdm
+      externalId: CogniteSourceSystem
+      version: v1
+      type: view
+  equipment:
+    name: Equipment
+    description: An automatically updated list of equipment related to the file.
+    connectionType: multi_reverse_direct_relation
+    source:
+      space: "{{search_space}}"
+      externalId: Equipment
+      version: "{{search_dm_version}}"
+      type: view
+    through:
+      source:
+        space: "{{search_space}}"
+        externalId: Equipment
+        version: "{{search_dm_version}}"
+        type: view
+      identifier: files

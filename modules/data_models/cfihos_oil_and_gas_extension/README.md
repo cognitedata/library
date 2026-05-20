@@ -1,6 +1,8 @@
-# Oil and Gas Domain Model — CFIHOS Extension
+# Oil and Gas Domain Model — CFIHOS Extension (Enterprise)
 
-A tag-centric data model for oil and gas operations that merges data from AVEVA, SAP, OPC UA, and PI into a single queryable structure. Built on the CFIHOS 2.0 standard and deployed as a Cognite Toolkit module extending the Cognite Data Model (CDM) and Industry Data Model (IDM).
+A tag-centric **enterprise** data model for oil and gas operations that merges data from AVEVA, SAP, OPC UA, and PI into a single queryable structure. Built on the CFIHOS 2.0 standard and deployed as a Cognite Toolkit module extending the Cognite Data Model (CDM) and Industry Data Model (IDM).
+
+> **Companion search solution module:** [`cfihos_oil_and_gas_extension_search`](../cfihos_oil_and_gas_extension_search/README.md) provides a search-optimized solution model that **maps to** the enterprise containers defined here without `implements:`-ing the enterprise views. The two modules version independently and live in separate spaces (`dm_dom_oil_and_gas` vs. `dm_sol_oil_and_gas_search`), so views can share externalIds (e.g. `Tag`, `Equipment`, `WorkOrder`) without collision. See `.cursor/skills/cognite-data-modeling/references/cdf-enterprise-vs-solution.md` for the layering rationale.
 
 The model favors **simplicity and denormalization** over strict normalization. Rather than forcing users to join across many small tables, related properties are flattened into fewer, wider views. Time series data from PI and OPC UA is merged into a single `TimeSeriesData` view with prefixed properties (`pi_*`, `opcua_*`), and document data that would normally span document, revision, and file entities is flattened into a single `Files` view. This makes the data immediately accessible to AI tools, search engines, dashboards, and developers — a single query returns everything you need about an entity without complex joins.
 
@@ -23,9 +25,26 @@ The model favors **simplicity and denormalization** over strict normalization. R
 ![Data Model View Relationships](data_model_views.png)
 
 Use the architecture figure as a quick orientation:
-- `Tag` is the central asset node and relation hub.
+- `Tag` is the central asset node and the single `CogniteAsset` implementer in the enterprise model.
 - Equipment-class, work-management, and context views connect to `Tag` through direct relations.
-- Reverse relations (`through`) are intentionally used for common navigation paths in CDF apps and search.
+- The enterprise `Tag` view holds only the `children` reverse relation (mirroring `CogniteAsset.parent`). All solution-shaped reverse relations (`workOrders`, `notifications`, `timeSeries`, `files`, `equipment`, `failureModes`, `workOrderOperations`, etc.) live in the **search solution module** on its `Tag` view, not here. This keeps the enterprise model decoupled from solution navigation patterns.
+
+### Why the model is split into enterprise + search
+
+The model is delivered as **two modules** that version independently:
+
+| Module | Space | Role |
+|--------|-------|------|
+| `cfihos_oil_and_gas_extension` (this one) | `dm_dom_oil_and_gas` | Owns containers, indexes, and the canonical CDM/IDM-implementing views. Treated as the durable contract. |
+| `cfihos_oil_and_gas_extension_search` | `dm_sol_oil_and_gas_search` | Maps to the enterprise containers via `container:` + `containerPropertyIdentifier:`. Hosts solution-shaped reverse relations. Free to bump versions independently. |
+
+Reasons for the split (per `cdf-enterprise-vs-solution.md`):
+
+1. **Containers are the durable contract.** Solution views map to enterprise *containers* rather than `implements:`-ing enterprise *views*, so the search model can re-shape and re-version without forcing enterprise consumers to migrate.
+2. **Reverse relations live with their forward.** Forward direct relations on solution-shaped views (`WorkOrder.assets`, `Notification.assets`, `TimeSeriesData.assets`, …) belong to the search model, so the matching reverses (`Tag.workOrders`, `Tag.notifications`, `Tag.timeSeries`, …) live on the search-side `Tag` view — not piled onto this enterprise `Tag` view.
+3. **Single `CogniteAsset` per data model.** Each data model that needs asset semantics defines its own single `CogniteAsset` implementer. This module's `Tag` is the enterprise one; the search module exposes asset-hierarchy properties (`parent`, `root`, `path`, `children`) on its own `Tag` view, self-referencing within the search space, without `implements: CogniteAsset` on the search side.
+4. **Same externalIds in different spaces are intentional.** Both modules expose views named `Tag`, `Equipment`, `WorkOrder`, etc. They live in different spaces, so there is no collision; this gives consumers consistent names whether they read the enterprise or search model.
+5. **Independent lifecycles.** `dm_version` (enterprise) and `search_dm_version` (search) bump separately so a search-side change never forces an enterprise version bump, and vice versa.
 
 ### CDM extensions (cdf_cdm)
 
@@ -133,8 +152,7 @@ cfihos_oil_and_gas_extension/
 ├── data_modeling/
 │   ├── containers/              # Container definitions (properties, indexes, constraints)
 │   ├── views/                   # View definitions (implements, properties, relations)
-│   ├── dm_dom_oil_and_gas.DataModel.yaml       # Domain data model
-│   └── dm_sol_search_oil_and_gas.DataModel.yaml # Search-optimized data model
+│   └── dm_dom_oil_and_gas.DataModel.yaml  # Enterprise data model
 ├── data_sets/                   # Dataset configuration
 ├── auth/                        # Security group definitions (owner, read)
 ├── locations/                   # Location filter configuration
@@ -213,3 +231,22 @@ cdf deploy --env dev
 ```
 
 Configuration variables are defined in `default.config.yaml` and can be overridden per environment in `config.<env>.yaml` at the project root.
+
+Deploy this enterprise module **before** the companion search module — the search module depends on the containers defined here.
+
+## Versioning policy
+
+- `dm_version` in `default.config.yaml` is the enterprise model version. Bump only on breaking enterprise view changes.
+- Containers are **unversioned** and additive. Property removal or type/`list`/`usedFor` changes require a documented migration (export → recreate → re-ingest), not a version bump.
+- The search solution model has its own `search_dm_version` and bumps independently.
+
+## Consumers
+
+Maintain this list. Update in the same PR that bumps `dm_version`. Until CDF exposes per-consumer version usage, this list is the safety net for breaking changes. See `cdf-enterprise-vs-solution.md` §10.
+
+| Consumer | Pinned version | Owner | Notes |
+|----------|---------------|-------|-------|
+| `cfihos_oil_and_gas_extension_search` | v1 | this repo | Maps to enterprise containers; reverse relations live there. |
+| _(add other consumers)_ | — | — | Atlas AI, IndustryCanvas, custom apps, etc. |
+
+When deprecating an enterprise view, mark it in the view `description` with `[DEPRECATED — replaced by …]` and keep it deployed for a minimum 90-day window.

@@ -1,0 +1,10 @@
+externalId: cfihos_og_search_location_filter
+name: 'CFIHOS Oil and Gas Search Solution Model (SDM)'
+description: 'Location filter for the CFIHOS Oil and Gas Search solution data model.'
+dataModels:
+  - externalId: '{{ search_data_model_external_id }}'
+    space: {{ search_space }}
+    version: {{ search_dm_version }}
+instanceSpaces:
+  - {{ instance_space }}
+dataModelingType: DATA_MODELING_ONLY

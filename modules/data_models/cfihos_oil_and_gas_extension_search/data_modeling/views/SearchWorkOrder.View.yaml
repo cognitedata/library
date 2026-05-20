@@ -1,0 +1,525 @@
+space: "{{search_space}}"
+externalId: WorkOrder
+name: Work Order
+description: Search-optimized work order view. Maps to enterprise WorkOrder and CDM/IDM
+  activity containers.
+implements:
+- space: cdf_cdm
+  externalId: CogniteDescribable
+  version: v1
+  type: view
+version: "{{search_dm_version}}"
+properties:
+  mainAsset:
+    name: Main Tag
+    description: The primary tag the maintenance order refers to.
+    container:
+      space: cdf_idm
+      externalId: CogniteMaintenanceOrder
+      type: container
+    containerPropertyIdentifier: mainAsset
+    source:
+      space: "{{search_space}}"
+      externalId: Tag
+      version: "{{search_dm_version}}"
+      type: view
+  assets:
+    name: Tags
+    description: A list of tags the work order is related to.
+    container:
+      space: cdf_cdm
+      externalId: CogniteActivity
+      type: container
+    containerPropertyIdentifier: assets
+    source:
+      space: "{{search_space}}"
+      externalId: Tag
+      version: "{{search_dm_version}}"
+      type: view
+  equipment:
+    name: Equipment
+    description: Equipment associated with this work order.
+    container:
+      space: cdf_cdm
+      externalId: CogniteActivity
+      type: container
+    containerPropertyIdentifier: equipment
+    source:
+      space: "{{search_space}}"
+      externalId: Equipment
+      version: "{{search_dm_version}}"
+      type: view
+  timeSeries:
+    name: Time series
+    description: A list of time series the work order is related to.
+    container:
+      space: cdf_cdm
+      externalId: CogniteActivity
+      type: container
+    containerPropertyIdentifier: timeSeries
+    source:
+      space: "{{search_space}}"
+      externalId: TimeSeriesData
+      version: "{{search_dm_version}}"
+      type: view
+  order:
+    name: Order
+    description: SAP work order number
+    container:
+      space: "{{enterprise_space}}"
+      externalId: WorkOrder
+      type: container
+    containerPropertyIdentifier: order
+  routingNo:
+    name: Routing No
+    description: SAP routing number
+    container:
+      space: "{{enterprise_space}}"
+      externalId: WorkOrder
+      type: container
+    containerPropertyIdentifier: routingNo
+  dueDate:
+    name: Due Date
+    description: Due date for the work order
+    container:
+      space: "{{enterprise_space}}"
+      externalId: WorkOrder
+      type: container
+    containerPropertyIdentifier: dueDate
+  notSystemStatus:
+    name: Not System Status
+    description: System status codes for the work order
+    container:
+      space: "{{enterprise_space}}"
+      externalId: WorkOrder
+      type: container
+    containerPropertyIdentifier: notSystemStatus
+  locationId:
+    name: Location Id
+    description: Location identifier
+    container:
+      space: "{{enterprise_space}}"
+      externalId: WorkOrder
+      type: container
+    containerPropertyIdentifier: locationId
+  planningPlant:
+    name: Planning Plant
+    description: Planning plant
+    container:
+      space: "{{enterprise_space}}"
+      externalId: WorkOrder
+      type: container
+    containerPropertyIdentifier: planningPlant
+  maintPlant:
+    name: Maint Plant
+    description: Maintenance plant
+    container:
+      space: "{{enterprise_space}}"
+      externalId: WorkOrder
+      type: container
+    containerPropertyIdentifier: maintPlant
+  plannerGroup:
+    name: Planner Group
+    description: Planner group
+    container:
+      space: "{{enterprise_space}}"
+      externalId: WorkOrder
+      type: container
+    containerPropertyIdentifier: plannerGroup
+  revision:
+    name: Revision
+    description: Revision level
+    container:
+      space: "{{enterprise_space}}"
+      externalId: WorkOrder
+      type: container
+    containerPropertyIdentifier: revision
+  objectListNo:
+    name: Object List No
+    description: SAP object list number
+    container:
+      space: "{{enterprise_space}}"
+      externalId: WorkOrder
+      type: container
+    containerPropertyIdentifier: objectListNo
+  newDueDate:
+    name: New Due Date
+    description: Revised due date after rescheduling
+    container:
+      space: "{{enterprise_space}}"
+      externalId: WorkOrder
+      type: container
+    containerPropertyIdentifier: newDueDate
+  resourceType:
+    name: Resource Type
+    description: Resource type code for work assignment
+    container:
+      space: "{{enterprise_space}}"
+      externalId: WorkOrder
+      type: container
+    containerPropertyIdentifier: resourceType
+  mainWctr:
+    name: Main Work Center
+    description: Main work center responsible for the order
+    container:
+      space: "{{enterprise_space}}"
+      externalId: WorkOrder
+      type: container
+    containerPropertyIdentifier: mainWctr
+  headerNotification:
+    name: Header Notification
+    description: SAP header notification number linked to this order
+    container:
+      space: "{{enterprise_space}}"
+      externalId: WorkOrder
+      type: container
+    containerPropertyIdentifier: headerNotification
+  mainOrder:
+    name: Main Order
+    description: Parent order number if this is a sub-order
+    container:
+      space: "{{enterprise_space}}"
+      externalId: WorkOrder
+      type: container
+    containerPropertyIdentifier: mainOrder
+  totalPlannedWork:
+    name: Total Planned Work
+    description: Total planned work hours across all operations
+    container:
+      space: "{{enterprise_space}}"
+      externalId: WorkOrder
+      type: container
+    containerPropertyIdentifier: totalPlannedWork
+  totalActualWork:
+    name: Total Actual Work
+    description: Total actual work hours recorded across all operations
+    container:
+      space: "{{enterprise_space}}"
+      externalId: WorkOrder
+      type: container
+    containerPropertyIdentifier: totalActualWork
+  remainingWork:
+    name: Remaining Work
+    description: Remaining work hours across all operations
+    container:
+      space: "{{enterprise_space}}"
+      externalId: WorkOrder
+      type: container
+    containerPropertyIdentifier: remainingWork
+  maintActivityType:
+    name: Maint Activity Type
+    description: SAP maintenance activity type code (e.g. PM01, PM02)
+    container:
+      space: "{{enterprise_space}}"
+      externalId: WorkOrder
+      type: container
+    containerPropertyIdentifier: maintActivityType
+  typeDescription:
+    name: Type Description
+    description: Human-readable description of the maintenance activity type
+    container:
+      space: "{{enterprise_space}}"
+      externalId: WorkOrder
+      type: container
+    containerPropertyIdentifier: typeDescription
+  systemStatusCode:
+    name: System Status Code
+    description: SAP system status codes (e.g. REL, TECO, CLSD)
+    container:
+      space: "{{enterprise_space}}"
+      externalId: WorkOrder
+      type: container
+    containerPropertyIdentifier: systemStatusCode
+  systemStatusCodeDesc:
+    name: System Status Code Description
+    description: Human-readable descriptions of the system status codes
+    container:
+      space: "{{enterprise_space}}"
+      externalId: WorkOrder
+      type: container
+    containerPropertyIdentifier: systemStatusCodeDesc
+  SPNPriority:
+    name: SPN Priority
+    description: SPN (Safety Priority Number) priority score for maintenance scheduling
+    container:
+      space: "{{enterprise_space}}"
+      externalId: WorkOrder
+      type: container
+    containerPropertyIdentifier: SPNPriority
+  scheduledStartDateTime:
+    name: Scheduled Start Date Time
+    description: Scheduled start date and time for the order
+    container:
+      space: "{{enterprise_space}}"
+      externalId: WorkOrder
+      type: container
+    containerPropertyIdentifier: scheduledStartDateTime
+  scheduledFinishDateTime:
+    name: Scheduled Finish Date Time
+    description: Scheduled finish date and time for the order
+    container:
+      space: "{{enterprise_space}}"
+      externalId: WorkOrder
+      type: container
+    containerPropertyIdentifier: scheduledFinishDateTime
+  actualOrderStartDateTime:
+    name: Actual Order Start Date Time
+    description: Actual start date and time of the order
+    container:
+      space: "{{enterprise_space}}"
+      externalId: WorkOrder
+      type: container
+    containerPropertyIdentifier: actualOrderStartDateTime
+  actualOrderFinishDateTime:
+    name: Actual Order Finish Date Time
+    description: Actual finish date and time of the order
+    container:
+      space: "{{enterprise_space}}"
+      externalId: WorkOrder
+      type: container
+    containerPropertyIdentifier: actualOrderFinishDateTime
+  createdDateTime:
+    name: Created Date Time
+    description: Date and time the work order was created in SAP
+    container:
+      space: "{{enterprise_space}}"
+      externalId: WorkOrder
+      type: container
+    containerPropertyIdentifier: createdDateTime
+  plannerGroupDesc:
+    name: Planner Group Description
+    description: Human-readable description of the planner group
+    container:
+      space: "{{enterprise_space}}"
+      externalId: WorkOrder
+      type: container
+    containerPropertyIdentifier: plannerGroupDesc
+  reschedulingCounter:
+    name: Rescheduling Counter
+    description: Number of times the order has been rescheduled
+    container:
+      space: "{{enterprise_space}}"
+      externalId: WorkOrder
+      type: container
+    containerPropertyIdentifier: reschedulingCounter
+  systemCondition:
+    name: System Condition
+    description: System condition code for the work order
+    container:
+      space: "{{enterprise_space}}"
+      externalId: WorkOrder
+      type: container
+    containerPropertyIdentifier: systemCondition
+  systemConditionDesc:
+    name: System Condition Description
+    description: Human-readable description of the system condition
+    container:
+      space: "{{enterprise_space}}"
+      externalId: WorkOrder
+      type: container
+    containerPropertyIdentifier: systemConditionDesc
+  ssdCode:
+    name: SSD Code
+    description: Safe Shutdown code for the work order
+    container:
+      space: "{{enterprise_space}}"
+      externalId: WorkOrder
+      type: container
+    containerPropertyIdentifier: ssdCode
+  SPNCategory:
+    name: SPN Category
+    description: SPN (Safety Priority Number) category classification
+    container:
+      space: "{{enterprise_space}}"
+      externalId: WorkOrder
+      type: container
+    containerPropertyIdentifier: SPNCategory
+  newDueDateCounter:
+    name: New Due Date Counter
+    description: Number of times the due date has been changed
+    container:
+      space: "{{enterprise_space}}"
+      externalId: WorkOrder
+      type: container
+    containerPropertyIdentifier: newDueDateCounter
+  actualDueDate:
+    name: Actual Due Date
+    description: Actual due date after all rescheduling
+    container:
+      space: "{{enterprise_space}}"
+      externalId: WorkOrder
+      type: container
+    containerPropertyIdentifier: actualDueDate
+  wctrID:
+    name: Work Center ID
+    description: Work center numeric identifier
+    container:
+      space: "{{enterprise_space}}"
+      externalId: WorkOrder
+      type: container
+    containerPropertyIdentifier: wctrID
+  objectNo:
+    name: Object No
+    description: SAP object number
+    container:
+      space: "{{enterprise_space}}"
+      externalId: WorkOrder
+      type: container
+    containerPropertyIdentifier: objectNo
+  maintenanceProcessingPhase:
+    name: Maintenance Processing Phase
+    description: Current processing phase of the maintenance order
+    container:
+      space: "{{enterprise_space}}"
+      externalId: WorkOrder
+      type: container
+    containerPropertyIdentifier: maintenanceProcessingPhase
+  priorityType:
+    name: Priority Type
+    description: Priority type classification code
+    container:
+      space: "{{enterprise_space}}"
+      externalId: WorkOrder
+      type: container
+    containerPropertyIdentifier: priorityType
+  userStatusCode:
+    name: User Status Code
+    description: User-defined status codes
+    container:
+      space: "{{enterprise_space}}"
+      externalId: WorkOrder
+      type: container
+    containerPropertyIdentifier: userStatusCode
+  userStatusCodeDesc:
+    name: User Status Code Description
+    description: Human-readable descriptions of the user status codes
+    container:
+      space: "{{enterprise_space}}"
+      externalId: WorkOrder
+      type: container
+    containerPropertyIdentifier: userStatusCodeDesc
+  totalRemainingWork:
+    name: Total Remaining Work
+    description: Total remaining work hours for the order
+    container:
+      space: "{{enterprise_space}}"
+      externalId: WorkOrder
+      type: container
+    containerPropertyIdentifier: totalRemainingWork
+  name:
+    name: Name
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: name
+    description: Name of the work order
+  description:
+    name: Description
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: description
+    description: Description of the work order
+  labels:
+    name: Labels
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: tags
+    description: Text-based labels for generic use, limited to 1000.
+  aliases:
+    name: Aliases
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: aliases
+    description: Alternative names for the node
+  sourceId:
+    name: Source Id
+    container:
+      space: cdf_cdm
+      externalId: CogniteSourceable
+      type: container
+    containerPropertyIdentifier: sourceId
+    description: Identifier from the source system
+  source:
+    name: Source
+    container:
+      space: cdf_cdm
+      externalId: CogniteSourceable
+      type: container
+    containerPropertyIdentifier: source
+    description: Direct relation to a source system
+    source:
+      space: cdf_cdm
+      externalId: CogniteSourceSystem
+      version: v1
+      type: view
+  startTime:
+    name: Start Time
+    container:
+      space: cdf_cdm
+      externalId: CogniteSchedulable
+      type: container
+    containerPropertyIdentifier: startTime
+    description: The actual start time of the activity
+  endTime:
+    name: End Time
+    container:
+      space: cdf_cdm
+      externalId: CogniteSchedulable
+      type: container
+    containerPropertyIdentifier: endTime
+    description: The actual end time of the activity
+  scheduledStartTime:
+    name: Scheduled Start Time
+    container:
+      space: cdf_cdm
+      externalId: CogniteSchedulable
+      type: container
+    containerPropertyIdentifier: scheduledStartTime
+    description: The planned start time of the activity
+  scheduledEndTime:
+    name: Scheduled End Time
+    container:
+      space: cdf_cdm
+      externalId: CogniteSchedulable
+      type: container
+    containerPropertyIdentifier: scheduledEndTime
+    description: The planned end time of the activity
+  operations:
+    name: Operations
+    description: An automatically populated list of operations on the work order.
+    connectionType: multi_reverse_direct_relation
+    source:
+      space: "{{search_space}}"
+      externalId: WorkOrderOperation
+      version: "{{search_dm_version}}"
+      type: view
+    through:
+      source:
+        space: "{{search_space}}"
+        externalId: WorkOrderOperation
+        version: "{{search_dm_version}}"
+        type: view
+      identifier: maintenanceOrder
+  notifications:
+    name: Notifications
+    description: Notifications linked to the work order.
+    connectionType: multi_reverse_direct_relation
+    source:
+      space: "{{search_space}}"
+      externalId: Notification
+      version: "{{search_dm_version}}"
+      type: view
+    through:
+      source:
+        space: "{{search_space}}"
+        externalId: Notification
+        version: "{{search_dm_version}}"
+        type: view
+      identifier: maintenanceOrder

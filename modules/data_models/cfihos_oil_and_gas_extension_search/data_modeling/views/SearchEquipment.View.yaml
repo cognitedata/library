@@ -1,0 +1,196 @@
+space: "{{search_space}}"
+externalId: Equipment
+name: Equipment
+description: Search-optimized equipment view. Maps to enterprise Equipment and CogniteEquipment
+  containers without implementing CogniteAsset/CogniteEquipment to keep the search
+  model decoupled from CDM hierarchy semantics.
+implements:
+- space: cdf_cdm
+  externalId: CogniteDescribable
+  version: v1
+  type: view
+version: "{{search_dm_version}}"
+properties:
+  asset:
+    name: Tag
+    description: Tag associated with this equipment.
+    container:
+      space: cdf_cdm
+      externalId: CogniteEquipment
+      type: container
+    containerPropertyIdentifier: asset
+    source:
+      space: "{{search_space}}"
+      externalId: Tag
+      version: "{{search_dm_version}}"
+      type: view
+  files:
+    name: Files
+    description: Document files associated with this equipment.
+    container:
+      space: cdf_cdm
+      externalId: CogniteEquipment
+      type: container
+    containerPropertyIdentifier: files
+    source:
+      space: "{{search_space}}"
+      externalId: Files
+      version: "{{search_dm_version}}"
+      type: view
+  model:
+    name: Model
+    description: Equipment model designation or part number from the manufacturer.
+    container:
+      space: "{{enterprise_space}}"
+      externalId: Equipment
+      type: container
+    containerPropertyIdentifier: model
+  class:
+    name: Class
+    description: Equipment class classification.
+    container:
+      space: "{{enterprise_space}}"
+      externalId: Equipment
+      type: container
+    containerPropertyIdentifier: class
+  type:
+    name: Type
+    description: Equipment type classification.
+    container:
+      space: "{{enterprise_space}}"
+      externalId: Equipment
+      type: container
+    containerPropertyIdentifier: type
+  code:
+    name: Code
+    description: A unique identifier for the type of equipment.
+    container:
+      space: "{{enterprise_space}}"
+      externalId: Equipment
+      type: container
+    containerPropertyIdentifier: code
+  equipmentClass:
+    name: Equipment Class
+    description: Class of equipment.
+    container:
+      space: "{{enterprise_space}}"
+      externalId: Equipment
+      type: container
+    containerPropertyIdentifier: equipmentClass
+  standard:
+    name: Standard
+    description: Standard identifier this equipment is sourced from, such as ISO14224.
+    container:
+      space: "{{enterprise_space}}"
+      externalId: Equipment
+      type: container
+    containerPropertyIdentifier: standard
+  standardReference:
+    name: Standard Reference
+    description: Reference to the source of the equipment specification.
+    container:
+      space: "{{enterprise_space}}"
+      externalId: Equipment
+      type: container
+    containerPropertyIdentifier: standardReference
+  name:
+    name: Name
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: name
+    description: Name of the equipment
+  description:
+    name: Description
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: description
+    description: Description of the equipment
+  labels:
+    name: Labels
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: tags
+    description: Text-based labels for generic use, limited to 1000.
+  aliases:
+    name: Aliases
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: aliases
+    description: Alternative names for the node
+  sourceId:
+    name: Source Id
+    container:
+      space: cdf_cdm
+      externalId: CogniteSourceable
+      type: container
+    containerPropertyIdentifier: sourceId
+    description: Identifier from the source system
+  source:
+    name: Source
+    container:
+      space: cdf_cdm
+      externalId: CogniteSourceable
+      type: container
+    containerPropertyIdentifier: source
+    description: Direct relation to a source system
+    source:
+      space: cdf_cdm
+      externalId: CogniteSourceSystem
+      version: v1
+      type: view
+  activities:
+    name: Work Orders
+    description: An automatically updated list of work orders related to the equipment.
+    connectionType: multi_reverse_direct_relation
+    source:
+      space: "{{search_space}}"
+      externalId: WorkOrder
+      version: "{{search_dm_version}}"
+      type: view
+    through:
+      source:
+        space: "{{search_space}}"
+        externalId: WorkOrder
+        version: "{{search_dm_version}}"
+        type: view
+      identifier: equipment
+  operations:
+    name: Operations
+    description: An automatically updated list of operations on the equipment.
+    connectionType: multi_reverse_direct_relation
+    source:
+      space: "{{search_space}}"
+      externalId: WorkOrderOperation
+      version: "{{search_dm_version}}"
+      type: view
+    through:
+      source:
+        space: "{{search_space}}"
+        externalId: WorkOrderOperation
+        version: "{{search_dm_version}}"
+        type: view
+      identifier: equipment
+  timeSeries:
+    name: Time series
+    description: Time series associated with this equipment.
+    connectionType: multi_reverse_direct_relation
+    source:
+      space: "{{search_space}}"
+      externalId: TimeSeriesData
+      version: "{{search_dm_version}}"
+      type: view
+    through:
+      source:
+        space: "{{search_space}}"
+        externalId: TimeSeriesData
+        version: "{{search_dm_version}}"
+        type: view
+      identifier: equipment

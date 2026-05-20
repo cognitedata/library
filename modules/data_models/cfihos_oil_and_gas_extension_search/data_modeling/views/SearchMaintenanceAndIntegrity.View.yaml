@@ -1,0 +1,540 @@
+space: "{{search_space}}"
+externalId: MaintenanceAndIntegrity
+name: Maintenance and Integrity
+description: Search-optimized maintenance and integrity view. Maps to enterprise
+  MaintenanceAndIntegrity and Tag containers.
+implements:
+- space: cdf_cdm
+  externalId: CogniteDescribable
+  version: v1
+  type: view
+version: "{{search_dm_version}}"
+properties:
+  area:
+    name: Area
+    description: Physical location on the facility where the equipment is installed
+    container:
+      space: "{{enterprise_space}}"
+      externalId: Tag
+      type: container
+    containerPropertyIdentifier: CFIHOS_10000001
+  facility:
+    name: Facility
+    description: The facility code of a tagged object
+    container:
+      space: "{{enterprise_space}}"
+      externalId: Tag
+      type: container
+    containerPropertyIdentifier: CFIHOS_10000005
+  parentTag:
+    name: Parent Tag
+    description: The main Tag number of a system that child Tags are related
+    container:
+      space: "{{enterprise_space}}"
+      externalId: Tag
+      type: container
+    containerPropertyIdentifier: CFIHOS_10000178
+  system:
+    name: System
+    description: System code as per the used standard
+    container:
+      space: "{{enterprise_space}}"
+      externalId: Tag
+      type: container
+    containerPropertyIdentifier: CFIHOS_10000157
+  flocInspCritCost:
+    name: Floc Insp Crit Cost
+    description: Inspection criticality rating for cost impact
+    container:
+      space: "{{enterprise_space}}"
+      externalId: MaintenanceAndIntegrity
+      type: container
+    containerPropertyIdentifier: flocInspCritCost
+  flocCriticalityCombined:
+    name: Floc Criticality Combined
+    description: Combined criticality rating across all dimensions
+    container:
+      space: "{{enterprise_space}}"
+      externalId: MaintenanceAndIntegrity
+      type: container
+    containerPropertyIdentifier: flocCriticalityCombined
+  flocInspCritSafety:
+    name: Floc Insp Crit Safety
+    description: Inspection criticality rating for safety impact
+    container:
+      space: "{{enterprise_space}}"
+      externalId: MaintenanceAndIntegrity
+      type: container
+    containerPropertyIdentifier: flocInspCritSafety
+  flocInspCritEnvironment:
+    name: Floc Insp Crit Environment
+    description: Inspection criticality rating for environmental impact
+    container:
+      space: "{{enterprise_space}}"
+      externalId: MaintenanceAndIntegrity
+      type: container
+    containerPropertyIdentifier: flocInspCritEnvironment
+  flocInspCritCombined:
+    name: Floc Insp Crit Combined
+    description: Combined inspection criticality rating across all dimensions
+    container:
+      space: "{{enterprise_space}}"
+      externalId: MaintenanceAndIntegrity
+      type: container
+    containerPropertyIdentifier: flocInspCritCombined
+  flocDisciplineType:
+    name: Floc Discipline Type
+    description: Maintenance discipline type code
+    container:
+      space: "{{enterprise_space}}"
+      externalId: MaintenanceAndIntegrity
+      type: container
+    containerPropertyIdentifier: flocDisciplineType
+  flocCriticalitySafety:
+    name: Floc Criticality Safety
+    description: Safety criticality rating for this location
+    container:
+      space: "{{enterprise_space}}"
+      externalId: MaintenanceAndIntegrity
+      type: container
+    containerPropertyIdentifier: flocCriticalitySafety
+  flocCriticalityEnvironment:
+    name: Floc Criticality Environment
+    description: Environmental criticality rating for this location
+    container:
+      space: "{{enterprise_space}}"
+      externalId: MaintenanceAndIntegrity
+      type: container
+    containerPropertyIdentifier: flocCriticalityEnvironment
+  flocCriticalityCost:
+    name: Floc Criticality Cost
+    description: Cost criticality rating for this location
+    container:
+      space: "{{enterprise_space}}"
+      externalId: MaintenanceAndIntegrity
+      type: container
+    containerPropertyIdentifier: flocCriticalityCost
+  flocCriticalityProduction:
+    name: Floc Criticality Production
+    description: Production criticality rating for this location
+    container:
+      space: "{{enterprise_space}}"
+      externalId: MaintenanceAndIntegrity
+      type: container
+    containerPropertyIdentifier: flocCriticalityProduction
+  flocBarrierArea:
+    name: Floc Barrier Area
+    description: Barrier area classification code for safety barrier management
+    container:
+      space: "{{enterprise_space}}"
+      externalId: MaintenanceAndIntegrity
+      type: container
+    containerPropertyIdentifier: flocBarrierArea
+  flocLocationDesc:
+    name: Floc Location Desc
+    description: Free-text description of the physical location
+    container:
+      space: "{{enterprise_space}}"
+      externalId: MaintenanceAndIntegrity
+      type: container
+    containerPropertyIdentifier: flocLocationDesc
+  flocBarrierElementPrimary:
+    name: Floc Barrier Element Primary
+    description: Primary barrier element classification for safety barrier management
+    container:
+      space: "{{enterprise_space}}"
+      externalId: MaintenanceAndIntegrity
+      type: container
+    containerPropertyIdentifier: flocBarrierElementPrimary
+  flocMainFunctionDesc:
+    name: Floc Main Function Desc
+    description: Description of the main function performed at this location
+    container:
+      space: "{{enterprise_space}}"
+      externalId: MaintenanceAndIntegrity
+      type: container
+    containerPropertyIdentifier: flocMainFunctionDesc
+  flocItemRedundancy:
+    name: Floc Item Redundancy
+    description: Redundancy indicator for equipment at this location
+    container:
+      space: "{{enterprise_space}}"
+      externalId: MaintenanceAndIntegrity
+      type: container
+    containerPropertyIdentifier: flocItemRedundancy
+  flocRcmFrequency:
+    name: Floc Rcm Frequency
+    description: RCM failure frequency rating
+    container:
+      space: "{{enterprise_space}}"
+      externalId: MaintenanceAndIntegrity
+      type: container
+    containerPropertyIdentifier: flocRcmFrequency
+  flocSubFunctionCode:
+    name: Floc Sub Function Code
+    description: Sub-function code within the functional hierarchy
+    container:
+      space: "{{enterprise_space}}"
+      externalId: MaintenanceAndIntegrity
+      type: container
+    containerPropertyIdentifier: flocSubFunctionCode
+  flocSubFunctionDesc:
+    name: Floc Sub Function Desc
+    description: Description of the sub-function
+    container:
+      space: "{{enterprise_space}}"
+      externalId: MaintenanceAndIntegrity
+      type: container
+    containerPropertyIdentifier: flocSubFunctionDesc
+  flocWbs:
+    name: Floc Wbs
+    description: Work Breakdown Structure (WBS) element code
+    container:
+      space: "{{enterprise_space}}"
+      externalId: MaintenanceAndIntegrity
+      type: container
+    containerPropertyIdentifier: flocWbs
+  flocGroupDesc:
+    name: Floc Group Desc
+    description: Description of the functional group this location belongs to
+    container:
+      space: "{{enterprise_space}}"
+      externalId: MaintenanceAndIntegrity
+      type: container
+    containerPropertyIdentifier: flocGroupDesc
+  flocGroupId:
+    name: Floc Group Id
+    description: Identifier for the functional group this location belongs to
+    container:
+      space: "{{enterprise_space}}"
+      externalId: MaintenanceAndIntegrity
+      type: container
+    containerPropertyIdentifier: flocGroupId
+  flocSystemId:
+    name: Floc System Id
+    description: System identifier within the plant hierarchy
+    container:
+      space: "{{enterprise_space}}"
+      externalId: MaintenanceAndIntegrity
+      type: container
+    containerPropertyIdentifier: flocSystemId
+  flocRcmConsequenceCost:
+    name: Floc Rcm Consequence Cost
+    description: RCM consequence rating for cost impact
+    container:
+      space: "{{enterprise_space}}"
+      externalId: MaintenanceAndIntegrity
+      type: container
+    containerPropertyIdentifier: flocRcmConsequenceCost
+  flocRcmConsequenceEnvironment:
+    name: Floc Rcm Consequence Environment
+    description: RCM consequence rating for environmental impact
+    container:
+      space: "{{enterprise_space}}"
+      externalId: MaintenanceAndIntegrity
+      type: container
+    containerPropertyIdentifier: flocRcmConsequenceEnvironment
+  flocRcmConsequenceProduction:
+    name: Floc Rcm Consequence Production
+    description: RCM consequence rating for production impact
+    container:
+      space: "{{enterprise_space}}"
+      externalId: MaintenanceAndIntegrity
+      type: container
+    containerPropertyIdentifier: flocRcmConsequenceProduction
+  flocRcmConsequenceSafety:
+    name: Floc Rcm Consequence Safety
+    description: RCM consequence rating for safety impact
+    container:
+      space: "{{enterprise_space}}"
+      externalId: MaintenanceAndIntegrity
+      type: container
+    containerPropertyIdentifier: flocRcmConsequenceSafety
+  flocRcmConsequenceMax:
+    name: Floc Rcm Consequence Max
+    description: Maximum RCM consequence rating across all dimensions
+    container:
+      space: "{{enterprise_space}}"
+      externalId: MaintenanceAndIntegrity
+      type: container
+    containerPropertyIdentifier: flocRcmConsequenceMax
+  flocRcmCriticality:
+    name: Floc Rcm Criticality
+    description: Overall RCM criticality rating combining frequency and consequence
+    container:
+      space: "{{enterprise_space}}"
+      externalId: MaintenanceAndIntegrity
+      type: container
+    containerPropertyIdentifier: flocRcmCriticality
+  flocCatalogProfile:
+    name: Floc Catalog Profile
+    description: Maintenance catalog profile code for damage/cause cataloging
+    container:
+      space: "{{enterprise_space}}"
+      externalId: MaintenanceAndIntegrity
+      type: container
+    containerPropertyIdentifier: flocCatalogProfile
+  flocCatalogProfileDesc:
+    name: Floc Catalog Profile Desc
+    description: Description of the maintenance catalog profile
+    container:
+      space: "{{enterprise_space}}"
+      externalId: MaintenanceAndIntegrity
+      type: container
+    containerPropertyIdentifier: flocCatalogProfileDesc
+  flocDiscipline:
+    name: Floc Discipline
+    description: Engineering discipline responsible for this location
+    container:
+      space: "{{enterprise_space}}"
+      externalId: MaintenanceAndIntegrity
+      type: container
+    containerPropertyIdentifier: flocDiscipline
+  flocMainWorkCenter:
+    name: Floc Main Work Center
+    description: Primary work center responsible for maintenance at this location
+    container:
+      space: "{{enterprise_space}}"
+      externalId: MaintenanceAndIntegrity
+      type: container
+    containerPropertyIdentifier: flocMainWorkCenter
+  flocMainWorkCenterDesc:
+    name: Floc Main Work Center Desc
+    description: Description of the main work center
+    container:
+      space: "{{enterprise_space}}"
+      externalId: MaintenanceAndIntegrity
+      type: container
+    containerPropertyIdentifier: flocMainWorkCenterDesc
+  flocObjectTypeDesc:
+    name: Floc Object Type Desc
+    description: Description of the object type classification
+    container:
+      space: "{{enterprise_space}}"
+      externalId: MaintenanceAndIntegrity
+      type: container
+    containerPropertyIdentifier: flocObjectTypeDesc
+  flocObjectType:
+    name: Floc Object Type
+    description: Object type classification code
+    container:
+      space: "{{enterprise_space}}"
+      externalId: MaintenanceAndIntegrity
+      type: container
+    containerPropertyIdentifier: flocObjectType
+  flocAbcIndicator:
+    name: Floc Abc Indicator
+    description: ABC indicator for maintenance prioritization (A=high, B=medium, C=low)
+    container:
+      space: "{{enterprise_space}}"
+      externalId: MaintenanceAndIntegrity
+      type: container
+    containerPropertyIdentifier: flocAbcIndicator
+  flocSystemDesc:
+    name: Floc System Desc
+    description: Description of the plant system this location belongs to
+    container:
+      space: "{{enterprise_space}}"
+      externalId: MaintenanceAndIntegrity
+      type: container
+    containerPropertyIdentifier: flocSystemDesc
+  flocLocation:
+    name: Floc Location
+    description: Physical location code within the plant
+    container:
+      space: "{{enterprise_space}}"
+      externalId: MaintenanceAndIntegrity
+      type: container
+    containerPropertyIdentifier: flocLocation
+  flocUserStatus:
+    name: Floc User Status
+    description: User-defined status of the functional location
+    container:
+      space: "{{enterprise_space}}"
+      externalId: MaintenanceAndIntegrity
+      type: container
+    containerPropertyIdentifier: flocUserStatus
+  ingestionDT:
+    name: Ingestion DT
+    description: Timestamp when the record was ingested from the source system
+    container:
+      space: "{{enterprise_space}}"
+      externalId: MaintenanceAndIntegrity
+      type: container
+    containerPropertyIdentifier: ingestionDT
+  flocCategory:
+    name: Floc Category
+    description: Category classification of the functional location
+    container:
+      space: "{{enterprise_space}}"
+      externalId: MaintenanceAndIntegrity
+      type: container
+    containerPropertyIdentifier: flocCategory
+  flocCreatedDate:
+    name: Floc Created Date
+    description: Date when the functional location was created in the source system
+    container:
+      space: "{{enterprise_space}}"
+      externalId: MaintenanceAndIntegrity
+      type: container
+    containerPropertyIdentifier: flocCreatedDate
+  flocChangedDateTimeUTC:
+    name: Floc Changed Date Time UTC
+    description: UTC timestamp of the last change in the source system
+    container:
+      space: "{{enterprise_space}}"
+      externalId: MaintenanceAndIntegrity
+      type: container
+    containerPropertyIdentifier: flocChangedDateTimeUTC
+  flocFunctionalLocation:
+    name: Floc Functional Location
+    description: Functional location identifier code from the source system
+    container:
+      space: "{{enterprise_space}}"
+      externalId: MaintenanceAndIntegrity
+      type: container
+    containerPropertyIdentifier: flocFunctionalLocation
+  flocFunctionalLocationDesc:
+    name: Floc Functional Location Desc
+    description: Full text description of the functional location
+    container:
+      space: "{{enterprise_space}}"
+      externalId: MaintenanceAndIntegrity
+      type: container
+    containerPropertyIdentifier: flocFunctionalLocationDesc
+  flocMainAsset:
+    name: Floc Main Asset
+    description: Main asset tag number associated with this functional location
+    container:
+      space: "{{enterprise_space}}"
+      externalId: MaintenanceAndIntegrity
+      type: container
+    containerPropertyIdentifier: flocMainAsset
+  flocMaintenancePlant:
+    name: Floc Maintenance Plant
+    description: Maintenance plant code where this location is managed
+    container:
+      space: "{{enterprise_space}}"
+      externalId: MaintenanceAndIntegrity
+      type: container
+    containerPropertyIdentifier: flocMaintenancePlant
+  flocMaintenancePlantDesc:
+    name: Floc Maintenance Plant Desc
+    description: Description of the maintenance plant
+    container:
+      space: "{{enterprise_space}}"
+      externalId: MaintenanceAndIntegrity
+      type: container
+    containerPropertyIdentifier: flocMaintenancePlantDesc
+  flocObjectNumber:
+    name: Floc Object Number
+    description: Internal object number from the source system
+    container:
+      space: "{{enterprise_space}}"
+      externalId: MaintenanceAndIntegrity
+      type: container
+    containerPropertyIdentifier: flocObjectNumber
+  flocPlannerGroup:
+    name: Floc Planner Group
+    description: Planner group responsible for scheduling maintenance
+    container:
+      space: "{{enterprise_space}}"
+      externalId: MaintenanceAndIntegrity
+      type: container
+    containerPropertyIdentifier: flocPlannerGroup
+  flocPlannerGroupDesc:
+    name: Floc Planner Group Desc
+    description: Description of the planner group
+    container:
+      space: "{{enterprise_space}}"
+      externalId: MaintenanceAndIntegrity
+      type: container
+    containerPropertyIdentifier: flocPlannerGroupDesc
+  flocPlanningPlant:
+    name: Floc Planning Plant
+    description: Planning plant code for maintenance planning
+    container:
+      space: "{{enterprise_space}}"
+      externalId: MaintenanceAndIntegrity
+      type: container
+    containerPropertyIdentifier: flocPlanningPlant
+  flocPlanningPlantDesc:
+    name: Floc Planning Plant Desc
+    description: Description of the planning plant
+    container:
+      space: "{{enterprise_space}}"
+      externalId: MaintenanceAndIntegrity
+      type: container
+    containerPropertyIdentifier: flocPlanningPlantDesc
+  flocSuperiorFunctionalLocation:
+    name: Floc Superior Functional Location
+    description: Identifier of the parent functional location in the hierarchy
+    container:
+      space: "{{enterprise_space}}"
+      externalId: MaintenanceAndIntegrity
+      type: container
+    containerPropertyIdentifier: flocSuperiorFunctionalLocation
+  flocSystemStatus:
+    name: Floc System Status
+    description: System status of the functional location
+    container:
+      space: "{{enterprise_space}}"
+      externalId: MaintenanceAndIntegrity
+      type: container
+    containerPropertyIdentifier: flocSystemStatus
+  superiorFuncLocationTagDesc:
+    name: Superior Func Location Tag Desc
+    description: Tag description of the superior functional location
+    container:
+      space: "{{enterprise_space}}"
+      externalId: MaintenanceAndIntegrity
+      type: container
+    containerPropertyIdentifier: superiorFuncLocationTagDesc
+  isDeleted:
+    name: Is Deleted
+    description: Indicates whether the functional location has been deleted from the source.
+    container:
+      space: "{{enterprise_space}}"
+      externalId: MaintenanceAndIntegrity
+      type: container
+    containerPropertyIdentifier: isDeleted
+  additionalProperties:
+    name: Additional Properties
+    description: Overflow properties stored as JSON for rarely-queried fields
+    container:
+      space: "{{enterprise_space}}"
+      externalId: MaintenanceAndIntegrity
+      type: container
+    containerPropertyIdentifier: additionalProperties
+  name:
+    name: Name
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: name
+    description: Name of the maintenance and integrity record
+  description:
+    name: Description
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: description
+    description: Description of the maintenance and integrity record
+  labels:
+    name: Labels
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: tags
+    description: Text-based labels for generic use, limited to 1000.
+  aliases:
+    name: Aliases
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: aliases
+    description: Alternative names for the node

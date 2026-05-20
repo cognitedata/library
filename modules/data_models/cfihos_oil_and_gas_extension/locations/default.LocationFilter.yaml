@@ -4,7 +4,7 @@ description: "{{data_model_name}}"
 dataModels:
   - externalId: "{{data_model_external_id}}"
     space: "{{space}}"
-    version: "{{search_dm_version}}"
+    version: "{{dm_version}}"
 instanceSpaces:
   - "{{space}}"
   - "{{instance_space}}"

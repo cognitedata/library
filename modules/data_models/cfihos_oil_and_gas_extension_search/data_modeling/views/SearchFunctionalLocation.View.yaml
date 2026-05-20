@@ -1,0 +1,556 @@
+space: "{{search_space}}"
+externalId: FunctionalLocation
+name: Functional Location
+description: Search-optimized functional location view. Maps to enterprise
+  FunctionalLocation and Tag containers.
+implements:
+- space: cdf_cdm
+  externalId: CogniteDescribable
+  version: v1
+  type: view
+version: "{{search_dm_version}}"
+properties:
+  area:
+    name: Area
+    description: Physical location on the facility where the equipment is installed
+    container:
+      space: "{{enterprise_space}}"
+      externalId: Tag
+      type: container
+    containerPropertyIdentifier: CFIHOS_10000001
+  facility:
+    name: Facility
+    description: The facility code of a tagged object
+    container:
+      space: "{{enterprise_space}}"
+      externalId: Tag
+      type: container
+    containerPropertyIdentifier: CFIHOS_10000005
+  parentTag:
+    name: Parent Tag
+    description: The main Tag number of a system that child Tags are related
+    container:
+      space: "{{enterprise_space}}"
+      externalId: Tag
+      type: container
+    containerPropertyIdentifier: CFIHOS_10000178
+  system:
+    name: System
+    description: System code as per the used standard
+    container:
+      space: "{{enterprise_space}}"
+      externalId: Tag
+      type: container
+    containerPropertyIdentifier: CFIHOS_10000157
+  flocInspCritCost:
+    name: Inspection Criticality - Cost
+    description: Inspection criticality for cost dimension at this functional location.
+    container:
+      space: "{{enterprise_space}}"
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocInspCritCost
+  flocCriticalityCombined:
+    name: Criticality Combined
+    description: Combined criticality score aggregated across dimensions.
+    container:
+      space: "{{enterprise_space}}"
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocCriticalityCombined
+  flocInspCritSafety:
+    name: Inspection Criticality - Safety
+    description: Inspection criticality for safety at this functional location.
+    container:
+      space: "{{enterprise_space}}"
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocInspCritSafety
+  flocInspCritEnvironment:
+    name: Inspection Criticality - Environment
+    description: Inspection criticality for environment at this functional location.
+    container:
+      space: "{{enterprise_space}}"
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocInspCritEnvironment
+  flocInspCritCombined:
+    name: Inspection Criticality Combined
+    description: Combined inspection criticality across applicable dimensions.
+    container:
+      space: "{{enterprise_space}}"
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocInspCritCombined
+  flocDisciplineType:
+    name: Discipline Type
+    description: Discipline type classification for maintenance at this location.
+    container:
+      space: "{{enterprise_space}}"
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocDisciplineType
+  flocCriticalitySafety:
+    name: Criticality - Safety
+    description: Criticality rating for safety impact at this functional location.
+    container:
+      space: "{{enterprise_space}}"
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocCriticalitySafety
+  flocCriticalityEnvironment:
+    name: Criticality - Environment
+    description: Criticality rating for environmental impact at this functional location.
+    container:
+      space: "{{enterprise_space}}"
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocCriticalityEnvironment
+  flocCriticalityCost:
+    name: Criticality - Cost
+    description: Criticality rating for cost impact at this functional location.
+    container:
+      space: "{{enterprise_space}}"
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocCriticalityCost
+  flocCriticalityProduction:
+    name: Criticality - Production
+    description: Criticality rating for production impact at this functional location.
+    container:
+      space: "{{enterprise_space}}"
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocCriticalityProduction
+  flocBarrierArea:
+    name: Barrier Area
+    description: Barrier area identifier for process safety at this location.
+    container:
+      space: "{{enterprise_space}}"
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocBarrierArea
+  flocLocationDesc:
+    name: Location Description
+    description: Free-text description of this functional location.
+    container:
+      space: "{{enterprise_space}}"
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocLocationDesc
+  flocBarrierElementPrimary:
+    name: Primary Barrier Element
+    description: Primary barrier element associated with this functional location.
+    container:
+      space: "{{enterprise_space}}"
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocBarrierElementPrimary
+  flocMainFunctionDesc:
+    name: Main Function Description
+    description: Description of the main technical function at this location.
+    container:
+      space: "{{enterprise_space}}"
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocMainFunctionDesc
+  flocItemRedundancy:
+    name: Item Redundancy
+    description: Redundancy classification for equipment or function at this location.
+    container:
+      space: "{{enterprise_space}}"
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocItemRedundancy
+  flocRcmFrequency:
+    name: RCM Frequency
+    description: Reliability-centered maintenance (RCM) review or task frequency hint.
+    container:
+      space: "{{enterprise_space}}"
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocRcmFrequency
+  flocSubFunctionCode:
+    name: Sub-Function Code
+    description: Code for a sub-function within the main function at this location.
+    container:
+      space: "{{enterprise_space}}"
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocSubFunctionCode
+  flocSubFunctionDesc:
+    name: Sub-Function Description
+    description: Description of the sub-function at this functional location.
+    container:
+      space: "{{enterprise_space}}"
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocSubFunctionDesc
+  flocWbs:
+    name: WBS
+    description: Work breakdown structure (WBS) reference linked to this location.
+    container:
+      space: "{{enterprise_space}}"
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocWbs
+  flocGroupDesc:
+    name: Group Description
+    description: Description of the location group this functional location belongs to.
+    container:
+      space: "{{enterprise_space}}"
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocGroupDesc
+  flocGroupId:
+    name: Group ID
+    description: Identifier of the location group in the source system.
+    container:
+      space: "{{enterprise_space}}"
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocGroupId
+  flocSystemId:
+    name: System ID
+    description: Technical or logical system identifier for this functional location.
+    container:
+      space: "{{enterprise_space}}"
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocSystemId
+  flocRcmConsequenceCost:
+    name: RCM Consequence - Cost
+    description: RCM consequence rating for cost if failure occurs at this location.
+    container:
+      space: "{{enterprise_space}}"
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocRcmConsequenceCost
+  flocRcmConsequenceEnvironment:
+    name: RCM Consequence - Environment
+    description: RCM consequence rating for environment if failure occurs at this location.
+    container:
+      space: "{{enterprise_space}}"
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocRcmConsequenceEnvironment
+  flocRcmConsequenceProduction:
+    name: RCM Consequence - Production
+    description: RCM consequence rating for production if failure occurs at this location.
+    container:
+      space: "{{enterprise_space}}"
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocRcmConsequenceProduction
+  flocRcmConsequenceSafety:
+    name: RCM Consequence - Safety
+    description: RCM consequence rating for safety if failure occurs at this location.
+    container:
+      space: "{{enterprise_space}}"
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocRcmConsequenceSafety
+  flocRcmConsequenceMax:
+    name: RCM Consequence Max
+    description: Maximum RCM consequence across evaluated dimensions for this location.
+    container:
+      space: "{{enterprise_space}}"
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocRcmConsequenceMax
+  flocRcmCriticality:
+    name: RCM Criticality
+    description: Overall RCM criticality classification for this functional location.
+    container:
+      space: "{{enterprise_space}}"
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocRcmCriticality
+  flocCatalogProfile:
+    name: Catalog Profile
+    description: Catalog profile code defining task lists or classes for this location.
+    container:
+      space: "{{enterprise_space}}"
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocCatalogProfile
+  flocCatalogProfileDesc:
+    name: Catalog Profile Description
+    description: Description of the catalog profile applied to this functional location.
+    container:
+      space: "{{enterprise_space}}"
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocCatalogProfileDesc
+  flocDiscipline:
+    name: Discipline
+    description: Engineering or maintenance discipline responsible for this location.
+    container:
+      space: "{{enterprise_space}}"
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocDiscipline
+  flocMainWorkCenter:
+    name: Main Work Center
+    description: Code of the main work center performing work at this location.
+    container:
+      space: "{{enterprise_space}}"
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocMainWorkCenter
+  flocMainWorkCenterDesc:
+    name: Main Work Center Description
+    description: Description of the main work center for this functional location.
+    container:
+      space: "{{enterprise_space}}"
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocMainWorkCenterDesc
+  flocObjectTypeDesc:
+    name: Object Type Description
+    description: Description of the object type in the source maintenance system.
+    container:
+      space: "{{enterprise_space}}"
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocObjectTypeDesc
+  flocObjectType:
+    name: Object Type
+    description: Object type code for this functional location in the source system.
+    container:
+      space: "{{enterprise_space}}"
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocObjectType
+  flocAbcIndicator:
+    name: ABC Indicator
+    description: ABC classification indicator for spare parts or maintenance priority.
+    container:
+      space: "{{enterprise_space}}"
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocAbcIndicator
+  flocSystemDesc:
+    name: System Description
+    description: Description of the technical system this functional location belongs to.
+    container:
+      space: "{{enterprise_space}}"
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocSystemDesc
+  flocLocation:
+    name: Location Code
+    description: Short code or label for this functional location in the source hierarchy.
+    container:
+      space: "{{enterprise_space}}"
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocLocation
+  flocUserStatus:
+    name: User Status
+    description: User-defined or business status of this functional location in the source system.
+    container:
+      space: "{{enterprise_space}}"
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocUserStatus
+  ingestionDT:
+    name: Ingestion Date/Time
+    description: Timestamp from the source indicating when this record was ingested or last staged.
+    container:
+      space: "{{enterprise_space}}"
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: ingestionDT
+  flocCategory:
+    name: Category
+    description: Category or class of functional location from the source.
+    container:
+      space: "{{enterprise_space}}"
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocCategory
+  flocCreatedDate:
+    name: Created Date
+    description: Creation date of the functional location record in the source system.
+    container:
+      space: "{{enterprise_space}}"
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocCreatedDate
+  flocChangedDateTimeUTC:
+    name: Last Changed (UTC)
+    description: Last change timestamp (UTC) for this functional location in the source system.
+    container:
+      space: "{{enterprise_space}}"
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocChangedDateTimeUTC
+  flocFunctionalLocation:
+    name: Functional Location Code
+    description: Canonical functional location identifier or code from the source (e.g. SAP FL).
+    container:
+      space: "{{enterprise_space}}"
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocFunctionalLocation
+  flocFunctionalLocationDesc:
+    name: Functional Location Description
+    description: Long name or description of the functional location from the source system.
+    container:
+      space: "{{enterprise_space}}"
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocFunctionalLocationDesc
+  flocMainAsset:
+    name: Main Asset
+    description: Identifier of the main technical object or asset tied to this location.
+    container:
+      space: "{{enterprise_space}}"
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocMainAsset
+  flocMaintenancePlant:
+    name: Maintenance Plant
+    description: Maintenance plant code responsible for work at this functional location.
+    container:
+      space: "{{enterprise_space}}"
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocMaintenancePlant
+  flocMaintenancePlantDesc:
+    name: Maintenance Plant Description
+    description: Description of the maintenance plant for this functional location.
+    container:
+      space: "{{enterprise_space}}"
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocMaintenancePlantDesc
+  flocObjectNumber:
+    name: Object Number
+    description: Object or equipment number in the source system linked to this location.
+    container:
+      space: "{{enterprise_space}}"
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocObjectNumber
+  flocPlannerGroup:
+    name: Planner Group
+    description: Planner group code for maintenance planning at this location.
+    container:
+      space: "{{enterprise_space}}"
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocPlannerGroup
+  flocPlannerGroupDesc:
+    name: Planner Group Description
+    description: Description of the planner group for this functional location.
+    container:
+      space: "{{enterprise_space}}"
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocPlannerGroupDesc
+  flocPlanningPlant:
+    name: Planning Plant
+    description: Planning plant code used for maintenance orders tied to this location.
+    container:
+      space: "{{enterprise_space}}"
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocPlanningPlant
+  flocPlanningPlantDesc:
+    name: Planning Plant Description
+    description: Description of the planning plant for this functional location.
+    container:
+      space: "{{enterprise_space}}"
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocPlanningPlantDesc
+  flocSuperiorFunctionalLocation:
+    name: Superior Functional Location
+    description: Identifier of the parent or superior functional location in the source hierarchy.
+    container:
+      space: "{{enterprise_space}}"
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocSuperiorFunctionalLocation
+  flocSystemStatus:
+    name: System Status
+    description: System status profile for this functional location.
+    container:
+      space: "{{enterprise_space}}"
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocSystemStatus
+  superiorFuncLocationTagDesc:
+    name: Superior Functional Location Description
+    description: Description text for the superior functional location or linked tag from the source.
+    container:
+      space: "{{enterprise_space}}"
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: superiorFuncLocationTagDesc
+  isDeleted:
+    name: Is Deleted
+    description: Indicates whether the functional location has been deleted from the source.
+    container:
+      space: "{{enterprise_space}}"
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: isDeleted
+  additionalProperties:
+    name: Additional Properties
+    description: Additional source-specific attributes stored as JSON.
+    container:
+      space: "{{enterprise_space}}"
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: additionalProperties
+  name:
+    name: Name
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: name
+    description: Human-readable name of the functional location.
+  description:
+    name: Description
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: description
+    description: Textual description of the functional location.
+  labels:
+    name: Labels
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: tags
+    description: Text-based labels for generic use, limited to 1000.
+  aliases:
+    name: Aliases
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: aliases
+    description: Alternative names or identifiers for this functional location.
+  workOrderOperations:
+    name: Work Order Operations
+    description: Work order operations whose functionalLocation relation points to this location.
+    connectionType: multi_reverse_direct_relation
+    source:
+      space: "{{search_space}}"
+      externalId: WorkOrderOperation
+      version: "{{search_dm_version}}"
+      type: view
+    through:
+      source:
+        space: "{{search_space}}"
+        externalId: WorkOrderOperation
+        version: "{{search_dm_version}}"
+        type: view
+      identifier: functionalLocation
