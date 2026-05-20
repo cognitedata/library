@@ -77,28 +77,22 @@ These are the packs exposed in the Toolkit menu (from `packages.toml`):
 | `tool` | Tools and Accelerators | `tools/` |
 | `dp:emptymodule` | Empty Module | `custom/my_module` |
 
-Some modules appear in more than one pack (for example `dashboards/report_quality` is in both `dp:dashboards` and `dp:quickstart`).
+Some modules appear in more than one pack (for example `dashboards/report_quality` is in both `dp:dashboards` and `dp:quickstart`). See [ADDING_PACKAGES_AND_MODULES.md](../ADDING_PACKAGES_AND_MODULES.md) for how `package_id` relates to multi-pack membership.
 
 ## Naming conventions
 
-| Prefix | Use for | Examples |
-|--------|---------|----------|
-| `cdf_` | Cognite-built platform capabilities | `cdf_common`, `cdf_pi`, `cdf_file_annotation` |
-| `cdm_` | Solutions built on Cognite Data Model | `cdm_maintain` |
-| *(none)* | Industry-standard models, dashboards, tools | `rmdm`, `context_quality`, `report_quality` |
-
-Apply the prefix on **module folder names** where it helps discovery. Top-level folders (`common/`, `data_models/`, …) are not prefixed.
+See [Naming conventions](../README.md#naming-conventions) in the root README.
 
 ## Module structure
 
 Each deployable module is a directory with:
 
-- **`module.toml`** — required (`title`, `id`, `package_id`)
-- **`default.config.yaml`** — variables merged into the user’s `config.<env>.yaml` when pulling from the library
+- **`module.toml`** — required (`title`, `id`, `package_id`; optional `is_selected_by_default`, `description`, `tags`)
+- **`default.config.yaml`** — optional; variables merged into the user’s `config.<env>.yaml` when pulling from the library
 - **Assets** — YAML/JSON for CDF resources (transformations, functions, data models, etc.), following Toolkit conventions
 - **`README.md`** — recommended: purpose, prerequisites, deploy steps
 
-Optional **`[[extra_resources]]`** in `module.toml` references shared files under other module paths (paths relative to `modules/`).
+Optional **`[[extra_resources]]`** in `module.toml` references shared files under other module paths (paths relative to `modules/`). `validate_packages.py` checks that each path exists.
 
 ## Validation
 
@@ -106,7 +100,7 @@ From the repository `library/` directory:
 
 ```bash
 python validate_packages.py
-python build_packages.py
+python build_packages.py   # optional; do not commit packages.zip
 ```
 
 `validate_packages.py` checks `packages.toml`, every module path, and `extra_resources` targets.

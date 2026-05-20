@@ -207,7 +207,6 @@ external-libraries = true
 
 [library.cognite]
 url = "https://github.com/cognitedata/library/releases/download/latest/packages.zip"
-checksum = "sha256:795a1d303af6994cff10656057238e7634ebbe1cac1a5962a5c654038a88b078"
 ```
 
 This allows the Toolkit to retrieve official library packages.
@@ -248,7 +247,7 @@ After installation, your project should now contain:
 ```
 modules/
     └── data_models/
-        └── id = isa_manufacturing_extension/
+        └── isa_manufacturing_extension/
 ```
 If you want to add more modules, continue with yes ('y') else no ('N')
 

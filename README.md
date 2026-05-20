@@ -31,7 +31,9 @@ All deployable content lives under [`modules/`](modules/). The registry of packs
 | `cdm_` | Solutions on Cognite Data Model | `cdm_maintain` |
 | *(none)* | Industry models, dashboards, tools | `rmdm`, `context_quality`, `report_quality` |
 
-Contributors: see [ADDING_PACKAGES_AND_MODULES.md](ADDING_PACKAGES_AND_MODULES.md).
+Apply the prefix on **module folder names** where it helps discovery. Top-level folders (`common/`, `data_models/`, …) are not prefixed.
+
+Contributors: see [ADDING_PACKAGES_AND_MODULES.md](ADDING_PACKAGES_AND_MODULES.md). Validation and module layout details are in [modules/README.md](modules/README.md).
 
 ## Current release
 
@@ -44,10 +46,14 @@ url = "https://github.com/cognitedata/library/releases/download/latest/packages.
 
 ### 1. Add library reference to `cdf.toml`
 
+A new Toolkit project does **not** include this library by default. You must add (or replace an existing library section with) `library.cognite`:
+
 ```toml
 [library.cognite]
 url = "https://github.com/cognitedata/library/releases/download/latest/packages.zip"
 ```
+
+Many quickstart projects ship with `[library.toolkit-data]` pointing at `toolkit-data`. **Only one external library section is active at a time** — replace `toolkit-data` with `library.cognite` when you want deployment packs from this repository (see module READMEs such as [RMDM](modules/data_models/rmdm/README.md) for the replacement table).
 
 ### 2. Enable alpha flag (Toolkit &lt; 0.7.0 only)
 
@@ -62,15 +68,6 @@ external-libraries = true
 - Existing project: `cdf modules add`
 
 The Toolkit shows deployment packs defined in `modules/packages.toml`.
-
-## Validation (contributors)
-
-From the `library/` directory:
-
-```bash
-python validate_packages.py
-python build_packages.py
-```
 
 ## Disclaimer
 

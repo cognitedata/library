@@ -200,7 +200,6 @@ external-libraries = true
 
 [library.cognite]
 url = "https://github.com/cognitedata/library/releases/download/latest/packages.zip"
-checksum = "sha256:795a1d303af6994cff10656057238e7634ebbe1cac1a5962a5c654038a88b078"
 ```
 
 This allows the Toolkit to retrieve official library packages.
@@ -216,27 +215,7 @@ This allows the Toolkit to retrieve official library packages.
 > | `[library.toolkit-data]` | `[library.cognite]` |
 > | `github.com/cognitedata/toolkit-data/...` | `github.com/cognitedata/library/...` |
 >
-> The `library.cognite` package includes Deployment Packs developed by the Value Delivery Accelerator team (RMDM, Atlas AI, P&ID Annotation, etc.).
-
-> **⚠️ Checksum Warning**
->
-> When running `cdf modules add`, you may see a warning like:
->
-> ```
-> WARNING [HIGH]: The provided checksum sha256:... does not match downloaded file hash sha256:...
-> Please verify the checksum with the source and update cdf.toml if needed.
-> This may indicate that the package content has changed.
-> ```
->
-> **This is expected behavior.** The checksum in this documentation may be outdated because it gets updated with every release. The package will still download successfully despite the warning.
->
-> **To resolve the warning:** Copy the new checksum value shown in the warning message and update your `cdf.toml` with it. For example, if the warning shows `sha256:da2b33d60c66700f...`, update your config to:
->
-> ```toml
-> [library.cognite]
-> url = "https://github.com/cognitedata/library/releases/download/latest/packages.zip"
-> checksum = "sha256:da2b33d60c66700f..."
-> ```
+> The `library.cognite` package includes Deployment Packs developed by the Value Delivery Accelerator team (RMDM, Atlas AI, P&ID Annotation, etc.). A `checksum` field is not required for current Toolkit versions.
 
 ### Step 2: Add the Module
 
