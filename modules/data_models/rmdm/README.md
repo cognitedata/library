@@ -72,32 +72,16 @@ Before you start, ensure you have the following:
 - Your project contains the standard `cdf.toml` file
 - You have valid authentication to your target CDF environment
 
-### Step 1: Enable External Libraries
+### Step 1: Enable External Libraries (Toolkit < 0.7.0 only)
 
-Edit your project's `cdf.toml` and add the following configuration:
+Newer Toolkit versions ship `[library.cognite]` already pointing at this
+repository, so no `cdf.toml` change is needed. On Toolkit < 0.7.0, enable the
+alpha flag:
 
 ```toml
 [alpha_flags]
 external-libraries = true
-
-[library.cognite]
-url = "https://github.com/cognitedata/library/releases/download/latest/packages.zip"
 ```
-
-This allows the Toolkit to retrieve official library packages, including RMDM.
-
-> **📝 Note: Replacing the Default Library**
->
-> By default, a Cognite Toolkit project contains a `[library.toolkit-data]` section pointing to `https://github.com/cognitedata/toolkit-data/...`. This provides core modules like Quickstart, SourceSystem, Common, etc.
->
-> **These two library sections cannot coexist.** To use this Deployment Pack, you must **replace** the `toolkit-data` section with `library.cognite`:
->
-> | Replace This | With This |
-> |--------------|-----------|
-> | `[library.toolkit-data]` | `[library.cognite]` |
-> | `github.com/cognitedata/toolkit-data/...` | `github.com/cognitedata/library/...` |
->
-> The `library.cognite` package includes Deployment Packs developed by the Value Delivery Accelerator team (RMDM, Atlas AI, Context Quality Dashboard, etc.). A `checksum` field is not required for current Toolkit versions.
 
 ### Step 2 (Optional but Recommended): Enable Usage Tracking
 

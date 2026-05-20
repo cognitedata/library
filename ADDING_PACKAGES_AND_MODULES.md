@@ -124,7 +124,7 @@ python validate_packages.py
 python build_packages.py   # optional local smoke test; produces packages.zip (do not commit)
 ```
 
-On merge to `main`, GitHub Actions validates, builds `packages.zip`, and updates the `latest` release. Consumers pin only the library URL in `cdf.toml` (no checksum field required for current Toolkit versions).
+On merge to `main`, GitHub Actions validates, builds `packages.zip`, and updates the `latest` release. The Cognite Toolkit ships `[library.cognite]` pointing at this release by default, so consumers automatically pick up the new content without editing `cdf.toml`.
 
 ## Quick reference
 

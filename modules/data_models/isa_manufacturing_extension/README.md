@@ -197,19 +197,16 @@ Before you start, ensure you have:
    - **Access**: You need appropriate permissions in your CDF project to enable feature flags. Contact your CDF administrator if you don't have access.
 
 
-### Step 1: Enable External Libraries
+### Step 1: Enable External Libraries (Toolkit < 0.7.0 only)
 
-Edit your project's `cdf.toml` and add:
+Newer Toolkit versions ship `[library.cognite]` already pointing at this
+repository, so no `cdf.toml` change is needed. On Toolkit < 0.7.0, enable the
+alpha flag:
 
 ```toml
 [alpha_flags]
 external-libraries = true
-
-[library.cognite]
-url = "https://github.com/cognitedata/library/releases/download/latest/packages.zip"
 ```
-
-This allows the Toolkit to retrieve official library packages.
 
 ### Step 2 (Optional but Recommended): Enable Usage Tracking
 

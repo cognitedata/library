@@ -35,39 +35,24 @@ Apply the prefix on **module folder names** where it helps discovery. Top-level 
 
 Contributors: see [ADDING_PACKAGES_AND_MODULES.md](ADDING_PACKAGES_AND_MODULES.md). Validation and module layout details are in [modules/README.md](modules/README.md).
 
-## Current release
-
-```toml
-[library.cognite]
-url = "https://github.com/cognitedata/library/releases/download/latest/packages.zip"
-```
-
 ## Usage
 
-### 1. Add library reference to `cdf.toml`
+The Cognite Toolkit ships with `[library.cognite]` already pointing at this
+repository's `latest` release, so a new project is wired up out of the box.
 
-A new Toolkit project does **not** include this library by default. You must add (or replace an existing library section with) `library.cognite`:
-
-```toml
-[library.cognite]
-url = "https://github.com/cognitedata/library/releases/download/latest/packages.zip"
-```
-
-Many quickstart projects ship with `[library.toolkit-data]` pointing at `toolkit-data`. **Only one external library section is active at a time** — replace `toolkit-data` with `library.cognite` when you want deployment packs from this repository (see module READMEs such as [RMDM](modules/data_models/rmdm/README.md) for the replacement table).
-
-### 2. Enable alpha flag (Toolkit &lt; 0.7.0 only)
+### 1. Enable alpha flag (Toolkit &lt; 0.7.0 only)
 
 ```toml
 [alpha_flags]
 external-libraries = true
 ```
 
-### 3. Initialize or add modules
+### 2. Initialize or add modules
 
 - New project: `cdf modules init`
 - Existing project: `cdf modules add`
 
-The Toolkit shows deployment packs defined in `modules/packages.toml`.
+The Toolkit shows deployment packs defined in [`modules/packages.toml`](modules/packages.toml).
 
 ## Disclaimer
 
