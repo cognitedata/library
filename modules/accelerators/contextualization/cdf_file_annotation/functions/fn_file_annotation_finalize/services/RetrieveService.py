@@ -59,17 +59,17 @@ class GeneralRetrieveService(IRetrieveService):
         """
         Retrieves the results of a diagram detection job by job ID.
 
-        Polls the diagram detect API to check if a job has completed and returns the results
-        if available.
+        Polls the diagram detect API and returns the latest payload.
+        The payload is returned even while the job is still running, allowing callers
+        to process terminal file items incrementally instead of waiting for full job completion.
 
         Args:
             job_id: The diagram detection job ID to retrieve results for.
 
         Returns:
-            Dictionary containing job results if completed, None if still processing or failed.
+            Dictionary containing job results payload when request succeeds, None if request fails.
         """
         url = f"{self.job_api}/{job_id}"
-        result = None
         response = self.client.get(url, headers={"X-Job-Token": job_token})
         if response.status_code == 200:
             job_results: dict = response.json()
@@ -79,11 +79,10 @@ class GeneralRetrieveService(IRetrieveService):
             if job_results.get("status") == "Completed":
                 self.logger.info(f"Job complete - {status_count} - {job_id}")
                 self.logger.debug(f"Below is the full response:\n{response.text}")
-                result = job_results
-                return result
             else:
                 self.logger.info(f"Job not complete - {status_count} - {job_id}")
                 self.logger.debug(f"Below is the full response:\n{response.text}")
+            return job_results
         else:
             self.logger.info(f"Request to get the job results failed - {response.url}")
             self.logger.info(f"Below is the full response:\n{response.text}")

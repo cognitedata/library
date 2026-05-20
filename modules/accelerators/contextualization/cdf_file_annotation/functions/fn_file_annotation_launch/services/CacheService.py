@@ -64,7 +64,7 @@ class GeneralCacheService(ICacheService):
         self.cache_time_limit: int = config.launch_function.cache_service.cache_time_limit  # in hours
 
         self.file_view: ViewPropertyConfig = config.data_model_views.file_view
-        self.target_entities_view: ViewPropertyConfig = config.data_model_views.target_entities_view
+        self.target_entities_views: list[ViewPropertyConfig] = config.data_model_views.get_target_entity_views()
 
     def get_entities(
         self,
@@ -195,7 +195,7 @@ class GeneralCacheService(ICacheService):
         return True
 
     def _convert_instances_to_entities(
-        self, asset_instances: NodeList, file_instances: NodeList
+        self, asset_instances: list[Node], file_instances: NodeList
     ) -> tuple[list[dict], list[dict]]:
         """
         Transforms data model node instances into entity dictionaries for diagram detection.
@@ -212,25 +212,75 @@ class GeneralCacheService(ICacheService):
                 - List of target entity dictionaries (typically assets).
                 - List of file entity dictionaries.
         """
+        def _normalize_search_property(
+            raw_value: Any, fallback_value: str | None, entity_external_id: str, entity_kind: str
+        ) -> list[str]:
+            """Ensure diagram-detect search_property is list[str]."""
+            normalized: list[str] = []
+
+            if isinstance(raw_value, str):
+                value = raw_value.strip()
+                if value:
+                    normalized.append(value)
+            elif isinstance(raw_value, (list, tuple, set)):
+                for item in raw_value:
+                    if isinstance(item, str):
+                        value = item.strip()
+                        if value:
+                            normalized.append(value)
+                    elif isinstance(item, (int, float, bool)):
+                        normalized.append(str(item))
+            elif isinstance(raw_value, (int, float, bool)):
+                normalized.append(str(raw_value))
+
+            normalized = list(dict.fromkeys(normalized))
+            if not normalized and fallback_value:
+                fallback = str(fallback_value).strip()
+                if fallback:
+                    normalized = [fallback]
+                    self.logger.debug(
+                        f"{entity_kind} '{entity_external_id}' has invalid/empty search_property; "
+                        "using fallback name."
+                    )
+            return normalized
+
         target_entities_resource_type: str | None = self.config.launch_function.target_entities_resource_property
         target_entities_search_property: str = self.config.launch_function.target_entities_search_property
         target_entities: list[dict] = []
 
         for instance in asset_instances:
-            instance_properties = instance.properties.get(self.target_entities_view.as_view_id())
+            matched_view: ViewPropertyConfig | None = None
+            instance_properties: dict[str, Any] | None = None
+            for candidate_view in self.target_entities_views:
+                candidate_props = instance.properties.get(candidate_view.as_view_id())
+                if candidate_props is not None:
+                    matched_view = candidate_view
+                    instance_properties = candidate_props
+                    break
+            if not matched_view or instance_properties is None:
+                self.logger.warning(
+                    f"Skipping target entity {instance.space}/{instance.external_id}: unable to resolve source view"
+                )
+                continue
             asset_resource_type: str = (
                 instance_properties.get(target_entities_resource_type)
                 if target_entities_resource_type
-                else self.target_entities_view.external_id
+                else matched_view.external_id
             )
             if target_entities_search_property in instance_properties:
+                search_property = _normalize_search_property(
+                    raw_value=instance_properties.get(target_entities_search_property),
+                    fallback_value=instance_properties.get("name"),
+                    entity_external_id=instance.external_id,
+                    entity_kind="Target entity",
+                )
                 asset_entity = entity(
                     external_id=instance.external_id,
                     name=instance_properties.get("name"),
                     space=instance.space,
-                    annotation_type=self.target_entities_view.annotation_type,
+                    annotation_type=matched_view.annotation_type,
                     resource_type=asset_resource_type,
-                    search_property=instance_properties.get(target_entities_search_property),
+                    search_property=search_property,
                 )
                 target_entities.append(asset_entity.to_dict())
             else:
@@ -239,7 +289,7 @@ class GeneralCacheService(ICacheService):
                     external_id=instance.external_id,
                     name=instance_properties.get("name"),
                     space=instance.space,
-                    annotation_type=self.target_entities_view.annotation_type,
+                    annotation_type=matched_view.annotation_type,
                     resource_type=asset_resource_type,
                     search_property=search_value,
                 )
@@ -253,8 +303,14 @@ class GeneralCacheService(ICacheService):
             instance_properties = instance.properties.get(self.file_view.as_view_id())
             file_entity_resource_type: str = (
                 instance_properties[file_resource_type_prop]
-                if target_entities_resource_type
+                if file_resource_type_prop
                 else self.file_view.external_id
+            )
+            search_property = _normalize_search_property(
+                raw_value=instance_properties.get(file_search_property),
+                fallback_value=instance_properties.get("name"),
+                entity_external_id=instance.external_id,
+                entity_kind="File entity",
             )
             file_entity = entity(
                 external_id=instance.external_id,
@@ -262,7 +318,7 @@ class GeneralCacheService(ICacheService):
                 space=instance.space,
                 annotation_type=self.file_view.annotation_type,
                 resource_type=file_entity_resource_type,
-                search_property=instance_properties.get(file_search_property),
+                search_property=search_property,
             )
             file_entities.append(file_entity.to_dict())
 
