@@ -133,6 +133,30 @@ modules = [
     "tools/apps/qualitizer",
 ]
 
+[packages.foundation]
+id = "dp:foundation"
+title = "Foundation Deployment Pack"
+description = "A scalable, modular foundation for industrial CDF projects. Near zero-config start with ISA Manufacturing Extension or CFIHOS Oil & Gas DM, production-grade extractor config templates for PI, OPC-UA, SAP, DB, and file sources, modular ingestion orchestration, and contextualization."
+canCherryPick = true
+modules = [
+    # Data models — choose one or both
+    "models/isa_manufacturing_extension",
+    "models/cfihos_oil_and_gas_extension",
+    # Source systems — deploy the ones matching your site
+    "sourcesystem/cdf_pi_foundation",
+    "sourcesystem/cdf_opcua_foundation",
+    "sourcesystem/cdf_sap_foundation",
+    "sourcesystem/cdf_db_foundation",
+    "sourcesystem/cdf_files_foundation",
+    # Ingestion orchestration
+    "foundation/cdf_ingestion_foundation",
+    # Contextualization
+    "accelerators/contextualization/cdf_file_annotation",
+    "accelerators/contextualization/cdf_entity_matching",
+    # Quality tooling
+    "tools/apps/qualitizer",
+]
+
 [packages.custom]
 id = "dp:emptymodule"
 title = "Empty Module"
