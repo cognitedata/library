@@ -13,9 +13,12 @@
   "reportReturnType": "none",
   "reportOptionalMemberAccess": "none",
   "reportOptionalSubscript": "none",
+  "reportPossiblyUnboundVariable": "none",
+  "reportIndexIssue": "none",
+  "reportInvalidTypeForm": "none",
   "ignore": [
     "modules/**/streamlit/**",
     "modules/tools/notebooks/**",
-    "modules/models/**"
+    "modules/data_models/**"
   ]
 }

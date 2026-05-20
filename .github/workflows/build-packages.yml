@@ -32,15 +32,8 @@ jobs:
         python validate_packages.py
         
     - name: Build packages
-      id: build
-      run: |
-        python build_packages.py
-        HASH=$(sha256sum packages.zip | awk '{print $1}')
-        echo "hash=$HASH" >> $GITHUB_OUTPUT
-        echo "sha256:$HASH" > checksum.txt
-        
-    
-        
+      run: python build_packages.py
+
     - name: Upload packages artifact
       if: github.ref == 'refs/heads/main' && github.event_name == 'push'
       uses: actions/upload-artifact@v4
@@ -59,11 +52,8 @@ jobs:
           
           **Download:** [packages.zip](https://github.com/${{ github.repository }}/releases/download/latest/packages.zip)
           
-          **Checksum (SHA256):** [checksum.txt](https://github.com/${{ github.repository }}/releases/download/latest/checksum.txt)
-          
           This release is automatically updated on every merge to main.
         files: |
           packages.zip
-          checksum.txt
         draft: false
         prerelease: false

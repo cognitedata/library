@@ -56,53 +56,16 @@ Before you start, ensure you have:
 - Your project contains the standard `cdf.toml` file
 - Valid authentication to your target CDF environment
 
-### Step 1: Enable External Libraries
+### Step 1: Enable External Libraries (Toolkit < 0.7.0 only)
 
-Edit your project's `cdf.toml` and add:
+Newer Toolkit versions ship `[library.cognite]` already pointing at this
+repository, so no `cdf.toml` change is needed. On Toolkit < 0.7.0, enable the
+alpha flag:
 
 ```toml
 [alpha_flags]
 external-libraries = true
-
-[library.cognite]
-url = "https://github.com/cognitedata/library/releases/download/latest/packages.zip"
-checksum = "sha256:795a1d303af6994cff10656057238e7634ebbe1cac1a5962a5c654038a88b078"
 ```
-
-This allows the Toolkit to retrieve official library packages.
-
-> **📝 Note: Replacing the Default Library**
->
-> By default, a Cognite Toolkit project contains a `[library.toolkit-data]` section pointing to `https://github.com/cognitedata/toolkit-data/...`. This provides core modules like Quickstart, SourceSystem, Common, etc.
->
-> **These two library sections cannot coexist.** To use this Deployment Pack, you must **replace** the `toolkit-data` section with `library.cognite`:
->
-> | Replace This | With This |
-> |--------------|-----------|
-> | `[library.toolkit-data]` | `[library.cognite]` |
-> | `github.com/cognitedata/toolkit-data/...` | `github.com/cognitedata/library/...` |
->
-> The `library.cognite` package includes all Deployment Packs developed by the Value Delivery Accelerator team (RMDM, RCA agents, Context Quality Dashboard, Project Health Dashboard, etc.).
-
-> **⚠️ Checksum Warning**
->
-> When running `cdf modules add`, you may see a warning like:
->
-> ```
-> WARNING [HIGH]: The provided checksum sha256:... does not match downloaded file hash sha256:...
-> Please verify the checksum with the source and update cdf.toml if needed.
-> This may indicate that the package content has changed.
-> ```
->
-> **This is expected behavior.** The checksum in this documentation may be outdated because it gets updated with every release. The package will still download successfully despite the warning.
->
-> **To resolve the warning:** Copy the new checksum value shown in the warning message and update your `cdf.toml` with it. For example, if the warning shows `sha256:da2b33d60c66700f...`, update your config to:
->
-> ```toml
-> [library.cognite]
-> url = "https://github.com/cognitedata/library/releases/download/latest/packages.zip"
-> checksum = "sha256:da2b33d60c66700f..."
-> ```
 
 ### Step 2: Add the Module
 

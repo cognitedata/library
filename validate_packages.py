@@ -7,6 +7,7 @@ Assumes "modules" as the base folder where packages.toml is located.
 
 import os
 import sys
+from collections import defaultdict
 from pathlib import Path
 from typing import Any, Dict, List
 
@@ -138,6 +139,42 @@ def validate_module_paths(
     return True
 
 
+def validate_unique_module_ids(base_path: str = "modules") -> bool:
+    """Ensure every module.toml under modules/ has a unique `id`.
+
+    Different modules sharing the same id breaks Toolkit's cherry-pick UX
+    and any downstream telemetry keyed on the id.
+    """
+    base_path_obj = Path(base_path)
+    ids_by_path: dict[str, str] = {}
+    duplicates: defaultdict[str, list[str]] = defaultdict(list)
+
+    for module_toml in sorted(base_path_obj.rglob("module.toml")):
+        with open(module_toml, "rb") as f:
+            module_data = tomllib.load(f)
+        module_id = module_data.get("module", {}).get("id")
+        if not module_id:
+            continue
+        rel_path = str(module_toml.relative_to(base_path_obj))
+        if module_id in ids_by_path:
+            duplicates[module_id].append(ids_by_path[module_id])
+            duplicates[module_id].append(rel_path)
+        else:
+            ids_by_path[module_id] = rel_path
+
+    if duplicates:
+        print("\nERROR: Duplicate module ids detected:")
+        for module_id, paths in duplicates.items():
+            unique_paths = sorted(set(paths))
+            print(f"  id = {module_id!r} used by:")
+            for path in unique_paths:
+                print(f"    - {path}")
+        return False
+
+    print(f"\n✓ All {len(ids_by_path)} module ids are unique")
+    return True
+
+
 def main():
     """Main validation function."""
     packages_file = "modules/packages.toml"
@@ -174,6 +211,9 @@ def main():
             # Validate module paths
             if not validate_module_paths(package_name, package_data["modules"], "modules"):
                 sys.exit(1)
+
+        if not validate_unique_module_ids("modules"):
+            sys.exit(1)
 
         print(
             f"\n🎉 All validation checks passed! {len(packages)} packages validated successfully."

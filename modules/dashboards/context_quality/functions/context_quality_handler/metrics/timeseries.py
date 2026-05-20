@@ -2,7 +2,6 @@
 Time Series processing and metrics computation.
 """
 
-
 from cognite.client import CogniteClient
 from cognite.client.data_classes.data_modeling import NodeId, ViewId
 

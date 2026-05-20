@@ -1,0 +1,4 @@
+[module]
+title = "CFIHOS Oil And Gas Data Model template"
+id = "dp:models:cfihos_oil_and_gas_extension"
+package_id = "dp:models"

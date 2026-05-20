@@ -1,0 +1,4 @@
+[module]
+title = "CFIHOS Oil And Gas Search Solution Model"
+id = "dp:models:cfihos_oil_and_gas_extension_search"
+package_id = "dp:models"
