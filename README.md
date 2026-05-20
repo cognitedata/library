@@ -38,10 +38,7 @@ Contributors: see [ADDING_PACKAGES_AND_MODULES.md](ADDING_PACKAGES_AND_MODULES.m
 ```toml
 [library.cognite]
 url = "https://github.com/cognitedata/library/releases/download/latest/packages.zip"
-checksum = "sha256:..."
 ```
-
-For the current checksum, see the [latest release](https://github.com/cognitedata/library/releases/latest).
 
 ## Usage
 
@@ -50,7 +47,6 @@ For the current checksum, see the [latest release](https://github.com/cognitedat
 ```toml
 [library.cognite]
 url = "https://github.com/cognitedata/library/releases/download/latest/packages.zip"
-checksum = "sha256:..."  # from latest release
 ```
 
 ### 2. Enable alpha flag (Toolkit &lt; 0.7.0 only)
