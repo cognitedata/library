@@ -1,6 +1,9 @@
-# Packages
+# Packages (built by CI; never commit)
 modules.zip
-#packages.zip
+packages.zip
+
+# Cursor agent scratchpad - not part of the library
+.cursor_docs/
 
 # macOS system files
 .DS_Store

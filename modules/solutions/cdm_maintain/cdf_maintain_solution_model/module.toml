@@ -1,5 +1,5 @@
 [module]
 title = "Maintain Solution Model"
 is_selected_by_default = true
-id = "Maintain Quickstart"
+id = "dp:cdm_maintain:cdf_maintain_solution_model"
 package_id = "dp:cdm_maintain"
