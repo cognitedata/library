@@ -1,0 +1,3 @@
+- description: Space for file annotation CDF Function code nodes
+  name: "{{functionSpace}}"
+  space: "{{functionSpace}}"
