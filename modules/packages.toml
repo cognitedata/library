@@ -48,7 +48,10 @@ modules = [
     "models/cdf_process_industry_extension",
     "models/qs_enterprise_dm",
     "models/cfihos_oil_and_gas_extension",
+    "models/cfihos_oil_and_gas_extension_search",
 ]
+
+
 
 [packages.atlas_ai]
 id = "dp:atlas_ai"

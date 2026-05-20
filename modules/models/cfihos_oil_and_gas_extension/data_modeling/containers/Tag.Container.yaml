@@ -179,6 +179,7 @@ properties:
     immutable: false
     nullable: true
     autoIncrement: false
+    name: FunctionalLocationProperties
   classSpecific:
     type:
       list: false
