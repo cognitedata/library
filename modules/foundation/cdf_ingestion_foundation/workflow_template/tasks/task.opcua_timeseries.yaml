@@ -1,0 +1,11 @@
+externalId: task_opcua_timeseries
+type: transformation
+name: "OPC-UA: RAW → ISATimeSeries"
+description: "Transform OPC-UA node metadata from RAW into ISATimeSeries DM instances"
+parameters:
+  transformation:
+    externalId: "tr_opcua_timeseries_{{location}}_to_isa"
+    concurrencyPolicy: fail
+retries: 1
+timeout: 1800
+onFailure: abortWorkflow

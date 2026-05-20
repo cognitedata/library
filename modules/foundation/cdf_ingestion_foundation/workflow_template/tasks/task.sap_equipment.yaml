@@ -1,0 +1,13 @@
+externalId: task_sap_equipment
+type: transformation
+name: "SAP: Equipment → Equipment"
+description: "Transform SAP equipment master records from RAW into Equipment DM instances"
+dependsOn:
+  - externalId: task_sap_assets
+parameters:
+  transformation:
+    externalId: "tr_sap_equipment_{{location}}_to_isa"
+    concurrencyPolicy: fail
+retries: 1
+timeout: 1800
+onFailure: abortWorkflow

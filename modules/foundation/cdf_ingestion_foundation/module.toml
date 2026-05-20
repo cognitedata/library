@@ -1,0 +1,4 @@
+[module]
+title = "CDF Ingestion Foundation"
+id = "cdf_ingestion_foundation"
+package_id = "dp:foundation"

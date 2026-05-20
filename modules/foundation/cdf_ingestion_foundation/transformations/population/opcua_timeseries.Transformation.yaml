@@ -1,0 +1,13 @@
+externalId: "tr_opcua_timeseries_{{location}}_to_isa"
+dataSetExternalId: "{{dataset}}"
+name: "OPC-UA TimeSeries → ISATimeSeries ({{location}})"
+destination:
+  type: nodes
+  view:
+    space: "{{isaSchemaSpace}}"
+    externalId: ISATimeSeries
+    version: "{{viewVersion}}"
+  instanceSpace: "{{instanceSpace}}"
+conflictMode: upsert
+isPublic: true
+ignoreNullFields: true

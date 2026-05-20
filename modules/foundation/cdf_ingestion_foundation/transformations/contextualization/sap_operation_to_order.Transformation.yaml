@@ -1,0 +1,13 @@
+externalId: "tr_sap_operation_{{location}}_to_order"
+dataSetExternalId: "{{dataset}}"
+name: "SAP Notification → WorkOrder relation ({{location}})"
+destination:
+  type: nodes
+  view:
+    space: "{{isaSchemaSpace}}"
+    externalId: Operation
+    version: "{{viewVersion}}"
+  instanceSpace: "{{instanceSpace}}"
+conflictMode: upsert
+isPublic: true
+ignoreNullFields: true

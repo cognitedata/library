@@ -1,0 +1,14 @@
+externalId: ctx_isa_equipment_to_asset
+type: transformation
+name: "CTX: Equipment → Asset relation"
+description: "Set Equipment.asset property linking each equipment to its functional location ISAAsset"
+dependsOn:
+  - externalId: task_sap_assets
+  - externalId: task_sap_equipment
+parameters:
+  transformation:
+    externalId: "tr_sap_equipment_{{location}}_to_asset"
+    concurrencyPolicy: fail
+retries: 1
+timeout: 1800
+onFailure: abortWorkflow
