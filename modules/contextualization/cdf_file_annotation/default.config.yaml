@@ -31,7 +31,7 @@ targetEntityVersion: v1
 # used in /functions
 functionClientId: ${IDP_CLIENT_ID}
 functionClientSecret: ${IDP_CLIENT_SECRET}
-functionSpace: springfield_functions # space where function code files are stored
+functionSpace: sp_file_annotation_fn # space where function code nodes are stored — created by this module
 
 # function external IDs (folder names must match these)
 prepareFunctionExternalId: fn_file_annotation_prepare

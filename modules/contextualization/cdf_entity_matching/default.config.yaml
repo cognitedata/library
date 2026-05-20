@@ -13,7 +13,7 @@ schemaSpace: sp_enterprise_process_industry
 viewVersion: v1
 assetInstanceSpace: springfield_instances
 timeseriesInstanceSpace: springfield_instances
-functionSpace: springfield_functions
+functionSpace: sp_entity_matching_fn # space where function code nodes are stored — created by this module
 AssetViewExternalId: YourOrgAsset # use Asset as external Id if using QS datamodel
 TimeSeriesViewExternalId: YourOrgTimeSeries # use Enterprise_TimeSeries as external Id if using QS datamodel
 targetViewExternalId: YourOrgAsset # use Asset as external Id if using QS datamodel
