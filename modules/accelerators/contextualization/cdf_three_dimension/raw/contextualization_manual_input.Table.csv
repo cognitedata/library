@@ -1,0 +1,3 @@
+nodeId,assetId,nodeName,assetExternalId,contextualized
+1001,SITE/ASSET-001,NodeNameA,SITE/ASSET-001,false
+1002,SITE/ASSET-002,NodeNameB,SITE/ASSET-002,false

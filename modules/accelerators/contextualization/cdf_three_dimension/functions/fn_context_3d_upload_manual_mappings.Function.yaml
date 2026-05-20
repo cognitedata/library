@@ -1,0 +1,15 @@
+# Pipeline: upload manual mappings CSV to RAW. Assign this function to ep_ctx_3d_*_upload_manual_mappings.
+- name: 'context:3d:upload_manual_mappings'
+  externalId: 'fn_context_3d_upload_manual_mappings'
+  owner: 'Anonymous'
+  description: 'Upload manual 3D–asset mappings from CSV (CDF File) to contextualization_manual_input RAW table'
+  metadata:
+    version: '0.1.0'
+  envVars:
+    ENV_TYPE: '${CDF_BUILD_TYPE}'
+    CDF_ENV: '${CDF_ENVIRON}'
+  cpu: 0.25
+  runtime: 'py311'
+  functionPath: './handler.py'
+  dataSetExternalId: 'ds_3d_{{default_location}}'
+  space: '{{function_space}}'

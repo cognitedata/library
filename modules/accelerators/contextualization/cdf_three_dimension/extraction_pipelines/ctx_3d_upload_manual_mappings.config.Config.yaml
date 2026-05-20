@@ -1,0 +1,12 @@
+# Config for upload manual mappings pipeline. Optional: fileExternalId, dataSetExternalId
+# to read CSV from CDF Files; if omitted, trigger the pipeline run with input containing
+# fileExternalId (and optionally dataSetExternalId).
+externalId: 'ep_ctx_3d_{{default_location}}_{{source_name}}_upload_manual_mappings'
+config:
+  data:
+    parameters:
+      rawdb: '3d_{{default_location}}_{{source_name}}'
+      rawTableManual: 'contextualization_manual_input'
+      # Optional: CDF File external id of the CSV to upload (e.g. manual_mappings.csv)
+      # fileExternalId: 'manual_mappings.csv'
+      # dataSetExternalId: 'ds_3d_{{default_location}}'

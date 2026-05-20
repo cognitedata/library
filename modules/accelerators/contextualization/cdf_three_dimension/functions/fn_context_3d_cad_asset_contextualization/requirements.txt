@@ -1,0 +1,4 @@
+cognite-extractor-utils>=7
+cognite-sdk>=7.26
+pyyaml>=6
+requests>=2.28
