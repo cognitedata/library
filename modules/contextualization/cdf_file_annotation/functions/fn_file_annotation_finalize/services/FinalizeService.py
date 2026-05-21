@@ -114,13 +114,13 @@ class GeneralFinalizeService(AbstractFinalizeService):
                     message="Retrieved job that has already been claimed. Grabbing another job.",
                     section="END",
                 )
-                return
+                return None
             elif (
                 e.code == 408
                 and e.message == "Graph query timed out. Reduce load or contention, or optimise your query."
             ):
                 self.logger.error(message="Ran into the following error", error=e, section="END")
-                return
+                return None
             else:
                 raise e
 
@@ -147,7 +147,7 @@ class GeneralFinalizeService(AbstractFinalizeService):
                 status=AnnotationStatus.RETRY,
                 failed=True,
             )
-            return
+            return None
 
         # A job is considered complete if:
         # 1. The main job is finished, AND
@@ -166,7 +166,7 @@ class GeneralFinalizeService(AbstractFinalizeService):
             )
             self.logger.info(message="Sleeping for 30 seconds")
             time.sleep(30)
-            return
+            return None
 
         self.logger.info(
             f"Both jobs {regular_job} and {pattern_mode_job} complete. Applying all annotations.",
@@ -455,7 +455,7 @@ class GeneralFinalizeService(AbstractFinalizeService):
             None
         """
         if len(batch.nodes) == 0:
-            return
+            return None
 
         self.logger.info(message=f"Updating {len(batch.nodes)} annotation state instances")
         if failed:
@@ -480,9 +480,8 @@ class GeneralFinalizeService(AbstractFinalizeService):
             new_properties=node_update_properties,
             view_id=self.annotation_state_view.as_view_id(),
         )
-        update_results = None
         try:
-            update_results = self.apply_service.update_instances(list_node_apply=batch.apply)
+            self.apply_service.update_instances(list_node_apply=batch.apply)
             self.logger.info(f"- set annotation status to {status}")
         except Exception as e:
             self.logger.error(
@@ -491,5 +490,5 @@ class GeneralFinalizeService(AbstractFinalizeService):
                 section="END",
             )
             time.sleep(30)
-            update_results = self.apply_service.update_instances(list_node_apply=batch.apply)
+            self.apply_service.update_instances(list_node_apply=batch.apply)
             self.logger.info(f"- set annotation status to {status}")

@@ -75,7 +75,6 @@ class FieldNames:
     TOTAL_POSSIBLE_SNAKE_CASE = "total_possible"
     RESOURCE_TYPE_SNAKE_CASE = "resource_type"
     PATTERN_SCOPE_SNAKE_CASE = "pattern_scope"
-    EDITED_ROWS_SNAKE_CASE = "edited_rows"
     ASSET_RESOURCE_PROPERTY_SNAKE_CASE = "asset_resource_property"
     FILE_RESOURCE_PROPERTY_SNAKE_CASE = "file_resource_property"
     SECONDARY_SCOPE_PROPERTY_SNAKE_CASE = "secondary_scope_property"

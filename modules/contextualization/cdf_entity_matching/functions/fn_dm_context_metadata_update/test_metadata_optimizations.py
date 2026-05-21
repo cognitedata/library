@@ -112,7 +112,7 @@ class TestBatchProcessing(unittest.TestCase):
         """Test batch processing functionality"""
         print("🧪 Testing BatchProcessor...")
         
-        processor = BatchProcessor(batch_size=3)
+        _processor = BatchProcessor(batch_size=3)
         
         # Mock NodeList and nodes
         mock_nodes = MagicMock()
@@ -272,7 +272,7 @@ class TestIntegrationScenarios(unittest.TestCase):
         
         # Initialize components
         processor = OptimizedMetadataProcessor(self.logger)
-        batch_processor = BatchProcessor(batch_size=10)
+        _batch_processor = BatchProcessor(batch_size=10)
         benchmark = PerformanceBenchmark(self.logger)
         
         # Simulate processing workflow
@@ -339,7 +339,7 @@ def run_performance_comparison():
             
             # No caching - recompile regex each time
             pattern = re.compile(r'[-]')
-            words = pattern.split(name)
+            _words = pattern.split(name)
             
             # Slow list operations
             if name not in aliases:
@@ -402,8 +402,9 @@ def main():
     for test_class in test_classes:
         print(f"\n🔬 Running {test_class.__name__}...")
         suite = unittest.TestLoader().loadTestsFromTestCase(test_class)
-        runner = unittest.TextTestRunner(verbosity=0, stream=open('/dev/null', 'w'))
-        result = runner.run(suite)
+        with open("/dev/null", "w") as devnull:
+            runner = unittest.TextTestRunner(verbosity=0, stream=devnull)
+            result = runner.run(suite)
         
         if result.wasSuccessful():
             print(f"✅ {test_class.__name__} - All tests passed!")

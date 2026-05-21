@@ -86,7 +86,7 @@ class GeneralRetrieveService(IRetrieveService):
         else:
             self.logger.info(f"Request to get the job results failed - {response.url}")
             self.logger.info(f"Below is the full response:\n{response.text}")
-        return
+        return None
 
     def get_job_id(
         self,
@@ -234,6 +234,6 @@ class GeneralRetrieveService(IRetrieveService):
                 self.logger.debug("Lock bypassed. Caught on the client-side.")
                 raise CogniteAPIError(message="A version conflict caused the ingest to fail.", code=400)
 
-        update_results = self.client.data_modeling.instances.apply(nodes=list_job_nodes_to_claim)
+        _update_results = self.client.data_modeling.instances.apply(nodes=list_job_nodes_to_claim)
 
         return

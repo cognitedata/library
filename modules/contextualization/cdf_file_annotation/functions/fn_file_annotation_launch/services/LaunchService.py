@@ -130,7 +130,7 @@ class GeneralLaunchService(AbstractLaunchService):
             ):
                 # NOTE: 408 indicates a timeout error. Keep retrying the query if a timeout occurs.
                 self.logger.error(message="Ran into the following error", error=e)
-                return
+                return None
             else:
                 raise e
 
@@ -174,13 +174,13 @@ class GeneralLaunchService(AbstractLaunchService):
             elif e.code == 408:
                 self.logger.error(message="Query timeout. Retrying in 30 seconds.", error=e)
                 time.sleep(30)
-                return
+                return None
             else:
                 raise e
         finally:
             self.tracker.add_files(success=total_files_processed)
 
-        return
+        return None
 
     def _organize_files_for_processing(self, list_files: NodeList) -> list[FileProcessingBatch]:
         """

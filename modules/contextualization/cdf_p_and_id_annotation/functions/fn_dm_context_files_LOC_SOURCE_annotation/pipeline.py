@@ -817,12 +817,14 @@ def create_table(client: CogniteClient, raw_db: str, tbl: str) -> None:
         client.raw.databases.create(raw_db)
     except Exception:
         # Database may already exist when the pipeline is re-run.
+        # Expected failure; continue without affecting the caller.
         pass
 
     try:
         client.raw.tables.create(raw_db, tbl)
     except Exception:
         # Table may already exist when the pipeline is re-run.
+        # Expected failure; continue without affecting the caller.
         pass
 
 def delete_table(client: CogniteClient, db: str, tbl: str) -> None:

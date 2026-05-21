@@ -273,8 +273,8 @@ def render_file_annotation_dashboard(metrics: dict):
     st.markdown("*How confident is the annotation model in its predictions?*")
     
     high_conf_pct = annot.get("annot_confidence_high_pct", 0)
-    medium_conf_pct = annot.get("annot_confidence_medium_pct", 0)
-    low_conf_pct = annot.get("annot_confidence_low_pct", 0)
+    _medium_conf_pct = annot.get("annot_confidence_medium_pct", 0)
+    _low_conf_pct = annot.get("annot_confidence_low_pct", 0)
     
     c1, c2, c3, c4 = st.columns(4)
     
@@ -331,8 +331,8 @@ def render_file_annotation_dashboard(metrics: dict):
     st.header("Annotation Status")
     st.markdown("*Review status of annotations (approved, suggested, rejected)*")
     
-    suggested_pct = annot.get("annot_suggested_pct", 0)
-    rejected_pct = annot.get("annot_rejected_pct", 0)
+    _suggested_pct = annot.get("annot_suggested_pct", 0)
+    _rejected_pct = annot.get("annot_rejected_pct", 0)
     
     s1, s2, s3 = st.columns(3)
     

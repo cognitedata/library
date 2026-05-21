@@ -273,8 +273,8 @@ def trigger_diagram_detection_jobs(
                 # Ensure that the files are uploaded
                 classic_files = client.files.retrieve_multiple(instance_ids=file_ids)
             except CogniteAPIError:
-                # We don't have access to the files, so we can't check if they are uploaded
-                ...
+                # We don't have access to the files, so we can't check if they are uploaded.
+                pass
             else:
                 classic_file_by_node_id = {file.instance_id: file for file in classic_files}
                 # This is because the client.diagrams detect method uses the classical file

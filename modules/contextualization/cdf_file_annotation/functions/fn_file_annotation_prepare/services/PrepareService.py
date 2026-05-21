@@ -125,7 +125,7 @@ class GeneralPrepareService(AbstractPrepareService):
             ):
                 # NOTE: 408 indicates a timeout error. Keep retrying the query if a timeout occurs.
                 self.logger.error(message="Ran into the following error", error=e)
-                return
+                return None
             else:
                 raise e
 
@@ -146,7 +146,7 @@ class GeneralPrepareService(AbstractPrepareService):
             ):
                 # NOTE: 408 indicates a timeout error. Keep retrying the query if a timeout occurs.
                 self.logger.error(message="Ran into the following error", error=e)
-                return
+                return None
             else:
                 raise e
 
@@ -191,7 +191,7 @@ class GeneralPrepareService(AbstractPrepareService):
             raise
 
         self.tracker.add_files(success=len(file_nodes))
-        return
+        return None
 
 
 class LocalPrepareService(GeneralPrepareService):

@@ -288,15 +288,6 @@ class ManualPromotingComponent(Component):
     def render(self) -> None:
         st.markdown(f"### {FieldNames.MANUAL_PROMOTION_TITLE}")
         st.info("Manual promotion functionality is under development.")
-        # TODO: Implement manual promotion logic
-        # selected_tags: list[AnnotationTag] = st.session_state.get("selected_potential_tags", [])
-
-        # if not selected_tags:
-        #     st.info("No potential tags selected. Select one or more potential tags in 'Annotation Comparison' to promote.")
-        #     return
-
-        # st.write(f"Selected Tags: {list(map(lambda t: t.tag_text, selected_tags))}")
-  
 
 class TagEntityResourceTypeCoverageComponent(Component):
     def __init__(self, actual_df: pd.DataFrame | None = None, potential_df: pd.DataFrame | None = None):

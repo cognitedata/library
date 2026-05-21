@@ -52,7 +52,7 @@ with app.setup(hide_code=True):
     #    https://github.com/cognitedata/cognite-sdk-python/blob/cognite-sdk-python-v7.91.1/cognite/client/credentials.py#L683-L696
     #
     # Store original method before patching
-    _original_refresh_access_token = OAuthInteractive._refresh_access_token
+    _original_refresh_access_token = OAuthInteractive._refresh_access_token  # codeql[py/unused-global-variable]
 
 
     def _refresh_access_token_patch(self) -> tuple[str, float]:
@@ -424,7 +424,7 @@ def init_cdf_client(config_form):
                     kind="danger",
                 )
 
-    _output
+    _output  # codeql[py/ineffectual-statement]
     return available_projects, cdf_client, output_folder_value
 
 
@@ -2287,6 +2287,8 @@ def show_transformation_details(
                     _unique_dates = sorted(_selected_dates)
                     _num_days = len(_unique_dates)
                     _show_trend = _num_days >= 2  # Need at least 2 days for trend
+                    _first_half_dates: set = set()
+                    _second_half_dates: set = set()
 
                     if _show_trend:
                         # Split dates into first half and second half
@@ -2370,7 +2372,7 @@ def show_transformation_details(
 
                     # Store data for the trend chart cell
                     trafo_trend_data = _filtered_data
-                    trafo_trend_date_range = (_min_sel_date, _max_sel_date)
+                    _trafo_trend_date_range = (_min_sel_date, _max_sel_date)
 
                     _output = mo.vstack(
                         [
@@ -2399,7 +2401,7 @@ def show_transformation_details(
                         ]
                     )
 
-    _output
+    _output  # codeql[py/ineffectual-statement]
     return trafo_details_table, trafo_trend_data
 
 
@@ -2533,7 +2535,7 @@ def create_daily_trend_chart(
                     ]
                 )
 
-    _output
+    _output  # codeql[py/ineffectual-statement]
     return trend_chart_element, trend_raw_data, trend_selected_trafos
 
 
@@ -2642,7 +2644,7 @@ def show_trend_job_details(
                             ]
                         )
 
-    _output
+    _output  # codeql[py/ineffectual-statement]
     return
 
 
@@ -2785,7 +2787,7 @@ def create_export_ui(export_catalog):
             ]
         )
 
-    _output
+    _output  # codeql[py/ineffectual-statement]
     return download_filename, export_dataset_key, export_format, show_preview
 
 
@@ -2813,7 +2815,7 @@ def generate_export_preview(export_catalog, export_dataset_key, show_preview):
         else:
             _output = mo.callout(mo.md("⚠️ **No data available for preview**"), kind="warn")
 
-    _output
+    _output  # codeql[py/ineffectual-statement]
     return
 
 
@@ -2884,7 +2886,7 @@ def generate_download(
                 kind="warn",
             )
 
-    _output
+    _output  # codeql[py/ineffectual-statement]
     return
 
 
@@ -2915,7 +2917,7 @@ def chapter7_tests_header():
     - Metrics aggregation
         """)
 
-    _output
+    _output  # codeql[py/ineffectual-statement]
     return
 
 

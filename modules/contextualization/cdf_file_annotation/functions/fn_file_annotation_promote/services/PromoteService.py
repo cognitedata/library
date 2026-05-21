@@ -173,7 +173,7 @@ class GeneralPromoteService(IPromoteService):
             self.logger.error("Ran into the following error", error=e)
             self.logger.info("Retrying in 15 seconds")
             time.sleep(15)
-            return
+            return None
 
         self.logger.info(f"Found {len(candidates)} Promote candidates. Starting processing.")
 

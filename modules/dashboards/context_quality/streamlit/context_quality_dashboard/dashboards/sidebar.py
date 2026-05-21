@@ -96,7 +96,8 @@ def render_metadata_sidebar(metrics: dict):
                 key="dl_asset",
                 use_container_width=True
             )
-        except:
+        except Exception:
+            # PDF export is optional when report generation fails.
             pass
         
         # Equipment
@@ -110,7 +111,8 @@ def render_metadata_sidebar(metrics: dict):
                 key="dl_equipment",
                 use_container_width=True
             )
-        except:
+        except Exception:
+            # PDF export is optional when report generation fails.
             pass
         
         # Time Series
@@ -124,7 +126,8 @@ def render_metadata_sidebar(metrics: dict):
                 key="dl_timeseries",
                 use_container_width=True
             )
-        except:
+        except Exception:
+            # PDF export is optional when report generation fails.
             pass
         
         # Maintenance (if available)
@@ -139,7 +142,8 @@ def render_metadata_sidebar(metrics: dict):
                     key="dl_maintenance",
                     use_container_width=True
                 )
-            except:
+            except Exception:
+                # PDF export is optional when report generation fails.
                 pass
         
         # File Annotation (if available)
@@ -154,7 +158,8 @@ def render_metadata_sidebar(metrics: dict):
                     key="dl_annotation",
                     use_container_width=True
                 )
-            except:
+            except Exception:
+                # PDF export is optional when report generation fails.
                 pass
         
         # 3D Model (if available)
@@ -169,7 +174,8 @@ def render_metadata_sidebar(metrics: dict):
                     key="dl_3d",
                     use_container_width=True
                 )
-            except:
+            except Exception:
+                # PDF export is optional when report generation fails.
                 pass
         
         # Files (if available)
@@ -184,7 +190,8 @@ def render_metadata_sidebar(metrics: dict):
                     key="dl_files",
                     use_container_width=True
                 )
-            except:
+            except Exception:
+                # PDF export is optional when report generation fails.
                 pass
     
     st.sidebar.markdown("---")
@@ -199,7 +206,8 @@ def render_metadata_sidebar(metrics: dict):
         try:
             dt = datetime.fromisoformat(computed_at.replace("Z", "+00:00"))
             computed_at = dt.strftime("%Y-%m-%d %H:%M:%S UTC")
-        except:
+        except Exception:
+            # PDF export is optional when report generation fails.
             pass
     
     st.sidebar.markdown(f"**Computed At:** {computed_at}")
@@ -214,7 +222,7 @@ def render_metadata_sidebar(metrics: dict):
     instance_counts_raw = metadata.get("instance_counts", {})
     instance_counts_from_metrics = _instance_counts_from_metrics(metrics)
     instance_counts = _merge_instance_counts(instance_counts_raw, instance_counts_from_metrics)
-    config = metadata.get("config", {})
+    _config = metadata.get("config", {})
     limits = metadata.get("limits_reached", {})
     
     # Helper function to generate duplicate IDs CSV content

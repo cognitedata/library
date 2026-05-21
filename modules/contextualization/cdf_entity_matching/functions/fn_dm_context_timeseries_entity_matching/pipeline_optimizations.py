@@ -366,6 +366,7 @@ def patch_existing_pipeline():
         if hasattr(os, "nice"):
             os.nice(-5)  # Increase priority slightly (Unix only)
     except OSError:
+        # Process priority adjustment is optional and may fail on some platforms.
         pass
     
     return True

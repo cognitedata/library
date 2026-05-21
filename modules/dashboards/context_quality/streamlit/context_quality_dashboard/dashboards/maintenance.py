@@ -116,7 +116,6 @@ def render_maintenance_dashboard(metrics: dict):
     st.header("Work Order Contextualization")
     
     order_asset_rate = maintenance.get("maint_order_to_asset_rate", 0) or 0
-    order_notif_rate = maintenance.get("maint_order_to_notif_rate", 0) or 0
     
     col_main, col_info = st.columns([2, 1])
     
@@ -140,7 +139,7 @@ def render_maintenance_dashboard(metrics: dict):
         All work orders should be linked to the asset being maintained.
         """)
         
-        orders_without_asset = maintenance.get("maint_order_without_asset", 0)
+        _orders_without_asset = maintenance.get("maint_order_without_asset", 0)
         if total_orders == 0:
             st.info("No work orders found in RMDM.")
         elif order_asset_rate >= 95:

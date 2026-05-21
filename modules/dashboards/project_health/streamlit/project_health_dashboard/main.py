@@ -7,8 +7,11 @@ The dashboard loads that file and filters the view by your config: selected data
 (and time range is shown from the file). Run the function from the Configuration tab, then Refresh data.
 """
 
+import base64
 import json
+import re
 
+import requests
 import streamlit as st
 
 try:
@@ -64,11 +67,6 @@ def _report_usage(cdf_client) -> None:
     if st.session_state.get("_usage_tracked"):
         return
     try:
-        import base64
-        import json
-        import re
-
-        import requests
         cluster = getattr(cdf_client.config, "cdf_cluster", None)
         if not cluster:
             m = re.match(r"https://([^.]+)\.cognitedata\.com", getattr(cdf_client.config, "base_url", "") or "")
@@ -207,8 +205,8 @@ def main():
         dataset_ids = []
     else:
         metadata = {}
-        config = {}
-        datasets_dict = None
+        _config = {}
+        _datasets_dict = None
         dataset_ids = []
 
     # Sidebar: only Project URL (organization base); project and cluster from metrics file (set by function from client config)
@@ -260,7 +258,7 @@ def main():
                 st.caption(f"Loaded {metadata.get('dataset_count') or len(datasets_dict)} dataset(s) from file.")
         else:
             dataset_external_id = "—"
-            time_range_label = "—"
+            _time_range_label = "—"
             payload = {}
             if metrics.get("_error"):
                 st.warning("Load failed. Run the function in **Configuration**, then **Refresh data**.")

@@ -73,11 +73,12 @@ def create_config_service(
     return config, client
 
 
-def create_logger_service(log_level):
+def create_logger_service(log_level: str, filepath: str | None = None) -> CogniteFunctionLogger:
     if log_level not in ["DEBUG", "INFO", "WARNING", "ERROR"]:
-        return CogniteFunctionLogger()
-    else:
-        return CogniteFunctionLogger(log_level=log_level)
+        return CogniteFunctionLogger(write=filepath is not None, filepath=filepath)
+    return CogniteFunctionLogger(
+        log_level=log_level, write=filepath is not None, filepath=filepath
+    )
 
 
 def create_write_logger_service(log_level, filepath):

@@ -68,13 +68,13 @@ def render_time_series_dashboard(metrics: dict):
     # Unit metrics
     source_unit_completeness = ts_metrics.get("ts_source_unit_completeness", 0)
     target_unit_completeness = ts_metrics.get("ts_target_unit_completeness", 0)
-    any_unit_completeness = ts_metrics.get("ts_any_unit_completeness", 0)
-    unit_mapping_rate = ts_metrics.get("ts_unit_mapping_rate")  # Can be None
+    _any_unit_completeness = ts_metrics.get("ts_any_unit_completeness", 0)
+    _unit_mapping_rate = ts_metrics.get("ts_unit_mapping_rate")  # Can be None
     has_source_unit = ts_metrics.get("ts_has_source_unit", 0)
     has_target_unit = ts_metrics.get("ts_has_target_unit", 0)
-    has_any_unit = ts_metrics.get("ts_has_any_unit", 0)
-    units_match = ts_metrics.get("ts_units_match", 0)
-    unit_checks = ts_metrics.get("ts_unit_checks", 0)
+    _has_any_unit = ts_metrics.get("ts_has_any_unit", 0)
+    _units_match = ts_metrics.get("ts_units_match", 0)
+    _unit_checks = ts_metrics.get("ts_unit_checks", 0)
     unique_source_units = ts_metrics.get("ts_unique_source_units", 0)
     # Historical Data Completeness metrics
     historical_data_completeness = ts_metrics.get("ts_historical_data_completeness")  # Can be None

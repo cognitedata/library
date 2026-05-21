@@ -197,7 +197,7 @@ def init_cdf_client(Path, config_form, mo):
                     kind="danger",
                 )
 
-    _output
+    _output  # codeql[py/ineffectual-statement]
     return available_projects, cdf_client, output_folder_value
 
 
@@ -2549,6 +2549,8 @@ def show_transformation_details(
                     _unique_dates = sorted(_selected_dates)
                     _num_days = len(_unique_dates)
                     _show_trend = _num_days >= 2  # Need at least 2 days for trend
+                    _first_half_dates: set = set()
+                    _second_half_dates: set = set()
 
                     if _show_trend:
                         # Split dates into first half and second half
@@ -2631,7 +2633,7 @@ def show_transformation_details(
                     )
 
                     # Store data for the trend chart cell
-                    trafo_trend_data = _filtered_data
+                    _trafo_trend_data = _filtered_data
                     trafo_trend_date_range = (_min_sel_date, _max_sel_date)
 
                     _output = mo.vstack(
