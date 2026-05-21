@@ -386,19 +386,21 @@ def apply_manual_mappings(
                     logger.warning(f"Manual mapping target ref is empty for entity: {entity.external_id}, skipping")
                     continue
 
-                targets = []
-                if not config.parameters.remove_old_links: 
+                entity_targets: list[str] = []
+                if not config.parameters.remove_old_links:
                     # keep old target links
-                    targets = get_links_from_entity(entity.properties[entity_view_id][PROP_COL_LINK_NAME])   
+                    links_property = entity.properties[entity_view_id][PROP_COL_LINK_NAME]
+                    if links_property:
+                        entity_targets = get_links_from_entity(links_property)
                 else:
                     clean_target_list = clean_links(config, entity.external_id, clean_target_list)
-                
-                targets = [*targets, target_ext_id]
+
+                entity_targets = [*entity_targets, target_ext_id]
 
                 item_update = add_to_items(config, 
                                            logger, 
                                            item_update,
-                                           targets,
+                                           entity_targets,
                                            entity.external_id,
                                            entity_view_id)
 
