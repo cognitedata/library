@@ -2,5 +2,8 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
     "local>cognitedata/renovate-config"
-  ]
+  ],
+  "schedule": ["before 9am on Monday"],
+  "automerge": true,
+  "automergeType": "pr"
 }
