@@ -53,6 +53,7 @@ def _report_usage(client: CogniteClient) -> None:
             })
         threading.Thread(target=_send, daemon=False).start()
     except Exception:
+        # Usage tracking is best-effort; must not affect the handler.
         pass
 
 
@@ -238,6 +239,7 @@ def handle(data: dict, client: CogniteClient) -> dict:
                 try:
                     os.remove(temp_path)
                 except Exception:
+                    # Best-effort cleanup when deleting temporary resources.
                     pass
         except Exception as e:
             logger.exception("Failed to upload metrics file")
@@ -274,6 +276,7 @@ def handle(data: dict, client: CogniteClient) -> dict:
             try:
                 os.remove(temp_path)
             except Exception:
+                # Best-effort cleanup when deleting temporary resources.
                 pass
     except Exception as e:
         logger.exception("Failed to upload metrics file")

@@ -70,6 +70,7 @@ def process_timeseries_batch(
                     if src_unit is None:
                         src_unit = props_dump.get("sourceUnit")
             except Exception:
+                # Skip unit metadata when instance properties cannot be read.
                 pass
         
         acc.unit_checks += 1
@@ -144,6 +145,7 @@ def compute_historical_gaps_batch(
             ignore_unknown_ids=True,
         )
     except Exception:
+        # Skip this batch when time series data is unavailable.
         return
 
     if df.empty:

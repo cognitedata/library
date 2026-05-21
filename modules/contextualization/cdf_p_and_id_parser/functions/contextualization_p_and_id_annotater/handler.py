@@ -48,6 +48,7 @@ def _report_usage(client: CogniteClient) -> None:
             })
         threading.Thread(target=_send, daemon=False).start()
     except Exception:
+        # Usage tracking is best-effort; must not affect the handler.
         pass
 
 
@@ -125,6 +126,7 @@ class Config(BaseModel, alias_generator=to_camel):
 
     @classmethod
     @field_validator("source_system", mode="before")
+    @classmethod
     def pares_direct_relation(cls, value: Any) -> Any:
         if isinstance(value, dict):
             return dm.DirectRelationReference.load(value)
@@ -271,8 +273,8 @@ def trigger_diagram_detection_jobs(
                 # Ensure that the files are uploaded
                 classic_files = client.files.retrieve_multiple(instance_ids=file_ids)
             except CogniteAPIError:
-                # We don't have access to the files, so we can't check if they are uploaded
-                ...
+                # We don't have access to the files, so we can't check if they are uploaded.
+                pass
             else:
                 classic_file_by_node_id = {file.instance_id: file for file in classic_files}
                 # This is because the client.diagrams detect method uses the classical file
@@ -425,7 +427,7 @@ def create_annotation_id(file_id: dm.NodeId, node_id: dm.NodeId, text: str, raw_
 
 
 def load_config(client: CogniteClient, logger: CogniteFunctionLogger) -> Config:
-    raw_config = client.extraction_pipelines.config.retrieve(EXTRACTION_PIPELINE_EXTERNAL_ID)
+    raw_config = client.extraction_pipelines.config.retrieve(external_id=EXTRACTION_PIPELINE_EXTERNAL_ID)
     if raw_config.config is None:
         raise ValueError("No config found for extraction pipeline")
     try:

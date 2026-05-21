@@ -116,7 +116,6 @@ def render_maintenance_dashboard(metrics: dict):
     st.header("Work Order Contextualization")
     
     order_asset_rate = maintenance.get("maint_order_to_asset_rate", 0) or 0
-    order_notif_rate = maintenance.get("maint_order_to_notif_rate", 0) or 0
     
     col_main, col_info = st.columns([2, 1])
     
@@ -148,7 +147,7 @@ def render_maintenance_dashboard(metrics: dict):
         elif order_asset_rate >= 80:
             st.warning("Some work orders need asset links.")
         else:
-            st.error("Many work orders are missing asset links!")
+            st.error(f"Many work orders ({orders_without_asset:,}) are missing asset links!")
     
     st.markdown("---")
     

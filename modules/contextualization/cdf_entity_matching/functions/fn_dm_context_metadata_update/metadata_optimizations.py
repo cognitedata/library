@@ -505,11 +505,6 @@ class OptimizedMetadataProcessor:
         if name not in aliases:
             aliases.append(name)
         
-        # Add name without dashes
-        # name_no_dash = name.replace('-', '')
-        # if name_no_dash not in aliases:
-        #     aliases.append(name_no_dash)
-        
         return aliases
     
     @lru_cache(maxsize=5000)
@@ -604,7 +599,8 @@ def optimize_metadata_processing():
     try:
         import os
         os.nice(-5)
-    except:
+    except Exception:
+        # Process priority adjustment is optional and may fail on some platforms.
         pass
     
     return True

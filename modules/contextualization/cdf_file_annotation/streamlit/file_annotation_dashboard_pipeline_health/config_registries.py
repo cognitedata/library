@@ -37,9 +37,9 @@ class FunctionRunConfigRegistry:
     ]
 
     @classmethod
-    def get_available_function_configs_for_row(self, selected_row: Dict) -> List[FunctionRunConfig]:
+    def get_available_function_configs_for_row(cls, selected_row: Dict) -> List[FunctionRunConfig]:
         available_functions: List[FunctionRunConfig] = []
-        for config in self._CONFIGS:
+        for config in cls._CONFIGS:
             function_id = selected_row.get(config.function_id_field)
             call_id = selected_row.get(config.function_call_id_field)
 
@@ -48,5 +48,5 @@ class FunctionRunConfigRegistry:
         return available_functions
 
     @classmethod
-    def get_all_configs(self) -> List[FunctionRunConfig]:
-        return list(self._CONFIGS)
+    def get_all_configs(cls) -> List[FunctionRunConfig]:
+        return list(cls._CONFIGS)

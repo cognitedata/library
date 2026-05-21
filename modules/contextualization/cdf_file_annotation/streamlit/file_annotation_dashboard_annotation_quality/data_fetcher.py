@@ -148,16 +148,21 @@ class DataFetcher:
 
         norm_col = FieldNames.NORMALIZED_STATUS_CAMEL_CASE
 
+        def _apply_normalized_status(df: pd.DataFrame) -> None:
+            df[norm_col] = df.apply(DataProcessor.derive_normalized_status, axis=1)
+
         try:
             if actual_df is not None and not actual_df.empty:
-                actual_df[norm_col] = actual_df.apply(lambda r: DataProcessor.derive_normalized_status(r), axis=1)
+                _apply_normalized_status(actual_df)
         except Exception:
+            # Optional filter step; continue when column metadata is unavailable.
             pass
 
         try:
             if potential_df is not None and not potential_df.empty:
-                potential_df[norm_col] = potential_df.apply(lambda r: DataProcessor.derive_normalized_status(r), axis=1)
+                _apply_normalized_status(potential_df)
         except Exception:
+            # Optional filter step; continue when column metadata is unavailable.
             pass
 
         return AnnotationFrames(actual_df=actual_df, potential_df=potential_df)
@@ -184,6 +189,9 @@ class DataFetcher:
     @staticmethod
     @st.cache_data(ttl=7200)
     def fetch_entities_metadata(_client: CogniteClient, extraction_pipeline_cfg: ExtractionPipelineConfig | None = None, entity_type: str | None = None, _filter_expression: object | None = None):
+        entity_view_cfg = None
+        entity_resource_type_property = None
+        secondary_scope_property = None
         if extraction_pipeline_cfg is not None:
             if entity_type == FieldNames.ASSET_TITLE_CASE:
                 entity_view_cfg = extraction_pipeline_cfg.asset_view_cfg

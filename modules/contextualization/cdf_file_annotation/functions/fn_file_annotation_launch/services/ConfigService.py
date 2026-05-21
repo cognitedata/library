@@ -652,7 +652,7 @@ def load_config_parameters(
 
     pipeline_ext_id = function_data["ExtractionPipelineExtId"]
     try:
-        raw_config = client.extraction_pipelines.config.retrieve(pipeline_ext_id)
+        raw_config = client.extraction_pipelines.config.retrieve(external_id=pipeline_ext_id)
         if raw_config.config is None:
             raise ValueError(f"No config found for extraction pipeline: {pipeline_ext_id!r}")
     except CogniteAPIError:

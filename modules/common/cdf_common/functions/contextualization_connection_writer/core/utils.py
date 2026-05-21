@@ -159,7 +159,7 @@ def create_query(last_cursor: str | None, annotation_space: str) -> dm.query.Que
 
 
 def load_config(client: CogniteClient, extraction_pipeline_external_id: str, logger: CogniteFunctionLogger) -> Config:
-    raw_config = client.extraction_pipelines.config.retrieve(extraction_pipeline_external_id)
+    raw_config = client.extraction_pipelines.config.retrieve(external_id=extraction_pipeline_external_id)
     if raw_config.config is None:
         raise ValueError(f"Config for extraction pipeline {extraction_pipeline_external_id} is empty")
     try:

@@ -24,7 +24,7 @@ _DEFAULTS = {
 def _fetch_pipeline_config(client: CogniteClient) -> dict:
     """Fetch and parse extraction pipeline config."""
     try:
-        pipeline_config = client.extraction_pipelines.config.retrieve("ep_oid_sync")
+        pipeline_config = client.extraction_pipelines.config.retrieve(external_id="ep_oid_sync")
         if pipeline_config and pipeline_config.config:
             data = yaml.safe_load(pipeline_config.config)
             if isinstance(data, dict):

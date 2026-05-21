@@ -221,6 +221,7 @@ class ExtractionPipelineFetcher(ResourceHealthFetcher):
             if pipelines:
                 return pipelines
         except Exception:
+            # Listing may fail for some pipeline types; continue with what we have.
             pass
         all_pipelines = list(self.client.extraction_pipelines.list(limit=API_LIST_LIMIT))
         return [p for p in all_pipelines if p.data_set_id == self.dataset_id]
@@ -277,6 +278,7 @@ class TransformationFetcher(ResourceHealthFetcher):
             if transformations:
                 return transformations
         except Exception:
+            # Listing may fail for some transformation scopes; continue with what we have.
             pass
         all_t = list(self.client.transformations.list(limit=API_LIST_LIMIT))
         return [t for t in all_t if t.data_set_id == self.dataset_id]
@@ -441,6 +443,7 @@ class FunctionFetcher(ResourceHealthFetcher):
                         if f:
                             self._file_dataset_map[f.id] = f.data_set_id
                     except Exception:
+                        # Skip files that cannot be deleted during best-effort cleanup.
                         pass
         return [
             f

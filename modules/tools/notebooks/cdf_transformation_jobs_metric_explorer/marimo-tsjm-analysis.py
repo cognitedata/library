@@ -54,7 +54,6 @@ with app.setup(hide_code=True):
     # Store original method before patching
     _original_refresh_access_token = OAuthInteractive._refresh_access_token
 
-
     def _refresh_access_token_patch(self) -> tuple[str, float]:
         """
         Patched version of _refresh_access_token that adds 'prompt="select_account"'
@@ -86,7 +85,8 @@ with app.setup(hide_code=True):
         return credentials["access_token"], time.time() + float(credentials["expires_in"])
 
 
-    # Apply monkeypatch
+    # Apply monkeypatch (keep original for potential restore)
+    OAuthInteractive._original_refresh_access_token = _original_refresh_access_token
     OAuthInteractive._refresh_access_token = _refresh_access_token_patch
 
 
@@ -424,8 +424,7 @@ def init_cdf_client(config_form):
                     kind="danger",
                 )
 
-    _output
-    return available_projects, cdf_client, output_folder_value
+    return available_projects, cdf_client, output_folder_value, _output
 
 
 @app.cell
@@ -457,6 +456,7 @@ def track_usage(cdf_client):
             }]).encode()).decode()
             _req.post("https://api-eu.mixpanel.com/track", data={"data": _payload, "verbose": 1, "ip": 1}, timeout=5)
         except Exception:
+            # Usage tracking is best-effort in notebook runs.
             pass
     return
 
@@ -2094,9 +2094,6 @@ def create_daily_aggregation_chart(
                     [str(metrics_date_start), str(metrics_date_end)] if metrics_date_start and metrics_date_end else None
                 )
 
-                # Brush selection for range select (captured by marimo)
-                _metric_brush = alt.selection_interval(encodings=["x"], name="brush", empty=False)
-
                 # Zoom: Ctrl+Shift+scroll to zoom x-axis only
                 _zoom = alt.selection_interval(
                     bind="scales",
@@ -2289,6 +2286,8 @@ def show_transformation_details(
                     _unique_dates = sorted(_selected_dates)
                     _num_days = len(_unique_dates)
                     _show_trend = _num_days >= 2  # Need at least 2 days for trend
+                    _first_half_dates: set = set()
+                    _second_half_dates: set = set()
 
                     if _show_trend:
                         # Split dates into first half and second half
@@ -2372,7 +2371,6 @@ def show_transformation_details(
 
                     # Store data for the trend chart cell
                     trafo_trend_data = _filtered_data
-                    trafo_trend_date_range = (_min_sel_date, _max_sel_date)
 
                     _output = mo.vstack(
                         [
@@ -2401,8 +2399,7 @@ def show_transformation_details(
                         ]
                     )
 
-    _output
-    return trafo_details_table, trafo_trend_data
+    return trafo_details_table, trafo_trend_data, _output
 
 
 @app.cell(hide_code=True)
@@ -2535,8 +2532,7 @@ def create_daily_trend_chart(
                     ]
                 )
 
-    _output
-    return trend_chart_element, trend_raw_data, trend_selected_trafos
+    return trend_chart_element, trend_raw_data, trend_selected_trafos, _output
 
 
 @app.cell(hide_code=True)
@@ -2644,8 +2640,7 @@ def show_trend_job_details(
                             ]
                         )
 
-    _output
-    return
+    return _output
 
 
 @app.cell(hide_code=True)
@@ -2787,8 +2782,7 @@ def create_export_ui(export_catalog):
             ]
         )
 
-    _output
-    return download_filename, export_dataset_key, export_format, show_preview
+    return download_filename, export_dataset_key, export_format, show_preview, _output
 
 
 @app.cell(hide_code=True)
@@ -2815,8 +2809,7 @@ def generate_export_preview(export_catalog, export_dataset_key, show_preview):
         else:
             _output = mo.callout(mo.md("⚠️ **No data available for preview**"), kind="warn")
 
-    _output
-    return
+    return _output
 
 
 @app.cell(hide_code=True)
@@ -2886,8 +2879,7 @@ def generate_download(
                 kind="warn",
             )
 
-    _output
-    return
+    return _output
 
 
 @app.cell(column=2, hide_code=True)
@@ -2917,8 +2909,7 @@ def chapter7_tests_header():
     - Metrics aggregation
         """)
 
-    _output
-    return
+    return _output
 
 
 @app.cell

@@ -324,7 +324,7 @@ class DataSyncService:
         """Update extraction pipeline config to set reset_backfill back to false"""
         try:
             # Retrieve current config
-            pipeline_config = self.target_client.extraction_pipelines.config.retrieve("ep_oid_sync")
+            pipeline_config = self.target_client.extraction_pipelines.config.retrieve(external_id="ep_oid_sync")
             
             if pipeline_config and pipeline_config.config:
                 # Parse the YAML config

@@ -91,7 +91,7 @@ def create_client(env_config: EnvConfig, debug: bool = False) -> CogniteClient:
     return client
 
 
-def create_logger_service(log_level: str, filepath: str | None) -> CogniteFunctionLogger:
+def create_logger_service(log_level: str, filepath: str | None = None) -> CogniteFunctionLogger:
     """
     Creates a logger service for tracking function execution.
 

@@ -83,7 +83,6 @@ try:
     from pipeline_optimizations import (
         cleanup_memory,
         monitor_memory_usage,
-        time_operation,
     )
 except ImportError:
     from contextlib import contextmanager
@@ -336,9 +335,11 @@ def apply_manual_mappings(
     raw_uploader: RawUploadQueue, 
     manual_mappings: list[Row],
     manual_mappings_input: dict[str, dict[str, Any]],
-    good_matches: list[dict[str, Any]] = [],
-    targets: list[dict[str, Any]] = []
+    good_matches: list[dict[str, Any]] | None = None,
+    targets: list[dict[str, Any]] | None = None,
 ) -> list[dict[str, Any]]:
+    good_matches = [] if good_matches is None else list(good_matches)
+    targets = [] if targets is None else list(targets)
 
     entity_view_id = config.data.entity_view.as_view_id()
     item_update = []
@@ -385,19 +386,21 @@ def apply_manual_mappings(
                     logger.warning(f"Manual mapping target ref is empty for entity: {entity.external_id}, skipping")
                     continue
 
-                targets = []
-                if not config.parameters.remove_old_links: 
+                entity_targets: list[str] = []
+                if not config.parameters.remove_old_links:
                     # keep old target links
-                    targets = get_links_from_entity(entity.properties[entity_view_id][PROP_COL_LINK_NAME])   
+                    links_property = entity.properties[entity_view_id][PROP_COL_LINK_NAME]
+                    if links_property:
+                        entity_targets = get_links_from_entity(links_property)
                 else:
                     clean_target_list = clean_links(config, entity.external_id, clean_target_list)
-                
-                targets.append(target_ext_id)
+
+                entity_targets = [*entity_targets, target_ext_id]
 
                 item_update = add_to_items(config, 
                                            logger, 
                                            item_update,
-                                           targets,
+                                           entity_targets,
                                            entity.external_id,
                                            entity_view_id)
 
@@ -920,9 +923,10 @@ def apply_rule_mappings(
                                 continue
                             good_matches_set.add(match_key)
 
-                            unique_target_list = list(set(matches[d2[KEY_ENTITY_EXT_ID]]))
+                            entity_id = d2[KEY_ENTITY_EXT_ID]
+                            unique_target_list = list(set(matches.get(entity_id, ())))
                             if d1_match[KEY_TARGET_EXT_ID] and d1_match[KEY_TARGET_EXT_ID] not in unique_target_list:
-                                unique_target_list.append(d1_match[KEY_TARGET_EXT_ID])
+                                unique_target_list = [*unique_target_list, d1_match[KEY_TARGET_EXT_ID]]
                                 num_added_matches += 1
                                 good_matches.append(
                                     {
@@ -946,9 +950,12 @@ def apply_rule_mappings(
                             if len(existing_target_list) > 0:
                                 for target in existing_target_list:
                                     if PROP_COL_EXTERNAL_ID in target and target[PROP_COL_EXTERNAL_ID] not in unique_target_list:
-                                        unique_target_list.append(target[PROP_COL_EXTERNAL_ID])
+                                        unique_target_list = [
+                                            *unique_target_list,
+                                            target[PROP_COL_EXTERNAL_ID],
+                                        ]
 
-                            matches[d2[KEY_ENTITY_EXT_ID]] = unique_target_list
+                            matches[entity_id] = unique_target_list
                             unique_matches_tracker.add(pair)
 
         item_update = []
@@ -1238,11 +1245,15 @@ def create_table(client: CogniteClient, raw_db: str, tbl: str) -> None:
     try:
         client.raw.databases.create(raw_db)
     except Exception:
+        # Resource may already exist when the pipeline is re-run.
+        # Expected failure; continue without affecting the caller.
         pass
 
     try:
         client.raw.tables.create(raw_db, tbl)
     except Exception:
+        # Resource may already exist when the pipeline is re-run.
+        # Expected failure; continue without affecting the caller.
         pass
 
 def delete_table(client: CogniteClient, db: str, tbl: str) -> None:

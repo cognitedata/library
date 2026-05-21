@@ -49,6 +49,7 @@ def save_metrics_to_file(
     try:
         os.remove(temp_path)
     except Exception:
+        # Metric collection is best-effort for optional storage checks.
         pass
     
     logger.info(f"📁 Saved metrics to Cognite Files: {file_external_id}")
@@ -116,6 +117,7 @@ def save_batch_file(
     try:
         os.remove(temp_path)
     except Exception:
+        # Metric collection is best-effort for optional storage checks.
         pass
     
     logger.info(f"📁 Saved batch file: {file_external_id}")
