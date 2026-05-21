@@ -97,8 +97,8 @@ class OptimizedRuleMapper:
                     # Log but don't fail
                     if self.logger:
                         self.logger.warning(f"Error compiling entity regex: {e}")
-                    pass
-            
+                    continue
+
             # Asset patterns
             if "asset_regex" in rule:
                 pattern_key = f"{key}_asset"
@@ -109,8 +109,8 @@ class OptimizedRuleMapper:
                     # Log but don't fail
                     if self.logger:
                         self.logger.warning(f"Error compiling asset regex: {e}")
-                    pass
-    
+                    continue
+
     @lru_cache(maxsize=10000)
     def get_rule_keys(self, name: str, rule_type: str) -> Tuple[str, ...]:
         """Cache rule key computations"""

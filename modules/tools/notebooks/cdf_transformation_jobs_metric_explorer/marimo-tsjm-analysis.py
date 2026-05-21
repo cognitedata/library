@@ -2095,9 +2095,6 @@ def create_daily_aggregation_chart(
                     [str(metrics_date_start), str(metrics_date_end)] if metrics_date_start and metrics_date_end else None
                 )
 
-                # Brush selection for range select (captured by marimo)
-                _metric_brush = alt.selection_interval(encodings=["x"], name="brush", empty=False)
-
                 # Zoom: Ctrl+Shift+scroll to zoom x-axis only
                 _zoom = alt.selection_interval(
                     bind="scales",

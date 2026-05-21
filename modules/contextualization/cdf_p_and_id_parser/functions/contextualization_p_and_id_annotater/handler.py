@@ -427,7 +427,7 @@ def create_annotation_id(file_id: dm.NodeId, node_id: dm.NodeId, text: str, raw_
 
 
 def load_config(client: CogniteClient, logger: CogniteFunctionLogger) -> Config:
-    raw_config = client.extraction_pipelines.config.retrieve(EXTRACTION_PIPELINE_EXTERNAL_ID)
+    raw_config = client.extraction_pipelines.config.retrieve(external_id=EXTRACTION_PIPELINE_EXTERNAL_ID)
     if raw_config.config is None:
         raise ValueError("No config found for extraction pipeline")
     try:

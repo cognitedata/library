@@ -174,14 +174,12 @@ def annotate_p_and_id(
                 logger.error(msg)
                 file_num += ANNOTATE_BATCH_SIZE
                 ANNOTATE_BATCH_SIZE = original_batch_size
-                pass
-            
+
             except Exception as e:
                 if ANNOTATE_BATCH_SIZE > 1:
                     msg = f"Failed to push: {ANNOTATE_BATCH_SIZE} annotations to data model, setting Batch Size = 1 and retry error: {e!s}"
                     logger.error(msg)
                     ANNOTATE_BATCH_SIZE = 1
-                    pass
                 else:
                     error_count += ANNOTATE_BATCH_SIZE
                     msg = f"Failed to push: {ANNOTATE_BATCH_SIZE} annotations to data model, error: {e!s}"

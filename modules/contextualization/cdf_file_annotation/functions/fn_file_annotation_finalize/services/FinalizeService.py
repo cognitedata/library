@@ -459,32 +459,28 @@ class GeneralFinalizeService(AbstractFinalizeService):
 
         self.logger.info(message=f"Updating {len(batch.nodes)} annotation state instances")
         if failed:
-            update_properties = {
+            node_update_properties = {
                 "annotationStatus": status,
                 "sourceUpdatedTime": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
                 "diagramDetectJobId": None,
                 "patternModeJobId": None,
             }
-            batch.update_node_properties(
-                new_properties=update_properties,
-                view_id=self.annotation_state_view.as_view_id(),
-            )
+        elif status == AnnotationStatus.PROCESSING:
+            claimed_time = batch.nodes[0].properties[self.annotation_state_view.as_view_id()]["sourceUpdatedTime"]
+            node_update_properties = {
+                "annotationStatus": status,
+                "sourceUpdatedTime": claimed_time,
+            }
         else:
-            if status == AnnotationStatus.PROCESSING:
-                claimed_time = batch.nodes[0].properties[self.annotation_state_view.as_view_id()]["sourceUpdatedTime"]
-                update_properties = {
-                    "annotationStatus": status,
-                    "sourceUpdatedTime": claimed_time,
-                }
-            else:
-                update_properties = {
-                    "annotationStatus": status,
-                    "sourceUpdatedTime": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
-                }
-            batch.update_node_properties(
-                new_properties=update_properties,
-                view_id=self.annotation_state_view.as_view_id(),
-            )
+            node_update_properties = {
+                "annotationStatus": status,
+                "sourceUpdatedTime": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
+            }
+        batch.update_node_properties(
+            new_properties=node_update_properties,
+            view_id=self.annotation_state_view.as_view_id(),
+        )
+        update_results = None
         try:
             update_results = self.apply_service.update_instances(list_node_apply=batch.apply)
             self.logger.info(f"- set annotation status to {status}")

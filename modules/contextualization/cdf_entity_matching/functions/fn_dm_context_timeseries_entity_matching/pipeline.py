@@ -336,9 +336,13 @@ def apply_manual_mappings(
     raw_uploader: RawUploadQueue, 
     manual_mappings: list[Row],
     manual_mappings_input: dict[str, dict[str, Any]],
-    good_matches: list[dict[str, Any]] = [],
-    targets: list[dict[str, Any]] = []
+    good_matches: list[dict[str, Any]] | None = None,
+    targets: list[dict[str, Any]] | None = None,
 ) -> list[dict[str, Any]]:
+    if good_matches is None:
+        good_matches = []
+    if targets is None:
+        targets = []
 
     entity_view_id = config.data.entity_view.as_view_id()
     item_update = []
