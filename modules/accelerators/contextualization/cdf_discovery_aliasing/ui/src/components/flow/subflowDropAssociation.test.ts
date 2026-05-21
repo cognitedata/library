@@ -13,7 +13,7 @@ describe("resolveSubflowParentAfterDrag", () => {
     };
     const dropped: Node = {
       id: "n1",
-      type: "keaExtraction",
+      type: "keaTransform",
       position: { x: 200, y: 180 },
       data: { label: "E", handler_id: "h" },
     };

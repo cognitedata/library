@@ -47,8 +47,8 @@ export function MatchRuleDefinitionCard({
       }}
     >
       <div
-        className="kea-filter-row"
-        style={{ gridTemplateColumns: dragProps ? "auto auto 1fr auto" : "auto 1fr auto", gap: "0.5rem", alignItems: "end" }}
+        className="kea-filter-row kea-filter-row--rule-header"
+        style={{ gap: "0.5rem", alignItems: "end" }}
       >
         {dragProps && (
           <span
@@ -103,7 +103,7 @@ export function MatchRuleDefinitionCard({
       )}
       {expanded && (
         <>
-          <div className="kea-filter-row" style={{ gridTemplateColumns: "1fr 1fr", gap: "0.5rem", marginTop: "0.5rem" }}>
+          <div className="kea-filter-row kea-filter-row--pair kea-filter-row--gap-md" style={{ marginTop: "0.5rem" }}>
             <label className="kea-label">
               {t("validationEditor.rule.priority")}
               <input
@@ -142,7 +142,7 @@ export function MatchRuleDefinitionCard({
               {t("validationEditor.rule.expressions")}
             </span>
             {rule.expressions.map((ex, j) => (
-              <div key={j} className="kea-filter-row" style={{ gridTemplateColumns: "1fr 1fr auto", gap: "0.35rem", marginBottom: "0.35rem" }}>
+              <div key={j} className="kea-filter-row kea-filter-row--field-pair kea-filter-row--gap-sm" style={{ marginBottom: "0.35rem" }}>
                 <input
                   className="kea-input"
                   placeholder={t("validationEditor.rule.pattern")}
@@ -188,7 +188,7 @@ export function MatchRuleDefinitionCard({
               {t("validationEditor.rule.addExpression")}
             </button>
           </div>
-          <div className="kea-filter-row" style={{ gridTemplateColumns: "1fr 1fr", gap: "0.5rem", marginTop: "0.5rem" }}>
+          <div className="kea-filter-row kea-filter-row--pair kea-filter-row--gap-md" style={{ marginTop: "0.5rem" }}>
             <label className="kea-label">
               {t("validationEditor.rule.modifierMode")}
               <select

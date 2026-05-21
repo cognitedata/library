@@ -1,0 +1,1 @@
+"""Discovery property merge stage."""

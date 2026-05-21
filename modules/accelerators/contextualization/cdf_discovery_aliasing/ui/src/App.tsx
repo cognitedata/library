@@ -14,7 +14,6 @@ import {
 import { WorkflowFlowCanvasPreview } from "./components/flow/WorkflowFlowCanvasPreview";
 import type { WorkflowPreviewRunProgress } from "./components/flow/WorkflowFlowCanvasPreview";
 import { WorkflowFlowPanel } from "./components/flow/WorkflowFlowPanel";
-import { validateUniqueExtractionRuleNamesOnCanvas } from "./components/flow/canvasExtractionRuleUniqueness";
 import { syncWorkflowScopeFromCanvas } from "./components/flow/canvasScopeSync";
 import { collectStartCanvasNodeIdsOnAnyPathToTarget } from "./components/flow/flowRunProgressEdges";
 import { mergeScopeRootsForTriggerFlowSeed } from "./components/flow/seedCanvasFromScope";
@@ -620,12 +619,6 @@ export default function App() {
   const saveScope = async (): Promise<boolean> => {
     setScopePhase("status.saving");
     setScopeError(null);
-    const dupScope = validateUniqueExtractionRuleNamesOnCanvas(scopeCanvasDoc);
-    if (dupScope) {
-      setScopeError(dupScope);
-      setScopePhase(null);
-      return false;
-    }
     try {
       await api(`/api/scope-document/model?rel=${encodeURIComponent(SCOPE_REL)}`, {
         method: "PUT",
@@ -653,12 +646,6 @@ export default function App() {
   const saveTemplate = async (): Promise<boolean> => {
     setTemplatePhase("status.saving");
     setTemplateError(null);
-    const dupTpl = validateUniqueExtractionRuleNamesOnCanvas(templateCanvasDoc);
-    if (dupTpl) {
-      setTemplateError(dupTpl);
-      setTemplatePhase(null);
-      return false;
-    }
     try {
       await api(`/api/scope-document/model?rel=${encodeURIComponent(TEMPLATE_REL)}`, {
         method: "PUT",
@@ -711,20 +698,6 @@ export default function App() {
             canvas: draft.doc as unknown as Record<string, unknown>,
           };
           delete fullDoc[TRIGGER_WORKFLOW_CANVAS_KEY];
-        }
-        if (
-          fullDoc.canvas &&
-          typeof fullDoc.canvas === "object" &&
-          !Array.isArray(fullDoc.canvas)
-        ) {
-          const terr = validateUniqueExtractionRuleNamesOnCanvas(
-            parseWorkflowCanvasDocument(fullDoc.canvas as Record<string, unknown>),
-          );
-          if (terr) {
-            setScopeError(terr);
-            setConfigTriggerPhase(null);
-            return false;
-          }
         }
         let shellYaml = configTriggerText;
         try {
@@ -795,12 +768,6 @@ export default function App() {
         draft.path === rel &&
         draft.doc.nodes.length > 0
       ) {
-        const tdup = validateUniqueExtractionRuleNamesOnCanvas(draft.doc);
-        if (tdup) {
-          setScopeError(tdup);
-          setConfigTriggerPhase(null);
-          return false;
-        }
         try {
           const parsed = YAML.parse(content) as Record<string, unknown> | null;
           if (
@@ -956,7 +923,20 @@ export default function App() {
     setCanvasPreviewRunCompletedCanvasNodeIds([]);
     setCanvasPreviewRunFailedCanvasNodeIds([]);
     localRunTaskMetaRef.current = new Map();
-    setRunLog(`${t("status.running")}\n`);
+    if (isConfigureDirty) {
+      let saved = false;
+      if (configureTarget.id === "workflowLocal") saved = await saveScope();
+      else if (configureTarget.id === "workflowTemplate") saved = await saveTemplate();
+      else if (configureTarget.id === "trigger") saved = await saveConfigureTrigger();
+      if (!saved) {
+        setCanvasPreviewRunBusy(false);
+        return;
+      }
+      setRunLog(`${t("run.savedBeforeLocalRun")}\n`);
+    } else {
+      setRunLog("");
+    }
+    setRunLog((prev) => `${prev}${t("status.running")}\n`);
     const body: {
       run_all: boolean;
       target: "workflow_local" | "workflow_template" | "workflow_trigger";
@@ -1162,7 +1142,16 @@ export default function App() {
       setConfigSubTab("flowCanvas");
       setFlowCanvasSubTab("runResults");
     }
-  }, [api, configureTarget, runAll, t]);
+  }, [
+    api,
+    configureTarget,
+    isConfigureDirty,
+    runAll,
+    saveConfigureTrigger,
+    saveScope,
+    saveTemplate,
+    t,
+  ]);
 
   const flowPreviewRunProgress: WorkflowPreviewRunProgress = useMemo(
     () => ({
@@ -2999,6 +2988,7 @@ export default function App() {
                 schemaSpace={moduleSchemaSpace}
                 readOnly={configureEditsLocked}
                 runProgress={flowPreviewRunProgress}
+                onActivityHint={(msg) => setRunLog((prev) => (prev ? `${prev}\n${msg}` : msg))}
               />
             ) : configureTarget.id === "workflowTemplate" ? (
               <WorkflowFlowPanel
@@ -3018,6 +3008,7 @@ export default function App() {
                 schemaSpace={moduleSchemaSpace}
                 readOnly={configureEditsLocked}
                 runProgress={flowPreviewRunProgress}
+                onActivityHint={(msg) => setRunLog((prev) => (prev ? `${prev}\n${msg}` : msg))}
               />
             ) : (
               <WorkflowFlowPanel
@@ -3045,6 +3036,7 @@ export default function App() {
                 }}
                 readOnly={configureEditsLocked}
                 runProgress={flowPreviewRunProgress}
+                onActivityHint={(msg) => setRunLog((prev) => (prev ? `${prev}\n${msg}` : msg))}
               />
             )}
           </div>

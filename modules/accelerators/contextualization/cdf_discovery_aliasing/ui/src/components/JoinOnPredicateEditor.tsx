@@ -47,7 +47,7 @@ export function defaultJoinOnRoot(): JsonObject {
       {
         operator: "IEQUALS",
         left_property: "name",
-        right_property: "raw_columns.name",
+        right_property: "raw_columns.key",
       },
     ],
   };

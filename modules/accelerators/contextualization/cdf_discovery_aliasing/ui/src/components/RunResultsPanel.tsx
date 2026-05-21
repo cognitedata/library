@@ -5,41 +5,87 @@ const PAGE = 200;
 
 export type DiscoveryRunResult = {
   stem: string;
-  report_rel: string;
-  tasks_rel?: string;
+  run_rel: string;
   mtime_ms: number;
   status?: string;
   elapsed_ms?: number;
   task_count?: number;
+  persistence_node_count?: number;
   dry_run?: boolean;
 };
 
 type RunDetail = {
-  report_rel: string;
-  tasks_rel?: string | null;
+  run_rel: string;
   end_of_process?: Record<string, unknown>;
   summary?: {
     status?: string;
     elapsed_ms?: number;
     task_count?: number;
+    persistence_node_count?: number;
     dry_run?: boolean;
     failed_task_key?: string | null;
     warnings?: string[];
   };
 };
 
-type TaskRow = {
+type PipelineTaskRow = {
   task_id: string;
+  function_external_id?: string | null;
+  category?: string;
   status?: string | null;
-  message?: string | null;
-  parsed?: Record<string, unknown> | null;
+  duration_sec?: number | null;
+  output?: Record<string, unknown> | null;
+  error?: string | null;
 };
 
-type ViewMode = "overview" | "tasks";
+type PersistenceNodeIndex = {
+  task_id: string;
+  kind?: string;
+  function_external_id?: string;
+  label?: string;
+  status?: string | null;
+  duration_sec?: number | null;
+  snapshot_present?: boolean;
+  input_cohort?: {
+    entity_row_count?: number;
+    truncated?: boolean;
+  };
+  output?: {
+    kind?: string;
+    row_count?: number;
+    summary?: Record<string, unknown>;
+  };
+};
+
+type PersistenceNodeDetail = {
+  task_id: string;
+  kind?: string;
+  function_external_id?: string;
+  label?: string;
+  handler_result?: Record<string, unknown>;
+  input_cohort?: {
+    entity_row_count?: number;
+    truncated?: boolean;
+    entity_rows?: Array<{ key?: string; columns?: Record<string, unknown> }>;
+    predecessor_sources?: Array<{ raw_db?: string; raw_table?: string }>;
+  };
+  output?: Record<string, unknown>;
+};
+
+type MergedEntities = {
+  instance_count?: number;
+  inverted_index_sink_row_count?: number;
+  instances?: Array<{
+    instance_key?: string;
+    properties?: Record<string, unknown>;
+    contribution_count?: number;
+  }>;
+};
+
+type ViewMode = "overview" | "pipeline" | "persistence" | "merged";
 
 type Props = {
   refreshKey: number;
-  /** ``workflow_local`` | ``workflow_template`` | ``workflow_trigger:<rel>`` — matches ``run_scope`` in JSON. */
   runScopeKey: string;
 };
 
@@ -53,10 +99,10 @@ function subtabClass(active: boolean): string {
   return `kea-tab${active ? " kea-tab--active" : ""}`;
 }
 
-function taskDetailsSummary(parsed: Record<string, unknown> | null | undefined): string {
-  if (!parsed) return "";
+function taskOutputSummary(output: Record<string, unknown> | null | undefined): string {
+  if (!output) return "";
   const parts: string[] = [];
-  const fn = parsed.function_external_id;
+  const fn = output.function_external_id;
   if (fn != null) parts.push(String(fn));
   for (const key of [
     "handler_id",
@@ -66,9 +112,24 @@ function taskDetailsSummary(parsed: Record<string, unknown> | null | undefined):
     "rows_written",
     "query_source",
   ] as const) {
-    if (parsed[key] != null) parts.push(`${key}=${String(parsed[key])}`);
+    if (output[key] != null) parts.push(`${key}=${String(output[key])}`);
   }
   return parts.join(" · ");
+}
+
+function persistenceKindLabel(kind: string | undefined, t: (k: string) => string): string {
+  switch (kind) {
+    case "view_save":
+      return t("runResults.kindViewSave");
+    case "raw_save":
+      return t("runResults.kindRawSave");
+    case "classic_save":
+      return t("runResults.kindClassicSave");
+    case "inverted_index":
+      return t("runResults.kindInvertedIndex");
+    default:
+      return kind ?? "—";
+  }
 }
 
 async function openModuleFile(rel: string, onError: (msg: string) => void): Promise<void> {
@@ -92,12 +153,19 @@ export function RunResultsPanel({ refreshKey, runScopeKey }: Props) {
   const [selectedDiscoveryStem, setSelectedDiscoveryStem] = useState("");
   const [viewMode, setViewMode] = useState<ViewMode>("overview");
   const [detail, setDetail] = useState<RunDetail | null>(null);
-  const [taskItems, setTaskItems] = useState<TaskRow[]>([]);
-  const [taskTotal, setTaskTotal] = useState<number | null>(null);
-  const [taskNextOffset, setTaskNextOffset] = useState(0);
+  const [pipelineItems, setPipelineItems] = useState<PipelineTaskRow[]>([]);
+  const [pipelineTotal, setPipelineTotal] = useState<number | null>(null);
+  const [pipelineNextOffset, setPipelineNextOffset] = useState(0);
+  const [pipelineCategory, setPipelineCategory] = useState("");
+  const [persistenceNodes, setPersistenceNodes] = useState<PersistenceNodeIndex[]>([]);
+  const [selectedPersistenceTaskId, setSelectedPersistenceTaskId] = useState("");
+  const [persistenceDetail, setPersistenceDetail] = useState<PersistenceNodeDetail | null>(null);
+  const [mergedData, setMergedData] = useState<MergedEntities | null>(null);
   const [loadingDiscoveryList, setLoadingDiscoveryList] = useState(false);
   const [loadingDetail, setLoadingDetail] = useState(false);
-  const [loadingTasksPage, setLoadingTasksPage] = useState(false);
+  const [loadingPipeline, setLoadingPipeline] = useState(false);
+  const [loadingPersistence, setLoadingPersistence] = useState(false);
+  const [loadingMerged, setLoadingMerged] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState("");
 
@@ -107,6 +175,8 @@ export function RunResultsPanel({ refreshKey, runScopeKey }: Props) {
     () => discoveryRuns.find((r) => r.stem === selectedDiscoveryStem) ?? null,
     [discoveryRuns, selectedDiscoveryStem],
   );
+
+  const runRel = selectedDiscoveryRun?.run_rel ?? "";
 
   const loadDiscoveryRuns = useCallback(async () => {
     setLoadingDiscoveryList(true);
@@ -139,26 +209,27 @@ export function RunResultsPanel({ refreshKey, runScopeKey }: Props) {
 
   useEffect(() => {
     setFilter("");
+    setPersistenceNodes([]);
+    setSelectedPersistenceTaskId("");
+    setPersistenceDetail(null);
   }, [selectedDiscoveryStem]);
 
-  const reportRel = selectedDiscoveryRun?.report_rel ?? "";
-  const tasksRel = selectedDiscoveryRun?.tasks_rel ?? detail?.tasks_rel ?? "";
-
   const loadDetail = useCallback(async () => {
-    if (!reportRel) {
+    if (!runRel) {
       setDetail(null);
       return;
     }
     setLoadingDetail(true);
     try {
-      const r = await fetch(`/api/run-results/discovery-detail?rel=${encodeURIComponent(reportRel)}`);
+      const r = await fetch(`/api/run-results/discovery-detail?rel=${encodeURIComponent(runRel)}`);
       if (!r.ok) throw new Error(await r.text());
       const data = (await r.json()) as RunDetail;
       setDetail(data);
-      const taskCount = data.summary?.task_count ?? 0;
+      const persistenceCount = data.summary?.persistence_node_count ?? 0;
       setViewMode((prev) => {
         if (prev !== "overview") return prev;
-        if (taskCount > 0) return "tasks";
+        if (persistenceCount > 0) return "persistence";
+        if ((data.summary?.task_count ?? 0) > 0) return "pipeline";
         return "overview";
       });
     } catch (e) {
@@ -167,69 +238,164 @@ export function RunResultsPanel({ refreshKey, runScopeKey }: Props) {
     } finally {
       setLoadingDetail(false);
     }
-  }, [reportRel]);
+  }, [runRel]);
 
   useEffect(() => {
     void loadDetail();
   }, [loadDetail, refreshKey]);
 
-  const fetchTasksPage = useCallback(
+  const fetchPipelinePage = useCallback(
     async (offset: number, append: boolean) => {
-      const rel = tasksRel || reportRel;
-      if (!rel) {
-        setTaskItems([]);
-        setTaskTotal(null);
-        setTaskNextOffset(0);
+      if (!runRel) {
+        setPipelineItems([]);
+        setPipelineTotal(null);
+        setPipelineNextOffset(0);
         return;
       }
-      setLoadingTasksPage(true);
+      setLoadingPipeline(true);
       setError(null);
       try {
-        const url = `/api/run-results/discovery-tasks-preview?rel=${encodeURIComponent(
-          rel,
-        )}&offset=${offset}&limit=${PAGE}`;
-        const r = await fetch(url);
+        const params = new URLSearchParams({
+          rel: runRel,
+          offset: String(offset),
+          limit: String(PAGE),
+        });
+        if (pipelineCategory.trim()) params.set("category", pipelineCategory.trim());
+        const r = await fetch(`/api/run-results/discovery-pipeline-tasks?${params}`);
         if (!r.ok) throw new Error(await r.text());
-        const data = (await r.json()) as { total: number; items: TaskRow[] };
-        setTaskTotal(data.total);
+        const data = (await r.json()) as { total: number; items: PipelineTaskRow[] };
+        setPipelineTotal(data.total);
         if (append) {
-          setTaskItems((prev) => [...prev, ...data.items]);
-          setTaskNextOffset(offset + data.items.length);
+          setPipelineItems((prev) => [...prev, ...data.items]);
+          setPipelineNextOffset(offset + data.items.length);
         } else {
-          setTaskItems(data.items);
-          setTaskNextOffset(data.items.length);
+          setPipelineItems(data.items);
+          setPipelineNextOffset(data.items.length);
         }
       } catch (e) {
         setError(String(e));
         if (!append) {
-          setTaskItems([]);
-          setTaskTotal(null);
-          setTaskNextOffset(0);
+          setPipelineItems([]);
+          setPipelineTotal(null);
+          setPipelineNextOffset(0);
         }
       } finally {
-        setLoadingTasksPage(false);
+        setLoadingPipeline(false);
       }
     },
-    [reportRel, tasksRel],
+    [runRel, pipelineCategory],
   );
 
   useEffect(() => {
-    if (viewMode !== "tasks") return;
-    void fetchTasksPage(0, false);
-  }, [viewMode, reportRel, tasksRel, fetchTasksPage, refreshKey]);
+    if (viewMode !== "pipeline") return;
+    void fetchPipelinePage(0, false);
+  }, [viewMode, runRel, fetchPipelinePage, refreshKey]);
 
-  const filteredTaskItems = useMemo(() => {
+  const loadPersistenceNodes = useCallback(async () => {
+    if (!runRel) {
+      setPersistenceNodes([]);
+      setSelectedPersistenceTaskId("");
+      setPersistenceDetail(null);
+      return;
+    }
+    setLoadingPersistence(true);
+    setError(null);
+    try {
+      const r = await fetch(
+        `/api/run-results/discovery-persistence-nodes?rel=${encodeURIComponent(runRel)}`,
+      );
+      if (!r.ok) throw new Error(await r.text());
+      const data = (await r.json()) as { items?: PersistenceNodeIndex[] };
+      const items = data.items ?? [];
+      setPersistenceNodes(items);
+      setSelectedPersistenceTaskId((prev) => {
+        if (prev && items.some((x) => x.task_id === prev)) return prev;
+        return items[0]?.task_id ?? "";
+      });
+    } catch (e) {
+      setError(String(e));
+      setPersistenceNodes([]);
+      setSelectedPersistenceTaskId("");
+      setPersistenceDetail(null);
+    } finally {
+      setLoadingPersistence(false);
+    }
+  }, [runRel]);
+
+  useEffect(() => {
+    if (viewMode !== "persistence") return;
+    void loadPersistenceNodes();
+  }, [viewMode, loadPersistenceNodes, refreshKey]);
+
+  useEffect(() => {
+    if (viewMode !== "persistence" || !runRel || !selectedPersistenceTaskId) {
+      setPersistenceDetail(null);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      setLoadingPersistence(true);
+      try {
+        const r = await fetch(
+          `/api/run-results/discovery-persistence-node?rel=${encodeURIComponent(runRel)}&task_id=${encodeURIComponent(selectedPersistenceTaskId)}`,
+        );
+        if (!r.ok) throw new Error(await r.text());
+        const data = (await r.json()) as { node?: PersistenceNodeDetail };
+        if (!cancelled) setPersistenceDetail(data.node ?? null);
+      } catch (e) {
+        if (!cancelled) {
+          setError(String(e));
+          setPersistenceDetail(null);
+        }
+      } finally {
+        if (!cancelled) setLoadingPersistence(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [viewMode, runRel, selectedPersistenceTaskId, refreshKey]);
+
+  const loadMerged = useCallback(async () => {
+    if (!runRel) {
+      setMergedData(null);
+      return;
+    }
+    setLoadingMerged(true);
+    setError(null);
+    try {
+      const r = await fetch(
+        `/api/run-results/discovery-persistence-merged?rel=${encodeURIComponent(runRel)}`,
+      );
+      if (!r.ok) throw new Error(await r.text());
+      const data = (await r.json()) as { merged_entities?: MergedEntities };
+      setMergedData(data.merged_entities ?? null);
+    } catch (e) {
+      setError(String(e));
+      setMergedData(null);
+    } finally {
+      setLoadingMerged(false);
+    }
+  }, [runRel]);
+
+  useEffect(() => {
+    if (viewMode !== "merged") return;
+    void loadMerged();
+  }, [viewMode, loadMerged, refreshKey]);
+
+  const filteredPipelineItems = useMemo(() => {
     const q = filter.trim().toLowerCase();
-    if (!q) return taskItems;
-    return taskItems.filter((row) => JSON.stringify(row).toLowerCase().includes(q));
-  }, [taskItems, filter]);
+    if (!q) return pipelineItems;
+    return pipelineItems.filter((row) => JSON.stringify(row).toLowerCase().includes(q));
+  }, [pipelineItems, filter]);
 
-  const canLoadMoreTasks = taskTotal != null && taskNextOffset < taskTotal;
-
+  const canLoadMorePipeline = pipelineTotal != null && pipelineNextOffset < pipelineTotal;
   const summary = detail?.summary;
   const runLabel = selectedDiscoveryRun
     ? `${formatRunStem(selectedDiscoveryRun.stem)}${selectedDiscoveryRun.status ? ` · ${selectedDiscoveryRun.status}` : ""}`
     : "";
+
+  const selectedNodeSummary = persistenceNodes.find((n) => n.task_id === selectedPersistenceTaskId);
 
   return (
     <section className="kea-panel">
@@ -271,11 +437,16 @@ export function RunResultsPanel({ refreshKey, runScopeKey }: Props) {
                 const status = r.status ? ` · ${r.status}` : "";
                 const tasks =
                   r.task_count != null ? ` · ${r.task_count} ${t("runResults.summaryTaskCountShort")}` : "";
+                const persist =
+                  r.persistence_node_count != null && r.persistence_node_count > 0
+                    ? ` · ${r.persistence_node_count} ${t("runResults.summaryPersistenceShort")}`
+                    : "";
                 return (
                   <option key={r.stem} value={r.stem}>
                     {label}
                     {status}
                     {tasks}
+                    {persist}
                   </option>
                 );
               })}
@@ -283,18 +454,10 @@ export function RunResultsPanel({ refreshKey, runScopeKey }: Props) {
             <button
               type="button"
               className="kea-btn kea-btn--ghost kea-btn--sm"
-              disabled={!reportRel}
-              onClick={() => void openModuleFile(reportRel, setError)}
+              disabled={!runRel}
+              onClick={() => void openModuleFile(runRel, setError)}
             >
-              {t("runResults.openRaw")}
-            </button>
-            <button
-              type="button"
-              className="kea-btn kea-btn--ghost kea-btn--sm"
-              disabled={!tasksRel}
-              onClick={() => void openModuleFile(String(tasksRel), setError)}
-            >
-              {t("runResults.openTasksJson")}
+              {t("runResults.openRunJson")}
             </button>
           </>
         )}
@@ -323,10 +486,24 @@ export function RunResultsPanel({ refreshKey, runScopeKey }: Props) {
             </button>
             <button
               type="button"
-              className={subtabClass(viewMode === "tasks")}
-              onClick={() => setViewMode("tasks")}
+              className={subtabClass(viewMode === "persistence")}
+              onClick={() => setViewMode("persistence")}
             >
-              {t("runResults.viewTasks")}
+              {t("runResults.viewPersistence")}
+            </button>
+            <button
+              type="button"
+              className={subtabClass(viewMode === "pipeline")}
+              onClick={() => setViewMode("pipeline")}
+            >
+              {t("runResults.viewPipeline")}
+            </button>
+            <button
+              type="button"
+              className={subtabClass(viewMode === "merged")}
+              onClick={() => setViewMode("merged")}
+            >
+              {t("runResults.viewMerged")}
             </button>
           </nav>
           {runLabel && (
@@ -357,24 +534,22 @@ export function RunResultsPanel({ refreshKey, runScopeKey }: Props) {
                   <strong>{t("runResults.summaryTaskCount")}:</strong> {summary.task_count}
                 </li>
               )}
-              {summary.dry_run === true && (
+              {summary.persistence_node_count != null && (
+                <li>
+                  <strong>{t("runResults.summaryPersistenceCount")}:</strong>{" "}
+                  {summary.persistence_node_count}
+                </li>
+              )}
+              {summary.dry_run && (
                 <li>
                   <strong>{t("runResults.summaryDryRun")}:</strong> {t("runResults.yes")}
                 </li>
               )}
-              {summary.failed_task_key != null && String(summary.failed_task_key).trim() && (
+              {summary.failed_task_key && (
                 <li>
-                  <strong>{t("runResults.failedTask")}:</strong>{" "}
-                  <code>{String(summary.failed_task_key)}</code>
+                  <strong>{t("runResults.failedTask")}:</strong> {summary.failed_task_key}
                 </li>
               )}
-            </ul>
-          )}
-          {summary?.warnings && summary.warnings.length > 0 && (
-            <ul className="kea-hint" style={{ marginBottom: 12 }}>
-              {summary.warnings.map((w, i) => (
-                <li key={`${i}-${w}`}>{w}</li>
-              ))}
             </ul>
           )}
           <p className="kea-hint" style={{ maxWidth: "72ch" }}>
@@ -382,72 +557,208 @@ export function RunResultsPanel({ refreshKey, runScopeKey }: Props) {
           </p>
         </>
       )}
-      {viewMode === "tasks" && selectedDiscoveryRun && (
+      {viewMode === "persistence" && selectedDiscoveryRun && (
         <>
-          <p className="kea-hint" style={{ marginBottom: "0.75rem", maxWidth: "72ch" }}>
-            {t("runResults.tasksHint")}
+          <p className="kea-hint" style={{ maxWidth: "72ch", marginBottom: 8 }}>
+            {t("runResults.persistenceHint")}
           </p>
-          {taskTotal === 0 && !loadingTasksPage && <p className="kea-hint">{t("runResults.noTasks")}</p>}
-          {taskTotal != null && taskTotal > 0 && (
-            <p className="kea-hint" style={{ marginBottom: 8 }}>
-              {t("runResults.totalRows", { count: taskTotal })}
-              {" · "}
-              {t("runResults.showing", { from: 1, to: taskItems.length, total: taskTotal })}
-            </p>
+          {loadingPersistence && persistenceNodes.length === 0 && (
+            <p className="kea-hint">{t("status.loading")}</p>
           )}
-          <input
-            type="search"
-            className="kea-input"
-            placeholder={t("runResults.filterPlaceholder")}
-            value={filter}
-            onChange={(e) => setFilter(e.target.value)}
-            style={{ maxWidth: 420, marginBottom: 12, display: "block" }}
-          />
-          {loadingTasksPage && taskItems.length === 0 && <p className="kea-hint">{t("status.loading")}</p>}
-          {(!loadingTasksPage || taskItems.length > 0) && filteredTaskItems.length > 0 && (
+          {!loadingPersistence && persistenceNodes.length === 0 && (
+            <p className="kea-hint">{t("runResults.noPersistence")}</p>
+          )}
+          {persistenceNodes.length > 0 && (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "0.75rem", alignItems: "flex-start" }}>
+              <div style={{ minWidth: 220 }}>
+                <label className="kea-hint" htmlFor="kea-persistence-node-select">
+                  {t("runResults.persistenceSelect")}
+                </label>
+                <select
+                  id="kea-persistence-node-select"
+                  value={selectedPersistenceTaskId}
+                  onChange={(e) => setSelectedPersistenceTaskId(e.target.value)}
+                  style={{ display: "block", width: "100%", marginTop: 4 }}
+                >
+                  {persistenceNodes.map((n) => (
+                    <option key={n.task_id} value={n.task_id}>
+                      {persistenceKindLabel(n.kind, t)} — {n.label || n.task_id}
+                      {n.status ? ` (${n.status})` : ""}
+                    </option>
+                  ))}
+                </select>
+                <ul className="kea-hint" style={{ marginTop: 8, paddingLeft: 0, listStyle: "none" }}>
+                  {persistenceNodes.map((n) => (
+                    <li key={n.task_id}>
+                      <button
+                        type="button"
+                        className={`kea-btn kea-btn--ghost kea-btn--sm${n.task_id === selectedPersistenceTaskId ? " kea-btn--active" : ""}`}
+                        onClick={() => setSelectedPersistenceTaskId(n.task_id)}
+                      >
+                        {persistenceKindLabel(n.kind, t)}
+                      </button>
+                      {n.input_cohort?.entity_row_count != null && (
+                        <span>
+                          {" "}
+                          · {n.input_cohort.entity_row_count} {t("runResults.cohortRows")}
+                        </span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div style={{ flex: 1, minWidth: 280 }}>
+                {selectedNodeSummary && (
+                  <p className="kea-hint" style={{ marginBottom: 8 }}>
+                    <strong>{selectedNodeSummary.label || selectedNodeSummary.task_id}</strong>
+                    {" · "}
+                    {selectedNodeSummary.function_external_id}
+                    {selectedNodeSummary.duration_sec != null &&
+                      ` · ${selectedNodeSummary.duration_sec.toFixed(2)}s`}
+                  </p>
+                )}
+                {persistenceDetail && (
+                  <>
+                    {persistenceDetail.handler_result &&
+                      Object.keys(persistenceDetail.handler_result).length > 0 && (
+                        <details open style={{ marginBottom: 8 }}>
+                          <summary>{t("runResults.persistenceHandlerResult")}</summary>
+                          <pre className="kea-code-block" style={{ maxHeight: 200, overflow: "auto" }}>
+                            {JSON.stringify(persistenceDetail.handler_result, null, 2)}
+                          </pre>
+                        </details>
+                      )}
+                    <details open style={{ marginBottom: 8 }}>
+                      <summary>
+                        {t("runResults.persistenceInputCohort")}
+                        {persistenceDetail.input_cohort?.truncated &&
+                          ` (${t("runResults.cohortTruncated")})`}
+                      </summary>
+                      <pre className="kea-code-block" style={{ maxHeight: 240, overflow: "auto" }}>
+                        {JSON.stringify(persistenceDetail.input_cohort ?? {}, null, 2)}
+                      </pre>
+                    </details>
+                    <details open>
+                      <summary>{t("runResults.persistenceOutput")}</summary>
+                      <pre className="kea-code-block" style={{ maxHeight: 240, overflow: "auto" }}>
+                        {JSON.stringify(persistenceDetail.output ?? {}, null, 2)}
+                      </pre>
+                    </details>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+        </>
+      )}
+      {viewMode === "pipeline" && selectedDiscoveryRun && (
+        <>
+          <p className="kea-hint" style={{ maxWidth: "72ch", marginBottom: 8 }}>
+            {t("runResults.pipelineHint")}
+          </p>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem", marginBottom: 8 }}>
+            <select
+              value={pipelineCategory}
+              onChange={(e) => setPipelineCategory(e.target.value)}
+              aria-label={t("runResults.pipelineCategoryFilter")}
+            >
+              <option value="">{t("runResults.pipelineCategoryAll")}</option>
+              <option value="query">query</option>
+              <option value="transform">transform</option>
+              <option value="validate">validate</option>
+              <option value="filter">filter</option>
+              <option value="persistence">persistence</option>
+              <option value="cleanup">cleanup</option>
+              <option value="other">other</option>
+            </select>
+            <input
+              type="search"
+              className="kea-input"
+              placeholder={t("runResults.filterPlaceholder")}
+              value={filter}
+              onChange={(e) => setFilter(e.target.value)}
+            />
+          </div>
+          {pipelineItems.length === 0 && !loadingPipeline && (
+            <p className="kea-hint">{t("runResults.noPipeline")}</p>
+          )}
+          {filteredPipelineItems.length > 0 && (
             <div className="kea-table-wrap">
               <table className="kea-table">
                 <thead>
                   <tr>
                     <th>{t("runResults.table.taskId")}</th>
+                    <th>{t("runResults.table.category")}</th>
                     <th>{t("runResults.table.status")}</th>
+                    <th>{t("runResults.table.duration")}</th>
                     <th>{t("runResults.table.details")}</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredTaskItems.map((row) => {
-                    const details = taskDetailsSummary(row.parsed) || (row.message ?? "").slice(0, 240);
-                    return (
-                      <tr key={row.task_id}>
-                        <td style={{ maxWidth: 280, wordBreak: "break-all" }}>{row.task_id}</td>
-                        <td>{row.status ?? ""}</td>
-                        <td
-                          style={{
-                            maxWidth: 560,
-                            wordBreak: "break-word",
-                            fontFamily: "monospace",
-                            fontSize: "0.85em",
-                          }}
-                        >
-                          {details}
-                        </td>
-                      </tr>
-                    );
-                  })}
+                  {filteredPipelineItems.map((row) => (
+                    <tr key={row.task_id}>
+                      <td>
+                        <code>{row.task_id}</code>
+                      </td>
+                      <td>{row.category ?? "—"}</td>
+                      <td>{row.status ?? "—"}</td>
+                      <td>
+                        {row.duration_sec != null ? `${row.duration_sec.toFixed(3)}s` : "—"}
+                      </td>
+                      <td className="kea-hint">{taskOutputSummary(row.output) || row.error || "—"}</td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
           )}
-          {canLoadMoreTasks && (
+          {pipelineTotal != null && pipelineTotal > 0 && (
+            <p className="kea-hint" style={{ marginTop: 8 }}>
+              {t("runResults.showing", {
+                from: 1,
+                to: Math.min(pipelineNextOffset, pipelineTotal),
+                total: pipelineTotal,
+              })}
+            </p>
+          )}
+          {canLoadMorePipeline && (
             <button
               type="button"
               className="kea-btn kea-btn--sm"
-              style={{ marginTop: 12 }}
-              disabled={loadingTasksPage}
-              onClick={() => void fetchTasksPage(taskNextOffset, true)}
+              disabled={loadingPipeline}
+              onClick={() => void fetchPipelinePage(pipelineNextOffset, true)}
             >
               {t("runResults.loadMore")}
             </button>
+          )}
+        </>
+      )}
+      {viewMode === "merged" && selectedDiscoveryRun && (
+        <>
+          <p className="kea-hint" style={{ maxWidth: "72ch", marginBottom: 8 }}>
+            {t("runResults.mergedHint")}
+          </p>
+          {loadingMerged && <p className="kea-hint">{t("status.loading")}</p>}
+          {!loadingMerged && (!mergedData || !mergedData.instance_count) && (
+            <p className="kea-hint">{t("runResults.noMerged")}</p>
+          )}
+          {mergedData && (mergedData.instance_count ?? 0) > 0 && (
+            <>
+              <ul className="kea-hint" style={{ listStyle: "none", padding: 0 }}>
+                <li>
+                  <strong>{t("runResults.mergedInstanceCount")}:</strong> {mergedData.instance_count}
+                </li>
+                {mergedData.inverted_index_sink_row_count != null && (
+                  <li>
+                    <strong>{t("runResults.mergedIndexSinkCount")}:</strong>{" "}
+                    {mergedData.inverted_index_sink_row_count}
+                  </li>
+                )}
+              </ul>
+              <pre className="kea-code-block" style={{ maxHeight: 400, overflow: "auto" }}>
+                {JSON.stringify(mergedData.instances ?? [], null, 2)}
+              </pre>
+            </>
           )}
         </>
       )}

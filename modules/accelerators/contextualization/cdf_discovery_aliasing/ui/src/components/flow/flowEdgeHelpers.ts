@@ -59,14 +59,7 @@ export function appendKeaConnectionEdge(getNode: GetNode, edges: Edge[], params:
   const srcType = getNode(params.source)?.type;
   const tgtType = getNode(params.target)?.type;
   let edgeKind: FlowEdgeData["kind"] = "data";
-  if (srcType === "keaAliasing" && tgtType === "keaAliasing") {
-    const existingAliasingChainOut = edges.some((e) => {
-      if (e.source !== params.source) return false;
-      if (e.target === params.target) return false;
-      return getNode(e.target)?.type === "keaAliasing";
-    });
-    edgeKind = existingAliasingChainOut ? "parallel_group" : "sequence";
-  } else if (srcType === "keaTransform" && tgtType === "keaTransform") {
+  if (srcType === "keaTransform" && tgtType === "keaTransform") {
     const existing = edges.some((e) => {
       if (e.source !== params.source) return false;
       if (e.target === params.target) return false;

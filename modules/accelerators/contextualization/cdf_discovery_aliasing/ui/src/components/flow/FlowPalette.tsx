@@ -13,6 +13,7 @@ export type DiscoveryPaletteStage =
   | "query_raw"
   | "query_classic"
   | "transform"
+  | "merge"
   | "join"
   | "validation"
   | "instance_filter"
@@ -145,7 +146,16 @@ export function FlowPalette({ t, scopeDocument }: Props) {
         {queryButtons}
         <p className="kea-hint" style={{ width: "100%", margin: "0.35rem 0 0.1rem" }}>Transform</p>
         {transformButtons}
-        <p className="kea-hint" style={{ width: "100%", margin: "0.35rem 0 0.1rem" }}>{t("flow.discoveryJoin")}</p>
+        <p className="kea-hint" style={{ width: "100%", margin: "0.35rem 0 0.1rem" }}>Merge / Join</p>
+        <button
+          type="button"
+          className="kea-btn kea-btn--sm"
+          draggable
+          title={t("flow.paletteTooltip.merge")}
+          onDragStart={(e) => setPaletteDragData(e, { kind: "discovery", stage: "merge" })}
+        >
+          {t("flow.discoveryMerge")}
+        </button>
         <button
           type="button"
           className="kea-btn kea-btn--sm"

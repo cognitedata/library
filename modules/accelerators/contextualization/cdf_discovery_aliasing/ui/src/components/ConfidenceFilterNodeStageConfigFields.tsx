@@ -11,7 +11,7 @@ type Props = {
   fieldKey?: string;
 };
 
-const VALUE_FIELDS = ["aliases", "discoveredKey"] as const;
+const VALUE_FIELDS = ["aliases", "indexKey"] as const;
 const COMPARISONS = ["gte", "gt", "lte", "lt"] as const;
 
 export function ConfidenceFilterNodeStageConfigFields({

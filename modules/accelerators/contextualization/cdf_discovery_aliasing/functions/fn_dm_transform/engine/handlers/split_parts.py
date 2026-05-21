@@ -45,7 +45,8 @@ def split_working_parts(working: str, block: Mapping[str, Any]) -> List[str]:
     Split ``working`` into tokens.
 
     Precedence: ``delimiter_regex`` → ``delimiters[]`` → literal ``delimiter`` (default ``,``).
-    Mixed PI-style tags: ``delimiter_regex: '[./_-]+'`` or ``delimiters: [".", "/", "-", "_"]``.
+    Mixed PI-style tags: ``delimiter_regex: '[-./_:]+'`` (include ``:``; put ``-`` first or escape in the class)
+    or ``delimiters: [".", "/", "-", "_", ":"]``.
     """
     max_splits = int(block.get("max_splits") if block.get("max_splits") is not None else -1)
     trim_parts = block.get("trim", True) is not False

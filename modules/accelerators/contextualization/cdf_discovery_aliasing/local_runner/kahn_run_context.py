@@ -35,5 +35,8 @@ class KahnRunContext:
     # One full RAW scan per (db, table) for extraction-input hash index (local runner only).
     raw_hash_index_lock: Lock = field(default_factory=Lock)
     raw_hash_index_cache: Dict[Tuple[str, str], Dict[str, Dict[str, str]]] = field(default_factory=dict)
-    # RAW row samples for ``*_local_run_report.json``; captured before ``fn_dm_discovery_raw_cleanup``.
+    # One full RAW scan per (db, table) for cohort row props index (local runner only).
+    cohort_row_index_lock: Lock = field(default_factory=Lock)
+    cohort_row_index_cache: Dict[Tuple[str, str], Dict[str, Any]] = field(default_factory=dict)
+    # RAW row samples for ``*_discovery_run.json`` raw_table_samples; captured before cleanup.
     raw_results_snapshot: Optional[Dict[str, Any]] = None

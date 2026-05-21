@@ -1,7 +1,5 @@
 import type { Edge, Node } from "@xyflow/react";
 import type { WorkflowCanvasHandleOrientation } from "../../types/workflowCanvas";
-import { orderedAliasingRuleNamesForSeed } from "./seedScopeConfigHelpers";
-
 const GAP_X = 56;
 const GAP_Y = 36;
 const COMP_GAP_X = 120;
@@ -36,9 +34,6 @@ function estimateNodeRect(n: Node): Rect {
   if (t === "keaSourceView") {
     return { w: 192, h: 118 };
   }
-  if (t === "keaExtraction" || t === "keaAliasing") {
-    return { w: 192, h: 124 };
-  }
   if (
     t === "keaViewSave" ||
     t === "keaRawSave" ||
@@ -47,6 +42,7 @@ function estimateNodeRect(n: Node): Rect {
     t === "keaRawQuery" ||
     t === "keaClassicQuery" ||
     t === "keaTransform" ||
+    t === "keaMerge" ||
     t === "keaJoin" ||
     t === "keaDiscoveryValidate" ||
     t === "keaDiscoveryInstanceFilter" ||
@@ -155,20 +151,12 @@ function layersForComponent(
   return layer;
 }
 
-function aliasingRuleNameFromRfData(data: unknown): string {
-  if (!data || typeof data !== "object" || Array.isArray(data)) return "";
-  const ref = (data as Record<string, unknown>).ref as Record<string, unknown> | undefined;
-  const nm = ref?.aliasing_rule_name != null ? String(ref.aliasing_rule_name).trim() : "";
-  return nm;
-}
-
 function positionsForComponent(
   compIds: string[],
   nodes: Node[],
   edges: Edge[],
   primaryOffset: number,
-  orientation: WorkflowCanvasHandleOrientation,
-  aliasingRankByName?: Map<string, number>
+  orientation: WorkflowCanvasHandleOrientation
 ): Map<string, { x: number; y: number }> {
   const idSet = new Set(compIds);
   const layer = layersForComponent(idSet, nodes, edges);
@@ -181,27 +169,23 @@ function positionsForComponent(
     const L = layer.get(id) ?? 0;
     byLayer.get(L)!.push(id);
   }
-  /** Same graph layer: ``pipeline_rank``, else scope-derived rank, else id order. */
   const sortIdsInLayoutLayer = (ids: string[]): void => {
-    const rank = (n: Node | undefined): number => {
-      if (n?.type !== "keaAliasing") return Number.POSITIVE_INFINITY;
-      const d = n.data as Record<string, unknown> | undefined;
-      const pr = d?.pipeline_rank;
-      if (typeof pr === "number" && Number.isFinite(pr)) {
-        return pr;
-      }
-      const nm = aliasingRuleNameFromRfData(d);
-      if (nm && aliasingRankByName?.has(nm)) {
-        return aliasingRankByName.get(nm)!;
-      }
-      return Number.POSITIVE_INFINITY;
+    const rankOf = (id: string): number | undefined => {
+      const pr = (byId.get(id)?.data as Record<string, unknown> | undefined)?.pipeline_rank;
+      return typeof pr === "number" && Number.isFinite(pr) ? pr : undefined;
     };
-    ids.sort((a, b) => {
-      const ra = rank(byId.get(a));
-      const rb = rank(byId.get(b));
-      if (ra !== rb) return ra - rb;
-      return a.localeCompare(b);
-    });
+    if (ids.some((id) => rankOf(id) !== undefined)) {
+      ids.sort((a, b) => {
+        const ra = rankOf(a);
+        const rb = rankOf(b);
+        if (ra !== undefined && rb !== undefined && ra !== rb) return ra - rb;
+        if (ra !== undefined && rb === undefined) return -1;
+        if (ra === undefined && rb !== undefined) return 1;
+        return a.localeCompare(b);
+      });
+      return;
+    }
+    ids.sort((a, b) => a.localeCompare(b));
   };
   for (const ids of byLayer.values()) sortIdsInLayoutLayer(ids);
 
@@ -273,14 +257,9 @@ export function layoutFlowNodes(
   nodes: Node[],
   edges: Edge[],
   orientation: WorkflowCanvasHandleOrientation = "lr",
-  workflowScopeDoc?: Record<string, unknown>
+  _workflowScopeDoc?: Record<string, unknown>
 ): Node[] {
   if (nodes.length === 0) return nodes;
-
-  const aliasingRankByName =
-    workflowScopeDoc != null
-      ? new Map(orderedAliasingRuleNamesForSeed(workflowScopeDoc).map((name, i) => [name, i]))
-      : undefined;
 
   const next = [...nodes];
 
@@ -299,7 +278,7 @@ export function layoutFlowNodes(
 
   for (const comp of comps) {
     const subEdges = edges.filter((e) => comp.includes(e.source) && comp.includes(e.target));
-    const compPos = positionsForComponent(comp, next, subEdges, primaryOffset, orientation, aliasingRankByName);
+    const compPos = positionsForComponent(comp, next, subEdges, primaryOffset, orientation);
     let maxExtent = primaryOffset;
     for (const [id, p] of compPos) {
       pos.set(id, p);

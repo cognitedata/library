@@ -56,13 +56,13 @@ def test_strips_stale_score_keys() -> None:
             "aliases": ["a"],
             "aliases_confidence": [0.5],
             "confidence": [0.1],
-            "discoveredKey_confidence": [0.2],
+            "indexKey_confidence": [0.2],
         },
         cfg,
     )
     assert out is not None
     assert "confidence" not in out
-    assert "discoveredKey_confidence" not in out
+    assert "indexKey_confidence" not in out
 
 
 def test_validate_confidence_filter_config_requires_description() -> None:

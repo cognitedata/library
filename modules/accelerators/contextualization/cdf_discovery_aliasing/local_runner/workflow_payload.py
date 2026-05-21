@@ -8,65 +8,9 @@ from typing import Any, Dict, List, Mapping, Optional
 
 import yaml
 
-from cdf_fn_common.workflow_associations import (
-    KIND_SOURCE_VIEW_TO_EXTRACTION,
-    coerce_association_source_view_index,
-)
 from cdf_fn_common.scope_document_dm import resolve_instance_space_from_canvas_configuration
 from cdf_fn_common.workflow_compile.canvas_dag import compiled_workflow_for_scope_document
 from cdf_fn_common.scope_canvas_merge import normalize_root_graph_into_canvas
-
-
-def _view_identity(v: Dict[str, Any]) -> tuple:
-    return (
-        str(v.get("view_space") or "").strip(),
-        str(v.get("view_external_id") or "").strip(),
-        str(v.get("view_version") or "").strip(),
-    )
-
-
-def remap_associations_for_filtered_source_views(
-    associations: List[Dict[str, Any]],
-    original_source_views: List[Dict[str, Any]],
-    filtered_source_views: List[Dict[str, Any]],
-) -> List[Dict[str, Any]]:
-    """
-    Rewrite ``source_view_index`` on association rows so they still refer to the same
-    logical view after ``source_views`` is replaced (e.g. CLI filter / reorder).
-
-    Rows whose view was dropped from the filtered list are omitted.
-    """
-    if not isinstance(associations, list) or not associations:
-        return []
-    if not isinstance(original_source_views, list) or not original_source_views:
-        return copy.deepcopy(associations)
-    if not isinstance(filtered_source_views, list):
-        return copy.deepcopy(associations)
-
-    orig_keys = [_view_identity(v) for v in original_source_views if isinstance(v, dict)]
-    new_index = {
-        _view_identity(v): i for i, v in enumerate(filtered_source_views) if isinstance(v, dict)
-    }
-    out: List[Dict[str, Any]] = []
-    for row in associations:
-        if not isinstance(row, dict):
-            continue
-        if str(row.get("kind") or "").strip() != KIND_SOURCE_VIEW_TO_EXTRACTION:
-            out.append(copy.deepcopy(row))
-            continue
-        ii = coerce_association_source_view_index(row.get("source_view_index"))
-        if ii is None:
-            continue
-        if ii < 0 or ii >= len(orig_keys):
-            continue
-        vk = orig_keys[ii]
-        ni = new_index.get(vk)
-        if ni is None:
-            continue
-        r2 = copy.deepcopy(row)
-        r2["source_view_index"] = ni
-        out.append(r2)
-    return out
 
 
 def merged_scope_document_for_local_run(
@@ -85,19 +29,8 @@ def merged_scope_document_for_local_run(
         raise ValueError(f"Scope YAML must be a mapping: {scope_yaml_path}")
     out = copy.deepcopy(doc)
     normalize_root_graph_into_canvas(out)
-    original_svs = out.get("source_views")
-    filtered_svs = copy.deepcopy(source_views)
-    raw_assoc = out.get("associations")
-    if (
-        isinstance(raw_assoc, list)
-        and raw_assoc
-        and isinstance(original_svs, list)
-        and original_svs
-    ):
-        out["associations"] = remap_associations_for_filtered_source_views(
-            raw_assoc, original_svs, filtered_svs
-        )
-    out["source_views"] = filtered_svs
+    out.pop("associations", None)
+    out["source_views"] = copy.deepcopy(source_views)
     return out
 
 

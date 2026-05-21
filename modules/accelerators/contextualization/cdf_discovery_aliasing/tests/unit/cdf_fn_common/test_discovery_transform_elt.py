@@ -63,6 +63,16 @@ def test_split_join_indexes_and_join() -> None:
     assert apply_split_join("TS-UNIT-A-FIC-1001-VALUE", block) == "FIC-1001"
 
 
+def test_split_join_indexes_from_comma_string() -> None:
+    block = {"delimiter": "-", "indexes": "3, 4", "join": "-"}
+    assert apply_split_join("TS-UNIT-A-FIC-1001-VALUE", block) == "FIC-1001"
+
+
+def test_split_join_indexes_prefer_over_template() -> None:
+    block = {"delimiter": "-", "template": "{0}-{1}", "indexes": [3, 4], "join": "-"}
+    assert apply_split_join("TS-UNIT-A-FIC-1001-VALUE", block) == "FIC-1001"
+
+
 def test_split_join_negative_index() -> None:
     block = {"delimiter": "-", "template": "{-2}-{1}"}
     assert apply_split_join("a-b-c-d-e", block) == "d-b"
@@ -73,7 +83,7 @@ def test_split_join_row_transform() -> None:
         "handler_id": "split_join",
         "fields": [{"field_name": "externalId"}],
         "output_template": "{externalId}",
-        "output_field": "discoveredKey",
+        "output_field": "indexKey",
         "output_mode": "overwrite",
         "split_join": {"delimiter": "-", "template": "{3}-{4}"},
     }
@@ -81,7 +91,7 @@ def test_split_join_row_transform() -> None:
         {"externalId": "TS-UNIT-A-FIC-1001-VALUE"},
         cfg,
     )
-    assert rows[0]["discoveredKey"] == "FIC-1001"
+    assert rows[0]["indexKey"] == "FIC-1001"
 
 
 def test_validate_split_join_requires_template_or_indexes() -> None:
@@ -100,6 +110,20 @@ def test_split_join_mixed_delimiters_via_delimiters_list() -> None:
 def test_split_join_mixed_delimiters_via_regex() -> None:
     block = {"delimiter_regex": r"[./_-]+", "template": "{2}-{3}"}
     assert apply_split_join("PlantA.Unit1/FIC-101.PV", block) == "FIC-101"
+
+
+def test_split_join_colon_delimiter_via_regex() -> None:
+    block = {"delimiter_regex": r"[-./_:]+", "indexes": [2, 3], "join": "-"}
+    assert apply_split_join("PlantA:Unit1/FIC-101.PV", block) == "FIC-101"
+
+
+def test_split_join_colon_delimiter_via_delimiters_list() -> None:
+    block = {
+        "delimiters": [".", "/", "-", "_", ":"],
+        "indexes": [2, 3],
+        "join": "-",
+    }
+    assert apply_split_join("PlantA:Unit1/FIC-101.PV", block) == "FIC-101"
 
 
 def test_split_string_mixed_delimiters() -> None:

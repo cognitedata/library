@@ -4,10 +4,9 @@ import { useAppSettings } from "../context/AppSettingsContext";
 import type { JsonObject } from "../types/scopeConfig";
 import { mergeDataWithValidation, splitDataByValidation } from "../utils/splitConfigData";
 import { DeferredCommitInput } from "./DeferredCommitTextField";
-import { AliasingRulesStructuredEditor } from "./AliasingRulesStructuredEditor";
 import { ValidationStructuredEditor } from "./ValidationStructuredEditor";
 
-type EditorSub = "settings" | "rules" | "validation";
+type EditorSub = "settings" | "validation";
 
 type Props = {
   value: unknown;
@@ -16,8 +15,6 @@ type Props = {
   scopeDocument?: Record<string, unknown>;
   /** Sub-tab on first mount (e.g. flow canvas double-click). */
   initialEditorSub?: EditorSub;
-  /** Focus this aliasing rule on the Rules tab. */
-  initialFocusedAliasingRuleName?: string;
   /** Scroll to this match rule on the Validation tab (inline rules only). */
   initialFocusedMatchRuleName?: string;
 };
@@ -68,11 +65,12 @@ export function AliasingControls({
   onChange,
   scopeDocument,
   initialEditorSub,
-  initialFocusedAliasingRuleName,
   initialFocusedMatchRuleName,
 }: Props) {
   const { t } = useAppSettings();
-  const [editorSub, setEditorSub] = useState<EditorSub>(() => initialEditorSub ?? "rules");
+  const [editorSub, setEditorSub] = useState<EditorSub>(() =>
+    initialEditorSub === "rules" ? "settings" : (initialEditorSub ?? "settings")
+  );
   const al = useMemo(() => normalize(value), [value]);
   const params = (al.config.parameters as JsonObject) ?? {};
 
@@ -209,15 +207,6 @@ export function AliasingControls({
         <button
           type="button"
           role="tab"
-          aria-selected={editorSub === "rules"}
-          className={editorSubtabClass(editorSub === "rules")}
-          onClick={() => setEditorSub("rules")}
-        >
-          {t("editor.subtab.rules")}
-        </button>
-        <button
-          type="button"
-          role="tab"
           aria-selected={editorSub === "validation"}
           className={editorSubtabClass(editorSub === "validation")}
           onClick={() => setEditorSub("validation")}
@@ -250,8 +239,7 @@ export function AliasingControls({
           {Object.entries(params).map(([k, v]) => (
             <div
               key={k}
-              className="kea-filter-row"
-              style={{ gridTemplateColumns: "minmax(8rem,1fr) minmax(8rem,1fr) auto", alignItems: "end" }}
+              className="kea-filter-row kea-filter-row--pair-wide kea-filter-row--align-end"
             >
               <label className="kea-label">
                 {t("forms.paramKey")}
@@ -277,31 +265,6 @@ export function AliasingControls({
           <button type="button" className="kea-btn kea-btn--sm" onClick={addParam}>
             {t("aliasing.addParam")}
           </button>
-        </div>
-      )}
-      {editorSub === "rules" && (
-        <div role="tabpanel">
-          <h4 className="kea-section-title" style={{ fontSize: "0.95rem" }}>
-            {t("aliasing.dataYaml")}
-          </h4>
-          <p className="kea-hint">{t("aliasing.dataYamlHint")}</p>
-          {rulesError && <p className="kea-hint kea-hint--warn">{rulesError}</p>}
-          <AliasingRulesStructuredEditor
-            value={rulesDataObject}
-            onChange={commitRulesData}
-            initialFocusedRuleName={initialFocusedAliasingRuleName}
-          />
-          <details style={{ marginTop: "1rem" }}>
-            <summary style={{ cursor: "pointer", color: "var(--kea-text-muted)" }}>{t("aliasing.advancedRulesYaml")}</summary>
-            <textarea
-              className="kea-textarea"
-              style={{ minHeight: 200, fontFamily: "ui-monospace, monospace", marginTop: "0.5rem" }}
-              value={rulesYaml}
-              onChange={(e) => setRulesYaml(e.target.value)}
-              onBlur={commitConfigData}
-              spellCheck={false}
-            />
-          </details>
         </div>
       )}
       {editorSub === "validation" && (

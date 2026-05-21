@@ -48,8 +48,9 @@ export function interpolate(template: string, vars: Record<string, string | numb
 
 export function createTranslator(locale: Locale) {
   const table = translations[locale];
+  const fallback = translations.en;
   return function t(key: MessageKey, vars?: Record<string, string | number>): string {
-    let s = table[key];
+    let s = table[key] ?? fallback[key] ?? key;
     if (vars) s = interpolate(s, vars);
     return s;
   };

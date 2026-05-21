@@ -11,7 +11,6 @@ import {
   keaDiscoveryStageRfTypes,
   keaPersistenceOutboundToEndOnlyRfTypes,
   keaValidationRuleLayoutRfTypes,
-  rfTypeHasPipelineValidationSourceHandle,
 } from "./flowConstants";
 
 /** Cohort-producing discovery nodes that may feed a subgraph frame input or graph-out from the inner canvas. */
@@ -91,8 +90,6 @@ export function isValidDirectRfDataEdgeSourceToTarget(
 
   if (tt === "keaEnd") {
     return (
-      st === "keaExtraction" ||
-      st === "keaAliasing" ||
       st === "keaDiscoveryValidate" ||
       st === "keaDiscoveryInstanceFilter" ||
       st === "keaDiscoveryConfidenceFilter" ||
@@ -105,7 +102,6 @@ export function isValidDirectRfDataEdgeSourceToTarget(
 
   if (tt === "keaInvertedIndex") {
     return (
-      st === "keaExtraction" ||
       st === "keaViewQuery" ||
       st === "keaRawQuery" ||
       st === "keaClassicQuery" ||
@@ -119,11 +115,10 @@ export function isValidDirectRfDataEdgeSourceToTarget(
 
   if (isAliasPersistenceLayoutRfType(tt)) {
     return (
-      st === "keaAliasing" ||
       st === "keaDiscoveryValidate" ||
       st === "keaDiscoveryInstanceFilter" ||
       st === "keaDiscoveryConfidenceFilter" ||
-      st === "keaExtraction"
+      st === "keaTransform"
     );
   }
 
@@ -133,7 +128,6 @@ export function isValidDirectRfDataEdgeSourceToTarget(
     }
     return (
       tt === "keaSourceView" ||
-      tt === "keaExtraction" ||
       tt === "keaViewQuery" ||
       tt === "keaRawQuery" ||
       tt === "keaClassicQuery"
@@ -148,19 +142,24 @@ export function isValidDirectRfDataEdgeSourceToTarget(
   }
 
   if (st === "keaSourceView") {
-    if (tt === "keaAliasing") return false;
-    return tt === "keaExtraction";
+    return false;
   }
 
   if (validationRuleLayoutRfTypes.has(tt)) {
     if (
-      st === "keaExtraction" ||
-      st === "keaAliasing" ||
       st === "keaDiscoveryValidate" ||
       st === "keaDiscoveryInstanceFilter" ||
       st === "keaDiscoveryConfidenceFilter"
     ) {
       return true;
+    }
+    if (
+      st === "keaTransform" ||
+      keaDiscoveryStageRfTypes.has(st) ||
+      isAliasPersistenceLayoutRfType(st) ||
+      st === "keaInvertedIndex"
+    ) {
+      return tt === "keaMatchValidationRuleExtraction" || tt === "keaMatchValidationRuleAliasing";
     }
     return validationRuleLayoutRfTypes.has(st);
   }
@@ -221,7 +220,7 @@ function allowedExternalSourceToSubflowInput(st: string): boolean {
   if (st === "keaSubgraph" || isSubflowGraphHubRfType(st)) return false;
   if (st === "keaStart") return true;
   if (st === "keaSourceView") return true;
-  if (st === "keaExtraction" || st === "keaAliasing" || rfTypeHasPipelineValidationSourceHandle(st)) return true;
+  if (st === "keaTransform") return true;
   if (isAliasPersistenceLayoutRfType(st) || st === "keaInvertedIndex") return true;
   if (isDiscoveryCohortSourceRfType(st)) return true;
   if (keaValidationRuleLayoutRfTypes.has(st)) return true;
@@ -235,7 +234,7 @@ function allowedSubflowOutputToExternalTarget(tt: string, validationRuleLayoutRf
   if (tt === "keaEnd") return true;
   if (tt === "keaSourceView") return false;
   if (tt === "keaInvertedIndex" || isAliasPersistenceLayoutRfType(tt)) return true;
-  if (tt === "keaExtraction" || tt === "keaAliasing" || keaDiscoveryStageRfTypes.has(tt) || tt === "keaDiscoveryValidate")
+  if (tt === "keaTransform" || keaDiscoveryStageRfTypes.has(tt) || tt === "keaDiscoveryValidate")
     return true;
   if (validationRuleLayoutRfTypes.has(tt)) return true;
   return true;
@@ -261,7 +260,7 @@ function validInteriorToGraphOut(
   }
   if (st === "keaEnd" || st === "keaStart" || st === "keaSubgraph" || isSubflowGraphHubRfType(st)) return false;
   if (st === "keaSourceView") return false;
-  if (st === "keaExtraction" || st === "keaAliasing" || rfTypeHasPipelineValidationSourceHandle(st)) return true;
+  if (st === "keaTransform") return true;
   if (isAliasPersistenceLayoutRfType(st) || st === "keaInvertedIndex") return true;
   if (isDiscoveryCohortSourceRfType(st)) return true;
   if (validationRuleLayoutRfTypes.has(st)) return true;
@@ -285,7 +284,7 @@ function validGraphInToInterior(getNode: GetNode, c: Connection | Edge, validati
   if (tt === "keaEnd" || tt === "keaStart" || tt === "keaSubgraph" || isSubflowGraphHubRfType(tt)) return false;
   if (tt === "keaSourceView") return false;
   if (isAliasPersistenceLayoutRfType(tt) || tt === "keaInvertedIndex") return false;
-  if (tt === "keaExtraction" || tt === "keaAliasing" || keaDiscoveryStageRfTypes.has(tt) || tt === "keaDiscoveryValidate")
+  if (tt === "keaTransform" || keaDiscoveryStageRfTypes.has(tt) || tt === "keaDiscoveryValidate")
     return true;
   if (validationRuleLayoutRfTypes.has(tt)) return true;
   return false;
@@ -348,20 +347,21 @@ export function isValidKeaFlowConnection(
   if (st === "keaEnd") return false;
 
   /** Dedicated validation branch (``validation`` source handle → match-definition layout nodes). */
-  if (rfTypeHasPipelineValidationSourceHandle(st) && srcH === "validation") {
-    return validationRuleLayoutRfTypes.has(tt);
-  }
-
   if (validationRuleLayoutRfTypes.has(tt)) {
     if (st === "keaDiscoveryValidate" && tt === "keaMatchValidationRuleExtraction") {
       return srcH == null || srcH === "out";
     }
-    if (rfTypeHasPipelineValidationSourceHandle(st)) {
-      return srcH === "validation";
-    }
     /** Source views feed match-rule layout nodes on the main ``out`` handle (no ``validation`` branch). */
     if (st === "keaSourceView") {
       return srcH == null || srcH === "out";
+    }
+    if (
+      st === "keaTransform" ||
+      keaDiscoveryStageRfTypes.has(st) ||
+      isAliasPersistenceLayoutRfType(st) ||
+      st === "keaInvertedIndex"
+    ) {
+      return srcH === "validation";
     }
     return validationRuleLayoutRfTypes.has(st);
   }

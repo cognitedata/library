@@ -4,10 +4,10 @@ from __future__ import annotations
 
 from typing import Any, Dict, Iterable, List, Mapping, MutableMapping
 
+from cdf_fn_common.cohort_storage import canvas_node_id_for_task, require_run_id
 from cdf_fn_common.discovery_query_shared import (
     build_entity_cohort_row,
     resolve_query_sink,
-    resolve_run_id,
     resolve_task_config,
     _flush_rows,
 )
@@ -69,8 +69,10 @@ class ClassicQueryHandler(AbstractDiscoveryQueryHandler):
         limit = int(cfg.get("limit") or cfg.get("batch_size") or 1000)
         entity_type = cls.first_nonempty(cfg.get("entity_type"), resource_type.rstrip("s"))
         scope_key = cls.first_nonempty(cfg.get("scope_key"), f"classic:{resource_type.lower()}")
-        run_id = resolve_run_id(data)
+        run_id = require_run_id(data)
+        data["run_id"] = run_id
         task_id = cls.first_nonempty(data.get("task_id"), fn_external_id)
+        canvas_node_id = canvas_node_id_for_task(data, task_id)
         raw_db, raw_table = resolve_query_sink(data)
 
         queue = RawRowsUploadQueue(client)
@@ -87,7 +89,7 @@ class ClassicQueryHandler(AbstractDiscoveryQueryHandler):
                 build_entity_cohort_row(
                     run_id=run_id,
                     scope_key=scope_key,
-                    task_id=task_id,
+                    canvas_node_id=canvas_node_id,
                     query_source="classic",
                     node_instance_id=nid,
                     external_id=ext_id,
@@ -100,9 +102,9 @@ class ClassicQueryHandler(AbstractDiscoveryQueryHandler):
             )
             n_written += 1
             if len(pending) >= 500:
-                _flush_rows(queue, raw_db, raw_table, pending)
+                _flush_rows(queue, raw_db, raw_table, pending, client=client)
 
-        _flush_rows(queue, raw_db, raw_table, pending)
+        _flush_rows(queue, raw_db, raw_table, pending, client=client)
 
         if log and hasattr(log, "info"):
             log.info("%s listed %s classic %s resource(s)", fn_external_id, n_written, resource_type)

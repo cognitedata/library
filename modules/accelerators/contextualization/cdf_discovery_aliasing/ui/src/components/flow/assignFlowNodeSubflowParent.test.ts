@@ -6,7 +6,7 @@ describe("assignFlowNodeSubflowParent", () => {
   it("clears parentId when assigning root (null parent)", () => {
     const child: Node = {
       id: "c",
-      type: "keaExtraction",
+      type: "keaTransform",
       parentId: "legacy",
       position: { x: 10, y: 20 },
       data: { label: "E", handler_id: "h" },
@@ -35,7 +35,7 @@ describe("assignFlowNodeSubflowParent", () => {
   });
 
   it("ignores non-null parent ids (no arbitrary parent assignment)", () => {
-    const a: Node = { id: "a", type: "keaExtraction", position: { x: 0, y: 0 }, data: { label: "A", handler_id: "h" } };
+    const a: Node = { id: "a", type: "keaTransform", position: { x: 0, y: 0 }, data: { label: "A", handler_id: "h" } };
     const sf: Node = {
       id: "sf",
       type: "keaSubgraph",

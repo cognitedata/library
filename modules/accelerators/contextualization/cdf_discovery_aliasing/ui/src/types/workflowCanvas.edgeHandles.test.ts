@@ -5,9 +5,9 @@ import {
 } from "./workflowCanvas";
 
 describe("normalizeWorkflowCanvasEdgeHandles", () => {
-  it("sets validation branch for extraction → match_validation_extraction when handles are missing", () => {
+  it("sets validation branch for transform → match_validation_extraction when handles are missing", () => {
     const nodes = [
-      { id: "ext_a", kind: "extraction" as const, position: { x: 0, y: 0 }, data: {} },
+      { id: "tr_a", kind: "transform" as const, position: { x: 0, y: 0 }, data: {} },
       {
         id: "vr",
         kind: "match_validation_extraction" as const,
@@ -16,7 +16,7 @@ describe("normalizeWorkflowCanvasEdgeHandles", () => {
       },
     ];
     const edges = normalizeWorkflowCanvasEdgeHandles(nodes, [
-      { id: "e1", source: "ext_a", target: "vr", kind: "data" },
+      { id: "e1", source: "tr_a", target: "vr", kind: "data" },
     ]);
     expect(edges[0]?.source_handle).toBe("validation");
     expect(edges[0]?.target_handle).toBe("in");
@@ -62,9 +62,9 @@ describe("normalizeWorkflowCanvasEdgeHandles", () => {
     expect(edges[0]?.source_handle).toBe("out");
   });
 
-  it("coerces mistaken extraction out handle into validation for match rule target", () => {
+  it("coerces mistaken transform out handle into validation for match rule target", () => {
     const nodes = [
-      { id: "ext_a", kind: "extraction" as const, position: { x: 0, y: 0 }, data: {} },
+      { id: "tr_a", kind: "transform" as const, position: { x: 0, y: 0 }, data: {} },
       {
         id: "vr",
         kind: "match_validation_extraction" as const,
@@ -73,20 +73,20 @@ describe("normalizeWorkflowCanvasEdgeHandles", () => {
       },
     ];
     const edges = normalizeWorkflowCanvasEdgeHandles(nodes, [
-      { id: "e1", source: "ext_a", target: "vr", kind: "data", source_handle: "out", target_handle: "in" },
+      { id: "e1", source: "tr_a", target: "vr", kind: "data", source_handle: "out", target_handle: "in" },
     ]);
     expect(edges[0]?.source_handle).toBe("validation");
   });
 
-  it("does not rewrite subgraph port source handles on extraction", () => {
+  it("does not rewrite subgraph port source handles on transform", () => {
     const nodes = [
-      { id: "ext_a", kind: "extraction" as const, position: { x: 0, y: 0 }, data: {} },
+      { id: "tr_a", kind: "transform" as const, position: { x: 0, y: 0 }, data: {} },
       { id: "end", kind: "end" as const, position: { x: 0, y: 0 }, data: {} },
     ];
     const edges = normalizeWorkflowCanvasEdgeHandles(nodes, [
       {
         id: "e1",
-        source: "ext_a",
+        source: "tr_a",
         target: "end",
         kind: "data",
         source_handle: "out__port1",
@@ -96,35 +96,31 @@ describe("normalizeWorkflowCanvasEdgeHandles", () => {
     expect(edges[0]?.source_handle).toBe("out__port1");
   });
 
-  it("fills out/in for source_view → extraction when both handles are absent", () => {
+  it("fills out/in for query_view → transform when both handles are absent", () => {
     const nodes = [
-      { id: "sv", kind: "source_view" as const, position: { x: 0, y: 0 }, data: {} },
-      { id: "ext_a", kind: "extraction" as const, position: { x: 0, y: 0 }, data: {} },
+      { id: "vq", kind: "query_view" as const, position: { x: 0, y: 0 }, data: {} },
+      { id: "tr_a", kind: "transform" as const, position: { x: 0, y: 0 }, data: {} },
     ];
     const edges = normalizeWorkflowCanvasEdgeHandles(nodes, [
-      { id: "e1", source: "sv", target: "ext_a", kind: "data" },
+      { id: "e1", source: "vq", target: "tr_a", kind: "data" },
     ]);
     expect(edges[0]?.source_handle).toBe("out");
     expect(edges[0]?.target_handle).toBe("in");
   });
 });
 
-describe("parseWorkflowCanvasDocument edge handle migration", () => {
-  it("strips legacy extraction out_* handles then normalizes primary out → end", () => {
+describe("parseWorkflowCanvasDocument", () => {
+  it("skips legacy extraction and aliasing node kinds", () => {
     const doc = parseWorkflowCanvasDocument({
       schemaVersion: 1,
       nodes: [
         { id: "a", kind: "extraction", position: { x: 0, y: 0 }, data: {} },
-        { id: "b", kind: "end", position: { x: 0, y: 0 }, data: {} },
+        { id: "b", kind: "aliasing", position: { x: 0, y: 0 }, data: {} },
+        { id: "c", kind: "transform", position: { x: 0, y: 0 }, data: {} },
       ],
-      edges: [
-        { id: "e1", source: "a", target: "b", kind: "data", source_handle: "out_legacy", target_handle: "in" },
-        { id: "e2", source: "a", target: "b", kind: "data", source_handle: "out__in", target_handle: "in" },
-      ],
+      edges: [],
     });
-    const byId = (id: string) => doc.edges.find((x) => x.id === id);
-    expect(byId("e1")?.source_handle).toBe("out");
-    expect(byId("e2")?.source_handle).toBe("out__in");
+    expect(doc.nodes.map((n) => n.id)).toEqual(["c"]);
   });
 
   it("synthesizes stable edge ids when id is omitted (scope YAML style)", () => {
@@ -165,7 +161,7 @@ describe("parseWorkflowCanvasDocument edge handle migration", () => {
     expect(doc.edges[2]?.target_handle).toBe("in");
   });
 
-  it("normalizes nested inner_canvas edges", () => {
+  it("normalizes nested inner_canvas edges for transform → match validation", () => {
     const doc = parseWorkflowCanvasDocument({
       schemaVersion: 1,
       nodes: [
@@ -177,7 +173,7 @@ describe("parseWorkflowCanvasDocument edge handle migration", () => {
             inner_canvas: {
               schemaVersion: 1,
               nodes: [
-                { id: "ix", kind: "extraction", position: { x: 0, y: 0 }, data: {} },
+                { id: "ix", kind: "transform", position: { x: 0, y: 0 }, data: {} },
                 { id: "iv", kind: "match_validation_extraction", position: { x: 0, y: 0 }, data: {} },
               ],
               edges: [{ id: "ie", source: "ix", target: "iv", kind: "data" }],

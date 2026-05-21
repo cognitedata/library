@@ -16,14 +16,57 @@ input:
     name: ''
     schemaVersion: 1
     compile_workflow_dag: canvas
-    associations: []
     canvas:
       schemaVersion: 1
       handle_orientation: lr
       nodes:
+      - id: cf_ii
+        kind: confidence_filter
+        data:
+          label: Confidence filter for inverted index
+          handler_family: discovery
+          config:
+            description: Confidence filter for inverted index
+            value_field: indexKey
+            min_confidence: 0.8
+            comparison: gte
+            drop_row_if_empty: true
+      - id: cf_save
+        kind: confidence_filter
+        data:
+          label: Confidence filter before save
+          handler_family: discovery
+          config:
+            description: Confidence filter before save
+            value_field: aliases
+            min_confidence: 0
+            comparison: gte
+            drop_row_if_empty: true
       - id: en
         kind: end
         data: {}
+      - id: fl_ii
+        kind: instance_filter
+        data:
+          label: Instance filter for inverted index
+          handler_family: discovery
+          config:
+            description: Instance filter for inverted index
+            filters:
+            - operator: EXISTS
+              target_property: indexKey
+              property_scope: view
+      - id: fl_save
+        kind: instance_filter
+        data:
+          label: Instance filter before save
+          handler_family: discovery
+          config:
+            description: Instance filter before save
+            filters:
+            - operator: EXISTS
+              target_property: aliases
+              property_scope: view
       - id: ii
         kind: inverted_index
         data:
@@ -37,7 +80,7 @@ input:
             description: Inverted index — CDM lookup by extracted keys
             index_kinds:
               metadata:
-              - discoveredKey
+              - indexKey
             inverted_index_raw_db: db_discovery
             inverted_index_raw_table: discovery_inverted_index
       - id: n_1778825555896_yb0o2sr8
@@ -64,64 +107,174 @@ input:
       - id: n_1778825856747_8nhc2ug8
         kind: transform
         data:
-          label: Transform · trim_whitespace
+          label: 'Index Key: Name → Description'
           handler_family: discovery
           preset_from_palette: true
           handler_id: trim_whitespace
           config:
-            description: Transform
             handler_id: trim_whitespace
             enabled: true
-            fields:
-            - field_name: name
-              regex: (?<![\d-])(?:\b|(?<=_))(?:\d{1,8}-?)?[A-Z]{1,8}-?\d{1,10}(?:-\d{1,6})*[A-Z]?\b
-            output_field: discoveredKey
-            output_template: '{name}'
-            output_mode: append
-            regex_substitution:
-              patterns:
-              - pattern: ^OLD
-                replacement: NEW
-            trim_whitespace:
-              mode: ends_only
-      - id: n_1778826169249_fdladvkr
-        kind: transform
+            execution:
+              mode: parallel
+            steps:
+            - description: 'Index Key: Name'
+              handler_id: trim_whitespace
+              enabled: true
+              fields:
+              - field_name: name
+                regex: (?<![\d-])(?:\b|(?<=_))(?:\d{1,8}-?)?[A-Z]{1,8}-?\d{1,10}(?:-\d{1,6})*[A-Z]?\b
+              output_field: indexKey
+              output_template: '{name}'
+              output_mode: append
+              regex_substitution:
+                patterns:
+                - pattern: ^OLD
+                  replacement: NEW
+              trim_whitespace:
+                mode: ends_only
+            - description: Extract Asset Reference from Description
+              handler_id: trim_whitespace
+              enabled: true
+              fields:
+              - field_name: description
+                regex: (?<![\d-])(?:\b|(?<=_))(?:\d{1,8}-?)?[A-Z]{1,8}-?\d{1,10}(?:-\d{1,6})*[A-Z]?\b
+              output_field: indexKey
+              output_template: '{description}'
+              output_mode: append
+              regex_substitution:
+                patterns:
+                - pattern: ^OLD
+                  replacement: NEW
+              trim_whitespace:
+                mode: ends_only
+            description: 'Index Key: name then description (ordered multi-step)'
+            field_policies:
+            - property: indexKey
+              strategy: merge_list
+              merge_list:
+                unique: true
+                branch_order: by_score
+      - id: n_1778828796157_r1tixf2w
+        kind: validation
         data:
-          label: 'Asset Reference: Description'
+          label: Asset validation — ISA → shape → blacklist
           handler_family: discovery
-          preset_from_palette: true
-          handler_id: trim_whitespace
           config:
-            description: Extract Asset Reference from Description
-            handler_id: trim_whitespace
-            enabled: true
-            fields:
-            - field_name: description
-              regex: (?<![\d-])(?:\b|(?<=_))(?:\d{1,8}-?)?[A-Z]{1,8}-?\d{1,10}(?:-\d{1,6})*[A-Z]?\b
-            output_field: discoveredKey
-            output_template: '{name}'
-            output_mode: append
-            regex_substitution:
-              patterns:
-              - pattern: ^OLD
-                replacement: NEW
-            trim_whitespace:
-              mode: ends_only
+            description: CogniteAsset tag validation — ISA, alias shape, blacklist
+              (ordered multi-step)
+            execution:
+              mode: ordered
+            steps:
+            - name: whitelist
+              enabled: true
+              match:
+                expressions:
+                - pattern: \bP[-_]?\d{1,6}[A-Z]?\b
+                  description: Standard pump tags (P-101, P101A, P-2001)
+                - pattern: \b[A-Z]{2,4}P[-_]?\d{1,6}[A-Z]?\b
+                  description: Pump with service designation (FWP-101, CWP-201)
+                - pattern: \bCP[-_]?\d{1,6}[A-Z]?\b
+                  description: Centrifugal pump tags
+                - pattern: \bC[-_]?\d{1,6}[A-Z]?\b
+                  description: Standard compressor tags (C-101, C101A)
+                - pattern: \b[A-Z]{2}C[-_]?\d{1,6}[A-Z]?\b
+                  description: Compressor with type designation (AC-101, RC-201)
+                - pattern: \b[A-Z]{2,3}V[-_]?\d{1,6}[A-Z]?\b
+                  description: Control valve tags (FCV-101, PCV-201, TCV-301)
+                - pattern: \bV[-_]?\d{1,6}[A-Z]?\b
+                  description: Manual valve and vessel tags (V-101, V101A)
+                - pattern: \b[A-Z]{2,3}SV[-_]?\d{1,6}[A-Z]?\b
+                  description: Safety valve tags (PSV-101, TSV-201)
+                - pattern: \bT[-_]?\d{1,6}[A-Z]?\b
+                  description: Standard tank tags (T-101, T101A)
+                - pattern: \bR[-_]?\d{1,6}[A-Z]?\b
+                  description: Reactor tags (R-101, R101A)
+                - pattern: \bE[-_]?\d{1,6}[A-Z]?\b
+                  description: Heat exchanger tags (E-101, E101A)
+                - pattern: \b[A-Z]{2}E[-_]?\d{1,6}[A-Z]?\b
+                  description: Heat exchanger with type (HE-101, CE-201)
+                - pattern: \bF[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b
+                  description: Flow instruments (FIC-101, FIT-201, FCV-301)
+                - pattern: \bP[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b
+                  description: Pressure instruments (PIC-101, PIT-201, PCV-301)
+                - pattern: \bT[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b
+                  description: Temperature instruments (TIC-101, TIT-201, TCV-301)
+                - pattern: \bL[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b
+                  description: Level instruments (LIC-101, LIT-201, LCV-301)
+                - pattern: \bA[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b
+                  description: Analytical instruments (AIC-101, AIT-201, ACV-301)
+                - pattern: \b[A-Z]?C[-_]?\d{1,6}[A-Z]?\b
+                  description: Distillation column tags (C-101, DC-201)
+                keywords: []
+              confidence_modifier:
+                mode: explicit
+                value: 1
+              priority: 10
+            - name: not_isa_penalty
+              enabled: true
+              match:
+                expressions:
+                - pattern: (?s).*
+                  description: Catch-all when no higher-priority rule matched; applies
+                    non-ISA penalty
+                keywords: []
+              confidence_modifier:
+                mode: offset
+                value: -0.2
+              priority: 1000
+            - name: alias_shape_invalid
+              enabled: true
+              priority: 0
+              expression_match: fullmatch
+              match:
+                expressions:
+                - pattern: ^[0-9]{0,3}$
+                  description: Alias is only digits and shorter than 4 characters
+                    (empty counts as invalid)
+                - pattern: ^.{81,}$
+                  description: Alias exceeds maximum length 80
+                - pattern: '[^A-Za-z0-9-_/. ]'
+                  description: Character outside allowed set (letters, digits, _ /
+                    . - and space)
+              confidence_modifier:
+                mode: explicit
+                value: 0
+            - name: blacklist
+              enabled: true
+              priority: 10
+              match:
+                keywords:
+                - test
+                - example
+                - sample
+                - dummy
+                - temp
+                - temporary
+                - 'null'
+                - none
+                - n/a
+                - na
+                - unknown
+              confidence_modifier:
+                mode: explicit
+                value: 0
+            min_confidence: 0.5
       - id: n_1778877478650_28ig3bla
         kind: join
         data:
-          label: Join
+          label: 'Aliases: Mapping Table Join (RAW)'
           handler_family: discovery
           preset_from_palette: true
           config:
-            description: Join — CogniteAsset name ↔ RAW alias row (asset_aliases)
-            join_type: left
+            description: Join — CogniteAsset name ↔ RAW alias row key (asset_aliases)
+            join_type: inner
             right_prefix: ''
             join_on:
               and:
               - operator: IEQUALS
                 left_property: name
-                right_property: raw_columns.name
+                right_property: raw_columns.key
+        enabled: false
       - id: n_1778877489862_8uun2ui1
         kind: query_raw
         data:
@@ -132,10 +285,11 @@ input:
             description: RAW query — CogniteAsset EXP- alias catalog (Toolkit upload_data/RAW)
             source_raw_db: db_discovery_aliasing
             source_raw_table: asset_aliases
+        enabled: false
       - id: n_1778877505030_c3a1hn6b
         kind: transform
         data:
-          label: Transform · trim_whitespace
+          label: 'Aliases: Explicit Aliases'
           handler_family: discovery
           preset_from_palette: true
           handler_id: trim_whitespace
@@ -163,311 +317,142 @@ input:
                 replacement: ''
             trim_whitespace:
               mode: ends_only
-      - id: n_1778828785283_7a8ubsfg
+        enabled: false
+      - id: n_1779113654105_b062nmdc
+        kind: transform
+        data:
+          label: 'Aliases: Name - Passthrough'
+          handler_family: discovery
+          preset_from_palette: true
+          handler_id: trim_whitespace
+          config:
+            description: Transform
+            handler_id: trim_whitespace
+            enabled: true
+            fields:
+            - field_name: name
+              regex: ''
+            output_field: aliases
+            output_template: '{name}'
+            output_mode: append
+            regex_substitution:
+              patterns:
+              - pattern: ^OLD
+                replacement: NEW
+            trim_whitespace:
+              mode: ends_only
+      - id: n_1779138030450_ilvkx2u7
         kind: validation
         data:
-          label: Asset validation — blacklist
+          label: Asset validation — ISA → shape → blacklist
           handler_family: discovery
           config:
-            description: CogniteAsset tag validation — blacklist keywords
-            validation_rule_definitions:
-              blacklist:
-                name: blacklist
-                enabled: true
-                priority: 10
-                match:
-                  keywords:
-                  - test
-                  - example
-                  - sample
-                  - dummy
-                  - temp
-                  - temporary
-                  - 'null'
-                  - none
-                  - n/a
-                  - na
-                  - unknown
-                confidence_modifier:
-                  mode: explicit
-                  value: 0
-      - id: n_1778828796157_kkugagac
-        kind: validation
-        data:
-          label: Asset validation — alias shape
-          handler_family: discovery
-          config:
-            description: CogniteAsset tag validation — alias shape rules
-            validation_rule_definitions:
-              alias_shape_invalid:
-                name: alias_shape_invalid
-                enabled: true
-                priority: 0
-                expression_match: fullmatch
-                match:
-                  expressions:
-                  - pattern: ^[0-9]{0,3}$
-                    description: Alias is only digits and shorter than 4 characters
-                      (empty counts as invalid)
-                  - pattern: ^.{81,}$
-                    description: Alias exceeds maximum length 80
-                  - pattern: '[^A-Za-z0-9-_/. ]'
-                    description: Character outside allowed set (letters, digits, _
-                      / . - and space)
-                confidence_modifier:
-                  mode: explicit
-                  value: 0
-      - id: n_1778828796157_r1tixf2w
-        kind: validation
-        data:
-          label: Asset validation — ISA whitelist
-          handler_family: discovery
-          config:
-            description: CogniteAsset tag validation — ISA patterns (whitelist)
-            validation_rule_definitions:
-              isa_compliant:
-                name: whitelist
-                enabled: true
-                match:
-                  expressions:
-                  - pattern: \bP[-_]?\d{1,6}[A-Z]?\b
-                    description: Standard pump tags (P-101, P101A, P-2001)
-                  - pattern: \b[A-Z]{2,4}P[-_]?\d{1,6}[A-Z]?\b
-                    description: Pump with service designation (FWP-101, CWP-201)
-                  - pattern: \bCP[-_]?\d{1,6}[A-Z]?\b
-                    description: Centrifugal pump tags
-                  - pattern: \bC[-_]?\d{1,6}[A-Z]?\b
-                    description: Standard compressor tags (C-101, C101A)
-                  - pattern: \b[A-Z]{2}C[-_]?\d{1,6}[A-Z]?\b
-                    description: Compressor with type designation (AC-101, RC-201)
-                  - pattern: \b[A-Z]{2,3}V[-_]?\d{1,6}[A-Z]?\b
-                    description: Control valve tags (FCV-101, PCV-201, TCV-301)
-                  - pattern: \bV[-_]?\d{1,6}[A-Z]?\b
-                    description: Manual valve and vessel tags (V-101, V101A)
-                  - pattern: \b[A-Z]{2,3}SV[-_]?\d{1,6}[A-Z]?\b
-                    description: Safety valve tags (PSV-101, TSV-201)
-                  - pattern: \bT[-_]?\d{1,6}[A-Z]?\b
-                    description: Standard tank tags (T-101, T101A)
-                  - pattern: \bR[-_]?\d{1,6}[A-Z]?\b
-                    description: Reactor tags (R-101, R101A)
-                  - pattern: \bE[-_]?\d{1,6}[A-Z]?\b
-                    description: Heat exchanger tags (E-101, E101A)
-                  - pattern: \b[A-Z]{2}E[-_]?\d{1,6}[A-Z]?\b
-                    description: Heat exchanger with type (HE-101, CE-201)
-                  - pattern: \bF[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b
-                    description: Flow instruments (FIC-101, FIT-201, FCV-301)
-                  - pattern: \bP[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b
-                    description: Pressure instruments (PIC-101, PIT-201, PCV-301)
-                  - pattern: \bT[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b
-                    description: Temperature instruments (TIC-101, TIT-201, TCV-301)
-                  - pattern: \bL[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b
-                    description: Level instruments (LIC-101, LIT-201, LCV-301)
-                  - pattern: \bA[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b
-                    description: Analytical instruments (AIC-101, AIT-201, ACV-301)
-                  - pattern: \b[A-Z]?C[-_]?\d{1,6}[A-Z]?\b
-                    description: Distillation column tags (C-101, DC-201)
-                  keywords: []
-                confidence_modifier:
-                  mode: explicit
-                  value: 1
-                priority: 50
-      - id: n_1778828796157_y5ly9vv0
-        kind: validation
-        data:
-          label: Asset validation — non-ISA penalty
-          handler_family: discovery
-          config:
-            description: CogniteAsset tag validation — catch-all ISA penalty
-            validation_rule_definitions:
-              not_isa_penalty:
-                name: not_isa_penalty
-                enabled: true
-                match:
-                  expressions:
-                  - pattern: (?s).*
-                    description: Catch-all when no higher-priority rule matched; applies
-                      non-ISA penalty
-                  keywords: []
-                confidence_modifier:
-                  mode: offset
-                  value: -0.2
-                priority: 1000
-      - id: n_1778896745343_6nhv4598_hub_in
-        kind: subflow_graph_in
-        data:
-          label: Graph inputs
-          subflow_ports:
-            inputs:
-            - id: in
-              label: Asset validation — blacklist
-              inner_target_rf_type: keaDiscoveryValidate
-            outputs: []
-      - id: n_1778896745343_6nhv4598_hub_out
-        kind: subflow_graph_out
-        data:
-          label: Graph outputs
-          subflow_ports:
-            inputs: []
-            outputs:
-            - id: out
-              label: Asset validation — alias shape
-              inner_source_rf_type: keaDiscoveryValidate
-      - id: n_1778896755537_g7t3hlk0_hub_in
-        kind: subflow_graph_in
-        data:
-          label: Graph inputs
-          subflow_ports:
-            inputs:
-            - id: in
-              label: Asset validation — blacklist
-              inner_target_rf_type: keaDiscoveryValidate
-            outputs: []
-      - id: n_1778896755537_g7t3hlk0_hub_out
-        kind: subflow_graph_out
-        data:
-          label: Graph outputs
-          subflow_ports:
-            inputs: []
-            outputs:
-            - id: out
-              label: Asset validation — alias shape
-              inner_source_rf_type: keaDiscoveryValidate
-      - id: va_asset_blk
-        kind: validation
-        data:
-          label: Asset validation — blacklist
-          handler_family: discovery
-          config:
-            description: CogniteAsset tag validation — blacklist keywords
-            validation_rule_definitions:
-              blacklist:
-                name: blacklist
-                enabled: true
-                priority: 10
-                match:
-                  keywords:
-                  - test
-                  - example
-                  - sample
-                  - dummy
-                  - temp
-                  - temporary
-                  - 'null'
-                  - none
-                  - n/a
-                  - na
-                  - unknown
-                confidence_modifier:
-                  mode: explicit
-                  value: 0
-      - id: va_asset_isa
-        kind: validation
-        data:
-          label: Asset validation — ISA whitelist
-          handler_family: discovery
-          config:
-            description: CogniteAsset tag validation — ISA patterns (whitelist)
-            validation_rule_definitions:
-              isa_compliant:
-                name: whitelist
-                enabled: true
-                match:
-                  expressions:
-                  - pattern: \bP[-_]?\d{1,6}[A-Z]?\b
-                    description: Standard pump tags (P-101, P101A, P-2001)
-                  - pattern: \b[A-Z]{2,4}P[-_]?\d{1,6}[A-Z]?\b
-                    description: Pump with service designation (FWP-101, CWP-201)
-                  - pattern: \bCP[-_]?\d{1,6}[A-Z]?\b
-                    description: Centrifugal pump tags
-                  - pattern: \bC[-_]?\d{1,6}[A-Z]?\b
-                    description: Standard compressor tags (C-101, C101A)
-                  - pattern: \b[A-Z]{2}C[-_]?\d{1,6}[A-Z]?\b
-                    description: Compressor with type designation (AC-101, RC-201)
-                  - pattern: \b[A-Z]{2,3}V[-_]?\d{1,6}[A-Z]?\b
-                    description: Control valve tags (FCV-101, PCV-201, TCV-301)
-                  - pattern: \bV[-_]?\d{1,6}[A-Z]?\b
-                    description: Manual valve and vessel tags (V-101, V101A)
-                  - pattern: \b[A-Z]{2,3}SV[-_]?\d{1,6}[A-Z]?\b
-                    description: Safety valve tags (PSV-101, TSV-201)
-                  - pattern: \bT[-_]?\d{1,6}[A-Z]?\b
-                    description: Standard tank tags (T-101, T101A)
-                  - pattern: \bR[-_]?\d{1,6}[A-Z]?\b
-                    description: Reactor tags (R-101, R101A)
-                  - pattern: \bE[-_]?\d{1,6}[A-Z]?\b
-                    description: Heat exchanger tags (E-101, E101A)
-                  - pattern: \b[A-Z]{2}E[-_]?\d{1,6}[A-Z]?\b
-                    description: Heat exchanger with type (HE-101, CE-201)
-                  - pattern: \bF[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b
-                    description: Flow instruments (FIC-101, FIT-201, FCV-301)
-                  - pattern: \bP[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b
-                    description: Pressure instruments (PIC-101, PIT-201, PCV-301)
-                  - pattern: \bT[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b
-                    description: Temperature instruments (TIC-101, TIT-201, TCV-301)
-                  - pattern: \bL[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b
-                    description: Level instruments (LIC-101, LIT-201, LCV-301)
-                  - pattern: \bA[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b
-                    description: Analytical instruments (AIC-101, AIT-201, ACV-301)
-                  - pattern: \b[A-Z]?C[-_]?\d{1,6}[A-Z]?\b
-                    description: Distillation column tags (C-101, DC-201)
-                  keywords: []
-                confidence_modifier:
-                  mode: explicit
-                  value: 1
-                priority: 50
-      - id: va_asset_penalty
-        kind: validation
-        data:
-          label: Asset validation — non-ISA penalty
-          handler_family: discovery
-          config:
-            description: CogniteAsset tag validation — catch-all ISA penalty
-            validation_rule_definitions:
-              not_isa_penalty:
-                name: not_isa_penalty
-                enabled: true
-                match:
-                  expressions:
-                  - pattern: (?s).*
-                    description: Catch-all when no higher-priority rule matched; applies
-                      non-ISA penalty
-                  keywords: []
-                confidence_modifier:
-                  mode: offset
-                  value: -0.2
-                priority: 1000
-      - id: va_asset_shape
-        kind: validation
-        data:
-          label: Asset validation — alias shape
-          handler_family: discovery
-          config:
-            description: CogniteAsset tag validation — alias shape rules
-            validation_rule_definitions:
-              alias_shape_invalid:
-                name: alias_shape_invalid
-                enabled: true
-                priority: 0
-                expression_match: fullmatch
-                match:
-                  expressions:
-                  - pattern: ^[0-9]{0,3}$
-                    description: Alias is only digits and shorter than 4 characters
-                      (empty counts as invalid)
-                  - pattern: ^.{81,}$
-                    description: Alias exceeds maximum length 80
-                  - pattern: '[^A-Za-z0-9-_/. ]'
-                    description: Character outside allowed set (letters, digits, _
-                      / . - and space)
-                confidence_modifier:
-                  mode: explicit
-                  value: 0
+            description: CogniteAsset tag validation — ISA, alias shape, blacklist
+              (ordered multi-step)
+            execution:
+              mode: ordered
+            steps:
+            - name: whitelist
+              enabled: true
+              match:
+                expressions:
+                - pattern: \bP[-_]?\d{1,6}[A-Z]?\b
+                  description: Standard pump tags (P-101, P101A, P-2001)
+                - pattern: \b[A-Z]{2,4}P[-_]?\d{1,6}[A-Z]?\b
+                  description: Pump with service designation (FWP-101, CWP-201)
+                - pattern: \bCP[-_]?\d{1,6}[A-Z]?\b
+                  description: Centrifugal pump tags
+                - pattern: \bC[-_]?\d{1,6}[A-Z]?\b
+                  description: Standard compressor tags (C-101, C101A)
+                - pattern: \b[A-Z]{2}C[-_]?\d{1,6}[A-Z]?\b
+                  description: Compressor with type designation (AC-101, RC-201)
+                - pattern: \b[A-Z]{2,3}V[-_]?\d{1,6}[A-Z]?\b
+                  description: Control valve tags (FCV-101, PCV-201, TCV-301)
+                - pattern: \bV[-_]?\d{1,6}[A-Z]?\b
+                  description: Manual valve and vessel tags (V-101, V101A)
+                - pattern: \b[A-Z]{2,3}SV[-_]?\d{1,6}[A-Z]?\b
+                  description: Safety valve tags (PSV-101, TSV-201)
+                - pattern: \bT[-_]?\d{1,6}[A-Z]?\b
+                  description: Standard tank tags (T-101, T101A)
+                - pattern: \bR[-_]?\d{1,6}[A-Z]?\b
+                  description: Reactor tags (R-101, R101A)
+                - pattern: \bE[-_]?\d{1,6}[A-Z]?\b
+                  description: Heat exchanger tags (E-101, E101A)
+                - pattern: \b[A-Z]{2}E[-_]?\d{1,6}[A-Z]?\b
+                  description: Heat exchanger with type (HE-101, CE-201)
+                - pattern: \bF[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b
+                  description: Flow instruments (FIC-101, FIT-201, FCV-301)
+                - pattern: \bP[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b
+                  description: Pressure instruments (PIC-101, PIT-201, PCV-301)
+                - pattern: \bT[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b
+                  description: Temperature instruments (TIC-101, TIT-201, TCV-301)
+                - pattern: \bL[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b
+                  description: Level instruments (LIC-101, LIT-201, LCV-301)
+                - pattern: \bA[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b
+                  description: Analytical instruments (AIC-101, AIT-201, ACV-301)
+                - pattern: \b[A-Z]?C[-_]?\d{1,6}[A-Z]?\b
+                  description: Distillation column tags (C-101, DC-201)
+                keywords: []
+              confidence_modifier:
+                mode: explicit
+                value: 1
+              priority: 10
+            - name: not_isa_penalty
+              enabled: true
+              match:
+                expressions:
+                - pattern: (?s).*
+                  description: Catch-all when no higher-priority rule matched; applies
+                    non-ISA penalty
+                keywords: []
+              confidence_modifier:
+                mode: offset
+                value: -0.2
+              priority: 1000
+            - name: alias_shape_invalid
+              enabled: true
+              priority: 0
+              expression_match: fullmatch
+              match:
+                expressions:
+                - pattern: ^[0-9]{0,3}$
+                  description: Alias is only digits and shorter than 4 characters
+                    (empty counts as invalid)
+                - pattern: ^.{81,}$
+                  description: Alias exceeds maximum length 80
+                - pattern: '[^A-Za-z0-9-_/. ]'
+                  description: Character outside allowed set (letters, digits, _ /
+                    . - and space)
+              confidence_modifier:
+                mode: explicit
+                value: 0
+            - name: blacklist
+              enabled: true
+              priority: 10
+              match:
+                keywords:
+                - test
+                - example
+                - sample
+                - dummy
+                - temp
+                - temporary
+                - 'null'
+                - none
+                - n/a
+                - na
+                - unknown
+              confidence_modifier:
+                mode: explicit
+                value: 0
+            min_confidence: 0.5
       - id: st
         kind: start
         data: {}
       - id: tr
         kind: transform
         data:
-          label: 'Entity Alias: Tag'
+          label: 'Aliases: Tag Based'
           handler_family: discovery
           preset_from_palette: true
           handler_id: trim_whitespace
@@ -498,44 +483,43 @@ input:
       - id: tr_ts
         kind: transform
         data:
-          label: 'Time Series Alias: Instrument tag'
+          label: 'Time Series Alias: Instrument tag → Time Series Alias: Heuristic
+            (name)'
           handler_family: discovery
           preset_from_palette: true
           handler_id: split_join
           config:
-            description: Extract instrument tag from CogniteTimeSeries externalId
-              (mixed PI delimiters)
+            description: 'Time Series Alias: Instrument tag → Time Series Alias: Heuristic
+              (name) (ordered multi-step)'
+            execution:
+              mode: ordered
+            steps:
+            - handler_id: split_join
+              enabled: true
+              fields:
+              - field_name: name
+              output_field: aliases
+              output_template: '{name}'
+              output_mode: append
+              split_join:
+                delimiter_regex: '[-./_:]+'
+                trim: true
+                indexes:
+                - 2
+                - 3
+                join: '-'
+            - handler_id: heuristic_sampler
+              enabled: true
+              fields:
+              - field_name: name
+              output_field: aliases
+              output_template: '{name}'
+              output_mode: append
+              heuristic_sampler:
+                pattern: (?<![\d-])(?:\b|(?<=_))(?:\d{1,8}-?)?[A-Z]{1,8}-?\d{1,10}(?:-\d{1,6})*[A-Z]?\b
+                on_no_match: empty
             handler_id: split_join
             enabled: true
-            fields:
-            - field_name: externalId
-            output_field: aliases
-            output_template: '{externalId}'
-            output_mode: append
-            split_join:
-              delimiter_regex: '[./_-]+'
-              template: '{-3}-{-2}'
-              trim: true
-      - id: tr_ts_heuristic
-        kind: transform
-        data:
-          label: 'Time Series Alias: Heuristic (name)'
-          handler_family: discovery
-          preset_from_palette: true
-          handler_id: heuristic_sampler
-          config:
-            description: Extract instrument tag from CogniteTimeSeries name via heuristic
-              regex (parallel to externalId split_join)
-            handler_id: heuristic_sampler
-            enabled: true
-            fields:
-            - field_name: name
-            output_field: aliases
-            output_template: '{name}'
-            output_mode: append
-            heuristic_sampler:
-              pattern: (?<![\d-])(?:\b|(?<=_))(?:\d{1,8}-?)?[A-Z]{1,8}-?\d{1,10}(?:-\d{1,6})*[A-Z]?\b
-              on_no_match: empty
       - id: vq_asset
         kind: query_view
         data:
@@ -567,7 +551,9 @@ input:
             view_external_id: CogniteEquipment
             view_version: v1
             filters: []
-            include_properties: []
+            include_properties:
+            - name
+            - description
           label: Equipment Query
       - id: vq_file
         kind: query_view
@@ -624,65 +610,6 @@ input:
               merge_list:
                 unique: true
                 branch_order: by_score
-      - id: cf_save
-        kind: confidence_filter
-        data:
-          label: Confidence filter (save)
-          handler_family: discovery
-          config:
-            description: Confidence filter before save
-            value_field: aliases
-            min_confidence: 0.8
-            comparison: gte
-      - id: fl_save
-        kind: instance_filter
-        data:
-          label: Instance filter (save)
-          handler_family: discovery
-          config:
-            description: Instance filter before save
-            filters:
-            - or:
-              - operator: EXISTS
-                target_property: aliases
-                property_scope: view
-              - operator: EXISTS
-                target_property: discoveredKey
-                property_scope: view
-      - id: cf_ii
-        kind: confidence_filter
-        data:
-          label: Confidence filter (index)
-          handler_family: discovery
-          config:
-            description: Confidence filter for inverted index
-            value_field: aliases
-            min_confidence: 0.8
-            comparison: gte
-      - id: fl_ii
-        kind: instance_filter
-        data:
-          label: Instance filter (index)
-          handler_family: discovery
-          config:
-            description: Instance filter for inverted index
-            filters:
-            - or:
-              - operator: EXISTS
-                target_property: discoveredKey
-                property_scope: view
-              - operator: EXISTS
-                target_property: aliases
-                property_scope: view
-      - id: al_pre_prefix_site01
-        kind: aliasing
-        data:
-          label: pre_prefix_site01
-          handler_id: prefix_suffix
-          handler_family: aliasing
-          ref:
-            aliasing_rule_name: pre_prefix_site01
-          pipeline_rank: 5
       edges:
       - id: e_st_to_vq_file
         source: st
@@ -690,17 +617,11 @@ input:
         source_handle: out
         target_handle: in
         kind: data
-      - id: e_vq_eq_to_tr
-        source: vq_eq
-        target: tr
+      - id: n_1779144453795_za9yanfz
+        source: tr
+        target: n_1779138030450_ilvkx2u7
         source_handle: out
         target_handle: in
-        kind: data
-      - id: e_tr_in_n_1778896755537_g7t3hlk0_e_tr_to_va_asset_blk
-        source: tr
-        target: n_1778896755537_g7t3hlk0_hub_in
-        source_handle: out
-        target_handle: in__in
         kind: data
       - id: e_vs_to_en
         source: vs
@@ -732,27 +653,9 @@ input:
         source_handle: out
         target_handle: in
         kind: data
-      - id: e_tr_ts_to_va_hub
+      - id: n_1779144453795_74gawq97
         source: tr_ts
-        target: n_1778896755537_g7t3hlk0_hub_in
-        source_handle: out
-        target_handle: in__in
-        kind: data
-      - id: xy-edge__vq_tsout-tr_ts_heuristic
-        source: vq_ts
-        target: tr_ts_heuristic
-        source_handle: out
-        target_handle: in
-        kind: data
-      - id: e_tr_ts_heuristic_to_va_hub
-        source: tr_ts_heuristic
-        target: n_1778896755537_g7t3hlk0_hub_in
-        source_handle: out
-        target_handle: in__in
-        kind: data
-      - id: xy-edge__vq_assetout-trin
-        source: vq_asset
-        target: tr
+        target: n_1779138030450_ilvkx2u7
         source_handle: out
         target_handle: in
         kind: data
@@ -786,28 +689,10 @@ input:
         source_handle: out
         target_handle: in
         kind: data
-      - id: xy-edge__vq_eqout-n_1778826169249_fdladvkrin
-        source: vq_eq
-        target: n_1778826169249_fdladvkr
-        source_handle: out
-        target_handle: in
-        kind: data
-      - id: xy-edge__vq_fileout-n_1778826169249_fdladvkrin
-        source: vq_file
-        target: n_1778826169249_fdladvkr
-        source_handle: out
-        target_handle: in
-        kind: data
-      - id: xy-edge__vq_tsout-n_1778826169249_fdladvkrin
-        source: vq_ts
-        target: n_1778826169249_fdladvkr
-        source_handle: out
-        target_handle: in
-        kind: data
-      - id: e_n_1778896755537_g7t3hlk0_out_cf_save
-        source: n_1778896755537_g7t3hlk0_hub_out
+      - id: n_1779144453795_smzu3mq0
+        source: n_1779138030450_ilvkx2u7
         target: cf_save
-        source_handle: out__out
+        source_handle: out
         target_handle: in
         kind: data
       - id: xy-edge__n_1778825555896_yb0o2sr8out-cf_savein
@@ -828,10 +713,10 @@ input:
         source_handle: out
         target_handle: in
         kind: data
-      - id: e_n_1778896745343_6nhv4598_out_cf_ii
-        source: n_1778896745343_6nhv4598_hub_out
+      - id: n_1779144444954_0w0f16eb
+        source: n_1778828796157_r1tixf2w
         target: cf_ii
-        source_handle: out__out
+        source_handle: out
         target_handle: in
         kind: data
       - id: e_cf_ii_to_fl_ii
@@ -846,17 +731,11 @@ input:
         source_handle: out
         target_handle: in
         kind: data
-      - id: e_n_1778825856747_8nhc2ug8_in_n_1778896745343_6nhv4598_xy-edge__n_1778825856747_8nhc2ug8out-n_1778828785283_7a8ubsfgin
+      - id: n_1779144444954_hku7ljbe
         source: n_1778825856747_8nhc2ug8
-        target: n_1778896745343_6nhv4598_hub_in
+        target: n_1778828796157_r1tixf2w
         source_handle: out
-        target_handle: in__in
-        kind: data
-      - id: e_n_1778826169249_fdladvkr_in_n_1778896745343_6nhv4598_xy-edge__n_1778826169249_fdladvkrout-n_1778828785283_7a8ubsfgin
-        source: n_1778826169249_fdladvkr
-        target: n_1778896745343_6nhv4598_hub_in
-        source_handle: out
-        target_handle: in__in
+        target_handle: in
         kind: data
       - id: xy-edge__vq_assetout-n_1778877478650_28ig3blain__left
         source: vq_asset
@@ -882,82 +761,52 @@ input:
         source_handle: out
         target_handle: in
         kind: data
-      - id: e_n_1778877505030_c3a1hn6b_in_n_1778896755537_g7t3hlk0_xy-edge__n_1778877505030_c3a1hn6bout-va_asset_blkin
+      - id: n_1779144453795_n0loefv1
         source: n_1778877505030_c3a1hn6b
-        target: n_1778896755537_g7t3hlk0_hub_in
-        source_handle: out
-        target_handle: in__in
-        kind: data
-      - id: e_n_1778828796157_r1tixf2w_n_1778828796157_y5ly9vv0_1778828796158_ylasng
-        source: n_1778828796157_r1tixf2w
-        target: n_1778828796157_y5ly9vv0
-        source_handle: out
-        target_handle: in
-        kind: sequence
-      - id: e_n_1778828796157_y5ly9vv0_n_1778828796157_kkugagac_1778828796158_jp120y
-        source: n_1778828796157_y5ly9vv0
-        target: n_1778828796157_kkugagac
-        source_handle: out
-        target_handle: in
-        kind: sequence
-      - id: xy-edge__n_1778828785283_7a8ubsfgout-n_1778828796157_r1tixf2win
-        source: n_1778828785283_7a8ubsfg
-        target: n_1778828796157_r1tixf2w
-        source_handle: out
-        target_handle: in
-        kind: sequence
-      - id: e_n_1778828796157_kkugagac_to_n_1778896745343_6nhv4598_hub_out_xy-edge__n_1778828796157_kkugagacout-iiin
-        source: n_1778828796157_kkugagac
-        target: n_1778896745343_6nhv4598_hub_out
-        source_handle: out
-        target_handle: in__out
-        kind: data
-      - id: e_n_1778896745343_6nhv4598_hub_in_to_n_1778828785283_7a8ubsfg_xy-edge__n_1778825856747_8nhc2ug8out-n_1778828785283_7a8ubsfgin
-        source: n_1778896745343_6nhv4598_hub_in
-        target: n_1778828785283_7a8ubsfg
-        source_handle: out__in
-        target_handle: in
-        kind: data
-      - id: e_n_1778896745343_6nhv4598_hub_in_to_n_1778828785283_7a8ubsfg_xy-edge__n_1778826169249_fdladvkrout-n_1778828785283_7a8ubsfgin
-        source: n_1778896745343_6nhv4598_hub_in
-        target: n_1778828785283_7a8ubsfg
-        source_handle: out__in
-        target_handle: in
-        kind: data
-      - id: e_va_asset_blk_to_va_asset_isa
-        source: va_asset_blk
-        target: va_asset_isa
+        target: n_1779138030450_ilvkx2u7
         source_handle: out
         target_handle: in
         kind: data
-      - id: xy-edge__va_asset_isaout-va_asset_penaltyin
-        source: va_asset_isa
-        target: va_asset_penalty
+      - id: xy-edge__vq_assetout-n_1779113654105_b062nmdcin
+        source: vq_asset
+        target: n_1779113654105_b062nmdc
         source_handle: out
-        target_handle: in
-        kind: sequence
-      - id: xy-edge__va_asset_penaltyout-va_asset_shapein
-        source: va_asset_penalty
-        target: va_asset_shape
-        source_handle: out
-        target_handle: in
-        kind: sequence
-      - id: e_n_1778896755537_g7t3hlk0_hub_in_to_va_asset_blk_e_tr_to_va_asset_blk
-        source: n_1778896755537_g7t3hlk0_hub_in
-        target: va_asset_blk
-        source_handle: out__in
         target_handle: in
         kind: data
-      - id: e_va_asset_shape_to_n_1778896755537_g7t3hlk0_hub_out_xy-edge__va_asset_shapeout-vsin
-        source: va_asset_shape
-        target: n_1778896755537_g7t3hlk0_hub_out
+      - id: xy-edge__vq_eqout-n_1779113654105_b062nmdcin
+        source: vq_eq
+        target: n_1779113654105_b062nmdc
         source_handle: out
-        target_handle: in__out
+        target_handle: in
         kind: data
-      - id: e_n_1778896755537_g7t3hlk0_hub_in_to_va_asset_blk_xy-edge__n_1778877505030_c3a1hn6bout-va_asset_blkin
-        source: n_1778896755537_g7t3hlk0_hub_in
-        target: va_asset_blk
-        source_handle: out__in
+      - id: xy-edge__vq_tsout-n_1779113654105_b062nmdcin
+        source: vq_ts
+        target: n_1779113654105_b062nmdc
+        source_handle: out
+        target_handle: in
+        kind: data
+      - id: xy-edge__vq_tsout-trin
+        source: vq_ts
+        target: tr
+        source_handle: out
+        target_handle: in
+        kind: data
+      - id: xy-edge__vq_eqout-trin
+        source: vq_eq
+        target: tr
+        source_handle: out
+        target_handle: in
+        kind: data
+      - id: xy-edge__vq_assetout-trin
+        source: vq_asset
+        target: tr
+        source_handle: out
+        target_handle: in
+        kind: data
+      - id: n_1779144453795_zhxx6awk
+        source: n_1779113654105_b062nmdc
+        target: n_1779138030450_ilvkx2u7
+        source_handle: out
         target_handle: in
         kind: data
     scope:
@@ -970,22 +819,3 @@ input:
         name: First Manufacturing Site
         description: First site (display name may contain spaces; id is the stable
           segment)
-    aliasing_rule_definitions:
-      pre_prefix_site01:
-        name: pre_prefix_site01
-        handler: prefix_suffix
-        description: 'Debug: prefix aliases with pre_ after strip delimiter (site_01).'
-        enabled: true
-        priority: 70
-        preserve_original: true
-        config:
-          operation: add_prefix
-          prefix: pre_
-          conditions:
-            missing_prefix: true
-        conditions: {}
-        scope_filters:
-          entity_type:
-          - asset
-          - equipment
-          - timeseries

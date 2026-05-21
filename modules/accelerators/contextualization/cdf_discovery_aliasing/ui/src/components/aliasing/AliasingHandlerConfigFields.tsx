@@ -59,8 +59,8 @@ export function AliasingHandlerConfigFields({ handler, configYaml, onChange, t }
         {pairs.map((row, i) => (
           <div
             key={i}
-            className="kea-filter-row"
-            style={{ gridTemplateColumns: "1fr 1fr auto", alignItems: "end", marginBottom: "0.35rem" }}
+            className="kea-filter-row kea-filter-row--field-pair kea-filter-row--align-end"
+            style={{ marginBottom: "0.35rem" }}
           >
             <label className="kea-label">
               {t("aliasingRules.handlerFields.from")}
@@ -126,7 +126,7 @@ export function AliasingHandlerConfigFields({ handler, configYaml, onChange, t }
             ))}
           </select>
         </label>
-        <div className="kea-filter-row" style={{ gridTemplateColumns: "1fr 1fr", marginTop: "0.5rem" }}>
+        <div className="kea-filter-row kea-filter-row--pair" style={{ marginTop: "0.5rem" }}>
           <label className="kea-label">
             {t("aliasingRules.handlerFields.prefix")}
             <input className="kea-input" value={String(o.prefix ?? "")} onChange={(e) => patch({ prefix: e.target.value })} />
@@ -161,8 +161,8 @@ export function AliasingHandlerConfigFields({ handler, configYaml, onChange, t }
           return (
             <div
               key={i}
-              className="kea-filter-row"
-              style={{ gridTemplateColumns: "1fr 1fr auto", alignItems: "end", marginBottom: "0.35rem" }}
+              className="kea-filter-row kea-filter-row--field-pair kea-filter-row--align-end"
+              style={{ marginBottom: "0.35rem" }}
             >
               <label className="kea-label">
                 pattern

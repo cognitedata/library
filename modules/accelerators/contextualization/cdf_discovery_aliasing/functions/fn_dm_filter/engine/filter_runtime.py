@@ -4,23 +4,19 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, MutableMapping
 
+from cdf_fn_common.cohort_storage import canvas_node_id_for_task, require_run_id
+from cdf_fn_common.cohort_filter_eval import parse_cohort_filters
 from cdf_fn_common.discovery_cohort import (
     _cohort_row_from_columns,
-    _props_from_row_columns,
-    iter_predecessor_raw_locations,
+    iter_predecessor_instance_props,
 )
 from cdf_fn_common.discovery_query_shared import (
-    RECORD_KIND_COLUMN,
-    RECORD_KIND_ENTITY,
     _first_nonempty,
     _flush_rows,
     resolve_query_sink,
-    resolve_run_id,
     resolve_task_config,
 )
-from cdf_fn_common.cohort_filter_eval import parse_cohort_filters
 from cdf_fn_common.discovery_row_filter import row_passes_filter, validate_filter_config
-from cdf_fn_common.incremental_scope import iter_inter_node_raw_rows_for_filter_run
 from cdf_fn_common.raw_upload import RawRowsUploadQueue
 from cdf_fn_common.task_runtime import merge_compiled_task_into_data
 
@@ -49,46 +45,39 @@ def discovery_handle_filter(
         }
 
     filters = parse_cohort_filters(cfg)
-    run_id = resolve_run_id(data)
+    run_id = require_run_id(data)
+    data["run_id"] = run_id
     task_id = _first_nonempty(data.get("task_id"), fn_external_id)
+    writer_canvas = canvas_node_id_for_task(data, task_id)
     sink_db, sink_table = resolve_query_sink(data)
-    filter_run = _first_nonempty(cfg.get("filter_run_id"), run_id)
 
     queue = RawRowsUploadQueue(client)
     pending: List[Dict[str, Any]] = []
     rows_read = 0
     rows_written = 0
     rows_excluded = 0
-    pred_locations = iter_predecessor_raw_locations(data, task_id)
 
-    for source_db, source_table in pred_locations:
-        for row in iter_inter_node_raw_rows_for_filter_run(
-            client, source_db, source_table, filter_run or ""
-        ):
-            cols = dict(getattr(row, "columns", None) or {})
-            if cols.get(RECORD_KIND_COLUMN) not in (None, "", RECORD_KIND_ENTITY):
-                continue
-            rows_read += 1
-            props = _props_from_row_columns(cols)
-            if not row_passes_filter(props, filters):
-                rows_excluded += 1
-                continue
-            pending.append(
-                _cohort_row_from_columns(
-                    cols=cols,
-                    row_key=str(getattr(row, "key", "") or rows_read),
-                    run_id=run_id,
-                    task_id=task_id,
-                    properties=props,
-                    query_source="instance_filter",
-                    value_field="aliases",
-                )
+    for cols, props in iter_predecessor_instance_props(client, data, task_id):
+        rows_read += 1
+        if not row_passes_filter(props, filters):
+            rows_excluded += 1
+            continue
+        pending.append(
+            _cohort_row_from_columns(
+                cols=cols,
+                row_key=str(rows_read),
+                run_id=run_id,
+                canvas_node_id=writer_canvas,
+                properties=props,
+                query_source="instance_filter",
+                value_field="aliases",
             )
-            rows_written += 1
-            if len(pending) >= 500:
-                _flush_rows(queue, sink_db, sink_table, pending)
+        )
+        rows_written += 1
+        if len(pending) >= 500:
+            _flush_rows(queue, sink_db, sink_table, pending, client=client)
 
-    _flush_rows(queue, sink_db, sink_table, pending)
+    _flush_rows(queue, sink_db, sink_table, pending, client=client)
 
     if log and hasattr(log, "info"):
         log.info(
@@ -104,6 +93,7 @@ def discovery_handle_filter(
     summary: Dict[str, Any] = {
         "function_external_id": fn_external_id,
         "task_id": task_id,
+        "canvas_node_id": writer_canvas,
         "rows_read": rows_read,
         "rows_written": rows_written,
         "rows_excluded": rows_excluded,
@@ -111,7 +101,5 @@ def discovery_handle_filter(
         "raw_db": sink_db,
         "raw_table": sink_table,
         "filters": filters,
-        "predecessor_raw_sources": [{"raw_db": d, "raw_table": t} for d, t in pred_locations],
     }
-    data["run_id"] = run_id
     return summary

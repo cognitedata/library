@@ -31,11 +31,11 @@ def test_parse_index_kinds_config_empty() -> None:
     assert parse_index_kinds_config({"index_kinds": {}}) == []
 
 
-def test_parse_index_kinds_config_metadata_discovered_key() -> None:
+def test_parse_index_kinds_config_metadata_index_key() -> None:
     pairs = parse_index_kinds_config(
-        {"index_kinds": {"metadata": ["discoveredKey"]}}
+        {"index_kinds": {"metadata": ["indexKey"]}}
     )
-    assert pairs == [("metadata", "discoveredKey")]
+    assert pairs == [("metadata", "indexKey")]
 
 
 def test_normalize_lookup_key_casefold() -> None:
@@ -47,7 +47,7 @@ def test_merge_postings_replaces_same_run() -> None:
         {
             "instance_space": "sp",
             "external_id": "a1",
-            "source_property": "discoveredKey",
+            "source_property": "indexKey",
             "run_id": "r1",
             "confidence": 0.5,
         }
@@ -56,7 +56,7 @@ def test_merge_postings_replaces_same_run() -> None:
         {
             "instance_space": "sp",
             "external_id": "a1",
-            "source_property": "discoveredKey",
+            "source_property": "indexKey",
             "run_id": "r1",
             "confidence": 0.9,
         }
@@ -78,10 +78,10 @@ def test_resolve_inverted_index_sink_defaults() -> None:
 
 
 @patch("cdf_fn_common.discovery_inverted_index.iter_predecessor_raw_locations", return_value=[("db", "src")])
-@patch("cdf_fn_common.discovery_inverted_index.iter_inter_node_raw_rows_for_filter_run")
+@patch("cdf_fn_common.discovery_inverted_index.iter_predecessor_instance_props")
 @patch("cdf_fn_common.discovery_inverted_index._load_existing_postings", return_value=[])
 @patch("cdf_fn_common.discovery_inverted_index._flush_rows")
-def test_indexes_discovered_key_only(
+def test_indexes_index_key_only(
     _flush: MagicMock,
     _load: MagicMock,
     mock_iter: MagicMock,
@@ -100,19 +100,28 @@ def test_indexes_discovered_key_only(
         "ENTITY_TYPE": "asset",
         "PROPERTIES_JSON": json.dumps(
             {
-                "discoveredKey": ["TAG-1"],
+                "indexKey": ["TAG-1"],
                 "aliases": ["alias-should-not-index"],
                 "instance_space": "sp",
             }
         ),
     }
-    mock_iter.return_value = [row]
+    from cdf_fn_common.discovery_cohort import _props_from_row_columns
+
+    cols = dict(row.columns)
+    mock_iter.return_value = [(cols, _props_from_row_columns(cols))]
     client = MagicMock()
     data = {
         "task_id": "ii1",
         "run_id": "run1",
+        "compiled_workflow": {
+            "tasks": [
+                {"task_id": "ii1", "canvas_node_id": "cf_ii", "depends_on": ["pred"]},
+                {"task_id": "pred", "canvas_node_id": "fl", "depends_on": []},
+            ]
+        },
         "config": {
-            "index_kinds": {"metadata": ["discoveredKey"]},
+            "index_kinds": {"metadata": ["indexKey"]},
             "inverted_index_raw_table": "discovery_inverted_index",
         },
     }
@@ -126,15 +135,68 @@ def test_indexes_discovered_key_only(
     assert cols[LOOKUP_KEY_COLUMN] == normalize_lookup_key("TAG-1")
     postings = json.loads(cols[POSTINGS_JSON_COLUMN])
     assert len(postings) == 1
-    assert postings[0]["source_property"] == "discoveredKey"
+    assert postings[0]["source_property"] == "indexKey"
     assert postings[0]["external_id"] == "ext1"
 
 
 @patch("cdf_fn_common.discovery_inverted_index.iter_predecessor_raw_locations", return_value=[("db", "src")])
-@patch("cdf_fn_common.discovery_inverted_index.iter_inter_node_raw_rows_for_filter_run")
+@patch("cdf_fn_common.discovery_inverted_index.iter_predecessor_instance_props")
 @patch("cdf_fn_common.discovery_inverted_index._load_existing_postings", return_value=[])
 @patch("cdf_fn_common.discovery_inverted_index._flush_rows")
-def test_indexes_discovered_key_from_aliases_when_missing(
+def test_does_not_index_empty_index_key_string(
+    _flush: MagicMock,
+    _load: MagicMock,
+    mock_iter: MagicMock,
+    _pred: MagicMock,
+) -> None:
+    row = MagicMock()
+    row.key = "k1"
+    row.columns = {
+        "RECORD_KIND": "entity",
+        "RUN_ID": "run1",
+        "NODE_INSTANCE_ID": "sp:ext1",
+        "EXTERNAL_ID": "ext1",
+        "VIEW_SPACE": "cdf_cdm",
+        "VIEW_EXTERNAL_ID": "CogniteFile",
+        "VIEW_VERSION": "v1",
+        "ENTITY_TYPE": "file",
+        "PROPERTIES_JSON": json.dumps(
+            {
+                "indexKey": "",
+                "aliases": ["file.pdf"],
+                "instance_space": "sp",
+            }
+        ),
+    }
+    from cdf_fn_common.discovery_cohort import _props_from_row_columns
+
+    cols = dict(row.columns)
+    mock_iter.return_value = [(cols, _props_from_row_columns(cols))]
+    summary = run_discovery_inverted_index(
+        "fn_dm_inverted_index",
+        {
+            "task_id": "ii1",
+            "run_id": "run1",
+            "compiled_workflow": {
+                "tasks": [
+                    {"task_id": "ii1", "canvas_node_id": "cf_ii", "depends_on": ["pred"]},
+                    {"task_id": "pred", "canvas_node_id": "fl", "depends_on": []},
+                ]
+            },
+            "config": {"index_kinds": {"metadata": ["indexKey"]}},
+        },
+        MagicMock(),
+        None,
+    )
+    assert summary["inverted_writes"] == 0
+    assert _flush.call_args[0][3] == []
+
+
+@patch("cdf_fn_common.discovery_inverted_index.iter_predecessor_raw_locations", return_value=[("db", "src")])
+@patch("cdf_fn_common.discovery_inverted_index.iter_predecessor_instance_props")
+@patch("cdf_fn_common.discovery_inverted_index._load_existing_postings", return_value=[])
+@patch("cdf_fn_common.discovery_inverted_index._flush_rows")
+def test_does_not_index_aliases_when_index_key_missing(
     _flush: MagicMock,
     _load: MagicMock,
     mock_iter: MagicMock,
@@ -155,23 +217,33 @@ def test_indexes_discovered_key_from_aliases_when_missing(
             {"aliases": ["TAG-FROM-ALIAS"], "instance_space": "sp"}
         ),
     }
-    mock_iter.return_value = [row]
+    from cdf_fn_common.discovery_cohort import _props_from_row_columns
+
+    cols = dict(row.columns)
+    mock_iter.return_value = [(cols, _props_from_row_columns(cols))]
     summary = run_discovery_inverted_index(
         "fn_dm_inverted_index",
         {
             "task_id": "ii1",
             "run_id": "run1",
+            "compiled_workflow": {
+                "tasks": [
+                    {"task_id": "ii1", "canvas_node_id": "cf_ii", "depends_on": ["pred"]},
+                    {"task_id": "pred", "canvas_node_id": "fl", "depends_on": []},
+                ]
+            },
             "config": {
-                "index_kinds": {"metadata": ["discoveredKey"]},
+                "index_kinds": {"metadata": ["indexKey"]},
                 "inverted_index_raw_table": "discovery_inverted_index",
             },
         },
         MagicMock(),
         None,
     )
-    assert summary["inverted_writes"] == 1
-    cols = _flush.call_args[0][3][0]["columns"]
-    assert cols[LOOKUP_KEY_COLUMN] == normalize_lookup_key("TAG-FROM-ALIAS")
+    assert summary["inverted_writes"] == 0
+    assert summary["postings"] == 0
+    _flush.assert_called_once()
+    assert _flush.call_args[0][3] == []
 
 
 @patch("cdf_fn_common.discovery_inverted_index.iter_predecessor_raw_locations", return_value=[])

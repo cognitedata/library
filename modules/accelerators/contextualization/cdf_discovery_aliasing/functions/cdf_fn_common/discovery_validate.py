@@ -16,10 +16,14 @@ from .confidence_match_rule_refs import (
     sequences_lookup_from_scope,
     validation_rules_list_get,
 )
+from .pipeline_steps import (
+    materialize_validation_steps,
+    validation_steps_to_rules_raw,
+)
 from .confidence_property import confidence_property_key
 from .discovery_query_shared import _first_nonempty
 
-DEFAULT_VALIDATE_FIELDS = ("aliases", "discoveredKey")
+DEFAULT_VALIDATE_FIELDS = ("aliases", "indexKey")
 DEFAULT_INITIAL_CONFIDENCE = 1.0
 DEFAULT_MIN_CONFIDENCE = 0.0
 
@@ -29,27 +33,36 @@ def _as_dict(value: Any) -> Dict[str, Any]:
 
 
 def validate_validation_config(cfg: Mapping[str, Any]) -> None:
+    from .pipeline_steps import validate_execution_block
+
     desc = _first_nonempty(cfg.get("description"))
     if not desc:
         raise ValueError("validation config requires non-empty description")
+    validate_execution_block(cfg, context="validation config")
     rules = materialize_validation_rules(cfg)
     if not rules:
-        raise ValueError(
-            "validation config requires validation_rule_definitions and/or validation_rules"
-        )
+        raise ValueError("validation config requires non-empty steps or validation_rules")
 
 
 def materialize_validation_rules(cfg: Mapping[str, Any]) -> List[Any]:
     """
-    Build expanded ``validation_rules`` from task config.
+    Build expanded rule list for confidence_match_eval from task config.
 
-    Canvas nodes typically store one rule under ``validation_rule_definitions``;
-    scope YAML may also use ``validation_rules`` refs resolved via definitions/sequences
-    on the same config object.
+    Prefers ``execution`` + ``steps``; migrates legacy ``validation_rules`` and
+    per-node ``validation_rule_definitions`` into steps on read.
     """
     doc = _as_dict(cfg)
     lookup = definitions_lookup_from_scope(doc)
     sequences = sequences_lookup_from_scope(doc)
+    exec_mode, steps = materialize_validation_steps(doc)
+    if steps:
+        rules_raw = validation_steps_to_rules_raw(steps, exec_mode)
+        return expand_confidence_match_rules_list(
+            rules_raw,
+            lookup,
+            sequences=sequences,
+            context="validate.config.",
+        )
     inline = validation_rules_list_get(doc)
     if isinstance(inline, list) and inline:
         return expand_confidence_match_rules_list(
@@ -115,7 +128,7 @@ def _parallel_confidence_list(field: str, src: Optional[Mapping[str, Any]]) -> O
 
 def _primary_confidence_field(fields: Sequence[str]) -> Optional[str]:
     """Field whose per-value scores are written for each validated field."""
-    for cand in ("aliases", "discoveredKey"):
+    for cand in ("aliases", "indexKey"):
         if cand in fields:
             return cand
     return fields[0] if fields else None
@@ -201,9 +214,18 @@ def _write_scored_field(
         props[field] = [{"value": v, "confidence": round(c, 6)} for v, c in scored]
         props.pop(conf_key, None)
         return
-    props[field] = [v for v, _ in scored]
-    if scored:
-        props[conf_key] = [round(c, 6) for _, c in scored]
+    deduped_vals: List[str] = []
+    deduped_conf: List[float] = []
+    seen: set[str] = set()
+    for v, c in scored:
+        if v in seen:
+            continue
+        seen.add(v)
+        deduped_vals.append(v)
+        deduped_conf.append(round(c, 6))
+    props[field] = deduped_vals
+    if deduped_conf:
+        props[conf_key] = deduped_conf
     else:
         props.pop(conf_key, None)
     props.pop("confidence", None)

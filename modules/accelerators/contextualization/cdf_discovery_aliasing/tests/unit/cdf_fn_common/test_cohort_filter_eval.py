@@ -17,12 +17,12 @@ def test_row_matches_exists_or_group() -> None:
         {
             "or": [
                 {"operator": "EXISTS", "target_property": "aliases", "property_scope": "view"},
-                {"operator": "EXISTS", "target_property": "discoveredKey", "property_scope": "view"},
+                {"operator": "EXISTS", "target_property": "indexKey", "property_scope": "view"},
             ]
         }
     ]
     props_fail: dict = {}
-    props_ok = {"discoveredKey": [{"value": "k", "confidence": 0.5}]}
+    props_ok = {"indexKey": [{"value": "k", "confidence": 0.5}]}
     assert row_matches_filters(props_fail, filters) is False
     assert row_matches_filters(props_ok, filters) is True
 
@@ -50,7 +50,7 @@ def test_row_matches_and_group() -> None:
         {
             "and": [
                 {"operator": "EXISTS", "target_property": "aliases"},
-                {"operator": "EXISTS", "target_property": "discoveredKey"},
+                {"operator": "EXISTS", "target_property": "indexKey"},
             ]
         }
     ]
@@ -112,11 +112,11 @@ def test_exists_on_dot_path_property() -> None:
     filters = [
         {
             "operator": "EXISTS",
-            "target_property": "raw_columns.name",
+            "target_property": "raw_columns.key",
             "property_scope": "view",
         }
     ]
-    props = {"raw_columns": {"name": "P-101"}}
+    props = {"raw_columns": {"key": "P-101"}}
     assert row_matches_filters(props, filters) is True
     assert row_matches_filters({}, filters) is False
 

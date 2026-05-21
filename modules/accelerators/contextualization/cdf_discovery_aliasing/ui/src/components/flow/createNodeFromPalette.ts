@@ -88,6 +88,7 @@ export function createNodeFromPalette(
       query_raw: { type: "keaRawQuery", defaultLabel: "RAW query" },
       query_classic: { type: "keaClassicQuery", defaultLabel: "Classic query" },
       transform: { type: "keaTransform", defaultLabel: "Transform" },
+      merge: { type: "keaMerge", defaultLabel: "Merge" },
       join: { type: "keaJoin", defaultLabel: "Join" },
       validation: { type: "keaDiscoveryValidate", defaultLabel: "Validation" },
       instance_filter: { type: "keaDiscoveryInstanceFilter", defaultLabel: "Instance filter" },
@@ -130,9 +131,26 @@ export function createNodeFromPalette(
           });
         }
         break;
+      case "merge":
+        data.config = {
+          description: "Merge — fan-in properties from parallel upstream transforms",
+          field_policies: [
+            {
+              property: "aliases",
+              strategy: "merge_list",
+              merge_list: { unique: true, branch_order: "by_score" },
+            },
+            {
+              property: "indexKey",
+              strategy: "merge_list",
+              merge_list: { unique: true, branch_order: "by_score" },
+            },
+          ],
+        };
+        break;
       case "join":
         data.config = {
-          description: "Join — view cohort ↔ RAW cohort (default: name vs raw_columns.name)",
+          description: "Join — view cohort ↔ RAW cohort (default: name vs raw_columns.key)",
           join_type: "left",
           right_prefix: "",
           join_on: {
@@ -140,7 +158,7 @@ export function createNodeFromPalette(
               {
                 operator: "IEQUALS",
                 left_property: "name",
-                right_property: "raw_columns.name",
+                right_property: "raw_columns.key",
               },
             ],
           },

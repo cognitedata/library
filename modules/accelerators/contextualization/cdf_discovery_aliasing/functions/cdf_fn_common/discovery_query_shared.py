@@ -11,6 +11,13 @@ import secrets
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Mapping, MutableMapping, Optional, Tuple
 
+from .cohort_storage import (
+    canvas_node_id_for_task,
+    instance_cohort_row_key,
+    require_run_id,
+    resolve_node_cohort_sink,
+)
+from .cdf_utils import create_table_if_not_exists
 from .incremental_scope import (
     EXTERNAL_ID_COLUMN,
     EXTRACTION_INPUTS_HASH_COLUMN,
@@ -23,7 +30,6 @@ from .incremental_scope import (
     WORKFLOW_STATUS_COLUMN,
     WORKFLOW_STATUS_DETECTED,
     WORKFLOW_STATUS_UPDATED_AT_COLUMN,
-    cohort_row_key,
 )
 from .confidence_property import confidence_property_key
 from .raw_upload import RawRowsUploadQueue
@@ -83,32 +89,11 @@ def resolve_run_id(data: Mapping[str, Any]) -> str:
 
 
 def resolve_query_sink(data: Mapping[str, Any]) -> Tuple[str, str]:
-    """Return ``(raw_db, raw_table)`` for discovery query cohort writes."""
-    persistence = _as_dict(data.get("persistence"))
-    cfg = resolve_task_config(data)
-    configuration = _as_dict(data.get("configuration"))
-    ke_params = _as_dict(
-        _as_dict(_as_dict(configuration.get("key_extraction")).get("config")).get("parameters")
-    )
-    raw_db = _first_nonempty(
-        persistence.get("raw_db"),
-        persistence.get("sink_raw_db"),
-        cfg.get("raw_db"),
-        cfg.get("sink_raw_db"),
-        ke_params.get("raw_db"),
-        DEFAULT_RAW_DB,
-    )
-    raw_table = _first_nonempty(
-        persistence.get("raw_table_key"),
-        persistence.get("raw_table"),
-        persistence.get("sink_raw_table"),
-        cfg.get("raw_table_key"),
-        cfg.get("raw_table"),
-        cfg.get("sink_raw_table"),
-        ke_params.get("raw_table_key"),
-        DEFAULT_RAW_TABLE,
-    )
-    return raw_db, raw_table
+    """Return ``(raw_db, writer_node_cohort_table)`` for inter-node cohort handoff."""
+    task_id = _first_nonempty(data.get("task_id"))
+    if not task_id:
+        raise ValueError("cohort handoff requires non-empty data.task_id")
+    return resolve_node_cohort_sink(data, task_id)
 
 
 def resolve_inverted_index_sink(data: Mapping[str, Any]) -> Tuple[str, str]:
@@ -192,10 +177,10 @@ def split_properties_and_confidence_column(
         if k.endswith("_confidence"):
             props.pop(k, None)
     if conf is None:
-        dk = props.get("discoveredKey")
-        if isinstance(dk, list) and dk and isinstance(dk[0], dict):
+        ik = props.get("indexKey")
+        if isinstance(ik, list) and ik and isinstance(ik[0], dict):
             conf_list: List[float] = []
-            for item in dk:
+            for item in ik:
                 if isinstance(item, dict):
                     try:
                         conf_list.append(float(item.get("confidence", 0)))
@@ -207,7 +192,7 @@ def split_properties_and_confidence_column(
 
 
 def parse_confidence_column_value(raw: Any) -> Optional[List[float]]:
-    """Parse RAW ``CONFIDENCE`` cell into floats (parallel to ``discoveredKey`` strings)."""
+    """Parse RAW ``CONFIDENCE`` cell into floats (parallel to ``indexKey`` strings)."""
     if raw is None:
         return None
     if isinstance(raw, list):
@@ -253,7 +238,7 @@ def build_entity_cohort_row(
     *,
     run_id: str,
     scope_key: str,
-    task_id: str,
+    canvas_node_id: str,
     query_source: str,
     node_instance_id: str,
     external_id: str,
@@ -278,14 +263,14 @@ def build_entity_cohort_row(
         RUN_ID_COLUMN: run_id,
         SCOPE_KEY_COLUMN: scope_key,
         NODE_INSTANCE_ID_COLUMN: node_instance_id,
-        RAW_ROW_KEY_COLUMN: cohort_row_key(run_id, node_instance_id, scope_key),
+        RAW_ROW_KEY_COLUMN: instance_cohort_row_key(node_instance_id, scope_key),
         EXTERNAL_ID_COLUMN: external_id,
         ENTITY_TYPE_COLUMN: entity_type,
         VIEW_SPACE_COLUMN: view_space,
         VIEW_EXTERNAL_ID_COLUMN: view_external_id,
         VIEW_VERSION_COLUMN: view_version,
         QUERY_SOURCE_COLUMN: query_source,
-        QUERY_TASK_ID_COLUMN: task_id,
+        QUERY_TASK_ID_COLUMN: canvas_node_id,
         PROPERTIES_JSON_COLUMN: json.dumps(props_body, default=str, sort_keys=True),
     }
     if conf_cell is not None:
@@ -294,10 +279,20 @@ def build_entity_cohort_row(
         cols["LAST_UPDATED_TIME_MS"] = int(last_updated_ms)
     if extraction_inputs_hash and str(extraction_inputs_hash).strip():
         cols[EXTRACTION_INPUTS_HASH_COLUMN] = str(extraction_inputs_hash).strip()
-    return {"key": cohort_row_key(run_id, node_instance_id, scope_key), "columns": cols}
+    row_key = instance_cohort_row_key(node_instance_id, scope_key)
+    return {"key": row_key, "columns": cols}
 
 
-def _flush_rows(queue: RawRowsUploadQueue, raw_db: str, raw_table: str, rows: List[Dict[str, Any]]) -> None:
+def _flush_rows(
+    queue: RawRowsUploadQueue,
+    raw_db: str,
+    raw_table: str,
+    rows: List[Dict[str, Any]],
+    *,
+    client: Any = None,
+) -> None:
+    if rows and client is not None:
+        create_table_if_not_exists(client, raw_db, raw_table)
     for row in rows:
         queue.add_to_upload_queue(database=raw_db, table=raw_table, raw_row=row)
     rows.clear()

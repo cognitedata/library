@@ -37,8 +37,9 @@ def test_is_run_id_older_than_boundary() -> None:
     assert not is_run_id_older_than(rid, max_age_hours=72, now=datetime(2020, 1, 2, 12, 0, 0, tzinfo=timezone.utc))
 
 
-def test_run_id_from_row_prefers_key_prefix() -> None:
-    assert run_id_from_row("run1:scope:n1", {"RUN_ID": "other"}) == "run1"
+def test_run_id_from_row_uses_column_only() -> None:
+    assert run_id_from_row("tr:scope:n1", {"RUN_ID": "run1"}) == "run1"
+    assert run_id_from_row("tr:scope:n1", {}) == ""
 
 
 def test_should_purge_current_run_and_stale() -> None:
@@ -59,6 +60,28 @@ def test_should_purge_current_run_and_stale() -> None:
     )
     assert not should_purge_cohort_row(
         f"{fresh_other}:sk:n1", {"RUN_ID": fresh_other, "RECORD_KIND": "entity"},
+        current_run_id=current,
+        cutoff_utc=cutoff,
+    )
+
+
+def test_should_purge_keeps_extraction_inputs_hash_for_current_run() -> None:
+    now = datetime(2026, 5, 17, 12, 0, 0, tzinfo=timezone.utc)
+    cutoff = now - timedelta(hours=72)
+    current = "20260517T120000.000000Z-aaaaaaaaaaaa"
+    assert not should_purge_cohort_row(
+        f"{current}:sk:n1",
+        {
+            "RUN_ID": current,
+            "RECORD_KIND": "entity",
+            "EXTRACTION_INPUTS_HASH": "deadbeef",
+        },
+        current_run_id=current,
+        cutoff_utc=cutoff,
+    )
+    assert should_purge_cohort_row(
+        f"{current}:sk:n2",
+        {"RUN_ID": current, "RECORD_KIND": "entity"},
         current_run_id=current,
         cutoff_utc=cutoff,
     )

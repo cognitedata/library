@@ -8,11 +8,15 @@ if str(_FUNCS) not in sys.path:
     sys.path.insert(0, str(_FUNCS))
 
 from cdf_fn_common.incremental_scope import (
-    cohort_row_key,
     node_last_updated_time_ms,
     norm_workflow_status,
     scope_key_from_view_dict,
     scope_watermark_row_key,
+)
+from cdf_fn_common.cohort_storage import (
+    instance_cohort_row_key,
+    iter_cohort_entity_rows,
+    node_cohort_table_name,
 )
 
 
@@ -39,11 +43,17 @@ def test_scope_key_stable():
     assert len(k1) == 32
 
 
-def test_cohort_row_key_includes_scope():
-    rid = "20260101T000000.000000Z"
+def test_instance_cohort_row_key_includes_scope():
     nid = "space:uuid-1"
     sk = "abc123"
-    assert cohort_row_key(rid, nid, sk) == f"{rid}:{sk}:{nid}"
+    assert instance_cohort_row_key(nid, sk) == f"{sk}:{nid}"
+
+
+def test_node_cohort_table_name_includes_run_and_node():
+    rid = "20260101T000000.000000Z-abc123def456"
+    tbl = node_cohort_table_name("discovery_state", rid, "tr")
+    assert tbl.startswith("discovery_state__")
+    assert tbl.endswith("__tr") or "_tr" in tbl
 
 
 def test_norm_workflow_status():
@@ -64,143 +74,17 @@ def test_node_last_updated_time_ms_nested_dump():
     assert node_last_updated_time_ms(_InstNested()) == 1_700_000_000_000
 
 
-def test_load_latest_hash_includes_detected_rows(monkeypatch) -> None:
-    from cdf_fn_common.incremental_scope import (
-        EXTRACTION_INPUTS_HASH_COLUMN,
-        NODE_INSTANCE_ID_COLUMN,
-        RECORD_KIND_COLUMN,
-        RUN_ID_COLUMN,
-        SCOPE_KEY_COLUMN,
-        WORKFLOW_STATUS_COLUMN,
-        WORKFLOW_STATUS_UPDATED_AT_COLUMN,
-        load_latest_hash_by_node_for_scope,
-    )
+def test_iter_cohort_entity_rows_yields_entity_rows(monkeypatch) -> None:
+    from cdf_fn_common.incremental_scope import RECORD_KIND_COLUMN
 
     class _R:
-        def __init__(self, cols: dict) -> None:
-            self.key = "k"
-            self.columns = cols
-
-    rows = [
-        _R(
-            {
-                RECORD_KIND_COLUMN: "entity",
-                SCOPE_KEY_COLUMN: "sk1",
-                NODE_INSTANCE_ID_COLUMN: "sp:uuid-1",
-                WORKFLOW_STATUS_COLUMN: "detected",
-                WORKFLOW_STATUS_UPDATED_AT_COLUMN: "2020-01-02T00:00:00.000Z",
-                RUN_ID_COLUMN: "run_b",
-                EXTRACTION_INPUTS_HASH_COLUMN: "hash_newer",
-            }
-        ),
-        _R(
-            {
-                RECORD_KIND_COLUMN: "entity",
-                SCOPE_KEY_COLUMN: "sk1",
-                NODE_INSTANCE_ID_COLUMN: "sp:uuid-1",
-                WORKFLOW_STATUS_COLUMN: "extracted",
-                WORKFLOW_STATUS_UPDATED_AT_COLUMN: "2020-01-01T00:00:00.000Z",
-                RUN_ID_COLUMN: "run_a",
-                EXTRACTION_INPUTS_HASH_COLUMN: "hash_older",
-            }
-        ),
-    ]
-
-    def _fake_iter(_client, _db, _tbl, chunk_size=2500):
-        del _client, _db, _tbl, chunk_size
-        yield from rows
-
-    monkeypatch.setattr(
-        "cdf_fn_common.incremental_scope.iter_raw_table_rows_chunked",
-        _fake_iter,
-    )
-    out = load_latest_hash_by_node_for_scope(None, "db", "tbl", "sk1")
-    assert out == {"sp:uuid-1": "hash_newer"}
-
-
-def test_build_latest_hash_index_matches_load_latest_per_scope(monkeypatch) -> None:
-    """Table-wide index in one scan matches per-scope slices from load_latest_hash_by_node_for_scope."""
-    from cdf_fn_common.incremental_scope import (
-        EXTRACTION_INPUTS_HASH_COLUMN,
-        NODE_INSTANCE_ID_COLUMN,
-        RECORD_KIND_COLUMN,
-        RUN_ID_COLUMN,
-        SCOPE_KEY_COLUMN,
-        WORKFLOW_STATUS_COLUMN,
-        WORKFLOW_STATUS_UPDATED_AT_COLUMN,
-        build_latest_hash_index_for_table,
-        load_latest_hash_by_node_for_scope,
-    )
-
-    class _R:
-        def __init__(self, cols: dict) -> None:
-            self.key = "k"
-            self.columns = cols
-
-    rows = [
-        _R(
-            {
-                RECORD_KIND_COLUMN: "entity",
-                SCOPE_KEY_COLUMN: "sk_a",
-                NODE_INSTANCE_ID_COLUMN: "sp:node-1",
-                WORKFLOW_STATUS_COLUMN: "extracted",
-                WORKFLOW_STATUS_UPDATED_AT_COLUMN: "2020-01-01T00:00:00.000Z",
-                RUN_ID_COLUMN: "r1",
-                EXTRACTION_INPUTS_HASH_COLUMN: "hash_a1",
-            }
-        ),
-        _R(
-            {
-                RECORD_KIND_COLUMN: "entity",
-                SCOPE_KEY_COLUMN: "sk_b",
-                NODE_INSTANCE_ID_COLUMN: "sp:node-2",
-                WORKFLOW_STATUS_COLUMN: "persisted",
-                WORKFLOW_STATUS_UPDATED_AT_COLUMN: "2020-01-02T00:00:00.000Z",
-                RUN_ID_COLUMN: "r2",
-                EXTRACTION_INPUTS_HASH_COLUMN: "hash_b1",
-            }
-        ),
-    ]
-
-    def _fake_iter(_client, _db, _tbl, chunk_size=2500):
-        del _client, _db, _tbl, chunk_size
-        yield from rows
-
-    monkeypatch.setattr(
-        "cdf_fn_common.incremental_scope.iter_raw_table_rows_chunked",
-        _fake_iter,
-    )
-    full = build_latest_hash_index_for_table(None, "db", "tbl")
-    assert load_latest_hash_by_node_for_scope(None, "db", "tbl", "sk_a") == full.get("sk_a", {})
-    assert load_latest_hash_by_node_for_scope(None, "db", "tbl", "sk_b") == full.get("sk_b", {})
-    assert full == {
-        "sk_a": {"sp:node-1": "hash_a1"},
-        "sk_b": {"sp:node-2": "hash_b1"},
-    }
-
-
-def test_inter_node_cohort_key_prefix() -> None:
-    from cdf_fn_common.incremental_scope import inter_node_cohort_key_prefix
-
-    assert inter_node_cohort_key_prefix("run1") == "run1:"
-    assert inter_node_cohort_key_prefix("  x  ") == "x:"
-    assert inter_node_cohort_key_prefix("") == ""
-
-
-def test_iter_inter_node_strict_stops_after_key_prefix_span(monkeypatch) -> None:
-    from cdf_fn_common.incremental_scope import iter_inter_node_raw_rows_for_filter_run
-
-    class _R:
-        def __init__(self, key: str) -> None:
+        def __init__(self, key: str, kind: str) -> None:
             self.key = key
-            self.columns = {}
+            self.columns = {RECORD_KIND_COLUMN: kind}
 
     rows = [
-        _R("aa"),
-        _R("r9:scope:n1"),
-        _R("r9:scope:n2"),
-        _R("zz"),
-        _R("r9:orphan_should_not_yield"),
+        _R("scope:n1", "entity"),
+        _R("wm", "watermark"),
     ]
 
     def _fake_iter(_client, _db, _tbl, chunk_size=2500):
@@ -208,42 +92,9 @@ def test_iter_inter_node_strict_stops_after_key_prefix_span(monkeypatch) -> None
         yield from rows
 
     monkeypatch.setattr(
-        "cdf_fn_common.incremental_scope.iter_raw_table_rows_chunked",
+        "cdf_fn_common.cohort_storage.iter_raw_table_rows_chunked",
         _fake_iter,
     )
-    out = list(
-        iter_inter_node_raw_rows_for_filter_run(
-            None, "d", "t", "r9", strict_key_prefix_only=True
-        )
-    )
-    assert [r.key for r in out] == ["r9:scope:n1", "r9:scope:n2"]
-
-
-def test_iter_inter_node_nonstrict_includes_run_id_without_prefix(monkeypatch) -> None:
-    from cdf_fn_common.incremental_scope import (
-        RUN_ID_COLUMN,
-        iter_inter_node_raw_rows_for_filter_run,
-    )
-
-    class _R:
-        def __init__(self, key: str, rid: str) -> None:
-            self.key = key
-            self.columns = {RUN_ID_COLUMN: rid}
-
-    rows = [_R("legacy-key", "r9"), _R("r9:sk:n1", "r9")]
-
-    def _fake_iter(_client, _db, _tbl, chunk_size=2500):
-        del _client, _db, _tbl, chunk_size
-        yield from rows
-
-    monkeypatch.setattr(
-        "cdf_fn_common.incremental_scope.iter_raw_table_rows_chunked",
-        _fake_iter,
-    )
-    out = list(
-        iter_inter_node_raw_rows_for_filter_run(
-            None, "d", "t", "r9", strict_key_prefix_only=False
-        )
-    )
-    assert {r.key for r in out} == {"legacy-key", "r9:sk:n1"}
-
+    out = list(iter_cohort_entity_rows(None, "d", "discovery_state__run__tr"))
+    assert len(out) == 1
+    assert out[0].key == "scope:n1"

@@ -27,21 +27,21 @@ describe("collapseSelectionToSubgraph", () => {
     };
     const a: Node = {
       id: "a",
-      type: "keaExtraction",
+      type: "keaTransform",
       position: { x: 100, y: 200 },
       data: { label: "A" },
       selected: true,
     };
     const b: Node = {
       id: "b",
-      type: "keaAliasing",
+      type: "keaTransform",
       position: { x: 350, y: 250 },
       data: { label: "B" },
       selected: true,
     };
     const c: Node = {
       id: "c",
-      type: "keaExtraction",
+      type: "keaTransform",
       position: { x: 520, y: 200 },
       data: { label: "C" },
       selected: false,
@@ -87,9 +87,9 @@ describe("collapseSelectionToSubgraph", () => {
     expect(fromSg?.sourceHandle).toBe(subflowSourceHandleForPort("out"));
 
     const inPorts = wf.subflow_ports?.inputs ?? [];
-    expect(inPorts[0]?.inner_target_rf_type).toBe("keaExtraction");
+    expect(inPorts[0]?.inner_target_rf_type).toBe("keaTransform");
     const outPorts = wf.subflow_ports?.outputs ?? [];
-    expect(outPorts[0]?.inner_source_rf_type).toBe("keaAliasing");
+    expect(outPorts[0]?.inner_source_rf_type).toBe("keaTransform");
   });
 
   it("assigns one subgraph output port per distinct member outbound socket (source + handle)", () => {
@@ -102,28 +102,28 @@ describe("collapseSelectionToSubgraph", () => {
     };
     const a: Node = {
       id: "a",
-      type: "keaExtraction",
+      type: "keaTransform",
       position: { x: 100, y: 40 },
       data: { label: "A" },
       selected: true,
     };
     const b: Node = {
       id: "b",
-      type: "keaExtraction",
+      type: "keaTransform",
       position: { x: 100, y: 140 },
       data: { label: "B" },
       selected: true,
     };
     const c1: Node = {
       id: "c1",
-      type: "keaAliasing",
+      type: "keaTransform",
       position: { x: 400, y: 20 },
       data: { label: "C1" },
       selected: false,
     };
     const c2: Node = {
       id: "c2",
-      type: "keaAliasing",
+      type: "keaTransform",
       position: { x: 400, y: 160 },
       data: { label: "C2" },
       selected: false,

@@ -17,6 +17,7 @@ import {
   useOnSelectionChange,
   useReactFlow,
 } from "@xyflow/react";
+import { useAppSettings } from "../../context/AppSettingsContext";
 import type { MessageKey } from "../../i18n";
 import {
   normalizeWorkflowCanvasHandleOrientation,
@@ -37,7 +38,6 @@ import { appendKeaConnectionEdge, appendReuseDataEdge, dedupeEdgesByHandles } fr
 import { FlowNodeInspector } from "./FlowNodeInspector";
 import { FlowPalette, getPaletteDropPayload } from "./FlowPalette";
 import { WorkflowCompileToolbar } from "./WorkflowCompileToolbar";
-import { patchScopeForSourceViewToExtractionConnection } from "./workflowScopeConnectionPatch";
 import { useFlowPanelLayout } from "./useFlowPanelLayout";
 import { layoutFlowNodes } from "./autoLayoutFlow";
 import { FlowHandleOrientationProvider } from "./FlowHandleOrientationContext";
@@ -70,7 +70,9 @@ import {
   formatConnectEndMenuOptionLabel,
   formatConnectEndMenuOptionTooltip,
 } from "./connectEndMenuOptions";
-import { keaValidationRuleLayoutRfTypes } from "./flowConstants";
+import { keaValidationRuleLayoutRfTypes, keaWorkflowDisableableRfTypes } from "./flowConstants";
+import { isWorkflowCanvasNodeEnabled } from "../../types/workflowCanvas";
+import { applyWorkflowCanvasEnablementPatch } from "./flowNodeEnabled";
 import type { PaletteDragPayload } from "./FlowPalette";
 import { readCompileWorkflowDagMode } from "../../utils/workflowCompileMode";
 import { upstreamDownstreamAnimatedEdgeIds } from "./flowSelectionEdgeAnimation";
@@ -103,6 +105,8 @@ type Props = {
   readOnly?: boolean;
   /** Optional: streamed local-run progress (node outline + edge animation), same as canvas preview. */
   runProgress?: WorkflowPreviewRunProgress;
+  /** Optional one-line hint when cascade disable/enable affects other nodes (e.g. run log). */
+  onActivityHint?: (message: string) => void;
 };
 
 function FlowCanvasBody({
@@ -116,7 +120,9 @@ function FlowCanvasBody({
   schemaSpace,
   readOnly = false,
   runProgress,
+  onActivityHint,
 }: Props) {
+  const { theme } = useAppSettings();
   const { screenToFlowPosition, getNode, getNodes, getEdges, fitView } = useReactFlow();
 
   const rfSelectionRef = useRef<Node[]>([]);
@@ -265,6 +271,21 @@ function FlowCanvasBody({
     [setNodes, setEdges]
   );
 
+  const onActivityHintRef = useRef(onActivityHint);
+  onActivityHintRef.current = onActivityHint;
+
+  const toggleNodeEnabled = useCallback(
+    (nodeId: string) => {
+      patchWorkflowCanvas((prev) =>
+        applyWorkflowCanvasEnablementPatch(prev, nodeId, undefined, {
+          t,
+          onHint: onActivityHintRef.current,
+        })
+      );
+    },
+    [patchWorkflowCanvas, t]
+  );
+
   const compileDagMode = useMemo(() => readCompileWorkflowDagMode(workflowScopeDoc), [workflowScopeDoc]);
 
   useEffect(() => {
@@ -284,11 +305,6 @@ function FlowCanvasBody({
     (params: Connection) => {
       if (readOnly) return;
       setEdges((eds) => appendKeaConnectionEdge(getNode, eds, params));
-      patchScopeForSourceViewToExtractionConnection(
-        patchWorkflowScopeRef.current,
-        getNode(params.source),
-        getNode(params.target)
-      );
     },
     [setEdges, getNode, readOnly]
   );
@@ -358,7 +374,6 @@ function FlowCanvasBody({
         const merged = dedupeEdgesByHandles([...eds, ...extraEdges]);
         return appendKeaConnectionEdge(getNode, merged, conn);
       });
-      patchScopeForSourceViewToExtractionConnection(patchWorkflowScopeRef.current, sourceNode, node);
       setConnectEndMenu(null);
       setConnectEndMenuGroupId(null);
       setSelectedNode(node);
@@ -854,6 +869,17 @@ function FlowCanvasBody({
           },
         });
       }
+      if (node.type && keaWorkflowDisableableRfTypes.has(node.type)) {
+        const cn = workflowCanvas.nodes.find((n) => n.id === node.id);
+        const enabled = cn
+          ? isWorkflowCanvasNodeEnabled(cn)
+          : (node.data as WorkflowCanvasNodeData).canvas_node_enabled !== false;
+        items.push({
+          id: "toggle-enabled",
+          label: enabled ? t("flow.ctxMenuDisableNode") : t("flow.ctxMenuEnableNode"),
+          onSelect: () => toggleNodeEnabled(node.id),
+        });
+      }
       items.push({
         id: "remove-node",
         label: t("flow.ctxMenuRemoveNode"),
@@ -866,6 +892,8 @@ function FlowCanvasBody({
       flowCtxMenu,
       t,
       removeNodeById,
+      toggleNodeEnabled,
+      workflowCanvas,
       getNodes,
       getEdges,
       setNodes,
@@ -1002,6 +1030,7 @@ function FlowCanvasBody({
         >
           <FlowHandleOrientationProvider value={handleOrientation}>
             <ReactFlow
+              colorMode={theme}
               nodes={nodesForRf}
               edges={edgesForRf}
               onNodesChange={onNodesChangeWrapped}
@@ -1161,6 +1190,7 @@ function FlowCanvasBody({
                 onPatchEdge={patchEdge}
                 onApplySubflowPorts={applySubflowPorts}
                 onOpenSubgraphDrill={(id) => openSubgraphDrill(id)}
+                onActivityHint={onActivityHint}
               />
               {readOnly ? (
                 <div
@@ -1209,6 +1239,7 @@ function FlowCanvasBody({
         }}
         onPromoteInnerSubtreeToOwningGraph={promoteInnerSubtreeToOwningGraph}
         schemaSpace={schemaSpace}
+        onActivityHint={onActivityHint}
       />
     </div>
   );

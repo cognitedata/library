@@ -55,25 +55,37 @@ class _FakeInstance:
         }
 
 
-def test_resolve_query_sink_defaults() -> None:
-    db, tbl = resolve_query_sink({})
-    assert db == "db_discovery"
-    assert tbl == "discovery_state"
+def test_resolve_query_sink_requires_run_id_and_task_id() -> None:
+    with pytest.raises(ValueError, match="run_id"):
+        resolve_query_sink({"task_id": "kea__vq"})
+    with pytest.raises(ValueError, match="task_id"):
+        resolve_query_sink({"run_id": "run1"})
 
 
-def test_resolve_query_sink_from_config() -> None:
+def test_resolve_query_sink_node_table() -> None:
+    rid = "20260101T000000.000000Z-abc123def456"
     db, tbl = resolve_query_sink(
-        {"config": {"raw_db": "db_x", "raw_table_key": "tbl_y"}, "persistence": {}}
+        {
+            "run_id": rid,
+            "task_id": "kea__vq",
+            "compiled_workflow": {
+                "tasks": [{"id": "kea__vq", "canvas_node_id": "vq_eq"}]
+            },
+            "config": {"raw_db": "db_x", "raw_table_key": "tbl_y"},
+            "persistence": {},
+        }
     )
     assert db == "db_x"
-    assert tbl == "tbl_y"
+    assert tbl.startswith("tbl_y__")
+    assert "__vq_eq" in tbl or tbl.endswith("__vq_eq")
 
 
 def test_build_entity_cohort_row_shape() -> None:
+    cn = "n_vq_eq"
     row = build_entity_cohort_row(
         run_id="run1",
         scope_key="scope1",
-        task_id="kea__vq",
+        canvas_node_id=cn,
         query_source="view",
         node_instance_id="sp1:uuid-1",
         external_id="A-1",
@@ -83,7 +95,7 @@ def test_build_entity_cohort_row_shape() -> None:
         view_version="v1",
         properties={"name": "A-1"},
     )
-    assert row["key"] == "run1:scope1:sp1:uuid-1"
+    assert row["key"] == "scope1:sp1:uuid-1"
     cols = row["columns"]
     assert cols["RECORD_KIND"] == "entity"
     assert cols["WORKFLOW_STATUS"] == "detected"
@@ -92,11 +104,38 @@ def test_build_entity_cohort_row_shape() -> None:
     assert "CONFIDENCE" not in cols
 
 
+def test_cohort_row_from_columns_preserves_extraction_inputs_hash() -> None:
+    from cdf_fn_common.discovery_cohort import _cohort_row_from_columns
+    from cdf_fn_common.discovery_query_shared import EXTRACTION_INPUTS_HASH_COLUMN
+
+    cols = {
+        "NODE_INSTANCE_ID": "sp1:uuid-1",
+        "EXTERNAL_ID": "FILE-1",
+        "SCOPE_KEY": "scope_abc",
+        "ENTITY_TYPE": "file",
+        "VIEW_SPACE": "cdf_cdm",
+        "VIEW_EXTERNAL_ID": "CogniteFile",
+        "VIEW_VERSION": "v1",
+        EXTRACTION_INPUTS_HASH_COLUMN: "abc123hash",
+        "LAST_UPDATED_TIME_MS": 1_700_000_000_000,
+        "PROPERTIES_JSON": '{"name": "doc.pdf"}',
+    }
+    row = _cohort_row_from_columns(
+        cols=cols,
+        row_key="ignored",
+        run_id="run_new",
+        canvas_node_id="tr",
+        properties={"name": "doc.pdf", "aliases": ["DOC"]},
+    )
+    assert row["columns"][EXTRACTION_INPUTS_HASH_COLUMN] == "abc123hash"
+    assert row["columns"]["LAST_UPDATED_TIME_MS"] == 1_700_000_000_000
+
+
 def test_build_entity_cohort_row_optional_extraction_inputs_hash() -> None:
     row = build_entity_cohort_row(
         run_id="run1",
         scope_key="scope1",
-        task_id="kea__vq",
+        canvas_node_id="n_vq",
         query_source="view",
         node_instance_id="sp1:uuid-1",
         external_id="A-1",
@@ -117,7 +156,7 @@ def test_build_entity_cohort_row_moves_confidence_to_column() -> None:
     row = build_entity_cohort_row(
         run_id="run1",
         scope_key="scope1",
-        task_id="kea__vq",
+        canvas_node_id="n_vq",
         query_source="view",
         node_instance_id="sp1:uuid-1",
         external_id="A-1",
@@ -125,30 +164,30 @@ def test_build_entity_cohort_row_moves_confidence_to_column() -> None:
         view_space="cdf_cdm",
         view_external_id="CogniteAsset",
         view_version="v1",
-        properties={"discoveredKey": ["K1"], "discoveredKey_confidence": [0.88], "name": "A-1"},
-        value_field="discoveredKey",
+        properties={"indexKey": ["K1"], "indexKey_confidence": [0.88], "name": "A-1"},
+        value_field="indexKey",
     )
     cols = row["columns"]
-    assert json.loads(cols["PROPERTIES_JSON"]) == {"discoveredKey": ["K1"], "name": "A-1"}
-    assert "discoveredKey_confidence" not in json.loads(cols["PROPERTIES_JSON"])
+    assert json.loads(cols["PROPERTIES_JSON"]) == {"indexKey": ["K1"], "name": "A-1"}
+    assert "indexKey_confidence" not in json.loads(cols["PROPERTIES_JSON"])
     assert json.loads(cols["CONFIDENCE"]) == [0.88]
 
 
 def test_props_from_row_columns_merges_confidence_column() -> None:
     cols = {
-        PROPERTIES_JSON_COLUMN: json.dumps({"discoveredKey": ["K1"], "name": "x"}),
+        PROPERTIES_JSON_COLUMN: json.dumps({"indexKey": ["K1"], "name": "x"}),
         CONFIDENCE_COLUMN: "[0.25]",
     }
     props = _props_from_row_columns(cols)
-    assert props["discoveredKey"] == ["K1"]
+    assert props["indexKey"] == ["K1"]
     assert props["aliases_confidence"] == [0.25]
 
 
-def test_build_entity_strips_discoveredKey_confidence_from_properties_json() -> None:
+def test_build_entity_strips_indexKey_confidence_from_properties_json() -> None:
     row = build_entity_cohort_row(
         run_id="run1",
         scope_key="scope1",
-        task_id="kea__vq",
+        canvas_node_id="n_vq",
         query_source="view",
         node_instance_id="sp1:uuid-1",
         external_id="A-1",
@@ -156,13 +195,108 @@ def test_build_entity_strips_discoveredKey_confidence_from_properties_json() -> 
         view_space="cdf_cdm",
         view_external_id="CogniteAsset",
         view_version="v1",
-        properties={"discoveredKey": ["K1"], "discoveredKey_confidence": [0.9], "name": "A-1"},
+        properties={"indexKey": ["K1"], "indexKey_confidence": [0.9], "name": "A-1"},
     )
     cols = row["columns"]
     assert "CONFIDENCE" not in cols
     body = json.loads(cols["PROPERTIES_JSON"])
-    assert "discoveredKey_confidence" not in body
-    assert body == {"discoveredKey": ["K1"], "name": "A-1"}
+    assert "indexKey_confidence" not in body
+    assert body == {"indexKey": ["K1"], "name": "A-1"}
+
+
+def test_view_query_incremental_paginates_beyond_batch_size(monkeypatch) -> None:
+    """``batch_size`` is page size only; incremental listing must not stop after one page."""
+    listed = 0
+
+    def _fake_list_all_instances(_client, **kwargs):
+        nonlocal listed
+        limit = int(kwargs.get("limit") or 1000)
+        for i in range(limit + 200):
+            listed += 1
+            yield _FakeInstance(
+                external_id=f"P-{i}",
+                instance_id=f"uuid-{i}",
+                properties={"name": f"P-{i}", "externalId": f"P-{i}"},
+            )
+
+    monkeypatch.setattr(
+        "fn_dm_view_query.engine.handlers.view_query.list_all_instances",
+        _fake_list_all_instances,
+    )
+
+    class _Rows:
+        def retrieve(self, *_a, **_k):
+            return None
+
+        def insert(self, *_a, **_k):
+            return None
+
+    client = MagicMock()
+    client.raw.rows = _Rows()
+
+    data: Dict[str, Any] = {
+        "task_id": "kea__vq",
+        "run_id": "run_test",
+        "config": {
+            "view_space": "cdf_cdm",
+            "view_external_id": "CogniteAsset",
+            "view_version": "v1",
+            "batch_size": 1000,
+            "incremental_change_processing": True,
+            "filters": [],
+        },
+        "configuration": {},
+    }
+    from fn_dm_view_query.engine.handlers.view_query import ViewQueryHandler
+
+    summary = ViewQueryHandler.run("fn_dm_view_query", data, client, None)
+    assert listed == 1200
+    assert summary["instances_listed"] == 1200
+    assert summary["instances_written"] == 1200
+    assert summary["incremental"] is True
+
+
+def test_view_query_incremental_applies_watermark_filter(monkeypatch) -> None:
+    captured: Dict[str, Any] = {}
+
+    class _WmRow:
+        columns = {"HIGH_WATERMARK_MS": 1_700_000_000_000}
+
+    class _Rows:
+        def retrieve(self, *_a, **_k):
+            return _WmRow()
+
+        def insert(self, *_a, **_k):
+            return None
+
+    def _fake_list_all_instances(_client, **kwargs):
+        captured["filter"] = kwargs.get("filter")
+        return iter(())
+
+    monkeypatch.setattr(
+        "fn_dm_view_query.engine.handlers.view_query.list_all_instances",
+        _fake_list_all_instances,
+    )
+
+    client = MagicMock()
+    client.raw.rows = _Rows()
+
+    data: Dict[str, Any] = {
+        "task_id": "kea__vq",
+        "run_id": "run_test",
+        "config": {
+            "view_space": "cdf_cdm",
+            "view_external_id": "CogniteAsset",
+            "view_version": "v1",
+            "incremental_change_processing": True,
+            "filters": [],
+        },
+        "configuration": {},
+    }
+    from fn_dm_view_query.engine.handlers.view_query import ViewQueryHandler
+
+    ViewQueryHandler.run("fn_dm_view_query", data, client, None)
+    assert captured.get("filter") is not None
 
 
 def test_discovery_handle_view_query_writes_raw(monkeypatch) -> None:
@@ -222,6 +356,7 @@ def test_discovery_handle_view_query_writes_raw(monkeypatch) -> None:
     summary = discovery_handle_view_query("fn_dm_view_query", data, client, None)
     assert summary["instances_written"] == 2
     assert summary["raw_db"] == "db_discovery"
+    assert "__" in summary["raw_table"]
     assert len(inserted) == 1
     row_map = inserted[0]["row"]
     assert len(row_map) == 2
@@ -302,6 +437,7 @@ def test_discovery_handle_raw_query_copies_rows() -> None:
     summary = discovery_handle_raw_query("fn_dm_raw_query", data, client, None)
     assert summary["instances_written"] == 1
     assert inserted[0]["db"] == "db_sink"
+    assert summary["raw_table"].startswith("sink_tbl__")
     cols = next(iter(inserted[0]["row"].values()))
     assert cols["RUN_ID"] == "run_new"
     assert cols["QUERY_SOURCE"] == "raw"

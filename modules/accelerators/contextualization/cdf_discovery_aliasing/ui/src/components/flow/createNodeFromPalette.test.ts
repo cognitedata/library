@@ -13,7 +13,7 @@ describe("createNodeFromPalette", () => {
     expect(cfg.output_mode).toBe("append");
     expect(cfg.fields).toEqual([{ field_name: "name" }]);
     expect(cfg.output_template).toBe("{name}");
-    expect(cfg.output_field).toBe("discoveredKey");
+    expect(cfg.output_field).toBe("indexKey");
   });
 
   it("chains discovery transform input from previous transform output_field when provided", () => {

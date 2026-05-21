@@ -108,6 +108,8 @@ export const en: Messages = {
   "run.needTriggerScope":
     "Select a WorkflowTrigger file under workflows/<scope>/ in the sidebar to enable Deploy and Run on CDF for that scope.",
   "run.outputPlaceholder": "Pipeline output appears here.",
+  "run.savedBeforeLocalRun":
+    "Saved scope canvas to disk before local run (module.py run reads workflow.local.config.yaml, not unsaved UI state).",
   "run.localRunExitLine": "[local run] exit_code={code}",
   "run.localTaskStart": "▶ Started {functionId} (task {taskId}){nodeSuffix}",
   "run.localTaskEnd": "✓ Finished {functionId} (task {taskId}){nodeSuffix}",
@@ -357,7 +359,7 @@ export const en: Messages = {
   "transforms.elt.delimiterLiteral": "Literal delimiter (fallback)",
   "transforms.elt.delimiterRegex": "Delimiter regex",
   "transforms.elt.delimiterRegexHint":
-    "Split on regex matches, e.g. [./_-]+ for PI-style mixed separators. Takes precedence over delimiters[] and literal.",
+    "Split on regex matches, e.g. [-./_:]+ for PI-style mixed separators (include colon; put hyphen first in the class). Takes precedence over delimiters[] and literal.",
   "transforms.elt.delimitersList": "Delimiters (mixed)",
   "transforms.elt.delimitersListHint":
     "Comma-separated characters or strings; single characters are combined into a run pattern (e.g. ., /, -, _).",
@@ -379,6 +381,20 @@ export const en: Messages = {
   "transforms.elt.keepLast": "Keep last N chars",
   "transforms.elt.maskChar": "Mask character",
   "transforms.elt.lookupMap": "Lookup map (JSON)",
+  "joins.title": "Join nodes",
+  "joins.listTitle": "Join nodes",
+  "joins.listAriaLabel": "Flow canvas join nodes",
+  "joins.emptyEditor":
+    "No join nodes on this canvas. Add a Join stage from the Flow palette, then configure join type and predicates here.",
+  "joins.canvasHint":
+    "Merge two cohort RAW streams. Wire upstream edges to target handles in__left and in__right on the canvas.",
+  "merges.title": "Merge nodes",
+  "merges.listTitle": "Merge nodes",
+  "merges.listAriaLabel": "Flow canvas merge nodes",
+  "merges.emptyEditor":
+    "No merge nodes on this canvas. Add a Merge stage from the Flow palette, then edit field_policies here.",
+  "merges.canvasHint":
+    "N-way property fan-in from parallel upstream transforms. Distinct from Join (row match on two sources).",
   "validations.title": "Validation nodes",
   "validations.listTitle": "Validation stages",
   "validations.listAriaLabel": "Flow canvas validation nodes",
@@ -654,6 +670,24 @@ export const en: Messages = {
   "validationEditor.orderSetsPriority":
     "List order sets evaluation order. Drag a card or use ↑ / ↓ (numeric priority on each rule still applies when present).",
   "validationEditor.rule.addRule": "Add rule",
+  "pipelineSteps.executionMode": "Execution mode",
+  "pipelineSteps.modeOrdered": "Ordered (sequential)",
+  "pipelineSteps.modeParallel": "Parallel (concurrent)",
+  "pipelineSteps.addStep": "Add step",
+  "pipelineSteps.validationStepsTitle": "Validation steps",
+  "pipelineSteps.validationStepsHint":
+    "Inline validation steps on this node. Ordered runs rules in list order; parallel runs them concurrently (existing confidence_match_eval concurrent semantics).",
+  "pipelineSteps.transformStepsTitle": "Transform steps",
+  "pipelineSteps.transformStepsHint":
+    "Multi-step transform pipeline. Ordered chains handlers; parallel runs each step and merges properties using field_policies.",
+  "pipelineSteps.useMultiStep": "Use multi-step pipeline",
+  "pipelineSteps.stepNumber": "Step {n}",
+  "pipelineSteps.fieldPoliciesHintTransform":
+    "field_policies (required for parallel): merge_list or tie_break per property — same schema as save_field_policies.",
+  "flow.paletteTooltip.merge":
+    "Merge — fan-in properties from parallel upstream transforms (field_policies). Distinct from Join (row match on two sources).",
+  "flow.merge.fieldPoliciesHint":
+    "field_policies (required): same schema as save_field_policies — merge_list or tie_break per property.",
   "validationEditor.advancedYaml": "Edit validation as YAML (advanced)",
   "validationEditor.rulesYamlInvalidMerge":
     "Rules YAML is invalid; merged using the last saved rules from this configuration.",
@@ -691,20 +725,43 @@ export const en: Messages = {
   "artifacts.treeCollapse": "Collapse",
   "runResults.title": "Run results",
   "runResults.hint":
-    "Browse timestamped JSON under local_run_results/ from module.py run. By default only runs matching the sidebar workflow target are listed; enable “All targets” to see every local report.",
+    "Browse timestamped discovery_run.json files under local_run_results/ from module.py run. Persistence (save / index) nodes are listed first; use Pipeline for every DAG step.",
   "runResults.refresh": "Refresh list",
   "runResults.runLabel": "Run",
   "runResults.showAllScopes": "All workflow targets",
-  "runResults.emptyDiscovery": "No discovery local run reports for this scope. Run the discovery workflow locally first.",
+  "runResults.emptyDiscovery":
+    "No discovery_run.json (schema v2) for this scope. Run the discovery workflow locally to generate results.",
   "runResults.viewNav": "Result views",
   "runResults.viewOverview": "Overview",
-  "runResults.viewTasks": "Task outputs",
+  "runResults.viewPersistence": "Persistence",
+  "runResults.viewPipeline": "Pipeline",
+  "runResults.viewMerged": "Merged instances",
   "runResults.overviewHint":
-    "Open Task outputs for per-step handler messages, or use the buttons above to open the full JSON files on disk.",
-  "runResults.tasksHint":
-    "Per-task status and handler messages from the cdf_discovery_tasks snapshot (paginated).",
-  "runResults.noTasks": "No task_outputs in the discovery tasks file for this run.",
-  "runResults.totalRows": "{count} rows",
+    "Use Persistence for save and inverted-index nodes (input cohort + output), Pipeline for all tasks, or Merged instances for a single cross-branch view.",
+  "runResults.persistenceHint":
+    "Each view_save, raw_save, classic_save, and inverted_index node: handler result, predecessor cohort sample, and sink output.",
+  "runResults.pipelineHint": "All compiled workflow tasks with timing and handler output (paginated).",
+  "runResults.mergedHint":
+    "Instances merged across all persistence nodes. Properties combine aliases and indexKey from every branch.",
+  "runResults.mergedInstanceCount": "Merged instances",
+  "runResults.mergedIndexSinkCount": "Inverted index sink rows",
+  "runResults.noMerged":
+    "No merged persistence instances for this run (re-run after save / inverted-index tasks complete).",
+  "runResults.noPersistence":
+    "No persistence nodes in this run (no save or inverted_index tasks, or run predates v2 results).",
+  "runResults.persistenceSelect": "Persistence node",
+  "runResults.persistenceHandlerResult": "Handler result",
+  "runResults.persistenceInputCohort": "Input cohort (predecessor)",
+  "runResults.persistenceOutput": "Persistence output",
+  "runResults.cohortTruncated": "truncated at row limit",
+  "runResults.cohortRows": "cohort rows",
+  "runResults.noPipeline": "No pipeline tasks recorded for this run.",
+  "runResults.pipelineCategoryFilter": "Category",
+  "runResults.pipelineCategoryAll": "All categories",
+  "runResults.kindViewSave": "View save",
+  "runResults.kindRawSave": "RAW save",
+  "runResults.kindClassicSave": "Classic save",
+  "runResults.kindInvertedIndex": "Inverted index",
   "runResults.showing": "Showing {from}–{to} of {total}",
   "runResults.filterPlaceholder": "Filter loaded rows (JSON)",
   "runResults.loadMore": "Load more",
@@ -712,16 +769,19 @@ export const en: Messages = {
   "runResults.summaryStatus": "Status",
   "runResults.summaryElapsed": "Elapsed",
   "runResults.summaryElapsedValue": "{ms} ms",
-  "runResults.summaryTaskCount": "Tasks",
+  "runResults.summaryTaskCount": "Pipeline tasks",
   "runResults.summaryTaskCountShort": "tasks",
+  "runResults.summaryPersistenceCount": "Persistence nodes",
+  "runResults.summaryPersistenceShort": "persist",
   "runResults.summaryDryRun": "Dry run",
   "runResults.failedTask": "Failed task",
   "runResults.yes": "Yes",
   "runResults.table.taskId": "Task",
+  "runResults.table.category": "Category",
   "runResults.table.status": "Status",
+  "runResults.table.duration": "Duration",
   "runResults.table.details": "Details",
-  "runResults.openRaw": "Open report JSON",
-  "runResults.openTasksJson": "Open tasks JSON",
+  "runResults.openRunJson": "Open run JSON",
   "advanced.toggle": "Advanced YAML…",
   "advanced.warning1": "Raw Edit May Drop Comments. Invalid YAML Will Be Rejected.",
   "advanced.warning2": "Comments Are Not Preserved on Round-Trip.",
@@ -796,6 +856,7 @@ export const en: Messages = {
   "flow.discoveryRawQuery": "RAW query",
   "flow.discoveryClassicQuery": "Classic query",
   "flow.discoveryTransform": "Transform",
+  "flow.discoveryMerge": "Merge",
   "flow.discoveryJoin": "Join",
   "flow.discoveryValidate": "Validate",
   "flow.discoveryInstanceFilter": "Instance filter",
@@ -823,7 +884,7 @@ export const en: Messages = {
   "filters.empty": "Add an instance filter node from the flow palette or connect-end menu.",
   "filters.description": "Description",
   "filters.nodeCombineHint":
-    "Same CDF filter DSL as view query (operators, and/or/not, GT/GTE/LT/LTE, RANGE, negate). Top-level entries are AND-combined and evaluated on each cohort row by fn_dm_filter (no implicit HasData). Use property_scope view for cohort fields (aliases, discoveredKey) or node for instance metadata (space, externalId). Dot paths such as raw_columns.name are supported on cohort properties.",
+    "Same CDF filter DSL as view query (operators, and/or/not, GT/GTE/LT/LTE, RANGE, negate). Top-level entries are AND-combined and evaluated on each cohort row by fn_dm_filter (no implicit HasData). Use property_scope view for cohort fields (aliases, indexKey) or node for instance metadata (space, externalId). Dot paths such as raw_columns.key are supported on cohort properties.",
   "flow.discoveryViewSave": "View save",
   "flow.discoveryRawSave": "RAW save",
   "flow.discoveryClassicSave": "Classic save",
@@ -856,7 +917,16 @@ export const en: Messages = {
   "flow.ctxMenuAutoLayout": "Auto layout",
   "flow.ctxMenuCopy": "Copy",
   "flow.ctxMenuPaste": "Paste",
+  "flow.ctxMenuDisableNode": "Disable node",
+  "flow.ctxMenuEnableNode": "Enable node",
+  "flow.cascadeDisabledNodes":
+    "Also disabled {count} downstream node(s) with no enabled upstream.",
+  "flow.cascadeEnabledNodes":
+    "Also re-enabled {count} downstream node(s) that were auto-disabled.",
   "flow.ctxMenuRemoveNode": "Remove node",
+  "flow.inspectorNodeEnabled": "Enabled in workflow",
+  "flow.inspectorNodeEnabledHint":
+    "When off, this step stays on the canvas but is skipped when compiling the workflow for local runs and CDF deploy.",
   "flow.confirmSubgraphDeleteLift":
     "This subgraph contains inner workflow steps.\n\nOK — move them to the parent canvas and remove the subgraph frame.\nCancel — remove the subgraph and discard those inner steps.",
   "flow.ctxMenuCollapseSelectionToSubgraph": "Collapse selection to subgraph (drill-in)",
@@ -877,6 +947,7 @@ export const en: Messages = {
   "flow.nodeEditorTitleKeyExtraction": "Key extraction (configure tab)",
   "flow.nodeEditorTitleAliasing": "Aliasing (configure tab)",
   "flow.nodeEditorTitleTransforms": "Transforms (configure tab)",
+  "flow.nodeEditorTitleMerges": "Merge (configure tab)",
   "flow.nodeEditorTitleJoins": "Joins (configure tab)",
   "flow.nodeEditorTitleQueries": "Queries (configure tab)",
   "flow.nodeEditorTitleValidations": "Validation (configure tab)",

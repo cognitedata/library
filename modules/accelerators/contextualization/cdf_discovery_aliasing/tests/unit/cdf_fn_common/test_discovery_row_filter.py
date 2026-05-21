@@ -12,13 +12,13 @@ def test_row_passes_filter_any_one_property() -> None:
         {
             "or": [
                 {"operator": "EXISTS", "target_property": "aliases", "property_scope": "view"},
-                {"operator": "EXISTS", "target_property": "discoveredKey", "property_scope": "view"},
+                {"operator": "EXISTS", "target_property": "indexKey", "property_scope": "view"},
             ]
         }
     ]
     props = {}
     assert row_passes_filter(props, filters) is False
-    props2 = {"discoveredKey": [{"value": "k", "confidence": 0.5}]}
+    props2 = {"indexKey": [{"value": "k", "confidence": 0.5}]}
     assert row_passes_filter(props2, filters) is True
 
 
@@ -27,7 +27,7 @@ def test_row_passes_filter_all_requires_every_property() -> None:
         {
             "and": [
                 {"operator": "EXISTS", "target_property": "aliases"},
-                {"operator": "EXISTS", "target_property": "discoveredKey"},
+                {"operator": "EXISTS", "target_property": "indexKey"},
             ]
         }
     ]
@@ -37,7 +37,7 @@ def test_row_passes_filter_all_requires_every_property() -> None:
     assert row_passes_filter(props, filters) is False
     props_ok = {
         "aliases": [{"value": "a", "confidence": 0.9}],
-        "discoveredKey": [{"value": "k", "confidence": 0.85}],
+        "indexKey": [{"value": "k", "confidence": 0.85}],
     }
     assert row_passes_filter(props_ok, filters) is True
 

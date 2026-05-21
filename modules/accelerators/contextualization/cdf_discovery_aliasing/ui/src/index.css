@@ -2451,6 +2451,122 @@ code {
   opacity: 0.65;
 }
 
+/* —— Pipeline / multi-step editors (transform, validation) —— */
+
+.kea-pipeline-execution {
+  margin-top: 0.75rem;
+}
+
+.kea-pipeline-steps {
+  margin-top: 0.35rem;
+}
+
+.kea-step-card {
+  margin-top: 0.85rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--kea-border);
+  border-radius: var(--kea-radius-sm);
+  background: var(--kea-bg-elevated);
+  box-shadow: var(--kea-shadow);
+}
+
+.kea-step-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.35rem;
+  margin-top: 0.5rem;
+}
+
+.kea-filter-row--thresholds {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr));
+}
+
+.kea-filter-row--field-pair,
+.kea-filter-row--pair-actions {
+  grid-template-columns: 1fr 1fr auto;
+}
+
+.kea-filter-row--pair-wide {
+  grid-template-columns: minmax(8rem, 1fr) minmax(8rem, 1fr) auto;
+}
+
+.kea-filter-row--pair {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.kea-filter-row--triple {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.kea-filter-row--label-action {
+  grid-template-columns: 1fr auto;
+}
+
+.kea-filter-row--actions-end {
+  grid-template-columns: 1fr auto auto;
+}
+
+.kea-filter-row--compact-actions {
+  grid-template-columns: auto 1fr auto;
+}
+
+.kea-filter-row--rule-header {
+  grid-template-columns: auto auto 1fr auto;
+}
+
+.kea-filter-row--align-end {
+  align-items: end;
+}
+
+.kea-filter-row--gap-sm {
+  gap: 0.35rem;
+}
+
+.kea-filter-row--gap-md {
+  gap: 0.5rem;
+}
+
+@media (max-width: 52rem) {
+  .kea-filter-row--triple {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 36rem) {
+  .kea-filter-row--field-pair,
+  .kea-filter-row--pair-actions,
+  .kea-filter-row--pair-wide,
+  .kea-filter-row--pair,
+  .kea-filter-row--triple,
+  .kea-validation-rule .kea-filter-row--rule-header,
+  .kea-filter-row--label-action,
+  .kea-filter-row--actions-end,
+  .kea-filter-row--compact-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .kea-filter-row--thresholds {
+    grid-template-columns: 1fr;
+  }
+
+  .kea-drag-handle {
+    align-self: start;
+    min-height: 2.5rem;
+    min-width: 2.5rem;
+  }
+}
+
+@media (max-width: 900px) {
+  .kea-modal--flow-node-editor {
+    max-width: min(96vw, 100%);
+  }
+
+  .kea-modal--flow-node-editor .kea-modal__body--scroll {
+    max-height: min(78dvh, 100%);
+  }
+}
+
 /* Drag handle only — avoids whole-card draggable stealing text selection in inputs/textareas */
 .kea-drag-handle {
   display: inline-flex;
@@ -2965,6 +3081,17 @@ code {
 .kea-flow-node--selected {
   outline: 2px solid var(--kea-primary-ring);
   border-color: var(--kea-primary);
+}
+
+.kea-flow-node--disabled {
+  opacity: 0.55;
+  border-style: dashed;
+  background: color-mix(in srgb, var(--kea-bg-elevated) 82%, var(--kea-text-muted));
+}
+
+.kea-flow-node__badge--off {
+  color: var(--kea-danger, #b91c1c);
+  font-weight: 700;
 }
 
 .kea-flow-node__badge {

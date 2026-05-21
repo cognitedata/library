@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from typing import Any, Dict, List, Mapping, MutableMapping
 
+from cdf_fn_common.cohort_storage import canvas_node_id_for_task, require_run_id
 from cdf_fn_common.discovery_query_shared import (
     ENTITY_TYPE_COLUMN,
     EXTERNAL_ID_COLUMN,
@@ -20,7 +21,6 @@ from cdf_fn_common.discovery_query_shared import (
     build_entity_cohort_row,
     merge_confidence_column_into_properties,
     resolve_query_sink,
-    resolve_run_id,
     resolve_task_config,
     _flush_rows,
 )
@@ -56,10 +56,12 @@ class RawQueryHandler(AbstractDiscoveryQueryHandler):
         if not source_db or not source_table:
             raise ValueError("config.source_raw_db and source_raw_table (or raw_db/raw_table) are required")
 
-        sink_db, sink_table = resolve_query_sink(data)
-        run_id = resolve_run_id(data)
+        run_id = require_run_id(data)
+        data["run_id"] = run_id
         task_id = cls.first_nonempty(data.get("task_id"), fn_external_id)
-        wanted_run = cls.first_nonempty(cfg.get("filter_run_id"))
+        canvas_node_id = canvas_node_id_for_task(data, task_id)
+        sink_db, sink_table = resolve_query_sink(data)
+        wanted_run = cls.first_nonempty(cfg.get("source_run_id"))
         read_limit = int(cfg.get("read_limit") or cfg.get("limit") or 0)
 
         queue = RawRowsUploadQueue(client)
@@ -96,7 +98,7 @@ class RawQueryHandler(AbstractDiscoveryQueryHandler):
                 build_entity_cohort_row(
                     run_id=run_id,
                     scope_key=scope_key,
-                    task_id=task_id,
+                    canvas_node_id=canvas_node_id,
                     query_source="raw",
                     node_instance_id=str(nid or ext_id or n_read),
                     external_id=ext_id or str(nid or n_read),
@@ -109,9 +111,9 @@ class RawQueryHandler(AbstractDiscoveryQueryHandler):
             )
             n_written += 1
             if len(pending) >= 500:
-                _flush_rows(queue, sink_db, sink_table, pending)
+                _flush_rows(queue, sink_db, sink_table, pending, client=client)
 
-        _flush_rows(queue, sink_db, sink_table, pending)
+        _flush_rows(queue, sink_db, sink_table, pending, client=client)
 
         if log and hasattr(log, "info"):
             log.info(

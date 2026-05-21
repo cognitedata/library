@@ -123,7 +123,7 @@ def test_validate_row_confidence_persisted_on_raw_row() -> None:
     row = build_entity_cohort_row(
         run_id="run1",
         scope_key="scope1",
-        task_id="kea__validate",
+        canvas_node_id="n_validate",
         query_source="validate",
         node_instance_id="sp1:uuid-1",
         external_id="A-1",
@@ -144,78 +144,78 @@ def test_validate_both_fields_keeps_aliases_confidence() -> None:
     cfg = {
         "description": "blk",
         "validation_rule_definitions": {"blacklist": _blacklist_rule()},
-        "validate_fields": ["aliases", "discoveredKey"],
+        "validate_fields": ["aliases", "indexKey"],
     }
     rules = materialize_validation_rules(cfg)
     out = validate_row_properties(
         {
             "aliases": ["alias-a"],
-            "discoveredKey": ["key-a", "test-key"],
+            "indexKey": ["key-a", "test-key"],
         },
         cfg,
         rules,
     )
     assert out["aliases_confidence"] == [pytest.approx(1.0)]
-    assert out["discoveredKey_confidence"][1] == pytest.approx(0.0)
-    assert out["discoveredKey"] == ["key-a", "test-key"]
+    assert out["indexKey_confidence"][1] == pytest.approx(0.0)
+    assert out["indexKey"] == ["key-a", "test-key"]
 
 
-def test_discovered_key_writes_discoveredKey_confidence() -> None:
+def test_index_key_writes_indexKey_confidence() -> None:
     cfg = {
         "description": "blk",
         "validation_rule_definitions": {"blacklist": _blacklist_rule()},
-        "validate_fields": ["discoveredKey"],
+        "validate_fields": ["indexKey"],
         "min_confidence": 0.0,
     }
     rules = materialize_validation_rules(cfg)
-    out = validate_row_properties({"discoveredKey": ["good", "test-tag"]}, cfg, rules)
-    assert out["discoveredKey"] == ["good", "test-tag"]
+    out = validate_row_properties({"indexKey": ["good", "test-tag"]}, cfg, rules)
+    assert out["indexKey"] == ["good", "test-tag"]
     assert "confidence" not in out
-    assert out["discoveredKey_confidence"][0] == pytest.approx(1.0)
-    assert out["discoveredKey_confidence"][1] == pytest.approx(0.0)
+    assert out["indexKey_confidence"][0] == pytest.approx(1.0)
+    assert out["indexKey_confidence"][1] == pytest.approx(0.0)
 
 
-def test_ignores_top_level_confidence_for_discovered_key() -> None:
+def test_ignores_top_level_confidence_for_index_key() -> None:
     cfg = {
         "description": "blk",
         "validation_rule_definitions": {"blacklist": _blacklist_rule()},
-        "validate_fields": ["discoveredKey"],
+        "validate_fields": ["indexKey"],
         "min_confidence": 0.0,
     }
     rules = materialize_validation_rules(cfg)
     out = validate_row_properties(
-        {"discoveredKey": ["good", "test-tag"], "confidence": [0.2, 0.8]},
+        {"indexKey": ["good", "test-tag"], "confidence": [0.2, 0.8]},
         cfg,
         rules,
     )
     assert "confidence" not in out
-    assert out["discoveredKey_confidence"][0] == pytest.approx(1.0)
-    assert out["discoveredKey_confidence"][1] == pytest.approx(0.0)
+    assert out["indexKey_confidence"][0] == pytest.approx(1.0)
+    assert out["indexKey_confidence"][1] == pytest.approx(0.0)
 
 
-def test_scored_objects_discovered_key_drops_parallel_confidence_keys() -> None:
+def test_scored_objects_index_key_drops_parallel_confidence_keys() -> None:
     cfg = {
         "description": "blk",
         "validation_rule_definitions": {"blacklist": _blacklist_rule()},
-        "validate_fields": ["discoveredKey"],
+        "validate_fields": ["indexKey"],
         "output_mode": "scored_objects",
         "min_confidence": 0.0,
     }
     rules = materialize_validation_rules(cfg)
     out = validate_row_properties(
         {
-            "discoveredKey": ["a", "test-x"],
+            "indexKey": ["a", "test-x"],
             "confidence": [0.5, 0.6],
         },
         cfg,
         rules,
     )
     assert "confidence" not in out
-    assert "discoveredKey_confidence" not in out
-    assert out["discoveredKey"][0]["value"] == "a"
-    assert out["discoveredKey"][0]["confidence"] == pytest.approx(1.0)
-    assert out["discoveredKey"][1]["value"] == "test-x"
-    assert out["discoveredKey"][1]["confidence"] == pytest.approx(0.0)
+    assert "indexKey_confidence" not in out
+    assert out["indexKey"][0]["value"] == "a"
+    assert out["indexKey"][0]["confidence"] == pytest.approx(1.0)
+    assert out["indexKey"][1]["value"] == "test-x"
+    assert out["indexKey"][1]["confidence"] == pytest.approx(0.0)
 
 
 def test_validate_config_requires_description() -> None:

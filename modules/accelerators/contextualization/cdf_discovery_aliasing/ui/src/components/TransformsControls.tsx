@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { useAppSettings } from "../context/AppSettingsContext";
 import type { WorkflowCanvasDocument } from "../types/workflowCanvas";
+import { readTransformHandlerId as readCfgHandlerId } from "../utils/transformHandlerTemplates";
+import { materializeTransformSteps } from "../utils/transformNodeConfigModel";
 import {
   listTransformNodes,
   patchTransformNode,
@@ -9,6 +11,14 @@ import {
   readTransformHandlerId,
   transformNodeListLabel,
 } from "../utils/transformsCanvasUtils";
+
+function handlerIdForTransformConfig(cfg: Record<string, unknown>): string | undefined {
+  const steps = materializeTransformSteps(cfg);
+  const fromStep = steps.length > 0 ? readCfgHandlerId(steps[0]!) : "";
+  const flat = readCfgHandlerId(cfg);
+  const h = fromStep || flat;
+  return h || undefined;
+}
 import { TransformNodeConfigFields } from "./TransformNodeConfigFields";
 
 type Props = {
@@ -74,7 +84,7 @@ export function TransformsControls({ canvas, onChange, initialNodeId, singleNode
               cfg,
               isHandlerTypedTransformNode(selected)
                 ? readTransformHandlerId(selected)
-                : String(cfg.handler_id ?? cfg.handler ?? "").trim() || undefined
+                : handlerIdForTransformConfig(cfg as Record<string, unknown>)
             )
           )
         }
@@ -137,7 +147,7 @@ export function TransformsControls({ canvas, onChange, initialNodeId, singleNode
                       cfg,
                       isHandlerTypedTransformNode(selected)
                         ? readTransformHandlerId(selected)
-                        : String(cfg.handler_id ?? cfg.handler ?? "").trim() || undefined
+                        : handlerIdForTransformConfig(cfg as Record<string, unknown>)
                     )
                   )
                 }

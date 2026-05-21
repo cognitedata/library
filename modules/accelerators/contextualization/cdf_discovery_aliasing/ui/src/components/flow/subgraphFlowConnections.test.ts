@@ -15,18 +15,18 @@ function node(id: string, type: string, data?: Partial<WorkflowCanvasNodeData>):
 }
 
 describe("isValidKeaFlowConnection subgraph ports with inner peer types", () => {
-  it("allows outer sourceView into subgraph in when port targets inner keaExtraction", () => {
+  it("allows outer view query into subgraph in when port targets inner keaTransform", () => {
     const sg = node("sg", "keaSubgraph", {
       subflow_ports: {
-        inputs: [{ id: "in", label: "A", inner_target_rf_type: "keaExtraction" }],
+        inputs: [{ id: "in", label: "A", inner_target_rf_type: "keaTransform" }],
         outputs: [{ id: "out", label: "out" }],
       },
     });
-    const sv = node("sv", "keaSourceView", { label: "S" });
-    const nodes = new Map([["sg", sg], ["sv", sv]]);
+    const vq = node("vq", "keaViewQuery", { label: "Q" });
+    const nodes = new Map([["sg", sg], ["vq", vq]]);
     const getNode = (id: string) => nodes.get(id);
     const ok = isValidKeaFlowConnection(getNode, {
-      source: "sv",
+      source: "vq",
       target: "sg",
       sourceHandle: "out",
       targetHandle: subflowTargetHandleForPort("in"),
@@ -110,10 +110,10 @@ describe("isValidKeaFlowConnection subgraph ports with inner peer types", () => 
     expect(ok).toBe(true);
   });
 
-  it("rejects outer end into subgraph in when port only accepts inner keaExtraction", () => {
+  it("rejects outer end into subgraph in when port only accepts inner keaTransform", () => {
     const sg = node("sg", "keaSubgraph", {
       subflow_ports: {
-        inputs: [{ id: "in", label: "A", inner_target_rf_type: "keaExtraction" }],
+        inputs: [{ id: "in", label: "A", inner_target_rf_type: "keaTransform" }],
         outputs: [{ id: "out", label: "out" }],
       },
     });
@@ -129,11 +129,11 @@ describe("isValidKeaFlowConnection subgraph ports with inner peer types", () => 
     expect(ok).toBe(false);
   });
 
-  it("allows subgraph out to end when port originates from inner keaExtraction", () => {
+  it("allows subgraph out to end when port originates from inner keaTransform", () => {
     const sg = node("sg", "keaSubgraph", {
       subflow_ports: {
         inputs: [{ id: "in", label: "in" }],
-        outputs: [{ id: "out", label: "B", inner_source_rf_type: "keaExtraction" }],
+        outputs: [{ id: "out", label: "B", inner_source_rf_type: "keaTransform" }],
       },
     });
     const end = node("end", "keaEnd", {});
@@ -173,11 +173,11 @@ describe("isValidKeaFlowConnection subgraph ports with inner peer types", () => 
     expect(ok).toBe(true);
   });
 
-  it("rejects subgraph out to sourceView when port originates from inner keaExtraction", () => {
+  it("rejects subgraph out to sourceView when port originates from inner keaTransform", () => {
     const sg = node("sg", "keaSubgraph", {
       subflow_ports: {
         inputs: [{ id: "in", label: "in" }],
-        outputs: [{ id: "out", label: "B", inner_source_rf_type: "keaExtraction" }],
+        outputs: [{ id: "out", label: "B", inner_source_rf_type: "keaTransform" }],
       },
     });
     const sv = node("sv", "keaSourceView", {});
@@ -195,8 +195,8 @@ describe("isValidKeaFlowConnection subgraph ports with inner peer types", () => 
     expect(ok).toBe(false);
   });
 
-  it("rejects extraction out → match validation rule; allows extraction validation handle → rule", () => {
-    const ext = node("ext", "keaExtraction", { label: "E" });
+  it("rejects transform out → match validation rule; allows transform validation handle → rule", () => {
+    const ext = node("ext", "keaTransform", { label: "E" });
     const rule = node("rule", "keaMatchValidationRuleExtraction", { label: "R" });
     const nodes = new Map<string, Node>([
       ["ext", ext],
@@ -221,8 +221,8 @@ describe("isValidKeaFlowConnection subgraph ports with inner peer types", () => 
     ).toBe(true);
   });
 
-  it("rejects aliasing out → match validation rule; allows validation handle → rule", () => {
-    const al = node("al", "keaAliasing", { label: "A" });
+  it("rejects transform out → aliasing match validation rule; allows validation handle → rule", () => {
+    const al = node("al", "keaTransform", { label: "A" });
     const rule = node("rule", "keaMatchValidationRuleAliasing", { label: "R" });
     const nodes = new Map<string, Node>([
       ["al", al],
@@ -350,8 +350,8 @@ describe("isValidKeaFlowConnection subgraph ports with inner peer types", () => 
   });
 
   it("still allows extraction out → aliasing", () => {
-    const ext = node("ext", "keaExtraction", {});
-    const al = node("al", "keaAliasing", {});
+    const ext = node("ext", "keaTransform", {});
+    const al = node("al", "keaTransform", {});
     const nodes = new Map<string, Node>([
       ["ext", ext],
       ["al", al],

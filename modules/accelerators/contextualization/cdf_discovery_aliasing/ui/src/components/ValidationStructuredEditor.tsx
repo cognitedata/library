@@ -1,17 +1,16 @@
-import { useEffect, useMemo, useRef, useState, type DragEvent } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useAppSettings } from "../context/AppSettingsContext";
 import type { JsonObject } from "../types/scopeConfig";
-import {
-  defaultMatchRuleDefinition,
-  parseExpressionMatch,
-  parseMatchRuleDefinitionsArray,
-  serializeMatchRuleDefinitionsArray,
-  type MatchRuleDefinition,
-} from "../utils/confidenceMatchRuleDefModel";
+import { parseExpressionMatch } from "../utils/confidenceMatchRuleDefModel";
 import { focusTargetDomId } from "../utils/focusTargetDomId";
-import { reorderListAtIndex } from "../utils/ruleListReorder";
-import { MatchRuleDefinitionCard } from "./MatchRuleDefinitionCard";
+import {
+  defaultValidationStep,
+  parseValidationNodeConfig,
+  serializeValidationNodeConfig,
+} from "../utils/validationNodeConfigModel";
 import { MatchValidationRefsEditor } from "./MatchValidationRefsEditor";
+import { PipelineExecutionFields } from "./PipelineExecutionFields";
+import { ValidationStepsList } from "./ValidationStepsList";
 
 export type ValidationEditorVariant = "keyExtraction" | "aliasing";
 
@@ -29,14 +28,20 @@ const KNOWN_KEY_EXTRACTION = new Set([
   "min_confidence",
   "max_keys_per_type",
   "expression_match",
+  "execution",
+  "steps",
   "validation_rules",
+  "validation_rule_definitions",
 ]);
 
 const KNOWN_ALIASING = new Set([
   "max_aliases_per_tag",
   "min_confidence",
   "expression_match",
+  "execution",
+  "steps",
   "validation_rules",
+  "validation_rule_definitions",
 ]);
 
 function extrasFrom(value: JsonObject, known: Set<string>): JsonObject {
@@ -67,13 +72,10 @@ export function ValidationStructuredEditor({
   const known = variant === "keyExtraction" ? KNOWN_KEY_EXTRACTION : KNOWN_ALIASING;
   const lastWrittenFingerprintRef = useRef<string | null>(null);
   const lastAppliedMatchFocusRef = useRef<string | null>(null);
-  const [dragRuleFrom, setDragRuleFrom] = useState<number | null>(null);
-  const [dragRuleOver, setDragRuleOver] = useState<number | null>(null);
-
   const useScopeRefs = Boolean(scopeDocument);
 
   const ui = useMemo(() => {
-    const rules = parseMatchRuleDefinitionsArray(value.validation_rules);
+    const parsed = parseValidationNodeConfig(value);
     return {
       minConfidence: String(numOr(value.min_confidence, variant === "aliasing" ? 0.01 : 0.5)),
       maxKeysPerType:
@@ -81,7 +83,8 @@ export function ValidationStructuredEditor({
       maxAliasesPerTag:
         variant === "aliasing" ? String(numOr(value.max_aliases_per_tag, 50)) : "",
       expressionMatch: parseExpressionMatch(value.expression_match),
-      rules,
+      executionMode: parsed.executionMode,
+      steps: parsed.steps,
     };
   }, [value, variant]);
 
@@ -106,7 +109,7 @@ export function ValidationStructuredEditor({
       return;
     }
 
-    if (!ui.rules.some((r) => r.name === target)) return;
+    if (!ui.steps.some((r) => r.name === target)) return;
     lastAppliedMatchFocusRef.current = target;
     requestAnimationFrame(() => {
       document.getElementById(focusTargetDomId("kea-val-match", target))?.scrollIntoView({
@@ -114,19 +117,42 @@ export function ValidationStructuredEditor({
         behavior: "smooth",
       });
     });
-  }, [initialFocusedMatchRuleName, ui.rules, useScopeRefs, value.validation_rules]);
+  }, [initialFocusedMatchRuleName, ui.steps, useScopeRefs, value.validation_rules]);
 
   const commitValue = (next: JsonObject) => {
     lastWrittenFingerprintRef.current = JSON.stringify(next);
     onChange(next);
   };
 
-  const push = (patch: Partial<JsonObject> & { validation_rules?: unknown[] }) => {
+  const push = (patch: Partial<JsonObject>) => {
     commitValue({ ...value, ...patch });
   };
 
-  const updateRules = (nextRules: MatchRuleDefinition[]) => {
-    commitValue({ ...value, validation_rules: serializeMatchRuleDefinitionsArray(nextRules) as unknown[] });
+  const commitValidationPipeline = (
+    patch: Partial<{
+      minConfidence: string;
+      expressionMatch: ReturnType<typeof parseExpressionMatch>;
+      executionMode: typeof ui.executionMode;
+      steps: typeof ui.steps;
+    }>
+  ) => {
+    const extras: JsonObject = { ...parseValidationNodeConfig(value).extras };
+    if (variant === "keyExtraction") {
+      extras.max_keys_per_type = Math.max(1, Math.floor(Number(ui.maxKeysPerType) || 1000));
+    }
+    if (variant === "aliasing") {
+      extras.max_aliases_per_tag = Math.max(1, Math.floor(Number(ui.maxAliasesPerTag) || 50));
+    }
+    commitValue(
+      serializeValidationNodeConfig({
+        description: String(value.description ?? "").trim(),
+        minConfidence: patch.minConfidence ?? ui.minConfidence,
+        expressionMatch: patch.expressionMatch ?? ui.expressionMatch,
+        executionMode: patch.executionMode ?? ui.executionMode,
+        steps: patch.steps ?? ui.steps,
+        extras,
+      })
+    );
   };
 
   useEffect(() => {
@@ -142,7 +168,7 @@ export function ValidationStructuredEditor({
       <h4 className="kea-section-title" style={{ fontSize: "0.95rem" }}>
         {t("validationEditor.section.thresholds")}
       </h4>
-      <div className="kea-filter-row" style={{ gridTemplateColumns: "repeat(auto-fit,minmax(10rem,1fr))", gap: "0.75rem" }}>
+      <div className="kea-filter-row kea-filter-row--thresholds">
         <label className="kea-label">
           {t("validationEditor.minConfidence")}
           <input
@@ -150,7 +176,7 @@ export function ValidationStructuredEditor({
             type="number"
             step="any"
             value={ui.minConfidence}
-            onChange={(e) => push({ min_confidence: Number(e.target.value) || 0 })}
+            onChange={(e) => commitValidationPipeline({ minConfidence: e.target.value })}
           />
         </label>
         {variant === "keyExtraction" && (
@@ -162,7 +188,9 @@ export function ValidationStructuredEditor({
               step={1}
               min={1}
               value={ui.maxKeysPerType}
-              onChange={(e) => push({ max_keys_per_type: Math.max(1, Math.floor(Number(e.target.value) || 1000)) })}
+              onChange={(e) => {
+                push({ max_keys_per_type: Math.max(1, Math.floor(Number(e.target.value) || 1000)) });
+              }}
             />
           </label>
         )}
@@ -175,9 +203,9 @@ export function ValidationStructuredEditor({
               step={1}
               min={1}
               value={ui.maxAliasesPerTag}
-              onChange={(e) =>
-                push({ max_aliases_per_tag: Math.max(1, Math.floor(Number(e.target.value) || 50)) })
-              }
+              onChange={(e) => {
+                push({ max_aliases_per_tag: Math.max(1, Math.floor(Number(e.target.value) || 50)) });
+              }}
             />
           </label>
         )}
@@ -189,11 +217,11 @@ export function ValidationStructuredEditor({
             onChange={(e) => {
               const v = e.target.value;
               if (v === "") {
-                const next = { ...value };
-                delete (next as JsonObject).expression_match;
-                onChange(next);
+                commitValidationPipeline({ expressionMatch: "" });
               } else {
-                push({ expression_match: v });
+                commitValidationPipeline({
+                  expressionMatch: v === "search" || v === "fullmatch" ? v : "",
+                });
               }
             }}
           >
@@ -224,128 +252,30 @@ export function ValidationStructuredEditor({
           <div className="kea-editor-hint-stack">
             <p className="kea-hint">{t("validationEditor.inlineRulesModeHint")}</p>
             <p className="kea-hint">{t("validationEditor.rulesHint")}</p>
-            <p className="kea-hint">{t("rulesEntity.dragReorderRules")}</p>
           </div>
 
-          <div className="kea-validation-rules">
-            {ui.rules.map((rule, idx) => {
-              const dropActive = dragRuleOver === idx;
-              const cardClass = [
-                "kea-validation-rule",
-                dropActive ? "kea-validation-rule--drop" : "",
-                dragRuleFrom === idx ? "kea-validation-rule--dragging" : "",
-              ]
-                .filter(Boolean)
-                .join(" ");
-              return (
-                <div
-                  key={idx}
-                  id={focusTargetDomId("kea-val-match", rule.name)}
-                  className={cardClass}
-                  style={{ marginBottom: "0.75rem" }}
-                  onDragOver={(e: DragEvent<HTMLDivElement>) => {
-                    e.preventDefault();
-                    e.dataTransfer.dropEffect = "move";
-                    setDragRuleOver(idx);
-                  }}
-                  onDragLeave={(e) => {
-                    if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
-                      setDragRuleOver(null);
-                    }
-                  }}
-                  onDrop={(e: DragEvent<HTMLDivElement>) => {
-                    e.preventDefault();
-                    const raw = e.dataTransfer.getData("text/plain");
-                    const from = parseInt(raw, 10);
-                    if (Number.isNaN(from) || from === idx) {
-                      setDragRuleFrom(null);
-                      setDragRuleOver(null);
-                      return;
-                    }
-                    updateRules(reorderListAtIndex(ui.rules, from, idx));
-                    setDragRuleFrom(null);
-                    setDragRuleOver(null);
-                  }}
-                >
-                  <MatchRuleDefinitionCard
-                    rule={rule}
-                    ruleIndex={idx}
-                    defaultExpanded
-                    showCollapsedSummary
-                    dragProps={{
-                      draggable: true,
-                      onDragStart: (e: DragEvent<HTMLSpanElement>) => {
-                        e.dataTransfer.setData("text/plain", String(idx));
-                        e.dataTransfer.effectAllowed = "move";
-                        setDragRuleFrom(idx);
-                      },
-                      onDragEnd: () => {
-                        setDragRuleFrom(null);
-                        setDragRuleOver(null);
-                      },
-                    }}
-                    onChange={(r) => {
-                      const next = [...ui.rules];
-                      next[idx] = r;
-                      updateRules(next);
-                    }}
-                  />
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "flex-end",
-                      gap: "0.25rem",
-                      marginTop: "0.35rem",
-                    }}
-                  >
-                    <button
-                      type="button"
-                      className="kea-btn kea-btn--ghost kea-btn--sm"
-                      disabled={idx === 0}
-                      onClick={() => {
-                        const next = [...ui.rules];
-                        [next[idx - 1], next[idx]] = [next[idx], next[idx - 1]];
-                        updateRules(next);
-                      }}
-                      aria-label={t("validationEditor.rule.moveUp")}
-                    >
-                      ↑
-                    </button>
-                    <button
-                      type="button"
-                      className="kea-btn kea-btn--ghost kea-btn--sm"
-                      disabled={idx >= ui.rules.length - 1}
-                      onClick={() => {
-                        const next = [...ui.rules];
-                        [next[idx], next[idx + 1]] = [next[idx + 1], next[idx]];
-                        updateRules(next);
-                      }}
-                      aria-label={t("validationEditor.rule.moveDown")}
-                    >
-                      ↓
-                    </button>
-                    <button
-                      type="button"
-                      className="kea-btn kea-btn--ghost kea-btn--sm"
-                      onClick={() => updateRules(ui.rules.filter((_, i) => i !== idx))}
-                    >
-                      {t("validationEditor.rule.remove")}
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+          <PipelineExecutionFields
+            t={t}
+            executionMode={ui.executionMode}
+            onExecutionModeChange={(mode) => commitValidationPipeline({ executionMode: mode })}
+          />
+
+          <ValidationStepsList
+            t={t}
+            steps={ui.steps}
+            onChange={(steps) => commitValidationPipeline({ steps })}
+            focusIdPrefix="kea-val-match"
+          />
           <button
             type="button"
             className="kea-btn kea-btn--sm"
             style={{ marginTop: "0.25rem" }}
             onClick={() => {
-              const nr = defaultMatchRuleDefinition(ui.rules);
-              updateRules([...ui.rules, nr]);
+              const nr = defaultValidationStep(ui.steps);
+              commitValidationPipeline({ steps: [...ui.steps, nr] });
             }}
           >
-            {t("validationEditor.rule.addRule")}
+            {t("pipelineSteps.addStep")}
           </button>
         </>
       )}

@@ -14,6 +14,33 @@ if str(_MODULE) not in sys.path:
     sys.path.insert(0, str(_MODULE))
 
 
+def _v2_discovery_run(
+    *,
+    run_scope: dict | None = None,
+    pipeline_tasks: list | None = None,
+    persistence_nodes: list | None = None,
+    merged_entities: dict | None = None,
+    end_of_process: dict | None = None,
+) -> dict:
+    return {
+        "schema_version": 2,
+        "run_scope": run_scope or {"target": "workflow_local"},
+        "run_id": "test-run",
+        "dry_run": False,
+        "end_of_process": end_of_process
+        or {"status": "succeeded", "task_count": len(pipeline_tasks or []), "elapsed_ms": 100},
+        "pipeline": {
+            "task_count": len(pipeline_tasks or []),
+            "tasks": pipeline_tasks or [],
+        },
+        "persistence": {
+            "node_count": len(persistence_nodes or []),
+            "nodes": persistence_nodes or [],
+            "merged_entities": merged_entities or {},
+        },
+    }
+
+
 @pytest.fixture()
 def api_client(monkeypatch, tmp_path: Path):
     tmp_path = tmp_path.resolve()
@@ -116,24 +143,14 @@ def test_run_results_filter_workflow_trigger(api_client):
     assert r2.json()["runs"] == []
 
 
-def test_discovery_run_results_lists_report(api_client):
+def test_discovery_run_results_lists_v2(api_client):
     client, root = api_client
     lr = root / "local_run_results"
     lr.mkdir(parents=True)
     stem = "20260205_121212"
     rs = {"target": "workflow_local", "config_rel": "workflow.local.config.yaml"}
-    (lr / f"{stem}_local_run_report.json").write_text(
-        json.dumps(
-            {
-                "schema_version": 1,
-                "paths": {"discovery": f"local_run_results/{stem}_cdf_discovery_tasks.json"},
-                "end_of_process": {"status": "succeeded", "task_count": 0},
-            }
-        ),
-        encoding="utf-8",
-    )
-    (lr / f"{stem}_cdf_discovery_tasks.json").write_text(
-        json.dumps({"run_scope": rs, "task_outputs": {}}),
+    (lr / f"{stem}_discovery_run.json").write_text(
+        json.dumps(_v2_discovery_run(run_scope=rs, end_of_process={"status": "succeeded", "task_count": 0})),
         encoding="utf-8",
     )
     r = client.get("/api/run-results/discovery")
@@ -141,20 +158,19 @@ def test_discovery_run_results_lists_report(api_client):
     runs = r.json()["runs"]
     assert len(runs) == 1
     assert runs[0]["stem"] == stem
-    assert runs[0]["report_rel"] == f"local_run_results/{stem}_local_run_report.json"
+    assert runs[0]["run_rel"] == f"local_run_results/{stem}_discovery_run.json"
 
 
-def test_discovery_run_results_filter_uses_run_scope_from_sidecar(api_client):
+def test_discovery_run_results_filter_uses_run_scope(api_client):
     client, root = api_client
     lr = root / "local_run_results"
     lr.mkdir(parents=True)
     stem = "20260205_151515"
     rs = {"target": "workflow_template", "config_rel": "workflow.template.config.yaml"}
-    (lr / f"{stem}_local_run_report.json").write_text(
-        json.dumps({"schema_version": 1, "paths": {}, "end_of_process": {}}),
+    (lr / f"{stem}_discovery_run.json").write_text(
+        json.dumps(_v2_discovery_run(run_scope=rs)),
         encoding="utf-8",
     )
-    (lr / f"{stem}_cdf_discovery_tasks.json").write_text(json.dumps({"run_scope": rs}), encoding="utf-8")
     r = client.get("/api/run-results/discovery", params={"run_scope_key": "workflow_template"})
     assert r.status_code == 200
     assert len(r.json()["runs"]) == 1
@@ -162,53 +178,124 @@ def test_discovery_run_results_filter_uses_run_scope_from_sidecar(api_client):
     assert r2.json()["runs"] == []
 
 
-def test_discovery_run_detail_and_tasks_preview(api_client):
+def test_discovery_run_detail_and_pipeline_tasks(api_client):
     client, root = api_client
     lr = root / "local_run_results"
     lr.mkdir(parents=True)
     stem = "20260205_141414"
-    report_rel = f"local_run_results/{stem}_local_run_report.json"
-    tasks_rel = f"local_run_results/{stem}_cdf_discovery_tasks.json"
-    (lr / f"{stem}_local_run_report.json").write_text(
+    run_rel = f"local_run_results/{stem}_discovery_run.json"
+    (lr / f"{stem}_discovery_run.json").write_text(
         json.dumps(
-            {
-                "end_of_process": {
-                    "status": "succeeded",
-                    "elapsed_ms": 1200,
-                    "task_count": 2,
-                    "dry_run": False,
-                    "warnings": [],
-                },
-            }
-        ),
-        encoding="utf-8",
-    )
-    (lr / f"{stem}_cdf_discovery_tasks.json").write_text(
-        json.dumps(
-            {
-                "run_scope": {"target": "workflow_local"},
-                "task_outputs": {
-                    "kea__a": {
+            _v2_discovery_run(
+                pipeline_tasks=[
+                    {
+                        "task_id": "kea__a",
+                        "category": "transform",
                         "status": "succeeded",
-                        "message": json.dumps({"function_external_id": "fn_dm_transform", "rows_read": 3}),
+                        "output": {"function_external_id": "fn_dm_transform", "rows_read": 3},
                     },
-                    "kea__b": {"status": "failed", "message": "boom"},
-                },
-            }
+                    {"task_id": "kea__b", "category": "other", "status": "failed", "error": "boom"},
+                ],
+                end_of_process={"status": "succeeded", "task_count": 2, "elapsed_ms": 1200},
+            )
         ),
         encoding="utf-8",
     )
-    r = client.get("/api/run-results/discovery-detail", params={"rel": report_rel})
+    r = client.get("/api/run-results/discovery-detail", params={"rel": run_rel})
     assert r.status_code == 200
     detail = r.json()
-    assert detail["tasks_rel"] == tasks_rel
+    assert detail["run_rel"] == run_rel
     assert detail["summary"]["status"] == "succeeded"
     r2 = client.get(
-        "/api/run-results/discovery-tasks-preview",
-        params={"rel": report_rel, "offset": 0, "limit": 1},
+        "/api/run-results/discovery-pipeline-tasks",
+        params={"rel": run_rel, "offset": 0, "limit": 1},
     )
     assert r2.status_code == 200
     tasks = r2.json()
     assert tasks["total"] == 2
     assert len(tasks["items"]) == 1
-    assert tasks["items"][0]["parsed"]["rows_read"] == 3
+    assert tasks["items"][0]["output"]["rows_read"] == 3
+
+
+def test_discovery_persistence_nodes(api_client):
+    client, root = api_client
+    lr = root / "local_run_results"
+    lr.mkdir(parents=True)
+    stem = "20260205_161616"
+    run_rel = f"local_run_results/{stem}_discovery_run.json"
+    (lr / f"{stem}_discovery_run.json").write_text(
+        json.dumps(
+            _v2_discovery_run(
+                persistence_nodes=[
+                    {
+                        "task_id": "save_1",
+                        "kind": "view_save",
+                        "function_external_id": "fn_dm_view_save",
+                        "input_cohort": {"entity_row_count": 2, "truncated": False},
+                        "output": {"kind": "dm_instances_apply", "summary": {"instances_written": 2}},
+                    },
+                    {
+                        "task_id": "ii_1",
+                        "kind": "inverted_index",
+                        "function_external_id": "fn_dm_inverted_index",
+                        "input_cohort": {"entity_row_count": 5, "truncated": True},
+                        "output": {"kind": "inverted_index_sink", "row_count": 3},
+                    },
+                ],
+            )
+        ),
+        encoding="utf-8",
+    )
+    r = client.get("/api/run-results/discovery-persistence-nodes", params={"rel": run_rel})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["total"] == 2
+    by_id = {x["task_id"]: x for x in body["items"]}
+    assert by_id["save_1"]["input_cohort"]["entity_row_count"] == 2
+    assert by_id["ii_1"]["output"]["row_count"] == 3
+
+    r2 = client.get(
+        "/api/run-results/discovery-persistence-node",
+        params={"rel": run_rel, "task_id": "save_1"},
+    )
+    assert r2.status_code == 200
+    assert r2.json()["node"]["task_id"] == "save_1"
+    assert r2.json()["node"]["input_cohort"]["entity_row_count"] == 2
+
+
+def test_discovery_persistence_merged(api_client) -> None:
+    client, root = api_client
+    lr = root / "local_run_results"
+    lr.mkdir(parents=True)
+    stem = "20260205_161717"
+    run_rel = f"local_run_results/{stem}_discovery_run.json"
+    merged = {
+        "instance_count": 1,
+        "instances": [
+            {
+                "instance_key": "sp:a",
+                "properties": {"aliases": ["x"], "indexKey": ["x"]},
+            }
+        ],
+    }
+    (lr / f"{stem}_discovery_run.json").write_text(
+        json.dumps(_v2_discovery_run(merged_entities=merged)),
+        encoding="utf-8",
+    )
+    r = client.get("/api/run-results/discovery-persistence-merged", params={"rel": run_rel})
+    assert r.status_code == 200
+    body = r.json()
+    merged_out = body["merged_entities"]
+    assert merged_out["instance_count"] == 1
+    assert merged_out["instances"][0]["properties"]["aliases"] == ["x"]
+
+
+def test_discovery_rejects_non_v2_path(api_client):
+    client, root = api_client
+    lr = root / "local_run_results"
+    lr.mkdir(parents=True)
+    stem = "20260205_999999"
+    rel = f"local_run_results/{stem}_local_run_report.json"
+    (lr / f"{stem}_local_run_report.json").write_text("{}", encoding="utf-8")
+    r = client.get("/api/run-results/discovery-detail", params={"rel": rel})
+    assert r.status_code == 400

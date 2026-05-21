@@ -5,7 +5,7 @@ import {
 } from "./validationNodeConfigModel";
 
 describe("validationNodeConfigModel", () => {
-  it("round-trips validation_rule_definitions", () => {
+  it("migrates validation_rule_definitions into steps", () => {
     const cfg = {
       description: "Asset blacklist",
       validation_rule_definitions: {
@@ -19,14 +19,15 @@ describe("validationNodeConfigModel", () => {
       },
     };
     const parsed = parseValidationNodeConfig(cfg);
-    expect(parsed.definitionEntries).toHaveLength(1);
-    expect(parsed.definitionEntries[0]?.id).toBe("blacklist");
+    expect(parsed.steps).toHaveLength(1);
+    expect(parsed.steps[0]?.name).toBe("blacklist");
     const out = serializeValidationNodeConfig({
       ...parsed,
       description: parsed.description,
     });
     expect(out.description).toBe("Asset blacklist");
-    const defs = out.validation_rule_definitions as Record<string, unknown>;
-    expect(defs.blacklist).toBeTruthy();
+    expect(Array.isArray(out.steps)).toBe(true);
+    expect((out.steps as unknown[]).length).toBe(1);
+    expect(out.validation_rule_definitions).toBeUndefined();
   });
 });

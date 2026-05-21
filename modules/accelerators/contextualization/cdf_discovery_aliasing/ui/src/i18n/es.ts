@@ -108,6 +108,7 @@ export const es: Messages = {
   "run.needTriggerScope":
     "Seleccione un archivo WorkflowTrigger bajo workflows/<scope>/ en la barra lateral para habilitar Desplegar y Ejecutar en CDF para ese ámbito.",
   "run.outputPlaceholder": "Aquí aparecerá la salida del pipeline.",
+  "run.savedBeforeLocalRun": "Saved scope canvas to disk before local run (module.py run reads workflow.local.config.yaml, not unsaved UI state).",
   "run.localRunExitLine": "[ejecución local] exit_code={code}",
   "run.localTaskStart": "▶ Iniciado {functionId} (tarea {taskId}){nodeSuffix}",
   "run.localTaskEnd": "✓ Finalizado {functionId} (tarea {taskId}){nodeSuffix}",
@@ -647,6 +648,15 @@ export const es: Messages = {
   "validationEditor.orderSetsPriority":
     "El orden de la lista define el orden de evaluación. Arrastre una tarjeta o use ↑ / ↓ (la prioridad numérica de cada regla sigue aplicándose si está definida).",
   "validationEditor.rule.addRule": "Añadir regla",
+  "pipelineSteps.executionMode": "Execution mode",
+  "pipelineSteps.modeOrdered": "Ordered (sequential)",
+  "pipelineSteps.modeParallel": "Parallel (concurrent)",
+  "pipelineSteps.addStep": "Add step",
+  "pipelineSteps.validationStepsTitle": "Validation steps",
+  "pipelineSteps.validationStepsHint": "Inline validation steps on this node.",
+  "pipelineSteps.transformStepsTitle": "Transform steps",
+  "pipelineSteps.transformStepsHint": "Multi-step transform pipeline.",
+  "pipelineSteps.useMultiStep": "Use multi-step pipeline",
   "validationEditor.advancedYaml": "Editar validation como YAML (avanzado)",
   "validationEditor.rulesYamlInvalidMerge":
     "El YAML de reglas no es válido; se fusionó usando las últimas reglas guardadas de esta configuración.",
@@ -789,7 +799,11 @@ export const es: Messages = {
   "flow.discoveryRawQuery": "RAW query",
   "flow.discoveryClassicQuery": "Classic query",
   "flow.discoveryTransform": "Transform",
+  "flow.discoveryMerge": "Merge",
   "flow.discoveryJoin": "Join",
+  "flow.nodeEditorTitleMerges": "Merge (configure tab)",
+  "flow.paletteTooltip.merge": "Merge — fan-in properties from parallel upstream transforms.",
+  "flow.merge.fieldPoliciesHint": "field_policies (required): same schema as save_field_policies.",
   "flow.nodeEditorTitleJoins": "Joins (configure tab)",
   "flow.discoveryValidate": "Validate",
   "flow.discoveryInstanceFilter": "Instance filter",
@@ -817,7 +831,7 @@ export const es: Messages = {
   "filters.empty": "Add a filter node from the flow palette or connect-end menu.",
   "filters.description": "Description",
   "filters.nodeCombineHint":
-    "Same CDF filter DSL as view query (operators, and/or/not, RANGE, negate). Top-level entries are AND-combined and evaluated on each cohort row by fn_dm_filter (no implicit HasData). Use property_scope view for cohort fields (aliases, discoveredKey) or node for instance metadata (space, externalId). Dot paths such as raw_columns.name are supported on cohort properties.",
+    "Same CDF filter DSL as view query (operators, and/or/not, RANGE, negate). Top-level entries are AND-combined and evaluated on each cohort row by fn_dm_filter (no implicit HasData). Use property_scope view for cohort fields (aliases, indexKey) or node for instance metadata (space, externalId). Dot paths such as raw_columns.key are supported on cohort properties.",
   "flow.discoveryViewSave": "View save",
   "flow.discoveryRawSave": "RAW save",
   "flow.discoveryClassicSave": "Classic save",
@@ -850,6 +864,14 @@ export const es: Messages = {
   "flow.ctxMenuAutoLayout": "Disposición automática",
   "flow.ctxMenuCopy": "Copy",
   "flow.ctxMenuPaste": "Paste",
+  "flow.ctxMenuDisableNode": "Disable node",
+  "flow.ctxMenuEnableNode": "Enable node",
+  "flow.cascadeDisabledNodes":
+    "Also disabled {count} downstream node(s) with no enabled upstream.",
+  "flow.cascadeEnabledNodes":
+    "Also re-enabled {count} downstream node(s) that were auto-disabled.",
+  "flow.inspectorNodeEnabled": "Enabled in workflow",
+  "flow.inspectorNodeEnabledHint": "When off, this step stays on the canvas but is skipped when compiling the workflow for local runs and CDF deploy.",
   "flow.ctxMenuRemoveNode": "Eliminar nodo",
   "flow.confirmSubgraphDeleteLift":
     "Este subgrafo contiene pasos de flujo de trabajo internos.\n\nOK — moverlos al lienzo principal y quitar el marco del subgrafo.\nCancelar — quitar el subgrafo y descartar los pasos internos.",

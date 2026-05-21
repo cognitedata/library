@@ -21,7 +21,6 @@ from .kahn_workflow_executor import (
     run_compiled_workflow_dag,
     validate_execution_graph_at_startup,
 )
-from .local_run_report import compose_local_run_report_document, write_local_run_report
 from .raw_results_attachment import build_raw_results_bundle
 from .report import ensure_results_dir
 from .ui_progress import ui_progress_log_forwarding
@@ -145,7 +144,6 @@ def _discovery_cdf_config_and_engine(
         data=SimpleNamespace(
             source_views=sv_parsed,
             source_view=None,
-            extraction_rules=[],
             validation=None,
             source_tables=[],
             associations=None,
@@ -165,35 +163,6 @@ def _log_cli_run_summary(logger: logging.Logger, payload: Dict[str, Any]) -> Non
     if p:
         lines.append(f"Output: discovery_json={p}")
     logger.info("\n".join(lines))
-
-
-def _write_local_run_report_for_ctx(
-    ctx: KahnRunContext,
-    results_dir: Path,
-    ts: str,
-    run_scope: Dict[str, Any],
-    logger: logging.Logger,
-    discovery_path: Path,
-    *,
-    dry_run: bool,
-    raw_results: Optional[Dict[str, Any]] = None,
-) -> None:
-    if not getattr(ctx, "local_run_tasks", None):
-        return
-    try:
-        paths = {"discovery": str(discovery_path)}
-        outp = results_dir / f"{ts}_local_run_report.json"
-        doc = compose_local_run_report_document(
-            tasks=list(ctx.local_run_tasks),
-            wall_t0=float(ctx.local_run_wall_t0 or 0.0),
-            dry_run=dry_run,
-            paths=paths,
-            raw_results=raw_results,
-        )
-        write_local_run_report(outp, doc)
-        logger.info("✓ Wrote local run report: %s", outp)
-    except Exception as exc:
-        logger.warning("Could not write local_run_report.json: %s", exc)
 
 
 def _run_workflow_parity(
@@ -248,9 +217,11 @@ def _run_workflow_parity(
         ]
         logger.info("Pipeline task timings: %s", ", ".join(parts))
 
+    from .discovery_run_v2 import DISCOVERY_RUN_SUFFIX, compose_discovery_run_document
+
     results_dir = ensure_results_dir()
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-    discovery_path = results_dir / f"{ts}_cdf_discovery_tasks.json"
+    discovery_path = results_dir / f"{ts}{DISCOVERY_RUN_SUFFIX}"
     run_scope = result_run_scope_dict(scope_yaml_path)
     raw_results: Optional[Dict[str, Any]] = getattr(ctx, "raw_results_snapshot", None)
     row_limit = int(getattr(args, "raw_results_rows", 500) or 0)
@@ -276,26 +247,35 @@ def _run_workflow_parity(
             row_limit,
         )
 
-    out_doc = {
-        "run_scope": run_scope,
-        "task_outputs": ctx.discovery_task_outputs,
-        "local_run_tasks": ctx.local_run_tasks,
-        "handler_data_snapshots": dict(ctx.handler_data_snapshots),
-    }
-    with discovery_path.open("w", encoding="utf-8") as f:
-        json.dump(out_doc, f, indent=2, default=str)
-    logger.info("✓ Wrote discovery run snapshot: %s", discovery_path)
-
-    _write_local_run_report_for_ctx(
-        ctx,
-        results_dir,
-        ts,
-        run_scope,
-        logger,
-        discovery_path,
+    out_doc = compose_discovery_run_document(
+        run_scope=run_scope,
+        run_id=str(ctx.run_id or ""),
         dry_run=bool(getattr(args, "dry_run", False)),
-        raw_results=raw_results,
+        wall_t0=float(ctx.local_run_wall_t0 or 0.0),
+        local_run_tasks=list(ctx.local_run_tasks),
+        discovery_task_outputs=ctx.discovery_task_outputs,
+        handler_data_snapshots=dict(ctx.handler_data_snapshots),
+        compiled_workflow=ctx.compiled_workflow if isinstance(ctx.compiled_workflow, dict) else None,
+        raw_table_samples=raw_results,
     )
+    merged = (out_doc.get("persistence") or {}).get("merged_entities") or {}
+    if merged.get("instance_count"):
+        logger.info(
+            "Persistence instances merged: %s instance(s) from %s task(s)",
+            merged["instance_count"],
+            len(merged.get("persistence_tasks") or []),
+        )
+    if not ctx.local_run_tasks:
+        logger.warning(
+            "No local_run_tasks recorded; writing minimal discovery_run.json (check for early abort)."
+        )
+    try:
+        with discovery_path.open("w", encoding="utf-8") as f:
+            json.dump(out_doc, f, indent=2, default=str)
+        logger.info("✓ Wrote discovery run results (v2): %s", discovery_path)
+    except Exception as exc:
+        logger.error("Failed to write discovery run results (v2): %s", exc)
+        raise
 
     _log_cli_run_summary(
         logger,

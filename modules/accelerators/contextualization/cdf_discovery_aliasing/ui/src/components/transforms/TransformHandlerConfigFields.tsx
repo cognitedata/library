@@ -1,4 +1,9 @@
+import { useEffect, useState } from "react";
 import type { MessageKey } from "../../i18n/types";
+import {
+  formatSplitJoinIndexes,
+  parseSplitJoinIndexes,
+} from "../../utils/commaDelimited";
 import type { DiscoveryTransformHandlerId } from "../flow/handlerRegistry";
 
 type TFn = (key: MessageKey, vars?: Record<string, string | number>) => string;
@@ -61,7 +66,7 @@ function SplitDelimiterFields({
               delimiter_regex: e.target.value.trim() || undefined,
             })
           }
-          placeholder="[./_-]+"
+          placeholder="[-./_:]+"
           spellCheck={false}
         />
       </label>
@@ -86,7 +91,7 @@ function SplitDelimiterFields({
               .filter(Boolean);
             patch({ delimiters: delimiters.length ? delimiters : undefined });
           }}
-          placeholder="., /, -, _"
+          placeholder="., /, -, _, :"
           spellCheck={false}
         />
       </label>
@@ -122,6 +127,57 @@ function readSamples(block: Record<string, unknown>): string[] {
   return mapped.length ? mapped : [""];
 }
 
+function SplitJoinIndexesField({
+  block,
+  patch,
+  t,
+}: {
+  block: Record<string, unknown>;
+  patch: (p: Record<string, unknown>) => void;
+  t: TFn;
+}) {
+  const serialized = formatSplitJoinIndexes(block.indexes);
+  const [draft, setDraft] = useState(serialized);
+
+  useEffect(() => {
+    setDraft(serialized);
+  }, [serialized]);
+
+  const commit = (raw: string) => {
+    const indexes = parseSplitJoinIndexes(raw);
+    if (indexes) {
+      patch({ indexes, template: undefined });
+      setDraft(formatSplitJoinIndexes(indexes));
+    } else {
+      patch({ indexes: undefined });
+      setDraft(raw.trim());
+    }
+  };
+
+  return (
+    <>
+      <label className="kea-label kea-label--block" style={{ marginTop: "0.5rem" }}>
+        {t("transforms.elt.splitJoinIndexes")}
+        <input
+          className="kea-input"
+          style={{ marginTop: "0.35rem" }}
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={() => commit(draft)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") commit(draft);
+          }}
+          placeholder="3, 4"
+          spellCheck={false}
+        />
+      </label>
+      <p className="kea-hint" style={{ marginTop: "0.25rem" }}>
+        {t("transforms.elt.splitJoinIndexesHint")}
+      </p>
+    </>
+  );
+}
+
 export function TransformHandlerConfigFields({
   handler,
   block,
@@ -149,8 +205,8 @@ export function TransformHandlerConfigFields({
         {patterns.map((row, i) => (
           <div
             key={i}
-            className="kea-filter-row"
-            style={{ gridTemplateColumns: "1fr 1fr auto", alignItems: "end", marginBottom: "0.35rem" }}
+            className="kea-filter-row kea-filter-row--field-pair kea-filter-row--align-end"
+            style={{ marginBottom: "0.35rem" }}
           >
             <label className="kea-label">
               {t("transforms.handlerFields.pattern")}
@@ -242,8 +298,8 @@ export function TransformHandlerConfigFields({
         {pairs.map((row, i) => (
           <div
             key={i}
-            className="kea-filter-row"
-            style={{ gridTemplateColumns: "1fr 1fr auto", alignItems: "end", marginBottom: "0.35rem" }}
+            className="kea-filter-row kea-filter-row--field-pair kea-filter-row--align-end"
+            style={{ marginBottom: "0.35rem" }}
           >
             <label className="kea-label">
               {t("transforms.handlerFields.from")}
@@ -386,7 +442,8 @@ export function TransformHandlerConfigFields({
   }
 
   if (handler === "split_join") {
-    const indexesRaw = Array.isArray(block.indexes) ? block.indexes.join(", ") : "";
+    const usingIndexes =
+      parseSplitJoinIndexes(formatSplitJoinIndexes(block.indexes)) !== undefined;
     return (
       <div className="kea-handler-fields">
         <SplitDelimiterFields block={block} patch={patch} t={t} literalDefault="-" />
@@ -395,8 +452,16 @@ export function TransformHandlerConfigFields({
           <input
             className="kea-input"
             style={{ marginTop: "0.35rem" }}
-            value={String(block.template ?? "")}
-            onChange={(e) => patch({ template: e.target.value || undefined })}
+            value={usingIndexes ? "" : String(block.template ?? "")}
+            disabled={usingIndexes}
+            onChange={(e) => {
+              const template = e.target.value.trim();
+              if (template) {
+                patch({ template, indexes: undefined });
+              } else {
+                patch({ template: undefined });
+              }
+            }}
             placeholder="{3}-{4}"
             spellCheck={false}
           />
@@ -404,30 +469,7 @@ export function TransformHandlerConfigFields({
         <p className="kea-hint" style={{ marginTop: "0.25rem" }}>
           {t("transforms.elt.splitJoinTemplateHint")}
         </p>
-        <label className="kea-label kea-label--block" style={{ marginTop: "0.5rem" }}>
-          {t("transforms.elt.splitJoinIndexes")}
-          <input
-            className="kea-input"
-            style={{ marginTop: "0.35rem" }}
-            value={indexesRaw}
-            onChange={(e) => {
-              const raw = e.target.value.trim();
-              if (!raw) {
-                patch({ indexes: undefined });
-                return;
-              }
-              const indexes = raw
-                .split(/[,;\s]+/)
-                .map((s) => s.trim())
-                .filter(Boolean)
-                .map((s) => Number(s))
-                .filter((n) => Number.isFinite(n));
-              patch({ indexes: indexes.length ? indexes : undefined });
-            }}
-            placeholder="3, 4"
-            spellCheck={false}
-          />
-        </label>
+        <SplitJoinIndexesField block={block} patch={patch} t={t} />
         <label className="kea-label kea-label--block" style={{ marginTop: "0.5rem" }}>
           {t("transforms.elt.splitJoinJoin")}
           <input
@@ -439,9 +481,6 @@ export function TransformHandlerConfigFields({
             spellCheck={false}
           />
         </label>
-        <p className="kea-hint" style={{ marginTop: "0.25rem" }}>
-          {t("transforms.elt.splitJoinIndexesHint")}
-        </p>
       </div>
     );
   }
@@ -624,8 +663,8 @@ export function TransformHandlerConfigFields({
         {samples.map((row, i) => (
           <div
             key={i}
-            className="kea-filter-row"
-            style={{ gridTemplateColumns: "1fr auto", alignItems: "end", marginBottom: "0.35rem" }}
+            className="kea-filter-row kea-filter-row--label-action kea-filter-row--align-end"
+            style={{ marginBottom: "0.35rem" }}
           >
             <label className="kea-label">
               {t("transforms.handlerFields.variant")}
@@ -723,8 +762,8 @@ export function TransformHandlerConfigFields({
       {variants.map((row, i) => (
         <div
           key={i}
-          className="kea-filter-row"
-          style={{ gridTemplateColumns: "1fr auto", alignItems: "end", marginBottom: "0.35rem" }}
+          className="kea-filter-row kea-filter-row--label-action kea-filter-row--align-end"
+          style={{ marginBottom: "0.35rem" }}
         >
           <label className="kea-label">
             {t("transforms.handlerFields.variant")}

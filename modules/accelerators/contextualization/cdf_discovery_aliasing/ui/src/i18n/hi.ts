@@ -109,6 +109,7 @@ export const hi: Messages = {
   "run.needTriggerScope":
     "उस स्कोप के लिए तैनाती और CDF पर चलाना चालू करने हेतु साइडबार में workflows/<scope>/ के अंतर्गत WorkflowTrigger फ़ाइल चुनें।",
   "run.outputPlaceholder": "पाइपलाइन आउटपुट यहाँ दिखता है।",
+  "run.savedBeforeLocalRun": "Saved scope canvas to disk before local run (module.py run reads workflow.local.config.yaml, not unsaved UI state).",
   "run.localRunExitLine": "[स्थानीय चलान] exit_code={code}",
   "run.localTaskStart": "▶ शुरू {functionId} (कार्य {taskId}){nodeSuffix}",
   "run.localTaskEnd": "✓ समाप्त {functionId} (कार्य {taskId}){nodeSuffix}",
@@ -645,6 +646,15 @@ export const hi: Messages = {
   "validationEditor.orderSetsPriority":
     "सूची क्रम मूल्यांकन क्रम निर्धारित करता है। कार्ड खींचें या ↑ / ↓ (संख्यात्मक प्राथमिकता अभी भी लागू जब मौजूद)।",
   "validationEditor.rule.addRule": "नियम जोड़ें",
+  "pipelineSteps.executionMode": "Execution mode",
+  "pipelineSteps.modeOrdered": "Ordered (sequential)",
+  "pipelineSteps.modeParallel": "Parallel (concurrent)",
+  "pipelineSteps.addStep": "Add step",
+  "pipelineSteps.validationStepsTitle": "Validation steps",
+  "pipelineSteps.validationStepsHint": "Inline validation steps on this node.",
+  "pipelineSteps.transformStepsTitle": "Transform steps",
+  "pipelineSteps.transformStepsHint": "Multi-step transform pipeline.",
+  "pipelineSteps.useMultiStep": "Use multi-step pipeline",
   "validationEditor.advancedYaml": "सत्यापन YAML के रूप में संपादित करें (उन्नत)",
   "validationEditor.rulesYamlInvalidMerge":
     "नियम YAML अमान्य है; इस कॉन्फ़िगरेशन से अंतिम सहेजे नियमों का उपयोग करके मिलाया गया।",
@@ -787,7 +797,11 @@ export const hi: Messages = {
   "flow.discoveryRawQuery": "RAW query",
   "flow.discoveryClassicQuery": "Classic query",
   "flow.discoveryTransform": "Transform",
+  "flow.discoveryMerge": "Merge",
   "flow.discoveryJoin": "Join",
+  "flow.nodeEditorTitleMerges": "Merge (configure tab)",
+  "flow.paletteTooltip.merge": "Merge — fan-in properties from parallel upstream transforms.",
+  "flow.merge.fieldPoliciesHint": "field_policies (required): same schema as save_field_policies.",
   "flow.nodeEditorTitleJoins": "Joins (configure tab)",
   "flow.discoveryValidate": "Validate",
   "flow.discoveryInstanceFilter": "Instance filter",
@@ -815,7 +829,7 @@ export const hi: Messages = {
   "filters.empty": "Add a filter node from the flow palette or connect-end menu.",
   "filters.description": "Description",
   "filters.nodeCombineHint":
-    "Same CDF filter DSL as view query (operators, and/or/not, RANGE, negate). Top-level entries are AND-combined and evaluated on each cohort row by fn_dm_filter (no implicit HasData). Use property_scope view for cohort fields (aliases, discoveredKey) or node for instance metadata (space, externalId). Dot paths such as raw_columns.name are supported on cohort properties.",
+    "Same CDF filter DSL as view query (operators, and/or/not, RANGE, negate). Top-level entries are AND-combined and evaluated on each cohort row by fn_dm_filter (no implicit HasData). Use property_scope view for cohort fields (aliases, indexKey) or node for instance metadata (space, externalId). Dot paths such as raw_columns.key are supported on cohort properties.",
   "flow.discoveryViewSave": "View save",
   "flow.discoveryRawSave": "RAW save",
   "flow.discoveryClassicSave": "Classic save",
@@ -848,6 +862,14 @@ export const hi: Messages = {
   "flow.ctxMenuAutoLayout": "स्वचालित लेआउट",
   "flow.ctxMenuCopy": "Copy",
   "flow.ctxMenuPaste": "Paste",
+  "flow.ctxMenuDisableNode": "Disable node",
+  "flow.ctxMenuEnableNode": "Enable node",
+  "flow.cascadeDisabledNodes":
+    "Also disabled {count} downstream node(s) with no enabled upstream.",
+  "flow.cascadeEnabledNodes":
+    "Also re-enabled {count} downstream node(s) that were auto-disabled.",
+  "flow.inspectorNodeEnabled": "Enabled in workflow",
+  "flow.inspectorNodeEnabledHint": "When off, this step stays on the canvas but is skipped when compiling the workflow for local runs and CDF deploy.",
   "flow.ctxMenuRemoveNode": "नोड हटाएँ",
   "flow.confirmSubgraphDeleteLift":
     "इस सबग्राफ में आंतरिक वर्कफ़्लो चरण हैं।\n\nठीक — उन्हें मूल कैनवास पर ले जाएँ और सबग्राफ फ़्रेम हटाएँ।\nरद्द करें — सबग्राफ हटाएँ और आंतरिक चरण छोड़ दें।",

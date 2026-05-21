@@ -128,7 +128,7 @@ The diagram shows the **default** view-query and view-save path. The compiled **
 | `fn_dm_view_query` | DM list → discovery RAW cohort (`RUN_ID`). |
 | `fn_dm_raw_query` | RAW-backed cohort query → sink RAW. |
 | `fn_dm_classic_query` | Classic resource cohort query → sink RAW. |
-| `fn_dm_transform` | Transform / alias expansion on RAW payloads. |
+| `fn_dm_transform` | Transform / alias expansion on RAW payloads (**cumulative** by default: read–merge–write on inter-node RAW; per-step `output_mode` defaults to `append`; opt out with `input_mode: replace` or `output_mode: overwrite`). |
 | `fn_dm_validate` | Validation + confidence on RAW payloads. |
 | `fn_dm_join` | Merge two predecessor cohort RAW streams. |
 | `fn_dm_inverted_index` | Inverted FK/document index RAW (optional branch). |

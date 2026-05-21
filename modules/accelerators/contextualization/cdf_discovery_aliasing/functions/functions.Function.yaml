@@ -93,6 +93,19 @@
   runtime: 'py311'
   functionPath: 'handler.py'
 
+- name: 'dm:context:discovery:merge'
+  externalId: 'fn_dm_merge'
+  dataSetExternalId: 'ds_discovery_aliasing'
+  owner: 'Anonymous'
+  description: 'Discovery merge — N-way cohort property fan-in → merged sink RAW'
+  metadata:
+    version: '{{key_extraction_function_version}}'
+  envVars:
+    ENV_TYPE: '${CDF_BUILD_TYPE}'
+    CDF_ENV: '${CDF_ENVIRON}'
+  runtime: 'py311'
+  functionPath: 'handler.py'
+
 - name: 'dm:context:discovery:join'
   externalId: 'fn_dm_join'
   dataSetExternalId: 'ds_discovery_aliasing'

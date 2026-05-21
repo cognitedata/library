@@ -38,16 +38,6 @@ def sample_config() -> Dict[str, Any]:
                 },
             }
         ],
-        "extraction_rules": [
-            {
-                "name": "standard_pump_tag",
-                "description": "Extracts standard pump tags",
-                "handler": "regex",
-                "pattern": r"\bP[-_]?\d{2,4}[A-Z]?\b",
-                "extraction_type": "candidate_key",
-                "source_fields": [{"field_name": "name", "required": True}],
-            }
-        ],
         "aliasing": {
             "rules": [
                 {

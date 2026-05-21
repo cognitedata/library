@@ -60,21 +60,17 @@ def test_view_save_requires_save_fan_in_mode() -> None:
 
 
 @patch("cdf_fn_common.discovery_save_apply.iter_predecessor_raw_locations", return_value=[("db", "src")])
-@patch("cdf_fn_common.discovery_save_apply.iter_inter_node_raw_rows_for_filter_run")
-def test_view_save_dry_run_counts_without_apply(
-    mock_iter_raw: MagicMock, _mock_pred: MagicMock
-) -> None:
+@patch("cdf_fn_common.discovery_save_apply._iter_entity_rows_for_save")
+def test_view_save_dry_run_counts_without_apply(mock_iter_rows: MagicMock, _mock_pred: MagicMock) -> None:
     run_id = "run_test_1"
-    row = MagicMock()
-    row.key = "rk"
-    row.columns = {
+    cols = {
         "RECORD_KIND": "entity",
         "RUN_ID": run_id,
         "NODE_INSTANCE_ID": "sp:11111111-1111-1111-1111-111111111111",
         "EXTERNAL_ID": "ext1",
         "PROPERTIES_JSON": json.dumps({"name": "N", "description": "D"}),
     }
-    mock_iter_raw.return_value = [row]
+    mock_iter_rows.return_value = [(0, cols, {"name": "N", "description": "D"})]
     client = MagicMock()
     data = {
         "task_id": "save1",
@@ -95,14 +91,12 @@ def test_view_save_dry_run_counts_without_apply(
 
 
 @patch("cdf_fn_common.discovery_save_apply.iter_predecessor_raw_locations", return_value=[("db", "src")])
-@patch("cdf_fn_common.discovery_save_apply.iter_inter_node_raw_rows_for_filter_run")
+@patch("cdf_fn_common.discovery_save_apply._iter_entity_rows_for_save")
 def test_view_save_merge_per_instance_two_rows_one_instance(
-    mock_iter_raw: MagicMock, _mock_pred: MagicMock
+    mock_iter_rows: MagicMock, _mock_pred: MagicMock
 ) -> None:
     run_id = "run_m_1"
-    r1 = MagicMock()
-    r1.key = "k1"
-    r1.columns = {
+    c1 = {
         "RECORD_KIND": "entity",
         "RUN_ID": run_id,
         "UPDATED_AT": "2020-01-01T00:00:00Z",
@@ -110,9 +104,7 @@ def test_view_save_merge_per_instance_two_rows_one_instance(
         "EXTERNAL_ID": "ext1",
         "PROPERTIES_JSON": json.dumps({"aliases": ["a"], "name": "old"}),
     }
-    r2 = MagicMock()
-    r2.key = "k2"
-    r2.columns = {
+    c2 = {
         "RECORD_KIND": "entity",
         "RUN_ID": run_id,
         "UPDATED_AT": "2021-01-01T00:00:00Z",
@@ -120,7 +112,10 @@ def test_view_save_merge_per_instance_two_rows_one_instance(
         "EXTERNAL_ID": "ext1",
         "PROPERTIES_JSON": json.dumps({"aliases": ["b"], "name": "newer"}),
     }
-    mock_iter_raw.return_value = [r1, r2]
+    mock_iter_rows.return_value = [
+        (0, c1, {"aliases": ["a"], "name": "old"}),
+        (0, c2, {"aliases": ["b"], "name": "newer"}),
+    ]
     client = MagicMock()
     data = {
         "task_id": "save_m",
@@ -151,21 +146,19 @@ def test_view_save_merge_per_instance_two_rows_one_instance(
 
 
 @patch("cdf_fn_common.discovery_save_apply.iter_predecessor_raw_locations", return_value=[("db", "src")])
-@patch("cdf_fn_common.discovery_save_apply.iter_inter_node_raw_rows_for_filter_run")
+@patch("cdf_fn_common.discovery_save_apply._iter_entity_rows_for_save")
 def test_view_save_resolves_space_from_node_external_id_and_props(
-    mock_iter_raw: MagicMock, _mock_pred: MagicMock
+    mock_iter_rows: MagicMock, _mock_pred: MagicMock
 ) -> None:
     run_id = "run_ext_1"
-    row = MagicMock()
-    row.key = "rk"
-    row.columns = {
+    cols = {
         "RECORD_KIND": "entity",
         "RUN_ID": run_id,
         "NODE_INSTANCE_ID": "my-space:asset-ext-id",
         "EXTERNAL_ID": "asset-ext-id",
         "PROPERTIES_JSON": json.dumps({"aliases": ["x"], "instance_space": "my-space"}),
     }
-    mock_iter_raw.return_value = [row]
+    mock_iter_rows.return_value = [(0, cols, {"aliases": ["x"], "instance_space": "my-space"})]
     client = MagicMock()
     data = {
         "task_id": "save1",
@@ -193,21 +186,19 @@ def test_view_save_resolves_space_from_node_external_id_and_props(
 
 
 @patch("cdf_fn_common.discovery_save_apply.iter_predecessor_raw_locations", return_value=[("db", "src")])
-@patch("cdf_fn_common.discovery_save_apply.iter_inter_node_raw_rows_for_filter_run")
+@patch("cdf_fn_common.discovery_save_apply._iter_entity_rows_for_save")
 def test_view_save_coerces_string_aliases_to_list(
-    mock_iter_raw: MagicMock, _mock_pred: MagicMock
+    mock_iter_rows: MagicMock, _mock_pred: MagicMock
 ) -> None:
     run_id = "run_str_aliases"
-    row = MagicMock()
-    row.key = "rk"
-    row.columns = {
+    cols = {
         "RECORD_KIND": "entity",
         "RUN_ID": run_id,
         "NODE_INSTANCE_ID": "sp:11111111-1111-1111-1111-111111111111",
         "EXTERNAL_ID": "ext1",
         "PROPERTIES_JSON": json.dumps({"aliases": "TAG-1", "instance_space": "sp"}),
     }
-    mock_iter_raw.return_value = [row]
+    mock_iter_rows.return_value = [(0, cols, {"aliases": "TAG-1", "instance_space": "sp"})]
     client = MagicMock()
     data = {
         "task_id": "save1",
@@ -234,20 +225,16 @@ def test_view_save_coerces_string_aliases_to_list(
 
 
 @patch("cdf_fn_common.discovery_save_apply.iter_predecessor_raw_locations", return_value=[("db", "src")])
-@patch("cdf_fn_common.discovery_save_apply.iter_inter_node_raw_rows_for_filter_run")
-def test_classic_save_respects_fan_in(
-    mock_iter_raw: MagicMock, _mock_pred: MagicMock
-) -> None:
+@patch("cdf_fn_common.discovery_save_apply._iter_entity_rows_for_save")
+def test_classic_save_respects_fan_in(mock_iter_rows: MagicMock, _mock_pred: MagicMock) -> None:
     run_id = "run_cl_1"
-    row = MagicMock()
-    row.key = "rk"
-    row.columns = {
+    cols = {
         "RECORD_KIND": "entity",
         "RUN_ID": run_id,
         "EXTERNAL_ID": "asset_ext",
         "PROPERTIES_JSON": json.dumps({"name": "FullName", "description": "OnlyDesc"}),
     }
-    mock_iter_raw.return_value = [row]
+    mock_iter_rows.return_value = [(0, cols, {"name": "FullName", "description": "OnlyDesc"})]
     client = MagicMock()
     data = {
         "task_id": "csave1",

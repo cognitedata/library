@@ -14,21 +14,21 @@ describe("liftSubgraphInnerToParentWorkflow", () => {
     };
     const a: Node = {
       id: "a",
-      type: "keaExtraction",
+      type: "keaTransform",
       position: { x: 100, y: 200 },
       data: { label: "A" },
       selected: true,
     };
     const b: Node = {
       id: "b",
-      type: "keaAliasing",
+      type: "keaTransform",
       position: { x: 350, y: 250 },
       data: { label: "B" },
       selected: true,
     };
     const c: Node = {
       id: "c",
-      type: "keaExtraction",
+      type: "keaTransform",
       position: { x: 520, y: 200 },
       data: { label: "C" },
       selected: false,

@@ -17,8 +17,6 @@ export type CanvasNodeRfType =
   | "keaStart"
   | "keaEnd"
   | "keaSourceView"
-  | "keaExtraction"
-  | "keaAliasing"
   | "keaDiscoveryValidate"
   | "keaDiscoveryInstanceFilter"
   | "keaDiscoveryConfidenceFilter"
@@ -26,6 +24,7 @@ export type CanvasNodeRfType =
   | "keaRawQuery"
   | "keaClassicQuery"
   | "keaTransform"
+  | "keaMerge"
   | "keaJoin"
   | "keaViewSave"
   | "keaRawSave"
@@ -136,8 +135,6 @@ export type CanvasNodeKind =
   | "start"
   | "end"
   | "source_view"
-  | "extraction"
-  | "aliasing"
   | "validation"
   | "instance_filter"
   | "confidence_filter"
@@ -145,6 +142,7 @@ export type CanvasNodeKind =
   | "query_raw"
   | "query_classic"
   | "transform"
+  | "merge"
   | "join"
   | "save_view"
   | "save_raw"
@@ -165,39 +163,17 @@ export interface CanvasNodeRef {
   view_space?: string;
   view_external_id?: string;
   view_version?: string;
-  extraction_rule_name?: string;
-  extraction_rule_id?: string;
-  aliasing_rule_name?: string;
-  /** Match-validation node for `key_extraction.config.data.validation` (not a single extraction rule). */
   extraction_global_validation?: boolean;
-  /** Match-validation node for `aliasing.config.data.validation`. */
   aliasing_global_validation?: boolean;
-  /**
-   * Match-rule node is shared by multiple extraction rules with identical validation lists (canvas seed).
-   */
-  shared_extraction_validation_chain?: boolean;
-  /** Extraction rule names participating in a shared chain (sorted). */
-  extraction_rule_names?: string[];
-  /**
-   * Match-rule node is shared by multiple aliasing rules with identical validation lists (canvas seed).
-   */
-  shared_aliasing_validation_chain?: boolean;
-  /** Aliasing rule names participating in a shared chain (sorted). */
-  aliasing_rule_names?: string[];
-  /**
-   * Match-rule node is shared by multiple source views with identical validation lists (canvas seed).
-   */
   shared_source_view_validation_chain?: boolean;
-  /** Source view indices participating in a shared chain (sorted). */
   source_view_indices?: number[];
-  /** Stable id segment tying a shared chain to its ordered rule-name list (seed / layout). */
   validation_list_key?: string;
 }
 
 export interface WorkflowCanvasNodeData {
   label?: string;
   /** extraction | aliasing | annotation | persistence | incremental — which handler family */
-  handler_family?: "extraction" | "aliasing" | "annotation" | "persistence" | "incremental" | "discovery";
+  handler_family?: "annotation" | "persistence" | "incremental" | "discovery";
   /** View save vs inverted index (layout / compile hints) */
   persistence_step?: "alias_writeback" | "inverted_index";
   /** View query — cohort rows and RUN_ID before transform when incremental is on */
@@ -225,8 +201,8 @@ export interface WorkflowCanvasNodeData {
   /** Name of the `validation_rules` entry (paired with ref.* parent). */
   validation_rule_name?: string;
   /**
-   * Optional index for auto-layout: within one graph layer, ``keaAliasing`` nodes sort by this
-   * (ascending) instead of id-only, so pipeline / seed order survives ``ids.sort()`` in the layout pass.
+   * Optional index for auto-layout: within one graph layer, transform nodes sort by this
+   * (ascending) instead of id-only.
    */
   pipeline_rank?: number;
   /** Named subgraph ports; drives frame handles + internal hub handles. */
@@ -250,6 +226,10 @@ export interface WorkflowCanvasNodeData {
    * Compiler merges with ``persistence_profiles`` and scope defaults into IR ``persistence``.
    */
   persistence_config?: PersistenceConfig;
+  /** React Flow mirror of node-level ``enabled`` (not persisted in scope YAML). */
+  canvas_node_enabled?: boolean;
+  /** React Flow mirror of ``cascade_disabled`` (auto-disabled downstream; not in ``data.config``). */
+  canvas_node_cascade_disabled?: boolean;
 }
 
 export interface WorkflowCanvasNode {
@@ -257,10 +237,33 @@ export interface WorkflowCanvasNode {
   kind: CanvasNodeKind;
   position: { x: number; y: number };
   data: WorkflowCanvasNodeData;
+  /**
+   * When false, the node stays on the canvas but is omitted from compiled workflow IR.
+   * Distinct from ``data.config.enabled`` on transform/validation handlers.
+   */
+  enabled?: boolean;
+  /**
+   * When true with ``enabled: false``, the node was disabled automatically because upstream
+   * executables were turned off (re-enabled when upstream is restored).
+   */
+  cascade_disabled?: boolean;
   /** Optional React Flow parent id when serializing nested groups (subgraph inner graph uses inner_canvas, not parent_id). */
   parent_id?: string | null;
   /** Optional persisted frame size (e.g. for future layout hints). */
   size?: { width: number; height: number };
+}
+
+/** True when the node participates in workflow compile (default true). */
+export function isWorkflowCanvasNodeEnabled(
+  node: Pick<WorkflowCanvasNode, "enabled"> | { enabled?: boolean }
+): boolean {
+  return node.enabled !== false;
+}
+
+export function isWorkflowCanvasNodeCascadeDisabled(
+  node: Pick<WorkflowCanvasNode, "cascade_disabled"> | { cascade_disabled?: boolean }
+): boolean {
+  return node.cascade_disabled === true;
 }
 
 export interface WorkflowCanvasEdge {
@@ -332,13 +335,6 @@ function normalizeOneWorkflowCanvasEdge(
         target_handle: tgtSubIn ? e.target_handle : "in",
       };
     }
-    if (src.kind === "aliasing" && tgt.kind === "aliasing") {
-      return {
-        ...e,
-        source_handle: srcSubOut ? e.source_handle : "out",
-        target_handle: tgtSubIn ? e.target_handle : "in",
-      };
-    }
     if (src.kind === "transform" && tgt.kind === "transform") {
       return {
         ...e,
@@ -372,22 +368,6 @@ function normalizeOneWorkflowCanvasEdge(
 
   if (k !== "data") return e;
 
-  if (src.kind === "extraction" && tgt.kind === "match_validation_extraction" && !srcSubOut) {
-    if (!sh0 || sh0 === "out") {
-      return { ...e, source_handle: "validation", target_handle: th0 || "in" };
-    }
-    if (!th0) {
-      return { ...e, target_handle: "in" };
-    }
-  }
-  if (src.kind === "aliasing" && tgt.kind === "match_validation_aliasing" && !srcSubOut) {
-    if (!sh0 || sh0 === "out") {
-      return { ...e, source_handle: "validation", target_handle: th0 || "in" };
-    }
-    if (!th0) {
-      return { ...e, target_handle: "in" };
-    }
-  }
   if (src.kind === "source_view" && tgt.kind === "match_validation_source_view") {
     if (!sh0 || sh0 === "validation") {
       return { ...e, source_handle: "out", target_handle: th0 || "in" };
@@ -405,6 +385,7 @@ function normalizeOneWorkflowCanvasEdge(
     "query_raw",
     "query_classic",
     "transform",
+    "merge",
     "join",
     "validation",
     "instance_filter",
@@ -446,8 +427,6 @@ function normalizeOneWorkflowCanvasEdge(
 
 function isDataPipelineStageKind(k: CanvasNodeKind): boolean {
   return (
-    k === "extraction" ||
-    k === "aliasing" ||
     k === "validation" ||
     k === "instance_filter" ||
     k === "confidence_filter" ||
@@ -458,6 +437,7 @@ function isDataPipelineStageKind(k: CanvasNodeKind): boolean {
     k === "query_raw" ||
     k === "query_classic" ||
     k === "transform" ||
+    k === "merge" ||
     k === "join" ||
     k === "alias_persistence" ||
     k === "inverted_index"
@@ -482,17 +462,11 @@ function canvasTargetWantsDefaultIn(tk: CanvasNodeKind): boolean {
 
 function defaultCanvasDataEdgeUsesOutIn(sk: CanvasNodeKind, tk: CanvasNodeKind): boolean {
   if (tk === "join") return false;
-  if (sk === "extraction" && tk === "match_validation_extraction") return false;
-  if (sk === "aliasing" && tk === "match_validation_aliasing") return false;
   if (sk === "source_view" && tk === "match_validation_source_view") return false;
 
-  if (sk === "start" && (tk === "source_view" || tk === "extraction")) return true;
+  if (sk === "start" && tk === "source_view") return true;
   if (sk === "start" && (tk === "query_view" || tk === "query_raw" || tk === "query_classic")) return true;
-  if (sk === "source_view" && tk === "extraction") return true;
   if (sk === "source_view" && tk === "query_view") return true;
-  if (sk === "extraction" && tk === "aliasing") return true;
-  if (sk === "extraction" && tk === "end") return true;
-  if (sk === "aliasing" && tk === "end") return true;
   if (isDataPipelineStageKind(sk) && isDataPipelineStageKind(tk)) return true;
   if (isDataPipelineStageKind(sk) && tk === "end") return true;
   if (isMatchValidationCanvasKind(sk) && tk === "end") return true;
@@ -527,13 +501,15 @@ export function parseWorkflowCanvasDocument(raw: unknown): WorkflowCanvasDocumen
       const node = n as Record<string, unknown>;
       const id = String(node.id ?? "").trim();
       if (!id) continue;
-      const kind = node.kind as CanvasNodeKind | undefined;
+      const kindRaw = node.kind as CanvasNodeKind | undefined;
+      const kind = kindRaw;
+      if (kindRaw === "extraction" || kindRaw === "aliasing") {
+        continue;
+      }
       if (
         kind !== "start" &&
         kind !== "end" &&
         kind !== "source_view" &&
-        kind !== "extraction" &&
-        kind !== "aliasing" &&
         kind !== "validation" &&
         kind !== "instance_filter" &&
         kind !== "confidence_filter" &&
@@ -541,6 +517,7 @@ export function parseWorkflowCanvasDocument(raw: unknown): WorkflowCanvasDocumen
         kind !== "query_raw" &&
         kind !== "query_classic" &&
         kind !== "transform" &&
+        kind !== "merge" &&
         kind !== "join" &&
         kind !== "save_view" &&
         kind !== "save_raw" &&
@@ -593,7 +570,13 @@ export function parseWorkflowCanvasDocument(raw: unknown): WorkflowCanvasDocumen
         }
       }
 
+      const enabledRaw = node.enabled;
+      const enabled = enabledRaw === false ? false : undefined;
+      const cascadeRaw = node.cascade_disabled;
+      const cascade_disabled = cascadeRaw === true ? true : undefined;
       const entry: WorkflowCanvasNode = { id, kind, position, data: entryData };
+      if (enabled === false) entry.enabled = false;
+      if (cascade_disabled === true) entry.cascade_disabled = true;
       if (parent_id) entry.parent_id = parent_id;
       if (size) entry.size = size;
       nodes.push(entry);
@@ -638,14 +621,6 @@ export function parseWorkflowCanvasDocument(raw: unknown): WorkflowCanvasDocumen
   const edgesNormalized = filteredEdges.map((e) => {
     const src = byId.get(e.source);
     const sh = e.source_handle != null ? String(e.source_handle) : "";
-    /** Strip legacy mistaken ``out_*`` ids; keep ``out__`` subgraph port sources. */
-    const legacyMalformedExtractionOut =
-      src?.kind === "extraction" &&
-      sh.startsWith("out_") &&
-      !sh.startsWith(SUBFLOW_PORT_HANDLE_OUT_PREFIX);
-    if (legacyMalformedExtractionOut) {
-      return { ...e, source_handle: undefined };
-    }
     return e;
   });
   const doc: WorkflowCanvasDocument = {
@@ -666,10 +641,6 @@ export function kindToRfType(kind: CanvasNodeKind): CanvasNodeRfType {
       return "keaEnd";
     case "source_view":
       return "keaSourceView";
-    case "extraction":
-      return "keaExtraction";
-    case "aliasing":
-      return "keaAliasing";
     case "validation":
       return "keaDiscoveryValidate";
     case "instance_filter":
@@ -684,6 +655,8 @@ export function kindToRfType(kind: CanvasNodeKind): CanvasNodeRfType {
       return "keaClassicQuery";
     case "transform":
       return "keaTransform";
+    case "merge":
+      return "keaMerge";
     case "join":
       return "keaJoin";
     case "save_view":
@@ -709,7 +682,7 @@ export function kindToRfType(kind: CanvasNodeKind): CanvasNodeRfType {
     case "subgraph":
       return "keaSubgraph";
     default:
-      return "keaExtraction";
+      return "keaTransform";
   }
 }
 
@@ -721,10 +694,6 @@ export function rfTypeToKind(t: string | undefined): CanvasNodeKind {
       return "end";
     case "keaSourceView":
       return "source_view";
-    case "keaExtraction":
-      return "extraction";
-    case "keaAliasing":
-      return "aliasing";
     case "keaDiscoveryValidate":
       return "validation";
     case "keaDiscoveryInstanceFilter":
@@ -739,6 +708,8 @@ export function rfTypeToKind(t: string | undefined): CanvasNodeKind {
       return "query_classic";
     case "keaTransform":
       return "transform";
+    case "keaMerge":
+      return "merge";
     case "keaJoin":
       return "join";
     case "keaViewSave":
@@ -764,6 +735,6 @@ export function rfTypeToKind(t: string | undefined): CanvasNodeKind {
     case "keaSubgraph":
       return "subgraph";
     default:
-      return "extraction";
+      return "transform";
   }
 }

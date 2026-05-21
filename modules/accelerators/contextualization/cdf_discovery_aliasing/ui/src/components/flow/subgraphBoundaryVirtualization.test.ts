@@ -8,10 +8,10 @@ import type { WorkflowCanvasDocument } from "../../types/workflowCanvas";
 import { flattenSubgraphsForScopeSync } from "./subgraphBoundaryVirtualization";
 
 describe("flattenSubgraphsForScopeSync", () => {
-  it("hoists inner aliasing so outer data edges reach prefixed inner node ids", () => {
+  it("hoists inner transform so outer data edges reach prefixed inner node ids", () => {
     const hubInId = "hub_in_1";
     const hubOutId = "hub_out_1";
-    const innerAlId = "inner_al";
+    const innerTrId = "inner_tr";
     const sgId = "subgraph_box";
 
     const inner: WorkflowCanvasDocument = {
@@ -20,17 +20,17 @@ describe("flattenSubgraphsForScopeSync", () => {
         { id: hubInId, kind: "subflow_graph_in", position: { x: 0, y: 0 }, data: { label: "In" } },
         { id: hubOutId, kind: "subflow_graph_out", position: { x: 400, y: 0 }, data: { label: "Out" } },
         {
-          id: innerAlId,
-          kind: "aliasing",
+          id: innerTrId,
+          kind: "transform",
           position: { x: 120, y: 0 },
-          data: { label: "inner_al", ref: { aliasing_rule_name: "inner_al" } },
+          data: { label: "inner_tr", config: { description: "t" } },
         },
       ],
       edges: [
         {
-          id: "e_hub_to_al",
+          id: "e_hub_to_tr",
           source: hubInId,
-          target: innerAlId,
+          target: innerTrId,
           kind: "data",
           source_handle: subflowSourceHandleForPort("in"),
           target_handle: "in",
@@ -41,7 +41,7 @@ describe("flattenSubgraphsForScopeSync", () => {
     const doc: WorkflowCanvasDocument = {
       schemaVersion: WORKFLOW_CANVAS_SCHEMA_VERSION,
       nodes: [
-        { id: "ext_o", kind: "extraction", position: { x: 0, y: 0 }, data: { ref: { extraction_rule_name: "r" } } },
+        { id: "q_o", kind: "query_view", position: { x: 0, y: 0 }, data: { config: { description: "q" } } },
         {
           id: sgId,
           kind: "subgraph",
@@ -56,8 +56,8 @@ describe("flattenSubgraphsForScopeSync", () => {
       ],
       edges: [
         {
-          id: "e_ext_to_sg",
-          source: "ext_o",
+          id: "e_q_to_sg",
+          source: "q_o",
           target: sgId,
           kind: "data",
           source_handle: "out",
@@ -68,13 +68,11 @@ describe("flattenSubgraphsForScopeSync", () => {
 
     const flat = flattenSubgraphsForScopeSync(doc);
     expect(flat.nodes.some((n) => n.kind === "subgraph")).toBe(false);
-    const liftedAl = flat.nodes.find((n) => n.kind === "aliasing");
-    expect(liftedAl).toBeDefined();
-    expect(liftedAl!.id.startsWith(`__sg_`)).toBe(true);
+    const liftedTr = flat.nodes.find((n) => n.kind === "transform");
+    expect(liftedTr).toBeDefined();
+    expect(liftedTr!.id.startsWith(`__sg_`)).toBe(true);
     expect(
-      flat.edges.some(
-        (e) => e.kind === "data" && e.source === "ext_o" && e.target === liftedAl!.id
-      )
+      flat.edges.some((e) => e.kind === "data" && e.source === "q_o" && e.target === liftedTr!.id)
     ).toBe(true);
   });
 });

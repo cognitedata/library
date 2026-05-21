@@ -8,7 +8,12 @@ from datetime import datetime, timezone
 from typing import Any, DefaultDict, Dict, List, Mapping, MutableMapping, Optional, Tuple
 
 from .cdf_utils import create_table_if_not_exists
-from .discovery_cohort import _props_from_row_columns, iter_predecessor_raw_locations
+from .cohort_storage import require_run_id
+from .discovery_cohort import (
+    _props_from_row_columns,
+    iter_predecessor_instance_props,
+    iter_predecessor_raw_locations,
+)
 from .discovery_validate import _normalize_field_values
 from .discovery_query_shared import (
     ENTITY_TYPE_COLUMN,
@@ -25,7 +30,7 @@ from .discovery_query_shared import (
     _first_nonempty,
     _flush_rows,
 )
-from .incremental_scope import iter_inter_node_raw_rows_for_filter_run, raw_row_columns
+from .incremental_scope import raw_row_columns
 from .raw_upload import RawRowsUploadQueue
 from .task_runtime import merge_compiled_task_into_data
 
@@ -186,8 +191,8 @@ def run_discovery_inverted_index(
     if not client:
         raise ValueError("CogniteClient is required")
 
-    run_id = resolve_run_id(data)
-    filter_run = _first_nonempty(cfg.get("filter_run_id"), run_id)
+    run_id = require_run_id(data)
+    data["run_id"] = run_id
     raw_db, raw_table = resolve_inverted_index_sink(data)
 
     pending: DefaultDict[Tuple[str, str], List[Dict[str, Any]]] = defaultdict(list)
@@ -196,55 +201,38 @@ def run_discovery_inverted_index(
     tokens_indexed = 0
 
     pred_locations = iter_predecessor_raw_locations(data, task_id)
-    for _pred_index, (source_db, source_table) in enumerate(pred_locations):
-        for row in iter_inter_node_raw_rows_for_filter_run(
-            client, source_db, source_table, filter_run or ""
-        ):
-            cols = dict(getattr(row, "columns", None) or {})
-            if cols.get(RECORD_KIND_COLUMN) not in (None, "", RECORD_KIND_ENTITY):
-                continue
-            rows_read += 1
-            props = _props_from_row_columns(cols)
-            inst_space, ext_id, _nid = _instance_identity_from_row(cols, props)
-            if inst_space and ext_id:
-                entities_seen.add((inst_space, ext_id))
+    for cols, props in iter_predecessor_instance_props(client, data, task_id):
+        rows_read += 1
+        inst_space, ext_id, _nid = _instance_identity_from_row(cols, props)
+        if inst_space and ext_id:
+            entities_seen.add((inst_space, ext_id))
 
-            for index_kind, property_name in index_pairs:
-                filtered_tokens = [
-                    (v, c)
-                    for v, c in _normalize_field_values(
-                        props.get(property_name),
-                        initial=1.0,
-                        field=property_name,
-                        parallel_source=props,
+        for index_kind, property_name in index_pairs:
+            filtered_tokens = [
+                (v, c)
+                for v, c in _normalize_field_values(
+                    props.get(property_name),
+                    initial=1.0,
+                    field=property_name,
+                    parallel_source=props,
+                )
+            ]
+            tokens_indexed += len(filtered_tokens)
+            for token, conf in filtered_tokens:
+                norm = normalize_lookup_key(token)
+                if not norm:
+                    continue
+                pending[(index_kind, norm)].append(
+                    _build_posting(
+                        cols=cols,
+                        props=props,
+                        index_kind=index_kind,
+                        source_property=property_name,
+                        token=token,
+                        confidence=conf,
+                        run_id=run_id,
                     )
-                ]
-                if not filtered_tokens and property_name == "discoveredKey":
-                    filtered_tokens = [
-                        (v, c)
-                        for v, c in _normalize_field_values(
-                            props.get("aliases"),
-                            initial=1.0,
-                            field="aliases",
-                            parallel_source=props,
-                        )
-                    ]
-                tokens_indexed += len(filtered_tokens)
-                for token, conf in filtered_tokens:
-                    norm = normalize_lookup_key(token)
-                    if not norm:
-                        continue
-                    pending[(index_kind, norm)].append(
-                        _build_posting(
-                            cols=cols,
-                            props=props,
-                            index_kind=index_kind,
-                            source_property=property_name,
-                            token=token,
-                            confidence=conf,
-                            run_id=run_id,
-                        )
-                    )
+                )
 
     queue = RawRowsUploadQueue(client)
     raw_rows: List[Dict[str, Any]] = []
@@ -273,7 +261,7 @@ def run_discovery_inverted_index(
     if raw_rows:
         create_table_if_not_exists(client, raw_db, raw_table, log)
 
-    _flush_rows(queue, raw_db, raw_table, raw_rows)
+    _flush_rows(queue, raw_db, raw_table, raw_rows, client=client)
 
     index_kinds_configured = {
         kind: sorted({p for k, p in index_pairs if k == kind})

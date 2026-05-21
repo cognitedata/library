@@ -15,7 +15,16 @@ from cognite.client.data_classes import AssetUpdate, FileMetadataUpdate, TimeSer
 from cognite.client.data_classes.data_modeling import NodeApply, NodeOrEdgeData
 from cognite.client.data_classes.data_modeling.ids import ViewId
 
-from .discovery_cohort import _props_from_row_columns, iter_predecessor_raw_locations
+from .cohort_storage import (
+    canvas_node_id_for_task,
+    iter_cohort_entity_rows,
+    predecessor_node_table_locations,
+    require_run_id,
+)
+from .discovery_cohort import (
+    _props_from_row_columns,
+    iter_predecessor_raw_locations,
+)
 from .discovery_query_shared import (
     ENTITY_TYPE_COLUMN,
     EXTERNAL_ID_COLUMN,
@@ -28,12 +37,10 @@ from .discovery_query_shared import (
     VIEW_VERSION_COLUMN,
     build_entity_cohort_row,
     resolve_query_sink,
-    resolve_run_id,
     resolve_task_config,
     _first_nonempty,
     _flush_rows,
 )
-from .incremental_scope import iter_inter_node_raw_rows_for_filter_run
 from .raw_upload import RawRowsUploadQueue
 from .save_merge import (
     FieldPolicy,
@@ -148,15 +155,13 @@ def _iter_entity_rows_for_save(
     client: Any,
     data: Mapping[str, Any],
     task_id: str,
-    filter_run: str,
 ) -> List[Tuple[int, Dict[str, Any], Dict[str, Any]]]:
     """Return list of (pred_index, cols, props_filtered) for entity cohort rows."""
-    pred_locations = iter_predecessor_raw_locations(data, task_id)
     out: List[Tuple[int, Dict[str, Any], Dict[str, Any]]] = []
-    for pred_index, (source_db, source_table) in enumerate(pred_locations):
-        for row in iter_inter_node_raw_rows_for_filter_run(
-            client, source_db, source_table, filter_run or ""
-        ):
+    for pred_index, (source_db, source_table) in enumerate(
+        predecessor_node_table_locations(data, task_id)
+    ):
+        for row in iter_cohort_entity_rows(client, source_db, source_table):
             cols = dict(getattr(row, "columns", None) or {})
             if cols.get(RECORD_KIND_COLUMN) not in (None, "", RECORD_KIND_ENTITY):
                 continue
@@ -228,9 +233,9 @@ def discovery_apply_view_save(
         raise ValueError("save_view requires config.view_external_id")
 
     view_id = ViewId(space=view_space, external_id=view_external_id, version=view_version)
-    run_id = resolve_run_id(data)
+    run_id = require_run_id(data)
+    data["run_id"] = run_id
     task_id = _first_nonempty(data.get("task_id"), fn_external_id)
-    filter_run = _first_nonempty(cfg.get("filter_run_id"), run_id)
     dry_run = bool(data.get("dry_run") or cfg.get("dry_run"))
     fan_mode = str(cfg.get("save_fan_in_mode") or "").strip()
     policy_map = parse_field_policies(cfg)
@@ -243,7 +248,7 @@ def discovery_apply_view_save(
     batch: List[NodeApply] = []
     batch_size = int(cfg.get("apply_batch_size") or 50)
 
-    all_rows = _iter_entity_rows_for_save(client, data, task_id, filter_run or "")
+    all_rows = _iter_entity_rows_for_save(client, data, task_id)
     rows_read = len(all_rows)
 
     def emit_apply(inst_space: str, ext_id: str, props: Mapping[str, Any]) -> None:
@@ -320,7 +325,6 @@ def discovery_apply_view_save(
     }
     if policy_map:
         summary["save_field_policies_count"] = len(policy_map)
-    data["run_id"] = run_id
     return summary
 
 
@@ -335,10 +339,11 @@ def discovery_replicate_raw_save(
     cfg = resolve_task_config(data)
     validate_save_config(cfg, save_kind="raw")
 
-    run_id = resolve_run_id(data)
+    run_id = require_run_id(data)
+    data["run_id"] = run_id
     task_id = _first_nonempty(data.get("task_id"), fn_external_id)
+    writer_canvas = canvas_node_id_for_task(data, task_id)
     sink_db, sink_table = resolve_query_sink(data)
-    filter_run = _first_nonempty(cfg.get("filter_run_id"), run_id)
     fan_mode = str(cfg.get("save_fan_in_mode") or "").strip()
     policy_map = parse_field_policies(cfg)
 
@@ -348,7 +353,7 @@ def discovery_replicate_raw_save(
     rows_read = 0
     rows_written = 0
 
-    all_rows = _iter_entity_rows_for_save(client, data, task_id, filter_run or "")
+    all_rows = _iter_entity_rows_for_save(client, data, task_id)
     rows_read = len(all_rows)
 
     def flush_one(
@@ -357,13 +362,13 @@ def discovery_replicate_raw_save(
     ) -> None:
         nonlocal rows_written, pending
         scope_key = _first_nonempty(cols.get(SCOPE_KEY_COLUMN), "raw_save")
-        nid = _first_nonempty(cols.get(NODE_INSTANCE_ID_COLUMN), row_key)
+        nid = _first_nonempty(cols.get(NODE_INSTANCE_ID_COLUMN))
         ext_id = _first_nonempty(cols.get(EXTERNAL_ID_COLUMN), nid)
         pending.append(
             build_entity_cohort_row(
                 run_id=run_id,
                 scope_key=scope_key,
-                task_id=task_id,
+                canvas_node_id=writer_canvas,
                 query_source="raw_save",
                 node_instance_id=str(nid or ext_id or rows_written),
                 external_id=str(ext_id or nid or rows_written),
@@ -376,7 +381,7 @@ def discovery_replicate_raw_save(
         )
         rows_written += 1
         if len(pending) >= 500:
-            _flush_rows(queue, sink_db, sink_table, pending)
+            _flush_rows(queue, sink_db, sink_table, pending, client=client)
 
     if fan_mode == SAVE_FAN_IN_MERGE:
         grouped: Dict[Tuple[str, str], List[Tuple[Tuple[float, str, int], int, Mapping[str, Any]]]] = {}
@@ -406,7 +411,7 @@ def discovery_replicate_raw_save(
             merged = build_merged_props_for_instance(scored, policy_map)
             flush_one(cols, merged)
 
-    _flush_rows(queue, sink_db, sink_table, pending)
+    _flush_rows(queue, sink_db, sink_table, pending, client=client)
 
     if log and hasattr(log, "info"):
         log.info(
@@ -530,9 +535,9 @@ def discovery_apply_classic_save(
     validate_save_config(cfg, save_kind="classic")
 
     resource_type = _first_nonempty(cfg.get("resource_type"), cfg.get("classic_resource_type"), "assets")
-    run_id = resolve_run_id(data)
+    run_id = require_run_id(data)
+    data["run_id"] = run_id
     task_id = _first_nonempty(data.get("task_id"), fn_external_id)
-    filter_run = _first_nonempty(cfg.get("filter_run_id"), run_id)
     dry_run = bool(data.get("dry_run") or cfg.get("dry_run"))
     fan_mode = str(cfg.get("save_fan_in_mode") or "").strip()
     policy_map = parse_field_policies(cfg)
@@ -542,7 +547,7 @@ def discovery_apply_classic_save(
     updates_applied = 0
     skipped = 0
 
-    all_rows = _iter_entity_rows_for_save(client, data, task_id, filter_run or "")
+    all_rows = _iter_entity_rows_for_save(client, data, task_id)
     rows_read = len(all_rows)
 
     def apply_one(ext_id: str, props: Mapping[str, Any]) -> None:

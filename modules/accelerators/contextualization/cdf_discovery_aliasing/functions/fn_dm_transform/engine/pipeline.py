@@ -39,12 +39,16 @@ def resolve_handler_block(cfg: Mapping[str, Any], handler_id: str) -> Dict[str, 
 
 
 def validate_transform_config(cfg: Mapping[str, Any]) -> None:
+    from cdf_fn_common.pipeline_steps import parse_steps_list
+
+    if parse_steps_list(cfg):
+        return
     handler_id = resolve_handler_id(cfg)
     if handler_id not in TRANSFORM_HANDLERS:
         raise ValueError(
             f"transform config handler_id must be one of {sorted(TRANSFORM_HANDLERS)}; got {handler_id!r}"
         )
-    mode = AbstractTransformHandler.first_nonempty(cfg.get("output_mode"), "overwrite")
+    mode = AbstractTransformHandler.first_nonempty(cfg.get("output_mode"), "append")
     if mode not in _OUTPUT_MODES:
         raise ValueError(f"output_mode must be overwrite or append; got {mode!r}")
     if handler_id in _MULTI_VALUE_HANDLERS:
@@ -82,6 +86,24 @@ def apply_transform_handler(
     return cls.apply(working, block, field_values=field_values, props=props), cls.multi_value
 
 
+def _append_values_unique(existing: Any, coerced: Any) -> Any:
+    """Append *coerced* to *existing* list field without duplicating equal tokens."""
+    if existing is None or existing == "":
+        return coerced
+    to_add = coerced if isinstance(coerced, list) else [coerced]
+    if isinstance(existing, list):
+        out = list(existing)
+        for item in to_add:
+            if item not in out:
+                out.append(item)
+        return out
+    out = [existing]
+    for item in to_add:
+        if item not in out:
+            out.append(item)
+    return out
+
+
 def write_output_to_props(
     props: MutableMapping[str, Any],
     output_field: str,
@@ -94,16 +116,7 @@ def write_output_to_props(
         return
     coerced = coerce_transform_output(value, output_field_type)
     if mode == "append":
-        existing = props.get(output_field)
-        if existing is None or existing == "":
-            props[output_field] = coerced
-        elif isinstance(existing, list):
-            if isinstance(coerced, list):
-                props[output_field] = [*existing, *coerced]
-            else:
-                props[output_field] = [*existing, coerced]
-        else:
-            props[output_field] = [existing, *(coerced if isinstance(coerced, list) else [coerced])]
+        props[output_field] = _append_values_unique(props.get(output_field), coerced)
     else:
         props[output_field] = coerced
 
@@ -138,7 +151,7 @@ def transform_row_properties(
         props=props,
     )
     output_field = AbstractTransformHandler.first_nonempty(cfg.get("output_field"))
-    output_mode = AbstractTransformHandler.first_nonempty(cfg.get("output_mode"), "overwrite")
+    output_mode = AbstractTransformHandler.first_nonempty(cfg.get("output_mode"), "append")
     output_multi = AbstractTransformHandler.first_nonempty(
         cfg.get("output_multi_value"), _default_output_multi_value(handler_id)
     )

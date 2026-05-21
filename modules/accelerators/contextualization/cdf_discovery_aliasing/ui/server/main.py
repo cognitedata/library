@@ -9,7 +9,7 @@ import subprocess
 import sys
 from copy import deepcopy
 from pathlib import Path
-from typing import Any, Dict, Iterator, List, Literal, Set
+from typing import Any, Dict, Iterator, List, Literal, Mapping, Set
 
 import yaml
 from fastapi import Body, FastAPI, HTTPException, Query
@@ -34,7 +34,8 @@ from scope_build.scope_yaml_io import (  # noqa: E402
     SCOPE_DOCUMENT_DUMP_KWARGS,
     dump_scope_document_yaml_roundtrip,
 )
-from local_runner.local_run_report import cdf_discovery_tasks_path_for_run_report  # noqa: E402
+from local_runner.discovery_run_v2 import DISCOVERY_RUN_SUFFIX  # noqa: E402
+from ui.server import discovery_run_results as _discovery_api  # noqa: E402
 
 DEFAULT_CONFIG_REL = "default.config.yaml"
 DEFAULT_SCOPE_DOCUMENT_REL = "workflow.local.config.yaml"
@@ -84,7 +85,7 @@ _RUN_RESULTS_PREFIX = "local_run_results/"
 _CDF_PIPELINE_RESULT_BASENAME = re.compile(
     r"^\d{8}_\d{6}_cdf_(extraction|aliasing)\.json$"
 )
-_DISCOVERY_LOCAL_RUN_REPORT_BASENAME = re.compile(r"^\d{8}_\d{6}_local_run_report\.json$")
+_DISCOVERY_RUN_BASENAME = re.compile(rf"^\d{{8}}_\d{{6}}{re.escape(DISCOVERY_RUN_SUFFIX)}$")
 _MAX_RUN_RESULT_PREVIEW_BYTES = 50 * 1024 * 1024
 
 
@@ -119,7 +120,7 @@ def _run_scope_matches_key(run_scope: Any, run_scope_key: str) -> bool:
 
 
 def _read_json_run_scope(path: Path) -> Any:
-    """Top-level ``run_scope`` from a JSON document (legacy pipeline or discovery local report)."""
+    """Top-level ``run_scope`` from a JSON document (extraction/aliasing or discovery_run)."""
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
@@ -127,18 +128,6 @@ def _read_json_run_scope(path: Path) -> Any:
     if isinstance(data, dict):
         return data.get("run_scope")
     return None
-
-
-def _read_discovery_report_run_scope(report_path: Path) -> Any:
-    """``run_scope`` from the report file, or from sibling ``*_cdf_discovery_tasks.json`` when omitted."""
-    rs = _read_json_run_scope(report_path)
-    if rs is not None:
-        return rs
-    try:
-        side = cdf_discovery_tasks_path_for_run_report(report_path)
-    except ValueError:
-        return None
-    return _read_json_run_scope(side)
 
 
 def _read_extraction_run_scope(extraction_path: Path) -> Any:
@@ -163,57 +152,18 @@ def _resolve_run_result_pipeline_file(rel: str) -> Path:
     return path
 
 
-def _resolve_discovery_run_report_path(rel: str) -> Path:
-    rel_n = rel.strip().replace("\\", "/")
-    if not rel_n.startswith(_RUN_RESULTS_PREFIX):
-        raise HTTPException(status_code=400, detail="Path must be under local_run_results/")
-    path = _safe_rel_path(rel_n)
-    root_resolved = _run_results_root().resolve()
-    try:
-        path.relative_to(root_resolved)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail="Path escapes local_run_results") from e
-    if not _DISCOVERY_LOCAL_RUN_REPORT_BASENAME.match(path.name):
-        raise HTTPException(
-            status_code=400,
-            detail="Only YYYYMMDD_HHMMSS_local_run_report.json",
-        )
-    return path
-
-
-_CDF_DISCOVERY_TASKS_BASENAME = re.compile(r"^\d{8}_\d{6}_cdf_discovery_tasks\.json$")
-
-
 def _rel_under_module(path: Path) -> str:
     return str(path.relative_to(MODULE_ROOT)).replace("\\", "/")
 
 
-def _discovery_tasks_path_for_report(report_path: Path) -> Path:
-    return cdf_discovery_tasks_path_for_run_report(report_path)
-
-
-def _resolve_discovery_tasks_path(rel: str) -> Path:
-    rel_n = rel.strip().replace("\\", "/")
-    if rel_n.endswith("_local_run_report.json"):
-        report_path = _resolve_discovery_run_report_path(rel_n)
-        tasks_path = _discovery_tasks_path_for_report(report_path)
-        if not tasks_path.is_file():
-            raise HTTPException(status_code=404, detail="Discovery tasks file not found")
-        return tasks_path
-    if not rel_n.startswith(_RUN_RESULTS_PREFIX):
-        raise HTTPException(status_code=400, detail="Path must be under local_run_results/")
-    path = _safe_rel_path(rel_n)
-    root_resolved = _run_results_root().resolve()
-    try:
-        path.relative_to(root_resolved)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail="Path escapes local_run_results") from e
-    if not _CDF_DISCOVERY_TASKS_BASENAME.match(path.name):
-        raise HTTPException(
-            status_code=400,
-            detail="Only YYYYMMDD_HHMMSS_cdf_discovery_tasks.json",
-        )
-    return path
+def _resolve_discovery_run_path(rel: str) -> Path:
+    return _discovery_api.resolve_discovery_run_path(
+        rel,
+        run_results_prefix=_RUN_RESULTS_PREFIX,
+        run_results_root=_run_results_root(),
+        safe_rel_path=_safe_rel_path,
+        rel_under_module=_rel_under_module,
+    )
 
 
 def _load_json_object(path: Path, *, max_bytes: int = _MAX_RUN_RESULT_PREVIEW_BYTES) -> Dict[str, Any]:
@@ -234,24 +184,9 @@ def _load_json_object(path: Path, *, max_bytes: int = _MAX_RUN_RESULT_PREVIEW_BY
     return data
 
 
-def _discovery_tasks_rel_for_report(report_path: Path) -> str | None:
-    tasks_path = _discovery_tasks_path_for_report(report_path)
-    if tasks_path.is_file():
-        return _rel_under_module(tasks_path)
-    return None
-
-
-def _summary_from_report_data(data: Dict[str, Any]) -> Dict[str, Any]:
-    eop = data.get("end_of_process") if isinstance(data.get("end_of_process"), dict) else {}
-    warnings = eop.get("warnings")
-    return {
-        "status": eop.get("status"),
-        "elapsed_ms": eop.get("elapsed_ms"),
-        "task_count": eop.get("task_count"),
-        "dry_run": eop.get("dry_run"),
-        "failed_task_key": eop.get("failed_task_key"),
-        "warnings": list(warnings) if isinstance(warnings, list) else [],
-    }
+def _load_discovery_run(rel: str) -> Dict[str, Any]:
+    path = _resolve_discovery_run_path(rel)
+    return _discovery_api.load_discovery_run_json(path, _load_json_object)
 
 
 def _scope_document_path(rel: str | None) -> Path:
@@ -1279,101 +1214,84 @@ def list_discovery_run_results(
         description="Filter: workflow_local | workflow_template | workflow_trigger:<WorkflowTriggerRel>",
     ),
 ) -> dict:
-    """Timestamped ``*_local_run_report.json`` under ``local_run_results/`` (discovery DAG reports)."""
-    root = _run_results_root()
-    root.mkdir(parents=True, exist_ok=True)
-    runs: List[Dict[str, Any]] = []
-    if not root.is_dir():
-        return {"runs": []}
-    scope_filter = (run_scope_key or "").strip()
-    for p in sorted(root.glob("*_local_run_report.json"), key=lambda x: x.stat().st_mtime, reverse=True):
-        if not _DISCOVERY_LOCAL_RUN_REPORT_BASENAME.match(p.name):
-            continue
-        if scope_filter:
-            rs = _read_discovery_report_run_scope(p)
-            if not _run_scope_matches_key(rs, scope_filter):
-                continue
-        stem_ts = p.name[: -len("_local_run_report.json")]
-        entry: Dict[str, Any] = {
-            "stem": stem_ts,
-            "report_rel": _rel_under_module(p),
-            "mtime_ms": int(p.stat().st_mtime * 1000),
-        }
-        tasks_rel = _discovery_tasks_rel_for_report(p)
-        if tasks_rel:
-            entry["tasks_rel"] = tasks_rel
-        try:
-            entry.update(_summary_from_report_data(_load_json_object(p)))
-        except HTTPException:
-            pass
-        runs.append(entry)
-    return {"runs": runs}
+    """Timestamped ``*_discovery_run.json`` under ``local_run_results/`` (schema v2)."""
+    return _discovery_api.list_discovery_runs(
+        run_results_root=_run_results_root(),
+        run_results_prefix=_RUN_RESULTS_PREFIX,
+        rel_under_module=_rel_under_module,
+        read_json_run_scope=_read_json_run_scope,
+        run_scope_matches_key=_run_scope_matches_key,
+        load_json_object=_load_json_object,
+        summary_from_run=_discovery_api.summary_from_discovery_run,
+        run_scope_key=run_scope_key,
+    )
 
 
 @app.get("/api/run-results/discovery-detail")
 def discovery_run_detail(
-    rel: str = Query(..., description="Module-relative path to *_local_run_report.json"),
+    rel: str = Query(..., description="Module-relative path to *_discovery_run.json"),
 ) -> dict:
-    """Run summary, paths, and scope for a discovery local run report."""
-    report_path = _resolve_discovery_run_report_path(rel)
-    data = _load_json_object(report_path)
-    paths = data.get("paths") if isinstance(data.get("paths"), dict) else {}
-    return {
-        "report_rel": _rel_under_module(report_path),
-        "tasks_rel": _discovery_tasks_rel_for_report(report_path),
-        "run_scope": _read_discovery_report_run_scope(report_path),
-        "end_of_process": data.get("end_of_process"),
-        "paths": paths,
-        "summary": _summary_from_report_data(data),
-    }
+    """Run summary and scope for a discovery local run (v2)."""
+    path = _resolve_discovery_run_path(rel)
+    data = _load_discovery_run(rel)
+    return _discovery_api.discovery_run_detail_payload(path, data, _rel_under_module)
 
 
-@app.get("/api/run-results/discovery-tasks-preview")
-def preview_discovery_tasks(
-    rel: str = Query(
-        ...,
-        description="Module-relative *_local_run_report.json or *_cdf_discovery_tasks.json",
-    ),
+@app.get("/api/run-results/discovery-pipeline-tasks")
+def preview_discovery_pipeline_tasks(
+    rel: str = Query(..., description="Module-relative *_discovery_run.json"),
     offset: int = Query(0, ge=0),
     limit: int = Query(200, ge=1, le=500),
+    category: str | None = Query(None, description="Filter pipeline.tasks by category"),
 ) -> dict:
-    """Paginate ``task_outputs`` from a discovery tasks snapshot."""
-    tasks_path = _resolve_discovery_tasks_path(rel)
-    data = _load_json_object(tasks_path)
-    task_outputs = data.get("task_outputs")
-    if not isinstance(task_outputs, dict):
-        return {"total": 0, "offset": offset, "limit": limit, "items": []}
-    keys = sorted(str(k) for k in task_outputs.keys())
-    total = len(keys)
-    chunk_keys = keys[offset : offset + limit]
-    items: List[Dict[str, Any]] = []
-    for task_id in chunk_keys:
-        entry = task_outputs.get(task_id)
-        if not isinstance(entry, dict):
-            items.append({"task_id": task_id, "status": None, "message": None, "parsed": None})
-            continue
-        status = entry.get("status")
-        message = entry.get("message")
-        parsed: Any = None
-        if isinstance(message, str) and message.strip():
-            try:
-                parsed = json.loads(message)
-            except json.JSONDecodeError:
-                parsed = None
-        items.append(
-            {
-                "task_id": task_id,
-                "status": status,
-                "message": message,
-                "parsed": parsed if isinstance(parsed, dict) else None,
-            }
-        )
+    """Paginate ``pipeline.tasks`` from a discovery run document."""
+    data = _load_discovery_run(rel)
+    if category and str(category).strip():
+        cat = str(category).strip().lower()
+        pipeline = data.get("pipeline") if isinstance(data.get("pipeline"), dict) else {}
+        tasks = pipeline.get("tasks") if isinstance(pipeline.get("tasks"), list) else []
+        filtered = [
+            t for t in tasks if isinstance(t, dict) and str(t.get("category") or "").lower() == cat
+        ]
+        data = {**data, "pipeline": {"tasks": filtered, "task_count": len(filtered)}}
+    page = _discovery_api.paginate_pipeline_tasks(data, offset=offset, limit=limit)
+    page["run_rel"] = rel.strip().replace("\\", "/")
+    return page
+
+
+@app.get("/api/run-results/discovery-persistence-nodes")
+def list_discovery_persistence_nodes(
+    rel: str = Query(..., description="Module-relative *_discovery_run.json"),
+) -> dict:
+    """All persistence / save / indexing nodes from ``persistence.nodes``."""
+    data = _load_discovery_run(rel)
+    nodes = _discovery_api.persistence_nodes_from_data(data)
+    return {"run_rel": rel.strip().replace("\\", "/"), "items": nodes, "total": len(nodes)}
+
+
+@app.get("/api/run-results/discovery-persistence-node")
+def discovery_persistence_node_detail(
+    rel: str = Query(..., description="Module-relative *_discovery_run.json"),
+    task_id: str = Query(..., description="Compiled workflow task id for the persistence node"),
+) -> dict:
+    """One persistence node (input cohort + output sink / handler result)."""
+    data = _load_discovery_run(rel)
+    node = _discovery_api.persistence_node_by_task_id(data, task_id)
+    return {"run_rel": rel.strip().replace("\\", "/"), "node": node}
+
+
+@app.get("/api/run-results/discovery-persistence-merged")
+def discovery_persistence_merged(
+    rel: str = Query(..., description="Module-relative *_discovery_run.json"),
+) -> dict:
+    """Merged entities across all persistence nodes."""
+    data = _load_discovery_run(rel)
+    merged = _discovery_api.merged_entities_from_data(data)
     return {
-        "tasks_rel": _rel_under_module(tasks_path),
-        "total": total,
-        "offset": offset,
-        "limit": limit,
-        "items": items,
+        "run_rel": rel.strip().replace("\\", "/"),
+        "merged_entities": merged,
+        "instance_count": merged.get("instance_count"),
+        "inverted_index_sink_row_count": merged.get("inverted_index_sink_row_count"),
     }
 
 

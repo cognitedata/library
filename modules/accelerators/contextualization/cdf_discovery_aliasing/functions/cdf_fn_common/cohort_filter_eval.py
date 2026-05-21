@@ -183,7 +183,15 @@ def _leaf_matches(props: Mapping[str, Any], d: Mapping[str, Any]) -> bool:
         return False
     property_scope = str(d.get("property_scope", "view"))
     pairs = _scored_pairs(props, target_property, property_scope)
-    actual = _values_for_compare(pairs)
+    raw_direct = _prop_value(props, target_property, property_scope)
+    if (
+        isinstance(raw_direct, list)
+        and raw_direct
+        and all(isinstance(x, (int, float)) and not isinstance(x, bool) for x in raw_direct)
+    ):
+        actual = list(raw_direct)
+    else:
+        actual = _values_for_compare(pairs)
     values = _coerce_values_list(d.get("values"))
     negate = bool(d.get("negate", False))
 

@@ -4,38 +4,11 @@ import type {
   WorkflowCanvasEdge,
   WorkflowCanvasNode,
 } from "../../types/workflowCanvas";
-import {
-  getAliasingTransformRuleRows,
-  replaceAliasingTransformRulesInDoc,
-} from "./aliasingScopeData";
 import { expandCanvasForScopeSync } from "./subgraphBoundaryVirtualization";
-import { applySourceViewExtractionAssociationsFromCanvas } from "./workflowScopeAssociations";
-import { ALIASING_PIPELINE_NAME_NOISE } from "./aliasingPipelineTokens";
-import { patchExtractionRuleAliasingPipeline } from "./workflowScopePatch";
+import { stripScopeRuleListsFromScopeDoc } from "../../utils/stripScopeRuleLists";
+
 /**
- * Merge flow canvas structure into the workflow scope document (YAML model).
- *
- * **Validation** — ``validation_rules`` on extraction rules, per-rule aliasing, and global
- * ``key_extraction`` / ``aliasing`` data are derived **only** from match-validation subgraphs wired on
- * the canvas (data + ``sequence`` / ``parallel_group`` edges). ``source_views[]`` rows do not carry
- * validation definitions; thresholds on global validation objects (e.g. ``min_confidence``) are
- * preserved when updating ``validation_rules``.
- *
- * **Aliasing transforms** — ``extraction_rules[].aliasing_pipeline`` is written from extraction →
- * aliasing **data** edges and composition edges among ``kind: "aliasing"`` nodes (not from prior YAML).
- *
- * **Aliasing rule list order** — ``aliasing_rules[]`` / pathways order follows composition edges among
- * aliasing nodes when present. **Rules removed from the canvas** are **dropped** from
- * ``aliasing.config.data`` (not left appended). When there are no composition edges but aliasing
- * transform nodes exist, the rule list is **filtered** to the set of those nodes (document order).
- * **Root** ``aliasing_rule_definitions`` entries that are no longer referenced are pruned to match.
- *
- * **Associations** — top-level ``associations`` from source view → extraction **data** edges.
- *
- * **Persistence** — ``alias_persistence`` / ``inverted_index`` placement and ``persistence_config`` are
- * carried in the canvas and merged into IR ``persistence`` by Python ``compiled_workflow_for_scope_document``
- * (not rewritten into ``key_extraction`` / ``aliasing`` text by this TS sync). ``expandCanvasForScopeSync``
- * flattens ``subgraph`` ``inner_canvas`` nodes first so the graph here matches compile.
+ * Merge flow canvas match-validation wiring into the scope document and strip legacy rule lists.
  */
 export function syncWorkflowScopeFromCanvas(
   canvas: WorkflowCanvasDocument,
@@ -43,99 +16,7 @@ export function syncWorkflowScopeFromCanvas(
 ): Record<string, unknown> {
   const expanded = expandCanvasForScopeSync(canvas);
   const wired = applyCanvasMatchWiring(expanded, scopeDoc);
-  const withPipelines = applyExtractionAliasingPipelinesFromCanvas(expanded, wired);
-  const withOrder = applyAliasingRulesOrderFromCanvas(expanded, withPipelines);
-  const withAssoc = applySourceViewExtractionAssociationsFromCanvas(expanded, withOrder);
-  return pruneAliasingRuleDefinitionsToActiveRules(withAssoc);
-}
-
-function isRecordObj(v: unknown): v is Record<string, unknown> {
-  return v !== null && typeof v === "object" && !Array.isArray(v);
-}
-
-function collectRuleNamesFromPipelineValue(x: unknown, out: Set<string>): void {
-  if (x === null || x === undefined) return;
-  if (typeof x === "string") {
-    const t = x.trim();
-    if (t && t.length < 512 && !ALIASING_PIPELINE_NAME_NOISE.has(t.toLowerCase())) {
-      out.add(t);
-    }
-    return;
-  }
-  if (Array.isArray(x)) {
-    for (const v of x) {
-      collectRuleNamesFromPipelineValue(v, out);
-    }
-    return;
-  }
-  if (isRecordObj(x)) {
-    for (const [k, v] of Object.entries(x)) {
-      const kt = k.trim();
-      if (kt && kt.length < 512 && !ALIASING_PIPELINE_NAME_NOISE.has(kt.toLowerCase())) {
-        out.add(kt);
-      }
-      collectRuleNamesFromPipelineValue(v, out);
-    }
-  }
-}
-
-function collectRuleNamesFromExtractionPipelines(doc: Record<string, unknown>): Set<string> {
-  const s = new Set<string>();
-  const ke = doc.key_extraction;
-  if (!isRecordObj(ke)) return s;
-  const config = ke.config;
-  if (!isRecordObj(config)) return s;
-  const data = config.data;
-  if (!isRecordObj(data)) return s;
-  const exRules = data.extraction_rules;
-  if (!Array.isArray(exRules)) return s;
-  for (const r of exRules) {
-    if (!isRecordObj(r)) continue;
-    collectRuleNamesFromPipelineValue(
-      (r as Record<string, unknown>).aliasing_pipeline,
-      s
-    );
-  }
-  return s;
-}
-
-/** Remove root ``aliasing_rule_definitions`` keys that are not used by the active transform list or extraction ``aliasing_pipeline`` values. */
-function pruneAliasingRuleDefinitionsToActiveRules(
-  doc: Record<string, unknown>
-): Record<string, unknown> {
-  const defs = doc.aliasing_rule_definitions;
-  if (!isRecordObj(defs) || Object.keys(defs).length === 0) {
-    return doc;
-  }
-  const keep = new Set<string>();
-  const al = doc.aliasing;
-  if (isRecordObj(al) && isRecordObj(al.config) && isRecordObj(al.config.data)) {
-    for (const row of getAliasingTransformRuleRows(al.config.data as Record<string, unknown>)) {
-      if (isRecordObj(row)) {
-        const name = String(row.name ?? "").trim();
-        if (name) {
-          keep.add(name);
-        }
-      }
-    }
-  }
-  for (const n of collectRuleNamesFromExtractionPipelines(doc)) {
-    keep.add(n);
-  }
-  const next: Record<string, unknown> = { ...defs };
-  for (const k of Object.keys(defs)) {
-    if (!keep.has(k)) {
-      delete next[k];
-    }
-  }
-  if (Object.keys(next).length === 0) {
-    const { aliasing_rule_definitions: _removed, ...rest } = doc;
-    return rest as Record<string, unknown>;
-  }
-  if (Object.keys(next).length === Object.keys(defs).length) {
-    return doc;
-  }
-  return { ...doc, aliasing_rule_definitions: next };
+  return stripScopeRuleListsFromScopeDoc(wired);
 }
 
 function isDataEdge(e: WorkflowCanvasEdge): boolean {
@@ -169,10 +50,6 @@ function hierarchyConcurrent(children: unknown[]): JsonObject {
   return { hierarchy: { mode: "concurrent", children } };
 }
 
-/**
- * Right-nested shorthand so the last rule is a "child" of the previous:
- * `[a,b]` → `{ a: [b] }`, `[a,b,c]` → `{ a: [ { b: [c] } ] }` (same evaluation order as a flat list).
- */
 function linearChainToShorthand(names: string[]): unknown {
   if (names.length === 0) return null;
   if (names.length === 1) return names[0]!;
@@ -184,7 +61,6 @@ function linearChainToShorthand(names: string[]): unknown {
   return { [head]: tailArr };
 }
 
-/** Collapse a linear list of rule-id strings into one nested tree; pass through mixed / single values. */
 function shapeMatchStepsLinearOne(raw: unknown[]): unknown | null {
   if (raw.length === 0) return null;
   if (raw.every((x) => typeof x === "string")) {
@@ -201,20 +77,6 @@ function stepsFromShapedLinear(raw: unknown[]): unknown[] {
   return one === null ? [] : [one];
 }
 
-function sortHeadIdsByRuleName(heads: string[], byId: Map<string, WorkflowCanvasNode>): void {
-  heads.sort((a, b) => {
-    const na = ruleNameFromMatchNode(byId.get(a)!) ?? a;
-    const nb = ruleNameFromMatchNode(byId.get(b)!) ?? b;
-    return na.localeCompare(nb);
-  });
-}
-
-/** Per-rule / per–source-view: ``validation_rules`` come only from match nodes wired on the canvas. */
-function validationRulesFromCanvasOnly(steps: unknown[]): JsonObject {
-  return { validation_rules: steps } as JsonObject;
-}
-
-/** Global ``key_extraction.config.data.validation`` / ``aliasing.config.data.validation``: keep non–``validation_rules`` keys (e.g. thresholds), replace rules from canvas. */
 function validationRulesFromCanvasPreserveMeta(prev: unknown, steps: unknown[]): JsonObject {
   const o =
     prev !== null && typeof prev === "object" && !Array.isArray(prev)
@@ -225,7 +87,6 @@ function validationRulesFromCanvasPreserveMeta(prev: unknown, steps: unknown[]):
 
 type ChainTargetAccept = (n: WorkflowCanvasNode | undefined) => boolean;
 
-/** Match-rule chains use `sequence` or `parallel_group` edges (not plain `data`). */
 function edgeCompositionKind(e: WorkflowCanvasEdge): "sequence" | "parallel_group" | null {
   if (e.kind === "parallel_group") return "parallel_group";
   if (e.kind === "sequence") return "sequence";
@@ -251,10 +112,6 @@ function sortEdgesByTarget(edges: WorkflowCanvasEdge[]): WorkflowCanvasEdge[] {
   return [...edges].sort((a, b) => a.target.localeCompare(b.target));
 }
 
-/**
- * Serialize match-rule subgraph as hierarchical steps. `sequence` = next top-level step;
- * `parallel_group` = concurrent `hierarchy` (subtrees use ordered `hierarchy` when linear).
- */
 function buildMatchSubtree(
   nodeId: string,
   byId: Map<string, WorkflowCanvasNode>,
@@ -307,589 +164,10 @@ function buildMatchTopLevelSteps(
   outgoing: Map<string, WorkflowCanvasEdge[]>,
   acceptTarget: ChainTargetAccept
 ): unknown[] {
-  const steps: unknown[] = [];
   const visited = new Set<string>();
-  let cur: string | null = headId;
-  while (cur) {
-    if (visited.has(cur)) break;
-    visited.add(cur);
-    const n = byId.get(cur);
-    if (!n || !acceptTarget(n)) break;
-    const nm = ruleNameFromMatchNode(n);
-    const { seq, par } = partitionChainOut(cur, outgoing, byId, acceptTarget);
-    if (par.length > 0) {
-      if (nm) steps.push(nm);
-      steps.push(
-        hierarchyConcurrent(
-          sortEdgesByTarget(par).map((e) =>
-            buildMatchSubtree(e.target, byId, outgoing, acceptTarget, visited)
-          )
-        )
-      );
-      if (seq.length === 1) {
-        cur = seq[0]!.target;
-        continue;
-      }
-      break;
-    }
-    if (nm) steps.push(nm);
-    if (seq.length === 1) {
-      cur = seq[0]!.target;
-      continue;
-    }
-    break;
-  }
-  return steps;
-}
-
-/** Rule label for `kind: "aliasing"` canvas nodes (`ref.aliasing_rule_name`). */
-function aliasingRuleNameFromNode(n: WorkflowCanvasNode | undefined): string | null {
-  if (!n || n.kind !== "aliasing") return null;
-  const ref = n.data.ref;
-  if (!ref || typeof ref !== "object" || Array.isArray(ref)) return null;
-  const v = (ref as Record<string, unknown>).aliasing_rule_name;
-  return v != null && String(v).trim() ? String(v).trim() : null;
-}
-
-const acceptAliasingCompositionNode: ChainTargetAccept = (tn) =>
-  Boolean(tn && tn.kind === "aliasing" && aliasingRuleNameFromNode(tn));
-
-/** Same structure as `buildMatchSubtree` / `buildMatchTopLevelSteps` but for `kind: "aliasing"` transform nodes. */
-function buildAliasingTransformSubtree(
-  nodeId: string,
-  byId: Map<string, WorkflowCanvasNode>,
-  outgoing: Map<string, WorkflowCanvasEdge[]>,
-  visited: Set<string>
-): unknown {
-  const parts: unknown[] = [];
-  let cur: string | null = nodeId;
-  while (cur) {
-    if (visited.has(cur)) break;
-    visited.add(cur);
-    const n = byId.get(cur);
-    if (!n || !acceptAliasingCompositionNode(n)) break;
-    const nm = aliasingRuleNameFromNode(n);
-    const { seq, par } = partitionChainOut(cur, outgoing, byId, acceptAliasingCompositionNode);
-    if (par.length > 0) {
-      if (nm) parts.push(nm);
-      parts.push(
-        hierarchyConcurrent(
-          sortEdgesByTarget(par).map((e) =>
-            buildAliasingTransformSubtree(e.target, byId, outgoing, visited)
-          )
-        )
-      );
-      if (seq.length === 1) {
-        cur = seq[0]!.target;
-        continue;
-      }
-      break;
-    }
-    if (nm) parts.push(nm);
-    if (seq.length === 1) {
-      cur = seq[0]!.target;
-      continue;
-    }
-    break;
-  }
-  if (parts.length === 0) return null;
-  if (parts.length === 1) return parts[0];
-  if (parts.every((p) => typeof p === "string")) {
-    return linearChainToShorthand(parts as string[]);
-  }
-  return hierarchyOrdered(parts);
-}
-
-function buildAliasingTransformTopLevelSteps(
-  headId: string,
-  byId: Map<string, WorkflowCanvasNode>,
-  outgoing: Map<string, WorkflowCanvasEdge[]>
-): unknown[] {
-  const steps: unknown[] = [];
-  const visited = new Set<string>();
-  let cur: string | null = headId;
-  while (cur) {
-    if (visited.has(cur)) break;
-    visited.add(cur);
-    const n = byId.get(cur);
-    if (!n || !acceptAliasingCompositionNode(n)) break;
-    const nm = aliasingRuleNameFromNode(n);
-    const { seq, par } = partitionChainOut(cur, outgoing, byId, acceptAliasingCompositionNode);
-    if (par.length > 0) {
-      if (nm) steps.push(nm);
-      steps.push(
-        hierarchyConcurrent(
-          sortEdgesByTarget(par).map((e) =>
-            buildAliasingTransformSubtree(e.target, byId, outgoing, visited)
-          )
-        )
-      );
-      if (seq.length === 1) {
-        cur = seq[0]!.target;
-        continue;
-      }
-      break;
-    }
-    if (nm) steps.push(nm);
-    if (seq.length === 1) {
-      cur = seq[0]!.target;
-      continue;
-    }
-    break;
-  }
-  return steps;
-}
-
-/**
- * Persist per-extraction `aliasing_pipeline` from extraction → aliasing **data** edges and
- * aliasing composition edges (matches engine `extraction_aliasing_pipelines`).
- */
-function applyExtractionAliasingPipelinesFromCanvas(
-  canvas: WorkflowCanvasDocument,
-  scopeDoc: Record<string, unknown>
-): Record<string, unknown> {
-  const byId = nodesById(canvas);
-  const outgoing = buildOutgoing(canvas);
-  let doc: Record<string, unknown> = { ...scopeDoc };
-
-  for (const n of canvas.nodes) {
-    if (n.kind !== "extraction") continue;
-    const ruleName = refStr(n.data.ref, "extraction_rule_name");
-    if (!ruleName) continue;
-
-    const heads: string[] = [];
-    for (const e of outgoing.get(n.id) ?? []) {
-      if (!isDataEdge(e)) continue;
-      const t = byId.get(e.target);
-      if (!t || !acceptAliasingCompositionNode(t)) continue;
-      heads.push(e.target);
-    }
-    // Preserve ``canvas.edges`` order (multiple data heads = concurrent pipeline branches). Do not
-    // sort alphabetically by rule name — that breaks branch order vs. predecessors on the canvas.
-
-    if (heads.length === 0) {
-      doc = patchExtractionRuleAliasingPipeline(doc, ruleName, []);
-      continue;
-    }
-
-    const topParts: unknown[] = [];
-    for (const hid of heads) {
-      const raw = buildAliasingTransformTopLevelSteps(hid, byId, outgoing);
-      const one = shapeMatchStepsLinearOne(raw);
-      if (one !== null) topParts.push(one);
-    }
-
-    let pipeline: unknown[];
-    if (topParts.length === 0) {
-      pipeline = [];
-    } else if (topParts.length === 1) {
-      pipeline = [topParts[0]!];
-    } else {
-      pipeline = [hierarchyConcurrent(topParts)];
-    }
-
-    doc = patchExtractionRuleAliasingPipeline(doc, ruleName, pipeline);
-  }
-
-  return doc;
-}
-
-/** Mirrors `buildMatchSubtree` — flatten to rule names for `aliasing_rules[]` (validation uses nested trees). */
-function flattenAliasingCompositionSubtree(
-  nodeId: string,
-  byId: Map<string, WorkflowCanvasNode>,
-  outgoing: Map<string, WorkflowCanvasEdge[]>,
-  visited: Set<string>
-): string[] {
-  const out: string[] = [];
-  let cur: string | null = nodeId;
-  while (cur) {
-    if (visited.has(cur)) break;
-    visited.add(cur);
-    const n = byId.get(cur);
-    if (!n || !acceptAliasingCompositionNode(n)) break;
-    const nm = aliasingRuleNameFromNode(n);
-    const { seq, par } = partitionChainOut(cur, outgoing, byId, acceptAliasingCompositionNode);
-    if (par.length > 0) {
-      if (nm) out.push(nm);
-      for (const e of sortEdgesByTarget(par)) {
-        out.push(...flattenAliasingCompositionSubtree(e.target, byId, outgoing, visited));
-      }
-      if (seq.length === 1) {
-        cur = seq[0]!.target;
-        continue;
-      }
-      break;
-    }
-    if (nm) out.push(nm);
-    if (seq.length === 1) {
-      cur = seq[0]!.target;
-      continue;
-    }
-    break;
-  }
-  return out;
-}
-
-/** Mirrors `buildMatchTopLevelSteps` for aliasing transform nodes (sequence / parallel_group only). */
-function flattenAliasingCompositionTopLevel(
-  headId: string,
-  byId: Map<string, WorkflowCanvasNode>,
-  outgoing: Map<string, WorkflowCanvasEdge[]>,
-  visited: Set<string>
-): string[] {
-  const out: string[] = [];
-  let cur: string | null = headId;
-  while (cur) {
-    if (visited.has(cur)) break;
-    visited.add(cur);
-    const n = byId.get(cur);
-    if (!n || !acceptAliasingCompositionNode(n)) break;
-    const nm = aliasingRuleNameFromNode(n);
-    const { seq, par } = partitionChainOut(cur, outgoing, byId, acceptAliasingCompositionNode);
-    if (par.length > 0) {
-      if (nm) out.push(nm);
-      for (const e of sortEdgesByTarget(par)) {
-        out.push(...flattenAliasingCompositionSubtree(e.target, byId, outgoing, visited));
-      }
-      if (seq.length === 1) {
-        cur = seq[0]!.target;
-        continue;
-      }
-      break;
-    }
-    if (nm) out.push(nm);
-    if (seq.length === 1) {
-      cur = seq[0]!.target;
-      continue;
-    }
-    break;
-  }
-  return out;
-}
-
-/**
- * Ordered `aliasing_rule_name` values from composition edges among `kind: "aliasing"` nodes
- * (same `sequence` / `parallel_group` semantics as match-validation rule chains).
- */
-function buildAliasingRulesOrderFromCanvas(canvas: WorkflowCanvasDocument): string[] | null {
-  const byId = nodesById(canvas);
-  const outgoing = buildOutgoing(canvas);
-
-  const alIds = new Set<string>();
-  for (const n of canvas.nodes) {
-    if (acceptAliasingCompositionNode(n)) alIds.add(n.id);
-  }
-  if (alIds.size === 0) return null;
-
-  let hasCompositionEdge = false;
-  const incoming = new Map<string, number>();
-  for (const id of alIds) incoming.set(id, 0);
-
-  const seenEdge = new Set<string>();
-  for (const e of canvas.edges) {
-    if (!alIds.has(e.source) || !alIds.has(e.target)) continue;
-    if (edgeCompositionKind(e) == null) continue;
-    const k = `${e.source}\0${e.target}`;
-    if (seenEdge.has(k)) continue;
-    seenEdge.add(k);
-    hasCompositionEdge = true;
-    incoming.set(e.target, (incoming.get(e.target) ?? 0) + 1);
-  }
-  if (!hasCompositionEdge) return null;
-
-  const heads: string[] = [];
-  for (const id of alIds) {
-    if ((incoming.get(id) ?? 0) === 0) heads.push(id);
-  }
-  // Heads are already in ``canvas.nodes`` / Set insertion order; do not reorder by rule name.
-
-  const visited = new Set<string>();
-  const orderedNames: string[] = [];
-  for (const hid of heads) {
-    orderedNames.push(...flattenAliasingCompositionTopLevel(hid, byId, outgoing, visited));
-  }
-
-  if (visited.size !== alIds.size) return null;
-
-  return orderedNames;
-}
-
-function patchAliasingRulesArrayOrder(
-  doc: Record<string, unknown>,
-  orderedNames: string[]
-): Record<string, unknown> {
-  const al = doc.aliasing as Record<string, unknown> | undefined;
-  if (!al || typeof al !== "object" || Array.isArray(al)) return doc;
-  const config = al.config as Record<string, unknown> | undefined;
-  if (!config || typeof config !== "object" || Array.isArray(config)) return doc;
-  const data = config.data as Record<string, unknown> | undefined;
-  if (!data || typeof data !== "object" || Array.isArray(data)) return doc;
-  const rules = getAliasingTransformRuleRows(data);
-  if (!Array.isArray(rules) || rules.length === 0) return doc;
-
-  const byName = new Map<string, unknown>();
-  for (const r of rules) {
-    if (!r || typeof r !== "object" || Array.isArray(r)) continue;
-    const row = r as Record<string, unknown>;
-    const nm = String(row.name ?? "").trim();
-    if (nm && !byName.has(nm)) byName.set(nm, r);
-  }
-
-  const seen = new Set<string>();
-  const nextRules: unknown[] = [];
-  for (const n of orderedNames) {
-    const nm = String(n ?? "").trim();
-    if (!nm || seen.has(nm)) continue;
-    const row = byName.get(nm);
-    if (!row) continue;
-    seen.add(nm);
-    nextRules.push(row);
-  }
-  // Unnamed transform rows (edge case): preserve so we do not drop ad-hoc YAML without `name`.
-  for (const r of rules) {
-    if (!r || typeof r !== "object" || Array.isArray(r)) {
-      nextRules.push(r);
-      continue;
-    }
-    const nm = String((r as Record<string, unknown>).name ?? "").trim();
-    if (!nm) {
-      nextRules.push(r);
-    }
-  }
-  // Named rules that are not in orderedNames were removed from the canvas — do not re-append them.
-
-  return replaceAliasingTransformRulesInDoc(doc, nextRules);
-}
-
-/** All distinct ``ref.aliasing_rule_name`` values in canvas iteration order (no composition graph). */
-function collectAliasingRuleNamesOnCanvasInOrder(
-  canvas: WorkflowCanvasDocument
-): string[] {
-  const out: string[] = [];
-  const seen = new Set<string>();
-  for (const n of canvas.nodes) {
-    if (n.kind !== "aliasing") {
-      continue;
-    }
-    const nm = aliasingRuleNameFromNode(n);
-    if (!nm || seen.has(nm)) {
-      continue;
-    }
-    seen.add(nm);
-    out.push(nm);
-  }
-  return out;
-}
-
-function applyAliasingRulesOrderFromCanvas(
-  canvas: WorkflowCanvasDocument,
-  scopeDoc: Record<string, unknown>
-): Record<string, unknown> {
-  const order = buildAliasingRulesOrderFromCanvas(canvas);
-  if (order && order.length > 0) {
-    return patchAliasingRulesArrayOrder(scopeDoc, order);
-  }
-  const fromNodes = collectAliasingRuleNamesOnCanvasInOrder(canvas);
-  if (fromNodes.length > 0) {
-    return patchAliasingRulesArrayOrder(scopeDoc, fromNodes);
-  }
-  return scopeDoc;
-}
-
-/**
- * Match nodes dropped from the palette often have empty `ref`; the extraction rule is then
- * implied by a data edge from an extraction node whose `ref.extraction_rule_name` matches.
- */
-function buildMatchNodeExtractionRulesFromDataEdges(
-  canvas: WorkflowCanvasDocument,
-  byId: Map<string, WorkflowCanvasNode>
-): Map<string, Set<string>> {
-  const m = new Map<string, Set<string>>();
-  for (const e of canvas.edges) {
-    if (!isDataEdge(e)) continue;
-    const src = byId.get(e.source);
-    const tgt = byId.get(e.target);
-    if (!src || src.kind !== "extraction") continue;
-    if (!tgt || tgt.kind !== "match_validation_extraction") continue;
-    if (refBool(tgt.data.ref, "extraction_global_validation")) continue;
-    const rn = refStr(src.data.ref, "extraction_rule_name");
-    if (!rn) continue;
-    let set = m.get(tgt.id);
-    if (!set) {
-      set = new Set<string>();
-      m.set(tgt.id, set);
-    }
-    set.add(rn);
-  }
-  return m;
-}
-
-/** Copy seeded string tags along composition edges between two match-validation nodes of the same kind. */
-function propagateStringSetsAlongMatchKindChains(
-  canvas: WorkflowCanvasDocument,
-  byId: Map<string, WorkflowCanvasNode>,
-  seed: Map<string, Set<string>>,
-  kind: "match_validation_extraction" | "match_validation_aliasing",
-  skipNode: (n: WorkflowCanvasNode) => boolean
-): Map<string, Set<string>> {
-  const M = new Map<string, Set<string>>();
-  for (const [id, s] of seed) M.set(id, new Set(s));
-
-  let changed = true;
-  while (changed) {
-    changed = false;
-    for (const e of canvas.edges) {
-      if (edgeCompositionKind(e) == null) continue;
-      const srcNode = byId.get(e.source);
-      const tgtNode = byId.get(e.target);
-      if (!srcNode || !tgtNode) continue;
-      if (srcNode.kind !== kind || skipNode(srcNode)) continue;
-      if (tgtNode.kind !== kind || skipNode(tgtNode)) continue;
-
-      const from = M.get(e.source);
-      if (!from || from.size === 0) continue;
-      let to = M.get(e.target);
-      if (!to) {
-        to = new Set<string>();
-        M.set(e.target, to);
-      }
-      const before = to.size;
-      for (const r of from) to.add(r);
-      if (to.size > before) changed = true;
-    }
-  }
-  return M;
-}
-
-function buildMatchNodeAliasingRulesFromDataEdges(
-  canvas: WorkflowCanvasDocument,
-  byId: Map<string, WorkflowCanvasNode>
-): Map<string, Set<string>> {
-  const m = new Map<string, Set<string>>();
-  for (const e of canvas.edges) {
-    if (!isDataEdge(e)) continue;
-    const src = byId.get(e.source);
-    const tgt = byId.get(e.target);
-    if (!src || src.kind !== "aliasing") continue;
-    if (!tgt || tgt.kind !== "match_validation_aliasing") continue;
-    if (refBool(tgt.data.ref, "aliasing_global_validation")) continue;
-    const rn = refStr(src.data.ref, "aliasing_rule_name");
-    if (!rn) continue;
-    let set = m.get(tgt.id);
-    if (!set) {
-      set = new Set<string>();
-      m.set(tgt.id, set);
-    }
-    set.add(rn);
-  }
-  return m;
-}
-
-function extractionPerRuleHeadAcceptsTarget(
-  target: WorkflowCanvasNode,
-  ruleName: string,
-  inferredExtractionRules: Map<string, Set<string>>
-): boolean {
-  if (target.kind !== "match_validation_extraction") return false;
-  if (refBool(target.data.ref, "extraction_global_validation")) return false;
-  const tr = target.data.ref;
-  if (refStr(tr, "extraction_rule_name") === ruleName) return true;
-  if (refBool(tr, "shared_extraction_validation_chain")) {
-    const names = (tr as Record<string, unknown> | undefined)?.extraction_rule_names;
-    if (Array.isArray(names)) return names.map(String).includes(ruleName);
-  }
-  return Boolean(inferredExtractionRules.get(target.id)?.has(ruleName));
-}
-
-/** Data edge from an extraction node may target a per-rule extraction match head or a global aliasing match node. */
-function extractionDataEdgeHeadAcceptsTarget(
-  target: WorkflowCanvasNode,
-  ruleName: string,
-  inferredExtractionRules: Map<string, Set<string>>
-): boolean {
-  if (target.kind === "match_validation_aliasing" && refBool(target.data.ref, "aliasing_global_validation")) {
-    return true;
-  }
-  return extractionPerRuleHeadAcceptsTarget(target, ruleName, inferredExtractionRules);
-}
-
-function aliasingPerRuleHeadAcceptsTarget(
-  target: WorkflowCanvasNode,
-  ruleName: string,
-  inferredAliasingRules: Map<string, Set<string>>
-): boolean {
-  if (target.kind !== "match_validation_aliasing") return false;
-  if (refBool(target.data.ref, "aliasing_global_validation")) return false;
-  const tr = target.data.ref;
-  if (refStr(tr, "aliasing_rule_name") === ruleName) return true;
-  if (refBool(tr, "shared_aliasing_validation_chain")) {
-    const names = (tr as Record<string, unknown> | undefined)?.aliasing_rule_names;
-    if (Array.isArray(names)) return names.map(String).includes(ruleName);
-  }
-  return Boolean(inferredAliasingRules.get(target.id)?.has(ruleName));
-}
-
-function patchExtractionRuleValidation(
-  doc: Record<string, unknown>,
-  ruleName: string,
-  validation: JsonObject
-): Record<string, unknown> {
-  const ke = doc.key_extraction as Record<string, unknown> | undefined;
-  if (!ke || typeof ke !== "object" || Array.isArray(ke)) return doc;
-  const config = ke.config as Record<string, unknown> | undefined;
-  if (!config || typeof config !== "object" || Array.isArray(config)) return doc;
-  const data = config.data as Record<string, unknown> | undefined;
-  if (!data || typeof data !== "object" || Array.isArray(data)) return doc;
-  const rules = data.extraction_rules;
-  if (!Array.isArray(rules)) return doc;
-  let found = false;
-  const nextRules = rules.map((r) => {
-    if (!r || typeof r !== "object" || Array.isArray(r)) return r;
-    const row = r as Record<string, unknown>;
-    if (String(row.name ?? "").trim() !== ruleName) return r;
-    found = true;
-    return { ...row, validation };
-  });
-  if (!found) return doc;
-  return {
-    ...doc,
-    key_extraction: {
-      ...ke,
-      config: {
-        ...config,
-        data: {
-          ...data,
-          extraction_rules: nextRules,
-        },
-      },
-    },
-  };
-}
-
-function patchAliasingRuleValidation(
-  doc: Record<string, unknown>,
-  ruleName: string,
-  validation: JsonObject
-): Record<string, unknown> {
-  const al = doc.aliasing as Record<string, unknown> | undefined;
-  if (!al || typeof al !== "object" || Array.isArray(al)) return doc;
-  const config = al.config as Record<string, unknown> | undefined;
-  if (!config || typeof config !== "object" || Array.isArray(config)) return doc;
-  const data = config.data as Record<string, unknown> | undefined;
-  if (!data || typeof data !== "object" || Array.isArray(data)) return doc;
-  const rules = getAliasingTransformRuleRows(data);
-  if (!Array.isArray(rules) || rules.length === 0) return doc;
-  let found = false;
-  const nextRules = rules.map((r) => {
-    if (!r || typeof r !== "object" || Array.isArray(r)) return r;
-    const row = r as Record<string, unknown>;
-    if (String(row.name ?? "").trim() !== ruleName) return r;
-    found = true;
-    return { ...row, validation };
-  });
-  if (!found) return doc;
-  return replaceAliasingTransformRulesInDoc(doc, nextRules);
+  const raw = buildMatchSubtree(headId, byId, outgoing, acceptTarget, visited);
+  if (raw === null) return [];
+  return [raw];
 }
 
 function patchKeyExtractionDataValidation(doc: Record<string, unknown>, validation: JsonObject): Record<string, unknown> {
@@ -936,12 +214,6 @@ function patchAliasingDataValidation(doc: Record<string, unknown>, validation: J
   };
 }
 
-function refStr(ref: unknown, key: string): string | undefined {
-  if (!ref || typeof ref !== "object" || Array.isArray(ref)) return undefined;
-  const v = (ref as Record<string, unknown>)[key];
-  return v != null && String(v).trim() ? String(v).trim() : undefined;
-}
-
 function refBool(ref: unknown, key: string): boolean {
   if (!ref || typeof ref !== "object" || Array.isArray(ref)) return false;
   return Boolean((ref as Record<string, unknown>)[key]);
@@ -953,174 +225,72 @@ function applyCanvasMatchWiring(
 ): Record<string, unknown> {
   const byId = nodesById(canvas);
   const outgoing = buildOutgoing(canvas);
-  const inferredExtractionRules = propagateStringSetsAlongMatchKindChains(
-    canvas,
-    byId,
-    buildMatchNodeExtractionRulesFromDataEdges(canvas, byId),
-    "match_validation_extraction",
-    (n) => refBool(n.data.ref, "extraction_global_validation")
-  );
-  const inferredAliasingRules = propagateStringSetsAlongMatchKindChains(
-    canvas,
-    byId,
-    buildMatchNodeAliasingRulesFromDataEdges(canvas, byId),
-    "match_validation_aliasing",
-    (n) => refBool(n.data.ref, "aliasing_global_validation")
-  );
-
   let doc: Record<string, unknown> = { ...scopeDoc };
 
-  // —— Per extraction rule ——
+  const globalExtIds: string[] = [];
   for (const n of canvas.nodes) {
-    if (n.kind !== "extraction") continue;
-    const ruleName = refStr(n.data.ref, "extraction_rule_name");
-    if (!ruleName) continue;
-
-    const heads: string[] = [];
-    for (const e of outgoing.get(n.id) ?? []) {
+    if (n.kind !== "match_validation_extraction") continue;
+    if (!refBool(n.data.ref, "extraction_global_validation")) continue;
+    globalExtIds.push(n.id);
+  }
+  if (globalExtIds.length > 0) {
+    const G = new Set(globalExtIds);
+    let head: string | null = null;
+    for (const e of canvas.edges) {
       if (!isDataEdge(e)) continue;
-      const t = byId.get(e.target);
-      if (!t || !extractionDataEdgeHeadAcceptsTarget(t, ruleName, inferredExtractionRules)) continue;
-      heads.push(t.id);
+      const src = byId.get(e.source);
+      const tgt = byId.get(e.target);
+      if (!src || !tgt || !G.has(tgt.id)) continue;
+      head = tgt.id;
+      break;
     }
-    sortHeadIdsByRuleName(heads, byId);
-
-    if (heads.length === 0) {
-      doc = patchExtractionRuleValidation(doc, ruleName, validationRulesFromCanvasOnly([]));
-    } else {
-      const acceptExtraction: ChainTargetAccept = (tn) =>
-        Boolean(
-          tn &&
-            tn.kind === "match_validation_extraction" &&
-            !refBool(tn.data.ref, "extraction_global_validation") &&
-            extractionPerRuleHeadAcceptsTarget(tn, ruleName, inferredExtractionRules)
-        );
-      const topSteps: unknown[] = [];
-      for (const hid of heads) {
-        const hn = byId.get(hid)!;
-        if (hn.kind === "match_validation_aliasing" && refBool(hn.data.ref, "aliasing_global_validation")) {
-          const nm = ruleNameFromMatchNode(hn);
-          if (nm) topSteps.push(nm);
-          continue;
-        }
-        const raw = buildMatchTopLevelSteps(hid, byId, outgoing, acceptExtraction);
-        const one = shapeMatchStepsLinearOne(raw);
-        if (one !== null) topSteps.push(one);
-      }
-      doc = patchExtractionRuleValidation(doc, ruleName, validationRulesFromCanvasOnly(topSteps));
-    }
-  }
-
-  // —— Global key_extraction.config.data.validation ——
-  {
-    const globalIds: string[] = [];
-    for (const n of canvas.nodes) {
-      if (n.kind !== "match_validation_extraction") continue;
-      if (!refBool(n.data.ref, "extraction_global_validation")) continue;
-      globalIds.push(n.id);
-    }
-    if (globalIds.length > 0) {
-      const G = new Set(globalIds);
-      let head: string | null = null;
-      for (const e of canvas.edges) {
-        if (!isDataEdge(e)) continue;
-        const src = byId.get(e.source);
-        const tgt = byId.get(e.target);
-        if (!src || src.kind !== "extraction") continue;
-        if (!tgt || !G.has(tgt.id)) continue;
-        head = tgt.id;
-        break;
-      }
-      if (head === null && G.size > 0) {
-        const sorted = [...G].sort();
-        head = sorted[0] ?? null;
-      }
-      const acceptGlobalExt: ChainTargetAccept = (tn) =>
-        Boolean(
-          tn &&
-            tn.kind === "match_validation_extraction" &&
-            refBool(tn.data.ref, "extraction_global_validation") &&
-            G.has(tn.id)
-        );
-      const steps = stepsFromShapedLinear(
-        head !== null ? buildMatchTopLevelSteps(head, byId, outgoing, acceptGlobalExt) : []
+    if (head === null && G.size > 0) head = [...G].sort()[0] ?? null;
+    const acceptGlobalExt: ChainTargetAccept = (tn) =>
+      Boolean(
+        tn &&
+          tn.kind === "match_validation_extraction" &&
+          refBool(tn.data.ref, "extraction_global_validation") &&
+          G.has(tn.id)
       );
-      const ke = doc.key_extraction as Record<string, unknown> | undefined;
-      const data = ke?.config as Record<string, unknown> | undefined;
-      const d = data?.data as Record<string, unknown> | undefined;
-      doc = patchKeyExtractionDataValidation(doc, validationRulesFromCanvasPreserveMeta(d?.validation, steps));
-    }
+    const steps = stepsFromShapedLinear(
+      head !== null ? buildMatchTopLevelSteps(head, byId, outgoing, acceptGlobalExt) : []
+    );
+    const ke = doc.key_extraction as Record<string, unknown> | undefined;
+    const data = (ke?.config as Record<string, unknown> | undefined)?.data as Record<string, unknown> | undefined;
+    doc = patchKeyExtractionDataValidation(doc, validationRulesFromCanvasPreserveMeta(data?.validation, steps));
   }
 
-  // —— Per aliasing rule ——
+  const globalAlIds: string[] = [];
   for (const n of canvas.nodes) {
-    if (n.kind !== "aliasing") continue;
-    const ruleName = refStr(n.data.ref, "aliasing_rule_name");
-    if (!ruleName) continue;
-
-    const heads: string[] = [];
-    for (const e of outgoing.get(n.id) ?? []) {
-      if (!isDataEdge(e)) continue;
-      const t = byId.get(e.target);
-      if (!t || !aliasingPerRuleHeadAcceptsTarget(t, ruleName, inferredAliasingRules)) continue;
-      heads.push(t.id);
-    }
-    sortHeadIdsByRuleName(heads, byId);
-
-    if (heads.length === 0) {
-      doc = patchAliasingRuleValidation(doc, ruleName, validationRulesFromCanvasOnly([]));
-    } else {
-      const acceptAl: ChainTargetAccept = (tn) =>
-        Boolean(tn && aliasingPerRuleHeadAcceptsTarget(tn, ruleName, inferredAliasingRules));
-      const topSteps: unknown[] = [];
-      for (const hid of heads) {
-        const raw = buildMatchTopLevelSteps(hid, byId, outgoing, acceptAl);
-        const one = shapeMatchStepsLinearOne(raw);
-        if (one !== null) topSteps.push(one);
-      }
-      doc = patchAliasingRuleValidation(doc, ruleName, validationRulesFromCanvasOnly(topSteps));
-    }
+    if (n.kind !== "match_validation_aliasing") continue;
+    if (!refBool(n.data.ref, "aliasing_global_validation")) continue;
+    globalAlIds.push(n.id);
   }
-
-  // —— Global aliasing.config.data.validation ——
-  {
-    const globalIds: string[] = [];
-    for (const n of canvas.nodes) {
-      if (n.kind !== "match_validation_aliasing") continue;
-      if (!refBool(n.data.ref, "aliasing_global_validation")) continue;
-      globalIds.push(n.id);
+  if (globalAlIds.length > 0) {
+    const G = new Set(globalAlIds);
+    let head: string | null = null;
+    for (const e of canvas.edges) {
+      if (!isDataEdge(e)) continue;
+      const src = byId.get(e.source);
+      const tgt = byId.get(e.target);
+      if (!src || !tgt || !G.has(tgt.id)) continue;
+      head = tgt.id;
+      break;
     }
-    if (globalIds.length > 0) {
-      const G = new Set(globalIds);
-      let head: string | null = null;
-      for (const e of canvas.edges) {
-        if (!isDataEdge(e)) continue;
-        const src = byId.get(e.source);
-        const tgt = byId.get(e.target);
-        if (!src || src.kind !== "aliasing") continue;
-        if (!tgt || !G.has(tgt.id)) continue;
-        head = tgt.id;
-        break;
-      }
-      if (head === null && G.size > 0) {
-        const sorted = [...G].sort();
-        head = sorted[0] ?? null;
-      }
-      const acceptGlobalAl: ChainTargetAccept = (tn) =>
-        Boolean(
-          tn &&
-            tn.kind === "match_validation_aliasing" &&
-            refBool(tn.data.ref, "aliasing_global_validation") &&
-            G.has(tn.id)
-        );
-      const steps = stepsFromShapedLinear(
-        head !== null ? buildMatchTopLevelSteps(head, byId, outgoing, acceptGlobalAl) : []
+    if (head === null && G.size > 0) head = [...G].sort()[0] ?? null;
+    const acceptGlobalAl: ChainTargetAccept = (tn) =>
+      Boolean(
+        tn &&
+          tn.kind === "match_validation_aliasing" &&
+          refBool(tn.data.ref, "aliasing_global_validation") &&
+          G.has(tn.id)
       );
-      const al = doc.aliasing as Record<string, unknown> | undefined;
-      const data = al?.config as Record<string, unknown> | undefined;
-      const d = data?.data as Record<string, unknown> | undefined;
-      doc = patchAliasingDataValidation(doc, validationRulesFromCanvasPreserveMeta(d?.validation, steps));
-    }
+    const steps = stepsFromShapedLinear(
+      head !== null ? buildMatchTopLevelSteps(head, byId, outgoing, acceptGlobalAl) : []
+    );
+    const al = doc.aliasing as Record<string, unknown> | undefined;
+    const data = (al?.config as Record<string, unknown> | undefined)?.data as Record<string, unknown> | undefined;
+    doc = patchAliasingDataValidation(doc, validationRulesFromCanvasPreserveMeta(data?.validation, steps));
   }
 
   return doc;

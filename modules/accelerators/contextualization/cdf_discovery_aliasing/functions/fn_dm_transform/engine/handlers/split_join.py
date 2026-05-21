@@ -2,19 +2,42 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Mapping, Optional
+import re
+from typing import Any, Dict, List, Mapping, Optional, Sequence
 
 from ..field_template import apply_output_template
 from .base import AbstractTransformHandler, TransformResult
 from .split_parts import split_working_parts
 
 
+def _normalize_indexes(raw: Any) -> List[Any]:
+    """Accept indexes as list, scalar, or comma-separated string (UI / YAML)."""
+    if raw is None:
+        return []
+    if isinstance(raw, bool):
+        return []
+    if isinstance(raw, (int, float)):
+        return [int(raw)]
+    if isinstance(raw, str):
+        parts = [p.strip() for p in re.split(r"[,;]+", raw) if p.strip()]
+        out: List[Any] = []
+        for p in parts:
+            try:
+                out.append(int(p))
+            except ValueError:
+                continue
+        return out
+    if isinstance(raw, Sequence) and not isinstance(raw, (str, bytes)):
+        return list(raw)
+    return []
+
+
 def validate_split_join_block(block: Mapping[str, Any]) -> None:
     template = AbstractTransformHandler.first_nonempty(block.get("template"))
-    indexes = block.get("indexes")
+    indexes = _normalize_indexes(block.get("indexes"))
     if template:
         return
-    if isinstance(indexes, list) and len(indexes) > 0:
+    if indexes:
         return
     raise ValueError("split_join: provide template and/or non-empty indexes[]")
 
@@ -66,11 +89,11 @@ class SplitJoinHandler(AbstractTransformHandler):
         token_values = _token_field_values(parts, block)
 
         template = cls.first_nonempty(block.get("template"))
-        if template:
+        indexes = _normalize_indexes(block.get("indexes"))
+        if template and not indexes:
             return apply_output_template(template, token_values)
 
-        indexes = block.get("indexes")
-        if isinstance(indexes, list):
+        if indexes:
             join = str(block.get("join") if block.get("join") is not None else "")
             selected: List[str] = []
             for raw_i in indexes:
@@ -78,5 +101,8 @@ class SplitJoinHandler(AbstractTransformHandler):
                 if idx is not None:
                     selected.append(parts[idx])
             return join.join(selected)
+
+        if template:
+            return apply_output_template(template, token_values)
 
         return working

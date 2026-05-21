@@ -12,9 +12,10 @@ import {
   ReactFlowProvider,
   useReactFlow,
 } from "@xyflow/react";
+import { useAppSettings } from "../../context/AppSettingsContext";
 import type { MessageKey } from "../../i18n";
 import { normalizeWorkflowCanvasHandleOrientation, type WorkflowCanvasDocument } from "../../types/workflowCanvas";
-import { canvasToFlowEdges, canvasToFlowNodes } from "./flowDocumentBridge";
+import { applyKeaFlowNodeDisplayClasses, canvasToFlowEdges, canvasToFlowNodes } from "./flowDocumentBridge";
 import { FlowHandleOrientationProvider } from "./FlowHandleOrientationContext";
 import { KEA_FLOW_NODE_TYPES } from "./flowNodeRegistry";
 import { runProgressAnimatedEdgeIds } from "./flowRunProgressEdges";
@@ -69,6 +70,7 @@ function PreviewInner({
   runCompletedCanvasNodeIds: readonly string[];
   failedCanvasNodeIds: readonly string[];
 }) {
+  const { theme } = useAppSettings();
   /**
    * Keep RF-internal node/edge state separate from execution styling. React Flow applies
    * ``onNodesChange`` updates (e.g. dimensions) that would strip a naïve ``useEffect`` className.
@@ -95,16 +97,13 @@ function PreviewInner({
 
   const nodes = useMemo(
     () =>
-      rfNodes.map((n) => {
-        const failed = failedSet.has(n.id);
-        const executing = executingSet.has(n.id);
-        const completed = completedSet.has(n.id);
-        let className: string | undefined;
-        if (failed) className = "kea-flow-node--run-failed";
-        else if (executing) className = "kea-flow-node--executing";
-        else if (completed) className = "kea-flow-node--run-completed";
-        return className ? { ...n, className } : { ...n, className: undefined };
-      }),
+      rfNodes.map((n) =>
+        applyKeaFlowNodeDisplayClasses(n, {
+          runFailed: failedSet.has(n.id),
+          executing: executingSet.has(n.id),
+          completed: completedSet.has(n.id),
+        })
+      ),
     [rfNodes, failedSet, executingSet, completedSet]
   );
 
@@ -149,6 +148,7 @@ function PreviewInner({
   return (
     <FlowHandleOrientationProvider value={orient}>
       <ReactFlow
+        colorMode={theme}
         nodes={nodes}
         edges={edges}
         onNodesChange={onNodesChange}

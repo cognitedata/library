@@ -90,7 +90,7 @@ export function InvertedIndexNodeConfigFields({ canvas, onChange, nodeId, t }: P
       <h4 className="kea-section-title" style={{ fontSize: "0.95rem", marginTop: "1rem" }}>
         {t("flow.invertedIndex.sectionSourceRaw")}
       </h4>
-      <div className="kea-filter-row" style={{ gridTemplateColumns: "1fr 1fr", gap: "0.5rem" }}>
+      <div className="kea-filter-row kea-filter-row--pair kea-filter-row--gap-md">
         <label className="kea-label">
           {t("flow.invertedIndex.sourceRawDb")}
           <DeferredCommitInput
@@ -138,7 +138,7 @@ export function InvertedIndexNodeConfigFields({ canvas, onChange, nodeId, t }: P
       <h4 className="kea-section-title" style={{ fontSize: "0.95rem", marginTop: "1rem" }}>
         {t("flow.invertedIndex.sectionSinkRaw")}
       </h4>
-      <div className="kea-filter-row" style={{ gridTemplateColumns: "1fr 1fr", gap: "0.5rem" }}>
+      <div className="kea-filter-row kea-filter-row--pair kea-filter-row--gap-md">
         <label className="kea-label">
           {t("flow.invertedIndex.sinkRawDb")}
           <DeferredCommitInput
@@ -168,7 +168,7 @@ export function InvertedIndexNodeConfigFields({ canvas, onChange, nodeId, t }: P
       <h4 className="kea-section-title" style={{ fontSize: "0.95rem", marginTop: "1rem" }}>
         {t("flow.invertedIndex.sectionEntityTypes")}
       </h4>
-      <div className="kea-filter-row" style={{ gridTemplateColumns: "1fr 1fr", gap: "0.5rem" }}>
+      <div className="kea-filter-row kea-filter-row--pair kea-filter-row--gap-md">
         <label className="kea-label">
           {t("flow.invertedIndex.fkEntityType")}
           <DeferredCommitInput
@@ -202,7 +202,7 @@ export function InvertedIndexNodeConfigFields({ canvas, onChange, nodeId, t }: P
       <h4 className="kea-section-title" style={{ fontSize: "0.95rem", marginTop: "1rem" }}>
         {t("flow.invertedIndex.sectionSourceView")}
       </h4>
-      <div className="kea-filter-row" style={{ gridTemplateColumns: "1fr 1fr 1fr", gap: "0.5rem" }}>
+      <div className="kea-filter-row kea-filter-row--triple kea-filter-row--gap-md">
         <label className="kea-label">
           {t("flow.invertedIndex.sourceViewSpace")}
           <DeferredCommitInput

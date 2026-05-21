@@ -1,5 +1,6 @@
 import type { Edge, Node } from "@xyflow/react";
 import {
+  isWorkflowCanvasNodeEnabled,
   kindToRfType,
   normalizeWorkflowCanvasHandleOrientation,
   rfTypeToKind,
@@ -60,11 +61,18 @@ export function orderFlowNodesForReactFlow(nodes: Node[]): Node[] {
 export function canvasToFlowNodes(nodes: WorkflowCanvasNode[]): Node[] {
   const ordered = sortCanvasNodesForReactFlow(nodes);
   return ordered.map((n) => {
+    const nodeEnabled = isWorkflowCanvasNodeEnabled(n);
+    const cascadeDisabled = n.cascade_disabled === true;
     const base: Node = {
       id: n.id,
       type: kindToRfType(n.kind),
       position: n.position,
-      data: { ...n.data, label: n.data.label } as Record<string, unknown>,
+      data: {
+        ...n.data,
+        label: n.data.label,
+        canvas_node_enabled: nodeEnabled,
+        canvas_node_cascade_disabled: cascadeDisabled,
+      } as Record<string, unknown>,
     };
     const pid = n.parent_id != null && String(n.parent_id).trim() ? String(n.parent_id).trim() : "";
     if (pid) {
@@ -100,12 +108,28 @@ export function flowToCanvasDocument(
   const orderedNodes = orderFlowNodesForReactFlow(nodes);
   const cn: WorkflowCanvasNode[] = orderedNodes.map((n) => {
     const kind = rfTypeToKind(n.type);
+    const rawData = (n.data as WorkflowCanvasNodeData) ?? {};
+    const { canvas_node_enabled: _cea, canvas_node_cascade_disabled: _ccd, ...dataRest } =
+      rawData as WorkflowCanvasNodeData & {
+        canvas_node_enabled?: boolean;
+        canvas_node_cascade_disabled?: boolean;
+      };
+    const nodeEnabled =
+      rawData.canvas_node_enabled !== undefined
+        ? rawData.canvas_node_enabled !== false
+        : true;
+    const cascadeDisabled =
+      rawData.canvas_node_cascade_disabled !== undefined
+        ? rawData.canvas_node_cascade_disabled === true
+        : false;
     const entry: WorkflowCanvasNode = {
       id: n.id,
       kind,
       position: { x: n.position.x, y: n.position.y },
-      data: (n.data as WorkflowCanvasNodeData) ?? {},
+      data: dataRest,
     };
+    if (!nodeEnabled) entry.enabled = false;
+    if (cascadeDisabled) entry.cascade_disabled = true;
     if (n.parentId && String(n.parentId).trim()) {
       entry.parent_id = String(n.parentId).trim();
     }
@@ -132,4 +156,29 @@ export function flowToCanvasDocument(
 
 export function newNodeId(): string {
   return `n_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+}
+
+export type KeaFlowNodeDisplayState = {
+  runFailed?: boolean;
+  executing?: boolean;
+  completed?: boolean;
+};
+
+/** Apply local-run progress outline classes for React Flow preview / main canvas. */
+export function applyKeaFlowNodeDisplayClasses(
+  node: Node,
+  state: KeaFlowNodeDisplayState
+): Node {
+  const failed = state.runFailed === true;
+  const executing = state.executing === true;
+  const completed = state.completed === true;
+  let className = node.className;
+  if (failed) {
+    className = className ? `${className} kea-flow-node--run-failed` : "kea-flow-node--run-failed";
+  } else if (executing) {
+    className = className ? `${className} kea-flow-node--executing` : "kea-flow-node--executing";
+  } else if (completed) {
+    className = className ? `${className} kea-flow-node--run-completed` : "kea-flow-node--run-completed";
+  }
+  return { ...node, className: className || undefined };
 }

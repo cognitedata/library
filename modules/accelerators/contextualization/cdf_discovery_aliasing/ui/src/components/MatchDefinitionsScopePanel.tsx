@@ -105,7 +105,7 @@ export function MatchDefinitionsScopePanel({ scopeDocument, onPatch, initialSele
       </h4>
       <p className="kea-hint">{t("matchDefinitions.definitionsHint")}</p>
 
-      <div className="kea-filter-row" style={{ gridTemplateColumns: "1fr auto auto", gap: "0.5rem", alignItems: "end", marginTop: "0.75rem" }}>
+      <div className="kea-filter-row kea-filter-row--actions-end kea-filter-row--gap-md kea-filter-row--align-end" style={{ marginTop: "0.75rem" }}>
         <label className="kea-label">
           {t("matchDefinitions.newDefinitionId")}
           <input
@@ -159,7 +159,7 @@ export function MatchDefinitionsScopePanel({ scopeDocument, onPatch, initialSele
       </h4>
       <p className="kea-hint">{t("matchDefinitions.sequencesHint")}</p>
 
-      <div className="kea-filter-row" style={{ gridTemplateColumns: "1fr auto", gap: "0.5rem", alignItems: "end", marginTop: "0.75rem" }}>
+      <div className="kea-filter-row kea-filter-row--label-action kea-filter-row--gap-md kea-filter-row--align-end" style={{ marginTop: "0.75rem" }}>
         <label className="kea-label">
           {t("matchDefinitions.newSequenceName")}
           <input
@@ -231,7 +231,7 @@ export function MatchDefinitionsScopePanel({ scopeDocument, onPatch, initialSele
                   setDragStepOver(null);
                 }}
               >
-                <div className="kea-filter-row" style={{ gridTemplateColumns: "auto 1fr auto", gap: "0.5rem", alignItems: "end" }}>
+                <div className="kea-filter-row kea-filter-row--compact-actions kea-filter-row--gap-md kea-filter-row--align-end">
                   <span
                     className="kea-drag-handle"
                     draggable

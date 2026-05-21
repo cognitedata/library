@@ -129,7 +129,7 @@ export function JoinNodeConfigFields({ t, value, onChange }: Props) {
                 const leaf: JsonObject = {
                   operator: "IEQUALS",
                   left_property: "name",
-                  right_property: "raw_columns.name",
+                  right_property: "raw_columns.key",
                 };
                 setJoinOn(appendJoinPredicate(joinOnRawObj, leaf));
                 setJsonOverride(false);
@@ -159,7 +159,7 @@ export function JoinNodeConfigFields({ t, value, onChange }: Props) {
                 const leaf: JsonObject = {
                   operator: "EQUALS",
                   left_property: "externalId",
-                  right_property: "raw_columns.name",
+                  right_property: "raw_columns.key",
                 };
                 setJoinOn(appendJoinPredicate(joinOnRawObj, leaf));
                 setJsonOverride(false);
@@ -341,7 +341,7 @@ export function JoinNodeConfigFields({ t, value, onChange }: Props) {
 
       <p className="kea-hint" style={{ marginTop: "0.35rem", maxWidth: "42rem" }}>
         Wire inputs with handles <code>in__left</code> and <code>in__right</code>. Predicate paths resolve into
-        cohort <code>PROPERTIES_JSON</code> (e.g. <code>raw_columns.name</code> on the RAW-query side).
+        cohort <code>PROPERTIES_JSON</code> (e.g. <code>raw_columns.key</code> on the RAW-query side).
       </p>
     </div>
   );

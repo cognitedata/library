@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { Edge, Node } from "@xyflow/react";
 import YAML from "yaml";
 import type { MessageKey } from "../../i18n";
@@ -17,10 +17,6 @@ import { rfTypeToKind } from "../../types/workflowCanvas";
 import { readFilters } from "../../utils/filtersConfigModel";
 import type { FlowEdgeData } from "./flowDocumentBridge";
 import {
-  ALIASING_HANDLER_IDS,
-  EXTRACTION_HANDLER_IDS,
-} from "./handlerRegistry";
-import {
   SourceViewFilterNodeEditor,
   emptyAnd,
   emptyLeaf,
@@ -28,19 +24,18 @@ import {
   emptyOr,
 } from "../SourceViewFiltersEditor";
 import { resolveConfidenceMatchRuleNames } from "../../utils/confidenceMatchRuleNames";
-import {
-  getAliasingRuleScopeFilters,
-  getExtractionRuleScopeFilters,
-  patchAliasingRuleScopeFilters,
-  patchExtractionRuleScopeFilters,
-  patchSourceViewFilters,
-} from "./workflowScopePatch";
+import { patchSourceViewFilters } from "./workflowScopePatch";
 import { DeferredCommitInput, DeferredCommitTextarea } from "../DeferredCommitTextField";
-import { keaDiscoveryStageRfTypes, keaValidationRuleLayoutRfTypes } from "./flowConstants";
+import {
+  keaDiscoveryStageRfTypes,
+  keaValidationRuleLayoutRfTypes,
+  keaWorkflowDisableableRfTypes,
+} from "./flowConstants";
+import { isWorkflowCanvasNodeEnabled } from "../../types/workflowCanvas";
+import { applyWorkflowCanvasEnablementPatch } from "./flowNodeEnabled";
 import { FlowNodeAccentColorFields } from "./flowNodeAccent";
 import { FilterNodeInspectorFields } from "./FilterNodeInspectorFields";
 import { ConfidenceFilterNodeInspectorFields } from "./ConfidenceFilterNodeInspectorFields";
-import { getAliasingTransformRuleRows } from "./aliasingScopeData";
 
 function validationRuleLayoutContextFromRfType(rfType: string | undefined): "source_view" | "extraction" | "aliasing" {
   switch (rfType) {
@@ -73,6 +68,8 @@ type Props = {
   onApplySubflowPorts?: (subflowId: string, ports: SubflowPortsConfig) => void;
   /** Open drill-in editor for a ``keaSubgraph`` composite. */
   onOpenSubgraphDrill?: (nodeId: string) => void;
+  /** Optional one-line hint when cascade disable/enable affects other nodes. */
+  onActivityHint?: (message: string) => void;
   /** When editing a subgraph inner canvas: frame ports and hub ids for in-canvas port management. */
   drillBoundaryPorts?: {
     targetSubgraphId: string;
@@ -90,21 +87,6 @@ function resolveSourceViewIndex(ref: Record<string, unknown>): number | null {
   return i;
 }
 
-function listExtractionRuleNames(doc: Record<string, unknown>): string[] {
-  const ke = doc.key_extraction as Record<string, unknown> | undefined;
-  const data = ke?.config as Record<string, unknown> | undefined;
-  const d = data?.data as Record<string, unknown> | undefined;
-  const rules = d?.extraction_rules;
-  if (!Array.isArray(rules)) return [];
-  const out: string[] = [];
-  for (const r of rules) {
-    if (r && typeof r === "object" && !Array.isArray(r)) {
-      const name = (r as Record<string, unknown>).name ?? (r as Record<string, unknown>).rule_id;
-      if (name != null && String(name).trim()) out.push(String(name));
-    }
-  }
-  return out;
-}
 
 function listSvConfidenceNames(doc: Record<string, unknown>, svIdx: number): string[] {
   const svs = doc.source_views;
@@ -114,40 +96,11 @@ function listSvConfidenceNames(doc: Record<string, unknown>, svIdx: number): str
   return resolveConfidenceMatchRuleNames((row as Record<string, unknown>).validation, doc);
 }
 
-function listKeConfidenceNames(doc: Record<string, unknown>, extractionRuleName: string): string[] {
-  const ke = doc.key_extraction as Record<string, unknown> | undefined;
-  const config = ke?.config as Record<string, unknown> | undefined;
-  const data = config?.data as Record<string, unknown> | undefined;
-  const rules = data?.extraction_rules;
-  if (!Array.isArray(rules)) return [];
-  for (const r of rules) {
-    if (!r || typeof r !== "object" || Array.isArray(r)) continue;
-    const row = r as Record<string, unknown>;
-    if (String(row.name ?? "").trim() !== extractionRuleName) continue;
-    return resolveConfidenceMatchRuleNames(row.validation, doc);
-  }
-  return [];
-}
-
 function listKeyExtractionDataValidationConfidenceNames(doc: Record<string, unknown>): string[] {
   const ke = doc.key_extraction as Record<string, unknown> | undefined;
   const config = ke?.config as Record<string, unknown> | undefined;
   const data = config?.data as Record<string, unknown> | undefined;
   return resolveConfidenceMatchRuleNames(data?.validation, doc);
-}
-
-function listAlConfidenceNames(doc: Record<string, unknown>, aliasingRuleName: string): string[] {
-  const al = doc.aliasing as Record<string, unknown> | undefined;
-  const config = al?.config as Record<string, unknown> | undefined;
-  const data = config?.data as Record<string, unknown> | undefined;
-  const rules = getAliasingTransformRuleRows(data);
-  for (const r of rules) {
-    if (!r || typeof r !== "object" || Array.isArray(r)) continue;
-    const row = r as Record<string, unknown>;
-    if (String(row.name ?? "").trim() !== aliasingRuleName) continue;
-    return resolveConfidenceMatchRuleNames(row.validation, doc);
-  }
-  return [];
 }
 
 function listAliasingDataValidationConfidenceNames(doc: Record<string, unknown>): string[] {
@@ -157,20 +110,6 @@ function listAliasingDataValidationConfidenceNames(doc: Record<string, unknown>)
   return resolveConfidenceMatchRuleNames(data?.validation, doc);
 }
 
-function listAliasingRuleNames(doc: Record<string, unknown>): string[] {
-  const al = doc.aliasing as Record<string, unknown> | undefined;
-  const cfg = al?.config as Record<string, unknown> | undefined;
-  const d = cfg?.data as Record<string, unknown> | undefined;
-  const rules = getAliasingTransformRuleRows(d);
-  const out: string[] = [];
-  for (const r of rules) {
-    if (r && typeof r === "object" && !Array.isArray(r)) {
-      const name = (r as Record<string, unknown>).name;
-      if (name != null && String(name).trim()) out.push(String(name));
-    }
-  }
-  return out;
-}
 
 function readNodeRef(data: Record<string, unknown>): Record<string, unknown> {
   const r = data.ref;
@@ -184,6 +123,7 @@ function discoveryKindUsesNodeConfig(kind: CanvasNodeKind): boolean {
     case "query_raw":
     case "query_classic":
     case "transform":
+    case "merge":
     case "join":
     case "validation":
     case "instance_filter":
@@ -236,6 +176,11 @@ function discoveryStageInlineNonempty(kind: CanvasNodeKind, value: unknown): boo
     const dsc = row.description != null ? String(row.description).trim() : "";
     return dsc.length > 0;
   }
+  if (kind === "merge") {
+    const dsc = row.description != null ? String(row.description).trim() : "";
+    const fp = row.field_policies ?? row.save_field_policies;
+    return dsc.length > 0 && Array.isArray(fp) && fp.length > 0;
+  }
   if (kind === "join") {
     const dsc = row.description != null ? String(row.description).trim() : "";
     const jo = row.join_on;
@@ -283,8 +228,6 @@ function listSourceViewScopeEntries(doc: Record<string, unknown>): { index: numb
 function refResolved(
   rfType: string | undefined,
   data: Record<string, unknown>,
-  extractionNames: string[],
-  aliasingNames: string[],
   workflowDoc: Record<string, unknown>
 ): { ok: boolean; hint: string } {
   const logical = rfTypeToKind(rfType);
@@ -320,13 +263,7 @@ function refResolved(
           hint: names.includes(cm) ? "" : "flow.inspectorRefMissingHint",
         };
       }
-      const rn = ref?.extraction_rule_name != null ? String(ref.extraction_rule_name).trim() : "";
-      if (!rn) return { ok: true, hint: "" };
-      const names = listKeConfidenceNames(workflowDoc, rn);
-      return {
-        ok: names.includes(cm),
-        hint: names.includes(cm) ? "" : "flow.inspectorRefMissingHint",
-      };
+      return { ok: true, hint: "" };
     }
     if (ctx === "aliasing") {
       if (ref?.aliasing_global_validation === true) {
@@ -336,41 +273,62 @@ function refResolved(
           hint: names.includes(cm) ? "" : "flow.inspectorRefMissingHint",
         };
       }
-      const rn = ref?.aliasing_rule_name != null ? String(ref.aliasing_rule_name).trim() : "";
-      if (!rn) return { ok: true, hint: "" };
-      const names = listAlConfidenceNames(workflowDoc, rn);
-      return {
-        ok: names.includes(cm),
-        hint: names.includes(cm) ? "" : "flow.inspectorRefMissingHint",
-      };
+      return { ok: true, hint: "" };
     }
     return { ok: true, hint: "" };
   }
   if (discoveryKindUsesNodeConfig(logical)) {
     return discoveryIndexDrift(logical, data);
   }
-  if (!ref) return { ok: true, hint: "" };
-  if (logical === "extraction") {
-    const n = ref.extraction_rule_name != null ? String(ref.extraction_rule_name) : "";
-    if (!n.trim()) return { ok: true, hint: "" };
-    return {
-      ok: extractionNames.includes(n),
-      hint: extractionNames.includes(n) ? "" : "flow.inspectorRefMissingHint",
-    };
-  }
-  if (logical === "aliasing") {
-    const n = ref.aliasing_rule_name != null ? String(ref.aliasing_rule_name) : "";
-    if (!n.trim()) return { ok: true, hint: "" };
-    return {
-      ok: aliasingNames.includes(n),
-      hint: aliasingNames.includes(n) ? "" : "flow.inspectorRefMissingHint",
-    };
-  }
   return { ok: true, hint: "" };
 }
 
 function subflowNewPortId(): string {
   return `p_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function FlowNodeEnabledInspectorField({
+  t,
+  rfType,
+  nodeId,
+  workflowCanvas,
+  onPatchWorkflowCanvas,
+  onActivityHint,
+}: {
+  t: TFn;
+  rfType: string;
+  nodeId: string;
+  workflowCanvas?: WorkflowCanvasDocument;
+  onPatchWorkflowCanvas?: (next: WorkflowCanvasDocument) => void;
+  onActivityHint?: (message: string) => void;
+}) {
+  if (!keaWorkflowDisableableRfTypes.has(rfType) || !workflowCanvas || !onPatchWorkflowCanvas) {
+    return null;
+  }
+  const cn = workflowCanvas.nodes.find((n) => n.id === nodeId);
+  const enabled = cn ? isWorkflowCanvasNodeEnabled(cn) : true;
+  return (
+    <div style={{ marginTop: "0.5rem", marginBottom: "0.35rem" }}>
+      <label className="kea-label" style={{ display: "flex", gap: "0.5rem", alignItems: "center", margin: 0 }}>
+        <input
+          type="checkbox"
+          checked={enabled}
+          onChange={() =>
+            onPatchWorkflowCanvas(
+              applyWorkflowCanvasEnablementPatch(workflowCanvas, nodeId, !enabled, {
+                t,
+                onHint: onActivityHint,
+              })
+            )
+          }
+        />
+        {t("flow.inspectorNodeEnabled")}
+      </label>
+      <p className="kea-hint" style={{ marginTop: "0.25rem", marginBottom: 0 }}>
+        {t("flow.inspectorNodeEnabledHint")}
+      </p>
+    </div>
+  );
 }
 
 function swapPortRow<T>(rows: T[], i: number, j: number): T[] {
@@ -547,54 +505,20 @@ export function FlowNodeInspector({
   selectedEdge,
   workflowDoc,
   flowNodes,
-  workflowCanvas: _workflowCanvas,
-  onPatchWorkflowCanvas: _onPatchWorkflowCanvas,
+  workflowCanvas,
+  onPatchWorkflowCanvas,
   onPatchWorkflowScope,
   onPatchNode,
   onPatchEdge,
   onApplySubflowPorts,
   onOpenSubgraphDrill,
+  onActivityHint,
   drillBoundaryPorts,
 }: Props) {
-  const extractionNames = listExtractionRuleNames(workflowDoc);
-  const aliasingNames = listAliasingRuleNames(workflowDoc);
-  const sourceViewScopeEntries = listSourceViewScopeEntries(workflowDoc);
-
-  const [scopeFiltersYaml, setScopeFiltersYaml] = useState("");
-  const [scopeFiltersYamlInvalid, setScopeFiltersYamlInvalid] = useState(false);
-
-  useEffect(() => {
-    if (!selectedNode) {
-      setScopeFiltersYaml("");
-      setScopeFiltersYamlInvalid(false);
-      return;
-    }
-    const k = selectedNode.type ?? "";
-    const raw = (selectedNode.data ?? {}) as Record<string, unknown>;
-    const r = readNodeRef(raw);
-    if (k === "keaExtraction") {
-      const name = String(r.extraction_rule_name ?? "").trim();
-      if (!name) {
-        setScopeFiltersYaml("");
-        return;
-      }
-      const sf = getExtractionRuleScopeFilters(workflowDoc, name);
-      setScopeFiltersYaml(YAML.stringify(sf ?? {}));
-      setScopeFiltersYamlInvalid(false);
-    } else if (k === "keaAliasing") {
-      const name = String(r.aliasing_rule_name ?? "").trim();
-      if (!name) {
-        setScopeFiltersYaml("");
-        return;
-      }
-      const sf = getAliasingRuleScopeFilters(workflowDoc, name);
-      setScopeFiltersYaml(YAML.stringify(sf ?? {}));
-      setScopeFiltersYamlInvalid(false);
-    } else {
-      setScopeFiltersYaml("");
-      setScopeFiltersYamlInvalid(false);
-    }
-  }, [selectedNode, workflowDoc]);
+  const sourceViewScopeEntries = useMemo(
+    () => listSourceViewScopeEntries(workflowDoc),
+    [workflowDoc]
+  );
 
   if (selectedEdge) {
     const fd = (selectedEdge.data ?? {}) as FlowEdgeData;
@@ -655,7 +579,7 @@ export function FlowNodeInspector({
       ? flowNodes.find((n) => n.id === selectedNode.id) ?? selectedNode
       : selectedNode;
   const data = (liveSelectedNode.data ?? {}) as Record<string, unknown>;
-  const kind = liveSelectedNode.type ?? "keaExtraction";
+  const kind = liveSelectedNode.type ?? "keaTransform";
   const validationRuleLayoutCtx = validationRuleLayoutContextFromRfType(kind);
   const logicalKind = rfTypeToKind(kind);
   const drift =
@@ -668,7 +592,7 @@ export function FlowNodeInspector({
         ? { ok: true, hint: "" }
         : discoveryKindUsesNodeConfig(logicalKind)
           ? discoveryIndexDrift(logicalKind, data)
-          : refResolved(kind, data, extractionNames, aliasingNames, workflowDoc);
+          : refResolved(kind, data, workflowDoc);
   const ref = readNodeRef(data);
 
   if (kind === "keaStart" || kind === "keaEnd") {
@@ -770,6 +694,14 @@ export function FlowNodeInspector({
         <p className="kea-hint" style={{ marginTop: 0 }}>
           {selectedNode.id} · {kind}
         </p>
+        <FlowNodeEnabledInspectorField
+          t={t}
+          rfType={kind}
+          nodeId={selectedNode.id}
+          workflowCanvas={workflowCanvas}
+          onPatchWorkflowCanvas={onPatchWorkflowCanvas}
+          onActivityHint={onActivityHint}
+        />
         {onOpenSubgraphDrill && (
           <p style={{ marginBottom: "0.65rem" }}>
             <button
@@ -827,6 +759,14 @@ export function FlowNodeInspector({
         <p className="kea-hint" style={{ marginTop: 0 }}>
           {selectedNode.id} · {kind}
         </p>
+        <FlowNodeEnabledInspectorField
+          t={t}
+          rfType={kind}
+          nodeId={selectedNode.id}
+          workflowCanvas={workflowCanvas}
+          onPatchWorkflowCanvas={onPatchWorkflowCanvas}
+          onActivityHint={onActivityHint}
+        />
         <label className="kea-label kea-label--block">
           {t("flow.inspectorLabel")}
           <DeferredCommitInput
@@ -934,6 +874,14 @@ export function FlowNodeInspector({
       <p className="kea-hint" style={{ marginTop: 0 }}>
         {selectedNode.id} · {kind}
       </p>
+      <FlowNodeEnabledInspectorField
+        t={t}
+        rfType={kind}
+        nodeId={selectedNode.id}
+        workflowCanvas={workflowCanvas}
+        onPatchWorkflowCanvas={onPatchWorkflowCanvas}
+        onActivityHint={onActivityHint}
+      />
       {!drift.ok && drift.hint && (
         <p className="kea-hint kea-hint--warn" role="status">
           {t(drift.hint as MessageKey)}
@@ -985,56 +933,6 @@ export function FlowNodeInspector({
               </select>
             </label>
           )}
-          {validationRuleLayoutCtx === "extraction" && !readNodeRef(data).extraction_global_validation && (
-            <label className="kea-label kea-label--block">
-              {t("flow.inspectorExtractionRuleRef")}
-              <select
-                className="kea-input"
-                value={String(readNodeRef(data).extraction_rule_name ?? "")}
-                onChange={(e) => {
-                  const nextRef: Record<string, unknown> = { ...readNodeRef(data) };
-                  if (!e.target.value.trim()) delete nextRef.extraction_rule_name;
-                  else nextRef.extraction_rule_name = e.target.value;
-                  onPatchNode(selectedNode.id, {
-                    ...data,
-                    ref: Object.keys(nextRef).length ? nextRef : undefined,
-                  });
-                }}
-              >
-                <option value="">{t("flow.inspectorRefNone")}</option>
-                {extractionNames.map((n) => (
-                  <option key={n} value={n}>
-                    {n}
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
-          {validationRuleLayoutCtx === "aliasing" && !readNodeRef(data).aliasing_global_validation && (
-            <label className="kea-label kea-label--block">
-              {t("flow.inspectorAliasingRuleRef")}
-              <select
-                className="kea-input"
-                value={String(readNodeRef(data).aliasing_rule_name ?? "")}
-                onChange={(e) => {
-                  const nextRef: Record<string, unknown> = { ...readNodeRef(data) };
-                  if (!e.target.value.trim()) delete nextRef.aliasing_rule_name;
-                  else nextRef.aliasing_rule_name = e.target.value;
-                  onPatchNode(selectedNode.id, {
-                    ...data,
-                    ref: Object.keys(nextRef).length ? nextRef : undefined,
-                  });
-                }}
-              >
-                <option value="">{t("flow.inspectorRefNone")}</option>
-                {aliasingNames.map((n) => (
-                  <option key={n} value={n}>
-                    {n}
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
           <label className="kea-label kea-label--block">
             {t("flow.inspectorConfidenceRuleName")}
             <select
@@ -1065,36 +963,8 @@ export function FlowNodeInspector({
                 if (validationRuleLayoutCtx === "extraction" && rref.extraction_global_validation === true) {
                   return listKeyExtractionDataValidationConfidenceNames(workflowDoc);
                 }
-                if (
-                  validationRuleLayoutCtx === "extraction" &&
-                  rref.shared_extraction_validation_chain === true &&
-                  Array.isArray(rref.extraction_rule_names) &&
-                  rref.extraction_rule_names.length > 0
-                ) {
-                  return listKeConfidenceNames(workflowDoc, String(rref.extraction_rule_names[0]).trim());
-                }
-                if (validationRuleLayoutCtx === "extraction" && String(rref.extraction_rule_name ?? "").trim()) {
-                  return listKeConfidenceNames(
-                    workflowDoc,
-                    String(rref.extraction_rule_name).trim()
-                  );
-                }
                 if (validationRuleLayoutCtx === "aliasing" && rref.aliasing_global_validation === true) {
                   return listAliasingDataValidationConfidenceNames(workflowDoc);
-                }
-                if (
-                  validationRuleLayoutCtx === "aliasing" &&
-                  rref.shared_aliasing_validation_chain === true &&
-                  Array.isArray(rref.aliasing_rule_names) &&
-                  rref.aliasing_rule_names.length > 0
-                ) {
-                  return listAlConfidenceNames(workflowDoc, String(rref.aliasing_rule_names[0]).trim());
-                }
-                if (validationRuleLayoutCtx === "aliasing" && String(rref.aliasing_rule_name ?? "").trim()) {
-                  return listAlConfidenceNames(
-                    workflowDoc,
-                    String(rref.aliasing_rule_name).trim()
-                  );
                 }
                 return [];
               })().map((n) => (
@@ -1303,30 +1173,6 @@ export function FlowNodeInspector({
           })()}
         </>
       )}
-      {(kind === "keaExtraction" || kind === "keaAliasing") && (
-        <label className="kea-label kea-label--block">
-          {t("flow.inspectorHandler")}
-          <select
-            className="kea-input"
-            value={String(data.handler_id ?? "")}
-            onChange={(e) =>
-              onPatchNode(selectedNode.id, {
-                ...data,
-                handler_id: e.target.value || undefined,
-                handler_family: kind === "keaExtraction" ? "extraction" : "aliasing",
-                preset_from_palette: false,
-              })
-            }
-          >
-            <option value="">{t("flow.inspectorHandlerUnset")}</option>
-            {(kind === "keaExtraction" ? EXTRACTION_HANDLER_IDS : ALIASING_HANDLER_IDS).map((id) => (
-              <option key={id} value={id}>
-                {id}
-              </option>
-            ))}
-          </select>
-        </label>
-      )}
       {kind === "keaDiscoveryInstanceFilter" && (
         <FilterNodeInspectorFields
           nodeId={selectedNode.id}
@@ -1351,164 +1197,6 @@ export function FlowNodeInspector({
           {t("flow.inspectorDiscoveryInlineHint")}
         </p>
       )}
-      {kind === "keaExtraction" && (
-        <label className="kea-label kea-label--block">
-          {t("flow.inspectorExtractionRuleRef")}
-          <select
-            className="kea-input"
-            value={String(
-              (data.ref && typeof data.ref === "object" && !Array.isArray(data.ref)
-                ? (data.ref as Record<string, unknown>).extraction_rule_name
-                : undefined) ?? ""
-            )}
-            onChange={(e) => {
-              const ref: Record<string, unknown> = {
-                ...(typeof data.ref === "object" && data.ref && !Array.isArray(data.ref)
-                  ? (data.ref as Record<string, unknown>)
-                  : {}),
-              };
-              if (!e.target.value.trim()) delete ref.extraction_rule_name;
-              else ref.extraction_rule_name = e.target.value;
-              onPatchNode(selectedNode.id, { ...data, ref });
-            }}
-          >
-            <option value="">{t("flow.inspectorRefNone")}</option>
-            {extractionNames.map((n) => (
-              <option key={n} value={n}>
-                {n}
-              </option>
-            ))}
-          </select>
-        </label>
-      )}
-      {kind === "keaExtraction" &&
-        String(
-          (data.ref && typeof data.ref === "object" && !Array.isArray(data.ref)
-            ? (data.ref as Record<string, unknown>).extraction_rule_name
-            : undefined) ?? ""
-        ).trim() && (
-          <div style={{ marginTop: "0.5rem" }}>
-            <h4 className="kea-section-title" style={{ fontSize: "0.9rem", marginBottom: "0.35rem" }}>
-              {t("flow.inspectorScopeFiltersYaml")}
-            </h4>
-            <p className="kea-hint" style={{ marginTop: 0, marginBottom: "0.35rem", maxWidth: "42rem" }}>
-              {t("flow.inspectorScopeFiltersYamlHint")}
-            </p>
-            {scopeFiltersYamlInvalid ? (
-              <p className="kea-hint kea-hint--warn" role="status">
-                {t("flow.inspectorScopeFiltersYamlInvalid")}
-              </p>
-            ) : null}
-            <textarea
-              className="kea-textarea"
-              spellCheck={false}
-              style={{ minHeight: 120, fontFamily: "ui-monospace, monospace", fontSize: "0.8rem" }}
-              value={scopeFiltersYaml}
-              onChange={(e) => {
-                setScopeFiltersYaml(e.target.value);
-                setScopeFiltersYamlInvalid(false);
-              }}
-              onBlur={() => {
-                const name = String(
-                  (data.ref && typeof data.ref === "object" && !Array.isArray(data.ref)
-                    ? (data.ref as Record<string, unknown>).extraction_rule_name
-                    : undefined) ?? ""
-                ).trim();
-                if (!name) return;
-                try {
-                  const parsed = YAML.parse(scopeFiltersYaml);
-                  const sf =
-                    parsed !== null && typeof parsed === "object" && !Array.isArray(parsed)
-                      ? (parsed as Record<string, unknown>)
-                      : {};
-                  onPatchWorkflowScope((doc) => patchExtractionRuleScopeFilters(doc, name, sf));
-                  setScopeFiltersYamlInvalid(false);
-                } catch {
-                  setScopeFiltersYamlInvalid(true);
-                }
-              }}
-            />
-          </div>
-        )}
-      {kind === "keaAliasing" && (
-        <label className="kea-label kea-label--block">
-          {t("flow.inspectorAliasingRuleRef")}
-          <select
-            className="kea-input"
-            value={String(
-              (data.ref && typeof data.ref === "object" && !Array.isArray(data.ref)
-                ? (data.ref as Record<string, unknown>).aliasing_rule_name
-                : undefined) ?? ""
-            )}
-            onChange={(e) => {
-              const ref: Record<string, unknown> = {
-                ...(typeof data.ref === "object" && data.ref && !Array.isArray(data.ref)
-                  ? (data.ref as Record<string, unknown>)
-                  : {}),
-              };
-              if (!e.target.value.trim()) delete ref.aliasing_rule_name;
-              else ref.aliasing_rule_name = e.target.value;
-              onPatchNode(selectedNode.id, { ...data, ref });
-            }}
-          >
-            <option value="">{t("flow.inspectorRefNone")}</option>
-            {aliasingNames.map((n) => (
-              <option key={n} value={n}>
-                {n}
-              </option>
-            ))}
-          </select>
-        </label>
-      )}
-      {kind === "keaAliasing" &&
-        String(
-          (data.ref && typeof data.ref === "object" && !Array.isArray(data.ref)
-            ? (data.ref as Record<string, unknown>).aliasing_rule_name
-            : undefined) ?? ""
-        ).trim() && (
-          <div style={{ marginTop: "0.5rem" }}>
-            <h4 className="kea-section-title" style={{ fontSize: "0.9rem", marginBottom: "0.35rem" }}>
-              {t("flow.inspectorScopeFiltersYaml")}
-            </h4>
-            <p className="kea-hint" style={{ marginTop: 0, marginBottom: "0.35rem", maxWidth: "42rem" }}>
-              {t("flow.inspectorScopeFiltersYamlHint")}
-            </p>
-            {scopeFiltersYamlInvalid ? (
-              <p className="kea-hint kea-hint--warn" role="status">
-                {t("flow.inspectorScopeFiltersYamlInvalid")}
-              </p>
-            ) : null}
-            <textarea
-              className="kea-textarea"
-              spellCheck={false}
-              style={{ minHeight: 120, fontFamily: "ui-monospace, monospace", fontSize: "0.8rem" }}
-              value={scopeFiltersYaml}
-              onChange={(e) => {
-                setScopeFiltersYaml(e.target.value);
-                setScopeFiltersYamlInvalid(false);
-              }}
-              onBlur={() => {
-                const name = String(
-                  (data.ref && typeof data.ref === "object" && !Array.isArray(data.ref)
-                    ? (data.ref as Record<string, unknown>).aliasing_rule_name
-                    : undefined) ?? ""
-                ).trim();
-                if (!name) return;
-                try {
-                  const parsed = YAML.parse(scopeFiltersYaml);
-                  const sf =
-                    parsed !== null && typeof parsed === "object" && !Array.isArray(parsed)
-                      ? (parsed as Record<string, unknown>)
-                      : {};
-                  onPatchWorkflowScope((doc) => patchAliasingRuleScopeFilters(doc, name, sf));
-                  setScopeFiltersYamlInvalid(false);
-                } catch {
-                  setScopeFiltersYamlInvalid(true);
-                }
-              }}
-            />
-          </div>
-        )}
       <label className="kea-label kea-label--block">
         {t("flow.inspectorNotes")}
         <DeferredCommitTextarea

@@ -5,10 +5,9 @@ import type { JsonObject } from "../types/scopeConfig";
 import { mergeDataWithValidation, splitDataByValidation } from "../utils/splitConfigData";
 import { withoutRegexpMatch } from "../utils/validationConfig";
 import { DeferredCommitInput } from "./DeferredCommitTextField";
-import { DiscoveryRulesStructuredEditor } from "./DiscoveryRulesStructuredEditor";
 import { ValidationStructuredEditor } from "./ValidationStructuredEditor";
 
-type EditorSub = "settings" | "rules" | "validation";
+type EditorSub = "settings" | "validation";
 
 type Props = {
   value: unknown;
@@ -73,7 +72,9 @@ export function KeyExtractionControls({
   initialFocusedMatchRuleName,
 }: Props) {
   const { t } = useAppSettings();
-  const [editorSub, setEditorSub] = useState<EditorSub>(() => initialEditorSub ?? "rules");
+  const [editorSub, setEditorSub] = useState<EditorSub>(() =>
+    initialEditorSub === "rules" ? "settings" : (initialEditorSub ?? "settings")
+  );
   const ke = useMemo(() => normalize(value), [value]);
   const params = (ke.config.parameters as JsonObject) ?? {};
 
@@ -213,15 +214,6 @@ export function KeyExtractionControls({
         <button
           type="button"
           role="tab"
-          aria-selected={editorSub === "rules"}
-          className={editorSubtabClass(editorSub === "rules")}
-          onClick={() => setEditorSub("rules")}
-        >
-          {t("editor.subtab.rules")}
-        </button>
-        <button
-          type="button"
-          role="tab"
           aria-selected={editorSub === "validation"}
           className={editorSubtabClass(editorSub === "validation")}
           onClick={() => setEditorSub("validation")}
@@ -254,8 +246,7 @@ export function KeyExtractionControls({
           {Object.entries(params).map(([k, v]) => (
             <div
               key={k}
-              className="kea-filter-row"
-              style={{ gridTemplateColumns: "minmax(8rem,1fr) minmax(8rem,1fr) auto", alignItems: "end" }}
+              className="kea-filter-row kea-filter-row--pair-wide kea-filter-row--align-end"
             >
               <label className="kea-label">
                 {t("forms.paramKey")}
@@ -281,32 +272,6 @@ export function KeyExtractionControls({
           <button type="button" className="kea-btn kea-btn--sm" onClick={addParam}>
             {t("keyExtraction.addParam")}
           </button>
-        </div>
-      )}
-      {editorSub === "rules" && (
-        <div role="tabpanel">
-          <h4 className="kea-section-title" style={{ fontSize: "0.95rem" }}>
-            {t("keyExtraction.dataYaml")}
-          </h4>
-          <p className="kea-hint">{t("keyExtraction.dataYamlHint")}</p>
-          {rulesError && <p className="kea-hint kea-hint--warn">{rulesError}</p>}
-          <DiscoveryRulesStructuredEditor
-            value={rulesDataObject}
-            onChange={commitRulesData}
-            scopeDocument={scopeDocument}
-            initialFocusedRuleName={initialFocusedExtractionRuleName}
-          />
-          <details style={{ marginTop: "1rem" }}>
-            <summary style={{ cursor: "pointer", color: "var(--kea-text-muted)" }}>{t("keyExtraction.advancedRulesYaml")}</summary>
-            <textarea
-              className="kea-textarea"
-              style={{ minHeight: 200, fontFamily: "ui-monospace, monospace", marginTop: "0.5rem" }}
-              value={rulesYaml}
-              onChange={(e) => setRulesYaml(e.target.value)}
-              onBlur={commitConfigData}
-              spellCheck={false}
-            />
-          </details>
         </div>
       )}
       {editorSub === "validation" && (

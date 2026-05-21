@@ -24,6 +24,24 @@ export const keaPersistenceOutboundToEndOnlyRfTypes = new Set<string>([
   "keaInvertedIndex",
 ]);
 
+/** Pipeline stages and subgraph frames that can be disabled without removing from the canvas. */
+export const keaWorkflowDisableableRfTypes = new Set<string>([
+  "keaSubgraph",
+  "keaViewSave",
+  "keaRawSave",
+  "keaClassicSave",
+  "keaViewQuery",
+  "keaRawQuery",
+  "keaClassicQuery",
+  "keaTransform",
+  "keaMerge",
+  "keaJoin",
+  "keaDiscoveryValidate",
+  "keaDiscoveryInstanceFilter",
+  "keaDiscoveryConfidenceFilter",
+  "keaInvertedIndex",
+]);
+
 /** Discovery pipeline stages (canvas kinds compiled to ``fn_dm_*`` Cognite Functions). */
 export const keaDiscoveryStageRfTypes = new Set<string>([
   "keaViewSave",
@@ -33,14 +51,10 @@ export const keaDiscoveryStageRfTypes = new Set<string>([
   "keaRawQuery",
   "keaClassicQuery",
   "keaTransform",
+  "keaMerge",
   "keaJoin",
   "keaDiscoveryValidate",
   "keaDiscoveryInstanceFilter",
   "keaDiscoveryConfidenceFilter",
 ]);
 
-/** Nodes whose React Flow card exposes a ``validation`` source handle for match-definition layout wiring. */
-export function rfTypeHasPipelineValidationSourceHandle(t: string | undefined): boolean {
-  if (!t) return false;
-  return t === "keaExtraction" || t === "keaAliasing";
-}

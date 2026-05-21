@@ -14,7 +14,7 @@ describe("resolveSubflowParentsAfterGroupDrag", () => {
     };
     const a: Node = {
       id: "a",
-      type: "keaExtraction",
+      type: "keaTransform",
       position: { x: 150, y: 150 },
       data: { label: "A", handler_id: "h" },
       selected: true,

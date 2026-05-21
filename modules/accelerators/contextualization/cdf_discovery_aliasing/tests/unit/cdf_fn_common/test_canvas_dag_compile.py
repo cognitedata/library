@@ -90,6 +90,31 @@ def test_compile_canvas_linear_discovery_chain() -> None:
     assert cl["depends_on"] == [tid_tr]
 
 
+def test_compile_transform_sequence_edge_depends_on_prior_transform_only() -> None:
+    """Sequence edge chains transforms; data edges from query do not become depends_on when sequence exists."""
+    doc = _minimal_scope_doc()
+    doc["compile_workflow_dag"] = "canvas"
+    doc["canvas"] = {
+        "nodes": [
+            {"id": "vq", "kind": "query_view", "data": dict(_VQ_DATA)},
+            {"id": "tr1", "kind": "transform", "data": {"config": {"description": "first"}}},
+            {"id": "tr2", "kind": "transform", "data": {"config": {"description": "second"}}},
+        ],
+        "edges": [
+            {"source": "vq", "target": "tr1", "kind": "data"},
+            {"source": "vq", "target": "tr2", "kind": "data"},
+            {"source": "tr1", "target": "tr2", "kind": "sequence"},
+        ],
+    }
+    cw = compile_canvas_dag(doc)
+    by_cn = {t["canvas_node_id"]: t for t in cw["tasks"] if isinstance(t, dict)}
+    tid_tr1 = by_cn["tr1"]["id"]
+    tid_tr2 = by_cn["tr2"]["id"]
+    assert by_cn["tr2"]["depends_on"] == [tid_tr1]
+    tid_vq = by_cn["vq"]["id"]
+    assert tid_vq not in by_cn["tr2"]["depends_on"]
+
+
 def test_compile_canvas_inverted_index_uses_discovery_predecessor_payload() -> None:
     """Inverted-index tasks carry IR payload pointing at compiled predecessor ids (local runner merges snapshots)."""
     doc = _minimal_scope_doc()
@@ -104,7 +129,7 @@ def test_compile_canvas_inverted_index_uses_discovery_predecessor_payload() -> N
                 "data": {
                     "config": {
                         "description": "Inverted index",
-                        "index_kinds": {"metadata": ["discoveredKey"]},
+                        "index_kinds": {"metadata": ["indexKey"]},
                     }
                 },
             },
@@ -357,6 +382,135 @@ def test_compile_subgraph_missing_inner_raises() -> None:
     }
     with pytest.raises(CanvasCompileError, match="inner_canvas"):
         compile_canvas_dag(doc)
+
+
+def test_compile_canvas_skips_disabled_middle_transform() -> None:
+    """Disabled transform is omitted; validation depends on query only."""
+    doc = _minimal_scope_doc()
+    doc["compile_workflow_dag"] = "canvas"
+    doc["canvas"] = {
+        "nodes": [
+            {"id": "vq", "kind": "query_view", "data": dict(_VQ_DATA)},
+            {"id": "tr", "kind": "transform", "enabled": False, "data": dict(_TR_DATA)},
+            {"id": "va", "kind": "validation", "data": {"config": {"description": "v1"}}},
+        ],
+        "edges": [
+            {"source": "vq", "target": "tr"},
+            {"source": "tr", "target": "va"},
+        ],
+    }
+    cw = compile_canvas_dag(doc)
+    by_cn = {
+        t["canvas_node_id"]: t
+        for t in cw["tasks"]
+        if t.get("canvas_node_id")
+        and t.get("function_external_id") != "fn_dm_discovery_raw_cleanup"
+    }
+    assert "tr" not in by_cn
+    tid_vq = by_cn["vq"]["id"]
+    va = by_cn["va"]
+    assert va["depends_on"] == [tid_vq]
+
+
+def test_compile_canvas_join_resolves_through_disabled_transform() -> None:
+    doc = _minimal_scope_doc()
+    doc["compile_workflow_dag"] = "canvas"
+    doc["canvas"] = {
+        "nodes": [
+            {"id": "qL", "kind": "query_raw", "data": {"config": {"description": "left q"}}},
+            {
+                "id": "tr",
+                "kind": "transform",
+                "enabled": False,
+                "data": {"config": {"description": "skip me"}},
+            },
+            {"id": "qR", "kind": "query_raw", "data": {"config": {"description": "right q"}}},
+            {
+                "id": "jn",
+                "kind": "join",
+                "data": {
+                    "config": {
+                        "description": "merge",
+                        "join_type": "inner",
+                        "join_on": {"operator": "EQUALS", "left_property": "a", "right_property": "b"},
+                    }
+                },
+            },
+        ],
+        "edges": [
+            {"source": "qL", "target": "tr"},
+            {"source": "tr", "target": "jn", "target_handle": "in__left"},
+            {"source": "qR", "target": "jn", "target_handle": "in__right"},
+        ],
+    }
+    cw = compile_canvas_dag(doc)
+    by_cn = {t["canvas_node_id"]: t for t in cw["tasks"] if isinstance(t, dict)}
+    assert "tr" not in by_cn
+    tid_qL = by_cn["qL"]["id"]
+    tid_qR = by_cn["qR"]["id"]
+    jn = by_cn["jn"]
+    assert jn["payload"]["join_left_task_id"] == tid_qL
+    assert jn["payload"]["join_right_task_id"] == tid_qR
+
+
+def test_compile_canvas_disabled_subgraph_skips_inner_executables() -> None:
+    """Disabled subgraph frame is not flattened; downstream uses upstream outside the frame."""
+    doc = _minimal_scope_doc()
+    doc["compile_workflow_dag"] = "canvas"
+    doc["canvas"] = {
+        "nodes": [
+            {"id": "vq", "kind": "query_view", "data": dict(_VQ_DATA)},
+            {
+                "id": "sg",
+                "kind": "subgraph",
+                "enabled": False,
+                "data": {
+                    "subflow_hub_input_id": "sg_in",
+                    "subflow_hub_output_id": "sg_out",
+                    "inner_canvas": {
+                        "nodes": [
+                            {"id": "sg_in", "kind": "subflow_graph_in", "data": {}},
+                            {
+                                "id": "rq",
+                                "kind": "query_raw",
+                                "data": {"config": {"description": "r0", "raw_db": "db"}},
+                            },
+                            {"id": "sg_out", "kind": "subflow_graph_out", "data": {}},
+                        ],
+                        "edges": [
+                            {
+                                "source": "sg_in",
+                                "target": "rq",
+                                "source_handle": "out__in",
+                                "target_handle": "in",
+                            },
+                            {
+                                "source": "rq",
+                                "target": "sg_out",
+                                "source_handle": "out",
+                                "target_handle": "in__out",
+                            },
+                        ],
+                    },
+                },
+            },
+            {"id": "tr", "kind": "transform", "data": dict(_TR_DATA)},
+        ],
+        "edges": [
+            {"source": "vq", "target": "sg", "target_handle": "in__in"},
+            {"source": "sg", "target": "tr", "source_handle": "out__out"},
+        ],
+    }
+    cw = compile_canvas_dag(doc)
+    by_cn = {
+        t["canvas_node_id"]: t
+        for t in cw["tasks"]
+        if t.get("canvas_node_id")
+        and t.get("function_external_id") != "fn_dm_discovery_raw_cleanup"
+    }
+    assert set(by_cn) == {"vq", "tr"}
+    assert "rq" not in by_cn
+    assert by_cn["tr"]["depends_on"] == [by_cn["vq"]["id"]]
 
 
 def test_compile_workflow_from_document_legacy_rejected() -> None:

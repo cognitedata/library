@@ -69,18 +69,20 @@ export function JoinsControls({ canvas, onChange, initialNodeId, t, singleNode }
 
   return (
     <div className="kea-source-views">
-      <h3 className="kea-section-title" style={{ margin: "0 0 0.35rem" }}>
-        Joins
-      </h3>
-      <p className="kea-hint" style={{ marginTop: 0, marginBottom: "0.85rem", maxWidth: "42rem" }}>
-        Merge two cohort RAW streams. Incoming edges must use target handles <code>in__left</code> and{" "}
-        <code>in__right</code>.
+      <div className="kea-toolbar-inline">
+        <h3 className="kea-section-title" style={{ margin: 0 }}>
+          {t("joins.title")}
+        </h3>
+      </div>
+
+      <p className="kea-hint" style={{ marginTop: "0.35rem", marginBottom: "0.85rem" }}>
+        {t("joins.canvasHint")}
       </p>
 
       <div className="kea-source-views-split">
         <aside className="kea-source-views-sidebar">
-          <p className="kea-artifact-list-title">Join nodes</p>
-          <ul className="kea-source-views-list" role="listbox" aria-label="Join nodes">
+          <p className="kea-artifact-list-title">{t("joins.listTitle")}</p>
+          <ul className="kea-source-views-list" role="listbox" aria-label={t("joins.listAriaLabel")}>
             {joins.map((n) => (
               <li key={n.id} role="none">
                 <button
@@ -102,9 +104,12 @@ export function JoinsControls({ canvas, onChange, initialNodeId, t, singleNode }
 
         <div className="kea-source-views-editor">
           {!selected ? (
-            <p className="kea-hint">No join nodes on this canvas.</p>
+            <p className="kea-hint">{t("joins.emptyEditor")}</p>
           ) : (
             <div className="kea-source-views-editor-inner">
+              <p className="kea-hint" style={{ margin: "0 0 0.85rem" }}>
+                {t("flow.discoveryJoin")} — {joinNodeListLabel(selected)}
+              </p>
               <JoinNodeConfigFields
                 t={t}
                 value={readNodeConfig(selected)}

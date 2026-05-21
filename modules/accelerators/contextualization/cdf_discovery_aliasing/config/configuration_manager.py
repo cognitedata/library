@@ -14,8 +14,7 @@ Features:
 - YAML-based configuration files
 - Configuration validation and schema checking
 - Environment-specific configurations
-- Extraction rules configuration
-- Aliasing rules configuration
+- Aliasing settings configuration
 
 Author: Darren Downtain
 Version: 1.0.0
@@ -74,25 +73,6 @@ logger = logging.getLogger(__name__)
 
 
 @dataclass
-class ExtractionRuleSettings:
-    """Configuration for extraction rules."""
-
-    name: str
-    description: str = ""
-    extraction_type: str = "candidate_key"
-    handler: str = "regex_handler"
-    priority: int = 50
-    enabled: bool = True
-    scope_filters: Dict[str, Any] = field(default_factory=dict)
-    aliasing_rules: List[Dict[str, Any]] = field(default_factory=list)
-    fields: List[Dict[str, Any]] = field(default_factory=list)
-    field_results_mode: str = "merge_all"
-    parameters: Optional[Dict[str, Any]] = None
-    validation: Optional[Dict[str, Any]] = None
-    config: Dict[str, Any] = field(default_factory=dict)
-
-
-@dataclass
 class AliasingSettings:
     """Configuration for aliasing operations."""
 
@@ -117,7 +97,6 @@ class ValidationSettings:
 class KeyExtractionConfig:
     """Main configuration class for key extraction system."""
 
-    extraction_rules: List[ExtractionRuleSettings] = field(default_factory=list)
     aliasing: AliasingSettings = field(default_factory=AliasingSettings)
     validation: ValidationSettings = field(default_factory=ValidationSettings)
     metadata: Dict[str, Any] = field(default_factory=dict)
@@ -133,40 +112,6 @@ class ConfigurationValidator:
     def _load_schemas(self) -> Dict[str, Dict[str, Any]]:
         """Load JSON schemas for validation."""
         return {
-            "extraction_rule": {
-                "type": "object",
-                "required": ["name"],
-                "properties": {
-                    "name": {"type": "string", "minLength": 1},
-                    "description": {"type": "string"},
-                    "extraction_type": {
-                        "type": "string",
-                        "enum": [
-                            "candidate_key",
-                            "foreign_key_reference",
-                            "document_reference",
-                        ],
-                    },
-                    "handler": {
-                        "type": "string",
-                        "enum": [
-                            "regex_handler",
-                        ],
-                    },
-                    "priority": {"type": "integer", "minimum": 1, "maximum": 1000},
-                    "enabled": {"type": "boolean"},
-                    "min_confidence": {
-                        "type": "number",
-                        "minimum": 0.0,
-                        "maximum": 1.0,
-                    },
-                    "case_sensitive": {"type": "boolean"},
-                    "fields": {"type": "array", "items": {"type": "object"}},
-                    "field_results_mode": {"type": "string"},
-                    "parameters": {"type": "object"},
-                    "validation": {"type": "object"},
-                },
-            },
             "aliasing_rule": {
                 "type": "object",
                 "required": ["name", "handler"],
@@ -197,16 +142,6 @@ class ConfigurationValidator:
                 },
             },
         }
-
-    def validate_extraction_rule(self, rule_config: Dict[str, Any]) -> List[str]:
-        """Validate extraction rule configuration."""
-        errors = []
-        try:
-            jsonschema.validate(rule_config, self.schemas["extraction_rule"])
-        except jsonschema.ValidationError as e:
-            errors.append(f"Extraction rule validation error: {e.message}")
-
-        return errors
 
     def validate_aliasing_rule(self, rule_config: Dict[str, Any]) -> List[str]:
         """Validate aliasing rule configuration."""
@@ -355,53 +290,17 @@ class ConfigurationManager:
         """Validate configuration data."""
         errors = []
 
-        # Validate extraction rules
-        if "extraction_rules" in config_data:
-            for i, rule_config in enumerate(config_data["extraction_rules"]):
-                rule_errors = self.validator.validate_extraction_rule(rule_config)
-                errors.extend(
-                    [f"Extraction rule {i}: {error}" for error in rule_errors]
-                )
-
-        # Validate aliasing rules
-        if "aliasing" in config_data and "rules" in config_data["aliasing"]:
-            for i, rule_config in enumerate(config_data["aliasing"]["rules"]):
-                rule_errors = self.validator.validate_aliasing_rule(rule_config)
-                errors.extend([f"Aliasing rule {i}: {error}" for error in rule_errors])
-
         return errors
 
     def _parse_config(self, config_data: Dict[str, Any]) -> KeyExtractionConfig:
         """Parse configuration data into configuration objects."""
 
-        # Parse extraction rules
-        extraction_rules = []
-        for rule_data in config_data.get("extraction_rules", []):
-            extraction_rule = ExtractionRuleSettings(
-                name=rule_data["name"],
-                description=rule_data.get("description", ""),
-                extraction_type=rule_data.get("extraction_type", "candidate_key"),
-                handler=rule_data.get("handler") or "regex_handler",
-                priority=rule_data.get("priority", 50),
-                enabled=rule_data.get("enabled", True),
-                scope_filters=rule_data.get("scope_filters", {}),
-                aliasing_rules=rule_data.get("aliasing_rules", []),
-                fields=rule_data.get("fields")
-                or rule_data.get("source_fields", []),
-                field_results_mode=rule_data.get("field_results_mode", "merge_all"),
-                parameters=rule_data.get("parameters"),
-                validation=rule_data.get("validation"),
-                config=rule_data.get("config", {}),
-            )
-            extraction_rules.append(extraction_rule)
-
-        # Parse aliasing settings
         aliasing_data = config_data.get("aliasing", {})
         aliasing_settings = AliasingSettings(
-            rules=aliasing_data.get("rules", []),
+            rules=[],
             max_aliases_per_key=aliasing_data.get("max_aliases_per_key", 50),
             confidence_threshold=aliasing_data.get("confidence_threshold", 0.7),
-            preserve_original=aliasing_data.get("preserve_original", True),
+            preserve_original=True,
             validation=aliasing_data.get("validation", {}),
         )
 
@@ -419,7 +318,6 @@ class ConfigurationManager:
         )
 
         return KeyExtractionConfig(
-            extraction_rules=extraction_rules,
             aliasing=aliasing_settings,
             validation=validation_settings,
             metadata=config_data.get("metadata", {}),
@@ -428,24 +326,6 @@ class ConfigurationManager:
     def _config_to_dict(self, config: KeyExtractionConfig) -> Dict[str, Any]:
         """Convert configuration object to dictionary."""
         return {
-            "extraction_rules": [
-                {
-                    "name": rule.name,
-                    "description": rule.description,
-                    "extraction_type": rule.extraction_type,
-                    "handler": rule.handler,
-                    "priority": rule.priority,
-                    "enabled": rule.enabled,
-                    "scope_filters": rule.scope_filters,
-                    "aliasing_rules": rule.aliasing_rules,
-                    "fields": rule.fields,
-                    "field_results_mode": rule.field_results_mode,
-                    "parameters": rule.parameters,
-                    "validation": rule.validation,
-                    "config": rule.config,
-                }
-                for rule in config.extraction_rules
-            ],
             "aliasing": {
                 "rules": config.aliasing.rules,
                 "max_aliases_per_key": config.aliasing.max_aliases_per_key,
@@ -495,56 +375,6 @@ class ConfigurationManager:
             Path to created template file
         """
         template_config = {
-            "extraction_rules": [
-                {
-                    "name": "standard_pump_tag",
-                    "description": "Extracts standard pump tags from equipment descriptions",
-                    "extraction_type": "candidate_key",
-                    "handler": "regex_handler",
-                    "field_results_mode": "merge_all",
-                    "priority": 50,
-                    "enabled": True,
-                    "scope_filters": {"equipment_type": ["pump"]},
-                    "aliasing_rules": [],
-                    "fields": [
-                        {
-                            "field_name": "name",
-                            "required": True,
-                            "priority": 1,
-                            "regex": r"\bP[-_]?\d{2,4}[A-Z]?\b",
-                            "regex_options": {"ignore_case": True},
-                        },
-                        {
-                            "field_name": "description",
-                            "required": False,
-                            "priority": 2,
-                            "regex": r"\bP[-_]?\d{2,4}[A-Z]?\b",
-                            "regex_options": {"ignore_case": True},
-                        },
-                    ],
-                    "validation": {"min_confidence": 0.7},
-                },
-                {
-                    "name": "flow_instrument_tag",
-                    "description": "Extracts ISA flow instrument tags",
-                    "extraction_type": "foreign_key_reference",
-                    "handler": "regex_handler",
-                    "field_results_mode": "merge_all",
-                    "priority": 30,
-                    "enabled": True,
-                    "scope_filters": {},
-                    "aliasing_rules": [],
-                    "fields": [
-                        {
-                            "field_name": "description",
-                            "required": False,
-                            "regex": r"\bFIC[-_]?\d{4}[A-Z]?\b",
-                            "regex_options": {"ignore_case": True},
-                        }
-                    ],
-                    "validation": {"min_confidence": 0.8},
-                },
-            ],
             "aliasing": {
                 "rules": [
                     {
@@ -623,7 +453,6 @@ def load_config_from_env() -> KeyExtractionConfig:
 
     # Create configuration from environment variables
     config_data = {
-        "extraction_rules": [],
         "aliasing": {
             "rules": [],
             "max_aliases_per_key": int(os.getenv("ALIASING_MAX_ALIASES_PER_KEY", "50")),
@@ -671,7 +500,6 @@ def main():
     try:
         config = config_manager.load_config("example")
         print(f"Configuration loaded successfully")
-        print(f"Extraction Rules: {len(config.extraction_rules)}")
         print(f"Aliasing Rules: {len(config.aliasing.rules)}")
     except Exception as e:
         print(f"Error loading configuration: {e}")
@@ -679,13 +507,8 @@ def main():
     # Validate configuration
     try:
         config_data = {
-            "extraction_rules": [
-                {
-                    "name": "test_rule",
-                    "handler": "regex_handler",
-                    "fields": [{"field_name": "name", "required": True}],
-                }
-            ],
+            "aliasing": {"rules": []},
+            "validation": {"validation_rules": []},
         }
 
         errors = config_manager.validate_config(config_data)

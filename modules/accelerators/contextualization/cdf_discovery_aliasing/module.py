@@ -385,10 +385,23 @@ def _add_run_arguments(p: argparse.ArgumentParser) -> None:
         default=0,
         metavar="K",
         help=(
-            "Max RAW rows read per table when sampling for local_run_report (0 = use env "
-            "KEA_RAW_RESULTS_MAX_RAW_ROWS_SCANNED or default 100000). Stops early when reached; "
-            "see raw_results.tables[].raw_scan_truncated."
+            "Max RAW rows read per table when sampling for discovery_run.json raw_table_samples "
+            "(0 = use env KEA_RAW_RESULTS_MAX_RAW_ROWS_SCANNED or default 100000). Stops early when "
+            "reached; see raw_table_samples.tables[].raw_scan_truncated."
         ),
+    )
+    p.add_argument(
+        "--clean-state",
+        action="store_true",
+        help=(
+            "Before the DAG: baseline RAW purge (operator tables + all per-run node cohort "
+            "tables). Does not remove aliases/indexKey already on DM instances."
+        ),
+    )
+    p.add_argument(
+        "--clean-state-only",
+        action="store_true",
+        help="Baseline RAW purge only, then exit (no pipeline).",
     )
 
 
@@ -411,6 +424,9 @@ def _print_root_cli_help() -> None:
             "  python module.py build --check-workflow-triggers\n"
             "  python module.py deploy-scope --scope-suffix site_01\n"
             "  python module.py cdf-workflow-run --scope-suffix site_01 --dry-run\n"
+            "  python module.py raw-purge-baseline --dry-run\n"
+            "  python module.py raw-purge-baseline --yes\n"
+            "  python module.py run --clean-state --all\n"
             "  python module.py raw-purge-truncate --dry-run\n"
             "  python module.py raw-purge-truncate --yes\n"
             "  python module.py copy-workflow-config --from SITE_A --to SITE_B\n"
@@ -458,6 +474,35 @@ def _print_root_cli_help() -> None:
     parser.print_help()
 
 
+def _load_scope_for_purge(
+    args: argparse.Namespace,
+) -> Tuple[Any, Path, List[Dict[str, Any]], Dict[str, Any], Dict[str, Any]]:
+    """Shared scope load for destructive RAW purge commands."""
+    load_env()
+    try:
+        client = create_cognite_client()
+    except Exception as e:
+        logger.error("Failed to create CogniteClient: %s", e)
+        sys.exit(1)
+    try:
+        scope_yaml_path, source_views = load_discovery_scope(
+            logger,
+            scope=args.scope,
+            config_path=args.config_path,
+        )
+    except Exception as e:
+        logger.error("Failed to load scope: %s", e)
+        sys.exit(1)
+    from local_runner.workflow_payload import (
+        compiled_workflow_for_merged_scope_document,
+        merged_scope_document_for_local_run,
+    )
+
+    merged = merged_scope_document_for_local_run(scope_yaml_path.resolve(), source_views)
+    cw = compiled_workflow_for_merged_scope_document(merged)
+    return client, scope_yaml_path, source_views, merged, cw
+
+
 def _add_raw_purge_truncate_arguments(p: argparse.ArgumentParser) -> None:
     p.add_argument("--verbose", action="store_true", help="Enable verbose logging")
     p.add_argument(
@@ -492,6 +537,32 @@ def _add_raw_purge_truncate_arguments(p: argparse.ArgumentParser) -> None:
     )
 
 
+def cmd_raw_purge_baseline(args: argparse.Namespace) -> None:
+    """Truncate operator RAW tables and delete all per-run node cohort tables (destructive)."""
+    if args.verbose:
+        logger.setLevel(logging.DEBUG)
+    if not MODULES_AVAILABLE:
+        logger.error("Required modules not available.")
+        sys.exit(1)
+    if not args.dry_run and not args.yes:
+        logger.error("Refusing baseline purge without --yes (or use --dry-run).")
+        sys.exit(1)
+
+    from cdf_fn_common.discovery_raw_purge import purge_discovery_raw_baseline
+
+    client, _path, _views, merged, cw = _load_scope_for_purge(args)
+    summary = purge_discovery_raw_baseline(client, merged, cw, dry_run=bool(args.dry_run))
+    logger.info("Baseline purge result: %s", summary)
+    op_tables = summary.get("operator_tables") or {}
+    for row in op_tables.get("tables") or []:
+        if row.get("error"):
+            sys.exit(1)
+    for block in summary.get("run_node_tables") or []:
+        for row in block.get("tables") or []:
+            if row.get("error"):
+                sys.exit(1)
+
+
 def cmd_raw_purge_truncate(args: argparse.Namespace) -> None:
     """Delete discovery RAW tables listed in scope (destructive)."""
     if args.verbose:
@@ -502,30 +573,10 @@ def cmd_raw_purge_truncate(args: argparse.Namespace) -> None:
     if not args.dry_run and not args.yes:
         logger.error("Refusing to truncate without --yes (or use --dry-run).")
         sys.exit(1)
-    load_env()
-    try:
-        client = create_cognite_client()
-    except Exception as e:
-        logger.error("Failed to create CogniteClient: %s", e)
-        sys.exit(1)
-    try:
-        scope_yaml_path, source_views = load_discovery_scope(
-            logger,
-            scope=args.scope,
-            config_path=args.config_path,
-        )
-    except Exception as e:
-        logger.error("Failed to load scope: %s", e)
-        sys.exit(1)
 
     from cdf_fn_common.discovery_raw_purge import collect_discovery_raw_tables, truncate_raw_tables
-    from local_runner.workflow_payload import (
-        compiled_workflow_for_merged_scope_document,
-        merged_scope_document_for_local_run,
-    )
 
-    merged = merged_scope_document_for_local_run(scope_yaml_path.resolve(), source_views)
-    cw = compiled_workflow_for_merged_scope_document(merged)
+    client, _path, _views, merged, cw = _load_scope_for_purge(args)
     if args.tables:
         tables: List[Tuple[str, str]] = []
         for spec in args.tables:
@@ -594,6 +645,21 @@ def cmd_run(args: argparse.Namespace) -> None:
 
     scope_yaml_path = scope_yaml_path.resolve()
 
+    if getattr(args, "clean_state", False) or getattr(args, "clean_state_only", False):
+        from cdf_fn_common.discovery_raw_purge import purge_discovery_raw_baseline
+        from local_runner.workflow_payload import (
+            compiled_workflow_for_merged_scope_document,
+            merged_scope_document_for_local_run,
+        )
+
+        merged = merged_scope_document_for_local_run(scope_yaml_path, source_views)
+        cw = compiled_workflow_for_merged_scope_document(merged)
+        logger.info("Purging discovery RAW baseline (operator + per-run node cohort tables)…")
+        summary = purge_discovery_raw_baseline(client, merged, cw, dry_run=False)
+        logger.info("Clean-state purge: %s", summary)
+        if getattr(args, "clean_state_only", False):
+            return
+
     run_pipeline(
         args,
         logger,
@@ -628,14 +694,21 @@ def main() -> None:
     if argv[0] == "cdf-workflow-run":
         raise SystemExit(_run_cdf_helper_script("cdf_workflow_run.py", argv[1:]))
 
-    if argv[0] == "raw-purge-truncate":
-        p = argparse.ArgumentParser(
-            prog="module.py raw-purge-truncate",
-            description="Destructive: delete discovery RAW tables from scope (see config/README.md).",
+    if argv[0] in ("raw-purge-baseline", "raw-purge-truncate"):
+        prog = f"module.py {argv[0]}"
+        desc = (
+            "Destructive baseline: truncate operator RAW tables and delete all "
+            "discovery_state__{run}__{node} cohort tables."
+            if argv[0] == "raw-purge-baseline"
+            else "Destructive: delete discovery operator RAW tables from scope (not per-run node tables)."
         )
+        p = argparse.ArgumentParser(prog=prog, description=desc)
         _add_raw_purge_truncate_arguments(p)
         ra = p.parse_args(argv[1:])
-        cmd_raw_purge_truncate(ra)
+        if argv[0] == "raw-purge-baseline":
+            cmd_raw_purge_baseline(ra)
+        else:
+            cmd_raw_purge_truncate(ra)
         raise SystemExit(0)
 
     if argv[0] != "run":

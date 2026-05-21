@@ -20,6 +20,7 @@ for _p in (str(_FUNCS), str(_SCRIPTS), str(_MODULE_ROOT)):
 from cdf_fn_common.workflow_execution_graph import ExecutionGraph  # noqa: E402
 from local_runner.kahn_run_context import KahnRunContext  # noqa: E402
 from local_runner.kahn_workflow_executor import (  # noqa: E402
+    _discovery_cohort_row_index_getter,
     _discovery_raw_hash_index_getter,
     _dispatch_task,
     should_validate_macro_execution_graph,
@@ -55,6 +56,39 @@ def test_discovery_raw_hash_index_getter_builds_once_per_table(monkeypatch) -> N
     getter = _discovery_raw_hash_index_getter(ctx)
     assert getter(None, "db1", "t1") == {"sk": {"n1": "h1"}}
     assert getter(None, "db1", "t1") == {"sk": {"n1": "h1"}}
+    assert build_calls["n"] == 1
+    getter(None, "db2", "t2")
+    assert build_calls["n"] == 2
+
+
+def test_discovery_cohort_row_index_getter_builds_once_per_table(monkeypatch) -> None:
+    build_calls = {"n": 0}
+
+    def _fake_build(_client, _db, _tbl, *, chunk_size=2500):
+        del _client, chunk_size
+        build_calls["n"] += 1
+        return {"rk": object()}
+
+    monkeypatch.setattr(
+        "cdf_fn_common.cohort_storage.build_cohort_row_index",
+        _fake_build,
+    )
+    ctx = KahnRunContext(
+        args=Namespace(run_all=False),
+        logger=logging.getLogger("test_cohort_cache"),
+        client=None,
+        pipe_logger=None,
+        scope_yaml_path=Path("/tmp/scope.yaml"),
+        scope_document={},
+        wf_instance_space="sp_test",
+        source_views=[],
+        cdf_config=None,
+        compiled_workflow={},
+        run_id="r",
+    )
+    getter = _discovery_cohort_row_index_getter(ctx)
+    assert getter(None, "db1", "t1")
+    assert getter(None, "db1", "t1")
     assert build_calls["n"] == 1
     getter(None, "db2", "t2")
     assert build_calls["n"] == 2
@@ -211,10 +245,12 @@ def test_dispatch_task_captures_view_save_handler_data() -> None:
     )
     with patch("local_runner.kahn_workflow_executor.importlib.import_module", side_effect=_import):
         _dispatch_task(ctx, "vs1", Lock())
-    cap = ctx.handler_data_snapshots["fn_dm_view_save"]
+    cap = ctx.handler_data_snapshots["vs1"]
     assert cap["task_id"] == "vs1"
-    assert cap["data"]["task_id"] == "vs1"
-    assert cap["data"]["config"]["view_external_id"] == "CogniteDescribable"
+    assert cap["function_external_id"] == "fn_dm_view_save"
+    assert cap["handler_data"]["task_id"] == "vs1"
+    assert cap["handler_data"]["config"]["view_external_id"] == "CogniteDescribable"
+    assert "cohort_snapshot" in cap
 
 
 def test_dispatch_task_captures_inverted_index_handler_data() -> None:
@@ -253,9 +289,12 @@ def test_dispatch_task_captures_inverted_index_handler_data() -> None:
     )
     with patch("local_runner.kahn_workflow_executor.importlib.import_module", side_effect=_import):
         _dispatch_task(ctx, "ii1", Lock())
-    cap = ctx.handler_data_snapshots["fn_dm_inverted_index"]
+    cap = ctx.handler_data_snapshots["ii1"]
     assert cap["task_id"] == "ii1"
-    assert cap["data"]["task_id"] == "ii1"
+    assert cap["function_external_id"] == "fn_dm_inverted_index"
+    assert cap["handler_data"]["task_id"] == "ii1"
+    assert "cohort_snapshot" in cap
+    assert "inverted_index_persistence" in cap["cohort_snapshot"]
 
 
 def test_dispatch_cleanup_snapshots_raw_results_before_purge() -> None:

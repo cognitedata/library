@@ -20,6 +20,11 @@ from cdf_fn_common.workflow_execution_graph import (
 )
 
 from .kahn_run_context import KahnRunContext
+from .persistence_cohort_snapshot import (
+    PERSISTENCE_SNAPSHOT_FUNCTIONS,
+    build_persistence_cohort_snapshot,
+    parse_handler_summary_message,
+)
 from .raw_results_attachment import snapshot_raw_results_for_ctx
 from .ui_progress import emit_ui_progress
 
@@ -49,10 +54,33 @@ def _discovery_raw_hash_index_getter(ctx: KahnRunContext):
 
     return getter
 
-# Persist full handler ``data`` in run JSON only for these functions (reference index + view save).
-_HANDLER_DATA_SNAPSHOT_FUNCTIONS: frozenset[str] = frozenset(
-    {"fn_dm_inverted_index", "fn_dm_view_save"}
-)
+
+def _discovery_cohort_row_index_getter(ctx: KahnRunContext):
+    """
+    Return a callable ``(client, raw_db, raw_table) -> CohortRowIndex``.
+
+    Caches one full-table build per distinct (raw_db, raw_table) for the lifetime of *ctx*
+    so parallel transform / validate tasks share a single RAW scan per node table.
+    """
+
+    def getter(client: Any, raw_db: str, raw_table: str) -> Dict[str, Any]:
+        from cdf_fn_common.cohort_storage import build_cohort_row_index
+
+        db = str(raw_db or "").strip()
+        tbl = str(raw_table or "").strip()
+        if not db or not tbl:
+            return {}
+        key = (db, tbl)
+        with ctx.cohort_row_index_lock:
+            if key not in ctx.cohort_row_index_cache:
+                ctx.cohort_row_index_cache[key] = build_cohort_row_index(client, db, tbl)
+            return ctx.cohort_row_index_cache[key]
+
+    return getter
+
+
+# Persist handler ``data`` and predecessor cohort snapshots for save / inverted-index tasks.
+_HANDLER_DATA_SNAPSHOT_FUNCTIONS: frozenset[str] = PERSISTENCE_SNAPSHOT_FUNCTIONS
 
 
 def discovery_pipeline_spec_for_task(task: Dict[str, Any]) -> Tuple[str, str]:
@@ -165,8 +193,8 @@ def _handler_data_for_run_results(data: Mapping[str, Any]) -> Dict[str, Any]:
     """
     JSON-serializable deep copy of the Cognite-function-style ``data`` payload.
 
-    Stored under ``handler_data_snapshots`` for ``fn_dm_inverted_index`` and
-    ``fn_dm_view_save`` only (see ``*_cdf_discovery_tasks.json`` / reports).
+    Stored under ``handler_data_snapshots`` keyed by ``task_id`` for persistence tasks
+    (see ``*_discovery_run.json`` persistence.nodes).
     """
     try:
         return json.loads(json.dumps(dict(data), default=str))
@@ -205,6 +233,7 @@ def _discovery_branch(ctx: KahnRunContext, task_id: str, merge_lock: Lock, spec:
         "compiled_workflow": ctx.compiled_workflow,
         "task_id": task_id,
         "discovery_raw_hash_index_cache": _discovery_raw_hash_index_getter(ctx),
+        "discovery_cohort_row_index_cache": _discovery_cohort_row_index_getter(ctx),
     }
     merge_compiled_task_into_data(data)
     deps_raw = task.get("depends_on") if isinstance(task.get("depends_on"), list) else []
@@ -225,9 +254,23 @@ def _discovery_branch(ctx: KahnRunContext, task_id: str, merge_lock: Lock, spec:
         ctx.discovery_task_outputs[str(task_id)] = snap
         fn_ext = str(task.get("function_external_id") or "").strip()
         if fn_ext in _HANDLER_DATA_SNAPSHOT_FUNCTIONS:
-            ctx.handler_data_snapshots[fn_ext] = {
+            row_limit = int(getattr(ctx.args, "raw_results_rows", 500) or 500)
+            _mrs = int(getattr(ctx.args, "raw_results_max_rows_scanned", 0) or 0)
+            cohort_snapshot = build_persistence_cohort_snapshot(
+                ctx.client,
+                data,
+                task_id=str(task_id),
+                function_external_id=fn_ext,
+                row_limit=max(1, row_limit),
+                logger=ctx.logger,
+                max_raw_rows_scanned=_mrs if _mrs > 0 else None,
+            )
+            ctx.handler_data_snapshots[str(task_id)] = {
                 "task_id": str(task_id),
-                "data": _handler_data_for_run_results(data),
+                "function_external_id": fn_ext,
+                "handler_summary": parse_handler_summary_message(snap.get("message")),
+                "handler_data": _handler_data_for_run_results(data),
+                "cohort_snapshot": cohort_snapshot,
             }
 
     if merge_lock is not None:

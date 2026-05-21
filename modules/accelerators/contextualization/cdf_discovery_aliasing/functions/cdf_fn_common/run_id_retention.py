@@ -7,6 +7,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Mapping, Optional
 
 from .incremental_scope import (
+    EXTRACTION_INPUTS_HASH_COLUMN,
     RECORD_KIND_COLUMN,
     RECORD_KIND_WATERMARK,
     RUN_ID_COLUMN,
@@ -53,10 +54,8 @@ def is_run_id_older_than(
 
 
 def run_id_from_row(key: str, columns: Mapping[str, Any]) -> str:
-    """Best-effort ``run_id`` from cohort row key prefix or ``RUN_ID`` column."""
-    k = str(key or "").strip()
-    if k and ":" in k:
-        return k.split(":", 1)[0].strip()
+    """Pipeline ``run_id`` from the ``RUN_ID`` column (row keys are canvas-node scoped)."""
+    _ = key
     return str(columns.get(RUN_ID_COLUMN) or "").strip()
 
 
@@ -70,7 +69,9 @@ def should_purge_cohort_row(
     """
     True when an inter-node cohort row should be deleted (current run or older than cutoff).
 
-    Watermarks and checkpoint rows are never purged. Non-pipeline ``run_id`` values are skipped.
+    Watermarks and checkpoint rows are never purged. Rows with ``EXTRACTION_INPUTS_HASH`` are
+    retained for incremental skip logic (except when older than *cutoff_utc*). Ephemeral cohort
+    rows without a digest are still purged for the current ``run_id``.
     """
     k = str(key or "").strip()
     if k.startswith("scope_wm_"):
@@ -80,6 +81,12 @@ def should_purge_cohort_row(
         return False
     rid = run_id_from_row(k, columns)
     if not rid:
+        return False
+    digest = columns.get(EXTRACTION_INPUTS_HASH_COLUMN)
+    if digest is not None and str(digest).strip():
+        ts = parse_pipeline_run_id_utc(rid)
+        if ts is not None and ts < cutoff_utc:
+            return True
         return False
     cur = str(current_run_id or "").strip()
     if cur and rid == cur:

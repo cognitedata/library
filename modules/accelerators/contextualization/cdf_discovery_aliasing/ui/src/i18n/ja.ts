@@ -108,6 +108,7 @@ export const ja: Messages = {
   "run.needTriggerScope":
     "サイドバーで workflows/<scope>/ 配下の WorkflowTrigger ファイルを選択すると、そのスコープのデプロイと CDF で実行が有効になります。",
   "run.outputPlaceholder": "パイプラインの出力がここに表示されます。",
+  "run.savedBeforeLocalRun": "Saved scope canvas to disk before local run (module.py run reads workflow.local.config.yaml, not unsaved UI state).",
   "run.localRunExitLine": "[ローカル実行] exit_code={code}",
   "run.localTaskStart": "▶ 開始 {functionId} (タスク {taskId}){nodeSuffix}",
   "run.localTaskEnd": "✓ 完了 {functionId} (タスク {taskId}){nodeSuffix}",
@@ -645,6 +646,15 @@ export const ja: Messages = {
   "validationEditor.orderSetsPriority":
     "リストの順序が評価順です。カードをドラッグするか ↑ / ↓ を使います（各ルールの数値 priority は設定されている場合に適用されます）。",
   "validationEditor.rule.addRule": "ルールを追加",
+  "pipelineSteps.executionMode": "Execution mode",
+  "pipelineSteps.modeOrdered": "Ordered (sequential)",
+  "pipelineSteps.modeParallel": "Parallel (concurrent)",
+  "pipelineSteps.addStep": "Add step",
+  "pipelineSteps.validationStepsTitle": "Validation steps",
+  "pipelineSteps.validationStepsHint": "Inline validation steps on this node.",
+  "pipelineSteps.transformStepsTitle": "Transform steps",
+  "pipelineSteps.transformStepsHint": "Multi-step transform pipeline.",
+  "pipelineSteps.useMultiStep": "Use multi-step pipeline",
   "validationEditor.advancedYaml": "validation を YAML で編集（上級）",
   "validationEditor.rulesYamlInvalidMerge":
     "ルール YAML が無効です。保存済みのルールでマージしました。",
@@ -787,7 +797,11 @@ export const ja: Messages = {
   "flow.discoveryRawQuery": "RAW query",
   "flow.discoveryClassicQuery": "Classic query",
   "flow.discoveryTransform": "Transform",
+  "flow.discoveryMerge": "Merge",
   "flow.discoveryJoin": "Join",
+  "flow.nodeEditorTitleMerges": "Merge (configure tab)",
+  "flow.paletteTooltip.merge": "Merge — fan-in properties from parallel upstream transforms.",
+  "flow.merge.fieldPoliciesHint": "field_policies (required): same schema as save_field_policies.",
   "flow.nodeEditorTitleJoins": "Joins (configure tab)",
   "flow.discoveryValidate": "Validate",
   "flow.discoveryInstanceFilter": "Instance filter",
@@ -815,7 +829,7 @@ export const ja: Messages = {
   "filters.empty": "Add a filter node from the flow palette or connect-end menu.",
   "filters.description": "Description",
   "filters.nodeCombineHint":
-    "Same CDF filter DSL as view query (operators, and/or/not, RANGE, negate). Top-level entries are AND-combined and evaluated on each cohort row by fn_dm_filter (no implicit HasData). Use property_scope view for cohort fields (aliases, discoveredKey) or node for instance metadata (space, externalId). Dot paths such as raw_columns.name are supported on cohort properties.",
+    "Same CDF filter DSL as view query (operators, and/or/not, RANGE, negate). Top-level entries are AND-combined and evaluated on each cohort row by fn_dm_filter (no implicit HasData). Use property_scope view for cohort fields (aliases, indexKey) or node for instance metadata (space, externalId). Dot paths such as raw_columns.key are supported on cohort properties.",
   "flow.discoveryViewSave": "View save",
   "flow.discoveryRawSave": "RAW save",
   "flow.discoveryClassicSave": "Classic save",
@@ -848,6 +862,14 @@ export const ja: Messages = {
   "flow.ctxMenuAutoLayout": "自動レイアウト",
   "flow.ctxMenuCopy": "Copy",
   "flow.ctxMenuPaste": "Paste",
+  "flow.ctxMenuDisableNode": "Disable node",
+  "flow.ctxMenuEnableNode": "Enable node",
+  "flow.cascadeDisabledNodes":
+    "Also disabled {count} downstream node(s) with no enabled upstream.",
+  "flow.cascadeEnabledNodes":
+    "Also re-enabled {count} downstream node(s) that were auto-disabled.",
+  "flow.inspectorNodeEnabled": "Enabled in workflow",
+  "flow.inspectorNodeEnabledHint": "When off, this step stays on the canvas but is skipped when compiling the workflow for local runs and CDF deploy.",
   "flow.ctxMenuRemoveNode": "ノードを削除",
   "flow.confirmSubgraphDeleteLift":
     "このサブグラフには内部のワークフロー手順があります。\n\nOK — 親キャンバスへ移動し、サブグラフ枠を削除します。\nキャンセル — サブグラフを削除し、内部手順を破棄します。",

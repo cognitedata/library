@@ -88,7 +88,7 @@ export function defaultTransformNodeConfig(
 ): Record<string, unknown> {
   const prev = String(options?.previousOutputField ?? "").trim();
   const inputField = prev.length > 0 ? prev : "name";
-  const outputField = prev.length > 0 ? prev : "discoveredKey";
+  const outputField = prev.length > 0 ? prev : "indexKey";
   const cfg: Record<string, unknown> = {
     description: "Transform",
     handler_id: handler,

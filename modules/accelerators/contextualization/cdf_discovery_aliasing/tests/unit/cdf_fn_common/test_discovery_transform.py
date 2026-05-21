@@ -105,13 +105,13 @@ def test_transform_row_properties_template_and_output_field() -> None:
         "handler_id": "regex_substitution",
         "fields": [{"field_name": "tags"}],
         "output_template": "{tags}",
-        "output_field": "discoveredKey",
+        "output_field": "indexKey",
         "output_mode": "overwrite",
         "regex_substitution": {"pattern": r"^asset_", "replacement": ""},
     }
     rows = transform_row_properties({"tags": "asset_P-001"}, cfg)
     assert len(rows) == 1
-    assert rows[0]["discoveredKey"] == "P-001"
+    assert rows[0]["indexKey"] == "P-001"
 
 
 def test_split_string_defaults_to_array_json_when_omitted() -> None:

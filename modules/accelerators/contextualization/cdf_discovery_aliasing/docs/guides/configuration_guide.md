@@ -47,7 +47,7 @@ This release removes backward compatibility for older canvas and cohort shapes:
 |--------|--------|
 | Canvas `kind: filter` | **`instance_filter`** (compile fails on `filter`) |
 | Row filter only (`fn_dm_filter`) | **`confidence_filter`** (`fn_dm_confidence_filter`) for per-value pruning, then optional **`instance_filter`** |
-| Top-level `confidence` on cohort properties | **`{value_field}_confidence`** only (e.g. `aliases_confidence`, `discoveredKey_confidence`) |
+| Top-level `confidence` on cohort properties | **`{value_field}_confidence`** only (e.g. `aliases_confidence`, `indexKey_confidence`) |
 | UI type `keaDiscoveryFilter` | **`keaDiscoveryInstanceFilter`** and **`keaDiscoveryConfidenceFilter`** |
 
 **Recommended pipeline:** `validate → confidence_filter → instance_filter (optional) → save / inverted_index`.
@@ -56,6 +56,35 @@ This release removes backward compatibility for older canvas and cohort shapes:
 - **`instance_filter`:** same CDF filter DSL as view query — row include/exclude only (`EXISTS`, `and` / `or`, etc.).
 
 Re-run discovery pipelines for RAW cohort rows that still store scores only under top-level `confidence` in `PROPERTIES_JSON`.
+
+### BREAKING: per-run per-canvas-node cohort tables (inter-node handoff)
+
+Cohort rows written between discovery canvas stages no longer share one `discovery_state` table keyed by `run_id`. Each pipeline run uses **one RAW table per canvas node**:
+
+| Piece | Layout |
+|--------|--------|
+| **Table** | `{raw_table_key}__{sanitized_run_id}__{sanitized_canvas_node_id}` (e.g. `discovery_state__20260517T120000.000000Z-aaa__tr`) |
+| **Row key** | `{scope_key}:{node_instance_id}` (equipment identity only) |
+| **Cleanup** | Delete all tables with prefix `{raw_table_key}__{run_id}__` at end of run |
+
+`QUERY_TASK_ID` on each row stores the **writer canvas node id**, not the compiled Cognite task id. The shared **inverted index** table is unchanged. Re-run workflows after upgrade; legacy `{run_id}:{scope}:{instance}` rows are not read.
+
+### Discovery transform: cumulative cohort state (default)
+
+Canvas **`transform`** tasks (`fn_dm_transform`) **accumulate** results on the **writer node's cohort table** unless you opt out:
+
+| Setting | Default | Meaning |
+|---------|---------|---------|
+| **`input_mode`** | `cumulative` | Before each transform, merge properties from each **predecessor node table** **and** the existing row on the **writer node table** for the same `{scope}:{instance}` key (read–merge–write). Parallel transform nodes use **separate node tables**, so they do not overwrite each other. |
+| **`input_mode: replace`** | — | Legacy behavior: use predecessor rows only (no sink read). |
+| **`output_mode`** (per step) | `append` | New handler output is merged into `output_field` (list append for strings). |
+| **`output_mode: overwrite`** | — | Replace `output_field` for that step only. |
+
+**Within one transform node:** `execution.mode: ordered` runs steps on the same property bag; `execution.mode: parallel` merges step branches using optional **`field_policies`** (same shape as save / merge nodes).
+
+**Explicit fan-in:** use a canvas **`merge`** node (`fn_dm_merge`) when you need custom **`field_policies`** before validation or save.
+
+**Not covered here:** RAW join cohorts still expose catalog columns under **`raw_columns.*`** until promoted by a transform (follow-up). Save still applies only fields listed in **`save_field_policies`**.
 
 ### Default CDM scope
 

@@ -3,11 +3,11 @@ import { createPortal } from "react-dom";
 import type { Node } from "@xyflow/react";
 import type { MessageKey } from "../../i18n";
 import { AliasingControls } from "../AliasingControls";
-import { KeyExtractionControls } from "../KeyExtractionControls";
 import { MatchDefinitionsScopePanel } from "../MatchDefinitionsScopePanel";
 import { QueriesControls } from "../QueriesControls";
 import { TransformsControls } from "../TransformsControls";
 import { JoinsControls } from "../JoinsControls";
+import { MergesControls } from "../MergesControls";
 import { FilterNodeModalEditor } from "./FilterNodeModalEditor";
 import { ConfidenceFilterNodeModalEditor } from "./ConfidenceFilterNodeModalEditor";
 import { ValidationsControls } from "../ValidationsControls";
@@ -55,8 +55,6 @@ function modalTitleKey(kind: string | undefined): MessageKey {
     case "keaSourceView":
     case "keaMatchValidationRuleSourceView":
       return "flow.nodeEditorTitleSourceViews";
-    case "keaExtraction":
-      return "flow.nodeEditorTitleKeyExtraction";
     case "keaInvertedIndex":
       return "flow.discoveryInvertedIndex";
     case "keaMatchValidationRuleExtraction":
@@ -67,6 +65,8 @@ function modalTitleKey(kind: string | undefined): MessageKey {
       return "flow.nodeEditorTitleQueries";
     case "keaTransform":
       return "flow.nodeEditorTitleTransforms";
+    case "keaMerge":
+      return "flow.nodeEditorTitleMerges";
     case "keaJoin":
       return "flow.nodeEditorTitleJoins";
     case "keaDiscoveryValidate":
@@ -79,7 +79,6 @@ function modalTitleKey(kind: string | undefined): MessageKey {
     case "keaRawSave":
     case "keaClassicSave":
       return "flow.nodeEditorTitleSave";
-    case "keaAliasing":
     case "keaAliasPersistence":
       return "flow.nodeEditorTitleAliasing";
     case "keaMatchValidationRuleAliasing":
@@ -121,10 +120,6 @@ export function FlowNodeEditorModal({
   const ref = readRef(nodeData);
   const matchRuleFocus = strOpt(nodeData.validation_rule_name);
 
-  const extractionRuleFocus =
-    strOpt(ref.extraction_rule_name) ?? firstStrInArray(ref.extraction_rule_names);
-  const aliasingRuleFocus = strOpt(ref.aliasing_rule_name) ?? firstStrInArray(ref.aliasing_rule_names);
-
   const patch = (recipe: (doc: Record<string, unknown>) => Record<string, unknown>) => {
     onPatchWorkflowScope(recipe);
   };
@@ -159,17 +154,6 @@ export function FlowNodeEditorModal({
           singleView
           onChange={(v) => patch((d) => ({ ...d, source_views: v }))}
           schemaSpace={schemaSpace}
-        />
-      );
-      break;
-    case "keaExtraction":
-      body = (
-        <KeyExtractionControls
-          key={node.id}
-          value={workflowDoc.key_extraction}
-          onChange={(v) => patch((d) => ({ ...d, key_extraction: v }))}
-          scopeDocument={workflowDoc}
-          initialFocusedExtractionRuleName={extractionRuleFocus}
         />
       );
       break;
@@ -226,6 +210,23 @@ export function FlowNodeEditorModal({
             canvas={workflowCanvas}
             onChange={onPatchWorkflowCanvas}
             initialNodeId={node.id}
+            singleNode
+          />
+        ) : (
+          <p className="kea-hint" style={{ marginTop: 0 }}>
+            {t("flow.nodeEditorTransformsCanvasMissing")}
+          </p>
+        );
+      break;
+    case "keaMerge":
+      body =
+        workflowCanvas && onPatchWorkflowCanvas ? (
+          <MergesControls
+            key={node.id}
+            canvas={workflowCanvas}
+            onChange={onPatchWorkflowCanvas}
+            initialNodeId={node.id}
+            t={t}
             singleNode
           />
         ) : (
@@ -317,7 +318,6 @@ export function FlowNodeEditorModal({
           </p>
         );
       break;
-    case "keaAliasing":
     case "keaAliasPersistence":
       body = (
         <AliasingControls
@@ -325,7 +325,7 @@ export function FlowNodeEditorModal({
           value={workflowDoc.aliasing}
           onChange={(v) => patch((d) => ({ ...d, aliasing: v }))}
           scopeDocument={workflowDoc}
-          initialFocusedAliasingRuleName={aliasingRuleFocus}
+          initialEditorSub="settings"
         />
       );
       break;

@@ -27,8 +27,33 @@ function useExtractionAliasingHandleLayout(): {
   return { dataIn: Position.Left, dataOut: Position.Right, validationOut: Position.Bottom };
 }
 
-function nodeClass(selected: boolean, variant: string): string {
-  return `kea-flow-node kea-flow-node--${variant}${selected ? " kea-flow-node--selected" : ""}`;
+function isFlowNodeCanvasDisabled(
+  data?: WorkflowCanvasNodeData | Record<string, unknown>
+): boolean {
+  return data != null && (data as WorkflowCanvasNodeData).canvas_node_enabled === false;
+}
+
+function nodeClass(
+  selected: boolean,
+  variant: string,
+  data?: WorkflowCanvasNodeData | Record<string, unknown>
+): string {
+  const disabled = isFlowNodeCanvasDisabled(data);
+  return `kea-flow-node kea-flow-node--${variant}${selected ? " kea-flow-node--selected" : ""}${disabled ? " kea-flow-node--disabled" : ""}`;
+}
+
+/** Same off badge for manual and cascade-disabled nodes (card uses ``kea-flow-node--disabled``). */
+function FlowNodeKindBadge({
+  data,
+  badge,
+}: {
+  data?: WorkflowCanvasNodeData | Record<string, unknown>;
+  badge: string;
+}) {
+  if (isFlowNodeCanvasDisabled(data)) {
+    return <div className="kea-flow-node__badge kea-flow-node__badge--off">off</div>;
+  }
+  return <div className="kea-flow-node__badge">{badge}</div>;
 }
 
 function portHandleStyle(
@@ -60,7 +85,7 @@ export function KeaSubgraphNode({ data, selected }: NodeProps) {
   const innerValidate = innerNodes.filter((n) => n.kind === "validation").length;
 
   return (
-    <div className={nodeClass(!!selected, "subgraph")} style={mergeNodeCardStyle(d, { position: "relative" })}>
+    <div className={nodeClass(!!selected, "subgraph", d)} style={mergeNodeCardStyle(d, { position: "relative" })}>
       {inputs.map((p: SubflowPortEntry, i: number) => (
         <Handle
           key={`sg-in-${p.id}`}
@@ -79,7 +104,7 @@ export function KeaSubgraphNode({ data, selected }: NodeProps) {
           style={{ ...portHandleStyle(outPos, i, outputs.length), zIndex: 6 }}
         />
       ))}
-      <div className="kea-flow-node__badge">subgraph</div>
+      <FlowNodeKindBadge data={d} badge="subgraph" />
       <div className="kea-flow-node__title">{d.label || "Subgraph"}</div>
       <div className="kea-flow-node__meta">
         {innerBody === 0
@@ -106,10 +131,10 @@ export function KeaSubflowGraphInNode({ data, selected, parentId }: NodeProps) {
 
   return (
     <div
-      className={nodeClass(!!selected, "subflow-graph")}
+      className={nodeClass(!!selected, "subflow-graph", d)}
       style={mergeNodeCardStyle(d, { position: "relative", minWidth: 120, minHeight: 56 })}
     >
-      <div className="kea-flow-node__badge">in</div>
+      <FlowNodeKindBadge data={d} badge="in" />
       <div className="kea-flow-node__title">{d.label || "Graph inputs"}</div>
       {inputs.map((p: SubflowPortEntry, i: number) => (
         <Handle
@@ -138,7 +163,7 @@ export function KeaSubflowGraphOutNode({ data, selected, parentId }: NodeProps) 
 
   return (
     <div
-      className={nodeClass(!!selected, "subflow-graph")}
+      className={nodeClass(!!selected, "subflow-graph", d)}
       style={mergeNodeCardStyle(d, { position: "relative", minWidth: 120, minHeight: 56 })}
     >
       {outputs.map((p: SubflowPortEntry, i: number) => (
@@ -150,7 +175,7 @@ export function KeaSubflowGraphOutNode({ data, selected, parentId }: NodeProps) 
           style={{ ...portHandleStyle(inPos, i, outputs.length), zIndex: 4 }}
         />
       ))}
-      <div className="kea-flow-node__badge">out</div>
+      <FlowNodeKindBadge data={d} badge="out" />
       <div className="kea-flow-node__title">{d.label || "Graph outputs"}</div>
     </div>
   );
@@ -160,8 +185,8 @@ export function KeaStartNode({ data, selected }: NodeProps) {
   const d = (data ?? {}) as WorkflowCanvasNodeData;
   const h = useDataHandles();
   return (
-    <div className={nodeClass(!!selected, "start")} style={mergeNodeCardStyle(d)}>
-      <div className="kea-flow-node__badge">start</div>
+    <div className={nodeClass(!!selected, "start", d)} style={mergeNodeCardStyle(d)}>
+      <FlowNodeKindBadge data={d} badge="start" />
       <div className="kea-flow-node__title">{d.label || "Start"}</div>
       <Handle type="source" position={h.out} id="out" />
     </div>
@@ -172,9 +197,9 @@ export function KeaEndNode({ data, selected }: NodeProps) {
   const d = (data ?? {}) as WorkflowCanvasNodeData;
   const h = useDataHandles();
   return (
-    <div className={nodeClass(!!selected, "end")} style={mergeNodeCardStyle(d)}>
+    <div className={nodeClass(!!selected, "end", d)} style={mergeNodeCardStyle(d)}>
       <Handle type="target" position={h.in} id="in" />
-      <div className="kea-flow-node__badge">end</div>
+      <FlowNodeKindBadge data={d} badge="end" />
       <div className="kea-flow-node__title">{d.label || "End"}</div>
     </div>
   );
@@ -184,9 +209,9 @@ export function KeaSourceViewNode({ data, selected }: NodeProps) {
   const d = (data ?? {}) as WorkflowCanvasNodeData;
   const h = useDataHandles();
   return (
-    <div className={nodeClass(!!selected, "source")} style={mergeNodeCardStyle(d)}>
+    <div className={nodeClass(!!selected, "source", d)} style={mergeNodeCardStyle(d)}>
       <Handle type="target" position={h.in} id="in" />
-      <div className="kea-flow-node__badge">source</div>
+      <FlowNodeKindBadge data={d} badge="source" />
       <div className="kea-flow-node__title">{d.label || "Source view"}</div>
       {d.ref?.view_external_id && (
         <div className="kea-flow-node__meta">{String(d.ref.view_external_id)}</div>
@@ -205,11 +230,12 @@ export function KeaExtractionNode({ data, selected }: NodeProps) {
     zIndex: 5,
   };
   return (
-    <div className={nodeClass(!!selected, "extract")} style={mergeNodeCardStyle(d)}>
+    <div className={nodeClass(!!selected, "extract", d)} style={mergeNodeCardStyle(d)}>
       <Handle type="target" position={h.dataIn} id="in" style={{ zIndex: 5 }} />
-      <div className="kea-flow-node__badge">
-        extract{d.preset_from_palette ? " ●" : ""}
-      </div>
+      <FlowNodeKindBadge
+        data={d}
+        badge={`extract${d.preset_from_palette ? " ●" : ""}`}
+      />
       <div className="kea-flow-node__title">{d.label || "Extraction"}</div>
       <div className="kea-flow-node__meta">{handler}</div>
       <Handle type="source" position={h.dataOut} id="out" style={{ zIndex: 5 }} />
@@ -227,11 +253,12 @@ export function KeaAliasingNode({ data, selected }: NodeProps) {
     zIndex: 5,
   };
   return (
-    <div className={nodeClass(!!selected, "alias")} style={mergeNodeCardStyle(d)}>
+    <div className={nodeClass(!!selected, "alias", d)} style={mergeNodeCardStyle(d)}>
       <Handle type="target" position={h.dataIn} id="in" style={{ zIndex: 5 }} />
-      <div className="kea-flow-node__badge">
-        alias{d.preset_from_palette ? " ●" : ""}
-      </div>
+      <FlowNodeKindBadge
+        data={d}
+        badge={`alias${d.preset_from_palette ? " ●" : ""}`}
+      />
       <div className="kea-flow-node__title">{d.label || "Aliasing"}</div>
       <div className="kea-flow-node__meta">{handler}</div>
       <Handle type="source" position={h.dataOut} id="out" style={{ zIndex: 5 }} />
@@ -264,9 +291,9 @@ function DiscoveryDataStageNode({
   }
   const meta = summary ?? "—";
   return (
-    <div className={nodeClass(!!selected, variant)} style={mergeNodeCardStyle(d)}>
+    <div className={nodeClass(!!selected, variant, d)} style={mergeNodeCardStyle(d)}>
       <Handle type="target" position={h.dataIn} id="in" style={{ zIndex: 5 }} />
-      <div className="kea-flow-node__badge">{badge}</div>
+      <FlowNodeKindBadge data={d} badge={badge} />
       <div className="kea-flow-node__title">{d.label || title}</div>
       <div className="kea-flow-node__meta">{meta}</div>
       <Handle type="source" position={h.dataOut} id="out" style={{ zIndex: 5 }} />
@@ -318,6 +345,17 @@ export function KeaTransformNode(props: NodeProps) {
   );
 }
 
+export function KeaMergeNode(props: NodeProps) {
+  return (
+    <DiscoveryDataStageNode
+      {...props}
+      variant="alias"
+      badge="merge"
+      title="Merge"
+    />
+  );
+}
+
 export function KeaJoinNode({ data, selected }: NodeProps) {
   const d = (data ?? {}) as WorkflowCanvasNodeData;
   const h = useExtractionAliasingHandleLayout();
@@ -333,7 +371,7 @@ export function KeaJoinNode({ data, selected }: NodeProps) {
   }
   const meta = summary ?? "—";
   return (
-    <div className={nodeClass(!!selected, "alias")} style={mergeNodeCardStyle(d)}>
+    <div className={nodeClass(!!selected, "alias", d)} style={mergeNodeCardStyle(d)}>
       <Handle
         type="target"
         position={inPos}
@@ -346,7 +384,7 @@ export function KeaJoinNode({ data, selected }: NodeProps) {
         id={rightId}
         style={{ ...portHandleStyle(inPos, 1, 2), zIndex: 5 }}
       />
-      <div className="kea-flow-node__badge">join</div>
+      <FlowNodeKindBadge data={d} badge="join" />
       <div className="kea-flow-node__title">{d.label || "Join"}</div>
       <div className="kea-flow-node__meta">{meta}</div>
       <Handle type="source" position={h.dataOut} id="out" style={{ zIndex: 5 }} />
@@ -367,9 +405,9 @@ export function KeaDiscoveryInstanceFilterNode({ data, selected }: NodeProps) {
   }
   const meta = summary ?? "—";
   return (
-    <div className={nodeClass(!!selected, "validation")} style={mergeNodeCardStyle(d)}>
+    <div className={nodeClass(!!selected, "validation", d)} style={mergeNodeCardStyle(d)}>
       <Handle type="target" position={h.in} id="in" style={{ zIndex: 5 }} />
-      <div className="kea-flow-node__badge">instance_filter</div>
+      <FlowNodeKindBadge data={d} badge="instance_filter" />
       <div className="kea-flow-node__title">{d.label || "Instance filter"}</div>
       <div className="kea-flow-node__meta">{meta}</div>
       <Handle type="source" position={h.out} id="out" style={{ zIndex: 5 }} />
@@ -390,9 +428,9 @@ export function KeaDiscoveryConfidenceFilterNode({ data, selected }: NodeProps) 
   }
   const meta = summary ?? "—";
   return (
-    <div className={nodeClass(!!selected, "validation")} style={mergeNodeCardStyle(d)}>
+    <div className={nodeClass(!!selected, "validation", d)} style={mergeNodeCardStyle(d)}>
       <Handle type="target" position={h.in} id="in" style={{ zIndex: 5 }} />
-      <div className="kea-flow-node__badge">confidence_filter</div>
+      <FlowNodeKindBadge data={d} badge="confidence_filter" />
       <div className="kea-flow-node__title">{d.label || "Confidence filter"}</div>
       <div className="kea-flow-node__meta">{meta}</div>
       <Handle type="source" position={h.out} id="out" style={{ zIndex: 5 }} />
@@ -413,9 +451,9 @@ export function KeaDiscoveryValidateNode({ data, selected }: NodeProps) {
   }
   const meta = summary ?? "—";
   return (
-    <div className={nodeClass(!!selected, "validation")} style={mergeNodeCardStyle(d)}>
+    <div className={nodeClass(!!selected, "validation", d)} style={mergeNodeCardStyle(d)}>
       <Handle type="target" position={h.in} id="in" style={{ zIndex: 5 }} />
-      <div className="kea-flow-node__badge">validate</div>
+      <FlowNodeKindBadge data={d} badge="validate" />
       <div className="kea-flow-node__title">{d.label || "Validation"}</div>
       <div className="kea-flow-node__meta">{meta}</div>
       <Handle type="source" position={h.out} id="out" style={{ zIndex: 5 }} />
@@ -468,9 +506,9 @@ export function KeaValidationRuleNode({ data, selected }: NodeProps) {
   const ruleName = d.validation_rule_name ? String(d.validation_rule_name) : "—";
   const h = useDataHandles();
   return (
-    <div className={nodeClass(!!selected, "validation-rule")} style={mergeNodeCardStyle(d)}>
+    <div className={nodeClass(!!selected, "validation-rule", d)} style={mergeNodeCardStyle(d)}>
       <Handle type="target" position={Position.Top} id="in" style={validationNodeTargetStyle} />
-      <div className="kea-flow-node__badge">match</div>
+      <FlowNodeKindBadge data={d} badge="match" />
       <div className="kea-flow-node__title">{d.label || "Match validation"}</div>
       <div className="kea-flow-node__meta">
         {ctx} · {ruleName}
@@ -485,9 +523,9 @@ export function KeaAliasPersistenceNode({ data, selected }: NodeProps) {
   const d = (data ?? {}) as WorkflowCanvasNodeData;
   const h = useDataHandles();
   return (
-    <div className={nodeClass(!!selected, "persist-alias")} style={mergeNodeCardStyle(d)}>
+    <div className={nodeClass(!!selected, "persist-alias", d)} style={mergeNodeCardStyle(d)}>
       <Handle type="target" position={h.in} id="in" />
-      <div className="kea-flow-node__badge">persist</div>
+      <FlowNodeKindBadge data={d} badge="persist" />
       <div className="kea-flow-node__title">{d.label || "Alias write-back"}</div>
       <div className="kea-flow-node__meta">fn_dm_view_save</div>
       <Handle type="source" position={h.out} id="out" />
@@ -500,9 +538,9 @@ export function KeaInvertedIndexNode({ data, selected }: NodeProps) {
   const d = (data ?? {}) as WorkflowCanvasNodeData;
   const h = useDataHandles();
   return (
-    <div className={nodeClass(!!selected, "ref-index")} style={mergeNodeCardStyle(d)}>
+    <div className={nodeClass(!!selected, "ref-index", d)} style={mergeNodeCardStyle(d)}>
       <Handle type="target" position={h.in} id="in" />
-      <div className="kea-flow-node__badge">index</div>
+      <FlowNodeKindBadge data={d} badge="index" />
       <div className="kea-flow-node__title">{d.label || "Inverted index"}</div>
       <div className="kea-flow-node__meta">fn_dm_inverted_index</div>
       <Handle type="source" position={h.out} id="out" />

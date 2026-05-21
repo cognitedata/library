@@ -25,10 +25,12 @@ import {
   useOnSelectionChange,
   useReactFlow,
 } from "@xyflow/react";
+import { useAppSettings } from "../../context/AppSettingsContext";
 import type { MessageKey } from "../../i18n";
 import {
   emptyWorkflowCanvasDocument,
   isSubflowGraphHubRfType,
+  isWorkflowCanvasNodeEnabled,
   normalizeWorkflowCanvasHandleOrientation,
   parsePortIdFromSubflowSourceHandle,
   parsePortIdFromSubflowTargetHandle,
@@ -50,7 +52,6 @@ import { FlowNodeInspector } from "./FlowNodeInspector";
 import { FlowPalette, getPaletteDropPayload, type PaletteDragPayload } from "./FlowPalette";
 import { KEA_FLOW_NODE_TYPES } from "./flowNodeRegistry";
 import { materializePaletteDrop } from "./materializePaletteDrop";
-import { patchScopeForSourceViewToExtractionConnection } from "./workflowScopeConnectionPatch";
 import { useFlowPanelLayout } from "./useFlowPanelLayout";
 import { layoutFlowNodes } from "./autoLayoutFlow";
 import { TreeContextMenuPortal, useTreeContextMenuState, type TreeCtxMenuItem } from "../TreeContextMenu";
@@ -76,7 +77,8 @@ import {
   formatConnectEndMenuOptionLabel,
   formatConnectEndMenuOptionTooltip,
 } from "./connectEndMenuOptions";
-import { keaValidationRuleLayoutRfTypes } from "./flowConstants";
+import { keaValidationRuleLayoutRfTypes, keaWorkflowDisableableRfTypes } from "./flowConstants";
+import { applyWorkflowCanvasEnablementPatch } from "./flowNodeEnabled";
 import { appendKeaConnectionEdge, appendReuseDataEdge, dedupeEdgesByHandles } from "./flowEdgeHelpers";
 import { upstreamDownstreamAnimatedEdgeIds } from "./flowSelectionEdgeAnimation";
 import { useFlowCanvasHistory, type FlowCanvasSnapshot } from "./useFlowCanvasHistory";
@@ -121,6 +123,7 @@ type InnerProps = {
   onPromoteInnerSubtreeToOwningGraph?: (rootInnerNodeId: string) => void;
   /** Parent sets this so backdrop click can discard edits like the Cancel button. */
   cancelHandlerRef: MutableRefObject<(() => void) | null>;
+  onActivityHint?: (message: string) => void;
 };
 
 function SubgraphDrillCanvas({
@@ -143,7 +146,9 @@ function SubgraphDrillCanvas({
   nestDepth = 0,
   onPromoteInnerSubtreeToOwningGraph,
   cancelHandlerRef,
+  onActivityHint,
 }: InnerProps) {
+  const { theme } = useAppSettings();
   const { getNode, getNodes, getEdges, fitView, screenToFlowPosition } = useReactFlow();
   const rfSelectionRef = useRef<Node[]>([]);
   const [alignableSelectionCount, setAlignableSelectionCount] = useState(0);
@@ -283,6 +288,21 @@ function SubgraphDrillCanvas({
     [setNodes, setEdges]
   );
 
+  const onActivityHintRef = useRef(onActivityHint);
+  onActivityHintRef.current = onActivityHint;
+
+  const toggleNodeEnabled = useCallback(
+    (nodeId: string) => {
+      patchWorkflowCanvas((prev) =>
+        applyWorkflowCanvasEnablementPatch(prev, nodeId, undefined, {
+          t,
+          onHint: onActivityHintRef.current,
+        })
+      );
+    },
+    [patchWorkflowCanvas, t]
+  );
+
   useEffect(() => {
     if (skipEmitRef.current) {
       skipEmitRef.current = false;
@@ -320,11 +340,6 @@ function SubgraphDrillCanvas({
   const onConnect = useCallback(
     (params: Connection) => {
       setEdges((eds) => appendKeaConnectionEdge(getNode, eds, params));
-      patchScopeForSourceViewToExtractionConnection(
-        patchWorkflowScopeRef.current,
-        getNode(params.source),
-        getNode(params.target)
-      );
     },
     [setEdges, getNode]
   );
@@ -393,7 +408,6 @@ function SubgraphDrillCanvas({
         const merged = dedupeEdgesByHandles([...eds, ...extraEdges]);
         return appendKeaConnectionEdge(getNode, merged, conn);
       });
-      patchScopeForSourceViewToExtractionConnection(patchWorkflowScopeRef.current, sourceNode, node);
       setConnectEndMenu(null);
       setConnectEndMenuGroupId(null);
       setSelectedNode(node);
@@ -844,6 +858,17 @@ function SubgraphDrillCanvas({
           },
         });
       }
+      if (node.type && keaWorkflowDisableableRfTypes.has(node.type)) {
+        const cn = workflowCanvas.nodes.find((n) => n.id === node.id);
+        const enabled = cn
+          ? isWorkflowCanvasNodeEnabled(cn)
+          : (node.data as WorkflowCanvasNodeData).canvas_node_enabled !== false;
+        items.push({
+          id: "toggle-enabled",
+          label: enabled ? t("flow.ctxMenuDisableNode") : t("flow.ctxMenuEnableNode"),
+          onSelect: () => toggleNodeEnabled(node.id),
+        });
+      }
       items.push({
         id: "remove-node",
         label: t("flow.ctxMenuRemoveNode"),
@@ -856,6 +881,8 @@ function SubgraphDrillCanvas({
       flowCtxMenu,
       t,
       removeNodeById,
+      toggleNodeEnabled,
+      workflowCanvas,
       getNodes,
       getEdges,
       setNodes,
@@ -1010,6 +1037,7 @@ function SubgraphDrillCanvas({
             <div className="kea-flow-canvas-wrap" ref={innerFlowRootRef as RefObject<HTMLDivElement>}>
               <FlowHandleOrientationProvider value={handleOrientation}>
                 <ReactFlow
+                  colorMode={theme}
                   nodes={nodes}
                   edges={edgesForRf}
                   onNodesChange={onNodesChangeWrapped}
@@ -1229,6 +1257,7 @@ function SubgraphDrillCanvas({
           onPatchWorkflowScope={onPatchWorkflowScope}
           onClose={() => setNestedDrillNodeId(null)}
           cancelHandlerRef={nestedCancelHandlerRef}
+          onActivityHint={onActivityHint}
           onSaveInnerCanvas={(childId, doc) => patchNestedInnerInLocalNodes(childId, doc)}
           onEnsureSubgraphBoundary={(childId, hubInId, hubOutId) =>
             patchNestedBoundaryHubIds(childId, hubInId, hubOutId)
@@ -1279,6 +1308,7 @@ type Props = {
   onPromoteInnerSubtreeToOwningGraph?: (subgraphNodeId: string, rootInnerNodeId: string) => void;
   /** When omitted, an internal ref is used so backdrop / Escape can discard edits. */
   cancelHandlerRef?: MutableRefObject<(() => void) | null>;
+  onActivityHint?: (message: string) => void;
 };
 
 export function SubgraphDrillModal({
@@ -1297,6 +1327,7 @@ export function SubgraphDrillModal({
   nestDepth = 0,
   onPromoteInnerSubtreeToOwningGraph,
   cancelHandlerRef: cancelHandlerRefProp,
+  onActivityHint,
 }: Props) {
   const innerFlowRootRef = useRef<HTMLDivElement>(null);
   const fallbackCancelRef = useRef<(() => void) | null>(null);
@@ -1366,6 +1397,7 @@ export function SubgraphDrillModal({
             schemaSpace={schemaSpace}
             nestDepth={nestDepth}
             cancelHandlerRef={cancelHandlerRef}
+            onActivityHint={onActivityHint}
             onPromoteInnerSubtreeToOwningGraph={
               onPromoteInnerSubtreeToOwningGraph
                 ? (rootInnerId) => onPromoteInnerSubtreeToOwningGraph(node.id, rootInnerId)

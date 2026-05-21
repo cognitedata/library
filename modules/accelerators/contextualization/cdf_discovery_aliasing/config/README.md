@@ -19,6 +19,8 @@ Configs for this module are the **authoring source** for **`module.py`** / **`lo
 
 **Incremental hash skip vs performance:** When `incremental_skip_unchanged_source_inputs` is true (default in parameters unless overridden), `fn_dm_view_query` needs prior **`EXTRACTION_INPUTS_HASH`** values from the cohort RAW table. On **`module.py run`**, [`local_runner/kahn_workflow_executor.py`](../local_runner/kahn_workflow_executor.py) injects **`discovery_raw_hash_index_cache`** into task `data` so **one** full-table index build per distinct `(raw_db, raw_table)` is shared by all parallel view-query tasks for that run. Deployed CDF functions do not receive that cache (each invocation scans independently unless you use Key Discovery FDM state). For very large `discovery_state` tables, consider disabling skip on specific nodes (`incremental_skip_unchanged_source_inputs: false` on the query_view `config`) or relying on Key Discovery when deployed.
 
+**Cohort row index (transform / validate / filter):** Transform cumulative merge and downstream predecessor reads use an **in-memory** `row_key → properties` map built by **one chunked RAW scan per node cohort table** per function invocation ([`build_cohort_row_index`](../functions/cdf_fn_common/cohort_storage.py) in `cdf_fn_common`) — this is **not** a CDF RAW database index. Handlers fall back to `raw.rows.retrieve` only when no index is supplied (tests / legacy). On **`module.py run`**, **`discovery_cohort_row_index_cache`** (same pattern as the hash cache) reuses each table’s map across tasks in one process. **Deployed** workflows get per-invocation indexing automatically after redeploying `fn_dm_*` functions; cross-task reuse in production still requires one scan per Cognite Function call unless you add a future persisted side store.
+
 **RAW run report sampling:** Optional JSON attachment after the DAG caps how many matching rows are returned per table (`--raw-results-rows`) and how many **RAW rows are examined** per table when filtering (e.g. by `RUN_ID`): set env **`KEA_RAW_RESULTS_MAX_RAW_ROWS_SCANNED`** (default `100000`) or **`module.py run --raw-results-max-rows-scanned K`**. When the walk stops early, `raw_results.tables[].raw_scan_truncated` is true.
 
 **Trigger-embedded template:** [`../workflow_template/workflow.template.config.yaml`](../workflow_template/workflow.template.config.yaml) — merged, patched per hierarchy leaf, then **trimmed** into each generated trigger’s **`input.configuration`** (no separate per-leaf **`*.canvas.yaml`** from **`build_scopes`**).
@@ -46,7 +48,7 @@ Pipeline flags apply to **`python module.py run`** (bare **`module.py`** prints 
 |------|----------|
 | **`--config-path <file>`** | Load that file as a v1 scope document (highest precedence). |
 | **`--scope <name>`** | Only **`default`** (or omitted) loads **`workflow.local.config.yaml`** at module root; other names require **`--config-path`**. |
-| **`--raw-results-max-rows-scanned K`** | Max RAW rows read per table when sampling for `local_run_report` (`0` = use env **`KEA_RAW_RESULTS_MAX_RAW_ROWS_SCANNED`** or default `100000`). See `raw_results.tables[].raw_scan_truncated`. |
+| **`--raw-results-max-rows-scanned K`** | Max RAW rows read per table when sampling for `discovery_run.json` `raw_table_samples` (`0` = use env **`KEA_RAW_RESULTS_MAX_RAW_ROWS_SCANNED`** or default `100000`). See `raw_table_samples.tables[].raw_scan_truncated`. |
 
 ## Historical RAW purge (operator CLI)
 

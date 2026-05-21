@@ -62,15 +62,6 @@ def scope_watermark_row_key(scope_key: str) -> str:
     return f"scope_wm_{scope_key}"
 
 
-def cohort_row_key(
-    run_id: str, node_instance_id: str, scope_key: Optional[str] = None
-) -> str:
-    """RAW row key for a per-run cohort instance row (scope disambiguates multi-view scopes)."""
-    if scope_key:
-        return f"{run_id}:{scope_key}:{node_instance_id}"
-    return f"{run_id}:{node_instance_id}"
-
-
 def node_instance_id_str(instance: Any) -> str:
     """
     Space-qualified node instance id for RAW keys and correlation.
@@ -161,66 +152,6 @@ def iter_raw_table_rows_chunked(
     listed = rows_api.list(raw_db, raw_table, limit=-1)
     for row in listed:
         yield row
-
-
-def inter_node_cohort_key_prefix(filter_run: str) -> str:
-    """RAW row-key prefix for cohort rows written with :func:`cohort_row_key` (``{run_id}:``)."""
-    rid = str(filter_run or "").strip()
-    return f"{rid}:" if rid else ""
-
-
-def iter_inter_node_raw_rows_for_filter_run(
-    client: Any,
-    raw_db: str,
-    raw_table: str,
-    filter_run: str,
-    *,
-    chunk_size: int = 2500,
-    strict_key_prefix_only: bool = True,
-) -> Iterator[Any]:
-    """
-    Iterate RAW rows when a downstream discovery task reads a predecessor sink for one run.
-
-    Cohort instance rows use keys from :func:`cohort_row_key` (``{run_id}:{scope_key}:{node_id}``), so
-    restricting to ``filter_run`` can use the **row key** prefix ``{filter_run}:`` instead of scanning
-    the whole table and filtering on the ``RUN_ID`` column only.
-
-    *strict_key_prefix_only* (default ``True``): yield rows whose key starts with ``{filter_run}``:``,
-    then **stop** once a row is seen whose key does not start with that prefix, assuming Cognite RAW
-    list order is ascending by key (API default). Rows that only match via ``RUN_ID`` with a
-    non-cohort key are **skipped** in this mode.
-
-    When ``False``, yields any row whose key starts with the prefix **or** whose ``RUN_ID`` column
-    equals ``filter_run`` (legacy / defensive); no early exit (full table scan).
-    """
-    fr = str(filter_run or "").strip()
-    if not fr:
-        yield from iter_raw_table_rows_chunked(
-            client, raw_db, raw_table, chunk_size=chunk_size
-        )
-        return
-    prefix = inter_node_cohort_key_prefix(fr)
-    if not strict_key_prefix_only:
-        for row in iter_raw_table_rows_chunked(
-            client, raw_db, raw_table, chunk_size=chunk_size
-        ):
-            k = str(getattr(row, "key", "") or "")
-            cols = raw_row_columns(row)
-            if k.startswith(prefix) or str(cols.get(RUN_ID_COLUMN) or "").strip() == fr:
-                yield row
-        return
-
-    in_cohort_key_span = False
-    for row in iter_raw_table_rows_chunked(
-        client, raw_db, raw_table, chunk_size=chunk_size
-    ):
-        k = str(getattr(row, "key", "") or "")
-        if k.startswith(prefix):
-            in_cohort_key_span = True
-            yield row
-            continue
-        if in_cohort_key_span:
-            break
 
 
 def _row_ts_ms_for_hash_tiebreak(cols: Dict[str, Any]) -> float:

@@ -63,7 +63,7 @@ def test_trim_clears_view_queries_when_canvas_empty() -> None:
     assert out["view_queries"] == []
 
 
-def test_trim_prunes_source_views_from_associations() -> None:
+def test_trim_strips_legacy_associations_without_canvas_source_views() -> None:
     doc = {
         "associations": [
             {
@@ -81,9 +81,8 @@ def test_trim_prunes_source_views_from_associations() -> None:
         "canvas": {"nodes": [], "edges": []},
     }
     out = trim_scope_document_for_trigger_input(doc)
-    assert out["source_views"] == [{"i": 0}, {"i": 2}]
-    assert out["associations"][0]["source_view_index"] == 0
-    assert out["associations"][1]["source_view_index"] == 1
+    assert out["source_views"] == [{"i": 0}, {"i": 1}, {"i": 2}]
+    assert "associations" not in out
 
 
 def test_trim_remaps_source_view_canvas_nodes_and_preserves_other_association_rows() -> None:
@@ -111,8 +110,11 @@ def test_trim_remaps_source_view_canvas_nodes_and_preserves_other_association_ro
     out = trim_scope_document_for_trigger_input(doc)
     assert out["source_views"] == [{"a": 2}]
     assert out["canvas"]["nodes"][0]["data"]["ref"]["source_view_index"] == 0
-    kinds = [x.get("kind") for x in out["associations"] if isinstance(x, dict)]
-    assert "other_kind" in kinds
+    assoc = out.get("associations")
+    if assoc is not None:
+        kinds = [x.get("kind") for x in assoc if isinstance(x, dict)]
+        assert "other_kind" in kinds
+        assert "source_view_to_extraction" not in kinds
 
 
 def test_trim_leaves_source_views_without_association_or_source_view_nodes() -> None:
@@ -124,9 +126,7 @@ def test_trim_leaves_source_views_without_association_or_source_view_nodes() -> 
     assert out["source_views"] == [{"k": 0}, {"k": 1}]
 
 
-def test_trim_source_views_passes_validate_workflow_associations() -> None:
-    from functions.cdf_fn_common.workflow_associations import validate_workflow_associations
-
+def test_trim_strips_extraction_rules_from_key_extraction() -> None:
     doc = {
         "key_extraction": {
             "config": {
@@ -138,23 +138,12 @@ def test_trim_source_views_passes_validate_workflow_associations() -> None:
                 }
             }
         },
-        "associations": [
-            {
-                "kind": "source_view_to_extraction",
-                "source_view_index": 0,
-                "extraction_rule_name": "rA",
-            },
-            {
-                "kind": "source_view_to_extraction",
-                "source_view_index": 2,
-                "extraction_rule_name": "rB",
-            },
-        ],
         "source_views": [{"i": 0}, {"i": 1}, {"i": 2}],
         "canvas": {"nodes": [], "edges": []},
     }
     out = trim_scope_document_for_trigger_input(doc)
-    assert validate_workflow_associations(out) == []
+    ke_data = out["key_extraction"]["config"]["data"]
+    assert "extraction_rules" not in ke_data
 
 
 def test_trim_then_compile_discovery_only_canvas() -> None:

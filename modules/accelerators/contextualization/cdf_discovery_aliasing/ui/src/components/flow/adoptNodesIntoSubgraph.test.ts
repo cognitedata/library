@@ -33,19 +33,19 @@ describe("adoptNodesIntoSubgraph", () => {
     };
     const a: Node = {
       id: "a",
-      type: "keaExtraction",
+      type: "keaTransform",
       position: { x: 40, y: 30 },
       data: { label: "A" },
     };
     const b: Node = {
       id: "b",
-      type: "keaAliasing",
+      type: "keaTransform",
       position: { x: 80, y: 50 },
       data: { label: "B" },
     };
     const c: Node = {
       id: "c",
-      type: "keaExtraction",
+      type: "keaTransform",
       position: { x: 300, y: 40 },
       data: { label: "C" },
     };
@@ -117,13 +117,13 @@ describe("adoptNodesIntoSubgraph", () => {
     };
     const a: Node = {
       id: "a",
-      type: "keaExtraction",
+      type: "keaTransform",
       position: { x: 40, y: 20 },
       data: { label: "A" },
     };
     const b: Node = {
       id: "b",
-      type: "keaExtraction",
+      type: "keaTransform",
       position: { x: 40, y: 100 },
       data: { label: "B" },
     };
@@ -179,25 +179,25 @@ describe("adoptNodesIntoSubgraph", () => {
     };
     const a: Node = {
       id: "a",
-      type: "keaExtraction",
+      type: "keaTransform",
       position: { x: 40, y: 30 },
       data: { label: "A" },
     };
     const b: Node = {
       id: "b",
-      type: "keaExtraction",
+      type: "keaTransform",
       position: { x: 40, y: 100 },
       data: { label: "B" },
     };
     const c1: Node = {
       id: "c1",
-      type: "keaAliasing",
+      type: "keaTransform",
       position: { x: 300, y: 20 },
       data: { label: "C1" },
     };
     const c2: Node = {
       id: "c2",
-      type: "keaAliasing",
+      type: "keaTransform",
       position: { x: 300, y: 120 },
       data: { label: "C2" },
     };

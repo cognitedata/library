@@ -2,27 +2,6 @@
  * Canonical handler ids for palette presets (aligns with Python engines).
  */
 
-export const EXTRACTION_HANDLER_IDS = ["regex_handler"] as const;
-export type ExtractionHandlerId = (typeof EXTRACTION_HANDLER_IDS)[number];
-
-/** Aliasing TransformationType string values (tag_aliasing_engine.TransformationType). */
-export const ALIASING_HANDLER_IDS = [
-  "character_substitution",
-  "prefix_suffix",
-  "regex_substitution",
-  "case_transformation",
-  "semantic_expansion",
-  "related_instruments",
-  "hierarchical_expansion",
-  "document_aliases",
-  "leading_zero_normalization",
-  "composite",
-  "pattern_recognition",
-  "pattern_based_expansion",
-  "alias_mapping_table",
-] as const;
-export type AliasingHandlerId = (typeof ALIASING_HANDLER_IDS)[number];
-
 /** Core discovery transform handlers (tag normalization / fan-out). */
 export const CORE_TRANSFORM_HANDLER_IDS = [
   "regex_substitution",

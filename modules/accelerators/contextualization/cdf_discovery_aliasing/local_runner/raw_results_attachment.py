@@ -145,7 +145,7 @@ def snapshot_raw_results_for_ctx(ctx: Any) -> Optional[Dict[str, Any]]:
     Build ``raw_results`` once while cohort rows still exist in RAW.
 
     Called immediately before ``fn_dm_discovery_raw_cleanup`` so post-run sampling
-    does not see an empty table after ``delete_run_cohort_keys``.
+    does not see an empty tables after ``delete_run_cohort_tables``.
     """
     if getattr(ctx, "raw_results_snapshot", None) is not None:
         return ctx.raw_results_snapshot

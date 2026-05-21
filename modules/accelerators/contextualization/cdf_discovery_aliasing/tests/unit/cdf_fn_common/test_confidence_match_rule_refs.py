@@ -165,12 +165,6 @@ def test_resolve_full_scope_nested_paths() -> None:
             "config": {
                 "data": {
                     "validation": {"validation_rules": ["vr"]},
-                    "extraction_rules": [
-                        {"validation": {"validation_rules": [{"ref": "vr", "priority": 2}]}}
-                    ],
-                    "source_views": [
-                        {"view_external_id": "CogniteFile", "view_space": "cdf_cdm", "view_version": "v1"},
-                    ],
                 }
             }
         },
@@ -178,9 +172,6 @@ def test_resolve_full_scope_nested_paths() -> None:
             "config": {
                 "data": {
                     "validation": {"validation_rules": ["vr"]},
-                    "aliasing_rules": [
-                        {"validation": {"validation_rules": ["vr"]}},
-                    ],
                 }
             }
         },
@@ -190,11 +181,8 @@ def test_resolve_full_scope_nested_paths() -> None:
     assert "validation_rule_definitions" not in doc
     ke_data = doc["key_extraction"]["config"]["data"]
     assert ke_data["validation"]["validation_rules"][0]["name"] == "vr"
-    assert ke_data["extraction_rules"][0]["validation"]["validation_rules"][0]["priority"] == 2
-    assert "validation" not in ke_data["source_views"][0]
     al_data = doc["aliasing"]["config"]["data"]
     assert al_data["validation"]["validation_rules"][0]["name"] == "vr"
-    assert al_data["aliasing_rules"][0]["validation"]["validation_rules"][0]["name"] == "vr"
     # Original untouched (deepcopy check)
     assert "validation_rule_definitions" in orig
 

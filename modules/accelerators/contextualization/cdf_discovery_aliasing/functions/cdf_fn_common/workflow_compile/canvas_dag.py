@@ -39,6 +39,7 @@ _KIND_FN: Dict[str, Tuple[str, str]] = {
     "query_raw": ("fn_dm_raw_query", "query_raw"),
     "query_classic": ("fn_dm_classic_query", "query_classic"),
     "transform": ("fn_dm_transform", "transform"),
+    "merge": ("fn_dm_merge", "merge"),
     "join": ("fn_dm_join", "join"),
     "validation": ("fn_dm_validate", "validate"),
     "instance_filter": ("fn_dm_filter", "instance_filter"),
@@ -69,6 +70,7 @@ _DISCOVERY_KINDS_WITH_CONFIG: FrozenSet[str] = frozenset(
         "query_raw",
         "query_classic",
         "transform",
+        "merge",
         "join",
         "validation",
         "instance_filter",
@@ -95,6 +97,7 @@ _JOIN_INPUT_SOURCE_KINDS: FrozenSet[str] = frozenset(
         "instance_filter",
         "confidence_filter",
         "join",
+        "merge",
     }
 )
 
@@ -115,7 +118,7 @@ def discovery_stage_inline_nonempty(kind: str, value: Any) -> bool:
             or str(value.get("raw_table_key") or "").strip()
             or str(value.get("raw_table") or "").strip()
         )
-    if kind in ("transform", "validation"):
+    if kind in ("transform", "validation", "merge"):
         return bool(str(value.get("description") or "").strip())
     if kind == "instance_filter":
         if not bool(str(value.get("description") or "").strip()):
@@ -183,6 +186,8 @@ def _has_executable_canvas(canvas: Mapping[str, Any]) -> bool:
     for n in nodes:
         if not isinstance(n, dict):
             continue
+        if not _is_canvas_node_enabled(n):
+            continue
         k = str(n.get("kind") or "").strip()
         if k in _KIND_FN:
             return True
@@ -216,6 +221,9 @@ def _flatten_canvas_subgraphs(canvas: Mapping[str, Any]) -> Dict[str, Any]:
         if not isinstance(n, dict):
             continue
         if _kind(n) == "subgraph":
+            if not _is_canvas_node_enabled(n):
+                flat_nodes.append(copy.deepcopy(n))
+                continue
             nid = str(n.get("id") or "").strip()
             if not nid:
                 raise CanvasCompileError("Canvas subgraph node missing id")
@@ -405,12 +413,59 @@ def _kind(n: Mapping[str, Any]) -> str:
     return str(n.get("kind") or "").strip()
 
 
+def _is_canvas_node_enabled(n: Mapping[str, Any]) -> bool:
+    """True when the canvas node participates in workflow compile (default enabled)."""
+    return n.get("enabled", True) is not False
+
+
+def _is_disabled_pass_through(n: Mapping[str, Any]) -> bool:
+    """Disabled executable or disabled subgraph — walk upstream when resolving deps."""
+    k = _kind(n)
+    if k == "subgraph" and not _is_canvas_node_enabled(n):
+        return True
+    if k in _KIND_FN and not _is_canvas_node_enabled(n):
+        return True
+    return False
+
+
+def _resolve_enabled_executable_canvas_id(
+    canvas_id: str,
+    *,
+    by_id: Mapping[str, Mapping[str, Any]],
+    rev_adj: Mapping[str, List[str]],
+    executable_ids: Set[str],
+) -> Optional[str]:
+    """Nearest enabled executable canvas node upstream of ``canvas_id`` (BFS)."""
+    stack = [canvas_id]
+    visited: Set[str] = set()
+    while stack:
+        cur = stack.pop()
+        if cur in visited:
+            continue
+        visited.add(cur)
+        if cur in executable_ids:
+            return cur
+        if cur not in by_id:
+            continue
+        n = by_id[cur]
+        k = _kind(n)
+        if k in PASS_THROUGH_KINDS | STRUCTURAL_KINDS:
+            stack.extend(rev_adj.get(cur, []))
+            continue
+        if _is_disabled_pass_through(n):
+            stack.extend(rev_adj.get(cur, []))
+            continue
+    return None
+
+
 def _join_input_task_ids_from_edges(
     join_canvas_id: str,
     edges_raw: Sequence[Mapping[str, Any]],
     *,
     task_id_by_canvas: Mapping[str, str],
     by_id: Mapping[str, Mapping[str, Any]],
+    rev_adj: Mapping[str, List[str]],
+    executable_ids: Set[str],
 ) -> Tuple[str, str]:
     """
     Resolve compiled task ids for join ``in__left`` / ``in__right`` inputs.
@@ -441,7 +496,18 @@ def _join_input_task_ids_from_edges(
                 f"as join input (expected one of: {sorted(_JOIN_INPUT_SOURCE_KINDS)})"
             )
         th = str(e.get("target_handle") or "").strip()
-        tid = task_id_by_canvas.get(src)
+        exec_src = _resolve_enabled_executable_canvas_id(
+            src,
+            by_id=by_id,
+            rev_adj=rev_adj,
+            executable_ids=executable_ids,
+        )
+        if not exec_src:
+            raise CanvasCompileError(
+                f"join node {join_canvas_id!r}: predecessor {src!r} has no enabled executable "
+                "upstream (enable the stage or rewire the join input)"
+            )
+        tid = task_id_by_canvas.get(exec_src)
         if not tid:
             raise CanvasCompileError(
                 f"join node {join_canvas_id!r}: predecessor {src!r} is not an executable canvas node"
@@ -452,14 +518,14 @@ def _join_input_task_ids_from_edges(
                     f"join node {join_canvas_id!r}: multiple edges target {JOIN_TARGET_HANDLE_LEFT!r}"
                 )
             left_tid = tid
-            left_src = src
+            left_src = exec_src
         elif th == JOIN_TARGET_HANDLE_RIGHT:
             if right_tid is not None:
                 raise CanvasCompileError(
                     f"join node {join_canvas_id!r}: multiple edges target {JOIN_TARGET_HANDLE_RIGHT!r}"
                 )
             right_tid = tid
-            right_src = src
+            right_src = exec_src
         else:
             raise CanvasCompileError(
                 f"join node {join_canvas_id!r}: edge from {src!r} must use "
@@ -477,6 +543,77 @@ def _join_input_task_ids_from_edges(
             f"join node {join_canvas_id!r}: left and right inputs must be different nodes"
         )
     return left_tid, right_tid
+
+
+def _edge_kind(edge: Mapping[str, Any]) -> str:
+    k = str(edge.get("kind") or "data").strip().lower()
+    if k in ("sequence", "parallel_group"):
+        return k
+    return "data"
+
+
+def _build_rev_adj(
+    edges_raw: Sequence[Mapping[str, Any]],
+    *,
+    edge_kinds: Optional[FrozenSet[str]] = None,
+) -> Dict[str, List[str]]:
+    """Reverse adjacency: target -> [sources]. Optional filter by edge kind."""
+    rev: Dict[str, List[str]] = {}
+    for e in edges_raw:
+        if not isinstance(e, dict):
+            continue
+        ek = _edge_kind(e)
+        if edge_kinds is not None and ek not in edge_kinds:
+            continue
+        s = str(e.get("source") or "").strip()
+        t = str(e.get("target") or "").strip()
+        if s and t:
+            rev.setdefault(t, []).append(s)
+            rev.setdefault(s, rev.get(s, []))
+    return rev
+
+
+def _immediate_executable_predecessors(
+    start_id: str,
+    *,
+    rev_adj: Mapping[str, List[str]],
+    executable_ids: Set[str],
+) -> Set[str]:
+    """Executable canvas nodes with a direct edge into ``start_id`` (per rev_adj filter)."""
+    return {p for p in rev_adj.get(start_id, []) if p in executable_ids}
+
+
+def _transform_depends_on_canvas_ids(
+    nid: str,
+    *,
+    edges_raw: Sequence[Mapping[str, Any]],
+    rev_adj_data: Mapping[str, List[str]],
+    by_id: Dict[str, Mapping[str, Any]],
+    rev_adj_all: Mapping[str, List[str]],
+    executable_ids: Set[str],
+) -> Set[str]:
+    """
+    Transform task predecessors: sequence edge wins (single chained pred);
+    otherwise data-edge immediate preds, else data-edge ancestors.
+    """
+    seq_preds = _immediate_executable_predecessors(
+        nid,
+        rev_adj=_build_rev_adj(edges_raw, edge_kinds=frozenset({"sequence"})),
+        executable_ids=executable_ids,
+    )
+    if seq_preds:
+        return seq_preds
+    data_preds = _immediate_executable_predecessors(
+        nid, rev_adj=rev_adj_data, executable_ids=executable_ids
+    )
+    if data_preds:
+        return data_preds
+    return _collect_executable_ancestors(
+        nid,
+        by_id=by_id,
+        rev_adj=dict(rev_adj_data),
+        executable_ids=executable_ids,
+    )
 
 
 def _collect_executable_ancestors(
@@ -500,8 +637,12 @@ def _collect_executable_ancestors(
             continue
         if cur not in by_id:
             continue
-        k = _kind(by_id[cur])
+        n = by_id[cur]
+        k = _kind(n)
         if k in PASS_THROUGH_KINDS | STRUCTURAL_KINDS:
+            stack.extend(rev_adj.get(cur, []))
+            continue
+        if _is_disabled_pass_through(n):
             stack.extend(rev_adj.get(cur, []))
             continue
         # unknown kind — stop this branch
@@ -634,18 +775,8 @@ def compile_canvas_dag(doc: Dict[str, Any]) -> Dict[str, Any]:
         edges_raw = []
 
     by_id = _node_by_id(nodes_raw)
-    rev_adj: Dict[str, List[str]] = {nid: [] for nid in by_id}
-    for e in edges_raw:
-        if not isinstance(e, dict):
-            continue
-        s = str(e.get("source") or "").strip()
-        t = str(e.get("target") or "").strip()
-        if s and t:
-            if t not in rev_adj:
-                rev_adj[t] = []
-            rev_adj[t].append(s)
-            if s not in rev_adj:
-                rev_adj[s] = rev_adj.get(s, [])
+    rev_adj_all = _build_rev_adj(edges_raw)
+    rev_adj_data = _build_rev_adj(edges_raw, edge_kinds=frozenset({"data"}))
 
     executable_canvas_ids: List[str] = []
     executable_rows: List[Tuple[str, str, str, Mapping[str, Any]]] = []
@@ -658,6 +789,8 @@ def compile_canvas_dag(doc: Dict[str, Any]) -> Dict[str, Any]:
             )
         if k not in _KIND_FN:
             continue
+        if not _is_canvas_node_enabled(n):
+            continue
         _fn_ext, exec_kind = _KIND_FN[k]
         data = n.get("data") if isinstance(n.get("data"), dict) else {}
         executable_canvas_ids.append(nid)
@@ -667,7 +800,7 @@ def compile_canvas_dag(doc: Dict[str, Any]) -> Dict[str, Any]:
     if not executable_canvas_ids:
         raise CanvasCompileError(
             "canvas has no executable nodes (expected one of: save_view, save_raw, save_classic, "
-            "query_view, query_raw, query_classic, transform, join, validation, instance_filter, "
+            "query_view, query_raw, query_classic, transform, merge, join, validation, instance_filter, "
             "confidence_filter, inverted_index, "
             "discovery_raw_cleanup)"
         )
@@ -685,9 +818,27 @@ def compile_canvas_dag(doc: Dict[str, Any]) -> Dict[str, Any]:
         k = _kind(n)
         fn_ext, exec_kind = _KIND_FN[k]
         tid = task_id_by_canvas[nid]
-        pred_canvas = _collect_executable_ancestors(
-            nid, by_id=by_id, rev_adj=rev_adj, executable_ids=executable_id_set
-        )
+        if k == "transform":
+            pred_canvas = _transform_depends_on_canvas_ids(
+                nid,
+                edges_raw=edges_raw,
+                rev_adj_data=rev_adj_data,
+                by_id=by_id,
+                rev_adj_all=rev_adj_all,
+                executable_ids=executable_id_set,
+            )
+        elif k == "merge":
+            pred_canvas = _immediate_executable_predecessors(
+                nid, rev_adj=rev_adj_data, executable_ids=executable_id_set
+            )
+            if not pred_canvas:
+                pred_canvas = _collect_executable_ancestors(
+                    nid, by_id=by_id, rev_adj=rev_adj_data, executable_ids=executable_id_set
+                )
+        else:
+            pred_canvas = _collect_executable_ancestors(
+                nid, by_id=by_id, rev_adj=rev_adj_all, executable_ids=executable_id_set
+            )
         depends_on: Set[str] = {task_id_by_canvas[p] for p in pred_canvas if p in task_id_by_canvas}
         dep_list = sorted(depends_on)
 
@@ -706,7 +857,12 @@ def compile_canvas_dag(doc: Dict[str, Any]) -> Dict[str, Any]:
             payload["upstream_compiled_task_ids"] = list(dep_list)
         if k == "join":
             left_tid, right_tid = _join_input_task_ids_from_edges(
-                nid, edges_raw, task_id_by_canvas=task_id_by_canvas, by_id=by_id
+                nid,
+                edges_raw,
+                task_id_by_canvas=task_id_by_canvas,
+                by_id=by_id,
+                rev_adj=rev_adj_all,
+                executable_ids=executable_id_set,
             )
             payload["join_left_task_id"] = left_tid
             payload["join_right_task_id"] = right_tid

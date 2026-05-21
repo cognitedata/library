@@ -341,20 +341,6 @@ def resolve_confidence_match_rule_refs_in_scope_document(doc: MutableMapping[str
                 )
                 if patched is not None:
                     data["validation"] = patched
-                rules = data.get("extraction_rules")
-                if isinstance(rules, list):
-                    for j, rule in enumerate(rules):
-                        if not isinstance(rule, dict):
-                            continue
-                        rv = rule.get("validation")
-                        patched = _patch_validation_block(
-                            rv,
-                            lookup,
-                            sequences,
-                            context=f"key_extraction.config.data.extraction_rules[{j}].validation.",
-                        )
-                        if patched is not None:
-                            rule["validation"] = patched
 
     al = doc.get("aliasing")
     if isinstance(al, dict):
@@ -368,70 +354,6 @@ def resolve_confidence_match_rule_refs_in_scope_document(doc: MutableMapping[str
                 )
                 if patched is not None:
                     adata["validation"] = patched
-                arules = adata.get("aliasing_rules")
-                if isinstance(arules, list):
-                    for k, arule in enumerate(arules):
-                        if not isinstance(arule, dict):
-                            continue
-                        rv = arule.get("validation")
-                        patched = _patch_validation_block(
-                            rv,
-                            lookup,
-                            sequences,
-                            context=f"aliasing.config.data.aliasing_rules[{k}].validation.",
-                        )
-                        if patched is not None:
-                            arule["validation"] = patched
-
-                pw = adata.get("pathways")
-                if isinstance(pw, dict) and isinstance(pw.get("steps"), list):
-                    for si, step in enumerate(pw["steps"]):
-                        if not isinstance(step, dict):
-                            continue
-                        mode = str(step.get("mode") or "sequential").strip().lower()
-                        if mode == "sequential":
-                            srules = step.get("rules")
-                            if isinstance(srules, list):
-                                for rk, arule in enumerate(srules):
-                                    if not isinstance(arule, dict):
-                                        continue
-                                    rv = arule.get("validation")
-                                    patched = _patch_validation_block(
-                                        rv,
-                                        lookup,
-                                        sequences,
-                                        context=(
-                                            f"aliasing.config.data.pathways.steps[{si}].rules[{rk}].validation."
-                                        ),
-                                    )
-                                    if patched is not None:
-                                        arule["validation"] = patched
-                        elif mode == "parallel":
-                            branches = step.get("branches")
-                            if not isinstance(branches, list):
-                                continue
-                            for bi, br in enumerate(branches):
-                                rules_list = None
-                                if isinstance(br, dict):
-                                    rules_list = br.get("rules")
-                                elif isinstance(br, list):
-                                    rules_list = br
-                                if not isinstance(rules_list, list):
-                                    continue
-                                for rk, arule in enumerate(rules_list):
-                                    if not isinstance(arule, dict):
-                                        continue
-                                    rv = arule.get("validation")
-                                    patched = _patch_validation_block(
-                                        rv,
-                                        lookup,
-                                        sequences,
-                                        context=(
-                                            f"aliasing.config.data.pathways.steps[{si}].branches[{bi}].rules[{rk}].validation."
-                                        ),
-                                    )
-                                    if patched is not None:
-                                        arule["validation"] = patched
 
     doc.pop(_DEFINITIONS_KEY, None)
     doc.pop(_SEQUENCES_KEY, None)

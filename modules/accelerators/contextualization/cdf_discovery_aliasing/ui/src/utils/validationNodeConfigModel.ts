@@ -4,23 +4,24 @@ import {
   parseExpressionMatch,
   parseMatchRuleDefinitionsArray,
   parseSingleMatchRuleDefinition,
-  serializeMatchRuleDefinitionsArray,
   serializeSingleMatchRuleDefinition,
   type ExpressionMatchOpt,
   type MatchRuleDefinition,
 } from "./confidenceMatchRuleDefModel";
-
-export type ValidationDefinitionEntry = {
-  id: string;
-  rule: MatchRuleDefinition;
-};
+import { parseExecutionMode, parseStepsArray, serializeExecution, serializeSteps } from "./pipelineStepsModel";
 
 const KNOWN_TOP_LEVEL = new Set([
   "description",
   "min_confidence",
   "expression_match",
+  "execution",
+  "steps",
   "validation_rule_definitions",
   "validation_rules",
+  "max_keys_per_type",
+  "max_aliases_per_tag",
+  "validate_fields",
+  "initial_confidence",
 ]);
 
 function extrasFrom(value: JsonObject): JsonObject {
@@ -44,32 +45,39 @@ export type ParsedValidationNodeConfig = {
   description: string;
   minConfidence: string;
   expressionMatch: ExpressionMatchOpt;
-  definitionEntries: ValidationDefinitionEntry[];
-  inlineRules: MatchRuleDefinition[];
+  executionMode: ReturnType<typeof parseExecutionMode>;
+  steps: MatchRuleDefinition[];
   extras: JsonObject;
 };
 
-function definitionEntriesFromConfig(value: JsonObject): ValidationDefinitionEntry[] {
-  const raw = value.validation_rule_definitions;
-  if (raw === null || typeof raw !== "object" || Array.isArray(raw)) return [];
-  const entries: ValidationDefinitionEntry[] = [];
-  for (const [key, v] of Object.entries(raw as Record<string, unknown>)) {
-    if (v === null || typeof v !== "object" || Array.isArray(v)) continue;
-    const id = String(key).trim();
-    if (!id) continue;
-    entries.push({ id, rule: parseSingleMatchRuleDefinition(v) });
+function migrateLegacyToSteps(value: JsonObject): MatchRuleDefinition[] {
+  const fromSteps = parseStepsArray(value);
+  if (fromSteps.length > 0) {
+    return fromSteps.map((s) => parseSingleMatchRuleDefinition(s));
   }
-  return entries.sort((a, b) => a.id.localeCompare(b.id));
+  const migrated: MatchRuleDefinition[] = [];
+  const defs = value.validation_rule_definitions;
+  if (defs && typeof defs === "object" && !Array.isArray(defs)) {
+    for (const [key, body] of Object.entries(defs as Record<string, unknown>)) {
+      if (body && typeof body === "object" && !Array.isArray(body)) {
+        const rule = parseSingleMatchRuleDefinition(body);
+        if (!rule.name.trim()) rule.name = String(key).trim();
+        migrated.push(rule);
+      }
+    }
+  }
+  const inline = parseMatchRuleDefinitionsArray(value.validation_rules);
+  migrated.push(...inline);
+  return migrated;
 }
 
 export function parseValidationNodeConfig(value: JsonObject): ParsedValidationNodeConfig {
-  const definitionEntries = definitionEntriesFromConfig(value);
   return {
     description: String(value.description ?? "").trim(),
     minConfidence: String(numOr(value.min_confidence, 0.5)),
     expressionMatch: parseExpressionMatch(value.expression_match),
-    definitionEntries,
-    inlineRules: parseMatchRuleDefinitionsArray(value.validation_rules),
+    executionMode: parseExecutionMode(value),
+    steps: migrateLegacyToSteps(value),
     extras: extrasFrom(value),
   };
 }
@@ -78,11 +86,11 @@ export function serializeValidationNodeConfig(parts: {
   description: string;
   minConfidence: string;
   expressionMatch: ExpressionMatchOpt;
-  definitionEntries: ValidationDefinitionEntry[];
-  inlineRules: MatchRuleDefinition[];
+  executionMode: ReturnType<typeof parseExecutionMode>;
+  steps: MatchRuleDefinition[];
   extras: JsonObject;
 }): JsonObject {
-  const out: JsonObject = { ...parts.extras };
+  const out: JsonObject = { ...parts.extras, ...serializeExecution(parts.executionMode) };
   const desc = parts.description.trim();
   if (desc) out.description = desc;
 
@@ -93,36 +101,20 @@ export function serializeValidationNodeConfig(parts: {
     out.expression_match = parts.expressionMatch;
   }
 
-  if (parts.definitionEntries.length > 0) {
-    const defs: Record<string, JsonObject> = {};
-    for (const entry of parts.definitionEntries) {
-      const id = entry.id.trim() || entry.rule.name.trim() || "rule_1";
-      defs[id] = serializeSingleMatchRuleDefinition(
-        { ...entry.rule, name: entry.rule.name.trim() || id },
-        1
-      );
-    }
-    out.validation_rule_definitions = defs;
-  }
-
-  if (parts.inlineRules.length > 0) {
-    out.validation_rules = serializeMatchRuleDefinitionsArray(parts.inlineRules) as unknown[];
+  if (parts.steps.length > 0) {
+    Object.assign(
+      out,
+      serializeSteps(
+        parts.steps.map((r, i) =>
+          serializeSingleMatchRuleDefinition(r, i + 1)
+        ) as JsonObject[]
+      )
+    );
   }
 
   return out;
 }
 
-export function defaultValidationDefinitionEntry(existingIds: string[]): ValidationDefinitionEntry {
-  const rule = defaultMatchRuleDefinition([]);
-  let id = rule.name;
-  const used = new Set(existingIds.map((x) => x.toLowerCase()));
-  for (let n = 1; n < 10000; n++) {
-    const c = `validation_rule_${n}`;
-    if (!used.has(c.toLowerCase())) {
-      id = c;
-      break;
-    }
-  }
-  rule.name = id;
-  return { id, rule };
+export function defaultValidationStep(existing: MatchRuleDefinition[]): MatchRuleDefinition {
+  return defaultMatchRuleDefinition(existing);
 }

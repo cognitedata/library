@@ -2,7 +2,7 @@ import type { JsonObject } from "../types/scopeConfig";
 import type { WorkflowCanvasDocument, WorkflowCanvasNode, WorkflowCanvasNodeData } from "../types/workflowCanvas";
 import { newNodeId } from "../components/flow/flowDocumentBridge";
 import {
-  defaultValidationDefinitionEntry,
+  defaultValidationStep,
   serializeValidationNodeConfig,
 } from "./validationNodeConfigModel";
 
@@ -13,13 +13,13 @@ export type ValidationNodeRef = {
 };
 
 export function defaultValidationNodeConfig(): Record<string, unknown> {
-  const entry = defaultValidationDefinitionEntry([]);
+  const step = defaultValidationStep([]);
   return serializeValidationNodeConfig({
     description: "Validation",
     minConfidence: "0.5",
     expressionMatch: "",
-    definitionEntries: [entry],
-    inlineRules: [],
+    executionMode: "ordered",
+    steps: [step],
     extras: {
       validate_fields: ["aliases"],
       initial_confidence: 1.0,

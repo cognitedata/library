@@ -2,13 +2,13 @@
 """
 Create / populate a Cognite RAW alias-mapping table from CogniteAsset instances.
 
-Each row has columns ``scope``, ``scope_value``, ``name``, and ``aliases`` where
-``aliases`` is ``EXP-{name}`` and ``name`` is the asset ``name`` view property when
+Each row has columns ``scope``, ``scope_value``, ``key``, and ``aliases`` where
+``aliases`` is ``EXP-{key}`` and ``key`` is the asset ``name`` view property when
 set, otherwise the node's ``external_id``.
 
 ``scope_value`` is included (empty for ``global`` scope) so the table matches the
 ``alias_mapping_table`` RAW contract (see ``docs/guides/configuration_guide.md`` §14):
-``key_column: name``, ``alias_columns: [aliases]``, ``scope_column: scope``,
+``key_column: key``, ``alias_columns: [aliases]``, ``scope_column: scope``,
 ``scope_value_column: scope_value``.
 
 Uses the same ``.env`` credentials as ``ensure_raw_discovery_database.py`` and
@@ -28,7 +28,7 @@ YAML snippet for ``alias_mapping_table``::
     raw_table:
       database_name: db_discovery_aliasing
       table_name: asset_aliases
-      key_column: name
+      key_column: key
       alias_columns: [aliases]
       scope_column: scope
       scope_value_column: scope_value
@@ -168,7 +168,7 @@ def main() -> int:
             "columns": {
                 "scope": "global",
                 "scope_value": "",
-                "name": name,
+                "key": name,
                 "aliases": alias,
             },
         }

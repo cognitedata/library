@@ -132,7 +132,7 @@ function RefRowsEditor({ rows, setRows, depth, defKeys, seqKeys }: RowEditorProp
                 background: "var(--kea-surface-elevated, var(--kea-surface))",
               }}
             >
-              <div className="kea-filter-row" style={{ marginBottom: "0.5rem", alignItems: "center", gridTemplateColumns: "1fr auto" }}>
+              <div className="kea-filter-row kea-filter-row--label-action" style={{ marginBottom: "0.5rem", alignItems: "center" }}>
                 <strong style={{ fontSize: "0.85rem" }}>
                   {isPar ? t("validationEditor.parallelGroup") : t("validationEditor.sequentialGroup")}
                 </strong>
