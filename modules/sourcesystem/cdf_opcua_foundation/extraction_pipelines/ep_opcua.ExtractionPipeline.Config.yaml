@@ -4,11 +4,11 @@ config:
   version: 1
   source:
     # Primary OPC-UA server endpoint. Replace host/port with your server.
-    endpoint-url: opc.tcp://opcua-server-primary.example.com:4840
+    endpoint-url: opc.tcp://opcua-server-primary.example.com:4840 # TODO: Update with actual endpoint
     # Optional redundant endpoints — used when the primary becomes unavailable
     # or when monitor-service-level switches to a healthier server.
     alt-endpoint-urls:
-    - opc.tcp://opcua-server-secondary.example.com:4840
+    - opc.tcp://opcua-server-secondary.example.com:4840 # TODO: Update with actual secondary endpoint
     redundancy:
       service-level-threshold: 200
       reconnect-interval: 10m
@@ -40,14 +40,14 @@ config:
       - 2156199936
   extraction:
     # Prefix used for all CDF externalIds created from OPC-UA nodes.
-    id-prefix: "opcua_site1_"
+    id-prefix: "opcua_{{location}}_"
     # Map verbose OPC-UA namespace URIs to short prefixes used in node IDs.
     # Replace the example URIs with the namespaces exposed by your server.
     namespace-map:
       http://opcfoundation.org/UA/: 'base:'
       http://www.example.com/: 'c:'
-      http://www.example.com/Site1: 's1:'
-      http://www.example.com/Site2: 's2:'
+      http://www.example.com/{{location}}: '{{location}}:'
+      http://www.example.com/{{location}}2: '{{location}}2:'
       http://www.OPCFoundation.org/UA/2013/01/ISA95: 'isa95:'
     # Root node to start browsing from. Adjust namespace and node-id to your server.
     root-node:
