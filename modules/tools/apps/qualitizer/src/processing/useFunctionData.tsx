@@ -1,14 +1,19 @@
 import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { normalizeStatus, toTimestamp } from "@/shared/time-utils";
-import type {
-  FunctionRunSummary,
-  FunctionSummary,
-  LoadState,
-  ProcessingDataLoadProgress,
-  ProcessingRequestStats,
+import {
+  DEFAULT_PROCESSING_EXECUTION_CAP,
+  type FunctionRunSummary,
+  type FunctionSummary,
+  type LoadState,
+  type ProcessingDataLoadProgress,
+  type ProcessingRequestStats,
 } from "./types";
 import { useI18n } from "@/shared/i18n";
 import { withTransientRetries } from "@/shared/transient-http-retry";
+import {
+  noteForbiddenFailure,
+  processingRequestStats,
+} from "./processing-request-stats";
 
 type FunctionCallLogsApiResponse = {
   data?: {
@@ -36,6 +41,8 @@ type UseFunctionDataArgs = {
   windowRange: { start: number; end: number } | null;
   /** When false, diagram data for this series is not fetched (serial diagram loading). */
   fetchEnabled?: boolean;
+  /** Max function executions to collect; `null` means no limit (Load all). */
+  executionLimit?: number | null;
 };
 
 export function useFunctionData({
@@ -43,9 +50,11 @@ export function useFunctionData({
   sdk,
   windowRange,
   fetchEnabled = true,
+  executionLimit = DEFAULT_PROCESSING_EXECUTION_CAP,
 }: UseFunctionDataArgs) {
   const { t } = useI18n();
   const [status, setStatus] = useState<LoadState>("idle");
+  const [executionsTruncated, setExecutionsTruncated] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [availabilityMessage, setAvailabilityMessage] = useState<string | null>(null);
   const [runs, setRuns] = useState<FunctionRunSummary[]>([]);
@@ -140,6 +149,7 @@ export function useFunctionData({
     let cancelled = false;
     const loadRuns = async () => {
       setStatus("loading");
+      setExecutionsTruncated(false);
       setErrorMessage(null);
       setAvailabilityMessage(null);
       setRequestStats(null);
@@ -154,6 +164,7 @@ export function useFunctionData({
         const startWindow = windowRange.start;
         let failedRequests = 0;
         let totalRequests = 0;
+        const permissionsDenied = { current: false };
 
         const listFunctions = async () => {
           const items: FunctionSummary[] = [];
@@ -170,6 +181,7 @@ export function useFunctionData({
               cursor = response.data?.nextCursor ?? undefined;
             } catch (e) {
               failedRequests++;
+              noteForbiddenFailure(permissionsDenied, e);
               throw e;
             }
             if (!cancelled) {
@@ -224,7 +236,9 @@ export function useFunctionData({
 
         const collected: FunctionRunSummary[] = [];
         let fnIndex = 0;
-        for (const fn of functions) {
+        const cap = executionLimit;
+        let hitExecutionCap = false;
+        outer: for (const fn of functions) {
           let cursor: string | undefined;
           try {
             do {
@@ -233,6 +247,10 @@ export function useFunctionData({
               for (const run of items) {
                 const start = toTimestamp(run.startTime ?? run.createdTime);
                 if (start && start >= startWindow) {
+                  if (cap != null && collected.length >= cap) {
+                    hitExecutionCap = true;
+                    break outer;
+                  }
                   if (!run.endTime && normalizeStatus(run.status).includes("failed")) {
                     run.endTime = (run.startTime ?? start) + 1;
                   }
@@ -241,8 +259,9 @@ export function useFunctionData({
               }
               cursor = response.nextCursor ?? undefined;
             } while (cursor);
-          } catch {
+          } catch (e) {
             failedRequests++;
+            noteForbiddenFailure(permissionsDenied, e);
           }
           fnIndex += 1;
           if (!cancelled && (fnIndex % 3 === 0 || fnIndex === totalFns)) {
@@ -263,12 +282,11 @@ export function useFunctionData({
 
         if (!cancelled) {
           setRuns(collected);
+          setExecutionsTruncated(hitExecutionCap);
           setLoadProgress(null);
-          if (failedRequests > 0) {
-            setRequestStats({ failed: failedRequests, total: totalRequests });
-          } else {
-            setRequestStats(null);
-          }
+          setRequestStats(
+            processingRequestStats(failedRequests, totalRequests, permissionsDenied.current)
+          );
           setStatus("success");
         }
       } catch (error) {
@@ -291,7 +309,7 @@ export function useFunctionData({
     return () => {
       cancelled = true;
     };
-  }, [fetchEnabled, isSdkLoading, sdk, windowRange, t]);
+  }, [executionLimit, fetchEnabled, isSdkLoading, sdk, windowRange, t]);
 
   const failureDurationMs = useMemo(() => {
     const failureStatuses = ["failed", "failure", "timeout", "timed_out"];
@@ -307,6 +325,7 @@ export function useFunctionData({
 
   return {
     status,
+    executionsTruncated,
     loadProgress,
     requestStats,
     errorMessage,

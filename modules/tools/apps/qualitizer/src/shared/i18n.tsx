@@ -70,6 +70,14 @@ const translations: Record<Language, Record<string, string>> = {
     "processing.progress.band.workflows": "wf exec · {loaded}",
     "processing.progress.band.extractors.list": "ext list · {loaded}",
     "processing.progress.band.extractors.runs": "ext runs · {current}/{total}",
+    "processing.executions.sampleTitle": "Execution sample limit",
+    "processing.executions.sampleBody":
+      "By default each series loads at most {cap} executions. Concurrency, bubbles, and failure totals may omit additional runs in this time window.",
+    "processing.executions.sampleLineFunctions": "Functions",
+    "processing.executions.sampleLineTransformations": "Transformations",
+    "processing.executions.sampleLineWorkflows": "Workflows",
+    "processing.executions.sampleLineExtractors": "Extraction pipelines",
+    "processing.executions.loadAll": "Load all executions",
     "processing.error.runs": "Failed to load function executions.",
     "processing.function.defaultName": "Function {id}",
     "processing.error.transformations": "Failed to load transformations.",
@@ -149,6 +157,14 @@ const translations: Record<Language, Record<string, string>> = {
       "{failed} of {total} API requests failed after automatic retries ({percent}% failure rate). Charts use data that loaded successfully.",
     "processing.partial.detailLine": "{label}: {failed}/{total} failed ({percent}%)",
     "processing.partial.schedulesLabel": "Schedule data (heatmap)",
+    "processing.permissions.title": "Missing CDF permissions",
+    "processing.permissions.summary":
+      "API requests returned forbidden (HTTP 403). Your user or service account needs additional capabilities in this project before processing data can load.",
+    "processing.permissions.detailLine": "{label}: access denied (HTTP 403)",
+    "processing.permissions.hint":
+      "Required permissions are listed at the top of each API documentation page. Use the Permissions page in this app to review group membership.",
+    "processing.permissions.heatmapError":
+      "Schedule data could not be loaded because of missing permissions (HTTP 403).",
     "processing.filter.externalIdLabel": "External ID substring",
     "processing.filter.externalIdLead":
       "Matches function id, transformation id or name, workflow external id, extraction pipeline external id or name, and schedule ids/names in the heatmap.",
@@ -580,6 +596,18 @@ const translations: Record<Language, Record<string, string>> = {
     "dataCatalog.dataModelVersions.searchLabel": "Search rows",
     "dataCatalog.dataModelVersions.searchPlaceholder":
       "Substring (name, space, external id, view refs)…",
+    "dataCatalog.dataModelVersions.loadingTitle": "Loading data models…",
+    "dataCatalog.dataModelVersions.loadingListingProgress":
+      "Listing data model definitions from CDF… {itemsLoaded} items fetched, {uniqueModels} unique data models so far.",
+    "dataCatalog.dataModelVersions.loadingDetailsProgress":
+      "Loading data model details (inline views)… batch {batchIndex} of {batchTotal}.",
+    "dataCatalog.dataModelVersions.loadingPreparing": "Preparing request…",
+    "dataCatalog.dataModelVersions.loadingTransformationsList":
+      "Listing transformations for usage overlays…",
+    "dataCatalog.dataModelVersions.loadingTransformationsByIds":
+      "Loading transformation details (byids)… {fetched} of {total} fetched (batch {batchIndex} of {batchTotal}).",
+    "dataCatalog.dataModelVersions.loadingTransformationsByIdsDone":
+      "Transformation details loaded ({fetched} from cache).",
     "dataCatalog.dataModelVersions.noSearchResults":
       "No data models match this search. Try another substring or clear the box.",
     "dataCatalog.viewVersions.searchLabel": "Search rows",
@@ -697,6 +725,42 @@ const translations: Record<Language, Record<string, string>> = {
     "dataCatalog.help.order":
       "The ordering attempts to reduce line crossings so related items appear closer.",
     "transformations.title": "Transformations",
+    "transformations.dataModelUsage.loadingTitle": "Loading data model usage…",
+    "transformations.dataModelUsage.loadingList": "Listing transformations from CDF…",
+    "transformations.dataModelUsage.loadingByIds":
+      "Loading transformation queries (byids)… {fetched} of {total} fetched (batch {batchIndex} of {batchTotal}).",
+    "transformations.dataModelUsage.loadingByIdsDone":
+      "Transformation queries loaded ({fetched} from cache).",
+    "transformations.dataModelUsage.emptyTitle":
+      "No cdf_data_models(...) references found",
+    "transformations.dataModelUsage.emptyIntro":
+      "This view only groups transformations that call cdf_data_models(space, externalId, …) in SQL. An empty result is unusual when the project has data-model-backed pipelines.",
+    "transformations.dataModelUsage.emptyFallback":
+      "No cdf_data_models references found in any transformation.",
+    "transformations.dataModelUsage.diag.project": "CDF project",
+    "transformations.dataModelUsage.diag.transformationsListed": "Transformations listed",
+    "transformations.dataModelUsage.diag.listLimitReached": "list capped at {limit}",
+    "transformations.dataModelUsage.diag.withQuery": "With SQL query text",
+    "transformations.dataModelUsage.diag.withoutQuery": "Without query (even after byids)",
+    "transformations.dataModelUsage.diag.withCdfDataModels": "Query contains cdf_data_models(...)",
+    "transformations.dataModelUsage.diag.withResolvableRefs": "With parseable space + externalId",
+    "transformations.dataModelUsage.diag.withOnlyInvalidRefs":
+      "cdf_data_models(...) present but arguments not parseable",
+    "transformations.dataModelUsage.diag.withDestinationDataModel":
+      "destination.dataModel set (not shown on this page)",
+    "transformations.dataModelUsage.diag.byidsRequested": "Extra detail fetches (byids)",
+    "transformations.dataModelUsage.diag.dataModelsInProject": "Data models in project (catalog)",
+    "transformations.dataModelUsage.diag.dataModelsUnavailable": "Catalog not ready ({status})",
+    "transformations.dataModelUsage.diag.sampleNoRefsLabel":
+      "Sample transformations with a query but no cdf_data_models(...):",
+    "transformations.dataModelUsage.emptyHint.queryOnly":
+      "Pipelines that only write via destination.dataModel (no cdf_data_models in SQL) appear under Data catalog → Data model versions, not here.",
+    "transformations.dataModelUsage.emptyHint.destination":
+      "If “destination.dataModel” is high but other counts are zero, usage is destination-only.",
+    "transformations.dataModelUsage.emptyHint.syntax":
+      "Calls must look like cdf_data_models('space', 'externalId', …) with quoted string arguments for space and external id.",
+    "transformations.dataModelUsage.emptyHint.truncated":
+      "The transformation list may be truncated; raise the list limit or check Fusion for transformations beyond the cap.",
     "transformations.subNavLabel": "Transformations sub-views",
     "transformations.subView.list": "List",
     "transformations.subView.overlap": "Transformation overlap",
@@ -1070,6 +1134,14 @@ const translations: Record<Language, Record<string, string>> = {
     "processing.progress.band.workflows": "wf 実行 · {loaded}",
     "processing.progress.band.extractors.list": "ext 一覧 · {loaded}",
     "processing.progress.band.extractors.runs": "ext 実行 · {current}/{total}",
+    "processing.executions.sampleTitle": "実行件数のサンプル上限",
+    "processing.executions.sampleBody":
+      "既定では各系列あたり最大 {cap} 件の実行まで読み込みます。並列数・バブル・失敗時間の合計は、この時間帯の残りの実行を含まない場合があります。",
+    "processing.executions.sampleLineFunctions": "関数",
+    "processing.executions.sampleLineTransformations": "変換",
+    "processing.executions.sampleLineWorkflows": "ワークフロー",
+    "processing.executions.sampleLineExtractors": "抽出パイプライン",
+    "processing.executions.loadAll": "すべての実行を読み込む",
     "processing.error.runs": "関数実行の読み込みに失敗しました。",
     "processing.function.defaultName": "関数 {id}",
     "processing.error.transformations": "変換の読み込みに失敗しました。",
@@ -1149,6 +1221,14 @@ const translations: Record<Language, Record<string, string>> = {
       "自動再試行後も {total} 件中 {failed} 件の API リクエストが失敗しました（失敗率 {percent}%）。読み込めたデータのみグラフに表示しています。",
     "processing.partial.detailLine": "{label}: {failed}/{total} 件失敗 ({percent}%)",
     "processing.partial.schedulesLabel": "スケジュール（ヒートマップ）",
+    "processing.permissions.title": "CDF の権限が不足しています",
+    "processing.permissions.summary":
+      "API が forbidden（HTTP 403）を返しました。このプロジェクトで処理データを読み込むには、ユーザーまたはサービスアカウントに追加の capability が必要です。",
+    "processing.permissions.detailLine": "{label}: アクセス拒否（HTTP 403）",
+    "processing.permissions.hint":
+      "必要な権限は各 API ドキュメントページの冒頭に記載されています。このアプリの権限ページでグループ所属を確認できます。",
+    "processing.permissions.heatmapError":
+      "権限不足（HTTP 403）のため、スケジュールデータを読み込めませんでした。",
     "processing.filter.externalIdLabel": "外部 ID の部分一致",
     "processing.filter.externalIdLead":
       "関数 ID、変換 ID または名前、ワークフロー外部 ID、抽出パイプラインの外部 ID または名前、ヒートマップのスケジュール ID／名前に一致します。",
@@ -1582,6 +1662,18 @@ const translations: Record<Language, Record<string, string>> = {
     "dataCatalog.dataModelVersions.searchLabel": "行を検索",
     "dataCatalog.dataModelVersions.searchPlaceholder":
       "部分文字列（名前・スペース・外部ID・ビュー参照）…",
+    "dataCatalog.dataModelVersions.loadingTitle": "データモデルを読み込み中…",
+    "dataCatalog.dataModelVersions.loadingListingProgress":
+      "CDF からデータモデル定義を一覧取得中… {itemsLoaded} 件取得、{uniqueModels} 件の一意のデータモデルまで。",
+    "dataCatalog.dataModelVersions.loadingDetailsProgress":
+      "データモデル詳細（インラインビュー）を読み込み中… バッチ {batchIndex} / {batchTotal}。",
+    "dataCatalog.dataModelVersions.loadingPreparing": "リクエストを準備中…",
+    "dataCatalog.dataModelVersions.loadingTransformationsList":
+      "使用状況オーバーレイ用に変換を一覧取得中…",
+    "dataCatalog.dataModelVersions.loadingTransformationsByIds":
+      "変換詳細を読み込み中 (byids)… {fetched} / {total} 件取得済み（バッチ {batchIndex} / {batchTotal}）。",
+    "dataCatalog.dataModelVersions.loadingTransformationsByIdsDone":
+      "変換詳細を読み込みました（キャッシュ {fetched} 件）。",
     "dataCatalog.dataModelVersions.noSearchResults":
       "検索に一致するデータモデルはありません。別の文字列を試すか検索をクリアしてください。",
     "dataCatalog.viewVersions.searchLabel": "行を検索",
@@ -1700,6 +1792,42 @@ const translations: Record<Language, Record<string, string>> = {
     "dataCatalog.help.order":
       "線の交差が少なくなるように順序を調整し、関連要素が近くに配置されます。",
     "transformations.title": "変換",
+    "transformations.dataModelUsage.loadingTitle": "データモデル使用状況を読み込み中…",
+    "transformations.dataModelUsage.loadingList": "CDF から変換を一覧取得中…",
+    "transformations.dataModelUsage.loadingByIds":
+      "変換クエリを読み込み中 (byids)… {fetched} / {total} 件取得済み（バッチ {batchIndex} / {batchTotal}）。",
+    "transformations.dataModelUsage.loadingByIdsDone":
+      "変換クエリを読み込みました（キャッシュ {fetched} 件）。",
+    "transformations.dataModelUsage.emptyTitle":
+      "cdf_data_models(...) 参照が見つかりません",
+    "transformations.dataModelUsage.emptyIntro":
+      "このビューは SQL 内の cdf_data_models(space, externalId, …) 呼び出しがある変換のみを表示します。データモデルパイプラインがあるプロジェクトで空になるのは通常は稀です。",
+    "transformations.dataModelUsage.emptyFallback":
+      "どの変換にも cdf_data_models 参照がありません。",
+    "transformations.dataModelUsage.diag.project": "CDF プロジェクト",
+    "transformations.dataModelUsage.diag.transformationsListed": "一覧した変換数",
+    "transformations.dataModelUsage.diag.listLimitReached": "一覧は {limit} 件で打ち切り",
+    "transformations.dataModelUsage.diag.withQuery": "SQL クエリあり",
+    "transformations.dataModelUsage.diag.withoutQuery": "クエリなし（byids 後も）",
+    "transformations.dataModelUsage.diag.withCdfDataModels": "クエリに cdf_data_models(...) あり",
+    "transformations.dataModelUsage.diag.withResolvableRefs": "space + externalId を解析可能",
+    "transformations.dataModelUsage.diag.withOnlyInvalidRefs":
+      "cdf_data_models(...) はあるが引数を解析できない",
+    "transformations.dataModelUsage.diag.withDestinationDataModel":
+      "destination.dataModel あり（このページでは非表示）",
+    "transformations.dataModelUsage.diag.byidsRequested": "詳細取得 (byids) 件数",
+    "transformations.dataModelUsage.diag.dataModelsInProject": "プロジェクト内データモデル（カタログ）",
+    "transformations.dataModelUsage.diag.dataModelsUnavailable": "カタログ未準備 ({status})",
+    "transformations.dataModelUsage.diag.sampleNoRefsLabel":
+      "クエリはあるが cdf_data_models(...) がない変換の例:",
+    "transformations.dataModelUsage.emptyHint.queryOnly":
+      "destination.dataModel のみのパイプライン（SQL に cdf_data_models なし）はデータカタログ → データモデルバージョンで確認してください。",
+    "transformations.dataModelUsage.emptyHint.destination":
+      "「destination.dataModel」だけが多い場合は、書き込み先のみの利用です。",
+    "transformations.dataModelUsage.emptyHint.syntax":
+      "cdf_data_models('space', 'externalId', …) のように space と external id を引用符付き文字列で指定する必要があります。",
+    "transformations.dataModelUsage.emptyHint.truncated":
+      "変換一覧が上限で打ち切られている可能性があります。Fusion で上限超えの変換を確認してください。",
     "transformations.subNavLabel": "変換サブビュー",
     "transformations.subView.list": "一覧",
     "transformations.subView.overlap": "変換の重複",

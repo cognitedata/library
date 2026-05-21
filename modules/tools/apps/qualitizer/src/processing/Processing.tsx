@@ -30,16 +30,21 @@ import {
   getTransformationPreviewUrl,
   getWorkflowEditorUrl,
 } from "@/shared/cdf-browser-url";
-import type {
-  ExtPipeRunSummary,
-  FunctionRunSummary,
-  LoadState,
-  ProcessingDataLoadProgress,
-  ProcessingRequestStats,
-  TransformationJobSummary,
-  WorkflowExecutionSummary,
+import {
+  DEFAULT_PROCESSING_EXECUTION_CAP,
+  type ExtPipeRunSummary,
+  type FunctionRunSummary,
+  type LoadState,
+  type ProcessingDataLoadProgress,
+  type ProcessingRequestStats,
+  type TransformationJobSummary,
+  type WorkflowExecutionSummary,
 } from "./types";
 import { withTransientRetries } from "@/shared/transient-http-retry";
+import {
+  noteForbiddenFailure,
+  processingRequestStats,
+} from "./processing-request-stats";
 
 function formatProcessingDataProgress(
   t: (key: string, params?: Record<string, string | number>) => string,
@@ -136,6 +141,10 @@ export function Processing() {
     | "complete";
   const [concurrencyDiagramPhase, setConcurrencyDiagramPhase] =
     useState<ConcurrencyDiagramPhase>("idle");
+  const [loadAllProcessingExecutions, setLoadAllProcessingExecutions] = useState(false);
+  const processingExecutionLimit = loadAllProcessingExecutions
+    ? null
+    : DEFAULT_PROCESSING_EXECUTION_CAP;
   const concurrencyDiagramPassRef = useRef({
     functions: false,
     transformations: false,
@@ -231,6 +240,7 @@ export function Processing() {
 
   const {
     status,
+    executionsTruncated: functionExecutionsTruncated,
     loadProgress: functionLoadProgress,
     requestStats: functionRequestStats,
     errorMessage,
@@ -246,10 +256,12 @@ export function Processing() {
     sdk,
     windowRange,
     fetchEnabled: fetchConcurrencyDiagram.functions,
+    executionLimit: processingExecutionLimit,
   });
 
   const {
     transformationsStatus,
+    executionsTruncated: transformationExecutionsTruncated,
     loadProgress: transformationLoadProgress,
     requestStats: transformationRequestStats,
     transformationsError,
@@ -264,10 +276,12 @@ export function Processing() {
     sdk,
     windowRange,
     fetchEnabled: fetchConcurrencyDiagram.transformations,
+    executionLimit: processingExecutionLimit,
   });
 
   const {
     workflowsStatus,
+    executionsTruncated: workflowExecutionsTruncated,
     loadProgress: workflowLoadProgress,
     requestStats: workflowRequestStats,
     workflowsError,
@@ -285,10 +299,12 @@ export function Processing() {
     sdk,
     windowRange,
     fetchEnabled: fetchConcurrencyDiagram.workflows,
+    executionLimit: processingExecutionLimit,
   });
 
   const {
     extractorsStatus,
+    executionsTruncated: extractorExecutionsTruncated,
     loadProgress: extractorLoadProgress,
     requestStats: extractorRequestStats,
     extractorsError,
@@ -301,6 +317,7 @@ export function Processing() {
     sdk,
     windowRange,
     fetchEnabled: fetchConcurrencyDiagram.extractors,
+    executionLimit: processingExecutionLimit,
   });
 
   const displayRuns = useMemo(() => {
@@ -358,6 +375,7 @@ export function Processing() {
       setConcurrencyDiagramPhase("idle");
       return;
     }
+    setLoadAllProcessingExecutions(false);
     concurrencyDiagramPassRef.current = {
       functions: false,
       transformations: false,
@@ -416,6 +434,14 @@ export function Processing() {
     transformationsStatus === "loading" ||
     workflowsStatus === "loading" ||
     extractorsStatus === "loading";
+
+  const showExecutionSampleBanner =
+    concurrencyDiagramPhase === "complete" &&
+    !loadAllProcessingExecutions &&
+    (functionExecutionsTruncated ||
+      transformationExecutionsTruncated ||
+      workflowExecutionsTruncated ||
+      extractorExecutionsTruncated);
 
   const loaderProgressDetails = useMemo(() => {
     const lines: string[] = [];
@@ -519,6 +545,7 @@ export function Processing() {
         const entries: ScheduleEntry[] = [];
         let failedRequests = 0;
         let totalRequests = 0;
+        const permissionsDenied = { current: false };
 
         totalRequests++;
         try {
@@ -538,8 +565,9 @@ export function Processing() {
             (item.name as string | undefined) ?? (fnId || t("processing.heatmap.unknownFunction"));
           entries.push({ cron, name, type: "function", id: fnId });
         }
-        } catch {
+        } catch (e) {
           failedRequests++;
+          noteForbiddenFailure(permissionsDenied, e);
         }
 
         totalRequests++;
@@ -560,8 +588,9 @@ export function Processing() {
             (item.name as string | undefined) ?? (txId || t("processing.heatmap.unknownTransformation"));
           entries.push({ cron, name, type: "transformation", id: txId });
         }
-        } catch {
+        } catch (e) {
           failedRequests++;
+          noteForbiddenFailure(permissionsDenied, e);
         }
 
         let triggerCursor: string | undefined;
@@ -576,8 +605,9 @@ export function Processing() {
                 params: { limit: "1000", cursor: triggerCursor },
               })
             )) as { data?: { items?: Array<Record<string, unknown>>; nextCursor?: string } };
-          } catch {
+          } catch (e) {
             failedRequests++;
+            noteForbiddenFailure(permissionsDenied, e);
             break;
           }
           for (const item of workflowTriggers.data?.items ?? []) {
@@ -596,11 +626,15 @@ export function Processing() {
 
         if (!cancelled) {
           setScheduleEntries(entries);
-          if (failedRequests > 0) {
-            setScheduleRequestStats({ failed: failedRequests, total: totalRequests });
-          }
+          setScheduleRequestStats(
+            processingRequestStats(failedRequests, totalRequests, permissionsDenied.current)
+          );
           if (entries.length === 0 && failedRequests === totalRequests && totalRequests > 0) {
-            setScheduleError(t("processing.heatmap.error"));
+            setScheduleError(
+              permissionsDenied.current
+                ? t("processing.permissions.heatmapError")
+                : t("processing.heatmap.error")
+            );
             setScheduleStatus("error");
           } else {
             setScheduleStatus("success");
@@ -858,8 +892,26 @@ export function Processing() {
     scheduleRequestStats,
   ]);
 
+  const showPermissionsDeniedBanner = useMemo(() => {
+    const { segments, failed, total } = partialStatsCombined;
+    if (segments.length === 0 || total === 0 || failed === 0) return false;
+    return (
+      segments.every((seg) => seg.stats.permissionsDenied) && failed === total
+    );
+  }, [partialStatsCombined]);
+
+  const permissionDeniedSegments = useMemo(
+    () =>
+      partialStatsCombined.segments.filter(
+        (seg) => seg.stats.permissionsDenied && seg.stats.failed > 0
+      ),
+    [partialStatsCombined]
+  );
+
   const showPartialDataBanner =
-    partialStatsCombined.segments.length > 0 && partialStatsCombined.total > 0;
+    partialStatsCombined.segments.length > 0 &&
+    partialStatsCombined.total > 0 &&
+    !showPermissionsDeniedBanner;
 
   const diagramConcurrencyUi = useMemo(() => {
     const p = concurrencyDiagramPhase;
@@ -1100,6 +1152,20 @@ export function Processing() {
           ) : null}
         </div>
       ) : null}
+      {showPermissionsDeniedBanner ? (
+        <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+          <p className="font-medium">{t("processing.permissions.title")}</p>
+          <p className="mt-1 text-xs text-red-700">{t("processing.permissions.summary")}</p>
+          <ul className="mt-2 list-disc space-y-0.5 pl-4 text-xs text-red-700">
+            {permissionDeniedSegments.map((seg, i) => (
+              <li key={`${seg.label}-${i}`}>
+                {t("processing.permissions.detailLine", { label: seg.label })}
+              </li>
+            ))}
+          </ul>
+          <p className="mt-2 text-[11px] text-red-700">{t("processing.permissions.hint")}</p>
+        </div>
+      ) : null}
       {showPartialDataBanner ? (
         <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950">
           <p className="font-medium">{t("processing.partial.title")}</p>
@@ -1116,18 +1182,60 @@ export function Processing() {
           <ul className="mt-2 list-disc space-y-0.5 pl-4 text-xs text-amber-900">
             {partialStatsCombined.segments.map((seg, i) => (
               <li key={`${seg.label}-${i}`}>
-                {t("processing.partial.detailLine", {
-                  label: seg.label,
-                  failed: seg.stats.failed,
-                  total: seg.stats.total,
-                  percent:
-                    seg.stats.total > 0
-                      ? Math.round((100 * seg.stats.failed) / seg.stats.total)
-                      : 0,
-                })}
+                {seg.stats.permissionsDenied
+                  ? t("processing.permissions.detailLine", { label: seg.label })
+                  : t("processing.partial.detailLine", {
+                      label: seg.label,
+                      failed: seg.stats.failed,
+                      total: seg.stats.total,
+                      percent:
+                        seg.stats.total > 0
+                          ? Math.round((100 * seg.stats.failed) / seg.stats.total)
+                          : 0,
+                    })}
               </li>
             ))}
           </ul>
+        </div>
+      ) : null}
+      {showExecutionSampleBanner ? (
+        <div className="mb-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950">
+          <p className="font-medium">{t("processing.executions.sampleTitle")}</p>
+          <p className="mt-1 text-xs text-amber-900">
+            {t("processing.executions.sampleBody", { cap: DEFAULT_PROCESSING_EXECUTION_CAP })}
+          </p>
+          <ul className="mt-2 list-disc space-y-0.5 pl-4 text-xs text-amber-900">
+            {functionExecutionsTruncated ? (
+              <li>{t("processing.executions.sampleLineFunctions")}</li>
+            ) : null}
+            {transformationExecutionsTruncated ? (
+              <li>{t("processing.executions.sampleLineTransformations")}</li>
+            ) : null}
+            {workflowExecutionsTruncated ? (
+              <li>{t("processing.executions.sampleLineWorkflows")}</li>
+            ) : null}
+            {extractorExecutionsTruncated ? (
+              <li>{t("processing.executions.sampleLineExtractors")}</li>
+            ) : null}
+          </ul>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+              onClick={() => {
+                setLoadAllProcessingExecutions(true);
+                concurrencyDiagramPassRef.current = {
+                  functions: false,
+                  transformations: false,
+                  workflows: false,
+                  extractors: false,
+                };
+                setConcurrencyDiagramPhase("functions");
+              }}
+            >
+              {t("processing.executions.loadAll")}
+            </button>
+          </div>
         </div>
       ) : null}
       <Card>

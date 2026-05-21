@@ -1,14 +1,19 @@
 import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { normalizeStatus, toTimestampLoose } from "@/shared/time-utils";
-import type {
-  ExtPipeConfigSummary,
-  ExtPipeRunSummary,
-  LoadState,
-  ProcessingDataLoadProgress,
-  ProcessingRequestStats,
+import {
+  DEFAULT_PROCESSING_EXECUTION_CAP,
+  type ExtPipeConfigSummary,
+  type ExtPipeRunSummary,
+  type LoadState,
+  type ProcessingDataLoadProgress,
+  type ProcessingRequestStats,
 } from "./types";
 import { useI18n } from "@/shared/i18n";
 import { withTransientRetries } from "@/shared/transient-http-retry";
+import {
+  noteForbiddenFailure,
+  processingRequestStats,
+} from "./processing-request-stats";
 
 type ExtPipesListApiResponse = {
   data?: {
@@ -29,6 +34,7 @@ type UseExtractionPipelineDataArgs = {
   sdk: { project: string; get: Function; post: Function };
   windowRange: { start: number; end: number } | null;
   fetchEnabled?: boolean;
+  executionLimit?: number | null;
 };
 
 export function useExtractionPipelineData({
@@ -36,9 +42,11 @@ export function useExtractionPipelineData({
   sdk,
   windowRange,
   fetchEnabled = true,
+  executionLimit = DEFAULT_PROCESSING_EXECUTION_CAP,
 }: UseExtractionPipelineDataArgs) {
   const { t } = useI18n();
   const [extractorsStatus, setExtractorsStatus] = useState<LoadState>("idle");
+  const [executionsTruncated, setExecutionsTruncated] = useState(false);
   const [extractorsError, setExtractorsError] = useState<string | null>(null);
   const [extractorConfigs, setExtractorConfigs] = useState<ExtPipeConfigSummary[]>([]);
   const [extractorRunsAll, setExtractorRunsAll] = useState<
@@ -115,6 +123,7 @@ export function useExtractionPipelineData({
     let cancelled = false;
     const loadExtractorRuns = async () => {
       setExtractorsStatus("loading");
+      setExecutionsTruncated(false);
       setExtractorsError(null);
       setRequestStats(null);
       setExtractorRunsAll([]);
@@ -127,7 +136,19 @@ export function useExtractionPipelineData({
         let pipelineIndex = 0;
         let failedRequests = 0;
         let totalRequests = 0;
-        for (const config of extractorConfigs) {
+        const permissionsDenied = { current: false };
+        const cap = executionLimit;
+        let hitExecutionCap = false;
+        const pushRun = (run: ExtPipeRunSummary & { externalId: string }) => {
+          if (cap != null && runs.length >= cap) {
+            hitExecutionCap = true;
+            return false;
+          }
+          runs.push(run);
+          return true;
+        };
+        pipelineLoop: for (const config of extractorConfigs) {
+          if (hitExecutionCap) break pipelineLoop;
           let cursor: string | undefined;
           const seenTimes: number[] = [];
           const startMessages: Array<ExtPipeRunSummary & { createdTime: number }> = [];
@@ -152,8 +173,9 @@ export function useExtractionPipelineData({
                   },
                 })
               )) as ExtPipeRunsListApiResponse;
-            } catch {
+            } catch (e) {
               failedRequests++;
+              noteForbiddenFailure(permissionsDenied, e);
               break;
             }
             for (const item of response.data?.items ?? []) {
@@ -195,26 +217,34 @@ export function useExtractionPipelineData({
 
           if (startTime != null) {
             const endTime = stopEvent?.createdTime ?? lastSeen ?? startTime;
-            runs.push({
-              id: stopEvent?.id ?? Math.floor(startTime),
-              status: stopEvent?.status ?? "seen",
-              message:
-                stopEvent?.message ??
-                (sortedSeen.length > 0
-                  ? t("processing.extractor.seenEvents", { count: sortedSeen.length })
-                  : t("processing.extractor.started")),
-              createdTime: startTime,
-              endTime,
-              externalId: config.externalId,
-            });
+            if (
+              !pushRun({
+                id: stopEvent?.id ?? Math.floor(startTime),
+                status: stopEvent?.status ?? "seen",
+                message:
+                  stopEvent?.message ??
+                  (sortedSeen.length > 0
+                    ? t("processing.extractor.seenEvents", { count: sortedSeen.length })
+                    : t("processing.extractor.started")),
+                createdTime: startTime,
+                endTime,
+                externalId: config.externalId,
+              })
+            ) {
+              break pipelineLoop;
+            }
           }
 
           for (const event of otherEvents) {
-            runs.push({
-              ...event,
-              createdTime: event.createdTime,
-              externalId: config.externalId,
-            });
+            if (
+              !pushRun({
+                ...event,
+                createdTime: event.createdTime,
+                externalId: config.externalId,
+              })
+            ) {
+              break pipelineLoop;
+            }
           }
           pipelineIndex += 1;
           if (!cancelled && (pipelineIndex % 3 === 0 || pipelineIndex === totalPipelines)) {
@@ -228,10 +258,11 @@ export function useExtractionPipelineData({
 
         if (!cancelled) {
           setExtractorRunsAll(runs);
+          setExecutionsTruncated(hitExecutionCap);
           setLoadProgress(null);
-          if (failedRequests > 0) {
-            setRequestStats({ failed: failedRequests, total: totalRequests });
-          }
+          setRequestStats(
+            processingRequestStats(failedRequests, totalRequests, permissionsDenied.current)
+          );
           setExtractorsStatus("success");
         }
       } catch (error) {
@@ -250,7 +281,7 @@ export function useExtractionPipelineData({
     return () => {
       cancelled = true;
     };
-  }, [fetchEnabled, isSdkLoading, sdk, extractorConfigs, windowRange, t]);
+  }, [executionLimit, fetchEnabled, isSdkLoading, sdk, extractorConfigs, windowRange, t]);
 
   const extractorConfigMap = useMemo(() => {
     return extractorConfigs.reduce<Record<string, ExtPipeConfigSummary>>((acc, config) => {
@@ -286,6 +317,7 @@ export function useExtractionPipelineData({
 
   return {
     extractorsStatus,
+    executionsTruncated,
     loadProgress,
     requestStats,
     extractorsError,

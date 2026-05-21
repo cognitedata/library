@@ -1,13 +1,18 @@
 import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { normalizeStatus } from "@/shared/time-utils";
-import type {
-  LoadState,
-  ProcessingDataLoadProgress,
-  ProcessingRequestStats,
-  WorkflowExecutionSummary,
+import {
+  DEFAULT_PROCESSING_EXECUTION_CAP,
+  type LoadState,
+  type ProcessingDataLoadProgress,
+  type ProcessingRequestStats,
+  type WorkflowExecutionSummary,
 } from "./types";
 import { useI18n } from "@/shared/i18n";
 import { withTransientRetries } from "@/shared/transient-http-retry";
+import {
+  noteForbiddenFailure,
+  processingRequestStats,
+} from "./processing-request-stats";
 
 type WorkflowExecutionsListApiResponse = {
   data?: {
@@ -25,6 +30,7 @@ type UseWorkflowDataArgs = {
   sdk: { project: string; post: Function; get: Function };
   windowRange: { start: number; end: number } | null;
   fetchEnabled?: boolean;
+  executionLimit?: number | null;
 };
 
 export function useWorkflowData({
@@ -32,9 +38,11 @@ export function useWorkflowData({
   sdk,
   windowRange,
   fetchEnabled = true,
+  executionLimit = DEFAULT_PROCESSING_EXECUTION_CAP,
 }: UseWorkflowDataArgs) {
   const { t } = useI18n();
   const [workflowsStatus, setWorkflowsStatus] = useState<LoadState>("idle");
+  const [executionsTruncated, setExecutionsTruncated] = useState(false);
   const [workflowsError, setWorkflowsError] = useState<string | null>(null);
   const [workflowExecutionsAll, setWorkflowExecutionsAll] = useState<WorkflowExecutionSummary[]>([]);
   const [workflowDetails, setWorkflowDetails] = useState<Record<string, unknown> | null>(null);
@@ -55,6 +63,7 @@ export function useWorkflowData({
     let cancelled = false;
     const loadWorkflows = async () => {
       setWorkflowsStatus("loading");
+      setExecutionsTruncated(false);
       setWorkflowsError(null);
       setRequestStats(null);
       setWorkflowExecutionsAll([]);
@@ -66,6 +75,9 @@ export function useWorkflowData({
         let cursor: string | undefined;
         let failedRequests = 0;
         let totalRequests = 0;
+        const permissionsDenied = { current: false };
+        const cap = executionLimit;
+        let hitExecutionCap = false;
         do {
           totalRequests++;
           try {
@@ -81,10 +93,21 @@ export function useWorkflowData({
                 },
               })
             )) as WorkflowExecutionsListApiResponse;
-            executions.push(...(response.data?.items ?? []));
-            cursor = response.data?.nextCursor ?? undefined;
-          } catch {
+            for (const item of response.data?.items ?? []) {
+              if (cap != null && executions.length >= cap) {
+                hitExecutionCap = true;
+                break;
+              }
+              executions.push(item);
+            }
+            if (hitExecutionCap) {
+              cursor = undefined;
+            } else {
+              cursor = response.data?.nextCursor ?? undefined;
+            }
+          } catch (e) {
             failedRequests++;
+            noteForbiddenFailure(permissionsDenied, e);
             break;
           }
           if (!cancelled) {
@@ -94,10 +117,11 @@ export function useWorkflowData({
 
         if (!cancelled) {
           setWorkflowExecutionsAll(executions);
+          setExecutionsTruncated(hitExecutionCap);
           setLoadProgress(null);
-          if (failedRequests > 0) {
-            setRequestStats({ failed: failedRequests, total: totalRequests });
-          }
+          setRequestStats(
+            processingRequestStats(failedRequests, totalRequests, permissionsDenied.current)
+          );
           setWorkflowsStatus("success");
         }
       } catch (error) {
@@ -114,7 +138,7 @@ export function useWorkflowData({
     return () => {
       cancelled = true;
     };
-  }, [fetchEnabled, isSdkLoading, sdk, windowRange?.start, windowRange?.end, t]);
+  }, [executionLimit, fetchEnabled, isSdkLoading, sdk, windowRange?.start, windowRange?.end, t]);
 
   const filteredWorkflowExecutions = useMemo(() => {
     if (!windowRange) return [];
@@ -179,6 +203,7 @@ export function useWorkflowData({
 
   return {
     workflowsStatus,
+    executionsTruncated,
     loadProgress,
     requestStats,
     workflowsError,

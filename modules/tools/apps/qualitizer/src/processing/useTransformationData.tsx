@@ -1,15 +1,20 @@
 import type { CogniteClient } from "@cognite/sdk";
 import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { normalizeStatus } from "@/shared/time-utils";
-import type {
-  LoadState,
-  ProcessingDataLoadProgress,
-  ProcessingRequestStats,
-  TransformationJobSummary,
-  TransformationSummary,
+import {
+  DEFAULT_PROCESSING_EXECUTION_CAP,
+  type LoadState,
+  type ProcessingDataLoadProgress,
+  type ProcessingRequestStats,
+  type TransformationJobSummary,
+  type TransformationSummary,
 } from "./types";
 import { useI18n } from "@/shared/i18n";
 import { withTransientRetries } from "@/shared/transient-http-retry";
+import {
+  noteForbiddenFailure,
+  processingRequestStats,
+} from "./processing-request-stats";
 import {
   cachedTransformationJobs,
   cachedTransformationsList,
@@ -20,6 +25,7 @@ type UseTransformationDataArgs = {
   sdk: Pick<CogniteClient, "project" | "get">;
   windowRange: { start: number; end: number } | null;
   fetchEnabled?: boolean;
+  executionLimit?: number | null;
 };
 
 export function useTransformationData({
@@ -27,9 +33,11 @@ export function useTransformationData({
   sdk,
   windowRange,
   fetchEnabled = true,
+  executionLimit = DEFAULT_PROCESSING_EXECUTION_CAP,
 }: UseTransformationDataArgs) {
   const { t } = useI18n();
   const [transformationsStatus, setTransformationsStatus] = useState<LoadState>("idle");
+  const [executionsTruncated, setExecutionsTruncated] = useState(false);
   const [transformationsError, setTransformationsError] = useState<string | null>(null);
   const [transformationJobsAll, setTransformationJobsAll] = useState<TransformationJobSummary[]>([]);
   const [transformationNameMap, setTransformationNameMap] = useState<Record<string, string>>({});
@@ -50,6 +58,7 @@ export function useTransformationData({
     let cancelled = false;
     const loadTransformations = async () => {
       setTransformationsStatus("loading");
+      setExecutionsTruncated(false);
       setTransformationsError(null);
       setRequestStats(null);
       setTransformationJobsAll([]);
@@ -59,6 +68,7 @@ export function useTransformationData({
       try {
         let failedRequests = 0;
         let totalRequests = 0;
+        const permissionsDenied = { current: false };
         totalRequests++;
         const response = (await withTransientRetries(() =>
           cachedTransformationsList(sdk, {
@@ -84,16 +94,26 @@ export function useTransformationData({
 
         const jobs: TransformationJobSummary[] = [];
         let index = 0;
+        const cap = executionLimit;
+        let hitExecutionCap = false;
         for (const transformation of transformations) {
           totalRequests++;
           try {
             const jobResponse = (await withTransientRetries(() =>
               cachedTransformationJobs(sdk, String(transformation.id), "1000")
             )) as { data?: { items?: TransformationJobSummary[] } };
-            jobs.push(...(jobResponse.data?.items ?? []));
-          } catch {
+            for (const job of jobResponse.data?.items ?? []) {
+              if (cap != null && jobs.length >= cap) {
+                hitExecutionCap = true;
+                break;
+              }
+              jobs.push(job);
+            }
+          } catch (e) {
             failedRequests++;
+            noteForbiddenFailure(permissionsDenied, e);
           }
+          if (hitExecutionCap) break;
           index += 1;
           if (!cancelled && (index % 5 === 0 || index === total)) {
             setLoadProgress({ kind: "transformations_jobs", current: index, total });
@@ -104,10 +124,11 @@ export function useTransformationData({
           setTransformationJobsAll(jobs);
           setTransformationNameMap(nameMap);
           setTransformationMetaMap(metaMap);
+          setExecutionsTruncated(hitExecutionCap);
           setLoadProgress(null);
-          if (failedRequests > 0) {
-            setRequestStats({ failed: failedRequests, total: totalRequests });
-          }
+          setRequestStats(
+            processingRequestStats(failedRequests, totalRequests, permissionsDenied.current)
+          );
           setTransformationsStatus("success");
         }
       } catch (error) {
@@ -126,7 +147,7 @@ export function useTransformationData({
     return () => {
       cancelled = true;
     };
-  }, [fetchEnabled, isSdkLoading, sdk, t]);
+  }, [executionLimit, fetchEnabled, isSdkLoading, sdk, t]);
 
   const filteredTransformationJobs = useMemo(() => {
     if (!windowRange) return [];
@@ -166,6 +187,7 @@ export function useTransformationData({
 
   return {
     transformationsStatus,
+    executionsTruncated,
     loadProgress,
     requestStats,
     transformationsError,

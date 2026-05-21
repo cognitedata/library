@@ -1,9 +1,14 @@
 export type LoadState = "idle" | "loading" | "success" | "error";
 
+/** Default max execution rows per processing series before the user opts in to Load all. */
+export const DEFAULT_PROCESSING_EXECUTION_CAP = 5000;
+
 /** Counts of retried API sub-requests; used when some calls fail but partial data is shown. */
 export type ProcessingRequestStats = {
   failed: number;
   total: number;
+  /** Set when at least one failure was HTTP 403 (missing capabilities). */
+  permissionsDenied?: boolean;
 };
 
 /** Granular progress while a processing data hook is in the loading state. */
