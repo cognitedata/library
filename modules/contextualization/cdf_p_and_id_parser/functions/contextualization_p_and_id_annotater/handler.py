@@ -48,6 +48,7 @@ def _report_usage(client: CogniteClient) -> None:
             })
         threading.Thread(target=_send, daemon=False).start()
     except Exception:
+        # Usage tracking is best-effort; must not affect the handler.
         pass
 
 
@@ -125,6 +126,7 @@ class Config(BaseModel, alias_generator=to_camel):
 
     @classmethod
     @field_validator("source_system", mode="before")
+    @classmethod
     def pares_direct_relation(cls, value: Any) -> Any:
         if isinstance(value, dict):
             return dm.DirectRelationReference.load(value)

@@ -49,6 +49,7 @@ def _report_usage(client: CogniteClient) -> None:
             })
         threading.Thread(target=_send, daemon=False).start()
     except Exception:
+        # Usage tracking is best-effort; must not affect the handler.
         pass
 
 

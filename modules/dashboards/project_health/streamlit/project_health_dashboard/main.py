@@ -94,6 +94,7 @@ def _report_usage(cdf_client) -> None:
         )
         st.session_state["_usage_tracked"] = True
     except Exception:
+        # Usage tracking is best-effort; must not affect the dashboard.
         pass
 
 

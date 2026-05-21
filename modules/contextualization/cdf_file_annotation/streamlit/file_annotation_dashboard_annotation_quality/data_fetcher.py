@@ -152,12 +152,14 @@ class DataFetcher:
             if actual_df is not None and not actual_df.empty:
                 actual_df[norm_col] = actual_df.apply(lambda r: DataProcessor.derive_normalized_status(r), axis=1)
         except Exception:
+            # Optional filter step; continue when column metadata is unavailable.
             pass
 
         try:
             if potential_df is not None and not potential_df.empty:
                 potential_df[norm_col] = potential_df.apply(lambda r: DataProcessor.derive_normalized_status(r), axis=1)
         except Exception:
+            # Optional filter step; continue when column metadata is unavailable.
             pass
 
         return AnnotationFrames(actual_df=actual_df, potential_df=potential_df)

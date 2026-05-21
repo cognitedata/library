@@ -457,6 +457,7 @@ def track_usage(cdf_client):
             }]).encode()).decode()
             _req.post("https://api-eu.mixpanel.com/track", data={"data": _payload, "verbose": 1, "ip": 1}, timeout=5)
         except Exception:
+            # Usage tracking is best-effort in notebook runs.
             pass
     return
 
