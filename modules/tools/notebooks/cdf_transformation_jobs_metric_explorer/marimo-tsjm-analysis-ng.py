@@ -197,8 +197,7 @@ def init_cdf_client(Path, config_form, mo):
                     kind="danger",
                 )
 
-    _output  # codeql[py/ineffectual-statement]
-    return available_projects, cdf_client, output_folder_value
+    return available_projects, cdf_client, output_folder_value, _output
 
 
 @app.cell
@@ -2633,7 +2632,7 @@ def show_transformation_details(
                     )
 
                     # Store data for the trend chart cell
-                    _trafo_trend_data = _filtered_data
+                    trafo_trend_data = _filtered_data
                     trafo_trend_date_range = (_min_sel_date, _max_sel_date)
 
                     _output = mo.vstack(
@@ -2663,8 +2662,7 @@ def show_transformation_details(
                         ]
                     )
 
-    _output
-    return trafo_details_table, trafo_trend_data
+    return trafo_details_table, trafo_trend_data, _output
 
 
 @app.cell(hide_code=True)

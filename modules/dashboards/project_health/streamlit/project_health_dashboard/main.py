@@ -205,8 +205,8 @@ def main():
         dataset_ids = []
     else:
         metadata = {}
-        _config = {}
-        _datasets_dict = None
+        config = {}
+        datasets_dict = None
         dataset_ids = []
 
     # Sidebar: only Project URL (organization base); project and cluster from metrics file (set by function from client config)
@@ -258,7 +258,6 @@ def main():
                 st.caption(f"Loaded {metadata.get('dataset_count') or len(datasets_dict)} dataset(s) from file.")
         else:
             dataset_external_id = "—"
-            _time_range_label = "—"
             payload = {}
             if metrics.get("_error"):
                 st.warning("Load failed. Run the function in **Configuration**, then **Refresh data**.")

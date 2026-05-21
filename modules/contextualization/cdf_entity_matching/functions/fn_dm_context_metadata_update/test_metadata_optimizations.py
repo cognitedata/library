@@ -112,8 +112,8 @@ class TestBatchProcessing(unittest.TestCase):
         """Test batch processing functionality"""
         print("🧪 Testing BatchProcessor...")
         
-        _processor = BatchProcessor(batch_size=3)
-        
+        BatchProcessor(batch_size=3)
+
         # Mock NodeList and nodes
         mock_nodes = MagicMock()
         mock_nodes.__getitem__.return_value = [
@@ -272,7 +272,7 @@ class TestIntegrationScenarios(unittest.TestCase):
         
         # Initialize components
         processor = OptimizedMetadataProcessor(self.logger)
-        _batch_processor = BatchProcessor(batch_size=10)
+        BatchProcessor(batch_size=10)
         benchmark = PerformanceBenchmark(self.logger)
         
         # Simulate processing workflow
@@ -339,8 +339,8 @@ def run_performance_comparison():
             
             # No caching - recompile regex each time
             pattern = re.compile(r'[-]')
-            _words = pattern.split(name)
-            
+            pattern.split(name)
+
             # Slow list operations
             if name not in aliases:
                 aliases.append(name)

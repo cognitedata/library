@@ -139,7 +139,7 @@ def render_maintenance_dashboard(metrics: dict):
         All work orders should be linked to the asset being maintained.
         """)
         
-        _orders_without_asset = maintenance.get("maint_order_without_asset", 0)
+        orders_without_asset = maintenance.get("maint_order_without_asset", 0)
         if total_orders == 0:
             st.info("No work orders found in RMDM.")
         elif order_asset_rate >= 95:
@@ -147,7 +147,7 @@ def render_maintenance_dashboard(metrics: dict):
         elif order_asset_rate >= 80:
             st.warning("Some work orders need asset links.")
         else:
-            st.error("Many work orders are missing asset links!")
+            st.error(f"Many work orders ({orders_without_asset:,}) are missing asset links!")
     
     st.markdown("---")
     

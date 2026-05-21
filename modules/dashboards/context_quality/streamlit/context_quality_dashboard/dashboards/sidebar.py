@@ -222,7 +222,6 @@ def render_metadata_sidebar(metrics: dict):
     instance_counts_raw = metadata.get("instance_counts", {})
     instance_counts_from_metrics = _instance_counts_from_metrics(metrics)
     instance_counts = _merge_instance_counts(instance_counts_raw, instance_counts_from_metrics)
-    _config = metadata.get("config", {})
     limits = metadata.get("limits_reached", {})
     
     # Helper function to generate duplicate IDs CSV content
