@@ -121,6 +121,8 @@ def _function_task(
     name: str,
     timeout: int,
     extra_data: Optional[Dict[str, Any]] = None,
+    retries: Optional[int] = None,
+    on_failure: Optional[str] = None,
 ) -> Dict[str, Any]:
     data: Dict[str, Any] = {
         "logLevel": "INFO",
@@ -132,6 +134,15 @@ def _function_task(
         for k, v in extra_data.items():
             if v is not None:
                 data[k] = v
+    from cdf_fn_common.workflow_task_policy import discovery_task_workflow_policy
+
+    policy = discovery_task_workflow_policy(function_external_id)
+    task_retries = int(retries) if retries is not None else int(policy["retries"])
+    task_on_failure = (
+        str(on_failure).strip()
+        if on_failure is not None
+        else str(policy["onFailure"])
+    )
     task: Dict[str, Any] = {
         "externalId": task_external_id,
         "type": "function",
@@ -143,9 +154,9 @@ def _function_task(
         },
         "name": name,
         "description": description,
-        "retries": 3,
+        "retries": task_retries,
         "timeout": timeout,
-        "onFailure": "abortWorkflow",
+        "onFailure": task_on_failure,
     }
     if depends_on:
         task["dependsOn"] = [{"externalId": ext} for ext in depends_on]

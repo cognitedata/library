@@ -40,3 +40,5 @@ class KahnRunContext:
     cohort_row_index_cache: Dict[Tuple[str, str], Dict[str, Any]] = field(default_factory=dict)
     # RAW row samples for ``*_discovery_run.json`` raw_table_samples; captured before cleanup.
     raw_results_snapshot: Optional[Dict[str, Any]] = None
+    # Non-fatal task outcomes (e.g. skipTask after retries exhausted).
+    pipeline_warnings: List[str] = field(default_factory=list)

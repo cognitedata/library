@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, MutableMapping
 
 _staging_root = Path(__file__).resolve().parent.parent
 if str(_staging_root) not in sys.path:
@@ -15,19 +15,13 @@ try:
 except ImportError:
     CogniteClient = None  # type: ignore[misc, assignment]
 
-from cdf_fn_common.function_logging import resolve_function_logger
+from cdf_fn_common.discovery_handler_result import run_discovery_handler
 from fn_dm_discovery_raw_cleanup.engine.discovery_raw_cleanup import run_discovery_raw_cleanup
 
 
+def _impl(data: MutableMapping[str, Any], client: Any, log: Any) -> Dict[str, Any]:
+    return run_discovery_raw_cleanup(data, client, log)
+
+
 def handle(data: Dict[str, Any], client: CogniteClient = None) -> Dict[str, Any]:
-    log: Any = None
-    try:
-        log = resolve_function_logger(data, None)
-        if not client:
-            raise ValueError("CogniteClient is required")
-        return run_discovery_raw_cleanup(data, client, log)
-    except Exception as ex:
-        message = f"fn_dm_discovery_raw_cleanup failed: {ex!s}"
-        if log:
-            log.error(message)
-        return {"status": "failure", "message": message}
+    return run_discovery_handler("fn_dm_discovery_raw_cleanup", data, client, _impl)

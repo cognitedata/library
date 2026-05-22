@@ -403,6 +403,16 @@ def _add_run_arguments(p: argparse.ArgumentParser) -> None:
         action="store_true",
         help="Baseline RAW purge only, then exit (no pipeline).",
     )
+    p.add_argument(
+        "--local-task-retries",
+        type=int,
+        default=None,
+        metavar="N",
+        help=(
+            "Local runner only: CDF-style task retries per function (default from workflow "
+            "policy, usually 3). Use 0 to disable retries. Overrides KEA_LOCAL_TASK_RETRIES."
+        ),
+    )
 
 
 def _print_root_cli_help() -> None:

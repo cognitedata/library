@@ -121,6 +121,6 @@ workflowDefinition:
         Post-run: delete cohort RAW keys for this run_id (default) or truncate tables if configured.
       retries: 3
       timeout: 7200
-      onFailure: abortWorkflow
+      onFailure: skipTask
       dependsOn:
         - externalId: kea__ii

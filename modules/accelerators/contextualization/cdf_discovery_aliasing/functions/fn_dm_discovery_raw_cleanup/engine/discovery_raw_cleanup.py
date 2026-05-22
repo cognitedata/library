@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-import json
 from typing import Any, Dict, Mapping, MutableMapping
 
+from cdf_fn_common.discovery_handler_result import discovery_handler_failure
 from cdf_fn_common.discovery_raw_purge import run_discovery_raw_cleanup_action
 from cdf_fn_common.discovery_query_shared import _as_dict, resolve_run_id, resolve_task_config
 from cdf_fn_common.run_id_retention import DEFAULT_RETENTION_HOURS
@@ -45,22 +45,17 @@ def run_discovery_raw_cleanup(
         retention_hours=retention_hours,
         purge_stale=purge_stale,
     )
-    msg = json.dumps(
-        {
-            "function_external_id": "fn_dm_discovery_raw_cleanup",
-            "task_id": data.get("task_id"),
-            "cleanup": summary,
-        },
-        default=str,
-    )
     if summary.get("error"):
-        if log:
-            log.error("fn_dm_discovery_raw_cleanup: %s", summary["error"])
-        data["status"] = "failure"
-        data["message"] = msg
-        return {"status": "failure", "message": msg}
+        discovery_handler_failure(
+            "fn_dm_discovery_raw_cleanup",
+            data,
+            str(summary["error"]),
+            log=log,
+        )
     if log:
         log.info("fn_dm_discovery_raw_cleanup action=%s run_id=%s", action, run_id)
-    data["status"] = "succeeded"
-    data["message"] = msg
-    return {"status": "succeeded", "message": msg}
+    return {
+        "function_external_id": "fn_dm_discovery_raw_cleanup",
+        "task_id": data.get("task_id"),
+        "cleanup": summary,
+    }

@@ -35,9 +35,18 @@ The UI **`canvas`** compiles to tasks whose **`externalId`** matches the folder 
 
 Handler summaries include `rows_truncated`, `list_complete`, and `enumeration_pages` when applicable. UI **preview** limits are separate (operator UX only).
 
+## Failure and retry contract
+
+| Layer | Behavior |
+|-------|----------|
+| **Fatal task errors** | Handlers raise **`DiscoveryPipelineError`** (`cdf_fn_common/discovery_handler_result.py`) so CDF marks the function invocation **Failed** and workflow **`retries`** apply (default **3**). |
+| **Per-entity errors** | Transform/validate mark cohort **`WORKFLOW_STATUS=failed`** and optional **KeyDiscoveryProcessingState** (`discovery_record_failure.py`); the task still **succeeds** with `entities_failed` in the summary. |
+| **`onFailure`** | Most tasks: **`abortWorkflow`**. **`fn_dm_discovery_raw_cleanup`**: **`skipTask`** (workflow continues; cohort RAW may remain until the next successful cleanup). |
+| **Local runner** | Mirrors CDF **`retries`** and **`onFailure`** (`workflow_task_policy.py`, `kahn_workflow_executor.py`). Override with **`--local-task-retries`** or **`KEA_LOCAL_TASK_RETRIES`**; delay via **`KEA_LOCAL_TASK_RETRY_DELAY_SEC`**. |
+
 ## Local execution
 
-`module.py run` resolves each function’s Python entry via **`discovery_local_pipeline_specs()`** in `cdf_fn_common/workflow_compile/canvas_dag.py` (`<externalId>.pipeline` module + exec kind).
+`module.py run` resolves each function’s Python entry via **`discovery_local_pipeline_specs()`** in `cdf_fn_common/workflow_compile/canvas_dag.py` (`<externalId>.pipeline` module + exec kind). Each `pipeline.py` calls **`apply_handler_output`** after `handle()` for defense in depth.
 
 ## See also
 

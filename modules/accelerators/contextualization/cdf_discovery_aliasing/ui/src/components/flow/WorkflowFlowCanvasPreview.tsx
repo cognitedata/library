@@ -38,6 +38,8 @@ export type WorkflowPreviewRunProgress = {
   runCompletedCanvasNodeIds: readonly string[];
   /** Canvas node ids whose last streamed local run task ended with ``status: failed`` (red outline). */
   failedCanvasNodeIds: readonly string[];
+  /** Canvas node ids that ended with ``completed_with_errors`` (warning outline). */
+  warningCanvasNodeIds: readonly string[];
 };
 
 type Props = {
@@ -79,6 +81,7 @@ function PreviewInner({
   runActiveCanvasNodeIds,
   runCompletedCanvasNodeIds,
   failedCanvasNodeIds,
+  warningCanvasNodeIds,
   searchQuery,
   focusNodeId,
 }: {
@@ -88,6 +91,7 @@ function PreviewInner({
   runActiveCanvasNodeIds: readonly string[];
   runCompletedCanvasNodeIds: readonly string[];
   failedCanvasNodeIds: readonly string[];
+  warningCanvasNodeIds: readonly string[];
   searchQuery: string;
   focusNodeId: string | null;
 }) {
@@ -116,6 +120,7 @@ function PreviewInner({
   const completedSet = useMemo(() => new Set(runCompletedCanvasNodeIds), [runCompletedCanvasNodeIds]);
 
   const failedSet = useMemo(() => new Set(failedCanvasNodeIds), [failedCanvasNodeIds]);
+  const warningSet = useMemo(() => new Set(warningCanvasNodeIds), [warningCanvasNodeIds]);
 
   const nodes = useMemo(
     () =>
@@ -124,12 +129,13 @@ function PreviewInner({
         const matches = cn ? canvasNodeMatchesSearch(cn, searchQuery) : true;
         return applyDiscoveryFlowNodeDisplayClasses(n, {
           runFailed: failedSet.has(n.id),
+          runWarning: warningSet.has(n.id),
           executing: executingSet.has(n.id),
           completed: completedSet.has(n.id),
           dimmed: searchActive && !matches,
         });
       }),
-    [rfNodes, doc.nodes, searchQuery, searchActive, failedSet, executingSet, completedSet]
+    [rfNodes, doc.nodes, searchQuery, searchActive, failedSet, warningSet, executingSet, completedSet]
   );
 
   const edges = useMemo(
@@ -157,7 +163,8 @@ function PreviewInner({
       executingCanvasNodeIds.length +
       runActiveCanvasNodeIds.length +
       runCompletedCanvasNodeIds.length +
-      failedCanvasNodeIds.length,
+      failedCanvasNodeIds.length +
+      warningCanvasNodeIds.length,
     [
       reloadNonce,
       doc.nodes.length,
@@ -166,6 +173,7 @@ function PreviewInner({
       runActiveCanvasNodeIds.length,
       runCompletedCanvasNodeIds.length,
       failedCanvasNodeIds.length,
+      warningCanvasNodeIds.length,
     ]
   );
 
@@ -258,6 +266,7 @@ export function WorkflowFlowCanvasPreview({ t, document: doc, reloadNonce, onEdi
             runActiveCanvasNodeIds={runProgress?.runActiveCanvasNodeIds ?? []}
             runCompletedCanvasNodeIds={runProgress?.runCompletedCanvasNodeIds ?? []}
             failedCanvasNodeIds={runProgress?.failedCanvasNodeIds ?? []}
+            warningCanvasNodeIds={runProgress?.warningCanvasNodeIds ?? []}
             searchQuery={searchQuery}
             focusNodeId={focusNodeId}
           />

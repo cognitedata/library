@@ -23,6 +23,7 @@ from local_runner.kahn_workflow_executor import (  # noqa: E402
     _discovery_cohort_row_index_getter,
     _discovery_raw_hash_index_getter,
     _dispatch_task,
+    _dispatch_task_tracked,
     should_validate_macro_execution_graph,
 )
 
@@ -350,3 +351,102 @@ def test_dispatch_cleanup_snapshots_raw_results_before_purge() -> None:
         _dispatch_task(ctx, "clean1", Lock())
     assert order == ["snapshot", "cleanup"]
     assert ctx.raw_results_snapshot == {"tables": [{"row_count": 3}]}
+
+
+def test_dispatch_task_tracked_retries_then_succeeds(monkeypatch) -> None:
+    attempts = {"n": 0}
+
+    def _import(name: str):
+        if name == "fn_dm_transform.pipeline":
+
+            class _M:
+                @staticmethod
+                def transform(client, logger, data, cdf_config):
+                    del client, logger, cdf_config
+                    attempts["n"] += 1
+                    if attempts["n"] < 2:
+                        raise RuntimeError("transient")
+                    data["status"] = "succeeded"
+                    data["message"] = "{}"
+
+            return _M()
+        raise AssertionError(name)
+
+    monkeypatch.setenv("KEA_LOCAL_TASK_RETRY_DELAY_SEC", "0")
+    ctx = KahnRunContext(
+        args=Namespace(run_all=False, local_task_retries=2),
+        logger=logging.getLogger("test_kahn_retry"),
+        client=object(),
+        pipe_logger=None,
+        scope_yaml_path=Path("/tmp/scope.yaml"),
+        scope_document={},
+        wf_instance_space="sp_test",
+        source_views=[],
+        cdf_config=None,
+        compiled_workflow={
+            "tasks": [
+                {
+                    "id": "tr1",
+                    "function_external_id": "fn_dm_transform",
+                    "depends_on": [],
+                }
+            ]
+        },
+        run_id="run_retry",
+    )
+    with patch(
+        "local_runner.kahn_workflow_executor.importlib.import_module",
+        side_effect=_import,
+    ):
+        _dispatch_task_tracked(ctx, "tr1", Lock())
+    assert attempts["n"] == 2
+    assert ctx.local_run_tasks[-1]["status"] == "succeeded"
+
+
+def test_dispatch_cleanup_skip_task_continues_after_failure(monkeypatch) -> None:
+    def _import(name: str):
+        if name == "fn_dm_discovery_raw_cleanup.pipeline":
+
+            class _M:
+                @staticmethod
+                def discovery_raw_cleanup(client, logger, data, cdf_config):
+                    del client, logger, cdf_config
+                    raise RuntimeError("cleanup failed")
+
+            return _M()
+        raise AssertionError(name)
+
+    monkeypatch.setenv("KEA_LOCAL_TASK_RETRY_DELAY_SEC", "0")
+    ctx = KahnRunContext(
+        args=Namespace(run_all=False, local_task_retries=0),
+        logger=logging.getLogger("test_kahn_skip"),
+        client=object(),
+        pipe_logger=None,
+        scope_yaml_path=Path("/tmp/scope.yaml"),
+        scope_document={},
+        wf_instance_space="sp_test",
+        source_views=[],
+        cdf_config=None,
+        compiled_workflow={
+            "tasks": [
+                {
+                    "id": "clean1",
+                    "function_external_id": "fn_dm_discovery_raw_cleanup",
+                    "depends_on": [],
+                }
+            ]
+        },
+        run_id="run_skip",
+    )
+    with (
+        patch(
+            "local_runner.kahn_workflow_executor.snapshot_raw_results_for_ctx",
+        ),
+        patch(
+            "local_runner.kahn_workflow_executor.importlib.import_module",
+            side_effect=_import,
+        ),
+    ):
+        _dispatch_task_tracked(ctx, "clean1", Lock())
+    assert ctx.local_run_tasks[-1]["status"] == "completed_with_errors"
+    assert ctx.pipeline_warnings

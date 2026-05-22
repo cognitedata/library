@@ -288,7 +288,7 @@ def _persist_discovery_run_results(
             row_limit,
         )
 
-    warnings: List[str] = []
+    warnings: List[str] = list(getattr(ctx, "pipeline_warnings", None) or [])
     if pipeline_error:
         warnings.append(f"pipeline_aborted: {pipeline_error}")
 

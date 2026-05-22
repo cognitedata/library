@@ -34,6 +34,10 @@ from cdf_fn_common.discovery_query_shared import (
     resolve_query_sink,
     resolve_task_config,
 )
+from cdf_fn_common.discovery_record_failure import (
+    build_entity_failure_recorder,
+    record_entity_processing_failure,
+)
 from cdf_fn_common.pipeline_steps import materialize_transform_steps
 from cdf_fn_common.raw_upload import RawRowsUploadQueue
 from cdf_fn_common.task_runtime import merge_compiled_task_into_data
@@ -75,6 +79,9 @@ def discovery_handle_transform(
     pending: List[Dict[str, Any]] = []
     rows_read = 0
     rows_written = 0
+    failure_recorder = build_entity_failure_recorder(
+        client, data, raw_db=raw_db, raw_table=base_table, log=log
+    )
     pred_locations = iter_predecessor_raw_locations(data, task_id)
     index_cache = data.get("discovery_cohort_row_index_cache")
     table_indexes = build_transform_table_indexes(
@@ -98,32 +105,43 @@ def discovery_handle_transform(
         index_cache=index_cache,
     ):
         rows_read += 1
-        props = resolve_cumulative_input_props(
-            client,
-            cols,
-            writer_canvas_node_id=writer_canvas,
-            predecessor_canvas_node_ids=pred_canvas,
-            raw_db=raw_db,
-            base_table=base_table,
-            run_id=run_id,
-            cfg=cfg,
-            table_indexes=table_indexes,
-        )
-        for out_props in apply_transform_steps_to_props(props, cfg):
-            pending.append(
-                _cohort_row_from_columns(
-                    cols=cols,
-                    row_key=row_key,
-                    run_id=run_id,
-                    canvas_node_id=writer_canvas,
-                    properties=out_props,
-                )
+        try:
+            props = resolve_cumulative_input_props(
+                client,
+                cols,
+                writer_canvas_node_id=writer_canvas,
+                predecessor_canvas_node_ids=pred_canvas,
+                raw_db=raw_db,
+                base_table=base_table,
+                run_id=run_id,
+                cfg=cfg,
+                table_indexes=table_indexes,
             )
-            rows_written += 1
-            if len(pending) >= 500:
-                _flush_rows(queue, sink_db, sink_table, pending, client=client)
+            for out_props in apply_transform_steps_to_props(props, cfg):
+                pending.append(
+                    _cohort_row_from_columns(
+                        cols=cols,
+                        row_key=row_key,
+                        run_id=run_id,
+                        canvas_node_id=writer_canvas,
+                        properties=out_props,
+                    )
+                )
+                rows_written += 1
+                if len(pending) >= 500:
+                    _flush_rows(queue, sink_db, sink_table, pending, client=client)
+        except Exception as row_ex:
+            record_entity_processing_failure(
+                failure_recorder,
+                row_key=row_key,
+                cols=cols,
+                error_message=str(row_ex),
+                log=log,
+            )
 
     _flush_rows(queue, sink_db, sink_table, pending, client=client)
+    failure_recorder.flush_fdm(log=log)
+    entities_failed = failure_recorder.entities_failed
 
     if rows_written > 0 and parse_input_mode(cfg) == INPUT_MODE_CUMULATIVE:
         invalidate_discovery_cohort_row_index_cache(data, sink_db, sink_table)
@@ -147,6 +165,8 @@ def discovery_handle_transform(
         "step_count": len(steps),
         "rows_read": rows_read,
         "rows_written": rows_written,
+        "entities_failed": entities_failed,
+        "entities_processed": max(0, rows_read - entities_failed),
         "run_id": run_id,
         "raw_db": sink_db,
         "raw_table": sink_table,

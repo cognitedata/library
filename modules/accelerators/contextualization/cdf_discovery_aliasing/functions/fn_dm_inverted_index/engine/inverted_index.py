@@ -2,14 +2,15 @@
 
 from __future__ import annotations
 
-import json
-from typing import Any, Dict
+from typing import Any, Dict, MutableMapping
 
 from cdf_fn_common.discovery_inverted_index import run_discovery_inverted_index
 from cdf_fn_common.task_runtime import merge_compiled_task_into_data
 
 
-def run_inverted_index(data: Dict[str, Any], client: Any, log: Any) -> Dict[str, Any]:
+def run_inverted_index(
+    data: MutableMapping[str, Any], client: Any, log: Any
+) -> Dict[str, Any]:
     """
     Index lookup keys from configured ``index_kinds`` on predecessor cohort payloads.
 
@@ -44,20 +45,14 @@ def run_inverted_index(data: Dict[str, Any], client: Any, log: Any) -> Dict[str,
             "index_kinds_configured": summary.get("index_kinds_configured"),
             "predecessor_raw_sources": summary.get("predecessor_raw_sources"),
         }
-    msg = json.dumps(
-        {
-            "function_external_id": "fn_dm_inverted_index",
-            "task_id": data.get("task_id"),
-            "inverted_index": inv,
-        },
-        default=str,
-    )
-    data["status"] = "succeeded"
-    data["message"] = msg
-    if log:
+    if log and hasattr(log, "info"):
         log.info(
             "fn_dm_inverted_index writes=%s postings=%s",
             inv.get("inverted_writes"),
             inv.get("postings"),
         )
-    return {"status": "succeeded", "message": msg}
+    return {
+        "function_external_id": "fn_dm_inverted_index",
+        "task_id": data.get("task_id"),
+        "inverted_index": inv,
+    }

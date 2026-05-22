@@ -5,6 +5,7 @@ from __future__ import annotations
 import importlib
 import json
 import logging
+import os
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
@@ -12,6 +13,10 @@ from threading import Lock
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Set, Tuple
 
 from cdf_fn_common.task_runtime import merge_compiled_task_into_data
+from cdf_fn_common.workflow_task_policy import (
+    ON_FAILURE_SKIP_TASK,
+    discovery_task_workflow_policy,
+)
 from cdf_fn_common.workflow_compile.canvas_dag import discovery_local_pipeline_specs
 from cdf_fn_common.workflow_execution_graph import (
     default_execution_graph_path,
@@ -324,52 +329,121 @@ def _dispatch_task(ctx: KahnRunContext, task_id: str, merge_lock: Lock) -> None:
     _discovery_branch(ctx, task_id, merge_lock, spec)
 
 
+def _local_task_retries(ctx: KahnRunContext, function_external_id: str) -> int:
+    """CDF ``retries`` count (not including the first attempt)."""
+    raw_arg = getattr(ctx.args, "local_task_retries", None)
+    if raw_arg is not None:
+        try:
+            return max(0, int(raw_arg))
+        except (TypeError, ValueError):
+            pass
+    env = os.environ.get("KEA_LOCAL_TASK_RETRIES", "").strip()
+    if env:
+        try:
+            return max(0, int(env))
+        except ValueError:
+            pass
+    return int(discovery_task_workflow_policy(function_external_id)["retries"])
+
+
+def _local_retry_delay_sec(attempt: int) -> float:
+    """Seconds to wait before retry *attempt* (1-based after first failure)."""
+    raw = os.environ.get("KEA_LOCAL_TASK_RETRY_DELAY_SEC", "1").strip()
+    try:
+        base = max(0.0, float(raw))
+    except ValueError:
+        base = 1.0
+    if base <= 0:
+        return 0.0
+    return min(base * (2.0 ** max(0, attempt - 1)), 8.0)
+
+
 def _dispatch_task_tracked(ctx: KahnRunContext, task_id: str, merge_lock: Lock) -> None:
     meta = _compiled_task_snapshot(ctx, task_id)
     fn_ext = str(meta.get("function_external_id") or "")
+    policy = discovery_task_workflow_policy(fn_ext)
+    retries = _local_task_retries(ctx, fn_ext)
+    max_attempts = 1 + retries
+    on_failure = str(policy.get("onFailure") or "abortWorkflow")
+
     emit_ui_progress("task_start", **_ui_task_progress_fields(ctx, task_id))
     t0 = time.perf_counter()
     err: Optional[str] = None
     output_snap: Any = None
-    try:
-        _dispatch_task(ctx, task_id, merge_lock)
-        output_snap = _task_output_snapshot(ctx, task_id)
-    except Exception as exc:
-        err = f"{type(exc).__name__}: {exc}"
-        raise
-    finally:
-        dt = time.perf_counter() - t0
-        ctx.logger.info(
-            "pipeline_task_timing task_id=%s function_external_id=%s duration_sec=%.3f",
-            task_id,
-            fn_ext or "?",
-            dt,
-        )
-        ctx.task_timings.append(
-            {
-                "task_id": task_id,
-                "function_external_id": fn_ext or None,
-                "duration_sec": round(dt, 6),
-            }
-        )
-        ui_end = _ui_task_progress_fields(ctx, task_id)
-        ui_end["status"] = "failed" if err else "succeeded"
-        if err:
-            _emax = 2000
-            ui_end["error"] = err if len(err) <= _emax else err[:_emax] + "…"
-        emit_ui_progress("task_end", **ui_end)
-        rec: Dict[str, Any] = {
+    task_status = "succeeded"
+
+    for attempt in range(1, max_attempts + 1):
+        err = None
+        try:
+            _dispatch_task(ctx, task_id, merge_lock)
+            output_snap = _task_output_snapshot(ctx, task_id)
+            task_status = "succeeded"
+            break
+        except Exception as exc:
+            err = f"{type(exc).__name__}: {exc}"
+            if attempt < max_attempts:
+                delay = _local_retry_delay_sec(attempt)
+                ctx.logger.warning(
+                    "Task %s (%s) attempt %s/%s failed, retrying in %.1fs: %s",
+                    task_id,
+                    fn_ext or "?",
+                    attempt,
+                    max_attempts,
+                    delay,
+                    err,
+                )
+                if delay > 0:
+                    time.sleep(delay)
+                continue
+            if on_failure == ON_FAILURE_SKIP_TASK:
+                task_status = "completed_with_errors"
+                warn = (
+                    f"task {task_id} ({fn_ext}) failed after {max_attempts} attempt(s): {err}"
+                )
+                ctx.pipeline_warnings.append(warn)
+                ctx.logger.warning(
+                    "Task %s (%s) onFailure=skipTask — continuing pipeline: %s",
+                    task_id,
+                    fn_ext or "?",
+                    err,
+                )
+                break
+            task_status = "failed"
+            raise
+
+    dt = time.perf_counter() - t0
+    ctx.logger.info(
+        "pipeline_task_timing task_id=%s function_external_id=%s duration_sec=%.3f status=%s",
+        task_id,
+        fn_ext or "?",
+        dt,
+        task_status,
+    )
+    ctx.task_timings.append(
+        {
             "task_id": task_id,
             "function_external_id": fn_ext or None,
-            "compiled_task": meta,
-            "input": _task_input_hint(ctx, fn_ext),
-            "output": output_snap,
             "duration_sec": round(dt, 6),
-            "status": "failed" if err else "succeeded",
         }
-        if err:
-            rec["error"] = err
-        ctx.local_run_tasks.append(rec)
+    )
+    ui_end = _ui_task_progress_fields(ctx, task_id)
+    ui_end["status"] = task_status
+    if err and task_status != "succeeded":
+        _emax = 2000
+        ui_end["error"] = err if len(err) <= _emax else err[:_emax] + "…"
+    emit_ui_progress("task_end", **ui_end)
+    rec: Dict[str, Any] = {
+        "task_id": task_id,
+        "function_external_id": fn_ext or None,
+        "compiled_task": meta,
+        "input": _task_input_hint(ctx, fn_ext),
+        "output": output_snap,
+        "duration_sec": round(dt, 6),
+        "status": task_status,
+    }
+    if err and task_status != "succeeded":
+        rec["error"] = err
+    ctx.local_run_tasks.append(rec)
 
 
 def run_compiled_workflow_dag(ctx: KahnRunContext) -> None:

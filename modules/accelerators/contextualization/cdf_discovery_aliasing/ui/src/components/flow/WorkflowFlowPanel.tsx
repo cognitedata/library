@@ -791,6 +791,10 @@ function FlowCanvasBody({
     () => new Set(runProgress?.failedCanvasNodeIds ?? []),
     [runProgress?.failedCanvasNodeIds]
   );
+  const runWarningSet = useMemo(
+    () => new Set(runProgress?.warningCanvasNodeIds ?? []),
+    [runProgress?.warningCanvasNodeIds]
+  );
   const nodesForRf = useMemo(
     () =>
       nodes.map((n) => {
@@ -798,12 +802,22 @@ function FlowCanvasBody({
         const matches = cn ? canvasNodeMatchesSearch(cn, searchQuery) : true;
         return applyDiscoveryFlowNodeDisplayClasses(n, {
           runFailed: runFailedSet.has(n.id),
+          runWarning: runWarningSet.has(n.id),
           executing: runExecutingSet.has(n.id),
           completed: runCompletedSet.has(n.id),
           dimmed: searchActive && !matches,
         });
       }),
-    [nodes, workflowCanvas.nodes, searchQuery, searchActive, runFailedSet, runExecutingSet, runCompletedSet]
+    [
+      nodes,
+      workflowCanvas.nodes,
+      searchQuery,
+      searchActive,
+      runFailedSet,
+      runWarningSet,
+      runExecutingSet,
+      runCompletedSet,
+    ]
   );
 
   const onNodesChangeWrapped = useCallback(

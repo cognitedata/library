@@ -301,16 +301,18 @@ def test_classic_save_respects_fan_in(mock_iter_rows: MagicMock, _mock_pred: Mag
 
 
 def test_run_discovery_save_with_status_requires_client() -> None:
-    out = run_discovery_save_with_status(
-        "fn_dm_view_save",
-        {
-            "task_id": "x",
-            "config": {"view_external_id": "V", "save_fan_in_mode": "none"},
-        },
-        None,
-        discovery_apply_view_save,
-    )
-    assert out["status"] == "failure"
+    from cdf_fn_common.discovery_handler_result import DiscoveryPipelineError
+
+    with pytest.raises(DiscoveryPipelineError, match="fn_dm_view_save failed"):
+        run_discovery_save_with_status(
+            "fn_dm_view_save",
+            {
+                "task_id": "x",
+                "config": {"view_external_id": "V", "save_fan_in_mode": "none"},
+            },
+            None,
+            discovery_apply_view_save,
+        )
 
 
 def test_classic_build_update_none_without_updatable_fields() -> None:

@@ -160,6 +160,8 @@ export function newNodeId(): string {
 
 export type DiscoveryFlowNodeDisplayState = {
   runFailed?: boolean;
+  /** Task finished with errors (local skipTask / CDF COMPLETED_WITH_ERRORS). */
+  runWarning?: boolean;
   executing?: boolean;
   completed?: boolean;
   /** Search filter: non-matching nodes are faded on the canvas. */
@@ -172,6 +174,7 @@ export function applyDiscoveryFlowNodeDisplayClasses(
   state: DiscoveryFlowNodeDisplayState
 ): Node {
   const failed = state.runFailed === true;
+  const warned = state.runWarning === true;
   const executing = state.executing === true;
   const completed = state.completed === true;
   const dimmed = state.dimmed === true;
@@ -181,6 +184,10 @@ export function applyDiscoveryFlowNodeDisplayClasses(
   }
   if (failed) {
     className = className ? `${className} discovery-flow-node--run-failed` : "discovery-flow-node--run-failed";
+  } else if (warned) {
+    className = className
+      ? `${className} discovery-flow-node--run-warning`
+      : "discovery-flow-node--run-warning";
   } else if (executing) {
     className = className ? `${className} discovery-flow-node--executing` : "discovery-flow-node--executing";
   } else if (completed) {

@@ -223,6 +223,12 @@ CogniteAPIError: Function deployment failed
 WorkflowRun failed with status: FAILED
 ```
 
+**Note:** CDF workflow **`retries`** only run when the **Cognite Function invocation fails** (uncaught error / timeout), not when the handler returns JSON with `"status": "failure"`. Discovery handlers raise **`DiscoveryPipelineError`** on fatal errors so retries and **`onFailure: abortWorkflow`** behave as expected.
+
+**RAW cleanup (`fn_dm_discovery_raw_cleanup`)** uses **`onFailure: skipTask`**: a failed cleanup after retries does not fail the whole workflow; cohort RAW for the run may remain until the next successful cleanup.
+
+**Local runs:** `module.py run --local-task-retries N` mirrors deployed retry counts; cleanup failures surface as **`completed_with_errors`** on the canvas (warning outline) and in `discovery_run.json` **`warnings`**.
+
 #### Solutions:
 1. **Check Task Dependencies**
    ```python

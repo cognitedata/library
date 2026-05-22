@@ -229,11 +229,11 @@ def load_key_discovery_scope_state_maps(
     *,
     limit_per_page: int = 1000,
     logger: Optional[Any] = None,
-) -> Tuple[Dict[str, str], Set[str]]:
+) -> Tuple[Dict[str, str], Set[str], Dict[str, int]]:
     """
-    Load lastSeenHash (for processed rows) and prior record instance keys from CDM.
+    Load lastSeenHash (for processed rows), prior record instance keys, and failed attempt counts.
 
-    Returns (hash_by_node_id, prior_node_ids).
+    Returns (hash_by_node_id, prior_node_ids, attempt_by_node).
     """
     parts: List[dm.filters.Filter] = [
         dm.filters.HasData(views=[processing_view_id]),
@@ -247,6 +247,7 @@ def load_key_discovery_scope_state_maps(
 
     hash_by_node: Dict[str, str] = {}
     prior_ids: Set[str] = set()
+    attempt_by_node: Dict[str, int] = {}
 
     cursor = None
     while True:
@@ -272,15 +273,24 @@ def load_key_discovery_scope_state_maps(
                 h = _read_str_prop(node, processing_view_id, "lastSeenHash")
                 if h:
                     hash_by_node[nid] = h
+            elif st == KEY_DISCOVERY_STATUS_FAILED:
+                raw_ac = _read_str_prop(node, processing_view_id, "attemptCount")
+                try:
+                    attempt_by_node[nid] = int(raw_ac) if raw_ac is not None else 0
+                except (TypeError, ValueError):
+                    attempt_by_node[nid] = 0
         cursor = getattr(batch, "cursor", None)
         if not cursor:
             break
 
     if logger and hasattr(logger, "debug"):
         logger.debug(
-            f"load_key_discovery_scope_state_maps: {len(prior_ids)} prior, {len(hash_by_node)} hashes"
+            "load_key_discovery_scope_state_maps: %s prior, %s hashes, %s failed attempts",
+            len(prior_ids),
+            len(hash_by_node),
+            len(attempt_by_node),
         )
-    return hash_by_node, prior_ids
+    return hash_by_node, prior_ids, attempt_by_node
 
 
 def _node_apply_key_discovery_processing_success(
@@ -402,8 +412,7 @@ def upsert_key_discovery_processing_state_success_batch(
         )
 
 
-def record_key_discovery_processing_failure(
-    client: Any,
+def _node_apply_key_discovery_processing_failure(
     processing_view_id: ViewId,
     instance_space: str,
     workflow_scope: str,
@@ -411,10 +420,8 @@ def record_key_discovery_processing_failure(
     record_instance_key: str,
     record_external_id: str,
     error_message: str,
-    attempt_count: int = 1,
-    *,
-    logger: Optional[Any] = None,
-) -> None:
+    attempt_count: int,
+) -> NodeApply:
     ext_id = key_discovery_processing_external_id(
         workflow_scope, source_view_fingerprint, record_instance_key
     )
@@ -429,7 +436,7 @@ def record_key_discovery_processing_failure(
         "attemptCount": int(attempt_count),
         "lastError": (error_message or "")[:8000],
     }
-    apply = NodeApply(
+    return NodeApply(
         space=instance_space,
         external_id=ext_id,
         sources=[
@@ -443,9 +450,69 @@ def record_key_discovery_processing_failure(
             NodeOrEdgeData(processing_view_id, props),
         ],
     )
+
+
+def record_key_discovery_processing_failure(
+    client: Any,
+    processing_view_id: ViewId,
+    instance_space: str,
+    workflow_scope: str,
+    source_view_fingerprint: str,
+    record_instance_key: str,
+    record_external_id: str,
+    error_message: str,
+    attempt_count: int = 1,
+    *,
+    logger: Optional[Any] = None,
+) -> None:
+    apply = _node_apply_key_discovery_processing_failure(
+        processing_view_id,
+        instance_space,
+        workflow_scope,
+        source_view_fingerprint,
+        record_instance_key,
+        record_external_id,
+        error_message,
+        attempt_count,
+    )
     client.data_modeling.instances.apply(nodes=[apply])
     if logger and hasattr(logger, "warning"):
-        logger.warning(f"Recorded KeyDiscoveryProcessingState failure externalId={ext_id}")
+        logger.warning(
+            "Recorded KeyDiscoveryProcessingState failure externalId=%s",
+            getattr(apply, "external_id", ""),
+        )
+
+
+def upsert_key_discovery_processing_state_failure_batch(
+    client: Any,
+    processing_view_id: ViewId,
+    instance_space: str,
+    items: List[Dict[str, Any]],
+    *,
+    logger: Optional[Any] = None,
+) -> None:
+    """Batch upsert failed Key Discovery processing-state nodes."""
+    if not items:
+        return
+    applies = [
+        _node_apply_key_discovery_processing_failure(
+            processing_view_id,
+            instance_space,
+            str(it["workflow_scope"]),
+            str(it.get("source_view_fingerprint") or ""),
+            str(it["record_instance_key"]),
+            str(it.get("record_external_id") or ""),
+            str(it.get("error_message") or ""),
+            int(it.get("attempt_count") or 1),
+        )
+        for it in items
+    ]
+    client.data_modeling.instances.apply(nodes=applies)
+    if logger and hasattr(logger, "debug"):
+        logger.debug(
+            "Upserted KeyDiscoveryProcessingState failure batch: %s node(s)",
+            len(applies),
+        )
 
 
 def view_id_for_key_discovery(

@@ -20,6 +20,7 @@ from .key_discovery_state_fdm import (
     load_key_discovery_scope_state_maps,
     read_key_discovery_high_watermark_ms,
     upsert_key_discovery_processing_state_success_batch,
+    upsert_key_discovery_processing_state_failure_batch,
     upsert_scope_checkpoint,
 )
 
@@ -99,7 +100,7 @@ def load_hash_by_node_for_scope(
     hash_index_cache: Any = None,
 ) -> Dict[str, str]:
     if backend is not None:
-        hash_by_node, _prior = load_key_discovery_scope_state_maps(
+        hash_by_node, _prior, _attempts = load_key_discovery_scope_state_maps(
             client,
             backend.processing_view_id,
             backend.instance_space,
@@ -169,6 +170,24 @@ def flush_key_discovery_processing_states(
     if backend is None or not pending:
         return
     upsert_key_discovery_processing_state_success_batch(
+        client,
+        backend.processing_view_id,
+        backend.instance_space,
+        pending,
+        logger=log,
+    )
+
+
+def flush_key_discovery_processing_failures(
+    client: Any,
+    backend: Optional[KeyDiscoveryIncrementalBackend],
+    pending: List[Dict[str, Any]],
+    *,
+    log: Any = None,
+) -> None:
+    if backend is None or not pending:
+        return
+    upsert_key_discovery_processing_state_failure_batch(
         client,
         backend.processing_view_id,
         backend.instance_space,

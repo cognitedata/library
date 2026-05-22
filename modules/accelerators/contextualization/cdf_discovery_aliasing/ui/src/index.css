@@ -2734,6 +2734,13 @@ code {
   z-index: 5 !important;
 }
 
+.discovery-flow-preview__canvas .react-flow__node.discovery-flow-node--run-warning {
+  outline: 2px solid var(--discovery-warning, #d97706);
+  outline-offset: 2px;
+  border-radius: var(--discovery-radius-sm);
+  z-index: 4 !important;
+}
+
 .discovery-flow-preview__canvas .react-flow__node.discovery-flow-node--run-completed {
   outline: 2px solid var(--discovery-success);
   outline-offset: 2px;
@@ -3168,6 +3175,13 @@ code {
   outline-offset: 2px;
   border-radius: var(--discovery-radius-sm);
   z-index: 5 !important;
+}
+
+.discovery-flow-canvas-wrap .react-flow__node.discovery-flow-node--run-warning {
+  outline: 2px solid var(--discovery-warning, #d97706);
+  outline-offset: 2px;
+  border-radius: var(--discovery-radius-sm);
+  z-index: 4 !important;
 }
 
 .discovery-flow-canvas-wrap .react-flow__node.discovery-flow-node--run-completed {

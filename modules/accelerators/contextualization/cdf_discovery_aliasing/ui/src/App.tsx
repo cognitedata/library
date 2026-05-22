@@ -175,6 +175,7 @@ export default function App() {
     []
   );
   const [canvasPreviewRunFailedCanvasNodeIds, setCanvasPreviewRunFailedCanvasNodeIds] = useState<string[]>([]);
+  const [canvasPreviewRunWarningCanvasNodeIds, setCanvasPreviewRunWarningCanvasNodeIds] = useState<string[]>([]);
   const [canvasPreviewRunBusy, setCanvasPreviewRunBusy] = useState(false);
   /** task_id → labels for streamed run log / “now executing” lines. */
   const localRunTaskMetaRef = useRef<Map<string, { fn?: string; node?: string }>>(new Map());
@@ -950,6 +951,7 @@ export default function App() {
     setCanvasPreviewRunActiveCanvasNodeIds([]);
     setCanvasPreviewRunCompletedCanvasNodeIds([]);
     setCanvasPreviewRunFailedCanvasNodeIds([]);
+    setCanvasPreviewRunWarningCanvasNodeIds([]);
     localRunTaskMetaRef.current = new Map();
     if (isConfigureDirty) {
       let saved = false;
@@ -1015,11 +1017,13 @@ export default function App() {
       const runActiveCanvas = new Set<string>();
       const runCompletedCanvas = new Set<string>();
       const runFailedCanvas = new Set<string>();
+      const runWarningCanvas = new Set<string>();
       const flushPreview = () => {
         setCanvasPreviewExecutingCanvasNodeIds([...executingCanvasNodes]);
         setCanvasPreviewRunActiveCanvasNodeIds([...runActiveCanvas]);
         setCanvasPreviewRunCompletedCanvasNodeIds([...runCompletedCanvas]);
         setCanvasPreviewRunFailedCanvasNodeIds([...runFailedCanvas]);
+        setCanvasPreviewRunWarningCanvasNodeIds([...runWarningCanvas]);
       };
       const appendExecutingLine = () => {
         if (activeTasks.size === 0) {
@@ -1112,6 +1116,7 @@ export default function App() {
           const canvas = (ev.canvas_node_id ?? "").trim();
           const statusRaw = typeof ev.status === "string" ? ev.status.trim().toLowerCase() : "";
           const failed = statusRaw === "failed";
+          const warned = statusRaw === "completed_with_errors";
           activeTasks.delete(taskId);
           localRunTaskMetaRef.current.delete(taskId);
           if (canvas) {
@@ -1119,9 +1124,15 @@ export default function App() {
             runActiveCanvas.delete(canvas);
             if (failed) {
               runFailedCanvas.add(canvas);
+              runWarningCanvas.delete(canvas);
               runCompletedCanvas.delete(canvas);
+            } else if (warned) {
+              runWarningCanvas.add(canvas);
+              runFailedCanvas.delete(canvas);
+              runCompletedCanvas.add(canvas);
             } else {
               runFailedCanvas.delete(canvas);
+              runWarningCanvas.delete(canvas);
               runCompletedCanvas.add(canvas);
             }
           }
@@ -1190,6 +1201,7 @@ export default function App() {
       runActiveCanvasNodeIds: canvasPreviewRunActiveCanvasNodeIds,
       runCompletedCanvasNodeIds: canvasPreviewRunCompletedCanvasNodeIds,
       failedCanvasNodeIds: canvasPreviewRunFailedCanvasNodeIds,
+      warningCanvasNodeIds: canvasPreviewRunWarningCanvasNodeIds,
     }),
     [
       canvasPreviewRunBusy,
@@ -1197,6 +1209,7 @@ export default function App() {
       canvasPreviewRunActiveCanvasNodeIds,
       canvasPreviewRunCompletedCanvasNodeIds,
       canvasPreviewRunFailedCanvasNodeIds,
+      canvasPreviewRunWarningCanvasNodeIds,
     ]
   );
 

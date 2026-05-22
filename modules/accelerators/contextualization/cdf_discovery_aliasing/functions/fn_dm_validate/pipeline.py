@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Any, Dict
 
+from cdf_fn_common.discovery_handler_result import apply_handler_output
+
 from fn_dm_validate.handler import handle
 
 

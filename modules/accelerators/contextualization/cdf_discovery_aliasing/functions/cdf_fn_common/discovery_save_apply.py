@@ -655,23 +655,10 @@ def run_discovery_save_with_status(
     client: Any,
     impl: Any,
 ) -> Dict[str, Any]:
-    """Run a save *impl* (summary dict), set ``data`` status on success, return Cognite-style response."""
-    from .function_logging import resolve_function_logger
+    """Run a save *impl* (summary dict); raise ``DiscoveryPipelineError`` on failure."""
+    from .discovery_handler_result import run_discovery_handler
 
-    log: Any = None
-    try:
-        log = resolve_function_logger(data, None)
-        if not client:
-            raise ValueError("CogniteClient is required")
-        summary = impl(fn_external_id, data, client, log)
-        msg = json.dumps(summary, default=str)
-        data["status"] = "succeeded"
-        data["message"] = msg
-        if log and hasattr(log, "info"):
-            log.info("%s complete", fn_external_id)
-        return {"status": "succeeded", "message": msg}
-    except Exception as ex:
-        message = f"{fn_external_id} failed: {ex!s}"
-        if log and hasattr(log, "error"):
-            log.error(message)
-        return {"status": "failure", "message": message}
+    def _impl(d: MutableMapping[str, Any], c: Any, log: Any) -> Dict[str, Any]:
+        return impl(fn_external_id, d, c, log)
+
+    return run_discovery_handler(fn_external_id, data, client, _impl)
