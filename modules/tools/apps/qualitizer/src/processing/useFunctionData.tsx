@@ -1,7 +1,8 @@
-import { useEffect, useLayoutEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { normalizeStatus, toTimestamp } from "@/shared/time-utils";
 import {
   DEFAULT_PROCESSING_EXECUTION_CAP,
+  FUNCTION_LIST_PAGE_SIZE,
   type FunctionRunSummary,
   type FunctionSummary,
   type LoadState,
@@ -11,8 +12,10 @@ import {
 import { useI18n } from "@/shared/i18n";
 import { withTransientRetries } from "@/shared/transient-http-retry";
 import {
+  isStaleProcessingFetch,
   noteForbiddenFailure,
   processingRequestStats,
+  useProcessingWindowSessionReset,
 } from "./processing-request-stats";
 
 type FunctionCallLogsApiResponse = {
@@ -41,6 +44,12 @@ type UseFunctionDataArgs = {
   windowRange: { start: number; end: number } | null;
   /** When false, diagram data for this series is not fetched (serial diagram loading). */
   fetchEnabled?: boolean;
+  /** Changes only when the selected hour window changes. */
+  windowSessionKey?: string;
+  /** Bumps when this series becomes active in the serial pass. */
+  fetchGeneration?: number;
+  /** Re-fetch runs only; keep catalog maps (Load all on a capped series). */
+  refetchExecutionsOnly?: boolean;
   /** Max function executions to collect; `null` means no limit (Load all). */
   executionLimit?: number | null;
 };
@@ -50,11 +59,15 @@ export function useFunctionData({
   sdk,
   windowRange,
   fetchEnabled = true,
+  windowSessionKey = "",
+  fetchGeneration = 0,
+  refetchExecutionsOnly = false,
   executionLimit = DEFAULT_PROCESSING_EXECUTION_CAP,
 }: UseFunctionDataArgs) {
   const { t } = useI18n();
   const [status, setStatus] = useState<LoadState>("idle");
   const [executionsTruncated, setExecutionsTruncated] = useState(false);
+  const [functionsCatalogMayBeIncomplete, setFunctionsCatalogMayBeIncomplete] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [availabilityMessage, setAvailabilityMessage] = useState<string | null>(null);
   const [runs, setRuns] = useState<FunctionRunSummary[]>([]);
@@ -63,6 +76,21 @@ export function useFunctionData({
   const [functionMetaMap, setFunctionMetaMap] = useState<Record<string, FunctionSummary>>({});
   const [loadProgress, setLoadProgress] = useState<ProcessingDataLoadProgress | null>(null);
   const [requestStats, setRequestStats] = useState<ProcessingRequestStats | null>(null);
+  const resetForNewWindow = useCallback(() => {
+    setStatus("idle");
+    setLoadProgress(null);
+    setExecutionsTruncated(false);
+    setFunctionsCatalogMayBeIncomplete(false);
+    setErrorMessage(null);
+    setAvailabilityMessage(null);
+    setRequestStats(null);
+    setRuns([]);
+    setLogMap({});
+    setFunctionNameMap({});
+    setFunctionMetaMap({});
+  }, []);
+
+  useProcessingWindowSessionReset(windowSessionKey, resetForNewWindow);
 
   const getFailureColor = (run: FunctionRunSummary) => {
     const funcId = run.functionId ?? "";
@@ -136,28 +164,42 @@ export function useFunctionData({
     }
   };
 
-  useLayoutEffect(() => {
-    if (!fetchEnabled || isSdkLoading || !windowRange) return;
-    setStatus("loading");
-  }, [fetchEnabled, isSdkLoading, windowRange?.start, windowRange?.end]);
-
   useEffect(() => {
-    if (!fetchEnabled) return;
+    if (!fetchEnabled) {
+      setLoadProgress(null);
+      return;
+    }
     if (isSdkLoading) return;
     if (!windowRange) return;
 
+    const generation = fetchGeneration;
+    if (!refetchExecutionsOnly) {
+      setStatus("loading");
+    }
     let cancelled = false;
     const loadRuns = async () => {
-      setStatus("loading");
+      const keepCatalog =
+        refetchExecutionsOnly &&
+        !functionsCatalogMayBeIncomplete &&
+        Object.keys(functionMetaMap).length > 0;
       setExecutionsTruncated(false);
       setErrorMessage(null);
       setAvailabilityMessage(null);
       setRequestStats(null);
-      setRuns([]);
       setLogMap({});
-      setFunctionNameMap({});
-      setFunctionMetaMap({});
-      setLoadProgress({ kind: "functions_list", loaded: 0 });
+      if (!keepCatalog) {
+        setFunctionsCatalogMayBeIncomplete(false);
+        setRuns([]);
+        setFunctionNameMap({});
+        setFunctionMetaMap({});
+        setLoadProgress({ kind: "functions_list", loaded: 0 });
+      } else {
+        setLoadProgress({
+          kind: "functions_runs",
+          current: 0,
+          total: Object.keys(functionMetaMap).length,
+        });
+      }
 
       try {
         const endWindow = windowRange.end;
@@ -169,26 +211,43 @@ export function useFunctionData({
         const listFunctions = async () => {
           const items: FunctionSummary[] = [];
           let cursor: string | undefined;
+          let listPages = 0;
+          let lastPageCount = 0;
           do {
             totalRequests++;
+            listPages += 1;
             try {
               const response = (await withTransientRetries(() =>
                 sdk.post(`/api/v1/projects/${sdk.project}/functions/list`, {
-                  data: JSON.stringify({ limit: 100, cursor }),
+                  data: JSON.stringify({ limit: FUNCTION_LIST_PAGE_SIZE, cursor }),
                 })
               )) as FunctionsListApiResponse;
-              items.push(...(response.data?.items ?? []));
+              const pageItems = response.data?.items ?? [];
+              lastPageCount = pageItems.length;
+              items.push(...pageItems);
               cursor = response.data?.nextCursor ?? undefined;
             } catch (e) {
               failedRequests++;
               noteForbiddenFailure(permissionsDenied, e);
               throw e;
             }
-            if (!cancelled) {
-              setLoadProgress({ kind: "functions_list", loaded: items.length });
+            if (!cancelled && !isStaleProcessingFetch(fetchGeneration, generation)) {
+              setLoadProgress({
+                kind: "functions_list",
+                loaded: items.length,
+                pages: listPages,
+                pageSize: FUNCTION_LIST_PAGE_SIZE,
+              });
             }
           } while (cursor);
-          return items;
+          return {
+            items,
+            listPages,
+            mayBeIncomplete:
+              listPages === 1 &&
+              lastPageCount === FUNCTION_LIST_PAGE_SIZE &&
+              items.length === FUNCTION_LIST_PAGE_SIZE,
+          };
         };
 
         const listRunsForFunction = async (functionId: string, cursor?: string) => {
@@ -217,20 +276,27 @@ export function useFunctionData({
           };
         };
 
-        const functions = await listFunctions();
-        if (!cancelled) {
-          const nameMap: Record<string, string> = {};
-          const metaMap: Record<string, FunctionSummary> = {};
-          for (const fn of functions) {
-            nameMap[fn.id] = fn.name ?? t("processing.function.defaultName", { id: fn.id });
-            metaMap[fn.id] = fn;
+        let functions: FunctionSummary[];
+        if (keepCatalog) {
+          functions = Object.values(functionMetaMap);
+        } else {
+          const functionCatalog = await listFunctions();
+          functions = functionCatalog.items;
+          if (!cancelled && !isStaleProcessingFetch(fetchGeneration, generation)) {
+            setFunctionsCatalogMayBeIncomplete(functionCatalog.mayBeIncomplete);
+            const nameMap: Record<string, string> = {};
+            const metaMap: Record<string, FunctionSummary> = {};
+            for (const fn of functions) {
+              nameMap[fn.id] = fn.name ?? t("processing.function.defaultName", { id: fn.id });
+              metaMap[fn.id] = fn;
+            }
+            setFunctionNameMap(nameMap);
+            setFunctionMetaMap(metaMap);
           }
-          setFunctionNameMap(nameMap);
-          setFunctionMetaMap(metaMap);
         }
 
         const totalFns = functions.length;
-        if (!cancelled) {
+        if (!cancelled && !isStaleProcessingFetch(fetchGeneration, generation)) {
           setLoadProgress({ kind: "functions_runs", current: 0, total: totalFns });
         }
 
@@ -264,23 +330,27 @@ export function useFunctionData({
             noteForbiddenFailure(permissionsDenied, e);
           }
           fnIndex += 1;
-          if (!cancelled && (fnIndex % 3 === 0 || fnIndex === totalFns)) {
+          if (
+            !cancelled &&
+            !isStaleProcessingFetch(fetchGeneration, generation) &&
+            (fnIndex % 3 === 0 || fnIndex === totalFns)
+          ) {
             setLoadProgress({ kind: "functions_runs", current: fnIndex, total: totalFns });
           }
-          if (!cancelled) {
+          if (!cancelled && !isStaleProcessingFetch(fetchGeneration, generation)) {
             setRuns([...collected]);
           }
         }
 
         for (const run of collected) {
-          if (cancelled) return;
+          if (cancelled || isStaleProcessingFetch(fetchGeneration, generation)) return;
           const statusValue = normalizeStatus(run.status);
           if (!statusValue.includes("failed") && !statusValue.includes("timeout")) continue;
           if (!run.functionId || !run.id) continue;
           await fetchRunLogs(run);
         }
 
-        if (!cancelled) {
+        if (!cancelled && !isStaleProcessingFetch(fetchGeneration, generation)) {
           setRuns(collected);
           setExecutionsTruncated(hitExecutionCap);
           setLoadProgress(null);
@@ -290,7 +360,7 @@ export function useFunctionData({
           setStatus("success");
         }
       } catch (error) {
-        if (!cancelled) {
+        if (!cancelled && !isStaleProcessingFetch(fetchGeneration, generation)) {
           setLoadProgress(null);
           setRequestStats(null);
           const message = error instanceof Error ? error.message : t("processing.error.runs");
@@ -309,7 +379,17 @@ export function useFunctionData({
     return () => {
       cancelled = true;
     };
-  }, [executionLimit, fetchEnabled, isSdkLoading, sdk, windowRange, t]);
+  }, [
+    executionLimit,
+    fetchEnabled,
+    fetchGeneration,
+    isSdkLoading,
+    refetchExecutionsOnly,
+    sdk,
+    windowRange?.start,
+    windowRange?.end,
+    t,
+  ]);
 
   const failureDurationMs = useMemo(() => {
     const failureStatuses = ["failed", "failure", "timeout", "timed_out"];
@@ -326,6 +406,9 @@ export function useFunctionData({
   return {
     status,
     executionsTruncated,
+    functionsCatalogMayBeIncomplete,
+    functionsCatalogCount:
+      status === "success" || status === "loading" ? Object.keys(functionNameMap).length : 0,
     loadProgress,
     requestStats,
     errorMessage,

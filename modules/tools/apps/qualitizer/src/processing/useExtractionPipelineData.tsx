@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { normalizeStatus, toTimestampLoose } from "@/shared/time-utils";
 import {
   DEFAULT_PROCESSING_EXECUTION_CAP,
@@ -11,8 +11,10 @@ import {
 import { useI18n } from "@/shared/i18n";
 import { withTransientRetries } from "@/shared/transient-http-retry";
 import {
+  isStaleProcessingFetch,
   noteForbiddenFailure,
   processingRequestStats,
+  useProcessingWindowSessionReset,
 } from "./processing-request-stats";
 
 type ExtPipesListApiResponse = {
@@ -34,6 +36,9 @@ type UseExtractionPipelineDataArgs = {
   sdk: { project: string; get: Function; post: Function };
   windowRange: { start: number; end: number } | null;
   fetchEnabled?: boolean;
+  windowSessionKey?: string;
+  fetchGeneration?: number;
+  refetchExecutionsOnly?: boolean;
   executionLimit?: number | null;
 };
 
@@ -42,6 +47,9 @@ export function useExtractionPipelineData({
   sdk,
   windowRange,
   fetchEnabled = true,
+  windowSessionKey = "",
+  fetchGeneration = 0,
+  refetchExecutionsOnly = false,
   executionLimit = DEFAULT_PROCESSING_EXECUTION_CAP,
 }: UseExtractionPipelineDataArgs) {
   const { t } = useI18n();
@@ -55,17 +63,32 @@ export function useExtractionPipelineData({
   const [loadProgress, setLoadProgress] = useState<ProcessingDataLoadProgress | null>(null);
   const [requestStats, setRequestStats] = useState<ProcessingRequestStats | null>(null);
 
-  useLayoutEffect(() => {
-    if (!fetchEnabled || isSdkLoading) return;
-    setExtractorsStatus("loading");
-  }, [fetchEnabled, isSdkLoading]);
+  const resetForNewWindow = useCallback(() => {
+    setExtractorsStatus("idle");
+    setLoadProgress(null);
+    setExecutionsTruncated(false);
+    setExtractorsError(null);
+    setRequestStats(null);
+    setExtractorConfigs([]);
+    setExtractorRunsAll([]);
+  }, []);
+
+  useProcessingWindowSessionReset(windowSessionKey, resetForNewWindow);
 
   useEffect(() => {
-    if (!fetchEnabled) return;
+    if (!fetchEnabled) {
+      setLoadProgress(null);
+      return;
+    }
     if (isSdkLoading) return;
+    if (refetchExecutionsOnly && extractorConfigs.length > 0) return;
+
+    const generation = fetchGeneration;
+    if (!refetchExecutionsOnly) {
+      setExtractorsStatus("loading");
+    }
     let cancelled = false;
     const loadExtractorConfigs = async () => {
-      setExtractorsStatus("loading");
       setExtractorsError(null);
       setRequestStats(null);
       setExtractorConfigs([]);
@@ -82,12 +105,12 @@ export function useExtractionPipelineData({
           )) as ExtPipesListApiResponse;
           configs.push(...(response.data?.items ?? []));
           cursor = response.data?.nextCursor ?? undefined;
-          if (!cancelled) {
+          if (!cancelled && !isStaleProcessingFetch(fetchGeneration, generation)) {
             setLoadProgress({ kind: "extractors_list", loaded: configs.length });
           }
         } while (cursor);
 
-        if (!cancelled) {
+        if (!cancelled && !isStaleProcessingFetch(fetchGeneration, generation)) {
           setExtractorConfigs(configs);
           setLoadProgress(null);
           if (configs.length === 0) {
@@ -96,7 +119,7 @@ export function useExtractionPipelineData({
           }
         }
       } catch (error) {
-        if (!cancelled) {
+        if (!cancelled && !isStaleProcessingFetch(fetchGeneration, generation)) {
           setLoadProgress(null);
           setRequestStats(null);
           setExtractorsError(
@@ -111,22 +134,37 @@ export function useExtractionPipelineData({
     return () => {
       cancelled = true;
     };
-  }, [fetchEnabled, isSdkLoading, sdk, t]);
+  }, [
+    fetchEnabled,
+    fetchGeneration,
+    isSdkLoading,
+    refetchExecutionsOnly,
+    sdk,
+    t,
+    windowRange?.start,
+    windowRange?.end,
+  ]);
 
   useEffect(() => {
-    if (!fetchEnabled) return;
-    if (isSdkLoading || !windowRange) return;
-    if (extractorConfigs.length === 0) {
-      setExtractorRunsAll([]);
+    if (!fetchEnabled) {
+      setLoadProgress(null);
       return;
     }
+    if (isSdkLoading || !windowRange) return;
+    if (extractorConfigs.length === 0) {
+      if (!refetchExecutionsOnly) setExtractorRunsAll([]);
+      return;
+    }
+
+    const generation = fetchGeneration;
     let cancelled = false;
     const loadExtractorRuns = async () => {
-      setExtractorsStatus("loading");
       setExecutionsTruncated(false);
       setExtractorsError(null);
       setRequestStats(null);
-      setExtractorRunsAll([]);
+      if (!refetchExecutionsOnly) {
+        setExtractorRunsAll([]);
+      }
       const totalPipelines = extractorConfigs.length;
       if (totalPipelines > 0) {
         setLoadProgress({ kind: "extractors_runs", current: 0, total: totalPipelines });
@@ -247,7 +285,11 @@ export function useExtractionPipelineData({
             }
           }
           pipelineIndex += 1;
-          if (!cancelled && (pipelineIndex % 3 === 0 || pipelineIndex === totalPipelines)) {
+          if (
+            !cancelled &&
+            !isStaleProcessingFetch(fetchGeneration, generation) &&
+            (pipelineIndex % 3 === 0 || pipelineIndex === totalPipelines)
+          ) {
             setLoadProgress({
               kind: "extractors_runs",
               current: pipelineIndex,
@@ -256,7 +298,7 @@ export function useExtractionPipelineData({
           }
         }
 
-        if (!cancelled) {
+        if (!cancelled && !isStaleProcessingFetch(fetchGeneration, generation)) {
           setExtractorRunsAll(runs);
           setExecutionsTruncated(hitExecutionCap);
           setLoadProgress(null);
@@ -266,7 +308,7 @@ export function useExtractionPipelineData({
           setExtractorsStatus("success");
         }
       } catch (error) {
-        if (!cancelled) {
+        if (!cancelled && !isStaleProcessingFetch(fetchGeneration, generation)) {
           setLoadProgress(null);
           setRequestStats(null);
           setExtractorsError(
@@ -281,7 +323,18 @@ export function useExtractionPipelineData({
     return () => {
       cancelled = true;
     };
-  }, [executionLimit, fetchEnabled, isSdkLoading, sdk, extractorConfigs, windowRange, t]);
+  }, [
+    fetchGeneration,
+    executionLimit,
+    extractorConfigs.length,
+    fetchEnabled,
+    isSdkLoading,
+    refetchExecutionsOnly,
+    sdk,
+    windowRange?.start,
+    windowRange?.end,
+    t,
+  ]);
 
   const extractorConfigMap = useMemo(() => {
     return extractorConfigs.reduce<Record<string, ExtPipeConfigSummary>>((acc, config) => {

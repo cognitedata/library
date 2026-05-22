@@ -50,7 +50,7 @@ const translations: Record<Language, Record<string, string>> = {
     "processing.loading.extractors": "Loading extraction pipelines...",
     "processing.progress.panelTitle": "Background requests",
     "processing.progress.functions.list":
-      "Functions · POST /functions/list — {count} definitions loaded so far",
+      "Functions · POST /functions/list — {count} definitions loaded ({pages} page(s), {pageSize} per request)",
     "processing.progress.functions.runs":
       "Functions · POST /functions/…/calls/list — {current} of {total} functions queried ({remaining} remaining)",
     "processing.progress.transformations.list":
@@ -78,6 +78,15 @@ const translations: Record<Language, Record<string, string>> = {
     "processing.executions.sampleLineWorkflows": "Workflows",
     "processing.executions.sampleLineExtractors": "Extraction pipelines",
     "processing.executions.loadAll": "Load all executions",
+    "processing.executions.reloadingTitle": "Loading all executions",
+    "processing.executions.reloadingActive": "{series}: {detail}",
+    "processing.executions.reloadingQueued": "Queued next: {list}",
+    "processing.executions.reloadingStarting": "{series}: starting…",
+    "processing.functions.catalog.title": "Function catalog may be incomplete",
+    "processing.functions.catalog.body":
+      "Exactly {count} function definitions were returned in one API page (limit {pageSize} per request). If your project has more functions in CDF, the diagram may omit them until pagination returns additional pages.",
+    "processing.card.concurrency.limits":
+      "Function runs are capped at {executionCap} per series by default (Load all to remove). The function catalog is listed via paginated POST /functions/list requests ({listPageSize} per page).",
     "processing.error.runs": "Failed to load function executions.",
     "processing.function.defaultName": "Function {id}",
     "processing.error.transformations": "Failed to load transformations.",
@@ -1114,7 +1123,7 @@ const translations: Record<Language, Record<string, string>> = {
     "processing.loading.extractors": "抽出パイプラインを読み込み中...",
     "processing.progress.panelTitle": "バックグラウンドのリクエスト",
     "processing.progress.functions.list":
-      "関数 · POST /functions/list — これまでに {count} 件の定義を取得",
+      "関数 · POST /functions/list — {count} 件の定義を取得（{pages} ページ、1 リクエストあたり {pageSize} 件）",
     "processing.progress.functions.runs":
       "関数 · POST /functions/…/calls/list — {total} 件中 {current} 件を取得済み（残り {remaining} 件）",
     "processing.progress.transformations.list":
@@ -1142,6 +1151,15 @@ const translations: Record<Language, Record<string, string>> = {
     "processing.executions.sampleLineWorkflows": "ワークフロー",
     "processing.executions.sampleLineExtractors": "抽出パイプライン",
     "processing.executions.loadAll": "すべての実行を読み込む",
+    "processing.executions.reloadingTitle": "すべての実行を読み込み中",
+    "processing.executions.reloadingActive": "{series}: {detail}",
+    "processing.executions.reloadingQueued": "次に読み込み: {list}",
+    "processing.executions.reloadingStarting": "{series}: 開始中…",
+    "processing.functions.catalog.title": "関数カタログが不完全な可能性",
+    "processing.functions.catalog.body":
+      "関数定義が 1 回の API ページでちょうど {count} 件返されました（1 リクエストあたり {pageSize} 件）。CDF にそれ以上の関数がある場合、追加ページが返るまで図から漏れることがあります。",
+    "processing.card.concurrency.limits":
+      "関数実行は既定で各系列あたり最大 {executionCap} 件まで（「すべての実行を読み込む」で解除）。関数カタログは POST /functions/list をページング取得します（1 ページあたり {listPageSize} 件）。",
     "processing.error.runs": "関数実行の読み込みに失敗しました。",
     "processing.function.defaultName": "関数 {id}",
     "processing.error.transformations": "変換の読み込みに失敗しました。",
