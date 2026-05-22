@@ -71,6 +71,7 @@ def resolve_task_filenames(config: dict) -> list[str]:
 
 
 def load_tasks(filenames: list[str]) -> list[dict]:
+    """Load task snippet YAML files from workflow_template/tasks/ in order."""
     tasks = []
     for fn in filenames:
         path = TASKS_DIR / fn
