@@ -1,0 +1,2 @@
+-- SAP Equipment → Equipment
+-- TODO: Add SELECT from `db_{{location}}_sap.equipment` RAW table, mapping to Equipment view fields

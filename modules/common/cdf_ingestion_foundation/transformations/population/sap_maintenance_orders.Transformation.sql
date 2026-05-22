@@ -1,0 +1,2 @@
+-- SAP Work Orders → WorkOrder
+-- TODO: Add SELECT from `db_{{location}}_sap.workorder` RAW table, mapping to WorkOrder view fields

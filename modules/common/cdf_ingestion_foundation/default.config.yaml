@@ -1,0 +1,59 @@
+# CDF Ingestion Foundation — configuration variables
+
+# Site/location code — used in all externalIds (e.g. wf_{{location}}_ingestion, tr_pi_timeseries_{{location}}_to_isa)
+# Must match the location value set in all deployed source system modules
+location: "site1"
+
+# Dataset used to scope workflow group ACLs — must match the dataset used by source system modules
+dataset: "ds_ingestion"
+
+# ── Data model destination ────────────────────────────────────────────────────
+# Schema space where ISA Manufacturing Extension views are defined.
+# Must match isaSchemaSpace in the isa_manufacturing_extension model module.
+isaSchemaSpace: "sp_isa_manufacturing"
+
+# Space where DM instances (ISAAsset, Equipment, WorkOrder, …) are written.
+# Must match the instanceSpace used by the source system modules.
+instanceSpace: "sp_isa_instance_space"
+
+# Version of the ISA Manufacturing Extension views (e.g. v1).
+viewVersion: "v1"
+
+# ── Source dataset references ─────────────────────────────────────────────────
+# dataSetExternalId used by cdf_pi_foundation — filters the timeseries() read
+piDataset: "ds_pi"
+
+# dataSetExternalId used by cdf_opcua_foundation — filters the timeseries() read
+opcuaDataset: "ds_opcua"
+
+# sysTagsFound is not a property on ISATimeSeries or CFIHOS views — set to false for dp:foundation.
+# Set to true only if you have extended the target view with a sysTagsFound property.
+populateSysTagsFound: "false"
+
+# Workflow external ID and schedule
+workflow: "wf_{{location}}_ingestion"
+workflowSchedule: "0 2 * * *"    # daily 02:00 UTC; use "0 0 29 2 *" to effectively disable
+
+# Workflow trigger authentication — set to the workflow service account credentials
+workflowClientId: "${IDP_CLIENT_ID}"
+workflowClientSecret: "${IDP_CLIENT_SECRET}"
+
+# IDP source IDs for workflow groups
+workflowGroupSourceId: ""
+workflowUserGroupSourceId: ""
+
+# Which source system modules are deployed at this site
+# Set to false for any source system not deployed
+enabledSources:
+  pi: true
+  opcua: false
+  sap: true
+
+# Contextualization tasks to include in the second workflow phase
+# Driven by dataModelVariant — only override if needed
+enabledContextualization:
+  isaRelationships: true    # equipment_to_asset and operation_to_order (isa_manufacturing_extension)
+
+# Data model variant — controls which ctx task snippets are included
+# Supported: isa_manufacturing_extension | cfihos_oil_and_gas
+dataModelVariant: isa_manufacturing_extension

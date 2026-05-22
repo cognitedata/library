@@ -1,0 +1,13 @@
+externalId: "tr_sap_maintenance_orders_{{location}}_to_isa"
+dataSetExternalId: "{{dataset}}"
+name: "SAP Work Orders → WorkOrder ({{location}})"
+destination:
+  type: nodes
+  view:
+    space: "{{isaSchemaSpace}}"
+    externalId: WorkOrder
+    version: "{{viewVersion}}"
+  instanceSpace: "{{instanceSpace}}"
+conflictMode: upsert
+isPublic: true
+ignoreNullFields: true
