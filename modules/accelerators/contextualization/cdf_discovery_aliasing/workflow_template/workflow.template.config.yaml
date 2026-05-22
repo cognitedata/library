@@ -1,6 +1,22 @@
 name: ''
 schemaVersion: 1
 compile_workflow_dag: canvas
+key_extraction:
+  externalId: ctx_key_extraction_workflow_local
+  config:
+    parameters:
+      incremental_change_processing: true
+      incremental_skip_unchanged_source_inputs: true
+      raw_db: db_discovery
+      raw_table_key: discovery_state
+      workflow_scope: workflow_local
+      key_discovery_schema_space: dm_key_discovery
+      key_discovery_dm_version: v1
+      cdm_view_version: v1
+      key_discovery_instance_space: ''
+scope:
+  id: workflow_local
+  name: Local workflow
 canvas:
   schemaVersion: 1
   nodes:
@@ -8,7 +24,7 @@ canvas:
     kind: confidence_filter
     position:
       x: 960
-      y: -142.5
+      y: -143.5
     data:
       label: Confidence filter for inverted index
       handler_family: discovery
@@ -18,59 +34,17 @@ canvas:
         min_confidence: 0.8
         comparison: gte
         drop_row_if_empty: true
-  - id: cf_save
-    kind: confidence_filter
-    position:
-      x: 1214
-      y: -127
-    data:
-      label: Confidence filter before save
-      handler_family: discovery
-      config:
-        description: Confidence filter before save
-        value_field: aliases
-        min_confidence: 0
-        comparison: gte
-        drop_row_if_empty: true
   - id: en
     kind: end
     position:
-      x: 1930
-      y: -29
+      x: 1676
+      y: -30.5
     data: {}
-  - id: fl_ii
-    kind: instance_filter
-    position:
-      x: 1214
-      y: 18
-    data:
-      label: Instance filter for inverted index
-      handler_family: discovery
-      config:
-        description: Instance filter for inverted index
-        filters:
-        - operator: EXISTS
-          target_property: indexKey
-          property_scope: view
-  - id: fl_save
-    kind: instance_filter
-    position:
-      x: 1468
-      y: -102.5
-    data:
-      label: Instance filter before save
-      handler_family: discovery
-      config:
-        description: Instance filter before save
-        filters:
-        - operator: EXISTS
-          target_property: aliases
-          property_scope: view
   - id: ii
     kind: inverted_index
     position:
-      x: 1468
-      y: 25.5
+      x: 1214
+      y: -111.5
     data:
       label: Inverted index
       handler_family: discovery
@@ -89,7 +63,7 @@ canvas:
     kind: transform
     position:
       x: 452
-      y: -441.5
+      y: -467.5
     data:
       label: File Alias
       handler_family: discovery
@@ -113,7 +87,7 @@ canvas:
     kind: transform
     position:
       x: 452
-      y: -313.5
+      y: -338.5
     data:
       label: 'Index Key: Name → Description'
       handler_family: discovery
@@ -166,7 +140,7 @@ canvas:
     kind: validation
     position:
       x: 706
-      y: -134
+      y: -143
     data:
       label: Asset validation — ISA → shape → blacklist
       handler_family: discovery
@@ -274,26 +248,26 @@ canvas:
     kind: join
     position:
       x: 452
-      y: -152.5
+      y: -176.5
     data:
       label: 'Aliases: Mapping Table Join (RAW)'
       handler_family: discovery
       preset_from_palette: true
       config:
-        description: Join — CogniteAsset name ↔ RAW alias row key (asset_aliases)
+        description: Join — CogniteAsset name ↔ RAW alias row name (asset_aliases)
         join_type: inner
         right_prefix: ''
         join_on:
           and:
           - operator: IEQUALS
             left_property: name
-            right_property: raw_columns.key
+            right_property: raw_columns.name
     enabled: false
   - id: n_1778877489862_8uun2ui1
     kind: query_raw
     position:
       x: 198
-      y: -280
+      y: -288.5
     data:
       label: Alias Mapping Table
       handler_family: discovery
@@ -307,7 +281,7 @@ canvas:
     kind: transform
     position:
       x: 706
-      y: 42
+      y: 34
     data:
       label: 'Aliases: Explicit Aliases'
       handler_family: discovery
@@ -342,7 +316,7 @@ canvas:
     kind: transform
     position:
       x: 452
-      y: 8.5
+      y: 1.5
     data:
       label: 'Aliases: Name - Passthrough'
       handler_family: discovery
@@ -472,51 +446,79 @@ canvas:
             mode: explicit
             value: 0
         min_confidence: 0.5
+  - id: n_1779401605162_hg11jjx2
+    kind: confidence_filter
+    position:
+      x: 1214
+      y: 1.5
+    data:
+      label: Confidence filter for inverted index
+      handler_family: discovery
+      config:
+        description: Confidence filter for inverted index
+        value_field: aliases
+        min_confidence: 0
+        comparison: gte
+        drop_row_if_empty: true
   - id: st
     kind: start
     position:
       x: 0
-      y: -29
+      y: -30.5
     data: {}
   - id: tr
     kind: transform
     position:
       x: 452
-      y: 138.5
+      y: 131.5
     data:
       label: 'Aliases: Tag Based'
       handler_family: discovery
       preset_from_palette: true
-      handler_id: trim_whitespace
+      handler_id: regex_substitution
       config:
-        description: Extract Tag Alias from Name
-        handler_id: trim_whitespace
         enabled: true
-        fields:
-        - regex_options:
-            ignore_case: false
-            multiline: false
-            dotall: false
-            unicode: true
-          field_name: name
-          required: true
-          priority: 1
-          regex: (?<![\d-])(?:\b|(?<=_))(?:\d{1,8}-?)?[A-Z]{1,8}-?\d{1,10}(?:-\d{1,6})*[A-Z]?\b
-          max_matches_per_field: 10
-        output_field: aliases
-        output_template: '{name}'
-        output_mode: append
-        regex_substitution:
-          patterns:
-          - pattern: ^\d+-
-            replacement: ''
-        trim_whitespace:
-          mode: ends_only
+        execution:
+          mode: ordered
+        steps:
+        - description: Extract tag alias from name (and unit when present)
+          handler_id: regex_substitution
+          enabled: true
+          fields:
+          - regex_options:
+              ignore_case: false
+              multiline: false
+              dotall: false
+              unicode: true
+            field_name: name
+            required: true
+            priority: 1
+            regex: (?<![\d-])(?:\b|(?<=_))(?:\d{1,8}-?)?[A-Z]{1,8}-?\d{1,10}(?:-\d{1,6})*[A-Z]?\b
+            max_matches_per_field: 10
+          output_field: _tagAliasDraft
+          output_template: '{name}'
+          output_mode: overwrite
+          regex_substitution:
+            patterns: []
+        - description: Strip numeric unit prefix and append to aliases
+          handler_id: regex_substitution
+          enabled: true
+          fields:
+          - field_name: _tagAliasDraft
+          output_field: aliases
+          output_template: '{_tagAliasDraft}'
+          output_mode: append
+          regex_substitution:
+            patterns:
+            - pattern: ^\d+-
+              replacement: ''
+        description: Extract tag alias from name; strip leading numeric prefix; append
+          to aliases
   - id: tr_ts
     kind: transform
     position:
       x: 452
-      y: 266.5
+      y: 291.5
     data:
       label: 'Time Series Alias: Instrument tag → Time Series Alias: Heuristic (name)'
       handler_family: discovery
@@ -558,7 +560,7 @@ canvas:
     kind: query_view
     position:
       x: 198
-      y: -136
+      y: -127.5
     data:
       config:
         description: cdf_cdm CogniteAsset — discovery list
@@ -566,23 +568,16 @@ canvas:
         view_space: cdf_cdm
         view_external_id: CogniteAsset
         view_version: v1
-        filters:
-        - operator: CONTAINSANY
-          target_property: tags
-          values:
-          - asset_tag
+        filters: []
         include_properties:
-        - externalId
         - name
         - description
-        - tags
-        - unit
       label: Asset Query
   - id: vq_eq
     kind: query_view
     position:
       x: 198
-      y: -23
+      y: -14.5
     data:
       config:
         description: cdf_cdm CogniteEquipment — discovery list
@@ -599,7 +594,7 @@ canvas:
     kind: query_view
     position:
       x: 198
-      y: 90
+      y: 98.5
     data:
       config:
         description: cdf_cdm CogniteFile — discovery list
@@ -625,7 +620,7 @@ canvas:
     kind: query_view
     position:
       x: 198
-      y: 203
+      y: 211.5
     data:
       config:
         description: cdf_cdm CogniteTimeSeries — discovery list
@@ -643,7 +638,7 @@ canvas:
   - id: vs
     kind: save_view
     position:
-      x: 1722
+      x: 1468
       y: -38.5
     data:
       config:
@@ -737,45 +732,9 @@ canvas:
     source_handle: out
     target_handle: in
     kind: data
-  - id: n_1779144453795_smzu3mq0
-    source: n_1779138030450_ilvkx2u7
-    target: cf_save
-    source_handle: out
-    target_handle: in
-    kind: data
-  - id: xy-edge__n_1778825555896_yb0o2sr8out-cf_savein
-    source: n_1778825555896_yb0o2sr8
-    target: cf_save
-    source_handle: out
-    target_handle: in
-    kind: data
-  - id: e_cf_save_to_fl_save
-    source: cf_save
-    target: fl_save
-    source_handle: out
-    target_handle: in
-    kind: data
-  - id: e_fl_save_to_vs
-    source: fl_save
-    target: vs
-    source_handle: out
-    target_handle: in
-    kind: data
   - id: n_1779144444954_0w0f16eb
     source: n_1778828796157_r1tixf2w
     target: cf_ii
-    source_handle: out
-    target_handle: in
-    kind: data
-  - id: e_cf_ii_to_fl_ii
-    source: cf_ii
-    target: fl_ii
-    source_handle: out
-    target_handle: in
-    kind: data
-  - id: e_fl_ii_to_ii
-    source: fl_ii
-    target: ii
     source_handle: out
     target_handle: in
     kind: data
@@ -854,6 +813,24 @@ canvas:
   - id: n_1779144453795_zhxx6awk
     source: n_1779113654105_b062nmdc
     target: n_1779138030450_ilvkx2u7
+    source_handle: out
+    target_handle: in
+    kind: data
+  - id: xy-edge__cf_iiout-iiin
+    source: cf_ii
+    target: ii
+    source_handle: out
+    target_handle: in
+    kind: data
+  - id: xy-edge__n_1779138030450_ilvkx2u7out-n_1779401605162_hg11jjx2in
+    source: n_1779138030450_ilvkx2u7
+    target: n_1779401605162_hg11jjx2
+    source_handle: out
+    target_handle: in
+    kind: data
+  - id: xy-edge__n_1779401605162_hg11jjx2out-vsin
+    source: n_1779401605162_hg11jjx2
+    target: vs
     source_handle: out
     target_handle: in
     kind: data

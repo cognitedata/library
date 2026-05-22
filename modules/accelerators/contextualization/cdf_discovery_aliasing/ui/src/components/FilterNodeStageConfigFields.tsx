@@ -43,10 +43,10 @@ export function FilterNodeStageConfigFields({
 
   return (
     <>
-      <label className="kea-label kea-label--block">
+      <label className="discovery-label discovery-label--block">
         {_t("filters.description")}
         <DeferredCommitInput
-          className="kea-input"
+          className="discovery-input"
           style={{ marginTop: "0.35rem" }}
           committedValue={cfg.description != null ? String(cfg.description) : ""}
           syncKey={`${fieldKey}-desc`}

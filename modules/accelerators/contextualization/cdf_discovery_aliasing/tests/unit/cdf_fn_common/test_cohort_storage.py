@@ -16,6 +16,7 @@ if str(_FUNCS) not in sys.path:
 from cdf_fn_common.cohort_storage import (  # noqa: E402
     fan_in_cohort_props_by_instance,
     instance_cohort_row_key,
+    iter_cohort_entity_rows,
     node_cohort_table_name,
     predecessor_canvas_node_ids,
     run_node_table_prefix,
@@ -110,3 +111,25 @@ def test_node_table_and_row_key() -> None:
     prefix = run_node_table_prefix("discovery_state", rid)
     assert tbl.startswith(prefix)
     assert instance_cohort_row_key("sp1:x", "scope1") == "scope1:sp1:x"
+
+
+def test_node_cohort_table_name_within_cdf_raw_limit() -> None:
+    rid = "20260521T161459.999880Z-1de94866e556"
+    long_node = "n_1778877489862_8uun2ui1"
+    tbl = node_cohort_table_name("discovery_state", rid, long_node)
+    assert len(tbl) <= 64
+    assert tbl.startswith(run_node_table_prefix("discovery_state", rid))
+
+
+def test_iter_cohort_entity_rows_missing_table_is_empty(monkeypatch) -> None:
+    from cognite.client.exceptions import CogniteAPIError
+
+    def _raise(*_a, **_k):
+        raise CogniteAPIError("Following tables not found: missing_tbl", code=404)
+
+    monkeypatch.setattr(
+        "cdf_fn_common.cohort_storage.iter_raw_table_rows_chunked",
+        _raise,
+    )
+    rows = list(iter_cohort_entity_rows(MagicMock(), "db_discovery", "missing_tbl"))
+    assert rows == []

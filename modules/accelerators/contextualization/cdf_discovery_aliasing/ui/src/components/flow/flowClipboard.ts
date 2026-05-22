@@ -9,9 +9,9 @@ import {
 } from "./flowDocumentBridge";
 
 export const FLOW_CLIPBOARD_VERSION = 1;
-export const FLOW_CLIPBOARD_PREFIX = "__KEA_FLOW_V1__\n";
+export const FLOW_CLIPBOARD_PREFIX = "__DISCOVERY_FLOW_V1__\n";
 
-const NON_COPYABLE_RF_TYPES = new Set(["keaStart", "keaEnd"]);
+const NON_COPYABLE_RF_TYPES = new Set(["discoveryStart", "discoveryEnd"]);
 
 const DEFAULT_PASTE_OFFSET = { x: 48, y: 48 };
 
@@ -145,8 +145,9 @@ export function serializeFlowClipboardPayload(payload: FlowClipboardPayload): st
 export function parseFlowClipboardText(text: string): FlowClipboardPayload | null {
   const trimmed = text.trim();
   if (!trimmed.startsWith(FLOW_CLIPBOARD_PREFIX)) return null;
+  const prefix = FLOW_CLIPBOARD_PREFIX;
   try {
-    const raw = JSON.parse(trimmed.slice(FLOW_CLIPBOARD_PREFIX.length)) as FlowClipboardPayload;
+    const raw = JSON.parse(trimmed.slice(prefix.length)) as FlowClipboardPayload;
     if (raw?.version !== FLOW_CLIPBOARD_VERSION || !Array.isArray(raw.nodes) || !Array.isArray(raw.edges)) {
       return null;
     }
@@ -158,7 +159,7 @@ export function parseFlowClipboardText(text: string): FlowClipboardPayload | nul
 
 export function isFlowKeyboardShortcutBlockedTarget(t: EventTarget | null): boolean {
   if (!(t instanceof HTMLElement)) return false;
-  if (t.closest("[data-kea-flow-undo-ignore='true']")) return true;
+  if (t.closest("[data-discovery-flow-undo-ignore='true']")) return true;
   if (t.isContentEditable) return true;
   const tag = t.tagName;
   if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return true;

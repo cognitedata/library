@@ -47,7 +47,7 @@ export function defaultJoinOnRoot(): JsonObject {
       {
         operator: "IEQUALS",
         left_property: "name",
-        right_property: "raw_columns.key",
+        right_property: "raw_columns.name",
       },
     ],
   };
@@ -116,13 +116,13 @@ export function JoinOnPredicateEditor({ t, value, onChange, onRemove, depth = 0 
     const arr = (Array.isArray(value.and) ? value.and : []) as JsonObject[];
     const safe = arr.length ? arr : [emptyJoinLeaf()];
     return (
-      <div className="kea-filter-group" style={{ marginLeft: depth ? 12 : 0 }}>
-        <div className="kea-toolbar-inline" style={{ marginBottom: 6 }}>
-          <span className="kea-hint" style={{ margin: 0, fontWeight: 600 }}>
+      <div className="discovery-filter-group" style={{ marginLeft: depth ? 12 : 0 }}>
+        <div className="discovery-toolbar-inline" style={{ marginBottom: 6 }}>
+          <span className="discovery-hint" style={{ margin: 0, fontWeight: 600 }}>
             {t("joinEditor.groupAnd")}
           </span>
           {onRemove ? (
-            <button type="button" className="kea-btn kea-btn--ghost kea-btn--sm" onClick={onRemove}>
+            <button type="button" className="discovery-btn discovery-btn--ghost discovery-btn--sm" onClick={onRemove}>
               {t("sourceViews.filterRemoveNode")}
             </button>
           ) : null}
@@ -150,7 +150,7 @@ export function JoinOnPredicateEditor({ t, value, onChange, onRemove, depth = 0 
         ))}
         <button
           type="button"
-          className="kea-btn kea-btn--sm"
+          className="discovery-btn discovery-btn--sm"
           style={{ marginTop: 6 }}
           onClick={() => onChange({ and: [...safe, emptyJoinLeaf()] })}
         >
@@ -164,13 +164,13 @@ export function JoinOnPredicateEditor({ t, value, onChange, onRemove, depth = 0 
     const arr = (Array.isArray(value.or) ? value.or : []) as JsonObject[];
     const safe = arr.length ? arr : [emptyJoinLeaf()];
     return (
-      <div className="kea-filter-group" style={{ marginLeft: depth ? 12 : 0 }}>
-        <div className="kea-toolbar-inline" style={{ marginBottom: 6 }}>
-          <span className="kea-hint" style={{ margin: 0, fontWeight: 600 }}>
+      <div className="discovery-filter-group" style={{ marginLeft: depth ? 12 : 0 }}>
+        <div className="discovery-toolbar-inline" style={{ marginBottom: 6 }}>
+          <span className="discovery-hint" style={{ margin: 0, fontWeight: 600 }}>
             {t("joinEditor.groupOr")}
           </span>
           {onRemove ? (
-            <button type="button" className="kea-btn kea-btn--ghost kea-btn--sm" onClick={onRemove}>
+            <button type="button" className="discovery-btn discovery-btn--ghost discovery-btn--sm" onClick={onRemove}>
               {t("sourceViews.filterRemoveNode")}
             </button>
           ) : null}
@@ -198,7 +198,7 @@ export function JoinOnPredicateEditor({ t, value, onChange, onRemove, depth = 0 
         ))}
         <button
           type="button"
-          className="kea-btn kea-btn--sm"
+          className="discovery-btn discovery-btn--sm"
           style={{ marginTop: 6 }}
           onClick={() => onChange({ or: [...safe, emptyJoinLeaf()] })}
         >
@@ -214,13 +214,13 @@ export function JoinOnPredicateEditor({ t, value, onChange, onRemove, depth = 0 
         ? (value.not as JsonObject)
         : emptyJoinLeaf();
     return (
-      <div className="kea-filter-group" style={{ marginLeft: depth ? 12 : 0 }}>
-        <div className="kea-toolbar-inline" style={{ marginBottom: 6 }}>
-          <span className="kea-hint" style={{ margin: 0, fontWeight: 600 }}>
+      <div className="discovery-filter-group" style={{ marginLeft: depth ? 12 : 0 }}>
+        <div className="discovery-toolbar-inline" style={{ marginBottom: 6 }}>
+          <span className="discovery-hint" style={{ margin: 0, fontWeight: 600 }}>
             {t("joinEditor.groupNot")}
           </span>
           {onRemove ? (
-            <button type="button" className="kea-btn kea-btn--ghost kea-btn--sm" onClick={onRemove}>
+            <button type="button" className="discovery-btn discovery-btn--ghost discovery-btn--sm" onClick={onRemove}>
               {t("sourceViews.filterRemoveNode")}
             </button>
           ) : null}
@@ -234,11 +234,11 @@ export function JoinOnPredicateEditor({ t, value, onChange, onRemove, depth = 0 
   const op = normalizeJoinOperator(row.operator);
 
   return (
-    <div className="kea-filter-row kea-filter-row--join-leaf">
-      <label className="kea-label">
+    <div className="discovery-filter-row discovery-filter-row--join-leaf">
+      <label className="discovery-label">
         {t("joinEditor.operator")}
         <select
-          className="kea-input"
+          className="discovery-input"
           value={op}
           onChange={(e) => onChange({ ...row, operator: e.target.value })}
         >
@@ -250,20 +250,20 @@ export function JoinOnPredicateEditor({ t, value, onChange, onRemove, depth = 0 
           ))}
         </select>
       </label>
-      <label className="kea-label">
+      <label className="discovery-label">
         {t("joinEditor.leftProperty")}
         <input
-          className="kea-input"
+          className="discovery-input"
           value={String(row.left_property ?? "")}
           onChange={(e) => onChange({ ...row, left_property: e.target.value })}
           spellCheck={false}
           autoComplete="off"
         />
       </label>
-      <label className="kea-label">
+      <label className="discovery-label">
         {t("joinEditor.rightProperty")}
         <input
-          className="kea-input"
+          className="discovery-input"
           value={String(row.right_property ?? "")}
           onChange={(e) => onChange({ ...row, right_property: e.target.value })}
           spellCheck={false}
@@ -273,7 +273,7 @@ export function JoinOnPredicateEditor({ t, value, onChange, onRemove, depth = 0 
       {onRemove ? (
         <button
           type="button"
-          className="kea-btn kea-btn--ghost kea-btn--sm"
+          className="discovery-btn discovery-btn--ghost discovery-btn--sm"
           style={{ gridColumn: "1 / -1" }}
           onClick={onRemove}
         >

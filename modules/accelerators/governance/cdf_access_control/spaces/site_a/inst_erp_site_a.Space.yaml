@@ -1,0 +1,5 @@
+externalId: "inst_erp_site_a"
+name: "inst_erp_site_a"
+description: ""
+access_governance:
+  scope_id: "SITE_A"

@@ -1,0 +1,9 @@
+name: gp_site_b_unit_01_default_reader
+sourceId: "{{ gp_site_b_unit_01_default_reader }}"
+capabilities:
+  - dataModelInstancesAcl:
+      scope:
+        spaceIdScope:
+          spaceIds:
+            - inst_erp_site_b_unit_01
+            - inst_scada_site_b_unit_01

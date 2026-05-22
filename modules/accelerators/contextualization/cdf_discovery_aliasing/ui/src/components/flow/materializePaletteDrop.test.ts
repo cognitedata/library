@@ -13,8 +13,8 @@ describe("materializePaletteDrop", () => {
     t: (key: string) => key,
   };
 
-  it("appends auto data edge from dropped view save to first keaEnd", () => {
-    const end: Node = { id: "end1", type: "keaEnd", position: { x: 0, y: 0 }, data: {} };
+  it("appends auto data edge from dropped view save to first discoveryEnd", () => {
+    const end: Node = { id: "end1", type: "discoveryEnd", position: { x: 0, y: 0 }, data: {} };
     const r = materializePaletteDrop({
       ...base,
       payload: { kind: "discovery", stage: "save_view" },
@@ -29,8 +29,8 @@ describe("materializePaletteDrop", () => {
     expect((toEnd?.data as { kind?: string } | undefined)?.kind).toBe("data");
   });
 
-  it("appends auto data edge from dropped inverted index to first keaEnd", () => {
-    const end: Node = { id: "end1", type: "keaEnd", position: { x: 0, y: 0 }, data: {} };
+  it("appends auto data edge from dropped inverted index to first discoveryEnd", () => {
+    const end: Node = { id: "end1", type: "discoveryEnd", position: { x: 0, y: 0 }, data: {} };
     const r = materializePaletteDrop({
       ...base,
       payload: { kind: "discovery", stage: "inverted_index" },
@@ -44,7 +44,7 @@ describe("materializePaletteDrop", () => {
     expect(toEnd?.targetHandle).toBe("in");
   });
 
-  it("does not append persistence→end edge when canvas has no keaEnd", () => {
+  it("does not append persistence→end edge when canvas has no discoveryEnd", () => {
     const r = materializePaletteDrop({
       ...base,
       payload: { kind: "discovery", stage: "save_raw" },

@@ -33,23 +33,28 @@ _DISCOVERY_PIPELINES: Dict[str, Tuple[str, str]] = discovery_local_pipeline_spec
 
 def _discovery_raw_hash_index_getter(ctx: KahnRunContext):
     """
-    Return a callable ``(client, raw_db, raw_table) -> scope_key -> node_id -> hash``.
+    Return a callable ``(client, raw_db, raw_table, workflow_scope) -> scope_key -> node_id -> hash``.
 
-    Caches one full-table build per distinct (raw_db, raw_table) for the lifetime of *ctx*
-    so parallel ``fn_dm_view_query`` tasks share a single RAW scan.
+    Caches one full-table build per distinct (raw_db, raw_table, workflow_scope) for the lifetime
+    of *ctx* so parallel ``fn_dm_view_query`` tasks for one workflow share a single RAW scan.
     """
 
-    def getter(client: Any, raw_db: str, raw_table: str) -> Dict[str, Dict[str, str]]:
+    def getter(
+        client: Any, raw_db: str, raw_table: str, workflow_scope: str = ""
+    ) -> Dict[str, Dict[str, str]]:
         from cdf_fn_common.incremental_scope import build_latest_hash_index_for_table
 
         db = str(raw_db or "").strip()
         tbl = str(raw_table or "").strip()
+        ws = str(workflow_scope or "").strip()
         if not db or not tbl:
             return {}
-        key = (db, tbl)
+        key = (db, tbl, ws)
         with ctx.raw_hash_index_lock:
             if key not in ctx.raw_hash_index_cache:
-                ctx.raw_hash_index_cache[key] = build_latest_hash_index_for_table(client, db, tbl)
+                ctx.raw_hash_index_cache[key] = build_latest_hash_index_for_table(
+                    client, db, tbl, workflow_scope=ws
+                )
             return ctx.raw_hash_index_cache[key]
 
     return getter
@@ -77,6 +82,21 @@ def _discovery_cohort_row_index_getter(ctx: KahnRunContext):
             return ctx.cohort_row_index_cache[key]
 
     return getter
+
+
+def _discovery_cohort_row_index_invalidator(ctx: KahnRunContext):
+    """Drop a cached cohort index so downstream tasks see rows written after the cache was built."""
+
+    def invalidate(raw_db: str, raw_table: str) -> None:
+        db = str(raw_db or "").strip()
+        tbl = str(raw_table or "").strip()
+        if not db or not tbl:
+            return
+        key = (db, tbl)
+        with ctx.cohort_row_index_lock:
+            ctx.cohort_row_index_cache.pop(key, None)
+
+    return invalidate
 
 
 # Persist handler ``data`` and predecessor cohort snapshots for save / inverted-index tasks.
@@ -234,6 +254,7 @@ def _discovery_branch(ctx: KahnRunContext, task_id: str, merge_lock: Lock, spec:
         "task_id": task_id,
         "discovery_raw_hash_index_cache": _discovery_raw_hash_index_getter(ctx),
         "discovery_cohort_row_index_cache": _discovery_cohort_row_index_getter(ctx),
+        "discovery_cohort_row_index_invalidate": _discovery_cohort_row_index_invalidator(ctx),
     }
     merge_compiled_task_into_data(data)
     deps_raw = task.get("depends_on") if isinstance(task.get("depends_on"), list) else []
@@ -245,10 +266,16 @@ def _discovery_branch(ctx: KahnRunContext, task_id: str, merge_lock: Lock, spec:
         snap = ctx.discovery_task_outputs.get(ds)
         if snap is not None:
             pred_out[ds] = snap
+            if str(snap.get("status") or "").strip().lower() == "failure":
+                raise RuntimeError(
+                    f"Predecessor task {ds!r} failed: {snap.get('message') or 'unknown error'}"
+                )
     if pred_out:
         data["discovery_predecessor_outputs"] = pred_out
     run_fn(ctx.client, ctx.pipe_logger, data, ctx.cdf_config)
     snap = {"status": data.get("status"), "message": data.get("message")}
+    if str(snap.get("status") or "").strip().lower() == "failure":
+        raise RuntimeError(str(snap.get("message") or f"Task {task_id!r} failed"))
 
     def _merge_out() -> None:
         ctx.discovery_task_outputs[str(task_id)] = snap

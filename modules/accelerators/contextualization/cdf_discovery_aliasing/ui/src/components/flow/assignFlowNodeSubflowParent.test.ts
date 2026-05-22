@@ -6,7 +6,7 @@ describe("assignFlowNodeSubflowParent", () => {
   it("clears parentId when assigning root (null parent)", () => {
     const child: Node = {
       id: "c",
-      type: "keaTransform",
+      type: "discoveryTransform",
       parentId: "legacy",
       position: { x: 10, y: 20 },
       data: { label: "E", handler_id: "h" },
@@ -17,7 +17,7 @@ describe("assignFlowNodeSubflowParent", () => {
   });
 
   it("ignores start nodes", () => {
-    const s: Node = { id: "s", type: "keaStart", position: { x: 0, y: 0 }, data: { label: "S" } };
+    const s: Node = { id: "s", type: "discoveryStart", position: { x: 0, y: 0 }, data: { label: "S" } };
     const out = assignFlowNodeSubflowParent([s], "s", null);
     expect(out.find((n) => n.id === "s")?.parentId).toBeUndefined();
   });
@@ -25,7 +25,7 @@ describe("assignFlowNodeSubflowParent", () => {
   it("does not change hub nodes", () => {
     const hub: Node = {
       id: "sf_hub_in",
-      type: "keaSubflowGraphIn",
+      type: "discoverySubflowGraphIn",
       parentId: "sf",
       position: { x: 10, y: 40 },
       data: {},
@@ -35,10 +35,10 @@ describe("assignFlowNodeSubflowParent", () => {
   });
 
   it("ignores non-null parent ids (no arbitrary parent assignment)", () => {
-    const a: Node = { id: "a", type: "keaTransform", position: { x: 0, y: 0 }, data: { label: "A", handler_id: "h" } };
+    const a: Node = { id: "a", type: "discoveryTransform", position: { x: 0, y: 0 }, data: { label: "A", handler_id: "h" } };
     const sf: Node = {
       id: "sf",
-      type: "keaSubgraph",
+      type: "discoverySubgraph",
       position: { x: 0, y: 0 },
       data: { label: "G" },
       style: { width: 200, height: 160 },

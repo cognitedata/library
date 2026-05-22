@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 import type { MessageKey } from "../../i18n/types";
 import {
+  commaJoinSegments,
   formatSplitJoinIndexes,
   parseSplitJoinIndexes,
+  splitCommaSegments,
 } from "../../utils/commaDelimited";
 import type { DiscoveryTransformHandlerId } from "../flow/handlerRegistry";
 
@@ -55,10 +57,10 @@ function SplitDelimiterFields({
   const delimitersRaw = readDelimitersList(block);
   return (
     <>
-      <label className="kea-label kea-label--block">
+      <label className="discovery-label discovery-label--block">
         {t("transforms.elt.delimiterRegex")}
         <input
-          className="kea-input"
+          className="discovery-input"
           style={{ marginTop: "0.35rem" }}
           value={String(block.delimiter_regex ?? "")}
           onChange={(e) =>
@@ -70,13 +72,13 @@ function SplitDelimiterFields({
           spellCheck={false}
         />
       </label>
-      <p className="kea-hint" style={{ marginTop: "0.25rem" }}>
+      <p className="discovery-hint" style={{ marginTop: "0.25rem" }}>
         {t("transforms.elt.delimiterRegexHint")}
       </p>
-      <label className="kea-label kea-label--block" style={{ marginTop: "0.5rem" }}>
+      <label className="discovery-label discovery-label--block" style={{ marginTop: "0.5rem" }}>
         {t("transforms.elt.delimitersList")}
         <input
-          className="kea-input"
+          className="discovery-input"
           style={{ marginTop: "0.35rem" }}
           value={delimitersRaw}
           onChange={(e) => {
@@ -95,19 +97,19 @@ function SplitDelimiterFields({
           spellCheck={false}
         />
       </label>
-      <p className="kea-hint" style={{ marginTop: "0.25rem" }}>
+      <p className="discovery-hint" style={{ marginTop: "0.25rem" }}>
         {t("transforms.elt.delimitersListHint")}
       </p>
-      <label className="kea-label kea-label--block" style={{ marginTop: "0.5rem" }}>
+      <label className="discovery-label discovery-label--block" style={{ marginTop: "0.5rem" }}>
         {t("transforms.elt.delimiterLiteral")}
         <input
-          className="kea-input"
+          className="discovery-input"
           style={{ marginTop: "0.35rem", width: "8rem" }}
           value={String(block.delimiter ?? literalDefault)}
           onChange={(e) => patch({ delimiter: e.target.value })}
         />
       </label>
-      <p className="kea-hint" style={{ marginTop: "0.25rem" }}>
+      <p className="discovery-hint" style={{ marginTop: "0.25rem" }}>
         {t("transforms.elt.splitDelimiterPrecedenceHint")}
       </p>
     </>
@@ -120,11 +122,56 @@ function readVariants(block: Record<string, unknown>): string[] {
   return raw.map((v) => String(v ?? ""));
 }
 
-function readSamples(block: Record<string, unknown>): string[] {
-  const raw = block.samples;
-  if (!Array.isArray(raw)) return [""];
-  const mapped = raw.map((v) => String(v ?? ""));
-  return mapped.length ? mapped : [""];
+function samplesToText(samples: unknown): string {
+  if (!Array.isArray(samples)) return "";
+  return commaJoinSegments(samples.map((v) => String(v ?? "")));
+}
+
+function textToSamples(s: string): string[] {
+  return splitCommaSegments(s);
+}
+
+function HeuristicSamplesField({
+  block,
+  patch,
+  t,
+}: {
+  block: Record<string, unknown>;
+  patch: (p: Record<string, unknown>) => void;
+  t: TFn;
+}) {
+  const samplesKey = JSON.stringify(block.samples ?? null);
+  const [draft, setDraft] = useState(() => samplesToText(block.samples));
+
+  useEffect(() => {
+    setDraft(samplesToText(block.samples));
+  }, [samplesKey]);
+
+  const commit = (raw: string) => {
+    const samples = textToSamples(raw);
+    patch({ samples: samples.length ? samples : undefined });
+    setDraft(samplesToText(samples));
+  };
+
+  return (
+    <label className="discovery-label discovery-label--block" style={{ marginTop: "0.5rem" }}>
+      {t("transforms.handlerFields.heuristicSamples")}
+      <input
+        type="text"
+        className="discovery-input"
+        style={{ marginTop: "0.35rem" }}
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={() => commit(draft)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") commit(draft);
+        }}
+        placeholder="P-101, P-102"
+        spellCheck={false}
+        autoComplete="off"
+      />
+    </label>
+  );
 }
 
 function SplitJoinIndexesField({
@@ -156,10 +203,10 @@ function SplitJoinIndexesField({
 
   return (
     <>
-      <label className="kea-label kea-label--block" style={{ marginTop: "0.5rem" }}>
+      <label className="discovery-label discovery-label--block" style={{ marginTop: "0.5rem" }}>
         {t("transforms.elt.splitJoinIndexes")}
         <input
-          className="kea-input"
+          className="discovery-input"
           style={{ marginTop: "0.35rem" }}
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
@@ -171,7 +218,7 @@ function SplitJoinIndexesField({
           spellCheck={false}
         />
       </label>
-      <p className="kea-hint" style={{ marginTop: "0.25rem" }}>
+      <p className="discovery-hint" style={{ marginTop: "0.25rem" }}>
         {t("transforms.elt.splitJoinIndexesHint")}
       </p>
     </>
@@ -198,20 +245,20 @@ export function TransformHandlerConfigFields({
       });
     };
     return (
-      <div className="kea-handler-fields">
-        <div className="kea-handler-fieldset-legend" style={{ marginBottom: "0.35rem" }}>
+      <div className="discovery-handler-fields">
+        <div className="discovery-handler-fieldset-legend" style={{ marginBottom: "0.35rem" }}>
           {t("transforms.handlerFields.patterns")}
         </div>
         {patterns.map((row, i) => (
           <div
             key={i}
-            className="kea-filter-row kea-filter-row--field-pair kea-filter-row--align-end"
+            className="discovery-filter-row discovery-filter-row--field-pair discovery-filter-row--align-end"
             style={{ marginBottom: "0.35rem" }}
           >
-            <label className="kea-label">
+            <label className="discovery-label">
               {t("transforms.handlerFields.pattern")}
               <input
-                className="kea-input"
+                className="discovery-input"
                 value={row.pattern}
                 onChange={(e) => {
                   const next = [...patterns];
@@ -220,10 +267,10 @@ export function TransformHandlerConfigFields({
                 }}
               />
             </label>
-            <label className="kea-label">
+            <label className="discovery-label">
               {t("transforms.handlerFields.replacement")}
               <input
-                className="kea-input"
+                className="discovery-input"
                 value={row.replacement}
                 onChange={(e) => {
                   const next = [...patterns];
@@ -234,7 +281,7 @@ export function TransformHandlerConfigFields({
             </label>
             <button
               type="button"
-              className="kea-btn kea-btn--ghost kea-btn--sm"
+              className="discovery-btn discovery-btn--ghost discovery-btn--sm"
               onClick={() => setPatterns(patterns.filter((_, j) => j !== i))}
             >
               ×
@@ -243,7 +290,7 @@ export function TransformHandlerConfigFields({
         ))}
         <button
           type="button"
-          className="kea-btn kea-btn--sm"
+          className="discovery-btn discovery-btn--sm"
           onClick={() => setPatterns([...patterns, { pattern: "", replacement: "" }])}
         >
           {t("transforms.handlerFields.addPattern")}
@@ -254,11 +301,11 @@ export function TransformHandlerConfigFields({
 
   if (handler === "leading_zero_normalize") {
     return (
-      <div className="kea-handler-fields">
-        <label className="kea-label kea-label--block">
+      <div className="discovery-handler-fields">
+        <label className="discovery-label discovery-label--block">
           {t("transforms.handlerFields.segmentRegex")}
           <input
-            className="kea-input"
+            className="discovery-input"
             style={{ marginTop: "0.35rem" }}
             value={String(block.segment_regex ?? "")}
             onChange={(e) => patch({ segment_regex: e.target.value || undefined })}
@@ -266,10 +313,10 @@ export function TransformHandlerConfigFields({
             spellCheck={false}
           />
         </label>
-        <label className="kea-label kea-label--block" style={{ marginTop: "0.5rem" }}>
+        <label className="discovery-label discovery-label--block" style={{ marginTop: "0.5rem" }}>
           {t("transforms.handlerFields.minimumWidth")}
           <input
-            className="kea-input"
+            className="discovery-input"
             type="number"
             style={{ marginTop: "0.35rem", width: "8rem" }}
             value={block.minimum_width != null ? String(block.minimum_width) : ""}
@@ -291,20 +338,20 @@ export function TransformHandlerConfigFields({
       });
     };
     return (
-      <div className="kea-handler-fields">
-        <div className="kea-handler-fieldset-legend" style={{ marginBottom: "0.35rem" }}>
+      <div className="discovery-handler-fields">
+        <div className="discovery-handler-fieldset-legend" style={{ marginBottom: "0.35rem" }}>
           {t("transforms.handlerFields.replacements")}
         </div>
         {pairs.map((row, i) => (
           <div
             key={i}
-            className="kea-filter-row kea-filter-row--field-pair kea-filter-row--align-end"
+            className="discovery-filter-row discovery-filter-row--field-pair discovery-filter-row--align-end"
             style={{ marginBottom: "0.35rem" }}
           >
-            <label className="kea-label">
+            <label className="discovery-label">
               {t("transforms.handlerFields.from")}
               <input
-                className="kea-input"
+                className="discovery-input"
                 value={row.from}
                 onChange={(e) => {
                   const next = [...pairs];
@@ -313,10 +360,10 @@ export function TransformHandlerConfigFields({
                 }}
               />
             </label>
-            <label className="kea-label">
+            <label className="discovery-label">
               {t("transforms.handlerFields.to")}
               <input
-                className="kea-input"
+                className="discovery-input"
                 value={row.to}
                 onChange={(e) => {
                   const next = [...pairs];
@@ -327,7 +374,7 @@ export function TransformHandlerConfigFields({
             </label>
             <button
               type="button"
-              className="kea-btn kea-btn--ghost kea-btn--sm"
+              className="discovery-btn discovery-btn--ghost discovery-btn--sm"
               onClick={() => setPairs(pairs.filter((_, j) => j !== i))}
             >
               ×
@@ -336,7 +383,7 @@ export function TransformHandlerConfigFields({
         ))}
         <button
           type="button"
-          className="kea-btn kea-btn--sm"
+          className="discovery-btn discovery-btn--sm"
           onClick={() => setPairs([...pairs, { from: "", to: "" }])}
         >
           {t("transforms.handlerFields.addReplacement")}
@@ -347,11 +394,11 @@ export function TransformHandlerConfigFields({
 
   if (handler === "trim_whitespace") {
     return (
-      <div className="kea-handler-fields">
-        <label className="kea-label kea-label--block">
+      <div className="discovery-handler-fields">
+        <label className="discovery-label discovery-label--block">
           {t("transforms.elt.trimMode")}
           <select
-            className="kea-select"
+            className="discovery-select"
             style={{ marginTop: "0.35rem" }}
             value={String(block.mode ?? "ends_only")}
             onChange={(e) => patch({ mode: e.target.value })}
@@ -366,11 +413,11 @@ export function TransformHandlerConfigFields({
 
   if (handler === "change_case") {
     return (
-      <div className="kea-handler-fields">
-        <label className="kea-label kea-label--block">
+      <div className="discovery-handler-fields">
+        <label className="discovery-label discovery-label--block">
           {t("transforms.elt.case")}
           <select
-            className="kea-select"
+            className="discovery-select"
             style={{ marginTop: "0.35rem" }}
             value={String(block.case ?? "lower")}
             onChange={(e) => patch({ case: e.target.value })}
@@ -386,11 +433,11 @@ export function TransformHandlerConfigFields({
 
   if (handler === "coerce_scalar") {
     return (
-      <div className="kea-handler-fields">
-        <label className="kea-label kea-label--block">
+      <div className="discovery-handler-fields">
+        <label className="discovery-label discovery-label--block">
           {t("transforms.elt.scalarType")}
           <select
-            className="kea-select"
+            className="discovery-select"
             style={{ marginTop: "0.35rem" }}
             value={String(block.type ?? "int")}
             onChange={(e) => patch({ type: e.target.value })}
@@ -400,7 +447,7 @@ export function TransformHandlerConfigFields({
             <option value="bool">bool</option>
           </select>
         </label>
-        <label className="kea-label" style={{ marginTop: "0.5rem", display: "flex", alignItems: "center", gap: 8 }}>
+        <label className="discovery-label" style={{ marginTop: "0.5rem", display: "flex", alignItems: "center", gap: 8 }}>
           <input
             type="checkbox"
             checked={block.empty_as_null !== false}
@@ -408,7 +455,7 @@ export function TransformHandlerConfigFields({
           />
           {t("transforms.elt.emptyAsNull")}
         </label>
-        <label className="kea-label" style={{ marginTop: "0.35rem", display: "flex", alignItems: "center", gap: 8 }}>
+        <label className="discovery-label" style={{ marginTop: "0.35rem", display: "flex", alignItems: "center", gap: 8 }}>
           <input type="checkbox" checked={block.strict === true} onChange={(e) => patch({ strict: e.target.checked })} />
           {t("transforms.elt.strict")}
         </label>
@@ -418,20 +465,20 @@ export function TransformHandlerConfigFields({
 
   if (handler === "default_if_empty") {
     return (
-      <div className="kea-handler-fields">
-        <label className="kea-label kea-label--block">
+      <div className="discovery-handler-fields">
+        <label className="discovery-label discovery-label--block">
           {t("transforms.elt.literal")}
           <input
-            className="kea-input"
+            className="discovery-input"
             style={{ marginTop: "0.35rem" }}
             value={String(block.literal ?? "")}
             onChange={(e) => patch({ literal: e.target.value || undefined })}
           />
         </label>
-        <label className="kea-label kea-label--block" style={{ marginTop: "0.5rem" }}>
+        <label className="discovery-label discovery-label--block" style={{ marginTop: "0.5rem" }}>
           {t("transforms.elt.fallbackField")}
           <input
-            className="kea-input"
+            className="discovery-input"
             style={{ marginTop: "0.35rem" }}
             value={String(block.field ?? block.fallback_field ?? "")}
             onChange={(e) => patch({ field: e.target.value || undefined })}
@@ -445,12 +492,12 @@ export function TransformHandlerConfigFields({
     const usingIndexes =
       parseSplitJoinIndexes(formatSplitJoinIndexes(block.indexes)) !== undefined;
     return (
-      <div className="kea-handler-fields">
+      <div className="discovery-handler-fields">
         <SplitDelimiterFields block={block} patch={patch} t={t} literalDefault="-" />
-        <label className="kea-label kea-label--block" style={{ marginTop: "0.5rem" }}>
+        <label className="discovery-label discovery-label--block" style={{ marginTop: "0.5rem" }}>
           {t("transforms.elt.splitJoinTemplate")}
           <input
-            className="kea-input"
+            className="discovery-input"
             style={{ marginTop: "0.35rem" }}
             value={usingIndexes ? "" : String(block.template ?? "")}
             disabled={usingIndexes}
@@ -466,14 +513,14 @@ export function TransformHandlerConfigFields({
             spellCheck={false}
           />
         </label>
-        <p className="kea-hint" style={{ marginTop: "0.25rem" }}>
+        <p className="discovery-hint" style={{ marginTop: "0.25rem" }}>
           {t("transforms.elt.splitJoinTemplateHint")}
         </p>
         <SplitJoinIndexesField block={block} patch={patch} t={t} />
-        <label className="kea-label kea-label--block" style={{ marginTop: "0.5rem" }}>
+        <label className="discovery-label discovery-label--block" style={{ marginTop: "0.5rem" }}>
           {t("transforms.elt.splitJoinJoin")}
           <input
-            className="kea-input"
+            className="discovery-input"
             style={{ marginTop: "0.35rem", width: "8rem" }}
             value={String(block.join ?? "")}
             onChange={(e) => patch({ join: e.target.value })}
@@ -487,13 +534,13 @@ export function TransformHandlerConfigFields({
 
   if (handler === "split_string") {
     return (
-      <div className="kea-handler-fields">
+      <div className="discovery-handler-fields">
         <SplitDelimiterFields block={block} patch={patch} t={t} literalDefault="," />
         {onOutputMultiValueChange ? (
-          <label className="kea-label kea-label--block" style={{ marginTop: "0.75rem" }}>
+          <label className="discovery-label discovery-label--block" style={{ marginTop: "0.75rem" }}>
             {t("transforms.outputMultiValue")}
             <select
-              className="kea-select"
+              className="discovery-select"
               style={{ marginTop: "0.35rem" }}
               value={outputMultiValue ?? "array_json"}
               onChange={(e) => onOutputMultiValueChange(e.target.value)}
@@ -509,11 +556,11 @@ export function TransformHandlerConfigFields({
 
   if (handler === "parse_json_extract") {
     return (
-      <div className="kea-handler-fields">
-        <label className="kea-label kea-label--block">
+      <div className="discovery-handler-fields">
+        <label className="discovery-label discovery-label--block">
           {t("transforms.elt.jsonPath")}
           <input
-            className="kea-input"
+            className="discovery-input"
             style={{ marginTop: "0.35rem" }}
             value={String(block.path ?? block.json_path ?? "")}
             onChange={(e) => patch({ path: e.target.value || undefined })}
@@ -526,20 +573,20 @@ export function TransformHandlerConfigFields({
 
   if (handler === "format_datetime") {
     return (
-      <div className="kea-handler-fields">
-        <label className="kea-label kea-label--block">
+      <div className="discovery-handler-fields">
+        <label className="discovery-label discovery-label--block">
           {t("transforms.elt.inputFormat")}
           <input
-            className="kea-input"
+            className="discovery-input"
             style={{ marginTop: "0.35rem" }}
             value={String(block.input_format ?? "")}
             onChange={(e) => patch({ input_format: e.target.value || undefined })}
           />
         </label>
-        <label className="kea-label kea-label--block" style={{ marginTop: "0.5rem" }}>
+        <label className="discovery-label discovery-label--block" style={{ marginTop: "0.5rem" }}>
           {t("transforms.elt.outputFormat")}
           <input
-            className="kea-input"
+            className="discovery-input"
             style={{ marginTop: "0.35rem" }}
             value={String(block.output_format ?? "%Y-%m-%dT%H:%M:%SZ")}
             onChange={(e) => patch({ output_format: e.target.value })}
@@ -551,11 +598,11 @@ export function TransformHandlerConfigFields({
 
   if (handler === "hash_stable") {
     return (
-      <div className="kea-handler-fields">
-        <label className="kea-label kea-label--block">
+      <div className="discovery-handler-fields">
+        <label className="discovery-label discovery-label--block">
           {t("transforms.elt.algorithm")}
           <select
-            className="kea-select"
+            className="discovery-select"
             style={{ marginTop: "0.35rem" }}
             value={String(block.algorithm ?? "sha256")}
             onChange={(e) => patch({ algorithm: e.target.value })}
@@ -565,10 +612,10 @@ export function TransformHandlerConfigFields({
             <option value="md5">md5</option>
           </select>
         </label>
-        <label className="kea-label kea-label--block" style={{ marginTop: "0.5rem" }}>
+        <label className="discovery-label discovery-label--block" style={{ marginTop: "0.5rem" }}>
           {t("transforms.elt.salt")}
           <input
-            className="kea-input"
+            className="discovery-input"
             style={{ marginTop: "0.35rem" }}
             value={String(block.salt ?? "")}
             onChange={(e) => patch({ salt: e.target.value })}
@@ -580,21 +627,21 @@ export function TransformHandlerConfigFields({
 
   if (handler === "mask_string") {
     return (
-      <div className="kea-handler-fields">
-        <label className="kea-label kea-label--block">
+      <div className="discovery-handler-fields">
+        <label className="discovery-label discovery-label--block">
           {t("transforms.elt.keepLast")}
           <input
-            className="kea-input"
+            className="discovery-input"
             type="number"
             style={{ marginTop: "0.35rem", width: "8rem" }}
             value={block.keep_last != null ? String(block.keep_last) : "4"}
             onChange={(e) => patch({ keep_last: Number(e.target.value) })}
           />
         </label>
-        <label className="kea-label kea-label--block" style={{ marginTop: "0.5rem" }}>
+        <label className="discovery-label discovery-label--block" style={{ marginTop: "0.5rem" }}>
           {t("transforms.elt.maskChar")}
           <input
-            className="kea-input"
+            className="discovery-input"
             style={{ marginTop: "0.35rem", width: "4rem" }}
             value={String(block.mask_char ?? "*")}
             onChange={(e) => patch({ mask_char: e.target.value || "*" })}
@@ -608,11 +655,11 @@ export function TransformHandlerConfigFields({
   if (handler === "static_lookup_map") {
     const mapText = JSON.stringify(block.map ?? {}, null, 2);
     return (
-      <div className="kea-handler-fields">
-        <label className="kea-label kea-label--block">
+      <div className="discovery-handler-fields">
+        <label className="discovery-label discovery-label--block">
           {t("transforms.elt.lookupMap")}
           <textarea
-            className="kea-input kea-input--mono"
+            className="discovery-input discovery-input--mono"
             style={{ marginTop: "0.35rem", minHeight: "8rem" }}
             value={mapText}
             onChange={(e) => {
@@ -633,17 +680,15 @@ export function TransformHandlerConfigFields({
   }
 
   if (handler === "heuristic_sampler") {
-    const samples = readSamples(block);
-    const setSamples = (next: string[]) => patch({ samples: next });
     const pattern = String(block.pattern ?? "");
     const onNo = String(block.on_no_match ?? "keep_working").trim() || "keep_working";
 
     return (
-      <div className="kea-handler-fields">
-        <label className="kea-label kea-label--block">
+      <div className="discovery-handler-fields">
+        <label className="discovery-label discovery-label--block">
           {t("transforms.handlerFields.heuristicPattern")}
           <textarea
-            className="kea-input kea-input--mono"
+            className="discovery-input discovery-input--mono"
             style={{ marginTop: "0.35rem", minHeight: "3.5rem" }}
             value={pattern}
             onChange={(e) => {
@@ -654,44 +699,11 @@ export function TransformHandlerConfigFields({
             spellCheck={false}
           />
         </label>
-        <p className="kea-hint" style={{ marginTop: "0.35rem" }}>
+        <p className="discovery-hint" style={{ marginTop: "0.35rem" }}>
           {t("transforms.handlerFields.heuristicPatternHint")}
         </p>
-        <div className="kea-handler-fieldset-legend" style={{ margin: "0.75rem 0 0.35rem" }}>
-          {t("transforms.handlerFields.heuristicSamples")}
-        </div>
-        {samples.map((row, i) => (
-          <div
-            key={i}
-            className="kea-filter-row kea-filter-row--label-action kea-filter-row--align-end"
-            style={{ marginBottom: "0.35rem" }}
-          >
-            <label className="kea-label">
-              {t("transforms.handlerFields.variant")}
-              <input
-                className="kea-input"
-                value={row}
-                onChange={(e) => {
-                  const next = [...samples];
-                  next[i] = e.target.value;
-                  setSamples(next);
-                }}
-                spellCheck={false}
-              />
-            </label>
-            <button
-              type="button"
-              className="kea-btn kea-btn--ghost kea-btn--sm"
-              onClick={() => setSamples(samples.filter((_, j) => j !== i))}
-            >
-              ×
-            </button>
-          </div>
-        ))}
-        <button type="button" className="kea-btn kea-btn--sm" onClick={() => setSamples([...samples, ""])}>
-          {t("transforms.handlerFields.addHeuristicSample")}
-        </button>
-        <label className="kea-label" style={{ marginTop: "0.65rem", display: "flex", alignItems: "center", gap: 8 }}>
+        <HeuristicSamplesField block={block} patch={patch} t={t} />
+        <label className="discovery-label" style={{ marginTop: "0.65rem", display: "flex", alignItems: "center", gap: 8 }}>
           <input
             type="checkbox"
             checked={Boolean(block.samples_as_regex)}
@@ -699,10 +711,10 @@ export function TransformHandlerConfigFields({
           />
           {t("transforms.handlerFields.heuristicSamplesAsRegex")}
         </label>
-        <label className="kea-label kea-label--block" style={{ marginTop: "0.75rem" }}>
+        <label className="discovery-label discovery-label--block" style={{ marginTop: "0.75rem" }}>
           {t("transforms.handlerFields.heuristicOnNoMatch")}
           <select
-            className="kea-select"
+            className="discovery-select"
             style={{ marginTop: "0.35rem" }}
             value={onNo}
             onChange={(e) => patch({ on_no_match: e.target.value })}
@@ -713,10 +725,10 @@ export function TransformHandlerConfigFields({
           </select>
         </label>
         {onNo === "default" ? (
-          <label className="kea-label kea-label--block" style={{ marginTop: "0.5rem" }}>
+          <label className="discovery-label discovery-label--block" style={{ marginTop: "0.5rem" }}>
             {t("transforms.handlerFields.heuristicDefaultValue")}
             <input
-              className="kea-input"
+              className="discovery-input"
               style={{ marginTop: "0.35rem" }}
               value={String(block.default_value ?? "")}
               onChange={(e) => patch({ default_value: e.target.value })}
@@ -735,40 +747,40 @@ export function TransformHandlerConfigFields({
   const setVariants = (next: string[]) => patch({ variants: next });
 
   return (
-    <div className="kea-handler-fields">
-      <label className="kea-label kea-label--block">
+    <div className="discovery-handler-fields">
+      <label className="discovery-label discovery-label--block">
         {t("transforms.handlerFields.matchLiteral")}
         <input
-          className="kea-input"
+          className="discovery-input"
           style={{ marginTop: "0.35rem" }}
           value={String(block.match_literal ?? "")}
           onChange={(e) => patch({ match_literal: e.target.value || undefined })}
           spellCheck={false}
         />
       </label>
-      <label className="kea-label kea-label--block" style={{ marginTop: "0.5rem" }}>
+      <label className="discovery-label discovery-label--block" style={{ marginTop: "0.5rem" }}>
         {t("transforms.handlerFields.matchRegex")}
         <input
-          className="kea-input"
+          className="discovery-input"
           style={{ marginTop: "0.35rem" }}
           value={String(block.match_regex ?? "")}
           onChange={(e) => patch({ match_regex: e.target.value || undefined })}
           spellCheck={false}
         />
       </label>
-      <div className="kea-handler-fieldset-legend" style={{ margin: "0.75rem 0 0.35rem" }}>
+      <div className="discovery-handler-fieldset-legend" style={{ margin: "0.75rem 0 0.35rem" }}>
         {t("transforms.handlerFields.variants")}
       </div>
       {variants.map((row, i) => (
         <div
           key={i}
-          className="kea-filter-row kea-filter-row--label-action kea-filter-row--align-end"
+          className="discovery-filter-row discovery-filter-row--label-action discovery-filter-row--align-end"
           style={{ marginBottom: "0.35rem" }}
         >
-          <label className="kea-label">
+          <label className="discovery-label">
             {t("transforms.handlerFields.variant")}
             <input
-              className="kea-input"
+              className="discovery-input"
               value={row}
               onChange={(e) => {
                 const next = [...variants];
@@ -779,7 +791,7 @@ export function TransformHandlerConfigFields({
           </label>
           <button
             type="button"
-            className="kea-btn kea-btn--ghost kea-btn--sm"
+            className="discovery-btn discovery-btn--ghost discovery-btn--sm"
             onClick={() => setVariants(variants.filter((_, j) => j !== i))}
           >
             ×
@@ -788,21 +800,21 @@ export function TransformHandlerConfigFields({
       ))}
       <button
         type="button"
-        className="kea-btn kea-btn--sm"
+        className="discovery-btn discovery-btn--sm"
         onClick={() => setVariants([...variants, ""])}
       >
         {t("transforms.handlerFields.addVariant")}
       </button>
       {hasDupes ? (
-        <p className="kea-hint" style={{ color: "var(--kea-danger, #c0392b)", marginTop: "0.5rem" }}>
+        <p className="discovery-hint" style={{ color: "var(--discovery-danger, #c0392b)", marginTop: "0.5rem" }}>
           {t("transforms.handlerFields.variantsUniqueError")}
         </p>
       ) : null}
       {onOutputMultiValueChange ? (
-        <label className="kea-label kea-label--block" style={{ marginTop: "0.75rem" }}>
+        <label className="discovery-label discovery-label--block" style={{ marginTop: "0.75rem" }}>
           {t("transforms.outputMultiValue")}
           <select
-            className="kea-select"
+            className="discovery-select"
             style={{ marginTop: "0.35rem" }}
             value={outputMultiValue ?? "explode_rows"}
             onChange={(e) => onOutputMultiValueChange(e.target.value)}
@@ -817,6 +829,6 @@ export function TransformHandlerConfigFields({
   }
 
   return (
-    <p className="kea-hint">{t("transforms.handlerDoc.generic")}</p>
+    <p className="discovery-hint">{t("transforms.handlerDoc.generic")}</p>
   );
 }

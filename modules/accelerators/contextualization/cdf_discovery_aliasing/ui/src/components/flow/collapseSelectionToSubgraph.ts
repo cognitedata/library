@@ -6,7 +6,7 @@ import {
 } from "../../types/workflowCanvas";
 import {
   flowToCanvasDocument,
-  keaFlowEdgeVisualDefaults,
+  discoveryFlowEdgeVisualDefaults,
   newNodeId,
   orderFlowNodesForReactFlow,
   type FlowEdgeData,
@@ -46,7 +46,7 @@ function parentDepth(nodes: Node[], id: string): number {
 }
 
 /**
- * Replace the current multi-selection with one ``keaSubgraph`` node whose ``inner_canvas`` holds
+ * Replace the current multi-selection with one ``discoverySubgraph`` node whose ``inner_canvas`` holds
  * the selected nodes (flattened to root coordinates) and internal edges. Cross-boundary edges
  * are rewired to default ``in`` / ``out`` ports.
  */
@@ -103,7 +103,7 @@ export function collapseSelectionToSubgraph(
 
   const innerEdges: Edge[] = edges
     .filter((e) => selectedIds.has(e.source) && selectedIds.has(e.target))
-    .map((e) => ({ ...e, ...keaFlowEdgeVisualDefaults }));
+    .map((e) => ({ ...e, ...discoveryFlowEdgeVisualDefaults }));
 
   const { frame: afterIn, keyToPortId: inputKeyToPortId } = buildMergedInputPortsForMemberCrossings(
     nodes,
@@ -133,13 +133,13 @@ export function collapseSelectionToSubgraph(
 
   const hubInNode: Node = {
     id: hubInId,
-    type: "keaSubflowGraphIn",
+    type: "discoverySubflowGraphIn",
     position: { x: 0 - HUB_LANE_W - HUB_GAP, y: minMemberY + SUBGRAPH_INNER_HEADER },
     data: { ...hubInData } as Record<string, unknown>,
   };
   const hubOutNode: Node = {
     id: hubOutId,
-    type: "keaSubflowGraphOut",
+    type: "discoverySubflowGraphOut",
     position: { x: maxMemberX + HUB_GAP, y: minMemberY + SUBGRAPH_INNER_HEADER },
     data: { ...hubOutData } as Record<string, unknown>,
   };
@@ -159,7 +159,7 @@ export function collapseSelectionToSubgraph(
         target: e.target,
         targetHandle: e.targetHandle ?? undefined,
         data: { kind: "data" } satisfies FlowEdgeData,
-        ...keaFlowEdgeVisualDefaults,
+        ...discoveryFlowEdgeVisualDefaults,
       });
     } else if (srcIn && !tgtIn) {
       const outPort = outputKeyToPortId.get(memberOutboundPortKey(e)) ?? "out";
@@ -171,7 +171,7 @@ export function collapseSelectionToSubgraph(
         target: hubOutId,
         targetHandle: subflowTargetHandleForPort(outPort),
         data: { kind: "data" } satisfies FlowEdgeData,
-        ...keaFlowEdgeVisualDefaults,
+        ...discoveryFlowEdgeVisualDefaults,
       });
     }
   }
@@ -189,7 +189,7 @@ export function collapseSelectionToSubgraph(
 
   const subgraphNode: Node = {
     id: subId,
-    type: "keaSubgraph",
+    type: "discoverySubgraph",
     position: { x: subAbsX, y: subAbsY },
     data: { ...subgraphData } as Record<string, unknown>,
   };

@@ -9,7 +9,7 @@ import subprocess
 import sys
 from copy import deepcopy
 from pathlib import Path
-from typing import Any, Dict, Iterator, List, Literal, Mapping, Set
+from typing import Any, Dict, Iterator, List, Literal, Mapping, Optional, Set
 
 import yaml
 from fastapi import Body, FastAPI, HTTPException, Query
@@ -484,6 +484,71 @@ def cdf_data_modeling_views(
         raise HTTPException(status_code=502, detail=str(e)) from e
     rows.sort(key=lambda r: (r["external_id"], r["version"]))
     return {"views": rows}
+
+
+class SqlRunRequest(BaseModel):
+    query: str = Field(..., min_length=1, max_length=500_000)
+    limit: int = Field(100, ge=1, le=10_000)
+    source_limit: Optional[int] = Field(default=None, ge=1, le=100_000)
+    convert_to_string: bool = True
+    timeout: Optional[int] = Field(None, ge=1, le=240)
+
+
+@app.post("/api/cdf/sql/run")
+def sql_run(body: SqlRunRequest) -> dict:
+    """Preview SQL using CDF transformations query/run (same API as cdf_explorer)."""
+    from cdf_fn_common.sql_preview import run_sql_preview
+
+    client = _cdf_client()
+    try:
+        return run_sql_preview(
+            client,
+            query=body.query,
+            limit=body.limit,
+            source_limit=body.source_limit,
+            convert_to_string=body.convert_to_string,
+            timeout=body.timeout,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=str(e)) from e
+
+
+class QueryPreviewRequest(BaseModel):
+    config: Dict[str, Any] = Field(default_factory=dict)
+    limit: int = Field(100, ge=1, le=1000)
+
+
+@app.post("/api/cdf/discovery/view-query/preview")
+def view_query_preview(body: QueryPreviewRequest) -> dict:
+    from cdf_fn_common.query_preview import run_view_query_preview
+
+    client = _cdf_client()
+    try:
+        return run_view_query_preview(client, body.config, limit=body.limit)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=str(e)) from e
+
+
+@app.post("/api/cdf/discovery/classic-query/preview")
+def classic_query_preview(body: QueryPreviewRequest) -> dict:
+    from cdf_fn_common.query_preview import run_classic_query_preview
+
+    client = _cdf_client()
+    try:
+        return run_classic_query_preview(client, body.config, limit=body.limit)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=str(e)) from e
+
+
+@app.post("/api/cdf/discovery/raw-query/preview")
+def raw_query_preview(body: QueryPreviewRequest) -> dict:
+    from cdf_fn_common.query_preview import run_raw_query_preview
+
+    client = _cdf_client()
+    try:
+        return run_raw_query_preview(client, body.config, limit=body.limit)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=str(e)) from e
 
 
 @app.get("/api/default-config")

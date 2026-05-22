@@ -40,6 +40,10 @@ FUNCTION_CHANNEL_METADATA: Mapping[str, Mapping[str, Any]] = {
         "inputs": ["configuration", "compiled_workflow task slice", "task_id"],
         "outputs": ["query sink RAW (stub)"],
     },
+    "fn_dm_sql_query": {
+        "inputs": ["configuration", "compiled_workflow task slice", "task_id"],
+        "outputs": ["query sink RAW (SQL preview rows)"],
+    },
     "fn_dm_transform": {
         "inputs": ["predecessor RAW sinks", "configuration", "task_id"],
         "outputs": ["transform sink RAW (stub)"],
@@ -267,6 +271,7 @@ _FN_TO_ROLE: Dict[str, str] = {
     "fn_dm_view_query": "query_view",
     "fn_dm_raw_query": "query_raw",
     "fn_dm_classic_query": "query_classic",
+    "fn_dm_sql_query": "query_sql",
     "fn_dm_transform": "transform",
     "fn_dm_join": "join",
     "fn_dm_validate": "validation",

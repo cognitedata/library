@@ -29,12 +29,18 @@ import {
   type WorkflowCanvasNodeData,
 } from "../../types/workflowCanvas";
 import {
+  applyDiscoveryFlowNodeDisplayClasses,
   canvasToFlowEdges,
   canvasToFlowNodes,
   flowToCanvasDocument,
   type FlowEdgeData,
 } from "./flowDocumentBridge";
-import { appendKeaConnectionEdge, appendReuseDataEdge, dedupeEdgesByHandles } from "./flowEdgeHelpers";
+import { WorkflowCanvasSearchField, WorkflowCanvasSearchResults } from "./WorkflowCanvasSearch";
+import {
+  canvasNodeMatchesSearch,
+  filterCanvasNodesBySearch,
+} from "../../utils/workflowCanvasFlowSearch";
+import { appendDiscoveryConnectionEdge, appendReuseDataEdge, dedupeEdgesByHandles } from "./flowEdgeHelpers";
 import { FlowNodeInspector } from "./FlowNodeInspector";
 import { FlowPalette, getPaletteDropPayload } from "./FlowPalette";
 import { WorkflowCompileToolbar } from "./WorkflowCompileToolbar";
@@ -42,7 +48,7 @@ import { useFlowPanelLayout } from "./useFlowPanelLayout";
 import { layoutFlowNodes } from "./autoLayoutFlow";
 import { FlowHandleOrientationProvider } from "./FlowHandleOrientationContext";
 import { FlowNodeEditorModal } from "./FlowNodeEditorModal";
-import { KEA_FLOW_NODE_TYPES } from "./flowNodeRegistry";
+import { DISCOVERY_FLOW_NODE_TYPES } from "./flowNodeRegistry";
 import { TreeContextMenuPortal, useTreeContextMenuState, type TreeCtxMenuItem } from "../TreeContextMenu";
 import { liftSubgraphInnerToParentWorkflow, subgraphHasLiftableInnerContent } from "./liftSubgraphInnerToParent";
 import { clampNodeInsideParentSubflowFrame } from "./subflowGroupClamp";
@@ -50,7 +56,7 @@ import { promoteSubgraphInnerSubtreeToParentWorkflow } from "./promoteSubgraphIn
 import { collectSubtreeNodeIds } from "./flowParentGeometry";
 import { appendNodeAndResolveSubflowParent, resolveSubflowParentsAfterGroupDrag } from "./subflowDropAssociation";
 import { resolveGroupableSelectionNodes } from "./subflowMembership";
-import { isValidKeaFlowConnection } from "./subgraphFlowConnections";
+import { isValidDiscoveryFlowConnection } from "./subgraphFlowConnections";
 import { collapseSelectionToSubgraph } from "./collapseSelectionToSubgraph";
 import { resolveAdoptIntoSubgraphAfterDrag } from "./adoptNodesIntoSubgraph";
 import { useFlowCanvasHistory, type FlowCanvasSnapshot } from "./useFlowCanvasHistory";
@@ -70,7 +76,7 @@ import {
   formatConnectEndMenuOptionLabel,
   formatConnectEndMenuOptionTooltip,
 } from "./connectEndMenuOptions";
-import { keaValidationRuleLayoutRfTypes, keaWorkflowDisableableRfTypes } from "./flowConstants";
+import { discoveryValidationRuleLayoutRfTypes, discoveryWorkflowDisableableRfTypes } from "./flowConstants";
 import { isWorkflowCanvasNodeEnabled } from "../../types/workflowCanvas";
 import { applyWorkflowCanvasEnablementPatch } from "./flowNodeEnabled";
 import type { PaletteDragPayload } from "./FlowPalette";
@@ -87,6 +93,18 @@ type ConnectEndMenuState = {
   sourceNodeId: string;
   sourceHandleId: string | null;
 };
+
+function FocusCanvasNode({ nodeId }: { nodeId: string | null }) {
+  const { fitView } = useReactFlow();
+  useEffect(() => {
+    if (!nodeId) return;
+    const id = window.requestAnimationFrame(() => {
+      fitView({ nodes: [{ id: nodeId }], padding: 0.45, duration: 280, maxZoom: 1.15 });
+    });
+    return () => window.cancelAnimationFrame(id);
+  }, [nodeId, fitView]);
+  return null;
+}
 
 type Props = {
   t: TFn;
@@ -132,7 +150,7 @@ function FlowCanvasBody({
     onChange: useCallback(({ nodes: sel }) => {
       rfSelectionRef.current = sel;
       setSelectedRfNodeIds(sel.map((n) => n.id));
-      setAlignableSelectionCount(sel.filter((n) => n.type !== "keaStart" && n.type !== "keaEnd").length);
+      setAlignableSelectionCount(sel.filter((n) => n.type !== "discoveryStart" && n.type !== "discoveryEnd").length);
     }, []),
   });
 
@@ -199,6 +217,8 @@ function FlowCanvasBody({
     lastEmittedNodesKeyRef.current = JSON.stringify(doc.nodes);
     lastParentKeyRef.current = lastEmittedNodesKeyRef.current;
     skipEmitRef.current = true;
+    setSearchQuery("");
+    setFocusNodeId(null);
     const fitId = window.requestAnimationFrame(() => {
       fitView({ padding: 0.15, duration: 0 });
     });
@@ -235,6 +255,8 @@ function FlowCanvasBody({
 
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
   const [selectedEdge, setSelectedEdge] = useState<Edge | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [focusNodeId, setFocusNodeId] = useState<string | null>(null);
   const [editorModalNode, setEditorModalNode] = useState<Node | null>(null);
   const [subgraphDrillNodeId, setSubgraphDrillNodeId] = useState<string | null>(null);
   /** Bumps when the subgraph drill opens so inner React Flow hydrates once; avoids resetting on `inner_canvas` ref churn. */
@@ -248,9 +270,28 @@ function FlowCanvasBody({
   const [connectEndMenu, setConnectEndMenu] = useState<ConnectEndMenuState | null>(null);
   const [connectEndMenuGroupId, setConnectEndMenuGroupId] = useState<string | null>(null);
 
+  const searchActive = searchQuery.trim().length > 0;
+
   const workflowCanvas = useMemo(
     () => flowToCanvasDocument(nodes, edges, { handleOrientation }),
     [nodes, edges, handleOrientation]
+  );
+
+  const searchMatches = useMemo(
+    () => filterCanvasNodesBySearch(workflowCanvas.nodes, searchQuery),
+    [workflowCanvas.nodes, searchQuery]
+  );
+
+  const selectCanvasNodeFromSearch = useCallback(
+    (nodeId: string) => {
+      const rfNode = getNode(nodeId);
+      if (rfNode) {
+        setSelectedNode(rfNode);
+        setSelectedEdge(null);
+      }
+      setFocusNodeId(nodeId);
+    },
+    [getNode]
   );
 
   type WorkflowCanvasPatch =
@@ -297,14 +338,14 @@ function FlowCanvasBody({
   }, [readOnly]);
 
   const isValidConnection = useCallback(
-    (c: Connection | Edge) => isValidKeaFlowConnection(getNode, c, keaValidationRuleLayoutRfTypes, compileDagMode),
+    (c: Connection | Edge) => isValidDiscoveryFlowConnection(getNode, c, discoveryValidationRuleLayoutRfTypes, compileDagMode),
     [getNode, compileDagMode]
   );
 
   const onConnect = useCallback(
     (params: Connection) => {
       if (readOnly) return;
-      setEdges((eds) => appendKeaConnectionEdge(getNode, eds, params));
+      setEdges((eds) => appendDiscoveryConnectionEdge(getNode, eds, params));
     },
     [setEdges, getNode, readOnly]
   );
@@ -372,7 +413,7 @@ function FlowCanvasBody({
       });
       setEdges((eds) => {
         const merged = dedupeEdgesByHandles([...eds, ...extraEdges]);
-        return appendKeaConnectionEdge(getNode, merged, conn);
+        return appendDiscoveryConnectionEdge(getNode, merged, conn);
       });
       setConnectEndMenu(null);
       setConnectEndMenuGroupId(null);
@@ -392,7 +433,7 @@ function FlowCanvasBody({
     };
     const onDocPointerDown = (e: PointerEvent) => {
       const tgt = e.target;
-      if (tgt instanceof Element && tgt.closest(".kea-flow-connect-end-menu")) return;
+      if (tgt instanceof Element && tgt.closest(".discovery-flow-connect-end-menu")) return;
       setConnectEndMenu(null);
       setConnectEndMenuGroupId(null);
     };
@@ -481,7 +522,7 @@ function FlowCanvasBody({
   const patchSubgraphInnerCanvas = useCallback(
     (nodeId: string, inner: WorkflowCanvasDocument) => {
       setNodes((nds) => {
-        const sg = nds.find((x) => x.id === nodeId && x.type === "keaSubgraph");
+        const sg = nds.find((x) => x.id === nodeId && x.type === "discoverySubgraph");
         const data = (sg?.data ?? {}) as WorkflowCanvasNodeData;
         const frame: SubflowPortsConfig =
           data.subflow_ports?.inputs?.length || data.subflow_ports?.outputs?.length
@@ -494,7 +535,7 @@ function FlowCanvasBody({
           ? { subflow_hub_input_id: ensured.hubInId, subflow_hub_output_id: ensured.hubOutId }
           : {};
         return nds.map((n) => {
-          if (n.id !== nodeId || n.type !== "keaSubgraph") return n;
+          if (n.id !== nodeId || n.type !== "discoverySubgraph") return n;
           return {
             ...n,
             data: {
@@ -513,7 +554,7 @@ function FlowCanvasBody({
     (nodeId: string, hubInId: string, hubOutId: string) => {
       setNodes((nds) =>
         nds.map((n) => {
-          if (n.id !== nodeId || n.type !== "keaSubgraph") return n;
+          if (n.id !== nodeId || n.type !== "discoverySubgraph") return n;
           const data = (n.data ?? {}) as WorkflowCanvasNodeData;
           return {
             ...n,
@@ -532,7 +573,7 @@ function FlowCanvasBody({
   const applySubflowPorts = useCallback(
     (subflowId: string, ports: SubflowPortsConfig) => {
       const cur = getNodes().find((n) => n.id === subflowId);
-      if (!cur || cur.type !== "keaSubgraph") return;
+      if (!cur || cur.type !== "discoverySubgraph") return;
       const prev = ((cur?.data ?? {}) as WorkflowCanvasNodeData).subflow_ports;
       const hubIn = String((cur?.data as WorkflowCanvasNodeData | undefined)?.subflow_hub_input_id ?? "").trim();
       const hubOut = String((cur?.data as WorkflowCanvasNodeData | undefined)?.subflow_hub_output_id ?? "").trim();
@@ -542,7 +583,7 @@ function FlowCanvasBody({
           if (n.id !== subflowId) return n;
           const data = (n.data ?? {}) as WorkflowCanvasNodeData;
           let nextData: WorkflowCanvasNodeData = { ...data, subflow_ports: ports };
-          if (n.type === "keaSubgraph" && data.inner_canvas && hubIn && hubOut) {
+          if (n.type === "discoverySubgraph" && data.inner_canvas && hubIn && hubOut) {
             let inner = syncSubgraphInnerHubPortData(data.inner_canvas, hubIn, hubOut, ports);
             if (prev) {
               const removedIn = prev.inputs.filter((p) => !ports.inputs.some((q) => q.id === p.id)).map((p) => p.id);
@@ -609,6 +650,7 @@ function FlowCanvasBody({
   const onPaneClick = useCallback(() => {
     setSelectedNode(null);
     setSelectedEdge(null);
+    setFocusNodeId(null);
   }, []);
 
   const onNodeDragStop = useCallback(
@@ -631,7 +673,7 @@ function FlowCanvasBody({
   const onNodeDoubleClick = useCallback((e: React.MouseEvent, node: Node) => {
     e.preventDefault();
     if (readOnly) return;
-    if (node.type === "keaSubgraph") {
+    if (node.type === "discoverySubgraph") {
       openSubgraphDrill(node.id);
       setSelectedNode(node);
       setSelectedEdge(null);
@@ -653,7 +695,7 @@ function FlowCanvasBody({
         const next = alignSelectedFlowNodes(nds, rfSelectionRef.current, mode);
         if (!next) return nds;
         const movableIds = rfSelectionRef.current
-          .filter((n) => n.type !== "keaStart" && n.type !== "keaEnd")
+          .filter((n) => n.type !== "discoveryStart" && n.type !== "discoveryEnd")
           .map((n) => n.id);
         let clamped = next;
         for (const id of movableIds) {
@@ -680,7 +722,7 @@ function FlowCanvasBody({
       const all = getNodes();
       const allEdges = getEdges();
       const root = all.find((n) => n.id === nodeId);
-      if (root?.type === "keaSubgraph") {
+      if (root?.type === "discoverySubgraph") {
         if (subgraphHasLiftableInnerContent(all, nodeId) && window.confirm(t("flow.confirmSubgraphDeleteLift"))) {
           const lifted = liftSubgraphInnerToParentWorkflow(all, allEdges, nodeId, handleOrientation);
           if (lifted) {
@@ -754,20 +796,16 @@ function FlowCanvasBody({
   const nodesForRf = useMemo(
     () =>
       nodes.map((n) => {
-        const failed = runFailedSet.has(n.id);
-        const executing = runExecutingSet.has(n.id);
-        const completed = runCompletedSet.has(n.id);
-        let className = n.className;
-        if (failed) {
-          className = className ? `${className} kea-flow-node--run-failed` : "kea-flow-node--run-failed";
-        } else if (executing) {
-          className = className ? `${className} kea-flow-node--executing` : "kea-flow-node--executing";
-        } else if (completed) {
-          className = className ? `${className} kea-flow-node--run-completed` : "kea-flow-node--run-completed";
-        }
-        return { ...n, className: className || undefined };
+        const cn = workflowCanvas.nodes.find((node) => node.id === n.id);
+        const matches = cn ? canvasNodeMatchesSearch(cn, searchQuery) : true;
+        return applyDiscoveryFlowNodeDisplayClasses(n, {
+          runFailed: runFailedSet.has(n.id),
+          executing: runExecutingSet.has(n.id),
+          completed: runCompletedSet.has(n.id),
+          dimmed: searchActive && !matches,
+        });
       }),
-    [nodes, runFailedSet, runExecutingSet, runCompletedSet]
+    [nodes, workflowCanvas.nodes, searchQuery, searchActive, runFailedSet, runExecutingSet, runCompletedSet]
   );
 
   const onNodesChangeWrapped = useCallback(
@@ -820,7 +858,7 @@ function FlowCanvasBody({
       if (readOnly) return;
       setSelectedNode(node);
       setSelectedEdge(null);
-      if (node.type === "keaStart" || node.type === "keaEnd") return;
+      if (node.type === "discoveryStart" || node.type === "discoveryEnd") return;
       const nds = getNodes();
       const groupableSelected = resolveGroupableSelectionNodes(nds, node, rfSelectionRef.current);
       const showGroupActions = groupableSelected.length >= 1;
@@ -853,7 +891,7 @@ function FlowCanvasBody({
           },
         });
       }
-      if (node.type === "keaSubgraph" && subgraphHasLiftableInnerContent(nds, node.id)) {
+      if (node.type === "discoverySubgraph" && subgraphHasLiftableInnerContent(nds, node.id)) {
         items.push({
           id: "flatten-subgraph",
           label: t("flow.ctxMenuFlattenSubgraph"),
@@ -869,7 +907,7 @@ function FlowCanvasBody({
           },
         });
       }
-      if (node.type && keaWorkflowDisableableRfTypes.has(node.type)) {
+      if (node.type && discoveryWorkflowDisableableRfTypes.has(node.type)) {
         const cn = workflowCanvas.nodes.find((n) => n.id === node.id);
         const enabled = cn
           ? isWorkflowCanvasNodeEnabled(cn)
@@ -937,9 +975,9 @@ function FlowCanvasBody({
   const panel = useFlowPanelLayout();
 
   return (
-    <div className="kea-flow-shell">
+    <div className="discovery-flow-shell">
       <div
-        className={`kea-flow-shell__left${panel.leftCollapsed ? " kea-flow-shell__left--collapsed" : ""}`}
+        className={`discovery-flow-shell__left${panel.leftCollapsed ? " discovery-flow-shell__left--collapsed" : ""}`}
         style={
           panel.leftCollapsed
             ? { flex: `0 0 ${panel.collapsedStripPx}px`, width: panel.collapsedStripPx }
@@ -949,7 +987,7 @@ function FlowCanvasBody({
         {panel.leftCollapsed ? (
           <button
             type="button"
-            className="kea-flow-shell__reveal kea-flow-shell__reveal--left"
+            className="discovery-flow-shell__reveal discovery-flow-shell__reveal--left"
             aria-expanded={false}
             aria-label={t("flow.expandLeftPanel")}
             title={t("flow.expandLeftPanel")}
@@ -959,11 +997,11 @@ function FlowCanvasBody({
           </button>
         ) : (
           <>
-            <div className="kea-flow-shell__panel-bar">
-              <span className="kea-flow-shell__panel-bar-title">{t("flow.leftPanelTitle")}</span>
+            <div className="discovery-flow-shell__panel-bar">
+              <span className="discovery-flow-shell__panel-bar-title">{t("flow.leftPanelTitle")}</span>
               <button
                 type="button"
-                className="kea-btn kea-btn--sm kea-flow-shell__panel-bar-btn"
+                className="discovery-btn discovery-btn--sm discovery-flow-shell__panel-bar-btn"
                 aria-expanded
                 aria-label={t("flow.collapseLeftPanel")}
                 title={t("flow.collapseLeftPanel")}
@@ -974,7 +1012,7 @@ function FlowCanvasBody({
             </div>
             <WorkflowCompileToolbar t={t} readOnly={readOnly} />
             <div
-              className="kea-flow-shell__palette-body"
+              className="discovery-flow-shell__palette-body"
               style={
                 readOnly
                   ? { pointerEvents: "none", opacity: 0.65 }
@@ -992,23 +1030,23 @@ function FlowCanvasBody({
           role="separator"
           aria-orientation="vertical"
           aria-label={t("flow.resizePanels")}
-          className="kea-flow-shell__resize"
+          className="discovery-flow-shell__resize"
           onMouseDown={panel.onResizeLeftStart}
         />
       )}
-      <div className="kea-flow-main">
-        <div className="kea-flow-toolbar">
+      <div className="discovery-flow-main">
+        <div className="discovery-flow-toolbar">
           <FlowSelectionAlignButtons
             t={t}
             disabled={readOnly || alignableSelectionCount < 2}
             onAlign={applySelectionAlign}
           />
-          <label className="kea-flow-toolbar__orientation">
-            <span className="kea-hint" style={{ margin: 0, whiteSpace: "nowrap" }}>
+          <label className="discovery-flow-toolbar__orientation">
+            <span className="discovery-hint" style={{ margin: 0, whiteSpace: "nowrap" }}>
               {t("flow.handleOrientationLabel")}
             </span>
             <select
-              className="kea-select"
+              className="discovery-select"
               style={{ marginTop: 0, width: "auto", minWidth: "10rem" }}
               value={handleOrientation}
               onChange={onHandleOrientationChange}
@@ -1019,12 +1057,28 @@ function FlowCanvasBody({
               <option value="tb">{t("flow.handleOrientationTb")}</option>
             </select>
           </label>
-          <span className="kea-hint" style={{ marginLeft: "0.5rem", flex: "1 1 12rem" }}>
+          {workflowCanvas.nodes.length > 0 && (
+            <WorkflowCanvasSearchField
+              t={t}
+              searchQuery={searchQuery}
+              onSearchQueryChange={setSearchQuery}
+            />
+          )}
+          <span className="discovery-hint" style={{ marginLeft: "0.5rem", flex: "1 1 12rem" }}>
             {t("flow.canvasHint")}
           </span>
         </div>
+        {workflowCanvas.nodes.length > 0 && (
+          <WorkflowCanvasSearchResults
+            t={t}
+            searchQuery={searchQuery}
+            searchMatches={searchMatches}
+            selectedNodeId={selectedNode?.id ?? null}
+            onSelectNode={selectCanvasNodeFromSearch}
+          />
+        )}
         <div
-          className="kea-flow-canvas-wrap"
+          className="discovery-flow-canvas-wrap"
           ref={flowRootRef}
           data-local-run-active={runProgress?.busy ? "true" : undefined}
         >
@@ -1040,7 +1094,7 @@ function FlowCanvasBody({
               onConnectEnd={readOnly ? undefined : onConnectEnd}
               onDrop={readOnly ? undefined : onDrop}
               onDragOver={readOnly ? undefined : onDragOver}
-              nodeTypes={KEA_FLOW_NODE_TYPES}
+              nodeTypes={DISCOVERY_FLOW_NODE_TYPES}
               defaultEdgeOptions={{ animated: false }}
               deleteKeyCode={readOnly ? null : ["Backspace", "Delete"]}
               onNodeClick={onNodeClick}
@@ -1064,12 +1118,13 @@ function FlowCanvasBody({
             >
               <Background variant={BackgroundVariant.Dots} gap={16} size={1} />
               <Controls />
-              <MiniMap zoomable pannable className="kea-flow-minimap" />
+              <MiniMap zoomable pannable className="discovery-flow-minimap" />
+              <FocusCanvasNode nodeId={focusNodeId} />
             </ReactFlow>
           </FlowHandleOrientationProvider>
           {connectEndMenu && (
             <div
-              className="kea-flow-connect-end-menu"
+              className="discovery-flow-connect-end-menu"
               style={{
                 position: "fixed",
                 left: Math.max(8, connectEndMenu.screen.x),
@@ -1091,7 +1146,7 @@ function FlowCanvasBody({
                     <button
                       key={g.id}
                       type="button"
-                      className="kea-btn kea-btn--sm kea-flow-connect-end-menu__item"
+                      className="discovery-btn discovery-btn--sm discovery-flow-connect-end-menu__item"
                       role="menuitem"
                       onClick={() => setConnectEndMenuGroupId(g.id)}
                     >
@@ -1103,7 +1158,7 @@ function FlowCanvasBody({
                   <>
                     <button
                       type="button"
-                      className="kea-btn kea-btn--sm kea-flow-connect-end-menu__item"
+                      className="discovery-btn discovery-btn--sm discovery-flow-connect-end-menu__item"
                       role="menuitem"
                       onClick={() => setConnectEndMenuGroupId(null)}
                     >
@@ -1113,7 +1168,7 @@ function FlowCanvasBody({
                       <button
                         key={opt.id}
                         type="button"
-                        className="kea-btn kea-btn--sm kea-flow-connect-end-menu__item"
+                        className="discovery-btn discovery-btn--sm discovery-flow-connect-end-menu__item"
                         role="menuitem"
                         title={formatConnectEndMenuOptionTooltip(opt, t)}
                         onClick={() => commitConnectEndMenu(opt.payload)}
@@ -1133,12 +1188,12 @@ function FlowCanvasBody({
           role="separator"
           aria-orientation="vertical"
           aria-label={t("flow.resizePanels")}
-          className="kea-flow-shell__resize"
+          className="discovery-flow-shell__resize"
           onMouseDown={panel.onResizeRightStart}
         />
       )}
       <div
-        className={`kea-flow-shell__right${panel.rightCollapsed ? " kea-flow-shell__right--collapsed" : ""}`}
+        className={`discovery-flow-shell__right${panel.rightCollapsed ? " discovery-flow-shell__right--collapsed" : ""}`}
         style={
           panel.rightCollapsed
             ? { flex: `0 0 ${panel.collapsedStripPx}px`, width: panel.collapsedStripPx }
@@ -1153,7 +1208,7 @@ function FlowCanvasBody({
         {panel.rightCollapsed ? (
           <button
             type="button"
-            className="kea-flow-shell__reveal kea-flow-shell__reveal--right"
+            className="discovery-flow-shell__reveal discovery-flow-shell__reveal--right"
             aria-expanded={false}
             aria-label={t("flow.expandRightPanel")}
             title={t("flow.expandRightPanel")}
@@ -1163,10 +1218,10 @@ function FlowCanvasBody({
           </button>
         ) : (
           <>
-            <div className="kea-flow-shell__panel-bar kea-flow-shell__panel-bar--end">
+            <div className="discovery-flow-shell__panel-bar discovery-flow-shell__panel-bar--end">
               <button
                 type="button"
-                className="kea-btn kea-btn--sm kea-flow-shell__panel-bar-btn"
+                className="discovery-btn discovery-btn--sm discovery-flow-shell__panel-bar-btn"
                 aria-expanded
                 aria-label={t("flow.collapseRightPanel")}
                 title={t("flow.collapseRightPanel")}
@@ -1174,7 +1229,7 @@ function FlowCanvasBody({
               >
                 ›
               </button>
-              <span className="kea-flow-shell__panel-bar-title">{t("flow.rightPanelTitle")}</span>
+              <span className="discovery-flow-shell__panel-bar-title">{t("flow.rightPanelTitle")}</span>
             </div>
             <div style={{ position: "relative", flex: "1 1 auto", minHeight: 0 }}>
               <FlowNodeInspector
@@ -1208,7 +1263,7 @@ function FlowCanvasBody({
           </>
         )}
       </div>
-      <TreeContextMenuPortal menu={flowCtxMenu.menu} onClose={flowCtxMenu.close} classPrefix="kea" />
+      <TreeContextMenuPortal menu={flowCtxMenu.menu} onClose={flowCtxMenu.close} classPrefix="discovery" />
       {editorModalNode && (
         <FlowNodeEditorModal
           node={editorModalNode}

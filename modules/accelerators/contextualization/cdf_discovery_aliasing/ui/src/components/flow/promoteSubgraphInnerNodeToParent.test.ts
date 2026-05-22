@@ -10,28 +10,28 @@ describe("promoteSubgraphInnerSubtreeToParentWorkflow", () => {
   it("moves one inner node to the parent graph and shrinks inner_canvas", () => {
     const s: Node = {
       id: "s",
-      type: "keaSourceView",
+      type: "discoverySourceView",
       position: { x: 0, y: 0 },
       data: { label: "S", ref: { view_external_id: "v1" } },
       selected: false,
     };
     const a: Node = {
       id: "a",
-      type: "keaTransform",
+      type: "discoveryTransform",
       position: { x: 100, y: 200 },
       data: { label: "A" },
       selected: true,
     };
     const b: Node = {
       id: "b",
-      type: "keaTransform",
+      type: "discoveryTransform",
       position: { x: 350, y: 250 },
       data: { label: "B" },
       selected: true,
     };
     const c: Node = {
       id: "c",
-      type: "keaTransform",
+      type: "discoveryTransform",
       position: { x: 520, y: 200 },
       data: { label: "C" },
       selected: false,
@@ -45,7 +45,7 @@ describe("promoteSubgraphInnerSubtreeToParentWorkflow", () => {
 
     const collapsed = collapseSelectionToSubgraph(nodes, edges, [a, b], "lr");
     expect(collapsed).not.toBeNull();
-    const sg = collapsed!.nodes.find((n) => n.type === "keaSubgraph")!;
+    const sg = collapsed!.nodes.find((n) => n.type === "discoverySubgraph")!;
     expect(subgraphHasLiftableInnerContent(collapsed!.nodes, sg.id)).toBe(true);
 
     const innerDoc = (sg.data as WorkflowCanvasNodeData).inner_canvas!;

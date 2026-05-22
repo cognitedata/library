@@ -1,0 +1,5 @@
+externalId: "inst_scada_clk"
+name: "inst_scada_clk"
+description: ""
+access_governance:
+  scope_id: "CLK"

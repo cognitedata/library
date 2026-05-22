@@ -14,29 +14,30 @@ export function normalizeWorkflowCanvasHandleOrientation(raw: unknown): Workflow
 }
 
 export type CanvasNodeRfType =
-  | "keaStart"
-  | "keaEnd"
-  | "keaSourceView"
-  | "keaDiscoveryValidate"
-  | "keaDiscoveryInstanceFilter"
-  | "keaDiscoveryConfidenceFilter"
-  | "keaViewQuery"
-  | "keaRawQuery"
-  | "keaClassicQuery"
-  | "keaTransform"
-  | "keaMerge"
-  | "keaJoin"
-  | "keaViewSave"
-  | "keaRawSave"
-  | "keaClassicSave"
-  | "keaAliasPersistence"
-  | "keaInvertedIndex"
-  | "keaMatchValidationRuleSourceView"
-  | "keaMatchValidationRuleExtraction"
-  | "keaMatchValidationRuleAliasing"
-  | "keaSubflowGraphIn"
-  | "keaSubflowGraphOut"
-  | "keaSubgraph";
+  | "discoveryStart"
+  | "discoveryEnd"
+  | "discoverySourceView"
+  | "discoveryValidate"
+  | "discoveryInstanceFilter"
+  | "discoveryConfidenceFilter"
+  | "discoveryViewQuery"
+  | "discoveryRawQuery"
+  | "discoveryClassicQuery"
+  | "discoverySqlQuery"
+  | "discoveryTransform"
+  | "discoveryMerge"
+  | "discoveryJoin"
+  | "discoveryViewSave"
+  | "discoveryRawSave"
+  | "discoveryClassicSave"
+  | "discoveryAliasPersistence"
+  | "discoveryInvertedIndex"
+  | "discoveryMatchValidationRuleSourceView"
+  | "discoveryMatchValidationRuleExtraction"
+  | "discoveryMatchValidationRuleAliasing"
+  | "discoverySubflowGraphIn"
+  | "discoverySubflowGraphOut"
+  | "discoverySubgraph";
 
 /** Prefix for subflow boundary / hub handles: external ``→ subflow`` uses ``in__{portId}`` targets. */
 export const SUBFLOW_PORT_HANDLE_IN_PREFIX = "in__";
@@ -64,7 +65,7 @@ export function parsePortIdFromSubflowSourceHandle(h: string | null | undefined)
 }
 
 export function isSubflowGraphHubRfType(t: string | undefined): boolean {
-  return t === "keaSubflowGraphIn" || t === "keaSubflowGraphOut";
+  return t === "discoverySubflowGraphIn" || t === "discoverySubflowGraphOut";
 }
 
 export function isSubflowGraphHubKind(k: CanvasNodeKind): boolean {
@@ -141,6 +142,7 @@ export type CanvasNodeKind =
   | "query_view"
   | "query_raw"
   | "query_classic"
+  | "query_sql"
   | "transform"
   | "merge"
   | "join"
@@ -384,6 +386,7 @@ function normalizeOneWorkflowCanvasEdge(
     "query_view",
     "query_raw",
     "query_classic",
+    "query_sql",
     "transform",
     "merge",
     "join",
@@ -436,6 +439,7 @@ function isDataPipelineStageKind(k: CanvasNodeKind): boolean {
     k === "query_view" ||
     k === "query_raw" ||
     k === "query_classic" ||
+    k === "query_sql" ||
     k === "transform" ||
     k === "merge" ||
     k === "join" ||
@@ -465,7 +469,11 @@ function defaultCanvasDataEdgeUsesOutIn(sk: CanvasNodeKind, tk: CanvasNodeKind):
   if (sk === "source_view" && tk === "match_validation_source_view") return false;
 
   if (sk === "start" && tk === "source_view") return true;
-  if (sk === "start" && (tk === "query_view" || tk === "query_raw" || tk === "query_classic")) return true;
+  if (
+    sk === "start" &&
+    (tk === "query_view" || tk === "query_raw" || tk === "query_classic" || tk === "query_sql")
+  )
+    return true;
   if (sk === "source_view" && tk === "query_view") return true;
   if (isDataPipelineStageKind(sk) && isDataPipelineStageKind(tk)) return true;
   if (isDataPipelineStageKind(sk) && tk === "end") return true;
@@ -516,6 +524,7 @@ export function parseWorkflowCanvasDocument(raw: unknown): WorkflowCanvasDocumen
         kind !== "query_view" &&
         kind !== "query_raw" &&
         kind !== "query_classic" &&
+        kind !== "query_sql" &&
         kind !== "transform" &&
         kind !== "merge" &&
         kind !== "join" &&
@@ -636,103 +645,107 @@ export function parseWorkflowCanvasDocument(raw: unknown): WorkflowCanvasDocumen
 export function kindToRfType(kind: CanvasNodeKind): CanvasNodeRfType {
   switch (kind) {
     case "start":
-      return "keaStart";
+      return "discoveryStart";
     case "end":
-      return "keaEnd";
+      return "discoveryEnd";
     case "source_view":
-      return "keaSourceView";
+      return "discoverySourceView";
     case "validation":
-      return "keaDiscoveryValidate";
+      return "discoveryValidate";
     case "instance_filter":
-      return "keaDiscoveryInstanceFilter";
+      return "discoveryInstanceFilter";
     case "confidence_filter":
-      return "keaDiscoveryConfidenceFilter";
+      return "discoveryConfidenceFilter";
     case "query_view":
-      return "keaViewQuery";
+      return "discoveryViewQuery";
     case "query_raw":
-      return "keaRawQuery";
+      return "discoveryRawQuery";
     case "query_classic":
-      return "keaClassicQuery";
+      return "discoveryClassicQuery";
+    case "query_sql":
+      return "discoverySqlQuery";
     case "transform":
-      return "keaTransform";
+      return "discoveryTransform";
     case "merge":
-      return "keaMerge";
+      return "discoveryMerge";
     case "join":
-      return "keaJoin";
+      return "discoveryJoin";
     case "save_view":
-      return "keaViewSave";
+      return "discoveryViewSave";
     case "save_raw":
-      return "keaRawSave";
+      return "discoveryRawSave";
     case "save_classic":
-      return "keaClassicSave";
+      return "discoveryClassicSave";
     case "alias_persistence":
-      return "keaAliasPersistence";
+      return "discoveryAliasPersistence";
     case "inverted_index":
-      return "keaInvertedIndex";
+      return "discoveryInvertedIndex";
     case "match_validation_source_view":
-      return "keaMatchValidationRuleSourceView";
+      return "discoveryMatchValidationRuleSourceView";
     case "match_validation_extraction":
-      return "keaMatchValidationRuleExtraction";
+      return "discoveryMatchValidationRuleExtraction";
     case "match_validation_aliasing":
-      return "keaMatchValidationRuleAliasing";
+      return "discoveryMatchValidationRuleAliasing";
     case "subflow_graph_in":
-      return "keaSubflowGraphIn";
+      return "discoverySubflowGraphIn";
     case "subflow_graph_out":
-      return "keaSubflowGraphOut";
+      return "discoverySubflowGraphOut";
     case "subgraph":
-      return "keaSubgraph";
+      return "discoverySubgraph";
     default:
-      return "keaTransform";
+      return "discoveryTransform";
   }
 }
 
 export function rfTypeToKind(t: string | undefined): CanvasNodeKind {
   switch (t) {
-    case "keaStart":
+    case "discoveryStart":
       return "start";
-    case "keaEnd":
+    case "discoveryEnd":
       return "end";
-    case "keaSourceView":
+    case "discoverySourceView":
       return "source_view";
-    case "keaDiscoveryValidate":
+    case "discoveryValidate":
       return "validation";
-    case "keaDiscoveryInstanceFilter":
+    case "discoveryInstanceFilter":
       return "instance_filter";
-    case "keaDiscoveryConfidenceFilter":
+    case "discoveryConfidenceFilter":
       return "confidence_filter";
-    case "keaViewQuery":
+    case "discoveryViewQuery":
       return "query_view";
-    case "keaRawQuery":
+    case "discoveryRawQuery":
       return "query_raw";
-    case "keaClassicQuery":
+    case "discoveryClassicQuery":
       return "query_classic";
-    case "keaTransform":
+    case "discoverySqlQuery":
+      return "query_sql";
+    case "discoveryTransform":
       return "transform";
-    case "keaMerge":
+    case "discoveryMerge":
       return "merge";
-    case "keaJoin":
+    case "discoveryJoin":
       return "join";
-    case "keaViewSave":
+    case "discoveryViewSave":
       return "save_view";
-    case "keaRawSave":
+    case "discoveryRawSave":
       return "save_raw";
-    case "keaClassicSave":
+    case "discoveryClassicSave":
       return "save_classic";
-    case "keaAliasPersistence":
+    case "discoveryAliasPersistence":
       return "alias_persistence";
-    case "keaInvertedIndex":
+    case "discoveryInvertedIndex":
       return "inverted_index";
-    case "keaMatchValidationRuleSourceView":
+    case "discoveryMatchValidationRuleSourceView":
       return "match_validation_source_view";
-    case "keaMatchValidationRuleExtraction":
+    case "discoveryMatchValidationRuleExtraction":
       return "match_validation_extraction";
-    case "keaMatchValidationRuleAliasing":
+    case "discoveryMatchValidationRuleAliasing":
       return "match_validation_aliasing";
-    case "keaSubflowGraphIn":
+    case "discoverySubflowGraphIn":
       return "subflow_graph_in";
-    case "keaSubflowGraphOut":
+    case "discoverySubflowGraphOut":
       return "subflow_graph_out";
-    case "keaSubgraph":
+    case "discoverySubgraph":
       return "subgraph";
     default:
       return "transform";

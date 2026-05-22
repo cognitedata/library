@@ -44,7 +44,7 @@ function serializeSnap(s: FlowCanvasSnapshot): string {
 
 function isEditableFieldTarget(t: EventTarget | null): boolean {
   if (!(t instanceof HTMLElement)) return false;
-  if (t.closest("[data-kea-flow-undo-ignore='true']")) return true;
+  if (t.closest("[data-discovery-flow-undo-ignore='true']")) return true;
   if (t.isContentEditable) return true;
   const tag = t.tagName;
   if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return true;

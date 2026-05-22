@@ -32,9 +32,11 @@ from .discovery_query_shared import (
     RECORD_KIND_COLUMN,
     RECORD_KIND_ENTITY,
     SCOPE_KEY_COLUMN,
+    INSTANCE_SPACE_COLUMN,
     VIEW_EXTERNAL_ID_COLUMN,
     VIEW_SPACE_COLUMN,
     VIEW_VERSION_COLUMN,
+    instance_space_from_node_instance_id,
     build_entity_cohort_row,
     resolve_query_sink,
     resolve_task_config,
@@ -93,7 +95,17 @@ def _coerce_dm_list_property_value(value: Any) -> Optional[List[str]]:
     if value is None:
         return None
     if isinstance(value, list):
-        out = _dedupe_strings_preserve_order([str(x).strip() for x in value if str(x).strip()])
+        parts: List[str] = []
+        for x in value:
+            if isinstance(x, dict):
+                v = _first_nonempty(x.get("value"), x.get("alias"), x.get("key"))
+                if v:
+                    parts.append(str(v).strip())
+            else:
+                s = str(x).strip()
+                if s:
+                    parts.append(s)
+        out = _dedupe_strings_preserve_order(parts)
         return out or None
     if isinstance(value, dict) and "value" in value:
         s = str(value.get("value") or "").strip()
@@ -135,15 +147,21 @@ def _instance_space_and_external_id(
 ) -> Tuple[str, str]:
     ext_id = _first_nonempty(cols.get(EXTERNAL_ID_COLUMN))
     cfg_space = _first_nonempty(cfg.get("instance_space"), data.get("instance_space"))
-    props_space = _first_nonempty(props.get("instance_space") if isinstance(props, Mapping) else None)
+    props_space = _first_nonempty(
+        props.get("instance_space") if isinstance(props, Mapping) else None,
+        props.get("space") if isinstance(props, Mapping) else None,
+    )
+    col_space = _first_nonempty(cols.get(INSTANCE_SPACE_COLUMN))
     nid = str(cols.get(NODE_INSTANCE_ID_COLUMN) or "").strip()
+    nid_space = instance_space_from_node_instance_id(nid)
+    inst_space = _first_nonempty(cfg_space, props_space, col_space, nid_space)
     if nid and ":" in nid:
         head, tail = nid.split(":", 1)
         head = head.strip()
         tail = tail.strip()
-        if head and (_UUID_RE.match(tail) or not cfg_space):
-            return _first_nonempty(cfg_space, props_space, head), ext_id
-    return _first_nonempty(cfg_space, props_space), ext_id
+        if head and _UUID_RE.match(tail):
+            return _first_nonempty(inst_space, head), ext_id
+    return inst_space, ext_id
 
 
 def _classic_instance_key(cols: Mapping[str, Any]) -> Tuple[str, str]:
@@ -178,21 +196,26 @@ def _gather_view_rows_by_instance(
     *,
     cfg: Mapping[str, Any],
     data: Mapping[str, Any],
-) -> Dict[Tuple[str, str], List[Tuple[Tuple[float, str, int], int, Mapping[str, Any]]]]:
+) -> Tuple[
+    Dict[Tuple[str, str], List[Tuple[Tuple[float, str, int], int, Mapping[str, Any]]]],
+    int,
+]:
     from collections import defaultdict
 
     acc: DefaultDict[
         Tuple[str, str], List[Tuple[Tuple[float, str, int], int, Mapping[str, Any]]]
     ] = defaultdict(list)
+    gather_skipped_missing_identity = 0
     for pred_index, cols, props in rows:
         inst_space, ext_id = _instance_space_and_external_id(
             cols, cfg=cfg, data=data, props=props
         )
         if not ext_id or not inst_space:
+            gather_skipped_missing_identity += 1
             continue
         sc = score_cohort_row(cols, pred_index)
         acc[(inst_space, ext_id)].append((sc, pred_index, props))
-    return dict(acc)
+    return dict(acc), gather_skipped_missing_identity
 
 
 def _gather_classic_rows_by_instance(
@@ -245,6 +268,7 @@ def discovery_apply_view_save(
     rows_read = 0
     instances_applied = 0
     skipped = 0
+    gather_skipped_missing_identity = 0
     batch: List[NodeApply] = []
     batch_size = int(cfg.get("apply_batch_size") or 50)
 
@@ -274,7 +298,9 @@ def discovery_apply_view_save(
             batch.clear()
 
     if fan_mode == SAVE_FAN_IN_MERGE:
-        grouped = _gather_view_rows_by_instance(all_rows, cfg=cfg, data=data)
+        grouped, gather_skipped_missing_identity = _gather_view_rows_by_instance(
+            all_rows, cfg=cfg, data=data
+        )
         for (inst_space, ext_id), scored in grouped.items():
             merged = build_merged_props_for_instance(scored, policy_map)
             emit_apply(inst_space, ext_id, merged)
@@ -315,6 +341,7 @@ def discovery_apply_view_save(
         "rows_read": rows_read,
         "instances_applied": instances_applied,
         "skipped": skipped,
+        "gather_skipped_missing_identity": gather_skipped_missing_identity,
         "run_id": run_id,
         "view_space": view_space,
         "view_external_id": view_external_id,

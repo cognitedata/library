@@ -129,6 +129,51 @@ class TestWorkflowExecutionGraph(unittest.TestCase):
         c = {"tasks": [{"id": "t1", "function_external_id": "fn_a", "depends_on": []}]}
         self.assertNotEqual(compiled_workflow_structural_signature(a), compiled_workflow_structural_signature(c))
 
+    def test_build_workflow_version_task_name_from_canvas_label(self) -> None:
+        doc = {
+            "schemaVersion": 1,
+            "compile_workflow_dag": "canvas",
+            "canvas": {
+                "nodes": [
+                    {"id": "st", "kind": "start"},
+                    {
+                        "id": "vq",
+                        "kind": "query_view",
+                        "data": {
+                            "label": "Asset Query",
+                            "config": {
+                                "description": "q0",
+                                "view_space": "cdf_cdm",
+                                "view_external_id": "CogniteAsset",
+                                "view_version": "v1",
+                            },
+                        },
+                    },
+                    {"id": "en", "kind": "end"},
+                ],
+                "edges": [
+                    {"source": "st", "target": "vq"},
+                    {"source": "vq", "target": "en"},
+                ],
+            },
+        }
+        cw = compile_canvas_dag(doc)
+        vq_ir = next(t for t in cw["tasks"] if t.get("canvas_node_id") == "vq")
+        self.assertEqual(vq_ir.get("label"), "Asset Query")
+        wv = build_workflow_version_document(
+            workflow_external_id="key_extraction_aliasing",
+            version="v5",
+            compiled_workflow=cw,
+            module_root=_MODULE_ROOT,
+        )
+        wtask = next(
+            t
+            for t in wv["workflowDefinition"]["tasks"]
+            if t["externalId"] == vq_ir["id"]
+        )
+        self.assertEqual(wtask["name"], "Asset Query")
+        self.assertIn("DM view query", wtask["description"])
+
     def test_compile_canvas_discovery_chain(self) -> None:
         doc = {
             "schemaVersion": 1,

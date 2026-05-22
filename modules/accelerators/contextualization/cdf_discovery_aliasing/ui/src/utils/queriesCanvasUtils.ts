@@ -7,7 +7,7 @@ import type {
 } from "../types/workflowCanvas";
 import { newNodeId } from "../components/flow/flowDocumentBridge";
 
-export const QUERY_NODE_KINDS = ["query_view", "query_raw", "query_classic"] as const;
+export const QUERY_NODE_KINDS = ["query_view", "query_raw", "query_classic", "query_sql"] as const;
 export type QueryNodeKind = (typeof QUERY_NODE_KINDS)[number];
 
 export function isQueryNodeKind(k: string | undefined): k is QueryNodeKind {
@@ -31,6 +31,10 @@ export function listSaveNodes(canvas: WorkflowCanvasDocument): WorkflowCanvasNod
 
 export function saveNodeListLabel(node: WorkflowCanvasNode): string {
   const cfg = readNodeConfig(node);
+  if (node.kind === "save_view") {
+    const ext = String(cfg.view_external_id ?? "").trim();
+    if (ext) return ext;
+  }
   const desc = String(cfg.description ?? "").trim();
   if (desc) return desc;
   const label = String(node.data?.label ?? "").trim();
@@ -51,9 +55,21 @@ export function defaultQueryConfig(kind: QueryNodeKind, schemaSpace = ""): JsonO
         include_properties: [],
       };
     case "query_raw":
-      return { description: "RAW query", raw_db: "", raw_table_key: "" };
+      return {
+        description: "RAW query",
+        source_raw_db: "",
+        source_raw_table_key: "",
+        read_limit: 100,
+      };
     case "query_classic":
       return { description: "Classic query", resource_type: "assets", limit: 1000 };
+    case "query_sql":
+      return {
+        description: "SQL query",
+        sql_query: "",
+        limit: 100,
+        convert_to_string: true,
+      };
   }
 }
 
@@ -65,6 +81,8 @@ function defaultQueryLabel(kind: QueryNodeKind): string {
       return "RAW query";
     case "query_classic":
       return "Classic query";
+    case "query_sql":
+      return "SQL query";
   }
 }
 
@@ -122,6 +140,13 @@ export function removeQueryNode(canvas: WorkflowCanvasDocument, nodeId: string):
 
 export function queryNodeListLabel(node: WorkflowCanvasNode): string {
   const cfg = readNodeConfig(node);
+  if (node.kind === "query_sql") {
+    const sq = String(cfg.sql_query ?? cfg.query ?? "").trim();
+    if (sq) {
+      const oneLine = sq.split(/\r?\n/)[0]?.trim() ?? sq;
+      return oneLine.length > 72 ? `${oneLine.slice(0, 72)}…` : oneLine;
+    }
+  }
   const ext = String(cfg.view_external_id ?? "").trim();
   if (ext) return ext;
   const desc = String(cfg.description ?? "").trim();
@@ -141,6 +166,8 @@ export function kindLabelKey(kind: CanvasNodeKind | undefined): string {
       return "flow.discoveryRawQuery";
     case "query_classic":
       return "flow.discoveryClassicQuery";
+    case "query_sql":
+      return "flow.discoverySqlQuery";
     default:
       return "queries.unnamedQuery";
   }

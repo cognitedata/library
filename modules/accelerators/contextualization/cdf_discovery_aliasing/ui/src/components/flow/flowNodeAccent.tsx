@@ -124,19 +124,19 @@ export function FlowNodeAccentColorFields({ t, nodeId, data, onPatchNode }: Acce
   };
 
   return (
-    <div className="kea-flow-inspector__accent" style={{ marginTop: "0.75rem" }}>
-      <span className="kea-label kea-label--block" style={{ marginBottom: "0.25rem" }}>
+    <div className="discovery-flow-inspector__accent" style={{ marginTop: "0.75rem" }}>
+      <span className="discovery-label discovery-label--block" style={{ marginBottom: "0.25rem" }}>
         {t("flow.inspectorNodeAccent")}
       </span>
-      <p className="kea-hint" style={{ marginTop: 0, marginBottom: "0.35rem" }}>
+      <p className="discovery-hint" style={{ marginTop: 0, marginBottom: "0.35rem" }}>
         {t("flow.inspectorNodeAccentHint")}
       </p>
-      <div className="kea-flow-inspector__accent-swatches" role="group" aria-label={t("flow.inspectorNodeAccent")}>
+      <div className="discovery-flow-inspector__accent-swatches" role="group" aria-label={t("flow.inspectorNodeAccent")}>
         {FLOW_NODE_ACCENT_PRESET_HEX.map((hex) => (
           <button
             key={hex}
             type="button"
-            className={`kea-flow-inspector__accent-swatch${current === hex ? " kea-flow-inspector__accent-swatch--active" : ""}`}
+            className={`discovery-flow-inspector__accent-swatch${current === hex ? " discovery-flow-inspector__accent-swatch--active" : ""}`}
             style={{ backgroundColor: hex }}
             title={hex}
             aria-label={hex}
@@ -145,39 +145,39 @@ export function FlowNodeAccentColorFields({ t, nodeId, data, onPatchNode }: Acce
           />
         ))}
       </div>
-      <div className="kea-flow-inspector__accent-custom" style={{ marginTop: "0.5rem", display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap" }}>
-        <label className="kea-label" style={{ margin: 0, display: "flex", alignItems: "center", gap: "0.35rem" }}>
-          <span className="kea-hint" style={{ margin: 0 }}>
+      <div className="discovery-flow-inspector__accent-custom" style={{ marginTop: "0.5rem", display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap" }}>
+        <label className="discovery-label" style={{ margin: 0, display: "flex", alignItems: "center", gap: "0.35rem" }}>
+          <span className="discovery-hint" style={{ margin: 0 }}>
             {t("flow.inspectorNodeAccentCustom")}
           </span>
           <input
             type="color"
-            className="kea-flow-inspector__accent-color-input"
+            className="discovery-flow-inspector__accent-color-input"
             value={colorInputValue}
             onChange={(e) => applyColor(e.target.value)}
             aria-label={t("flow.inspectorNodeAccentCustom")}
           />
         </label>
         {current ? (
-          <button type="button" className="kea-btn kea-btn--sm" onClick={clearAccent}>
+          <button type="button" className="discovery-btn discovery-btn--sm" onClick={clearAccent}>
             {t("flow.inspectorNodeAccentReset")}
           </button>
         ) : null}
       </div>
 
-      <div className="kea-flow-inspector__accent" style={{ marginTop: "1rem" }}>
-        <span className="kea-label kea-label--block" style={{ marginBottom: "0.25rem" }}>
+      <div className="discovery-flow-inspector__accent" style={{ marginTop: "1rem" }}>
+        <span className="discovery-label discovery-label--block" style={{ marginBottom: "0.25rem" }}>
           {t("flow.inspectorNodeBg")}
         </span>
-        <p className="kea-hint" style={{ marginTop: 0, marginBottom: "0.35rem" }}>
+        <p className="discovery-hint" style={{ marginTop: 0, marginBottom: "0.35rem" }}>
           {t("flow.inspectorNodeBgHint")}
         </p>
-        <div className="kea-flow-inspector__accent-swatches" role="group" aria-label={t("flow.inspectorNodeBg")}>
+        <div className="discovery-flow-inspector__accent-swatches" role="group" aria-label={t("flow.inspectorNodeBg")}>
           {FLOW_NODE_BG_PRESET_HEX.map((hex) => (
             <button
               key={hex}
               type="button"
-              className={`kea-flow-inspector__accent-swatch${bgCurrent === hex ? " kea-flow-inspector__accent-swatch--active" : ""}`}
+              className={`discovery-flow-inspector__accent-swatch${bgCurrent === hex ? " discovery-flow-inspector__accent-swatch--active" : ""}`}
               style={{ backgroundColor: hex }}
               title={hex}
               aria-label={hex}
@@ -186,21 +186,21 @@ export function FlowNodeAccentColorFields({ t, nodeId, data, onPatchNode }: Acce
             />
           ))}
         </div>
-        <div className="kea-flow-inspector__accent-custom" style={{ marginTop: "0.5rem", display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap" }}>
-          <label className="kea-label" style={{ margin: 0, display: "flex", alignItems: "center", gap: "0.35rem" }}>
-            <span className="kea-hint" style={{ margin: 0 }}>
+        <div className="discovery-flow-inspector__accent-custom" style={{ marginTop: "0.5rem", display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap" }}>
+          <label className="discovery-label" style={{ margin: 0, display: "flex", alignItems: "center", gap: "0.35rem" }}>
+            <span className="discovery-hint" style={{ margin: 0 }}>
               {t("flow.inspectorNodeBgCustom")}
             </span>
             <input
               type="color"
-              className="kea-flow-inspector__accent-color-input"
+              className="discovery-flow-inspector__accent-color-input"
               value={bgColorInputValue}
               onChange={(e) => applyBg(e.target.value)}
               aria-label={t("flow.inspectorNodeBgCustom")}
             />
           </label>
           {bgCurrent ? (
-            <button type="button" className="kea-btn kea-btn--sm" onClick={clearBg}>
+            <button type="button" className="discovery-btn discovery-btn--sm" onClick={clearBg}>
               {t("flow.inspectorNodeBgReset")}
             </button>
           ) : null}

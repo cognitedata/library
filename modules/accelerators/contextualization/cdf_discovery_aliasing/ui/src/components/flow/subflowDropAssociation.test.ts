@@ -6,14 +6,14 @@ describe("resolveSubflowParentAfterDrag", () => {
   it("returns null (subflow containment removed)", () => {
     const sf: Node = {
       id: "sf1",
-      type: "keaSubgraph",
+      type: "discoverySubgraph",
       position: { x: 100, y: 100 },
       data: { label: "S" },
       style: { width: 380, height: 260 },
     };
     const dropped: Node = {
       id: "n1",
-      type: "keaTransform",
+      type: "discoveryTransform",
       position: { x: 200, y: 180 },
       data: { label: "E", handler_id: "h" },
     };

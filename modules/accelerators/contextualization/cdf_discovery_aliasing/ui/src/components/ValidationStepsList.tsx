@@ -18,23 +18,23 @@ export function ValidationStepsList({
   t,
   steps,
   onChange,
-  focusIdPrefix = "kea-val-node-inline",
+  focusIdPrefix = "discovery-val-node-inline",
 }: Props) {
   const [dragRuleFrom, setDragRuleFrom] = useState<number | null>(null);
   const [dragRuleOver, setDragRuleOver] = useState<number | null>(null);
 
   return (
     <>
-      <p className="kea-hint" style={{ marginTop: "0.35rem" }}>
+      <p className="discovery-hint" style={{ marginTop: "0.35rem" }}>
         {t("rulesEntity.dragReorderRules")}
       </p>
-      <div className="kea-validation-rules" style={{ marginTop: "0.5rem" }}>
+      <div className="discovery-validation-rules" style={{ marginTop: "0.5rem" }}>
         {steps.map((rule, idx) => {
           const dropActive = dragRuleOver === idx;
           const cardClass = [
-            "kea-validation-rule",
-            dropActive ? "kea-validation-rule--drop" : "",
-            dragRuleFrom === idx ? "kea-validation-rule--dragging" : "",
+            "discovery-validation-rule",
+            dropActive ? "discovery-validation-rule--drop" : "",
+            dragRuleFrom === idx ? "discovery-validation-rule--dragging" : "",
           ]
             .filter(Boolean)
             .join(" ");
@@ -101,7 +101,7 @@ export function ValidationStepsList({
               >
                 <button
                   type="button"
-                  className="kea-btn kea-btn--ghost kea-btn--sm"
+                  className="discovery-btn discovery-btn--ghost discovery-btn--sm"
                   disabled={idx === 0}
                   onClick={() => {
                     const next = [...steps];
@@ -114,7 +114,7 @@ export function ValidationStepsList({
                 </button>
                 <button
                   type="button"
-                  className="kea-btn kea-btn--ghost kea-btn--sm"
+                  className="discovery-btn discovery-btn--ghost discovery-btn--sm"
                   disabled={idx >= steps.length - 1}
                   onClick={() => {
                     const next = [...steps];
@@ -127,7 +127,7 @@ export function ValidationStepsList({
                 </button>
                 <button
                   type="button"
-                  className="kea-btn kea-btn--ghost kea-btn--sm"
+                  className="discovery-btn discovery-btn--ghost discovery-btn--sm"
                   onClick={() => onChange(steps.filter((_, i) => i !== idx))}
                 >
                   {t("validationEditor.rule.remove")}

@@ -12,6 +12,7 @@ from .incremental_scope import (
     load_latest_hash_by_node_for_scope,
     read_watermark_high_ms,
     scope_watermark_row_key,
+    write_incremental_watermark_raw,
 )
 from .key_discovery_state_fdm import (
     is_key_discovery_cdm_deployed,
@@ -68,6 +69,8 @@ def read_listing_watermark_ms(
     raw_db: str,
     raw_table: str,
     scope_key: str,
+    workflow_scope: str = "",
+    source_view_fingerprint: str = "",
 ) -> Optional[int]:
     if backend is not None:
         return read_key_discovery_high_watermark_ms(
@@ -75,10 +78,13 @@ def read_listing_watermark_ms(
             backend.checkpoint_view_id,
             backend.instance_space,
             backend.workflow_scope,
-            backend.source_view_fingerprint,
+            backend.source_view_fingerprint or source_view_fingerprint,
         )
     return read_watermark_high_ms(
-        client, raw_db, raw_table, scope_watermark_row_key(scope_key)
+        client,
+        raw_db,
+        raw_table,
+        scope_watermark_row_key(scope_key, workflow_scope),
     )
 
 
@@ -89,6 +95,7 @@ def load_hash_by_node_for_scope(
     raw_db: str,
     raw_table: str,
     scope_key: str,
+    workflow_scope: str = "",
     hash_index_cache: Any = None,
 ) -> Dict[str, str]:
     if backend is not None:
@@ -101,9 +108,37 @@ def load_hash_by_node_for_scope(
         )
         return hash_by_node
     if callable(hash_index_cache):
-        full_index = hash_index_cache(client, raw_db, raw_table)
+        full_index = hash_index_cache(client, raw_db, raw_table, workflow_scope)
         return dict(full_index.get(scope_key, {}))
-    return load_latest_hash_by_node_for_scope(client, raw_db, raw_table, scope_key)
+    return load_latest_hash_by_node_for_scope(
+        client,
+        raw_db,
+        raw_table,
+        scope_key,
+        workflow_scope=workflow_scope,
+    )
+
+
+def write_listing_watermark_raw(
+    client: Any,
+    *,
+    raw_db: str,
+    raw_table: str,
+    scope_key: str,
+    workflow_scope: str,
+    high_ms: int,
+    run_id: str,
+) -> None:
+    """Persist watermark on the stable incremental RAW table (RAW backend only)."""
+    write_incremental_watermark_raw(
+        client,
+        raw_db=raw_db,
+        raw_table=raw_table,
+        scope_key=scope_key,
+        workflow_scope=workflow_scope,
+        high_ms=high_ms,
+        run_id=run_id,
+    )
 
 
 def write_listing_watermark_ms(

@@ -53,7 +53,7 @@ export function JoinsControls({ canvas, onChange, initialNodeId, t, singleNode }
   if (singleNode) {
     if (!selected) {
       return (
-        <p className="kea-hint" style={{ marginTop: 0 }}>
+        <p className="discovery-hint" style={{ marginTop: 0 }}>
           {t("flow.nodeEditorFocusedNodeMissing")}
         </p>
       );
@@ -68,31 +68,31 @@ export function JoinsControls({ canvas, onChange, initialNodeId, t, singleNode }
   }
 
   return (
-    <div className="kea-source-views">
-      <div className="kea-toolbar-inline">
-        <h3 className="kea-section-title" style={{ margin: 0 }}>
+    <div className="discovery-source-views">
+      <div className="discovery-toolbar-inline">
+        <h3 className="discovery-section-title" style={{ margin: 0 }}>
           {t("joins.title")}
         </h3>
       </div>
 
-      <p className="kea-hint" style={{ marginTop: "0.35rem", marginBottom: "0.85rem" }}>
+      <p className="discovery-hint" style={{ marginTop: "0.35rem", marginBottom: "0.85rem" }}>
         {t("joins.canvasHint")}
       </p>
 
-      <div className="kea-source-views-split">
-        <aside className="kea-source-views-sidebar">
-          <p className="kea-artifact-list-title">{t("joins.listTitle")}</p>
-          <ul className="kea-source-views-list" role="listbox" aria-label={t("joins.listAriaLabel")}>
+      <div className="discovery-source-views-split">
+        <aside className="discovery-source-views-sidebar">
+          <p className="discovery-artifact-list-title">{t("joins.listTitle")}</p>
+          <ul className="discovery-source-views-list" role="listbox" aria-label={t("joins.listAriaLabel")}>
             {joins.map((n) => (
               <li key={n.id} role="none">
                 <button
                   type="button"
                   role="option"
                   aria-selected={selectedId === n.id}
-                  className={`kea-source-views-item${selectedId === n.id ? " kea-source-views-item--active" : ""}`}
+                  className={`discovery-source-views-item${selectedId === n.id ? " discovery-source-views-item--active" : ""}`}
                   onClick={() => setSelectedId(n.id)}
                 >
-                  <span className="kea-hint" style={{ display: "block", fontSize: "0.68rem", marginBottom: 2 }}>
+                  <span className="discovery-hint" style={{ display: "block", fontSize: "0.68rem", marginBottom: 2 }}>
                     join · {n.id}
                   </span>
                   {joinNodeListLabel(n)}
@@ -102,12 +102,12 @@ export function JoinsControls({ canvas, onChange, initialNodeId, t, singleNode }
           </ul>
         </aside>
 
-        <div className="kea-source-views-editor">
+        <div className="discovery-source-views-editor">
           {!selected ? (
-            <p className="kea-hint">{t("joins.emptyEditor")}</p>
+            <p className="discovery-hint">{t("joins.emptyEditor")}</p>
           ) : (
-            <div className="kea-source-views-editor-inner">
-              <p className="kea-hint" style={{ margin: "0 0 0.85rem" }}>
+            <div className="discovery-source-views-editor-inner">
+              <p className="discovery-hint" style={{ margin: "0 0 0.85rem" }}>
                 {t("flow.discoveryJoin")} — {joinNodeListLabel(selected)}
               </p>
               <JoinNodeConfigFields

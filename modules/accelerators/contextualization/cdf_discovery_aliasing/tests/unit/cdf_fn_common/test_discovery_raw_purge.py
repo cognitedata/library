@@ -13,6 +13,7 @@ _FUNCS = _MODULE_ROOT / "functions"
 if str(_FUNCS) not in sys.path:
     sys.path.insert(0, str(_FUNCS))
 
+from cdf_fn_common.cohort_storage import list_run_cohort_tables  # noqa: E402
 from cdf_fn_common.discovery_raw_purge import (  # noqa: E402
     collect_discovery_raw_tables,
     collect_inter_node_cohort_tables,
@@ -24,6 +25,7 @@ from cdf_fn_common.discovery_raw_purge import (  # noqa: E402
     run_discovery_raw_cleanup_action,
     truncate_raw_tables,
 )
+from cdf_fn_common.incremental_scope import incremental_state_table_name  # noqa: E402
 
 
 def test_collect_discovery_raw_tables_merges_scope_and_tasks() -> None:
@@ -47,6 +49,20 @@ def test_collect_discovery_raw_tables_merges_scope_and_tasks() -> None:
     }
     tables = collect_discovery_raw_tables(scope, cw)
     assert tables == [("db_a", "t_alias"), ("db_a", "t_main"), ("db_b", "t_sink")]
+
+
+def test_incremental_table_not_matched_by_run_cohort_prefix() -> None:
+    """Stable ``discovery_state__incremental`` must survive run-scoped cleanup."""
+    inc = incremental_state_table_name("discovery_state")
+    assert inc == "discovery_state__incremental"
+    client = MagicMock()
+    client.raw.tables.list.return_value = [
+        SimpleNamespace(name="discovery_state__abc123def456__tr"),
+        SimpleNamespace(name=inc),
+        SimpleNamespace(name="discovery_state__abc123def456__vq"),
+    ]
+    listed = list_run_cohort_tables(client, "db", "abc123def456", base_table="discovery_state")
+    assert inc not in listed
 
 
 def test_collect_inter_node_cohort_tables_returns_base_only() -> None:

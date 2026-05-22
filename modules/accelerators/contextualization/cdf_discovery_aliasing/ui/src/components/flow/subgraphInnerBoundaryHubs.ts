@@ -10,7 +10,7 @@ import {
 } from "../../types/workflowCanvas";
 import { newNodeId } from "./flowDocumentBridge";
 
-/** Default single in/out ports for a new or collapsed ``keaSubgraph`` boundary. */
+/** Default single in/out ports for a new or collapsed ``discoverySubgraph`` boundary. */
 export const DEFAULT_SUBGRAPH_FRAME_PORTS: SubflowPortsConfig = {
   inputs: [{ id: "in", label: "in" }],
   outputs: [{ id: "out", label: "out" }],
@@ -61,7 +61,7 @@ function canvasNodeBBox(nodes: WorkflowCanvasNode[]): { minX: number; maxX: numb
 
 /**
  * Ensure a subgraph ``inner_canvas`` document has Graph In / Graph Out hub nodes whose handles
- * mirror ``frame`` ports (standalone hubs — no ``parent_id`` to the outer ``keaSubgraph``).
+ * mirror ``frame`` ports (standalone hubs — no ``parent_id`` to the outer ``discoverySubgraph``).
  */
 export function ensureSubgraphInnerBoundaryCanvasDocument(
   inner: WorkflowCanvasDocument,

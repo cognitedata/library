@@ -8,7 +8,7 @@ describe("collapseSelectionToSubgraph", () => {
   it("returns null when no groupable selected nodes", () => {
     const n: Node = {
       id: "start",
-      type: "keaStart",
+      type: "discoveryStart",
       position: { x: 0, y: 0 },
       data: {},
       selected: true,
@@ -17,31 +17,31 @@ describe("collapseSelectionToSubgraph", () => {
     expect(out).toBeNull();
   });
 
-  it("replaces selection with one keaSubgraph, preserves inner edges, rewires crossing edges to in/out", () => {
+  it("replaces selection with one discoverySubgraph, preserves inner edges, rewires crossing edges to in/out", () => {
     const s: Node = {
       id: "s",
-      type: "keaSourceView",
+      type: "discoverySourceView",
       position: { x: 0, y: 0 },
       data: { label: "S", ref: { view_external_id: "v1" } },
       selected: false,
     };
     const a: Node = {
       id: "a",
-      type: "keaTransform",
+      type: "discoveryTransform",
       position: { x: 100, y: 200 },
       data: { label: "A" },
       selected: true,
     };
     const b: Node = {
       id: "b",
-      type: "keaTransform",
+      type: "discoveryTransform",
       position: { x: 350, y: 250 },
       data: { label: "B" },
       selected: true,
     };
     const c: Node = {
       id: "c",
-      type: "keaTransform",
+      type: "discoveryTransform",
       position: { x: 520, y: 200 },
       data: { label: "C" },
       selected: false,
@@ -56,7 +56,7 @@ describe("collapseSelectionToSubgraph", () => {
     const res = collapseSelectionToSubgraph(nodes, edges, [a, b], "lr");
     expect(res).not.toBeNull();
 
-    const sg = res!.nodes.find((n) => n.type === "keaSubgraph");
+    const sg = res!.nodes.find((n) => n.type === "discoverySubgraph");
     expect(sg).toBeDefined();
     expect(res!.nodes.find((n) => n.id === "a")).toBeUndefined();
     expect(res!.nodes.find((n) => n.id === "b")).toBeUndefined();
@@ -87,43 +87,43 @@ describe("collapseSelectionToSubgraph", () => {
     expect(fromSg?.sourceHandle).toBe(subflowSourceHandleForPort("out"));
 
     const inPorts = wf.subflow_ports?.inputs ?? [];
-    expect(inPorts[0]?.inner_target_rf_type).toBe("keaTransform");
+    expect(inPorts[0]?.inner_target_rf_type).toBe("discoveryTransform");
     const outPorts = wf.subflow_ports?.outputs ?? [];
-    expect(outPorts[0]?.inner_source_rf_type).toBe("keaTransform");
+    expect(outPorts[0]?.inner_source_rf_type).toBe("discoveryTransform");
   });
 
   it("assigns one subgraph output port per distinct member outbound socket (source + handle)", () => {
     const s: Node = {
       id: "s",
-      type: "keaSourceView",
+      type: "discoverySourceView",
       position: { x: 0, y: 0 },
       data: { label: "S", ref: { view_external_id: "v1" } },
       selected: false,
     };
     const a: Node = {
       id: "a",
-      type: "keaTransform",
+      type: "discoveryTransform",
       position: { x: 100, y: 40 },
       data: { label: "A" },
       selected: true,
     };
     const b: Node = {
       id: "b",
-      type: "keaTransform",
+      type: "discoveryTransform",
       position: { x: 100, y: 140 },
       data: { label: "B" },
       selected: true,
     };
     const c1: Node = {
       id: "c1",
-      type: "keaTransform",
+      type: "discoveryTransform",
       position: { x: 400, y: 20 },
       data: { label: "C1" },
       selected: false,
     };
     const c2: Node = {
       id: "c2",
-      type: "keaTransform",
+      type: "discoveryTransform",
       position: { x: 400, y: 160 },
       data: { label: "C2" },
       selected: false,
@@ -138,7 +138,7 @@ describe("collapseSelectionToSubgraph", () => {
 
     const res = collapseSelectionToSubgraph(nodes, edges, [a, b], "lr");
     expect(res).not.toBeNull();
-    const sg = res!.nodes.find((n) => n.type === "keaSubgraph")!;
+    const sg = res!.nodes.find((n) => n.type === "discoverySubgraph")!;
     const wf = sg.data as WorkflowCanvasNodeData;
     expect((wf.subflow_ports?.outputs ?? []).length).toBe(2);
 

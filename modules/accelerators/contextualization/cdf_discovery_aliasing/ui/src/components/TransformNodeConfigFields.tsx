@@ -46,11 +46,11 @@ export function TransformNodeConfigFields({ value, onChange, handlerLocked = fal
   if (!ui.multiStep) {
     const stepValue = ui.steps[0] ?? legacyConfigToStep(value);
     return (
-      <div className="kea-loc-fields">
-        <label className="kea-label kea-label--block">
+      <div className="discovery-loc-fields">
+        <label className="discovery-label discovery-label--block">
           {t("transforms.description")}
           <input
-            className="kea-input"
+            className="discovery-input"
             style={{ marginTop: "0.35rem" }}
             value={ui.description}
             onChange={(e) => commit({ description: e.target.value })}
@@ -58,7 +58,7 @@ export function TransformNodeConfigFields({ value, onChange, handlerLocked = fal
             autoComplete="off"
           />
         </label>
-        <label className="kea-label" style={{ marginTop: "0.75rem", display: "flex", alignItems: "center", gap: 8 }}>
+        <label className="discovery-label" style={{ marginTop: "0.75rem", display: "flex", alignItems: "center", gap: 8 }}>
           <input
             type="checkbox"
             checked={false}
@@ -86,11 +86,11 @@ export function TransformNodeConfigFields({ value, onChange, handlerLocked = fal
   }
 
   return (
-    <div className="kea-loc-fields">
-      <label className="kea-label kea-label--block">
+    <div className="discovery-loc-fields">
+      <label className="discovery-label discovery-label--block">
         {t("transforms.description")}
         <input
-          className="kea-input"
+          className="discovery-input"
           style={{ marginTop: "0.35rem" }}
           value={ui.description}
           onChange={(e) => commit({ description: e.target.value })}
@@ -98,7 +98,7 @@ export function TransformNodeConfigFields({ value, onChange, handlerLocked = fal
           autoComplete="off"
         />
       </label>
-      <label className="kea-label" style={{ marginTop: "0.75rem", display: "flex", alignItems: "center", gap: 8 }}>
+      <label className="discovery-label" style={{ marginTop: "0.75rem", display: "flex", alignItems: "center", gap: 8 }}>
         <input
           type="checkbox"
           checked
@@ -109,10 +109,10 @@ export function TransformNodeConfigFields({ value, onChange, handlerLocked = fal
         {t("pipelineSteps.useMultiStep")}
       </label>
 
-      <h4 className="kea-section-title" style={{ fontSize: "0.95rem", marginTop: "1rem" }}>
+      <h4 className="discovery-section-title" style={{ fontSize: "0.95rem", marginTop: "1rem" }}>
         {t("pipelineSteps.transformStepsTitle")}
       </h4>
-      <p className="kea-hint">{t("pipelineSteps.transformStepsHint")}</p>
+      <p className="discovery-hint">{t("pipelineSteps.transformStepsHint")}</p>
 
       <PipelineExecutionFields
         t={t}
@@ -123,7 +123,7 @@ export function TransformNodeConfigFields({ value, onChange, handlerLocked = fal
       />
 
       {ui.steps.map((step, idx) => (
-        <div key={idx} className="kea-step-card">
+        <div key={idx} className="discovery-step-card">
           <TransformSingleStepFields
             stepIndex={idx}
             value={step}
@@ -135,10 +135,10 @@ export function TransformNodeConfigFields({ value, onChange, handlerLocked = fal
             }}
           />
           {ui.steps.length > 1 ? (
-            <div className="kea-step-card__actions">
+            <div className="discovery-step-card__actions">
               <button
                 type="button"
-                className="kea-btn kea-btn--ghost kea-btn--sm"
+                className="discovery-btn discovery-btn--ghost discovery-btn--sm"
                 disabled={idx === 0}
                 onClick={() => {
                   const steps = [...ui.steps];
@@ -151,7 +151,7 @@ export function TransformNodeConfigFields({ value, onChange, handlerLocked = fal
               </button>
               <button
                 type="button"
-                className="kea-btn kea-btn--ghost kea-btn--sm"
+                className="discovery-btn discovery-btn--ghost discovery-btn--sm"
                 disabled={idx >= ui.steps.length - 1}
                 onClick={() => {
                   const steps = [...ui.steps];
@@ -164,7 +164,7 @@ export function TransformNodeConfigFields({ value, onChange, handlerLocked = fal
               </button>
               <button
                 type="button"
-                className="kea-btn kea-btn--ghost kea-btn--sm"
+                className="discovery-btn discovery-btn--ghost discovery-btn--sm"
                 onClick={() => commit({ steps: ui.steps.filter((_, i) => i !== idx) })}
               >
                 {t("validationEditor.rule.remove")}
@@ -176,7 +176,7 @@ export function TransformNodeConfigFields({ value, onChange, handlerLocked = fal
 
       <button
         type="button"
-        className="kea-btn kea-btn--sm"
+        className="discovery-btn discovery-btn--sm"
         style={{ marginTop: "0.75rem" }}
         onClick={() => commit({ steps: [...ui.steps, defaultTransformStep(ui.steps)] })}
       >

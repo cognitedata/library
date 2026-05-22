@@ -90,13 +90,10 @@ def list_discovery_runs(
     if not root.is_dir():
         return {"runs": []}
     scope_filter = (run_scope_key or "").strip()
+    indexed: List[tuple[Dict[str, Any], Path]] = []
     for p in sorted(root.glob(f"*{DISCOVERY_RUN_SUFFIX}"), key=lambda x: x.stat().st_mtime, reverse=True):
         if not _DISCOVERY_RUN_BASENAME.match(p.name):
             continue
-        if scope_filter:
-            rs = read_json_run_scope(p)
-            if not run_scope_matches_key(rs, scope_filter):
-                continue
         stem_ts = discovery_run_stem_from_path(p)
         entry: Dict[str, Any] = {
             "stem": stem_ts,
@@ -107,8 +104,24 @@ def list_discovery_runs(
             entry.update(summary_from_run(load_json_object(p)))
         except HTTPException:
             pass
-        runs.append(entry)
-    return {"runs": runs}
+        indexed.append((entry, p))
+    total_all = len(indexed)
+    if scope_filter:
+        runs = [
+            entry
+            for entry, path in indexed
+            if run_scope_matches_key(read_json_run_scope(path), scope_filter)
+        ]
+        return {
+            "runs": runs,
+            "total_all_scopes": total_all,
+            "scope_filter": scope_filter,
+        }
+    return {
+        "runs": [entry for entry, _ in indexed],
+        "total_all_scopes": total_all,
+        "scope_filter": "",
+    }
 
 
 def discovery_run_detail_payload(

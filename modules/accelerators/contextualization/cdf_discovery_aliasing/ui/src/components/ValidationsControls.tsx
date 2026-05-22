@@ -61,7 +61,7 @@ export function ValidationsControls({ canvas, onChange, initialNodeId, singleNod
   if (singleNode) {
     if (!selected) {
       return (
-        <p className="kea-hint" style={{ marginTop: 0 }}>
+        <p className="discovery-hint" style={{ marginTop: 0 }}>
           {t("flow.nodeEditorFocusedNodeMissing")}
         </p>
       );
@@ -79,21 +79,21 @@ export function ValidationsControls({ canvas, onChange, initialNodeId, singleNod
   }
 
   return (
-    <div className="kea-source-views">
-      <div className="kea-toolbar-inline">
-        <h3 className="kea-section-title" style={{ margin: 0 }}>
+    <div className="discovery-source-views">
+      <div className="discovery-toolbar-inline">
+        <h3 className="discovery-section-title" style={{ margin: 0 }}>
           {t("validations.title")}
         </h3>
       </div>
 
-      <p className="kea-hint" style={{ marginTop: "0.35rem", marginBottom: "0.85rem" }}>
+      <p className="discovery-hint" style={{ marginTop: "0.35rem", marginBottom: "0.85rem" }}>
         {t("validations.canvasHint")}
       </p>
 
-      <div className="kea-source-views-split">
-        <aside className="kea-source-views-sidebar">
-          <p className="kea-artifact-list-title">{t("validations.listTitle")}</p>
-          <ul className="kea-source-views-list" role="listbox" aria-label={t("validations.listAriaLabel")}>
+      <div className="discovery-source-views-split">
+        <aside className="discovery-source-views-sidebar">
+          <p className="discovery-artifact-list-title">{t("validations.listTitle")}</p>
+          <ul className="discovery-source-views-list" role="listbox" aria-label={t("validations.listAriaLabel")}>
             {refs.map((ref) => {
               const key = validationNodeLocationKey(ref);
               const container = validationNodeContainerLabel(canvas, ref.subgraphPath);
@@ -103,15 +103,15 @@ export function ValidationsControls({ canvas, onChange, initialNodeId, singleNod
                   type="button"
                   role="option"
                   aria-selected={selectedKey === key}
-                  className={`kea-source-views-item${selectedKey === key ? " kea-source-views-item--active" : ""}`}
+                  className={`discovery-source-views-item${selectedKey === key ? " discovery-source-views-item--active" : ""}`}
                   onClick={() => setSelectedKey(key)}
                 >
                   {container ? (
-                    <span className="kea-hint" style={{ display: "block", fontSize: "0.68rem", marginBottom: 2 }}>
+                    <span className="discovery-hint" style={{ display: "block", fontSize: "0.68rem", marginBottom: 2 }}>
                       {t("validations.insideSubgraph", { name: container })}
                     </span>
                   ) : null}
-                  <span className="kea-hint" style={{ display: "block", fontSize: "0.68rem", marginBottom: 2 }}>
+                  <span className="discovery-hint" style={{ display: "block", fontSize: "0.68rem", marginBottom: 2 }}>
                     {t("flow.discoveryValidate")} · {ref.node.id}
                   </span>
                   {validationNodeListLabel(ref.node)}
@@ -122,12 +122,12 @@ export function ValidationsControls({ canvas, onChange, initialNodeId, singleNod
           </ul>
         </aside>
 
-        <div className="kea-source-views-editor">
+        <div className="discovery-source-views-editor">
           {!selected ? (
-            <p className="kea-hint">{t("validations.emptyEditor")}</p>
+            <p className="discovery-hint">{t("validations.emptyEditor")}</p>
           ) : (
-            <div className="kea-source-views-editor-inner">
-              <p className="kea-hint" style={{ margin: "0 0 0.85rem" }}>
+            <div className="discovery-source-views-editor-inner">
+              <p className="discovery-hint" style={{ margin: "0 0 0.85rem" }}>
                 {t("validations.stageLabel")} · {validationNodeListLabel(selected.node)}
               </p>
               <ValidationNodeConfigFields

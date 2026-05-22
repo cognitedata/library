@@ -30,10 +30,10 @@ export function SourceViewFiltersSection({
 
   return (
     <>
-      <h4 className="kea-section-title" style={{ fontSize: "0.95rem", marginTop: "0.75rem" }}>
+      <h4 className="discovery-section-title" style={{ fontSize: "0.95rem", marginTop: "0.75rem" }}>
         {t(titleKey)}
       </h4>
-      <p className="kea-hint" style={{ marginTop: 0, marginBottom: "0.65rem", maxWidth: "56rem" }}>
+      <p className="discovery-hint" style={{ marginTop: 0, marginBottom: "0.65rem", maxWidth: "56rem" }}>
         {t(combineHintKey)}
       </p>
       {filters.map((f, fi) => {
@@ -55,31 +55,31 @@ export function SourceViewFiltersSection({
           />
         );
       })}
-      <div className="kea-toolbar-inline" style={{ marginTop: 10, flexWrap: "wrap", gap: 8 }}>
+      <div className="discovery-toolbar-inline" style={{ marginTop: 10, flexWrap: "wrap", gap: 8 }}>
         <button
           type="button"
-          className="kea-btn kea-btn--sm"
+          className="discovery-btn discovery-btn--sm"
           onClick={() => onFiltersChange([...filters, emptyLeaf()])}
         >
           {t("sourceViews.filterAddLeaf")}
         </button>
         <button
           type="button"
-          className="kea-btn kea-btn--sm"
+          className="discovery-btn discovery-btn--sm"
           onClick={() => onFiltersChange([...filters, emptyAnd()])}
         >
           {t("sourceViews.filterAddAnd")}
         </button>
         <button
           type="button"
-          className="kea-btn kea-btn--sm"
+          className="discovery-btn discovery-btn--sm"
           onClick={() => onFiltersChange([...filters, emptyOr()])}
         >
           {t("sourceViews.filterAddOr")}
         </button>
         <button
           type="button"
-          className="kea-btn kea-btn--sm"
+          className="discovery-btn discovery-btn--sm"
           onClick={() => onFiltersChange([...filters, emptyNot()])}
         >
           {t("sourceViews.filterAddNot")}

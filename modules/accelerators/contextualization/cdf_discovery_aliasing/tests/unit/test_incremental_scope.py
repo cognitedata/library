@@ -3,15 +3,18 @@
 import sys
 from pathlib import Path
 
-_FUNCS = Path(__file__).resolve().parents[3] / "functions"
+_FUNCS = Path(__file__).resolve().parents[2] / "functions"
 if str(_FUNCS) not in sys.path:
     sys.path.insert(0, str(_FUNCS))
 
 from cdf_fn_common.incremental_scope import (
+    ListInstancesStats,
+    list_all_instances,
     node_last_updated_time_ms,
     norm_workflow_status,
     scope_key_from_view_dict,
     scope_watermark_row_key,
+    view_query_list_sort,
 )
 from cdf_fn_common.cohort_storage import (
     instance_cohort_row_key,
@@ -65,6 +68,12 @@ def test_watermark_key():
     assert scope_watermark_row_key("deadbeef").startswith("scope_wm_")
 
 
+def test_watermark_key_with_workflow_scope():
+    k = scope_watermark_row_key("deadbeef", "site_01")
+    assert k.startswith("scope_wm_")
+    assert k != scope_watermark_row_key("deadbeef")
+
+
 class _InstNested:
     def dump(self):
         return {"node": {"lastUpdatedTime": 1_700_000_000_000}}
@@ -72,6 +81,86 @@ class _InstNested:
 
 def test_node_last_updated_time_ms_nested_dump():
     assert node_last_updated_time_ms(_InstNested()) == 1_700_000_000_000
+
+
+def test_view_query_list_sort_omitted_for_all_modes() -> None:
+    """CDF rejects ``sort`` on ``node.lastUpdatedTime``; incremental uses Range filter only."""
+    assert view_query_list_sort(incremental=False) is None
+    assert view_query_list_sort(incremental=True) is None
+
+
+def test_list_all_instances_collects_stats(monkeypatch) -> None:
+    class _Batch:
+        def __iter__(self):
+            yield object()
+
+    class _Client:
+        class _DM:
+            class _Instances:
+                def __call__(self, **kwargs):
+                    assert kwargs.get("chunk_size") == 1000
+                    assert kwargs.get("limit") is None
+                    assert kwargs.get("sort") is None
+                    return iter([_Batch()])
+
+            instances = _Instances()
+
+        data_modeling = _DM()
+
+    stats = ListInstancesStats()
+    items = list(
+        list_all_instances(
+            _Client(),
+            instance_type="node",
+            space=None,
+            sources=[],
+            filter=None,
+            sort=view_query_list_sort(incremental=False),
+            stats_out=stats,
+        )
+    )
+    assert len(items) == 1
+    assert stats.page_count == 1
+    assert stats.instances_yielded == 1
+    assert stats.list_duration_sec >= 0
+
+
+def test_list_all_instances_multipage_chunk_iterator() -> None:
+    class _Batch:
+        def __init__(self, n: int) -> None:
+            self._n = n
+
+        def __iter__(self):
+            for _ in range(self._n):
+                yield object()
+
+    class _Client:
+        class _DM:
+            class _Instances:
+                def __call__(self, **kwargs):
+                    assert kwargs.get("chunk_size") == 2
+                    assert kwargs.get("limit") is None
+                    return iter([_Batch(2), _Batch(1)])
+
+            instances = _Instances()
+
+        data_modeling = _DM()
+
+    stats = ListInstancesStats()
+    items = list(
+        list_all_instances(
+            _Client(),
+            instance_type="node",
+            space=None,
+            sources=[],
+            filter=None,
+            limit_per_page=2,
+            stats_out=stats,
+        )
+    )
+    assert len(items) == 3
+    assert stats.page_count == 2
+    assert stats.instances_yielded == 3
 
 
 def test_iter_cohort_entity_rows_yields_entity_rows(monkeypatch) -> None:

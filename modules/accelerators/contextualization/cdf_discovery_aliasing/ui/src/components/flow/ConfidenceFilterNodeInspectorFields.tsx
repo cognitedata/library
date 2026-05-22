@@ -24,7 +24,7 @@ export function ConfidenceFilterNodeInspectorFields({ nodeId, data, onPatchNode,
   const { draftCfg, updateDraft, persistDraft } = useConfidenceFilterNodeConfigDraft(data, persist);
 
   return (
-    <div className="kea-stack" style={{ marginTop: "0.5rem" }}>
+    <div className="discovery-stack" style={{ marginTop: "0.5rem" }}>
       <ConfidenceFilterNodeStageConfigFields
         cfg={draftCfg}
         onChange={updateDraft}

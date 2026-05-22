@@ -295,8 +295,188 @@ def test_view_query_incremental_applies_watermark_filter(monkeypatch) -> None:
     }
     from fn_dm_view_query.engine.handlers.view_query import ViewQueryHandler
 
-    ViewQueryHandler.run("fn_dm_view_query", data, client, None)
+    summary = ViewQueryHandler.run("fn_dm_view_query", data, client, None)
     assert captured.get("filter") is not None
+    assert summary["list_complete"] is True
+    assert summary["rows_truncated"] is False
+
+
+def test_view_query_run_all_no_watermark_filter(monkeypatch) -> None:
+    wm_reads: List[Any] = []
+    captured: Dict[str, Any] = {}
+
+    def _track_read_wm(*_a, **_k):
+        wm_reads.append(1)
+        return 1_700_000_000_000
+
+    def _fake_list_all_instances(_client, **kwargs):
+        captured["filter"] = kwargs.get("filter")
+        return iter(())
+
+    monkeypatch.setattr(
+        "fn_dm_view_query.engine.handlers.view_query.read_listing_watermark_ms",
+        _track_read_wm,
+    )
+    monkeypatch.setattr(
+        "fn_dm_view_query.engine.handlers.view_query.list_all_instances",
+        _fake_list_all_instances,
+    )
+
+    class _Rows:
+        def retrieve(self, *_a, **_k):
+            return None
+
+        def insert(self, *_a, **_k):
+            return None
+
+    client = MagicMock()
+    client.raw.rows = _Rows()
+
+    data: Dict[str, Any] = {
+        "task_id": "kea__vq",
+        "run_id": "run_test",
+        "run_all": True,
+        "config": {
+            "view_space": "cdf_cdm",
+            "view_external_id": "CogniteAsset",
+            "view_version": "v1",
+            "incremental_change_processing": True,
+            "filters": [],
+        },
+        "configuration": {},
+    }
+    from fn_dm_view_query.engine.handlers.view_query import ViewQueryHandler
+
+    summary = ViewQueryHandler.run("fn_dm_view_query", data, client, None)
+    assert wm_reads == []
+    filt = captured.get("filter")
+    assert filt is not None
+    filt_dump = filt.dump() if hasattr(filt, "dump") else str(filt)
+    assert "lastUpdatedTime" not in json.dumps(filt_dump)
+    assert summary["run_all"] is True
+    assert summary["incremental"] is True
+    assert summary["listing_watermark_applied"] is False
+
+
+def test_view_query_run_all_writes_watermark_and_hashes(monkeypatch) -> None:
+    wm_writes: List[int] = []
+    hash_upserts: List[List[Dict[str, Any]]] = []
+
+    def _fake_write_wm(_client, *, high_ms: int, **_k):
+        wm_writes.append(high_ms)
+
+    def _fake_upsert_hashes(_client, *, items: List[Dict[str, Any]], **_k):
+        hash_upserts.append(list(items))
+
+    instances = [
+        _FakeInstance(external_id="P-1", instance_id="uuid-1", last_updated_time=1_700_000_000_100),
+        _FakeInstance(external_id="P-2", instance_id="uuid-2", last_updated_time=1_700_000_000_200),
+    ]
+
+    monkeypatch.setattr(
+        "fn_dm_view_query.engine.handlers.view_query.list_all_instances",
+        lambda _c, **kw: iter(instances),
+    )
+    monkeypatch.setattr(
+        "fn_dm_view_query.engine.handlers.view_query.write_listing_watermark_raw",
+        _fake_write_wm,
+    )
+    monkeypatch.setattr(
+        "fn_dm_view_query.engine.handlers.view_query.upsert_incremental_entity_hashes_raw",
+        _fake_upsert_hashes,
+    )
+    monkeypatch.setattr(
+        "fn_dm_view_query.engine.handlers.view_query.compute_extraction_inputs_hash_from_entity_row",
+        lambda *_a, **_k: "hash_run_all",
+    )
+
+    class _Rows:
+        def retrieve(self, *_a, **_k):
+            return None
+
+        def insert(self, *_a, **_k):
+            return None
+
+    client = MagicMock()
+    client.raw.rows = _Rows()
+
+    data: Dict[str, Any] = {
+        "task_id": "kea__vq",
+        "run_id": "run_test",
+        "run_all": True,
+        "config": {
+            "view_space": "cdf_cdm",
+            "view_external_id": "CogniteAsset",
+            "view_version": "v1",
+            "incremental_change_processing": True,
+            "filters": [],
+        },
+        "configuration": {},
+    }
+    from fn_dm_view_query.engine.handlers.view_query import ViewQueryHandler
+
+    summary = ViewQueryHandler.run("fn_dm_view_query", data, client, None)
+    assert summary["instances_written"] == 2
+    assert summary["instances_skipped_unchanged_hash"] == 0
+    assert wm_writes == [1_700_000_000_200]
+    assert len(hash_upserts) == 1
+    assert len(hash_upserts[0]) == 2
+    assert all(it["extraction_inputs_hash"] == "hash_run_all" for it in hash_upserts[0])
+
+
+def test_view_query_run_all_emits_all_cohort_rows(monkeypatch) -> None:
+    fixed_hash = "unchanged_hash_value"
+
+    monkeypatch.setattr(
+        "fn_dm_view_query.engine.handlers.view_query.load_hash_by_node_for_scope",
+        lambda *_a, **_k: {
+            "sp1:uuid-1": fixed_hash,
+            "sp1:uuid-2": fixed_hash,
+        },
+    )
+    monkeypatch.setattr(
+        "fn_dm_view_query.engine.handlers.view_query.compute_extraction_inputs_hash_from_entity_row",
+        lambda *_a, **_k: fixed_hash,
+    )
+    monkeypatch.setattr(
+        "fn_dm_view_query.engine.handlers.view_query.list_all_instances",
+        lambda _c, **kw: iter(
+            [
+                _FakeInstance(external_id="P-1", instance_id="uuid-1"),
+                _FakeInstance(external_id="P-2", instance_id="uuid-2"),
+            ]
+        ),
+    )
+
+    class _Rows:
+        def retrieve(self, *_a, **_k):
+            return None
+
+        def insert(self, *_a, **_k):
+            return None
+
+    client = MagicMock()
+    client.raw.rows = _Rows()
+
+    data: Dict[str, Any] = {
+        "task_id": "kea__vq",
+        "run_id": "run_test",
+        "run_all": True,
+        "config": {
+            "view_space": "cdf_cdm",
+            "view_external_id": "CogniteAsset",
+            "view_version": "v1",
+            "incremental_change_processing": True,
+            "filters": [],
+        },
+        "configuration": {},
+    }
+    from fn_dm_view_query.engine.handlers.view_query import ViewQueryHandler
+
+    summary = ViewQueryHandler.run("fn_dm_view_query", data, client, None)
+    assert summary["instances_written"] == 2
+    assert summary["instances_skipped_unchanged_hash"] == 0
+    assert summary["incremental_skip_unchanged_source_inputs"] is False
 
 
 def test_discovery_handle_view_query_writes_raw(monkeypatch) -> None:
@@ -355,6 +535,9 @@ def test_discovery_handle_view_query_writes_raw(monkeypatch) -> None:
     }
     summary = discovery_handle_view_query("fn_dm_view_query", data, client, None)
     assert summary["instances_written"] == 2
+    assert summary.get("list_page_count") is not None
+    assert summary.get("list_duration_sec") is not None
+    assert "list_sort" in summary
     assert summary["raw_db"] == "db_discovery"
     assert "__" in summary["raw_table"]
     assert len(inserted) == 1

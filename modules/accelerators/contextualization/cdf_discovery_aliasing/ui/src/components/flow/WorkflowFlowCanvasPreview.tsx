@@ -15,9 +15,14 @@ import {
 import { useAppSettings } from "../../context/AppSettingsContext";
 import type { MessageKey } from "../../i18n";
 import { normalizeWorkflowCanvasHandleOrientation, type WorkflowCanvasDocument } from "../../types/workflowCanvas";
-import { applyKeaFlowNodeDisplayClasses, canvasToFlowEdges, canvasToFlowNodes } from "./flowDocumentBridge";
+import { applyDiscoveryFlowNodeDisplayClasses, canvasToFlowEdges, canvasToFlowNodes } from "./flowDocumentBridge";
+import { WorkflowCanvasSearchField, WorkflowCanvasSearchResults } from "./WorkflowCanvasSearch";
+import {
+  canvasNodeMatchesSearch,
+  filterCanvasNodesBySearch,
+} from "../../utils/workflowCanvasFlowSearch";
 import { FlowHandleOrientationProvider } from "./FlowHandleOrientationContext";
-import { KEA_FLOW_NODE_TYPES } from "./flowNodeRegistry";
+import { DISCOVERY_FLOW_NODE_TYPES } from "./flowNodeRegistry";
 import { runProgressAnimatedEdgeIds } from "./flowRunProgressEdges";
 
 type TFn = (key: MessageKey, vars?: Record<string, string | number>) => string;
@@ -55,6 +60,18 @@ function PreviewFitView({ graphRevision }: { graphRevision: number }) {
   return null;
 }
 
+function PreviewFocusCanvasNode({ nodeId }: { nodeId: string | null }) {
+  const { fitView } = useReactFlow();
+  useEffect(() => {
+    if (!nodeId) return;
+    const id = window.requestAnimationFrame(() => {
+      fitView({ nodes: [{ id: nodeId }], padding: 0.45, duration: 280, maxZoom: 1.15 });
+    });
+    return () => window.cancelAnimationFrame(id);
+  }, [nodeId, fitView]);
+  return null;
+}
+
 function PreviewInner({
   doc,
   reloadNonce,
@@ -62,6 +79,8 @@ function PreviewInner({
   runActiveCanvasNodeIds,
   runCompletedCanvasNodeIds,
   failedCanvasNodeIds,
+  searchQuery,
+  focusNodeId,
 }: {
   doc: WorkflowCanvasDocument;
   reloadNonce: number;
@@ -69,8 +88,11 @@ function PreviewInner({
   runActiveCanvasNodeIds: readonly string[];
   runCompletedCanvasNodeIds: readonly string[];
   failedCanvasNodeIds: readonly string[];
+  searchQuery: string;
+  focusNodeId: string | null;
 }) {
   const { theme } = useAppSettings();
+  const searchActive = searchQuery.trim().length > 0;
   /**
    * Keep RF-internal node/edge state separate from execution styling. React Flow applies
    * ``onNodesChange`` updates (e.g. dimensions) that would strip a naïve ``useEffect`` className.
@@ -97,14 +119,17 @@ function PreviewInner({
 
   const nodes = useMemo(
     () =>
-      rfNodes.map((n) =>
-        applyKeaFlowNodeDisplayClasses(n, {
+      rfNodes.map((n) => {
+        const cn = doc.nodes.find((node) => node.id === n.id);
+        const matches = cn ? canvasNodeMatchesSearch(cn, searchQuery) : true;
+        return applyDiscoveryFlowNodeDisplayClasses(n, {
           runFailed: failedSet.has(n.id),
           executing: executingSet.has(n.id),
           completed: completedSet.has(n.id),
-        })
-      ),
-    [rfNodes, failedSet, executingSet, completedSet]
+          dimmed: searchActive && !matches,
+        });
+      }),
+    [rfNodes, doc.nodes, searchQuery, searchActive, failedSet, executingSet, completedSet]
   );
 
   const edges = useMemo(
@@ -153,7 +178,7 @@ function PreviewInner({
         edges={edges}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
-        nodeTypes={KEA_FLOW_NODE_TYPES}
+        nodeTypes={DISCOVERY_FLOW_NODE_TYPES}
         defaultEdgeOptions={{ animated: false }}
         nodesDraggable={false}
         nodesConnectable={false}
@@ -172,29 +197,58 @@ function PreviewInner({
         proOptions={{ hideAttribution: true }}
       >
         <PreviewFitView graphRevision={graphRevision} />
+        <PreviewFocusCanvasNode nodeId={focusNodeId} />
         <Background variant={BackgroundVariant.Dots} gap={16} size={1} />
         <Controls />
-        <MiniMap zoomable pannable className="kea-flow-minimap" />
+        <MiniMap zoomable pannable className="discovery-flow-minimap" />
       </ReactFlow>
     </FlowHandleOrientationProvider>
   );
 }
 
 export function WorkflowFlowCanvasPreview({ t, document: doc, reloadNonce, onEdit, runProgress }: Props) {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [focusNodeId, setFocusNodeId] = useState<string | null>(null);
+  const searchMatches = useMemo(
+    () => filterCanvasNodesBySearch(doc.nodes, searchQuery),
+    [doc.nodes, searchQuery]
+  );
+
+  useEffect(() => {
+    setSearchQuery("");
+    setFocusNodeId(null);
+  }, [reloadNonce]);
+
   return (
-    <div className="kea-flow-preview">
-      <div className="kea-flow-preview__toolbar">
-        <p className="kea-hint kea-flow-preview__toolbar-hint">{t("flow.canvasPreviewHint")}</p>
+    <div className="discovery-flow-preview">
+      <div className="discovery-flow-preview__toolbar">
+        <p className="discovery-hint discovery-flow-preview__toolbar-hint">{t("flow.canvasPreviewHint")}</p>
+        {doc.nodes.length > 0 && (
+          <WorkflowCanvasSearchField
+            t={t}
+            searchQuery={searchQuery}
+            onSearchQueryChange={setSearchQuery}
+          />
+        )}
         <button
           type="button"
-          className="kea-btn kea-btn--primary"
+          className="discovery-btn discovery-btn--primary"
           disabled={Boolean(runProgress?.busy)}
           onClick={onEdit}
         >
           {t("flow.editWorkflow")}
         </button>
       </div>
-      <div className="kea-flow-preview__canvas">
+      {doc.nodes.length > 0 && (
+        <WorkflowCanvasSearchResults
+          t={t}
+          searchQuery={searchQuery}
+          searchMatches={searchMatches}
+          selectedNodeId={focusNodeId}
+          onSelectNode={setFocusNodeId}
+        />
+      )}
+      <div className="discovery-flow-preview__canvas">
         <ReactFlowProvider>
           <PreviewInner
             key={reloadNonce}
@@ -204,6 +258,8 @@ export function WorkflowFlowCanvasPreview({ t, document: doc, reloadNonce, onEdi
             runActiveCanvasNodeIds={runProgress?.runActiveCanvasNodeIds ?? []}
             runCompletedCanvasNodeIds={runProgress?.runCompletedCanvasNodeIds ?? []}
             failedCanvasNodeIds={runProgress?.failedCanvasNodeIds ?? []}
+            searchQuery={searchQuery}
+            focusNodeId={focusNodeId}
           />
         </ReactFlowProvider>
       </div>

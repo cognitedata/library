@@ -4,15 +4,15 @@ import { isSubflowGraphHubRfType } from "../../types/workflowCanvas";
 /** Nodes that may have ``parentId`` cleared when lifting from a subgraph. */
 export function canChangeSubflowParent(nodeType: string | undefined): boolean {
   if (!nodeType) return false;
-  if (nodeType === "keaStart" || nodeType === "keaEnd") return false;
+  if (nodeType === "discoveryStart" || nodeType === "discoveryEnd") return false;
   if (isSubflowGraphHubRfType(nodeType)) return false;
   return true;
 }
 
-/** Nodes that may be grouped into a new ``keaSubgraph`` via collapse selection. */
+/** Nodes that may be grouped into a new ``discoverySubgraph`` via collapse selection. */
 export function isWrapGroupableNodeType(nodeType: string | undefined): boolean {
   if (!canChangeSubflowParent(nodeType)) return false;
-  if (nodeType === "keaSubgraph") return false;
+  if (nodeType === "discoverySubgraph") return false;
   return true;
 }
 

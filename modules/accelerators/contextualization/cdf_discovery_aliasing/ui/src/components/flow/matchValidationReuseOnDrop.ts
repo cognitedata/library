@@ -61,7 +61,7 @@ function nearestNode(pos: { x: number; y: number }, nodes: Node[], types: Set<st
 
 function walkGlobalMatchChain(
   headId: string,
-  rfType: "keaMatchValidationRuleExtraction" | "keaMatchValidationRuleAliasing",
+  rfType: "discoveryMatchValidationRuleExtraction" | "discoveryMatchValidationRuleAliasing",
   globalRefKey: "extraction_global_validation" | "aliasing_global_validation",
   edges: Edge[],
   byId: Map<string, Node>
@@ -93,7 +93,7 @@ function walkGlobalMatchChain(
 }
 
 function svNodeApplies(node: Node, idx: number): boolean {
-  if (node.type !== "keaMatchValidationRuleSourceView") return false;
+  if (node.type !== "discoveryMatchValidationRuleSourceView") return false;
   const r = (node.data as Record<string, unknown> | undefined)?.ref;
   if (refNum(r, "source_view_index") === idx) return true;
   if (refBool(r, "shared_source_view_validation_chain")) {
@@ -118,7 +118,7 @@ function walkSourceViewChain(headId: string, idx: number, edges: Edge[], byId: M
       .filter(
         (e) =>
           isChainEdge(e) &&
-          byId.get(e.target)?.type === "keaMatchValidationRuleSourceView" &&
+          byId.get(e.target)?.type === "discoveryMatchValidationRuleSourceView" &&
           svNodeApplies(byId.get(e.target)!, idx)
       );
     if (outs.length === 0) break;
@@ -179,17 +179,17 @@ export function validationRuleLayoutReuseOnDrop(
   const byId = new Map(nodes.map((n) => [n.id, n]));
 
   if (nk === "match_validation_extraction") {
-    const anchor = nearestNode(position, nodes, new Set(["keaTransform", "keaViewQuery", "keaJoin"]));
+    const anchor = nearestNode(position, nodes, new Set(["discoveryTransform", "discoveryViewQuery", "discoveryJoin"]));
     if (!anchor) return { action: "create" };
     const expected = globalKeValidationNames(scopeDoc);
     if (expected.length === 0) return { action: "create" };
     for (const e of edges) {
       if (e.source !== anchor.id || !isDataEdge(e)) continue;
       const t = byId.get(e.target);
-      if (t?.type !== "keaMatchValidationRuleExtraction") continue;
+      if (t?.type !== "discoveryMatchValidationRuleExtraction") continue;
       const tr = (t.data as Record<string, unknown> | undefined)?.ref;
       if (!refBool(tr, "extraction_global_validation")) continue;
-      const chain = walkGlobalMatchChain(t.id, "keaMatchValidationRuleExtraction", "extraction_global_validation", edges, byId);
+      const chain = walkGlobalMatchChain(t.id, "discoveryMatchValidationRuleExtraction", "extraction_global_validation", edges, byId);
       if (!listsEqual(chain, expected)) continue;
       return {
         action: "reuse",
@@ -198,10 +198,10 @@ export function validationRuleLayoutReuseOnDrop(
       };
     }
     for (const n of nodes) {
-      if (n.type !== "keaMatchValidationRuleExtraction") continue;
+      if (n.type !== "discoveryMatchValidationRuleExtraction") continue;
       const tr = (n.data as Record<string, unknown> | undefined)?.ref;
       if (!refBool(tr, "extraction_global_validation")) continue;
-      const chain = walkGlobalMatchChain(n.id, "keaMatchValidationRuleExtraction", "extraction_global_validation", edges, byId);
+      const chain = walkGlobalMatchChain(n.id, "discoveryMatchValidationRuleExtraction", "extraction_global_validation", edges, byId);
       if (!listsEqual(chain, expected)) continue;
       return {
         action: "reuse",
@@ -213,17 +213,17 @@ export function validationRuleLayoutReuseOnDrop(
   }
 
   if (nk === "match_validation_aliasing") {
-    const anchor = nearestNode(position, nodes, new Set(["keaTransform", "keaAliasPersistence"]));
+    const anchor = nearestNode(position, nodes, new Set(["discoveryTransform", "discoveryAliasPersistence"]));
     if (!anchor) return { action: "create" };
     const expected = globalAliasingValidationNames(scopeDoc);
     if (expected.length === 0) return { action: "create" };
     for (const e of edges) {
       if (e.source !== anchor.id || !isDataEdge(e)) continue;
       const t = byId.get(e.target);
-      if (t?.type !== "keaMatchValidationRuleAliasing") continue;
+      if (t?.type !== "discoveryMatchValidationRuleAliasing") continue;
       const tr = (t.data as Record<string, unknown> | undefined)?.ref;
       if (!refBool(tr, "aliasing_global_validation")) continue;
-      const chain = walkGlobalMatchChain(t.id, "keaMatchValidationRuleAliasing", "aliasing_global_validation", edges, byId);
+      const chain = walkGlobalMatchChain(t.id, "discoveryMatchValidationRuleAliasing", "aliasing_global_validation", edges, byId);
       if (!listsEqual(chain, expected)) continue;
       return {
         action: "reuse",
@@ -232,10 +232,10 @@ export function validationRuleLayoutReuseOnDrop(
       };
     }
     for (const n of nodes) {
-      if (n.type !== "keaMatchValidationRuleAliasing") continue;
+      if (n.type !== "discoveryMatchValidationRuleAliasing") continue;
       const tr = (n.data as Record<string, unknown> | undefined)?.ref;
       if (!refBool(tr, "aliasing_global_validation")) continue;
-      const chain = walkGlobalMatchChain(n.id, "keaMatchValidationRuleAliasing", "aliasing_global_validation", edges, byId);
+      const chain = walkGlobalMatchChain(n.id, "discoveryMatchValidationRuleAliasing", "aliasing_global_validation", edges, byId);
       if (!listsEqual(chain, expected)) continue;
       return {
         action: "reuse",
@@ -246,7 +246,7 @@ export function validationRuleLayoutReuseOnDrop(
     return { action: "create" };
   }
 
-  const svAnchor = nearestNode(position, nodes, new Set(["keaSourceView"]));
+  const svAnchor = nearestNode(position, nodes, new Set(["discoverySourceView"]));
   if (!svAnchor) return { action: "create" };
   const ref = (svAnchor.data as Record<string, unknown> | undefined)?.ref;
   const svIx = refNum(ref, "source_view_index");

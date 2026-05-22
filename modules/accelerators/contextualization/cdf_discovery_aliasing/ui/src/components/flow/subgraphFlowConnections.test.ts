@@ -2,8 +2,8 @@ import type { Node } from "@xyflow/react";
 import { describe, expect, it } from "vitest";
 import { subflowTargetHandleForPort, subflowSourceHandleForPort } from "../../types/workflowCanvas";
 import type { WorkflowCanvasNodeData } from "../../types/workflowCanvas";
-import { isValidKeaFlowConnection } from "./subgraphFlowConnections";
-import { keaValidationRuleLayoutRfTypes } from "./flowConstants";
+import { isValidDiscoveryFlowConnection } from "./subgraphFlowConnections";
+import { discoveryValidationRuleLayoutRfTypes } from "./flowConstants";
 
 function node(id: string, type: string, data?: Partial<WorkflowCanvasNodeData>): Node {
   return {
@@ -14,18 +14,18 @@ function node(id: string, type: string, data?: Partial<WorkflowCanvasNodeData>):
   };
 }
 
-describe("isValidKeaFlowConnection subgraph ports with inner peer types", () => {
-  it("allows outer view query into subgraph in when port targets inner keaTransform", () => {
-    const sg = node("sg", "keaSubgraph", {
+describe("isValidDiscoveryFlowConnection subgraph ports with inner peer types", () => {
+  it("allows outer view query into subgraph in when port targets inner discoveryTransform", () => {
+    const sg = node("sg", "discoverySubgraph", {
       subflow_ports: {
-        inputs: [{ id: "in", label: "A", inner_target_rf_type: "keaTransform" }],
+        inputs: [{ id: "in", label: "A", inner_target_rf_type: "discoveryTransform" }],
         outputs: [{ id: "out", label: "out" }],
       },
     });
-    const vq = node("vq", "keaViewQuery", { label: "Q" });
+    const vq = node("vq", "discoveryViewQuery", { label: "Q" });
     const nodes = new Map([["sg", sg], ["vq", vq]]);
     const getNode = (id: string) => nodes.get(id);
-    const ok = isValidKeaFlowConnection(getNode, {
+    const ok = isValidDiscoveryFlowConnection(getNode, {
       source: "vq",
       target: "sg",
       sourceHandle: "out",
@@ -34,17 +34,17 @@ describe("isValidKeaFlowConnection subgraph ports with inner peer types", () => 
     expect(ok).toBe(true);
   });
 
-  it("rejects outer sourceView into subgraph in when port targets inner keaViewQuery", () => {
-    const sg = node("sg", "keaSubgraph", {
+  it("rejects outer sourceView into subgraph in when port targets inner discoveryViewQuery", () => {
+    const sg = node("sg", "discoverySubgraph", {
       subflow_ports: {
-        inputs: [{ id: "in", label: "A", inner_target_rf_type: "keaViewQuery" }],
+        inputs: [{ id: "in", label: "A", inner_target_rf_type: "discoveryViewQuery" }],
         outputs: [{ id: "out", label: "out" }],
       },
     });
-    const sv = node("sv", "keaSourceView", {});
+    const sv = node("sv", "discoverySourceView", {});
     const nodes = new Map([["sv", sv], ["sg", sg]]);
     const getNode = (id: string) => nodes.get(id);
-    const ok = isValidKeaFlowConnection(getNode, {
+    const ok = isValidDiscoveryFlowConnection(getNode, {
       source: "sv",
       target: "sg",
       sourceHandle: "out",
@@ -53,17 +53,17 @@ describe("isValidKeaFlowConnection subgraph ports with inner peer types", () => 
     expect(ok).toBe(false);
   });
 
-  it("allows outer start into subgraph in when port targets inner keaViewQuery", () => {
-    const sg = node("sg", "keaSubgraph", {
+  it("allows outer start into subgraph in when port targets inner discoveryViewQuery", () => {
+    const sg = node("sg", "discoverySubgraph", {
       subflow_ports: {
-        inputs: [{ id: "in", label: "A", inner_target_rf_type: "keaViewQuery" }],
+        inputs: [{ id: "in", label: "A", inner_target_rf_type: "discoveryViewQuery" }],
         outputs: [{ id: "out", label: "out" }],
       },
     });
-    const st = node("st", "keaStart", {});
+    const st = node("st", "discoveryStart", {});
     const nodes = new Map([["st", st], ["sg", sg]]);
     const getNode = (id: string) => nodes.get(id);
-    const ok = isValidKeaFlowConnection(getNode, {
+    const ok = isValidDiscoveryFlowConnection(getNode, {
       source: "st",
       target: "sg",
       sourceHandle: "out",
@@ -72,17 +72,17 @@ describe("isValidKeaFlowConnection subgraph ports with inner peer types", () => 
     expect(ok).toBe(true);
   });
 
-  it("allows outer viewQuery into subgraph in when port targets inner keaJoin", () => {
-    const sg = node("sg", "keaSubgraph", {
+  it("allows outer viewQuery into subgraph in when port targets inner discoveryJoin", () => {
+    const sg = node("sg", "discoverySubgraph", {
       subflow_ports: {
-        inputs: [{ id: "in", label: "L", inner_target_rf_type: "keaJoin" }],
+        inputs: [{ id: "in", label: "L", inner_target_rf_type: "discoveryJoin" }],
         outputs: [{ id: "out", label: "out" }],
       },
     });
-    const vq = node("vq", "keaViewQuery", {});
+    const vq = node("vq", "discoveryViewQuery", {});
     const nodes = new Map([["vq", vq], ["sg", sg]]);
     const getNode = (id: string) => nodes.get(id);
-    const ok = isValidKeaFlowConnection(getNode, {
+    const ok = isValidDiscoveryFlowConnection(getNode, {
       source: "vq",
       target: "sg",
       sourceHandle: "out",
@@ -91,17 +91,17 @@ describe("isValidKeaFlowConnection subgraph ports with inner peer types", () => 
     expect(ok).toBe(true);
   });
 
-  it("allows outer transform into subgraph in when port targets inner keaJoin", () => {
-    const sg = node("sg", "keaSubgraph", {
+  it("allows outer transform into subgraph in when port targets inner discoveryJoin", () => {
+    const sg = node("sg", "discoverySubgraph", {
       subflow_ports: {
-        inputs: [{ id: "in", label: "R", inner_target_rf_type: "keaJoin" }],
+        inputs: [{ id: "in", label: "R", inner_target_rf_type: "discoveryJoin" }],
         outputs: [{ id: "out", label: "out" }],
       },
     });
-    const tf = node("tf", "keaTransform", {});
+    const tf = node("tf", "discoveryTransform", {});
     const nodes = new Map([["tf", tf], ["sg", sg]]);
     const getNode = (id: string) => nodes.get(id);
-    const ok = isValidKeaFlowConnection(getNode, {
+    const ok = isValidDiscoveryFlowConnection(getNode, {
       source: "tf",
       target: "sg",
       sourceHandle: "out",
@@ -110,17 +110,17 @@ describe("isValidKeaFlowConnection subgraph ports with inner peer types", () => 
     expect(ok).toBe(true);
   });
 
-  it("rejects outer end into subgraph in when port only accepts inner keaTransform", () => {
-    const sg = node("sg", "keaSubgraph", {
+  it("rejects outer end into subgraph in when port only accepts inner discoveryTransform", () => {
+    const sg = node("sg", "discoverySubgraph", {
       subflow_ports: {
-        inputs: [{ id: "in", label: "A", inner_target_rf_type: "keaTransform" }],
+        inputs: [{ id: "in", label: "A", inner_target_rf_type: "discoveryTransform" }],
         outputs: [{ id: "out", label: "out" }],
       },
     });
-    const end = node("end", "keaEnd", { label: "E" });
+    const end = node("end", "discoveryEnd", { label: "E" });
     const nodes = new Map([["sg", sg], ["end", end]]);
     const getNode = (id: string) => nodes.get(id);
-    const ok = isValidKeaFlowConnection(getNode, {
+    const ok = isValidDiscoveryFlowConnection(getNode, {
       source: "end",
       target: "sg",
       sourceHandle: "out",
@@ -129,20 +129,20 @@ describe("isValidKeaFlowConnection subgraph ports with inner peer types", () => 
     expect(ok).toBe(false);
   });
 
-  it("allows subgraph out to end when port originates from inner keaTransform", () => {
-    const sg = node("sg", "keaSubgraph", {
+  it("allows subgraph out to end when port originates from inner discoveryTransform", () => {
+    const sg = node("sg", "discoverySubgraph", {
       subflow_ports: {
         inputs: [{ id: "in", label: "in" }],
-        outputs: [{ id: "out", label: "B", inner_source_rf_type: "keaTransform" }],
+        outputs: [{ id: "out", label: "B", inner_source_rf_type: "discoveryTransform" }],
       },
     });
-    const end = node("end", "keaEnd", {});
+    const end = node("end", "discoveryEnd", {});
     const nodes = new Map<string, Node>([
       ["sg", sg],
       ["end", end],
     ]);
     const getNode = (id: string) => nodes.get(id);
-    const ok = isValidKeaFlowConnection(getNode, {
+    const ok = isValidDiscoveryFlowConnection(getNode, {
       source: "sg",
       target: "end",
       sourceHandle: subflowSourceHandleForPort("out"),
@@ -151,20 +151,20 @@ describe("isValidKeaFlowConnection subgraph ports with inner peer types", () => 
     expect(ok).toBe(true);
   });
 
-  it("allows inner keaJoin into subgraph graph-out when port declares inner_source keaJoin", () => {
-    const go = node("go", "keaSubflowGraphOut", {
+  it("allows inner discoveryJoin into subgraph graph-out when port declares inner_source discoveryJoin", () => {
+    const go = node("go", "discoverySubflowGraphOut", {
       subflow_ports: {
         inputs: [],
-        outputs: [{ id: "jout", label: "joined", inner_source_rf_type: "keaJoin" }],
+        outputs: [{ id: "jout", label: "joined", inner_source_rf_type: "discoveryJoin" }],
       },
     });
-    const jn = node("jn", "keaJoin", {});
+    const jn = node("jn", "discoveryJoin", {});
     const nodes = new Map<string, Node>([
       ["jn", jn],
       ["go", go],
     ]);
     const getNode = (id: string) => nodes.get(id);
-    const ok = isValidKeaFlowConnection(getNode, {
+    const ok = isValidDiscoveryFlowConnection(getNode, {
       source: "jn",
       target: "go",
       sourceHandle: "out",
@@ -173,20 +173,20 @@ describe("isValidKeaFlowConnection subgraph ports with inner peer types", () => 
     expect(ok).toBe(true);
   });
 
-  it("rejects subgraph out to sourceView when port originates from inner keaTransform", () => {
-    const sg = node("sg", "keaSubgraph", {
+  it("rejects subgraph out to sourceView when port originates from inner discoveryTransform", () => {
+    const sg = node("sg", "discoverySubgraph", {
       subflow_ports: {
         inputs: [{ id: "in", label: "in" }],
-        outputs: [{ id: "out", label: "B", inner_source_rf_type: "keaTransform" }],
+        outputs: [{ id: "out", label: "B", inner_source_rf_type: "discoveryTransform" }],
       },
     });
-    const sv = node("sv", "keaSourceView", {});
+    const sv = node("sv", "discoverySourceView", {});
     const nodes = new Map<string, Node>([
       ["sg", sg],
       ["sv", sv],
     ]);
     const getNode = (id: string) => nodes.get(id);
-    const ok = isValidKeaFlowConnection(getNode, {
+    const ok = isValidDiscoveryFlowConnection(getNode, {
       source: "sg",
       target: "sv",
       sourceHandle: subflowSourceHandleForPort("out"),
@@ -196,15 +196,15 @@ describe("isValidKeaFlowConnection subgraph ports with inner peer types", () => 
   });
 
   it("rejects transform out → match validation rule; allows transform validation handle → rule", () => {
-    const ext = node("ext", "keaTransform", { label: "E" });
-    const rule = node("rule", "keaMatchValidationRuleExtraction", { label: "R" });
+    const ext = node("ext", "discoveryTransform", { label: "E" });
+    const rule = node("rule", "discoveryMatchValidationRuleExtraction", { label: "R" });
     const nodes = new Map<string, Node>([
       ["ext", ext],
       ["rule", rule],
     ]);
     const getNode = (id: string) => nodes.get(id);
     expect(
-      isValidKeaFlowConnection(getNode, {
+      isValidDiscoveryFlowConnection(getNode, {
         source: "ext",
         target: "rule",
         sourceHandle: "out",
@@ -212,7 +212,7 @@ describe("isValidKeaFlowConnection subgraph ports with inner peer types", () => 
       })
     ).toBe(false);
     expect(
-      isValidKeaFlowConnection(getNode, {
+      isValidDiscoveryFlowConnection(getNode, {
         source: "ext",
         target: "rule",
         sourceHandle: "validation",
@@ -222,15 +222,15 @@ describe("isValidKeaFlowConnection subgraph ports with inner peer types", () => 
   });
 
   it("rejects transform out → aliasing match validation rule; allows validation handle → rule", () => {
-    const al = node("al", "keaTransform", { label: "A" });
-    const rule = node("rule", "keaMatchValidationRuleAliasing", { label: "R" });
+    const al = node("al", "discoveryTransform", { label: "A" });
+    const rule = node("rule", "discoveryMatchValidationRuleAliasing", { label: "R" });
     const nodes = new Map<string, Node>([
       ["al", al],
       ["rule", rule],
     ]);
     const getNode = (id: string) => nodes.get(id);
     expect(
-      isValidKeaFlowConnection(getNode, {
+      isValidDiscoveryFlowConnection(getNode, {
         source: "al",
         target: "rule",
         sourceHandle: "out",
@@ -238,7 +238,7 @@ describe("isValidKeaFlowConnection subgraph ports with inner peer types", () => 
       })
     ).toBe(false);
     expect(
-      isValidKeaFlowConnection(getNode, {
+      isValidDiscoveryFlowConnection(getNode, {
         source: "al",
         target: "rule",
         sourceHandle: "validation",
@@ -248,9 +248,9 @@ describe("isValidKeaFlowConnection subgraph ports with inner peer types", () => 
   });
 
   it("rejects discovery validate validation handle → match rule; allows out → extraction-context rule", () => {
-    const va = node("va", "keaDiscoveryValidate", { label: "V" });
-    const ruleEx = node("rule_ex", "keaMatchValidationRuleExtraction", { label: "R" });
-    const ruleAl = node("rule_al", "keaMatchValidationRuleAliasing", { label: "R2" });
+    const va = node("va", "discoveryValidate", { label: "V" });
+    const ruleEx = node("rule_ex", "discoveryMatchValidationRuleExtraction", { label: "R" });
+    const ruleAl = node("rule_al", "discoveryMatchValidationRuleAliasing", { label: "R2" });
     const nodes = new Map<string, Node>([
       ["va", va],
       ["rule_ex", ruleEx],
@@ -258,7 +258,7 @@ describe("isValidKeaFlowConnection subgraph ports with inner peer types", () => 
     ]);
     const getNode = (id: string) => nodes.get(id);
     expect(
-      isValidKeaFlowConnection(getNode, {
+      isValidDiscoveryFlowConnection(getNode, {
         source: "va",
         target: "rule_ex",
         sourceHandle: "validation",
@@ -266,7 +266,7 @@ describe("isValidKeaFlowConnection subgraph ports with inner peer types", () => 
       })
     ).toBe(false);
     expect(
-      isValidKeaFlowConnection(getNode, {
+      isValidDiscoveryFlowConnection(getNode, {
         source: "va",
         target: "rule_ex",
         sourceHandle: "out",
@@ -274,7 +274,7 @@ describe("isValidKeaFlowConnection subgraph ports with inner peer types", () => 
       })
     ).toBe(true);
     expect(
-      isValidKeaFlowConnection(getNode, {
+      isValidDiscoveryFlowConnection(getNode, {
         source: "va",
         target: "rule_al",
         sourceHandle: "out",
@@ -284,15 +284,15 @@ describe("isValidKeaFlowConnection subgraph ports with inner peer types", () => 
   });
 
   it("rejects discovery validate out → transform", () => {
-    const va = node("va", "keaDiscoveryValidate", {});
-    const tf = node("tf", "keaTransform", {});
+    const va = node("va", "discoveryValidate", {});
+    const tf = node("tf", "discoveryTransform", {});
     const nodes = new Map<string, Node>([
       ["va", va],
       ["tf", tf],
     ]);
     const getNode = (id: string) => nodes.get(id);
     expect(
-      isValidKeaFlowConnection(getNode, {
+      isValidDiscoveryFlowConnection(getNode, {
         source: "va",
         target: "tf",
         sourceHandle: "out",
@@ -301,18 +301,18 @@ describe("isValidKeaFlowConnection subgraph ports with inner peer types", () => 
     ).toBe(false);
   });
 
-  it("allows persistence nodes out → keaEnd only (rejects query, transform, validate, join, save, inverted index)", () => {
-    const save = node("sv", "keaViewSave", {});
-    const rawSave = node("sr", "keaRawSave", {});
-    const classicSave = node("sc", "keaClassicSave", {});
-    const ap = node("ap", "keaAliasPersistence", {});
-    const end = node("end", "keaEnd", {});
-    const vq = node("vq", "keaViewQuery", {});
-    const tf = node("tf", "keaTransform", {});
-    const va = node("va", "keaDiscoveryValidate", {});
-    const jn = node("jn", "keaJoin", {});
-    const save2 = node("s2", "keaRawSave", {});
-    const inv = node("inv", "keaInvertedIndex", {});
+  it("allows persistence nodes out → discoveryEnd only (rejects query, transform, validate, join, save, inverted index)", () => {
+    const save = node("sv", "discoveryViewSave", {});
+    const rawSave = node("sr", "discoveryRawSave", {});
+    const classicSave = node("sc", "discoveryClassicSave", {});
+    const ap = node("ap", "discoveryAliasPersistence", {});
+    const end = node("end", "discoveryEnd", {});
+    const vq = node("vq", "discoveryViewQuery", {});
+    const tf = node("tf", "discoveryTransform", {});
+    const va = node("va", "discoveryValidate", {});
+    const jn = node("jn", "discoveryJoin", {});
+    const save2 = node("s2", "discoveryRawSave", {});
+    const inv = node("inv", "discoveryInvertedIndex", {});
     const nodes = new Map<string, Node>([
       ["sv", save],
       ["sr", rawSave],
@@ -330,7 +330,7 @@ describe("isValidKeaFlowConnection subgraph ports with inner peer types", () => 
     for (const src of ["sv", "sr", "sc", "ap", "inv"] as const) {
       for (const tgt of ["sv", "vq", "tf", "va", "jn", "s2", "inv", "ap"] as const) {
         expect(
-          isValidKeaFlowConnection(getNode, {
+          isValidDiscoveryFlowConnection(getNode, {
             source: src,
             target: tgt,
             sourceHandle: "out",
@@ -339,7 +339,7 @@ describe("isValidKeaFlowConnection subgraph ports with inner peer types", () => 
         ).toBe(false);
       }
       expect(
-        isValidKeaFlowConnection(getNode, {
+        isValidDiscoveryFlowConnection(getNode, {
           source: src,
           target: "end",
           sourceHandle: "out",
@@ -350,15 +350,15 @@ describe("isValidKeaFlowConnection subgraph ports with inner peer types", () => 
   });
 
   it("still allows extraction out → aliasing", () => {
-    const ext = node("ext", "keaTransform", {});
-    const al = node("al", "keaTransform", {});
+    const ext = node("ext", "discoveryTransform", {});
+    const al = node("al", "discoveryTransform", {});
     const nodes = new Map<string, Node>([
       ["ext", ext],
       ["al", al],
     ]);
     const getNode = (id: string) => nodes.get(id);
     expect(
-      isValidKeaFlowConnection(getNode, {
+      isValidDiscoveryFlowConnection(getNode, {
         source: "ext",
         target: "al",
         sourceHandle: "out",
@@ -368,9 +368,9 @@ describe("isValidKeaFlowConnection subgraph ports with inner peer types", () => 
   });
 
   it("canvas compile mode: start may wire only to query discovery nodes", () => {
-    const start = node("st", "keaStart", {});
-    const vq = node("vq", "keaViewQuery", {});
-    const sv = node("sv", "keaSourceView", {});
+    const start = node("st", "discoveryStart", {});
+    const vq = node("vq", "discoveryViewQuery", {});
+    const sv = node("sv", "discoverySourceView", {});
     const nodes = new Map<string, Node>([
       ["st", start],
       ["vq", vq],
@@ -378,21 +378,21 @@ describe("isValidKeaFlowConnection subgraph ports with inner peer types", () => 
     ]);
     const getNode = (id: string) => nodes.get(id);
     expect(
-      isValidKeaFlowConnection(getNode, { source: "st", target: "vq", sourceHandle: "out", targetHandle: "in" }, keaValidationRuleLayoutRfTypes, "canvas")
+      isValidDiscoveryFlowConnection(getNode, { source: "st", target: "vq", sourceHandle: "out", targetHandle: "in" }, discoveryValidationRuleLayoutRfTypes, "canvas")
     ).toBe(true);
     expect(
-      isValidKeaFlowConnection(getNode, { source: "st", target: "sv", sourceHandle: "out", targetHandle: "in" }, keaValidationRuleLayoutRfTypes, "canvas")
+      isValidDiscoveryFlowConnection(getNode, { source: "st", target: "sv", sourceHandle: "out", targetHandle: "in" }, discoveryValidationRuleLayoutRfTypes, "canvas")
     ).toBe(false);
   });
 
   it("rejects source view, transform, or query as upstream of a discovery query (only start allowed)", () => {
-    const sv = node("sv", "keaSourceView", {});
-    const tf = node("tf", "keaTransform", {});
-    const qPrev = node("qp", "keaViewQuery", {});
-    const st = node("st", "keaStart", {});
-    const vq = node("vq", "keaViewQuery", {});
-    const rq = node("rq", "keaRawQuery", {});
-    const cq = node("cq", "keaClassicQuery", {});
+    const sv = node("sv", "discoverySourceView", {});
+    const tf = node("tf", "discoveryTransform", {});
+    const qPrev = node("qp", "discoveryViewQuery", {});
+    const st = node("st", "discoveryStart", {});
+    const vq = node("vq", "discoveryViewQuery", {});
+    const rq = node("rq", "discoveryRawQuery", {});
+    const cq = node("cq", "discoveryClassicQuery", {});
     const nodes = new Map<string, Node>([
       ["sv", sv],
       ["tf", tf],
@@ -405,30 +405,30 @@ describe("isValidKeaFlowConnection subgraph ports with inner peer types", () => 
     const getNode = (id: string) => nodes.get(id);
     for (const q of ["vq", "rq", "cq"] as const) {
       expect(
-        isValidKeaFlowConnection(getNode, { source: "sv", target: q, sourceHandle: "out", targetHandle: "in" })
+        isValidDiscoveryFlowConnection(getNode, { source: "sv", target: q, sourceHandle: "out", targetHandle: "in" })
       ).toBe(false);
       expect(
-        isValidKeaFlowConnection(getNode, { source: "tf", target: q, sourceHandle: "out", targetHandle: "in" })
+        isValidDiscoveryFlowConnection(getNode, { source: "tf", target: q, sourceHandle: "out", targetHandle: "in" })
       ).toBe(false);
       expect(
-        isValidKeaFlowConnection(getNode, { source: "qp", target: q, sourceHandle: "out", targetHandle: "in" })
+        isValidDiscoveryFlowConnection(getNode, { source: "qp", target: q, sourceHandle: "out", targetHandle: "in" })
       ).toBe(false);
       expect(
-        isValidKeaFlowConnection(getNode, { source: "st", target: q, sourceHandle: "out", targetHandle: "in" })
+        isValidDiscoveryFlowConnection(getNode, { source: "st", target: q, sourceHandle: "out", targetHandle: "in" })
       ).toBe(true);
     }
   });
 
   it("allows source view out → match validation rule (source_view context)", () => {
-    const sv = node("sv", "keaSourceView", {});
-    const vr = node("vr", "keaMatchValidationRuleSourceView", {});
+    const sv = node("sv", "discoverySourceView", {});
+    const vr = node("vr", "discoveryMatchValidationRuleSourceView", {});
     const nodes = new Map<string, Node>([
       ["sv", sv],
       ["vr", vr],
     ]);
     const getNode = (id: string) => nodes.get(id);
     expect(
-      isValidKeaFlowConnection(getNode, {
+      isValidDiscoveryFlowConnection(getNode, {
         source: "sv",
         target: "vr",
         sourceHandle: "out",
@@ -436,7 +436,7 @@ describe("isValidKeaFlowConnection subgraph ports with inner peer types", () => 
       })
     ).toBe(true);
     expect(
-      isValidKeaFlowConnection(getNode, {
+      isValidDiscoveryFlowConnection(getNode, {
         source: "sv",
         target: "vr",
         sourceHandle: "validation",

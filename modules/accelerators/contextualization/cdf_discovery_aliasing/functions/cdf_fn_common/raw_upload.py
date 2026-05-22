@@ -39,8 +39,12 @@ class RawRowsUploadQueue:
                 if rk:
                     row_map[rk] = cols
             if row_map:
-                self._client.raw.rows.insert(
-                    db_name=database, table_name=table, row=row_map
+                from .cognite_retry import call_with_transient_retry
+
+                call_with_transient_retry(
+                    lambda db=database, tbl=table, rm=row_map: self._client.raw.rows.insert(
+                        db_name=db, table_name=tbl, row=rm
+                    ),
                 )
         self._rows.clear()
 

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, Iterable, List, Mapping, MutableMapping
+from typing import Any, Dict, List, MutableMapping
 
 from cdf_fn_common.cohort_storage import canvas_node_id_for_task, require_run_id
 from cdf_fn_common.discovery_query_shared import (
@@ -11,29 +11,18 @@ from cdf_fn_common.discovery_query_shared import (
     resolve_task_config,
     _flush_rows,
 )
+from cdf_fn_common.query_enumeration import (
+    QueryEnumerationStats,
+    enumeration_summary,
+    list_all_classic_resources,
+    mark_truncated,
+    resolve_classic_list_limit,
+    resolve_read_limit,
+)
 from cdf_fn_common.raw_upload import RawRowsUploadQueue
 from cdf_fn_common.task_runtime import merge_compiled_task_into_data
 
 from .base import AbstractDiscoveryQueryHandler
-
-
-def _classic_list(
-    client: Any,
-    resource_type: str,
-    *,
-    limit: int,
-) -> Iterable[Any]:
-    rt = resource_type.strip().lower()
-    lim = max(1, min(limit or 1000, 1000))
-    if rt in ("asset", "assets"):
-        return client.assets.list(limit=lim)
-    if rt in ("file", "files"):
-        return client.files.list(limit=lim)
-    if rt in ("event", "events"):
-        return client.events.list(limit=lim)
-    if rt in ("timeseries", "time_series", "time-series"):
-        return client.time_series.list(limit=lim)
-    raise ValueError(f"Unsupported classic resource_type: {resource_type!r}")
 
 
 def _classic_external_id(item: Any) -> str:
@@ -66,7 +55,8 @@ class ClassicQueryHandler(AbstractDiscoveryQueryHandler):
         merge_compiled_task_into_data(data)
         cfg = resolve_task_config(data)
         resource_type = cls.first_nonempty(cfg.get("resource_type"), cfg.get("classic_resource_type"), "assets")
-        limit = int(cfg.get("limit") or cfg.get("batch_size") or 1000)
+        list_limit = resolve_classic_list_limit(cfg)
+        read_cap = resolve_read_limit(cfg)
         entity_type = cls.first_nonempty(cfg.get("entity_type"), resource_type.rstrip("s"))
         scope_key = cls.first_nonempty(cfg.get("scope_key"), f"classic:{resource_type.lower()}")
         run_id = require_run_id(data)
@@ -78,20 +68,21 @@ class ClassicQueryHandler(AbstractDiscoveryQueryHandler):
         queue = RawRowsUploadQueue(client)
         pending: List[Dict[str, Any]] = []
         n_written = 0
+        enum_stats = QueryEnumerationStats()
 
-        for item in _classic_list(client, resource_type, limit=limit):
+        for item in list_all_classic_resources(client, resource_type, limit=list_limit):
+            enum_stats.rows_read += 1
             ext_id = _classic_external_id(item)
             if not ext_id:
                 continue
             props = _classic_dump(item)
-            nid = ext_id
             pending.append(
                 build_entity_cohort_row(
                     run_id=run_id,
                     scope_key=scope_key,
                     canvas_node_id=canvas_node_id,
                     query_source="classic",
-                    node_instance_id=nid,
+                    node_instance_id=ext_id,
                     external_id=ext_id,
                     entity_type=entity_type,
                     view_space="",
@@ -105,20 +96,41 @@ class ClassicQueryHandler(AbstractDiscoveryQueryHandler):
                 _flush_rows(queue, raw_db, raw_table, pending, client=client)
 
         _flush_rows(queue, raw_db, raw_table, pending, client=client)
+        enum_stats.rows_written = n_written
+        enum_stats.pages = 1
+        enum_stats.list_complete = True
+        if read_cap > 0 and enum_stats.rows_read >= read_cap:
+            mark_truncated(enum_stats, reason="read_limit")
+            if log and hasattr(log, "warning"):
+                log.warning(
+                    "%s classic query may be truncated at read_limit=%s (rows_read=%s)",
+                    fn_external_id,
+                    read_cap,
+                    enum_stats.rows_read,
+                )
 
         if log and hasattr(log, "info"):
-            log.info("%s listed %s classic %s resource(s)", fn_external_id, n_written, resource_type)
+            log.info(
+                "%s listed %s classic %s resource(s)",
+                fn_external_id,
+                n_written,
+                resource_type,
+            )
 
-        summary = {
-            "function_external_id": fn_external_id,
-            "task_id": task_id,
-            "query_source": "classic",
-            "instances_written": n_written,
-            "run_id": run_id,
-            "scope_key": scope_key,
-            "resource_type": resource_type,
-            "raw_db": raw_db,
-            "raw_table": raw_table,
-        }
+        summary = enumeration_summary(
+            enum_stats,
+            extra={
+                "function_external_id": fn_external_id,
+                "task_id": task_id,
+                "query_source": "classic",
+                "instances_written": n_written,
+                "run_id": run_id,
+                "scope_key": scope_key,
+                "resource_type": resource_type,
+                "raw_db": raw_db,
+                "raw_table": raw_table,
+                "classic_list_limit": list_limit,
+            },
+        )
         data["run_id"] = run_id
         return summary

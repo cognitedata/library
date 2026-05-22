@@ -14,7 +14,7 @@ import {
   canvasToFlowEdges,
   canvasToFlowNodes,
   flowToCanvasDocument,
-  keaFlowEdgeVisualDefaults,
+  discoveryFlowEdgeVisualDefaults,
   newNodeId,
   orderFlowNodesForReactFlow,
   type FlowEdgeData,
@@ -40,7 +40,7 @@ export function canPromoteInnerSubtreeToOwningGraph(
 ): boolean {
   const root = innerRf.find((n) => n.id === rootId);
   if (!root) return false;
-  if (root.type === "keaStart" || root.type === "keaEnd") return false;
+  if (root.type === "discoveryStart" || root.type === "discoveryEnd") return false;
   if (isSubflowGraphHubRfType(root.type)) return false;
   const promoted = collectSubtreeNodeIds([...innerRf], rootId);
   for (const id of promoted) {
@@ -63,7 +63,7 @@ export function promoteSubgraphInnerSubtreeToParentWorkflow(
   rootInnerNodeId: string,
   handleOrientation: WorkflowCanvasHandleOrientation
 ): { nodes: Node[]; edges: Edge[] } | null {
-  const S = nodes.find((n) => n.id === subgraphId && n.type === "keaSubgraph");
+  const S = nodes.find((n) => n.id === subgraphId && n.type === "discoverySubgraph");
   if (!S) return null;
   const data = (S.data ?? {}) as WorkflowCanvasNodeData;
   const innerDoc = data.inner_canvas as WorkflowCanvasDocument | undefined;
@@ -120,7 +120,7 @@ export function promoteSubgraphInnerSubtreeToParentWorkflow(
         if (p !== portIn) continue;
         nextEdgeList.push({
           ...e,
-          ...keaFlowEdgeVisualDefaults,
+          ...discoveryFlowEdgeVisualDefaults,
           id: newNodeId(),
           target: ie.target,
           targetHandle: ie.targetHandle ?? undefined,
@@ -138,7 +138,7 @@ export function promoteSubgraphInnerSubtreeToParentWorkflow(
         if (p !== portOut) continue;
         nextEdgeList.push({
           ...e,
-          ...keaFlowEdgeVisualDefaults,
+          ...discoveryFlowEdgeVisualDefaults,
           id: newNodeId(),
           source: ie.source,
           sourceHandle: ie.sourceHandle ?? undefined,
@@ -164,7 +164,7 @@ export function promoteSubgraphInnerSubtreeToParentWorkflow(
     if (srcPromoted && !tgtPromoted) {
       const port = portFeedingPromotedNode(innerRfEdges, hubInId, ie.source);
       nextEdgeList.push({
-        ...keaFlowEdgeVisualDefaults,
+        ...discoveryFlowEdgeVisualDefaults,
         id: newNodeId(),
         source: ie.source,
         target: subgraphId,
@@ -173,7 +173,7 @@ export function promoteSubgraphInnerSubtreeToParentWorkflow(
         data: (ie.data ?? { kind: "data" }) as FlowEdgeData,
       });
       innerCrossEdges.push({
-        ...keaFlowEdgeVisualDefaults,
+        ...discoveryFlowEdgeVisualDefaults,
         id: newNodeId(),
         source: hubInId,
         target: ie.target,
@@ -189,7 +189,7 @@ export function promoteSubgraphInnerSubtreeToParentWorkflow(
     for (const outE of outs) {
       const pOut = parsePortIdFromSubflowTargetHandle(outE.targetHandle) ?? "out";
       innerCrossEdges.push({
-        ...keaFlowEdgeVisualDefaults,
+        ...discoveryFlowEdgeVisualDefaults,
         id: newNodeId(),
         source: ie.source,
         target: hubOutId,
@@ -198,7 +198,7 @@ export function promoteSubgraphInnerSubtreeToParentWorkflow(
         data: (outE.data ?? ie.data ?? { kind: "data" }) as FlowEdgeData,
       });
       nextEdgeList.push({
-        ...keaFlowEdgeVisualDefaults,
+        ...discoveryFlowEdgeVisualDefaults,
         id: newNodeId(),
         source: subgraphId,
         target: ie.target,
@@ -212,7 +212,7 @@ export function promoteSubgraphInnerSubtreeToParentWorkflow(
   for (const ie of innerRfEdges) {
     if (ie.source === hubInId || ie.target === hubOutId) continue;
     if (!promotedSet.has(ie.source) || !promotedSet.has(ie.target)) continue;
-    nextEdgeList.push({ ...ie, ...keaFlowEdgeVisualDefaults });
+    nextEdgeList.push({ ...ie, ...discoveryFlowEdgeVisualDefaults });
   }
 
   const innerEdgesMerged = dedupeEdgesByHandles([...remainingInnerEdges, ...innerCrossEdges]);
@@ -221,7 +221,7 @@ export function promoteSubgraphInnerSubtreeToParentWorkflow(
   });
 
   let nextNodes = nodes.map((n) => {
-    if (n.id !== subgraphId || n.type !== "keaSubgraph") return n;
+    if (n.id !== subgraphId || n.type !== "discoverySubgraph") return n;
     const d = (n.data ?? {}) as WorkflowCanvasNodeData;
     return {
       ...n,

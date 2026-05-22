@@ -16,7 +16,7 @@ import {
 export type FlowEdgeData = { kind?: CanvasEdgeKind };
 
 /** React Flow–only edge flags (not persisted in canvas YAML). */
-export const keaFlowEdgeVisualDefaults = { animated: false as const };
+export const discoveryFlowEdgeVisualDefaults = { animated: false as const };
 
 function sortCanvasNodesForReactFlow(nodes: WorkflowCanvasNode[]): WorkflowCanvasNode[] {
   const byId = new Map(nodes.map((n) => [n.id, n]));
@@ -89,7 +89,7 @@ export function canvasToFlowNodes(nodes: WorkflowCanvasNode[]): Node[] {
 
 export function canvasToFlowEdges(edges: WorkflowCanvasEdge[]): Edge[] {
   return edges.map((e) => ({
-    ...keaFlowEdgeVisualDefaults,
+    ...discoveryFlowEdgeVisualDefaults,
     id: e.id,
     source: e.source,
     target: e.target,
@@ -158,27 +158,33 @@ export function newNodeId(): string {
   return `n_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
 }
 
-export type KeaFlowNodeDisplayState = {
+export type DiscoveryFlowNodeDisplayState = {
   runFailed?: boolean;
   executing?: boolean;
   completed?: boolean;
+  /** Search filter: non-matching nodes are faded on the canvas. */
+  dimmed?: boolean;
 };
 
 /** Apply local-run progress outline classes for React Flow preview / main canvas. */
-export function applyKeaFlowNodeDisplayClasses(
+export function applyDiscoveryFlowNodeDisplayClasses(
   node: Node,
-  state: KeaFlowNodeDisplayState
+  state: DiscoveryFlowNodeDisplayState
 ): Node {
   const failed = state.runFailed === true;
   const executing = state.executing === true;
   const completed = state.completed === true;
+  const dimmed = state.dimmed === true;
   let className = node.className;
+  if (dimmed) {
+    className = className ? `${className} discovery-flow-node--dimmed` : "discovery-flow-node--dimmed";
+  }
   if (failed) {
-    className = className ? `${className} kea-flow-node--run-failed` : "kea-flow-node--run-failed";
+    className = className ? `${className} discovery-flow-node--run-failed` : "discovery-flow-node--run-failed";
   } else if (executing) {
-    className = className ? `${className} kea-flow-node--executing` : "kea-flow-node--executing";
+    className = className ? `${className} discovery-flow-node--executing` : "discovery-flow-node--executing";
   } else if (completed) {
-    className = className ? `${className} kea-flow-node--run-completed` : "kea-flow-node--run-completed";
+    className = className ? `${className} discovery-flow-node--run-completed` : "discovery-flow-node--run-completed";
   }
   return { ...node, className: className || undefined };
 }

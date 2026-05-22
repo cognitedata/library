@@ -52,20 +52,20 @@ export function AliasingHandlerConfigFields({ handler, configYaml, onChange, t }
       patch({ substitutions: subs });
     };
     return (
-      <div className="kea-handler-fields">
-        <div className="kea-handler-fieldset-legend" style={{ marginBottom: "0.35rem" }}>
+      <div className="discovery-handler-fields">
+        <div className="discovery-handler-fieldset-legend" style={{ marginBottom: "0.35rem" }}>
           {t("aliasingRules.handlerFields.substitutions")}
         </div>
         {pairs.map((row, i) => (
           <div
             key={i}
-            className="kea-filter-row kea-filter-row--field-pair kea-filter-row--align-end"
+            className="discovery-filter-row discovery-filter-row--field-pair discovery-filter-row--align-end"
             style={{ marginBottom: "0.35rem" }}
           >
-            <label className="kea-label">
+            <label className="discovery-label">
               {t("aliasingRules.handlerFields.from")}
               <input
-                className="kea-input"
+                className="discovery-input"
                 value={row.from}
                 onChange={(e) => {
                   const next = [...pairs];
@@ -74,10 +74,10 @@ export function AliasingHandlerConfigFields({ handler, configYaml, onChange, t }
                 }}
               />
             </label>
-            <label className="kea-label">
+            <label className="discovery-label">
               {t("aliasingRules.handlerFields.to")}
               <input
-                className="kea-input"
+                className="discovery-input"
                 value={row.to}
                 onChange={(e) => {
                   const next = [...pairs];
@@ -88,7 +88,7 @@ export function AliasingHandlerConfigFields({ handler, configYaml, onChange, t }
             </label>
             <button
               type="button"
-              className="kea-btn kea-btn--ghost kea-btn--sm"
+              className="discovery-btn discovery-btn--ghost discovery-btn--sm"
               onClick={() => setPairs(pairs.filter((_, j) => j !== i))}
             >
               ×
@@ -97,7 +97,7 @@ export function AliasingHandlerConfigFields({ handler, configYaml, onChange, t }
         ))}
         <button
           type="button"
-          className="kea-btn kea-btn--sm"
+          className="discovery-btn discovery-btn--sm"
           onClick={() => setPairs([...pairs, { from: "", to: "" }])}
         >
           {t("aliasingRules.handlerFields.addSubstitution")}
@@ -111,11 +111,11 @@ export function AliasingHandlerConfigFields({ handler, configYaml, onChange, t }
       ? (o.operation as string)
       : "add_prefix";
     return (
-      <div className="kea-handler-fields">
-        <label className="kea-label kea-label--block">
+      <div className="discovery-handler-fields">
+        <label className="discovery-label discovery-label--block">
           {t("aliasingRules.handlerFields.operation")}
           <select
-            className="kea-input"
+            className="discovery-input"
             value={op}
             onChange={(e) => patch({ operation: e.target.value })}
           >
@@ -126,20 +126,20 @@ export function AliasingHandlerConfigFields({ handler, configYaml, onChange, t }
             ))}
           </select>
         </label>
-        <div className="kea-filter-row kea-filter-row--pair" style={{ marginTop: "0.5rem" }}>
-          <label className="kea-label">
+        <div className="discovery-filter-row discovery-filter-row--pair" style={{ marginTop: "0.5rem" }}>
+          <label className="discovery-label">
             {t("aliasingRules.handlerFields.prefix")}
-            <input className="kea-input" value={String(o.prefix ?? "")} onChange={(e) => patch({ prefix: e.target.value })} />
+            <input className="discovery-input" value={String(o.prefix ?? "")} onChange={(e) => patch({ prefix: e.target.value })} />
           </label>
-          <label className="kea-label">
+          <label className="discovery-label">
             {t("aliasingRules.handlerFields.suffix")}
-            <input className="kea-input" value={String(o.suffix ?? "")} onChange={(e) => patch({ suffix: e.target.value })} />
+            <input className="discovery-input" value={String(o.suffix ?? "")} onChange={(e) => patch({ suffix: e.target.value })} />
           </label>
         </div>
-        <label className="kea-label kea-label--block" style={{ marginTop: "0.5rem" }}>
+        <label className="discovery-label discovery-label--block" style={{ marginTop: "0.5rem" }}>
           {t("aliasingRules.handlerFields.resolveFrom")}
           <input
-            className="kea-input"
+            className="discovery-input"
             value={String(o.resolve_from ?? "input_value")}
             onChange={(e) => patch({ resolve_from: e.target.value })}
           />
@@ -152,8 +152,8 @@ export function AliasingHandlerConfigFields({ handler, configYaml, onChange, t }
     const patterns = Array.isArray(o.patterns) ? (o.patterns as unknown[]) : [];
     const setPatterns = (next: unknown[]) => patch({ patterns: next });
     return (
-      <div className="kea-handler-fields">
-        <div className="kea-handler-fieldset-legend" style={{ marginBottom: "0.35rem" }}>
+      <div className="discovery-handler-fields">
+        <div className="discovery-handler-fieldset-legend" style={{ marginBottom: "0.35rem" }}>
           {t("aliasingRules.handlerFields.patterns")}
         </div>
         {patterns.map((row, i) => {
@@ -161,13 +161,13 @@ export function AliasingHandlerConfigFields({ handler, configYaml, onChange, t }
           return (
             <div
               key={i}
-              className="kea-filter-row kea-filter-row--field-pair kea-filter-row--align-end"
+              className="discovery-filter-row discovery-filter-row--field-pair discovery-filter-row--align-end"
               style={{ marginBottom: "0.35rem" }}
             >
-              <label className="kea-label">
+              <label className="discovery-label">
                 pattern
                 <input
-                  className="kea-input"
+                  className="discovery-input"
                   value={String(r.pattern ?? "")}
                   onChange={(e) => {
                     const next = [...patterns];
@@ -176,10 +176,10 @@ export function AliasingHandlerConfigFields({ handler, configYaml, onChange, t }
                   }}
                 />
               </label>
-              <label className="kea-label">
+              <label className="discovery-label">
                 replacement
                 <input
-                  className="kea-input"
+                  className="discovery-input"
                   value={String(r.replacement ?? "")}
                   onChange={(e) => {
                     const next = [...patterns];
@@ -190,7 +190,7 @@ export function AliasingHandlerConfigFields({ handler, configYaml, onChange, t }
               </label>
               <button
                 type="button"
-                className="kea-btn kea-btn--ghost kea-btn--sm"
+                className="discovery-btn discovery-btn--ghost discovery-btn--sm"
                 onClick={() => setPatterns(patterns.filter((_, j) => j !== i))}
               >
                 ×
@@ -200,7 +200,7 @@ export function AliasingHandlerConfigFields({ handler, configYaml, onChange, t }
         })}
         <button
           type="button"
-          className="kea-btn kea-btn--sm"
+          className="discovery-btn discovery-btn--sm"
           onClick={() => setPatterns([...patterns, { pattern: "", replacement: "" }])}
         >
           {t("aliasingRules.handlerFields.addPattern")}
@@ -218,11 +218,11 @@ export function AliasingHandlerConfigFields({ handler, configYaml, onChange, t }
       ? (o.format_templates as unknown[]).map(String).join(", ")
       : String(o.format_templates ?? "");
     return (
-      <div className="kea-handler-fields">
-        <label className="kea-label kea-label--block">
+      <div className="discovery-handler-fields">
+        <label className="discovery-label discovery-label--block">
           {t("aliasingRules.handlerFields.formatTemplatesCsv")}
           <input
-            className="kea-input"
+            className="discovery-input"
             placeholder="{tag}-{description}"
             value={fmt}
             onChange={(e) => {
@@ -234,10 +234,10 @@ export function AliasingHandlerConfigFields({ handler, configYaml, onChange, t }
             }}
           />
         </label>
-        <label className="kea-label kea-label--block" style={{ marginTop: "0.5rem" }}>
+        <label className="discovery-label discovery-label--block" style={{ marginTop: "0.5rem" }}>
           {t("aliasingRules.handlerFields.typeMappingsYaml")}
           <textarea
-            className="kea-textarea"
+            className="discovery-textarea"
             style={{ minHeight: 140, fontFamily: "ui-monospace, monospace" }}
             value={tmYaml}
             onChange={(e) => {
@@ -251,7 +251,7 @@ export function AliasingHandlerConfigFields({ handler, configYaml, onChange, t }
             spellCheck={false}
           />
         </label>
-        <label className="kea-label" style={{ flexDirection: "row", alignItems: "center", gap: "0.5rem", marginTop: "0.5rem" }}>
+        <label className="discovery-label" style={{ flexDirection: "row", alignItems: "center", gap: "0.5rem", marginTop: "0.5rem" }}>
           <input
             type="checkbox"
             checked={o.auto_detect !== false}
@@ -273,10 +273,10 @@ export function AliasingHandlerConfigFields({ handler, configYaml, onChange, t }
     };
     const all = ["upper", "lower", "title", "swapcase"];
     return (
-      <div className="kea-handler-fields">
-        <fieldset className="kea-handler-fieldset">
-          <legend className="kea-handler-fieldset-legend">{t("aliasingRules.handlerFields.operations")}</legend>
-          <div className="kea-handler-check-grid">
+      <div className="discovery-handler-fields">
+        <fieldset className="discovery-handler-fieldset">
+          <legend className="discovery-handler-fieldset-legend">{t("aliasingRules.handlerFields.operations")}</legend>
+          <div className="discovery-handler-check-grid">
             {all.map((name) => (
               <label key={name}>
                 <input type="checkbox" checked={ops.includes(name)} onChange={() => toggle(name)} /> {name}
@@ -291,18 +291,18 @@ export function AliasingHandlerConfigFields({ handler, configYaml, onChange, t }
   if (kind === "leading_zero_normalization") {
     const ml = typeof o.min_length === "number" ? o.min_length : Number(o.min_length) || 4;
     return (
-      <div className="kea-handler-fields">
-        <label className="kea-label kea-label--block">
+      <div className="discovery-handler-fields">
+        <label className="discovery-label discovery-label--block">
           {t("aliasingRules.handlerFields.minLength")}
           <input
-            className="kea-input"
+            className="discovery-input"
             type="number"
             min={1}
             value={ml}
             onChange={(e) => patch({ min_length: Number(e.target.value) || 1 })}
           />
         </label>
-        <label className="kea-label" style={{ flexDirection: "row", alignItems: "center", gap: "0.5rem", marginTop: "0.5rem" }}>
+        <label className="discovery-label" style={{ flexDirection: "row", alignItems: "center", gap: "0.5rem", marginTop: "0.5rem" }}>
           <input
             type="checkbox"
             checked={o.preserve_single_zero === true}
@@ -320,11 +320,11 @@ export function AliasingHandlerConfigFields({ handler, configYaml, onChange, t }
         ? YAML.stringify(o.hierarchy_levels, { lineWidth: 0 }) + "\n"
         : "[]\n";
     return (
-      <div className="kea-handler-fields">
-        <label className="kea-label kea-label--block">
+      <div className="discovery-handler-fields">
+        <label className="discovery-label discovery-label--block">
           {t("aliasingRules.handlerFields.hierarchyLevelsYaml")}
           <textarea
-            className="kea-textarea"
+            className="discovery-textarea"
             style={{ minHeight: 120, fontFamily: "ui-monospace, monospace" }}
             value={hlYaml}
             onChange={(e) => {
@@ -338,7 +338,7 @@ export function AliasingHandlerConfigFields({ handler, configYaml, onChange, t }
             spellCheck={false}
           />
         </label>
-        <label className="kea-label" style={{ flexDirection: "row", alignItems: "center", gap: "0.5rem", marginTop: "0.5rem" }}>
+        <label className="discovery-label" style={{ flexDirection: "row", alignItems: "center", gap: "0.5rem", marginTop: "0.5rem" }}>
           <input
             type="checkbox"
             checked={o.generate_partial_paths !== false}
@@ -356,20 +356,20 @@ export function AliasingHandlerConfigFields({ handler, configYaml, onChange, t }
       : "exact";
     const rawYaml = o.raw_table != null ? YAML.stringify(o.raw_table, { lineWidth: 0 }) + "\n" : "[]\n";
     return (
-      <div className="kea-handler-fields">
-        <label className="kea-label kea-label--block">
+      <div className="discovery-handler-fields">
+        <label className="discovery-label discovery-label--block">
           {t("aliasingRules.handlerFields.sourceMatch")}
-          <select className="kea-input" value={sm} onChange={(e) => patch({ source_match: e.target.value })}>
+          <select className="discovery-input" value={sm} onChange={(e) => patch({ source_match: e.target.value })}>
             <option value="exact">exact</option>
             <option value="prefix">prefix</option>
             <option value="suffix">suffix</option>
             <option value="regex">regex</option>
           </select>
         </label>
-        <label className="kea-label kea-label--block" style={{ marginTop: "0.5rem" }}>
+        <label className="discovery-label discovery-label--block" style={{ marginTop: "0.5rem" }}>
           {t("aliasingRules.handlerFields.rawTableYaml")}
           <textarea
-            className="kea-textarea"
+            className="discovery-textarea"
             style={{ minHeight: 140, fontFamily: "ui-monospace, monospace" }}
             value={rawYaml}
             onChange={(e) => {

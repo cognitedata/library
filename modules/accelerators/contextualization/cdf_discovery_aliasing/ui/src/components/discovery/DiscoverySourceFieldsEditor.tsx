@@ -178,39 +178,39 @@ export function DiscoverySourceFieldsEditor({ handler: _handler, sourceFieldsYam
   };
 
   return (
-    <div className="kea-handler-fields kea-source-fields">
-      <div className="kea-source-fields__toolbar" style={{ marginBottom: "0.5rem" }}>
-        <button type="button" className="kea-btn kea-btn--sm" onClick={addRow}>
+    <div className="discovery-handler-fields discovery-source-fields">
+      <div className="discovery-source-fields__toolbar" style={{ marginBottom: "0.5rem" }}>
+        <button type="button" className="discovery-btn discovery-btn--sm" onClick={addRow}>
           {t("discoveryRules.sourceFields.addField")}
         </button>
       </div>
       {rows.map((row, i) => (
         <div
           key={i}
-          className="kea-source-fields__card"
+          className="discovery-source-fields__card"
           style={{
-            border: "1px solid var(--kea-border)",
-            borderRadius: "var(--kea-radius-sm)",
+            border: "1px solid var(--discovery-border)",
+            borderRadius: "var(--discovery-radius-sm)",
             padding: "0.75rem 0.85rem",
             marginBottom: "0.65rem",
-            background: "var(--kea-bg-elevated)",
+            background: "var(--discovery-bg-elevated)",
           }}
         >
-          <div className="kea-field-group">
-            <div className="kea-filter-row kea-filter-row--discovery-source-identity">
-              <label className="kea-label">
+          <div className="discovery-field-group">
+            <div className="discovery-filter-row discovery-filter-row--discovery-source-identity">
+              <label className="discovery-label">
                 {t("discoveryRules.sourceFields.fieldName")}
                 <DeferredCommitInput
-                  className="kea-input"
+                  className="discovery-input"
                   committedValue={row.form.field_name}
                   syncKey={i}
                   onCommit={(v) => updateRow(i, { field_name: v })}
                 />
               </label>
-              <label className="kea-label">
+              <label className="discovery-label">
                 {t("discoveryRules.sourceFields.variable")}
                 <DeferredCommitInput
-                  className="kea-input"
+                  className="discovery-input"
                   placeholder={t("discoveryRules.sourceFields.variablePlaceholder")}
                   committedValue={row.form.variable}
                   syncKey={i}
@@ -218,8 +218,8 @@ export function DiscoverySourceFieldsEditor({ handler: _handler, sourceFieldsYam
                 />
               </label>
             </div>
-            <div className="kea-discovery-source-actions">
-              <label className="kea-label" style={{ flexDirection: "row", alignItems: "center", gap: "0.5rem", marginBottom: 0 }}>
+            <div className="discovery-discovery-source-actions">
+              <label className="discovery-label" style={{ flexDirection: "row", alignItems: "center", gap: "0.5rem", marginBottom: 0 }}>
                 <input
                   type="checkbox"
                   checked={row.form.required}
@@ -229,7 +229,7 @@ export function DiscoverySourceFieldsEditor({ handler: _handler, sourceFieldsYam
               </label>
               <button
                 type="button"
-                className="kea-btn kea-btn--ghost kea-btn--sm kea-discovery-source-actions__remove"
+                className="discovery-btn discovery-btn--ghost discovery-btn--sm discovery-discovery-source-actions__remove"
                 disabled={rows.length <= 1}
                 onClick={() => removeRow(i)}
               >
@@ -237,11 +237,11 @@ export function DiscoverySourceFieldsEditor({ handler: _handler, sourceFieldsYam
               </button>
             </div>
           </div>
-          <div className="kea-field-group">
-            <label className="kea-label kea-label--block">
+          <div className="discovery-field-group">
+            <label className="discovery-label discovery-label--block">
               {t("discoveryRules.sourceFields.regex")}
               <input
-                className="kea-input"
+                className="discovery-input"
                 style={{ fontFamily: "ui-monospace, monospace" }}
                 placeholder={t("discoveryRules.sourceFields.regexPlaceholder")}
                 value={row.form.regex}
@@ -249,10 +249,10 @@ export function DiscoverySourceFieldsEditor({ handler: _handler, sourceFieldsYam
                 spellCheck={false}
               />
             </label>
-            <label className="kea-label kea-label--block" style={{ marginTop: "0.45rem" }}>
+            <label className="discovery-label discovery-label--block" style={{ marginTop: "0.45rem" }}>
               {t("discoveryRules.sourceFields.maxMatchesPerField")}
               <input
-                className="kea-input"
+                className="discovery-input"
                 type="number"
                 min={1}
                 placeholder="100"
@@ -262,31 +262,31 @@ export function DiscoverySourceFieldsEditor({ handler: _handler, sourceFieldsYam
               />
             </label>
           </div>
-          <div className="kea-field-group">
-            <div className="kea-filter-row kea-filter-row--discovery-source-numeric">
-              <label className="kea-label">
+          <div className="discovery-field-group">
+            <div className="discovery-filter-row discovery-filter-row--discovery-source-numeric">
+              <label className="discovery-label">
                 {t("discoveryRules.sourceFields.priority")}
                 <input
-                  className="kea-input"
+                  className="discovery-input"
                   type="number"
                   value={row.form.priority}
                   onChange={(e) => updateRow(i, { priority: e.target.value })}
                 />
               </label>
-              <label className="kea-label">
+              <label className="discovery-label">
                 {t("discoveryRules.sourceFields.maxLength")}
                 <input
-                  className="kea-input"
+                  className="discovery-input"
                   type="number"
                   min={0}
                   value={row.form.max_length}
                   onChange={(e) => updateRow(i, { max_length: e.target.value })}
                 />
               </label>
-              <label className="kea-label">
+              <label className="discovery-label">
                 {t("discoveryRules.sourceFields.role")}
                 <input
-                  className="kea-input"
+                  className="discovery-input"
                   autoComplete="off"
                   placeholder="—"
                   value={row.form.role}
@@ -295,22 +295,22 @@ export function DiscoverySourceFieldsEditor({ handler: _handler, sourceFieldsYam
               </label>
             </div>
           </div>
-          <div className="kea-field-group">
-            <label className="kea-label kea-label--block">
+          <div className="discovery-field-group">
+            <label className="discovery-label discovery-label--block">
               {t("discoveryRules.sourceFields.tableId")}
               <input
-                className="kea-input"
+                className="discovery-input"
                 placeholder="—"
                 value={row.form.table_id}
                 onChange={(e) => updateRow(i, { table_id: e.target.value })}
               />
             </label>
           </div>
-          <div className="kea-field-group">
-            <label className="kea-label kea-label--block" title={t("discoveryRules.sourceFields.preprocessingCsv.tooltip")}>
+          <div className="discovery-field-group">
+            <label className="discovery-label discovery-label--block" title={t("discoveryRules.sourceFields.preprocessingCsv.tooltip")}>
               {t("discoveryRules.sourceFields.preprocessingCsv")}
               <input
-                className="kea-input"
+                className="discovery-input"
                 placeholder="trim, lowercase"
                 value={row.form.preprocessingCsv}
                 onChange={(e) => updateRow(i, { preprocessingCsv: e.target.value })}

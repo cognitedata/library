@@ -12,10 +12,10 @@ type Props = {
  */
 export function DisplayNameField({ fallbackName, value, onChange, readOnly, ariaLabel }: Props) {
   return (
-    <div className="kea-config-display-name">
+    <div className="discovery-config-display-name">
       <input
         type="text"
-        className="kea-input kea-input--display-name"
+        className="discovery-input discovery-input--display-name"
         aria-label={ariaLabel}
         placeholder={fallbackName}
         value={value}

@@ -19,7 +19,7 @@ EXECUTABLE_PIPELINE_KINDS: FrozenSet[str] = frozenset(
     k for k in _KIND_FN if k != "discovery_raw_cleanup"
 )
 
-QUERY_KINDS: FrozenSet[str] = frozenset({"query_view", "query_raw", "query_classic"})
+QUERY_KINDS: FrozenSet[str] = frozenset({"query_view", "query_raw", "query_classic", "query_sql"})
 
 # Kinds the user can toggle + that participate in cascade.
 DISABLEABLE_KINDS: FrozenSet[str] = EXECUTABLE_PIPELINE_KINDS | frozenset({"subgraph"})

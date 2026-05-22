@@ -25,6 +25,7 @@ const EXECUTABLE_PIPELINE_KINDS = new Set<CanvasNodeKind>([
   "query_view",
   "query_raw",
   "query_classic",
+  "query_sql",
   "transform",
   "join",
   "validation",
@@ -33,7 +34,7 @@ const EXECUTABLE_PIPELINE_KINDS = new Set<CanvasNodeKind>([
   "inverted_index",
 ]);
 
-const QUERY_KINDS = new Set<CanvasNodeKind>(["query_view", "query_raw", "query_classic"]);
+const QUERY_KINDS = new Set<CanvasNodeKind>(["query_view", "query_raw", "query_classic", "query_sql"]);
 
 const DISABLEABLE_KINDS = new Set<CanvasNodeKind>([...EXECUTABLE_PIPELINE_KINDS, "subgraph"]);
 
@@ -41,6 +42,7 @@ const JOIN_INPUT_SOURCE_KINDS = new Set<CanvasNodeKind>([
   "query_view",
   "query_raw",
   "query_classic",
+  "query_sql",
   "transform",
   "validation",
   "instance_filter",

@@ -130,13 +130,13 @@ export function SourceViewFilterNodeEditor({
   if (g === "and") {
     const arr = (Array.isArray(value.and) ? value.and : []) as JsonObject[];
     return (
-      <div className="kea-filter-group" style={{ marginLeft: depth ? 12 : 0 }}>
-        <div className="kea-toolbar-inline" style={{ marginBottom: 6 }}>
-          <span className="kea-hint" style={{ margin: 0, fontWeight: 600 }}>
+      <div className="discovery-filter-group" style={{ marginLeft: depth ? 12 : 0 }}>
+        <div className="discovery-toolbar-inline" style={{ marginBottom: 6 }}>
+          <span className="discovery-hint" style={{ margin: 0, fontWeight: 600 }}>
             {t("sourceViews.filterGroupAnd")}
           </span>
           {onRemove ? (
-            <button type="button" className="kea-btn kea-btn--ghost kea-btn--sm" onClick={onRemove}>
+            <button type="button" className="discovery-btn discovery-btn--ghost discovery-btn--sm" onClick={onRemove}>
               {t("sourceViews.filterRemoveNode")}
             </button>
           ) : null}
@@ -170,7 +170,7 @@ export function SourceViewFilterNodeEditor({
         })}
         <button
           type="button"
-          className="kea-btn kea-btn--sm"
+          className="discovery-btn discovery-btn--sm"
           style={{ marginTop: 6 }}
           onClick={() => onChange({ and: [...arr, emptyLeaf()] })}
         >
@@ -183,13 +183,13 @@ export function SourceViewFilterNodeEditor({
   if (g === "or") {
     const arr = (Array.isArray(value.or) ? value.or : []) as JsonObject[];
     return (
-      <div className="kea-filter-group" style={{ marginLeft: depth ? 12 : 0 }}>
-        <div className="kea-toolbar-inline" style={{ marginBottom: 6 }}>
-          <span className="kea-hint" style={{ margin: 0, fontWeight: 600 }}>
+      <div className="discovery-filter-group" style={{ marginLeft: depth ? 12 : 0 }}>
+        <div className="discovery-toolbar-inline" style={{ marginBottom: 6 }}>
+          <span className="discovery-hint" style={{ margin: 0, fontWeight: 600 }}>
             {t("sourceViews.filterGroupOr")}
           </span>
           {onRemove ? (
-            <button type="button" className="kea-btn kea-btn--ghost kea-btn--sm" onClick={onRemove}>
+            <button type="button" className="discovery-btn discovery-btn--ghost discovery-btn--sm" onClick={onRemove}>
               {t("sourceViews.filterRemoveNode")}
             </button>
           ) : null}
@@ -223,7 +223,7 @@ export function SourceViewFilterNodeEditor({
         })}
         <button
           type="button"
-          className="kea-btn kea-btn--sm"
+          className="discovery-btn discovery-btn--sm"
           style={{ marginTop: 6 }}
           onClick={() => onChange({ or: [...arr, emptyLeaf()] })}
         >
@@ -239,13 +239,13 @@ export function SourceViewFilterNodeEditor({
         ? (value.not as JsonObject)
         : emptyLeaf();
     return (
-      <div className="kea-filter-group" style={{ marginLeft: depth ? 12 : 0 }}>
-        <div className="kea-toolbar-inline" style={{ marginBottom: 6 }}>
-          <span className="kea-hint" style={{ margin: 0, fontWeight: 600 }}>
+      <div className="discovery-filter-group" style={{ marginLeft: depth ? 12 : 0 }}>
+        <div className="discovery-toolbar-inline" style={{ marginBottom: 6 }}>
+          <span className="discovery-hint" style={{ margin: 0, fontWeight: 600 }}>
             {t("sourceViews.filterGroupNot")}
           </span>
           {onRemove ? (
-            <button type="button" className="kea-btn kea-btn--ghost kea-btn--sm" onClick={onRemove}>
+            <button type="button" className="discovery-btn discovery-btn--ghost discovery-btn--sm" onClick={onRemove}>
               {t("sourceViews.filterRemoveNode")}
             </button>
           ) : null}
@@ -269,11 +269,11 @@ export function SourceViewFilterNodeEditor({
   const leafKey = `${syncKeyPrefix}-leaf-${depth}`;
 
   return (
-    <div className="kea-filter-row kea-filter-row--source-leaf">
-      <label className="kea-label">
+    <div className="discovery-filter-row discovery-filter-row--source-leaf">
+      <label className="discovery-label">
         {t("sourceViews.filterOperator")}
         <select
-          className="kea-input kea-select"
+          className="discovery-input discovery-select"
           value={op}
           onChange={(e) => {
             const nxt = normalizeFilterOperator(e.target.value);
@@ -298,10 +298,10 @@ export function SourceViewFilterNodeEditor({
           ))}
         </select>
       </label>
-      <label className="kea-label">
+      <label className="discovery-label">
         {t("sourceViews.filterTargetProperty")}
         <DeferredCommitInput
-          className="kea-input"
+          className="discovery-input"
           committedValue={String(row.target_property ?? "")}
           syncKey={`${leafKey}-target-${op}`}
           onCommit={(v) => onChange({ ...row, target_property: v })}
@@ -309,10 +309,10 @@ export function SourceViewFilterNodeEditor({
           autoComplete="off"
         />
       </label>
-      <label className="kea-label">
+      <label className="discovery-label">
         {t("sourceViews.filterPropertyScope")}
         <DeferredCommitInput
-          className="kea-input"
+          className="discovery-input"
           committedValue={String(row.property_scope ?? "view")}
           syncKey={`${leafKey}-scope-${op}`}
           onCommit={(v) => onChange({ ...row, property_scope: v })}
@@ -320,7 +320,7 @@ export function SourceViewFilterNodeEditor({
           autoComplete="off"
         />
       </label>
-      <label className="kea-label kea-label--block" style={{ gridColumn: "1 / -1", display: "flex", alignItems: "center", gap: 8 }}>
+      <label className="discovery-label discovery-label--block" style={{ gridColumn: "1 / -1", display: "flex", alignItems: "center", gap: 8 }}>
         <input
           type="checkbox"
           checked={Boolean(row.negate)}
@@ -330,41 +330,41 @@ export function SourceViewFilterNodeEditor({
       </label>
       <div key={`filter-tpl-${op}`} style={{ display: "contents" }}>
         {isRange ? (
-          <div className="kea-filter-row--range-bounds" style={{ gridColumn: "1 / -1" }}>
-            <label className="kea-label">
+          <div className="discovery-filter-row--range-bounds" style={{ gridColumn: "1 / -1" }}>
+            <label className="discovery-label">
               {t("sourceViews.filterRangeGt")}
               <DeferredCommitInput
-                className="kea-input"
+                className="discovery-input"
                 type="number"
                 committedValue={numToText(row.gt)}
                 syncKey={`${leafKey}-gt`}
                 onCommit={(v) => onChange({ ...row, gt: numOrUndef(v) })}
               />
             </label>
-            <label className="kea-label">
+            <label className="discovery-label">
               {t("sourceViews.filterRangeGte")}
               <DeferredCommitInput
-                className="kea-input"
+                className="discovery-input"
                 type="number"
                 committedValue={numToText(row.gte)}
                 syncKey={`${leafKey}-gte`}
                 onCommit={(v) => onChange({ ...row, gte: numOrUndef(v) })}
               />
             </label>
-            <label className="kea-label">
+            <label className="discovery-label">
               {t("sourceViews.filterRangeLt")}
               <DeferredCommitInput
-                className="kea-input"
+                className="discovery-input"
                 type="number"
                 committedValue={numToText(row.lt)}
                 syncKey={`${leafKey}-lt`}
                 onCommit={(v) => onChange({ ...row, lt: numOrUndef(v) })}
               />
             </label>
-            <label className="kea-label">
+            <label className="discovery-label">
               {t("sourceViews.filterRangeLte")}
               <DeferredCommitInput
-                className="kea-input"
+                className="discovery-input"
                 type="number"
                 committedValue={numToText(row.lte)}
                 syncKey={`${leafKey}-lte`}
@@ -373,11 +373,11 @@ export function SourceViewFilterNodeEditor({
             </label>
           </div>
         ) : filterOperatorNeedsValues(op) ? (
-          <label className="kea-label kea-label--block" style={{ gridColumn: "1 / -1" }}>
+          <label className="discovery-label discovery-label--block" style={{ gridColumn: "1 / -1" }}>
             {isComparison ? t("sourceViews.filterComparisonValue") : t("sourceViews.filterValues")}
             <DeferredCommitInput
               type={isComparison ? "number" : "text"}
-              className="kea-input"
+              className="discovery-input"
               committedValue={valuesToText(row.values)}
               syncKey={`${leafKey}-values-${op}`}
               onCommit={(raw) => {
@@ -399,7 +399,7 @@ export function SourceViewFilterNodeEditor({
             />
           </label>
         ) : (
-          <p className="kea-hint" style={{ gridColumn: "1 / -1", margin: 0 }}>
+          <p className="discovery-hint" style={{ gridColumn: "1 / -1", margin: 0 }}>
             {t("sourceViews.filterExistsNoValues")}
           </p>
         )}
@@ -407,7 +407,7 @@ export function SourceViewFilterNodeEditor({
       {onRemove ? (
         <button
           type="button"
-          className="kea-btn kea-btn--ghost kea-btn--sm"
+          className="discovery-btn discovery-btn--ghost discovery-btn--sm"
           style={{ gridColumn: "1 / -1" }}
           onClick={onRemove}
         >

@@ -21,7 +21,7 @@ export function TransformHandlerSelect({
   unsetLabel,
   coreGroupLabel = "Core",
   eltGroupLabel = "ELT",
-  className = "kea-select",
+  className = "discovery-select",
   style,
 }: Props) {
   return (

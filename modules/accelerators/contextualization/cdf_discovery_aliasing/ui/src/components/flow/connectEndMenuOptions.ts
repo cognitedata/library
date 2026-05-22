@@ -1,10 +1,15 @@
 import type { MessageKey } from "../../i18n";
 import type { DiscoveryPaletteStage, PaletteDragPayload } from "./FlowPalette";
 import type { CompileWorkflowDagMode } from "../../utils/workflowCompileMode";
-import { keaPersistenceOutboundToEndOnlyRfTypes } from "./flowConstants";
+import { discoveryPersistenceOutboundToEndOnlyRfTypes } from "./flowConstants";
 import { TRANSFORM_HANDLER_IDS } from "./handlerRegistry";
 
-const DISCOVERY_QUERY_STAGES: readonly DiscoveryPaletteStage[] = ["query_view", "query_raw", "query_classic"];
+const DISCOVERY_QUERY_STAGES: readonly DiscoveryPaletteStage[] = [
+  "query_view",
+  "query_raw",
+  "query_classic",
+  "query_sql",
+];
 
 export type ConnectEndMenuOption = {
   id: string;
@@ -28,6 +33,7 @@ const DISCOVERY_STAGES: readonly DiscoveryPaletteStage[] = [
   "query_view",
   "query_raw",
   "query_classic",
+  "query_sql",
   "transform",
   "merge",
   "join",
@@ -44,6 +50,7 @@ const DISCOVERY_LABEL_KEYS: Record<DiscoveryPaletteStage, MessageKey> = {
   query_view: "flow.discoveryViewQuery",
   query_raw: "flow.discoveryRawQuery",
   query_classic: "flow.discoveryClassicQuery",
+  query_sql: "flow.discoverySqlQuery",
   transform: "flow.discoveryTransform",
   merge: "flow.discoveryMerge",
   join: "flow.discoveryJoin",
@@ -58,6 +65,7 @@ const DISCOVERY_STAGE_TOOLTIP_KEYS: Partial<Record<DiscoveryPaletteStage, Messag
   query_view: "flow.paletteTooltip.queryView",
   query_raw: "flow.paletteTooltip.queryRaw",
   query_classic: "flow.paletteTooltip.queryClassic",
+  query_sql: "flow.paletteTooltip.querySql",
   join: "flow.paletteTooltip.join",
   validation: "flow.paletteTooltip.validate",
   instance_filter: "flow.paletteTooltip.instanceFilter",
@@ -112,7 +120,12 @@ export function formatConnectEndMenuOptionTooltip(
 function groupIdForOptionPayload(payload: PaletteDragPayload): ConnectEndMenuGroup["id"] {
   if (payload.kind === "structural") return "structural";
   if (payload.kind !== "discovery") return "other";
-  if (payload.stage === "query_view" || payload.stage === "query_raw" || payload.stage === "query_classic") {
+  if (
+    payload.stage === "query_view" ||
+    payload.stage === "query_raw" ||
+    payload.stage === "query_classic" ||
+    payload.stage === "query_sql"
+  ) {
     return "query";
   }
   if (payload.stage === "transform" || payload.stage === "join") return "transform";
@@ -233,47 +246,50 @@ export function connectEndMenuOptionsForSourceType(
 ): ConnectEndMenuOption[] {
   if (!sourceType) return [];
 
-  if (sourceType === "keaStart") {
+  if (sourceType === "discoveryStart") {
     if (compileDagMode === "canvas") {
       return discoveryQueryOptions("from-start");
     }
     return discoveryOptions("from-start");
   }
 
-  if (sourceType === "keaSourceView") {
+  if (sourceType === "discoverySourceView") {
     return discoveryOptionsWithoutQueries("from-source-view");
   }
 
-  /** Persistence ``out`` may wire only to ``keaEnd``; palette has no End drop — offer no connect-end targets. */
-  if (sourceType && keaPersistenceOutboundToEndOnlyRfTypes.has(sourceType)) {
+  /** Persistence ``out`` may wire only to ``discoveryEnd``; palette has no End drop — offer no connect-end targets. */
+  if (sourceType && discoveryPersistenceOutboundToEndOnlyRfTypes.has(sourceType)) {
     return [];
   }
 
   const discoverySourceTypes = new Set([
-    "keaViewQuery",
-    "keaRawQuery",
-    "keaClassicQuery",
-    "keaTransform",
-    "keaJoin",
-    "keaDiscoveryValidate",
-    "keaDiscoveryInstanceFilter",
-    "keaDiscoveryConfidenceFilter",
+    "discoveryViewQuery",
+    "discoveryRawQuery",
+    "discoveryClassicQuery",
+    "discoverySqlQuery",
+    "discoveryTransform",
+    "discoveryJoin",
+    "discoveryValidate",
+    "discoveryInstanceFilter",
+    "discoveryConfidenceFilter",
   ]);
   if (sourceType && discoverySourceTypes.has(sourceType)) {
-    const opts = discoveryOptionsWithoutQueries(`from-${sourceType.replace(/^kea/, "").toLowerCase()}`);
+    const opts = discoveryOptionsWithoutQueries(
+      `from-${sourceType.replace(/^discovery/, "").toLowerCase()}`
+    );
     if (
-      sourceType === "keaDiscoveryValidate" ||
-      sourceType === "keaDiscoveryInstanceFilter" ||
-      sourceType === "keaDiscoveryConfidenceFilter"
+      sourceType === "discoveryValidate" ||
+      sourceType === "discoveryInstanceFilter" ||
+      sourceType === "discoveryConfidenceFilter"
     ) {
       return opts.filter((o) => o.payload.kind !== "discovery" || o.payload.stage !== "transform");
     }
     return opts;
   }
 
-  if (sourceType === "keaMatchValidationRuleSourceView") return [];
-  if (sourceType === "keaMatchValidationRuleExtraction") return [];
-  if (sourceType === "keaMatchValidationRuleAliasing") {
+  if (sourceType === "discoveryMatchValidationRuleSourceView") return [];
+  if (sourceType === "discoveryMatchValidationRuleExtraction") return [];
+  if (sourceType === "discoveryMatchValidationRuleAliasing") {
     return [
       {
         id: "structural-match_validation_aliasing",

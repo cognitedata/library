@@ -12,6 +12,7 @@ from .incremental_scope import (
     RECORD_KIND_COLUMN,
     RECORD_KIND_ENTITY,
     SCOPE_KEY_COLUMN,
+    incremental_state_table_name,
     iter_raw_table_rows_chunked,
     raw_row_columns,
 )
@@ -24,7 +25,9 @@ DEFAULT_RAW_TABLE = "discovery_state"
 TABLE_SEGMENT_SEPARATOR = "__"
 
 _MAX_TABLE_SEGMENT_LEN = 80
-_MAX_FULL_TABLE_NAME_LEN = 230
+# Cognite RAW table names are capped at 64 characters (API rejects longer names).
+_CDF_RAW_TABLE_NAME_MAX_LEN = 64
+_MAX_FULL_TABLE_NAME_LEN = _CDF_RAW_TABLE_NAME_MAX_LEN
 
 _INVALID_TABLE_CHARS = re.compile(r"[^A-Za-z0-9_]+")
 
@@ -70,29 +73,38 @@ def sanitize_canvas_node_id_for_table(canvas_node_id: str) -> str:
     return _sanitize_table_segment(canvas_node_id, label="canvas_node_id")
 
 
+def compact_run_table_segment(run_id: str) -> str:
+    """Short stable run segment for per-run RAW table names (fits CDF 64-char table limit)."""
+    return hashlib.sha256(str(run_id).encode("utf-8")).hexdigest()[:12]
+
+
 def node_cohort_table_name(base_table: str, run_id: str, canvas_node_id: str) -> str:
     """Ephemeral cohort table for one pipeline run and one canvas node."""
     base = _first_nonempty(base_table) or DEFAULT_RAW_TABLE
-    run_seg = sanitize_run_id_for_table(run_id)
+    run_seg = compact_run_table_segment(run_id)
     node_seg = sanitize_canvas_node_id_for_table(canvas_node_id)
     name = f"{base}{TABLE_SEGMENT_SEPARATOR}{run_seg}{TABLE_SEGMENT_SEPARATOR}{node_seg}"
     if len(name) <= _MAX_FULL_TABLE_NAME_LEN:
         return name
-    digest = hashlib.sha256(f"{run_id}\0{canvas_node_id}".encode("utf-8")).hexdigest()[:16]
-    budget = _MAX_FULL_TABLE_NAME_LEN - len(base) - 2 * len(TABLE_SEGMENT_SEPARATOR) - 17
-    half = max(8, budget // 2)
-    run_head = run_seg[:half].rstrip("_")
-    node_head = node_seg[: max(8, budget - len(run_head) - 1)].rstrip("_")
+    digest = hashlib.sha256(f"{run_id}\0{canvas_node_id}".encode("utf-8")).hexdigest()[:8]
+    budget = (
+        _MAX_FULL_TABLE_NAME_LEN
+        - len(base)
+        - len(run_seg)
+        - 2 * len(TABLE_SEGMENT_SEPARATOR)
+        - len(digest)
+        - 1
+    )
+    node_head = node_seg[: max(4, budget)].rstrip("_")
     return (
-        f"{base}{TABLE_SEGMENT_SEPARATOR}{run_head}_{digest}"
-        f"{TABLE_SEGMENT_SEPARATOR}{node_head}"
+        f"{base}{TABLE_SEGMENT_SEPARATOR}{run_seg}{TABLE_SEGMENT_SEPARATOR}{node_head}_{digest}"
     )
 
 
 def run_node_table_prefix(base_table: str, run_id: str) -> str:
     """Prefix for all node tables in one run: ``discovery_state__{run}__``."""
     base = _first_nonempty(base_table) or DEFAULT_RAW_TABLE
-    run_seg = sanitize_run_id_for_table(run_id)
+    run_seg = compact_run_table_segment(run_id)
     return f"{base}{TABLE_SEGMENT_SEPARATOR}{run_seg}{TABLE_SEGMENT_SEPARATOR}"
 
 
@@ -183,6 +195,12 @@ def _as_dict(value: Any) -> Dict[str, Any]:
     return dict(value) if isinstance(value, dict) else {}
 
 
+def resolve_incremental_state_sink(data: Mapping[str, Any]) -> Tuple[str, str]:
+    """``(raw_db, stable_incremental_table)`` for cross-run watermarks and hash state."""
+    raw_db, base_table = resolve_base_cohort_table(data)
+    return raw_db, incremental_state_table_name(base_table)
+
+
 def resolve_node_cohort_sink(data: Mapping[str, Any], task_id: str) -> Tuple[str, str]:
     """``(raw_db, node_cohort_table)`` for the writer canvas node of *task_id*."""
     run_id = require_run_id(data)
@@ -210,6 +228,21 @@ def instance_identity_from_columns(cols: Mapping[str, Any]) -> Tuple[str, str]:
     return scope_key, nid
 
 
+def _is_missing_raw_table_error(exc: BaseException) -> bool:
+    """True when CDF RAW has no such database/table yet (first write or cumulative input)."""
+    try:
+        from cognite.client.exceptions import CogniteAPIError
+    except ImportError:
+        return False
+    if not isinstance(exc, CogniteAPIError):
+        return False
+    code = getattr(exc, "code", None)
+    if code == 404:
+        return True
+    msg = str(exc).lower()
+    return "tables not found" in msg or "table not found" in msg
+
+
 def iter_cohort_entity_rows(
     client: Any,
     raw_db: str,
@@ -218,11 +251,16 @@ def iter_cohort_entity_rows(
     chunk_size: int = 2500,
 ) -> Iterator[Any]:
     """Yield entity cohort rows from a single node table (full scan)."""
-    for row in iter_raw_table_rows_chunked(client, raw_db, raw_table, chunk_size=chunk_size):
-        cols = raw_row_columns(row)
-        if cols.get(RECORD_KIND_COLUMN) not in (None, "", RECORD_KIND_ENTITY):
-            continue
-        yield row
+    try:
+        for row in iter_raw_table_rows_chunked(client, raw_db, raw_table, chunk_size=chunk_size):
+            cols = raw_row_columns(row)
+            if cols.get(RECORD_KIND_COLUMN) not in (None, "", RECORD_KIND_ENTITY):
+                continue
+            yield row
+    except Exception as ex:
+        if _is_missing_raw_table_error(ex):
+            return
+        raise
 
 
 TableLocation = Tuple[str, str]
@@ -273,6 +311,21 @@ def build_cohort_row_index(
         if snap is not None:
             index[instance_cohort_row_key(nid, scope_key)] = snap
     return index
+
+
+def invalidate_discovery_cohort_row_index_cache(
+    data: Mapping[str, Any],
+    raw_db: str,
+    raw_table: str,
+) -> None:
+    """
+    Drop a cached cohort index for ``(raw_db, raw_table)`` after the table was written.
+
+    Local runner injects ``discovery_cohort_row_index_invalidate``; deployed functions omit it.
+    """
+    inv = data.get("discovery_cohort_row_index_invalidate") if hasattr(data, "get") else None
+    if callable(inv):
+        inv(raw_db, raw_table)
 
 
 def get_or_build_cohort_row_index(

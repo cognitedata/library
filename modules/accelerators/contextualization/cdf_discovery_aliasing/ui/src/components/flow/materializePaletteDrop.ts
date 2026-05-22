@@ -4,8 +4,8 @@ import type { MessageKey } from "../../i18n";
 import { createNodeFromPalette } from "./createNodeFromPalette";
 import { validationRuleLayoutReuseOnDrop } from "./matchValidationReuseOnDrop";
 import type { PaletteDragPayload } from "./FlowPalette";
-import { keaPersistenceOutboundToEndOnlyRfTypes, keaValidationRuleLayoutRfTypes } from "./flowConstants";
-import { buildPersistenceOutboundToEndDataEdge, findFirstKeaEndNodeId } from "./flowEdgeHelpers";
+import { discoveryPersistenceOutboundToEndOnlyRfTypes, discoveryValidationRuleLayoutRfTypes } from "./flowConstants";
+import { buildPersistenceOutboundToEndDataEdge, findFirstDiscoveryEndNodeId } from "./flowEdgeHelpers";
 import { appendEmptySourceView } from "./ensureSourceViewForPaletteDrop";
 import { buildAutoWiredEdgesForDroppedSourceView } from "./autoWireSourceViewDrop";
 import {
@@ -66,7 +66,7 @@ export function materializePaletteDrop(input: MaterializePaletteDropInput): Mate
       : null;
   let node = createNodeFromPalette(payload, position, { previousTransformOutputField });
   const rfType = node.type ?? "";
-  if (keaValidationRuleLayoutRfTypes.has(rfType)) {
+  if (discoveryValidationRuleLayoutRfTypes.has(rfType)) {
     const data = (node.data ?? {}) as Record<string, unknown>;
     const cm =
       data.validation_rule_name != null ? String(data.validation_rule_name).trim() : "";
@@ -114,8 +114,8 @@ export function materializePaletteDrop(input: MaterializePaletteDropInput): Mate
   }
 
   const extraPersistenceToEnd: Edge[] = [];
-  if (keaPersistenceOutboundToEndOnlyRfTypes.has(rfType)) {
-    const endId = findFirstKeaEndNodeId(nodes);
+  if (discoveryPersistenceOutboundToEndOnlyRfTypes.has(rfType)) {
+    const endId = findFirstDiscoveryEndNodeId(nodes);
     if (endId) {
       extraPersistenceToEnd.push(buildPersistenceOutboundToEndDataEdge(node.id, endId));
     }

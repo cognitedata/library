@@ -12,16 +12,16 @@ type Props = {
 export function WorkflowCompileToolbar({ t, readOnly }: Props) {
   void readOnly;
   return (
-    <div className="kea-flow-compile-toolbar" style={{ padding: "0.5rem 0.75rem", borderBottom: "1px solid var(--kea-border, #ddd)" }}>
+    <div className="discovery-flow-compile-toolbar" style={{ padding: "0.5rem 0.75rem", borderBottom: "1px solid var(--discovery-border, #ddd)" }}>
       <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
-        <span className="kea-hint" style={{ margin: 0, fontWeight: 600 }}>
+        <span className="discovery-hint" style={{ margin: 0, fontWeight: 600 }}>
           {t("flow.workflowCompileModeLabel")}
         </span>
-        <div className="kea-select" style={{ padding: "0.35rem 0.5rem", width: "100%", maxWidth: "100%" }}>
+        <div className="discovery-select" style={{ padding: "0.35rem 0.5rem", width: "100%", maxWidth: "100%" }}>
           {t("flow.workflowCompileModeCanvas")}
         </div>
       </div>
-      <p className="kea-hint" style={{ margin: "0.5rem 0 0", fontSize: "0.78rem", lineHeight: 1.35 }}>
+      <p className="discovery-hint" style={{ margin: "0.5rem 0 0", fontSize: "0.78rem", lineHeight: 1.35 }}>
         {t("flow.workflowCompileModeHint")}
       </p>
     </div>

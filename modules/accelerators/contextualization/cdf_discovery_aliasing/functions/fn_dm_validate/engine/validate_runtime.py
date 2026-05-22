@@ -4,7 +4,11 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, MutableMapping
 
-from cdf_fn_common.cohort_storage import canvas_node_id_for_task, require_run_id
+from cdf_fn_common.cohort_storage import (
+    canvas_node_id_for_task,
+    invalidate_discovery_cohort_row_index_cache,
+    require_run_id,
+)
 from cdf_fn_common.discovery_cohort import (
     _cohort_row_from_columns,
     iter_predecessor_instance_props,
@@ -97,6 +101,9 @@ def discovery_handle_validate(
             _flush_rows(queue, sink_db, sink_table, pending, client=client)
 
     _flush_rows(queue, sink_db, sink_table, pending, client=client)
+
+    if rows_written > 0:
+        invalidate_discovery_cohort_row_index_cache(data, sink_db, sink_table)
 
     if log and hasattr(log, "info"):
         log.info(

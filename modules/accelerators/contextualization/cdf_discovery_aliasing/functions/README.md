@@ -11,6 +11,7 @@ The UI **`canvas`** compiles to tasks whose **`externalId`** matches the folder 
 | `query_view` | `fn_dm_view_query` | DM `instances.list` → discovery RAW cohort (`RUN_ID`). |
 | `query_raw` | `fn_dm_raw_query` | RAW-backed cohort reads → sink RAW. |
 | `query_classic` | `fn_dm_classic_query` | Classic / non-DM cohort reads → sink RAW. |
+| `query_sql` | `fn_dm_sql_query` | CDF SQL (transformations preview) → cohort RAW rows. |
 | `transform` | `fn_dm_transform` | Extraction + aliasing transforms on RAW rows (handler registry). |
 | `validation` | `fn_dm_validate` | Validation / confidence on RAW payloads. |
 | `filter` | `fn_dm_filter` | Exclude cohort rows using query-style `filters` (and/or/not, operators). |
@@ -22,6 +23,17 @@ The UI **`canvas`** compiles to tasks whose **`externalId`** matches the folder 
 | `discovery_raw_cleanup` | `fn_dm_discovery_raw_cleanup` | Post-run purge of inter-node cohort RAW (current `run_id` + rows older than 72h by default); optional `truncate_tables`. Does not touch inverted index or aliasing stores. |
 
 **Shared library:** `cdf_fn_common/` — canvas → IR compile, scope trim, incremental scope, logging, merge helpers, workflow associations, etc.
+
+### Query enumeration limits (cohort export)
+
+| Query function | Config keys | Meaning |
+|----------------|-------------|---------|
+| `fn_dm_view_query` | `batch_size`, `limit` | **Page size** for `instances.list` (max 1000/request). Cursor pagination until exhausted — **not** a total row cap. |
+| `fn_dm_raw_query` | `read_limit`, `limit` | **Total cap** on source rows; `0` or unset = full RAW table scan (chunked). |
+| `fn_dm_classic_query` | `read_limit`, `limit` | **Total cap**; unset = SDK `limit=-1` (all pages). `batch_size` is not a total cap. |
+| `fn_dm_sql_query` | `limit` | **Total cap** on `transformations.preview` rows; `0` or unset = 10_000 (API ceiling). |
+
+Handler summaries include `rows_truncated`, `list_complete`, and `enumeration_pages` when applicable. UI **preview** limits are separate (operator UX only).
 
 ## Local execution
 

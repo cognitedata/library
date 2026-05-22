@@ -10,7 +10,7 @@ export type AlignFlowSelectionMode =
   | "centerVertical"
   | "bottom";
 
-const FIXED_LAYOUT_TYPES = new Set(["keaStart", "keaEnd"]);
+const FIXED_LAYOUT_TYPES = new Set(["discoveryStart", "discoveryEnd"]);
 
 function canAlignInFlow(n: Node): boolean {
   return !FIXED_LAYOUT_TYPES.has(String(n.type ?? ""));

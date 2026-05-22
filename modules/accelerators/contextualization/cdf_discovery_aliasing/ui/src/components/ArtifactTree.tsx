@@ -89,12 +89,12 @@ export function ArtifactTree({ paths, selectedPath, onSelectFile }: Props) {
 
   let treeBody: ReactNode;
   if (paths.length === 0) {
-    treeBody = <p className="kea-hint kea-art-tree-empty">—</p>;
+    treeBody = <p className="discovery-hint discovery-art-tree-empty">—</p>;
   } else if (noMatches) {
-    treeBody = <p className="kea-hint kea-art-tree-empty">{t("artifacts.noSearchResults")}</p>;
+    treeBody = <p className="discovery-hint discovery-art-tree-empty">{t("artifacts.noSearchResults")}</p>;
   } else {
     treeBody = (
-      <ul className="kea-art-tree" role="tree">
+      <ul className="discovery-art-tree" role="tree">
         {tree.map((node, i) => (
           <ArtifactTreeRows
             key={node.kind === "dir" ? node.relPath : `file-${node.rel}-${i}`}
@@ -155,13 +155,13 @@ export function ArtifactTree({ paths, selectedPath, onSelectFile }: Props) {
   }
 
   return (
-    <div className="kea-art-tree-panel">
-      <TreeContextMenuPortal menu={ctxMenu.menu} onClose={ctxMenu.close} classPrefix="kea" />
-      <label className="kea-label kea-art-tree-search-label" title={t("artifacts.searchLabel.tooltip")}>
+    <div className="discovery-art-tree-panel">
+      <TreeContextMenuPortal menu={ctxMenu.menu} onClose={ctxMenu.close} classPrefix="discovery" />
+      <label className="discovery-label discovery-art-tree-search-label" title={t("artifacts.searchLabel.tooltip")}>
         {t("artifacts.searchLabel")}
         <input
           type="search"
-          className="kea-input kea-art-tree-search"
+          className="discovery-input discovery-art-tree-search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder={t("artifacts.searchPlaceholder")}
@@ -171,10 +171,10 @@ export function ArtifactTree({ paths, selectedPath, onSelectFile }: Props) {
         />
       </label>
       <div
-        className="kea-artifact-tree-wrap"
+        className="discovery-artifact-tree-wrap"
         onContextMenu={(e) => {
           const tEl = e.target as HTMLElement;
-          if (tEl.closest(".kea-art-tree-li")) return;
+          if (tEl.closest(".discovery-art-tree-li")) return;
           if (paths.length === 0 || noMatches) return;
           ctxMenu.open(e, [
             {
@@ -219,11 +219,11 @@ function ArtifactTreeRows({
   if (node.kind === "file") {
     const active = selectedPath === node.rel;
     return (
-      <li className="kea-art-tree-li" role="none">
+      <li className="discovery-art-tree-li" role="none">
         <button
           type="button"
           role="treeitem"
-          className={active ? "kea-art-tree-file kea-art-tree-file--active" : "kea-art-tree-file"}
+          className={active ? "discovery-art-tree-file discovery-art-tree-file--active" : "discovery-art-tree-file"}
           style={{ paddingLeft: 8 + depth * 14 }}
           onClick={() => onSelectFile(node.rel)}
           onContextMenu={(e) => onFileContextMenu(e, node)}
@@ -236,16 +236,16 @@ function ArtifactTreeRows({
 
   const isOpen = expanded.has(node.relPath);
   return (
-    <li className="kea-art-tree-li" role="none">
+    <li className="discovery-art-tree-li" role="none">
       <div
-        className="kea-art-tree-dir-row"
+        className="discovery-art-tree-dir-row"
         style={{ paddingLeft: depth * 14 }}
         role="presentation"
         onContextMenu={(e) => onDirContextMenu(e, node)}
       >
         <button
           type="button"
-          className="kea-art-tree-chevron"
+          className="discovery-art-tree-chevron"
           aria-expanded={isOpen}
           aria-label={isOpen ? t("artifacts.treeCollapse") : t("artifacts.treeExpand")}
           onClick={() => onToggleDir(node.relPath)}
@@ -255,14 +255,14 @@ function ArtifactTreeRows({
         <button
           type="button"
           role="treeitem"
-          className="kea-art-tree-dir-label"
+          className="discovery-art-tree-dir-label"
           onClick={() => onToggleDir(node.relPath)}
         >
           {node.name}
         </button>
       </div>
       {isOpen && (
-        <ul className="kea-art-tree-nested" role="group">
+        <ul className="discovery-art-tree-nested" role="group">
           {node.children.map((child, i) => (
             <ArtifactTreeRows
               key={child.kind === "dir" ? child.relPath : `file-${child.rel}-${i}`}

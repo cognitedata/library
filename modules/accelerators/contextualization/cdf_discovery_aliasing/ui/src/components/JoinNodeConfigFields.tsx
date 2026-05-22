@@ -70,11 +70,11 @@ export function JoinNodeConfigFields({ t, value, onChange }: Props) {
   const setJoinOn = (next: JsonObject) => patch({ join_on: next });
 
   return (
-    <div className="kea-loc-fields">
-      <label className="kea-label kea-label--block">
+    <div className="discovery-loc-fields">
+      <label className="discovery-label discovery-label--block">
         Description
         <input
-          className="kea-input"
+          className="discovery-input"
           style={{ marginTop: "0.35rem" }}
           value={String(value.description ?? "")}
           onChange={(e) => patch({ description: e.target.value })}
@@ -82,10 +82,10 @@ export function JoinNodeConfigFields({ t, value, onChange }: Props) {
           autoComplete="off"
         />
       </label>
-      <label className="kea-label kea-label--block">
+      <label className="discovery-label discovery-label--block">
         Join type
         <select
-          className="kea-select"
+          className="discovery-select"
           style={{ marginTop: "0.35rem" }}
           value={joinType === "left" ? "left" : "inner"}
           onChange={(e) => patch({ join_type: e.target.value })}
@@ -94,10 +94,10 @@ export function JoinNodeConfigFields({ t, value, onChange }: Props) {
           <option value="left">left</option>
         </select>
       </label>
-      <label className="kea-label kea-label--block">
+      <label className="discovery-label discovery-label--block">
         Right property prefix (optional)
         <input
-          className="kea-input"
+          className="discovery-input"
           style={{ marginTop: "0.35rem" }}
           value={String(value.right_prefix ?? "")}
           onChange={(e) => patch({ right_prefix: e.target.value })}
@@ -106,30 +106,30 @@ export function JoinNodeConfigFields({ t, value, onChange }: Props) {
         />
       </label>
 
-      <h4 className="kea-section-title" style={{ fontSize: "0.95rem", marginTop: "0.85rem" }}>
+      <h4 className="discovery-section-title" style={{ fontSize: "0.95rem", marginTop: "0.85rem" }}>
         {t("joinEditor.title")}
       </h4>
-      <p className="kea-hint" style={{ marginTop: 0, marginBottom: "0.65rem", maxWidth: "56rem" }}>
+      <p className="discovery-hint" style={{ marginTop: 0, marginBottom: "0.65rem", maxWidth: "56rem" }}>
         {t("joinEditor.hint")}
       </p>
 
       {structuredOk ? (
         <div style={{ marginBottom: "0.75rem" }}>
-          <p className="kea-hint" style={{ margin: "0 0 0.35rem", fontWeight: 600 }}>
+          <p className="discovery-hint" style={{ margin: "0 0 0.35rem", fontWeight: 600 }}>
             {t("joinEditor.presetsTitle")}
           </p>
-          <p className="kea-hint" style={{ marginTop: 0, marginBottom: "0.45rem", maxWidth: "56rem" }}>
+          <p className="discovery-hint" style={{ marginTop: 0, marginBottom: "0.45rem", maxWidth: "56rem" }}>
             {t("joinEditor.presetHint")}
           </p>
-          <div className="kea-toolbar-inline" style={{ flexWrap: "wrap", gap: 8 }}>
+          <div className="discovery-toolbar-inline" style={{ flexWrap: "wrap", gap: 8 }}>
             <button
               type="button"
-              className="kea-btn kea-btn--sm"
+              className="discovery-btn discovery-btn--sm"
               onClick={() => {
                 const leaf: JsonObject = {
                   operator: "IEQUALS",
                   left_property: "name",
-                  right_property: "raw_columns.key",
+                  right_property: "raw_columns.name",
                 };
                 setJoinOn(appendJoinPredicate(joinOnRawObj, leaf));
                 setJsonOverride(false);
@@ -139,7 +139,7 @@ export function JoinNodeConfigFields({ t, value, onChange }: Props) {
             </button>
             <button
               type="button"
-              className="kea-btn kea-btn--sm"
+              className="discovery-btn discovery-btn--sm"
               onClick={() => {
                 const leaf: JsonObject = {
                   operator: "IEQUALS",
@@ -154,12 +154,12 @@ export function JoinNodeConfigFields({ t, value, onChange }: Props) {
             </button>
             <button
               type="button"
-              className="kea-btn kea-btn--sm"
+              className="discovery-btn discovery-btn--sm"
               onClick={() => {
                 const leaf: JsonObject = {
                   operator: "EQUALS",
                   left_property: "externalId",
-                  right_property: "raw_columns.key",
+                  right_property: "raw_columns.name",
                 };
                 setJoinOn(appendJoinPredicate(joinOnRawObj, leaf));
                 setJsonOverride(false);
@@ -169,7 +169,7 @@ export function JoinNodeConfigFields({ t, value, onChange }: Props) {
             </button>
             <button
               type="button"
-              className="kea-btn kea-btn--ghost kea-btn--sm"
+              className="discovery-btn discovery-btn--ghost discovery-btn--sm"
               onClick={() => {
                 const d = defaultJoinOnRoot();
                 setJoinOn(d);
@@ -184,13 +184,13 @@ export function JoinNodeConfigFields({ t, value, onChange }: Props) {
       ) : null}
 
       {!structuredOk ? (
-        <p className="kea-hint" style={{ marginTop: 0, marginBottom: "0.5rem", maxWidth: "56rem" }}>
+        <p className="discovery-hint" style={{ marginTop: 0, marginBottom: "0.5rem", maxWidth: "56rem" }}>
           {t("joinEditor.unsupportedShapeHint")}
         </p>
       ) : null}
 
       {structuredOk ? (
-        <label className="kea-label kea-label--block" style={{ marginBottom: "0.5rem" }}>
+        <label className="discovery-label discovery-label--block" style={{ marginBottom: "0.5rem" }}>
           <input
             type="checkbox"
             checked={jsonOverride}
@@ -203,10 +203,10 @@ export function JoinNodeConfigFields({ t, value, onChange }: Props) {
       {showStructured ? (
         <>
           <JoinOnPredicateEditor t={t} value={joinOnRawObj} onChange={setJoinOn} depth={0} />
-          <div className="kea-toolbar-inline" style={{ marginTop: 10, flexWrap: "wrap", gap: 8 }}>
+          <div className="discovery-toolbar-inline" style={{ marginTop: 10, flexWrap: "wrap", gap: 8 }}>
             <button
               type="button"
-              className="kea-btn kea-btn--sm"
+              className="discovery-btn discovery-btn--sm"
               onClick={() => {
                 const g = joinRootGroupKind(joinOnRawObj);
                 if (g === "and") {
@@ -226,7 +226,7 @@ export function JoinNodeConfigFields({ t, value, onChange }: Props) {
             </button>
             <button
               type="button"
-              className="kea-btn kea-btn--sm"
+              className="discovery-btn discovery-btn--sm"
               onClick={() => {
                 const g = joinRootGroupKind(joinOnRawObj);
                 if (g === "and") {
@@ -246,7 +246,7 @@ export function JoinNodeConfigFields({ t, value, onChange }: Props) {
             </button>
             <button
               type="button"
-              className="kea-btn kea-btn--sm"
+              className="discovery-btn discovery-btn--sm"
               onClick={() => {
                 const g = joinRootGroupKind(joinOnRawObj);
                 if (g === "and") {
@@ -266,7 +266,7 @@ export function JoinNodeConfigFields({ t, value, onChange }: Props) {
             </button>
             <button
               type="button"
-              className="kea-btn kea-btn--sm"
+              className="discovery-btn discovery-btn--sm"
               onClick={() => {
                 const g = joinRootGroupKind(joinOnRawObj);
                 if (g === "and") {
@@ -292,7 +292,7 @@ export function JoinNodeConfigFields({ t, value, onChange }: Props) {
         <>
           <button
             type="button"
-            className="kea-btn kea-btn--ghost kea-btn--sm"
+            className="discovery-btn discovery-btn--ghost discovery-btn--sm"
             style={{ marginBottom: 8 }}
             onClick={() => {
               const d = defaultJoinOnRoot();
@@ -303,10 +303,10 @@ export function JoinNodeConfigFields({ t, value, onChange }: Props) {
           >
             {t("joinEditor.resetTemplate")}
           </button>
-          <label className="kea-label kea-label--block">
+          <label className="discovery-label discovery-label--block">
             join_on (JSON)
             <textarea
-              className="kea-textarea"
+              className="discovery-textarea"
               spellCheck={false}
               style={{ marginTop: "0.35rem", minHeight: 140, fontFamily: "ui-monospace, monospace", fontSize: "0.8rem" }}
               value={joinOnRaw}
@@ -339,9 +339,8 @@ export function JoinNodeConfigFields({ t, value, onChange }: Props) {
         </>
       ) : null}
 
-      <p className="kea-hint" style={{ marginTop: "0.35rem", maxWidth: "42rem" }}>
-        Wire inputs with handles <code>in__left</code> and <code>in__right</code>. Predicate paths resolve into
-        cohort <code>PROPERTIES_JSON</code> (e.g. <code>raw_columns.key</code> on the RAW-query side).
+      <p className="discovery-hint" style={{ marginTop: "0.35rem", maxWidth: "42rem" }}>
+        {t("joinEditor.wireHandlesHint")}
       </p>
     </div>
   );

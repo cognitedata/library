@@ -12,6 +12,7 @@ from fn_dm_transform.engine.transform_steps import (
 
 from cdf_fn_common.cohort_storage import (
     canvas_node_id_for_task,
+    invalidate_discovery_cohort_row_index_cache,
     predecessor_canvas_node_ids,
     require_run_id,
     resolve_base_cohort_table,
@@ -23,7 +24,9 @@ from cdf_fn_common.discovery_cohort import (
 from cdf_fn_common.transform_cumulative_input import (
     build_transform_table_indexes,
     iter_unique_predecessor_entity_rows,
+    parse_input_mode,
     resolve_cumulative_input_props,
+    INPUT_MODE_CUMULATIVE,
 )
 from cdf_fn_common.discovery_query_shared import (
     _first_nonempty,
@@ -121,6 +124,9 @@ def discovery_handle_transform(
                 _flush_rows(queue, sink_db, sink_table, pending, client=client)
 
     _flush_rows(queue, sink_db, sink_table, pending, client=client)
+
+    if rows_written > 0 and parse_input_mode(cfg) == INPUT_MODE_CUMULATIVE:
+        invalidate_discovery_cohort_row_index_cache(data, sink_db, sink_table)
 
     if log and hasattr(log, "info"):
         log.info(

@@ -62,22 +62,22 @@ export function InvertedIndexNodeConfigFields({ canvas, onChange, nodeId, t }: P
   );
 
   if (!node) {
-    return <p className="kea-hint">{t("flow.saveNodeMissing")}</p>;
+    return <p className="discovery-hint">{t("flow.saveNodeMissing")}</p>;
   }
 
   return (
-    <div className="kea-loc-fields" style={{ maxWidth: "52rem" }}>
-      <h3 className="kea-section-title" style={{ marginTop: 0 }}>
+    <div className="discovery-loc-fields" style={{ maxWidth: "52rem" }}>
+      <h3 className="discovery-section-title" style={{ marginTop: 0 }}>
         {t("flow.discoveryInvertedIndex")}
       </h3>
-      <p className="kea-hint" style={{ marginTop: 0, marginBottom: "0.85rem", maxWidth: "56rem" }}>
+      <p className="discovery-hint" style={{ marginTop: 0, marginBottom: "0.85rem", maxWidth: "56rem" }}>
         {t("flow.inspectorInvertedIndexHint")}
       </p>
 
-      <label className="kea-label kea-label--block">
+      <label className="discovery-label discovery-label--block">
         {t("flow.invertedIndex.profileOptional")}
         <DeferredCommitInput
-          className="kea-input"
+          className="discovery-input"
           committedValue={String(cfg.profile ?? "")}
           syncKey={`${nodeId}-ii-profile`}
           onCommit={(v) => {
@@ -87,14 +87,14 @@ export function InvertedIndexNodeConfigFields({ canvas, onChange, nodeId, t }: P
         />
       </label>
 
-      <h4 className="kea-section-title" style={{ fontSize: "0.95rem", marginTop: "1rem" }}>
+      <h4 className="discovery-section-title" style={{ fontSize: "0.95rem", marginTop: "1rem" }}>
         {t("flow.invertedIndex.sectionSourceRaw")}
       </h4>
-      <div className="kea-filter-row kea-filter-row--pair kea-filter-row--gap-md">
-        <label className="kea-label">
+      <div className="discovery-filter-row discovery-filter-row--pair discovery-filter-row--gap-md">
+        <label className="discovery-label">
           {t("flow.invertedIndex.sourceRawDb")}
           <DeferredCommitInput
-            className="kea-input"
+            className="discovery-input"
             committedValue={String(cfg.source_raw_db ?? "")}
             syncKey={`${nodeId}-ii-src-raw-db`}
             onCommit={(v) => {
@@ -103,10 +103,10 @@ export function InvertedIndexNodeConfigFields({ canvas, onChange, nodeId, t }: P
             }}
           />
         </label>
-        <label className="kea-label">
+        <label className="discovery-label">
           {t("flow.invertedIndex.sourceRawTableKey")}
           <DeferredCommitInput
-            className="kea-input"
+            className="discovery-input"
             committedValue={String(cfg.source_raw_table_key ?? "")}
             syncKey={`${nodeId}-ii-src-raw-tk`}
             onCommit={(v) => {
@@ -116,10 +116,10 @@ export function InvertedIndexNodeConfigFields({ canvas, onChange, nodeId, t }: P
           />
         </label>
       </div>
-      <label className="kea-label kea-label--block" style={{ marginTop: "0.5rem" }}>
+      <label className="discovery-label discovery-label--block" style={{ marginTop: "0.5rem" }}>
         {t("flow.invertedIndex.sourceRawReadLimit")}
         <input
-          className="kea-input"
+          className="discovery-input"
           type="number"
           min={0}
           value={cfg.source_raw_read_limit != null ? String(cfg.source_raw_read_limit) : ""}
@@ -135,14 +135,14 @@ export function InvertedIndexNodeConfigFields({ canvas, onChange, nodeId, t }: P
         />
       </label>
 
-      <h4 className="kea-section-title" style={{ fontSize: "0.95rem", marginTop: "1rem" }}>
+      <h4 className="discovery-section-title" style={{ fontSize: "0.95rem", marginTop: "1rem" }}>
         {t("flow.invertedIndex.sectionSinkRaw")}
       </h4>
-      <div className="kea-filter-row kea-filter-row--pair kea-filter-row--gap-md">
-        <label className="kea-label">
+      <div className="discovery-filter-row discovery-filter-row--pair discovery-filter-row--gap-md">
+        <label className="discovery-label">
           {t("flow.invertedIndex.sinkRawDb")}
           <DeferredCommitInput
-            className="kea-input"
+            className="discovery-input"
             committedValue={String(cfg.inverted_index_raw_db ?? "")}
             syncKey={`${nodeId}-ii-sink-raw-db`}
             onCommit={(v) => {
@@ -151,10 +151,10 @@ export function InvertedIndexNodeConfigFields({ canvas, onChange, nodeId, t }: P
             }}
           />
         </label>
-        <label className="kea-label">
+        <label className="discovery-label">
           {t("flow.invertedIndex.sinkRawTable")}
           <DeferredCommitInput
-            className="kea-input"
+            className="discovery-input"
             committedValue={String(cfg.inverted_index_raw_table ?? "")}
             syncKey={`${nodeId}-ii-sink-raw-tbl`}
             onCommit={(v) => {
@@ -165,14 +165,14 @@ export function InvertedIndexNodeConfigFields({ canvas, onChange, nodeId, t }: P
         </label>
       </div>
 
-      <h4 className="kea-section-title" style={{ fontSize: "0.95rem", marginTop: "1rem" }}>
+      <h4 className="discovery-section-title" style={{ fontSize: "0.95rem", marginTop: "1rem" }}>
         {t("flow.invertedIndex.sectionEntityTypes")}
       </h4>
-      <div className="kea-filter-row kea-filter-row--pair kea-filter-row--gap-md">
-        <label className="kea-label">
+      <div className="discovery-filter-row discovery-filter-row--pair discovery-filter-row--gap-md">
+        <label className="discovery-label">
           {t("flow.invertedIndex.fkEntityType")}
           <DeferredCommitInput
-            className="kea-input"
+            className="discovery-input"
             committedValue={String(cfg.inverted_index_fk_entity_type ?? "")}
             syncKey={`${nodeId}-ii-fk-et`}
             onCommit={(v) => {
@@ -183,10 +183,10 @@ export function InvertedIndexNodeConfigFields({ canvas, onChange, nodeId, t }: P
             }}
           />
         </label>
-        <label className="kea-label">
+        <label className="discovery-label">
           {t("flow.invertedIndex.documentEntityType")}
           <DeferredCommitInput
-            className="kea-input"
+            className="discovery-input"
             committedValue={String(cfg.inverted_index_document_entity_type ?? "")}
             syncKey={`${nodeId}-ii-doc-et`}
             onCommit={(v) => {
@@ -199,14 +199,14 @@ export function InvertedIndexNodeConfigFields({ canvas, onChange, nodeId, t }: P
         </label>
       </div>
 
-      <h4 className="kea-section-title" style={{ fontSize: "0.95rem", marginTop: "1rem" }}>
+      <h4 className="discovery-section-title" style={{ fontSize: "0.95rem", marginTop: "1rem" }}>
         {t("flow.invertedIndex.sectionSourceView")}
       </h4>
-      <div className="kea-filter-row kea-filter-row--triple kea-filter-row--gap-md">
-        <label className="kea-label">
+      <div className="discovery-filter-row discovery-filter-row--triple discovery-filter-row--gap-md">
+        <label className="discovery-label">
           {t("flow.invertedIndex.sourceViewSpace")}
           <DeferredCommitInput
-            className="kea-input"
+            className="discovery-input"
             committedValue={String(cfg.source_view_space ?? "")}
             syncKey={`${nodeId}-ii-sv-sp`}
             onCommit={(v) => {
@@ -215,10 +215,10 @@ export function InvertedIndexNodeConfigFields({ canvas, onChange, nodeId, t }: P
             }}
           />
         </label>
-        <label className="kea-label">
+        <label className="discovery-label">
           {t("flow.invertedIndex.sourceViewExternalId")}
           <DeferredCommitInput
-            className="kea-input"
+            className="discovery-input"
             committedValue={String(cfg.source_view_external_id ?? "")}
             syncKey={`${nodeId}-ii-sv-ext`}
             onCommit={(v) => {
@@ -227,10 +227,10 @@ export function InvertedIndexNodeConfigFields({ canvas, onChange, nodeId, t }: P
             }}
           />
         </label>
-        <label className="kea-label">
+        <label className="discovery-label">
           {t("flow.invertedIndex.sourceViewVersion")}
           <DeferredCommitInput
-            className="kea-input"
+            className="discovery-input"
             committedValue={String(cfg.source_view_version ?? "")}
             syncKey={`${nodeId}-ii-sv-ver`}
             onCommit={(v) => {

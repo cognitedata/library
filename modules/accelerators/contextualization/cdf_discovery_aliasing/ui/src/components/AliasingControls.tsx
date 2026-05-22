@@ -57,7 +57,7 @@ function coerceParam(s: string): unknown {
 }
 
 function editorSubtabClass(active: boolean): string {
-  return `kea-tab${active ? " kea-tab--active" : ""}`;
+  return `discovery-tab${active ? " discovery-tab--active" : ""}`;
 }
 
 export function AliasingControls({
@@ -201,9 +201,9 @@ export function AliasingControls({
   };
 
   return (
-    <div className="kea-aliasing">
-      <h3 className="kea-section-title">{t("aliasing.title")}</h3>
-      <nav className="kea-tabs kea-editor-subtabs" role="tablist" aria-label={t("nav.subtabs")}>
+    <div className="discovery-aliasing">
+      <h3 className="discovery-section-title">{t("aliasing.title")}</h3>
+      <nav className="discovery-tabs discovery-editor-subtabs" role="tablist" aria-label={t("nav.subtabs")}>
         <button
           type="button"
           role="tab"
@@ -225,56 +225,56 @@ export function AliasingControls({
       </nav>
       {editorSub === "settings" && (
         <div role="tabpanel">
-          <label className="kea-label kea-label--block">
+          <label className="discovery-label discovery-label--block">
             {t("aliasing.externalId")}
             <DeferredCommitInput
-              className="kea-input"
+              className="discovery-input"
               committedValue={String(al.externalId ?? "")}
               onCommit={setExternalId}
             />
           </label>
-          <h4 className="kea-section-title" style={{ fontSize: "0.95rem" }}>
+          <h4 className="discovery-section-title" style={{ fontSize: "0.95rem" }}>
             {t("aliasing.parameters")}
           </h4>
           {Object.entries(params).map(([k, v]) => (
             <div
               key={k}
-              className="kea-filter-row kea-filter-row--pair-wide kea-filter-row--align-end"
+              className="discovery-filter-row discovery-filter-row--pair-wide discovery-filter-row--align-end"
             >
-              <label className="kea-label">
+              <label className="discovery-label">
                 {t("forms.paramKey")}
                 <input
-                  className="kea-input"
+                  className="discovery-input"
                   defaultValue={k}
                   onBlur={(e) => renameParam(k, e.target.value)}
                 />
               </label>
-              <label className="kea-label">
+              <label className="discovery-label">
                 {t("forms.paramValue")}
                 <input
-                  className="kea-input"
+                  className="discovery-input"
                   value={stringifyVal(v)}
                   onChange={(e) => setParamValue(k, e.target.value)}
                 />
               </label>
-              <button type="button" className="kea-btn kea-btn--ghost kea-btn--sm" onClick={() => removeParam(k)}>
+              <button type="button" className="discovery-btn discovery-btn--ghost discovery-btn--sm" onClick={() => removeParam(k)}>
                 {t("scope.remove")}
               </button>
             </div>
           ))}
-          <button type="button" className="kea-btn kea-btn--sm" onClick={addParam}>
+          <button type="button" className="discovery-btn discovery-btn--sm" onClick={addParam}>
             {t("aliasing.addParam")}
           </button>
         </div>
       )}
       {editorSub === "validation" && (
         <div role="tabpanel">
-          <h4 className="kea-section-title" style={{ fontSize: "0.95rem" }}>
+          <h4 className="discovery-section-title" style={{ fontSize: "0.95rem" }}>
             {t("aliasing.validationYaml")}
           </h4>
-          <p className="kea-hint">{t("aliasing.validationYamlHint")}</p>
-          {rulesError && <p className="kea-hint kea-hint--warn">{rulesError}</p>}
-          {validationMergeHint && <p className="kea-hint kea-hint--warn">{validationMergeHint}</p>}
+          <p className="discovery-hint">{t("aliasing.validationYamlHint")}</p>
+          {rulesError && <p className="discovery-hint discovery-hint--warn">{rulesError}</p>}
+          {validationMergeHint && <p className="discovery-hint discovery-hint--warn">{validationMergeHint}</p>}
           <ValidationStructuredEditor
             variant="aliasing"
             value={validationObject}
@@ -283,10 +283,10 @@ export function AliasingControls({
             initialFocusedMatchRuleName={initialFocusedMatchRuleName}
           />
           <details style={{ marginTop: "1rem" }}>
-            <summary style={{ cursor: "pointer", color: "var(--kea-text-muted)" }}>{t("validationEditor.advancedYaml")}</summary>
-            {validationError && <p className="kea-hint kea-hint--warn">{validationError}</p>}
+            <summary style={{ cursor: "pointer", color: "var(--discovery-text-muted)" }}>{t("validationEditor.advancedYaml")}</summary>
+            {validationError && <p className="discovery-hint discovery-hint--warn">{validationError}</p>}
             <textarea
-              className="kea-textarea"
+              className="discovery-textarea"
               style={{ minHeight: 200, fontFamily: "ui-monospace, monospace", marginTop: "0.5rem" }}
               value={validationYaml}
               onChange={(e) => setValidationYaml(e.target.value)}

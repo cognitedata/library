@@ -22,11 +22,11 @@ export function PipelineExecutionFields({
   fieldPoliciesHintKey = "pipelineSteps.fieldPoliciesHintTransform",
 }: Props) {
   return (
-    <div className="kea-pipeline-execution" style={{ marginTop: "0.75rem" }}>
-      <label className="kea-label">
+    <div className="discovery-pipeline-execution" style={{ marginTop: "0.75rem" }}>
+      <label className="discovery-label">
         {t("pipelineSteps.executionMode")}
         <select
-          className="kea-input"
+          className="discovery-input"
           style={{ marginTop: "0.35rem", display: "block" }}
           value={executionMode}
           onChange={(e) => onExecutionModeChange(e.target.value as ExecutionMode)}

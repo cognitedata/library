@@ -10,7 +10,7 @@ type Props = {
 /** Short hints for optional rule-level `parameters` YAML (advanced / hints). */
 export function DiscoveryHandlerParameters({ handler: _handler, t }: Props) {
   return (
-    <p className="kea-hint" style={{ marginTop: "0.35rem" }}>
+    <p className="discovery-hint" style={{ marginTop: "0.35rem" }}>
       {t("discoveryRules.handlerFields.fieldRuleParametersHint")}
     </p>
   );

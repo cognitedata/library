@@ -28,12 +28,10 @@ aliasing_scope_hierarchy:
     name: Second Manufacturing Site
     description: Second site (display name may contain spaces; id is the stable segment)
     locations:
-    - id: PLANT_A
-      name: Production Plant A
-      locations:
-      - id: AREA_01
-        name: Production Area 1
-        locations:
-        - id: COOLING_SYS
-          name: Cooling System
-          description: Cooling system scope leaf
+    - id: UNIT_A
+      name: Production Unit A
+      locations: []
+    - id: UNIT_B
+      name: Production Unit B
+      description: ''
+      locations: []

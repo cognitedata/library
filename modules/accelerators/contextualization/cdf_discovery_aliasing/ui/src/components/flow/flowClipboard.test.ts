@@ -9,9 +9,9 @@ import {
 
 describe("flowClipboard", () => {
   const nodes: Node[] = [
-    { id: "start", type: "keaStart", position: { x: 0, y: 0 }, data: { label: "Start" } },
-    { id: "q1", type: "keaViewQuery", position: { x: 100, y: 0 }, data: { label: "Query", config: {} } },
-    { id: "end", type: "keaEnd", position: { x: 300, y: 0 }, data: { label: "End" } },
+    { id: "start", type: "discoveryStart", position: { x: 0, y: 0 }, data: { label: "Start" } },
+    { id: "q1", type: "discoveryViewQuery", position: { x: 100, y: 0 }, data: { label: "Query", config: {} } },
+    { id: "end", type: "discoveryEnd", position: { x: 300, y: 0 }, data: { label: "End" } },
   ];
   const edges: Edge[] = [
     { id: "e1", source: "start", target: "q1" },

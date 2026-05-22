@@ -152,11 +152,11 @@ function LocationTreeList({
   const nested = path.length > 0;
   return (
     <ul
-      className={nested ? "kea-dim-tree-nested" : "kea-dim-tree-root"}
+      className={nested ? "discovery-dim-tree-nested" : "discovery-dim-tree-root"}
       role="group"
       onContextMenu={(e) => {
         if (path.length > 0) return;
-        if ((e.target as HTMLElement).closest(".kea-dim-tree-row")) return;
+        if ((e.target as HTMLElement).closest(".discovery-dim-tree-row")) return;
         onBackgroundContextMenu?.(e);
       }}
     >
@@ -170,9 +170,9 @@ function LocationTreeList({
         const hasChildren = Boolean(childList && childList.length > 0);
         const open = hasChildren && expandedBranches.has(key);
         return (
-          <li key={key} className="kea-dim-tree-li" role="none">
+          <li key={key} className="discovery-dim-tree-li" role="none">
             <div
-              className="kea-dim-tree-row"
+              className="discovery-dim-tree-row"
               onContextMenu={(e) => {
                 e.stopPropagation();
                 onNodeContextMenu?.(e, { path: p, key, hasChildren });
@@ -183,8 +183,8 @@ function LocationTreeList({
                   type="button"
                   className={
                     open
-                      ? "kea-dim-tree-chevron kea-dim-tree-chevron--open"
-                      : "kea-dim-tree-chevron"
+                      ? "discovery-dim-tree-chevron discovery-dim-tree-chevron--open"
+                      : "discovery-dim-tree-chevron"
                   }
                   aria-expanded={open}
                   aria-label={t("scope.toggleBranch")}
@@ -197,17 +197,17 @@ function LocationTreeList({
                   <span aria-hidden>▾</span>
                 </button>
               ) : (
-                <span className="kea-dim-tree-chevron-spacer" aria-hidden />
+                <span className="discovery-dim-tree-chevron-spacer" aria-hidden />
               )}
               <button
                 type="button"
                 role="treeitem"
                 aria-selected={sel}
-                className={sel ? "kea-tree-node kea-tree-node--selected" : "kea-tree-node"}
+                className={sel ? "discovery-tree-node discovery-tree-node--selected" : "discovery-tree-node"}
                 onClick={() => onSelect(p)}
               >
-                <span className="kea-dim-tree-node-id">{n.id ? String(n.id) : "—"}</span>
-                <span className="kea-dim-tree-node-label">{label}</span>
+                <span className="discovery-dim-tree-node-id">{n.id ? String(n.id) : "—"}</span>
+                <span className="discovery-dim-tree-node-label">{label}</span>
               </button>
             </div>
             {hasChildren && open && (
@@ -416,42 +416,42 @@ export function ScopeHierarchyEditor({ value, onChange }: Props) {
   };
 
   return (
-    <div className="kea-scope-hierarchy">
-      <TreeContextMenuPortal menu={ctxMenu.menu} onClose={ctxMenu.close} classPrefix="kea" />
-      <div className="kea-grid-2">
-        <div className="kea-stack">
-          <label className="kea-label" title={t("scope.levelsLabel.tooltip")}>
+    <div className="discovery-scope-hierarchy">
+      <TreeContextMenuPortal menu={ctxMenu.menu} onClose={ctxMenu.close} classPrefix="discovery" />
+      <div className="discovery-grid-2">
+        <div className="discovery-stack">
+          <label className="discovery-label" title={t("scope.levelsLabel.tooltip")}>
             {t("scope.levelsLabel")}
             <input
-              className="kea-input"
+              className="discovery-input"
               value={levelsDraft}
               onChange={(e) => setLevelsDraft(e.target.value)}
               onBlur={() => updateLevels(levelsDraft)}
             />
           </label>
-          <div className="kea-toolbar" style={{ marginBottom: 0 }}>
-            <button type="button" className="kea-btn kea-btn--sm" onClick={addRoot}>
+          <div className="discovery-toolbar" style={{ marginBottom: 0 }}>
+            <button type="button" className="discovery-btn discovery-btn--sm" onClick={addRoot}>
               {t("scope.addRoot")}
             </button>
-            <button type="button" className="kea-btn kea-btn--sm" onClick={addChild} disabled={!selected}>
+            <button type="button" className="discovery-btn discovery-btn--sm" onClick={addChild} disabled={!selected}>
               {t("scope.addChild")}
             </button>
             <button
               type="button"
-              className="kea-btn kea-btn--sm kea-btn--danger"
+              className="discovery-btn discovery-btn--sm discovery-btn--danger"
               onClick={removeSel}
               disabled={!selected}
             >
               {t("scope.remove")}
             </button>
           </div>
-          <p className="kea-dim-tree-legend" title={t("scope.hierarchyTree.tooltip")}>
+          <p className="discovery-dim-tree-legend" title={t("scope.hierarchyTree.tooltip")}>
             {t("scope.hierarchyTree")}
           </p>
-          <div className="kea-toolbar kea-dim-tree-toolbar">
+          <div className="discovery-toolbar discovery-dim-tree-toolbar">
             <button
               type="button"
-              className="kea-btn kea-btn--sm kea-btn--ghost"
+              className="discovery-btn discovery-btn--sm discovery-btn--ghost"
               onClick={expandAll}
               disabled={tree.length === 0}
             >
@@ -459,7 +459,7 @@ export function ScopeHierarchyEditor({ value, onChange }: Props) {
             </button>
             <button
               type="button"
-              className="kea-btn kea-btn--sm kea-btn--ghost"
+              className="discovery-btn discovery-btn--sm discovery-btn--ghost"
               onClick={collapseToSelection}
               disabled={tree.length === 0}
             >
@@ -467,19 +467,19 @@ export function ScopeHierarchyEditor({ value, onChange }: Props) {
             </button>
           </div>
           <div
-            className="kea-tree kea-dim-tree"
+            className="discovery-tree discovery-dim-tree"
             role="tree"
             aria-label={t("scope.hierarchyTree")}
             onContextMenu={(e) => {
               if (tree.length === 0) return;
               const el = e.target as HTMLElement;
-              if (el.closest(".kea-dim-tree-li")) return;
+              if (el.closest(".discovery-dim-tree-li")) return;
               openBackgroundMenu(e);
             }}
           >
             {tree.length === 0 ? (
               <span
-                className="kea-tree-empty"
+                className="discovery-tree-empty"
                 onContextMenu={(e) => {
                   ctxMenu.open(e, [
                     { id: "addRoot", label: t("scope.addRoot"), onSelect: addRoot },
@@ -509,32 +509,32 @@ export function ScopeHierarchyEditor({ value, onChange }: Props) {
             )}
           </div>
         </div>
-        <div className="kea-properties-panel">
+        <div className="discovery-properties-panel">
           <h3 title={t("scope.properties.tooltip")}>{t("scope.properties")}</h3>
           {selected ? (
-            <div className="kea-stack">
-              <label className="kea-label" title={t("scope.field.id.tooltip")}>
+            <div className="discovery-stack">
+              <label className="discovery-label" title={t("scope.field.id.tooltip")}>
                 {t("scope.field.id")}
                 <DeferredCommitInput
-                  className="kea-input"
+                  className="discovery-input"
                   committedValue={selected.id ?? ""}
                   syncKey={selectedPath.join("/")}
                   onCommit={(v) => updateNode({ id: v })}
                 />
               </label>
-              <label className="kea-label" title={t("scope.field.name.tooltip")}>
+              <label className="discovery-label" title={t("scope.field.name.tooltip")}>
                 {t("scope.field.name")}
                 <DeferredCommitInput
-                  className="kea-input"
+                  className="discovery-input"
                   committedValue={selected.name ?? ""}
                   syncKey={selectedPath.join("/")}
                   onCommit={(v) => updateNode({ name: v })}
                 />
               </label>
-              <label className="kea-label" title={t("scope.field.description.tooltip")}>
+              <label className="discovery-label" title={t("scope.field.description.tooltip")}>
                 {t("scope.field.description")}
                 <DeferredCommitTextarea
-                  className="kea-textarea"
+                  className="discovery-textarea"
                   rows={3}
                   committedValue={selected.description ?? ""}
                   syncKey={selectedPath.join("/")}
@@ -544,12 +544,12 @@ export function ScopeHierarchyEditor({ value, onChange }: Props) {
                   style={{ minHeight: "4.5rem", fontFamily: "inherit" }}
                 />
               </label>
-              <p className="kea-hint" style={{ marginBottom: 0 }}>
+              <p className="discovery-hint" style={{ marginBottom: 0 }}>
                 {t("scope.path")}: {selectedPath.join(" → ")}
               </p>
             </div>
           ) : (
-            <span className="kea-tree-empty">{t("scope.selectNode")}</span>
+            <span className="discovery-tree-empty">{t("scope.selectNode")}</span>
           )}
         </div>
       </div>

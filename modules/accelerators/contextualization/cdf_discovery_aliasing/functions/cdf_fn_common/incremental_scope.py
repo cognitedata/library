@@ -9,9 +9,13 @@ from __future__ import annotations
 
 import hashlib
 import json
+import time
 from collections.abc import Iterable
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Dict, Iterator, List, Optional, Set, Tuple
+
+from .cdf_utils import create_table_if_not_exists
 
 # Column names (stable contract)
 WORKFLOW_STATUS_COLUMN = "WORKFLOW_STATUS"
@@ -44,6 +48,43 @@ RUN_ID_COLUMN = "RUN_ID"
 # Per-entity SHA-256 of extraction source inputs (see cdf_fn_common.extraction_input_hash).
 EXTRACTION_INPUTS_HASH_COLUMN = "EXTRACTION_INPUTS_HASH"
 
+# Cross-run incremental partition (parallel workflows must not share state).
+WORKFLOW_SCOPE_COLUMN = "WORKFLOW_SCOPE"
+SOURCE_VIEW_FINGERPRINT_COLUMN = "SOURCE_VIEW_FINGERPRINT"
+
+INCREMENTAL_STATE_TABLE_SUFFIX = "__incremental"
+# RAW table name max length (CDF API).
+_CDF_RAW_TABLE_NAME_MAX_LEN = 64
+
+
+def _sanitize_key_segment(value: str, *, max_len: int = 40) -> str:
+    raw = str(value or "").strip()
+    if not raw:
+        return "default"
+    cleaned = "".join(c if c.isalnum() or c in "-_" else "_" for c in raw)
+    cleaned = cleaned.strip("_") or "default"
+    if len(cleaned) > max_len:
+        digest = hashlib.sha256(raw.encode("utf-8")).hexdigest()[:12]
+        head = cleaned[: max_len - 13].rstrip("_")
+        cleaned = f"{head}_{digest}"
+    return cleaned
+
+
+def incremental_state_table_name(base_table: str) -> str:
+    """
+    Stable RAW table for cross-run watermarks and hash state (not deleted by run cleanup).
+
+    Example: ``discovery_state`` → ``discovery_state__incremental``.
+    """
+    base = str(base_table or "discovery_state").strip() or "discovery_state"
+    name = f"{base}{INCREMENTAL_STATE_TABLE_SUFFIX}"
+    if len(name) <= _CDF_RAW_TABLE_NAME_MAX_LEN:
+        return name
+    digest = hashlib.sha256(base.encode("utf-8")).hexdigest()[:8]
+    budget = _CDF_RAW_TABLE_NAME_MAX_LEN - len(INCREMENTAL_STATE_TABLE_SUFFIX) - len(digest) - 2
+    head = base[: max(4, budget)].rstrip("_")
+    return f"{head}_{digest}{INCREMENTAL_STATE_TABLE_SUFFIX}"
+
 
 def scope_key_from_view_dict(view: Dict[str, Any]) -> str:
     """Deterministic scope id from view config (filters JSON must be stable-ordered)."""
@@ -58,8 +99,157 @@ def scope_key_from_view_dict(view: Dict[str, Any]) -> str:
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:32]
 
 
-def scope_watermark_row_key(scope_key: str) -> str:
-    return f"scope_wm_{scope_key}"
+def scope_watermark_row_key(scope_key: str, workflow_scope: str = "") -> str:
+    """RAW watermark row key; includes *workflow_scope* when set (multi-workflow safe)."""
+    sk = str(scope_key or "").strip()
+    ws = str(workflow_scope or "").strip()
+    if ws:
+        return f"scope_wm_{_sanitize_key_segment(ws, max_len=24)}_{_sanitize_key_segment(sk, max_len=32)}"
+    return f"scope_wm_{sk}"
+
+
+def incremental_entity_row_key(
+    workflow_scope: str,
+    scope_key: str,
+    node_instance_id: str,
+) -> str:
+    """Stable RAW row key for per-instance hash state in the incremental table."""
+    ws = _sanitize_key_segment(workflow_scope, max_len=24)
+    sk = _sanitize_key_segment(scope_key, max_len=32)
+    nid = _sanitize_key_segment(node_instance_id, max_len=48)
+    key = f"inc_{ws}_{sk}_{nid}"
+    if len(key) <= 256:
+        return key
+    digest = hashlib.sha256(f"{ws}\0{sk}\0{node_instance_id}".encode("utf-8")).hexdigest()[:16]
+    return f"inc_{digest}"
+
+
+def _row_matches_workflow_scope(cols: Dict[str, Any], workflow_scope: str) -> bool:
+    if not workflow_scope:
+        return True
+    row_ws = str(cols.get(WORKFLOW_SCOPE_COLUMN) or "").strip()
+    if not row_ws:
+        # Legacy rows without WORKFLOW_SCOPE: ignore when a scope filter is required.
+        return False
+    return row_ws == workflow_scope
+
+
+def build_incremental_entity_columns(
+    *,
+    workflow_scope: str,
+    scope_key: str,
+    node_instance_id: str,
+    external_id: str,
+    extraction_inputs_hash: str,
+    run_id: str,
+    source_view_fingerprint: str = "",
+    last_updated_ms: Optional[int] = None,
+) -> Dict[str, Any]:
+    """Column map for upserting cross-run hash state on the stable incremental RAW table."""
+    cols: Dict[str, Any] = {
+        RECORD_KIND_COLUMN: RECORD_KIND_ENTITY,
+        WORKFLOW_SCOPE_COLUMN: workflow_scope,
+        SCOPE_KEY_COLUMN: scope_key,
+        NODE_INSTANCE_ID_COLUMN: node_instance_id,
+        EXTERNAL_ID_COLUMN: external_id,
+        EXTRACTION_INPUTS_HASH_COLUMN: extraction_inputs_hash,
+        WORKFLOW_STATUS_COLUMN: WORKFLOW_STATUS_DETECTED,
+        RUN_ID_COLUMN: run_id,
+        WORKFLOW_STATUS_UPDATED_AT_COLUMN: datetime.now(timezone.utc).isoformat(
+            timespec="milliseconds"
+        ),
+    }
+    if source_view_fingerprint:
+        cols[SOURCE_VIEW_FINGERPRINT_COLUMN] = source_view_fingerprint
+    if last_updated_ms is not None:
+        cols["LAST_UPDATED_MS"] = int(last_updated_ms)
+    return cols
+
+
+def write_incremental_watermark_raw(
+    client: Any,
+    *,
+    raw_db: str,
+    raw_table: str,
+    scope_key: str,
+    workflow_scope: str,
+    high_ms: int,
+    run_id: str,
+) -> None:
+    """Persist listing watermark on the stable incremental RAW table."""
+    create_table_if_not_exists(client, raw_db, raw_table)
+    wm_key = scope_watermark_row_key(scope_key, workflow_scope)
+    cols = {
+        RECORD_KIND_COLUMN: RECORD_KIND_WATERMARK,
+        WORKFLOW_SCOPE_COLUMN: workflow_scope,
+        SCOPE_KEY_COLUMN: scope_key,
+        HIGH_WATERMARK_MS_COLUMN: int(high_ms),
+        RUN_ID_COLUMN: run_id,
+        WORKFLOW_STATUS_UPDATED_AT_COLUMN: datetime.now(timezone.utc).isoformat(
+            timespec="milliseconds"
+        ),
+    }
+    client.raw.rows.insert(db_name=raw_db, table_name=raw_table, row={wm_key: cols})
+
+
+def upsert_incremental_entity_hashes_raw(
+    client: Any,
+    *,
+    raw_db: str,
+    raw_table: str,
+    workflow_scope: str,
+    scope_key: str,
+    run_id: str,
+    source_view_fingerprint: str,
+    items: List[Dict[str, Any]],
+) -> None:
+    """
+    Batch upsert hash rows on the stable incremental table.
+
+    Each *item* must include ``node_instance_id``, ``external_id``, ``extraction_inputs_hash``;
+    optional ``last_updated_ms``.
+    """
+    if not items:
+        return
+    create_table_if_not_exists(client, raw_db, raw_table)
+    row_map: Dict[str, Dict[str, Any]] = {}
+    for it in items:
+        nid = str(it.get("node_instance_id") or "").strip()
+        h = str(it.get("extraction_inputs_hash") or "").strip()
+        if not nid or not h:
+            continue
+        key = incremental_entity_row_key(workflow_scope, scope_key, nid)
+        row_map[key] = build_incremental_entity_columns(
+            workflow_scope=workflow_scope,
+            scope_key=scope_key,
+            node_instance_id=nid,
+            external_id=str(it.get("external_id") or ""),
+            extraction_inputs_hash=h,
+            run_id=run_id,
+            source_view_fingerprint=source_view_fingerprint,
+            last_updated_ms=it.get("last_updated_ms"),
+        )
+    if row_map:
+        client.raw.rows.insert(db_name=raw_db, table_name=raw_table, row=row_map)
+
+
+def dm_node_instance_space(instance: Any) -> str:
+    """Best-effort DM instance space from SDK node or ``dump()`` payload."""
+    space = getattr(instance, "space", None)
+    if space is not None and str(space).strip():
+        return str(space).strip()
+    dump = instance.dump() if hasattr(instance, "dump") else {}
+    if isinstance(dump, dict):
+        for key in ("space",):
+            v = dump.get(key)
+            if v is not None and str(v).strip():
+                return str(v).strip()
+        node = dump.get("node")
+        if isinstance(node, dict):
+            v = node.get("space")
+            if v is not None and str(v).strip():
+                return str(v).strip()
+    return ""
 
 
 def node_instance_id_str(instance: Any) -> str:
@@ -69,7 +259,7 @@ def node_instance_id_str(instance: Any) -> str:
     Prefer ``space`` + ``instance_id`` (UUID) when present; fall back to externalId-only
     only when instance id is unavailable (should be rare for DM nodes).
     """
-    space = getattr(instance, "space", None) or ""
+    space = dm_node_instance_space(instance)
     iid = getattr(instance, "instance_id", None)
     if iid is not None:
         s = str(iid).strip()
@@ -190,14 +380,19 @@ def build_latest_hash_index_for_table(
     raw_db: str,
     raw_table: str,
     *,
+    workflow_scope: str = "",
     chunk_size: int = 2500,
 ) -> Dict[str, Dict[str, str]]:
     """
     One RAW table scan: latest EXTRACTION_INPUTS_HASH per NODE_INSTANCE_ID per SCOPE_KEY.
 
+    When *workflow_scope* is set, only rows with matching :data:`WORKFLOW_SCOPE_COLUMN` are indexed
+    (multi-workflow parallel safety on the stable incremental table).
+
     Same row eligibility and (timestamp, RUN_ID) tie-break as :func:`load_latest_hash_by_node_for_scope`.
     Used by the local runner to avoid N full scans when multiple ``fn_dm_view_query`` tasks share a sink.
     """
+    wf_scope = str(workflow_scope or "").strip()
     best: Dict[str, Dict[str, Tuple[str, float, str]]] = {}
     try:
         for row in iter_raw_table_rows_chunked(
@@ -205,6 +400,8 @@ def build_latest_hash_index_for_table(
         ):
             cols = raw_row_columns(row)
             if cols.get(RECORD_KIND_COLUMN) != RECORD_KIND_ENTITY:
+                continue
+            if not _row_matches_workflow_scope(cols, wf_scope):
                 continue
             scope_key = str(cols.get(SCOPE_KEY_COLUMN) or "").strip()
             if not scope_key:
@@ -269,6 +466,7 @@ def load_latest_hash_by_node_for_scope(
     raw_table: str,
     scope_key: str,
     *,
+    workflow_scope: str = "",
     chunk_size: int = 2500,
 ) -> Dict[str, str]:
     """
@@ -284,7 +482,11 @@ def load_latest_hash_by_node_for_scope(
     Implemented as a slice of :func:`build_latest_hash_index_for_table` (one full table scan).
     """
     full = build_latest_hash_index_for_table(
-        client, raw_db, raw_table, chunk_size=chunk_size
+        client,
+        raw_db,
+        raw_table,
+        workflow_scope=workflow_scope,
+        chunk_size=chunk_size,
     )
     return dict(full.get(scope_key, {}))
 
@@ -414,6 +616,44 @@ def transition_workflow_status_for_run(
     return n
 
 
+@dataclass
+class ListInstancesStats:
+    """Metrics from a paginated ``instances.list`` walk (view-query baseline / tuning)."""
+
+    page_count: int = 0
+    instances_yielded: int = 0
+    list_duration_sec: float = 0.0
+    sort_property: Optional[str] = None
+    limit_per_page: int = 0
+
+
+def view_query_list_sort(*, incremental: bool) -> Any:
+    """
+    Sort for ``instances.list`` during view query.
+
+    Returns ``None`` for all modes. Incremental discovery uses a
+    ``Range`` filter on ``("node", "lastUpdatedTime")`` (see ``_watermark_filter`` in
+    ``fn_dm_view_query``), which the Instances API accepts. The same path is **not** valid
+    for ``sort`` — requests with ``InstanceSort(("node", "lastUpdatedTime"), ...)`` fail with
+    ``Invalid sort property '[node, lastUpdatedTime]'``. Listing therefore uses the API
+    default sort (internal id), which is cursorable with ``HasData`` / space filters per
+    Cognite DM performance guidance.
+    """
+    del incremental
+    return None
+
+
+def _sort_property_label(sort: Any) -> Optional[str]:
+    if sort is None:
+        return None
+    prop = getattr(sort, "property", None)
+    if prop is None and isinstance(sort, dict):
+        prop = sort.get("property")
+    if isinstance(prop, (list, tuple)):
+        return ".".join(str(p) for p in prop)
+    return str(prop) if prop is not None else repr(sort)
+
+
 def list_all_instances(
     client: Any,
     *,
@@ -422,30 +662,51 @@ def list_all_instances(
     sources: List[Any],
     filter: Any,
     limit_per_page: int = 1000,
+    sort: Any = None,
     logger: Optional[Any] = None,
     progress_context: str = "",
+    stats_out: Optional[ListInstancesStats] = None,
 ) -> Iterable[Any]:
-    """Page through instances.list until cursor exhausted.
+    """Page through instances using the SDK chunk iterator (``instances(chunk_size=…)``).
+
+    ``instances.list(limit=N)`` treats *N* as a **total** cap (not per-page) and does not
+    accept a ``cursor`` argument, so manual pagination capped at one page of 1000. The
+    callable API uses ``_list_generator`` with ``limit=None`` and proper ``nextCursor`` handling.
 
     When ``logger`` is set, logs after each API page completes: batch index, instances
-    in that page, and cumulative instance count.
+    in that page, and cumulative instance count. Optional ``stats_out`` receives
+    aggregate timing and page counts for handler summaries.
     """
-    cursor = None
+    t0 = time.perf_counter()
     batch_no = 0
     total = 0
-    while True:
-        kwargs: Dict[str, Any] = dict(
-            instance_type=instance_type,
-            space=space,
-            sources=sources,
-            filter=filter,
-            limit=limit_per_page,
-        )
-        if cursor is not None:
-            kwargs["cursor"] = cursor
-        batch = client.data_modeling.instances.list(**kwargs)
+    sort_label = _sort_property_label(sort)
+    if stats_out is not None:
+        stats_out.limit_per_page = limit_per_page
+        stats_out.sort_property = sort_label
+    page_size = max(1, int(limit_per_page or 1000))
+    list_kwargs: Dict[str, Any] = dict(
+        chunk_size=page_size,
+        instance_type=instance_type,
+        space=space,
+        sources=sources,
+        filter=filter,
+        limit=None,
+    )
+    if sort is not None:
+        list_kwargs["sort"] = sort
+    from .cognite_retry import call_with_transient_retry
+
+    def _open_chunk_iterator():
+        instances_api = client.data_modeling.instances
+        if not callable(instances_api):
+            raise TypeError("client.data_modeling.instances must support chunk iteration")
+        return instances_api(**list_kwargs)
+
+    page_iter = call_with_transient_retry(_open_chunk_iterator, logger=logger)
+    for batch in page_iter:
         if not batch:
-            break
+            continue
         batch_no += 1
         n_in_page = 0
         for node in batch:
@@ -454,13 +715,26 @@ def list_all_instances(
             yield node
         if logger is not None and hasattr(logger, "info"):
             ctx = f" {progress_context}" if progress_context else ""
+            sort_note = f" sort={sort_label}" if sort_label else ""
             logger.info(
-                "instances.list batch %s complete%s: %s instance(s) this page, %s cumulative",
+                "instances.list batch %s complete%s: %s instance(s) this page, %s cumulative%s",
                 batch_no,
                 ctx,
                 n_in_page,
                 total,
+                sort_note,
             )
-        cursor = getattr(batch, "cursor", None)
-        if not cursor:
-            break
+    if stats_out is not None:
+        stats_out.page_count = batch_no
+        stats_out.instances_yielded = total
+        stats_out.list_duration_sec = round(time.perf_counter() - t0, 6)
+    elif logger is not None and hasattr(logger, "info") and batch_no:
+        ctx = f" {progress_context}" if progress_context else ""
+        logger.info(
+            "instances.list finished%s: %s page(s), %s instance(s), %.3fs%s",
+            ctx,
+            batch_no,
+            total,
+            time.perf_counter() - t0,
+            f" sort={sort_label}" if sort_label else "",
+        )

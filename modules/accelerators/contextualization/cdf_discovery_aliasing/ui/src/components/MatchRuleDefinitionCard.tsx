@@ -37,46 +37,46 @@ export function MatchRuleDefinitionCard({
 
   return (
     <div
-      className="kea-validation-rule"
+      className="discovery-validation-rule"
       style={{
-        border: "1px solid var(--kea-border)",
-        borderRadius: "var(--kea-radius-sm)",
+        border: "1px solid var(--discovery-border)",
+        borderRadius: "var(--discovery-radius-sm)",
         padding: "0.75rem",
         marginBottom: "0.75rem",
-        background: "var(--kea-surface)",
+        background: "var(--discovery-surface)",
       }}
     >
       <div
-        className="kea-filter-row kea-filter-row--rule-header"
+        className="discovery-filter-row discovery-filter-row--rule-header"
         style={{ gap: "0.5rem", alignItems: "end" }}
       >
         {dragProps && (
           <span
-            className="kea-drag-handle"
+            className="discovery-drag-handle"
             draggable={dragProps.draggable}
             onDragStart={dragProps.onDragStart}
             onDragEnd={dragProps.onDragEnd}
             aria-label={t("rulesEntity.dragHandle")}
             title={t("rulesEntity.dragHandle")}
           >
-            <span className="kea-drag-handle__grip" aria-hidden>
+            <span className="discovery-drag-handle__grip" aria-hidden>
               ⋮⋮
             </span>
           </span>
         )}
         <button
           type="button"
-          className="kea-btn kea-btn--ghost kea-btn--sm"
+          className="discovery-btn discovery-btn--ghost discovery-btn--sm"
           aria-expanded={expanded}
           onClick={() => setExpanded((x) => !x)}
           style={{ minWidth: 36 }}
         >
           <span aria-hidden>{expanded ? "▼" : "▶"}</span>
         </button>
-        <label className="kea-label">
+        <label className="discovery-label">
           {t("validationEditor.rule.name")}
           <DeferredCommitInput
-            className="kea-input"
+            className="discovery-input"
             type="text"
             required
             aria-required={true}
@@ -91,32 +91,32 @@ export function MatchRuleDefinitionCard({
             }}
           />
         </label>
-        <label className="kea-label" style={{ flexDirection: "row", alignItems: "center", gap: "0.5rem", marginBottom: 0, whiteSpace: "nowrap" }}>
+        <label className="discovery-label" style={{ flexDirection: "row", alignItems: "center", gap: "0.5rem", marginBottom: 0, whiteSpace: "nowrap" }}>
           <input type="checkbox" checked={rule.enabled} onChange={(e) => onChange({ ...rule, enabled: e.target.checked })} />
           {t("validationEditor.rule.enabled")}
         </label>
       </div>
       {showCollapsedSummary && !expanded && (
-        <p className="kea-hint" style={{ marginTop: "0.5rem", marginBottom: 0 }}>
+        <p className="discovery-hint" style={{ marginTop: "0.5rem", marginBottom: 0 }}>
           {summary || "—"}
         </p>
       )}
       {expanded && (
         <>
-          <div className="kea-filter-row kea-filter-row--pair kea-filter-row--gap-md" style={{ marginTop: "0.5rem" }}>
-            <label className="kea-label">
+          <div className="discovery-filter-row discovery-filter-row--pair discovery-filter-row--gap-md" style={{ marginTop: "0.5rem" }}>
+            <label className="discovery-label">
               {t("validationEditor.rule.priority")}
               <input
-                className="kea-input"
+                className="discovery-input"
                 placeholder={t("validationEditor.rule.priorityPlaceholder")}
                 value={rule.priority}
                 onChange={(e) => onChange({ ...rule, priority: e.target.value })}
               />
             </label>
-            <label className="kea-label">
+            <label className="discovery-label">
               {t("validationEditor.rule.expressionMatch")}
               <select
-                className="kea-input"
+                className="discovery-input"
                 value={rule.expressionMatch}
                 onChange={(e) => onChange({ ...rule, expressionMatch: e.target.value as ExpressionMatchOpt })}
               >
@@ -126,10 +126,10 @@ export function MatchRuleDefinitionCard({
               </select>
             </label>
           </div>
-          <label className="kea-label kea-label--block" style={{ marginTop: "0.5rem" }}>
+          <label className="discovery-label discovery-label--block" style={{ marginTop: "0.5rem" }}>
             {t("validationEditor.rule.keywords")}
             <input
-              className="kea-input"
+              className="discovery-input"
               type="text"
               value={rule.keywordsText}
               onChange={(e) => onChange({ ...rule, keywordsText: e.target.value })}
@@ -138,13 +138,13 @@ export function MatchRuleDefinitionCard({
             />
           </label>
           <div style={{ marginTop: "0.5rem" }}>
-            <span className="kea-label" style={{ display: "block", marginBottom: "0.25rem" }}>
+            <span className="discovery-label" style={{ display: "block", marginBottom: "0.25rem" }}>
               {t("validationEditor.rule.expressions")}
             </span>
             {rule.expressions.map((ex, j) => (
-              <div key={j} className="kea-filter-row kea-filter-row--field-pair kea-filter-row--gap-sm" style={{ marginBottom: "0.35rem" }}>
+              <div key={j} className="discovery-filter-row discovery-filter-row--field-pair discovery-filter-row--gap-sm" style={{ marginBottom: "0.35rem" }}>
                 <input
-                  className="kea-input"
+                  className="discovery-input"
                   placeholder={t("validationEditor.rule.pattern")}
                   value={ex.pattern}
                   onChange={(e) => {
@@ -154,7 +154,7 @@ export function MatchRuleDefinitionCard({
                   }}
                 />
                 <input
-                  className="kea-input"
+                  className="discovery-input"
                   placeholder={t("validationEditor.rule.description")}
                   value={ex.description}
                   onChange={(e) => {
@@ -165,7 +165,7 @@ export function MatchRuleDefinitionCard({
                 />
                 <button
                   type="button"
-                  className="kea-btn kea-btn--ghost kea-btn--sm"
+                  className="discovery-btn discovery-btn--ghost discovery-btn--sm"
                   disabled={rule.expressions.length <= 1}
                   onClick={() => {
                     const exprs = rule.expressions.filter((_, k) => k !== j);
@@ -181,18 +181,18 @@ export function MatchRuleDefinitionCard({
             ))}
             <button
               type="button"
-              className="kea-btn kea-btn--sm"
+              className="discovery-btn discovery-btn--sm"
               style={{ marginTop: "0.25rem" }}
               onClick={() => onChange({ ...rule, expressions: [...rule.expressions, { pattern: "", description: "" }] })}
             >
               {t("validationEditor.rule.addExpression")}
             </button>
           </div>
-          <div className="kea-filter-row kea-filter-row--pair kea-filter-row--gap-md" style={{ marginTop: "0.5rem" }}>
-            <label className="kea-label">
+          <div className="discovery-filter-row discovery-filter-row--pair discovery-filter-row--gap-md" style={{ marginTop: "0.5rem" }}>
+            <label className="discovery-label">
               {t("validationEditor.rule.modifierMode")}
               <select
-                className="kea-input"
+                className="discovery-input"
                 value={rule.modMode}
                 onChange={(e) => onChange({ ...rule, modMode: e.target.value as ModMode })}
               >
@@ -200,10 +200,10 @@ export function MatchRuleDefinitionCard({
                 <option value="explicit">{t("validationEditor.rule.modifierExplicit")}</option>
               </select>
             </label>
-            <label className="kea-label">
+            <label className="discovery-label">
               {t("validationEditor.rule.modifierValue")}
               <input
-                className="kea-input"
+                className="discovery-input"
                 type="number"
                 step="any"
                 value={rule.modValue}

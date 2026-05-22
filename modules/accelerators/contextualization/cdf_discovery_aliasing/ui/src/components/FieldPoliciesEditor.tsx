@@ -78,11 +78,11 @@ export function FieldPoliciesEditor({
   };
 
   return (
-    <div className="kea-field-policies-editor">
-      <h4 className="kea-section-title" style={{ fontSize: "0.95rem", marginTop: 0, marginBottom: "0.5rem" }}>
+    <div className="discovery-field-policies-editor">
+      <h4 className="discovery-section-title" style={{ fontSize: "0.95rem", marginTop: 0, marginBottom: "0.5rem" }}>
         {t(sectionTitleKey)}
       </h4>
-      <p className="kea-hint" style={{ marginTop: 0, marginBottom: "0.65rem" }}>
+      <p className="discovery-hint" style={{ marginTop: 0, marginBottom: "0.65rem" }}>
         {t(emptyHintKey)}
       </p>
 
@@ -90,11 +90,11 @@ export function FieldPoliciesEditor({
         <div
           key={`field-policy-row-${i}`}
           style={{
-            border: "1px solid var(--kea-border, #ccc)",
+            border: "1px solid var(--discovery-border, #ccc)",
             borderRadius: 6,
             padding: "0.65rem 0.75rem",
             marginBottom: "0.5rem",
-            background: "var(--kea-surface-2, rgba(0,0,0,0.02))",
+            background: "var(--discovery-surface-2, rgba(0,0,0,0.02))",
           }}
         >
           <div
@@ -105,10 +105,10 @@ export function FieldPoliciesEditor({
               alignItems: "flex-end",
             }}
           >
-            <label className="kea-label" style={{ flex: "1 1 10rem", minWidth: "8rem" }}>
+            <label className="discovery-label" style={{ flex: "1 1 10rem", minWidth: "8rem" }}>
               {t("flow.saveFieldPoliciesPropertyLabel")}
               <input
-                className="kea-input"
+                className="discovery-input"
                 style={{ marginTop: "0.35rem", width: "100%" }}
                 value={row.property}
                 onChange={(e) => {
@@ -120,10 +120,10 @@ export function FieldPoliciesEditor({
                 autoComplete="off"
               />
             </label>
-            <label className="kea-label" style={{ flex: "0 1 11rem" }}>
+            <label className="discovery-label" style={{ flex: "0 1 11rem" }}>
               {t("flow.saveFieldPoliciesStrategyLabel")}
               <select
-                className="kea-select"
+                className="discovery-select"
                 style={{ marginTop: "0.35rem", width: "100%" }}
                 value={row.strategy}
                 onChange={(e) => {
@@ -144,7 +144,7 @@ export function FieldPoliciesEditor({
             </label>
             <button
               type="button"
-              className="kea-btn kea-btn--ghost kea-btn--sm"
+              className="discovery-btn discovery-btn--ghost discovery-btn--sm"
               style={{ marginLeft: "auto" }}
               onClick={() => {
                 const next = policyRows.filter((_, j) => j !== i);
@@ -164,10 +164,10 @@ export function FieldPoliciesEditor({
                 alignItems: "center",
                 marginTop: "0.6rem",
                 paddingTop: "0.6rem",
-                borderTop: "1px solid var(--kea-border, #ddd)",
+                borderTop: "1px solid var(--discovery-border, #ddd)",
               }}
             >
-              <label className="kea-label" style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 0 }}>
+              <label className="discovery-label" style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 0 }}>
                 <input
                   type="checkbox"
                   checked={row.merge_unique}
@@ -179,10 +179,10 @@ export function FieldPoliciesEditor({
                 />
                 <span>{t("flow.saveFieldPoliciesMergeUnique")}</span>
               </label>
-              <label className="kea-label" style={{ flex: "0 1 12rem", marginBottom: 0 }}>
+              <label className="discovery-label" style={{ flex: "0 1 12rem", marginBottom: 0 }}>
                 {t("flow.saveFieldPoliciesBranchOrderLabel")}
                 <select
-                  className="kea-select"
+                  className="discovery-select"
                   style={{ marginTop: "0.35rem", width: "100%" }}
                   value={row.branch_order}
                   onChange={(e) => {
@@ -203,21 +203,21 @@ export function FieldPoliciesEditor({
 
       <button
         type="button"
-        className="kea-btn kea-btn--sm"
+        className="discovery-btn discovery-btn--sm"
         style={{ marginTop: "0.25rem" }}
         onClick={() => setRowsAndCommit([...policyRows, defaultPolicyRow()])}
       >
         {t("flow.saveFieldPoliciesAddRow")}
       </button>
 
-      <p className="kea-hint" style={{ marginTop: "0.75rem" }}>
+      <p className="discovery-hint" style={{ marginTop: "0.75rem" }}>
         {t("flow.saveFieldPoliciesHint")}
       </p>
 
       <div style={{ marginTop: "1rem" }}>
         <button
           type="button"
-          className="kea-btn kea-btn--ghost kea-btn--sm"
+          className="discovery-btn discovery-btn--ghost discovery-btn--sm"
           onClick={() => {
             const nextOpen = !advancedJsonOpen;
             setAdvancedJsonOpen(nextOpen);
@@ -234,16 +234,16 @@ export function FieldPoliciesEditor({
             : t("flow.saveFieldPoliciesJsonToggleShow")}
         </button>
         {advancedJsonOpen ? (
-          <p className="kea-hint" style={{ marginTop: "0.35rem", marginBottom: 0 }}>
+          <p className="discovery-hint" style={{ marginTop: "0.35rem", marginBottom: 0 }}>
             {t("flow.saveFieldPoliciesAdvancedJson")}
           </p>
         ) : null}
         {advancedJsonOpen ? (
           <div style={{ marginTop: "0.5rem" }}>
-            <label className="kea-label kea-label--block">
+            <label className="discovery-label discovery-label--block">
               {t(jsonLabelKey)}
               <textarea
-                className="kea-input"
+                className="discovery-input"
                 style={{ marginTop: "0.35rem", minHeight: "10rem", fontFamily: "monospace", fontSize: "0.85rem" }}
                 value={policiesText}
                 onChange={(e) => setPoliciesText(e.target.value)}
@@ -251,7 +251,7 @@ export function FieldPoliciesEditor({
                 spellCheck={false}
               />
             </label>
-            {policiesError ? <p className="kea-hint kea-hint--warn">{policiesError}</p> : null}
+            {policiesError ? <p className="discovery-hint discovery-hint--warn">{policiesError}</p> : null}
           </div>
         ) : null}
       </div>

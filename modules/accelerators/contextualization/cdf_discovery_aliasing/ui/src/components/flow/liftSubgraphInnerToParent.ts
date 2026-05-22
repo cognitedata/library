@@ -11,7 +11,7 @@ import { absoluteNodePosition } from "./flowParentGeometry";
 import {
   canvasToFlowEdges,
   canvasToFlowNodes,
-  keaFlowEdgeVisualDefaults,
+  discoveryFlowEdgeVisualDefaults,
   newNodeId,
   orderFlowNodesForReactFlow,
   type FlowEdgeData,
@@ -28,13 +28,13 @@ export const SUBGRAPH_LIFT_ORIGIN_PAD = 20;
 export function resolveHubIds(innerRf: readonly Node[], data: WorkflowCanvasNodeData): { hubInId: string; hubOutId: string } {
   let hubIn = String(data.subflow_hub_input_id ?? "").trim();
   let hubOut = String(data.subflow_hub_output_id ?? "").trim();
-  if (!hubIn) hubIn = innerRf.find((n) => n.type === "keaSubflowGraphIn")?.id ?? "";
-  if (!hubOut) hubOut = innerRf.find((n) => n.type === "keaSubflowGraphOut")?.id ?? "";
+  if (!hubIn) hubIn = innerRf.find((n) => n.type === "discoverySubflowGraphIn")?.id ?? "";
+  if (!hubOut) hubOut = innerRf.find((n) => n.type === "discoverySubflowGraphOut")?.id ?? "";
   return { hubInId: hubIn, hubOutId: hubOut };
 }
 
 export function subgraphHasLiftableInnerContent(nodes: Node[], subgraphId: string): boolean {
-  const S = nodes.find((n) => n.id === subgraphId && n.type === "keaSubgraph");
+  const S = nodes.find((n) => n.id === subgraphId && n.type === "discoverySubgraph");
   if (!S) return false;
   const data = (S.data ?? {}) as WorkflowCanvasNodeData;
   const innerDoc = data.inner_canvas;
@@ -47,7 +47,7 @@ export function subgraphHasLiftableInnerContent(nodes: Node[], subgraphId: strin
 }
 
 /**
- * Remove a ``keaSubgraph`` node and place its inner workflow (except graph in/out hubs) on the
+ * Remove a ``discoverySubgraph`` node and place its inner workflow (except graph in/out hubs) on the
  * parent canvas, rewiring outer edges through the former boundary ports. Returns ``null`` if the
  * subgraph is missing, empty, or inner node ids collide with outer ids.
  */
@@ -57,7 +57,7 @@ export function liftSubgraphInnerToParentWorkflow(
   subgraphId: string,
   _handleOrientation: WorkflowCanvasHandleOrientation
 ): { nodes: Node[]; edges: Edge[] } | null {
-  const S = nodes.find((n) => n.id === subgraphId && n.type === "keaSubgraph");
+  const S = nodes.find((n) => n.id === subgraphId && n.type === "discoverySubgraph");
   if (!S) return null;
   const data = (S.data ?? {}) as WorkflowCanvasNodeData;
   const innerDoc = data.inner_canvas as WorkflowCanvasDocument | undefined;
@@ -114,7 +114,7 @@ export function liftSubgraphInnerToParentWorkflow(
         if (p !== portIn) continue;
         nextEdgeList.push({
           ...e,
-          ...keaFlowEdgeVisualDefaults,
+          ...discoveryFlowEdgeVisualDefaults,
           id: newNodeId(),
           target: ie.target,
           targetHandle: ie.targetHandle ?? undefined,
@@ -131,7 +131,7 @@ export function liftSubgraphInnerToParentWorkflow(
         if (p !== portOut) continue;
         nextEdgeList.push({
           ...e,
-          ...keaFlowEdgeVisualDefaults,
+          ...discoveryFlowEdgeVisualDefaults,
           id: newNodeId(),
           source: ie.source,
           sourceHandle: ie.sourceHandle ?? undefined,
@@ -147,7 +147,7 @@ export function liftSubgraphInnerToParentWorkflow(
   for (const ie of innerRfEdges) {
     if (ie.source === hubInId || ie.target === hubOutId) continue;
     if (!contentIdSet.has(ie.source) || !contentIdSet.has(ie.target)) continue;
-    nextEdgeList.push({ ...ie, ...keaFlowEdgeVisualDefaults });
+    nextEdgeList.push({ ...ie, ...discoveryFlowEdgeVisualDefaults });
   }
 
   const alive = new Set(nextNodes.map((n) => n.id));

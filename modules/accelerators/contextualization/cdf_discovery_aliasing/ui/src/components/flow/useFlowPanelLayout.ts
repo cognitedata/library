@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-const LS_KEY = "keaFlow.panelLayout.v1";
+const LS_KEY = "discoveryFlow.panelLayout.v1";
 
 const LEFT_MIN = 160;
 const LEFT_MAX = 440;

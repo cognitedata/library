@@ -74,7 +74,7 @@ export type DefaultTransformNodeConfigOptions = {
 export function readTransformOutputFieldForChainedTransform(
   node: { type?: string | null; data?: unknown } | undefined | null
 ): string | null {
-  if (!node || node.type !== "keaTransform") return null;
+  if (!node || node.type !== "discoveryTransform") return null;
   const data = (node.data ?? {}) as Record<string, unknown>;
   const cfg = data.config;
   if (!cfg || typeof cfg !== "object" || Array.isArray(cfg)) return null;
@@ -119,6 +119,65 @@ export function defaultAssetTagFromNameTransformConfig(): Record<string, unknown
     output_template: "{name}",
     output_mode: "overwrite",
     regex_substitution: { patterns: [] },
+  };
+}
+
+const TAG_FIELD_REGEX_OPTIONS = {
+  ignore_case: false,
+  multiline: false,
+  dotall: false,
+  unicode: true,
+};
+
+/** Strip leading ``unit-`` style numeric prefixes (e.g. ``10-P-1234`` → ``P-1234``). */
+export const STRIP_NUMERIC_UNIT_PREFIX_PATTERN = String.raw`^\d+-`;
+
+/**
+ * ``Aliases: Tag Based`` — extract instrument tag from ``name`` (optional ``unit`` prefix),
+ * strip leading numeric unit prefixes, append to existing ``aliases``.
+ */
+export function defaultTagBasedAliasesTransformConfig(options?: {
+  includeUnit?: boolean;
+}): Record<string, unknown> {
+  const includeUnit = options?.includeUnit !== false;
+  const tagField: TransformFieldRow = {
+    field_name: "name",
+    required: true,
+    priority: 1,
+    regex: ASSET_TAG_FROM_NAME_REGEX,
+    max_matches_per_field: 10,
+    regex_options: TAG_FIELD_REGEX_OPTIONS,
+  };
+  const extractFields: TransformFieldRow[] = includeUnit
+    ? [tagField, { field_name: "unit" }]
+    : [tagField];
+  const extractStep: Record<string, unknown> = {
+    description: "Extract tag alias from name (and unit when present)",
+    handler_id: "regex_substitution",
+    enabled: true,
+    fields: extractFields,
+    output_template: includeUnit ? "{unit}-{name}" : "{name}",
+    output_field: "_tagAliasDraft",
+    output_mode: "overwrite",
+    regex_substitution: { patterns: [] },
+  };
+  const stripStep: Record<string, unknown> = {
+    description: "Strip numeric unit prefix and append to aliases",
+    handler_id: "regex_substitution",
+    enabled: true,
+    fields: [{ field_name: "_tagAliasDraft" }],
+    output_template: "{_tagAliasDraft}",
+    output_field: "aliases",
+    output_mode: "append",
+    regex_substitution: {
+      patterns: [{ pattern: STRIP_NUMERIC_UNIT_PREFIX_PATTERN, replacement: "" }],
+    },
+  };
+  return {
+    description: "Extract tag alias from name; strip leading numeric prefix; append to aliases",
+    enabled: true,
+    execution: { mode: "ordered" },
+    steps: [extractStep, stripStep],
   };
 }
 

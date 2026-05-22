@@ -7,29 +7,29 @@ import {
 } from "../../types/workflowCanvas";
 import type { CompileWorkflowDagMode } from "../../utils/workflowCompileMode";
 import {
-  keaDiscoveryQueryRfTypes,
-  keaDiscoveryStageRfTypes,
-  keaPersistenceOutboundToEndOnlyRfTypes,
-  keaValidationRuleLayoutRfTypes,
+  discoveryQueryRfTypes,
+  discoveryStageRfTypes,
+  discoveryPersistenceOutboundToEndOnlyRfTypes,
+  discoveryValidationRuleLayoutRfTypes,
 } from "./flowConstants";
 
 /** Cohort-producing discovery nodes that may feed a subgraph frame input or graph-out from the inner canvas. */
 function isDiscoveryCohortSourceRfType(t: string | undefined): boolean {
   if (!t) return false;
   return (
-    keaDiscoveryQueryRfTypes.has(t) ||
-    t === "keaTransform" ||
-    t === "keaJoin" ||
-    t === "keaDiscoveryValidate" ||
-    t === "keaDiscoveryInstanceFilter" ||
-    t === "keaDiscoveryConfidenceFilter" ||
-    t === "keaInvertedIndex"
+    discoveryQueryRfTypes.has(t) ||
+    t === "discoveryTransform" ||
+    t === "discoveryJoin" ||
+    t === "discoveryValidate" ||
+    t === "discoveryInstanceFilter" ||
+    t === "discoveryConfidenceFilter" ||
+    t === "discoveryInvertedIndex"
   );
 }
 
 /** Layout node before workflow end (typically save / cleanup). */
 function isAliasPersistenceLayoutRfType(t: string | undefined): boolean {
-  return t === "keaAliasPersistence";
+  return t === "discoveryAliasPersistence";
 }
 
 type GetNode = (id: string) => Node | undefined;
@@ -49,7 +49,7 @@ function subflowOutputPortEntry(sf: Node | undefined, portId: string): SubflowPo
 /**
  * True when a primary data edge from ``sourceRfType`` to ``targetRfType`` is allowed (target uses
  * ``in``, source uses main ``out`` / match-rule heads). Used for subgraph frame ports that record
- * an inner peer type, and kept aligned with ``isValidKeaFlowConnection`` for non-subgraph pairs.
+ * an inner peer type, and kept aligned with ``isValidDiscoveryFlowConnection`` for non-subgraph pairs.
  */
 export function isValidDirectRfDataEdgeSourceToTarget(
   sourceRfType: string,
@@ -60,120 +60,123 @@ export function isValidDirectRfDataEdgeSourceToTarget(
   const st = sourceRfType;
   const tt = targetRfType;
 
-  if (st === "keaEnd") return false;
+  if (st === "discoveryEnd") return false;
 
   /**
-   * Persistence nodes (saves, alias persistence, inverted index): primary data ``out`` may target **only** ``keaEnd``.
+   * Persistence nodes (saves, alias persistence, inverted index): primary data ``out`` may target **only** ``discoveryEnd``.
    * Disallows wiring into queries, transforms, validation, join, other saves, extraction, match-rule layouts, etc.
    */
-  if (keaPersistenceOutboundToEndOnlyRfTypes.has(st)) {
-    return tt === "keaEnd";
+  if (discoveryPersistenceOutboundToEndOnlyRfTypes.has(st)) {
+    return tt === "discoveryEnd";
   }
 
   /** Query nodes may only receive the primary data edge from Start (not source views, transforms, etc.). */
-  if (keaDiscoveryQueryRfTypes.has(tt)) {
-    return st === "keaStart";
+  if (discoveryQueryRfTypes.has(tt)) {
+    return st === "discoveryStart";
   }
 
-  if (tt === "keaJoin") {
+  if (tt === "discoveryJoin") {
     return (
-      st === "keaViewQuery" ||
-      st === "keaRawQuery" ||
-      st === "keaClassicQuery" ||
-      st === "keaTransform" ||
-      st === "keaDiscoveryValidate" ||
-      st === "keaDiscoveryInstanceFilter" ||
-      st === "keaDiscoveryConfidenceFilter" ||
-      st === "keaJoin"
+      st === "discoveryViewQuery" ||
+      st === "discoveryRawQuery" ||
+      st === "discoveryClassicQuery" ||
+      st === "discoverySqlQuery" ||
+      st === "discoveryTransform" ||
+      st === "discoveryValidate" ||
+      st === "discoveryInstanceFilter" ||
+      st === "discoveryConfidenceFilter" ||
+      st === "discoveryJoin"
     );
   }
 
-  if (tt === "keaEnd") {
+  if (tt === "discoveryEnd") {
     return (
-      st === "keaDiscoveryValidate" ||
-      st === "keaDiscoveryInstanceFilter" ||
-      st === "keaDiscoveryConfidenceFilter" ||
-      keaDiscoveryStageRfTypes.has(st) ||
+      st === "discoveryValidate" ||
+      st === "discoveryInstanceFilter" ||
+      st === "discoveryConfidenceFilter" ||
+      discoveryStageRfTypes.has(st) ||
       validationRuleLayoutRfTypes.has(st) ||
       isAliasPersistenceLayoutRfType(st) ||
-      st === "keaInvertedIndex"
+      st === "discoveryInvertedIndex"
     );
   }
 
-  if (tt === "keaInvertedIndex") {
+  if (tt === "discoveryInvertedIndex") {
     return (
-      st === "keaViewQuery" ||
-      st === "keaRawQuery" ||
-      st === "keaClassicQuery" ||
-      st === "keaTransform" ||
-      st === "keaJoin" ||
-      st === "keaDiscoveryValidate" ||
-      st === "keaDiscoveryInstanceFilter" ||
-      st === "keaDiscoveryConfidenceFilter"
+      st === "discoveryViewQuery" ||
+      st === "discoveryRawQuery" ||
+      st === "discoveryClassicQuery" ||
+      st === "discoverySqlQuery" ||
+      st === "discoveryTransform" ||
+      st === "discoveryJoin" ||
+      st === "discoveryValidate" ||
+      st === "discoveryInstanceFilter" ||
+      st === "discoveryConfidenceFilter"
     );
   }
 
   if (isAliasPersistenceLayoutRfType(tt)) {
     return (
-      st === "keaDiscoveryValidate" ||
-      st === "keaDiscoveryInstanceFilter" ||
-      st === "keaDiscoveryConfidenceFilter" ||
-      st === "keaTransform"
+      st === "discoveryValidate" ||
+      st === "discoveryInstanceFilter" ||
+      st === "discoveryConfidenceFilter" ||
+      st === "discoveryTransform"
     );
   }
 
-  if (st === "keaStart") {
+  if (st === "discoveryStart") {
     if (compileDagMode === "canvas") {
-      return tt === "keaViewQuery" || tt === "keaRawQuery" || tt === "keaClassicQuery";
+      return tt === "discoveryViewQuery" || tt === "discoveryRawQuery" || tt === "discoveryClassicQuery" || tt === "discoverySqlQuery";
     }
     return (
-      tt === "keaSourceView" ||
-      tt === "keaViewQuery" ||
-      tt === "keaRawQuery" ||
-      tt === "keaClassicQuery"
+      tt === "discoverySourceView" ||
+      tt === "discoveryViewQuery" ||
+      tt === "discoveryRawQuery" ||
+      tt === "discoveryClassicQuery" ||
+      tt === "discoverySqlQuery"
     );
   }
 
-  if (tt === "keaSourceView") {
+  if (tt === "discoverySourceView") {
     if (compileDagMode === "canvas") {
       return false;
     }
-    return st === "keaStart";
+    return st === "discoveryStart";
   }
 
-  if (st === "keaSourceView") {
+  if (st === "discoverySourceView") {
     return false;
   }
 
   if (validationRuleLayoutRfTypes.has(tt)) {
     if (
-      st === "keaDiscoveryValidate" ||
-      st === "keaDiscoveryInstanceFilter" ||
-      st === "keaDiscoveryConfidenceFilter"
+      st === "discoveryValidate" ||
+      st === "discoveryInstanceFilter" ||
+      st === "discoveryConfidenceFilter"
     ) {
       return true;
     }
     if (
-      st === "keaTransform" ||
-      keaDiscoveryStageRfTypes.has(st) ||
+      st === "discoveryTransform" ||
+      discoveryStageRfTypes.has(st) ||
       isAliasPersistenceLayoutRfType(st) ||
-      st === "keaInvertedIndex"
+      st === "discoveryInvertedIndex"
     ) {
-      return tt === "keaMatchValidationRuleExtraction" || tt === "keaMatchValidationRuleAliasing";
+      return tt === "discoveryMatchValidationRuleExtraction" || tt === "discoveryMatchValidationRuleAliasing";
     }
     return validationRuleLayoutRfTypes.has(st);
   }
 
   if (validationRuleLayoutRfTypes.has(st)) {
-    return tt === "keaEnd" || validationRuleLayoutRfTypes.has(tt);
+    return tt === "discoveryEnd" || validationRuleLayoutRfTypes.has(tt);
   }
 
   /** Discovery validate output is not a cohort input for transform (query / join / transform chain only). */
   if (
-    tt === "keaTransform" &&
-    (st === "keaDiscoveryValidate" ||
-      st === "keaDiscoveryInstanceFilter" ||
-      st === "keaDiscoveryConfidenceFilter")
+    tt === "discoveryTransform" &&
+    (st === "discoveryValidate" ||
+      st === "discoveryInstanceFilter" ||
+      st === "discoveryConfidenceFilter")
   ) {
     return false;
   }
@@ -216,25 +219,25 @@ function sameSubflowInterior(getNode: GetNode, a: string, b: string): boolean {
 
 /** Whether ``st → tt`` is allowed for wiring into a subgraph input port (parent → subgraph frame). */
 function allowedExternalSourceToSubflowInput(st: string): boolean {
-  if (st === "keaEnd") return false;
-  if (st === "keaSubgraph" || isSubflowGraphHubRfType(st)) return false;
-  if (st === "keaStart") return true;
-  if (st === "keaSourceView") return true;
-  if (st === "keaTransform") return true;
-  if (isAliasPersistenceLayoutRfType(st) || st === "keaInvertedIndex") return true;
+  if (st === "discoveryEnd") return false;
+  if (st === "discoverySubgraph" || isSubflowGraphHubRfType(st)) return false;
+  if (st === "discoveryStart") return true;
+  if (st === "discoverySourceView") return true;
+  if (st === "discoveryTransform") return true;
+  if (isAliasPersistenceLayoutRfType(st) || st === "discoveryInvertedIndex") return true;
   if (isDiscoveryCohortSourceRfType(st)) return true;
-  if (keaValidationRuleLayoutRfTypes.has(st)) return true;
+  if (discoveryValidationRuleLayoutRfTypes.has(st)) return true;
   return false;
 }
 
 /** Whether ``st → tt`` is allowed for wiring from a subgraph output port (subgraph frame → external). */
 function allowedSubflowOutputToExternalTarget(tt: string, validationRuleLayoutRfTypes: Set<string>): boolean {
-  if (tt === "keaStart") return false;
-  if (tt === "keaSubgraph" || isSubflowGraphHubRfType(tt)) return false;
-  if (tt === "keaEnd") return true;
-  if (tt === "keaSourceView") return false;
-  if (tt === "keaInvertedIndex" || isAliasPersistenceLayoutRfType(tt)) return true;
-  if (tt === "keaTransform" || keaDiscoveryStageRfTypes.has(tt) || tt === "keaDiscoveryValidate")
+  if (tt === "discoveryStart") return false;
+  if (tt === "discoverySubgraph" || isSubflowGraphHubRfType(tt)) return false;
+  if (tt === "discoveryEnd") return true;
+  if (tt === "discoverySourceView") return false;
+  if (tt === "discoveryInvertedIndex" || isAliasPersistenceLayoutRfType(tt)) return true;
+  if (tt === "discoveryTransform" || discoveryStageRfTypes.has(tt) || tt === "discoveryValidate")
     return true;
   if (validationRuleLayoutRfTypes.has(tt)) return true;
   return true;
@@ -247,21 +250,22 @@ function validInteriorToGraphOut(
 ): boolean {
   const st = getNode(c.source)?.type;
   const tt = getNode(c.target)?.type;
-  if (!st || !tt || tt !== "keaSubflowGraphOut") return false;
+  if (!st || !tt || tt !== "discoverySubflowGraphOut") return false;
   const portId = parsePortIdFromSubflowTargetHandle(c.targetHandle ?? undefined);
   if (portId == null) return false;
   const frame = portFrameForGraphHub(getNode, c.target);
   if (!subflowDeclaresOutputPort(frame, portId)) return false;
   const outEntry = subflowOutputPortEntry(frame, portId);
-  if (outEntry?.inner_source_rf_type && st !== outEntry.inner_source_rf_type) return false;
+  if (outEntry?.inner_source_rf_type && st !== outEntry.inner_source_rf_type)
+    return false;
   const parentSf = parentSubflowOf(getNode, c.target);
   if (parentSf) {
     if (!sameSubflowInterior(getNode, c.source, c.target)) return false;
   }
-  if (st === "keaEnd" || st === "keaStart" || st === "keaSubgraph" || isSubflowGraphHubRfType(st)) return false;
-  if (st === "keaSourceView") return false;
-  if (st === "keaTransform") return true;
-  if (isAliasPersistenceLayoutRfType(st) || st === "keaInvertedIndex") return true;
+  if (st === "discoveryEnd" || st === "discoveryStart" || st === "discoverySubgraph" || isSubflowGraphHubRfType(st)) return false;
+  if (st === "discoverySourceView") return false;
+  if (st === "discoveryTransform") return true;
+  if (isAliasPersistenceLayoutRfType(st) || st === "discoveryInvertedIndex") return true;
   if (isDiscoveryCohortSourceRfType(st)) return true;
   if (validationRuleLayoutRfTypes.has(st)) return true;
   return false;
@@ -270,33 +274,34 @@ function validInteriorToGraphOut(
 function validGraphInToInterior(getNode: GetNode, c: Connection | Edge, validationRuleLayoutRfTypes: Set<string>): boolean {
   const st = getNode(c.source)?.type;
   const tt = getNode(c.target)?.type;
-  if (!st || !tt || st !== "keaSubflowGraphIn") return false;
+  if (!st || !tt || st !== "discoverySubflowGraphIn") return false;
   const portId = parsePortIdFromSubflowSourceHandle(c.sourceHandle ?? undefined);
   if (portId == null) return false;
   const frame = portFrameForGraphHub(getNode, c.source);
   if (!subflowDeclaresInputPort(frame, portId)) return false;
   const inEntry = subflowInputPortEntry(frame, portId);
-  if (inEntry?.inner_target_rf_type && tt !== inEntry.inner_target_rf_type) return false;
+  if (inEntry?.inner_target_rf_type && tt !== inEntry.inner_target_rf_type)
+    return false;
   const parentSf = parentSubflowOf(getNode, c.source);
   if (parentSf) {
     if (!sameSubflowInterior(getNode, c.source, c.target)) return false;
   }
-  if (tt === "keaEnd" || tt === "keaStart" || tt === "keaSubgraph" || isSubflowGraphHubRfType(tt)) return false;
-  if (tt === "keaSourceView") return false;
-  if (isAliasPersistenceLayoutRfType(tt) || tt === "keaInvertedIndex") return false;
-  if (tt === "keaTransform" || keaDiscoveryStageRfTypes.has(tt) || tt === "keaDiscoveryValidate")
+  if (tt === "discoveryEnd" || tt === "discoveryStart" || tt === "discoverySubgraph" || isSubflowGraphHubRfType(tt)) return false;
+  if (tt === "discoverySourceView") return false;
+  if (isAliasPersistenceLayoutRfType(tt) || tt === "discoveryInvertedIndex") return false;
+  if (tt === "discoveryTransform" || discoveryStageRfTypes.has(tt) || tt === "discoveryValidate")
     return true;
   if (validationRuleLayoutRfTypes.has(tt)) return true;
   return false;
 }
 
 /**
- * Full connection validity including ``keaSubgraph`` boundary ports and inner graph-in/out hubs.
+ * Full connection validity including ``discoverySubgraph`` boundary ports and inner graph-in/out hubs.
  */
-export function isValidKeaFlowConnection(
+export function isValidDiscoveryFlowConnection(
   getNode: GetNode,
   c: Connection | Edge,
-  validationRuleLayoutRfTypes: Set<string> = keaValidationRuleLayoutRfTypes,
+  validationRuleLayoutRfTypes: Set<string> = discoveryValidationRuleLayoutRfTypes,
   compileDagMode: CompileWorkflowDagMode = "canvas"
 ): boolean {
   const st = getNode(c.source)?.type;
@@ -304,17 +309,17 @@ export function isValidKeaFlowConnection(
   if (!st || !tt) return false;
   const srcH = c.sourceHandle ?? undefined;
 
-  if (st === "keaSubflowGraphIn") {
+  if (st === "discoverySubflowGraphIn") {
     return validGraphInToInterior(getNode, c, validationRuleLayoutRfTypes);
   }
-  if (tt === "keaSubflowGraphOut") {
+  if (tt === "discoverySubflowGraphOut") {
     return validInteriorToGraphOut(getNode, c, validationRuleLayoutRfTypes);
   }
   if (isSubflowGraphHubRfType(st) || isSubflowGraphHubRfType(tt)) {
     return false;
   }
 
-  if (tt === "keaSubgraph") {
+  if (tt === "discoverySubgraph") {
     const portId = parsePortIdFromSubflowTargetHandle(c.targetHandle ?? undefined);
     if (portId == null) return false;
     const sg = getNode(c.target);
@@ -329,7 +334,7 @@ export function isValidKeaFlowConnection(
     return allowedExternalSourceToSubflowInput(st);
   }
 
-  if (st === "keaSubgraph") {
+  if (st === "discoverySubgraph") {
     const portId = parsePortIdFromSubflowSourceHandle(c.sourceHandle ?? undefined);
     if (portId == null) return false;
     const sg = getNode(c.source);
@@ -344,22 +349,22 @@ export function isValidKeaFlowConnection(
     return allowedSubflowOutputToExternalTarget(tt, validationRuleLayoutRfTypes);
   }
 
-  if (st === "keaEnd") return false;
+  if (st === "discoveryEnd") return false;
 
   /** Dedicated validation branch (``validation`` source handle → match-definition layout nodes). */
   if (validationRuleLayoutRfTypes.has(tt)) {
-    if (st === "keaDiscoveryValidate" && tt === "keaMatchValidationRuleExtraction") {
+    if (st === "discoveryValidate" && tt === "discoveryMatchValidationRuleExtraction") {
       return srcH == null || srcH === "out";
     }
     /** Source views feed match-rule layout nodes on the main ``out`` handle (no ``validation`` branch). */
-    if (st === "keaSourceView") {
+    if (st === "discoverySourceView") {
       return srcH == null || srcH === "out";
     }
     if (
-      st === "keaTransform" ||
-      keaDiscoveryStageRfTypes.has(st) ||
+      st === "discoveryTransform" ||
+      discoveryStageRfTypes.has(st) ||
       isAliasPersistenceLayoutRfType(st) ||
-      st === "keaInvertedIndex"
+      st === "discoveryInvertedIndex"
     ) {
       return srcH === "validation";
     }
@@ -367,7 +372,7 @@ export function isValidKeaFlowConnection(
   }
 
   if (validationRuleLayoutRfTypes.has(st)) {
-    return tt === "keaEnd" || validationRuleLayoutRfTypes.has(tt);
+    return tt === "discoveryEnd" || validationRuleLayoutRfTypes.has(tt);
   }
 
   return isValidDirectRfDataEdgeSourceToTarget(st, tt, validationRuleLayoutRfTypes, compileDagMode);

@@ -99,32 +99,32 @@ export function MatchDefinitionsScopePanel({ scopeDocument, onPatch, initialSele
   };
 
   return (
-    <div className="kea-match-definitions-scope">
-      <h4 className="kea-section-title" style={{ fontSize: "0.95rem" }}>
+    <div className="discovery-match-definitions-scope">
+      <h4 className="discovery-section-title" style={{ fontSize: "0.95rem" }}>
         {t("matchDefinitions.title")}
       </h4>
-      <p className="kea-hint">{t("matchDefinitions.definitionsHint")}</p>
+      <p className="discovery-hint">{t("matchDefinitions.definitionsHint")}</p>
 
-      <div className="kea-filter-row kea-filter-row--actions-end kea-filter-row--gap-md kea-filter-row--align-end" style={{ marginTop: "0.75rem" }}>
-        <label className="kea-label">
+      <div className="discovery-filter-row discovery-filter-row--actions-end discovery-filter-row--gap-md discovery-filter-row--align-end" style={{ marginTop: "0.75rem" }}>
+        <label className="discovery-label">
           {t("matchDefinitions.newDefinitionId")}
           <input
-            className="kea-input"
+            className="discovery-input"
             value={newDefIdDraft}
             onChange={(e) => setNewDefIdDraft(e.target.value)}
             placeholder="blacklist"
             spellCheck={false}
           />
         </label>
-        <button type="button" className="kea-btn kea-btn--sm" onClick={addDefinition}>
+        <button type="button" className="discovery-btn discovery-btn--sm" onClick={addDefinition}>
           {t("matchDefinitions.addDefinition")}
         </button>
       </div>
 
       {defIds.length > 0 && (
-        <label className="kea-label kea-label--block" style={{ marginTop: "0.75rem" }}>
+        <label className="discovery-label discovery-label--block" style={{ marginTop: "0.75rem" }}>
           {t("matchDefinitions.selectDefinition")}
-          <select className="kea-input" value={selectedDefId} onChange={(e) => setSelectedDefId(e.target.value)}>
+          <select className="discovery-input" value={selectedDefId} onChange={(e) => setSelectedDefId(e.target.value)}>
             {defIds.map((id) => (
               <option key={id} value={id}>
                 {id}
@@ -137,7 +137,7 @@ export function MatchDefinitionsScopePanel({ scopeDocument, onPatch, initialSele
       {selectedRule && selectedDefId && (
         <>
           <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "0.5rem" }}>
-            <button type="button" className="kea-btn kea-btn--ghost kea-btn--sm" onClick={() => removeDefinition(selectedDefId)}>
+            <button type="button" className="discovery-btn discovery-btn--ghost discovery-btn--sm" onClick={() => removeDefinition(selectedDefId)}>
               {t("matchDefinitions.removeDefinition")}
             </button>
           </div>
@@ -154,31 +154,31 @@ export function MatchDefinitionsScopePanel({ scopeDocument, onPatch, initialSele
         </>
       )}
 
-      <h4 className="kea-section-title" style={{ fontSize: "0.95rem", marginTop: "1.5rem" }}>
+      <h4 className="discovery-section-title" style={{ fontSize: "0.95rem", marginTop: "1.5rem" }}>
         {t("matchDefinitions.sequencesTitle")}
       </h4>
-      <p className="kea-hint">{t("matchDefinitions.sequencesHint")}</p>
+      <p className="discovery-hint">{t("matchDefinitions.sequencesHint")}</p>
 
-      <div className="kea-filter-row kea-filter-row--label-action kea-filter-row--gap-md kea-filter-row--align-end" style={{ marginTop: "0.75rem" }}>
-        <label className="kea-label">
+      <div className="discovery-filter-row discovery-filter-row--label-action discovery-filter-row--gap-md discovery-filter-row--align-end" style={{ marginTop: "0.75rem" }}>
+        <label className="discovery-label">
           {t("matchDefinitions.newSequenceName")}
           <input
-            className="kea-input"
+            className="discovery-input"
             value={newSeqNameDraft}
             onChange={(e) => setNewSeqNameDraft(e.target.value)}
             placeholder="tag_candidate_validation"
             spellCheck={false}
           />
         </label>
-        <button type="button" className="kea-btn kea-btn--sm" onClick={addSequence}>
+        <button type="button" className="discovery-btn discovery-btn--sm" onClick={addSequence}>
           {t("matchDefinitions.addSequence")}
         </button>
       </div>
 
       {seqNames.length > 0 && (
-        <label className="kea-label kea-label--block" style={{ marginTop: "0.75rem" }}>
+        <label className="discovery-label discovery-label--block" style={{ marginTop: "0.75rem" }}>
           {t("matchDefinitions.selectSequence")}
-          <select className="kea-input" value={selectedSeqName} onChange={(e) => setSelectedSeqName(e.target.value)}>
+          <select className="discovery-input" value={selectedSeqName} onChange={(e) => setSelectedSeqName(e.target.value)}>
             {seqNames.map((n) => (
               <option key={n} value={n}>
                 {n}
@@ -191,11 +191,11 @@ export function MatchDefinitionsScopePanel({ scopeDocument, onPatch, initialSele
       {selectedSeqName && (
         <>
           <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "0.5rem" }}>
-            <button type="button" className="kea-btn kea-btn--ghost kea-btn--sm" onClick={() => removeSequence(selectedSeqName)}>
+            <button type="button" className="discovery-btn discovery-btn--ghost discovery-btn--sm" onClick={() => removeSequence(selectedSeqName)}>
               {t("matchDefinitions.removeSequence")}
             </button>
           </div>
-          <p className="kea-hint" style={{ marginTop: "0.35rem" }}>
+          <p className="discovery-hint" style={{ marginTop: "0.35rem" }}>
             {t("matchDefinitions.sequenceStepsHint")}
           </p>
           {selectedSteps.map((step, idx) => {
@@ -203,13 +203,13 @@ export function MatchDefinitionsScopePanel({ scopeDocument, onPatch, initialSele
             return (
               <div
                 key={`${selectedSeqName}-${idx}-${step}`}
-                className={["kea-validation-rule", dropActive ? "kea-validation-rule--drop" : ""].filter(Boolean).join(" ")}
+                className={["discovery-validation-rule", dropActive ? "discovery-validation-rule--drop" : ""].filter(Boolean).join(" ")}
                 style={{
-                  border: "1px solid var(--kea-border)",
-                  borderRadius: "var(--kea-radius-sm)",
+                  border: "1px solid var(--discovery-border)",
+                  borderRadius: "var(--discovery-radius-sm)",
                   padding: "0.5rem",
                   marginBottom: "0.35rem",
-                  background: "var(--kea-surface)",
+                  background: "var(--discovery-surface)",
                 }}
                 onDragOver={(e: DragEvent<HTMLDivElement>) => {
                   e.preventDefault();
@@ -231,9 +231,9 @@ export function MatchDefinitionsScopePanel({ scopeDocument, onPatch, initialSele
                   setDragStepOver(null);
                 }}
               >
-                <div className="kea-filter-row kea-filter-row--compact-actions kea-filter-row--gap-md kea-filter-row--align-end">
+                <div className="discovery-filter-row discovery-filter-row--compact-actions discovery-filter-row--gap-md discovery-filter-row--align-end">
                   <span
-                    className="kea-drag-handle"
+                    className="discovery-drag-handle"
                     draggable
                     onDragStart={(e: DragEvent<HTMLSpanElement>) => {
                       e.dataTransfer.setData("text/plain", String(idx));
@@ -245,14 +245,14 @@ export function MatchDefinitionsScopePanel({ scopeDocument, onPatch, initialSele
                     aria-label={t("rulesEntity.dragHandle")}
                     title={t("rulesEntity.dragHandle")}
                   >
-                    <span className="kea-drag-handle__grip" aria-hidden>
+                    <span className="discovery-drag-handle__grip" aria-hidden>
                       ⋮⋮
                     </span>
                   </span>
-                  <label className="kea-label">
+                  <label className="discovery-label">
                     {t("matchDefinitions.sequenceStepRule")}
                     <select
-                      className="kea-input"
+                      className="discovery-input"
                       value={step}
                       onChange={(e) => {
                         const next = [...selectedSteps];
@@ -274,7 +274,7 @@ export function MatchDefinitionsScopePanel({ scopeDocument, onPatch, initialSele
                   </label>
                   <button
                     type="button"
-                    className="kea-btn kea-btn--ghost kea-btn--sm"
+                    className="discovery-btn discovery-btn--ghost discovery-btn--sm"
                     onClick={() => {
                       const next = selectedSteps.filter((_, i) => i !== idx);
                       commitSeqs({ ...seqMap, [selectedSeqName]: next });
@@ -288,7 +288,7 @@ export function MatchDefinitionsScopePanel({ scopeDocument, onPatch, initialSele
           })}
           <button
             type="button"
-            className="kea-btn kea-btn--sm"
+            className="discovery-btn discovery-btn--sm"
             style={{ marginTop: "0.25rem" }}
             disabled={!selectedSeqName || defIds.length === 0}
             onClick={() => {

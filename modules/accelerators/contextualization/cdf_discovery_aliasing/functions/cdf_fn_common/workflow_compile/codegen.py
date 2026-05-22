@@ -223,8 +223,10 @@ def build_workflow_version_document(
 
     ``compiled_workflow`` is used only to list tasks (ids, function_external_id, depends_on) and
     to inline per-task ``payload`` / ``persistence`` / ``pipeline_node_id`` onto each function task.
+    Per-task ``name`` uses canvas ``data.label`` when the IR carries ``label``; otherwise the
+    workflow version template or built-in function display names apply.
 
-    When ``module_root`` is set, per-function ``name`` / ``description`` / ``timeout`` and the top-level
+    When ``module_root`` is set, per-function ``description`` / ``timeout`` and the top-level
     ``workflowDefinition.description`` are taken from ``workflow_version_template_path`` (default
     ``<module_root>/workflow_template/workflow.template.WorkflowVersion.yaml``) so a fresh scoped
     manifest matches the workflow template’s wording for each function type.
@@ -285,6 +287,11 @@ def build_workflow_version_document(
             "Classic resource query — state and cohort reads; sink RAW.",
             7200,
         ),
+        "fn_dm_sql_query": (
+            "SQL query",
+            "CDF SQL preview (transformations query/run) — sink RAW cohort rows.",
+            7200,
+        ),
         "fn_dm_transform": (
             "Transform",
             "Transform predecessor payloads; sink RAW.",
@@ -331,6 +338,7 @@ def build_workflow_version_document(
             continue
         deps_raw = t.get("depends_on")
         deps = [str(x) for x in deps_raw] if isinstance(deps_raw, list) else []
+        node_label = str(t.get("label") or "").strip()
         if fn in tpl_by_fn:
             nm, dsc, tmo = tpl_by_fn[fn]
         else:
@@ -338,6 +346,8 @@ def build_workflow_version_document(
                 fn,
                 ("Workflow step", f"Execute {fn}", 7200),
             )
+        if node_label:
+            nm = node_label
         tasks_out.append(
             _function_task(
                 task_external_id=tid,

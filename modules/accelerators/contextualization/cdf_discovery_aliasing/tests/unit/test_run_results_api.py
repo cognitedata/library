@@ -175,7 +175,10 @@ def test_discovery_run_results_filter_uses_run_scope(api_client):
     assert r.status_code == 200
     assert len(r.json()["runs"]) == 1
     r2 = client.get("/api/run-results/discovery", params={"run_scope_key": "workflow_local"})
-    assert r2.json()["runs"] == []
+    body2 = r2.json()
+    assert body2["runs"] == []
+    assert body2["total_all_scopes"] == 1
+    assert body2["scope_filter"] == "workflow_local"
 
 
 def test_discovery_run_detail_and_pipeline_tasks(api_client):

@@ -1,0 +1,9 @@
+name: gp_site_a_default_editor
+sourceId: "{{ gp_site_a_default_editor }}"
+capabilities:
+  - dataModelInstancesAcl:
+      scope:
+        spaceIdScope:
+          spaceIds:
+            - inst_erp_site_a
+            - inst_scada_site_a

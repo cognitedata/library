@@ -1,0 +1,5 @@
+externalId: "inst_scada_site_b"
+name: "inst_scada_site_b"
+description: ""
+access_governance:
+  scope_id: "SITE_B"

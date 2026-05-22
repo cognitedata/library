@@ -57,6 +57,7 @@ _FN_TO_TASK_CATEGORY: Dict[str, str] = {
     "fn_dm_view_query": "query",
     "fn_dm_raw_query": "query",
     "fn_dm_classic_query": "query",
+    "fn_dm_sql_query": "query",
     "fn_dm_transform": "transform",
     "fn_dm_validate": "validate",
     "fn_dm_filter": "filter",
@@ -354,6 +355,45 @@ def discovery_run_path_for_timestamp(results_dir: Any, timestamp_stem: str) -> A
     return Path(results_dir) / f"{timestamp_stem}{DISCOVERY_RUN_SUFFIX}"
 
 
+def write_discovery_run_artifact(
+    *,
+    results_dir: Any,
+    run_scope: Mapping[str, Any],
+    run_id: str,
+    dry_run: bool,
+    wall_t0: float,
+    local_run_tasks: List[Dict[str, Any]],
+    discovery_task_outputs: Mapping[str, Any],
+    handler_data_snapshots: Mapping[str, Any],
+    compiled_workflow: Optional[Mapping[str, Any]] = None,
+    raw_table_samples: Optional[Mapping[str, Any]] = None,
+    failed_task_id: Optional[str] = None,
+    warnings: Optional[List[str]] = None,
+    timestamp_stem: Optional[str] = None,
+) -> Any:
+    """Write ``{timestamp}_discovery_run.json``; returns the path written."""
+    from pathlib import Path
+
+    stem = (timestamp_stem or "").strip() or datetime.now().strftime("%Y%m%d_%H%M%S")
+    discovery_path = Path(results_dir) / f"{stem}{DISCOVERY_RUN_SUFFIX}"
+    out_doc = compose_discovery_run_document(
+        run_scope=run_scope,
+        run_id=str(run_id or "").strip(),
+        dry_run=bool(dry_run),
+        wall_t0=float(wall_t0 or 0.0),
+        local_run_tasks=list(local_run_tasks),
+        discovery_task_outputs=discovery_task_outputs,
+        handler_data_snapshots=dict(handler_data_snapshots),
+        compiled_workflow=compiled_workflow,
+        raw_table_samples=raw_table_samples,
+        failed_task_id=failed_task_id,
+        warnings=warnings,
+    )
+    with discovery_path.open("w", encoding="utf-8") as f:
+        json.dump(out_doc, f, indent=2, default=str)
+    return discovery_path
+
+
 __all__ = [
     "DISCOVERY_RUN_SCHEMA_VERSION",
     "DISCOVERY_RUN_SUFFIX",
@@ -362,4 +402,5 @@ __all__ = [
     "build_end_of_process",
     "compose_discovery_run_document",
     "discovery_run_path_for_timestamp",
+    "write_discovery_run_artifact",
 ]

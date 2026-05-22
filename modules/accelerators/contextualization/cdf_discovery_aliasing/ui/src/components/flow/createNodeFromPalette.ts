@@ -25,14 +25,14 @@ export function createNodeFromPalette(
       case "source_view":
         return {
           id,
-          type: "keaSourceView",
+          type: "discoverySourceView",
           position,
           data: { label: "Source view" },
         };
       case "subgraph":
         return {
           id,
-          type: "keaSubgraph",
+          type: "discoverySubgraph",
           position,
           data: {
             label: "Subgraph",
@@ -43,7 +43,7 @@ export function createNodeFromPalette(
       case "match_validation_source_view":
         return {
           id,
-          type: "keaMatchValidationRuleSourceView",
+          type: "discoveryMatchValidationRuleSourceView",
           position,
           data: {
             label: "Match validation",
@@ -55,7 +55,7 @@ export function createNodeFromPalette(
       case "match_validation_extraction":
         return {
           id,
-          type: "keaMatchValidationRuleExtraction",
+          type: "discoveryMatchValidationRuleExtraction",
           position,
           data: {
             label: "Match validation",
@@ -67,7 +67,7 @@ export function createNodeFromPalette(
       case "match_validation_aliasing":
         return {
           id,
-          type: "keaMatchValidationRuleAliasing",
+          type: "discoveryMatchValidationRuleAliasing",
           position,
           data: {
             label: "Match validation",
@@ -81,22 +81,23 @@ export function createNodeFromPalette(
   if (payload.kind === "discovery") {
     type StageMeta = { type: string; defaultLabel: string };
     const meta: Record<DiscoveryPaletteStage, StageMeta> = {
-      save_view: { type: "keaViewSave", defaultLabel: "View save" },
-      save_raw: { type: "keaRawSave", defaultLabel: "RAW save" },
-      save_classic: { type: "keaClassicSave", defaultLabel: "Classic save" },
-      query_view: { type: "keaViewQuery", defaultLabel: "View query" },
-      query_raw: { type: "keaRawQuery", defaultLabel: "RAW query" },
-      query_classic: { type: "keaClassicQuery", defaultLabel: "Classic query" },
-      transform: { type: "keaTransform", defaultLabel: "Transform" },
-      merge: { type: "keaMerge", defaultLabel: "Merge" },
-      join: { type: "keaJoin", defaultLabel: "Join" },
-      validation: { type: "keaDiscoveryValidate", defaultLabel: "Validation" },
-      instance_filter: { type: "keaDiscoveryInstanceFilter", defaultLabel: "Instance filter" },
+      save_view: { type: "discoveryViewSave", defaultLabel: "View save" },
+      save_raw: { type: "discoveryRawSave", defaultLabel: "RAW save" },
+      save_classic: { type: "discoveryClassicSave", defaultLabel: "Classic save" },
+      query_view: { type: "discoveryViewQuery", defaultLabel: "View query" },
+      query_raw: { type: "discoveryRawQuery", defaultLabel: "RAW query" },
+      query_classic: { type: "discoveryClassicQuery", defaultLabel: "Classic query" },
+      query_sql: { type: "discoverySqlQuery", defaultLabel: "SQL query" },
+      transform: { type: "discoveryTransform", defaultLabel: "Transform" },
+      merge: { type: "discoveryMerge", defaultLabel: "Merge" },
+      join: { type: "discoveryJoin", defaultLabel: "Join" },
+      validation: { type: "discoveryValidate", defaultLabel: "Validation" },
+      instance_filter: { type: "discoveryInstanceFilter", defaultLabel: "Instance filter" },
       confidence_filter: {
-        type: "keaDiscoveryConfidenceFilter",
+        type: "discoveryConfidenceFilter",
         defaultLabel: "Confidence filter",
       },
-      inverted_index: { type: "keaInvertedIndex", defaultLabel: "Inverted index" },
+      inverted_index: { type: "discoveryInvertedIndex", defaultLabel: "Inverted index" },
     };
     const m = meta[payload.stage];
     const data: Record<string, unknown> = {
@@ -119,6 +120,14 @@ export function createNodeFromPalette(
         break;
       case "query_classic":
         data.config = { description: m.defaultLabel };
+        break;
+      case "query_sql":
+        data.config = {
+          description: m.defaultLabel,
+          sql_query: "",
+          limit: 100,
+          convert_to_string: true,
+        };
         break;
       case "transform":
         {
@@ -150,7 +159,7 @@ export function createNodeFromPalette(
         break;
       case "join":
         data.config = {
-          description: "Join — view cohort ↔ RAW cohort (default: name vs raw_columns.key)",
+          description: "Join — view cohort ↔ RAW cohort (default: name vs raw_columns.name)",
           join_type: "left",
           right_prefix: "",
           join_on: {
@@ -158,7 +167,7 @@ export function createNodeFromPalette(
               {
                 operator: "IEQUALS",
                 left_property: "name",
-                right_property: "raw_columns.key",
+                right_property: "raw_columns.name",
               },
             ],
           },
@@ -206,7 +215,7 @@ export function createNodeFromPalette(
     const rid = payload.ruleId.trim() || "rule";
     return {
       id,
-      type: "keaMatchValidationRuleExtraction",
+      type: "discoveryMatchValidationRuleExtraction",
       position,
       data: {
         label: rid,

@@ -111,9 +111,9 @@ function RefRowsEditor({ rows, setRows, depth, defKeys, seqKeys }: RowEditorProp
       {rows.map((row, idx) => {
         const dropActive = dragOver === idx;
         const cardClass = [
-          "kea-validation-rule",
-          dropActive ? "kea-validation-rule--drop" : "",
-          dragFrom === idx ? "kea-validation-rule--dragging" : "",
+          "discovery-validation-rule",
+          dropActive ? "discovery-validation-rule--drop" : "",
+          dragFrom === idx ? "discovery-validation-rule--dragging" : "",
         ]
           .filter(Boolean)
           .join(" ");
@@ -124,21 +124,21 @@ function RefRowsEditor({ rows, setRows, depth, defKeys, seqKeys }: RowEditorProp
               key={`grp-${depth}-${idx}-${isPar ? "p" : "s"}`}
               className={cardClass}
               style={{
-                border: "1px solid var(--kea-border)",
-                borderRadius: "var(--kea-radius-sm)",
+                border: "1px solid var(--discovery-border)",
+                borderRadius: "var(--discovery-radius-sm)",
                 padding: "0.75rem",
                 marginBottom: "0.5rem",
                 marginLeft: depth > 0 ? "1rem" : undefined,
-                background: "var(--kea-surface-elevated, var(--kea-surface))",
+                background: "var(--discovery-surface-elevated, var(--discovery-surface))",
               }}
             >
-              <div className="kea-filter-row kea-filter-row--label-action" style={{ marginBottom: "0.5rem", alignItems: "center" }}>
+              <div className="discovery-filter-row discovery-filter-row--label-action" style={{ marginBottom: "0.5rem", alignItems: "center" }}>
                 <strong style={{ fontSize: "0.85rem" }}>
                   {isPar ? t("validationEditor.parallelGroup") : t("validationEditor.sequentialGroup")}
                 </strong>
                 <button
                   type="button"
-                  className="kea-btn kea-btn--ghost kea-btn--sm"
+                  className="discovery-btn discovery-btn--ghost discovery-btn--sm"
                   style={{ marginLeft: "auto" }}
                   onClick={() => setRows(rows.filter((_, i) => i !== idx))}
                 >
@@ -160,7 +160,7 @@ function RefRowsEditor({ rows, setRows, depth, defKeys, seqKeys }: RowEditorProp
               />
               <button
                 type="button"
-                className="kea-btn kea-btn--sm"
+                className="discovery-btn discovery-btn--sm"
                 style={{ marginTop: "0.35rem" }}
                 onClick={() => {
                   const next = [...rows];
@@ -182,14 +182,14 @@ function RefRowsEditor({ rows, setRows, depth, defKeys, seqKeys }: RowEditorProp
           <div
             key={`row-${depth}-${idx}`}
             className={cardClass}
-            data-kea-match-ref-rule={row.kind === "rule" && row.ruleId.trim() ? row.ruleId : undefined}
+            data-discovery-match-ref-rule={row.kind === "rule" && row.ruleId.trim() ? row.ruleId : undefined}
             style={{
-              border: "1px solid var(--kea-border)",
-              borderRadius: "var(--kea-radius-sm)",
+              border: "1px solid var(--discovery-border)",
+              borderRadius: "var(--discovery-radius-sm)",
               padding: "0.75rem",
               marginBottom: "0.5rem",
               marginLeft: depth > 0 ? "1rem" : undefined,
-              background: "var(--kea-surface)",
+              background: "var(--discovery-surface)",
             }}
             onDragOver={(e: DragEvent<HTMLDivElement>) => {
               e.preventDefault();
@@ -215,9 +215,9 @@ function RefRowsEditor({ rows, setRows, depth, defKeys, seqKeys }: RowEditorProp
               setDragOver(null);
             }}
           >
-            <div className="kea-filter-row kea-filter-row--match-ref-step">
+            <div className="discovery-filter-row discovery-filter-row--match-ref-step">
               <span
-                className="kea-drag-handle"
+                className="discovery-drag-handle"
                 draggable
                 onDragStart={(e: DragEvent<HTMLSpanElement>) => {
                   e.dataTransfer.setData("text/plain", String(idx));
@@ -231,14 +231,14 @@ function RefRowsEditor({ rows, setRows, depth, defKeys, seqKeys }: RowEditorProp
                 aria-label={t("rulesEntity.dragHandle")}
                 title={t("rulesEntity.dragHandle")}
               >
-                <span className="kea-drag-handle__grip" aria-hidden>
+                <span className="discovery-drag-handle__grip" aria-hidden>
                   ⋮⋮
                 </span>
               </span>
-              <label className="kea-label">
+              <label className="discovery-label">
                 {t("validationEditor.matchStepKind")}
                 <select
-                  className="kea-input"
+                  className="discovery-input"
                   value={row.kind}
                   onChange={(e) => {
                     const k = e.target.value as "rule" | "sequence" | "parallel" | "sequential";
@@ -263,10 +263,10 @@ function RefRowsEditor({ rows, setRows, depth, defKeys, seqKeys }: RowEditorProp
                 </select>
               </label>
               {row.kind === "rule" ? (
-                <label className="kea-label">
+                <label className="discovery-label">
                   {t("validationEditor.matchStepRuleId")}
                   <select
-                    className="kea-input"
+                    className="discovery-input"
                     value={row.ruleId}
                     onChange={(e) => {
                       const next = [...rows];
@@ -283,10 +283,10 @@ function RefRowsEditor({ rows, setRows, depth, defKeys, seqKeys }: RowEditorProp
                   </select>
                 </label>
               ) : (
-                <label className="kea-label">
+                <label className="discovery-label">
                   {t("validationEditor.matchStepSequenceId")}
                   <select
-                    className="kea-input"
+                    className="discovery-input"
                     value={row.sequenceId}
                     onChange={(e) => {
                       const next = [...rows];
@@ -305,7 +305,7 @@ function RefRowsEditor({ rows, setRows, depth, defKeys, seqKeys }: RowEditorProp
               )}
               <button
                 type="button"
-                className="kea-btn kea-btn--ghost kea-btn--sm"
+                className="discovery-btn discovery-btn--ghost discovery-btn--sm"
                 onClick={() => setRows(rows.filter((_, i) => i !== idx))}
               >
                 {t("validationEditor.rule.remove")}
@@ -334,24 +334,24 @@ export function MatchValidationRefsEditor({ value, onChange, scopeDocument }: Pr
   );
 
   return (
-    <div className="kea-match-validation-refs">
-      <p className="kea-hint" style={{ marginTop: "0" }}>
+    <div className="discovery-match-validation-refs">
+      <p className="discovery-hint" style={{ marginTop: "0" }}>
         {t("validationEditor.validationRulesHierarchyHint")}
       </p>
 
-      <h4 className="kea-section-title" style={{ fontSize: "0.95rem", marginTop: "1rem" }}>
+      <h4 className="discovery-section-title" style={{ fontSize: "0.95rem", marginTop: "1rem" }}>
         {t("validationEditor.validationRulesSteps")}
       </h4>
-      <div className="kea-editor-hint-stack">
-        <p className="kea-hint">{t("validationEditor.validationRulesStepsHint")}</p>
-        <p className="kea-hint">{t("rulesEntity.dragReorderRules")}</p>
+      <div className="discovery-editor-hint-stack">
+        <p className="discovery-hint">{t("validationEditor.validationRulesStepsHint")}</p>
+        <p className="discovery-hint">{t("rulesEntity.dragReorderRules")}</p>
       </div>
 
       <RefRowsEditor rows={rows} setRows={setRows} depth={0} defKeys={defKeys} seqKeys={seqKeys} />
 
       <button
         type="button"
-        className="kea-btn kea-btn--sm"
+        className="discovery-btn discovery-btn--sm"
         style={{ marginTop: "0.25rem" }}
         onClick={() => {
           setRows([...rows, defaultLeafRow(defKeys, seqKeys)]);

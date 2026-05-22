@@ -86,7 +86,10 @@ type ViewMode = "overview" | "pipeline" | "persistence" | "merged";
 
 type Props = {
   refreshKey: number;
+  /** Configure sidebar target (workflow_local | workflow_template | workflow_trigger:…). */
   runScopeKey: string;
+  /** After a local run, prefer this scope so results stay visible if the sidebar target changes. */
+  preferredRunScopeKey?: string;
 };
 
 function formatRunStem(stem: string): string {
@@ -95,8 +98,21 @@ function formatRunStem(stem: string): string {
   return `${m[1]}-${m[2]}-${m[3]} ${m[4]}:${m[5]}:${m[6]}`;
 }
 
+/** Prefer filesystem mtime (when the file was written) over the timestamp embedded in the filename. */
+function formatRunListLabel(r: DiscoveryRunResult): string {
+  if (r.mtime_ms != null && r.mtime_ms > 0) {
+    const written = new Date(r.mtime_ms).toLocaleString();
+    const fromName = formatRunStem(r.stem);
+    if (fromName !== r.stem && !written.startsWith(fromName.slice(0, 10))) {
+      return `${written} (file ${fromName})`;
+    }
+    return written;
+  }
+  return formatRunStem(r.stem);
+}
+
 function subtabClass(active: boolean): string {
-  return `kea-tab${active ? " kea-tab--active" : ""}`;
+  return `discovery-tab${active ? " discovery-tab--active" : ""}`;
 }
 
 function taskOutputSummary(output: Record<string, unknown> | null | undefined): string {
@@ -146,7 +162,7 @@ async function openModuleFile(rel: string, onError: (msg: string) => void): Prom
   }
 }
 
-export function RunResultsPanel({ refreshKey, runScopeKey }: Props) {
+export function RunResultsPanel({ refreshKey, runScopeKey, preferredRunScopeKey }: Props) {
   const { t } = useAppSettings();
   const [showAllScopes, setShowAllScopes] = useState(false);
   const [discoveryRuns, setDiscoveryRuns] = useState<DiscoveryRunResult[]>([]);
@@ -168,8 +184,12 @@ export function RunResultsPanel({ refreshKey, runScopeKey }: Props) {
   const [loadingMerged, setLoadingMerged] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState("");
+  const [totalRunsAllScopes, setTotalRunsAllScopes] = useState<number | null>(null);
+  const [activeScopeFilter, setActiveScopeFilter] = useState("");
 
-  const effectiveScopeKey = showAllScopes ? "" : runScopeKey.trim();
+  const effectiveScopeKey = showAllScopes
+    ? ""
+    : (preferredRunScopeKey ?? runScopeKey).trim();
 
   const selectedDiscoveryRun = useMemo(
     () => discoveryRuns.find((r) => r.stem === selectedDiscoveryStem) ?? null,
@@ -187,9 +207,17 @@ export function RunResultsPanel({ refreshKey, runScopeKey }: Props) {
         : "/api/run-results/discovery";
       const r = await fetch(url);
       if (!r.ok) throw new Error(await r.text());
-      const data = (await r.json()) as { runs: DiscoveryRunResult[] };
+      const data = (await r.json()) as {
+        runs: DiscoveryRunResult[];
+        total_all_scopes?: number;
+        scope_filter?: string;
+      };
       const list = data.runs ?? [];
       setDiscoveryRuns(list);
+      setTotalRunsAllScopes(
+        typeof data.total_all_scopes === "number" ? data.total_all_scopes : list.length,
+      );
+      setActiveScopeFilter(String(data.scope_filter ?? effectiveScopeKey));
       setSelectedDiscoveryStem((prev) => {
         if (prev && list.some((x) => x.stem === prev)) return prev;
         return list[0]?.stem ?? "";
@@ -398,9 +426,9 @@ export function RunResultsPanel({ refreshKey, runScopeKey }: Props) {
   const selectedNodeSummary = persistenceNodes.find((n) => n.task_id === selectedPersistenceTaskId);
 
   return (
-    <section className="kea-panel">
-      <h2 className="kea-section-title">{t("runResults.title")}</h2>
-      <p className="kea-hint" style={{ marginBottom: "0.75rem", maxWidth: "72ch" }}>
+    <section className="discovery-panel">
+      <h2 className="discovery-section-title">{t("runResults.title")}</h2>
+      <p className="discovery-hint" style={{ marginBottom: "0.75rem", maxWidth: "72ch" }}>
         {t("runResults.hint")}
       </p>
       <div
@@ -408,13 +436,13 @@ export function RunResultsPanel({ refreshKey, runScopeKey }: Props) {
       >
         <button
           type="button"
-          className="kea-btn kea-btn--sm"
+          className="discovery-btn discovery-btn--sm"
           onClick={() => void loadDiscoveryRuns()}
           disabled={loadingDiscoveryList}
         >
           {t("runResults.refresh")}
         </button>
-        <label className="kea-toolbar-check">
+        <label className="discovery-toolbar-check">
           <input
             type="checkbox"
             checked={showAllScopes}
@@ -424,16 +452,16 @@ export function RunResultsPanel({ refreshKey, runScopeKey }: Props) {
         </label>
         {discoveryRuns.length > 0 && (
           <>
-            <label className="kea-hint" htmlFor="kea-run-results-discovery-select">
+            <label className="discovery-hint" htmlFor="discovery-run-results-discovery-select">
               {t("runResults.runLabel")}
             </label>
             <select
-              id="kea-run-results-discovery-select"
+              id="discovery-run-results-discovery-select"
               value={selectedDiscoveryStem}
               onChange={(e) => setSelectedDiscoveryStem(e.target.value)}
             >
               {discoveryRuns.map((r) => {
-                const label = formatRunStem(r.stem);
+                const label = formatRunListLabel(r);
                 const status = r.status ? ` · ${r.status}` : "";
                 const tasks =
                   r.task_count != null ? ` · ${r.task_count} ${t("runResults.summaryTaskCountShort")}` : "";
@@ -453,7 +481,7 @@ export function RunResultsPanel({ refreshKey, runScopeKey }: Props) {
             </select>
             <button
               type="button"
-              className="kea-btn kea-btn--ghost kea-btn--sm"
+              className="discovery-btn discovery-btn--ghost discovery-btn--sm"
               disabled={!runRel}
               onClick={() => void openModuleFile(runRel, setError)}
             >
@@ -463,17 +491,26 @@ export function RunResultsPanel({ refreshKey, runScopeKey }: Props) {
         )}
       </div>
       {error && (
-        <p className="kea-hint kea-hint--warn" role="alert">
+        <p className="discovery-hint discovery-hint--warn" role="alert">
           {t("runResults.error")} {error}
         </p>
       )}
       {!loadingDiscoveryList && discoveryRuns.length === 0 && (
-        <p className="kea-hint">{t("runResults.emptyDiscovery")}</p>
+        <p className="discovery-hint">
+          {activeScopeFilter &&
+          totalRunsAllScopes != null &&
+          totalRunsAllScopes > 0
+            ? t("runResults.emptyDiscoveryScopeFiltered", {
+                scope: activeScopeFilter,
+                total: String(totalRunsAllScopes),
+              })
+            : t("runResults.emptyDiscovery")}
+        </p>
       )}
       {selectedDiscoveryRun && (
         <>
           <nav
-            className="kea-tabs kea-tabs--sub"
+            className="discovery-tabs discovery-tabs--sub"
             aria-label={t("runResults.viewNav")}
             style={{ marginBottom: 12 }}
           >
@@ -507,7 +544,7 @@ export function RunResultsPanel({ refreshKey, runScopeKey }: Props) {
             </button>
           </nav>
           {runLabel && (
-            <p className="kea-hint" style={{ marginBottom: 8 }}>
+            <p className="discovery-hint" style={{ marginBottom: 8 }}>
               <strong>{runLabel}</strong>
             </p>
           )}
@@ -515,9 +552,9 @@ export function RunResultsPanel({ refreshKey, runScopeKey }: Props) {
       )}
       {viewMode === "overview" && selectedDiscoveryRun && (
         <>
-          {loadingDetail && !summary && <p className="kea-hint">{t("status.loading")}</p>}
+          {loadingDetail && !summary && <p className="discovery-hint">{t("status.loading")}</p>}
           {summary && (
-            <ul className="kea-hint" style={{ marginBottom: 12, maxWidth: "72ch", listStyle: "none", padding: 0 }}>
+            <ul className="discovery-hint" style={{ marginBottom: 12, maxWidth: "72ch", listStyle: "none", padding: 0 }}>
               {summary.status != null && (
                 <li>
                   <strong>{t("runResults.summaryStatus")}:</strong> {String(summary.status)}
@@ -552,30 +589,30 @@ export function RunResultsPanel({ refreshKey, runScopeKey }: Props) {
               )}
             </ul>
           )}
-          <p className="kea-hint" style={{ maxWidth: "72ch" }}>
+          <p className="discovery-hint" style={{ maxWidth: "72ch" }}>
             {t("runResults.overviewHint")}
           </p>
         </>
       )}
       {viewMode === "persistence" && selectedDiscoveryRun && (
         <>
-          <p className="kea-hint" style={{ maxWidth: "72ch", marginBottom: 8 }}>
+          <p className="discovery-hint" style={{ maxWidth: "72ch", marginBottom: 8 }}>
             {t("runResults.persistenceHint")}
           </p>
           {loadingPersistence && persistenceNodes.length === 0 && (
-            <p className="kea-hint">{t("status.loading")}</p>
+            <p className="discovery-hint">{t("status.loading")}</p>
           )}
           {!loadingPersistence && persistenceNodes.length === 0 && (
-            <p className="kea-hint">{t("runResults.noPersistence")}</p>
+            <p className="discovery-hint">{t("runResults.noPersistence")}</p>
           )}
           {persistenceNodes.length > 0 && (
             <div style={{ display: "flex", flexWrap: "wrap", gap: "0.75rem", alignItems: "flex-start" }}>
               <div style={{ minWidth: 220 }}>
-                <label className="kea-hint" htmlFor="kea-persistence-node-select">
+                <label className="discovery-hint" htmlFor="discovery-persistence-node-select">
                   {t("runResults.persistenceSelect")}
                 </label>
                 <select
-                  id="kea-persistence-node-select"
+                  id="discovery-persistence-node-select"
                   value={selectedPersistenceTaskId}
                   onChange={(e) => setSelectedPersistenceTaskId(e.target.value)}
                   style={{ display: "block", width: "100%", marginTop: 4 }}
@@ -587,12 +624,12 @@ export function RunResultsPanel({ refreshKey, runScopeKey }: Props) {
                     </option>
                   ))}
                 </select>
-                <ul className="kea-hint" style={{ marginTop: 8, paddingLeft: 0, listStyle: "none" }}>
+                <ul className="discovery-hint" style={{ marginTop: 8, paddingLeft: 0, listStyle: "none" }}>
                   {persistenceNodes.map((n) => (
                     <li key={n.task_id}>
                       <button
                         type="button"
-                        className={`kea-btn kea-btn--ghost kea-btn--sm${n.task_id === selectedPersistenceTaskId ? " kea-btn--active" : ""}`}
+                        className={`discovery-btn discovery-btn--ghost discovery-btn--sm${n.task_id === selectedPersistenceTaskId ? " discovery-btn--active" : ""}`}
                         onClick={() => setSelectedPersistenceTaskId(n.task_id)}
                       >
                         {persistenceKindLabel(n.kind, t)}
@@ -609,7 +646,7 @@ export function RunResultsPanel({ refreshKey, runScopeKey }: Props) {
               </div>
               <div style={{ flex: 1, minWidth: 280 }}>
                 {selectedNodeSummary && (
-                  <p className="kea-hint" style={{ marginBottom: 8 }}>
+                  <p className="discovery-hint" style={{ marginBottom: 8 }}>
                     <strong>{selectedNodeSummary.label || selectedNodeSummary.task_id}</strong>
                     {" · "}
                     {selectedNodeSummary.function_external_id}
@@ -623,7 +660,7 @@ export function RunResultsPanel({ refreshKey, runScopeKey }: Props) {
                       Object.keys(persistenceDetail.handler_result).length > 0 && (
                         <details open style={{ marginBottom: 8 }}>
                           <summary>{t("runResults.persistenceHandlerResult")}</summary>
-                          <pre className="kea-code-block" style={{ maxHeight: 200, overflow: "auto" }}>
+                          <pre className="discovery-code-block" style={{ maxHeight: 200, overflow: "auto" }}>
                             {JSON.stringify(persistenceDetail.handler_result, null, 2)}
                           </pre>
                         </details>
@@ -634,13 +671,13 @@ export function RunResultsPanel({ refreshKey, runScopeKey }: Props) {
                         {persistenceDetail.input_cohort?.truncated &&
                           ` (${t("runResults.cohortTruncated")})`}
                       </summary>
-                      <pre className="kea-code-block" style={{ maxHeight: 240, overflow: "auto" }}>
+                      <pre className="discovery-code-block" style={{ maxHeight: 240, overflow: "auto" }}>
                         {JSON.stringify(persistenceDetail.input_cohort ?? {}, null, 2)}
                       </pre>
                     </details>
                     <details open>
                       <summary>{t("runResults.persistenceOutput")}</summary>
-                      <pre className="kea-code-block" style={{ maxHeight: 240, overflow: "auto" }}>
+                      <pre className="discovery-code-block" style={{ maxHeight: 240, overflow: "auto" }}>
                         {JSON.stringify(persistenceDetail.output ?? {}, null, 2)}
                       </pre>
                     </details>
@@ -653,7 +690,7 @@ export function RunResultsPanel({ refreshKey, runScopeKey }: Props) {
       )}
       {viewMode === "pipeline" && selectedDiscoveryRun && (
         <>
-          <p className="kea-hint" style={{ maxWidth: "72ch", marginBottom: 8 }}>
+          <p className="discovery-hint" style={{ maxWidth: "72ch", marginBottom: 8 }}>
             {t("runResults.pipelineHint")}
           </p>
           <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem", marginBottom: 8 }}>
@@ -673,18 +710,18 @@ export function RunResultsPanel({ refreshKey, runScopeKey }: Props) {
             </select>
             <input
               type="search"
-              className="kea-input"
+              className="discovery-input"
               placeholder={t("runResults.filterPlaceholder")}
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
             />
           </div>
           {pipelineItems.length === 0 && !loadingPipeline && (
-            <p className="kea-hint">{t("runResults.noPipeline")}</p>
+            <p className="discovery-hint">{t("runResults.noPipeline")}</p>
           )}
           {filteredPipelineItems.length > 0 && (
-            <div className="kea-table-wrap">
-              <table className="kea-table">
+            <div className="discovery-table-wrap">
+              <table className="discovery-table">
                 <thead>
                   <tr>
                     <th>{t("runResults.table.taskId")}</th>
@@ -705,7 +742,7 @@ export function RunResultsPanel({ refreshKey, runScopeKey }: Props) {
                       <td>
                         {row.duration_sec != null ? `${row.duration_sec.toFixed(3)}s` : "—"}
                       </td>
-                      <td className="kea-hint">{taskOutputSummary(row.output) || row.error || "—"}</td>
+                      <td className="discovery-hint">{taskOutputSummary(row.output) || row.error || "—"}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -713,7 +750,7 @@ export function RunResultsPanel({ refreshKey, runScopeKey }: Props) {
             </div>
           )}
           {pipelineTotal != null && pipelineTotal > 0 && (
-            <p className="kea-hint" style={{ marginTop: 8 }}>
+            <p className="discovery-hint" style={{ marginTop: 8 }}>
               {t("runResults.showing", {
                 from: 1,
                 to: Math.min(pipelineNextOffset, pipelineTotal),
@@ -724,7 +761,7 @@ export function RunResultsPanel({ refreshKey, runScopeKey }: Props) {
           {canLoadMorePipeline && (
             <button
               type="button"
-              className="kea-btn kea-btn--sm"
+              className="discovery-btn discovery-btn--sm"
               disabled={loadingPipeline}
               onClick={() => void fetchPipelinePage(pipelineNextOffset, true)}
             >
@@ -735,16 +772,16 @@ export function RunResultsPanel({ refreshKey, runScopeKey }: Props) {
       )}
       {viewMode === "merged" && selectedDiscoveryRun && (
         <>
-          <p className="kea-hint" style={{ maxWidth: "72ch", marginBottom: 8 }}>
+          <p className="discovery-hint" style={{ maxWidth: "72ch", marginBottom: 8 }}>
             {t("runResults.mergedHint")}
           </p>
-          {loadingMerged && <p className="kea-hint">{t("status.loading")}</p>}
+          {loadingMerged && <p className="discovery-hint">{t("status.loading")}</p>}
           {!loadingMerged && (!mergedData || !mergedData.instance_count) && (
-            <p className="kea-hint">{t("runResults.noMerged")}</p>
+            <p className="discovery-hint">{t("runResults.noMerged")}</p>
           )}
           {mergedData && (mergedData.instance_count ?? 0) > 0 && (
             <>
-              <ul className="kea-hint" style={{ listStyle: "none", padding: 0 }}>
+              <ul className="discovery-hint" style={{ listStyle: "none", padding: 0 }}>
                 <li>
                   <strong>{t("runResults.mergedInstanceCount")}:</strong> {mergedData.instance_count}
                 </li>
@@ -755,7 +792,7 @@ export function RunResultsPanel({ refreshKey, runScopeKey }: Props) {
                   </li>
                 )}
               </ul>
-              <pre className="kea-code-block" style={{ maxHeight: 400, overflow: "auto" }}>
+              <pre className="discovery-code-block" style={{ maxHeight: 400, overflow: "auto" }}>
                 {JSON.stringify(mergedData.instances ?? [], null, 2)}
               </pre>
             </>

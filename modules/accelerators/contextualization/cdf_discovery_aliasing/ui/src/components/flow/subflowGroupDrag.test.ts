@@ -6,7 +6,7 @@ describe("resolveSubflowParentsAfterGroupDrag", () => {
   it("returns null (subflow group drag removed)", () => {
     const sf: Node = {
       id: "sf1",
-      type: "keaSubgraph",
+      type: "discoverySubgraph",
       position: { x: 0, y: 0 },
       data: { label: "S" },
       style: { width: 500, height: 400 },
@@ -14,7 +14,7 @@ describe("resolveSubflowParentsAfterGroupDrag", () => {
     };
     const a: Node = {
       id: "a",
-      type: "keaTransform",
+      type: "discoveryTransform",
       position: { x: 150, y: 150 },
       data: { label: "A", handler_id: "h" },
       selected: true,

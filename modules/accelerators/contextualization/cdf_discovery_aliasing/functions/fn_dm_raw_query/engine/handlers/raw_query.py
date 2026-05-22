@@ -25,6 +25,12 @@ from cdf_fn_common.discovery_query_shared import (
     _flush_rows,
 )
 from cdf_fn_common.incremental_scope import iter_raw_table_rows_chunked
+from cdf_fn_common.query_enumeration import (
+    QueryEnumerationStats,
+    enumeration_summary,
+    mark_truncated,
+    resolve_read_limit,
+)
 from cdf_fn_common.raw_upload import RawRowsUploadQueue
 from cdf_fn_common.task_runtime import merge_compiled_task_into_data
 
@@ -62,12 +68,13 @@ class RawQueryHandler(AbstractDiscoveryQueryHandler):
         canvas_node_id = canvas_node_id_for_task(data, task_id)
         sink_db, sink_table = resolve_query_sink(data)
         wanted_run = cls.first_nonempty(cfg.get("source_run_id"))
-        read_limit = int(cfg.get("read_limit") or cfg.get("limit") or 0)
+        read_limit = resolve_read_limit(cfg)
 
         queue = RawRowsUploadQueue(client)
         pending: List[Dict[str, Any]] = []
         n_read = 0
         n_written = 0
+        enum_stats = QueryEnumerationStats()
 
         for row in iter_raw_table_rows_chunked(client, source_db, source_table):
             cols = dict(getattr(row, "columns", None) or {})
@@ -77,6 +84,13 @@ class RawQueryHandler(AbstractDiscoveryQueryHandler):
                 continue
             n_read += 1
             if read_limit > 0 and n_read > read_limit:
+                mark_truncated(enum_stats, reason="read_limit")
+                if log and hasattr(log, "warning"):
+                    log.warning(
+                        "%s RAW query truncated at read_limit=%s",
+                        fn_external_id,
+                        read_limit,
+                    )
                 break
 
             nid = cls.first_nonempty(cols.get(NODE_INSTANCE_ID_COLUMN), getattr(row, "key", None))
@@ -126,17 +140,23 @@ class RawQueryHandler(AbstractDiscoveryQueryHandler):
                 sink_table,
             )
 
-        summary = {
-            "function_external_id": fn_external_id,
-            "task_id": task_id,
-            "query_source": "raw",
-            "rows_read": n_read,
-            "instances_written": n_written,
-            "run_id": run_id,
-            "source_raw_db": source_db,
-            "source_raw_table": source_table,
-            "raw_db": sink_db,
-            "raw_table": sink_table,
-        }
+        enum_stats.rows_read = n_read
+        enum_stats.rows_written = n_written
+        enum_stats.list_complete = not enum_stats.rows_truncated
+        summary = enumeration_summary(
+            enum_stats,
+            extra={
+                "function_external_id": fn_external_id,
+                "task_id": task_id,
+                "query_source": "raw",
+                "instances_written": n_written,
+                "run_id": run_id,
+                "source_raw_db": source_db,
+                "source_raw_table": source_table,
+                "raw_db": sink_db,
+                "raw_table": sink_table,
+                "read_limit": read_limit,
+            },
+        )
         data["run_id"] = run_id
         return summary

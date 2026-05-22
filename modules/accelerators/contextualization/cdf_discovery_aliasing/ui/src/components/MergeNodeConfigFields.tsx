@@ -15,11 +15,11 @@ export function MergeNodeConfigFields({ t, value, onChange }: Props) {
   const policiesRaw = value.field_policies ?? value.save_field_policies;
 
   return (
-    <div className="kea-loc-fields">
-      <label className="kea-label kea-label--block">
+    <div className="discovery-loc-fields">
+      <label className="discovery-label discovery-label--block">
         {t("validations.description")}
         <input
-          className="kea-input"
+          className="discovery-input"
           style={{ marginTop: "0.35rem" }}
           value={String(value.description ?? "")}
           onChange={(e) => patch({ description: e.target.value })}

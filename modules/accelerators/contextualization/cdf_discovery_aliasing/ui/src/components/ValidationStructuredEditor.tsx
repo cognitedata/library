@@ -97,9 +97,9 @@ export function ValidationStructuredEditor({
 
     if (useScopeRefs) {
       requestAnimationFrame(() => {
-        const nodes = document.querySelectorAll("[data-kea-match-ref-rule]");
+        const nodes = document.querySelectorAll("[data-discovery-match-ref-rule]");
         for (const node of nodes) {
-          if (node instanceof HTMLElement && node.getAttribute("data-kea-match-ref-rule") === target) {
+          if (node instanceof HTMLElement && node.getAttribute("data-discovery-match-ref-rule") === target) {
             node.scrollIntoView({ block: "nearest", behavior: "smooth" });
             lastAppliedMatchFocusRef.current = target;
             break;
@@ -112,7 +112,7 @@ export function ValidationStructuredEditor({
     if (!ui.steps.some((r) => r.name === target)) return;
     lastAppliedMatchFocusRef.current = target;
     requestAnimationFrame(() => {
-      document.getElementById(focusTargetDomId("kea-val-match", target))?.scrollIntoView({
+      document.getElementById(focusTargetDomId("discovery-val-match", target))?.scrollIntoView({
         block: "nearest",
         behavior: "smooth",
       });
@@ -164,15 +164,15 @@ export function ValidationStructuredEditor({
   }, [value]);
 
   return (
-    <div className="kea-validation-editor">
-      <h4 className="kea-section-title" style={{ fontSize: "0.95rem" }}>
+    <div className="discovery-validation-editor">
+      <h4 className="discovery-section-title" style={{ fontSize: "0.95rem" }}>
         {t("validationEditor.section.thresholds")}
       </h4>
-      <div className="kea-filter-row kea-filter-row--thresholds">
-        <label className="kea-label">
+      <div className="discovery-filter-row discovery-filter-row--thresholds">
+        <label className="discovery-label">
           {t("validationEditor.minConfidence")}
           <input
-            className="kea-input"
+            className="discovery-input"
             type="number"
             step="any"
             value={ui.minConfidence}
@@ -180,10 +180,10 @@ export function ValidationStructuredEditor({
           />
         </label>
         {variant === "keyExtraction" && (
-          <label className="kea-label">
+          <label className="discovery-label">
             {t("validationEditor.maxKeysPerType")}
             <input
-              className="kea-input"
+              className="discovery-input"
               type="number"
               step={1}
               min={1}
@@ -195,10 +195,10 @@ export function ValidationStructuredEditor({
           </label>
         )}
         {variant === "aliasing" && (
-          <label className="kea-label">
+          <label className="discovery-label">
             {t("validationEditor.maxAliasesPerTag")}
             <input
-              className="kea-input"
+              className="discovery-input"
               type="number"
               step={1}
               min={1}
@@ -209,10 +209,10 @@ export function ValidationStructuredEditor({
             />
           </label>
         )}
-        <label className="kea-label">
+        <label className="discovery-label">
           {t("validationEditor.defaultExpressionMatch")}
           <select
-            className="kea-input"
+            className="discovery-input"
             value={ui.expressionMatch}
             onChange={(e) => {
               const v = e.target.value;
@@ -233,25 +233,25 @@ export function ValidationStructuredEditor({
       </div>
 
       {Object.keys(extras).length > 0 && (
-        <p className="kea-hint" style={{ marginTop: "0.75rem" }}>
+        <p className="discovery-hint" style={{ marginTop: "0.75rem" }}>
           {t("validationEditor.extraKeysPreserved", { keys: Object.keys(extras).join(", ") })}
         </p>
       )}
 
-      <h4 className="kea-section-title" style={{ fontSize: "0.95rem", marginTop: "1.25rem" }}>
+      <h4 className="discovery-section-title" style={{ fontSize: "0.95rem", marginTop: "1.25rem" }}>
         {t("validationEditor.section.rules")}
       </h4>
 
       {useScopeRefs && scopeDocument ? (
         <>
-          <p className="kea-hint">{t("validationEditor.scopeRefsModeHint")}</p>
+          <p className="discovery-hint">{t("validationEditor.scopeRefsModeHint")}</p>
           <MatchValidationRefsEditor value={value} onChange={commitValue} scopeDocument={scopeDocument} />
         </>
       ) : (
         <>
-          <div className="kea-editor-hint-stack">
-            <p className="kea-hint">{t("validationEditor.inlineRulesModeHint")}</p>
-            <p className="kea-hint">{t("validationEditor.rulesHint")}</p>
+          <div className="discovery-editor-hint-stack">
+            <p className="discovery-hint">{t("validationEditor.inlineRulesModeHint")}</p>
+            <p className="discovery-hint">{t("validationEditor.rulesHint")}</p>
           </div>
 
           <PipelineExecutionFields
@@ -264,11 +264,11 @@ export function ValidationStructuredEditor({
             t={t}
             steps={ui.steps}
             onChange={(steps) => commitValidationPipeline({ steps })}
-            focusIdPrefix="kea-val-match"
+            focusIdPrefix="discovery-val-match"
           />
           <button
             type="button"
-            className="kea-btn kea-btn--sm"
+            className="discovery-btn discovery-btn--sm"
             style={{ marginTop: "0.25rem" }}
             onClick={() => {
               const nr = defaultValidationStep(ui.steps);

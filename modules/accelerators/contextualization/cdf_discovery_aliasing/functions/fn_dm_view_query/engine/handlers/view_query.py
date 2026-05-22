@@ -2,18 +2,17 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
 from typing import Any, Dict, List, Mapping, MutableMapping, Optional
 
 from cognite.client import data_modeling as dm
 from cognite.client.data_classes.data_modeling.ids import ViewId
 
-from cdf_fn_common.cohort_storage import canvas_node_id_for_task, require_run_id
+from cdf_fn_common.cohort_storage import (
+    canvas_node_id_for_task,
+    require_run_id,
+    resolve_incremental_state_sink,
+)
 from cdf_fn_common.discovery_query_shared import (
-    RECORD_KIND_COLUMN,
-    RUN_ID_COLUMN,
-    SCOPE_KEY_COLUMN,
-    WORKFLOW_STATUS_UPDATED_AT_COLUMN,
     build_entity_cohort_row,
     resolve_query_sink,
     resolve_task_config,
@@ -26,15 +25,25 @@ from cdf_fn_common.incremental_listing import (
     read_listing_watermark_ms,
     try_resolve_key_discovery_backend,
     write_listing_watermark_ms,
+    write_listing_watermark_raw,
 )
 from cdf_fn_common.incremental_scope import (
-    HIGH_WATERMARK_MS_COLUMN,
-    RECORD_KIND_WATERMARK,
+    ListInstancesStats,
     list_all_instances,
     node_instance_id_str,
     node_last_updated_time_ms,
     scope_key_from_view_dict,
-    scope_watermark_row_key,
+    upsert_incremental_entity_hashes_raw,
+    view_query_list_sort,
+)
+from cdf_fn_common.incremental_workflow_scope import (
+    resolve_source_view_fingerprint,
+    resolve_workflow_scope,
+)
+from cdf_fn_common.query_enumeration import (
+    QueryEnumerationStats,
+    enumeration_summary,
+    resolve_page_size,
 )
 from cdf_fn_common.raw_upload import RawRowsUploadQueue
 from cdf_fn_common.source_view_filter_build import build_source_view_query_filter
@@ -43,18 +52,21 @@ from cdf_fn_common.task_runtime import merge_compiled_task_into_data
 from .base import AbstractDiscoveryQueryHandler
 
 
-def _incremental_enabled(data: Mapping[str, Any]) -> bool:
-    if bool(data.get("run_all")):
-        return False
+def _incremental_change_processing_enabled(data: Mapping[str, Any]) -> bool:
+    """True when incremental state (watermark/hash) should be read or written (ignores ``run_all``)."""
     configuration = dict(data.get("configuration") or {}) if isinstance(data.get("configuration"), dict) else {}
     ke_params = dict(
         dict(dict(configuration.get("key_extraction") or {}).get("config") or {}).get("parameters") or {}
     )
     if bool(ke_params.get("incremental_change_processing")):
         return True
-    # Canvas / IR task config (no root key_extraction on scope document).
     cfg = resolve_task_config(data)
     return bool(cfg.get("incremental_change_processing"))
+
+
+def _incremental_listing_narrowed(data: Mapping[str, Any]) -> bool:
+    """True when listing uses watermark filter and may skip unchanged inputs."""
+    return _incremental_change_processing_enabled(data) and not bool(data.get("run_all"))
 
 
 def _key_extraction_parameters(configuration: Mapping[str, Any]) -> Dict[str, Any]:
@@ -97,8 +109,8 @@ def _incremental_skip_unchanged_source_inputs(
     *,
     incremental: bool,
 ) -> bool:
-    """Match workflow semantics: default True when incremental and not run_all."""
-    if not incremental or bool(data.get("run_all")):
+    """Match workflow semantics: default True when listing is narrowed (not ``run_all``)."""
+    if not incremental:
         return False
     if "incremental_skip_unchanged_source_inputs" in cfg:
         return bool(cfg.get("incremental_skip_unchanged_source_inputs"))
@@ -130,28 +142,6 @@ def _combine_filters(base: Any, extra: Any) -> Any:
     if extra is None:
         return base
     return dm.filters.And(base, extra)
-
-
-def _write_watermark(
-    client: Any,
-    *,
-    raw_db: str,
-    raw_table: str,
-    scope_key: str,
-    high_ms: int,
-    run_id: str,
-) -> None:
-    wm_key = scope_watermark_row_key(scope_key)
-    cols = {
-        RECORD_KIND_COLUMN: RECORD_KIND_WATERMARK,
-        SCOPE_KEY_COLUMN: scope_key,
-        HIGH_WATERMARK_MS_COLUMN: int(high_ms),
-        RUN_ID_COLUMN: run_id,
-        WORKFLOW_STATUS_UPDATED_AT_COLUMN: datetime.now(timezone.utc).isoformat(
-            timespec="milliseconds"
-        ),
-    }
-    client.raw.rows.insert(db_name=raw_db, table_name=raw_table, row={wm_key: cols})
 
 
 class ViewQueryHandler(AbstractDiscoveryQueryHandler):
@@ -186,10 +176,12 @@ class ViewQueryHandler(AbstractDiscoveryQueryHandler):
     @staticmethod
     def _inject_instance_space_on_properties(props: Dict[str, Any], inst: Any) -> Dict[str, Any]:
         """Always set ``instance_space`` from the DM node (not from ``include_properties``)."""
+        from cdf_fn_common.incremental_scope import dm_node_instance_space
+
         out = dict(props)
-        space = getattr(inst, "space", None)
-        if space is not None and str(space).strip():
-            out["instance_space"] = str(space).strip()
+        space = dm_node_instance_space(inst)
+        if space:
+            out["instance_space"] = space
         return out
 
     @classmethod
@@ -212,8 +204,7 @@ class ViewQueryHandler(AbstractDiscoveryQueryHandler):
         include_properties = cfg.get("include_properties") or []
         if not isinstance(include_properties, list):
             include_properties = []
-        batch_size = int(cfg.get("batch_size") or cfg.get("limit") or 1000)
-        limit_per_page = min(1000, batch_size) if batch_size > 0 else 1000
+        limit_per_page = resolve_page_size(cfg)
 
         view_id = ViewId(space=view_space, external_id=view_external_id, version=view_version)
         scope_view = {
@@ -230,30 +221,47 @@ class ViewQueryHandler(AbstractDiscoveryQueryHandler):
         task_id = cls.first_nonempty(data.get("task_id"), fn_external_id)
         canvas_node_id = canvas_node_id_for_task(data, task_id)
         raw_db, raw_table = resolve_query_sink(data)
+        inc_raw_db, inc_raw_table = resolve_incremental_state_sink(data)
         configuration = (
             dict(data.get("configuration") or {}) if isinstance(data.get("configuration"), dict) else {}
         )
         ke_params = _key_extraction_parameters(configuration)
+        ins_for_kd = cls.first_nonempty(
+            ke_params.get("key_discovery_instance_space"),
+            data.get("instance_space"),
+        )
+        if ins_for_kd and not ke_params.get("key_discovery_instance_space"):
+            ke_params = {**ke_params, "key_discovery_instance_space": ins_for_kd}
 
         base_filter = build_source_view_query_filter(view_id, scope_view.get("filters") or [])
-        incremental = _incremental_enabled(data)
+        run_all = bool(data.get("run_all"))
+        persist_state = _incremental_change_processing_enabled(data)
+        listing_narrowed = _incremental_listing_narrowed(data)
+        workflow_scope = resolve_workflow_scope(configuration, ke_params) if persist_state else ""
+        source_view_fp = resolve_source_view_fingerprint(ke_params, scope_key=scope_key)
+        if persist_state and source_view_fp and not str(
+            ke_params.get("source_view_fingerprint") or ""
+        ).strip():
+            ke_params = {**ke_params, "source_view_fingerprint": source_view_fp}
         hash_skip = _incremental_skip_unchanged_source_inputs(
-            data, configuration, cfg, incremental=incremental
+            data, configuration, cfg, incremental=listing_narrowed
         )
         kd_backend = (
             try_resolve_key_discovery_backend(client, ke_params, log=log)
-            if incremental and client is not None
+            if persist_state and client is not None
             else None
         )
         wm_before: Optional[int] = None
-        if incremental:
+        if listing_narrowed:
             try:
                 wm_before = read_listing_watermark_ms(
                     client,
                     backend=kd_backend,
-                    raw_db=raw_db,
-                    raw_table=raw_table,
+                    raw_db=inc_raw_db,
+                    raw_table=inc_raw_table,
                     scope_key=scope_key,
+                    workflow_scope=workflow_scope,
+                    source_view_fingerprint=source_view_fp,
                 )
             except Exception:
                 wm_before = None
@@ -266,9 +274,10 @@ class ViewQueryHandler(AbstractDiscoveryQueryHandler):
                 latest_by_node = load_hash_by_node_for_scope(
                     client,
                     backend=kd_backend,
-                    raw_db=raw_db,
-                    raw_table=raw_table,
+                    raw_db=inc_raw_db,
+                    raw_table=inc_raw_table,
                     scope_key=scope_key,
+                    workflow_scope=workflow_scope,
                     hash_index_cache=data.get("discovery_raw_hash_index_cache"),
                 )
             except Exception:
@@ -280,22 +289,33 @@ class ViewQueryHandler(AbstractDiscoveryQueryHandler):
             view_external_id=view_external_id,
             view_version=view_version,
         )
-        workflow_scope_opt = str(ke_params.get("workflow_scope") or "").strip() or None
-        source_view_fp_opt = str(ke_params.get("source_view_fingerprint") or "").strip() or None
+        workflow_scope_opt = workflow_scope or None
+        source_view_fp_opt = source_view_fp or None
         scope_view_for_hash = {**scope_view, "include_properties": include_properties}
+
+        if kd_backend is not None:
+            state_backend = "key_discovery_fdm"
+        elif persist_state:
+            state_backend = "raw_incremental"
+        else:
+            state_backend = "raw"
 
         if log and hasattr(log, "info"):
             log.info(
-                "%s listing view=%s/%s/%s space=%s incremental=%s hash_skip=%s "
-                "state_backend=%s prior_hash_nodes=%s watermark_before=%s",
+                "%s listing view=%s/%s/%s space=%s persist_state=%s run_all=%s "
+                "listing_narrowed=%s hash_skip=%s state_backend=%s workflow_scope=%s "
+                "prior_hash_nodes=%s watermark_before=%s",
                 fn_external_id,
                 view_space,
                 view_external_id,
                 view_version,
                 instance_space or "(any)",
-                incremental,
+                persist_state,
+                run_all,
+                listing_narrowed,
                 hash_skip,
-                "key_discovery_fdm" if kd_backend is not None else "raw",
+                state_backend,
+                workflow_scope or "(none)",
                 len(latest_by_node),
                 wm_before,
             )
@@ -311,12 +331,15 @@ class ViewQueryHandler(AbstractDiscoveryQueryHandler):
 
         queue = RawRowsUploadQueue(client)
         pending: List[Dict[str, Any]] = []
+        incremental_hash_pending: List[Dict[str, Any]] = []
         kd_processing_pending: List[Dict[str, Any]] = []
         n_written = 0
         n_listed = 0
         n_skipped_hash = 0
-        max_last_updated: Optional[int] = wm_before
+        max_last_updated: Optional[int] = wm_before if listing_narrowed else None
         raw_write_error: Optional[str] = None
+        list_stats = ListInstancesStats()
+        list_sort = view_query_list_sort(incremental=persist_state)
 
         try:
             for inst in list_all_instances(
@@ -326,8 +349,10 @@ class ViewQueryHandler(AbstractDiscoveryQueryHandler):
                 sources=[view_id],
                 filter=base_filter,
                 limit_per_page=limit_per_page,
+                sort=list_sort,
                 logger=log,
                 progress_context=f"task={task_id}",
+                stats_out=list_stats,
             ):
                 ext_id = cls.first_nonempty(getattr(inst, "external_id", None))
                 if not ext_id:
@@ -345,7 +370,7 @@ class ViewQueryHandler(AbstractDiscoveryQueryHandler):
                     max_last_updated = lu if max_last_updated is None else max(max_last_updated, lu)
 
                 inputs_hash: Optional[str] = None
-                if hash_skip:
+                if persist_state:
                     try:
                         entity_metadata = {
                             "view_space": view_space,
@@ -371,8 +396,17 @@ class ViewQueryHandler(AbstractDiscoveryQueryHandler):
                             )
                         inputs_hash = None
 
-                    if inputs_hash and latest_by_node.get(nid) == inputs_hash:
+                    if hash_skip and inputs_hash and latest_by_node.get(nid) == inputs_hash:
                         n_skipped_hash += 1
+                        if kd_backend is None and workflow_scope and inputs_hash:
+                            incremental_hash_pending.append(
+                                {
+                                    "node_instance_id": nid,
+                                    "external_id": ext_id,
+                                    "extraction_inputs_hash": inputs_hash,
+                                    "last_updated_ms": lu,
+                                }
+                            )
                         continue
 
                 pending.append(
@@ -392,27 +426,32 @@ class ViewQueryHandler(AbstractDiscoveryQueryHandler):
                         extraction_inputs_hash=(
                             None
                             if kd_backend is not None
-                            else (inputs_hash if hash_skip and inputs_hash else None)
+                            else (inputs_hash if persist_state and inputs_hash else None)
                         ),
                     )
                 )
                 n_written += 1
-                if (
-                    kd_backend is not None
-                    and hash_skip
-                    and inputs_hash
-                    and workflow_scope_opt
-                ):
-                    kd_processing_pending.append(
-                        {
-                            "workflow_scope": workflow_scope_opt,
-                            "source_view_fingerprint": source_view_fp_opt or "",
-                            "record_instance_key": nid,
-                            "record_external_id": ext_id,
-                            "last_seen_hash": inputs_hash,
-                            "last_watermark_value_ms": lu,
-                        }
-                    )
+                if persist_state and inputs_hash and workflow_scope_opt:
+                    if kd_backend is not None:
+                        kd_processing_pending.append(
+                            {
+                                "workflow_scope": workflow_scope_opt,
+                                "source_view_fingerprint": source_view_fp_opt or "",
+                                "record_instance_key": nid,
+                                "record_external_id": ext_id,
+                                "last_seen_hash": inputs_hash,
+                                "last_watermark_value_ms": lu,
+                            }
+                        )
+                    elif workflow_scope:
+                        incremental_hash_pending.append(
+                            {
+                                "node_instance_id": nid,
+                                "external_id": ext_id,
+                                "extraction_inputs_hash": inputs_hash,
+                                "last_updated_ms": lu,
+                            }
+                        )
                 if len(pending) >= 500:
                     _flush_rows(queue, raw_db, raw_table, pending, client=client)
                 if len(kd_processing_pending) >= 500:
@@ -420,13 +459,36 @@ class ViewQueryHandler(AbstractDiscoveryQueryHandler):
                         client, kd_backend, kd_processing_pending, log=log
                     )
                     kd_processing_pending.clear()
+                if len(incremental_hash_pending) >= 500:
+                    upsert_incremental_entity_hashes_raw(
+                        client,
+                        raw_db=inc_raw_db,
+                        raw_table=inc_raw_table,
+                        workflow_scope=workflow_scope,
+                        scope_key=scope_key,
+                        run_id=run_id,
+                        source_view_fingerprint=source_view_fp,
+                        items=incremental_hash_pending,
+                    )
+                    incremental_hash_pending.clear()
 
             _flush_rows(queue, raw_db, raw_table, pending, client=client)
             flush_key_discovery_processing_states(
                 client, kd_backend, kd_processing_pending, log=log
             )
+            if incremental_hash_pending and kd_backend is None and workflow_scope:
+                upsert_incremental_entity_hashes_raw(
+                    client,
+                    raw_db=inc_raw_db,
+                    raw_table=inc_raw_table,
+                    workflow_scope=workflow_scope,
+                    scope_key=scope_key,
+                    run_id=run_id,
+                    source_view_fingerprint=source_view_fp,
+                    items=incremental_hash_pending,
+                )
 
-            if incremental and max_last_updated is not None and (
+            if persist_state and max_last_updated is not None and (
                 wm_before is None or max_last_updated > wm_before
             ):
                 if kd_backend is not None:
@@ -436,12 +498,13 @@ class ViewQueryHandler(AbstractDiscoveryQueryHandler):
                         high_ms=max_last_updated,
                         log=log,
                     )
-                else:
-                    _write_watermark(
+                elif workflow_scope:
+                    write_listing_watermark_raw(
                         client,
-                        raw_db=raw_db,
-                        raw_table=raw_table,
+                        raw_db=inc_raw_db,
+                        raw_table=inc_raw_table,
                         scope_key=scope_key,
+                        workflow_scope=workflow_scope,
                         high_ms=max_last_updated,
                         run_id=run_id,
                     )
@@ -455,23 +518,43 @@ class ViewQueryHandler(AbstractDiscoveryQueryHandler):
                     raw_write_error,
                 )
 
-        summary = {
-            "function_external_id": fn_external_id,
-            "task_id": task_id,
-            "query_source": "view",
-            "instances_written": n_written,
-            "instances_listed": n_listed,
-            "instances_skipped_unchanged_hash": n_skipped_hash,
-            "incremental_skip_unchanged_source_inputs": hash_skip,
-            "run_id": run_id,
-            "scope_key": scope_key,
-            "raw_db": raw_db,
-            "raw_table": raw_table,
-            "view": f"{view_space}/{view_external_id}/{view_version}",
-            "incremental": incremental,
-            "watermark_before_ms": wm_before,
-            "watermark_after_ms": max_last_updated if incremental else None,
-        }
+        enum_stats = QueryEnumerationStats(
+            rows_read=n_listed,
+            rows_written=n_written,
+            pages=list_stats.page_count,
+            rows_truncated=False,
+            list_complete=raw_write_error is None,
+        )
+        summary = enumeration_summary(
+            enum_stats,
+            extra={
+                "function_external_id": fn_external_id,
+                "task_id": task_id,
+                "query_source": "view",
+                "instances_written": n_written,
+                "instances_listed": n_listed,
+                "instances_skipped_unchanged_hash": n_skipped_hash,
+                "incremental_skip_unchanged_source_inputs": hash_skip,
+                "run_id": run_id,
+                "scope_key": scope_key,
+                "raw_db": raw_db,
+                "raw_table": raw_table,
+                "incremental_raw_db": inc_raw_db,
+                "incremental_raw_table": inc_raw_table,
+                "workflow_scope": workflow_scope or None,
+                "state_backend": state_backend,
+                "view": f"{view_space}/{view_external_id}/{view_version}",
+                "incremental": persist_state,
+                "run_all": run_all,
+                "listing_watermark_applied": listing_narrowed,
+                "watermark_before_ms": wm_before,
+                "watermark_after_ms": max_last_updated if persist_state else None,
+                "list_page_count": list_stats.page_count,
+                "list_duration_sec": list_stats.list_duration_sec,
+                "list_sort": list_stats.sort_property,
+                "list_limit_per_page": list_stats.limit_per_page or limit_per_page,
+            },
+        )
         if raw_write_error:
             summary["raw_write_error"] = raw_write_error
         data["run_id"] = run_id

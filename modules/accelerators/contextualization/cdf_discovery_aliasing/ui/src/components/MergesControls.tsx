@@ -53,7 +53,7 @@ export function MergesControls({ canvas, onChange, initialNodeId, t, singleNode 
   if (singleNode) {
     if (!selected) {
       return (
-        <p className="kea-hint" style={{ marginTop: 0 }}>
+        <p className="discovery-hint" style={{ marginTop: 0 }}>
           {t("flow.nodeEditorFocusedNodeMissing")}
         </p>
       );
@@ -68,31 +68,31 @@ export function MergesControls({ canvas, onChange, initialNodeId, t, singleNode 
   }
 
   return (
-    <div className="kea-source-views">
-      <div className="kea-toolbar-inline">
-        <h3 className="kea-section-title" style={{ margin: 0 }}>
+    <div className="discovery-source-views">
+      <div className="discovery-toolbar-inline">
+        <h3 className="discovery-section-title" style={{ margin: 0 }}>
           {t("merges.title")}
         </h3>
       </div>
 
-      <p className="kea-hint" style={{ marginTop: "0.35rem", marginBottom: "0.85rem" }}>
+      <p className="discovery-hint" style={{ marginTop: "0.35rem", marginBottom: "0.85rem" }}>
         {t("merges.canvasHint")}
       </p>
 
-      <div className="kea-source-views-split">
-        <aside className="kea-source-views-sidebar">
-          <p className="kea-artifact-list-title">{t("merges.listTitle")}</p>
-          <ul className="kea-source-views-list" role="listbox" aria-label={t("merges.listAriaLabel")}>
+      <div className="discovery-source-views-split">
+        <aside className="discovery-source-views-sidebar">
+          <p className="discovery-artifact-list-title">{t("merges.listTitle")}</p>
+          <ul className="discovery-source-views-list" role="listbox" aria-label={t("merges.listAriaLabel")}>
             {merges.map((n) => (
               <li key={n.id} role="none">
                 <button
                   type="button"
                   role="option"
                   aria-selected={selectedId === n.id}
-                  className={`kea-source-views-item${selectedId === n.id ? " kea-source-views-item--active" : ""}`}
+                  className={`discovery-source-views-item${selectedId === n.id ? " discovery-source-views-item--active" : ""}`}
                   onClick={() => setSelectedId(n.id)}
                 >
-                  <span className="kea-hint" style={{ display: "block", fontSize: "0.68rem", marginBottom: 2 }}>
+                  <span className="discovery-hint" style={{ display: "block", fontSize: "0.68rem", marginBottom: 2 }}>
                     merge · {n.id}
                   </span>
                   {mergeNodeListLabel(n)}
@@ -102,12 +102,12 @@ export function MergesControls({ canvas, onChange, initialNodeId, t, singleNode 
           </ul>
         </aside>
 
-        <div className="kea-source-views-editor">
+        <div className="discovery-source-views-editor">
           {!selected ? (
-            <p className="kea-hint">{t("merges.emptyEditor")}</p>
+            <p className="discovery-hint">{t("merges.emptyEditor")}</p>
           ) : (
-            <div className="kea-source-views-editor-inner">
-              <p className="kea-hint" style={{ margin: "0 0 0.85rem" }}>
+            <div className="discovery-source-views-editor-inner">
+              <p className="discovery-hint" style={{ margin: "0 0 0.85rem" }}>
                 {t("flow.discoveryMerge")} — {mergeNodeListLabel(selected)}
               </p>
               <MergeNodeConfigFields

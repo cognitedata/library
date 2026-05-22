@@ -12,7 +12,7 @@ import {
   canvasToFlowEdges,
   canvasToFlowNodes,
   flowToCanvasDocument,
-  keaFlowEdgeVisualDefaults,
+  discoveryFlowEdgeVisualDefaults,
   orderFlowNodesForReactFlow,
   type FlowEdgeData,
 } from "./flowDocumentBridge";
@@ -82,7 +82,7 @@ export function adoptNodesIntoSubgraph(
   subgraphId: string,
   handleOrientation: WorkflowCanvasHandleOrientation
 ): { nodes: Node[]; edges: Edge[] } | null {
-  const G = nodes.find((n) => n.id === subgraphId && n.type === "keaSubgraph");
+  const G = nodes.find((n) => n.id === subgraphId && n.type === "discoverySubgraph");
   if (!G || memberIds.has(subgraphId)) return null;
 
   const members = [...memberIds]
@@ -141,7 +141,7 @@ export function adoptNodesIntoSubgraph(
     const srcIn = memberIds.has(e.source);
     const tgtIn = memberIds.has(e.target);
     if (srcIn && tgtIn) {
-      innerEdges.push({ ...e, ...keaFlowEdgeVisualDefaults, selected: false });
+      innerEdges.push({ ...e, ...discoveryFlowEdgeVisualDefaults, selected: false });
       continue;
     }
     if (!srcIn && tgtIn) {
@@ -155,7 +155,7 @@ export function adoptNodesIntoSubgraph(
         target: e.target,
         targetHandle: e.targetHandle ?? undefined,
         data: { kind: "data" } satisfies FlowEdgeData,
-        ...keaFlowEdgeVisualDefaults,
+        ...discoveryFlowEdgeVisualDefaults,
         selected: false,
       });
     } else if (srcIn && !tgtIn) {
@@ -169,7 +169,7 @@ export function adoptNodesIntoSubgraph(
         target: hubOutId,
         targetHandle: subflowTargetHandleForPort(outPort),
         data: { kind: "data" } satisfies FlowEdgeData,
-        ...keaFlowEdgeVisualDefaults,
+        ...discoveryFlowEdgeVisualDefaults,
         selected: false,
       });
     }
@@ -234,7 +234,7 @@ export function adoptNodesIntoSubgraph(
 }
 
 /**
- * After a drag, if all selected groupable nodes lie inside a ``keaSubgraph`` card (smallest
+ * After a drag, if all selected groupable nodes lie inside a ``discoverySubgraph`` card (smallest
  * containing subgraph wins), move them into that subgraph's inner canvas and preserve crossing edges.
  */
 export function resolveAdoptIntoSubgraphAfterDrag(
@@ -248,7 +248,7 @@ export function resolveAdoptIntoSubgraphAfterDrag(
 
   const center = rectCenter(absoluteNodeRect(nodes, primary));
   const subgraphCandidates = nodes
-    .filter((n) => n.type === "keaSubgraph" && n.id !== primaryId)
+    .filter((n) => n.type === "discoverySubgraph" && n.id !== primaryId)
     .map((n) => ({ n, rect: absoluteNodeRect(nodes, n) }))
     .filter(({ rect }) => pointInRect(center, rect))
     .sort((a, b) => rectArea(a.rect) - rectArea(b.rect));

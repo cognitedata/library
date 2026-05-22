@@ -33,7 +33,7 @@ function eventInsideFlowRoot(e: KeyboardEvent, root: HTMLElement | null): boolea
 }
 
 /**
- * In-memory buffer plus optional system clipboard (``__KEA_FLOW_V1__`` JSON prefix).
+ * In-memory buffer plus optional system clipboard (``__DISCOVERY_FLOW_V1__`` JSON prefix).
  * Cmd/Ctrl+C / Cmd/Ctrl+V when focus is inside ``flowRootRef``.
  */
 export function useFlowClipboard({

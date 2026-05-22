@@ -33,7 +33,7 @@ export function FilterNodeConfigFields({ canvas, onChange, ref, t }: Props) {
   );
 
   return (
-    <div className="kea-loc-fields" style={{ maxWidth: "52rem" }}>
+    <div className="discovery-loc-fields" style={{ maxWidth: "52rem" }}>
       <FilterNodeStageConfigFields
         cfg={draftCfg}
         onChange={updateDraft}

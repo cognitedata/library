@@ -1,0 +1,9 @@
+name: gp_b_integration_reader
+sourceId: "{{ gp_b_integration_reader }}"
+capabilities:
+  - dataModelInstancesAcl:
+      scope:
+        spaceIdScope:
+          spaceIds:
+            - inst_erp_b
+            - inst_scada_b

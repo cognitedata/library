@@ -12,6 +12,7 @@ export type DiscoveryPaletteStage =
   | "query_view"
   | "query_raw"
   | "query_classic"
+  | "query_sql"
   | "transform"
   | "merge"
   | "join"
@@ -46,7 +47,7 @@ type Props = {
   scopeDocument: Record<string, unknown>;
 };
 
-const DRAG_MIME = "application/x-kea-flow-palette";
+const DRAG_MIME = "application/x-discovery-flow-palette";
 
 export function setPaletteDragData(e: React.DragEvent, payload: PaletteDragPayload) {
   e.dataTransfer.setData(DRAG_MIME, JSON.stringify(payload));
@@ -70,12 +71,13 @@ export function FlowPalette({ t, scopeDocument }: Props) {
       ["query_view", "flow.discoveryViewQuery", "flow.paletteTooltip.queryView"],
       ["query_raw", "flow.discoveryRawQuery", "flow.paletteTooltip.queryRaw"],
       ["query_classic", "flow.discoveryClassicQuery", "flow.paletteTooltip.queryClassic"],
+      ["query_sql", "flow.discoverySqlQuery", "flow.paletteTooltip.querySql"],
     ] as const
   ).map(([stage, labelKey, tooltipKey]) => (
     <button
       key={stage}
       type="button"
-      className="kea-btn kea-btn--sm"
+      className="discovery-btn discovery-btn--sm"
       draggable
       title={t(tooltipKey)}
       onDragStart={(e) => setPaletteDragData(e, { kind: "discovery", stage })}
@@ -87,7 +89,7 @@ export function FlowPalette({ t, scopeDocument }: Props) {
     <button
       key={`transform-${handlerId}`}
       type="button"
-      className="kea-btn kea-btn--sm"
+      className="discovery-btn discovery-btn--sm"
       draggable
       title={t("flow.paletteTooltip.transform", { handler: handlerId })}
       onDragStart={(e) =>
@@ -111,7 +113,7 @@ export function FlowPalette({ t, scopeDocument }: Props) {
     <button
       key={stage}
       type="button"
-      className="kea-btn kea-btn--sm"
+      className="discovery-btn discovery-btn--sm"
       draggable
       title={t(tooltipKey)}
       onDragStart={(e) => setPaletteDragData(e, { kind: "discovery", stage })}
@@ -130,7 +132,7 @@ export function FlowPalette({ t, scopeDocument }: Props) {
     <button
       key={stage}
       type="button"
-      className="kea-btn kea-btn--sm"
+      className="discovery-btn discovery-btn--sm"
       draggable
       title={t(tooltipKey)}
       onDragStart={(e) => setPaletteDragData(e, { kind: "discovery", stage })}
@@ -139,17 +141,23 @@ export function FlowPalette({ t, scopeDocument }: Props) {
     </button>
   ));
   return (
-    <div className="kea-flow-palette" role="complementary" aria-label={t("flow.paletteAria")}>
-      <p className="kea-flow-palette__heading">{t("flow.paletteDiscoveryPipeline")}</p>
-      <div className="kea-flow-palette__buttons" style={{ flexWrap: "wrap", gap: "0.35rem" }}>
-        <p className="kea-hint" style={{ width: "100%", margin: "0 0 0.1rem" }}>Query</p>
+    <div className="discovery-flow-palette" role="complementary" aria-label={t("flow.paletteAria")}>
+      <p className="discovery-flow-palette__heading">{t("flow.paletteDiscoveryPipeline")}</p>
+      <div className="discovery-flow-palette__buttons" style={{ flexWrap: "wrap", gap: "0.35rem" }}>
+        <p className="discovery-hint" style={{ width: "100%", margin: "0 0 0.1rem" }}>
+          {t("flow.paletteSectionQuery")}
+        </p>
         {queryButtons}
-        <p className="kea-hint" style={{ width: "100%", margin: "0.35rem 0 0.1rem" }}>Transform</p>
+        <p className="discovery-hint" style={{ width: "100%", margin: "0.35rem 0 0.1rem" }}>
+          {t("flow.paletteSectionTransform")}
+        </p>
         {transformButtons}
-        <p className="kea-hint" style={{ width: "100%", margin: "0.35rem 0 0.1rem" }}>Merge / Join</p>
+        <p className="discovery-hint" style={{ width: "100%", margin: "0.35rem 0 0.1rem" }}>
+          {t("flow.paletteSectionMergeJoin")}
+        </p>
         <button
           type="button"
-          className="kea-btn kea-btn--sm"
+          className="discovery-btn discovery-btn--sm"
           draggable
           title={t("flow.paletteTooltip.merge")}
           onDragStart={(e) => setPaletteDragData(e, { kind: "discovery", stage: "merge" })}
@@ -158,23 +166,27 @@ export function FlowPalette({ t, scopeDocument }: Props) {
         </button>
         <button
           type="button"
-          className="kea-btn kea-btn--sm"
+          className="discovery-btn discovery-btn--sm"
           draggable
           title={t("flow.paletteTooltip.join")}
           onDragStart={(e) => setPaletteDragData(e, { kind: "discovery", stage: "join" })}
         >
           {t("flow.discoveryJoin")}
         </button>
-        <p className="kea-hint" style={{ width: "100%", margin: "0.35rem 0 0.1rem" }}>Validate / filter</p>
+        <p className="discovery-hint" style={{ width: "100%", margin: "0.35rem 0 0.1rem" }}>
+          {t("flow.paletteSectionValidateFilter")}
+        </p>
         {validateButtons}
-        <p className="kea-hint" style={{ width: "100%", margin: "0.35rem 0 0.1rem" }}>Save</p>
+        <p className="discovery-hint" style={{ width: "100%", margin: "0.35rem 0 0.1rem" }}>
+          {t("flow.paletteSectionSave")}
+        </p>
         {saveButtons}
       </div>
-      <p className="kea-flow-palette__heading">{t("flow.paletteStructural")}</p>
-      <div className="kea-flow-palette__buttons" style={{ flexWrap: "wrap", gap: "0.35rem" }}>
+      <p className="discovery-flow-palette__heading">{t("flow.paletteStructural")}</p>
+      <div className="discovery-flow-palette__buttons" style={{ flexWrap: "wrap", gap: "0.35rem" }}>
         <button
           type="button"
-          className="kea-btn kea-btn--sm"
+          className="discovery-btn discovery-btn--sm"
           draggable
           title={t("flow.paletteTooltip.subgraph")}
           onDragStart={(e) => setPaletteDragData(e, { kind: "structural", nodeKind: "subgraph" })}
@@ -183,7 +195,7 @@ export function FlowPalette({ t, scopeDocument }: Props) {
         </button>
         <button
           type="button"
-          className="kea-btn kea-btn--sm"
+          className="discovery-btn discovery-btn--sm"
           draggable
           title={t("flow.paletteTooltip.validationRuleLayoutAliasing")}
           onDragStart={(e) =>
@@ -193,18 +205,18 @@ export function FlowPalette({ t, scopeDocument }: Props) {
           {t("flow.validationRuleLayoutAliasing")}
         </button>
       </div>
-      <p className="kea-flow-palette__heading">{t("flow.paletteValidationRuleDefinitions")}</p>
+      <p className="discovery-flow-palette__heading">{t("flow.paletteValidationRuleDefinitions")}</p>
       {matchDefIds.length === 0 ? (
-        <p className="kea-hint" style={{ fontSize: "0.8rem", margin: "0 0 0.75rem" }}>
+        <p className="discovery-hint" style={{ fontSize: "0.8rem", margin: "0 0 0.75rem" }}>
           {t("flow.paletteValidationRuleDefinitionsEmpty")}
         </p>
       ) : (
-        <ul className="kea-flow-palette__list">
+        <ul className="discovery-flow-palette__list">
           {matchDefIds.map((id) => (
             <li key={id}>
               <button
                 type="button"
-                className="kea-flow-palette__item"
+                className="discovery-flow-palette__item"
                 draggable
                 title={t("flow.paletteTooltip.matchDefinition", { id })}
                 onDragStart={(e) =>

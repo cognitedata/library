@@ -67,7 +67,7 @@ export function TransformsControls({ canvas, onChange, initialNodeId, singleNode
   if (singleNode) {
     if (!selected) {
       return (
-        <p className="kea-hint" style={{ marginTop: 0 }}>
+        <p className="discovery-hint" style={{ marginTop: 0 }}>
           {t("flow.nodeEditorFocusedNodeMissing")}
         </p>
       );
@@ -93,31 +93,31 @@ export function TransformsControls({ canvas, onChange, initialNodeId, singleNode
   }
 
   return (
-    <div className="kea-source-views">
-      <div className="kea-toolbar-inline">
-        <h3 className="kea-section-title" style={{ margin: 0 }}>
+    <div className="discovery-source-views">
+      <div className="discovery-toolbar-inline">
+        <h3 className="discovery-section-title" style={{ margin: 0 }}>
           {t("transforms.title")}
         </h3>
       </div>
 
-      <p className="kea-hint" style={{ marginTop: "0.35rem", marginBottom: "0.85rem" }}>
+      <p className="discovery-hint" style={{ marginTop: "0.35rem", marginBottom: "0.85rem" }}>
         {t("transforms.canvasHint")}
       </p>
 
-      <div className="kea-source-views-split">
-        <aside className="kea-source-views-sidebar">
-          <p className="kea-artifact-list-title">{t("transforms.listTitle")}</p>
-          <ul className="kea-source-views-list" role="listbox" aria-label={t("transforms.listAriaLabel")}>
+      <div className="discovery-source-views-split">
+        <aside className="discovery-source-views-sidebar">
+          <p className="discovery-artifact-list-title">{t("transforms.listTitle")}</p>
+          <ul className="discovery-source-views-list" role="listbox" aria-label={t("transforms.listAriaLabel")}>
             {transforms.map((n) => (
               <li key={n.id} role="none">
                 <button
                   type="button"
                   role="option"
                   aria-selected={selectedId === n.id}
-                  className={`kea-source-views-item${selectedId === n.id ? " kea-source-views-item--active" : ""}`}
+                  className={`discovery-source-views-item${selectedId === n.id ? " discovery-source-views-item--active" : ""}`}
                   onClick={() => setSelectedId(n.id)}
                 >
-                  <span className="kea-hint" style={{ display: "block", fontSize: "0.68rem", marginBottom: 2 }}>
+                  <span className="discovery-hint" style={{ display: "block", fontSize: "0.68rem", marginBottom: 2 }}>
                     {readTransformHandlerId(n) || "transform"} · {n.id}
                   </span>
                   {transformNodeListLabel(n)}
@@ -127,12 +127,12 @@ export function TransformsControls({ canvas, onChange, initialNodeId, singleNode
           </ul>
         </aside>
 
-        <div className="kea-source-views-editor">
+        <div className="discovery-source-views-editor">
           {!selected ? (
-            <p className="kea-hint">{t("transforms.emptyEditor")}</p>
+            <p className="discovery-hint">{t("transforms.emptyEditor")}</p>
           ) : (
-            <div className="kea-source-views-editor-inner">
-              <p className="kea-hint" style={{ margin: "0 0 0.85rem" }}>
+            <div className="discovery-source-views-editor-inner">
+              <p className="discovery-hint" style={{ margin: "0 0 0.85rem" }}>
                 {readTransformHandlerId(selected) || t("flow.discoveryTransform")} —{" "}
                 {transformNodeListLabel(selected)}
               </p>

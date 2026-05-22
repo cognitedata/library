@@ -7,7 +7,7 @@ import { nodeFlowSize } from "./flowNodeGeometry";
 describe("createNodeFromPalette", () => {
   it("creates a discovery transform with default name field and append output mode", () => {
     const n = createNodeFromPalette({ kind: "discovery", stage: "transform" }, { x: 0, y: 0 });
-    expect(n.type).toBe("keaTransform");
+    expect(n.type).toBe("discoveryTransform");
     expect((n.data as Record<string, unknown>).handler_id).toBe("regex_substitution");
     const cfg = (n.data as Record<string, unknown>).config as Record<string, unknown>;
     expect(cfg.output_mode).toBe("append");
@@ -40,16 +40,16 @@ describe("createNodeFromPalette", () => {
 
   it("creates a structural source view node", () => {
     const n = createNodeFromPalette({ kind: "structural", nodeKind: "source_view" }, { x: 0, y: 0 });
-    expect(n.type).toBe("keaSourceView");
+    expect(n.type).toBe("discoverySourceView");
     expect((n.data as Record<string, unknown>).label).toBe("Source view");
   });
 
-  it("creates a card-sized keaSubgraph with default ports and empty inner canvas", () => {
+  it("creates a card-sized discoverySubgraph with default ports and empty inner canvas", () => {
     const n = createNodeFromPalette(
       { kind: "structural", nodeKind: "subgraph" },
       { x: 10, y: 20 }
     );
-    expect(n.type).toBe("keaSubgraph");
+    expect(n.type).toBe("discoverySubgraph");
     expect(n.style).toBeUndefined();
     const data = n.data as Record<string, unknown>;
     expect(data.label).toBe("Subgraph");

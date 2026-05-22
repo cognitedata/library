@@ -3,28 +3,28 @@ import type { Edge, Node } from "@xyflow/react";
 import { layoutFlowNodes } from "./autoLayoutFlow";
 
 describe("layoutFlowNodes", () => {
-  it("orders same-layer keaTransform by pipeline_rank, not node id", () => {
-    const st: Node = { id: "st", type: "keaStart", position: { x: 0, y: 0 }, data: {} };
-    const q: Node = { id: "q", type: "keaViewQuery", position: { x: 0, y: 0 }, data: { label: "q" } };
+  it("orders same-layer discoveryTransform by pipeline_rank, not node id", () => {
+    const st: Node = { id: "st", type: "discoveryStart", position: { x: 0, y: 0 }, data: {} };
+    const q: Node = { id: "q", type: "discoveryViewQuery", position: { x: 0, y: 0 }, data: { label: "q" } };
     const trC: Node = {
       id: "tr_c",
-      type: "keaTransform",
+      type: "discoveryTransform",
       position: { x: 0, y: 0 },
       data: { label: "c", pipeline_rank: 1 },
     };
     const trS: Node = {
       id: "tr_s",
-      type: "keaTransform",
+      type: "discoveryTransform",
       position: { x: 0, y: 0 },
       data: { label: "s", pipeline_rank: 0 },
     };
     const trL: Node = {
       id: "tr_l",
-      type: "keaTransform",
+      type: "discoveryTransform",
       position: { x: 0, y: 0 },
       data: { label: "l", pipeline_rank: 2 },
     };
-    const en: Node = { id: "en", type: "keaEnd", position: { x: 0, y: 0 }, data: {} };
+    const en: Node = { id: "en", type: "discoveryEnd", position: { x: 0, y: 0 }, data: {} };
     const edges: Edge[] = [
       { id: "e0", source: "st", target: "q", data: { kind: "data" } },
       { id: "e1", source: "q", target: "tr_c", data: { kind: "data" } },

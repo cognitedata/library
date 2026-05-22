@@ -80,6 +80,19 @@
   runtime: 'py311'
   functionPath: 'handler.py'
 
+- name: 'dm:context:discovery:query:sql'
+  externalId: 'fn_dm_sql_query'
+  dataSetExternalId: 'ds_discovery_aliasing'
+  owner: 'Anonymous'
+  description: 'Discovery SQL query — transformations preview; sink RAW'
+  metadata:
+    version: '{{key_extraction_function_version}}'
+  envVars:
+    ENV_TYPE: '${CDF_BUILD_TYPE}'
+    CDF_ENV: '${CDF_ENVIRON}'
+  runtime: 'py311'
+  functionPath: 'handler.py'
+
 - name: 'dm:context:discovery:transform'
   externalId: 'fn_dm_transform'
   dataSetExternalId: 'ds_discovery_aliasing'

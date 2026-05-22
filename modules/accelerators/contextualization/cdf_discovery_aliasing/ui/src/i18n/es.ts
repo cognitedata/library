@@ -99,7 +99,7 @@ export const es: Messages = {
   "run.runAllHint":
     "Si el modo incremental está activo, procesa el alcance completo (equivalente a run_all en el workflow). Sin efecto si el modo incremental está desactivado.",
   "run.cdfToolsHint":
-    "Desplegar actualiza por defecto las funciones Cognite de KEA y luego Workflow, WorkflowVersion y WorkflowTrigger del ámbito en CDF con el SDK de Cognite (mismas credenciales que module.py run). Ejecutar en CDF inicia una ejecución (opcional KEA_WORKFLOW_CLIENT_*). Indique el espacio de instancia abajo si el YAML del disparador aún contiene ``{{instance_space}}``. Por lo demás, en esta interfaz se permiten ``{{…}}`` sin resolver.",
+    "Desplegar actualiza por defecto las funciones Cognite de Discovery y luego Workflow, WorkflowVersion y WorkflowTrigger del ámbito en CDF con el SDK de Cognite (mismas credenciales que module.py run). Ejecutar en CDF inicia una ejecución (opcional KEA_WORKFLOW_CLIENT_*). Indique el espacio de instancia abajo si el YAML del disparador aún contiene ``{{instance_space}}``. Por lo demás, en esta interfaz se permiten ``{{…}}`` sin resolver.",
   "run.cdfScopedOnly":
     "Desplegar y Ejecutar en CDF solo aplican a manifiestos bajo workflows/<suffix>/ (no workflow.local ni workflow_template). Seleccione un WorkflowTrigger en la barra lateral.",
   "run.cdfDeployOutputPlaceholder": "Aquí aparecen los registros de despliegue y de ejecución del workflow en CDF.",
@@ -189,6 +189,7 @@ export const es: Messages = {
   "sourceViews.viewSpace": "Espacio de la vista",
   "sourceViews.viewVersion": "Versión de la vista",
   "sourceViews.batchSize": "Tamaño de lote",
+  "sourceViews.batchSizeHint": "API page size (max 1000 per request). Does not cap total instances.",
   "sourceViews.instanceSpace": "Espacio de instancia (opcional)",
   "sourceViews.filters": "Filtros",
   "sourceViews.filtersCombineHint":
@@ -260,6 +261,54 @@ export const es: Messages = {
   "queries.classicResourceFiles": "Files",
   "queries.classicResourceEvents": "Events",
   "queries.classicResourceTimeseries": "Time series",
+  "queries.sqlEditorIntro":
+    "Run CDF SQL preview (transformations query/run API, same as CDF Explorer). At workflow run time, results are written to the discovery cohort RAW table.",
+  "queries.sqlQuery": "SQL",
+  "queries.sqlPlaceholder": "SELECT * FROM cdf_nodes('space', 'ViewExternalId', 'v1')",
+  "queries.sqlRun": "Run",
+  "queries.sqlRunning": "Running…",
+  "queries.sqlClear": "Clear",
+  "queries.sqlHint": "Ctrl+Enter (⌘+Enter) to run preview",
+  "queries.sqlLimit": "Result limit",
+  "queries.sqlLimitHint": "Leave empty or 0 for maximum preview rows (10,000). Set a positive number to cap SQL cohort export.",
+  "queries.sqlSourceLimit": "Source limit",
+  "queries.sqlConvertToString": "Convert to string",
+  "queries.sqlExternalIdColumn": "External ID column",
+  "queries.sqlExternalIdColumnHint":
+    "Optional column name for cohort row keys. When empty, uses externalId, external_id, id, or name; otherwise row_N.",
+  "queries.sqlQueryRequired": "Enter SQL before running preview.",
+  "queries.sqlEmpty": "Run preview to see results.",
+  "queries.sqlPreview": "Query preview",
+  "queries.sqlNoRows": "No rows returned.",
+  "queries.sqlPageSize": "Page size",
+  "queries.sqlPrevPage": "Previous",
+  "queries.sqlNextPage": "Next",
+  "queries.sqlPageStatus": "Page {page} of {pages} · {total} rows",
+  "queries.previewRun": "Run",
+  "queries.previewRunning": "Running…",
+  "queries.previewClear": "Clear",
+  "queries.previewHint": "Ctrl+Enter (⌘+Enter) to run preview",
+  "queries.previewEmpty": "Run preview to see results.",
+  "queries.previewTitle": "Query preview",
+  "queries.previewNoRows": "No rows returned.",
+  "queries.previewPageSize": "Page size",
+  "queries.previewPrevPage": "Previous",
+  "queries.previewNextPage": "Next",
+  "queries.previewPageStatus": "Page {page} of {pages} · {total} rows",
+  "queries.viewEditorIntro":
+    "List data model view instances (same APIs as workflow run). Preview does not write cohort RAW rows.",
+  "queries.viewPreviewRequired": "Set view external id before running preview.",
+  "queries.rawEditorIntro":
+    "Read entity rows from a RAW table (same source as workflow run). Preview does not write cohort rows.",
+  "queries.rawPreviewRequired": "Set RAW database and table before running preview.",
+  "queries.rawSourceDb": "Source RAW database",
+  "queries.rawSourceTable": "Source RAW table",
+  "queries.rawReadLimit": "Preview row limit",
+  "queries.rawReadLimitHint": "Between 1 and 1000 rows for preview.",
+  "queries.rawPreviewLimit": "Preview sample size",
+  "queries.rawPreviewLimitHint": "Rows shown in the UI preview only (1–1000).",
+  "queries.rawSourceRunId": "Filter by RUN_ID (optional)",
+  "queries.rawSourceRunIdHint": "When set, only entity rows with this run id are shown.",
   "transforms.title": "Transforms",
   "transforms.listTitle": "Transform nodes",
   "transforms.listAriaLabel": "Flow canvas transform nodes",
@@ -311,7 +360,7 @@ export const es: Messages = {
   "transforms.handlerFields.variant": "Variant",
   "transforms.handlerFields.addVariant": "Add variant",
   "transforms.handlerFields.variantsUniqueError": "Variants must be unique.",
-  "transforms.handlerFields.heuristicSamples": "Samples (substring literals; longest match wins)",
+  "transforms.handlerFields.heuristicSamples": "Samples (comma-separated; longest match wins)",
   "transforms.handlerFields.heuristicPattern": "Pattern (optional)",
   "transforms.handlerFields.heuristicPatternHint":
     "When set, this regex is used instead of samples. Escape hatch for boundaries and tuned alternation.",
@@ -775,6 +824,8 @@ export const es: Messages = {
     "Query tags from RAW (classic) tables. Drag onto the canvas to add this stage.",
   "flow.paletteTooltip.queryClassic":
     "Query tags via the classic data modeling query path. Drag onto the canvas to add this stage.",
+  "flow.paletteTooltip.querySql":
+    "Query data with CDF SQL (transformations preview API). Drag onto the canvas to add this stage.",
   "flow.paletteTooltip.transform":
     "Transform step using the {handler} handler — normalize or reshape tag values before downstream stages. Drag onto the canvas to add.",
   "flow.paletteTooltip.join":
@@ -798,6 +849,7 @@ export const es: Messages = {
   "flow.discoveryViewQuery": "View query",
   "flow.discoveryRawQuery": "RAW query",
   "flow.discoveryClassicQuery": "Classic query",
+  "flow.discoverySqlQuery": "SQL query",
   "flow.discoveryTransform": "Transform",
   "flow.discoveryMerge": "Merge",
   "flow.discoveryJoin": "Join",
@@ -851,6 +903,9 @@ export const es: Messages = {
   "flow.alignSelectionGroup": "Alinear selección",
   "flow.canvasHint":
     "El diseño se guarda bajo canvas dentro del YAML del ámbito. Guarde el flujo o el ámbito. Arrastre desde la paleta. Suelte un nodo dentro del marco de un subflujo para asociarlo; seleccione el subflujo y arrastre esquinas o barras de borde para redimensionar en horizontal y vertical.",
+  "flow.search": "Buscar nodos",
+  "flow.searchPlaceholder": "Filtrar por etiqueta, tipo o id…",
+  "flow.noSearchResults": "Ningún nodo coincide.",
   "flow.workflowCompileModeLabel": "Compilación del flujo",
   "flow.workflowCompileModeAuto": "Auto (canvas si hay nodos ejecutables)",
   "flow.workflowCompileModeCanvas": "DAG canvas (siempre desde el grafo)",

@@ -17,6 +17,14 @@ from cdf_fn_common.pipeline_steps import (
 )
 from cdf_fn_common.property_merge import merge_property_dicts, parse_field_policies
 
+# Internal transform step outputs — not written to cohort PROPERTIES_JSON.
+_TRANSFORM_SCRATCH_PROPS = frozenset({"_tagAliasDraft"})
+
+
+def _drop_transform_scratch_props(props: MutableMapping[str, Any]) -> None:
+    for key in _TRANSFORM_SCRATCH_PROPS:
+        props.pop(key, None)
+
 
 def validate_transform_pipeline_config(cfg: Mapping[str, Any]) -> None:
     from cdf_fn_common.pipeline_steps import parse_steps_list, validate_execution_block
@@ -54,6 +62,7 @@ def apply_transform_steps_to_props(
                 branches.append(base)
         policy_map = parse_field_policies(cfg)
         merged = merge_property_dicts(branches, policy_map)
+        _drop_transform_scratch_props(merged)
         return [merged]
 
     working = deepcopy(dict(props))
@@ -63,5 +72,8 @@ def apply_transform_steps_to_props(
             continue
         working = outs[0]
         if len(outs) > 1:
+            for row in outs:
+                _drop_transform_scratch_props(row)
             return outs
+    _drop_transform_scratch_props(working)
     return [working]

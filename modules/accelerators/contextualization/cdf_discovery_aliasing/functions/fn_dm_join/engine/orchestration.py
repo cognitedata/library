@@ -9,6 +9,7 @@ from cdf_fn_common.cohort_storage import (
     canvas_node_id_for_task,
     iter_cohort_entity_rows,
     require_run_id,
+    resolve_node_cohort_sink,
 )
 from cdf_fn_common.discovery_cohort import (
     _cohort_row_from_columns,
@@ -105,6 +106,8 @@ def discovery_handle_join(
     left_tid, right_tid = _join_task_ids_from_data(data)
     left_canvas = canvas_node_id_for_task(data, left_tid)
     right_canvas = canvas_node_id_for_task(data, right_tid)
+    ldb, ltb = resolve_node_cohort_sink(data, left_tid)
+    rdb, rtb = resolve_node_cohort_sink(data, right_tid)
 
     right_rows: List[Tuple[Dict[str, Any], Dict[str, Any]]] = []
     for row in iter_cohort_entity_rows(client, rdb, rtb):

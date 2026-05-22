@@ -14,7 +14,7 @@ describe("adoptNodesIntoSubgraph", () => {
     const inner = emptyWorkflowCanvasDocument();
     const g: Node = {
       id: "g",
-      type: "keaSubgraph",
+      type: "discoverySubgraph",
       position: { x: 0, y: 0 },
       data: {
         label: "G",
@@ -27,25 +27,25 @@ describe("adoptNodesIntoSubgraph", () => {
     };
     const s: Node = {
       id: "s",
-      type: "keaSourceView",
+      type: "discoverySourceView",
       position: { x: -300, y: 40 },
       data: { label: "S", ref: { view_external_id: "v1" } },
     };
     const a: Node = {
       id: "a",
-      type: "keaTransform",
+      type: "discoveryTransform",
       position: { x: 40, y: 30 },
       data: { label: "A" },
     };
     const b: Node = {
       id: "b",
-      type: "keaTransform",
+      type: "discoveryTransform",
       position: { x: 80, y: 50 },
       data: { label: "B" },
     };
     const c: Node = {
       id: "c",
-      type: "keaTransform",
+      type: "discoveryTransform",
       position: { x: 300, y: 40 },
       data: { label: "C" },
     };
@@ -92,7 +92,7 @@ describe("adoptNodesIntoSubgraph", () => {
     const inner = emptyWorkflowCanvasDocument();
     const g: Node = {
       id: "g",
-      type: "keaSubgraph",
+      type: "discoverySubgraph",
       position: { x: 0, y: 0 },
       data: {
         label: "G",
@@ -105,25 +105,25 @@ describe("adoptNodesIntoSubgraph", () => {
     };
     const s1: Node = {
       id: "s1",
-      type: "keaSourceView",
+      type: "discoverySourceView",
       position: { x: -400, y: 0 },
       data: { label: "S1", ref: { view_external_id: "v1" } },
     };
     const s2: Node = {
       id: "s2",
-      type: "keaSourceView",
+      type: "discoverySourceView",
       position: { x: -400, y: 120 },
       data: { label: "S2", ref: { view_external_id: "v2" } },
     };
     const a: Node = {
       id: "a",
-      type: "keaTransform",
+      type: "discoveryTransform",
       position: { x: 40, y: 20 },
       data: { label: "A" },
     };
     const b: Node = {
       id: "b",
-      type: "keaTransform",
+      type: "discoveryTransform",
       position: { x: 40, y: 100 },
       data: { label: "B" },
     };
@@ -160,7 +160,7 @@ describe("adoptNodesIntoSubgraph", () => {
     const inner = emptyWorkflowCanvasDocument();
     const g: Node = {
       id: "g",
-      type: "keaSubgraph",
+      type: "discoverySubgraph",
       position: { x: 0, y: 0 },
       data: {
         label: "G",
@@ -173,31 +173,31 @@ describe("adoptNodesIntoSubgraph", () => {
     };
     const s: Node = {
       id: "s",
-      type: "keaSourceView",
+      type: "discoverySourceView",
       position: { x: -300, y: 40 },
       data: { label: "S", ref: { view_external_id: "v1" } },
     };
     const a: Node = {
       id: "a",
-      type: "keaTransform",
+      type: "discoveryTransform",
       position: { x: 40, y: 30 },
       data: { label: "A" },
     };
     const b: Node = {
       id: "b",
-      type: "keaTransform",
+      type: "discoveryTransform",
       position: { x: 40, y: 100 },
       data: { label: "B" },
     };
     const c1: Node = {
       id: "c1",
-      type: "keaTransform",
+      type: "discoveryTransform",
       position: { x: 300, y: 20 },
       data: { label: "C1" },
     };
     const c2: Node = {
       id: "c2",
-      type: "keaTransform",
+      type: "discoveryTransform",
       position: { x: 300, y: 120 },
       data: { label: "C2" },
     };

@@ -9,8 +9,8 @@ import {
 } from "react";
 import { createTranslator, type Locale, type MessageKey, type Theme } from "../i18n";
 
-const THEME_KEY = "cdf-kea-extraction-theme";
-const LOCALE_KEY = "cdf-kea-extraction-locale";
+const THEME_KEY = "cdf-discovery-extraction-theme";
+const LOCALE_KEY = "cdf-discovery-extraction-locale";
 
 function readStoredTheme(): Theme | null {
   try {

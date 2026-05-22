@@ -38,6 +38,7 @@ _KIND_FN: Dict[str, Tuple[str, str]] = {
     "query_view": ("fn_dm_view_query", "query_view"),
     "query_raw": ("fn_dm_raw_query", "query_raw"),
     "query_classic": ("fn_dm_classic_query", "query_classic"),
+    "query_sql": ("fn_dm_sql_query", "query_sql"),
     "transform": ("fn_dm_transform", "transform"),
     "merge": ("fn_dm_merge", "merge"),
     "join": ("fn_dm_join", "join"),
@@ -69,6 +70,7 @@ _DISCOVERY_KINDS_WITH_CONFIG: FrozenSet[str] = frozenset(
         "query_view",
         "query_raw",
         "query_classic",
+        "query_sql",
         "transform",
         "merge",
         "join",
@@ -92,6 +94,7 @@ _JOIN_INPUT_SOURCE_KINDS: FrozenSet[str] = frozenset(
         "query_view",
         "query_raw",
         "query_classic",
+        "query_sql",
         "transform",
         "validation",
         "instance_filter",
@@ -110,6 +113,10 @@ def discovery_stage_inline_nonempty(kind: str, value: Any) -> bool:
         return False
     if kind in ("query_view", "save_view"):
         return bool(str(value.get("view_external_id") or "").strip())
+    if kind == "query_sql":
+        return bool(
+            str(value.get("sql_query") or value.get("query") or "").strip()
+        )
     if kind in ("query_raw", "query_classic", "save_raw", "save_classic"):
         return bool(
             str(value.get("view_external_id") or "").strip()
@@ -301,6 +308,11 @@ def _slug_token(text: str) -> str:
     return s or "x"
 
 
+def canvas_node_label(data: Mapping[str, Any]) -> str:
+    """Operator label from canvas node ``data.label`` (used for CDF workflow task ``name`` at build)."""
+    return str(data.get("label") or "").strip()
+
+
 def _name_source_for_task_id(kind: str, canvas_node_id: str, data: Mapping[str, Any]) -> str:
     """
     Human-oriented label for ``kea__<executor_kind>__<this>`` (before slugging).
@@ -317,6 +329,10 @@ def _name_source_for_task_id(kind: str, canvas_node_id: str, data: Mapping[str, 
         if ve:
             vv = str(cfg.get("view_version") or "").strip()
             return f"{ve}_{vv}" if vv else ve
+    if kind == "query_sql":
+        sq = str(cfg.get("sql_query") or cfg.get("query") or "").strip()
+        if sq:
+            return sq[:48]
     if kind in ("query_raw", "query_classic", "save_raw", "save_classic"):
         for key in ("description", "raw_table_key", "raw_table", "view_external_id", "raw_db"):
             v = str(cfg.get(key) or "").strip()
@@ -331,7 +347,7 @@ def _name_source_for_task_id(kind: str, canvas_node_id: str, data: Mapping[str, 
         v = str(pc.get(key) or "").strip()
         if v:
             return v
-    label = str(data.get("label") or "").strip()
+    label = canvas_node_label(data)
     if label:
         return label
     return canvas_node_id
@@ -800,7 +816,7 @@ def compile_canvas_dag(doc: Dict[str, Any]) -> Dict[str, Any]:
     if not executable_canvas_ids:
         raise CanvasCompileError(
             "canvas has no executable nodes (expected one of: save_view, save_raw, save_classic, "
-            "query_view, query_raw, query_classic, transform, merge, join, validation, instance_filter, "
+            "query_view, query_raw, query_classic, query_sql, transform, merge, join, validation, instance_filter, "
             "confidence_filter, inverted_index, "
             "discovery_raw_cleanup)"
         )
@@ -877,6 +893,9 @@ def compile_canvas_dag(doc: Dict[str, Any]) -> Dict[str, Any]:
             "pipeline_node_id": tid,
             "payload": payload,
         }
+        node_label = canvas_node_label(data)
+        if node_label:
+            entry["label"] = node_label
         if persistence is not None:
             entry["persistence"] = persistence
         tasks.append(entry)

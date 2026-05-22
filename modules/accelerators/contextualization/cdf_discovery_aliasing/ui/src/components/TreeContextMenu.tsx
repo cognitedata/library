@@ -23,7 +23,7 @@ export function useTreeContextMenuState() {
 type MenuProps = {
   menu: { x: number; y: number; items: TreeCtxMenuItem[] } | null;
   onClose: () => void;
-  classPrefix: "kea";
+  classPrefix: "discovery";
 };
 
 export function TreeContextMenuPortal({ menu, onClose, classPrefix }: MenuProps) {

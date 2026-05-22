@@ -21,42 +21,43 @@ function estimateNodeRect(n: Node): Rect {
   }
 
   const t = n.type ?? "";
-  if (t === "keaStart" || t === "keaEnd") {
+  if (t === "discoveryStart" || t === "discoveryEnd") {
     return { w: 148, h: 68 };
   }
   if (
-    t === "keaMatchValidationRuleSourceView" ||
-    t === "keaMatchValidationRuleExtraction" ||
-    t === "keaMatchValidationRuleAliasing"
+    t === "discoveryMatchValidationRuleSourceView" ||
+    t === "discoveryMatchValidationRuleExtraction" ||
+    t === "discoveryMatchValidationRuleAliasing"
   ) {
     return { w: 192, h: 128 };
   }
-  if (t === "keaSourceView") {
+  if (t === "discoverySourceView") {
     return { w: 192, h: 118 };
   }
   if (
-    t === "keaViewSave" ||
-    t === "keaRawSave" ||
-    t === "keaClassicSave" ||
-    t === "keaViewQuery" ||
-    t === "keaRawQuery" ||
-    t === "keaClassicQuery" ||
-    t === "keaTransform" ||
-    t === "keaMerge" ||
-    t === "keaJoin" ||
-    t === "keaDiscoveryValidate" ||
-    t === "keaDiscoveryInstanceFilter" ||
-    t === "keaDiscoveryConfidenceFilter"
+    t === "discoveryViewSave" ||
+    t === "discoveryRawSave" ||
+    t === "discoveryClassicSave" ||
+    t === "discoveryViewQuery" ||
+    t === "discoveryRawQuery" ||
+    t === "discoveryClassicQuery" ||
+    t === "discoverySqlQuery" ||
+    t === "discoveryTransform" ||
+    t === "discoveryMerge" ||
+    t === "discoveryJoin" ||
+    t === "discoveryValidate" ||
+    t === "discoveryInstanceFilter" ||
+    t === "discoveryConfidenceFilter"
   ) {
     return { w: 192, h: 124 };
   }
-  if (t === "keaAliasPersistence" || t === "keaInvertedIndex") {
+  if (t === "discoveryAliasPersistence" || t === "discoveryInvertedIndex") {
     return { w: 192, h: 120 };
   }
-  if (t === "keaSubflowGraphIn" || t === "keaSubflowGraphOut") {
+  if (t === "discoverySubflowGraphIn" || t === "discoverySubflowGraphOut") {
     return { w: 132, h: 72 };
   }
-  if (t === "keaSubgraph") {
+  if (t === "discoverySubgraph") {
     return { w: 192 + BOX_PAD, h: 112 + BOX_PAD };
   }
   return { w: 192, h: 108 };
@@ -109,7 +110,7 @@ function layersForComponent(
     preds.get(e.target)!.push(e.source);
   }
 
-  const startId = nodes.find((n) => compIds.has(n.id) && n.type === "keaStart")?.id;
+  const startId = nodes.find((n) => compIds.has(n.id) && n.type === "discoveryStart")?.id;
 
   const layer = new Map<string, number>();
   for (const id of compIds) {
@@ -142,7 +143,7 @@ function layersForComponent(
 
   if (startId) layer.set(startId, 0);
 
-  const endId = nodes.find((n) => compIds.has(n.id) && n.type === "keaEnd")?.id;
+  const endId = nodes.find((n) => compIds.has(n.id) && n.type === "discoveryEnd")?.id;
   if (endId) {
     const m = Math.max(0, ...[...compIds].filter((id) => id !== endId).map((id) => layer.get(id) ?? 0));
     layer.set(endId, Math.max(layer.get(endId) ?? 0, m + 1));

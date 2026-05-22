@@ -42,6 +42,20 @@ CONFIDENCE_COLUMN = "CONFIDENCE"
 VIEW_SPACE_COLUMN = "VIEW_SPACE"
 VIEW_EXTERNAL_ID_COLUMN = "VIEW_EXTERNAL_ID"
 VIEW_VERSION_COLUMN = "VIEW_VERSION"
+INSTANCE_SPACE_COLUMN = "INSTANCE_SPACE"
+
+
+def instance_space_from_node_instance_id(node_instance_id: str) -> str:
+    """Parse DM instance space from ``{space}:{uuid}`` node keys."""
+    nid = str(node_instance_id or "").strip()
+    if ":" not in nid:
+        return ""
+    head, _, tail = nid.partition(":")
+    head = head.strip()
+    tail = tail.strip()
+    if head and tail:
+        return head
+    return ""
 
 DEFAULT_RAW_DB = "db_discovery"
 DEFAULT_RAW_TABLE = "discovery_state"
@@ -254,6 +268,12 @@ def build_entity_cohort_row(
     props_body, conf_cell = split_properties_and_confidence_column(
         properties, value_field=value_field
     )
+    inst_space_col = instance_space_from_node_instance_id(node_instance_id)
+    if not inst_space_col and isinstance(properties, Mapping):
+        inst_space_col = _first_nonempty(
+            properties.get("instance_space"),
+            properties.get("space"),
+        )
     cols: Dict[str, Any] = {
         RECORD_KIND_COLUMN: RECORD_KIND_ENTITY,
         WORKFLOW_STATUS_COLUMN: WORKFLOW_STATUS_DETECTED,
@@ -263,6 +283,7 @@ def build_entity_cohort_row(
         RUN_ID_COLUMN: run_id,
         SCOPE_KEY_COLUMN: scope_key,
         NODE_INSTANCE_ID_COLUMN: node_instance_id,
+        INSTANCE_SPACE_COLUMN: inst_space_col,
         RAW_ROW_KEY_COLUMN: instance_cohort_row_key(node_instance_id, scope_key),
         EXTERNAL_ID_COLUMN: external_id,
         ENTITY_TYPE_COLUMN: entity_type,

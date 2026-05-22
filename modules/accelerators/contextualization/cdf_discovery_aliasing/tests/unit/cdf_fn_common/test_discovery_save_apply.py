@@ -17,15 +17,18 @@ if str(_FUNCS) not in sys.path:
 from cdf_fn_common.discovery_save_apply import (  # noqa: E402
     _classic_build_update,
     _coerce_dm_list_property_value,
+    _instance_space_and_external_id,
     _prepare_view_apply_properties,
     discovery_apply_classic_save,
     discovery_apply_view_save,
     run_discovery_save_with_status,
 )
+from cdf_fn_common.discovery_query_shared import INSTANCE_SPACE_COLUMN  # noqa: E402
 
 
 def test_coerce_dm_list_property_value() -> None:
     assert _coerce_dm_list_property_value(["a", "b"]) == ["a", "b"]
+    assert _coerce_dm_list_property_value([{"value": "a", "confidence": 0.9}]) == ["a"]
     assert _coerce_dm_list_property_value(["a", "a", "b", "b"]) == ["a", "b"]
     assert _coerce_dm_list_property_value("a,a,b") == ["a", "b"]
     assert _coerce_dm_list_property_value("TAG-1") == ["TAG-1"]
@@ -143,6 +146,54 @@ def test_view_save_merge_per_instance_two_rows_one_instance(
     props = nodes[0].sources[0].properties
     assert "name" not in props
     assert props["aliases"] == ["b", "a"]
+
+
+def test_instance_space_from_instance_space_column() -> None:
+    cols = {
+        "NODE_INSTANCE_ID": "11111111-1111-1111-1111-111111111111",
+        "EXTERNAL_ID": "ext1",
+        INSTANCE_SPACE_COLUMN: "sp-site",
+    }
+    inst_space, ext_id = _instance_space_and_external_id(cols, cfg={}, data={}, props={})
+    assert inst_space == "sp-site"
+    assert ext_id == "ext1"
+
+
+@patch("cdf_fn_common.discovery_save_apply.iter_predecessor_raw_locations", return_value=[("db", "src")])
+@patch("cdf_fn_common.discovery_save_apply._iter_entity_rows_for_save")
+def test_view_save_merge_reports_gather_skipped_missing_identity(
+    mock_iter_rows: MagicMock, _mock_pred: MagicMock
+) -> None:
+    run_id = "run_skip_1"
+    cols = {
+        "RECORD_KIND": "entity",
+        "RUN_ID": run_id,
+        "NODE_INSTANCE_ID": "11111111-1111-1111-1111-111111111111",
+        "EXTERNAL_ID": "ext1",
+        "PROPERTIES_JSON": json.dumps({"aliases": ["a"]}),
+    }
+    mock_iter_rows.return_value = [(0, cols, {"aliases": ["a"]})]
+    data = {
+        "task_id": "save_skip",
+        "run_id": run_id,
+        "dry_run": True,
+        "config": {
+            "view_space": "cdf_cdm",
+            "view_external_id": "CogniteDescribable",
+            "view_version": "v1",
+            "save_fan_in_mode": "merge_per_instance",
+            "save_field_policies": [
+                {
+                    "property": "aliases",
+                    "strategy": "merge_list",
+                    "merge_list": {"unique": False, "branch_order": "by_score"},
+                },
+            ],
+        },
+    }
+    summary = discovery_apply_view_save("fn_dm_view_save", data, MagicMock(), None)
+    assert summary["gather_skipped_missing_identity"] == 1
+    assert summary["instances_applied"] == 0
 
 
 @patch("cdf_fn_common.discovery_save_apply.iter_predecessor_raw_locations", return_value=[("db", "src")])

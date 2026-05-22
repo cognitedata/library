@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAppSettings } from "../context/AppSettingsContext";
 import type { JsonObject } from "../types/scopeConfig";
+import { QueryPreviewPanel, type QueryPreviewResult } from "./QueryPreviewPanel";
 import { SourceViewFiltersSection } from "./SourceViewFiltersSection";
 import { commaJoinSegments, splitCommaSegments } from "../utils/commaDelimited";
 
@@ -10,6 +11,11 @@ type Props = {
   schemaSpace?: string;
   /** Stable key segment for React list keys (node id or index). */
   fieldKey: string;
+  /**
+   * ``viewTarget`` — data model / view pickers only (e.g. view save nodes).
+   * ``query`` (default) — full view-query editor including filters and include_properties.
+   */
+  variant?: "query" | "viewTarget";
 };
 
 type CdfViewRow = { space: string; external_id: string; version: string };
@@ -52,8 +58,42 @@ function textToIncludeProps(s: string): string[] {
   return splitCommaSegments(s);
 }
 
+async function fetchViewPreview(config: JsonObject, limit: number): Promise<QueryPreviewResult> {
+  const r = await fetch("/api/cdf/discovery/view-query/preview", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ config, limit }),
+  });
+  if (!r.ok) {
+    let msg = r.statusText;
+    try {
+      const j = (await r.json()) as { detail?: unknown };
+      const d = j?.detail;
+      if (typeof d === "string") msg = d;
+    } catch {
+      /* ignore */
+    }
+    throw new Error(msg);
+  }
+  return r.json() as Promise<QueryPreviewResult>;
+}
+
+function readPreviewLimit(cfg: JsonObject): number {
+  const raw = cfg.batch_size ?? cfg.limit ?? 100;
+  const n = typeof raw === "number" ? raw : parseInt(String(raw), 10);
+  if (!Number.isFinite(n)) return 100;
+  return Math.min(1000, Math.max(1, Math.floor(n)));
+}
+
 /** Structured editor for a single view-query ``data.config`` object (or ``source_views[]`` row). */
-export function ViewQueryConfigFields({ value, onChange, schemaSpace, fieldKey }: Props) {
+export function ViewQueryConfigFields({
+  value,
+  onChange,
+  schemaSpace,
+  fieldKey,
+  variant = "query",
+}: Props) {
+  const queryOnly = variant === "query";
   const { t } = useAppSettings();
   const [cdfDataModels, setCdfDataModels] = useState<CdfDataModelRow[]>([]);
   const [cdfViews, setCdfViews] = useState<CdfViewRow[]>([]);
@@ -70,6 +110,8 @@ export function ViewQueryConfigFields({ value, onChange, schemaSpace, fieldKey }
 
   const viewSpaceTrim = String(value.view_space ?? "").trim();
   const defaultViewSpace = (schemaSpace ?? "").trim();
+  /** Space used for CDF view listing — committed field or module default shown in the input. */
+  const effectiveViewSpace = viewSpaceTrim || defaultViewSpace;
 
   const loadCdfDataModels = useCallback(async () => {
     setCdfDataModelsBusy(true);
@@ -122,38 +164,56 @@ export function ViewQueryConfigFields({ value, onChange, schemaSpace, fieldKey }
   }, []);
 
   useEffect(() => {
-    void loadCdfDataModels();
-  }, [loadCdfDataModels]);
-
-  useEffect(() => {
-    if (!viewSpaceTrim) {
+    if (!effectiveViewSpace) {
       setCdfViews([]);
       return;
     }
     const tmr = window.setTimeout(() => {
-      void loadCdfViewsForSpace(viewSpaceTrim);
+      void loadCdfViewsForSpace(effectiveViewSpace);
     }, 450);
     return () => window.clearTimeout(tmr);
-  }, [viewSpaceTrim, loadCdfViewsForSpace]);
+  }, [effectiveViewSpace, loadCdfViewsForSpace]);
 
   const includeKey = JSON.stringify(value.include_properties ?? null);
   const [includeDraft, setIncludeDraft] = useState(() => includePropsToText(value.include_properties));
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+  const [previewResult, setPreviewResult] = useState<QueryPreviewResult | null>(null);
+  const previewLimit = readPreviewLimit(value);
 
   useEffect(() => {
     setIncludeDraft(includePropsToText(value.include_properties));
   }, [fieldKey, includeKey]);
 
-  return (
-    <div className="kea-loc-fields">
+  const runPreview = useCallback(async () => {
+    const ve = String(value.view_external_id ?? "").trim();
+    if (!ve) {
+      setPreviewError(t("queries.viewPreviewRequired"));
+      return;
+    }
+    setPreviewLoading(true);
+    setPreviewError(null);
+    setPreviewResult(null);
+    try {
+      setPreviewResult(await fetchViewPreview(value, previewLimit));
+    } catch (e) {
+      setPreviewError(String(e));
+    } finally {
+      setPreviewLoading(false);
+    }
+  }, [value, previewLimit, t]);
+
+  const configFields = (
+    <>
       {cdfErr ? (
-        <p className="kea-hint kea-hint--warn kea-label--block" style={{ margin: 0 }}>
+        <p className="discovery-hint discovery-hint--warn discovery-label--block" style={{ margin: 0 }}>
           {t("sourceViews.cdfError")}: {cdfErr}
         </p>
       ) : null}
-      <label className="kea-label kea-label--block">
+      <label className="discovery-label discovery-label--block">
         {t("queries.description")}
         <input
-          className="kea-input"
+          className="discovery-input"
           style={{ marginTop: "0.35rem" }}
           value={String(value.description ?? "")}
           onChange={(e) => patch({ description: e.target.value })}
@@ -161,12 +221,44 @@ export function ViewQueryConfigFields({ value, onChange, schemaSpace, fieldKey }
           autoComplete="off"
         />
       </label>
-      <label className="kea-label kea-label--block">
-        <span className="kea-toolbar-inline" style={{ marginTop: 0, flexWrap: "wrap", gap: 8, width: "100%" }}>
+      <label className="discovery-label discovery-label--block">
+        {t("sourceViews.viewSpace")}
+        <span className="discovery-hint" style={{ display: "block", marginTop: "0.25rem", marginBottom: "0.35rem" }}>
+          {t("sourceViews.viewSpaceReloadHint")}
+        </span>
+        <div
+          className="discovery-toolbar-inline"
+          style={{ marginTop: 0, flexWrap: "wrap", gap: 8, alignItems: "stretch" }}
+        >
+          <input
+            className="discovery-input"
+            style={{ marginTop: 0, flex: "1 1 12rem", minWidth: 0 }}
+            value={String(value.view_space ?? defaultViewSpace)}
+            onChange={(e) => patch({ view_space: e.target.value })}
+            onBlur={(e) => {
+              const s = e.target.value.trim() || defaultViewSpace;
+              if (s) void loadCdfViewsForSpace(s);
+            }}
+            spellCheck={false}
+            autoComplete="off"
+          />
+          <button
+            type="button"
+            className="discovery-btn discovery-btn--sm"
+            style={{ marginTop: 0, flex: "0 0 auto", alignSelf: "center" }}
+            disabled={cdfViewsBusy || !effectiveViewSpace}
+            onClick={() => void loadCdfViewsForSpace(effectiveViewSpace)}
+          >
+            {cdfViewsBusy ? "…" : t("sourceViews.cdfReloadViews")}
+          </button>
+        </div>
+      </label>
+      <label className="discovery-label discovery-label--block">
+        <span className="discovery-toolbar-inline" style={{ marginTop: 0, flexWrap: "wrap", gap: 8, width: "100%" }}>
           <span style={{ flex: "1 1 auto" }}>{t("sourceViews.cdfPickDataModel")}</span>
           <button
             type="button"
-            className="kea-btn kea-btn--sm"
+            className="discovery-btn discovery-btn--sm"
             style={{ marginTop: 0, flex: "0 0 auto" }}
             disabled={cdfDataModelsBusy}
             onClick={() => void loadCdfDataModels()}
@@ -174,12 +266,12 @@ export function ViewQueryConfigFields({ value, onChange, schemaSpace, fieldKey }
             {cdfDataModelsBusy ? "…" : t("sourceViews.cdfReloadDataModels")}
           </button>
         </span>
-        <span className="kea-hint" style={{ display: "block", marginTop: "0.25rem", marginBottom: "0.35rem" }}>
+        <span className="discovery-hint" style={{ display: "block", marginTop: "0.25rem", marginBottom: "0.35rem" }}>
           {t("sourceViews.cdfPickDataModelHint")}
         </span>
         <select
           key={`cdf-dm-${fieldKey}-${cdfDmPickNonce}`}
-          className="kea-select"
+          className="discovery-select"
           style={{ marginTop: 0 }}
           defaultValue=""
           disabled={cdfDataModels.length === 0}
@@ -212,47 +304,22 @@ export function ViewQueryConfigFields({ value, onChange, schemaSpace, fieldKey }
           })}
         </select>
       </label>
-      <label className="kea-label">
-        {t("sourceViews.viewSpace")}
+      <label className="discovery-label discovery-label--block">
+        {t("sourceViews.viewExternalId")}
         <input
-          className="kea-input"
+          className="discovery-input"
           style={{ marginTop: "0.35rem" }}
-          value={String(value.view_space ?? defaultViewSpace)}
-          onChange={(e) => patch({ view_space: e.target.value })}
+          value={String(value.view_external_id ?? "")}
+          onChange={(e) => patch({ view_external_id: e.target.value })}
           spellCheck={false}
           autoComplete="off"
         />
       </label>
-      <label className="kea-label">
-        {t("sourceViews.viewExternalId")}
-        <div
-          className="kea-toolbar-inline"
-          style={{ marginTop: "0.35rem", flexWrap: "wrap", gap: 8, alignItems: "stretch" }}
-        >
-          <input
-            className="kea-input"
-            style={{ marginTop: 0, flex: "1 1 12rem", minWidth: 0 }}
-            value={String(value.view_external_id ?? "")}
-            onChange={(e) => patch({ view_external_id: e.target.value })}
-            spellCheck={false}
-            autoComplete="off"
-          />
-          <button
-            type="button"
-            className="kea-btn kea-btn--sm"
-            style={{ marginTop: 0, flex: "0 0 auto", alignSelf: "center" }}
-            disabled={cdfViewsBusy || !viewSpaceTrim}
-            onClick={() => void loadCdfViewsForSpace(viewSpaceTrim)}
-          >
-            {cdfViewsBusy ? "…" : t("sourceViews.cdfReloadViews")}
-          </button>
-        </div>
-      </label>
-      <label className="kea-label kea-label--block">
+      <label className="discovery-label discovery-label--block">
         {t("sourceViews.cdfPickView")}
         <select
           key={`cdf-pick-${fieldKey}-${cdfPickNonce}`}
-          className="kea-select"
+          className="discovery-select"
           style={{ marginTop: "0.35rem" }}
           defaultValue=""
           disabled={cdfViews.length === 0}
@@ -284,61 +351,91 @@ export function ViewQueryConfigFields({ value, onChange, schemaSpace, fieldKey }
           ))}
         </select>
       </label>
-      <label className="kea-label">
+      <label className="discovery-label">
         {t("sourceViews.viewVersion")}
         <input
-          className="kea-input"
+          className="discovery-input"
           value={String(value.view_version ?? "")}
           onChange={(e) => patch({ view_version: e.target.value })}
         />
       </label>
-      <label className="kea-label">
-        {t("sourceViews.batchSize")}
-        <input
-          className="kea-input"
-          type="number"
-          value={value.batch_size != null ? String(value.batch_size) : ""}
-          onChange={(e) => {
-            const val = e.target.value.trim();
-            patch({ batch_size: val === "" ? undefined : Number(val) });
-          }}
-        />
-      </label>
-      <label className="kea-label">
+      {queryOnly ? (
+        <label className="discovery-label discovery-label--block">
+          {t("sourceViews.batchSize")}
+          <input
+            className="discovery-input"
+            type="number"
+            style={{ marginTop: "0.35rem", maxWidth: "12rem" }}
+            value={value.batch_size != null ? String(value.batch_size) : ""}
+            onChange={(e) => {
+              const val = e.target.value.trim();
+              patch({ batch_size: val === "" ? undefined : Number(val) });
+            }}
+          />
+          <span className="discovery-hint" style={{ display: "block", marginTop: "0.25rem" }}>
+            {t("sourceViews.batchSizeHint")}
+          </span>
+        </label>
+      ) : null}
+      <label className="discovery-label">
         {t("sourceViews.instanceSpace")}
         <input
-          className="kea-input"
+          className="discovery-input"
           value={String(value.instance_space ?? "")}
           onChange={(e) => patch({ instance_space: e.target.value || undefined })}
         />
       </label>
-      <label className="kea-label kea-label--block" style={{ marginTop: "0.75rem" }}>
-        {t("sourceViews.includeProperties")}
-        <span
-          className="kea-hint"
-          style={{ display: "block", marginBottom: "0.25rem", cursor: "help" }}
-          title={t("sourceViews.includePropsHint.tooltip")}
-        >
-          {t("sourceViews.includePropsHint")}
-        </span>
-        <input
-          type="text"
-          className="kea-input"
-          value={includeDraft}
-          onChange={(e) => setIncludeDraft(e.target.value)}
-          onBlur={() => patch({ include_properties: textToIncludeProps(includeDraft) })}
-          spellCheck={false}
-          autoComplete="off"
-        />
-      </label>
-      <SourceViewFiltersSection
-        filters={
-          (Array.isArray(value.filters) ? value.filters : []).filter(
-            (x): x is JsonObject => x !== null && typeof x === "object" && !Array.isArray(x)
-          )
-        }
-        onFiltersChange={setFilters}
+      {queryOnly ? (
+        <>
+          <label className="discovery-label discovery-label--block" style={{ marginTop: "0.75rem" }}>
+            {t("sourceViews.includeProperties")}
+            <span
+              className="discovery-hint"
+              style={{ display: "block", marginBottom: "0.25rem", cursor: "help" }}
+              title={t("sourceViews.includePropsHint.tooltip")}
+            >
+              {t("sourceViews.includePropsHint")}
+            </span>
+            <input
+              type="text"
+              className="discovery-input"
+              value={includeDraft}
+              onChange={(e) => setIncludeDraft(e.target.value)}
+              onBlur={() => patch({ include_properties: textToIncludeProps(includeDraft) })}
+              spellCheck={false}
+              autoComplete="off"
+            />
+          </label>
+          <SourceViewFiltersSection
+            filters={
+              (Array.isArray(value.filters) ? value.filters : []).filter(
+                (x): x is JsonObject => x !== null && typeof x === "object" && !Array.isArray(x)
+              )
+            }
+            onFiltersChange={setFilters}
+            fieldKey={fieldKey}
+          />
+        </>
+      ) : null}
+    </>
+  );
+
+  if (!queryOnly) {
+    return <div className="discovery-loc-fields">{configFields}</div>;
+  }
+
+  return (
+    <div className="discovery-loc-fields discovery-query-fields">
+      <div className="discovery-query-fields__config">
+        <p className="discovery-hint discovery-query-fields__intro">{t("queries.viewEditorIntro")}</p>
+        {configFields}
+      </div>
+      <QueryPreviewPanel
         fieldKey={fieldKey}
+        loading={previewLoading}
+        error={previewError}
+        result={previewResult}
+        onRun={runPreview}
       />
     </div>
   );

@@ -1,19 +1,19 @@
 import { addEdge, type Connection, type Edge, type Node } from "@xyflow/react";
-import { keaFlowEdgeVisualDefaults, type FlowEdgeData } from "./flowDocumentBridge";
-import { keaValidationRuleLayoutRfTypes } from "./flowConstants";
+import { discoveryFlowEdgeVisualDefaults, type FlowEdgeData } from "./flowDocumentBridge";
+import { discoveryValidationRuleLayoutRfTypes } from "./flowConstants";
 
-/** First ``keaEnd`` node id in document order, if any. */
-export function findFirstKeaEndNodeId(nodes: readonly Pick<Node, "id" | "type">[]): string | null {
+/** First ``discoveryEnd`` node id in document order, if any. */
+export function findFirstDiscoveryEndNodeId(nodes: readonly Pick<Node, "id" | "type">[]): string | null {
   for (const n of nodes) {
-    if (n.type === "keaEnd") return n.id;
+    if (n.type === "discoveryEnd") return n.id;
   }
   return null;
 }
 
-/** Primary data edge from a persistence node ``out`` to ``keaEnd`` ``in``. */
+/** Primary data edge from a persistence node ``out`` to ``discoveryEnd`` ``in``. */
 export function buildPersistenceOutboundToEndDataEdge(persistenceNodeId: string, endNodeId: string): Edge {
   return {
-    ...keaFlowEdgeVisualDefaults,
+    ...discoveryFlowEdgeVisualDefaults,
     id: `e_${persistenceNodeId}_${endNodeId}_persistenceEnd_${Date.now()}`,
     source: persistenceNodeId,
     sourceHandle: "out",
@@ -40,7 +40,7 @@ export function appendReuseDataEdge(edges: Edge[], sourceId: string, targetId: s
   if (edges.some((x) => x.source === sourceId && x.target === targetId)) return edges;
   return addEdge(
     {
-      ...keaFlowEdgeVisualDefaults,
+      ...discoveryFlowEdgeVisualDefaults,
       id: `e_${sourceId}_${targetId}_${Date.now()}`,
       source: sourceId,
       target: targetId,
@@ -55,42 +55,42 @@ type GetNode = (id: string) => Node | undefined;
 /**
  * Append a connection edge with `data.kind` set for aliasing and validation-rule layout chains.
  */
-export function appendKeaConnectionEdge(getNode: GetNode, edges: Edge[], params: Connection): Edge[] {
+export function appendDiscoveryConnectionEdge(getNode: GetNode, edges: Edge[], params: Connection): Edge[] {
   const srcType = getNode(params.source)?.type;
   const tgtType = getNode(params.target)?.type;
   let edgeKind: FlowEdgeData["kind"] = "data";
-  if (srcType === "keaTransform" && tgtType === "keaTransform") {
+  if (srcType === "discoveryTransform" && tgtType === "discoveryTransform") {
     const existing = edges.some((e) => {
       if (e.source !== params.source) return false;
       if (e.target === params.target) return false;
-      return getNode(e.target)?.type === "keaTransform";
+      return getNode(e.target)?.type === "discoveryTransform";
     });
     edgeKind = existing ? "parallel_group" : "sequence";
-  } else if (srcType === "keaDiscoveryValidate" && tgtType === "keaDiscoveryValidate") {
+  } else if (srcType === "discoveryValidate" && tgtType === "discoveryValidate") {
     const existing = edges.some((e) => {
       if (e.source !== params.source) return false;
       if (e.target === params.target) return false;
-      return getNode(e.target)?.type === "keaDiscoveryValidate";
+      return getNode(e.target)?.type === "discoveryValidate";
     });
     edgeKind = existing ? "parallel_group" : "sequence";
   } else if (
     srcType &&
     tgtType &&
-    keaValidationRuleLayoutRfTypes.has(srcType) &&
-    keaValidationRuleLayoutRfTypes.has(tgtType)
+    discoveryValidationRuleLayoutRfTypes.has(srcType) &&
+    discoveryValidationRuleLayoutRfTypes.has(tgtType)
   ) {
     const existingValidationRuleChainOut = edges.some((e) => {
       if (e.source !== params.source) return false;
       if (e.target === params.target) return false;
       const t = getNode(e.target)?.type;
-      return Boolean(t && keaValidationRuleLayoutRfTypes.has(t));
+      return Boolean(t && discoveryValidationRuleLayoutRfTypes.has(t));
     });
     edgeKind = existingValidationRuleChainOut ? "parallel_group" : "sequence";
   }
   return addEdge(
     {
       ...params,
-      ...keaFlowEdgeVisualDefaults,
+      ...discoveryFlowEdgeVisualDefaults,
       data: { kind: edgeKind } satisfies FlowEdgeData,
     },
     edges

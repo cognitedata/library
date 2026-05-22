@@ -31,10 +31,10 @@ def test_discovery_raw_hash_index_getter_builds_once_per_table(monkeypatch) -> N
     """Parallel view-query tasks should share one build_latest_hash_index_for_table call per sink."""
     build_calls = {"n": 0}
 
-    def _fake_build(_client, _db, _tbl, *, chunk_size=2500):
+    def _fake_build(_client, _db, _tbl, *, workflow_scope="", chunk_size=2500):
         del _client, chunk_size
         build_calls["n"] += 1
-        return {"sk": {"n1": "h1"}}
+        return {"sk": {"n1": f"h1_{workflow_scope}"}}
 
     monkeypatch.setattr(
         "cdf_fn_common.incremental_scope.build_latest_hash_index_for_table",
@@ -54,11 +54,13 @@ def test_discovery_raw_hash_index_getter_builds_once_per_table(monkeypatch) -> N
         run_id="r",
     )
     getter = _discovery_raw_hash_index_getter(ctx)
-    assert getter(None, "db1", "t1") == {"sk": {"n1": "h1"}}
-    assert getter(None, "db1", "t1") == {"sk": {"n1": "h1"}}
+    assert getter(None, "db1", "t1", "wf_a") == {"sk": {"n1": "h1_wf_a"}}
+    assert getter(None, "db1", "t1", "wf_a") == {"sk": {"n1": "h1_wf_a"}}
     assert build_calls["n"] == 1
-    getter(None, "db2", "t2")
+    getter(None, "db1", "t1", "wf_b")
     assert build_calls["n"] == 2
+    getter(None, "db2", "t2", "")
+    assert build_calls["n"] == 3
 
 
 def test_discovery_cohort_row_index_getter_builds_once_per_table(monkeypatch) -> None:

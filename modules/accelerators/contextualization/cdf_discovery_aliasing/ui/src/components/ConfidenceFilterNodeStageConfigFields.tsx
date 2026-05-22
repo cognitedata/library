@@ -11,7 +11,6 @@ type Props = {
   fieldKey?: string;
 };
 
-const VALUE_FIELDS = ["aliases", "indexKey"] as const;
 const COMPARISONS = ["gte", "gt", "lte", "lt"] as const;
 
 export function ConfidenceFilterNodeStageConfigFields({
@@ -21,8 +20,7 @@ export function ConfidenceFilterNodeStageConfigFields({
   t,
   fieldKey = "confidence_filter",
 }: Props) {
-  const valueField =
-    VALUE_FIELDS.find((v) => v === String(cfg.value_field ?? "").trim()) ?? "aliases";
+  const valueField = String(cfg.value_field ?? "aliases").trim() || "aliases";
   const comparison =
     COMPARISONS.find((c) => c === String(cfg.comparison ?? "").trim().toLowerCase()) ?? "gte";
   const minConf =
@@ -39,36 +37,31 @@ export function ConfidenceFilterNodeStageConfigFields({
 
   return (
     <>
-      <label className="kea-label kea-label--block">
+      <label className="discovery-label discovery-label--block">
         {t("confidenceFilter.description")}
         <DeferredCommitInput
-          className="kea-input"
+          className="discovery-input"
           style={{ marginTop: "0.35rem" }}
           committedValue={cfg.description != null ? String(cfg.description) : ""}
           syncKey={`${fieldKey}-desc`}
           onCommit={(v) => commit({ description: v })}
         />
       </label>
-      <label className="kea-label kea-label--block">
+      <label className="discovery-label discovery-label--block">
         {t("confidenceFilter.valueField")}
-        <select
-          className="kea-input"
+        <DeferredCommitInput
+          className="discovery-input"
           style={{ marginTop: "0.35rem" }}
-          value={valueField}
-          onChange={(e) => commit({ value_field: e.target.value })}
-        >
-          {VALUE_FIELDS.map((vf) => (
-            <option key={vf} value={vf}>
-              {vf}
-            </option>
-          ))}
-        </select>
+          committedValue={valueField}
+          syncKey={`${fieldKey}-value-field`}
+          onCommit={(v) => commit({ value_field: v.trim() || "aliases" })}
+        />
       </label>
-      <p className="kea-hint">{t("confidenceFilter.scorePropertyHint", { field: valueField })}</p>
-      <label className="kea-label kea-label--block">
+      <p className="discovery-hint">{t("confidenceFilter.scorePropertyHint", { field: valueField })}</p>
+      <label className="discovery-label discovery-label--block">
         {t("confidenceFilter.minConfidence")}
         <DeferredCommitInput
-          className="kea-input"
+          className="discovery-input"
           style={{ marginTop: "0.35rem" }}
           committedValue={minConf}
           syncKey={`${fieldKey}-min`}
@@ -78,10 +71,10 @@ export function ConfidenceFilterNodeStageConfigFields({
           }}
         />
       </label>
-      <label className="kea-label kea-label--block">
+      <label className="discovery-label discovery-label--block">
         {t("confidenceFilter.comparison")}
         <select
-          className="kea-input"
+          className="discovery-input"
           style={{ marginTop: "0.35rem" }}
           value={comparison}
           onChange={(e) => commit({ comparison: e.target.value })}
@@ -93,7 +86,7 @@ export function ConfidenceFilterNodeStageConfigFields({
           ))}
         </select>
       </label>
-      <label className="kea-label kea-label--inline" style={{ marginTop: "0.5rem" }}>
+      <label className="discovery-label discovery-label--inline" style={{ marginTop: "0.5rem" }}>
         <input
           type="checkbox"
           checked={dropEmpty}

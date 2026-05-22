@@ -1,0 +1,9 @@
+name: gp_clk_integration_reader
+sourceId: "{{ gp_clk_integration_reader }}"
+capabilities:
+  - dataModelInstancesAcl:
+      scope:
+        spaceIdScope:
+          spaceIds:
+            - inst_erp_clk
+            - inst_scada_clk

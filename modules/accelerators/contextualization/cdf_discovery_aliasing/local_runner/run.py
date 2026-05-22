@@ -209,19 +209,60 @@ def _run_workflow_parity(
     _ensure_pipeline_run_id(ctx)
 
     _timing_mark = len(ctx.task_timings)
-    run_compiled_workflow_dag(ctx)
-    if len(ctx.task_timings) > _timing_mark:
-        parts = [
-            f"{t.get('function_external_id') or t.get('task_id')}:{float(t.get('duration_sec', 0)):.2f}s"
-            for t in ctx.task_timings[_timing_mark:]
-        ]
-        logger.info("Pipeline task timings: %s", ", ".join(parts))
+    pipeline_error: Optional[str] = None
+    try:
+        run_compiled_workflow_dag(ctx)
+    except Exception as exc:
+        pipeline_error = f"{type(exc).__name__}: {exc}"
+        raise
+    finally:
+        if len(ctx.task_timings) > _timing_mark:
+            parts = [
+                f"{t.get('function_external_id') or t.get('task_id')}:{float(t.get('duration_sec', 0)):.2f}s"
+                for t in ctx.task_timings[_timing_mark:]
+            ]
+            logger.info("Pipeline task timings: %s", ", ".join(parts))
 
-    from .discovery_run_v2 import DISCOVERY_RUN_SUFFIX, compose_discovery_run_document
+        discovery_path = _persist_discovery_run_results(
+            ctx,
+            args,
+            client,
+            scope_yaml_path,
+            logger,
+            pipeline_error=pipeline_error,
+        )
+        _log_cli_run_summary(
+            logger,
+            {
+                "run_id": ctx.run_id,
+                "task_timings_count": len(ctx.task_timings),
+                "paths": {"discovery": str(discovery_path)},
+            },
+        )
+
+
+def _last_failed_task_id(ctx: KahnRunContext) -> Optional[str]:
+    for rec in reversed(ctx.local_run_tasks):
+        if rec.get("status") == "failed":
+            tid = str(rec.get("task_id") or "").strip()
+            if tid:
+                return tid
+    return None
+
+
+def _persist_discovery_run_results(
+    ctx: KahnRunContext,
+    args: argparse.Namespace,
+    client: Any,
+    scope_yaml_path: Path,
+    logger: logging.Logger,
+    *,
+    pipeline_error: Optional[str] = None,
+) -> Path:
+    """Always write v2 discovery run JSON (even when the DAG raised)."""
+    from .discovery_run_v2 import write_discovery_run_artifact
 
     results_dir = ensure_results_dir()
-    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-    discovery_path = results_dir / f"{ts}{DISCOVERY_RUN_SUFFIX}"
     run_scope = result_run_scope_dict(scope_yaml_path)
     raw_results: Optional[Dict[str, Any]] = getattr(ctx, "raw_results_snapshot", None)
     row_limit = int(getattr(args, "raw_results_rows", 500) or 0)
@@ -247,44 +288,47 @@ def _run_workflow_parity(
             row_limit,
         )
 
-    out_doc = compose_discovery_run_document(
-        run_scope=run_scope,
-        run_id=str(ctx.run_id or ""),
-        dry_run=bool(getattr(args, "dry_run", False)),
-        wall_t0=float(ctx.local_run_wall_t0 or 0.0),
-        local_run_tasks=list(ctx.local_run_tasks),
-        discovery_task_outputs=ctx.discovery_task_outputs,
-        handler_data_snapshots=dict(ctx.handler_data_snapshots),
-        compiled_workflow=ctx.compiled_workflow if isinstance(ctx.compiled_workflow, dict) else None,
-        raw_table_samples=raw_results,
-    )
-    merged = (out_doc.get("persistence") or {}).get("merged_entities") or {}
-    if merged.get("instance_count"):
-        logger.info(
-            "Persistence instances merged: %s instance(s) from %s task(s)",
-            merged["instance_count"],
-            len(merged.get("persistence_tasks") or []),
-        )
+    warnings: List[str] = []
+    if pipeline_error:
+        warnings.append(f"pipeline_aborted: {pipeline_error}")
+
     if not ctx.local_run_tasks:
         logger.warning(
             "No local_run_tasks recorded; writing minimal discovery_run.json (check for early abort)."
         )
+
+    failed_tid = _last_failed_task_id(ctx)
     try:
-        with discovery_path.open("w", encoding="utf-8") as f:
-            json.dump(out_doc, f, indent=2, default=str)
+        discovery_path = write_discovery_run_artifact(
+            results_dir=results_dir,
+            run_scope=run_scope,
+            run_id=str(ctx.run_id or ""),
+            dry_run=bool(getattr(args, "dry_run", False)),
+            wall_t0=float(ctx.local_run_wall_t0 or 0.0),
+            local_run_tasks=list(ctx.local_run_tasks),
+            discovery_task_outputs=ctx.discovery_task_outputs,
+            handler_data_snapshots=dict(ctx.handler_data_snapshots),
+            compiled_workflow=ctx.compiled_workflow if isinstance(ctx.compiled_workflow, dict) else None,
+            raw_table_samples=raw_results,
+            failed_task_id=failed_tid,
+            warnings=warnings or None,
+        )
         logger.info("✓ Wrote discovery run results (v2): %s", discovery_path)
     except Exception as exc:
         logger.error("Failed to write discovery run results (v2): %s", exc)
         raise
 
-    _log_cli_run_summary(
-        logger,
-        {
-            "run_id": ctx.run_id,
-            "task_timings_count": len(ctx.task_timings),
-            "paths": {"discovery": str(discovery_path)},
-        },
-    )
+    if ctx.handler_data_snapshots:
+        from .persistence_instances_merge import build_merged_persistence_instances
+
+        merged = build_merged_persistence_instances(ctx.handler_data_snapshots)
+        if merged.get("instance_count"):
+            logger.info(
+                "Persistence instances merged: %s instance(s) from %s task(s)",
+                merged["instance_count"],
+                len(merged.get("persistence_tasks") or []),
+            )
+    return discovery_path
 
 
 def run_pipeline(

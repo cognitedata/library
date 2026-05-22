@@ -70,16 +70,16 @@ export function TransformSingleStepFields({
   };
 
   return (
-    <div className="kea-transform-step-fields">
+    <div className="discovery-transform-step-fields">
       {stepIndex != null ? (
-        <h5 className="kea-section-title" style={{ fontSize: "0.9rem", margin: "0 0 0.5rem" }}>
+        <h5 className="discovery-section-title" style={{ fontSize: "0.9rem", margin: "0 0 0.5rem" }}>
           {t("pipelineSteps.stepNumber", { n: stepIndex + 1 })}
         </h5>
       ) : null}
-      <label className="kea-label kea-label--block">
+      <label className="discovery-label discovery-label--block">
         {t("transforms.description")}
         <input
-          className="kea-input"
+          className="discovery-input"
           style={{ marginTop: "0.35rem" }}
           value={String(value.description ?? "")}
           onChange={(e) => patch({ description: e.target.value })}
@@ -87,11 +87,11 @@ export function TransformSingleStepFields({
           autoComplete="off"
         />
       </label>
-      <label className="kea-label kea-label--block">
+      <label className="discovery-label discovery-label--block">
         {t("transforms.handler")}
         {handlerLocked ? (
           <input
-            className="kea-input"
+            className="discovery-input"
             style={{ marginTop: "0.35rem" }}
             value={handler || "—"}
             readOnly
@@ -110,17 +110,17 @@ export function TransformSingleStepFields({
         )}
       </label>
       {handlerLocked && handler ? (
-        <p className="kea-hint" style={{ marginTop: "0.25rem" }}>
+        <p className="discovery-hint" style={{ marginTop: "0.25rem" }}>
           {t("transforms.handlerLockedHint")}
         </p>
       ) : null}
       {handler ? (
-        <p className="kea-hint" style={{ marginTop: 0 }}>
+        <p className="discovery-hint" style={{ marginTop: 0 }}>
           {t(transformHandlerDocKey(handler))}
         </p>
       ) : null}
-      <div className="kea-toolbar-inline" style={{ flexWrap: "wrap", gap: "1rem", marginTop: "0.5rem" }}>
-        <label className="kea-label" style={{ margin: 0, display: "flex", alignItems: "center", gap: 8 }}>
+      <div className="discovery-toolbar-inline" style={{ flexWrap: "wrap", gap: "1rem", marginTop: "0.5rem" }}>
+        <label className="discovery-label" style={{ margin: 0, display: "flex", alignItems: "center", gap: 8 }}>
           <input
             type="checkbox"
             checked={value.enabled !== false}
@@ -129,20 +129,20 @@ export function TransformSingleStepFields({
           {t("transforms.enabled")}
         </label>
       </div>
-      <label className="kea-label kea-label--block" style={{ marginTop: "0.75rem" }}>
+      <label className="discovery-label discovery-label--block" style={{ marginTop: "0.75rem" }}>
         {t("transforms.outputField")}
         <input
-          className="kea-input"
+          className="discovery-input"
           style={{ marginTop: "0.35rem" }}
           value={String(value.output_field ?? "")}
           onChange={(e) => patch({ output_field: e.target.value })}
           spellCheck={false}
         />
       </label>
-      <label className="kea-label kea-label--block" style={{ marginTop: "0.5rem" }}>
+      <label className="discovery-label discovery-label--block" style={{ marginTop: "0.5rem" }}>
         {t("transforms.outputFieldType")}
         <select
-          className="kea-select"
+          className="discovery-select"
           style={{ marginTop: "0.35rem" }}
           value={String(value.output_field_type ?? "auto").trim().toLowerCase() || "auto"}
           onChange={(e) => patch({ output_field_type: e.target.value })}
@@ -157,10 +157,10 @@ export function TransformSingleStepFields({
           <option value="json">json</option>
         </select>
       </label>
-      <label className="kea-label kea-label--block" style={{ marginTop: "0.5rem" }}>
+      <label className="discovery-label discovery-label--block" style={{ marginTop: "0.5rem" }}>
         {t("transforms.outputTemplate")}
         <input
-          className="kea-input"
+          className="discovery-input"
           style={{ marginTop: "0.35rem" }}
           value={String(value.output_template ?? "")}
           onChange={(e) => patch({ output_template: e.target.value })}
@@ -168,10 +168,10 @@ export function TransformSingleStepFields({
           spellCheck={false}
         />
       </label>
-      <label className="kea-label kea-label--block" style={{ marginTop: "0.5rem" }}>
+      <label className="discovery-label discovery-label--block" style={{ marginTop: "0.5rem" }}>
         {t("transforms.outputMode")}
         <select
-          className="kea-select"
+          className="discovery-select"
           style={{ marginTop: "0.35rem" }}
           value={String(value.output_mode ?? "append")}
           onChange={(e) => patch({ output_mode: e.target.value })}
@@ -181,7 +181,7 @@ export function TransformSingleStepFields({
         </select>
       </label>
       <div style={{ marginTop: "0.85rem" }}>
-        <h4 className="kea-section-title" style={{ fontSize: "0.95rem", marginBottom: "0.5rem" }}>
+        <h4 className="discovery-section-title" style={{ fontSize: "0.95rem", marginBottom: "0.5rem" }}>
           {t("transforms.fieldsTitle")}
         </h4>
         {(fields.length ? fields : [{ field_name: "" }]).map((row, i) => {
@@ -191,13 +191,13 @@ export function TransformSingleStepFields({
           return (
             <div
               key={i}
-              className="kea-filter-row kea-filter-row--field-pair"
+              className="discovery-filter-row discovery-filter-row--field-pair"
               style={{ marginBottom: "0.35rem" }}
             >
-              <label className="kea-label">
+              <label className="discovery-label">
                 {t("transforms.fieldName")}
                 <input
-                  className="kea-input"
+                  className="discovery-input"
                   value={fieldName}
                   onChange={(e) => {
                     const next = [...rowList];
@@ -206,10 +206,10 @@ export function TransformSingleStepFields({
                   }}
                 />
               </label>
-              <label className="kea-label">
+              <label className="discovery-label">
                 {t("transforms.fieldRegex")}
                 <input
-                  className="kea-input"
+                  className="discovery-input"
                   value={regexStr}
                   onChange={(e) => {
                     const next = [...rowList];
@@ -221,7 +221,7 @@ export function TransformSingleStepFields({
               </label>
               <button
                 type="button"
-                className="kea-btn kea-btn--ghost kea-btn--sm"
+                className="discovery-btn discovery-btn--ghost discovery-btn--sm"
                 onClick={() => setFields(rowList.filter((_, j) => j !== i))}
               >
                 ×
@@ -231,7 +231,7 @@ export function TransformSingleStepFields({
         })}
         <button
           type="button"
-          className="kea-btn kea-btn--sm"
+          className="discovery-btn discovery-btn--sm"
           onClick={() => setFields([...fields, { field_name: "" }])}
         >
           {t("transforms.addField")}
@@ -239,7 +239,7 @@ export function TransformSingleStepFields({
       </div>
       {handler && isDiscoveryTransformHandlerId(handler) ? (
         <div style={{ marginTop: "0.85rem" }}>
-          <h4 className="kea-section-title" style={{ fontSize: "0.95rem", marginBottom: "0.5rem" }}>
+          <h4 className="discovery-section-title" style={{ fontSize: "0.95rem", marginBottom: "0.5rem" }}>
             {t("transforms.handlerConfig")}
           </h4>
           <TransformHandlerConfigFields

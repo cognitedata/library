@@ -27,9 +27,9 @@ import { resolveConfidenceMatchRuleNames } from "../../utils/confidenceMatchRule
 import { patchSourceViewFilters } from "./workflowScopePatch";
 import { DeferredCommitInput, DeferredCommitTextarea } from "../DeferredCommitTextField";
 import {
-  keaDiscoveryStageRfTypes,
-  keaValidationRuleLayoutRfTypes,
-  keaWorkflowDisableableRfTypes,
+  discoveryStageRfTypes,
+  discoveryValidationRuleLayoutRfTypes,
+  discoveryWorkflowDisableableRfTypes,
 } from "./flowConstants";
 import { isWorkflowCanvasNodeEnabled } from "../../types/workflowCanvas";
 import { applyWorkflowCanvasEnablementPatch } from "./flowNodeEnabled";
@@ -39,11 +39,11 @@ import { ConfidenceFilterNodeInspectorFields } from "./ConfidenceFilterNodeInspe
 
 function validationRuleLayoutContextFromRfType(rfType: string | undefined): "source_view" | "extraction" | "aliasing" {
   switch (rfType) {
-    case "keaMatchValidationRuleSourceView":
+    case "discoveryMatchValidationRuleSourceView":
       return "source_view";
-    case "keaMatchValidationRuleExtraction":
+    case "discoveryMatchValidationRuleExtraction":
       return "extraction";
-    case "keaMatchValidationRuleAliasing":
+    case "discoveryMatchValidationRuleAliasing":
       return "aliasing";
     default:
       return "extraction";
@@ -66,7 +66,7 @@ type Props = {
   onPatchEdge: (edgeId: string, kind: CanvasEdgeKind) => void;
   /** Persist subgraph port list and prune edges that referenced removed ports. */
   onApplySubflowPorts?: (subflowId: string, ports: SubflowPortsConfig) => void;
-  /** Open drill-in editor for a ``keaSubgraph`` composite. */
+  /** Open drill-in editor for a ``discoverySubgraph`` composite. */
   onOpenSubgraphDrill?: (nodeId: string) => void;
   /** Optional one-line hint when cascade disable/enable affects other nodes. */
   onActivityHint?: (message: string) => void;
@@ -122,6 +122,7 @@ function discoveryKindUsesNodeConfig(kind: CanvasNodeKind): boolean {
     case "query_view":
     case "query_raw":
     case "query_classic":
+    case "query_sql":
     case "transform":
     case "merge":
     case "join":
@@ -145,6 +146,15 @@ function discoveryStageInlineNonempty(kind: CanvasNodeKind, value: unknown): boo
   if (kind === "query_view" || kind === "save_view") {
     const ve = row.view_external_id != null ? String(row.view_external_id).trim() : "";
     return ve.length > 0;
+  }
+  if (kind === "query_sql") {
+    const sq =
+      row.sql_query != null
+        ? String(row.sql_query).trim()
+        : row.query != null
+          ? String(row.query).trim()
+          : "";
+    return sq.length > 0;
   }
   if (
     kind === "query_raw" ||
@@ -302,14 +312,14 @@ function FlowNodeEnabledInspectorField({
   onPatchWorkflowCanvas?: (next: WorkflowCanvasDocument) => void;
   onActivityHint?: (message: string) => void;
 }) {
-  if (!keaWorkflowDisableableRfTypes.has(rfType) || !workflowCanvas || !onPatchWorkflowCanvas) {
+  if (!discoveryWorkflowDisableableRfTypes.has(rfType) || !workflowCanvas || !onPatchWorkflowCanvas) {
     return null;
   }
   const cn = workflowCanvas.nodes.find((n) => n.id === nodeId);
   const enabled = cn ? isWorkflowCanvasNodeEnabled(cn) : true;
   return (
     <div style={{ marginTop: "0.5rem", marginBottom: "0.35rem" }}>
-      <label className="kea-label" style={{ display: "flex", gap: "0.5rem", alignItems: "center", margin: 0 }}>
+      <label className="discovery-label" style={{ display: "flex", gap: "0.5rem", alignItems: "center", margin: 0 }}>
         <input
           type="checkbox"
           checked={enabled}
@@ -324,7 +334,7 @@ function FlowNodeEnabledInspectorField({
         />
         {t("flow.inspectorNodeEnabled")}
       </label>
-      <p className="kea-hint" style={{ marginTop: "0.25rem", marginBottom: 0 }}>
+      <p className="discovery-hint" style={{ marginTop: "0.25rem", marginBottom: 0 }}>
         {t("flow.inspectorNodeEnabledHint")}
       </p>
     </div>
@@ -350,7 +360,7 @@ function SubgraphPortsEditorBlock(props: {
   const { t, syncKeyPrefix, ports, onCommit } = props;
   return (
     <div style={{ marginTop: "1rem" }}>
-      <p className="kea-flow-inspector__subtitle" style={{ margin: "0 0 0.5rem", fontWeight: 600 }}>
+      <p className="discovery-flow-inspector__subtitle" style={{ margin: "0 0 0.5rem", fontWeight: 600 }}>
         {t("flow.inspectorSubflowPorts")}
       </p>
       <div style={{ marginBottom: "0.85rem" }}>
@@ -358,11 +368,11 @@ function SubgraphPortsEditorBlock(props: {
         {ports.inputs.map((row: SubflowPortEntry, idx: number) => (
           <div key={`${row.id}-${idx}`} style={{ marginBottom: 6 }}>
             <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem", alignItems: "center" }}>
-            <code className="kea-hint" style={{ minWidth: "4.5rem" }}>
+            <code className="discovery-hint" style={{ minWidth: "4.5rem" }}>
               {row.id}
             </code>
             <DeferredCommitInput
-              className="kea-input"
+              className="discovery-input"
               style={{ flex: "1 1 8rem", minWidth: "6rem" }}
               committedValue={String(row.label ?? "")}
               syncKey={`${syncKeyPrefix}-in-lbl-${row.id}`}
@@ -373,7 +383,7 @@ function SubgraphPortsEditorBlock(props: {
             />
             <button
               type="button"
-              className="kea-btn kea-btn--sm"
+              className="discovery-btn discovery-btn--sm"
               disabled={idx === 0}
               title={t("flow.inspectorSubflowMovePortUp")}
               aria-label={t("flow.inspectorSubflowMovePortUp")}
@@ -383,7 +393,7 @@ function SubgraphPortsEditorBlock(props: {
             </button>
             <button
               type="button"
-              className="kea-btn kea-btn--sm"
+              className="discovery-btn discovery-btn--sm"
               disabled={idx >= ports.inputs.length - 1}
               title={t("flow.inspectorSubflowMovePortDown")}
               aria-label={t("flow.inspectorSubflowMovePortDown")}
@@ -393,7 +403,7 @@ function SubgraphPortsEditorBlock(props: {
             </button>
             <button
               type="button"
-              className="kea-btn kea-btn--sm"
+              className="discovery-btn discovery-btn--sm"
               disabled={ports.inputs.length <= 1}
               onClick={() => {
                 const nextIn = ports.inputs.filter((_, i) => i !== idx);
@@ -404,7 +414,7 @@ function SubgraphPortsEditorBlock(props: {
             </button>
             </div>
             {row.inner_target_rf_type ? (
-              <p className="kea-hint" style={{ margin: "0.2rem 0 0", fontSize: "0.8rem" }}>
+              <p className="discovery-hint" style={{ margin: "0.2rem 0 0", fontSize: "0.8rem" }}>
                 {t("flow.inspectorSubflowPortInnerIn", { type: row.inner_target_rf_type })}
               </p>
             ) : null}
@@ -412,7 +422,7 @@ function SubgraphPortsEditorBlock(props: {
         ))}
         <button
           type="button"
-          className="kea-btn kea-btn--sm"
+          className="discovery-btn discovery-btn--sm"
           style={{ marginTop: 4 }}
           onClick={() =>
             onCommit({
@@ -429,11 +439,11 @@ function SubgraphPortsEditorBlock(props: {
         {ports.outputs.map((row: SubflowPortEntry, idx: number) => (
           <div key={`${row.id}-o-${idx}`} style={{ marginBottom: 6 }}>
             <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem", alignItems: "center" }}>
-            <code className="kea-hint" style={{ minWidth: "4.5rem" }}>
+            <code className="discovery-hint" style={{ minWidth: "4.5rem" }}>
               {row.id}
             </code>
             <DeferredCommitInput
-              className="kea-input"
+              className="discovery-input"
               style={{ flex: "1 1 8rem", minWidth: "6rem" }}
               committedValue={String(row.label ?? "")}
               syncKey={`${syncKeyPrefix}-out-lbl-${row.id}`}
@@ -444,7 +454,7 @@ function SubgraphPortsEditorBlock(props: {
             />
             <button
               type="button"
-              className="kea-btn kea-btn--sm"
+              className="discovery-btn discovery-btn--sm"
               disabled={idx === 0}
               title={t("flow.inspectorSubflowMovePortUp")}
               aria-label={t("flow.inspectorSubflowMovePortUp")}
@@ -454,7 +464,7 @@ function SubgraphPortsEditorBlock(props: {
             </button>
             <button
               type="button"
-              className="kea-btn kea-btn--sm"
+              className="discovery-btn discovery-btn--sm"
               disabled={idx >= ports.outputs.length - 1}
               title={t("flow.inspectorSubflowMovePortDown")}
               aria-label={t("flow.inspectorSubflowMovePortDown")}
@@ -464,7 +474,7 @@ function SubgraphPortsEditorBlock(props: {
             </button>
             <button
               type="button"
-              className="kea-btn kea-btn--sm"
+              className="discovery-btn discovery-btn--sm"
               disabled={ports.outputs.length <= 1}
               onClick={() => {
                 const nextOut = ports.outputs.filter((_, i) => i !== idx);
@@ -475,7 +485,7 @@ function SubgraphPortsEditorBlock(props: {
             </button>
             </div>
             {row.inner_source_rf_type ? (
-              <p className="kea-hint" style={{ margin: "0.2rem 0 0", fontSize: "0.8rem" }}>
+              <p className="discovery-hint" style={{ margin: "0.2rem 0 0", fontSize: "0.8rem" }}>
                 {t("flow.inspectorSubflowPortInnerOut", { type: row.inner_source_rf_type })}
               </p>
             ) : null}
@@ -483,7 +493,7 @@ function SubgraphPortsEditorBlock(props: {
         ))}
         <button
           type="button"
-          className="kea-btn kea-btn--sm"
+          className="discovery-btn discovery-btn--sm"
           style={{ marginTop: 4 }}
           onClick={() =>
             onCommit({
@@ -524,15 +534,15 @@ export function FlowNodeInspector({
     const fd = (selectedEdge.data ?? {}) as FlowEdgeData;
     const kind = fd.kind ?? "data";
     return (
-      <aside className="kea-flow-inspector">
-        <h4 className="kea-flow-inspector__title">{t("flow.inspectorEdgeTitle")}</h4>
-        <p className="kea-hint" style={{ marginTop: 0 }}>
+      <aside className="discovery-flow-inspector">
+        <h4 className="discovery-flow-inspector__title">{t("flow.inspectorEdgeTitle")}</h4>
+        <p className="discovery-hint" style={{ marginTop: 0 }}>
           {selectedEdge.id}
         </p>
-        <label className="kea-label kea-label--block">
+        <label className="discovery-label discovery-label--block">
           {t("flow.inspectorEdgeKind")}
           <select
-            className="kea-input"
+            className="discovery-input"
             value={kind}
             onChange={(e) => onPatchEdge(selectedEdge.id, e.target.value as CanvasEdgeKind)}
           >
@@ -552,9 +562,9 @@ export function FlowNodeInspector({
         onApplySubflowPorts(targetSubgraphId, next);
       };
       return (
-        <aside className="kea-flow-inspector">
-          <h4 className="kea-flow-inspector__title">{t("flow.inspectorNodeTitle")}</h4>
-          <p className="kea-hint" style={{ marginTop: 0 }}>
+        <aside className="discovery-flow-inspector">
+          <h4 className="discovery-flow-inspector__title">{t("flow.inspectorNodeTitle")}</h4>
+          <p className="discovery-hint" style={{ marginTop: 0 }}>
             {t("flow.inspectorDrillBoundaryPortsHint")}
           </p>
           <SubgraphPortsEditorBlock
@@ -567,8 +577,8 @@ export function FlowNodeInspector({
       );
     }
     return (
-      <aside className="kea-flow-inspector">
-        <p className="kea-hint">{t("flow.inspectorEmpty")}</p>
+      <aside className="discovery-flow-inspector">
+        <p className="discovery-hint">{t("flow.inspectorEmpty")}</p>
       </aside>
     );
   }
@@ -579,46 +589,46 @@ export function FlowNodeInspector({
       ? flowNodes.find((n) => n.id === selectedNode.id) ?? selectedNode
       : selectedNode;
   const data = (liveSelectedNode.data ?? {}) as Record<string, unknown>;
-  const kind = liveSelectedNode.type ?? "keaTransform";
+  const kind = liveSelectedNode.type ?? "discoveryTransform";
   const validationRuleLayoutCtx = validationRuleLayoutContextFromRfType(kind);
   const logicalKind = rfTypeToKind(kind);
   const drift =
-    kind === "keaSourceView"
+    kind === "discoverySourceView"
       ? sourceViewIndexDrift(data, workflowDoc)
-      : kind === "keaStart" ||
-          kind === "keaEnd" ||
-          kind === "keaSubflowGraphIn" ||
-          kind === "keaSubflowGraphOut"
+      : kind === "discoveryStart" ||
+          kind === "discoveryEnd" ||
+          kind === "discoverySubflowGraphIn" ||
+          kind === "discoverySubflowGraphOut"
         ? { ok: true, hint: "" }
         : discoveryKindUsesNodeConfig(logicalKind)
           ? discoveryIndexDrift(logicalKind, data)
           : refResolved(kind, data, workflowDoc);
   const ref = readNodeRef(data);
 
-  if (kind === "keaStart" || kind === "keaEnd") {
+  if (kind === "discoveryStart" || kind === "discoveryEnd") {
     return (
-      <aside className="kea-flow-inspector">
-        <h4 className="kea-flow-inspector__title">{t("flow.inspectorNodeTitle")}</h4>
-        <p className="kea-hint" style={{ marginTop: 0 }}>
+      <aside className="discovery-flow-inspector">
+        <h4 className="discovery-flow-inspector__title">{t("flow.inspectorNodeTitle")}</h4>
+        <p className="discovery-hint" style={{ marginTop: 0 }}>
           {selectedNode.id} · {kind}
         </p>
-        <label className="kea-label kea-label--block">
+        <label className="discovery-label discovery-label--block">
           {t("flow.inspectorLabel")}
           <DeferredCommitInput
-            className="kea-input"
+            className="discovery-input"
             committedValue={String(data.label ?? "")}
             syncKey={selectedNode.id}
             onCommit={(v) => onPatchNode(selectedNode.id, { ...data, label: v })}
           />
         </label>
         <FlowNodeAccentColorFields t={t} nodeId={selectedNode.id} data={data} onPatchNode={onPatchNode} />
-        <p className="kea-hint" style={{ marginTop: "0.35rem" }}>
-          {kind === "keaStart" ? t("flow.inspectorStartHint") : t("flow.inspectorEndHint")}
+        <p className="discovery-hint" style={{ marginTop: "0.35rem" }}>
+          {kind === "discoveryStart" ? t("flow.inspectorStartHint") : t("flow.inspectorEndHint")}
         </p>
-        <label className="kea-label kea-label--block">
+        <label className="discovery-label discovery-label--block">
           {t("flow.inspectorNotes")}
           <DeferredCommitTextarea
-            className="kea-textarea"
+            className="discovery-textarea"
             rows={3}
             committedValue={String(data.notes ?? "")}
             syncKey={selectedNode.id}
@@ -629,7 +639,7 @@ export function FlowNodeInspector({
     );
   }
 
-  if (kind === "keaSubflowGraphIn" || kind === "keaSubflowGraphOut") {
+  if (kind === "discoverySubflowGraphIn" || kind === "discoverySubflowGraphOut") {
     const showBoundaryPorts =
       drillBoundaryPorts &&
       onApplySubflowPorts &&
@@ -637,20 +647,20 @@ export function FlowNodeInspector({
       drillBoundaryPorts.hubOutId &&
       (selectedNode.id === drillBoundaryPorts.hubInId || selectedNode.id === drillBoundaryPorts.hubOutId);
     return (
-      <aside className="kea-flow-inspector">
-        <h4 className="kea-flow-inspector__title">{t("flow.inspectorNodeTitle")}</h4>
-        <p className="kea-hint" style={{ marginTop: 0 }}>
+      <aside className="discovery-flow-inspector">
+        <h4 className="discovery-flow-inspector__title">{t("flow.inspectorNodeTitle")}</h4>
+        <p className="discovery-hint" style={{ marginTop: 0 }}>
           {selectedNode.id} · {kind}
         </p>
-        <p className="kea-hint" style={{ marginTop: "0.35rem", maxWidth: "42rem" }}>
-          {kind === "keaSubflowGraphIn"
+        <p className="discovery-hint" style={{ marginTop: "0.35rem", maxWidth: "42rem" }}>
+          {kind === "discoverySubflowGraphIn"
             ? t("flow.inspectorSubflowGraphInHint")
             : t("flow.inspectorSubflowGraphOutHint")}
         </p>
-        <label className="kea-label kea-label--block">
+        <label className="discovery-label discovery-label--block">
           {t("flow.inspectorLabel")}
           <DeferredCommitInput
-            className="kea-input"
+            className="discovery-input"
             committedValue={String(data.label ?? "")}
             syncKey={selectedNode.id}
             onCommit={(v) => onPatchNode(selectedNode.id, { ...data, label: v })}
@@ -665,10 +675,10 @@ export function FlowNodeInspector({
             onCommit={(next) => onApplySubflowPorts(drillBoundaryPorts.targetSubgraphId, next)}
           />
         )}
-        <label className="kea-label kea-label--block">
+        <label className="discovery-label discovery-label--block">
           {t("flow.inspectorNotes")}
           <DeferredCommitTextarea
-            className="kea-textarea"
+            className="discovery-textarea"
             rows={3}
             committedValue={String(data.notes ?? "")}
             syncKey={selectedNode.id}
@@ -679,7 +689,7 @@ export function FlowNodeInspector({
     );
   }
 
-  if (kind === "keaSubgraph") {
+  if (kind === "discoverySubgraph") {
     const wfData = data as unknown as WorkflowCanvasNodeData;
     const ports: SubflowPortsConfig = wfData.subflow_ports ?? { inputs: [], outputs: [] };
 
@@ -689,9 +699,9 @@ export function FlowNodeInspector({
     };
 
     return (
-      <aside className="kea-flow-inspector">
-        <h4 className="kea-flow-inspector__title">{t("flow.inspectorNodeTitle")}</h4>
-        <p className="kea-hint" style={{ marginTop: 0 }}>
+      <aside className="discovery-flow-inspector">
+        <h4 className="discovery-flow-inspector__title">{t("flow.inspectorNodeTitle")}</h4>
+        <p className="discovery-hint" style={{ marginTop: 0 }}>
           {selectedNode.id} · {kind}
         </p>
         <FlowNodeEnabledInspectorField
@@ -706,23 +716,23 @@ export function FlowNodeInspector({
           <p style={{ marginBottom: "0.65rem" }}>
             <button
               type="button"
-              className="kea-btn kea-btn--sm"
+              className="discovery-btn discovery-btn--sm"
               onClick={() => onOpenSubgraphDrill(selectedNode.id)}
             >
               {t("flow.inspectorOpenSubgraph")}
             </button>
           </p>
         )}
-        <label className="kea-label kea-label--block">
+        <label className="discovery-label discovery-label--block">
           {t("flow.inspectorLabel")}
           <DeferredCommitInput
-            className="kea-input"
+            className="discovery-input"
             committedValue={String(data.label ?? "")}
             syncKey={selectedNode.id}
             onCommit={(v) => onPatchNode(selectedNode.id, { ...data, label: v })}
           />
         </label>
-        <p className="kea-hint" style={{ marginTop: "0.35rem", maxWidth: "42rem" }}>
+        <p className="discovery-hint" style={{ marginTop: "0.35rem", maxWidth: "42rem" }}>
           {t("flow.inspectorSubgraphHint")}
         </p>
         <FlowNodeAccentColorFields t={t} nodeId={selectedNode.id} data={data} onPatchNode={onPatchNode} />
@@ -734,10 +744,10 @@ export function FlowNodeInspector({
             onCommit={commitPorts}
           />
         )}
-        <label className="kea-label kea-label--block">
+        <label className="discovery-label discovery-label--block">
           {t("flow.inspectorNotes")}
           <DeferredCommitTextarea
-            className="kea-textarea"
+            className="discovery-textarea"
             rows={3}
             committedValue={String(data.notes ?? "")}
             syncKey={selectedNode.id}
@@ -748,15 +758,15 @@ export function FlowNodeInspector({
     );
   }
 
-  if (kind === "keaAliasPersistence" || kind === "keaInvertedIndex") {
+  if (kind === "discoveryAliasPersistence" || kind === "discoveryInvertedIndex") {
     const persistenceHint =
-      kind === "keaAliasPersistence"
+      kind === "discoveryAliasPersistence"
         ? t("flow.inspectorAliasPersistenceHint")
         : t("flow.inspectorInvertedIndexHint");
     return (
-      <aside className="kea-flow-inspector">
-        <h4 className="kea-flow-inspector__title">{t("flow.inspectorNodeTitle")}</h4>
-        <p className="kea-hint" style={{ marginTop: 0 }}>
+      <aside className="discovery-flow-inspector">
+        <h4 className="discovery-flow-inspector__title">{t("flow.inspectorNodeTitle")}</h4>
+        <p className="discovery-hint" style={{ marginTop: 0 }}>
           {selectedNode.id} · {kind}
         </p>
         <FlowNodeEnabledInspectorField
@@ -767,28 +777,28 @@ export function FlowNodeInspector({
           onPatchWorkflowCanvas={onPatchWorkflowCanvas}
           onActivityHint={onActivityHint}
         />
-        <label className="kea-label kea-label--block">
+        <label className="discovery-label discovery-label--block">
           {t("flow.inspectorLabel")}
           <DeferredCommitInput
-            className="kea-input"
+            className="discovery-input"
             committedValue={String(data.label ?? "")}
             syncKey={selectedNode.id}
             onCommit={(v) => onPatchNode(selectedNode.id, { ...data, label: v })}
           />
         </label>
-        <p className="kea-hint" style={{ marginTop: "0.35rem", maxWidth: "42rem" }}>
+        <p className="discovery-hint" style={{ marginTop: "0.35rem", maxWidth: "42rem" }}>
           {persistenceHint}
         </p>
         <FlowNodeAccentColorFields t={t} nodeId={selectedNode.id} data={data} onPatchNode={onPatchNode} />
-        {kind === "keaAliasPersistence" && (() => {
+        {kind === "discoveryAliasPersistence" && (() => {
           const nd = data as WorkflowCanvasNodeData;
           const apc = nd.persistence_config?.kind === "alias_persistence" ? nd.persistence_config : undefined;
           return (
           <>
-            <label className="kea-label kea-label--block">
+            <label className="discovery-label discovery-label--block">
               Persistence profile id (optional)
               <DeferredCommitInput
-                className="kea-input"
+                className="discovery-input"
                 committedValue={String(apc?.profile ?? "")}
                 syncKey={`${selectedNode.id}-persistence-profile`}
                 onCommit={(v) => {
@@ -805,10 +815,10 @@ export function FlowNodeInspector({
                 }}
               />
             </label>
-            <label className="kea-label kea-label--block">
+            <label className="discovery-label discovery-label--block">
               RAW database (tag aliasing)
               <DeferredCommitInput
-                className="kea-input"
+                className="discovery-input"
                 committedValue={String(apc?.raw_db ?? "")}
                 syncKey={`${selectedNode.id}-persistence-raw-db`}
                 onCommit={(v) => {
@@ -828,14 +838,14 @@ export function FlowNodeInspector({
           </>
           );
         })()}
-        {kind === "keaInvertedIndex" && (() => {
+        {kind === "discoveryInvertedIndex" && (() => {
           const nd = data as WorkflowCanvasNodeData;
           const rpc = nd.persistence_config?.kind === "inverted_index" ? nd.persistence_config : undefined;
           return (
-          <label className="kea-label kea-label--block">
+          <label className="discovery-label discovery-label--block">
             Persistence profile id (optional)
             <DeferredCommitInput
-              className="kea-input"
+              className="discovery-input"
               committedValue={String(rpc?.profile ?? "")}
               syncKey={`${selectedNode.id}-refix-profile`}
               onCommit={(v) => {
@@ -854,10 +864,10 @@ export function FlowNodeInspector({
           </label>
           );
         })()}
-        <label className="kea-label kea-label--block">
+        <label className="discovery-label discovery-label--block">
           {t("flow.inspectorNotes")}
           <DeferredCommitTextarea
-            className="kea-textarea"
+            className="discovery-textarea"
             rows={3}
             committedValue={String(data.notes ?? "")}
             syncKey={selectedNode.id}
@@ -869,9 +879,9 @@ export function FlowNodeInspector({
   }
 
   return (
-    <aside className="kea-flow-inspector">
-      <h4 className="kea-flow-inspector__title">{t("flow.inspectorNodeTitle")}</h4>
-      <p className="kea-hint" style={{ marginTop: 0 }}>
+    <aside className="discovery-flow-inspector">
+      <h4 className="discovery-flow-inspector__title">{t("flow.inspectorNodeTitle")}</h4>
+      <p className="discovery-hint" style={{ marginTop: 0 }}>
         {selectedNode.id} · {kind}
       </p>
       <FlowNodeEnabledInspectorField
@@ -883,30 +893,30 @@ export function FlowNodeInspector({
         onActivityHint={onActivityHint}
       />
       {!drift.ok && drift.hint && (
-        <p className="kea-hint kea-hint--warn" role="status">
+        <p className="discovery-hint discovery-hint--warn" role="status">
           {t(drift.hint as MessageKey)}
         </p>
       )}
-      <label className="kea-label kea-label--block">
+      <label className="discovery-label discovery-label--block">
         {t("flow.inspectorLabel")}
         <DeferredCommitInput
-          className="kea-input"
+          className="discovery-input"
           committedValue={String(data.label ?? "")}
           syncKey={selectedNode.id}
           onCommit={(v) => onPatchNode(selectedNode.id, { ...data, label: v })}
         />
       </label>
       <FlowNodeAccentColorFields t={t} nodeId={selectedNode.id} data={data} onPatchNode={onPatchNode} />
-      {keaValidationRuleLayoutRfTypes.has(kind) && (
+      {discoveryValidationRuleLayoutRfTypes.has(kind) && (
         <>
-          <p className="kea-hint" style={{ marginTop: "0.35rem", maxWidth: "42rem" }}>
+          <p className="discovery-hint" style={{ marginTop: "0.35rem", maxWidth: "42rem" }}>
             {t("flow.inspectorValidationRuleHint")}
           </p>
           {validationRuleLayoutCtx === "source_view" && (
-            <label className="kea-label kea-label--block">
+            <label className="discovery-label discovery-label--block">
               {t("flow.inspectorSourceViewIndex")}
               <select
-                className="kea-input"
+                className="discovery-input"
                 value={
                   readNodeRef(data).source_view_index !== undefined &&
                   readNodeRef(data).source_view_index !== null
@@ -933,10 +943,10 @@ export function FlowNodeInspector({
               </select>
             </label>
           )}
-          <label className="kea-label kea-label--block">
+          <label className="discovery-label discovery-label--block">
             {t("flow.inspectorConfidenceRuleName")}
             <select
-              className="kea-input"
+              className="discovery-input"
               value={String(data.validation_rule_name ?? "")}
               onChange={(e) =>
                 onPatchNode(selectedNode.id, {
@@ -976,17 +986,17 @@ export function FlowNodeInspector({
           </label>
         </>
       )}
-      {kind === "keaSourceView" && (
+      {kind === "discoverySourceView" && (
         <>
-          <p className="kea-hint" style={{ fontWeight: 600, marginBottom: "0.35rem" }}>
+          <p className="discovery-hint" style={{ fontWeight: 600, marginBottom: "0.35rem" }}>
             {t("flow.inspectorSourceViewRef")}
           </p>
           {sourceViewScopeEntries.length > 0 && (
-            <label className="kea-label kea-label--block">
+            <label className="discovery-label discovery-label--block">
               {t("flow.inspectorSourceViewFillFromScope")}
               <select
                 key={`${selectedNode.id}-scope-pick`}
-                className="kea-input"
+                className="discovery-input"
                 defaultValue=""
                 onChange={(e) => {
                   const v = e.target.value;
@@ -1019,10 +1029,10 @@ export function FlowNodeInspector({
               </select>
             </label>
           )}
-          <label className="kea-label kea-label--block">
+          <label className="discovery-label discovery-label--block">
             {t("flow.inspectorSourceViewIndex")}
             <input
-              className="kea-input"
+              className="discovery-input"
               inputMode="numeric"
               value={
                 ref.source_view_index !== undefined && ref.source_view_index !== null
@@ -1044,10 +1054,10 @@ export function FlowNodeInspector({
               }}
             />
           </label>
-          <label className="kea-label kea-label--block">
+          <label className="discovery-label discovery-label--block">
             {t("flow.inspectorSourceViewSpace")}
             <input
-              className="kea-input"
+              className="discovery-input"
               value={ref.view_space != null ? String(ref.view_space) : ""}
               onChange={(e) => {
                 const next = { ...readNodeRef(data) };
@@ -1061,10 +1071,10 @@ export function FlowNodeInspector({
               }}
             />
           </label>
-          <label className="kea-label kea-label--block">
+          <label className="discovery-label discovery-label--block">
             {t("flow.inspectorSourceViewExternalId")}
             <input
-              className="kea-input"
+              className="discovery-input"
               value={ref.view_external_id != null ? String(ref.view_external_id) : ""}
               onChange={(e) => {
                 const next = { ...readNodeRef(data) };
@@ -1078,10 +1088,10 @@ export function FlowNodeInspector({
               }}
             />
           </label>
-          <label className="kea-label kea-label--block">
+          <label className="discovery-label discovery-label--block">
             {t("flow.inspectorSourceViewVersion")}
             <input
-              className="kea-input"
+              className="discovery-input"
               value={ref.view_version != null ? String(ref.view_version) : ""}
               onChange={(e) => {
                 const next = { ...readNodeRef(data) };
@@ -1115,10 +1125,10 @@ export function FlowNodeInspector({
             };
             return (
               <>
-                <h4 className="kea-section-title" style={{ fontSize: "0.9rem", marginTop: "0.75rem" }}>
+                <h4 className="discovery-section-title" style={{ fontSize: "0.9rem", marginTop: "0.75rem" }}>
                   {t("sourceViews.filters")}
                 </h4>
-                <p className="kea-hint" style={{ marginTop: 0, marginBottom: "0.5rem", maxWidth: "42rem" }}>
+                <p className="discovery-hint" style={{ marginTop: 0, marginBottom: "0.5rem", maxWidth: "42rem" }}>
                   {t("sourceViews.filtersCombineHint")}
                 </p>
                 {filters.map((row, fi) => (
@@ -1138,31 +1148,31 @@ export function FlowNodeInspector({
                     }}
                   />
                 ))}
-                <div className="kea-toolbar-inline" style={{ marginTop: 8, flexWrap: "wrap", gap: 8 }}>
+                <div className="discovery-toolbar-inline" style={{ marginTop: 8, flexWrap: "wrap", gap: 8 }}>
                   <button
                     type="button"
-                    className="kea-btn kea-btn--sm"
+                    className="discovery-btn discovery-btn--sm"
                     onClick={() => setFilters([...filters, emptyLeaf()])}
                   >
                     {t("sourceViews.filterAddLeaf")}
                   </button>
                   <button
                     type="button"
-                    className="kea-btn kea-btn--sm"
+                    className="discovery-btn discovery-btn--sm"
                     onClick={() => setFilters([...filters, emptyAnd()])}
                   >
                     {t("sourceViews.filterAddAnd")}
                   </button>
                   <button
                     type="button"
-                    className="kea-btn kea-btn--sm"
+                    className="discovery-btn discovery-btn--sm"
                     onClick={() => setFilters([...filters, emptyOr()])}
                   >
                     {t("sourceViews.filterAddOr")}
                   </button>
                   <button
                     type="button"
-                    className="kea-btn kea-btn--sm"
+                    className="discovery-btn discovery-btn--sm"
                     onClick={() => setFilters([...filters, emptyNot()])}
                   >
                     {t("sourceViews.filterAddNot")}
@@ -1173,7 +1183,7 @@ export function FlowNodeInspector({
           })()}
         </>
       )}
-      {kind === "keaDiscoveryInstanceFilter" && (
+      {kind === "discoveryInstanceFilter" && (
         <FilterNodeInspectorFields
           nodeId={selectedNode.id}
           data={data as WorkflowCanvasNodeData}
@@ -1181,7 +1191,7 @@ export function FlowNodeInspector({
           t={t}
         />
       )}
-      {kind === "keaDiscoveryConfidenceFilter" && (
+      {kind === "discoveryConfidenceFilter" && (
         <ConfidenceFilterNodeInspectorFields
           nodeId={selectedNode.id}
           data={data as WorkflowCanvasNodeData}
@@ -1189,18 +1199,18 @@ export function FlowNodeInspector({
           t={t}
         />
       )}
-      {(keaDiscoveryStageRfTypes.has(kind) ||
-        kind === "keaDiscoveryValidate") &&
-        kind !== "keaDiscoveryInstanceFilter" &&
-        kind !== "keaDiscoveryConfidenceFilter" && (
-        <p className="kea-hint" style={{ marginTop: "0.35rem" }}>
+      {(discoveryStageRfTypes.has(kind) ||
+        kind === "discoveryValidate") &&
+        kind !== "discoveryInstanceFilter" &&
+        kind !== "discoveryConfidenceFilter" && (
+        <p className="discovery-hint" style={{ marginTop: "0.35rem" }}>
           {t("flow.inspectorDiscoveryInlineHint")}
         </p>
       )}
-      <label className="kea-label kea-label--block">
+      <label className="discovery-label discovery-label--block">
         {t("flow.inspectorNotes")}
         <DeferredCommitTextarea
-          className="kea-textarea"
+          className="discovery-textarea"
           rows={3}
           committedValue={String(data.notes ?? "")}
           syncKey={selectedNode.id}

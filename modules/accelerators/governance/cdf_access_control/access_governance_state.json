@@ -1,10 +1,18 @@
 {
   "spaces": [
-    "spaces/site_a/inst_site_a.Space.yaml",
-    "spaces/site_b/unit_01/inst_site_b_unit_01.Space.yaml"
+    "spaces/d/inst_erp_d.Space.yaml",
+    "spaces/d/inst_scada_d.Space.yaml",
+    "spaces/b/inst_erp_b.Space.yaml",
+    "spaces/b/inst_scada_b.Space.yaml"
   ],
   "groups": [
-    "auth/site_a/site_a.Group.yaml",
-    "auth/site_b/unit_01/site_b_unit_01.Group.yaml"
+    "auth/d/gp_d_default_reader.Group.yaml",
+    "auth/d/gp_d_default_editor.Group.yaml",
+    "auth/d/gp_d_integration_reader.Group.yaml",
+    "auth/d/gp_d_integration_editor.Group.yaml",
+    "auth/b/gp_b_default_reader.Group.yaml",
+    "auth/b/gp_b_default_editor.Group.yaml",
+    "auth/b/gp_b_integration_reader.Group.yaml",
+    "auth/b/gp_b_integration_editor.Group.yaml"
   ]
 }

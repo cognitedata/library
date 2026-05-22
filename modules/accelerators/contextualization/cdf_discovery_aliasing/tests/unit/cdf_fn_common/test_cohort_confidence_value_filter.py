@@ -34,6 +34,22 @@ def test_prune_aliases_by_threshold() -> None:
     assert "confidence" not in out
 
 
+def test_prune_custom_value_field() -> None:
+    cfg = {
+        "description": "gate",
+        "value_field": "assetTag",
+        "min_confidence": 0.5,
+        "comparison": "gte",
+    }
+    out = apply_confidence_value_filter(
+        {"assetTag": ["P-1", "P-2"], "assetTag_confidence": [0.9, 0.2]},
+        cfg,
+    )
+    assert out is not None
+    assert out["assetTag"] == ["P-1"]
+    assert out["assetTag_confidence"] == [pytest.approx(0.9)]
+
+
 def test_drop_row_when_empty() -> None:
     cfg = {
         "description": "gate",

@@ -50,7 +50,7 @@ import { FlowHandleOrientationProvider } from "./FlowHandleOrientationContext";
 import { FlowNodeEditorModal } from "./FlowNodeEditorModal";
 import { FlowNodeInspector } from "./FlowNodeInspector";
 import { FlowPalette, getPaletteDropPayload, type PaletteDragPayload } from "./FlowPalette";
-import { KEA_FLOW_NODE_TYPES } from "./flowNodeRegistry";
+import { DISCOVERY_FLOW_NODE_TYPES } from "./flowNodeRegistry";
 import { materializePaletteDrop } from "./materializePaletteDrop";
 import { useFlowPanelLayout } from "./useFlowPanelLayout";
 import { layoutFlowNodes } from "./autoLayoutFlow";
@@ -59,7 +59,7 @@ import { liftSubgraphInnerToParentWorkflow, subgraphHasLiftableInnerContent } fr
 import { clampNodeInsideParentSubflowFrame } from "./subflowGroupClamp";
 import { collectSubtreeNodeIds } from "./flowParentGeometry";
 import { resolveGroupableSelectionNodes } from "./subflowMembership";
-import { isValidKeaFlowConnection } from "./subgraphFlowConnections";
+import { isValidDiscoveryFlowConnection } from "./subgraphFlowConnections";
 import { collapseSelectionToSubgraph } from "./collapseSelectionToSubgraph";
 import { resolveAdoptIntoSubgraphAfterDrag } from "./adoptNodesIntoSubgraph";
 import {
@@ -77,9 +77,9 @@ import {
   formatConnectEndMenuOptionLabel,
   formatConnectEndMenuOptionTooltip,
 } from "./connectEndMenuOptions";
-import { keaValidationRuleLayoutRfTypes, keaWorkflowDisableableRfTypes } from "./flowConstants";
+import { discoveryValidationRuleLayoutRfTypes, discoveryWorkflowDisableableRfTypes } from "./flowConstants";
 import { applyWorkflowCanvasEnablementPatch } from "./flowNodeEnabled";
-import { appendKeaConnectionEdge, appendReuseDataEdge, dedupeEdgesByHandles } from "./flowEdgeHelpers";
+import { appendDiscoveryConnectionEdge, appendReuseDataEdge, dedupeEdgesByHandles } from "./flowEdgeHelpers";
 import { upstreamDownstreamAnimatedEdgeIds } from "./flowSelectionEdgeAnimation";
 import { useFlowCanvasHistory, type FlowCanvasSnapshot } from "./useFlowCanvasHistory";
 import { useFlowClipboard } from "./useFlowClipboard";
@@ -157,7 +157,7 @@ function SubgraphDrillCanvas({
     onChange: useCallback(({ nodes: sel }) => {
       rfSelectionRef.current = sel;
       setSelectedRfNodeIds(sel.map((n) => n.id));
-      setAlignableSelectionCount(sel.filter((n) => n.type !== "keaStart" && n.type !== "keaEnd").length);
+      setAlignableSelectionCount(sel.filter((n) => n.type !== "discoveryStart" && n.type !== "discoveryEnd").length);
     }, []),
   });
 
@@ -333,13 +333,13 @@ function SubgraphDrillCanvas({
   }, [cancelHandlerRef, handleCancel]);
 
   const isValidConnection = useCallback(
-    (c: Connection | Edge) => isValidKeaFlowConnection(getNode, c, keaValidationRuleLayoutRfTypes, compileDagMode),
+    (c: Connection | Edge) => isValidDiscoveryFlowConnection(getNode, c, discoveryValidationRuleLayoutRfTypes, compileDagMode),
     [getNode, compileDagMode]
   );
 
   const onConnect = useCallback(
     (params: Connection) => {
-      setEdges((eds) => appendKeaConnectionEdge(getNode, eds, params));
+      setEdges((eds) => appendDiscoveryConnectionEdge(getNode, eds, params));
     },
     [setEdges, getNode]
   );
@@ -406,7 +406,7 @@ function SubgraphDrillCanvas({
       });
       setEdges((eds) => {
         const merged = dedupeEdgesByHandles([...eds, ...extraEdges]);
-        return appendKeaConnectionEdge(getNode, merged, conn);
+        return appendDiscoveryConnectionEdge(getNode, merged, conn);
       });
       setConnectEndMenu(null);
       setConnectEndMenuGroupId(null);
@@ -426,7 +426,7 @@ function SubgraphDrillCanvas({
     };
     const onDocPointerDown = (e: PointerEvent) => {
       const tgt = e.target;
-      if (tgt instanceof Element && tgt.closest(".kea-flow-connect-end-menu")) return;
+      if (tgt instanceof Element && tgt.closest(".discovery-flow-connect-end-menu")) return;
       setConnectEndMenu(null);
       setConnectEndMenuGroupId(null);
     };
@@ -488,7 +488,7 @@ function SubgraphDrillCanvas({
 
   const patchNestedInnerInLocalNodes = useCallback((nestedSubgraphId: string, inner: WorkflowCanvasDocument) => {
     setNodes((nds) => {
-      const sg = nds.find((x) => x.id === nestedSubgraphId && x.type === "keaSubgraph");
+      const sg = nds.find((x) => x.id === nestedSubgraphId && x.type === "discoverySubgraph");
       if (!sg) return nds;
       const data = (sg.data ?? {}) as WorkflowCanvasNodeData;
       const frame: SubflowPortsConfig =
@@ -502,7 +502,7 @@ function SubgraphDrillCanvas({
         ? { subflow_hub_input_id: ensured.hubInId, subflow_hub_output_id: ensured.hubOutId }
         : {};
       return nds.map((n) => {
-        if (n.id !== nestedSubgraphId || n.type !== "keaSubgraph") return n;
+        if (n.id !== nestedSubgraphId || n.type !== "discoverySubgraph") return n;
         return {
           ...n,
           data: {
@@ -518,7 +518,7 @@ function SubgraphDrillCanvas({
   const patchNestedBoundaryHubIds = useCallback((nestedSubgraphId: string, hubInId: string, hubOutId: string) => {
     setNodes((nds) =>
       nds.map((n) => {
-        if (n.id !== nestedSubgraphId || n.type !== "keaSubgraph") return n;
+        if (n.id !== nestedSubgraphId || n.type !== "discoverySubgraph") return n;
         const data = (n.data ?? {}) as WorkflowCanvasNodeData;
         return {
           ...n,
@@ -539,7 +539,7 @@ function SubgraphDrillCanvas({
         return;
       }
       const cur = getNodes().find((n) => n.id === subflowId);
-      if (!cur || cur.type !== "keaSubgraph") return;
+      if (!cur || cur.type !== "discoverySubgraph") return;
       const prev = ((cur?.data ?? {}) as WorkflowCanvasNodeData).subflow_ports;
       const hubIn = String((cur?.data as WorkflowCanvasNodeData | undefined)?.subflow_hub_input_id ?? "").trim();
       const hubOut = String((cur?.data as WorkflowCanvasNodeData | undefined)?.subflow_hub_output_id ?? "").trim();
@@ -549,7 +549,7 @@ function SubgraphDrillCanvas({
           if (n.id !== subflowId) return n;
           const data = (n.data ?? {}) as WorkflowCanvasNodeData;
           let nextData: WorkflowCanvasNodeData = { ...data, subflow_ports: ports };
-          if (n.type === "keaSubgraph" && data.inner_canvas && hubIn && hubOut) {
+          if (n.type === "discoverySubgraph" && data.inner_canvas && hubIn && hubOut) {
             let inner = syncSubgraphInnerHubPortData(data.inner_canvas, hubIn, hubOut, ports);
             if (prev) {
               const removedIn = prev.inputs.filter((p) => !ports.inputs.some((q) => q.id === p.id)).map((p) => p.id);
@@ -592,8 +592,8 @@ function SubgraphDrillCanvas({
     [getNodes, setNodes, setEdges, outerSubgraphNodeId, onApplyPortsForOuterSubgraph]
   );
 
-  const boundaryHubInNode = nodes.find((x) => x.type === "keaSubflowGraphIn");
-  const boundaryHubOutNode = nodes.find((x) => x.type === "keaSubflowGraphOut");
+  const boundaryHubInNode = nodes.find((x) => x.type === "discoverySubflowGraphIn");
+  const boundaryHubOutNode = nodes.find((x) => x.type === "discoverySubflowGraphOut");
   const boundaryHubInId = hubInHint.trim() || boundaryHubInNode?.id || "";
   const boundaryHubOutId = hubOutHint.trim() || boundaryHubOutNode?.id || "";
 
@@ -649,7 +649,7 @@ function SubgraphDrillCanvas({
   const onNodeDoubleClick = useCallback(
     (e: React.MouseEvent, node: Node) => {
       e.preventDefault();
-      if (node.type === "keaSubgraph") {
+      if (node.type === "discoverySubgraph") {
         openNestedDrill(node.id);
         setSelectedNode(node);
         setSelectedEdge(null);
@@ -673,7 +673,7 @@ function SubgraphDrillCanvas({
         const next = alignSelectedFlowNodes(nds, rfSelectionRef.current, mode);
         if (!next) return nds;
         const movableIds = rfSelectionRef.current
-          .filter((n) => n.type !== "keaStart" && n.type !== "keaEnd")
+          .filter((n) => n.type !== "discoveryStart" && n.type !== "discoveryEnd")
           .map((n) => n.id);
         let clamped = next;
         for (const id of movableIds) {
@@ -700,7 +700,7 @@ function SubgraphDrillCanvas({
       const all = getNodes();
       const allEdges = getEdges();
       const root = all.find((n) => n.id === nodeId);
-      if (root?.type === "keaSubgraph") {
+      if (root?.type === "discoverySubgraph") {
         if (subgraphHasLiftableInnerContent(all, nodeId) && window.confirm(t("flow.confirmSubgraphDeleteLift"))) {
           const lifted = liftSubgraphInnerToParentWorkflow(all, allEdges, nodeId, handleOrientation);
           if (lifted) {
@@ -792,7 +792,7 @@ function SubgraphDrillCanvas({
     (e: React.MouseEvent, node: Node) => {
       setSelectedNode(node);
       setSelectedEdge(null);
-      if (node.type === "keaStart" || node.type === "keaEnd") return;
+      if (node.type === "discoveryStart" || node.type === "discoveryEnd") return;
       if (isSubflowGraphHubRfType(node.type)) return;
       const nds = getNodes();
       const groupableSelected = resolveGroupableSelectionNodes(nds, node, rfSelectionRef.current);
@@ -842,7 +842,7 @@ function SubgraphDrillCanvas({
           },
         });
       }
-      if (node.type === "keaSubgraph" && subgraphHasLiftableInnerContent(nds, node.id)) {
+      if (node.type === "discoverySubgraph" && subgraphHasLiftableInnerContent(nds, node.id)) {
         items.push({
           id: "flatten-subgraph",
           label: t("flow.ctxMenuFlattenSubgraph"),
@@ -858,7 +858,7 @@ function SubgraphDrillCanvas({
           },
         });
       }
-      if (node.type && keaWorkflowDisableableRfTypes.has(node.type)) {
+      if (node.type && discoveryWorkflowDisableableRfTypes.has(node.type)) {
         const cn = workflowCanvas.nodes.find((n) => n.id === node.id);
         const enabled = cn
           ? isWorkflowCanvasNodeEnabled(cn)
@@ -941,7 +941,7 @@ function SubgraphDrillCanvas({
 
   const nestedNode = nestedDrillNodeId ? (nodes.find((n) => n.id === nestedDrillNodeId) ?? null) : null;
   useEffect(() => {
-    if (nestedDrillNodeId && (!nestedNode || nestedNode.type !== "keaSubgraph")) {
+    if (nestedDrillNodeId && (!nestedNode || nestedNode.type !== "discoverySubgraph")) {
       setNestedDrillNodeId(null);
     }
   }, [nestedDrillNodeId, nestedNode]);
@@ -952,12 +952,12 @@ function SubgraphDrillCanvas({
   return (
     <>
       <div
-        className="kea-modal__body kea-modal__body--scroll kea-modal__body--subgraph-drill-flow"
+        className="discovery-modal__body discovery-modal__body--scroll discovery-modal__body--subgraph-drill-flow"
         style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}
       >
-        <div className="kea-flow-shell">
+        <div className="discovery-flow-shell">
           <div
-            className={`kea-flow-shell__left${panel.leftCollapsed ? " kea-flow-shell__left--collapsed" : ""}`}
+            className={`discovery-flow-shell__left${panel.leftCollapsed ? " discovery-flow-shell__left--collapsed" : ""}`}
             style={
               panel.leftCollapsed
                 ? { flex: `0 0 ${panel.collapsedStripPx}px`, width: panel.collapsedStripPx }
@@ -972,7 +972,7 @@ function SubgraphDrillCanvas({
             {panel.leftCollapsed ? (
               <button
                 type="button"
-                className="kea-flow-shell__reveal kea-flow-shell__reveal--left"
+                className="discovery-flow-shell__reveal discovery-flow-shell__reveal--left"
                 aria-expanded={false}
                 aria-label={t("flow.expandLeftPanel")}
                 title={t("flow.expandLeftPanel")}
@@ -982,11 +982,11 @@ function SubgraphDrillCanvas({
               </button>
             ) : (
               <>
-                <div className="kea-flow-shell__panel-bar">
-                  <span className="kea-flow-shell__panel-bar-title">{t("flow.leftPanelTitle")}</span>
+                <div className="discovery-flow-shell__panel-bar">
+                  <span className="discovery-flow-shell__panel-bar-title">{t("flow.leftPanelTitle")}</span>
                   <button
                     type="button"
-                    className="kea-btn kea-btn--sm kea-flow-shell__panel-bar-btn"
+                    className="discovery-btn discovery-btn--sm discovery-flow-shell__panel-bar-btn"
                     aria-expanded
                     aria-label={t("flow.collapseLeftPanel")}
                     title={t("flow.collapseLeftPanel")}
@@ -1004,23 +1004,23 @@ function SubgraphDrillCanvas({
               role="separator"
               aria-orientation="vertical"
               aria-label={t("flow.resizePanels")}
-              className="kea-flow-shell__resize"
+              className="discovery-flow-shell__resize"
               onMouseDown={panel.onResizeLeftStart}
             />
           )}
-          <div className="kea-flow-main">
-            <div className="kea-flow-toolbar">
+          <div className="discovery-flow-main">
+            <div className="discovery-flow-toolbar">
               <FlowSelectionAlignButtons
                 t={t}
                 disabled={alignableSelectionCount < 2}
                 onAlign={applySelectionAlign}
               />
-              <label className="kea-flow-toolbar__orientation">
-                <span className="kea-hint" style={{ margin: 0, whiteSpace: "nowrap" }}>
+              <label className="discovery-flow-toolbar__orientation">
+                <span className="discovery-hint" style={{ margin: 0, whiteSpace: "nowrap" }}>
                   {t("flow.handleOrientationLabel")}
                 </span>
                 <select
-                  className="kea-select"
+                  className="discovery-select"
                   style={{ marginTop: 0, width: "auto", minWidth: "10rem" }}
                   value={handleOrientation}
                   onChange={onHandleOrientationChange}
@@ -1030,11 +1030,11 @@ function SubgraphDrillCanvas({
                   <option value="tb">{t("flow.handleOrientationTb")}</option>
                 </select>
               </label>
-              <span className="kea-hint" style={{ marginLeft: "0.5rem", flex: "1 1 12rem" }}>
+              <span className="discovery-hint" style={{ marginLeft: "0.5rem", flex: "1 1 12rem" }}>
                 {t("flow.subgraphDrillHint")}
               </span>
             </div>
-            <div className="kea-flow-canvas-wrap" ref={innerFlowRootRef as RefObject<HTMLDivElement>}>
+            <div className="discovery-flow-canvas-wrap" ref={innerFlowRootRef as RefObject<HTMLDivElement>}>
               <FlowHandleOrientationProvider value={handleOrientation}>
                 <ReactFlow
                   colorMode={theme}
@@ -1047,7 +1047,7 @@ function SubgraphDrillCanvas({
                   onConnectEnd={onConnectEnd}
                   onDrop={onDrop}
                   onDragOver={onDragOver}
-                  nodeTypes={KEA_FLOW_NODE_TYPES}
+                  nodeTypes={DISCOVERY_FLOW_NODE_TYPES}
                   defaultEdgeOptions={{ animated: false }}
                   deleteKeyCode={["Backspace", "Delete"]}
                   onNodeClick={onNodeClick}
@@ -1068,12 +1068,12 @@ function SubgraphDrillCanvas({
                 >
                   <Background variant={BackgroundVariant.Dots} gap={16} size={1} />
                   <Controls />
-                  <MiniMap zoomable pannable className="kea-flow-minimap" />
+                  <MiniMap zoomable pannable className="discovery-flow-minimap" />
                 </ReactFlow>
               </FlowHandleOrientationProvider>
               {connectEndMenu && (
                 <div
-                  className="kea-flow-connect-end-menu"
+                  className="discovery-flow-connect-end-menu"
                   style={{
                     position: "fixed",
                     left: Math.max(8, connectEndMenu.screen.x),
@@ -1095,7 +1095,7 @@ function SubgraphDrillCanvas({
                         <button
                           key={g.id}
                           type="button"
-                          className="kea-btn kea-btn--sm kea-flow-connect-end-menu__item"
+                          className="discovery-btn discovery-btn--sm discovery-flow-connect-end-menu__item"
                           role="menuitem"
                           onClick={() => setConnectEndMenuGroupId(g.id)}
                         >
@@ -1107,7 +1107,7 @@ function SubgraphDrillCanvas({
                       <>
                         <button
                           type="button"
-                          className="kea-btn kea-btn--sm kea-flow-connect-end-menu__item"
+                          className="discovery-btn discovery-btn--sm discovery-flow-connect-end-menu__item"
                           role="menuitem"
                           onClick={() => setConnectEndMenuGroupId(null)}
                         >
@@ -1117,7 +1117,7 @@ function SubgraphDrillCanvas({
                           <button
                             key={opt.id}
                             type="button"
-                            className="kea-btn kea-btn--sm kea-flow-connect-end-menu__item"
+                            className="discovery-btn discovery-btn--sm discovery-flow-connect-end-menu__item"
                             role="menuitem"
                             title={formatConnectEndMenuOptionTooltip(opt, t)}
                             onClick={() => commitConnectEndMenu(opt.payload)}
@@ -1137,12 +1137,12 @@ function SubgraphDrillCanvas({
               role="separator"
               aria-orientation="vertical"
               aria-label={t("flow.resizePanels")}
-              className="kea-flow-shell__resize"
+              className="discovery-flow-shell__resize"
               onMouseDown={panel.onResizeRightStart}
             />
           )}
           <div
-            className={`kea-flow-shell__right${panel.rightCollapsed ? " kea-flow-shell__right--collapsed" : ""}`}
+            className={`discovery-flow-shell__right${panel.rightCollapsed ? " discovery-flow-shell__right--collapsed" : ""}`}
             style={
               panel.rightCollapsed
                 ? { flex: `0 0 ${panel.collapsedStripPx}px`, width: panel.collapsedStripPx }
@@ -1157,7 +1157,7 @@ function SubgraphDrillCanvas({
             {panel.rightCollapsed ? (
               <button
                 type="button"
-                className="kea-flow-shell__reveal kea-flow-shell__reveal--right"
+                className="discovery-flow-shell__reveal discovery-flow-shell__reveal--right"
                 aria-expanded={false}
                 aria-label={t("flow.expandRightPanel")}
                 title={t("flow.expandRightPanel")}
@@ -1167,10 +1167,10 @@ function SubgraphDrillCanvas({
               </button>
             ) : (
               <>
-                <div className="kea-flow-shell__panel-bar kea-flow-shell__panel-bar--end">
+                <div className="discovery-flow-shell__panel-bar discovery-flow-shell__panel-bar--end">
                   <button
                     type="button"
-                    className="kea-btn kea-btn--sm kea-flow-shell__panel-bar-btn"
+                    className="discovery-btn discovery-btn--sm discovery-flow-shell__panel-bar-btn"
                     aria-expanded
                     aria-label={t("flow.collapseRightPanel")}
                     title={t("flow.collapseRightPanel")}
@@ -1178,7 +1178,7 @@ function SubgraphDrillCanvas({
                   >
                     ›
                   </button>
-                  <span className="kea-flow-shell__panel-bar-title">{t("flow.rightPanelTitle")}</span>
+                  <span className="discovery-flow-shell__panel-bar-title">{t("flow.rightPanelTitle")}</span>
                 </div>
                 <FlowNodeInspector
                   t={t}
@@ -1208,7 +1208,7 @@ function SubgraphDrillCanvas({
         </div>
       </div>
       <div
-        className="kea-modal__actions"
+        className="discovery-modal__actions"
         style={{
           marginTop: "0.75rem",
           flexShrink: 0,
@@ -1220,18 +1220,18 @@ function SubgraphDrillCanvas({
       >
         <button
           type="button"
-          className="kea-btn"
+          className="discovery-btn"
           onClick={handleCancel}
           disabled={Boolean(nestedDrillNodeId)}
           title={nestedDrillNodeId ? t("flow.subgraphCancelNestedTooltip") : undefined}
         >
           {t("flow.subgraphCancel")}
         </button>
-        <button type="button" className="kea-btn kea-btn--primary" onClick={onClose}>
+        <button type="button" className="discovery-btn discovery-btn--primary" onClick={onClose}>
           {t("flow.subgraphBack")}
         </button>
       </div>
-      <TreeContextMenuPortal menu={flowCtxMenu.menu} onClose={flowCtxMenu.close} classPrefix="kea" />
+      <TreeContextMenuPortal menu={flowCtxMenu.menu} onClose={flowCtxMenu.close} classPrefix="discovery" />
       {editorModalNode && (
         <FlowNodeEditorModal
           node={editorModalNode}
@@ -1244,7 +1244,7 @@ function SubgraphDrillCanvas({
           onPatchWorkflowCanvas={patchWorkflowCanvas}
         />
       )}
-      {nestedNode && nestedNode.type === "keaSubgraph" && (
+      {nestedNode && nestedNode.type === "discoverySubgraph" && (
         <SubgraphDrillModal
           t={t}
           open
@@ -1349,7 +1349,7 @@ export function SubgraphDrillModal({
     [node, onSaveInnerCanvas]
   );
 
-  if (!open || !node || node.type !== "keaSubgraph") return null;
+  if (!open || !node || node.type !== "discoverySubgraph") return null;
 
   const framePorts: SubflowPortsConfig =
     wfData.subflow_ports?.inputs?.length || wfData.subflow_ports?.outputs?.length
@@ -1360,7 +1360,7 @@ export function SubgraphDrillModal({
 
   return createPortal(
     <div
-      className="kea-modal-backdrop kea-modal-backdrop--subgraph-drill"
+      className="discovery-modal-backdrop discovery-modal-backdrop--subgraph-drill"
       style={{ zIndex: zBase }}
       role="presentation"
       onMouseDown={(e) => {
@@ -1368,13 +1368,13 @@ export function SubgraphDrillModal({
       }}
     >
       <div
-        className="kea-modal kea-modal--subgraph-drill"
+        className="discovery-modal discovery-modal--subgraph-drill"
         role="dialog"
         aria-modal="true"
-        aria-labelledby="kea-subgraph-drill-title"
+        aria-labelledby="discovery-subgraph-drill-title"
         onMouseDown={(e) => e.stopPropagation()}
       >
-        <h2 id="kea-subgraph-drill-title" className="kea-modal__title">
+        <h2 id="discovery-subgraph-drill-title" className="discovery-modal__title">
           {t("flow.subgraphDrillTitle")} · {String(wfData.label ?? node.id)}
         </h2>
         <ReactFlowProvider>

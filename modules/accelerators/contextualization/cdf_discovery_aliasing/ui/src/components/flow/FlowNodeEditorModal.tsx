@@ -52,42 +52,43 @@ function firstStrInArray(a: unknown): string | undefined {
 
 function modalTitleKey(kind: string | undefined): MessageKey {
   switch (kind) {
-    case "keaSourceView":
-    case "keaMatchValidationRuleSourceView":
+    case "discoverySourceView":
+    case "discoveryMatchValidationRuleSourceView":
       return "flow.nodeEditorTitleSourceViews";
-    case "keaInvertedIndex":
+    case "discoveryInvertedIndex":
       return "flow.discoveryInvertedIndex";
-    case "keaMatchValidationRuleExtraction":
+    case "discoveryMatchValidationRuleExtraction":
       return "flow.nodeEditorTitleMatchDefinitions";
-    case "keaViewQuery":
-    case "keaRawQuery":
-    case "keaClassicQuery":
+    case "discoveryViewQuery":
+    case "discoveryRawQuery":
+    case "discoveryClassicQuery":
+    case "discoverySqlQuery":
       return "flow.nodeEditorTitleQueries";
-    case "keaTransform":
+    case "discoveryTransform":
       return "flow.nodeEditorTitleTransforms";
-    case "keaMerge":
+    case "discoveryMerge":
       return "flow.nodeEditorTitleMerges";
-    case "keaJoin":
+    case "discoveryJoin":
       return "flow.nodeEditorTitleJoins";
-    case "keaDiscoveryValidate":
+    case "discoveryValidate":
       return "flow.nodeEditorTitleValidations";
-    case "keaDiscoveryInstanceFilter":
+    case "discoveryInstanceFilter":
       return "flow.nodeEditorTitleInstanceFilters";
-    case "keaDiscoveryConfidenceFilter":
+    case "discoveryConfidenceFilter":
       return "flow.nodeEditorTitleConfidenceFilters";
-    case "keaViewSave":
-    case "keaRawSave":
-    case "keaClassicSave":
+    case "discoveryViewSave":
+    case "discoveryRawSave":
+    case "discoveryClassicSave":
       return "flow.nodeEditorTitleSave";
-    case "keaAliasPersistence":
+    case "discoveryAliasPersistence":
       return "flow.nodeEditorTitleAliasing";
-    case "keaMatchValidationRuleAliasing":
+    case "discoveryMatchValidationRuleAliasing":
       return "flow.nodeEditorTitleMatchDefinitions";
-    case "keaStart":
-    case "keaEnd":
-    case "keaSubgraph":
-    case "keaSubflowGraphIn":
-    case "keaSubflowGraphOut":
+    case "discoveryStart":
+    case "discoveryEnd":
+    case "discoverySubgraph":
+    case "discoverySubflowGraphIn":
+    case "discoverySubflowGraphOut":
       return "flow.nodeEditorTitlePipelineStub";
     default:
       return "flow.nodeEditorTitle";
@@ -144,8 +145,8 @@ export function FlowNodeEditorModal({
   let body: ReactNode = null;
 
   switch (kind) {
-    case "keaSourceView":
-    case "keaMatchValidationRuleSourceView":
+    case "discoverySourceView":
+    case "discoveryMatchValidationRuleSourceView":
       body = (
         <SourceViewsControls
           key={node.id}
@@ -157,7 +158,7 @@ export function FlowNodeEditorModal({
         />
       );
       break;
-    case "keaInvertedIndex":
+    case "discoveryInvertedIndex":
       body =
         workflowCanvas && onPatchWorkflowCanvas && node?.id ? (
           <InvertedIndexNodeConfigFields
@@ -168,12 +169,12 @@ export function FlowNodeEditorModal({
             t={t}
           />
         ) : (
-          <p className="kea-hint" style={{ marginTop: 0 }}>
+          <p className="discovery-hint" style={{ marginTop: 0 }}>
             {t("flow.nodeEditorInvertedIndexCanvasMissing")}
           </p>
         );
       break;
-    case "keaMatchValidationRuleExtraction":
+    case "discoveryMatchValidationRuleExtraction":
       body = (
         <MatchDefinitionsScopePanel
           key={node.id}
@@ -183,9 +184,10 @@ export function FlowNodeEditorModal({
         />
       );
       break;
-    case "keaViewQuery":
-    case "keaRawQuery":
-    case "keaClassicQuery":
+    case "discoveryViewQuery":
+    case "discoveryRawQuery":
+    case "discoveryClassicQuery":
+    case "discoverySqlQuery":
       body =
         workflowCanvas && onPatchWorkflowCanvas ? (
           <QueriesControls
@@ -197,12 +199,12 @@ export function FlowNodeEditorModal({
             singleNode
           />
         ) : (
-          <p className="kea-hint" style={{ marginTop: 0 }}>
+          <p className="discovery-hint" style={{ marginTop: 0 }}>
             {t("flow.nodeEditorQueriesCanvasMissing")}
           </p>
         );
       break;
-    case "keaTransform":
+    case "discoveryTransform":
       body =
         workflowCanvas && onPatchWorkflowCanvas ? (
           <TransformsControls
@@ -213,12 +215,12 @@ export function FlowNodeEditorModal({
             singleNode
           />
         ) : (
-          <p className="kea-hint" style={{ marginTop: 0 }}>
+          <p className="discovery-hint" style={{ marginTop: 0 }}>
             {t("flow.nodeEditorTransformsCanvasMissing")}
           </p>
         );
       break;
-    case "keaMerge":
+    case "discoveryMerge":
       body =
         workflowCanvas && onPatchWorkflowCanvas ? (
           <MergesControls
@@ -230,12 +232,12 @@ export function FlowNodeEditorModal({
             singleNode
           />
         ) : (
-          <p className="kea-hint" style={{ marginTop: 0 }}>
+          <p className="discovery-hint" style={{ marginTop: 0 }}>
             {t("flow.nodeEditorTransformsCanvasMissing")}
           </p>
         );
       break;
-    case "keaJoin":
+    case "discoveryJoin":
       body =
         workflowCanvas && onPatchWorkflowCanvas ? (
           <JoinsControls
@@ -247,12 +249,12 @@ export function FlowNodeEditorModal({
             singleNode
           />
         ) : (
-          <p className="kea-hint" style={{ marginTop: 0 }}>
+          <p className="discovery-hint" style={{ marginTop: 0 }}>
             {t("flow.nodeEditorTransformsCanvasMissing")}
           </p>
         );
       break;
-    case "keaDiscoveryValidate":
+    case "discoveryValidate":
       body =
         workflowCanvas && onPatchWorkflowCanvas ? (
           <ValidationsControls
@@ -263,12 +265,12 @@ export function FlowNodeEditorModal({
             singleNode
           />
         ) : (
-          <p className="kea-hint" style={{ marginTop: 0 }}>
+          <p className="discovery-hint" style={{ marginTop: 0 }}>
             {t("flow.nodeEditorValidationsCanvasMissing")}
           </p>
         );
       break;
-    case "keaDiscoveryInstanceFilter":
+    case "discoveryInstanceFilter":
       body =
         workflowCanvas && onPatchWorkflowCanvas ? (
           <FilterNodeModalEditor
@@ -279,12 +281,12 @@ export function FlowNodeEditorModal({
             t={t}
           />
         ) : (
-          <p className="kea-hint" style={{ marginTop: 0 }}>
+          <p className="discovery-hint" style={{ marginTop: 0 }}>
             {t("flow.nodeEditorInstanceFiltersCanvasMissing")}
           </p>
         );
       break;
-    case "keaDiscoveryConfidenceFilter":
+    case "discoveryConfidenceFilter":
       body =
         workflowCanvas && onPatchWorkflowCanvas ? (
           <ConfidenceFilterNodeModalEditor
@@ -295,14 +297,14 @@ export function FlowNodeEditorModal({
             t={t}
           />
         ) : (
-          <p className="kea-hint" style={{ marginTop: 0 }}>
+          <p className="discovery-hint" style={{ marginTop: 0 }}>
             {t("flow.nodeEditorConfidenceFiltersCanvasMissing")}
           </p>
         );
       break;
-    case "keaViewSave":
-    case "keaRawSave":
-    case "keaClassicSave":
+    case "discoveryViewSave":
+    case "discoveryRawSave":
+    case "discoveryClassicSave":
       body =
         workflowCanvas && onPatchWorkflowCanvas && node?.id ? (
           <SaveNodeConfigFields
@@ -311,14 +313,15 @@ export function FlowNodeEditorModal({
             onChange={onPatchWorkflowCanvas}
             nodeId={node.id}
             t={t}
+            schemaSpace={schemaSpace}
           />
         ) : (
-          <p className="kea-hint" style={{ marginTop: 0 }}>
+          <p className="discovery-hint" style={{ marginTop: 0 }}>
             {t("flow.nodeEditorTransformsCanvasMissing")}
           </p>
         );
       break;
-    case "keaAliasPersistence":
+    case "discoveryAliasPersistence":
       body = (
         <AliasingControls
           key={node.id}
@@ -329,7 +332,7 @@ export function FlowNodeEditorModal({
         />
       );
       break;
-    case "keaMatchValidationRuleAliasing":
+    case "discoveryMatchValidationRuleAliasing":
       body = (
         <MatchDefinitionsScopePanel
           key={node.id}
@@ -339,47 +342,47 @@ export function FlowNodeEditorModal({
         />
       );
       break;
-    case "keaStart":
-    case "keaEnd":
-      body = <p className="kea-hint" style={{ marginTop: 0 }}>{t("flow.nodeEditorPipelineStubBody")}</p>;
+    case "discoveryStart":
+    case "discoveryEnd":
+      body = <p className="discovery-hint" style={{ marginTop: 0 }}>{t("flow.nodeEditorPipelineStubBody")}</p>;
       break;
-    case "keaSubgraph":
-      body = <p className="kea-hint" style={{ marginTop: 0 }}>{t("flow.nodeEditorSubgraphBody")}</p>;
+    case "discoverySubgraph":
+      body = <p className="discovery-hint" style={{ marginTop: 0 }}>{t("flow.nodeEditorSubgraphBody")}</p>;
       break;
-    case "keaSubflowGraphIn":
-    case "keaSubflowGraphOut":
-      body = <p className="kea-hint" style={{ marginTop: 0 }}>{t("flow.nodeEditorGraphHubBody")}</p>;
+    case "discoverySubflowGraphIn":
+    case "discoverySubflowGraphOut":
+      body = <p className="discovery-hint" style={{ marginTop: 0 }}>{t("flow.nodeEditorGraphHubBody")}</p>;
       break;
     default:
-      body = <p className="kea-hint kea-hint--warn">{t("flow.nodeEditorUnsupported")}</p>;
+      body = <p className="discovery-hint discovery-hint--warn">{t("flow.nodeEditorUnsupported")}</p>;
   }
 
   const title = t(modalTitleKey(kind));
 
   return createPortal(
     <div
-      className="kea-modal-backdrop kea-modal-backdrop--flow-node-editor"
+      className="discovery-modal-backdrop discovery-modal-backdrop--flow-node-editor"
       role="presentation"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
       <div
-        className="kea-modal kea-modal--flow-node-editor"
+        className="discovery-modal discovery-modal--flow-node-editor"
         role="dialog"
         aria-modal="true"
-        aria-labelledby="kea-flow-node-editor-title"
+        aria-labelledby="discovery-flow-node-editor-title"
         onMouseDown={(e) => e.stopPropagation()}
       >
-        <h2 id="kea-flow-node-editor-title" className="kea-modal__title">
+        <h2 id="discovery-flow-node-editor-title" className="discovery-modal__title">
           {title}
         </h2>
-        <p className="kea-hint" style={{ marginTop: "-0.35rem", marginBottom: "0.75rem" }}>
+        <p className="discovery-hint" style={{ marginTop: "-0.35rem", marginBottom: "0.75rem" }}>
           {t("flow.nodeEditorHint")}
         </p>
-        <div className="kea-modal__body kea-modal__body--scroll">{body}</div>
-        <div className="kea-modal__actions">
-          <button type="button" className="kea-btn kea-btn--primary" onClick={onClose}>
+        <div className="discovery-modal__body discovery-modal__body--scroll">{body}</div>
+        <div className="discovery-modal__actions">
+          <button type="button" className="discovery-btn discovery-btn--primary" onClick={onClose}>
             {t("flow.nodeEditorDone")}
           </button>
         </div>

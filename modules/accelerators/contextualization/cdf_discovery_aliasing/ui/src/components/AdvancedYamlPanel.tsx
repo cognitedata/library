@@ -160,38 +160,38 @@ export function AdvancedYamlPanel({ initialContent, onSaveRaw, onAfterSave }: Pr
 
   const modal = open ? (
     <div
-      className="kea-advanced-fs-backdrop"
+      className="discovery-advanced-fs-backdrop"
       role="dialog"
       aria-modal="true"
       aria-labelledby="advanced-yaml-dialog-title"
     >
-      <div className="kea-advanced-fs">
-        <header className="kea-advanced-fs__header">
-          <h2 id="advanced-yaml-dialog-title" className="kea-advanced-fs__title">
+      <div className="discovery-advanced-fs">
+        <header className="discovery-advanced-fs__header">
+          <h2 id="advanced-yaml-dialog-title" className="discovery-advanced-fs__title">
             {t("advanced.modalTitle")}
           </h2>
-          <div className="kea-advanced-fs__header-actions">
-            <button type="button" className="kea-btn kea-btn--ghost" onClick={requestClose}>
+          <div className="discovery-advanced-fs__header-actions">
+            <button type="button" className="discovery-btn discovery-btn--ghost" onClick={requestClose}>
               {t("btn.cancel")}
             </button>
-            <button type="button" className="kea-btn kea-btn--primary" onClick={() => void handleSave()}>
+            <button type="button" className="discovery-btn discovery-btn--primary" onClick={() => void handleSave()}>
               {t("advanced.modalSave")}
             </button>
           </div>
         </header>
-        <div className="kea-advanced-fs__main">
-          <p className="kea-hint kea-hint--warn" style={{ marginTop: 0 }}>
+        <div className="discovery-advanced-fs__main">
+          <p className="discovery-hint discovery-hint--warn" style={{ marginTop: 0 }}>
             {t("advanced.warning1")} <code>#</code> {t("advanced.warning2")}
           </p>
-          <div className="kea-advanced-search">
-            <label htmlFor={searchInputId} className="kea-advanced-search__label-text">
+          <div className="discovery-advanced-search">
+            <label htmlFor={searchInputId} className="discovery-advanced-search__label-text">
               {t("advanced.searchLabel")}
             </label>
-            <div className="kea-advanced-search__control-row">
+            <div className="discovery-advanced-search__control-row">
               <input
                 id={searchInputId}
                 type="search"
-                className="kea-input kea-advanced-search__input"
+                className="discovery-input discovery-advanced-search__input"
                 value={searchQuery}
                 placeholder={t("advanced.searchPlaceholder")}
                 onChange={(e) => {
@@ -210,10 +210,10 @@ export function AdvancedYamlPanel({ initialContent, onSaveRaw, onAfterSave }: Pr
                 spellCheck={false}
                 aria-describedby="advanced-search-wildcard-hint"
               />
-              <div className="kea-advanced-search__actions">
+              <div className="discovery-advanced-search__actions">
                 <button
                   type="button"
-                  className="kea-btn kea-btn--sm kea-btn--primary"
+                  className="discovery-btn discovery-btn--sm discovery-btn--primary"
                   disabled={matches.length === 0}
                   onClick={handleFind}
                   title={t("advanced.find")}
@@ -222,7 +222,7 @@ export function AdvancedYamlPanel({ initialContent, onSaveRaw, onAfterSave }: Pr
                 </button>
                 <button
                   type="button"
-                  className="kea-btn kea-btn--sm"
+                  className="discovery-btn discovery-btn--sm"
                   disabled={!canStep}
                   onClick={goPrev}
                   title={t("advanced.prevMatch")}
@@ -231,7 +231,7 @@ export function AdvancedYamlPanel({ initialContent, onSaveRaw, onAfterSave }: Pr
                 </button>
                 <button
                   type="button"
-                  className="kea-btn kea-btn--sm"
+                  className="discovery-btn discovery-btn--sm"
                   disabled={!canStep}
                   onClick={goNext}
                   title={t("advanced.nextMatch")}
@@ -239,17 +239,17 @@ export function AdvancedYamlPanel({ initialContent, onSaveRaw, onAfterSave }: Pr
                   {t("advanced.nextMatch")}
                 </button>
               </div>
-              <span className="kea-advanced-search__status" role="status" aria-live="polite">
+              <span className="discovery-advanced-search__status" role="status" aria-live="polite">
                 {statusText}
               </span>
             </div>
           </div>
-          <p id="advanced-search-wildcard-hint" className="kea-hint" style={{ marginTop: 0, marginBottom: 0 }}>
+          <p id="advanced-search-wildcard-hint" className="discovery-hint" style={{ marginTop: 0, marginBottom: 0 }}>
             {t("advanced.wildcardHint")}
           </p>
           <textarea
             ref={textareaRef}
-            className="kea-textarea kea-advanced-fs__editor"
+            className="discovery-textarea discovery-advanced-fs__editor"
             value={text}
             onChange={(e) => setText(e.target.value)}
             spellCheck={false}
@@ -260,10 +260,10 @@ export function AdvancedYamlPanel({ initialContent, onSaveRaw, onAfterSave }: Pr
   ) : null;
 
   return (
-    <div className="kea-advanced">
+    <div className="discovery-advanced">
       <button
         type="button"
-        className="kea-advanced-toggle"
+        className="discovery-advanced-toggle"
         title={t("advanced.toggle.tooltip")}
         aria-expanded={open}
         aria-haspopup="dialog"

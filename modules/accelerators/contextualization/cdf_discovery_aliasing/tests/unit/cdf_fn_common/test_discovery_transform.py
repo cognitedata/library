@@ -22,6 +22,42 @@ from cdf_fn_common.discovery_transform import (  # noqa: E402
     transform_row_properties,
     validate_transform_config,
 )
+from fn_dm_transform.engine.transform_steps import apply_transform_steps_to_props  # noqa: E402
+
+
+def _tag_based_aliases_cfg() -> dict:
+    """Mirror ``defaultTagBasedAliasesTransformConfig`` (ordered extract → strip → append)."""
+    return {
+        "enabled": True,
+        "execution": {"mode": "ordered"},
+        "steps": [
+            {
+                "handler_id": "regex_substitution",
+                "fields": [
+                    {
+                        "field_name": "name",
+                        "regex": ASSET_TAG_FROM_NAME_REGEX,
+                        "max_matches_per_field": 1,
+                    },
+                    {"field_name": "unit"},
+                ],
+                "output_template": "{unit}-{name}",
+                "output_field": "_tagAliasDraft",
+                "output_mode": "overwrite",
+                "regex_substitution": {"patterns": []},
+            },
+            {
+                "handler_id": "regex_substitution",
+                "fields": [{"field_name": "_tagAliasDraft"}],
+                "output_template": "{_tagAliasDraft}",
+                "output_field": "aliases",
+                "output_mode": "append",
+                "regex_substitution": {
+                    "patterns": [{"pattern": r"^\d+-", "replacement": ""}],
+                },
+            },
+        ],
+    }
 
 
 def test_extract_field_values_regex_options_ignore_case() -> None:
@@ -197,6 +233,30 @@ def test_multifield_working_comma_join_then_heuristic_sampler() -> None:
     )
     assert len(rows) == 1
     assert rows[0]["picked"] == "P-101"
+
+
+def test_tag_based_aliases_strip_prefix_and_append() -> None:
+    props = {
+        "name": "Centrifugal pump 10-P-1234A in area",
+        "unit": "",
+        "aliases": ["existing-alias"],
+    }
+    out = apply_transform_steps_to_props(props, _tag_based_aliases_cfg())[0]
+    aliases = out["aliases"]
+    if isinstance(aliases, str):
+        aliases = [aliases]
+    assert "existing-alias" in aliases
+    assert "P-1234A" in aliases
+    assert "_tagAliasDraft" not in out
+
+
+def test_tag_based_aliases_strip_unit_prefixed_template() -> None:
+    props = {"name": "P-5678", "unit": "10", "aliases": []}
+    out = apply_transform_steps_to_props(props, _tag_based_aliases_cfg())[0]
+    aliases = out["aliases"]
+    if isinstance(aliases, str):
+        aliases = [aliases]
+    assert aliases == ["P-5678"]
 
 
 def test_validate_heuristic_sampler_pattern_without_samples() -> None:

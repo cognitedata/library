@@ -88,13 +88,13 @@ export function SourceViewsControls({
   const hasSelection = views.length > 0 && view != null;
 
   const viewEditor = hasSelection ? (
-    <div className="kea-source-views-editor-inner">
+    <div className="discovery-source-views-editor-inner">
       {!singleView ? (
-        <div className="kea-toolbar-inline" style={{ marginBottom: "0.85rem" }}>
-          <span className="kea-hint" style={{ margin: 0 }}>
+        <div className="discovery-toolbar-inline" style={{ marginBottom: "0.85rem" }}>
+          <span className="discovery-hint" style={{ margin: 0 }}>
             #{vi + 1} — {viewListLabel(view, vi, t)}
           </span>
-          <button type="button" className="kea-btn kea-btn--ghost kea-btn--sm" onClick={() => removeView(vi)}>
+          <button type="button" className="discovery-btn discovery-btn--ghost discovery-btn--sm" onClick={() => removeView(vi)}>
             {t("sourceViews.removeView")}
           </button>
         </div>
@@ -114,7 +114,7 @@ export function SourceViewsControls({
   if (singleView) {
     if (!hasSelection) {
       return (
-        <p className="kea-hint" style={{ marginTop: 0 }}>
+        <p className="discovery-hint" style={{ marginTop: 0 }}>
           {t("flow.nodeEditorFocusedNodeMissing")}
         </p>
       );
@@ -123,27 +123,27 @@ export function SourceViewsControls({
   }
 
   return (
-    <div className="kea-source-views">
-      <div className="kea-toolbar-inline">
-        <h3 className="kea-section-title" style={{ margin: 0 }}>
+    <div className="discovery-source-views">
+      <div className="discovery-toolbar-inline">
+        <h3 className="discovery-section-title" style={{ margin: 0 }}>
           {t("sourceViews.title")}
         </h3>
-        <button type="button" className="kea-btn kea-btn--primary kea-btn--sm" onClick={addView}>
+        <button type="button" className="discovery-btn discovery-btn--primary discovery-btn--sm" onClick={addView}>
           {t("sourceViews.addView")}
         </button>
       </div>
 
-      <div className="kea-source-views-split">
-        <aside className="kea-source-views-sidebar">
-          <p className="kea-artifact-list-title">{t("sourceViews.listTitle")}</p>
-          <ul className="kea-source-views-list" role="listbox" aria-label={t("sourceViews.listAriaLabel")}>
+      <div className="discovery-source-views-split">
+        <aside className="discovery-source-views-sidebar">
+          <p className="discovery-artifact-list-title">{t("sourceViews.listTitle")}</p>
+          <ul className="discovery-source-views-list" role="listbox" aria-label={t("sourceViews.listAriaLabel")}>
             {views.map((v, i) => (
               <li key={`sv-${i}`} role="none">
                 <button
                   type="button"
                   role="option"
                   aria-selected={selectedVi === i}
-                  className={`kea-source-views-item${selectedVi === i ? " kea-source-views-item--active" : ""}`}
+                  className={`discovery-source-views-item${selectedVi === i ? " discovery-source-views-item--active" : ""}`}
                   onClick={() => setSelectedVi(i)}
                 >
                   {viewListLabel(v, i, t)}
@@ -153,16 +153,16 @@ export function SourceViewsControls({
           </ul>
         </aside>
 
-        <div className="kea-source-views-editor">
+        <div className="discovery-source-views-editor">
           {!hasSelection ? (
-            <p className="kea-hint">{t("sourceViews.emptyEditor")}</p>
+            <p className="discovery-hint">{t("sourceViews.emptyEditor")}</p>
           ) : (
-            <div className="kea-source-views-editor-inner">
-              <div className="kea-toolbar-inline" style={{ marginBottom: "0.85rem" }}>
-                <span className="kea-hint" style={{ margin: 0 }}>
+            <div className="discovery-source-views-editor-inner">
+              <div className="discovery-toolbar-inline" style={{ marginBottom: "0.85rem" }}>
+                <span className="discovery-hint" style={{ margin: 0 }}>
                   #{vi + 1} — {viewListLabel(view, vi, t)}
                 </span>
-                <button type="button" className="kea-btn kea-btn--ghost kea-btn--sm" onClick={() => removeView(vi)}>
+                <button type="button" className="discovery-btn discovery-btn--ghost discovery-btn--sm" onClick={() => removeView(vi)}>
                   {t("sourceViews.removeView")}
                 </button>
               </div>

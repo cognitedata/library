@@ -15,7 +15,7 @@ const iconStroke = 2;
 function AlignLeftIcon() {
   return (
     <svg
-      className="kea-flow-align-icon"
+      className="discovery-flow-align-icon"
       width={18}
       height={18}
       viewBox="0 0 24 24"
@@ -37,7 +37,7 @@ function AlignLeftIcon() {
 function AlignRightIcon() {
   return (
     <svg
-      className="kea-flow-align-icon"
+      className="discovery-flow-align-icon"
       width={18}
       height={18}
       viewBox="0 0 24 24"
@@ -59,7 +59,7 @@ function AlignRightIcon() {
 function AlignTopIcon() {
   return (
     <svg
-      className="kea-flow-align-icon"
+      className="discovery-flow-align-icon"
       width={18}
       height={18}
       viewBox="0 0 24 24"
@@ -81,7 +81,7 @@ function AlignTopIcon() {
 function AlignBottomIcon() {
   return (
     <svg
-      className="kea-flow-align-icon"
+      className="discovery-flow-align-icon"
       width={18}
       height={18}
       viewBox="0 0 24 24"
@@ -104,7 +104,7 @@ function AlignBottomIcon() {
 function AlignCenterHorizontalIcon() {
   return (
     <svg
-      className="kea-flow-align-icon"
+      className="discovery-flow-align-icon"
       width={18}
       height={18}
       viewBox="0 0 24 24"
@@ -127,7 +127,7 @@ function AlignCenterHorizontalIcon() {
 function AlignCenterVerticalIcon() {
   return (
     <svg
-      className="kea-flow-align-icon"
+      className="discovery-flow-align-icon"
       width={18}
       height={18}
       viewBox="0 0 24 24"
@@ -151,7 +151,7 @@ export function FlowSelectionAlignButtons({ t, disabled, onAlign }: Props) {
     <button
       key={mode}
       type="button"
-      className="kea-btn kea-btn--sm kea-flow-toolbar__align-btn"
+      className="discovery-btn discovery-btn--sm discovery-flow-toolbar__align-btn"
       disabled={disabled}
       title={t(labelKey)}
       aria-label={t(labelKey)}
@@ -162,7 +162,7 @@ export function FlowSelectionAlignButtons({ t, disabled, onAlign }: Props) {
   );
 
   return (
-    <div className="kea-flow-toolbar__align" role="group" aria-label={t("flow.alignSelectionGroup")}>
+    <div className="discovery-flow-toolbar__align" role="group" aria-label={t("flow.alignSelectionGroup")}>
       {mk("left", "flow.alignLeft", <AlignLeftIcon />)}
       {mk("centerHorizontal", "flow.alignCenterHorizontal", <AlignCenterHorizontalIcon />)}
       {mk("right", "flow.alignRight", <AlignRightIcon />)}

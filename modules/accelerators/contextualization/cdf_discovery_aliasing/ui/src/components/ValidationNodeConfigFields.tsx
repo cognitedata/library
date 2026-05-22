@@ -58,11 +58,11 @@ export function ValidationNodeConfigFields({ value, onChange }: Props) {
   };
 
   return (
-    <div className="kea-validation-editor">
-      <label className="kea-label kea-label--block">
+    <div className="discovery-validation-editor">
+      <label className="discovery-label discovery-label--block">
         {t("validations.description")}
         <input
-          className="kea-input"
+          className="discovery-input"
           style={{ marginTop: "0.35rem" }}
           value={ui.description}
           onChange={(e) => commit({ description: e.target.value })}
@@ -71,24 +71,24 @@ export function ValidationNodeConfigFields({ value, onChange }: Props) {
         />
       </label>
 
-      <h4 className="kea-section-title" style={{ fontSize: "0.95rem", marginTop: "1rem" }}>
+      <h4 className="discovery-section-title" style={{ fontSize: "0.95rem", marginTop: "1rem" }}>
         {t("validationEditor.section.thresholds")}
       </h4>
-      <div className="kea-filter-row kea-filter-row--thresholds">
-        <label className="kea-label">
+      <div className="discovery-filter-row discovery-filter-row--thresholds">
+        <label className="discovery-label">
           {t("validationEditor.minConfidence")}
           <input
-            className="kea-input"
+            className="discovery-input"
             type="number"
             step="any"
             value={ui.minConfidence}
             onChange={(e) => commit({ minConfidence: e.target.value })}
           />
         </label>
-        <label className="kea-label">
+        <label className="discovery-label">
           {t("validationEditor.defaultExpressionMatch")}
           <select
-            className="kea-input"
+            className="discovery-input"
             value={ui.expressionMatch}
             onChange={(e) => {
               const v = e.target.value;
@@ -105,15 +105,15 @@ export function ValidationNodeConfigFields({ value, onChange }: Props) {
       </div>
 
       {Object.keys(ui.extras).length > 0 ? (
-        <p className="kea-hint" style={{ marginTop: "0.75rem" }}>
+        <p className="discovery-hint" style={{ marginTop: "0.75rem" }}>
           {t("validationEditor.extraKeysPreserved", { keys: Object.keys(ui.extras).join(", ") })}
         </p>
       ) : null}
 
-      <h4 className="kea-section-title" style={{ fontSize: "0.95rem", marginTop: "1.25rem" }}>
+      <h4 className="discovery-section-title" style={{ fontSize: "0.95rem", marginTop: "1.25rem" }}>
         {t("pipelineSteps.validationStepsTitle")}
       </h4>
-      <p className="kea-hint">{t("pipelineSteps.validationStepsHint")}</p>
+      <p className="discovery-hint">{t("pipelineSteps.validationStepsHint")}</p>
 
       <PipelineExecutionFields
         t={t}
@@ -125,11 +125,11 @@ export function ValidationNodeConfigFields({ value, onChange }: Props) {
         t={t}
         steps={ui.steps}
         onChange={(steps) => commit({ steps })}
-        focusIdPrefix="kea-val-node-inline"
+        focusIdPrefix="discovery-val-node-inline"
       />
       <button
         type="button"
-        className="kea-btn kea-btn--sm"
+        className="discovery-btn discovery-btn--sm"
         style={{ marginTop: "0.25rem" }}
         onClick={() => {
           const nr = defaultValidationStep(ui.steps);
@@ -144,20 +144,20 @@ export function ValidationNodeConfigFields({ value, onChange }: Props) {
         open={showAdvancedYaml}
         onToggle={(e) => setShowAdvancedYaml((e.target as HTMLDetailsElement).open)}
       >
-        <summary className="kea-label" style={{ cursor: "pointer", userSelect: "none" }}>
+        <summary className="discovery-label" style={{ cursor: "pointer", userSelect: "none" }}>
           {t("validations.advancedYaml")}
         </summary>
-        <p className="kea-hint" style={{ marginTop: "0.35rem" }}>
+        <p className="discovery-hint" style={{ marginTop: "0.35rem" }}>
           {t("validations.configHint")}
         </p>
         <textarea
-          className="kea-textarea"
+          className="discovery-textarea"
           style={{ marginTop: "0.35rem", minHeight: 200, width: "100%" }}
           value={configYaml}
           onChange={(e) => commitYaml(e.target.value)}
           spellCheck={false}
         />
-        {configError ? <p className="kea-hint kea-hint--warn">{configError}</p> : null}
+        {configError ? <p className="discovery-hint discovery-hint--warn">{configError}</p> : null}
       </details>
     </div>
   );

@@ -29,8 +29,8 @@ export function nodeFlowSize(n: Node): { w: number; h: number } {
   if (typeof ext.width === "number" && ext.width > 0 && typeof ext.height === "number" && ext.height > 0) {
     return { w: ext.width, h: ext.height };
   }
-  if (n.type === "keaSubflowGraphIn" || n.type === "keaSubflowGraphOut") return { w: 132, h: 72 };
-  if (n.type === "keaSubgraph") return { w: 192, h: 112 };
+  if (n.type === "discoverySubflowGraphIn" || n.type === "discoverySubflowGraphOut") return { w: 132, h: 72 };
+  if (n.type === "discoverySubgraph") return { w: 192, h: 112 };
   return { w: 200, h: 72 };
 }
 

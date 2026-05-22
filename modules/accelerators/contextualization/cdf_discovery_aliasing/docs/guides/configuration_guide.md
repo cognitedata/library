@@ -172,7 +172,20 @@ These keys live on **`key_extraction.config.parameters`** in the v1 scope docume
 
 When **`incremental_change_processing`** is **`true`**, discovery **query** tasks run first in the compiled DAG (per canvas wiring): they **paginate** `instances.list` (cursor pages) over source instances matching filters (and time watermark when ``run_all`` is false), optionally skip unchanged inputs using a content hash, and write **cohort** rows to RAW. The **work queue stays on RAW** (high volume).
 
-**`run_all: true`:** watermark / time filter is not applied; input-hash skipping is disabled; every instance matching **`source_views` filters** is visited (still paginated). **`batch_size`** on each source view sets the **page size** for that listing (`min` with 1000), not a cap on total instances across pages.
+**`run_all: true`:** watermark / time filter is not applied; input-hash skipping is disabled; every instance matching **`source_views` filters** is visited (still paginated). When **`incremental_change_processing`** is on, **`fn_dm_view_query`** still advances the listing watermark and upserts per-node input hashes (Key Discovery FDM or RAW `{raw_table_key}__incremental`) so the following incremental run can narrow listing and skip unchanged inputs. **`batch_size`** on each source view sets the **page size** for that listing (`min` with 1000), not a cap on total instances across pages.
+
+**Query enumeration (all cohort query types):**
+
+| Handler | Limit config | Behavior |
+|---------|--------------|----------|
+| **`fn_dm_view_query`** | `batch_size` / `limit` | Page size only; cursor lists until exhausted. |
+| **`fn_dm_raw_query`** | `read_limit` / `limit` | Total cap; `0` or unset = full source table. |
+| **`fn_dm_classic_query`** | `read_limit` / `limit` | Total cap; unset = all classic resources (`limit=-1` via SDK). |
+| **`fn_dm_sql_query`** | `limit` | Total cap; unset/`0` = 10_000 preview rows (CDF API max). |
+
+Summaries expose `rows_truncated`, `truncation_reason`, and `list_complete`. Canvas **preview** in the UI uses smaller caps and does not limit deployed workflow runs.
+
+**`instances.list` vs `instances.search` (view query performance):** Discovery cohort export uses **`instances.list`** with cursor pagination — not **`instances.search`**. Search is for **full-text** lookup (max **1000** results per request, **relevance** ordering) and cannot replace “list all nodes in this view matching structured filters.” For incremental runs, **`fn_dm_view_query`** applies a **`lastUpdatedTime`** range filter and passes **`sort=node.lastUpdatedTime` ascending** so pages align with cursorable indexes ([DM performance considerations](https://docs.cognite.com/cdf/dm/dm_guides/dm_performance_considerations)). Index **every property** used in scope **`filters`** and ensure **`node.lastUpdatedTime`** (or your watermark field) is **cursorable** on the container. Task summaries log **`list_page_count`**, **`list_duration_sec`**, and **`list_sort`**. Optional operator scripts (require CDF credentials): `scripts/audit_view_query_dm_indexes.py`, `scripts/benchmark_view_query_list.py`, `scripts/benchmark_instances_sync_vs_list.py` (list vs **`instances.sync`** spike — sync is not the production path today).
 
 **Watermark and skip hash state** can live in **Key Discovery** data model views (**`KeyDiscoveryScopeCheckpoint`**, **`KeyDiscoveryProcessingState`**) when **`key_discovery_instance_space`** is set and the views are **deployed** (`data_modeling/` under this module; verify with Toolkit **`cdf build` / `cdf deploy`**). Parameters:
 
@@ -186,7 +199,7 @@ When **`incremental_change_processing`** is **`true`**, discovery **query** task
 | **`workflow_scope`** | Leaf scope id — **injected per leaf** by **`module.py build`** / scope_build (same as **`scope.id`**). Required when using FDM and **`key_discovery_instance_space`** is set. |
 | **`incremental_skip_unchanged_source_inputs`** | Default **`true`**: skip new cohort rows when hash matches stored state; watermarks still advance. |
 
-If Key Discovery views are **missing** or FDM **API calls fail**, functions **fall back** to RAW watermark rows (`scope_wm_*`) and **`EXTRACTION_INPUTS_HASH`** on completed entity rows for hash/skip logic.
+If Key Discovery views are **missing** or FDM **API calls fail**, functions **fall back** to a **stable RAW incremental table** `{raw_table_key}__incremental` (for example `discovery_state__incremental`): watermark rows `scope_wm_{workflow_scope}_{scope_key}` and per-instance **`EXTRACTION_INPUTS_HASH`** rows tagged with **`WORKFLOW_SCOPE`**. Per-run cohort tables (`discovery_state__{run}__{node}`) are only for inter-task handoff and are removed by **`fn_dm_discovery_raw_cleanup`**; incremental state is **not** deleted. **`workflow_scope`** must be unique per deployed workflow leaf (scope build sets it from **`scope.id`**) so parallel workflow runs do not clobber each other.
 
 Optional per-view **`key_discovery_hash_property_paths`** lists which source properties participate in the incremental hash (otherwise hash fields follow extraction rules / `include_properties`). See the module [README](../../README.md#incremental-cohort-processing-raw-cohort-cdm-state) and [workflows/README.md](../../workflows/README.md).
 

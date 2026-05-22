@@ -22,6 +22,7 @@ import { TransformsControls } from "./components/TransformsControls";
 import { ValidationsControls } from "./components/ValidationsControls";
 import { FiltersControls } from "./components/FiltersControls";
 import { PersistenceControls } from "./components/PersistenceControls";
+import { KeyExtractionControls } from "./components/KeyExtractionControls";
 import { RunResultsPanel } from "./components/RunResultsPanel";
 import { useAppSettings } from "./context/AppSettingsContext";
 import { LOCALES, type MessageKey } from "./i18n";
@@ -37,7 +38,14 @@ import { matchConfigSearch } from "./utils/configPanelSearch";
 
 type Tab = "scope" | "configure" | "build" | "artifacts";
 
-type ConfigSubTab = "queries" | "validations" | "filters" | "transforms" | "persistence" | "flowCanvas";
+type ConfigSubTab =
+  | "queries"
+  | "validations"
+  | "filters"
+  | "transforms"
+  | "persistence"
+  | "keyExtraction"
+  | "flowCanvas";
 
 /** Nested under Configure → Flow. */
 type FlowCanvasSubTab = "canvas" | "runPipeline" | "runResults";
@@ -80,7 +88,7 @@ const MODULE_FORM_KEYS: { key: string; labelKey: MessageKey }[] = [
 ];
 
 function tabClass(active: boolean): string {
-  return `kea-tab${active ? " kea-tab--active" : ""}`;
+  return `discovery-tab${active ? " discovery-tab--active" : ""}`;
 }
 
 function isTriggerPath(path: string | null): boolean {
@@ -177,12 +185,31 @@ export default function App() {
   /** Passed to ``cdf_workflow_run.py --instance-space`` when running on CDF from this UI. */
   const [cdfInstanceSpace, setCdfInstanceSpace] = useState("");
   const [runResultsRefreshKey, setRunResultsRefreshKey] = useState(0);
+  /** Scope key of the most recent local run (keeps Results visible after sidebar target changes). */
+  const [lastDiscoveryRunScopeKey, setLastDiscoveryRunScopeKey] = useState<string | null>(null);
 
   const runResultsScopeKey = useMemo((): string => {
     if (configureTarget.id === "workflowLocal") return "workflow_local";
     if (configureTarget.id === "workflowTemplate") return "workflow_template";
     return `workflow_trigger:${configureTarget.path.replace(/\\/g, "/")}`;
   }, [configureTarget]);
+
+  const discoveryRunScopeKeyForResults = lastDiscoveryRunScopeKey ?? runResultsScopeKey;
+
+  const runScopeKeyFromRunBody = useCallback(
+    (body: {
+      target: "workflow_local" | "workflow_template" | "workflow_trigger";
+      workflow_trigger_rel?: string;
+    }): string => {
+      if (body.target === "workflow_template") return "workflow_template";
+      if (body.target === "workflow_trigger") {
+        const rel = (body.workflow_trigger_rel ?? "").trim().replace(/\\/g, "/");
+        return rel ? `workflow_trigger:${rel}` : "workflow_trigger:";
+      }
+      return "workflow_local";
+    },
+    [],
+  );
   const [artifactPaths, setArtifactPaths] = useState<string[]>([]);
   const [artifactPath, setArtifactPath] = useState<string | null>(null);
   const [artifactText, setArtifactText] = useState("");
@@ -1138,6 +1165,7 @@ export default function App() {
       } catch {
         /* ignore */
       }
+      setLastDiscoveryRunScopeKey(runScopeKeyFromRunBody(body));
       setRunResultsRefreshKey((k) => k + 1);
       setConfigSubTab("flowCanvas");
       setFlowCanvasSubTab("runResults");
@@ -1147,6 +1175,7 @@ export default function App() {
     configureTarget,
     isConfigureDirty,
     runAll,
+    runScopeKeyFromRunBody,
     saveConfigureTrigger,
     saveScope,
     saveTemplate,
@@ -1761,63 +1790,59 @@ export default function App() {
     return scopeSuffixFromWorkflowTriggerPath(configureTarget.path);
   }, [configureTarget]);
 
-  /** Local pipeline run in progress — lock edits and unify Flow canvas + run sub-tab state. */
-  const configureEditsLocked = canvasPreviewRunBusy;
-
   const configureRunPipelineSubpanel = (
-    <div className="kea-config-run">
-      <p className="kea-hint" style={{ marginBottom: "0.5rem", maxWidth: "72ch" }}>
+    <div className="discovery-config-run">
+      <p className="discovery-hint" style={{ marginBottom: "0.5rem", maxWidth: "72ch" }}>
         {runContextLine}
       </p>
-      <p className="kea-hint" style={{ marginBottom: "0.5rem", maxWidth: "72ch" }}>
+      <p className="discovery-hint" style={{ marginBottom: "0.5rem", maxWidth: "72ch" }}>
         {t("flow.previewRunLocalHint")}
       </p>
       {configureTarget.id === "trigger" && isConfigTriggerDirty && (
-        <p className="kea-hint kea-hint--warn" style={{ marginBottom: "0.5rem", maxWidth: "72ch" }}>
+        <p className="discovery-hint discovery-hint--warn" style={{ marginBottom: "0.5rem", maxWidth: "72ch" }}>
           {t("run.triggerUnsaved")}
         </p>
       )}
-      <p className="kea-hint" style={{ marginBottom: "0.5rem", maxWidth: "72ch" }}>
+      <p className="discovery-hint" style={{ marginBottom: "0.5rem", maxWidth: "72ch" }}>
         {t("run.runAllHint")}
       </p>
       <textarea
         readOnly
-        className="kea-textarea kea-textarea--readonly"
+        className="discovery-textarea discovery-textarea--readonly"
         value={runLog}
         placeholder={t("run.outputPlaceholder")}
         style={{ minHeight: 160, width: "100%" }}
       />
 
-      <hr className="kea-run-divider" style={{ margin: "1.25rem 0", border: 0, borderTop: "1px solid var(--kea-border)" }} />
+      <hr className="discovery-run-divider" style={{ margin: "1.25rem 0", border: 0, borderTop: "1px solid var(--discovery-border)" }} />
       {configureTarget.id === "trigger" ? (
         <>
-          <p className="kea-hint" style={{ marginBottom: "0.75rem", maxWidth: "72ch" }}>
+          <p className="discovery-hint" style={{ marginBottom: "0.75rem", maxWidth: "72ch" }}>
             {t("run.cdfToolsHint")}
           </p>
           {!selectedScopeSuffix && (
-            <p className="kea-hint kea-hint--warn" style={{ marginBottom: "0.75rem", maxWidth: "72ch" }}>
+            <p className="discovery-hint discovery-hint--warn" style={{ marginBottom: "0.75rem", maxWidth: "72ch" }}>
               {t("run.needTriggerScope")}
             </p>
           )}
           <div style={{ marginBottom: "0.75rem", maxWidth: "48rem" }}>
-            <label className="kea-label" htmlFor="cdf-instance-space-input">
+            <label className="discovery-label" htmlFor="cdf-instance-space-input">
               {t("run.cdfInstanceSpaceLabel")}
             </label>
             <input
               id="cdf-instance-space-input"
               type="text"
-              className="kea-input"
+              className="discovery-input"
               value={cdfInstanceSpace}
               onChange={(e) => setCdfInstanceSpace(e.target.value)}
               placeholder={t("run.cdfInstanceSpacePlaceholder")}
-              disabled={configureEditsLocked}
               autoComplete="off"
               spellCheck={false}
               style={{ width: "100%", marginTop: "0.35rem" }}
             />
           </div>
           <div
-            className="kea-toolbar"
+            className="discovery-toolbar"
             style={{
               flexWrap: "wrap",
               gap: "0.75rem",
@@ -1827,8 +1852,8 @@ export default function App() {
           >
             <button
               type="button"
-              className="kea-btn"
-              disabled={configureEditsLocked || !selectedScopeSuffix}
+              className="discovery-btn"
+              disabled={!selectedScopeSuffix}
               title={!selectedScopeSuffix ? t("run.needTriggerScope") : undefined}
               onClick={() => void runDeployScope(false)}
             >
@@ -1836,8 +1861,8 @@ export default function App() {
             </button>
             <button
               type="button"
-              className="kea-btn"
-              disabled={configureEditsLocked || !selectedScopeSuffix}
+              className="discovery-btn"
+              disabled={!selectedScopeSuffix}
               title={!selectedScopeSuffix ? t("run.needTriggerScope") : undefined}
               onClick={() => void runCdfWorkflowRemote(false)}
             >
@@ -1845,8 +1870,8 @@ export default function App() {
             </button>
             <button
               type="button"
-              className="kea-btn kea-btn--ghost"
-              disabled={configureEditsLocked || !selectedScopeSuffix}
+              className="discovery-btn discovery-btn--ghost"
+              disabled={!selectedScopeSuffix}
               title={!selectedScopeSuffix ? t("run.needTriggerScope") : undefined}
               onClick={() => void runCdfWorkflowRemote(true)}
             >
@@ -1854,8 +1879,8 @@ export default function App() {
             </button>
             <button
               type="button"
-              className="kea-btn kea-btn--ghost"
-              disabled={configureEditsLocked || !selectedScopeSuffix}
+              className="discovery-btn discovery-btn--ghost"
+              disabled={!selectedScopeSuffix}
               title={!selectedScopeSuffix ? t("run.needTriggerScope") : undefined}
               onClick={() => void runDeployScope(true)}
             >
@@ -1864,14 +1889,14 @@ export default function App() {
           </div>
           <textarea
             readOnly
-            className="kea-textarea kea-textarea--readonly"
+            className="discovery-textarea discovery-textarea--readonly"
             value={cdfToolLog}
             placeholder={t("run.cdfDeployOutputPlaceholder")}
             style={{ minHeight: 140, width: "100%" }}
           />
         </>
       ) : (
-        <p className="kea-hint" style={{ marginBottom: "0.75rem", maxWidth: "72ch" }}>
+        <p className="discovery-hint" style={{ marginBottom: "0.75rem", maxWidth: "72ch" }}>
           {t("run.cdfScopedOnly")}
         </p>
       )}
@@ -1887,6 +1912,7 @@ export default function App() {
 
   const configSubtabs: { id: ConfigSubTab; labelKey: MessageKey }[] = [
     { id: "flowCanvas", labelKey: "tabs.flowCanvas" },
+    { id: "keyExtraction", labelKey: "tabs.keyExtraction" },
     { id: "queries", labelKey: "tabs.queries" },
     { id: "transforms", labelKey: "tabs.transforms" },
     { id: "validations", labelKey: "tabs.validations" },
@@ -1895,18 +1921,18 @@ export default function App() {
   ];
 
   return (
-    <div className={`kea-app${tab === "configure" ? " kea-app--wide" : ""}`}>
-      <header className="kea-header">
-        <div className="kea-header__shell">
-          <div className="kea-header__brand">
-            <h1 className="kea-header__title">{t("app.title")}</h1>
-            <p className="kea-header__subtitle">{t("app.subtitle")}</p>
+    <div className={`discovery-app${tab === "configure" ? " discovery-app--wide" : ""}`}>
+      <header className="discovery-header">
+        <div className="discovery-header__shell">
+          <div className="discovery-header__brand">
+            <h1 className="discovery-header__title">{t("app.title")}</h1>
+            <p className="discovery-header__subtitle">{t("app.subtitle")}</p>
           </div>
-          <div className="kea-header__toolbar">
-            <div className="kea-header__toolbar-group">
-              <label className="kea-header__control" title={t("controls.theme.tooltip")}>
-                <span className="kea-header__control-label">{t("controls.theme")}</span>
-                <span className="kea-theme-toggle" role="group">
+          <div className="discovery-header__toolbar">
+            <div className="discovery-header__toolbar-group">
+              <label className="discovery-header__control" title={t("controls.theme.tooltip")}>
+                <span className="discovery-header__control-label">{t("controls.theme")}</span>
+                <span className="discovery-theme-toggle" role="group">
                   <button
                     type="button"
                     data-active={theme === "light"}
@@ -1919,8 +1945,8 @@ export default function App() {
                   </button>
                 </span>
               </label>
-              <label className="kea-header__control" title={t("controls.language.tooltip")}>
-                <span className="kea-header__control-label">{t("controls.language")}</span>
+              <label className="discovery-header__control" title={t("controls.language.tooltip")}>
+                <span className="discovery-header__control-label">{t("controls.language")}</span>
                 <select value={locale} onChange={(e) => setLocale(e.target.value as typeof locale)}>
                   {LOCALES.map(({ code, label }) => (
                     <option key={code} value={code}>
@@ -1934,8 +1960,8 @@ export default function App() {
         </div>
       </header>
 
-      <div className="kea-nav-tabs-row">
-        <nav className="kea-tabs" aria-label={t("nav.primary")}>
+      <div className="discovery-nav-tabs-row">
+        <nav className="discovery-tabs" aria-label={t("nav.primary")}>
           {tabs.map(({ id, labelKey }) => (
             <button
               key={id}
@@ -1949,16 +1975,16 @@ export default function App() {
             </button>
           ))}
         </nav>
-        <div className="kea-tabs-actions" ref={settingsWrapRef}>
+        <div className="discovery-tabs-actions" ref={settingsWrapRef}>
           <button
             type="button"
-            className={`kea-tabs-gear${settingsOpen ? " kea-tabs-gear--open" : ""}`}
+            className={`discovery-tabs-gear${settingsOpen ? " discovery-tabs-gear--open" : ""}`}
             aria-expanded={settingsOpen}
             aria-haspopup="dialog"
             title={t("nav.settings.tooltip")}
             onClick={() => setSettingsOpen((o) => !o)}
           >
-            <span className="kea-tabs-gear__icon" aria-hidden>
+            <span className="discovery-tabs-gear__icon" aria-hidden>
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path
                   d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"
@@ -1976,49 +2002,49 @@ export default function App() {
                 />
               </svg>
             </span>
-            <span className="kea-sr-only">{t("nav.settings")}</span>
+            <span className="discovery-sr-only">{t("nav.settings")}</span>
           </button>
           {settingsOpen && (
             <div
-              className="kea-settings-popover"
+              className="discovery-settings-popover"
               role="dialog"
-              aria-labelledby="kea-settings-popover-title"
+              aria-labelledby="discovery-settings-popover-title"
             >
-              <h2 id="kea-settings-popover-title" className="kea-settings-popover__title">
+              <h2 id="discovery-settings-popover-title" className="discovery-settings-popover__title">
                 {t("moduleSettings.title")}
               </h2>
-              <p className="kea-hint" style={{ marginTop: 0 }}>
+              <p className="discovery-hint" style={{ marginTop: 0 }}>
                 {t("callout.settings")}
               </p>
-              <div className="kea-toolbar" style={{ marginBottom: "0.75rem" }}>
-                <button type="button" className="kea-btn kea-btn--ghost kea-btn--sm" onClick={() => loadAll()}>
+              <div className="discovery-toolbar" style={{ marginBottom: "0.75rem" }}>
+                <button type="button" className="discovery-btn discovery-btn--ghost discovery-btn--sm" onClick={() => loadAll()}>
                   {t("btn.reload")}
                 </button>
-                <button type="button" className="kea-btn kea-btn--primary kea-btn--sm" onClick={() => void saveDefault()}>
+                <button type="button" className="discovery-btn discovery-btn--primary discovery-btn--sm" onClick={() => void saveDefault()}>
                   {t("btn.saveDefault")}
                 </button>
                 <span
                   className={
                     defaultPhase === "status.saved" || defaultPhase === "status.loaded"
-                      ? "kea-status kea-status--ok"
-                      : "kea-status"
+                      ? "discovery-status discovery-status--ok"
+                      : "discovery-status"
                   }
                   style={{ fontSize: "0.8rem" }}
                 >
                   {defaultStatus}
                 </span>
                 {isDefaultDirty && (
-                  <span className="kea-hint kea-hint--warn" role="status" style={{ fontSize: "0.8rem" }}>
+                  <span className="discovery-hint discovery-hint--warn" role="status" style={{ fontSize: "0.8rem" }}>
                     {t("status.unsavedChanges")}
                   </span>
                 )}
               </div>
-              <div className="kea-loc-fields kea-settings-popover__fields">
+              <div className="discovery-loc-fields discovery-settings-popover__fields">
                 {MODULE_FORM_KEYS.map(({ key, labelKey }) => (
-                  <label key={key} className="kea-label">
+                  <label key={key} className="discovery-label">
                     {t(labelKey)}
                     <input
-                      className="kea-input"
+                      className="discovery-input"
                       value={defaultDoc[key] != null ? String(defaultDoc[key]) : ""}
                       onChange={(e) =>
                         setDefaultDoc((d) => ({
@@ -2036,8 +2062,8 @@ export default function App() {
       </div>
 
       {tab === "scope" && (
-        <section className="kea-panel">
-          <div className="kea-callout" role="status">
+        <section className="discovery-panel">
+          <div className="discovery-callout" role="status">
             {t("callout.defaultConfig")}
           </div>
           <DisplayNameField
@@ -2053,24 +2079,24 @@ export default function App() {
               });
             }}
           />
-          <div className="kea-toolbar">
-            <button type="button" className="kea-btn kea-btn--ghost" onClick={() => loadAll()}>
+          <div className="discovery-toolbar">
+            <button type="button" className="discovery-btn discovery-btn--ghost" onClick={() => loadAll()}>
               {t("btn.reload")}
             </button>
-            <button type="button" className="kea-btn kea-btn--primary" onClick={() => void saveDefault()}>
+            <button type="button" className="discovery-btn discovery-btn--primary" onClick={() => void saveDefault()}>
               {t("btn.saveDefault")}
             </button>
             <span
               className={
                 defaultPhase === "status.saved" || defaultPhase === "status.loaded"
-                  ? "kea-status kea-status--ok"
-                  : "kea-status"
+                  ? "discovery-status discovery-status--ok"
+                  : "discovery-status"
               }
             >
               {defaultStatus}
             </span>
             {isDefaultDirty && (
-              <span className="kea-hint kea-hint--warn" role="status">
+              <span className="discovery-hint discovery-hint--warn" role="status">
                 {t("status.unsavedChanges")}
               </span>
             )}
@@ -2099,58 +2125,57 @@ export default function App() {
       )}
 
       {tab === "configure" && (
-        <section className="kea-panel kea-configure">
-          <div className="kea-config-sidenav" aria-label={t("config.sidebarTitle")}>
-            <p className="kea-config-sidenav__heading">{t("config.sidebarTitle")}</p>
-            <label className="kea-label kea-config-sidenav__search">
-              <span className="kea-sr-only">{t("config.searchLabel")}</span>
+        <section className="discovery-panel discovery-configure">
+          <div className="discovery-config-sidenav" aria-label={t("config.sidebarTitle")}>
+            <p className="discovery-config-sidenav__heading">{t("config.sidebarTitle")}</p>
+            <label className="discovery-label discovery-config-sidenav__search">
+              <span className="discovery-sr-only">{t("config.searchLabel")}</span>
               <input
                 type="search"
-                className="kea-input"
+                className="discovery-input"
                 value={configSearchQuery}
                 onChange={(e) => setConfigSearchQuery(e.target.value)}
                 placeholder={t("config.searchPlaceholder")}
                 title={t("config.searchPlaceholder")}
                 autoComplete="off"
                 spellCheck={false}
-                disabled={configureEditsLocked}
               />
             </label>
             {showFullPanelEmpty && (
-              <p className="kea-hint kea-config-sidenav__empty" role="status">
+              <p className="discovery-hint discovery-config-sidenav__empty" role="status">
                 {t("config.noSearchResults")}
               </p>
             )}
             {!showFullPanelEmpty && (
               <>
-                <div className="kea-config-sidenav__section">
+                <div className="discovery-config-sidenav__section">
                   {showWorkflowLocalInPanel && (
                     <button
                       type="button"
-                      className={`kea-config-sidenav__btn${configureTarget.id === "workflowLocal" ? " kea-config-sidenav__btn--active" : ""}`}
+                      className={`discovery-config-sidenav__btn${configureTarget.id === "workflowLocal" ? " discovery-config-sidenav__btn--active" : ""}`}
                       onClick={() => selectConfigureTarget({ id: "workflowLocal" })}
                     >
-                      <span className="kea-config-sidenav__btn-primary">{workflowLocalNavPrimary}</span>
-                      <span className="kea-config-sidenav__btn-secondary">{t("config.fileHint.workflowLocal")}</span>
+                      <span className="discovery-config-sidenav__btn-primary">{workflowLocalNavPrimary}</span>
+                      <span className="discovery-config-sidenav__btn-secondary">{t("config.fileHint.workflowLocal")}</span>
                     </button>
                   )}
                   {showWorkflowTemplateInPanel && (
                     <button
                       type="button"
-                      className={`kea-config-sidenav__btn${configureTarget.id === "workflowTemplate" ? " kea-config-sidenav__btn--active" : ""}`}
+                      className={`discovery-config-sidenav__btn${configureTarget.id === "workflowTemplate" ? " discovery-config-sidenav__btn--active" : ""}`}
                       onClick={() => selectConfigureTarget({ id: "workflowTemplate" })}
                     >
-                      <span className="kea-config-sidenav__btn-primary">{workflowTemplateNavPrimary}</span>
-                      <span className="kea-config-sidenav__btn-secondary">{t("config.fileHint.workflowTemplate")}</span>
+                      <span className="discovery-config-sidenav__btn-primary">{workflowTemplateNavPrimary}</span>
+                      <span className="discovery-config-sidenav__btn-secondary">{t("config.fileHint.workflowTemplate")}</span>
                     </button>
                   )}
                 </div>
-                <p className="kea-config-sidenav__heading">{t("config.triggersSection")}</p>
-                <div className="kea-config-sidenav__section kea-config-sidenav__section--scroll">
+                <p className="discovery-config-sidenav__heading">{t("config.triggersSection")}</p>
+                <div className="discovery-config-sidenav__section discovery-config-sidenav__section--scroll">
                   {triggerPaths.length === 0 ? (
-                    <p className="kea-hint kea-config-sidenav__empty">{t("config.noTriggers")}</p>
+                    <p className="discovery-hint discovery-config-sidenav__empty">{t("config.noTriggers")}</p>
                   ) : filteredTriggerPaths.length === 0 ? (
-                    <p className="kea-hint kea-config-sidenav__empty" role="status">
+                    <p className="discovery-hint discovery-config-sidenav__empty" role="status">
                       {t("config.noSearchResults")}
                     </p>
                   ) : (
@@ -2163,12 +2188,12 @@ export default function App() {
                           key={p}
                           type="button"
                           title={p}
-                          className={`kea-config-sidenav__btn kea-config-sidenav__btn--path${configureTarget.id === "trigger" && configureTarget.path === p ? " kea-config-sidenav__btn--active" : ""}`}
+                          className={`discovery-config-sidenav__btn discovery-config-sidenav__btn--path${configureTarget.id === "trigger" && configureTarget.path === p ? " discovery-config-sidenav__btn--active" : ""}`}
                           onClick={() => selectConfigureTarget({ id: "trigger", path: p })}
                         >
-                          <span className="kea-config-sidenav__btn-primary">{primary}</span>
+                          <span className="discovery-config-sidenav__btn-primary">{primary}</span>
                           {custom ? (
-                            <span className="kea-config-sidenav__btn-secondary">{shortPath}</span>
+                            <span className="discovery-config-sidenav__btn-secondary">{shortPath}</span>
                           ) : null}
                         </button>
                       );
@@ -2179,16 +2204,15 @@ export default function App() {
             )}
             <button
               type="button"
-              className="kea-btn kea-btn--sm kea-config-sidenav__refresh"
-              disabled={configureEditsLocked}
+              className="discovery-btn discovery-btn--sm discovery-config-sidenav__refresh"
               onClick={() => void refreshArtifactLists()}
             >
               {t("btn.refreshList")}
             </button>
           </div>
 
-          <div className="kea-config-main">
-            <div className="kea-callout" role="status">
+          <div className="discovery-config-main">
+            <div className="discovery-callout" role="status">
               {calloutForConfigure()}
             </div>
             {(configureTarget.id === "workflowLocal" || configureTarget.id === "workflowTemplate") && (
@@ -2199,7 +2223,6 @@ export default function App() {
                     ? workflowTemplateNavPrimary
                     : workflowLocalNavPrimary
                 }
-                readOnly={configureEditsLocked}
                 value={
                   (configureTarget.id === "workflowTemplate" ? templateDoc : scopeDoc).name != null
                     ? String((configureTarget.id === "workflowTemplate" ? templateDoc : scopeDoc).name)
@@ -2221,16 +2244,14 @@ export default function App() {
               <DisplayNameField
                 ariaLabel={t("config.displayName")}
                 fallbackName={configureTriggerNavPrimary}
-                readOnly={configureEditsLocked}
                 value={typeof parsedConfigTrigger.name === "string" ? parsedConfigTrigger.name : ""}
                 onChange={setTriggerRootName}
               />
             )}
-            <div className="kea-toolbar kea-config-main-toolbar">
+            <div className="discovery-toolbar discovery-config-main-toolbar">
               <button
                 type="button"
-                className="kea-btn kea-btn--primary kea-toolbar-btn"
-                disabled={configureEditsLocked}
+                className="discovery-btn discovery-btn--primary discovery-toolbar-btn"
                 title={t("btn.save")}
                 onClick={() => void saveConfigure()}
               >
@@ -2241,29 +2262,27 @@ export default function App() {
                 <>
                   <button
                     type="button"
-                    className="kea-btn kea-toolbar-btn"
-                    disabled={configureEditsLocked}
+                    className="discovery-btn discovery-toolbar-btn"
+                    disabled={canvasPreviewRunBusy}
                     title={t("flow.previewRunLocalHint")}
                     onClick={() => void runLocalPipelineStreamed()}
                   >
                     <IconToolbarPlay />
                     <span>
-                      {configureEditsLocked ? t("status.running") : t("flow.previewRunLocal")}
+                      {canvasPreviewRunBusy ? t("status.running") : t("flow.previewRunLocal")}
                     </span>
                   </button>
-                  <label className="kea-toolbar-check">
+                  <label className="discovery-toolbar-check">
                     <input
                       type="checkbox"
                       checked={runAll}
-                      disabled={configureEditsLocked}
                       onChange={(e) => setRunAll(e.target.checked)}
                     />
                     <span>{t("run.runAll")}</span>
                   </label>
                   <button
                     type="button"
-                    className="kea-btn kea-btn--ghost kea-toolbar-btn"
-                    disabled={configureEditsLocked}
+                    className="discovery-btn discovery-btn--ghost discovery-toolbar-btn"
                     title={t("btn.reload")}
                     onClick={() => void reloadCurrentConfigure()}
                   >
@@ -2275,9 +2294,9 @@ export default function App() {
               {configureTarget.id === "workflowLocal" && (
                 <button
                   type="button"
-                  className="kea-btn kea-toolbar-btn"
+                  className="discovery-btn discovery-toolbar-btn"
                   disabled={
-                    configureEditsLocked || promoteTemplatesBusy || scopePhase === "status.saving"
+                    promoteTemplatesBusy || scopePhase === "status.saving"
                   }
                   title={t("config.updateTemplateTooltip")}
                   onClick={() => void promoteLocalWorkflowTemplates()}
@@ -2286,12 +2305,12 @@ export default function App() {
                   <span>{promoteTemplatesBusy ? t("status.running") : t("config.updateTemplate")}</span>
                 </button>
               )}
-              <div className="kea-config-main-toolbar__tail">
-                <span className={configurePhaseOk ? "kea-status kea-status--ok" : "kea-status"}>
+              <div className="discovery-config-main-toolbar__tail">
+                <span className={configurePhaseOk ? "discovery-status discovery-status--ok" : "discovery-status"}>
                   {configureStatus}
                 </span>
                 {isConfigureDirty && (
-                  <span className="kea-hint kea-hint--warn" role="status">
+                  <span className="discovery-hint discovery-hint--warn" role="status">
                     {t("status.unsavedChanges")}
                   </span>
                 )}
@@ -2299,8 +2318,8 @@ export default function App() {
             </div>
 
             {(configureTarget.id === "workflowLocal" || configureTarget.id === "workflowTemplate") && (
-              <div className="kea-config-subpanel-shell">
-                <nav className="kea-tabs kea-tabs--nested" aria-label={t("nav.subtabs")}>
+              <div className="discovery-config-subpanel-shell">
+                <nav className="discovery-tabs discovery-tabs--nested" aria-label={t("nav.subtabs")}>
                   {configSubtabs.map(({ id, labelKey }) => (
                     <button
                       key={id}
@@ -2312,11 +2331,11 @@ export default function App() {
                     </button>
                   ))}
                 </nav>
-                <div className="kea-config-subpanel-shell__body">
+                <div className="discovery-config-subpanel-shell__body">
                   {configSubTab === "flowCanvas" && (
                     <>
                       <nav
-                        className="kea-tabs kea-tabs--sub kea-flow-inner-subtabs"
+                        className="discovery-tabs discovery-tabs--sub discovery-flow-inner-subtabs"
                         aria-label={t("nav.subtabs")}
                       >
                         <button
@@ -2353,36 +2372,36 @@ export default function App() {
                               : scopeCanvasReloadNonce
                           }
                           onEdit={() => {
-                            if (!configureEditsLocked) setFlowCanvasEditorOpen(true);
+                            if (!canvasPreviewRunBusy) setFlowCanvasEditorOpen(true);
                           }}
                           runProgress={flowPreviewRunProgress}
                         />
                       )}
                       {flowCanvasSubTab === "runPipeline" && configureRunPipelineSubpanel}
                       {flowCanvasSubTab === "runResults" && (
-                        <div
-                          style={
-                            configureEditsLocked
-                              ? { pointerEvents: "none", opacity: 0.65 }
-                              : undefined
-                          }
-                        >
+                        <div>
                           <RunResultsPanel
                             refreshKey={runResultsRefreshKey}
                             runScopeKey={runResultsScopeKey}
+                            preferredRunScopeKey={discoveryRunScopeKeyForResults}
                           />
                         </div>
                       )}
                     </>
                   )}
+                  {configSubTab === "keyExtraction" && (
+                    <div>
+                      <KeyExtractionControls
+                        value={workflowDoc.key_extraction}
+                        scopeDocument={workflowDoc}
+                        onChange={(next) =>
+                          setWorkflowDoc((d) => ({ ...d, key_extraction: next }))
+                        }
+                      />
+                    </div>
+                  )}
                   {configSubTab === "queries" && (
-                    <div
-                      style={
-                        configureEditsLocked
-                          ? { pointerEvents: "none", opacity: 0.65 }
-                          : undefined
-                      }
-                    >
+                    <div>
                       <QueriesControls
                         canvas={configureCanvasDoc}
                         onChange={patchConfigureCanvasDoc}
@@ -2391,13 +2410,7 @@ export default function App() {
                     </div>
                   )}
                   {configSubTab === "transforms" && (
-                    <div
-                      style={
-                        configureEditsLocked
-                          ? { pointerEvents: "none", opacity: 0.65 }
-                          : undefined
-                      }
-                    >
+                    <div>
                       <TransformsControls
                         canvas={configureCanvasDoc}
                         onChange={patchConfigureCanvasDoc}
@@ -2405,44 +2418,25 @@ export default function App() {
                     </div>
                   )}
                   {configSubTab === "validations" && (
-                    <div
-                      style={
-                        configureEditsLocked
-                          ? { pointerEvents: "none", opacity: 0.65 }
-                          : undefined
-                      }
-                    >
+                    <div>
                       <ValidationsControls canvas={configureCanvasDoc} onChange={patchConfigureCanvasDoc} />
                     </div>
                   )}
                   {configSubTab === "filters" && (
-                    <div
-                      style={
-                        configureEditsLocked
-                          ? { pointerEvents: "none", opacity: 0.65 }
-                          : undefined
-                      }
-                    >
+                    <div>
                       <FiltersControls canvas={configureCanvasDoc} onChange={patchConfigureCanvasDoc} />
                     </div>
                   )}
                   {configSubTab === "persistence" && (
-                    <div
-                      style={
-                        configureEditsLocked
-                          ? { pointerEvents: "none", opacity: 0.65 }
-                          : undefined
-                      }
-                    >
-                      <PersistenceControls canvas={configureCanvasDoc} onChange={patchConfigureCanvasDoc} />
+                    <div>
+                      <PersistenceControls
+                        canvas={configureCanvasDoc}
+                        onChange={patchConfigureCanvasDoc}
+                        schemaSpace={moduleSchemaSpace}
+                      />
                     </div>
                   )}
                   <div
-                    style={
-                      configureEditsLocked
-                        ? { pointerEvents: "none", opacity: 0.65 }
-                        : undefined
-                    }
                   >
                     <AdvancedYamlPanel
                       initialContent={workflowRawYaml}
@@ -2501,20 +2495,19 @@ export default function App() {
               <>
                 {!parsedConfigTrigger ? (
                   <textarea
-                    className="kea-textarea"
+                    className="discovery-textarea"
                     value={configTriggerText}
-                    readOnly={configureEditsLocked}
                     onChange={(e) => setConfigTriggerText(e.target.value)}
                     spellCheck={false}
                     style={{ minHeight: 320 }}
                   />
                 ) : (
                   <>
-                    <p className="kea-hint" style={{ marginBottom: 8 }}>
+                    <p className="discovery-hint" style={{ marginBottom: 8 }}>
                       {t("artifacts.triggerBar")}
                     </p>
-                    <div className="kea-config-subpanel-shell kea-trigger-pipeline-sub">
-                      <nav className="kea-tabs kea-tabs--nested" aria-label={t("nav.triggerEditor")}>
+                    <div className="discovery-config-subpanel-shell discovery-trigger-pipeline-sub">
+                      <nav className="discovery-tabs discovery-tabs--nested" aria-label={t("nav.triggerEditor")}>
                         {configSubtabs.map(({ id, labelKey }) => (
                           <button
                             key={id}
@@ -2543,44 +2536,39 @@ export default function App() {
                           {t("triggerEditor.tab.schedule")}
                         </button>
                       </nav>
-                      <div className="kea-config-subpanel-shell__body">
+                      <div className="discovery-config-subpanel-shell__body">
                     {triggerTopTab === "triggerAuth" && (
                       <div
-                        style={
-                          configureEditsLocked
-                            ? { pointerEvents: "none", opacity: 0.65 }
-                            : undefined
-                        }
                       >
-                      <div className="kea-trigger-root-grid kea-trigger-root-grid--two">
+                      <div className="discovery-trigger-root-grid discovery-trigger-root-grid--two">
                         <p
-                          className="kea-trigger-editor-section-title"
+                          className="discovery-trigger-editor-section-title"
                           style={{ gridColumn: "1 / -1" }}
                         >
                           {t("triggerEditor.section.identity")}
                         </p>
-                        <label className="kea-label">
+                        <label className="discovery-label">
                           {t("triggerEditor.externalId")}
                           <input
-                            className="kea-input"
+                            className="discovery-input"
                             value={String(parsedConfigTrigger.externalId ?? "")}
                             onChange={(e) => patchTriggerRootFields({ externalId: e.target.value })}
                           />
                         </label>
-                        <label className="kea-label">
+                        <label className="discovery-label">
                           {t("triggerEditor.workflowExternalId")}
                           <input
-                            className="kea-input"
+                            className="discovery-input"
                             value={String(parsedConfigTrigger.workflowExternalId ?? "")}
                             onChange={(e) =>
                               patchTriggerRootFields({ workflowExternalId: e.target.value })
                             }
                           />
                         </label>
-                        <label className="kea-label" style={{ gridColumn: "1 / -1" }}>
+                        <label className="discovery-label" style={{ gridColumn: "1 / -1" }}>
                           {t("triggerEditor.workflowVersion")}
                           <input
-                            className="kea-input"
+                            className="discovery-input"
                             value={String(parsedConfigTrigger.workflowVersion ?? "")}
                             onChange={(e) =>
                               patchTriggerRootFields({ workflowVersion: e.target.value })
@@ -2588,21 +2576,21 @@ export default function App() {
                           />
                         </label>
                         <p
-                          className="kea-trigger-editor-section-title"
+                          className="discovery-trigger-editor-section-title"
                           style={{ gridColumn: "1 / -1" }}
                         >
                           {t("triggerEditor.section.auth")}
                         </p>
-                        <p className="kea-hint" style={{ gridColumn: "1 / -1", maxWidth: "72ch" }}>
+                        <p className="discovery-hint" style={{ gridColumn: "1 / -1", maxWidth: "72ch" }}>
                           {t("triggerEditor.authDeployHint")}
                         </p>
                         <p
-                          className="kea-trigger-editor-section-title"
+                          className="discovery-trigger-editor-section-title"
                           style={{ gridColumn: "1 / -1" }}
                         >
                           {t("triggerEditor.section.input")}
                         </p>
-                        <label className="kea-label">
+                        <label className="discovery-label">
                           {t("artifacts.runAll")}
                           <input
                             type="checkbox"
@@ -2610,10 +2598,10 @@ export default function App() {
                             onChange={(e) => setTriggerRunAll(e.target.checked)}
                           />
                         </label>
-                        <label className="kea-label">
+                        <label className="discovery-label">
                           {t("artifacts.runId")}
                           <input
-                            className="kea-input"
+                            className="discovery-input"
                             value={String((triggerInput as JsonObject | undefined)?.run_id ?? "")}
                             onChange={(e) => setTriggerRunId(e.target.value)}
                           />
@@ -2624,20 +2612,15 @@ export default function App() {
 
                     {triggerTopTab === "schedule" && (
                       <div
-                        style={
-                          configureEditsLocked
-                            ? { pointerEvents: "none", opacity: 0.65 }
-                            : undefined
-                        }
                       >
-                      <div className="kea-trigger-root-grid">
-                        <p className="kea-trigger-editor-section-title">
+                      <div className="discovery-trigger-root-grid">
+                        <p className="discovery-trigger-editor-section-title">
                           {t("triggerEditor.section.schedule")}
                         </p>
-                        <label className="kea-label">
+                        <label className="discovery-label">
                           {t("triggerEditor.triggerType")}
                           <input
-                            className="kea-input"
+                            className="discovery-input"
                             list={triggerTypeDatalistId}
                             value={String(triggerRuleForForm.triggerType ?? "")}
                             onChange={(e) => patchTriggerRule({ triggerType: e.target.value })}
@@ -2648,15 +2631,15 @@ export default function App() {
                             <option value="recordStream" />
                           </datalist>
                         </label>
-                        <label className="kea-label">
+                        <label className="discovery-label">
                           {t("triggerEditor.cronExpression")}
                           <input
-                            className="kea-input"
+                            className="discovery-input"
                             value={String(triggerRuleForForm.cronExpression ?? "")}
                             onChange={(e) => patchTriggerRule({ cronExpression: e.target.value })}
                           />
                         </label>
-                        <p className="kea-hint" style={{ marginTop: 4 }}>
+                        <p className="discovery-hint" style={{ marginTop: 4 }}>
                           {t("triggerEditor.scheduleHint")}
                         </p>
                       </div>
@@ -2668,7 +2651,7 @@ export default function App() {
                         {configSubTab === "flowCanvas" && (
                           <>
                             <nav
-                              className="kea-tabs kea-tabs--sub kea-flow-inner-subtabs"
+                              className="discovery-tabs discovery-tabs--sub discovery-flow-inner-subtabs"
                               aria-label={t("nav.subtabs")}
                             >
                               <button
@@ -2699,7 +2682,7 @@ export default function App() {
                                 document={triggerCanvasDoc}
                                 reloadNonce={triggerCanvasReloadNonce}
                                 onEdit={() => {
-                                  if (!configureEditsLocked) setFlowCanvasEditorOpen(true);
+                                  if (!canvasPreviewRunBusy) setFlowCanvasEditorOpen(true);
                                 }}
                                 runProgress={flowPreviewRunProgress}
                               />
@@ -2707,27 +2690,32 @@ export default function App() {
                             {flowCanvasSubTab === "runPipeline" && configureRunPipelineSubpanel}
                             {flowCanvasSubTab === "runResults" && (
                               <div
-                                style={
-                                  configureEditsLocked
-                                    ? { pointerEvents: "none", opacity: 0.65 }
-                                    : undefined
-                                }
                               >
                                 <RunResultsPanel
                                   refreshKey={runResultsRefreshKey}
                                   runScopeKey={runResultsScopeKey}
+                                  preferredRunScopeKey={discoveryRunScopeKeyForResults}
                                 />
                               </div>
                             )}
                           </>
                         )}
+                        {configSubTab === "keyExtraction" && (
+                          <div
+                          >
+                            <KeyExtractionControls
+                              value={triggerPipelineMergedScope.key_extraction}
+                              scopeDocument={triggerPipelineMergedScope}
+                              onChange={(next) =>
+                                updateTriggerConfiguration({
+                                  key_extraction: next as JsonObject,
+                                })
+                              }
+                            />
+                          </div>
+                        )}
                         {configSubTab === "queries" && (
                           <div
-                            style={
-                              configureEditsLocked
-                                ? { pointerEvents: "none", opacity: 0.65 }
-                                : undefined
-                            }
                           >
                             <QueriesControls
                               canvas={configureCanvasDoc}
@@ -2738,11 +2726,6 @@ export default function App() {
                         )}
                         {configSubTab === "transforms" && (
                           <div
-                            style={
-                              configureEditsLocked
-                                ? { pointerEvents: "none", opacity: 0.65 }
-                                : undefined
-                            }
                           >
                             <TransformsControls
                               canvas={configureCanvasDoc}
@@ -2752,35 +2735,24 @@ export default function App() {
                         )}
                         {configSubTab === "validations" && (
                           <div
-                            style={
-                              configureEditsLocked
-                                ? { pointerEvents: "none", opacity: 0.65 }
-                                : undefined
-                            }
                           >
                             <ValidationsControls canvas={configureCanvasDoc} onChange={patchConfigureCanvasDoc} />
                           </div>
                         )}
                         {configSubTab === "filters" && (
                           <div
-                            style={
-                              configureEditsLocked
-                                ? { pointerEvents: "none", opacity: 0.65 }
-                                : undefined
-                            }
                           >
                             <FiltersControls canvas={configureCanvasDoc} onChange={patchConfigureCanvasDoc} />
                           </div>
                         )}
                         {configSubTab === "persistence" && (
                           <div
-                            style={
-                              configureEditsLocked
-                                ? { pointerEvents: "none", opacity: 0.65 }
-                                : undefined
-                            }
                           >
-                            <PersistenceControls canvas={configureCanvasDoc} onChange={patchConfigureCanvasDoc} />
+                            <PersistenceControls
+                        canvas={configureCanvasDoc}
+                        onChange={patchConfigureCanvasDoc}
+                        schemaSpace={moduleSchemaSpace}
+                      />
                           </div>
                         )}
                       </>
@@ -2789,13 +2761,7 @@ export default function App() {
                     </div>
                   </>
                 )}
-                <div
-                  style={
-                    configureEditsLocked
-                      ? { pointerEvents: "none", opacity: 0.65 }
-                      : undefined
-                  }
-                >
+                <div>
                   <AdvancedYamlPanel
                   initialContent={configTriggerText}
                   onSaveRaw={async (content) => {
@@ -2817,15 +2783,15 @@ export default function App() {
       )}
 
       {tab === "build" && (
-        <section className="kea-panel">
-          <h3 className="kea-section-title">{t("build.panelTitle")}</h3>
-          <div className="kea-toolbar">
-            <button type="button" className="kea-btn kea-btn--primary" onClick={() => void runBuild(false, false)}>
+        <section className="discovery-panel">
+          <h3 className="discovery-section-title">{t("build.panelTitle")}</h3>
+          <div className="discovery-toolbar">
+            <button type="button" className="discovery-btn discovery-btn--primary" onClick={() => void runBuild(false, false)}>
               {t("btn.runBuild")}
             </button>
             <button
               type="button"
-              className="kea-btn"
+              className="discovery-btn"
               onClick={() => {
                 if (!window.confirm(t("build.confirmForce"))) return;
                 void runBuild(true, false);
@@ -2833,16 +2799,16 @@ export default function App() {
             >
               {t("btn.runBuildForce")}
             </button>
-            <button type="button" className="kea-btn kea-btn--ghost" onClick={() => void runBuild(false, true)}>
+            <button type="button" className="discovery-btn discovery-btn--ghost" onClick={() => void runBuild(false, true)}>
               {t("btn.dryRun")}
             </button>
           </div>
-          <p className="kea-hint kea-hint--warn" style={{ marginTop: 8, maxWidth: "62ch" }}>
+          <p className="discovery-hint discovery-hint--warn" style={{ marginTop: 8, maxWidth: "62ch" }}>
             {t("build.warnForce")}
           </p>
           <textarea
             readOnly
-            className="kea-textarea kea-textarea--readonly"
+            className="discovery-textarea discovery-textarea--readonly"
             value={buildLog}
             placeholder={t("build.outputPlaceholder")}
             style={{ minHeight: 280, marginTop: 12 }}
@@ -2851,9 +2817,9 @@ export default function App() {
       )}
 
       {tab === "artifacts" && (
-        <section className="kea-panel kea-artifacts">
-          <div className="kea-artifact-sidebar">
-            <p className="kea-artifact-list-title">{t("artifacts.browse")}</p>
+        <section className="discovery-panel discovery-artifacts">
+          <div className="discovery-artifact-sidebar">
+            <p className="discovery-artifact-list-title">{t("artifacts.browse")}</p>
             <ArtifactTree
               paths={artifactPaths}
               selectedPath={artifactPath}
@@ -2863,18 +2829,18 @@ export default function App() {
             />
             <button
               type="button"
-              className="kea-btn kea-btn--sm"
+              className="discovery-btn discovery-btn--sm"
               style={{ marginTop: 10 }}
               onClick={() => api<{ paths: string[] }>("/api/artifacts").then((d) => setArtifactPaths(d.paths ?? []))}
             >
               {t("btn.refreshList")}
             </button>
           </div>
-          <div className="kea-artifact-editor">
-            <div className="kea-toolbar">
+          <div className="discovery-artifact-editor">
+            <div className="discovery-toolbar">
               <button
                 type="button"
-                className="kea-btn kea-btn--primary"
+                className="discovery-btn discovery-btn--primary"
                 onClick={() => void saveArtifactFile()}
                 disabled={!artifactPath}
               >
@@ -2883,15 +2849,15 @@ export default function App() {
               <span
                 className={
                   artifactPhase === "status.saved" || artifactPhase === "status.loaded"
-                    ? "kea-status kea-status--ok"
-                    : "kea-status"
+                    ? "discovery-status discovery-status--ok"
+                    : "discovery-status"
                 }
               >
                 {artifactPhase ? t(artifactPhase) : ""}
               </span>
             </div>
             <textarea
-              className="kea-textarea"
+              className="discovery-textarea"
               value={artifactText}
               onChange={(e) => setArtifactText(e.target.value)}
               spellCheck={false}
@@ -2903,18 +2869,18 @@ export default function App() {
 
       {flowFullscreenOpen && (
         <div
-          className="kea-flow-fullscreen"
+          className="discovery-flow-fullscreen"
           role="dialog"
           aria-modal="true"
-          aria-labelledby="kea-flow-fullscreen-title"
-          aria-describedby="kea-flow-fullscreen-config"
+          aria-labelledby="discovery-flow-fullscreen-title"
+          aria-describedby="discovery-flow-fullscreen-config"
         >
-          <div className="kea-flow-fullscreen__bar">
-            <div className="kea-flow-fullscreen__title-row">
-              <h2 id="kea-flow-fullscreen-title" className="kea-flow-fullscreen__title">
+          <div className="discovery-flow-fullscreen__bar">
+            <div className="discovery-flow-fullscreen__title-row">
+              <h2 id="discovery-flow-fullscreen-title" className="discovery-flow-fullscreen__title">
                 {t("tabs.flowCanvas")}
               </h2>
-              <p id="kea-flow-fullscreen-config" className="kea-flow-fullscreen__config-name">
+              <p id="discovery-flow-fullscreen-config" className="discovery-flow-fullscreen__config-name">
                 {configureTarget.id === "workflowTemplate"
                   ? workflowTemplateNavPrimary
                   : configureTarget.id === "workflowLocal"
@@ -2931,15 +2897,14 @@ export default function App() {
                 : configureTarget.id === "workflowTemplate"
                   ? isTemplateCanvasDirty
                   : isConfigTriggerDirty) && (
-                <span className="kea-hint kea-hint--warn" role="status">
+                <span className="discovery-hint discovery-hint--warn" role="status">
                   {t("status.unsavedChanges")}
                 </span>
               )}
               <button
                 type="button"
-                className="kea-btn kea-btn--primary"
+                className="discovery-btn discovery-btn--primary"
                 disabled={
-                  configureEditsLocked ||
                   (configureTarget.id === "workflowLocal"
                     ? scopePhase === "status.saving"
                     : configureTarget.id === "workflowTemplate"
@@ -2962,14 +2927,14 @@ export default function App() {
               </button>
               <button
                 type="button"
-                className="kea-btn"
+                className="discovery-btn"
                 onClick={() => setFlowCanvasEditorOpen(false)}
               >
                 {t("flow.close")}
               </button>
             </div>
           </div>
-          <div className="kea-flow-fullscreen__body">
+          <div className="discovery-flow-fullscreen__body">
             {configureTarget.id === "workflowLocal" ? (
               <WorkflowFlowPanel
                 t={t}
@@ -2986,7 +2951,6 @@ export default function App() {
                   )
                 }
                 schemaSpace={moduleSchemaSpace}
-                readOnly={configureEditsLocked}
                 runProgress={flowPreviewRunProgress}
                 onActivityHint={(msg) => setRunLog((prev) => (prev ? `${prev}\n${msg}` : msg))}
               />
@@ -3006,7 +2970,6 @@ export default function App() {
                   )
                 }
                 schemaSpace={moduleSchemaSpace}
-                readOnly={configureEditsLocked}
                 runProgress={flowPreviewRunProgress}
                 onActivityHint={(msg) => setRunLog((prev) => (prev ? `${prev}\n${msg}` : msg))}
               />
@@ -3034,7 +2997,6 @@ export default function App() {
                   const next = syncWorkflowScopeFromCanvas(canvas, triggerPipelineMergedScope);
                   updateTriggerConfiguration(next as Partial<JsonObject>);
                 }}
-                readOnly={configureEditsLocked}
                 runProgress={flowPreviewRunProgress}
                 onActivityHint={(msg) => setRunLog((prev) => (prev ? `${prev}\n${msg}` : msg))}
               />
@@ -3045,29 +3007,29 @@ export default function App() {
 
       {unsavedPrompt && (
         <div
-          className="kea-modal-backdrop"
+          className="discovery-modal-backdrop"
           role="presentation"
           onMouseDown={(e) => {
             if (e.target === e.currentTarget && !unsavedBusy) setUnsavedPrompt(null);
           }}
         >
           <div
-            className="kea-modal"
+            className="discovery-modal"
             role="dialog"
             aria-modal
-            aria-labelledby="kea-unsaved-title"
+            aria-labelledby="discovery-unsaved-title"
             onMouseDown={(e) => e.stopPropagation()}
           >
-            <h2 id="kea-unsaved-title" className="kea-modal__title">
+            <h2 id="discovery-unsaved-title" className="discovery-modal__title">
               {t("unsaved.title")}
             </h2>
-            <p className="kea-hint" style={{ marginTop: 0 }}>
+            <p className="discovery-hint" style={{ marginTop: 0 }}>
               {t("unsaved.message")}
             </p>
-            <div className="kea-modal__actions">
+            <div className="discovery-modal__actions">
               <button
                 type="button"
-                className="kea-btn kea-btn--primary"
+                className="discovery-btn discovery-btn--primary"
                 disabled={unsavedBusy}
                 onClick={() => void commitUnsavedSave()}
               >
@@ -3075,7 +3037,7 @@ export default function App() {
               </button>
               <button
                 type="button"
-                className="kea-btn"
+                className="discovery-btn"
                 disabled={unsavedBusy}
                 onClick={() => void commitUnsavedDiscard()}
               >
@@ -3083,7 +3045,7 @@ export default function App() {
               </button>
               <button
                 type="button"
-                className="kea-btn kea-btn--ghost"
+                className="discovery-btn discovery-btn--ghost"
                 disabled={unsavedBusy}
                 onClick={() => setUnsavedPrompt(null)}
               >

@@ -1,6 +1,8 @@
+import { useCallback, useState } from "react";
 import { useAppSettings } from "../context/AppSettingsContext";
 import type { MessageKey } from "../i18n";
 import type { JsonObject } from "../types/scopeConfig";
+import { QueryPreviewPanel, type QueryPreviewResult } from "./QueryPreviewPanel";
 
 type Props = {
   value: JsonObject;
@@ -31,15 +33,36 @@ function normalizeClassicResourceType(cfg: JsonObject): ClassicResourceCanon {
   return "assets";
 }
 
-function readLimit(cfg: JsonObject): number {
-  const raw = cfg.limit ?? cfg.batch_size ?? 1000;
+function readWorkflowCap(cfg: JsonObject): number | undefined {
+  const raw = cfg.read_limit ?? cfg.limit ?? cfg.batch_size;
+  if (raw === undefined || raw === null || raw === "") return undefined;
   const n = typeof raw === "number" ? raw : parseInt(String(raw), 10);
-  if (!Number.isFinite(n)) return 1000;
-  return Math.min(1000, Math.max(1, Math.floor(n)));
+  if (!Number.isFinite(n) || n <= 0) return undefined;
+  return Math.floor(n);
+}
+
+async function fetchClassicPreview(config: JsonObject, limit: number): Promise<QueryPreviewResult> {
+  const r = await fetch("/api/cdf/discovery/classic-query/preview", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ config, limit }),
+  });
+  if (!r.ok) {
+    let msg = r.statusText;
+    try {
+      const j = (await r.json()) as { detail?: unknown };
+      const d = j?.detail;
+      if (typeof d === "string") msg = d;
+    } catch {
+      /* ignore */
+    }
+    throw new Error(msg);
+  }
+  return r.json() as Promise<QueryPreviewResult>;
 }
 
 /** Editor for ``query_classic`` node ``data.config`` (classic API list → cohort RAW). */
-export function ClassicQueryConfigFields({ value, onChange }: Props) {
+export function ClassicQueryConfigFields({ value, onChange, fieldKey = "classic" }: Props) {
   const { t } = useAppSettings();
   const patch = (p: JsonObject) => {
     const next = { ...value, ...p };
@@ -48,18 +71,36 @@ export function ClassicQueryConfigFields({ value, onChange }: Props) {
   };
 
   const resourceCanon = normalizeClassicResourceType(value);
-  const limitVal = readLimit(value);
+  const workflowCap = readWorkflowCap(value);
+  const [previewLimit, setPreviewLimit] = useState(100);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [result, setResult] = useState<QueryPreviewResult | null>(null);
+
+  const run = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    setResult(null);
+    try {
+      setResult(await fetchClassicPreview(value, previewLimit));
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setLoading(false);
+    }
+  }, [value, previewLimit]);
 
   return (
-    <div className="kea-loc-fields">
-      <p className="kea-hint" style={{ marginTop: 0, marginBottom: "0.65rem" }}>
+    <div className="discovery-loc-fields discovery-query-fields">
+      <div className="discovery-query-fields__config">
+      <p className="discovery-hint discovery-query-fields__intro" style={{ marginTop: 0 }}>
         {t("queries.classicEditorIntro")}
       </p>
 
-      <label className="kea-label kea-label--block">
+      <label className="discovery-label discovery-label--block">
         {t("queries.description")}
         <input
-          className="kea-input"
+          className="discovery-input"
           style={{ marginTop: "0.35rem" }}
           value={String(value.description ?? "")}
           onChange={(e) => patch({ description: e.target.value })}
@@ -68,10 +109,10 @@ export function ClassicQueryConfigFields({ value, onChange }: Props) {
         />
       </label>
 
-      <label className="kea-label kea-label--block">
+      <label className="discovery-label discovery-label--block">
         {t("queries.classicResourceType")}
         <select
-          className="kea-select"
+          className="discovery-select"
           style={{ marginTop: "0.35rem", display: "block", maxWidth: "100%" }}
           value={resourceCanon}
           onChange={(e) => {
@@ -87,37 +128,46 @@ export function ClassicQueryConfigFields({ value, onChange }: Props) {
             </option>
           ))}
         </select>
-        <span className="kea-hint" style={{ display: "block", marginTop: "0.25rem" }}>
+        <span className="discovery-hint" style={{ display: "block", marginTop: "0.25rem" }}>
           {t("queries.classicResourceTypeHint")}
         </span>
       </label>
 
-      <label className="kea-label kea-label--block">
+      <label className="discovery-label discovery-label--block">
         {t("queries.classicListLimit")}
         <input
-          className="kea-input"
+          className="discovery-input"
           type="number"
           min={1}
-          max={1000}
           style={{ marginTop: "0.35rem", maxWidth: "12rem" }}
-          value={limitVal}
+          value={workflowCap != null ? String(workflowCap) : ""}
+          placeholder="(all)"
           onChange={(e) => {
-            const n = parseInt(e.target.value, 10);
-            const lim = Number.isFinite(n) ? Math.min(1000, Math.max(1, n)) : 1000;
-            const next: JsonObject = { ...value, limit: lim };
+            const raw = e.target.value.trim();
+            const next: JsonObject = { ...value };
             delete next.batch_size;
+            if (!raw) {
+              delete next.limit;
+              delete next.read_limit;
+            } else {
+              const n = parseInt(raw, 10);
+              if (Number.isFinite(n) && n > 0) {
+                next.read_limit = n;
+                delete next.limit;
+              }
+            }
             onChange(next);
           }}
         />
-        <span className="kea-hint" style={{ display: "block", marginTop: "0.25rem" }}>
+        <span className="discovery-hint" style={{ display: "block", marginTop: "0.25rem" }}>
           {t("queries.classicListLimitHint")}
         </span>
       </label>
 
-      <label className="kea-label kea-label--block">
+      <label className="discovery-label discovery-label--block">
         {t("queries.classicEntityType")}
         <input
-          className="kea-input"
+          className="discovery-input"
           style={{ marginTop: "0.35rem" }}
           value={String(value.entity_type ?? "")}
           onChange={(e) => {
@@ -134,15 +184,15 @@ export function ClassicQueryConfigFields({ value, onChange }: Props) {
           spellCheck={false}
           autoComplete="off"
         />
-        <span className="kea-hint" style={{ display: "block", marginTop: "0.25rem" }}>
+        <span className="discovery-hint" style={{ display: "block", marginTop: "0.25rem" }}>
           {t("queries.classicEntityTypeHint")}
         </span>
       </label>
 
-      <label className="kea-label kea-label--block">
+      <label className="discovery-label discovery-label--block">
         {t("queries.classicScopeKey")}
         <input
-          className="kea-input"
+          className="discovery-input"
           style={{ marginTop: "0.35rem" }}
           value={String(value.scope_key ?? "")}
           onChange={(e) => {
@@ -159,21 +209,21 @@ export function ClassicQueryConfigFields({ value, onChange }: Props) {
           spellCheck={false}
           autoComplete="off"
         />
-        <span className="kea-hint" style={{ display: "block", marginTop: "0.25rem" }}>
+        <span className="discovery-hint" style={{ display: "block", marginTop: "0.25rem" }}>
           {t("queries.classicScopeKeyHint")}
         </span>
       </label>
 
       <div role="separator" style={{ margin: "1rem 0", borderTop: "1px solid rgba(0, 0, 0, 0.12)" }} />
 
-      <p className="kea-hint" style={{ marginBottom: "0.5rem" }}>
+      <p className="discovery-hint" style={{ marginBottom: "0.5rem" }}>
         {t("queries.classicSinkHint")}
       </p>
 
-      <label className="kea-label kea-label--block">
+      <label className="discovery-label discovery-label--block">
         {t("queries.rawDb")}
         <input
-          className="kea-input"
+          className="discovery-input"
           style={{ marginTop: "0.35rem" }}
           value={String(value.raw_db ?? "")}
           onChange={(e) => patch({ raw_db: e.target.value })}
@@ -181,10 +231,10 @@ export function ClassicQueryConfigFields({ value, onChange }: Props) {
           autoComplete="off"
         />
       </label>
-      <label className="kea-label kea-label--block">
+      <label className="discovery-label discovery-label--block">
         {t("queries.rawTableKey")}
         <input
-          className="kea-input"
+          className="discovery-input"
           style={{ marginTop: "0.35rem" }}
           value={String(value.raw_table_key ?? value.raw_table ?? "")}
           onChange={(e) => {
@@ -197,6 +247,15 @@ export function ClassicQueryConfigFields({ value, onChange }: Props) {
           autoComplete="off"
         />
       </label>
+      </div>
+
+      <QueryPreviewPanel
+        fieldKey={fieldKey}
+        loading={loading}
+        error={error}
+        result={result}
+        onRun={run}
+      />
     </div>
   );
 }

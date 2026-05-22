@@ -10,6 +10,8 @@ type Props = {
   onChange: (next: WorkflowCanvasDocument) => void;
   /** Select this canvas node when opened from flow double-click. */
   initialNodeId?: string;
+  /** Default view space from module ``schemaSpace`` (view save editor). */
+  schemaSpace?: string;
 };
 
 function saveKindLabelKey(kind: string | undefined): MessageKey {
@@ -25,7 +27,7 @@ function saveKindLabelKey(kind: string | undefined): MessageKey {
   }
 }
 
-export function PersistenceControls({ canvas, onChange, initialNodeId }: Props) {
+export function PersistenceControls({ canvas, onChange, initialNodeId, schemaSpace }: Props) {
   const { t } = useAppSettings();
   const nodes = listSaveNodes(canvas);
   const [selectedId, setSelectedId] = useState<string | null>(nodes[0]?.id ?? null);
@@ -51,31 +53,31 @@ export function PersistenceControls({ canvas, onChange, initialNodeId }: Props) 
   const selected = nodes.find((n) => n.id === selectedId) ?? null;
 
   return (
-    <div className="kea-source-views">
-      <div className="kea-toolbar-inline">
-        <h3 className="kea-section-title" style={{ margin: 0 }}>
+    <div className="discovery-source-views">
+      <div className="discovery-toolbar-inline">
+        <h3 className="discovery-section-title" style={{ margin: 0 }}>
           {t("persistence.title")}
         </h3>
       </div>
 
-      <p className="kea-hint" style={{ marginTop: "0.35rem", marginBottom: "0.85rem" }}>
+      <p className="discovery-hint" style={{ marginTop: "0.35rem", marginBottom: "0.85rem" }}>
         {t("persistence.canvasHint")}
       </p>
 
-      <div className="kea-source-views-split">
-        <aside className="kea-source-views-sidebar">
-          <p className="kea-artifact-list-title">{t("persistence.listTitle")}</p>
-          <ul className="kea-source-views-list" role="listbox" aria-label={t("persistence.listAriaLabel")}>
+      <div className="discovery-source-views-split">
+        <aside className="discovery-source-views-sidebar">
+          <p className="discovery-artifact-list-title">{t("persistence.listTitle")}</p>
+          <ul className="discovery-source-views-list" role="listbox" aria-label={t("persistence.listAriaLabel")}>
             {nodes.map((n) => (
               <li key={n.id} role="none">
                 <button
                   type="button"
                   role="option"
                   aria-selected={selectedId === n.id}
-                  className={`kea-source-views-item${selectedId === n.id ? " kea-source-views-item--active" : ""}`}
+                  className={`discovery-source-views-item${selectedId === n.id ? " discovery-source-views-item--active" : ""}`}
                   onClick={() => setSelectedId(n.id)}
                 >
-                  <span className="kea-hint" style={{ display: "block", fontSize: "0.68rem", marginBottom: 2 }}>
+                  <span className="discovery-hint" style={{ display: "block", fontSize: "0.68rem", marginBottom: 2 }}>
                     {t(saveKindLabelKey(n.kind))} · {n.id}
                   </span>
                   {saveNodeListLabel(n)}
@@ -85,17 +87,23 @@ export function PersistenceControls({ canvas, onChange, initialNodeId }: Props) 
           </ul>
         </aside>
 
-        <div className="kea-source-views-editor">
+        <div className="discovery-source-views-editor">
           {!selected ? (
-            <p className="kea-hint">{t("persistence.emptyEditor")}</p>
+            <p className="discovery-hint">{t("persistence.emptyEditor")}</p>
           ) : (
-            <div className="kea-source-views-editor-inner">
-              <div className="kea-toolbar-inline" style={{ marginBottom: "0.85rem" }}>
-                <span className="kea-hint" style={{ margin: 0 }}>
+            <div className="discovery-source-views-editor-inner">
+              <div className="discovery-toolbar-inline" style={{ marginBottom: "0.85rem" }}>
+                <span className="discovery-hint" style={{ margin: 0 }}>
                   {t("persistence.stageLabel")} · {t(saveKindLabelKey(selected.kind))} · {saveNodeListLabel(selected)}
                 </span>
               </div>
-              <SaveNodeConfigFields canvas={canvas} onChange={onChange} nodeId={selected.id} t={t} />
+              <SaveNodeConfigFields
+                canvas={canvas}
+                onChange={onChange}
+                nodeId={selected.id}
+                t={t}
+                schemaSpace={schemaSpace}
+              />
             </div>
           )}
         </div>
