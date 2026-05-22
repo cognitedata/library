@@ -1,9 +1,0 @@
-name: gp_b_default_reader
-sourceId: "{{ gp_b_default_reader }}"
-capabilities:
-  - dataModelInstancesAcl:
-      scope:
-        spaceIdScope:
-          spaceIds:
-            - inst_erp_b
-            - inst_scada_b

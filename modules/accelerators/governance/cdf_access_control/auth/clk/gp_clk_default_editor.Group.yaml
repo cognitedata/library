@@ -1,9 +1,0 @@
-name: gp_clk_default_editor
-sourceId: "{{ gp_clk_default_editor }}"
-capabilities:
-  - dataModelInstancesAcl:
-      scope:
-        spaceIdScope:
-          spaceIds:
-            - inst_erp_clk
-            - inst_scada_clk
