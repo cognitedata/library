@@ -38,6 +38,7 @@ moduleId,module name
 "cdf_infield_on_cdm_common_extention","CDF Infield on CDM Common Extension"
 "cdf_infield_on_cdm_location_example_data_extention","CDF Infield on CDM Location Example Data Extension"
 "cdf_infield_on_cdm_location_extention","CDF Infield on CDM Location Extension"
+"cdf_infield_location","CDF Infield Location"
 "cdf_infield_second_location","CDF Infield Second Location"
 "cdf_ingestion","CDF Ingestion"
 "cdf_inrobot_common","CDF Inrobot Common"

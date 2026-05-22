@@ -15,8 +15,7 @@ All deployable content lives under [`modules/`](modules/). The registry of packs
 | [`common/`](modules/common/) | Shared CDF platform modules (`cdf_common`, `cdf_ingestion`, `cdf_search`) |
 | [`contextualization/`](modules/contextualization/) | File annotation, entity matching, P&ID, connection SQL |
 | [`data_models/`](modules/data_models/) | Industry and extension data models (`rmdm`, ISA, CFIHOS, …) |
-| [`solutions/`](modules/solutions/) | Product verticals (`cdm_maintain`, `cdf_ai_extractor`) |
-| [`infield/`](modules/infield/) | Infield on CDM (`location`) |
+| [`solutions/`](modules/solutions/) | Product verticals (`cdm_maintain`, `cdf_infield`, `cdf_ai_extractor`) |
 | [`sourcesystem/`](modules/sourcesystem/) | Source connectors (PI, SAP, SharePoint, OID sync) |
 | [`dashboards/`](modules/dashboards/) | Streamlit dashboards and reporting |
 | [`atlas_ai/`](modules/atlas_ai/) | Atlas AI agents |
@@ -28,7 +27,7 @@ All deployable content lives under [`modules/`](modules/). The registry of packs
 | Prefix | Use for | Examples |
 |--------|---------|----------|
 | `cdf_` | Cognite-built platform capabilities | `cdf_common`, `cdf_pi`, `cdf_file_annotation` |
-| `cdm_` | Solutions on Cognite Data Model | `cdm_maintain` |
+| `cdm_` / `cdf_` | Solutions on Cognite Data Model | `cdm_maintain`, `cdf_infield` |
 | *(none)* | Industry models, dashboards, tools | `rmdm`, `context_quality`, `report_quality` |
 
 Apply the prefix on **module folder names** where it helps discovery. Top-level folders (`common/`, `data_models/`, …) are not prefixed.

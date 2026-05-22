@@ -31,10 +31,8 @@ modules/
 │
 ├── solutions/                   # Product verticals (CDM-backed)
 │   ├── cdm_maintain/            # CDM Maintain (5 submodules)
+│   ├── cdf_infield/             # CDM Infield (location module)
 │   └── cdf_ai_extractor/        # Atlas AI property extractor
-│
-├── infield/                     # Infield on CDM (per-location modules)
-│   └── location/
 │
 ├── sourcesystem/              # Source system connectors
 │   ├── cdf_pi/
@@ -73,7 +71,7 @@ These are the packs exposed in the Toolkit menu (from `packages.toml`):
 | `dp:dashboards` | Dashboards | `dashboards/` |
 | `dp:atlas_ai` | Atlas AI | `atlas_ai/`, `solutions/cdf_ai_extractor` |
 | `dp:cdm_maintain` | CDM Maintain | `solutions/cdm_maintain/*` |
-| `dp:infield` | Infield | `infield/location` |
+| `dp:infield` | Infield | `solutions/cdf_infield/cdf_infield_location` |
 | `tool` | Tools and Accelerators | `tools/` |
 | `dp:emptymodule` | Empty Module | `custom/my_module` |
 

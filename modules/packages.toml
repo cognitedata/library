@@ -24,7 +24,7 @@ title = "Infield"
 description = "Deploy Infield configuration modules for CDM-backed locations."
 canCherryPick = true
 modules = [
-    "infield/location",
+    "solutions/cdf_infield/cdf_infield_location",
 ]
 
 [packages.cdm_maintain]
