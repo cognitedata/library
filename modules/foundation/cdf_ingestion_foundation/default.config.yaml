@@ -1,5 +1,9 @@
 # CDF Ingestion Foundation — configuration variables
 
+# Site/location code — used in all externalIds (e.g. wf_{{location}}_ingestion, tr_pi_timeseries_{{location}}_to_isa)
+# Must match the location value set in all deployed source system modules
+location: "site1"
+
 # Dataset used to scope workflow group ACLs — must match the dataset used by source system modules
 dataset: "ds_ingestion"
 
@@ -22,9 +26,9 @@ piDataset: "ds_pi"
 # dataSetExternalId used by cdf_opcua_foundation — filters the timeseries() read
 opcuaDataset: "ds_opcua"
 
-# Set to false to omit sysTagsFound population in PI and OPC-UA timeseries transforms.
-# sysTagsFound drives downstream entity matching and file annotation contextualization.
-populateSysTagsFound: "true"
+# sysTagsFound is not a property on ISATimeSeries or CFIHOS views — set to false for dp:foundation.
+# Set to true only if you have extended the target view with a sysTagsFound property.
+populateSysTagsFound: "false"
 
 # Workflow external ID and schedule
 workflow: "wf_{{location}}_ingestion"

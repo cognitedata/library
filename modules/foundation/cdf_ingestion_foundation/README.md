@@ -23,8 +23,28 @@ cdf_ingestion_foundation/
 │       ├── task.sap_operations.yaml
 │       ├── ctx.isa_manufacturing_extension.equipment_to_asset.yaml
 │       └── ctx.isa_manufacturing_extension.operation_to_order.yaml
+├── transformations/
+│   ├── population/                      # Phase 1: source → DM instance transformations
+│   │   ├── pi_timeseries.Transformation.yaml
+│   │   ├── pi_timeseries.Transformation.sql        # TODO: populate with SQL
+│   │   ├── opcua_timeseries.Transformation.yaml
+│   │   ├── opcua_timeseries.Transformation.sql     # TODO: populate with SQL
+│   │   ├── sap_assets.Transformation.yaml
+│   │   ├── sap_assets.Transformation.sql           # TODO: populate with SQL
+│   │   ├── sap_equipment.Transformation.yaml
+│   │   ├── sap_equipment.Transformation.sql        # TODO: populate with SQL
+│   │   ├── sap_maintenance_orders.Transformation.yaml
+│   │   ├── sap_maintenance_orders.Transformation.sql  # TODO: populate with SQL
+│   │   ├── sap_operations.Transformation.yaml
+│   │   └── sap_operations.Transformation.sql       # TODO: populate with SQL
+│   └── contextualization/               # Phase 2: edge / relationship transformations
+│       ├── sap_equipment_to_asset.Transformation.yaml
+│       ├── sap_equipment_to_asset.Transformation.sql  # TODO: populate with SQL
+│       ├── sap_operation_to_order.Transformation.yaml
+│       └── sap_operation_to_order.Transformation.sql  # TODO: populate with SQL
 ├── scripts/
-│   └── build_workflow.py                # Generator script — run after config changes
+│   ├── build_workflow.py                # Generator script — run after config changes
+│   └── configure_datamodel.py          # Writes DM variable overrides to config.<env>.yaml
 ├── default.config.yaml
 └── module.toml
 ```
@@ -49,6 +69,23 @@ The ingestion workflow runs in two phases:
               ▼              ▼
   [ctx_isa_equipment_to_asset] [ctx_isa_operation_to_order]
 ```
+
+## Transformations
+
+Transformation definitions live in `transformations/population/` (Phase 1) and `transformations/contextualization/` (Phase 2). Each transformation has a `.yaml` resource file (external ID, destination view, schedule) and a companion `.sql` file.
+
+**The SQL files are scaffolds — they contain a placeholder comment only.** Populate each `.sql` with the actual query for your source system before deploying.
+
+| File | Source | Destination view |
+|---|---|---|
+| `pi_timeseries.sql` | `timeseries()` filtered by `{{piDataset}}` | `ISATimeSeries` |
+| `opcua_timeseries.sql` | `db_{{location}}_opcua.timeseries` (RAW) | `ISATimeSeries` |
+| `sap_assets.sql` | `db_{{location}}_sap.functional_location` (RAW) | `ISAAsset` |
+| `sap_equipment.sql` | `db_{{location}}_sap.equipment` (RAW) | `Equipment` |
+| `sap_maintenance_orders.sql` | `db_{{location}}_sap.workorder` (RAW) | `WorkOrder` |
+| `sap_operations.sql` | `db_{{location}}_sap.workitem` (RAW) | `Operation` |
+| `sap_equipment_to_asset.sql` | equipment → functional_location join on `Floc` | `Equipment.asset` edge |
+| `sap_operation_to_order.sql` | workitem → workorder join on `OrderId` | `Operation.workOrder` edge |
 
 ## Generating the WorkflowVersion
 
@@ -101,6 +138,63 @@ dataModelVariant: isa_manufacturing_extension
 ```
 
 After changing `enabledSources` or `dataModelVariant`, always re-run `build_workflow.py` and commit the updated `wf_ingestion_v1.WorkflowVersion.yaml`.
+
+## Configuring Contextualization Modules for the Active Data Model
+
+`scripts/configure_datamodel.py` writes the correct view names and instance spaces for the active `dataModelVariant` into your environment config file (`config.<env>.yaml`). This means contextualization modules (`cdf_entity_matching`, `cdf_file_annotation`) work correctly without modifying their `default.config.yaml` — keeping them compatible with other deployment packs (e.g. QuickStart DP).
+
+```bash
+cd modules/foundation/cdf_ingestion_foundation
+
+# Update all discovered config.<env>.yaml files
+python scripts/configure_datamodel.py
+
+# Skip confirmation prompt
+python scripts/configure_datamodel.py -y
+
+# CI mode: exit 1 if any config file is out of sync
+python scripts/configure_datamodel.py --check
+```
+
+The script reads `dataModelVariant` and `instanceSpace` from `default.config.yaml` and merges a nested `variables` block into every `config.<env>.yaml` it finds. Config file discovery mirrors CDF Toolkit lookup order:
+1. `<repo-root>/<org-dir>/config.*.yaml` (org-dir from `cdf.toml`, if present)
+2. `<repo-root>/config.*.yaml`
+
+Modules updated:
+- **Contextualization** (variant-dependent views + spaces): `cdf_entity_matching`, `cdf_file_annotation`
+- **Source systems** (`instanceSpace` propagated): `cdf_pi_foundation`, `cdf_sap_foundation`, `cdf_opcua_foundation`, `cdf_files_foundation`
+
+Example of the variables block written (ISA variant):
+
+```yaml
+# config.dev.yaml  (excerpt — merged by configure_datamodel.py)
+variables:
+  modules:
+    accelerators:
+      contextualization:
+        cdf_entity_matching:
+          schemaSpace: sp_isa_manufacturing
+          assetInstanceSpace: sp_isa_instance_space
+          AssetViewExternalId: ISAAsset
+          TimeSeriesViewExternalId: ISATimeSeries
+          # ...
+        cdf_file_annotation:
+          fileSchemaSpace: sp_isa_manufacturing
+          fileInstanceSpace: sp_isa_instance_space
+          fileExternalId: ISAFile
+          # ...
+    sourcesystem:
+      cdf_pi_foundation:
+        instanceSpace: sp_isa_instance_space
+      cdf_sap_foundation:
+        instanceSpace: sp_isa_instance_space
+      cdf_opcua_foundation:
+        instanceSpace: sp_isa_instance_space
+      cdf_files_foundation:
+        instanceSpace: sp_isa_instance_space
+```
+
+A timestamped backup (`config.<env>.yaml.bak.<timestamp>`) is created before each write. Supported variants: `isa_manufacturing_extension` | `cfihos_oil_and_gas`.
 
 ## Resources Created
 
