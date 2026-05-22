@@ -140,8 +140,8 @@ description = "A scalable, modular foundation for industrial CDF projects. Near 
 canCherryPick = true
 modules = [
     # Data models — choose one or both
-    "models/isa_manufacturing_extension",
-    "models/cfihos_oil_and_gas_extension",
+    "data_models/isa_manufacturing_extension",
+    "data_models/cfihos_oil_and_gas_extension",
     # Source systems — deploy the ones matching your site
     "sourcesystem/cdf_pi_foundation",
     "sourcesystem/cdf_opcua_foundation",
