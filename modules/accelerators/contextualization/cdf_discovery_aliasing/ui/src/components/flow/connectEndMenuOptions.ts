@@ -2,7 +2,10 @@ import type { MessageKey } from "../../i18n";
 import type { DiscoveryPaletteStage, PaletteDragPayload } from "./FlowPalette";
 import type { CompileWorkflowDagMode } from "../../utils/workflowCompileMode";
 import { discoveryPersistenceOutboundToEndOnlyRfTypes } from "./flowConstants";
-import { TRANSFORM_HANDLER_IDS } from "./handlerRegistry";
+import {
+  TRANSFORM_HANDLER_DEFINITIONS,
+  transformHandlerDisplayName,
+} from "./handlerRegistry";
 
 const DISCOVERY_QUERY_STAGES: readonly DiscoveryPaletteStage[] = [
   "query_view",
@@ -77,6 +80,10 @@ const DISCOVERY_STAGE_TOOLTIP_KEYS: Partial<Record<DiscoveryPaletteStage, Messag
 };
 
 function labelForOption(opt: ConnectEndMenuOption, t: (key: MessageKey, vars?: Record<string, string | number>) => string): string {
+  const p = opt.payload;
+  if (p.kind === "discovery" && p.stage === "transform" && p.transformHandlerId != null) {
+    return transformHandlerDisplayName(p.transformHandlerId, t);
+  }
   if (opt.labelText != null) return opt.labelText;
   if (opt.labelKey) return t(opt.labelKey);
   return opt.id;
@@ -108,7 +115,9 @@ export function formatConnectEndMenuOptionTooltip(
   }
   if (p.kind === "discovery") {
     if (p.stage === "transform" && p.transformHandlerId != null) {
-      return t("flow.paletteTooltip.transform", { handler: p.transformHandlerId });
+      return t("flow.paletteTooltip.transform", {
+        handler: transformHandlerDisplayName(p.transformHandlerId, t),
+      });
     }
     const key = DISCOVERY_STAGE_TOOLTIP_KEYS[p.stage];
     if (key) return t(key);
@@ -187,11 +196,10 @@ function discoveryOptions(prefix: string): ConnectEndMenuOption[] {
   const out: ConnectEndMenuOption[] = [];
   for (const stage of DISCOVERY_STAGES) {
     if (stage === "transform") {
-      for (const handlerId of TRANSFORM_HANDLER_IDS) {
+      for (const def of TRANSFORM_HANDLER_DEFINITIONS) {
         out.push({
-          id: `${prefix}-transform-${handlerId}`,
-          payload: { kind: "discovery", stage: "transform", transformHandlerId: handlerId },
-          labelText: `Transform · ${handlerId}`,
+          id: `${prefix}-transform-${def.id}`,
+          payload: { kind: "discovery", stage: "transform", transformHandlerId: def.id },
         });
       }
       continue;
@@ -212,11 +220,10 @@ function discoveryOptionsWithoutQueries(prefix: string): ConnectEndMenuOption[] 
   const out: ConnectEndMenuOption[] = [];
   for (const stage of DISCOVERY_STAGES.filter((s) => !QUERY_STAGE_SET.has(s))) {
     if (stage === "transform") {
-      for (const handlerId of TRANSFORM_HANDLER_IDS) {
+      for (const def of TRANSFORM_HANDLER_DEFINITIONS) {
         out.push({
-          id: `${prefix}-transform-${handlerId}`,
-          payload: { kind: "discovery", stage: "transform", transformHandlerId: handlerId },
-          labelText: `Transform · ${handlerId}`,
+          id: `${prefix}-transform-${def.id}`,
+          payload: { kind: "discovery", stage: "transform", transformHandlerId: def.id },
         });
       }
       continue;

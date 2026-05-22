@@ -1,0 +1,26 @@
+.cognite-logo {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  line-height: 0;
+  text-decoration: none;
+}
+
+.cognite-logo__img {
+  display: block;
+  height: 1.5rem;
+  width: auto;
+  max-width: 7.65rem;
+}
+
+.cognite-logo__img--dark {
+  display: none;
+}
+
+:root[data-theme="dark"] .cognite-logo__img--light {
+  display: none;
+}
+
+:root[data-theme="dark"] .cognite-logo__img--dark {
+  display: block;
+}

@@ -142,9 +142,16 @@ code {
 }
 
 .gov-header__brand {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
   flex: 1 1 14rem;
   min-width: 0;
   text-align: left;
+}
+
+.gov-header__brand-text {
+  min-width: 0;
 }
 
 /* Grouped controls: config file | appearance (theme + language) */
@@ -1884,6 +1891,7 @@ code {
 
   .gov-header__brand {
     flex: none;
+    justify-content: center;
     text-align: center;
     width: 100%;
   }

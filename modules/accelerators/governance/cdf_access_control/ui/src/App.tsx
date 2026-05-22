@@ -6,6 +6,7 @@ import { DimensionsEditor } from "./components/DimensionsEditor";
 import { GroupsEditor } from "./components/GroupsEditor";
 import { SpacesEditor } from "./components/SpacesEditor";
 import { DeferredCommitInput } from "./components/DeferredCommitTextField";
+import { CogniteLogo } from "./components/CogniteLogo";
 import { useAppSettings } from "./context/AppSettingsContext";
 import { LOCALES, type Locale, type MessageKey } from "./i18n";
 import type { GovernanceDocument } from "./types/governanceConfig";
@@ -303,8 +304,11 @@ export function App() {
       <header className="gov-header">
         <div className="gov-header__shell">
           <div className="gov-header__brand">
-            <h1 className="gov-header__title">{t("app.title")}</h1>
-            <p className="gov-header__subtitle">{t("app.subtitle")}</p>
+            <CogniteLogo />
+            <div className="gov-header__brand-text">
+              <h1 className="gov-header__title">{t("app.title")}</h1>
+              <p className="gov-header__subtitle">{t("app.subtitle")}</p>
+            </div>
           </div>
           <div className="gov-header__toolbar">
             <div className="gov-header__toolbar-group">

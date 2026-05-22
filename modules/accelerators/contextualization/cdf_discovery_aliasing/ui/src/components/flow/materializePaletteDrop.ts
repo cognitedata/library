@@ -64,7 +64,7 @@ export function materializePaletteDrop(input: MaterializePaletteDropInput): Mate
     payload.kind === "discovery" && payload.stage === "transform"
       ? readTransformOutputFieldForChainedTransform(connectFromRfNode)
       : null;
-  let node = createNodeFromPalette(payload, position, { previousTransformOutputField });
+  let node = createNodeFromPalette(payload, position, { previousTransformOutputField, t });
   const rfType = node.type ?? "";
   if (discoveryValidationRuleLayoutRfTypes.has(rfType)) {
     const data = (node.data ?? {}) as Record<string, unknown>;

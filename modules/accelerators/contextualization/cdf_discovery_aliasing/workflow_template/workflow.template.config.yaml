@@ -63,7 +63,7 @@ canvas:
     kind: transform
     position:
       x: 452
-      y: -467.5
+      y: -459.5
     data:
       label: File Alias
       handler_family: discovery
@@ -87,7 +87,7 @@ canvas:
     kind: transform
     position:
       x: 452
-      y: -338.5
+      y: -330.5
     data:
       label: 'Index Key: Name → Description'
       handler_family: discovery
@@ -140,7 +140,7 @@ canvas:
     kind: validation
     position:
       x: 706
-      y: -143
+      y: -135
     data:
       label: Asset validation — ISA → shape → blacklist
       handler_family: discovery
@@ -248,7 +248,7 @@ canvas:
     kind: join
     position:
       x: 452
-      y: -176.5
+      y: -168.5
     data:
       label: 'Aliases: Mapping Table Join (RAW)'
       handler_family: discovery
@@ -256,18 +256,17 @@ canvas:
       config:
         description: Join — CogniteAsset name ↔ RAW alias row name (asset_aliases)
         join_type: inner
-        right_prefix: ''
+        right_prefix: explicit_
         join_on:
           and:
           - operator: IEQUALS
             left_property: name
             right_property: raw_columns.name
-    enabled: false
   - id: n_1778877489862_8uun2ui1
     kind: query_raw
     position:
       x: 198
-      y: -288.5
+      y: -280
     data:
       label: Alias Mapping Table
       handler_family: discovery
@@ -276,19 +275,17 @@ canvas:
         description: RAW query — CogniteAsset EXP- alias catalog (Toolkit upload_data/RAW)
         source_raw_db: db_discovery_aliasing
         source_raw_table: asset_aliases
-    enabled: false
   - id: n_1778877505030_c3a1hn6b
     kind: transform
     position:
       x: 706
-      y: 34
+      y: 42
     data:
       label: 'Aliases: Explicit Aliases'
       handler_family: discovery
       preset_from_palette: true
       handler_id: trim_whitespace
       config:
-        description: Extract asset tag from CogniteAsset name
         handler_id: trim_whitespace
         enabled: true
         fields:
@@ -297,13 +294,13 @@ canvas:
             multiline: false
             dotall: false
             unicode: true
-          field_name: aliases
+          field_name: explicit_aliases
           required: true
           priority: 1
-          regex: (?<![\d-])(?:\b|(?<=_))(?:\d{1,8}-?)?[A-Z]{1,8}-?\d{1,10}(?:-\d{1,6})*[A-Z]?\b
+          regex: ''
           max_matches_per_field: 10
         output_field: aliases
-        output_template: '{aliases}'
+        output_template: '{explicit_aliases}'
         output_mode: append
         regex_substitution:
           patterns:
@@ -311,12 +308,12 @@ canvas:
             replacement: ''
         trim_whitespace:
           mode: ends_only
-    enabled: false
+        description: Extract asset tag from CogniteAsset name
   - id: n_1779113654105_b062nmdc
     kind: transform
     position:
       x: 452
-      y: 1.5
+      y: -6.5
     data:
       label: 'Aliases: Name - Passthrough'
       handler_family: discovery
@@ -457,7 +454,7 @@ canvas:
       config:
         description: Confidence filter for inverted index
         value_field: aliases
-        min_confidence: 0
+        min_confidence: 0.8
         comparison: gte
         drop_row_if_empty: true
   - id: st
@@ -470,7 +467,7 @@ canvas:
     kind: transform
     position:
       x: 452
-      y: 131.5
+      y: 123.5
     data:
       label: 'Aliases: Tag Based'
       handler_family: discovery
@@ -518,7 +515,7 @@ canvas:
     kind: transform
     position:
       x: 452
-      y: 291.5
+      y: 283.5
     data:
       label: 'Time Series Alias: Instrument tag → Time Series Alias: Heuristic (name)'
       handler_family: discovery
@@ -560,7 +557,7 @@ canvas:
     kind: query_view
     position:
       x: 198
-      y: -127.5
+      y: -136
     data:
       config:
         description: cdf_cdm CogniteAsset — discovery list
@@ -577,7 +574,7 @@ canvas:
     kind: query_view
     position:
       x: 198
-      y: -14.5
+      y: -23
     data:
       config:
         description: cdf_cdm CogniteEquipment — discovery list
@@ -594,7 +591,7 @@ canvas:
     kind: query_view
     position:
       x: 198
-      y: 98.5
+      y: 90
     data:
       config:
         description: cdf_cdm CogniteFile — discovery list
@@ -620,7 +617,7 @@ canvas:
     kind: query_view
     position:
       x: 198
-      y: 211.5
+      y: 203
     data:
       config:
         description: cdf_cdm CogniteTimeSeries — discovery list
@@ -738,12 +735,6 @@ canvas:
     source_handle: out
     target_handle: in
     kind: data
-  - id: n_1779144444954_hku7ljbe
-    source: n_1778825856747_8nhc2ug8
-    target: n_1778828796157_r1tixf2w
-    source_handle: out
-    target_handle: in
-    kind: data
   - id: xy-edge__vq_assetout-n_1778877478650_28ig3blain__left
     source: vq_asset
     target: n_1778877478650_28ig3bla
@@ -831,6 +822,24 @@ canvas:
   - id: xy-edge__n_1779401605162_hg11jjx2out-vsin
     source: n_1779401605162_hg11jjx2
     target: vs
+    source_handle: out
+    target_handle: in
+    kind: data
+  - id: xy-edge__n_1778825555896_yb0o2sr8out-n_1779401605162_hg11jjx2in
+    source: n_1778825555896_yb0o2sr8
+    target: n_1779401605162_hg11jjx2
+    source_handle: out
+    target_handle: in
+    kind: data
+  - id: xy-edge__n_1778825856747_8nhc2ug8out-n_1778828796157_r1tixf2win
+    source: n_1778825856747_8nhc2ug8
+    target: n_1778828796157_r1tixf2w
+    source_handle: out
+    target_handle: in
+    kind: data
+  - id: xy-edge__vq_assetout-n_1779138030450_ilvkx2u7in
+    source: vq_asset
+    target: n_1779138030450_ilvkx2u7
     source_handle: out
     target_handle: in
     kind: data

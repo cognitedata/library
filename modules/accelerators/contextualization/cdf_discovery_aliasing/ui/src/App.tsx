@@ -24,6 +24,7 @@ import { FiltersControls } from "./components/FiltersControls";
 import { PersistenceControls } from "./components/PersistenceControls";
 import { KeyExtractionControls } from "./components/KeyExtractionControls";
 import { RunResultsPanel } from "./components/RunResultsPanel";
+import { CogniteLogo } from "./components/CogniteLogo";
 import { useAppSettings } from "./context/AppSettingsContext";
 import { LOCALES, type MessageKey } from "./i18n";
 import type { AliasingScopeHierarchy, JsonObject } from "./types/scopeConfig";
@@ -1925,8 +1926,11 @@ export default function App() {
       <header className="discovery-header">
         <div className="discovery-header__shell">
           <div className="discovery-header__brand">
-            <h1 className="discovery-header__title">{t("app.title")}</h1>
-            <p className="discovery-header__subtitle">{t("app.subtitle")}</p>
+            <CogniteLogo />
+            <div className="discovery-header__brand-text">
+              <h1 className="discovery-header__title">{t("app.title")}</h1>
+              <p className="discovery-header__subtitle">{t("app.subtitle")}</p>
+            </div>
           </div>
           <div className="discovery-header__toolbar">
             <div className="discovery-header__toolbar-group">

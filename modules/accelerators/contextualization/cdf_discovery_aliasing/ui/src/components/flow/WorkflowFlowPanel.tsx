@@ -40,20 +40,20 @@ import {
   canvasNodeMatchesSearch,
   filterCanvasNodesBySearch,
 } from "../../utils/workflowCanvasFlowSearch";
-import { appendDiscoveryConnectionEdge, appendReuseDataEdge, dedupeEdgesByHandles } from "./flowEdgeHelpers";
+import { appendDiscoveryConnectionEdge, dedupeEdgesByHandles } from "./flowEdgeHelpers";
+import { applyPaletteCanvasDrop } from "./paletteDropOnEdge";
 import { FlowNodeInspector } from "./FlowNodeInspector";
-import { FlowPalette, getPaletteDropPayload } from "./FlowPalette";
-import { WorkflowCompileToolbar } from "./WorkflowCompileToolbar";
+import { FlowPalette } from "./FlowPalette";
 import { useFlowPanelLayout } from "./useFlowPanelLayout";
 import { layoutFlowNodes } from "./autoLayoutFlow";
 import { FlowHandleOrientationProvider } from "./FlowHandleOrientationContext";
 import { FlowNodeEditorModal } from "./FlowNodeEditorModal";
 import { DISCOVERY_FLOW_NODE_TYPES } from "./flowNodeRegistry";
 import { TreeContextMenuPortal, useTreeContextMenuState, type TreeCtxMenuItem } from "../TreeContextMenu";
+import { applyFlowNodeRemovals } from "./applyFlowNodeRemovals";
 import { liftSubgraphInnerToParentWorkflow, subgraphHasLiftableInnerContent } from "./liftSubgraphInnerToParent";
 import { clampNodeInsideParentSubflowFrame } from "./subflowGroupClamp";
 import { promoteSubgraphInnerSubtreeToParentWorkflow } from "./promoteSubgraphInnerNodeToParent";
-import { collectSubtreeNodeIds } from "./flowParentGeometry";
 import { appendNodeAndResolveSubflowParent, resolveSubflowParentsAfterGroupDrag } from "./subflowDropAssociation";
 import { resolveGroupableSelectionNodes } from "./subflowMembership";
 import { isValidDiscoveryFlowConnection } from "./subgraphFlowConnections";
@@ -141,7 +141,7 @@ function FlowCanvasBody({
   onActivityHint,
 }: Props) {
   const { theme } = useAppSettings();
-  const { screenToFlowPosition, getNode, getNodes, getEdges, fitView } = useReactFlow();
+  const { screenToFlowPosition, getNode, getNodes, getEdges, fitView, getZoom } = useReactFlow();
 
   const rfSelectionRef = useRef<Node[]>([]);
   const [alignableSelectionCount, setAlignableSelectionCount] = useState(0);
@@ -458,37 +458,46 @@ function FlowCanvasBody({
     (e: React.DragEvent) => {
       if (readOnly) return;
       e.preventDefault();
-      const payload = getPaletteDropPayload(e);
-      if (!payload) return;
-      const pos = screenToFlowPosition({ x: e.clientX, y: e.clientY });
-      const result = materializePaletteDrop({
-        payload,
-        position: pos,
+      applyPaletteCanvasDrop({
+        event: e,
+        screenToFlowPosition,
+        getNode,
+        getEdges,
+        zoom: getZoom(),
         nodes,
         edges,
         workflowScopeDoc,
         patchWorkflowScope: (fn) => patchWorkflowScopeRef.current(fn),
         t,
+        schemaSpace,
+        compileDagMode,
         allowValidationRuleLayoutReuse: true,
+        setNodes,
+        setEdges,
+        onSelectNodeId: (nodeId) => {
+          const n = getNode(nodeId);
+          if (n) {
+            setSelectedNode(n);
+            setSelectedEdge(null);
+          }
+        },
       });
-      if (result.outcome === "reuse") {
-        const head = getNode(result.headId);
-        if (head) setSelectedNode(head);
-        const connectFromId = result.connectFromId;
-        if (connectFromId) {
-          setEdges((eds) => appendReuseDataEdge(eds, connectFromId, result.headId));
-        }
-        return;
-      }
-      const { node, extraEdges } = result;
-      setNodes((nds) => appendNodeAndResolveSubflowParent(nds, node));
-      setEdges((eds) => [...eds, ...extraEdges]);
-      if (payload.kind === "structural" && payload.nodeKind === "source_view") {
-        setSelectedNode(node);
-        setSelectedEdge(null);
-      }
     },
-    [screenToFlowPosition, setNodes, setEdges, nodes, edges, workflowScopeDoc, getNode, t, readOnly]
+    [
+      screenToFlowPosition,
+      setNodes,
+      setEdges,
+      nodes,
+      edges,
+      workflowScopeDoc,
+      getNode,
+      getEdges,
+      getZoom,
+      t,
+      readOnly,
+      schemaSpace,
+      compileDagMode,
+    ]
   );
 
   const patchNode = useCallback(
@@ -717,37 +726,26 @@ function FlowCanvasBody({
     [edges, setNodes, fitView, workflowScopeDoc]
   );
 
-  const removeNodeById = useCallback(
-    (nodeId: string) => {
-      const all = getNodes();
-      const allEdges = getEdges();
-      const root = all.find((n) => n.id === nodeId);
-      if (root?.type === "discoverySubgraph") {
-        if (subgraphHasLiftableInnerContent(all, nodeId) && window.confirm(t("flow.confirmSubgraphDeleteLift"))) {
-          const lifted = liftSubgraphInnerToParentWorkflow(all, allEdges, nodeId, handleOrientation);
-          if (lifted) {
-            setNodes(lifted.nodes);
-            setEdges(lifted.edges);
-            setSelectedNode((sn) => (sn?.id === nodeId ? null : sn));
-            setSelectedEdge(null);
-            return;
-          }
-        }
-        const toRemove = collectSubtreeNodeIds(all, nodeId);
-        setNodes((nds) => nds.filter((n) => !toRemove.has(n.id)));
-        setEdges((eds) => eds.filter((e) => !toRemove.has(e.source) && !toRemove.has(e.target)));
-        setSelectedNode((sn) => (sn && toRemove.has(sn.id) ? null : sn));
-        setSelectedEdge(null);
-        return;
-      }
-      const toRemove = collectSubtreeNodeIds(all, nodeId);
-      setNodes((nds) => nds.filter((n) => !toRemove.has(n.id)));
-      setEdges((eds) => eds.filter((e) => !toRemove.has(e.source) && !toRemove.has(e.target)));
-      setSelectedNode((sn) => (sn && toRemove.has(sn.id) ? null : sn));
+  const removeNodesByIds = useCallback(
+    (nodeIds: string[]) => {
+      const result = applyFlowNodeRemovals(
+        getNodes(),
+        getEdges(),
+        nodeIds,
+        handleOrientation,
+        (msg) => window.confirm(msg),
+        t("flow.confirmSubgraphDeleteLift")
+      );
+      if (!result) return;
+      setNodes(result.nodes);
+      setEdges(result.edges);
+      setSelectedNode((sn) => (sn && result.clearedSelectionNodeIds.has(sn.id) ? null : sn));
       setSelectedEdge(null);
     },
     [getNodes, getEdges, setNodes, setEdges, t, handleOrientation]
   );
+
+  const removeNodeById = useCallback((nodeId: string) => removeNodesByIds([nodeId]), [removeNodesByIds]);
 
   const removeEdgeById = useCallback(
     (edgeId: string) => {
@@ -815,13 +813,11 @@ function FlowCanvasBody({
       if (rest.length) onNodesChange(rest);
       if (readOnly || removals.length === 0) return;
       const ids = [...new Set(removals.map((r) => r.id))];
-      for (const id of ids) {
-        flushSync(() => {
-          removeNodeById(id);
-        });
-      }
+      flushSync(() => {
+        removeNodesByIds(ids);
+      });
     },
-    [onNodesChange, readOnly, removeNodeById]
+    [onNodesChange, readOnly, removeNodesByIds]
   );
 
   const onPaneContextMenu = useCallback(
@@ -1010,7 +1006,6 @@ function FlowCanvasBody({
                 ‹
               </button>
             </div>
-            <WorkflowCompileToolbar t={t} readOnly={readOnly} />
             <div
               className="discovery-flow-shell__palette-body"
               style={
@@ -1020,7 +1015,12 @@ function FlowCanvasBody({
               }
               aria-hidden={readOnly ? true : undefined}
             >
-              <FlowPalette t={t} scopeDocument={workflowScopeDoc} />
+              <FlowPalette
+                t={t}
+                scopeDocument={workflowScopeDoc}
+                schemaSpace={schemaSpace}
+                readOnly={readOnly}
+              />
             </div>
           </>
         )}

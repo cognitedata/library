@@ -19,24 +19,24 @@ describe("isHandlerTypedTransformNode", () => {
     ).toBe(true);
   });
 
-  it("is true when label matches Transform · {handler}", () => {
+  it("is true when handler_id is a registered discovery handler", () => {
     expect(
       isHandlerTypedTransformNode(
         transformNode({
           handler_id: "regex_substitution",
-          label: "Transform · regex_substitution",
+          label: "Regex substitution",
           config: { handler_id: "regex_substitution" },
         })
       )
     ).toBe(true);
   });
 
-  it("is false for legacy generic transform label", () => {
+  it("is false without preset_from_palette or registered handler_id", () => {
     expect(
       isHandlerTypedTransformNode(
         transformNode({
           label: "Transform",
-          config: { handler_id: "trim_whitespace" },
+          config: { handler_id: "not_a_real_handler" },
         })
       )
     ).toBe(false);

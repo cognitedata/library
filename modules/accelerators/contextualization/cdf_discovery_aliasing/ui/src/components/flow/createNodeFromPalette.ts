@@ -1,7 +1,11 @@
 import type { Node } from "@xyflow/react";
 import { emptyWorkflowCanvasDocument } from "../../types/workflowCanvas";
+import type { MessageKey } from "../../i18n";
 import type { DiscoveryPaletteStage, PaletteDragPayload } from "./FlowPalette";
-import { TRANSFORM_HANDLER_IDS } from "./handlerRegistry";
+import {
+  TRANSFORM_HANDLER_IDS,
+  transformHandlerDisplayName,
+} from "./handlerRegistry";
 import { newNodeId } from "./flowDocumentBridge";
 import { DEFAULT_SUBGRAPH_FRAME_PORTS } from "./subgraphInnerBoundaryHubs";
 import { defaultFilterNodeConfig } from "../../utils/filtersCanvasUtils";
@@ -11,6 +15,7 @@ import { defaultTransformNodeConfig, isDiscoveryTransformHandlerId } from "../..
 export type CreateNodeFromPaletteContext = {
   /** Prior canvas node's transform `output_field` when chaining transforms. */
   previousTransformOutputField?: string | null;
+  t?: (key: MessageKey, vars?: Record<string, string | number>) => string;
 };
 
 export function createNodeFromPalette(
@@ -133,7 +138,8 @@ export function createNodeFromPalette(
         {
           const raw = payload.transformHandlerId;
           const handler = raw && isDiscoveryTransformHandlerId(raw) ? raw : defaultTransformHandler;
-          data.label = `Transform · ${handler}`;
+          data.label =
+            ctx?.t != null ? transformHandlerDisplayName(handler, ctx.t) : handler;
           data.handler_id = handler;
           data.config = defaultTransformNodeConfig(handler, {
             previousOutputField: ctx?.previousTransformOutputField ?? null,

@@ -8,6 +8,7 @@ import { PropertiesPanel } from "./components/PropertiesPanel";
 import { SqlQueryPane } from "./components/SqlQueryPane";
 import { FunctionPane } from "./components/FunctionPane";
 import { TransformationPane } from "./components/TransformationPane";
+import { CogniteLogo } from "./components/CogniteLogo";
 import { useAppSettings } from "./context/AppSettingsContext";
 import { useExplorerConfig } from "./context/ExplorerConfigContext";
 import { LOCALES } from "./i18n";
@@ -410,7 +411,8 @@ export function App() {
   return (
     <div className="exp-app">
       <header className="exp-toolbar">
-        <h1>{t("app.title")}</h1>
+        <CogniteLogo />
+        <h1 className="exp-toolbar__title">{t("app.title")}</h1>
         <span className="exp-connection-badge">{connectionLabel}</span>
         <button type="button" className="exp-btn" onClick={() => setRefreshKey((k) => k + 1)}>
           {t("toolbar.refresh")}

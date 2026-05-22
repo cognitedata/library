@@ -16,7 +16,7 @@ __pycache__/
 dist/
 build/
 .eggs/
-.env
+*.env
 .venv
 env/
 venv/
@@ -46,6 +46,12 @@ pip-delete-this-directory.txt
 *.class
 *.o
 *.so
+
+# CDF Explorer — local operator preferences (stars, etc.)
+modules/accelerators/contextualization/cdf_explorer/explorer.local.config.yaml
+
+# cdf_discovery_aliasing — palette favorites (CDF Data tree stars)
+modules/accelerators/contextualization/cdf_discovery_aliasing/discovery.operator.local.config.yaml
 
 # cdf_discovery_aliasing — local pipeline JSON + pytest dumps (not repo fixtures)
 modules/accelerators/contextualization/cdf_discovery_aliasing/local_run_results/*.json

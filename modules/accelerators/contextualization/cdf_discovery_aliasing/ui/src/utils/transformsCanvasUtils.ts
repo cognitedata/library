@@ -19,14 +19,12 @@ export function listTransformNodes(canvas: WorkflowCanvasDocument): WorkflowCanv
   return canvas.nodes.filter((n) => n.kind === "transform");
 }
 
-/** Palette / per-handler nodes: handler is fixed at creation (label ``Transform · {handler}``). */
+/** Palette / per-handler nodes: handler is fixed at creation (`preset_from_palette` or `handler_id`). */
 export function isHandlerTypedTransformNode(node: WorkflowCanvasNode): boolean {
   if (node.kind !== "transform") return false;
   if (node.data?.preset_from_palette === true) return true;
-  const label = String(node.data?.label ?? "").trim();
   const handler = readTransformHandlerId(node);
-  if (handler && label === `Transform · ${handler}`) return true;
-  return false;
+  return Boolean(handler && isDiscoveryTransformHandlerId(handler));
 }
 
 export function readTransformHandlerId(node: WorkflowCanvasNode): string {
@@ -83,7 +81,7 @@ export function addTransformNode(
     kind: "transform",
     position: { x: 0, y: 0 },
     data: {
-      label: `Transform · ${handler}`,
+      label: handler,
       handler_family: "discovery",
       handler_id: handler,
       preset_from_palette: true,

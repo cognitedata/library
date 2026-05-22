@@ -35,7 +35,13 @@ describe("createNodeFromPalette", () => {
     );
     const data = n.data as Record<string, unknown>;
     expect(data.handler_id).toBe("trim_whitespace");
-    expect(data.label).toBe("Transform · trim_whitespace");
+    expect(data.label).toBe("trim_whitespace");
+    const withName = createNodeFromPalette(
+      { kind: "discovery", stage: "transform", transformHandlerId: "trim_whitespace" },
+      { x: 0, y: 0 },
+      { t: (key) => (key === "transforms.handlerName.trim_whitespace" ? "Trim whitespace" : key) }
+    );
+    expect((withName.data as Record<string, unknown>).label).toBe("Trim whitespace");
   });
 
   it("creates a structural source view node", () => {

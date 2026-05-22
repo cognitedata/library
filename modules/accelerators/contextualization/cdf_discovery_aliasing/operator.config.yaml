@@ -1,0 +1,11 @@
+# Discovery operator UI preferences (template).
+# Copy to discovery.operator.local.config.yaml and edit; the local file is gitignored.
+
+stars:
+  # CDF Data tree node ids (palette ``id`` field) pinned to the top of their sibling list.
+  # Order here is preserved among favorites; remaining siblings sort A–Z by label.
+  # Examples:
+  #   - dm:model:cdf_cdm:CogniteCore:v1
+  #   - raw:db:my_db:table:my_table
+  #   - classic:assets
+  node_ids: []

@@ -494,6 +494,48 @@ class SqlRunRequest(BaseModel):
     timeout: Optional[int] = Field(None, ge=1, le=240)
 
 
+class PaletteStarsBody(BaseModel):
+    node_ids: list[str] = Field(default_factory=list, max_length=10_000)
+
+
+@app.get("/api/cdf/palette/operator-config")
+def palette_operator_config_get() -> dict:
+    """Operator preferences for the workflow palette (CDF Data tree favorites)."""
+    from ui.server import palette_operator_config
+
+    return palette_operator_config.public_config()
+
+
+@app.put("/api/cdf/palette/config/stars")
+def palette_operator_config_set_stars(body: PaletteStarsBody) -> dict:
+    from ui.server import palette_operator_config
+
+    try:
+        node_ids = palette_operator_config.set_starred_node_ids(body.node_ids)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+    return {"stars": {"node_ids": node_ids}}
+
+
+@app.get("/api/cdf/data-tree/children")
+def cdf_data_tree_children(node_id: str = Query("data", max_length=2048)) -> dict:
+    """Lazy children for workflow palette CDF Data tree (RAW, Data Modeling, Classic)."""
+    from ui.server import cdf_data_tree, palette_operator_config
+
+    client = _cdf_client()
+    try:
+        nodes = cdf_data_tree.list_children(client, node_id)
+    except Exception as e:
+        from cognite.client.exceptions import CogniteAPIError
+
+        if isinstance(e, ValueError):
+            raise HTTPException(status_code=400, detail=str(e)) from e
+        if isinstance(e, CogniteAPIError):
+            raise HTTPException(status_code=502, detail=str(e)) from e
+        raise HTTPException(status_code=500, detail=str(e)) from e
+    return {"nodes": nodes, "stars": palette_operator_config.get_starred_node_ids()}
+
+
 @app.post("/api/cdf/sql/run")
 def sql_run(body: SqlRunRequest) -> dict:
     """Preview SQL using CDF transformations query/run (same API as cdf_explorer)."""
