@@ -149,10 +149,10 @@ modules = [
     "sourcesystem/cdf_db_foundation",
     "sourcesystem/cdf_files_foundation",
     # Ingestion orchestration
-    "foundation/cdf_ingestion_foundation",
+    "common/cdf_ingestion_foundation",
     # Contextualization
-    "accelerators/contextualization/cdf_file_annotation",
-    "accelerators/contextualization/cdf_entity_matching",
+    "contextualization/cdf_file_annotation",
+    "contextualization/cdf_entity_matching",
     # Quality tooling
     "tools/apps/qualitizer",
 ]
