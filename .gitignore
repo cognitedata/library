@@ -61,3 +61,4 @@ coverage.xml
 # OS generated files
 Thumbs.db
 Desktop.ini
+.cursor/settings.json
