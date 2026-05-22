@@ -13,7 +13,6 @@ from typing import Any
 from cognite.client import CogniteClient
 from cognite.client.data_classes.data_modeling import NodeApply, NodeOrEdgeData
 
-from config import get_cad_node_view
 from constants import (
     COL_KEY_RULE_REGEXP_ASSET,
     COL_KEY_RULE_REGEXP_ENTITY,

@@ -12,6 +12,7 @@ variables:
         cdf_three_dimension:
           default_location: ${default_location}
           source_name: ${source_name}
+          module_owner: ${MODULE_OWNER}  # owner string attached to deployed Functions (team/email)
           raw_db: ${RAW_DB}          # raw database name for manual mappings
           raw_table_manual: contextualization_manual_input
           raw_table_asset_staging: asset_hierarchy_staging
@@ -32,8 +33,9 @@ variables:
 
           asset_instance_space: ${ASSET_INSTANCE_SPACE}
           cad_node_instance_space: ${CAD_NODE_INSTANCE_SPACE}
-          asset_view_ext_id: ${ASSET_VIEW_EXT_ID}          #view where asset are available for contextualization
-          asset_view_version: ${ASSET_VIEW_VERSION}          #version of the view where asset are available for contextualization
+          asset_view_space: ${ASSET_VIEW_SPACE}            # view space (often equal to data_model_space)
+          asset_view_ext_id: ${ASSET_VIEW_EXT_ID}          # view where asset are available for contextualization
+          asset_view_version: ${ASSET_VIEW_VERSION}        # version of the view where asset are available for contextualization
           file_extractor_watch_path: c:/tmp/files
           3d_location_group_source_id: ${3d_location_group_source_id}   #group source id for the project
           cicd_clientId: ${cicd_clientId}

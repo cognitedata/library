@@ -13,16 +13,9 @@ from cognite.extractorutils.uploader import RawUploadQueue
 sys.path.append(str(Path(__file__).parent))
 
 from config import ContextConfig
-from constants import (
-    COL_KEY_MAN_CONTEXTUALIZED,
-    COL_KEY_MAN_MAPPING_3D_NODE_NAME,
-    COL_KEY_MAN_MAPPING_ASSET_EXTID,
-)
 from get_resources import (
-    filter_3d_nodes,
     get_3d_model_id_and_revision_id,
     get_3d_nodes,
-    get_asset_id_ext_id_mapping,
     get_assets,
     get_mapping_to_delete,
     get_matches,

@@ -40,12 +40,12 @@ def write_mapping_to_raw(
         good_matches: list of good matches
         bad_matches: list of bad matches
     """
-    log.info(f"Clean up BAD table: {config.rawdb}/{config.raw_table_bad} before writing new status")
+    log.info(f"Clean up BAD/ALL tables in {config.rawdb} before writing new status")
     delete_table(client, config.rawdb, config.raw_table_bad)
-    delete_table(client, config.rawdb, config.raw_table_good)
     delete_table(client, config.rawdb, config.raw_table_all)
 
-    # if reset mapping, clean up good matches in table
+    # Only wipe the GOOD table when doing a full reset run; otherwise we keep
+    # previously-confirmed mappings and just append/upsert new rows.
     if config.run_all and not config.debug:
         log.info(
             f"ResetMapping - Cleaning up GOOD table: {config.rawdb}/{config.raw_table_good} "

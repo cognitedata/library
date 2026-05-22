@@ -2,7 +2,7 @@
 # Variables (e.g. {{default_location}}, {{source_name}}) are substituted from config.dev.yaml at build.
 - name: 'context:3d:cad:asset:contextualization'
   externalId: 'fn_context_3d_cad_asset_contextualization'
-  owner: 'Anonymous'
+  owner: '{{module_owner}}'
   description: 'Contextualization of 3d model and asset data for {{default_location}}:{{source_name}}'
   metadata:
     version: '0.1.0'

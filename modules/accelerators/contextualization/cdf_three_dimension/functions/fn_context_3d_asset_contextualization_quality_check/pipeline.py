@@ -40,53 +40,80 @@ def run_quality_check(client: CogniteClient, config: ContextConfig):
     raw_table_manual = client.raw.rows.retrieve_dataframe(db_name=config.rawdb, table_name=config.raw_table_manual,
                                                           limit=-1)
 
-    new_mappings, old_mappings = compare_raw_to_real(client, mappings, raw_table_good, raw_table_bad)
+    new_mappings, old_mappings = compare_raw_to_real(mappings, raw_table_good, raw_table_bad)
     update_raw_tables(client, config, raw_uploader, new_mappings, old_mappings, raw_table_good, raw_table_bad,
                       raw_table_manual)
 
 
-def compare_raw_to_real(client, mappings, raw_table_good, raw_table_bad):
-    # Convert raw tables to lists of dictionaries for easier manipulation
-    good_matches = raw_table_good.to_dict(orient='records')
-    bad_matches = raw_table_bad.to_dict(orient='records')
+def compare_raw_to_real(
+    mappings: dict[str, list[int]],
+    raw_table_good,
+    raw_table_bad,
+) -> tuple[set[tuple[str, int]], set[tuple[str, int]]]:
+    """Compare the current model mappings to what's been persisted in RAW.
 
-    # Create a set of tuples for good and bad mappings
-    good_mappings = {(entry['assetId'], entry['nodeId']) for entry in good_matches}
-    bad_mappings = {(entry['assetId'], entry['nodeId']) for entry in bad_matches}
+    Returns:
+        new_mappings: (assetId, nodeId) pairs present in the model but not yet in the good table
+        old_mappings: (assetId, nodeId) pairs present in the good table but no longer in the model
+    """
+    good_matches = raw_table_good.to_dict(orient="records")
+    bad_matches = raw_table_bad.to_dict(orient="records")
 
-    # Flatten the mappings dictionary into a set of (assetId, nodeId) tuples
-    all_mappings = {(asset_id, node_id) for asset_id, node_ids in mappings.items() for node_id in node_ids}
+    # Normalize types: RAW pandas reads may give ints/floats/strings inconsistently.
+    def _norm(asset_id, node_id) -> tuple[str, int]:
+        return str(asset_id), int(node_id)
 
-    # Find new mappings that are in the model but not in the good raw table
-    new_mappings = {asset_id: node_id for asset_id, node_id in all_mappings if (asset_id, node_id) not in good_mappings}
+    good_mappings = {_norm(e["assetId"], e["nodeId"]) for e in good_matches}
+    _bad_mappings = {_norm(e["assetId"], e["nodeId"]) for e in bad_matches}
 
-    # Find old mappings that are in the good raw table but no longer in the model
-    old_mappings = {asset_id: node_id for asset_id, node_id in good_mappings if (asset_id, node_id) not in all_mappings}
+    all_mappings = {_norm(asset_id, node_id) for asset_id, node_ids in mappings.items() for node_id in node_ids}
 
+    new_mappings = all_mappings - good_mappings
+    old_mappings = good_mappings - all_mappings
     return new_mappings, old_mappings
 
 
+def update_raw_tables(
+    client,
+    config,
+    raw_uploader,
+    new_mappings: set[tuple[str, int]],
+    old_mappings: set[tuple[str, int]],
+    raw_table_good,
+    raw_table_bad,
+    raw_table_manual,
+) -> None:
+    good_matches = raw_table_good.to_dict(orient="records")
+    bad_matches = raw_table_bad.to_dict(orient="records")
+    manual_entries = raw_table_manual.to_dict(orient="records")
 
-def update_raw_tables(client, config, raw_uploader, new_mappings, old_mappings, raw_table_good, raw_table_bad,
-                      raw_table_manual):
-    # Convert raw tables to lists of dictionaries
-    good_matches = raw_table_good.to_dict(orient='records')
-    bad_matches = raw_table_bad.to_dict(orient='records')
-    manual_entries = raw_table_manual.to_dict(orient='records')
+    # New mappings: append to manual with manualAction=created, remove from bad if present
+    for asset_id, node_id in new_mappings:
+        new_entry = {
+            "assetName": _get_asset_name(client, config, asset_id),
+            "assetId": asset_id,
+            "nodeId": node_id,
+            "manualAction": "created",
+        }
+        manual_entries.append(new_entry)
+        bad_matches = [
+            e for e in bad_matches
+            if not (str(e["assetId"]) == asset_id and int(e["nodeId"]) == node_id)
+        ]
 
-    # Add new mappings to the good matches and write to manual entries with manual_action: created
-    for asset_id, node_id in new_mappings.items():
-        new_entry = {'asset name': _get_asset_name(client, config, str(asset_id)), 'assetId': asset_id, '3DId': node_id}
-        manual_entries.append({**new_entry, 'manualAction': 'created'})
-        # Remove the mapping from bad matches if it exists
-        bad_matches = [entry for entry in bad_matches if not (entry['assetId'] == asset_id and entry['nodeId'] == node_id)]
-
-    # Remove old mappings from the good matches and write to manual entries with manual_action: deleted
-    for asset_id, node_id in old_mappings.items():
-        old_entry = next((entry for entry in good_matches if entry['assetId'] == asset_id and entry['nodeId'] == node_id), None)
+    # Old mappings: move good row to manual with manualAction=deleted
+    for asset_id, node_id in old_mappings:
+        old_entry = next(
+            (e for e in good_matches
+             if str(e["assetId"]) == asset_id and int(e["nodeId"]) == node_id),
+            None,
+        )
         if old_entry:
-            manual_entries.append({**old_entry, 'manualAction': 'deleted'})
-            good_matches = [entry for entry in good_matches if not (entry['assetId'] == asset_id and entry['nodeId'] == node_id)]
+            manual_entries.append({**old_entry, "manualAction": "deleted"})
+            good_matches = [
+                e for e in good_matches
+                if not (str(e["assetId"]) == asset_id and int(e["nodeId"]) == node_id)
+            ]
 
     write_mapping_to_raw(client, config, raw_uploader, good_matches, bad_matches, manual_entries)
 
