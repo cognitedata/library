@@ -8,6 +8,7 @@ import {
 } from "react";
 import { select } from "d3-selection";
 import { line } from "d3-shape";
+import type { CogniteClient } from "@cognite/sdk";
 import { useAppSdk } from "@/shared/auth";
 import { useAppData } from "@/shared/data-cache";
 import { extractDataModelRefs } from "@/transformations/transformationChecks";
@@ -340,10 +341,121 @@ type DataModelVersionsSnapshot = {
 };
 let dataModelVersionsSnapshot: DataModelVersionsSnapshot | null = null;
 
-function countUniqueDataModelKeys(items: DataModelVersionItem[]): number {
-  const s = new Set<string>();
-  for (const i of items) s.add(`${i.space}:${i.externalId}`);
-  return s.size;
+type DataModelVersionsLoadProgress =
+  | { phase: "listing"; itemsLoaded: number; uniqueModels: number }
+  | { phase: "details"; batchIndex: number; batchTotal: number }
+  | { phase: "transformations"; step: "list" }
+  | {
+      phase: "transformations";
+      step: "byids";
+      fetched: number;
+      total: number;
+      batchIndex: number;
+      batchTotal: number;
+    };
+
+type DmTransformationUsageSdk = Pick<CogniteClient, "project" | "post" | "get">;
+
+async function loadDataModelVersionsTransformationUsage(
+  sdk: DmTransformationUsageSdk,
+  onProgress?: (progress: DataModelVersionsLoadProgress) => void
+): Promise<{
+  transformationRefsByModelVersion: Map<string, Array<{ id: string; name: string }>>;
+  dmTxByCell: Map<string, Array<{ id: string; name: string }>>;
+  dmKeysInTransformation: Set<string>;
+}> {
+  const destinationDmTxByCell = new Map<string, Array<{ id: string; name: string }>>();
+  const pushDestTx = (cellKey: string, txItem: { id: string; name: string }) => {
+    let arr = destinationDmTxByCell.get(cellKey);
+    if (!arr) {
+      arr = [];
+      destinationDmTxByCell.set(cellKey, arr);
+    }
+    if (!arr.some((x) => x.id === txItem.id)) arr.push(txItem);
+  };
+
+  onProgress?.({ phase: "transformations", step: "list" });
+  const response = (await cachedTransformationsList(sdk, {
+    includePublic: "true",
+    limit: "1000",
+  })) as { data?: { items?: TransformationApiItem[] } };
+  const items = response.data?.items ?? [];
+  const idsNeedingDetail: string[] = [];
+  for (const t of items) {
+    const destination = t.destination;
+    const query = t.query ?? "";
+    const needDetail =
+      !destination?.dataModel?.space ||
+      !destination?.dataModel?.externalId ||
+      !String(query).trim();
+    if (needDetail) idsNeedingDetail.push(String(t.id));
+  }
+
+  const detailById = await fetchTransformationsByIds(sdk, sdk.project, idsNeedingDetail, {
+    onProgress: (p) =>
+      onProgress?.({
+        phase: "transformations",
+        step: "byids",
+        fetched: p.fetched,
+        total: p.total,
+        batchIndex: p.batchIndex,
+        batchTotal: p.batchTotal,
+      }),
+  });
+
+  const modelRefs = new Set<string>();
+  const txByModelVersion = new Map<string, Array<{ id: string; name: string }>>();
+  const destinationDmBaseKeys = new Set<string>();
+
+  for (const t of items) {
+    const txItem = { id: String(t.id), name: t.name ?? String(t.id) };
+
+    let destination = t.destination;
+    let query = t.query ?? "";
+    const detail = detailById.get(String(t.id));
+    if (detail) {
+      if (detail.destination?.dataModel?.space && detail.destination?.dataModel?.externalId) {
+        destination = { ...destination, dataModel: detail.destination.dataModel };
+      }
+      if (detail.query != null && String(detail.query).trim() !== "") {
+        query = detail.query;
+      }
+    }
+
+    const dm = destination?.dataModel;
+    if (dm?.space && dm?.externalId) {
+      const dk = `${dm.space}:${dm.externalId}`;
+      destinationDmBaseKeys.add(dk);
+      const verPart = dm.version?.trim();
+      const versionToken = verPart ? verPart : DEST_DM_VERSION_UNSPECIFIED;
+      pushDestTx(`${dk}:${versionToken}`, txItem);
+    }
+
+    if (!String(query).trim()) continue;
+    const refs = extractDataModelRefs(query);
+    for (const ref of refs) {
+      const space = ref.space ?? "";
+      const externalId = ref.externalId ?? "";
+      const key = `${space}:${externalId}`;
+      if (!key || key === ":") continue;
+      modelRefs.add(key);
+      const ver = ref.version?.trim() ?? "";
+      const mvKey = `${key}:${ver}`;
+      let arr = txByModelVersion.get(mvKey);
+      if (!arr) {
+        arr = [];
+        txByModelVersion.set(mvKey, arr);
+      }
+      if (!arr.some((x) => x.id === txItem.id)) arr.push(txItem);
+    }
+  }
+
+  const dmKeys = new Set<string>([...modelRefs, ...destinationDmBaseKeys]);
+  return {
+    transformationRefsByModelVersion: txByModelVersion,
+    dmTxByCell: destinationDmTxByCell,
+    dmKeysInTransformation: dmKeys,
+  };
 }
 
 export function DataModelVersions() {
@@ -354,11 +466,7 @@ export function DataModelVersions() {
   const { dataModels, dataModelsStatus, loadDataModels, retrieveDataModels } = useAppData();
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [loadProgress, setLoadProgress] = useState<
-    | { phase: "listing"; itemsLoaded: number; uniqueModels: number }
-    | { phase: "details"; batchIndex: number; batchTotal: number }
-    | null
-  >(null);
+  const [loadProgress, setLoadProgress] = useState<DataModelVersionsLoadProgress | null>(null);
   const [dmRows, setDmRows] = useState<DataModelRow[]>([]);
   const [versions, setVersions] = useState<string[]>([]);
   const [detailsMap, setDetailsMap] = useState<Map<string, DataModelVersionItem>>(new Map());
@@ -439,104 +547,6 @@ export function DataModelVersions() {
       cancelled = true;
     };
   }, [dataModelsStatus, dataModels, retrieveDataModels]);
-
-  useEffect(() => {
-    if (isSdkLoading) return;
-    let cancelled = false;
-    const load = async () => {
-      const destinationDmTxByCell = new Map<string, Array<{ id: string; name: string }>>();
-      const pushDestTx = (cellKey: string, txItem: { id: string; name: string }) => {
-        let arr = destinationDmTxByCell.get(cellKey);
-        if (!arr) {
-          arr = [];
-          destinationDmTxByCell.set(cellKey, arr);
-        }
-        if (!arr.some((x) => x.id === txItem.id)) arr.push(txItem);
-      };
-
-      try {
-        const response = (await cachedTransformationsList(sdk, {
-          includePublic: "true",
-          limit: "1000",
-        })) as { data?: { items?: TransformationApiItem[] } };
-        const items = response.data?.items ?? [];
-        const idsNeedingDetail: string[] = [];
-        for (const t of items) {
-          const destination = t.destination;
-          const query = t.query ?? "";
-          const needDetail =
-            !destination?.dataModel?.space ||
-            !destination?.dataModel?.externalId ||
-            !String(query).trim();
-          if (needDetail) idsNeedingDetail.push(String(t.id));
-        }
-        const detailById = await fetchTransformationsByIds(sdk, sdk.project, idsNeedingDetail);
-
-        const modelRefs = new Set<string>();
-        const txByModelVersion = new Map<string, Array<{ id: string; name: string }>>();
-        const destinationDmBaseKeys = new Set<string>();
-
-        for (const t of items) {
-          if (cancelled) return;
-          const txItem = { id: String(t.id), name: t.name ?? String(t.id) };
-
-          let destination = t.destination;
-          let query = t.query ?? "";
-          const detail = detailById.get(String(t.id));
-          if (detail) {
-            if (detail.destination?.dataModel?.space && detail.destination?.dataModel?.externalId) {
-              destination = { ...destination, dataModel: detail.destination.dataModel };
-            }
-            if (detail.query != null && String(detail.query).trim() !== "") {
-              query = detail.query;
-            }
-          }
-
-          const dm = destination?.dataModel;
-          if (dm?.space && dm?.externalId) {
-            const dk = `${dm.space}:${dm.externalId}`;
-            destinationDmBaseKeys.add(dk);
-            const verPart = dm.version?.trim();
-            const versionToken = verPart ? verPart : DEST_DM_VERSION_UNSPECIFIED;
-            pushDestTx(`${dk}:${versionToken}`, txItem);
-          }
-
-          if (!String(query).trim()) continue;
-          const refs = extractDataModelRefs(query);
-          for (const ref of refs) {
-            const space = ref.space ?? "";
-            const externalId = ref.externalId ?? "";
-            const key = `${space}:${externalId}`;
-            if (!key || key === ":") continue;
-            modelRefs.add(key);
-            const ver = ref.version?.trim() ?? "";
-            const mvKey = `${key}:${ver}`;
-            let arr = txByModelVersion.get(mvKey);
-            if (!arr) {
-              arr = [];
-              txByModelVersion.set(mvKey, arr);
-            }
-            if (!arr.some((x) => x.id === txItem.id)) arr.push(txItem);
-          }
-        }
-        if (!cancelled) {
-          setTransformationRefsByModelVersion(txByModelVersion);
-          setDmTxByCell(destinationDmTxByCell);
-        }
-        const dmKeys = new Set<string>([...modelRefs, ...destinationDmBaseKeys]);
-        if (!cancelled) setDmKeysInTransformation(dmKeys);
-      } catch {
-        if (!cancelled) {
-          setDmKeysInTransformation(new Set());
-          setDmTxByCell(new Map());
-        }
-      }
-    };
-    load();
-    return () => {
-      cancelled = true;
-    };
-  }, [sdk, isSdkLoading]);
 
   const dmKeysInCatalog = useMemo(() => {
     const set = new Set<string>();
@@ -659,7 +669,16 @@ export function DataModelVersions() {
       const rawItems = (await listAllCachedDataModels(
         sdk,
         { includeGlobal: true, allVersions: true },
-        { pageLimit: DM_LIST_PAGE_LIMIT }
+        {
+          pageLimit: DM_LIST_PAGE_LIMIT,
+          onProgress: ({ itemsLoaded, uniqueCount }) => {
+            setLoadProgress({
+              phase: "listing",
+              itemsLoaded,
+              uniqueModels: uniqueCount,
+            });
+          },
+        }
       )) as Array<{
         space: string;
         externalId: string;
@@ -683,12 +702,6 @@ export function DataModelVersions() {
           views: m.views,
         });
       }
-      setLoadProgress({
-        phase: "listing",
-        itemsLoaded: listItems.length,
-        uniqueModels: countUniqueDataModelKeys(listItems),
-      });
-
       const dmMap = new Map<string, Map<string, DataModelVersionItem>>();
       const versionSet = new Set<string>();
 
@@ -768,6 +781,17 @@ export function DataModelVersions() {
       }
       rows.sort((a, b) => a.label.localeCompare(b.label));
 
+      try {
+        const txUsage = await loadDataModelVersionsTransformationUsage(sdk, setLoadProgress);
+        setTransformationRefsByModelVersion(txUsage.transformationRefsByModelVersion);
+        setDmTxByCell(txUsage.dmTxByCell);
+        setDmKeysInTransformation(txUsage.dmKeysInTransformation);
+      } catch {
+        setTransformationRefsByModelVersion(new Map());
+        setDmTxByCell(new Map());
+        setDmKeysInTransformation(new Set());
+      }
+
       setDmRows(rows);
       setVersions(allVersions);
       setDetailsMap(details);
@@ -802,9 +826,22 @@ export function DataModelVersions() {
       );
       setVersions([...dataModelVersionsSnapshot.versions]);
       setDetailsMap(restoredDetails);
-      setLoadProgress(null);
       setErrorMessage(null);
       setStatus("success");
+      void (async () => {
+        try {
+          const txUsage = await loadDataModelVersionsTransformationUsage(sdk, setLoadProgress);
+          setTransformationRefsByModelVersion(txUsage.transformationRefsByModelVersion);
+          setDmTxByCell(txUsage.dmTxByCell);
+          setDmKeysInTransformation(txUsage.dmKeysInTransformation);
+        } catch {
+          setTransformationRefsByModelVersion(new Map());
+          setDmTxByCell(new Map());
+          setDmKeysInTransformation(new Set());
+        } finally {
+          setLoadProgress(null);
+        }
+      })();
       return;
     }
     void loadData();
@@ -1243,6 +1280,22 @@ export function DataModelVersions() {
           />
         </label>
       ) : null}
+      {loadProgress?.phase === "transformations" && dmRows.length > 0 ? (
+        <div className="rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-slate-600">
+          {loadProgress.step === "list"
+            ? t("dataCatalog.dataModelVersions.loadingTransformationsList")
+            : loadProgress.total > 0
+              ? t("dataCatalog.dataModelVersions.loadingTransformationsByIds", {
+                  fetched: loadProgress.fetched,
+                  total: loadProgress.total,
+                  batchIndex: loadProgress.batchIndex,
+                  batchTotal: loadProgress.batchTotal,
+                })
+              : t("dataCatalog.dataModelVersions.loadingTransformationsByIdsDone", {
+                  fetched: loadProgress.fetched,
+                })}
+        </div>
+      ) : null}
       <div className="flex items-stretch gap-4">
         <div className="min-w-0 flex-1 rounded-md border border-slate-200">
           {status === "error" ? (
@@ -1251,21 +1304,44 @@ export function DataModelVersions() {
             </div>
           ) : isLoading && dmRows.length === 0 ? (
             <div className="flex min-h-64 flex-col items-center justify-center gap-2 bg-sky-100 px-4 py-8 text-sm text-slate-600">
-              <p className="font-medium text-slate-800">Loading data models…</p>
+              <p className="font-medium text-slate-800">{t("dataCatalog.dataModelVersions.loadingTitle")}</p>
               {loadProgress?.phase === "listing" ? (
                 <p className="max-w-md text-center text-xs text-slate-500">
-                  Listing data model definitions from CDF… {loadProgress.itemsLoaded} items fetched,{" "}
-                  {loadProgress.uniqueModels} unique data models so far.
+                  {t("dataCatalog.dataModelVersions.loadingListingProgress", {
+                    itemsLoaded: loadProgress.itemsLoaded,
+                    uniqueModels: loadProgress.uniqueModels,
+                  })}
                 </p>
               ) : null}
               {loadProgress?.phase === "details" ? (
                 <p className="max-w-md text-center text-xs text-slate-500">
-                  Loading data model details (inline views)… batch {loadProgress.batchIndex} of{" "}
-                  {loadProgress.batchTotal}.
+                  {t("dataCatalog.dataModelVersions.loadingDetailsProgress", {
+                    batchIndex: loadProgress.batchIndex,
+                    batchTotal: loadProgress.batchTotal,
+                  })}
+                </p>
+              ) : null}
+              {loadProgress?.phase === "transformations" && loadProgress.step === "list" ? (
+                <p className="max-w-md text-center text-xs text-slate-500">
+                  {t("dataCatalog.dataModelVersions.loadingTransformationsList")}
+                </p>
+              ) : null}
+              {loadProgress?.phase === "transformations" && loadProgress.step === "byids" ? (
+                <p className="max-w-md text-center text-xs text-slate-500">
+                  {loadProgress.total > 0
+                    ? t("dataCatalog.dataModelVersions.loadingTransformationsByIds", {
+                        fetched: loadProgress.fetched,
+                        total: loadProgress.total,
+                        batchIndex: loadProgress.batchIndex,
+                        batchTotal: loadProgress.batchTotal,
+                      })
+                    : t("dataCatalog.dataModelVersions.loadingTransformationsByIdsDone", {
+                        fetched: loadProgress.fetched,
+                      })}
                 </p>
               ) : null}
               {!loadProgress ? (
-                <p className="text-xs text-slate-500">Preparing request…</p>
+                <p className="text-xs text-slate-500">{t("dataCatalog.dataModelVersions.loadingPreparing")}</p>
               ) : null}
             </div>
           ) : dmRows.length === 0 || versions.length === 0 ? (

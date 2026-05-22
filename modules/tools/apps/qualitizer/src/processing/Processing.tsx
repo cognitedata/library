@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useAppSdk } from "@/shared/auth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader } from "@/shared/Loader";
@@ -30,16 +30,25 @@ import {
   getTransformationPreviewUrl,
   getWorkflowEditorUrl,
 } from "@/shared/cdf-browser-url";
-import type {
-  ExtPipeRunSummary,
-  FunctionRunSummary,
-  LoadState,
-  ProcessingDataLoadProgress,
-  ProcessingRequestStats,
-  TransformationJobSummary,
-  WorkflowExecutionSummary,
+import {
+  DEFAULT_PROCESSING_EXECUTION_CAP,
+  FUNCTION_LIST_PAGE_SIZE,
+  PROCESSING_DIAGRAM_SERIES,
+  type ExtPipeRunSummary,
+  type ProcessingDiagramSeries,
+  type FunctionRunSummary,
+  type LoadState,
+  type ProcessingDataLoadProgress,
+  type ProcessingRequestStats,
+  type TransformationJobSummary,
+  type WorkflowExecutionSummary,
 } from "./types";
 import { withTransientRetries } from "@/shared/transient-http-retry";
+import {
+  noteForbiddenFailure,
+  processingRequestStats,
+  processingWindowKey,
+} from "./processing-request-stats";
 
 function formatProcessingDataProgress(
   t: (key: string, params?: Record<string, string | number>) => string,
@@ -47,7 +56,11 @@ function formatProcessingDataProgress(
 ): string {
   switch (p.kind) {
     case "functions_list":
-      return t("processing.progress.functions.list", { count: p.loaded ?? 0 });
+      return t("processing.progress.functions.list", {
+        count: p.loaded ?? 0,
+        pages: p.pages ?? 1,
+        pageSize: p.pageSize ?? FUNCTION_LIST_PAGE_SIZE,
+      });
     case "functions_runs": {
       const total = p.total ?? 0;
       const current = p.current ?? 0;
@@ -74,6 +87,22 @@ function formatProcessingDataProgress(
     }
     default:
       return "";
+  }
+}
+
+function processingSeriesLegendLabel(
+  t: (key: string, params?: Record<string, string | number>) => string,
+  series: ProcessingDiagramSeries
+): string {
+  switch (series) {
+    case "functions":
+      return t("processing.legend.functions");
+    case "transformations":
+      return t("processing.legend.transformations");
+    case "workflows":
+      return t("processing.legend.workflows");
+    case "extractors":
+      return t("processing.legend.extractors");
   }
 }
 
@@ -136,12 +165,18 @@ export function Processing() {
     | "complete";
   const [concurrencyDiagramPhase, setConcurrencyDiagramPhase] =
     useState<ConcurrencyDiagramPhase>("idle");
-  const concurrencyDiagramPassRef = useRef({
-    functions: false,
-    transformations: false,
-    workflows: false,
-    extractors: false,
-  });
+  const [fetchGeneration, setFetchGeneration] = useState(0);
+  const [uncappedSeries, setUncappedSeries] = useState<Set<ProcessingDiagramSeries>>(
+    () => new Set()
+  );
+  const [truncatedReloadQueue, setTruncatedReloadQueue] = useState<
+    ProcessingDiagramSeries[] | null
+  >(null);
+  const executionLimitFor = useCallback(
+    (series: ProcessingDiagramSeries) =>
+      uncappedSeries.has(series) ? null : DEFAULT_PROCESSING_EXECUTION_CAP,
+    [uncappedSeries]
+  );
   const [showLoader, setShowLoader] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [showHeatmapHelp, setShowHeatmapHelp] = useState(false);
@@ -219,18 +254,38 @@ export function Processing() {
     filterExternalId.trim().length > 0 &&
     filterExternalId.trim().length < PROCESSING_EXTERNAL_ID_FILTER_MIN_CHARS;
 
+  const activeSerialSeries = useMemo((): ProcessingDiagramSeries | null => {
+    if (truncatedReloadQueue && truncatedReloadQueue.length > 0) {
+      return truncatedReloadQueue[0];
+    }
+    if (concurrencyDiagramPhase === "idle" || concurrencyDiagramPhase === "complete") {
+      return null;
+    }
+    return concurrencyDiagramPhase;
+  }, [truncatedReloadQueue, concurrencyDiagramPhase]);
+
   const fetchConcurrencyDiagram = useMemo(
     () => ({
-      functions: concurrencyDiagramPhase === "functions",
-      transformations: concurrencyDiagramPhase === "transformations",
-      workflows: concurrencyDiagramPhase === "workflows",
-      extractors: concurrencyDiagramPhase === "extractors",
+      functions: activeSerialSeries === "functions",
+      transformations: activeSerialSeries === "transformations",
+      workflows: activeSerialSeries === "workflows",
+      extractors: activeSerialSeries === "extractors",
     }),
-    [concurrencyDiagramPhase]
+    [activeSerialSeries]
+  );
+
+  const isTruncatedReload = truncatedReloadQueue != null;
+
+  const windowSessionKey = useMemo(
+    () => processingWindowKey(windowRange) ?? "",
+    [windowRange?.start, windowRange?.end]
   );
 
   const {
     status,
+    executionsTruncated: functionExecutionsTruncated,
+    functionsCatalogMayBeIncomplete,
+    functionsCatalogCount,
     loadProgress: functionLoadProgress,
     requestStats: functionRequestStats,
     errorMessage,
@@ -246,10 +301,15 @@ export function Processing() {
     sdk,
     windowRange,
     fetchEnabled: fetchConcurrencyDiagram.functions,
+    windowSessionKey,
+    fetchGeneration,
+    refetchExecutionsOnly: isTruncatedReload,
+    executionLimit: executionLimitFor("functions"),
   });
 
   const {
     transformationsStatus,
+    executionsTruncated: transformationExecutionsTruncated,
     loadProgress: transformationLoadProgress,
     requestStats: transformationRequestStats,
     transformationsError,
@@ -264,10 +324,15 @@ export function Processing() {
     sdk,
     windowRange,
     fetchEnabled: fetchConcurrencyDiagram.transformations,
+    windowSessionKey,
+    fetchGeneration,
+    refetchExecutionsOnly: isTruncatedReload,
+    executionLimit: executionLimitFor("transformations"),
   });
 
   const {
     workflowsStatus,
+    executionsTruncated: workflowExecutionsTruncated,
     loadProgress: workflowLoadProgress,
     requestStats: workflowRequestStats,
     workflowsError,
@@ -285,10 +350,15 @@ export function Processing() {
     sdk,
     windowRange,
     fetchEnabled: fetchConcurrencyDiagram.workflows,
+    windowSessionKey,
+    fetchGeneration,
+    refetchExecutionsOnly: isTruncatedReload,
+    executionLimit: executionLimitFor("workflows"),
   });
 
   const {
     extractorsStatus,
+    executionsTruncated: extractorExecutionsTruncated,
     loadProgress: extractorLoadProgress,
     requestStats: extractorRequestStats,
     extractorsError,
@@ -301,7 +371,80 @@ export function Processing() {
     sdk,
     windowRange,
     fetchEnabled: fetchConcurrencyDiagram.extractors,
+    windowSessionKey,
+    fetchGeneration,
+    refetchExecutionsOnly: isTruncatedReload,
+    executionLimit: executionLimitFor("extractors"),
   });
+
+  useEffect(() => {
+    const terminal = (s: LoadState) => s === "success" || s === "error";
+
+    if (truncatedReloadQueue && truncatedReloadQueue.length > 0) {
+      const current = truncatedReloadQueue[0];
+      if (activeSerialSeries !== current) return;
+      const currentStatus =
+        current === "functions"
+          ? status
+          : current === "transformations"
+            ? transformationsStatus
+            : current === "workflows"
+              ? workflowsStatus
+              : extractorsStatus;
+      if (!terminal(currentStatus)) return;
+      const rest = truncatedReloadQueue.slice(1);
+      if (rest.length === 0) {
+        setTruncatedReloadQueue(null);
+      } else {
+        setTruncatedReloadQueue(rest);
+        setFetchGeneration((g) => g + 1);
+      }
+      return;
+    }
+
+    if (
+      concurrencyDiagramPhase === "functions" &&
+      activeSerialSeries === "functions" &&
+      terminal(status)
+    ) {
+      setFetchGeneration((g) => g + 1);
+      setConcurrencyDiagramPhase("transformations");
+      return;
+    }
+    if (
+      concurrencyDiagramPhase === "transformations" &&
+      activeSerialSeries === "transformations" &&
+      terminal(transformationsStatus)
+    ) {
+      setFetchGeneration((g) => g + 1);
+      setConcurrencyDiagramPhase("workflows");
+      return;
+    }
+    if (
+      concurrencyDiagramPhase === "workflows" &&
+      activeSerialSeries === "workflows" &&
+      terminal(workflowsStatus)
+    ) {
+      setFetchGeneration((g) => g + 1);
+      setConcurrencyDiagramPhase("extractors");
+      return;
+    }
+    if (
+      concurrencyDiagramPhase === "extractors" &&
+      activeSerialSeries === "extractors" &&
+      terminal(extractorsStatus)
+    ) {
+      setConcurrencyDiagramPhase("complete");
+    }
+  }, [
+    activeSerialSeries,
+    concurrencyDiagramPhase,
+    truncatedReloadQueue,
+    status,
+    transformationsStatus,
+    workflowsStatus,
+    extractorsStatus,
+  ]);
 
   const displayRuns = useMemo(() => {
     const needle = effectiveExternalIdNeedle.trim().toLowerCase();
@@ -353,84 +496,91 @@ export function Processing() {
     }, 0);
   }, [displayRuns]);
 
-  useEffect(() => {
-    if (isSdkLoading || !windowRange) {
-      setConcurrencyDiagramPhase("idle");
-      return;
-    }
-    concurrencyDiagramPassRef.current = {
-      functions: false,
-      transformations: false,
-      workflows: false,
-      extractors: false,
-    };
-    setConcurrencyDiagramPhase("functions");
-  }, [isSdkLoading, windowRange?.start, windowRange?.end]);
+  const isProcessingLoading = truncatedReloadQueue
+    ? (activeSerialSeries === "functions" &&
+        (status === "loading" || functionLoadProgress != null)) ||
+      (activeSerialSeries === "transformations" &&
+        (transformationsStatus === "loading" || transformationLoadProgress != null)) ||
+      (activeSerialSeries === "workflows" &&
+        (workflowsStatus === "loading" || workflowLoadProgress != null)) ||
+      (activeSerialSeries === "extractors" &&
+        (extractorsStatus === "loading" || extractorLoadProgress != null))
+    : status === "loading" ||
+      transformationsStatus === "loading" ||
+      workflowsStatus === "loading" ||
+      extractorsStatus === "loading";
 
-  useEffect(() => {
-    const r = concurrencyDiagramPassRef.current;
-    if (status === "loading") r.functions = true;
-    if (transformationsStatus === "loading") r.transformations = true;
-    if (workflowsStatus === "loading") r.workflows = true;
-    if (extractorsStatus === "loading") r.extractors = true;
+  const showExecutionSampleBanner =
+    concurrencyDiagramPhase === "complete" &&
+    truncatedReloadQueue == null &&
+    (functionExecutionsTruncated ||
+      transformationExecutionsTruncated ||
+      workflowExecutionsTruncated ||
+      extractorExecutionsTruncated);
 
-    if (concurrencyDiagramPhase === "functions" && (status === "success" || status === "error")) {
-      if (!r.functions) return;
-      r.functions = false;
-      setConcurrencyDiagramPhase("transformations");
-      return;
-    }
-    if (
-      concurrencyDiagramPhase === "transformations" &&
-      (transformationsStatus === "success" || transformationsStatus === "error")
-    ) {
-      if (!r.transformations) return;
-      r.transformations = false;
-      setConcurrencyDiagramPhase("workflows");
-      return;
-    }
-    if (concurrencyDiagramPhase === "workflows" && (workflowsStatus === "success" || workflowsStatus === "error")) {
-      if (!r.workflows) return;
-      r.workflows = false;
-      setConcurrencyDiagramPhase("extractors");
-      return;
-    }
-    if (
-      concurrencyDiagramPhase === "extractors" &&
-      (extractorsStatus === "success" || extractorsStatus === "error")
-    ) {
-      if (!r.extractors) return;
-      r.extractors = false;
-      setConcurrencyDiagramPhase("complete");
-    }
+  const showFunctionsCatalogBanner =
+    concurrencyDiagramPhase === "complete" && functionsCatalogMayBeIncomplete;
+
+  const truncatedReloadProgress = useMemo(() => {
+    if (!truncatedReloadQueue?.length || !activeSerialSeries) return null;
+    const progress =
+      activeSerialSeries === "functions"
+        ? functionLoadProgress
+        : activeSerialSeries === "transformations"
+          ? transformationLoadProgress
+          : activeSerialSeries === "workflows"
+            ? workflowLoadProgress
+            : extractorLoadProgress;
+    const seriesLabel = processingSeriesLegendLabel(t, activeSerialSeries);
+    const detail = progress
+      ? formatProcessingDataProgress(t, progress)
+      : t("processing.executions.reloadingStarting", { series: seriesLabel });
+    return t("processing.executions.reloadingActive", { series: seriesLabel, detail });
   }, [
-    concurrencyDiagramPhase,
-    status,
-    transformationsStatus,
-    workflowsStatus,
-    extractorsStatus,
+    t,
+    truncatedReloadQueue,
+    activeSerialSeries,
+    functionLoadProgress,
+    transformationLoadProgress,
+    workflowLoadProgress,
+    extractorLoadProgress,
   ]);
 
-  const isProcessingLoading =
-    status === "loading" ||
-    transformationsStatus === "loading" ||
-    workflowsStatus === "loading" ||
-    extractorsStatus === "loading";
+  const truncatedReloadQueuedLabels = useMemo(() => {
+    if (!truncatedReloadQueue || truncatedReloadQueue.length <= 1) return null;
+    const rest = truncatedReloadQueue.slice(1);
+    return rest.map((s) => processingSeriesLegendLabel(t, s)).join(", ");
+  }, [t, truncatedReloadQueue]);
 
   const loaderProgressDetails = useMemo(() => {
     const lines: string[] = [];
-    if (status === "loading" && functionLoadProgress) {
-      lines.push(formatProcessingDataProgress(t, functionLoadProgress));
-    }
-    if (transformationsStatus === "loading" && transformationLoadProgress) {
-      lines.push(formatProcessingDataProgress(t, transformationLoadProgress));
-    }
-    if (workflowsStatus === "loading" && workflowLoadProgress) {
-      lines.push(formatProcessingDataProgress(t, workflowLoadProgress));
-    }
-    if (extractorsStatus === "loading" && extractorLoadProgress) {
-      lines.push(formatProcessingDataProgress(t, extractorLoadProgress));
-    }
+    const wait = t("processing.bubbles.waiting");
+    const activeIdx =
+      activeSerialSeries != null
+        ? PROCESSING_DIAGRAM_SERIES.indexOf(activeSerialSeries)
+        : -1;
+    const pushSeries = (
+      series: ProcessingDiagramSeries,
+      seriesStatus: LoadState,
+      progress: ProcessingDataLoadProgress | null | undefined
+    ) => {
+      const isWaiting = PROCESSING_DIAGRAM_SERIES.indexOf(series) > activeIdx;
+      const label = processingSeriesLegendLabel(t, series);
+      if (isWaiting) {
+        lines.push(`${label}: ${wait}`);
+        return;
+      }
+      if (seriesStatus === "error") return;
+      if (activeSerialSeries === series && progress) {
+        lines.push(`${label}: ${formatProcessingDataProgress(t, progress)}`);
+      } else if (activeSerialSeries === series && seriesStatus === "loading") {
+        lines.push(`${label}: ${wait}`);
+      }
+    };
+    pushSeries("functions", status, functionLoadProgress);
+    pushSeries("transformations", transformationsStatus, transformationLoadProgress);
+    pushSeries("workflows", workflowsStatus, workflowLoadProgress);
+    pushSeries("extractors", extractorsStatus, extractorLoadProgress);
     if (lines.length === 0) return null;
     return (
       <>
@@ -444,6 +594,7 @@ export function Processing() {
     );
   }, [
     t,
+    activeSerialSeries,
     status,
     functionLoadProgress,
     transformationsStatus,
@@ -494,6 +645,17 @@ export function Processing() {
     setWindowRange({ start: startWindow.getTime(), end: endWindow.getTime() });
   }, [isSdkLoading, windowOffsetHours]);
 
+  useLayoutEffect(() => {
+    if (isSdkLoading || !windowRange) {
+      setConcurrencyDiagramPhase("idle");
+      return;
+    }
+    setUncappedSeries(new Set());
+    setTruncatedReloadQueue(null);
+    setFetchGeneration((g) => g + 1);
+    setConcurrencyDiagramPhase("functions");
+  }, [isSdkLoading, windowRange?.start, windowRange?.end]);
+
   useEffect(() => {
     if (isSdkLoading) return;
     let cancelled = false;
@@ -519,6 +681,7 @@ export function Processing() {
         const entries: ScheduleEntry[] = [];
         let failedRequests = 0;
         let totalRequests = 0;
+        const permissionsDenied = { current: false };
 
         totalRequests++;
         try {
@@ -538,8 +701,9 @@ export function Processing() {
             (item.name as string | undefined) ?? (fnId || t("processing.heatmap.unknownFunction"));
           entries.push({ cron, name, type: "function", id: fnId });
         }
-        } catch {
+        } catch (e) {
           failedRequests++;
+          noteForbiddenFailure(permissionsDenied, e);
         }
 
         totalRequests++;
@@ -560,8 +724,9 @@ export function Processing() {
             (item.name as string | undefined) ?? (txId || t("processing.heatmap.unknownTransformation"));
           entries.push({ cron, name, type: "transformation", id: txId });
         }
-        } catch {
+        } catch (e) {
           failedRequests++;
+          noteForbiddenFailure(permissionsDenied, e);
         }
 
         let triggerCursor: string | undefined;
@@ -576,8 +741,9 @@ export function Processing() {
                 params: { limit: "1000", cursor: triggerCursor },
               })
             )) as { data?: { items?: Array<Record<string, unknown>>; nextCursor?: string } };
-          } catch {
+          } catch (e) {
             failedRequests++;
+            noteForbiddenFailure(permissionsDenied, e);
             break;
           }
           for (const item of workflowTriggers.data?.items ?? []) {
@@ -596,11 +762,15 @@ export function Processing() {
 
         if (!cancelled) {
           setScheduleEntries(entries);
-          if (failedRequests > 0) {
-            setScheduleRequestStats({ failed: failedRequests, total: totalRequests });
-          }
+          setScheduleRequestStats(
+            processingRequestStats(failedRequests, totalRequests, permissionsDenied.current)
+          );
           if (entries.length === 0 && failedRequests === totalRequests && totalRequests > 0) {
-            setScheduleError(t("processing.heatmap.error"));
+            setScheduleError(
+              permissionsDenied.current
+                ? t("processing.permissions.heatmapError")
+                : t("processing.heatmap.error")
+            );
             setScheduleStatus("error");
           } else {
             setScheduleStatus("success");
@@ -858,104 +1028,123 @@ export function Processing() {
     scheduleRequestStats,
   ]);
 
+  const showPermissionsDeniedBanner = useMemo(() => {
+    const { segments, failed, total } = partialStatsCombined;
+    if (segments.length === 0 || total === 0 || failed === 0) return false;
+    return (
+      segments.every((seg) => seg.stats.permissionsDenied) && failed === total
+    );
+  }, [partialStatsCombined]);
+
+  const permissionDeniedSegments = useMemo(
+    () =>
+      partialStatsCombined.segments.filter(
+        (seg) => seg.stats.permissionsDenied && seg.stats.failed > 0
+      ),
+    [partialStatsCombined]
+  );
+
   const showPartialDataBanner =
-    partialStatsCombined.segments.length > 0 && partialStatsCombined.total > 0;
+    partialStatsCombined.segments.length > 0 &&
+    partialStatsCombined.total > 0 &&
+    !showPermissionsDeniedBanner;
 
   const diagramConcurrencyUi = useMemo(() => {
     const p = concurrencyDiagramPhase;
+    const showLoadProgressHeaders =
+      activeSerialSeries != null || (p !== "complete" && p !== "idle");
     const wait = t("processing.bubbles.waiting");
-    const loading = t("processing.bubbles.loading");
     const err = t("processing.status.error");
     const empty = t("processing.bubbles.empty");
 
-    const beforeTransformations = p === "idle" || p === "functions";
-    const beforeWorkflows = beforeTransformations || p === "transformations";
-    const beforeExtractors = beforeWorkflows || p === "workflows";
+    const activeIdx =
+      activeSerialSeries != null
+        ? PROCESSING_DIAGRAM_SERIES.indexOf(activeSerialSeries)
+        : p === "complete"
+          ? PROCESSING_DIAGRAM_SERIES.length
+          : p === "idle"
+            ? -1
+            : PROCESSING_DIAGRAM_SERIES.indexOf(p);
 
-    const fnWaiting =
-      (status === "idle" && !!windowRange && p === "idle") ||
-      (status === "success" && p === "idle" && !!windowRange);
-    const txWaiting =
-      (transformationsStatus === "idle" &&
-        !!windowRange &&
-        (p === "idle" || p === "functions" || p === "transformations")) ||
-      (transformationsStatus === "success" &&
-        !!windowRange &&
-        (p === "idle" || p === "functions"));
-    const wfWaiting =
-      (workflowsStatus === "idle" &&
-        !!windowRange &&
-        (p === "idle" || p === "functions" || p === "transformations" || p === "workflows")) ||
-      (workflowsStatus === "success" &&
-        !!windowRange &&
-        (p === "idle" || p === "functions" || p === "transformations"));
-    const exWaiting =
-      (extractorsStatus === "idle" &&
-        !!windowRange &&
-        (p === "idle" ||
-          p === "functions" ||
-          p === "transformations" ||
-          p === "workflows" ||
-          p === "extractors")) ||
-      (extractorsStatus === "success" &&
-        !!windowRange &&
-        (p === "idle" || p === "functions" || p === "transformations" || p === "workflows"));
+    const seriesWaiting = (series: ProcessingDiagramSeries) =>
+      PROCESSING_DIAGRAM_SERIES.indexOf(series) > activeIdx;
 
-    const bandFn = () => {
-      if (status === "loading")
-        return functionLoadProgress ? formatProcessingBandCaption(t, functionLoadProgress) : loading;
-      if (status === "error") return err;
-      if (fnWaiting) return wait;
-      if (displayRuns.length === 0) return empty;
-      return "";
-    };
-    const bandTx = () => {
-      if (transformationsStatus === "loading")
-        return transformationLoadProgress
-          ? formatProcessingBandCaption(t, transformationLoadProgress)
-          : loading;
-      if (transformationsStatus === "error") return err;
-      if (txWaiting) return wait;
-      if (displayTransformationJobs.length === 0) return empty;
-      return "";
-    };
-    const bandWf = () => {
-      if (workflowsStatus === "loading")
-        return workflowLoadProgress
-          ? formatProcessingBandCaption(t, workflowLoadProgress)
-          : loading;
-      if (workflowsStatus === "error") return err;
-      if (wfWaiting) return wait;
-      if (displayWorkflowExecutions.length === 0) return empty;
-      return "";
-    };
-    const bandEx = () => {
-      if (extractorsStatus === "loading")
-        return extractorLoadProgress
-          ? formatProcessingBandCaption(t, extractorLoadProgress)
-          : loading;
-      if (extractorsStatus === "error") return err;
-      if (exWaiting) return wait;
-      if (displayExtractorRuns.length === 0) return empty;
+    const fnWaiting = seriesWaiting("functions");
+    const txWaiting = seriesWaiting("transformations");
+    const wfWaiting = seriesWaiting("workflows");
+    const exWaiting = seriesWaiting("extractors");
+
+    const bandLabel = (
+      series: ProcessingDiagramSeries,
+      isWaiting: boolean,
+      seriesStatus: LoadState,
+      progress: ProcessingDataLoadProgress | null | undefined,
+      hasData: boolean
+    ) => {
+      if (isWaiting) return wait;
+      if (seriesStatus === "error") return err;
+      if (activeSerialSeries === series && progress) {
+        return formatProcessingBandCaption(t, progress);
+      }
+      if (!isWaiting && seriesStatus === "success" && !hasData) return empty;
       return "";
     };
 
     const fnHeader =
-      status !== "success" || (status === "success" && p === "idle" && !!windowRange);
+      showLoadProgressHeaders &&
+      (fnWaiting ||
+        status === "error" ||
+        (activeSerialSeries === "functions" &&
+          (status === "loading" || functionLoadProgress != null)));
     const txHeader =
-      transformationsStatus !== "success" ||
-      (transformationsStatus === "success" && beforeTransformations);
+      showLoadProgressHeaders &&
+      (txWaiting ||
+        transformationsStatus === "error" ||
+        (activeSerialSeries === "transformations" &&
+          (transformationsStatus === "loading" || transformationLoadProgress != null)));
     const wfHeader =
-      workflowsStatus !== "success" || (workflowsStatus === "success" && beforeWorkflows);
+      showLoadProgressHeaders &&
+      (wfWaiting ||
+        workflowsStatus === "error" ||
+        (activeSerialSeries === "workflows" &&
+          (workflowsStatus === "loading" || workflowLoadProgress != null)));
     const exHeader =
-      extractorsStatus !== "success" || (extractorsStatus === "success" && beforeExtractors);
+      showLoadProgressHeaders &&
+      (exWaiting ||
+        extractorsStatus === "error" ||
+        (activeSerialSeries === "extractors" &&
+          (extractorsStatus === "loading" || extractorLoadProgress != null)));
 
     return {
       band: {
-        functions: bandFn(),
-        transformations: bandTx(),
-        workflows: bandWf(),
-        extractors: bandEx(),
+        functions: bandLabel(
+          "functions",
+          fnWaiting,
+          status,
+          functionLoadProgress,
+          displayRuns.length > 0
+        ),
+        transformations: bandLabel(
+          "transformations",
+          txWaiting,
+          transformationsStatus,
+          transformationLoadProgress,
+          displayTransformationJobs.length > 0
+        ),
+        workflows: bandLabel(
+          "workflows",
+          wfWaiting,
+          workflowsStatus,
+          workflowLoadProgress,
+          displayWorkflowExecutions.length > 0
+        ),
+        extractors: bandLabel(
+          "extractors",
+          exWaiting,
+          extractorsStatus,
+          extractorLoadProgress,
+          displayExtractorRuns.length > 0
+        ),
       },
       waiting: { functions: fnWaiting, transformations: txWaiting, workflows: wfWaiting, extractors: exWaiting },
       headerRow: { functions: fnHeader, transformations: txHeader, workflows: wfHeader, extractors: exHeader },
@@ -963,6 +1152,8 @@ export function Processing() {
     };
   }, [
     t,
+    activeSerialSeries,
+    truncatedReloadQueue,
     concurrencyDiagramPhase,
     windowRange,
     status,
@@ -1100,6 +1291,20 @@ export function Processing() {
           ) : null}
         </div>
       ) : null}
+      {showPermissionsDeniedBanner ? (
+        <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+          <p className="font-medium">{t("processing.permissions.title")}</p>
+          <p className="mt-1 text-xs text-red-700">{t("processing.permissions.summary")}</p>
+          <ul className="mt-2 list-disc space-y-0.5 pl-4 text-xs text-red-700">
+            {permissionDeniedSegments.map((seg, i) => (
+              <li key={`${seg.label}-${i}`}>
+                {t("processing.permissions.detailLine", { label: seg.label })}
+              </li>
+            ))}
+          </ul>
+          <p className="mt-2 text-[11px] text-red-700">{t("processing.permissions.hint")}</p>
+        </div>
+      ) : null}
       {showPartialDataBanner ? (
         <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950">
           <p className="font-medium">{t("processing.partial.title")}</p>
@@ -1116,25 +1321,103 @@ export function Processing() {
           <ul className="mt-2 list-disc space-y-0.5 pl-4 text-xs text-amber-900">
             {partialStatsCombined.segments.map((seg, i) => (
               <li key={`${seg.label}-${i}`}>
-                {t("processing.partial.detailLine", {
-                  label: seg.label,
-                  failed: seg.stats.failed,
-                  total: seg.stats.total,
-                  percent:
-                    seg.stats.total > 0
-                      ? Math.round((100 * seg.stats.failed) / seg.stats.total)
-                      : 0,
-                })}
+                {seg.stats.permissionsDenied
+                  ? t("processing.permissions.detailLine", { label: seg.label })
+                  : t("processing.partial.detailLine", {
+                      label: seg.label,
+                      failed: seg.stats.failed,
+                      total: seg.stats.total,
+                      percent:
+                        seg.stats.total > 0
+                          ? Math.round((100 * seg.stats.failed) / seg.stats.total)
+                          : 0,
+                    })}
               </li>
             ))}
           </ul>
         </div>
       ) : null}
+      {showFunctionsCatalogBanner ? (
+        <div className="mb-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950">
+          <p className="font-medium">{t("processing.functions.catalog.title")}</p>
+          <p className="mt-1 text-xs text-amber-900">
+            {t("processing.functions.catalog.body", {
+              count: functionsCatalogCount,
+              pageSize: FUNCTION_LIST_PAGE_SIZE,
+            })}
+          </p>
+        </div>
+      ) : null}
+      {showExecutionSampleBanner ? (
+        <div className="mb-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950">
+          <p className="font-medium">{t("processing.executions.sampleTitle")}</p>
+          <p className="mt-1 text-xs text-amber-900">
+            {t("processing.executions.sampleBody", { cap: DEFAULT_PROCESSING_EXECUTION_CAP })}
+          </p>
+          <ul className="mt-2 list-disc space-y-0.5 pl-4 text-xs text-amber-900">
+            {functionExecutionsTruncated ? (
+              <li>{t("processing.executions.sampleLineFunctions")}</li>
+            ) : null}
+            {transformationExecutionsTruncated ? (
+              <li>{t("processing.executions.sampleLineTransformations")}</li>
+            ) : null}
+            {workflowExecutionsTruncated ? (
+              <li>{t("processing.executions.sampleLineWorkflows")}</li>
+            ) : null}
+            {extractorExecutionsTruncated ? (
+              <li>{t("processing.executions.sampleLineExtractors")}</li>
+            ) : null}
+          </ul>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              disabled={truncatedReloadQueue != null}
+              className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+              onClick={() => {
+                if (truncatedReloadQueue) return;
+                const queue = PROCESSING_DIAGRAM_SERIES.filter((series) => {
+                  if (series === "functions") return functionExecutionsTruncated;
+                  if (series === "transformations") return transformationExecutionsTruncated;
+                  if (series === "workflows") return workflowExecutionsTruncated;
+                  return extractorExecutionsTruncated;
+                });
+                if (queue.length === 0) return;
+                setUncappedSeries((prev) => new Set([...prev, ...queue]));
+                setTruncatedReloadQueue(queue);
+                setFetchGeneration((g) => g + 1);
+              }}
+            >
+              {t("processing.executions.loadAll")}
+            </button>
+          </div>
+        </div>
+      ) : null}
+      {truncatedReloadQueue != null ? (
+        <div className="mb-3 rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-950">
+          <p className="font-medium">{t("processing.executions.reloadingTitle")}</p>
+          {truncatedReloadProgress ? (
+            <p className="mt-1 text-xs text-sky-900">{truncatedReloadProgress}</p>
+          ) : null}
+          {truncatedReloadQueuedLabels ? (
+            <p className="mt-1 text-xs text-sky-800">
+              {t("processing.executions.reloadingQueued", { list: truncatedReloadQueuedLabels })}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
       <Card>
         <CardHeader>
           <CardTitle>{t("processing.card.concurrency.title")}</CardTitle>
-          <CardDescription>
-            {t("processing.card.concurrency.description", { bucketSeconds })}
+          <CardDescription className="space-y-1">
+            <span className="block">
+              {t("processing.card.concurrency.description", { bucketSeconds })}
+            </span>
+            <span className="block text-xs text-slate-500">
+              {t("processing.card.concurrency.limits", {
+                executionCap: DEFAULT_PROCESSING_EXECUTION_CAP,
+                listPageSize: FUNCTION_LIST_PAGE_SIZE,
+              })}
+            </span>
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -1150,16 +1433,17 @@ export function Processing() {
                     <span className="text-red-600">{t("processing.status.error")}</span>
                   ) : diagramConcurrencyUi.waiting.functions ? (
                     <span className="min-w-0 flex-1 text-slate-500">{diagramConcurrencyUi.waitLabel}</span>
-                  ) : (
+                  ) : activeSerialSeries === "functions" &&
+                    (status === "loading" || functionLoadProgress != null) ? (
                     <>
                       <span className="h-2 w-40 shrink-0 rounded-sm bg-slate-200/80 animate-pulse" />
                       <span className="min-w-0 flex-1 truncate text-slate-500">
                         {functionLoadProgress
                           ? formatProcessingDataProgress(t, functionLoadProgress)
-                          : t("processing.bubbles.loading")}
+                          : diagramConcurrencyUi.waitLabel}
                       </span>
                     </>
-                  )}
+                  ) : null}
                 </div>
               ) : null}
               {diagramConcurrencyUi.headerRow.transformations ? (
@@ -1169,16 +1453,18 @@ export function Processing() {
                     <span className="text-red-600">{t("processing.status.error")}</span>
                   ) : diagramConcurrencyUi.waiting.transformations ? (
                     <span className="min-w-0 flex-1 text-slate-500">{diagramConcurrencyUi.waitLabel}</span>
-                  ) : (
+                  ) : activeSerialSeries === "transformations" &&
+                    (transformationsStatus === "loading" ||
+                      transformationLoadProgress != null) ? (
                     <>
                       <span className="h-2 w-40 shrink-0 rounded-sm bg-slate-200/80 animate-pulse" />
                       <span className="min-w-0 flex-1 truncate text-slate-500">
                         {transformationLoadProgress
                           ? formatProcessingDataProgress(t, transformationLoadProgress)
-                          : t("processing.bubbles.loading")}
+                          : diagramConcurrencyUi.waitLabel}
                       </span>
                     </>
-                  )}
+                  ) : null}
                 </div>
               ) : null}
               {diagramConcurrencyUi.headerRow.workflows ? (
@@ -1188,16 +1474,17 @@ export function Processing() {
                     <span className="text-red-600">{t("processing.status.error")}</span>
                   ) : diagramConcurrencyUi.waiting.workflows ? (
                     <span className="min-w-0 flex-1 text-slate-500">{diagramConcurrencyUi.waitLabel}</span>
-                  ) : (
+                  ) : activeSerialSeries === "workflows" &&
+                    (workflowsStatus === "loading" || workflowLoadProgress != null) ? (
                     <>
                       <span className="h-2 w-40 shrink-0 rounded-sm bg-slate-200/80 animate-pulse" />
                       <span className="min-w-0 flex-1 truncate text-slate-500">
                         {workflowLoadProgress
                           ? formatProcessingDataProgress(t, workflowLoadProgress)
-                          : t("processing.bubbles.loading")}
+                          : diagramConcurrencyUi.waitLabel}
                       </span>
                     </>
-                  )}
+                  ) : null}
                 </div>
               ) : null}
               {diagramConcurrencyUi.headerRow.extractors ? (
@@ -1207,16 +1494,17 @@ export function Processing() {
                     <span className="text-red-600">{t("processing.status.error")}</span>
                   ) : diagramConcurrencyUi.waiting.extractors ? (
                     <span className="min-w-0 flex-1 text-slate-500">{diagramConcurrencyUi.waitLabel}</span>
-                  ) : (
+                  ) : activeSerialSeries === "extractors" &&
+                    (extractorsStatus === "loading" || extractorLoadProgress != null) ? (
                     <>
                       <span className="h-2 w-40 shrink-0 rounded-sm bg-slate-200/80 animate-pulse" />
                       <span className="min-w-0 flex-1 truncate text-slate-500">
                         {extractorLoadProgress
                           ? formatProcessingDataProgress(t, extractorLoadProgress)
-                          : t("processing.bubbles.loading")}
+                          : diagramConcurrencyUi.waitLabel}
                       </span>
                     </>
-                  )}
+                  ) : null}
                 </div>
               ) : null}
             </div>

@@ -1,13 +1,20 @@
-import { useEffect, useLayoutEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { normalizeStatus } from "@/shared/time-utils";
-import type {
-  LoadState,
-  ProcessingDataLoadProgress,
-  ProcessingRequestStats,
-  WorkflowExecutionSummary,
+import {
+  DEFAULT_PROCESSING_EXECUTION_CAP,
+  type LoadState,
+  type ProcessingDataLoadProgress,
+  type ProcessingRequestStats,
+  type WorkflowExecutionSummary,
 } from "./types";
 import { useI18n } from "@/shared/i18n";
 import { withTransientRetries } from "@/shared/transient-http-retry";
+import {
+  isStaleProcessingFetch,
+  noteForbiddenFailure,
+  processingRequestStats,
+  useProcessingWindowSessionReset,
+} from "./processing-request-stats";
 
 type WorkflowExecutionsListApiResponse = {
   data?: {
@@ -25,6 +32,10 @@ type UseWorkflowDataArgs = {
   sdk: { project: string; post: Function; get: Function };
   windowRange: { start: number; end: number } | null;
   fetchEnabled?: boolean;
+  windowSessionKey?: string;
+  fetchGeneration?: number;
+  refetchExecutionsOnly?: boolean;
+  executionLimit?: number | null;
 };
 
 export function useWorkflowData({
@@ -32,9 +43,14 @@ export function useWorkflowData({
   sdk,
   windowRange,
   fetchEnabled = true,
+  windowSessionKey = "",
+  fetchGeneration = 0,
+  refetchExecutionsOnly = false,
+  executionLimit = DEFAULT_PROCESSING_EXECUTION_CAP,
 }: UseWorkflowDataArgs) {
   const { t } = useI18n();
   const [workflowsStatus, setWorkflowsStatus] = useState<LoadState>("idle");
+  const [executionsTruncated, setExecutionsTruncated] = useState(false);
   const [workflowsError, setWorkflowsError] = useState<string | null>(null);
   const [workflowExecutionsAll, setWorkflowExecutionsAll] = useState<WorkflowExecutionSummary[]>([]);
   const [workflowDetails, setWorkflowDetails] = useState<Record<string, unknown> | null>(null);
@@ -43,22 +59,41 @@ export function useWorkflowData({
   const [loadProgress, setLoadProgress] = useState<ProcessingDataLoadProgress | null>(null);
   const [requestStats, setRequestStats] = useState<ProcessingRequestStats | null>(null);
 
-  useLayoutEffect(() => {
-    if (!fetchEnabled || isSdkLoading) return;
-    setWorkflowsStatus("loading");
-  }, [fetchEnabled, isSdkLoading]);
+  const resetForNewWindow = useCallback(() => {
+    setWorkflowsStatus("idle");
+    setLoadProgress(null);
+    setExecutionsTruncated(false);
+    setWorkflowsError(null);
+    setRequestStats(null);
+    setWorkflowExecutionsAll([]);
+  }, []);
+
+  useProcessingWindowSessionReset(windowSessionKey, resetForNewWindow);
 
   useEffect(() => {
-    if (!fetchEnabled) return;
+    if (!fetchEnabled) {
+      setLoadProgress(null);
+      return;
+    }
     if (isSdkLoading) return;
     if (!windowRange) return;
+
+    const generation = fetchGeneration;
+    if (!refetchExecutionsOnly) {
+      setWorkflowsStatus("loading");
+    }
     let cancelled = false;
     const loadWorkflows = async () => {
-      setWorkflowsStatus("loading");
+      setExecutionsTruncated(false);
       setWorkflowsError(null);
       setRequestStats(null);
-      setWorkflowExecutionsAll([]);
-      setLoadProgress({ kind: "workflows_executions", loaded: 0 });
+      if (!refetchExecutionsOnly) {
+        setWorkflowExecutionsAll([]);
+      }
+      setLoadProgress({
+        kind: "workflows_executions",
+        loaded: refetchExecutionsOnly ? workflowExecutionsAll.length : 0,
+      });
       const startMs = windowRange.start;
       const endMs = windowRange.end;
       try {
@@ -66,6 +101,9 @@ export function useWorkflowData({
         let cursor: string | undefined;
         let failedRequests = 0;
         let totalRequests = 0;
+        const permissionsDenied = { current: false };
+        const cap = executionLimit;
+        let hitExecutionCap = false;
         do {
           totalRequests++;
           try {
@@ -81,27 +119,39 @@ export function useWorkflowData({
                 },
               })
             )) as WorkflowExecutionsListApiResponse;
-            executions.push(...(response.data?.items ?? []));
-            cursor = response.data?.nextCursor ?? undefined;
-          } catch {
+            for (const item of response.data?.items ?? []) {
+              if (cap != null && executions.length >= cap) {
+                hitExecutionCap = true;
+                break;
+              }
+              executions.push(item);
+            }
+            if (hitExecutionCap) {
+              cursor = undefined;
+            } else {
+              cursor = response.data?.nextCursor ?? undefined;
+            }
+          } catch (e) {
             failedRequests++;
+            noteForbiddenFailure(permissionsDenied, e);
             break;
           }
-          if (!cancelled) {
+          if (!cancelled && !isStaleProcessingFetch(fetchGeneration, generation)) {
             setLoadProgress({ kind: "workflows_executions", loaded: executions.length });
           }
         } while (cursor);
 
-        if (!cancelled) {
+        if (!cancelled && !isStaleProcessingFetch(fetchGeneration, generation)) {
           setWorkflowExecutionsAll(executions);
+          setExecutionsTruncated(hitExecutionCap);
           setLoadProgress(null);
-          if (failedRequests > 0) {
-            setRequestStats({ failed: failedRequests, total: totalRequests });
-          }
+          setRequestStats(
+            processingRequestStats(failedRequests, totalRequests, permissionsDenied.current)
+          );
           setWorkflowsStatus("success");
         }
       } catch (error) {
-        if (!cancelled) {
+        if (!cancelled && !isStaleProcessingFetch(fetchGeneration, generation)) {
           setLoadProgress(null);
           setRequestStats(null);
           setWorkflowsError(error instanceof Error ? error.message : t("processing.error.workflows"));
@@ -114,17 +164,26 @@ export function useWorkflowData({
     return () => {
       cancelled = true;
     };
-  }, [fetchEnabled, isSdkLoading, sdk, windowRange?.start, windowRange?.end, t]);
+  }, [
+    executionLimit,
+    fetchEnabled,
+    fetchGeneration,
+    isSdkLoading,
+    refetchExecutionsOnly,
+    sdk,
+    windowRange?.start,
+    windowRange?.end,
+    t,
+  ]);
 
   const filteredWorkflowExecutions = useMemo(() => {
     if (!windowRange) return [];
     const startWindow = windowRange.start;
     const endWindow = windowRange.end;
-    return workflowExecutionsAll.filter((execution) => {
-      const created = execution.createdTime;
-      if (created < startWindow || created > endWindow) return false;
-      const start = execution.startTime ?? execution.createdTime;
-      const end = execution.endTime ?? execution.startTime ?? execution.createdTime;
+    return workflowExecutionsAll.filter((ex) => {
+      const start = ex.startTime ?? ex.createdTime;
+      const end = ex.endTime ?? ex.startTime ?? ex.createdTime;
+      if (!start || !end) return false;
       return start <= endWindow && end >= startWindow;
     });
   }, [workflowExecutionsAll, windowRange]);
@@ -179,6 +238,7 @@ export function useWorkflowData({
 
   return {
     workflowsStatus,
+    executionsTruncated,
     loadProgress,
     requestStats,
     workflowsError,

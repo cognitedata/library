@@ -122,7 +122,14 @@ export async function cachedTransformationJobMetrics(
   return response;
 }
 
-const BATCH_SIZE = 100;
+export const TRANSFORMATIONS_BY_IDS_BATCH_SIZE = 100;
+
+export type TransformationsByIdsProgress = {
+  fetched: number;
+  total: number;
+  batchIndex: number;
+  batchTotal: number;
+};
 
 function buildByIdsPayload(ids: string[]): Array<{ id: number } | { id: string }> {
   const items: Array<{ id: number } | { id: string }> = [];
@@ -138,8 +145,10 @@ function buildByIdsPayload(ids: string[]): Array<{ id: number } | { id: string }
 export async function fetchTransformationsByIds(
   sdk: TxPostSdk,
   project: string,
-  ids: string[]
+  ids: string[],
+  opts?: { onProgress?: (progress: TransformationsByIdsProgress) => void }
 ): Promise<Map<string, TransformationByIdsRow>> {
+  const onProgress = opts?.onProgress;
   const out = new Map<string, TransformationByIdsRow>();
   const unique = [...new Set(ids.filter(Boolean))];
   const missing: string[] = [];
@@ -151,8 +160,15 @@ export async function fetchTransformationsByIds(
     else missing.push(id);
   }
 
-  for (let i = 0; i < missing.length; i += BATCH_SIZE) {
-    const chunk = missing.slice(i, i + BATCH_SIZE);
+  const batchTotal = Math.max(1, Math.ceil(missing.length / TRANSFORMATIONS_BY_IDS_BATCH_SIZE));
+  if (missing.length === 0) {
+    onProgress?.({ fetched: unique.length, total: 0, batchIndex: 0, batchTotal: 0 });
+    return out;
+  }
+
+  for (let i = 0; i < missing.length; i += TRANSFORMATIONS_BY_IDS_BATCH_SIZE) {
+    const batchIndex = Math.floor(i / TRANSFORMATIONS_BY_IDS_BATCH_SIZE) + 1;
+    const chunk = missing.slice(i, i + TRANSFORMATIONS_BY_IDS_BATCH_SIZE);
     const items = buildByIdsPayload(chunk);
     if (items.length === 0) continue;
     const cacheRowsFromResponse = useCache && items.length === 1;
@@ -172,6 +188,12 @@ export async function fetchTransformationsByIds(
     } catch {
       /* skip batch */
     }
+    onProgress?.({
+      fetched: out.size,
+      total: unique.length,
+      batchIndex,
+      batchTotal,
+    });
   }
   return out;
 }

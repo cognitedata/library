@@ -1,9 +1,26 @@
 export type LoadState = "idle" | "loading" | "success" | "error";
 
+/** Default max execution rows per processing series before the user opts in to Load all. */
+export const DEFAULT_PROCESSING_EXECUTION_CAP = 5000;
+
+export const PROCESSING_DIAGRAM_SERIES = [
+  "functions",
+  "transformations",
+  "workflows",
+  "extractors",
+] as const;
+
+export type ProcessingDiagramSeries = (typeof PROCESSING_DIAGRAM_SERIES)[number];
+
+/** Page size for POST /functions/list while walking the full catalog. */
+export const FUNCTION_LIST_PAGE_SIZE = 1000;
+
 /** Counts of retried API sub-requests; used when some calls fail but partial data is shown. */
 export type ProcessingRequestStats = {
   failed: number;
   total: number;
+  /** Set when at least one failure was HTTP 403 (missing capabilities). */
+  permissionsDenied?: boolean;
 };
 
 /** Granular progress while a processing data hook is in the loading state. */
@@ -22,6 +39,10 @@ export type ProcessingDataLoadProgress = {
   current?: number;
   /** Total entities to walk (known after the list step). */
   total?: number;
+  /** API pages completed (catalog list endpoints). */
+  pages?: number;
+  /** Request page size for the current list operation. */
+  pageSize?: number;
 };
 
 export type FunctionSummary = {

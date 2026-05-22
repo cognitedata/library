@@ -57,6 +57,70 @@ const viewEnumerations = new Map<string, Map<string, ListEnumeration>>();
 const dataModelListInflight = new Map<string, Promise<void>>();
 const viewListInflight = new Map<string, Promise<void>>();
 
+export type DmsListAllProgress = {
+  itemsLoaded: number;
+  uniqueCount: number;
+};
+
+const dataModelListInflightProgress = new Map<string, DmsListAllProgress>();
+const dataModelListProgressListeners = new Map<string, Set<(p: DmsListAllProgress) => void>>();
+
+function countUniqueDataModelsFromItems(items: Array<{ space?: unknown; externalId?: unknown }>): number {
+  const s = new Set<string>();
+  for (const item of items) {
+    s.add(`${String(item.space ?? "")}:${String(item.externalId ?? "")}`);
+  }
+  return s.size;
+}
+
+function countUniqueDataModelsFromEnumeration(stem: string, state: ListEnumeration): number {
+  const s = new Set<string>();
+  for (const ik of state.orderedKeys) {
+    const row = dataModelsListItemCache.get(dmListItemLruKey(stem, ik));
+    if (row) s.add(`${String(row.space ?? "")}:${String(row.externalId ?? "")}`);
+  }
+  return s.size;
+}
+
+function emitDataModelListProgress(
+  onProgress: ((p: DmsListAllProgress) => void) | undefined,
+  itemsLoaded: number,
+  uniqueCount: number
+) {
+  onProgress?.({ itemsLoaded, uniqueCount });
+}
+
+function updateDataModelInflightProgress(inflightKey: string, progress: DmsListAllProgress) {
+  dataModelListInflightProgress.set(inflightKey, progress);
+  const listeners = dataModelListProgressListeners.get(inflightKey);
+  if (listeners) {
+    for (const cb of listeners) cb(progress);
+  }
+}
+
+function subscribeDataModelInflightProgress(
+  inflightKey: string,
+  onProgress: (p: DmsListAllProgress) => void
+): () => void {
+  let listeners = dataModelListProgressListeners.get(inflightKey);
+  if (!listeners) {
+    listeners = new Set();
+    dataModelListProgressListeners.set(inflightKey, listeners);
+  }
+  listeners.add(onProgress);
+  const latest = dataModelListInflightProgress.get(inflightKey);
+  if (latest) onProgress(latest);
+  return () => {
+    listeners!.delete(onProgress);
+    if (listeners!.size === 0) dataModelListProgressListeners.delete(inflightKey);
+  };
+}
+
+function clearDataModelInflightProgress(inflightKey: string) {
+  dataModelListInflightProgress.delete(inflightKey);
+  dataModelListProgressListeners.delete(inflightKey);
+}
+
 function getEnumeration(
   store: Map<string, Map<string, ListEnumeration>>,
   stem: string,
@@ -209,10 +273,12 @@ function invalidateViewEnumeration(stem: string, fp: string) {
 export async function listAllCachedDataModels(
   sdk: DmsSdk,
   baseParams: Record<string, unknown>,
-  opts?: { pageLimit?: number }
+  opts?: { pageLimit?: number; onProgress?: (progress: DmsListAllProgress) => void }
 ): Promise<Record<string, unknown>[]> {
+  const onProgress = opts?.onProgress;
+  const limit = opts?.pageLimit ?? 100;
+
   if (!isAppCachingEnabled()) {
-    const limit = opts?.pageLimit ?? 100;
     const items: Record<string, unknown>[] = [];
     let cursor: string | undefined;
     do {
@@ -222,6 +288,7 @@ export async function listAllCachedDataModels(
         cursor,
       } as never)) as unknown as { items?: Record<string, unknown>[]; nextCursor?: string };
       items.push(...(response.items ?? []));
+      emitDataModelListProgress(onProgress, items.length, countUniqueDataModelsFromItems(items));
       cursor = response.nextCursor ?? undefined;
     } while (cursor);
     return items;
@@ -235,18 +302,26 @@ export async function listAllCachedDataModels(
     const state = getEnumeration(dataModelEnumerations, stem, fp);
     if (state.complete) {
       const assembled = assembleDataModelsFromCache(stem, state);
-      if (assembled) return assembled;
+      if (assembled) {
+        emitDataModelListProgress(
+          onProgress,
+          assembled.length,
+          countUniqueDataModelsFromItems(assembled)
+        );
+        return assembled;
+      }
       invalidateDmEnumeration(stem, fp);
     }
 
     let wait = dataModelListInflight.get(inflightKey);
+    const unsubProgress = onProgress ? subscribeDataModelInflightProgress(inflightKey, onProgress) : undefined;
     if (!wait) {
-      const limit = opts?.pageLimit ?? 100;
       wait = (async () => {
         const s = getEnumeration(dataModelEnumerations, stem, fp);
         s.orderedKeys.length = 0;
         s.keySet.clear();
         s.complete = false;
+        updateDataModelInflightProgress(inflightKey, { itemsLoaded: 0, uniqueCount: 0 });
         let cursor: string | undefined;
         do {
           const response = (await sdk.dataModels.list({
@@ -255,22 +330,38 @@ export async function listAllCachedDataModels(
             cursor,
           } as never)) as { items?: unknown[]; nextCursor?: string | null };
           ingestDataModelsListResponse(stem, fp, response);
+          const afterPage = getEnumeration(dataModelEnumerations, stem, fp);
+          updateDataModelInflightProgress(inflightKey, {
+            itemsLoaded: afterPage.orderedKeys.length,
+            uniqueCount: countUniqueDataModelsFromEnumeration(stem, afterPage),
+          });
           cursor = response.nextCursor ?? undefined;
         } while (cursor);
       })().finally(() => {
         dataModelListInflight.delete(inflightKey);
+        clearDataModelInflightProgress(inflightKey);
       });
       dataModelListInflight.set(inflightKey, wait);
     }
-    await wait;
+    try {
+      await wait;
+    } finally {
+      unsubProgress?.();
+    }
 
     const finalState = getEnumeration(dataModelEnumerations, stem, fp);
     const assembled = assembleDataModelsFromCache(stem, finalState);
-    if (assembled) return assembled;
+    if (assembled) {
+      emitDataModelListProgress(
+        onProgress,
+        assembled.length,
+        countUniqueDataModelsFromItems(assembled)
+      );
+      return assembled;
+    }
     invalidateDmEnumeration(stem, fp);
   }
 
-  const limit = opts?.pageLimit ?? 100;
   const items: Record<string, unknown>[] = [];
   let cursor: string | undefined;
   do {
@@ -280,6 +371,7 @@ export async function listAllCachedDataModels(
       cursor,
     } as never)) as unknown as { items?: Record<string, unknown>[]; nextCursor?: string };
     items.push(...(response.items ?? []));
+    emitDataModelListProgress(onProgress, items.length, countUniqueDataModelsFromItems(items));
     cursor = response.nextCursor ?? undefined;
   } while (cursor);
   return items;
