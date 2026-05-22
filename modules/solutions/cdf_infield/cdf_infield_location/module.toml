@@ -2,5 +2,5 @@
 title = "Infield Location"
 description = "Configure an Infield location backed by CDM/IDM extension views."
 is_selected_by_default = true
-id = "dp:infield:cdf_infield_on_cdm_location_extension"
+id = "dp:infield:cdf_infield_location"
 package_id = "dp:infield"

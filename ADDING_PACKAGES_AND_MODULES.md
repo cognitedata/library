@@ -23,8 +23,7 @@ modules/
   common/                 # Shared CDF platform modules
   contextualization/      # Contextualization toolkit modules
   data_models/            # Industry and extension data models
-  solutions/              # Product verticals (cdm_maintain, cdf_ai_extractor, …)
-  infield/                # Infield on CDM
+  solutions/              # Product verticals (cdm_maintain, cdf_infield, cdf_ai_extractor, …)
   sourcesystem/           # Source system connectors
   dashboards/             # Streamlit dashboards and reporting
   atlas_ai/               # Atlas AI agents

@@ -1,5 +1,5 @@
 # This is making an equivalent location in Fusion to display the same data as InField.
-# This is optional and not needed for InField to work, just for convinient data exploration based on InField locations in Fusion.
+# Optional: not required for InField; enables convenient data exploration by InField location in Fusion.
 externalId: loc_fltr_{{location}}
 name: Infield - {{location_name}}
 description: Infield {{location_description}}
