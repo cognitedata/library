@@ -4,7 +4,7 @@
 location: "site1"
 
 # DM space where the extractor writes ExtractorTimeSeries instances (CDM destination)
-instanceSpace: "sp_instances"
+instanceSpace: "sp_isa_instance_space"
 
 # dataSetExternalId for the extraction pipeline
 dataset: "ds_pi"

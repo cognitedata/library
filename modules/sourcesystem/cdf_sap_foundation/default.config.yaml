@@ -4,7 +4,7 @@
 location: "site1"
 
 # DM space where ISA Manufacturing Extension instances are written
-instanceSpace: "sp_instances"
+instanceSpace: "sp_isa_instance_space"
 
 # dataSetExternalId for the extraction pipeline and RAW database
 dataset: "ds_sap"
