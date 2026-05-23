@@ -9,9 +9,10 @@ type Props = {
   tab: TransformationDocumentTab;
   onTabUpdate: (tab: TransformationDocumentTab) => void;
   onSelectRow: (row: Record<string, unknown> | null) => void;
+  onQueryFile?: (row: Record<string, unknown>) => void;
 };
 
-export function TransformationPane({ tab, onTabUpdate, onSelectRow }: Props) {
+export function TransformationPane({ tab, onTabUpdate, onSelectRow, onQueryFile }: Props) {
   const { t } = useAppSettings();
   const [sqlTab, setSqlTab] = useState<SqlDocumentTab>(() =>
     createSqlTab({ id: tab.id, label: tab.label, query: "" })
@@ -79,7 +80,12 @@ export function TransformationPane({ tab, onTabUpdate, onSelectRow }: Props) {
       ) : tab.detail ? (
         <div className="exp-transformation-pane__body">
           <div className="exp-transformation-pane__sql">
-            <SqlQueryPane tab={sqlTab} onTabUpdate={setSqlTab} onSelectRow={onSelectRow} />
+            <SqlQueryPane
+              tab={sqlTab}
+              onTabUpdate={setSqlTab}
+              onSelectRow={onSelectRow}
+              onQueryFile={onQueryFile}
+            />
           </div>
           <details className="exp-transformation-pane__definition">
             <summary>{t("txViewer.definition")}</summary>

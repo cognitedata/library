@@ -1,0 +1,111 @@
+# Example: Asset Tag Pattern with Validation Rules
+
+# This shows how to add validation rules to a pattern definition
+asset_tag_patterns:
+  pump_patterns:
+    - name: "standard_pump_validated"
+      pattern: '\\b(P)[-_]?(\\d{1,6})([A-Z]?)\\b'
+      description: "Standard pump tags with validation rules"
+      type: "EQUIPMENT"
+      standard: "ISA 5.1"
+      standard_section: "Section 4.2.1"
+      standard_subsection: "Equipment Identification"
+      verbose_description: "Standard process pump identification with validation"
+      equipment_type: "PUMP"
+      equipment_subtype: "PUMP"
+      examples: ["P-101", "P101A", "P-2001"]
+      priority: 50
+      industry_standard: "ISA 5.1"
+      validation_rules:
+        # Length constraint: tag must be between 3 and 15 characters
+        - type: "length"
+          min: 3
+          max: 15
+          message: "Pump tag must be between 3 and 15 characters"
+
+        # Must start with 'P'
+        - type: "starts_with"
+          value: "P"
+          case_sensitive: true
+          message: "Pump tags must start with uppercase 'P'"
+
+        # Only allow uppercase letters, numbers, hyphens, and underscores
+        - type: "allowed_characters"
+          pattern: "^[A-Z0-9\\-_]+$"
+          message: "Tag can only contain uppercase letters, numbers, hyphens, and underscores"
+
+        # Forbid spaces and periods
+        - type: "forbidden_characters"
+          characters: [" ", "."]
+          message: "Tag cannot contain spaces or periods"
+
+        # Numeric sequence must be between 1 and 9999
+        - type: "numeric_range"
+          extract_pattern: "\\d+"
+          min: 1
+          max: 9999
+          message: "Sequence number must be between 1 and 9999"
+
+        # Optional suffix must be A, B, C, or empty
+        - type: "ends_with"
+          value: ["", "A", "B", "C"]
+          case_sensitive: true
+          message: "Tag suffix must be empty or A, B, or C"
+
+        # Validate regex capture groups
+        # Group 0: full match, Group 1: prefix (P), Group 2: number, Group 3: suffix
+        - type: "group_validation"
+          groups:
+            - index: 1
+              type: "prefix"
+              allowed_values: ["P"]
+              message: "Prefix must be 'P'"
+            - index: 2
+              type: "numeric"
+              min: 1
+              max: 9999
+              message: "Sequence number must be 1-9999"
+
+  instrument_patterns:
+    - name: "flow_instrument_validated"
+      pattern: '\\b(F)([A-Z]{1,3})[-_]?(\\d{1,6})([A-Z]?)\\b'
+      description: "Flow instruments with validation"
+      type: "INSTRUMENT"
+      standard: "ISA 5.1"
+      standard_section: "Section 3.2"
+      standard_subsection: "Instrument Identification Letters - Flow (F)"
+      verbose_description: "Flow instrument with validation rules"
+      equipment_type: "INSTRUMENT"
+      equipment_subtype: "FLOW_INSTRUMENT"
+      instrument_type: "FLOW"
+      examples: ["FIC-101", "FIT-201", "FCV-301A"]
+      priority: 40
+      industry_standard: "ISA 5.1"
+      validation_rules:
+        # Must start with 'F' for flow
+        - type: "starts_with"
+          value: "F"
+          case_sensitive: true
+          message: "Flow instruments must start with 'F'"
+
+        # Must contain one of the instrument function codes
+        - type: "contains_any"
+          values: ["FIC", "FIT", "FCV", "FE", "FI"]
+          message: "Must contain valid flow instrument function code (FIC, FIT, FCV, FE, FI)"
+
+        # Cannot contain test or temporary tags
+        - type: "not_contains_any"
+          values: ["TEST", "TEMP", "XXX"]
+          message: "Production tags cannot contain TEST, TEMP, or XXX"
+
+        # Must be uppercase
+        - type: "case"
+          requirement: "uppercase"
+          message: "Tag must be in uppercase"
+
+        # Loop number must be 1-9999
+        - type: "numeric_range"
+          extract_pattern: "\\d+"
+          min: 1
+          max: 9999
+          message: "Loop number must be between 1 and 9999"

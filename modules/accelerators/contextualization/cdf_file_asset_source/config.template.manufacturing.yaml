@@ -1,0 +1,232 @@
+# =============================================================================
+# MANUFACTURING INDUSTRY CONFIGURATION TEMPLATE
+# =============================================================================
+# Template for manufacturing plants aligned with industry standards:
+# - CFIHOS (Capital Facilities Information Handover Specification): Asset hierarchy
+# - ISA-95 (Enterprise-Control System Integration): Operational integration context
+#
+# Hierarchy Structure: Site → Plant → Area → System
+# This structure aligns with CFIHOS for asset information handover and ISA-95
+# operational levels, where:
+# - Site: The overall facility or campus (CFIHOS asset hierarchy)
+# - Plant: A specific production facility within the site (CFIHOS asset hierarchy)
+# - Area: A section within the plant dedicated to a particular function or process
+#   (maps to ISA-95 Level 3: Manufacturing Operations)
+# - System: A collection of equipment and components that work together
+#   (maps to ISA-95 Level 2: Control Systems)
+#
+# Standards Reference:
+# - CFIHOS: Used for asset hierarchy structure and information handover
+# - ISA-95: Used for operational integration context (MES, ERP integration)
+# =============================================================================
+
+externalId: ctx_create_asset_hierarchy_default
+config:
+  # ============================================================================
+  # TECHNICAL SETTINGS (Usually don't need to change)
+  # ============================================================================
+  parameters:
+    debug: true
+    run_all: true
+    overwrite: true
+    raw_db: db_extract_assets_by_pattern
+    raw_table_results: extract_assets_by_pattern_results
+    raw_table_assets: extract_assets_by_pattern_assets
+    output_file: modules/create_asset_hierarchy_from_files/results/asset_hierarchy.yaml
+    pattern_config_path: patterns/asset_tag_classifier.ISA51.config.yaml
+    space: sp_enterprise_schema
+
+  # ============================================================================
+  # BUSINESS CONFIGURATION (What you need to customize)
+  # ============================================================================
+  data:
+    # --------------------------------------------------------------------------
+    # MANUFACTURING HIERARCHY STRUCTURE
+    # --------------------------------------------------------------------------
+    # CFIHOS Alignment: Asset hierarchy structure for information handover
+    # ISA-95 Alignment: Maps to operational levels (Area → Level 3, System → Level 2)
+    # --------------------------------------------------------------------------
+    hierarchy_levels:
+      - site      # CFIHOS: Top level asset | ISA-95: Level 4 (Business Planning)
+                  # Overall facility or campus (e.g., "SITE_MAIN", "Manufacturing Campus")
+      - plant     # CFIHOS: Second level asset | ISA-95: Level 4 (Business Planning)
+                  # Specific production facility (e.g., "PLANT_A", "Production Plant A")
+      - area      # CFIHOS: Third level asset | ISA-95: Level 3 (Manufacturing Operations)
+                  # Functional area within plant (e.g., "AREA_ASSEMBLY", "Assembly Area")
+      - system    # CFIHOS: Bottom level asset | ISA-95: Level 2 (Control Systems)
+                  # Equipment system (e.g., "SYS_CONVEYOR", "Conveyor System")
+
+    # --------------------------------------------------------------------------
+    # SCOPE AND FILES
+    # --------------------------------------------------------------------------
+    scope:
+      # Example: Manufacturing Site
+      - name: "SITE_MAIN"
+        description: "Main Manufacturing Campus"
+        locations:
+          # Example: Production Plant
+          - name: "PLANT_A"
+            description: "Production Plant A"
+            locations:
+              # Example: Assembly Area
+              - name: "AREA_ASSEMBLY"
+                description: "Assembly Area"
+                locations:
+                  - name: "SYS_CONVEYOR"
+                    description: "Conveyor System"
+                    files:
+                      - "DIAGRAM-001"
+                      - "DIAGRAM-002"
+                  - name: "SYS_ROBOTIC"
+                    description: "Robotic Assembly System"
+                    files:
+                      - "DIAGRAM-003"
+              # Example: Quality Control Area
+              - name: "AREA_QC"
+                description: "Quality Control Area"
+                locations:
+                  - name: "SYS_TESTING"
+                    description: "Testing System"
+                    files:
+                      - "DIAGRAM-004"
+          # Example: Packaging Plant
+          - name: "PLANT_B"
+            description: "Packaging Plant B"
+            locations:
+              - name: "AREA_PACKAGING"
+                description: "Packaging Area"
+                locations:
+                  - name: "SYS_PACKAGING"
+                    description: "Packaging System"
+                    files:
+                      - "DIAGRAM-005"
+
+    # --------------------------------------------------------------------------
+    # ASSET TAG PATTERNS (For Extract Assets Pipeline)
+    # --------------------------------------------------------------------------
+    # Note: Patterns are configured in ctx_extract_assets_by_pattern_default.config.yaml
+    # Below are pattern examples aligned with CFIHOS and ISA-95 standards:
+    #
+    # CFIHOS (Capital Facilities Information Handover Specification):
+    # - Focus: Asset hierarchy structure and information handover from construction to operations
+    # - Emphasizes: Standardized naming, consistent terminology, clear classification
+    # - Used for: Asset data structure, facility handover, maintenance documentation
+    #
+    # ISA-95 (Enterprise-Control System Integration):
+    # - Focus: Integration between enterprise systems (Level 4) and control systems (Level 3)
+    # - Emphasizes: Operational integration, production scheduling, material tracking
+    # - Used for: MES/ERP integration, manufacturing operations management
+    #
+    # Pattern samples below use CFIHOS for asset classification and structure,
+    # while the operational context aligns with ISA-95 manufacturing operations.
+    #
+    # patterns:
+    #   # Rotating Equipment - Pumps
+    #   # CFIHOS: Asset classification | ISA-95: Level 2 (Control) / Level 3 (Operations)
+    #   - category: equipment
+    #     resourceType: major_equipment
+    #     resourceSubType: Rotating_Equipment
+    #     standard: CFIHOS
+    #     sample:
+    #       - "[P]-00"      # Pumps (e.g., P-01, P-02, P-101)
+    #       - "[P]-000"     # Pumps with 3-digit numbers (e.g., P-101, P-102)
+    #       - "[P]-0000"    # Pumps with 4-digit numbers (e.g., P-1001, P-1002)
+    #       - "[P]-00-X"    # Pumps with suffix (e.g., P-01-A, P-02-B)
+    #
+    #   # Rotating Equipment - Compressors
+    #   # CFIHOS: Asset classification | ISA-95: Level 2 (Control) / Level 3 (Operations)
+    #   - category: equipment
+    #     resourceType: major_equipment
+    #     resourceSubType: Rotating_Equipment
+    #     standard: CFIHOS
+    #     sample:
+    #       - "[C|G]-00"    # Compressors and Gas compressors (e.g., C-01, G-01)
+    #       - "[C|G]-000"   # Compressors with 3-digit numbers
+    #
+    #   # Rotating Equipment - Motors
+    #   # CFIHOS: Asset classification | ISA-95: Level 2 (Control)
+    #   - category: equipment
+    #     resourceType: major_equipment
+    #     resourceSubType: Rotating_Equipment
+    #     standard: CFIHOS
+    #     sample:
+    #       - "[M]-00"      # Motors (e.g., M-01, M-02)
+    #       - "[EM]-0000"   # Electric motors (e.g., EM-0001, EM-0002)
+    #
+    #   # Static Equipment - Vessels and Tanks
+    #   - category: equipment
+    #     resourceType: major_equipment
+    #     resourceSubType: Static_Equipment
+    #     standard: CFIHOS
+    #     sample:
+    #       - "[T|V|B]-00"  # Tanks, Vessels, and Drums (e.g., T-01, V-01, B-01)
+    #       - "[T|V|B]-000" # Tanks/Vessels with 3-digit numbers (e.g., T-101, V-101)
+    #
+    #   # Static Equipment - Valves
+    #   - category: equipment
+    #     resourceType: major_equipment
+    #     resourceSubType: Static_Equipment
+    #     standard: CFIHOS
+    #     sample:
+    #       - "[V|D|E]-00"  # Valves (e.g., V-01, D-01, E-01)
+    #       - "[V|D|E]-000" # Valves with 3-digit numbers (e.g., V-101, D-101)
+    #
+    #   # Static Equipment - Heat Exchangers
+    #   - category: equipment
+    #     resourceType: major_equipment
+    #     resourceSubType: Static_Equipment
+    #     standard: CFIHOS
+    #     sample:
+    #       - "[E|H|F]-00"  # Heat exchangers, Heaters, and Furnaces (e.g., E-01, H-01, F-01)
+    #       - "[E|H|F]-000" # Heat exchangers with 3-digit numbers
+    #
+    #   # Control Instruments - Process Measurement
+    #   # CFIHOS: Asset classification | ISA-95: Level 2 (Control) - ISA 5.1 instrument codes
+    #   - category: instrument
+    #     resourceType: instrument
+    #     resourceSubType: Control_Instrument
+    #     standard: CFIHOS
+    #     sample:
+    #       - "FIC-00"      # Flow indicators/controllers (ISA 5.1: F=Flow, I=Indicator, C=Controller)
+    #       - "FIC-000"     # Flow indicators/controllers with 3-digit numbers
+    #       - "PIC-00"      # Pressure indicators/controllers (ISA 5.1: P=Pressure)
+    #       - "TIC-00"      # Temperature indicators/controllers (ISA 5.1: T=Temperature)
+    #       - "LIC-00"      # Level indicators/controllers (ISA 5.1: L=Level)
+    #       # Note: Instrument tags follow ISA 5.1 conventions, classified using CFIHOS structure
+    #
+    #   # Process Lines - ISA-95 Level 3 (Operations)
+    #   # CFIHOS: Asset classification | ISA-95: Level 3 (Operations) - Process lines
+    #   - category: equipment
+    #     resourceType: process_line
+    #     resourceSubType: Process_Line
+    #     standard: ISA95
+    #     sample:
+    #       - "[L|LN]-00"      # Process lines (e.g., L-01, LN-01)
+    #       - "[L|LN]-000"     # Process lines with 3-digit numbers (e.g., L-101, LN-201)
+    #       - "00-[L|LN]-00"   # Process lines with area prefix (e.g., 10-L-01)
+    #
+    #   # General Equipment Pattern
+    #   - category: general
+    #     standard: CFIHOS
+    #     sample:
+    #       - "X-00"        # Generic equipment tags (X = any letters)
+    #       - "XX-00"      # Generic equipment tags with 2-letter prefix
+    #       - "XXX-00"     # Generic equipment tags with 3-letter prefix
+    # --------------------------------------------------------------------------
+
+    # --------------------------------------------------------------------------
+    # HIERARCHY OPTIONS
+    # --------------------------------------------------------------------------
+    include_resource_type: false
+    include_resource_subtype: true
+
+    # --------------------------------------------------------------------------
+    # PROCESSING SETTINGS
+    # --------------------------------------------------------------------------
+    limit: -1
+    batch_size: null
+
+    # --------------------------------------------------------------------------
+    # LOGGING
+    # --------------------------------------------------------------------------
+    logLevel: INFO

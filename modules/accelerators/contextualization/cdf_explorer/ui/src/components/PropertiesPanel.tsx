@@ -1,5 +1,6 @@
 import { useAppSettings } from "../context/AppSettingsContext";
 import type { TreeNode } from "../types/explorerNodes";
+import { isQueryableFileRow } from "../utils/queryableFileFromRow";
 
 type Props = {
   collapsed: boolean;
@@ -7,6 +8,7 @@ type Props = {
   selectedNode: TreeNode | null;
   rowDetail: unknown | null;
   propertiesHeight: number;
+  onQueryFile?: (row: Record<string, unknown>) => void;
 };
 
 export function PropertiesPanel({
@@ -15,6 +17,7 @@ export function PropertiesPanel({
   selectedNode,
   rowDetail,
   propertiesHeight,
+  onQueryFile,
 }: Props) {
   const { t } = useAppSettings();
   if (collapsed) {
@@ -31,6 +34,10 @@ export function PropertiesPanel({
   }
 
   const payload = rowDetail ?? (selectedNode ? { kind: selectedNode.kind, ...selectedNode.meta, id: selectedNode.id, label: selectedNode.label } : null);
+  const queryableRow =
+    rowDetail && typeof rowDetail === "object" && isQueryableFileRow(rowDetail as Record<string, unknown>)
+      ? (rowDetail as Record<string, unknown>)
+      : null;
 
   return (
     <div className="exp-properties-pane" style={{ height: propertiesHeight }}>
@@ -38,9 +45,16 @@ export function PropertiesPanel({
         <span>
           {t("properties.title")} — {rowDetail ? t("properties.row") : t("properties.node")}
         </span>
-        <button type="button" className="exp-btn" onClick={onToggleCollapse}>
-          {t("properties.collapse")}
-        </button>
+        <div className="exp-properties-header__actions">
+          {queryableRow && onQueryFile && (
+            <button type="button" className="exp-btn" onClick={() => onQueryFile(queryableRow)}>
+              {t("sql.queryFile")}
+            </button>
+          )}
+          <button type="button" className="exp-btn" onClick={onToggleCollapse}>
+            {t("properties.collapse")}
+          </button>
+        </div>
       </div>
       <div className="exp-properties-body">
         {payload ? (

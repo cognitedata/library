@@ -1,0 +1,136 @@
+# =============================================================================
+# OIL & GAS INDUSTRY CONFIGURATION TEMPLATE
+# =============================================================================
+# Template for oil & gas facilities following ISO 14224 and industry practices:
+# Site → Facility → Unit → System → Equipment
+#
+# This structure is commonly used in oil & gas facilities where:
+# - Site: The overall facility or field location
+# - Facility: A major processing facility within the site (e.g., refinery, platform)
+# - Unit: A process unit within the facility (e.g., distillation unit, compressor unit)
+# - System: A functional system within the unit (e.g., cooling system, control system)
+# - Equipment: Individual equipment items (optional, can be asset tags)
+# =============================================================================
+
+externalId: ctx_create_asset_hierarchy_default
+config:
+  # ============================================================================
+  # TECHNICAL SETTINGS (Usually don't need to change)
+  # ============================================================================
+  parameters:
+    debug: true
+    run_all: true
+    overwrite: true
+    raw_db: db_extract_assets_by_pattern
+    raw_table_results: extract_assets_by_pattern_results
+    raw_table_assets: extract_assets_by_pattern_assets
+    output_file: modules/create_asset_hierarchy_from_files/results/asset_hierarchy.yaml
+    pattern_config_path: patterns/asset_tag_classifier.ISA51.config.yaml
+    space: sp_enterprise_schema
+
+  # ============================================================================
+  # BUSINESS CONFIGURATION (What you need to customize)
+  # ============================================================================
+  data:
+    # --------------------------------------------------------------------------
+    # OIL & GAS HIERARCHY STRUCTURE
+    # --------------------------------------------------------------------------
+    hierarchy_levels:
+      - site      # Top level: Overall facility or field (e.g., "SITE_FIELD_A", "North Field")
+      - facility  # Second level: Major processing facility (e.g., "FAC_REFINERY", "Main Refinery")
+      - unit      # Third level: Process unit (e.g., "UNIT_CRUDE", "Crude Distillation Unit")
+      - system    # Bottom level: Functional system (e.g., "SYS_COOLING", "Cooling Water System")
+
+    # --------------------------------------------------------------------------
+    # SCOPE AND FILES
+    # --------------------------------------------------------------------------
+    scope:
+      # Example: Oil & Gas Site
+      - name: "SITE_FIELD_A"
+        description: "North Production Field"
+        locations:
+          # Example: Refinery Facility
+          - name: "FAC_REFINERY"
+            description: "Main Refinery Facility"
+            locations:
+              # Example: Crude Distillation Unit
+              - name: "UNIT_CRUDE"
+                description: "Crude Distillation Unit"
+                locations:
+                  - name: "SYS_COOLING"
+                    description: "Cooling Water System"
+                    files:
+                      - "DIAGRAM-001"
+                      - "DIAGRAM-002"
+                  - name: "SYS_HEATING"
+                    description: "Heating System"
+                    files:
+                      - "DIAGRAM-003"
+              # Example: Gas Processing Unit
+              - name: "UNIT_GAS"
+                description: "Gas Processing Unit"
+                locations:
+                  - name: "SYS_COMPRESSION"
+                    description: "Compression System"
+                    files:
+                      - "DIAGRAM-004"
+          # Example: Storage Facility
+          - name: "FAC_STORAGE"
+            description: "Storage Facility"
+            locations:
+              - name: "UNIT_TANK_FARM"
+                description: "Tank Farm Unit"
+                locations:
+                  - name: "SYS_TRANSFER"
+                    description: "Transfer System"
+                    files:
+                      - "DIAGRAM-005"
+
+    # --------------------------------------------------------------------------
+    # ASSET TAG PATTERNS (For Extract Assets Pipeline)
+    # --------------------------------------------------------------------------
+    # Note: Patterns are configured in ctx_extract_assets_by_pattern_default.config.yaml
+    # Below are example patterns for oil & gas facilities (ISO 14224 aligned):
+    #
+    # patterns:
+    #   # Rotating Equipment - Pumps, Compressors
+    #   - category: equipment
+    #     resourceType: major_equipment
+    #     resourceSubType: Rotating_Equipment
+    #     standard: ISO14224
+    #     sample:
+    #       - "[C|G|P]-00"  # Compressors, Gas compressors, and Pumps (e.g., C-01, G-01, P-01)
+    #
+    #   # Static Equipment - Vessels, Heat Exchangers
+    #   - category: equipment
+    #     resourceType: major_equipment
+    #     resourceSubType: Static_Equipment
+    #     standard: ISO14224
+    #     sample:
+    #       - "[B|E|F|H]-00"  # Vessels/Drums, Heat exchangers, Furnaces, and Heaters (e.g., B-01, E-01, F-01, H-01)
+    #
+    #   # Electric Motors
+    #   - category: equipment
+    #     resourceType: major_equipment
+    #     resourceSubType: Electric_Motor
+    #     standard: ISO14224
+    #     sample:
+    #       - "[EM]-0000"   # Electric motors (e.g., EM-0001, EM-0002)
+    # --------------------------------------------------------------------------
+
+    # --------------------------------------------------------------------------
+    # HIERARCHY OPTIONS
+    # --------------------------------------------------------------------------
+    include_resource_type: true
+    include_resource_subtype: true
+
+    # --------------------------------------------------------------------------
+    # PROCESSING SETTINGS
+    # --------------------------------------------------------------------------
+    limit: -1
+    batch_size: null
+
+    # --------------------------------------------------------------------------
+    # LOGGING
+    # --------------------------------------------------------------------------
+    logLevel: INFO

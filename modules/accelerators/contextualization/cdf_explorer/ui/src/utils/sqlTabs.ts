@@ -1,5 +1,6 @@
-import type { OpenTarget, SqlDocumentTab } from "../types/explorerNodes";
+import type { FileContentRef, OpenTarget, SqlDocumentTab } from "../types/explorerNodes";
 import { openTargetKey, tabLabelForTarget } from "../types/explorerNodes";
+import { fileContentTabLabel } from "./queryableFileFromRow";
 import { sqlQueryForOpenTarget } from "./sqlQuerySeed";
 import { DEFAULT_PAGE_SIZE } from "./pagination";
 
@@ -7,6 +8,8 @@ export const SQL_WORKSPACE_TAB_ID = "sql:workspace";
 
 export const DEFAULT_SQL_QUERY =
   "SELECT * FROM cdf_nodes('cdf_cdm', 'CogniteAsset', 'v1')";
+
+export const DEFAULT_FILE_CONTENT_QUERY = "SELECT * FROM data";
 
 export function createSqlTab(opts?: {
   id?: string;
@@ -20,6 +23,7 @@ export function createSqlTab(opts?: {
     query: opts?.query ?? DEFAULT_SQL_QUERY,
     limit: 100,
     convertToString: true,
+    engine: "cdf",
     result: null,
     loading: false,
     error: null,
@@ -51,4 +55,24 @@ export function createSqlTabForOpenTarget(
     label: label?.trim() || tabLabelForTarget(target),
     query,
   });
+}
+
+export function fileContentTabKey(ref: FileContentRef): string {
+  const key =
+    ref.file_id != null
+      ? String(ref.file_id)
+      : encodeURIComponent(ref.external_id ?? "unknown");
+  return `sql:file:${ref.format}:${key}`;
+}
+
+export function createFileContentSqlTab(ref: FileContentRef, label?: string): SqlDocumentTab {
+  return {
+    ...createSqlTab({
+      id: fileContentTabKey(ref),
+      label: label?.trim() || fileContentTabLabel(ref),
+      query: DEFAULT_FILE_CONTENT_QUERY,
+    }),
+    engine: "file_content",
+    fileContent: ref,
+  };
 }

@@ -1,10 +1,18 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { runSqlQuery } from "../api";
+import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
+import { format } from "sql-formatter";
+import { runFileContentSqlQuery, runSqlQuery } from "../api";
 import { useAppSettings } from "../context/AppSettingsContext";
-import type { SqlDocumentTab } from "../types/explorerNodes";
+import type { FileContentFormat, SqlDocumentTab } from "../types/explorerNodes";
+import { copyTextToClipboard, gridRowsToTsv } from "../utils/clipboardGrid";
 import { formatGridCell } from "../utils/gridFormat";
 import { PAGE_SIZE_OPTIONS } from "../utils/pagination";
+import {
+  fileContentRefFromRow,
+  isQueryableFileRow,
+} from "../utils/queryableFileFromRow";
+import { filterGridRows } from "../utils/sqlGridFilter";
 import { nextGridSort, sortGridRows, type GridSort } from "../utils/sqlGridSort";
+import { queryTextForRun } from "../utils/sqlRunText";
 import {
   IconPaginationFirst,
   IconPaginationLast,
@@ -14,28 +22,62 @@ import {
 import { PaginationPageJump } from "./PaginationPageJump";
 import { clampSqlPageIndex, sqlPageCount, sqlPageItems } from "../utils/sqlPagination";
 import { useVerticalPaneResize } from "../hooks/useVerticalPaneResize";
+import {
+  exportQueryResults,
+  QUERY_EXPORT_FORMATS,
+  type QueryExportFormat,
+} from "../utils/exportQueryResults";
+import { SqlEditor, type SqlEditorHandle } from "./SqlEditor";
+import {
+  SqlResultsContextMenu,
+  type SqlResultsContextMenuState,
+} from "./SqlResultsContextMenu";
 
 type Props = {
   tab: SqlDocumentTab;
   onTabUpdate: (tab: SqlDocumentTab) => void;
   onSelectRow: (row: Record<string, unknown> | null) => void;
+  onQueryFile?: (row: Record<string, unknown>) => void;
   onSave?: () => void;
   onSaveAs?: () => void;
 };
 
-export function SqlQueryPane({ tab, onTabUpdate, onSelectRow, onSave, onSaveAs }: Props) {
-  const { t } = useAppSettings();
+function isAbortError(e: unknown): boolean {
+  return e instanceof DOMException && e.name === "AbortError";
+}
+
+export function SqlQueryPane({ tab, onTabUpdate, onSelectRow, onQueryFile, onSave, onSaveAs }: Props) {
+  const { t, theme } = useAppSettings();
   const { height: editorPaneHeight, onResizeStart: onEditorPaneResizeStart } = useVerticalPaneResize({
     storageKey: "exp.sqlEditorPaneHeight.v1",
   });
   const [sort, setSort] = useState<GridSort | null>(null);
+  const [resultsFilter, setResultsFilter] = useState("");
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
+  const [copyMessage, setCopyMessage] = useState<string | null>(null);
+  const [ctxMenu, setCtxMenu] = useState<SqlResultsContextMenuState | null>(null);
+  const editorRef = useRef<SqlEditorHandle>(null);
+  const abortRef = useRef<AbortController | null>(null);
+  const tabRef = useRef(tab);
+  tabRef.current = tab;
 
-  const columns = useMemo(() => tab.result?.columns ?? [], [tab.result]);
-  const allItems = tab.result?.items ?? [];
+  const columns = useMemo(() => {
+    const raw = tab.result?.columns;
+    if (!Array.isArray(raw)) return [];
+    return raw.map((c) => String(c));
+  }, [tab.result]);
+  const allItems = useMemo(() => {
+    const raw = tab.result?.items;
+    return Array.isArray(raw) ? raw : [];
+  }, [tab.result]);
   const totalRows = tab.result?.row_count ?? allItems.length;
 
   useEffect(() => {
     setSort(null);
+    setResultsFilter("");
+    setExportError(null);
+    setCopyMessage(null);
   }, [tab.result]);
 
   const sortedItems = useMemo(
@@ -43,57 +85,128 @@ export function SqlQueryPane({ tab, onTabUpdate, onSelectRow, onSave, onSaveAs }
     [allItems, sort]
   );
 
-  const pageCount = sqlPageCount(sortedItems.length, tab.pageSize);
-  const pageIndex = clampSqlPageIndex(tab.pageIndex, sortedItems.length, tab.pageSize);
-  const pageItems = sqlPageItems(sortedItems, pageIndex, tab.pageSize);
+  const filteredItems = useMemo(
+    () => filterGridRows(sortedItems, columns, resultsFilter),
+    [sortedItems, columns, resultsFilter]
+  );
+
+  const pageCount = sqlPageCount(filteredItems.length, tab.pageSize);
+  const pageIndex = clampSqlPageIndex(tab.pageIndex, filteredItems.length, tab.pageSize);
+  const pageItems = sqlPageItems(filteredItems, pageIndex, tab.pageSize);
   const hasPrev = pageIndex > 0;
   const hasNext = pageIndex < pageCount - 1;
 
+  const isFileContentTab = tab.engine === "file_content" && tab.fileContent != null;
+
+  const selectedRow =
+    tab.selectedRowIndex != null ? filteredItems[tab.selectedRowIndex] ?? null : null;
+  const canQuerySelectedFile =
+    tab.engine !== "file_content" && isQueryableFileRow(selectedRow) && onQueryFile != null;
+
+  const cancelRun = useCallback(() => {
+    abortRef.current?.abort();
+    abortRef.current = null;
+  }, []);
+
   const run = useCallback(async () => {
-    onTabUpdate({
-      ...tab,
-      loading: true,
-      error: null,
-      pageIndex: 0,
-      selectedRowIndex: null,
-    });
-    onSelectRow(null);
-    try {
-      const body = await runSqlQuery({
-        query: tab.query,
-        limit: tab.limit,
-        convert_to_string: tab.convertToString,
-      });
+      const currentTab = tabRef.current;
+      abortRef.current?.abort();
+      const controller = new AbortController();
+      abortRef.current = controller;
+
+      const selection = editorRef.current?.getSelection() ?? { start: 0, end: 0 };
+      const queryText = queryTextForRun(currentTab.query, selection.start, selection.end);
+
       onTabUpdate({
-        ...tab,
-        result: body,
-        loading: false,
+        ...currentTab,
+        loading: true,
         error: null,
         pageIndex: 0,
         selectedRowIndex: null,
+        lastRunMs: null,
       });
-    } catch (e) {
-      onTabUpdate({
-        ...tab,
-        result: null,
-        loading: false,
-        error: String(e),
-        pageIndex: 0,
-        selectedRowIndex: null,
-      });
-    }
-  }, [tab, onTabUpdate, onSelectRow]);
+      onSelectRow(null);
+
+      const started = performance.now();
+      const isFileContent =
+        currentTab.engine === "file_content" && currentTab.fileContent != null;
+      try {
+        const sqlBody: {
+          query: string;
+          limit?: number;
+          source_limit?: number;
+          convert_to_string?: boolean;
+          timeout?: number;
+        } = {
+          query: queryText,
+          limit: currentTab.limit,
+          convert_to_string: currentTab.convertToString,
+        };
+        if (currentTab.sourceLimit != null) sqlBody.source_limit = currentTab.sourceLimit;
+        if (currentTab.timeoutSec != null) sqlBody.timeout = currentTab.timeoutSec;
+
+        const body =
+          isFileContent && currentTab.fileContent
+            ? await runFileContentSqlQuery(
+                {
+                  query: queryText,
+                  limit: currentTab.limit,
+                  format: currentTab.fileContent.format,
+                  file_id: currentTab.fileContent.file_id,
+                  file_external_id: currentTab.fileContent.external_id,
+                  convert_to_string: currentTab.convertToString,
+                },
+                { signal: controller.signal }
+              )
+            : await runSqlQuery(sqlBody, { signal: controller.signal });
+
+        const elapsed = Math.round(performance.now() - started);
+        if (abortRef.current === controller) abortRef.current = null;
+        onTabUpdate({
+          ...tabRef.current,
+          result: body,
+          loading: false,
+          error: null,
+          pageIndex: 0,
+          selectedRowIndex: null,
+          lastRunMs: elapsed,
+        });
+      } catch (e) {
+        if (abortRef.current === controller) abortRef.current = null;
+        if (isAbortError(e)) {
+          onTabUpdate({
+            ...tabRef.current,
+            loading: false,
+            error: null,
+            lastRunMs: null,
+          });
+          return;
+        }
+        onTabUpdate({
+          ...tabRef.current,
+          result: null,
+          loading: false,
+          error: String(e),
+          pageIndex: 0,
+          selectedRowIndex: null,
+          lastRunMs: null,
+        });
+      }
+  }, [onTabUpdate, onSelectRow]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
         e.preventDefault();
-        void run();
+        if (e.shiftKey) void run();
+        else void run();
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [run]);
+
+  useEffect(() => () => abortRef.current?.abort(), []);
 
   const onSortColumn = (column: string) => {
     setSort((prev) => nextGridSort(prev, column));
@@ -101,8 +214,18 @@ export function SqlQueryPane({ tab, onTabUpdate, onSelectRow, onSave, onSaveAs }
     onSelectRow(null);
   };
 
+  const onColumnHeaderDoubleClick = async (column: string) => {
+    try {
+      await copyTextToClipboard(column);
+      setCopyMessage(column);
+      window.setTimeout(() => setCopyMessage(null), 1500);
+    } catch {
+      /* ignore */
+    }
+  };
+
   const setPageIndex = (next: number) => {
-    const clamped = clampSqlPageIndex(next, sortedItems.length, tab.pageSize);
+    const clamped = clampSqlPageIndex(next, filteredItems.length, tab.pageSize);
     onTabUpdate({ ...tab, pageIndex: clamped, selectedRowIndex: null });
     onSelectRow(null);
   };
@@ -112,7 +235,7 @@ export function SqlQueryPane({ tab, onTabUpdate, onSelectRow, onSave, onSaveAs }
     onTabUpdate({
       ...tab,
       pageSize: size,
-      pageIndex: clampSqlPageIndex(tab.pageIndex, sortedItems.length, size),
+      pageIndex: clampSqlPageIndex(tab.pageIndex, filteredItems.length, size),
       selectedRowIndex: null,
     });
     onSelectRow(null);
@@ -123,11 +246,132 @@ export function SqlQueryPane({ tab, onTabUpdate, onSelectRow, onSave, onSaveAs }
     onSelectRow(row);
   };
 
+  const onFormatSql = () => {
+    try {
+      const dialect = isFileContentTab ? "sql" : "spark";
+      const formatted = format(tab.query, { language: dialect });
+      onTabUpdate({ ...tab, query: formatted });
+    } catch {
+      /* keep query unchanged on format errors */
+    }
+  };
+
+  const onCopyRow = async (row?: Record<string, unknown> | null) => {
+    const target = row ?? selectedRow;
+    if (!target || columns.length === 0) return;
+    try {
+      await copyTextToClipboard(gridRowsToTsv(columns, [target]));
+      setCopyMessage(t("sql.copyRow"));
+      window.setTimeout(() => setCopyMessage(null), 1500);
+    } catch (e) {
+      setExportError(String(e));
+    }
+  };
+
+  const onCopyCell = async (row: Record<string, unknown>, column: string) => {
+    try {
+      await copyTextToClipboard(formatGridCell(row[column]));
+      setCopyMessage(t("sql.copyCell"));
+      window.setTimeout(() => setCopyMessage(null), 1500);
+    } catch (e) {
+      setExportError(String(e));
+    }
+  };
+
+  const onCopyResults = async () => {
+    if (filteredItems.length === 0 || columns.length === 0) return;
+    try {
+      await copyTextToClipboard(gridRowsToTsv(columns, filteredItems));
+      setCopyMessage(t("sql.copyResults"));
+      window.setTimeout(() => setCopyMessage(null), 1500);
+    } catch (e) {
+      setExportError(String(e));
+    }
+  };
+
+  const exportFormatLabel: Record<QueryExportFormat, string> = {
+    json: t("sql.exportJson"),
+    yaml: t("sql.exportYaml"),
+    csv: t("sql.exportCsv"),
+    excel: t("sql.exportExcel"),
+    parquet: t("sql.exportParquet"),
+  };
+
+  const queryFileFormatLabel: Record<FileContentFormat, string> = {
+    parquet: t("sql.queryFileParquet"),
+    csv: t("sql.queryFileCsv"),
+    json: t("sql.queryFileJson"),
+  };
+
+  const onExport = useCallback(
+    async (format: QueryExportFormat) => {
+      if (filteredItems.length === 0 || columns.length === 0) return;
+      setExporting(true);
+      setExportError(null);
+      try {
+        await exportQueryResults(format, columns, filteredItems, tab.label);
+      } catch (e) {
+        setExportError(String(e));
+      } finally {
+        setExporting(false);
+      }
+    },
+    [columns, filteredItems, tab.label]
+  );
+
+  const schema = useMemo(() => {
+    const raw = tab.result?.schema;
+    if (!Array.isArray(raw)) return [];
+    return raw.filter((col): col is { name?: string | null; type?: string | null } => col != null);
+  }, [tab.result]);
+  const hasSchema = schema.some((col) => col.name || col.type);
+  const isFiltered = resultsFilter.trim().length > 0;
+
+  const ctxTarget = ctxMenu?.target;
+  const ctxRow =
+    ctxTarget?.kind === "row" || ctxTarget?.kind === "cell" ? ctxTarget.row : null;
+  const ctxColumn = ctxTarget?.kind === "column" ? ctxTarget.column : ctxTarget?.kind === "cell" ? ctxTarget.column : null;
+  const ctxCanQueryFile =
+    ctxRow != null &&
+    tab.engine !== "file_content" &&
+    isQueryableFileRow(ctxRow) &&
+    onQueryFile != null;
+  const ctxQueryFileLabel =
+    ctxRow && isQueryableFileRow(ctxRow)
+      ? queryFileFormatLabel[fileContentRefFromRow(ctxRow)!.format]
+      : t("sql.queryFile");
+
+  const openResultsContextMenu = (
+    e: MouseEvent,
+    target: SqlResultsContextMenuState["target"]
+  ) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setCtxMenu({ x: e.clientX, y: e.clientY, target });
+  };
+
   return (
     <div className="exp-doc-pane exp-sql-pane">
       <div className="exp-doc-toolbar">
         <button type="button" className="exp-btn exp-btn--primary" disabled={tab.loading} onClick={() => void run()}>
           {tab.loading ? t("sql.running") : t("sql.run")}
+        </button>
+        {tab.loading && (
+          <button type="button" className="exp-btn" onClick={cancelRun}>
+            {t("sql.cancel")}
+          </button>
+        )}
+        <button
+          type="button"
+          className="exp-btn"
+          disabled={tab.loading}
+          title={t("sql.runSelection")}
+          onClick={() => void run()}
+        >
+          {t("sql.runSelection")}
+        </button>
+        <button type="button" className="exp-btn" disabled={tab.loading || !tab.query.trim()} onClick={onFormatSql}>
+          {t("sql.format")}
         </button>
         <button
           type="button"
@@ -141,6 +385,7 @@ export function SqlQueryPane({ tab, onTabUpdate, onSelectRow, onSave, onSaveAs }
               error: null,
               pageIndex: 0,
               selectedRowIndex: null,
+              lastRunMs: null,
             });
             onSelectRow(null);
           }}
@@ -163,22 +408,35 @@ export function SqlQueryPane({ tab, onTabUpdate, onSelectRow, onSave, onSaveAs }
             {t("sql.saveAs")}
           </button>
         )}
-        <span className="exp-sql-pane__hint">{t("sql.hint")}</span>
+        {canQuerySelectedFile && selectedRow && (
+          <button
+            type="button"
+            className="exp-btn"
+            disabled={tab.loading}
+            onClick={() => onQueryFile!(selectedRow)}
+          >
+            {queryFileFormatLabel[fileContentRefFromRow(selectedRow)!.format]}
+          </button>
+        )}
+        <span className="exp-sql-pane__hint">
+          {isFileContentTab ? t("sql.fileContentHint") : t("sql.hint")}
+        </span>
       </div>
       <div className="exp-sql-editor-stack">
-        <div className="exp-sql-editor-pane" style={{ height: editorPaneHeight }}>
-          <textarea
-            className="exp-sql-editor"
-            spellCheck={false}
-            value={tab.query}
+        <div className="exp-sql-editor-pane" style={{ height: editorPaneHeight, maxHeight: editorPaneHeight }}>
+          <SqlEditor
+            key={tab.id}
+            ref={editorRef}
+            value={tab.query ?? ""}
+            theme={theme}
+            height={`${editorPaneHeight}px`}
             placeholder={t("sql.placeholder")}
-            onChange={(e) => onTabUpdate({ ...tab, query: e.target.value })}
-            onKeyDown={(e) => {
-              if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
-                e.preventDefault();
-                void run();
-              }
+            onChange={(query) => {
+              if (query === tabRef.current.query) return;
+              onTabUpdate({ ...tabRef.current, query });
             }}
+            onRun={() => void run()}
+            onRunSelection={() => void run()}
           />
         </div>
         <div
@@ -204,6 +462,44 @@ export function SqlQueryPane({ tab, onTabUpdate, onSelectRow, onSave, onSaveAs }
             }
           />
         </label>
+        {!isFileContentTab && (
+          <>
+            <label className="exp-sql-option">
+              <span>{t("sql.sourceLimit")}</span>
+              <input
+                className="exp-input"
+                type="number"
+                min={1}
+                placeholder="—"
+                value={tab.sourceLimit ?? ""}
+                onChange={(e) => {
+                  const raw = e.target.value.trim();
+                  onTabUpdate({
+                    ...tab,
+                    sourceLimit: raw ? Math.max(1, Number(raw) || 1) : null,
+                  });
+                }}
+              />
+            </label>
+            <label className="exp-sql-option">
+              <span>{t("sql.timeout")}</span>
+              <input
+                className="exp-input"
+                type="number"
+                min={1}
+                placeholder="—"
+                value={tab.timeoutSec ?? ""}
+                onChange={(e) => {
+                  const raw = e.target.value.trim();
+                  onTabUpdate({
+                    ...tab,
+                    timeoutSec: raw ? Math.max(1, Number(raw) || 1) : null,
+                  });
+                }}
+              />
+            </label>
+          </>
+        )}
         <label className="exp-sql-option exp-sql-option--check">
           <input
             type="checkbox"
@@ -213,70 +509,175 @@ export function SqlQueryPane({ tab, onTabUpdate, onSelectRow, onSave, onSaveAs }
           <span>{t("sql.convertToString")}</span>
         </label>
       </div>
+      {hasSchema && (
+        <details className="exp-sql-pane__schema">
+          <summary>{t("sql.schema")}</summary>
+          <table className="exp-sql-pane__schema-table">
+            <thead>
+              <tr>
+                <th scope="col">{t("sql.schemaColumn")}</th>
+                <th scope="col">{t("sql.schemaType")}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {schema.map((col, i) => (
+                <tr key={`${String(col.name ?? i)}:${String(col.type ?? "")}`}>
+                  <td>{formatGridCell(col.name) || "—"}</td>
+                  <td>{formatGridCell(col.type) || "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </details>
+      )}
       {tab.error && <div className="exp-banner--error">{t("status.error", { detail: tab.error })}</div>}
-      <div className="exp-doc-body">
+      <div className="exp-doc-body exp-sql-pane__results">
+        {tab.loading && !tab.result && <p className="exp-empty-hint">{t("sql.running")}</p>}
+        {tab.loading && tab.result && (
+          <p className="exp-empty-hint exp-sql-pane__loading-overlay">{t("sql.running")}</p>
+        )}
         {!tab.result && !tab.loading && !tab.error && (
           <p className="exp-empty-hint">{t("sql.empty")}</p>
         )}
         {tab.result && (
-          <div className="exp-table-wrap">
-            <table className="exp-table">
-              <thead>
-                <tr>
-                  <th className="exp-table__row-num" scope="col">
-                    {t("sql.rowNumber")}
-                  </th>
-                  {columns.map((c) => {
-                    const active = sort?.column === c;
-                    const sortClass = active
-                      ? sort.direction === "asc"
-                        ? "exp-table__sorted-asc"
-                        : "exp-table__sorted-desc"
-                      : "";
-                    return (
-                      <th
-                        key={c}
-                        scope="col"
-                        className={`exp-table__sortable ${sortClass}`.trim()}
-                        aria-sort={active ? (sort.direction === "asc" ? "ascending" : "descending") : "none"}
-                        onClick={() => onSortColumn(c)}
-                      >
-                        {c}
-                      </th>
-                    );
-                  })}
-                </tr>
-              </thead>
-              <tbody>
-                {pageItems.length === 0 ? (
+          <>
+            <div className="exp-sql-pane__filter">
+              <label>
+                <span>{t("sql.filterResults")}</span>
+                <input
+                  className="exp-input"
+                  type="search"
+                  value={resultsFilter}
+                  placeholder={t("sql.filterResults")}
+                  onChange={(e) => {
+                    setResultsFilter(e.target.value);
+                    onTabUpdate({ ...tab, pageIndex: 0, selectedRowIndex: null });
+                    onSelectRow(null);
+                  }}
+                />
+              </label>
+            </div>
+            <div
+              className="exp-table-wrap"
+              onContextMenu={(e) => openResultsContextMenu(e, { kind: "grid" })}
+            >
+              <table className="exp-table">
+                <thead>
                   <tr>
-                    <td colSpan={Math.max(columns.length, 1) + 1}>{t("sql.noRows")}</td>
+                    <th className="exp-table__row-num" scope="col">
+                      {t("sql.rowNumber")}
+                    </th>
+                    {columns.map((c) => {
+                      const active = sort?.column === c;
+                      const sortClass = active
+                        ? sort?.direction === "asc"
+                          ? "exp-table__sorted-asc"
+                          : "exp-table__sorted-desc"
+                        : "";
+                      return (
+                        <th
+                          key={c}
+                          scope="col"
+                          className={`exp-table__sortable ${sortClass}`.trim()}
+                          aria-sort={
+                            active && sort
+                              ? sort.direction === "asc"
+                                ? "ascending"
+                                : "descending"
+                              : "none"
+                          }
+                          onClick={() => onSortColumn(c)}
+                          onDoubleClick={() => void onColumnHeaderDoubleClick(c)}
+                          onContextMenu={(e) => openResultsContextMenu(e, { kind: "column", column: c })}
+                        >
+                          {c}
+                        </th>
+                      );
+                    })}
                   </tr>
-                ) : (
-                  pageItems.map((row, i) => {
-                    const globalIndex = pageIndex * tab.pageSize + i;
-                    const rowNumber = globalIndex + 1;
-                    return (
-                      <tr
-                        key={globalIndex}
-                        className={tab.selectedRowIndex === globalIndex ? "exp-row--selected" : undefined}
-                        onClick={() => onRowClick(row, globalIndex)}
-                      >
-                        <td className="exp-table__row-num">{rowNumber}</td>
-                        {columns.map((c) => (
-                          <td key={c}>{formatGridCell(row[c])}</td>
-                        ))}
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {pageItems.length === 0 ? (
+                    <tr>
+                      <td colSpan={Math.max(columns.length, 1) + 1}>{t("sql.noRows")}</td>
+                    </tr>
+                  ) : (
+                    pageItems.map((row, i) => {
+                      const globalIndex = pageIndex * tab.pageSize + i;
+                      const rowNumber = globalIndex + 1;
+                      return (
+                        <tr
+                          key={globalIndex}
+                          className={tab.selectedRowIndex === globalIndex ? "exp-row--selected" : undefined}
+                          onClick={() => onRowClick(row, globalIndex)}
+                          onContextMenu={(e) => {
+                            onRowClick(row, globalIndex);
+                            openResultsContextMenu(e, { kind: "row", row });
+                          }}
+                        >
+                          <td className="exp-table__row-num">{rowNumber}</td>
+                          {columns.map((c) => (
+                            <td
+                              key={c}
+                              onContextMenu={(e) => {
+                                e.stopPropagation();
+                                onRowClick(row, globalIndex);
+                                openResultsContextMenu(e, { kind: "cell", row, column: c });
+                              }}
+                            >
+                              {formatGridCell(row[c])}
+                            </td>
+                          ))}
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
-      {tab.result && sortedItems.length > 0 && (
+      {exportError && (
+        <div className="exp-banner--error exp-sql-pane__export-error">
+          {t("sql.exportFailed", { detail: exportError })}
+        </div>
+      )}
+      {copyMessage && <div className="exp-sql-pane__hint">{copyMessage}</div>}
+      {tab.result && (
         <div className="exp-pagination">
+          <button
+            type="button"
+            className="exp-btn"
+            disabled={tab.selectedRowIndex == null}
+            onClick={() => void onCopyRow()}
+          >
+            {t("sql.copyRow")}
+          </button>
+          <button type="button" className="exp-btn" disabled={tab.loading} onClick={() => void onCopyResults()}>
+            {t("sql.copyResults")}
+          </button>
+          <label className="exp-pagination__export">
+            <span>{t("sql.export")}</span>
+            <select
+              className="exp-input"
+              value=""
+              disabled={tab.loading || exporting}
+              aria-label={t("sql.export")}
+              onChange={(e) => {
+                const format = e.target.value as QueryExportFormat;
+                if (format) void onExport(format);
+                e.target.value = "";
+              }}
+            >
+              <option value="">{exporting ? t("sql.exporting") : t("sql.exportChoose")}</option>
+              {QUERY_EXPORT_FORMATS.map((format) => (
+                <option key={format} value={format}>
+                  {exportFormatLabel[format]}
+                </option>
+              ))}
+            </select>
+          </label>
           <label className="exp-pagination__size">
             <span>{t("grid.pageSize")}</span>
             <select
@@ -344,14 +745,65 @@ export function SqlQueryPane({ tab, onTabUpdate, onSelectRow, onSave, onSaveAs }
           <span className="exp-pagination__status">
             {tab.loading
               ? t("grid.loadingStatus")
-              : t("sql.pageStatus", {
-                  shown: String(pageItems.length),
-                  total: String(totalRows),
-                  page: String(pageCount),
-                })}
+              : isFiltered
+                ? t("sql.filteredStatus", {
+                    shown: String(filteredItems.length),
+                    total: String(sortedItems.length),
+                  })
+                : tab.lastRunMs != null
+                  ? t("sql.runStatus", {
+                      rows: String(totalRows),
+                      ms: String(tab.lastRunMs),
+                    })
+                  : t("sql.pageStatus", {
+                      shown: String(pageItems.length),
+                      total: String(totalRows),
+                      page: String(pageCount),
+                    })}
           </span>
         </div>
       )}
+      <SqlResultsContextMenu
+        menu={ctxMenu}
+        onClose={() => setCtxMenu(null)}
+        t={t}
+        exportFormatLabel={exportFormatLabel}
+        queryFileLabel={ctxQueryFileLabel}
+        canQueryFile={ctxCanQueryFile}
+        hasResults={filteredItems.length > 0 && columns.length > 0}
+        exporting={exporting}
+        onCopyRow={() => void onCopyRow(ctxRow)}
+        onCopyCell={() => {
+          if (ctxTarget?.kind === "cell") void onCopyCell(ctxTarget.row, ctxTarget.column);
+        }}
+        onCopyResults={() => void onCopyResults()}
+        onCopyColumn={() => {
+          if (ctxColumn) void onColumnHeaderDoubleClick(ctxColumn);
+        }}
+        onSortAsc={() => {
+          if (ctxColumn) {
+            setSort({ column: ctxColumn, direction: "asc" });
+            onTabUpdate({ ...tabRef.current, pageIndex: 0, selectedRowIndex: null });
+            onSelectRow(null);
+          }
+        }}
+        onSortDesc={() => {
+          if (ctxColumn) {
+            setSort({ column: ctxColumn, direction: "desc" });
+            onTabUpdate({ ...tabRef.current, pageIndex: 0, selectedRowIndex: null });
+            onSelectRow(null);
+          }
+        }}
+        onClearSort={() => {
+          setSort(null);
+          onTabUpdate({ ...tabRef.current, pageIndex: 0, selectedRowIndex: null });
+          onSelectRow(null);
+        }}
+        onExport={(format) => void onExport(format)}
+        onQueryFile={() => {
+          if (ctxRow && onQueryFile) onQueryFile(ctxRow);
+        }}
+      />
     </div>
   );
 }

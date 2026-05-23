@@ -1,0 +1,216 @@
+# =============================================================================
+# UTILITIES INDUSTRY CONFIGURATION TEMPLATE
+# =============================================================================
+# Template for utilities (power, water, etc.) following common practices:
+#
+# Option 1 (Power/Electrical Utilities with Balancing Authority):
+# Balancing Authority → Region → Site → Building → Room → System
+#
+# Option 2 (General Utilities):
+# Region → Site → Building → Room → System
+#
+# This structure is commonly used in utility facilities where:
+# - Balancing Authority (LBA): Top-level entity responsible for maintaining
+#   supply-demand balance and grid reliability (power utilities)
+# - Region: Geographic region or service area
+# - Site: A specific facility or substation within the region
+# - Building: A building or structure at the site
+# - Room: A room or area within the building
+# - System: A functional system within the room
+# =============================================================================
+
+externalId: ctx_create_asset_hierarchy_default
+config:
+  # ============================================================================
+  # TECHNICAL SETTINGS (Usually don't need to change)
+  # ============================================================================
+  parameters:
+    debug: true
+    run_all: true
+    overwrite: true
+    raw_db: db_extract_assets_by_pattern
+    raw_table_results: extract_assets_by_pattern_results
+    raw_table_assets: extract_assets_by_pattern_assets
+    output_file: modules/create_asset_hierarchy_from_files/results/asset_hierarchy.yaml
+    pattern_config_path: patterns/asset_tag_classifier.ISA51.config.yaml
+    space: sp_enterprise_schema
+
+  # ============================================================================
+  # BUSINESS CONFIGURATION (What you need to customize)
+  # ============================================================================
+  data:
+    # --------------------------------------------------------------------------
+    # UTILITIES HIERARCHY STRUCTURE
+    # --------------------------------------------------------------------------
+    # Choose one of the following hierarchy structures:
+    #
+    # Option 1: With Balancing Authority (for power/electrical utilities)
+    # hierarchy_levels:
+    #   - balancing_authority  # Top level: Load Balancing Authority (e.g., "LBA_WEST", "Western Balancing Authority")
+    #   - region               # Second level: Geographic region (e.g., "REGION_NORTH", "North Service Region")
+    #   - site                 # Third level: Facility or substation (e.g., "SITE_SUB_01", "Substation 01")
+    #   - building             # Fourth level: Building or structure (e.g., "BLDG_MAIN", "Main Building")
+    #   - room                 # Fifth level: Room or area (e.g., "ROOM_CONTROL", "Control Room")
+    #   - system               # Bottom level: Functional system (e.g., "SYS_SCADA", "SCADA System")
+    #
+    # Option 2: Without Balancing Authority (for general utilities)
+    hierarchy_levels:
+      - region    # Top level: Geographic region (e.g., "REGION_NORTH", "North Service Region")
+      - site      # Second level: Facility or substation (e.g., "SITE_SUB_01", "Substation 01")
+      - building  # Third level: Building or structure (e.g., "BLDG_MAIN", "Main Building")
+      - room      # Fourth level: Room or area (e.g., "ROOM_CONTROL", "Control Room")
+      - system    # Bottom level: Functional system (e.g., "SYS_SCADA", "SCADA System")
+
+    # --------------------------------------------------------------------------
+    # SCOPE AND FILES
+    # --------------------------------------------------------------------------
+    scope:
+      # Example with Balancing Authority (uncomment if using Option 1):
+      # - name: "LBA_WEST"
+      #   description: "Western Balancing Authority"
+      #   locations:
+      #     - name: "REGION_NORTH"
+      #       description: "North Service Region"
+      #       locations:
+      #         # ... continue with site, building, room, system structure
+      #
+      # Example without Balancing Authority (Option 2 - current):
+      # Service Region
+      - name: "REGION_NORTH"
+        description: "North Service Region"
+        locations:
+          # Example: Substation Site
+          - name: "SITE_SUB_01"
+            description: "Substation 01"
+            locations:
+              # Example: Main Building
+              - name: "BLDG_MAIN"
+                description: "Main Building"
+                locations:
+                  # Example: Control Room
+                  - name: "ROOM_CONTROL"
+                    description: "Control Room"
+                    locations:
+                      - name: "SYS_SCADA"
+                        description: "SCADA System"
+                        files:
+                          - "DIAGRAM-001"
+                          - "DIAGRAM-002"
+                      - name: "SYS_PROTECTION"
+                        description: "Protection System"
+                        files:
+                          - "DIAGRAM-003"
+                  # Example: Switchgear Room
+                  - name: "ROOM_SWITCHGEAR"
+                    description: "Switchgear Room"
+                    locations:
+                      - name: "SYS_SWITCHGEAR"
+                        description: "Switchgear System"
+                        files:
+                          - "DIAGRAM-004"
+              # Example: Transformer Building
+              - name: "BLDG_TRANSFORMER"
+                description: "Transformer Building"
+                locations:
+                  - name: "ROOM_TRANSFORMER"
+                    description: "Transformer Room"
+                    locations:
+                      - name: "SYS_TRANSFORMER"
+                        description: "Transformer System"
+                        files:
+                          - "DIAGRAM-005"
+          # Example: Power Plant Site
+          - name: "SITE_PLANT_01"
+            description: "Power Plant 01"
+            locations:
+              - name: "BLDG_TURBINE"
+                description: "Turbine Building"
+                locations:
+                  - name: "ROOM_TURBINE"
+                    description: "Turbine Room"
+                    locations:
+                      - name: "SYS_TURBINE"
+                        description: "Turbine System"
+                        files:
+                          - "DIAGRAM-006"
+
+    # --------------------------------------------------------------------------
+    # ASSET TAG PATTERNS (For Extract Assets Pipeline)
+    # --------------------------------------------------------------------------
+    # Note: Patterns are configured in ctx_extract_assets_by_pattern_default.config.yaml
+    # Below are example patterns for utilities facilities aligned with industry standards:
+    #
+    # Standards Reference for Power Utilities:
+    # - ISA-5.1: Instrument identification (general - applies to all industries)
+    # - ISA-77: Fossil fuel power plant automation systems
+    # - ISA-67: Nuclear power generating station instrumentation and controls
+    # - ISA/IEC 62443: Cybersecurity for industrial automation and control systems
+    # - IEC 61850: Communication networks and systems for power utility automation
+    # - IEC 61970: Energy Management System Application Program Interface (EMS-API)
+    # - IEC 61968: Application integration at electric utilities
+    #
+    # patterns:
+    #   # Electrical Equipment - Transformers, Switchgear
+    #   - category: equipment
+    #     resourceType: electrical_equipment
+    #     resourceSubType: Transformer
+    #     standard: IEC 61850  # Power utility automation standard
+    #     sample:
+    #       - "T-00"        # Transformers (e.g., T-01, T-02)
+    #       - "TR-00"       # Transformers (e.g., TR-01, TR-02)
+    #
+    #   # Rotating Equipment - Turbines, Generators
+    #   - category: equipment
+    #     resourceType: major_equipment
+    #     resourceSubType: Rotating_Equipment
+    #     standard: ISA-77  # Fossil fuel power plant automation
+    #     sample:
+    #       - "GT-00"       # Gas turbines (e.g., GT-01, GT-02)
+    #       - "ST-00"       # Steam turbines (e.g., ST-01, ST-02)
+    #       - "GEN-00"      # Generators (e.g., GEN-01, GEN-02)
+    #
+    #   # Control Instruments - SCADA, Protection
+    #   - category: instrument
+    #     resourceType: instrument
+    #     resourceSubType: Control_Instrument
+    #     standard: IEC 61850  # Power utility automation standard
+    #     sample:
+    #       - "IED-00"      # Intelligent Electronic Devices (IEC 61850)
+    #       - "RTU-00"      # Remote Terminal Units
+    #       - "PLC-00"      # Programmable Logic Controllers
+    #
+    #   # Protection Systems
+    #   - category: instrument
+    #     resourceType: instrument
+    #     resourceSubType: Protection_System
+    #     standard: IEC 61850  # Substation automation and protection
+    #     sample:
+    #       - "PROT-00"     # Protection relays
+    #       - "CB-00"       # Circuit breakers
+    #
+    #   # Nuclear Power Equipment (if applicable)
+    #   - category: equipment
+    #     resourceType: major_equipment
+    #     resourceSubType: Nuclear_Equipment
+    #     standard: ISA-67  # Nuclear power generating station standards
+    #     sample:
+    #       - "RPV-00"      # Reactor pressure vessel
+    #       - "SG-00"       # Steam generator
+    # --------------------------------------------------------------------------
+
+    # --------------------------------------------------------------------------
+    # HIERARCHY OPTIONS
+    # --------------------------------------------------------------------------
+    include_resource_type: false
+    include_resource_subtype: true
+
+    # --------------------------------------------------------------------------
+    # PROCESSING SETTINGS
+    # --------------------------------------------------------------------------
+    limit: -1
+    batch_size: null
+
+    # --------------------------------------------------------------------------
+    # LOGGING
+    # --------------------------------------------------------------------------
+    logLevel: INFO

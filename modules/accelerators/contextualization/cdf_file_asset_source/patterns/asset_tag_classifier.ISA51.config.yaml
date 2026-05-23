@@ -1,0 +1,492 @@
+# Equipment and Instrument Tag Patterns Configuration
+# This file contains industry-standard tag patterns for equipment and instruments
+# used by the aliasing engine for pattern recognition and alias generation.
+# Based on ISA 5.1, ISO 14617, and other engineering standards.
+
+# Tag Classification Mappings
+# These mappings define how tag prefixes are interpreted to create granular classifications.
+# Customize these mappings to support different standards or facility-specific conventions.
+tag_classification_mappings:
+  # ISA 5.1 Process Variable Codes
+  # Maps the first letter of instrument/valve tags to process variable names
+  process_variables:
+    F: Flow
+    P: Pressure
+    T: Temperature
+    L: Level
+    A: Analysis
+    X: Unclassified
+
+  # ISA 5.1 Instrument Function Codes
+  # Maps function letters (after process variable) to instrument function names
+  instrument_functions:
+    I: Indicator
+    C: Controller
+    T: Transmitter
+    V: Valve
+    E: Element
+    A: Alarm
+    S: Switch
+    Y: Computing
+
+  # Equipment Qualifier Mappings
+  # These define service/type qualifiers for equipment tags
+  equipment_qualifiers:
+    # Pump qualifiers (prefix codes to pump type names)
+    pumps:
+      FWP: Feed Water Pump
+      CWP: Cooling Water Pump
+      BWP: Boiler Water Pump
+      HWP: Hot Water Pump
+      CHWP: Chilled Water Pump
+      CP: Centrifugal Pump
+      DP: Dosing Pump
+      VP: Vacuum Pump
+
+    # Compressor qualifiers
+    compressors:
+      AC: Air Compressor
+      RC: Reciprocating Compressor
+      CC: Centrifugal Compressor
+      SC: Screw Compressor
+      PC: Positive Displacement Compressor
+
+    # Heat exchanger qualifiers
+    heat_exchangers:
+      HE: Heat Exchanger
+      CE: Condenser
+      RE: Reboiler
+      AE: Air Cooler
+      SE: Steam Heater
+      CO: Cooler
+
+asset_tag_patterns:
+    # Pump patterns
+    pump_patterns:
+      - name: "standard_pump"
+        pattern: '\\b(?:\\d+[-_]?)?P[-_]?\\\d{1,6}[A-Z]?\\b'
+        description: "Standard pump tags following ISA conventions (P-101, P101A, 24-P-1234)"
+        type: "EQUIPMENT"
+        standard: "ISA 5.1"
+        standard_section: "Section 4.2.1"
+        standard_subsection: "Equipment Identification"
+        verbose_description: "Standard process pump identification following ISA 5.1 instrument identification standard. Pumps are rotating equipment used to move fluids through process systems. The tag consists of a 'P' prefix followed by a numeric identifier and optional suffix letter for multiple units. Supports optional numeric unit/system prefixes (e.g., 24-P-1234)."
+        tag_class_name: "PUMP"
+        equipment_class_name: "PUMP"
+        examples: ["P-101", "P101A", "P-2001", "24-P-1234", "P_101", "P-10001"]
+        priority: 50
+        validation_rules: []
+
+      - name: "feed_water_pump"
+        pattern: '\\b(?:\\d+[-_]?)?FWP[-_]?\\\d{1,6}[A-Z]?\\b'
+        description: "Feed Water Pump tags (FWP-101, FWP101A, 15-FWP-801)"
+        type: "EQUIPMENT"
+        standard: "University of Calgary Design Standards"
+        standard_section: "Section 8.2.2.3"
+        standard_subsection: "Equipment Asset Tagging - Feed Water Pump"
+        verbose_description: "Feed water pump identification tags. Feed water pumps supply water to boilers or steam generators. The 'FWP' prefix indicates a Feed Water Pump. Supports optional numeric unit/system prefixes (e.g., 15-FWP-801)."
+        tag_class_name: "PUMP"
+        equipment_class_name: "PUMP"
+        equipment_variant_name: "FEED_WATER_PUMP"
+        examples: ["FWP-101", "FWP101A", "FWP-2001", "15-FWP-801", "FWP_101", "FWP-10001"]
+        priority: 25
+        validation_rules: []
+
+      - name: "cooling_water_pump"
+        pattern: '\\b(?:\\d+[-_]?)?CWP[-_]?\\\d{1,6}[A-Z]?\\b'
+        description: "Cooling Water Pump tags (CWP-101, CWP101A, 15-CWP-801)"
+        type: "EQUIPMENT"
+        standard: "University of Calgary Design Standards"
+        standard_section: "Section 8.2.2.3"
+        standard_subsection: "Equipment Asset Tagging - Cooling Water Pump"
+        verbose_description: "Cooling water pump identification tags. Cooling water pumps circulate water for heat removal in process systems. The 'CWP' prefix indicates a Cooling Water Pump. Supports optional numeric unit/system prefixes (e.g., 15-CWP-801)."
+        tag_class_name: "PUMP"
+        equipment_class_name: "PUMP"
+        equipment_variant_name: "COOLING_WATER_PUMP"
+        examples: ["CWP-101", "CWP101A", "CWP-2001", "15-CWP-801", "CWP_101", "CWP-10001"]
+        priority: 25
+        validation_rules: []
+
+      - name: "boiler_water_pump"
+        pattern: '\\b(?:\\d+[-_]?)?BWP[-_]?\\\d{1,6}[A-Z]?\\b'
+        description: "Boiler Water Pump tags (BWP-101, BWP101A, 15-BWP-801)"
+        type: "EQUIPMENT"
+        standard: "University of Calgary Design Standards"
+        standard_section: "Section 8.2.2.3"
+        standard_subsection: "Equipment Asset Tagging - Boiler Water Pump"
+        verbose_description: "Boiler water pump identification tags. Boiler water pumps circulate water within boiler systems. The 'BWP' prefix indicates a Boiler Water Pump. Supports optional numeric unit/system prefixes (e.g., 15-BWP-801)."
+        tag_class_name: "PUMP"
+        equipment_class_name: "PUMP"
+        equipment_variant_name: "BOILER_WATER_PUMP"
+        examples: ["BWP-101", "BWP101A", "BWP-2001", "15-BWP-801", "BWP_101", "BWP-10001"]
+        priority: 25
+        validation_rules: []
+
+      - name: "dosing_pump"
+        pattern: '\\b(?:\\d+[-_]?)?DP[-_]?\\\d{1,6}[A-Z]?\\b'
+        description: "Dosing Pump tags (DP-101, DP101A, 15-DP-801)"
+        type: "EQUIPMENT"
+        standard: "ISA 5.1"
+        standard_section: "Section 4.2.1"
+        standard_subsection: "Equipment Type Classification - Dosing Pump"
+        verbose_description: "Dosing pump identification tags. Dosing pumps inject precise amounts of chemicals or additives into process streams. The 'DP' prefix indicates a Dosing Pump. Supports optional numeric unit/system prefixes (e.g., 15-DP-801)."
+        tag_class_name: "PUMP"
+        equipment_class_name: "PUMP"
+        equipment_variant_name: "DOSING_PUMP"
+        examples: ["DP-101", "DP101A", "DP-2001", "15-DP-801", "DP_101", "DP-10001"]
+        priority: 25
+        validation_rules: []
+
+      - name: "vacuum_pump"
+        pattern: '\\b(?:\\d+[-_]?)?VP[-_]?\\\d{1,6}[A-Z]?\\b'
+        description: "Vacuum Pump tags (VP-101, VP101A, 15-VP-801)"
+        type: "EQUIPMENT"
+        standard: "ISA 5.1"
+        standard_section: "Section 4.2.1"
+        standard_subsection: "Equipment Type Classification - Vacuum Pump"
+        verbose_description: "Vacuum pump identification tags. Vacuum pumps remove gases from sealed volumes to create partial vacuum. The 'VP' prefix indicates a Vacuum Pump. Supports optional numeric unit/system prefixes (e.g., 15-VP-801)."
+        tag_class_name: "PUMP"
+        equipment_class_name: "PUMP"
+        equipment_variant_name: "VACUUM_PUMP"
+        examples: ["VP-101", "VP101A", "VP-2001", "15-VP-801", "VP_101", "VP-10001"]
+        priority: 25
+        validation_rules: []
+
+      - name: "pump_with_service_generic"
+        pattern: '\\b(?:\\d+[-_]?)?(?:HWP|CHWP)[-_]?\\\d{1,6}[A-Z]?\\b'
+        description: "Pump with service designation (HWP-101, CHWP-201, 15-HWP-801)"
+        type: "EQUIPMENT"
+        standard: "University of Calgary Design Standards"
+        standard_section: "Section 8.2.2.3"
+        standard_subsection: "Equipment Asset Tagging"
+        verbose_description: "Pump tags with service designation prefix indicating the service or system (e.g., HWP for Hot Water Pump, CHWP for Chilled Water Pump). This convention provides additional context about the pump's function within the process system. Supports optional numeric unit/system prefixes (e.g., 15-HWP-801)."
+        tag_class_name: "PUMP"
+        equipment_class_name: "PUMP"
+        # Level 4: Variant extracted from qualifier mapping (Hot Water Pump, Chilled Water Pump)
+        examples: ["HWP-101", "CHWP-201", "HWP-2001", "15-HWP-801", "CHWP_101", "CHWP-10001"]
+        priority: 35
+        validation_rules: []
+
+      - name: "centrifugal_pump"
+        pattern: '\\b(?:\\d+[-_]?)?CP[-_]?\\\d{1,6}[A-Z]?\\b'
+        description: "Centrifugal pump tags with type designation (CP-101, CP101A, 5-CP-301)"
+        type: "EQUIPMENT"
+        standard: "ISA 5.1"
+        standard_section: "Section 4.2.1"
+        standard_subsection: "Equipment Type Classification"
+        verbose_description: "Centrifugal pump identification tags. Centrifugal pumps use rotating impellers to increase fluid velocity and pressure. The 'CP' prefix specifically identifies the pump type, distinguishing it from other pump types such as positive displacement pumps. Supports optional numeric unit/system prefixes."
+        tag_class_name: "PUMP"
+        equipment_class_name: "PUMP"
+        equipment_subclass_name: "CENTRIFUGAL_PUMP"
+        examples: ["CP-101", "CP101A", "CP-2001", "5-CP-301", "CP-10001"]
+        priority: 35
+        validation_rules: []
+
+    # Compressor patterns
+    compressor_patterns:
+      - name: "standard_compressor"
+        pattern: '\\b(?:\\d+[-_]?)?C[-_]?\\\d{1,6}[A-Z]?\\b'
+        description: "Standard compressor tags following ISA conventions (C-101, C101A, 100-C-301)"
+        type: "EQUIPMENT"
+        standard: "ISA 5.1"
+        standard_section: "Section 4.2.1"
+        standard_subsection: "Equipment Identification"
+        verbose_description: "Standard process compressor identification following ISA 5.1. Compressors are mechanical devices that increase the pressure of gases. The tag consists of a 'C' prefix followed by a numeric identifier and optional suffix letter for multiple units or stages. Supports optional numeric unit/system prefixes (e.g., 100-C-301). Note: 'C' alone is ambiguous and may also match distillation columns; use more specific tags (e.g., AC, RC, CC) when possible."
+        tag_class_name: "COMPRESSOR"
+        equipment_class_name: "COMPRESSOR"
+        examples: ["C-101", "C101A", "C-2001", "100-C-301", "C-10001"]
+        priority: 35
+        validation_rules: []
+
+      - name: "air_compressor"
+        pattern: '\\b(?:\\d+[-_]?)?AC[-_]?\\\d{1,6}[A-Z]?\\b'
+        description: "Air Compressor tags (AC-101, AC101A, 20-AC-901)"
+        type: "EQUIPMENT"
+        standard: "ISA 5.1"
+        standard_section: "Section 4.2.1"
+        standard_subsection: "Equipment Type Classification - Air Compressor"
+        verbose_description: "Air compressor identification tags. Air compressors compress atmospheric air for plant air or instrument air systems. The 'AC' prefix indicates an Air Compressor. Supports optional numeric unit/system prefixes (e.g., 20-AC-901)."
+        tag_class_name: "COMPRESSOR"
+        equipment_class_name: "COMPRESSOR"
+        equipment_subclass_name: "AIR_COMPRESSOR"
+        examples: ["AC-101", "AC101A", "AC-2001", "20-AC-901", "AC_101", "AC-10001"]
+        priority: 30
+        validation_rules: []
+
+      - name: "reciprocating_compressor"
+        pattern: '\\b(?:\\d+[-_]?)?RC[-_]?\\\d{1,6}[A-Z]?\\b'
+        description: "Reciprocating Compressor tags (RC-101, RC101A, 20-RC-901)"
+        type: "EQUIPMENT"
+        standard: "ISA 5.1"
+        standard_section: "Section 4.2.1"
+        standard_subsection: "Equipment Type Classification - Reciprocating Compressor"
+        verbose_description: "Reciprocating compressor identification tags. Reciprocating compressors use pistons to compress gases. The 'RC' prefix indicates a Reciprocating Compressor. Supports optional numeric unit/system prefixes (e.g., 20-RC-901)."
+        tag_class_name: "COMPRESSOR"
+        equipment_class_name: "COMPRESSOR"
+        equipment_subclass_name: "RECIPROCATING_COMPRESSOR"
+        examples: ["RC-101", "RC101A", "RC-2001", "20-RC-901", "RC_101", "RC-10001"]
+        priority: 30
+        validation_rules: []
+
+      - name: "centrifugal_compressor"
+        pattern: '\\b(?:\\d+[-_]?)?CC[-_]?\\\d{1,6}[A-Z]?\\b'
+        description: "Centrifugal Compressor tags (CC-101, CC101A, 20-CC-901)"
+        type: "EQUIPMENT"
+        standard: "ISA 5.1"
+        standard_section: "Section 4.2.1"
+        standard_subsection: "Equipment Type Classification - Centrifugal Compressor"
+        verbose_description: "Centrifugal compressor identification tags. Centrifugal compressors use rotating impellers to compress gases. The 'CC' prefix indicates a Centrifugal Compressor. Supports optional numeric unit/system prefixes (e.g., 20-CC-901)."
+        tag_class_name: "COMPRESSOR"
+        equipment_class_name: "COMPRESSOR"
+        equipment_subclass_name: "CENTRIFUGAL_COMPRESSOR"
+        examples: ["CC-101", "CC101A", "CC-2001", "20-CC-901", "CC_101", "CC-10001"]
+        priority: 30
+        validation_rules: []
+
+      - name: "screw_compressor"
+        pattern: '\\b(?:\\d+[-_]?)?SC[-_]?\\\d{1,6}[A-Z]?\\b'
+        description: "Screw Compressor tags (SC-101, SC101A, 20-SC-901)"
+        type: "EQUIPMENT"
+        standard: "ISA 5.1"
+        standard_section: "Section 4.2.1"
+        standard_subsection: "Equipment Type Classification - Screw Compressor"
+        verbose_description: "Screw compressor identification tags. Screw compressors use intermeshing rotors to compress gases. The 'SC' prefix indicates a Screw Compressor. Supports optional numeric unit/system prefixes (e.g., 20-SC-901)."
+        tag_class_name: "COMPRESSOR"
+        equipment_class_name: "COMPRESSOR"
+        equipment_subclass_name: "SCREW_COMPRESSOR"
+        examples: ["SC-101", "SC101A", "SC-2001", "20-SC-901", "SC_101", "SC-10001"]
+        priority: 30
+        validation_rules: []
+
+      - name: "positive_displacement_compressor"
+        pattern: '\\b(?:\\d+[-_]?)?PC[-_]?\\\d{1,6}[A-Z]?\\b'
+        description: "Positive Displacement Compressor tags (PC-101, PC101A, 20-PC-901)"
+        type: "EQUIPMENT"
+        standard: "ISA 5.1"
+        standard_section: "Section 4.2.1"
+        standard_subsection: "Equipment Type Classification - Positive Displacement Compressor"
+        verbose_description: "Positive displacement compressor identification tags. Positive displacement compressors trap and compress fixed volumes of gas. The 'PC' prefix indicates a Positive Displacement Compressor. Supports optional numeric unit/system prefixes (e.g., 20-PC-901)."
+        tag_class_name: "COMPRESSOR"
+        equipment_class_name: "COMPRESSOR"
+        equipment_subclass_name: "POSITIVE_DISPLACEMENT_COMPRESSOR"
+        examples: ["PC-101", "PC101A", "PC-2001", "20-PC-901", "PC_101", "PC-10001"]
+        priority: 30
+        validation_rules: []
+
+    # Valve patterns
+    valve_patterns:
+      - name: "control_valve"
+        pattern: '\\b(?:\\d+[-_]?)?[A-Z]{2,3}V[-_]?\\\d{1,6}[A-Z]?\\b'
+        description: "Control valve tags with process variable prefix (FCV-101, PCV-201, 5-PCV-201)"
+        type: "EQUIPMENT"
+        standard: "ISA 5.1"
+        standard_section: "Section 4.2.2"
+        standard_subsection: "Control Valve Identification"
+        verbose_description: "Control valve identification tags following ISA 5.1 instrument identification standard. Control valves regulate process variables (Flow, Pressure, Temperature, Level) based on control signals. The prefix indicates the controlled variable (F=Flow, P=Pressure, T=Temperature, L=Level), followed by 'CV' for Control Valve. Supports optional numeric unit/system prefixes (e.g., 5-PCV-201)."
+        tag_class_name: "VALVE"
+        equipment_class_name: "VALVE"
+        equipment_subclass_name: "CONTROL_VALVE"
+        examples: ["FCV-101", "PCV-201", "TCV-301A", "LCV-401", "5-PCV-201", "FCV-10001"]
+        priority: 40
+        validation_rules: []
+
+      - name: "manual_valve"
+        pattern: '\\bV[-_]?\\\d{1,6}[A-Z]?\\b'
+        description: "Manual valve tags for isolation and on-off service (V-101, V101A)"
+        type: "EQUIPMENT"
+        standard: "ISA 5.1"
+        standard_section: "Section 4.2.2"
+        standard_subsection: "Valve Identification"
+        verbose_description: "Manual valve identification tags. Manual valves are operated by hand and used for isolation, throttling, or on-off service. The 'V' prefix indicates a valve, followed by a numeric identifier. These valves do not have automatic control capability."
+        tag_class_name: "VALVE"
+        equipment_class_name: "VALVE"
+        equipment_subclass_name: "MANUAL_VALVE"
+        examples: ["V-101", "V101A", "V-2001", "V-10001"]
+        priority: 60
+        validation_rules: []
+
+      - name: "safety_valve"
+        pattern: '\\b(?:\\d+[-_]?)?[A-Z]{1,3}SV[-_]?\\\d{1,6}[A-Z]?\\b'
+        description: "Safety valve tags for overpressure protection (PSV-101, TSV-201, 10-PSV-301)"
+        type: "EQUIPMENT"
+        standard: "ISA 5.1"
+        standard_section: "Section 4.2.2"
+        standard_subsection: "Safety Valve Identification"
+        verbose_description: "Safety valve identification tags. Safety valves (also known as relief valves) protect equipment and systems from overpressure conditions. The prefix indicates the protected variable (P=Pressure, T=Temperature), followed by 'SV' for Safety Valve. These are critical safety devices that automatically open when pressure exceeds setpoint. Supports optional numeric unit/system prefixes (e.g., 10-PSV-301)."
+        tag_class_name: "VALVE"
+        equipment_class_name: "VALVE"
+        equipment_subclass_name: "SAFETY_VALVE"
+        examples: ["PSV-101", "TSV-201", "FSV-301A", "10-PSV-301", "PSV-10001"]
+        priority: 30
+        validation_rules: []
+
+    # Tank and vessel patterns
+    tank_patterns:
+      - name: "standard_tank"
+        pattern: '\\bT[-_]?\\\d{1,6}[A-Z]?\\b'
+        description: "Standard tank tags for storage vessels (T-101, T101A)"
+        type: "EQUIPMENT"
+        standard: "ISA 5.1"
+        standard_section: "Section 4.2.1"
+        standard_subsection: "Vessel Identification"
+        verbose_description: "Standard storage tank identification tags. Tanks are vessels used for storing liquids or gases. The 'T' prefix indicates a tank, followed by a numeric identifier. Tanks may be atmospheric, pressurized, or vacuum-rated depending on the application."
+        tag_class_name: "TANK"
+        equipment_class_name: "TANK"
+        examples: ["T-101", "T101A", "T-2001", "T-10001"]
+        priority: 50
+        validation_rules: []
+
+      - name: "vessel"
+        pattern: '\\bV[-_]?\\\d{1,6}[A-Z]?\\b'
+        description: "Process vessel tags for reactors, separators, and other process vessels (V-101, V101A)"
+        type: "EQUIPMENT"
+        standard: "ISA 5.1"
+        standard_section: "Section 4.2.1"
+        standard_subsection: "Vessel Identification"
+        verbose_description: "Process vessel identification tags. Vessels are containers used in process operations for reactions, separation, mixing, or other unit operations. The 'V' prefix indicates a vessel, followed by a numeric identifier. Vessels are typically pressure-rated and may include internals such as trays, packing, or agitators."
+        tag_class_name: "VESSEL"
+        equipment_class_name: "VESSEL"
+        examples: ["V-101", "V101A", "V-2001", "V-10001"]
+        priority: 50
+        validation_rules: []
+
+      - name: "reactor"
+        pattern: '\\bR[-_]?\\\d{1,6}[A-Z]?\\b'
+        description: "Reactor vessel tags for chemical reaction processes (R-101, R101A)"
+        type: "EQUIPMENT"
+        standard: "ISA 5.1"
+        standard_section: "Section 4.2.1"
+        standard_subsection: "Reactor Identification"
+        verbose_description: "Chemical reactor identification tags. Reactors are specialized vessels where chemical reactions occur. The 'R' prefix indicates a reactor, followed by a numeric identifier. Reactors may be batch or continuous, and may include temperature control, mixing, and catalyst systems."
+        tag_class_name: "REACTOR"
+        equipment_class_name: "REACTOR"
+        examples: ["R-101", "R101A", "R-2001", "R-10001"]
+        priority: 50
+        validation_rules: []
+
+    # Heat exchanger patterns
+    heat_exchanger_patterns:
+      - name: "condenser"
+        pattern: '\\b(?:\\d+[-_]?)?CE[-_]?\\\d{1,6}[A-Z]?\\b'
+        description: "Condenser tags (CE-101, CE101A, 8-CE-401)"
+        type: "EQUIPMENT"
+        standard: "ISA 5.1"
+        standard_section: "Section 4.2.1"
+        standard_subsection: "Heat Exchanger Identification - Condenser"
+        verbose_description: "Condenser identification tags. Condensers convert vapor to liquid by removing heat. The 'CE' prefix indicates a Condenser. Supports optional numeric unit/system prefixes (e.g., 8-CE-401)."
+        tag_class_name: "HEAT_EXCHANGER"
+        equipment_class_name: "HEAT_EXCHANGER"
+        equipment_subclass_name: "CONDENSER"
+        examples: ["CE-101", "CE101A", "CE-2001", "8-CE-401", "CE_101", "CE-10001"]
+        priority: 30
+        validation_rules: []
+
+      - name: "reboiler"
+        pattern: '\\b(?:\\d+[-_]?)?RE[-_]?\\\d{1,6}[A-Z]?\\b'
+        description: "Reboiler tags (RE-101, RE101A, 8-RE-401)"
+        type: "EQUIPMENT"
+        standard: "ISA 5.1"
+        standard_section: "Section 4.2.1"
+        standard_subsection: "Heat Exchanger Identification - Reboiler"
+        verbose_description: "Reboiler identification tags. Reboilers provide heat to distillation columns by vaporizing the bottom product. The 'RE' prefix indicates a Reboiler. Supports optional numeric unit/system prefixes (e.g., 8-RE-401)."
+        tag_class_name: "HEAT_EXCHANGER"
+        equipment_class_name: "HEAT_EXCHANGER"
+        equipment_subclass_name: "REBOILER"
+        examples: ["RE-101", "RE101A", "RE-2001", "8-RE-401", "RE_101", "RE-10001"]
+        priority: 30
+        validation_rules: []
+
+      - name: "air_cooler"
+        pattern: '\\b(?:\\d+[-_]?)?AE[-_]?\\\d{1,6}[A-Z]?\\b'
+        description: "Air Cooler tags (AE-101, AE101A, 8-AE-401)"
+        type: "EQUIPMENT"
+        standard: "ISA 5.1"
+        standard_section: "Section 4.2.1"
+        standard_subsection: "Heat Exchanger Identification - Air Cooler"
+        verbose_description: "Air cooler identification tags. Air coolers use ambient air to cool process fluids. The 'AE' prefix indicates an Air Cooler. Supports optional numeric unit/system prefixes (e.g., 8-AE-401)."
+        tag_class_name: "HEAT_EXCHANGER"
+        equipment_class_name: "HEAT_EXCHANGER"
+        equipment_subclass_name: "AIR_COOLER"
+        examples: ["AE-101", "AE101A", "AE-2001", "8-AE-401", "AE_101", "AE-10001"]
+        priority: 30
+        validation_rules: []
+
+      - name: "steam_heater"
+        pattern: '\\b(?:\\d+[-_]?)?SE[-_]?\\\d{1,6}[A-Z]?\\b'
+        description: "Steam Heater tags (SE-101, SE101A, 8-SE-401)"
+        type: "EQUIPMENT"
+        standard: "ISA 5.1"
+        standard_section: "Section 4.2.1"
+        standard_subsection: "Heat Exchanger Identification - Steam Heater"
+        verbose_description: "Steam heater identification tags. Steam heaters use steam to heat process fluids. The 'SE' prefix indicates a Steam Heater. Supports optional numeric unit/system prefixes (e.g., 8-SE-401)."
+        tag_class_name: "HEAT_EXCHANGER"
+        equipment_class_name: "HEAT_EXCHANGER"
+        equipment_subclass_name: "STEAM_HEATER"
+        examples: ["SE-101", "SE101A", "SE-2001", "8-SE-401", "SE_101", "SE-10001"]
+        priority: 30
+        validation_rules: []
+
+      - name: "standard_heat_exchanger"
+        pattern: '\\b(?:\\d+[-_]?)?(?:HE|E)[-_]?\\\d{1,6}[A-Z]?\\b'
+        description: "Standard Heat Exchanger tags (E-101, HE-201, 8-E-401, 12-HE-501)"
+        type: "EQUIPMENT"
+        standard: "ISA 5.1"
+        standard_section: "Section 4.2.1"
+        standard_subsection: "Heat Exchanger Identification"
+        verbose_description: "Standard heat exchanger identification tags. Heat exchangers transfer thermal energy between two or more fluids. The 'E' or 'HE' prefix indicates a heat exchanger, followed by a numeric identifier. Common types include shell-and-tube and plate exchangers. Supports optional numeric unit/system prefixes (e.g., 8-E-401, 12-HE-501)."
+        tag_class_name: "HEAT_EXCHANGER"
+        equipment_class_name: "HEAT_EXCHANGER"
+        examples: ["E-101", "E101A", "HE-201", "8-E-401", "12-HE-501", "E-2001", "HE-10001"]
+        priority: 50
+        validation_rules: []
+
+    # Instrument patterns
+    # Consolidated into a single pattern since process variable and function are extracted from tag prefix
+    instrument_patterns:
+      - name: "isa_instrument"
+        pattern: '\\b(?:\\d+[-_]?)?[FPTLAX][A-Z]{1,3}[-_]?\\\d{1,6}[A-Z]?\\b'
+        description: "ISA 5.1 instruments with process variable prefix (FIC-101, PIC-201, 12-FIC-101, 5-PIT-201)"
+        type: "INSTRUMENT"
+        standard: "ISA 5.1"
+        standard_section: "Section 3.2"
+        standard_subsection: "Instrument Identification Letters"
+        verbose_description: "Instrument identification tags following ISA 5.1 standard. Instruments measure, indicate, control, or transmit process variables. The first letter indicates the process variable (F=Flow, P=Pressure, T=Temperature, L=Level, A=Analysis, X=Unclassified), followed by instrument function letters (I=Indicator, C=Controller, T=Transmitter, V=Valve, E=Element). The numeric portion is the loop number, and optional suffix indicates multiple instruments in the same loop. Process variable and function are extracted from the tag prefix to create granular classifications. Supports optional numeric unit/system prefixes (e.g., 12-FIC-101)."
+        tag_class_name: "INSTRUMENT"
+        equipment_class_name: "INSTRUMENT"
+        instrument_type: "INSTRUMENT"
+        examples: ["FIC-101", "PIT-201", "TIC-301", "LIC-401", "AIC-501", "12-FIC-101", "5-PIT-201", "FCV-301", "TCV-301", "LCV-401", "FE-401", "PE-401", "TE-401", "LE-401", "AE-401"]
+        priority: 45
+        validation_rules: []
+
+    # Column patterns
+    column_patterns:
+      - name: "distillation_column"
+        pattern: '\\b(?:\\d+[-_]?)?(?:DC|C)[-_]?\\\d{1,6}[A-Z]?\\b'
+        description: "Distillation column tags for separation processes (C-101, DC-201, 10-C-301)"
+        type: "EQUIPMENT"
+        standard: "ISA 5.1"
+        standard_section: "Section 4.2.1"
+        standard_subsection: "Column Identification"
+        verbose_description: "Distillation column identification tags. Distillation columns are tall vertical vessels used for separating components based on differences in volatility. The 'C' prefix (or 'DC' for Distillation Column) indicates a column, followed by a numeric identifier. Columns typically contain trays or packing and may have multiple feed and product streams. Supports optional numeric unit/system prefixes (e.g., 10-C-301)."
+        tag_class_name: "COLUMN"
+        equipment_class_name: "COLUMN"
+        equipment_subclass_name: "DISTILLATION_COLUMN"
+        examples: ["C-101", "DC-201", "10-C-301", "DC-10001"]
+        priority: 40
+        validation_rules: []
+
+    # Generic patterns - DISABLED: Documents and unmatched tags should not be classified
+    # generic_patterns:
+    #   - name: "alphanumeric_tag"
+    #     pattern: '\\b[A-Z]{1,4}[-_]?\\\d{1,6}[A-Z0-9]?\\b'
+    #     description: "Generic alphanumeric tag pattern for equipment and instruments"
+    #     type: "GENERIC"
+    #     standard: "Generic"
+    #     standard_section: "N/A"
+    #     standard_subsection: "N/A"
+    #     verbose_description: "Generic alphanumeric tag pattern that matches common equipment and instrument naming conventions. This catch-all pattern helps identify tags that may not match specific equipment or instrument patterns but follow general alphanumeric naming conventions."
+    #     tag_class_name: "GENERIC"
+    #     equipment_class_name: "ALPHANUMERIC"
+    #     examples: ["ABC-1234", "XY-567A", "ABCD_9999", "ABC-10001"]
+    #     priority: 200
+    #     validation_rules: []

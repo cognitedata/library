@@ -149,17 +149,45 @@ export async function fetchFunctionDetail(functionId: string): Promise<FunctionD
   return r.json() as Promise<FunctionDetail>;
 }
 
-export async function runSqlQuery(body: {
-  query: string;
-  limit?: number;
-  source_limit?: number;
-  convert_to_string?: boolean;
-  timeout?: number;
-}): Promise<SqlRunResult> {
+export async function runSqlQuery(
+  body: {
+    query: string;
+    limit?: number;
+    source_limit?: number;
+    convert_to_string?: boolean;
+    timeout?: number;
+  },
+  opts?: { signal?: AbortSignal }
+): Promise<SqlRunResult> {
   const r = await fetch(`${API}/api/cdf/sql/run`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
+    signal: opts?.signal,
+  });
+  if (!r.ok) {
+    const errBody = await r.json().catch(() => ({}));
+    throw new Error(String((errBody as { detail?: string }).detail ?? r.status));
+  }
+  return r.json() as Promise<SqlRunResult>;
+}
+
+export async function runFileContentSqlQuery(
+  body: {
+    query: string;
+    limit?: number;
+    format: "parquet" | "csv" | "json";
+    file_id?: number;
+    file_external_id?: string;
+    convert_to_string?: boolean;
+  },
+  opts?: { signal?: AbortSignal }
+): Promise<SqlRunResult> {
+  const r = await fetch(`${API}/api/cdf/file-content/sql/run`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+    signal: opts?.signal,
   });
   if (!r.ok) {
     const errBody = await r.json().catch(() => ({}));

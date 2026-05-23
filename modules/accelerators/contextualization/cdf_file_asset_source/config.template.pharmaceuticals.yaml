@@ -1,0 +1,161 @@
+# =============================================================================
+# PHARMACEUTICAL INDUSTRY CONFIGURATION TEMPLATE
+# =============================================================================
+# Template for pharmaceutical facilities following GMP and industry practices:
+# Site → Building → Suite → System → Equipment
+#
+# This structure is commonly used in pharmaceutical facilities where:
+# - Site: The overall facility or campus
+# - Building: A building within the site (often separated by function)
+# - Suite: A cleanroom suite or functional area within the building
+# - System: A functional system within the suite (e.g., HVAC, process system)
+# - Equipment: Individual equipment items (optional, can be asset tags)
+# =============================================================================
+
+externalId: ctx_create_asset_hierarchy_default
+config:
+  # ============================================================================
+  # TECHNICAL SETTINGS (Usually don't need to change)
+  # ============================================================================
+  parameters:
+    debug: true
+    run_all: true
+    overwrite: true
+    raw_db: db_extract_assets_by_pattern
+    raw_table_results: extract_assets_by_pattern_results
+    raw_table_assets: extract_assets_by_pattern_assets
+    output_file: modules/create_asset_hierarchy_from_files/results/asset_hierarchy.yaml
+    pattern_config_path: patterns/asset_tag_classifier.ISA51.config.yaml
+    space: sp_enterprise_schema
+
+  # ============================================================================
+  # BUSINESS CONFIGURATION (What you need to customize)
+  # ============================================================================
+  data:
+    # --------------------------------------------------------------------------
+    # PHARMACEUTICAL HIERARCHY STRUCTURE
+    # --------------------------------------------------------------------------
+    hierarchy_levels:
+      - site      # Top level: Overall facility or campus (e.g., "SITE_MAIN", "Main Campus")
+      - building  # Second level: Building within site (e.g., "BLDG_MFG", "Manufacturing Building")
+      - suite     # Third level: Cleanroom suite or functional area (e.g., "SUITE_100", "Suite 100")
+      - system    # Bottom level: Functional system (e.g., "SYS_HVAC", "HVAC System")
+
+    # --------------------------------------------------------------------------
+    # SCOPE AND FILES
+    # --------------------------------------------------------------------------
+    scope:
+      # Example: Pharmaceutical Site
+      - name: "SITE_MAIN"
+        description: "Main Manufacturing Campus"
+        locations:
+          # Example: Manufacturing Building
+          - name: "BLDG_MFG"
+            description: "Manufacturing Building"
+            locations:
+              # Example: Cleanroom Suite
+              - name: "SUITE_100"
+                description: "Cleanroom Suite 100"
+                locations:
+                  - name: "SYS_HVAC"
+                    description: "HVAC System"
+                    files:
+                      - "DIAGRAM-001"
+                      - "DIAGRAM-002"
+                  - name: "SYS_PROCESS"
+                    description: "Process System"
+                    files:
+                      - "DIAGRAM-003"
+              # Example: Filling Suite
+              - name: "SUITE_200"
+                description: "Filling Suite 200"
+                locations:
+                  - name: "SYS_FILLING"
+                    description: "Filling System"
+                    files:
+                      - "DIAGRAM-004"
+          # Example: Quality Control Building
+          - name: "BLDG_QC"
+            description: "Quality Control Building"
+            locations:
+              - name: "SUITE_LAB"
+                description: "Laboratory Suite"
+                locations:
+                  - name: "SYS_ANALYTICAL"
+                    description: "Analytical System"
+                    files:
+                      - "DIAGRAM-005"
+          # Example: Warehouse Building
+          - name: "BLDG_WAREHOUSE"
+            description: "Warehouse Building"
+            locations:
+              - name: "SUITE_STORAGE"
+                description: "Storage Suite"
+                locations:
+                  - name: "SYS_ENVIRONMENTAL"
+                    description: "Environmental Control System"
+                    files:
+                      - "DIAGRAM-006"
+
+    # --------------------------------------------------------------------------
+    # ASSET TAG PATTERNS (For Extract Assets Pipeline)
+    # --------------------------------------------------------------------------
+    # Note: Patterns are configured in ctx_extract_assets_by_pattern_default.config.yaml
+    # Below are example patterns for pharmaceutical facilities (GMP-compliant):
+    #
+    # patterns:
+    #   # Process Equipment - Mixers, Reactors
+    #   - category: equipment
+    #     resourceType: process_equipment
+    #     resourceSubType: Mixing_Equipment
+    #     standard: GMP
+    #     sample:
+    #       - "MX-00"       # Mixers (e.g., MX-01, MX-02)
+    #       - "R-00"        # Reactors (e.g., R-01, R-02)
+    #       - "V-00"        # Vessels (e.g., V-01, V-02)
+    #
+    #   # Filling Equipment
+    #   - category: equipment
+    #     resourceType: process_equipment
+    #     resourceSubType: Filling_Equipment
+    #     standard: GMP
+    #     sample:
+    #       - "FILL-00"     # Filling machines (e.g., FILL-01, FILL-02)
+    #       - "CAP-00"      # Capping machines (e.g., CAP-01, CAP-02)
+    #
+    #   # HVAC Systems
+    #   - category: equipment
+    #     resourceType: facility_equipment
+    #     resourceSubType: HVAC_System
+    #     standard: GMP
+    #     sample:
+    #       - "AHU-00"      # Air Handling Units (e.g., AHU-01, AHU-02)
+    #       - "FCU-00"      # Fan Coil Units (e.g., FCU-01, FCU-02)
+    #
+    #   # Control Instruments - Process Control
+    #   - category: instrument
+    #     resourceType: instrument
+    #     resourceSubType: Process_Control_Instrument
+    #     standard: GMP
+    #     sample:
+    #       - "FIC-00"      # Flow indicators/controllers
+    #       - "TIC-00"      # Temperature indicators/controllers
+    #       - "PIC-00"      # Pressure indicators/controllers
+    # --------------------------------------------------------------------------
+
+    # --------------------------------------------------------------------------
+    # HIERARCHY OPTIONS
+    # --------------------------------------------------------------------------
+    include_resource_type: false
+    include_resource_subtype: true
+
+    # --------------------------------------------------------------------------
+    # PROCESSING SETTINGS
+    # --------------------------------------------------------------------------
+    limit: -1
+    batch_size: null
+
+    # --------------------------------------------------------------------------
+    # LOGGING
+    # --------------------------------------------------------------------------
+    logLevel: INFO

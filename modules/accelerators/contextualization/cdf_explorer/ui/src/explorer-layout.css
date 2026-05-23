@@ -214,12 +214,19 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 0.5rem;
   padding: 0.35rem 0.65rem;
   font-size: 0.72rem;
   font-weight: 700;
   text-transform: uppercase;
   color: var(--exp-text-muted);
   border-bottom: 1px solid var(--exp-border);
+}
+
+.exp-properties-header__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
 }
 
 .exp-properties-body {

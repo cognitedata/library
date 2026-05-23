@@ -52,7 +52,8 @@ Open document tabs and the active tab id are saved under `workspace` in `explore
 
 ### Document tabs (center)
 
-- **SQL query tabs** — transformation SQL preview (**Run** / Ctrl+Enter), **Result limit** (unlimited source reads), and client-side **page size** / **Previous** / **Next** on results.
+- **SQL query tabs** — transformation SQL preview (**Run** / Ctrl+Enter), **Result limit** (unlimited source reads), and client-side **page size** / **Previous** / **Next** on results. **Export** downloads the current result set as JSON, YAML, CSV, Excel, or Parquet.
+- **File content query tabs** — from a **Files** or **CogniteFile** metadata result, select a parquet, CSV, or JSON/NDJSON row and choose **Query file** (toolbar or Properties panel). Opens a tab seeded with `SELECT * FROM data` that runs **locally via DuckDB** (SELECT-only; not CDF Transformations). Downloaded files are cached under `.cache/file_content/` in the module folder.
 - **Data model tabs** — React Flow diagram with view search, zoom controls, and a **View properties** panel on the right when you select a node.
 - **Workflow tabs** — React Flow diagram of tasks and `dependsOn` edges (latest version when none is specified), with task search and a **Task properties** side panel.
 - **Transformation tabs** — double-click a transformation in the tree to load its SQL query (editable, **Run** preview) and an expandable **Transformation definition** section.
@@ -62,6 +63,7 @@ Open document tabs and the active tab id are saved under `workspace` in `explore
 
 - Select a **tree node** for object metadata.
 - Select a **tree node** or **SQL result row** for JSON detail (data model view details appear in the diagram’s right panel).
+- When a selected row is an uploaded **parquet**, **CSV**, or **JSON/NDJSON** CDF File, use **Query file** to open a DuckDB query tab against the file content.
 
 Drag the handle above Properties to resize; **Collapse** hides the panel.
 
@@ -70,6 +72,27 @@ Drag the handle above Properties to resize; **Collapse** hides the panel.
 **SQL Query** opens a blank workspace tab. Explorer **Open** reuses or creates a tab per object (`sql:classic:assets`, `sql:raw:db:table`, etc.) with seeded `SELECT` text.
 
 Preview uses the CDF [run query](https://docs.cognite.com/20230101-beta/query/run-query) API. Requires `transformationsAcl:READ`. Limits are API fields only—the editor SQL is not auto-modified.
+
+**Editor and execution**
+
+- Syntax-highlighted SQL editor (CodeMirror). **Format SQL** uses Spark SQL for CDF tabs and standard SQL for file-content (DuckDB) tabs.
+- **Run** (`Ctrl+Enter` / `Cmd+Enter`): runs the full query, or the non-empty editor selection if one is highlighted.
+- **Run selection** (`Shift+Ctrl+Enter` or toolbar): same selection rules as Run.
+- **Cancel** stops an in-flight request (CDF or DuckDB).
+- CDF tabs only: optional **Source limit** and **Timeout (sec)** map to `source_limit` and `timeout` on `POST /api/cdf/sql/run` (persisted in workspace and saved queries).
+- Status shows row count and elapsed milliseconds after a successful run.
+
+**Results**
+
+- Collapsible **Schema** panel (column names and types from the API).
+- **Filter results** searches all columns client-side; pagination applies after sort and filter.
+- **Copy row** / **Copy results** (TSV, including header for full results) for paste into Excel.
+- Double-click a column header to copy the column name.
+- Export (JSON, YAML, CSV, Excel, Parquet) uses sorted, filtered rows (not only the current page).
+
+**File content**
+
+- From a metadata query, select a parquet/CSV/JSON file row and use **Query file** for a DuckDB tab (`POST /api/cdf/file-content/sql/run`). Source limit and timeout do not apply there.
 
 ## Operator API
 
@@ -88,6 +111,7 @@ The Vite UI talks to FastAPI on port **8785**. Endpoints:
 | GET | `/api/cdf/functions/detail?id=` | Function definition (numeric id or external id) |
 | GET | `/api/cdf/workflows/graph` | Workflow task DAG (`external_id`, optional `version`) |
 | POST | `/api/cdf/sql/run` | SQL preview (`query`, `limit`, optional `source_limit`, …) |
+| POST | `/api/cdf/file-content/sql/run` | Local DuckDB query against a CDF File (`file_id` or `file_external_id`, `format`, `query`, `limit`) |
 
 ## Security
 

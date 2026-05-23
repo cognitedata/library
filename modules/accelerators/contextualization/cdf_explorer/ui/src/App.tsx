@@ -49,9 +49,11 @@ import {
 import {
   createSqlTab,
   createSqlTabForOpenTarget,
+  createFileContentSqlTab,
   SQL_WORKSPACE_TAB_ID,
 } from "./utils/sqlTabs";
 import { canQueryTreeNode, labelForDmView, openTargetForDmView } from "./utils/sqlQuerySeed";
+import { fileContentRefFromRow } from "./utils/queryableFileFromRow";
 import {
   createSqlTabFromSavedQuery,
   savedQueryEntryFromSqlTab,
@@ -217,6 +219,22 @@ export function App() {
       if (existing && isSqlTab(existing)) {
         setActiveTabId(tab.id);
         return prev.map((t) => (t.id === tab.id ? { ...existing, query: tab.query, label: tab.label } : t));
+      }
+      setActiveTabId(tab.id);
+      return [...prev, tab];
+    });
+    setRowDetail(null);
+  }, []);
+
+  const openFileContentQueryFromRow = useCallback((row: Record<string, unknown>) => {
+    const ref = fileContentRefFromRow(row);
+    if (!ref) return;
+    const tab = createFileContentSqlTab(ref);
+    setTabs((prev) => {
+      const existing = prev.find((t) => t.id === tab.id);
+      if (existing && isSqlTab(existing)) {
+        setActiveTabId(tab.id);
+        return prev;
       }
       setActiveTabId(tab.id);
       return [...prev, tab];
@@ -509,6 +527,7 @@ export function App() {
                     tab={activeTab}
                     onTabUpdate={updateTransformationTab}
                     onSelectRow={(row) => setRowDetail(row)}
+                    onQueryFile={openFileContentQueryFromRow}
                   />
                 ) : activeTab && isFunctionTab(activeTab) ? (
                   <FunctionPane tab={activeTab} onTabUpdate={updateFunctionTab} />
@@ -517,8 +536,17 @@ export function App() {
                     tab={activeTab}
                     onTabUpdate={updateSqlTab}
                     onSelectRow={(row) => setRowDetail(row)}
-                    onSave={() => void saveSqlTab(activeTab, "save")}
-                    onSaveAs={() => void saveSqlTab(activeTab, "saveAs")}
+                    onQueryFile={openFileContentQueryFromRow}
+                    onSave={
+                      activeTab.engine === "file_content"
+                        ? undefined
+                        : () => void saveSqlTab(activeTab, "save")
+                    }
+                    onSaveAs={
+                      activeTab.engine === "file_content"
+                        ? undefined
+                        : () => void saveSqlTab(activeTab, "saveAs")
+                    }
                   />
                 ) : (
                   <div
@@ -552,6 +580,7 @@ export function App() {
                 selectedNode={selectedNode}
                 rowDetail={rowDetail}
                 propertiesHeight={propsHeight}
+                onQueryFile={openFileContentQueryFromRow}
               />
             </div>
           </div>

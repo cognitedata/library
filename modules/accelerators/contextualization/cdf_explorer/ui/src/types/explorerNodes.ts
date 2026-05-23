@@ -73,6 +73,17 @@ export type SavedQuery = {
   query: string;
   limit: number;
   convert_to_string: boolean;
+  source_limit?: number | null;
+  timeout?: number | null;
+};
+
+export type FileContentFormat = "parquet" | "csv" | "json";
+
+export type FileContentRef = {
+  file_id?: number;
+  external_id?: string;
+  name?: string;
+  format: FileContentFormat;
 };
 
 export type SqlDocumentTab = {
@@ -82,8 +93,14 @@ export type SqlDocumentTab = {
   query: string;
   limit: number;
   convertToString: boolean;
+  sourceLimit?: number | null;
+  timeoutSec?: number | null;
+  lastRunMs?: number | null;
   /** When set, **Save** updates this entry in ``saved_queries`` config. */
   savedQueryId?: string;
+  /** ``cdf`` uses Transformations preview; ``file_content`` uses local DuckDB. */
+  engine?: "cdf" | "file_content";
+  fileContent?: FileContentRef;
   result: SqlQueryResult | null;
   loading: boolean;
   error: string | null;
@@ -195,8 +212,11 @@ export type SavedWorkspaceSqlTab = {
   query: string;
   limit?: number;
   source_limit?: number;
+  timeout?: number;
   convert_to_string?: boolean;
   saved_query_id?: string;
+  engine?: "cdf" | "file_content";
+  file_content?: FileContentRef;
 };
 
 export type SavedWorkspaceDataModelTab = {

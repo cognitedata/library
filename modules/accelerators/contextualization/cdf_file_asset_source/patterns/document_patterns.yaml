@@ -1,0 +1,165 @@
+# Document Tag Patterns Configuration
+# This file contains industry-standard tag patterns for engineering documents
+# used by the aliasing engine for pattern recognition and alias generation.
+# Based on ISO 14617, SMPTE AG-02, and other engineering documentation standards.
+
+document_patterns:
+    - name: "pid_standard"
+      pattern: '\\bP&?ID[-_]?\\\d{4,6}[-_]?[A-Z0-9]*\\b'
+      description: "Standard P&ID (Piping and Instrumentation Diagram) drawing numbers following ISO 14617 conventions"
+      type: "DOCUMENT"
+      subtype: "PIPING_INSTRUMENTATION_DIAGRAM"
+      standard: "ISO 14617"
+      standard_section: "Section 1.1"
+      standard_subsection: "P&ID Drawing Identification"
+      verbose_description: "Piping and Instrumentation Diagram (P&ID) drawing identification following ISO 14617 graphical symbols for diagrams. P&IDs are detailed engineering drawings showing the interconnection of process equipment and instrumentation. The tag format typically includes 'P&ID' or 'PID' prefix, a drawing number (4-6 digits), and optional revision or sheet identifiers. P&IDs are essential for process design, construction, and operations."
+      document_type: "PID"
+      examples: ["P&ID-2001", "PID_2001_A", "P&ID-123456", "PID-2001-Rev-B"]
+      priority: 30
+      required_elements: ["drawing_number"]
+      optional_elements: ["revision", "sheet"]
+      industry_standard: "ISO 14617"
+
+    - name: "pfd_standard"
+      pattern: '\\bPFD[-_]?\\\d{4,6}[-_]?[A-Z0-9]*\\b'
+      description: "Process Flow Diagram (PFD) drawing numbers following ISO 14617 conventions"
+      type: "DOCUMENT"
+      subtype: "PROCESS_FLOW_DIAGRAM"
+      standard: "ISO 14617"
+      standard_section: "Section 1.1"
+      standard_subsection: "Process Flow Diagram Identification"
+      verbose_description: "Process Flow Diagram (PFD) drawing identification following ISO 14617. PFDs are simplified diagrams showing the major process equipment and flow paths in a process plant. They provide an overview of the process without detailed instrumentation. The tag format includes 'PFD' prefix, a drawing number (4-6 digits), and optional revision identifiers. PFDs are used for process design review and plant overview documentation."
+      document_type: "PFD"
+      examples: ["PFD-2001", "PFD_2001_A", "PFD-123456", "PFD-2001-Rev-A"]
+      priority: 30
+      required_elements: ["drawing_number"]
+      optional_elements: ["revision"]
+      industry_standard: "ISO 14617"
+
+    - name: "iso_standard"
+      pattern: '\\bISO[-_]?\\\d{4,6}[-_]?[A-Z0-9]*\\b'
+      description: "Isometric drawing numbers for piping isometrics following ASME/ANSI standards"
+      type: "DOCUMENT"
+      subtype: "ISOMETRIC_DRAWING"
+      standard: "ASME B31.3"
+      standard_section: "Chapter II"
+      standard_subsection: "Design Conditions and Criteria - Drawing Requirements"
+      verbose_description: "Isometric drawing identification for piping isometrics. Isometric drawings show three-dimensional views of piping systems and are essential for fabrication and construction. The tag format includes 'ISO' prefix (not to be confused with ISO standards organization), a drawing number (4-6 digits), and optional revision or sheet identifiers. These drawings provide detailed information about pipe routing, fittings, and supports."
+      document_type: "ISO"
+      examples: ["ISO-2001", "ISO_2001_A", "ISO-123456", "ISO-2001-Rev-B"]
+      priority: 30
+      required_elements: ["drawing_number"]
+      optional_elements: ["revision", "sheet"]
+      industry_standard: "ASME B31.3"
+
+    - name: "specification_standard"
+      pattern: '\\bSPEC[-_]?\\\d{4,6}[-_]?[A-Z0-9]*\\b'
+      description: "Specification document numbers following engineering documentation standards"
+      type: "DOCUMENT"
+      subtype: "SPECIFICATION"
+      standard: "ISO 55000"
+      standard_section: "Section 4.3.3.3"
+      standard_subsection: "Documentation Requirements"
+      verbose_description: "Specification document identification following ISO 55000 asset management standards. Specifications define requirements for materials, equipment, systems, or services. The tag format includes 'SPEC' prefix, a document number (4-6 digits), and optional revision identifiers. Specifications are critical documents that establish technical requirements and acceptance criteria for procurement and construction."
+      document_type: "SPECIFICATION"
+      examples: ["SPEC-2001", "SPEC_2001_A", "SPEC-123456", "SPEC-2001-Rev-A"]
+      priority: 40
+      required_elements: ["document_number"]
+      optional_elements: ["revision"]
+      industry_standard: "ISO 55000"
+
+    - name: "datasheet_standard"
+      pattern: '\\bDS[-_]?\\\d{4,6}[-_]?[A-Z0-9]*\\b'
+      description: "Equipment datasheet numbers following engineering documentation standards"
+      type: "DOCUMENT"
+      subtype: "DATASHEET"
+      standard: "ISO 55000"
+      standard_section: "Section 4.3.3.3"
+      standard_subsection: "Equipment Documentation"
+      verbose_description: "Equipment datasheet identification following ISO 55000 asset management standards. Datasheets provide detailed technical information about specific equipment items including dimensions, materials, performance characteristics, and operating conditions. The tag format includes 'DS' prefix, a document number (4-6 digits), and optional revision identifiers. Datasheets are essential for equipment selection, procurement, and maintenance."
+      document_type: "DATASHEET"
+      examples: ["DS-2001", "DS_2001_A", "DS-123456", "DS-2001-Rev-B"]
+      priority: 40
+      required_elements: ["document_number"]
+      optional_elements: ["revision"]
+      industry_standard: "ISO 55000"
+
+    - name: "drawing_with_revision"
+      pattern: '\\b[A-Z]{2,4}[-_]?\\\d{4,8}[-_]?Rev[-_]?[A-Z0-9]+\\b'
+      description: "Drawing numbers with revision identifiers following engineering documentation standards"
+      type: "DOCUMENT"
+      subtype: "DRAWING"
+      standard: "ISO 14617"
+      standard_section: "Section 1.2"
+      standard_subsection: "Drawing Revision Control"
+      verbose_description: "Engineering drawing identification with explicit revision control following ISO 14617. Drawings are technical documents that provide detailed information for construction, fabrication, or installation. The tag format includes a drawing type prefix (2-4 letters), drawing number (4-8 digits), and revision identifier (Rev-A, Rev-1, etc.). Revision control ensures that the correct version of drawings is used during construction and maintenance activities."
+      document_type: "GENERIC"
+      examples: ["DRW-2001-Rev-A", "DRW_2001_Rev_2", "DWG-123456-Rev-B", "DWG-2001-Rev-3"]
+      priority: 50
+      required_elements: ["drawing_number", "revision"]
+      optional_elements: []
+      industry_standard: "ISO 14617"
+
+    - name: "general_drawing"
+      pattern: '\\bDWG[-_]?\\\d{4,8}[-_]?[A-Z0-9]*\\b'
+      description: "General drawing numbers for engineering drawings"
+      type: "DOCUMENT"
+      subtype: "DRAWING"
+      standard: "ISO 14617"
+      standard_section: "Section 1.1"
+      standard_subsection: "General Drawing Identification"
+      verbose_description: "General engineering drawing identification following ISO 14617. The 'DWG' prefix is commonly used for various types of engineering drawings including mechanical, electrical, civil, and structural drawings. The tag format includes 'DWG' prefix, a drawing number (4-8 digits), and optional revision or sheet identifiers. These drawings provide detailed technical information for construction and fabrication."
+      document_type: "DRAWING"
+      examples: ["DWG-2001", "DWG_2001_A", "DWG-123456", "DWG-2001-Rev-A"]
+      priority: 40
+      required_elements: ["drawing_number"]
+      optional_elements: ["revision", "sheet"]
+      industry_standard: "ISO 14617"
+
+    - name: "technical_data_sheet"
+      pattern: '\\bTDS[-_]?\\\d{4,6}[-_]?[A-Z0-9]*\\b'
+      description: "Technical data sheet numbers for detailed technical documentation"
+      type: "DOCUMENT"
+      subtype: "TECHNICAL_DATA_SHEET"
+      standard: "ISO 55000"
+      standard_section: "Section 4.3.3.3"
+      standard_subsection: "Technical Documentation"
+      verbose_description: "Technical data sheet identification following ISO 55000. Technical data sheets provide comprehensive technical information including specifications, performance data, installation requirements, and maintenance procedures. The tag format includes 'TDS' prefix, a document number (4-6 digits), and optional revision identifiers. These documents are essential for proper equipment operation and maintenance."
+      document_type: "TECHNICAL_DATA_SHEET"
+      examples: ["TDS-2001", "TDS_2001_A", "TDS-123456", "TDS-2001-Rev-A"]
+      priority: 40
+      required_elements: ["document_number"]
+      optional_elements: ["revision"]
+      industry_standard: "ISO 55000"
+
+    - name: "operation_manual"
+      pattern: '\\bOM[-_]?\\\d{4,6}[-_]?[A-Z0-9]*\\b'
+      description: "Operation and maintenance manual document numbers"
+      type: "DOCUMENT"
+      subtype: "OPERATION_MANUAL"
+      standard: "ISO 55000"
+      standard_section: "Section 4.3.3.3"
+      standard_subsection: "Operation and Maintenance Documentation"
+      verbose_description: "Operation and maintenance manual identification following ISO 55000 asset management standards. These manuals provide detailed procedures for operating and maintaining equipment and systems. The tag format includes 'OM' prefix, a document number (4-6 digits), and optional revision identifiers. Operation manuals are critical for safe and efficient plant operations and maintenance activities."
+      document_type: "OPERATION_MANUAL"
+      examples: ["OM-2001", "OM_2001_A", "OM-123456", "OM-2001-Rev-B"]
+      priority: 40
+      required_elements: ["document_number"]
+      optional_elements: ["revision"]
+      industry_standard: "ISO 55000"
+
+    - name: "smpte_document"
+      pattern: '\\b[A-Z0-9]+[-_]?WD[-_]?ST[-_]?\\\d{4}[-_]?[A-Z0-9]*[-_]?[A-Za-z0-9-]+[-_]?\\\d{4}[-_]?\\\d{2}[-_]?\\\d{2}\\b'
+      description: "SMPTE document naming convention following AG-02 standard"
+      type: "DOCUMENT"
+      subtype: "SMPTE_DOCUMENT"
+      standard: "SMPTE AG-02"
+      standard_section: "Section 10.2"
+      standard_subsection: "Document Naming Convention"
+      verbose_description: "SMPTE (Society of Motion Picture and Television Engineers) document identification following Administrative Guideline AG-02. The format includes: Group identifier, State (WD=Working Draft, CD=Committee Draft), Type (ST=Standard, RP=Recommended Practice), Document number, Optional part/element, Description, and Date (YYYY-MM-DD). This comprehensive naming convention ensures proper version control and document identification in media technology standards."
+      document_type: "SMPTE_DOCUMENT"
+      examples: ["31FS-WD-ST-1020-1-VideoCompression-2025-11-13", "31FS-CD-RP-2001-ColorSpace-2024-12-01"]
+      priority: 30
+      required_elements: ["group", "state", "type", "document_number", "date"]
+      optional_elements: ["part", "element", "description"]
+      industry_standard: "SMPTE AG-02"

@@ -1,0 +1,848 @@
+# CFIHOS Asset Tag Patterns Configuration
+# This file contains asset tag patterns aligned with CFIHOS (Capital Facilities Information HandOver Specification)
+# CFIHOS provides standardized classification for equipment and components in capital facilities,
+# particularly in oil & gas, petrochemical, and process industries.
+#
+# CFIHOS Equipment Classes:
+# - Rotating Equipment: Pumps, Compressors, Turbines, Fans, Motors
+# - Static Equipment: Vessels, Heat Exchangers, Columns, Reactors
+# - Instruments: Transmitters, Controllers, Indicators, Switches, Analyzers
+# - Valves: Control Valves, Safety Valves, Isolation Valves, Check Valves
+# - Electrical Equipment: Motors, Generators, Transformers, Switchgear
+# - Piping Components: Pipes, Fittings, Flanges
+#
+# Reference: CFIHOS (Capital Facilities Information HandOver Specification)
+# Website: https://www.jip36-cfihos.org/
+
+# Tag Classification Mappings
+# CFIHOS-aligned mappings for process variables, instrument functions, and equipment qualifiers
+tag_classification_mappings:
+  # ISA 5.1 Process Variable Codes (used for instrument classification)
+  process_variables:
+    F: Flow
+    P: Pressure
+    T: Temperature
+    L: Level
+    A: Analysis
+    X: Unclassified
+
+  # ISA 5.1 Instrument Function Codes (used for instrument classification)
+  instrument_functions:
+    I: Indicator
+    C: Controller
+    T: Transmitter
+    V: Valve
+    E: Element
+    A: Alarm
+    S: Switch
+    Y: Computing
+
+  # CFIHOS Equipment Qualifier Mappings
+  # These define service/type qualifiers aligned with CFIHOS equipment classes
+  equipment_qualifiers:
+    # Rotating Equipment - Pumps
+    pumps:
+      CP: Centrifugal Pump
+      PD: Positive Displacement Pump
+      FWP: Feed Water Pump
+      CWP: Cooling Water Pump
+      BWP: Boiler Water Pump
+      HWP: Hot Water Pump
+      CHWP: Chilled Water Pump
+      DP: Dosing Pump
+      VP: Vacuum Pump
+      SP: Submersible Pump
+      MP: Metering Pump
+
+    # Rotating Equipment - Compressors
+    compressors:
+      AC: Air Compressor
+      RC: Reciprocating Compressor
+      CC: Centrifugal Compressor
+      SC: Screw Compressor
+      PC: Positive Displacement Compressor
+      GC: Gas Compressor
+      IC: Instrument Air Compressor
+
+    # Rotating Equipment - Turbines
+    turbines:
+      ST: Steam Turbine
+      GT: Gas Turbine
+      HT: Hydraulic Turbine
+
+    # Rotating Equipment - Fans and Blowers
+    fans:
+      F: Fan
+      BF: Blower Fan
+      AF: Axial Fan
+      CF: Centrifugal Fan
+      EF: Exhaust Fan
+      IF: Induced Draft Fan
+      FF: Forced Draft Fan
+
+    # Static Equipment - Heat Exchangers
+    heat_exchangers:
+      HE: Heat Exchanger
+      CE: Condenser
+      RE: Reboiler
+      AE: Air Cooler
+      SE: Steam Heater
+      CO: Cooler
+      CH: Chiller
+      STHE: Shell and Tube Heat Exchanger
+      PHE: Plate Heat Exchanger
+
+    # Static Equipment - Vessels
+    vessels:
+      PV: Pressure Vessel
+      SV: Storage Vessel
+      TV: Tank Vessel
+      RV: Reactor Vessel
+      DV: Drum Vessel
+      SEPV: Separator Vessel
+      FV: Flash Vessel
+
+asset_tag_patterns:
+  # ============================================================================
+  # CFIHOS ROTATING EQUIPMENT CLASSES
+  # ============================================================================
+
+  # CFIHOS Class: Rotating Equipment - Pumps
+  # 4-Level CFIHOS Hierarchy:
+  # Level 1 (tag_class_name): Tag Class Name (e.g., "ROTATING_EQUIPMENT")
+  # Level 2 (equipment_class_name): Equipment Class Name (e.g., "PUMP")
+  # Level 3 (equipment_subclass_name): Equipment Subclass Name (e.g., "CENTRIFUGAL_PUMP")
+  # Level 4 (equipment_variant_name): Equipment Variant Name (e.g., "FEED_WATER_PUMP")
+  rotating_equipment_pumps:
+    - name: "cfihos_centrifugal_pump"
+      pattern: '\\b(?:\\d+[-_]?)?CP[-_]?\\d{1,6}[A-Z]?\\b'
+      description: "CFIHOS Centrifugal Pump tags (CP-101, CP101A, 24-CP-1234)"
+      type: "EQUIPMENT"
+      standard: "CFIHOS"
+      standard_section: "Rotating Equipment"
+      standard_subsection: "Pump - Centrifugal"
+      verbose_description: "Centrifugal pump identification aligned with CFIHOS Rotating Equipment class. Centrifugal pumps use rotating impellers to increase fluid velocity and pressure. CFIHOS Equipment Class: Rotating Equipment - Centrifugal Pump. Supports optional numeric unit/system prefixes (e.g., 24-CP-1234)."
+      tag_class_name: "ROTATING_EQUIPMENT"  # Level 1: Tag Class Name (CFIHOS)
+      equipment_class_name: "PUMP"  # Level 2: Equipment Class Name (CFIHOS)
+      equipment_subclass_name: "CENTRIFUGAL_PUMP"  # Level 3: Equipment Subclass Name (CFIHOS)
+      # Level 4: No variant (type-only, not service-specific)
+      examples: ["CP-101", "CP101A", "CP-2001", "24-CP-1234", "CP_101", "CP-10001"]
+      priority: 30
+      validation_rules: []
+
+    - name: "cfihos_positive_displacement_pump"
+      pattern: '\\b(?:\\d+[-_]?)?PD[-_]?\\d{1,6}[A-Z]?\\b'
+      description: "CFIHOS Positive Displacement Pump tags (PD-101, PD101A, 15-PD-801)"
+      type: "EQUIPMENT"
+      standard: "CFIHOS"
+      standard_section: "Rotating Equipment"
+      standard_subsection: "Pump - Positive Displacement"
+      verbose_description: "Positive displacement pump identification aligned with CFIHOS Rotating Equipment class. Positive displacement pumps move fluid by trapping a fixed amount and forcing it into the discharge pipe. CFIHOS Equipment Class: Rotating Equipment - Positive Displacement Pump. Supports optional numeric unit/system prefixes."
+      tag_class_name: "ROTATING_EQUIPMENT"  # Level 1: Tag Class Name (CFIHOS)
+      equipment_class_name: "PUMP"  # Level 2: Equipment Class Name (CFIHOS)
+      equipment_subclass_name: "POSITIVE_DISPLACEMENT_PUMP"  # Level 3: Equipment Subclass Name (CFIHOS)
+      # Level 4: No variant (type-only, not service-specific)
+      examples: ["PD-101", "PD101A", "PD-2001", "15-PD-801", "PD_101", "PD-10001"]
+      priority: 30
+      validation_rules: []
+
+    - name: "cfihos_standard_pump"
+      pattern: '\\b(?:\\d+[-_]?)?P[-_]?\\d{1,6}[A-Z]?\\b'
+      description: "CFIHOS Standard Pump tags (P-101, P101A, 24-P-1234)"
+      type: "EQUIPMENT"
+      standard: "CFIHOS"
+      standard_section: "Rotating Equipment"
+      standard_subsection: "Pump"
+      verbose_description: "Standard pump identification aligned with CFIHOS Rotating Equipment class. Pumps are rotating equipment used to move fluids through process systems. CFIHOS Equipment Class: Rotating Equipment - Pump. Supports optional numeric unit/system prefixes (e.g., 24-P-1234)."
+      tag_class_name: "ROTATING_EQUIPMENT"  # Level 1: Tag Class Name (CFIHOS)
+      equipment_class_name: "PUMP"  # Level 2: Equipment Class Name (CFIHOS)
+      # Level 3: No specific subtype (generic pump)
+      # Level 4: No variant
+      examples: ["P-101", "P101A", "P-2001", "24-P-1234", "P_101", "P-10001"]
+      priority: 50
+      validation_rules: []
+
+    - name: "cfihos_feed_water_pump"
+      pattern: '\\b(?:\\d+[-_]?)?FWP[-_]?\\d{1,6}[A-Z]?\\b'
+      description: "CFIHOS Feed Water Pump tags (FWP-101, FWP101A, 15-FWP-801)"
+      type: "EQUIPMENT"
+      standard: "CFIHOS"
+      standard_section: "Rotating Equipment"
+      standard_subsection: "Pump - Feed Water"
+      verbose_description: "Feed water pump identification aligned with CFIHOS Rotating Equipment class. Feed water pumps supply water to boilers or steam generators. CFIHOS Equipment Class: Rotating Equipment - Pump - Feed Water Pump. Supports optional numeric unit/system prefixes."
+      tag_class_name: "ROTATING_EQUIPMENT"  # Level 1: Tag Class Name (CFIHOS)
+      equipment_class_name: "PUMP"  # Level 2: Equipment Class Name (CFIHOS)
+      # Level 3: Empty (service-specific, not type-specific)
+      equipment_variant_name: "FEED_WATER_PUMP"  # Level 4: Equipment Variant Name (CFIHOS)
+      examples: ["FWP-101", "FWP101A", "FWP-2001", "15-FWP-801", "FWP_101", "FWP-10001"]
+      priority: 25
+      validation_rules: []
+
+    - name: "cfihos_cooling_water_pump"
+      pattern: '\\b(?:\\d+[-_]?)?CWP[-_]?\\d{1,6}[A-Z]?\\b'
+      description: "CFIHOS Cooling Water Pump tags (CWP-101, CWP101A, 15-CWP-801)"
+      type: "EQUIPMENT"
+      standard: "CFIHOS"
+      standard_section: "Rotating Equipment"
+      standard_subsection: "Pump - Cooling Water"
+      verbose_description: "Cooling water pump identification aligned with CFIHOS Rotating Equipment class. Cooling water pumps circulate water for heat removal in process systems. CFIHOS Equipment Class: Rotating Equipment - Pump - Cooling Water Pump. Supports optional numeric unit/system prefixes."
+      tag_class_name: "ROTATING_EQUIPMENT"  # Level 1: Tag Class Name (CFIHOS)
+      equipment_class_name: "PUMP"  # Level 2: Equipment Class Name (CFIHOS)
+      # Level 3: Empty (service-specific, not type-specific)
+      equipment_variant_name: "COOLING_WATER_PUMP"  # Level 4: Equipment Variant Name (CFIHOS)
+      examples: ["CWP-101", "CWP101A", "CWP-2001", "15-CWP-801", "CWP_101", "CWP-10001"]
+      priority: 25
+      validation_rules: []
+
+    - name: "cfihos_boiler_water_pump"
+      pattern: '\\b(?:\\d+[-_]?)?BWP[-_]?\\d{1,6}[A-Z]?\\b'
+      description: "CFIHOS Boiler Water Pump tags (BWP-101, BWP101A, 15-BWP-801)"
+      type: "EQUIPMENT"
+      standard: "CFIHOS"
+      standard_section: "Rotating Equipment"
+      standard_subsection: "Pump - Boiler Water"
+      verbose_description: "Boiler water pump identification aligned with CFIHOS Rotating Equipment class. Boiler water pumps circulate water within boiler systems. CFIHOS Equipment Class: Rotating Equipment - Pump - Boiler Water Pump. Supports optional numeric unit/system prefixes."
+      tag_class_name: "ROTATING_EQUIPMENT"  # Level 1: Tag Class Name (CFIHOS)
+      equipment_class_name: "PUMP"  # Level 2: Equipment Class Name (CFIHOS)
+      # Level 3: Empty (service-specific, not type-specific)
+      equipment_variant_name: "BOILER_WATER_PUMP"  # Level 4: Equipment Variant Name (CFIHOS)
+      examples: ["BWP-101", "BWP101A", "BWP-2001", "15-BWP-801", "BWP_101", "BWP-10001"]
+      priority: 25
+      validation_rules: []
+
+    - name: "cfihos_dosing_pump"
+      pattern: '\\b(?:\\d+[-_]?)?DP[-_]?\\d{1,6}[A-Z]?\\b'
+      description: "CFIHOS Dosing Pump tags (DP-101, DP101A, 15-DP-801)"
+      type: "EQUIPMENT"
+      standard: "CFIHOS"
+      standard_section: "Rotating Equipment"
+      standard_subsection: "Pump - Dosing"
+      verbose_description: "Dosing pump identification aligned with CFIHOS Rotating Equipment class. Dosing pumps inject precise amounts of chemicals or additives into process streams. CFIHOS Equipment Class: Rotating Equipment - Pump - Dosing Pump. Supports optional numeric unit/system prefixes."
+      tag_class_name: "ROTATING_EQUIPMENT"  # Level 1: Tag Class Name (CFIHOS)
+      equipment_class_name: "PUMP"  # Level 2: Equipment Class Name (CFIHOS)
+      # Level 3: Empty (service-specific, not type-specific)
+      equipment_variant_name: "DOSING_PUMP"  # Level 4: Equipment Variant Name (CFIHOS)
+      examples: ["DP-101", "DP101A", "DP-2001", "15-DP-801", "DP_101", "DP-10001"]
+      priority: 25
+      validation_rules: []
+
+    - name: "cfihos_vacuum_pump"
+      pattern: '\\b(?:\\d+[-_]?)?VP[-_]?\\d{1,6}[A-Z]?\\b'
+      description: "CFIHOS Vacuum Pump tags (VP-101, VP101A, 15-VP-801)"
+      type: "EQUIPMENT"
+      standard: "CFIHOS"
+      standard_section: "Rotating Equipment"
+      standard_subsection: "Pump - Vacuum"
+      verbose_description: "Vacuum pump identification aligned with CFIHOS Rotating Equipment class. Vacuum pumps remove gases from sealed volumes to create partial vacuum. CFIHOS Equipment Class: Rotating Equipment - Pump - Vacuum Pump. Supports optional numeric unit/system prefixes."
+      tag_class_name: "ROTATING_EQUIPMENT"  # Level 1: Tag Class Name (CFIHOS)
+      equipment_class_name: "PUMP"  # Level 2: Equipment Class Name (CFIHOS)
+      # Level 3: Empty (service-specific, not type-specific)
+      equipment_variant_name: "VACUUM_PUMP"  # Level 4: Equipment Variant Name (CFIHOS)
+      examples: ["VP-101", "VP101A", "VP-2001", "15-VP-801", "VP_101", "VP-10001"]
+      priority: 25
+      validation_rules: []
+
+    - name: "cfihos_submersible_pump"
+      pattern: '\\b(?:\\d+[-_]?)?SP[-_]?\\d{1,6}[A-Z]?\\b'
+      description: "CFIHOS Submersible Pump tags (SP-101, SP101A, 15-SP-801)"
+      type: "EQUIPMENT"
+      standard: "CFIHOS"
+      standard_section: "Rotating Equipment"
+      standard_subsection: "Pump - Submersible"
+      verbose_description: "Submersible pump identification aligned with CFIHOS Rotating Equipment class. Submersible pumps are designed to operate while submerged in the fluid being pumped. CFIHOS Equipment Class: Rotating Equipment - Pump - Submersible Pump. Supports optional numeric unit/system prefixes."
+      tag_class_name: "ROTATING_EQUIPMENT"  # Level 1: Tag Class Name (CFIHOS)
+      equipment_class_name: "PUMP"  # Level 2: Equipment Class Name (CFIHOS)
+      # Level 3: Empty (service-specific, not type-specific)
+      equipment_variant_name: "SUBMERSIBLE_PUMP"  # Level 4: Equipment Variant Name (CFIHOS)
+      examples: ["SP-101", "SP101A", "SP-2001", "15-SP-801", "SP_101", "SP-10001"]
+      priority: 25
+      validation_rules: []
+
+    - name: "cfihos_metering_pump"
+      pattern: '\\b(?:\\d+[-_]?)?MP[-_]?\\d{1,6}[A-Z]?\\b'
+      description: "CFIHOS Metering Pump tags (MP-101, MP101A, 15-MP-801)"
+      type: "EQUIPMENT"
+      standard: "CFIHOS"
+      standard_section: "Rotating Equipment"
+      standard_subsection: "Pump - Metering"
+      verbose_description: "Metering pump identification aligned with CFIHOS Rotating Equipment class. Metering pumps deliver precise flow rates for chemical injection and dosing applications. CFIHOS Equipment Class: Rotating Equipment - Pump - Metering Pump. Supports optional numeric unit/system prefixes."
+      tag_class_name: "ROTATING_EQUIPMENT"  # Level 1: Tag Class Name (CFIHOS)
+      equipment_class_name: "PUMP"  # Level 2: Equipment Class Name (CFIHOS)
+      # Level 3: Empty (service-specific, not type-specific)
+      equipment_variant_name: "METERING_PUMP"  # Level 4: Equipment Variant Name (CFIHOS)
+      examples: ["MP-101", "MP101A", "MP-2001", "15-MP-801", "MP_101", "MP-10001"]
+      priority: 25
+      validation_rules: []
+
+    - name: "cfihos_pump_with_service_generic"
+      pattern: '\\b(?:\\d+[-_]?)?(?:HWP|CHWP)[-_]?\\d{1,6}[A-Z]?\\b'
+      description: "CFIHOS Pump with service designation (HWP-101, CHWP-201, 15-HWP-801)"
+      type: "EQUIPMENT"
+      standard: "CFIHOS"
+      standard_section: "Rotating Equipment"
+      standard_subsection: "Pump - Service Specific"
+      verbose_description: "Pump tags with service designation aligned with CFIHOS Rotating Equipment class. Service prefixes indicate the pump's function within the process system (e.g., HWP for Hot Water Pump, CHWP for Chilled Water Pump). CFIHOS Equipment Class: Rotating Equipment - Pump. Supports optional numeric unit/system prefixes."
+      tag_class_name: "ROTATING_EQUIPMENT"  # Level 1: Tag Class Name (CFIHOS)
+      equipment_class_name: "PUMP"  # Level 2: Equipment Class Name (CFIHOS)
+      # Level 3: Empty (service-specific, not type-specific)
+      # Level 4: Variant extracted from qualifier mapping (Hot Water Pump, Chilled Water Pump)
+      examples: ["HWP-101", "CHWP-201", "HWP-2001", "15-HWP-801", "CHWP_101", "CHWP-10001"]
+      priority: 35
+      validation_rules: []
+
+  # CFIHOS Class: Rotating Equipment - Compressors
+  # 4-Level CFIHOS Hierarchy:
+  # Level 1 (tag_class_name): Tag Class Name (e.g., "ROTATING_EQUIPMENT")
+  # Level 2 (equipment_class_name): Equipment Class Name (e.g., "COMPRESSOR")
+  # Level 3 (equipment_subclass_name): Equipment Subclass Name (e.g., "CENTRIFUGAL_COMPRESSOR")
+  # Level 4 (equipment_variant_name): Equipment Variant Name (e.g., "INSTRUMENT_AIR_COMPRESSOR")
+  rotating_equipment_compressors:
+    - name: "cfihos_centrifugal_compressor"
+      pattern: '\\b(?:\\d+[-_]?)?CC[-_]?\\d{1,6}[A-Z]?\\b'
+      description: "CFIHOS Centrifugal Compressor tags (CC-101, CC101A, 20-CC-901)"
+      type: "EQUIPMENT"
+      standard: "CFIHOS"
+      standard_section: "Rotating Equipment"
+      standard_subsection: "Compressor - Centrifugal"
+      verbose_description: "Centrifugal compressor identification aligned with CFIHOS Rotating Equipment class. Centrifugal compressors use rotating impellers to compress gases. CFIHOS Equipment Class: Rotating Equipment - Centrifugal Compressor. Supports optional numeric unit/system prefixes."
+      tag_class_name: "ROTATING_EQUIPMENT"  # Level 1: Tag Class Name (CFIHOS)
+      equipment_class_name: "COMPRESSOR"  # Level 2: Equipment Class Name (CFIHOS)
+      equipment_subclass_name: "CENTRIFUGAL_COMPRESSOR"  # Level 3: Equipment Subclass Name (CFIHOS)
+      # Level 4: No variant (type-only, not service-specific)
+      examples: ["CC-101", "CC101A", "CC-2001", "20-CC-901", "CC_101", "CC-10001"]
+      priority: 30
+      validation_rules: []
+
+    - name: "cfihos_reciprocating_compressor"
+      pattern: '\\b(?:\\d+[-_]?)?RC[-_]?\\d{1,6}[A-Z]?\\b'
+      description: "CFIHOS Reciprocating Compressor tags (RC-101, RC101A, 20-RC-901)"
+      type: "EQUIPMENT"
+      standard: "CFIHOS"
+      standard_section: "Rotating Equipment"
+      standard_subsection: "Compressor - Reciprocating"
+      verbose_description: "Reciprocating compressor identification aligned with CFIHOS Rotating Equipment class. Reciprocating compressors use pistons to compress gases. CFIHOS Equipment Class: Rotating Equipment - Reciprocating Compressor. Supports optional numeric unit/system prefixes."
+      tag_class_name: "ROTATING_EQUIPMENT"  # Level 1: Tag Class Name (CFIHOS)
+      equipment_class_name: "COMPRESSOR"  # Level 2: Equipment Class Name (CFIHOS)
+      equipment_subclass_name: "RECIPROCATING_COMPRESSOR"  # Level 3: Equipment Subclass Name (CFIHOS)
+      # Level 4: No variant (type-only, not service-specific)
+      examples: ["RC-101", "RC101A", "RC-2001", "20-RC-901", "RC_101", "RC-10001"]
+      priority: 30
+      validation_rules: []
+
+    - name: "cfihos_screw_compressor"
+      pattern: '\\b(?:\\d+[-_]?)?SC[-_]?\\d{1,6}[A-Z]?\\b'
+      description: "CFIHOS Screw Compressor tags (SC-101, SC101A, 20-SC-901)"
+      type: "EQUIPMENT"
+      standard: "CFIHOS"
+      standard_section: "Rotating Equipment"
+      standard_subsection: "Compressor - Screw"
+      verbose_description: "Screw compressor identification aligned with CFIHOS Rotating Equipment class. Screw compressors use intermeshing rotors to compress gases. CFIHOS Equipment Class: Rotating Equipment - Screw Compressor. Supports optional numeric unit/system prefixes."
+      tag_class_name: "ROTATING_EQUIPMENT"  # Level 1: Tag Class Name (CFIHOS)
+      equipment_class_name: "COMPRESSOR"  # Level 2: Equipment Class Name (CFIHOS)
+      equipment_subclass_name: "SCREW_COMPRESSOR"  # Level 3: Equipment Subclass Name (CFIHOS)
+      # Level 4: No variant (type-only, not service-specific)
+      examples: ["SC-101", "SC101A", "SC-2001", "20-SC-901", "SC_101", "SC-10001"]
+      priority: 30
+      validation_rules: []
+
+    - name: "cfihos_air_compressor"
+      pattern: '\\b(?:\\d+[-_]?)?AC[-_]?\\d{1,6}[A-Z]?\\b'
+      description: "CFIHOS Air Compressor tags (AC-101, AC101A, 20-AC-901)"
+      type: "EQUIPMENT"
+      standard: "CFIHOS"
+      standard_section: "Rotating Equipment"
+      standard_subsection: "Compressor - Air"
+      verbose_description: "Air compressor identification aligned with CFIHOS Rotating Equipment class. Air compressors compress atmospheric air for plant air or instrument air systems. CFIHOS Equipment Class: Rotating Equipment - Air Compressor. Supports optional numeric unit/system prefixes."
+      tag_class_name: "ROTATING_EQUIPMENT"  # Level 1: Tag Class Name (CFIHOS)
+      equipment_class_name: "COMPRESSOR"  # Level 2: Equipment Class Name (CFIHOS)
+      equipment_subclass_name: "AIR_COMPRESSOR"  # Level 3: Equipment Subclass Name (CFIHOS)
+      # Level 4: No variant (type-only, not service-specific)
+      examples: ["AC-101", "AC101A", "AC-2001", "20-AC-901", "AC_101", "AC-10001"]
+      priority: 30
+      validation_rules: []
+
+    - name: "cfihos_instrument_air_compressor"
+      pattern: '\\b(?:\\d+[-_]?)?IC[-_]?\\d{1,6}[A-Z]?\\b'
+      description: "CFIHOS Instrument Air Compressor tags (IC-101, IC101A, 20-IC-901)"
+      type: "EQUIPMENT"
+      standard: "CFIHOS"
+      standard_section: "Rotating Equipment"
+      standard_subsection: "Compressor - Instrument Air"
+      verbose_description: "Instrument air compressor identification aligned with CFIHOS Rotating Equipment class. Instrument air compressors provide clean, dry compressed air for pneumatic instruments and controls. CFIHOS Equipment Class: Rotating Equipment - Compressor - Instrument Air Compressor. Supports optional numeric unit/system prefixes."
+      tag_class_name: "ROTATING_EQUIPMENT"  # Level 1: Tag Class Name (CFIHOS)
+      equipment_class_name: "COMPRESSOR"  # Level 2: Equipment Class Name (CFIHOS)
+      # Level 3: Empty (service-specific, not type-specific)
+      equipment_variant_name: "INSTRUMENT_AIR_COMPRESSOR"  # Level 4: Equipment Variant Name (CFIHOS)
+      examples: ["IC-101", "IC101A", "IC-2001", "20-IC-901", "IC_101", "IC-10001"]
+      priority: 25
+      validation_rules: []
+
+    - name: "cfihos_gas_compressor"
+      pattern: '\\b(?:\\d+[-_]?)?GC[-_]?\\d{1,6}[A-Z]?\\b'
+      description: "CFIHOS Gas Compressor tags (GC-101, GC101A, 20-GC-901)"
+      type: "EQUIPMENT"
+      standard: "CFIHOS"
+      standard_section: "Rotating Equipment"
+      standard_subsection: "Compressor - Gas"
+      verbose_description: "Gas compressor identification aligned with CFIHOS Rotating Equipment class. Gas compressors compress process gases for transportation or processing. CFIHOS Equipment Class: Rotating Equipment - Compressor - Gas Compressor. Supports optional numeric unit/system prefixes."
+      tag_class_name: "ROTATING_EQUIPMENT"  # Level 1: Tag Class Name (CFIHOS)
+      equipment_class_name: "COMPRESSOR"  # Level 2: Equipment Class Name (CFIHOS)
+      # Level 3: Empty (service-specific, not type-specific)
+      equipment_variant_name: "GAS_COMPRESSOR"  # Level 4: Equipment Variant Name (CFIHOS)
+      examples: ["GC-101", "GC101A", "GC-2001", "20-GC-901", "GC_101", "GC-10001"]
+      priority: 25
+      validation_rules: []
+
+    - name: "cfihos_standard_compressor"
+      pattern: '\\b(?:\\d+[-_]?)?C[-_]?\\d{1,6}[A-Z]?\\b'
+      description: "CFIHOS Standard Compressor tags (C-101, C101A, 100-C-301)"
+      type: "EQUIPMENT"
+      standard: "CFIHOS"
+      standard_section: "Rotating Equipment"
+      standard_subsection: "Compressor"
+      verbose_description: "Standard compressor identification aligned with CFIHOS Rotating Equipment class. Compressors are mechanical devices that increase the pressure of gases. CFIHOS Equipment Class: Rotating Equipment - Compressor. Supports optional numeric unit/system prefixes. Note: 'C' alone may also match columns; use specific tags (e.g., AC, RC, CC) when possible."
+      tag_class_name: "ROTATING_EQUIPMENT"  # Level 1: Tag Class Name (CFIHOS)
+      equipment_class_name: "COMPRESSOR"  # Level 2: Equipment Class Name (CFIHOS)
+      # Level 3: No specific subtype (generic compressor)
+      # Level 4: No variant
+      examples: ["C-101", "C101A", "C-2001", "100-C-301", "C_101", "C-10001"]
+      priority: 40
+      validation_rules: []
+
+  # CFIHOS Class: Rotating Equipment - Turbines
+  # 4-Level CFIHOS Hierarchy:
+  # Level 1 (tag_class_name): Tag Class Name (e.g., "ROTATING_EQUIPMENT")
+  # Level 2 (equipment_class_name): Equipment Class Name (e.g., "TURBINE")
+  # Level 3 (equipment_subclass_name): Equipment Subclass Name (e.g., "STEAM_TURBINE")
+  # Level 4 (equipment_variant_name): Equipment Variant Name (typically none for turbines)
+  rotating_equipment_turbines:
+    - name: "cfihos_steam_turbine"
+      pattern: '\\b(?:\\d+[-_]?)?ST[-_]?\\d{1,6}[A-Z]?\\b'
+      description: "CFIHOS Steam Turbine tags (ST-101, ST101A, 30-ST-501)"
+      type: "EQUIPMENT"
+      standard: "CFIHOS"
+      standard_section: "Rotating Equipment"
+      standard_subsection: "Turbine - Steam"
+      verbose_description: "Steam turbine identification aligned with CFIHOS Rotating Equipment class. Steam turbines convert thermal energy from steam into mechanical work. CFIHOS Equipment Class: Rotating Equipment - Steam Turbine. Supports optional numeric unit/system prefixes."
+      tag_class_name: "ROTATING_EQUIPMENT"  # Level 1: Tag Class Name (CFIHOS)
+      equipment_class_name: "TURBINE"  # Level 2: Equipment Class Name (CFIHOS)
+      equipment_subclass_name: "STEAM_TURBINE"  # Level 3: Equipment Subclass Name (CFIHOS)
+      # Level 4: No variant
+      examples: ["ST-101", "ST101A", "ST-2001", "30-ST-501", "ST_101", "ST-10001"]
+      priority: 30
+      validation_rules: []
+
+    - name: "cfihos_gas_turbine"
+      pattern: '\\b(?:\\d+[-_]?)?GT[-_]?\\d{1,6}[A-Z]?\\b'
+      description: "CFIHOS Gas Turbine tags (GT-101, GT101A, 30-GT-501)"
+      type: "EQUIPMENT"
+      standard: "CFIHOS"
+      standard_section: "Rotating Equipment"
+      standard_subsection: "Turbine - Gas"
+      verbose_description: "Gas turbine identification aligned with CFIHOS Rotating Equipment class. Gas turbines convert thermal energy from combustion gases into mechanical work. CFIHOS Equipment Class: Rotating Equipment - Gas Turbine. Supports optional numeric unit/system prefixes."
+      tag_class_name: "ROTATING_EQUIPMENT"  # Level 1: Tag Class Name (CFIHOS)
+      equipment_class_name: "TURBINE"  # Level 2: Equipment Class Name (CFIHOS)
+      equipment_subclass_name: "GAS_TURBINE"  # Level 3: Equipment Subclass Name (CFIHOS)
+      # Level 4: No variant
+      examples: ["GT-101", "GT101A", "GT-2001", "30-GT-501", "GT_101", "GT-10001"]
+      priority: 30
+      validation_rules: []
+
+  # CFIHOS Class: Rotating Equipment - Fans and Blowers
+  rotating_equipment_fans:
+    - name: "cfihos_fan"
+      pattern: '\\b(?:\\d+[-_]?)?(?:BF|AF|CF|EF|IF|FF)[-_]?\\d{1,6}[A-Z]?\\b'
+      description: "CFIHOS Fan tags with type designation (BF-101, AF-201, 25-BF-401)"
+      type: "EQUIPMENT"
+      standard: "CFIHOS"
+      standard_section: "Rotating Equipment"
+      standard_subsection: "Fan"
+      verbose_description: "Fan identification aligned with CFIHOS Rotating Equipment class. Fans move air or gases for ventilation, cooling, or process applications. Type prefixes: BF=Blower Fan, AF=Axial Fan, CF=Centrifugal Fan, EF=Exhaust Fan, IF=Induced Draft Fan, FF=Forced Draft Fan. CFIHOS Equipment Class: Rotating Equipment - Fan. Supports optional numeric unit/system prefixes."
+      tag_class_name: "ROTATING_EQUIPMENT"
+      equipment_class_name: "FAN"
+      examples: ["BF-101", "AF-201", "CF-301", "EF-401", "IF-501", "FF-601", "25-BF-401", "BF-10001"]
+      priority: 35
+      validation_rules: []
+
+  # CFIHOS Class: Rotating Equipment - Motors
+  rotating_equipment_motors:
+    - name: "cfihos_motor"
+      pattern: '\\b(?:\\d+[-_]?)?M[-_]?\\d{1,6}[A-Z]?\\b'
+      description: "CFIHOS Motor tags (M-101, M101A, 40-M-701)"
+      type: "EQUIPMENT"
+      standard: "CFIHOS"
+      standard_section: "Rotating Equipment"
+      standard_subsection: "Motor"
+      verbose_description: "Motor identification aligned with CFIHOS Rotating Equipment class. Motors convert electrical energy into mechanical work to drive pumps, compressors, fans, and other rotating equipment. CFIHOS Equipment Class: Rotating Equipment - Motor. Supports optional numeric unit/system prefixes."
+      tag_class_name: "ROTATING_EQUIPMENT"
+      equipment_class_name: "MOTOR"
+      examples: ["M-101", "M101A", "M-2001", "40-M-701", "M_101", "M-10001"]
+      priority: 50
+      validation_rules: []
+
+  # ============================================================================
+  # CFIHOS STATIC EQUIPMENT CLASSES
+  # ============================================================================
+
+  # CFIHOS Class: Static Equipment - Vessels
+  static_equipment_vessels:
+    - name: "cfihos_pressure_vessel"
+      pattern: '\\b(?:\\d+[-_]?)?PV[-_]?\\d{1,6}[A-Z]?\\b'
+      description: "CFIHOS Pressure Vessel tags (PV-101, PV101A, 50-PV-801)"
+      type: "EQUIPMENT"
+      standard: "CFIHOS"
+      standard_section: "Static Equipment"
+      standard_subsection: "Vessel - Pressure"
+      verbose_description: "Pressure vessel identification aligned with CFIHOS Static Equipment class. Pressure vessels are containers designed to hold gases or liquids at pressures substantially different from ambient pressure. CFIHOS Equipment Class: Static Equipment - Pressure Vessel. Supports optional numeric unit/system prefixes."
+      tag_class_name: "STATIC_EQUIPMENT"
+      equipment_class_name: "PRESSURE_VESSEL"
+      examples: ["PV-101", "PV101A", "PV-2001", "50-PV-801", "PV_101", "PV-10001"]
+      priority: 30
+      validation_rules: []
+
+    - name: "cfihos_storage_vessel"
+      pattern: '\\b(?:\\d+[-_]?)?SV[-_]?\\d{1,6}[A-Z]?\\b'
+      description: "CFIHOS Storage Vessel tags (SV-101, SV101A, 50-SV-801)"
+      type: "EQUIPMENT"
+      standard: "CFIHOS"
+      standard_section: "Static Equipment"
+      standard_subsection: "Vessel - Storage"
+      verbose_description: "Storage vessel identification aligned with CFIHOS Static Equipment class. Storage vessels are containers used for storing liquids or gases at atmospheric or low pressure. CFIHOS Equipment Class: Static Equipment - Storage Vessel. Supports optional numeric unit/system prefixes."
+      tag_class_name: "STATIC_EQUIPMENT"
+      equipment_class_name: "STORAGE_VESSEL"
+      examples: ["SV-101", "SV101A", "SV-2001", "50-SV-801", "SV_101", "SV-10001"]
+      priority: 30
+      validation_rules: []
+
+    - name: "cfihos_tank"
+      pattern: '\\b(?:\\d+[-_]?)?T[-_]?\\d{1,6}[A-Z]?\\b'
+      description: "CFIHOS Tank tags (T-101, T101A, 50-T-801)"
+      type: "EQUIPMENT"
+      standard: "CFIHOS"
+      standard_section: "Static Equipment"
+      standard_subsection: "Vessel - Tank"
+      verbose_description: "Tank identification aligned with CFIHOS Static Equipment class. Tanks are vessels used for storing liquids or gases. CFIHOS Equipment Class: Static Equipment - Tank. Supports optional numeric unit/system prefixes."
+      tag_class_name: "STATIC_EQUIPMENT"
+      equipment_class_name: "TANK"
+      examples: ["T-101", "T101A", "T-2001", "50-T-801", "T_101", "T-10001"]
+      priority: 50
+      validation_rules: []
+
+    - name: "cfihos_reactor_vessel"
+      pattern: '\\b(?:\\d+[-_]?)?RV[-_]?\\d{1,6}[A-Z]?\\b'
+      description: "CFIHOS Reactor Vessel tags (RV-101, RV101A, 50-RV-801)"
+      type: "EQUIPMENT"
+      standard: "CFIHOS"
+      standard_section: "Static Equipment"
+      standard_subsection: "Vessel - Reactor"
+      verbose_description: "Reactor vessel identification aligned with CFIHOS Static Equipment class. Reactor vessels are specialized vessels where chemical reactions occur. CFIHOS Equipment Class: Static Equipment - Reactor Vessel. Supports optional numeric unit/system prefixes."
+      tag_class_name: "STATIC_EQUIPMENT"
+      equipment_class_name: "REACTOR_VESSEL"
+      examples: ["RV-101", "RV101A", "RV-2001", "50-RV-801", "RV_101", "RV-10001"]
+      priority: 30
+      validation_rules: []
+
+    - name: "cfihos_separator_vessel"
+      pattern: '\\b(?:\\d+[-_]?)?(?:SEP|SP)[-_]?\\d{1,6}[A-Z]?\\b'
+      description: "CFIHOS Separator Vessel tags (SEP-101, SP-201, 50-SEP-801)"
+      type: "EQUIPMENT"
+      standard: "CFIHOS"
+      standard_section: "Static Equipment"
+      standard_subsection: "Vessel - Separator"
+      verbose_description: "Separator vessel identification aligned with CFIHOS Static Equipment class. Separator vessels separate mixtures into their components based on differences in density, phase, or other properties. CFIHOS Equipment Class: Static Equipment - Separator Vessel. Supports optional numeric unit/system prefixes."
+      tag_class_name: "STATIC_EQUIPMENT"
+      equipment_class_name: "SEPARATOR_VESSEL"
+      examples: ["SEP-101", "SP-201", "SEP-2001", "50-SEP-801", "SEP_101", "SP-10001"]
+      priority: 30
+      validation_rules: []
+
+    - name: "cfihos_standard_vessel"
+      pattern: '\\b(?:\\d+[-_]?)?V[-_]?\\d{1,6}[A-Z]?\\b'
+      description: "CFIHOS Standard Vessel tags (V-101, V101A, 50-V-801)"
+      type: "EQUIPMENT"
+      standard: "CFIHOS"
+      standard_section: "Static Equipment"
+      standard_subsection: "Vessel"
+      verbose_description: "Standard vessel identification aligned with CFIHOS Static Equipment class. Vessels are containers used in process operations for reactions, separation, mixing, or other unit operations. CFIHOS Equipment Class: Static Equipment - Vessel. Supports optional numeric unit/system prefixes."
+      tag_class_name: "STATIC_EQUIPMENT"
+      equipment_class_name: "VESSEL"
+      examples: ["V-101", "V101A", "V-2001", "50-V-801", "V_101", "V-10001"]
+      priority: 50
+      validation_rules: []
+
+  # CFIHOS Class: Static Equipment - Heat Exchangers
+  static_equipment_heat_exchangers:
+    - name: "cfihos_shell_tube_heat_exchanger"
+      pattern: '\\b(?:\\d+[-_]?)?STHE[-_]?\\d{1,6}[A-Z]?\\b'
+      description: "CFIHOS Shell and Tube Heat Exchanger tags (STHE-101, STHE101A, 60-STHE-901)"
+      type: "EQUIPMENT"
+      standard: "CFIHOS"
+      standard_section: "Static Equipment"
+      standard_subsection: "Heat Exchanger - Shell and Tube"
+      verbose_description: "Shell and tube heat exchanger identification aligned with CFIHOS Static Equipment class. Shell and tube heat exchangers transfer thermal energy between fluids using a shell containing multiple tubes. CFIHOS Equipment Class: Static Equipment - Shell and Tube Heat Exchanger. Supports optional numeric unit/system prefixes."
+      tag_class_name: "STATIC_EQUIPMENT"
+      equipment_class_name: "SHELL_TUBE_HEAT_EXCHANGER"
+      examples: ["STHE-101", "STHE101A", "STHE-2001", "60-STHE-901", "STHE_101", "STHE-10001"]
+      priority: 25
+      validation_rules: []
+
+    - name: "cfihos_plate_heat_exchanger"
+      pattern: '\\b(?:\\d+[-_]?)?PHE[-_]?\\d{1,6}[A-Z]?\\b'
+      description: "CFIHOS Plate Heat Exchanger tags (PHE-101, PHE101A, 60-PHE-901)"
+      type: "EQUIPMENT"
+      standard: "CFIHOS"
+      standard_section: "Static Equipment"
+      standard_subsection: "Heat Exchanger - Plate"
+      verbose_description: "Plate heat exchanger identification aligned with CFIHOS Static Equipment class. Plate heat exchangers transfer thermal energy between fluids using corrugated plates. CFIHOS Equipment Class: Static Equipment - Plate Heat Exchanger. Supports optional numeric unit/system prefixes."
+      tag_class_name: "STATIC_EQUIPMENT"
+      equipment_class_name: "PLATE_HEAT_EXCHANGER"
+      examples: ["PHE-101", "PHE101A", "PHE-2001", "60-PHE-901", "PHE_101", "PHE-10001"]
+      priority: 25
+      validation_rules: []
+
+    - name: "cfihos_condenser"
+      pattern: '\\b(?:\\d+[-_]?)?CE[-_]?\\d{1,6}[A-Z]?\\b'
+      description: "CFIHOS Condenser tags (CE-101, CE101A, 60-CE-901)"
+      type: "EQUIPMENT"
+      standard: "CFIHOS"
+      standard_section: "Static Equipment"
+      standard_subsection: "Heat Exchanger - Condenser"
+      verbose_description: "Condenser identification aligned with CFIHOS Static Equipment class. Condensers convert vapor to liquid by removing heat. CFIHOS Equipment Class: Static Equipment - Condenser. Supports optional numeric unit/system prefixes."
+      tag_class_name: "STATIC_EQUIPMENT"
+      equipment_class_name: "CONDENSER"
+      examples: ["CE-101", "CE101A", "CE-2001", "60-CE-901", "CE_101", "CE-10001"]
+      priority: 30
+      validation_rules: []
+
+    - name: "cfihos_reboiler"
+      pattern: '\\b(?:\\d+[-_]?)?RE[-_]?\\d{1,6}[A-Z]?\\b'
+      description: "CFIHOS Reboiler tags (RE-101, RE101A, 60-RE-901)"
+      type: "EQUIPMENT"
+      standard: "CFIHOS"
+      standard_section: "Static Equipment"
+      standard_subsection: "Heat Exchanger - Reboiler"
+      verbose_description: "Reboiler identification aligned with CFIHOS Static Equipment class. Reboilers provide heat to distillation columns by vaporizing the bottom product. CFIHOS Equipment Class: Static Equipment - Reboiler. Supports optional numeric unit/system prefixes."
+      tag_class_name: "STATIC_EQUIPMENT"
+      equipment_class_name: "REBOILER"
+      examples: ["RE-101", "RE101A", "RE-2001", "60-RE-901", "RE_101", "RE-10001"]
+      priority: 30
+      validation_rules: []
+
+    - name: "cfihos_air_cooler"
+      pattern: '\\b(?:\\d+[-_]?)?AE[-_]?\\d{1,6}[A-Z]?\\b'
+      description: "CFIHOS Air Cooler tags (AE-101, AE101A, 60-AE-901)"
+      type: "EQUIPMENT"
+      standard: "CFIHOS"
+      standard_section: "Static Equipment"
+      standard_subsection: "Heat Exchanger - Air Cooler"
+      verbose_description: "Air cooler identification aligned with CFIHOS Static Equipment class. Air coolers use ambient air to cool process fluids. CFIHOS Equipment Class: Static Equipment - Air Cooler. Supports optional numeric unit/system prefixes."
+      tag_class_name: "STATIC_EQUIPMENT"
+      equipment_class_name: "AIR_COOLER"
+      examples: ["AE-101", "AE101A", "AE-2001", "60-AE-901", "AE_101", "AE-10001"]
+      priority: 30
+      validation_rules: []
+
+    - name: "cfihos_standard_heat_exchanger"
+      pattern: '\\b(?:\\d+[-_]?)?(?:HE|E)[-_]?\\d{1,6}[A-Z]?\\b'
+      description: "CFIHOS Standard Heat Exchanger tags (HE-101, E-201, 60-HE-901)"
+      type: "EQUIPMENT"
+      standard: "CFIHOS"
+      standard_section: "Static Equipment"
+      standard_subsection: "Heat Exchanger"
+      verbose_description: "Standard heat exchanger identification aligned with CFIHOS Static Equipment class. Heat exchangers transfer thermal energy between two or more fluids. CFIHOS Equipment Class: Static Equipment - Heat Exchanger. Supports optional numeric unit/system prefixes."
+      tag_class_name: "STATIC_EQUIPMENT"
+      equipment_class_name: "HEAT_EXCHANGER"
+      examples: ["HE-101", "E-201", "HE-2001", "60-HE-901", "HE_101", "E-10001"]
+      priority: 50
+      validation_rules: []
+
+  # CFIHOS Class: Static Equipment - Columns
+  static_equipment_columns:
+    - name: "cfihos_distillation_column"
+      pattern: '\\b(?:\\d+[-_]?)?(?:DC|C)[-_]?\\d{1,6}[A-Z]?\\b'
+      description: "CFIHOS Distillation Column tags (C-101, DC-201, 70-C-1001)"
+      type: "EQUIPMENT"
+      standard: "CFIHOS"
+      standard_section: "Static Equipment"
+      standard_subsection: "Column - Distillation"
+      verbose_description: "Distillation column identification aligned with CFIHOS Static Equipment class. Distillation columns separate components based on differences in volatility. CFIHOS Equipment Class: Static Equipment - Distillation Column. Supports optional numeric unit/system prefixes."
+      tag_class_name: "STATIC_EQUIPMENT"
+      equipment_class_name: "DISTILLATION_COLUMN"
+      examples: ["C-101", "DC-201", "C-2001", "70-C-1001", "DC_101", "DC-10001"]
+      priority: 40
+      validation_rules: []
+
+    - name: "cfihos_absorption_column"
+      pattern: '\\b(?:\\d+[-_]?)?AC[-_]?\\d{1,6}[A-Z]?\\b'
+      description: "CFIHOS Absorption Column tags (AC-101, AC101A, 70-AC-1001)"
+      type: "EQUIPMENT"
+      standard: "CFIHOS"
+      standard_section: "Static Equipment"
+      standard_subsection: "Column - Absorption"
+      verbose_description: "Absorption column identification aligned with CFIHOS Static Equipment class. Absorption columns separate components using a liquid solvent. CFIHOS Equipment Class: Static Equipment - Absorption Column. Supports optional numeric unit/system prefixes. Note: 'AC' may also match Air Compressor; use context to distinguish."
+      tag_class_name: "STATIC_EQUIPMENT"
+      equipment_class_name: "ABSORPTION_COLUMN"
+      examples: ["AC-101", "AC101A", "AC-2001", "70-AC-1001", "AC_101", "AC-10001"]
+      priority: 35
+      validation_rules: []
+
+  # CFIHOS Class: Static Equipment - Reactors
+  static_equipment_reactors:
+    - name: "cfihos_reactor"
+      pattern: '\\b(?:\\d+[-_]?)?R[-_]?\\d{1,6}[A-Z]?\\b'
+      description: "CFIHOS Reactor tags (R-101, R101A, 80-R-1101)"
+      type: "EQUIPMENT"
+      standard: "CFIHOS"
+      standard_section: "Static Equipment"
+      standard_subsection: "Reactor"
+      verbose_description: "Reactor identification aligned with CFIHOS Static Equipment class. Reactors are specialized vessels where chemical reactions occur. CFIHOS Equipment Class: Static Equipment - Reactor. Supports optional numeric unit/system prefixes."
+      tag_class_name: "STATIC_EQUIPMENT"
+      equipment_class_name: "REACTOR"
+      examples: ["R-101", "R101A", "R-2001", "80-R-1101", "R_101", "R-10001"]
+      priority: 50
+      validation_rules: []
+
+  # ============================================================================
+  # CFIHOS INSTRUMENT CLASSES
+  # ============================================================================
+
+  # CFIHOS Class: Instruments - Transmitters, Controllers, Indicators
+  instruments:
+    - name: "cfihos_instrument"
+      pattern: '\\b(?:\\d+[-_]?)?[FPTLAX][A-Z]{1,3}[-_]?\\d{1,6}[A-Z]?\\b'
+      description: "CFIHOS Instrument tags following ISA 5.1 (FIC-101, PIC-201, 12-FIC-101)"
+      type: "INSTRUMENT"
+      standard: "CFIHOS"
+      standard_section: "Instrument"
+      standard_subsection: "Process Instrument"
+      verbose_description: "Instrument identification aligned with CFIHOS Instrument class. Instruments measure, indicate, control, or transmit process variables. The first letter indicates the process variable (F=Flow, P=Pressure, T=Temperature, L=Level, A=Analysis, X=Unclassified), followed by instrument function letters (I=Indicator, C=Controller, T=Transmitter, V=Valve, E=Element). CFIHOS Equipment Class: Instrument. Process variable and function are extracted from the tag prefix to create granular classifications. Supports optional numeric unit/system prefixes."
+      tag_class_name: "INSTRUMENT"
+      equipment_class_name: "INSTRUMENT"
+      instrument_type: "INSTRUMENT"
+      examples: ["FIC-101", "PIT-201", "TIC-301", "LIC-401", "AIC-501", "12-FIC-101", "5-PIT-201", "FCV-301", "TCV-301", "LCV-401", "FE-401", "PE-401", "TE-401", "LE-401", "AE-401"]
+      priority: 45
+      validation_rules: []
+
+  # ============================================================================
+  # CFIHOS VALVE CLASSES
+  # ============================================================================
+
+  # CFIHOS Class: Valves - Control, Safety, Isolation, Check
+  valves:
+    - name: "cfihos_control_valve"
+      pattern: '\\b(?:\\d+[-_]?)?[FPTL]CV[-_]?\\d{1,6}[A-Z]?\\b'
+      description: "CFIHOS Control Valve tags (FCV-101, PCV-201, 5-PCV-201)"
+      type: "EQUIPMENT"
+      standard: "CFIHOS"
+      standard_section: "Valve"
+      standard_subsection: "Control Valve"
+      verbose_description: "Control valve identification aligned with CFIHOS Valve class. Control valves regulate process variables (Flow, Pressure, Temperature, Level) based on control signals. CFIHOS Equipment Class: Valve - Control Valve. Supports optional numeric unit/system prefixes."
+      tag_class_name: "VALVE"
+      equipment_class_name: "CONTROL_VALVE"
+      examples: ["FCV-101", "PCV-201", "TCV-301A", "LCV-401", "5-PCV-201", "FCV-10001"]
+      priority: 40
+      validation_rules: []
+
+    - name: "cfihos_safety_valve"
+      pattern: '\\b(?:\\d+[-_]?)?[FPTL]SV[-_]?\\d{1,6}[A-Z]?\\b'
+      description: "CFIHOS Safety Valve tags (PSV-101, TSV-201, 10-PSV-301)"
+      type: "EQUIPMENT"
+      standard: "CFIHOS"
+      standard_section: "Valve"
+      standard_subsection: "Safety Valve"
+      verbose_description: "Safety valve identification aligned with CFIHOS Valve class. Safety valves (also known as relief valves) protect equipment and systems from overpressure conditions. CFIHOS Equipment Class: Valve - Safety Valve. Supports optional numeric unit/system prefixes."
+      tag_class_name: "VALVE"
+      equipment_class_name: "SAFETY_VALVE"
+      examples: ["PSV-101", "TSV-201", "FSV-301A", "10-PSV-301", "PSV-10001"]
+      priority: 30
+      validation_rules: []
+
+    - name: "cfihos_isolation_valve"
+      pattern: '\\b(?:\\d+[-_]?)?(?:IV|ISV)[-_]?\\d{1,6}[A-Z]?\\b'
+      description: "CFIHOS Isolation Valve tags (IV-101, ISV-201, 15-IV-401)"
+      type: "EQUIPMENT"
+      standard: "CFIHOS"
+      standard_section: "Valve"
+      standard_subsection: "Isolation Valve"
+      verbose_description: "Isolation valve identification aligned with CFIHOS Valve class. Isolation valves are used to isolate sections of piping or equipment for maintenance or safety. CFIHOS Equipment Class: Valve - Isolation Valve. Supports optional numeric unit/system prefixes."
+      tag_class_name: "VALVE"
+      equipment_class_name: "ISOLATION_VALVE"
+      examples: ["IV-101", "ISV-201", "IV-2001", "15-IV-401", "IV_101", "ISV-10001"]
+      priority: 35
+      validation_rules: []
+
+    - name: "cfihos_check_valve"
+      pattern: '\\b(?:\\d+[-_]?)?(?:CV|CHV)[-_]?\\d{1,6}[A-Z]?\\b'
+      description: "CFIHOS Check Valve tags (CV-101, CHV-201, 15-CV-401)"
+      type: "EQUIPMENT"
+      standard: "CFIHOS"
+      standard_section: "Valve"
+      standard_subsection: "Check Valve"
+      verbose_description: "Check valve identification aligned with CFIHOS Valve class. Check valves allow flow in one direction only, preventing backflow. CFIHOS Equipment Class: Valve - Check Valve. Supports optional numeric unit/system prefixes. Note: 'CV' may also match Control Valve; use context to distinguish."
+      tag_class_name: "VALVE"
+      equipment_class_name: "CHECK_VALVE"
+      examples: ["CV-101", "CHV-201", "CV-2001", "15-CV-401", "CV_101", "CHV-10001"]
+      priority: 40
+      validation_rules: []
+
+    - name: "cfihos_manual_valve"
+      pattern: '\\b(?:\\d+[-_]?)?V[-_]?\\d{1,6}[A-Z]?\\b'
+      description: "CFIHOS Manual Valve tags (V-101, V101A, 15-V-401)"
+      type: "EQUIPMENT"
+      standard: "CFIHOS"
+      standard_section: "Valve"
+      standard_subsection: "Manual Valve"
+      verbose_description: "Manual valve identification aligned with CFIHOS Valve class. Manual valves are operated by hand and used for isolation, throttling, or on-off service. CFIHOS Equipment Class: Valve - Manual Valve. Supports optional numeric unit/system prefixes."
+      tag_class_name: "VALVE"
+      equipment_class_name: "MANUAL_VALVE"
+      examples: ["V-101", "V101A", "V-2001", "15-V-401", "V_101", "V-10001"]
+      priority: 60
+      validation_rules: []
+
+  # ============================================================================
+  # CFIHOS ELECTRICAL EQUIPMENT CLASSES
+  # ============================================================================
+
+  # CFIHOS Class: Electrical Equipment
+  electrical_equipment:
+    - name: "cfihos_generator"
+      pattern: '\\b(?:\\d+[-_]?)?G[-_]?\\d{1,6}[A-Z]?\\b'
+      description: "CFIHOS Generator tags (G-101, G101A, 90-G-1201)"
+      type: "EQUIPMENT"
+      standard: "CFIHOS"
+      standard_section: "Electrical Equipment"
+      standard_subsection: "Generator"
+      verbose_description: "Generator identification aligned with CFIHOS Electrical Equipment class. Generators convert mechanical energy into electrical energy. CFIHOS Equipment Class: Electrical Equipment - Generator. Supports optional numeric unit/system prefixes."
+      tag_class_name: "ELECTRICAL_EQUIPMENT"
+      equipment_class_name: "GENERATOR"
+      examples: ["G-101", "G101A", "G-2001", "90-G-1201", "G_101", "G-10001"]
+      priority: 50
+      validation_rules: []
+
+    - name: "cfihos_transformer"
+      pattern: '\\b(?:\\d+[-_]?)?TR[-_]?\\d{1,6}[A-Z]?\\b'
+      description: "CFIHOS Transformer tags (TR-101, TR101A, 90-TR-1201)"
+      type: "EQUIPMENT"
+      standard: "CFIHOS"
+      standard_section: "Electrical Equipment"
+      standard_subsection: "Transformer"
+      verbose_description: "Transformer identification aligned with CFIHOS Electrical Equipment class. Transformers transfer electrical energy between circuits through electromagnetic induction. CFIHOS Equipment Class: Electrical Equipment - Transformer. Supports optional numeric unit/system prefixes."
+      tag_class_name: "ELECTRICAL_EQUIPMENT"
+      equipment_class_name: "TRANSFORMER"
+      examples: ["TR-101", "TR101A", "TR-2001", "90-TR-1201", "TR_101", "TR-10001"]
+      priority: 40
+      validation_rules: []
+
+    - name: "cfihos_switchgear"
+      pattern: '\\b(?:\\d+[-_]?)?SW[-_]?\\d{1,6}[A-Z]?\\b'
+      description: "CFIHOS Switchgear tags (SW-101, SW101A, 90-SW-1201)"
+      type: "EQUIPMENT"
+      standard: "CFIHOS"
+      standard_section: "Electrical Equipment"
+      standard_subsection: "Switchgear"
+      verbose_description: "Switchgear identification aligned with CFIHOS Electrical Equipment class. Switchgear includes electrical disconnect switches, fuses, and circuit breakers used to control, protect, and isolate electrical equipment. CFIHOS Equipment Class: Electrical Equipment - Switchgear. Supports optional numeric unit/system prefixes."
+      tag_class_name: "ELECTRICAL_EQUIPMENT"
+      equipment_class_name: "SWITCHGEAR"
+      examples: ["SW-101", "SW101A", "SW-2001", "90-SW-1201", "SW_101", "SW-10001"]
+      priority: 40
+      validation_rules: []

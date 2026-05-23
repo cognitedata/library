@@ -38,6 +38,8 @@ export function createSqlTabFromSavedQuery(q: SavedQuery): SqlDocumentTab {
     query: q.query,
     limit: q.limit,
     convertToString: q.convert_to_string,
+    sourceLimit: q.source_limit ?? null,
+    timeoutSec: q.timeout ?? null,
     savedQueryId: q.id,
     result: null,
     loading: false,
@@ -61,6 +63,9 @@ export function savedQueryFromNode(node: TreeNode): SavedQuery | null {
     limit: typeof node.meta.limit === "number" ? node.meta.limit : 100,
     convert_to_string:
       typeof node.meta.convert_to_string === "boolean" ? node.meta.convert_to_string : true,
+    source_limit:
+      typeof node.meta.source_limit === "number" ? node.meta.source_limit : undefined,
+    timeout: typeof node.meta.timeout === "number" ? node.meta.timeout : undefined,
   };
 }
 
@@ -71,5 +76,7 @@ export function savedQueryEntryFromSqlTab(tab: SqlDocumentTab, name: string, id:
     query: tab.query,
     limit: tab.limit,
     convert_to_string: tab.convertToString,
+    source_limit: tab.sourceLimit ?? undefined,
+    timeout: tab.timeoutSec ?? undefined,
   };
 }

@@ -1,0 +1,51 @@
+workflowExternalId: {{ workflow }}
+version: 'v1'
+workflowDefinition:
+  description: 'Workflow that extracts assets from CDF files using pattern-based detection, creates asset hierarchy structure, and writes the hierarchy to CDF data modeling'
+  tasks:
+    - externalId: 'fn_dm_extract_assets_by_pattern'
+      type: 'function'
+      parameters:
+        function:
+          externalId: 'fn_dm_extract_assets_by_pattern'
+          data:
+            logLevel: 'INFO'
+            step: extract
+            configuration: ${workflow.input.configuration}
+      name: 'Extract Assets by Pattern'
+      description: 'Extract asset tags from CDF files using pattern-based diagram detection. Results are stored in RAW for subsequent tasks.'
+      retries: 3
+      timeout: 3600
+      onFailure: 'abortWorkflow'
+    - externalId: 'fn_dm_create_asset_hierarchy'
+      type: 'function'
+      parameters:
+        function:
+          externalId: 'fn_dm_create_asset_hierarchy'
+          data:
+            logLevel: 'INFO'
+            step: create
+            configuration: ${workflow.input.configuration}
+      name: 'Create Asset Hierarchy'
+      description: 'Create asset hierarchy structure from scope and extracted tags. Results are stored in RAW for the write task.'
+      retries: 3
+      timeout: 3600
+      onFailure: 'abortWorkflow'
+      dependsOn:
+        - externalId: 'fn_dm_extract_assets_by_pattern'
+    - externalId: 'fn_dm_write_asset_hierarchy'
+      type: 'function'
+      parameters:
+        function:
+          externalId: 'fn_dm_write_asset_hierarchy'
+          data:
+            logLevel: 'INFO'
+            step: write
+            configuration: ${workflow.input.configuration}
+      name: 'Write Asset Hierarchy'
+      description: 'Write generated asset hierarchy to CDF data modeling.'
+      retries: 3
+      timeout: 3600
+      onFailure: 'abortWorkflow'
+      dependsOn:
+        - externalId: 'fn_dm_create_asset_hierarchy'

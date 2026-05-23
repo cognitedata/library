@@ -17,7 +17,7 @@ _mod_root_str = str(MODULE_ROOT)
 if _mod_root_str not in sys.path:
     sys.path.insert(0, _mod_root_str)
 
-from ui.server import cdf_browse, explorer_config, explorer_tree  # noqa: E402
+from ui.server import cdf_browse, explorer_config, explorer_tree, file_content_query  # noqa: E402
 
 app = FastAPI(title="CDF Explorer operator API", version="1.0.0")
 app.add_middleware(
@@ -151,6 +151,15 @@ class SqlRunRequest(BaseModel):
     timeout: Optional[int] = Field(None, ge=1, le=240)
 
 
+class FileContentSqlRunRequest(BaseModel):
+    query: str = Field(..., min_length=1, max_length=500_000)
+    limit: int = Field(100, ge=1, le=10_000)
+    format: Optional[str] = Field(default=None, pattern="^(parquet|csv|json)$")
+    file_id: Optional[int] = Field(default=None, ge=1)
+    file_external_id: Optional[str] = Field(default=None, min_length=1, max_length=512)
+    convert_to_string: bool = True
+
+
 @app.get("/api/cdf/transformations/detail")
 def transformation_detail(
     id: int = Query(..., ge=1, description="Transformation numeric id"),
@@ -199,6 +208,26 @@ def sql_run(body: SqlRunRequest) -> dict:
             source_limit=body.source_limit,
             convert_to_string=body.convert_to_string,
             timeout=body.timeout,
+        )
+    except Exception as e:
+        raise _api_error(e) from e
+
+
+@app.post("/api/cdf/file-content/sql/run")
+def file_content_sql_run(body: FileContentSqlRunRequest) -> dict:
+    """Run SELECT-only SQL against a downloaded CDF File (parquet, CSV, JSON) via DuckDB."""
+    if body.file_id is None and not (body.file_external_id or "").strip():
+        raise HTTPException(status_code=400, detail="file_id or file_external_id is required")
+    client = _cdf_client()
+    try:
+        return file_content_query.run_file_content_sql(
+            client,
+            query=body.query,
+            limit=body.limit,
+            file_id=body.file_id,
+            file_external_id=(body.file_external_id or "").strip() or None,
+            fmt=body.format,  # type: ignore[arg-type]
+            convert_to_string=body.convert_to_string,
         )
     except Exception as e:
         raise _api_error(e) from e

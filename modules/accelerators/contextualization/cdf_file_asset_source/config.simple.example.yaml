@@ -1,0 +1,107 @@
+# =============================================================================
+# CONFIGURATION EXAMPLE
+# =============================================================================
+# This is a working example configuration. Copy this and modify for your needs.
+#
+# Note: This shows a simplified business view. For CDF Toolkit deploy and workflows,
+# copy concepts into default.config.yaml under file_asset_source.{extract,create,write}
+# (each step has parameters + data). See default.config.yaml for the full structure.
+# =============================================================================
+
+# Your hierarchy structure (customize these names for your organization)
+hierarchy:
+  levels:
+    - site
+    - plant
+    - area
+    - system
+
+# Your scope and files (nested children use "locations")
+scope:
+  - name: "MAIN_SITE"
+    description: "Main Manufacturing Site"
+    locations:
+      - name: "PLANT_A"
+        description: "Production Plant A"
+        locations:
+          - name: "AREA_1"
+            description: "Production Area 1"
+            locations:
+              - name: "COOLING_SYS"
+                description: "Cooling System"
+                files:
+                  - "CW-001"
+                  - "CW-002"
+              - name: "HEATING_SYS"
+                description: "Heating System"
+                files:
+                  - "HT-001"
+
+# What asset tags to extract (patterns from extract assets by pattern config)
+# Note: This is a simplified version without classification fields (resourceType, resourceSubType, standard)
+# For full classification, see file_asset_source.extract.data.patterns in default.config.yaml
+patterns:
+  # General Equipment (catch-all pattern)
+  - category: general
+    samples:
+      - X-00
+      - XX-00
+      - XXX-00
+      - X-000
+      - XX-000
+      - X-0000
+      - XX-0000
+      - X-00-X
+      - XX-00-X
+      - '00-X-00'
+      - '00-XX-00'
+      - '00-X-000'
+      - '00-XX-000'
+      - '00-X-00-X'
+      - '00-XX-00-X'
+
+  # Process Lines (ISA 95)
+  - category: process_line
+    samples:
+      - '[L|LN]-00'
+      - '[L|LN]-000'
+      - '[L|LN]-0000'
+      - '[L|LN]-00-X'
+      - '[L|LN]-000-X'
+      - '[L|LN]-0000-X'
+      - '00-[L|LN]-00'
+      - '00-[L|LN]-000'
+      - '00-[L|LN]-0000'
+      - '00-[L|LN]-00-X'
+      - '00-[L|LN]-000-X'
+      - '00-[L|LN]-0000-X'
+
+# Processing settings (usually leave as default)
+processing:
+  batch_size: 5
+  max_attempts: 3
+  limit: -1  # -1 = all files, or use 10 for testing
+
+# Hierarchy options
+hierarchy_options:
+  include_resource_type: false
+  include_resource_subtype: true
+
+# Storage (usually leave as default)
+storage:
+  database: db_extract_assets_by_pattern
+  tables:
+    results: extract_assets_by_pattern_results
+    assets: extract_assets_by_pattern_assets
+
+# Output settings
+output:
+  space: sp_enterprise_schema
+  view:
+    space: cdf_cdm
+    external_id: CogniteAsset
+    version: v1
+
+# Logging
+logging:
+  level: INFO

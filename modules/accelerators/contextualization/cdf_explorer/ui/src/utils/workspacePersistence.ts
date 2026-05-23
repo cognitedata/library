@@ -10,7 +10,7 @@ import { dataModelTabKey, dataModelTabLabel } from "./dataModelTabs";
 import { createFunctionTab } from "./functionTabs";
 import { createTransformationTab } from "./transformationTabs";
 import { createSqlTabFromSavedQuery, savedQueryIdFromTabId } from "./savedQueries";
-import { createSqlTab, createSqlTabForOpenTarget, SQL_WORKSPACE_TAB_ID } from "./sqlTabs";
+import { createSqlTab, createSqlTabForOpenTarget, createFileContentSqlTab, SQL_WORKSPACE_TAB_ID } from "./sqlTabs";
 import { workflowTabKey, workflowTabLabel } from "./workflowTabs";
 
 function openTargetFromSqlTabId(tabId: string) {
@@ -60,7 +60,13 @@ export function serializeWorkspace(
         limit: tab.limit,
         convert_to_string: tab.convertToString,
       };
+      if (tab.sourceLimit != null) entry.source_limit = tab.sourceLimit;
+      if (tab.timeoutSec != null) entry.timeout = tab.timeoutSec;
       if (tab.savedQueryId) entry.saved_query_id = tab.savedQueryId;
+      if (tab.engine === "file_content" && tab.fileContent) {
+        entry.engine = "file_content";
+        entry.file_content = tab.fileContent;
+      }
       saved.push(entry);
     } else if (tab.kind === "data_model") {
       saved.push({
@@ -116,6 +122,8 @@ function restoreSqlTab(
       query: saved.query,
       limit: saved.limit ?? 100,
       convert_to_string: saved.convert_to_string ?? true,
+      source_limit: saved.source_limit,
+      timeout: saved.timeout,
     });
     return tab;
   }
@@ -142,7 +150,19 @@ function restoreSqlTab(
   }
   tab.limit = saved.limit ?? tab.limit;
   tab.convertToString = saved.convert_to_string ?? tab.convertToString;
+  if (saved.source_limit != null) tab.sourceLimit = saved.source_limit;
+  if (saved.timeout != null) tab.timeoutSec = saved.timeout;
   if (saved.label?.trim()) tab.label = saved.label.trim();
+  if (saved.engine === "file_content" && saved.file_content) {
+    const fileTab = createFileContentSqlTab(saved.file_content, tab.label);
+    fileTab.id = saved.id;
+    fileTab.query = saved.query || fileTab.query;
+    fileTab.limit = saved.limit ?? fileTab.limit;
+    fileTab.convertToString = saved.convert_to_string ?? fileTab.convertToString;
+    if (saved.source_limit != null) fileTab.sourceLimit = saved.source_limit;
+    if (saved.timeout != null) fileTab.timeoutSec = saved.timeout;
+    return fileTab;
+  }
   return tab;
 }
 

@@ -351,6 +351,24 @@ body {
   color: var(--exp-text-muted);
 }
 
+.exp-pagination__export {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--exp-text-muted);
+}
+
+.exp-pagination__export select {
+  min-width: 8.5rem;
+}
+
+.exp-sql-pane__export-error {
+  margin: 0;
+  border-radius: 0;
+  border-left: none;
+  border-right: none;
+}
+
 .exp-pagination__size select {
   width: auto;
   min-width: 4.5rem;
@@ -462,6 +480,75 @@ body {
   padding: 0.5rem 0.65rem;
   background: var(--exp-surface);
   color: var(--exp-text);
+}
+
+.exp-sql-editor-pane .exp-sql-editor {
+  flex: 1;
+  min-height: 0;
+}
+
+.exp-sql-editor--cm {
+  padding: 0;
+}
+
+.exp-sql-editor--cm .cm-editor {
+  height: 100% !important;
+  max-height: 100%;
+  font-family: var(--exp-font-mono);
+  font-size: 0.8rem;
+  background: var(--exp-surface) !important;
+}
+
+.exp-sql-editor--cm .cm-scroller {
+  font-family: inherit;
+  overflow: auto;
+}
+
+.exp-sql-pane__results .exp-doc-body,
+.exp-sql-pane > .exp-doc-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 8rem;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.exp-sql-pane > .exp-doc-body .exp-table-wrap {
+  flex: 1;
+  min-height: 0;
+}
+
+.exp-sql-pane__schema {
+  margin: 0 0.65rem;
+  font-size: 0.75rem;
+}
+
+.exp-sql-pane__schema-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 0.35rem;
+}
+
+.exp-sql-pane__schema-table th,
+.exp-sql-pane__schema-table td {
+  text-align: left;
+  padding: 0.2rem 0.45rem;
+  border-bottom: 1px solid var(--exp-border);
+}
+
+.exp-sql-pane__filter {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.65rem 0;
+  font-size: 0.75rem;
+}
+
+.exp-sql-pane__filter .exp-input {
+  flex: 1;
+  min-width: 8rem;
+  max-width: 20rem;
 }
 
 .exp-sql-pane__toolbar {
@@ -833,4 +920,20 @@ body {
 
 .exp-ctx-menu button:hover {
   background: var(--exp-surface);
+}
+
+.exp-ctx-menu button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.exp-ctx-menu button:disabled:hover {
+  background: transparent;
+}
+
+.exp-ctx-menu__sep {
+  border-top: 1px solid var(--exp-border);
+  margin: 0.25rem 0;
+  padding: 0;
+  list-style: none;
 }
