@@ -1,6 +1,6 @@
 import type { Messages } from "./types";
 
-export const nb: Messages = {
+export const nb = {
   "advanced.confirmDiscard": "Vil du forkaste ulagrede endringer i den rå YAML-editoren?",
   "advanced.find": "Finne",
   "advanced.matchStatus": "Match {current} av {total}",
@@ -20,6 +20,7 @@ export const nb: Messages = {
   "advanced.wildcardHint": "Bruk * for alle tegn og ? for én karakter.",
   "app.subtitle": "Rediger default.config.yaml (dimensjoner, mellomrom, grupper), kjør offline-bygget – gruppe Entra ids synkroniseres til groups.global.source_ids – og se gjennom generert Toolkit YAML.",
   "app.title": "Tilgangskontroll",
+  "brand.cognite": "Cognite",
   "artifacts.browse": "Bla gjennom artefakter",
   "artifacts.error.noGroupName": "Denne gruppe YAML må ha et navn på toppnivå:-feltet slik at Entra-ID-en kan lagres under den samsvarende nøkkelen i default.config.yaml.",
   "artifacts.groups": "Grupper",

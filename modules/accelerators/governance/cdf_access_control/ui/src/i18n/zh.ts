@@ -1,6 +1,6 @@
 import type { Messages } from "./types";
 
-export const zh: Messages = {
+export const zh = {
   "advanced.confirmDiscard": "放弃原始 YAML 编辑器中未保存的更改？",
   "advanced.find": "寻找",
   "advanced.matchStatus": "匹配 {total} 的 {current}",
@@ -20,6 +20,7 @@ export const zh: Messages = {
   "advanced.wildcardHint": "使用 * 表示任何字符，并使用 ?对于一个字符。",
   "app.subtitle": "编辑 default.config.yaml（维度、空间、组），运行离线构建 — 将组 Entra ids 同步到 groups.global.source_ids — 然后查看生成的 Toolkit YAML。",
   "app.title": "访问控制",
+  "brand.cognite": "Cognite",
   "artifacts.browse": "浏览文物",
   "artifacts.error.noGroupName": "该组 YAML 必须具有顶级 name: 字段，以便 Entra id 可以存储在 default.config.yaml 中的匹配键下。",
   "artifacts.groups": "团体",

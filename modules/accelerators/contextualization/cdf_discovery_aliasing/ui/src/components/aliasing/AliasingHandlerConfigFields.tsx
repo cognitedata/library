@@ -360,10 +360,10 @@ export function AliasingHandlerConfigFields({ handler, configYaml, onChange, t }
         <label className="discovery-label discovery-label--block">
           {t("aliasingRules.handlerFields.sourceMatch")}
           <select className="discovery-input" value={sm} onChange={(e) => patch({ source_match: e.target.value })}>
-            <option value="exact">exact</option>
-            <option value="prefix">prefix</option>
-            <option value="suffix">suffix</option>
-            <option value="regex">regex</option>
+            <option value="exact">{t("aliasing.match.exact")}</option>
+            <option value="prefix">{t("aliasing.match.prefix")}</option>
+            <option value="suffix">{t("aliasing.match.suffix")}</option>
+            <option value="regex">{t("aliasing.match.regex")}</option>
           </select>
         </label>
         <label className="discovery-label discovery-label--block" style={{ marginTop: "0.5rem" }}>

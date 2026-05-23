@@ -37,6 +37,8 @@ export type MessageKey =
   | "grid.pageOf"
   | "grid.pageLabel"
   | "grid.loadingStatus"
+  | "tree.loading"
+  | "brand.cognite"
   | "grid.pageStatus"
   | "grid.morePages"
   | "grid.lastPage"

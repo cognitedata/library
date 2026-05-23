@@ -74,7 +74,6 @@ export function RunWorkflowStrip({ plannedSteps, stepStatuses, runBusy }: Props)
               data-status={status}
               aria-current={executing ? "step" : undefined}
             >
-              <span className="fas-run-wf-node__step">{node.id}</span>
               <span className="fas-run-wf-node__title">{t(node.labelKey)}</span>
               <code className="fas-run-wf-node__fn">{node.functionId}</code>
               {executing ? (

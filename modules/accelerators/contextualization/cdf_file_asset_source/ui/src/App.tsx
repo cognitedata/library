@@ -83,9 +83,9 @@ export default function App() {
   const filteredSteps = useMemo(
     () =>
       CONFIG_STEPS.filter((s) =>
-        matchConfigSearch(configSearchQuery, s.label, s.id, `file_asset_source.${s.id}`)
+        matchConfigSearch(configSearchQuery, t(s.labelKey), s.id, `file_asset_source.${s.id}`)
       ),
-    [configSearchQuery]
+    [configSearchQuery, t]
   );
 
   const scopeForm = useMemo(() => {
@@ -421,11 +421,9 @@ export default function App() {
                     className={`fas-config-sidenav__btn${activeStep === s.id ? " fas-config-sidenav__btn--active" : ""}`}
                     onClick={() => setActiveStep(s.id as ConfigStep)}
                   >
-                    <span className="fas-config-sidenav__btn-primary">{s.label}</span>
+                    <span className="fas-config-sidenav__btn-primary">{t(s.labelKey)}</span>
                     <span className="fas-config-sidenav__btn-secondary">
-                      {s.id === "scope"
-                        ? "file_asset_source.create (scope)"
-                        : `file_asset_source.${s.id}`}
+                      {s.id === "scope" ? t("config.sidenav.scopePath") : t("config.sidenav.extractPath")}
                     </span>
                   </button>
                 ))}

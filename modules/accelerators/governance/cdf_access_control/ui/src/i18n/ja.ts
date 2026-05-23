@@ -1,6 +1,6 @@
 import type { Messages } from "./types";
 
-export const ja: Messages = {
+export const ja = {
   "advanced.confirmDiscard": "未加工の YAML エディターで保存されていない変更を破棄しますか?",
   "advanced.find": "探す",
   "advanced.matchStatus": "{total}中{current}と一致",
@@ -20,6 +20,7 @@ export const ja: Messages = {
   "advanced.wildcardHint": "任意の文字には * を使用し、? 1 つの文字に対して。",
   "app.subtitle": "default.config.yaml (ディメンション、スペース、グループ) を編集し、オフライン ビルドを実行して (グループ Entra ID を groups.global.source_ids に同期して)、生成されたツールキット YAML を確認します。",
   "app.title": "アクセス制御",
+  "brand.cognite": "Cognite",
   "artifacts.browse": "アーティファクトを参照する",
   "artifacts.error.noGroupName": "Entra ID をdefault.config.yaml 内の一致するキーの下に保存できるように、このグループ YAML にはトップレベルの name: フィールドが必要です。",
   "artifacts.groups": "グループ",

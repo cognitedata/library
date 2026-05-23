@@ -8,10 +8,10 @@ export function isLoadingPlaceholder(node: TreeNode): boolean {
   return node.kind === LOADING_KIND;
 }
 
-export function loadingPlaceholder(parentId: string): TreeNode {
+export function loadingPlaceholder(parentId: string, label: string): TreeNode {
   return {
     id: `${parentId}:__loading__`,
-    label: "Loading…",
+    label,
     kind: LOADING_KIND,
     has_children: false,
   };
@@ -24,7 +24,8 @@ export function flattenVisibleTree(
   expanded: Set<string>,
   loadedIds: Set<string>,
   filter: string,
-  rootNode?: TreeNode
+  rootNode?: TreeNode,
+  loadingLabel = "Loading…"
 ): TreeEntry[] {
   const q = filter.trim().toLowerCase();
   const out: TreeEntry[] = [];
@@ -65,7 +66,7 @@ export function flattenVisibleTree(
       if (loadedIds.has(node.id)) {
         walk(node.id, depth + 1);
       } else if (!q) {
-        out.push({ node: loadingPlaceholder(node.id), depth: depth + 1, parentId: node.id });
+        out.push({ node: loadingPlaceholder(node.id, loadingLabel), depth: depth + 1, parentId: node.id });
       }
     }
   };
@@ -84,7 +85,7 @@ export function flattenVisibleTree(
     if (expanded.has(rootId) && loadedIds.has(rootId)) {
       walk(rootId, 1);
     } else if (expanded.has(rootId) && !loadedIds.has(rootId)) {
-      if (!q) out.push({ node: loadingPlaceholder(rootId), depth: 1, parentId: rootId });
+      if (!q) out.push({ node: loadingPlaceholder(rootId, loadingLabel), depth: 1, parentId: rootId });
     }
   } else {
     walk(rootId, 0);

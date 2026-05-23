@@ -1,4 +1,5 @@
 import YAML from "yaml";
+import type { MessageKey } from "../i18n/types";
 import type { PatternEntry, PatternsData, ScopeHierarchyData, ScopeNode } from "../types/assetConfig";
 import { emptyPattern, emptyScopeNode } from "../types/assetConfig";
 
@@ -7,9 +8,9 @@ export const FILE_ASSET_SOURCE_KEY = "file_asset_source";
 
 export type ConfigStep = "scope" | "extract";
 
-export const CONFIG_STEPS: { id: ConfigStep; label: string }[] = [
-  { id: "scope", label: "Scope" },
-  { id: "extract", label: "Extract" },
+export const CONFIG_STEPS: { id: ConfigStep; labelKey: MessageKey }[] = [
+  { id: "scope", labelKey: "configure.step.scope" },
+  { id: "extract", labelKey: "configure.step.extract" },
 ];
 
 type PipelineStep = "extract" | "create" | "write";

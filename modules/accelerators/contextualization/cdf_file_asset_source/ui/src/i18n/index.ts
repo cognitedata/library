@@ -10,6 +10,7 @@ import { nb } from "./nb";
 import { pt } from "./pt";
 import { zh } from "./zh";
 import { ar } from "./ar";
+import { localeTermFixes } from "./localeTermFixes";
 
 export type { Locale, LocaleMessages, MessageKey, Messages, Theme } from "./types";
 export { ar, de, en, es, fr, hi, ja, nb, pt, zh };
@@ -27,21 +28,21 @@ export const LOCALES: { code: Locale; label: string }[] = [
   { code: "zh", label: "中文" },
 ];
 
-function mergeMessages(partial: LocaleMessages): Messages {
-  return { ...en, ...partial };
+function mergeMessages(partial: LocaleMessages, fixes?: LocaleMessages): Messages {
+  return { ...en, ...partial, ...fixes };
 }
 
 export const translations: Record<Locale, Messages> = {
   en,
-  ar: mergeMessages(ar),
-  es: mergeMessages(es),
-  pt: mergeMessages(pt),
-  fr: mergeMessages(fr),
+  ar: mergeMessages(ar, localeTermFixes.ar),
+  es: mergeMessages(es, localeTermFixes.es),
+  pt: mergeMessages(pt, localeTermFixes.pt),
+  fr: mergeMessages(fr, localeTermFixes.fr),
   de: mergeMessages(de),
-  nb: mergeMessages(nb),
-  ja: mergeMessages(ja),
-  zh: mergeMessages(zh),
-  hi: mergeMessages(hi),
+  nb: mergeMessages(nb, localeTermFixes.nb),
+  ja: mergeMessages(ja, localeTermFixes.ja),
+  zh: mergeMessages(zh, localeTermFixes.zh),
+  hi: mergeMessages(hi, localeTermFixes.hi),
 };
 
 export function interpolate(template: string, vars: Record<string, string | number>): string {

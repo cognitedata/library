@@ -1,6 +1,6 @@
 import type { Messages } from "./types";
 
-export const pt: Messages = {
+export const pt = {
   "advanced.confirmDiscard": "Descartar alterações não salvas no editor YAML bruto?",
   "advanced.find": "Encontrar",
   "advanced.matchStatus": "Correspondência {current} de {total}",
@@ -20,6 +20,7 @@ export const pt: Messages = {
   "advanced.wildcardHint": "Use * para qualquer caractere e ? para um personagem.",
   "app.subtitle": "Edite default.config.yaml (dimensões, espaços, grupos), execute a compilação offline - os IDs do grupo Entra são sincronizados em groups.global.source_ids - e revise o YAML do Toolkit gerado.",
   "app.title": "Controle de acesso",
+  "brand.cognite": "Cognite",
   "artifacts.browse": "Navegar pelos artefatos",
   "artifacts.error.noGroupName": "Este grupo YAML deve ter um campo name: de nível superior para que o ID Entra possa ser armazenado na chave correspondente em default.config.yaml.",
   "artifacts.groups": "Grupos",

@@ -20,6 +20,7 @@ export const en: Messages = {
   "advanced.wildcardHint": "Use * for any characters and ? for one character.",
   "app.subtitle": "Edit default.config.yaml (dimensions, spaces, groups), run the offline build — group Entra ids sync into groups.global.source_ids — then review generated Toolkit YAML.",
   "app.title": "Access Control",
+  "brand.cognite": "Cognite",
   "artifacts.browse": "Browse Artifacts",
   "artifacts.error.noGroupName": "This Group YAML must have a top-level name: field so the Entra id can be stored under the matching key in default.config.yaml.",
   "artifacts.groups": "Groups",

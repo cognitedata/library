@@ -36,6 +36,8 @@ export const en: Messages = {
   "grid.pageOf": "of {pages}",
   "grid.pageLabel": "Page {page}",
   "grid.loadingStatus": "…",
+  "tree.loading": "Loading…",
+  "brand.cognite": "Cognite",
   "grid.pageStatus": "{count} row(s) · {more}",
   "grid.morePages": "more pages available",
   "grid.lastPage": "last page",

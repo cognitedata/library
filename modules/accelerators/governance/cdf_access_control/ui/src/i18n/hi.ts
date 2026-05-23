@@ -1,6 +1,6 @@
 import type { Messages } from "./types";
 
-export const hi: Messages = {
+export const hi = {
   "advanced.confirmDiscard": "कच्चे YAML संपादक में सहेजे न गए परिवर्तन त्यागें?",
   "advanced.find": "खोजो",
   "advanced.matchStatus": "{total} का मिलान {current}",
@@ -20,6 +20,7 @@ export const hi: Messages = {
   "advanced.wildcardHint": "किसी भी अक्षर के लिए * का प्रयोग करें तथा ? एक पात्र के लिए.",
   "app.subtitle": "default.config.yaml (आयाम, रिक्त स्थान, समूह) को संपादित करें, ऑफ़लाइन बिल्ड चलाएं - समूह एंट्रा आईडी को Group.global.source_ids में सिंक करें - फिर जेनरेट किए गए टूलकिट YAML की समीक्षा करें।",
   "app.title": "अभिगम नियंत्रण",
+  "brand.cognite": "Cognite",
   "artifacts.browse": "कलाकृतियाँ ब्राउज़ करें",
   "artifacts.error.noGroupName": "इस समूह YAML में एक शीर्ष-स्तरीय नाम: फ़ील्ड होना चाहिए ताकि एंट्रा आईडी को default.config.yaml में मिलान कुंजी के तहत संग्रहीत किया जा सके।",
   "artifacts.groups": "समूह",

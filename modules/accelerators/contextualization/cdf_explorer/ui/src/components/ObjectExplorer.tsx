@@ -182,8 +182,9 @@ export function ObjectExplorer({
   };
 
   const flat = useMemo(
-    () => flattenVisibleTree(ROOT_ID, childrenByParent, expanded, loadedIds, filter, rootNode),
-    [childrenByParent, expanded, loadedIds, filter, rootNode]
+    () =>
+      flattenVisibleTree(ROOT_ID, childrenByParent, expanded, loadedIds, filter, rootNode, t("tree.loading")),
+    [childrenByParent, expanded, loadedIds, filter, rootNode, t]
   );
 
   const opensDocumentTab = (node: TreeNode) =>

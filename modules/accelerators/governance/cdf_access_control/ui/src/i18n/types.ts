@@ -22,6 +22,7 @@ export type MessageKey =
   | "advanced.wildcardHint"
   | "app.subtitle"
   | "app.title"
+  | "brand.cognite"
   | "artifacts.browse"
   | "artifacts.error.noGroupName"
   | "artifacts.groups"

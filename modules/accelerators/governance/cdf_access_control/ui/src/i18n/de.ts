@@ -1,6 +1,6 @@
 import type { Messages } from "./types";
 
-export const de: Messages = {
+export const de = {
   "advanced.confirmDiscard": "Nicht gespeicherte Änderungen im Roh-YAML-Editor verwerfen?",
   "advanced.find": "Finden",
   "advanced.matchStatus": "Übereinstimmung {current} von {total}",
@@ -20,6 +20,7 @@ export const de: Messages = {
   "advanced.wildcardHint": "Verwenden Sie * für beliebige Zeichen und ? für einen Charakter.",
   "app.subtitle": "Bearbeiten Sie default.config.yaml (Dimensionen, Räume, Gruppen), führen Sie den Offline-Build aus – synchronisieren Sie die Entra-IDs der Gruppe mit groups.global.source_ids – und überprüfen Sie dann die generierte Toolkit-YAML.",
   "app.title": "Zugangskontrolle",
+  "brand.cognite": "Cognite",
   "artifacts.browse": "Durchsuchen Sie Artefakte",
   "artifacts.error.noGroupName": "Diese Gruppen-YAML muss über ein Feld „name:“ der obersten Ebene verfügen, damit die Entra-ID unter dem passenden Schlüssel in „default.config.yaml“ gespeichert werden kann.",
   "artifacts.groups": "Gruppen",

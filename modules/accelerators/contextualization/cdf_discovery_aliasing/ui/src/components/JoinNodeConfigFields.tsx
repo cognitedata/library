@@ -90,8 +90,8 @@ export function JoinNodeConfigFields({ t, value, onChange }: Props) {
           value={joinType === "left" ? "left" : "inner"}
           onChange={(e) => patch({ join_type: e.target.value })}
         >
-          <option value="inner">inner</option>
-          <option value="left">left</option>
+          <option value="inner">{t("joins.typeInner")}</option>
+          <option value="left">{t("joins.typeLeft")}</option>
         </select>
       </label>
       <label className="discovery-label discovery-label--block">

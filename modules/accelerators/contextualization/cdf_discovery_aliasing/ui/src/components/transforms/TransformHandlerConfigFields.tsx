@@ -422,9 +422,9 @@ export function TransformHandlerConfigFields({
             value={String(block.case ?? "lower")}
             onChange={(e) => patch({ case: e.target.value })}
           >
-            <option value="lower">lower</option>
-            <option value="upper">upper</option>
-            <option value="title">title</option>
+            <option value="lower">{t("transforms.case.lower")}</option>
+            <option value="upper">{t("transforms.case.upper")}</option>
+            <option value="title">{t("transforms.case.title")}</option>
           </select>
         </label>
       </div>
@@ -442,9 +442,9 @@ export function TransformHandlerConfigFields({
             value={String(block.type ?? "int")}
             onChange={(e) => patch({ type: e.target.value })}
           >
-            <option value="int">int</option>
-            <option value="float">float</option>
-            <option value="bool">bool</option>
+            <option value="int">{t("transforms.dtype.int")}</option>
+            <option value="float">{t("transforms.dtype.float")}</option>
+            <option value="bool">{t("transforms.dtype.bool")}</option>
           </select>
         </label>
         <label className="discovery-label" style={{ marginTop: "0.5rem", display: "flex", alignItems: "center", gap: 8 }}>
@@ -607,9 +607,9 @@ export function TransformHandlerConfigFields({
             value={String(block.algorithm ?? "sha256")}
             onChange={(e) => patch({ algorithm: e.target.value })}
           >
-            <option value="sha256">sha256</option>
-            <option value="sha1">sha1</option>
-            <option value="md5">md5</option>
+            <option value="sha256">{t("transforms.hash.sha256")}</option>
+            <option value="sha1">{t("transforms.hash.sha1")}</option>
+            <option value="md5">{t("transforms.hash.md5")}</option>
           </select>
         </label>
         <label className="discovery-label discovery-label--block" style={{ marginTop: "0.5rem" }}>

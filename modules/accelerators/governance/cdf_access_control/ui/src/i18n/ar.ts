@@ -1,6 +1,6 @@
 import type { Messages } from "./types";
 
-export const ar: Messages = {
+export const ar = {
   "advanced.confirmDiscard": "هل تريد تجاهل التغييرات غير المحفوظة في محرر YAML الأولي؟",
   "advanced.find": "يجد",
   "advanced.matchStatus": "المطابقة {current} من {total}",
@@ -20,6 +20,7 @@ export const ar: Messages = {
   "advanced.wildcardHint": "استخدم * لأي أحرف و؟ لشخصية واحدة.",
   "app.subtitle": "قم بتحرير default.config.yaml (الأبعاد، والمسافات، والمجموعات)، وقم بتشغيل البناء دون اتصال - قم بمزامنة معرفات Entra في مجموعات.global.source_ids - ثم قم بمراجعة مجموعة الأدوات YAML التي تم إنشاؤها.",
   "app.title": "التحكم في الوصول",
+  "brand.cognite": "Cognite",
   "artifacts.browse": "تصفح التحف",
   "artifacts.error.noGroupName": "يجب أن تحتوي مجموعة YAML هذه على حقل اسم المستوى الأعلى: حتى يمكن تخزين معرف Entra تحت المفتاح المطابق في default.config.yaml.",
   "artifacts.groups": "المجموعات",

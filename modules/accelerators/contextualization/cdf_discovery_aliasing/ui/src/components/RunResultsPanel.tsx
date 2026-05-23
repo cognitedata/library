@@ -700,13 +700,13 @@ export function RunResultsPanel({ refreshKey, runScopeKey, preferredRunScopeKey 
               aria-label={t("runResults.pipelineCategoryFilter")}
             >
               <option value="">{t("runResults.pipelineCategoryAll")}</option>
-              <option value="query">query</option>
-              <option value="transform">transform</option>
-              <option value="validate">validate</option>
-              <option value="filter">filter</option>
-              <option value="persistence">persistence</option>
-              <option value="cleanup">cleanup</option>
-              <option value="other">other</option>
+              <option value="query">{t("runResults.pipelineCatQuery")}</option>
+              <option value="transform">{t("runResults.pipelineCatTransform")}</option>
+              <option value="validate">{t("runResults.pipelineCatValidate")}</option>
+              <option value="filter">{t("runResults.pipelineCatFilter")}</option>
+              <option value="persistence">{t("runResults.pipelineCatPersistence")}</option>
+              <option value="cleanup">{t("runResults.pipelineCatCleanup")}</option>
+              <option value="other">{t("runResults.pipelineCatOther")}</option>
             </select>
             <input
               type="search"

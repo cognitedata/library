@@ -1,6 +1,6 @@
 import type { Messages } from "./types";
 
-export const fr: Messages = {
+export const fr = {
   "advanced.confirmDiscard": "Supprimer les modifications non enregistrées dans l'éditeur YAML brut ?",
   "advanced.find": "Trouver",
   "advanced.matchStatus": "Correspond à {current} de {total}",
@@ -20,6 +20,7 @@ export const fr: Messages = {
   "advanced.wildcardHint": "Utilisez * pour tous les caractères et ? pour un personnage.",
   "app.subtitle": "Modifiez default.config.yaml (dimensions, espaces, groupes), exécutez la construction hors ligne — les identifiants Entra du groupe se synchronisent dans groups.global.source_ids — puis examinez le Toolkit YAML généré.",
   "app.title": "Contrôle d'accès",
+  "brand.cognite": "Cognite",
   "artifacts.browse": "Parcourir les artefacts",
   "artifacts.error.noGroupName": "Ce groupe YAML doit avoir un champ name : de niveau supérieur afin que l'identifiant Entra puisse être stocké sous la clé correspondante dans default.config.yaml.",
   "artifacts.groups": "Groupes",

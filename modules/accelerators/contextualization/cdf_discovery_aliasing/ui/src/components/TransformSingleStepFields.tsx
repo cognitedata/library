@@ -147,14 +147,14 @@ export function TransformSingleStepFields({
           value={String(value.output_field_type ?? "auto").trim().toLowerCase() || "auto"}
           onChange={(e) => patch({ output_field_type: e.target.value })}
         >
-          <option value="auto">auto</option>
-          <option value="string">string</option>
-          <option value="int">int</option>
-          <option value="float">float</option>
-          <option value="bool">bool</option>
-          <option value="list">list</option>
-          <option value="object">object</option>
-          <option value="json">json</option>
+          <option value="auto">{t("transforms.dtype.auto")}</option>
+          <option value="string">{t("transforms.dtype.string")}</option>
+          <option value="int">{t("transforms.dtype.int")}</option>
+          <option value="float">{t("transforms.dtype.float")}</option>
+          <option value="bool">{t("transforms.dtype.bool")}</option>
+          <option value="list">{t("transforms.dtype.list")}</option>
+          <option value="object">{t("transforms.dtype.object")}</option>
+          <option value="json">{t("transforms.dtype.json")}</option>
         </select>
       </label>
       <label className="discovery-label discovery-label--block" style={{ marginTop: "0.5rem" }}>
