@@ -51,7 +51,7 @@ def test_filter_contexts_by_scope_suffix_empty_raises() -> None:
 
 def test_resolve_contexts_optional_suffix_none_returns_all(tmp_path: Path) -> None:
     doc = {
-        "aliasing_scope_hierarchy": {
+        "scope_hierarchy": {
             "levels": ["site"],
             "locations": [{"id": "x", "locations": []}, {"id": "y", "locations": []}],
         }
@@ -65,7 +65,7 @@ def test_resolve_contexts_optional_suffix_none_returns_all(tmp_path: Path) -> No
 def test_resolve_contexts_colliding_suffix_multiple_matches(tmp_path: Path) -> None:
     """Two different scope_ids can map to the same cdf suffix (e.g. foo__bar vs foo_bar)."""
     doc = {
-        "aliasing_scope_hierarchy": {
+        "scope_hierarchy": {
             "levels": ["site"],
             "locations": [
                 {"id": "foo__bar", "locations": []},
@@ -84,7 +84,7 @@ def test_resolve_contexts_colliding_suffix_multiple_matches(tmp_path: Path) -> N
 
 def test_resolve_contexts_unknown_suffix(tmp_path: Path) -> None:
     doc = {
-        "aliasing_scope_hierarchy": {
+        "scope_hierarchy": {
             "levels": ["site"],
             "locations": [{"id": "only_one", "locations": []}],
         }

@@ -26,8 +26,8 @@ flowchart LR
 
 Authoring lives in **[`default.config.yaml`](../../default.config.yaml)** at the module root.
 
-- **`aliasing_scope_hierarchy.levels`** — Ordered labels for path tiers (same convention as **`cdf_access_control`** hierarchy dimensions: semantic names like `site`, `unit`, `area`, `system`, not `level_1`, `level_2`, …). You do not have to use every tier; deeper paths can use synthetic tier names when you exceed the list (see [config/README.md](../../config/README.md)).
-- **`aliasing_scope_hierarchy.locations`** — Root list of nodes. Each node has a stable **`id`** (used in trigger `externalId` suffixes and `scope_id`). Nest children under another **`locations`** key on each node.
+- **`scope_hierarchy.levels`** — Ordered labels for path tiers (same convention as **cdf_discovery** governance hierarchy: semantic names like `site`, `unit`, `area`, `system`, not `level_1`, `level_2`, …). You do not have to use every tier; deeper paths can use synthetic tier names when you exceed the list (see [config/README.md](../../config/README.md)).
+- **`scope_hierarchy.locations`** — Root list of nodes. Each node has a stable **`id`** (used in trigger `externalId` suffixes and `scope_id`). Nest children under another **`locations`** key on each node.
 - **Leaves** — A leaf is a node with no child `locations` or **`locations: []`**. Each leaf gets its own scoped trio under **`workflows/<suffix>/`**, including **`key_extraction_aliasing.<suffix>.WorkflowTrigger.yaml`**.
 - **Optional `instance_space` on a leaf** — When set, the scope builder can emit **literal** node `space` filters in that leaf’s embedded **`input.configuration`** instead of the Toolkit placeholder `{{instance_space}}`. See *Instance spaces* below.
 
@@ -35,7 +35,7 @@ Commented examples in `default.config.yaml` show how to add sites and nested loc
 
 ## 2. Generated layout under `workflows/`
 
-Per leaf, the builder writes **`workflows/<suffix>/key_extraction_aliasing.<suffix>.Workflow.yaml`**, **`WorkflowVersion.yaml`**, and **`WorkflowTrigger.yaml`**. The legacy **`scope_build_mode: trigger_only`** (flat triggers and root Workflow pair) is **not** supported.
+Per leaf, the builder writes **`workflows/<suffix>/key_extraction_aliasing.<suffix>.Workflow.yaml`**, **`WorkflowVersion.yaml`**, and **`WorkflowTrigger.yaml`**. **`scope_build_mode: trigger_only`** (flat triggers and root Workflow pair only) is **not** supported.
 
 Templates always come from [`workflow_template/`](../../workflow_template/) (see [workflow_template/README.md](../../workflow_template/README.md)).
 
@@ -45,7 +45,7 @@ Incremental watermark and per-record hash state can live in **FDM** views shippe
 
 ## 3. Build commands (`module.py build`)
 
-**`python module.py build`** does **not** connect to CDF. (Legacy: **`python module.py --build`**.) It runs the same orchestrator as [`scripts/build_scopes.py`](../../scripts/build_scopes.py). Forwarded flags include:
+**`python module.py build`** does **not** connect to CDF. It runs the same orchestrator as [`scripts/build_scopes.py`](../../scripts/build_scopes.py). Forwarded flags include:
 
 | Flag | Purpose |
 |------|---------|
@@ -123,7 +123,7 @@ This **library** repository does not ship a root **`cdf.toml`** or **`fusion.yam
 
 1. **Artifacts** — Under this module, typical Toolkit resources include **`workflows/`**, **`functions/`**, **`data_modeling/`**, etc.
 2. **Build** — From your Toolkit project root, run **`cdf build`** so templates and variables resolve.
-3. **Deploy** — Run **`cdf deploy`**. Schedule cron, OAuth placeholders (`{{functionClientId}}`, `{{functionClientSecret}}`), and **`{{instance_space}}`** are resolved from your project’s configuration when you build/deploy, not by `module.py`.
+3. **Deploy** — Run **`cdf deploy`**. Schedule cron, OAuth placeholders (`{{function_client_id}}`, `{{function_client_secret}}`), and **`{{instance_space}}`** are resolved from your project’s configuration when you build/deploy, not by `module.py`.
 
 Official Toolkit repository and docs: [CDF Toolkit](https://github.com/cognitedata/cdf-toolkit). For workflow triggers and **`workflow.input`**, see Cognite’s data workflows documentation (linked from [workflows/README.md](../../workflows/README.md)).
 

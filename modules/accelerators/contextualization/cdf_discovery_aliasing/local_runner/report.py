@@ -417,7 +417,7 @@ The following table shows examples of entities processed by the extraction pipel
     report_content += "\n---\n\n*This summary was automatically generated from the latest pipeline execution results.*\n"
 
     # Write report
-    report_path = SCRIPT_DIR / "docs" / "key_extraction_aliasing_report.md"
+    report_path = ensure_results_dir() / "run_report.md"
     report_path.parent.mkdir(parents=True, exist_ok=True)
     report_path.write_text(report_content, encoding="utf-8")
     logger.info(f"Generated report: {report_path}")

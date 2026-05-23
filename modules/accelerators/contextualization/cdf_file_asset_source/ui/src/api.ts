@@ -5,7 +5,7 @@ export type ConfigStepMeta = {
   label: string;
 };
 
-export async function fetchHealth(): Promise<{ status: string }> {
+export async function fetchHealth(): Promise<{ ok?: boolean; status?: string }> {
   const r = await fetch(apiUrl("/api/health"));
   if (!r.ok) throw new Error(`health ${r.status}`);
   return r.json();

@@ -8,7 +8,7 @@ import { commaJoinSegments, splitCommaSegments } from "../utils/commaDelimited";
 type Props = {
   value: JsonObject;
   onChange: (next: JsonObject) => void;
-  schemaSpace?: string;
+  schema_space?: string;
   /** Stable key segment for React list keys (node id or index). */
   fieldKey: string;
   /**
@@ -89,7 +89,7 @@ function readPreviewLimit(cfg: JsonObject): number {
 export function ViewQueryConfigFields({
   value,
   onChange,
-  schemaSpace,
+  schema_space,
   fieldKey,
   variant = "query",
 }: Props) {
@@ -109,7 +109,7 @@ export function ViewQueryConfigFields({
   const setFilters = (filters: JsonObject[]) => patch({ filters });
 
   const viewSpaceTrim = String(value.view_space ?? "").trim();
-  const defaultViewSpace = (schemaSpace ?? "").trim();
+  const defaultViewSpace = (schema_space ?? "").trim();
   /** Space used for CDF view listing — committed field or module default shown in the input. */
   const effectiveViewSpace = viewSpaceTrim || defaultViewSpace;
 
@@ -352,7 +352,7 @@ export function ViewQueryConfigFields({
         </select>
       </label>
       <label className="discovery-label">
-        {t("sourceViews.viewVersion")}
+        {t("sourceViews.view_version")}
         <input
           className="discovery-input"
           value={String(value.view_version ?? "")}

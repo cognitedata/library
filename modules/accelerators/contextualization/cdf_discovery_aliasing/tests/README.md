@@ -60,7 +60,7 @@ Shared sample entities and tags live under `fixtures/`. Prefer importing from `t
 
 - **`results/`** — pytest and harness JSON (e.g. `run_tests_and_save_results.py`, detailed generators). `*.json` and `*.txt` here are **gitignored** at the repo root (`__init__.py` stays tracked as a package marker). **`module.py run`** pipeline pairs live under **`../local_run_results/`** at module root.
 - **`generate_detailed_results.py`** — removed; use **`python module.py run`** and inspect **`local_run_results/`**.
-- **Module report** — [docs/key_extraction_aliasing_report.md](../docs/key_extraction_aliasing_report.md) documents the default scope; `scripts/generate_report.py` can regenerate it from the latest `local_run_results/*_cdf_extraction.json` if you want run-specific stats (overwrites the file).
+- **Run report** — `scripts/generate_report.py` writes `local_run_results/run_report.md` from the latest `local_run_results/*_cdf_extraction.json` pair. Default scope narrative: [configuration guide — Default CDM scope](../docs/guides/configuration_guide.md#default-cdm-scope).
 
 ## Documentation
 

@@ -4,15 +4,14 @@ organization: YourOrg
 location_name: LOC
 source_name: SOURCE
 files_dataset: ingestion
-schemaSpace: cdf_cdm
-viewVersion: v1
-functionClientId: ${IDP_CLIENT_ID}
-functionClientSecret: ${IDP_CLIENT_SECRET}
-functionVersion: v1
+schema_space: cdf_cdm
+view_version: v1
+function_client_id: ${IDP_CLIENT_ID}
+function_client_secret: ${IDP_CLIENT_SECRET}
 workflow: key_extraction_aliasing
-key_extraction_aliasing_schedule: 0 2 * * *
+workflow_schedule: 0 2 * * *
 files_location_processing_group_source_id: 90af3183-cf62-408f-ae4c-f078cbf0e1f8
-aliasing_scope_hierarchy:
+scope_hierarchy:
   order: 0
   type: hierarchy
   levels:

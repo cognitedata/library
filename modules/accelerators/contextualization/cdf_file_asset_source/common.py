@@ -51,7 +51,14 @@ def setup_cognite_client(client_name: str = "CDF-Script") -> CogniteClient:
     Raises:
         SystemExit: If required environment variables are missing
     """
-    # Get environment variables
+    try:
+        from local_runner.client import create_cognite_client
+
+        return create_cognite_client()
+    except Exception:
+        pass
+
+    # Legacy OAuth-only path (CDF_PROJECT / IDP_* env vars)
     cdf_project = os.getenv("CDF_PROJECT")
     cdf_cluster = os.getenv("CDF_CLUSTER")
     cdf_url = os.getenv("CDF_URL")

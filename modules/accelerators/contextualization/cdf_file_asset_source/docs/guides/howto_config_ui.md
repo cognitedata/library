@@ -4,7 +4,7 @@ The module ships a **local operator UI** (React + Vite) and a small **FastAPI** 
 
 **This is not a hosted product:** there is **no authentication**. Run it only on a **trusted workstation** with localhost access. For file-only workflows, edit **`default.config.yaml`** directly or use **`python module.py validate`**.
 
-**Prerequisites:** Node.js 18+ (for `npm run dev`), Python 3.11+ with [requirements.txt](../../requirements.txt) (FastAPI, uvicorn, PyYAML, cognite-sdk), and **`.env`** at the repository root for **`module.py run`** (CDF project credentials and related variables used by the Cognite SDK).
+**Prerequisites:** See [README — Dependencies](../../README.md#dependencies). **`.env`** at the repository root is required for **`module.py run`**.
 
 The UI provides **light/dark theme**, **multi-language labels**, **form editors** for scope and patterns, and an **Advanced YAML** fullscreen editor with glob search.
 
@@ -25,24 +25,9 @@ Set **`CDF_FILE_ASSET_SOURCE_ROOT`** when your checkout path is unusual.
 
 ### 2.1 Recommended: `python module.py ui`
 
-From the **repository root** (the directory that contains `modules/`), with **`PYTHONPATH=.`**:
+**Install and launch:** [README — Operator UI](../../README.md#operator-ui).
 
-```bash
-export PYTHONPATH=.
-pip install -r modules/accelerators/contextualization/cdf_file_asset_source/requirements.txt
-python modules/accelerators/contextualization/cdf_file_asset_source/module.py ui
-```
-
-This **single command** starts both processes:
-
-| Service | Default URL |
-|---------|-------------|
-| FastAPI operator API | http://127.0.0.1:8770/ |
-| Vite UI | http://127.0.0.1:5188/ |
-
-Default ports avoid common conflicts with other local dev servers on the same machine. Override with **`--api-port`** and **`--vite-port`** if needed.
-
-The command runs **`npm install`** in **`ui/`** on first use if **`node_modules/`** is missing, then opens a **browser tab** (unless you pass **`--no-browser`**). **Ctrl+C** stops both servers.
+This **single command** starts FastAPI and Vite. The command runs **`npm install`** in **`ui/`** on first use if **`node_modules/`** is missing, then opens a **browser tab** (unless **`--no-browser`**). **Ctrl+C** stops both servers.
 
 Useful flags (see **`python module.py ui --help`**):
 
@@ -186,6 +171,8 @@ Planned:
 
 | Topic | Document |
 | ----- | -------- |
-| Quick start (YAML) | [GETTING_STARTED.md](../GETTING_STARTED.md) |
-| Configuration fields | [CONFIGURATION_GUIDE.md](../CONFIGURATION_GUIDE.md) |
+| Quick start (YAML) | [howto_quickstart.md](howto_quickstart.md) |
+| Configuration fields | [config_schema.md](../specifications/config_schema.md) |
+| Module spec | [MODULE_SPECIFICATION.md](../MODULE_SPECIFICATION.md) |
+| Configuration fields | [config_schema.md](../specifications/config_schema.md) |
 | Module overview | [README.md](../../README.md) |

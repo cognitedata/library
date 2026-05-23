@@ -89,14 +89,14 @@ hierarchy_options:
 
 # Storage (usually leave as default)
 storage:
-  database: db_extract_assets_by_pattern
+  database: db_file_asset_extract
   tables:
     results: extract_assets_by_pattern_results
-    assets: extract_assets_by_pattern_assets
+    assets: file_asset_extract_assets
 
 # Output settings
 output:
-  space: sp_enterprise_schema
+  space: inst_enterprise_file_assets
   view:
     space: cdf_cdm
     external_id: CogniteAsset

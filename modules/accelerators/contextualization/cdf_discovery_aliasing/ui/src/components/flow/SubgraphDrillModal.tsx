@@ -117,7 +117,7 @@ type InnerProps = {
   onSave: (doc: WorkflowCanvasDocument) => void;
   onClose: () => void;
   innerFlowRootRef: RefObject<HTMLDivElement | null>;
-  schemaSpace?: string;
+  schema_space?: string;
   nestDepth?: number;
   /** Move inner node(s) to the graph that owns ``outerSubgraphNodeId`` (main canvas or parent drill). */
   onPromoteInnerSubtreeToOwningGraph?: (rootInnerNodeId: string) => void;
@@ -142,7 +142,7 @@ function SubgraphDrillCanvas({
   onSave,
   onClose,
   innerFlowRootRef,
-  schemaSpace,
+  schema_space,
   nestDepth = 0,
   onPromoteInnerSubtreeToOwningGraph,
   cancelHandlerRef,
@@ -457,7 +457,7 @@ function SubgraphDrillCanvas({
         workflowScopeDoc,
         patchWorkflowScope: (fn) => patchWorkflowScopeRef.current(fn),
         t,
-        schemaSpace,
+        schema_space,
         compileDagMode,
         allowValidationRuleLayoutReuse: true,
         setNodes,
@@ -482,7 +482,7 @@ function SubgraphDrillCanvas({
       getEdges,
       getZoom,
       t,
-      schemaSpace,
+      schema_space,
       compileDagMode,
     ]
   );
@@ -990,7 +990,7 @@ function SubgraphDrillCanvas({
                     ‹
                   </button>
                 </div>
-                <FlowPalette t={t} scopeDocument={workflowScopeDoc} schemaSpace={schemaSpace} />
+                <FlowPalette t={t} scopeDocument={workflowScopeDoc} schema_space={schema_space} />
               </>
             )}
           </div>
@@ -1234,7 +1234,7 @@ function SubgraphDrillCanvas({
           onPatchWorkflowScope={onPatchWorkflowScope}
           onClose={() => setEditorModalNode(null)}
           t={t}
-          schemaSpace={schemaSpace}
+          schema_space={schema_space}
           workflowCanvas={workflowCanvas}
           onPatchWorkflowCanvas={patchWorkflowCanvas}
         />
@@ -1244,7 +1244,7 @@ function SubgraphDrillCanvas({
           t={t}
           open
           nestDepth={nestDepth + 1}
-          schemaSpace={schemaSpace}
+          schema_space={schema_space}
           node={nestedNode}
           hydrateNonce={nestedHydrateNonce}
           handleOrientation={handleOrientation}
@@ -1297,7 +1297,7 @@ type Props = {
   onEnsureSubgraphBoundary?: (nodeId: string, hubInId: string, hubOutId: string) => void;
   /** When drilling into a subgraph, persist its frame ports (node is on the parent canvas, not this inner RF). */
   onApplyPortsForOuterSubgraph?: (ports: SubflowPortsConfig) => void;
-  schemaSpace?: string;
+  schema_space?: string;
   nestDepth?: number;
   /** Promote inner node(s) from ``subgraphNodeId``'s inner canvas to the owning graph (main or parent drill). */
   onPromoteInnerSubtreeToOwningGraph?: (subgraphNodeId: string, rootInnerNodeId: string) => void;
@@ -1318,7 +1318,7 @@ export function SubgraphDrillModal({
   onSaveInnerCanvas,
   onEnsureSubgraphBoundary,
   onApplyPortsForOuterSubgraph,
-  schemaSpace,
+  schema_space,
   nestDepth = 0,
   onPromoteInnerSubtreeToOwningGraph,
   cancelHandlerRef: cancelHandlerRefProp,
@@ -1389,7 +1389,7 @@ export function SubgraphDrillModal({
             onSave={onSave}
             onClose={onClose}
             innerFlowRootRef={innerFlowRootRef}
-            schemaSpace={schemaSpace}
+            schema_space={schema_space}
             nestDepth={nestDepth}
             cancelHandlerRef={cancelHandlerRef}
             onActivityHint={onActivityHint}

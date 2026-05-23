@@ -98,7 +98,7 @@ def convert_to_annotations(
     file_external_id: str,
     file_id: Optional[int] = None,
     asset_external_ids: Optional[List[str]] = None,
-    space: str = "sp_enterprise_schema",
+    space: str = "inst_enterprise_file_assets",
     logger: Optional[CogniteFunctionLogger] = None,
 ) -> List[CogniteDiagramAnnotationApply]:
     """
@@ -395,7 +395,7 @@ def create_annotations(
         if cdf_config is None:
             raise ValueError("CDF config is required")
 
-        space = data.get("space", "sp_enterprise_schema")
+        space = data.get("space", "inst_enterprise_file_assets")
         raw_db = cdf_config.parameters.raw_db
         raw_table_results = cdf_config.parameters.raw_table_results
         raw_table_annotations = cdf_config.parameters.raw_table_annotations

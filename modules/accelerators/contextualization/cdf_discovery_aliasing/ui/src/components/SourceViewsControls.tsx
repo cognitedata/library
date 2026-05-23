@@ -13,8 +13,8 @@ type Props = {
   initialViewIndex?: number;
   /** When true (flow double-click), show only the focused view editor — no sidebar list. */
   singleView?: boolean;
-  /** Default ``schemaSpace`` from module default.config (prefills new rows and CDF view listing). */
-  schemaSpace?: string;
+  /** Default ``schema_space`` from module default.config (prefills new rows and CDF view listing). */
+  schema_space?: string;
 };
 
 function asViewList(v: unknown): JsonObject[] {
@@ -43,7 +43,7 @@ export function SourceViewsControls({
   onChange,
   initialViewIndex,
   singleView,
-  schemaSpace,
+  schema_space,
 }: Props) {
   const { t } = useAppSettings();
   const views = asViewList(value);
@@ -75,7 +75,7 @@ export function SourceViewsControls({
     });
   };
 
-  const defaultViewSpace = (schemaSpace ?? "").trim();
+  const defaultViewSpace = (schema_space ?? "").trim();
 
   const addView = () => {
     const next = [...views, emptyView(defaultViewSpace)];
@@ -102,7 +102,7 @@ export function SourceViewsControls({
       <ViewQueryConfigFields
         fieldKey={`sv-${vi}`}
         value={view}
-        schemaSpace={schemaSpace}
+        schema_space={schema_space}
         onChange={(next) => {
           const merged = views.map((v, j) => (j === vi ? next : v));
           setViews(merged);
@@ -169,7 +169,7 @@ export function SourceViewsControls({
               <ViewQueryConfigFields
                 fieldKey={`sv-${vi}`}
                 value={view}
-                schemaSpace={schemaSpace}
+                schema_space={schema_space}
                 onChange={(next) => {
                   const merged = views.map((v, j) => (j === vi ? next : v));
                   setViews(merged);

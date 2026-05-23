@@ -1,27 +1,33 @@
 import { describe, expect, it } from "vitest";
 import {
   mergePatternsIntoStepYaml,
-  mergeScopeIntoStepYaml,
+  mergeScopeIntoDefault,
   mergeStepYamlIntoDefault,
   patternsFromStepYaml,
-  scopeFromStepYaml,
+  scopeFromDefault,
   stepYamlFromDefault,
 } from "./defaultConfigYaml";
 
 const DEFAULT_SNIPPET = `
 function_version: 1.0.0
 workflow: create_asset_hierarchy_from_files
+scope_hierarchy:
+  type: hierarchy
+  levels: [site, unit]
+  locations:
+    - id: SITE_A
+      name: SITE_A
+      locations:
+        - id: SYS_1
+          name: SYS_1
+          files: [F-001]
+          locations: []
 file_asset_source:
   create:
     parameters:
       debug: false
     data:
-      hierarchy_levels: [site, plant]
-      scope:
-        - name: SITE_A
-          locations:
-            - name: SYS_1
-              files: [F-001]
+      limit: -1
   extract:
     parameters:
       debug: false
@@ -32,28 +38,27 @@ file_asset_source:
 `;
 
 describe("defaultConfigYaml", () => {
-  it("extracts scope (create) step slice", () => {
+  it("extracts scope from top-level scope_hierarchy", () => {
     const slice = stepYamlFromDefault(DEFAULT_SNIPPET, "scope");
-    const h = scopeFromStepYaml(slice);
-    expect(h.hierarchy_levels).toEqual(["site", "plant"]);
-    expect(h.scope[0]?.name).toBe("SITE_A");
+    const h = scopeFromDefault(slice);
+    expect(h.levels).toEqual(["site", "unit"]);
+    expect(h.scope[0]?.id).toBe("SITE_A");
   });
 
-  it("round-trips scope in step slice", () => {
-    const slice = stepYamlFromDefault(DEFAULT_SNIPPET, "scope");
-    const merged = mergeScopeIntoStepYaml(slice, {
-      hierarchy_levels: ["facility", "system"],
-      scope: [{ name: "FAC", files: ["X-1"] }],
+  it("round-trips scope_hierarchy on full document", () => {
+    const merged = mergeScopeIntoDefault(DEFAULT_SNIPPET, {
+      levels: ["facility", "system"],
+      scope: [{ id: "FAC", name: "FAC", files: ["X-1"], locations: [] }],
     });
-    const h2 = scopeFromStepYaml(merged);
-    expect(h2.hierarchy_levels).toEqual(["facility", "system"]);
+    const h2 = scopeFromDefault(merged);
+    expect(h2.levels).toEqual(["facility", "system"]);
     expect(h2.scope[0]?.files).toEqual(["X-1"]);
     const full = mergeStepYamlIntoDefault(DEFAULT_SNIPPET, "scope", merged);
-    const h3 = scopeFromStepYaml(stepYamlFromDefault(full, "scope"));
+    const h3 = scopeFromDefault(full);
     expect(h3.scope[0]?.files).toEqual(["X-1"]);
   });
 
-  it("round-trips patterns in step slice", () => {
+  it("round-trips patterns in extract step slice", () => {
     const slice = stepYamlFromDefault(DEFAULT_SNIPPET, "extract");
     const p = patternsFromStepYaml(slice);
     expect(p.patterns[0]?.category).toBe("equipment");
@@ -63,5 +68,4 @@ describe("defaultConfigYaml", () => {
     const p2 = patternsFromStepYaml(merged);
     expect(p2.patterns[0]?.sample).toEqual(["V-00"]);
   });
-
 });

@@ -13,7 +13,7 @@ def create_asset_instance(
     name: str,
     description: Optional[str] = None,
     parent_external_id: Optional[str] = None,
-    space: str = "sp_enterprise_schema",
+    space: str = "inst_enterprise_file_assets",
     level: Optional[str] = None,
     **kwargs,
 ) -> Dict[str, Any]:

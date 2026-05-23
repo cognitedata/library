@@ -124,32 +124,35 @@ def mock_cognite_client() -> MagicMock:
 def sample_hierarchy_config() -> Dict[str, Any]:
     """Create a sample hierarchy configuration for testing."""
     return {
-        "externalId": "ctx_create_asset_hierarchy_default",
-        "config": {
-            "data": {
-                "hierarchy_levels": ["site", "plant", "area", "system"],
-                "scope": [
-                    {
-                        "name": "MAIN_SITE",
-                        "locations": [
-                            {
-                                "name": "PLANT_A",
-                                "locations": [
-                                    {
-                                        "name": "AREA_1",
-                                        "locations": [
-                                            {
-                                                "name": "COOLING_SYS",
-                                                "files": ["CW-001", "CW-002"],
-                                            },
-                                        ],
-                                    },
-                                ],
-                            },
-                        ],
-                    },
-                ],
-            },
+        "scope_hierarchy": {
+            "type": "hierarchy",
+            "levels": ["site", "unit", "area", "system"],
+            "locations": [
+                {
+                    "id": "MAIN_SITE",
+                    "name": "MAIN_SITE",
+                    "locations": [
+                        {
+                            "id": "UNIT_A",
+                            "name": "UNIT_A",
+                            "locations": [
+                                {
+                                    "id": "AREA_1",
+                                    "name": "AREA_1",
+                                    "locations": [
+                                        {
+                                            "id": "COOLING_SYS",
+                                            "name": "COOLING_SYS",
+                                            "files": ["CW-001", "CW-002"],
+                                            "locations": [],
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                    ],
+                },
+            ],
         },
     }
 

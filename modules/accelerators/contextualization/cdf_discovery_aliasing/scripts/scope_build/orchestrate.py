@@ -120,7 +120,7 @@ def run_build(
 def _parse_args(argv: Sequence[str] | None) -> argparse.Namespace:
     p = argparse.ArgumentParser(
         description=(
-            "Create scoped workflow artifacts from default.config.yaml (aliasing_scope_hierarchy). "
+            "Create scoped workflow artifacts from default.config.yaml (scope_hierarchy). "
             "Per leaf: workflows/<suffix>/Workflow.yaml, WorkflowVersion.yaml, WorkflowTrigger.yaml, "
             "and key_extraction_aliasing.<suffix>.config.yaml (full scope; always refreshed on build). "
             "Existing Workflow/Version/Trigger are only overwritten with --force; the leaf *.config.yaml "

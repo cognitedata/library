@@ -118,7 +118,7 @@ type Props = {
   /** Optional: push canvas document into scope YAML (e.g. validation-rule order); may no-op. */
   onSyncScopeFromCanvas?: (canvas: WorkflowCanvasDocument) => void;
   /** From module default config — passed to source view CDF pickers in the node editor modal. */
-  schemaSpace?: string;
+  schema_space?: string;
   /** When true, the canvas is view-only (no drag/connect/drop, toolbars and palette disabled). */
   readOnly?: boolean;
   /** Optional: streamed local-run progress (node outline + edge animation), same as canvas preview. */
@@ -135,7 +135,7 @@ function FlowCanvasBody({
   onPatchWorkflowScope,
   onChange,
   onSyncScopeFromCanvas,
-  schemaSpace,
+  schema_space,
   readOnly = false,
   runProgress,
   onActivityHint,
@@ -469,7 +469,7 @@ function FlowCanvasBody({
         workflowScopeDoc,
         patchWorkflowScope: (fn) => patchWorkflowScopeRef.current(fn),
         t,
-        schemaSpace,
+        schema_space,
         compileDagMode,
         allowValidationRuleLayoutReuse: true,
         setNodes,
@@ -495,7 +495,7 @@ function FlowCanvasBody({
       getZoom,
       t,
       readOnly,
-      schemaSpace,
+      schema_space,
       compileDagMode,
     ]
   );
@@ -1032,7 +1032,7 @@ function FlowCanvasBody({
               <FlowPalette
                 t={t}
                 scopeDocument={workflowScopeDoc}
-                schemaSpace={schemaSpace}
+                schema_space={schema_space}
                 readOnly={readOnly}
               />
             </div>
@@ -1285,7 +1285,7 @@ function FlowCanvasBody({
           onPatchWorkflowScope={onPatchWorkflowScope}
           onClose={() => setEditorModalNode(null)}
           t={t}
-          schemaSpace={schemaSpace}
+          schema_space={schema_space}
           workflowCanvas={workflowCanvas}
           onPatchWorkflowCanvas={patchWorkflowCanvas}
         />
@@ -1307,7 +1307,7 @@ function FlowCanvasBody({
           setSubgraphDrillHydrateNonce((n) => n + 1);
         }}
         onPromoteInnerSubtreeToOwningGraph={promoteInnerSubtreeToOwningGraph}
-        schemaSpace={schemaSpace}
+        schema_space={schema_space}
         onActivityHint={onActivityHint}
       />
     </div>

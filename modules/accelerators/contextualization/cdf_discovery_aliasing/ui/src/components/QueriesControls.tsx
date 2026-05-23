@@ -19,7 +19,7 @@ type Props = {
   onChange: (next: WorkflowCanvasDocument) => void;
   /** Select this canvas node when opened from flow double-click. */
   initialNodeId?: string;
-  schemaSpace?: string;
+  schema_space?: string;
   singleNode?: boolean;
 };
 
@@ -27,7 +27,7 @@ function queryEditorInnerClass(_kind: QueryNodeKind): string {
   return "discovery-source-views-editor-inner discovery-source-views-editor-inner--query-node";
 }
 
-export function QueriesControls({ canvas, onChange, initialNodeId, schemaSpace, singleNode }: Props) {
+export function QueriesControls({ canvas, onChange, initialNodeId, schema_space, singleNode }: Props) {
   const { t } = useAppSettings();
   const queries = listQueryNodes(canvas);
   const [selectedId, setSelectedId] = useState<string | null>(() => {
@@ -82,7 +82,7 @@ export function QueriesControls({ canvas, onChange, initialNodeId, schemaSpace, 
         <ViewQueryConfigFields
           fieldKey={selected.id}
           value={readNodeConfig(selected)}
-          schemaSpace={schemaSpace}
+          schema_space={schema_space}
           onChange={(cfg) => onChange(patchNodeConfig(canvas, selected.id, cfg))}
         />
       );
@@ -177,7 +177,7 @@ export function QueriesControls({ canvas, onChange, initialNodeId, schemaSpace, 
                 <ViewQueryConfigFields
                   fieldKey={selected.id}
                   value={readNodeConfig(selected)}
-                  schemaSpace={schemaSpace}
+                  schema_space={schema_space}
                   onChange={(cfg) => onChange(patchNodeConfig(canvas, selected.id, cfg))}
                 />
               ) : selected.kind === "query_classic" ? (

@@ -8,14 +8,14 @@ All paths are relative to `modules/accelerators/contextualization/cdf_discovery_
 | Document                                                   | Audience                      | Contents                                                                              |
 | ---------------------------------------------------------- | ----------------------------- | ------------------------------------------------------------------------------------- |
 | [Key Discovery incremental state](#key-discovery-incremental-state-architecture-summary) | Everyone | Plan-aligned summary: FDM vs RAW split, checkpoint vs processing state, naming, deploy/fallback |
-| [Module functional document](module_functional_document.md) | Everyone                      | End-to-end scope, behaviors, components, data flows, interfaces (points to deep specs) |
-| [Module README](../README.md)                              | Everyone                      | What the module does, prerequisites, [Local runs (module.py)](../README.md#local-runs-modulepy), [Python API](../README.md#python-api), [custom handlers how-to](guides/howto_custom_handlers.md), pointers to deeper docs |
+| [Module specification](MODULE_SPECIFICATION.md) | Everyone                      | End-to-end scope, behaviors, components, data flows, interfaces (points to deep specs) |
+| [Module README](../README.md)                              | Everyone                      | Install, dependencies, `module.py` CLI, operator UI launch |
 | [Quickstart — local `module.py`](guides/howto_quickstart.md) | Everyone                      | `.env` at repo root, `PYTHONPATH=.`, run `module.py`, read outputs under `local_run_results/` |
 | [Build configuration (YAML)](guides/howto_config_yaml.md)   | Authors                       | v1 scope files, `default.config.yaml` hierarchy, template alignment, `module.py build` / `run`, deploy pointers |
 | [Build configuration (UI)](guides/howto_config_ui.md)      | Authors / operators           | Local operator UI + API: edit scope/template/triggers, run build and pipeline, `run_all` / `--all`, security notes |
-| [Scoped deployment](guides/howto_scoped_deployment.md)     | Authors / operators           | `aliasing_scope_hierarchy`, `module.py build`, WorkflowTrigger `configuration` / instance spaces, local parity from a trigger, Cognite Toolkit `cdf build` / `cdf deploy` |
+| [Scoped deployment](guides/howto_scoped_deployment.md)     | Authors / operators           | `scope_hierarchy`, `module.py build`, WorkflowTrigger `configuration` / instance spaces, local parity from a trigger, Cognite Toolkit `cdf build` / `cdf deploy` |
 | [Logging (CDF functions)](guides/logging_cdf_functions.md) | Developers / workflow authors | `logLevel` / `verbose`, required logger methods, optional handler injection           |
-| [Config layout](../config/README.md)                       | Authors                       | Module-root scope YAML (`workflow.local.config.yaml`), `default.config.yaml` `aliasing_scope_hierarchy`, `tag_patterns.yaml`, `config/examples/`, v1 scope shape, `build_scopes.py`, `module.py build` (root Workflow/WorkflowVersion each build; triggers created if missing, `--force` to overwrite), `build --clean` (remove generated `workflows/` YAML), `--check-workflow-triggers` |
+| [Config layout](../config/README.md)                       | Authors                       | Module-root scope YAML (`workflow.local.config.yaml`), `default.config.yaml` `scope_hierarchy`, `tag_patterns.yaml`, `config/examples/`, v1 scope shape, `build_scopes.py`, `module.py build` (root Workflow/WorkflowVersion each build; triggers created if missing, `--force` to overwrite), `build --clean` (remove generated `workflows/` YAML), `--check-workflow-triggers` |
 | [Config examples](../config/examples/README.md)            | Authors / testers             | Demo folders, `--config-path` examples, progressive demo order                        |
 
 
@@ -25,15 +25,15 @@ Incremental **listing cursor**, **per-record content hash**, and **prior classif
 
 | Responsibility | **FDM (Key Discovery)** | **RAW** (`raw_table_key`) |
 |----------------|-------------------------|---------------------------|
-| Global listing watermark (`lastUpdatedTime` cursor) | **`KeyDiscoveryScopeCheckpoint`** (`highWatermarkMs`) | Legacy **`scope_wm_*`** rows only when FDM is off or at runtime fallback |
+| Global listing watermark (`lastUpdatedTime` cursor) | **`KeyDiscoveryScopeCheckpoint`** (`highWatermarkMs`) | RAW **`scope_wm_*`** rows when FDM is off or at runtime fallback |
 | Per-source-record hash, status, retries | **`KeyDiscoveryProcessingState`** (`lastSeenHash`, `status`, …) | **`EXTRACTION_INPUTS_HASH`** scans only in legacy/fallback path — not dual-written when FDM is active |
 | Cohort / workflow handoff (`RUN_ID`, `WORKFLOW_STATUS=detected` → downstream) | — | **Kept on RAW** (not migrated to FDM as a per-run queue) |
 
 **Views** (`data_modeling/`): **`KeyDiscoveryProcessingState`** and **`KeyDiscoveryScopeCheckpoint`** both **implement** `cdf_cdm:CogniteDescribable` (container `requires` + describable payload on upsert). Deploy them with Cognite Toolkit alongside functions. At runtime, if views are missing or API calls fail, discovery **query** stages **fall back** to RAW watermark + hash behavior.
 
-**Naming (config vs legacy):** **`workflow_scope`** (same as leaf **`scope.id`**, injected by **`module.py build`**) groups FDM rows; **`source_view_fingerprint`** (deterministic hash of view + filters) disambiguates multiple source views under one scope; content digest is **`lastSeenHash`** (hash v2 payload may use `workflow_scope` / `source_view_fingerprint` in JSON). Optional per-view **`key_discovery_hash_property_paths`** controls which source properties feed the hash.
+**Naming:** **`workflow_scope`** (same as leaf **`scope.id`**, injected by **`module.py build`**) groups FDM rows; **`source_view_fingerprint`** (deterministic hash of view + filters) disambiguates multiple source views under one scope; content digest is **`lastSeenHash`** (hash v2 payload may use `workflow_scope` / `source_view_fingerprint` in JSON). Optional per-view **`key_discovery_hash_property_paths`** controls which source properties feed the hash.
 
-**See also:** [Module functional document](module_functional_document.md) (§3.4 Incremental processing), [Configuration guide](guides/configuration_guide.md) (subsection *Incremental mode, Key Discovery FDM, and RAW cohort*), [Workflows README](../workflows/README.md) (incremental state task), [module README](../README.md) (*Incremental cohort processing*), [Scoped deployment](guides/howto_scoped_deployment.md) (*Key Discovery data model*).
+**See also:** [Module specification](MODULE_SPECIFICATION.md) (§3.4 Incremental processing), [Configuration guide](guides/configuration_guide.md) (subsection *Incremental mode, Key Discovery FDM, and RAW cohort*), [Workflows README](../workflows/README.md) (incremental state task), [Scoped deployment](guides/howto_scoped_deployment.md) (*Key Discovery data model*).
 
 
 ## Configuration (YAML, UI, and parameters)
@@ -47,7 +47,6 @@ Incremental **listing cursor**, **per-record content hash**, and **prior classif
 | [Workflow associations](guides/workflow_associations.md)                                    | Top-level `associations`, view→extraction bindings, Python reconcile, `compile_canvas_associations.py` |
 | [Reference YAML (flat)](../config/examples/reference/config_example_complete.yaml)          | Exhaustive field listing                                                                             |
 | [Reference scope YAML](../config/examples/reference/reference_key_extraction_aliasing.yaml) | Same fields as above in `key_extraction_aliasing` document shape                                     |
-| Migration notes                                                                             | Historical Celanese → scope YAML notes were removed; follow the [configuration guide](guides/configuration_guide.md) |
 
 
 ## Extending the code (developers)
@@ -91,14 +90,13 @@ Incremental **listing cursor**, **per-record content hash**, and **prior classif
 | [Aliasing spec](specifications/2.%20aliasing.md)             | Transformation types, rules, engine behavior; same config shape reused inside **`fn_dm_inverted_index`** to expand **referenced** tokens (not candidate keys) when the inverted index is enabled |
 
 
-## Generated reports and troubleshooting
+## Troubleshooting
 
+| Document | Contents |
+| -------- | -------- |
+| [Common issues](troubleshooting/common_issues.md) | Troubleshooting |
 
-| Document                                                              | Contents                                                                                                  |
-| --------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| [Key discovery / aliasing report](key_extraction_aliasing_report.md) | Current default scope, shared tag regex, aliasing stack; run-specific metrics live under `local_run_results/` |
-| [Common issues](troubleshooting/common_issues.md)                     | Troubleshooting                                                                                           |
-
+Run-specific summaries: `local_run_results/run_report.md` (from `scripts/generate_report.py` after a pipeline run).
 
 ## Tests
 
@@ -107,10 +105,6 @@ Incremental **listing cursor**, **per-record content hash**, and **prior classif
 | ------------------------------------- | ------------------------------------------------ |
 | [tests/README.md](../tests/README.md) | Layout, how to run `pytest` from repository root; `tests/unit/docs/` guards how-to guide files |
 
-
-## Internal / analysis (optional)
-
-Additional design notes may exist alongside this tree in git history or team wikis; nothing is required to operate the module.
 
 ## Package entry points (code)
 

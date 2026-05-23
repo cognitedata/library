@@ -32,7 +32,7 @@ export function entityDropStages(node: TreeNode): {
 export function seedConfigForEntityDrop(
   node: TreeNode,
   stage: DiscoveryPaletteStage,
-  schemaSpace?: string
+  schema_space?: string
 ): JsonObject {
   const target = node.open_target;
   const label = node.label.trim() || "Entity";
@@ -70,10 +70,10 @@ export function seedConfigForEntityDrop(
     };
   }
 
-  if (stage === "query_view" && schemaSpace) {
+  if (stage === "query_view" && schema_space) {
     return {
       description: label,
-      view_space: schemaSpace,
+      view_space: schema_space,
       incremental_change_processing: true,
     };
   }

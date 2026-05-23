@@ -1,0 +1,32 @@
+name: {{ group_name }}
+sourceId: "{{ group_source_id }}"
+metadata:
+  origin: cognite-toolkit
+capabilities:
+  - projectsAcl:
+      actions:
+        - READ
+        - LIST
+      scope:
+        all: {}
+  - groupsAcl:
+      actions:
+        - LIST
+      scope:
+        all: {}
+  - sessionsAcl:
+      actions:
+        - CREATE
+      scope:
+        all: {}
+  - dataModelInstancesAcl:
+      actions:
+        - READ
+        - WRITE
+        - WRITE_PROPERTIES
+      scope:
+        spaceIdScope:
+          spaceIds:
+{%- for sid in instance_space_ids %}
+            - {{ sid }}
+{%- endfor %}

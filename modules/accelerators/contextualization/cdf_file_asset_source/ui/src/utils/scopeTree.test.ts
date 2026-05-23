@@ -3,7 +3,7 @@ import { collectDocumentRows, addFileAtPath, removeFileFromTree } from "./scopeT
 import type { ScopeHierarchyData } from "../types/assetConfig";
 
 const sample: ScopeHierarchyData = {
-  hierarchy_levels: ["site", "system"],
+  levels: ["site", "system"],
   scope: [
     {
       name: "SITE",

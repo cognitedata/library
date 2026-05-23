@@ -1,8 +1,8 @@
 # Quickstart — local run with `module.py run`
 
-Run the key discovery and aliasing pipeline against your CDF data model from your laptop. This path uses the same engines as the deployed Cognite Functions; configuration is the v1 scope document at the module root ([`workflow.local.config.yaml`](../../workflow.local.config.yaml)) when you use `run --scope default`. With **`incremental_change_processing: true`**, local runs mirror workflow parity (state update → extraction → …) and use the same **Key Discovery** / **RAW fallback** parameters as deployed triggers — see [module README — Incremental cohort processing](../../README.md#incremental-cohort-processing-raw-cohort-cdm-state).
+Run the key discovery and aliasing pipeline against your CDF data model from your laptop. This path uses the same engines as the deployed Cognite Functions; configuration is the v1 scope document at the module root ([`workflow.local.config.yaml`](../../workflow.local.config.yaml)) when you use `run --scope default`. With **`incremental_change_processing: true`**, local runs mirror workflow parity (state update → extraction → …) and use the same **Key Discovery** / **RAW fallback** parameters as deployed triggers — see [Module specification — Incremental processing](../MODULE_SPECIFICATION.md).
 
-**CLI:** `python module.py` with no subcommand prints help. The pipeline is **`module.py run`** (with the flags below). Workflow YAML generation is **`module.py build`** (legacy: **`module.py --build`**).
+**CLI:** `python module.py` with no subcommand prints help. The pipeline is **`module.py run`** (with the flags below). Workflow YAML generation is **`module.py build`**.
 
 **Documentation index:** [docs/README.md](../README.md)
 
@@ -83,7 +83,7 @@ The pipeline writes **timestamped JSON** under the module’s **`local_run_resul
 
 Open the newest files to inspect keys, aliases, and metadata. The directory is often gitignored; create it if your clone does not have it yet.
 
-**Optional report:** The module README describes regenerating [docs/key_extraction_aliasing_report.md](../key_extraction_aliasing_report.md) from result JSON via [`scripts/generate_report.py`](../../scripts/generate_report.py). Test layout and pytest commands: [`tests/README.md`](../../tests/README.md).
+**Optional run summary:** [`scripts/generate_report.py`](../../scripts/generate_report.py) writes `local_run_results/run_report.md` from the latest `*_cdf_extraction.json` / `*_cdf_aliasing.json` pair. Test layout: [`tests/README.md`](../../tests/README.md).
 
 ## Next steps
 

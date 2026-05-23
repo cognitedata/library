@@ -1,6 +1,6 @@
 # Custom handlers (discovery pipeline)
 
-The legacy **`fn_dm_key_extraction`** / **`fn_dm_aliasing`** CDF functions and their standalone Python engine packages were removed. Discovery workflows now run **`fn_dm_transform`**, **`fn_dm_validate`**, query/save/join stages such as **`fn_dm_view_query`** / **`fn_dm_view_save`**, and related **`fn_dm_*`** executors compiled from the UI **`canvas`** — see [`functions/README.md`](../../functions/README.md).
+The **`fn_dm_key_extraction`** / **`fn_dm_aliasing`** CDF functions and their standalone Python engine packages are not part of this module. Discovery workflows now run **`fn_dm_transform`**, **`fn_dm_validate`**, query/save/join stages such as **`fn_dm_view_query`** / **`fn_dm_view_save`**, and related **`fn_dm_*`** executors compiled from the UI **`canvas`** — see [`functions/README.md`](../../functions/README.md).
 
 ## Adding behaviour
 

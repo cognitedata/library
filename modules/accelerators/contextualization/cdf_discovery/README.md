@@ -1,0 +1,70 @@
+# CDF Discovery
+
+**Toolkit utility module** — operator UI and local governance build output under `governance/` (`spaces/`, `auth/`). No CDF deploy from Discovery itself.
+
+Local browser for CDF **Data** (RAW, Data Modeling, Classic, saved queries), **Integration** (Workflows, Pipelines, Functions, Transformations), and **Governance** (live CDF spaces/groups plus declared config, scoped build, and generated YAML under `governance/`). Document tabs cover SQL preview, data model diagrams, workflow DAGs, transformation detail, and governance workspaces. CDF API access is read-only except SQL preview. Declared governance root defaults to `governance/` in this module (`CDF_DISCOVERY_GOVERNANCE_ROOT` or `governance.declared_root` in `discovery.local.config.yaml` can override). Uses repository-root `.env` credentials (`COGNITE_*` / `CDF_*` / `IDP_*`).
+
+Config: `discovery.config.template.yaml` → copy to `discovery.local.config.yaml`.
+
+**Full documentation:** [docs/README.md](docs/README.md) · [Module specification](docs/MODULE_SPECIFICATION.md)
+
+## Install
+
+From the **repository root** (the directory that contains `modules/`):
+
+```bash
+export PYTHONPATH=.
+pip install -r modules/accelerators/contextualization/cdf_discovery/requirements.txt
+```
+
+## Dependencies
+
+| Category | Packages / tools | In `requirements.txt`? |
+|----------|------------------|------------------------|
+| Python runtime | 3.11+; `cognite-sdk`, `python-dotenv`, `fastapi`, `uvicorn[standard]`, `pydantic`, `pyyaml`, `duckdb` | Yes |
+| Operator UI | Node.js 18+, `npm`; React, Vite, CodeMirror, `@xyflow/react`, `xlsx`, `hyparquet` — see [ui/package.json](ui/package.json) | No |
+| Credentials | Repo-root `.env` | No |
+| Dev / CI | `pytest`; `npm run i18n:check` | No |
+
+## `module.py` CLI
+
+| Command | Purpose |
+| ------- | ------- |
+| `ui` | Start FastAPI + Vite operator UI |
+| `build` | Generate Space/Group YAML via `governance_build` (`--spaces-only` / `--groups-only`; runs compliance gates after write) |
+
+```bash
+python modules/accelerators/contextualization/cdf_discovery/module.py build [--config governance/default.config.yaml] [--dry-run] [--force]
+python modules/accelerators/contextualization/cdf_discovery/module.py build --clean [--yes]
+```
+
+Flags: `--api-host`, `--api-port`, `--vite-port`, `--no-browser`, `--no-reload`. Run `python module.py` with no args for help.
+
+## Operator UI
+
+```bash
+export PYTHONPATH=.
+python modules/accelerators/contextualization/cdf_discovery/module.py ui
+```
+
+| Service | Default URL |
+|---------|-------------|
+| Vite UI | http://127.0.0.1:5193/ |
+| FastAPI | http://127.0.0.1:8785/ |
+
+Override ports: `python .../module.py ui --api-port 8785 --vite-port 5193`. Set `CDF_DISCOVERY_ROOT` if the module path is non-standard.
+
+**Security:** no authentication on the operator API. Run only on a trusted workstation (`127.0.0.1`). See [docs/MODULE_SPECIFICATION.md](docs/MODULE_SPECIFICATION.md#7-security-and-nfrs).
+
+**Navigation:** [docs/guides/howto_operator_ui.md](docs/guides/howto_operator_ui.md)
+
+Other modules’ default ports: [Accelerators README](../../README.md#dev-port-matrix).
+
+## Documentation
+
+| Document | Contents |
+| -------- | -------- |
+| [docs/README.md](docs/README.md) | Documentation index |
+| [docs/MODULE_SPECIFICATION.md](docs/MODULE_SPECIFICATION.md) | Canonical spec and API |
+| [docs/guides/howto_operator_ui.md](docs/guides/howto_operator_ui.md) | Operator UI procedures |
+| [OPERATOR_UI_STANDARD.md](../../OPERATOR_UI_STANDARD.md) | Shared UI conventions |

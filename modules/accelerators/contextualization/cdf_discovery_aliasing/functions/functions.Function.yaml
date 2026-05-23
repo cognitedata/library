@@ -8,7 +8,7 @@
   owner: 'Anonymous'
   description: 'Discovery DM instances apply from predecessor payloads (stub)'
   metadata:
-    version: '{{key_extraction_function_version}}'
+    version: '{{function_version}}'
   envVars:
     ENV_TYPE: '${CDF_BUILD_TYPE}'
     CDF_ENV: '${CDF_ENVIRON}'
@@ -21,7 +21,7 @@
   owner: 'Anonymous'
   description: 'Discovery RAW upsert from predecessor payloads (stub)'
   metadata:
-    version: '{{key_extraction_function_version}}'
+    version: '{{function_version}}'
   envVars:
     ENV_TYPE: '${CDF_BUILD_TYPE}'
     CDF_ENV: '${CDF_ENVIRON}'
@@ -34,7 +34,7 @@
   owner: 'Anonymous'
   description: 'Discovery classic upsert from predecessor payloads (stub)'
   metadata:
-    version: '{{key_extraction_function_version}}'
+    version: '{{function_version}}'
   envVars:
     ENV_TYPE: '${CDF_BUILD_TYPE}'
     CDF_ENV: '${CDF_ENVIRON}'
@@ -47,7 +47,7 @@
   owner: 'Anonymous'
   description: 'Discovery view query — cohort-scoped DM list; sink RAW'
   metadata:
-    version: '{{key_extraction_function_version}}'
+    version: '{{function_version}}'
   envVars:
     ENV_TYPE: '${CDF_BUILD_TYPE}'
     CDF_ENV: '${CDF_ENVIRON}'
@@ -60,7 +60,7 @@
   owner: 'Anonymous'
   description: 'Discovery RAW query — cohort reads; sink RAW'
   metadata:
-    version: '{{key_extraction_function_version}}'
+    version: '{{function_version}}'
   envVars:
     ENV_TYPE: '${CDF_BUILD_TYPE}'
     CDF_ENV: '${CDF_ENVIRON}'
@@ -73,7 +73,7 @@
   owner: 'Anonymous'
   description: 'Discovery classic resource query — cohort reads; sink RAW'
   metadata:
-    version: '{{key_extraction_function_version}}'
+    version: '{{function_version}}'
   envVars:
     ENV_TYPE: '${CDF_BUILD_TYPE}'
     CDF_ENV: '${CDF_ENVIRON}'
@@ -86,7 +86,7 @@
   owner: 'Anonymous'
   description: 'Discovery SQL query — transformations preview; sink RAW'
   metadata:
-    version: '{{key_extraction_function_version}}'
+    version: '{{function_version}}'
   envVars:
     ENV_TYPE: '${CDF_BUILD_TYPE}'
     CDF_ENV: '${CDF_ENVIRON}'
@@ -99,7 +99,7 @@
   owner: 'Anonymous'
   description: 'Discovery transform stage — core + ELT handler registry; predecessor RAW → sink RAW'
   metadata:
-    version: '{{key_extraction_function_version}}'
+    version: '{{function_version}}'
   envVars:
     ENV_TYPE: '${CDF_BUILD_TYPE}'
     CDF_ENV: '${CDF_ENVIRON}'
@@ -112,7 +112,7 @@
   owner: 'Anonymous'
   description: 'Discovery merge — N-way cohort property fan-in → merged sink RAW'
   metadata:
-    version: '{{key_extraction_function_version}}'
+    version: '{{function_version}}'
   envVars:
     ENV_TYPE: '${CDF_BUILD_TYPE}'
     CDF_ENV: '${CDF_ENVIRON}'
@@ -125,7 +125,7 @@
   owner: 'Anonymous'
   description: 'Discovery join — two cohort RAW inputs (in__left / in__right) → merged sink RAW'
   metadata:
-    version: '{{key_extraction_function_version}}'
+    version: '{{function_version}}'
   envVars:
     ENV_TYPE: '${CDF_BUILD_TYPE}'
     CDF_ENV: '${CDF_ENVIRON}'
@@ -138,7 +138,7 @@
   owner: 'Anonymous'
   description: 'Discovery payload validation — rules and confidence; sink RAW (stub)'
   metadata:
-    version: '{{key_extraction_function_version}}'
+    version: '{{function_version}}'
   envVars:
     ENV_TYPE: '${CDF_BUILD_TYPE}'
     CDF_ENV: '${CDF_ENVIRON}'
@@ -151,7 +151,7 @@
   owner: 'Anonymous'
   description: 'Discovery instance filter — exclude cohort rows using query-style filters DSL'
   metadata:
-    version: '{{key_extraction_function_version}}'
+    version: '{{function_version}}'
   envVars:
     ENV_TYPE: '${CDF_BUILD_TYPE}'
     CDF_ENV: '${CDF_ENVIRON}'
@@ -164,7 +164,7 @@
   owner: 'Anonymous'
   description: 'Discovery confidence filter — prune value lists by aligned {field}_confidence scores'
   metadata:
-    version: '{{key_extraction_function_version}}'
+    version: '{{function_version}}'
   envVars:
     ENV_TYPE: '${CDF_BUILD_TYPE}'
     CDF_ENV: '${CDF_ENVIRON}'
@@ -177,7 +177,7 @@
   owner: 'Anonymous'
   description: 'Discovery inverted index — config-driven lookup keys from cohort RAW → inverted index table'
   metadata:
-    version: '{{key_extraction_function_version}}'
+    version: '{{function_version}}'
   envVars:
     ENV_TYPE: '${CDF_BUILD_TYPE}'
     CDF_ENV: '${CDF_ENVIRON}'
@@ -190,7 +190,7 @@
   owner: 'Anonymous'
   description: 'Discovery RAW cleanup — post-run delete cohort keys or truncate state tables'
   metadata:
-    version: '{{key_extraction_function_version}}'
+    version: '{{function_version}}'
   envVars:
     ENV_TYPE: '${CDF_BUILD_TYPE}'
     CDF_ENV: '${CDF_ENVIRON}'

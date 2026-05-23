@@ -55,6 +55,48 @@ def file_asset_source_section(doc: Dict[str, Any] | None = None) -> Dict[str, An
     return fas
 
 
+def scope_hierarchy_section(doc: Dict[str, Any] | None = None) -> Dict[str, Any]:
+    """Return top-level ``scope_hierarchy`` from a default config document."""
+    if doc is None:
+        doc = load_default_config()
+    sh = doc.get("scope_hierarchy")
+    if not isinstance(sh, dict):
+        raise ValueError("default.config.yaml: missing or invalid 'scope_hierarchy' section")
+    return sh
+
+
+def workflow_configuration(doc: Dict[str, Any] | None = None) -> Dict[str, Any]:
+    """
+    Full workflow ``input.configuration``: pipeline steps plus ``scope_hierarchy``.
+
+    Cognite workflows pass this object as ``configuration`` on function tasks.
+    """
+    if doc is None:
+        doc = load_default_config()
+    out = dict(file_asset_source_section(doc))
+    out["scope_hierarchy"] = dict(scope_hierarchy_section(doc))
+    return out
+
+
+def _inject_scope_into_create_data(
+    configuration: Dict[str, Any] | None, data: Dict[str, Any]
+) -> Dict[str, Any]:
+    """Map ``scope_hierarchy`` into create-step ``data`` for legacy handlers."""
+    if not configuration:
+        return data
+    sh = configuration.get("scope_hierarchy")
+    if not isinstance(sh, dict):
+        return data
+    merged = dict(data)
+    levels = sh.get("levels")
+    if isinstance(levels, list) and levels:
+        merged["hierarchy_levels"] = levels
+    locations = sh.get("locations")
+    if isinstance(locations, list) and locations:
+        merged["scope"] = locations
+    return merged
+
+
 def step_block(
     step: PipelineStep,
     *,
@@ -98,6 +140,13 @@ def config_dict_for_step(
     data = block.get("data") or {}
     if not isinstance(params, dict) or not isinstance(data, dict):
         raise ValueError(f"Step {step!r}: parameters and data must be mappings")
+
+    if step == "create":
+        cfg_for_scope = inline
+        if cfg_for_scope is None:
+            doc = load_default_config(root)
+            cfg_for_scope = workflow_configuration(doc)
+        data = _inject_scope_into_create_data(cfg_for_scope, data)
 
     return {
         "externalId": STEP_FUNCTION_EXTERNAL_ID[step],

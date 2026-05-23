@@ -1,8 +1,27 @@
-"""CDF browse helpers for workflow palette data tree (copied from cdf_explorer cdf_browse.py)."""
+"""CDF browse helpers for workflow palette data tree (copied from cdf_discovery cdf_browse.py)."""
 
 from __future__ import annotations
 
+import time
 from typing import Any, Dict, List, Mapping, Optional, Tuple
+
+_DM_CACHE_TTL_SEC = 120.0
+_dm_list_cache: Dict[tuple[Any, ...], tuple[float, Any]] = {}
+
+
+def _dm_cache_get(key: tuple[Any, ...]) -> Any | None:
+    entry = _dm_list_cache.get(key)
+    if entry is None:
+        return None
+    ts, value = entry
+    if time.monotonic() - ts > _DM_CACHE_TTL_SEC:
+        _dm_list_cache.pop(key, None)
+        return None
+    return value
+
+
+def _dm_cache_set(key: tuple[Any, ...], value: Any) -> None:
+    _dm_list_cache[key] = (time.monotonic(), value)
 
 # Cognite Core Data Model (CDM) — built into CDF; spaces/models list APIs may omit it.
 NATIVE_CDF_CDM_SPACE = "cdf_cdm"
@@ -77,6 +96,10 @@ def _ensure_native_cdf_cdm_data_model(
 
 
 def dm_list_spaces(client: Any, *, limit: int = 2000, include_global: bool = False) -> List[str]:
+    cache_key = ("spaces", id(client), limit, include_global)
+    cached = _dm_cache_get(cache_key)
+    if cached is not None:
+        return list(cached)
     seen: set[str] = set()
     names: List[str] = []
 
@@ -96,7 +119,9 @@ def dm_list_spaces(client: Any, *, limit: int = 2000, include_global: bool = Fal
             _collect(with_global=False)
         else:
             raise
-    return _ensure_native_cdf_cdm_space(names)
+    names_out = _ensure_native_cdf_cdm_space(names)
+    _dm_cache_set(cache_key, names_out)
+    return names_out
 
 
 def _view_to_row(view: Any) -> Dict[str, str]:
@@ -244,7 +269,13 @@ def dm_list_data_models(
 
 
 def dm_list_all_data_models(client: Any, *, limit: int = 2000) -> List[Dict[str, str]]:
-    return dm_list_data_models(client, space=None, limit=limit, include_global=True)
+    cache_key = ("all_models", id(client), limit)
+    cached = _dm_cache_get(cache_key)
+    if cached is not None:
+        return list(cached)
+    rows = dm_list_data_models(client, space=None, limit=limit, include_global=True)
+    _dm_cache_set(cache_key, rows)
+    return rows
 
 
 def raw_list_databases(client: Any, *, limit: int = 500) -> List[str]:

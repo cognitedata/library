@@ -1,4 +1,4 @@
-# input.configuration is synced from default.config.yaml file_asset_source by: python module.py build
+# input.configuration is synced from default.config.yaml (file_asset_source + scope_hierarchy) by: python module.py build
 externalId: create_asset_hierarchy_from_files_trigger
 triggerRule:
   triggerType: schedule
@@ -6,8 +6,8 @@ triggerRule:
 workflowExternalId: {{ workflow }}
 workflowVersion: v1
 authentication:
-  clientId: {{functionClientId}}
-  clientSecret: {{functionClientSecret}}
+  clientId: {{function_client_id}}
+  clientSecret: {{function_client_secret}}
 input:
   configuration:
     extract:
@@ -16,14 +16,14 @@ input:
         run_all: false
         overwrite: false
         initialize_state: false
-        raw_db: db_extract_assets_by_pattern
-        raw_table_state: extract_assets_by_pattern_state
+        raw_db: db_file_asset_extract
+        raw_table_state: file_asset_extract_state
         raw_table_results: null
         results_field: results
       data:
         limit: -1
         mime_type: null
-        instance_space: sp_enterprise_schema
+        instance_space: inst_enterprise_file_assets
         partial_match: true
         min_tokens: 2
         batch_size: 5
@@ -32,57 +32,7 @@ input:
         diagram_detect_config:
           annotation_extract: true
           read_embedded_text: true
-        logLevel: DEBUG
         patterns:
-        - category: equipment
-          resourceType: major_equipment
-          resourceSubType: Rotating_Equipment
-          standard: Custom
-          sample:
-          - '[C|G]-00'
-          - '[C|G]-000'
-          - '[C|G]-0000'
-          - '[C|G]-00000'
-          - '[C|G]-00-X'
-          - '[C|G]-000-X'
-          - '[C|G]-0000-X'
-          - '[C|G]-00000-X'
-          - 00-[C|G]-00
-          - 00-[C|G]-000
-          - 00-[C|G]-0000
-          - 00-[C|G]-00000
-          - 00-[C|G]-00-X
-          - 00-[C|G]-000-X
-          - 00-[C|G]-0000-X
-          - 00-[C|G]-00000-X
-        - category: equipment
-          resourceType: major_equipment
-          resourceSubType: Static_Equipment
-          standard: Custom
-          sample:
-          - '[B|D|E|F|H|M]-00'
-          - '[B|D|E|F|H|M]-000'
-          - '[B|D|E|F|H|M]-0000'
-          - '[B|D|E|F|H|M]-00000'
-          - '[B|D|E|F|H|M]-00-X'
-          - '[B|D|E|F|H|M]-000-X'
-          - '[B|D|E|F|H|M]-0000-X'
-          - '[B|D|E|F|H|M]-00000-X'
-          - 00-[B|D|E|F|H|M]-00
-          - 00-[B|D|E|F|H|M]-000
-          - 00-[B|D|E|F|H|M]-0000
-          - 00-[B|D|E|F|H|M]-00000
-          - 00-[B|D|E|F|H|M]-00-X
-          - 00-[B|D|E|F|H|M]-000-X
-          - 00-[B|D|E|F|H|M]-0000-X
-          - 00-[B|D|E|F|H|M]-00000-X
-        - category: equipment
-          resourceType: major_equipment
-          resourceSubType: Electric_Motor
-          standard: Custom
-          sample:
-          - '[EM]-0000'
-          - 00-[EM]-0000
         - category: general
           sample:
           - X-00
@@ -133,185 +83,39 @@ input:
           - 00-X-00000-X
           - 00-XX-00000-X
           - 00-XXX-00000-X
-        - category: equipment
-          resourceType: process_line
-          resourceSubType: Process_Line
-          standard: ISA95
-          sample:
-          - '[L|LN]-00'
-          - '[L|LN]-000'
-          - '[L|LN]-0000'
-          - '[L|LN]-00-X'
-          - '[L|LN]-000-X'
-          - '[L|LN]-0000-X'
-          - 00-[L|LN]-00
-          - 00-[L|LN]-000
-          - 00-[L|LN]-0000
-          - 00-[L|LN]-00-X
-          - 00-[L|LN]-000-X
-          - 00-[L|LN]-0000-X
-          - '[L|LN]-0000-0"-X0X0'
-          - '[L|LN]-0000-00"-X0X0'
-          - '[L|LN]-0000-000"-X0X0'
-          - '[L|LN]-0000-0"-X0X0X0'
-          - '[L|LN]-0000-00"-X0X0X0'
-          - '[L|LN]-0000-000"-X0X0X0'
-          - 00-[L|LN]-0000-0"-X0X0
-          - 00-[L|LN]-0000-00"-X0X0
-          - 00-[L|LN]-0000-000"-X0X0
-          - 00-[L|LN]-0000-0"-X0X0X0
-          - 00-[L|LN]-0000-00"-X0X0X0
-          - 00-[L|LN]-0000-000"-X0X0X0
-          - X-0000-0"-X0X0
-          - X-0000-00"-X0X0
-          - X-0000-000"-X0X0
-          - X-0000-0"-X0X0X0
-          - X-0000-00"-X0X0X0
-          - X-0000-000"-X0X0X0
-          - 00-X-0000-0"-X0X0
-          - 00-X-0000-00"-X0X0
-          - 00-X-0000-000"-X0X0
-          - 00-X-0000-0"-X0X0X0
-          - 00-X-0000-00"-X0X0X0
-          - 00-X-0000-000"-X0X0X0
         - category: document
-          resourceType: document
-          resourceSubType: document
           sample:
           - X-000-000-X0X0X0
           - X-000-X-000
           - X-00000-X-000
+          resourceType: document
+          resourceSubType: document
+        log_level: DEBUG
     create:
       parameters:
         debug: true
         run_all: true
         overwrite: true
-        raw_db: db_extract_assets_by_pattern
-        raw_table_state: extract_assets_by_pattern_state
+        raw_db: db_file_asset_extract
+        raw_table_state: file_asset_extract_state
         results_field: results
-        raw_table_assets: extract_assets_by_pattern_assets
+        raw_table_assets: file_asset_extract_assets
         output_file: results/asset_hierarchy.yaml
         pattern_config_path: patterns/asset_tag_classifier.ISA51.config.yaml
-        space: sp_enterprise_schema
         include_resource_type: false
         include_resource_subtype: true
+        instance_space: inst_enterprise_file_assets
       data:
-        hierarchy_levels:
-        - site
-        - plant
-        - area
-        - system
-        scope:
-        - name: DEMO_SITE
-          description: Demo Site
-          locations:
-          - name: DP_01
-            description: Demo Plant 1
-            locations:
-            - name: DA_01
-              description: Demo Area 1
-              locations:
-              - name: GLY_ETH
-                description: Glycol Ethers
-                files:
-                - E-108-M-001
-                - E-108-M-002
-                - E-108-M-003
-                - E-108-M-004
-                - E-108-M-005
-                - E-108-M-006
-                - E-108-M-007
-                - E-108-M-008
-                - E-108-M-009-01
-                - E-108-M-009-02
-          - name: DP_02
-            description: Demo Plant 2
-            locations:
-            - name: DA_02
-              description: Demo Area 2
-              locations:
-              - name: PO_PUR
-                description: PO Purification
-                files:
-                - E-261-M-001
-                - E-261-M-002
-                - E-262-M-001
-                - E-262-M-002
-                - E-262-M-003
-                - E-262-M-004
-                - E-262-M-005
-            - name: DA_03
-              description: Demo Area 3
-              locations:
-              - name: ARC_RER_SYS
-                description: Arconal Rerun System
-                files:
-                - E-273-M-001
-                - E-273-M-002
-              - name: BUT_HAN_SYS
-                description: Butane Handling System
-                files:
-                - E-207-M-001
-              - name: THE_TRE_STA
-                description: Thermal Treating/ Stabilization
-                files:
-                - E-271-M-001
-                - E-271-M-002
-              - name: WAT_SCR_ACE_REM
-                description: Water Scrubbing & Acetone Removal
-                files:
-                - E-272-M-001
-                - E-272-M-002
-                - E-272-M-003
-            - name: DA_04
-              description: Demo Area 4
-              locations:
-              - name: GLY_REA
-                description: Glycol Reactors
-                files:
-                - E-281-M-001
-                - E-281-M-002
-              - name: HOT_OIL
-                description: Hot Oil
-                files:
-                - E-284-M-001
-                - E-284-M-002-01
-                - E-284-M-002-02
-              - name: PRO_GLY
-                description: Propylene Glycol??
-                files:
-                - E-282-M-001
-                - E-282-M-002
-                - E-282-M-003
-                - E-282-M-004
-                - E-282-M-005
-              - name: PRO_GLY_DRY_SYS
-                description: Propylene Glycol Drying System??
-                files:
-                - E-283-M-001
-                - E-283-M-002
-                - E-283-M-003
-                - E-283-M-004
-                - E-283-M-005
-                - E-283-M-006
-                - E-283-M-007
-              - name: TRI_GLY
-                description: Tripropylene Glycol
-                files:
-                - E-208-M-001
-                - E-208-M-002
-                - E-208-M-003
-                - E-208-M-004
         limit: -1
         batch_size: null
-        logLevel: INFO
+        log_level: INFO
     write:
       parameters:
         debug: true
         run_all: true
         overwrite: true
-        raw_db: db_extract_assets_by_pattern
-        raw_table_assets: extract_assets_by_pattern_assets
+        raw_db: db_file_asset_extract
+        raw_table_assets: file_asset_extract_assets
       data:
         hierarchy_file: results/asset_hierarchy.yaml
         batch_size: 100
@@ -319,4 +123,141 @@ input:
         view_space: cdf_cdm
         view_external_id: CogniteAsset
         view_version: v1
-        logLevel: INFO
+        log_level: INFO
+    scope_hierarchy:
+      type: hierarchy
+      levels:
+      - site
+      - unit
+      - area
+      - system
+      locations:
+      - id: DEMO_SITE
+        name: DEMO_SITE
+        description: Demo Site
+        locations:
+        - id: DP_01
+          name: DP_01
+          description: Demo Plant 1
+          locations:
+          - id: DA_01
+            name: DA_01
+            description: Demo Area 1
+            locations:
+            - id: GLY_ETH
+              name: GLY_ETH
+              description: Glycol Ethers
+              files:
+              - E-108-M-001
+              - E-108-M-002
+              - E-108-M-003
+              - E-108-M-004
+              - E-108-M-005
+              - E-108-M-006
+              - E-108-M-007
+              - E-108-M-008
+              - E-108-M-009-01
+              - E-108-M-009-02
+              locations: []
+        - id: DP_02
+          name: DP_02
+          description: Demo Plant 2
+          locations:
+          - id: DA_02
+            name: DA_02
+            description: Demo Area 2
+            locations:
+            - id: PO_PUR
+              name: PO_PUR
+              description: PO Purification
+              files:
+              - E-261-M-001
+              - E-261-M-002
+              - E-262-M-001
+              - E-262-M-002
+              - E-262-M-003
+              - E-262-M-004
+              - E-262-M-005
+              locations: []
+          - id: DA_03
+            name: DA_03
+            description: Demo Area 3
+            locations:
+            - id: ARC_RER_SYS
+              name: ARC_RER_SYS
+              description: Arconal Rerun System
+              files:
+              - E-273-M-001
+              - E-273-M-002
+              locations: []
+            - id: BUT_HAN_SYS
+              name: BUT_HAN_SYS
+              description: Butane Handling System
+              files:
+              - E-207-M-001
+              locations: []
+            - id: THE_TRE_STA
+              name: THE_TRE_STA
+              description: Thermal Treating/ Stabilization
+              files:
+              - E-271-M-001
+              - E-271-M-002
+              locations: []
+            - id: WAT_SCR_ACE_REM
+              name: WAT_SCR_ACE_REM
+              description: Water Scrubbing & Acetone Removal
+              files:
+              - E-272-M-001
+              - E-272-M-002
+              - E-272-M-003
+              locations: []
+          - id: DA_04
+            name: DA_04
+            description: Demo Area 4
+            locations:
+            - id: GLY_REA
+              name: GLY_REA
+              description: Glycol Reactors
+              files:
+              - E-281-M-001
+              - E-281-M-002
+              locations: []
+            - id: HOT_OIL
+              name: HOT_OIL
+              description: Hot Oil
+              files:
+              - E-284-M-001
+              - E-284-M-002-01
+              - E-284-M-002-02
+              locations: []
+            - id: PRO_GLY
+              name: PRO_GLY
+              description: Propylene Glycol??
+              files:
+              - E-282-M-001
+              - E-282-M-002
+              - E-282-M-003
+              - E-282-M-004
+              - E-282-M-005
+              locations: []
+            - id: PRO_GLY_DRY_SYS
+              name: PRO_GLY_DRY_SYS
+              description: Propylene Glycol Drying System??
+              files:
+              - E-283-M-001
+              - E-283-M-002
+              - E-283-M-003
+              - E-283-M-004
+              - E-283-M-005
+              - E-283-M-006
+              - E-283-M-007
+              locations: []
+            - id: TRI_GLY
+              name: TRI_GLY
+              description: Tripropylene Glycol
+              files:
+              - E-208-M-001
+              - E-208-M-002
+              - E-208-M-003
+              - E-208-M-004
+              locations: []

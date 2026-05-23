@@ -43,7 +43,7 @@ function readWorkflowLimit(cfg: JsonObject): number | undefined {
   return Math.min(10_000, Math.floor(n));
 }
 
-/** Editor for ``query_sql`` node ``data.config`` — CDF SQL preview (same API as cdf_explorer). */
+/** Editor for ``query_sql`` node ``data.config`` — CDF SQL preview (same API as cdf_discovery). */
 export function SqlQueryConfigFields({ value, onChange, fieldKey }: Props) {
   const { t } = useAppSettings();
   const patch = (p: JsonObject) => onChange({ ...value, ...p });

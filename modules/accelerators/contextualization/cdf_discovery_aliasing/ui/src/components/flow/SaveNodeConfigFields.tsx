@@ -13,11 +13,11 @@ type Props = {
   onChange: (next: WorkflowCanvasDocument) => void;
   nodeId: string;
   t: TFn;
-  /** Default view space from module ``schemaSpace`` (same as view query editor). */
-  schemaSpace?: string;
+  /** Default view space from module ``schema_space`` (same as view query editor). */
+  schema_space?: string;
 };
 
-export function SaveNodeConfigFields({ canvas, onChange, nodeId, t, schemaSpace }: Props) {
+export function SaveNodeConfigFields({ canvas, onChange, nodeId, t, schema_space }: Props) {
   const node = useMemo(() => canvas.nodes.find((n) => n.id === nodeId) ?? null, [canvas.nodes, nodeId]);
   const cfg = useMemo(() => (node ? readNodeConfig(node) : {}), [node]);
   const isViewSave = node?.kind === "save_view";
@@ -44,7 +44,7 @@ export function SaveNodeConfigFields({ canvas, onChange, nodeId, t, schemaSpace 
         <ViewQueryConfigFields
           fieldKey={nodeId}
           value={cfg}
-          schemaSpace={schemaSpace}
+          schema_space={schema_space}
           variant="viewTarget"
           onChange={(next) => onChange(patchNodeConfig(canvas, nodeId, next))}
         />

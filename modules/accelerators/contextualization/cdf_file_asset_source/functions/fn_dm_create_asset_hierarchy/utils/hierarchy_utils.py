@@ -19,7 +19,7 @@ except ImportError:
         name: str,
         description: Optional[str] = None,
         parent_external_id: Optional[str] = None,
-        space: str = "sp_enterprise_schema",
+        space: str = "inst_enterprise_file_assets",
         level: Optional[str] = None,
         **kwargs,
     ) -> Dict[str, Any]:
@@ -95,7 +95,7 @@ def build_tag_description(
 def generate_hierarchy(
     locations: List[Dict[str, str]],
     tags: List[Dict[str, Any]],
-    space: str = "sp_enterprise_schema",
+    space: str = "inst_enterprise_file_assets",
     include_resource_subtype: bool = False,
     include_resource_type: bool = False,
     include_resource_subsubtype: bool = False,
@@ -113,11 +113,11 @@ def generate_hierarchy(
         include_resource_subsubtype: Include resourceSubSubType (equipment_subclass_name) as intermediate level
         include_resource_variant: Include resourceVariant (equipment_variant_name) as intermediate level
         hierarchy_levels: List of hierarchy level names in order (e.g., ['site', 'plant', 'area', 'system'])
-                         If None, defaults to ['site', 'plant', 'area', 'system'] for backward compatibility
+                         If None, defaults to ['site', 'plant', 'area', 'system']
     """
-    # Default hierarchy levels for backward compatibility
+    # Default hierarchy levels when not configured
     if hierarchy_levels is None:
-        hierarchy_levels = ["site", "plant", "area", "system"]
+        hierarchy_levels = ["site", "unit", "area", "system"]
 
     if not hierarchy_levels:
         return []

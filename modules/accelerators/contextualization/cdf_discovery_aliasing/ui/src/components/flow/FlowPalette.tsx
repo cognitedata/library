@@ -45,7 +45,7 @@ type Props = {
   t: TFn;
   /** Workflow scope YAML; used to list `validation_rule_definitions` ids. */
   scopeDocument: Record<string, unknown>;
-  schemaSpace?: string;
+  schema_space?: string;
   readOnly?: boolean;
 };
 

@@ -50,7 +50,7 @@ def handle(data: Dict[str, Any], client: CogniteClient = None) -> Dict[str, Any]
             - min_tokens: Minimum number of tokens required (default: 2)
             - batch_size: Number of files to process in each batch (default: 20)
             - state_store: Optional state store dictionary to update with results
-            - logLevel: Optional log level (DEBUG, INFO, WARNING, ERROR)
+            - log_level: Optional log level (DEBUG, INFO, WARNING, ERROR)
         client: CogniteClient instance (required if using CDF config loading or querying files from CDF)
 
     Returns:
@@ -60,7 +60,7 @@ def handle(data: Dict[str, Any], client: CogniteClient = None) -> Dict[str, Any]
 
     try:
         # Initialize logging
-        loglevel = data.get("logLevel", "INFO")
+        loglevel = data.get("log_level", "INFO")
 
         # Use logger from dependencies
         try:
@@ -119,8 +119,8 @@ def handle(data: Dict[str, Any], client: CogniteClient = None) -> Dict[str, Any]
                 data["diagram_detect_config"] = config_data.get(
                     "diagram_detect_config", {}
                 )
-            if "logLevel" not in data:
-                data["logLevel"] = "DEBUG" if cdf_config.parameters.debug else "INFO"
+            if "log_level" not in data:
+                data["log_level"] = "DEBUG" if cdf_config.parameters.debug else "INFO"
 
             # Store CDF config for use in pipeline
             data["_cdf_config"] = cdf_config
@@ -172,7 +172,7 @@ def run_locally():
 
     client = create_client(env_config)
 
-    data = {"step": "extract", "logLevel": "INFO"}
+    data = {"step": "extract", "log_level": "INFO"}
     if CDF_CONFIG_AVAILABLE and load_config_parameters is not None:
         cdf_config = load_config_parameters(client, data)
         data["_cdf_config"] = cdf_config

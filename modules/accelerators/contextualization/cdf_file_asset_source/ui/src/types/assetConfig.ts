@@ -2,15 +2,16 @@
 
 /** Tree node; child nodes use ``locations`` for nested scope hierarchy. */
 export type ScopeNode = {
+  id?: string;
   name?: string;
   description?: string;
   locations?: ScopeNode[];
   files?: string[];
 };
 
-/** Hierarchy levels and scope tree under ``config.data``. */
+/** Top-level ``scope_hierarchy`` in ``default.config.yaml``. */
 export type ScopeHierarchyData = {
-  hierarchy_levels: string[];
+  levels: string[];
   scope: ScopeNode[];
 };
 
@@ -28,7 +29,7 @@ export type PatternsData = {
 };
 
 export function emptyScopeNode(): ScopeNode {
-  return { name: "", description: "", locations: [], files: [] };
+  return { id: "", name: "", description: "", locations: [], files: [] };
 }
 
 export function emptyPattern(): PatternEntry {

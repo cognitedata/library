@@ -16,7 +16,7 @@ from deploy_kea_functions_cdf_api import _materialize_staging, _sanitize_metadat
 
 
 def test_sanitize_metadata_drops_toolkit_placeholders() -> None:
-    assert _sanitize_metadata({"version": "{{key_extraction_function_version}}", "ok": "1"}) == {"ok": "1"}
+    assert _sanitize_metadata({"version": "{{function_version}}", "ok": "1"}) == {"ok": "1"}
     assert _sanitize_metadata(None) is None
     assert _sanitize_metadata({}) is None
 

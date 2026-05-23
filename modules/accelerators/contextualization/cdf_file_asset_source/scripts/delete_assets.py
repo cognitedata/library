@@ -25,7 +25,7 @@ from modules.create_asset_hierarchy_from_files.functions.fn_dm_extract_assets_by
 
 def delete_assets(
     root_external_id: Optional[str] = None,
-    space: str = "sp_enterprise_schema",
+    space: str = "inst_enterprise_file_assets",
     view_space: str = "cdf_cdm",
     view_external_id: str = "CogniteAsset",
     view_version: str = "v1",
@@ -39,7 +39,7 @@ def delete_assets(
 
     Args:
         root_external_id: Optional root asset externalId to filter by (e.g., "site_BLO_PID")
-        space: Instance space to filter by (required, e.g., "sp_enterprise_schema")
+        space: Instance space to filter by (required, e.g., "inst_enterprise_file_assets")
         view_space: View space for data modeling
         view_external_id: View external ID
         view_version: View version
@@ -278,13 +278,13 @@ if __name__ == "__main__":
         epilog="""
 Examples:
   # Delete all assets in a specific space (dry-run by default)
-  %(prog)s --space sp_enterprise_schema
+  %(prog)s --space inst_enterprise_file_assets
 
   # Delete all assets with a specific root in a space (dry-run by default)
-  %(prog)s --root site_BLO_PID --space sp_enterprise_schema
+  %(prog)s --root site_BLO_PID --space inst_enterprise_file_assets
 
   # Actually delete (requires --force)
-  %(prog)s --root site_BLO_PID --space sp_enterprise_schema --force
+  %(prog)s --root site_BLO_PID --space inst_enterprise_file_assets --force
         """,
     )
     parser.add_argument(
@@ -297,7 +297,7 @@ Examples:
         "--space",
         type=str,
         required=True,
-        help="Instance space to filter by (required, e.g., 'sp_enterprise_schema')",
+        help="Instance space to filter by (required, e.g., 'inst_enterprise_file_assets')",
     )
     parser.add_argument(
         "--view-space",

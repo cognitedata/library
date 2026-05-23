@@ -134,14 +134,14 @@ function ScopeTree({
 export function ScopeHierarchyEditor({ value, onChange }: Props) {
   const { t } = useAppSettings();
   const tree = value.scope ?? [];
-  const levelsKey = JSON.stringify(value.hierarchy_levels ?? []);
-  const [levelsDraft, setLevelsDraft] = useState(() => value.hierarchy_levels.join(", "));
+  const levelsKey = JSON.stringify(value.levels ?? []);
+  const [levelsDraft, setLevelsDraft] = useState(() => (value.levels ?? []).join(", "));
   const [selectedPath, setSelectedPath] = useState<ScopePath>(() => (tree.length ? [0] : []));
   const [expandedBranches, setExpandedBranches] = useState<Set<string>>(() => new Set());
   const [editorView, setEditorView] = useState<EditorView>("hierarchy");
 
   useEffect(() => {
-    setLevelsDraft(value.hierarchy_levels.join(", "));
+    setLevelsDraft((value.levels ?? []).join(", "));
   }, [levelsKey]);
 
   useEffect(() => {
@@ -171,11 +171,11 @@ export function ScopeHierarchyEditor({ value, onChange }: Props) {
   };
 
   const updateLevels = (text: string) => {
-    const hierarchy_levels = text
+    const levels = text
       .split(",")
       .map((s) => s.trim())
       .filter(Boolean);
-    commit({ ...value, hierarchy_levels });
+    commit({ ...value, levels });
   };
 
   const addRoot = () => {

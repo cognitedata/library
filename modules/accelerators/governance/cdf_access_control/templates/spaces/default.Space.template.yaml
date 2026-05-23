@@ -1,5 +1,0 @@
-externalId: "{{ externalId }}"
-name: "{{ name }}"
-description: "{{ description | default('', true) }}"
-access_governance:
-  scope_id: "{{ scope_id }}"

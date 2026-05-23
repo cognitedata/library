@@ -41,7 +41,7 @@ def handle(
             - space: Data model space for annotations (default: cdf_cdm)
             - view_external_id: View external ID (default: CogniteDiagramAnnotation)
             - view_version: View version (default: v1)
-            - logLevel: Optional log level (DEBUG, INFO, WARNING, ERROR)
+            - log_level: Optional log level (DEBUG, INFO, WARNING, ERROR)
         client: CogniteClient instance (required if using CDF config loading)
 
     Returns:
@@ -51,7 +51,7 @@ def handle(
 
     try:
         # Initialize logging
-        loglevel = data.get("logLevel", "INFO")
+        loglevel = data.get("log_level", "INFO")
 
         # Use logger from dependencies
         from .dependencies import create_logger_service
@@ -92,8 +92,8 @@ def handle(
                 )
             if "view_version" not in data:
                 data["view_version"] = config_data.get("view_version", "v1")
-            if "logLevel" not in data:
-                data["logLevel"] = config_params.logLevel
+            if "log_level" not in data:
+                data["log_level"] = config_params.log_level
 
         # Get client if available (needed for loading results from RAW)
         if client is None and CDF_AVAILABLE:
@@ -166,7 +166,7 @@ def run_locally():
 
         # Use CDF format - results will be loaded from RAW
         data = {
-            "logLevel": parameters.get("logLevel", "DEBUG"),
+            "log_level": parameters.get("log_level", "DEBUG"),
             "ExtractionPipelineExtId": "ctx_create_annotations_default",
             "space": data_section.get("space", "cdf_cdm"),
             "view_external_id": data_section.get(

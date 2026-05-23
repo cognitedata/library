@@ -1,222 +1,92 @@
-# Asset Hierarchy Creation from Files
+# Asset hierarchy from files (`cdf_file_asset_source`)
 
-A comprehensive solution for extracting asset tags from diagram files and creating hierarchical asset structures in Cognite Data Fusion (CDF).
+Toolkit module that extracts asset tags from CDF diagram files, builds a hierarchical structure from `scope_hierarchy`, and writes assets to CDF data modeling.
 
-## 🎯 What This Solution Does
+**Full documentation:** [docs/README.md](docs/README.md) · [Module specification](docs/MODULE_SPECIFICATION.md)
 
-1. **Extracts asset tags** from diagram files (PDFs, DWG, etc.) using pattern matching
-2. **Creates hierarchical structure** based on your organization's locations (sites, plants, areas, systems)
-3. **Writes assets** to CDF data modeling for use in your applications
+## Install
 
-## 🚀 Quick Start
-
-1. **Read the Getting Started Guide**: Start with [`docs/GETTING_STARTED.md`](docs/GETTING_STARTED.md)
-2. **Copy the Example**: Use [`config.simple.example.yaml`](config.simple.example.yaml) as your starting point
-3. **Configure Your Locations**: Add your sites, plants, areas, systems, and files
-4. **Configure Your Patterns**: Define what asset tags to extract
-5. **Run the Pipeline**: Execute the workflow to create your hierarchy
-
-### Operator UI (local)
-
-Edit **`default.config.yaml`**, validate, and run locally with the module operator UI:
+From the **repository root**:
 
 ```bash
 export PYTHONPATH=.
 pip install -r modules/accelerators/contextualization/cdf_file_asset_source/requirements.txt
+```
+
+## Dependencies
+
+| Category | Packages / tools | In `requirements.txt`? |
+|----------|------------------|------------------------|
+| Python runtime | 3.11+; `cognite-sdk`, `python-dotenv`, `fastapi`, `uvicorn[standard]`, `pydantic`, `pyyaml` | Yes |
+| Operator UI | Node.js 18+, `npm`; see [ui/package.json](ui/package.json) | No |
+| Credentials | Repo-root `.env` | No |
+| CDF Functions deploy | Per-function `functions/fn_dm_*/requirements.txt` (e.g. `requests`, `cognite-extractor-utils` on extract) | No |
+| Toolkit deploy | Cognite Toolkit (`cdf build` / deploy) | No |
+| Dev / CI | `pytest`, `pytest-mock`; `run_module_compliance_gates.py` on `validate` | No |
+
+## `module.py` CLI
+
+| Command | Purpose | Guide |
+| ------- | ------- | ----- |
+| `ui` | Operator UI (FastAPI + Vite) | [docs/guides/howto_config_ui.md](docs/guides/howto_config_ui.md) |
+| `validate` | Validate `default.config.yaml` | [docs/guides/howto_quickstart.md](docs/guides/howto_quickstart.md) |
+| `build` | Sync workflow trigger configuration | [workflows/README.md](workflows/README.md) |
+| `run` | Local pipeline (`--step extract\|create\|write\|all`) | [docs/guides/howto_quickstart.md](docs/guides/howto_quickstart.md) |
+
+```bash
+python modules/accelerators/contextualization/cdf_file_asset_source/module.py validate
+python modules/accelerators/contextualization/cdf_file_asset_source/module.py build
+python modules/accelerators/contextualization/cdf_file_asset_source/module.py run --step all
+```
+
+## Operator UI
+
+```bash
+export PYTHONPATH=.
 python modules/accelerators/contextualization/cdf_file_asset_source/module.py ui
 ```
 
-See [`docs/guides/howto_config_ui.md`](docs/guides/howto_config_ui.md). The UI includes **form editors** for scope and extract patterns. CLI: `python module.py validate`, `python module.py build`, `python module.py run --step all`.
+| Service | Default URL |
+|---------|-------------|
+| FastAPI | http://127.0.0.1:8770/ |
+| Vite UI | http://127.0.0.1:5188/ |
 
-## 📚 Documentation
+Flags: `--no-browser`, `--no-reload`, `--api-port`, `--vite-port`. Env: `CDF_FILE_ASSET_SOURCE_ROOT`.
 
-- **[Getting Started Guide](docs/GETTING_STARTED.md)** - Quick start for new users
-- **[Configuration UI guide](docs/guides/howto_config_ui.md)** - Local operator UI (FastAPI + Vite)
-- **[Configuration Guide](docs/CONFIGURATION_GUIDE.md)** - Detailed configuration options
-- **[Summary of Improvements](docs/SUMMARY_OF_IMPROVEMENTS.md)** - What's been optimized
-- **[Optimization Plan](docs/OPTIMIZATION_PLAN.md)** - Technical details
+**Security:** no API authentication — localhost only.
 
-## 📁 Configuration Files
+Other modules’ ports: [Accelerators README](../../README.md#dev-port-matrix).
 
-### Configuration Examples
-- `config.simple.example.yaml` - Working example configuration (quick start)
+## Pipeline
 
-### Industry-Specific Templates
-Choose the template that matches your industry:
-- `config.template.manufacturing.yaml` - **Manufacturing**: Site → Plant → Area → System
-- `config.template.oil_gas.yaml` - **Oil & Gas**: Site → Facility → Unit → System
-- `config.template.utilities.yaml` - **Utilities**: Region → Site → Building → Room → System
-- `config.template.pharmaceuticals.yaml` - **Pharmaceuticals**: Site → Building → Suite → System
+| Function | Role |
+| -------- | ---- |
+| `fn_dm_extract_assets_by_pattern` | Extract tags from files → RAW |
+| `fn_dm_create_asset_hierarchy` | Build hierarchy from scope + extraction |
+| `fn_dm_write_asset_hierarchy` | Write `CogniteAsset` to instance space |
 
-### Module configuration (`default.config.yaml`)
-Single source of truth for Toolkit deploy and local/CDF runs:
-- **`file_asset_source.extract`** — pattern matching and extraction parameters
-- **`file_asset_source.create`** — hierarchy levels, scope tree, classifier path
-- **`file_asset_source.write`** — data modeling write parameters
-- Top-level Toolkit vars — `function_version`, `workflow`, `workflow_schedule`, OAuth client IDs
+Workflow: `create_asset_hierarchy_from_files`. Details: [docs/specifications/pipeline_api.md](docs/specifications/pipeline_api.md).
 
-After editing config for CDF deploy, run **`python module.py build`** to sync the workflow trigger `input.configuration`, then **`cdf build`** / deploy.
+## Configuration
 
-## 🏗️ Solution Architecture
+- **Production:** [default.config.yaml](default.config.yaml) — `file_asset_source.extract|create|write`, `scope_hierarchy`
+- **Templates:** `config.simple.example.yaml`, `config.template.*.yaml`
+- **Field reference:** [docs/specifications/config_schema.md](docs/specifications/config_schema.md)
 
-### Functions
+After editing config for deploy: `python module.py build`, then Toolkit `cdf build`.
 
-1. **Extract Assets by Pattern** (`fn_dm_extract_assets_by_pattern`)
-   - Processes diagram files
-   - Extracts asset tags using pattern matching
-   - Stores results in RAW tables
+## Documentation
 
-2. **Create Asset Hierarchy** (`fn_dm_create_asset_hierarchy`)
-   - Reads extracted assets
-   - Creates hierarchical structure based on locations
-   - Generates asset instances with proper relationships
+| Document | Contents |
+| -------- | -------- |
+| [docs/README.md](docs/README.md) | Index |
+| [docs/MODULE_SPECIFICATION.md](docs/MODULE_SPECIFICATION.md) | Canonical spec |
+| [docs/guides/howto_quickstart.md](docs/guides/howto_quickstart.md) | Quickstart |
+| [docs/guides/howto_config_ui.md](docs/guides/howto_config_ui.md) | Operator UI |
+| [workflows/README.md](workflows/README.md) | CDF workflow deploy |
+## Tests
 
-3. **Write Asset Hierarchy** (`fn_dm_write_asset_hierarchy`)
-   - Reads generated hierarchy
-   - Writes assets to CDF data modeling
-   - Handles batch processing and updates
-
-### Workflow
-
-The solution includes a CDF workflow that orchestrates all three functions:
-- `workflows/create_asset_hierarchy_from_files.Workflow.yaml`
-
-## ⚙️ Configuration Structure
-
-### Business Configuration (What You Customize)
-
-```yaml
-# Your hierarchy structure
-hierarchy:
-  levels: [site, plant, area, system]
-
-# Your locations and files
-locations:
-  - name: "YOUR_SITE"
-    description: "Site Description"
-    locations:
-      # ... nested structure
-      - name: "YOUR_SYSTEM"
-        files: ["File-001", "File-002"]
-
-# What asset tags to extract
-patterns:
-  - category: equipment
-    samples: ["P-101", "V-201"]
+```bash
+export PYTHONPATH=.
+pytest modules/accelerators/contextualization/cdf_file_asset_source/tests/unit/ -q
 ```
-
-### Technical Configuration (Usually Leave as Default)
-
-```yaml
-# Storage settings
-storage:
-  database: db_extract_assets_by_pattern
-  tables:
-    results: extract_assets_by_pattern_results
-    assets: extract_assets_by_pattern_assets
-
-# Processing settings
-processing:
-  batch_size: 5
-  max_attempts: 3
-  limit: -1  # -1 = all files
-```
-
-## 💡 Key Features
-
-### Flexible Hierarchy
-- **Customizable levels**: Define your own hierarchy structure (e.g., site/plant/area/system or facility/building/room)
-- **Dynamic naming**: Hierarchy level names come from configuration
-- **Files at any level**: Support for files defined at any hierarchy level
-
-### Pattern Matching
-- **Flexible patterns**: Use `[X]` for any letter, `X` for any letters, numbers for digits
-- **Multiple categories**: Equipment, instruments, documents, general
-- **Resource classification**: Optional resourceType and resourceSubType
-
-### User-Friendly Configuration
-- **Clear separation**: Technical settings vs business configuration
-- **Inline documentation**: Every setting explained
-- **Examples included**: Simple and complex examples provided
-- **Validation ready**: Structure supports validation
-
-## 🔧 For Data Engineers
-
-### Code Organization
-- **Shared utilities**: Common code in `functions/shared/utils/`
-- **Modular functions**: Each function is self-contained
-- **Consistent patterns**: Similar structure across all functions
-
-### Configuration Management
-- **Pipeline configs**: YAML-based configuration
-- **Environment variables**: For CDF connection
-- **Local testing**: Scripts for local execution
-
-## 👥 For Partners/Non-Technical Users
-
-### Easy Configuration
-- **Step-by-step guides**: Clear instructions
-- **Template files**: Copy and modify
-- **Examples**: Working examples to follow
-
-### Clear Documentation
-- **Getting started**: Quick start guide
-- **Configuration guide**: Detailed options
-- **Troubleshooting**: Common issues and solutions
-
-## 📖 Common Use Cases
-
-### Use Case 1: Simple 3-Level Hierarchy
-```yaml
-hierarchy:
-  levels: [facility, building, room]
-
-locations:
-  - name: "Main Facility"
-    locations:
-      - name: "Building A"
-        locations:
-          - name: "Control Room"
-            files: ["Diagram-001"]
-```
-
-### Use Case 2: Complex Multi-Site
-```yaml
-hierarchy:
-  levels: [region, site, unit, system]
-
-locations:
-  - name: "North Region"
-    locations:
-      - name: "Site Alpha"
-        locations:
-          - name: "Unit 1"
-            locations:
-              - name: "Cooling System"
-                files: ["CW-001", "CW-002"]
-```
-
-## 🛠️ Running Locally
-
-See individual function directories for local execution scripts:
-- `run_extract_assets_by_pattern.py`
-- `run_create_asset_hierarchy.py`
-- `run_write_asset_hierarchy.py`
-
-## 📝 Notes
-
-- **Scope configuration**: Hierarchy and file assignments use ``config.data.scope`` (child nodes use ``locations``)
-- **Gradual Migration**: Can adopt new structure gradually
-- **Validation**: Configuration validation with helpful errors (coming soon)
-
-## 🤝 Contributing
-
-When making changes:
-1. Update documentation if configuration changes
-2. Add examples for new features
-3. Keep user-friendly comments in configs
-4. Test with simple examples
-
-## 📄 License
-
-[Add license information]

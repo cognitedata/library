@@ -14,7 +14,7 @@ key_extraction:
       raw_db: db_discovery
       raw_table_key: discovery_state
       workflow_scope: SITE_01
-      key_discovery_schema_space: dm_key_discovery
+      key_discovery_schema_space: dm_sol_key_discovery
       key_discovery_dm_version: v1
       cdm_view_version: v1
       key_discovery_instance_space: ''

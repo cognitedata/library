@@ -11,7 +11,7 @@ This guide walks through **authoring and maintaining** the key discovery and ali
 | File (module root) | Role |
 | -------------------- | ---- |
 | **`workflow.local.config.yaml`** | **v1 scope document** for local `module.py run` when you use `--scope default` or pass this path as `--config-path`. Root keys: `source_views`, `key_extraction`, optional `aliasing`, optional `scope`. Same logical shape as **`workflow.input.configuration`** on deployed workflows. |
-| **`default.config.yaml`** | **Module and hierarchy defaults**: Toolkit placeholders, schedules, and **`aliasing_scope_hierarchy`** (multi-site tree). Consumed by **`module.py build`** / `scripts/build_scopes.py`, not substituted wholesale into `module.py run` unless you merge by hand. |
+| **`default.config.yaml`** | **Module and hierarchy defaults**: Toolkit placeholders, schedules, and **`scope_hierarchy`** (multi-site tree). Consumed by **`module.py build`** / `scripts/build_scopes.py`, not substituted wholesale into `module.py run` unless you merge by hand. |
 | **`workflow_template/workflow.template.config.yaml`** | **Template** for **`input.configuration`** patched into each generated **`WorkflowTrigger`**. Keep it aligned with your intended deployed scope (often a copy of a tuned `workflow.local.config.yaml`). |
 
 **Examples** under **`config/examples/`** are valid v1 scope documents for learning and tests; point **`--config-path`** at any of them.
@@ -32,7 +32,7 @@ For **incremental** runs, local **`module.py run`** follows **workflow parity** 
 
 If you need **one WorkflowTrigger per leaf** (per site / line / area):
 
-1. Edit **`aliasing_scope_hierarchy`** in **`default.config.yaml`**: **`levels`** (tier labels) and **`locations`** (nested scope nodes with stable **`id`**).
+1. Edit **`scope_hierarchy`** in **`default.config.yaml`**: **`levels`** (tier labels) and **`locations`** (nested scope nodes with stable **`id`**).
 2. Run **`module.py build`** to create missing manifests under **`workflows/`** (and **`module.py build --force`** after template edits to overwrite triggers). See [Scoped deployment](howto_scoped_deployment.md) and [config/README.md](../../config/README.md#scope-hierarchy-builder).
 3. Keep **`workflow_template/workflow.template.config.yaml`** in sync with the scope you want embedded in new triggers (copy from your tuned **`workflow.local.config.yaml`** when appropriate).
 
@@ -84,6 +84,6 @@ Use Cognite Toolkit with the generated **`workflows/`** manifests: **`cdf build`
 
 | Topic | Document |
 | ----- | -------- |
-| Default scope narrative | [Key extraction / aliasing report](../key_extraction_aliasing_report.md) |
-| End-to-end behavior | [Module functional document](../module_functional_document.md) |
+| Default scope narrative | [Configuration guide — Default CDM scope](configuration_guide.md#default-cdm-scope) |
+| End-to-end behavior | [Module specification](../MODULE_SPECIFICATION.md) |
 | UI-based editing | [How to build configuration with the UI](howto_config_ui.md) |

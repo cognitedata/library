@@ -35,31 +35,27 @@ Configuration files are located in:
 - **Scope YAML (recommended for local runs):** `modules/accelerators/contextualization/cdf_discovery_aliasing/workflow.local.config.yaml` at module root when using `--scope default`, or any path via `--config-path`. One v1 scope document per file: required `key_extraction`, optional `aliasing`, embedded **`canvas`** for the operator graph — the authoring shape for this pipeline; deployed triggers carry a **trimmed** copy on **`workflow.input.configuration`** (**v5**).
 - **Example demos:** `config/examples/key_extraction/comprehensive_default.key_extraction_aliasing.yaml` and `config/examples/aliasing/aliasing_default.key_extraction_aliasing.yaml` (same scope shape, `*.key_extraction_aliasing.yaml`).
 
-**Multi-leaf scopes:** Under top-level **`aliasing_scope_hierarchy`** in `default.config.yaml`, set **`levels`** and **`locations`** (nest child nodes under each node’s **`locations`**). Run `scripts/build_scopes.py` (or `module.py build`) to **create** missing scoped trio under **`workflows/<suffix>/`** (including **`...WorkflowTrigger.yaml`**), with **`input.configuration`** patched from **`workflow_template/workflow.template.config.yaml`** (see `config/README.md`); use **`--force`** to overwrite existing files. **`module.py build`** does **not** delete orphaned per-suffix folders during a normal build; use **`module.py build --clean`** to remove generated workflow manifests under **`workflows/`** when you need a clean slate (with confirmation; **`--yes`** for automation; not the same as **`module.py run --clean-state`**, which clears RAW tables). Use **`module.py build --check-workflow-triggers`** in CI to ensure every required trigger exists and matches the templates (extra files on disk do not fail the check). Each leaf deploys workflow **`key_extraction_aliasing.<suffix>`**; each trigger embeds a **trimmed** v1 scope on **`input.configuration`**, with deploy **`instance_space`** substituted into **`configuration`** (for example **`source_views`**). RAW table keys live in **`configuration.key_extraction.config.parameters`** / **`aliasing.config.parameters`**. See [`workflows/README.md`](../../workflows/README.md). **Guided walkthrough:** [Scoped deployment how-to](howto_scoped_deployment.md).
+**Multi-leaf scopes:** Under top-level **`scope_hierarchy`** in `default.config.yaml`, set **`levels`** and **`locations`** (nest child nodes under each node’s **`locations`**). Run `scripts/build_scopes.py` (or `module.py build`) to **create** missing scoped trio under **`workflows/<suffix>/`** (including **`...WorkflowTrigger.yaml`**), with **`input.configuration`** patched from **`workflow_template/workflow.template.config.yaml`** (see `config/README.md`); use **`--force`** to overwrite existing files. **`module.py build`** does **not** delete orphaned per-suffix folders during a normal build; use **`module.py build --clean`** to remove generated workflow manifests under **`workflows/`** when you need a clean slate (with confirmation; **`--yes`** for automation; not the same as **`module.py run --clean-state`**, which clears RAW tables). Use **`module.py build --check-workflow-triggers`** in CI to ensure every required trigger exists and matches the templates (extra files on disk do not fail the check). Each leaf deploys workflow **`key_extraction_aliasing.<suffix>`**; each trigger embeds a **trimmed** v1 scope on **`input.configuration`**, with deploy **`instance_space`** substituted into **`configuration`** (for example **`source_views`**). RAW table keys live in **`configuration.key_extraction.config.parameters`** / **`aliasing.config.parameters`**. See [`workflows/README.md`](../../workflows/README.md). **Guided walkthrough:** [Scoped deployment how-to](howto_scoped_deployment.md).
 
 See `config/README.md` in the module for layout and CLI behavior (`module.py run` `--scope` / `--config-path`). **First local run:** [Quickstart](howto_quickstart.md). **`--instance-space`:** limits which `source_views` run — matches the view’s `instance_space` field **or** a filter entry with `property_scope: node`, `target_property: space`, and `EQUALS` / `IN` containing that space.
 
-### BREAKING: discovery canvas filters and confidence scores
+### Discovery canvas filters and confidence scores
 
-This release removes backward compatibility for older canvas and cohort shapes:
-
-| Before | After |
-|--------|--------|
-| Canvas `kind: filter` | **`instance_filter`** (compile fails on `filter`) |
-| Row filter only (`fn_dm_filter`) | **`confidence_filter`** (`fn_dm_confidence_filter`) for per-value pruning, then optional **`instance_filter`** |
-| Top-level `confidence` on cohort properties | **`{value_field}_confidence`** only (e.g. `aliases_confidence`, `indexKey_confidence`) |
-| UI type `keaDiscoveryFilter` | **`keaDiscoveryInstanceFilter`** and **`keaDiscoveryConfidenceFilter`** |
+| Canvas / cohort shape | Supported |
+|------------------------|-----------|
+| **`instance_filter`** | Row include/exclude via CDF filter DSL (`EXISTS`, `and` / `or`, …) |
+| **`confidence_filter`** (`fn_dm_confidence_filter`) | Per-value pruning on `{value_field}_confidence` (e.g. `aliases_confidence`) |
+| Canvas `kind: filter` | **Not supported** — use **`instance_filter`** |
+| Top-level `confidence` on cohort properties | **Not supported** — use **`{value_field}_confidence`** only |
 
 **Recommended pipeline:** `validate → confidence_filter → instance_filter (optional) → save / inverted_index`.
 
 - **`confidence_filter`:** drops aligned values when `{value_field}_confidence[i]` fails `min_confidence` / `comparison`; optional `drop_row_if_empty` (default `true`). Do not use instance-filter `GTE` on `confidence` or `aliases_confidence` for pruning.
 - **`instance_filter`:** same CDF filter DSL as view query — row include/exclude only (`EXISTS`, `and` / `or`, etc.).
 
-Re-run discovery pipelines for RAW cohort rows that still store scores only under top-level `confidence` in `PROPERTIES_JSON`.
+### Per-run per-canvas-node cohort tables (inter-node handoff)
 
-### BREAKING: per-run per-canvas-node cohort tables (inter-node handoff)
-
-Cohort rows written between discovery canvas stages no longer share one `discovery_state` table keyed by `run_id`. Each pipeline run uses **one RAW table per canvas node**:
+Each pipeline run uses **one RAW table per canvas node** (cohort rows are not shared in a single `discovery_state` table keyed only by `run_id`):
 
 | Piece | Layout |
 |--------|--------|
@@ -67,7 +63,7 @@ Cohort rows written between discovery canvas stages no longer share one `discove
 | **Row key** | `{scope_key}:{node_instance_id}` (equipment identity only) |
 | **Cleanup** | Delete all tables with prefix `{raw_table_key}__{run_id}__` at end of run |
 
-`QUERY_TASK_ID` on each row stores the **writer canvas node id**, not the compiled Cognite task id. The shared **inverted index** table is unchanged. Re-run workflows after upgrade; legacy `{run_id}:{scope}:{instance}` rows are not read.
+`QUERY_TASK_ID` on each row stores the **writer canvas node id**, not the compiled Cognite task id. The shared **inverted index** table is unchanged.
 
 ### Discovery transform: cumulative cohort state (default)
 
@@ -76,7 +72,7 @@ Canvas **`transform`** tasks (`fn_dm_transform`) **accumulate** results on the *
 | Setting | Default | Meaning |
 |---------|---------|---------|
 | **`input_mode`** | `cumulative` | Before each transform, merge properties from each **predecessor node table** **and** the existing row on the **writer node table** for the same `{scope}:{instance}` key (read–merge–write). Parallel transform nodes use **separate node tables**, so they do not overwrite each other. |
-| **`input_mode: replace`** | — | Legacy behavior: use predecessor rows only (no sink read). |
+| **`input_mode: replace`** | — | Use predecessor rows only (no sink read). |
 | **`output_mode`** (per step) | `append` | New handler output is merged into `output_field` (list append for strings). |
 | **`output_mode: overwrite`** | — | Replace `output_field` for that step only. |
 
@@ -111,7 +107,7 @@ Asset, timeseries tag, and FK rules share one YAML anchor **`&alphanumeric_tag`*
 
 **Workflows:** Generated **`workflows/.../key_extraction_aliasing*.WorkflowVersion.yaml`** (see [`workflows/README.md`](../../workflows/README.md)) may embed **scope-specific** `source_views` and rules (often file-heavy). Treat the **scope YAML** as the authoring reference for the full three-entity CDM layout; align inline workflow config when behavior should match.
 
-Short narrative: [Key extraction / aliasing report](../key_extraction_aliasing_report.md).
+Short narrative: this section and [`workflow.local.config.yaml`](../../workflow.local.config.yaml).
 
 ---
 
@@ -192,7 +188,7 @@ Summaries expose `rows_truncated`, `truncation_reason`, and `list_complete`. Can
 | Parameter | Role |
 |-----------|------|
 | **`key_discovery_instance_space`** | DMS **instance** space for Key Discovery state nodes (omit for legacy RAW-only watermark + hash scans). |
-| **`key_discovery_schema_space`** | DMS **schema** space for Key Discovery views (default `dm_key_discovery`). |
+| **`key_discovery_schema_space`** | DMS **schema** space for Key Discovery views (default `dm_sol_key_discovery`). |
 | **`key_discovery_dm_version`** | View/container version (e.g. `v1`). |
 | **`key_discovery_processing_state_view_external_id`**, **`key_discovery_checkpoint_view_external_id`** | Optional; default `KeyDiscoveryProcessingState` / `KeyDiscoveryScopeCheckpoint`. |
 | **`cdm_view_version`** | Version of **`cdf_cdm:CogniteDescribable`** used on state node upserts (default `v1`). |

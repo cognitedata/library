@@ -24,9 +24,9 @@ import { FiltersControls } from "./components/FiltersControls";
 import { PersistenceControls } from "./components/PersistenceControls";
 import { KeyExtractionControls } from "./components/KeyExtractionControls";
 import { RunResultsPanel } from "./components/RunResultsPanel";
-import { CogniteLogo } from "./components/CogniteLogo";
+import { DiscoveryAppHeader } from "./components/layout/DiscoveryAppHeader";
 import { useAppSettings } from "./context/AppSettingsContext";
-import { LOCALES, type MessageKey } from "./i18n";
+import type { MessageKey } from "./i18n";
 import type { AliasingScopeHierarchy, JsonObject } from "./types/scopeConfig";
 import {
   emptyWorkflowCanvasDocument,
@@ -75,17 +75,17 @@ const MODULE_FORM_KEYS: { key: string; labelKey: MessageKey }[] = [
   { key: "location_name", labelKey: "module.field.location_name" },
   { key: "source_name", labelKey: "module.field.source_name" },
   { key: "files_dataset", labelKey: "module.field.files_dataset" },
-  { key: "schemaSpace", labelKey: "module.field.schemaSpace" },
-  { key: "viewVersion", labelKey: "module.field.viewVersion" },
+  { key: "schema_space", labelKey: "module.field.schema_space" },
+  { key: "view_version", labelKey: "module.field.view_version" },
   { key: "workflow", labelKey: "module.field.workflow" },
-  { key: "key_extraction_aliasing_schedule", labelKey: "module.field.key_extraction_aliasing_schedule" },
+  { key: "workflow_schedule", labelKey: "module.field.workflow_schedule" },
   {
     key: "files_location_processing_group_source_id",
     labelKey: "module.field.files_location_processing_group_source_id",
   },
   { key: "functionVersion", labelKey: "module.field.functionVersion" },
-  { key: "functionClientId", labelKey: "module.field.functionClientId" },
-  { key: "functionClientSecret", labelKey: "module.field.functionClientSecret" },
+  { key: "function_client_id", labelKey: "module.field.function_client_id" },
+  { key: "function_client_secret", labelKey: "module.field.function_client_secret" },
 ];
 
 function tabClass(active: boolean): string {
@@ -115,7 +115,7 @@ type UnsavedPrompt =
   | { kind: "artifactPath"; next: string };
 
 export default function App() {
-  const { t, theme, setTheme, locale, setLocale } = useAppSettings();
+  const { t } = useAppSettings();
 
   const [tab, setTab] = useState<Tab>("configure");
   const [configureTarget, setConfigureTarget] = useState<ConfigureTarget>({ id: "workflowLocal" });
@@ -448,19 +448,19 @@ export default function App() {
   }, [unsavedPrompt, unsavedBusy]);
 
   const hierarchy = useMemo((): AliasingScopeHierarchy => {
-    const h = defaultDoc.aliasing_scope_hierarchy;
+    const h = defaultDoc.scope_hierarchy;
     if (h && typeof h === "object" && !Array.isArray(h)) return h as AliasingScopeHierarchy;
     return { levels: [], locations: [] };
-  }, [defaultDoc.aliasing_scope_hierarchy]);
+  }, [defaultDoc.scope_hierarchy]);
 
   const moduleSchemaSpace = useMemo((): string | undefined => {
-    const v = defaultDoc.schemaSpace;
+    const v = defaultDoc.schema_space;
     const s = v != null ? String(v).trim() : "";
     return s || undefined;
-  }, [defaultDoc.schemaSpace]);
+  }, [defaultDoc.schema_space]);
 
   const setHierarchy = (next: AliasingScopeHierarchy) => {
-    setDefaultDoc((d) => ({ ...d, aliasing_scope_hierarchy: next }));
+    setDefaultDoc((d) => ({ ...d, scope_hierarchy: next }));
   };
 
   const isDefaultDirty = useMemo(() => {
@@ -1936,46 +1936,7 @@ export default function App() {
 
   return (
     <div className={`discovery-app${tab === "configure" ? " discovery-app--wide" : ""}`}>
-      <header className="discovery-header">
-        <div className="discovery-header__shell">
-          <div className="discovery-header__brand">
-            <CogniteLogo />
-            <div className="discovery-header__brand-text">
-              <h1 className="discovery-header__title">{t("app.title")}</h1>
-              <p className="discovery-header__subtitle">{t("app.subtitle")}</p>
-            </div>
-          </div>
-          <div className="discovery-header__toolbar">
-            <div className="discovery-header__toolbar-group">
-              <label className="discovery-header__control" title={t("controls.theme.tooltip")}>
-                <span className="discovery-header__control-label">{t("controls.theme")}</span>
-                <span className="discovery-theme-toggle" role="group">
-                  <button
-                    type="button"
-                    data-active={theme === "light"}
-                    onClick={() => setTheme("light")}
-                  >
-                    {t("controls.themeLight")}
-                  </button>
-                  <button type="button" data-active={theme === "dark"} onClick={() => setTheme("dark")}>
-                    {t("controls.themeDark")}
-                  </button>
-                </span>
-              </label>
-              <label className="discovery-header__control" title={t("controls.language.tooltip")}>
-                <span className="discovery-header__control-label">{t("controls.language")}</span>
-                <select value={locale} onChange={(e) => setLocale(e.target.value as typeof locale)}>
-                  {LOCALES.map(({ code, label }) => (
-                    <option key={code} value={code}>
-                      {label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
-          </div>
-        </div>
-      </header>
+      <DiscoveryAppHeader />
 
       <div className="discovery-nav-tabs-row">
         <nav className="discovery-tabs" aria-label={t("nav.primary")}>
@@ -2422,7 +2383,7 @@ export default function App() {
                       <QueriesControls
                         canvas={configureCanvasDoc}
                         onChange={patchConfigureCanvasDoc}
-                        schemaSpace={moduleSchemaSpace}
+                        schema_space={moduleSchemaSpace}
                       />
                     </div>
                   )}
@@ -2449,7 +2410,7 @@ export default function App() {
                       <PersistenceControls
                         canvas={configureCanvasDoc}
                         onChange={patchConfigureCanvasDoc}
-                        schemaSpace={moduleSchemaSpace}
+                        schema_space={moduleSchemaSpace}
                       />
                     </div>
                   )}
@@ -2737,7 +2698,7 @@ export default function App() {
                             <QueriesControls
                               canvas={configureCanvasDoc}
                               onChange={patchConfigureCanvasDoc}
-                              schemaSpace={moduleSchemaSpace}
+                              schema_space={moduleSchemaSpace}
                             />
                           </div>
                         )}
@@ -2768,7 +2729,7 @@ export default function App() {
                             <PersistenceControls
                         canvas={configureCanvasDoc}
                         onChange={patchConfigureCanvasDoc}
-                        schemaSpace={moduleSchemaSpace}
+                        schema_space={moduleSchemaSpace}
                       />
                           </div>
                         )}
@@ -2967,7 +2928,7 @@ export default function App() {
                     syncWorkflowScopeFromCanvas(canvas, { ...(d as Record<string, unknown>) })
                   )
                 }
-                schemaSpace={moduleSchemaSpace}
+                schema_space={moduleSchemaSpace}
                 runProgress={flowPreviewRunProgress}
                 onActivityHint={(msg) => setRunLog((prev) => (prev ? `${prev}\n${msg}` : msg))}
               />
@@ -2986,7 +2947,7 @@ export default function App() {
                     syncWorkflowScopeFromCanvas(canvas, { ...(d as Record<string, unknown>) })
                   )
                 }
-                schemaSpace={moduleSchemaSpace}
+                schema_space={moduleSchemaSpace}
                 runProgress={flowPreviewRunProgress}
                 onActivityHint={(msg) => setRunLog((prev) => (prev ? `${prev}\n${msg}` : msg))}
               />
@@ -3009,7 +2970,7 @@ export default function App() {
                     [TRIGGER_WORKFLOW_CANVAS_KEY]: doc as unknown as JsonObject,
                   });
                 }}
-                schemaSpace={moduleSchemaSpace}
+                schema_space={moduleSchemaSpace}
                 onSyncScopeFromCanvas={(canvas) => {
                   const next = syncWorkflowScopeFromCanvas(canvas, triggerPipelineMergedScope);
                   updateTriggerConfiguration(next as Partial<JsonObject>);

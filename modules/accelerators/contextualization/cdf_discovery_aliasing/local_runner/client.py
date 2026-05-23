@@ -1,4 +1,4 @@
-"""Create CogniteClient from environment (API key or OAuth)."""
+"""Create CogniteClient from environment (API key or OAuth). Vendored via operator_kit sync."""
 
 import os
 
@@ -82,3 +82,10 @@ def create_cognite_client():
         credentials=credentials,
     )
     return CogniteClient(config=config)
+
+
+def auth_mode_from_env() -> str:
+    """Return ``api_key`` or ``oauth`` without exposing secrets."""
+    if os.getenv("COGNITE_API_KEY") or os.getenv("API_KEY") or os.getenv("CDF_API_KEY"):
+        return "api_key"
+    return "oauth"

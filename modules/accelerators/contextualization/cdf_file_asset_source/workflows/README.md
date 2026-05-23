@@ -67,7 +67,7 @@ The workflow processes data through three sequential phases:
 
 - **`create_asset_hierarchy_from_files.Workflow.yaml`**
   - Base workflow definition
-  - Defines workflow external ID and associated data set (`ds_extract_assets_by_pattern`)
+  - Defines workflow external ID and associated data set (`ds_file_asset_source`)
 
 - **`create_asset_hierarchy_from_files.WorkflowVersion.yaml`**
   - Workflow version definition (v1)
@@ -132,7 +132,7 @@ The workflow processes data through the following phases:
   data["assets"] = [
     {
       "externalId": "site_BLO",
-      "space": "sp_enterprise_schema",
+      "space": "inst_enterprise_file_assets",
       "properties": {
         "name": "BLO",
         "description": "Bayport Choate",
@@ -141,11 +141,11 @@ The workflow processes data through the following phases:
     },
     {
       "externalId": "asset_tag_BLO_BAY_1_SEC_800_GLY_ETH_Pump_P-101",
-      "space": "sp_enterprise_schema",
+      "space": "inst_enterprise_file_assets",
       "properties": {
         "name": "P-101",
         "parent": {
-          "space": "sp_enterprise_schema",
+          "space": "inst_enterprise_file_assets",
           "externalId": "system_BLO_BAY_1_SEC_800_GLY_ETH"
         },
         "tags": ["asset_tag"]
@@ -177,12 +177,12 @@ Before deploying and running this workflow, ensure:
    - `ctx_write_asset_hierarchy_default` - Asset writing configuration
 
 3. **Data Sets exist**:
-   - `ds_extract_assets_by_pattern` - Data set for workflow execution
+   - `ds_file_asset_source` - Data set for workflow execution
 
 4. **RAW Tables are configured**:
-   - `db_extract_assets_by_pattern.extract_assets_by_pattern_state` - State tracking table
-   - `db_extract_assets_by_pattern.extract_assets_by_pattern_results` - Extracted assets table
-   - `db_extract_assets_by_pattern.extract_assets_by_pattern_assets` - Generated hierarchy table
+   - `db_file_asset_extract.file_asset_extract_state` - State tracking table
+   - `db_file_asset_extract.extract_assets_by_pattern_results` - Extracted assets table
+   - `db_file_asset_extract.file_asset_extract_assets` - Generated hierarchy table
 
 5. **CDF Files are available**:
    - Source files must be accessible by the function's service account
@@ -193,8 +193,8 @@ Before deploying and running this workflow, ensure:
    - File-to-system matching rules configured
 
 7. **Function credentials are configured**:
-   - `functionClientId` - OAuth client ID for function authentication
-   - `functionClientSecret` - OAuth client secret for function authentication
+   - `function_client_id` - OAuth client ID for function authentication
+   - `function_client_secret` - OAuth client secret for function authentication
 
 8. **CDF Data Model View exists**:
    - CogniteAsset view configured in target space
@@ -301,13 +301,13 @@ The workflow trigger receives the full `file_asset_source` object as `input.conf
    - Verify CogniteAsset view exists and is accessible
 
 5. **Authentication failures**:
-   - Verify `functionClientId` and `functionClientSecret` are set
+   - Verify `function_client_id` and `function_client_secret` are set
    - Check function service account permissions
    - Verify OAuth client has workflow execution permissions
 
 ### Debugging
 
-Enable debug logging by setting `logLevel: 'DEBUG'` in workflow task data or pipeline configuration.
+Enable debug logging by setting `log_level: 'DEBUG'` in workflow task data or pipeline configuration.
 
 ## Related Documentation
 

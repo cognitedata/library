@@ -18,8 +18,8 @@ from modules.create_asset_hierarchy_from_files.functions.fn_dm_extract_assets_by
 
 
 def check_failed_files(
-    raw_db: str = "db_extract_assets_by_pattern",
-    raw_table_state: str = "extract_assets_by_pattern_state",
+    raw_db: str = "db_file_asset_extract",
+    raw_table_state: str = "file_asset_extract_state",
 ) -> None:
     """Check the state table for all files and their status."""
 
@@ -119,13 +119,13 @@ if __name__ == "__main__":
     parser.add_argument(
         "--raw-db",
         type=str,
-        default="db_extract_assets_by_pattern",
+        default="db_file_asset_extract",
         help="RAW database name",
     )
     parser.add_argument(
         "--raw-table-state",
         type=str,
-        default="extract_assets_by_pattern_state",
+        default="file_asset_extract_state",
         help="RAW state table name",
     )
 

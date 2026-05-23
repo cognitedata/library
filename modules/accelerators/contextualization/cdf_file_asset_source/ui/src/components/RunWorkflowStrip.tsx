@@ -1,6 +1,6 @@
 import { useAppSettings } from "../context/AppSettingsContext";
 import type { MessageKey } from "../i18n";
-import { PIPELINE_STEP_ORDER, type RunStepId, type StepRunStatus } from "../utils/runStream";
+import type { RunStepId, StepRunStatus } from "../utils/runStream";
 
 export type RunWorkflowNode = {
   id: RunStepId;

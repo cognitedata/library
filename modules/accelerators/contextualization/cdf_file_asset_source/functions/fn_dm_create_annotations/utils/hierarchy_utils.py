@@ -21,7 +21,7 @@ except ImportError:
         name: str,
         description: Optional[str] = None,
         parent_external_id: Optional[str] = None,
-        space: str = "sp_enterprise_schema",
+        space: str = "inst_enterprise_file_assets",
         level: Optional[str] = None,
         **kwargs,
     ) -> Dict[str, Any]:
@@ -57,7 +57,7 @@ from .location_utils import match_file_to_system
 def generate_hierarchy(
     locations: List[Dict[str, str]],
     tags: List[Dict[str, Any]],
-    space: str = "sp_enterprise_schema",
+    space: str = "inst_enterprise_file_assets",
     include_resource_subtype: bool = False,
     include_resource_type: bool = False,
 ) -> List[Dict[str, Any]]:

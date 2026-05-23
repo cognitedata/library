@@ -30,6 +30,8 @@ from local_runner.validate import validate_default_config  # noqa: E402
 
 _RUN_RESULTS_PREFIX = "local_run_results/"
 _ARTIFACT_PREFIXES = ("workflows/", "patterns/")
+_MAX_RUN_RESULT_PREVIEW_BYTES = 50 * 1024 * 1024
+_LIST_RUN_SCOPE_MAX_BYTES = 256 * 1024
 
 app = FastAPI(title="CDF file asset source operator API", version="1.0.0")
 app.add_middleware(
@@ -88,8 +90,8 @@ def _module_run_argv(step: str) -> list[str]:
 
 
 @app.get("/api/health")
-def health() -> dict[str, str]:
-    return {"status": "ok", "module_root": str(MODULE_ROOT)}
+def health() -> dict[str, Any]:
+    return {"ok": True, "status": "ok", "module_root": str(MODULE_ROOT)}
 
 
 @app.get("/api/config-steps")
@@ -207,35 +209,74 @@ def post_run_stream(body: RunBody) -> StreamingResponse:
     )
 
 
+def _peek_run_scope(path: Path) -> Any:
+    """Extract run_scope without loading huge JSON payloads."""
+    try:
+        sz = path.stat().st_size
+        if sz > _LIST_RUN_SCOPE_MAX_BYTES:
+            return None
+        data = json.loads(path.read_text(encoding="utf-8"))
+        if isinstance(data, dict):
+            return data.get("run_scope")
+    except (OSError, json.JSONDecodeError):
+        pass
+    return None
+
+
 @app.get("/api/run-results")
 def list_run_results() -> dict:
     root = MODULE_ROOT / "local_run_results"
     if not root.is_dir():
         return {"items": []}
+    candidates = sorted(root.glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True)
     items = []
-    for p in sorted(root.glob("*.json"), reverse=True):
+    for p in candidates[:50]:
         rel = str(p.relative_to(MODULE_ROOT)).replace("\\", "/")
-        try:
-            data = json.loads(p.read_text(encoding="utf-8"))
-            scope = data.get("run_scope") if isinstance(data, dict) else None
-        except (OSError, json.JSONDecodeError):
-            scope = None
-        items.append({"path": rel, "run_scope": scope})
-    return {"items": items[:50]}
+        items.append(
+            {
+                "path": rel,
+                "run_scope": _peek_run_scope(p),
+                "mtime_ms": int(p.stat().st_mtime * 1000),
+            }
+        )
+    return {"items": items}
 
 
 @app.get("/api/run-results/preview")
-def preview_run_result(rel: str = Query(...)) -> dict:
+def preview_run_result(
+    rel: str = Query(...),
+    offset: int = Query(0, ge=0),
+    limit: int = Query(200, ge=1, le=500),
+) -> dict:
     rel_n = rel.strip().replace("\\", "/")
     if not rel_n.startswith(_RUN_RESULTS_PREFIX):
         raise HTTPException(status_code=400, detail="Path must be under local_run_results/")
     path = _safe_rel_path(rel_n)
     if not path.is_file():
         raise HTTPException(status_code=404, detail="Not found")
+    sz = path.stat().st_size
+    if sz > _MAX_RUN_RESULT_PREVIEW_BYTES:
+        raise HTTPException(
+            status_code=413,
+            detail=f"File too large for preview ({sz} bytes; max {_MAX_RUN_RESULT_PREVIEW_BYTES})",
+        )
     try:
-        return {"path": rel_n, "data": json.loads(path.read_text(encoding="utf-8"))}
+        data = json.loads(path.read_text(encoding="utf-8"))
     except json.JSONDecodeError as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
+    if isinstance(data, dict) and isinstance(data.get("results"), list):
+        results = data["results"]
+        total = len(results)
+        chunk = results[offset : offset + limit]
+        return {
+            "path": rel_n,
+            "total": total,
+            "offset": offset,
+            "limit": limit,
+            "items": chunk,
+            "data": data,
+        }
+    return {"path": rel_n, "data": data}
 
 
 @app.get("/api/artifacts")

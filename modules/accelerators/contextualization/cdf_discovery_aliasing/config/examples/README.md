@@ -41,4 +41,4 @@ Also in this folder (not in the sequence above): `comprehensive_default.key_extr
 - `config_example_complete.yaml` — flat parameters/data field reference.
 - `reference_key_extraction_aliasing.yaml` — same content in `key_extraction_aliasing`-shaped scope YAML.
 
-Legacy split `*.config.yaml` layouts were migrated to the current `*.key_extraction_aliasing.yaml` tree in git history; use the repository history if you need to reproduce that migration.
+Examples use the `*.key_extraction_aliasing.yaml` scope document shape under each demo folder.

@@ -12,6 +12,7 @@ from fastapi import HTTPException, Query
 from local_runner.discovery_run_v2 import DISCOVERY_RUN_SCHEMA_VERSION, DISCOVERY_RUN_SUFFIX
 
 _DISCOVERY_RUN_BASENAME = re.compile(rf"^\d{{8}}_\d{{6}}{re.escape(DISCOVERY_RUN_SUFFIX)}$")
+_LIST_SUMMARY_MAX_BYTES = 512 * 1024
 
 
 def discovery_run_stem_from_path(path: Path) -> str:
@@ -100,10 +101,11 @@ def list_discovery_runs(
             "run_rel": rel_under_module(p),
             "mtime_ms": int(p.stat().st_mtime * 1000),
         }
-        try:
-            entry.update(summary_from_run(load_json_object(p)))
-        except HTTPException:
-            pass
+        if p.stat().st_size <= _LIST_SUMMARY_MAX_BYTES:
+            try:
+                entry.update(summary_from_run(load_json_object(p)))
+            except HTTPException:
+                pass
         indexed.append((entry, p))
     total_all = len(indexed)
     if scope_filter:

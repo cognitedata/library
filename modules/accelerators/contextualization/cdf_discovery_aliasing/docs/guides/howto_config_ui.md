@@ -21,23 +21,15 @@ Set **`CDF_KEY_EXTRACTION_ALIASING_ROOT`** when your checkout path is unusual or
 
 ## 2. Start the API and the frontend
 
+**Install and launch:** [README — Operator UI](../../README.md#operator-ui).
+
 ### 2.1 Recommended: `python module.py ui`
 
-From the **repository root** (the directory that contains `modules/`), with **`PYTHONPATH=.`** so imports resolve:
+This **single command** starts FastAPI (default **`127.0.0.1:8765`**) and Vite (default **`5173`**) with **`VITE_API_PROXY`** set automatically.
 
-```bash
-export PYTHONPATH=.
-python modules/accelerators/contextualization/cdf_discovery_aliasing/module.py ui
-```
+Other accelerator default ports: [Accelerators README](../../../../README.md#dev-port-matrix).
 
-This **single command** starts both processes:
-
-- **FastAPI** operator API (uvicorn on **`ui.server.main:app`**, default **`127.0.0.1:8765`**)
-- **Vite** dev server (default **`127.0.0.1:5173`**), with **`VITE_API_PROXY`** set automatically so **`/api`** calls reach the API
-
-The **`cdf_access_control`** module defaults to API **8775** and Vite **5183** so you can run both UIs on one machine without port clashes.
-
-It runs **`npm install`** in **`ui/`** on first use if **`node_modules/`** is missing, then opens a **browser tab** to the Vite URL (unless you pass **`--no-browser`**). **Ctrl+C** stops both servers.
+It runs **`npm install`** in **`ui/`** on first use if **`node_modules/`** is missing, then opens a **browser tab** (unless **`--no-browser`**). **Ctrl+C** stops both servers.
 
 Useful flags (see **`python module.py ui --help`**):
 
@@ -87,7 +79,7 @@ The UI persists **real files** under the module root:
 
 | Area | Typical files | Purpose |
 | ---- | --------------- | ------- |
-| **Scope** | **`default.config.yaml`** | Hierarchy (**`aliasing_scope_hierarchy`**), Toolkit-style module fields, schedules. |
+| **Scope** | **`default.config.yaml`** | Hierarchy (**`scope_hierarchy`**), Toolkit-style module fields, schedules. |
 | **Configure** | **`workflow.local.config.yaml`**, **`workflow_template/workflow.template.config.yaml`**, or a selected **`workflows/.../*.WorkflowTrigger.yaml`** | v1 **scope** (`source_views`, `key_extraction`, `aliasing`, embedded **`canvas`**, optional **`associations`**) for local/template/trigger-specific edits. |
 | **Build** | Invokes **`module.py build`** | Creates missing workflow YAML; shows stdout/stderr. |
 | **Run** | Invokes **`module.py run --config-path …`** | Targets: **workflow local**, **workflow template**, or a **WorkflowTrigger** (see below). |

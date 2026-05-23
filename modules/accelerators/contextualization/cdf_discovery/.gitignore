@@ -1,0 +1,5 @@
+.cache/
+discovery.local.config.yaml
+governance/spaces/
+governance/auth/
+governance/access_governance_state.json

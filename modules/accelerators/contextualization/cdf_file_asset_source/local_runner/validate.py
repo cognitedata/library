@@ -10,7 +10,9 @@ import yaml
 from local_runner.paths import DEFAULT_CONFIG_REL, PIPELINE_STEPS, get_module_root
 
 
-def _validate_step(step: str, block: dict[str, Any], root: Path) -> dict[str, Any]:
+def _validate_step(
+    step: str, block: dict[str, Any], root: Path, *, full_doc: dict[str, Any] | None = None
+) -> dict[str, Any]:
     rel = f"{DEFAULT_CONFIG_REL} → file_asset_source.{step}"
     parameters = block.get("parameters") or {}
     data = block.get("data") or {}
@@ -48,7 +50,7 @@ def _validate_step(step: str, block: dict[str, Any], root: Path) -> dict[str, An
     if step == "extract":
         errors = validate_extract_config(wrapper)
     elif step == "create":
-        errors = validate_hierarchy_config(wrapper)
+        errors = validate_hierarchy_config(full_doc if isinstance(full_doc, dict) else wrapper)
     else:
         return {
             "step": step,
@@ -160,7 +162,7 @@ def validate_default_config(
                 }
             )
             continue
-        results.append(_validate_step(step, block, root))
+        results.append(_validate_step(step, block, root, full_doc=doc if isinstance(doc, dict) else None))
 
     all_valid = all(r["valid"] for r in results)
     return {"valid": all_valid, "results": results, "config_path": DEFAULT_CONFIG_REL}

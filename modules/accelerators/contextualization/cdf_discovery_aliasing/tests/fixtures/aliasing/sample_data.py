@@ -42,7 +42,7 @@ def _extract_properties_from_cdm(
     if "metadata" in entity:
         flattened["metadata"] = entity["metadata"]
     elif any(key in properties for key in ["equipmentType", "site", "unit"]):
-        # Create metadata structure from properties for backward compatibility
+        # Create metadata structure from properties
         flattened["metadata"] = {
             "equipmentType": properties.get("equipmentType"),
             "site": properties.get("site"),
@@ -288,7 +288,7 @@ def get_cdf_timeseries() -> List[Dict[str, Any]]:
     ]
 
 
-# Legacy functions maintained for backward compatibility
+# Compatibility helpers for older tests
 def get_iso_standard_assets() -> List[Dict[str, Any]]:
     """Legacy function - use get_cdf_assets() instead."""
     return get_cdf_assets()

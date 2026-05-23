@@ -142,7 +142,7 @@ def test_resolve_workflow_trigger_path_scoped(tmp_path: Path) -> None:
     (mod / "workflows" / "alpha").mkdir(parents=True)
     doc = yaml.safe_load(
         """
-        aliasing_scope_hierarchy:
+        scope_hierarchy:
           levels: [site]
           locations:
           - id: alpha
@@ -168,7 +168,7 @@ def test_resolve_workflow_trigger_path_by_file(tmp_path: Path) -> None:
     trig.write_text("externalId: x\ninput: {}\n", encoding="utf-8")
     doc = yaml.safe_load(
         """
-        aliasing_scope_hierarchy:
+        scope_hierarchy:
           levels: [site]
           locations:
           - id: beta
@@ -189,7 +189,7 @@ def test_resolve_workflow_trigger_path_by_file(tmp_path: Path) -> None:
 def test_resolve_unknown_scope_raises() -> None:
     doc = yaml.safe_load(
         """
-        aliasing_scope_hierarchy:
+        scope_hierarchy:
           levels: [site]
           locations:
           - id: only_one

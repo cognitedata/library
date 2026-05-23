@@ -41,10 +41,10 @@ def handle(
             - tags_file: Path to extracted tags CSV file (optional if tags provided)
             - tags: List of tag dictionaries (optional if tags_file provided)
             - output_file: Path to output YAML file (optional)
-            - space: Instance space for assets (default: sp_enterprise_schema)
+            - space: Instance space for assets (default: inst_enterprise_file_assets)
             - include_resource_type: Include resourceType as intermediate level (default: False)
             - include_resource_subtype: Include resourceSubType as intermediate level (default: False)
-            - logLevel: Optional log level (DEBUG, INFO, WARNING, ERROR)
+            - log_level: Optional log level (DEBUG, INFO, WARNING, ERROR)
         client: CogniteClient instance (required if using CDF config loading)
 
     Returns:
@@ -54,7 +54,7 @@ def handle(
 
     try:
         # Initialize logging
-        loglevel = data.get("logLevel", "INFO")
+        loglevel = data.get("log_level", "INFO")
 
         # Use logger from dependencies
         from .dependencies import create_logger_service
@@ -123,8 +123,8 @@ def handle(
                 data[
                     "include_resource_variant"
                 ] = config_params.include_resource_variant
-            if "logLevel" not in data:
-                data["logLevel"] = config_params.logLevel
+            if "log_level" not in data:
+                data["log_level"] = config_params.log_level
 
         # Get client if available (needed for loading assets from RAW)
         if client is None and CDF_AVAILABLE:
@@ -173,7 +173,7 @@ def run_locally():
     env_vars = get_env_variables()
     client = create_client(env_vars)
 
-    data = {"step": "create", "logLevel": "INFO", "_local_mode": True}
+    data = {"step": "create", "log_level": "INFO", "_local_mode": True}
     if CDF_CONFIG_AVAILABLE and load_config_parameters is not None:
         cdf_config = load_config_parameters(client, data)
         data["_cdf_config"] = cdf_config

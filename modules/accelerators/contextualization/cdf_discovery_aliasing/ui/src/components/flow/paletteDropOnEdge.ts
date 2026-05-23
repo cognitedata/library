@@ -163,7 +163,7 @@ export type ApplyPaletteCanvasDropInput = {
   workflowScopeDoc: Record<string, unknown>;
   patchWorkflowScope: MaterializePaletteDropInput["patchWorkflowScope"];
   t: TFn;
-  schemaSpace?: string;
+  schema_space?: string;
   compileDagMode?: CompileWorkflowDagMode;
   allowValidationRuleLayoutReuse?: boolean;
   setNodes: (recipe: (nds: Node[]) => Node[]) => void;
@@ -184,7 +184,7 @@ export function applyPaletteCanvasDrop(input: ApplyPaletteCanvasDropInput): bool
     workflowScopeDoc,
     patchWorkflowScope,
     t,
-    schemaSpace,
+    schema_space,
     compileDagMode = "canvas",
     allowValidationRuleLayoutReuse = true,
     setNodes,
@@ -203,7 +203,7 @@ export function applyPaletteCanvasDrop(input: ApplyPaletteCanvasDropInput): bool
       payload,
       position: flowPosition,
       nodes,
-      schemaSpace,
+      schema_space,
       t,
     });
     if (!batch) return false;

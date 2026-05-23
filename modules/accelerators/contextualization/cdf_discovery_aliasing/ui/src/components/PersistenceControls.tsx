@@ -10,8 +10,8 @@ type Props = {
   onChange: (next: WorkflowCanvasDocument) => void;
   /** Select this canvas node when opened from flow double-click. */
   initialNodeId?: string;
-  /** Default view space from module ``schemaSpace`` (view save editor). */
-  schemaSpace?: string;
+  /** Default view space from module ``schema_space`` (view save editor). */
+  schema_space?: string;
 };
 
 function saveKindLabelKey(kind: string | undefined): MessageKey {
@@ -27,7 +27,7 @@ function saveKindLabelKey(kind: string | undefined): MessageKey {
   }
 }
 
-export function PersistenceControls({ canvas, onChange, initialNodeId, schemaSpace }: Props) {
+export function PersistenceControls({ canvas, onChange, initialNodeId, schema_space }: Props) {
   const { t } = useAppSettings();
   const nodes = listSaveNodes(canvas);
   const [selectedId, setSelectedId] = useState<string | null>(nodes[0]?.id ?? null);
@@ -102,7 +102,7 @@ export function PersistenceControls({ canvas, onChange, initialNodeId, schemaSpa
                 onChange={onChange}
                 nodeId={selected.id}
                 t={t}
-                schemaSpace={schemaSpace}
+                schema_space={schema_space}
               />
             </div>
           )}

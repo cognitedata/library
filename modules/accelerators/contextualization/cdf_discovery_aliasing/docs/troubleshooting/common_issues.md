@@ -354,7 +354,7 @@ python modules/accelerators/contextualization/cdf_discovery_aliasing/module.py r
 - [Quickstart — `.env` and `module.py run`](../guides/howto_quickstart.md)
 - [Scoped deployment — `module.py build` and Toolkit](../guides/howto_scoped_deployment.md)
 - [Configuration guide](../guides/configuration_guide.md)
-- [Key extraction / aliasing report](../key_extraction_aliasing_report.md)
+- [Configuration guide — Default CDM scope](../guides/configuration_guide.md#default-cdm-scope)
 
 ### 3. Test with Sample Data
 

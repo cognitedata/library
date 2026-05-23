@@ -4,7 +4,7 @@
 
 - name: 'dm:context:extract:assets:by:pattern'
   externalId: 'fn_dm_extract_assets_by_pattern'
-  dataSetExternalId: 'ds_extract_assets_by_pattern'
+  dataSetExternalId: 'ds_file_asset_source'
   owner: 'Anonymous'
   description: 'Extract assets by pattern from CDF files using pattern-based diagram detection'
   metadata:
@@ -20,7 +20,7 @@
 
 - name: 'dm:context:create:asset:hierarchy'
   externalId: 'fn_dm_create_asset_hierarchy'
-  dataSetExternalId: 'ds_extract_assets_by_pattern'
+  dataSetExternalId: 'ds_file_asset_source'
   owner: 'Anonymous'
   description: 'Create asset hierarchy from scope and extracted tags'
   metadata:
@@ -36,7 +36,7 @@
 
 - name: 'dm:context:write:asset:hierarchy'
   externalId: 'fn_dm_write_asset_hierarchy'
-  dataSetExternalId: 'ds_extract_assets_by_pattern'
+  dataSetExternalId: 'ds_file_asset_source'
   owner: 'Anonymous'
   description: 'Write asset hierarchy to CDF data modeling'
   metadata:

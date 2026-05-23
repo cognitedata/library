@@ -35,7 +35,7 @@ class Parameters(BaseModel):
         None,
         description="Output file path for asset hierarchy YAML (only used when running locally)",
     )
-    space: str = Field("sp_enterprise_schema", description="Instance space for assets")
+    space: str = Field("inst_enterprise_file_assets", description="Instance space for assets")
     include_resource_type: bool = Field(
         False, description="Include resourceType (tag_class_name) as intermediate level"
     )
@@ -51,7 +51,7 @@ class Parameters(BaseModel):
         False,
         description="Include resourceVariant (equipment_variant_name) as intermediate level",
     )
-    logLevel: str = Field("INFO", description="Log level (DEBUG, INFO, WARNING, ERROR)")
+    log_level: str = Field("INFO", description="Log level (DEBUG, INFO, WARNING, ERROR)")
     limit: Optional[int] = Field(
         -1, description="Maximum number of files to process (-1 for no limit)"
     )

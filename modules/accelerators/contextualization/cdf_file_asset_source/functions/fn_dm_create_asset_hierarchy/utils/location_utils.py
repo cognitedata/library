@@ -29,13 +29,13 @@ def convert_locations_dict_to_flat_list(
     Args:
         data: Dictionary containing locations structure
         hierarchy_levels: List of hierarchy level names in order (e.g., ['site', 'plant', 'area', 'system'])
-                          If None, defaults to ['site', 'plant', 'area', 'system'] for backward compatibility
+                          If None, defaults to ['site', 'plant', 'area', 'system']
     """
     locations = []
 
-    # Default hierarchy levels for backward compatibility
+    # Default hierarchy levels when not configured
     if hierarchy_levels is None:
-        hierarchy_levels = ["site", "plant", "area", "system"]
+        hierarchy_levels = ["site", "unit", "area", "system"]
 
     if not hierarchy_levels:
         return locations

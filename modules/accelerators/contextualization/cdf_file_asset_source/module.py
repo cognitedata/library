@@ -155,13 +155,25 @@ def _run_validate(argv: List[str]) -> int:
 
     out = validate_default_config(args.steps)
     print(json.dumps(out, indent=2))
-    return 0 if out["valid"] else 1
+    if not out["valid"]:
+        return 1
+    gates = Path(__file__).resolve().parent / "scripts" / "run_module_compliance_gates.py"
+    if gates.is_file():
+        import subprocess
+
+        proc = subprocess.run(
+            [sys.executable, str(gates), "--module-root", str(Path(__file__).resolve().parent)],
+            cwd=str(Path(__file__).resolve().parent),
+        )
+        if proc.returncode != 0:
+            return int(proc.returncode or 1)
+    return 0
 
 
 def _run_build(argv: List[str]) -> int:
     p = argparse.ArgumentParser(
         prog="module.py build",
-        description="Sync workflow trigger input.configuration from default.config.yaml file_asset_source.",
+        description="Sync workflow trigger input.configuration from default.config.yaml (file_asset_source + scope_hierarchy).",
     )
     p.add_argument(
         "--check",

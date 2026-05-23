@@ -9,7 +9,7 @@ workflowDefinition:
         function:
           externalId: 'fn_dm_extract_assets_by_pattern'
           data:
-            logLevel: 'INFO'
+            log_level: 'INFO'
             step: extract
             configuration: ${workflow.input.configuration}
       name: 'Extract Assets by Pattern'
@@ -23,7 +23,7 @@ workflowDefinition:
         function:
           externalId: 'fn_dm_create_asset_hierarchy'
           data:
-            logLevel: 'INFO'
+            log_level: 'INFO'
             step: create
             configuration: ${workflow.input.configuration}
       name: 'Create Asset Hierarchy'
@@ -39,7 +39,7 @@ workflowDefinition:
         function:
           externalId: 'fn_dm_write_asset_hierarchy'
           data:
-            logLevel: 'INFO'
+            log_level: 'INFO'
             step: write
             configuration: ${workflow.input.configuration}
       name: 'Write Asset Hierarchy'

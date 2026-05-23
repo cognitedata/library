@@ -39,60 +39,42 @@ class TestValidateHierarchyConfig:
         assert error_count == 0
 
     def test_validate_hierarchy_config_missing_hierarchy_levels(self) -> None:
-        """Test validating hierarchy config with missing hierarchy_levels."""
-        # Arrange
-        config = {
-            "config": {
-                "data": {
-                    "scope": [],
-                },
-            },
-        }
+        """Test validating hierarchy config with missing scope_hierarchy."""
+        config: Dict[str, Any] = {}
 
-        # Act
         errors = validate_hierarchy_config(config)
 
-        # Assert
         assert len(errors) > 0
-        assert any("❌" in e and "hierarchy_levels" in e for e in errors)
+        assert any("❌" in e and "scope_hierarchy" in e for e in errors)
 
     def test_validate_hierarchy_config_invalid_hierarchy_levels_type(self) -> None:
-        """Test validating hierarchy config with invalid hierarchy_levels type."""
-        # Arrange
+        """Test validating hierarchy config with invalid levels type."""
         config = {
-            "config": {
-                "data": {
-                    "hierarchy_levels": "invalid",  # Should be list
-                    "scope": [],
-                },
+            "scope_hierarchy": {
+                "type": "hierarchy",
+                "levels": "invalid",
+                "locations": [],
             },
         }
 
-        # Act
         errors = validate_hierarchy_config(config)
 
-        # Assert
         assert len(errors) > 0
-        assert any("❌" in e and "hierarchy_levels" in e and "list" in e for e in errors)
+        assert any("❌" in e and "levels" in e for e in errors)
 
     def test_validate_hierarchy_config_too_few_levels(self) -> None:
         """Test validating hierarchy config with too few levels."""
-        # Arrange
         config = {
-            "config": {
-                "data": {
-                    "hierarchy_levels": ["site"],  # Only one level
-                    "scope": [],
-                },
+            "scope_hierarchy": {
+                "type": "hierarchy",
+                "levels": ["site"],
+                "locations": [],
             },
         }
 
-        # Act
         errors = validate_hierarchy_config(config)
 
-        # Assert
-        # Should have warning about too few levels
-        assert any("⚠️" in e and "hierarchy_levels" in e for e in errors)
+        assert any("⚠️" in e and "levels" in e for e in errors)
 
     def test_validate_hierarchy_config_duplicate_levels(self) -> None:
         """Test validating hierarchy config with duplicate level names."""
@@ -156,28 +138,24 @@ class TestValidateHierarchyConfig:
         assert any("❌" in e and "name" in e for e in errors)
 
     def test_validate_hierarchy_config_location_empty_name(self) -> None:
-        """Test validating hierarchy config with location having empty name."""
-        # Arrange
+        """Test validating hierarchy config with location missing id and name."""
         config = {
-            "config": {
-                "data": {
-                    "hierarchy_levels": ["site", "plant"],
-                    "scope": [
-                        {
-                            "name": "",  # Empty name
-                            "description": "Test site",
-                        },
-                    ],
-                },
+            "scope_hierarchy": {
+                "type": "hierarchy",
+                "levels": ["site", "unit"],
+                "locations": [
+                    {
+                        "name": "",
+                        "description": "Test site",
+                    },
+                ],
             },
         }
 
-        # Act
         errors = validate_hierarchy_config(config)
 
-        # Assert
         assert len(errors) > 0
-        assert any("❌" in e and "empty 'name'" in e for e in errors)
+        assert any("❌" in e and ("name" in e or "id" in e) for e in errors)
 
     def test_validate_hierarchy_config_files_at_non_last_level(self) -> None:
         """Test validating hierarchy config with files at non-last level."""

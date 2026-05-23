@@ -40,7 +40,7 @@ export function pathLabel(nodes: ScopeNode[], path: ScopePath): string {
   for (const i of path) {
     const n = cur[i];
     if (!n) break;
-    parts.push(n.name?.trim() || `(${i})`);
+    parts.push(n.name?.trim() || n.id?.trim() || `(${i})`);
     cur = n.locations ?? [];
   }
   return parts.join(" → ");
@@ -51,9 +51,9 @@ export function getNodeAtPath(nodes: ScopeNode[], path: ScopePath): ScopeNode | 
   let cur: ScopeNode | undefined = nodes[path[0]];
   if (!cur) return null;
   for (let k = 1; k < path.length; k++) {
-    const next = cur.locations;
-    if (!next) return null;
-    cur = next[path[k]];
+    const children: ScopeNode[] | undefined = cur.locations;
+    if (!children) return null;
+    cur = children[path[k]];
     if (!cur) return null;
   }
   return cur;

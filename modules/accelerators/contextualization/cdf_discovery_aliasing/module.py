@@ -105,6 +105,19 @@ def _source_view_matches_instance_space(view: Dict[str, Any], wanted: str) -> bo
     return False
 
 
+def _run_compliance_gates() -> int:
+    gates = _PACKAGE_ROOT / "scripts" / "run_module_compliance_gates.py"
+    if not gates.is_file():
+        return 0
+    import subprocess
+
+    proc = subprocess.run(
+        [sys.executable, str(gates), "--module-root", str(_PACKAGE_ROOT)],
+        cwd=str(_PACKAGE_ROOT),
+    )
+    return int(proc.returncode or 0)
+
+
 def _run_scope_build(build_argv: List[str]) -> int:
     """Run ``scripts/scope_build`` orchestrator (same CLI as ``scripts/build_scopes.py``)."""
     scripts_dir = _PACKAGE_ROOT / "scripts"
@@ -113,7 +126,12 @@ def _run_scope_build(build_argv: List[str]) -> int:
         sys.path.insert(0, sd)
     from scope_build.orchestrate import main as scope_build_main
 
-    return int(scope_build_main(build_argv))
+    code = int(scope_build_main(build_argv))
+    if code != 0:
+        return code
+    if "--dry-run" in build_argv or "--check-workflow-triggers" in build_argv:
+        return 0
+    return _run_compliance_gates()
 
 
 def _run_copy_workflow_config(copy_argv: List[str]) -> int:

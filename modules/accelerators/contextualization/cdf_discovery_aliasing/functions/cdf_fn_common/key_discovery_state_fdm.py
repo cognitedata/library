@@ -525,7 +525,7 @@ def view_id_for_key_discovery(
 
 def key_discovery_view_ids_from_parameters(params: Any) -> Tuple[ViewId, ViewId]:
     """Return (processing_state_view_id, checkpoint_view_id) from Pydantic parameters."""
-    ss = str(getattr(params, "key_discovery_schema_space", None) or "dm_key_discovery")
+    ss = str(getattr(params, "key_discovery_schema_space", None) or "dm_sol_key_discovery")
     ver = str(getattr(params, "key_discovery_dm_version", None) or "v1")
     proc = str(
         getattr(params, "key_discovery_processing_state_view_external_id", None)

@@ -42,7 +42,7 @@ def handle(data: Dict[str, Any], client: CogniteClient = None) -> Dict[str, Any]
             - view_space: View space for CogniteAsset (default: cdf_cdm)
             - view_external_id: View external ID for CogniteAsset (default: CogniteAsset)
             - view_version: View version for CogniteAsset (default: v1)
-            - logLevel: Optional log level (DEBUG, INFO, WARNING, ERROR)
+            - log_level: Optional log level (DEBUG, INFO, WARNING, ERROR)
         client: CogniteClient instance (required)
 
     Returns:
@@ -52,7 +52,7 @@ def handle(data: Dict[str, Any], client: CogniteClient = None) -> Dict[str, Any]
 
     try:
         # Initialize logging
-        loglevel = data.get("logLevel", "INFO")
+        loglevel = data.get("log_level", "INFO")
 
         # Use logger from dependencies
         from .dependencies import create_logger_service
@@ -82,7 +82,7 @@ def handle(data: Dict[str, Any], client: CogniteClient = None) -> Dict[str, Any]
             if "raw_table_assets" not in data:
                 data["raw_table_assets"] = config_params.raw_table_assets
 
-            # Read from data section (for backward compatibility and local runs)
+            # Read from data section (workflow and local runs)
             if "hierarchy_file" not in data and "hierarchy_file" in config_data:
                 data["hierarchy_file"] = config_data["hierarchy_file"]
             if "batch_size" not in data and "batch_size" in config_data:
@@ -97,8 +97,8 @@ def handle(data: Dict[str, Any], client: CogniteClient = None) -> Dict[str, Any]
                 )
             if "view_version" not in data and "view_version" in config_data:
                 data["view_version"] = config_data.get("view_version", "v1")
-            if "logLevel" not in data:
-                data["logLevel"] = "DEBUG" if cdf_config.parameters.debug else "INFO"
+            if "log_level" not in data:
+                data["log_level"] = "DEBUG" if cdf_config.parameters.debug else "INFO"
 
             # Store CDF config for use in pipeline
             data["_cdf_config"] = cdf_config
@@ -155,7 +155,7 @@ def run_locally():
 
     data = {
         "step": "write",
-        "logLevel": "DEBUG",
+        "log_level": "DEBUG",
         "batch_size": 100,
         "dry_run": False,
         "_local_mode": True,

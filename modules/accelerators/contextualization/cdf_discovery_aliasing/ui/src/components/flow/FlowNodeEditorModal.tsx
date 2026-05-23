@@ -24,7 +24,7 @@ type Props = {
   onPatchWorkflowScope: (recipe: (doc: Record<string, unknown>) => Record<string, unknown>) => void;
   onClose: () => void;
   t: TFn;
-  schemaSpace?: string;
+  schema_space?: string;
   workflowCanvas?: WorkflowCanvasDocument;
   onPatchWorkflowCanvas?: (
     patch:
@@ -101,7 +101,7 @@ export function FlowNodeEditorModal({
   onPatchWorkflowScope,
   onClose,
   t,
-  schemaSpace,
+  schema_space,
   workflowCanvas,
   onPatchWorkflowCanvas,
 }: Props) {
@@ -154,7 +154,7 @@ export function FlowNodeEditorModal({
           initialViewIndex={initialSv}
           singleView
           onChange={(v) => patch((d) => ({ ...d, source_views: v }))}
-          schemaSpace={schemaSpace}
+          schema_space={schema_space}
         />
       );
       break;
@@ -195,7 +195,7 @@ export function FlowNodeEditorModal({
             canvas={workflowCanvas}
             onChange={onPatchWorkflowCanvas}
             initialNodeId={node.id}
-            schemaSpace={schemaSpace}
+            schema_space={schema_space}
             singleNode
           />
         ) : (
@@ -313,7 +313,7 @@ export function FlowNodeEditorModal({
             onChange={onPatchWorkflowCanvas}
             nodeId={node.id}
             t={t}
-            schemaSpace={schemaSpace}
+            schema_space={schema_space}
           />
         ) : (
           <p className="discovery-hint" style={{ marginTop: 0 }}>

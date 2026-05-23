@@ -28,12 +28,12 @@ config:
     debug: true
     run_all: true
     overwrite: true
-    raw_db: db_extract_assets_by_pattern
+    raw_db: db_file_asset_extract
     raw_table_results: extract_assets_by_pattern_results
-    raw_table_assets: extract_assets_by_pattern_assets
+    raw_table_assets: file_asset_extract_assets
     output_file: modules/create_asset_hierarchy_from_files/results/asset_hierarchy.yaml
     pattern_config_path: patterns/asset_tag_classifier.ISA51.config.yaml
-    space: sp_enterprise_schema
+    space: inst_enterprise_file_assets
 
   # ============================================================================
   # BUSINESS CONFIGURATION (What you need to customize)
@@ -213,4 +213,4 @@ config:
     # --------------------------------------------------------------------------
     # LOGGING
     # --------------------------------------------------------------------------
-    logLevel: INFO
+    log_level: INFO

@@ -1,0 +1,41 @@
+# CDF Discovery — operator preferences (template).
+# Copy to discovery.local.config.yaml and edit; the local file is gitignored.
+
+stars:
+  # Tree node ids (Discovery tree ``id`` field) pinned to the top of their sibling list.
+  # Order here is preserved among favorites; remaining siblings sort A–Z by label.
+  # Examples:
+  #   - dm:model:cdf_cdm:CogniteCore:v1
+  #   - data:sq:item:my_assets
+  #   - fusion:integration:transformations:item:42
+  #   - fusion:integration:workflows:item:my_workflow
+  #   - fusion:dm:space:cdf_cdm:model:CogniteCore:v1
+  node_ids: []
+
+workspace:
+  # Open document tabs restored on launch (written by the UI to discovery.local.config.yaml).
+  active_tab_id: null
+  tabs: []
+  # Example SQL tab:
+  # - kind: sql
+  #   id: sql:workspace
+  #   label: SQL Query
+  #   query: "SELECT * FROM cdf_nodes('cdf_cdm', 'CogniteAsset', 'v1')"
+  #   limit: 100
+  #   convert_to_string: true
+
+governance:
+  # Folder levels for live CDF spaces/groups in the Discovery tree (0 = flat leaves).
+  live_tree_token_depth: 2
+  # Declared root for config, templates, and generated spaces/auth YAML. Default: ./governance under this module.
+  # declared_root: governance
+
+saved_queries:
+  # Named SQL queries shown under **Data → Saved Queries** in the object tree.
+  queries: []
+  # Example:
+  # - id: my_assets
+  #   name: My assets
+  #   query: "SELECT * FROM _cdf.assets"
+  #   limit: 100
+  #   convert_to_string: true

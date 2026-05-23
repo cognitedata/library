@@ -410,7 +410,7 @@ def cdf_data_modeling_data_models(
     space: str | None = Query(
         None,
         max_length=512,
-        description="Optional filter: only data models in this space (not the same as view ``schemaSpace``).",
+        description="Optional filter: only data models in this space (not the same as view ``schema_space``).",
     ),
     include_global: bool = Query(False),
     all_versions: bool = Query(False),
@@ -538,7 +538,7 @@ def cdf_data_tree_children(node_id: str = Query("data", max_length=2048)) -> dic
 
 @app.post("/api/cdf/sql/run")
 def sql_run(body: SqlRunRequest) -> dict:
-    """Preview SQL using CDF transformations query/run (same API as cdf_explorer)."""
+    """Preview SQL using CDF transformations query/run (same API as cdf_discovery)."""
     from cdf_fn_common.sql_preview import run_sql_preview
 
     client = _cdf_client()
@@ -1207,9 +1207,22 @@ def _write_scope_yaml_from_workflow_trigger(rel: str) -> str:
     return OPERATOR_RUN_SCOPE_SNAPSHOT
 
 
-@app.get("/api/workflow-trigger-meta")
-def workflow_trigger_meta() -> dict:
-    """Root `name` field per WorkflowTrigger YAML under workflows/ (operator UI nav labels)."""
+_workflow_trigger_meta_cache: Dict[str, Any] | None = None
+_workflow_trigger_meta_cache_mtime: float = 0.0
+
+
+def _workflows_tree_max_mtime() -> float:
+    wf = MODULE_ROOT / "workflows"
+    if not wf.is_dir():
+        return 0.0
+    latest = 0.0
+    for p in wf.rglob("*"):
+        if p.is_file():
+            latest = max(latest, p.stat().st_mtime)
+    return latest
+
+
+def _build_workflow_trigger_meta() -> dict:
     wf = MODULE_ROOT / "workflows"
     entries: List[Dict[str, Any]] = []
     if wf.is_dir():
@@ -1232,6 +1245,22 @@ def workflow_trigger_meta() -> dict:
                 pass
             entries.append({"path": rel, "name": name})
     return {"entries": entries}
+
+
+@app.get("/api/workflow-trigger-meta")
+def workflow_trigger_meta() -> dict:
+    """Root `name` field per WorkflowTrigger YAML under workflows/ (operator UI nav labels)."""
+    global _workflow_trigger_meta_cache, _workflow_trigger_meta_cache_mtime
+    tree_mtime = _workflows_tree_max_mtime()
+    if (
+        _workflow_trigger_meta_cache is not None
+        and tree_mtime <= _workflow_trigger_meta_cache_mtime
+    ):
+        return _workflow_trigger_meta_cache
+    payload = _build_workflow_trigger_meta()
+    _workflow_trigger_meta_cache = payload
+    _workflow_trigger_meta_cache_mtime = tree_mtime
+    return payload
 
 
 @app.get("/api/artifacts")

@@ -133,14 +133,14 @@ export type MessageKey =
   | "module.field.location_name"
   | "module.field.source_name"
   | "module.field.files_dataset"
-  | "module.field.schemaSpace"
-  | "module.field.viewVersion"
+  | "module.field.schema_space"
+  | "module.field.view_version"
   | "module.field.workflow"
-  | "module.field.key_extraction_aliasing_schedule"
+  | "module.field.workflow_schedule"
   | "module.field.files_location_processing_group_source_id"
   | "module.field.functionVersion"
-  | "module.field.functionClientId"
-  | "module.field.functionClientSecret"
+  | "module.field.function_client_id"
+  | "module.field.function_client_secret"
   | "forms.paramKey"
   | "forms.paramValue"
   | "joinEditor.title"
@@ -176,7 +176,7 @@ export type MessageKey =
   | "sourceViews.viewExternalId"
   | "sourceViews.viewSpace"
   | "sourceViews.viewSpaceReloadHint"
-  | "sourceViews.viewVersion"
+  | "sourceViews.view_version"
   | "sourceViews.batchSize"
   | "sourceViews.batchSizeHint"
   | "sourceViews.instanceSpace"
@@ -1056,3 +1056,5 @@ export type MessageKey =
   | "flow.inspectorRefMissingHint";
 
 export type Messages = Record<MessageKey, string>;
+
+export type LocaleMessages = Partial<Messages>;

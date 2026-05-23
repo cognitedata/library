@@ -42,8 +42,8 @@ export function saveNodeListLabel(node: WorkflowCanvasNode): string {
   return node.id;
 }
 
-export function defaultQueryConfig(kind: QueryNodeKind, schemaSpace = ""): JsonObject {
-  const space = schemaSpace.trim() || "cdf_cdm";
+export function defaultQueryConfig(kind: QueryNodeKind, schema_space = ""): JsonObject {
+  const space = schema_space.trim() || "cdf_cdm";
   switch (kind) {
     case "query_view":
       return {
@@ -113,10 +113,10 @@ export function patchNodeConfig(
 export function addQueryNode(
   canvas: WorkflowCanvasDocument,
   kind: QueryNodeKind,
-  schemaSpace = ""
+  schema_space = ""
 ): { canvas: WorkflowCanvasDocument; nodeId: string } {
   const id = newNodeId();
-  const config = defaultQueryConfig(kind, schemaSpace);
+  const config = defaultQueryConfig(kind, schema_space);
   const node: WorkflowCanvasNode = {
     id,
     kind,

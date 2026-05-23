@@ -1,6 +1,3 @@
-import logoDarkUrl from "../../../../../shared/brand/cognite-logo-dark.svg";
-import logoLightUrl from "../../../../../shared/brand/cognite-logo-light.svg";
-import "../../../../../shared/brand/cognite-logo.css";
 import { useAppSettings } from "../context/AppSettingsContext";
 
 type Props = {
@@ -18,8 +15,8 @@ export function CogniteLogo({ className = "" }: Props) {
       rel="noopener noreferrer"
       aria-label={t("brand.cognite")}
     >
-      <img src={logoLightUrl} alt="" className="cognite-logo__img cognite-logo__img--light" />
-      <img src={logoDarkUrl} alt="" className="cognite-logo__img cognite-logo__img--dark" />
+      <img src="/brand/cognite-logo-light.svg" alt="" className="cognite-logo__img cognite-logo__img--light" />
+      <img src="/brand/cognite-logo-dark.svg" alt="" className="cognite-logo__img cognite-logo__img--dark" />
     </a>
   );
 }

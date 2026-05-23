@@ -87,7 +87,7 @@ def _cleanup_legacy_trigger_layout(workflows_dir: Path) -> None:
     """Remove superseded trigger layouts only (does not delete current dot-form per-scope files).
 
     Per-scope files ``<workflow_base>.<suffix>.WorkflowTrigger.yaml`` are always
-    left on disk even when no longer in the configured ``aliasing_scope_hierarchy.locations`` tree — remove those by hand if needed.
+    left on disk even when no longer in the configured ``scope_hierarchy.locations`` tree — remove those by hand if needed.
     """
     legacy = workflows_dir / LEGACY_MONOLITHIC_NAME
     if legacy.is_file():
@@ -163,8 +163,8 @@ class WorkflowTriggersBuilder:
             "use --check-workflow-triggers in CI to catch drift.\n"
             "# Trigger shell: workflow_template/workflow.template.WorkflowTrigger.yaml\n"
             "# Scope body: workflow_template/workflow.template.config.yaml (unified graph + config)\n"
-            "# Cron is literal in the trigger template (0 2 * * * UTC). Toolkit substitutes "
-            "{{functionClientId}}, {{functionClientSecret}}, and {{instance_space}} inside "
+            "# Cron uses {{ workflow_schedule }} from default.config.yaml. Toolkit substitutes "
+            "{{function_client_id}}, {{function_client_secret}}, and {{instance_space}} inside "
             "configuration at deploy time.\n"
         )
         for ctx, (trig, full_scope) in zip(contexts, triggers, strict=True):

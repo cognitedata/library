@@ -26,7 +26,7 @@ class Parameters(BaseModel):
         ...,
         description="ID of the annotations table in RAW for storing CogniteDiagramAnnotations",
     )
-    logLevel: str = Field("INFO", description="Log level (DEBUG, INFO, WARNING, ERROR)")
+    log_level: str = Field("INFO", description="Log level (DEBUG, INFO, WARNING, ERROR)")
 
 
 class Config(BaseModel):

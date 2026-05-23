@@ -28,8 +28,8 @@ from modules.create_asset_hierarchy_from_files.functions.fn_dm_extract_assets_by
 
 
 def reset_failed_file_attempts(
-    raw_db: str = "db_extract_assets_by_pattern",
-    raw_table_state: str = "extract_assets_by_pattern_state",
+    raw_db: str = "db_file_asset_extract",
+    raw_table_state: str = "file_asset_extract_state",
     results_field: str = "results",
     reset_all_failed: bool = False,
     max_attempts: int = 3,
@@ -186,19 +186,19 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser(
-        description="Reset attempts counter for failed files in extract_assets_by_pattern_state"
+        description="Reset attempts counter for failed files in file_asset_extract_state"
     )
     parser.add_argument(
         "--raw-db",
         type=str,
-        default="db_extract_assets_by_pattern",
-        help="RAW database name (default: db_extract_assets_by_pattern)",
+        default="db_file_asset_extract",
+        help="RAW database name (default: db_file_asset_extract)",
     )
     parser.add_argument(
         "--raw-table-state",
         type=str,
-        default="extract_assets_by_pattern_state",
-        help="RAW state table name (default: extract_assets_by_pattern_state)",
+        default="file_asset_extract_state",
+        help="RAW state table name (default: file_asset_extract_state)",
     )
     parser.add_argument(
         "--results-field",

@@ -19,7 +19,7 @@ export type MaterializeDataTreeEntityDropInput = {
   payload: DataTreeEntityDragPayload;
   position: { x: number; y: number };
   nodes: Node[];
-  schemaSpace?: string;
+  schema_space?: string;
   t: TFn;
   /** When inserting on an existing edge, omit Start→query auto-wire (edge split supplies upstream). */
   skipStartToQueryWire?: boolean;
@@ -46,12 +46,12 @@ function patchNodeConfig(node: Node, config: Record<string, unknown>): Node {
 export function materializeDataTreeEntityDrop(
   input: MaterializeDataTreeEntityDropInput
 ): MaterializeDataTreeEntityDropResult | null {
-  const { payload, position, nodes, schemaSpace, t } = input;
+  const { payload, position, nodes, schema_space, t } = input;
   const stages = entityDropStages(payload.node);
   if (!stages) return null;
 
-  const queryConfig = seedConfigForEntityDrop(payload.node, stages.query, schemaSpace);
-  const saveConfig = seedConfigForEntityDrop(payload.node, stages.save, schemaSpace);
+  const queryConfig = seedConfigForEntityDrop(payload.node, stages.query, schema_space);
+  const saveConfig = seedConfigForEntityDrop(payload.node, stages.save, schema_space);
 
   let queryNode = createNodeFromPalette(
     { kind: "discovery", stage: stages.query },

@@ -5,6 +5,7 @@ import { emptyPattern, emptyScopeNode } from "../types/assetConfig";
 
 export const DEFAULT_CONFIG_REL = "default.config.yaml";
 export const FILE_ASSET_SOURCE_KEY = "file_asset_source";
+export const SCOPE_HIERARCHY_KEY = "scope_hierarchy";
 
 export type ConfigStep = "scope" | "extract";
 
@@ -15,7 +16,7 @@ export const CONFIG_STEPS: { id: ConfigStep; labelKey: MessageKey }[] = [
 
 type PipelineStep = "extract" | "create" | "write";
 
-/** YAML block under ``file_asset_source`` for editor steps (``scope`` uses ``create`` data). */
+/** YAML block under ``file_asset_source`` for editor steps (``scope`` uses top-level ``scope_hierarchy``). */
 export function yamlStepForEditor(step: ConfigStep): PipelineStep {
   if (step === "scope") return "create";
   return step;
@@ -62,6 +63,14 @@ function dataFromStepBlock(block: Record<string, unknown>): Record<string, unkno
 
 export function stepYamlFromDefault(content: string, step: ConfigStep): string {
   const doc = parseDefaultDocument(content);
+  if (step === "scope") {
+    const sh = doc[SCOPE_HIERARCHY_KEY];
+    return stringifyDefaultDocument(
+      sh && typeof sh === "object" && !Array.isArray(sh)
+        ? { [SCOPE_HIERARCHY_KEY]: sh }
+        : { [SCOPE_HIERARCHY_KEY]: { type: "hierarchy", levels: [], locations: [] } }
+    );
+  }
   const yamlStep = yamlStepForEditor(step);
   return stringifyDefaultDocument(stepBlock(doc, yamlStep));
 }
@@ -73,6 +82,13 @@ export function mergeStepYamlIntoDefault(
 ): string {
   const doc = parseDefaultDocument(content);
   const slice = parseDefaultDocument(sliceYaml);
+  if (step === "scope") {
+    const sh = slice[SCOPE_HIERARCHY_KEY];
+    if (sh && typeof sh === "object" && !Array.isArray(sh)) {
+      doc[SCOPE_HIERARCHY_KEY] = sh;
+    }
+    return stringifyDefaultDocument(doc);
+  }
   const yamlStep = yamlStepForEditor(step);
   const fas = { ...fileAssetSource(doc) };
   fas[yamlStep] = slice;
@@ -92,6 +108,7 @@ function normalizeScopeNode(raw: unknown): ScopeNode {
     ? o.locations.map((c) => normalizeScopeNode(c))
     : [];
   return {
+    id: o.id != null ? String(o.id) : "",
     name: o.name != null ? String(o.name) : "",
     description: o.description != null ? String(o.description) : "",
     locations: child,
@@ -99,27 +116,43 @@ function normalizeScopeNode(raw: unknown): ScopeNode {
   };
 }
 
-export function scopeFromStepYaml(content: string): ScopeHierarchyData {
-  const block = parseDefaultDocument(content);
-  const data = dataFromStepBlock(block);
-  const levels = Array.isArray(data.hierarchy_levels)
-    ? data.hierarchy_levels.map((l) => String(l).trim()).filter(Boolean)
-    : [];
-  const scopeRaw = Array.isArray(data.scope) ? data.scope : [];
-  const scope = scopeRaw.map((n) => normalizeScopeNode(n));
-  return { hierarchy_levels: levels, scope };
+function scopeHierarchyBlock(doc: Record<string, unknown>): Record<string, unknown> {
+  const sh = doc[SCOPE_HIERARCHY_KEY];
+  if (sh == null || typeof sh !== "object" || Array.isArray(sh)) {
+    return { type: "hierarchy", levels: [], locations: [] };
+  }
+  return sh as Record<string, unknown>;
 }
 
-export function mergeScopeIntoStepYaml(
-  content: string,
-  hierarchy: ScopeHierarchyData
-): string {
-  const block = parseDefaultDocument(content);
-  const data = { ...dataFromStepBlock(block) };
-  data.hierarchy_levels = hierarchy.hierarchy_levels;
-  data.scope = hierarchy.scope;
-  block.data = data;
-  return stringifyDefaultDocument(block);
+export function scopeFromDefault(content: string): ScopeHierarchyData {
+  const doc = parseDefaultDocument(content);
+  const sh = scopeHierarchyBlock(doc);
+  const levels = Array.isArray(sh.levels)
+    ? sh.levels.map((l) => String(l).trim()).filter(Boolean)
+    : [];
+  const scopeRaw = Array.isArray(sh.locations) ? sh.locations : [];
+  const scope = scopeRaw.map((n) => normalizeScopeNode(n));
+  return { levels, scope };
+}
+
+export function mergeScopeIntoDefault(content: string, hierarchy: ScopeHierarchyData): string {
+  const doc = parseDefaultDocument(content);
+  doc[SCOPE_HIERARCHY_KEY] = {
+    type: "hierarchy",
+    levels: hierarchy.levels,
+    locations: hierarchy.scope,
+  };
+  return stringifyDefaultDocument(doc);
+}
+
+/** @deprecated use scopeFromDefault */
+export function scopeFromStepYaml(content: string): ScopeHierarchyData {
+  return scopeFromDefault(content);
+}
+
+/** @deprecated use mergeScopeIntoDefault */
+export function mergeScopeIntoStepYaml(content: string, hierarchy: ScopeHierarchyData): string {
+  return mergeScopeIntoDefault(content, hierarchy);
 }
 
 function normalizePattern(raw: unknown): PatternEntry {

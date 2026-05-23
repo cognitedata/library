@@ -426,7 +426,7 @@ def create_asset_hierarchy(
         # Extract parameters from data
         tags_file = data.get("tags_file")
         output_file = data.get("output_file")
-        space = data.get("space", "sp_enterprise_schema")
+        space = data.get("space", "inst_enterprise_file_assets")
         include_resource_type = data.get("include_resource_type", False)
         include_resource_subtype = data.get("include_resource_subtype", False)
         include_resource_subsubtype = data.get("include_resource_subsubtype", False)

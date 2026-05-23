@@ -14,7 +14,7 @@ from local_runner.paths import get_module_root
 
 TRIGGER_REL = "workflows/create_asset_hierarchy_from_files.WorkflowTrigger.yaml"
 GENERATED_HEADER = (
-    "# input.configuration is synced from default.config.yaml file_asset_source by: python module.py build\n"
+    "# input.configuration is synced from default.config.yaml (file_asset_source + scope_hierarchy) by: python module.py build\n"
 )
 _TEMPLATE_RE = re.compile(r"\{\{\s*(\w+)\s*\}\}")
 
@@ -49,9 +49,9 @@ def _load_trigger(path: Path) -> tuple[dict[str, Any], dict[str, str]]:
 
 
 def _expected_configuration(root: Path) -> dict[str, Any]:
-    from functions.shared.utils.module_config import file_asset_source_section, load_default_config
+    from functions.shared.utils.module_config import load_default_config, workflow_configuration
 
-    return copy.deepcopy(file_asset_source_section(load_default_config(root)))
+    return copy.deepcopy(workflow_configuration(load_default_config(root)))
 
 
 def sync_workflow_trigger(*, check_only: bool = False, force: bool = False) -> dict[str, Any]:

@@ -28,8 +28,8 @@ WORKFLOW_TRIGGER_YAML_HEADER = (
     "use --check-workflow-triggers in CI to catch drift.\n"
     "# Trigger shell: workflow_template/workflow.template.WorkflowTrigger.yaml\n"
     "# Scope body: workflow_template/workflow.template.config.yaml\n"
-    "# Cron is literal in the trigger template (0 2 * * * UTC). Toolkit substitutes "
-    "{{functionClientId}}, {{functionClientSecret}}, and {{instance_space}} inside "
+    "# Cron uses {{ workflow_schedule }} from default.config.yaml. Toolkit substitutes "
+    "{{function_client_id}}, {{function_client_secret}}, and {{instance_space}} inside "
     "configuration at deploy time.\n"
     "# input block updated by: python module.py copy-workflow-config ...\n"
 )

@@ -1,3 +1,3 @@
 externalId: {{ workflow }}
 description: Workflow that extracts assets from files, creates asset hierarchy, and writes to CDF
-dataSetExternalId: 'ds_extract_assets_by_pattern'
+dataSetExternalId: 'ds_file_asset_source'
