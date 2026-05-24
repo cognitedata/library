@@ -145,6 +145,42 @@ def dm_data_model_graph(
         raise _api_error(e) from e
 
 
+@app.get("/api/cdf/data-modeling/container/detail")
+def dm_container_detail(
+    space: str = Query(..., min_length=1, max_length=512),
+    external_id: str = Query(..., min_length=1, max_length=512),
+) -> dict:
+    client = _cdf_client()
+    try:
+        return cdf_browse.dm_retrieve_container(client, space=space, external_id=external_id)
+    except Exception as e:
+        raise _api_error(e) from e
+
+
+@app.get("/api/cdf/data-modeling/node/detail")
+def dm_node_detail(
+    space: str = Query(..., min_length=1, max_length=512),
+    external_id: str = Query(..., min_length=1, max_length=512),
+) -> dict:
+    client = _cdf_client()
+    try:
+        return cdf_browse.dm_retrieve_node(client, space=space, external_id=external_id)
+    except Exception as e:
+        raise _api_error(e) from e
+
+
+@app.get("/api/cdf/data-modeling/edge/detail")
+def dm_edge_detail(
+    space: str = Query(..., min_length=1, max_length=512),
+    external_id: str = Query(..., min_length=1, max_length=512),
+) -> dict:
+    client = _cdf_client()
+    try:
+        return cdf_browse.dm_retrieve_edge(client, space=space, external_id=external_id)
+    except Exception as e:
+        raise _api_error(e) from e
+
+
 class SqlRunRequest(BaseModel):
     query: str = Field(..., min_length=1, max_length=500_000)
     limit: int = Field(100, ge=1, le=10_000)

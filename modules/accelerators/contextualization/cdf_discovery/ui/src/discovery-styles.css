@@ -333,6 +333,117 @@ body {
   padding: 0.65rem;
 }
 
+.disc-prop-viewer-wrap {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+}
+
+.disc-prop-viewer__toolbar {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0.35rem 0.5rem 0;
+  flex-shrink: 0;
+}
+
+.disc-prop-viewer__toggle {
+  font-size: 0.72rem;
+}
+
+.disc-prop-viewer {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 0.35rem 0.5rem 0.65rem;
+}
+
+.disc-prop-viewer--compact {
+  padding: 0.25rem 0.35rem 0.45rem;
+}
+
+.disc-prop-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.78rem;
+  table-layout: fixed;
+}
+
+.disc-prop-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  text-align: left;
+  font-weight: 600;
+  color: var(--disc-text-muted);
+  background: var(--disc-surface);
+  border-bottom: 1px solid var(--disc-border);
+  padding: 0.35rem 0.45rem;
+}
+
+.disc-prop-table th:first-child {
+  width: 38%;
+}
+
+.disc-prop-row td {
+  vertical-align: top;
+  border-bottom: 1px solid var(--disc-border-subtle, var(--disc-border));
+  padding: 0.2rem 0.45rem;
+  line-height: 1.35;
+}
+
+.disc-prop-row__name {
+  color: var(--disc-text-muted);
+  word-break: break-word;
+}
+
+.disc-prop-row__indent {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.disc-prop-row__expander {
+  flex-shrink: 0;
+  width: 1rem;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--disc-text-muted);
+  cursor: pointer;
+  font: inherit;
+  line-height: 1.2;
+}
+
+.disc-prop-row__expander--spacer {
+  display: inline-block;
+  cursor: default;
+}
+
+.disc-prop-row__label {
+  min-width: 0;
+  word-break: break-word;
+}
+
+.disc-prop-row__value {
+  word-break: break-word;
+  color: var(--disc-text);
+}
+
+.disc-prop-row__value--mono {
+  font-family: var(--disc-font-mono);
+  font-size: 0.76rem;
+}
+
+.disc-prop-row__value[role="button"] {
+  cursor: pointer;
+}
+
+.disc-properties-body .disc-prop-viewer-wrap {
+  height: auto;
+}
+
 .disc-pagination {
   display: flex;
   flex-wrap: wrap;

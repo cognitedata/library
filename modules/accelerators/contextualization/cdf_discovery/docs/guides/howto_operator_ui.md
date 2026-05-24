@@ -45,8 +45,12 @@ Open document tabs and the active tab id are saved under `workspace` in `discove
 
 ### Properties (bottom)
 
-- Select a **tree node** for object metadata.
-- Select a **tree node** or **SQL result row** for JSON detail (data model view details appear in the diagram’s right panel).
+- Select a **tree node** for object metadata, or a **SQL result row** for column values.
+- Read-only payloads use a **Structured** name/value inspector (expand nested objects and arrays). Toggle **JSON** for raw monospace output; the choice is remembered in the browser.
+- **Fusion → Data Modeling → Containers** tree nodes load the full container schema from CDF on selection (`properties`, `indexes`, `constraints`).
+- **All nodes** / **All edges** tree folders show a reference payload with a seeded query hint; run the query and select a row for full node or edge instance detail.
+- **Node/edge SQL rows** from `cdf_nodes()`, `cdf_edges()`, or view-scoped node queries load full CDF instance detail when selected.
+- Data model **view** details appear in the diagram’s right panel; workflow **task** details appear in the workflow sidebar (same structured viewer).
 - When a selected row is an uploaded **parquet**, **CSV**, or **JSON/NDJSON** CDF File, use **Query file** to open a DuckDB query tab against the file content.
 
 Drag the handle above Properties to resize; **Collapse** hides the panel.

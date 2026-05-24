@@ -1,6 +1,7 @@
 import { useCallback, useEffect } from "react";
 import { useAppSettings } from "../../context/AppSettingsContext";
 import { fetchJson } from "../../api/fetchJson";
+import { PropertyViewer } from "../PropertyViewer";
 import type { GovernanceCdfGroupDocumentTab } from "../../types/discoveryNodes";
 
 type Props = {
@@ -42,7 +43,7 @@ export function GovernanceCdfGroupPane({ tab, onTabUpdate }: Props) {
         {tab.detail && (
           <>
             <h3 className="disc-gov-section-title">{t("governance.live.capabilities")}</h3>
-            <pre className="disc-properties">{JSON.stringify(tab.detail, null, 2)}</pre>
+            <PropertyViewer value={tab.detail} />
           </>
         )}
       </div>

@@ -1,6 +1,7 @@
 import { useCallback, useEffect } from "react";
 import { useAppSettings } from "../../context/AppSettingsContext";
 import { fetchJson } from "../../api/fetchJson";
+import { PropertyViewer } from "../PropertyViewer";
 import type { GovernanceCdfSpaceDocumentTab } from "../../types/discoveryNodes";
 
 type Props = {
@@ -39,9 +40,7 @@ export function GovernanceCdfSpacePane({ tab, onTabUpdate }: Props) {
       <div className="disc-gov-pane-body">
         {tab.loading && <p className="disc-empty-hint">{t("governance.live.loading")}</p>}
         {tab.error && <p className="disc-banner--error">{tab.error}</p>}
-        {tab.detail && (
-          <pre className="disc-properties">{JSON.stringify(tab.detail, null, 2)}</pre>
-        )}
+        {tab.detail && <PropertyViewer value={tab.detail} />}
       </div>
     </div>
   );

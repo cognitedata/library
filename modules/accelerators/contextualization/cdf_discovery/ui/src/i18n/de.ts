@@ -47,6 +47,16 @@ export const de: Messages = {
   "properties.emptyHint": "Wählen Sie einen Baumknoten oder eine Rasterzeile aus.",
   "properties.node": "Objekt",
   "properties.row": "Zeile",
+  "properties.viewStructured": "Strukturiert",
+  "properties.viewJson": "JSON",
+  "properties.childCount": "{count} Elemente",
+  "properties.loading": "Eigenschaften werden geladen…",
+  "properties.columnName": "Name",
+  "properties.columnValue": "Wert",
+  "properties.dmAllNodesHint":
+    "Führen Sie die vorgeschlagene Abfrage aus und wählen Sie eine Zeile, um vollständige Knotendetails aus CDF zu laden.",
+  "properties.dmAllEdgesHint":
+    "Führen Sie die vorgeschlagene Abfrage aus und wählen Sie eine Zeile, um vollständige Kantendetails aus CDF zu laden.",
   "layout.dragHandle": "Drag to reposition panel",
   "layout.dragHandle.tree": "Drag object tree to reposition",
   "layout.dragHandle.properties": "Drag properties panel to reposition",

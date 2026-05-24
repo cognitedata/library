@@ -22,6 +22,8 @@ import { GovernanceCdfGroupPane } from "./components/governance/GovernanceCdfGro
 import { CogniteLogo } from "./components/CogniteLogo";
 import { useAppSettings } from "./context/AppSettingsContext";
 import { useDiscoveryConfig } from "./context/DiscoveryConfigContext";
+import { openTargetFromSqlTabId } from "./utils/workspacePersistence";
+import { dmInstanceKindFromOpenTarget } from "./utils/dmInstanceFromRow";
 import { LOCALES } from "./i18n";
 import {
   isDataModelTab,
@@ -543,6 +545,13 @@ export function App() {
     [tabs, activeTabId]
   );
 
+  const dmInstanceKind = useMemo(() => {
+    if (!activeTab || !isSqlTab(activeTab)) return null;
+    const target = openTargetFromSqlTabId(activeTab.id);
+    if (!target) return null;
+    return dmInstanceKindFromOpenTarget(target);
+  }, [activeTab]);
+
   const updateDataModelTab = useCallback((updated: DataModelDocumentTab) => {
     setTabs((prev) => prev.map((tab) => (tab.id === updated.id ? updated : tab)));
   }, []);
@@ -706,6 +715,7 @@ export function App() {
       onToggleCollapse={panel.togglePropertiesCollapsed}
       selectedNode={selectedNode}
       rowDetail={rowDetail}
+      dmInstanceKind={dmInstanceKind}
       paneSize={panel.propertiesSize}
       layout={layout}
       isDragging={panel.draggingPanel === "properties"}

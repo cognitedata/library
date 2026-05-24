@@ -442,3 +442,85 @@ def test_fusion_view_by_container_lookup_prefers_highest_version():
         "view_external_id": "V",
         "view_version": "v2",
     }
+
+
+def test_dm_container_to_dict_serializes_schema():
+    prop = MagicMock()
+    prop.type = "text"
+    prop.list = False
+    prop.nullable = True
+    prop.autoIncrement = False
+
+    idx = MagicMock()
+    idx.properties = ["name"]
+    idx.cursorable = True
+    idx.indexType = " btree"
+
+    con = MagicMock()
+    con.constraintType = "require"
+    con.require = {"space": "s", "externalId": "C"}
+    con.properties = ["ref"]
+
+    container = MagicMock()
+    container.space = "cdf_cdm"
+    container.external_id = "CogniteAsset"
+    container.name = "Asset"
+    container.description = "Asset container"
+    container.usedFor = "node"
+    container.properties = {"name": prop}
+    container.indexes = {"byName": idx}
+    container.constraints = {"refReq": con}
+    container.createdTime = 1
+    container.lastUpdatedTime = 2
+
+    out = cdf_browse.dm_container_to_dict(container)
+    assert out["space"] == "cdf_cdm"
+    assert out["external_id"] == "CogniteAsset"
+    assert out["properties"]["name"]["type"] == "text"
+    assert out["indexes"][0]["name"] == "byName"
+    assert out["constraints"][0]["name"] == "refReq"
+
+
+def test_dm_node_to_dict_serializes_instance():
+    bag = MagicMock()
+    bag.dump.return_value = {"name": "Pump A"}
+
+    node = MagicMock()
+    node.space = "inst"
+    node.external_id = "node-1"
+    node.version = 3
+    node.properties = {"('s','V','v1')": bag}
+    node.sources = []
+    node.created_time = 100
+    node.last_updated_time = 200
+
+    out = cdf_browse.dm_node_to_dict(node)
+    assert out["space"] == "inst"
+    assert out["external_id"] == "node-1"
+    assert out["properties"]["('s','V','v1')"]["name"] == "Pump A"
+    assert out["created_time"] == 100
+
+
+def test_dm_edge_to_dict_serializes_instance():
+    start = MagicMock(spec=["space", "external_id"])
+    start.space = "inst"
+    start.external_id = "n1"
+    end = MagicMock(spec=["space", "external_id"])
+    end.space = "inst"
+    end.external_id = "n2"
+
+    edge = MagicMock()
+    edge.space = "inst"
+    edge.external_id = "edge-1"
+    edge.type = {"space": "inst", "externalId": "rel"}
+    edge.start_node = start
+    edge.end_node = end
+    edge.properties = {"weight": 1}
+    edge.created_time = 10
+    edge.last_updated_time = 20
+
+    out = cdf_browse.dm_edge_to_dict(edge)
+    assert out["external_id"] == "edge-1"
+    assert out["start_node"]["external_id"] == "n1"
+    assert out["end_node"]["external_id"] == "n2"
+    assert out["properties"]["weight"] == 1

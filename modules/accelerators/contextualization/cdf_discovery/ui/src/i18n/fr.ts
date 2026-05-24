@@ -47,6 +47,16 @@ export const fr: Messages = {
   "properties.emptyHint": "Sélectionnez un nœud d'arborescence ou une ligne de grille.",
   "properties.node": "Objet",
   "properties.row": "Ligne",
+  "properties.viewStructured": "Structuré",
+  "properties.viewJson": "JSON",
+  "properties.childCount": "{count} éléments",
+  "properties.loading": "Chargement des propriétés…",
+  "properties.columnName": "Nom",
+  "properties.columnValue": "Valeur",
+  "properties.dmAllNodesHint":
+    "Exécutez la requête proposée et sélectionnez une ligne pour charger le détail complet du nœud depuis CDF.",
+  "properties.dmAllEdgesHint":
+    "Exécutez la requête proposée et sélectionnez une ligne pour charger le détail complet de l'arête depuis CDF.",
   "layout.dragHandle": "Drag to reposition panel",
   "layout.dragHandle.tree": "Drag object tree to reposition",
   "layout.dragHandle.properties": "Drag properties panel to reposition",

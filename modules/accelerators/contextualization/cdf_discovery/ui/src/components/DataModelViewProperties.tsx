@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { useAppSettings } from "../context/AppSettingsContext";
+import { PropertyViewer } from "./PropertyViewer";
 import type { DataModelGraph, DataModelGraphView } from "../types/discoveryNodes";
 
 type Props = {
@@ -31,7 +32,7 @@ export function DataModelViewProperties({ graph, view }: Props) {
       </div>
       <div className="disc-dm-flow-sidebar__body">
         {payload ? (
-          <pre className="disc-properties">{JSON.stringify(payload, null, 2)}</pre>
+          <PropertyViewer value={payload} compact showToggle />
         ) : (
           <p className="disc-empty-hint">{t("dmViewer.selectView")}</p>
         )}

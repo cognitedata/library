@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { useAppSettings } from "../context/AppSettingsContext";
+import { PropertyViewer } from "./PropertyViewer";
 import type { WorkflowGraph, WorkflowGraphTask } from "../types/discoveryNodes";
 
 type Props = {
@@ -24,7 +25,7 @@ export function WorkflowTaskProperties({ graph, task }: Props) {
       </div>
       <div className="disc-dm-flow-sidebar__body">
         {payload ? (
-          <pre className="disc-properties">{JSON.stringify(payload, null, 2)}</pre>
+          <PropertyViewer value={payload} compact showToggle />
         ) : (
           <p className="disc-empty-hint">{t("wfViewer.selectTask")}</p>
         )}

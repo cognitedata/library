@@ -47,6 +47,16 @@ export const ja: Messages = {
   "properties.emptyHint": "ツリー ノードまたはグリッド行を選択します。",
   "properties.node": "オブジェクト",
   "properties.row": "行",
+  "properties.viewStructured": "構造化",
+  "properties.viewJson": "JSON",
+  "properties.childCount": "{count} 件",
+  "properties.loading": "プロパティを読み込み中…",
+  "properties.columnName": "名前",
+  "properties.columnValue": "値",
+  "properties.dmAllNodesHint":
+    "シードされたクエリを実行し、行を選択すると CDF からノードの詳細が読み込まれます。",
+  "properties.dmAllEdgesHint":
+    "シードされたクエリを実行し、行を選択すると CDF からエッジの詳細が読み込まれます。",
   "layout.dragHandle": "Drag to reposition panel",
   "layout.dragHandle.tree": "Drag object tree to reposition",
   "layout.dragHandle.properties": "Drag properties panel to reposition",

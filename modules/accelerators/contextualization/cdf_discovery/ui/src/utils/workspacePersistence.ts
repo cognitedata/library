@@ -13,7 +13,7 @@ import { createSqlTabFromSavedQuery, savedQueryIdFromTabId } from "./savedQuerie
 import { createSqlTab, createSqlTabForOpenTarget, createFileContentSqlTab, SQL_WORKSPACE_TAB_ID } from "./sqlTabs";
 import { workflowTabKey, workflowTabLabel } from "./workflowTabs";
 
-function openTargetFromSqlTabId(tabId: string) {
+export function openTargetFromSqlTabId(tabId: string) {
   if (!tabId.startsWith("sql:") || tabId === SQL_WORKSPACE_TAB_ID) return null;
   const key = tabId.slice(4);
   if (key.startsWith("classic:")) {

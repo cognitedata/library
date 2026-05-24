@@ -525,6 +525,192 @@ def fusion_list_containers_in_space(
     return rows
 
 
+def _json_safe(value: Any) -> Any:
+    if value is None or isinstance(value, (bool, int, float, str)):
+        return value
+    if isinstance(value, dict):
+        return {str(k): _json_safe(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple, set)):
+        return [_json_safe(v) for v in value]
+    if hasattr(value, "dump"):
+        try:
+            return _json_safe(value.dump())
+        except Exception:
+            pass
+    if hasattr(value, "as_dict"):
+        try:
+            return _json_safe(value.as_dict())
+        except Exception:
+            pass
+    if hasattr(value, "model_dump"):
+        try:
+            return _json_safe(value.model_dump())
+        except Exception:
+            pass
+    return str(value)
+
+
+def _dm_property_type_to_dict(prop_type: Any) -> Dict[str, Any]:
+    out: Dict[str, Any] = {}
+    for attr in ("type", "list", "nullable", "autoIncrement", "auto_increment"):
+        if hasattr(prop_type, attr):
+            val = getattr(prop_type, attr)
+            if val is not None:
+                key = "autoIncrement" if attr == "auto_increment" else attr
+                out[key] = _json_safe(val)
+    if not out:
+        out["type"] = str(prop_type)
+    return out
+
+
+def dm_container_to_dict(container: Any) -> Dict[str, Any]:
+    props: Dict[str, Any] = {}
+    raw_props = getattr(container, "properties", None) or {}
+    if isinstance(raw_props, dict):
+        for name, prop in raw_props.items():
+            props[str(name)] = _dm_property_type_to_dict(prop)
+
+    indexes: List[Any] = []
+    raw_indexes = getattr(container, "indexes", None) or {}
+    if isinstance(raw_indexes, dict):
+        for name, idx in raw_indexes.items():
+            entry: Dict[str, Any] = {"name": str(name)}
+            for attr in ("properties", "cursorable", "indexType", "index_type"):
+                if hasattr(idx, attr):
+                    key = "indexType" if attr == "index_type" else attr
+                    entry[key] = _json_safe(getattr(idx, attr))
+            indexes.append(entry)
+
+    constraints: List[Any] = []
+    raw_constraints = getattr(container, "constraints", None) or {}
+    if isinstance(raw_constraints, dict):
+        for name, con in raw_constraints.items():
+            entry = {"name": str(name)}
+            for attr in ("constraintType", "constraint_type", "require", "properties"):
+                if hasattr(con, attr):
+                    key = "constraintType" if attr == "constraint_type" else attr
+                    entry[key] = _json_safe(getattr(con, attr))
+            constraints.append(entry)
+
+    out: Dict[str, Any] = {
+        "space": str(container.space),
+        "external_id": str(container.external_id),
+        "name": getattr(container, "name", None),
+        "description": getattr(container, "description", None),
+        "usedFor": _json_safe(getattr(container, "usedFor", None) or getattr(container, "used_for", None)),
+        "properties": props,
+        "indexes": indexes,
+        "constraints": constraints,
+    }
+    for ts in ("createdTime", "created_time", "lastUpdatedTime", "last_updated_time"):
+        if hasattr(container, ts):
+            val = getattr(container, ts)
+            if val is not None:
+                key = "createdTime" if "created" in ts else "lastUpdatedTime"
+                out[key] = _json_safe(val)
+    return out
+
+
+def dm_retrieve_container(client: Any, *, space: str, external_id: str) -> Dict[str, Any]:
+    from cognite.client.data_classes.data_modeling import ContainerId
+
+    cid = ContainerId(space=space.strip(), external_id=external_id.strip())
+    containers = client.data_modeling.containers.retrieve(cid)
+    if not containers:
+        raise ValueError(f"Container not found: {space}/{external_id}")
+    container = containers[0] if isinstance(containers, list) else containers
+    return dm_container_to_dict(container)
+
+
+def _dm_instance_ref_to_dict(ref: Any) -> Dict[str, Any]:
+    if ref is None:
+        return {}
+    out: Dict[str, Any] = {}
+    space = getattr(ref, "space", None)
+    if space is not None:
+        out["space"] = str(space)
+    ext = getattr(ref, "external_id", None)
+    if ext is None:
+        ext = getattr(ref, "externalId", None)
+    if ext is not None:
+        out["external_id"] = str(ext)
+    return out
+
+
+def dm_node_to_dict(node: Any) -> Dict[str, Any]:
+    props: Dict[str, Any] = {}
+    raw_props = getattr(node, "properties", None) or {}
+    if isinstance(raw_props, dict):
+        for view_key, bag in raw_props.items():
+            key = str(view_key)
+            if hasattr(bag, "dump"):
+                props[key] = _json_safe(bag.dump())
+            elif isinstance(bag, dict):
+                props[key] = _json_safe(bag)
+            else:
+                props[key] = _json_safe(bag)
+
+    sources: List[Any] = []
+    raw_sources = getattr(node, "sources", None) or []
+    if isinstance(raw_sources, (list, tuple)):
+        for src in raw_sources:
+            entry: Dict[str, Any] = {}
+            for attr in ("source", "properties"):
+                if hasattr(src, attr):
+                    entry[attr] = _json_safe(getattr(src, attr))
+            if entry:
+                sources.append(entry)
+
+    out: Dict[str, Any] = {
+        "space": str(node.space),
+        "external_id": str(node.external_id),
+        "version": _json_safe(getattr(node, "version", None)),
+        "properties": props,
+        "sources": sources,
+    }
+    for ts in ("created_time", "last_updated_time"):
+        if hasattr(node, ts):
+            out[ts] = _json_safe(getattr(node, ts))
+    return out
+
+
+def dm_edge_to_dict(edge: Any) -> Dict[str, Any]:
+    out: Dict[str, Any] = {
+        "space": str(edge.space),
+        "external_id": str(edge.external_id),
+        "type": _json_safe(getattr(edge, "type", None) or getattr(edge, "edge_type", None)),
+        "start_node": _dm_instance_ref_to_dict(getattr(edge, "start_node", None) or getattr(edge, "startNode", None)),
+        "end_node": _dm_instance_ref_to_dict(getattr(edge, "end_node", None) or getattr(edge, "endNode", None)),
+        "properties": _json_safe(getattr(edge, "properties", None) or {}),
+    }
+    for ts in ("created_time", "last_updated_time"):
+        if hasattr(edge, ts):
+            out[ts] = _json_safe(getattr(edge, ts))
+    return out
+
+
+def dm_retrieve_node(client: Any, *, space: str, external_id: str) -> Dict[str, Any]:
+    from cognite.client.data_classes.data_modeling import NodeId
+
+    nid = NodeId(space=space.strip(), external_id=external_id.strip())
+    nodes = client.data_modeling.instances.retrieve_nodes(nid)
+    if not nodes:
+        raise ValueError(f"Node not found: {space}/{external_id}")
+    node = nodes[0] if isinstance(nodes, list) else nodes
+    return dm_node_to_dict(node)
+
+
+def dm_retrieve_edge(client: Any, *, space: str, external_id: str) -> Dict[str, Any]:
+    from cognite.client.data_classes.data_modeling import EdgeId
+
+    eid = EdgeId(space=space.strip(), external_id=external_id.strip())
+    edges = client.data_modeling.instances.retrieve_edges(eid)
+    if not edges:
+        raise ValueError(f"Edge not found: {space}/{external_id}")
+    edge = edges[0] if isinstance(edges, list) else edges
+    return dm_edge_to_dict(edge)
+
+
 def fusion_view_key_lookup(
     views: List[Dict[str, str]],
 ) -> Dict[Tuple[str, str, str], Dict[str, str]]:

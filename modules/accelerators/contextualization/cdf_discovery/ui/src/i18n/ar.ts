@@ -47,6 +47,16 @@ export const ar: Messages = {
   "properties.emptyHint": "حدد عقدة شجرة أو صف شبكة.",
   "properties.node": "كائن",
   "properties.row": "صف",
+  "properties.viewStructured": "منظم",
+  "properties.viewJson": "JSON",
+  "properties.childCount": "{count} عناصر",
+  "properties.loading": "جارٍ تحميل الخصائص…",
+  "properties.columnName": "الاسم",
+  "properties.columnValue": "القيمة",
+  "properties.dmAllNodesHint":
+    "شغّل الاستعلام المبدئي وحدد صفًا لتحميل تفاصيل العقدة الكاملة من CDF.",
+  "properties.dmAllEdgesHint":
+    "شغّل الاستعلام المبدئي وحدد صفًا لتحميل تفاصيل الحافة الكاملة من CDF.",
   "layout.dragHandle": "Drag to reposition panel",
   "layout.dragHandle.tree": "Drag object tree to reposition",
   "layout.dragHandle.properties": "Drag properties panel to reposition",

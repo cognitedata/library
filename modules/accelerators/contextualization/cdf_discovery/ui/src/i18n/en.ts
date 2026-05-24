@@ -48,6 +48,16 @@ export const en: Messages = {
   "properties.emptyHint": "Select a tree node or grid row.",
   "properties.node": "Object",
   "properties.row": "Row",
+  "properties.viewStructured": "Structured",
+  "properties.viewJson": "JSON",
+  "properties.childCount": "{count} items",
+  "properties.loading": "Loading properties…",
+  "properties.columnName": "Name",
+  "properties.columnValue": "Value",
+  "properties.dmAllNodesHint":
+    "Run the seeded query and select a row to load full node instance detail from CDF.",
+  "properties.dmAllEdgesHint":
+    "Run the seeded query and select a row to load full edge instance detail from CDF.",
   "layout.dragHandle": "Drag to reposition panel",
   "layout.dragHandle.tree": "Drag object tree to reposition",
   "layout.dragHandle.properties": "Drag properties panel to reposition",

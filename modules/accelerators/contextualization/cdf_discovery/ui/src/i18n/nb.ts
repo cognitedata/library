@@ -47,6 +47,16 @@ export const nb: Messages = {
   "properties.emptyHint": "Velg en trenode eller rutenettrad.",
   "properties.node": "Objekt",
   "properties.row": "Rad",
+  "properties.viewStructured": "Strukturert",
+  "properties.viewJson": "JSON",
+  "properties.childCount": "{count} elementer",
+  "properties.loading": "Laster egenskaper…",
+  "properties.columnName": "Navn",
+  "properties.columnValue": "Verdi",
+  "properties.dmAllNodesHint":
+    "Kjør foreslått spørring og velg en rad for å laste full nodeinstansdetalj fra CDF.",
+  "properties.dmAllEdgesHint":
+    "Kjør foreslått spørring og velg en rad for å laste full kantinstansdetalj fra CDF.",
   "layout.dragHandle": "Drag to reposition panel",
   "layout.dragHandle.tree": "Drag object tree to reposition",
   "layout.dragHandle.properties": "Drag properties panel to reposition",

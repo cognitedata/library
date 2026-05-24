@@ -47,6 +47,16 @@ export const hi: Messages = {
   "properties.emptyHint": "एक ट्री नोड या ग्रिड पंक्ति चुनें.",
   "properties.node": "ऑब्जेक्ट",
   "properties.row": "पंक्ति",
+  "properties.viewStructured": "संरचित",
+  "properties.viewJson": "JSON",
+  "properties.childCount": "{count} आइटम",
+  "properties.loading": "गुण लोड हो रहे हैं…",
+  "properties.columnName": "नाम",
+  "properties.columnValue": "मान",
+  "properties.dmAllNodesHint":
+    "सीड क्वेरी चलाएँ और CDF से पूर्ण नोड विवरण लोड करने के लिए एक पंक्ति चुनें।",
+  "properties.dmAllEdgesHint":
+    "सीड क्वेरी चलाएँ और CDF से पूर्ण एज विवरण लोड करने के लिए एक पंक्ति चुनें।",
   "layout.dragHandle": "Drag to reposition panel",
   "layout.dragHandle.tree": "Drag object tree to reposition",
   "layout.dragHandle.properties": "Drag properties panel to reposition",

@@ -47,6 +47,16 @@ export const es: Messages = {
   "properties.emptyHint": "Seleccione un nodo de árbol o una fila de cuadrícula.",
   "properties.node": "Objeto",
   "properties.row": "Fila",
+  "properties.viewStructured": "Estructurado",
+  "properties.viewJson": "JSON",
+  "properties.childCount": "{count} elementos",
+  "properties.loading": "Cargando propiedades…",
+  "properties.columnName": "Nombre",
+  "properties.columnValue": "Valor",
+  "properties.dmAllNodesHint":
+    "Ejecute la consulta inicial y seleccione una fila para cargar el detalle completo del nodo desde CDF.",
+  "properties.dmAllEdgesHint":
+    "Ejecute la consulta inicial y seleccione una fila para cargar el detalle completo de la arista desde CDF.",
   "layout.dragHandle": "Drag to reposition panel",
   "layout.dragHandle.tree": "Drag object tree to reposition",
   "layout.dragHandle.properties": "Drag properties panel to reposition",

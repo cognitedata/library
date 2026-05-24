@@ -149,6 +149,54 @@ export async function fetchFunctionDetail(functionId: string): Promise<FunctionD
   return r.json() as Promise<FunctionDetail>;
 }
 
+export async function fetchContainerDetail(args: {
+  space: string;
+  externalId: string;
+}): Promise<Record<string, unknown>> {
+  const params = new URLSearchParams({
+    space: args.space,
+    external_id: args.externalId,
+  });
+  const r = await fetch(`${API}/api/cdf/data-modeling/container/detail?${params}`);
+  if (!r.ok) {
+    const body = await r.json().catch(() => ({}));
+    throw new Error(String((body as { detail?: string }).detail ?? r.status));
+  }
+  return r.json() as Promise<Record<string, unknown>>;
+}
+
+export async function fetchNodeDetail(args: {
+  space: string;
+  externalId: string;
+}): Promise<Record<string, unknown>> {
+  const params = new URLSearchParams({
+    space: args.space,
+    external_id: args.externalId,
+  });
+  const r = await fetch(`${API}/api/cdf/data-modeling/node/detail?${params}`);
+  if (!r.ok) {
+    const body = await r.json().catch(() => ({}));
+    throw new Error(String((body as { detail?: string }).detail ?? r.status));
+  }
+  return r.json() as Promise<Record<string, unknown>>;
+}
+
+export async function fetchEdgeDetail(args: {
+  space: string;
+  externalId: string;
+}): Promise<Record<string, unknown>> {
+  const params = new URLSearchParams({
+    space: args.space,
+    external_id: args.externalId,
+  });
+  const r = await fetch(`${API}/api/cdf/data-modeling/edge/detail?${params}`);
+  if (!r.ok) {
+    const body = await r.json().catch(() => ({}));
+    throw new Error(String((body as { detail?: string }).detail ?? r.status));
+  }
+  return r.json() as Promise<Record<string, unknown>>;
+}
+
 export async function runSqlQuery(
   body: {
     query: string;

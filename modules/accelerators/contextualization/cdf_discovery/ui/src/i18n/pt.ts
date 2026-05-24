@@ -47,6 +47,16 @@ export const pt: Messages = {
   "properties.emptyHint": "Selecione um nó de árvore ou linha de grade.",
   "properties.node": "Objeto",
   "properties.row": "Linha",
+  "properties.viewStructured": "Estruturado",
+  "properties.viewJson": "JSON",
+  "properties.childCount": "{count} itens",
+  "properties.loading": "Carregando propriedades…",
+  "properties.columnName": "Nome",
+  "properties.columnValue": "Valor",
+  "properties.dmAllNodesHint":
+    "Execute a consulta sugerida e selecione uma linha para carregar o detalhe completo do nó do CDF.",
+  "properties.dmAllEdgesHint":
+    "Execute a consulta sugerida e selecione uma linha para carregar o detalhe completo da aresta do CDF.",
   "layout.dragHandle": "Drag to reposition panel",
   "layout.dragHandle.tree": "Drag object tree to reposition",
   "layout.dragHandle.properties": "Drag properties panel to reposition",
