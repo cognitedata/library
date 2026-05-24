@@ -173,7 +173,7 @@ export function useDiscoveryPanelLayout() {
       const startH = propertiesSize;
       const onMove = (ev: MouseEvent) => {
         setPropertiesSize(
-          clamp(startH + (ev.clientY - startY), PROPS_MIN, propsMaxHeight())
+          clamp(startH - (ev.clientY - startY), PROPS_MIN, propsMaxHeight())
         );
       };
       const onUp = () => {
