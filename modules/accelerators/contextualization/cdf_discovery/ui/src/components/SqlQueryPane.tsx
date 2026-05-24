@@ -10,6 +10,7 @@ import {
   fileContentRefFromRow,
   isQueryableFileRow,
 } from "../utils/queryableFileFromRow";
+import { isDownloadableFileRow } from "../utils/downloadableFileFromRow";
 import { filterGridRows } from "../utils/sqlGridFilter";
 import { nextGridSort, sortGridRows, type GridSort } from "../utils/sqlGridSort";
 import { queryTextForRun } from "../utils/sqlRunText";
@@ -38,6 +39,7 @@ type Props = {
   onTabUpdate: (tab: SqlDocumentTab) => void;
   onSelectRow: (row: Record<string, unknown> | null) => void;
   onQueryFile?: (row: Record<string, unknown>) => void;
+  onDownloadFile?: (row: Record<string, unknown>) => void | Promise<void>;
   onSave?: () => void;
   onSaveAs?: () => void;
 };
@@ -46,7 +48,7 @@ function isAbortError(e: unknown): boolean {
   return e instanceof DOMException && e.name === "AbortError";
 }
 
-export function SqlQueryPane({ tab, onTabUpdate, onSelectRow, onQueryFile, onSave, onSaveAs }: Props) {
+export function SqlQueryPane({ tab, onTabUpdate, onSelectRow, onQueryFile, onDownloadFile, onSave, onSaveAs }: Props) {
   const { t, theme } = useAppSettings();
   const { height: editorPaneHeight, onResizeStart: onEditorPaneResizeStart } = useVerticalPaneResize({
     storageKey: "exp.sqlEditorPaneHeight.v1",
@@ -55,7 +57,9 @@ export function SqlQueryPane({ tab, onTabUpdate, onSelectRow, onQueryFile, onSav
   const [sort, setSort] = useState<GridSort | null>(null);
   const [resultsFilter, setResultsFilter] = useState("");
   const [exporting, setExporting] = useState(false);
+  const [downloading, setDownloading] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
   const [copyMessage, setCopyMessage] = useState<string | null>(null);
   const [ctxMenu, setCtxMenu] = useState<SqlResultsContextMenuState | null>(null);
   const editorRef = useRef<SqlEditorHandle>(null);
@@ -104,6 +108,8 @@ export function SqlQueryPane({ tab, onTabUpdate, onSelectRow, onQueryFile, onSav
     tab.selectedRowIndex != null ? filteredItems[tab.selectedRowIndex] ?? null : null;
   const canQuerySelectedFile =
     tab.engine !== "file_content" && isQueryableFileRow(selectedRow) && onQueryFile != null;
+  const canDownloadSelectedFile =
+    tab.engine !== "file_content" && isDownloadableFileRow(selectedRow) && onDownloadFile != null;
 
   const cancelRun = useCallback(() => {
     abortRef.current?.abort();
@@ -156,6 +162,7 @@ export function SqlQueryPane({ tab, onTabUpdate, onSelectRow, onQueryFile, onSav
                   format: currentTab.fileContent.format,
                   file_id: currentTab.fileContent.file_id,
                   file_external_id: currentTab.fileContent.external_id,
+                  file_instance_space: currentTab.fileContent.instance_space,
                   convert_to_string: currentTab.convertToString,
                 },
                 { signal: controller.signal }
@@ -321,6 +328,22 @@ export function SqlQueryPane({ tab, onTabUpdate, onSelectRow, onQueryFile, onSav
     [columns, filteredItems, tab.label]
   );
 
+  const onDownloadRow = useCallback(
+    async (row: Record<string, unknown>) => {
+      if (!onDownloadFile) return;
+      setDownloading(true);
+      setDownloadError(null);
+      try {
+        await onDownloadFile(row);
+      } catch (e) {
+        setDownloadError(String(e));
+      } finally {
+        setDownloading(false);
+      }
+    },
+    [onDownloadFile]
+  );
+
   const schema = useMemo(() => {
     const raw = tab.result?.schema;
     if (!Array.isArray(raw)) return [];
@@ -338,6 +361,11 @@ export function SqlQueryPane({ tab, onTabUpdate, onSelectRow, onQueryFile, onSav
     tab.engine !== "file_content" &&
     isQueryableFileRow(ctxRow) &&
     onQueryFile != null;
+  const ctxCanDownloadFile =
+    ctxRow != null &&
+    tab.engine !== "file_content" &&
+    isDownloadableFileRow(ctxRow) &&
+    onDownloadFile != null;
   const ctxQueryFileLabel =
     ctxRow && isQueryableFileRow(ctxRow)
       ? queryFileFormatLabel[fileContentRefFromRow(ctxRow)!.format]
@@ -418,6 +446,16 @@ export function SqlQueryPane({ tab, onTabUpdate, onSelectRow, onQueryFile, onSav
             onClick={() => onQueryFile!(selectedRow)}
           >
             {queryFileFormatLabel[fileContentRefFromRow(selectedRow)!.format]}
+          </button>
+        )}
+        {canDownloadSelectedFile && selectedRow && (
+          <button
+            type="button"
+            className="disc-btn"
+            disabled={tab.loading || downloading}
+            onClick={() => void onDownloadRow(selectedRow)}
+          >
+            {downloading ? t("sql.downloadFileInProgress") : t("sql.downloadFile")}
           </button>
         )}
         <span className="disc-sql-pane__hint">
@@ -661,6 +699,11 @@ export function SqlQueryPane({ tab, onTabUpdate, onSelectRow, onQueryFile, onSav
             {t("sql.exportFailed", { detail: exportError })}
           </div>
         )}
+        {downloadError && (
+          <div className="disc-banner--error disc-sql-pane__export-error">
+            {downloadError}
+          </div>
+        )}
         {copyMessage && <div className="disc-sql-pane__hint">{copyMessage}</div>}
         {tab.result && outputPanel === "results" && (
         <div className="disc-pagination">
@@ -814,6 +857,8 @@ export function SqlQueryPane({ tab, onTabUpdate, onSelectRow, onQueryFile, onSav
         exportFormatLabel={exportFormatLabel}
         queryFileLabel={ctxQueryFileLabel}
         canQueryFile={ctxCanQueryFile}
+        canDownloadFile={ctxCanDownloadFile}
+        downloading={downloading}
         hasResults={filteredItems.length > 0 && columns.length > 0}
         exporting={exporting}
         onCopyRow={() => void onCopyRow(ctxRow)}
@@ -846,6 +891,9 @@ export function SqlQueryPane({ tab, onTabUpdate, onSelectRow, onQueryFile, onSav
         onExport={(format) => void onExport(format)}
         onQueryFile={() => {
           if (ctxRow && onQueryFile) onQueryFile(ctxRow);
+        }}
+        onDownloadFile={() => {
+          if (ctxRow) void onDownloadRow(ctxRow);
         }}
       />
     </div>

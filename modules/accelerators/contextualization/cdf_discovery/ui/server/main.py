@@ -7,7 +7,7 @@ import sys
 from pathlib import Path
 from typing import Optional
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
@@ -17,7 +17,7 @@ _mod_root_str = str(MODULE_ROOT)
 if _mod_root_str not in sys.path:
     sys.path.insert(0, _mod_root_str)
 
-from ui.server import cdf_browse, discovery_config, discovery_tree, file_content_query  # noqa: E402
+from ui.server import cdf_browse, discovery_config, discovery_tree, file_content_query, file_download  # noqa: E402
 from ui.server.governance_api import router as governance_declared_router  # noqa: E402
 
 app = FastAPI(title="CDF Discovery operator API", version="1.0.0")
@@ -195,6 +195,7 @@ class FileContentSqlRunRequest(BaseModel):
     format: Optional[str] = Field(default=None, pattern="^(parquet|csv|json)$")
     file_id: Optional[int] = Field(default=None, ge=1)
     file_external_id: Optional[str] = Field(default=None, min_length=1, max_length=512)
+    file_instance_space: Optional[str] = Field(default=None, min_length=1, max_length=512)
     convert_to_string: bool = True
 
 
@@ -274,7 +275,11 @@ def governance_group_detail(id: int = Query(..., ge=1, description="Security gro
 @app.post("/api/cdf/file-content/sql/run")
 def file_content_sql_run(body: FileContentSqlRunRequest) -> dict:
     """Run SELECT-only SQL against a downloaded CDF File (parquet, CSV, JSON) via DuckDB."""
-    if body.file_id is None and not (body.file_external_id or "").strip():
+    if (
+        body.file_id is None
+        and not (body.file_external_id or "").strip()
+        and not (body.file_instance_space or "").strip()
+    ):
         raise HTTPException(status_code=400, detail="file_id or file_external_id is required")
     client = _cdf_client()
     try:
@@ -284,8 +289,77 @@ def file_content_sql_run(body: FileContentSqlRunRequest) -> dict:
             limit=body.limit,
             file_id=body.file_id,
             file_external_id=(body.file_external_id or "").strip() or None,
+            file_instance_space=(body.file_instance_space or "").strip() or None,
             fmt=body.format,  # type: ignore[arg-type]
             convert_to_string=body.convert_to_string,
         )
     except Exception as e:
         raise _api_error(e) from e
+
+
+def _file_download_params(
+    file_id: Optional[int] = Query(default=None, ge=1),
+    file_external_id: Optional[str] = Query(default=None, min_length=1, max_length=512),
+    file_instance_space: Optional[str] = Query(default=None, min_length=1, max_length=512),
+) -> tuple[Optional[int], Optional[str], Optional[str]]:
+    ext = (file_external_id or "").strip() or None
+    space = (file_instance_space or "").strip() or None
+    if file_id is None and not ext and not space:
+        raise HTTPException(status_code=400, detail="file_id or file_external_id is required")
+    if space and not ext:
+        raise HTTPException(
+            status_code=400,
+            detail="file_external_id is required when file_instance_space is set",
+        )
+    return file_id, ext, space
+
+
+@app.head("/api/cdf/files/download")
+def file_download_head(
+    file_id: Optional[int] = Query(default=None, ge=1),
+    file_external_id: Optional[str] = Query(default=None, min_length=1, max_length=512),
+    file_instance_space: Optional[str] = Query(default=None, min_length=1, max_length=512),
+) -> Response:
+    fid, ext, space = _file_download_params(file_id, file_external_id, file_instance_space)
+    client = _cdf_client()
+    try:
+        file_obj = file_download.resolve_uploaded_file(
+            client, file_id=fid, file_external_id=ext, file_instance_space=space
+        )
+        size, name, mime = file_download.probe_download_size_bytes(client, file_obj)
+    except Exception as e:
+        raise _api_error(e) from e
+
+    headers: dict[str, str] = {
+        "Content-Disposition": file_download.content_disposition_attachment(name),
+        "X-File-Name": name,
+    }
+    if size is not None:
+        headers["Content-Length"] = str(size)
+    return Response(status_code=200, headers=headers, media_type=mime)
+
+
+@app.get("/api/cdf/files/download")
+def file_download_get(
+    file_id: Optional[int] = Query(default=None, ge=1),
+    file_external_id: Optional[str] = Query(default=None, min_length=1, max_length=512),
+    file_instance_space: Optional[str] = Query(default=None, min_length=1, max_length=512),
+) -> Response:
+    fid, ext, space = _file_download_params(file_id, file_external_id, file_instance_space)
+    client = _cdf_client()
+    try:
+        data, name, mime = file_download.download_file_bytes(
+            client, file_id=fid, file_external_id=ext, file_instance_space=space
+        )
+    except Exception as e:
+        raise _api_error(e) from e
+
+    return Response(
+        content=data,
+        media_type=mime,
+        headers={
+            "Content-Disposition": file_download.content_disposition_attachment(name),
+            "Content-Length": str(len(data)),
+            "X-File-Name": name,
+        },
+    )

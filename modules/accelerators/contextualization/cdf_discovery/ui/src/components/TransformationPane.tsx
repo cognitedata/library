@@ -10,9 +10,10 @@ type Props = {
   onTabUpdate: (tab: TransformationDocumentTab) => void;
   onSelectRow: (row: Record<string, unknown> | null) => void;
   onQueryFile?: (row: Record<string, unknown>) => void;
+  onDownloadFile?: (row: Record<string, unknown>) => void | Promise<void>;
 };
 
-export function TransformationPane({ tab, onTabUpdate, onSelectRow, onQueryFile }: Props) {
+export function TransformationPane({ tab, onTabUpdate, onSelectRow, onQueryFile, onDownloadFile }: Props) {
   const { t } = useAppSettings();
   const [sqlTab, setSqlTab] = useState<SqlDocumentTab>(() =>
     createSqlTab({ id: tab.id, label: tab.label, query: "" })
@@ -89,6 +90,7 @@ export function TransformationPane({ tab, onTabUpdate, onSelectRow, onQueryFile 
               onTabUpdate={setSqlTab}
               onSelectRow={onSelectRow}
               onQueryFile={onQueryFile}
+              onDownloadFile={onDownloadFile}
             />
           </div>
           <details className="disc-transformation-pane__definition">

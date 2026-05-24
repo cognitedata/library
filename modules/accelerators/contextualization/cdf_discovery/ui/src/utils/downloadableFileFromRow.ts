@@ -1,6 +1,11 @@
-import type { FileContentFormat, FileContentRef } from "../types/discoveryNodes";
-
 type Row = Record<string, unknown>;
+
+export type DownloadableFileRef = {
+  file_id?: number;
+  external_id?: string;
+  instance_space?: string;
+  name?: string;
+};
 
 function field(row: Row, keys: string[]): unknown {
   for (const key of keys) {
@@ -31,37 +36,15 @@ function asFileId(value: unknown): number | undefined {
   return Number.isFinite(n) && n > 0 ? Math.trunc(n) : undefined;
 }
 
-export function detectFileContentFormat(row: Row): FileContentFormat | null {
-  const mime = asString(field(row, ["mimeType", "mime_type", "mimetype"])).toLowerCase();
-  const name = asString(field(row, ["name", "fileName", "filename"])).toLowerCase();
-
-  if (mime.includes("parquet") || name.endsWith(".parquet")) {
-    return "parquet";
-  }
-  if (
-    mime === "text/csv" ||
-    mime === "application/csv" ||
-    mime === "text/comma-separated-values" ||
-    name.endsWith(".csv")
-  ) {
-    return "csv";
-  }
-  if (
-    mime.includes("json") ||
-    mime.includes("ndjson") ||
-    name.endsWith(".json") ||
-    name.endsWith(".jsonl") ||
-    name.endsWith(".ndjson")
-  ) {
-    return "json";
-  }
-  return null;
+function asByteSize(value: unknown): number | undefined {
+  if (value == null || value === "") return undefined;
+  const n = typeof value === "number" ? value : Number(String(value).trim());
+  if (!Number.isFinite(n) || n < 0) return undefined;
+  return Math.trunc(n);
 }
 
-export function isQueryableFileRow(row: Row | null | undefined): row is Row {
+export function isDownloadableFileRow(row: Row | null | undefined): row is Row {
   if (!row) return false;
-  const format = detectFileContentFormat(row);
-  if (!format) return false;
   const uploaded = asBoolean(field(row, ["isUploaded", "is_uploaded", "uploaded"]));
   if (uploaded === false) return false;
   const fileId = asFileId(field(row, ["id", "fileId", "file_id"]));
@@ -69,11 +52,8 @@ export function isQueryableFileRow(row: Row | null | undefined): row is Row {
   return fileId != null || externalId.length > 0;
 }
 
-export function fileContentRefFromRow(row: Row): FileContentRef | null {
-  if (!isQueryableFileRow(row)) return null;
-  const format = detectFileContentFormat(row);
-  if (!format) return null;
-
+export function downloadableFileRefFromRow(row: Row): DownloadableFileRef | null {
+  if (!isDownloadableFileRow(row)) return null;
   const instance_space = asString(field(row, ["space", "instanceSpace", "instance_space"]));
   const external_id = asString(field(row, ["externalId", "external_id"]));
   const file_id = asFileId(field(row, ["id", "fileId", "file_id"]));
@@ -84,7 +64,6 @@ export function fileContentRefFromRow(row: Row): FileContentRef | null {
       instance_space,
       external_id,
       ...(name ? { name } : {}),
-      format,
     };
   }
 
@@ -92,12 +71,9 @@ export function fileContentRefFromRow(row: Row): FileContentRef | null {
     ...(file_id != null ? { file_id } : {}),
     ...(external_id ? { external_id } : {}),
     ...(name ? { name } : {}),
-    format,
   };
 }
 
-export function fileContentTabLabel(ref: FileContentRef): string {
-  const base = ref.name?.trim() || ref.external_id?.trim() || (ref.file_id != null ? String(ref.file_id) : "File");
-  const suffix = ref.format.toUpperCase();
-  return `${base} (${suffix})`;
+export function fileSizeFromRow(row: Row): number | undefined {
+  return asByteSize(field(row, ["size", "fileSize", "file_size", "contentLength", "content_length"]));
 }

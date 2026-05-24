@@ -12,6 +12,7 @@ import {
   parseDmInstanceRefFromRow,
 } from "../utils/dmInstanceFromRow";
 import { isQueryableFileRow } from "../utils/queryableFileFromRow";
+import { isDownloadableFileRow } from "../utils/downloadableFileFromRow";
 import { sqlQueryForOpenTarget } from "../utils/sqlQuerySeed";
 
 export type PropertiesPanelLayout = "bottom" | "side" | "stacked";
@@ -28,6 +29,7 @@ type Props = {
   onPanelDragStart: () => void;
   onPanelDragEnd: () => void;
   onQueryFile?: (row: Record<string, unknown>) => void;
+  onDownloadFile?: (row: Record<string, unknown>) => void | Promise<void>;
 };
 
 const TREE_PREFERRED_KEYS = ["kind", "id", "label"];
@@ -231,8 +233,10 @@ export function PropertiesPanel({
   onPanelDragStart,
   onPanelDragEnd,
   onQueryFile,
+  onDownloadFile,
 }: Props) {
   const { t } = useAppSettings();
+  const [downloading, setDownloading] = useState(false);
   const { payload, preferredKeys, loading, error } = usePropertiesPayload(
     selectedNode,
     rowDetail,
@@ -257,6 +261,10 @@ export function PropertiesPanel({
     rowDetail && typeof rowDetail === "object" && isQueryableFileRow(rowDetail as Record<string, unknown>)
       ? (rowDetail as Record<string, unknown>)
       : null;
+  const downloadableRow =
+    rowDetail && typeof rowDetail === "object" && isDownloadableFileRow(rowDetail as Record<string, unknown>)
+      ? (rowDetail as Record<string, unknown>)
+      : null;
 
   return (
     <div
@@ -278,6 +286,23 @@ export function PropertiesPanel({
           {!collapsed && queryableRow && onQueryFile && (
             <button type="button" className="disc-btn" onClick={() => onQueryFile(queryableRow)}>
               {t("sql.queryFile")}
+            </button>
+          )}
+          {!collapsed && downloadableRow && onDownloadFile && (
+            <button
+              type="button"
+              className="disc-btn"
+              disabled={downloading}
+              onClick={() => {
+                setDownloading(true);
+                void Promise.resolve(onDownloadFile(downloadableRow))
+                  .catch((e) => {
+                    window.alert(String(e));
+                  })
+                  .finally(() => setDownloading(false));
+              }}
+            >
+              {downloading ? t("sql.downloadFileInProgress") : t("sql.downloadFile")}
             </button>
           )}
           <button type="button" className="disc-btn" onClick={onToggleCollapse}>

@@ -77,6 +77,7 @@ import {
 } from "./utils/sqlTabs";
 import { canQueryTreeNode, labelForDmView, openTargetForDmView } from "./utils/sqlQuerySeed";
 import { fileContentRefFromRow } from "./utils/queryableFileFromRow";
+import { downloadCdfFileWithConfirm } from "./utils/downloadCdfFile";
 import {
   createSqlTabFromSavedQuery,
   savedQueryEntryFromSqlTab,
@@ -272,6 +273,18 @@ export function App() {
     });
     setRowDetail(null);
   }, []);
+
+  const downloadFileFromRow = useCallback(
+    async (row: Record<string, unknown>) => {
+      try {
+        await downloadCdfFileWithConfirm(row, t);
+      } catch (e) {
+        const detail = e instanceof Error ? e.message : String(e);
+        throw new Error(t("sql.downloadFileFailed", { detail }));
+      }
+    },
+    [t]
+  );
 
   const queryDmView = useCallback(
     (view: DataModelGraphView) => {
@@ -652,6 +665,7 @@ export function App() {
           onTabUpdate={updateTransformationTab}
           onSelectRow={(row) => setRowDetail(row)}
           onQueryFile={openFileContentQueryFromRow}
+          onDownloadFile={downloadFileFromRow}
         />
       ) : activeTab && isFunctionTab(activeTab) ? (
         <FunctionPane tab={activeTab} onTabUpdate={updateFunctionTab} />
@@ -695,6 +709,7 @@ export function App() {
           onTabUpdate={updateSqlTab}
           onSelectRow={(row) => setRowDetail(row)}
           onQueryFile={openFileContentQueryFromRow}
+          onDownloadFile={downloadFileFromRow}
           onSave={activeTab.engine === "file_content" ? undefined : () => void saveSqlTab(activeTab, "save")}
           onSaveAs={activeTab.engine === "file_content" ? undefined : () => void saveSqlTab(activeTab, "saveAs")}
         />
@@ -722,6 +737,7 @@ export function App() {
       onPanelDragStart={() => panel.beginPanelDrag("properties")}
       onPanelDragEnd={panel.endPanelDrag}
       onQueryFile={openFileContentQueryFromRow}
+      onDownloadFile={downloadFileFromRow}
     />
   );
 

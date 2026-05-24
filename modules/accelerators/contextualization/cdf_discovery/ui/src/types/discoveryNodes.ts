@@ -92,6 +92,7 @@ export type FileContentFormat = "parquet" | "csv" | "json";
 export type FileContentRef = {
   file_id?: number;
   external_id?: string;
+  instance_space?: string;
   name?: string;
   format: FileContentFormat;
 };

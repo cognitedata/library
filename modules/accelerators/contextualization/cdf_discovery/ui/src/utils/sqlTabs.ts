@@ -61,7 +61,9 @@ export function fileContentTabKey(ref: FileContentRef): string {
   const key =
     ref.file_id != null
       ? String(ref.file_id)
-      : encodeURIComponent(ref.external_id ?? "unknown");
+      : ref.instance_space && ref.external_id
+        ? `${ref.instance_space}:${ref.external_id}`
+        : encodeURIComponent(ref.external_id ?? "unknown");
   return `sql:file:${ref.format}:${key}`;
 }
 

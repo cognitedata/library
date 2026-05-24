@@ -247,8 +247,8 @@ canvas:
   - id: n_1778877478650_28ig3bla
     kind: join
     position:
-      x: 452
-      y: -168.5
+      x: 463.0596218244474
+      y: -169.8824527280559
     data:
       label: 'Aliases: Mapping Table Join (RAW)'
       handler_family: discovery
@@ -258,7 +258,7 @@ canvas:
         join_type: inner
         right_prefix: explicit_
         join_on:
-          and:
+          or:
           - operator: IEQUALS
             left_property: name
             right_property: raw_columns.name

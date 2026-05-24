@@ -103,29 +103,37 @@ def resolve_cdf_file(
     *,
     file_id: Optional[int] = None,
     file_external_id: Optional[str] = None,
+    file_instance_space: Optional[str] = None,
 ) -> Any:
-    if file_id is not None:
-        return client.files.retrieve(id=int(file_id))
+    space = (file_instance_space or "").strip()
     ext = (file_external_id or "").strip()
-    if ext:
-        try:
-            return client.files.retrieve(external_id=ext)
-        except Exception:
-            pass
-        try:
-            from cognite.client.data_modeling import NodeId
 
-            # Best-effort DM instance lookup when external id is an instance key.
-            matches = list(client.files.retrieve_multiple(instance_ids=[NodeId("unknown", ext)]))
-            if matches:
-                return matches[0]
-        except Exception:
-            pass
-        return client.files.retrieve(external_id=ext)
+    if space and ext:
+        from cognite.client.data_classes.data_modeling import NodeId
+
+        file_obj = client.files.retrieve(instance_id=NodeId(space, ext))
+        if file_obj is None:
+            raise ValueError(f"File not found for instance {space}/{ext}")
+        return file_obj
+
+    if file_id is not None:
+        file_obj = client.files.retrieve(id=int(file_id))
+        if file_obj is None:
+            raise ValueError(f"File not found: id={file_id}")
+        return file_obj
+
+    if ext:
+        file_obj = client.files.retrieve(external_id=ext)
+        if file_obj is None:
+            raise ValueError(f"File not found: external_id={ext}")
+        return file_obj
+
     raise ValueError("file_id or file_external_id is required")
 
 
 def _ensure_uploaded(file_obj: Any) -> None:
+    if file_obj is None:
+        raise ValueError("File not found")
     uploaded = getattr(file_obj, "uploaded", None)
     if uploaded is None:
         uploaded = getattr(file_obj, "is_uploaded", None)
@@ -133,13 +141,75 @@ def _ensure_uploaded(file_obj: Any) -> None:
         raise ValueError("File content has not been uploaded to CDF")
 
 
+def _as_int_file_id(value: Any) -> Optional[int]:
+    if value is None or isinstance(value, bool):
+        return None
+    try:
+        n = int(value)
+    except (TypeError, ValueError):
+        return None
+    return n if n > 0 else None
+
+
+def _as_external_id(value: Any) -> Optional[str]:
+    if not isinstance(value, str):
+        return None
+    s = value.strip()
+    return s or None
+
+
+def _file_identity_kwargs(file_obj: Any) -> Dict[str, Any]:
+    file_id = _as_int_file_id(getattr(file_obj, "id", None))
+    external_id = _as_external_id(getattr(file_obj, "external_id", None))
+    if external_id is None:
+        external_id = _as_external_id(getattr(file_obj, "externalId", None))
+
+    instance_id = getattr(file_obj, "instance_id", None)
+    if instance_id is not None:
+        space = getattr(instance_id, "space", None)
+        inst_ext = getattr(instance_id, "external_id", None) or getattr(instance_id, "externalId", None)
+        if not _as_external_id(space if isinstance(space, str) else None) or not _as_external_id(
+            inst_ext if isinstance(inst_ext, str) else None
+        ):
+            instance_id = None
+
+    if file_id is not None:
+        return {"id": file_id, "external_id": None, "instance_id": None}
+    if instance_id is not None:
+        return {"id": None, "external_id": None, "instance_id": instance_id}
+    if external_id is not None:
+        return {"id": None, "external_id": external_id, "instance_id": None}
+    raise ValueError("Resolved file has no id or external_id")
+
+
+def download_bytes_for_file(client: Any, file_obj: Any) -> bytes:
+    kwargs = _file_identity_kwargs(file_obj)
+    return client.files.download_bytes(**kwargs)
+
+
+def identifier_dict_for_file(file_obj: Any) -> Dict[str, Any]:
+    from cognite.client.utils._identifier import Identifier
+
+    kwargs = _file_identity_kwargs(file_obj)
+    return Identifier.of_either(
+        kwargs["id"], kwargs["external_id"], kwargs["instance_id"]
+    ).as_dict()
+
+
 def _cache_path(file_obj: Any, fmt: FileContentFormat) -> Path:
-    file_id = getattr(file_obj, "id", None)
-    if file_id is None:
-        raise ValueError("Resolved file has no id")
     ext = FORMAT_EXTENSIONS[fmt]
     stamp = _uploaded_time_key(file_obj).replace(":", "-")
-    return _module_cache_dir() / f"{file_id}_{stamp}.{ext}"
+    file_id = getattr(file_obj, "id", None)
+    if file_id is not None:
+        return _module_cache_dir() / f"{file_id}_{stamp}.{ext}"
+    instance_id = getattr(file_obj, "instance_id", None)
+    if instance_id is not None:
+        inst_ext = getattr(instance_id, "external_id", None) or getattr(instance_id, "externalId", None)
+        space = getattr(instance_id, "space", None)
+        if inst_ext and space:
+            safe = f"{space}_{inst_ext}".replace("/", "_")
+            return _module_cache_dir() / f"{safe}_{stamp}.{ext}"
+    raise ValueError("Resolved file has no id")
 
 
 def _download_to_cache(client: Any, file_obj: Any, fmt: FileContentFormat) -> Path:
@@ -147,11 +217,7 @@ def _download_to_cache(client: Any, file_obj: Any, fmt: FileContentFormat) -> Pa
     if path.is_file() and path.stat().st_size > 0:
         return path
 
-    file_id = getattr(file_obj, "id", None)
-    if file_id is None:
-        raise ValueError("Resolved file has no id")
-
-    data = client.files.download_bytes(id=int(file_id))
+    data = download_bytes_for_file(client, file_obj)
     size = len(data)
     max_bytes = _max_download_bytes()
     if size > max_bytes:
@@ -225,13 +291,17 @@ def run_file_content_sql(
     limit: int = 100,
     file_id: Optional[int] = None,
     file_external_id: Optional[str] = None,
+    file_instance_space: Optional[str] = None,
     fmt: Optional[FileContentFormat] = None,
     convert_to_string: bool = True,
 ) -> Dict[str, Any]:
     validate_select_only_query(query)
 
     file_obj = resolve_cdf_file(
-        client, file_id=file_id, file_external_id=file_external_id
+        client,
+        file_id=file_id,
+        file_external_id=file_external_id,
+        file_instance_space=file_instance_space,
     )
     _ensure_uploaded(file_obj)
 

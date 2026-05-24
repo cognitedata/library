@@ -24,6 +24,8 @@ type Props = {
   exportFormatLabel: Record<QueryExportFormat, string>;
   queryFileLabel: string;
   canQueryFile: boolean;
+  canDownloadFile: boolean;
+  downloading: boolean;
   hasResults: boolean;
   onCopyRow: () => void;
   onCopyCell: () => void;
@@ -34,6 +36,7 @@ type Props = {
   onClearSort: () => void;
   onExport: (format: QueryExportFormat) => void;
   onQueryFile: () => void;
+  onDownloadFile: () => void;
   exporting: boolean;
 };
 
@@ -66,6 +69,8 @@ export function SqlResultsContextMenu({
   exportFormatLabel,
   queryFileLabel,
   canQueryFile,
+  canDownloadFile,
+  downloading,
   hasResults,
   onCopyRow,
   onCopyCell,
@@ -76,6 +81,7 @@ export function SqlResultsContextMenu({
   onClearSort,
   onExport,
   onQueryFile,
+  onDownloadFile,
   exporting,
 }: Props) {
   useEffect(() => {
@@ -127,6 +133,16 @@ export function SqlResultsContextMenu({
           label={queryFileLabel}
           onClick={() => {
             onQueryFile();
+            onClose();
+          }}
+        />
+      )}
+      {showRowActions && canDownloadFile && (
+        <MenuItem
+          label={downloading ? t("sql.downloadFileInProgress") : t("sql.downloadFile")}
+          disabled={downloading}
+          onClick={() => {
+            onDownloadFile();
             onClose();
           }}
         />

@@ -66,6 +66,14 @@ def _merge_props(
         return out
     px = str(right_prefix or "").strip()
     for k, v in right_props.items():
+        if k == "raw_columns" and isinstance(v, Mapping):
+            rc = copy.deepcopy(dict(v))
+            if px:
+                for ck, cv in rc.items():
+                    out[f"{px}{ck}"] = cv
+            else:
+                out["raw_columns"] = rc
+            continue
         nk = f"{px}{k}" if px else k
         out[nk] = v
     return out

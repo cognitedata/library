@@ -227,6 +227,7 @@ export async function runFileContentSqlQuery(
     format: "parquet" | "csv" | "json";
     file_id?: number;
     file_external_id?: string;
+    file_instance_space?: string;
     convert_to_string?: boolean;
   },
   opts?: { signal?: AbortSignal }
@@ -242,4 +243,69 @@ export async function runFileContentSqlQuery(
     throw new Error(String((errBody as { detail?: string }).detail ?? r.status));
   }
   return r.json() as Promise<SqlRunResult>;
+}
+
+export type FileDownloadRef = {
+  file_id?: number;
+  external_id?: string;
+  instance_space?: string;
+  name?: string;
+};
+
+function fileDownloadQuery(ref: FileDownloadRef): string {
+  const params = new URLSearchParams();
+  const instanceSpace = ref.instance_space?.trim();
+  const externalId = ref.external_id?.trim();
+  if (instanceSpace && externalId) {
+    params.set("file_instance_space", instanceSpace);
+    params.set("file_external_id", externalId);
+  } else if (ref.file_id != null) {
+    params.set("file_id", String(ref.file_id));
+    if (externalId) params.set("file_external_id", externalId);
+  } else if (externalId) {
+    params.set("file_external_id", externalId);
+  }
+  return params.toString();
+}
+
+export async function headFileDownload(
+  ref: FileDownloadRef,
+  opts?: { signal?: AbortSignal }
+): Promise<{ sizeBytes: number | undefined; filename: string }> {
+  const qs = fileDownloadQuery(ref);
+  if (!qs) throw new Error("file_id or file_external_id is required");
+  const r = await fetch(`${API}/api/cdf/files/download?${qs}`, {
+    method: "HEAD",
+    signal: opts?.signal,
+  });
+  if (!r.ok) {
+    const body = await r.json().catch(() => ({}));
+    throw new Error(String((body as { detail?: string }).detail ?? r.status));
+  }
+  return {
+    sizeBytes: (() => {
+      const raw = r.headers.get("Content-Length");
+      if (raw == null || raw.trim() === "") return undefined;
+      const n = Number(raw.trim());
+      return Number.isFinite(n) && n >= 0 ? Math.trunc(n) : undefined;
+    })(),
+    filename: r.headers.get("X-File-Name")?.trim() || ref.name?.trim() || "download",
+  };
+}
+
+export async function downloadFileBlob(
+  ref: FileDownloadRef,
+  opts?: { signal?: AbortSignal }
+): Promise<Blob> {
+  const qs = fileDownloadQuery(ref);
+  if (!qs) throw new Error("file_id or file_external_id is required");
+  const r = await fetch(`${API}/api/cdf/files/download?${qs}`, {
+    method: "GET",
+    signal: opts?.signal,
+  });
+  if (!r.ok) {
+    const body = await r.json().catch(() => ({}));
+    throw new Error(String((body as { detail?: string }).detail ?? r.status));
+  }
+  return r.blob();
 }

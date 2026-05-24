@@ -40,6 +40,29 @@ def test_detect_format_from_metadata():
     assert file_content_query.detect_format_from_metadata(pdf) is None
 
 
+def test_resolve_cdf_file_by_instance():
+    from cognite.client.data_classes.data_modeling import NodeId
+
+    file_obj = MagicMock(id=55, uploaded=True)
+    client = MagicMock()
+    client.files.retrieve.return_value = file_obj
+
+    out = file_content_query.resolve_cdf_file(
+        client, file_instance_space="cdf_cdm", file_external_id="my-drawing"
+    )
+    assert out is file_obj
+    client.files.retrieve.assert_called_once_with(
+        instance_id=NodeId("cdf_cdm", "my-drawing")
+    )
+
+
+def test_resolve_cdf_file_not_found():
+    client = MagicMock()
+    client.files.retrieve.return_value = None
+    with pytest.raises(ValueError, match="File not found"):
+        file_content_query.resolve_cdf_file(client, file_id=404)
+
+
 def test_run_file_content_sql_csv(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     csv_path = tmp_path / "sample.csv"
     csv_path.write_text("id,name\n1,alpha\n2,beta\n", encoding="utf-8")
