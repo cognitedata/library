@@ -115,11 +115,6 @@
   position: relative;
 }
 
-.disc-main--panel-drag .disc-split-h {
-  pointer-events: none;
-  user-select: none;
-}
-
 .disc-split-h {
   display: flex;
   flex: 1;

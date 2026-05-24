@@ -67,6 +67,7 @@ export function useDiscoveryPanelLayout() {
   );
   const [propertiesCollapsed, setPropertiesCollapsed] = useState(stored.propertiesCollapsed === true);
   const [draggingPanel, setDraggingPanel] = useState<DraggablePanel | null>(null);
+  const dragFrameRef = useRef<number | null>(null);
 
   const hydrated = useRef(false);
 
@@ -218,10 +219,22 @@ export function useDiscoveryPanelLayout() {
   }, []);
 
   const beginPanelDrag = useCallback((panel: DraggablePanel) => {
-    setDraggingPanel(panel);
+    // Defer overlay updates until after dragstart completes.
+    // Synchronous setState during dragstart can cancel HTML5 drag in some browsers.
+    if (dragFrameRef.current != null) {
+      cancelAnimationFrame(dragFrameRef.current);
+    }
+    dragFrameRef.current = requestAnimationFrame(() => {
+      dragFrameRef.current = null;
+      setDraggingPanel(panel);
+    });
   }, []);
 
   const endPanelDrag = useCallback(() => {
+    if (dragFrameRef.current != null) {
+      cancelAnimationFrame(dragFrameRef.current);
+      dragFrameRef.current = null;
+    }
     setDraggingPanel(null);
   }, []);
 

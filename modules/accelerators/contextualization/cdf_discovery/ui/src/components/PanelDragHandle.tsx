@@ -18,7 +18,7 @@ export function panelDragMimeType(): string {
 }
 
 export function readPanelDragData(dataTransfer: DataTransfer): DraggablePanel | null {
-  const raw = dataTransfer.getData(PANEL_MIME);
+  const raw = dataTransfer.getData(PANEL_MIME) || dataTransfer.getData("text/plain");
   return raw === "tree" || raw === "properties" ? raw : null;
 }
 
@@ -27,6 +27,7 @@ export function PanelDragHandle({ panel, labelKey = "layout.dragHandle", onDragS
 
   const handleDragStart = (e: DragEvent<HTMLSpanElement>) => {
     e.dataTransfer.setData(PANEL_MIME, panel);
+    e.dataTransfer.setData("text/plain", panel);
     e.dataTransfer.effectAllowed = "move";
     onDragStart?.(panel);
   };
