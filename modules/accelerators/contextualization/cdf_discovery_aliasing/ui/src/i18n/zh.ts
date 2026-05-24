@@ -640,6 +640,10 @@ export const zh: Messages = {
   "validationEditor.rule.modifierOffset": "offset（加到置信度）",
   "validationEditor.rule.modifierExplicit": "explicit（设置置信度）",
   "validationEditor.rule.modifierValue": "值",
+  "validationEditor.rule.enableNoMatchModifier": "Apply modifier when match fails",
+  "validationEditor.rule.noMatchModifierHint":
+    "Runs when none of this rule's patterns or keywords match. Use for penalties on non-compliant tags without a catch-all regex.",
+  "validationEditor.rule.noMatchModifierMode": "No-match modifier",
   "validationEditor.orderSetsPriority": "列表顺序决定求值顺序。拖动卡片或使用 ↑ / ↓（若填写了数字优先级仍适用）。",
   "validationEditor.rule.addRule": "添加规则",
   "pipelineSteps.executionMode": "Execution mode",

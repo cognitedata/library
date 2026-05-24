@@ -640,6 +640,10 @@ export const ar: Messages = {
   "validationEditor.rule.modifierOffset": "إزاحة (إضافة إلى الثقة)",
   "validationEditor.rule.modifierExplicit": "صريح (ضبط الثقة)",
   "validationEditor.rule.modifierValue": "قيمة",
+  "validationEditor.rule.enableNoMatchModifier": "Apply modifier when match fails",
+  "validationEditor.rule.noMatchModifierHint":
+    "Runs when none of this rule's patterns or keywords match. Use for penalties on non-compliant tags without a catch-all regex.",
+  "validationEditor.rule.noMatchModifierMode": "No-match modifier",
   "validationEditor.orderSetsPriority": "ترتيب القائمة يحدد ترتيب التقييم. اسحب البطاقة أو استخدم ↑ / ↓ (الأولوية الرقمية لكل قاعدة تظل سارية عند وجودها).",
   "validationEditor.rule.addRule": "أضف القاعدة",
   "pipelineSteps.executionMode": "Execution mode",

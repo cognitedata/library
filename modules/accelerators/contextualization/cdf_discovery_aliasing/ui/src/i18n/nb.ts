@@ -639,6 +639,10 @@ export const nb: Messages = {
   "validationEditor.rule.modifierOffset": "offset (legg til tillit)",
   "validationEditor.rule.modifierExplicit": "explicit (sett tillit)",
   "validationEditor.rule.modifierValue": "Verdi",
+  "validationEditor.rule.enableNoMatchModifier": "Apply modifier when match fails",
+  "validationEditor.rule.noMatchModifierHint":
+    "Runs when none of this rule's patterns or keywords match. Use for penalties on non-compliant tags without a catch-all regex.",
+  "validationEditor.rule.noMatchModifierMode": "No-match modifier",
   "validationEditor.orderSetsPriority": "Liste rekkefølge bestemmer evalueringsrekkefølge. Dra kort eller bruk ↑ / ↓ (numerisk prioritet på hver regel gjelder fortsatt når den er satt).",
   "validationEditor.rule.addRule": "Legg til regel",
   "pipelineSteps.executionMode": "Execution mode",

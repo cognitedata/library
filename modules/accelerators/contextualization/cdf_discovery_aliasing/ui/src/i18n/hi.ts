@@ -640,6 +640,10 @@ export const hi: Messages = {
   "validationEditor.rule.modifierOffset": "offset (विश्वास में जोड़ें)",
   "validationEditor.rule.modifierExplicit": "explicit (विश्वास सेट करें)",
   "validationEditor.rule.modifierValue": "मान",
+  "validationEditor.rule.enableNoMatchModifier": "Apply modifier when match fails",
+  "validationEditor.rule.noMatchModifierHint":
+    "Runs when none of this rule's patterns or keywords match. Use for penalties on non-compliant tags without a catch-all regex.",
+  "validationEditor.rule.noMatchModifierMode": "No-match modifier",
   "validationEditor.orderSetsPriority": "सूची क्रम मूल्यांकन क्रम निर्धारित करता है। कार्ड खींचें या ↑ / ↓ (संख्यात्मक प्राथमिकता अभी भी लागू जब मौजूद)।",
   "validationEditor.rule.addRule": "नियम जोड़ें",
   "pipelineSteps.executionMode": "Execution mode",

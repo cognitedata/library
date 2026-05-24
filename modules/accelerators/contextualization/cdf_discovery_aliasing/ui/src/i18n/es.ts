@@ -639,6 +639,10 @@ export const es: Messages = {
   "validationEditor.rule.modifierOffset": "offset (sumar a la confianza)",
   "validationEditor.rule.modifierExplicit": "explicit (fijar confianza)",
   "validationEditor.rule.modifierValue": "Valor",
+  "validationEditor.rule.enableNoMatchModifier": "Apply modifier when match fails",
+  "validationEditor.rule.noMatchModifierHint":
+    "Runs when none of this rule's patterns or keywords match. Use for penalties on non-compliant tags without a catch-all regex.",
+  "validationEditor.rule.noMatchModifierMode": "No-match modifier",
   "validationEditor.orderSetsPriority": "El orden de la lista define el orden de evaluación. Arrastre una tarjeta o use ↑ / ↓ (la prioridad numérica de cada regla sigue aplicándose si está definida).",
   "validationEditor.rule.addRule": "Añadir regla",
   "pipelineSteps.executionMode": "Execution mode",

@@ -167,6 +167,46 @@ class TestApplyRulesChaining(unittest.TestCase):
             },
         )
 
+    def test_on_no_match_applies_when_patterns_miss(self):
+        rules = [
+            {
+                "name": "isa",
+                "match": {"expressions": [r"^P-\d+$"], "keywords": []},
+                "confidence_modifier": {"mode": "explicit", "value": 1.0},
+                "on_no_match": {
+                    "confidence_modifier": {"mode": "offset", "value": -0.2},
+                },
+            },
+        ]
+        isa_out = apply_confidence_match_rules_to_float_scores(
+            [("P-101", 1.0)], rules_raw=rules
+        )
+        non_isa_out = apply_confidence_match_rules_to_float_scores(
+            [("RANDOM", 1.0)], rules_raw=rules
+        )
+        self.assertAlmostEqual(isa_out[0][1], 1.0, places=4)
+        self.assertAlmostEqual(non_isa_out[0][1], 0.8, places=4)
+
+    def test_on_no_match_explicit_stops_chain(self):
+        rules = [
+            {
+                "name": "isa",
+                "match": {"expressions": [r"^P-\d+$"], "keywords": []},
+                "on_no_match": {
+                    "confidence_modifier": {"mode": "explicit", "value": 0.3},
+                },
+            },
+            {
+                "name": "penalty",
+                "match": {"expressions": [".*"], "keywords": []},
+                "confidence_modifier": {"mode": "offset", "value": -0.5},
+            },
+        ]
+        out = apply_confidence_match_rules_to_float_scores(
+            [("RANDOM", 1.0)], rules_raw=rules
+        )
+        self.assertAlmostEqual(out[0][1], 0.3, places=4)
+
 
 if __name__ == "__main__":
     unittest.main()

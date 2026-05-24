@@ -16,6 +16,9 @@ export type MatchRuleDefinition = {
   expressions: Array<{ pattern: string; description: string }>;
   modMode: ModMode;
   modValue: string;
+  noMatchEnabled: boolean;
+  noMatchModMode: ModMode;
+  noMatchModValue: string;
 };
 
 export function parseExpressionMatch(v: unknown): ExpressionMatchOpt {
@@ -71,6 +74,20 @@ export function parseMatchRuleDefinitionsArray(raw: unknown): MatchRuleDefinitio
       modMode = cmo.mode === "explicit" ? "explicit" : "offset";
       modValue = String(cmo.value ?? "0");
     }
+    const nm = rule.on_no_match;
+    let noMatchEnabled = false;
+    let noMatchModMode: ModMode = "offset";
+    let noMatchModValue = "0";
+    if (nm !== null && typeof nm === "object" && !Array.isArray(nm)) {
+      const nmo = nm as JsonObject;
+      const ncm = nmo.confidence_modifier;
+      if (ncm !== null && typeof ncm === "object" && !Array.isArray(ncm)) {
+        const ncmo = ncm as JsonObject;
+        noMatchEnabled = true;
+        noMatchModMode = ncmo.mode === "explicit" ? "explicit" : "offset";
+        noMatchModValue = String(ncmo.value ?? "0");
+      }
+    }
     return {
       name: ruleNameOrDefault(String(rule.name ?? ""), i + 1),
       enabled: rule.enabled !== false,
@@ -80,6 +97,9 @@ export function parseMatchRuleDefinitionsArray(raw: unknown): MatchRuleDefinitio
       expressions,
       modMode,
       modValue,
+      noMatchEnabled,
+      noMatchModMode,
+      noMatchModValue,
     };
   });
 }
@@ -119,6 +139,14 @@ export function serializeMatchRuleDefinitionsArray(rules: MatchRuleDefinition[])
     };
     if (pr !== undefined) out.priority = pr;
     if (r.expressionMatch) out.expression_match = r.expressionMatch;
+    if (r.noMatchEnabled) {
+      out.on_no_match = {
+        confidence_modifier: {
+          mode: r.noMatchModMode,
+          value: Number(r.noMatchModValue) || 0,
+        },
+      };
+    }
     return out;
   });
 }
@@ -138,6 +166,9 @@ export function defaultMatchRuleDefinition(existing: MatchRuleDefinition[]): Mat
     expressions: [{ pattern: "", description: "" }],
     modMode: "offset",
     modValue: "0",
+    noMatchEnabled: false,
+    noMatchModMode: "offset",
+    noMatchModValue: "0",
   };
 }
 

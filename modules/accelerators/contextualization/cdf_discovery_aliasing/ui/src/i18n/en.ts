@@ -744,6 +744,10 @@ export const en: Messages = {
   "validationEditor.rule.modifierOffset": "offset (add to confidence)",
   "validationEditor.rule.modifierExplicit": "explicit (set confidence)",
   "validationEditor.rule.modifierValue": "Value",
+  "validationEditor.rule.enableNoMatchModifier": "Apply modifier when match fails",
+  "validationEditor.rule.noMatchModifierHint":
+    "Runs when none of this rule's patterns or keywords match. Use for penalties on non-compliant tags without a catch-all regex.",
+  "validationEditor.rule.noMatchModifierMode": "No-match modifier",
   "validationEditor.orderSetsPriority":
     "List order sets evaluation order. Drag a card or use ↑ / ↓ (numeric priority on each rule still applies when present).",
   "validationEditor.rule.addRule": "Add rule",

@@ -37,14 +37,14 @@ canvas:
   - id: en
     kind: end
     position:
-      x: 1676
+      x: 1898
       y: -30.5
     data: {}
   - id: ii
     kind: inverted_index
     position:
-      x: 1214
-      y: -111.5
+      x: 1468
+      y: -95
     data:
       label: Inverted index
       handler_family: discovery
@@ -145,12 +145,13 @@ canvas:
       label: Asset validation — ISA → shape → blacklist
       handler_family: discovery
       config:
-        description: CogniteAsset tag validation — ISA, alias shape, blacklist (ordered
-          multi-step)
         execution:
           mode: ordered
+        description: CogniteAsset tag validation — ISA, alias shape, blacklist (ordered
+          multi-step)
+        min_confidence: 0.5
         steps:
-        - name: whitelist
+        - name: isa_compliant
           enabled: true
           match:
             expressions:
@@ -195,22 +196,12 @@ canvas:
             mode: explicit
             value: 1
           priority: 10
-        - name: not_isa_penalty
-          enabled: true
-          match:
-            expressions:
-            - pattern: (?s).*
-              description: Catch-all when no higher-priority rule matched; applies
-                non-ISA penalty
-            keywords: []
-          confidence_modifier:
-            mode: offset
-            value: -0.2
-          priority: 1000
+          on_no_match:
+            confidence_modifier:
+              mode: offset
+              value: -0.2
         - name: alias_shape_invalid
           enabled: true
-          priority: 0
-          expression_match: fullmatch
           match:
             expressions:
             - pattern: ^[0-9]{0,3}$
@@ -221,13 +212,16 @@ canvas:
             - pattern: '[^A-Za-z0-9-_/. ]'
               description: Character outside allowed set (letters, digits, _ / . -
                 and space)
+            keywords: []
           confidence_modifier:
             mode: explicit
             value: 0
+          priority: 0
+          expression_match: fullmatch
         - name: blacklist
           enabled: true
-          priority: 10
           match:
+            expressions: []
             keywords:
             - test
             - example
@@ -243,12 +237,12 @@ canvas:
           confidence_modifier:
             mode: explicit
             value: 0
-        min_confidence: 0.5
+          priority: 10
   - id: n_1778877478650_28ig3bla
     kind: join
     position:
-      x: 463.0596218244474
-      y: -169.8824527280559
+      x: 452
+      y: -168.5
     data:
       label: 'Aliases: Mapping Table Join (RAW)'
       handler_family: discovery
@@ -349,7 +343,7 @@ canvas:
         execution:
           mode: ordered
         steps:
-        - name: whitelist
+        - name: isa_compliant
           enabled: true
           match:
             expressions:
@@ -393,19 +387,11 @@ canvas:
           confidence_modifier:
             mode: explicit
             value: 1
+          on_no_match:
+            confidence_modifier:
+              mode: offset
+              value: -0.2
           priority: 10
-        - name: not_isa_penalty
-          enabled: true
-          match:
-            expressions:
-            - pattern: (?s).*
-              description: Catch-all when no higher-priority rule matched; applies
-                non-ISA penalty
-            keywords: []
-          confidence_modifier:
-            mode: offset
-            value: -0.2
-          priority: 1000
         - name: alias_shape_invalid
           enabled: true
           priority: 0
@@ -447,7 +433,7 @@ canvas:
     kind: confidence_filter
     position:
       x: 1214
-      y: 1.5
+      y: -111.5
     data:
       label: Confidence filter for inverted index
       handler_family: discovery
@@ -457,6 +443,38 @@ canvas:
         min_confidence: 0.8
         comparison: gte
         drop_row_if_empty: true
+  - id: n_1779632806289_hzrilpb4
+    kind: instance_filter
+    position:
+      x: 1214
+      y: 34.5
+    data:
+      label: Instance filter
+      handler_family: discovery
+      preset_from_palette: true
+      config:
+        description: Instance filter
+        filters:
+        - operator: EXISTS
+          target_property: indexKey
+          property_scope: view
+          values: []
+  - id: n_1779632829966_dihd4sjj
+    kind: instance_filter
+    position:
+      x: 1468
+      y: 18
+    data:
+      label: Instance filter
+      handler_family: discovery
+      preset_from_palette: true
+      config:
+        description: Instance filter
+        filters:
+        - operator: EXISTS
+          target_property: aliases
+          property_scope: view
+          values: []
   - id: st
     kind: start
     position:
@@ -635,7 +653,7 @@ canvas:
   - id: vs
     kind: save_view
     position:
-      x: 1468
+      x: 1690
       y: -38.5
     data:
       config:
@@ -807,21 +825,9 @@ canvas:
     source_handle: out
     target_handle: in
     kind: data
-  - id: xy-edge__cf_iiout-iiin
-    source: cf_ii
-    target: ii
-    source_handle: out
-    target_handle: in
-    kind: data
   - id: xy-edge__n_1779138030450_ilvkx2u7out-n_1779401605162_hg11jjx2in
     source: n_1779138030450_ilvkx2u7
     target: n_1779401605162_hg11jjx2
-    source_handle: out
-    target_handle: in
-    kind: data
-  - id: xy-edge__n_1779401605162_hg11jjx2out-vsin
-    source: n_1779401605162_hg11jjx2
-    target: vs
     source_handle: out
     target_handle: in
     kind: data
@@ -840,6 +846,30 @@ canvas:
   - id: xy-edge__vq_assetout-n_1779138030450_ilvkx2u7in
     source: vq_asset
     target: n_1779138030450_ilvkx2u7
+    source_handle: out
+    target_handle: in
+    kind: data
+  - id: xy-edge__cf_iiout-n_1779632806289_hzrilpb4in
+    source: cf_ii
+    target: n_1779632806289_hzrilpb4
+    source_handle: out
+    target_handle: in
+    kind: data
+  - id: xy-edge__n_1779632806289_hzrilpb4out-iiin
+    source: n_1779632806289_hzrilpb4
+    target: ii
+    source_handle: out
+    target_handle: in
+    kind: data
+  - id: xy-edge__n_1779401605162_hg11jjx2out-n_1779632829966_dihd4sjjin
+    source: n_1779401605162_hg11jjx2
+    target: n_1779632829966_dihd4sjj
+    source_handle: out
+    target_handle: in
+    kind: data
+  - id: xy-edge__n_1779632829966_dihd4sjjout-vsin
+    source: n_1779632829966_dihd4sjj
+    target: vs
     source_handle: out
     target_handle: in
     kind: data

@@ -4,6 +4,9 @@ Shared validation_rules evaluation for key discovery and aliasing.
 Resolves expression_match per rule (rule -> validation default -> search).
 offset modifiers chain; explicit modifier then stops further rules for that value.
 
+Each rule may set ``confidence_modifier`` (or ``on_match.confidence_modifier``) when
+``match`` succeeds, and ``on_no_match.confidence_modifier`` when it does not.
+
 ``validation_rules`` is a **hierarchy**:
 
 - A **top-level YAML list** is an **ordered** pipeline (strict list order).
@@ -24,15 +27,17 @@ from typing import Any, Callable, List, Optional, Sequence, Tuple
 
 ExpressionMatchMode = str  # "search" | "fullmatch"
 
+ModifierPair = Tuple[str, float]  # (mode, value)
+
 RuntimeRule = Tuple[
     int,
     int,
     Optional[str],
     List[re.Pattern],
     List[str],
-    str,
-    float,
     ExpressionMatchMode,
+    Optional[ModifierPair],
+    Optional[ModifierPair],
 ]
 
 
@@ -129,6 +134,48 @@ def apply_confidence_modifier_value(confidence: float, mode: str, value: float) 
     return max(0.0, min(1.0, out))
 
 
+def _parse_confidence_modifier_block(raw: Any) -> Optional[ModifierPair]:
+    if not isinstance(raw, dict):
+        if hasattr(raw, "model_dump"):
+            raw = raw.model_dump(mode="python")
+        elif isinstance(raw, SimpleNamespace):
+            raw = vars(raw)
+        else:
+            return None
+    mode = raw.get("mode")
+    if mode not in ("explicit", "offset"):
+        return None
+    try:
+        value = float(raw.get("value", 0.0))
+    except (TypeError, ValueError):
+        return None
+    return (str(mode), value)
+
+
+def _resolve_rule_modifiers(rd: dict) -> Tuple[Optional[ModifierPair], Optional[ModifierPair]]:
+    """
+    Return ``(on_match, on_no_match)`` modifier pairs for a rule.
+
+    ``confidence_modifier`` (legacy) and ``on_match.confidence_modifier`` apply when
+    the rule's ``match`` succeeds; ``on_no_match.confidence_modifier`` applies when it
+    does not.
+    """
+    on_match: Optional[ModifierPair] = None
+    on_match_block = rd.get("on_match")
+    if isinstance(on_match_block, dict):
+        on_match = _parse_confidence_modifier_block(on_match_block.get("confidence_modifier"))
+    if on_match is None:
+        on_match = _parse_confidence_modifier_block(rd.get("confidence_modifier"))
+
+    on_no_match: Optional[ModifierPair] = None
+    on_no_match_block = rd.get("on_no_match")
+    if isinstance(on_no_match_block, dict):
+        on_no_match = _parse_confidence_modifier_block(
+            on_no_match_block.get("confidence_modifier")
+        )
+    return on_match, on_no_match
+
+
 def _hierarchy_children_list(hi: Any) -> Optional[List[Any]]:
     if not isinstance(hi, dict):
         return None
@@ -149,6 +196,8 @@ _SHORTHAND_EXCLUDE_KEYS = frozenset(
         "priority",
         "expression_match",
         "confidence_modifier",
+        "on_match",
+        "on_no_match",
         "pipeline_input",
         "pipeline_output",
     }
@@ -266,6 +315,7 @@ def build_sorted_confidence_runtime(
             match = vars(match)
         exprs = expression_items_to_pattern_strings(match.get("expressions"))
         kws = [k for k in (match.get("keywords") or []) if str(k).strip()]
+        on_match_mod, on_no_match_mod = _resolve_rule_modifiers(rd)
         if not exprs and not kws:
             if log_verbose:
                 log_verbose(
@@ -273,26 +323,11 @@ def build_sorted_confidence_runtime(
                     "Skipping confidence_match_rule with empty match (no expressions or keywords)",
                 )
             continue
-        mod = rd.get("confidence_modifier") or {}
-        if hasattr(mod, "model_dump"):
-            mod = mod.model_dump(mode="python")
-        elif isinstance(mod, SimpleNamespace):
-            mod = vars(mod)
-        mode = mod.get("mode")
-        if mode not in ("explicit", "offset"):
+        if on_match_mod is None and on_no_match_mod is None:
             if log_warning:
                 log_warning(
                     f"Skipping confidence_match_rule {rd.get('name', idx)!r}: "
-                    f"invalid confidence_modifier.mode {mode!r}"
-                )
-            continue
-        try:
-            mod_val = float(mod.get("value", 0.0))
-        except (TypeError, ValueError):
-            if log_warning:
-                log_warning(
-                    f"Skipping confidence_match_rule {rd.get('name', idx)!r}: "
-                    "invalid confidence_modifier.value"
+                    "no confidence_modifier, on_match, or on_no_match"
                 )
             continue
         pri = rd.get("priority")
@@ -310,7 +345,9 @@ def build_sorted_confidence_runtime(
                     )
         expr_mode = resolve_expression_match_for_rule(rd, default_expression_match)
         name = rd.get("name")
-        runtime.append((int(pri), idx, name, compiled, kws, mode, mod_val, expr_mode))
+        runtime.append(
+            (int(pri), idx, name, compiled, kws, expr_mode, on_match_mod, on_no_match_mod)
+        )
     order = str(rules_order or "priority").strip().lower()
     if order == "list":
         runtime.sort(key=lambda t: (t[1],))
@@ -328,20 +365,25 @@ def _apply_runtime_to_item(
     log_verbose: Optional[Callable[[str, str], None]],
 ) -> bool:
     """Apply sorted runtime rules to one item. Returns True if ``explicit`` stopped the chain."""
-    for _pri, _idx, name, compiled, kws, mod_mode, mod_val, expr_mode in runtime:
+    for _pri, _idx, name, compiled, kws, expr_mode, on_match_mod, on_no_match_mod in runtime:
         val = getattr(item, value_attr, None)
         if val is None:
             continue
         key_value = str(val)
-        if not value_matches_confidence_rule(key_value, compiled, kws, expr_mode):
+        matched = value_matches_confidence_rule(key_value, compiled, kws, expr_mode)
+        mod = on_match_mod if matched else on_no_match_mod
+        if mod is None:
             continue
+        mod_mode, mod_val = mod
         cur = float(getattr(item, confidence_attr, 0.0) or 0.0)
         new_c = apply_confidence_modifier_value(cur, mod_mode, mod_val)
         setattr(item, confidence_attr, new_c)
         if log_verbose:
+            branch = "match" if matched else "no_match"
             log_verbose(
                 "DEBUG",
-                f"confidence_match_rule {name or _idx!r} applied to key {key_value!r} -> {new_c:.4f}",
+                f"confidence_match_rule {name or _idx!r} ({branch}) applied to key "
+                f"{key_value!r} -> {new_c:.4f}",
             )
         if mod_mode == "explicit":
             return True

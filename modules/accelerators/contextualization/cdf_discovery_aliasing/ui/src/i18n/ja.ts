@@ -639,6 +639,10 @@ export const ja: Messages = {
   "validationEditor.rule.modifierOffset": "offset（信頼度に加算）",
   "validationEditor.rule.modifierExplicit": "explicit（信頼度を設定）",
   "validationEditor.rule.modifierValue": "値",
+  "validationEditor.rule.enableNoMatchModifier": "Apply modifier when match fails",
+  "validationEditor.rule.noMatchModifierHint":
+    "Runs when none of this rule's patterns or keywords match. Use for penalties on non-compliant tags without a catch-all regex.",
+  "validationEditor.rule.noMatchModifierMode": "No-match modifier",
   "validationEditor.orderSetsPriority": "リストの順序が評価順です。カードをドラッグするか ↑ / ↓ を使います（各ルールの数値 priority は設定されている場合に適用されます）。",
   "validationEditor.rule.addRule": "ルールを追加",
   "pipelineSteps.executionMode": "Execution mode",

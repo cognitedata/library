@@ -59,6 +59,29 @@ def test_validate_row_blacklist_zeros_confidence() -> None:
     assert out["aliases_confidence"][1] == pytest.approx(0.0)
 
 
+def test_validate_row_isa_on_no_match_penalty() -> None:
+    cfg = {
+        "description": "isa",
+        "execution": {"mode": "ordered"},
+        "steps": [
+            {
+                "name": "isa",
+                "match": {"expressions": [r"^P-\d+$"], "keywords": []},
+                "confidence_modifier": {"mode": "explicit", "value": 1.0},
+                "on_no_match": {
+                    "confidence_modifier": {"mode": "offset", "value": -0.2},
+                },
+            },
+        ],
+        "validate_fields": ["aliases"],
+    }
+    rules = materialize_validation_rules(cfg)
+    isa_out = validate_row_properties({"aliases": ["P-101"]}, cfg, rules)
+    non_isa_out = validate_row_properties({"aliases": ["RANDOM-TAG"]}, cfg, rules)
+    assert isa_out["aliases_confidence"][0] == pytest.approx(1.0)
+    assert non_isa_out["aliases_confidence"][0] == pytest.approx(0.8)
+
+
 def test_validate_row_explicit_stops_chain() -> None:
     cfg = {
         "description": "isa",

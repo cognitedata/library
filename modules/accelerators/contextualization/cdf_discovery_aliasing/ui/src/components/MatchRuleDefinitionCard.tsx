@@ -211,6 +211,46 @@ export function MatchRuleDefinitionCard({
               />
             </label>
           </div>
+          <div style={{ marginTop: "0.75rem" }}>
+            <label className="discovery-label" style={{ flexDirection: "row", alignItems: "center", gap: "0.5rem", marginBottom: "0.35rem" }}>
+              <input
+                type="checkbox"
+                checked={rule.noMatchEnabled}
+                onChange={(e) => onChange({ ...rule, noMatchEnabled: e.target.checked })}
+              />
+              {t("validationEditor.rule.enableNoMatchModifier")}
+            </label>
+            {rule.noMatchEnabled && (
+              <>
+                <p className="discovery-hint" style={{ marginTop: 0, marginBottom: "0.35rem" }}>
+                  {t("validationEditor.rule.noMatchModifierHint")}
+                </p>
+                <div className="discovery-filter-row discovery-filter-row--pair discovery-filter-row--gap-md">
+                  <label className="discovery-label">
+                    {t("validationEditor.rule.noMatchModifierMode")}
+                    <select
+                      className="discovery-input"
+                      value={rule.noMatchModMode}
+                      onChange={(e) => onChange({ ...rule, noMatchModMode: e.target.value as ModMode })}
+                    >
+                      <option value="offset">{t("validationEditor.rule.modifierOffset")}</option>
+                      <option value="explicit">{t("validationEditor.rule.modifierExplicit")}</option>
+                    </select>
+                  </label>
+                  <label className="discovery-label">
+                    {t("validationEditor.rule.modifierValue")}
+                    <input
+                      className="discovery-input"
+                      type="number"
+                      step="any"
+                      value={rule.noMatchModValue}
+                      onChange={(e) => onChange({ ...rule, noMatchModValue: e.target.value })}
+                    />
+                  </label>
+                </div>
+              </>
+            )}
+          </div>
         </>
       )}
     </div>

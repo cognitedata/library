@@ -150,7 +150,7 @@ canvas:
         execution:
           mode: ordered
         steps:
-        - name: whitelist
+        - name: isa_compliant
           enabled: true
           match:
             expressions:
@@ -194,19 +194,11 @@ canvas:
           confidence_modifier:
             mode: explicit
             value: 1
+          on_no_match:
+            confidence_modifier:
+              mode: offset
+              value: -0.2
           priority: 10
-        - name: not_isa_penalty
-          enabled: true
-          match:
-            expressions:
-            - pattern: (?s).*
-              description: Catch-all when no higher-priority rule matched; applies
-                non-ISA penalty
-            keywords: []
-          confidence_modifier:
-            mode: offset
-            value: -0.2
-          priority: 1000
         - name: alias_shape_invalid
           enabled: true
           priority: 0
@@ -349,7 +341,7 @@ canvas:
         execution:
           mode: ordered
         steps:
-        - name: whitelist
+        - name: isa_compliant
           enabled: true
           match:
             expressions:
@@ -393,19 +385,11 @@ canvas:
           confidence_modifier:
             mode: explicit
             value: 1
+          on_no_match:
+            confidence_modifier:
+              mode: offset
+              value: -0.2
           priority: 10
-        - name: not_isa_penalty
-          enabled: true
-          match:
-            expressions:
-            - pattern: (?s).*
-              description: Catch-all when no higher-priority rule matched; applies
-                non-ISA penalty
-            keywords: []
-          confidence_modifier:
-            mode: offset
-            value: -0.2
-          priority: 1000
         - name: alias_shape_invalid
           enabled: true
           priority: 0

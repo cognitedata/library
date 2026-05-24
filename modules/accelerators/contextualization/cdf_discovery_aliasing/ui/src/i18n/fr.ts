@@ -640,6 +640,10 @@ export const fr: Messages = {
   "validationEditor.rule.modifierOffset": "offset (ajouter à la confiance)",
   "validationEditor.rule.modifierExplicit": "explicit (fixer la confiance)",
   "validationEditor.rule.modifierValue": "Valeur",
+  "validationEditor.rule.enableNoMatchModifier": "Apply modifier when match fails",
+  "validationEditor.rule.noMatchModifierHint":
+    "Runs when none of this rule's patterns or keywords match. Use for penalties on non-compliant tags without a catch-all regex.",
+  "validationEditor.rule.noMatchModifierMode": "No-match modifier",
   "validationEditor.orderSetsPriority": "L’ordre de la liste définit l’ordre d’évaluation. Faites glisser une carte ou utilisez ↑ / ↓ (la priorité numérique de chaque règle s’applique toujours si présente).",
   "validationEditor.rule.addRule": "Ajouter une règle",
   "pipelineSteps.executionMode": "Execution mode",

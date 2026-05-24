@@ -22,6 +22,8 @@ const SHORTHAND_EXCLUDE_KEYS = new Set([
   "priority",
   "expression_match",
   "confidence_modifier",
+  "on_match",
+  "on_no_match",
   "pipeline_input",
   "pipeline_output",
 ]);
