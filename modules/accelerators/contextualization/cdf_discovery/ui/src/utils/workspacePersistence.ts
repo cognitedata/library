@@ -38,6 +38,7 @@ export function openTargetFromSqlTabId(tabId: string) {
         view_space: parts[0],
         view_external_id: parts[1],
         view_version: parts.slice(2).join(":"),
+        instance_kind: "node" as const,
       };
     }
   }

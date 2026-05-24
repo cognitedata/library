@@ -1,6 +1,6 @@
-import type { OpenTarget } from "../types/discoveryNodes";
+import type { DmInstanceKind, OpenTarget } from "../types/discoveryNodes";
 
-export type DmInstanceKind = "node" | "edge";
+export type { DmInstanceKind };
 
 type Row = Record<string, unknown>;
 
@@ -19,7 +19,7 @@ function asString(value: unknown): string {
 }
 
 export function dmInstanceKindFromOpenTarget(target: OpenTarget): DmInstanceKind | null {
-  if (target.type === "dm_instances") return "node";
+  if (target.type === "dm_instances") return target.instance_kind;
   if (target.type === "fusion_dm_all") {
     return target.entity === "edges" ? "edge" : target.entity === "nodes" ? "node" : null;
   }

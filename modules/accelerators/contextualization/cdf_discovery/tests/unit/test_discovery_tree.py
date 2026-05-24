@@ -356,6 +356,7 @@ def test_list_children_fusion_space_views_and_containers():
             "external_id": "CogniteAsset",
             "version": "v1",
             "label": "CogniteAsset (v1)",
+            "instance_kind": "node",
         }
     ]
     container_rows = [
@@ -385,6 +386,7 @@ def test_list_children_fusion_space_views_and_containers():
         )
     assert views[0]["kind"] == "fusion_dm_view"
     assert views[0]["open_target"]["type"] == "dm_instances"
+    assert views[0]["open_target"]["instance_kind"] == "node"
     assert containers[0]["kind"] == "fusion_dm_container"
     assert containers[0]["open_target"]["view_external_id"] == "CogniteAsset"
 
@@ -429,6 +431,7 @@ def test_list_children_fusion_model_lists_views_like_data_branch():
     assert len(views) == 1
     assert views[0]["kind"] == "dm_view"
     assert views[0]["open_target"]["type"] == "dm_instances"
+    assert views[0]["open_target"]["instance_kind"] == "node"
     assert views[0]["open_target"]["view_external_id"] == "CogniteAsset"
 
 
@@ -478,6 +481,7 @@ def test_list_children_dm_model_lists_views_directly():
     assert views[0]["label"] == "CogniteAsset (v1)"
     assert views[0]["has_children"] is False
     assert views[0]["open_target"]["type"] == "dm_instances"
+    assert views[0]["open_target"]["instance_kind"] == "node"
     assert views[0]["open_target"]["view_external_id"] == "CogniteAsset"
 
 

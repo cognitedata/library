@@ -623,7 +623,7 @@ export function App() {
       : t("connection.loading");
 
   const shouldRenderSideColumn = (side: TreePanelSide): boolean => {
-    if (panel.treeSide === side && !panel.treeHidden) return true;
+    if (panel.treeSide === side) return true;
     if (panel.propertiesDock === "left-bottom" && panel.treeSide === side) return true;
     if (panel.propertiesDock === "right" && side === "right") return true;
     return false;
@@ -633,15 +633,24 @@ export function App() {
   const showRightColumn = shouldRenderSideColumn("right");
 
   const columnWidthForSide = (side: TreePanelSide): number => {
-    const hasTree = panel.treeSide === side && !panel.treeHidden;
-    if (hasTree) return panel.treeWidth;
+    const hasTree = panel.treeSide === side;
+    const treeExpanded = hasTree && !panel.treeCollapsed;
+    if (treeExpanded) return panel.treeWidth;
+    if (hasTree && panel.treeCollapsed) {
+      const hasStackedProps =
+        (panel.propertiesDock === "left-bottom" && panel.treeSide === side) ||
+        (panel.propertiesDock === "right" && side === "right");
+      if (hasStackedProps) return panel.treeWidth;
+      return panel.sideColumnWidth;
+    }
     if (panel.propertiesDock === "right" && side === "right") return panel.propertiesSize;
     return panel.sideColumnWidth;
   };
 
   const resizeHandlerForSide = (side: TreePanelSide) => {
-    const hasTree = panel.treeSide === side && !panel.treeHidden;
-    if (hasTree) return panel.onResizeTreeStart;
+    const hasTree = panel.treeSide === side;
+    const treeExpanded = hasTree && !panel.treeCollapsed;
+    if (treeExpanded) return panel.onResizeTreeStart;
     if (panel.propertiesDock === "right" && side === "right") return panel.onResizePropertiesSideStart;
     return panel.onResizeTreeStart;
   };
@@ -742,7 +751,9 @@ export function App() {
   );
 
   const renderTreePane = () => (
-    <aside className={`disc-tree-pane${panel.draggingPanel === "tree" ? " disc-panel--dragging" : ""}`}>
+    <aside
+      className={`disc-tree-pane${panel.treeCollapsed ? " disc-tree-pane--collapsed" : ""}${panel.draggingPanel === "tree" ? " disc-panel--dragging" : ""}`}
+    >
       <div className="disc-tree-pane-header">
         <PanelDragHandle
           panel="tree"
@@ -751,28 +762,35 @@ export function App() {
           onDragEnd={panel.endPanelDrag}
         />
         <span className="disc-tree-pane-header__title">{t("discovery.title")}</span>
+        <div className="disc-tree-pane-header__actions">
+          <button type="button" className="disc-btn" onClick={panel.toggleTreeCollapsed}>
+            {panel.treeCollapsed ? t("discovery.show") : t("discovery.collapse")}
+          </button>
+        </div>
       </div>
-      <ObjectDiscovery
-        refreshKey={refreshKey}
-        savedQueriesRevision={savedQueriesRevision}
-        governanceArtifactsRevision={governanceArtifactsRevision}
-        connectionLabel={connection ? `${connection.project}` : undefined}
-        selectedId={selectedNode?.id ?? null}
-        onSelectNode={(node) => {
-          setSelectedNode(node);
-          setRowDetail(null);
-          if (node && opensGovernanceTab(node)) {
-            openDiscoveryNode(node);
-          }
-        }}
-        onOpenNode={openDiscoveryNode}
-        onDeleteSavedQuery={deleteSavedQuery}
-      />
+      {!panel.treeCollapsed && (
+        <ObjectDiscovery
+          refreshKey={refreshKey}
+          savedQueriesRevision={savedQueriesRevision}
+          governanceArtifactsRevision={governanceArtifactsRevision}
+          connectionLabel={connection ? `${connection.project}` : undefined}
+          selectedId={selectedNode?.id ?? null}
+          onSelectNode={(node) => {
+            setSelectedNode(node);
+            setRowDetail(null);
+            if (node && opensGovernanceTab(node)) {
+              openDiscoveryNode(node);
+            }
+          }}
+          onOpenNode={openDiscoveryNode}
+          onDeleteSavedQuery={deleteSavedQuery}
+        />
+      )}
     </aside>
   );
 
   const renderSideColumn = (side: TreePanelSide) => {
-    const showTree = panel.treeSide === side && !panel.treeHidden;
+    const showTree = panel.treeSide === side;
     const showStackedProps = panel.propertiesDock === "left-bottom" && panel.treeSide === side;
     const showSideProps = panel.propertiesDock === "right" && side === "right";
     const columnWidth = columnWidthForSide(side);
@@ -785,7 +803,7 @@ export function App() {
         {showTree && renderTreePane()}
         {showStackedProps && (
           <>
-            {showTree && !panel.propertiesCollapsed && (
+            {showTree && !panel.treeCollapsed && !panel.propertiesCollapsed && (
               <div
                 className="disc-resize-handle-v"
                 role="separator"
@@ -798,7 +816,7 @@ export function App() {
         )}
         {showSideProps && (
           <>
-            {showTree && !panel.propertiesCollapsed && (
+            {showTree && !panel.treeCollapsed && !panel.propertiesCollapsed && (
               <div
                 className="disc-resize-handle-v"
                 role="separator"
@@ -823,9 +841,6 @@ export function App() {
     />
   );
 
-  const splitHiddenClass =
-    panel.treeHidden && panel.propertiesDock !== "left-bottom" ? " disc-split-h--tree-hidden" : "";
-
   return (
     <div className="disc-app">
       <header className="disc-toolbar">
@@ -837,14 +852,6 @@ export function App() {
         </button>
         <button type="button" className="disc-btn" onClick={openSqlWorkspace}>
           {t("toolbar.sqlQuery")}
-        </button>
-        <button
-          type="button"
-          className="disc-btn disc-btn--tree-toggle"
-          aria-pressed={!panel.treeHidden}
-          onClick={panel.toggleTreeHidden}
-        >
-          {panel.treeHidden ? t("discovery.toggleTreeShow") : t("discovery.toggleTreeHide")}
         </button>
         <div className="disc-toolbar__controls">
           <label className="disc-toolbar__control" title={t("controls.theme.tooltip")}>
@@ -872,7 +879,7 @@ export function App() {
       </header>
       {connError && <div className="disc-banner--error">{t("connection.failed", { detail: connError })}</div>}
       <div className={`disc-main${panel.draggingPanel ? " disc-main--panel-drag" : ""}`}>
-        <div className={`disc-split-h${splitHiddenClass}`}>
+        <div className="disc-split-h">
           {showLeftColumn && renderSideColumn("left")}
           {showLeftColumn && renderHorizontalResize("left")}
           <div className="disc-workspace">

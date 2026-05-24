@@ -352,12 +352,12 @@ def _dm_view_nodes_under_model(
                 label=f"{v['external_id']} ({v['version']})",
                 kind="dm_view",
                 has_children=False,
-                open_target={
-                    "type": "dm_instances",
-                    "view_space": v["space"],
-                    "view_external_id": v["external_id"],
-                    "view_version": v["version"],
-                },
+                open_target=cdf_browse.dm_instances_open_target(
+                    view_space=v["space"],
+                    view_external_id=v["external_id"],
+                    view_version=v["version"],
+                    instance_kind=v.get("instance_kind", "node"),
+                ),
                 meta={
                     **v,
                     "data_model_space": space,
@@ -394,12 +394,12 @@ def _fusion_dm_view_nodes(views: List[Dict[str, Any]], *, space: str) -> List[Tr
                 label=v["label"],
                 kind="fusion_dm_view",
                 has_children=False,
-                open_target={
-                    "type": "dm_instances",
-                    "view_space": v["space"],
-                    "view_external_id": v["external_id"],
-                    "view_version": v["version"],
-                },
+                open_target=cdf_browse.dm_instances_open_target(
+                    view_space=v["space"],
+                    view_external_id=v["external_id"],
+                    view_version=v["version"],
+                    instance_kind=v.get("instance_kind", "node"),
+                ),
                 meta={**v},
             )
         )
@@ -477,12 +477,12 @@ def _fusion_dm_view_nodes_under_model(
                 label=f"{v['external_id']} ({v['version']})",
                 kind="dm_view",
                 has_children=False,
-                open_target={
-                    "type": "dm_instances",
-                    "view_space": v["space"],
-                    "view_external_id": v["external_id"],
-                    "view_version": v["version"],
-                },
+                open_target=cdf_browse.dm_instances_open_target(
+                    view_space=v["space"],
+                    view_external_id=v["external_id"],
+                    view_version=v["version"],
+                    instance_kind=v.get("instance_kind", "node"),
+                ),
                 meta={
                     **v,
                     "data_model_space": space,

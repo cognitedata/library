@@ -1,3 +1,5 @@
+export type DmInstanceKind = "node" | "edge";
+
 export type OpenTarget =
   | { type: "classic_list"; resource_type: string }
   | {
@@ -5,6 +7,7 @@ export type OpenTarget =
       view_space: string;
       view_external_id: string;
       view_version: string;
+      instance_kind: DmInstanceKind;
     }
   | { type: "raw_rows"; database: string; table: string }
   | { type: "fusion_cdf"; resource: string }
@@ -44,6 +47,7 @@ export type DataModelGraphView = {
   version: string;
   name: string;
   property_count: number;
+  instance_kind: DmInstanceKind;
 };
 
 export type DataModelGraphEdge = {

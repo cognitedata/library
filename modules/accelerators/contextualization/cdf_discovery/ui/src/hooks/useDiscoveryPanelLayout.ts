@@ -9,6 +9,7 @@ const DEFAULT_TREE_WIDTH = 280;
 
 const PROPS_MIN = 80;
 const DEFAULT_PROPS_SIZE = 200;
+const TREE_COLLAPSED_COLUMN_WIDTH = 120;
 
 export type TreePanelSide = "left" | "right";
 export type PropertiesPanelDock = "left-bottom" | "bottom" | "right";
@@ -17,6 +18,7 @@ type StoredLayout = {
   treeSide?: TreePanelSide;
   treeWidth?: number;
   treeHidden?: boolean;
+  treeCollapsed?: boolean;
   propertiesDock?: PropertiesPanelDock;
   propertiesSize?: number;
   propertiesCollapsed?: boolean;
@@ -55,7 +57,9 @@ export function useDiscoveryPanelLayout() {
       ? clamp(stored.treeWidth, TREE_MIN, TREE_MAX)
       : DEFAULT_TREE_WIDTH
   );
-  const [treeHidden, setTreeHidden] = useState(stored.treeHidden === true);
+  const [treeCollapsed, setTreeCollapsed] = useState(
+    stored.treeCollapsed === true || stored.treeHidden === true
+  );
 
   const [propertiesDock, setPropertiesDock] = useState<PropertiesPanelDock>(
     isPropertiesDock(stored.propertiesDock) ? stored.propertiesDock : "left-bottom"
@@ -83,7 +87,7 @@ export function useDiscoveryPanelLayout() {
         JSON.stringify({
           treeSide,
           treeWidth,
-          treeHidden,
+          treeCollapsed,
           propertiesDock,
           propertiesSize,
           propertiesCollapsed,
@@ -92,11 +96,11 @@ export function useDiscoveryPanelLayout() {
     } catch {
       /* ignore */
     }
-  }, [treeSide, treeWidth, treeHidden, propertiesDock, propertiesSize, propertiesCollapsed]);
+  }, [treeSide, treeWidth, treeCollapsed, propertiesDock, propertiesSize, propertiesCollapsed]);
 
   useEffect(() => {
     const mq = window.matchMedia("(max-width: 900px)");
-    const apply = () => setTreeHidden(mq.matches);
+    const apply = () => setTreeCollapsed(mq.matches);
     apply();
     mq.addEventListener("change", apply);
     return () => mq.removeEventListener("change", apply);
@@ -115,7 +119,7 @@ export function useDiscoveryPanelLayout() {
   const onResizeTreeStart = useCallback(
     (e: React.MouseEvent) => {
       e.preventDefault();
-      if (treeHidden) return;
+      if (treeCollapsed) return;
       const startX = e.clientX;
       const startW = treeWidth;
       const onMove = (ev: MouseEvent) => {
@@ -133,7 +137,7 @@ export function useDiscoveryPanelLayout() {
       document.addEventListener("mousemove", onMove);
       document.addEventListener("mouseup", onUp);
     },
-    [treeHidden, treeSide, treeWidth, treeMaxWidth]
+    [treeCollapsed, treeSide, treeWidth, treeMaxWidth]
   );
 
   const onResizePropertiesBottomStart = useCallback(
@@ -214,8 +218,8 @@ export function useDiscoveryPanelLayout() {
     setPropertiesCollapsed((c) => !c);
   }, []);
 
-  const toggleTreeHidden = useCallback(() => {
-    setTreeHidden((h) => !h);
+  const toggleTreeCollapsed = useCallback(() => {
+    setTreeCollapsed((c) => !c);
   }, []);
 
   const beginPanelDrag = useCallback((panel: DraggablePanel) => {
@@ -249,24 +253,20 @@ export function useDiscoveryPanelLayout() {
   }, []);
 
   const sideColumnWidth =
-    propertiesDock === "left-bottom" && !treeHidden
+    propertiesDock === "left-bottom" && !treeCollapsed
       ? treeWidth
-      : treeHidden
+      : treeCollapsed
         ? propertiesDock === "left-bottom"
           ? Math.min(treeWidth, 320)
-          : 0
+          : TREE_COLLAPSED_COLUMN_WIDTH
         : treeWidth;
-
-  const showSideColumn =
-    (!treeHidden && (propertiesDock === "left-bottom" || treeSide === "left" || treeSide === "right")) ||
-    (treeHidden && propertiesDock === "left-bottom");
 
   return {
     treeSide,
     setTreeSide,
     treeWidth,
-    treeHidden,
-    toggleTreeHidden,
+    treeCollapsed,
+    toggleTreeCollapsed,
     onResizeTreeStart,
     propertiesDock,
     setPropertiesDock,
@@ -277,7 +277,6 @@ export function useDiscoveryPanelLayout() {
     onResizePropertiesStackedStart,
     onResizePropertiesSideStart,
     sideColumnWidth,
-    showSideColumn,
     treeMin: TREE_MIN,
     treeMax: TREE_MAX,
     propsMin: PROPS_MIN,

@@ -187,8 +187,37 @@ def test_dm_list_views_for_data_model_from_inline_views():
             "external_id": "CogniteAsset",
             "version": "v1",
             "name": "Asset",
+            "instance_kind": "node",
         }
     ]
+
+
+def test_view_instance_kind_from_used_for():
+    edge_view = MagicMock()
+    edge_view.usedFor = "edge"
+    assert cdf_browse._view_instance_kind(edge_view) == "edge"
+
+    node_view = MagicMock()
+    node_view.usedFor = "node"
+    assert cdf_browse._view_instance_kind(node_view) == "node"
+
+    default_view = MagicMock(spec=[])
+    assert cdf_browse._view_instance_kind(default_view) == "node"
+
+
+def test_dm_instances_open_target_edge():
+    assert cdf_browse.dm_instances_open_target(
+        view_space="cdf_cdm",
+        view_external_id="CogniteAnnotation",
+        view_version="v1",
+        instance_kind="edge",
+    ) == {
+        "type": "dm_instances",
+        "view_space": "cdf_cdm",
+        "view_external_id": "CogniteAnnotation",
+        "view_version": "v1",
+        "instance_kind": "edge",
+    }
 
 
 def test_list_transformations_maps_and_sorts():
@@ -441,6 +470,7 @@ def test_fusion_view_by_container_lookup_prefers_highest_version():
         "view_space": "s",
         "view_external_id": "V",
         "view_version": "v2",
+        "instance_kind": "node",
     }
 
 

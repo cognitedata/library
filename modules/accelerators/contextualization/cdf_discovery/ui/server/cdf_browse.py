@@ -137,6 +137,36 @@ def dm_list_spaces(client: Any, *, limit: int = 2000, include_global: bool = Fal
     return _ensure_native_cdf_cdm_space(names)
 
 
+def _view_instance_kind(view: Any) -> str:
+    used = getattr(view, "usedFor", None) or getattr(view, "used_for", None)
+    if used is not None and str(used).strip().lower() == "edge":
+        return "edge"
+    return "node"
+
+
+def _instance_kind_from_view_row(row: Mapping[str, str]) -> str:
+    kind = row.get("instance_kind") or row.get("usedFor") or row.get("used_for")
+    if kind is not None and str(kind).strip().lower() == "edge":
+        return "edge"
+    return "node"
+
+
+def dm_instances_open_target(
+    *,
+    view_space: str,
+    view_external_id: str,
+    view_version: str,
+    instance_kind: str = "node",
+) -> Dict[str, str]:
+    return {
+        "type": "dm_instances",
+        "view_space": view_space,
+        "view_external_id": view_external_id,
+        "view_version": view_version,
+        "instance_kind": "edge" if instance_kind == "edge" else "node",
+    }
+
+
 def _view_to_row(view: Any) -> Dict[str, str]:
     from cognite.client.data_classes.data_modeling.ids import ViewId
 
@@ -146,12 +176,14 @@ def _view_to_row(view: Any) -> Dict[str, str]:
             "external_id": view.external_id,
             "version": view.version,
             "name": "",
+            "instance_kind": "node",
         }
     return {
         "space": view.space,
         "external_id": view.external_id,
         "version": view.version,
         "name": (getattr(view, "name", None) or "").strip(),
+        "instance_kind": _view_instance_kind(view),
     }
 
 
@@ -311,6 +343,7 @@ def dm_data_model_graph(
                 "version": vk,
                 "name": (getattr(v, "name", None) or "").strip(),
                 "property_count": len(props),
+                "instance_kind": _view_instance_kind(v),
             }
         )
         for edge in _edges_from_view_properties(v, model_keys=model_keys):
@@ -450,6 +483,7 @@ def _dm_view_row(v: Any) -> Dict[str, str]:
         "version": ver,
         "name": name,
         "label": _discovery_resource_label(name=name or None, external_id=ext, id_val=ver),
+        "instance_kind": _view_instance_kind(v),
     }
 
 
@@ -742,12 +776,12 @@ def fusion_open_target_for_container(
     view = views_by_container_key.get(key)
     if view is None:
         return None
-    return {
-        "type": "dm_instances",
-        "view_space": view["space"],
-        "view_external_id": view["external_id"],
-        "view_version": view["version"],
-    }
+    return dm_instances_open_target(
+        view_space=view["space"],
+        view_external_id=view["external_id"],
+        view_version=view["version"],
+        instance_kind=_instance_kind_from_view_row(view),
+    )
 
 
 def raw_list_databases(client: Any, *, limit: int = 500) -> List[str]:

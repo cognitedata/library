@@ -42,8 +42,9 @@ export function sqlQueryForOpenTarget(target: OpenTarget): string | null {
     return `SELECT * FROM ${db}.${table}`;
   }
   if (target.type === "dm_instances") {
-    const { view_space, view_external_id, view_version } = target;
-    return `SELECT * FROM cdf_nodes(${sqlStringLiteral(view_space)}, ${sqlStringLiteral(
+    const { view_space, view_external_id, view_version, instance_kind } = target;
+    const fn = instance_kind === "edge" ? "cdf_edges" : "cdf_nodes";
+    return `SELECT * FROM ${fn}(${sqlStringLiteral(view_space)}, ${sqlStringLiteral(
       view_external_id
     )}, ${sqlStringLiteral(view_version)})`;
   }
@@ -76,6 +77,7 @@ export function openTargetForDmView(view: DataModelGraphView): OpenTarget {
     view_space: view.space,
     view_external_id: view.external_id,
     view_version: view.version,
+    instance_kind: view.instance_kind ?? "node",
   };
 }
 
