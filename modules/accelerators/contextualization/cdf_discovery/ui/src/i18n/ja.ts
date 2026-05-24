@@ -80,6 +80,7 @@ export const ja: Messages = {
   "sql.sortDesc": "降順で並べ替え",
   "sql.clearSort": "並べ替えを解除",
   "sql.schema": "スキーマ",
+  "sql.results": "結果",
   "sql.schemaColumn": "列",
   "sql.schemaType": "型",
   "sql.runStatus": "{rows} 行 · {ms} ms",

@@ -82,6 +82,7 @@ export type MessageKey =
   | "sql.sortDesc"
   | "sql.clearSort"
   | "sql.schema"
+  | "sql.results"
   | "sql.schemaColumn"
   | "sql.schemaType"
   | "sql.runStatus"

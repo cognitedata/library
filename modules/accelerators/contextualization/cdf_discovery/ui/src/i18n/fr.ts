@@ -80,6 +80,7 @@ export const fr: Messages = {
   "sql.sortDesc": "Tri décroissant",
   "sql.clearSort": "Effacer le tri",
   "sql.schema": "Schéma",
+  "sql.results": "Résultats",
   "sql.schemaColumn": "Colonne",
   "sql.schemaType": "Taper",
   "sql.runStatus": "{rows} lignes · {ms} ms",

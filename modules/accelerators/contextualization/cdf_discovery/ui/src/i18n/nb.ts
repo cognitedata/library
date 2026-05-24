@@ -80,6 +80,7 @@ export const nb: Messages = {
   "sql.sortDesc": "Sorter synkende",
   "sql.clearSort": "Fjern sortering",
   "sql.schema": "Skjema",
+  "sql.results": "Resultater",
   "sql.schemaColumn": "Kolonne",
   "sql.schemaType": "Type",
   "sql.runStatus": "{rows} rader · {ms} ms",

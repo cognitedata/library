@@ -80,6 +80,7 @@ export const zh: Messages = {
   "sql.sortDesc": "降序排序",
   "sql.clearSort": "清除排序",
   "sql.schema": "架构",
+  "sql.results": "结果",
   "sql.schemaColumn": "列",
   "sql.schemaType": "类型",
   "sql.runStatus": "{rows} 行 · {ms} ms",

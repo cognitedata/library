@@ -1,16 +1,20 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import yaml from "js-yaml";
 import { useAppSettings } from "../../context/AppSettingsContext";
 import { saveGovernanceConfigRaw } from "../../api/governanceDeclared";
 import { AdvancedYamlPanel } from "./AdvancedYamlPanel";
 import { DimensionsEditor } from "./DimensionsEditor";
-import { GovernanceScopePaneHeader } from "./GovernanceConfigPaneHeader";
+import {
+  GovernanceScopePaneHeader,
+  type GovernanceScopeSubTab,
+} from "./GovernanceConfigPaneHeader";
 import { ScopeHierarchyEditor } from "./ScopeHierarchyEditor";
 import { useGovernanceDoc } from "./useGovernanceDoc";
 
 export function GovernanceScopePane() {
   const { t } = useAppSettings();
   const gov = useGovernanceDoc();
+  const [subTab, setSubTab] = useState<GovernanceScopeSubTab>("scope");
 
   const rawYaml = useMemo(
     () => yaml.dump(gov.doc, { lineWidth: -1, noRefs: true }),
@@ -20,6 +24,8 @@ export function GovernanceScopePane() {
   return (
     <div className="disc-gov-pane">
       <GovernanceScopePaneHeader
+        subTab={subTab}
+        onSubTabChange={setSubTab}
         dirty={gov.dirty}
         loading={gov.loading}
         saving={gov.saving}
@@ -37,8 +43,11 @@ export function GovernanceScopePane() {
           </p>
         ) : (
           <>
-            <ScopeHierarchyEditor doc={gov.doc} onChange={gov.setDoc} />
-            <DimensionsEditor doc={gov.doc} onChange={gov.setDoc} />
+            {subTab === "scope" ? (
+              <ScopeHierarchyEditor doc={gov.doc} onChange={gov.setDoc} />
+            ) : (
+              <DimensionsEditor doc={gov.doc} onChange={gov.setDoc} />
+            )}
             <AdvancedYamlPanel
               initialContent={rawYaml}
               onSaveRaw={saveGovernanceConfigRaw}

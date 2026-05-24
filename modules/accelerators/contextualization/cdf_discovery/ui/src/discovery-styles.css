@@ -504,7 +504,21 @@ body {
   overflow: auto;
 }
 
-.disc-sql-pane__results .disc-doc-body,
+.disc-sql-pane__results.disc-doc-body,
+.disc-sql-pane__output-body .disc-sql-pane__results {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 8rem;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.disc-sql-pane__output-body .disc-sql-pane__results .disc-table-wrap {
+  flex: 1;
+  min-height: 0;
+}
+
 .disc-sql-pane > .disc-doc-body {
   display: flex;
   flex-direction: column;
@@ -519,15 +533,96 @@ body {
   min-height: 0;
 }
 
+.disc-sql-pane__output {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.disc-sql-pane__output-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.disc-sql-pane__output-tabs {
+  display: flex;
+  gap: 0;
+  flex-shrink: 0;
+  border-top: 1px solid var(--disc-border);
+  background: var(--disc-surface);
+}
+
+.disc-sql-pane__output-tab {
+  border: none;
+  border-top: 2px solid transparent;
+  background: transparent;
+  color: var(--disc-text-muted);
+  font-size: 0.75rem;
+  padding: 0.35rem 0.85rem;
+  cursor: pointer;
+}
+
+.disc-sql-pane__output-tab:hover:not(:disabled) {
+  color: var(--disc-text);
+  background: var(--disc-surface-alt, var(--disc-bg));
+}
+
+.disc-sql-pane__output-tab--active {
+  border-top-color: var(--disc-primary);
+  color: var(--disc-text);
+  background: var(--disc-surface-alt, var(--disc-bg));
+}
+
+.disc-sql-pane__output-tab:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.disc-sql-pane__schema-panel {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.disc-sql-pane__schema-panel .disc-sql-pane__schema-body {
+  flex: 1;
+  min-height: 0;
+  max-height: none;
+  margin-top: 0;
+}
+
 .disc-sql-pane__schema {
   margin: 0 0.65rem;
   font-size: 0.75rem;
+  flex-shrink: 0;
+}
+
+.disc-sql-pane__schema-body {
+  max-height: min(14rem, 35vh);
+  overflow: auto;
+  margin-top: 0.35rem;
+  border: 1px solid var(--disc-border);
+  border-radius: var(--disc-radius-sm);
+  background: var(--disc-surface);
 }
 
 .disc-sql-pane__schema-table {
   width: 100%;
   border-collapse: collapse;
-  margin-top: 0.35rem;
+}
+
+.disc-sql-pane__schema-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--disc-surface);
 }
 
 .disc-sql-pane__schema-table th,

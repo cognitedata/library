@@ -80,6 +80,7 @@ export const hi: Messages = {
   "sql.sortDesc": "अवरोही क्रम",
   "sql.clearSort": "क्रम हटाएँ",
   "sql.schema": "स्कीमा",
+  "sql.results": "परिणाम",
   "sql.schemaColumn": "कॉलम",
   "sql.schemaType": "प्रकार",
   "sql.runStatus": "{rows} पंक्तियाँ · {ms} ms",

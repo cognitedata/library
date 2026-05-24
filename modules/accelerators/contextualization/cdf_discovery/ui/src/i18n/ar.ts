@@ -80,6 +80,7 @@ export const ar: Messages = {
   "sql.sortDesc": "الترتيب تنازليًا",
   "sql.clearSort": "فرز واضح",
   "sql.schema": "المخطط",
+  "sql.results": "النتائج",
   "sql.schemaColumn": "عمود",
   "sql.schemaType": "نوع",
   "sql.runStatus": "{rows} صفوف · {ms} ms",

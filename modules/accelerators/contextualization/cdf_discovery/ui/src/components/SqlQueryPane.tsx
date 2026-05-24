@@ -51,6 +51,7 @@ export function SqlQueryPane({ tab, onTabUpdate, onSelectRow, onQueryFile, onSav
   const { height: editorPaneHeight, onResizeStart: onEditorPaneResizeStart } = useVerticalPaneResize({
     storageKey: "exp.sqlEditorPaneHeight.v1",
   });
+  const [outputPanel, setOutputPanel] = useState<"results" | "schema">("results");
   const [sort, setSort] = useState<GridSort | null>(null);
   const [resultsFilter, setResultsFilter] = useState("");
   const [exporting, setExporting] = useState(false);
@@ -78,6 +79,7 @@ export function SqlQueryPane({ tab, onTabUpdate, onSelectRow, onQueryFile, onSav
     setResultsFilter("");
     setExportError(null);
     setCopyMessage(null);
+    setOutputPanel("results");
   }, [tab.result]);
 
   const sortedItems = useMemo(
@@ -509,29 +511,43 @@ export function SqlQueryPane({ tab, onTabUpdate, onSelectRow, onQueryFile, onSav
           <span>{t("sql.convertToString")}</span>
         </label>
       </div>
-      {hasSchema && (
-        <details className="disc-sql-pane__schema">
-          <summary>{t("sql.schema")}</summary>
-          <table className="disc-sql-pane__schema-table">
-            <thead>
-              <tr>
-                <th scope="col">{t("sql.schemaColumn")}</th>
-                <th scope="col">{t("sql.schemaType")}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {schema.map((col, i) => (
-                <tr key={`${String(col.name ?? i)}:${String(col.type ?? "")}`}>
-                  <td>{formatGridCell(col.name) || t("common.emptyValue")}</td>
-                  <td>{formatGridCell(col.type) || t("common.emptyValue")}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </details>
-      )}
       {tab.error && <div className="disc-banner--error">{t("status.error", { detail: tab.error })}</div>}
-      <div className="disc-doc-body disc-sql-pane__results">
+      <div className="disc-sql-pane__output">
+        <div
+          id="disc-sql-output-panel"
+          className="disc-sql-pane__output-body"
+          role="tabpanel"
+          aria-labelledby={
+            outputPanel === "schema" ? "disc-sql-output-tab-schema" : "disc-sql-output-tab-results"
+          }
+        >
+          {outputPanel === "schema" ? (
+            <div className="disc-doc-body disc-sql-pane__schema-panel">
+              {!hasSchema ? (
+                <p className="disc-empty-hint">{t("sql.empty")}</p>
+              ) : (
+                <div className="disc-sql-pane__schema-body">
+                  <table className="disc-sql-pane__schema-table">
+                    <thead>
+                      <tr>
+                        <th scope="col">{t("sql.schemaColumn")}</th>
+                        <th scope="col">{t("sql.schemaType")}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {schema.map((col, i) => (
+                        <tr key={`${String(col.name ?? i)}:${String(col.type ?? "")}`}>
+                          <td>{formatGridCell(col.name) || t("common.emptyValue")}</td>
+                          <td>{formatGridCell(col.type) || t("common.emptyValue")}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="disc-doc-body disc-sql-pane__results">
         {tab.loading && !tab.result && <p className="disc-empty-hint">{t("sql.running")}</p>}
         {tab.loading && tab.result && (
           <p className="disc-empty-hint disc-sql-pane__loading-overlay">{t("sql.running")}</p>
@@ -637,14 +653,16 @@ export function SqlQueryPane({ tab, onTabUpdate, onSelectRow, onQueryFile, onSav
             </div>
           </>
         )}
-      </div>
-      {exportError && (
-        <div className="disc-banner--error disc-sql-pane__export-error">
-          {t("sql.exportFailed", { detail: exportError })}
+            </div>
+          )}
         </div>
-      )}
-      {copyMessage && <div className="disc-sql-pane__hint">{copyMessage}</div>}
-      {tab.result && (
+        {exportError && (
+          <div className="disc-banner--error disc-sql-pane__export-error">
+            {t("sql.exportFailed", { detail: exportError })}
+          </div>
+        )}
+        {copyMessage && <div className="disc-sql-pane__hint">{copyMessage}</div>}
+        {tab.result && outputPanel === "results" && (
         <div className="disc-pagination">
           <button
             type="button"
@@ -762,7 +780,33 @@ export function SqlQueryPane({ tab, onTabUpdate, onSelectRow, onQueryFile, onSav
                     })}
           </span>
         </div>
-      )}
+        )}
+        <div className="disc-sql-pane__output-tabs" role="tablist" aria-label={t("sql.results")}>
+          <button
+            type="button"
+            role="tab"
+            id="disc-sql-output-tab-results"
+            aria-selected={outputPanel === "results"}
+            aria-controls="disc-sql-output-panel"
+            className={`disc-sql-pane__output-tab${outputPanel === "results" ? " disc-sql-pane__output-tab--active" : ""}`}
+            onClick={() => setOutputPanel("results")}
+          >
+            {t("sql.results")}
+          </button>
+          <button
+            type="button"
+            role="tab"
+            id="disc-sql-output-tab-schema"
+            aria-selected={outputPanel === "schema"}
+            aria-controls="disc-sql-output-panel"
+            className={`disc-sql-pane__output-tab${outputPanel === "schema" ? " disc-sql-pane__output-tab--active" : ""}`}
+            disabled={!hasSchema}
+            onClick={() => setOutputPanel("schema")}
+          >
+            {t("sql.schema")}
+          </button>
+        </div>
+      </div>
       <SqlResultsContextMenu
         menu={ctxMenu}
         onClose={() => setCtxMenu(null)}

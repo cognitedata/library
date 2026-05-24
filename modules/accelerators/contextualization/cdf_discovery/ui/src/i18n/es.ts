@@ -80,6 +80,7 @@ export const es: Messages = {
   "sql.sortDesc": "Orden descendente",
   "sql.clearSort": "Quitar orden",
   "sql.schema": "Esquema",
+  "sql.results": "Resultados",
   "sql.schemaColumn": "Columna",
   "sql.schemaType": "Tipo",
   "sql.runStatus": "{rows} filas · {ms} ms",
