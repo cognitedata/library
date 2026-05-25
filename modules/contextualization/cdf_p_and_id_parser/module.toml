@@ -1,6 +1,6 @@
 [module]
 title = "Contextualization P&ID Diagram Parser"
-id = "P&ID Parser"
+id = "dp:contextualization:cdf_p_and_id_parser"
 package_id = "dp:contextualization"
 
 [[extra_resources]]

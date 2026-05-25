@@ -1,5 +1,5 @@
 [module]
 title = "Contextualization P&ID Annotation"
-id = "P&ID Annotation"
+id = "dp:contextualization:cdf_p_and_id_annotation"
 package_id = "dp:contextualization"
 
