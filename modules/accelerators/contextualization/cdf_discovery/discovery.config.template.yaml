@@ -13,7 +13,8 @@ stars:
   node_ids: []
 
 workspace:
-  # Open document tabs restored on launch (written by the UI to discovery.local.config.yaml).
+  # Open document tabs and active tab restored on launch (SQL, data model, workflow,
+  # transformation, function, governance, transform pipeline/template/scope).
   active_tab_id: null
   tabs: []
   # Example SQL tab:

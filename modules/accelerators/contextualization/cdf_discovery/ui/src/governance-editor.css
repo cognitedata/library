@@ -681,14 +681,15 @@
   color: var(--gov-primary);
   opacity: 0.95;
 }
+/* Portaled to document.body — use :root discovery tokens, not scoped --gov-* from .disc-gov-pane. */
 .gov-tree-ctx-menu {
   margin: 0;
   padding: 0.3rem 0;
   list-style: none;
   min-width: 11.5rem;
-  background: var(--gov-surface-elevated, var(--gov-surface));
-  border: 1px solid var(--gov-border-subtle, rgba(120, 120, 140, 0.35));
-  border-radius: 6px;
+  background: var(--disc-bg-elevated);
+  border: 1px solid var(--disc-border);
+  border-radius: var(--disc-radius-sm, 6px);
   box-shadow: 0 8px 28px rgba(0, 0, 0, 0.14);
 }
 
@@ -702,11 +703,11 @@
   cursor: pointer;
   font: inherit;
   font-size: 0.82rem;
-  color: var(--gov-text);
+  color: var(--disc-text);
 }
 
 .gov-tree-ctx-menu__btn:hover:not(:disabled) {
-  background: var(--gov-surface);
+  background: var(--disc-surface);
 }
 
 .gov-tree-ctx-menu__btn:disabled {
@@ -715,7 +716,7 @@
 }
 
 .gov-tree-ctx-menu__btn--danger {
-  color: var(--gov-danger, #b42318);
+  color: var(--disc-danger);
 }
 
 /* —— Advanced YAML —— */

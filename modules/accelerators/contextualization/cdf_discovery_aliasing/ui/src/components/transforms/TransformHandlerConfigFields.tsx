@@ -736,6 +736,30 @@ export function TransformHandlerConfigFields({
             />
           </label>
         ) : null}
+        <label className="discovery-label discovery-label--block" style={{ marginTop: "0.75rem" }}>
+          {t("transforms.handlerFields.heuristicMaxResults")}
+          <input
+            className="discovery-input"
+            style={{ marginTop: "0.35rem", maxWidth: "8rem" }}
+            type="number"
+            min={0}
+            value={block.max_results === undefined || block.max_results === null ? "" : String(block.max_results)}
+            onChange={(e) => {
+              const raw = e.target.value.trim();
+              if (raw === "") {
+                patch({ max_results: undefined });
+                return;
+              }
+              const n = Number.parseInt(raw, 10);
+              patch({ max_results: Number.isNaN(n) ? undefined : n });
+            }}
+            placeholder="1"
+            spellCheck={false}
+          />
+        </label>
+        <p className="discovery-hint" style={{ marginTop: "0.35rem" }}>
+          {t("transforms.handlerFields.heuristicMaxResultsHint")}
+        </p>
       </div>
     );
   }

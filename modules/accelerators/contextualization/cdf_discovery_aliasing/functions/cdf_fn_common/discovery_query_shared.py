@@ -110,6 +110,29 @@ def resolve_query_sink(data: Mapping[str, Any]) -> Tuple[str, str]:
     return resolve_node_cohort_sink(data, task_id)
 
 
+def resolve_raw_save_sink(cfg: Mapping[str, Any]) -> Tuple[str, str]:
+    """Return configured RAW destination for ``save_raw`` (not ephemeral cohort tables)."""
+    raw_db = _first_nonempty(
+        cfg.get("source_raw_db"),
+        cfg.get("raw_db"),
+        cfg.get("sink_raw_db"),
+    )
+    raw_table = _first_nonempty(
+        cfg.get("source_raw_table"),
+        cfg.get("source_raw_table_key"),
+        cfg.get("raw_table"),
+        cfg.get("raw_table_key"),
+        cfg.get("sink_raw_table"),
+        cfg.get("sink_raw_table_key"),
+    )
+    if not raw_db or not raw_table:
+        raise ValueError(
+            "save_raw requires config.source_raw_db and source_raw_table_key "
+            "(or raw_db/raw_table_key)"
+        )
+    return raw_db, raw_table
+
+
 def resolve_inverted_index_sink(data: Mapping[str, Any]) -> Tuple[str, str]:
     """Return ``(raw_db, inverted_index_raw_table)`` for ``fn_dm_inverted_index`` writes."""
     from .inverted_index_naming import inverted_index_raw_table_from_key_extraction_table

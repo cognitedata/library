@@ -1,0 +1,684 @@
+schemaVersion: 1
+template_id: aliasing_workflow
+label: Aliasing Workflow (template)
+parameters:
+  incremental: false
+  incremental_change_processing: false
+  incremental_skip_unchanged: true
+  raw_db: etl_staging
+  raw_table_key: cohort
+  instance_space: inst_assets
+  etl_state_instance_space: null
+canvas:
+  schemaVersion: 1
+  handle_orientation: lr
+  edge_path_style: default
+  nodes:
+  - id: build_index_mpkhwovn
+    kind: build_index
+    position:
+      x: 718
+      y: -120
+    data:
+      label: Build Index
+      config:
+        description: Build inverted index postings from indexKey tokens for alias
+          lookup
+        handler_id: property_token_index
+        index_kinds:
+          metadata:
+          - indexKey
+        property_token_index:
+          lookup_key_normalization: strip_casefold
+          token_initial_confidence: 1
+          row_key_template: '{index_kind}:{lookup_key}'
+          query_source: build_index
+          default_view_version: v1
+    width: 192
+    height: 96
+  - id: end
+    kind: end
+    position:
+      x: 1226
+      y: -37
+    data:
+      label: End
+      config:
+        description: Post-run cohort RAW cleanup
+    width: 148
+    height: 68
+  - id: merge_mpk5updx
+    kind: merge
+    position:
+      x: 718
+      y: 18
+    data:
+      label: Merge Aliases
+      config:
+        field_policies:
+        - property: aliases
+          strategy: merge_list
+          merge_list:
+            unique: true
+            branch_order: by_score
+        description: Merge alias lists from parallel transform branches into one aliases
+          property
+    width: 192
+    height: 96
+  - id: query_view_mpk5beqq
+    kind: query_view
+    position:
+      x: 210
+      y: -258
+    data:
+      label: CogniteAsset (v1)
+      config:
+        description: View query — CogniteAsset name, description, and tags for alias
+          extraction
+        view_space: cdf_cdm
+        view_external_id: CogniteAsset
+        view_version: v1
+        batch_size: 1000
+        filters: []
+        include_properties:
+        - description
+        - name
+        - tags
+    width: 192
+    height: 96
+  - id: query_view_mpkf9ork
+    kind: query_view
+    position:
+      x: 210
+      y: -120
+    data:
+      label: CogniteEquipment (v1)
+      config:
+        description: View query — CogniteEquipment instances for shared name passthrough
+          aliases
+        view_space: cdf_cdm
+        view_external_id: CogniteEquipment
+        view_version: v1
+        batch_size: 1000
+    width: 192
+    height: 96
+  - id: query_view_mpkf9xge
+    kind: query_view
+    position:
+      x: 210
+      y: 18
+    data:
+      label: CogniteTimeSeries (v1)
+      config:
+        description: View query — CogniteTimeSeries instances for shared name passthrough
+          aliases
+        view_space: cdf_cdm
+        view_external_id: CogniteTimeSeries
+        view_version: v1
+        batch_size: 1000
+    width: 192
+    height: 96
+  - id: query_view_mpkfbrkh
+    kind: query_view
+    position:
+      x: 210
+      y: 156
+    data:
+      label: CogniteFile (v1)
+      config:
+        description: View query — CogniteFile name and description for index key extraction
+        view_space: cdf_cdm
+        view_external_id: CogniteFile
+        view_version: v1
+        batch_size: 1000
+    width: 192
+    height: 96
+  - id: save_raw_mpkhci4w
+    kind: save_raw
+    position:
+      x: 972
+      y: -120
+    data:
+      label: Save Inverted Index to Raw
+      notes: Currently saving the index to RAW to avoid instance consumption.  Should
+        be evaluated for inclusion in the data model for proper indexing.
+      config:
+        description: Persist inverted index rows to RAW table inverted_index
+        source_raw_db: db_discovery
+        source_raw_table_key: inverted_index
+      node_color: '#0d9488'
+    width: 192
+    height: 96
+  - id: save_view_mpk5bi71
+    kind: save_view
+    position:
+      x: 972
+      y: 18
+    data:
+      label: CogniteDescribable(v1)
+      config:
+        description: Save merged aliases to CogniteDescribable instances in CDF
+        view_space: cdf_cdm
+        view_external_id: CogniteDescribable
+        view_version: v1
+      node_color: '#0d9488'
+    width: 192
+    height: 96
+  - id: start
+    kind: start
+    position:
+      x: 0
+      y: -37
+    data:
+      label: Start
+      config:
+        workflow_base: wf_all_etl_aliasing_template
+        workflow_external_id: wf_all_etl_aliasing_template
+        trigger_external_id: trg_wf_all_etl_aliasing_template
+        workflow_version: '1'
+    width: 148
+    height: 68
+  - id: transform_mpk5q5bq
+    kind: transform
+    position:
+      x: 464
+      y: -327
+    data:
+      label: Name Passthrough
+      config:
+        handler_id: trim_whitespace
+        trim_whitespace:
+          mode: ends_only
+        output_field: aliases
+        fields:
+        - field_name: name
+          regex: ''
+        output_template: ''
+        description: Trim instance name and append normalized value to aliases
+    width: 192
+    height: 96
+  - id: transform_mpk5sdjw
+    kind: transform
+    position:
+      x: 464
+      y: -189
+    data:
+      label: 'Regex Tag Extraction: Name'
+      config:
+        handler_id: trim_whitespace
+        trim_whitespace:
+          mode: ends_only
+        fields:
+        - field_name: name
+          regex: (?<![\d-])(?:\b|(?<=_))(?:\d{1,8}-?)?[A-Z]{1,8}-?\d{1,10}(?:-\d{1,6})*[A-Z]?\b
+        description: Extract ISA-style tag tokens from CogniteAsset name via regex
+    width: 192
+    height: 96
+  - id: transform_mpkd8cix
+    kind: transform
+    position:
+      x: 464
+      y: -51
+    data:
+      label: 'Heuristic Extraction: Name'
+      config:
+        handler_id: heuristic_sampler
+        heuristic_sampler:
+          samples:
+          - XXX-000000
+          - XXX_000000
+          on_no_match: keep_working
+        output_field: aliases
+        fields:
+        - field_name: name
+        description: Infer tag-like aliases from asset name using heuristic sample
+          patterns
+    width: 192
+    height: 96
+  - id: transform_mpkdhn77
+    kind: transform
+    position:
+      x: 464
+      y: 87
+    data:
+      label: Drop Numeric Prefix
+      config:
+        handler_id: regex_substitution
+        trim_whitespace:
+          mode: ends_only
+        output_field: aliases
+        fields:
+        - field_name: name
+          regex: ''
+        regex_substitution:
+          patterns:
+          - pattern: ^[^-]+-(?=[^ -]+-[^ -])
+            replacement: ''
+        description: Strip leading unit prefix segment from name before alias merge
+    width: 192
+    height: 96
+  - id: transform_mpkh6yk9
+    kind: transform
+    position:
+      x: 464
+      y: 225
+    data:
+      label: 'Heuristic Index Extraction: Name, Description'
+      config:
+        execution:
+          mode: ordered
+        steps:
+        - handler_id: heuristic_sampler
+          heuristic_sampler:
+            samples:
+            - XXX-000000
+            - XXX_000000
+            on_no_match: keep_working
+          output_field: indexKey
+          fields:
+          - field_name: name
+          description: Heuristic indexKey from file name
+        - description: Append indexKey tokens parsed from file description
+          handler_id: heuristic_sampler
+          enabled: true
+          fields:
+          - field_name: description
+          output_field: indexKey
+          output_template: ''
+          output_mode: append
+          heuristic_sampler:
+            samples:
+            - XXX-000000
+            - XXX_000000
+        description: Extract indexKey from CogniteFile name and description for inverted
+          index
+    width: 192
+    height: 96
+  edges:
+  - id: xy-edge__startout-query_view_mpk5beqqin
+    source: start
+    target: query_view_mpk5beqq
+    source_handle: out
+    target_handle: in
+    kind: data
+  - id: xy-edge__save_view_mpk5bi71out-endin
+    source: save_view_mpk5bi71
+    target: end
+    source_handle: out
+    target_handle: in
+    kind: data
+  - id: xy-edge__query_view_mpk5beqqout-transform_mpk5q5bqin
+    source: query_view_mpk5beqq
+    target: transform_mpk5q5bq
+    source_handle: out
+    target_handle: in
+    kind: data
+  - id: xy-edge__query_view_mpk5beqqout-transform_mpk5sdjwin
+    source: query_view_mpk5beqq
+    target: transform_mpk5sdjw
+    source_handle: out
+    target_handle: in
+    kind: data
+  - id: xy-edge__merge_mpk5updxout-save_view_mpk5bi71in
+    source: merge_mpk5updx
+    target: save_view_mpk5bi71
+    source_handle: out
+    target_handle: in
+    kind: data
+  - id: xy-edge__transform_mpk5sdjwout-merge_mpk5updxin
+    source: transform_mpk5sdjw
+    target: merge_mpk5updx
+    source_handle: out
+    target_handle: in
+    kind: data
+  - id: xy-edge__transform_mpk5q5bqout-merge_mpk5updxin
+    source: transform_mpk5q5bq
+    target: merge_mpk5updx
+    source_handle: out
+    target_handle: in
+    kind: data
+  - id: xy-edge__query_view_mpk5beqqout-transform_mpkd8cixin
+    source: query_view_mpk5beqq
+    target: transform_mpkd8cix
+    source_handle: out
+    target_handle: in
+    kind: data
+  - id: xy-edge__transform_mpkd8cixout-merge_mpk5updxin
+    source: transform_mpkd8cix
+    target: merge_mpk5updx
+    source_handle: out
+    target_handle: in
+    kind: data
+  - id: xy-edge__query_view_mpk5beqqout-merge_mpk5updxin
+    source: query_view_mpk5beqq
+    target: merge_mpk5updx
+    source_handle: out
+    target_handle: in
+    kind: data
+  - id: xy-edge__query_view_mpk5beqqout-transform_mpkdhn77in
+    source: query_view_mpk5beqq
+    target: transform_mpkdhn77
+    source_handle: out
+    target_handle: in
+    kind: data
+  - id: xy-edge__transform_mpkdhn77out-merge_mpk5updxin
+    source: transform_mpkdhn77
+    target: merge_mpk5updx
+    source_handle: out
+    target_handle: in
+    kind: data
+  - id: xy-edge__startout-query_view_mpkf9orkin
+    source: start
+    target: query_view_mpkf9ork
+    source_handle: out
+    target_handle: in
+    kind: data
+  - id: xy-edge__startout-query_view_mpkf9xgein
+    source: start
+    target: query_view_mpkf9xge
+    source_handle: out
+    target_handle: in
+    kind: data
+  - id: xy-edge__query_view_mpkf9orkout-transform_mpk5q5bqin
+    source: query_view_mpkf9ork
+    target: transform_mpk5q5bq
+    source_handle: out
+    target_handle: in
+    kind: data
+  - id: xy-edge__query_view_mpkf9xgeout-transform_mpk5q5bqin
+    source: query_view_mpkf9xge
+    target: transform_mpk5q5bq
+    source_handle: out
+    target_handle: in
+    kind: data
+  - id: xy-edge__startout-query_view_mpkfbrkhin
+    source: start
+    target: query_view_mpkfbrkh
+    source_handle: out
+    target_handle: in
+    kind: data
+  - id: xy-edge__query_view_mpkfbrkhout-transform_mpk5q5bqin
+    source: query_view_mpkfbrkh
+    target: transform_mpk5q5bq
+    source_handle: out
+    target_handle: in
+    kind: data
+  - id: xy-edge__query_view_mpkfbrkhout-transform_mpkh6yk9in
+    source: query_view_mpkfbrkh
+    target: transform_mpkh6yk9
+    source_handle: out
+    target_handle: in
+    kind: data
+  - id: xy-edge__save_raw_mpkhci4wout-endin
+    source: save_raw_mpkhci4w
+    target: end
+    source_handle: out
+    target_handle: in
+    kind: data
+  - id: xy-edge__transform_mpkh6yk9out-build_index_mpkhwovnin
+    source: transform_mpkh6yk9
+    target: build_index_mpkhwovn
+    source_handle: out
+    target_handle: in
+    kind: data
+  - id: xy-edge__build_index_mpkhwovnout-save_raw_mpkhci4win
+    source: build_index_mpkhwovn
+    target: save_raw_mpkhci4w
+    source_handle: out
+    target_handle: in
+    kind: data
+compiled_workflow:
+  schema_version: 1
+  tasks:
+  - id: build_index_mpkhwovn
+    function_external_id: fn_etl_build_index
+    executable_kind: build_index
+    task_type: function
+    canvas_node_id: build_index_mpkhwovn
+    depends_on:
+    - transform_mpkh6yk9
+    payload:
+      config:
+        description: Build inverted index postings from indexKey tokens for alias
+          lookup
+        handler_id: property_token_index
+        index_kinds:
+          metadata:
+          - indexKey
+        property_token_index:
+          lookup_key_normalization: strip_casefold
+          token_initial_confidence: 1
+          row_key_template: '{index_kind}:{lookup_key}'
+          query_source: build_index
+          default_view_version: v1
+  - id: merge_mpk5updx
+    function_external_id: fn_etl_merge
+    executable_kind: merge
+    task_type: function
+    canvas_node_id: merge_mpk5updx
+    depends_on:
+    - transform_mpk5sdjw
+    - transform_mpk5q5bq
+    - transform_mpkd8cix
+    - query_view_mpk5beqq
+    - transform_mpkdhn77
+    payload:
+      config:
+        field_policies:
+        - property: aliases
+          strategy: merge_list
+          merge_list:
+            unique: true
+            branch_order: by_score
+        description: Merge alias lists from parallel transform branches into one aliases
+          property
+  - id: query_view_mpk5beqq
+    function_external_id: fn_etl_view_query
+    executable_kind: query_view
+    task_type: function
+    canvas_node_id: query_view_mpk5beqq
+    depends_on: []
+    payload:
+      config:
+        description: View query — CogniteAsset name, description, and tags for alias
+          extraction
+        view_space: cdf_cdm
+        view_external_id: CogniteAsset
+        view_version: v1
+        batch_size: 1000
+        filters: []
+        include_properties:
+        - description
+        - name
+        - tags
+  - id: query_view_mpkf9ork
+    function_external_id: fn_etl_view_query
+    executable_kind: query_view
+    task_type: function
+    canvas_node_id: query_view_mpkf9ork
+    depends_on: []
+    payload:
+      config:
+        description: View query — CogniteEquipment instances for shared name passthrough
+          aliases
+        view_space: cdf_cdm
+        view_external_id: CogniteEquipment
+        view_version: v1
+        batch_size: 1000
+  - id: query_view_mpkf9xge
+    function_external_id: fn_etl_view_query
+    executable_kind: query_view
+    task_type: function
+    canvas_node_id: query_view_mpkf9xge
+    depends_on: []
+    payload:
+      config:
+        description: View query — CogniteTimeSeries instances for shared name passthrough
+          aliases
+        view_space: cdf_cdm
+        view_external_id: CogniteTimeSeries
+        view_version: v1
+        batch_size: 1000
+  - id: query_view_mpkfbrkh
+    function_external_id: fn_etl_view_query
+    executable_kind: query_view
+    task_type: function
+    canvas_node_id: query_view_mpkfbrkh
+    depends_on: []
+    payload:
+      config:
+        description: View query — CogniteFile name and description for index key extraction
+        view_space: cdf_cdm
+        view_external_id: CogniteFile
+        view_version: v1
+        batch_size: 1000
+  - id: save_raw_mpkhci4w
+    function_external_id: fn_etl_raw_save
+    executable_kind: save_raw
+    task_type: function
+    canvas_node_id: save_raw_mpkhci4w
+    depends_on:
+    - build_index_mpkhwovn
+    payload:
+      config:
+        description: Persist inverted index rows to RAW table inverted_index
+        source_raw_db: db_discovery
+        source_raw_table_key: inverted_index
+  - id: save_view_mpk5bi71
+    function_external_id: fn_etl_view_save
+    executable_kind: save_view
+    task_type: function
+    canvas_node_id: save_view_mpk5bi71
+    depends_on:
+    - merge_mpk5updx
+    payload:
+      config:
+        description: Save merged aliases to CogniteDescribable instances in CDF
+        view_space: cdf_cdm
+        view_external_id: CogniteDescribable
+        view_version: v1
+  - id: transform_mpk5q5bq
+    function_external_id: fn_etl_transform
+    executable_kind: transform
+    task_type: function
+    canvas_node_id: transform_mpk5q5bq
+    depends_on:
+    - query_view_mpk5beqq
+    - query_view_mpkf9ork
+    - query_view_mpkf9xge
+    - query_view_mpkfbrkh
+    payload:
+      config:
+        handler_id: trim_whitespace
+        trim_whitespace:
+          mode: ends_only
+        output_field: aliases
+        fields:
+        - field_name: name
+          regex: ''
+        output_template: ''
+        description: Trim instance name and append normalized value to aliases
+  - id: transform_mpk5sdjw
+    function_external_id: fn_etl_transform
+    executable_kind: transform
+    task_type: function
+    canvas_node_id: transform_mpk5sdjw
+    depends_on:
+    - query_view_mpk5beqq
+    payload:
+      config:
+        handler_id: trim_whitespace
+        trim_whitespace:
+          mode: ends_only
+        fields:
+        - field_name: name
+          regex: (?<![\d-])(?:\b|(?<=_))(?:\d{1,8}-?)?[A-Z]{1,8}-?\d{1,10}(?:-\d{1,6})*[A-Z]?\b
+        description: Extract ISA-style tag tokens from CogniteAsset name via regex
+  - id: transform_mpkd8cix
+    function_external_id: fn_etl_transform
+    executable_kind: transform
+    task_type: function
+    canvas_node_id: transform_mpkd8cix
+    depends_on:
+    - query_view_mpk5beqq
+    payload:
+      config:
+        handler_id: heuristic_sampler
+        heuristic_sampler:
+          samples:
+          - XXX-000000
+          - XXX_000000
+          on_no_match: keep_working
+        output_field: aliases
+        fields:
+        - field_name: name
+        description: Infer tag-like aliases from asset name using heuristic sample
+          patterns
+  - id: transform_mpkdhn77
+    function_external_id: fn_etl_transform
+    executable_kind: transform
+    task_type: function
+    canvas_node_id: transform_mpkdhn77
+    depends_on:
+    - query_view_mpk5beqq
+    payload:
+      config:
+        handler_id: regex_substitution
+        trim_whitespace:
+          mode: ends_only
+        output_field: aliases
+        fields:
+        - field_name: name
+          regex: ''
+        regex_substitution:
+          patterns:
+          - pattern: ^[^-]+-(?=[^ -]+-[^ -])
+            replacement: ''
+        description: Strip leading unit prefix segment from name before alias merge
+  - id: transform_mpkh6yk9
+    function_external_id: fn_etl_transform
+    executable_kind: transform
+    task_type: function
+    canvas_node_id: transform_mpkh6yk9
+    depends_on:
+    - query_view_mpkfbrkh
+    payload:
+      config:
+        execution:
+          mode: ordered
+        steps:
+        - handler_id: heuristic_sampler
+          heuristic_sampler:
+            samples:
+            - XXX-000000
+            - XXX_000000
+            on_no_match: keep_working
+          output_field: indexKey
+          fields:
+          - field_name: name
+          description: Heuristic indexKey from file name
+        - description: Append indexKey tokens parsed from file description
+          handler_id: heuristic_sampler
+          enabled: true
+          fields:
+          - field_name: description
+          output_field: indexKey
+          output_template: ''
+          output_mode: append
+          heuristic_sampler:
+            samples:
+            - XXX-000000
+            - XXX_000000
+        description: Extract indexKey from CogniteFile name and description for inverted
+          index
+  - id: end
+    function_external_id: fn_etl_raw_cleanup
+    executable_kind: raw_cleanup
+    task_type: function
+    canvas_node_id: end
+    depends_on:
+    - save_view_mpk5bi71
+    - save_raw_mpkhci4w
+    payload:
+      config:
+        description: Post-run cohort RAW cleanup

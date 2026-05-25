@@ -5,6 +5,9 @@ CDF Discovery — local read-only browser for Classic, Data Modeling, and RAW.
   python module.py build [--config default.config.yaml] [--dry-run] [--force]
   python module.py build --clean [--yes]
   python module.py build --check-generated
+  python module.py transform build [--pipeline ID | --template ID] [--scoped] [--dry-run]
+  python module.py transform run [--instance ID | --template ID] [--dry-run] [--predecessor-mode in_memory|cohort]
+  python module.py transform deploy-scope [--dry-run]
 
 Reads CDF credentials from the repository root ``.env`` (same variables as cdf_discovery_aliasing).
 """
@@ -168,6 +171,44 @@ def _run_build(argv: List[str]) -> int:
     return _run_compliance_gates()
 
 
+def _transform_root() -> Path:
+    return _MODULE_ROOT / "transform"
+
+
+def _run_transform_build(argv: List[str]) -> int:
+    transform = _transform_root()
+    scripts = transform / "scripts"
+    for p in (str(transform), str(transform / "functions"), str(scripts)):
+        if p not in sys.path:
+            sys.path.insert(0, p)
+    from workflow_build.orchestrate import main as workflow_build_main
+
+    if "--module-root" not in argv:
+        argv = ["--module-root", str(transform), *argv]
+    return int(workflow_build_main(argv))
+
+
+def _run_transform_run(argv: List[str]) -> int:
+    from ui.server.etl_syspath import prepare_etl_local_runner
+
+    prepare_etl_local_runner(_MODULE_ROOT)
+    from local_runner.run import main as local_run_main
+
+    return int(local_run_main(argv))
+
+
+def _run_transform_deploy_scope(argv: List[str]) -> int:
+    transform = _transform_root()
+    scripts = transform / "scripts"
+    if str(scripts) not in sys.path:
+        sys.path.insert(0, str(scripts))
+    from deploy_scope import main as deploy_scope_main
+
+    if "--module-root" not in argv:
+        argv = ["--module-root", str(transform), *argv]
+    return int(deploy_scope_main(argv))
+
+
 def main() -> None:
     args = sys.argv[1:]
     if not args:
@@ -177,6 +218,20 @@ def main() -> None:
         raise SystemExit(_run_ui(args[1:]))
     if args[0] == "build":
         raise SystemExit(_run_build(args[1:]))
+    if args[0] == "transform":
+        if len(args) < 2:
+            print("Usage: module.py transform {build|run|deploy-scope} …", file=sys.stderr)
+            raise SystemExit(2)
+        sub = args[1]
+        sub_argv = args[2:]
+        if sub == "build":
+            raise SystemExit(_run_transform_build(sub_argv))
+        if sub == "run":
+            raise SystemExit(_run_transform_run(sub_argv))
+        if sub == "deploy-scope":
+            raise SystemExit(_run_transform_deploy_scope(sub_argv))
+        print(f"Unknown transform subcommand: {sub}", file=sys.stderr)
+        raise SystemExit(2)
     print(f"Unknown command: {args[0]}\n{__doc__}", file=sys.stderr)
     raise SystemExit(2)
 

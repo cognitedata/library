@@ -59,6 +59,53 @@ body {
   color: #fff;
 }
 
+.disc-tree-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.45rem 0.5rem;
+  min-width: 0;
+}
+
+.disc-tree-toolbar__filter {
+  flex: 1 1 8rem;
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
+}
+
+.disc-tree-toolbar__new {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+@media (max-width: 36rem) {
+  .disc-tree-toolbar {
+    flex-direction: column;
+  }
+
+  .disc-tree-toolbar__new {
+    flex: 1 1 100%;
+    min-height: 2.75rem;
+  }
+}
+
+.disc-tree-node--draggable {
+  cursor: grab;
+}
+
+.disc-tree-node--draggable:active {
+  cursor: grabbing;
+}
+
+.disc-tree-node--drop-target,
+.disc-tree-row--drop-target .disc-tree-node {
+  outline: 2px dashed var(--disc-accent, #6366f1);
+  outline-offset: 2px;
+  background: color-mix(in srgb, var(--disc-accent, #6366f1) 12%, transparent);
+}
+
 .disc-input,
 .disc-select {
   font: inherit;

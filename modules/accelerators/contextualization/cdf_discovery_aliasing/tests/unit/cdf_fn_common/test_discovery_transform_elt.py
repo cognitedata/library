@@ -239,6 +239,47 @@ def test_heuristic_sampler_samples_as_regex() -> None:
     assert out == "42"
 
 
+def test_heuristic_sampler_max_results_unlimited() -> None:
+    out = apply_heuristic_sampler(
+        "P-101 and P-102 on line",
+        {"samples": ["P-101", "P-102"], "max_results": 0},
+    )
+    assert out == ["P-101", "P-102"]
+
+
+def test_heuristic_sampler_max_results_none_unlimited() -> None:
+    out = apply_heuristic_sampler(
+        "P-101 and P-102 on line",
+        {"samples": ["P-101", "P-102"], "max_results": None},
+    )
+    assert out == ["P-101", "P-102"]
+
+
+def test_heuristic_sampler_max_results_caps_matches() -> None:
+    out = apply_heuristic_sampler(
+        "P-101 and P-102 and P-103",
+        {"pattern": r"P-\d+", "max_results": 2},
+    )
+    assert out == ["P-101", "P-102"]
+
+
+def test_heuristic_sampler_max_results_multi_on_no_match_empty() -> None:
+    assert apply_heuristic_sampler("abc", {"samples": ["z"], "max_results": 0, "on_no_match": "empty"}) == []
+
+
+def test_transform_heuristic_sampler_appends_multiple_matches() -> None:
+    cfg = {
+        "handler_id": "heuristic_sampler",
+        "fields": [{"field_name": "name"}],
+        "output_field": "aliases",
+        "output_mode": "append",
+        "output_multi_value": "array_json",
+        "heuristic_sampler": {"pattern": r"P-\d+", "max_results": 0},
+    }
+    rows = transform_row_properties({"name": "See P-101 and P-102 here", "aliases": []}, cfg)
+    assert rows[0]["aliases"] == ["P-101", "P-102"]
+
+
 def test_validate_heuristic_sampler_requires_samples_or_pattern() -> None:
     with pytest.raises(ValueError, match="samples"):
         validate_transform_config(_minimal_transform_cfg("heuristic_sampler", {"samples": []}))

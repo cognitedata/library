@@ -1,0 +1,5 @@
+[module]
+title = "CDF Discovery ETL"
+is_selected_by_default = false
+id = "dp:acc:ctx:discovery_etl"
+package_id = "dp:contextualization"

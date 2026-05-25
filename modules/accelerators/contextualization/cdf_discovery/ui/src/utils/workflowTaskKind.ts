@@ -12,6 +12,7 @@ const FN_KIND_KEYS: Record<string, MessageKey> = {
   fn_dm_filter: "wfViewer.fnKind.fn_dm_filter",
   fn_dm_confidence_filter: "wfViewer.fnKind.fn_dm_confidence_filter",
   fn_dm_inverted_index: "wfViewer.fnKind.fn_dm_inverted_index",
+  fn_etl_build_index: "wfViewer.fnKind.fn_etl_build_index",
   fn_dm_view_save: "wfViewer.fnKind.fn_dm_view_save",
   fn_dm_raw_save: "wfViewer.fnKind.fn_dm_raw_save",
   fn_dm_classic_save: "wfViewer.fnKind.fn_dm_classic_save",

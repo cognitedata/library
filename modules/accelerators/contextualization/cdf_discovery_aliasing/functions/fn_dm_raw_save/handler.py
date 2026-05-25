@@ -1,4 +1,4 @@
-"""CDF handler: RAW rows upsert from discovery payloads (stub)."""
+"""CDF handler: RAW rows upsert from discovery payloads."""
 
 import sys
 from pathlib import Path

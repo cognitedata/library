@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAppSettings } from "../context/AppSettingsContext";
+import { resolveReadCount, resolveWriteCount } from "../utils/localRunRowCounts";
 
 const PAGE = 200;
 
@@ -120,15 +121,13 @@ function taskOutputSummary(output: Record<string, unknown> | null | undefined): 
   const parts: string[] = [];
   const fn = output.function_external_id;
   if (fn != null) parts.push(String(fn));
-  for (const key of [
-    "handler_id",
-    "rows_read",
-    "instances_written",
-    "instances_listed",
-    "rows_written",
-    "query_source",
-  ] as const) {
-    if (output[key] != null) parts.push(`${key}=${String(output[key])}`);
+  const read = resolveReadCount(output);
+  const written = resolveWriteCount(output);
+  if (read != null) parts.push(`rows_read=${read}`);
+  if (written != null) parts.push(`rows_written=${written}`);
+  for (const key of ["handler_id", "query_source"] as const) {
+    const val = output[key];
+    if (val != null && String(val).trim()) parts.push(`${key}=${String(val)}`);
   }
   return parts.join(" · ");
 }

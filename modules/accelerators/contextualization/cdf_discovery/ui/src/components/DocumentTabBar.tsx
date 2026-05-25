@@ -1,6 +1,7 @@
 import { useCallback, useState, type DragEvent } from "react";
 import { useAppSettings } from "../context/AppSettingsContext";
 import type { DocumentTab } from "../types/discoveryNodes";
+import { IconTabMaximize, IconTabMinimize } from "./DocumentTabBarIcons";
 
 const TAB_INDEX_MIME = "application/x-disc-tab-index";
 
@@ -10,9 +11,14 @@ type Props = {
   onSelect: (id: string) => void;
   onClose: (id: string) => void;
   onReorder: (fromIndex: number, toIndex: number) => void;
+  fullscreen?: {
+    open: boolean;
+    onToggle: () => void;
+    disabled?: boolean;
+  };
 };
 
-export function DocumentTabBar({ tabs, activeId, onSelect, onClose, onReorder }: Props) {
+export function DocumentTabBar({ tabs, activeId, onSelect, onClose, onReorder, fullscreen }: Props) {
   const { t } = useAppSettings();
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [overIndex, setOverIndex] = useState<number | null>(null);
@@ -60,53 +66,70 @@ export function DocumentTabBar({ tabs, activeId, onSelect, onClose, onReorder }:
   if (tabs.length === 0) return null;
 
   return (
-    <div
-      className={`disc-tab-bar${dragIndex != null ? " disc-tab-bar--dragging" : ""}`}
-      role="tablist"
-    >
-      {tabs.map((tab, index) => (
-        <div
-          key={tab.id}
-          role="presentation"
-          className={`disc-tab-item${tab.id === activeId ? " disc-tab-item--active" : ""}${
-            dragIndex === index ? " disc-tab-item--dragging" : ""
-          }${overIndex === index && dragIndex !== index ? " disc-tab-item--drag-over" : ""}`}
-          draggable
-          onDragStart={(e) => handleDragStart(e, index)}
-          onDragOver={(e) => handleDragOver(e, index)}
-          onDragLeave={() => setOverIndex((prev) => (prev === index ? null : prev))}
-          onDrop={(e) => handleDrop(e, index)}
-          onDragEnd={clearDrag}
-        >
-          <button
-            type="button"
-            role="tab"
-            aria-selected={tab.id === activeId}
-            className="disc-tab"
-            onClick={() => onSelect(tab.id)}
+    <div className={`disc-tab-bar-wrap${dragIndex != null ? " disc-tab-bar-wrap--dragging" : ""}`}>
+      <div
+        className={`disc-tab-bar${dragIndex != null ? " disc-tab-bar--dragging" : ""}`}
+        role="tablist"
+      >
+        {tabs.map((tab, index) => (
+          <div
+            key={tab.id}
+            role="presentation"
+            className={`disc-tab-item${tab.id === activeId ? " disc-tab-item--active" : ""}${
+              dragIndex === index ? " disc-tab-item--dragging" : ""
+            }${overIndex === index && dragIndex !== index ? " disc-tab-item--drag-over" : ""}`}
+            draggable
+            onDragStart={(e) => handleDragStart(e, index)}
+            onDragOver={(e) => handleDragOver(e, index)}
+            onDragLeave={() => setOverIndex((prev) => (prev === index ? null : prev))}
+            onDrop={(e) => handleDrop(e, index)}
+            onDragEnd={clearDrag}
           >
-            {tab.label}
-            <span
-              className="disc-tab-close"
-              role="button"
-              tabIndex={0}
-              aria-label={t("tabs.close")}
-              onClick={(e) => {
-                e.stopPropagation();
-                onClose(tab.id);
-              }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tab.id === activeId}
+              className="disc-tab"
+              onClick={() => onSelect(tab.id)}
+            >
+              {tab.label}
+              <span
+                className="disc-tab-close"
+                role="button"
+                tabIndex={0}
+                aria-label={t("tabs.close")}
+                onClick={(e) => {
                   e.stopPropagation();
                   onClose(tab.id);
-                }
-              }}
-            >
-              ×
-            </span>
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.stopPropagation();
+                    onClose(tab.id);
+                  }
+                }}
+              >
+                ×
+              </span>
+            </button>
+          </div>
+        ))}
+      </div>
+      {fullscreen ? (
+        <div className="disc-tab-bar-actions">
+          <button
+            type="button"
+            className="disc-btn disc-tab-bar-actions__btn disc-tab-bar-actions__btn--icon"
+            disabled={fullscreen.disabled}
+            title={fullscreen.open ? t("tabs.exitFullscreen") : t("tabs.fullscreenTooltip")}
+            aria-label={fullscreen.open ? t("tabs.exitFullscreen") : t("tabs.fullscreen")}
+            aria-pressed={fullscreen.open}
+            onClick={fullscreen.onToggle}
+          >
+            {fullscreen.open ? <IconTabMinimize /> : <IconTabMaximize />}
           </button>
         </div>
-      ))}
+      ) : null}
     </div>
   );
 }

@@ -14,14 +14,20 @@ from .constants import (
 )
 from .field_template import apply_output_template, extract_field_values
 from .output_type import coerce_transform_output, validate_output_field_type
-from .handlers.heuristic_sampler import validate_heuristic_sampler_block
+from .handlers.heuristic_sampler import (
+    apply_heuristic_sampler,
+    heuristic_sampler_multi_value,
+    validate_heuristic_sampler_block,
+)
 from .handlers.split_join import validate_split_join_block
 from .handlers.split_parts import validate_split_parts_block
 from .registry import HANDLER_BY_ID
 
 
 def _default_output_multi_value(handler_id: str) -> str:
-    return "array_json" if handler_id == "split_string" else "explode_rows"
+    if handler_id in ("split_string", "heuristic_sampler"):
+        return "array_json"
+    return "explode_rows"
 
 
 def resolve_handler_id(cfg: Mapping[str, Any]) -> str:
@@ -65,7 +71,14 @@ def validate_transform_config(cfg: Mapping[str, Any]) -> None:
             raise ValueError(f"output_multi_value must be array_json or explode_rows; got {omv!r}")
     validate_output_field_type(cfg)
     if handler_id == "heuristic_sampler":
-        validate_heuristic_sampler_block(resolve_handler_block(cfg, handler_id))
+        hs_block = resolve_handler_block(cfg, handler_id)
+        validate_heuristic_sampler_block(hs_block)
+        if heuristic_sampler_multi_value(hs_block):
+            omv = AbstractTransformHandler.first_nonempty(
+                cfg.get("output_multi_value"), _default_output_multi_value(handler_id)
+            )
+            if omv not in _OUTPUT_MULTI_VALUE:
+                raise ValueError(f"output_multi_value must be array_json or explode_rows; got {omv!r}")
     if handler_id in ("split_join", "split_string"):
         validate_split_parts_block(resolve_handler_block(cfg, handler_id))
     if handler_id == "split_join":
@@ -83,7 +96,11 @@ def apply_transform_handler(
     cls = HANDLER_BY_ID.get(handler_id)
     if cls is None:
         raise ValueError(f"Unknown transform handler_id: {handler_id!r}")
-    return cls.apply(working, block, field_values=field_values, props=props), cls.multi_value
+    result = cls.apply(working, block, field_values=field_values, props=props)
+    multi = cls.multi_value
+    if handler_id == "heuristic_sampler":
+        multi = heuristic_sampler_multi_value(block)
+    return result, multi
 
 
 def _append_values_unique(existing: Any, coerced: Any) -> Any:

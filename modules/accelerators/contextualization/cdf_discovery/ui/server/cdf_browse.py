@@ -857,10 +857,7 @@ def _serialize_transformation_definition(t: Any) -> Dict[str, Any]:
     }
 
 
-def get_transformation_detail(client: Any, *, transformation_id: int) -> Dict[str, Any]:
-    if transformation_id <= 0:
-        raise ValueError("transformation_id must be a positive integer")
-    t = client.transformations.retrieve(id=int(transformation_id))
+def _transformation_detail_from_instance(t: Any) -> Dict[str, Any]:
     query = getattr(t, "query", None) or ""
     destination = getattr(t, "destination", None)
     schedule = getattr(t, "schedule", None)
@@ -883,6 +880,21 @@ def get_transformation_detail(client: Any, *, transformation_id: int) -> Dict[st
         else _truncate(schedule),
         "definition": _serialize_transformation_definition(t),
     }
+
+
+def get_transformation_detail(client: Any, *, transformation_id: int) -> Dict[str, Any]:
+    if transformation_id <= 0:
+        raise ValueError("transformation_id must be a positive integer")
+    t = client.transformations.retrieve(id=int(transformation_id))
+    return _transformation_detail_from_instance(t)
+
+
+def get_transformation_detail_by_external_id(client: Any, *, external_id: str) -> Dict[str, Any]:
+    ext = (external_id or "").strip()
+    if not ext:
+        raise ValueError("external_id is required")
+    t = client.transformations.retrieve(external_id=ext)
+    return _transformation_detail_from_instance(t)
 
 
 def list_functions(client: Any, *, limit: int = 500) -> List[Dict[str, Any]]:

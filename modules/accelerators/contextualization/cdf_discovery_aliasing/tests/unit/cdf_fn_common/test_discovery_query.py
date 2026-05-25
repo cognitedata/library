@@ -23,7 +23,11 @@ from cdf_fn_common.discovery_query import (
     discovery_query_handle_cdf,
     resolve_query_sink,
 )
-from cdf_fn_common.discovery_query_shared import CONFIDENCE_COLUMN, PROPERTIES_JSON_COLUMN
+from cdf_fn_common.discovery_query_shared import (
+    CONFIDENCE_COLUMN,
+    PROPERTIES_JSON_COLUMN,
+    resolve_raw_save_sink,
+)
 
 
 class _FakeInstance:
@@ -78,6 +82,19 @@ def test_resolve_query_sink_node_table() -> None:
     assert db == "db_x"
     assert tbl.startswith("tbl_y__")
     assert "__vq_eq" in tbl or tbl.endswith("__vq_eq")
+
+
+def test_resolve_raw_save_sink_from_source_fields() -> None:
+    db, tbl = resolve_raw_save_sink(
+        {"source_raw_db": "db_discovery", "source_raw_table_key": "test_dump"}
+    )
+    assert db == "db_discovery"
+    assert tbl == "test_dump"
+
+
+def test_resolve_raw_save_sink_requires_db_and_table() -> None:
+    with pytest.raises(ValueError, match="save_raw requires"):
+        resolve_raw_save_sink({"source_raw_table_key": "test_dump"})
 
 
 def test_build_entity_cohort_row_shape() -> None:

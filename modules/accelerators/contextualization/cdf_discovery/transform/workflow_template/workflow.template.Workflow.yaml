@@ -1,0 +1,5 @@
+# Template: {{ workflow }} → scoped workflow external id per leaf suffix.
+externalId: '{{ workflow }}'
+description: >-
+  CDF Discovery ETL pipeline — source views and stage config from workflow.input.configuration.
+dataSetExternalId: 'ds_discovery_etl'

@@ -7,6 +7,7 @@ import "@xyflow/react/dist/style.css";
 import "./discovery-styles.css";
 import "./governance-editor.css";
 import "./discovery-layout.css";
+import "./transform-flow.css";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>

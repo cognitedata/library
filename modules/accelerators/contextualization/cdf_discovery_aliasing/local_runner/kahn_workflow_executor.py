@@ -31,7 +31,7 @@ from .persistence_cohort_snapshot import (
     parse_handler_summary_message,
 )
 from .raw_results_attachment import snapshot_raw_results_for_ctx
-from .ui_progress import emit_ui_progress
+from .ui_progress import emit_ui_progress, ui_progress_row_counts_from_output
 
 _DISCOVERY_PIPELINES: Dict[str, Tuple[str, str]] = discovery_local_pipeline_specs()
 
@@ -431,6 +431,7 @@ def _dispatch_task_tracked(ctx: KahnRunContext, task_id: str, merge_lock: Lock) 
     if err and task_status != "succeeded":
         _emax = 2000
         ui_end["error"] = err if len(err) <= _emax else err[:_emax] + "…"
+    ui_end.update(ui_progress_row_counts_from_output(output_snap))
     emit_ui_progress("task_end", **ui_end)
     rec: Dict[str, Any] = {
         "task_id": task_id,

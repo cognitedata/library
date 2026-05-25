@@ -38,7 +38,7 @@ from .discovery_query_shared import (
     VIEW_VERSION_COLUMN,
     instance_space_from_node_instance_id,
     build_entity_cohort_row,
-    resolve_query_sink,
+    resolve_raw_save_sink,
     resolve_task_config,
     _first_nonempty,
     _flush_rows,
@@ -361,7 +361,7 @@ def discovery_replicate_raw_save(
     client: Any,
     log: Any,
 ) -> Dict[str, Any]:
-    """Copy entity cohort rows from predecessor RAW tables into this task's query sink."""
+    """Copy predecessor entity rows into the configured RAW database and table."""
     merge_compiled_task_into_data(data)
     cfg = resolve_task_config(data)
     validate_save_config(cfg, save_kind="raw")
@@ -370,7 +370,7 @@ def discovery_replicate_raw_save(
     data["run_id"] = run_id
     task_id = _first_nonempty(data.get("task_id"), fn_external_id)
     writer_canvas = canvas_node_id_for_task(data, task_id)
-    sink_db, sink_table = resolve_query_sink(data)
+    sink_db, sink_table = resolve_raw_save_sink(cfg)
     fan_mode = str(cfg.get("save_fan_in_mode") or "").strip()
     policy_map = parse_field_policies(cfg)
 

@@ -19,6 +19,9 @@ _MAX_SAVED_QUERIES = 200
 _DEFAULT_GOV_LIVE_TOKEN_FOLDER_DEPTH = 2
 _MAX_GOV_LIVE_TOKEN_FOLDER_DEPTH = 8
 _SAVED_QUERY_ID_RE = re.compile(r"^[a-zA-Z][a-zA-Z0-9_-]{0,127}$")
+_GOVERNANCE_SUB_TABS = frozenset({"configure", "build", "artifacts"})
+_FILE_CONTENT_FORMATS = frozenset({"parquet", "csv", "json"})
+_SQL_ENGINES = frozenset({"cdf", "file_content"})
 
 
 def _load_yaml(path: Path) -> Dict[str, Any]:
@@ -86,6 +89,84 @@ def _str_field(raw: Any, *, max_len: int = 2048) -> Optional[str]:
     return s
 
 
+def _optional_int(raw: Any, *, lo: int, hi: int) -> Optional[int]:
+    if not isinstance(raw, (int, float)) or isinstance(raw, bool):
+        return None
+    val = int(raw)
+    if lo <= val <= hi:
+        return val
+    return None
+
+
+def _label_field(raw: Any) -> Optional[str]:
+    return _str_field(raw.get("label"), max_len=512) if isinstance(raw, dict) else _str_field(raw, max_len=512)
+
+
+def _normalize_governance_sub_tab(raw: Any) -> Optional[str]:
+    if not isinstance(raw, str):
+        return None
+    val = raw.strip()
+    return val if val in _GOVERNANCE_SUB_TABS else None
+
+
+def _normalize_file_content_ref(raw: Any) -> Optional[Dict[str, Any]]:
+    if not isinstance(raw, dict):
+        return None
+    fmt = raw.get("format")
+    if not isinstance(fmt, str) or fmt not in _FILE_CONTENT_FORMATS:
+        return None
+    out: Dict[str, Any] = {"format": fmt}
+    file_id = raw.get("file_id")
+    if isinstance(file_id, (int, float)) and not isinstance(file_id, bool) and int(file_id) == file_id:
+        out["file_id"] = int(file_id)
+    external_id = _str_field(raw.get("external_id"), max_len=512)
+    if external_id:
+        out["external_id"] = external_id
+    instance_space = _str_field(raw.get("instance_space"), max_len=512)
+    if instance_space:
+        out["instance_space"] = instance_space
+    name = _str_field(raw.get("name"), max_len=512)
+    if name:
+        out["name"] = name
+    if "file_id" not in out and not external_id:
+        return None
+    return out
+
+
+def _normalize_workspace_sql_tab(tab_id: str, raw: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    query = raw.get("query")
+    if not isinstance(query, str):
+        return None
+    out: Dict[str, Any] = {"kind": "sql", "id": tab_id, "query": query}
+    label = _label_field(raw)
+    if label:
+        out["label"] = label
+    limit = _optional_int(raw.get("limit"), lo=1, hi=100_000)
+    if limit is not None:
+        out["limit"] = limit
+    if isinstance(raw.get("convert_to_string"), bool):
+        out["convert_to_string"] = raw["convert_to_string"]
+    source_limit = _optional_int(raw.get("source_limit"), lo=1, hi=1_000_000)
+    if source_limit is not None:
+        out["source_limit"] = source_limit
+    timeout = _optional_int(raw.get("timeout"), lo=1, hi=86_400)
+    if timeout is not None:
+        out["timeout"] = timeout
+    sqid = _str_field(raw.get("saved_query_id"), max_len=128)
+    if sqid and _SAVED_QUERY_ID_RE.match(sqid):
+        out["saved_query_id"] = sqid
+    engine = raw.get("engine")
+    if isinstance(engine, str) and engine in _SQL_ENGINES:
+        out["engine"] = engine
+    if engine == "file_content":
+        file_content = _normalize_file_content_ref(raw.get("file_content"))
+        if file_content:
+            out["file_content"] = file_content
+        else:
+            return None
+    return out
+
+
 def _normalize_workspace_tab(raw: Any) -> Optional[Dict[str, Any]]:
     if not isinstance(raw, dict):
         return None
@@ -93,28 +174,10 @@ def _normalize_workspace_tab(raw: Any) -> Optional[Dict[str, Any]]:
     tab_id = _str_field(raw.get("id"))
     if not tab_id:
         return None
+    label = _label_field(raw)
 
     if kind == "sql":
-        query = raw.get("query")
-        if not isinstance(query, str):
-            return None
-        out: Dict[str, Any] = {"kind": "sql", "id": tab_id, "query": query}
-        label = _str_field(raw.get("label"), max_len=512)
-        if label:
-            out["label"] = label
-        for key, field in (
-            ("limit", "limit"),
-            ("convert_to_string", "convert_to_string"),
-        ):
-            val = raw.get(key)
-            if isinstance(val, bool) and field == "convert_to_string":
-                out[field] = val
-            elif isinstance(val, (int, float)) and field != "convert_to_string":
-                out[field] = int(val)
-        sqid = _str_field(raw.get("saved_query_id"), max_len=128)
-        if sqid and _SAVED_QUERY_ID_RE.match(sqid):
-            out["saved_query_id"] = sqid
-        return out
+        return _normalize_workspace_sql_tab(tab_id, raw)
 
     if kind == "data_model":
         space = _str_field(raw.get("space"), max_len=512)
@@ -129,7 +192,6 @@ def _normalize_workspace_tab(raw: Any) -> Optional[Dict[str, Any]]:
             "external_id": external_id,
             "version": version,
         }
-        label = _str_field(raw.get("label"), max_len=512)
         if label:
             out["label"] = label
         name = _str_field(raw.get("name"), max_len=512)
@@ -142,7 +204,6 @@ def _normalize_workspace_tab(raw: Any) -> Optional[Dict[str, Any]]:
         if not isinstance(tid, (int, float)) or int(tid) != tid:
             return None
         out = {"kind": "transformation", "id": tab_id, "transformation_id": int(tid)}
-        label = _str_field(raw.get("label"), max_len=512)
         if label:
             out["label"] = label
         return out
@@ -152,7 +213,6 @@ def _normalize_workspace_tab(raw: Any) -> Optional[Dict[str, Any]]:
         if not function_id:
             return None
         out = {"kind": "function", "id": tab_id, "function_id": function_id}
-        label = _str_field(raw.get("label"), max_len=512)
         if label:
             out["label"] = label
         return out
@@ -162,7 +222,6 @@ def _normalize_workspace_tab(raw: Any) -> Optional[Dict[str, Any]]:
         if not external_id:
             return None
         out: Dict[str, Any] = {"kind": "workflow", "id": tab_id, "external_id": external_id}
-        label = _str_field(raw.get("label"), max_len=512)
         if label:
             out["label"] = label
         version = _str_field(raw.get("version"), max_len=64)
@@ -171,6 +230,94 @@ def _normalize_workspace_tab(raw: Any) -> Optional[Dict[str, Any]]:
         name = _str_field(raw.get("name"), max_len=512)
         if name:
             out["name"] = name
+        return out
+
+    if kind == "governance_scope":
+        out = {"kind": "governance_scope", "id": tab_id}
+        if label:
+            out["label"] = label
+        return out
+
+    if kind == "governance_spaces":
+        out = {"kind": "governance_spaces", "id": tab_id}
+        if label:
+            out["label"] = label
+        sub = _normalize_governance_sub_tab(raw.get("active_sub_tab"))
+        if sub:
+            out["active_sub_tab"] = sub
+        rel = raw.get("artifact_rel")
+        if rel is None:
+            pass
+        elif isinstance(rel, str):
+            out["artifact_rel"] = rel.strip() or None
+        return out
+
+    if kind == "governance_groups":
+        out = {"kind": "governance_groups", "id": tab_id}
+        if label:
+            out["label"] = label
+        sub = _normalize_governance_sub_tab(raw.get("active_sub_tab"))
+        if sub:
+            out["active_sub_tab"] = sub
+        rel = raw.get("artifact_rel")
+        if rel is None:
+            pass
+        elif isinstance(rel, str):
+            out["artifact_rel"] = rel.strip() or None
+        return out
+
+    if kind == "governance_cdf_space":
+        space = _str_field(raw.get("space"), max_len=512)
+        if not space:
+            return None
+        out = {"kind": "governance_cdf_space", "id": tab_id, "space": space}
+        if label:
+            out["label"] = label
+        return out
+
+    if kind == "governance_cdf_group":
+        group_id = raw.get("group_id")
+        if not isinstance(group_id, (int, float)) or int(group_id) != group_id:
+            return None
+        out = {"kind": "governance_cdf_group", "id": tab_id, "group_id": int(group_id)}
+        if label:
+            out["label"] = label
+        return out
+
+    if kind == "etl_pipeline":
+        pipeline_id = _str_field(raw.get("pipeline_id"), max_len=512)
+        if not pipeline_id:
+            return None
+        out = {"kind": "etl_pipeline", "id": tab_id, "pipeline_id": pipeline_id}
+        if label:
+            out["label"] = label
+        return out
+
+    if kind == "etl_template":
+        template_id = _str_field(raw.get("template_id"), max_len=512)
+        if not template_id:
+            return None
+        out = {"kind": "etl_template", "id": tab_id, "template_id": template_id}
+        if label:
+            out["label"] = label
+        return out
+
+    if kind == "etl_scope":
+        out = {"kind": "etl_scope", "id": tab_id}
+        if label:
+            out["label"] = label
+        return out
+
+    if kind == "extract":
+        out = {"kind": "extract", "id": tab_id}
+        if label:
+            out["label"] = label
+        return out
+
+    if kind == "monitor":
+        out = {"kind": "monitor", "id": tab_id}
+        if label:
+            out["label"] = label
         return out
 
     return None

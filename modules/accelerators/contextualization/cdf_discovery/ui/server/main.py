@@ -19,9 +19,11 @@ if _mod_root_str not in sys.path:
 
 from ui.server import cdf_browse, discovery_config, discovery_tree, file_content_query, file_download  # noqa: E402
 from ui.server.governance_api import router as governance_declared_router  # noqa: E402
+from ui.server.transform_api import router as transform_router  # noqa: E402
 
 app = FastAPI(title="CDF Discovery operator API", version="1.0.0")
 app.include_router(governance_declared_router)
+app.include_router(transform_router)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -199,13 +201,36 @@ class FileContentSqlRunRequest(BaseModel):
     convert_to_string: bool = True
 
 
-@app.get("/api/cdf/transformations/detail")
-def transformation_detail(
-    id: int = Query(..., ge=1, description="Transformation numeric id"),
+@app.get("/api/cdf/transformations/list")
+def transformations_list(
+    limit: int = Query(500, ge=1, le=1000, description="Max transformations to return"),
 ) -> dict:
     client = _cdf_client()
     try:
-        return cdf_browse.get_transformation_detail(client, transformation_id=id)
+        return {"items": cdf_browse.list_transformations(client, limit=limit)}
+    except Exception as e:
+        raise _api_error(e) from e
+
+
+@app.get("/api/cdf/transformations/detail")
+def transformation_detail(
+    id: Optional[int] = Query(None, ge=1, description="Transformation numeric id"),
+    external_id: Optional[str] = Query(
+        None, min_length=1, max_length=512, description="Transformation external id"
+    ),
+) -> dict:
+    if (id is None) == (external_id is None):
+        raise HTTPException(
+            status_code=400,
+            detail="Provide exactly one of id or external_id",
+        )
+    client = _cdf_client()
+    try:
+        if id is not None:
+            return cdf_browse.get_transformation_detail(client, transformation_id=id)
+        return cdf_browse.get_transformation_detail_by_external_id(
+            client, external_id=str(external_id)
+        )
     except Exception as e:
         raise _api_error(e) from e
 

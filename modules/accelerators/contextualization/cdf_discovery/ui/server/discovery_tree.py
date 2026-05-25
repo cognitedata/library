@@ -11,9 +11,22 @@ from ui.server.tree_node_ids import (
     DATA_ROOT,
     DATA_SAVED_QUERIES,
     FUSION_DM_ROOT,
+    FUSION_ADMIN,
+    FUSION_GROUPS,
     FUSION_INTEGRATION_ROOT,
     FUSION_ROOT,
+    FUSION_SPACES,
+    CONNECTION_INFO,
+    CONNECTION_ROOT_CHILD_ORDER,
+    EXTRACT_ROOT,
     GOVERNANCE_ROOT,
+    MONITOR_ROOT,
+    TRANSFORM_PIPELINE_PREFIX,
+    TRANSFORM_ROOT,
+    TRANSFORM_TEMPLATE_PREFIX,
+    TRANSFORM_TEMPLATES,
+    TRANSFORM_SCOPE,
+    TRANSFORM_WORKFLOW_PREFIX,
 )
 
 TreeNodeOut = Dict[str, Any]
@@ -24,6 +37,8 @@ _DATA_BRANCHES: Tuple[Tuple[str, str, str], ...] = (
     ("dm", "Data Models", "dm"),
     ("classic", "Classic", "classic"),
 )
+
+# Transform — built pipeline scopes under ``transform/workflows/{scope}/``, then templates.
 
 # Integration — under Fusion → Integration.
 _INTEGRATION_BRANCHES: Tuple[Tuple[str, str, str], ...] = (
@@ -50,6 +65,14 @@ def parse_node_id(node_id: str) -> tuple[str, List[str]]:
     kind = parts[0]
     segs = [decode_segment(p) for p in parts[1:]]
     return kind, segs
+
+
+def _sort_connection_root_children(nodes: List[TreeNodeOut]) -> List[TreeNodeOut]:
+    """Pinned order for top-level connection folders; project info stays last."""
+    order = {nid: i for i, nid in enumerate(CONNECTION_ROOT_CHILD_ORDER)}
+    if not nodes or any(str(n.get("id") or "") not in order for n in nodes):
+        return nodes
+    return sorted(nodes, key=lambda n: order[str(n.get("id") or "")])
 
 
 def _sort_nodes(nodes: List[TreeNodeOut], *, starred_ids: Optional[List[str]] = None) -> List[TreeNodeOut]:
@@ -103,13 +126,6 @@ def _declared_root():
     return governance_declared.declared_root(_discovery_module_root())
 
 
-def _sort_gov_workspace_children(
-    live: List[TreeNodeOut], artifacts: List[TreeNodeOut]
-) -> List[TreeNodeOut]:
-    """Live CDF token folders first, then declared artifact folders/files (each group sorted)."""
-    return _sort_nodes(live) + _sort_nodes(artifacts)
-
-
 _NAME_TOKEN_SPLIT = re.compile(r"[_:\-]+")
 
 
@@ -119,16 +135,18 @@ def _name_tokens(name: str) -> List[str]:
     return parts if parts else ["(other)"]
 
 
-def _gov_live_node_id(workspace: str, token_path: List[str]) -> str:
-    """Node id for a live CDF token path under a governance workspace."""
-    encoded = ":".join(encode_segment(t) for t in token_path)
-    return f"gov:{workspace}:live:{encoded}"
+def _fusion_live_node_id(branch_path: str, token_path: List[str]) -> str:
+    """Node id for a live CDF path under Fusion (e.g. ``spaces`` or ``admin:groups``)."""
+    branch_part = ":".join(encode_segment(s) for s in branch_path.split(":"))
+    token_part = ":".join(encode_segment(t) for t in token_path)
+    return f"fusion:{branch_part}:live:{token_part}"
 
 
-def _gov_live_hierarchy_children(
+def _fusion_cdf_hierarchy_children(
     items: List[Dict[str, Any]],
     *,
-    workspace: str,
+    branch_path: str,
+    branch: str,
     token_path: List[str],
     name_key: str,
     leaf_kind: str,
@@ -157,7 +175,7 @@ def _gov_live_hierarchy_children(
                     label=item["label"],
                     kind=leaf_kind,
                     has_children=False,
-                    meta={**item, "governance_workspace": workspace, "live_cdf": True},
+                    meta={**item, "live_cdf": True, "fusion_branch": branch},
                 )
             )
         else:
@@ -165,15 +183,15 @@ def _gov_live_hierarchy_children(
 
     folder_nodes = [
         _node(
-            id=_gov_live_node_id(workspace, token_path + [tok]),
+            id=_fusion_live_node_id(branch_path, token_path + [tok]),
             label=tok,
             kind="folder",
             has_children=True,
             meta={
-                "domain": f"governance_{workspace}_token",
-                "governance_workspace": workspace,
+                "domain": f"fusion_{branch}_token",
                 "name_tokens": token_path + [tok],
                 "live_cdf": True,
+                "fusion_branch": branch,
             },
         )
         for tok in child_tokens
@@ -220,76 +238,84 @@ def _gov_artifact_branch_nodes(*, workspace: str, prefix: str) -> List[TreeNodeO
 
 def _gov_spaces_children(client: Any, segs: List[str]) -> List[TreeNodeOut]:
     if not segs:
-        items = cdf_browse.list_governance_spaces(client, limit=2000, include_global=True)
-        live = _gov_live_hierarchy_children(
-            items,
-            workspace="spaces",
-            token_path=[],
-            name_key="space",
-            leaf_kind="gov_space",
-            leaf_id_prefix="gov:space:",
-            id_key="space",
-        )
-        artifacts = _gov_artifact_branch_nodes(workspace="spaces", prefix="spaces")
-        return _sort_gov_workspace_children(live, artifacts)
-
-    if segs[0] == "live":
-        token_path = [decode_segment(s) for s in segs[1:]]
-        items = cdf_browse.list_governance_spaces(client, limit=2000, include_global=True)
-        return _gov_live_hierarchy_children(
-            items,
-            workspace="spaces",
-            token_path=token_path,
-            name_key="space",
-            leaf_kind="gov_space",
-            leaf_id_prefix="gov:space:",
-            id_key="space",
-        )
+        return _sort_nodes(_gov_artifact_branch_nodes(workspace="spaces", prefix="spaces"))
 
     if segs[0] == "adir" and len(segs) == 2:
         prefix = decode_segment(segs[1])
         return _sort_nodes(_gov_artifact_branch_nodes(workspace="spaces", prefix=prefix))
-
-    if segs[0] == "artifact":
-        return []
 
     return []
 
 
 def _gov_groups_children(client: Any, segs: List[str]) -> List[TreeNodeOut]:
     if not segs:
-        items = cdf_browse.list_security_groups(client, limit=2000)
-        live = _gov_live_hierarchy_children(
-            items,
-            workspace="groups",
-            token_path=[],
-            name_key="name",
-            leaf_kind="gov_group",
-            leaf_id_prefix="gov:group:",
-            id_key="id",
-        )
-        artifacts = _gov_artifact_branch_nodes(workspace="groups", prefix="auth")
-        return _sort_gov_workspace_children(live, artifacts)
-
-    if segs[0] == "live":
-        token_path = [decode_segment(s) for s in segs[1:]]
-        items = cdf_browse.list_security_groups(client, limit=2000)
-        return _gov_live_hierarchy_children(
-            items,
-            workspace="groups",
-            token_path=token_path,
-            name_key="name",
-            leaf_kind="gov_group",
-            leaf_id_prefix="gov:group:",
-            id_key="id",
-        )
+        return _sort_nodes(_gov_artifact_branch_nodes(workspace="groups", prefix="auth"))
 
     if segs[0] == "adir" and len(segs) == 2:
         prefix = decode_segment(segs[1])
         return _sort_nodes(_gov_artifact_branch_nodes(workspace="groups", prefix=prefix))
 
-    if segs[0] == "artifact":
-        return []
+    return []
+
+
+def _fusion_spaces_children(client: Any, segs: List[str]) -> List[TreeNodeOut]:
+    if not segs:
+        items = cdf_browse.list_governance_spaces(client, limit=2000, include_global=True)
+        return _fusion_cdf_hierarchy_children(
+            items,
+            branch_path="spaces",
+            branch="spaces",
+            token_path=[],
+            name_key="space",
+            leaf_kind="gov_space",
+            leaf_id_prefix="fusion:space:",
+            id_key="space",
+        )
+
+    if segs[0] == "live":
+        token_path = [decode_segment(s) for s in segs[1:]]
+        items = cdf_browse.list_governance_spaces(client, limit=2000, include_global=True)
+        return _fusion_cdf_hierarchy_children(
+            items,
+            branch_path="spaces",
+            branch="spaces",
+            token_path=token_path,
+            name_key="space",
+            leaf_kind="gov_space",
+            leaf_id_prefix="fusion:space:",
+            id_key="space",
+        )
+
+    return []
+
+
+def _fusion_groups_children(client: Any, segs: List[str]) -> List[TreeNodeOut]:
+    if not segs:
+        items = cdf_browse.list_security_groups(client, limit=2000)
+        return _fusion_cdf_hierarchy_children(
+            items,
+            branch_path="admin:groups",
+            branch="groups",
+            token_path=[],
+            name_key="name",
+            leaf_kind="gov_group",
+            leaf_id_prefix="fusion:group:",
+            id_key="id",
+        )
+
+    if segs[0] == "live":
+        token_path = [decode_segment(s) for s in segs[1:]]
+        items = cdf_browse.list_security_groups(client, limit=2000)
+        return _fusion_cdf_hierarchy_children(
+            items,
+            branch_path="admin:groups",
+            branch="groups",
+            token_path=token_path,
+            name_key="name",
+            leaf_kind="gov_group",
+            leaf_id_prefix="fusion:group:",
+            id_key="id",
+        )
 
     return []
 
@@ -516,36 +542,147 @@ def list_children(client: Any, node_id: str) -> List[TreeNodeOut]:
     if kind == "connection":
         info = cdf_browse.connection_info(client)
         proj = info.get("project") or "CDF"
-        return [
+        return _sort_connection_root_children(
+            [
+                _node(
+                    id=DATA_ROOT,
+                    label="Data",
+                    kind="folder",
+                    has_children=True,
+                    meta={"domain": "data"},
+                ),
+                _node(
+                    id=FUSION_ROOT,
+                    label="Fusion",
+                    kind="folder",
+                    has_children=True,
+                    meta={"domain": "fusion"},
+                ),
+                _node(
+                    id=GOVERNANCE_ROOT,
+                    label="Governance",
+                    kind="folder",
+                    has_children=True,
+                    meta={"domain": "governance", "governance_workspace": "scope"},
+                ),
+                _node(
+                    id=EXTRACT_ROOT,
+                    label="Extract",
+                    kind="extract",
+                    has_children=False,
+                    meta={"domain": "extract"},
+                ),
+                _node(
+                    id=TRANSFORM_ROOT,
+                    label="Transform",
+                    kind="folder",
+                    has_children=True,
+                    meta={"domain": "transform"},
+                ),
+                _node(
+                    id=MONITOR_ROOT,
+                    label="Monitor",
+                    kind="monitor",
+                    has_children=False,
+                    meta={"domain": "monitor"},
+                ),
+                _node(
+                    id=CONNECTION_INFO,
+                    label=f"Project: {proj}",
+                    kind="connection",
+                    has_children=False,
+                    meta=info,
+                ),
+            ]
+        )
+
+    if kind == TRANSFORM_ROOT and not segs:
+        from ui.server import transform_registry
+
+        scope_config = _node(
+            id=TRANSFORM_SCOPE,
+            label="Scope hierarchy",
+            kind="etl_scope",
+            has_children=False,
+            meta={"domain": "transform_scope"},
+        )
+        scope_nodes = [
             _node(
-                id=DATA_ROOT,
-                label="Data",
+                id=f"{TRANSFORM_ROOT}:{encode_segment(scope)}",
+                label=scope,
                 kind="folder",
                 has_children=True,
-                meta={"domain": "data"},
-            ),
-            _node(
-                id=FUSION_ROOT,
-                label="Fusion",
-                kind="folder",
-                has_children=True,
-                meta={"domain": "fusion"},
-            ),
-            _node(
-                id=GOVERNANCE_ROOT,
-                label="Governance",
-                kind="folder",
-                has_children=True,
-                meta={"domain": "governance", "governance_workspace": "scope"},
-            ),
-            _node(
-                id="connection:info",
-                label=f"Project: {proj}",
-                kind="connection",
-                has_children=False,
-                meta=info,
-            ),
+                meta={"domain": "transform_built_scope", "scope_suffix": scope},
+            )
+            for scope in transform_registry.list_built_scope_suffixes()
         ]
+        templates_folder = _node(
+            id=TRANSFORM_TEMPLATES,
+            label="Templates",
+            kind="folder",
+            has_children=True,
+            meta={"domain": "transform_templates"},
+        )
+        return _sort_nodes([scope_config, *scope_nodes, templates_folder])
+
+    if kind == TRANSFORM_ROOT and len(segs) == 1 and segs[0] != "templates":
+        from ui.server import transform_registry
+
+        scope_suffix = segs[0]
+        return _sort_nodes(
+            [
+                _node(
+                    id=(
+                        f"{TRANSFORM_PIPELINE_PREFIX}{encode_segment(scope_suffix)}:"
+                        f"{encode_segment(str(p['id']))}"
+                    ),
+                    label=str(p.get("label") or p["id"]),
+                    kind="etl_pipeline",
+                    has_children=bool(p.get("has_workflow_children")),
+                    meta={**p},
+                )
+                for p in transform_registry.list_built_pipeline_entries(scope_suffix=scope_suffix)
+            ]
+        )
+
+    if kind == TRANSFORM_ROOT and len(segs) >= 3 and segs[0] == "pipeline":
+        from ui.server import transform_registry
+
+        scope_suffix = segs[1]
+        pipeline_id = segs[2]
+        return _sort_nodes(
+            [
+                _node(
+                    id=(
+                        f"{TRANSFORM_WORKFLOW_PREFIX}{encode_segment(scope_suffix)}:"
+                        f"{encode_segment(pipeline_id)}:{encode_segment(str(a['id']))}"
+                    ),
+                    label=str(a.get("label") or a["id"]),
+                    kind="etl_workflow_yaml",
+                    has_children=False,
+                    meta={**a},
+                )
+                for a in transform_registry.list_pipeline_workflow_artifacts(
+                    pipeline_id, scope_suffix=scope_suffix
+                )
+            ]
+        )
+
+    if kind == TRANSFORM_ROOT and len(segs) == 1 and segs[0] == "templates":
+        from ui.server import transform_registry
+
+        return _sort_nodes(
+            [
+                _node(
+                    id=f"{TRANSFORM_TEMPLATE_PREFIX}{encode_segment(str(t['id']))}",
+                    label=str(t.get("label") or t["id"]),
+                    kind="etl_template",
+                    has_children=False,
+                    meta={**t},
+                )
+                for t in transform_registry.list_template_ids()
+            ]
+        )
 
     if kind == DATA_ROOT and segs == ["sq"]:
         return _sort_nodes(
@@ -598,6 +735,20 @@ def list_children(client: Any, node_id: str) -> List[TreeNodeOut]:
                 meta={"domain": "fusion_dm"},
             ),
             _node(
+                id=FUSION_SPACES,
+                label="Spaces",
+                kind="folder",
+                has_children=True,
+                meta={"domain": "fusion_spaces"},
+            ),
+            _node(
+                id=FUSION_ADMIN,
+                label="Admin",
+                kind="folder",
+                has_children=True,
+                meta={"domain": "fusion_admin"},
+            ),
+            _node(
                 id=FUSION_INTEGRATION_ROOT,
                 label="Integration",
                 kind="folder",
@@ -605,6 +756,23 @@ def list_children(client: Any, node_id: str) -> List[TreeNodeOut]:
                 meta={"domain": "integration"},
             ),
         ]
+
+    if kind == FUSION_ROOT and len(segs) >= 1 and segs[0] == "spaces":
+        return _fusion_spaces_children(client, segs[1:])
+
+    if kind == FUSION_ROOT and len(segs) == 1 and segs[0] == "admin":
+        return [
+            _node(
+                id=FUSION_GROUPS,
+                label="Groups",
+                kind="folder",
+                has_children=True,
+                meta={"domain": "fusion_groups"},
+            ),
+        ]
+
+    if kind == FUSION_ROOT and len(segs) >= 2 and segs[0] == "admin" and segs[1] == "groups":
+        return _fusion_groups_children(client, segs[2:])
 
     if kind == FUSION_ROOT and len(segs) == 1 and segs[0] == "integration":
         return [

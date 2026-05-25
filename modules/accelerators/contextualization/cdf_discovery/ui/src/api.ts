@@ -5,9 +5,11 @@ import type {
   SavedQuery,
   SavedWorkspace,
   TransformationDetail,
+  TransformationListItem,
   WorkflowGraph,
   WorkflowRef,
 } from "./types/discoveryNodes";
+import type { TransformCanvasDocument, TransformPipelineDocument } from "./types/transformCanvas";
 
 const API = "";
 
@@ -118,8 +120,31 @@ export async function fetchDataModelGraph(ref: DataModelRef): Promise<DataModelG
   return r.json() as Promise<DataModelGraph>;
 }
 
-export async function fetchTransformationDetail(transformationId: number): Promise<TransformationDetail> {
-  const params = new URLSearchParams({ id: String(transformationId) });
+export async function fetchTransformationList(
+  limit = 500
+): Promise<{ items: TransformationListItem[] }> {
+  const params = new URLSearchParams({ limit: String(limit) });
+  const r = await fetch(`${API}/api/cdf/transformations/list?${params}`);
+  if (!r.ok) {
+    const body = await r.json().catch(() => ({}));
+    throw new Error(String((body as { detail?: string }).detail ?? r.status));
+  }
+  return r.json() as Promise<{ items: TransformationListItem[] }>;
+}
+
+export async function fetchTransformationDetail(
+  transformationIdOrOpts: number | { id?: number; externalId?: string }
+): Promise<TransformationDetail> {
+  const params = new URLSearchParams();
+  if (typeof transformationIdOrOpts === "number") {
+    params.set("id", String(transformationIdOrOpts));
+  } else if (transformationIdOrOpts.id != null) {
+    params.set("id", String(transformationIdOrOpts.id));
+  } else if (transformationIdOrOpts.externalId?.trim()) {
+    params.set("external_id", transformationIdOrOpts.externalId.trim());
+  } else {
+    throw new Error("fetchTransformationDetail requires id or externalId");
+  }
   const r = await fetch(`${API}/api/cdf/transformations/detail?${params}`);
   if (!r.ok) {
     const body = await r.json().catch(() => ({}));
@@ -308,4 +333,444 @@ export async function downloadFileBlob(
     throw new Error(String((body as { detail?: string }).detail ?? r.status));
   }
   return r.blob();
+}
+
+export async function fetchTransformScopeHierarchy(): Promise<{
+  scope_hierarchy: Record<string, unknown>;
+}> {
+  const r = await fetch(`${API}/api/transform/scope-hierarchy`);
+  if (!r.ok) {
+    const body = await r.json().catch(() => ({}));
+    throw new Error(String((body as { detail?: string }).detail ?? r.status));
+  }
+  return r.json() as Promise<{ scope_hierarchy: Record<string, unknown> }>;
+}
+
+export async function saveTransformScopeHierarchy(
+  scopeHierarchy: Record<string, unknown>
+): Promise<void> {
+  const r = await fetch(`${API}/api/transform/scope-hierarchy`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ scope_hierarchy: scopeHierarchy }),
+  });
+  if (!r.ok) {
+    const body = await r.json().catch(() => ({}));
+    throw new Error(String((body as { detail?: string }).detail ?? r.status));
+  }
+}
+
+export async function fetchTransformTemplates(): Promise<{
+  templates: Array<{ id: string; label: string }>;
+}> {
+  const r = await fetch(`${API}/api/transform/templates`);
+  if (!r.ok) {
+    const body = await r.json().catch(() => ({}));
+    throw new Error(String((body as { detail?: string }).detail ?? r.status));
+  }
+  return r.json() as Promise<{ templates: Array<{ id: string; label: string }> }>;
+}
+
+export async function createTransformPipeline(body: {
+  id: string;
+  label: string;
+  template_id?: string;
+}): Promise<{ pipeline: TransformPipelineDocument }> {
+  const r = await fetch(`${API}/api/transform/pipelines`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!r.ok) {
+    const resBody = await r.json().catch(() => ({}));
+    throw new Error(String((resBody as { detail?: string }).detail ?? r.status));
+  }
+  return r.json() as Promise<{ pipeline: TransformPipelineDocument }>;
+}
+
+export async function fetchTransformPipelineByWorkflow(
+  workflowExternalId: string
+): Promise<{
+  pipeline_id: string;
+  scope_suffix?: string;
+  pipeline: TransformPipelineDocument;
+  match: string;
+}> {
+  const params = new URLSearchParams({ external_id: workflowExternalId });
+  const r = await fetch(`${API}/api/transform/pipelines/by-workflow?${params}`);
+  if (!r.ok) {
+    const body = await r.json().catch(() => ({}));
+    throw new Error(String((body as { detail?: string }).detail ?? r.status));
+  }
+  return r.json() as Promise<{
+    pipeline_id: string;
+    scope_suffix?: string;
+    pipeline: TransformPipelineDocument;
+    match: string;
+  }>;
+}
+
+export async function fetchTransformWorkflowYaml(
+  path: string
+): Promise<{ path: string; content: string }> {
+  const params = new URLSearchParams({ path });
+  const r = await fetch(`${API}/api/transform/workflow-yaml?${params}`);
+  if (!r.ok) {
+    const body = await r.json().catch(() => ({}));
+    throw new Error(String((body as { detail?: string }).detail ?? r.status));
+  }
+  return r.json() as Promise<{ path: string; content: string }>;
+}
+
+export async function saveTransformWorkflowYaml(path: string, content: string): Promise<void> {
+  const params = new URLSearchParams({ path });
+  const r = await fetch(`${API}/api/transform/workflow-yaml?${params}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ content }),
+  });
+  if (!r.ok) {
+    const body = await r.json().catch(() => ({}));
+    throw new Error(String((body as { detail?: string }).detail ?? r.status));
+  }
+}
+
+function transformPipelineScopeQuery(scopeSuffix = "all"): string {
+  return `?scope_suffix=${encodeURIComponent(scopeSuffix)}`;
+}
+
+export async function fetchTransformPipeline(
+  pipelineId: string,
+  scopeSuffix = "all"
+): Promise<{ pipeline: TransformPipelineDocument }> {
+  const r = await fetch(
+    `${API}/api/transform/pipelines/${encodeURIComponent(pipelineId)}${transformPipelineScopeQuery(scopeSuffix)}`
+  );
+  if (!r.ok) {
+    const body = await r.json().catch(() => ({}));
+    throw new Error(String((body as { detail?: string }).detail ?? r.status));
+  }
+  return r.json() as Promise<{ pipeline: TransformPipelineDocument }>;
+}
+
+export async function saveTransformPipelineAsTemplate(
+  pipelineId: string,
+  body: { template_id: string; label?: string; canvas?: TransformCanvasDocument },
+  scopeSuffix = "all"
+): Promise<{ template: Record<string, unknown> }> {
+  const r = await fetch(
+    `${API}/api/transform/pipelines/${encodeURIComponent(pipelineId)}/save-as-template${transformPipelineScopeQuery(scopeSuffix)}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    }
+  );
+  if (!r.ok) {
+    const resBody = await r.json().catch(() => ({}));
+    throw new Error(String((resBody as { detail?: string }).detail ?? r.status));
+  }
+  return r.json() as Promise<{ template: Record<string, unknown> }>;
+}
+
+export async function saveTransformPipelineAsPipeline(
+  pipelineId: string,
+  body: { id: string; label: string; canvas?: TransformCanvasDocument },
+  scopeSuffix = "all"
+): Promise<{ pipeline: TransformPipelineDocument }> {
+  const r = await fetch(
+    `${API}/api/transform/pipelines/${encodeURIComponent(pipelineId)}/save-as-pipeline${transformPipelineScopeQuery(scopeSuffix)}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    }
+  );
+  if (!r.ok) {
+    const resBody = await r.json().catch(() => ({}));
+    throw new Error(String((resBody as { detail?: string }).detail ?? r.status));
+  }
+  return r.json() as Promise<{ pipeline: TransformPipelineDocument }>;
+}
+
+export async function saveTransformTemplateAsTemplate(
+  templateId: string,
+  body: { template_id: string; label?: string; canvas?: TransformCanvasDocument }
+): Promise<{ template: Record<string, unknown> }> {
+  const r = await fetch(
+    `${API}/api/transform/templates/${encodeURIComponent(templateId)}/save-as-template`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    }
+  );
+  if (!r.ok) {
+    const resBody = await r.json().catch(() => ({}));
+    throw new Error(String((resBody as { detail?: string }).detail ?? r.status));
+  }
+  return r.json() as Promise<{ template: Record<string, unknown> }>;
+}
+
+export async function saveTransformTemplateAsPipeline(
+  templateId: string,
+  body: { id: string; label: string; canvas?: TransformCanvasDocument }
+): Promise<{ pipeline: TransformPipelineDocument }> {
+  const r = await fetch(
+    `${API}/api/transform/templates/${encodeURIComponent(templateId)}/save-as-pipeline`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    }
+  );
+  if (!r.ok) {
+    const resBody = await r.json().catch(() => ({}));
+    throw new Error(String((resBody as { detail?: string }).detail ?? r.status));
+  }
+  return r.json() as Promise<{ pipeline: TransformPipelineDocument }>;
+}
+
+export async function deleteTransformPipeline(pipelineId: string): Promise<void> {
+  const r = await fetch(`${API}/api/transform/pipelines/${encodeURIComponent(pipelineId)}`, {
+    method: "DELETE",
+  });
+  if (!r.ok) {
+    const body = await r.json().catch(() => ({}));
+    throw new Error(String((body as { detail?: string }).detail ?? r.status));
+  }
+}
+
+export async function renameTransformPipeline(
+  pipelineId: string,
+  label: string,
+  scopeSuffix = "all"
+): Promise<{ pipeline: TransformPipelineDocument }> {
+  const r = await fetch(
+    `${API}/api/transform/pipelines/${encodeURIComponent(pipelineId)}/label${transformPipelineScopeQuery(scopeSuffix)}`,
+    {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ label }),
+    }
+  );
+  if (!r.ok) {
+    const body = await r.json().catch(() => ({}));
+    throw new Error(String((body as { detail?: string }).detail ?? r.status));
+  }
+  return r.json() as Promise<{ pipeline: TransformPipelineDocument }>;
+}
+
+export async function saveTransformPipelineCanvas(
+  pipelineId: string,
+  canvas: TransformCanvasDocument,
+  scopeSuffix = "all"
+): Promise<void> {
+  const r = await fetch(
+    `${API}/api/transform/pipelines/${encodeURIComponent(pipelineId)}/canvas${transformPipelineScopeQuery(scopeSuffix)}`,
+    {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ canvas }),
+  });
+  if (!r.ok) {
+    const body = await r.json().catch(() => ({}));
+    throw new Error(String((body as { detail?: string }).detail ?? r.status));
+  }
+}
+
+export type TransformBuildPairing = {
+  pipeline_id: string;
+  workflow_base: string;
+  workflow_version: string;
+  scoped: boolean;
+  workflow_external_id: string;
+  trigger_external_id: string;
+  pairings: Array<{
+    scope_suffix: string;
+    workflow_external_id: string;
+    trigger_external_id: string;
+    workflow_version: string;
+  }>;
+};
+
+export async function fetchTransformBuildPairing(
+  pipelineId: string,
+  scoped = false,
+  scopeSuffix = "all"
+): Promise<TransformBuildPairing> {
+  const params = new URLSearchParams();
+  params.set("scope_suffix", scopeSuffix);
+  if (scoped) params.set("scoped", "true");
+  const q = params.toString();
+  const r = await fetch(
+    `${API}/api/transform/pipelines/${encodeURIComponent(pipelineId)}/build-pairing?${q}`
+  );
+  if (!r.ok) {
+    const body = await r.json().catch(() => ({}));
+    throw new Error(String((body as { detail?: string }).detail ?? r.status));
+  }
+  return r.json() as Promise<TransformBuildPairing>;
+}
+
+export async function validateTransformPipeline(
+  pipelineId: string,
+  scopeSuffix = "all"
+): Promise<{ ok: boolean; warnings?: string[] }> {
+  const r = await fetch(
+    `${API}/api/transform/pipelines/${encodeURIComponent(pipelineId)}/validate${transformPipelineScopeQuery(scopeSuffix)}`,
+    {
+      method: "POST",
+    }
+  );
+  if (!r.ok) {
+    const body = await r.json().catch(() => ({}));
+    throw new Error(String((body as { detail?: string }).detail ?? r.status));
+  }
+  return r.json() as Promise<{ ok: boolean; warnings?: string[] }>;
+}
+
+export type TransformBuildResult = {
+  ok: boolean;
+  pipeline_id?: string;
+  template_id?: string;
+  scoped?: boolean;
+  stdout?: string;
+  stderr?: string;
+  task_count?: number;
+};
+
+export async function buildTransformPipeline(
+  pipelineId: string,
+  scoped = false,
+  scopeSuffix = "all"
+): Promise<TransformBuildResult> {
+  const scopeQ = transformPipelineScopeQuery(scopeSuffix);
+  const url = scoped
+    ? `${API}/api/transform/workflows/${encodeURIComponent(pipelineId)}/build-scoped${scopeQ}`
+    : `${API}/api/transform/workflows/${encodeURIComponent(pipelineId)}/build${scopeQ}`;
+  const r = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ scoped }),
+  });
+  if (!r.ok) {
+    const body = await r.json().catch(() => ({}));
+    throw new Error(String((body as { detail?: string }).detail ?? r.status));
+  }
+  return r.json() as Promise<TransformBuildResult>;
+}
+
+export async function buildTransformTemplate(
+  templateId: string,
+  scoped = false
+): Promise<TransformBuildResult> {
+  const path = scoped
+    ? `${API}/api/transform/templates/${encodeURIComponent(templateId)}/build-scoped`
+    : `${API}/api/transform/templates/${encodeURIComponent(templateId)}/build`;
+  const r = await fetch(path, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ scoped }),
+  });
+  if (!r.ok) {
+    const body = await r.json().catch(() => ({}));
+    throw new Error(String((body as { detail?: string }).detail ?? r.status));
+  }
+  return r.json() as Promise<TransformBuildResult>;
+}
+
+export async function runTransformPipelineLocal(
+  pipelineId: string,
+  dryRun = false,
+  incrementalChangeProcessing = true
+): Promise<{
+  ok: boolean;
+  detail?: string;
+  run_id?: string;
+  task_summaries?: Record<string, unknown>;
+}> {
+  const r = await fetch(`${API}/api/transform/pipelines/${encodeURIComponent(pipelineId)}/run`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      dry_run: dryRun,
+      incremental_change_processing: incrementalChangeProcessing,
+    }),
+  });
+  if (!r.ok) {
+    const body = await r.json().catch(() => ({}));
+    throw new Error(String((body as { detail?: string }).detail ?? r.status));
+  }
+  return r.json() as Promise<{
+    ok: boolean;
+    detail?: string;
+    run_id?: string;
+    task_summaries?: Record<string, unknown>;
+  }>;
+}
+
+export async function fetchTransformTemplate(
+  templateId: string
+): Promise<{ template: Record<string, unknown> }> {
+  const r = await fetch(`${API}/api/transform/templates/${encodeURIComponent(templateId)}`);
+  if (!r.ok) {
+    const body = await r.json().catch(() => ({}));
+    throw new Error(String((body as { detail?: string }).detail ?? r.status));
+  }
+  return r.json() as Promise<{ template: Record<string, unknown> }>;
+}
+
+export async function renameTransformTemplate(
+  templateId: string,
+  label: string
+): Promise<{ template: Record<string, unknown> }> {
+  const r = await fetch(`${API}/api/transform/templates/${encodeURIComponent(templateId)}/label`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ label }),
+  });
+  if (!r.ok) {
+    const body = await r.json().catch(() => ({}));
+    throw new Error(String((body as { detail?: string }).detail ?? r.status));
+  }
+  return r.json() as Promise<{ template: Record<string, unknown> }>;
+}
+
+export async function deleteTransformTemplate(templateId: string): Promise<void> {
+  const r = await fetch(`${API}/api/transform/templates/${encodeURIComponent(templateId)}`, {
+    method: "DELETE",
+  });
+  if (!r.ok) {
+    const body = await r.json().catch(() => ({}));
+    throw new Error(String((body as { detail?: string }).detail ?? r.status));
+  }
+}
+
+export async function saveTransformTemplateCanvas(
+  templateId: string,
+  canvas: TransformCanvasDocument
+): Promise<void> {
+  const r = await fetch(`${API}/api/transform/templates/${encodeURIComponent(templateId)}/canvas`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ canvas }),
+  });
+  if (!r.ok) {
+    const body = await r.json().catch(() => ({}));
+    throw new Error(String((body as { detail?: string }).detail ?? r.status));
+  }
+}
+
+export async function validateTransformTemplate(
+  templateId: string
+): Promise<{ ok: boolean; warnings?: string[] }> {
+  const r = await fetch(`${API}/api/transform/templates/${encodeURIComponent(templateId)}/validate`, {
+    method: "POST",
+  });
+  if (!r.ok) {
+    const body = await r.json().catch(() => ({}));
+    throw new Error(String((body as { detail?: string }).detail ?? r.status));
+  }
+  return r.json() as Promise<{ ok: boolean; warnings?: string[] }>;
 }

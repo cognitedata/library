@@ -1,4 +1,4 @@
-"""RAW save engine: Cognite function entry (stub)."""
+"""RAW save engine: Cognite function entry."""
 
 from __future__ import annotations
 

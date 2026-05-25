@@ -1,0 +1,39 @@
+name: discovery_etl
+function_version: 1.0.0
+organization: YourOrg
+location_name: LOC
+source_name: SOURCE
+schema_space: cdf_cdm
+view_version: v1
+function_client_id: ${IDP_CLIENT_ID}
+function_client_secret: ${IDP_CLIENT_SECRET}
+workflow: wf_all_etl_discovery
+workflow_schedule: '0 2 * * *'
+dataset: ds_discovery_etl
+workflow_definitions:
+  registry: workflow_definitions/registry.yaml
+  instances_dir: workflow_definitions/instances
+  templates_dir: workflow_definitions/templates
+scope_hierarchy:
+  type: hierarchy
+  levels:
+  - site
+  - unit
+  - area
+  - system
+  locations:
+  - id: GLOBAL
+    name: Global
+    locations: []
+  - id: SITE_A
+    name: Site A
+    locations:
+    - id: UNIT_01
+      name: 'Site A: Unit 01'
+      locations: []
+    - id: UNIT_02
+      name: 'Site A: Unit 2'
+      locations: []
+  - id: SITE_B
+    name: Site B
+    locations: []

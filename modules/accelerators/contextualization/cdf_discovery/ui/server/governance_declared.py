@@ -136,6 +136,103 @@ def list_artifact_tree_children(
     return sorted(children.values(), key=lambda x: str(x.get("name", "")).lower())
 
 
+_SPACE_ID_RE = re.compile(r"^inst_[a-z][a-z0-9_]{0,126}$")
+_GROUP_NAME_RE = re.compile(r"^gp_[a-z][a-z0-9_]{0,126}$")
+
+
+def _normalize_artifact_parent_rel(kind: Literal["spaces", "groups"], parent_rel: Optional[str]) -> str:
+    base = "spaces" if kind == "spaces" else "auth"
+    raw = (parent_rel or "").strip().replace("\\", "/").strip("/")
+    if not raw:
+        return base
+    if not raw.startswith(base):
+        raise ValueError(f"parent_rel must be under {base}/")
+    return raw
+
+
+def default_space_artifact_yaml(*, space: str, name: str, description: str = "") -> str:
+    doc = {"space": space, "name": name, "description": description}
+    return yaml.safe_dump(doc, default_flow_style=False, sort_keys=False, allow_unicode=True)
+
+
+def default_group_artifact_yaml(*, name: str, source_id: Optional[str] = None) -> str:
+    sid = (source_id or "").strip() or f"{{{{ {name} }}}}"
+    doc = {
+        "name": name,
+        "sourceId": sid,
+        "metadata": {"origin": "cognite-toolkit"},
+        "capabilities": [
+            {
+                "projectsAcl": {
+                    "actions": ["READ", "LIST"],
+                    "scope": {"all": {}},
+                }
+            },
+            {
+                "groupsAcl": {
+                    "actions": ["LIST"],
+                    "scope": {"all": {}},
+                }
+            },
+            {
+                "sessionsAcl": {
+                    "actions": ["CREATE"],
+                    "scope": {"all": {}},
+                }
+            },
+            {
+                "dataModelInstancesAcl": {
+                    "actions": ["READ", "WRITE", "WRITE_PROPERTIES"],
+                    "scope": {"spaceIdScope": {"spaceIds": ["cdf_cdm"]}},
+                }
+            },
+        ],
+    }
+    return yaml.safe_dump(doc, default_flow_style=False, sort_keys=False, allow_unicode=True)
+
+
+def create_artifact_file(
+    *,
+    declared: Path,
+    config_path: Path,
+    discovery_module_root: Path,
+    kind: Literal["spaces", "groups"],
+    external_id: str,
+    display_name: Optional[str] = None,
+    parent_rel: Optional[str] = None,
+    source_id: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Create a new declared Space or Group YAML under the governance root."""
+    from governance_build.context import filename_stem_from_name  # noqa: WPS433
+
+    ext = external_id.strip()
+    if kind == "spaces":
+        if not _SPACE_ID_RE.match(ext):
+            raise ValueError(
+                "space must start with inst_ and use lowercase letters, digits, and underscores"
+            )
+        label = (display_name or ext).strip() or ext
+        parent = _normalize_artifact_parent_rel(kind, parent_rel)
+        stem = filename_stem_from_name(label)
+        rel = f"{parent}/{stem}.Space.yaml"
+        content = default_space_artifact_yaml(space=ext, name=label)
+    else:
+        if not _GROUP_NAME_RE.match(ext):
+            raise ValueError(
+                "name must start with gp_ and use lowercase letters, digits, and underscores"
+            )
+        parent = _normalize_artifact_parent_rel(kind, parent_rel)
+        stem = filename_stem_from_name(ext)
+        rel = f"{parent}/{stem}.Group.yaml"
+        content = default_group_artifact_yaml(name=ext, source_id=source_id)
+
+    validate_artifact_rel(rel, kind)
+    path = safe_rel_path(declared, rel)
+    if path.is_file():
+        raise ValueError(f"Artifact already exists: {rel}")
+    return write_file(declared, config_path, discovery_module_root, rel, content)
+
+
 def validate_artifact_rel(rel: str, kind: Literal["spaces", "groups"]) -> None:
     norm = rel.replace("\\", "/")
     if kind == "spaces":

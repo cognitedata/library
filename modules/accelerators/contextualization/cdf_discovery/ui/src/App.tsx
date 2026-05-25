@@ -1,8 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { fetchConnection, type ConnectionInfo } from "./api";
+import {
+  deleteTransformPipeline,
+  deleteTransformTemplate,
+  fetchConnection,
+  fetchTransformPipelineByWorkflow,
+  type ConnectionInfo,
+} from "./api";
 import { DocumentTabBar } from "./components/DocumentTabBar";
+import { DocumentTabFullscreenOverlay } from "./components/DocumentTabFullscreenOverlay";
 import { DataModelFlowPane } from "./components/DataModelFlowPane";
-import { WorkflowFlowPane } from "./components/WorkflowFlowPane";
 import { ObjectDiscovery } from "./components/ObjectDiscovery";
 import { PanelDragHandle } from "./components/PanelDragHandle";
 import { PanelDropOverlay } from "./components/PanelDropOverlay";
@@ -11,15 +17,25 @@ import {
   useDiscoveryPanelLayout,
   type TreePanelSide,
 } from "./hooks/useDiscoveryPanelLayout";
+import { useDocumentTabFullscreen } from "./hooks/useDocumentTabFullscreen";
 import { SqlQueryPane } from "./components/SqlQueryPane";
 import { FunctionPane } from "./components/FunctionPane";
 import { TransformationPane } from "./components/TransformationPane";
+import { TransformPipelinePane } from "./components/transform/TransformPipelinePane";
+import { TransformFusionWorkflowPane } from "./components/transform/TransformFusionWorkflowPane";
+import { CreatePipelineDialog } from "./components/transform/CreatePipelineDialog";
+import { RenameTransformLabelDialog } from "./components/transform/RenameTransformLabelDialog";
+import { SavePipelineAsTemplateDialog } from "./components/transform/SavePipelineAsTemplateDialog";
 import { GovernanceScopePane } from "./components/governance/GovernanceScopePane";
+import { TransformScopePane } from "./components/transform/TransformScopePane";
+import { TransformWorkflowYamlPane } from "./components/transform/TransformWorkflowYamlPane";
 import { GovernanceSpacesPane } from "./components/governance/GovernanceSpacesPane";
 import { GovernanceGroupsPane } from "./components/governance/GovernanceGroupsPane";
 import { GovernanceCdfSpacePane } from "./components/governance/GovernanceCdfSpacePane";
 import { GovernanceCdfGroupPane } from "./components/governance/GovernanceCdfGroupPane";
+import { CreateGovernanceArtifactDialog } from "./components/governance/CreateGovernanceArtifactDialog";
 import { CogniteLogo } from "./components/CogniteLogo";
+import { ComingSoonPane } from "./components/ComingSoonPane";
 import { useAppSettings } from "./context/AppSettingsContext";
 import { useDiscoveryConfig } from "./context/DiscoveryConfigContext";
 import { openTargetFromSqlTabId } from "./utils/workspacePersistence";
@@ -36,6 +52,12 @@ import {
   isGovernanceGroupsTab,
   isGovernanceCdfSpaceTab,
   isGovernanceCdfGroupTab,
+  isEtlPipelineTab,
+  isEtlTemplateTab,
+  isEtlScopeTab,
+  isEtlWorkflowYamlTab,
+  isExtractTab,
+  isMonitorTab,
   type DataModelDocumentTab,
   type GovernanceSubTab,
   type GovernanceSpacesDocumentTab,
@@ -47,6 +69,8 @@ import {
   type FunctionDocumentTab,
   type WorkflowDocumentTab,
   type TransformationDocumentTab,
+  type EtlPipelineDocumentTab,
+  type EtlTemplateDocumentTab,
   type OpenTarget,
   type SqlDocumentTab,
   type TreeNode,
@@ -86,7 +110,30 @@ import {
   sqlSavedQueryTabId,
   uniqueSavedQueryId,
 } from "./utils/savedQueries";
-import { opensGovernanceTab } from "./utils/governanceTabs";
+import {
+  createEtlPipelineTab,
+  createEtlTemplateTab,
+  createEtlWorkflowYamlTab,
+  etlPipelineTabKey,
+  etlScopeTabKey,
+  etlTemplateTabKey,
+  pipelineIdFromNode,
+  scopeSuffixFromNode,
+  pipelineLabelFromMeta,
+  templateIdFromNode,
+  templateLabelFromMeta,
+  workflowYamlRelPathFromNode,
+  workflowYamlTabKey,
+  opensTransformTab,
+} from "./utils/transformTabs";
+import { TRANSFORM_ROOT } from "./utils/treeNodeIds";
+import {
+  type TransformTabRunSessionPatch,
+  withTransformTabRunSession,
+} from "./types/transformTabRun";
+import { createExtractTab, createMonitorTab, opensExtractTab, opensMonitorTab } from "./utils/workspaceTabs";
+import { opensGovernanceCdfDetailTab, opensGovernanceTab } from "./utils/governanceTabs";
+import type { GovernanceArtifactCreateContext } from "./utils/governanceTreeNew";
 import { restoreWorkspaceTabs, serializeWorkspace } from "./utils/workspacePersistence";
 import type { SavedQuery } from "./types/discoveryNodes";
 
@@ -107,12 +154,88 @@ export function App() {
     token: number;
     workspace: "spaces" | "groups";
   }>({ token: 0, workspace: "spaces" });
+  const [transformPipelinesRevision, setTransformPipelinesRevision] = useState(0);
+  const [transformTemplatesRevision, setTransformTemplatesRevision] = useState(0);
+  const [createGovArtifact, setCreateGovArtifact] = useState<GovernanceArtifactCreateContext | null>(
+    null
+  );
+  const [createPipelineOpen, setCreatePipelineOpen] = useState(false);
+  const [createPipelineInitialTemplateId, setCreatePipelineInitialTemplateId] = useState<
+    string | undefined
+  >(undefined);
+  const [saveAsTemplateState, setSaveAsTemplateState] = useState<{
+    pipelineId: string;
+    pipelineLabel: string;
+  } | null>(null);
+  const [renameTransformState, setRenameTransformState] = useState<
+    | { kind: "pipeline"; id: string; label: string }
+    | { kind: "template"; id: string; label: string }
+    | null
+  >(null);
   const [selectedNode, setSelectedNode] = useState<TreeNode | null>(null);
   const [tabs, setTabs] = useState<DocumentTab[]>([]);
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
   const [rowDetail, setRowDetail] = useState<unknown | null>(null);
   const panel = useDiscoveryPanelLayout();
   const workspaceRestored = useRef(false);
+
+  const openEtlScopeTab = useCallback(() => {
+    const id = etlScopeTabKey();
+    setTabs((prev) => {
+      const existing = prev.find((tab) => tab.id === id);
+      if (existing) {
+        setActiveTabId(id);
+        return prev;
+      }
+      setActiveTabId(id);
+      return [
+        ...prev,
+        { kind: "etl_scope", id: "transform:scope" as const, label: t("transform.tree.scope") },
+      ];
+    });
+    setRowDetail(null);
+  }, [t]);
+
+  const openCreatedPipeline = useCallback((pipelineId: string, label: string) => {
+    setTransformPipelinesRevision((n) => n + 1);
+    const id = etlPipelineTabKey(pipelineId);
+    setTabs((prev) => {
+      const existing = prev.find((tab) => tab.id === id);
+      if (existing) {
+        setActiveTabId(id);
+        return prev;
+      }
+      const tab = createEtlPipelineTab(pipelineId, label);
+      setActiveTabId(id);
+      return [...prev, tab];
+    });
+  }, []);
+
+  const openCreatedTemplate = useCallback((templateId: string, label: string) => {
+    setTransformTemplatesRevision((n) => n + 1);
+    const id = etlTemplateTabKey(templateId);
+    setTabs((prev) => {
+      const existing = prev.find((tab) => tab.id === id);
+      if (existing) {
+        setActiveTabId(id);
+        return prev;
+      }
+      const tab = createEtlTemplateTab(templateId, label);
+      setActiveTabId(id);
+      return [...prev, tab];
+    });
+  }, []);
+
+  const onTransformCopyCreated = useCallback(
+    (result: { kind: "pipeline"; pipelineId: string; label: string } | { kind: "template"; templateId: string; label: string }) => {
+      if (result.kind === "pipeline") {
+        openCreatedPipeline(result.pipelineId, result.label);
+        return;
+      }
+      openCreatedTemplate(result.templateId, result.label);
+    },
+    [openCreatedPipeline, openCreatedTemplate]
+  );
 
   const openSqlWorkspace = useCallback(() => {
     setTabs((prev) => {
@@ -243,6 +366,104 @@ export function App() {
     [persistSavedQueries, savedQueries, t]
   );
 
+  const deletePipeline = useCallback(
+    async (pipelineId: string, label: string) => {
+      if (!window.confirm(t("transform.pipelines.deleteConfirm", { name: label }))) {
+        return;
+      }
+      try {
+        await deleteTransformPipeline(pipelineId);
+      } catch (e) {
+        window.alert(`${t("transform.pipelines.deleteFailed")}: ${String(e)}`);
+        return;
+      }
+      setTransformPipelinesRevision((n) => n + 1);
+      const tabId = etlPipelineTabKey(pipelineId);
+      setTabs((prev) => {
+        const next = prev.filter((tab) => tab.id !== tabId);
+        setActiveTabId((cur) => {
+          if (!cur || next.some((tab) => tab.id === cur)) return cur;
+          return next[next.length - 1]?.id ?? null;
+        });
+        return next;
+      });
+      setSelectedNode((current) => {
+        if (current?.kind !== "etl_pipeline") return current;
+        const selectedId = pipelineIdFromNode(current);
+        return selectedId === pipelineId ? null : current;
+      });
+    },
+    [t]
+  );
+
+  const deleteTemplate = useCallback(
+    async (templateId: string, label: string) => {
+      if (!window.confirm(t("transform.templates.deleteConfirm", { name: label }))) {
+        return;
+      }
+      try {
+        await deleteTransformTemplate(templateId);
+      } catch (e) {
+        window.alert(`${t("transform.templates.deleteFailed")}: ${String(e)}`);
+        return;
+      }
+      setTransformTemplatesRevision((n) => n + 1);
+      const tabId = etlTemplateTabKey(templateId);
+      setTabs((prev) => {
+        const next = prev.filter((tab) => tab.id !== tabId);
+        setActiveTabId((cur) => {
+          if (!cur || next.some((tab) => tab.id === cur)) return cur;
+          return next[next.length - 1]?.id ?? null;
+        });
+        return next;
+      });
+      setSelectedNode((current) => {
+        if (current?.kind !== "etl_template") return current;
+        const selectedId = templateIdFromNode(current);
+        return selectedId === templateId ? null : current;
+      });
+    },
+    [t]
+  );
+
+  const applyPipelineRename = useCallback((pipelineId: string, newLabel: string) => {
+    setTransformPipelinesRevision((n) => n + 1);
+    const tabId = etlPipelineTabKey(pipelineId);
+    setTabs((prev) =>
+      prev.map((tab) => {
+        if (tab.id !== tabId || !isEtlPipelineTab(tab)) return tab;
+        return {
+          ...tab,
+          label: newLabel,
+          document: tab.document ? { ...tab.document, label: newLabel } : tab.document,
+        };
+      })
+    );
+  }, []);
+
+  const applyTemplateRename = useCallback((templateId: string, newLabel: string) => {
+    setTransformTemplatesRevision((n) => n + 1);
+    const tabId = etlTemplateTabKey(templateId);
+    setTabs((prev) =>
+      prev.map((tab) => {
+        if (tab.id !== tabId || !isEtlTemplateTab(tab)) return tab;
+        const document =
+          tab.document && typeof tab.document === "object"
+            ? { ...tab.document, label: newLabel }
+            : tab.document;
+        return { ...tab, label: newLabel, document };
+      })
+    );
+  }, []);
+
+  const openRenamePipeline = useCallback((pipelineId: string, label: string) => {
+    setRenameTransformState({ kind: "pipeline", id: pipelineId, label });
+  }, []);
+
+  const openRenameTemplate = useCallback((templateId: string, label: string) => {
+    setRenameTransformState({ kind: "template", id: templateId, label });
+  }, []);
+
   const openSqlForOpenTarget = useCallback((target: OpenTarget, label: string) => {
     const tab = createSqlTabForOpenTarget(target, label);
     if (!tab) return;
@@ -362,26 +583,49 @@ export function App() {
       if (node.kind === "workflow") {
         const ref = workflowRefFromNode(node);
         if (!ref) return;
-        const id = workflowTabKey(ref);
-        setTabs((prev) => {
-          const existing = prev.find((tab) => tab.id === id);
-          if (existing) {
-            setActiveTabId(id);
-            return prev;
+        void (async () => {
+          try {
+            const found = await fetchTransformPipelineByWorkflow(ref.external_id);
+            const scopeSuffix = found.scope_suffix?.trim() || "all";
+            const pipelineId = found.pipeline_id;
+            const label =
+              (typeof found.pipeline.label === "string" && found.pipeline.label.trim()) ||
+              pipelineId;
+            const id = etlPipelineTabKey(pipelineId, scopeSuffix);
+            setTabs((prev) => {
+              const existing = prev.find((tab) => tab.id === id);
+              if (existing) {
+                setActiveTabId(id);
+                return prev;
+              }
+              const tab = createEtlPipelineTab(pipelineId, label, null, scopeSuffix);
+              setActiveTabId(id);
+              return [...prev, tab];
+            });
+            setRowDetail(null);
+          } catch {
+            const id = workflowTabKey(ref);
+            setTabs((prev) => {
+              const existing = prev.find((tab) => tab.id === id);
+              if (existing) {
+                setActiveTabId(id);
+                return prev;
+              }
+              const tab: WorkflowDocumentTab = {
+                kind: "workflow",
+                id,
+                label: workflowTabLabel(ref),
+                workflow: ref,
+                graph: null,
+                loading: true,
+                error: null,
+              };
+              setActiveTabId(id);
+              return [...prev, tab];
+            });
+            setRowDetail(null);
           }
-          const tab: WorkflowDocumentTab = {
-            kind: "workflow",
-            id,
-            label: workflowTabLabel(ref),
-            workflow: ref,
-            graph: null,
-            loading: true,
-            error: null,
-          };
-          setActiveTabId(id);
-          return [...prev, tab];
-        });
-        setRowDetail(null);
+        })();
         return;
       }
       if (node.kind === "function") {
@@ -396,6 +640,95 @@ export function App() {
             return prev;
           }
           const tab = createFunctionTab(fnId, label);
+          setActiveTabId(id);
+          return [...prev, tab];
+        });
+        setRowDetail(null);
+        return;
+      }
+      if (node.kind === "etl_pipeline") {
+        const pipelineId = pipelineIdFromNode(node);
+        if (!pipelineId) return;
+        const scopeSuffix = scopeSuffixFromNode(node);
+        const id = etlPipelineTabKey(pipelineId, scopeSuffix);
+        const label = pipelineLabelFromMeta(node.meta);
+        setTabs((prev) => {
+          const existing = prev.find((tab) => tab.id === id);
+          if (existing) {
+            setActiveTabId(id);
+            return prev;
+          }
+          const tab = createEtlPipelineTab(pipelineId, label, null, scopeSuffix);
+          setActiveTabId(id);
+          return [...prev, tab];
+        });
+        setRowDetail(null);
+        return;
+      }
+      if (node.kind === "etl_template") {
+        const templateId = templateIdFromNode(node);
+        if (!templateId) return;
+        const id = etlTemplateTabKey(templateId);
+        const label = templateLabelFromMeta(node.meta);
+        setTabs((prev) => {
+          const existing = prev.find((tab) => tab.id === id);
+          if (existing) {
+            setActiveTabId(id);
+            return prev;
+          }
+          const tab = createEtlTemplateTab(templateId, label);
+          setActiveTabId(id);
+          return [...prev, tab];
+        });
+        setRowDetail(null);
+        return;
+      }
+      if (node.kind === "etl_workflow_yaml") {
+        const relPath = workflowYamlRelPathFromNode(node);
+        if (!relPath) return;
+        const id = workflowYamlTabKey(relPath);
+        const label = node.label?.trim() || relPath.split("/").pop() || relPath;
+        setTabs((prev) => {
+          const existing = prev.find((tab) => tab.id === id);
+          if (existing) {
+            setActiveTabId(id);
+            return prev;
+          }
+          const tab = createEtlWorkflowYamlTab(relPath, label);
+          setActiveTabId(id);
+          return [...prev, tab];
+        });
+        setRowDetail(null);
+        return;
+      }
+      if (node.kind === "etl_scope" || node.id === "transform:scope") {
+        openEtlScopeTab();
+        return;
+      }
+      if (opensExtractTab(node)) {
+        const id = "extract" as const;
+        setTabs((prev) => {
+          const existing = prev.find((tab) => tab.id === id);
+          if (existing) {
+            setActiveTabId(id);
+            return prev;
+          }
+          const tab = createExtractTab(t("tree.extract"));
+          setActiveTabId(id);
+          return [...prev, tab];
+        });
+        setRowDetail(null);
+        return;
+      }
+      if (opensMonitorTab(node)) {
+        const id = "monitor" as const;
+        setTabs((prev) => {
+          const existing = prev.find((tab) => tab.id === id);
+          if (existing) {
+            setActiveTabId(id);
+            return prev;
+          }
+          const tab = createMonitorTab(t("tree.monitor"));
           setActiveTabId(id);
           return [...prev, tab];
         });
@@ -535,7 +868,7 @@ export function App() {
         openSqlForOpenTarget(node.open_target, node.label);
       }
     },
-    [openGovernanceWorkspaceTab, openSavedQuery, openSqlForOpenTarget, t]
+    [openEtlScopeTab, openGovernanceWorkspaceTab, openSavedQuery, openSqlForOpenTarget, t]
   );
 
   const loadConnection = useCallback(async () => {
@@ -556,6 +889,10 @@ export function App() {
   const activeTab = useMemo(
     () => tabs.find((tab) => tab.id === activeTabId) ?? null,
     [tabs, activeTabId]
+  );
+
+  const { fullscreenOpen, toggleFullscreen, closeFullscreen } = useDocumentTabFullscreen(
+    activeTab != null
   );
 
   const dmInstanceKind = useMemo(() => {
@@ -583,6 +920,24 @@ export function App() {
 
   const updateWorkflowTab = useCallback((updated: WorkflowDocumentTab) => {
     setTabs((prev) => prev.map((tab) => (tab.id === updated.id ? updated : tab)));
+  }, []);
+
+  const updateEtlDocumentTab = useCallback(
+    (updated: EtlPipelineDocumentTab | EtlTemplateDocumentTab) => {
+      setTabs((prev) => prev.map((tab) => (tab.id === updated.id ? updated : tab)));
+    },
+    []
+  );
+
+  const patchEtlTabRunSession = useCallback((tabId: string, patch: TransformTabRunSessionPatch) => {
+    setTabs((prev) =>
+      prev.map((tab) => {
+        if (tab.id !== tabId || (tab.kind !== "etl_pipeline" && tab.kind !== "etl_template")) {
+          return tab;
+        }
+        return withTransformTabRunSession(tab, patch);
+      })
+    );
   }, []);
 
   const reorderTabs = useCallback((fromIndex: number, toIndex: number) => {
@@ -655,35 +1010,35 @@ export function App() {
     return panel.onResizeTreeStart;
   };
 
-  const renderDocumentPane = () => (
-    <div className="disc-doc-pane" style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
-      <DocumentTabBar
-        tabs={tabs}
-        activeId={activeTabId}
-        onSelect={setActiveTabId}
-        onClose={closeTab}
-        onReorder={reorderTabs}
-      />
-      {activeTab && isDataModelTab(activeTab) ? (
-        <DataModelFlowPane tab={activeTab} onTabUpdate={updateDataModelTab} onQueryView={queryDmView} />
-      ) : activeTab && isWorkflowTab(activeTab) ? (
-        <WorkflowFlowPane tab={activeTab} onTabUpdate={updateWorkflowTab} />
-      ) : activeTab && isTransformationTab(activeTab) ? (
+  const renderActiveTabContent = (tab: DocumentTab) => {
+    if (isDataModelTab(tab)) {
+      return <DataModelFlowPane tab={tab} onTabUpdate={updateDataModelTab} onQueryView={queryDmView} />;
+    }
+    if (isWorkflowTab(tab)) {
+      return <TransformFusionWorkflowPane tab={tab} onTabUpdate={updateWorkflowTab} />;
+    }
+    if (isTransformationTab(tab)) {
+      return (
         <TransformationPane
-          tab={activeTab}
+          tab={tab}
           onTabUpdate={updateTransformationTab}
           onSelectRow={(row) => setRowDetail(row)}
           onQueryFile={openFileContentQueryFromRow}
           onDownloadFile={downloadFileFromRow}
         />
-      ) : activeTab && isFunctionTab(activeTab) ? (
-        <FunctionPane tab={activeTab} onTabUpdate={updateFunctionTab} />
-      ) : activeTab && isGovernanceScopeTab(activeTab) ? (
-        <GovernanceScopePane />
-      ) : activeTab && isGovernanceSpacesTab(activeTab) ? (
+      );
+    }
+    if (isFunctionTab(tab)) {
+      return <FunctionPane tab={tab} onTabUpdate={updateFunctionTab} />;
+    }
+    if (isGovernanceScopeTab(tab)) {
+      return <GovernanceScopePane />;
+    }
+    if (isGovernanceSpacesTab(tab)) {
+      return (
         <GovernanceSpacesPane
-          initialSubTab={activeTab.activeSubTab}
-          initialArtifactRel={activeTab.artifactRel}
+          initialSubTab={tab.activeSubTab}
+          initialArtifactRel={tab.artifactRel}
           onArtifactsChanged={(workspace) =>
             setGovernanceArtifactsRevision((prev) => ({
               token: prev.token + 1,
@@ -691,10 +1046,13 @@ export function App() {
             }))
           }
         />
-      ) : activeTab && isGovernanceGroupsTab(activeTab) ? (
+      );
+    }
+    if (isGovernanceGroupsTab(tab)) {
+      return (
         <GovernanceGroupsPane
-          initialSubTab={activeTab.activeSubTab}
-          initialArtifactRel={activeTab.artifactRel}
+          initialSubTab={tab.activeSubTab}
+          initialArtifactRel={tab.artifactRel}
           onArtifactsChanged={(workspace) =>
             setGovernanceArtifactsRevision((prev) => ({
               token: prev.token + 1,
@@ -702,35 +1060,129 @@ export function App() {
             }))
           }
         />
-      ) : activeTab && isGovernanceCdfSpaceTab(activeTab) ? (
+      );
+    }
+    if (isGovernanceCdfSpaceTab(tab)) {
+      return (
         <GovernanceCdfSpacePane
-          tab={activeTab}
-          onTabUpdate={(updated) => setTabs((prev) => prev.map((tab) => (tab.id === updated.id ? updated : tab)))}
+          tab={tab}
+          onTabUpdate={(updated) => setTabs((prev) => prev.map((row) => (row.id === updated.id ? updated : row)))}
         />
-      ) : activeTab && isGovernanceCdfGroupTab(activeTab) ? (
+      );
+    }
+    if (isGovernanceCdfGroupTab(tab)) {
+      return (
         <GovernanceCdfGroupPane
-          tab={activeTab}
-          onTabUpdate={(updated) => setTabs((prev) => prev.map((tab) => (tab.id === updated.id ? updated : tab)))}
+          tab={tab}
+          onTabUpdate={(updated) => setTabs((prev) => prev.map((row) => (row.id === updated.id ? updated : row)))}
         />
-      ) : activeTab && isSqlTab(activeTab) ? (
+      );
+    }
+    if (isEtlPipelineTab(tab)) {
+      return (
+        <TransformPipelinePane
+          tab={tab}
+          onTabUpdate={updateEtlDocumentTab}
+          onRunSessionPatch={patchEtlTabRunSession}
+          onCopyCreated={onTransformCopyCreated}
+          onDelete={() => void deletePipeline(tab.pipelineId, tab.label)}
+          onRename={() => openRenamePipeline(tab.pipelineId, tab.label)}
+        />
+      );
+    }
+    if (isEtlTemplateTab(tab)) {
+      return (
+        <TransformPipelinePane
+          editorKind="template"
+          tab={tab}
+          onTabUpdate={updateEtlDocumentTab}
+          onRunSessionPatch={patchEtlTabRunSession}
+          onCopyCreated={onTransformCopyCreated}
+          onDelete={() => void deleteTemplate(tab.templateId, tab.label)}
+          onRename={() => openRenameTemplate(tab.templateId, tab.label)}
+        />
+      );
+    }
+    if (isEtlScopeTab(tab)) {
+      return <TransformScopePane />;
+    }
+    if (isEtlWorkflowYamlTab(tab)) {
+      return (
+        <TransformWorkflowYamlPane
+          tab={tab}
+          onTabUpdate={(updated) =>
+            setTabs((prev) => prev.map((row) => (row.id === updated.id ? updated : row)))
+          }
+        />
+      );
+    }
+    if (isExtractTab(tab)) {
+      return <ComingSoonPane workspace="extract" />;
+    }
+    if (isMonitorTab(tab)) {
+      return <ComingSoonPane workspace="monitor" />;
+    }
+    if (isSqlTab(tab)) {
+      return (
         <SqlQueryPane
-          tab={activeTab}
+          tab={tab}
           onTabUpdate={updateSqlTab}
           onSelectRow={(row) => setRowDetail(row)}
           onQueryFile={openFileContentQueryFromRow}
           onDownloadFile={downloadFileFromRow}
-          onSave={activeTab.engine === "file_content" ? undefined : () => void saveSqlTab(activeTab, "save")}
-          onSaveAs={activeTab.engine === "file_content" ? undefined : () => void saveSqlTab(activeTab, "saveAs")}
+          onSave={tab.engine === "file_content" ? undefined : () => void saveSqlTab(tab, "save")}
+          onSaveAs={tab.engine === "file_content" ? undefined : () => void saveSqlTab(tab, "saveAs")}
         />
-      ) : (
-        <div
-          className="disc-empty-hint"
-          style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}
-        >
-          {t("tabs.empty")}
-        </div>
-      )}
-    </div>
+      );
+    }
+    return (
+      <div
+        className="disc-empty-hint"
+        style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}
+      >
+        {t("tabs.empty")}
+      </div>
+    );
+  };
+
+  const renderDocumentPane = () => (
+    <>
+      <div className="disc-doc-pane" style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
+        <DocumentTabBar
+          tabs={tabs}
+          activeId={activeTabId}
+          onSelect={setActiveTabId}
+          onClose={closeTab}
+          onReorder={reorderTabs}
+          fullscreen={{
+            open: fullscreenOpen,
+            onToggle: toggleFullscreen,
+            disabled: !activeTab,
+          }}
+        />
+        {activeTab ? (
+          fullscreenOpen ? (
+            <div className="disc-doc-pane__fullscreen-placeholder" role="status">
+              {t("tabs.fullscreenActiveHint")}
+            </div>
+          ) : (
+            renderActiveTabContent(activeTab)
+          )
+        ) : (
+          <div
+            className="disc-empty-hint"
+            style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}
+          >
+            {t("tabs.empty")}
+          </div>
+        )}
+      </div>
+      {fullscreenOpen && activeTab ? (
+        <DocumentTabFullscreenOverlay t={t} title={activeTab.label} onClose={closeFullscreen}>
+          {renderActiveTabContent(activeTab)}
+        </DocumentTabFullscreenOverlay>
+      ) : null}
+    </>
   );
 
   const renderPropertiesPanel = (layout: PropertiesPanelLayout) => (
@@ -773,17 +1225,75 @@ export function App() {
           refreshKey={refreshKey}
           savedQueriesRevision={savedQueriesRevision}
           governanceArtifactsRevision={governanceArtifactsRevision}
+          transformPipelinesRevision={transformPipelinesRevision}
+          transformTemplatesRevision={transformTemplatesRevision}
           connectionLabel={connection ? `${connection.project}` : undefined}
           selectedId={selectedNode?.id ?? null}
           onSelectNode={(node) => {
             setSelectedNode(node);
             setRowDetail(null);
-            if (node && opensGovernanceTab(node)) {
+            if (
+              node &&
+              (opensGovernanceTab(node) ||
+                opensGovernanceCdfDetailTab(node) ||
+                opensTransformTab(node) ||
+                opensExtractTab(node) ||
+                opensMonitorTab(node))
+            ) {
               openDiscoveryNode(node);
             }
           }}
           onOpenNode={openDiscoveryNode}
           onDeleteSavedQuery={deleteSavedQuery}
+          onTreeNew={(action) => {
+            if (action.kind === "governance_space_artifact") {
+              setCreateGovArtifact({ kind: "spaces", parentRel: action.parentRel });
+              return;
+            }
+            if (action.kind === "governance_group_artifact") {
+              setCreateGovArtifact({ kind: "groups", parentRel: action.parentRel });
+              return;
+            }
+            if (action.kind === "saved_query") {
+              openSqlWorkspace();
+              return;
+            }
+            if (action.kind === "transform_pipeline_from_template") {
+              if (
+                !window.confirm(
+                  t("transform.treeDrag.confirmCreateFromTemplate", {
+                    name: action.templateId,
+                  })
+                )
+              ) {
+                return;
+              }
+              setCreatePipelineInitialTemplateId(action.templateId);
+              setCreatePipelineOpen(true);
+              return;
+            }
+            setCreatePipelineInitialTemplateId(undefined);
+            setCreatePipelineOpen(true);
+          }}
+          onDeletePipeline={deletePipeline}
+          onDeleteTemplate={deleteTemplate}
+          onRenamePipeline={openRenamePipeline}
+          onRenameTemplate={openRenameTemplate}
+          onPipelineDropOnTemplates={(pipelineId, pipelineLabel) => {
+            setSaveAsTemplateState({ pipelineId, pipelineLabel });
+          }}
+          onTemplateDropOnPipelines={(templateId, templateLabel) => {
+            if (
+              !window.confirm(
+                t("transform.treeDrag.confirmCreateFromTemplate", { name: templateLabel })
+              )
+            ) {
+              return;
+            }
+            setCreatePipelineInitialTemplateId(templateId);
+            setCreatePipelineOpen(true);
+          }}
+          dataTreeDragEnabled={activeTab != null && isEtlPipelineTab(activeTab)}
         />
       )}
     </aside>
@@ -911,6 +1421,61 @@ export function App() {
           onDropProperties={panel.dropPropertiesDock}
         />
       </div>
+      <CreatePipelineDialog
+        open={createPipelineOpen}
+        initialTemplateId={createPipelineInitialTemplateId}
+        onClose={() => {
+          setCreatePipelineOpen(false);
+          setCreatePipelineInitialTemplateId(undefined);
+        }}
+        onCreated={openCreatedPipeline}
+      />
+      {createGovArtifact ? (
+        <CreateGovernanceArtifactDialog
+          open
+          context={createGovArtifact}
+          onClose={() => setCreateGovArtifact(null)}
+          onCreated={(rel) => {
+            const workspace = createGovArtifact.kind;
+            setGovernanceArtifactsRevision((prev) => ({
+              token: prev.token + 1,
+              workspace,
+            }));
+            setRefreshKey((k) => k + 1);
+            openGovernanceWorkspaceTab(workspace, "artifacts", rel);
+            setCreateGovArtifact(null);
+          }}
+        />
+      ) : null}
+      {saveAsTemplateState ? (
+        <SavePipelineAsTemplateDialog
+          open
+          pipelineId={saveAsTemplateState.pipelineId}
+          pipelineLabel={saveAsTemplateState.pipelineLabel}
+          onClose={() => setSaveAsTemplateState(null)}
+          onSaved={() => {
+            setTransformTemplatesRevision((n) => n + 1);
+            setSaveAsTemplateState(null);
+          }}
+        />
+      ) : null}
+      {renameTransformState ? (
+        <RenameTransformLabelDialog
+          open
+          kind={renameTransformState.kind}
+          resourceId={renameTransformState.id}
+          currentLabel={renameTransformState.label}
+          onClose={() => setRenameTransformState(null)}
+          onRenamed={(newLabel) => {
+            if (renameTransformState.kind === "pipeline") {
+              applyPipelineRename(renameTransformState.id, newLabel);
+            } else {
+              applyTemplateRename(renameTransformState.id, newLabel);
+            }
+            setRenameTransformState(null);
+          }}
+        />
+      ) : null}
     </div>
   );
 }

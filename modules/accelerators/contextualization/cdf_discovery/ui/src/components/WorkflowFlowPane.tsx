@@ -24,6 +24,7 @@ const nodeTypes = { wfTask: WfTaskFlowNode };
 type Props = {
   tab: WorkflowDocumentTab;
   onTabUpdate: (tab: WorkflowDocumentTab) => void;
+  readOnly?: boolean;
 };
 
 function FitViewOnLoad({ revision }: { revision: string }) {
@@ -49,7 +50,7 @@ function FocusTaskNode({ taskId }: { taskId: string | null }) {
   return null;
 }
 
-function FlowInner({ tab, onTabUpdate }: Props) {
+function FlowInner({ tab, onTabUpdate, readOnly = false }: Props) {
   const { t, theme } = useAppSettings();
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [selectedTask, setSelectedTask] = useState<WorkflowGraphTask | null>(null);
@@ -227,7 +228,7 @@ function FlowInner({ tab, onTabUpdate }: Props) {
               edges={edges}
               nodeTypes={nodeTypes}
               colorMode={theme}
-              nodesDraggable
+              nodesDraggable={!readOnly}
               nodesConnectable={false}
               elementsSelectable
               fitView

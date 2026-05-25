@@ -54,6 +54,16 @@ class FileBody(BaseModel):
     content: str
 
 
+class ArtifactCreateBody(BaseModel):
+    kind: Literal["spaces", "groups"]
+    external_id: str = Field(..., description="inst_* space id or gp_* group name")
+    display_name: Optional[str] = Field(None, description="Space display name (spaces only)")
+    parent_rel: Optional[str] = Field(
+        None, description="Folder under spaces/ or auth/ (e.g. spaces/site_a)"
+    )
+    source_id: Optional[str] = Field(None, description="Group sourceId override (groups only)")
+
+
 @router.get("/health")
 def declared_health() -> Dict[str, Any]:
     declared = _declared()
@@ -124,6 +134,28 @@ def run_build(body: BuildBody, config_path: Path = Depends(active_config_path)) 
         force=body.force,
         dry_run=body.dry_run,
     )
+
+
+@router.post("/artifacts/create")
+def create_artifact(
+    body: ArtifactCreateBody,
+    config_path: Path = Depends(active_config_path),
+) -> Dict[str, Any]:
+    try:
+        return governance_declared.create_artifact_file(
+            declared=_declared(),
+            config_path=config_path,
+            discovery_module_root=_discovery_module_root(),
+            kind=body.kind,
+            external_id=body.external_id,
+            display_name=body.display_name,
+            parent_rel=body.parent_rel,
+            source_id=body.source_id,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    except yaml.YAMLError as e:
+        raise HTTPException(status_code=400, detail=f"Invalid YAML: {e}") from e
 
 
 @router.get("/artifacts")

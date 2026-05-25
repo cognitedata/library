@@ -8,6 +8,15 @@ import type {
 } from "../types/discoveryNodes";
 import { dataModelTabKey, dataModelTabLabel } from "./dataModelTabs";
 import { createFunctionTab } from "./functionTabs";
+import {
+  createEtlPipelineTab,
+  createEtlTemplateTab,
+  etlPipelineTabKey,
+  etlScopeTabKey,
+  etlTemplateTabKey,
+} from "./transformTabs";
+import { createExtractTab, createMonitorTab } from "./workspaceTabs";
+import { EXTRACT_ROOT, MONITOR_ROOT } from "./treeNodeIds";
 import { createTransformationTab } from "./transformationTabs";
 import { createSqlTabFromSavedQuery, savedQueryIdFromTabId } from "./savedQueries";
 import { createSqlTab, createSqlTabForOpenTarget, createFileContentSqlTab, SQL_WORKSPACE_TAB_ID } from "./sqlTabs";
@@ -165,6 +174,31 @@ export function serializeWorkspace(
         label: tab.label,
         group_id: tab.groupId,
       });
+    } else if (tab.kind === "etl_pipeline") {
+      saved.push({
+        kind: "etl_pipeline",
+        id: tab.id,
+        label: tab.label,
+        pipeline_id: tab.pipelineId,
+        scope_suffix: tab.scopeSuffix,
+      });
+    } else if (tab.kind === "etl_template") {
+      saved.push({
+        kind: "etl_template",
+        id: tab.id,
+        label: tab.label,
+        template_id: tab.templateId,
+      });
+    } else if (tab.kind === "etl_scope") {
+      saved.push({
+        kind: "etl_scope",
+        id: tab.id,
+        label: tab.label,
+      });
+    } else if (tab.kind === "extract") {
+      saved.push({ kind: "extract", id: tab.id, label: tab.label });
+    } else if (tab.kind === "monitor") {
+      saved.push({ kind: "monitor", id: tab.id, label: tab.label });
     }
   }
 
@@ -325,6 +359,37 @@ export function restoreWorkspaceTabs(
         loading: true,
         error: null,
       });
+    } else if (saved.kind === "etl_pipeline") {
+      const scopeSuffix = saved.scope_suffix?.trim() || "all";
+      const tab = createEtlPipelineTab(
+        saved.pipeline_id,
+        saved.label?.trim() || saved.pipeline_id,
+        null,
+        scopeSuffix
+      );
+      tab.id = saved.id || etlPipelineTabKey(saved.pipeline_id, scopeSuffix);
+      tabs.push(tab);
+    } else if (saved.kind === "etl_template") {
+      const tab = createEtlTemplateTab(
+        saved.template_id,
+        saved.label?.trim() || saved.template_id
+      );
+      tab.id = saved.id || etlTemplateTabKey(saved.template_id);
+      tabs.push(tab);
+    } else if (saved.kind === "etl_scope") {
+      tabs.push({
+        kind: "etl_scope",
+        id: saved.id || etlScopeTabKey(),
+        label: saved.label?.trim() || "Scope",
+      });
+    } else if (saved.kind === "extract") {
+      const tab = createExtractTab(saved.label?.trim() || "Extract");
+      tab.id = saved.id || EXTRACT_ROOT;
+      tabs.push(tab);
+    } else if (saved.kind === "monitor") {
+      const tab = createMonitorTab(saved.label?.trim() || "Monitor");
+      tab.id = saved.id || MONITOR_ROOT;
+      tabs.push(tab);
     }
   }
 

@@ -124,6 +124,49 @@ def test_set_workspace_replaces_removed_tabs(tmp_path, monkeypatch):
     assert discovery_config.get_workspace() == saved
 
 
+def test_set_workspace_normalizes_all_tab_kinds(tmp_path, monkeypatch):
+    monkeypatch.setattr(discovery_config, "MODULE_ROOT", tmp_path)
+    monkeypatch.setattr(discovery_config, "DEFAULT_CONFIG_PATH", tmp_path / "default.config.yaml")
+    monkeypatch.setattr(discovery_config, "LOCAL_CONFIG_PATH", tmp_path / "discovery.local.config.yaml")
+    (tmp_path / "default.config.yaml").write_text(
+        yaml.safe_dump({"stars": {"node_ids": []}, "workspace": {"active_tab_id": None, "tabs": []}}),
+        encoding="utf-8",
+    )
+
+    saved = discovery_config.set_workspace(
+        {
+            "active_tab_id": "etl:pipeline:my-pipe",
+            "tabs": [
+                {"kind": "governance_spaces", "id": "gov:spaces", "active_sub_tab": "artifacts"},
+                {"kind": "governance_cdf_group", "id": "gov:group:1", "group_id": 42},
+                {"kind": "etl_pipeline", "id": "etl:pipeline:my-pipe", "pipeline_id": "my-pipe"},
+                {"kind": "etl_template", "id": "etl:template:tpl-a", "template_id": "tpl-a"},
+                {"kind": "etl_scope", "id": "transform:scope"},
+                {
+                    "kind": "sql",
+                    "id": "sql:file:parquet:99",
+                    "query": "SELECT * FROM data",
+                    "engine": "file_content",
+                    "file_content": {"format": "parquet", "file_id": 99},
+                },
+            ],
+        }
+    )
+    assert saved["active_tab_id"] == "etl:pipeline:my-pipe"
+    kinds = [t["kind"] for t in saved["tabs"]]
+    assert kinds == [
+        "governance_spaces",
+        "governance_cdf_group",
+        "etl_pipeline",
+        "etl_template",
+        "etl_scope",
+        "sql",
+    ]
+    assert saved["tabs"][0]["active_sub_tab"] == "artifacts"
+    assert saved["tabs"][5]["engine"] == "file_content"
+    assert discovery_config.get_workspace() == saved
+
+
 def test_set_saved_queries_persists(tmp_path, monkeypatch):
     monkeypatch.setattr(discovery_config, "MODULE_ROOT", tmp_path)
     monkeypatch.setattr(discovery_config, "DEFAULT_CONFIG_PATH", tmp_path / "default.config.yaml")

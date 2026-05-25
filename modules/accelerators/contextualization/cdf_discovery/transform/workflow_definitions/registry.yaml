@@ -1,0 +1,6 @@
+schemaVersion: 1
+workflows:
+  - id: discovery_etl_default
+    default_scope: all
+  - id: aliasing_workflow
+    source: template

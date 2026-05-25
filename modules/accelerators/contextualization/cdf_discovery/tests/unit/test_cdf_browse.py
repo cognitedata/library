@@ -406,6 +406,43 @@ def test_get_transformation_detail_retrieves_query():
     assert out["definition"]["id"] == 99
 
 
+def test_get_transformation_detail_by_external_id():
+    tx = MagicMock()
+    tx.id = 42
+    tx.external_id = "tr_imported"
+    tx.name = "Imported"
+    tx.query = "SELECT 2"
+    tx.created_time = None
+    tx.last_updated_time = None
+    tx.data_set_id = None
+    tx.is_public = False
+    tx.conflict_mode = None
+    tx.destination = None
+    tx.schedule = None
+    tx.dump.return_value = {"id": 42}
+    client = MagicMock()
+    client.transformations.retrieve.return_value = tx
+    out = cdf_browse.get_transformation_detail_by_external_id(client, external_id="tr_imported")
+    client.transformations.retrieve.assert_called_once_with(external_id="tr_imported")
+    assert out["query"] == "SELECT 2"
+    assert out["external_id"] == "tr_imported"
+
+
+def test_list_transformations_returns_sorted_labels():
+    tx = MagicMock()
+    tx.id = 1
+    tx.external_id = "b_tx"
+    tx.name = "Beta"
+    tx.created_time = None
+    tx.data_set_id = None
+    client = MagicMock()
+    client.transformations.list.return_value = [tx]
+    rows = cdf_browse.list_transformations(client, limit=10)
+    assert rows[0]["label"] == "Beta"
+    assert rows[0]["external_id"] == "b_tx"
+    assert rows[0]["id"] == 1
+
+
 def test_list_security_groups_caps_and_labels():
     grp = MagicMock()
     grp.id = 7

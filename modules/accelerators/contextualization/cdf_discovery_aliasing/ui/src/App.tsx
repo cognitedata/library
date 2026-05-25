@@ -16,6 +16,7 @@ import type { WorkflowPreviewRunProgress } from "./components/flow/WorkflowFlowC
 import { WorkflowFlowPanel } from "./components/flow/WorkflowFlowPanel";
 import { syncWorkflowScopeFromCanvas } from "./components/flow/canvasScopeSync";
 import { collectStartCanvasNodeIdsOnAnyPathToTarget } from "./components/flow/flowRunProgressEdges";
+import { localRunRowSuffix, rowCountFieldsFromEvent } from "./utils/localRunRowCounts";
 import { mergeScopeRootsForTriggerFlowSeed } from "./components/flow/seedCanvasFromScope";
 import { QueriesControls } from "./components/QueriesControls";
 import { TransformsControls } from "./components/TransformsControls";
@@ -645,8 +646,8 @@ export default function App() {
     }
   };
 
-  const saveScope = async (): Promise<boolean> => {
-    setScopePhase("status.saving");
+  const saveScope = async (options?: { silent?: boolean }): Promise<boolean> => {
+    if (!options?.silent) setScopePhase("status.saving");
     setScopeError(null);
     try {
       await api(`/api/scope-document/model?rel=${encodeURIComponent(SCOPE_REL)}`, {
@@ -663,17 +664,17 @@ export default function App() {
       setScopeRawYaml(raw.content ?? "");
       setSavedScopeSnap(JSON.stringify(scopeDoc));
       setSavedScopeCanvasSnap(JSON.stringify(scopeCanvasDoc));
-      setScopePhase("status.saved");
+      if (!options?.silent) setScopePhase("status.saved");
       return true;
     } catch (e) {
       setScopeError(String(e));
-      setScopePhase(null);
+      if (!options?.silent) setScopePhase(null);
       return false;
     }
   };
 
-  const saveTemplate = async (): Promise<boolean> => {
-    setTemplatePhase("status.saving");
+  const saveTemplate = async (options?: { silent?: boolean }): Promise<boolean> => {
+    if (!options?.silent) setTemplatePhase("status.saving");
     setTemplateError(null);
     try {
       await api(`/api/scope-document/model?rel=${encodeURIComponent(TEMPLATE_REL)}`, {
@@ -690,19 +691,19 @@ export default function App() {
       setTemplateRawYaml(raw.content ?? "");
       setSavedTemplateSnap(JSON.stringify(templateDoc));
       setSavedTemplateCanvasSnap(JSON.stringify(templateCanvasDoc));
-      setTemplatePhase("status.saved");
+      if (!options?.silent) setTemplatePhase("status.saved");
       return true;
     } catch (e) {
       setTemplateError(String(e));
-      setTemplatePhase(null);
+      if (!options?.silent) setTemplatePhase(null);
       return false;
     }
   };
 
-  const saveConfigureTrigger = async (): Promise<boolean> => {
+  const saveConfigureTrigger = async (options?: { silent?: boolean }): Promise<boolean> => {
     if (configureTarget.id !== "trigger") return false;
     const rel = configureTarget.path;
-    setConfigTriggerPhase("status.saving");
+    if (!options?.silent) setConfigTriggerPhase("status.saving");
     setScopeError(null);
     try {
       const scopeRel = scopeConfigRelFromWorkflowTriggerPath(rel);
@@ -785,7 +786,7 @@ export default function App() {
         }
         triggerFlowCanvasDraftRef.current = null;
         setTriggerCanvasReloadNonce((n) => n + 1);
-        setConfigTriggerPhase("status.saved");
+        if (!options?.silent) setConfigTriggerPhase("status.saved");
         const art = await api<{ paths: string[] }>("/api/artifacts");
         setArtifactPaths(art.paths ?? []);
         return true;
@@ -841,12 +842,12 @@ export default function App() {
       setSavedConfigTriggerSnap(contentForFile);
       triggerFlowCanvasDraftRef.current = null;
       setTriggerCanvasReloadNonce((n) => n + 1);
-      setConfigTriggerPhase("status.saved");
+      if (!options?.silent) setConfigTriggerPhase("status.saved");
       const art = await api<{ paths: string[] }>("/api/artifacts");
       setArtifactPaths(art.paths ?? []);
       return true;
     } catch {
-      setConfigTriggerPhase(null);
+      if (!options?.silent) setConfigTriggerPhase(null);
       return false;
     }
   };
@@ -955,9 +956,9 @@ export default function App() {
     localRunTaskMetaRef.current = new Map();
     if (isConfigureDirty) {
       let saved = false;
-      if (configureTarget.id === "workflowLocal") saved = await saveScope();
-      else if (configureTarget.id === "workflowTemplate") saved = await saveTemplate();
-      else if (configureTarget.id === "trigger") saved = await saveConfigureTrigger();
+      if (configureTarget.id === "workflowLocal") saved = await saveScope({ silent: true });
+      else if (configureTarget.id === "workflowTemplate") saved = await saveTemplate({ silent: true });
+      else if (configureTarget.id === "trigger") saved = await saveConfigureTrigger({ silent: true });
       if (!saved) {
         setCanvasPreviewRunBusy(false);
         return;
@@ -1053,6 +1054,11 @@ export default function App() {
         pipeline_node_id?: string;
         status?: string;
         error?: string;
+        rows_read?: number;
+        rows_written?: number;
+        instances_written?: number;
+        instances_listed?: number;
+        row_count?: number;
       };
       const nodeSuffixFor = (ev: ProgressEv, taskId: string): string => {
         const canvas = (ev.canvas_node_id ?? "").trim();
@@ -1142,6 +1148,7 @@ export default function App() {
                 functionId: fn || taskId,
                 taskId,
                 nodeSuffix: nodeSuffixFor(ev, taskId),
+                rowSuffix: localRunRowSuffix({ ...ev, ...rowCountFieldsFromEvent(ev) }, t),
               })}\n`
           );
           appendExecutingLine();
@@ -1742,6 +1749,15 @@ export default function App() {
   const defaultStatus = defaultError ?? (defaultPhase ? t(defaultPhase) : "");
   const configTriggerStatus = configTriggerPhase ? t(configTriggerPhase) : "";
 
+  const configureSaveBusy =
+    configureTarget.id === "workflowLocal"
+      ? scopePhase === "status.saving"
+      : configureTarget.id === "workflowTemplate"
+        ? templatePhase === "status.saving"
+        : configureTarget.id === "trigger"
+          ? configTriggerPhase === "status.saving"
+          : false;
+
   const configureStatus = (() => {
     switch (configureTarget.id) {
       case "workflowLocal":
@@ -2241,7 +2257,7 @@ export default function App() {
                   <button
                     type="button"
                     className="discovery-btn discovery-toolbar-btn"
-                    disabled={canvasPreviewRunBusy}
+                    disabled={canvasPreviewRunBusy || configureSaveBusy}
                     title={t("flow.previewRunLocalHint")}
                     onClick={() => void runLocalPipelineStreamed()}
                   >

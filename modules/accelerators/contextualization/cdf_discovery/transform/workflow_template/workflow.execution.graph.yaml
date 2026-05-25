@@ -1,0 +1,11 @@
+schemaVersion: 1
+workflow_id: discovery_etl_default
+description: Macro execution DAG refreshed at build from compiled_workflow IR
+tasks:
+- id: query_view_1
+  kind: query_view
+  depends_on: []
+- id: end
+  kind: raw_cleanup
+  depends_on:
+  - query_view_1

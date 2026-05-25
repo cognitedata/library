@@ -126,49 +126,33 @@ def test_list_children_governance_branches():
     assert all(n["has_children"] for n in nodes)
 
 
-def test_gov_workspace_children_live_before_artifacts():
+def test_gov_spaces_children_declared_artifacts_only():
     client = MagicMock()
-    with (
-        patch(
-            "ui.server.discovery_tree.cdf_browse.list_governance_spaces",
-            return_value=[{"space": "dm_src_acme", "label": "dm_src_acme"}],
-        ),
-        patch(
-            "ui.server.discovery_tree._gov_artifact_branch_nodes",
-            return_value=[
-                {
-                    "id": "gov:spaces:adir:spaces",
-                    "label": "artifacts",
-                    "kind": "folder",
-                    "has_children": True,
-                }
-            ],
-        ),
+    with patch(
+        "ui.server.discovery_tree._gov_artifact_branch_nodes",
+        return_value=[
+            {
+                "id": "gov:spaces:adir:spaces",
+                "label": "artifacts",
+                "kind": "folder",
+                "has_children": True,
+            }
+        ],
     ):
         nodes = discovery_tree.list_children(client, "gov:spaces")
-    assert nodes[0]["kind"] == "folder"
-    assert nodes[0]["label"] == "dm"
-    assert nodes[0]["id"] == "gov:spaces:live:dm"
-    assert nodes[1]["kind"] == "folder"
-
-    with patch(
-        "ui.server.discovery_tree.cdf_browse.list_governance_spaces",
-        return_value=[{"space": "dm_src_acme", "label": "dm_src_acme"}],
-    ):
-        under_dm = discovery_tree.list_children(client, "gov:spaces:live:dm")
-    assert [n["label"] for n in under_dm] == ["src"]
-    assert under_dm[0]["kind"] == "folder"
-
-    with patch(
-        "ui.server.discovery_tree.cdf_browse.list_governance_spaces",
-        return_value=[{"space": "dm_src_acme", "label": "dm_src_acme"}],
-    ):
-        leaves = discovery_tree.list_children(client, "gov:spaces:live:dm:src")
-    assert leaves[0]["label"] == "dm_src_acme"
-    assert leaves[0]["kind"] == "gov_space"
+    assert len(nodes) == 1
+    assert nodes[0]["id"] == "gov:spaces:adir:spaces"
 
 
-def test_list_children_governance_spaces_and_groups():
+def test_fusion_admin_lists_groups():
+    client = MagicMock()
+    nodes = discovery_tree.list_children(client, "fusion:admin")
+    assert len(nodes) == 1
+    assert nodes[0]["id"] == "fusion:admin:groups"
+    assert nodes[0]["label"] == "Groups"
+
+
+def test_fusion_cdf_spaces_and_groups_hierarchy():
     client = MagicMock()
     with (
         patch(
@@ -179,94 +163,53 @@ def test_list_children_governance_spaces_and_groups():
                 {"space": "a_other_site", "label": "a_other_site"},
             ],
         ),
-        patch(
-            "ui.server.discovery_tree._gov_artifact_branch_nodes",
-            return_value=[],
-        ),
     ):
-        spaces = discovery_tree.list_children(client, "gov:spaces")
+        spaces = discovery_tree.list_children(client, "fusion:spaces")
     assert [n["label"] for n in spaces] == ["a", "z"]
-    assert spaces[0]["id"] == "gov:spaces:live:a"
-    assert spaces[0]["kind"] == "folder"
-    assert spaces[0]["has_children"] is True
-
-    with patch(
-        "ui.server.discovery_tree.cdf_browse.list_governance_spaces",
-        return_value=[
-            {"space": "z_space_extra", "label": "z_space_extra"},
-            {"space": "a_space_extra", "label": "a_space_extra"},
-            {"space": "a_other_site", "label": "a_other_site"},
-        ],
-    ):
-        under_a = discovery_tree.list_children(client, "gov:spaces:live:a")
-    assert [n["label"] for n in under_a] == ["other", "space"]
+    assert spaces[0]["id"] == "fusion:spaces:live:a"
 
     with patch(
         "ui.server.discovery_tree.cdf_browse.list_governance_spaces",
         return_value=[{"space": "a_space_extra", "label": "a_space_extra"}],
     ):
-        leaves = discovery_tree.list_children(client, "gov:spaces:live:a:space")
-    assert [n["label"] for n in leaves] == ["a_space_extra"]
-    assert leaves[0]["id"] == "gov:space:a_space_extra"
+        leaves = discovery_tree.list_children(client, "fusion:spaces:live:a:space")
+    assert leaves[0]["id"] == "fusion:space:a_space_extra"
     assert leaves[0]["kind"] == "gov_space"
-
-    with patch(
-        "ui.server.discovery_tree.cdf_browse.list_governance_spaces",
-        return_value=[
-            {"space": "a_space_extra", "label": "a_space_extra"},
-            {"space": "a_space_other", "label": "a_space_other"},
-        ],
-    ):
-        under_a_space = discovery_tree.list_children(client, "gov:spaces:live:a:space")
-    assert {n["label"] for n in under_a_space} == {"a_space_extra", "a_space_other"}
-
-    with (
-        patch(
-            "ui.server.discovery_tree.cdf_browse.list_security_groups",
-            return_value=[{"id": 1, "label": "Readers", "name": "gp_asset_site_a_read"}],
-        ),
-        patch(
-            "ui.server.discovery_tree._gov_artifact_branch_nodes",
-            return_value=[],
-        ),
-    ):
-        groups = discovery_tree.list_children(client, "gov:groups")
-    assert groups[0]["id"] == "gov:groups:live:gp"
-    assert groups[0]["kind"] == "folder"
 
     with patch(
         "ui.server.discovery_tree.cdf_browse.list_security_groups",
         return_value=[{"id": 1, "label": "Readers", "name": "gp_asset_site_a_read"}],
     ):
-        group_leaves = discovery_tree.list_children(client, "gov:groups:live:gp:asset")
-    assert group_leaves[0]["id"] == "gov:group:1"
+        groups = discovery_tree.list_children(client, "fusion:admin:groups")
+    assert groups[0]["id"] == "fusion:admin:groups:live:gp"
+
+    with patch(
+        "ui.server.discovery_tree.cdf_browse.list_security_groups",
+        return_value=[{"id": 1, "label": "Readers", "name": "gp_asset_site_a_read"}],
+    ):
+        group_leaves = discovery_tree.list_children(client, "fusion:admin:groups:live:gp:asset")
+    assert group_leaves[0]["id"] == "fusion:group:1"
     assert group_leaves[0]["kind"] == "gov_group"
 
 
-def test_single_token_governance_names_are_root_leaves():
+def test_fusion_single_token_space_names_are_root_leaves():
     client = MagicMock()
-    with (
-        patch(
-            "ui.server.discovery_tree.cdf_browse.list_governance_spaces",
-            return_value=[
-                {"space": "global", "label": "global"},
-                {"space": "dm_src_acme", "label": "dm_src_acme"},
-            ],
-        ),
-        patch(
-            "ui.server.discovery_tree._gov_artifact_branch_nodes",
-            return_value=[],
-        ),
+    with patch(
+        "ui.server.discovery_tree.cdf_browse.list_governance_spaces",
+        return_value=[
+            {"space": "global", "label": "global"},
+            {"space": "dm_src_acme", "label": "dm_src_acme"},
+        ],
     ):
-        nodes = discovery_tree.list_children(client, "gov:spaces")
+        nodes = discovery_tree.list_children(client, "fusion:spaces")
     assert nodes[0]["label"] == "dm"
     assert nodes[0]["kind"] == "folder"
     assert nodes[1]["label"] == "global"
     assert nodes[1]["kind"] == "gov_space"
-    assert nodes[1]["id"] == "gov:space:global"
+    assert nodes[1]["id"] == "fusion:space:global"
 
 
-def test_governance_live_tree_respects_configured_token_depth():
+def test_fusion_live_tree_respects_configured_token_depth():
     client = MagicMock()
     with (
         patch(
@@ -277,12 +220,8 @@ def test_governance_live_tree_respects_configured_token_depth():
             "ui.server.discovery_tree.cdf_browse.list_governance_spaces",
             return_value=[{"space": "dm_src_acme", "label": "dm_src_acme"}],
         ),
-        patch(
-            "ui.server.discovery_tree._gov_artifact_branch_nodes",
-            return_value=[],
-        ),
     ):
-        under_dm = discovery_tree.list_children(client, "gov:spaces:live:dm")
+        under_dm = discovery_tree.list_children(client, "fusion:spaces:live:dm")
     assert [n["label"] for n in under_dm] == ["dm_src_acme"]
     assert under_dm[0]["kind"] == "gov_space"
 
@@ -324,9 +263,14 @@ def test_list_children_classic_open_targets():
 def test_list_children_fusion_root_branches():
     client = MagicMock()
     nodes = discovery_tree.list_children(client, "fusion")
-    assert [n["id"] for n in nodes] == ["fusion:dm", "fusion:integration"]
+    assert [n["id"] for n in nodes] == [
+        "fusion:dm",
+        "fusion:spaces",
+        "fusion:admin",
+        "fusion:integration",
+    ]
     assert nodes[0]["label"] == "Data Modeling"
-    assert nodes[1]["label"] == "Integration"
+    assert nodes[3]["label"] == "Integration"
 
 
 def test_list_children_fusion_dm_root_branches():

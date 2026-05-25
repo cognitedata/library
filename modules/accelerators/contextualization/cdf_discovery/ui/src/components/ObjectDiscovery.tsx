@@ -1,4 +1,12 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type DragEvent,
+  type MouseEvent,
+} from "react";
 import { createPortal } from "react-dom";
 import { fetchTreeChildren } from "../api";
 import { useAppSettings } from "../context/AppSettingsContext";
@@ -11,10 +19,28 @@ import {
   isLoadingPlaceholder,
 } from "../utils/treeFilter";
 import { opensGovernanceTab } from "../utils/governanceTabs";
+import { opensTransformTab, pipelineIdFromNode, templateIdFromNode } from "../utils/transformTabs";
+import { opensExtractTab, opensMonitorTab } from "../utils/workspaceTabs";
 import { canQueryTreeNode } from "../utils/sqlQuerySeed";
-import { DATA_SAVED_QUERIES } from "../utils/treeNodeIds";
+import { canDropDataTreeEntity } from "../utils/dataTreeEntityDrop";
+import { setDataTreeEntityDragData } from "./transform/transformFlowDrag";
+import { DATA_SAVED_QUERIES, TRANSFORM_ROOT, TRANSFORM_TEMPLATES } from "../utils/treeNodeIds";
+import {
+  canDragTransformTreeItem,
+  endTransformTreeDrag,
+  getTransformTreeDragPayload,
+  resolveTransformTreeDropTarget,
+  setTransformTreeDragData,
+  transformTreeDropAccepts,
+} from "../utils/transformTreeDrag";
 import { savedQueryFromNode } from "../utils/savedQueries";
+import { treeNodeDisplayLabel } from "../utils/treeNodeLabels";
 import type { SavedQuery } from "../types/discoveryNodes";
+import {
+  resolveTreeToolbarNewAction,
+  treeToolbarNewLabels,
+  type TreeToolbarNewAction,
+} from "../utils/treeToolbarNew";
 
 const ROOT_ID = "connection";
 
@@ -27,11 +53,21 @@ type Props = {
   refreshKey: number;
   savedQueriesRevision?: number;
   governanceArtifactsRevision?: GovernanceArtifactsRevision;
+  transformPipelinesRevision?: number;
+  transformTemplatesRevision?: number;
   connectionLabel?: string;
   selectedId: string | null;
   onSelectNode: (node: TreeNode | null) => void;
   onOpenNode: (node: TreeNode) => void;
   onDeleteSavedQuery?: (query: SavedQuery) => void;
+  onTreeNew?: (action: TreeToolbarNewAction) => void;
+  onDeletePipeline?: (pipelineId: string, label: string) => void;
+  onDeleteTemplate?: (templateId: string, label: string) => void;
+  onRenamePipeline?: (pipelineId: string, label: string) => void;
+  onRenameTemplate?: (templateId: string, label: string) => void;
+  onPipelineDropOnTemplates?: (pipelineId: string, pipelineLabel: string) => void;
+  onTemplateDropOnPipelines?: (templateId: string, templateLabel: string) => void;
+  dataTreeDragEnabled?: boolean;
 };
 
 type CtxMenu = { x: number; y: number; node: TreeNode } | null;
@@ -40,11 +76,21 @@ export function ObjectDiscovery({
   refreshKey,
   savedQueriesRevision = 0,
   governanceArtifactsRevision,
+  transformPipelinesRevision = 0,
+  transformTemplatesRevision = 0,
   connectionLabel,
   selectedId,
   onSelectNode,
   onOpenNode,
   onDeleteSavedQuery,
+  onTreeNew,
+  onDeletePipeline,
+  onDeleteTemplate,
+  onRenamePipeline,
+  onRenameTemplate,
+  onPipelineDropOnTemplates,
+  onTemplateDropOnPipelines,
+  dataTreeDragEnabled = false,
 }: Props) {
   const { t } = useAppSettings();
   const { sortNodes, isStarred, toggleStar, starredIds } = useDiscoveryConfig();
@@ -55,6 +101,7 @@ export function ObjectDiscovery({
   const [loading, setLoading] = useState<Set<string>>(new Set());
   const [errors, setErrors] = useState<Map<string, string>>(new Map());
   const [ctxMenu, setCtxMenu] = useState<CtxMenu>(null);
+  const [transformTreeDropTargetId, setTransformTreeDropTargetId] = useState<string | null>(null);
   const abortByNode = useRef<Map<string, AbortController>>(new Map());
   const loadedRef = useRef(loadedIds);
   const loadingRef = useRef(loading);
@@ -179,6 +226,26 @@ export function ObjectDiscovery({
     }
   }, [governanceArtifactsRevision, expanded, invalidateSubtree, loadChildren]);
 
+  useEffect(() => {
+    if (!transformPipelinesRevision) return;
+    invalidateSubtree(TRANSFORM_ROOT);
+    if (expanded.has(TRANSFORM_ROOT)) {
+      void loadChildren(TRANSFORM_ROOT, { force: true });
+    }
+  }, [transformPipelinesRevision, expanded, invalidateSubtree, loadChildren]);
+
+  useEffect(() => {
+    if (!transformTemplatesRevision) return;
+    invalidateSubtree(TRANSFORM_ROOT);
+    invalidateSubtree(TRANSFORM_TEMPLATES);
+    if (expanded.has(TRANSFORM_ROOT)) {
+      void loadChildren(TRANSFORM_ROOT, { force: true });
+    }
+    if (expanded.has(TRANSFORM_TEMPLATES)) {
+      void loadChildren(TRANSFORM_TEMPLATES, { force: true });
+    }
+  }, [transformTemplatesRevision, expanded, invalidateSubtree, loadChildren]);
+
   useEffect(
     () => () => {
       for (const c of abortByNode.current.values()) {
@@ -211,13 +278,34 @@ export function ObjectDiscovery({
     [childrenByParent, expanded, loadedIds, filter, rootNode, t]
   );
 
+  const selectedTreeNode = useMemo(
+    () => (selectedId ? flat.find((row) => row.node.id === selectedId)?.node ?? null : null),
+    [flat, selectedId]
+  );
+
+  const toolbarNewAction = useMemo(
+    () => resolveTreeToolbarNewAction(selectedTreeNode),
+    [selectedTreeNode]
+  );
+
+  const ctxNewAction = useMemo(
+    () => (ctxMenu ? resolveTreeToolbarNewAction(ctxMenu.node) : null),
+    [ctxMenu]
+  );
+
+  const toolbarNewLabels = toolbarNewAction ? treeToolbarNewLabels(toolbarNewAction) : null;
+  const ctxNewLabels = ctxNewAction ? treeToolbarNewLabels(ctxNewAction) : null;
+
   const opensDocumentTab = (node: TreeNode) =>
     node.kind === "dm_data_model" ||
     node.kind === "workflow" ||
     node.kind === "transformation" ||
     node.kind === "function" ||
     node.kind === "saved_query" ||
-    opensGovernanceTab(node);
+    opensGovernanceTab(node) ||
+    opensTransformTab(node) ||
+    opensExtractTab(node) ||
+    opensMonitorTab(node);
 
   const openNode = (node: TreeNode) => {
     if (opensDocumentTab(node) || canQueryTreeNode(node)) onOpenNode(node);
@@ -235,16 +323,97 @@ export function ObjectDiscovery({
       ? savedQueryFromNode(ctxMenu.node)
       : null;
 
+  const ctxDeletePipeline =
+    ctxMenu?.node.kind === "etl_pipeline" && onDeletePipeline
+      ? (() => {
+          const id = pipelineIdFromNode(ctxMenu.node);
+          return id ? { id, label: ctxMenu.node.label } : null;
+        })()
+      : null;
+
+  const ctxDeleteTemplate =
+    ctxMenu?.node.kind === "etl_template" && onDeleteTemplate
+      ? (() => {
+          const id = templateIdFromNode(ctxMenu.node);
+          return id ? { id, label: ctxMenu.node.label } : null;
+        })()
+      : null;
+
+  const ctxRenamePipeline =
+    ctxMenu?.node.kind === "etl_pipeline" && onRenamePipeline
+      ? (() => {
+          const id = pipelineIdFromNode(ctxMenu.node);
+          return id ? { id, label: ctxMenu.node.label } : null;
+        })()
+      : null;
+
+  const ctxRenameTemplate =
+    ctxMenu?.node.kind === "etl_template" && onRenameTemplate
+      ? (() => {
+          const id = templateIdFromNode(ctxMenu.node);
+          return id ? { id, label: ctxMenu.node.label } : null;
+        })()
+      : null;
+
+  const handleTransformTreeDragOver = useCallback(
+    (e: DragEvent, node: TreeNode) => {
+      const dropKind = resolveTransformTreeDropTarget(node);
+      if (!dropKind) return;
+      const payload = getTransformTreeDragPayload(e);
+      if (!payload || !transformTreeDropAccepts(dropKind, payload)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      e.dataTransfer.dropEffect = "copy";
+      setTransformTreeDropTargetId(node.id);
+    },
+    []
+  );
+
+  const handleTransformTreeDragLeave = useCallback((e: DragEvent, node: TreeNode) => {
+    const related = e.relatedTarget;
+    if (related instanceof HTMLElement && e.currentTarget.contains(related)) return;
+    setTransformTreeDropTargetId((prev) => (prev === node.id ? null : prev));
+  }, []);
+
+  const handleTransformTreeDrop = useCallback(
+    (e: DragEvent, node: TreeNode) => {
+      const dropKind = resolveTransformTreeDropTarget(node);
+      const payload = getTransformTreeDragPayload(e);
+      setTransformTreeDropTargetId(null);
+      endTransformTreeDrag();
+      if (!dropKind || !payload || !transformTreeDropAccepts(dropKind, payload)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const savePipelineAsTemplate = dropKind === "templates" && payload.kind === "etl_pipeline";
+      const createPipelineFromTemplate = dropKind === "pipelines" && payload.kind === "etl_template";
+      if (savePipelineAsTemplate) {
+        onPipelineDropOnTemplates?.(payload.pipelineId, payload.label);
+      } else if (createPipelineFromTemplate) {
+        onTemplateDropOnPipelines?.(payload.templateId, payload.label);
+      }
+    },
+    [onPipelineDropOnTemplates, onTemplateDropOnPipelines]
+  );
+
   return (
     <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
-      <div style={{ padding: "0.45rem 0.5rem" }}>
+      <div className="disc-tree-toolbar">
         <input
-          className="disc-input"
-          style={{ width: "100%" }}
+          className="disc-input disc-tree-toolbar__filter"
           placeholder={t("discovery.filter")}
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
         />
+        {toolbarNewAction && onTreeNew && toolbarNewLabels ? (
+          <button
+            type="button"
+            className="disc-btn disc-btn--primary disc-tree-toolbar__new"
+            onClick={() => onTreeNew(toolbarNewAction)}
+            title={t(toolbarNewLabels.titleKey)}
+          >
+            {t(toolbarNewLabels.labelKey)}
+          </button>
+        ) : null}
       </div>
       <div className="disc-tree">
         {flat.length === 0 ? (
@@ -259,13 +428,44 @@ export function ObjectDiscovery({
               const isExp = expanded.has(node.id);
               const err = errors.get(node.id);
               const isLoading = loading.has(node.id);
+              const isDataTreeDraggable =
+                dataTreeDragEnabled && !isPlaceholder && canDropDataTreeEntity(node);
+              const isTransformTreeDraggable =
+                !isPlaceholder && canDragTransformTreeItem(node);
+              const isDraggable = isDataTreeDraggable || isTransformTreeDraggable;
+              const transformDropKind = resolveTransformTreeDropTarget(node);
+              const transformDropTarget =
+                !isPlaceholder &&
+                transformTreeDropTargetId === node.id &&
+                transformDropKind != null;
+              const transformDropHint =
+                transformDropKind === "templates"
+                  ? t("transform.treeDrag.dropPipelineOnTemplates")
+                  : transformDropKind === "pipelines"
+                    ? t("transform.treeDrag.dropTemplateOnPipelines")
+                    : undefined;
               return (
                 <li
                   key={node.id}
                   className="disc-tree-item"
                   style={{ paddingLeft: depth * 14 }}
                 >
-                  <div className="disc-tree-row">
+                  <div
+                    className={`disc-tree-row${transformDropTarget ? " disc-tree-row--drop-target" : ""}`}
+                    onDragOver={
+                      transformDropKind
+                        ? (e) => handleTransformTreeDragOver(e, node)
+                        : undefined
+                    }
+                    onDragLeave={
+                      transformDropKind
+                        ? (e) => handleTransformTreeDragLeave(e, node)
+                        : undefined
+                    }
+                    onDrop={
+                      transformDropKind ? (e) => handleTransformTreeDrop(e, node) : undefined
+                    }
+                  >
                     {node.has_children && !isPlaceholder ? (
                       <button
                         type="button"
@@ -285,7 +485,35 @@ export function ObjectDiscovery({
                         type="button"
                         className={`disc-tree-node${isSel ? " disc-tree-node--selected" : ""}${
                           node.starred || isStarred(node.id) ? " disc-tree-node--starred" : ""
+                        }${isDraggable ? " disc-tree-node--draggable" : ""}${
+                          transformDropTarget ? " disc-tree-node--drop-target" : ""
                         }`}
+                        draggable={isDraggable}
+                        title={
+                          transformDropHint ??
+                          (isDataTreeDraggable ? t("transform.treeDrag.hint") : isTransformTreeDraggable
+                            ? t("transform.treeDrag.pipelineOrTemplate")
+                            : undefined)
+                        }
+                        onDragStart={
+                          isDraggable
+                            ? (e) => {
+                                e.stopPropagation();
+                                if (isTransformTreeDraggable) {
+                                  setTransformTreeDragData(e, node);
+                                } else {
+                                  setDataTreeEntityDragData(e, node);
+                                }
+                              }
+                            : undefined
+                        }
+                        onDragEnd={
+                          isTransformTreeDraggable
+                            ? () => {
+                                endTransformTreeDrag();
+                              }
+                            : undefined
+                        }
                         onClick={() => onSelectNode(node)}
                         onDoubleClick={() => openNode(node)}
                         onContextMenu={(e: MouseEvent) => {
@@ -298,7 +526,7 @@ export function ObjectDiscovery({
                             ★{" "}
                           </span>
                         )}
-                        {node.label}
+                        {treeNodeDisplayLabel(node, t)}
                         {err ? " ⚠" : ""}
                       </button>
                     )}
@@ -316,6 +544,19 @@ export function ObjectDiscovery({
             style={{ left: ctxMenu.x, top: ctxMenu.y }}
             onClick={(e) => e.stopPropagation()}
           >
+            {ctxNewAction && onTreeNew && ctxNewLabels ? (
+              <li>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onTreeNew(ctxNewAction);
+                    setCtxMenu(null);
+                  }}
+                >
+                  {t(ctxNewLabels.labelKey)}
+                </button>
+              </li>
+            ) : null}
             {!isLoadingPlaceholder(ctxMenu.node) && (
               <li>
                 <button
@@ -351,6 +592,58 @@ export function ObjectDiscovery({
                   }}
                 >
                   {t("discovery.delete")}
+                </button>
+              </li>
+            )}
+            {ctxRenamePipeline && onRenamePipeline && (
+              <li>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onRenamePipeline(ctxRenamePipeline.id, ctxRenamePipeline.label);
+                    setCtxMenu(null);
+                  }}
+                >
+                  {t("transform.pipelines.rename")}
+                </button>
+              </li>
+            )}
+            {ctxDeletePipeline && onDeletePipeline && (
+              <li>
+                <button
+                  type="button"
+                  onClick={() => {
+                    void onDeletePipeline(ctxDeletePipeline.id, ctxDeletePipeline.label);
+                    setCtxMenu(null);
+                  }}
+                >
+                  {t("transform.pipelines.delete")}
+                </button>
+              </li>
+            )}
+            {ctxRenameTemplate && onRenameTemplate && (
+              <li>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onRenameTemplate(ctxRenameTemplate.id, ctxRenameTemplate.label);
+                    setCtxMenu(null);
+                  }}
+                >
+                  {t("transform.templates.rename")}
+                </button>
+              </li>
+            )}
+            {ctxDeleteTemplate && onDeleteTemplate && (
+              <li>
+                <button
+                  type="button"
+                  onClick={() => {
+                    void onDeleteTemplate(ctxDeleteTemplate.id, ctxDeleteTemplate.label);
+                    setCtxMenu(null);
+                  }}
+                >
+                  {t("transform.templates.delete")}
                 </button>
               </li>
             )}

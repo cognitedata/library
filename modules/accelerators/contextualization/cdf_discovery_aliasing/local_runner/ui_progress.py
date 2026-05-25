@@ -6,9 +6,76 @@ import json
 import logging
 import os
 from contextlib import contextmanager
-from typing import Any, Iterator
+from typing import Any, Iterator, Mapping
 
 _MAX_LOG_CHARS = 8000
+
+
+def _int_field(summary: Mapping[str, Any], key: str) -> int | None:
+    val = summary.get(key)
+    if isinstance(val, bool) or not isinstance(val, (int, float)):
+        return None
+    return int(val)
+
+
+def resolve_task_read_count(summary: Mapping[str, Any]) -> int | None:
+    """Best read count from handler summaries (prefer non-zero over stale ``rows_read: 0``)."""
+    vals: list[int] = []
+    for key in ("rows_read", "instances_listed"):
+        v = _int_field(summary, key)
+        if v is not None:
+            vals.append(v)
+    left = _int_field(summary, "rows_read_left")
+    right = _int_field(summary, "rows_read_right")
+    if left is not None or right is not None:
+        vals.append((left or 0) + (right or 0))
+    if not vals:
+        return None
+    positive = [v for v in vals if v > 0]
+    return max(positive) if positive else vals[0]
+
+
+def resolve_task_write_count(summary: Mapping[str, Any]) -> int | None:
+    """Best write count from handler summaries."""
+    vals: list[int] = []
+    for key in ("rows_written", "instances_written", "instances_applied", "row_count"):
+        v = _int_field(summary, key)
+        if v is not None:
+            vals.append(v)
+    if not vals:
+        return None
+    positive = [v for v in vals if v > 0]
+    return max(positive) if positive else vals[0]
+
+
+def ui_progress_row_counts(summary: Mapping[str, Any] | None) -> dict[str, int]:
+    """Canonical read/write counts for ``task_end`` NDJSON events."""
+    if not isinstance(summary, Mapping):
+        return {}
+    out: dict[str, int] = {}
+    read = resolve_task_read_count(summary)
+    write = resolve_task_write_count(summary)
+    if read is not None:
+        out["rows_read"] = read
+    if write is not None:
+        out["rows_written"] = write
+    return out
+
+
+def ui_progress_row_counts_from_output(output: Any) -> dict[str, int]:
+    """Parse handler ``message`` JSON on discovery task output snapshots."""
+    if not isinstance(output, Mapping):
+        return {}
+    message = output.get("message")
+    if isinstance(message, Mapping):
+        return ui_progress_row_counts(message)
+    if isinstance(message, str) and message.strip().startswith("{"):
+        try:
+            parsed = json.loads(message)
+        except json.JSONDecodeError:
+            return {}
+        return ui_progress_row_counts(parsed if isinstance(parsed, dict) else None)
+    return ui_progress_row_counts(output)
 
 
 def ui_progress_fd_configured() -> bool:

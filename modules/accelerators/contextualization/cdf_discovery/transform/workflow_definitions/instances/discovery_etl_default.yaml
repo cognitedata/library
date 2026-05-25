@@ -1,0 +1,50 @@
+schemaVersion: 1
+id: discovery_etl_default
+label: Default discovery ETL
+parameters:
+  incremental: true
+  incremental_change_processing: true
+  incremental_skip_unchanged: true
+  raw_db: etl_staging
+  raw_table_key: cohort
+  instance_space: inst_assets
+canvas:
+  schemaVersion: 1
+  handle_orientation: lr
+  nodes:
+    - id: start
+      kind: start
+      position: { x: 80, y: 200 }
+      data:
+        label: Workflow trigger
+        config:
+          description: Workflow trigger
+          trigger_type: schedule
+          cron_expression: "0 2 * * *"
+          workflow_version: "1"
+          workflow_base: wf_all_etl_discovery
+          workflow_external_id: wf_all_etl_discovery
+          trigger_external_id: trg_wf_all_etl_discovery
+          incremental_change_processing: true
+          run_id: ""
+    - id: query_view_1
+      kind: query_view
+      position: { x: 280, y: 200 }
+      data:
+        config:
+          view_space: cdf_cdm
+          view_external_id: CogniteAsset
+          view_version: v1
+          batch_size: 1000
+    - id: end
+      kind: end
+      position: { x: 480, y: 200 }
+      data:
+        label: RAW cleanup
+        config:
+          description: Post-run cohort RAW cleanup
+  edges:
+    - source: start
+      target: query_view_1
+    - source: query_view_1
+      target: end

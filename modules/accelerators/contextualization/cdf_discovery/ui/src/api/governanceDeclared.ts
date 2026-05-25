@@ -65,6 +65,20 @@ export async function runGovernanceBuild(opts: {
   });
 }
 
+export async function createGovernanceArtifact(opts: {
+  kind: "spaces" | "groups";
+  external_id: string;
+  display_name?: string;
+  parent_rel?: string;
+  source_id?: string;
+}): Promise<{ ok: boolean; path: string; source_ids_synced?: boolean }> {
+  return fetchJson(`${BASE}/artifacts/create`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(opts),
+  });
+}
+
 export async function listGovernanceArtifacts(
   kind: "spaces" | "groups"
 ): Promise<string[]> {

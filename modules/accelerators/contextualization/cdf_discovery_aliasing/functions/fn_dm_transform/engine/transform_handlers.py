@@ -18,7 +18,10 @@ from .handlers.default_if_empty import DefaultIfEmptyHandler
 from .field_template import apply_output_template, extract_field_values
 from .handlers.format_datetime import FormatDatetimeHandler
 from .handlers.hash_stable import HashStableHandler
-from .handlers.heuristic_sampler import HeuristicSamplerHandler
+from .handlers.heuristic_sampler import (
+    apply_heuristic_sampler,
+    HeuristicSamplerHandler,
+)
 from .handlers.leading_zero_normalize import LeadingZeroNormalizeHandler
 from .handlers.mask_string import MaskStringHandler
 from .handlers.parse_json_extract import ParseJsonExtractHandler
@@ -108,10 +111,6 @@ def apply_mask_string(working: str, block: Mapping[str, Any]) -> str:
 
 def apply_static_lookup_map(working: str, block: Mapping[str, Any]) -> str:
     return str(StaticLookupMapHandler.apply(working, block))
-
-
-def apply_heuristic_sampler(working: str, block: Mapping[str, Any]) -> str:
-    return str(HeuristicSamplerHandler.apply(working, block))
 
 
 __all__ = [
