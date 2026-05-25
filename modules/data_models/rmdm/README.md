@@ -1,12 +1,12 @@
-# RMDM v1 (Reliability Maintenance Data Model)
+# RMDM (Reliability Maintenance Data Model)
 
 Library path: `modules/data_models/rmdm/` · Module ID: `dp:models:rmdm` · Deployment pack: `dp:models`
 
 ## Overview
 
-The **RMDM v1 module** provides the foundational data model definitions required to implement a **Reliability Maintenance Data Model** in your **Cognite Data Fusion (CDF)** environment. It includes all necessary containers, views, and space configurations to establish a comprehensive framework for **maintenance and reliability management**.
+The **RMDM module** provides the foundational data model definitions required to implement a **Reliability Maintenance Data Model** in your **Cognite Data Fusion (CDF)** environment. It includes all necessary containers, views, and space configurations to establish a comprehensive framework for **maintenance and reliability management**.
 
-This guide walks you through the concept of RMDM and the steps to download, configure, and deploy RMDM v1 using the **Cognite Toolkit**.
+This guide walks you through the concept of RMDM and the steps to download, configure, and deploy RMDM using the **Cognite Toolkit**.
 
 ## What is RMDM?
 
@@ -27,7 +27,7 @@ RMDM is built to be **ISO 14224** and **NORSOK Z-008** compliant, which are glob
 
 ## Module Components
 
-The RMDM v1 module is structured as follows:
+The RMDM module is structured as follows:
 
 - **data_models/** – Core RMDM data model definitions
 - **containers/** – Container definitions for all RMDM entities
@@ -37,7 +37,7 @@ The RMDM v1 module is structured as follows:
 
 ## Data Model Entities
 
-The RMDM v1 defines a comprehensive set of entities, grouped into key categories:
+RMDM defines a comprehensive set of entities, grouped into key categories:
 
 ### Core Asset Entities
 
@@ -71,16 +71,6 @@ The RMDM v1 defines a comprehensive set of entities, grouped into key categories
 - **Cognite Toolkit 0.7.210 or above** (`cdf --version` to check).
 - A CDF project with valid authentication configured for your target environment.
 - A `cdf.toml` in your Toolkit project directory.
-
-### Optional: Enable usage tracking
-
-To help improve the deployment pack and provide insight to the Value Delivery Accelerator team, you can enable anonymous usage tracking:
-
-```bash
-cdf collect opt-in
-```
-
-This is optional but recommended.
 
 ### Choose your setup path
 
@@ -239,4 +229,4 @@ For troubleshooting or deployment issues:
 
 For more detailed information and the latest updates, visit the official Cognite Hub article:
 
-[How to Deploy RMDM v1 (Reliability Maintenance Data Model) in Cognite Data Fusion](https://hub.cognite.com/deployment-packs-472/how-to-deploy-rmdm-v1-reliability-maintenance-data-model-in-cognite-data-fusion-5454)
+[How to Deploy RMDM (Reliability Maintenance Data Model) in Cognite Data Fusion](https://hub.cognite.com/deployment-packs-472/how-to-deploy-rmdm-v1-reliability-maintenance-data-model-in-cognite-data-fusion-5454)
