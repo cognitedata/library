@@ -159,7 +159,7 @@ export const DEPLOYMENT_PACKS: DeploymentPackDefinition[] = [
     },
   },
   {
-    id: "dp:atlas:ai_property_extractor",
+    id: "dp:atlas_ai:ai_extractor",
     name: "Atlas AI Property Extractor",
     description: `LLM property extraction function and pipeline (library: modules/solutions/cdf_ai_extractor). Hub: ${HUB_DEPLOYMENT_PACKS_LIBRARY}`,
     signals: {
@@ -175,9 +175,9 @@ export const DEPLOYMENT_PACKS: DeploymentPackDefinition[] = [
     },
   },
   {
-    id: "dp:acc:infield_quickstart",
-    name: "InField QuickStart",
-    description: `APM / InField quickstart config data model (library: modules/accelerators/infield_quickstart/cdf_apm_base). Hub: ${HUB_DEPLOYMENT_PACKS_LIBRARY}`,
+    id: "dp:infield:cdf_infield_location",
+    name: "Infield Location",
+    description: `Infield location on CDM (library: modules/solutions/cdf_infield/cdf_infield_location). Hub: ${HUB_DEPLOYMENT_PACKS_LIBRARY}`,
     signals: {
       dataModels: [{ space: "APM_Config", externalId: "APM_Config", version: "1" }],
     },

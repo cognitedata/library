@@ -6,7 +6,7 @@ dp:cdm_maintain:cdf_maintain_location,Maintain Location
 dp:cdm_maintain:cdf_maintain_solution_model,Maintain Solution Model
 dp:cdm_maintain:cdf_maintain_source_data_model,Maintain Source Data Model
 dp:cdm_maintain:cdf_sample_data,Maintain Sample Data
-dp:common:cdf_common,cdf_common
+dp:common:cdf_common,CDF Common
 dp:common:cdf_ingestion,Ingestion Workflow
 dp:common:cdf_search,Search configuration with location filter
 dp:contextualization:cdf_connection_sql,Contextualization Direct Relation Transformations
@@ -34,7 +34,7 @@ dp:tool:cdf_transformation_jobs_metric_explorer,CDF Transformation Job Metrics A
 dp:tool:qualitizer,CDF Qualitizer Application
 dp:acc:cdf_oid_sync,Open Industrial Data Sync
 dp:atlas_ai_extractor,AI Property Extractor Function
-dp:cdf_common,cdf_common
+dp:cdf_common,CDF Common
 dp:cdf_entity_matching,Contextualization Entity Matching
 dp:cdf_file_annotation,Contextualization File Annotation
 dp:cdf_p_and_id_annotation,Contextualization P&ID Annotation
