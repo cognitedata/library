@@ -106,20 +106,6 @@ From your project directory:
 cdf modules add -d rmdm
 ```
 
-Example output:
-
-```text
-Adding library cognite from https://github.com/cognitedata/library/releases/download/latest/packages.zip
-Download ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100% 0:00:00
-Unzipping ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100% 0:00:00
-Selected module 'rmdm' from package 'models'.
-  Creating models
-    Creating module rmdm
-  Updating config.dev.yaml
-  Updating config.prod.yaml
-cdf.toml file already exists. Skipping creation.
-```
-
 #### d. Build and deploy
 
 Run in order:
