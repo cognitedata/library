@@ -1,5 +1,7 @@
 # RMDM v1 (Reliability Maintenance Data Model)
 
+Library path: `modules/data_models/rmdm/` · Module ID: `dp:models:rmdm` · Deployment pack: `dp:models`
+
 ## Overview
 
 The **RMDM v1 module** provides the foundational data model definitions required to implement a **Reliability Maintenance Data Model** in your **Cognite Data Fusion (CDF)** environment. It includes all necessary containers, views, and space configurations to establish a comprehensive framework for **maintenance and reliability management**.
@@ -66,63 +68,83 @@ The RMDM v1 defines a comprehensive set of entities, grouped into key categories
 
 ### Prerequisites
 
-Before you start, ensure you have the following:
+- **Cognite Toolkit 0.7.210 or above** (`cdf --version` to check).
+- A CDF project with valid authentication configured for your target environment.
+- A `cdf.toml` in your Toolkit project directory.
 
-- You already have a Cognite Toolkit project set up locally.
-- Your project contains the standard `cdf.toml` file
-- You have valid authentication to your target CDF environment
+### Optional: Enable usage tracking
 
-### Step 1: Enable External Libraries (Toolkit < 0.7.0 only)
-
-Newer Toolkit versions ship `[library.cognite]` already pointing at this
-repository, so no `cdf.toml` change is needed. On Toolkit < 0.7.0, enable the
-alpha flag:
-
-```toml
-[alpha_flags]
-external-libraries = true
-```
-
-### Step 2 (Optional but Recommended): Enable Usage Tracking
-
-To help improve the Deployment Pack and provide insight to the Value Delivery Accelerator team, you can enable anonymous usage tracking:
+To help improve the deployment pack and provide insight to the Value Delivery Accelerator team, you can enable anonymous usage tracking:
 
 ```bash
 cdf collect opt-in
 ```
 
-This is optional, but highly recommended.
+This is optional but recommended.
 
-### Step 3: Add the Module
+### Choose your setup path
 
-Run:
+---
 
-```bash
-cdf modules init .
-```
-> **⚠️ Disclaimer**: This command will overwrite your existing modules in the current directory. Make sure to commit any changes before running this command, or use it in a fresh project directory.
+### 1. Existing Toolkit project
 
-This opens the interactive module selection interface.
+Use this path if you already have a local Toolkit project and only want to add RMDM.
 
-### Step 4: Select the RMDM Data Models Package
+#### a. Point `cdf.toml` at the Cognite Library
 
-Either add the pack directly:
+Long-time Toolkit users may still have `[library.cognite]` pointing at **toolkit-data**. Update it to the official library release:
 
-```bash
-cdf modules add dp:models
+```toml
+[library.cognite]
+url = "https://github.com/cognitedata/library/releases/download/latest/packages.zip"
 ```
 
-Or from `cdf modules init`, select **Data models: Data models that extend the core data model**.
+#### b. Enable deployment packs in `cdf.toml`
 
-Toolkit will:
+In the same `cdf.toml`, ensure the alpha flag is set:
 
-- Download the RMDM module
-- Update the Toolkit configuration
-- Place the files into your project
+```toml
+[alpha_flags]
+deployment-pack = true
+```
 
-### Step 5: Verify Folder Structure
+#### c. Add the RMDM module
 
-After installation, your project should now contain:
+From your project directory:
+
+```bash
+cdf modules add -d rmdm
+```
+
+Example output:
+
+```text
+Adding library cognite from https://github.com/cognitedata/library/releases/download/latest/packages.zip
+Download ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100% 0:00:00
+Unzipping ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100% 0:00:00
+Selected module 'rmdm' from package 'models'.
+  Creating models
+    Creating module rmdm
+  Updating config.dev.yaml
+  Updating config.prod.yaml
+cdf.toml file already exists. Skipping creation.
+```
+
+#### d. Build and deploy
+
+Run in order:
+
+```bash
+cdf build
+cdf deploy --dry-run
+cdf deploy
+```
+
+After deployment, the RMDM models, containers, and views are available in your CDF environment.
+
+#### Verify folder structure
+
+Your project should include:
 
 ```
 modules/
@@ -130,25 +152,41 @@ modules/
         └── rmdm/
 ```
 
-If you see this structure, RMDM has been successfully added to your project.
+---
 
-### Step 6: Deploy to CDF
+### 2. Starting from scratch
 
-Build and deploy as usual:
+Use this path for a new Toolkit project with only RMDM (and the data models pack scaffolding Toolkit creates).
+
+#### a. Initialize the project
+
+In an **empty directory**:
+
+```bash
+cdf modules init .
+```
+
+#### b. Select RMDM in the interactive UI
+
+In the terminal:
+
+1. Choose **Data models** (data models that extend the core data model).
+2. Use **Space** to select **rmdm**.
+3. Press **Enter** to confirm.
+
+Toolkit downloads the library, creates the module under `modules/data_models/rmdm/`, and updates `config.dev.yaml` / `config.prod.yaml`.
+
+#### c. Build and deploy
 
 ```bash
 cdf build
-```
-
-```bash
 cdf deploy --dry-run
-```
-
-```bash
 cdf deploy
 ```
 
-After deployment, the RMDM models, containers, and views will be available in your CDF environment.
+---
+
+After either path, the RMDM data model, containers, and views are deployed to your CDF environment.
 
 ## Module Structure
 
