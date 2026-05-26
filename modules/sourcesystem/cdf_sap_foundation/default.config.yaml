@@ -1,0 +1,26 @@
+# SAP Foundation — configuration variables
+
+# Site/location code, used in externalIds (e.g. ep_{{location}}_sap, db_{{location}}_sap)
+location: "site1"
+
+# DM space where ISA Manufacturing Extension instances are written
+instanceSpace: "sp_isa_instance_space"
+
+# dataSetExternalId for the extraction pipeline and RAW database
+dataset: "ds_sap"
+
+# SAP plant code — used in OData filter expressions (e.g. MaintPlant eq '{{sapPlant}}')
+sapPlant: "1000"
+
+# Disable SSL verification for the SAP gateway connection.
+# Set to true ONLY if the SAP server uses a self-signed certificate that is
+# not trusted by the extractor host.
+sapDisableSsl: false
+
+# Integration owner (technical contact for the pipeline)
+integration_owner_name: "Integration Owner"
+integration_owner_email: "integration.owner@example.com"
+
+# Data owner (business contact for the data)
+data_owner_name: "Data Owner"
+data_owner_email: "data.owner@example.com"

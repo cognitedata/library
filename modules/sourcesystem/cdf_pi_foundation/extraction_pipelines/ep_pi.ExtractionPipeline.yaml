@@ -1,0 +1,84 @@
+externalId: "ep_{{location}}_pi"
+name: "ep:{{location}}:pi"
+dataSetExternalId: "{{dataset}}"
+description: "PI .NET Extractor pipeline for site {{location}} — writes PI tags and values directly to the Core Data Model `ExtractorTimeSeries` view in {{instanceSpace}} (no RAW staging)"
+source: PI
+schedule: Continuous
+contacts:
+  - name: {{integration_owner_name}}
+    email: {{integration_owner_email}}
+    role: Owner
+    sendNotification: true
+  - name: Cognite Support
+    email: support@cognite.com
+    role: Operational Owner
+    sendNotification: true
+  - name: {{data_owner_name}}
+    email: {{data_owner_email}}
+    role: Data Owner
+    sendNotification: true
+notificationConfig:
+  # PI extractor streams continuously; alert if not seen for >2 hours
+  allowedNotSeenRangeInMinutes: 120
+createdBy: cognite-toolkit
+documentation: |
+  ## PI extraction pipeline
+
+  This extraction pipeline reads tags and tag values from a Cognite PI .NET
+  Extractor (version 2.1, config schema version 3) and writes them directly to
+  the **Core Data Model `ExtractorTimeSeries`** view in `{{instanceSpace}}` —
+  there is **no RAW staging step**. The CDM destination is enabled by setting
+  `time-series.space-id` in `ep_pi.ExtractionPipeline.Config.yaml`. Timeseries
+  external IDs are prefixed with `{{piIdPrefix}}` (default `pi:`) followed by
+  the PI Point name or id.
+
+  The runtime configuration lives in `ep_pi.ExtractionPipeline.Config.yaml` and
+  is fetched by the extractor using its `pipeline-id`.
+
+  ### Required environment variables on the extractor host
+
+  | Variable                | Purpose                                                |
+  | ----------------------- | ------------------------------------------------------ |
+  | `CDF_PROJECT`           | CDF project name                                       |
+  | `CDF_URL`               | CDF base URL (e.g. `https://api.cognitedata.com`)      |
+  | `IDP_TENANT_ID`         | IdP tenant ID                                          |
+  | `IDP_CLIENT_ID`         | Service account client ID                              |
+  | `IDP_CLIENT_SECRET`     | Service account client secret                          |
+  | `PI_HOST`               | PI Data Archive hostname or IP                         |
+  | `PI_USER`               | PI server username (omit for Windows authentication)   |
+  | `PI_PASSWORD`           | PI server password (omit for Windows authentication)   |
+
+  ### Install the PI .NET Extractor
+
+  1. **Download the installer** from Cognite Hub or Fusion (Extractors page) on
+     a Windows host that has network access to both the PI Data Archive and to
+     CDF. The PI extractor is Windows-only.
+  2. **Install** to e.g. `C:\Cognite\PIExtractor\` and follow the bundled
+     README to register it as a Windows service. The service account must have
+     read access to the PI Data Archive (or supply explicit `PI_USER` /
+     `PI_PASSWORD`).
+  3. **Point the extractor at this pipeline** by giving it a minimal local
+     `config.yml` containing only credentials and the pipeline ID — the full
+     runtime configuration is delivered remotely from this extraction pipeline:
+
+     ```yaml
+     version: 3
+     type: remote
+     cognite:
+       project: ${CDF_PROJECT}
+       host: ${CDF_URL}
+       idp-authentication:
+         tenant: ${IDP_TENANT_ID}
+         client-id: ${IDP_CLIENT_ID}
+         secret: ${IDP_CLIENT_SECRET}
+         scopes:
+           - ${CDF_URL}/.default
+       extraction-pipeline:
+         external-id: ep_{{location}}_pi
+     ```
+
+  ### References
+
+  * PI extractor docs: <https://docs.cognite.com/cdf/integration/guides/extraction/pi>
+  * PI configuration reference: <https://docs.cognite.com/cdf/integration/guides/extraction/configuration/pi>
+  * Minimal config sample: <https://docs.cognite.com/cdf/integration/guides/extraction/configuration/pi#minimal-yaml-configuration-file>

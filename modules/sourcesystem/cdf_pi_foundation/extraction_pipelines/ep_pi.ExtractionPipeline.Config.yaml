@@ -1,0 +1,39 @@
+externalId: "ep_{{location}}_pi"
+
+config:
+  # Template for the PI Extractor configuration file.
+  # Fields that are commented out are optional.
+  # The extractor requires the configuration file to be in the config/config.yml file wrt the installation/working directory.
+  # In general, all secrets should be kept out of the configuration file, using references to environment variables.
+  # Also, don't enable default values in the configuration file, as this provides a safer upgrade path.
+
+  # Version of this configuration schema
+  version: 1
+
+  # Log levels: 'verbose', 'debug', 'information', 'warning', 'error', 'fatal'.
+  logger:
+    # Writes log events at this level to a file. Logs will roll over to new files daily.
+    # If not present, or if the level is invalid, logging to file is disabled.
+    file:
+      level: "information"
+      # Path for logging output. If not present, logging to file is disabled.
+      path: "logs/log.log"
+
+  # Configuration related to time series in CDF
+  time-series:
+    # External Id prefix to identify time series in CDF. Leave empty for no prefix.
+    # The external Id in CDF is this optional prefix followed by the PI Point name or id
+    external-id-prefix: "pi:"
+
+    # Data modeling space id, this parameter will override data-set-id and switch the extractor destination
+    # from Asset-Centric model TimeSeries to Core Data Model TimeSeries with the ExtractorTimeSeries extension.
+    space-id: "{{instanceSpace}}"
+
+  # Configuration related to the PI Server
+  pi:
+    # PI Data Archive host server to connect to
+    host: ${PI_HOST}
+    # Username to use for authentication
+    username: ${PI_USER}
+    # Password
+    password: ${PI_PASSWORD}
