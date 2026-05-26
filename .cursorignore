@@ -1,0 +1,50 @@
+# Cursor ignore — keep secrets and local-only artifacts out of AI context.
+# Syntax matches .gitignore. See https://cursor.com/docs/reference/ignore-file
+
+# Environment and secrets (never commit; may exist locally)
+.env
+.env.*
+**/.env
+**/.env.*
+
+# Keys and certificates
+*.pem
+*.key
+*.p12
+*.pfx
+id_rsa
+id_rsa.pub
+id_ed25519
+id_ed25519.pub
+
+# Credential filenames
+**/credentials.json
+**/secrets.json
+**/*credentials*
+**/*secret*
+
+# Local Cursor scratchpad (see .gitignore)
+.cursor_docs/
+
+# CI-built packages (see .gitignore)
+modules.zip
+packages.zip
+
+# Python virtualenvs and caches
+.venv/
+venv/
+env/
+**/__pycache__/
+*.pyc
+
+# Large or generated artifacts (indexing noise)
+.ruff_cache/
+pytest_cache/
+.coverage
+htmlcov/
+node_modules/
+
+# OS and editor noise
+.DS_Store
+.idea/
+*.log
