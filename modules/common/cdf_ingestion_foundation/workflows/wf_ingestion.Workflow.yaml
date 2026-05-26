@@ -1,0 +1,4 @@
+externalId: "{{workflow}}"
+name: "{{workflow}}"
+dataSetExternalId: "{{dataset}}"
+description: "Two-phase ingestion workflow for site {{location}}: population → contextualization"

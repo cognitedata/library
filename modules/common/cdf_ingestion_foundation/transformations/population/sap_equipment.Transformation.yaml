@@ -1,0 +1,13 @@
+externalId: "tr_sap_equipment_{{location}}_to_isa"
+dataSetExternalId: "{{dataset}}"
+name: "SAP Equipment → Equipment ({{location}})"
+destination:
+  type: nodes
+  view:
+    space: "{{isaSchemaSpace}}"
+    externalId: Equipment
+    version: "{{viewVersion}}"
+  instanceSpace: "{{instanceSpace}}"
+conflictMode: upsert
+isPublic: true
+ignoreNullFields: true

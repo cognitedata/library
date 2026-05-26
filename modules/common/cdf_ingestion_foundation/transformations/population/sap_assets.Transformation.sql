@@ -1,0 +1,2 @@
+-- SAP Functional Locations → ISAAsset
+-- TODO: Add SELECT from `db_{{location}}_sap.functional_location` RAW table, mapping to ISAAsset view fields

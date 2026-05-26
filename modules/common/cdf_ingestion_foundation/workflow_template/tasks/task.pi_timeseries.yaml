@@ -1,0 +1,11 @@
+externalId: task_pi_timeseries
+type: transformation
+name: "PI: TimeSeries → ISATimeSeries"
+description: "Promote PI ExtractorTimeSeries instances to ISATimeSeries DM nodes (direct-write, no RAW staging)"
+parameters:
+  transformation:
+    externalId: "tr_pi_timeseries_{{location}}_to_isa"
+    concurrencyPolicy: fail
+retries: 1
+timeout: 1800
+onFailure: abortWorkflow

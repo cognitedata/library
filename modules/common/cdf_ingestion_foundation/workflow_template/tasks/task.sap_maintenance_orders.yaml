@@ -1,0 +1,13 @@
+externalId: task_sap_maintenance_orders
+type: transformation
+name: "SAP: Work Orders → WorkOrder"
+description: "Transform SAP work orders from RAW into WorkOrder DM instances"
+dependsOn:
+  - externalId: task_sap_assets
+parameters:
+  transformation:
+    externalId: "tr_sap_maintenance_orders_{{location}}_to_isa"
+    concurrencyPolicy: fail
+retries: 1
+timeout: 1800
+onFailure: abortWorkflow
