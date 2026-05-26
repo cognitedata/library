@@ -207,9 +207,9 @@ rmdm/
 
 For troubleshooting or deployment issues:
 
-- Refer to the [Cognite Documentation](https://docs.cognite.com)
-- Contact your **Cognite support team**
-- Join the Slack channel **#topic-deployment-packs** for community support and discussions
+- **[Cognite Toolkit](https://docs.cognite.com/cdf/deploy/cdf_toolkit/index)** — setup, `cdf modules` / `cdf build` / `cdf deploy`, and [working with modules](https://docs.cognite.com/cdf/deploy/cdf_toolkit/references/packages/index)
+- **[Cognite Support (Zendesk)](https://cognite.zendesk.com/hc/en-us)** — product support and tickets for CDF and Toolkit
+- **#topic-deployment-packs** (Slack, internal) — deployment-pack community discussions at Cognite
 
 ## Cognite Hub Article
 
