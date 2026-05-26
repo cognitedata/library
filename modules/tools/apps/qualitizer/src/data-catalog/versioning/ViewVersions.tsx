@@ -10,7 +10,10 @@ import { select } from "d3-selection";
 import { line } from "d3-shape";
 import { useAppSdk } from "@/shared/auth";
 import { useAppData } from "@/shared/data-cache";
-import { extractDataModelRefs } from "@/transformations/transformationChecks";
+import {
+  dataModelKeyFromInteractionRef,
+  extractDataModelRefs,
+} from "@/transformations/transformationChecks";
 import { fetchTransformationsByIds } from "@/transformations/fetchTransformationsByIds";
 import { cachedTransformationsList } from "@/transformations/transformations-cache";
 import {
@@ -630,10 +633,8 @@ export function ViewVersions() {
           if (!String(query).trim()) continue;
           const refs = extractDataModelRefs(query);
           for (const ref of refs) {
-            const space = ref.space ?? "";
-            const externalId = ref.externalId ?? "";
-            const key = `${space}:${externalId}`;
-            if (!key || key === ":") continue;
+            const key = dataModelKeyFromInteractionRef(ref);
+            if (!key) continue;
             modelRefs.add(key);
             const ver = ref.version?.trim() ?? "";
             let entry = versionRefs.get(key);

@@ -1,6 +1,9 @@
 import type { CogniteClient } from "@cognite/sdk";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { extractDataModelRefs } from "@/transformations/transformationChecks";
+import {
+  dataModelKeyFromInteractionRef,
+  extractDataModelRefs,
+} from "@/transformations/transformationChecks";
 import { fetchTransformationsByIds } from "@/transformations/fetchTransformationsByIds";
 import {
   cachedTransformationJobMetrics,
@@ -82,9 +85,6 @@ export function useTransformationsHealthChecks({
       version: string | undefined;
     };
 
-    const buildModelKey = (space: string | undefined, externalId: string | undefined) =>
-      `${space ?? ""}:${externalId ?? ""}`;
-
     type JobMetricItem = { name: string; timestamp: number; count: number };
     type JobSummary = { id?: number | string; startedTime?: number };
 
@@ -158,10 +158,11 @@ export function useTransformationsHealthChecks({
           const name = tr.name ?? id;
           const seenVersions = new Set<string>();
           for (const ref of refs) {
-            const space = ref.space ?? "";
-            const externalId = ref.externalId ?? "";
-            const key = buildModelKey(space, externalId);
-            if (!key || key === ":") continue;
+            const key = dataModelKeyFromInteractionRef(ref);
+            if (!key) continue;
+            const colon = key.indexOf(":");
+            const space = colon >= 0 ? key.slice(0, colon) : "";
+            const externalId = colon >= 0 ? key.slice(colon + 1) : "";
 
             const version = ref.version?.trim() || undefined;
             const usageKey = `${id}::${version ?? ""}`;

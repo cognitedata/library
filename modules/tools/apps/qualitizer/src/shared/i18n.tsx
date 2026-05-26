@@ -741,9 +741,10 @@ const translations: Record<Language, Record<string, string>> = {
     "transformations.dataModelUsage.loadingByIdsDone":
       "Transformation queries loaded ({fetched} from cache).",
     "transformations.dataModelUsage.emptyTitle":
-      "No cdf_data_models(...) references found",
+      "No data model layer usage detected in SQL",
     "transformations.dataModelUsage.emptyIntro":
-      "This view only groups transformations that call cdf_data_models(space, externalId, …) in SQL. An empty result is unusual when the project has data-model-backed pipelines.",
+      "This view groups transformations that use cdf_data_models, cdf_nodes, cdf_edges, _cdf_datamodels, or is_new with those sources. An empty result is unusual when the project has data-model-backed pipelines.",
+    "transformations.dataModelUsage.group.functionBucket": "SQL: {source} (no model id in query)",
     "transformations.dataModelUsage.emptyFallback":
       "No cdf_data_models references found in any transformation.",
     "transformations.dataModelUsage.diag.project": "CDF project",
@@ -751,7 +752,12 @@ const translations: Record<Language, Record<string, string>> = {
     "transformations.dataModelUsage.diag.listLimitReached": "list capped at {limit}",
     "transformations.dataModelUsage.diag.withQuery": "With SQL query text",
     "transformations.dataModelUsage.diag.withoutQuery": "Without query (even after byids)",
-    "transformations.dataModelUsage.diag.withCdfDataModels": "Query contains cdf_data_models(...)",
+    "transformations.dataModelUsage.diag.withDataModelInteraction":
+      "Query uses data model layer (any supported syntax)",
+    "transformations.dataModelUsage.diag.withUnscopedInteraction":
+      "Transformations using unscoped cdf_nodes/edges/is_new only",
+    "transformations.dataModelUsage.diag.interactionBySourceLabel":
+      "Detected interaction calls in scanned queries:",
     "transformations.dataModelUsage.diag.withResolvableRefs": "With parseable space + externalId",
     "transformations.dataModelUsage.diag.withOnlyInvalidRefs":
       "cdf_data_models(...) present but arguments not parseable",
@@ -767,7 +773,7 @@ const translations: Record<Language, Record<string, string>> = {
     "transformations.dataModelUsage.emptyHint.destination":
       "If “destination.dataModel” is high but other counts are zero, usage is destination-only.",
     "transformations.dataModelUsage.emptyHint.syntax":
-      "Calls must look like cdf_data_models('space', 'externalId', …) with quoted string arguments for space and external id.",
+      "Supported reads include cdf_data_models(...), cdf_nodes(), cdf_nodes('space','view',…), cdf_edges(), _cdf_datamodels.`space:modelId`, and is_new(...) on those sources.",
     "transformations.dataModelUsage.emptyHint.truncated":
       "The transformation list may be truncated; raise the list limit or check Fusion for transformations beyond the cap.",
     "transformations.subNavLabel": "Transformations sub-views",
@@ -1817,9 +1823,10 @@ const translations: Record<Language, Record<string, string>> = {
     "transformations.dataModelUsage.loadingByIdsDone":
       "変換クエリを読み込みました（キャッシュ {fetched} 件）。",
     "transformations.dataModelUsage.emptyTitle":
-      "cdf_data_models(...) 参照が見つかりません",
+      "SQL にデータモデル層の利用が検出されません",
     "transformations.dataModelUsage.emptyIntro":
-      "このビューは SQL 内の cdf_data_models(space, externalId, …) 呼び出しがある変換のみを表示します。データモデルパイプラインがあるプロジェクトで空になるのは通常は稀です。",
+      "cdf_data_models、cdf_nodes、cdf_edges、_cdf_datamodels、またはそれらに対する is_new を使う変換を表示します。データモデルパイプラインがあるプロジェクトで空になるのは通常は稀です。",
+    "transformations.dataModelUsage.group.functionBucket": "SQL: {source}（クエリにモデル ID なし）",
     "transformations.dataModelUsage.emptyFallback":
       "どの変換にも cdf_data_models 参照がありません。",
     "transformations.dataModelUsage.diag.project": "CDF プロジェクト",
@@ -1827,7 +1834,12 @@ const translations: Record<Language, Record<string, string>> = {
     "transformations.dataModelUsage.diag.listLimitReached": "一覧は {limit} 件で打ち切り",
     "transformations.dataModelUsage.diag.withQuery": "SQL クエリあり",
     "transformations.dataModelUsage.diag.withoutQuery": "クエリなし（byids 後も）",
-    "transformations.dataModelUsage.diag.withCdfDataModels": "クエリに cdf_data_models(...) あり",
+    "transformations.dataModelUsage.diag.withDataModelInteraction":
+      "クエリがデータモデル層を使用（対応構文のいずれか）",
+    "transformations.dataModelUsage.diag.withUnscopedInteraction":
+      "スコープなし cdf_nodes/edges/is_new のみの変換",
+    "transformations.dataModelUsage.diag.interactionBySourceLabel":
+      "スキャンしたクエリで検出した呼び出し:",
     "transformations.dataModelUsage.diag.withResolvableRefs": "space + externalId を解析可能",
     "transformations.dataModelUsage.diag.withOnlyInvalidRefs":
       "cdf_data_models(...) はあるが引数を解析できない",
@@ -1843,7 +1855,7 @@ const translations: Record<Language, Record<string, string>> = {
     "transformations.dataModelUsage.emptyHint.destination":
       "「destination.dataModel」だけが多い場合は、書き込み先のみの利用です。",
     "transformations.dataModelUsage.emptyHint.syntax":
-      "cdf_data_models('space', 'externalId', …) のように space と external id を引用符付き文字列で指定する必要があります。",
+      "cdf_data_models(...)、cdf_nodes()、cdf_nodes('space','view',…)、cdf_edges()、_cdf_datamodels.`space:modelId`、およびそれらに対する is_new(...) が対象です。",
     "transformations.dataModelUsage.emptyHint.truncated":
       "変換一覧が上限で打ち切られている可能性があります。Fusion で上限超えの変換を確認してください。",
     "transformations.subNavLabel": "変換サブビュー",

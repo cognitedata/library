@@ -1239,12 +1239,17 @@ export function TransformationsList({
                           </span>
                         </div>
                       <div className="mt-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
-                        cdf_data_models(...) ({parsedInsight.dataModelRefs.length})
+                        Data model layer ({parsedInsight.dataModelRefs.length})
                       </div>
                       {parsedInsight.dataModelRefs.length > 0 ? (
                         <div className="mt-1 space-y-2">
                           {parsedInsight.dataModelRefs.map((entry, index) => (
-                            <div key={`cdf-data-model-${index}`} className="rounded-md bg-slate-50 p-2">
+                            <div key={`dm-interaction-${index}`} className="rounded-md bg-slate-50 p-2">
+                              <div>
+                                <span className="font-semibold">Source:</span>{" "}
+                                {entry.source}
+                                {entry.unscoped ? " (unscoped)" : ""}
+                              </div>
                               <div>
                                 <span className="font-semibold">Space:</span>{" "}
                                 {entry.space ?? "—"}
@@ -1271,7 +1276,10 @@ export function TransformationsList({
                           ))}
                         </div>
                       ) : (
-                        <div className="text-slate-500">No cdf_data_models references.</div>
+                        <div className="text-slate-500">
+                          No data model layer usage (cdf_data_models, cdf_nodes, cdf_edges,
+                          _cdf_datamodels, is_new).
+                        </div>
                       )}
                       <div className="mt-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
                         node_reference(...) ({parsedInsight.nodeReferences.length})
