@@ -84,29 +84,64 @@ function stripLeadingBlockComments(sql: string): string {
   return sql.slice(i).trimStart();
 }
 
+/** Split SQL call arguments on top-level commas (respects quotes, escapes, nesting). */
 function splitSqlCallArgs(raw: string): string[] {
   const parts: string[] = [];
   let cur = "";
   let quote: string | null = null;
+  let parenDepth = 0;
+  let bracketDepth = 0;
+
   for (let i = 0; i < raw.length; i++) {
     const ch = raw[i];
+
     if (quote) {
       cur += ch;
+      if (ch === "\\" && i + 1 < raw.length) {
+        cur += raw[i + 1];
+        i += 1;
+        continue;
+      }
       if (ch === quote) quote = null;
       continue;
     }
+
     if (ch === "'" || ch === '"' || ch === "`") {
       quote = ch;
       cur += ch;
       continue;
     }
-    if (ch === ",") {
+
+    if (ch === "(") {
+      parenDepth += 1;
+      cur += ch;
+      continue;
+    }
+    if (ch === ")") {
+      if (parenDepth > 0) parenDepth -= 1;
+      cur += ch;
+      continue;
+    }
+    if (ch === "[") {
+      bracketDepth += 1;
+      cur += ch;
+      continue;
+    }
+    if (ch === "]") {
+      if (bracketDepth > 0) bracketDepth -= 1;
+      cur += ch;
+      continue;
+    }
+
+    if (ch === "," && parenDepth === 0 && bracketDepth === 0) {
       parts.push(cur.trim());
       cur = "";
       continue;
     }
+
     cur += ch;
   }
+
   if (cur.trim()) parts.push(cur.trim());
   return parts.map(trimQuotes);
 }

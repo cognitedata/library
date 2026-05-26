@@ -160,9 +160,8 @@ export function useTransformationsHealthChecks({
           for (const ref of refs) {
             const key = dataModelKeyFromInteractionRef(ref);
             if (!key) continue;
-            const colon = key.indexOf(":");
-            const space = colon >= 0 ? key.slice(0, colon) : "";
-            const externalId = colon >= 0 ? key.slice(colon + 1) : "";
+            const space = ref.space ?? "";
+            const externalId = ref.externalId ?? "";
 
             const version = ref.version?.trim() || undefined;
             const usageKey = `${id}::${version ?? ""}`;
