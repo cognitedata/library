@@ -1,16 +1,9 @@
 externalId: "ep_{{location}}_sap"
 
 config:
-  # SAP OData Extractor configuration template
-  # Source: gss-knowledge-base/extractors/toolkit_examples/sap_odata_extractor_remote
-  #
-  # Environment variables required on the extractor host (local config.yml):
-  #   CDF_PROJECT, CDF_URL, IDP_TENANT_ID, IDP_CLIENT_ID, IDP_CLIENT_SECRET
-  #   SAP_GATEWAY_URL, SAP_SOURCE_NAME, SAP_CLIENT, SAP_USERNAME, SAP_PASSWORD
-  #
-  # IMPORTANT: SAP OData service names (sap_service) and entity keys (sap_key) vary
-  # across SAP versions and NW Gateway configurations. Verify all service names and
-  # field names against your SAP landscape before deploying.
+  # Runtime config for the SAP OData Extractor — see ep_sap.ExtractionPipeline.yaml
+  # documentation block for required environment variables and install steps.
+  # Source template: gss-knowledge-base/extractors/toolkit_examples/sap_odata_extractor_remote
 
   version: 1
 

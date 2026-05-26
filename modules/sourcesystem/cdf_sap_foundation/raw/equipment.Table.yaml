@@ -1,1 +1,2 @@
 dbName: "db_{{location}}_sap"
+tableName: equipment

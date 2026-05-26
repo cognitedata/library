@@ -1,10 +1,7 @@
 externalId: "ep_{{location}}_pi"
 name: "ep:{{location}}:pi"
 dataSetExternalId: "{{dataset}}"
-description: "PI .NET Extractor pipeline for site {{location}} — writes tag metadata to RAW for transformation into ISATimeSeries DM instances"
-rawTables:
-  - dbName: "db_{{location}}_pi"
-    tableName: "timeseries_metadata"
+description: "PI .NET Extractor pipeline for site {{location}} — writes PI tags and values directly to the Core Data Model `ExtractorTimeSeries` view in {{instanceSpace}} (no RAW staging)"
 source: PI
 schedule: Continuous
 contacts:
@@ -28,12 +25,12 @@ documentation: |
   ## PI extraction pipeline
 
   This extraction pipeline reads tags and tag values from a Cognite PI .NET
-  Extractor and writes timeseries values directly to CDF. Tag metadata (name,
-  description, unit, engineering range) lands in RAW table
-  `db_{{location}}_pi.timeseries_metadata`. The transformation
-  `tr_{{location}}_pi_timeseries` maps that metadata to **ISATimeSeries** view
-  instances in `{{instanceSpace}}`. Timeseries external IDs are prefixed with
-  `{{piIdPrefix}}` (default `pi:`) followed by the PI Point name or id.
+  Extractor (version 2.1, config schema version 3) and writes them directly to
+  the **Core Data Model `ExtractorTimeSeries`** view in `{{instanceSpace}}` —
+  there is **no RAW staging step**. The CDM destination is enabled by setting
+  `time-series.space-id` in `ep_pi.ExtractionPipeline.Config.yaml`. Timeseries
+  external IDs are prefixed with `{{piIdPrefix}}` (default `pi:`) followed by
+  the PI Point name or id.
 
   The runtime configuration lives in `ep_pi.ExtractionPipeline.Config.yaml` and
   is fetched by the extractor using its `pipeline-id`.

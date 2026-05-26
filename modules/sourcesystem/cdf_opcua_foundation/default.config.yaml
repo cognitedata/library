@@ -3,27 +3,11 @@
 # Site/location code, used in externalIds (e.g. ep_{{location}}_opcua, db_{{location}}_opcua)
 location: "site1"
 
-# DM space where ISATimeSeries instances are written
+# DM space where ISATimeSeries / CogniteTimeSeries instances are written
 instanceSpace: "sp_isa_instance_space"
-
-# Schema space for ISA Manufacturing Extension views (used by transformations)
-schemaSpace: "sp_isa_manufacturing"
-
-# Data model view version
-dataModelVersion: "v1"
 
 # dataSetExternalId for the extraction pipeline and RAW database
 dataset: "ds_opcua"
-
-# External ID prefix for all OPC-UA node timeseries instances
-opcuaIdPrefix: "opcua:"
-
-# OPC-UA subscription settings (milliseconds)
-opcuaPublishingInterval: 5000
-opcuaSamplingInterval: 5000
-
-# Set to false to omit sysTagsFound population (used by downstream SQL contextualization)
-populateSysTagsFound: true
 
 # Integration owner (technical contact for the pipeline)
 integration_owner_name: "Integration Owner"
