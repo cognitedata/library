@@ -104,10 +104,10 @@ class GeneralFinalizeService(AbstractFinalizeService):
         self.logger.info("Starting Finalize Function", section="START")
         try:
             regular_job, pattern_mode_job, file_to_state_map = self.retrieve_service.get_job_id()
-            if not regular_job or not file_to_state_map:
+            if (not regular_job and not pattern_mode_job) or not file_to_state_map:
                 self.logger.info("No diagram detect jobs found", section="END")
                 return "Done"
-            self.logger.info(f"Retrieved job {regular_job} and claimed {len(file_to_state_map.values())} files")
+            self.logger.info(f"Retrieved regular job {regular_job}, pattern job {pattern_mode_job} and claimed {len(file_to_state_map.values())} files")
         except CogniteAPIError as e:
             if e.code == 400 and e.message == "A version conflict caused the ingest to fail.":
                 self.logger.info(
@@ -126,24 +126,13 @@ class GeneralFinalizeService(AbstractFinalizeService):
 
         job_results: dict | None = None
         pattern_mode_job_results: dict | None = None
-        pattern_only = pattern_mode_job is not None and regular_job[0] == pattern_mode_job[0]
         try:
-            if pattern_only:
-                self.logger.info("(Pattern-Only) Retrieving pattern mode diagram detect job results", "START")
-                pattern_mode_job_results = self.retrieve_service.get_diagram_detect_job_result(
-                    job_id=pattern_mode_job[0], job_token=pattern_mode_job[1]
-                )
-                job_results = {"items": []}
-            else:
+            if regular_job is not None:
                 self.logger.info("(Regular) Retrieving diagram detect job results", "START")
-                job_results = self.retrieve_service.get_diagram_detect_job_result(
-                    job_id=regular_job[0], job_token=regular_job[1]
-                )
-                if pattern_mode_job:
-                    self.logger.info("(Pattern) Retrieving diagram detect job results")
-                    pattern_mode_job_results = self.retrieve_service.get_diagram_detect_job_result(
-                        job_id=pattern_mode_job[0], job_token=pattern_mode_job[1]
-                    )
+                job_results = self.retrieve_service.get_diagram_detect_job_result(*regular_job)
+            if pattern_mode_job is not None:
+                self.logger.info("(Pattern) Retrieving diagram detect job results")
+                pattern_mode_job_results = self.retrieve_service.get_diagram_detect_job_result(*pattern_mode_job)
         except Exception as e:
             self.logger.error(
                 message=f"Unfinalizing {len(file_to_state_map.keys())} files. Encountered an error.",
@@ -157,15 +146,11 @@ class GeneralFinalizeService(AbstractFinalizeService):
             )
             return None
 
-        # A job is considered complete if:
-        # 1. The main job is finished, AND
-        # 2. EITHER pattern mode was not enabled (no pattern job ID)
-        #    OR pattern mode was enabled AND its job is also finished.
-        jobs_complete: bool = job_results is not None and (not pattern_mode_job or pattern_mode_job_results is not None)
+        jobs_complete: bool = (regular_job is None or job_results is not None) and (pattern_mode_job is None or pattern_mode_job_results is not None)
 
         if not jobs_complete:
             self.logger.info(
-                message=f"Unfinalizing {len(file_to_state_map.keys())} files - job {regular_job} and/or pattern id {pattern_mode_job} not complete",
+                message=f"Unfinalizing {len(file_to_state_map.keys())} files - regular job {regular_job} and/or pattern job {pattern_mode_job} not complete",
                 section="BOTH",
             )
             self._update_batch_state(
@@ -177,13 +162,14 @@ class GeneralFinalizeService(AbstractFinalizeService):
             return None
 
         self.logger.info(
-            f"Both jobs {regular_job} and {pattern_mode_job} complete. Applying all annotations.",
+            f"Jobs complete (regular={regular_job}, pattern={pattern_mode_job}). Applying all annotations.",
             section="END",
         )
 
+        regular_items = job_results["items"] if job_results is not None else []
         merged_results = {
             (item["fileInstanceId"]["space"], item["fileInstanceId"]["externalId"]): {"regular": item}
-            for item in job_results["items"]
+            for item in regular_items
         }
         if pattern_mode_job_results:
             for item in pattern_mode_job_results["items"]:

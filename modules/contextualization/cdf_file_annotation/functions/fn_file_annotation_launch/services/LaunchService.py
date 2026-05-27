@@ -328,12 +328,7 @@ class GeneralLaunchService(AbstractLaunchService):
                 else:
                     self.logger.info("Skipping pattern-mode diagram detect: no sample patterns available.")
 
-            # If standard detect was skipped, use pattern job ID for finalize discoverability
-            if job_id is None and pattern_job_id is not None:
-                update_properties["diagramDetectJobId"] = pattern_job_id
-                update_properties["diagramDetectJobToken"] = pattern_job_token
-
-            if "diagramDetectJobId" not in update_properties:
+            if "diagramDetectJobId" not in update_properties and "patternModeJobId" not in update_properties:
                 self.logger.info("No jobs launched: no entities and no patterns available. Skipping batch.")
                 return
 
@@ -424,12 +419,7 @@ class LocalLaunchService(GeneralLaunchService):
                 else:
                     self.logger.info("Skipping pattern-mode diagram detect: no sample patterns available.")
 
-            # If standard detect was skipped, use pattern job ID for finalize discoverability
-            if job_id is None and pattern_job_id is not None:
-                update_properties["diagramDetectJobId"] = pattern_job_id
-                update_properties["diagramDetectJobToken"] = pattern_job_token
-
-            if "diagramDetectJobId" not in update_properties:
+            if "diagramDetectJobId" not in update_properties and "patternModeJobId" not in update_properties:
                 self.logger.info("No jobs launched: no entities and no patterns available. Skipping batch.")
                 return
 
