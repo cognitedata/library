@@ -35,6 +35,9 @@
         isActive: "true"
         isCompleted: "false"
         isCancelled: "false"
+        isInApp: true
+        rootLocation: "{{location_name}}"
+        gridReference: "DEMO Grid-1"
         files:
           - space: {{instanceSpace}}
             externalId: DEMO-FILE
@@ -76,6 +79,9 @@
         isActive: "true"
         isCompleted: "false"
         isCancelled: "false"
+        isInApp: true
+        rootLocation: "{{location_name}}"
+        gridReference: "DEMO Grid-2"
         files:
           - space: {{instanceSpace}}
             externalId: DEMO-FILE

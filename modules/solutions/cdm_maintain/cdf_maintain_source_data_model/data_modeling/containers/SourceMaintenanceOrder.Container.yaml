@@ -63,7 +63,22 @@ properties:
       type: direct
       list: true
     nullable: true
+  isInApp:
+    type:
+      type: boolean
+      list: false
+    nullable: true
   sourceId:
+    type:
+      type: text
+      list: false
+    nullable: true
+  rootLocation:
+    type:
+      type: text
+      list: false
+    nullable: true
+  gridReference:
     type:
       type: text
       list: false

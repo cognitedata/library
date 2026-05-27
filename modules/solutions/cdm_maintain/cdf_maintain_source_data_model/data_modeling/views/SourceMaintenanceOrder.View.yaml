@@ -106,3 +106,27 @@ properties:
     containerPropertyIdentifier: sourceId
     name: sourceId
     description: Unique identifier matching the externalId, used for activity lookup by the app
+  isInApp:
+    container:
+      type: container
+      space: {{schemaSpace}}
+      externalId: SourceMaintenanceOrder
+    containerPropertyIdentifier: isInApp
+    name: isInApp
+    description: Whether the activity should be shown in the app
+  rootLocation:
+    container:
+      type: container
+      space: {{schemaSpace}}
+      externalId: SourceMaintenanceOrder
+    containerPropertyIdentifier: rootLocation
+    name: rootLocation
+    description: Root location this activity belongs to, used for gridzone filtering
+  gridReference:
+    container:
+      type: container
+      space: {{schemaSpace}}
+      externalId: SourceMaintenanceOrder
+    containerPropertyIdentifier: gridReference
+    name: gridReference
+    description: Grid zone identifier this activity is mapped to (matches the zone property on FileGridZoneAnnotation)
