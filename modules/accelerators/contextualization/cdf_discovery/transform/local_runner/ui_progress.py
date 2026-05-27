@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
-import json
 import logging
 import os
 from contextlib import contextmanager
 from typing import Any, Iterator, Mapping
+
+from local_runner.progress_writer import emit_ui_progress_locked
 
 _MAX_LOG_CHARS = 8000
 
@@ -69,15 +70,7 @@ def ui_progress_fd_configured() -> bool:
 
 def emit_ui_progress(event: str, **fields: Any) -> None:
     """Write one UTF-8 JSON line to the FD in ``KEA_UI_PROGRESS_FD`` if set and valid."""
-    raw = (os.environ.get("KEA_UI_PROGRESS_FD") or "").strip()
-    if not raw.isdigit():
-        return
-    fd = int(raw)
-    try:
-        line = json.dumps({"event": event, **fields}, ensure_ascii=False) + "\n"
-        os.write(fd, line.encode("utf-8"))
-    except OSError:
-        pass
+    emit_ui_progress_locked(event, **fields)
 
 
 class UiProgressLoggingHandler(logging.Handler):

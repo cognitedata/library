@@ -68,7 +68,7 @@ function SplitDelimiterFields({
               delimiter_regex: e.target.value.trim() || undefined,
             })
           }
-          placeholder="[-./_:]+"
+          placeholder={t("transforms.handler.placeholder.delimiterRegex")}
           spellCheck={false}
         />
       </label>
@@ -93,7 +93,7 @@ function SplitDelimiterFields({
               .filter(Boolean);
             patch({ delimiters: delimiters.length ? delimiters : undefined });
           }}
-          placeholder="., /, -, _, :"
+          placeholder={t("transforms.handler.placeholder.delimitersList")}
           spellCheck={false}
         />
       </label>
@@ -166,7 +166,7 @@ function HeuristicSamplesField({
         onKeyDown={(e) => {
           if (e.key === "Enter") commit(draft);
         }}
-        placeholder="P-101, P-102"
+        placeholder={t("transforms.handler.placeholder.samples")}
         spellCheck={false}
         autoComplete="off"
       />
@@ -214,7 +214,7 @@ function SplitJoinIndexesField({
           onKeyDown={(e) => {
             if (e.key === "Enter") commit(draft);
           }}
-          placeholder="3, 4"
+          placeholder={t("transforms.handler.placeholder.indexes")}
           spellCheck={false}
         />
       </label>
@@ -309,7 +309,7 @@ export function TransformHandlerConfigFields({
             style={{ marginTop: "0.35rem" }}
             value={String(block.segment_regex ?? "")}
             onChange={(e) => patch({ segment_regex: e.target.value || undefined })}
-            placeholder="\\d+"
+            placeholder={t("transforms.handler.placeholder.segmentRegex")}
             spellCheck={false}
           />
         </label>
@@ -509,7 +509,7 @@ export function TransformHandlerConfigFields({
                 patch({ template: undefined });
               }
             }}
-            placeholder="{3}-{4}"
+            placeholder={t("transforms.handler.placeholder.splitJoinTemplate")}
             spellCheck={false}
           />
         </label>
@@ -524,7 +524,7 @@ export function TransformHandlerConfigFields({
             style={{ marginTop: "0.35rem", width: "8rem" }}
             value={String(block.join ?? "")}
             onChange={(e) => patch({ join: e.target.value })}
-            placeholder="-"
+            placeholder={t("transforms.handler.placeholder.maskChar")}
             spellCheck={false}
           />
         </label>
@@ -564,7 +564,7 @@ export function TransformHandlerConfigFields({
             style={{ marginTop: "0.35rem" }}
             value={String(block.path ?? block.json_path ?? "")}
             onChange={(e) => patch({ path: e.target.value || undefined })}
-            placeholder="meta.id"
+            placeholder={t("transforms.handler.placeholder.jsonPath")}
           />
         </label>
       </div>
@@ -695,7 +695,7 @@ export function TransformHandlerConfigFields({
               const v = e.target.value;
               patch({ pattern: v.trim() === "" ? undefined : v });
             }}
-            placeholder="(optional)"
+            placeholder={t("common.placeholder.optional")}
             spellCheck={false}
           />
         </label>
@@ -753,7 +753,7 @@ export function TransformHandlerConfigFields({
               const n = Number.parseInt(raw, 10);
               patch({ max_results: Number.isNaN(n) ? undefined : n });
             }}
-            placeholder="1"
+            placeholder={t("transforms.handler.placeholder.priority")}
             spellCheck={false}
           />
         </label>

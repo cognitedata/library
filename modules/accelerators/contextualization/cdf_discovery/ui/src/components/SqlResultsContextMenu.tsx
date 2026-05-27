@@ -50,8 +50,8 @@ function MenuItem({
   onClick: () => void;
 }) {
   return (
-    <li>
-      <button type="button" disabled={disabled} onClick={onClick}>
+    <li role="none">
+      <button type="button" role="menuitem" disabled={disabled} onClick={onClick}>
         {label}
       </button>
     </li>
@@ -106,8 +106,8 @@ export function SqlResultsContextMenu({
   return createPortal(
     <ul
       className="disc-ctx-menu"
+      role="menu"
       style={{ left: menu.x, top: menu.y }}
-      onClick={(e) => e.stopPropagation()}
       onContextMenu={(e) => e.preventDefault()}
     >
       {showCellAction && (

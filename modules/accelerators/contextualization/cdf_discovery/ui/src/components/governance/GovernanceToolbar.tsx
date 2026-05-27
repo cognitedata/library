@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { useAppSettings } from "../../context/AppSettingsContext";
 
 type Props = {
@@ -10,7 +11,7 @@ type Props = {
   onMirror?: () => void;
 };
 
-export function GovernanceToolbar({
+export const GovernanceToolbar = memo(function GovernanceToolbar({
   dirty,
   loading,
   saving,
@@ -51,4 +52,4 @@ export function GovernanceToolbar({
       {error && <span className="gov-hint gov-hint--warn">{error}</span>}
     </div>
   );
-}
+});

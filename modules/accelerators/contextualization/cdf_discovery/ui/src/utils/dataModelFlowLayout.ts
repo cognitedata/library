@@ -1,6 +1,17 @@
 import dagre from "@dagrejs/dagre";
 import type { Edge, Node } from "@xyflow/react";
 import type { DataModelGraph } from "../types/discoveryNodes";
+import {
+  normalizeTransformCanvasEdgePathStyle,
+  normalizeTransformCanvasHandleOrientation,
+  type TransformCanvasEdgePathStyle,
+  type TransformCanvasHandleOrientation,
+} from "../types/transformCanvas";
+
+export type DmFlowLayoutOptions = {
+  handleOrientation?: TransformCanvasHandleOrientation;
+  edgePathStyle?: TransformCanvasEdgePathStyle;
+};
 
 /** Matches ``.disc-dm-flow-node`` rendered size for Dagre. */
 export const DM_VIEW_NODE_WIDTH = 220;
@@ -21,8 +32,12 @@ function gridPositions(count: number): { x: number; y: number }[] {
   }));
 }
 
-/** Hierarchical left-to-right layout when the model has relation edges; grid otherwise. */
-export function layoutDmViewNodes(nodes: Node[], edges: Edge[]): Node[] {
+/** Hierarchical dagre layout when the model has relation edges; grid otherwise. */
+export function layoutDmViewNodes(
+  nodes: Node[],
+  edges: Edge[],
+  orientation: TransformCanvasHandleOrientation = "lr"
+): Node[] {
   if (nodes.length === 0) return nodes;
 
   const nodeIds = new Set(nodes.map((n) => n.id));
@@ -35,7 +50,7 @@ export function layoutDmViewNodes(nodes: Node[], edges: Edge[]): Node[] {
   const g = new dagre.graphlib.Graph();
   g.setDefaultEdgeLabel(() => ({}));
   g.setGraph({
-    rankdir: "LR",
+    rankdir: orientation === "tb" ? "TB" : "LR",
     align: "UL",
     nodesep: 48,
     ranksep: 72,
@@ -64,7 +79,12 @@ export function layoutDmViewNodes(nodes: Node[], edges: Edge[]): Node[] {
   });
 }
 
-export function graphToFlow(graph: DataModelGraph): { nodes: Node[]; edges: Edge[] } {
+export function graphToFlow(
+  graph: DataModelGraph,
+  opts?: DmFlowLayoutOptions
+): { nodes: Node[]; edges: Edge[] } {
+  const orientation = normalizeTransformCanvasHandleOrientation(opts?.handleOrientation);
+  const edgeType = normalizeTransformCanvasEdgePathStyle(opts?.edgePathStyle);
   const views = graph.views;
   const nodeIds = new Set(views.map((v) => v.id));
 
@@ -85,13 +105,13 @@ export function graphToFlow(graph: DataModelGraph): { nodes: Node[]; edges: Edge
       id: e.id,
       source: viewIdFromRef(e.from),
       target: viewIdFromRef(e.to),
-      type: "smoothstep",
+      type: edgeType,
       label: e.label,
       animated: false,
       style: { stroke: "var(--disc-primary)" },
       labelStyle: { fill: "var(--disc-text-muted)", fontSize: 10 },
     }));
 
-  const nodes = layoutDmViewNodes(baseNodes, edges);
+  const nodes = layoutDmViewNodes(baseNodes, edges, orientation);
   return { nodes, edges };
 }

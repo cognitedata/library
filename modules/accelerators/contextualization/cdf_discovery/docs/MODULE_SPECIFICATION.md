@@ -8,7 +8,7 @@ Canonical description of what the module does, its boundaries, configuration, AP
 
 ### 1.1 Business intent
 
-`cdf_discovery` is a **local workstation tool** for browsing Cognite Data Fusion (CDF) resources: data (RAW, data modeling, classic assets, saved queries), integration (workflows, pipelines, functions, transformations), and governance (live CDF spaces/groups plus **declared access control** config/build/artifacts). It provides SSMS-style navigation (Discovery object tree, document tabs, Properties panel) and SQL preview against CDF. Declared governance edits local Toolkit YAML only; CDF remains read-only except for SQL preview.
+`cdf_discovery` is a **local workstation tool** for browsing Cognite Data Fusion (CDF) resources: data (RAW, data modeling, classic assets, records streams, saved queries), integration (workflows, pipelines, functions, transformations), and governance (live CDF spaces/groups plus **declared access control** config/build/artifacts). It provides SSMS-style navigation (Discovery object tree, document tabs, Properties panel) and SQL preview against CDF. Declared governance edits local Toolkit YAML only. CDF writes from the operator UI are limited to **Streams/Records** APIs (`/api/cdf/streams`, record ingest/upsert/delete) and SQL preview remains read-only otherwise.
 
 ### 1.2 Technical boundaries
 

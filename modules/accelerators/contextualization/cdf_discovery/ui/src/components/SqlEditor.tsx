@@ -3,7 +3,7 @@ import type { Extension } from "@codemirror/state";
 import { oneDark } from "@codemirror/theme-one-dark";
 import { keymap, placeholder } from "@codemirror/view";
 import CodeMirror, { type ReactCodeMirrorRef } from "@uiw/react-codemirror";
-import { forwardRef, useImperativeHandle, useMemo, useRef } from "react";
+import { forwardRef, useId, useImperativeHandle, useMemo, useRef } from "react";
 
 export type SqlEditorSelection = {
   start: number;
@@ -23,13 +23,28 @@ type Props = {
   readOnly?: boolean;
   placeholder?: string;
   theme: "light" | "dark";
+  ariaLabel: string;
+  shortcutsHint?: string;
 };
 
 export const SqlEditor = forwardRef<SqlEditorHandle, Props>(function SqlEditor(
-  { value, onChange, onRun, onRunSelection, height, readOnly, placeholder: placeholderText, theme },
+  {
+    value,
+    onChange,
+    onRun,
+    onRunSelection,
+    height,
+    readOnly,
+    placeholder: placeholderText,
+    theme,
+    ariaLabel,
+    shortcutsHint,
+  },
   ref
 ) {
   const cmRef = useRef<ReactCodeMirrorRef>(null);
+  const labelId = useId();
+  const shortcutsId = useId();
 
   useImperativeHandle(ref, () => ({
     getSelection: () => {
@@ -66,21 +81,35 @@ export const SqlEditor = forwardRef<SqlEditorHandle, Props>(function SqlEditor(
     return exts;
   }, [placeholderText, onRun, onRunSelection]);
 
+  const describedBy = shortcutsHint ? shortcutsId : undefined;
+
   return (
-    <CodeMirror
-      ref={cmRef}
-      className="disc-sql-editor disc-sql-editor--cm"
-      value={value}
-      height={height}
-      theme={theme === "dark" ? oneDark : "light"}
-      extensions={extensions}
-      editable={!readOnly}
-      basicSetup={{
-        lineNumbers: false,
-        foldGutter: false,
-        highlightActiveLine: false,
-      }}
-      onChange={(next) => onChange(next)}
-    />
+    <div className="disc-sql-editor-wrap">
+      <span id={labelId} className="disc-visually-hidden">
+        {ariaLabel}
+      </span>
+      {shortcutsHint ? (
+        <span id={shortcutsId} className="disc-visually-hidden">
+          {shortcutsHint}
+        </span>
+      ) : null}
+      <CodeMirror
+        ref={cmRef}
+        className="disc-sql-editor disc-sql-editor--cm"
+        value={value}
+        height={height}
+        theme={theme === "dark" ? oneDark : "light"}
+        extensions={extensions}
+        editable={!readOnly}
+        aria-labelledby={labelId}
+        aria-describedby={describedBy}
+        basicSetup={{
+          lineNumbers: false,
+          foldGutter: false,
+          highlightActiveLine: false,
+        }}
+        onChange={(next) => onChange(next)}
+      />
+    </div>
   );
 });

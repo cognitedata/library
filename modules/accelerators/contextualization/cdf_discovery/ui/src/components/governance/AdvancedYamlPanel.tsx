@@ -1,5 +1,6 @@
 import { createPortal } from "react-dom";
 import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useModalDialog } from "../../hooks/useModalDialog";
 import { useAppSettings } from "../../context/AppSettingsContext";
 import { findGlobMatches, scrollTextareaToRange } from "../../utils/yamlGlobSearch";
 
@@ -19,6 +20,7 @@ export function AdvancedYamlPanel({ initialContent, onSaveRaw, onAfterSave }: Pr
   const [navigated, setNavigated] = useState(false);
   const [scrollTick, setScrollTick] = useState(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
   const matchesRef = useRef<ReturnType<typeof findGlobMatches>>([]);
   const matchIndexRef = useRef(0);
 
@@ -94,17 +96,7 @@ export function AdvancedYamlPanel({ initialContent, onSaveRaw, onAfterSave }: Pr
     setText(initialContent);
   }, [text, initialContent, t]);
 
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        e.preventDefault();
-        requestClose();
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open, requestClose]);
+  useModalDialog({ open, onClose: requestClose, dialogRef });
 
   useEffect(() => {
     if (!open) return;
@@ -163,7 +155,7 @@ export function AdvancedYamlPanel({ initialContent, onSaveRaw, onAfterSave }: Pr
       aria-modal="true"
       aria-labelledby="advanced-yaml-dialog-title"
     >
-      <div className="gov-advanced-fs">
+      <div ref={dialogRef} className="gov-advanced-fs">
         <header className="gov-advanced-fs__header">
           <h2 id="advanced-yaml-dialog-title" className="gov-advanced-fs__title">
             {t("advanced.modalTitle")}

@@ -8,8 +8,10 @@ from typing import Any, DefaultDict, Dict, List, Mapping, Optional, Tuple
 from cdf_fn_common.etl_common import iter_predecessor_rows
 from cdf_fn_common.etl_discovery_cohort import iter_predecessor_instance_props
 from cdf_fn_common.etl_inverted_index import (
+    DEFAULT_INVERTED_INDEX_ROW_KEY_TEMPLATE,
     build_index_posting,
     build_inverted_index_rows,
+    format_inverted_index_row_key,
     parse_index_kinds_config,
 )
 from cdf_fn_common.etl_score_validate import _normalize_field_values
@@ -34,12 +36,13 @@ def normalize_lookup_key_for_handler(token: str, mode: str) -> str:
     return trimmed.casefold()
 
 
-def format_index_row_key(index_kind: str, lookup_key: str, template: str) -> str:
-    tpl = str(template or "{index_kind}:{lookup_key}").strip() or "{index_kind}:{lookup_key}"
-    return (
-        tpl.replace("{index_kind}", str(index_kind))
-        .replace("{lookup_key}", str(lookup_key))
-    )
+def format_index_row_key(
+    index_kind: str,
+    lookup_key: str,
+    template: str,
+    scope: str = "",
+) -> str:
+    return format_inverted_index_row_key(index_kind, lookup_key, template, scope)
 
 
 class PropertyTokenIndexHandler(AbstractBuildIndexHandler):
@@ -52,7 +55,7 @@ class PropertyTokenIndexHandler(AbstractBuildIndexHandler):
         return {
             "lookup_key_normalization": "strip_casefold",
             "token_initial_confidence": 1.0,
-            "row_key_template": "{index_kind}:{lookup_key}",
+            "row_key_template": DEFAULT_INVERTED_INDEX_ROW_KEY_TEMPLATE,
             "query_source": "build_index",
             "default_view_version": "v1",
             "index_kinds": {},
@@ -143,6 +146,8 @@ class PropertyTokenIndexHandler(AbstractBuildIndexHandler):
             run_id=run_id,
             canvas_node_id=canvas_node_id,
             query_source=cls.first_nonempty(resolved.get("query_source"), "build_index"),
-            row_key_template=str(resolved.get("row_key_template") or "{index_kind}:{lookup_key}"),
+            row_key_template=str(
+                resolved.get("row_key_template") or DEFAULT_INVERTED_INDEX_ROW_KEY_TEMPLATE
+            ),
             row_key_formatter=format_index_row_key,
         )

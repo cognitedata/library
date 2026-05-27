@@ -1,4 +1,5 @@
 import { useAppSettings } from "../../context/AppSettingsContext";
+import { DeferredCommitInput } from "./DeferredCommitTextField";
 import type { JsonObject } from "../../types/jsonConfig";
 import { readFilters, mergeFilters } from "../../utils/filtersConfigModel";
 import { SourceViewFiltersSection } from "./SourceViewFiltersSection";
@@ -21,11 +22,12 @@ export function FilterNodeConfigFields({ value, onChange, fieldKey }: Props) {
         <p className="transform-query-hint transform-query-fields__intro">{t("transform.query.filterEditorIntro")}</p>
         <label className="transform-query-label transform-query-label--block">
           {t("transform.query.description")}
-          <input
+          <DeferredCommitInput
             className="gov-input"
             style={{ marginTop: "0.35rem" }}
-            value={String(value.description ?? "")}
-            onChange={(e) => patch({ description: e.target.value })}
+            committedValue={String(value.description ?? "")}
+            syncKey={`${fieldKey}-desc`}
+            onCommit={(v) => patch({ description: v })}
             spellCheck={false}
             autoComplete="off"
           />

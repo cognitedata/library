@@ -1,0 +1,396 @@
+schemaVersion: 1
+template_id: file_pattern_extract
+label: File Pattern Extract (template)
+parameters:
+  incremental: true
+  incremental_change_processing: true
+  incremental_skip_unchanged: true
+  raw_db: etl_staging
+  raw_table_key: cohort
+  instance_space: inst_assets
+  mime_type: application/pdf
+canvas:
+  schemaVersion: 1
+  handle_orientation: lr
+  edge_path_style: default
+  nodes:
+  - id: end
+    kind: end
+    position:
+      x: 1480
+      y: -37
+    data:
+      label: End
+      config:
+        description: Post-run cohort RAW cleanup
+    width: 148
+    height: 68
+  - id: fanout
+    kind: dynamic_fanout
+    position:
+      x: 718
+      y: -51
+    data:
+      label: Dynamic fan-out
+      config:
+        description: Run diagram pattern detect per page-pack (async tasks)
+        generator_task_id: fanout_plan
+        child_function_external_id: fn_etl_file_annotation
+        batch_size: 1
+    width: 192
+    height: 96
+  - id: fanout_plan
+    kind: workflow_fanout_plan
+    position:
+      x: 464
+      y: -51
+    data:
+      label: Plan detect batches
+      config:
+        description: Build normalized pattern entities and one dynamic task per detect
+          page-pack
+        fanout_profile: file_annotation
+        batch_size: 1
+        max_pattern_samples: 100
+        max_pages_per_detect_request: 15
+        max_pages_per_file_reference: 15
+        min_tokens: 2
+        diagram_poll_timeout_sec: 840
+        max_detect_jobs_per_invocation: 1
+        pattern_normalization: file_annotation
+        child_function_external_id: fn_etl_file_annotation
+    width: 192
+    height: 96
+  - id: map_annotations_classic
+    kind: json_mapping
+    position:
+      x: 972
+      y: 18
+    data:
+      label: Map annotations (classic)
+      config:
+        description: Expand file-annotation cohort hits to classic annotation staging
+          rows
+        mapper_kind: diagram_detect_to_classic
+        input:
+          rows: ${fanout.output}
+        expression: input.rows
+    width: 192
+    height: 96
+  - id: map_annotations_dm
+    kind: json_mapping
+    position:
+      x: 972
+      y: -120
+    data:
+      label: Map annotations (DM)
+      config:
+        description: Expand file-annotation cohort hits to DM annotation staging rows
+        mapper_kind: diagram_detect_to_dm
+        annotation_space: discovery-annotations
+        default_status: Suggested
+        input:
+          rows: ${fanout.output}
+        expression: input.rows
+    width: 192
+    height: 96
+  - id: query_assets
+    kind: query_view
+    position:
+      x: 210
+      y: -120
+    data:
+      label: CogniteAsset (aliases)
+      config:
+        description: Load CogniteAsset aliases for pattern-mode diagram detect entities
+        view_space: cdf_cdm
+        view_external_id: CogniteAsset
+        view_version: v1
+        batch_size: 1000
+        include_properties:
+        - aliases
+        query_scope_mode: all
+    width: 192
+    height: 96
+  - id: query_files
+    kind: query_view
+    position:
+      x: 210
+      y: 18
+    data:
+      label: CogniteFile (PDFs)
+      config:
+        description: Files to scan via diagram detect
+        view_space: cdf_cdm
+        view_external_id: CogniteFile
+        view_version: v1
+        batch_size: 500
+        include_properties:
+        - name
+        - mimeType
+        - pageCount
+        query_scope_mode: all
+    width: 192
+    height: 96
+  - id: save_annotation_results_classic
+    kind: save_raw
+    position:
+      x: 1226
+      y: 18
+    data:
+      label: Save classic annotations
+      config:
+        description: Persist classic annotation staging rows to RAW
+        source_raw_db: db_discovery
+        source_raw_table_key: annotation_results_classic
+      node_color: '#0d9488'
+    width: 192
+    height: 96
+  - id: save_annotation_results_dm
+    kind: save_raw
+    position:
+      x: 1226
+      y: -120
+    data:
+      label: Save DM annotations
+      config:
+        description: Persist DM annotation staging rows to RAW
+        source_raw_db: db_discovery
+        source_raw_table_key: annotation_results_dm
+      node_color: '#0d9488'
+    width: 192
+    height: 96
+  - id: start
+    kind: start
+    position:
+      x: 0
+      y: -37
+    data:
+      label: Start
+      config:
+        workflow_base: wf_all_etl_file_pattern_extract
+        workflow_external_id: wf_all_etl_file_pattern_extract
+        trigger_external_id: trg_wf_all_etl_file_pattern_extract
+        workflow_version: '1'
+        incremental_change_processing: true
+        run_id: ''
+    width: 148
+    height: 68
+  edges:
+  - id: edge_start_query
+    source: start
+    target: query_assets
+    source_handle: out
+    target_handle: in
+    kind: data
+  - id: edge_start_query_files
+    source: start
+    target: query_files
+    source_handle: out
+    target_handle: in
+    kind: data
+  - id: edge_query_plan
+    source: query_assets
+    target: fanout_plan
+    source_handle: out
+    target_handle: in__input_a
+    kind: data
+  - id: edge_files_plan
+    source: query_files
+    target: fanout_plan
+    source_handle: out
+    target_handle: in__input_b
+    kind: data
+  - id: edge_plan_fanout
+    source: fanout_plan
+    target: fanout
+    source_handle: out
+    target_handle: in
+    kind: data
+  - id: edge_fanout_map_dm
+    source: fanout
+    target: map_annotations_dm
+    source_handle: out
+    target_handle: in
+    kind: data
+  - id: edge_fanout_map_classic
+    source: fanout
+    target: map_annotations_classic
+    source_handle: out
+    target_handle: in
+    kind: data
+  - id: edge_map_dm_save
+    source: map_annotations_dm
+    target: save_annotation_results_dm
+    source_handle: out
+    target_handle: in
+    kind: data
+  - id: edge_map_classic_save
+    source: map_annotations_classic
+    target: save_annotation_results_classic
+    source_handle: out
+    target_handle: in
+    kind: data
+  - id: edge_save_dm_end
+    source: save_annotation_results_dm
+    target: end
+    source_handle: out
+    target_handle: in
+    kind: data
+  - id: edge_save_classic_end
+    source: save_annotation_results_classic
+    target: end
+    source_handle: out
+    target_handle: in
+    kind: data
+compiled_workflow:
+  schema_version: 1
+  tasks:
+  - id: map_annotations_dm
+    function_external_id: null
+    executable_kind: json_mapping
+    task_type: jsonMapping
+    canvas_node_id: map_annotations_dm
+    label: Map annotations (DM)
+    depends_on:
+    - fanout
+    payload:
+      config:
+        description: Expand file-annotation cohort hits to DM annotation staging rows
+        mapper_kind: diagram_detect_to_dm
+        annotation_space: discovery-annotations
+        default_status: Suggested
+        input:
+          rows: ${fanout.output}
+        expression: input.rows
+  - id: map_annotations_classic
+    function_external_id: null
+    executable_kind: json_mapping
+    task_type: jsonMapping
+    canvas_node_id: map_annotations_classic
+    label: Map annotations (classic)
+    depends_on:
+    - fanout
+    payload:
+      config:
+        description: Expand file-annotation cohort hits to classic annotation staging
+          rows
+        mapper_kind: diagram_detect_to_classic
+        input:
+          rows: ${fanout.output}
+        expression: input.rows
+  - id: fanout
+    function_external_id: null
+    executable_kind: dynamic_fanout
+    task_type: dynamic
+    canvas_node_id: fanout
+    label: Dynamic fan-out
+    depends_on:
+    - fanout_plan
+    payload:
+      config:
+        description: Run diagram pattern detect per page-pack (async tasks)
+        generator_task_id: fanout_plan
+        child_function_external_id: fn_etl_file_annotation
+        batch_size: 1
+  - id: fanout_plan
+    function_external_id: fn_etl_workflow_fanout_plan
+    executable_kind: workflow_fanout_plan
+    task_type: function
+    canvas_node_id: fanout_plan
+    label: Plan detect batches
+    depends_on:
+    - query_assets
+    - query_files
+    payload:
+      config:
+        description: Build normalized pattern entities and one dynamic task per detect
+          page-pack
+        fanout_profile: file_annotation
+        batch_size: 1
+        max_pattern_samples: 100
+        max_pages_per_detect_request: 15
+        max_pages_per_file_reference: 15
+        min_tokens: 2
+        diagram_poll_timeout_sec: 840
+        max_detect_jobs_per_invocation: 1
+        pattern_normalization: file_annotation
+        child_function_external_id: fn_etl_file_annotation
+      input_a_task_id: query_assets
+      input_b_task_id: query_files
+      fanout_profile: file_annotation
+  - id: query_assets
+    function_external_id: fn_etl_view_query
+    executable_kind: query_view
+    task_type: function
+    canvas_node_id: query_assets
+    label: CogniteAsset (aliases)
+    depends_on: []
+    payload:
+      config:
+        description: Load CogniteAsset aliases for pattern-mode diagram detect entities
+        view_space: cdf_cdm
+        view_external_id: CogniteAsset
+        view_version: v1
+        batch_size: 1000
+        include_properties:
+        - aliases
+        query_scope_mode: all
+  - id: query_files
+    function_external_id: fn_etl_view_query
+    executable_kind: query_view
+    task_type: function
+    canvas_node_id: query_files
+    label: CogniteFile (PDFs)
+    depends_on: []
+    payload:
+      config:
+        description: Files to scan via diagram detect
+        view_space: cdf_cdm
+        view_external_id: CogniteFile
+        view_version: v1
+        batch_size: 500
+        include_properties:
+        - name
+        - mimeType
+        - pageCount
+        query_scope_mode: all
+  - id: save_annotation_results_dm
+    function_external_id: fn_etl_raw_save
+    executable_kind: save_raw
+    task_type: function
+    canvas_node_id: save_annotation_results_dm
+    label: Save DM annotations
+    depends_on:
+    - map_annotations_dm
+    payload:
+      config:
+        description: Persist DM annotation staging rows to RAW
+        source_raw_db: db_discovery
+        source_raw_table_key: annotation_results_dm
+  - id: save_annotation_results_classic
+    function_external_id: fn_etl_raw_save
+    executable_kind: save_raw
+    task_type: function
+    canvas_node_id: save_annotation_results_classic
+    label: Save classic annotations
+    depends_on:
+    - map_annotations_classic
+    payload:
+      config:
+        description: Persist classic annotation staging rows to RAW
+        source_raw_db: db_discovery
+        source_raw_table_key: annotation_results_classic
+  - id: end
+    function_external_id: fn_etl_raw_cleanup
+    executable_kind: raw_cleanup
+    task_type: function
+    canvas_node_id: end
+    depends_on:
+    - save_annotation_results_dm
+    - save_annotation_results_classic
+    payload:
+      config:
+        description: Post-run cohort RAW cleanup
+id: file_pattern_extract
+scope_suffix: all

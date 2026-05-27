@@ -32,16 +32,22 @@ import {
 import type { TreeNode } from "../../types/discoveryNodes";
 import { entityDropMenuOptions, type EntityDropMenuOption } from "../../utils/dataTreeEntityDrop";
 import {
+  isOrchestrationNodeKind,
+  shouldOpenNodeEditorOnDoubleClick,
+} from "../../utils/transformNodeEditorKinds";
+import {
   canvasToFlowEdges,
   canvasToFlowNodes,
   flowToCanvasDocument,
   applyTransformFlowRunDisplayClasses,
 } from "./flowDocumentBridge";
+import { TransformLocalRunDryRunField } from "./TransformLocalRunDryRunField";
 import { FlowNodeInspector } from "./FlowNodeInspector";
 import { FlowNodeEditorModal } from "./FlowNodeEditorModal";
 import { FlowPalette } from "./FlowPalette";
 import { getTransformFlowDropPayload } from "./transformFlowDrag";
 import {
+  TransformCanvasNodeList,
   TransformCanvasSearchField,
   TransformCanvasSearchResults,
 } from "./TransformCanvasSearch";
@@ -53,8 +59,14 @@ import {
   applyEntityCanvasDrop,
   applyEntityCanvasDropPair,
   applyTransformCanvasDrop,
+  applyTransformCanvasDropAtPosition,
   materializeEtlStageAtPosition,
 } from "./paletteDropOnEdge";
+import {
+  handlerDropMenuGroupedOptionsForStage,
+  palettePayloadNeedsHandlerPick,
+  type HandlerDropMenuOption,
+} from "./handlerDropMenuOptions";
 import { applyEtlNodeRemovals } from "./applyEtlNodeRemovals";
 import {
   ETL_FLOW_NODE_TYPES,
@@ -81,6 +93,7 @@ import {
   FlowHandleOrientationEdgeSync,
 } from "./FlowHandleOrientationEdgeSync";
 import { TransformFlowLayoutControls } from "./TransformFlowLayoutControls";
+import { highlightEdgesConnectedToNode } from "../flow/highlightEdgesForSelectedNode";
 import { runProgressAnimatedEdgeIds } from "./flowRunProgressEdges";
 import type { TransformFlowRunProgress } from "./transformPipelineRunStream";
 import { applyFlowHandleOrientationToNode } from "./flowHandleOrientation";
@@ -202,6 +215,72 @@ function FlowEntityDropMenu({ screen, entityLabel, options, onPick, t }: FlowEnt
   );
 }
 
+type FlowHandlerDropMenuProps = {
+  screen: { x: number; y: number };
+  stage: TransformCanvasNodeKind;
+  groupId: string | null;
+  onGroupIdChange: (id: string | null) => void;
+  onPick: (option: HandlerDropMenuOption) => void;
+  t: TFn;
+};
+
+function FlowHandlerDropMenu({
+  screen,
+  stage,
+  groupId,
+  onGroupIdChange,
+  onPick,
+  t,
+}: FlowHandlerDropMenuProps) {
+  const groups = handlerDropMenuGroupedOptionsForStage(stage);
+  if (!groups?.length) return null;
+  const selectedGroup = groups.find((g) => g.id === groupId) ?? null;
+  return (
+    <div
+      className="transform-flow-connect-end-menu"
+      role="menu"
+      style={{
+        position: "fixed",
+        left: Math.max(8, screen.x),
+        top: Math.max(8, screen.y),
+        zIndex: 1280,
+      }}
+      aria-label={t("transform.handlerDrop.title")}
+    >
+      {!selectedGroup ? (
+        groups.map((g) => (
+          <button
+            key={g.id}
+            type="button"
+            className="disc-btn"
+            role="menuitem"
+            onClick={() => onGroupIdChange(g.id)}
+          >
+            {t(g.labelKey)}
+          </button>
+        ))
+      ) : (
+        <>
+          <button type="button" className="disc-btn" role="menuitem" onClick={() => onGroupIdChange(null)}>
+            {t("transform.connectEnd.back")}
+          </button>
+          {selectedGroup.options.map((opt) => (
+            <button
+              key={opt.id}
+              type="button"
+              className="disc-btn"
+              role="menuitem"
+              onClick={() => onPick(opt)}
+            >
+              {t(opt.labelKey)}
+            </button>
+          ))}
+        </>
+      )}
+    </div>
+  );
+}
+
 type ConnectEndMenuState = {
   screen: { x: number; y: number };
   flow: { x: number; y: number };
@@ -218,6 +297,16 @@ type EntityDropMenuState = {
   screen: { x: number; y: number };
   flow: { x: number; y: number };
   node: TreeNode;
+};
+
+type HandlerDropMenuState = {
+  screen: { x: number; y: number };
+  flow: { x: number; y: number };
+  stage: TransformCanvasNodeKind;
+  mode:
+    | { type: "canvas" }
+    | { type: "connect_end"; sourceNodeId: string; sourceHandleId: string | null }
+    | { type: "pane_add" };
 };
 
 function FocusTransformFlowNode({ nodeId }: { nodeId: string | null }) {
@@ -241,15 +330,19 @@ type Props = {
   onChange: (doc: TransformCanvasDocument) => void;
   onSave?: () => void;
   onSaveAs?: () => void;
+  onReload?: () => void;
   onValidate?: () => void;
   onBuild?: () => void;
-  onRun?: (options: { incrementalChangeProcessing: boolean }) => void;
+  onRun?: (options: { incrementalChangeProcessing: boolean; dryRun: boolean }) => void;
   onDelete?: () => void;
   onRename?: () => void;
   runScope?: "incremental" | "all";
   onRunScopeChange?: (scope: "incremental" | "all") => void;
   runScopeEnabled?: boolean;
+  dryRun?: boolean;
+  onDryRunChange?: (dryRun: boolean) => void;
   saving?: boolean;
+  reloading?: boolean;
   runBusy?: boolean;
   statusMessage?: string | null;
   runProgress?: TransformFlowRunProgress;
@@ -264,6 +357,7 @@ function FlowCanvasBody({
   onChange,
   onSave,
   onSaveAs,
+  onReload,
   onValidate,
   onBuild,
   onRun,
@@ -272,7 +366,10 @@ function FlowCanvasBody({
   runScope = "all",
   onRunScopeChange,
   runScopeEnabled = false,
+  dryRun = false,
+  onDryRunChange,
   saving = false,
+  reloading = false,
   runBusy = false,
   statusMessage,
   runProgress,
@@ -301,11 +398,14 @@ function FlowCanvasBody({
   const [searchQuery, setSearchQuery] = useState("");
   const [focusNodeId, setFocusNodeId] = useState<string | null>(null);
   const [editorModalNode, setEditorModalNode] = useState<Node | null>(null);
+  const closeEditorModal = useCallback(() => setEditorModalNode(null), []);
   const [connectEndMenu, setConnectEndMenu] = useState<ConnectEndMenuState | null>(null);
   const [connectEndMenuGroupId, setConnectEndMenuGroupId] = useState<string | null>(null);
   const [paneAddMenu, setPaneAddMenu] = useState<PaneAddMenuState | null>(null);
   const [paneAddMenuGroupId, setPaneAddMenuGroupId] = useState<string | null>(null);
   const [entityDropMenu, setEntityDropMenu] = useState<EntityDropMenuState | null>(null);
+  const [handlerDropMenu, setHandlerDropMenu] = useState<HandlerDropMenuState | null>(null);
+  const [handlerDropMenuGroupId, setHandlerDropMenuGroupId] = useState<string | null>(null);
   const flowCtxMenu = useTreeContextMenuState();
   const latestInitialRef = useRef(initialDocument);
   latestInitialRef.current = initialDocument;
@@ -371,8 +471,8 @@ function FlowCanvasBody({
   const searchActive = searchQuery.trim().length > 0;
 
   const searchMatches = useMemo(
-    () => filterTransformCanvasNodesBySearch(transformCanvas.nodes, searchQuery),
-    [transformCanvas.nodes, searchQuery]
+    () => filterTransformCanvasNodesBySearch(transformCanvas.nodes, searchQuery, t),
+    [transformCanvas.nodes, searchQuery, t]
   );
 
   const selectCanvasNodeFromSearch = useCallback(
@@ -489,6 +589,22 @@ function FlowCanvasBody({
   const commitConnectEndMenu = useCallback(
     (payload: PaletteDragPayload) => {
       if (!connectEndMenu) return;
+      if (palettePayloadNeedsHandlerPick(payload)) {
+        setHandlerDropMenu({
+          screen: connectEndMenu.screen,
+          flow: connectEndMenu.flow,
+          stage: payload.stage,
+          mode: {
+            type: "connect_end",
+            sourceNodeId: connectEndMenu.sourceNodeId,
+            sourceHandleId: connectEndMenu.sourceHandleId,
+          },
+        });
+        setHandlerDropMenuGroupId(null);
+        setConnectEndMenu(null);
+        setConnectEndMenuGroupId(null);
+        return;
+      }
       const nds = getNodes();
       const eds = getEdges();
       const existingIds = new Set(nds.map((n) => n.id));
@@ -526,6 +642,18 @@ function FlowCanvasBody({
   const commitPaneAddNode = useCallback(
     (payload: PaletteDragPayload) => {
       if (!paneAddMenu) return;
+      if (palettePayloadNeedsHandlerPick(payload)) {
+        setHandlerDropMenu({
+          screen: paneAddMenu.screen,
+          flow: paneAddMenu.flow,
+          stage: payload.stage,
+          mode: { type: "pane_add" },
+        });
+        setHandlerDropMenuGroupId(null);
+        setPaneAddMenu(null);
+        setPaneAddMenuGroupId(null);
+        return;
+      }
       const nds = getNodes();
       const existingIds = new Set(nds.map((n) => n.id));
       const materialized = materializeEtlStageAtPosition(payload, paneAddMenu.flow, existingIds);
@@ -545,8 +673,79 @@ function FlowCanvasBody({
     [paneAddMenu, getNodes, getEdges, setNodes, emitChange]
   );
 
+  const commitHandlerDropMenu = useCallback(
+    (option: HandlerDropMenuOption) => {
+      if (!handlerDropMenu) return;
+      const payload = option.payload;
+      const { flow, mode } = handlerDropMenu;
+
+      if (mode.type === "canvas") {
+        const result = applyTransformCanvasDropAtPosition(flow, payload, {
+          getNode,
+          getEdges,
+          zoom: getZoom(),
+          nodes,
+        });
+        if (!result) return;
+        setNodes(result.nodes);
+        setEdges(result.edges);
+        emitChange(result.nodes, result.edges);
+        const selected = result.nodes.find((n) => n.id === result.selectNodeId) ?? null;
+        setSelectedNode(selected);
+        setSelectedEdge(null);
+      } else if (mode.type === "connect_end") {
+        const nds = getNodes();
+        const eds = getEdges();
+        const existingIds = new Set(nds.map((n) => n.id));
+        const materialized = materializeEtlStageAtPosition(payload, flow, existingIds);
+        if (!materialized) return;
+        const { node } = materialized;
+        const conn: Connection = {
+          source: mode.sourceNodeId,
+          sourceHandle: mode.sourceHandleId ?? "out",
+          target: node.id,
+          targetHandle: "in",
+        };
+        const resolveNode = (id: string) => (id === node.id ? node : getNode(id));
+        if (!isValidEtlFlowConnection(conn, resolveNode)) return;
+        if (wouldCreateCycle(eds, conn.source, conn.target)) return;
+        const nextNodes = [...nds, node];
+        const toEnd = persistenceOutboundEdgesToEnd(materialized.rfType, node.id, nextNodes);
+        const nextEdges = dedupeEdgesByHandles([
+          ...appendEtlConnectionEdge(getNode, eds, conn),
+          ...toEnd,
+        ]);
+        flushSync(() => {
+          setNodes(nextNodes);
+          setEdges(nextEdges);
+        });
+        emitChange(nextNodes, nextEdges);
+        setSelectedNode(node);
+        setSelectedEdge(null);
+      } else if (mode.type === "pane_add") {
+        const nds = getNodes();
+        const existingIds = new Set(nds.map((n) => n.id));
+        const materialized = materializeEtlStageAtPosition(payload, flow, existingIds);
+        if (!materialized) return;
+        const { node } = materialized;
+        const nextNodes = [...nds, node];
+        const toEnd = persistenceOutboundEdgesToEnd(materialized.rfType, node.id, nextNodes);
+        const nextEdges = dedupeEdgesByHandles([...getEdges(), ...toEnd]);
+        setNodes(nextNodes);
+        setEdges(nextEdges);
+        emitChange(nextNodes, nextEdges);
+        setSelectedNode(node);
+        setSelectedEdge(null);
+      }
+
+      setHandlerDropMenu(null);
+      setHandlerDropMenuGroupId(null);
+    },
+    [handlerDropMenu, nodes, getNode, getEdges, getZoom, getNodes, setNodes, setEdges, emitChange]
+  );
+
   useEffect(() => {
-    if (!connectEndMenu && !paneAddMenu && !entityDropMenu) return;
+    if (!connectEndMenu && !paneAddMenu && !entityDropMenu && !handlerDropMenu) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         setConnectEndMenu(null);
@@ -554,6 +753,8 @@ function FlowCanvasBody({
         setPaneAddMenu(null);
         setPaneAddMenuGroupId(null);
         setEntityDropMenu(null);
+        setHandlerDropMenu(null);
+        setHandlerDropMenuGroupId(null);
       }
     };
     const onDocPointerDown = (e: PointerEvent) => {
@@ -564,6 +765,8 @@ function FlowCanvasBody({
       setPaneAddMenu(null);
       setPaneAddMenuGroupId(null);
       setEntityDropMenu(null);
+      setHandlerDropMenu(null);
+      setHandlerDropMenuGroupId(null);
     };
     document.addEventListener("keydown", onKey);
     /** Defer so the pointerup that opened the menu does not immediately dismiss it. */
@@ -575,7 +778,7 @@ function FlowCanvasBody({
       document.removeEventListener("keydown", onKey);
       document.removeEventListener("pointerdown", onDocPointerDown, true);
     };
-  }, [connectEndMenu, paneAddMenu, entityDropMenu]);
+  }, [connectEndMenu, paneAddMenu, entityDropMenu, handlerDropMenu]);
 
   const removeNodesByIds = useCallback(
     (nodeIds: string[]) => {
@@ -862,7 +1065,8 @@ function FlowCanvasBody({
   const onNodeDoubleClick = useCallback(
     (e: React.MouseEvent, node: Node) => {
       e.preventDefault();
-      if (readOnly) return;
+      const kind = rfTypeToKind(node.type);
+      if (!shouldOpenNodeEditorOnDoubleClick(kind, readOnly)) return;
       setEditorModalNode(node);
       setSelectedNode(node);
       setSelectedEdge(null);
@@ -923,6 +1127,25 @@ function FlowCanvasBody({
         setConnectEndMenuGroupId(null);
         setPaneAddMenu(null);
         setPaneAddMenuGroupId(null);
+        setHandlerDropMenu(null);
+        setHandlerDropMenuGroupId(null);
+        return;
+      }
+
+      if (payload.kind === "etl_stage" && palettePayloadNeedsHandlerPick(payload)) {
+        const coords = { x: e.clientX, y: e.clientY };
+        setHandlerDropMenu({
+          screen: coords,
+          flow: screenToFlowPosition(coords),
+          stage: payload.stage,
+          mode: { type: "canvas" },
+        });
+        setHandlerDropMenuGroupId(null);
+        setConnectEndMenu(null);
+        setConnectEndMenuGroupId(null);
+        setPaneAddMenu(null);
+        setPaneAddMenuGroupId(null);
+        setEntityDropMenu(null);
         return;
       }
 
@@ -969,10 +1192,13 @@ function FlowCanvasBody({
         : new Set<string>(),
     [initialDocument.edges, runProgress]
   );
-  const edgesForRf = useMemo(
-    () => edges.map((e) => ({ ...e, animated: e.animated || runProgressAnimatedIds.has(e.id) })),
-    [edges, runProgressAnimatedIds]
-  );
+  const edgesForRf = useMemo(() => {
+    const withRun = edges.map((e) => ({
+      ...e,
+      animated: e.animated || runProgressAnimatedIds.has(e.id),
+    }));
+    return highlightEdgesConnectedToNode(withRun, selectedNode?.id ?? null);
+  }, [edges, runProgressAnimatedIds, selectedNode?.id]);
   const runExecutingSet = useMemo(
     () => new Set(runProgress?.executingCanvasNodeIds ?? []),
     [runProgress?.executingCanvasNodeIds]
@@ -993,7 +1219,7 @@ function FlowCanvasBody({
     () =>
       nodes.map((n) => {
         const cn = transformCanvas.nodes.find((node) => node.id === n.id);
-        const matches = cn ? transformCanvasNodeMatchesSearch(cn, searchQuery) : true;
+        const matches = cn ? transformCanvasNodeMatchesSearch(cn, searchQuery, t) : true;
         const withRun = applyTransformFlowRunDisplayClasses(n, {
           runFailed: runFailedSet.has(n.id),
           runWarning: runWarningSet.has(n.id),
@@ -1007,6 +1233,8 @@ function FlowCanvasBody({
           data: {
             ...(oriented.data as Record<string, unknown>),
             canvas_resize_enabled: !readOnly,
+            nodeRunProgress: runProgress?.nodeProgressById[n.id],
+            nodeRunExecuting: runExecutingSet.has(n.id),
           },
         };
       }),
@@ -1021,6 +1249,7 @@ function FlowCanvasBody({
       runCompletedSet,
       handleOrientation,
       readOnly,
+      runProgress?.nodeProgressById,
     ]
   );
 
@@ -1028,24 +1257,50 @@ function FlowCanvasBody({
     <div className="transform-flow-panel">
       {!readOnly ? (
       <div className="transform-flow-toolbar" role="toolbar" aria-label={t("transform.toolbar.aria")}>
-        <button type="button" className="disc-btn disc-btn--primary" disabled={readOnly || saving || runBusy || !onSave} onClick={onSave}>
+        <button
+          type="button"
+          className="disc-btn disc-btn--primary"
+          disabled={readOnly || saving || reloading || runBusy || !onSave}
+          onClick={onSave}
+        >
           {saving ? t("transform.toolbar.saving") : t("transform.toolbar.save")}
         </button>
         {onSaveAs ? (
           <button
             type="button"
             className="disc-btn"
-            disabled={saving || runBusy}
+            disabled={saving || reloading || runBusy}
             onClick={onSaveAs}
             title={t("transform.saveAs.hint")}
           >
             {t("transform.toolbar.saveAs")}
           </button>
         ) : null}
-        <button type="button" className="disc-btn" disabled={saving || runBusy || !onValidate} onClick={onValidate}>
+        {onReload ? (
+          <button
+            type="button"
+            className="disc-btn"
+            disabled={saving || reloading || runBusy}
+            onClick={onReload}
+            title={t("transform.toolbar.reloadHint")}
+          >
+            {reloading ? t("transform.toolbar.reloading") : t("btn.reload")}
+          </button>
+        ) : null}
+        <button
+          type="button"
+          className="disc-btn"
+          disabled={saving || reloading || runBusy || !onValidate}
+          onClick={onValidate}
+        >
           {t("transform.toolbar.validate")}
         </button>
-        <button type="button" className="disc-btn" disabled={saving || runBusy || !onBuild} onClick={onBuild}>
+        <button
+          type="button"
+          className="disc-btn"
+          disabled={saving || reloading || runBusy || !onBuild}
+          onClick={onBuild}
+        >
           {t("transform.toolbar.build")}
         </button>
         {runScopeEnabled && onRunScopeChange ? (
@@ -1056,7 +1311,7 @@ function FlowCanvasBody({
               value={runScope}
               onChange={(e) => onRunScopeChange(e.target.value as "incremental" | "all")}
               title={t("transform.toolbar.runScopeHint")}
-              disabled={saving || runBusy}
+              disabled={saving || reloading || runBusy}
             >
               <option value="incremental">{t("transform.toolbar.runScopeIncremental")}</option>
               <option value="all">{t("transform.toolbar.runScopeAll")}</option>
@@ -1066,18 +1321,29 @@ function FlowCanvasBody({
         <button
           type="button"
           className="disc-btn"
-          disabled={!onRun || saving || runBusy}
+          disabled={!onRun || saving || reloading || runBusy}
           onClick={() =>
-            onRun?.({ incrementalChangeProcessing: runScope === "incremental" })
+            onRun?.({
+              incrementalChangeProcessing: runScope === "incremental",
+              dryRun,
+            })
           }
         >
           {runBusy ? t("status.running") : t("transform.toolbar.runLocal")}
         </button>
+        {onDryRunChange ? (
+          <TransformLocalRunDryRunField
+            t={t}
+            dryRun={dryRun}
+            onDryRunChange={onDryRunChange}
+            disabled={saving || reloading || runBusy}
+          />
+        ) : null}
         {onRename ? (
           <button
             type="button"
             className="disc-btn"
-            disabled={readOnly || saving || runBusy}
+            disabled={readOnly || saving || reloading || runBusy}
             onClick={onRename}
             title={t("transform.pipelines.rename")}
           >
@@ -1088,7 +1354,7 @@ function FlowCanvasBody({
           <button
             type="button"
             className="disc-btn disc-btn--danger"
-            disabled={readOnly || saving || runBusy}
+            disabled={readOnly || saving || reloading || runBusy}
             onClick={onDelete}
             title={t("transform.pipelines.delete")}
           >
@@ -1109,16 +1375,39 @@ function FlowCanvasBody({
             searchQuery={searchQuery}
             onSearchQueryChange={setSearchQuery}
           />
+          <TransformFlowLayoutControls
+            t={t}
+            readOnly={readOnly}
+            handleOrientation={handleOrientation}
+            onHandleOrientationChange={onHandleOrientationChange}
+            edgePathStyle={edgePathStyle}
+            onEdgePathStyleChange={onEdgePathStyleChange}
+            onAutoLayout={handleAutoLayout}
+            onFitView={() => fitView({ padding: 0.15, duration: 200 })}
+            alignDisabled={readOnly || alignableSelectionCount < 2}
+            onAlignSelection={applySelectionAlign}
+            showAlign={!readOnly}
+          />
         </div>
       ) : null}
       {transformCanvas.nodes.length > 0 ? (
-        <TransformCanvasSearchResults
-          t={t}
-          searchQuery={searchQuery}
-          searchMatches={searchMatches}
-          selectedNodeId={selectedNode?.id ?? null}
-          onSelectNode={selectCanvasNodeFromSearch}
-        />
+        <>
+          <TransformCanvasSearchResults
+            t={t}
+            searchQuery={searchQuery}
+            searchMatches={searchMatches}
+            selectedNodeId={selectedNode?.id ?? null}
+            onSelectNode={selectCanvasNodeFromSearch}
+          />
+          {searchQuery.trim().length === 0 ? (
+            <TransformCanvasNodeList
+              t={t}
+              nodes={transformCanvas.nodes}
+              selectedNodeId={selectedNode?.id ?? null}
+              onSelectNode={selectCanvasNodeFromSearch}
+            />
+          ) : null}
+        </>
       ) : null}
       <div className="transform-flow-body">
         <FlowPalette t={t} readOnly={readOnly} />
@@ -1169,17 +1458,6 @@ function FlowCanvasBody({
             <Background variant={BackgroundVariant.Dots} gap={16} size={1} />
             <Controls showInteractive={false} />
             <MiniMap pannable zoomable />
-            <TransformFlowLayoutControls
-              t={t}
-              readOnly={readOnly}
-              handleOrientation={handleOrientation}
-              onHandleOrientationChange={onHandleOrientationChange}
-              edgePathStyle={edgePathStyle}
-              onEdgePathStyleChange={onEdgePathStyleChange}
-              onAutoLayout={handleAutoLayout}
-              alignDisabled={alignableSelectionCount < 2}
-              onAlignSelection={applySelectionAlign}
-            />
             <FocusTransformFlowNode nodeId={focusNodeId} />
           </ReactFlow>
           </FlowHandleOrientationProvider>
@@ -1214,6 +1492,16 @@ function FlowCanvasBody({
               t={t}
             />
           ) : null}
+          {handlerDropMenu ? (
+            <FlowHandlerDropMenu
+              screen={handlerDropMenu.screen}
+              stage={handlerDropMenu.stage}
+              groupId={handlerDropMenuGroupId}
+              onGroupIdChange={setHandlerDropMenuGroupId}
+              onPick={commitHandlerDropMenu}
+              t={t}
+            />
+          ) : null}
           <TreeContextMenuPortal menu={flowCtxMenu.menu} onClose={flowCtxMenu.close} classPrefix="gov" />
         </div>
         <FlowNodeInspector
@@ -1225,7 +1513,14 @@ function FlowCanvasBody({
           readOnly={readOnly}
           onPatchNode={onPatchNode}
           onPatchEdge={readOnly ? undefined : onPatchEdge}
-          onOpenEditor={readOnly ? undefined : setEditorModalNode}
+          onOpenEditor={
+            readOnly
+              ? (n) => {
+                  const k = rfTypeToKind(n.type);
+                  if (isOrchestrationNodeKind(k)) setEditorModalNode(n);
+                }
+              : setEditorModalNode
+          }
           onDeleteNode={readOnly ? undefined : onDeleteNode}
           onDeleteEdge={readOnly ? undefined : removeEdgeById}
         />
@@ -1233,11 +1528,13 @@ function FlowCanvasBody({
       {editorModalNode ? (
         <FlowNodeEditorModal
           node={nodes.find((n) => n.id === editorModalNode.id) ?? editorModalNode}
-          onClose={() => setEditorModalNode(null)}
+          onClose={closeEditorModal}
           onPatchNode={onPatchNode}
           t={t}
+          pipelineId={pipelineId}
           flowNodes={nodes}
           flowEdges={edges}
+          readOnly={readOnly}
         />
       ) : null}
     </div>

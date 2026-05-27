@@ -3,7 +3,16 @@ import type { TransformCanvasNodeKind } from "../../types/transformCanvas";
 import { readFilters } from "../../utils/filtersConfigModel";
 import { mergeFieldPolicyCount } from "../../utils/mergeNodeConfigModel";
 import { buildIndexSummary } from "../../utils/buildIndexNodeConfigModel";
-import { fieldMapSummary } from "../../utils/fieldMapNodeConfigModel";
+import { jsonMappingSummary } from "../../utils/jsonMappingNodeConfigModel";
+import { scoreSummary } from "../../utils/scoreNodeConfigModel";
+import {
+  dynamicFanoutSummary,
+  workflowFanoutPlanSummary,
+} from "../../utils/fanoutNodeConfigModel";
+import { fileAnnotationConfigSummary } from "../../utils/fileAnnotationNodeConfigModel";
+import { recordsQuerySummary } from "../../utils/recordsQueryConfigModel";
+import { recordsSaveSummary } from "../../utils/recordsSaveConfigModel";
+import { streamSaveSummary } from "../../utils/streamSaveConfigModel";
 
 type TFn = (key: MessageKey, vars?: Record<string, string | number>) => string;
 
@@ -88,7 +97,18 @@ export function EtlNodeConfigFields({ t, kind, config, onChange, compact = false
 
   const description = strField(cfg, "description", onChange, t("transform.config.description"));
 
-  if (kind === "query_view" || kind === "query_raw" || kind === "query_classic" || kind === "query_sql" || kind === "filter") {
+  if (
+    kind === "query_view" ||
+    kind === "query_raw" ||
+    kind === "query_classic" ||
+    kind === "query_sql" ||
+    kind === "query_records" ||
+    kind === "filter"
+  ) {
+    return description;
+  }
+
+  if (kind === "save_records" || kind === "save_stream") {
     return description;
   }
 
@@ -296,6 +316,18 @@ export function configSummaryForKind(kind: TransformCanvasNodeKind, config: Reco
       return (line.length > 48 ? `${line.slice(0, 48)}…` : line) || "SQL";
     }
   }
+  if (kind === "query_records") {
+    const summary = recordsQuerySummary(config);
+    if (summary) return summary;
+  }
+  if (kind === "save_records") {
+    const summary = recordsSaveSummary(config);
+    if (summary) return summary;
+  }
+  if (kind === "save_stream") {
+    const summary = streamSaveSummary(config);
+    if (summary) return summary;
+  }
   if (kind === "spark_transform" || kind === "transformation_ref") {
     const ext = String(config.transformation_external_id ?? "").trim();
     const sql = String(config.query ?? "").trim();
@@ -307,6 +339,30 @@ export function configSummaryForKind(kind: TransformCanvasNodeKind, config: Reco
   }
   if (kind === "filter") {
     if (filterCount > 0) return `${filterCount} filter(s)`;
+  }
+  if (kind === "score") {
+    const summary = scoreSummary(config);
+    if (summary) return summary;
+  }
+  if (kind === "function_ref") {
+    const fn = String(config.function_external_id ?? "").trim();
+    if (fn) return fn;
+  }
+  if (kind === "subworkflow") {
+    const wf = String(config.workflow_external_id ?? "").trim();
+    const ver = String(config.workflow_version ?? "").trim();
+    if (wf) return ver ? `${wf}:${ver}` : wf;
+  }
+  if (kind === "simulation") {
+    const ext = String(config.simulation_external_id ?? "").trim();
+    if (ext) return ext;
+  }
+  if (kind === "cdf_task") {
+    const cdf = config.cdf;
+    if (cdf && typeof cdf === "object" && !Array.isArray(cdf)) {
+      const keys = Object.keys(cdf as Record<string, unknown>);
+      if (keys.length) return `${keys.length} cdf param(s)`;
+    }
   }
   if (kind === "merge") {
     const desc = String(config.description ?? "").trim();
@@ -327,11 +383,23 @@ export function configSummaryForKind(kind: TransformCanvasNodeKind, config: Reco
     if (desc) return `${desc} · ${jt}`;
     if (config.join_on && typeof config.join_on === "object") return jt;
   }
-  if (kind === "field_map") {
+  if (kind === "json_mapping") {
     const desc = String(config.description ?? "").trim();
-    const summary = fieldMapSummary(config);
+    const summary = jsonMappingSummary(config);
     if (desc) return `${desc} · ${summary}`;
     return summary;
+  }
+  if (kind === "file_annotation") {
+    const summary = fileAnnotationConfigSummary(config);
+    if (summary) return summary;
+  }
+  if (kind === "workflow_fanout_plan") {
+    const summary = workflowFanoutPlanSummary(config);
+    if (summary) return summary;
+  }
+  if (kind === "dynamic_fanout") {
+    const summary = dynamicFanoutSummary(config);
+    if (summary) return summary;
   }
   if (kind === "start") {
     const trg = String(config.trigger_external_id ?? "").trim();

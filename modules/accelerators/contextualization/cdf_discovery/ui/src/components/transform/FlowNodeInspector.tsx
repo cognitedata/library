@@ -1,47 +1,21 @@
-import { useEffect, useState } from "react";
 import type { Edge, Node } from "@xyflow/react";
-import { fetchTransformBuildPairing, type TransformBuildPairing } from "../../api";
 import type { MessageKey } from "../../i18n";
 import {
   rfTypeToKind,
   type TransformCanvasEdgeKind,
   type TransformCanvasNodeKind,
 } from "../../types/transformCanvas";
+import {
+  isOrchestrationNodeKind,
+  MODAL_EDITOR_NODE_KINDS,
+} from "../../utils/transformNodeEditorKinds";
+import { DeferredCommitInput, DeferredCommitTextarea } from "../query/DeferredCommitTextField";
 import type { FlowEdgeData } from "./flowDocumentBridge";
-import { configSummaryForKind, EtlNodeConfigFields } from "./EtlNodeConfigFields";
+import { configSummaryForKind } from "./EtlNodeConfigFields";
 import { EtlNodeAccentFields } from "./flowNodeAccent";
+import { canvasNodeKindLabel } from "../../utils/canvasNodeKindLabel";
 
 type TFn = (key: MessageKey, vars?: Record<string, string | number>) => string;
-
-const MODAL_EDITOR_KINDS = new Set<TransformCanvasNodeKind>([
-  "query_view",
-  "query_raw",
-  "query_classic",
-  "query_sql",
-  "filter",
-  "field_map",
-  "join",
-  "merge",
-  "build_index",
-  "spark_transform",
-  "transformation_ref",
-]);
-
-const CONFIG_INLINE_KINDS = new Set<TransformCanvasNodeKind>([
-  "transform",
-  "score",
-  "save_view",
-  "save_raw",
-  "save_classic",
-  "spark_transform",
-  "transformation_ref",
-  "function_ref",
-  "subworkflow",
-  "dynamic_fanout",
-  "simulation",
-  "cdf_task",
-  "raw_cleanup",
-]);
 
 function isNodeEnabled(data: Record<string, unknown>): boolean {
   return data.canvas_node_enabled !== false;
@@ -80,26 +54,6 @@ export function FlowNodeInspector({
       : selectedNode
     : null;
   const kind = liveNode ? rfTypeToKind(liveNode.type) : null;
-
-  const [buildPairing, setBuildPairing] = useState<TransformBuildPairing | null>(null);
-
-  useEffect(() => {
-    if (kind !== "start" || !pipelineId || !liveNode) {
-      setBuildPairing(null);
-      return;
-    }
-    let cancelled = false;
-    void fetchTransformBuildPairing(pipelineId, true)
-      .then((p) => {
-        if (!cancelled) setBuildPairing(p);
-      })
-      .catch(() => {
-        if (!cancelled) setBuildPairing(null);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [kind, pipelineId, liveNode?.id]);
 
   if (selectedEdge) {
     const fd = (selectedEdge.data ?? {}) as FlowEdgeData;
@@ -166,11 +120,7 @@ export function FlowNodeInspector({
       ? (data.config as Record<string, unknown>)
       : {};
   const summary = configSummaryForKind(nodeKind, config);
-  const showConfig = CONFIG_INLINE_KINDS.has(nodeKind) || nodeKind === "start";
-
-  const patchConfig = (nextCfg: Record<string, unknown>) => {
-    onPatchNode(liveNode.id, { ...data, config: nextCfg });
-  };
+  const showConfig = Boolean(summary);
 
   return (
     <div className="transform-flow-inspector">
@@ -178,7 +128,7 @@ export function FlowNodeInspector({
       <dl className="transform-flow-inspector__meta">
         <div>
           <dt>{t("transform.inspector.kind")}</dt>
-          <dd>{nodeKind.replace(/_/g, " ")}</dd>
+          <dd>{canvasNodeKindLabel(nodeKind, t)}</dd>
         </div>
         <div>
           <dt>{t("transform.inspector.id")}</dt>
@@ -202,10 +152,10 @@ export function FlowNodeInspector({
         </div>
       ) : null}
 
-      {!readOnly && onOpenEditor ? (
+      {onOpenEditor && (!readOnly || isOrchestrationNodeKind(nodeKind)) ? (
         <div className="transform-flow-inspector__actions">
           <button type="button" className="disc-btn disc-btn--sm" onClick={() => onOpenEditor(liveNode)}>
-            {t("transform.inspector.openEditor")}
+            {readOnly ? t("transform.inspector.viewEditor") : t("transform.inspector.openEditor")}
           </button>
           {!isBoundary && onDeleteNode ? (
             <button
@@ -221,12 +171,18 @@ export function FlowNodeInspector({
 
       <label className="transform-flow-inspector__field">
         <span>{t("transform.inspector.label")}</span>
-        <input
-          type="text"
-          value={String(data.label ?? "")}
-          disabled={readOnly}
-          onChange={(e) => onPatchNode(liveNode.id, { ...data, label: e.target.value })}
-        />
+        {readOnly ? (
+          <input type="text" value={String(data.label ?? "")} disabled readOnly />
+        ) : (
+          <DeferredCommitInput
+            type="text"
+            committedValue={String(data.label ?? "")}
+            syncKey={liveNode.id}
+            onCommit={(label) => onPatchNode(liveNode.id, { ...data, label })}
+            spellCheck={false}
+            autoComplete="off"
+          />
+        )}
       </label>
 
       <EtlNodeAccentFields t={t} nodeId={liveNode.id} data={data} onPatchNode={onPatchNode} />
@@ -238,35 +194,31 @@ export function FlowNodeInspector({
         </p>
       ) : null}
 
-      {MODAL_EDITOR_KINDS.has(nodeKind) && !readOnly ? (
-        <p className="transform-flow-inspector__hint">{t("transform.inspector.openFiltersEditor")}</p>
-      ) : null}
-
-      {showConfig && !readOnly && !MODAL_EDITOR_KINDS.has(nodeKind) ? (
-        <>
-          <p className="transform-flow-inspector__hint">{t("transform.inspector.configHint")}</p>
-          <EtlNodeConfigFields
-            t={t}
-            kind={nodeKind}
-            config={config}
-            onChange={patchConfig}
-            compact
-            buildPairing={nodeKind === "start" ? buildPairing : null}
-          />
-        </>
+      {(MODAL_EDITOR_NODE_KINDS.has(nodeKind) && !readOnly) ||
+      (readOnly && isOrchestrationNodeKind(nodeKind)) ? (
+        <p className="transform-flow-inspector__hint">
+          {readOnly
+            ? t("transform.inspector.orchestrationViewEditor")
+            : t("transform.inspector.openFiltersEditor")}
+        </p>
       ) : null}
 
       <label className="transform-flow-inspector__field">
         <span>{t("transform.inspector.notes")}</span>
-        <textarea
-          rows={4}
-          value={String(data.notes ?? "")}
-          disabled={readOnly}
-          onChange={(e) => onPatchNode(liveNode.id, { ...data, notes: e.target.value })}
-        />
+        {readOnly ? (
+          <textarea rows={4} value={String(data.notes ?? "")} disabled readOnly />
+        ) : (
+          <DeferredCommitTextarea
+            rows={4}
+            committedValue={String(data.notes ?? "")}
+            syncKey={liveNode.id}
+            onCommit={(notes) => onPatchNode(liveNode.id, { ...data, notes })}
+            spellCheck={false}
+          />
+        )}
       </label>
 
-      {!readOnly ? (
+      {!readOnly || isOrchestrationNodeKind(nodeKind) ? (
         <p className="transform-flow-inspector__hint transform-flow-inspector__hint--footer">
           {t("transform.inspector.doubleClickHint")}
         </p>

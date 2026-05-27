@@ -47,10 +47,11 @@ function taskDetails(summary: TaskSummary | undefined, t: Props["t"]): string {
 function canvasNodeDisplayForTask(
   canvas: TransformCanvasDocument,
   taskId: string,
-  summary: TaskSummary | undefined
+  summary: TaskSummary | undefined,
+  t: Props["t"]
 ): string {
   const node = resolveTransformCanvasNodeForTask(canvas, taskId, summary);
-  if (node) return formatTransformCanvasNodeLabelWithId(node);
+  if (node) return formatTransformCanvasNodeLabelWithId(node, t);
   const fromSummary = summary?.canvas_node_id;
   if (fromSummary != null && String(fromSummary).trim()) return String(fromSummary).trim();
   return taskId;
@@ -107,7 +108,7 @@ export function TransformRunResultsPanel({ t, canvas, lastRun, emptyMessage }: P
                     const summary = raw as TaskSummary;
                     return (
                       <tr key={taskId}>
-                        <td>{canvasNodeDisplayForTask(canvas, taskId, summary)}</td>
+                        <td>{canvasNodeDisplayForTask(canvas, taskId, summary, t)}</td>
                         <td>{taskId}</td>
                         <td>{taskStatusLabel(summary)}</td>
                         <td>{taskDurationLabel(summary)}</td>

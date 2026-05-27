@@ -1,5 +1,6 @@
-import type { ReactNode } from "react";
+import { useRef, type ReactNode } from "react";
 import type { MessageKey } from "../i18n/types";
+import { useModalDialog } from "../hooks/useModalDialog";
 
 type TFn = (key: MessageKey, vars?: Record<string, string | number>) => string;
 
@@ -11,8 +12,12 @@ type Props = {
 };
 
 export function DocumentTabFullscreenOverlay({ t, title, onClose, children }: Props) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useModalDialog({ open: true, onClose, dialogRef });
+
   return (
     <div
+      ref={dialogRef}
       className="disc-doc-fullscreen"
       role="dialog"
       aria-modal="true"

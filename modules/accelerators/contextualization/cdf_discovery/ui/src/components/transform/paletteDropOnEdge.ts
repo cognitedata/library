@@ -6,17 +6,26 @@ import {
   entityDropStages,
   seedConfigForEntityDrop,
 } from "../../utils/dataTreeEntityDrop";
-import { seedMappingsBetweenNodes } from "../../utils/canvasFieldGraph";
-import { defaultFieldMapNodeConfig } from "../../utils/fieldMapNodeConfigModel";
-import { defaultBuildIndexNodeConfig } from "../../utils/buildIndexHandlerTemplates";
+import { defaultJsonMappingNodeConfig } from "../../utils/jsonMappingNodeConfigModel";
+import { workflowOutputRef } from "../../utils/canvasPredecessorTasks";
+import { isBuildIndexHandlerId } from "./etlBuildIndexHandlerRegistry";
+import {
+  defaultBuildIndexNodeConfig,
+} from "../../utils/buildIndexHandlerTemplates";
+import {
+  defaultTransformNodeConfig,
+  isEtlTransformHandlerId,
+} from "../../utils/etlTransformHandlerTemplates";
+import { isValidHandlerForStage } from "./handlerDropMenuOptions";
 import type { FlowEdgeData } from "./flowDocumentBridge";
+import { cdfResourceDropStage } from "../../utils/cdfResourceDrop";
 import { getTransformFlowDropPayload } from "./transformFlowDrag";
 import {
   appendEtlConnectionEdge,
   dedupeEdgesByHandles,
   persistenceOutboundEdgesToEnd,
 } from "./transformFlowEdgeHelpers";
-import { defaultLabelForKind, nextEtlNodeId, rfTypeForKind } from "./flowNodeRegistry";
+import { nextEtlNodeId, rfTypeForKind } from "./flowNodeRegistry";
 import { readFlowNodeSize, withEtlNodeDimensions } from "./etlFlowNodeSizing";
 
 /** Horizontal gap between query and save nodes when dropping a wired pair. */
@@ -149,33 +158,63 @@ function materializeDropNode(
 
   if (payload.kind === "etl_stage") {
     stage = payload.stage;
-    label = defaultLabelForKind(stage);
-  } else {
-    return null;
-  }
-
-  const id = nextEtlNodeId(stage, existingIds);
-  const rfType = rfTypeForKind(stage);
-  const config =
-    stage === "build_index"
-      ? defaultBuildIndexNodeConfig()
-      : stage === "start" || stage === "end"
-        ? undefined
-        : { description: label };
-  const node: Node = withEtlNodeDimensions(
-    {
-      id,
-      type: rfType,
-      position: flowPosition,
-      data: {
-        kind: stage,
-        label,
-        ...(config ? { config } : {}),
+    label = "";
+    const handlerId = String(payload.handlerId ?? "").trim();
+    const id = nextEtlNodeId(stage, existingIds);
+    const rfType = rfTypeForKind(stage);
+    let config: Record<string, unknown> | undefined;
+    if (handlerId && isValidHandlerForStage(stage, handlerId)) {
+      if (stage === "transform" && isEtlTransformHandlerId(handlerId)) {
+        config = defaultTransformNodeConfig(handlerId);
+      } else if (stage === "build_index" && isBuildIndexHandlerId(handlerId)) {
+        config = defaultBuildIndexNodeConfig(handlerId);
+      }
+    } else if (stage === "build_index") {
+      config = defaultBuildIndexNodeConfig();
+    } else if (stage !== "start" && stage !== "end") {
+      config = { description: label };
+    }
+    const node: Node = withEtlNodeDimensions(
+      {
+        id,
+        type: rfType,
+        position: flowPosition,
+        data: {
+          kind: stage,
+          label,
+          ...(config ? { config } : {}),
+          ...(handlerId ? { palette_handler_locked: true } : {}),
+        },
       },
-    },
-    stage
-  );
-  return { node, rfType };
+      stage
+    );
+    return { node, rfType };
+  } else if (
+    payload.kind === "cdf_function" ||
+    payload.kind === "cdf_transformation" ||
+    payload.kind === "cdf_workflow"
+  ) {
+    const drop = cdfResourceDropStage(payload);
+    stage = drop.stage;
+    label = drop.label;
+    const id = nextEtlNodeId(stage, existingIds);
+    const rfType = rfTypeForKind(stage);
+    const node: Node = withEtlNodeDimensions(
+      {
+        id,
+        type: rfType,
+        position: flowPosition,
+        data: {
+          kind: stage,
+          label,
+          config: drop.config,
+        },
+      },
+      stage
+    );
+    return { node, rfType };
+  }
+  return null;
 }
 
 export type MaterializedEtlStage = {
@@ -207,22 +246,22 @@ export type ApplyTransformCanvasDropResult = {
   selectNodeId: string;
 };
 
-function seedFieldMapNodeIfOnEdge(node: Node, getNode: GetNode, edge: Edge | null): Node {
+function seedJsonMappingNodeIfOnEdge(node: Node, edge: Edge | null): Node {
   const data = (node.data ?? {}) as Record<string, unknown>;
   const kind = (data.kind as TransformCanvasNodeKind | undefined) ?? rfTypeToKind(node.type);
-  if (kind !== "field_map" || !edge) return node;
-  const source = getNode(edge.source);
-  const target = getNode(edge.target);
-  if (!source || !target) return node;
-  const mappings = seedMappingsBetweenNodes(source, target);
-  const base = defaultFieldMapNodeConfig();
+  if (kind !== "json_mapping" || !edge) return node;
+  const sourceId = edge.source?.trim();
+  if (!sourceId) return node;
+  const base = defaultJsonMappingNodeConfig();
+  const ref = workflowOutputRef(sourceId);
   return {
     ...node,
     data: {
       ...data,
       config: {
         ...base,
-        mappings: mappings.length > 0 ? mappings : base.mappings,
+        input: { data: ref },
+        expression: "input.data",
       },
     },
   };
@@ -242,7 +281,7 @@ function insertMaterializedNode(
       ? candidateEdge
       : null;
 
-  const seededNode = seedFieldMapNodeIfOnEdge(node, getNode, hitEdge);
+  const seededNode = seedJsonMappingNodeIfOnEdge(node, hitEdge);
   const allNodesForEnd = [...nodes, seededNode];
   const toEnd = persistenceOutboundEdgesToEnd(rfType, seededNode.id, allNodesForEnd);
 
@@ -281,7 +320,7 @@ function materializeEntityDropNode(
   position: { x: number; y: number },
   existingIds: Set<string>
 ): MaterializedDrop {
-  const label = treeNode.label.trim() || defaultLabelForKind(stage);
+  const label = treeNode.label.trim();
   const config = seedConfigForEntityDrop(treeNode, stage);
   const id = nextEtlNodeId(stage, existingIds);
   existingIds.add(id);
@@ -367,19 +406,29 @@ export function applyEntityCanvasDropPair(
   };
 }
 
-/** Apply palette drop; returns updated graph when handled. Data tree drops use applyEntityCanvasDrop after prompting. */
-export function applyTransformCanvasDrop(
-  input: ApplyTransformCanvasDropInput
+/** Apply palette drop at a flow position; returns updated graph when handled. */
+export function applyTransformCanvasDropAtPosition(
+  flowPosition: { x: number; y: number },
+  payload: NonNullable<ReturnType<typeof getTransformFlowDropPayload>>,
+  input: Omit<ApplyTransformCanvasDropInput, "event" | "screenToFlowPosition">
 ): ApplyTransformCanvasDropResult | null {
-  const { event, screenToFlowPosition, nodes } = input;
-  const payload = getTransformFlowDropPayload(event);
-  if (!payload || payload.kind !== "etl_stage") return null;
-
-  const flowPosition = screenToFlowPosition({ x: event.clientX, y: event.clientY });
+  const { nodes } = input;
   const existingIds = new Set(nodes.map((n) => n.id));
   const materialized = materializeDropNode(payload, flowPosition, existingIds);
   if (!materialized) return null;
 
   const { node, rfType } = materialized;
   return insertMaterializedNode(node, rfType, flowPosition, input);
+}
+
+/** Apply palette drop; returns updated graph when handled. Data tree drops use applyEntityCanvasDrop after prompting. */
+export function applyTransformCanvasDrop(
+  input: ApplyTransformCanvasDropInput
+): ApplyTransformCanvasDropResult | null {
+  const { event, screenToFlowPosition } = input;
+  const payload = getTransformFlowDropPayload(event);
+  if (!payload || payload.kind !== "etl_stage") return null;
+
+  const flowPosition = screenToFlowPosition({ x: event.clientX, y: event.clientY });
+  return applyTransformCanvasDropAtPosition(flowPosition, payload, input);
 }

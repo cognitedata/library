@@ -1,7 +1,13 @@
 import type { MessageKey } from "../i18n";
 import type { TreeNode } from "../types/discoveryNodes";
 import { governanceArtifactCreateContextFromNode } from "./governanceTreeNew";
-import { DATA_SAVED_QUERIES, TRANSFORM_PIPELINE_PREFIX, TRANSFORM_ROOT, TRANSFORM_TEMPLATE_PREFIX } from "./treeNodeIds";
+import {
+  DATA_SAVED_QUERIES,
+  TRANSFORM_PIPELINE_PREFIX,
+  TRANSFORM_PIPELINES,
+  TRANSFORM_ROOT,
+  TRANSFORM_TEMPLATE_PREFIX,
+} from "./treeNodeIds";
 import { templateIdFromNode } from "./transformTabs";
 
 export type TreeToolbarNewAction =
@@ -39,6 +45,7 @@ export function resolveTreeToolbarNewAction(
 
   if (
     node.id === TRANSFORM_ROOT ||
+    node.id === TRANSFORM_PIPELINES ||
     node.kind === "etl_pipeline" ||
     node.id.startsWith(TRANSFORM_PIPELINE_PREFIX)
   ) {

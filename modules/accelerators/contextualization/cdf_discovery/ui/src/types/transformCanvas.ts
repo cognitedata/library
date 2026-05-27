@@ -36,21 +36,26 @@ export type TransformCanvasNodeKind =
   | "query_raw"
   | "query_classic"
   | "query_sql"
+  | "query_records"
   | "score"
   | "transform"
   | "filter"
-  | "field_map"
+  | "json_mapping"
   | "join"
   | "merge"
   | "build_index"
   | "save_view"
   | "save_raw"
   | "save_classic"
+  | "save_records"
+  | "save_stream"
   | "raw_cleanup"
   | "spark_transform"
   | "transformation_ref"
   | "function_ref"
   | "dynamic_fanout"
+  | "file_annotation"
+  | "workflow_fanout_plan"
   | "subworkflow"
   | "simulation"
   | "cdf_task"
@@ -63,21 +68,26 @@ export type TransformCanvasNodeRfType =
   | "etlQueryRaw"
   | "etlQueryClassic"
   | "etlQuerySql"
+  | "etlQueryRecords"
   | "etlScore"
   | "etlTransform"
   | "etlFilter"
-  | "etlFieldMap"
+  | "etlJsonMapping"
   | "etlJoin"
   | "etlMerge"
   | "etlBuildIndex"
   | "etlSaveView"
   | "etlSaveRaw"
   | "etlSaveClassic"
+  | "etlSaveRecords"
+  | "etlSaveStream"
   | "etlRawCleanup"
   | "etlSparkTransform"
   | "etlTransformationRef"
   | "etlFunctionRef"
   | "etlDynamicFanout"
+  | "etlFileAnnotation"
+  | "etlWorkflowFanoutPlan"
   | "etlSubworkflow"
   | "etlSimulation"
   | "etlCdfTask"
@@ -90,21 +100,26 @@ const KIND_TO_RF: Record<TransformCanvasNodeKind, TransformCanvasNodeRfType> = {
   query_raw: "etlQueryRaw",
   query_classic: "etlQueryClassic",
   query_sql: "etlQuerySql",
+  query_records: "etlQueryRecords",
   score: "etlScore",
   transform: "etlTransform",
   filter: "etlFilter",
-  field_map: "etlFieldMap",
+  json_mapping: "etlJsonMapping",
   join: "etlJoin",
   merge: "etlMerge",
   build_index: "etlBuildIndex",
   save_view: "etlSaveView",
   save_raw: "etlSaveRaw",
   save_classic: "etlSaveClassic",
+  save_records: "etlSaveRecords",
+  save_stream: "etlSaveStream",
   raw_cleanup: "etlRawCleanup",
   spark_transform: "etlSparkTransform",
   transformation_ref: "etlTransformationRef",
   function_ref: "etlFunctionRef",
   dynamic_fanout: "etlDynamicFanout",
+  file_annotation: "etlFileAnnotation",
+  workflow_fanout_plan: "etlWorkflowFanoutPlan",
   subworkflow: "etlSubworkflow",
   simulation: "etlSimulation",
   cdf_task: "etlCdfTask",
@@ -187,9 +202,9 @@ export type TransformPipelineDocument = {
 
 export function defaultStartNodeData(): TransformCanvasNodeData {
   return {
-    label: "Workflow trigger",
+    label: "",
     config: {
-      description: "Workflow trigger",
+      description: "",
       trigger_type: "schedule",
       cron_expression: "0 2 * * *",
       workflow_version: "1",
@@ -204,9 +219,9 @@ export function defaultStartNodeData(): TransformCanvasNodeData {
 
 export function defaultEndNodeData(): TransformCanvasNodeData {
   return {
-    label: "End",
+    label: "",
     config: {
-      description: "Post-run cohort RAW cleanup",
+      description: "",
     },
   };
 }
@@ -233,21 +248,26 @@ export const TRANSFORM_PALETTE_STAGES: TransformCanvasNodeKind[] = [
   "query_raw",
   "query_classic",
   "query_sql",
+  "query_records",
   "transform",
   "score",
   "filter",
-  "field_map",
+  "json_mapping",
   "join",
   "merge",
   "build_index",
   "save_view",
   "save_raw",
   "save_classic",
+  "save_records",
+  "save_stream",
   "spark_transform",
   "function_ref",
   "transformation_ref",
   "subworkflow",
   "dynamic_fanout",
+  "file_annotation",
+  "workflow_fanout_plan",
   "simulation",
   "cdf_task",
 ];

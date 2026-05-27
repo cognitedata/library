@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { createTransformPipeline, fetchTransformTemplates } from "../../api";
+import { ModalDialogShell } from "../ModalDialogShell";
 import { useAppSettings } from "../../context/AppSettingsContext";
 
 const PIPELINE_ID_RE = /^[a-z][a-z0-9_]{0,127}$/;
@@ -69,17 +70,14 @@ export function CreatePipelineDialog({ open, onClose, onCreated, initialTemplate
     }
   }, [pipelineId, label, templateId, onClose, onCreated, t]);
 
-  if (!open) return null;
-
   return (
-    <div className="gov-modal-backdrop" role="presentation" onClick={onClose}>
-      <div
-        className="gov-modal transform-create-pipeline-modal"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="create-pipeline-title"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <ModalDialogShell
+      open={open}
+      onClose={onClose}
+      titleId="create-pipeline-title"
+      closeOnEscape={!submitting}
+      dialogClassName="gov-modal transform-create-pipeline-modal"
+    >
         <h2 id="create-pipeline-title" className="gov-modal__title">
           {t("transform.pipelines.newTitle")}
         </h2>
@@ -137,7 +135,6 @@ export function CreatePipelineDialog({ open, onClose, onCreated, initialTemplate
             {submitting ? t("transform.pipelines.creating") : t("transform.pipelines.create")}
           </button>
         </div>
-      </div>
-    </div>
+    </ModalDialogShell>
   );
 }

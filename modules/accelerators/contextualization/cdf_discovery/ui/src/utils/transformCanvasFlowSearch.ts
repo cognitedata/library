@@ -1,36 +1,9 @@
-import type { TransformCanvasNode, TransformCanvasNodeKind } from "../types/transformCanvas";
-
-const KIND_LABEL: Record<TransformCanvasNodeKind, string> = {
-  start: "Workflow trigger",
-  end: "End",
-  query_view: "View query",
-  query_raw: "RAW query",
-  query_classic: "Classic query",
-  query_sql: "SQL query",
-  score: "Score",
-  transform: "Transform",
-  field_map: "Field map",
-  filter: "Filter",
-  join: "Join",
-  merge: "Merge",
-  build_index: "Build index",
-  save_view: "View save",
-  save_raw: "RAW save",
-  save_classic: "Classic save",
-  raw_cleanup: "RAW cleanup",
-  spark_transform: "Spark transform",
-  transformation_ref: "Transformation ref",
-  function_ref: "Function ref",
-  dynamic_fanout: "Dynamic fan-out",
-  subworkflow: "Sub-workflow",
-  simulation: "Simulation",
-  cdf_task: "CDF task",
-  subgraph: "Subgraph",
-};
-
-export function transformCanvasNodeKindLabel(node: TransformCanvasNode): string {
-  return KIND_LABEL[node.kind] ?? node.kind.replace(/_/g, " ");
-}
+import type { TransformCanvasNode } from "../types/transformCanvas";
+import {
+  canvasNodeDisplayLabel,
+  canvasNodeKindLabel,
+  type CanvasNodeTranslate,
+} from "./canvasNodeKindLabel";
 
 function configSearchBits(config: unknown): string[] {
   if (!config || typeof config !== "object" || Array.isArray(config)) return [];
@@ -59,19 +32,32 @@ function configSearchBits(config: unknown): string[] {
   return bits;
 }
 
-export function transformCanvasNodeDisplayLabel(node: TransformCanvasNode): string {
+export function transformCanvasNodeKindLabel(
+  node: TransformCanvasNode,
+  t: CanvasNodeTranslate
+): string {
+  return canvasNodeKindLabel(node.kind, t);
+}
+
+export function transformCanvasNodeDisplayLabel(
+  node: TransformCanvasNode,
+  t: CanvasNodeTranslate
+): string {
   const label = node.data?.label != null ? String(node.data.label).trim() : "";
   if (label) return label;
   const notes = node.data?.notes != null ? String(node.data.notes).trim() : "";
   if (notes) return notes;
   const desc = configSearchBits(node.data?.config)[0];
   if (desc) return desc;
-  return node.id;
+  return canvasNodeDisplayLabel(node.data, node.kind, t);
 }
 
 /** Canvas node title for run results: ``Label (node_id)`` when label differs from id. */
-export function formatTransformCanvasNodeLabelWithId(node: TransformCanvasNode): string {
-  const label = transformCanvasNodeDisplayLabel(node);
+export function formatTransformCanvasNodeLabelWithId(
+  node: TransformCanvasNode,
+  t: CanvasNodeTranslate
+): string {
+  const label = transformCanvasNodeDisplayLabel(node, t);
   return label !== node.id ? `${label} (${node.id})` : node.id;
 }
 
@@ -88,13 +74,17 @@ export function resolveTransformCanvasNodeForTask(
   return canvas.nodes.find((n) => n.id === taskId) ?? null;
 }
 
-export function transformCanvasNodeMatchesSearch(node: TransformCanvasNode, query: string): boolean {
+export function transformCanvasNodeMatchesSearch(
+  node: TransformCanvasNode,
+  query: string,
+  t: CanvasNodeTranslate
+): boolean {
   const q = query.trim().toLowerCase();
   if (!q) return true;
   const hay = [
     node.id,
-    transformCanvasNodeDisplayLabel(node),
-    transformCanvasNodeKindLabel(node),
+    transformCanvasNodeDisplayLabel(node, t),
+    transformCanvasNodeKindLabel(node, t),
     node.kind,
     node.data?.notes != null ? String(node.data.notes) : "",
     ...configSearchBits(node.data?.config),
@@ -107,9 +97,10 @@ export function transformCanvasNodeMatchesSearch(node: TransformCanvasNode, quer
 
 export function filterTransformCanvasNodesBySearch(
   nodes: TransformCanvasNode[],
-  query: string
+  query: string,
+  t: CanvasNodeTranslate
 ): TransformCanvasNode[] {
   const q = query.trim();
   if (!q) return nodes;
-  return nodes.filter((n) => transformCanvasNodeMatchesSearch(n, query));
+  return nodes.filter((n) => transformCanvasNodeMatchesSearch(n, query, t));
 }

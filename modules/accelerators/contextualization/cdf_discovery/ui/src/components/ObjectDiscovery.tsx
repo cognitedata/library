@@ -5,9 +5,9 @@ import {
   useRef,
   useState,
   type DragEvent,
+  type KeyboardEvent,
   type MouseEvent,
 } from "react";
-import { createPortal } from "react-dom";
 import { fetchTreeChildren } from "../api";
 import { useAppSettings } from "../context/AppSettingsContext";
 import { useDiscoveryConfig } from "../context/DiscoveryConfigContext";
@@ -23,8 +23,9 @@ import { opensTransformTab, pipelineIdFromNode, templateIdFromNode } from "../ut
 import { opensExtractTab, opensMonitorTab } from "../utils/workspaceTabs";
 import { canQueryTreeNode } from "../utils/sqlQuerySeed";
 import { canDropDataTreeEntity } from "../utils/dataTreeEntityDrop";
-import { setDataTreeEntityDragData } from "./transform/transformFlowDrag";
-import { DATA_SAVED_QUERIES, TRANSFORM_ROOT, TRANSFORM_TEMPLATES } from "../utils/treeNodeIds";
+import { canDragCdfResourceToTransformCanvas } from "../utils/cdfResourceDrop";
+import { setCdfResourceDragData, setDataTreeEntityDragData } from "./transform/transformFlowDrag";
+import { DATA_SAVED_QUERIES, TRANSFORM_PIPELINES, TRANSFORM_ROOT, TRANSFORM_TEMPLATES } from "../utils/treeNodeIds";
 import {
   canDragTransformTreeItem,
   endTransformTreeDrag,
@@ -41,6 +42,10 @@ import {
   treeToolbarNewLabels,
   type TreeToolbarNewAction,
 } from "../utils/treeToolbarNew";
+import {
+  TreeContextMenuPortal,
+  type TreeCtxMenuItem,
+} from "./governance/TreeContextMenu";
 
 const ROOT_ID = "connection";
 
@@ -101,6 +106,7 @@ export function ObjectDiscovery({
   const [loading, setLoading] = useState<Set<string>>(new Set());
   const [errors, setErrors] = useState<Map<string, string>>(new Map());
   const [ctxMenu, setCtxMenu] = useState<CtxMenu>(null);
+  const [focusedId, setFocusedId] = useState<string | null>(selectedId);
   const [transformTreeDropTargetId, setTransformTreeDropTargetId] = useState<string | null>(null);
   const abortByNode = useRef<Map<string, AbortController>>(new Map());
   const loadedRef = useRef(loadedIds);
@@ -229,8 +235,12 @@ export function ObjectDiscovery({
   useEffect(() => {
     if (!transformPipelinesRevision) return;
     invalidateSubtree(TRANSFORM_ROOT);
+    invalidateSubtree(TRANSFORM_PIPELINES);
     if (expanded.has(TRANSFORM_ROOT)) {
       void loadChildren(TRANSFORM_ROOT, { force: true });
+    }
+    if (expanded.has(TRANSFORM_PIPELINES)) {
+      void loadChildren(TRANSFORM_PIPELINES, { force: true });
     }
   }, [transformPipelinesRevision, expanded, invalidateSubtree, loadChildren]);
 
@@ -278,6 +288,15 @@ export function ObjectDiscovery({
     [childrenByParent, expanded, loadedIds, filter, rootNode, t]
   );
 
+  const navigableFlat = useMemo(
+    () => flat.filter((row) => !isLoadingPlaceholder(row.node)),
+    [flat]
+  );
+
+  useEffect(() => {
+    if (selectedId) setFocusedId(selectedId);
+  }, [selectedId]);
+
   const selectedTreeNode = useMemo(
     () => (selectedId ? flat.find((row) => row.node.id === selectedId)?.node ?? null : null),
     [flat, selectedId]
@@ -288,13 +307,7 @@ export function ObjectDiscovery({
     [selectedTreeNode]
   );
 
-  const ctxNewAction = useMemo(
-    () => (ctxMenu ? resolveTreeToolbarNewAction(ctxMenu.node) : null),
-    [ctxMenu]
-  );
-
   const toolbarNewLabels = toolbarNewAction ? treeToolbarNewLabels(toolbarNewAction) : null;
-  const ctxNewLabels = ctxNewAction ? treeToolbarNewLabels(ctxNewAction) : null;
 
   const opensDocumentTab = (node: TreeNode) =>
     node.kind === "dm_data_model" ||
@@ -311,49 +324,76 @@ export function ObjectDiscovery({
     if (opensDocumentTab(node) || canQueryTreeNode(node)) onOpenNode(node);
   };
 
-  useEffect(() => {
-    if (!ctxMenu) return;
-    const close = () => setCtxMenu(null);
-    window.addEventListener("click", close);
-    return () => window.removeEventListener("click", close);
-  }, [ctxMenu]);
+  const openContextMenuForNode = useCallback((node: TreeNode, anchor?: HTMLElement | null) => {
+    const el = anchor ?? document.getElementById(`disc-treeitem-${node.id}`);
+    const rect = el?.getBoundingClientRect();
+    setCtxMenu({
+      x: rect?.left ?? 8,
+      y: (rect?.bottom ?? rect?.top ?? 8) + 4,
+      node,
+    });
+  }, []);
 
-  const ctxDeleteQuery =
-    ctxMenu?.node.kind === "saved_query" && onDeleteSavedQuery
-      ? savedQueryFromNode(ctxMenu.node)
-      : null;
+  const focusTreeNode = useCallback((id: string) => {
+    setFocusedId(id);
+    requestAnimationFrame(() => {
+      document.getElementById(`disc-treeitem-${id}`)?.focus();
+    });
+  }, []);
 
-  const ctxDeletePipeline =
-    ctxMenu?.node.kind === "etl_pipeline" && onDeletePipeline
-      ? (() => {
-          const id = pipelineIdFromNode(ctxMenu.node);
-          return id ? { id, label: ctxMenu.node.label } : null;
-        })()
-      : null;
+  const handleTreeKeyDown = useCallback(
+    (e: KeyboardEvent<HTMLUListElement>) => {
+      const currentId = focusedId ?? selectedId ?? navigableFlat[0]?.node.id;
+      if (!currentId) return;
+      const idx = navigableFlat.findIndex((row) => row.node.id === currentId);
+      if (idx < 0) return;
+      const row = navigableFlat[idx];
+      const node = row.node;
 
-  const ctxDeleteTemplate =
-    ctxMenu?.node.kind === "etl_template" && onDeleteTemplate
-      ? (() => {
-          const id = templateIdFromNode(ctxMenu.node);
-          return id ? { id, label: ctxMenu.node.label } : null;
-        })()
-      : null;
-
-  const ctxRenamePipeline =
-    ctxMenu?.node.kind === "etl_pipeline" && onRenamePipeline
-      ? (() => {
-          const id = pipelineIdFromNode(ctxMenu.node);
-          return id ? { id, label: ctxMenu.node.label } : null;
-        })()
-      : null;
-
-  const ctxRenameTemplate =
-    ctxMenu?.node.kind === "etl_template" && onRenameTemplate
-      ? (() => {
-          const id = templateIdFromNode(ctxMenu.node);
-          return id ? { id, label: ctxMenu.node.label } : null;
-        })()
-      : null;
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        const next = navigableFlat[idx + 1];
+        if (next) focusTreeNode(next.node.id);
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        const prev = navigableFlat[idx - 1];
+        if (prev) focusTreeNode(prev.node.id);
+      } else if (e.key === "ArrowRight") {
+        if (node.has_children && !isLoadingPlaceholder(node)) {
+          e.preventDefault();
+          if (!expanded.has(node.id)) {
+            setExpanded((prev) => new Set(prev).add(node.id));
+          }
+        }
+      } else if (e.key === "ArrowLeft") {
+        if (node.has_children && expanded.has(node.id)) {
+          e.preventDefault();
+          setExpanded((prev) => {
+            const next = new Set(prev);
+            next.delete(node.id);
+            return next;
+          });
+        }
+      } else if (e.key === "Enter") {
+        e.preventDefault();
+        onSelectNode(node);
+        openNode(node);
+      } else if (e.key === "ContextMenu" || (e.shiftKey && e.key === "F10")) {
+        e.preventDefault();
+        openContextMenuForNode(node, document.getElementById(`disc-treeitem-${node.id}`));
+      }
+    },
+    [
+      expanded,
+      focusTreeNode,
+      focusedId,
+      navigableFlat,
+      onSelectNode,
+      openContextMenuForNode,
+      openNode,
+      selectedId,
+    ]
+  );
 
   const handleTransformTreeDragOver = useCallback(
     (e: DragEvent, node: TreeNode) => {
@@ -395,15 +435,119 @@ export function ObjectDiscovery({
     [onPipelineDropOnTemplates, onTemplateDropOnPipelines]
   );
 
+  const ctxMenuItems = useMemo((): TreeCtxMenuItem[] => {
+    if (!ctxMenu) return [];
+    const node = ctxMenu.node;
+    const items: TreeCtxMenuItem[] = [];
+    const newAction = resolveTreeToolbarNewAction(node);
+    const newLabels = newAction ? treeToolbarNewLabels(newAction) : null;
+    if (newAction && onTreeNew && newLabels) {
+      items.push({
+        id: "new",
+        label: t(newLabels.labelKey),
+        onSelect: () => onTreeNew(newAction),
+      });
+    }
+    if (!isLoadingPlaceholder(node)) {
+      items.push({
+        id: "star",
+        label: isStarred(node.id) ? t("discovery.unfavorite") : t("discovery.favorite"),
+        onSelect: () => void toggleStar(node.id),
+      });
+    }
+    if (opensDocumentTab(node)) {
+      items.push({
+        id: "open",
+        label: t("discovery.open"),
+        onSelect: () => openNode(node),
+      });
+    }
+    const delQuery =
+      node.kind === "saved_query" && onDeleteSavedQuery ? savedQueryFromNode(node) : null;
+    if (delQuery && onDeleteSavedQuery) {
+      items.push({
+        id: "delete-query",
+        label: t("discovery.delete"),
+        onSelect: () => onDeleteSavedQuery(delQuery),
+      });
+    }
+    const pipeId = node.kind === "etl_pipeline" ? pipelineIdFromNode(node) : null;
+    if (pipeId && onRenamePipeline) {
+      items.push({
+        id: "rename-pipeline",
+        label: t("transform.pipelines.rename"),
+        onSelect: () => onRenamePipeline(pipeId, node.label),
+      });
+    }
+    if (pipeId && onDeletePipeline) {
+      items.push({
+        id: "delete-pipeline",
+        label: t("transform.pipelines.delete"),
+        onSelect: () => void onDeletePipeline(pipeId, node.label),
+      });
+    }
+    const tplId = node.kind === "etl_template" ? templateIdFromNode(node) : null;
+    if (tplId && onRenameTemplate) {
+      items.push({
+        id: "rename-template",
+        label: t("transform.templates.rename"),
+        onSelect: () => onRenameTemplate(tplId, node.label),
+      });
+    }
+    if (tplId && onDeleteTemplate) {
+      items.push({
+        id: "delete-template",
+        label: t("transform.templates.delete"),
+        onSelect: () => void onDeleteTemplate(tplId, node.label),
+      });
+    }
+    if (canQueryTreeNode(node)) {
+      items.push({
+        id: "query",
+        label: t("discovery.query"),
+        onSelect: () => openNode(node),
+      });
+    }
+    if (node.has_children) {
+      items.push({
+        id: "refresh",
+        label: t("discovery.refresh"),
+        onSelect: () => {
+          invalidateSubtree(node.id);
+          void loadChildren(node.id, { force: true });
+        },
+      });
+    }
+    return items;
+  }, [
+    ctxMenu,
+    invalidateSubtree,
+    isStarred,
+    loadChildren,
+    onDeletePipeline,
+    onDeleteSavedQuery,
+    onDeleteTemplate,
+    onRenamePipeline,
+    onRenameTemplate,
+    onTreeNew,
+    openNode,
+    t,
+    toggleStar,
+  ]);
+
   return (
     <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
       <div className="disc-tree-toolbar">
-        <input
-          className="disc-input disc-tree-toolbar__filter"
-          placeholder={t("discovery.filter")}
-          value={filter}
-          onChange={(e) => setFilter(e.target.value)}
-        />
+        <label className="disc-tree-toolbar__filter-label">
+          <span className="disc-visually-hidden">{t("discovery.filter")}</span>
+          <input
+            className="disc-input disc-tree-toolbar__filter"
+            type="search"
+            placeholder={t("discovery.filter")}
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+          />
+        </label>
         {toolbarNewAction && onTreeNew && toolbarNewLabels ? (
           <button
             type="button"
@@ -421,7 +565,12 @@ export function ObjectDiscovery({
             {t("discovery.empty")}
           </p>
         ) : (
-          <ul className="disc-tree-list">
+          <ul
+            className="disc-tree-list"
+            role="tree"
+            aria-label={t("a11y.discoveryTreeLabel")}
+            onKeyDown={handleTreeKeyDown}
+          >
             {flat.map(({ node, depth }) => {
               const isPlaceholder = isLoadingPlaceholder(node);
               const isSel = !isPlaceholder && selectedId === node.id;
@@ -430,9 +579,12 @@ export function ObjectDiscovery({
               const isLoading = loading.has(node.id);
               const isDataTreeDraggable =
                 dataTreeDragEnabled && !isPlaceholder && canDropDataTreeEntity(node);
+              const isCdfResourceDraggable =
+                dataTreeDragEnabled && !isPlaceholder && canDragCdfResourceToTransformCanvas(node);
               const isTransformTreeDraggable =
                 !isPlaceholder && canDragTransformTreeItem(node);
-              const isDraggable = isDataTreeDraggable || isTransformTreeDraggable;
+              const isDraggable =
+                isDataTreeDraggable || isCdfResourceDraggable || isTransformTreeDraggable;
               const transformDropKind = resolveTransformTreeDropTarget(node);
               const transformDropTarget =
                 !isPlaceholder &&
@@ -445,11 +597,7 @@ export function ObjectDiscovery({
                     ? t("transform.treeDrag.dropTemplateOnPipelines")
                     : undefined;
               return (
-                <li
-                  key={node.id}
-                  className="disc-tree-item"
-                  style={{ paddingLeft: depth * 14 }}
-                >
+                <li key={node.id} className="disc-tree-item" role="none" style={{ paddingLeft: depth * 14 }}>
                   <div
                     className={`disc-tree-row${transformDropTarget ? " disc-tree-row--drop-target" : ""}`}
                     onDragOver={
@@ -483,6 +631,11 @@ export function ObjectDiscovery({
                     ) : (
                       <button
                         type="button"
+                        id={`disc-treeitem-${node.id}`}
+                        role="treeitem"
+                        aria-selected={isSel}
+                        aria-expanded={node.has_children ? isExp : undefined}
+                        tabIndex={focusedId === node.id || (focusedId == null && isSel) ? 0 : -1}
                         className={`disc-tree-node${isSel ? " disc-tree-node--selected" : ""}${
                           node.starred || isStarred(node.id) ? " disc-tree-node--starred" : ""
                         }${isDraggable ? " disc-tree-node--draggable" : ""}${
@@ -491,9 +644,13 @@ export function ObjectDiscovery({
                         draggable={isDraggable}
                         title={
                           transformDropHint ??
-                          (isDataTreeDraggable ? t("transform.treeDrag.hint") : isTransformTreeDraggable
-                            ? t("transform.treeDrag.pipelineOrTemplate")
-                            : undefined)
+                          (isCdfResourceDraggable
+                            ? t("transform.treeDrag.cdfResourceHint")
+                            : isDataTreeDraggable
+                              ? t("transform.treeDrag.hint")
+                              : isTransformTreeDraggable
+                                ? t("transform.treeDrag.pipelineOrTemplate")
+                                : undefined)
                         }
                         onDragStart={
                           isDraggable
@@ -501,6 +658,8 @@ export function ObjectDiscovery({
                                 e.stopPropagation();
                                 if (isTransformTreeDraggable) {
                                   setTransformTreeDragData(e, node);
+                                } else if (isCdfResourceDraggable) {
+                                  setCdfResourceDragData(e, node);
                                 } else {
                                   setDataTreeEntityDragData(e, node);
                                 }
@@ -514,11 +673,14 @@ export function ObjectDiscovery({
                               }
                             : undefined
                         }
-                        onClick={() => onSelectNode(node)}
+                        onClick={() => {
+                          setFocusedId(node.id);
+                          onSelectNode(node);
+                        }}
                         onDoubleClick={() => openNode(node)}
                         onContextMenu={(e: MouseEvent) => {
                           e.preventDefault();
-                          setCtxMenu({ x: e.clientX, y: e.clientY, node });
+                          openContextMenuForNode(node, e.currentTarget as HTMLElement);
                         }}
                       >
                         {(node.starred || isStarred(node.id)) && (
@@ -537,146 +699,11 @@ export function ObjectDiscovery({
           </ul>
         )}
       </div>
-      {ctxMenu &&
-        createPortal(
-          <ul
-            className="disc-ctx-menu"
-            style={{ left: ctxMenu.x, top: ctxMenu.y }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            {ctxNewAction && onTreeNew && ctxNewLabels ? (
-              <li>
-                <button
-                  type="button"
-                  onClick={() => {
-                    onTreeNew(ctxNewAction);
-                    setCtxMenu(null);
-                  }}
-                >
-                  {t(ctxNewLabels.labelKey)}
-                </button>
-              </li>
-            ) : null}
-            {!isLoadingPlaceholder(ctxMenu.node) && (
-              <li>
-                <button
-                  type="button"
-                  onClick={() => {
-                    void toggleStar(ctxMenu.node.id).finally(() => setCtxMenu(null));
-                  }}
-                >
-                  {isStarred(ctxMenu.node.id) ? t("discovery.unfavorite") : t("discovery.favorite")}
-                </button>
-              </li>
-            )}
-            {opensDocumentTab(ctxMenu.node) && (
-              <li>
-                <button
-                  type="button"
-                  onClick={() => {
-                    openNode(ctxMenu.node);
-                    setCtxMenu(null);
-                  }}
-                >
-                  {t("discovery.open")}
-                </button>
-              </li>
-            )}
-            {ctxDeleteQuery && onDeleteSavedQuery && (
-              <li>
-                <button
-                  type="button"
-                  onClick={() => {
-                    onDeleteSavedQuery(ctxDeleteQuery);
-                    setCtxMenu(null);
-                  }}
-                >
-                  {t("discovery.delete")}
-                </button>
-              </li>
-            )}
-            {ctxRenamePipeline && onRenamePipeline && (
-              <li>
-                <button
-                  type="button"
-                  onClick={() => {
-                    onRenamePipeline(ctxRenamePipeline.id, ctxRenamePipeline.label);
-                    setCtxMenu(null);
-                  }}
-                >
-                  {t("transform.pipelines.rename")}
-                </button>
-              </li>
-            )}
-            {ctxDeletePipeline && onDeletePipeline && (
-              <li>
-                <button
-                  type="button"
-                  onClick={() => {
-                    void onDeletePipeline(ctxDeletePipeline.id, ctxDeletePipeline.label);
-                    setCtxMenu(null);
-                  }}
-                >
-                  {t("transform.pipelines.delete")}
-                </button>
-              </li>
-            )}
-            {ctxRenameTemplate && onRenameTemplate && (
-              <li>
-                <button
-                  type="button"
-                  onClick={() => {
-                    onRenameTemplate(ctxRenameTemplate.id, ctxRenameTemplate.label);
-                    setCtxMenu(null);
-                  }}
-                >
-                  {t("transform.templates.rename")}
-                </button>
-              </li>
-            )}
-            {ctxDeleteTemplate && onDeleteTemplate && (
-              <li>
-                <button
-                  type="button"
-                  onClick={() => {
-                    void onDeleteTemplate(ctxDeleteTemplate.id, ctxDeleteTemplate.label);
-                    setCtxMenu(null);
-                  }}
-                >
-                  {t("transform.templates.delete")}
-                </button>
-              </li>
-            )}
-            {canQueryTreeNode(ctxMenu.node) && (
-              <li>
-                <button
-                  type="button"
-                  onClick={() => {
-                    openNode(ctxMenu.node);
-                    setCtxMenu(null);
-                  }}
-                >
-                  {t("discovery.query")}
-                </button>
-              </li>
-            )}
-            {ctxMenu.node.has_children && (
-              <li>
-                <button
-                  type="button"
-                  onClick={() => {
-                    invalidateSubtree(ctxMenu.node.id);
-                    void loadChildren(ctxMenu.node.id, { force: true });
-                    setCtxMenu(null);
-                  }}
-                >
-                  {t("discovery.refresh")}
-                </button>
-              </li>
-            )}
-          </ul>,
-          document.body
-        )}
+      <TreeContextMenuPortal
+        menu={ctxMenu ? { x: ctxMenu.x, y: ctxMenu.y, items: ctxMenuItems } : null}
+        onClose={() => setCtxMenu(null)}
+        classPrefix="disc"
+      />
     </div>
   );
 }

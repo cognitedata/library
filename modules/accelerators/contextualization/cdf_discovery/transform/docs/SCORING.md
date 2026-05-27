@@ -8,4 +8,4 @@ Libraries:
 - `etl_score_match_eval.apply_score_match_rules_to_float_scores`
 - `etl_score_validate.score_row_properties`
 
-Configure tasks with `scoring_rules` and optional `score_fields`.
+Configure tasks with `scoring_rules` and required `score_fields` (or `score_field`).

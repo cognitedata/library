@@ -187,6 +187,8 @@ export function SparkTransformConfigFields({ value, onChange, fieldKey, nodeId }
             value={sqlQuery}
             theme={theme}
             height={editorHeight}
+            ariaLabel={t("sql.editor.label")}
+            shortcutsHint={t("sql.editor.shortcutsDesc")}
             placeholder={t("transform.query.sqlPlaceholder")}
             onChange={(q) => patch({ query: q })}
             onRun={() => void run()}

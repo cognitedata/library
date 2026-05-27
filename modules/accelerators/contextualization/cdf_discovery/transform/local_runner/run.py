@@ -51,6 +51,7 @@ def run_pipeline_document(
     dry_run: bool = False,
     predecessor_mode: str | None = None,
     incremental_change_processing: bool = True,
+    max_workers: int | None = None,
     logger: logging.Logger | None = None,
 ) -> Dict[str, Any]:
     """Execute ``compiled_workflow`` from an in-memory pipeline document."""
@@ -72,6 +73,7 @@ def run_pipeline_document(
         "configuration": working,
         "compiled_workflow": compiled,
         "incremental_change_processing": incremental_change_processing,
+        "dry_run": dry_run,
     }
     merge_pipeline_runtime(shared, working)
     if not incremental_change_processing:
@@ -84,10 +86,11 @@ def run_pipeline_document(
         seed_predecessor_mode(shared, MODE_IN_MEMORY if dry_run else MODE_COHORT)
     run_id = ensure_shared_run_id(shared)
     log.info(
-        "Local pipeline run_id=%s dry_run=%s predecessor_mode=%s",
+        "Local pipeline run_id=%s dry_run=%s predecessor_mode=%s max_workers=%s",
         run_id,
         dry_run,
         shared.get("local_predecessor_mode"),
+        max_workers,
     )
 
     with ui_progress_log_forwarding():
@@ -97,6 +100,7 @@ def run_pipeline_document(
             logger=log,
             shared_data=shared,
             dry_run=dry_run,
+            max_workers=max_workers,
         )
     return {
         "run_id": run_id,
@@ -111,6 +115,7 @@ def run_pipeline(
     dry_run: bool = False,
     predecessor_mode: str | None = None,
     incremental_change_processing: bool = True,
+    max_workers: int | None = None,
 ) -> Dict[str, Any]:
     doc = load_pipeline_instance(instance_path)
     logger = logging.getLogger("etl.run")
@@ -119,6 +124,7 @@ def run_pipeline(
         dry_run=dry_run,
         predecessor_mode=predecessor_mode,
         incremental_change_processing=incremental_change_processing,
+        max_workers=max_workers,
         logger=logger,
     )
 
@@ -158,6 +164,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         default=None,
         help="Hand off rows via RAW cohort tables (default for live runs) or in-memory buffer",
     )
+    parser.add_argument(
+        "--max-workers",
+        type=int,
+        default=None,
+        help="Max parallel tasks per DAG layer (default: min(4, layer size); 1=serial)",
+    )
     args = parser.parse_args(list(argv) if argv is not None else None)
 
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
@@ -195,6 +207,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             dry_run=args.dry_run,
             predecessor_mode=args.predecessor_mode,
             incremental_change_processing=args.incremental_change_processing,
+            max_workers=args.max_workers,
         )
     except Exception as ex:
         logging.error("%s: %s", type(ex).__name__, ex)

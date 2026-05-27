@@ -117,7 +117,7 @@ export function IndexKindsEditor({ t, indexKinds, onChange }: Props) {
                     }}
                     spellCheck={false}
                     autoComplete="off"
-                    placeholder="metadata"
+                    placeholder={t("transform.buildIndex.placeholder.indexKind")}
                   />
                 </label>
                 <button
@@ -157,7 +157,7 @@ export function IndexKindsEditor({ t, indexKinds, onChange }: Props) {
                       }}
                       spellCheck={false}
                       autoComplete="off"
-                      placeholder="indexKey"
+                      placeholder={t("transform.buildIndex.placeholder.indexKey")}
                     />
                   </label>
                   <button

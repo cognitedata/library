@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { ModalDialogShell } from "../ModalDialogShell";
 import { useAppSettings } from "../../context/AppSettingsContext";
 import type {
   DimensionBlock,
@@ -309,9 +310,15 @@ export function DimensionsEditor({ doc, onChange }: Props) {
       </div>
 
       {createOpen && (
-        <div className="gov-modal-backdrop" role="dialog" aria-modal="true">
-          <div className="gov-modal">
-            <h2 className="gov-modal__title">{t("dimensions.dialogCreateTitle")}</h2>
+        <ModalDialogShell
+          open={createOpen}
+          onClose={() => setCreateOpen(false)}
+          titleId="dimensions-create-dialog-title"
+          dialogClassName="gov-modal"
+        >
+            <h2 id="dimensions-create-dialog-title" className="gov-modal__title">
+              {t("dimensions.dialogCreateTitle")}
+            </h2>
             <label className="gov-label" title={t("dimensions.field.namingPreset.tooltip")}>
               {t("dimensions.field.namingPreset")}
               <select
@@ -356,12 +363,15 @@ export function DimensionsEditor({ doc, onChange }: Props) {
               </select>
             </label>
             {newType === "other" && (
-              <textarea
-                className="gov-textarea"
-                rows={6}
-                value={otherJson}
-                onChange={(e) => setOtherJson(e.target.value)}
-              />
+              <label className="gov-label">
+                {t("dimensions.field.otherJson")}
+                <textarea
+                  className="gov-textarea"
+                  rows={6}
+                  value={otherJson}
+                  onChange={(e) => setOtherJson(e.target.value)}
+                />
+              </label>
             )}
             <div className="gov-modal__actions">
               <button type="button" className="gov-btn" onClick={() => setCreateOpen(false)}>
@@ -371,8 +381,7 @@ export function DimensionsEditor({ doc, onChange }: Props) {
                 {t("dimensions.dialogSubmit")}
               </button>
             </div>
-          </div>
-        </div>
+        </ModalDialogShell>
       )}
     </div>
   );

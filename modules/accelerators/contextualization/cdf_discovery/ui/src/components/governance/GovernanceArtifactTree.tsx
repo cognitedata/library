@@ -111,6 +111,7 @@ function ArtifactTreeRows({
         <button
           type="button"
           role="treeitem"
+          aria-selected={active}
           className={`disc-gov-artifact-item${active ? " disc-gov-artifact-item--active" : ""}`}
           style={{ paddingLeft: `${8 + depth * 14}px` }}
           onClick={() => onSelectFile(node.rel)}
@@ -137,6 +138,8 @@ function ArtifactTreeRows({
         <button
           type="button"
           role="treeitem"
+          aria-expanded={isOpen}
+          aria-selected={false}
           className="disc-gov-art-tree-dir-label"
           onClick={() => onToggleDir(node.relPath)}
         >

@@ -2,6 +2,9 @@ import { useEffect, useMemo, useState } from "react";
 import type { CSSProperties } from "react";
 import { fetchContainerDetail, fetchEdgeDetail, fetchNodeDetail } from "../api";
 import { PanelDragHandle } from "./PanelDragHandle";
+import { PropertiesPanelDockMenu } from "./PanelDockToggleButtons";
+import { PanelHeaderActions, panelHeaderMenuTriggerId } from "./PanelHeaderActions";
+import type { PropertiesPanelDock } from "../hooks/useDiscoveryPanelLayout";
 import { PropertyViewer } from "./PropertyViewer";
 import { useAppSettings } from "../context/AppSettingsContext";
 import type { TreeNode } from "../types/discoveryNodes";
@@ -30,6 +33,8 @@ type Props = {
   onPanelDragEnd: () => void;
   onQueryFile?: (row: Record<string, unknown>) => void;
   onDownloadFile?: (row: Record<string, unknown>) => void | Promise<void>;
+  propertiesDock: PropertiesPanelDock;
+  onDockProperties: (dock: PropertiesPanelDock) => void;
 };
 
 const TREE_PREFERRED_KEYS = ["kind", "id", "label"];
@@ -234,6 +239,8 @@ export function PropertiesPanel({
   onPanelDragEnd,
   onQueryFile,
   onDownloadFile,
+  propertiesDock,
+  onDockProperties,
 }: Props) {
   const { t } = useAppSettings();
   const [downloading, setDownloading] = useState(false);
@@ -275,6 +282,7 @@ export function PropertiesPanel({
         <PanelDragHandle
           panel="properties"
           labelKey="layout.dragHandle.properties"
+          dockMenuTriggerId={panelHeaderMenuTriggerId("disc-properties-panel-menu")}
           onDragStart={() => onPanelDragStart()}
           onDragEnd={onPanelDragEnd}
         />
@@ -305,9 +313,19 @@ export function PropertiesPanel({
               {downloading ? t("sql.downloadFileInProgress") : t("sql.downloadFile")}
             </button>
           )}
-          <button type="button" className="disc-btn" onClick={onToggleCollapse}>
-            {collapsed ? t("properties.show") : t("properties.collapse")}
-          </button>
+          <PanelHeaderActions
+            menuId="disc-properties-panel-menu"
+            menuLabelKey="layout.panelMenu.properties"
+            collapsed={collapsed}
+            collapseLabelKey="properties.collapse"
+            expandLabelKey="properties.show"
+            onToggleCollapse={onToggleCollapse}
+          >
+            <PropertiesPanelDockMenu
+              propertiesDock={propertiesDock}
+              onDockProperties={onDockProperties}
+            />
+          </PanelHeaderActions>
         </div>
       </div>
       {!collapsed && (

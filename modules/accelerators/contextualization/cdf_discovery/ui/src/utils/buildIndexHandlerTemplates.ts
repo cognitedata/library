@@ -2,19 +2,32 @@ import type { MessageKey } from "../i18n/types";
 import type { BuildIndexHandlerId } from "../components/transform/etlBuildIndexHandlerRegistry";
 import { isBuildIndexHandlerId } from "../components/transform/etlBuildIndexHandlerRegistry";
 
+export const DEFAULT_INVERTED_INDEX_ROW_KEY_TEMPLATE = "{lookup_key}:{scope}|{index_kind}";
+
 const BUILD_INDEX_DEFAULTS: Record<BuildIndexHandlerId, Record<string, unknown>> = {
   property_token_index: {
     lookup_key_normalization: "strip_casefold",
     token_initial_confidence: 1.0,
-    row_key_template: "{index_kind}:{lookup_key}",
+    row_key_template: DEFAULT_INVERTED_INDEX_ROW_KEY_TEMPLATE,
     query_source: "build_index",
     default_view_version: "v1",
     index_kinds: {},
+  },
+  annotation_vertex_index: {
+    lookup_key_normalization: "strip",
+    token_initial_confidence: 1.0,
+    row_key_template: DEFAULT_INVERTED_INDEX_ROW_KEY_TEMPLATE,
+    query_source: "build_index",
+    default_view_version: "v1",
+    include_region_vertices: true,
+    include_bounding_box: true,
+    index_kinds: { annotation: ["text"] },
   },
 };
 
 const BUILD_INDEX_DOC: Record<BuildIndexHandlerId, MessageKey> = {
   property_token_index: "buildIndex.handlerDoc.property_token_index",
+  annotation_vertex_index: "buildIndex.handlerDoc.annotation_vertex_index",
 };
 
 export function defaultBuildIndexHandlerBlock(handler: BuildIndexHandlerId): Record<string, unknown> {
@@ -27,7 +40,7 @@ export function defaultBuildIndexNodeConfig(
   return {
     description: "Build inverted index",
     handler_id: handler,
-    index_kinds: { metadata: ["indexKey"] },
+    index_kinds: {},
     [handler]: defaultBuildIndexHandlerBlock(handler),
   };
 }

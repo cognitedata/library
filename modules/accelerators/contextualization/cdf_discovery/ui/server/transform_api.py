@@ -898,6 +898,29 @@ def raw_query_preview(body: QueryPreviewRequest) -> Dict[str, Any]:
         raise HTTPException(status_code=502, detail=str(e)) from e
 
 
+@router.post("/records-query/preview")
+def records_query_preview(body: QueryPreviewRequest) -> Dict[str, Any]:
+    _ensure_transform_fn_path()
+    from cdf_fn_common.query_preview import run_records_query_preview
+
+    client = _cdf_client()
+    try:
+        return run_records_query_preview(client, body.config, limit=body.limit)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=str(e)) from e
+
+
+@router.post("/records-save/preview")
+def records_save_preview(body: QueryPreviewRequest) -> Dict[str, Any]:
+    _ensure_transform_fn_path()
+    from cdf_fn_common.query_preview import validate_records_save_preview
+
+    try:
+        return validate_records_save_preview(body.config)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=str(e)) from e
+
+
 @router.post("/classic-query/preview")
 def classic_query_preview(body: QueryPreviewRequest) -> Dict[str, Any]:
     _ensure_transform_fn_path()

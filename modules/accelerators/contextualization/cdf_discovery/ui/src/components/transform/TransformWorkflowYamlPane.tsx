@@ -54,6 +54,9 @@ export function TransformWorkflowYamlPane({ tab, onTabUpdate }: Props) {
   }, [tab.relPath]);
 
   useEffect(() => {
+    setContent("");
+    setSavedSnapshot("");
+    savedSnapshotRef.current = "";
     void load();
   }, [load]);
 
@@ -84,11 +87,16 @@ export function TransformWorkflowYamlPane({ tab, onTabUpdate }: Props) {
 
   const onContentChange = useCallback((next: string) => {
     setContent(next);
-    onTabUpdateRef.current({
-      ...tabRef.current,
-      dirty: next !== savedSnapshotRef.current,
-    });
   }, []);
+
+  useEffect(() => {
+    const id = window.setTimeout(() => {
+      const dirty = content !== savedSnapshotRef.current;
+      if (tabRef.current.dirty === dirty) return;
+      onTabUpdateRef.current({ ...tabRef.current, dirty });
+    }, 300);
+    return () => window.clearTimeout(id);
+  }, [content]);
 
   return (
     <div className="disc-gov-pane transform-workflow-yaml-pane">

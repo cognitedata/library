@@ -108,9 +108,9 @@ export function defaultTransformStep(existing: JsonObject[]): JsonObject {
     description: "",
     handler_id: handler,
     enabled: true,
-    fields: [{ field_name: "name" }],
-    output_field: "aliases",
-    output_template: "{name}",
+    fields: [{ field_name: "" }],
+    output_field: "",
+    output_template: "",
     output_mode: "append",
     // Runtime default input_mode is cumulative (merge predecessor + sink cohort row).
     [handler]: {},

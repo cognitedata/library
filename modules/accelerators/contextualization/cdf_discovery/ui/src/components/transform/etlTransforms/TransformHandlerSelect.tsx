@@ -15,32 +15,47 @@ type Props = {
   style?: CSSProperties;
 };
 
+function HandlerOptions({ ids }: { ids: readonly string[] }) {
+  return (
+    <>
+      {ids.map((h) => (
+        <option key={h} value={h}>
+          {h}
+        </option>
+      ))}
+    </>
+  );
+}
+
 export function TransformHandlerSelect({
   value,
   onChange,
   unsetLabel,
-  coreGroupLabel = "Core",
-  eltGroupLabel = "ELT",
+  coreGroupLabel,
+  eltGroupLabel,
   className = "gov-input",
   style,
 }: Props) {
+  const coreLabel = coreGroupLabel?.trim() ?? "";
+  const eltLabel = eltGroupLabel?.trim() ?? "";
+
   return (
     <select className={className} style={style} value={value} onChange={(e) => onChange(e.target.value)}>
       {unsetLabel ? <option value="">{unsetLabel}</option> : null}
-      <optgroup label={coreGroupLabel}>
-        {CORE_TRANSFORM_HANDLER_IDS.map((h) => (
-          <option key={h} value={h}>
-            {h}
-          </option>
-        ))}
-      </optgroup>
-      <optgroup label={eltGroupLabel}>
-        {ELT_TRANSFORM_HANDLER_IDS.map((h) => (
-          <option key={h} value={h}>
-            {h}
-          </option>
-        ))}
-      </optgroup>
+      {coreLabel ? (
+        <optgroup label={coreLabel}>
+          <HandlerOptions ids={CORE_TRANSFORM_HANDLER_IDS} />
+        </optgroup>
+      ) : (
+        <HandlerOptions ids={CORE_TRANSFORM_HANDLER_IDS} />
+      )}
+      {eltLabel ? (
+        <optgroup label={eltLabel}>
+          <HandlerOptions ids={ELT_TRANSFORM_HANDLER_IDS} />
+        </optgroup>
+      ) : (
+        <HandlerOptions ids={ELT_TRANSFORM_HANDLER_IDS} />
+      )}
     </select>
   );
 }

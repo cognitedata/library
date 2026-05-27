@@ -95,6 +95,24 @@ def serialize_row(properties: Mapping[str, Any]) -> str:
     return json.dumps(dict(properties), default=str, sort_keys=True)
 
 
+def iter_rows_from_task_buffer(
+    data: Mapping[str, Any],
+    buffer_task_id: str,
+) -> List[Tuple[Dict[str, Any], Dict[str, Any]]]:
+    """Return rows buffered for a completed task (local in-memory DAG handoff)."""
+    buffers = data.get("etl_task_row_buffers")
+    if not isinstance(buffers, dict):
+        return []
+    raw = buffers.get(str(buffer_task_id).strip())
+    if not isinstance(raw, list):
+        return []
+    out: List[Tuple[Dict[str, Any], Dict[str, Any]]] = []
+    for item in raw:
+        if isinstance(item, dict) and isinstance(item.get("properties"), dict):
+            out.append((dict(item.get("columns") or {}), dict(item["properties"])))
+    return out
+
+
 def iter_predecessor_rows(data: Mapping[str, Any]) -> List[Tuple[Dict[str, Any], Dict[str, Any]]]:
     """Return ``(columns, properties)`` rows from in-memory predecessor buffer or RAW stub."""
     buf = data.get("_predecessor_rows")
@@ -106,3 +124,21 @@ def iter_predecessor_rows(data: Mapping[str, Any]) -> List[Tuple[Dict[str, Any],
                 out.append((cols, dict(item["properties"])))
         return out
     return []
+
+
+def iter_predecessor_rows_for_task(
+    data: Mapping[str, Any],
+    task_id: str,
+) -> List[Tuple[Dict[str, Any], Dict[str, Any]]]:
+    """
+    Rows from direct compiled-workflow predecessors (``etl_task_row_buffers``),
+    else the task-local ``_predecessor_rows`` buffer.
+    """
+    from cdf_fn_common.etl_cohort_storage import predecessor_canvas_node_ids
+
+    out: List[Tuple[Dict[str, Any], Dict[str, Any]]] = []
+    for pred_tid in predecessor_canvas_node_ids(data, task_id):
+        out.extend(iter_rows_from_task_buffer(data, pred_tid))
+    if out:
+        return out
+    return iter_predecessor_rows(data)

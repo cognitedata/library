@@ -33,7 +33,7 @@ export function TransformCanvasSearchField({
       />
     </label>
   );
-}
+};
 
 type SearchResultsProps = {
   t: TFn;
@@ -69,10 +69,10 @@ export function TransformCanvasSearchResults({
                 onClick={() => onSelectNode(cn.id)}
               >
                 <span className="disc-dm-flow-search-results__name">
-                  {transformCanvasNodeDisplayLabel(cn)}
+                  {transformCanvasNodeDisplayLabel(cn, t)}
                 </span>
                 <span className="disc-dm-flow-search-results__meta">
-                  {transformCanvasNodeKindLabel(cn)}
+                  {transformCanvasNodeKindLabel(cn, t)}
                 </span>
               </button>
             </li>
@@ -80,5 +80,47 @@ export function TransformCanvasSearchResults({
         </ul>
       )}
     </div>
+  );
+}
+
+type NodeListProps = {
+  t: TFn;
+  nodes: TransformCanvasNode[];
+  selectedNodeId: string | null;
+  onSelectNode: (nodeId: string) => void;
+};
+
+/** Keyboard-accessible list of all canvas nodes (complement to the graph). */
+export function TransformCanvasNodeList({ t, nodes, selectedNodeId, onSelectNode }: NodeListProps) {
+  if (nodes.length === 0) return null;
+  return (
+    <section
+      className="disc-flow-node-list transform-flow-node-list"
+      aria-label={t("transform.nodeList.regionLabel")}
+    >
+      <p className="disc-flow-node-list__hint">{t("transform.nodeList.allNodesHint")}</p>
+      <ul className="disc-dm-flow-search-results__list">
+        {nodes.map((cn) => (
+          <li key={cn.id}>
+            <button
+              type="button"
+              className={
+                selectedNodeId === cn.id
+                  ? "disc-dm-flow-search-results__item disc-dm-flow-search-results__item--active"
+                  : "disc-dm-flow-search-results__item"
+              }
+              onClick={() => onSelectNode(cn.id)}
+            >
+              <span className="disc-dm-flow-search-results__name">
+                {transformCanvasNodeDisplayLabel(cn, t)}
+              </span>
+              <span className="disc-dm-flow-search-results__meta">
+                {transformCanvasNodeKindLabel(cn, t)}
+              </span>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }

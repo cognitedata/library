@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { ModalDialogShell } from "../ModalDialogShell";
 import { saveTransformPipelineAsTemplate } from "../../api";
 import { useAppSettings } from "../../context/AppSettingsContext";
 
@@ -63,17 +64,14 @@ export function SavePipelineAsTemplateDialog({
     }
   }, [templateId, label, pipelineId, onClose, onSaved, t]);
 
-  if (!open) return null;
-
   return (
-    <div className="gov-modal-backdrop" role="presentation" onClick={onClose}>
-      <div
-        className="gov-modal transform-create-pipeline-modal"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="save-pipeline-template-title"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <ModalDialogShell
+      open={open}
+      onClose={onClose}
+      titleId="save-pipeline-template-title"
+      closeOnEscape={!submitting}
+      dialogClassName="gov-modal transform-create-pipeline-modal"
+    >
         <h2 id="save-pipeline-template-title" className="gov-modal__title">
           {t("transform.templates.saveFromPipelineTitle")}
         </h2>
@@ -117,7 +115,6 @@ export function SavePipelineAsTemplateDialog({
             {submitting ? t("transform.templates.saving") : t("transform.templates.save")}
           </button>
         </div>
-      </div>
-    </div>
+    </ModalDialogShell>
   );
 }

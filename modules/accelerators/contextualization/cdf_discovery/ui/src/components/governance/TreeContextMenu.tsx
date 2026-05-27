@@ -23,7 +23,7 @@ export function useTreeContextMenuState() {
 type MenuProps = {
   menu: { x: number; y: number; items: TreeCtxMenuItem[] } | null;
   onClose: () => void;
-  classPrefix: "gov";
+  classPrefix: "gov" | "disc";
 };
 
 export function TreeContextMenuPortal({ menu, onClose, classPrefix }: MenuProps) {
@@ -77,9 +77,15 @@ export function TreeContextMenuPortal({ menu, onClose, classPrefix }: MenuProps)
     return () => document.removeEventListener("keydown", onKey);
   }, [menu, onClose]);
 
+  useEffect(() => {
+    if (!menu || !rootRef.current) return;
+    const first = rootRef.current.querySelector<HTMLButtonElement>('[role="menuitem"]');
+    first?.focus();
+  }, [menu, pos]);
+
   if (!menu || !pos) return null;
 
-  const base = `${classPrefix}-tree-ctx-menu`;
+  const base = classPrefix === "disc" ? "disc-ctx-menu" : `${classPrefix}-tree-ctx-menu`;
 
   return createPortal(
     <ul
@@ -93,7 +99,13 @@ export function TreeContextMenuPortal({ menu, onClose, classPrefix }: MenuProps)
           <button
             type="button"
             role="menuitem"
-            className={item.danger ? `${base}__btn ${base}__btn--danger` : `${base}__btn`}
+            className={
+              classPrefix === "disc"
+                ? undefined
+                : item.danger
+                  ? `${base}__btn ${base}__btn--danger`
+                  : `${base}__btn`
+            }
             disabled={item.disabled}
             onClick={() => {
               if (!item.disabled) {

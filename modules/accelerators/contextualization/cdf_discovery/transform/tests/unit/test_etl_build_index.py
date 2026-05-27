@@ -21,10 +21,12 @@ from cdf_fn_common.etl_inverted_index import (  # noqa: E402
     INDEX_KIND_COLUMN,
     LOOKUP_KEY_COLUMN,
     POSTINGS_JSON_COLUMN,
+    SCOPE_COLUMN,
     build_inverted_index_rows,
     merge_postings,
     normalize_lookup_key,
     parse_index_kinds_config,
+    scope_from_instance_space,
 )
 from cdf_fn_common.etl_save_apply import etl_persist_inverted_index_save  # noqa: E402
 
@@ -32,6 +34,11 @@ from cdf_fn_common.etl_save_apply import etl_persist_inverted_index_save  # noqa
 def test_parse_index_kinds_config_metadata_index_key() -> None:
     pairs = parse_index_kinds_config({"index_kinds": {"metadata": ["indexKey"]}})
     assert pairs == [("metadata", "indexKey")]
+
+
+def test_scope_from_instance_space_splits_delimiters() -> None:
+    assert scope_from_instance_space("site-unit_01") == "site:unit:01"
+    assert scope_from_instance_space("sp") == "sp"
 
 
 def test_build_inverted_index_rows_shape() -> None:
@@ -52,10 +59,11 @@ def test_build_inverted_index_rows_shape() -> None:
         canvas_node_id="build_idx",
     )
     assert len(rows) == 1
-    assert rows[0]["key"] == "metadata:p-101a"
+    assert rows[0]["key"] == "p-101a:sp|metadata"
     cols = rows[0]["columns"]
     assert cols[INDEX_KIND_COLUMN] == "metadata"
     assert cols[LOOKUP_KEY_COLUMN] == "p-101a"
+    assert cols[SCOPE_COLUMN] == "sp"
     assert cols["RECORD_KIND"] == "index_posting"
     postings = json.loads(cols[POSTINGS_JSON_COLUMN])
     assert len(postings) == 1
@@ -83,7 +91,7 @@ def test_build_index_in_memory(_sink: MagicMock, _flush: MagicMock) -> None:
     summary = etl_handle_build_index("fn_etl_build_index", data, None, None)
     assert summary["index_rows_written"] == 1
     assert len(data["_predecessor_index_rows"]) == 1
-    assert data["_predecessor_index_rows"][0]["key"] == "metadata:tag-1"
+    assert data["_predecessor_index_rows"][0]["key"] == "tag-1:sp|metadata"
 
 
 @patch("cdf_fn_common.etl_save_apply.persist_inverted_index_rows", return_value=1)
@@ -91,7 +99,7 @@ def test_build_index_in_memory(_sink: MagicMock, _flush: MagicMock) -> None:
 def test_persist_inverted_index_save(mock_rows: MagicMock, mock_persist: MagicMock) -> None:
     mock_rows.return_value = [
         {
-            "key": "metadata:tag-1",
+            "key": "tag-1:sp|metadata",
             "columns": {
                 "INDEX_KIND": "metadata",
                 "LOOKUP_KEY": "tag-1",

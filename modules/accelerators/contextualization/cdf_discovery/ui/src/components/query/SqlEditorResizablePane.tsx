@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { useAppSettings } from "../../context/AppSettingsContext";
+import { AccessibleResizeHandle } from "../AccessibleResizeHandle";
 import { useVerticalPaneResize } from "../../hooks/useVerticalPaneResize";
 
 type Props = {
@@ -14,8 +14,7 @@ export function SqlEditorResizablePane({
   children,
   storageKey = "transform.sqlEditorPaneHeight.v1",
 }: Props) {
-  const { t } = useAppSettings();
-  const { height, onResizeStart } = useVerticalPaneResize({ storageKey });
+  const { height, onResizeStart, setHeight } = useVerticalPaneResize({ storageKey });
 
   return (
     <div className="transform-query-sql-stack">
@@ -23,13 +22,15 @@ export function SqlEditorResizablePane({
         <label className="transform-query-label transform-query-label--block transform-query-fields__query-label">{label}</label>
         <div className="transform-query-sql-pane__body">{children}</div>
       </div>
-      <div
+      <AccessibleResizeHandle
         className="transform-query-resize-handle-v"
-        role="separator"
-        aria-orientation="horizontal"
-        aria-valuenow={height}
-        aria-label={t("transform.query.resizeSqlPane")}
+        orientation="horizontal"
+        value={height}
+        min={80}
+        max={Math.round(window.innerHeight * 0.5)}
+        labelKey="transform.query.resizeSqlPane"
         onMouseDown={onResizeStart}
+        onValueChange={setHeight}
       />
     </div>
   );

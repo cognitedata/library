@@ -392,19 +392,6 @@ def cohort_row_indexes_for_tables(
     return out
 
 
-def default_fan_in_field_policies() -> Dict[str, FieldPolicy]:
-    from cdf_fn_common.etl_property_merge import MergeListOptions, STRATEGY_MERGE_LIST
-
-    def _pol(prop: str) -> FieldPolicy:
-        return FieldPolicy(
-            property_name=prop,
-            strategy=STRATEGY_MERGE_LIST,
-            merge_list=MergeListOptions(unique=True, branch_order="by_score"),
-        )
-
-    return {"aliases": _pol("aliases"), "indexKey": _pol("indexKey")}
-
-
 def _iter_pred_table_snapshots(
     client: Any,
     raw_db: str,
@@ -452,7 +439,7 @@ def fan_in_cohort_props_by_instance(
     """
     from collections import defaultdict
 
-    policy_map = dict(field_policies or default_fan_in_field_policies())
+    policy_map = dict(field_policies or {})
     grouped: Dict[
         Tuple[str, str],
         List[Tuple[Tuple[float, str, int], int, Dict[str, Any], Dict[str, Any]]],

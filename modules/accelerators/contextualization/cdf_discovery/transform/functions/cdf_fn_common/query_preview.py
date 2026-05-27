@@ -24,7 +24,12 @@ from .etl_raw_read import (
     parse_raw_row_properties,
     raw_row_columns,
 )
-from .query_enumeration import list_all_classic_resources, resolve_page_size
+from .etl_streams_records_api import (
+    build_records_request_body,
+    flatten_record_properties,
+    iter_record_pages,
+)
+from .query_enumeration import list_all_classic_resources, resolve_page_size, resolve_read_limit
 from .source_view_filter_build import build_source_view_query_filter
 
 _PREVIEW_ROW_CAP = 1000
@@ -233,3 +238,82 @@ def run_raw_query_preview(
             break
 
     return _preview_grid(items)
+
+
+def run_records_query_preview(
+    client: Any,
+    config: Mapping[str, Any],
+    *,
+    limit: int = 100,
+) -> Dict[str, Any]:
+    """Read records from a stream via sync/filter (no cohort RAW write)."""
+    stream_external_id = _first_nonempty(
+        config.get("stream_external_id"),
+        config.get("streamExternalId"),
+    )
+    if not stream_external_id:
+        raise ValueError("stream_external_id is required")
+
+    preview_lim = max(1, min(int(limit or 100), _PREVIEW_ROW_CAP))
+    read_cap = resolve_read_limit(config)
+    if read_cap <= 0:
+        read_cap = preview_lim
+    else:
+        read_cap = min(read_cap, preview_lim)
+
+    read_mode = _first_nonempty(config.get("read_mode"), config.get("sync_mode"), "sync").lower()
+    body_base = build_records_request_body(config)
+
+    items: List[Dict[str, Any]] = []
+    for page in iter_record_pages(
+        client,
+        stream_external_id,
+        read_mode=read_mode,
+        body_base=body_base,
+    ):
+        for rec in page.get("items") or []:
+            if not isinstance(rec, dict):
+                continue
+            flat = flatten_record_properties(rec)
+            row: Dict[str, Any] = {
+                "external_id": _first_nonempty(rec.get("externalId"), rec.get("external_id")),
+                "space": _first_nonempty(rec.get("space")),
+                "stream_external_id": stream_external_id,
+            }
+            _flatten_mapping("property", flat, row)
+            items.append(_truncate(row))
+            if len(items) >= read_cap:
+                return _preview_grid(items)
+
+    return _preview_grid(items)
+
+
+def validate_records_save_preview(config: Mapping[str, Any]) -> Dict[str, Any]:
+    """Dry-run validation for save_records node config (no cohort rows, no CDF writes)."""
+    stream_external_id = _first_nonempty(
+        config.get("stream_external_id"),
+        config.get("streamExternalId"),
+    )
+    issues: List[str] = []
+    if not stream_external_id:
+        issues.append("stream_external_id is required")
+    write_mode = _first_nonempty(config.get("write_mode"), "ingest").lower()
+    if write_mode not in ("ingest", "upsert", "delete"):
+        issues.append(f"write_mode must be ingest, upsert, or delete; got {write_mode!r}")
+    batch_size = config.get("batch_size")
+    if batch_size is not None:
+        try:
+            n = int(batch_size)
+            if n < 1:
+                issues.append("batch_size must be positive")
+        except (TypeError, ValueError):
+            issues.append("batch_size must be an integer")
+    return {
+        "dry_run": True,
+        "ok": not issues,
+        "issues": issues,
+        "stream_external_id": stream_external_id,
+        "write_mode": write_mode,
+        "rows_read": 0,
+        "rows_written": 0,
+    }

@@ -87,6 +87,47 @@ def list_built_scope_suffixes() -> List[str]:
     return scopes
 
 
+def list_instance_pipeline_entries() -> List[Dict[str, Any]]:
+    """Saved workflow instances under ``workflow_definitions/instances/`` (registry-backed)."""
+    seen: set[str] = set()
+    out: List[Dict[str, Any]] = []
+
+    def append_entry(pipeline_id: str, label: str) -> None:
+        if pipeline_id in seen:
+            return
+        seen.add(pipeline_id)
+        has_workflows = any(
+            pipeline_has_workflow_artifacts(pipeline_id, scope_suffix=scope)
+            for scope in list_built_scope_suffixes()
+        )
+        out.append(
+            {
+                "id": pipeline_id,
+                "label": label,
+                "scope_suffix": _DEFAULT_BUILT_SCOPE,
+                "source": "instance",
+                "has_workflow_children": has_workflows,
+            }
+        )
+
+    for entry in list_registry_entries():
+        pipeline_id = str(entry.get("id") or "").strip()
+        if not pipeline_id or not _instance_path(pipeline_id).is_file():
+            continue
+        append_entry(pipeline_id, str(entry.get("label") or pipeline_id))
+
+    inst_root = _instances_dir()
+    if inst_root.is_dir():
+        for path in sorted(inst_root.glob("*.yaml")):
+            pipeline_id = path.stem
+            if not pipeline_id or pipeline_id in seen:
+                continue
+            doc = _read_yaml(path)
+            append_entry(pipeline_id, str(doc.get("label") or doc.get("description") or pipeline_id))
+
+    return out
+
+
 def list_built_pipeline_entries(*, scope_suffix: str) -> List[Dict[str, Any]]:
     """Pipeline rows for one build scope (output of ``transform build``)."""
     scope_dir = _workflows_dir() / scope_suffix

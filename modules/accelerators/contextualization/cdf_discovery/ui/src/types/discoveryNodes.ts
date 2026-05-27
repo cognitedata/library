@@ -10,6 +10,7 @@ export type OpenTarget =
       instance_kind: DmInstanceKind;
     }
   | { type: "raw_rows"; database: string; table: string }
+  | { type: "record_stream"; stream_external_id: string }
   | { type: "fusion_cdf"; resource: string }
   | { type: "fusion_sequence"; sequence_external_id: string }
   | { type: "fusion_dm_all"; entity: "nodes" | "edges" }
@@ -99,6 +100,22 @@ export type FileContentRef = {
   instance_space?: string;
   name?: string;
   format: FileContentFormat;
+};
+
+export type RecordsStreamDocumentTab = {
+  kind: "records_stream";
+  id: string;
+  label: string;
+  streamExternalId: string;
+  streamDetail: Record<string, unknown> | null;
+  items: GridRow[];
+  columns: string[];
+  cursor: string | null;
+  loading: boolean;
+  error: string | null;
+  pageSize: number;
+  pageIndex: number;
+  selectedRowIndex: number | null;
 };
 
 export type SqlDocumentTab = {
@@ -326,6 +343,7 @@ export type MonitorDocumentTab = {
 
 export type DocumentTab =
   | DataModelDocumentTab
+  | RecordsStreamDocumentTab
   | SqlDocumentTab
   | TransformationDocumentTab
   | FunctionDocumentTab
@@ -485,6 +503,10 @@ export function isDataModelTab(tab: DocumentTab): tab is DataModelDocumentTab {
   return tab.kind === "data_model";
 }
 
+export function isRecordsStreamTab(tab: DocumentTab): tab is RecordsStreamDocumentTab {
+  return tab.kind === "records_stream";
+}
+
 export function isSqlTab(tab: DocumentTab): tab is SqlDocumentTab {
   return tab.kind === "sql";
 }
@@ -561,6 +583,9 @@ export function openTargetKey(target: OpenTarget): string {
       model_external_id
     )}:${encodeURIComponent(model_version)}:${encodeURIComponent(type_external_id)}`;
   }
+  if (target.type === "record_stream") {
+    return `record_stream:${encodeURIComponent(target.stream_external_id)}`;
+  }
   return `raw:${target.database}:${target.table}`;
 }
 
@@ -596,6 +621,9 @@ export function tabLabelForTarget(target: OpenTarget): string {
   }
   if (target.type === "fusion_data_model") {
     return `Type: ${target.type_external_id}`;
+  }
+  if (target.type === "record_stream") {
+    return `Records: ${target.stream_external_id}`;
   }
   return `RAW ${target.database}.${target.table}`;
 }

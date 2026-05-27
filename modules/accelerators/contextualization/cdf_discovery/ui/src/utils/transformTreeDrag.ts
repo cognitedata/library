@@ -1,6 +1,6 @@
 import type { DragEvent } from "react";
 import type { TreeNode } from "../types/discoveryNodes";
-import { TRANSFORM_ROOT, TRANSFORM_TEMPLATES } from "./treeNodeIds";
+import { TRANSFORM_PIPELINES, TRANSFORM_ROOT, TRANSFORM_TEMPLATES } from "./treeNodeIds";
 import {
   isTransformPipelineTreeNode,
   isTransformTemplateTreeNode,
@@ -93,7 +93,7 @@ export function resolveTransformTreeDropTarget(
 ): "pipelines" | "templates" | null {
   if (node.id === TRANSFORM_TEMPLATES) return "templates";
   if (isTransformTemplateTreeNode(node)) return "templates";
-  if (node.id === TRANSFORM_ROOT) return "pipelines";
+  if (node.id === TRANSFORM_ROOT || node.id === TRANSFORM_PIPELINES) return "pipelines";
   if (isTransformPipelineTreeNode(node)) return "pipelines";
   return null;
 }

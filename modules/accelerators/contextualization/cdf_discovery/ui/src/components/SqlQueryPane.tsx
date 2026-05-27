@@ -22,12 +22,14 @@ import {
 } from "./PaginationIcons";
 import { PaginationPageJump } from "./PaginationPageJump";
 import { clampSqlPageIndex, sqlPageCount, sqlPageItems } from "../utils/sqlPagination";
+import { useDebouncedCommit } from "../hooks/useDebouncedCommit";
 import { useVerticalPaneResize } from "../hooks/useVerticalPaneResize";
 import {
   exportQueryResults,
   QUERY_EXPORT_FORMATS,
   type QueryExportFormat,
 } from "../utils/exportQueryResults";
+import { AccessibleResizeHandle } from "./AccessibleResizeHandle";
 import { SqlEditor, type SqlEditorHandle } from "./SqlEditor";
 import {
   SqlResultsContextMenu,
@@ -50,7 +52,11 @@ function isAbortError(e: unknown): boolean {
 
 export function SqlQueryPane({ tab, onTabUpdate, onSelectRow, onQueryFile, onDownloadFile, onSave, onSaveAs }: Props) {
   const { t, theme } = useAppSettings();
-  const { height: editorPaneHeight, onResizeStart: onEditorPaneResizeStart } = useVerticalPaneResize({
+  const {
+    height: editorPaneHeight,
+    onResizeStart: onEditorPaneResizeStart,
+    setHeight: setEditorPaneHeight,
+  } = useVerticalPaneResize({
     storageKey: "exp.sqlEditorPaneHeight.v1",
   });
   const [outputPanel, setOutputPanel] = useState<"results" | "schema">("results");
@@ -66,6 +72,20 @@ export function SqlQueryPane({ tab, onTabUpdate, onSelectRow, onQueryFile, onDow
   const abortRef = useRef<AbortController | null>(null);
   const tabRef = useRef(tab);
   tabRef.current = tab;
+  const onTabUpdateRef = useRef(onTabUpdate);
+  onTabUpdateRef.current = onTabUpdate;
+
+  const [queryDraft, setQueryDraft] = useDebouncedCommit(
+    tab.query ?? "",
+    (query) => {
+      if (query === tabRef.current.query) return;
+      onTabUpdateRef.current({ ...tabRef.current, query });
+    },
+    400,
+    tab.id
+  );
+  const queryDraftRef = useRef(queryDraft);
+  queryDraftRef.current = queryDraft;
 
   const columns = useMemo(() => {
     const raw = tab.result?.columns;
@@ -123,7 +143,7 @@ export function SqlQueryPane({ tab, onTabUpdate, onSelectRow, onQueryFile, onDow
       abortRef.current = controller;
 
       const selection = editorRef.current?.getSelection() ?? { start: 0, end: 0 };
-      const queryText = queryTextForRun(currentTab.query, selection.start, selection.end);
+      const queryText = queryTextForRun(queryDraftRef.current, selection.start, selection.end);
 
       onTabUpdate({
         ...currentTab,
@@ -258,8 +278,9 @@ export function SqlQueryPane({ tab, onTabUpdate, onSelectRow, onQueryFile, onDow
   const onFormatSql = () => {
     try {
       const dialect = isFileContentTab ? "sql" : "spark";
-      const formatted = format(tab.query, { language: dialect });
-      onTabUpdate({ ...tab, query: formatted });
+      const formatted = format(queryDraft, { language: dialect });
+      setQueryDraft(formatted);
+      onTabUpdateRef.current({ ...tabRef.current, query: formatted });
     } catch {
       /* keep query unchanged on format errors */
     }
@@ -400,7 +421,7 @@ export function SqlQueryPane({ tab, onTabUpdate, onSelectRow, onQueryFile, onDow
         >
           {t("sql.runSelection")}
         </button>
-        <button type="button" className="disc-btn" disabled={tab.loading || !tab.query.trim()} onClick={onFormatSql}>
+        <button type="button" className="disc-btn" disabled={tab.loading || !queryDraft.trim()} onClick={onFormatSql}>
           {t("sql.format")}
         </button>
         <button
@@ -408,8 +429,9 @@ export function SqlQueryPane({ tab, onTabUpdate, onSelectRow, onQueryFile, onDow
           className="disc-btn"
           disabled={tab.loading}
           onClick={() => {
-            onTabUpdate({
-              ...tab,
+            setQueryDraft("");
+            onTabUpdateRef.current({
+              ...tabRef.current,
               query: "",
               result: null,
               error: null,
@@ -467,25 +489,26 @@ export function SqlQueryPane({ tab, onTabUpdate, onSelectRow, onQueryFile, onDow
           <SqlEditor
             key={tab.id}
             ref={editorRef}
-            value={tab.query ?? ""}
+            value={queryDraft}
             theme={theme}
             height={`${editorPaneHeight}px`}
+            ariaLabel={t("sql.editor.label")}
+            shortcutsHint={t("sql.editor.shortcutsDesc")}
             placeholder={t("sql.placeholder")}
-            onChange={(query) => {
-              if (query === tabRef.current.query) return;
-              onTabUpdate({ ...tabRef.current, query });
-            }}
+            onChange={setQueryDraft}
             onRun={() => void run()}
             onRunSelection={() => void run()}
           />
         </div>
-        <div
+        <AccessibleResizeHandle
           className="disc-resize-handle-v"
-          role="separator"
-          aria-orientation="horizontal"
-          aria-valuenow={editorPaneHeight}
-          aria-label={t("sql.resizeEditorPane")}
+          orientation="horizontal"
+          value={editorPaneHeight}
+          min={80}
+          max={Math.round(window.innerHeight * 0.5)}
+          labelKey="sql.resizeEditorPane"
           onMouseDown={onEditorPaneResizeStart}
+          onValueChange={setEditorPaneHeight}
         />
       </div>
       <div className="disc-sql-pane__toolbar">

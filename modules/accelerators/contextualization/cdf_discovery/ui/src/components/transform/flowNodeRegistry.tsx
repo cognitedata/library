@@ -1,20 +1,39 @@
 import type { CSSProperties } from "react";
+import { useEffect, useState } from "react";
 import type { NodeProps } from "@xyflow/react";
 import { Handle, NodeResizer, Position } from "@xyflow/react";
-import type { TransformCanvasNodeKind } from "../../types/transformCanvas";
+import type { MessageKey } from "../../i18n";
+import type { TransformCanvasHandleOrientation, TransformCanvasNodeKind } from "../../types/transformCanvas";
 import { kindToRfType } from "../../types/transformCanvas";
+import { useAppSettings } from "../../context/AppSettingsContext";
 import { useFlowHandleOrientation } from "./FlowHandleOrientationContext";
 import type { FlowHandleOrientationNodeData } from "./flowHandleOrientation";
 import { mergeEtlNodeCardStyle } from "./flowNodeAccent";
+import {
+  canvasNodeProgressPercent,
+  canvasNodeProgressVisible,
+  formatNodeRunElapsedMs,
+  resolveNodeRunElapsedMs,
+  type CanvasNodeRunProgress,
+} from "./canvasNodeRunProgress";
 import {
   ETL_NODE_MAX_HEIGHT,
   ETL_NODE_MAX_WIDTH,
   ETL_NODE_MIN_HEIGHT,
   ETL_NODE_MIN_WIDTH,
+  etlDualInputMinSize,
 } from "./etlFlowNodeSizing";
 import { etlFlowNodeCanvasDescription } from "./etlFlowNodeDescription";
+import {
+  INPUT_A_LABEL_CONFIG_KEY,
+  INPUT_B_LABEL_CONFIG_KEY,
+  resolveDualInputConnectorLabel,
+} from "../../utils/dualInputConnectorLabels";
+import { canvasNodeDisplayLabel, canvasNodeKindLabel } from "../../utils/canvasNodeKindLabel";
 
-function useDataHandles(data: FlowHandleOrientationNodeData): { in: Position; out: Position; key: string } {
+function useDataHandles(
+  data: FlowHandleOrientationNodeData
+): { in: Position; out: Position; key: TransformCanvasHandleOrientation } {
   const o = data.flowHandleOrientation ?? useFlowHandleOrientation();
   return o === "tb"
     ? { in: Position.Top, out: Position.Bottom, key: "tb" }
@@ -31,8 +50,69 @@ type EtlNodeProps = NodeProps & {
     canvas_resize_enabled?: boolean;
     node_color?: string;
     node_bg_color?: string;
+    nodeRunProgress?: CanvasNodeRunProgress;
+    nodeRunExecuting?: boolean;
   };
 };
+
+function EtlNodeRunProgressBar({
+  progress,
+  isExecuting = false,
+}: {
+  progress: CanvasNodeRunProgress;
+  isExecuting?: boolean;
+}) {
+  const { t } = useAppSettings();
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  useEffect(() => {
+    if (!isExecuting || progress.elapsedMs != null) return;
+    const id = window.setInterval(() => setNowMs(Date.now()), 1000);
+    return () => window.clearInterval(id);
+  }, [isExecuting, progress.elapsedMs, progress.startedAtMs]);
+
+  const pct = canvasNodeProgressPercent(progress);
+  const indeterminate = pct == null && progress.current > 0;
+  const countLabel =
+    progress.total != null && progress.total > 0
+      ? t("run.nodeProgressCount", { current: progress.current, total: progress.total })
+      : progress.current > 0
+        ? t("run.nodeProgressCountIndeterminate", { current: progress.current })
+        : "";
+  const elapsedMs = resolveNodeRunElapsedMs(progress, nowMs);
+  const elapsedLabel = elapsedMs != null ? formatNodeRunElapsedMs(elapsedMs) : "";
+  const ariaDetail = [elapsedLabel, countLabel].filter(Boolean).join(" · ");
+  const ariaLabel = ariaDetail
+    ? t("run.nodeProgressAria", { detail: ariaDetail })
+    : t("run.nodeProgressAriaIndeterminate");
+
+  return (
+    <div className="etl-flow-node__progress" aria-label={ariaLabel}>
+      <div
+        className={`etl-flow-node__progress-track${indeterminate ? " etl-flow-node__progress-track--indeterminate" : ""}`}
+      >
+        <div
+          className="etl-flow-node__progress-fill"
+          style={pct != null ? { width: `${pct}%` } : undefined}
+        />
+      </div>
+      {elapsedLabel || countLabel ? (
+        <div className="etl-flow-node__progress-footer">
+          {elapsedLabel ? (
+            <span
+              className="etl-flow-node__progress-elapsed"
+              aria-label={t("run.nodeProgressElapsedAria", { elapsed: elapsedLabel })}
+            >
+              {elapsedLabel}
+            </span>
+          ) : (
+            <span className="etl-flow-node__progress-elapsed" aria-hidden="true" />
+          )}
+          {countLabel ? <span className="etl-flow-node__progress-label">{countLabel}</span> : null}
+        </div>
+      ) : null}
+    </div>
+  );
+}
 
 function EtlNodeBodyContent({
   label,
@@ -52,13 +132,23 @@ function EtlNodeBodyContent({
   );
 }
 
-function EtlNodeResizer({ selected, enabled }: { selected: boolean; enabled: boolean }) {
+function EtlNodeResizer({
+  selected,
+  enabled,
+  minWidth = ETL_NODE_MIN_WIDTH,
+  minHeight = ETL_NODE_MIN_HEIGHT,
+}: {
+  selected: boolean;
+  enabled: boolean;
+  minWidth?: number;
+  minHeight?: number;
+}) {
   if (!enabled) return null;
   return (
     <NodeResizer
       isVisible={selected}
-      minWidth={ETL_NODE_MIN_WIDTH}
-      minHeight={ETL_NODE_MIN_HEIGHT}
+      minWidth={minWidth}
+      minHeight={minHeight}
       maxWidth={ETL_NODE_MAX_WIDTH}
       maxHeight={ETL_NODE_MAX_HEIGHT}
       lineClassName="etl-flow-node__resize-line"
@@ -67,18 +157,189 @@ function EtlNodeResizer({ selected, enabled }: { selected: boolean; enabled: boo
   );
 }
 
+const DUAL_INPUT_HANDLE_SLOTS = 2;
+
+function dualInputHandlePercent(index: number, total = DUAL_INPUT_HANDLE_SLOTS): number {
+  return total <= 1 ? 50 : ((index + 1) / (total + 1)) * 100;
+}
+
 function joinHandleStyle(inPos: Position, index: number, total: number): CSSProperties {
-  const pct = total <= 1 ? 50 : ((index + 1) / (total + 1)) * 100;
+  const pct = dualInputHandlePercent(index, total);
   if (inPos === Position.Top || inPos === Position.Bottom) {
     return { left: `${pct}%`, transform: "translateX(-50%)" };
   }
   return { top: `${pct}%`, transform: "translateY(-50%)" };
 }
 
-function JoinFlowNode({ data, selected }: EtlNodeProps) {
+function dualInputHandleLabelOffsetStyle(index: number): CSSProperties {
+  return { "--etl-dual-handle-pct": `${dualInputHandlePercent(index)}%` } as CSSProperties;
+}
+
+function DualInputConnectorLabels({
+  orientation,
+  leftLabel,
+  rightLabel,
+}: {
+  orientation: TransformCanvasHandleOrientation;
+  leftLabel: string;
+  rightLabel: string;
+}) {
+  return (
+    <div
+      className={`etl-flow-node__connector-labels etl-flow-node__connector-labels--in-${orientation}`}
+      aria-hidden="true"
+    >
+      <span
+        className="etl-flow-handle-label etl-flow-handle-label--input-a"
+        style={dualInputHandleLabelOffsetStyle(0)}
+      >
+        {leftLabel}
+      </span>
+      <span
+        className="etl-flow-handle-label etl-flow-handle-label--input-b"
+        style={dualInputHandleLabelOffsetStyle(1)}
+      >
+        {rightLabel}
+      </span>
+    </div>
+  );
+}
+
+function DualInputFlowNode({
+  data,
+  selected,
+  kind,
+  kindLabelKey,
+  leftHandleId,
+  rightHandleId,
+  leftLabelKey,
+  rightLabelKey,
+}: EtlNodeProps & {
+  kind: TransformCanvasNodeKind;
+  kindLabelKey: MessageKey;
+  leftHandleId: string;
+  rightHandleId: string;
+  leftLabelKey: MessageKey;
+  rightLabelKey: MessageKey;
+}) {
+  const { t } = useAppSettings();
   const handles = useDataHandles(data);
-  const label = data.label ?? "join";
-  const description = etlFlowNodeCanvasDescription("join", data as Record<string, unknown>);
+  const kindLabel = t(kindLabelKey);
+  const label = data.label?.trim() || canvasNodeDisplayLabel(data, kind, t);
+  const description = etlFlowNodeCanvasDescription(kind, data as Record<string, unknown>);
+  const disabled = data.canvas_node_enabled === false;
+  const resizeEnabled = data.canvas_resize_enabled !== false;
+  const accent = "var(--etl-node-contextualization, #d97706)";
+  const customStyle = mergeEtlNodeCardStyle(data as Record<string, unknown>);
+  const bodyStyle = {
+    borderLeftColor: customStyle?.borderLeftColor ?? accent,
+    ...(customStyle?.backgroundColor ? { backgroundColor: customStyle.backgroundColor } : {}),
+    ...(customStyle?.borderLeftWidth ? { borderLeftWidth: customStyle.borderLeftWidth } : {}),
+    ...(customStyle?.borderLeftStyle ? { borderLeftStyle: customStyle.borderLeftStyle } : {}),
+  };
+  const showProgress = canvasNodeProgressVisible(data.nodeRunProgress);
+  const config = (data.config ?? {}) as Record<string, unknown>;
+  const leftLabel = resolveDualInputConnectorLabel(config, INPUT_A_LABEL_CONFIG_KEY, leftLabelKey, t);
+  const rightLabel = resolveDualInputConnectorLabel(config, INPUT_B_LABEL_CONFIG_KEY, rightLabelKey, t);
+  const dualMin = etlDualInputMinSize();
+
+  return (
+    <div
+      className={`etl-flow-node etl-flow-node--dual-input etl-flow-node--in-${handles.key} etl-flow-node--${kind} etl-flow-node--resizable${selected ? " etl-flow-node--selected" : ""}${disabled ? " etl-flow-node--disabled" : ""}${showProgress ? " etl-flow-node--has-progress" : ""}`}
+    >
+      <EtlNodeResizer
+        selected={Boolean(selected)}
+        enabled={resizeEnabled}
+        minWidth={dualMin.width}
+        minHeight={dualMin.height}
+      />
+      <Handle
+        key={`in-left-${handles.key}`}
+        type="target"
+        id={leftHandleId}
+        position={handles.in}
+        className="etl-flow-handle etl-flow-handle--input-a"
+        style={joinHandleStyle(handles.in, 0, DUAL_INPUT_HANDLE_SLOTS)}
+        aria-label={leftLabel}
+        title={leftLabel}
+      />
+      <Handle
+        key={`in-right-${handles.key}`}
+        type="target"
+        id={rightHandleId}
+        position={handles.in}
+        className="etl-flow-handle etl-flow-handle--input-b"
+        style={joinHandleStyle(handles.in, 1, DUAL_INPUT_HANDLE_SLOTS)}
+        aria-label={rightLabel}
+        title={rightLabel}
+      />
+      <div className="etl-flow-node__body" style={bodyStyle}>
+        <DualInputConnectorLabels orientation={handles.key} leftLabel={leftLabel} rightLabel={rightLabel} />
+        <div className="etl-flow-node__body-main">
+          <EtlNodeBodyContent label={label} kindLabel={kindLabel} description={description} />
+        </div>
+        {showProgress && data.nodeRunProgress ? (
+          <EtlNodeRunProgressBar progress={data.nodeRunProgress} isExecuting={data.nodeRunExecuting} />
+        ) : null}
+      </div>
+      <Handle
+        key={`out-${handles.key}`}
+        type="source"
+        id="out"
+        position={handles.out}
+        className="etl-flow-handle"
+      />
+    </div>
+  );
+}
+
+function FanoutPlanFlowNode(props: EtlNodeProps) {
+  const cfg = (props.data.config ?? {}) as Record<string, unknown>;
+  const profile = String(cfg.fanout_profile ?? "file_annotation");
+  const labels =
+    profile === "file_annotation"
+      ? {
+          left: "transform.fanoutPlan.handle.inputA.context" as MessageKey,
+          right: "transform.fanoutPlan.handle.inputB.files" as MessageKey,
+        }
+      : {
+          left: "transform.fanoutPlan.handle.inputA" as MessageKey,
+          right: "transform.fanoutPlan.handle.inputB" as MessageKey,
+        };
+  return (
+    <DualInputFlowNode
+      {...props}
+      kind="workflow_fanout_plan"
+      kindLabelKey="transform.palette.workflow_fanout_plan"
+      leftHandleId="in__input_a"
+      rightHandleId="in__input_b"
+      leftLabelKey={labels.left}
+      rightLabelKey={labels.right}
+    />
+  );
+}
+
+function FileAnnotationFlowNode(props: EtlNodeProps) {
+  return (
+    <DualInputFlowNode
+      {...props}
+      kind="file_annotation"
+      kindLabelKey="transform.palette.file_annotation"
+      leftHandleId="in__entities"
+      rightHandleId="in__files"
+      leftLabelKey="transform.fileAnnotation.handle.entities"
+      rightLabelKey="transform.fileAnnotation.handle.files"
+    />
+  );
+}
+
+function JoinFlowNode({ data, selected }: EtlNodeProps) {
+  const { t } = useAppSettings();
+  const handles = useDataHandles(data);
+  const kind = "join" as const;
+  const kindLabel = canvasNodeKindLabel(kind, t);
+  const label = data.label?.trim() || canvasNodeDisplayLabel(data, kind, t);
+  const description = etlFlowNodeCanvasDescription(kind, data as Record<string, unknown>);
   const disabled = data.canvas_node_enabled === false;
   const resizeEnabled = data.canvas_resize_enabled !== false;
   const accent = "var(--etl-node-default, #6366f1)";
@@ -89,6 +350,7 @@ function JoinFlowNode({ data, selected }: EtlNodeProps) {
     ...(customStyle?.borderLeftWidth ? { borderLeftWidth: customStyle.borderLeftWidth } : {}),
     ...(customStyle?.borderLeftStyle ? { borderLeftStyle: customStyle.borderLeftStyle } : {}),
   };
+  const showProgress = canvasNodeProgressVisible(data.nodeRunProgress);
 
   return (
     <div
@@ -112,8 +374,11 @@ function JoinFlowNode({ data, selected }: EtlNodeProps) {
         style={joinHandleStyle(handles.in, 1, 2)}
       />
       <div className="etl-flow-node__body" style={bodyStyle}>
-        <EtlNodeBodyContent label={label} kindLabel="join" description={description} />
+        <EtlNodeBodyContent label={label} kindLabel={kindLabel} description={description} />
       </div>
+      {showProgress && data.nodeRunProgress ? (
+        <EtlNodeRunProgressBar progress={data.nodeRunProgress} isExecuting={data.nodeRunExecuting} />
+      ) : null}
       <Handle
         key={`out-${handles.key}`}
         type="source"
@@ -126,11 +391,11 @@ function JoinFlowNode({ data, selected }: EtlNodeProps) {
 }
 
 function EtlFlowNode({ data, selected }: EtlNodeProps) {
+  const { t } = useAppSettings();
   const handles = useDataHandles(data);
   const kind = data.kind ?? "transform";
-  const label =
-    data.label ?? (kind === "start" ? "Workflow trigger" : kind === "end" ? "End" : kind.replace(/_/g, " "));
-  const kindLabel = kind === "start" ? "workflow trigger" : kind === "end" ? "end" : kind.replace(/_/g, " ");
+  const kindLabel = canvasNodeKindLabel(kind, t);
+  const label = data.label?.trim() || canvasNodeDisplayLabel(data, kind, t);
   const description = etlFlowNodeCanvasDescription(kind, data as Record<string, unknown>);
   const disabled = data.canvas_node_enabled === false;
   const resizeEnabled = data.canvas_resize_enabled !== false;
@@ -151,6 +416,7 @@ function EtlFlowNode({ data, selected }: EtlNodeProps) {
     ...(customStyle?.borderLeftWidth ? { borderLeftWidth: customStyle.borderLeftWidth } : {}),
     ...(customStyle?.borderLeftStyle ? { borderLeftStyle: customStyle.borderLeftStyle } : {}),
   };
+  const showProgress = canvasNodeProgressVisible(data.nodeRunProgress);
 
   return (
     <div
@@ -169,6 +435,9 @@ function EtlFlowNode({ data, selected }: EtlNodeProps) {
       <div className="etl-flow-node__body" style={bodyStyle}>
         <EtlNodeBodyContent label={label} kindLabel={kindLabel} description={description} />
       </div>
+      {showProgress && data.nodeRunProgress ? (
+        <EtlNodeRunProgressBar progress={data.nodeRunProgress} isExecuting={data.nodeRunExecuting} />
+      ) : null}
       {kind !== "end" && (
         <Handle
           key={`out-${handles.key}`}
@@ -196,30 +465,31 @@ export const ETL_FLOW_NODE_TYPES = {
   etlQueryRaw: makeNodeComponent("query_raw"),
   etlQueryClassic: makeNodeComponent("query_classic"),
   etlQuerySql: makeNodeComponent("query_sql"),
+  etlQueryRecords: makeNodeComponent("query_records"),
   etlScore: makeNodeComponent("score"),
   etlTransform: makeNodeComponent("transform"),
   etlFilter: makeNodeComponent("filter"),
-  etlFieldMap: makeNodeComponent("field_map"),
+  etlJsonMapping: makeNodeComponent("json_mapping"),
   etlJoin: JoinFlowNode,
   etlMerge: makeNodeComponent("merge"),
   etlBuildIndex: makeNodeComponent("build_index"),
   etlSaveView: makeNodeComponent("save_view"),
   etlSaveRaw: makeNodeComponent("save_raw"),
   etlSaveClassic: makeNodeComponent("save_classic"),
+  etlSaveRecords: makeNodeComponent("save_records"),
+  etlSaveStream: makeNodeComponent("save_stream"),
   etlRawCleanup: makeNodeComponent("raw_cleanup"),
   etlSparkTransform: makeNodeComponent("spark_transform"),
   etlTransformationRef: makeNodeComponent("transformation_ref"),
   etlFunctionRef: makeNodeComponent("function_ref"),
   etlDynamicFanout: makeNodeComponent("dynamic_fanout"),
+  etlWorkflowFanoutPlan: FanoutPlanFlowNode,
+  etlFileAnnotation: FileAnnotationFlowNode,
   etlSubworkflow: makeNodeComponent("subworkflow"),
   etlSimulation: makeNodeComponent("simulation"),
   etlCdfTask: makeNodeComponent("cdf_task"),
   etlSubgraph: makeNodeComponent("subgraph"),
 };
-
-export function defaultLabelForKind(kind: TransformCanvasNodeKind): string {
-  return kind.replace(/_/g, " ");
-}
 
 export function nextEtlNodeId(kind: TransformCanvasNodeKind, existingIds: Set<string>): string {
   const base = kind === "start" || kind === "end" ? kind : `${kind}_${Date.now().toString(36)}`;

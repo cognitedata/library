@@ -57,7 +57,12 @@ def test_disabled_canvas_node_skipped() -> None:
         "edges": [],
     }
     compiled = compile_canvas_dag(canvas)
-    shared = {"configuration": {"canvas": canvas}}
+    shared = {
+        "configuration": {"canvas": canvas},
+        "compiled_workflow": compiled,
+        "dry_run": True,
+        "local_predecessor_mode": "in_memory",
+    }
     summaries = run_compiled_workflow_dag(
         compiled,
         client=None,

@@ -82,6 +82,8 @@ def validate_transform_config(cfg: Mapping[str, Any]) -> None:
         validate_split_parts_block(resolve_handler_block(cfg, handler_id))
     if handler_id == "split_join":
         validate_split_join_block(resolve_handler_block(cfg, handler_id))
+    if not AbstractTransformHandler.first_nonempty(cfg.get("output_field")):
+        raise ValueError("transform config requires non-empty output_field")
 
 
 def apply_transform_handler(

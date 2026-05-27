@@ -3,4 +3,5 @@ export const etlPersistenceOutboundToEndOnlyRfTypes = new Set<string>([
   "etlSaveView",
   "etlSaveRaw",
   "etlSaveClassic",
+  "etlSaveRecords",
 ]);

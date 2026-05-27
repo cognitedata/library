@@ -7,6 +7,7 @@ import {
 } from "./etlBuildIndexHandlerRegistry";
 import { IndexKindsEditor } from "./IndexKindsEditor";
 import { PropertyTokenIndexHandlerFields } from "./buildIndex/PropertyTokenIndexHandlerFields";
+import { AnnotationVertexIndexHandlerFields } from "./buildIndex/AnnotationVertexIndexHandlerFields";
 import { indexKindPairCount, indexKindRowCount } from "../../utils/buildIndexNodeConfigModel";
 import {
   buildIndexHandlerDocKey,
@@ -120,6 +121,16 @@ export function EtlBuildIndexNodeConfigFields({ value, onChange }: Props) {
         <div style={{ marginTop: "1rem" }}>
           <h4 className="transform-join-section-title">{t("buildIndex.handlerSettings")}</h4>
           <PropertyTokenIndexHandlerFields
+            value={handlerBlock as JsonObject}
+            onChange={patchHandlerBlock}
+          />
+        </div>
+      ) : null}
+
+      {handler === "annotation_vertex_index" ? (
+        <div style={{ marginTop: "1rem" }}>
+          <h4 className="transform-join-section-title">{t("buildIndex.handlerSettings")}</h4>
+          <AnnotationVertexIndexHandlerFields
             value={handlerBlock as JsonObject}
             onChange={patchHandlerBlock}
           />

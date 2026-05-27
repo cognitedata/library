@@ -8,11 +8,12 @@ const QUERY_STAGES: readonly TransformCanvasNodeKind[] = [
   "query_raw",
   "query_classic",
   "query_sql",
+  "query_records",
 ];
 
 const MID_PIPELINE_STAGES: readonly TransformCanvasNodeKind[] = [
   "transform",
-  "field_map",
+  "json_mapping",
   "score",
   "filter",
   "join",
@@ -20,14 +21,25 @@ const MID_PIPELINE_STAGES: readonly TransformCanvasNodeKind[] = [
   "build_index",
 ];
 
-const LOAD_STAGES: readonly TransformCanvasNodeKind[] = ["save_view", "save_raw", "save_classic"];
+const LOAD_STAGES: readonly TransformCanvasNodeKind[] = [
+  "save_view",
+  "save_raw",
+  "save_classic",
+  "save_records",
+  "save_stream",
+];
+
+const CONTEXTUALIZATION_STAGES: readonly TransformCanvasNodeKind[] = [
+  "file_annotation",
+  "workflow_fanout_plan",
+  "dynamic_fanout",
+];
 
 const ORCHESTRATION_STAGES: readonly TransformCanvasNodeKind[] = [
   "spark_transform",
   "transformation_ref",
   "function_ref",
   "subworkflow",
-  "dynamic_fanout",
   "simulation",
   "cdf_task",
 ];
@@ -39,7 +51,7 @@ export type ConnectEndMenuOption = {
 };
 
 export type ConnectEndMenuGroup = {
-  id: "query" | "transform" | "load" | "orchestration";
+  id: "query" | "transform" | "contextualization" | "load" | "orchestration";
   labelKey: MessageKey;
   options: ConnectEndMenuOption[];
 };
@@ -51,9 +63,10 @@ const STAGE_LABEL: Partial<Record<TransformCanvasNodeKind, MessageKey>> = {
   query_raw: "transform.palette.query_raw",
   query_classic: "transform.palette.query_classic",
   query_sql: "transform.palette.query_sql",
+  query_records: "transform.palette.query_records",
   score: "transform.palette.score",
   transform: "transform.palette.transform",
-  field_map: "transform.palette.field_map",
+  json_mapping: "transform.palette.json_mapping",
   filter: "transform.palette.filter",
   join: "transform.palette.join",
   merge: "transform.palette.merge",
@@ -61,12 +74,16 @@ const STAGE_LABEL: Partial<Record<TransformCanvasNodeKind, MessageKey>> = {
   save_view: "transform.palette.save_view",
   save_raw: "transform.palette.save_raw",
   save_classic: "transform.palette.save_classic",
+  save_records: "transform.palette.save_records",
+  save_stream: "transform.palette.save_stream",
   raw_cleanup: "transform.palette.transform",
   spark_transform: "transform.palette.spark_transform",
   transformation_ref: "transform.palette.transformation_ref",
   function_ref: "transform.palette.function_ref",
   subworkflow: "transform.palette.subworkflow",
   dynamic_fanout: "transform.palette.dynamic_fanout",
+  file_annotation: "transform.palette.file_annotation",
+  workflow_fanout_plan: "transform.palette.workflow_fanout_plan",
   simulation: "transform.palette.simulation",
   cdf_task: "transform.palette.cdf_task",
   subgraph: "transform.palette.transform",
@@ -92,10 +109,17 @@ export function connectEndMenuOptionsForSourceType(sourceType: string | undefine
     return stageOptions("from-start", QUERY_STAGES);
   }
 
-  const queryTypes = new Set(["etlQueryView", "etlQueryRaw", "etlQueryClassic", "etlQuerySql"]);
+  const queryTypes = new Set([
+    "etlQueryView",
+    "etlQueryRaw",
+    "etlQueryClassic",
+    "etlQuerySql",
+    "etlQueryRecords",
+  ]);
   if (queryTypes.has(sourceType)) {
     return [
       ...stageOptions(`from-${sourceType}`, MID_PIPELINE_STAGES),
+      ...stageOptions(`from-${sourceType}-ctx`, CONTEXTUALIZATION_STAGES),
       ...stageOptions(`from-${sourceType}-load`, LOAD_STAGES),
       ...stageOptions(`from-${sourceType}-orch`, ORCHESTRATION_STAGES),
     ];
@@ -113,6 +137,8 @@ export function connectEndMenuOptionsForSourceType(sourceType: string | undefine
         save_view: "etlSaveView",
         save_raw: "etlSaveRaw",
         save_classic: "etlSaveClassic",
+        save_records: "etlSaveRecords",
+        save_stream: "etlSaveStream",
         raw_cleanup: "etlRawCleanup",
       };
       return map[s] ?? "";
@@ -121,6 +147,7 @@ export function connectEndMenuOptionsForSourceType(sourceType: string | undefine
   if (midTypes.has(sourceType)) {
     return [
       ...stageOptions(`from-${sourceType}`, MID_PIPELINE_STAGES.filter((s) => s !== "filter" || sourceType !== "etlFilter")),
+      ...stageOptions(`from-${sourceType}-ctx`, CONTEXTUALIZATION_STAGES),
       ...stageOptions(`from-${sourceType}-load`, LOAD_STAGES),
       ...stageOptions(`from-${sourceType}-orch`, ORCHESTRATION_STAGES),
     ];
@@ -137,9 +164,11 @@ export function connectEndMenuGroupedOptionsForSourceType(
   const query = flat.filter((o) => QUERY_STAGES.includes(o.payload.stage));
   const transform = flat.filter((o) => MID_PIPELINE_STAGES.includes(o.payload.stage));
   const load = flat.filter((o) => LOAD_STAGES.includes(o.payload.stage));
+  const ctx = flat.filter((o) => CONTEXTUALIZATION_STAGES.includes(o.payload.stage));
   const orch = flat.filter((o) => ORCHESTRATION_STAGES.includes(o.payload.stage));
   if (query.length) groups.push({ id: "query", labelKey: "transform.connectEnd.group.query", options: query });
   if (transform.length) groups.push({ id: "transform", labelKey: "transform.connectEnd.group.transform", options: transform });
+  if (ctx.length) groups.push({ id: "contextualization", labelKey: "transform.connectEnd.group.contextualization", options: ctx });
   if (load.length) groups.push({ id: "load", labelKey: "transform.connectEnd.group.load", options: load });
   if (orch.length) groups.push({ id: "orchestration", labelKey: "transform.connectEnd.group.orchestration", options: orch });
   return groups;
@@ -150,6 +179,7 @@ export function connectEndMenuGroupedOptionsForPane(): ConnectEndMenuGroup[] {
   return [
     { id: "query", labelKey: "transform.connectEnd.group.query", options: stageOptions("pane", QUERY_STAGES) },
     { id: "transform", labelKey: "transform.connectEnd.group.transform", options: stageOptions("pane", MID_PIPELINE_STAGES) },
+    { id: "contextualization", labelKey: "transform.connectEnd.group.contextualization", options: stageOptions("pane", CONTEXTUALIZATION_STAGES) },
     { id: "load", labelKey: "transform.connectEnd.group.load", options: stageOptions("pane", LOAD_STAGES) },
     { id: "orchestration", labelKey: "transform.connectEnd.group.orchestration", options: stageOptions("pane", ORCHESTRATION_STAGES) },
   ];

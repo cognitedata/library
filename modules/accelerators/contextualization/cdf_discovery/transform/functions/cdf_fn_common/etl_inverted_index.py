@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from datetime import datetime, timezone
 from typing import Any, Callable, Dict, List, Mapping, Optional, Tuple
 
@@ -25,7 +26,33 @@ from cdf_fn_common.etl_raw_upload import RawRowsUploadQueue
 INDEX_KIND_COLUMN = "INDEX_KIND"
 LOOKUP_KEY_COLUMN = "LOOKUP_KEY"
 POSTINGS_JSON_COLUMN = "POSTINGS_JSON"
+SCOPE_COLUMN = "SCOPE"
 UPDATED_AT_COLUMN = "UPDATED_AT"
+
+DEFAULT_INVERTED_INDEX_ROW_KEY_TEMPLATE = "{lookup_key}:{scope}|{index_kind}"
+
+# Delimiters commonly used in instance space external ids (site, unit, …).
+_SCOPE_SEGMENT_SPLIT = re.compile(r"[-_/.:]+")
+
+
+def scope_from_instance_space(instance_space: str) -> str:
+    """Build colon-separated scope from an instance space (site/unit segments for now)."""
+    raw = str(instance_space or "").strip()
+    if not raw:
+        return ""
+    parts = [p for p in _SCOPE_SEGMENT_SPLIT.split(raw) if p]
+    return ":".join(parts) if parts else raw
+
+
+def scope_from_postings(postings: List[Mapping[str, Any]]) -> str:
+    """Derive scope from the first posting that carries an ``instance_space``."""
+    for posting in postings:
+        if not isinstance(posting, Mapping):
+            continue
+        space = _first_nonempty(posting.get("instance_space"))
+        if space:
+            return scope_from_instance_space(space)
+    return ""
 
 
 def normalize_lookup_key(token: str) -> str:
@@ -90,7 +117,29 @@ def build_index_posting(
     return posting
 
 
-def posting_dedupe_key(posting: Mapping[str, Any]) -> Tuple[str, str, str]:
+def region_fingerprint(region: Mapping[str, Any]) -> str:
+    vertices = region.get("vertices") if isinstance(region.get("vertices"), list) else []
+    parts: list[str] = []
+    for v in vertices:
+        if isinstance(v, dict):
+            parts.append(f"{v.get('x')}:{v.get('y')}")
+    if parts:
+        return "|".join(sorted(parts))
+    bb = region.get("bounding_box") if isinstance(region.get("bounding_box"), dict) else {}
+    if bb:
+        return f"bb:{bb.get('x_min')}:{bb.get('y_min')}:{bb.get('x_max')}:{bb.get('y_max')}"
+    return ""
+
+
+def posting_dedupe_key(posting: Mapping[str, Any]) -> Tuple[str, ...]:
+    index_kind = str(posting.get("index_kind") or "")
+    if index_kind == "annotation":
+        file_ref = posting.get("file_ref") if isinstance(posting.get("file_ref"), dict) else {}
+        file_id = str(file_ref.get("file_id") or "")
+        page = str(file_ref.get("page_number") or file_ref.get("first_page") or "")
+        text = str(posting.get("lookup_key") or posting.get("source_property") or "")
+        region = posting.get("region") if isinstance(posting.get("region"), dict) else {}
+        return (index_kind, file_id, page, text, region_fingerprint(region))
     return (
         str(posting.get("instance_space") or ""),
         str(posting.get("external_id") or ""),
@@ -103,7 +152,7 @@ def merge_postings(
     incoming: List[Dict[str, Any]],
 ) -> List[Dict[str, Any]]:
     """Merge by (instance_space, external_id, source_property); incoming replaces same run_id."""
-    by_key: Dict[Tuple[str, str, str], Dict[str, Any]] = {}
+    by_key: Dict[Tuple[str, ...], Dict[str, Any]] = {}
     for p in existing:
         if isinstance(p, dict):
             by_key[posting_dedupe_key(p)] = dict(p)
@@ -125,28 +174,47 @@ def merge_postings(
     return list(by_key.values())
 
 
+def format_inverted_index_row_key(
+    index_kind: str,
+    lookup_key: str,
+    template: str,
+    scope: str,
+) -> str:
+    tpl = (
+        str(template or DEFAULT_INVERTED_INDEX_ROW_KEY_TEMPLATE).strip()
+        or DEFAULT_INVERTED_INDEX_ROW_KEY_TEMPLATE
+    )
+    return (
+        tpl.replace("{index_kind}", str(index_kind))
+        .replace("{lookup_key}", str(lookup_key))
+        .replace("{scope}", str(scope))
+    )
+
+
 def build_inverted_index_rows(
     *,
     pending: Mapping[Tuple[str, str], List[Dict[str, Any]]],
     run_id: str,
     canvas_node_id: str,
     query_source: str = "build_index",
-    row_key_template: str = "{index_kind}:{lookup_key}",
-    row_key_formatter: Optional[Any] = None,
+    row_key_template: str = DEFAULT_INVERTED_INDEX_ROW_KEY_TEMPLATE,
+    row_key_formatter: Optional[Callable[[str, str, str, str], str]] = None,
 ) -> List[Dict[str, Any]]:
     """Materialize legacy inverted-index RAW rows (no load from persistent sink)."""
     now = datetime.now(timezone.utc).isoformat(timespec="milliseconds")
     raw_rows: List[Dict[str, Any]] = []
-    format_key = row_key_formatter or (lambda kind, key, _tpl: f"{kind}:{key}")
+    format_key = row_key_formatter or format_inverted_index_row_key
     for (index_kind, lookup_key), new_posts in pending.items():
         merged = merge_postings([], new_posts)
-        row_key = format_key(index_kind, lookup_key, row_key_template)
+        scope = scope_from_postings(merged)
+        row_key = format_key(index_kind, lookup_key, row_key_template, scope)
         raw_rows.append(
             {
                 "key": row_key,
                 "columns": {
                     RECORD_KIND_COLUMN: RECORD_KIND_INDEX,
                     RUN_ID_COLUMN: run_id,
+                    SCOPE_COLUMN: scope,
                     INDEX_KIND_COLUMN: index_kind,
                     LOOKUP_KEY_COLUMN: lookup_key,
                     POSTINGS_JSON_COLUMN: json.dumps(merged, default=str),
@@ -185,6 +253,7 @@ def persist_inverted_index_rows(
     raw_table: str,
     index_rows: List[Mapping[str, Any]],
     merge_with_existing: bool = True,
+    batch_size: int = 500,
     log: Any = None,
 ) -> int:
     """Upsert inverted-index rows to a persistent RAW table."""
@@ -222,7 +291,7 @@ def persist_inverted_index_rows(
             cols[POSTINGS_JSON_COLUMN] = json.dumps(merged, default=str)
         pending_flush.append({"key": row_key, "columns": cols})
         writes += 1
-        if len(pending_flush) >= 500:
+        if len(pending_flush) >= max(1, int(batch_size)):
             create_table_if_not_exists(client, raw_db, raw_table, log)
             _flush_rows(queue, raw_db, raw_table, pending_flush, client=client)
             pending_flush.clear()

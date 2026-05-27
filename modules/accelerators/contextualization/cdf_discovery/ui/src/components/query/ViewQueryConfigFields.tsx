@@ -5,6 +5,7 @@ import { QueryEditorTabs, type QueryEditorTabDef } from "./QueryEditorTabs";
 import { QueryPreviewPanel, type QueryPreviewResult } from "./QueryPreviewPanel";
 import { QueryScopeModeFields } from "./QueryScopeModeFields";
 import { SourceViewFiltersSection } from "./SourceViewFiltersSection";
+import { DeferredCommitInput } from "./DeferredCommitTextField";
 import { ViewPropertyPicker } from "./ViewPropertyPicker";
 
 type Props = {
@@ -231,11 +232,12 @@ export function ViewQueryConfigFields({
       ) : null}
       <label className="transform-query-label transform-query-label--block">
         {t("transform.query.description")}
-        <input
+        <DeferredCommitInput
           className="gov-input"
           style={{ marginTop: "0.35rem" }}
-          value={String(value.description ?? "")}
-          onChange={(e) => patch({ description: e.target.value })}
+          committedValue={String(value.description ?? "")}
+          syncKey={`${fieldKey}-desc`}
+          onCommit={(v) => patch({ description: v })}
           spellCheck={false}
           autoComplete="off"
         />
@@ -249,13 +251,14 @@ export function ViewQueryConfigFields({
           className="transform-query-toolbar"
           style={{ marginTop: 0, flexWrap: "wrap", gap: 8, alignItems: "stretch" }}
         >
-          <input
+          <DeferredCommitInput
             className="gov-input"
             style={{ marginTop: 0, flex: "1 1 12rem", minWidth: 0 }}
-            value={String(value.view_space ?? defaultViewSpace)}
-            onChange={(e) => patch({ view_space: e.target.value })}
-            onBlur={(e) => {
-              const s = e.target.value.trim() || defaultViewSpace;
+            committedValue={String(value.view_space ?? defaultViewSpace)}
+            syncKey={`${fieldKey}-view-space`}
+            onCommit={(v) => {
+              patch({ view_space: v });
+              const s = v.trim() || defaultViewSpace;
               if (s) void loadCdfViewsForSpace(s);
             }}
             spellCheck={false}
@@ -325,11 +328,12 @@ export function ViewQueryConfigFields({
       </label>
       <label className="transform-query-label transform-query-label--block">
         {t("transform.filters.viewExternalId")}
-        <input
+        <DeferredCommitInput
           className="gov-input"
           style={{ marginTop: "0.35rem" }}
-          value={String(value.view_external_id ?? "")}
-          onChange={(e) => patch({ view_external_id: e.target.value })}
+          committedValue={String(value.view_external_id ?? "")}
+          syncKey={`${fieldKey}-view-ext`}
+          onCommit={(v) => patch({ view_external_id: v })}
           spellCheck={false}
           autoComplete="off"
         />
@@ -373,10 +377,13 @@ export function ViewQueryConfigFields({
       </label>
       <label className="transform-query-label">
         {t("transform.filters.view_version")}
-        <input
+        <DeferredCommitInput
           className="gov-input"
-          value={String(value.view_version ?? "")}
-          onChange={(e) => patch({ view_version: e.target.value })}
+          committedValue={String(value.view_version ?? "")}
+          syncKey={`${fieldKey}-view-ver`}
+          onCommit={(v) => patch({ view_version: v })}
+          spellCheck={false}
+          autoComplete="off"
         />
       </label>
     </>
@@ -404,10 +411,13 @@ export function ViewQueryConfigFields({
       </label>
       <label className="transform-query-label">
         {t("transform.filters.instanceSpace")}
-        <input
+        <DeferredCommitInput
           className="gov-input"
-          value={String(value.instance_space ?? "")}
-          onChange={(e) => patch({ instance_space: e.target.value || undefined })}
+          committedValue={String(value.instance_space ?? "")}
+          syncKey={`${fieldKey}-inst`}
+          onCommit={(v) => patch({ instance_space: v.trim() || undefined })}
+          spellCheck={false}
+          autoComplete="off"
         />
       </label>
       <QueryScopeModeFields value={value} onChange={onChange} />
@@ -418,10 +428,13 @@ export function ViewQueryConfigFields({
       {viewTargetingFields}
       <label className="transform-query-label">
         {t("transform.filters.instanceSpace")}
-        <input
+        <DeferredCommitInput
           className="gov-input"
-          value={String(value.instance_space ?? "")}
-          onChange={(e) => patch({ instance_space: e.target.value || undefined })}
+          committedValue={String(value.instance_space ?? "")}
+          syncKey={`${fieldKey}-inst`}
+          onCommit={(v) => patch({ instance_space: v.trim() || undefined })}
+          spellCheck={false}
+          autoComplete="off"
         />
       </label>
     </>

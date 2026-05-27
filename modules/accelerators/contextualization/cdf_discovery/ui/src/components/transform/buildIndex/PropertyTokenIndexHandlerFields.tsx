@@ -1,6 +1,7 @@
 import { useAppSettings } from "../../../context/AppSettingsContext";
 import type { JsonObject } from "../../../types/jsonConfig";
 import {
+  DEFAULT_INVERTED_INDEX_ROW_KEY_TEMPLATE,
   LOOKUP_KEY_NORMALIZATION_OPTIONS,
   isLookupKeyNormalization,
   type LookupKeyNormalization,
@@ -54,7 +55,7 @@ export function PropertyTokenIndexHandlerFields({ value, onChange }: Props) {
         <input
           className="gov-input"
           style={{ marginTop: "0.35rem" }}
-          value={String(value.row_key_template ?? "{index_kind}:{lookup_key}")}
+          value={String(value.row_key_template ?? DEFAULT_INVERTED_INDEX_ROW_KEY_TEMPLATE)}
           onChange={(e) => patch({ row_key_template: e.target.value })}
           spellCheck={false}
           autoComplete="off"

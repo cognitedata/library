@@ -6,9 +6,25 @@ export const ETL_NODE_MIN_HEIGHT = 48;
 export const ETL_NODE_MAX_WIDTH = 560;
 export const ETL_NODE_MAX_HEIGHT = 400;
 
+export const ETL_DUAL_INPUT_MIN_WIDTH = 200;
+export const ETL_DUAL_INPUT_MIN_HEIGHT = 80;
+
+const DUAL_INPUT_KINDS: TransformCanvasNodeKind[] = ["workflow_fanout_plan", "file_annotation"];
+
+export function isDualInputCanvasKind(kind: TransformCanvasNodeKind): boolean {
+  return DUAL_INPUT_KINDS.includes(kind);
+}
+
+export function etlDualInputMinSize(): { width: number; height: number } {
+  return { width: ETL_DUAL_INPUT_MIN_WIDTH, height: ETL_DUAL_INPUT_MIN_HEIGHT };
+}
+
 export function defaultEtlNodeSize(kind: TransformCanvasNodeKind): { width: number; height: number } {
   if (kind === "start" || kind === "end") {
     return { width: 148, height: 68 };
+  }
+  if (isDualInputCanvasKind(kind)) {
+    return { width: 236, height: 116 };
   }
   return { width: 192, height: 96 };
 }

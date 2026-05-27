@@ -23,7 +23,8 @@ import {
   type TransformCanvasDocument,
 } from "../../types/transformCanvas";
 import { pipelineDocumentToTab, templateDocumentToTab } from "../../utils/transformTabs";
-import { usePipelineRunScope } from "../../utils/pipelineRunScope";
+import { usePipelineDryRun, usePipelineRunScope } from "../../utils/pipelineRunScope";
+import { TransformLocalRunDryRunField } from "./TransformLocalRunDryRunField";
 import { TransformFlowPanel } from "./TransformFlowPanel";
 import { TransformRunResultsPanel } from "./TransformRunResultsPanel";
 import {
@@ -87,6 +88,7 @@ export function TransformPipelinePane(props: Props) {
     props.tab.canvas ?? emptyTransformCanvasDocument()
   );
   const [reloadNonce, setReloadNonce] = useState(0);
+  const [reloading, setReloading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [runProgress, setRunProgress] = useState<TransformFlowRunProgress>(initialTransformFlowRunProgress);
@@ -107,6 +109,7 @@ export function TransformPipelinePane(props: Props) {
 
   const activeParameters = pipelineTab?.document?.parameters ?? templateTab?.document?.parameters;
   const [runScope, setRunScope] = usePipelineRunScope(resourceId, activeParameters);
+  const [dryRun, setDryRun] = usePipelineDryRun(resourceId);
 
   const updateDocumentTab = useCallback(
     (tab: EtlPipelineDocumentTab | EtlTemplateDocumentTab) => {
@@ -124,6 +127,7 @@ export function TransformPipelinePane(props: Props) {
   onRunSessionPatchRef.current = onRunSessionPatch;
   const tabIdRef = useRef(props.tab.id);
   tabIdRef.current = props.tab.id;
+  const loadGen = useRef(0);
 
   const patchRunSession = useCallback((patch: TransformTabRunSessionPatch) => {
     onRunSessionPatchRef.current(tabIdRef.current, patch);
@@ -137,36 +141,40 @@ export function TransformPipelinePane(props: Props) {
   useEffect(() => {
     const tab = templateTab ?? pipelineTab;
     if (!tab || tab.document != null || !tab.loading) return;
+
+    const expectedTabId = tab.id;
+    const gen = ++loadGen.current;
     let cancelled = false;
     const onTabUpdate = onTabUpdateRef.current;
+
     const load = async () => {
       if (templateTab) {
+        const templateId = templateTab.templateId;
         try {
-          const { template } = await fetchTransformTemplate(templateTab.templateId);
-          if (cancelled) return;
+          const { template } = await fetchTransformTemplate(templateId);
+          if (cancelled || gen !== loadGen.current || tabIdRef.current !== expectedTabId) return;
           const next = templateDocumentToTab(template, templateTab);
           onTabUpdate(next);
           setCanvas(next.canvas ?? emptyTransformCanvasDocument());
           setReloadNonce((n) => n + 1);
         } catch (e) {
-          if (cancelled) return;
+          if (cancelled || gen !== loadGen.current || tabIdRef.current !== expectedTabId) return;
           onTabUpdate({ ...templateTab, loading: false, error: String(e) });
         }
         return;
       }
       if (pipelineTab) {
+        const pipelineId = pipelineTab.pipelineId;
+        const scopeSuffix = pipelineTab.scopeSuffix ?? "all";
         try {
-          const { pipeline } = await fetchTransformPipeline(
-            pipelineTab.pipelineId,
-            pipelineTab.scopeSuffix ?? "all"
-          );
-          if (cancelled) return;
+          const { pipeline } = await fetchTransformPipeline(pipelineId, scopeSuffix);
+          if (cancelled || gen !== loadGen.current || tabIdRef.current !== expectedTabId) return;
           const next = pipelineDocumentToTab(pipeline, pipelineTab);
           onTabUpdate(next);
           setCanvas(next.canvas ?? emptyTransformCanvasDocument());
           setReloadNonce((n) => n + 1);
         } catch (e) {
-          if (cancelled) return;
+          if (cancelled || gen !== loadGen.current || tabIdRef.current !== expectedTabId) return;
           onTabUpdate({ ...pipelineTab, loading: false, error: String(e) });
         }
       }
@@ -177,17 +185,22 @@ export function TransformPipelinePane(props: Props) {
     };
   }, [
     pipelineTab?.id,
+    pipelineTab?.pipelineId,
+    pipelineTab?.scopeSuffix,
     pipelineTab?.loading,
     pipelineTab?.document,
     templateTab?.id,
+    templateTab?.templateId,
     templateTab?.loading,
     templateTab?.document,
   ]);
 
   useEffect(() => {
-    const next = props.tab.canvas;
-    if (next) setCanvas(next);
-  }, [props.tab.canvas]);
+    const docCanvas =
+      pipelineTab?.document?.canvas ?? templateTab?.document?.canvas ?? null;
+    const next = props.tab.canvas ?? docCanvas;
+    setCanvas(next ?? emptyTransformCanvasDocument());
+  }, [props.tab.id, props.tab.canvas, pipelineTab?.document, templateTab?.document]);
 
   const onChange = useCallback(
     (doc: TransformCanvasDocument) => {
@@ -200,6 +213,37 @@ export function TransformPipelinePane(props: Props) {
     },
     [pipelineTab, templateTab, updateDocumentTab]
   );
+
+  const onReload = useCallback(async () => {
+    setReloading(true);
+    setStatusMessage(null);
+    try {
+      if (templateTab) {
+        const { template } = await fetchTransformTemplate(templateTab.templateId);
+        const next = templateDocumentToTab(template, templateTab);
+        updateDocumentTab({ ...next, dirty: false, error: null });
+        setCanvas(next.canvas ?? emptyTransformCanvasDocument());
+        setReloadNonce((n) => n + 1);
+      } else if (pipelineTab) {
+        const { pipeline } = await fetchTransformPipeline(
+          pipelineTab.pipelineId,
+          pipelineTab.scopeSuffix ?? "all"
+        );
+        const next = pipelineDocumentToTab(pipeline, pipelineTab);
+        updateDocumentTab({ ...next, dirty: false, error: null });
+        setCanvas(next.canvas ?? emptyTransformCanvasDocument());
+        setReloadNonce((n) => n + 1);
+      }
+    } catch (e) {
+      if (templateTab) {
+        updateDocumentTab({ ...templateTab, error: String(e) });
+      } else if (pipelineTab) {
+        updateDocumentTab({ ...pipelineTab, error: String(e) });
+      }
+    } finally {
+      setReloading(false);
+    }
+  }, [pipelineTab, templateTab, updateDocumentTab]);
 
   const onSave = useCallback(async () => {
     setSaving(true);
@@ -278,7 +322,13 @@ export function TransformPipelinePane(props: Props) {
   }, [pipelineTab, templateTab, pipelineScopeSuffix, updateDocumentTab, patchRunSession, t]);
 
   const runLocalStreamed = useCallback(
-    async ({ incrementalChangeProcessing }: { incrementalChangeProcessing: boolean }) => {
+    async ({
+      incrementalChangeProcessing,
+      dryRun: dryRunRequested,
+    }: {
+      incrementalChangeProcessing: boolean;
+      dryRun: boolean;
+    }) => {
       const runTarget = templateTab
         ? ({ kind: "template" as const, id: templateTab.templateId, tab: templateTab })
         : pipelineTab
@@ -333,7 +383,7 @@ export function TransformPipelinePane(props: Props) {
                 scopeSuffix: runTarget.scopeSuffix ?? "all",
               }
             : { kind: "template", id: runTarget.id },
-          { incrementalChangeProcessing },
+          { incrementalChangeProcessing, dryRun: dryRunRequested },
           canvasRef.current,
           t,
           {
@@ -438,12 +488,16 @@ export function TransformPipelinePane(props: Props) {
           onChange={onChange}
           onSave={() => void onSave()}
           onSaveAs={saveAsSource ? () => setSaveAsOpen(true) : undefined}
+          onReload={() => void onReload()}
           onValidate={() => void onValidate()}
+          reloading={reloading}
           onBuild={() => void onBuild()}
           onRun={(options) => void runLocalStreamed(options)}
           runScope={runScope}
           onRunScopeChange={setRunScope}
           runScopeEnabled
+          dryRun={dryRun}
+          onDryRunChange={setDryRun}
           onDelete={onDelete}
           onRename={onRename}
           saving={saving}
@@ -461,11 +515,20 @@ export function TransformPipelinePane(props: Props) {
               className="disc-btn disc-btn--primary"
               disabled={runBusy || saving}
               onClick={() =>
-                void runLocalStreamed({ incrementalChangeProcessing: runScope === "incremental" })
+                void runLocalStreamed({
+                  incrementalChangeProcessing: runScope === "incremental",
+                  dryRun,
+                })
               }
             >
               {runBusy ? t("status.running") : t("transform.toolbar.runLocal")}
             </button>
+            <TransformLocalRunDryRunField
+              t={t}
+              dryRun={dryRun}
+              onDryRunChange={setDryRun}
+              disabled={runBusy || saving}
+            />
             <label className="transform-flow-toolbar__run-scope">
               <span className="transform-flow-toolbar__run-scope-label">{t("transform.toolbar.runScope")}</span>
               <select

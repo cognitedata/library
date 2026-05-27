@@ -44,6 +44,7 @@ def _function_task(
     extra_data: Optional[Dict[str, Any]] = None,
     retries: Optional[int] = None,
     on_failure: Optional[str] = None,
+    is_async_complete: Optional[bool] = None,
 ) -> Dict[str, Any]:
     data: Dict[str, Any] = {
         "logLevel": "INFO",
@@ -63,23 +64,63 @@ def _function_task(
     task_on_failure = (
         str(on_failure).strip() if on_failure is not None else str(policy["onFailure"])
     )
+    fn_params: Dict[str, Any] = {
+        "externalId": function_external_id,
+        "data": data,
+    }
+    if is_async_complete is None:
+        raw_async = policy.get("isAsyncComplete")
+        if raw_async is not None:
+            fn_params["isAsyncComplete"] = bool(raw_async)
+    elif is_async_complete:
+        fn_params["isAsyncComplete"] = True
+
+    task_timeout = int(policy.get("timeout") or timeout)
+
     task: Dict[str, Any] = {
         "externalId": task_external_id,
         "type": "function",
         "dependsOn": [{"externalId": ext} for ext in depends_on] if depends_on else [],
         "parameters": {
-            "function": {
-                "externalId": function_external_id,
-                "data": data,
-            }
+            "function": fn_params,
         },
         "name": name,
         "description": description,
         "retries": task_retries,
-        "timeout": timeout,
+        "timeout": task_timeout,
         "onFailure": task_on_failure,
     }
     return task
+
+
+def _json_mapping_task(
+    *,
+    task_external_id: str,
+    depends_on: List[str],
+    name: str,
+    description: str,
+    input_obj: Mapping[str, Any],
+    expression: str,
+    retries: int = 2,
+    timeout: int = 1800,
+    on_failure: str = "abortWorkflow",
+) -> Dict[str, Any]:
+    return {
+        "externalId": task_external_id,
+        "type": "jsonMapping",
+        "dependsOn": [{"externalId": d} for d in depends_on if d],
+        "parameters": {
+            "jsonMapping": {
+                "input": dict(input_obj),
+                "expression": expression,
+            }
+        },
+        "name": name,
+        "description": description,
+        "retries": retries,
+        "timeout": timeout,
+        "onFailure": on_failure,
+    }
 
 
 def load_function_display_meta_from_workflow_version_template(
@@ -180,6 +221,24 @@ def build_workflow_version_document(
                     extra_data=ir_task_inline_function_data(t),
                 )
             )
+        elif task_type == "jsonMapping":
+            payload = t.get("payload") if isinstance(t.get("payload"), dict) else {}
+            cfg = payload.get("config") if isinstance(payload.get("config"), dict) else {}
+            inp = cfg.get("input") if isinstance(cfg.get("input"), dict) else {}
+            expr = str(cfg.get("expression") or "").strip()
+            node_label = str(t.get("label") or "").strip()
+            nm = node_label or "JSON mapping"
+            dsc = str(cfg.get("description") or "").strip() or "CDF jsonMapping (Kuiper)"
+            tasks_out.append(
+                _json_mapping_task(
+                    task_external_id=tid,
+                    depends_on=deps,
+                    name=nm,
+                    description=dsc,
+                    input_obj=inp,
+                    expression=expr,
+                )
+            )
         else:
             tasks_out.append(
                 {
@@ -232,8 +291,17 @@ def _task_parameters(ir_task: Mapping[str, Any]) -> Dict[str, Any]:
     if task_type == "cdf":
         cdf_params = cfg.get("cdf")
         return {"cdf": cdf_params if isinstance(cdf_params, dict) else {}}
+    if task_type == "jsonMapping":
+        inp = cfg.get("input")
+        expr = str(cfg.get("expression") or "").strip()
+        return {
+            "jsonMapping": {
+                "input": inp if isinstance(inp, dict) else {},
+                "expression": expr,
+            }
+        }
 
-    fn_ext = str(ir_task.get("function_external_id") or "").strip()
+    fn_ext = str(ir_task.get("function_external_id") or cfg.get("function_external_id") or "").strip()
     task_id = str(ir_task.get("id") or "").strip()
     extra = ir_task_inline_function_data(ir_task)
     return {

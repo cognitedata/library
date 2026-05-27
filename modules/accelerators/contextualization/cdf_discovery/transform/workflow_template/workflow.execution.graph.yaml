@@ -1,11 +1,40 @@
 schemaVersion: 1
-workflow_id: discovery_etl_default
+workflow_id: file_pattern_extract
 description: Macro execution DAG refreshed at build from compiled_workflow IR
 tasks:
-- id: query_view_1
+- id: map_annotations_dm
+  kind: json_mapping
+  depends_on:
+  - fanout
+- id: map_annotations_classic
+  kind: json_mapping
+  depends_on:
+  - fanout
+- id: fanout
+  kind: dynamic_fanout
+  depends_on:
+  - fanout_plan
+- id: fanout_plan
+  kind: workflow_fanout_plan
+  depends_on:
+  - query_assets
+  - query_files
+- id: query_assets
   kind: query_view
   depends_on: []
+- id: query_files
+  kind: query_view
+  depends_on: []
+- id: save_annotation_results_dm
+  kind: save_raw
+  depends_on:
+  - map_annotations_dm
+- id: save_annotation_results_classic
+  kind: save_raw
+  depends_on:
+  - map_annotations_classic
 - id: end
   kind: raw_cleanup
   depends_on:
-  - query_view_1
+  - save_annotation_results_dm
+  - save_annotation_results_classic

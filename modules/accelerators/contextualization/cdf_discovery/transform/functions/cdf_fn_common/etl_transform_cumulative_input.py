@@ -52,13 +52,7 @@ def cumulative_field_policies(cfg: Mapping[str, Any]) -> Dict[str, FieldPolicy]:
         if not prop or prop in out:
             continue
         out[prop] = _default_merge_list_policy(prop)
-    for prop in _DEFAULT_CUMULATIVE_MERGE_LIST_FIELDS:
-        if prop not in out:
-            out[prop] = _default_merge_list_policy(prop)
     return out
-
-
-_DEFAULT_CUMULATIVE_MERGE_LIST_FIELDS = ("aliases", "indexKey")
 
 
 def _default_merge_list_policy(prop: str) -> FieldPolicy:

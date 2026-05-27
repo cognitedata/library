@@ -16,6 +16,7 @@ from datetime import datetime, timezone
 from typing import Any, Dict, Iterator, List, Optional, Set, Tuple
 
 from cdf_fn_common.etl_cdf_utils import create_table_if_not_exists
+from cdf_fn_common.etl_ui_progress import emit_handler_progress
 
 # Column names (stable contract)
 WORKFLOW_STATUS_COLUMN = "WORKFLOW_STATUS"
@@ -39,6 +40,7 @@ EXTERNAL_ID_COLUMN = "EXTERNAL_ID"
 
 RECORD_KIND_COLUMN = "RECORD_KIND"
 RECORD_KIND_ENTITY = "entity"
+RECORD_KIND_RECORD = "record"
 RECORD_KIND_INDEX = "index_posting"
 RECORD_KIND_WATERMARK = "watermark"
 RECORD_KIND_RUN = "run"
@@ -725,6 +727,7 @@ def list_all_instances(
                 total,
                 sort_note,
             )
+        emit_handler_progress(total, label="instances")
     if stats_out is not None:
         stats_out.page_count = batch_no
         stats_out.instances_yielded = total

@@ -5,6 +5,7 @@ export const CONNECTION_INFO = "connection:info";
 export const DATA_ROOT = "data";
 export const DATA_SAVED_QUERIES = "data:sq";
 export const TRANSFORM_ROOT = "transform";
+export const TRANSFORM_PIPELINES = "transform:pipelines";
 export const TRANSFORM_PIPELINE_PREFIX = "transform:pipeline:";
 export const TRANSFORM_TEMPLATES = "transform:templates";
 export const TRANSFORM_TEMPLATE_PREFIX = "transform:template:";

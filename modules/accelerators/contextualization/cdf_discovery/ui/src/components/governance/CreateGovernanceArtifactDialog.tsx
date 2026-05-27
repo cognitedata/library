@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { ModalDialogShell } from "../ModalDialogShell";
 import { createGovernanceArtifact } from "../../api/governanceDeclared";
 import { useAppSettings } from "../../context/AppSettingsContext";
 import type { GovernanceArtifactCreateContext } from "../../utils/governanceTreeNew";
@@ -21,7 +22,6 @@ export function CreateGovernanceArtifactDialog({ open, context, onClose, onCreat
   const [sourceId, setSourceId] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
   useEffect(() => {
     if (!open) return;
     setExternalId("");
@@ -69,14 +69,13 @@ export function CreateGovernanceArtifactDialog({ open, context, onClose, onCreat
   const titleKey = isSpaces ? "governance.create.spaceTitle" : "governance.create.groupTitle";
 
   return (
-    <div className="gov-modal-backdrop" role="presentation" onClick={onClose}>
-      <div
-        className="gov-modal transform-create-pipeline-modal"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="create-gov-artifact-title"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <ModalDialogShell
+      open={open}
+      onClose={onClose}
+      titleId="create-gov-artifact-title"
+      closeOnEscape={!submitting}
+      dialogClassName="gov-modal transform-create-pipeline-modal"
+    >
         <h2 id="create-gov-artifact-title" className="gov-modal__title">
           {t(titleKey)}
         </h2>
@@ -138,7 +137,6 @@ export function CreateGovernanceArtifactDialog({ open, context, onClose, onCreat
             {submitting ? t("governance.create.creating") : t("governance.create.submit")}
           </button>
         </div>
-      </div>
-    </div>
+    </ModalDialogShell>
   );
 }

@@ -1,6 +1,6 @@
 import type { MessageKey } from "../../i18n/types";
 
-export const BUILD_INDEX_HANDLER_IDS = ["property_token_index"] as const;
+export const BUILD_INDEX_HANDLER_IDS = ["property_token_index", "annotation_vertex_index"] as const;
 export type BuildIndexHandlerId = (typeof BUILD_INDEX_HANDLER_IDS)[number];
 
 export type BuildIndexHandlerDefinition = {
@@ -10,6 +10,7 @@ export type BuildIndexHandlerDefinition = {
 
 export const BUILD_INDEX_HANDLER_DEFINITIONS: readonly BuildIndexHandlerDefinition[] = [
   { id: "property_token_index", nameKey: "buildIndex.handlerName.property_token_index" },
+  { id: "annotation_vertex_index", nameKey: "buildIndex.handlerName.annotation_vertex_index" },
 ] as const;
 
 export function isBuildIndexHandlerId(h: string): h is BuildIndexHandlerId {

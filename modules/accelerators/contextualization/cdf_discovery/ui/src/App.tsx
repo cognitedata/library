@@ -10,6 +10,10 @@ import { DocumentTabBar } from "./components/DocumentTabBar";
 import { DocumentTabFullscreenOverlay } from "./components/DocumentTabFullscreenOverlay";
 import { DataModelFlowPane } from "./components/DataModelFlowPane";
 import { ObjectDiscovery } from "./components/ObjectDiscovery";
+import { AccessibleResizeHandle } from "./components/AccessibleResizeHandle";
+import { TreePanelDockMenu } from "./components/PanelDockToggleButtons";
+import { PanelHeaderActions, panelHeaderMenuTriggerId } from "./components/PanelHeaderActions";
+import { documentTabButtonId, documentTabPanelIdForTab } from "./components/documentTabIds";
 import { PanelDragHandle } from "./components/PanelDragHandle";
 import { PanelDropOverlay } from "./components/PanelDropOverlay";
 import { PropertiesPanel, type PropertiesPanelLayout } from "./components/PropertiesPanel";
@@ -19,6 +23,7 @@ import {
 } from "./hooks/useDiscoveryPanelLayout";
 import { useDocumentTabFullscreen } from "./hooks/useDocumentTabFullscreen";
 import { SqlQueryPane } from "./components/SqlQueryPane";
+import { RecordsStreamDocumentTab as RecordsStreamPane } from "./components/RecordsStreamDocumentTab";
 import { FunctionPane } from "./components/FunctionPane";
 import { TransformationPane } from "./components/TransformationPane";
 import { TransformPipelinePane } from "./components/transform/TransformPipelinePane";
@@ -45,6 +50,7 @@ import {
   isDataModelTab,
   isFunctionTab,
   isSqlTab,
+  isRecordsStreamTab,
   isTransformationTab,
   isWorkflowTab,
   isGovernanceScopeTab,
@@ -73,6 +79,7 @@ import {
   type EtlTemplateDocumentTab,
   type OpenTarget,
   type SqlDocumentTab,
+  type RecordsStreamDocumentTab,
   type TreeNode,
 } from "./types/discoveryNodes";
 import { dataModelTabKey, dataModelTabLabel, dataModelRefFromNode } from "./utils/dataModelTabs";
@@ -99,6 +106,7 @@ import {
   createFileContentSqlTab,
   SQL_WORKSPACE_TAB_ID,
 } from "./utils/sqlTabs";
+import { createRecordsStreamTab } from "./utils/recordsStreamTabs";
 import { canQueryTreeNode, labelForDmView, openTargetForDmView } from "./utils/sqlQuerySeed";
 import { fileContentRefFromRow } from "./utils/queryableFileFromRow";
 import { downloadCdfFileWithConfirm } from "./utils/downloadCdfFile";
@@ -462,6 +470,20 @@ export function App() {
 
   const openRenameTemplate = useCallback((templateId: string, label: string) => {
     setRenameTransformState({ kind: "template", id: templateId, label });
+  }, []);
+
+  const openRecordsStreamTab = useCallback((streamExternalId: string, label: string) => {
+    const tab = createRecordsStreamTab(streamExternalId, label);
+    setTabs((prev) => {
+      const existing = prev.find((t) => t.id === tab.id);
+      if (existing && isRecordsStreamTab(existing)) {
+        setActiveTabId(tab.id);
+        return prev;
+      }
+      setActiveTabId(tab.id);
+      return [...prev, tab];
+    });
+    setRowDetail(null);
   }, []);
 
   const openSqlForOpenTarget = useCallback((target: OpenTarget, label: string) => {
@@ -864,11 +886,18 @@ export function App() {
         setRowDetail(null);
         return;
       }
+      if (
+        node.kind === "record_stream" &&
+        node.open_target?.type === "record_stream"
+      ) {
+        openRecordsStreamTab(node.open_target.stream_external_id, node.label);
+        return;
+      }
       if (canQueryTreeNode(node) && node.open_target) {
         openSqlForOpenTarget(node.open_target, node.label);
       }
     },
-    [openEtlScopeTab, openGovernanceWorkspaceTab, openSavedQuery, openSqlForOpenTarget, t]
+    [openEtlScopeTab, openGovernanceWorkspaceTab, openRecordsStreamTab, openSavedQuery, openSqlForOpenTarget, t]
   );
 
   const loadConnection = useCallback(async () => {
@@ -909,6 +938,12 @@ export function App() {
   const updateSqlTab = useCallback((updated: SqlDocumentTab) => {
     setTabs((prev) => prev.map((tab) => (tab.id === updated.id ? updated : tab)));
   }, []);
+
+  const updateRecordsStreamTab = useCallback((updated: RecordsStreamDocumentTab) => {
+      setTabs((prev) => prev.map((tab) => (tab.id === updated.id ? updated : tab)));
+    },
+    []
+  );
 
   const updateTransformationTab = useCallback((updated: TransformationDocumentTab) => {
     setTabs((prev) => prev.map((tab) => (tab.id === updated.id ? updated : tab)));
@@ -1015,7 +1050,7 @@ export function App() {
       return <DataModelFlowPane tab={tab} onTabUpdate={updateDataModelTab} onQueryView={queryDmView} />;
     }
     if (isWorkflowTab(tab)) {
-      return <TransformFusionWorkflowPane tab={tab} onTabUpdate={updateWorkflowTab} />;
+      return <TransformFusionWorkflowPane key={tab.id} tab={tab} onTabUpdate={updateWorkflowTab} />;
     }
     if (isTransformationTab(tab)) {
       return (
@@ -1081,6 +1116,7 @@ export function App() {
     if (isEtlPipelineTab(tab)) {
       return (
         <TransformPipelinePane
+          key={tab.id}
           tab={tab}
           onTabUpdate={updateEtlDocumentTab}
           onRunSessionPatch={patchEtlTabRunSession}
@@ -1093,6 +1129,7 @@ export function App() {
     if (isEtlTemplateTab(tab)) {
       return (
         <TransformPipelinePane
+          key={tab.id}
           editorKind="template"
           tab={tab}
           onTabUpdate={updateEtlDocumentTab}
@@ -1109,6 +1146,7 @@ export function App() {
     if (isEtlWorkflowYamlTab(tab)) {
       return (
         <TransformWorkflowYamlPane
+          key={tab.id}
           tab={tab}
           onTabUpdate={(updated) =>
             setTabs((prev) => prev.map((row) => (row.id === updated.id ? updated : row)))
@@ -1121,6 +1159,15 @@ export function App() {
     }
     if (isMonitorTab(tab)) {
       return <ComingSoonPane workspace="monitor" />;
+    }
+    if (isRecordsStreamTab(tab)) {
+      return (
+        <RecordsStreamPane
+          tab={tab}
+          onTabUpdate={updateRecordsStreamTab}
+          onSelectRow={(row) => setRowDetail(row)}
+        />
+      );
     }
     if (isSqlTab(tab)) {
       return (
@@ -1166,7 +1213,14 @@ export function App() {
               {t("tabs.fullscreenActiveHint")}
             </div>
           ) : (
-            renderActiveTabContent(activeTab)
+            <div
+              role="tabpanel"
+              id={documentTabPanelIdForTab(activeTab.id)}
+              aria-labelledby={documentTabButtonId(activeTab.id)}
+              className="disc-doc-tabpanel"
+            >
+              {renderActiveTabContent(activeTab)}
+            </div>
           )
         ) : (
           <div
@@ -1199,6 +1253,8 @@ export function App() {
       onPanelDragEnd={panel.endPanelDrag}
       onQueryFile={openFileContentQueryFromRow}
       onDownloadFile={downloadFileFromRow}
+      propertiesDock={panel.propertiesDock}
+      onDockProperties={panel.dropPropertiesDock}
     />
   );
 
@@ -1210,14 +1266,22 @@ export function App() {
         <PanelDragHandle
           panel="tree"
           labelKey="layout.dragHandle.tree"
+          dockMenuTriggerId={panelHeaderMenuTriggerId("disc-tree-panel-menu")}
           onDragStart={() => panel.beginPanelDrag("tree")}
           onDragEnd={panel.endPanelDrag}
         />
         <span className="disc-tree-pane-header__title">{t("discovery.title")}</span>
         <div className="disc-tree-pane-header__actions">
-          <button type="button" className="disc-btn" onClick={panel.toggleTreeCollapsed}>
-            {panel.treeCollapsed ? t("discovery.show") : t("discovery.collapse")}
-          </button>
+          <PanelHeaderActions
+            menuId="disc-tree-panel-menu"
+            menuLabelKey="layout.panelMenu.tree"
+            collapsed={panel.treeCollapsed}
+            collapseLabelKey="discovery.collapse"
+            expandLabelKey="discovery.show"
+            onToggleCollapse={panel.toggleTreeCollapsed}
+          >
+            <TreePanelDockMenu treeSide={panel.treeSide} onDockTree={panel.dropTreeSide} />
+          </PanelHeaderActions>
         </div>
       </div>
       {!panel.treeCollapsed && (
@@ -1293,7 +1357,9 @@ export function App() {
             setCreatePipelineInitialTemplateId(templateId);
             setCreatePipelineOpen(true);
           }}
-          dataTreeDragEnabled={activeTab != null && isEtlPipelineTab(activeTab)}
+          dataTreeDragEnabled={
+            activeTab != null && (isEtlPipelineTab(activeTab) || isEtlTemplateTab(activeTab))
+          }
         />
       )}
     </aside>
@@ -1314,11 +1380,15 @@ export function App() {
         {showStackedProps && (
           <>
             {showTree && !panel.treeCollapsed && !panel.propertiesCollapsed && (
-              <div
+              <AccessibleResizeHandle
                 className="disc-resize-handle-v"
-                role="separator"
-                aria-orientation="horizontal"
+                orientation="horizontal"
+                value={panel.propertiesSize}
+                min={panel.propsMin}
+                max={panel.propsMaxHeight()}
+                labelKey="layout.resize.propertiesSize"
                 onMouseDown={panel.onResizePropertiesStackedStart}
+                onValueChange={panel.setPropertiesSizeClamped}
               />
             )}
             {renderPropertiesPanel("stacked")}
@@ -1327,11 +1397,15 @@ export function App() {
         {showSideProps && (
           <>
             {showTree && !panel.treeCollapsed && !panel.propertiesCollapsed && (
-              <div
+              <AccessibleResizeHandle
                 className="disc-resize-handle-v"
-                role="separator"
-                aria-orientation="horizontal"
+                orientation="horizontal"
+                value={panel.propertiesSize}
+                min={panel.propsMin}
+                max={panel.propsMaxHeight()}
+                labelKey="layout.resize.propertiesSize"
                 onMouseDown={panel.onResizePropertiesStackedStart}
+                onValueChange={panel.setPropertiesSizeClamped}
               />
             )}
             {renderPropertiesPanel(showTree ? "stacked" : "side")}
@@ -1342,17 +1416,23 @@ export function App() {
   };
 
   const renderHorizontalResize = (side: TreePanelSide) => (
-    <div
+    <AccessibleResizeHandle
       className="disc-resize-handle-h"
-      role="separator"
-      aria-orientation="vertical"
-      aria-valuenow={columnWidthForSide(side)}
+      orientation="vertical"
+      value={columnWidthForSide(side)}
+      min={panel.treeMin}
+      max={panel.treeMax}
+      labelKey="layout.resize.treeWidth"
       onMouseDown={resizeHandlerForSide(side)}
+      onValueChange={panel.setTreeWidthClamped}
     />
   );
 
   return (
     <div className="disc-app">
+      <a href="#disc-main" className="disc-skip-link">
+        {t("a11y.skipToMain")}
+      </a>
       <header className="disc-toolbar">
         <CogniteLogo />
         <h1 className="disc-toolbar__title">{t("app.title")}</h1>
@@ -1387,21 +1467,29 @@ export function App() {
           </label>
         </div>
       </header>
-      {connError && <div className="disc-banner--error">{t("connection.failed", { detail: connError })}</div>}
+      {connError ? (
+        <div className="disc-banner--error" role="alert">
+          {t("connection.failed", { detail: connError })}
+        </div>
+      ) : null}
       <div className={`disc-main${panel.draggingPanel ? " disc-main--panel-drag" : ""}`}>
         <div className="disc-split-h">
           {showLeftColumn && renderSideColumn("left")}
           {showLeftColumn && renderHorizontalResize("left")}
-          <div className="disc-workspace">
+          <main id="disc-main" className="disc-workspace">
             {panel.propertiesDock === "bottom" ? (
               <div className="disc-split-v">
                 {renderDocumentPane()}
                 {!panel.propertiesCollapsed && (
-                  <div
+                  <AccessibleResizeHandle
                     className="disc-resize-handle-v"
-                    role="separator"
-                    aria-orientation="horizontal"
+                    orientation="horizontal"
+                    value={panel.propertiesSize}
+                    min={panel.propsMin}
+                    max={panel.propsMaxHeight()}
+                    labelKey="layout.resize.propertiesSize"
                     onMouseDown={panel.onResizePropertiesBottomStart}
+                    onValueChange={panel.setPropertiesSizeClamped}
                   />
                 )}
                 {renderPropertiesPanel("bottom")}
@@ -1409,7 +1497,7 @@ export function App() {
             ) : (
               renderDocumentPane()
             )}
-          </div>
+          </main>
           {showRightColumn && renderHorizontalResize("right")}
           {showRightColumn && renderSideColumn("right")}
         </div>

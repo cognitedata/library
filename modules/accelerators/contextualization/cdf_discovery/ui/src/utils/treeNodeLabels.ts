@@ -6,6 +6,7 @@ import {
   FUSION_GROUPS,
   FUSION_SPACES,
   MONITOR_ROOT,
+  TRANSFORM_PIPELINES,
   TRANSFORM_ROOT,
   TRANSFORM_TEMPLATES,
 } from "./treeNodeIds";
@@ -13,6 +14,7 @@ import {
 const TREE_LABEL_KEYS: Record<string, MessageKey> = {
   [EXTRACT_ROOT]: "tree.extract",
   [TRANSFORM_ROOT]: "transform.tree.root",
+  [TRANSFORM_PIPELINES]: "transform.tree.pipelines",
   [TRANSFORM_TEMPLATES]: "transform.tree.templates",
   [FUSION_SPACES]: "fusion.tree.spaces",
   [FUSION_ADMIN]: "fusion.tree.admin",

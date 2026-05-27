@@ -180,6 +180,23 @@
   background: rgba(0, 0, 0, 0.55);
 }
 
+.gov-modal-backdrop__dismiss {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: default;
+}
+
+.gov-modal-backdrop > [role="dialog"],
+.gov-modal-backdrop > .gov-modal {
+  position: relative;
+  z-index: 1;
+}
+
 .gov-modal {
   width: 100%;
   max-width: 420px;
@@ -394,10 +411,11 @@
   border-color: var(--gov-text-subtle);
 }
 
-.gov-input:focus,
-.gov-select:focus,
-.gov-textarea:focus {
-  outline: none;
+.gov-input:focus-visible,
+.gov-select:focus-visible,
+.gov-textarea:focus-visible {
+  outline: 2px solid var(--gov-primary);
+  outline-offset: 2px;
   border-color: var(--gov-primary);
   box-shadow: 0 0 0 3px var(--gov-primary-ring);
 }

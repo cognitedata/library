@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { ModalDialogShell } from "../ModalDialogShell";
 import { renameTransformPipeline, renameTransformTemplate } from "../../api";
 import { useAppSettings } from "../../context/AppSettingsContext";
 
@@ -53,21 +54,18 @@ export function RenameTransformLabelDialog({
     }
   }, [kind, label, onClose, onRenamed, resourceId, t]);
 
-  if (!open) return null;
-
   const titleKey =
     kind === "pipeline" ? "transform.pipelines.renameTitle" : "transform.templates.renameTitle";
   const titleId = `rename-transform-${kind}-title`;
 
   return (
-    <div className="gov-modal-backdrop" role="presentation" onClick={onClose}>
-      <div
-        className="gov-modal transform-rename-label-modal"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        onClick={(e) => e.stopPropagation()}
-      >
+    <ModalDialogShell
+      open={open}
+      onClose={onClose}
+      titleId={titleId}
+      closeOnEscape={!submitting}
+      dialogClassName="gov-modal transform-rename-label-modal"
+    >
         <h2 id={titleId} className="gov-modal__title">
           {t(titleKey)}
         </h2>
@@ -83,7 +81,7 @@ export function RenameTransformLabelDialog({
                 : t("transform.templates.labelPlaceholder")
             }
             autoComplete="off"
-            autoFocus
+            data-autofocus
           />
         </label>
         {error ? (
@@ -104,7 +102,6 @@ export function RenameTransformLabelDialog({
             {submitting ? t("transform.rename.saving") : t("transform.rename.save")}
           </button>
         </div>
-      </div>
-    </div>
+    </ModalDialogShell>
   );
 }

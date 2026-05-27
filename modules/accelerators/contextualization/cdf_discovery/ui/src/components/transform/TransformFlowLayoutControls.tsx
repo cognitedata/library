@@ -1,4 +1,3 @@
-import { Panel, useReactFlow } from "@xyflow/react";
 import type { MessageKey } from "../../i18n";
 import {
   normalizeTransformCanvasEdgePathStyle,
@@ -21,9 +20,12 @@ type Props = {
   onAutoLayout: () => void;
   alignDisabled?: boolean;
   onAlignSelection: (mode: AlignFlowSelectionMode) => void;
+  onFitView: () => void;
+  /** When false, hide align buttons (e.g. read-only pipeline preview). */
+  showAlign?: boolean;
 };
 
-/** Zoom, fit, auto-layout, handle orientation, and selection alignment on the pipeline canvas. */
+/** Fit view, auto-layout, handle orientation, edge style, and selection alignment for flow canvases. */
 export function TransformFlowLayoutControls({
   t,
   readOnly = false,
@@ -34,22 +36,28 @@ export function TransformFlowLayoutControls({
   onAutoLayout,
   alignDisabled = true,
   onAlignSelection,
+  onFitView,
+  showAlign = true,
 }: Props) {
-  const { fitView } = useReactFlow();
-
   return (
-    <Panel className="transform-flow-layout-panel" position="top-left" aria-label={t("transform.layout.aria")}>
-      <TransformFlowSelectionAlignButtons
-        t={t}
-        disabled={alignDisabled}
-        onAlign={onAlignSelection}
-      />
+    <div
+      className="transform-flow-layout-panel transform-flow-layout-panel--inline"
+      role="group"
+      aria-label={t("transform.layout.aria")}
+    >
+      {showAlign ? (
+        <TransformFlowSelectionAlignButtons
+          t={t}
+          disabled={alignDisabled}
+          onAlign={onAlignSelection}
+        />
+      ) : null}
       <button
         type="button"
         className="disc-btn disc-btn--sm transform-flow-layout-panel__btn"
         title={t("transform.layout.fitView")}
         aria-label={t("transform.layout.fitView")}
-        onClick={() => fitView({ padding: 0.15, duration: 200 })}
+        onClick={onFitView}
       >
         {t("transform.layout.fitView")}
       </button>
@@ -99,6 +107,6 @@ export function TransformFlowLayoutControls({
           <option value="simplebezier">{t("transform.layout.edgeStyleSimpleBezier")}</option>
         </select>
       </label>
-    </Panel>
+    </div>
   );
 }

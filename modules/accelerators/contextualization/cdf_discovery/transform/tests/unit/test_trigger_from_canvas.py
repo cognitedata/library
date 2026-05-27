@@ -59,3 +59,28 @@ def test_apply_start_trigger_patches_workflow_trigger_doc() -> None:
     assert doc["triggerRule"]["cronExpression"] == "0 6 * * *"
     assert doc["input"]["incremental_change_processing"] is False
     assert doc["input"]["run_id"] == "x"
+
+
+def test_read_start_trigger_record_stream() -> None:
+    canvas = {
+        "nodes": [
+            {
+                "id": "start",
+                "kind": "start",
+                "data": {
+                    "config": {
+                        "trigger_type": "recordStream",
+                        "stream_external_id": "stream-1",
+                        "batch_size": 50,
+                        "batch_timeout": 120,
+                    }
+                },
+            }
+        ]
+    }
+    cfg = read_start_trigger_config(canvas)
+    rule = cfg["trigger_rule"]
+    assert rule["triggerType"] == "recordStream"
+    assert rule["streamExternalId"] == "stream-1"
+    assert rule["batchSize"] == 50
+    assert rule["batchTimeout"] == 120

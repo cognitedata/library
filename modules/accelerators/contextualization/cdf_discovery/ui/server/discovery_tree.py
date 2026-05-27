@@ -22,6 +22,7 @@ from ui.server.tree_node_ids import (
     GOVERNANCE_ROOT,
     MONITOR_ROOT,
     TRANSFORM_PIPELINE_PREFIX,
+    TRANSFORM_PIPELINES,
     TRANSFORM_ROOT,
     TRANSFORM_TEMPLATE_PREFIX,
     TRANSFORM_TEMPLATES,
@@ -36,6 +37,7 @@ _DATA_BRANCHES: Tuple[Tuple[str, str, str], ...] = (
     ("raw", "RAW", "raw"),
     ("dm", "Data Models", "dm"),
     ("classic", "Classic", "classic"),
+    ("records", "Records", "records"),
 )
 
 # Transform — built pipeline scopes under ``transform/workflows/{scope}/``, then templates.
@@ -124,6 +126,46 @@ def _discovery_module_root():
 
 def _declared_root():
     return governance_declared.declared_root(_discovery_module_root())
+
+
+def _records_stream_nodes(client: Any) -> List[TreeNodeOut]:
+    """List CDF streams under Data → Records."""
+    import sys
+    from pathlib import Path
+
+    fn_root = Path(__file__).resolve().parent.parent.parent / "transform" / "functions"
+    if str(fn_root) not in sys.path:
+        sys.path.insert(0, str(fn_root))
+    try:
+        from cdf_fn_common.etl_streams_records_api import list_streams
+
+        page = list_streams(client, limit=1000)
+    except Exception:
+        return []
+    items = page.get("items") if isinstance(page.get("items"), list) else []
+    nodes: List[TreeNodeOut] = []
+    for raw in items:
+        if not isinstance(raw, dict):
+            continue
+        ext = str(raw.get("externalId") or raw.get("external_id") or "").strip()
+        if not ext:
+            continue
+        label = str(raw.get("name") or ext).strip()
+        nodes.append(
+            _node(
+                id=f"records:stream:{encode_segment(ext)}",
+                label=label,
+                kind="record_stream",
+                has_children=False,
+                open_target={"type": "record_stream", "stream_external_id": ext},
+                meta={
+                    "space": raw.get("space"),
+                    "mutable": raw.get("mutable"),
+                    "template": raw.get("template"),
+                },
+            )
+        )
+    return _sort_nodes(nodes)
 
 
 _NAME_TOKEN_SPLIT = re.compile(r"[_:\-]+")
@@ -606,6 +648,13 @@ def list_children(client: Any, node_id: str) -> List[TreeNodeOut]:
             has_children=False,
             meta={"domain": "transform_scope"},
         )
+        pipelines_folder = _node(
+            id=TRANSFORM_PIPELINES,
+            label="Pipelines",
+            kind="folder",
+            has_children=True,
+            meta={"domain": "transform_pipelines"},
+        )
         scope_nodes = [
             _node(
                 id=f"{TRANSFORM_ROOT}:{encode_segment(scope)}",
@@ -623,7 +672,26 @@ def list_children(client: Any, node_id: str) -> List[TreeNodeOut]:
             has_children=True,
             meta={"domain": "transform_templates"},
         )
-        return _sort_nodes([scope_config, *scope_nodes, templates_folder])
+        return _sort_nodes([scope_config, pipelines_folder, *scope_nodes, templates_folder])
+
+    if kind == TRANSFORM_ROOT and len(segs) == 1 and segs[0] == "pipelines":
+        from ui.server import transform_registry
+
+        return _sort_nodes(
+            [
+                _node(
+                    id=(
+                        f"{TRANSFORM_PIPELINE_PREFIX}{encode_segment(str(p['scope_suffix']))}:"
+                        f"{encode_segment(str(p['id']))}"
+                    ),
+                    label=str(p.get("label") or p["id"]),
+                    kind="etl_pipeline",
+                    has_children=bool(p.get("has_workflow_children")),
+                    meta={**p},
+                )
+                for p in transform_registry.list_instance_pipeline_entries()
+            ]
+        )
 
     if kind == TRANSFORM_ROOT and len(segs) == 1 and segs[0] != "templates":
         from ui.server import transform_registry
@@ -957,6 +1025,9 @@ def list_children(client: Any, node_id: str) -> List[TreeNodeOut]:
                 for rid, label in cdf_browse.CLASSIC_RESOURCE_BRANCHES
             ]
         )
+
+    if kind == "records":
+        return _records_stream_nodes(client)
 
     if kind == "dm" and not segs:
         return _dm_data_model_nodes(client)

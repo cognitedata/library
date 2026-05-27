@@ -2,6 +2,7 @@ import type { MessageKey } from "../../i18n";
 import type { TransformPipelineRunResult } from "../../types/transformTabRun";
 import type { TransformCanvasDocument } from "../../types/transformCanvas";
 import { collectStartCanvasNodeIdsOnAnyPathToTarget } from "./flowRunProgressEdges";
+import type { CanvasNodeRunProgress } from "./canvasNodeRunProgress";
 import {
   formatLocalRunDetail,
   localRunRowSuffix,
@@ -16,7 +17,10 @@ export type TransformFlowRunProgress = {
   runCompletedCanvasNodeIds: readonly string[];
   failedCanvasNodeIds: readonly string[];
   warningCanvasNodeIds: readonly string[];
+  nodeProgressById: Readonly<Record<string, CanvasNodeRunProgress>>;
 };
+
+export type { CanvasNodeRunProgress } from "./canvasNodeRunProgress";
 
 export type { TransformPipelineRunResult } from "../../types/transformTabRun";
 
@@ -34,6 +38,9 @@ type ProgressEv = {
   status?: string;
   error?: string;
   duration_sec?: number;
+  progress_current?: number;
+  progress_total?: number;
+  progress_label?: string;
 } & LocalRunProgressRowCounts;
 
 export type TransformRunStreamCallbacks = {
@@ -50,7 +57,69 @@ function emptyProgress(busy: boolean): TransformFlowRunProgress {
     runCompletedCanvasNodeIds: [],
     failedCanvasNodeIds: [],
     warningCanvasNodeIds: [],
+    nodeProgressById: {},
   };
+}
+
+function isCanvasHostedSubTask(ev: ProgressEv): boolean {
+  const canvas = (ev.canvas_node_id ?? "").trim();
+  const taskId = (ev.task_id ?? "").trim();
+  return Boolean(canvas && taskId && taskId !== canvas);
+}
+
+function mergeNodeProgress(
+  existing: CanvasNodeRunProgress | undefined,
+  patch: Partial<CanvasNodeRunProgress>
+): CanvasNodeRunProgress {
+  const startedAtMs =
+    patch.startedAtMs ??
+    existing?.startedAtMs ??
+    (patch.current != null || patch.total != null ? Date.now() : undefined);
+  return {
+    current: patch.current ?? existing?.current ?? 0,
+    total: patch.total ?? existing?.total,
+    label: patch.label ?? existing?.label,
+    startedAtMs,
+    elapsedMs: patch.elapsedMs ?? existing?.elapsedMs,
+  };
+}
+
+function finalizeNodeProgress(
+  existing: CanvasNodeRunProgress | undefined,
+  rowFields: LocalRunProgressRowCounts,
+  durationSec?: number
+): CanvasNodeRunProgress {
+  const read = rowFields.rows_read;
+  const written = rowFields.rows_written;
+  const count = written ?? read;
+  const elapsedMs =
+    typeof durationSec === "number" && Number.isFinite(durationSec)
+      ? Math.max(0, Math.floor(durationSec * 1000))
+      : existing?.startedAtMs != null
+        ? Math.max(0, Date.now() - existing.startedAtMs)
+        : existing?.elapsedMs;
+  if (count != null && count > 0) {
+    return {
+      current: count,
+      total: count,
+      label: existing?.label,
+      startedAtMs: existing?.startedAtMs,
+      elapsedMs,
+    };
+  }
+  if (existing?.total != null && existing.total > 0) {
+    return {
+      current: existing.total,
+      total: existing.total,
+      label: existing.label,
+      startedAtMs: existing.startedAtMs,
+      elapsedMs,
+    };
+  }
+  if (existing && existing.current > 0) {
+    return { ...existing, total: existing.total ?? existing.current, elapsedMs };
+  }
+  return { current: 1, total: 1, startedAtMs: existing?.startedAtMs, elapsedMs };
 }
 
 function nodeSuffixFor(ev: ProgressEv, taskId: string): string {
@@ -84,6 +153,7 @@ export async function streamTransformPipelineRun(
   const activeTasks = new Set<string>();
   const taskMeta = new Map<string, { fn?: string; node?: string }>();
   const taskSummaries: Record<string, unknown> = {};
+  const nodeProgressById = new Map<string, CanvasNodeRunProgress>();
 
   const flushProgress = (busy: boolean) => {
     callbacks.onProgress({
@@ -93,6 +163,7 @@ export async function streamTransformPipelineRun(
       runCompletedCanvasNodeIds: [...runCompletedCanvas],
       failedCanvasNodeIds: [...runFailedCanvas],
       warningCanvasNodeIds: [...runWarningCanvas],
+      nodeProgressById: Object.fromEntries(nodeProgressById),
     });
   };
 
@@ -113,6 +184,7 @@ export async function streamTransformPipelineRun(
   };
 
   flushProgress(true);
+  nodeProgressById.clear();
 
   const scopeQ =
     target.kind === "pipeline"
@@ -173,6 +245,34 @@ export async function streamTransformPipelineRun(
       callbacks.onLogAppend(`${prefix}${ev.message}\n`);
       return;
     }
+    if (ev.event === "task_progress") {
+      const canvas = (ev.canvas_node_id ?? "").trim();
+      if (canvas) {
+        const current =
+          typeof ev.progress_current === "number" && Number.isFinite(ev.progress_current)
+            ? Math.max(0, Math.floor(ev.progress_current))
+            : 0;
+        const totalRaw = ev.progress_total;
+        const total =
+          typeof totalRaw === "number" && Number.isFinite(totalRaw) && totalRaw > 0
+            ? Math.floor(totalRaw)
+            : undefined;
+        const label =
+          typeof ev.progress_label === "string" && ev.progress_label.trim()
+            ? ev.progress_label.trim()
+            : undefined;
+        nodeProgressById.set(
+          canvas,
+          mergeNodeProgress(nodeProgressById.get(canvas), {
+            current,
+            total,
+            label,
+          })
+        );
+        flushProgress(true);
+      }
+      return;
+    }
     if (ev.event === "task_start" && ev.task_id) {
       const taskId = ev.task_id;
       const fn = (ev.function_external_id ?? "").trim();
@@ -186,10 +286,14 @@ export async function streamTransformPipelineRun(
           ? collectStartCanvasNodeIdsOnAnyPathToTarget(canvasDoc, canvas)
           : [];
       for (const sid of startIds) runCompletedCanvas.add(sid);
-      if (canvas) {
+      if (canvas && !isCanvasHostedSubTask(ev)) {
         runFailedCanvas.delete(canvas);
         executingCanvasNodes.add(canvas);
         runActiveCanvas.add(canvas);
+        nodeProgressById.set(
+          canvas,
+          mergeNodeProgress(nodeProgressById.get(canvas), { current: 0, startedAtMs: Date.now() })
+        );
       }
       callbacks.onLogAppend(
         `${t("run.localTaskStart", {
@@ -209,28 +313,37 @@ export async function streamTransformPipelineRun(
       const statusRaw = typeof ev.status === "string" ? ev.status.trim().toLowerCase() : "";
       const failed = statusRaw === "failed";
       const warned = statusRaw === "completed_with_errors";
+      const rowFields = rowCountFieldsFromEvent(ev);
+      const durationSec =
+        typeof ev.duration_sec === "number" && Number.isFinite(ev.duration_sec) ? ev.duration_sec : undefined;
       activeTasks.delete(taskId);
       taskMeta.delete(taskId);
-      if (canvas) {
+      if (canvas && !isCanvasHostedSubTask(ev)) {
         executingCanvasNodes.delete(canvas);
         runActiveCanvas.delete(canvas);
         if (failed) {
           runFailedCanvas.add(canvas);
           runWarningCanvas.delete(canvas);
           runCompletedCanvas.delete(canvas);
+          nodeProgressById.delete(canvas);
         } else if (warned) {
           runWarningCanvas.add(canvas);
           runFailedCanvas.delete(canvas);
           runCompletedCanvas.add(canvas);
+          nodeProgressById.set(
+            canvas,
+            finalizeNodeProgress(nodeProgressById.get(canvas), rowFields, durationSec)
+          );
         } else {
           runFailedCanvas.delete(canvas);
           runWarningCanvas.delete(canvas);
           runCompletedCanvas.add(canvas);
+          nodeProgressById.set(
+            canvas,
+            finalizeNodeProgress(nodeProgressById.get(canvas), rowFields, durationSec)
+          );
         }
       }
-      const rowFields = rowCountFieldsFromEvent(ev);
-      const durationSec =
-        typeof ev.duration_sec === "number" && Number.isFinite(ev.duration_sec) ? ev.duration_sec : undefined;
       taskSummaries[taskId] = {
         status: statusRaw || "succeeded",
         task_id: taskId,
@@ -283,6 +396,7 @@ export async function streamTransformPipelineRun(
       runCompletedCanvasNodeIds: [],
       failedCanvasNodeIds: [...runFailedCanvas],
       warningCanvasNodeIds: [...runWarningCanvas],
+      nodeProgressById: {},
     });
     const detail =
       Object.keys(taskSummaries).length > 0

@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { DeferredCommitInput } from "../query/DeferredCommitTextField";
 import { useAppSettings } from "../../context/AppSettingsContext";
 import type { JsonObject } from "../../types/jsonConfig";
 import { TransformHandlerSelect, isMultiValueTransformHandler } from "./etlTransforms/TransformHandlerSelect";
@@ -78,11 +79,12 @@ export function EtlTransformSingleStepFields({
       ) : null}
       <label className="gov-label gov-label--block">
         {t("transforms.description")}
-        <input
+        <DeferredCommitInput
           className="gov-input"
           style={{ marginTop: "0.35rem" }}
-          value={String(value.description ?? "")}
-          onChange={(e) => patch({ description: e.target.value })}
+          committedValue={String(value.description ?? "")}
+          syncKey={stepIndex != null ? `desc-${stepIndex}` : "desc"}
+          onCommit={(v) => patch({ description: v })}
           spellCheck={false}
           autoComplete="off"
         />
@@ -131,11 +133,12 @@ export function EtlTransformSingleStepFields({
       </div>
       <label className="gov-label gov-label--block" style={{ marginTop: "0.75rem" }}>
         {t("transforms.outputField")}
-        <input
+        <DeferredCommitInput
           className="gov-input"
           style={{ marginTop: "0.35rem" }}
-          value={String(value.output_field ?? "")}
-          onChange={(e) => patch({ output_field: e.target.value })}
+          committedValue={String(value.output_field ?? "")}
+          syncKey={stepIndex != null ? `out-${stepIndex}` : "out"}
+          onCommit={(v) => patch({ output_field: v })}
           spellCheck={false}
         />
       </label>
@@ -159,12 +162,13 @@ export function EtlTransformSingleStepFields({
       </label>
       <label className="gov-label gov-label--block" style={{ marginTop: "0.5rem" }}>
         {t("transforms.outputTemplate")}
-        <input
+        <DeferredCommitInput
           className="gov-input"
           style={{ marginTop: "0.35rem" }}
-          value={String(value.output_template ?? "")}
-          onChange={(e) => patch({ output_template: e.target.value })}
-          placeholder="{name}"
+          committedValue={String(value.output_template ?? "")}
+          syncKey={stepIndex != null ? `tpl-${stepIndex}` : "tpl"}
+          onCommit={(v) => patch({ output_template: v })}
+          placeholder={t("transforms.outputFieldPlaceholder")}
           spellCheck={false}
         />
       </label>
@@ -196,27 +200,32 @@ export function EtlTransformSingleStepFields({
             >
               <label className="gov-label">
                 {t("transforms.fieldName")}
-                <input
+                <DeferredCommitInput
                   className="gov-input"
-                  value={fieldName}
-                  onChange={(e) => {
+                  committedValue={fieldName}
+                  syncKey={`${stepIndex ?? "s"}-fn-${i}`}
+                  onCommit={(v) => {
                     const next = [...rowList];
-                    next[i] = { ...row, field_name: e.target.value };
+                    next[i] = { ...row, field_name: v };
                     setFields(next);
                   }}
+                  spellCheck={false}
+                  autoComplete="off"
                 />
               </label>
               <label className="gov-label">
                 {t("transforms.fieldRegex")}
-                <input
+                <DeferredCommitInput
                   className="gov-input"
-                  value={regexStr}
-                  onChange={(e) => {
+                  committedValue={regexStr}
+                  syncKey={`${stepIndex ?? "s"}-rx-${i}`}
+                  onCommit={(v) => {
                     const next = [...rowList];
-                    next[i] = { ...row, regex: e.target.value };
+                    next[i] = { ...row, regex: v };
                     setFields(next);
                   }}
                   spellCheck={false}
+                  autoComplete="off"
                 />
               </label>
               <button

@@ -77,3 +77,51 @@ export function usePipelineRunScope(
 
   return [runScope, setRunScope];
 }
+
+const DRY_RUN_STORAGE_PREFIX = "cdf_discovery:etl_dry_run:";
+
+export function pipelineDryRunStorageKey(resourceId: string): string {
+  return `${DRY_RUN_STORAGE_PREFIX}${resourceId}`;
+}
+
+export function readStoredPipelineDryRun(resourceId: string): boolean | null {
+  if (typeof sessionStorage === "undefined") return null;
+  try {
+    const raw = sessionStorage.getItem(pipelineDryRunStorageKey(resourceId));
+    if (raw === "1" || raw === "true") return true;
+    if (raw === "0" || raw === "false") return false;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+export function storePipelineDryRun(resourceId: string, dryRun: boolean): void {
+  if (typeof sessionStorage === "undefined") return;
+  try {
+    sessionStorage.setItem(pipelineDryRunStorageKey(resourceId), dryRun ? "1" : "0");
+  } catch {
+    // ignore quota / private browsing
+  }
+}
+
+/** Dry-run toggle for local pipeline runs; persists per resource in session storage. */
+export function usePipelineDryRun(resourceId: string): [boolean, (dryRun: boolean) => void] {
+  const [dryRun, setDryRunState] = useState(
+    () => readStoredPipelineDryRun(resourceId) ?? false
+  );
+
+  useEffect(() => {
+    setDryRunState(readStoredPipelineDryRun(resourceId) ?? false);
+  }, [resourceId]);
+
+  const setDryRun = useCallback(
+    (value: boolean) => {
+      storePipelineDryRun(resourceId, value);
+      setDryRunState(value);
+    },
+    [resourceId]
+  );
+
+  return [dryRun, setDryRun];
+}

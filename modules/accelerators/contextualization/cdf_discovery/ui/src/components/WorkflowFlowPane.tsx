@@ -17,6 +17,7 @@ import { filterTasksBySearch, taskMatchesSearch } from "../utils/workflowFlowSea
 import { workflowGraphToFlow } from "../utils/workflowFlowLayout";
 import { workflowTaskKindLabel } from "../utils/workflowTaskKind";
 import { WorkflowTaskProperties } from "./WorkflowTaskProperties";
+import { highlightEdgesConnectedToNode } from "./flow/highlightEdgesForSelectedNode";
 import { WfTaskFlowNode } from "./flow/WfTaskFlowNode";
 
 const nodeTypes = { wfTask: WfTaskFlowNode };
@@ -115,6 +116,11 @@ function FlowInner({ tab, onTabUpdate, readOnly = false }: Props) {
     [baseNodes, selectedTaskId, searchQuery, searchActive, t]
   );
 
+  const displayEdges = useMemo(
+    () => highlightEdgesConnectedToNode(edges, selectedTaskId),
+    [edges, selectedTaskId]
+  );
+
   const graphRevision = tab.graph
     ? `${tab.id}:${tab.graph.tasks.length}:${tab.graph.edges.length}`
     : tab.id;
@@ -186,7 +192,9 @@ function FlowInner({ tab, onTabUpdate, readOnly = false }: Props) {
           {t("wfViewer.refresh")}
         </button>
       </div>
-      {searchActive && tab.graph && (
+      {tab.graph && tab.graph.tasks.length > 0 && (
+        <section className="disc-flow-node-list" aria-label={t("wfViewer.nodeListLabel")}>
+          {searchActive ? (
         <div className="disc-dm-flow-search-results">
           {searchMatches.length === 0 ? (
             <span className="disc-dm-flow-search-results__empty">{t("wfViewer.noSearchResults")}</span>
@@ -215,6 +223,31 @@ function FlowInner({ tab, onTabUpdate, readOnly = false }: Props) {
             </ul>
           )}
         </div>
+          ) : (
+            <ul className="disc-dm-flow-search-results__list">
+              {tab.graph.tasks.map((task) => (
+                <li key={task.id}>
+                  <button
+                    type="button"
+                    className={
+                      selectedTaskId === task.id
+                        ? "disc-dm-flow-search-results__item disc-dm-flow-search-results__item--active"
+                        : "disc-dm-flow-search-results__item"
+                    }
+                    onClick={() => selectTask(task, true)}
+                  >
+                    <span className="disc-dm-flow-search-results__name">
+                      {task.label?.trim() || task.external_id}
+                    </span>
+                    <span className="disc-dm-flow-search-results__meta">
+                      {workflowTaskKindLabel(task, t)}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
       )}
       <div className="disc-dm-flow-body">
         <div className="disc-dm-flow-canvas">
@@ -225,7 +258,7 @@ function FlowInner({ tab, onTabUpdate, readOnly = false }: Props) {
           ) : (
             <ReactFlow
               nodes={nodes}
-              edges={edges}
+              edges={displayEdges}
               nodeTypes={nodeTypes}
               colorMode={theme}
               nodesDraggable={!readOnly}

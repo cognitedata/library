@@ -252,6 +252,34 @@ export function useDiscoveryPanelLayout() {
     setDraggingPanel(null);
   }, []);
 
+  const nudgeTreeWidth = useCallback(
+    (delta: number) => {
+      setTreeWidth((w) => clamp(w + delta, TREE_MIN, treeMaxWidth()));
+    },
+    [treeMaxWidth]
+  );
+
+  const nudgePropertiesSize = useCallback(
+    (delta: number) => {
+      setPropertiesSize((s) => clamp(s + delta, PROPS_MIN, propsMaxHeight()));
+    },
+    [propsMaxHeight]
+  );
+
+  const setTreeWidthClamped = useCallback(
+    (next: number) => {
+      setTreeWidth(clamp(next, TREE_MIN, treeMaxWidth()));
+    },
+    [treeMaxWidth]
+  );
+
+  const setPropertiesSizeClamped = useCallback(
+    (next: number) => {
+      setPropertiesSize(clamp(next, PROPS_MIN, propsMaxHeight()));
+    },
+    [propsMaxHeight]
+  );
+
   const sideColumnWidth =
     propertiesDock === "left-bottom" && !treeCollapsed
       ? treeWidth
@@ -285,5 +313,10 @@ export function useDiscoveryPanelLayout() {
     endPanelDrag,
     dropTreeSide,
     dropPropertiesDock,
+    nudgeTreeWidth,
+    nudgePropertiesSize,
+    setTreeWidthClamped,
+    setPropertiesSizeClamped,
+    propsMaxHeight,
   };
 }

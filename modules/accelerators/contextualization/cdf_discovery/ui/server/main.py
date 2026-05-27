@@ -19,10 +19,12 @@ if _mod_root_str not in sys.path:
 
 from ui.server import cdf_browse, discovery_config, discovery_tree, file_content_query, file_download  # noqa: E402
 from ui.server.governance_api import router as governance_declared_router  # noqa: E402
+from ui.server.records_api import router as records_router  # noqa: E402
 from ui.server.transform_api import router as transform_router  # noqa: E402
 
 app = FastAPI(title="CDF Discovery operator API", version="1.0.0")
 app.include_router(governance_declared_router)
+app.include_router(records_router)
 app.include_router(transform_router)
 app.add_middleware(
     CORSMiddleware,

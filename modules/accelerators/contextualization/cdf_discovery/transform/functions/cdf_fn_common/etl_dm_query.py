@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from typing import Any, Dict, Iterable, List, MutableMapping, Optional
 
 from .query_enumeration import QueryEnumerationStats, resolve_page_size
+from .etl_ui_progress import emit_handler_progress
 
 RESULT_SET_KEY = "rows"
 
@@ -256,6 +257,7 @@ def query_all_view_instances(
                 n_in_page,
                 total,
             )
+        emit_handler_progress(total, label="instances")
         cursors = _cursors_from_query_result(result)
         next_cursor = cursors.get(RESULT_SET_KEY)
         if not next_cursor:

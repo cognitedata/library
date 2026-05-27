@@ -129,7 +129,7 @@ export function SqlQueryConfigFields({ value, onChange, fieldKey }: Props) {
               max={10000}
               style={{ marginTop: "0.35rem", width: "6rem" }}
               value={workflowLimit != null ? String(workflowLimit) : ""}
-              placeholder="(max)"
+              placeholder={t("common.placeholder.max")}
               onChange={(e) => {
                 const raw = e.target.value.trim();
                 if (!raw) {

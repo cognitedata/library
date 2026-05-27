@@ -26,15 +26,19 @@ function paletteKey(stage: TransformCanvasNodeKind): MessageKey {
 const PALETTE_GROUPS: { titleKey: MessageKey; stages: TransformCanvasNodeKind[] }[] = [
   {
     titleKey: "transform.palette.groupExtract",
-    stages: ["query_view", "query_raw", "query_classic", "query_sql"],
+    stages: ["query_view", "query_raw", "query_classic", "query_sql", "query_records"],
   },
   {
     titleKey: "transform.palette.groupTransform",
-    stages: ["transform", "field_map", "score", "filter", "join", "merge", "build_index"],
+    stages: ["transform", "json_mapping", "score", "filter", "join", "merge", "build_index"],
+  },
+  {
+    titleKey: "transform.palette.groupContextualization",
+    stages: ["file_annotation", "workflow_fanout_plan", "dynamic_fanout"],
   },
   {
     titleKey: "transform.palette.groupLoad",
-    stages: ["save_view", "save_raw", "save_classic", "spark_transform"],
+    stages: ["save_view", "save_raw", "save_classic", "save_records", "save_stream", "spark_transform"],
   },
   {
     titleKey: "transform.palette.groupOrchestration",
@@ -42,7 +46,6 @@ const PALETTE_GROUPS: { titleKey: MessageKey; stages: TransformCanvasNodeKind[] 
       "function_ref",
       "transformation_ref",
       "subworkflow",
-      "dynamic_fanout",
       "simulation",
       "cdf_task",
     ],
@@ -53,7 +56,10 @@ export function FlowPalette({ t, readOnly = false }: Props) {
   return (
     <div className="transform-flow-palette" role="complementary" aria-label={t("transform.paletteAria")}>
       {PALETTE_GROUPS.map((group) => (
-        <section key={group.titleKey} className="transform-flow-palette__group">
+        <section
+          key={group.titleKey}
+          className={`transform-flow-palette__group${group.titleKey === "transform.palette.groupContextualization" ? " transform-flow-palette__group--contextualization" : ""}`}
+        >
           <h3 className="transform-flow-palette__heading">{t(group.titleKey)}</h3>
           <ul className="transform-flow-palette__list">
             {group.stages.map((stage) => (

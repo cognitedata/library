@@ -1,0 +1,21 @@
+externalId: trg_wf_all_etl_file_pattern_extract
+workflowExternalId: wf_all_etl_file_pattern_extract
+workflowVersion: '1'
+triggerRule:
+  triggerType: schedule
+  cronExpression: 0 2 * * *
+input:
+  incremental_change_processing: true
+  run_id: ''
+  configuration:
+    schemaVersion: 1
+    id: file_pattern_extract
+    scope: null
+    parameters:
+      incremental: true
+      incremental_change_processing: true
+      incremental_skip_unchanged: true
+      raw_db: etl_staging
+      raw_table_key: cohort
+      instance_space: inst_assets
+      mime_type: application/pdf

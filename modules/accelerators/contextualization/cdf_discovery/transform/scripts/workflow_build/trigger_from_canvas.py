@@ -30,9 +30,33 @@ def read_start_trigger_config(
     rule: Dict[str, Any] = {"triggerType": trigger_type}
     if trigger_type == "schedule":
         rule["cronExpression"] = cron or default_cron
+    elif trigger_type == "recordStream":
+        stream_ext = str(
+            cfg.get("stream_external_id") or cfg.get("streamExternalId") or ""
+        ).strip()
+        if stream_ext:
+            rule["streamExternalId"] = stream_ext
+        batch_size = cfg.get("batch_size") or cfg.get("batchSize")
+        if batch_size is not None:
+            try:
+                rule["batchSize"] = max(1, min(int(batch_size), 1000))
+            except (TypeError, ValueError):
+                pass
+        batch_timeout = cfg.get("batch_timeout") or cfg.get("batchTimeout")
+        if batch_timeout is not None:
+            try:
+                rule["batchTimeout"] = max(10, min(int(batch_timeout), 86400))
+            except (TypeError, ValueError):
+                pass
+        if isinstance(cfg.get("filter"), dict):
+            rule["filter"] = cfg.get("filter")
+        if isinstance(cfg.get("sources"), list) and cfg.get("sources"):
+            rule["sources"] = cfg.get("sources")
     extra = cfg.get("trigger_rule")
     if isinstance(extra, dict):
         for k, v in extra.items():
+            if k == "triggerType":
+                continue
             rule[k] = v
     return {
         "workflow_version": str(cfg.get("workflow_version") or cfg.get("workflowVersion") or "1"),

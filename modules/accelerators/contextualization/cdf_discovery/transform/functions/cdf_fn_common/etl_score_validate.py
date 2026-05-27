@@ -8,7 +8,6 @@ from .etl_common import _first_nonempty
 from .etl_score_match_eval import apply_score_match_rules_to_float_scores
 from .etl_score_property import score_property_key
 
-DEFAULT_SCORE_FIELDS = ("aliases", "indexKey")
 DEFAULT_INITIAL_SCORE = 1.0
 DEFAULT_MIN_SCORE = 0.0
 
@@ -20,6 +19,8 @@ def validate_scoring_config(cfg: Mapping[str, Any]) -> None:
     rules = materialize_scoring_rules(cfg)
     if not rules:
         raise ValueError("score config requires non-empty scoring_rules")
+    if not _parse_score_fields(cfg):
+        raise ValueError("score config requires non-empty score_fields or score_field")
 
 
 def materialize_scoring_rules(cfg: Mapping[str, Any]) -> List[Any]:
@@ -41,7 +42,7 @@ def _parse_score_fields(cfg: Mapping[str, Any]) -> List[str]:
     single = _first_nonempty(cfg.get("score_field"))
     if single:
         return [single]
-    return list(DEFAULT_SCORE_FIELDS)
+    return []
 
 
 def _initial_score(cfg: Mapping[str, Any]) -> float:
@@ -125,7 +126,9 @@ def _write_parallel_scores(
 
 def score_primary_value_field(cfg: Mapping[str, Any]) -> str:
     fields = _parse_score_fields(cfg)
-    return fields[0] if fields else "aliases"
+    if not fields:
+        raise ValueError("score config requires non-empty score_fields or score_field")
+    return fields[0]
 
 
 def score_row_properties(

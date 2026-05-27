@@ -7,6 +7,7 @@ const QUERYABLE_KINDS = new Set([
   "raw_table",
   "dm_view",
   "fusion_dm_view",
+  "record_stream",
 ]);
 
 export type DataTreeEntityDragPayload = {
@@ -43,6 +44,9 @@ export function entityDropStages(node: TreeNode): EntityDropStages | null {
   }
   if (target.type === "classic_list") {
     return { query: "query_classic", save: "save_classic" };
+  }
+  if (target.type === "record_stream") {
+    return { query: "query_records", save: "save_records" };
   }
   return null;
 }
@@ -122,6 +126,18 @@ export function seedConfigForEntityDrop(
     };
   }
 
+  if (target.type === "record_stream") {
+    const base = {
+      description: label,
+      stream_external_id: target.stream_external_id,
+      streamExternalId: target.stream_external_id,
+    };
+    if (stage === "query_records") {
+      return { ...base, read_mode: "sync", batch_size: 100 };
+    }
+    return { ...base, write_mode: "ingest" };
+  }
+
   return { description: label };
 }
 
@@ -139,6 +155,9 @@ export function openTargetKey(target: OpenTarget): string {
   }
   if (target.type === "raw_rows") {
     return `raw:${target.database}:${target.table}`;
+  }
+  if (target.type === "record_stream") {
+    return `record_stream:${target.stream_external_id}`;
   }
   return target.type;
 }

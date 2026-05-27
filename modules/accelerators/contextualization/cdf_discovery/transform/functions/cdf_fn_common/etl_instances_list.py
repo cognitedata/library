@@ -8,6 +8,7 @@ from datetime import datetime
 from typing import Any, Dict, Iterable, List, Optional
 
 from .query_enumeration import resolve_page_size
+from .etl_ui_progress import emit_handler_progress
 
 
 @dataclass
@@ -151,6 +152,7 @@ def list_all_instances(
                 total,
                 sort_note,
             )
+        emit_handler_progress(total, label="instances")
     if stats_out is not None:
         stats_out.page_count = batch_no
         stats_out.instances_yielded = total

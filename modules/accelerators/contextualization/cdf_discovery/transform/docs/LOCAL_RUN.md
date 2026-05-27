@@ -10,6 +10,15 @@ python -m local_runner.run --predecessor-mode cohort   # RAW cohort handoff (dep
 
 **Predecessor mode:** default `in_memory` passes rows via `_predecessor_rows` between tasks. Use `--predecessor-mode cohort` (or `ETL_LOCAL_PREDECESSOR_MODE=cohort`) so query tasks write cohort RAW tables and transform reads them like a deployed workflow.
 
+**Parallelism:** Independent tasks in the same DAG layer run concurrently (default up to 4 workers). Dynamic fan-out child batches use the same limit.
+
+```bash
+python -m local_runner.run --max-workers 4 --instance discovery_etl_default
+export KEA_LOCAL_MAX_WORKERS=2   # env default when --max-workers omitted
+```
+
+Pipeline YAML may set `parameters.local_max_workers`. Use `--max-workers 1` for strictly serial execution (debugging). Parallel branches that fan into a **merge** node with multiple in-memory predecessors should use `--predecessor-mode cohort` for full parity with deployed workflows.
+
 Or via parent module:
 
 ```bash

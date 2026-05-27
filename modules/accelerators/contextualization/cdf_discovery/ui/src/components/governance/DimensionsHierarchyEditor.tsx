@@ -492,6 +492,7 @@ export function DimensionsHierarchyEditor({ value, onChange }: Props) {
           <div
             className="gov-tree gov-dim-tree"
             role="tree"
+            tabIndex={0}
             aria-label={t("dimensions.hierarchyTree")}
             onContextMenu={(e) => {
               if (tree.length === 0) return;

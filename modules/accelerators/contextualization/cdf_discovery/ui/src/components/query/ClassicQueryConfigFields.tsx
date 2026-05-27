@@ -147,7 +147,7 @@ export function ClassicQueryConfigFields({ value, onChange, fieldKey = "classic"
           min={1}
           style={{ marginTop: "0.35rem", maxWidth: "12rem" }}
           value={workflowCap != null ? String(workflowCap) : ""}
-          placeholder="(all)"
+          placeholder={t("common.placeholder.all")}
           onChange={(e) => {
             const raw = e.target.value.trim();
             const next: JsonObject = { ...value };

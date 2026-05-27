@@ -6,8 +6,17 @@ from typing import Any, Dict, FrozenSet, List, Mapping, Optional, Sequence, Set,
 
 COMPILED_WORKFLOW_SCHEMA_VERSION = 1
 
+_DIAGRAM_ANNOTATION_MAPPER_KINDS: FrozenSet[str] = frozenset(
+    {"diagram_detect_to_dm", "diagram_detect_to_classic"}
+)
+
 JOIN_TARGET_HANDLE_LEFT = "in__left"
 JOIN_TARGET_HANDLE_RIGHT = "in__right"
+
+FILE_ANNOTATION_HANDLE_ENTITIES = "in__entities"
+FILE_ANNOTATION_HANDLE_FILES = "in__files"
+FANOUT_PLAN_HANDLE_INPUT_A = "in__input_a"
+FANOUT_PLAN_HANDLE_INPUT_B = "in__input_b"
 
 _JOIN_INPUT_SOURCE_KINDS: FrozenSet[str] = frozenset(
     {
@@ -15,9 +24,9 @@ _JOIN_INPUT_SOURCE_KINDS: FrozenSet[str] = frozenset(
         "query_raw",
         "query_classic",
         "query_sql",
+        "query_records",
         "transform",
         "filter",
-        "field_map",
         "score",
         "join",
         "merge",
@@ -37,18 +46,23 @@ _KIND_SPEC: Dict[str, Tuple[str | None, str, str]] = {
     "query_raw": ("fn_etl_raw_query", "query_raw", "function"),
     "query_classic": ("fn_etl_classic_query", "query_classic", "function"),
     "query_sql": ("fn_etl_sql_query", "query_sql", "function"),
+    "query_records": ("fn_etl_records_query", "query_records", "function"),
     "transform": ("fn_etl_transform", "transform", "function"),
     "filter": ("fn_etl_filter", "filter", "function"),
-    "field_map": ("fn_etl_field_map", "field_map", "function"),
+    "json_mapping": (None, "json_mapping", "jsonMapping"),
     "instance_filter": ("fn_etl_filter", "filter", "function"),
     "score": ("fn_etl_score", "score", "function"),
     "validation": ("fn_etl_score", "score", "function"),
     "join": ("fn_etl_join", "join", "function"),
     "merge": ("fn_etl_merge", "merge", "function"),
     "build_index": ("fn_etl_build_index", "build_index", "function"),
+    "file_annotation": ("fn_etl_file_annotation", "file_annotation", "function"),
+    "workflow_fanout_plan": ("fn_etl_workflow_fanout_plan", "workflow_fanout_plan", "function"),
     "save_view": ("fn_etl_view_save", "save_view", "function"),
     "save_raw": ("fn_etl_raw_save", "save_raw", "function"),
     "save_classic": ("fn_etl_classic_save", "save_classic", "function"),
+    "save_records": ("fn_etl_records_save", "save_records", "function"),
+    "save_stream": ("fn_etl_stream_save", "save_stream", "function"),
     "spark_transform": (None, "spark_transform", "transformation"),
     "transformation_ref": (None, "transformation_ref", "transformation"),
     "function_ref": (None, "function_ref", "function"),
@@ -64,6 +78,16 @@ _KIND_FN: Dict[str, Tuple[str, str]] = {
 }
 
 
+def _resolved_function_external_id(
+    kind: str, cfg: Mapping[str, Any], default_fn: str | None
+) -> str | None:
+    """Canvas ``function_ref`` nodes store the target id on config, not in ``_KIND_SPEC``."""
+    if kind == "function_ref":
+        ext = str(cfg.get("function_external_id") or "").strip()
+        return ext or None
+    return default_fn
+
+
 def _node_kind(node: Mapping[str, Any]) -> str:
     kind = str(node.get("kind") or "").strip()
     if kind:
@@ -74,13 +98,17 @@ def _node_kind(node: Mapping[str, Any]) -> str:
     return ""
 
 
-def _join_input_task_ids_from_edges(
-    join_node_id: str,
+def _dual_input_task_ids_from_edges(
+    node_id: str,
     edges: Sequence[Mapping[str, Any]],
     *,
+    handle_left: str,
+    handle_right: str,
     node_by_id: Mapping[str, Mapping[str, Any]],
     executable_ids: Set[str],
-) -> Tuple[str, str]:
+    node_kind_label: str,
+    require_right: bool = True,
+) -> Tuple[Optional[str], Optional[str]]:
     left_tid: Optional[str] = None
     right_tid: Optional[str] = None
     left_src: Optional[str] = None
@@ -89,12 +117,12 @@ def _join_input_task_ids_from_edges(
     for e in edges:
         if not isinstance(e, dict):
             continue
-        if str(e.get("target") or "").strip() != join_node_id:
+        if str(e.get("target") or "").strip() != node_id:
             continue
         src = str(e.get("source") or "").strip()
         if not src or src not in executable_ids:
             raise CanvasCompileError(
-                f"join node {join_node_id!r}: predecessor {src!r} is not an executable canvas node"
+                f"{node_kind_label} node {node_id!r}: predecessor {src!r} is not an executable canvas node"
             )
         pred = node_by_id.get(src)
         if pred is None:
@@ -102,41 +130,74 @@ def _join_input_task_ids_from_edges(
         pk = _node_kind(pred)
         if pk not in _JOIN_INPUT_SOURCE_KINDS:
             raise CanvasCompileError(
-                f"join node {join_node_id!r}: predecessor {src!r} kind={pk!r} is not allowed "
-                f"as join input (expected one of: {sorted(_JOIN_INPUT_SOURCE_KINDS)})"
+                f"{node_kind_label} node {node_id!r}: predecessor {src!r} kind={pk!r} is not allowed "
+                f"as input (expected one of: {sorted(_JOIN_INPUT_SOURCE_KINDS)})"
             )
         th = str(e.get("target_handle") or "").strip()
-        if th == JOIN_TARGET_HANDLE_LEFT:
+        if th == handle_left:
             if left_tid is not None:
                 raise CanvasCompileError(
-                    f"join node {join_node_id!r}: multiple edges target {JOIN_TARGET_HANDLE_LEFT!r}"
+                    f"{node_kind_label} node {node_id!r}: multiple edges target {handle_left!r}"
                 )
             left_tid = src
             left_src = src
-        elif th == JOIN_TARGET_HANDLE_RIGHT:
+        elif th == handle_right:
             if right_tid is not None:
                 raise CanvasCompileError(
-                    f"join node {join_node_id!r}: multiple edges target {JOIN_TARGET_HANDLE_RIGHT!r}"
+                    f"{node_kind_label} node {node_id!r}: multiple edges target {handle_right!r}"
                 )
             right_tid = src
             right_src = src
         else:
             raise CanvasCompileError(
-                f"join node {join_node_id!r}: edge from {src!r} must use "
-                f"target_handle {JOIN_TARGET_HANDLE_LEFT!r} or {JOIN_TARGET_HANDLE_RIGHT!r}, "
-                f"got {th!r}"
+                f"{node_kind_label} node {node_id!r}: edge from {src!r} must use "
+                f"target_handle {handle_left!r} or {handle_right!r}, got {th!r}"
             )
 
-    if left_tid is None or right_tid is None:
+    if left_tid is None:
         raise CanvasCompileError(
-            f"join node {join_node_id!r}: require exactly one edge to {JOIN_TARGET_HANDLE_LEFT!r} "
-            f"and one to {JOIN_TARGET_HANDLE_RIGHT!r}"
+            f"{node_kind_label} node {node_id!r}: require exactly one edge to {handle_left!r}"
         )
-    if left_src == right_src:
+    if require_right and right_tid is None:
         raise CanvasCompileError(
-            f"join node {join_node_id!r}: left and right inputs must be different nodes"
+            f"{node_kind_label} node {node_id!r}: require exactly one edge to {handle_right!r}"
+        )
+    if right_tid is not None and left_src == right_src:
+        raise CanvasCompileError(
+            f"{node_kind_label} node {node_id!r}: left and right inputs must be different nodes"
         )
     return left_tid, right_tid
+
+
+def _join_input_task_ids_from_edges(
+    join_node_id: str,
+    edges: Sequence[Mapping[str, Any]],
+    *,
+    node_by_id: Mapping[str, Mapping[str, Any]],
+    executable_ids: Set[str],
+) -> Tuple[str, str]:
+    left_tid, right_tid = _dual_input_task_ids_from_edges(
+        join_node_id,
+        edges,
+        handle_left=JOIN_TARGET_HANDLE_LEFT,
+        handle_right=JOIN_TARGET_HANDLE_RIGHT,
+        node_by_id=node_by_id,
+        executable_ids=executable_ids,
+        node_kind_label="join",
+        require_right=True,
+    )
+    return left_tid or "", right_tid or ""
+
+
+def _config_has_file_ids(cfg: Mapping[str, Any]) -> bool:
+    raw = cfg.get("file_ids")
+    if raw is None or raw == "":
+        return False
+    if isinstance(raw, list):
+        return any(str(x or "").strip() for x in raw)
+    if isinstance(raw, str):
+        return bool(raw.strip())
+    return True
 
 
 def _end_node_cleanup_tasks(
@@ -179,12 +240,65 @@ def etl_local_pipeline_specs() -> Dict[str, Tuple[str, str]]:
     for fn_ext, exec_kind in _KIND_FN.values():
         if fn_ext not in out:
             out[fn_ext] = (f"{fn_ext}.pipeline", exec_kind)
+    # Dynamic fan-out children are not canvas node kinds but must run locally.
+    _extra_local: Dict[str, str] = {
+        "fn_etl_file_annotation": "file_annotation",
+    }
+    for fn_ext, entry in _extra_local.items():
+        if fn_ext not in out:
+            out[fn_ext] = (f"{fn_ext}.pipeline", entry)
     return out
+
+
+def _normalize_mislabeled_fanout_plan_nodes(nodes: List[Any]) -> None:
+    """Canvas nodes saved as ``transform`` but configured for fan-out planning."""
+    for n in nodes:
+        if not isinstance(n, dict):
+            continue
+        if _node_kind(n) != "transform":
+            continue
+        data = n.get("data") if isinstance(n.get("data"), dict) else {}
+        cfg = data.get("config") if isinstance(data.get("config"), dict) else {}
+        if cfg.get("dynamic_fanout_depends_on") or cfg.get("generator_task_id"):
+            n["kind"] = "workflow_fanout_plan"
+
+
+def _validate_json_mapping_config(node_id: str, cfg: Mapping[str, Any]) -> None:
+    expr = str(cfg.get("expression") or "").strip()
+    if not expr:
+        raise CanvasCompileError(
+            f"json_mapping node {node_id!r}: expression is required for CDF jsonMapping tasks"
+        )
+    inp = cfg.get("input")
+    if inp is not None and (not isinstance(inp, dict) or isinstance(inp, list)):
+        raise CanvasCompileError(
+            f"json_mapping node {node_id!r}: input must be a JSON object when set"
+        )
+
+
+def _reject_removed_mapping_node_kinds(nodes: Sequence[Mapping[str, Any]]) -> None:
+    removed = {
+        "field_map": "field_map",
+        "annotation_map": "annotation_map",
+    }
+    for n in nodes:
+        if not isinstance(n, dict):
+            continue
+        kind = _node_kind(n)
+        if kind not in removed:
+            continue
+        node_id = str(n.get("id") or kind).strip()
+        raise CanvasCompileError(
+            f"canvas node {node_id!r} uses removed kind {kind!r}; "
+            "use kind 'json_mapping' (CDF jsonMapping task)."
+        )
 
 
 def compile_canvas_dag(canvas: Mapping[str, Any]) -> Dict[str, Any]:
     """Map executable canvas nodes to compiled_workflow tasks."""
-    nodes = canvas.get("nodes") or []
+    nodes = list(canvas.get("nodes") or [])
+    _reject_removed_mapping_node_kinds(nodes)
+    _normalize_mislabeled_fanout_plan_nodes(nodes)
     edges = canvas.get("edges") or []
     pred: Dict[str, List[str]] = {}
     for e in edges:
@@ -224,6 +338,20 @@ def compile_canvas_dag(canvas: Mapping[str, Any]) -> Dict[str, Any]:
         node_id = str(n.get("id") or kind).strip()
         data = n.get("data") if isinstance(n.get("data"), dict) else {}
         cfg = data.get("config") if isinstance(data.get("config"), dict) else {}
+        if kind == "function_ref" and not str(cfg.get("function_external_id") or "").strip():
+            raise CanvasCompileError(
+                f"function_ref node {node_id!r}: function_external_id is required"
+            )
+        if kind == "transformation_ref" and not str(
+            cfg.get("transformation_external_id") or ""
+        ).strip():
+            raise CanvasCompileError(
+                f"transformation_ref node {node_id!r}: transformation_external_id is required"
+            )
+        if kind == "subworkflow" and not str(cfg.get("workflow_external_id") or "").strip():
+            raise CanvasCompileError(
+                f"subworkflow node {node_id!r}: workflow_external_id is required"
+            )
         deps = [d for d in (pred.get(node_id) or []) if d in executable_ids]
         payload: Dict[str, Any] = {"config": cfg}
         if kind == "join":
@@ -235,13 +363,65 @@ def compile_canvas_dag(canvas: Mapping[str, Any]) -> Dict[str, Any]:
             )
             payload["join_left_task_id"] = left_tid
             payload["join_right_task_id"] = right_tid
+        elif kind == "file_annotation":
+            entities_tid, files_tid = _dual_input_task_ids_from_edges(
+                node_id,
+                edges,
+                handle_left=FILE_ANNOTATION_HANDLE_ENTITIES,
+                handle_right=FILE_ANNOTATION_HANDLE_FILES,
+                node_by_id=node_by_id,
+                executable_ids=executable_ids,
+                node_kind_label="file_annotation",
+                require_right=not _config_has_file_ids(cfg),
+            )
+            payload["entities_input_task_id"] = entities_tid
+            if files_tid:
+                payload["files_input_task_id"] = files_tid
+        elif kind == "workflow_fanout_plan":
+            profile = str(cfg.get("fanout_profile") or "file_annotation").strip().lower()
+            require_b = profile == "file_annotation" and not _config_has_file_ids(cfg)
+            input_a_tid, input_b_tid = _dual_input_task_ids_from_edges(
+                node_id,
+                edges,
+                handle_left=FANOUT_PLAN_HANDLE_INPUT_A,
+                handle_right=FANOUT_PLAN_HANDLE_INPUT_B,
+                node_by_id=node_by_id,
+                executable_ids=executable_ids,
+                node_kind_label="workflow_fanout_plan",
+                require_right=require_b,
+            )
+            payload["input_a_task_id"] = input_a_tid
+            if input_b_tid:
+                payload["input_b_task_id"] = input_b_tid
+            payload["fanout_profile"] = profile
+        elif kind == "json_mapping":
+            from cdf_fn_common.etl_annotation_map.kuiper_templates import (
+                enrich_json_mapping_config_for_compile,
+                is_diagram_mapper_kind,
+            )
+
+            enriched = enrich_json_mapping_config_for_compile(cfg)
+            payload["config"] = enriched
+            _validate_json_mapping_config(node_id, enriched)
+            if is_diagram_mapper_kind(str(enriched.get("mapper_kind") or "")):
+                if len(deps) != 1:
+                    raise CanvasCompileError(
+                        f"json_mapping node {node_id!r} with mapper_kind="
+                        f"{enriched.get('mapper_kind')!r} requires exactly one predecessor "
+                        f"(typically fanout), got {deps!r}"
+                    )
+                payload["source_task_id"] = deps[0]
+        label = ""
+        if isinstance(data.get("label"), str):
+            label = str(data.get("label") or "").strip()
         tasks.append(
             {
                 "id": node_id,
-                "function_external_id": fn_ext,
+                "function_external_id": _resolved_function_external_id(kind, cfg, fn_ext),
                 "executable_kind": exec_kind,
                 "task_type": task_type,
                 "canvas_node_id": node_id,
+                "label": label,
                 "depends_on": deps,
                 "payload": payload,
             }

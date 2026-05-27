@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { ModalDialogShell } from "../ModalDialogShell";
 import {
   saveTransformPipelineAsPipeline,
   saveTransformPipelineAsTemplate,
@@ -118,8 +119,6 @@ export function TransformSaveAsDialog({ open, source, getCanvas, onClose, onSave
     }
   }, [targetId, label, targetKind, source, getCanvas, onClose, onSaved, t]);
 
-  if (!open) return null;
-
   const idLabel =
     targetKind === "template" ? t("transform.templates.fieldId") : t("transform.pipelines.fieldId");
   const idPlaceholder =
@@ -134,14 +133,13 @@ export function TransformSaveAsDialog({ open, source, getCanvas, onClose, onSave
       : t("transform.pipelines.labelPlaceholder");
 
   return (
-    <div className="gov-modal-backdrop" role="presentation" onClick={onClose}>
-      <div
-        className="gov-modal transform-create-pipeline-modal"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="transform-save-as-title"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <ModalDialogShell
+      open={open}
+      onClose={onClose}
+      titleId="transform-save-as-title"
+      closeOnEscape={!submitting}
+      dialogClassName="gov-modal transform-create-pipeline-modal"
+    >
         <h2 id="transform-save-as-title" className="gov-modal__title">
           {t("transform.saveAs.title")}
         </h2>
@@ -206,7 +204,6 @@ export function TransformSaveAsDialog({ open, source, getCanvas, onClose, onSave
             {submitting ? t("transform.saveAs.creating") : t("transform.saveAs.create")}
           </button>
         </div>
-      </div>
-    </div>
+    </ModalDialogShell>
   );
 }

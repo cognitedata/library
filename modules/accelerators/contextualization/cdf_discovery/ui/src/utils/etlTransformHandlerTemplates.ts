@@ -87,15 +87,13 @@ export function defaultTransformNodeConfig(
   options?: DefaultTransformNodeConfigOptions
 ): Record<string, unknown> {
   const prev = String(options?.previousOutputField ?? "").trim();
-  const inputField = prev.length > 0 ? prev : "name";
-  const outputField = prev.length > 0 ? prev : "indexKey";
   const cfg: Record<string, unknown> = {
     description: "Transform",
     handler_id: handler,
     enabled: true,
-    fields: [{ field_name: inputField }],
-    output_field: outputField,
-    output_template: `{${inputField}}`,
+    fields: [{ field_name: prev }],
+    output_field: prev,
+    output_template: prev ? `{${prev}}` : "",
     output_mode: "append",
     [handler]: defaultTransformHandlerBlock(handler),
   };

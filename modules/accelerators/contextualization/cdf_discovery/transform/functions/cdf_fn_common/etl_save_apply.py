@@ -51,6 +51,7 @@ from cdf_fn_common.etl_save_merge import (
     validate_save_config,
 )
 from cdf_fn_common.etl_task_runtime import merge_compiled_task_into_data
+from cdf_fn_common.etl_ui_progress import emit_handler_progress
 
 _INTERNAL_PROP_KEYS = frozenset(
     {
@@ -63,6 +64,20 @@ _INTERNAL_PROP_KEYS = frozenset(
 
 
 _DEFAULT_DM_LIST_PROPERTIES = frozenset({"aliases"})
+DEFAULT_SAVE_BATCH_SIZE = 500
+
+
+def _resolve_save_batch_size(cfg: Mapping[str, Any]) -> int:
+    raw = cfg.get("batch_size")
+    if raw is None:
+        return DEFAULT_SAVE_BATCH_SIZE
+    try:
+        size = int(raw)
+    except (TypeError, ValueError) as e:
+        raise ValueError(f"save batch_size must be a positive integer; got {raw!r}") from e
+    if size < 1:
+        raise ValueError(f"save batch_size must be >= 1; got {size}")
+    return size
 
 
 def _prepare_save_cfg(data: MutableMapping[str, Any]) -> Dict[str, Any]:
@@ -244,13 +259,15 @@ def etl_apply_view_save(
     skipped = 0
     gather_skipped_missing_identity = 0
     batch: List[NodeApply] = []
-    batch_size = int(cfg.get("apply_batch_size") or 50)
+    batch_size = _resolve_save_batch_size(cfg)
 
     all_rows = _iter_entity_rows_for_save(client, data, task_id)
     rows_read = len(all_rows)
+    apply_targets = 0
+    processed_targets = 0
 
     def emit_apply(inst_space: str, ext_id: str, props: Mapping[str, Any]) -> None:
-        nonlocal instances_applied, skipped, batch
+        nonlocal instances_applied, skipped, batch, processed_targets
         prepared = _prepare_view_apply_properties(
             props,
             list_properties=list_properties,
@@ -270,15 +287,20 @@ def etl_apply_view_save(
                 client.data_modeling.instances.apply(nodes=batch)
             instances_applied += len(batch)
             batch.clear()
+        processed_targets += 1
+        if apply_targets > 0:
+            emit_handler_progress(processed_targets, total=apply_targets, label="instances")
 
     if fan_mode == SAVE_FAN_IN_MERGE:
         grouped, gather_skipped_missing_identity = _gather_view_rows_by_instance(
             all_rows, cfg=cfg, data=data
         )
+        apply_targets = len(grouped)
         for (inst_space, ext_id), scored in grouped.items():
             merged = build_merged_props_for_instance(scored, policy_map)
             emit_apply(inst_space, ext_id, merged)
     else:
+        apply_targets = rows_read
         for pred_index, cols, props in all_rows:
             inst_space, ext_id = cohort_instance_space_and_external_id(
                 cols, cfg=cfg, data=data, props=props
@@ -294,6 +316,9 @@ def etl_apply_view_save(
         if not dry_run and client is not None:
             client.data_modeling.instances.apply(nodes=batch)
         instances_applied += len(batch)
+
+    if apply_targets > 0:
+        emit_handler_progress(apply_targets, total=apply_targets, label="instances", force=True)
 
     if log and hasattr(log, "info"):
         log.info(
@@ -350,6 +375,7 @@ def etl_persist_inverted_index_save(
     rows_read = len(index_rows)
     rows_written = 0
 
+    batch_size = _resolve_save_batch_size(cfg)
     if not dry_run and client is not None and index_rows:
         rows_written = persist_inverted_index_rows(
             client,
@@ -357,6 +383,7 @@ def etl_persist_inverted_index_save(
             raw_table=sink_table,
             index_rows=index_rows,
             merge_with_existing=True,
+            batch_size=batch_size,
             log=log,
         )
 
@@ -417,6 +444,7 @@ def etl_replicate_raw_save(
     pending: List[Dict[str, Any]] = []
     rows_read = 0
     rows_written = 0
+    batch_size = _resolve_save_batch_size(cfg)
 
     all_rows = _iter_entity_rows_for_save(client, data, task_id)
     rows_read = len(all_rows)
@@ -445,7 +473,7 @@ def etl_replicate_raw_save(
             )
         )
         rows_written += 1
-        if queue is not None and len(pending) >= 500:
+        if queue is not None and len(pending) >= batch_size:
             _flush_rows(queue, sink_db, sink_table, pending, client=client)
 
     if fan_mode == SAVE_FAN_IN_MERGE:
@@ -587,15 +615,21 @@ def _classic_build_update(
     )
 
 
-def _classic_issue_update(client: Any, upd: Any) -> None:
-    if isinstance(upd, AssetUpdate):
-        client.assets.update(upd)
-    elif isinstance(upd, FileMetadataUpdate):
-        client.files.update(upd)
-    elif isinstance(upd, TimeSeriesUpdate):
-        client.time_series.update(upd)
+def _classic_issue_updates(client: Any, resource_type: str, updates: List[Any]) -> None:
+    if not updates:
+        return
+    rt = resource_type.strip().lower().rstrip("s")
+    if rt == "asset":
+        client.assets.update(updates)
+    elif rt == "file":
+        client.files.update(updates)
+    elif rt in ("timeseries", "time_series"):
+        client.time_series.update(updates)
     else:
-        raise ValueError(f"unsupported classic update type: {type(upd)!r}")
+        raise ValueError(
+            f"classic_save unsupported resource_type={resource_type!r} "
+            f"(supported: assets, files, time_series)"
+        )
 
 
 def etl_apply_classic_save(
@@ -619,20 +653,31 @@ def etl_apply_classic_save(
     rows_read = 0
     updates_applied = 0
     skipped = 0
+    batch_size = _resolve_save_batch_size(cfg)
+    pending_updates: List[Any] = []
 
     all_rows = _iter_entity_rows_for_save(client, data, task_id)
     rows_read = len(all_rows)
 
+    def flush_updates() -> None:
+        nonlocal updates_applied, pending_updates
+        if not pending_updates:
+            return
+        if not dry_run and client is not None:
+            _classic_issue_updates(client, resource_type, pending_updates)
+        updates_applied += len(pending_updates)
+        pending_updates.clear()
+
     def apply_one(ext_id: str, props: Mapping[str, Any]) -> None:
-        nonlocal updates_applied, skipped
+        nonlocal skipped, pending_updates
         try:
             upd = _classic_build_update(resource_type, ext_id, props)
             if upd is None:
                 skipped += 1
                 return
-            if not dry_run and client is not None:
-                _classic_issue_update(client, upd)
-            updates_applied += 1
+            pending_updates.append(upd)
+            if len(pending_updates) >= batch_size:
+                flush_updates()
         except Exception:
             skipped += 1
             if log and hasattr(log, "warning"):
@@ -666,6 +711,8 @@ def etl_apply_classic_save(
             scored = [(score_cohort_row(cols, pred_index), pred_index, props)]
             merged = build_merged_props_for_instance(scored, policy_map)
             apply_one(ext_id, merged)
+
+    flush_updates()
 
     if log and hasattr(log, "info"):
         log.info(

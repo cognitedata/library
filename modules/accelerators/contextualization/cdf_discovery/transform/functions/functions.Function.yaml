@@ -39,6 +39,19 @@
   runtime: 'py311'
   functionPath: 'handler.py'
 
+- name: 'dm:context:discovery:etl:query:records'
+  externalId: 'fn_etl_records_query'
+  dataSetExternalId: 'ds_discovery_etl'
+  owner: 'Anonymous'
+  description: 'Discovery ETL records stream query stage'
+  metadata:
+    version: '{{function_version}}'
+  envVars:
+    ENV_TYPE: '${CDF_BUILD_TYPE}'
+    CDF_ENV: '${CDF_ENVIRON}'
+  runtime: 'py311'
+  functionPath: 'handler.py'
+
 - name: 'dm:context:discovery:etl:query:sql'
   externalId: 'fn_etl_sql_query'
   dataSetExternalId: 'ds_discovery_etl'
@@ -70,19 +83,6 @@
   dataSetExternalId: 'ds_discovery_etl'
   owner: 'Anonymous'
   description: 'Discovery ETL instance filter with {field}_score support'
-  metadata:
-    version: '{{function_version}}'
-  envVars:
-    ENV_TYPE: '${CDF_BUILD_TYPE}'
-    CDF_ENV: '${CDF_ENVIRON}'
-  runtime: 'py311'
-  functionPath: 'handler.py'
-
-- name: 'dm:context:discovery:etl:field_map'
-  externalId: 'fn_etl_field_map'
-  dataSetExternalId: 'ds_discovery_etl'
-  owner: 'Anonymous'
-  description: 'Discovery ETL field map — cohort property rename/projection'
   metadata:
     version: '{{function_version}}'
   envVars:
@@ -169,6 +169,32 @@
   runtime: 'py311'
   functionPath: 'handler.py'
 
+- name: 'dm:context:discovery:etl:save:records'
+  externalId: 'fn_etl_records_save'
+  dataSetExternalId: 'ds_discovery_etl'
+  owner: 'Anonymous'
+  description: 'Discovery ETL records stream save stage'
+  metadata:
+    version: '{{function_version}}'
+  envVars:
+    ENV_TYPE: '${CDF_BUILD_TYPE}'
+    CDF_ENV: '${CDF_ENVIRON}'
+  runtime: 'py311'
+  functionPath: 'handler.py'
+
+- name: 'dm:context:discovery:etl:save:stream'
+  externalId: 'fn_etl_stream_save'
+  dataSetExternalId: 'ds_discovery_etl'
+  owner: 'Anonymous'
+  description: 'Discovery ETL stream create stage'
+  metadata:
+    version: '{{function_version}}'
+  envVars:
+    ENV_TYPE: '${CDF_BUILD_TYPE}'
+    CDF_ENV: '${CDF_ENVIRON}'
+  runtime: 'py311'
+  functionPath: 'handler.py'
+
 - name: 'dm:context:discovery:etl:save:classic'
   externalId: 'fn_etl_classic_save'
   dataSetExternalId: 'ds_discovery_etl'
@@ -187,6 +213,32 @@
   dataSetExternalId: 'ds_discovery_etl'
   owner: 'Anonymous'
   description: 'Discovery ETL RAW cleanup sink'
+  metadata:
+    version: '{{function_version}}'
+  envVars:
+    ENV_TYPE: '${CDF_BUILD_TYPE}'
+    CDF_ENV: '${CDF_ENVIRON}'
+  runtime: 'py311'
+  functionPath: 'handler.py'
+
+- name: 'dm:context:discovery:etl:workflow:fanout_plan'
+  externalId: 'fn_etl_workflow_fanout_plan'
+  dataSetExternalId: 'ds_discovery_etl'
+  owner: 'Anonymous'
+  description: 'Build dynamic workflow tasks for file pattern diagram detect'
+  metadata:
+    version: '{{function_version}}'
+  envVars:
+    ENV_TYPE: '${CDF_BUILD_TYPE}'
+    CDF_ENV: '${CDF_ENVIRON}'
+  runtime: 'py311'
+  functionPath: 'handler.py'
+
+- name: 'dm:context:discovery:etl:file:annotation'
+  externalId: 'fn_etl_file_annotation'
+  dataSetExternalId: 'ds_discovery_etl'
+  owner: 'Anonymous'
+  description: 'File annotation via diagram detect (isAsyncComplete)'
   metadata:
     version: '{{function_version}}'
   envVars:

@@ -31,7 +31,13 @@ describe("connectEndMenuOptionsForSourceType", () => {
 describe("connectEndMenuGroupedOptionsForPane", () => {
   it("includes all palette groups on empty canvas", () => {
     const groups = connectEndMenuGroupedOptionsForPane();
-    expect(groups.map((g) => g.id)).toEqual(["query", "transform", "load", "orchestration"]);
+    expect(groups.map((g) => g.id)).toEqual([
+      "query",
+      "transform",
+      "contextualization",
+      "load",
+      "orchestration",
+    ]);
     expect(groups[0]?.options.some((o) => o.payload.stage === "query_view")).toBe(true);
   });
 });
