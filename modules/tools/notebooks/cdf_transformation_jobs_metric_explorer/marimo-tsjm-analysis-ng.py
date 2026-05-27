@@ -219,7 +219,7 @@ def track_usage(cdf_client, json):
                 "properties": {
                     "token": "8f28374a6614237dd49877a0d27daa78",
                     "distinct_id": _distinct_id,
-                    "source": "dp:cdf_transformation_jobs_metric_explorer",
+                    "source": "dp:tool:cdf_transformation_jobs_metric_explorer",
                     "tracker_version": "1",
                     "dp_version": "1",
                     "type": "marimo",

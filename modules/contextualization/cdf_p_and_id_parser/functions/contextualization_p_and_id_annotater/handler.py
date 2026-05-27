@@ -25,7 +25,7 @@ from pydantic.alias_generators import to_camel
 # ---------------------------------------------------------------------------
 # Usage tracking
 # ---------------------------------------------------------------------------
-_SOURCE = "dp:cdf_p_and_id_parser"
+_SOURCE = "dp:contextualization:cdf_p_and_id_parser"
 _DP_VERSION = "1"
 _TRACKER_VERSION = "1"
 

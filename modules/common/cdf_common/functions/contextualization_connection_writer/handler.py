@@ -25,7 +25,7 @@ EXTRACTION_RUN_MESSAGE_LIMIT = 1000
 # ---------------------------------------------------------------------------
 # Usage tracking
 # ---------------------------------------------------------------------------
-_SOURCE = "dp:cdf_common"
+_SOURCE = "dp:common:cdf_common"
 _DP_VERSION = "1"
 _TRACKER_VERSION = "1"
 

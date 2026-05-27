@@ -18,7 +18,7 @@ from utils.DataStructures import PromoteTracker
 # ---------------------------------------------------------------------------
 # Usage tracking
 # ---------------------------------------------------------------------------
-_SOURCE = "dp:cdf_file_annotation"
+_SOURCE = "dp:contextualization:cdf_file_annotation"
 _DP_VERSION = "1"
 _TRACKER_VERSION = "1"
 

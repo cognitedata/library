@@ -18,7 +18,7 @@ from dependencies import (
 # ---------------------------------------------------------------------------
 # Usage tracking
 # ---------------------------------------------------------------------------
-_SOURCE = "dp:acc:cdf_oid_sync"
+_SOURCE = "dp:sourcesystem:cdf_oid_sync"
 _DP_VERSION = "1"
 _TRACKER_VERSION = "1"
 

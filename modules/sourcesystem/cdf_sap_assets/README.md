@@ -1,5 +1,7 @@
 # CDF SAP Assets Module
 
+Library path: `modules/sourcesystem/cdf_sap_assets/` · Module ID: `dp:sourcesystem:cdf_sap_assets` · Deployment pack: `dp:sourcesystem`
+
 This module provides ingestion of asset and equipment master data from SAP S/4HANA into Cognite Data Fusion, transforming technical objects into the process industry data model.
 
 ## Why Use This Module?

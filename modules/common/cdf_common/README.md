@@ -1,5 +1,7 @@
 # CDF Common Module
 
+Library path: `modules/common/cdf_common/` · Module ID: `dp:common:cdf_common` · Deployment pack: `dp:common`
+
 This module provides foundational resources for Cognite Data Fusion (CDF) projects, provisioning shared infrastructure including data spaces, datasets, RAW databases, and the annotation-to-direct-relation writer function.
 
 ## Why Use This Module?

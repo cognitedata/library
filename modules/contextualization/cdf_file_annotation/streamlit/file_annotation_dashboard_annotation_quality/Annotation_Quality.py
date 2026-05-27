@@ -10,7 +10,7 @@ st.set_page_config(page_title="Annotation Quality", page_icon="🎯", layout="wi
 # ---------------------------------------------------------------------------
 # Usage tracking
 # ---------------------------------------------------------------------------
-_SOURCE = "dp:cdf_file_annotation"
+_SOURCE = "dp:contextualization:cdf_file_annotation"
 _DP_VERSION = "1"
 _TRACKER_VERSION = "1"
 

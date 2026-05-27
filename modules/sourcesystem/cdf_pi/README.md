@@ -1,5 +1,7 @@
 # CDF PI Module
 
+Library path: `modules/sourcesystem/cdf_pi/` · Module ID: `dp:sourcesystem:cdf_pi` · Deployment pack: `dp:sourcesystem`
+
 This module provides ingestion of time series metadata from OSIsoft/AVEVA PI into Cognite Data Fusion, transforming PI tags into the process industry data model with support for contextualization.
 
 ## Why Use This Module?

@@ -139,6 +139,68 @@ def validate_module_paths(
     return True
 
 
+def _package_id_prefix(package_id: str) -> str:
+    """Return required module id prefix dp:<pack>: from a package_id."""
+    short = package_id.removeprefix("dp:")
+    return f"dp:{short}:"
+
+
+def _allowed_id_prefixes_for_module(
+    module_rel_path: str,
+    package_id: str,
+    packages: Dict[str, Any],
+) -> set[str]:
+    """Prefixes allowed for a module id (primary pack + any pack that lists the module)."""
+    prefixes = {_package_id_prefix(package_id)}
+    for package_data in packages.values():
+        if module_rel_path in package_data.get("modules", []):
+            prefixes.add(_package_id_prefix(package_data["id"]))
+    return prefixes
+
+
+def validate_module_id_prefixes(
+    base_path: str = "modules",
+    packages: Dict[str, Any] | None = None,
+) -> bool:
+    """Ensure each module id uses dp:<pack>:<slug> for an allowed pack prefix."""
+    base_path_obj = Path(base_path)
+    mismatches: list[tuple[str, str, set[str]]] = []
+
+    for module_toml in sorted(base_path_obj.rglob("module.toml")):
+        with open(module_toml, "rb") as f:
+            module_data = tomllib.load(f)
+        module = module_data.get("module", {})
+        module_id = module.get("id")
+        package_id = module.get("package_id")
+        if not module_id or not package_id:
+            continue
+        if not module_id.startswith("dp:") or module_id.count(":") < 2:
+            rel_path = str(module_toml.relative_to(base_path_obj))
+            mismatches.append((rel_path, module_id, set()))
+            continue
+        rel_path = str(module_toml.parent.relative_to(base_path_obj))
+        allowed = (
+            _allowed_id_prefixes_for_module(rel_path, package_id, packages)
+            if packages
+            else {_package_id_prefix(package_id)}
+        )
+        if not any(module_id.startswith(prefix) for prefix in allowed):
+            mismatches.append((rel_path, module_id, allowed))
+
+    if mismatches:
+        print("\nERROR: Module id prefix is not allowed for this module:")
+        for rel_path, module_id, allowed in mismatches:
+            if not allowed:
+                print(f"  {rel_path}: id={module_id!r} (expected dp:<pack>:<slug>)")
+            else:
+                allowed_str = ", ".join(sorted(allowed))
+                print(f"  {rel_path}: id={module_id!r} (allowed prefixes: {allowed_str})")
+        return False
+
+    print("\n✓ All module ids use an allowed dp:<pack>: prefix")
+    return True
+
+
 def validate_unique_module_ids(base_path: str = "modules") -> bool:
     """Ensure every module.toml under modules/ has a unique `id`.
 
@@ -211,6 +273,9 @@ def main():
             # Validate module paths
             if not validate_module_paths(package_name, package_data["modules"], "modules"):
                 sys.exit(1)
+
+        if not validate_module_id_prefixes("modules", packages):
+            sys.exit(1)
 
         if not validate_unique_module_ids("modules"):
             sys.exit(1)
