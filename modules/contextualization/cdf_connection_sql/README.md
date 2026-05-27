@@ -1,5 +1,39 @@
 # CDF Connection SQL Module
-## Toolkit deployment (module install)
+
+This module provides SQL-based transformations that create direct relations between entities by matching tags found in source data with asset/equipment names, enabling automated contextualization through declarative SQL logic.
+
+## Why Use This Module?
+
+**Contextualize Your Data with Production-Ready SQL Transformations**
+
+Building entity relationships manually is time-consuming and error-prone. This module delivers **production-ready SQL transformations** that automatically create connections between timeseries, maintenance data, and assets based on tag matching.
+
+**Key Benefits:**
+
+- ⚡ **Declarative Logic**: SQL-based matching is easy to understand and customize
+- 🎯 **Tag-Based Matching**: Leverages `sysTagsFound` arrays populated during ingestion
+- 🔄 **Batch Processing**: Efficient bulk relationship creation via transformations
+- 📊 **Audit Trail**: `sysTagsLinked` tracks which tags were successfully matched
+- 🛡️ **Null Safety**: Built-in filtering excludes null/empty values
+- 📈 **Scalable**: Handles large datasets with array limits and grouping
+
+**Time & Cost Savings:**
+
+- **Development Time**: Save days of custom matching logic development
+- **Maintenance**: Declarative SQL is easier to maintain than procedural code
+- **Accuracy**: Consistent matching logic across all entity types
+
+## 🎯 Overview
+
+The CDF Connection SQL module is designed to:
+- **Link timeseries to assets** via tag name matching
+- **Connect timeseries to equipment** through tag associations
+- **Associate maintenance orders with assets** using `sysTagsFound`
+- **Link operations to assets** via tag-based matching
+- **Connect activities to timeseries** through tag patterns
+- **Track matched tags** in `sysTagsLinked` property for audit
+
+## Deployment
 
 ### Prerequisites
 
@@ -60,39 +94,6 @@ cdf build
 cdf deploy --dry-run
 cdf deploy
 ```
-
-This module provides SQL-based transformations that create direct relations between entities by matching tags found in source data with asset/equipment names, enabling automated contextualization through declarative SQL logic.
-
-## Why Use This Module?
-
-**Contextualize Your Data with Production-Ready SQL Transformations**
-
-Building entity relationships manually is time-consuming and error-prone. This module delivers **production-ready SQL transformations** that automatically create connections between timeseries, maintenance data, and assets based on tag matching.
-
-**Key Benefits:**
-
-- ⚡ **Declarative Logic**: SQL-based matching is easy to understand and customize
-- 🎯 **Tag-Based Matching**: Leverages `sysTagsFound` arrays populated during ingestion
-- 🔄 **Batch Processing**: Efficient bulk relationship creation via transformations
-- 📊 **Audit Trail**: `sysTagsLinked` tracks which tags were successfully matched
-- 🛡️ **Null Safety**: Built-in filtering excludes null/empty values
-- 📈 **Scalable**: Handles large datasets with array limits and grouping
-
-**Time & Cost Savings:**
-
-- **Development Time**: Save days of custom matching logic development
-- **Maintenance**: Declarative SQL is easier to maintain than procedural code
-- **Accuracy**: Consistent matching logic across all entity types
-
-## 🎯 Overview
-
-The CDF Connection SQL module is designed to:
-- **Link timeseries to assets** via tag name matching
-- **Connect timeseries to equipment** through tag associations
-- **Associate maintenance orders with assets** using `sysTagsFound`
-- **Link operations to assets** via tag-based matching
-- **Connect activities to timeseries** through tag patterns
-- **Track matched tags** in `sysTagsLinked` property for audit
 
 ## 🏗️ Module Architecture
 

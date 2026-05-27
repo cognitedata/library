@@ -1,5 +1,18 @@
 # Quick Start Enterprise Data Model
-## Toolkit deployment (module install)
+
+This module provides a comprehensive enterprise data model for Cognite Data Fusion (CDF), extending the Cognite Data Model (CDM) with enterprise-specific views and containers for process industry use cases. It serves as the foundational data layer for the Quick Start deployment pack.
+
+## Overview
+
+The Quick Start Enterprise Data Model (`qs_enterprise_dm`) delivers a production-ready data modeling layer that:
+
+- Extends standard **CDM** (`cdf_cdm`) types with enterprise-scoped views
+- Defines **39 enterprise views** backed by **46 containers** covering assets, equipment, maintenance, 3D, and more
+- Ships two data models: a **full enterprise model** and a **search-optimized model**
+- Organizes data across three CDF spaces: schema, enterprise instance, and site instance
+- Supports templatized configuration via CDF Toolkit variables for reuse across environments
+
+## Deployment
 
 ### Prerequisites
 
@@ -60,18 +73,6 @@ cdf build
 cdf deploy --dry-run
 cdf deploy
 ```
-
-This module provides a comprehensive enterprise data model for Cognite Data Fusion (CDF), extending the Cognite Data Model (CDM) with enterprise-specific views and containers for process industry use cases. It serves as the foundational data layer for the Quick Start deployment pack.
-
-## Overview
-
-The Quick Start Enterprise Data Model (`qs_enterprise_dm`) delivers a production-ready data modeling layer that:
-
-- Extends standard **CDM** (`cdf_cdm`) types with enterprise-scoped views
-- Defines **39 enterprise views** backed by **46 containers** covering assets, equipment, maintenance, 3D, and more
-- Ships two data models: a **full enterprise model** and a **search-optimized model**
-- Organizes data across three CDF spaces: schema, enterprise instance, and site instance
-- Supports templatized configuration via CDF Toolkit variables for reuse across environments
 
 ## Module Identity
 

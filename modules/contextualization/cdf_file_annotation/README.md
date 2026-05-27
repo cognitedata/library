@@ -1,5 +1,50 @@
 # CDF File Annotation Module
-## Toolkit deployment (module install)
+
+This module provides a comprehensive framework for automating the process of annotating files within Cognite Data Fusion (CDF), using a data model-centric approach to manage the annotation lifecycle from file selection to result processing and reporting.
+
+## Why Use This Module?
+
+**Automate Your Document Contextualization with Production-Ready Code**
+
+Building a file annotation solution from scratch is complex and time-consuming. This module delivers **production-ready, battle-tested code** that handles the complete annotation lifecycle, from identifying files to processing results and generating reports.
+
+**Key Benefits:**
+
+- ⚡ **Configuration-Driven**: Entire workflow controlled by a single config file—adapt to different data models without code changes
+- 🎯 **Dual Annotation Modes**: Simultaneously runs standard entity matching and pattern-based detection for comprehensive coverage
+- 🤖 **Automatic Pattern Promotion**: Intelligent text matching with multi-tier caching automatically resolves pattern annotations
+- 📄 **Large Document Support**: Handles files >50 pages by chunking, processing iteratively, and tracking progress
+- 🔄 **Parallel Execution Ready**: Robust optimistic locking prevents race conditions in concurrent processing
+- 📊 **Comprehensive Reporting**: Results stored in dedicated RAW tables plus extraction pipeline logs for full traceability
+- 🛡️ **Enterprise Scale**: Designed for tens of thousands of complex files with optimized batch processing and caching
+- 🔧 **Local Development**: All handlers run locally with VSCode debug support
+
+**Time & Cost Savings:**
+
+- **Development Time**: Save weeks of development by leveraging production-ready annotation logic
+- **Manual Review Reduction**: Automatic pattern promotion dramatically reduces manual review burden
+- **Scalability Built-In**: Optimized caching and batching avoid months of performance tuning
+- **Maintenance**: Interface-based design enables customization without modifying core code
+
+**Real-World Performance:**
+
+- **Batch Processing**: Configurable batch sizes (1-50 files per diagram detect call)
+- **Cache Efficiency**: Scope-based caching reuses entity context across files in same site/unit
+- **Entity Search**: 50-500x better performance by querying smaller entity dataset vs. annotation edges
+- **Self-Improving**: Persistent cache accumulates successful mappings over time
+
+## 🎯 Overview
+
+The CDF File Annotation module is designed to:
+- **Automate file annotation** using Cognite's Diagram Detect API
+- **Support dual annotation modes** for standard matching and pattern-based detection
+- **Handle large documents** with automatic chunking and progress tracking
+- **Enable parallel processing** with optimistic locking for concurrency safety
+- **Provide automatic pattern promotion** to resolve annotations without manual review
+- **Generate comprehensive reports** in RAW tables for analysis and auditing
+- **Support workflow automation** through CDF Workflows integration
+
+## Deployment
 
 ### Prerequisites
 
@@ -60,50 +105,6 @@ cdf build
 cdf deploy --dry-run
 cdf deploy
 ```
-
-This module provides a comprehensive framework for automating the process of annotating files within Cognite Data Fusion (CDF), using a data model-centric approach to manage the annotation lifecycle from file selection to result processing and reporting.
-
-## Why Use This Module?
-
-**Automate Your Document Contextualization with Production-Ready Code**
-
-Building a file annotation solution from scratch is complex and time-consuming. This module delivers **production-ready, battle-tested code** that handles the complete annotation lifecycle, from identifying files to processing results and generating reports.
-
-**Key Benefits:**
-
-- ⚡ **Configuration-Driven**: Entire workflow controlled by a single config file—adapt to different data models without code changes
-- 🎯 **Dual Annotation Modes**: Simultaneously runs standard entity matching and pattern-based detection for comprehensive coverage
-- 🤖 **Automatic Pattern Promotion**: Intelligent text matching with multi-tier caching automatically resolves pattern annotations
-- 📄 **Large Document Support**: Handles files >50 pages by chunking, processing iteratively, and tracking progress
-- 🔄 **Parallel Execution Ready**: Robust optimistic locking prevents race conditions in concurrent processing
-- 📊 **Comprehensive Reporting**: Results stored in dedicated RAW tables plus extraction pipeline logs for full traceability
-- 🛡️ **Enterprise Scale**: Designed for tens of thousands of complex files with optimized batch processing and caching
-- 🔧 **Local Development**: All handlers run locally with VSCode debug support
-
-**Time & Cost Savings:**
-
-- **Development Time**: Save weeks of development by leveraging production-ready annotation logic
-- **Manual Review Reduction**: Automatic pattern promotion dramatically reduces manual review burden
-- **Scalability Built-In**: Optimized caching and batching avoid months of performance tuning
-- **Maintenance**: Interface-based design enables customization without modifying core code
-
-**Real-World Performance:**
-
-- **Batch Processing**: Configurable batch sizes (1-50 files per diagram detect call)
-- **Cache Efficiency**: Scope-based caching reuses entity context across files in same site/unit
-- **Entity Search**: 50-500x better performance by querying smaller entity dataset vs. annotation edges
-- **Self-Improving**: Persistent cache accumulates successful mappings over time
-
-## 🎯 Overview
-
-The CDF File Annotation module is designed to:
-- **Automate file annotation** using Cognite's Diagram Detect API
-- **Support dual annotation modes** for standard matching and pattern-based detection
-- **Handle large documents** with automatic chunking and progress tracking
-- **Enable parallel processing** with optimistic locking for concurrency safety
-- **Provide automatic pattern promotion** to resolve annotations without manual review
-- **Generate comprehensive reports** in RAW tables for analysis and auditing
-- **Support workflow automation** through CDF Workflows integration
 
 ## 🏗️ Module Architecture
 

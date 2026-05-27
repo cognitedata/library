@@ -1,5 +1,38 @@
 # CDF SharePoint Files Module
-## Toolkit deployment (module install)
+
+Library path: `modules/sourcesystem/cdf_sharepoint/` · Module ID: `dp:sourcesystem:cdf_sharepoint` · Deployment pack: `dp:sourcesystem`
+
+This module provides ingestion of document files from SharePoint or similar document management systems into Cognite Data Fusion, transforming file metadata into the process industry data model.
+
+## Why Use This Module?
+
+**Ingest Document Metadata for Contextualization**
+
+Industrial documents like P&IDs, manuals, and specifications are critical for operations. This module delivers **production-ready file ingestion** that prepares documents for annotation and contextualization.
+
+**Key Benefits:**
+
+- 📄 **File Metadata Ingestion**: Transform file records into data model instances
+- 🔄 **RAW to Data Model**: SQL transformation from RAW tables to views
+- 📦 **Sample Data Included**: Example PDFs and CSV data for testing
+- 🏗️ **CDM Compatible**: Populates organization-prefixed File view
+- ⚡ **Easy Extension**: Add custom metadata properties as needed
+
+**Time & Cost Savings:**
+
+- **Quick Setup**: Pre-built transformation and sample data
+- **Best Practices**: Follows recommended ingestion patterns
+- **Reusable**: Template for other document sources
+
+## 🎯 Overview
+
+The CDF SharePoint Files module is designed to:
+- **Ingest file metadata** from RAW tables
+- **Transform to data model** using SQL transformations
+- **Upload sample files** for testing
+- **Prepare files** for annotation workflows
+
+## Deployment
 
 ### Prerequisites
 
@@ -60,38 +93,6 @@ cdf build
 cdf deploy --dry-run
 cdf deploy
 ```
-
-Library path: `modules/sourcesystem/cdf_sharepoint/` · Module ID: `dp:sourcesystem:cdf_sharepoint` · Deployment pack: `dp:sourcesystem`
-
-This module provides ingestion of document files from SharePoint or similar document management systems into Cognite Data Fusion, transforming file metadata into the process industry data model.
-
-## Why Use This Module?
-
-**Ingest Document Metadata for Contextualization**
-
-Industrial documents like P&IDs, manuals, and specifications are critical for operations. This module delivers **production-ready file ingestion** that prepares documents for annotation and contextualization.
-
-**Key Benefits:**
-
-- 📄 **File Metadata Ingestion**: Transform file records into data model instances
-- 🔄 **RAW to Data Model**: SQL transformation from RAW tables to views
-- 📦 **Sample Data Included**: Example PDFs and CSV data for testing
-- 🏗️ **CDM Compatible**: Populates organization-prefixed File view
-- ⚡ **Easy Extension**: Add custom metadata properties as needed
-
-**Time & Cost Savings:**
-
-- **Quick Setup**: Pre-built transformation and sample data
-- **Best Practices**: Follows recommended ingestion patterns
-- **Reusable**: Template for other document sources
-
-## 🎯 Overview
-
-The CDF SharePoint Files module is designed to:
-- **Ingest file metadata** from RAW tables
-- **Transform to data model** using SQL transformations
-- **Upload sample files** for testing
-- **Prepare files** for annotation workflows
 
 ## 🏗️ Module Architecture
 

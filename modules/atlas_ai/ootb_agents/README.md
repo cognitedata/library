@@ -1,65 +1,4 @@
 # Out-of-the-Box Agents Module
-## Toolkit deployment (module install)
-
-### Prerequisites
-
-- **Cognite Toolkit 0.7.210 or above** (`cdf --version` to check).
-- A CDF project with valid authentication configured for your target environment.
-- A `cdf.toml` in your Toolkit project directory.
-
-### Choose your setup path
-
-### 1. Existing Toolkit project
-
-If you already have a Toolkit project, ensure your `cdf.toml` uses the official library URL:
-
-```toml
-[library.cognite]
-url = "https://github.com/cognitedata/library/releases/download/latest/packages.zip"
-```
-
-In the same `cdf.toml`, ensure deployment packs are enabled:
-
-```toml
-[alpha_flags]
-deployment-pack = true
-```
-
-Then add this module:
-
-```bash
-cdf modules add -d ootb_agents
-```
-
-Build and deploy:
-
-```bash
-cdf build
-cdf deploy --dry-run
-cdf deploy
-```
-
-### 2. Starting from scratch
-
-In an empty directory:
-
-```bash
-cdf modules init .
-```
-
-In the interactive selector:
-
-1. Choose **Atlas AI Deployment Pack**.
-2. Use **Space** to select **ootb_agents**.
-3. Press **Enter**.
-
-Then run:
-
-```bash
-cdf build
-cdf deploy --dry-run
-cdf deploy
-```
 
 This module provides pre-configured Atlas AI agents that can be deployed as part of your toolkit to give users immediate access to powerful data exploration capabilities.
 
@@ -103,19 +42,71 @@ The `timeseries_agent` is a specialized agent focused on time series data analys
 - Time series data point retrieval for specific time periods
 - Advanced analytics on industrial sensor and measurement data
 
-## Prerequisites
-
-**Atlas AI must be enabled** on the project where you are deploying this toolkit. Without Atlas AI enabled, the agents will not function.
-
-**Alpha flags configuration**: To deploy agents through the toolkit, you must add `agents = true` to the `[alpha_flags]` section in your `cdf.toml` configuration file.
-
 ## Deployment
 
-When deploying your toolkit:
+### Prerequisites
 
-1. Include this `ootb_agents` module in your deployment
-2. The agents will be automatically configured and available to users
-3. Users can immediately start exploring data without additional setup
+- **Cognite Toolkit 0.7.210 or above** (`cdf --version` to check).
+- A CDF project with valid authentication configured for your target environment.
+- A `cdf.toml` in your Toolkit project directory.
+- **Atlas AI enabled** on the target CDF project (agents will not function otherwise).
+
+In your `cdf.toml`, enable deployment packs and agent deployment:
+
+```toml
+[alpha_flags]
+deployment-pack = true
+agents = true
+```
+
+### Choose your setup path
+
+### 1. Existing Toolkit project
+
+If you already have a Toolkit project, ensure your `cdf.toml` uses the official library URL:
+
+```toml
+[library.cognite]
+url = "https://github.com/cognitedata/library/releases/download/latest/packages.zip"
+```
+
+Then add this module:
+
+```bash
+cdf modules add -d ootb_agents
+```
+
+Build and deploy:
+
+```bash
+cdf build
+cdf deploy --dry-run
+cdf deploy
+```
+
+### 2. Starting from scratch
+
+In an empty directory:
+
+```bash
+cdf modules init .
+```
+
+In the interactive selector:
+
+1. Choose **Atlas AI Deployment Pack**.
+2. Use **Space** to select **ootb_agents**.
+3. Press **Enter**.
+
+Then run:
+
+```bash
+cdf build
+cdf deploy --dry-run
+cdf deploy
+```
+
+After deployment, agents are configured automatically and users can start exploring data without additional setup.
 
 ## Customization
 

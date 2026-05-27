@@ -1,5 +1,38 @@
 # CDF PI Module
-## Toolkit deployment (module install)
+
+Library path: `modules/sourcesystem/cdf_pi/` · Module ID: `dp:sourcesystem:cdf_pi` · Deployment pack: `dp:sourcesystem`
+
+This module provides ingestion of time series metadata from OSIsoft/AVEVA PI into Cognite Data Fusion, transforming PI tags into the process industry data model with support for contextualization.
+
+## Why Use This Module?
+
+**Ingest PI Time Series for Industrial Analytics**
+
+Time series data from PI historians is critical for operational monitoring and analytics. This module delivers **production-ready PI metadata ingestion** that prepares timeseries for contextualization and analysis.
+
+**Key Benefits:**
+
+- 📈 **TimeSeries Metadata**: Ingest PI tag metadata as TimeSeries instances
+- 🏷️ **Tag Extraction**: Parses asset tags from PI naming conventions
+- 🔄 **RAW to Data Model**: SQL transformation with sysTagsFound population
+- 📦 **Sample Data Included**: Example CSV data for testing
+- 🏗️ **CDM Compatible**: Populates organization-prefixed TimeSeries view
+
+**Time & Cost Savings:**
+
+- **Quick Setup**: Pre-built transformation for PI data structures
+- **Tag Parsing**: Automatic extraction of asset references from tag names
+- **Contextualization Ready**: Prepares sysTagsFound for asset linking
+
+## 🎯 Overview
+
+The CDF PI Module is designed to:
+- **Ingest PI tag metadata** from RAW tables
+- **Transform to data model** using SQL transformations
+- **Extract asset tags** from PI naming conventions
+- **Prepare timeseries** for contextualization workflows
+
+## Deployment
 
 ### Prerequisites
 
@@ -60,38 +93,6 @@ cdf build
 cdf deploy --dry-run
 cdf deploy
 ```
-
-Library path: `modules/sourcesystem/cdf_pi/` · Module ID: `dp:sourcesystem:cdf_pi` · Deployment pack: `dp:sourcesystem`
-
-This module provides ingestion of time series metadata from OSIsoft/AVEVA PI into Cognite Data Fusion, transforming PI tags into the process industry data model with support for contextualization.
-
-## Why Use This Module?
-
-**Ingest PI Time Series for Industrial Analytics**
-
-Time series data from PI historians is critical for operational monitoring and analytics. This module delivers **production-ready PI metadata ingestion** that prepares timeseries for contextualization and analysis.
-
-**Key Benefits:**
-
-- 📈 **TimeSeries Metadata**: Ingest PI tag metadata as TimeSeries instances
-- 🏷️ **Tag Extraction**: Parses asset tags from PI naming conventions
-- 🔄 **RAW to Data Model**: SQL transformation with sysTagsFound population
-- 📦 **Sample Data Included**: Example CSV data for testing
-- 🏗️ **CDM Compatible**: Populates organization-prefixed TimeSeries view
-
-**Time & Cost Savings:**
-
-- **Quick Setup**: Pre-built transformation for PI data structures
-- **Tag Parsing**: Automatic extraction of asset references from tag names
-- **Contextualization Ready**: Prepares sysTagsFound for asset linking
-
-## 🎯 Overview
-
-The CDF PI Module is designed to:
-- **Ingest PI tag metadata** from RAW tables
-- **Transform to data model** using SQL transformations
-- **Extract asset tags** from PI naming conventions
-- **Prepare timeseries** for contextualization workflows
 
 ## 🏗️ Module Architecture
 

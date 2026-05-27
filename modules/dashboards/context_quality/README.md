@@ -1,65 +1,4 @@
 # Contextualization Quality Dashboard
-## Toolkit deployment (module install)
-
-### Prerequisites
-
-- **Cognite Toolkit 0.7.210 or above** (`cdf --version` to check).
-- A CDF project with valid authentication configured for your target environment.
-- A `cdf.toml` in your Toolkit project directory.
-
-### Choose your setup path
-
-### 1. Existing Toolkit project
-
-If you already have a Toolkit project, ensure your `cdf.toml` uses the official library URL:
-
-```toml
-[library.cognite]
-url = "https://github.com/cognitedata/library/releases/download/latest/packages.zip"
-```
-
-In the same `cdf.toml`, ensure deployment packs are enabled:
-
-```toml
-[alpha_flags]
-deployment-pack = true
-```
-
-Then add this module:
-
-```bash
-cdf modules add -d context_quality
-```
-
-Build and deploy:
-
-```bash
-cdf build
-cdf deploy --dry-run
-cdf deploy
-```
-
-### 2. Starting from scratch
-
-In an empty directory:
-
-```bash
-cdf modules init .
-```
-
-In the interactive selector:
-
-1. Choose **Dashboards**.
-2. Use **Space** to select **context_quality**.
-3. Press **Enter**.
-
-Then run:
-
-```bash
-cdf build
-cdf deploy --dry-run
-cdf deploy
-```
 
 ## Overview
 
@@ -127,76 +66,61 @@ context_quality/
 
 ### Prerequisites
 
-Before you start, ensure you have:
+- **Cognite Toolkit 0.7.210 or above** (`cdf --version` to check).
+- A CDF project with valid authentication configured for your target environment.
+- A `cdf.toml` in your Toolkit project directory.
 
-- A Cognite Toolkit project set up locally
-- Your project contains the standard `cdf.toml` file
-- Valid authentication to your target CDF environment
+### Choose your setup path
 
-### Step 1: Enable External Libraries (Toolkit < 0.7.0 only)
+### 1. Existing Toolkit project
 
-Newer Toolkit versions ship `[library.cognite]` already pointing at this
-repository, so no `cdf.toml` change is needed. On Toolkit < 0.7.0, enable the
-alpha flag:
+If you already have a Toolkit project, ensure your `cdf.toml` uses the official library URL:
+
+```toml
+[library.cognite]
+url = "https://github.com/cognitedata/library/releases/download/latest/packages.zip"
+```
+
+In the same `cdf.toml`, ensure deployment packs are enabled:
 
 ```toml
 [alpha_flags]
-external-libraries = true
+deployment-pack = true
 ```
 
-### Step 2: Add the Module
-
-**First try:** Run:
+Then add this module:
 
 ```bash
-cdf modules add .
+cdf modules add -d context_quality
 ```
-
-This works on the first try and shows all available deployment packs. Select **Dashboards** → **Contextualization Quality Dashboard**.
-
-**If you don't see the module:** Use init instead:
-
-```bash
-cdf modules init .
-```
-
-Then select **Dashboards** → **Contextualization Quality Dashboard**.
-
-> **Note:** `cdf modules add` adds modules without overwriting existing ones. `cdf modules init` overwrites your current modules with a fresh selection—commit or back up first if you use init.
-
-### Step 3: Select the Dashboards Package
-
-From the menu, select:
-
-```
-Dashboards: Streamlit dashboards and visualization modules
-```
-
-Then select **Contextualization Quality Dashboard**.
-
-### Step 4: Verify Folder Structure
-
-After installation, your project should contain:
-
-```
-modules/
-    └── dashboards/
-        └── context_quality/
-```
-
-### Step 5: Deploy to CDF
 
 Build and deploy:
 
 ```bash
 cdf build
-```
-
-```bash
 cdf deploy --dry-run
+cdf deploy
 ```
 
+### 2. Starting from scratch
+
+In an empty directory:
+
 ```bash
+cdf modules init .
+```
+
+In the interactive selector:
+
+1. Choose **Dashboards**.
+2. Use **Space** to select **context_quality**.
+3. Press **Enter**.
+
+Then run:
+
+```bash
+cdf build
+cdf deploy --dry-run
 cdf deploy
 ```
 

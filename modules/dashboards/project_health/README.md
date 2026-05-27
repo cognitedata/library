@@ -1,5 +1,52 @@
 # CDF Project Health Dashboard
-## Toolkit deployment (module install)
+
+## Overview
+
+The **CDF Project Health Dashboard** module provides a solution for measuring, monitoring, and visualizing the **health** of CDF resources (extraction pipelines, workflows, transformations, and functions) scoped by dataset. It consists of two main components:
+
+1. **Project Health Metrics Function** (external_id: `project_health_handler`) - Computes health metrics for a given dataset and time range and saves them as a JSON file in CDF
+2. **Streamlit Dashboard** (`project_health_dashboard`) - Loads the pre-computed metrics file and displays health gauges, status donuts, resource tables, and recent errors across tabs
+
+This module helps data engineers and operations teams understand how well their CDF project resources are performing over time across four resource types:
+
+- **Extraction Pipelines** - Run status, success/failure rates, and recent errors
+- **Workflows** - Workflow run health and status distribution
+- **Transformations** - Transformation run health and status distribution
+- **Functions** - Function call health and availability
+
+---
+
+## Module Components
+
+```
+project_health/
+├── data_sets/
+│   └── project_health_apps.DataSet.yaml   # Dataset for function and Streamlit app assets
+├── functions/
+│   ├── project_health_handler/
+│   │   ├── handler.py                     # Main Cognite Function: runs fetchers, writes JSON to CDF Files
+│   │   └── fetchers.py                    # Fetchers for extraction pipelines, workflows, transformations, functions
+│   └── project_health.Function.yaml       # Function configuration
+├── streamlit/
+│   ├── project_health_dashboard/
+│   │   ├── main.py                        # Streamlit dashboard entry point
+│   │   ├── requirements.txt               # Python dependencies
+│   │   └── src/                           # Dashboard source
+│   │       ├── __init__.py
+│   │       ├── config.py                  # App config
+│   │       ├── configuration.py           # Configuration tab (run function, dataset, time range)
+│   │       ├── tabs.py                    # Tab renderers (overview, extraction pipelines, workflows, etc.)
+│   │       ├── charts.py                  # Chart helpers
+│   │       ├── ui_components.py           # Shared UI components
+│   │       └── utils.py                   # Utilities
+│   └── project_health_dashboard.Streamlit.yaml  # Streamlit app configuration
+├── module.toml                            # Module metadata
+└── README.md                              # This file
+```
+
+---
+
+## Deployment
 
 ### Prerequisites
 
@@ -58,129 +105,6 @@ Then run:
 ```bash
 cdf build
 cdf deploy --dry-run
-cdf deploy
-```
-
-## Overview
-
-The **CDF Project Health Dashboard** module provides a solution for measuring, monitoring, and visualizing the **health** of CDF resources (extraction pipelines, workflows, transformations, and functions) scoped by dataset. It consists of two main components:
-
-1. **Project Health Metrics Function** (external_id: `project_health_handler`) - Computes health metrics for a given dataset and time range and saves them as a JSON file in CDF
-2. **Streamlit Dashboard** (`project_health_dashboard`) - Loads the pre-computed metrics file and displays health gauges, status donuts, resource tables, and recent errors across tabs
-
-This module helps data engineers and operations teams understand how well their CDF project resources are performing over time across four resource types:
-
-- **Extraction Pipelines** - Run status, success/failure rates, and recent errors
-- **Workflows** - Workflow run health and status distribution
-- **Transformations** - Transformation run health and status distribution
-- **Functions** - Function call health and availability
-
----
-
-## Module Components
-
-```
-project_health/
-├── data_sets/
-│   └── project_health_apps.DataSet.yaml   # Dataset for function and Streamlit app assets
-├── functions/
-│   ├── project_health_handler/
-│   │   ├── handler.py                     # Main Cognite Function: runs fetchers, writes JSON to CDF Files
-│   │   └── fetchers.py                    # Fetchers for extraction pipelines, workflows, transformations, functions
-│   └── project_health.Function.yaml       # Function configuration
-├── streamlit/
-│   ├── project_health_dashboard/
-│   │   ├── main.py                        # Streamlit dashboard entry point
-│   │   ├── requirements.txt               # Python dependencies
-│   │   └── src/                           # Dashboard source
-│   │       ├── __init__.py
-│   │       ├── config.py                  # App config
-│   │       ├── configuration.py           # Configuration tab (run function, dataset, time range)
-│   │       ├── tabs.py                    # Tab renderers (overview, extraction pipelines, workflows, etc.)
-│   │       ├── charts.py                  # Chart helpers
-│   │       ├── ui_components.py           # Shared UI components
-│   │       └── utils.py                   # Utilities
-│   └── project_health_dashboard.Streamlit.yaml  # Streamlit app configuration
-├── module.toml                            # Module metadata
-└── README.md                              # This file
-```
-
----
-
-## Deployment
-
-### Prerequisites
-
-Before you start, ensure you have:
-
-- A Cognite Toolkit project set up locally
-- Your project contains the standard `cdf.toml` file
-- Valid authentication to your target CDF environment
-
-### Step 1: Enable External Libraries (Toolkit < 0.7.0 only)
-
-Newer Toolkit versions ship `[library.cognite]` already pointing at this
-repository, so no `cdf.toml` change is needed. On Toolkit < 0.7.0, enable the
-alpha flag:
-
-```toml
-[alpha_flags]
-external-libraries = true
-```
-
-### Step 2: Add the Module
-
-**First try:** Run:
-
-```bash
-cdf modules add .
-```
-
-This works on the first try and shows all available deployment packs. Select **Dashboards** → **CDF Project Health Dashboard**.
-
-**If you don't see the module:** Use init instead:
-
-```bash
-cdf modules init .
-```
-
-Then select **Dashboards** → **CDF Project Health Dashboard**.
-
-> **Note:** `cdf modules add` adds modules without overwriting existing ones. `cdf modules init` overwrites your current modules with a fresh selection—commit or back up first if you use init.
-
-### Step 3: Select the Dashboards Package
-
-From the menu, select:
-
-```
-Dashboards: Streamlit dashboards and visualization modules
-```
-
-Then select **CDF Project Health Dashboard**.
-
-### Step 4: Verify Folder Structure
-
-After installation, your project should contain:
-
-```
-modules/
-    └── dashboards/
-        └── project_health/
-```
-
-### Step 5: Deploy to CDF
-
-Build and deploy:
-
-```bash
-cdf build
-```
-
-```bash
-cdf deploy --dry-run
-```
-
-```bash
 cdf deploy
 ```
 

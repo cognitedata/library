@@ -1,5 +1,12 @@
 # AI Property Extractor
-## Toolkit deployment (module install)
+
+> Extract structured property values from unstructured text in CDF data models — powered by LLM agents.
+
+The AI Property Extractor reads free text from a source property (e.g. a maintenance notification description) and fills structured target properties (e.g. `discipline`, `priority`, `category`) using an LLM agent deployed via Cognite Atlas AI.
+
+---
+
+## Deployment
 
 ### Prerequisites
 
@@ -60,10 +67,6 @@ cdf build
 cdf deploy --dry-run
 cdf deploy
 ```
-
-> Extract structured property values from unstructured text in CDF data models — powered by LLM agents.
-
-The AI Property Extractor reads free text from a source property (e.g. a maintenance notification description) and fills structured target properties (e.g. `discipline`, `priority`, `category`) using an LLM agent deployed via Cognite Atlas AI.
 
 ---
 

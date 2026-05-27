@@ -1,5 +1,38 @@
 # CDF Ingestion Module
-## Toolkit deployment (module install)
+
+This module orchestrates data ingestion and contextualization through a workflow that runs multiple transformations in the correct dependency order, enabling end-to-end data population and relationship creation.
+
+## Why Use This Module?
+
+**Automate Your Data Ingestion Pipeline with Production-Ready Orchestration**
+
+Building a robust ingestion workflow requires careful dependency management and proper error handling. This module delivers **production-ready workflow orchestration** that ensures transformations run in the correct order with proper authorization.
+
+**Key Benefits:**
+
+- ⚡ **Automated Orchestration**: Run complex multi-transformation pipelines with a single trigger
+- 🔄 **Dependency Management**: Automatic ordering ensures population before contextualization
+- 🛡️ **Error Handling**: `abortWorkflow` on failure prevents cascading errors
+- 📊 **Parallel Execution**: Independent transformations run concurrently for faster completion
+- 🔐 **Secure Authentication**: Service account credentials for scheduled automated runs
+- 📅 **Flexible Scheduling**: Cron-based triggers for automated daily/weekly/custom schedules
+
+**Time & Cost Savings:**
+
+- **Manual Effort**: Eliminate manual transformation orchestration
+- **Error Prevention**: Dependency-aware execution prevents data consistency issues
+- **Operational Efficiency**: Scheduled runs reduce operational overhead
+
+## 🎯 Overview
+
+The CDF Ingestion module is designed to:
+- **Orchestrate transformations** in the correct dependency order
+- **Populate data models** with assets, equipment, timeseries, and maintenance data
+- **Create relationships** between entities through contextualization transformations
+- **Automate execution** via scheduled triggers
+- **Manage permissions** through dedicated auth groups
+
+## Deployment
 
 ### Prerequisites
 
@@ -60,38 +93,6 @@ cdf build
 cdf deploy --dry-run
 cdf deploy
 ```
-
-This module orchestrates data ingestion and contextualization through a workflow that runs multiple transformations in the correct dependency order, enabling end-to-end data population and relationship creation.
-
-## Why Use This Module?
-
-**Automate Your Data Ingestion Pipeline with Production-Ready Orchestration**
-
-Building a robust ingestion workflow requires careful dependency management and proper error handling. This module delivers **production-ready workflow orchestration** that ensures transformations run in the correct order with proper authorization.
-
-**Key Benefits:**
-
-- ⚡ **Automated Orchestration**: Run complex multi-transformation pipelines with a single trigger
-- 🔄 **Dependency Management**: Automatic ordering ensures population before contextualization
-- 🛡️ **Error Handling**: `abortWorkflow` on failure prevents cascading errors
-- 📊 **Parallel Execution**: Independent transformations run concurrently for faster completion
-- 🔐 **Secure Authentication**: Service account credentials for scheduled automated runs
-- 📅 **Flexible Scheduling**: Cron-based triggers for automated daily/weekly/custom schedules
-
-**Time & Cost Savings:**
-
-- **Manual Effort**: Eliminate manual transformation orchestration
-- **Error Prevention**: Dependency-aware execution prevents data consistency issues
-- **Operational Efficiency**: Scheduled runs reduce operational overhead
-
-## 🎯 Overview
-
-The CDF Ingestion module is designed to:
-- **Orchestrate transformations** in the correct dependency order
-- **Populate data models** with assets, equipment, timeseries, and maintenance data
-- **Create relationships** between entities through contextualization transformations
-- **Automate execution** via scheduled triggers
-- **Manage permissions** through dedicated auth groups
 
 ## 🏗️ Module Architecture
 

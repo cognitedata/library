@@ -1,5 +1,50 @@
 # Open Industrial Data Sync Module
-## Toolkit deployment (module install)
+
+Library path: `modules/sourcesystem/cdf_oid_sync/` · Module ID: `dp:sourcesystem:cdf_oid_sync` · Packs: `dp:quickstart`, `dp:sourcesystem`
+
+This module synchronizes time series data from Cognite's [Open Industrial Data (OID)](https://hub.cognite.com/open-industrial-data-211) project to your target CDF project, simulating real-time data streaming by fetching historical data and time-shifting it to appear current.
+
+## Why Use This Module?
+
+**Simulate Real-Time Industrial Data Streams for Development and Testing**
+
+Getting realistic industrial data for development, testing, and demos is challenging. This module delivers **production-ready data synchronization** that transforms OID's historical data into simulated real-time streams—perfect for building and showcasing industrial applications.
+
+**Key Benefits:**
+
+- ⚡ **Smart Sync Strategy**: Recent data sync for all time series + progressive historical backfill
+- 🔄 **Real-Time Simulation**: Applies time offset to make ~1-week delayed OID data appear current
+- 📊 **Compact Logging**: Optimized for UI popups with progress tracking
+- 🛡️ **Robust Error Handling**: Graceful handling of API errors, rate limiting, and timeouts
+- ⚙️ **Highly Configurable**: YAML-driven configuration for sync intervals, time offsets, and more
+- 🎯 **Zero Duplicate Data**: Intelligent tracking prevents re-syncing the same data
+- 📈 **Progressive Backfill**: Builds 12 weeks of history without overwhelming the system
+
+**Time & Cost Savings:**
+
+- **Development Time**: Instant access to realistic industrial data without building custom data generators
+- **Demo Readiness**: Production-quality data streams for showcasing applications
+- **Testing Confidence**: Real-world data patterns for validation and testing
+- **Zero Setup**: All resources bundled—datasets, functions, pipelines, auth groups
+
+**Real-World Performance:**
+
+- **Data Volume**: ~363 PI time series with full historical coverage
+- **Sync Frequency**: Every 10 minutes for near real-time experience
+- **Backfill Speed**: Complete historical coverage in ~60 hours
+- **Memory Safe**: Weekly batching prevents out-of-memory issues
+
+## 🎯 Overview
+
+The Open Industrial Data Sync module is designed to:
+- **Synchronize OID time series** to your target CDF project
+- **Simulate real-time data** by applying configurable time offsets
+- **Progressively backfill history** without impacting system performance
+- **Track sync state** via time series metadata
+- **Provide comprehensive logging** optimized for monitoring
+- **Handle errors gracefully** with automatic retry logic
+
+## Deployment
 
 ### Prerequisites
 
@@ -60,50 +105,6 @@ cdf build
 cdf deploy --dry-run
 cdf deploy
 ```
-
-Library path: `modules/sourcesystem/cdf_oid_sync/` · Module ID: `dp:sourcesystem:cdf_oid_sync` · Packs: `dp:quickstart`, `dp:sourcesystem`
-
-This module synchronizes time series data from Cognite's [Open Industrial Data (OID)](https://hub.cognite.com/open-industrial-data-211) project to your target CDF project, simulating real-time data streaming by fetching historical data and time-shifting it to appear current.
-
-## Why Use This Module?
-
-**Simulate Real-Time Industrial Data Streams for Development and Testing**
-
-Getting realistic industrial data for development, testing, and demos is challenging. This module delivers **production-ready data synchronization** that transforms OID's historical data into simulated real-time streams—perfect for building and showcasing industrial applications.
-
-**Key Benefits:**
-
-- ⚡ **Smart Sync Strategy**: Recent data sync for all time series + progressive historical backfill
-- 🔄 **Real-Time Simulation**: Applies time offset to make ~1-week delayed OID data appear current
-- 📊 **Compact Logging**: Optimized for UI popups with progress tracking
-- 🛡️ **Robust Error Handling**: Graceful handling of API errors, rate limiting, and timeouts
-- ⚙️ **Highly Configurable**: YAML-driven configuration for sync intervals, time offsets, and more
-- 🎯 **Zero Duplicate Data**: Intelligent tracking prevents re-syncing the same data
-- 📈 **Progressive Backfill**: Builds 12 weeks of history without overwhelming the system
-
-**Time & Cost Savings:**
-
-- **Development Time**: Instant access to realistic industrial data without building custom data generators
-- **Demo Readiness**: Production-quality data streams for showcasing applications
-- **Testing Confidence**: Real-world data patterns for validation and testing
-- **Zero Setup**: All resources bundled—datasets, functions, pipelines, auth groups
-
-**Real-World Performance:**
-
-- **Data Volume**: ~363 PI time series with full historical coverage
-- **Sync Frequency**: Every 10 minutes for near real-time experience
-- **Backfill Speed**: Complete historical coverage in ~60 hours
-- **Memory Safe**: Weekly batching prevents out-of-memory issues
-
-## 🎯 Overview
-
-The Open Industrial Data Sync module is designed to:
-- **Synchronize OID time series** to your target CDF project
-- **Simulate real-time data** by applying configurable time offsets
-- **Progressively backfill history** without impacting system performance
-- **Track sync state** via time series metadata
-- **Provide comprehensive logging** optimized for monitoring
-- **Handle errors gracefully** with automatic retry logic
 
 ## 🏗️ Module Architecture
 

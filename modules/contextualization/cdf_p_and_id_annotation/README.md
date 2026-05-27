@@ -1,65 +1,4 @@
 # cdf_p_and_id_annotation
-## Toolkit deployment (module install)
-
-### Prerequisites
-
-- **Cognite Toolkit 0.7.210 or above** (`cdf --version` to check).
-- A CDF project with valid authentication configured for your target environment.
-- A `cdf.toml` in your Toolkit project directory.
-
-### Choose your setup path
-
-### 1. Existing Toolkit project
-
-If you already have a Toolkit project, ensure your `cdf.toml` uses the official library URL:
-
-```toml
-[library.cognite]
-url = "https://github.com/cognitedata/library/releases/download/latest/packages.zip"
-```
-
-In the same `cdf.toml`, ensure deployment packs are enabled:
-
-```toml
-[alpha_flags]
-deployment-pack = true
-```
-
-Then add this module:
-
-```bash
-cdf modules add -d cdf_p_and_id_annotation
-```
-
-Build and deploy:
-
-```bash
-cdf build
-cdf deploy --dry-run
-cdf deploy
-```
-
-### 2. Starting from scratch
-
-In an empty directory:
-
-```bash
-cdf modules init .
-```
-
-In the interactive selector:
-
-1. Choose **Contextualization**.
-2. Use **Space** to select **cdf_p_and_id_annotation**.
-3. Press **Enter**.
-
-Then run:
-
-```bash
-cdf build
-cdf deploy --dry-run
-cdf deploy
-```
 
 The module creates a simple data pipeline for annotation files from
 your location. The processing here is related to the
@@ -245,67 +184,61 @@ The following variables are required and defined in this module:
 
 ### Prerequisites
 
-Before you start, ensure you have:
+- **Cognite Toolkit 0.7.210 or above** (`cdf --version` to check).
+- A CDF project with valid authentication configured for your target environment.
+- A `cdf.toml` in your Toolkit project directory.
 
-- A Cognite Toolkit project set up locally
-- Your project contains the standard `cdf.toml` file
-- Valid authentication to your target CDF environment
+### Choose your setup path
 
-### Step 1: Enable External Libraries (Toolkit < 0.7.0 only)
+### 1. Existing Toolkit project
 
-Newer Toolkit versions ship `[library.cognite]` already pointing at this
-repository, so no `cdf.toml` change is needed. On Toolkit < 0.7.0, enable the
-alpha flag:
+If you already have a Toolkit project, ensure your `cdf.toml` uses the official library URL:
+
+```toml
+[library.cognite]
+url = "https://github.com/cognitedata/library/releases/download/latest/packages.zip"
+```
+
+In the same `cdf.toml`, ensure deployment packs are enabled:
 
 ```toml
 [alpha_flags]
-external-libraries = true
+deployment-pack = true
 ```
 
-### Step 2: Add the Module
+Then add this module:
 
-Run:
+```bash
+cdf modules add -d cdf_p_and_id_annotation
+```
+
+Build and deploy:
+
+```bash
+cdf build
+cdf deploy --dry-run
+cdf deploy
+```
+
+### 2. Starting from scratch
+
+In an empty directory:
 
 ```bash
 cdf modules init .
 ```
 
-> **⚠️ Disclaimer**: This command will overwrite existing modules. Commit changes before running, or use a fresh directory.
+In the interactive selector:
 
-### Step 3: Select the Contextualization Package
+1. Choose **Contextualization**.
+2. Use **Space** to select **cdf_p_and_id_annotation**.
+3. Press **Enter**.
 
-From the menu, select:
-
-```
-Contextualization: Module templates for data contextualization
-```
-
-Then select **Contextualization P&ID Annotation**.
-
-> **⚠️ Important: Module Selection**
->
-> When the module selection menu appears:
-> ```
-> Which modules in contextualization would you like to add?
-> ▶ ○ Contextualization P&ID Annotation
->   ○ Contextualization File Annotation
->   ○ Contextualization Entity Matching
-> ```
->
-> You must **press Space** to select the module (the `○` becomes `●`), **then press Enter** to confirm:
-> ```
-> ▶ ● Contextualization P&ID Annotation   ← Selected (filled circle)
->   ○ Contextualization File Annotation
->   ○ Contextualization Entity Matching
-> ```
->
-> If you only press Enter without pressing Space first, no modules will be added!
-
-### Step 4: Build and Deploy
+Then run:
 
 ```bash
-poetry shell
 cdf build
+cdf deploy --dry-run
 cdf deploy
 ```
 

@@ -1,5 +1,38 @@
 # CDF SAP Assets Module
-## Toolkit deployment (module install)
+
+Library path: `modules/sourcesystem/cdf_sap_assets/` · Module ID: `dp:sourcesystem:cdf_sap_assets` · Deployment pack: `dp:sourcesystem`
+
+This module provides ingestion of asset and equipment master data from SAP S/4HANA into Cognite Data Fusion, transforming technical objects into the process industry data model.
+
+## Why Use This Module?
+
+**Ingest SAP Master Data for Your Digital Twin**
+
+Assets and equipment form the backbone of your industrial digital twin. This module delivers **production-ready SAP asset ingestion** that populates your data model with technical object hierarchies.
+
+**Key Benefits:**
+
+- 🏭 **Asset Hierarchy**: Ingest SAP functional locations as Asset instances
+- ⚙️ **Equipment Data**: Transform SAP equipment into Equipment instances
+- 🔗 **Relationship Mapping**: Connect equipment to parent assets
+- 📦 **Sample Data Included**: Example CSV data for testing
+- 🏗️ **CDM Compatible**: Populates organization-prefixed views
+
+**Time & Cost Savings:**
+
+- **Quick Setup**: Pre-built transformations for SAP data structures
+- **Best Practices**: Follows recommended SAP integration patterns
+- **Hierarchy Support**: Automatic equipment-to-asset linking
+
+## 🎯 Overview
+
+The CDF SAP Assets module is designed to:
+- **Ingest assets** from SAP functional location data
+- **Transform equipment** from SAP equipment master data
+- **Create relationships** between equipment and assets
+- **Prepare data** as contextualization targets
+
+## Deployment
 
 ### Prerequisites
 
@@ -60,38 +93,6 @@ cdf build
 cdf deploy --dry-run
 cdf deploy
 ```
-
-Library path: `modules/sourcesystem/cdf_sap_assets/` · Module ID: `dp:sourcesystem:cdf_sap_assets` · Deployment pack: `dp:sourcesystem`
-
-This module provides ingestion of asset and equipment master data from SAP S/4HANA into Cognite Data Fusion, transforming technical objects into the process industry data model.
-
-## Why Use This Module?
-
-**Ingest SAP Master Data for Your Digital Twin**
-
-Assets and equipment form the backbone of your industrial digital twin. This module delivers **production-ready SAP asset ingestion** that populates your data model with technical object hierarchies.
-
-**Key Benefits:**
-
-- 🏭 **Asset Hierarchy**: Ingest SAP functional locations as Asset instances
-- ⚙️ **Equipment Data**: Transform SAP equipment into Equipment instances
-- 🔗 **Relationship Mapping**: Connect equipment to parent assets
-- 📦 **Sample Data Included**: Example CSV data for testing
-- 🏗️ **CDM Compatible**: Populates organization-prefixed views
-
-**Time & Cost Savings:**
-
-- **Quick Setup**: Pre-built transformations for SAP data structures
-- **Best Practices**: Follows recommended SAP integration patterns
-- **Hierarchy Support**: Automatic equipment-to-asset linking
-
-## 🎯 Overview
-
-The CDF SAP Assets module is designed to:
-- **Ingest assets** from SAP functional location data
-- **Transform equipment** from SAP equipment master data
-- **Create relationships** between equipment and assets
-- **Prepare data** as contextualization targets
 
 ## 🏗️ Module Architecture
 

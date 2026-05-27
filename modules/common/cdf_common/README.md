@@ -1,5 +1,40 @@
 # CDF Common Module
-## Toolkit deployment (module install)
+
+Library path: `modules/common/cdf_common/` · Module ID: `dp:common:cdf_common` · Deployment pack: `dp:common`
+
+This module provides foundational resources for Cognite Data Fusion (CDF) projects, provisioning shared infrastructure including data spaces, datasets, RAW databases, and the annotation-to-direct-relation writer function.
+
+## Why Use This Module?
+
+**Establish Your CDF Foundation with Production-Ready Infrastructure**
+
+Setting up the base infrastructure for CDF projects requires careful planning and consistent configuration. This module delivers **production-ready, reusable foundation components** that ensure consistency across your CDF deployments.
+
+**Key Benefits:**
+
+- ⚡ **Quick Setup**: Deploy essential infrastructure in minutes instead of hours of manual configuration
+- 🏗️ **Consistent Foundation**: Standardized spaces, datasets, and databases that follow best practices
+- 🔄 **Annotation Processing**: Automated conversion of approved annotations into direct relations
+- 📊 **State Management**: Built-in RAW databases for tracking contextualization state
+- 🛡️ **Incremental Processing**: Cursor-based sync for efficient, resumable annotation processing
+- 🎯 **CDM Compatible**: Pre-configured mappings for CogniteFile → CogniteAsset/CogniteEquipment relations
+
+**Time & Cost Savings:**
+
+- **Setup Time**: Save hours of manual infrastructure configuration
+- **Consistency**: Eliminate configuration drift across environments
+- **Maintenance**: Centralized foundation reduces ongoing management overhead
+
+## 🎯 Overview
+
+The CDF Common module is designed to:
+- **Provision data spaces** for instances and functions
+- **Create datasets** for organizing transformations, functions, and workflows
+- **Set up RAW databases** for source data and contextualization state
+- **Deploy extraction pipelines** for annotation-based relation writing
+- **Provide functions** for converting annotations to direct relations
+
+## Deployment
 
 ### Prerequisites
 
@@ -60,40 +95,6 @@ cdf build
 cdf deploy --dry-run
 cdf deploy
 ```
-
-Library path: `modules/common/cdf_common/` · Module ID: `dp:common:cdf_common` · Deployment pack: `dp:common`
-
-This module provides foundational resources for Cognite Data Fusion (CDF) projects, provisioning shared infrastructure including data spaces, datasets, RAW databases, and the annotation-to-direct-relation writer function.
-
-## Why Use This Module?
-
-**Establish Your CDF Foundation with Production-Ready Infrastructure**
-
-Setting up the base infrastructure for CDF projects requires careful planning and consistent configuration. This module delivers **production-ready, reusable foundation components** that ensure consistency across your CDF deployments.
-
-**Key Benefits:**
-
-- ⚡ **Quick Setup**: Deploy essential infrastructure in minutes instead of hours of manual configuration
-- 🏗️ **Consistent Foundation**: Standardized spaces, datasets, and databases that follow best practices
-- 🔄 **Annotation Processing**: Automated conversion of approved annotations into direct relations
-- 📊 **State Management**: Built-in RAW databases for tracking contextualization state
-- 🛡️ **Incremental Processing**: Cursor-based sync for efficient, resumable annotation processing
-- 🎯 **CDM Compatible**: Pre-configured mappings for CogniteFile → CogniteAsset/CogniteEquipment relations
-
-**Time & Cost Savings:**
-
-- **Setup Time**: Save hours of manual infrastructure configuration
-- **Consistency**: Eliminate configuration drift across environments
-- **Maintenance**: Centralized foundation reduces ongoing management overhead
-
-## 🎯 Overview
-
-The CDF Common module is designed to:
-- **Provision data spaces** for instances and functions
-- **Create datasets** for organizing transformations, functions, and workflows
-- **Set up RAW databases** for source data and contextualization state
-- **Deploy extraction pipelines** for annotation-based relation writing
-- **Provide functions** for converting annotations to direct relations
 
 ## 🏗️ Module Architecture
 

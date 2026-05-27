@@ -1,5 +1,52 @@
 # CDF Entity Matching Module
-## Toolkit deployment (module install)
+
+This module provides comprehensive entity matching capabilities for Cognite Data Fusion (CDF), enabling automated contextualization of timeseries data with assets through advanced matching algorithms and metadata optimization.
+
+## Why Use This Module?
+
+**Accelerate Your Timeseries Contextualization with Production-Proven Code**
+
+Building an entity matching solution from scratch is complex and time-consuming. This module delivers **production-ready, battle-tested code** that has been successfully deployed across multiple customer environments, saving you weeks or months of development time while providing enterprise-grade performance and reliability.
+
+**Key Benefits:**
+
+- ⚡ **Production-Proven**: Built from real-world implementations across several customers running in production environments, ensuring reliability and stability
+- 🚀 **Significant Time Savings**: Deploy in hours instead of spending weeks or months developing custom matching algorithms, rule engines, and metadata optimization logic
+- 📊 **Proven Performance**: 35-55% faster execution than legacy implementations, with 40-60% improvement in matching accuracy
+- 🔧 **Easy to Extend**: Clean, modular architecture with well-documented functions makes it straightforward to customize rules, add new matching algorithms, or integrate with your specific workflows
+- 📈 **Enterprise Scale**: Handles 10,000+ timeseries per batch out of the box, with proven scalability for large industrial deployments
+- 🎯 **Multi-Method Matching**: Combines rule-based, AI-powered, and manual expert mapping in a single, unified solution
+- 🛡️ **Robust Error Handling**: 95%+ success rate with comprehensive retry mechanisms and state management for reliable incremental processing
+
+**Time & Cost Savings:**
+
+- **Development Time**: Save 4-8 weeks of development time by leveraging proven, production-ready code instead of building from scratch
+- **Performance Optimization**: Benefit from 35-55% performance improvements already built-in, avoiding months of optimization work
+- **Maintenance Burden**: Reduce ongoing maintenance with stable, tested code that has been refined through multiple production deployments
+- **Accuracy Improvements**: Achieve 40-60% better matching accuracy compared to basic implementations, reducing manual correction work
+- **Quick Iteration**: Rapidly adapt and extend the module to meet your specific domain requirements without starting from zero
+
+**Real-World Performance:**
+
+- **Processing Speed**: 35-55% faster than legacy implementations
+- **Memory Efficiency**: 30-50% reduction in memory usage
+- **Matching Accuracy**: 40-60% improvement over basic matching approaches
+- **Batch Capacity**: Successfully processes 10,000+ timeseries per batch
+- **Cache Performance**: 70%+ cache hit rate for metadata operations
+
+Whether you're contextualizing hundreds or tens of thousands of timeseries, this module provides a solid, scalable foundation that has been proven in production environments. Start with the default configuration for immediate value, then customize rules and algorithms to match your specific domain requirements.
+
+## 🎯 Overview
+
+The CDF Entity Matching module is designed to:
+- **Support expert manual mappings** for complex or domain-specific relationships
+- **Match timeseries to assets** using rule-based, AI-powered, and manual mapping algorithms
+- **Optimize metadata** for improved searchability and contextualization
+- **Provide scalable processing** with batch operations and performance monitoring
+- **Support workflow automation** through CDF Workflows integration
+- **Maintain state** for incremental processing and error recovery
+
+## Deployment
 
 ### Prerequisites
 
@@ -60,52 +107,6 @@ cdf build
 cdf deploy --dry-run
 cdf deploy
 ```
-
-This module provides comprehensive entity matching capabilities for Cognite Data Fusion (CDF), enabling automated contextualization of timeseries data with assets through advanced matching algorithms and metadata optimization.
-
-## Why Use This Module?
-
-**Accelerate Your Timeseries Contextualization with Production-Proven Code**
-
-Building an entity matching solution from scratch is complex and time-consuming. This module delivers **production-ready, battle-tested code** that has been successfully deployed across multiple customer environments, saving you weeks or months of development time while providing enterprise-grade performance and reliability.
-
-**Key Benefits:**
-
-- ⚡ **Production-Proven**: Built from real-world implementations across several customers running in production environments, ensuring reliability and stability
-- 🚀 **Significant Time Savings**: Deploy in hours instead of spending weeks or months developing custom matching algorithms, rule engines, and metadata optimization logic
-- 📊 **Proven Performance**: 35-55% faster execution than legacy implementations, with 40-60% improvement in matching accuracy
-- 🔧 **Easy to Extend**: Clean, modular architecture with well-documented functions makes it straightforward to customize rules, add new matching algorithms, or integrate with your specific workflows
-- 📈 **Enterprise Scale**: Handles 10,000+ timeseries per batch out of the box, with proven scalability for large industrial deployments
-- 🎯 **Multi-Method Matching**: Combines rule-based, AI-powered, and manual expert mapping in a single, unified solution
-- 🛡️ **Robust Error Handling**: 95%+ success rate with comprehensive retry mechanisms and state management for reliable incremental processing
-
-**Time & Cost Savings:**
-
-- **Development Time**: Save 4-8 weeks of development time by leveraging proven, production-ready code instead of building from scratch
-- **Performance Optimization**: Benefit from 35-55% performance improvements already built-in, avoiding months of optimization work
-- **Maintenance Burden**: Reduce ongoing maintenance with stable, tested code that has been refined through multiple production deployments
-- **Accuracy Improvements**: Achieve 40-60% better matching accuracy compared to basic implementations, reducing manual correction work
-- **Quick Iteration**: Rapidly adapt and extend the module to meet your specific domain requirements without starting from zero
-
-**Real-World Performance:**
-
-- **Processing Speed**: 35-55% faster than legacy implementations
-- **Memory Efficiency**: 30-50% reduction in memory usage
-- **Matching Accuracy**: 40-60% improvement over basic matching approaches
-- **Batch Capacity**: Successfully processes 10,000+ timeseries per batch
-- **Cache Performance**: 70%+ cache hit rate for metadata operations
-
-Whether you're contextualizing hundreds or tens of thousands of timeseries, this module provides a solid, scalable foundation that has been proven in production environments. Start with the default configuration for immediate value, then customize rules and algorithms to match your specific domain requirements.
-
-## 🎯 Overview
-
-The CDF Entity Matching module is designed to:
-- **Support expert manual mappings** for complex or domain-specific relationships
-- **Match timeseries to assets** using rule-based, AI-powered, and manual mapping algorithms
-- **Optimize metadata** for improved searchability and contextualization
-- **Provide scalable processing** with batch operations and performance monitoring
-- **Support workflow automation** through CDF Workflows integration
-- **Maintain state** for incremental processing and error recovery
 
 ## 🏗️ Module Architecture
 

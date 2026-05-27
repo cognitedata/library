@@ -1,5 +1,29 @@
 # CDF Search Module
-## Toolkit deployment (module install)
+
+This module configures location filters for Cognite Data Fusion search functionality, enabling users to discover and search resources within specific organizational scopes based on data models and instance spaces.
+
+## Why Use This Module?
+
+**Enable Scoped Search for Your Industrial Data**
+
+Large CDF deployments can contain millions of resources across multiple sites. This module delivers **location-based filtering** that helps users find relevant data within their organizational context.
+
+**Key Benefits:**
+
+- 🎯 **Scoped Discovery**: Filter resources by location/site for focused search
+- 🏗️ **Data Model Aware**: Integrates with your process industry data model
+- ⚡ **Quick Setup**: Single configuration file defines search scope
+- 🔐 **Access Control**: Respects user permissions on designated spaces
+
+## 🎯 Overview
+
+The CDF Search module is designed to:
+- **Define location filters** for scoped resource discovery
+- **Configure data model integration** for search functionality
+- **Specify instance spaces** users can search within
+- **Enable site-specific views** of industrial data
+
+## Deployment
 
 ### Prerequisites
 
@@ -60,29 +84,6 @@ cdf build
 cdf deploy --dry-run
 cdf deploy
 ```
-
-This module configures location filters for Cognite Data Fusion search functionality, enabling users to discover and search resources within specific organizational scopes based on data models and instance spaces.
-
-## Why Use This Module?
-
-**Enable Scoped Search for Your Industrial Data**
-
-Large CDF deployments can contain millions of resources across multiple sites. This module delivers **location-based filtering** that helps users find relevant data within their organizational context.
-
-**Key Benefits:**
-
-- 🎯 **Scoped Discovery**: Filter resources by location/site for focused search
-- 🏗️ **Data Model Aware**: Integrates with your process industry data model
-- ⚡ **Quick Setup**: Single configuration file defines search scope
-- 🔐 **Access Control**: Respects user permissions on designated spaces
-
-## 🎯 Overview
-
-The CDF Search module is designed to:
-- **Define location filters** for scoped resource discovery
-- **Configure data model integration** for search functionality
-- **Specify instance spaces** users can search within
-- **Enable site-specific views** of industrial data
 
 ## 🏗️ Module Architecture
 

@@ -1,5 +1,37 @@
 # CDF Quality Reports Module
-## Toolkit deployment (module install)
+
+This module provides contextualization rate reporting through SQL transformations that calculate link rates and annotation coverage across your data model, enabling data quality monitoring and governance.
+
+## Why Use This Module?
+
+**Monitor Your Contextualization Progress with Automated Reporting**
+
+Understanding how well your data is contextualized is critical for data quality. This module delivers **automated quality metrics** that track link rates across different entity types.
+
+**Key Benefits:**
+
+- 📊 **Comprehensive Metrics**: Link rates for timeseries, maintenance orders, operations, and files
+- 🔄 **Automated Workflow**: Scheduled execution for continuous monitoring
+- 📈 **Trend Analysis**: Historical data in RAW tables for tracking progress
+- 🎯 **Gap Identification**: Reports assets and files not in baseline
+- ⚡ **Low Overhead**: SQL transformations with minimal resource usage
+
+**Time & Cost Savings:**
+
+- **Manual Effort**: Eliminates manual data quality audits
+- **Early Detection**: Identify contextualization gaps before they impact applications
+- **Progress Tracking**: Demonstrate value through measurable improvements
+
+## 🎯 Overview
+
+The CDF Quality Reports module is designed to:
+- **Calculate link rates** for various entity types
+- **Track annotation coverage** for files
+- **Identify gaps** in baseline coverage
+- **Store metrics** in RAW tables for reporting
+- **Automate execution** via scheduled workflows
+
+## Deployment
 
 ### Prerequisites
 
@@ -60,37 +92,6 @@ cdf build
 cdf deploy --dry-run
 cdf deploy
 ```
-
-This module provides contextualization rate reporting through SQL transformations that calculate link rates and annotation coverage across your data model, enabling data quality monitoring and governance.
-
-## Why Use This Module?
-
-**Monitor Your Contextualization Progress with Automated Reporting**
-
-Understanding how well your data is contextualized is critical for data quality. This module delivers **automated quality metrics** that track link rates across different entity types.
-
-**Key Benefits:**
-
-- 📊 **Comprehensive Metrics**: Link rates for timeseries, maintenance orders, operations, and files
-- 🔄 **Automated Workflow**: Scheduled execution for continuous monitoring
-- 📈 **Trend Analysis**: Historical data in RAW tables for tracking progress
-- 🎯 **Gap Identification**: Reports assets and files not in baseline
-- ⚡ **Low Overhead**: SQL transformations with minimal resource usage
-
-**Time & Cost Savings:**
-
-- **Manual Effort**: Eliminates manual data quality audits
-- **Early Detection**: Identify contextualization gaps before they impact applications
-- **Progress Tracking**: Demonstrate value through measurable improvements
-
-## 🎯 Overview
-
-The CDF Quality Reports module is designed to:
-- **Calculate link rates** for various entity types
-- **Track annotation coverage** for files
-- **Identify gaps** in baseline coverage
-- **Store metrics** in RAW tables for reporting
-- **Automate execution** via scheduled workflows
 
 ## 🏗️ Module Architecture
 

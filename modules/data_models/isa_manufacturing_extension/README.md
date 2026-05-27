@@ -1,65 +1,4 @@
 # ISA Manufacturing Extension
-## Toolkit deployment (module install)
-
-### Prerequisites
-
-- **Cognite Toolkit 0.7.210 or above** (`cdf --version` to check).
-- A CDF project with valid authentication configured for your target environment.
-- A `cdf.toml` in your Toolkit project directory.
-
-### Choose your setup path
-
-### 1. Existing Toolkit project
-
-If you already have a Toolkit project, ensure your `cdf.toml` uses the official library URL:
-
-```toml
-[library.cognite]
-url = "https://github.com/cognitedata/library/releases/download/latest/packages.zip"
-```
-
-In the same `cdf.toml`, ensure deployment packs are enabled:
-
-```toml
-[alpha_flags]
-deployment-pack = true
-```
-
-Then add this module:
-
-```bash
-cdf modules add -d isa_manufacturing_extension
-```
-
-Build and deploy:
-
-```bash
-cdf build
-cdf deploy --dry-run
-cdf deploy
-```
-
-### 2. Starting from scratch
-
-In an empty directory:
-
-```bash
-cdf modules init .
-```
-
-In the interactive selector:
-
-1. Choose **Data models**.
-2. Use **Space** to select **isa_manufacturing_extension**.
-3. Press **Enter**.
-
-Then run:
-
-```bash
-cdf build
-cdf deploy --dry-run
-cdf deploy
-```
 
 ## Overview
 
@@ -234,108 +173,72 @@ isa_manufacturing_extension/
    - If you need to scope data by location, update or add a `locations/*LocationFilter.yaml` and ensure relevant groups/locations exist in your environment.
    - There are 2 included location examples on called EDM = Enterprise data Model, including all views and interfaces. The Solution Level Model (SLM), only including ISA-specific views 
 
-## Deployment (Cognite Toolkit)
+## Deployment
 
 ### Prerequisites
-Before you start, ensure you have:
 
-- A Cognite Toolkit project set up locally
-- Your project contains the standard `cdf.toml` file
-- Valid authentication to your target CDF environment
-- Access to a CDF project and credentials
-- `cognite-toolkit` >= 0.6.61
+- **Cognite Toolkit 0.7.210 or above** (`cdf --version` to check).
+- A CDF project with valid authentication configured for your target environment.
+- A `cdf.toml` in your Toolkit project directory.
+- **Enable feature flag** (required for CDF): enable [`FDX_VIEW_SWITCHER`](https://unleash-apps.cogniteapp.com/projects/default/features/FDX_VIEW_SWITCHER) for your CDF project so view navigation and relationship visualization work in Data Modeling.
 
+### Choose your setup path
 
- **Enable Feature Flags** (Required for CDF):
-   - Navigate to [Cognite Unleash Feature Flags - FDX_VIEW_SWITCHER](https://unleash-apps.cogniteapp.com/projects/default/features/FDX_VIEW_SWITCHER)
-   - Enable the `FDX_VIEW_SWITCHER` feature flag for your CDF project
-   - This feature flag enables the view switcher functionality in CDF Data Modeling, which is required for:
-     - Proper view navigation in the CDF UI
-     - Relationship visualization between views
-     - Switching between different view versions
-     - Enhanced data model exploration capabilities
-   - **Note**: Feature flags are project-specific, so ensure you enable it for the correct CDF project
-   - **Access**: You need appropriate permissions in your CDF project to enable feature flags. Contact your CDF administrator if you don't have access.
+### 1. Existing Toolkit project
 
+If you already have a Toolkit project, ensure your `cdf.toml` uses the official library URL:
 
-### Step 1: Enable External Libraries (Toolkit < 0.7.0 only)
+```toml
+[library.cognite]
+url = "https://github.com/cognitedata/library/releases/download/latest/packages.zip"
+```
 
-Newer Toolkit versions ship `[library.cognite]` already pointing at this
-repository, so no `cdf.toml` change is needed. On Toolkit < 0.7.0, enable the
-alpha flag:
+In the same `cdf.toml`, ensure deployment packs are enabled:
 
 ```toml
 [alpha_flags]
-external-libraries = true
+deployment-pack = true
 ```
 
-### Step 2 (Optional but Recommended): Enable Usage Tracking
-
-To help improve the Deployment Pack:
+Then add this module:
 
 ```bash
-cdf collect opt-in
+cdf modules add -d isa_manufacturing_extension
 ```
 
-### Step 3: Add the Module
+Build and deploy:
 
-Run:
-
-```bash
-cdf modules init . --clean
-```
-
-> **⚠️ Disclaimer**: This command will overwrite existing modules. Commit changes before running, or use a fresh directory.
-
-This opens the interactive module selection interface.
-
-### Step 4: Select the ISA Data Models Package (NOTE: use Space bar to select module)
-
-From the menu, select:
-
-```
-Data models: Data models that extend the core data model 
-  └── ISA 88/95 Manufacturing Data Model template
-```
-
-### Step 5: Verify Folder Structure
-
-After installation, your project should now contain:
-
-```
-modules/
-    └── data_models/
-        └── isa_manufacturing_extension/
-```
-If you want to add more modules, continue with yes ('y') else no ('N')
-
-And continue with creation, yes ('Y') => this then creates a folder structure in your destination with all the files from your selected modules.
-
-
-### Step 6: Deploy to CDF
-
-__NOTE__: Update your __config.dev.yaml__ file with __project__ and changes in spaces or versions 
-
-Build deployment structure:
 ```bash
 cdf build
-```
-
-Optional dry run:
-```bash  (optional)
 cdf deploy --dry-run
-```
-
-Deploy module to your CDF project
-```bash
 cdf deploy
 ```
 
----
+### 2. Starting from scratch
 
-- Note that the deployment uses a set of CDF capabilities, so you might need to add this to the CDF security group used by Toolkit to deploy
-- This will create/update spaces, containers, views, the composed data model, dataset, RAW resources, transformations, and workflows defined by this module.
+In an empty directory:
 
+```bash
+cdf modules init .
+```
+
+In the interactive selector:
+
+1. Choose **Data models**.
+2. Use **Space** to select **isa_manufacturing_extension**.
+3. Press **Enter**.
+
+Then run:
+
+```bash
+cdf build
+cdf deploy --dry-run
+cdf deploy
+```
+
+Update your `config.dev.yaml` with the correct **project** and any space or version overrides before deploying.
+
+Deployment uses several CDF capabilities — you may need to grant the Toolkit deploy group additional permissions. This creates or updates spaces, containers, views, the composed data model, dataset, RAW resources, transformations, and workflows defined by this module.
 
 ### Run the workflow / transformations
 - After deployment, trigger `wf_isa_manufacturing` via the CDF Workflows UI or API to execute the transformations in order.

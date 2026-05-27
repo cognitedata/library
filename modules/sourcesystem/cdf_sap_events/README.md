@@ -1,5 +1,38 @@
 # CDF SAP Events Module
-## Toolkit deployment (module install)
+
+Library path: `modules/sourcesystem/cdf_sap_events/` · Module ID: `dp:sourcesystem:cdf_sap_events` · Deployment pack: `dp:sourcesystem`
+
+This module provides ingestion of maintenance events data from SAP S/4HANA into Cognite Data Fusion, transforming work orders and operations into the process industry data model.
+
+## Why Use This Module?
+
+**Ingest SAP Maintenance Data for Industrial Analytics**
+
+Maintenance work orders and operations are essential for asset management and reliability analysis. This module delivers **production-ready SAP events ingestion** that populates your data model with maintenance activities.
+
+**Key Benefits:**
+
+- 🔧 **Maintenance Orders**: Ingest SAP work orders as MaintenanceOrder instances
+- ⚙️ **Operations**: Transform work tasks into Operation instances
+- 🔗 **Relationship Mapping**: Connect operations to their parent maintenance orders
+- 📦 **Sample Data Included**: Example CSV data for testing
+- 🏗️ **CDM Compatible**: Populates organization-prefixed views
+
+**Time & Cost Savings:**
+
+- **Quick Setup**: Pre-built transformations for SAP data structures
+- **Best Practices**: Follows recommended SAP integration patterns
+- **Relationship Handling**: Automatic operation-to-order linking
+
+## 🎯 Overview
+
+The CDF SAP Events module is designed to:
+- **Ingest maintenance orders** from SAP work order tables
+- **Transform operations** from work task/item data
+- **Create relationships** between operations and orders
+- **Prepare data** for contextualization workflows
+
+## Deployment
 
 ### Prerequisites
 
@@ -60,38 +93,6 @@ cdf build
 cdf deploy --dry-run
 cdf deploy
 ```
-
-Library path: `modules/sourcesystem/cdf_sap_events/` · Module ID: `dp:sourcesystem:cdf_sap_events` · Deployment pack: `dp:sourcesystem`
-
-This module provides ingestion of maintenance events data from SAP S/4HANA into Cognite Data Fusion, transforming work orders and operations into the process industry data model.
-
-## Why Use This Module?
-
-**Ingest SAP Maintenance Data for Industrial Analytics**
-
-Maintenance work orders and operations are essential for asset management and reliability analysis. This module delivers **production-ready SAP events ingestion** that populates your data model with maintenance activities.
-
-**Key Benefits:**
-
-- 🔧 **Maintenance Orders**: Ingest SAP work orders as MaintenanceOrder instances
-- ⚙️ **Operations**: Transform work tasks into Operation instances
-- 🔗 **Relationship Mapping**: Connect operations to their parent maintenance orders
-- 📦 **Sample Data Included**: Example CSV data for testing
-- 🏗️ **CDM Compatible**: Populates organization-prefixed views
-
-**Time & Cost Savings:**
-
-- **Quick Setup**: Pre-built transformations for SAP data structures
-- **Best Practices**: Follows recommended SAP integration patterns
-- **Relationship Handling**: Automatic operation-to-order linking
-
-## 🎯 Overview
-
-The CDF SAP Events module is designed to:
-- **Ingest maintenance orders** from SAP work order tables
-- **Transform operations** from work task/item data
-- **Create relationships** between operations and orders
-- **Prepare data** for contextualization workflows
 
 ## 🏗️ Module Architecture
 

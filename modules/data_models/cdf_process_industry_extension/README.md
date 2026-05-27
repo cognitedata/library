@@ -1,5 +1,36 @@
 # CDF Process Industry Extension Module
-## Toolkit deployment (module install)
+
+This module provides a minimal extension of the Cognite Process Industry data model, adding organization-specific views and containers that extend the standard CDM (Cognite Data Model) for process industry use cases.
+
+## Why Use This Module?
+
+**Extend the Standard Data Model for Your Organization**
+
+The Cognite CDM provides foundational types, but industrial deployments often need organization-specific extensions. This module delivers **production-ready data model extensions** that follow best practices while allowing customization.
+
+**Key Benefits:**
+
+- 🏗️ **CDM Compatible**: Extends standard Cognite Process Industry types
+- 🎯 **Organization Prefixed**: Custom views with your organization prefix
+- 📊 **Complete Entity Coverage**: Assets, Equipment, TimeSeries, Files, Activities, and more
+- 🔧 **Easy Customization**: Add custom properties to containers
+- 📈 **Enterprise Ready**: Includes Maintenance Orders, Operations, and Notifications
+
+**Time & Cost Savings:**
+
+- **Development Time**: Pre-built containers and views save weeks of data modeling
+- **Best Practices**: Follows Cognite's recommended patterns for extensions
+- **Consistency**: Standardized naming conventions across all entity types
+
+## 🎯 Overview
+
+The CDF Process Industry Extension module provides:
+- **Organization-prefixed views** for all major entity types
+- **Custom containers** with extension properties
+- **Enterprise data model** combining all views
+- **Schema space** for model organization
+
+## Deployment
 
 ### Prerequisites
 
@@ -60,36 +91,6 @@ cdf build
 cdf deploy --dry-run
 cdf deploy
 ```
-
-This module provides a minimal extension of the Cognite Process Industry data model, adding organization-specific views and containers that extend the standard CDM (Cognite Data Model) for process industry use cases.
-
-## Why Use This Module?
-
-**Extend the Standard Data Model for Your Organization**
-
-The Cognite CDM provides foundational types, but industrial deployments often need organization-specific extensions. This module delivers **production-ready data model extensions** that follow best practices while allowing customization.
-
-**Key Benefits:**
-
-- 🏗️ **CDM Compatible**: Extends standard Cognite Process Industry types
-- 🎯 **Organization Prefixed**: Custom views with your organization prefix
-- 📊 **Complete Entity Coverage**: Assets, Equipment, TimeSeries, Files, Activities, and more
-- 🔧 **Easy Customization**: Add custom properties to containers
-- 📈 **Enterprise Ready**: Includes Maintenance Orders, Operations, and Notifications
-
-**Time & Cost Savings:**
-
-- **Development Time**: Pre-built containers and views save weeks of data modeling
-- **Best Practices**: Follows Cognite's recommended patterns for extensions
-- **Consistency**: Standardized naming conventions across all entity types
-
-## 🎯 Overview
-
-The CDF Process Industry Extension module provides:
-- **Organization-prefixed views** for all major entity types
-- **Custom containers** with extension properties
-- **Enterprise data model** combining all views
-- **Schema space** for model organization
 
 ## 🏗️ Module Architecture
 
