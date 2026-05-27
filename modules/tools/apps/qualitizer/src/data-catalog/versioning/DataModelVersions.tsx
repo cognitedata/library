@@ -11,7 +11,10 @@ import { line } from "d3-shape";
 import type { CogniteClient } from "@cognite/sdk";
 import { useAppSdk } from "@/shared/auth";
 import { useAppData } from "@/shared/data-cache";
-import { extractDataModelRefs } from "@/transformations/transformationChecks";
+import {
+  dataModelKeyFromInteractionRef,
+  extractDataModelRefs,
+} from "@/transformations/transformationChecks";
 import { fetchTransformationsByIds } from "@/transformations/fetchTransformationsByIds";
 import { cachedTransformationsList } from "@/transformations/transformations-cache";
 import { cachedDataModelsRetrieve, listAllCachedDataModels } from "@/shared/dms-catalog-cache";
@@ -434,10 +437,8 @@ async function loadDataModelVersionsTransformationUsage(
     if (!String(query).trim()) continue;
     const refs = extractDataModelRefs(query);
     for (const ref of refs) {
-      const space = ref.space ?? "";
-      const externalId = ref.externalId ?? "";
-      const key = `${space}:${externalId}`;
-      if (!key || key === ":") continue;
+      const key = dataModelKeyFromInteractionRef(ref);
+      if (!key) continue;
       modelRefs.add(key);
       const ver = ref.version?.trim() ?? "";
       const mvKey = `${key}:${ver}`;
