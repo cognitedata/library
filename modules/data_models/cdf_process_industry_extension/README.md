@@ -1,4 +1,65 @@
 # CDF Process Industry Extension Module
+## Toolkit deployment (module install)
+
+### Prerequisites
+
+- **Cognite Toolkit 0.7.210 or above** (`cdf --version` to check).
+- A CDF project with valid authentication configured for your target environment.
+- A `cdf.toml` in your Toolkit project directory.
+
+### Choose your setup path
+
+### 1. Existing Toolkit project
+
+If you already have a Toolkit project, ensure your `cdf.toml` uses the official library URL:
+
+```toml
+[library.cognite]
+url = "https://github.com/cognitedata/library/releases/download/latest/packages.zip"
+```
+
+In the same `cdf.toml`, ensure deployment packs are enabled:
+
+```toml
+[alpha_flags]
+deployment-pack = true
+```
+
+Then add this module:
+
+```bash
+cdf modules add -d cdf_process_industry_extension
+```
+
+Build and deploy:
+
+```bash
+cdf build
+cdf deploy --dry-run
+cdf deploy
+```
+
+### 2. Starting from scratch
+
+In an empty directory:
+
+```bash
+cdf modules init .
+```
+
+In the interactive selector:
+
+1. Choose **Quickstart Deployment Pack**.
+2. Use **Space** to select **cdf_process_industry_extension**.
+3. Press **Enter**.
+
+Then run:
+
+```bash
+cdf build
+cdf deploy --dry-run
+cdf deploy
+```
 
 This module provides a minimal extension of the Cognite Process Industry data model, adding organization-specific views and containers that extend the standard CDM (Cognite Data Model) for process industry use cases.
 

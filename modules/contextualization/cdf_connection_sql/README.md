@@ -1,4 +1,65 @@
 # CDF Connection SQL Module
+## Toolkit deployment (module install)
+
+### Prerequisites
+
+- **Cognite Toolkit 0.7.210 or above** (`cdf --version` to check).
+- A CDF project with valid authentication configured for your target environment.
+- A `cdf.toml` in your Toolkit project directory.
+
+### Choose your setup path
+
+### 1. Existing Toolkit project
+
+If you already have a Toolkit project, ensure your `cdf.toml` uses the official library URL:
+
+```toml
+[library.cognite]
+url = "https://github.com/cognitedata/library/releases/download/latest/packages.zip"
+```
+
+In the same `cdf.toml`, ensure deployment packs are enabled:
+
+```toml
+[alpha_flags]
+deployment-pack = true
+```
+
+Then add this module:
+
+```bash
+cdf modules add -d cdf_connection_sql
+```
+
+Build and deploy:
+
+```bash
+cdf build
+cdf deploy --dry-run
+cdf deploy
+```
+
+### 2. Starting from scratch
+
+In an empty directory:
+
+```bash
+cdf modules init .
+```
+
+In the interactive selector:
+
+1. Choose **Contextualization**.
+2. Use **Space** to select **cdf_connection_sql**.
+3. Press **Enter**.
+
+Then run:
+
+```bash
+cdf build
+cdf deploy --dry-run
+cdf deploy
+```
 
 This module provides SQL-based transformations that create direct relations between entities by matching tags found in source data with asset/equipment names, enabling automated contextualization through declarative SQL logic.
 
