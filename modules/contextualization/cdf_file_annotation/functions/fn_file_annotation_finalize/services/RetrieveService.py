@@ -34,7 +34,7 @@ class IRetrieveService(abc.ABC):
     @abc.abstractmethod
     def get_job_id(
         self,
-    ) -> tuple[tuple[int, str], tuple[int | None, str | None], dict[NodeId, Node]] | tuple[None, None, None]:
+    ) -> tuple[tuple[int, str] | None, tuple[int, str] | None, dict[NodeId, Node]] | tuple[None, None, None]:
         pass
 
 
@@ -90,7 +90,7 @@ class GeneralRetrieveService(IRetrieveService):
 
     def get_job_id(
         self,
-    ) -> tuple[tuple[int, str], tuple[int | None, str | None], dict[NodeId, Node]] | tuple[None, None, None]:
+    ) -> tuple[tuple[int, str] | None, tuple[int, str] | None, dict[NodeId, Node]] | tuple[None, None, None]:
         """
         Retrieves and claims an available diagram detection job for processing.
 
@@ -147,23 +147,20 @@ class GeneralRetrieveService(IRetrieveService):
 
         job_id: int | None = props.get("diagramDetectJobId")
         job_token: str | None = props.get("diagramDetectJobToken")
-
-        if job_id is None:
-            return None, None, None
-
-        regular_job = (job_id, job_token)
-
         pattern_mode_job_id: int | None = props.get("patternModeJobId")
         pattern_mode_job_token: str | None = props.get("patternModeJobToken")
 
-        if pattern_mode_job_id is None:
-            pattern_mode_job = None
-        else:
-            pattern_mode_job = (pattern_mode_job_id, pattern_mode_job_token)
+        if job_id is None and pattern_mode_job_id is None:
+            return None, None, None
 
+        regular_job = (job_id, job_token) if job_id is not None else None
+        pattern_mode_job = (pattern_mode_job_id, pattern_mode_job_token) if pattern_mode_job_id is not None else None
+
+        filter_property = "diagramDetectJobId" if job_id is not None else "patternModeJobId"
+        filter_value = job_id if job_id is not None else pattern_mode_job_id
         filter_job_id = Equals(
-            property=self.annotation_state_view.as_property_ref("diagramDetectJobId"),
-            value=job_id,
+            property=self.annotation_state_view.as_property_ref(filter_property),
+            value=filter_value,
         )
         list_job_nodes: NodeList = self.client.data_modeling.instances.list(
             instance_type="node",
