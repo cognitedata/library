@@ -299,7 +299,18 @@ class DataModelViews(BaseModel, alias_generator=to_camel):
     core_annotation_view: ViewPropertyConfig
     annotation_state_view: ViewPropertyConfig
     file_view: ViewPropertyConfig
-    target_entities_view: ViewPropertyConfig
+    target_entities_view: Optional[ViewPropertyConfig] = None
+    target_entities_views: Optional[list[ViewPropertyConfig]] = None
+
+    def get_target_entity_views(self) -> list[ViewPropertyConfig]:
+        # Backward-compatible config handling:
+        # - New format: targetEntitiesViews (list)
+        # - Legacy format: targetEntitiesView (single)
+        if self.target_entities_views:
+            return self.target_entities_views
+        if self.target_entities_view:
+            return [self.target_entities_view]
+        raise ValueError("Configuration must define either targetEntitiesView or targetEntitiesViews")
 
 
 class Config(BaseModel, alias_generator=to_camel):

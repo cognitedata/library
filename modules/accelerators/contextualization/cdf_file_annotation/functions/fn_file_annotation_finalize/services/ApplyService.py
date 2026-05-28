@@ -105,6 +105,19 @@ class GeneralApplyService(IApplyService):
         file_id = file_node.as_id()
         source_id = cast(str, file_node.properties.get(self.file_view_id, {}).get("sourceId"))
 
+        # The Diagrams detect API can complete a job with per-file failures reported in the item payload
+        # (e.g. `errorMessage` for unsupported mime types). Treat those as per-file failures so the
+        # finalize retry/failed logic can handle them, rather than silently "succeeding" with 0 annotations.
+        regular_error = regular_item.get("errorMessage") if regular_item else None
+        pattern_error = pattern_item.get("errorMessage") if pattern_item else None
+        if regular_error or pattern_error:
+            parts = []
+            if regular_error:
+                parts.append(f"regular item error: {regular_error}")
+            if pattern_error:
+                parts.append(f"pattern item error: {pattern_error}")
+            raise RuntimeError(f"Diagram detect returned an error for file {file_id.as_tuple()}: " + " | ".join(parts))
+
         if clean_old:
             deleted_counts = self._delete_annotations_for_file(file_id)
             self.logger.info(

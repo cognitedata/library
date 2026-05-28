@@ -79,7 +79,12 @@ class GeneralDataModelService(IDataModelService):
 
         self.annotation_state_view: ViewPropertyConfig = config.data_model_views.annotation_state_view
         self.file_view: ViewPropertyConfig = config.data_model_views.file_view
-        self.target_entities_view: ViewPropertyConfig = config.data_model_views.target_entities_view
+        self.target_entities_views: list[ViewPropertyConfig] = (
+            config.data_model_views.get_target_entity_views()
+        )
+        # Prepare currently operates on a single target view in its filtering logic.
+        # When multi-view config is provided, use the first view for backward compatibility.
+        self.target_entities_view: ViewPropertyConfig = self.target_entities_views[0]
 
         self.get_files_to_annotate_retrieve_limit: int | None = get_limit_from_query(
             config.prepare_function.get_files_to_annotate_query
