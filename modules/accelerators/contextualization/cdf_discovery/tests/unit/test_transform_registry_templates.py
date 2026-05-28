@@ -135,7 +135,7 @@ def test_template_build_pairing_uses_per_template_workflow_base(tmp_path: Path) 
     config_path.write_text("workflow: wf_all_etl_global\nworkflow_schedule: '0 2 * * *'\n", encoding="utf-8")
 
     with patch.object(transform_registry, "_module_root", return_value=tmp_path):
-        pairing = transform_registry.template_build_pairing("sample", scoped=False)
+        pairing = transform_registry.template_build_pairing("sample")
 
     assert pairing["workflow_base"] == "wf_all_etl_sample"
     assert pairing["workflow_external_id"] == "wf_all_etl_sample"

@@ -4,6 +4,7 @@ import {
   deleteTransformTemplate,
   fetchConnection,
   fetchTransformPipelineByWorkflow,
+  importTransformPipelineFromWorkflow,
   type ConnectionInfo,
 } from "./api";
 import { DocumentTabBar } from "./components/DocumentTabBar";
@@ -32,7 +33,6 @@ import { CreatePipelineDialog } from "./components/transform/CreatePipelineDialo
 import { RenameTransformLabelDialog } from "./components/transform/RenameTransformLabelDialog";
 import { SavePipelineAsTemplateDialog } from "./components/transform/SavePipelineAsTemplateDialog";
 import { GovernanceScopePane } from "./components/governance/GovernanceScopePane";
-import { TransformScopePane } from "./components/transform/TransformScopePane";
 import { TransformWorkflowYamlPane } from "./components/transform/TransformWorkflowYamlPane";
 import { GovernanceSpacesPane } from "./components/governance/GovernanceSpacesPane";
 import { GovernanceGroupsPane } from "./components/governance/GovernanceGroupsPane";
@@ -60,7 +60,6 @@ import {
   isGovernanceCdfGroupTab,
   isEtlPipelineTab,
   isEtlTemplateTab,
-  isEtlScopeTab,
   isEtlWorkflowYamlTab,
   isExtractTab,
   isMonitorTab,
@@ -74,6 +73,7 @@ import {
   type DocumentTab,
   type FunctionDocumentTab,
   type WorkflowDocumentTab,
+  type WorkflowRef,
   type TransformationDocumentTab,
   type EtlPipelineDocumentTab,
   type EtlTemplateDocumentTab,
@@ -108,6 +108,13 @@ import {
 } from "./utils/sqlTabs";
 import { createRecordsStreamTab } from "./utils/recordsStreamTabs";
 import { canQueryTreeNode, labelForDmView, openTargetForDmView } from "./utils/sqlQuerySeed";
+import {
+  nodePreviewOpenTarget,
+  resolvePreviewRawSink,
+  sqlQueryForPreviewNode,
+} from "./utils/nodePreviewQuery";
+import { sqlTabKeyForOpenTarget } from "./utils/sqlTabs";
+import type { TransformPipelineParameters } from "./types/transformCanvas";
 import { fileContentRefFromRow } from "./utils/queryableFileFromRow";
 import { downloadCdfFileWithConfirm } from "./utils/downloadCdfFile";
 import {
@@ -123,8 +130,8 @@ import {
   createEtlTemplateTab,
   createEtlWorkflowYamlTab,
   etlPipelineTabKey,
-  etlScopeTabKey,
   etlTemplateTabKey,
+  normalizePipelineScopeSuffix,
   pipelineIdFromNode,
   scopeSuffixFromNode,
   pipelineLabelFromMeta,
@@ -187,37 +194,52 @@ export function App() {
   const panel = useDiscoveryPanelLayout();
   const workspaceRestored = useRef(false);
 
-  const openEtlScopeTab = useCallback(() => {
-    const id = etlScopeTabKey();
-    setTabs((prev) => {
-      const existing = prev.find((tab) => tab.id === id);
-      if (existing) {
+  const openCreatedPipeline = useCallback(
+    (pipelineId: string, label: string, scopeSuffix = "") => {
+      setTransformPipelinesRevision((n) => n + 1);
+      const id = etlPipelineTabKey(pipelineId, scopeSuffix);
+      setTabs((prev) => {
+        const existing = prev.find((tab) => tab.id === id);
+        if (existing) {
+          setActiveTabId(id);
+          return prev;
+        }
+        const tab = createEtlPipelineTab(pipelineId, label, null, scopeSuffix);
         setActiveTabId(id);
-        return prev;
-      }
-      setActiveTabId(id);
-      return [
-        ...prev,
-        { kind: "etl_scope", id: "transform:scope" as const, label: t("transform.tree.scope") },
-      ];
-    });
-    setRowDetail(null);
-  }, [t]);
+        return [...prev, tab];
+      });
+    },
+    []
+  );
 
-  const openCreatedPipeline = useCallback((pipelineId: string, label: string) => {
-    setTransformPipelinesRevision((n) => n + 1);
-    const id = etlPipelineTabKey(pipelineId);
-    setTabs((prev) => {
-      const existing = prev.find((tab) => tab.id === id);
-      if (existing) {
-        setActiveTabId(id);
-        return prev;
+  const [openInTransformBusyId, setOpenInTransformBusyId] = useState<string | null>(null);
+  const [openInTransformError, setOpenInTransformError] = useState<string | null>(null);
+
+  const openWorkflowInTransform = useCallback(
+    async (ref: WorkflowRef) => {
+      const wfId = ref.external_id.trim();
+      if (!wfId) return;
+      setOpenInTransformError(null);
+      setOpenInTransformBusyId(wfId);
+      try {
+        const result = await importTransformPipelineFromWorkflow({
+          workflow_external_id: wfId,
+          version: ref.version,
+        });
+        const scopeSuffix = result.scope_suffix?.trim() ?? "";
+        const label =
+          (typeof result.pipeline.label === "string" && result.pipeline.label.trim()) ||
+          result.pipeline_id;
+        openCreatedPipeline(result.pipeline_id, label, scopeSuffix);
+        setRowDetail(null);
+      } catch (e) {
+        setOpenInTransformError(String(e));
+      } finally {
+        setOpenInTransformBusyId(null);
       }
-      const tab = createEtlPipelineTab(pipelineId, label);
-      setActiveTabId(id);
-      return [...prev, tab];
-    });
-  }, []);
+    },
+    [openCreatedPipeline]
+  );
 
   const openCreatedTemplate = useCallback((templateId: string, label: string) => {
     setTransformTemplatesRevision((n) => n + 1);
@@ -263,7 +285,11 @@ export function App() {
     if (configLoading || workspaceRestored.current) return;
     workspaceRestored.current = true;
     if (workspace.tabs.length) {
-      const restored = restoreWorkspaceTabs(workspace, t("sql.title"));
+      const restored = restoreWorkspaceTabs(
+        workspace,
+        t("sql.title"),
+        t("governance.tree.instanceSpaces")
+      );
       if (restored.tabs.length) {
         setTabs(restored.tabs);
         setActiveTabId(restored.activeTabId);
@@ -501,6 +527,49 @@ export function App() {
     setRowDetail(null);
   }, []);
 
+  const openNodePreviewQuery = useCallback(
+    (
+      pipelineId: string,
+      previewNodeId: string,
+      parameters: TransformPipelineParameters | null | undefined,
+      previewNodeConfig: Record<string, unknown> | null | undefined,
+      runId: string | null | undefined
+    ) => {
+      const { rawDb, previewTable } = resolvePreviewRawSink(parameters, previewNodeConfig);
+      const rid = String(runId ?? "").trim();
+      const target = nodePreviewOpenTarget({
+        pipelineId,
+        previewNodeId,
+        rawDb,
+        previewTable,
+        runId: rid,
+      });
+      const query = sqlQueryForPreviewNode({
+        rawDb,
+        previewTable,
+        runId: rid,
+        previewNodeId,
+        noRunComment: t("transform.nodePreview.noRunSqlComment"),
+      });
+      const tabId = sqlTabKeyForOpenTarget(target);
+      const label = `Preview: ${previewNodeId}`;
+      const tab = createSqlTab({ id: tabId, label, query });
+      setTabs((prev) => {
+        const existing = prev.find((row) => row.id === tab.id);
+        if (existing && isSqlTab(existing)) {
+          setActiveTabId(tab.id);
+          return prev.map((row) =>
+            row.id === tab.id ? { ...existing, query: tab.query, label: tab.label } : row
+          );
+        }
+        setActiveTabId(tab.id);
+        return [...prev, tab];
+      });
+      setRowDetail(null);
+    },
+    [t]
+  );
+
   const openFileContentQueryFromRow = useCallback((row: Record<string, unknown>) => {
     const ref = fileContentRefFromRow(row);
     if (!ref) return;
@@ -539,7 +608,8 @@ export function App() {
   const openGovernanceWorkspaceTab = useCallback(
     (which: "spaces" | "groups", subTab: GovernanceSubTab, artifactRel?: string) => {
       const id = which === "spaces" ? "gov:spaces" : "gov:groups";
-      const label = which === "spaces" ? "Spaces" : "Groups";
+      const label =
+        which === "spaces" ? t("governance.tree.instanceSpaces") : t("fusion.tree.groups");
       setTabs((prev) => {
         const existing = prev.find((tab) => tab.id === id);
         if (existing && isGovernanceSpacesTab(existing) && which === "spaces") {
@@ -592,7 +662,7 @@ export function App() {
         return [...prev, tab];
       });
     },
-    []
+    [t]
   );
 
   const openDiscoveryNode = useCallback(
@@ -608,7 +678,7 @@ export function App() {
         void (async () => {
           try {
             const found = await fetchTransformPipelineByWorkflow(ref.external_id);
-            const scopeSuffix = found.scope_suffix?.trim() || "all";
+            const scopeSuffix = normalizePipelineScopeSuffix(found.scope_suffix);
             const pipelineId = found.pipeline_id;
             const label =
               (typeof found.pipeline.label === "string" && found.pipeline.label.trim()) ||
@@ -721,10 +791,6 @@ export function App() {
           return [...prev, tab];
         });
         setRowDetail(null);
-        return;
-      }
-      if (node.kind === "etl_scope" || node.id === "transform:scope") {
-        openEtlScopeTab();
         return;
       }
       if (opensExtractTab(node)) {
@@ -897,7 +963,7 @@ export function App() {
         openSqlForOpenTarget(node.open_target, node.label);
       }
     },
-    [openEtlScopeTab, openGovernanceWorkspaceTab, openRecordsStreamTab, openSavedQuery, openSqlForOpenTarget, t]
+    [openGovernanceWorkspaceTab, openRecordsStreamTab, openSavedQuery, openSqlForOpenTarget, t]
   );
 
   const loadConnection = useCallback(async () => {
@@ -1050,7 +1116,16 @@ export function App() {
       return <DataModelFlowPane tab={tab} onTabUpdate={updateDataModelTab} onQueryView={queryDmView} />;
     }
     if (isWorkflowTab(tab)) {
-      return <TransformFusionWorkflowPane key={tab.id} tab={tab} onTabUpdate={updateWorkflowTab} />;
+      return (
+        <TransformFusionWorkflowPane
+          key={tab.id}
+          tab={tab}
+          onTabUpdate={updateWorkflowTab}
+          onOpenInTransform={() => void openWorkflowInTransform(tab.workflow)}
+          openInTransformBusy={openInTransformBusyId === tab.workflow.external_id}
+          openInTransformError={openInTransformError}
+        />
+      );
     }
     if (isTransformationTab(tab)) {
       return (
@@ -1123,6 +1198,15 @@ export function App() {
           onCopyCreated={onTransformCopyCreated}
           onDelete={() => void deletePipeline(tab.pipelineId, tab.label)}
           onRename={() => openRenamePipeline(tab.pipelineId, tab.label)}
+          onOpenNodePreviewQuery={(node) =>
+            openNodePreviewQuery(
+              tab.pipelineId,
+              node.id,
+              tab.document?.parameters as TransformPipelineParameters | null | undefined,
+              (node.data as { config?: Record<string, unknown> } | undefined)?.config,
+              tab.runSession?.lastRun?.run_id
+            )
+          }
         />
       );
     }
@@ -1137,11 +1221,17 @@ export function App() {
           onCopyCreated={onTransformCopyCreated}
           onDelete={() => void deleteTemplate(tab.templateId, tab.label)}
           onRename={() => openRenameTemplate(tab.templateId, tab.label)}
+          onOpenNodePreviewQuery={(node) =>
+            openNodePreviewQuery(
+              tab.templateId,
+              node.id,
+              tab.document?.parameters as TransformPipelineParameters | null | undefined,
+              (node.data as { config?: Record<string, unknown> } | undefined)?.config,
+              tab.runSession?.lastRun?.run_id
+            )
+          }
         />
       );
-    }
-    if (isEtlScopeTab(tab)) {
-      return <TransformScopePane />;
     }
     if (isEtlWorkflowYamlTab(tab)) {
       return (
@@ -1357,6 +1447,7 @@ export function App() {
             setCreatePipelineInitialTemplateId(templateId);
             setCreatePipelineOpen(true);
           }}
+          onOpenWorkflowInTransform={(ref) => void openWorkflowInTransform(ref)}
           dataTreeDragEnabled={
             activeTab != null && (isEtlPipelineTab(activeTab) || isEtlTemplateTab(activeTab))
           }

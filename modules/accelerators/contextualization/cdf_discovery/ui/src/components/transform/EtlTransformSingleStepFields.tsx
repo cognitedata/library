@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { DeferredCommitInput } from "../query/DeferredCommitTextField";
 import { useAppSettings } from "../../context/AppSettingsContext";
 import type { JsonObject } from "../../types/jsonConfig";
+import { TRANSFORM_HANDLER_CATEGORY_DEFS } from "./etlHandlerRegistry";
 import { TransformHandlerSelect, isMultiValueTransformHandler } from "./etlTransforms/TransformHandlerSelect";
 import {
   defaultOutputMultiValueForHandler,
@@ -36,6 +37,13 @@ export function EtlTransformSingleStepFields({
     [value, handler]
   );
   const fields = readTransformFields(value as Record<string, unknown>);
+  const handlerCategoryLabels = useMemo(
+    () =>
+      Object.fromEntries(
+        TRANSFORM_HANDLER_CATEGORY_DEFS.map((cat) => [cat.id, t(cat.labelKey)])
+      ) as Record<string, string>,
+    [t]
+  );
 
   const patch = (p: JsonObject) => onChange({ ...value, ...p });
 
@@ -106,8 +114,7 @@ export function EtlTransformSingleStepFields({
             value={handler}
             onChange={setHandler}
             unsetLabel={t("transforms.handlerUnset")}
-            coreGroupLabel={t("transforms.handlerGroup.core")}
-            eltGroupLabel={t("transforms.handlerGroup.elt")}
+            categoryLabels={handlerCategoryLabels}
           />
         )}
       </label>

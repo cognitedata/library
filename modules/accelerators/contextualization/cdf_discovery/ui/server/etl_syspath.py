@@ -12,14 +12,16 @@ def transform_root(module_root: Path) -> Path:
 
 def ensure_transform_syspath(module_root: Path) -> Path:
     """
-    Prepend ``transform/`` and ``transform/functions`` so ``local_runner`` resolves to
-    ``transform/local_runner`` (full runner), not ``cdf_discovery/local_runner`` (client-only stub).
+    Prepend ``functions/``, ``transform/``, and ``transform/scripts`` so ``local_runner``
+    resolves to ``transform/local_runner`` (full runner), not ``cdf_discovery/local_runner``
+    (client-only stub), and ``workflow_build`` is importable for UI compile/build.
 
     Paths are moved to the front even when already on ``sys.path`` (e.g. from ``PYTHONPATH``),
     because the script directory is always ``cdf_discovery/`` and would otherwise win first.
     """
     tr = transform_root(module_root)
-    for p in (str(tr), str(tr / "functions")):
+    root = module_root.resolve()
+    for p in (str(root / "functions"), str(tr), str(tr / "scripts")):
         while p in sys.path:
             sys.path.remove(p)
         sys.path.insert(0, p)

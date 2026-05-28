@@ -14,11 +14,11 @@ CONVENTIONS = _SCRIPTS / "check_config_conventions.py"
 PLACEHOLDERS = _SCRIPTS / "check_toolkit_placeholders.py"
 
 
-def _run(script: Path, module_root: Path) -> int:
-    proc = subprocess.run(
-        [sys.executable, str(script), "--module-root", str(module_root)],
-        cwd=str(module_root),
-    )
+def _run(script: Path, module_root: Path, *, extra_argv: list[str] | None = None) -> int:
+    argv = [sys.executable, str(script), "--module-root", str(module_root)]
+    if extra_argv:
+        argv.extend(extra_argv)
+    proc = subprocess.run(argv, cwd=str(module_root))
     return int(proc.returncode or 0)
 
 
@@ -40,7 +40,7 @@ def main() -> None:
         return
 
     has_toolkit = (root / "default.config.yaml").is_file() and (
-        (root / "functions").is_dir() or (root / "workflows").is_dir()
+        (root / "functions").is_dir() or (root / "workflows").is_dir() or (root / "data_sets").is_dir()
     )
     if has_toolkit:
         code = _run(PLACEHOLDERS, root)

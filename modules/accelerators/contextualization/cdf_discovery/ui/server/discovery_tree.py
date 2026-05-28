@@ -16,7 +16,6 @@ from ui.server.tree_node_ids import (
     FUSION_INTEGRATION_ROOT,
     FUSION_ROOT,
     FUSION_SPACES,
-    CONNECTION_INFO,
     CONNECTION_ROOT_CHILD_ORDER,
     EXTRACT_ROOT,
     GOVERNANCE_ROOT,
@@ -26,7 +25,6 @@ from ui.server.tree_node_ids import (
     TRANSFORM_ROOT,
     TRANSFORM_TEMPLATE_PREFIX,
     TRANSFORM_TEMPLATES,
-    TRANSFORM_SCOPE,
     TRANSFORM_WORKFLOW_PREFIX,
 )
 
@@ -40,7 +38,7 @@ _DATA_BRANCHES: Tuple[Tuple[str, str, str], ...] = (
     ("records", "Records", "records"),
 )
 
-# Transform — built pipeline scopes under ``transform/workflows/{scope}/``, then templates.
+# Transform — built workflow scopes under ``workflows/{scope}/``, then templates.
 
 # Integration — under Fusion → Integration.
 _INTEGRATION_BRANCHES: Tuple[Tuple[str, str, str], ...] = (
@@ -582,8 +580,6 @@ def list_children(client: Any, node_id: str) -> List[TreeNodeOut]:
     kind, segs = parse_node_id(node_id)
 
     if kind == "connection":
-        info = cdf_browse.connection_info(client)
-        proj = info.get("project") or "CDF"
         return _sort_connection_root_children(
             [
                 _node(
@@ -628,43 +624,19 @@ def list_children(client: Any, node_id: str) -> List[TreeNodeOut]:
                     has_children=False,
                     meta={"domain": "monitor"},
                 ),
-                _node(
-                    id=CONNECTION_INFO,
-                    label=f"Project: {proj}",
-                    kind="connection",
-                    has_children=False,
-                    meta=info,
-                ),
             ]
         )
 
     if kind == TRANSFORM_ROOT and not segs:
         from ui.server import transform_registry
 
-        scope_config = _node(
-            id=TRANSFORM_SCOPE,
-            label="Scope hierarchy",
-            kind="etl_scope",
-            has_children=False,
-            meta={"domain": "transform_scope"},
-        )
         pipelines_folder = _node(
             id=TRANSFORM_PIPELINES,
-            label="Pipelines",
+            label="Workflows",
             kind="folder",
             has_children=True,
             meta={"domain": "transform_pipelines"},
         )
-        scope_nodes = [
-            _node(
-                id=f"{TRANSFORM_ROOT}:{encode_segment(scope)}",
-                label=scope,
-                kind="folder",
-                has_children=True,
-                meta={"domain": "transform_built_scope", "scope_suffix": scope},
-            )
-            for scope in transform_registry.list_built_scope_suffixes()
-        ]
         templates_folder = _node(
             id=TRANSFORM_TEMPLATES,
             label="Templates",
@@ -672,18 +644,22 @@ def list_children(client: Any, node_id: str) -> List[TreeNodeOut]:
             has_children=True,
             meta={"domain": "transform_templates"},
         )
-        return _sort_nodes([scope_config, pipelines_folder, *scope_nodes, templates_folder])
+        return _sort_nodes([pipelines_folder, templates_folder])
 
     if kind == TRANSFORM_ROOT and len(segs) == 1 and segs[0] == "pipelines":
         from ui.server import transform_registry
 
+        def _pipeline_node_id(p: dict) -> str:
+            pid = encode_segment(str(p["id"]))
+            scope = str(p.get("scope_suffix") or "").strip()
+            if scope:
+                return f"{TRANSFORM_PIPELINE_PREFIX}{encode_segment(scope)}:{pid}"
+            return f"{TRANSFORM_PIPELINE_PREFIX}{pid}"
+
         return _sort_nodes(
             [
                 _node(
-                    id=(
-                        f"{TRANSFORM_PIPELINE_PREFIX}{encode_segment(str(p['scope_suffix']))}:"
-                        f"{encode_segment(str(p['id']))}"
-                    ),
+                    id=_pipeline_node_id(p),
                     label=str(p.get("label") or p["id"]),
                     kind="etl_pipeline",
                     has_children=bool(p.get("has_workflow_children")),
@@ -693,37 +669,28 @@ def list_children(client: Any, node_id: str) -> List[TreeNodeOut]:
             ]
         )
 
-    if kind == TRANSFORM_ROOT and len(segs) == 1 and segs[0] != "templates":
+    if kind == TRANSFORM_ROOT and len(segs) >= 2 and segs[0] == "pipeline":
         from ui.server import transform_registry
 
-        scope_suffix = segs[0]
+        if len(segs) == 2:
+            scope_suffix = ""
+            pipeline_id = segs[1]
+        else:
+            scope_suffix = segs[1]
+            pipeline_id = segs[2]
         return _sort_nodes(
             [
                 _node(
                     id=(
-                        f"{TRANSFORM_PIPELINE_PREFIX}{encode_segment(scope_suffix)}:"
-                        f"{encode_segment(str(p['id']))}"
-                    ),
-                    label=str(p.get("label") or p["id"]),
-                    kind="etl_pipeline",
-                    has_children=bool(p.get("has_workflow_children")),
-                    meta={**p},
-                )
-                for p in transform_registry.list_built_pipeline_entries(scope_suffix=scope_suffix)
-            ]
-        )
-
-    if kind == TRANSFORM_ROOT and len(segs) >= 3 and segs[0] == "pipeline":
-        from ui.server import transform_registry
-
-        scope_suffix = segs[1]
-        pipeline_id = segs[2]
-        return _sort_nodes(
-            [
-                _node(
-                    id=(
-                        f"{TRANSFORM_WORKFLOW_PREFIX}{encode_segment(scope_suffix)}:"
-                        f"{encode_segment(pipeline_id)}:{encode_segment(str(a['id']))}"
+                        (
+                            f"{TRANSFORM_WORKFLOW_PREFIX}{encode_segment(pipeline_id)}:"
+                            f"{encode_segment(str(a['id']))}"
+                        )
+                        if not scope_suffix
+                        else (
+                            f"{TRANSFORM_WORKFLOW_PREFIX}{encode_segment(scope_suffix)}:"
+                            f"{encode_segment(pipeline_id)}:{encode_segment(str(a['id']))}"
+                        )
                     ),
                     label=str(a.get("label") or a["id"]),
                     kind="etl_workflow_yaml",
@@ -1052,7 +1019,7 @@ def list_children(client: Any, node_id: str) -> List[TreeNodeOut]:
         return [
             _node(
                 id="gov:spaces",
-                label="Spaces",
+                label="Instance Spaces",
                 kind="folder",
                 has_children=True,
                 meta={"domain": "governance_spaces", "governance_workspace": "spaces"},

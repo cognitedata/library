@@ -65,19 +65,33 @@ def check_file_asset(root: Path) -> list[str]:
     return errs
 
 
+def _discovery_governance_config(root: Path) -> Path | None:
+    """Governance config path (ETL ``default.config.yaml`` may live at module root)."""
+    gov_cfg = root / "governance" / "default.config.yaml"
+    if gov_cfg.is_file():
+        return gov_cfg
+    root_cfg = root / "default.config.yaml"
+    if root_cfg.is_file():
+        doc = _load(root_cfg)
+        if "scope_hierarchy" in doc:
+            return root_cfg
+    return None
+
+
 def check_discovery(root: Path) -> list[str]:
     errs: list[str] = []
-    cfg = root / "default.config.yaml"
-    if not cfg.is_file():
+    cfg = _discovery_governance_config(root)
+    if cfg is None:
         return errs
     doc = _load(cfg)
+    rel = cfg.relative_to(root)
     if "aliasing_scope_hierarchy" in doc:
-        errs.append("default.config.yaml: rename aliasing_scope_hierarchy → scope_hierarchy")
+        errs.append(f"{rel}: rename aliasing_scope_hierarchy → scope_hierarchy")
     if "scope_hierarchy" not in doc:
-        errs.append("default.config.yaml: missing scope_hierarchy")
+        errs.append(f"{rel}: missing scope_hierarchy")
     for camel in ("schemaSpace", "functionClientId", "key_extraction_aliasing_schedule"):
         if camel in doc:
-            errs.append(f"default.config.yaml: legacy camelCase key {camel}")
+            errs.append(f"{rel}: legacy camelCase key {camel}")
     return errs
 
 

@@ -27,6 +27,9 @@ import {
 } from "./transformFlowEdgeHelpers";
 import { nextEtlNodeId, rfTypeForKind } from "./flowNodeRegistry";
 import { readFlowNodeSize, withEtlNodeDimensions } from "./etlFlowNodeSizing";
+import type { CanvasNodeTranslate } from "../../utils/canvasNodeKindLabel";
+import { defaultNodeColorForStage } from "../../utils/etlPaletteGroupColors";
+import { applyWiredCreationLabel } from "../../utils/etlNodeCreationLabel";
 
 /** Horizontal gap between query and save nodes when dropping a wired pair. */
 const ENTITY_DROP_PAIR_NODE_GAP = 48;
@@ -171,9 +174,12 @@ function materializeDropNode(
       }
     } else if (stage === "build_index") {
       config = defaultBuildIndexNodeConfig();
+    } else if (stage === "node_preview") {
+      config = { description: label, record_kind: "entity", row_cap: 10_000 };
     } else if (stage !== "start" && stage !== "end") {
       config = { description: label };
     }
+    const nodeColor = defaultNodeColorForStage(stage, handlerId || undefined);
     const node: Node = withEtlNodeDimensions(
       {
         id,
@@ -182,6 +188,7 @@ function materializeDropNode(
         data: {
           kind: stage,
           label,
+          node_color: nodeColor,
           ...(config ? { config } : {}),
           ...(handlerId ? { palette_handler_locked: true } : {}),
         },
@@ -199,6 +206,7 @@ function materializeDropNode(
     label = drop.label;
     const id = nextEtlNodeId(stage, existingIds);
     const rfType = rfTypeForKind(stage);
+    const nodeColor = defaultNodeColorForStage(stage);
     const node: Node = withEtlNodeDimensions(
       {
         id,
@@ -207,6 +215,7 @@ function materializeDropNode(
         data: {
           kind: stage,
           label,
+          node_color: nodeColor,
           config: drop.config,
         },
       },
@@ -238,6 +247,8 @@ export type ApplyTransformCanvasDropInput = {
   getEdges: () => Edge[];
   zoom?: number;
   nodes: Node[];
+  /** When set, auto-label nodes dropped on an edge using type + upstream predecessor. */
+  localize?: CanvasNodeTranslate;
 };
 
 export type ApplyTransformCanvasDropResult = {
@@ -271,9 +282,9 @@ function insertMaterializedNode(
   node: Node,
   rfType: string,
   flowPosition: { x: number; y: number },
-  input: Pick<ApplyTransformCanvasDropInput, "getNode" | "getEdges" | "zoom" | "nodes">
+  input: Pick<ApplyTransformCanvasDropInput, "getNode" | "getEdges" | "zoom" | "nodes" | "localize">
 ): ApplyTransformCanvasDropResult {
-  const { getNode, getEdges, zoom = 1, nodes } = input;
+  const { getNode, getEdges, zoom = 1, nodes, localize } = input;
   const candidateEdge = findEdgeAtFlowPoint(flowPosition, getEdges(), getNode, zoom);
   const hitEdge =
     candidateEdge &&
@@ -281,7 +292,13 @@ function insertMaterializedNode(
       ? candidateEdge
       : null;
 
-  const seededNode = seedJsonMappingNodeIfOnEdge(node, hitEdge);
+  let seededNode = seedJsonMappingNodeIfOnEdge(node, hitEdge);
+  if (hitEdge && localize) {
+    const predecessor = getNode(hitEdge.source);
+    if (predecessor) {
+      seededNode = applyWiredCreationLabel(seededNode, predecessor, localize);
+    }
+  }
   const allNodesForEnd = [...nodes, seededNode];
   const toEnd = persistenceOutboundEdgesToEnd(rfType, seededNode.id, allNodesForEnd);
 
@@ -407,10 +424,15 @@ export function applyEntityCanvasDropPair(
 }
 
 /** Apply palette drop at a flow position; returns updated graph when handled. */
+export type ApplyTransformCanvasDropAtPositionInput = Omit<
+  ApplyTransformCanvasDropInput,
+  "event" | "screenToFlowPosition"
+>;
+
 export function applyTransformCanvasDropAtPosition(
   flowPosition: { x: number; y: number },
   payload: NonNullable<ReturnType<typeof getTransformFlowDropPayload>>,
-  input: Omit<ApplyTransformCanvasDropInput, "event" | "screenToFlowPosition">
+  input: ApplyTransformCanvasDropAtPositionInput
 ): ApplyTransformCanvasDropResult | null {
   const { nodes } = input;
   const existingIds = new Set(nodes.map((n) => n.id));

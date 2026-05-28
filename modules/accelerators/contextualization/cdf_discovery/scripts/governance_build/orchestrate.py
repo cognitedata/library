@@ -36,10 +36,15 @@ from governance_build.space_naming import (
     merge_list_combo_into_context,
     resolve_instance_space_external_id,
 )
+from governance_build.paths import (
+    STATE_NAME,
+    governance_artifacts_root,
+    resolve_artifact_path,
+    state_file_path,
+)
 from governance_build.toolkit_sync import merge_source_ids_into_default_config, resolve_group_source_id
 
 logger = logging.getLogger(__name__)
-STATE_NAME = "access_governance_state.json"
 DEFAULT_CONFIG = "default.config.yaml"
 
 
@@ -166,7 +171,9 @@ def run_build_spaces(
     id_tmpl = cfg["instance_space_id_template"]
     name_tmpl_opt = cfg["name_template"]
     global_cfg = cfg.get("global") if isinstance(cfg.get("global"), dict) else {}
-    template_path = (module_root / template_rel).resolve()
+    config_root = module_root.resolve()
+    artifacts_root = governance_artifacts_root(config_root)
+    template_path = (config_root / template_rel).resolve()
     if not template_path.is_file():
         raise FileNotFoundError(f"Space template not found: {template_path}")
     levels, rows, combos = shared_hierarchy_job(
@@ -174,7 +181,7 @@ def run_build_spaces(
         combine_with=combine_with,
         nodes_mode=cfg["nodes"],
     )
-    out_dir = (module_root / out_rel).resolve()
+    out_dir = (artifacts_root / out_rel).resolve()
     written: List[str] = []
     for row in rows:
         binding = scope_binding_from_row(levels, row)
@@ -242,7 +249,9 @@ def run_build_groups(
     global_cfg = merged["global"]
     combine_with = merged["combine_with"]
     spaces_block = doc.get("spaces")
-    template_path = (module_root / template_rel).resolve()
+    config_root = module_root.resolve()
+    artifacts_root = governance_artifacts_root(config_root)
+    template_path = (config_root / template_rel).resolve()
     if not template_path.is_file():
         raise FileNotFoundError(f"Group template not found: {template_path}")
     levels, rows, combos = shared_hierarchy_job(
@@ -253,7 +262,7 @@ def run_build_groups(
     dimensions = doc.get("dimensions")
     if not isinstance(dimensions, dict):
         dimensions = {}
-    out_dir = (module_root / merged["output_dir"]).resolve()
+    out_dir = (artifacts_root / merged["output_dir"]).resolve()
     written: List[str] = []
     source_id_updates: Dict[str, str] = {}
     name_tmpl = merged.get("name_template") or ""
@@ -322,14 +331,14 @@ def run_build_groups(
 
 
 def save_state(module_root: Path, spaces: List[str], groups: List[str]) -> None:
-    path = module_root / STATE_NAME
+    path = state_file_path(module_root)
     payload = {"spaces": spaces, "groups": groups}
     path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
     logger.info("Wrote state manifest %s", path)
 
 
 def load_state(module_root: Path) -> Optional[Dict[str, List[str]]]:
-    path = module_root / STATE_NAME
+    path = state_file_path(module_root)
     if not path.is_file():
         return None
     data = json.loads(path.read_text(encoding="utf-8"))
@@ -341,15 +350,15 @@ def load_state(module_root: Path) -> Optional[Dict[str, List[str]]]:
     }
 
 
-def _remove_empty_parent_dirs(module_root: Path, artifact_paths: List[Path]) -> None:
-    module_root = module_root.resolve()
+def _remove_empty_parent_dirs(governance_config_root: Path, artifact_paths: List[Path]) -> None:
+    artifacts_root = governance_artifacts_root(governance_config_root).resolve()
     candidates: set[Path] = set()
     for p in artifact_paths:
         ap = p.resolve()
-        if not ap.is_relative_to(module_root):
+        if not ap.is_relative_to(artifacts_root):
             continue
         d = ap.parent
-        while d != module_root:
+        while d != artifacts_root:
             candidates.add(d)
             d = d.parent
     for d in sorted(candidates, key=lambda x: len(x.parts), reverse=True):
@@ -375,7 +384,7 @@ def run_clean(module_root: Path, *, dry_run: bool, yes: bool) -> int:
             return 1
     removed_paths: List[Path] = []
     for rel in rels:
-        p = module_root / rel
+        p = resolve_artifact_path(module_root, rel)
         if p.is_file():
             if dry_run:
                 logger.info("Would delete %s", p)
@@ -385,9 +394,9 @@ def run_clean(module_root: Path, *, dry_run: bool, yes: bool) -> int:
             removed_paths.append(p)
     if not dry_run:
         _remove_empty_parent_dirs(module_root, removed_paths)
-        state_path = module_root / STATE_NAME
-        if state_path.is_file():
-            state_path.unlink()
+        st_path = state_file_path(module_root)
+        if st_path.is_file():
+            st_path.unlink()
     return 0
 
 
@@ -398,7 +407,7 @@ def verify_generated(module_root: Path) -> int:
         return 1
     missing = []
     for rel in st["spaces"] + st["groups"]:
-        p = module_root / rel
+        p = resolve_artifact_path(module_root, rel)
         if not p.is_file():
             missing.append(rel)
     if missing:
@@ -432,7 +441,7 @@ def run(argv: Optional[List[str]] = None) -> int:
         "--module-root",
         type=Path,
         default=None,
-        help="Module root for templates, outputs, and default config (default: package parent)",
+        help="Governance config root (templates, default.config; default: governance/)",
     )
     p.add_argument(
         "--spaces-only",

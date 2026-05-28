@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type MouseEvent as ReactMouseEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent, type RefObject } from "react";
 import {
   Background,
   BackgroundVariant,
@@ -6,15 +6,26 @@ import {
   MiniMap,
   ReactFlow,
   ReactFlowProvider,
+  useNodesState,
   useReactFlow,
   type Edge,
   type Node,
+  type Viewport,
 } from "@xyflow/react";
 import { fetchWorkflowGraph } from "../api";
 import { useAppSettings } from "../context/AppSettingsContext";
 import type { WorkflowDocumentTab, WorkflowGraphTask } from "../types/discoveryNodes";
 import { filterTasksBySearch, taskMatchesSearch } from "../utils/workflowFlowSearch";
-import { workflowGraphToFlow } from "../utils/workflowFlowLayout";
+import { layoutWfTaskNodes, workflowGraphToFlow } from "../utils/workflowFlowLayout";
+import { FlowDocToolbarActions } from "./flow/FlowDocToolbarActions";
+import { useFlowCanvasKeyboard } from "./flow/useFlowCanvasKeyboard";
+import { useFlowLayoutHistory } from "./flow/useFlowLayoutHistory";
+import {
+  canvasViewportToFlowViewport,
+  viewportToCanvasViewport,
+} from "./transform/transformFlowHistory";
+import { TransformFlowLayoutControls } from "./transform/TransformFlowLayoutControls";
+import type { TransformCanvasViewport } from "../types/transformCanvasViewport";
 import { workflowTaskKindLabel } from "../utils/workflowTaskKind";
 import { WorkflowTaskProperties } from "./WorkflowTaskProperties";
 import { highlightEdgesConnectedToNode } from "./flow/highlightEdgesForSelectedNode";
@@ -26,6 +37,9 @@ type Props = {
   tab: WorkflowDocumentTab;
   onTabUpdate: (tab: WorkflowDocumentTab) => void;
   readOnly?: boolean;
+  onOpenInTransform?: () => void;
+  openInTransformBusy?: boolean;
+  openInTransformError?: string | null;
 };
 
 function FitViewOnLoad({ revision }: { revision: string }) {
@@ -51,15 +65,30 @@ function FocusTaskNode({ taskId }: { taskId: string | null }) {
   return null;
 }
 
-function FlowInner({ tab, onTabUpdate, readOnly = false }: Props) {
+function FlowInner({
+  tab,
+  onTabUpdate,
+  readOnly = false,
+  onOpenInTransform,
+  openInTransformBusy = false,
+  openInTransformError = null,
+}: Props) {
   const { t, theme } = useAppSettings();
+  const flowRootRef = useRef<HTMLDivElement>(null);
+  const viewportRef = useRef<TransformCanvasViewport | null>(null);
+  const viewportPersistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [selectedTask, setSelectedTask] = useState<WorkflowGraphTask | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [focusTaskId, setFocusTaskId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (tab.graph != null || !tab.loading) return;
+    if (tab.graph != null) return;
+    if (tab.error) return;
+    if (!tab.loading) {
+      onTabUpdate({ ...tab, graph: null, loading: true, error: null });
+      return;
+    }
     let cancelled = false;
     const load = async () => {
       onTabUpdate({ ...tab, loading: true, error: null });
@@ -86,7 +115,7 @@ function FlowInner({ tab, onTabUpdate, readOnly = false }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [tab.id, tab.loading, tab.graph]);
+  }, [tab.id, tab.loading, tab.graph, tab.error, tab.workflow.external_id, onTabUpdate]);
 
   const searchActive = searchQuery.trim().length > 0;
   const searchMatches = useMemo(
@@ -94,14 +123,33 @@ function FlowInner({ tab, onTabUpdate, readOnly = false }: Props) {
     [tab.graph, searchQuery, t]
   );
 
-  const { nodes: baseNodes, edges } = useMemo(
+  const graphFlow = useMemo(
     () => (tab.graph ? workflowGraphToFlow(tab.graph) : { nodes: [] as Node[], edges: [] as Edge[] }),
     [tab.graph]
   );
+  const [layoutNodes, setLayoutNodes, onNodesChange] = useNodesState<Node>([]);
+
+  const layoutHistory = useFlowLayoutHistory({ nodes: layoutNodes, viewportRef });
+
+  useEffect(() => {
+    setLayoutNodes(graphFlow.nodes);
+    viewportRef.current = null;
+    layoutHistory.reset();
+  }, [tab.graph, setLayoutNodes, graphFlow.nodes, layoutHistory.reset]);
+
+  useEffect(() => {
+    return () => {
+      if (viewportPersistTimerRef.current) {
+        window.clearTimeout(viewportPersistTimerRef.current);
+      }
+    };
+  }, []);
+
+  const edges = graphFlow.edges;
 
   const nodes = useMemo(
     () =>
-      baseNodes.map((n) => {
+      layoutNodes.map((n) => {
         const task = (n.data as { task?: WorkflowGraphTask }).task;
         const matches = task ? taskMatchesSearch(task, searchQuery, t) : true;
         return {
@@ -113,7 +161,57 @@ function FlowInner({ tab, onTabUpdate, readOnly = false }: Props) {
           },
         };
       }),
-    [baseNodes, selectedTaskId, searchQuery, searchActive, t]
+    [layoutNodes, selectedTaskId, searchQuery, searchActive, t]
+  );
+
+  const { fitView, setViewport } = useReactFlow();
+
+  const applyLayoutSnapshot = useCallback(
+    (snap: ReturnType<typeof layoutHistory.undo>) => {
+      if (!snap) return;
+      viewportRef.current = snap.viewport;
+      setLayoutNodes(snap.nodes);
+      if (snap.viewport) {
+        setViewport(canvasViewportToFlowViewport(snap.viewport));
+      }
+    },
+    [setLayoutNodes, setViewport]
+  );
+
+  const handleUndo = useCallback(() => {
+    applyLayoutSnapshot(layoutHistory.undo());
+  }, [applyLayoutSnapshot, layoutHistory]);
+
+  const handleRedo = useCallback(() => {
+    applyLayoutSnapshot(layoutHistory.redo());
+  }, [applyLayoutSnapshot, layoutHistory]);
+
+  useFlowCanvasKeyboard({
+    flowRootRef: flowRootRef as RefObject<HTMLElement | null>,
+    readOnly,
+    onUndo: handleUndo,
+    onRedo: handleRedo,
+    canUndo: layoutHistory.canUndo,
+    canRedo: layoutHistory.canRedo,
+  });
+
+  const handleAutoLayout = useCallback(() => {
+    if (readOnly) return;
+    layoutHistory.recordBeforeChange();
+    setLayoutNodes((nds) => layoutWfTaskNodes(nds, edges));
+    window.setTimeout(() => fitView({ padding: 0.2, duration: 200 }), 0);
+  }, [readOnly, layoutHistory, setLayoutNodes, edges, fitView]);
+
+  const onNodeDragStart = useCallback(() => {
+    if (readOnly) return;
+    layoutHistory.recordBeforeChange();
+  }, [readOnly, layoutHistory]);
+
+  const onMoveEnd = useCallback(
+    (_event: MouseEvent | TouchEvent | null, vp: Viewport) => {
+      viewportRef.current = viewportToCanvasViewport(vp);
+    },
+    []
   );
 
   const displayEdges = useMemo(
@@ -167,6 +265,11 @@ function FlowInner({ tab, onTabUpdate, readOnly = false }: Props) {
 
   return (
     <div className="disc-doc-pane disc-dm-flow-pane">
+      {openInTransformError ? (
+        <div className="disc-banner--error" role="alert">
+          {t("status.error", { detail: openInTransformError })}
+        </div>
+      ) : null}
       <div className="disc-doc-toolbar">
         <span className="disc-dm-flow-pane__title">{t("wfViewer.title")}</span>
         <span className="disc-dm-flow-pane__meta">
@@ -176,8 +279,28 @@ function FlowInner({ tab, onTabUpdate, readOnly = false }: Props) {
             ? ` · ${tab.graph.tasks.length} ${t("wfViewer.tasks")} · ${tab.graph.edges.length} ${t("wfViewer.edges")}`
             : ""}
         </span>
-        {tab.graph && tab.graph.tasks.length > 0 && (
-          <label className="disc-dm-flow-search">
+        <FlowDocToolbarActions
+          t={t}
+          refreshLabelKey="wfViewer.refresh"
+          onRefresh={refresh}
+          refreshDisabled={tab.loading}
+          openInTransform={
+            onOpenInTransform
+              ? {
+                  labelKey: "wfViewer.openInTransform",
+                  busyLabelKey: "wfViewer.openInTransformBusy",
+                  hintKey: "wfViewer.openInTransformHint",
+                  busy: openInTransformBusy,
+                  disabled: tab.loading,
+                  onClick: onOpenInTransform,
+                }
+              : undefined
+          }
+        />
+      </div>
+      {tab.graph && tab.graph.tasks.length > 0 && (
+        <div className="transform-flow-search-row">
+          <label className="disc-dm-flow-search transform-flow-search">
             <span className="disc-dm-flow-search__label">{t("wfViewer.search")}</span>
             <input
               className="disc-input disc-dm-flow-search__input"
@@ -187,11 +310,20 @@ function FlowInner({ tab, onTabUpdate, readOnly = false }: Props) {
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </label>
-        )}
-        <button type="button" className="disc-btn" disabled={tab.loading} onClick={refresh}>
-          {t("wfViewer.refresh")}
-        </button>
-      </div>
+          <TransformFlowLayoutControls
+            t={t}
+            readOnly={readOnly}
+            mode="viewer"
+            layoutAriaLabelKey="wfViewer.layout.aria"
+            onFitView={() => fitView({ padding: 0.2, duration: 200 })}
+            onAutoLayout={handleAutoLayout}
+            canUndo={layoutHistory.canUndo}
+            canRedo={layoutHistory.canRedo}
+            onUndo={readOnly ? undefined : handleUndo}
+            onRedo={readOnly ? undefined : handleRedo}
+          />
+        </div>
+      )}
       {tab.graph && tab.graph.tasks.length > 0 && (
         <section className="disc-flow-node-list" aria-label={t("wfViewer.nodeListLabel")}>
           {searchActive ? (
@@ -250,7 +382,7 @@ function FlowInner({ tab, onTabUpdate, readOnly = false }: Props) {
         </section>
       )}
       <div className="disc-dm-flow-body">
-        <div className="disc-dm-flow-canvas">
+        <div ref={flowRootRef} className="disc-dm-flow-canvas">
           {tab.loading && !tab.graph ? (
             <p className="disc-empty-hint">{t("wfViewer.loading")}</p>
           ) : tab.graph && tab.graph.tasks.length === 0 ? (
@@ -261,10 +393,12 @@ function FlowInner({ tab, onTabUpdate, readOnly = false }: Props) {
               edges={displayEdges}
               nodeTypes={nodeTypes}
               colorMode={theme}
+              onNodesChange={onNodesChange}
+              onNodeDragStart={onNodeDragStart}
+              onMoveEnd={onMoveEnd}
               nodesDraggable={!readOnly}
               nodesConnectable={false}
               elementsSelectable
-              fitView
               proOptions={{ hideAttribution: true }}
               onNodeClick={onNodeClick}
               onPaneClick={onPaneClick}

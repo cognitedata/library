@@ -51,6 +51,18 @@ def test_collect_etl_cohort_bases_merges_parameters_and_tasks() -> None:
     assert ("etl_staging", "cohort") in tables
 
 
+def test_preview_table_not_matched_by_run_cohort_prefix() -> None:
+    client = MagicMock()
+    client.raw.tables.list.return_value = [
+        SimpleNamespace(name="cohort__abc123def456__tr"),
+        SimpleNamespace(name="etl_preview"),
+        SimpleNamespace(name="cohort__preview"),
+    ]
+    listed = list_run_cohort_tables(client, "etl_staging", "abc123def456", base_table="cohort")
+    assert "etl_preview" not in listed
+    assert "cohort__preview" not in listed
+
+
 def test_incremental_table_not_matched_by_run_cohort_prefix() -> None:
     inc = incremental_state_table_name("discovery_state")
     assert inc == "discovery_state__incremental"

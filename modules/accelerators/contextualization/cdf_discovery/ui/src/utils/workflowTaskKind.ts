@@ -21,6 +21,17 @@ const FN_KIND_KEYS: Record<string, MessageKey> = {
 
 type Translate = (key: MessageKey, vars?: Record<string, string | number>) => string;
 
+/** CDF Data Workflow native task types (not discovery ETL functions). */
+const FUSION_NATIVE_TASK_TYPE_KEYS: Record<string, MessageKey> = {
+  jsonmapping: "transform.palette.json_mapping",
+  transformation: "transform.palette.transformation_ref",
+  function: "transform.palette.function_ref",
+  dynamic: "transform.palette.dynamic_fanout",
+  subworkflow: "transform.palette.subworkflow",
+  simulation: "transform.palette.simulation",
+  cdf: "transform.palette.cdf_task",
+};
+
 function functionExternalIdFromParameters(parameters: Record<string, unknown> | undefined): string {
   if (!parameters || typeof parameters !== "object") return "";
   const fn = parameters.function;
@@ -36,7 +47,8 @@ export function workflowTaskKindLabel(task: WorkflowGraphTask, t: Translate): st
   if (fnKey) return t(fnKey);
 
   const type = (task.type ?? "task").trim();
-  if (type === "function") return t("wfViewer.taskType.function");
+  const fusionKey = FUSION_NATIVE_TASK_TYPE_KEYS[type.toLowerCase().replace(/[^a-z]/g, "")];
+  if (fusionKey) return t(fusionKey);
   if (type === "task") return t("wfViewer.taskType.task");
   if (!type) return t("wfViewer.taskType.task");
   return t("wfViewer.taskType.generic", {

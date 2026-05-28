@@ -149,7 +149,7 @@ export function TransformFlowSelectionAlignButtons({ t, disabled, onAlign }: Pro
     <button
       key={mode}
       type="button"
-      className="disc-btn disc-btn--sm transform-flow-layout-panel__align-btn"
+      className="disc-btn disc-btn--sm flow-toolbar-icon-btn transform-flow-layout-panel__align-btn"
       disabled={disabled}
       title={t(labelKey)}
       aria-label={t(labelKey)}

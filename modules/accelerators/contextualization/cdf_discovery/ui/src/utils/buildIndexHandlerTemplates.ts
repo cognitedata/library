@@ -1,6 +1,7 @@
 import type { MessageKey } from "../i18n/types";
 import type { BuildIndexHandlerId } from "../components/transform/etlBuildIndexHandlerRegistry";
 import { isBuildIndexHandlerId } from "../components/transform/etlBuildIndexHandlerRegistry";
+import { buildIndexHandlerDescription } from "./transformHandlerCatalog";
 
 export const DEFAULT_INVERTED_INDEX_ROW_KEY_TEMPLATE = "{lookup_key}:{scope}|{index_kind}";
 
@@ -38,7 +39,7 @@ export function defaultBuildIndexNodeConfig(
   handler: BuildIndexHandlerId = "property_token_index"
 ): Record<string, unknown> {
   return {
-    description: "Build inverted index",
+    description: buildIndexHandlerDescription(handler),
     handler_id: handler,
     index_kinds: {},
     [handler]: defaultBuildIndexHandlerBlock(handler),

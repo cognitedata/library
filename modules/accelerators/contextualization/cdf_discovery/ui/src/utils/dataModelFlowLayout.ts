@@ -8,9 +8,20 @@ import {
   type TransformCanvasHandleOrientation,
 } from "../types/transformCanvas";
 
+/** Data model canvas auto-layout algorithms. */
+export type DmFlowLayoutMethod = "dagre" | "grid";
+
+export function normalizeDmFlowLayoutMethod(raw: unknown): DmFlowLayoutMethod {
+  if (raw === "grid") return "grid";
+  return "dagre";
+}
+
+export const DM_FLOW_LAYOUT_METHODS: DmFlowLayoutMethod[] = ["dagre", "grid"];
+
 export type DmFlowLayoutOptions = {
   handleOrientation?: TransformCanvasHandleOrientation;
   edgePathStyle?: TransformCanvasEdgePathStyle;
+  layoutMethod?: DmFlowLayoutMethod;
 };
 
 /** Matches ``.disc-dm-flow-node`` rendered size for Dagre. */
@@ -32,8 +43,15 @@ function gridPositions(count: number): { x: number; y: number }[] {
   }));
 }
 
-/** Hierarchical dagre layout when the model has relation edges; grid otherwise. */
-export function layoutDmViewNodes(
+/** Square grid — useful when the model has few relation edges or views should be browsed in a catalog layout. */
+export function layoutDmViewNodesGrid(nodes: Node[]): Node[] {
+  if (nodes.length === 0) return nodes;
+  const positions = gridPositions(nodes.length);
+  return nodes.map((node, i) => ({ ...node, position: positions[i]! }));
+}
+
+/** Hierarchical Dagre layout along direct relation edges (view-to-view links in the data model). */
+export function layoutDmViewNodesDagre(
   nodes: Node[],
   edges: Edge[],
   orientation: TransformCanvasHandleOrientation = "lr"
@@ -43,8 +61,7 @@ export function layoutDmViewNodes(
   const nodeIds = new Set(nodes.map((n) => n.id));
   const layoutEdges = edges.filter((e) => nodeIds.has(e.source) && nodeIds.has(e.target));
   if (layoutEdges.length === 0) {
-    const positions = gridPositions(nodes.length);
-    return nodes.map((node, i) => ({ ...node, position: positions[i] }));
+    return layoutDmViewNodesGrid(nodes);
   }
 
   const g = new dagre.graphlib.Graph();
@@ -79,11 +96,24 @@ export function layoutDmViewNodes(
   });
 }
 
+export function layoutDmViewNodesByMethod(
+  nodes: Node[],
+  edges: Edge[],
+  orientation: TransformCanvasHandleOrientation = "lr",
+  method: DmFlowLayoutMethod = "dagre"
+): Node[] {
+  if (normalizeDmFlowLayoutMethod(method) === "grid") {
+    return layoutDmViewNodesGrid(nodes);
+  }
+  return layoutDmViewNodesDagre(nodes, edges, orientation);
+}
+
 export function graphToFlow(
   graph: DataModelGraph,
   opts?: DmFlowLayoutOptions
 ): { nodes: Node[]; edges: Edge[] } {
   const orientation = normalizeTransformCanvasHandleOrientation(opts?.handleOrientation);
+  const layoutMethod = normalizeDmFlowLayoutMethod(opts?.layoutMethod);
   const edgeType = normalizeTransformCanvasEdgePathStyle(opts?.edgePathStyle);
   const views = graph.views;
   const nodeIds = new Set(views.map((v) => v.id));
@@ -112,6 +142,6 @@ export function graphToFlow(
       labelStyle: { fill: "var(--disc-text-muted)", fontSize: 10 },
     }));
 
-  const nodes = layoutDmViewNodes(baseNodes, edges, orientation);
+  const nodes = layoutDmViewNodesByMethod(baseNodes, edges, orientation, layoutMethod);
   return { nodes, edges };
 }

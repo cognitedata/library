@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 CONNECTION_ROOT = "connection"
-CONNECTION_INFO = "connection:info"
 DATA_ROOT = "data"
 DATA_SAVED_QUERIES = "data:sq"
 TRANSFORM_ROOT = "transform"
@@ -11,7 +10,6 @@ TRANSFORM_PIPELINES = "transform:pipelines"
 TRANSFORM_PIPELINE_PREFIX = "transform:pipeline:"
 TRANSFORM_TEMPLATES = "transform:templates"
 TRANSFORM_TEMPLATE_PREFIX = "transform:template:"
-TRANSFORM_SCOPE = "transform:scope"
 TRANSFORM_WORKFLOW_PREFIX = "transform:workflow:"
 FUSION_ROOT = "fusion"
 FUSION_DM_ROOT = "fusion:dm"
@@ -25,7 +23,7 @@ GOVERNANCE_GROUPS = "gov:groups"
 EXTRACT_ROOT = "extract"
 MONITOR_ROOT = "monitor"
 
-# Sibling order under ``connection`` (project info is always last).
+# Sibling order under ``connection`` (tree root label shows the CDF project).
 CONNECTION_ROOT_CHILD_ORDER = (
     DATA_ROOT,
     FUSION_ROOT,
@@ -33,5 +31,4 @@ CONNECTION_ROOT_CHILD_ORDER = (
     EXTRACT_ROOT,
     TRANSFORM_ROOT,
     MONITOR_ROOT,
-    CONNECTION_INFO,
 )

@@ -33,6 +33,7 @@ import { RecordsSaveConfigFields } from "./RecordsSaveConfigFields";
 import { StreamSaveConfigFields } from "./StreamSaveConfigFields";
 import { JsonMappingNodeConfigFields } from "./JsonMappingNodeConfigFields";
 import type { JsonObject } from "../../types/jsonConfig";
+import { canvasNodeKindMessageKey } from "../../utils/canvasNodeKindLabel";
 
 type TFn = (key: MessageKey, vars?: Record<string, string | number>) => string;
 
@@ -69,27 +70,24 @@ function titleKey(kind: TransformCanvasNodeKind): MessageKey {
     case "build_index":
       return "transform.nodeEditor.titleBuildIndex";
     case "json_mapping":
-      return "transform.nodeEditor.titleJsonMapping";
+    case "spark_transform":
+    case "transformation_ref":
+    case "function_ref":
+    case "subworkflow":
+    case "simulation":
+    case "cdf_task":
+    case "dynamic_fanout":
+      return canvasNodeKindMessageKey(kind);
     case "save_view":
     case "save_raw":
     case "save_classic":
     case "save_records":
     case "save_stream":
       return "transform.nodeEditor.titleSave";
-    case "spark_transform":
-    case "transformation_ref":
-      return "transform.nodeEditor.titleSpark";
-    case "subworkflow":
-    case "function_ref":
-    case "simulation":
-    case "cdf_task":
-      return "transform.nodeEditor.titleOrchestration";
     case "file_annotation":
       return "transform.nodeEditor.titleFileAnnotation";
     case "workflow_fanout_plan":
       return "transform.nodeEditor.titleFanoutPlan";
-    case "dynamic_fanout":
-      return "transform.nodeEditor.titleDynamicFanout";
     case "raw_cleanup":
       return "transform.nodeEditor.titleRawCleanup";
     case "subgraph":
@@ -268,7 +266,7 @@ export function FlowNodeEditorModal({
       return;
     }
     let cancelled = false;
-    void fetchTransformBuildPairing(pipelineId, true)
+    void fetchTransformBuildPairing(pipelineId)
       .then((p) => {
         if (!cancelled) setBuildPairing(p);
       })

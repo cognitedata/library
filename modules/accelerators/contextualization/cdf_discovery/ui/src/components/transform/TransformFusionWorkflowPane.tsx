@@ -12,9 +12,45 @@ import { TransformFlowPanel } from "./TransformFlowPanel";
 type Props = {
   tab: WorkflowDocumentTab;
   onTabUpdate: (tab: WorkflowDocumentTab) => void;
+  onOpenInTransform?: () => void;
+  openInTransformBusy?: boolean;
+  openInTransformError?: string | null;
 };
 
-export function TransformFusionWorkflowPane({ tab, onTabUpdate }: Props) {
+function FusionWorkflowOpenInTransformBar({
+  onOpenInTransform,
+  openInTransformBusy,
+  openInTransformError,
+}: Pick<Props, "onOpenInTransform" | "openInTransformBusy" | "openInTransformError">) {
+  const { t } = useAppSettings();
+  if (!onOpenInTransform) return null;
+  return (
+    <div className="transform-fusion-workflow-pane__actions">
+      {openInTransformError ? (
+        <div className="disc-banner--error" role="alert">
+          {t("status.error", { detail: openInTransformError })}
+        </div>
+      ) : null}
+      <button
+        type="button"
+        className="disc-btn disc-btn--primary"
+        disabled={openInTransformBusy}
+        onClick={onOpenInTransform}
+        title={t("wfViewer.openInTransformHint")}
+      >
+        {openInTransformBusy ? t("wfViewer.openInTransformBusy") : t("wfViewer.openInTransform")}
+      </button>
+    </div>
+  );
+}
+
+export function TransformFusionWorkflowPane({
+  tab,
+  onTabUpdate,
+  onOpenInTransform,
+  openInTransformBusy = false,
+  openInTransformError = null,
+}: Props) {
   const { t } = useAppSettings();
   const [canvas, setCanvas] = useState<TransformCanvasDocument>(emptyTransformCanvasDocument());
   const [pipelineId, setPipelineId] = useState<string | null>(null);
@@ -53,7 +89,13 @@ export function TransformFusionWorkflowPane({ tab, onTabUpdate }: Props) {
         setPipelineId(null);
         setUseCdfGraphFallback(true);
         setResolved(true);
-        onTabUpdateRef.current({ ...tabRef.current, loading: false, error: null });
+        // Keep loading true so WorkflowFlowPane fetches the deployed CDF task graph.
+        onTabUpdateRef.current({
+          ...tabRef.current,
+          graph: null,
+          loading: true,
+          error: null,
+        });
       }
     };
     void load();
@@ -76,7 +118,14 @@ export function TransformFusionWorkflowPane({ tab, onTabUpdate }: Props) {
         <p className="transform-fusion-workflow-pane__hint" role="status">
           {t("transform.fusionWorkflow.noLocalPipeline", { externalId: tab.workflow.external_id })}
         </p>
-        <WorkflowFlowPane tab={tab} onTabUpdate={onTabUpdate} readOnly />
+        <WorkflowFlowPane
+          tab={tab}
+          onTabUpdate={onTabUpdate}
+          readOnly
+          onOpenInTransform={onOpenInTransform}
+          openInTransformBusy={openInTransformBusy}
+          openInTransformError={openInTransformError}
+        />
       </div>
     );
   }
@@ -86,6 +135,11 @@ export function TransformFusionWorkflowPane({ tab, onTabUpdate }: Props) {
       <p className="transform-fusion-workflow-pane__hint" role="status">
         {t("transform.fusionWorkflow.readOnlyHint", { externalId: tab.workflow.external_id })}
       </p>
+      <FusionWorkflowOpenInTransformBar
+        onOpenInTransform={onOpenInTransform}
+        openInTransformBusy={openInTransformBusy}
+        openInTransformError={openInTransformError}
+      />
       <TransformFlowPanel
         t={t}
         pipelineId={pipelineId ?? undefined}

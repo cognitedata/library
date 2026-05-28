@@ -733,6 +733,13 @@
   cursor: not-allowed;
 }
 
+.gov-tree-ctx-menu__sep {
+  border-top: 1px solid var(--gov-border, #e5e7eb);
+  margin: 0.25rem 0;
+  padding: 0;
+  list-style: none;
+}
+
 .gov-tree-ctx-menu__btn--danger {
   color: var(--disc-danger);
 }

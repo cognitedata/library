@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { ConnectionLineType, useReactFlow } from "@xyflow/react";
+import { ConnectionLineType, useReactFlow, useUpdateNodeInternals } from "@xyflow/react";
 import type {
   TransformCanvasEdgePathStyle,
   TransformCanvasHandleOrientation,
@@ -23,7 +23,8 @@ export function FlowHandleOrientationEdgeSync({
   orientation: TransformCanvasHandleOrientation;
   edgePathStyle: TransformCanvasEdgePathStyle;
 }) {
-  const { getNodes, updateNodeInternals, setEdges } = useReactFlow();
+  const { getNodes, setEdges } = useReactFlow();
+  const updateNodeInternals = useUpdateNodeInternals();
   const rfEdgeType = normalizeTransformCanvasEdgePathStyle(edgePathStyle);
 
   useEffect(() => {

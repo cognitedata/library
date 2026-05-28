@@ -178,13 +178,13 @@ def _transform_root() -> Path:
 def _run_transform_build(argv: List[str]) -> int:
     transform = _transform_root()
     scripts = transform / "scripts"
-    for p in (str(transform), str(transform / "functions"), str(scripts)):
+    for p in (str(_MODULE_ROOT), str(transform), str(_MODULE_ROOT / "functions"), str(scripts)):
         if p not in sys.path:
             sys.path.insert(0, p)
     from workflow_build.orchestrate import main as workflow_build_main
 
     if "--module-root" not in argv:
-        argv = ["--module-root", str(transform), *argv]
+        argv = ["--module-root", str(_MODULE_ROOT), *argv]
     return int(workflow_build_main(argv))
 
 

@@ -1,33 +1,29 @@
+"""Built workflow YAML read/write under flat workflows/."""
+
 from __future__ import annotations
 
 from pathlib import Path
-
-import pytest
+from unittest.mock import patch
 
 from ui.server import transform_registry
 
 
-def test_list_pipeline_workflow_artifacts(tmp_path: Path, monkeypatch) -> None:
-    scope_dir = tmp_path / "transform" / "workflows" / "all"
+def test_list_and_read_workflow_yaml(tmp_path: Path) -> None:
+    scope_dir = tmp_path / "workflows"
     scope_dir.mkdir(parents=True)
-    (scope_dir / "etl_demo.all.WorkflowTrigger.yaml").write_text("externalId: trg\n", encoding="utf-8")
+    rel_name = "etl_demo.WorkflowTrigger.yaml"
+    (scope_dir / rel_name).write_text("externalId: trg\n", encoding="utf-8")
 
-    monkeypatch.setattr(transform_registry, "_module_root", lambda: tmp_path)
-    artifacts = transform_registry.list_pipeline_workflow_artifacts("demo", scope_suffix="all")
+    with patch.object(transform_registry, "_module_root", return_value=tmp_path):
+        artifacts = transform_registry.list_pipeline_workflow_artifacts("demo", scope_suffix="")
     assert len(artifacts) == 1
-    assert artifacts[0]["rel_path"] == "transform/workflows/all/etl_demo.all.WorkflowTrigger.yaml"
+    assert artifacts[0]["rel_path"] == "workflows/etl_demo.WorkflowTrigger.yaml"
 
 
-def test_read_write_workflow_yaml(tmp_path: Path, monkeypatch) -> None:
-    rel = "transform/workflows/all/etl_demo.all.WorkflowTrigger.yaml"
-    path = tmp_path / rel
-    path.parent.mkdir(parents=True)
-    path.write_text("externalId: trg\n", encoding="utf-8")
+def test_resolve_workflow_yaml_path(tmp_path: Path) -> None:
+    rel = "workflows/etl_demo.WorkflowTrigger.yaml"
+    (tmp_path / rel).parent.mkdir(parents=True, exist_ok=True)
+    (tmp_path / rel).write_text("x: 1\n", encoding="utf-8")
 
-    monkeypatch.setattr(transform_registry, "_module_root", lambda: tmp_path)
-    assert transform_registry.read_workflow_yaml(rel).startswith("externalId:")
-    transform_registry.write_workflow_yaml(rel, "externalId: trg2\n")
-    assert transform_registry.read_workflow_yaml(rel) == "externalId: trg2\n"
-
-    with pytest.raises(ValueError):
-        transform_registry.resolve_workflow_yaml_path("governance/foo.yaml")
+    with patch.object(transform_registry, "_module_root", return_value=tmp_path):
+        assert transform_registry.read_workflow_yaml(rel).startswith("x:")

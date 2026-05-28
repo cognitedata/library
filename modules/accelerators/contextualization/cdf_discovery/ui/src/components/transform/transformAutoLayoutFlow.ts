@@ -1,5 +1,10 @@
+import dagre from "@dagrejs/dagre";
 import type { Edge, Node } from "@xyflow/react";
-import type { TransformCanvasHandleOrientation } from "../../types/transformCanvas";
+import {
+  normalizeTransformCanvasLayoutMethod,
+  type TransformCanvasHandleOrientation,
+  type TransformCanvasLayoutMethod,
+} from "../../types/transformCanvas";
 import type { FlowEdgeData } from "./flowDocumentBridge";
 
 const GAP_X = 56;
@@ -184,6 +189,132 @@ function layoutDataEdges(edges: Edge[]): Edge[] {
     const kind = ((e.data ?? {}) as FlowEdgeData).kind ?? "data";
     return kind === "data";
   });
+}
+
+function positionsForComponentDagre(
+  compIds: string[],
+  nodes: Node[],
+  edges: Edge[],
+  primaryOffset: number,
+  orientation: TransformCanvasHandleOrientation
+): Map<string, { x: number; y: number }> {
+  const byId = nodeById(nodes);
+  const g = new dagre.graphlib.Graph();
+  g.setDefaultEdgeLabel(() => ({}));
+  g.setGraph({
+    rankdir: orientation === "tb" ? "TB" : "LR",
+    align: "UL",
+    nodesep: GAP_Y,
+    ranksep: GAP_X,
+    marginx: 32,
+    marginy: 32,
+  });
+
+  for (const id of compIds) {
+    const n = byId.get(id);
+    if (!n) continue;
+    const r = estimateNodeRect(n);
+    g.setNode(id, { width: r.w, height: r.h });
+  }
+  for (const e of edges) {
+    if (compIds.includes(e.source) && compIds.includes(e.target)) {
+      g.setEdge(e.source, e.target);
+    }
+  }
+
+  dagre.layout(g);
+
+  const pos = new Map<string, { x: number; y: number }>();
+  let minPrimary = Infinity;
+  let minSecondary = Infinity;
+  let maxSecondary = -Infinity;
+  for (const id of compIds) {
+    const layoutNode = g.node(id);
+    if (!layoutNode) continue;
+    const r = estimateNodeRect(byId.get(id)!);
+    const x = layoutNode.x - r.w / 2;
+    const y = layoutNode.y - r.h / 2;
+    pos.set(id, { x, y });
+    if (orientation === "lr") {
+      minPrimary = Math.min(minPrimary, x);
+      minSecondary = Math.min(minSecondary, y);
+      maxSecondary = Math.max(maxSecondary, y + r.h);
+    } else {
+      minPrimary = Math.min(minPrimary, y);
+      minSecondary = Math.min(minSecondary, x);
+      maxSecondary = Math.max(maxSecondary, x + r.w);
+    }
+  }
+  if (!Number.isFinite(minPrimary)) minPrimary = 0;
+  if (!Number.isFinite(minSecondary)) minSecondary = 0;
+  if (!Number.isFinite(maxSecondary)) maxSecondary = 0;
+
+  const secondaryCenter = (minSecondary + maxSecondary) / 2;
+  const primaryShift = primaryOffset - minPrimary;
+  for (const [id, p] of pos) {
+    pos.set(id, {
+      x: orientation === "lr" ? p.x + primaryShift : p.x - secondaryCenter,
+      y: orientation === "tb" ? p.y + primaryShift : p.y - secondaryCenter,
+    });
+  }
+  return pos;
+}
+
+/** Dagre hierarchical layout for transform pipeline nodes (data edges only). */
+export function layoutTransformFlowNodesDagre(
+  nodes: Node[],
+  edges: Edge[],
+  orientation: TransformCanvasHandleOrientation = "lr"
+): Node[] {
+  if (nodes.length === 0) return nodes;
+
+  const next = [...nodes];
+  const roots = next.filter((n) => !n.parentId);
+  if (roots.length === 0) return nodes;
+
+  const rootIdSet = new Set(roots.map((r) => r.id));
+  const dataEdges = layoutDataEdges(edges).filter((e) => rootIdSet.has(e.source) && rootIdSet.has(e.target));
+  const comps = weakComponents(roots.map((n) => n.id), dataEdges);
+  const byId = nodeById(next);
+
+  const pos = new Map<string, { x: number; y: number }>();
+  let primaryOffset = 0;
+
+  for (const comp of comps) {
+    const subEdges = dataEdges.filter((e) => comp.includes(e.source) && comp.includes(e.target));
+    const compPos = positionsForComponentDagre(comp, next, subEdges, primaryOffset, orientation);
+    let maxExtent = primaryOffset;
+    for (const [id, p] of compPos) {
+      pos.set(id, p);
+      const r = estimateNodeRect(byId.get(id)!);
+      if (orientation === "lr") {
+        maxExtent = Math.max(maxExtent, p.x + r.w);
+      } else {
+        maxExtent = Math.max(maxExtent, p.y + r.h);
+      }
+    }
+    primaryOffset = maxExtent + COMP_GAP_X;
+  }
+
+  return next.map((n) => {
+    if (n.parentId) return n;
+    const p = pos.get(n.id);
+    if (!p) return n;
+    return { ...n, position: { x: p.x, y: p.y } };
+  });
+}
+
+export function layoutTransformFlowNodesByMethod(
+  nodes: Node[],
+  edges: Edge[],
+  orientation: TransformCanvasHandleOrientation = "lr",
+  method: TransformCanvasLayoutMethod = "layered"
+): Node[] {
+  const m = normalizeTransformCanvasLayoutMethod(method);
+  if (m === "dagre") {
+    return layoutTransformFlowNodesDagre(nodes, edges, orientation);
+  }
+  return layoutTransformFlowNodes(nodes, edges, orientation);
 }
 
 /** Layered layout for transform pipeline nodes (data edges only). */

@@ -1,0 +1,24 @@
+{
+  "transform": {
+    "change_case": "Convert the working string to upper, lower, or title case. Configure via change_case.case.",
+    "coerce_scalar": "Parse the working string into int, float, or bool. Supports strict vs lenient parsing and empty_as_null for blank inputs.",
+    "default_if_empty": "When the working string is blank, substitute a literal value or copy from another field (default_if_empty.literal / default_if_empty.field).",
+    "format_datetime": "Parse a datetime from the working string (input_format) and format it with output_format (strftime). Supports UTC normalization when configured.",
+    "hash_stable": "Compute a deterministic hash (sha256, sha1, or md5) of the working string with optional salt. Use for stable surrogate keys and deduplication fingerprints.",
+    "heuristic_sampler": "Find regex matches in the working string from literal samples (longest match wins) or a custom pattern. Control volume with max_results (1 default, 0/null = all, N = cap). on_no_match: keep_working, empty, or default + default_value.",
+    "leading_zero_normalize": "Strip leading zeros from digit runs in the working string. Optionally restrict matches with segment_regex and pad normalized segments to minimum_width. Useful for unit prefixes and instrument tag normalization.",
+    "mask_string": "Mask the working string while keeping the last keep_last characters visible (mask_char for hidden positions). Use for PII redaction in preview or downstream properties.",
+    "parse_json_extract": "Parse the working string as JSON and read a dot-separated path (parse_json_extract.path). Returns the extracted scalar as the new working value.",
+    "regex_substitution": "Apply one or more regex pattern → replacement rules to the working string built from fields[] and output_template. Supports multiple patterns, optional flags (I/M), and per-pattern replace counts. Use for tag extraction, prefix stripping, and normalization.",
+    "sequential_literal_replace": "Apply ordered literal find → replace steps on the working string. Each replacement runs globally before the next step. Use when regex is unnecessary and you need predictable string substitutions.",
+    "split_join": "Split the working string by delimiter, then reassemble selected token indexes via a {0} template or indexes[] + join. Combines split_string-style parsing with structured output shaping.",
+    "split_string": "Split the working string into parts using a literal delimiter, delimiters[], or delimiter_regex. Produces multi-value output (array_json or explode_rows). Use before join/recombine steps.",
+    "static_lookup_map": "Map the working string through an inline key→value table (map) or ordered prefix pairs. Unmatched values pass through unchanged unless configured otherwise.",
+    "substitution_variants": "Fan-out: when match_literal appears in the working string, emit one output row per entry in variants[] (must be unique). Use for alias expansion and multi-representation tags.",
+    "trim_whitespace": "Trim leading and trailing whitespace from the working string, or collapse internal whitespace runs to a single space (mode: ends_only or collapse_internal)."
+  },
+  "build_index": {
+    "annotation_vertex_index": "Index file-annotation results by detected text (lookup key) and store full annotation JSON on each posting. Supports region vertices and bounding boxes when enabled.",
+    "property_token_index": "Tokenize configured property paths on each upstream cohort row, normalize lookup keys, and aggregate postings per index kind into inverted-index RAW rows."
+  }
+}

@@ -16,6 +16,18 @@ export function canvasNodeKindLabel(kind: TransformCanvasNodeKind, t: CanvasNode
   return t(canvasNodeKindMessageKey(kind));
 }
 
+/** Stable palette / picker order by localized stage label (group order unchanged). */
+export function sortPaletteStages(
+  stages: readonly TransformCanvasNodeKind[],
+  t: CanvasNodeTranslate
+): TransformCanvasNodeKind[] {
+  return [...stages].sort((a, b) =>
+    canvasNodeKindLabel(a, t).localeCompare(canvasNodeKindLabel(b, t), undefined, {
+      sensitivity: "base",
+    })
+  );
+}
+
 export function canvasNodeDisplayLabel(
   data: { label?: string; notes?: string; config?: unknown } | undefined,
   kind: TransformCanvasNodeKind,

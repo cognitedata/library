@@ -28,6 +28,13 @@ def default_declared_root(discovery_module_root: Optional[Path] = None) -> Path:
     return (base / GOVERNANCE_SUBDIR).resolve()
 
 
+def artifacts_root(declared: Path) -> Path:
+    """Module root for generated ``spaces/`` and ``auth/`` Toolkit YAML."""
+    from governance_build.paths import governance_artifacts_root  # noqa: WPS433
+
+    return governance_artifacts_root(declared)
+
+
 def declared_root(discovery_module_root: Optional[Path] = None) -> Path:
     """Resolve governance declared module root (config, templates, generated YAML)."""
     env = os.environ.get("CDF_DISCOVERY_GOVERNANCE_ROOT")
@@ -76,19 +83,20 @@ def active_config_path(
 
 
 def list_artifact_paths(declared: Path, kind: Literal["spaces", "groups"]) -> List[str]:
+    root = artifacts_root(declared)
     out: List[str] = []
     if kind == "spaces":
-        sp = declared / "spaces"
+        sp = root / "spaces"
         if sp.is_dir():
             out = sorted(
-                str(p.relative_to(declared)).replace("\\", "/")
+                str(p.relative_to(root)).replace("\\", "/")
                 for p in sp.rglob("*.Space.yaml")
             )
     else:
-        au = declared / "auth"
+        au = root / "auth"
         if au.is_dir():
             out = sorted(
-                str(p.relative_to(declared)).replace("\\", "/")
+                str(p.relative_to(root)).replace("\\", "/")
                 for p in au.rglob("*.Group.yaml")
             )
     return out
@@ -227,7 +235,7 @@ def create_artifact_file(
         content = default_group_artifact_yaml(name=ext, source_id=source_id)
 
     validate_artifact_rel(rel, kind)
-    path = safe_rel_path(declared, rel)
+    path = safe_rel_path(artifacts_root(declared), rel)
     if path.is_file():
         raise ValueError(f"Artifact already exists: {rel}")
     return write_file(declared, config_path, discovery_module_root, rel, content)
@@ -303,11 +311,12 @@ def source_id_hint(source_id: str) -> Dict[str, Any]:
 
 
 def read_file(declared: Path, rel: str) -> Dict[str, str]:
-    path = safe_rel_path(declared, rel)
+    root = artifacts_root(declared)
+    path = safe_rel_path(root, rel)
     if not path.is_file():
         raise FileNotFoundError(rel)
     return {
-        "path": str(path.relative_to(declared)).replace("\\", "/"),
+        "path": rel.replace("\\", "/"),
         "content": path.read_text(encoding="utf-8"),
     }
 
@@ -319,13 +328,14 @@ def write_file(
     rel: str,
     content: str,
 ) -> Dict[str, Any]:
-    path = safe_rel_path(declared, rel)
+    root = artifacts_root(declared)
+    path = safe_rel_path(root, rel)
     if path.suffix.lower() not in (".yml", ".yaml"):
         raise ValueError("Only .yaml/.yml allowed")
     yaml.safe_load(content)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(content, encoding="utf-8")
-    rel_str = str(path.relative_to(declared)).replace("\\", "/")
+    rel_str = rel.replace("\\", "/")
     out: Dict[str, Any] = {"ok": True, "path": rel_str}
     if path.name.endswith(".Group.yaml"):
         _ensure_governance_build_on_path(discovery_module_root)

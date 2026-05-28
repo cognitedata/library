@@ -19,6 +19,11 @@ describe("emptyTransformCanvasDocument", () => {
     const doc = emptyTransformCanvasDocument();
     expect(doc.edges).toEqual([{ id: "e_start_end", source: "start", target: "end", kind: "data" }]);
   });
+
+  it("defaults end node label to End", () => {
+    const end = emptyTransformCanvasDocument().nodes.find((n) => n.kind === "end");
+    expect(end?.data.label).toBe("End");
+  });
 });
 
 describe("connectEndMenuOptionsForSourceType", () => {
@@ -44,16 +49,18 @@ describe("connectEndMenuGroupedOptionsForPane", () => {
 
 describe("layoutTransformFlowNodes", () => {
   it("places end node after start on lr layout", async () => {
-    const { layoutTransformFlowNodes } = await import("../components/transform/transformAutoLayoutFlow");
+    const { layoutTransformFlowNodesByMethod } = await import("../components/transform/transformAutoLayoutFlow");
     const nodes = [
       { id: "start", type: "etlStart", position: { x: 0, y: 0 }, data: { kind: "start" } },
       { id: "end", type: "etlEnd", position: { x: 0, y: 0 }, data: { kind: "end" } },
     ];
     const edges = [{ id: "e1", source: "start", target: "end", data: { kind: "data" } }];
-    const laidOut = layoutTransformFlowNodes(nodes, edges, "lr");
-    const start = laidOut.find((n) => n.id === "start")!;
-    const end = laidOut.find((n) => n.id === "end")!;
-    expect(end.position.x).toBeGreaterThan(start.position.x);
+    for (const method of ["layered", "dagre"] as const) {
+      const laidOut = layoutTransformFlowNodesByMethod(nodes, edges, "lr", method);
+      const start = laidOut.find((n) => n.id === "start")!;
+      const end = laidOut.find((n) => n.id === "end")!;
+      expect(end.position.x).toBeGreaterThan(start.position.x);
+    }
   });
 });
 

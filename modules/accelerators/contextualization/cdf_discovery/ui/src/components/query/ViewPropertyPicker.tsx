@@ -79,6 +79,17 @@ export function ViewPropertyPicker({
         {err ? (
           <p className="transform-query-hint transform-query-hint--warn">{err}</p>
         ) : null}
+        <input
+          type="text"
+          className="gov-input"
+          style={{ marginBottom: "0.5rem" }}
+          value={manualDraft}
+          placeholder={properties.length ? commaJoinSegments(properties) : ""}
+          onChange={(e) => setManualDraft(e.target.value)}
+          onBlur={() => onChange(splitCommaSegments(manualDraft))}
+          spellCheck={false}
+          autoComplete="off"
+        />
         {schemaProps.length > 0 ? (
           <ul className="transform-query-property-picker__list">
             {schemaProps.map((name) => (
@@ -93,17 +104,6 @@ export function ViewPropertyPicker({
         ) : (
           <p className="transform-query-hint">{t("transform.query.viewPropertiesEmpty")}</p>
         )}
-        <input
-          type="text"
-          className="gov-input"
-          style={{ marginTop: "0.5rem" }}
-          value={manualDraft}
-          placeholder={properties.length ? commaJoinSegments(properties) : ""}
-          onChange={(e) => setManualDraft(e.target.value)}
-          onBlur={() => onChange(splitCommaSegments(manualDraft))}
-          spellCheck={false}
-          autoComplete="off"
-        />
       </label>
     </div>
   );

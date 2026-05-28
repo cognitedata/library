@@ -6,7 +6,7 @@ import json
 import os
 import sys
 import subprocess
-from typing import Any, Dict, Iterator, List, Optional
+from typing import Any, Dict, Iterator, List, Literal, Optional
 
 import yaml
 from fastapi import APIRouter, HTTPException, Query
@@ -48,6 +48,102 @@ def _property_names_from_view(view: Any) -> List[str]:
             if isinstance(props, dict):
                 return sorted(str(k) for k in props.keys())
     return []
+
+
+def _view_ref_label(ref: Any) -> str:
+    if ref is None:
+        return ""
+    space = getattr(ref, "space", None)
+    ext = getattr(ref, "external_id", None) or getattr(ref, "externalId", None)
+    ver = getattr(ref, "version", None)
+    if space is not None and ext is not None:
+        base = f"{space}/{ext}"
+        return f"{base}/{ver}" if ver else base
+    return str(ref)
+
+
+def _view_properties_dict(view: Any) -> Dict[str, Any]:
+    raw_props = getattr(view, "properties", None) or {}
+    if isinstance(raw_props, dict):
+        return raw_props
+    if hasattr(view, "dump"):
+        dumped = view.dump(camel_case=False)
+        if isinstance(dumped, dict):
+            props = dumped.get("properties") or {}
+            if isinstance(props, dict):
+                return props
+    return {}
+
+
+def _view_fields_from_view(view: Any) -> List[Dict[str, Any]]:
+    """View schema fields with kinds and data types for the data model viewer."""
+    from cognite.client.data_classes.data_modeling.views import (
+        ConnectionDefinition,
+        EdgeConnection,
+        MappedProperty,
+        ReverseDirectRelation,
+    )
+
+    from ui.server.cdf_browse import _dm_property_type_to_dict, _json_safe
+
+    fields: List[Dict[str, Any]] = []
+    for name, prop in sorted(_view_properties_dict(view).items(), key=lambda kv: str(kv[0])):
+        row: Dict[str, Any] = {"name": str(name)}
+        if isinstance(prop, MappedProperty):
+            src = getattr(prop, "source", None)
+            if src is not None:
+                row["kind"] = "direct_relation"
+                row["target"] = _view_ref_label(src)
+            else:
+                row["kind"] = "mapped"
+            prop_type = getattr(prop, "type", None)
+            if prop_type is not None:
+                row.update(_dm_property_type_to_dict(prop_type))
+        elif isinstance(prop, ConnectionDefinition):
+            if isinstance(prop, EdgeConnection):
+                row["kind"] = "edge_connection"
+                ct = getattr(prop, "connection_type", None) or getattr(prop, "connectionType", None)
+                if ct is not None:
+                    row["connectionType"] = str(ct)
+            elif isinstance(prop, ReverseDirectRelation):
+                row["kind"] = "reverse_direct_relation"
+            else:
+                row["kind"] = "connection"
+            src = getattr(prop, "source", None)
+            if src is not None:
+                row["target"] = _view_ref_label(src)
+            prop_type = getattr(prop, "type", None)
+            if prop_type is not None:
+                row.update(_dm_property_type_to_dict(prop_type))
+        elif isinstance(prop, dict):
+            row["kind"] = str(prop.get("connectionType") or prop.get("connection_type") or "property")
+            src = prop.get("source")
+            if src is not None:
+                row["target"] = _view_ref_label(src) if not isinstance(src, str) else src
+            type_val = prop.get("type")
+            if type_val is not None:
+                if isinstance(type_val, dict):
+                    row.update({k: _json_safe(v) for k, v in type_val.items()})
+                else:
+                    row.update(_dm_property_type_to_dict(type_val))
+            for attr in ("list", "nullable"):
+                if attr in prop:
+                    row[attr] = _json_safe(prop[attr])
+        else:
+            src = getattr(prop, "source", None)
+            prop_type = getattr(prop, "type", None)
+            connection_type = getattr(prop, "connection_type", None) or getattr(prop, "connectionType", None)
+            if src is not None:
+                row["kind"] = "direct_relation"
+                row["target"] = _view_ref_label(src)
+            elif prop_type is not None and connection_type is None:
+                row["kind"] = "mapped"
+            else:
+                row["kind"] = "property"
+            if prop_type is not None:
+                row.update(_dm_property_type_to_dict(prop_type))
+        fields.append(row)
+    return fields
 
 
 def _find_view_in_space(
@@ -99,6 +195,13 @@ class PipelineCanvasBody(BaseModel):
     canvas: Dict[str, Any]
 
 
+class ValidatePipelineBody(BaseModel):
+    canvas: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="When set, validate this canvas instead of the pipeline document on disk.",
+    )
+
+
 class SaveAsTemplateBody(BaseModel):
     template_id: str = Field(..., min_length=1, max_length=128, pattern=r"^[a-z][a-z0-9_]{0,127}$")
     label: Optional[str] = Field(default=None, max_length=256)
@@ -126,13 +229,27 @@ class LabelUpdateBody(BaseModel):
     label: str = Field(..., min_length=1, max_length=256)
 
 
-class BuildBody(BaseModel):
-    scoped: bool = False
-
-
 class RunBody(BaseModel):
     dry_run: bool = False
     incremental_change_processing: bool = True
+
+
+class DeployWorkflowCdfBody(BaseModel):
+    skip_build: bool = False
+    dry_run: bool = False
+    allow_unresolved_placeholders: bool = True
+    deploy_functions: Literal["never", "if-missing", "if-stale", "always"] = "if-stale"
+
+
+class CdfWorkflowRunBody(BaseModel):
+    dry_run: bool = False
+    timeout_seconds: float = Field(7200.0, ge=30.0, le=86400.0)
+    poll_interval: float = Field(5.0, ge=0.5, le=120.0)
+    workflow_external_id: str | None = None
+    instance_space: str | None = Field(
+        default=None,
+        description="Substitute {{instance_space}} in trigger input when set.",
+    )
 
 
 class QueryPreviewRequest(BaseModel):
@@ -246,10 +363,79 @@ def get_pipeline_by_workflow(external_id: str) -> Dict[str, Any]:
     return found
 
 
+class ImportWorkflowToPipelineBody(BaseModel):
+    workflow_external_id: str = Field(..., min_length=1, max_length=256)
+    version: Optional[str] = Field(default=None, max_length=64)
+    pipeline_id: Optional[str] = Field(
+        default=None,
+        max_length=128,
+        pattern=r"^[a-z][a-z0-9_]{0,127}$",
+    )
+    label: Optional[str] = Field(default=None, max_length=256)
+
+
+@router.post("/pipelines/import-from-workflow")
+def import_pipeline_from_workflow(body: ImportWorkflowToPipelineBody) -> Dict[str, Any]:
+    from ui.server import cdf_browse
+    from ui.server.workflow_to_canvas import resolve_unique_pipeline_id, workflow_graph_to_canvas
+
+    wf_ext = body.workflow_external_id.strip()
+    if not wf_ext:
+        raise HTTPException(status_code=400, detail="workflow_external_id is required")
+
+    existing = transform_registry.find_pipeline_for_workflow(wf_ext)
+    if existing:
+        return {**existing, "created": False}
+
+    try:
+        client = _cdf_client()
+        version = (body.version or "").strip() or None
+        graph = cdf_browse.workflow_graph(
+            client,
+            workflow_external_id=wf_ext,
+            version=version,
+        )
+        wf_meta = graph.get("workflow") if isinstance(graph.get("workflow"), dict) else {}
+        trigger_version = version or str(wf_meta.get("version") or "").strip() or None
+        workflow_trigger = cdf_browse.resolve_workflow_trigger(
+            client,
+            workflow_external_id=wf_ext,
+            version=trigger_version,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=str(e)) from e
+
+    canvas = workflow_graph_to_canvas(
+        graph,
+        workflow_external_id=wf_ext,
+        workflow_trigger=workflow_trigger,
+    )
+    pipeline_id = (body.pipeline_id or "").strip() or resolve_unique_pipeline_id(
+        wf_ext, transform_registry.pipeline_exists
+    )
+    if transform_registry.pipeline_exists(pipeline_id):
+        raise HTTPException(status_code=409, detail=f"Pipeline already exists: {pipeline_id}")
+
+    wf_meta = graph.get("workflow") if isinstance(graph.get("workflow"), dict) else {}
+    label = (body.label or "").strip() or str(wf_meta.get("name") or wf_ext).strip() or pipeline_id
+    doc = transform_registry.empty_pipeline_document(pipeline_id=pipeline_id, label=label)
+    doc["canvas"] = canvas
+    transform_registry.write_pipeline_document(pipeline_id, doc)
+    return {
+        "created": True,
+        "pipeline_id": pipeline_id,
+        "scope_suffix": "",
+        "pipeline": doc,
+        "match": "imported",
+    }
+
+
 @router.get("/pipelines/{pipeline_id}")
 def get_pipeline(
     pipeline_id: str,
-    scope_suffix: str = Query("all", description="Build scope folder under transform/workflows/"),
+    scope_suffix: str = Query("", description="Scope subfolder under workflows/ (empty = flat workflows/)"),
 ) -> Dict[str, Any]:
     try:
         doc = transform_registry.read_pipeline_document(pipeline_id, scope_suffix=scope_suffix)
@@ -262,7 +448,7 @@ def get_pipeline(
 def put_pipeline(
     pipeline_id: str,
     body: PipelineDocumentBody,
-    scope_suffix: str = Query("all", description="Build scope folder under transform/workflows/"),
+    scope_suffix: str = Query("", description="Scope subfolder under workflows/ (empty = flat workflows/)"),
 ) -> Dict[str, Any]:
     doc = _parse_yaml(body.content)
     if str(doc.get("id", pipeline_id)) != pipeline_id:
@@ -282,7 +468,7 @@ def delete_pipeline(pipeline_id: str) -> Dict[str, Any]:
 @router.get("/pipelines/{pipeline_id}/canvas")
 def get_pipeline_canvas(
     pipeline_id: str,
-    scope_suffix: str = Query("all", description="Build scope folder under transform/workflows/"),
+    scope_suffix: str = Query("", description="Scope subfolder under workflows/ (empty = flat workflows/)"),
 ) -> Dict[str, Any]:
     try:
         doc = transform_registry.read_pipeline_document(pipeline_id, scope_suffix=scope_suffix)
@@ -300,7 +486,7 @@ def get_pipeline_canvas(
 def patch_pipeline_label(
     pipeline_id: str,
     body: LabelUpdateBody,
-    scope_suffix: str = Query("all", description="Build scope folder under transform/workflows/"),
+    scope_suffix: str = Query("", description="Scope subfolder under workflows/ (empty = flat workflows/)"),
 ) -> Dict[str, Any]:
     try:
         doc = transform_registry.update_pipeline_label(
@@ -315,7 +501,7 @@ def patch_pipeline_label(
 def put_pipeline_canvas(
     pipeline_id: str,
     body: PipelineCanvasBody,
-    scope_suffix: str = Query("all", description="Build scope folder under transform/workflows/"),
+    scope_suffix: str = Query("", description="Scope subfolder under workflows/ (empty = flat workflows/)"),
 ) -> Dict[str, Any]:
     try:
         doc = transform_registry.read_pipeline_document(pipeline_id, scope_suffix=scope_suffix)
@@ -330,7 +516,7 @@ def put_pipeline_canvas(
 def save_pipeline_as_template(
     pipeline_id: str,
     body: SaveAsTemplateBody,
-    scope_suffix: str = Query("all", description="Build scope folder under transform/workflows/"),
+    scope_suffix: str = Query("", description="Scope subfolder under workflows/ (empty = flat workflows/)"),
 ) -> Dict[str, Any]:
     try:
         doc = transform_registry.read_pipeline_document(pipeline_id, scope_suffix=scope_suffix)
@@ -350,7 +536,7 @@ def save_pipeline_as_template(
 def save_pipeline_as_pipeline(
     pipeline_id: str,
     body: SaveAsPipelineBody,
-    scope_suffix: str = Query("all", description="Build scope folder under transform/workflows/"),
+    scope_suffix: str = Query("", description="Scope subfolder under workflows/ (empty = flat workflows/)"),
 ) -> Dict[str, Any]:
     if transform_registry.pipeline_exists(body.id):
         raise HTTPException(status_code=409, detail=f"Pipeline already exists: {body.id}")
@@ -407,26 +593,12 @@ def save_template_as_pipeline(template_id: str, body: SaveAsPipelineBody) -> Dic
     return {"ok": True, "pipeline": copy}
 
 
-@router.get("/scope-hierarchy")
-def get_transform_scope_hierarchy() -> Dict[str, Any]:
-    return {"scope_hierarchy": transform_registry.read_transform_scope_hierarchy()}
-
-
-@router.put("/scope-hierarchy")
-def put_transform_scope_hierarchy(body: Dict[str, Any]) -> Dict[str, Any]:
-    block = body.get("scope_hierarchy")
-    if not isinstance(block, dict):
-        raise HTTPException(status_code=400, detail="Body must include scope_hierarchy object")
-    written = transform_registry.write_transform_scope_hierarchy(block)
-    return {"ok": True, "scope_hierarchy": written}
-
-
 class WorkflowYamlBody(BaseModel):
     content: str = Field(..., min_length=0)
 
 
 @router.get("/workflow-yaml")
-def get_workflow_yaml(path: str = Query(..., description="Module-relative transform/workflows/…")) -> Dict[str, Any]:
+def get_workflow_yaml(path: str = Query(..., description="Module-relative workflows/…")) -> Dict[str, Any]:
     try:
         content = transform_registry.read_workflow_yaml(path)
     except ValueError as e:
@@ -439,7 +611,7 @@ def get_workflow_yaml(path: str = Query(..., description="Module-relative transf
 @router.put("/workflow-yaml")
 def put_workflow_yaml(
     body: WorkflowYamlBody,
-    path: str = Query(..., description="Module-relative transform/workflows/…"),
+    path: str = Query(..., description="Module-relative workflows/…"),
 ) -> Dict[str, Any]:
     try:
         transform_registry.write_workflow_yaml(path, body.content)
@@ -495,11 +667,16 @@ def put_template_canvas(template_id: str, body: PipelineCanvasBody) -> Dict[str,
 
 
 @router.post("/templates/{template_id}/validate")
-def validate_template(template_id: str) -> Dict[str, Any]:
+def validate_template(
+    template_id: str,
+    body: ValidatePipelineBody | None = None,
+) -> Dict[str, Any]:
     try:
         doc = transform_registry.read_template_document(template_id)
     except FileNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
+    if body is not None and body.canvas is not None:
+        doc = {**doc, "canvas": body.canvas}
     result = transform_registry.validate_template_document(doc)
     return {"template_id": template_id, **result}
 
@@ -516,12 +693,9 @@ def delete_template(template_id: str) -> Dict[str, Any]:
 
 
 @router.get("/templates/{template_id}/build-pairing")
-def template_build_pairing(
-    template_id: str,
-    scoped: bool = Query(False, description="Include every scope_hierarchy leaf suffix"),
-) -> Dict[str, Any]:
+def template_build_pairing(template_id: str) -> Dict[str, Any]:
     try:
-        return transform_registry.template_build_pairing(template_id, scoped=scoped)
+        return transform_registry.template_build_pairing(template_id)
     except FileNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
     except ValueError as e:
@@ -529,17 +703,9 @@ def template_build_pairing(
 
 
 @router.post("/templates/{template_id}/build")
-def build_template(template_id: str, body: BuildBody) -> Dict[str, Any]:
+def build_template(template_id: str) -> Dict[str, Any]:
     try:
-        return transform_registry.build_template(template_id, scoped=body.scoped)
-    except FileNotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e)) from e
-
-
-@router.post("/templates/{template_id}/build-scoped")
-def build_template_scoped(template_id: str) -> Dict[str, Any]:
-    try:
-        return transform_registry.build_template(template_id, scoped=True)
+        return transform_registry.build_template(template_id)
     except FileNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
 
@@ -565,12 +731,15 @@ def instantiate_template(template_id: str, body: InstantiateTemplateBody) -> Dic
 @router.post("/pipelines/{pipeline_id}/validate")
 def validate_pipeline(
     pipeline_id: str,
-    scope_suffix: str = Query("all", description="Build scope folder under transform/workflows/"),
+    body: ValidatePipelineBody | None = None,
+    scope_suffix: str = Query("", description="Scope subfolder under workflows/ (empty = flat workflows/)"),
 ) -> Dict[str, Any]:
     try:
         doc = transform_registry.read_pipeline_document(pipeline_id, scope_suffix=scope_suffix)
     except FileNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
+    if body is not None and body.canvas is not None:
+        doc = {**doc, "canvas": body.canvas}
     result = transform_registry.validate_pipeline_document(doc)
     return {"pipeline_id": pipeline_id, **result}
 
@@ -578,12 +747,11 @@ def validate_pipeline(
 @router.get("/pipelines/{pipeline_id}/build-pairing")
 def pipeline_build_pairing(
     pipeline_id: str,
-    scoped: bool = Query(False, description="Include every scope_hierarchy leaf suffix"),
-    scope_suffix: str = Query("all", description="Build scope folder under transform/workflows/"),
+    scope_suffix: str = Query("", description="Scope subfolder under workflows/ (empty = flat workflows/)"),
 ) -> Dict[str, Any]:
     try:
         return transform_registry.pipeline_build_pairing(
-            pipeline_id, scoped=scoped, scope_suffix=scope_suffix
+            pipeline_id, scope_suffix=scope_suffix
         )
     except FileNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
@@ -594,13 +762,10 @@ def pipeline_build_pairing(
 @router.post("/workflows/{workflow_id}/build")
 def build_workflow_route(
     workflow_id: str,
-    body: BuildBody,
-    scope_suffix: str = Query("all", description="Build scope folder under transform/workflows/"),
+    scope_suffix: str = Query("", description="Scope subfolder under workflows/ (empty = flat workflows/)"),
 ) -> Dict[str, Any]:
     try:
-        return transform_registry.build_workflow(
-            workflow_id, scoped=body.scoped, scope_suffix=scope_suffix
-        )
+        return transform_registry.build_workflow(workflow_id, scope_suffix=scope_suffix)
     except FileNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
 
@@ -608,80 +773,155 @@ def build_workflow_route(
 @router.post("/pipelines/{pipeline_id}/build")
 def build_pipeline(
     pipeline_id: str,
-    body: BuildBody,
-    scope_suffix: str = Query("all", description="Build scope folder under transform/workflows/"),
+    scope_suffix: str = Query("", description="Scope subfolder under workflows/ (empty = flat workflows/)"),
 ) -> Dict[str, Any]:
-    return build_workflow_route(pipeline_id, body, scope_suffix)
-
-
-@router.post("/pipelines/{pipeline_id}/build-scoped")
-def build_pipeline_scoped(
-    pipeline_id: str,
-    scope_suffix: str = Query("all", description="Build scope folder under transform/workflows/"),
-) -> Dict[str, Any]:
-    try:
-        return transform_registry.build_pipeline(
-            pipeline_id, scoped=True, scope_suffix=scope_suffix
-        )
-    except FileNotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e)) from e
+    return build_workflow_route(pipeline_id, scope_suffix)
 
 
 @router.post("/build-all")
-def build_all_pipelines(body: BuildBody | None = None) -> Dict[str, Any]:
-    scoped = body.scoped if body is not None else True
+def build_all_pipelines() -> Dict[str, Any]:
     results: List[Dict[str, Any]] = []
     all_ok = True
     seen: set[tuple[str, str]] = set()
     for entry in transform_registry.list_pipeline_tree_entries():
         pid = str(entry.get("id") or "")
-        scope = str(entry.get("scope_suffix") or "all")
+        raw_scope = str(entry.get("scope_suffix") or "").strip()
+        scope = "" if raw_scope == "all" else raw_scope
         if not pid or (pid, scope) in seen:
             continue
         seen.add((pid, scope))
-        result = transform_registry.build_pipeline(pid, scoped=scoped, scope_suffix=scope)
+        result = transform_registry.build_pipeline(pid, scope_suffix=scope)
         results.append(result)
         if not result.get("ok"):
             all_ok = False
     return {"ok": all_ok, "results": results}
 
 
-@router.post("/pipelines/{pipeline_id}/deploy")
-def deploy_pipeline(
+def _transform_subprocess_env() -> dict[str, str]:
+    from ui.server.main import MODULE_ROOT
+    from ui.server.etl_syspath import ensure_transform_syspath, transform_root
+
+    ensure_transform_syspath(MODULE_ROOT)
+    tr = transform_root(MODULE_ROOT)
+    stale = (tr / "functions").resolve()
+    existing_parts: list[str] = []
+    for p in (os.environ.get("PYTHONPATH") or "").split(os.pathsep):
+        entry = p.strip()
+        if not entry:
+            continue
+        try:
+            if Path(entry).resolve() == stale:
+                continue
+        except OSError:
+            if entry.replace("\\", "/").endswith("transform/functions"):
+                continue
+        existing_parts.append(entry)
+    parts = [str(MODULE_ROOT / "functions"), str(tr), str(tr / "scripts"), *existing_parts]
+    joined = os.pathsep.join(parts)
+    return {**os.environ, "PYTHONPATH": joined, "CDF_DISCOVERY_ROOT": str(MODULE_ROOT)}
+
+
+def _run_transform_script(script_name: str, argv: list[str]) -> Dict[str, Any]:
+    from ui.server.main import MODULE_ROOT
+
+    script = MODULE_ROOT / "transform" / "scripts" / script_name
+    if not script.is_file():
+        raise HTTPException(status_code=500, detail=f"Missing script: {script.name}")
+    proc = subprocess.run(
+        [sys.executable, str(script), *argv],
+        cwd=str(MODULE_ROOT),
+        capture_output=True,
+        text=True,
+        env=_transform_subprocess_env(),
+    )
+    return {
+        "exit_code": proc.returncode,
+        "ok": proc.returncode == 0,
+        "stdout": proc.stdout,
+        "stderr": proc.stderr,
+    }
+
+
+@router.post("/pipelines/{pipeline_id}/deploy-cdf")
+def deploy_pipeline_cdf(
     pipeline_id: str,
-    scope_suffix: str = Query("all", description="Build scope folder under transform/workflows/"),
+    body: DeployWorkflowCdfBody | None = None,
+    scope_suffix: str = Query("", description="Scope subfolder under workflows/ (empty = flat workflows/)"),
 ) -> Dict[str, Any]:
     try:
         transform_registry.read_pipeline_document(pipeline_id, scope_suffix=scope_suffix)
     except FileNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
 
-    import subprocess
-    import sys
-    from ui.server.main import MODULE_ROOT
+    opts = body or DeployWorkflowCdfBody()
+    argv = ["--workflow", pipeline_id]
+    scope = str(scope_suffix or "").strip()
+    if scope:
+        argv.extend(["--scope-suffix", scope])
+    if opts.skip_build:
+        argv.append("--skip-build")
+    if opts.dry_run:
+        argv.append("--dry-run")
+    if opts.allow_unresolved_placeholders:
+        argv.append("--allow-unresolved-placeholders")
+    argv.extend(["--deploy-functions", opts.deploy_functions])
+    result = _run_transform_script("deploy_workflow_cdf.py", argv)
+    if not result.get("ok"):
+        detail = (result.get("stderr") or result.get("stdout") or "deploy failed").strip()
+        raise HTTPException(status_code=500, detail=detail[:8000])
+    return {"pipeline_id": pipeline_id, "scope_suffix": scope, **result}
 
-    cmd = [
-        sys.executable,
-        str(MODULE_ROOT / "module.py"),
-        "transform",
-        "deploy-scope",
-        "--pipeline",
+
+@router.post("/pipelines/{pipeline_id}/cdf-run")
+def cdf_run_pipeline(
+    pipeline_id: str,
+    body: CdfWorkflowRunBody | None = None,
+    scope_suffix: str = Query("", description="Scope subfolder under workflows/ (empty = flat workflows/)"),
+) -> Dict[str, Any]:
+    try:
+        transform_registry.read_pipeline_document(pipeline_id, scope_suffix=scope_suffix)
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+
+    opts = body or CdfWorkflowRunBody()
+    argv = [
+        "--workflow",
         pipeline_id,
+        "--timeout-seconds",
+        str(opts.timeout_seconds),
+        "--poll-interval",
+        str(opts.poll_interval),
     ]
-    proc = subprocess.run(cmd, cwd=str(MODULE_ROOT), capture_output=True, text=True)
-    return {
-        "ok": proc.returncode == 0,
-        "pipeline_id": pipeline_id,
-        "stdout": proc.stdout,
-        "stderr": proc.stderr,
-    }
+    scope = str(scope_suffix or "").strip()
+    if scope:
+        argv.extend(["--scope-suffix", scope])
+    if opts.dry_run:
+        argv.append("--dry-run")
+    wfe = (opts.workflow_external_id or "").strip()
+    if wfe:
+        argv.extend(["--workflow-external-id", wfe])
+    ins = (opts.instance_space or "").strip()
+    if ins:
+        argv.extend(["--instance-space", ins])
+    result = _run_transform_script("cdf_workflow_run.py", argv)
+    return {"pipeline_id": pipeline_id, "scope_suffix": scope, **result}
+
+
+@router.post("/pipelines/{pipeline_id}/deploy")
+def deploy_pipeline(
+    pipeline_id: str,
+    body: DeployWorkflowCdfBody | None = None,
+    scope_suffix: str = Query("", description="Scope subfolder under workflows/ (empty = flat workflows/)"),
+) -> Dict[str, Any]:
+    """Deploy workflow + functions to CDF (alias for ``deploy-cdf``)."""
+    return deploy_pipeline_cdf(pipeline_id, body, scope_suffix)
 
 
 @router.post("/pipelines/{pipeline_id}/run")
 def run_pipeline(
     pipeline_id: str,
     body: RunBody | None = None,
-    scope_suffix: str = Query("all", description="Build scope folder under transform/workflows/"),
+    scope_suffix: str = Query("", description="Scope subfolder under workflows/ (empty = flat workflows/)"),
 ) -> Dict[str, Any]:
     dry_run = body.dry_run if body is not None else False
     incremental_change_processing = (
@@ -693,12 +933,14 @@ def run_pipeline(
         )
     except FileNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
 
 def _etl_run_pythonpath(module_root) -> str:
     """``PYTHONPATH`` for transform subprocesses — omit module root so it does not shadow ``transform/local_runner``."""
     transform = module_root / "transform"
-    parts = [str(transform), str(transform / "functions")]
+    parts = [str(module_root / "functions"), str(transform)]
     existing = os.environ.get("PYTHONPATH", "")
     if existing:
         parts.append(existing)
@@ -766,7 +1008,7 @@ def _stream_not_supported() -> None:
 def run_pipeline_stream(
     pipeline_id: str,
     body: RunBody | None = None,
-    scope_suffix: str = Query("all", description="Build scope folder under transform/workflows/"),
+    scope_suffix: str = Query("", description="Scope subfolder under workflows/ (empty = flat workflows/)"),
 ) -> StreamingResponse:
     """Run pipeline locally and stream NDJSON progress (``task_start`` / ``task_end`` / ``log``)."""
     _stream_not_supported()
@@ -780,6 +1022,8 @@ def run_pipeline_stream(
         )
     except FileNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
     return _local_run_stream_response(cmd)
 
 
@@ -793,6 +1037,8 @@ def run_template(template_id: str, body: RunBody | None = None) -> Dict[str, Any
         return transform_registry.run_template_local(template_id, dry_run=dry_run, incremental_change_processing=incremental_change_processing)
     except FileNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
 
 @router.post("/templates/{template_id}/run-stream")
@@ -809,6 +1055,8 @@ def run_template_stream(template_id: str, body: RunBody | None = None) -> Stream
         )
     except FileNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
     return _local_run_stream_response(cmd)
 
 
@@ -871,7 +1119,10 @@ def view_properties(
             status_code=404,
             detail=f"View not found: {space.strip()}/{external_id.strip()}/{version.strip()}",
         )
-    return {"properties": _property_names_from_view(view)}
+    return {
+        "properties": _property_names_from_view(view),
+        "fields": _view_fields_from_view(view),
+    }
 
 
 @router.post("/view-query/preview")

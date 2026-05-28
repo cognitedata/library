@@ -1009,6 +1009,50 @@ def _workflow_task_graph_node(task: Any) -> Dict[str, Any]:
     }
 
 
+def _serialize_workflow_trigger(trigger: Any) -> Dict[str, Any]:
+    if hasattr(trigger, "dump"):
+        dumped = trigger.dump(camel_case=False)
+        if isinstance(dumped, dict):
+            return _truncate(dumped)
+    if isinstance(trigger, dict):
+        return _truncate(trigger)
+    return {}
+
+
+def resolve_workflow_trigger(
+    client: Any,
+    *,
+    workflow_external_id: str,
+    version: Optional[str] = None,
+) -> Optional[Dict[str, Any]]:
+    """Return the best-matching WorkflowTrigger for a workflow (serialized, snake_case keys)."""
+    ext = str(workflow_external_id or "").strip()
+    if not ext:
+        return None
+    ver_want = str(version or "").strip()
+    try:
+        listed = client.workflows.triggers.list(limit=None)
+    except Exception:
+        return None
+    triggers = list(getattr(listed, "data", None) or listed or [])
+    matches = [
+        t
+        for t in triggers
+        if str(getattr(t, "workflow_external_id", "") or "").strip() == ext
+    ]
+    if not matches:
+        return None
+    if ver_want:
+        for t in matches:
+            if str(getattr(t, "workflow_version", "") or "").strip() == ver_want:
+                return _serialize_workflow_trigger(t)
+    best = max(
+        matches,
+        key=lambda t: _workflow_version_sort_key(str(getattr(t, "workflow_version", "") or "")),
+    )
+    return _serialize_workflow_trigger(best)
+
+
 def workflow_graph(
     client: Any,
     *,

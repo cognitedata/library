@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   handlerDropMenuGroupedOptionsForStage,
   palettePayloadNeedsHandlerPick,
+  transformHandlerPaletteItems,
 } from "./handlerDropMenuOptions";
 import { materializeEtlStageAtPosition } from "./paletteDropOnEdge";
 
@@ -22,10 +23,18 @@ describe("handlerDropMenuOptions", () => {
     ).toBe(false);
   });
 
-  it("lists transform handler groups", () => {
+  it("lists transform handler groups by category", () => {
     const groups = handlerDropMenuGroupedOptionsForStage("transform");
-    expect(groups?.map((g) => g.id)).toEqual(["core", "elt"]);
+    expect(groups?.map((g) => g.id)).toEqual(["string", "structure", "derive"]);
     expect(groups?.[0]?.options.some((o) => o.handlerId === "regex_substitution")).toBe(true);
+    expect(groups?.[0]?.options.some((o) => o.handlerId === "trim_whitespace")).toBe(true);
+  });
+
+  it("exposes flat transform handler palette items", () => {
+    const items = transformHandlerPaletteItems();
+    expect(items.length).toBeGreaterThan(10);
+    expect(items.every((o) => o.payload.handlerId)).toBe(true);
+    expect(items.some((o) => o.handlerId === "trim_whitespace")).toBe(true);
   });
 });
 

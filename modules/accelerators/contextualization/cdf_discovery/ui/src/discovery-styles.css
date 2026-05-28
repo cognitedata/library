@@ -1096,6 +1096,59 @@ body {
   padding: 0.5rem;
 }
 
+.disc-dm-flow-sidebar__tabs {
+  width: 100%;
+}
+
+.disc-dm-flow-sidebar__tabs .disc-gov-subtab:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.disc-dm-fields-table-wrap {
+  overflow-x: auto;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.disc-dm-fields-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+}
+
+.disc-dm-fields-table th,
+.disc-dm-fields-table td {
+  padding: 0.35rem 0.45rem;
+  text-align: left;
+  border-bottom: 1px solid var(--disc-border);
+  vertical-align: top;
+}
+
+.disc-dm-fields-table th {
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--disc-text-muted);
+  position: sticky;
+  top: 0;
+  background: var(--disc-bg-elevated);
+}
+
+.disc-dm-fields-table__name {
+  font-family: var(--disc-font-mono);
+  font-size: 0.78rem;
+  word-break: break-word;
+}
+
+.disc-dm-fields-table__type {
+  font-family: var(--disc-font-mono);
+  font-size: 0.75rem;
+  color: var(--disc-text-muted);
+  word-break: break-word;
+}
+
 .disc-dm-flow-pane__title {
   font-weight: 600;
   font-size: 0.85rem;

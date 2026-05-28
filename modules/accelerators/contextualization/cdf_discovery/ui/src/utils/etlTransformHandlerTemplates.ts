@@ -1,5 +1,6 @@
 import type { MessageKey } from "../i18n/types";
 import type { DiscoveryTransformHandlerId as EtlTransformHandlerId } from "../components/transform/etlHandlerRegistry";
+import { transformHandlerDescription } from "./transformHandlerCatalog";
 
 export type TransformFieldRow = Record<string, unknown>;
 
@@ -88,7 +89,7 @@ export function defaultTransformNodeConfig(
 ): Record<string, unknown> {
   const prev = String(options?.previousOutputField ?? "").trim();
   const cfg: Record<string, unknown> = {
-    description: "Transform",
+    description: transformHandlerDescription(handler),
     handler_id: handler,
     enabled: true,
     fields: [{ field_name: prev }],

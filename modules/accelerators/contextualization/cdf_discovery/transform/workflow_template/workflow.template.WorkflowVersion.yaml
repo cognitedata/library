@@ -1,7 +1,0 @@
-# Reference-only WorkflowVersion metadata — task graph is generated from canvas IR at build.
-externalId: '{{ workflow }}:1'
-workflowExternalId: '{{ workflow }}'
-version: '1'
-description: CDF Discovery ETL pipeline (generated tasks)
-workflowDefinition:
-  tasks: []

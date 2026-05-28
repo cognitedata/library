@@ -9,10 +9,12 @@ def workflow_base_from_config(config: Mapping[str, Any], workflow_id: str) -> st
     return str(config.get("workflow") or f"wf_all_etl_{workflow_id}")
 
 
-def workflow_external_id(*, workflow_base: str, scope_suffix: str = "all") -> str:
+def workflow_external_id(*, workflow_base: str, scope_suffix: str = "") -> str:
+    from workflow_build.paths import normalize_scope_suffix
+
     base = str(workflow_base).strip()
-    suffix = str(scope_suffix).strip() or "all"
-    if suffix == "all":
+    suffix = normalize_scope_suffix(scope_suffix)
+    if not suffix:
         return base
     return f"{base}_{suffix}"
 
@@ -74,7 +76,7 @@ def patch_start_node_workflow_pairing(
     canvas: MutableMapping[str, Any],
     *,
     workflow_base: str,
-    scope_suffix: str = "all",
+    scope_suffix: str = "",
     workflow_version: str = "1",
 ) -> Dict[str, str]:
     node = _start_node(canvas)

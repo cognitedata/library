@@ -8,9 +8,6 @@ scope_hierarchy:
   - area
   - system
   locations:
-  - id: GLOBAL
-    name: Global
-    locations: []
   - id: SITE_A
     name: Site A
     description: ''
@@ -127,3 +124,5 @@ groups:
   combine_with:
   - access_type
   - data_type
+  global:
+    source_ids: {}

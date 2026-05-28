@@ -116,10 +116,72 @@ function SplitDelimiterFields({
   );
 }
 
-function readVariants(block: Record<string, unknown>): string[] {
-  const raw = block.variants;
-  if (!Array.isArray(raw)) return [];
-  return raw.map((v) => String(v ?? ""));
+function variantsToText(variants: unknown): string {
+  if (!Array.isArray(variants)) return "";
+  return commaJoinSegments(variants.map((v) => String(v ?? "")));
+}
+
+function textToVariants(s: string): string[] {
+  return splitCommaSegments(s);
+}
+
+function SubstitutionVariantsField({
+  block,
+  patch,
+  t,
+}: {
+  block: Record<string, unknown>;
+  patch: (p: Record<string, unknown>) => void;
+  t: TFn;
+}) {
+  const variantsKey = JSON.stringify(block.variants ?? null);
+  const [draft, setDraft] = useState(() => variantsToText(block.variants));
+
+  useEffect(() => {
+    setDraft(variantsToText(block.variants));
+  }, [variantsKey]);
+
+  const parsed = splitCommaSegments(draft);
+  const hasDupes = new Set(parsed).size < parsed.length;
+
+  const commit = (raw: string) => {
+    const variants = textToVariants(raw);
+    patch({ variants: variants.length ? variants : undefined });
+    setDraft(variantsToText(variants));
+  };
+
+  return (
+    <>
+      <label className="gov-label gov-label--block" style={{ marginTop: "0.5rem" }}>
+        {t("transforms.handlerFields.variants")}
+        <input
+          type="text"
+          className="gov-input"
+          style={{ marginTop: "0.35rem" }}
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={() => commit(draft)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") commit(draft);
+          }}
+          placeholder={t("transforms.handler.placeholder.variants")}
+          spellCheck={false}
+          autoComplete="off"
+        />
+      </label>
+      <p className="transform-node-editor-modal__hint" style={{ marginTop: "0.25rem" }}>
+        {t("transforms.handlerFields.variantsCommaHint")}
+      </p>
+      {hasDupes ? (
+        <p
+          className="transform-node-editor-modal__hint"
+          style={{ color: "var(--discovery-danger, #c0392b)", marginTop: "0.35rem" }}
+        >
+          {t("transforms.handlerFields.variantsUniqueError")}
+        </p>
+      ) : null}
+    </>
+  );
 }
 
 function samplesToText(samples: unknown): string {
@@ -765,11 +827,6 @@ export function TransformHandlerConfigFields({
   }
 
   if (handler === "substitution_variants") {
-  const variants = readVariants(block);
-  const uniqueCount = new Set(variants.map((v) => v.trim()).filter(Boolean)).size;
-  const hasDupes = uniqueCount < variants.filter((v) => v.trim()).length;
-  const setVariants = (next: string[]) => patch({ variants: next });
-
   return (
     <div className="discovery-handler-fields">
       <label className="gov-label gov-label--block">
@@ -792,48 +849,7 @@ export function TransformHandlerConfigFields({
           spellCheck={false}
         />
       </label>
-      <div className="discovery-handler-fieldset-legend" style={{ margin: "0.75rem 0 0.35rem" }}>
-        {t("transforms.handlerFields.variants")}
-      </div>
-      {variants.map((row, i) => (
-        <div
-          key={i}
-          className="transform-flow-inspector__field transform-flow-inspector__field--label-action transform-flow-inspector__field--align-end"
-          style={{ marginBottom: "0.35rem" }}
-        >
-          <label className="gov-label">
-            {t("transforms.handlerFields.variant")}
-            <input
-              className="gov-input"
-              value={row}
-              onChange={(e) => {
-                const next = [...variants];
-                next[i] = e.target.value;
-                setVariants(next);
-              }}
-            />
-          </label>
-          <button
-            type="button"
-            className="disc-btn disc-btn--ghost disc-btn--sm"
-            onClick={() => setVariants(variants.filter((_, j) => j !== i))}
-          >
-            ×
-          </button>
-        </div>
-      ))}
-      <button
-        type="button"
-        className="disc-btn disc-btn--sm"
-        onClick={() => setVariants([...variants, ""])}
-      >
-        {t("transforms.handlerFields.addVariant")}
-      </button>
-      {hasDupes ? (
-        <p className="transform-node-editor-modal__hint" style={{ color: "var(--discovery-danger, #c0392b)", marginTop: "0.5rem" }}>
-          {t("transforms.handlerFields.variantsUniqueError")}
-        </p>
-      ) : null}
+      <SubstitutionVariantsField block={block} patch={patch} t={t} />
       {onOutputMultiValueChange ? (
         <label className="gov-label gov-label--block" style={{ marginTop: "0.75rem" }}>
           {t("transforms.outputMultiValue")}

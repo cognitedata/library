@@ -1,7 +1,6 @@
 /** Canonical Discovery tree node ids (mirror ``ui/server/tree_node_ids.py``). */
 
 export const CONNECTION_ROOT = "connection";
-export const CONNECTION_INFO = "connection:info";
 export const DATA_ROOT = "data";
 export const DATA_SAVED_QUERIES = "data:sq";
 export const TRANSFORM_ROOT = "transform";
@@ -9,7 +8,6 @@ export const TRANSFORM_PIPELINES = "transform:pipelines";
 export const TRANSFORM_PIPELINE_PREFIX = "transform:pipeline:";
 export const TRANSFORM_TEMPLATES = "transform:templates";
 export const TRANSFORM_TEMPLATE_PREFIX = "transform:template:";
-export const TRANSFORM_SCOPE = "transform:scope";
 export const TRANSFORM_WORKFLOW_PREFIX = "transform:workflow:";
 export const FUSION_ROOT = "fusion";
 export const FUSION_DM_ROOT = "fusion:dm";
@@ -23,7 +21,7 @@ export const GOVERNANCE_GROUPS = "gov:groups";
 export const EXTRACT_ROOT = "extract";
 export const MONITOR_ROOT = "monitor";
 
-/** Sibling order under ``connection`` (project info is always last). */
+/** Sibling order under ``connection`` (tree root label shows the CDF project). */
 export const CONNECTION_ROOT_CHILD_ORDER = [
   DATA_ROOT,
   FUSION_ROOT,
@@ -31,7 +29,6 @@ export const CONNECTION_ROOT_CHILD_ORDER = [
   EXTRACT_ROOT,
   TRANSFORM_ROOT,
   MONITOR_ROOT,
-  CONNECTION_INFO,
 ] as const;
 
 export function dedupeNodeIds(nodeIds: readonly string[]): string[] {

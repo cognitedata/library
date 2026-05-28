@@ -370,6 +370,54 @@ def test_workflow_graph_retrieves_explicit_version():
     assert out["tasks"][0]["external_id"] == "t1"
 
 
+def test_resolve_workflow_trigger_matches_version():
+    t_v1 = MagicMock()
+    t_v1.workflow_external_id = "wf_ent"
+    t_v1.workflow_version = "v1"
+    t_v1.dump.return_value = {
+        "external_id": "trg_v1",
+        "workflow_external_id": "wf_ent",
+        "workflow_version": "v1",
+        "trigger_rule": {"trigger_type": "schedule", "cron_expression": "0 1 * * *"},
+    }
+    t_v2 = MagicMock()
+    t_v2.workflow_external_id = "wf_ent"
+    t_v2.workflow_version = "v2"
+    t_v2.dump.return_value = {
+        "external_id": "trg_v2",
+        "workflow_external_id": "wf_ent",
+        "workflow_version": "v2",
+        "trigger_rule": {"trigger_type": "schedule", "cron_expression": "0 2 * * *"},
+    }
+    listed = MagicMock()
+    listed.data = [t_v1, t_v2]
+    client = MagicMock()
+    client.workflows.triggers.list.return_value = listed
+
+    out = cdf_browse.resolve_workflow_trigger(
+        client, workflow_external_id="wf_ent", version="v2"
+    )
+    assert out is not None
+    assert out["external_id"] == "trg_v2"
+    assert out["trigger_rule"]["cron_expression"] == "0 2 * * *"
+
+
+def test_resolve_workflow_trigger_picks_latest_when_version_omitted():
+    t_v1 = MagicMock()
+    t_v1.workflow_external_id = "wf_ent"
+    t_v1.workflow_version = "v1"
+    t_v1.dump.return_value = {"external_id": "trg_v1", "workflow_version": "v1"}
+    t_v5 = MagicMock()
+    t_v5.workflow_external_id = "wf_ent"
+    t_v5.workflow_version = "v5"
+    t_v5.dump.return_value = {"external_id": "trg_v5", "workflow_version": "v5"}
+    client = MagicMock()
+    client.workflows.triggers.list.return_value = MagicMock(data=[t_v1, t_v5])
+
+    out = cdf_browse.resolve_workflow_trigger(client, workflow_external_id="wf_ent")
+    assert out["external_id"] == "trg_v5"
+
+
 def test_list_workflows_maps_external_id():
     wf = MagicMock()
     wf.external_id = "wf_scope"

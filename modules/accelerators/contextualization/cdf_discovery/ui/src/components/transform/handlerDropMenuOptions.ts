@@ -5,17 +5,22 @@ import {
   isBuildIndexHandlerId,
 } from "./etlBuildIndexHandlerRegistry";
 import {
-  CORE_TRANSFORM_HANDLER_IDS,
-  ELT_TRANSFORM_HANDLER_IDS,
+  TRANSFORM_HANDLER_CATEGORY_DEFS,
+  TRANSFORM_HANDLER_DEFINITIONS,
   type DiscoveryTransformHandlerId,
+  type TransformHandlerCategoryId,
 } from "./etlHandlerRegistry";
-import { isEtlTransformHandlerId } from "../../utils/etlTransformHandlerTemplates";
+import { isEtlTransformHandlerId, transformHandlerDocKey } from "../../utils/etlTransformHandlerTemplates";
+import { buildIndexHandlerDocKey } from "../../utils/buildIndexHandlerTemplates";
+import { handlerPaletteTooltip } from "../../utils/transformHandlerCatalog";
 import type { PaletteDragPayload } from "./transformFlowDrag";
 
 export type HandlerDropMenuOption = {
   id: string;
   handlerId: string;
   labelKey: MessageKey;
+  /** i18n key for palette tooltip and editor hint (synced from Python handler description). */
+  docKey: MessageKey;
   payload: PaletteDragPayload;
 };
 
@@ -24,6 +29,17 @@ export type HandlerDropMenuGroup = {
   labelKey: MessageKey;
   options: HandlerDropMenuOption[];
 };
+
+/** Tooltip text from Python handler ``description`` (generated catalog), not i18n labels. */
+export function handlerDropMenuOptionTooltip(opt: HandlerDropMenuOption): string {
+  const payload = opt.payload;
+  if (payload.kind === "etl_stage" && payload.handlerId) {
+    if (payload.stage === "transform" || payload.stage === "build_index") {
+      return handlerPaletteTooltip(payload.stage, payload.handlerId);
+    }
+  }
+  return "";
+}
 
 export function stageNeedsHandlerPick(stage: TransformCanvasNodeKind): boolean {
   return stage === "transform" || stage === "build_index";
@@ -42,30 +58,50 @@ function buildIndexHandlerOptions(): HandlerDropMenuOption[] {
     id: `build_index-${def.id}`,
     handlerId: def.id,
     labelKey: def.nameKey,
+    docKey: buildIndexHandlerDocKey(def.id),
     payload: { kind: "etl_stage", stage: "build_index", handlerId: def.id },
   }));
+}
+
+function transformHandlerOption(handlerId: DiscoveryTransformHandlerId): HandlerDropMenuOption {
+  const def = TRANSFORM_HANDLER_DEFINITIONS.find((d) => d.id === handlerId);
+  const labelKey = def?.nameKey ?? (`transforms.handlerName.${handlerId}` as MessageKey);
+  return {
+    id: `transform-${handlerId}`,
+    handlerId,
+    labelKey,
+    docKey: transformHandlerDocKey(handlerId),
+    payload: { kind: "etl_stage", stage: "transform", handlerId },
+  };
+}
+
+/** Draggable transform palette / connect-menu entries (one per handler). */
+export function transformHandlerPaletteItems(): HandlerDropMenuOption[] {
+  return transformHandlerDropMenuGroups().flatMap((g) => g.options);
+}
+
+export function transformHandlerDropMenuGroups(): HandlerDropMenuGroup[] {
+  const byCategory = new Map<TransformHandlerCategoryId, HandlerDropMenuOption[]>();
+  for (const cat of TRANSFORM_HANDLER_CATEGORY_DEFS) {
+    byCategory.set(cat.id, []);
+  }
+  for (const def of TRANSFORM_HANDLER_DEFINITIONS) {
+    if (!isEtlTransformHandlerId(def.id)) continue;
+    const bucket = byCategory.get(def.category);
+    if (bucket) bucket.push(transformHandlerOption(def.id));
+  }
+  return TRANSFORM_HANDLER_CATEGORY_DEFS.map((cat) => ({
+    id: cat.id,
+    labelKey: cat.labelKey,
+    options: byCategory.get(cat.id) ?? [],
+  })).filter((g) => g.options.length > 0);
 }
 
 export function handlerDropMenuGroupedOptionsForStage(
   stage: TransformCanvasNodeKind
 ): HandlerDropMenuGroup[] | null {
   if (stage === "transform") {
-    const core = CORE_TRANSFORM_HANDLER_IDS.filter(isEtlTransformHandlerId).map((id) => ({
-      id: `transform-${id}`,
-      handlerId: id,
-      labelKey: `transforms.handlerName.${id}` as MessageKey,
-      payload: { kind: "etl_stage" as const, stage: "transform" as const, handlerId: id },
-    }));
-    const elt = ELT_TRANSFORM_HANDLER_IDS.filter(isEtlTransformHandlerId).map((id) => ({
-      id: `transform-${id}`,
-      handlerId: id,
-      labelKey: `transforms.handlerName.${id}` as MessageKey,
-      payload: { kind: "etl_stage" as const, stage: "transform" as const, handlerId: id },
-    }));
-    return [
-      { id: "core", labelKey: "transforms.handlerGroup.core", options: core },
-      { id: "elt", labelKey: "transforms.handlerGroup.elt", options: elt },
-    ];
+    return transformHandlerDropMenuGroups();
   }
   if (stage === "build_index") {
     return [

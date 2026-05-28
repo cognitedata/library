@@ -42,6 +42,7 @@ Open document tabs and the active tab id are saved under `workspace` in `discove
 - **Workflow tabs** — React Flow diagram of tasks and `dependsOn` edges (latest version when none is specified), with task search and a **Task properties** side panel.
 - **Transformation tabs** — double-click a transformation in the tree to load its SQL query (editable, **Run** preview) and an expandable **Transformation definition** section.
 - **Function tabs** — double-click a function under **Integration → Functions** to load its definition JSON.
+- **Pipeline canvas (Preview node)** — attach a **Preview** node to any upstream stage; on **local run** it snapshots cohort rows into stable RAW (`parameters.preview_raw_table_key`, default `etl_preview`). Double-click the preview node to open a SQL tab filtered by `RUN_ID` and `PREVIEW_NODE_ID`.
 
 ### Properties (bottom)
 

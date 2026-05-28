@@ -17,6 +17,7 @@ import {
   type FinalConnectionState,
   type Node,
   type NodeChange,
+  type Viewport,
 } from "@xyflow/react";
 import { useAppSettings } from "../../context/AppSettingsContext";
 import type { MessageKey } from "../../i18n";
@@ -24,23 +25,35 @@ import type { TransformCanvasDocument, TransformCanvasEdgeKind } from "../../typ
 import {
   normalizeTransformCanvasEdgePathStyle,
   normalizeTransformCanvasHandleOrientation,
+  normalizeTransformCanvasLayoutMethod,
   type TransformCanvasEdgePathStyle,
   rfTypeToKind,
   type TransformCanvasHandleOrientation,
+  type TransformCanvasLayoutMethod,
   type TransformCanvasNodeKind,
+  type TransformPipelineParameters,
 } from "../../types/transformCanvas";
 import type { TreeNode } from "../../types/discoveryNodes";
 import { entityDropMenuOptions, type EntityDropMenuOption } from "../../utils/dataTreeEntityDrop";
 import {
   isOrchestrationNodeKind,
   shouldOpenNodeEditorOnDoubleClick,
+  shouldOpenPreviewQueryOnActivate,
 } from "../../utils/transformNodeEditorKinds";
 import {
   canvasToFlowEdges,
   canvasToFlowNodes,
   flowToCanvasDocument,
+  readCanvasDocumentViewport,
   applyTransformFlowRunDisplayClasses,
 } from "./flowDocumentBridge";
+import { canvasViewportToFlowViewport, viewportToCanvasViewport } from "./transformFlowHistory";
+import { useTransformFlowHistory } from "./useTransformFlowHistory";
+import { useTransformFlowKeyboard } from "./useTransformFlowKeyboard";
+import { TransformFlowNodeToolbar } from "./TransformFlowNodeToolbar";
+import { duplicateTransformFlowSelection } from "./duplicateTransformFlowSelection";
+import { reconnectTransformFlowEdge } from "./reconnectTransformFlowEdge";
+import type { TransformCanvasViewport } from "../../types/transformCanvasViewport";
 import { TransformLocalRunDryRunField } from "./TransformLocalRunDryRunField";
 import { FlowNodeInspector } from "./FlowNodeInspector";
 import { FlowNodeEditorModal } from "./FlowNodeEditorModal";
@@ -62,11 +75,16 @@ import {
   applyTransformCanvasDropAtPosition,
   materializeEtlStageAtPosition,
 } from "./paletteDropOnEdge";
+import { applyWiredCreationLabel } from "../../utils/etlNodeCreationLabel";
+import { palettePayloadTooltip } from "../../utils/paletteStageTooltip";
 import {
   handlerDropMenuGroupedOptionsForStage,
+  handlerDropMenuOptionTooltip,
   palettePayloadNeedsHandlerPick,
+  transformHandlerDropMenuGroups,
   type HandlerDropMenuOption,
 } from "./handlerDropMenuOptions";
+import { TransformHandlerCategoryPicker } from "./TransformHandlerCategoryPicker";
 import { applyEtlNodeRemovals } from "./applyEtlNodeRemovals";
 import {
   ETL_FLOW_NODE_TYPES,
@@ -97,10 +115,38 @@ import { highlightEdgesConnectedToNode } from "../flow/highlightEdgesForSelected
 import { runProgressAnimatedEdgeIds } from "./flowRunProgressEdges";
 import type { TransformFlowRunProgress } from "./transformPipelineRunStream";
 import { applyFlowHandleOrientationToNode } from "./flowHandleOrientation";
-import { layoutTransformFlowNodes } from "./transformAutoLayoutFlow";
+import { layoutTransformFlowNodesByMethod } from "./transformAutoLayoutFlow";
+import {
+  buildTransformFlowPaneContextMenuItems,
+  TRANSFORM_FLOW_LAYOUT_METHOD_OPTIONS,
+} from "./transformFlowCanvasContextMenu";
 import { alignSelectedTransformFlowNodes, type AlignFlowSelectionMode } from "./alignSelectedNodes";
 import type { FlowEdgeData } from "./flowDocumentBridge";
 import { useTransformFlowClipboard } from "./useTransformFlowClipboard";
+import {
+  canMergeTransformSelection,
+  isMergeableTransformFlowNode,
+  mergeSelectedTransformFlowNodes,
+} from "./mergeSelectedTransformNodes";
+import {
+  applyFlowOptimizeCandidates,
+  discoverFlowOptimizeCandidates,
+  type FlowOptimizeCandidate,
+} from "./discoverFlowOptimizeCandidates";
+import {
+  canMergeScoreSelection,
+  isMergeableScoreFlowNode,
+  mergeSelectedScoreFlowNodes,
+} from "./mergeSelectedScoreNodes";
+import {
+  explodeScoreFlowNode,
+  isExplodableScoreFlowNode,
+} from "./explodeScoreFlowNode";
+import { OptimizeTransformsDialog } from "./OptimizeTransformsDialog";
+import {
+  explodeMultiStepTransformFlowNode,
+  isExplodableMultiStepTransformFlowNode,
+} from "./explodeMultiStepTransformNode";
 
 type TFn = (key: MessageKey, vars?: Record<string, string | number>) => string;
 
@@ -157,22 +203,66 @@ function FlowStagePickerMenu({
             {t(g.labelKey)}
           </button>
         ))
+      ) : selectedGroup.id === "transform" ? (
+        <>
+          <button type="button" className="disc-btn" role="menuitem" onClick={() => onGroupIdChange(null)}>
+            {t("transform.connectEnd.back")}
+          </button>
+          <TransformHandlerCategoryPicker
+            variant="menu"
+            groups={transformHandlerDropMenuGroups()}
+            t={t}
+            onPick={(opt) => onPick(opt.payload)}
+          />
+          {[...selectedGroup.options]
+            .filter(
+              (o) =>
+                o.payload.stage !== "transform" ||
+                !String(o.payload.handlerId ?? "").trim()
+            )
+            .sort((a, b) =>
+              t(a.labelKey).localeCompare(t(b.labelKey), undefined, { sensitivity: "base" })
+            )
+            .map((opt: ConnectEndMenuOption) => {
+              const tip = palettePayloadTooltip(opt.payload, t);
+              return (
+              <button
+                key={opt.id}
+                type="button"
+                className="disc-btn"
+                role="menuitem"
+                onClick={() => onPick(opt.payload)}
+                title={tip || undefined}
+              >
+                {t(opt.labelKey)}
+              </button>
+            );
+            })}
+        </>
       ) : (
         <>
           <button type="button" className="disc-btn" role="menuitem" onClick={() => onGroupIdChange(null)}>
             {t("transform.connectEnd.back")}
           </button>
-          {selectedGroup.options.map((opt: ConnectEndMenuOption) => (
-            <button
-              key={opt.id}
-              type="button"
-              className="disc-btn"
-              role="menuitem"
-              onClick={() => onPick(opt.payload)}
-            >
-              {t(opt.labelKey)}
-            </button>
-          ))}
+          {[...selectedGroup.options]
+            .sort((a, b) =>
+              t(a.labelKey).localeCompare(t(b.labelKey), undefined, { sensitivity: "base" })
+            )
+            .map((opt: ConnectEndMenuOption) => {
+              const tip = palettePayloadTooltip(opt.payload, t);
+              return (
+              <button
+                key={opt.id}
+                type="button"
+                className="disc-btn"
+                role="menuitem"
+                onClick={() => onPick(opt.payload)}
+                title={tip || undefined}
+              >
+                {t(opt.labelKey)}
+              </button>
+            );
+            })}
         </>
       )}
     </div>
@@ -235,6 +325,7 @@ function FlowHandlerDropMenu({
   const groups = handlerDropMenuGroupedOptionsForStage(stage);
   if (!groups?.length) return null;
   const selectedGroup = groups.find((g) => g.id === groupId) ?? null;
+  const showTransformCategories = stage === "transform";
   return (
     <div
       className="transform-flow-connect-end-menu"
@@ -247,7 +338,14 @@ function FlowHandlerDropMenu({
       }}
       aria-label={t("transform.handlerDrop.title")}
     >
-      {!selectedGroup ? (
+      {showTransformCategories ? (
+        <TransformHandlerCategoryPicker
+          variant="menu"
+          groups={groups}
+          t={t}
+          onPick={onPick}
+        />
+      ) : !selectedGroup ? (
         groups.map((g) => (
           <button
             key={g.id}
@@ -271,6 +369,11 @@ function FlowHandlerDropMenu({
               className="disc-btn"
               role="menuitem"
               onClick={() => onPick(opt)}
+              title={
+                palettePayloadTooltip(opt.payload, t) ||
+                handlerDropMenuOptionTooltip(opt) ||
+                undefined
+              }
             >
               {t(opt.labelKey)}
             </button>
@@ -346,6 +449,10 @@ type Props = {
   runBusy?: boolean;
   statusMessage?: string | null;
   runProgress?: TransformFlowRunProgress;
+  validationFailedNodeIds?: readonly string[];
+  pipelineParameters?: TransformPipelineParameters | null;
+  lastRunId?: string | null;
+  onOpenNodePreviewQuery?: (node: Node) => void;
 };
 
 function FlowCanvasBody({
@@ -373,10 +480,17 @@ function FlowCanvasBody({
   runBusy = false,
   statusMessage,
   runProgress,
+  validationFailedNodeIds,
+  onOpenNodePreviewQuery,
 }: Props) {
   const { theme } = useAppSettings();
-  const { screenToFlowPosition, getNode, getEdges, getNodes, getZoom, fitView } = useReactFlow();
+  const { screenToFlowPosition, getNode, getEdges, getNodes, getZoom, fitView, setViewport } =
+    useReactFlow();
   const flowRootRef = useRef<HTMLDivElement>(null);
+  const viewportRef = useRef<TransformCanvasViewport | null>(
+    readCanvasDocumentViewport(initialDocument) ?? null
+  );
+  const viewportPersistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const rfSelectionRef = useRef<Node[]>([]);
   const [alignableSelectionCount, setAlignableSelectionCount] = useState(0);
   useOnSelectionChange({
@@ -393,6 +507,9 @@ function FlowCanvasBody({
   const [edgePathStyle, setEdgePathStyle] = useState<TransformCanvasEdgePathStyle>(() =>
     normalizeTransformCanvasEdgePathStyle(initialDocument.edge_path_style)
   );
+  const [layoutMethod, setLayoutMethod] = useState<TransformCanvasLayoutMethod>(() =>
+    normalizeTransformCanvasLayoutMethod(initialDocument.layout_method)
+  );
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
   const [selectedEdge, setSelectedEdge] = useState<Edge | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -406,15 +523,37 @@ function FlowCanvasBody({
   const [entityDropMenu, setEntityDropMenu] = useState<EntityDropMenuState | null>(null);
   const [handlerDropMenu, setHandlerDropMenu] = useState<HandlerDropMenuState | null>(null);
   const [handlerDropMenuGroupId, setHandlerDropMenuGroupId] = useState<string | null>(null);
+  const [optimizeOpen, setOptimizeOpen] = useState(false);
+  const [optimizeCandidates, setOptimizeCandidates] = useState<FlowOptimizeCandidate[]>([]);
+  const [optimizeNotice, setOptimizeNotice] = useState<string | null>(null);
   const flowCtxMenu = useTreeContextMenuState();
   const latestInitialRef = useRef(initialDocument);
   latestInitialRef.current = initialDocument;
 
+  const initialDocumentRevision = useMemo(
+    () =>
+      `${initialDocument.nodes.length}:${initialDocument.edges.length}:${initialDocument.nodes[0]?.id ?? ""}`,
+    [initialDocument]
+  );
+
+  const flowHistory = useTransformFlowHistory({
+    nodes,
+    edges,
+    handleOrientation,
+    layoutMethod,
+    edgePathStyle,
+    viewportRef,
+  });
+
   useEffect(() => {
     const doc = latestInitialRef.current;
     const ho = normalizeTransformCanvasHandleOrientation(doc.handle_orientation);
+    const lm = normalizeTransformCanvasLayoutMethod(doc.layout_method);
     const eps = normalizeTransformCanvasEdgePathStyle(doc.edge_path_style);
+    const savedViewport = readCanvasDocumentViewport(doc);
+    viewportRef.current = savedViewport ?? null;
     setHandleOrientation(ho);
+    setLayoutMethod(lm);
     setEdgePathStyle(eps);
     let flowNodes = canvasToFlowNodes(doc.nodes);
     const flowEdges = canvasToFlowEdges(doc.edges, eps);
@@ -424,7 +563,7 @@ function FlowCanvasBody({
         (n) => !Number.isFinite(n.position?.x) || !Number.isFinite(n.position?.y)
       )
     ) {
-      flowNodes = layoutTransformFlowNodes(flowNodes, flowEdges, ho);
+      flowNodes = layoutTransformFlowNodesByMethod(flowNodes, flowEdges, ho, lm);
     }
     setNodes(flowNodes);
     setEdges(flowEdges);
@@ -433,23 +572,108 @@ function FlowCanvasBody({
     setEditorModalNode(null);
     setSearchQuery("");
     setFocusNodeId(null);
-    window.setTimeout(() => fitView({ padding: 0.15, duration: 0 }), 0);
-  }, [reloadNonce, setNodes, setEdges, fitView]);
+    flowHistory.reset();
+    if (savedViewport) {
+      window.requestAnimationFrame(() => {
+        setViewport(canvasViewportToFlowViewport(savedViewport));
+      });
+    } else {
+      window.setTimeout(() => fitView({ padding: 0.15, duration: 0 }), 0);
+    }
+  }, [reloadNonce, initialDocumentRevision, setNodes, setEdges, fitView, setViewport, flowHistory.reset]);
+
+  useEffect(() => {
+    return () => {
+      if (viewportPersistTimerRef.current) {
+        window.clearTimeout(viewportPersistTimerRef.current);
+      }
+    };
+  }, []);
 
   const emitChange = useCallback(
     (
       nextNodes: Node[],
       nextEdges: Edge[],
-      opts?: { orientation?: TransformCanvasHandleOrientation; edgePathStyle?: TransformCanvasEdgePathStyle }
+      opts?: {
+        orientation?: TransformCanvasHandleOrientation;
+        layoutMethod?: TransformCanvasLayoutMethod;
+        edgePathStyle?: TransformCanvasEdgePathStyle;
+      },
+      meta?: { viewport?: TransformCanvasViewport | null; recordHistory?: boolean }
     ) => {
+      if (meta?.recordHistory !== false && !flowHistory.isApplying()) {
+        flowHistory.recordBeforeChange();
+      }
+      if (meta?.viewport !== undefined) {
+        viewportRef.current = meta.viewport;
+      }
+      const vp = viewportRef.current ?? undefined;
       onChange(
         flowToCanvasDocument(nextNodes, nextEdges, {
           handleOrientation: opts?.orientation ?? handleOrientation,
+          layoutMethod: opts?.layoutMethod ?? layoutMethod,
           edgePathStyle: opts?.edgePathStyle ?? edgePathStyle,
+          viewport: vp,
         })
       );
     },
-    [onChange, handleOrientation, edgePathStyle]
+    [onChange, handleOrientation, layoutMethod, edgePathStyle, flowHistory]
+  );
+
+  const applyHistorySnapshot = useCallback(
+    (snap: ReturnType<typeof flowHistory.undo>) => {
+      if (!snap) return;
+      viewportRef.current = snap.viewport;
+      setHandleOrientation(snap.handleOrientation);
+      setLayoutMethod(snap.layoutMethod);
+      setEdgePathStyle(snap.edgePathStyle);
+      setNodes(snap.nodes);
+      setEdges(snap.edges);
+      if (snap.viewport) {
+        setViewport(canvasViewportToFlowViewport(snap.viewport));
+      }
+      emitChange(snap.nodes, snap.edges, {
+        orientation: snap.handleOrientation,
+        layoutMethod: snap.layoutMethod,
+        edgePathStyle: snap.edgePathStyle,
+      }, { viewport: snap.viewport, recordHistory: false });
+      setSelectedNode(null);
+      setSelectedEdge(null);
+      setEditorModalNode(null);
+    },
+    [setNodes, setEdges, setViewport, emitChange]
+  );
+
+  const handleUndo = useCallback(() => {
+    applyHistorySnapshot(flowHistory.undo());
+  }, [applyHistorySnapshot, flowHistory]);
+
+  const handleRedo = useCallback(() => {
+    applyHistorySnapshot(flowHistory.redo());
+  }, [applyHistorySnapshot, flowHistory]);
+
+  const scheduleViewportPersist = useCallback(
+    (vp: Viewport) => {
+      viewportRef.current = viewportToCanvasViewport(vp);
+      if (viewportPersistTimerRef.current) {
+        window.clearTimeout(viewportPersistTimerRef.current);
+      }
+      viewportPersistTimerRef.current = window.setTimeout(() => {
+        emitChange(nodes, edges, undefined, {
+          viewport: viewportRef.current,
+          recordHistory: false,
+        });
+      }, 400);
+    },
+    [nodes, edges, emitChange]
+  );
+
+  const onMoveEnd = useCallback(
+    (_event: MouseEvent | TouchEvent | null, vp: Viewport) => {
+      if (readOnly) return;
+      scheduleViewportPersist(vp);
+    },
+    [readOnly, scheduleViewportPersist]
   );
 
   const flowClipboard = useTransformFlowClipboard({
@@ -458,13 +682,30 @@ function FlowCanvasBody({
     setNodes,
     setEdges,
     rfSelectionRef,
-    flowRootRef: flowRootRef as RefObject<HTMLElement | null>,
     readOnly,
-    onPasted: emitChange,
+    onPasted: (nextNodes, nextEdges) => emitChange(nextNodes, nextEdges),
   });
 
+  const onSelectAllNodes = useCallback(() => {
+    setNodes((nds) => nds.map((n) => ({ ...n, selected: true })));
+  }, [setNodes]);
+
+  const onDuplicateSelection = useCallback((): boolean => {
+    if (readOnly) return false;
+    const selected = rfSelectionRef.current.filter((n) => !isBoundaryFlowNode(n));
+    if (selected.length === 0) return false;
+    const result = duplicateTransformFlowSelection(nodes, edges, selected);
+    if (!result) return false;
+    setNodes(result.nodes);
+    setEdges(result.edges);
+    emitChange(result.nodes, result.edges);
+    const first = result.nodes.find((n) => result.newNodeIds.includes(n.id)) ?? null;
+    if (first) setSelectedNode(first);
+    return true;
+  }, [readOnly, nodes, edges, setNodes, setEdges, emitChange]);
+
   const transformCanvas = useMemo(
-    () => flowToCanvasDocument(nodes, edges, { handleOrientation, edgePathStyle }),
+    () => flowToCanvasDocument(nodes, edges, { handleOrientation, layoutMethod, edgePathStyle }),
     [nodes, edges, handleOrientation, edgePathStyle]
   );
 
@@ -488,21 +729,33 @@ function FlowCanvasBody({
   );
 
   const applyAutoLayout = useCallback(
-    (orientation: TransformCanvasHandleOrientation) => {
+    (
+      orientation: TransformCanvasHandleOrientation,
+      method: TransformCanvasLayoutMethod = layoutMethod
+    ) => {
       const eds = getEdges();
       setNodes((nds) => {
-        const laidOut = layoutTransformFlowNodes(nds, eds, orientation);
-        emitChange(laidOut, eds, { orientation });
+        const laidOut = layoutTransformFlowNodesByMethod(nds, eds, orientation, method);
+        emitChange(laidOut, eds, { orientation, layoutMethod: method });
         return laidOut;
       });
       window.setTimeout(() => fitView({ padding: 0.15, duration: 200 }), 0);
     },
-    [getEdges, setNodes, emitChange, fitView]
+    [getEdges, setNodes, emitChange, fitView, layoutMethod]
   );
 
   const handleAutoLayout = useCallback(() => {
-    applyAutoLayout(handleOrientation);
-  }, [applyAutoLayout, handleOrientation]);
+    applyAutoLayout(handleOrientation, layoutMethod);
+  }, [applyAutoLayout, handleOrientation, layoutMethod]);
+
+  const onLayoutMethodChange = useCallback(
+    (next: string) => {
+      const method = normalizeTransformCanvasLayoutMethod(next);
+      setLayoutMethod(method);
+      applyAutoLayout(handleOrientation, method);
+    },
+    [applyAutoLayout, handleOrientation]
+  );
 
   const applySelectionAlign = useCallback(
     (mode: AlignFlowSelectionMode) => {
@@ -553,6 +806,19 @@ function FlowCanvasBody({
       });
     },
     [readOnly, setEdges, emitChange, nodes, getNode, getEdges]
+  );
+
+  const onReconnect = useCallback(
+    (oldEdge: Edge, newConnection: Connection) => {
+      if (readOnly) return;
+      setEdges((eds) => {
+        const next = reconnectTransformFlowEdge(oldEdge, newConnection, eds, getNode);
+        if (next === eds) return eds;
+        emitChange(nodes, next);
+        return next;
+      });
+    },
+    [readOnly, setEdges, emitChange, nodes, getNode]
   );
 
   const onConnectEnd = useCallback(
@@ -610,7 +876,8 @@ function FlowCanvasBody({
       const existingIds = new Set(nds.map((n) => n.id));
       const materialized = materializeEtlStageAtPosition(payload, connectEndMenu.flow, existingIds);
       if (!materialized) return;
-      const { node } = materialized;
+      const predecessor = getNode(connectEndMenu.sourceNodeId);
+      const node = applyWiredCreationLabel(materialized.node, predecessor, t);
       const conn: Connection = {
         source: connectEndMenu.sourceNodeId,
         sourceHandle: connectEndMenu.sourceHandleId ?? "out",
@@ -636,7 +903,7 @@ function FlowCanvasBody({
       setSelectedNode(node);
       setSelectedEdge(null);
     },
-    [connectEndMenu, getNodes, getEdges, getNode, setNodes, setEdges, emitChange]
+    [connectEndMenu, getNodes, getEdges, getNode, setNodes, setEdges, emitChange, t]
   );
 
   const commitPaneAddNode = useCallback(
@@ -685,6 +952,7 @@ function FlowCanvasBody({
           getEdges,
           zoom: getZoom(),
           nodes,
+          localize: t,
         });
         if (!result) return;
         setNodes(result.nodes);
@@ -699,7 +967,8 @@ function FlowCanvasBody({
         const existingIds = new Set(nds.map((n) => n.id));
         const materialized = materializeEtlStageAtPosition(payload, flow, existingIds);
         if (!materialized) return;
-        const { node } = materialized;
+        const predecessor = getNode(mode.sourceNodeId);
+        const node = applyWiredCreationLabel(materialized.node, predecessor, t);
         const conn: Connection = {
           source: mode.sourceNodeId,
           sourceHandle: mode.sourceHandleId ?? "out",
@@ -741,7 +1010,7 @@ function FlowCanvasBody({
       setHandlerDropMenu(null);
       setHandlerDropMenuGroupId(null);
     },
-    [handlerDropMenu, nodes, getNode, getEdges, getZoom, getNodes, setNodes, setEdges, emitChange]
+    [handlerDropMenu, nodes, getNode, getEdges, getZoom, getNodes, setNodes, setEdges, emitChange, t]
   );
 
   useEffect(() => {
@@ -794,6 +1063,30 @@ function FlowCanvasBody({
     [getNodes, getEdges, setNodes, setEdges, emitChange]
   );
 
+  const onCutSelection = useCallback((): boolean => {
+    if (readOnly) return false;
+    if (!flowClipboard.copySelection()) return false;
+    const ids = rfSelectionRef.current.filter((n) => !isBoundaryFlowNode(n)).map((n) => n.id);
+    if (ids.length === 0) return false;
+    removeNodesByIds(ids);
+    return true;
+  }, [readOnly, flowClipboard, removeNodesByIds]);
+
+  useTransformFlowKeyboard({
+    flowRootRef: flowRootRef as RefObject<HTMLElement | null>,
+    readOnly,
+    rfSelectionRef,
+    onCopy: flowClipboard.copySelection,
+    onPaste: flowClipboard.pasteClipboard,
+    onCut: onCutSelection,
+    onDuplicate: onDuplicateSelection,
+    onSelectAll: onSelectAllNodes,
+    onUndo: handleUndo,
+    onRedo: handleRedo,
+    canUndo: flowHistory.canUndo,
+    canRedo: flowHistory.canRedo,
+  });
+
   const onNodesChangeWrapped = useCallback(
     (changes: NodeChange[]) => {
       const removals = changes.filter((c): c is Extract<NodeChange, { type: "remove" }> => c.type === "remove");
@@ -833,6 +1126,85 @@ function FlowCanvasBody({
       removeNodesByIds([nodeId]);
     },
     [readOnly, removeNodesByIds]
+  );
+
+  const onMergeSelectedPipelineNodes = useCallback(
+    (anchorNodeId: string) => {
+      if (readOnly) return;
+      const selected = rfSelectionRef.current;
+      const transformIds = selected.filter(isMergeableTransformFlowNode).map((n) => n.id);
+      if (transformIds.length >= 2 && transformIds.includes(anchorNodeId)) {
+        const result = mergeSelectedTransformFlowNodes(getNodes(), getEdges(), transformIds, anchorNodeId);
+        if (result) {
+          setNodes(result.nodes);
+          setEdges(result.edges);
+          emitChange(result.nodes, result.edges);
+          const anchor = result.nodes.find((n) => n.id === result.anchorNodeId) ?? null;
+          setSelectedNode(anchor);
+          setSelectedEdge(null);
+          setEditorModalNode(anchor);
+          return;
+        }
+      }
+      const scoreIds = selected.filter(isMergeableScoreFlowNode).map((n) => n.id);
+      if (scoreIds.length >= 2 && scoreIds.includes(anchorNodeId)) {
+        const result = mergeSelectedScoreFlowNodes(getNodes(), getEdges(), scoreIds, anchorNodeId);
+        if (!result) return;
+        setNodes(result.nodes);
+        setEdges(result.edges);
+        emitChange(result.nodes, result.edges);
+        const anchor = result.nodes.find((n) => n.id === result.anchorNodeId) ?? null;
+        setSelectedNode(anchor);
+        setSelectedEdge(null);
+        setEditorModalNode(anchor);
+      }
+    },
+    [readOnly, getNodes, getEdges, setNodes, setEdges, emitChange]
+  );
+
+  const onOpenOptimizeTransforms = useCallback(() => {
+    if (readOnly) return;
+    setOptimizeNotice(null);
+    setOptimizeCandidates(discoverFlowOptimizeCandidates(getNodes(), getEdges()));
+    setOptimizeOpen(true);
+  }, [readOnly, getNodes, getEdges]);
+
+  const onApplyOptimizeTransforms = useCallback(
+    (approved: FlowOptimizeCandidate[]) => {
+      if (readOnly) return;
+      const result = applyFlowOptimizeCandidates(getNodes(), getEdges(), approved);
+      if (!result) return;
+      setNodes(result.nodes);
+      setEdges(result.edges);
+      emitChange(result.nodes, result.edges);
+      setSelectedNode(null);
+      setSelectedEdge(null);
+      setEditorModalNode(null);
+      setOptimizeNotice(t("transform.optimize.applied", { count: result.appliedCount }));
+    },
+    [readOnly, getNodes, getEdges, setNodes, setEdges, emitChange, t]
+  );
+
+  const onExplodePipelineNode = useCallback(
+    (sourceNodeId: string) => {
+      if (readOnly) return;
+      const nds = getNodes();
+      const eds = getEdges();
+      const source = nds.find((n) => n.id === sourceNodeId);
+      if (!source) return;
+      const result = isExplodableScoreFlowNode(source)
+        ? explodeScoreFlowNode(nds, eds, sourceNodeId, { handleOrientation })
+        : explodeMultiStepTransformFlowNode(nds, eds, sourceNodeId, { handleOrientation });
+      if (!result) return;
+      setNodes(result.nodes);
+      setEdges(result.edges);
+      emitChange(result.nodes, result.edges);
+      const first = result.nodes.find((n) => n.id === result.newNodeIds[0]) ?? null;
+      setSelectedNode(first);
+      setSelectedEdge(null);
+      setEditorModalNode(null);
+    },
+    [readOnly, getNodes, getEdges, setNodes, setEdges, emitChange, handleOrientation]
   );
 
   const onNodeDragStop = useCallback(() => {
@@ -969,6 +1341,26 @@ function FlowCanvasBody({
     [setNodes, emitChange, edges]
   );
 
+  const onToggleNodeEnabled = useCallback(
+    (node: Node) => {
+      if (readOnly) return;
+      const data = (node.data ?? {}) as Record<string, unknown>;
+      onPatchNode(node.id, { ...data, canvas_node_enabled: !isFlowNodeEnabled(data) });
+    },
+    [readOnly, onPatchNode]
+  );
+
+  const toolbarNodes = useMemo(
+    () => nodes.filter((n) => n.selected && !isBoundaryFlowNode(n)),
+    [nodes]
+  );
+
+  const flowDefaultViewport = useMemo(
+    () =>
+      viewportRef.current ? canvasViewportToFlowViewport(viewportRef.current) : undefined,
+    [reloadNonce, initialDocumentRevision]
+  );
+
   const onFlowNodeContextMenu = useCallback(
     (e: ReactMouseEvent | globalThis.MouseEvent, node: Node) => {
       if (readOnly) return;
@@ -980,6 +1372,20 @@ function FlowCanvasBody({
       setSelectedEdge(null);
       if (isBoundaryFlowNode(node)) return;
       const data = (node.data ?? {}) as Record<string, unknown>;
+      const mergeableTransforms = rfSelectionRef.current.filter(isMergeableTransformFlowNode);
+      const mergeableScores = rfSelectionRef.current.filter(isMergeableScoreFlowNode);
+      const canMergeTransforms =
+        isMergeableTransformFlowNode(node) &&
+        mergeableTransforms.length >= 2 &&
+        mergeableTransforms.some((n) => n.id === node.id) &&
+        canMergeTransformSelection(mergeableTransforms, getEdges());
+      const canMergeScores =
+        isMergeableScoreFlowNode(node) &&
+        mergeableScores.length >= 2 &&
+        mergeableScores.some((n) => n.id === node.id) &&
+        canMergeScoreSelection(mergeableScores, getEdges());
+      const canExplodeNode =
+        isExplodableMultiStepTransformFlowNode(node) || isExplodableScoreFlowNode(node);
       const items: TreeCtxMenuItem[] = [
         {
           id: "copy",
@@ -991,6 +1397,35 @@ function FlowCanvasBody({
           label: t("transform.flow.ctxMenuPaste"),
           onSelect: () => void flowClipboard.pasteClipboard(),
         },
+        ...(canMergeTransforms
+          ? [
+              {
+                id: "merge-transforms",
+                label: t("transform.flow.ctxMenuMergeTransforms"),
+                onSelect: () => onMergeSelectedPipelineNodes(node.id),
+              },
+            ]
+          : []),
+        ...(canMergeScores
+          ? [
+              {
+                id: "merge-scores",
+                label: t("transform.flow.ctxMenuMergeScores"),
+                onSelect: () => onMergeSelectedPipelineNodes(node.id),
+              },
+            ]
+          : []),
+        ...(canExplodeNode
+          ? [
+              {
+                id: "explode-node",
+                label: isExplodableScoreFlowNode(node)
+                  ? t("transform.flow.ctxMenuExplodeScore")
+                  : t("transform.flow.ctxMenuExplodeTransforms"),
+                onSelect: () => onExplodePipelineNode(node.id),
+              },
+            ]
+          : []),
         {
           id: "open-editor",
           label: t("transform.inspector.openEditor"),
@@ -1013,7 +1448,17 @@ function FlowCanvasBody({
       ];
       flowCtxMenu.open(e, items);
     },
-    [readOnly, flowCtxMenu, t, onPatchNode, onDeleteNode, flowClipboard]
+    [
+      readOnly,
+      flowCtxMenu,
+      t,
+      onPatchNode,
+      onDeleteNode,
+      onMergeSelectedPipelineNodes,
+      onExplodePipelineNode,
+      flowClipboard,
+      getEdges,
+    ]
   );
 
   const onFlowPaneContextMenu = useCallback(
@@ -1026,52 +1471,68 @@ function FlowCanvasBody({
       setEntityDropMenu(null);
       const coords = { x: e.clientX, y: e.clientY };
       const flowPos = screenToFlowPosition(coords);
-      flowCtxMenu.open(e, [
-        {
-          id: "copy",
-          label: t("transform.flow.ctxMenuCopy"),
-          onSelect: () => flowClipboard.copySelection(),
-        },
-        {
-          id: "paste",
-          label: t("transform.flow.ctxMenuPaste"),
-          onSelect: () => void flowClipboard.pasteClipboard(),
-        },
-        {
-          id: "add-node",
-          label: t("transform.contextMenu.addNode"),
-          onSelect: () => {
+      flowCtxMenu.open(
+        e,
+        buildTransformFlowPaneContextMenuItems({
+          t,
+          onCopy: () => flowClipboard.copySelection(),
+          onPaste: () => void flowClipboard.pasteClipboard(),
+          onAddNode: () => {
             setPaneAddMenu({ screen: coords, flow: flowPos });
             setPaneAddMenuGroupId(null);
           },
-        },
-        {
-          id: "fit",
-          label: t("transform.layout.fitView"),
-          onSelect: () => fitView({ padding: 0.15 }),
-        },
-        {
-          id: "auto-layout",
-          label: t("transform.layout.autoLayout"),
-          onSelect: () => handleAutoLayout(),
-        },
-      ]);
+          showAlign: !readOnly,
+          alignDisabled: alignableSelectionCount < 2,
+          onAlignSelection: applySelectionAlign,
+          handleOrientation,
+          onHandleOrientationChange,
+          layoutMethod,
+          layoutMethodOptions: TRANSFORM_FLOW_LAYOUT_METHOD_OPTIONS,
+          onLayoutMethodChange,
+          edgePathStyle,
+          onEdgePathStyleChange,
+          onFitView: () => fitView({ padding: 0.15, duration: 200 }),
+          onAutoLayout: handleAutoLayout,
+        })
+      );
       setSelectedNode(null);
       setSelectedEdge(null);
     },
-    [readOnly, flowCtxMenu, screenToFlowPosition, t, flowClipboard, fitView, handleAutoLayout]
+    [
+      readOnly,
+      flowCtxMenu,
+      screenToFlowPosition,
+      t,
+      flowClipboard,
+      fitView,
+      handleAutoLayout,
+      layoutMethod,
+      onLayoutMethodChange,
+      handleOrientation,
+      onHandleOrientationChange,
+      edgePathStyle,
+      onEdgePathStyleChange,
+      alignableSelectionCount,
+      applySelectionAlign,
+    ]
   );
 
   const onNodeDoubleClick = useCallback(
     (e: React.MouseEvent, node: Node) => {
       e.preventDefault();
       const kind = rfTypeToKind(node.type);
+      if (shouldOpenPreviewQueryOnActivate(kind)) {
+        onOpenNodePreviewQuery?.(node);
+        setSelectedNode(node);
+        setSelectedEdge(null);
+        return;
+      }
       if (!shouldOpenNodeEditorOnDoubleClick(kind, readOnly)) return;
       setEditorModalNode(node);
       setSelectedNode(node);
       setSelectedEdge(null);
     },
-    [readOnly]
+    [readOnly, onOpenNodePreviewQuery]
   );
 
   const onDragOver = useCallback((e: React.DragEvent) => {
@@ -1156,6 +1617,7 @@ function FlowCanvasBody({
         getEdges,
         zoom: getZoom(),
         nodes,
+        localize: t,
       });
       if (!result) return;
 
@@ -1166,7 +1628,7 @@ function FlowCanvasBody({
       setSelectedNode(selected);
       setSelectedEdge(null);
     },
-    [readOnly, nodes, screenToFlowPosition, getNode, getEdges, getZoom, setNodes, setEdges, emitChange]
+    [readOnly, nodes, screenToFlowPosition, getNode, getEdges, getZoom, setNodes, setEdges, emitChange, t]
   );
 
   const nodeTypes = useMemo(() => ETL_FLOW_NODE_TYPES, []);
@@ -1215,6 +1677,10 @@ function FlowCanvasBody({
     () => new Set(runProgress?.warningCanvasNodeIds ?? []),
     [runProgress?.warningCanvasNodeIds]
   );
+  const validationFailedSet = useMemo(
+    () => new Set(validationFailedNodeIds ?? []),
+    [validationFailedNodeIds]
+  );
   const nodesForRf = useMemo(
     () =>
       nodes.map((n) => {
@@ -1226,6 +1692,7 @@ function FlowCanvasBody({
           executing: runExecutingSet.has(n.id),
           completed: runCompletedSet.has(n.id),
           dimmed: searchActive && !matches,
+          validationFailed: validationFailedSet.has(n.id),
         });
         const oriented = applyFlowHandleOrientationToNode(withRun, handleOrientation);
         return {
@@ -1247,6 +1714,7 @@ function FlowCanvasBody({
       runWarningSet,
       runExecutingSet,
       runCompletedSet,
+      validationFailedSet,
       handleOrientation,
       readOnly,
       runProgress?.nodeProgressById,
@@ -1287,6 +1755,15 @@ function FlowCanvasBody({
             {reloading ? t("transform.toolbar.reloading") : t("btn.reload")}
           </button>
         ) : null}
+        <button
+          type="button"
+          className="disc-btn"
+          disabled={readOnly || saving || reloading || runBusy}
+          onClick={onOpenOptimizeTransforms}
+          title={t("transform.optimize.buttonHint")}
+        >
+          {t("transform.optimize.button")}
+        </button>
         <button
           type="button"
           className="disc-btn"
@@ -1361,6 +1838,11 @@ function FlowCanvasBody({
             {t("transform.pipelines.delete")}
           </button>
         ) : null}
+        {optimizeNotice ? (
+          <span className="transform-flow-toolbar__status" role="status">
+            {optimizeNotice}
+          </span>
+        ) : null}
         {statusMessage ? (
           <span className="transform-flow-toolbar__status" role="status">
             {statusMessage}
@@ -1380,6 +1862,9 @@ function FlowCanvasBody({
             readOnly={readOnly}
             handleOrientation={handleOrientation}
             onHandleOrientationChange={onHandleOrientationChange}
+            layoutMethod={layoutMethod}
+            layoutMethodOptions={TRANSFORM_FLOW_LAYOUT_METHOD_OPTIONS}
+            onLayoutMethodChange={onLayoutMethodChange}
             edgePathStyle={edgePathStyle}
             onEdgePathStyleChange={onEdgePathStyleChange}
             onAutoLayout={handleAutoLayout}
@@ -1387,6 +1872,10 @@ function FlowCanvasBody({
             alignDisabled={readOnly || alignableSelectionCount < 2}
             onAlignSelection={applySelectionAlign}
             showAlign={!readOnly}
+            canUndo={flowHistory.canUndo}
+            canRedo={flowHistory.canRedo}
+            onUndo={readOnly ? undefined : handleUndo}
+            onRedo={readOnly ? undefined : handleRedo}
           />
         </div>
       ) : null}
@@ -1428,7 +1917,14 @@ function FlowCanvasBody({
             onEdgesChange={onEdgesChangeWrapped}
             onNodeDragStop={onNodeDragStop}
             onConnect={onConnect}
+            onReconnect={readOnly ? undefined : onReconnect}
+            edgesReconnectable={!readOnly}
             onConnectEnd={readOnly ? undefined : onConnectEnd}
+            onMoveEnd={onMoveEnd}
+            defaultViewport={flowDefaultViewport}
+            snapToGrid={!readOnly}
+            snapGrid={[16, 16]}
+            onlyRenderVisibleElements={nodesForRf.length > 48}
             isValidConnection={(conn) => {
               const c: Connection = {
                 source: conn.source,
@@ -1446,7 +1942,6 @@ function FlowCanvasBody({
             onPaneContextMenu={readOnly ? undefined : onFlowPaneContextMenu}
             onEdgeContextMenu={readOnly ? undefined : onFlowEdgeContextMenu}
             deleteKeyCode={readOnly ? null : ["Backspace", "Delete"]}
-            fitView
             nodesDraggable={!readOnly}
             nodesConnectable={!readOnly}
             elementsSelectable
@@ -1456,9 +1951,20 @@ function FlowCanvasBody({
           >
             <FlowHandleOrientationEdgeSync orientation={handleOrientation} edgePathStyle={edgePathStyle} />
             <Background variant={BackgroundVariant.Dots} gap={16} size={1} />
-            <Controls showInteractive={false} />
+            <Controls showInteractive={!readOnly} />
             <MiniMap pannable zoomable />
             <FocusTransformFlowNode nodeId={focusNodeId} />
+            {toolbarNodes.map((n) => (
+              <TransformFlowNodeToolbar
+                key={n.id}
+                t={t}
+                node={n}
+                readOnly={readOnly}
+                onOpenEditor={setEditorModalNode}
+                onToggleEnabled={onToggleNodeEnabled}
+                onCopy={() => flowClipboard.copySelection()}
+              />
+            ))}
           </ReactFlow>
           </FlowHandleOrientationProvider>
           {connectEndMenu ? (
@@ -1502,7 +2008,7 @@ function FlowCanvasBody({
               t={t}
             />
           ) : null}
-          <TreeContextMenuPortal menu={flowCtxMenu.menu} onClose={flowCtxMenu.close} classPrefix="gov" />
+          <TreeContextMenuPortal menu={flowCtxMenu.menu} onClose={flowCtxMenu.close} classPrefix="disc" />
         </div>
         <FlowNodeInspector
           t={t}
@@ -1521,6 +2027,7 @@ function FlowCanvasBody({
                 }
               : setEditorModalNode
           }
+          onOpenPreviewQuery={onOpenNodePreviewQuery}
           onDeleteNode={readOnly ? undefined : onDeleteNode}
           onDeleteEdge={readOnly ? undefined : removeEdgeById}
         />
@@ -1537,6 +2044,13 @@ function FlowCanvasBody({
           readOnly={readOnly}
         />
       ) : null}
+      <OptimizeTransformsDialog
+        open={optimizeOpen}
+        onClose={() => setOptimizeOpen(false)}
+        candidates={optimizeCandidates}
+        getNode={getNode}
+        onApply={onApplyOptimizeTransforms}
+      />
     </div>
   );
 }

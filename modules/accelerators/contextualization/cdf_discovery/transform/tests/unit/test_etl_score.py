@@ -43,3 +43,31 @@ def test_score_row_properties_writes_parallel_scores() -> None:
     out = score_row_properties(props, cfg, [])
     assert out["tags"] == ["a", "b"]
     assert out["tags_score"] == [1.0, 1.0]
+
+
+def test_score_row_properties_min_threshold_filter_drops_low_scores() -> None:
+    rules = [
+        {
+            "name": "low",
+            "priority": 1,
+            "match": {"keywords": ["a"]},
+            "score_modifier": {"mode": "explicit", "value": 0.2},
+        },
+        {
+            "name": "high",
+            "priority": 2,
+            "match": {"keywords": ["b"]},
+            "score_modifier": {"mode": "explicit", "value": 0.9},
+        },
+    ]
+    cfg = {
+        "description": "test",
+        "score_fields": ["tags"],
+        "scoring_rules": rules,
+        "min_threshold_filter_enabled": True,
+        "min_threshold": 0.5,
+    }
+    props = {"tags": ["a", "b"]}
+    out = score_row_properties(props, cfg, rules)
+    assert out["tags"] == ["b"]
+    assert out["tags_score"] == [pytest.approx(0.9)]

@@ -11,9 +11,10 @@ from typing import Any, Dict, List, Optional, Sequence
 import yaml
 
 from workflow_build.build_scoped import build_scoped_workflow
+from workflow_build.paths import workflow_artifacts_root
 from workflow_build.check import run_check
 from workflow_build.sources import load_yaml, resolve_sources
-from workflow_build.targets_resolve import load_scope_hierarchy, scope_targets_for_source
+from workflow_build.targets_resolve import scope_targets_for_source
 
 logger = logging.getLogger(__name__)
 
@@ -21,11 +22,13 @@ DEFAULT_CONFIG = "default.config.yaml"
 
 
 def module_root_from_package() -> Path:
-    return Path(__file__).resolve().parent.parent.parent
+    return Path(__file__).resolve().parent.parent.parent.parent
 
 
 def _ensure_import_paths(root: Path) -> None:
-    for p in (str(root), str(root / "functions"), str(root / "scripts")):
+    tr = root / "transform"
+    scripts = tr / "scripts" if (tr / "scripts").is_dir() else root / "scripts"
+    for p in (str(root), str(root / "functions"), str(scripts)):
         if p not in sys.path:
             sys.path.insert(0, p)
 
@@ -37,18 +40,14 @@ def run_build(
     config_path: Optional[Path] = None,
     workflow_ids: Optional[List[str]] = None,
     template_ids: Optional[List[str]] = None,
-    scoped: bool = False,
     scope_suffix: Optional[str] = None,
     dry_run: bool = False,
 ) -> Dict[str, Any]:
-    """Build scoped workflow artifacts in-process (UI + CLI)."""
+    """Build workflow artifacts in-process (UI + CLI)."""
     _ensure_import_paths(module_root)
     if config is None:
         cp = config_path or (module_root / DEFAULT_CONFIG)
         config = load_yaml(cp)
-
-    hierarchy = load_scope_hierarchy(module_root, config)
-    levels = [str(x).strip() for x in (hierarchy.get("levels") or []) if str(x).strip()]
 
     sources = resolve_sources(
         module_root=module_root,
@@ -64,7 +63,6 @@ def run_build(
             source_kind=source.source_kind,
             module_root=module_root,
             config=config,
-            scoped=scoped,
             scope_suffix=scope_suffix,
         )
         for target in targets:
@@ -74,7 +72,7 @@ def run_build(
                     config=config,
                     source=source,
                     target=target,
-                    levels=levels,
+                    levels=[],
                     dry_run=dry_run,
                 )
                 written.extend(str(p) for p in paths)
@@ -97,7 +95,6 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--module-root", type=Path, default=None)
     parser.add_argument("--workflow", action="append", default=[], help="Workflow definition id")
     parser.add_argument("--template", action="append", default=[], help="Workflow template id")
-    parser.add_argument("--scoped", action="store_true", help="Build every scope_hierarchy leaf")
     parser.add_argument("--scope-suffix", type=str, default=None, metavar="SUFFIX")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--check", action="store_true", help="Verify artifacts exist; no writes")
@@ -124,12 +121,11 @@ def main(argv: Sequence[str] | None = None) -> int:
             config=config,
             workflow_ids=args.workflow or None,
             template_ids=args.template or None,
-            scoped=args.scoped,
             scope_suffix=args.scope_suffix,
         )
 
     if args.clean:
-        workflows_dir = root / "workflows"
+        workflows_dir = workflow_artifacts_root(root)
         if workflows_dir.is_dir():
             for p in sorted(workflows_dir.rglob("etl_*.yaml")):
                 if args.dry_run:
@@ -144,7 +140,6 @@ def main(argv: Sequence[str] | None = None) -> int:
         config=config,
         workflow_ids=args.workflow or None,
         template_ids=args.template or None,
-        scoped=args.scoped,
         scope_suffix=args.scope_suffix,
         dry_run=args.dry_run,
     )

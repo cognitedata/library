@@ -1,5 +1,9 @@
 import type { Edge, Node } from "@xyflow/react";
 import {
+  normalizeTransformCanvasViewport,
+  type TransformCanvasViewport,
+} from "../../types/transformCanvasViewport";
+import {
   flowNodeSizeStyle,
   parseFlowNodeDimension,
   readFlowNodeSize,
@@ -11,9 +15,11 @@ import {
   type TransformCanvasDocument,
   type TransformCanvasEdge,
   type TransformCanvasHandleOrientation,
+  type TransformCanvasLayoutMethod,
   type TransformCanvasNode,
   type TransformCanvasNodeData,
   normalizeTransformCanvasHandleOrientation,
+  normalizeTransformCanvasLayoutMethod,
   normalizeTransformCanvasEdgePathStyle,
   type TransformCanvasEdgePathStyle,
   isTransformCanvasNodeEnabled,
@@ -109,11 +115,15 @@ export function flowToCanvasDocument(
   edges: Edge[],
   opts?: {
     handleOrientation?: TransformCanvasHandleOrientation;
+    layoutMethod?: TransformCanvasLayoutMethod;
     edgePathStyle?: TransformCanvasEdgePathStyle;
+    viewport?: TransformCanvasViewport | null;
   }
 ): TransformCanvasDocument {
   const handle_orientation = normalizeTransformCanvasHandleOrientation(opts?.handleOrientation);
+  const layout_method = normalizeTransformCanvasLayoutMethod(opts?.layoutMethod);
   const edge_path_style = normalizeTransformCanvasEdgePathStyle(opts?.edgePathStyle);
+  const viewport = opts?.viewport ?? undefined;
   const cn: TransformCanvasNode[] = nodes.map((n) => {
     const kind = rfTypeToKind(n.type);
     const rawData = (n.data as TransformCanvasNodeData & { canvas_node_enabled?: boolean }) ?? {};
@@ -159,13 +169,22 @@ export function flowToCanvasDocument(
       kind: fd.kind === "sequence" || fd.kind === "parallel_group" ? fd.kind : "data",
     };
   });
-  return {
+  const doc: TransformCanvasDocument = {
     schemaVersion: TRANSFORM_CANVAS_SCHEMA_VERSION,
     handle_orientation,
+    layout_method,
     edge_path_style,
     nodes: cn,
     edges: ce,
   };
+  if (viewport) doc.viewport = viewport;
+  return doc;
+}
+
+export function readCanvasDocumentViewport(
+  doc: Pick<TransformCanvasDocument, "viewport">
+): TransformCanvasViewport | undefined {
+  return normalizeTransformCanvasViewport(doc.viewport);
 }
 
 export function applyTransformFlowNodeDisplayClasses(nodes: Node[]): Node[] {
@@ -181,6 +200,7 @@ export type TransformFlowRunDisplayState = {
   executing?: boolean;
   completed?: boolean;
   dimmed?: boolean;
+  validationFailed?: boolean;
 };
 
 const RUN_CLASSES = [
@@ -191,11 +211,15 @@ const RUN_CLASSES = [
   "transform-flow-node--dimmed",
 ] as const;
 
-function stripRunClasses(className: string | undefined): string {
+const VALIDATION_CLASS = "transform-flow-node--validation-failed";
+
+const DISPLAY_OUTLINE_CLASSES = [...RUN_CLASSES, VALIDATION_CLASS] as const;
+
+function stripDisplayOutlineClasses(className: string | undefined): string {
   if (!className) return "";
   return className
     .split(/\s+/)
-    .filter((c) => c && !RUN_CLASSES.includes(c as (typeof RUN_CLASSES)[number]))
+    .filter((c) => c && !DISPLAY_OUTLINE_CLASSES.includes(c as (typeof DISPLAY_OUTLINE_CLASSES)[number]))
     .join(" ");
 }
 
@@ -208,7 +232,7 @@ export function applyTransformFlowRunDisplayClasses(
   const warned = state.runWarning === true;
   const executing = state.executing === true;
   const completed = state.completed === true;
-  let className = stripRunClasses(node.className);
+  let className = stripDisplayOutlineClasses(node.className);
   if (failed) {
     className = className ? `${className} transform-flow-node--run-failed` : "transform-flow-node--run-failed";
   } else if (warned) {
@@ -220,6 +244,9 @@ export function applyTransformFlowRunDisplayClasses(
   }
   if (state.dimmed === true) {
     className = className ? `${className} transform-flow-node--dimmed` : "transform-flow-node--dimmed";
+  }
+  if (state.validationFailed === true) {
+    className = className ? `${className} ${VALIDATION_CLASS}` : VALIDATION_CLASS;
   }
   return { ...node, className: className || undefined };
 }

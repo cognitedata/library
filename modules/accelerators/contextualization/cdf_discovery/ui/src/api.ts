@@ -335,31 +335,6 @@ export async function downloadFileBlob(
   return r.blob();
 }
 
-export async function fetchTransformScopeHierarchy(): Promise<{
-  scope_hierarchy: Record<string, unknown>;
-}> {
-  const r = await fetch(`${API}/api/transform/scope-hierarchy`);
-  if (!r.ok) {
-    const body = await r.json().catch(() => ({}));
-    throw new Error(String((body as { detail?: string }).detail ?? r.status));
-  }
-  return r.json() as Promise<{ scope_hierarchy: Record<string, unknown> }>;
-}
-
-export async function saveTransformScopeHierarchy(
-  scopeHierarchy: Record<string, unknown>
-): Promise<void> {
-  const r = await fetch(`${API}/api/transform/scope-hierarchy`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ scope_hierarchy: scopeHierarchy }),
-  });
-  if (!r.ok) {
-    const body = await r.json().catch(() => ({}));
-    throw new Error(String((body as { detail?: string }).detail ?? r.status));
-  }
-}
-
 export async function fetchTransformTemplates(): Promise<{
   templates: Array<{ id: string; label: string }>;
 }> {
@@ -410,6 +385,36 @@ export async function fetchTransformPipelineByWorkflow(
   }>;
 }
 
+export async function importTransformPipelineFromWorkflow(body: {
+  workflow_external_id: string;
+  version?: string;
+  pipeline_id?: string;
+  label?: string;
+}): Promise<{
+  created: boolean;
+  pipeline_id: string;
+  scope_suffix?: string;
+  pipeline: TransformPipelineDocument;
+  match: string;
+}> {
+  const r = await fetch(`${API}/api/transform/pipelines/import-from-workflow`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!r.ok) {
+    const resBody = await r.json().catch(() => ({}));
+    throw new Error(String((resBody as { detail?: string }).detail ?? r.status));
+  }
+  return r.json() as Promise<{
+    created: boolean;
+    pipeline_id: string;
+    scope_suffix?: string;
+    pipeline: TransformPipelineDocument;
+    match: string;
+  }>;
+}
+
 export async function fetchTransformWorkflowYaml(
   path: string
 ): Promise<{ path: string; content: string }> {
@@ -435,13 +440,21 @@ export async function saveTransformWorkflowYaml(path: string, content: string): 
   }
 }
 
-function transformPipelineScopeQuery(scopeSuffix = "all"): string {
-  return `?scope_suffix=${encodeURIComponent(scopeSuffix)}`;
+const LEGACY_UNSCOPED_SCOPE = "all";
+
+function normalizePipelineScopeSuffix(scopeSuffix?: string | null): string {
+  const s = String(scopeSuffix ?? "").trim();
+  return s === LEGACY_UNSCOPED_SCOPE ? "" : s;
+}
+
+function transformPipelineScopeQuery(scopeSuffix = ""): string {
+  const scope = normalizePipelineScopeSuffix(scopeSuffix);
+  return scope ? `?scope_suffix=${encodeURIComponent(scope)}` : "";
 }
 
 export async function fetchTransformPipeline(
   pipelineId: string,
-  scopeSuffix = "all"
+  scopeSuffix = ""
 ): Promise<{ pipeline: TransformPipelineDocument }> {
   const r = await fetch(
     `${API}/api/transform/pipelines/${encodeURIComponent(pipelineId)}${transformPipelineScopeQuery(scopeSuffix)}`
@@ -456,7 +469,7 @@ export async function fetchTransformPipeline(
 export async function saveTransformPipelineAsTemplate(
   pipelineId: string,
   body: { template_id: string; label?: string; canvas?: TransformCanvasDocument },
-  scopeSuffix = "all"
+  scopeSuffix = ""
 ): Promise<{ template: Record<string, unknown> }> {
   const r = await fetch(
     `${API}/api/transform/pipelines/${encodeURIComponent(pipelineId)}/save-as-template${transformPipelineScopeQuery(scopeSuffix)}`,
@@ -476,7 +489,7 @@ export async function saveTransformPipelineAsTemplate(
 export async function saveTransformPipelineAsPipeline(
   pipelineId: string,
   body: { id: string; label: string; canvas?: TransformCanvasDocument },
-  scopeSuffix = "all"
+  scopeSuffix = ""
 ): Promise<{ pipeline: TransformPipelineDocument }> {
   const r = await fetch(
     `${API}/api/transform/pipelines/${encodeURIComponent(pipelineId)}/save-as-pipeline${transformPipelineScopeQuery(scopeSuffix)}`,
@@ -544,7 +557,7 @@ export async function deleteTransformPipeline(pipelineId: string): Promise<void>
 export async function renameTransformPipeline(
   pipelineId: string,
   label: string,
-  scopeSuffix = "all"
+  scopeSuffix = ""
 ): Promise<{ pipeline: TransformPipelineDocument }> {
   const r = await fetch(
     `${API}/api/transform/pipelines/${encodeURIComponent(pipelineId)}/label${transformPipelineScopeQuery(scopeSuffix)}`,
@@ -564,7 +577,7 @@ export async function renameTransformPipeline(
 export async function saveTransformPipelineCanvas(
   pipelineId: string,
   canvas: TransformCanvasDocument,
-  scopeSuffix = "all"
+  scopeSuffix = ""
 ): Promise<void> {
   const r = await fetch(
     `${API}/api/transform/pipelines/${encodeURIComponent(pipelineId)}/canvas${transformPipelineScopeQuery(scopeSuffix)}`,
@@ -583,7 +596,6 @@ export type TransformBuildPairing = {
   pipeline_id: string;
   workflow_base: string;
   workflow_version: string;
-  scoped: boolean;
   workflow_external_id: string;
   trigger_external_id: string;
   pairings: Array<{
@@ -596,12 +608,11 @@ export type TransformBuildPairing = {
 
 export async function fetchTransformBuildPairing(
   pipelineId: string,
-  scoped = false,
-  scopeSuffix = "all"
+  scopeSuffix = ""
 ): Promise<TransformBuildPairing> {
   const params = new URLSearchParams();
-  params.set("scope_suffix", scopeSuffix);
-  if (scoped) params.set("scoped", "true");
+  const scope = normalizePipelineScopeSuffix(scopeSuffix);
+  if (scope) params.set("scope_suffix", scope);
   const q = params.toString();
   const r = await fetch(
     `${API}/api/transform/pipelines/${encodeURIComponent(pipelineId)}/build-pairing?${q}`
@@ -615,26 +626,28 @@ export async function fetchTransformBuildPairing(
 
 export async function validateTransformPipeline(
   pipelineId: string,
-  scopeSuffix = "all"
-): Promise<{ ok: boolean; warnings?: string[] }> {
+  scopeSuffix = "",
+  canvas?: Record<string, unknown>
+): Promise<{ ok: boolean; warnings?: string[]; errors?: string[] }> {
   const r = await fetch(
     `${API}/api/transform/pipelines/${encodeURIComponent(pipelineId)}/validate${transformPipelineScopeQuery(scopeSuffix)}`,
     {
       method: "POST",
+      headers: canvas ? { "Content-Type": "application/json" } : undefined,
+      body: canvas ? JSON.stringify({ canvas }) : undefined,
     }
   );
   if (!r.ok) {
     const body = await r.json().catch(() => ({}));
     throw new Error(String((body as { detail?: string }).detail ?? r.status));
   }
-  return r.json() as Promise<{ ok: boolean; warnings?: string[] }>;
+  return r.json() as Promise<{ ok: boolean; warnings?: string[]; errors?: string[] }>;
 }
 
 export type TransformBuildResult = {
   ok: boolean;
   pipeline_id?: string;
   template_id?: string;
-  scoped?: boolean;
   stdout?: string;
   stderr?: string;
   task_count?: number;
@@ -642,17 +655,14 @@ export type TransformBuildResult = {
 
 export async function buildTransformPipeline(
   pipelineId: string,
-  scoped = false,
-  scopeSuffix = "all"
+  scopeSuffix = ""
 ): Promise<TransformBuildResult> {
   const scopeQ = transformPipelineScopeQuery(scopeSuffix);
-  const url = scoped
-    ? `${API}/api/transform/workflows/${encodeURIComponent(pipelineId)}/build-scoped${scopeQ}`
-    : `${API}/api/transform/workflows/${encodeURIComponent(pipelineId)}/build${scopeQ}`;
+  const url = `${API}/api/transform/workflows/${encodeURIComponent(pipelineId)}/build${scopeQ}`;
   const r = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ scoped }),
+    body: JSON.stringify({}),
   });
   if (!r.ok) {
     const body = await r.json().catch(() => ({}));
@@ -661,17 +671,81 @@ export async function buildTransformPipeline(
   return r.json() as Promise<TransformBuildResult>;
 }
 
+export type TransformCdfCliResult = {
+  ok: boolean;
+  exit_code: number;
+  stdout: string;
+  stderr: string;
+  pipeline_id?: string;
+  scope_suffix?: string;
+};
+
+export async function deployTransformPipelineCdf(
+  pipelineId: string,
+  scopeSuffix = "",
+  options: {
+    dryRun?: boolean;
+    skipBuild?: boolean;
+    allowUnresolvedPlaceholders?: boolean;
+  } = {}
+): Promise<TransformCdfCliResult> {
+  const scopeQ = transformPipelineScopeQuery(scopeSuffix);
+  const r = await fetch(
+    `${API}/api/transform/pipelines/${encodeURIComponent(pipelineId)}/deploy-cdf${scopeQ}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        dry_run: options.dryRun ?? false,
+        skip_build: options.skipBuild ?? false,
+        allow_unresolved_placeholders: options.allowUnresolvedPlaceholders ?? true,
+      }),
+    }
+  );
+  if (!r.ok) {
+    const body = await r.json().catch(() => ({}));
+    throw new Error(String((body as { detail?: string }).detail ?? r.status));
+  }
+  return r.json() as Promise<TransformCdfCliResult>;
+}
+
+export async function runTransformPipelineCdf(
+  pipelineId: string,
+  scopeSuffix = "",
+  options: {
+    dryRun?: boolean;
+    instanceSpace?: string;
+    timeoutSeconds?: number;
+  } = {}
+): Promise<TransformCdfCliResult> {
+  const scopeQ = transformPipelineScopeQuery(scopeSuffix);
+  const r = await fetch(
+    `${API}/api/transform/pipelines/${encodeURIComponent(pipelineId)}/cdf-run${scopeQ}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        dry_run: options.dryRun ?? false,
+        instance_space: options.instanceSpace?.trim() || undefined,
+        timeout_seconds: options.timeoutSeconds,
+      }),
+    }
+  );
+  if (!r.ok) {
+    const body = await r.json().catch(() => ({}));
+    throw new Error(String((body as { detail?: string }).detail ?? r.status));
+  }
+  return r.json() as Promise<TransformCdfCliResult>;
+}
+
 export async function buildTransformTemplate(
-  templateId: string,
-  scoped = false
+  templateId: string
 ): Promise<TransformBuildResult> {
-  const path = scoped
-    ? `${API}/api/transform/templates/${encodeURIComponent(templateId)}/build-scoped`
-    : `${API}/api/transform/templates/${encodeURIComponent(templateId)}/build`;
+  const path = `${API}/api/transform/templates/${encodeURIComponent(templateId)}/build`;
   const r = await fetch(path, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ scoped }),
+    body: JSON.stringify({}),
   });
   if (!r.ok) {
     const body = await r.json().catch(() => ({}));
@@ -763,14 +837,17 @@ export async function saveTransformTemplateCanvas(
 }
 
 export async function validateTransformTemplate(
-  templateId: string
-): Promise<{ ok: boolean; warnings?: string[] }> {
+  templateId: string,
+  canvas?: Record<string, unknown>
+): Promise<{ ok: boolean; warnings?: string[]; errors?: string[] }> {
   const r = await fetch(`${API}/api/transform/templates/${encodeURIComponent(templateId)}/validate`, {
     method: "POST",
+    headers: canvas ? { "Content-Type": "application/json" } : undefined,
+    body: canvas ? JSON.stringify({ canvas }) : undefined,
   });
   if (!r.ok) {
     const body = await r.json().catch(() => ({}));
     throw new Error(String((body as { detail?: string }).detail ?? r.status));
   }
-  return r.json() as Promise<{ ok: boolean; warnings?: string[] }>;
+  return r.json() as Promise<{ ok: boolean; warnings?: string[]; errors?: string[] }>;
 }

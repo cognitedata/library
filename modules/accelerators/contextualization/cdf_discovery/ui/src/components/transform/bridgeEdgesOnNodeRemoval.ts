@@ -87,7 +87,20 @@ export function bridgeEdgesOnNodeRemoval(edges: Edge[], toRemove: Set<string>, g
   return dedupeEdgesByHandles(next);
 }
 
-/** Edges to persist after deleting nodes (filter + bypass wiring). */
-export function edgesAfterRemovingNodes(edges: Edge[], toRemove: Set<string>, getNode: GetNode): Edge[] {
+export type EdgesAfterRemovingNodesOptions = {
+  /** When false, only drop edges incident on removed nodes (no bypass). Use for parallel merge. */
+  bridge?: boolean;
+};
+
+/** Edges to persist after deleting nodes (filter + optional bypass wiring). */
+export function edgesAfterRemovingNodes(
+  edges: Edge[],
+  toRemove: Set<string>,
+  getNode: GetNode,
+  options?: EdgesAfterRemovingNodesOptions
+): Edge[] {
+  if (options?.bridge === false) {
+    return dedupeEdgesByHandles(edges.filter((e) => !toRemove.has(e.source) && !toRemove.has(e.target)));
+  }
   return bridgeEdgesOnNodeRemoval(edges, toRemove, getNode);
 }

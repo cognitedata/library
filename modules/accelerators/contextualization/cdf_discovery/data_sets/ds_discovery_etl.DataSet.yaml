@@ -1,0 +1,3 @@
+- externalId: '{{ dataset }}'
+  name: '{{ dataset }}'
+  description: CDF Discovery ETL — Cognite Functions and data workflows

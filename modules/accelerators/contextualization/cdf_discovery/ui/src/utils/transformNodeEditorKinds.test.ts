@@ -7,6 +7,8 @@ import {
 describe("transformNodeEditorKinds", () => {
   it("identifies orchestration canvas kinds", () => {
     expect(isOrchestrationNodeKind("function_ref")).toBe(true);
+    expect(isOrchestrationNodeKind("json_mapping")).toBe(true);
+    expect(isOrchestrationNodeKind("dynamic_fanout")).toBe(true);
     expect(isOrchestrationNodeKind("cdf_task")).toBe(true);
     expect(isOrchestrationNodeKind("query_view")).toBe(false);
   });

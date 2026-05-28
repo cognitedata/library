@@ -46,9 +46,9 @@ def main() -> None:
         raise SystemExit(f"Missing config: {config}")
     keys = _config_keys(config)
     globs = [
+        "data_sets/**/*.yaml",
         "functions/**/*.yaml",
         "workflows/**/*.yaml",
-        "workflow_template/**/*.yaml",
     ]
     missing: list[str] = []
     for pattern in globs:

@@ -97,7 +97,7 @@ FastAPI app: `ui.server.main:app`. Base URL default `http://127.0.0.1:8785`.
 | GET | `/api/governance/declared/artifacts?kind=` | List generated YAML paths |
 | GET/PUT | `/api/governance/declared/file?rel=` | Read/write generated artifact |
 
-Declared root: `CDF_DISCOVERY_GOVERNANCE_ROOT` or `governance.declared_root` in `discovery.local.config.yaml` (default: `governance/` under this module — config, templates, generated `spaces/` and `auth/`).
+Declared root: `CDF_DISCOVERY_GOVERNANCE_ROOT` or `governance.declared_root` in `discovery.local.config.yaml` (default: `governance/` for config and templates; generated `spaces/` and `auth/` at module root).
 
 Vite proxies `/api` to the API via `VITE_API_PROXY` (set by `module.py ui`).
 

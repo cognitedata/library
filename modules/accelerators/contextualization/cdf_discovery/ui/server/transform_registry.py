@@ -14,8 +14,20 @@ _INSTANCES_DIR = "transform/workflow_definitions/instances"
 _TEMPLATES_DIR = "transform/workflow_definitions/templates"
 
 _WORKFLOW_ID_RE = re.compile(r"^[a-z][a-z0-9_]{0,127}$")
-_BUILT_CONFIG_RE = re.compile(r"^etl_(?P<workflow_id>.+)\.(?P<scope_suffix>[^.]+)\.config\.yaml$")
-_DEFAULT_BUILT_SCOPE = "all"
+_DEFAULT_BUILT_SCOPE = ""
+
+
+def _artifact_paths():
+    from ui.server.etl_syspath import ensure_transform_syspath
+
+    ensure_transform_syspath(_module_root())
+    import workflow_artifact_paths as wap
+
+    return wap
+
+
+def _normalize_scope_suffix(scope_suffix: str | None) -> str:
+    return _artifact_paths().normalize_scope_suffix(scope_suffix)
 
 
 def _module_root() -> Path:
@@ -37,50 +49,42 @@ def _templates_dir() -> Path:
 
 
 def _workflows_dir() -> Path:
-    return _module_root() / "transform" / "workflows"
+    return _module_root() / "workflows"
 
 
 def _built_config_path(workflow_id: str, scope_suffix: str) -> Path:
-    suffix = str(scope_suffix).strip() or _DEFAULT_BUILT_SCOPE
-    return _workflows_dir() / suffix / f"etl_{workflow_id}.{suffix}.config.yaml"
+    wap = _artifact_paths()
+    suffix = _normalize_scope_suffix(scope_suffix)
+    out_dir = wap.workflow_artifacts_output_dir(_module_root(), suffix)
+    return out_dir / wap.artifact_filename(workflow_id, suffix, "config.yaml")
 
 
-def _parse_built_config_filename(name: str) -> tuple[str, str] | None:
-    m = _BUILT_CONFIG_RE.match(name)
-    if not m:
-        return None
-    return m.group("workflow_id"), m.group("scope_suffix")
+def _workflow_artifact_rel_path(
+    pipeline_id: str, scope_suffix: str, filename_kind: str
+) -> str:
+    wap = _artifact_paths()
+    suffix = _normalize_scope_suffix(scope_suffix)
+    name = wap.artifact_filename(pipeline_id, suffix, filename_kind)
+    if suffix:
+        return f"workflows/{suffix}/{name}"
+    return f"workflows/{name}"
 
 
 def _transform_config_path() -> Path:
-    return _module_root() / "transform" / "default.config.yaml"
-
-
-def read_transform_scope_hierarchy() -> Dict[str, Any]:
-    """Location hierarchy for transform scoped builds (``transform/default.config.yaml``)."""
-    cfg = _read_yaml(_transform_config_path())
-    block = cfg.get("scope_hierarchy") if isinstance(cfg, dict) else None
-    return block if isinstance(block, dict) else {}
-
-
-def write_transform_scope_hierarchy(block: Dict[str, Any]) -> Dict[str, Any]:
-    path = _transform_config_path()
-    cfg = _read_yaml(path) if path.is_file() else {}
-    if not isinstance(cfg, dict):
-        cfg = {}
-    cfg["scope_hierarchy"] = dict(block)
-    _write_yaml(path, cfg)
-    return cfg["scope_hierarchy"]
+    return _module_root() / "default.config.yaml"
 
 
 def list_built_scope_suffixes() -> List[str]:
-    """Scope folder names under ``transform/workflows/`` that contain built configs."""
+    """Scoped build folders under ``workflows/<scope>/`` (excludes flat root and legacy ``all``)."""
+    wap = _artifact_paths()
+    legacy_unscoped = wap.LEGACY_UNSCOPED_SCOPE
+
     root = _workflows_dir()
     if not root.is_dir():
         return []
     scopes: List[str] = []
     for path in sorted(root.iterdir()):
-        if not path.is_dir():
+        if not path.is_dir() or path.name == legacy_unscoped:
             continue
         if any(path.glob("etl_*.config.yaml")):
             scopes.append(path.name)
@@ -96,10 +100,7 @@ def list_instance_pipeline_entries() -> List[Dict[str, Any]]:
         if pipeline_id in seen:
             return
         seen.add(pipeline_id)
-        has_workflows = any(
-            pipeline_has_workflow_artifacts(pipeline_id, scope_suffix=scope)
-            for scope in list_built_scope_suffixes()
-        )
+        has_workflows = pipeline_has_workflow_artifacts(pipeline_id, scope_suffix="")
         out.append(
             {
                 "id": pipeline_id,
@@ -125,30 +126,37 @@ def list_instance_pipeline_entries() -> List[Dict[str, Any]]:
             doc = _read_yaml(path)
             append_entry(pipeline_id, str(doc.get("label") or doc.get("description") or pipeline_id))
 
+    for row in list_built_pipeline_entries(scope_suffix=""):
+        pipeline_id = str(row.get("id") or "").strip()
+        if pipeline_id and pipeline_id not in seen:
+            append_entry(pipeline_id, str(row.get("label") or pipeline_id))
+
     return out
 
 
 def list_built_pipeline_entries(*, scope_suffix: str) -> List[Dict[str, Any]]:
-    """Pipeline rows for one build scope (output of ``transform build``)."""
-    scope_dir = _workflows_dir() / scope_suffix
+    """Pipeline rows for one build scope (flat ``workflows/`` or ``workflows/<scope>/``)."""
+    wap = _artifact_paths()
+    suffix = _normalize_scope_suffix(scope_suffix)
+    scope_dir = wap.workflow_artifacts_output_dir(_module_root(), suffix)
     if not scope_dir.is_dir():
         return []
     out: List[Dict[str, Any]] = []
     for path in sorted(scope_dir.glob("etl_*.config.yaml")):
-        parsed = _parse_built_config_filename(path.name)
+        parsed = wap.parse_built_config_filename(path.name)
         if not parsed:
             continue
         pipeline_id, scope = parsed
-        if scope != scope_suffix:
+        if scope != suffix:
             continue
         doc = _read_yaml(path)
         label = str(doc.get("label") or doc.get("description") or pipeline_id)
-        has_workflows = pipeline_has_workflow_artifacts(pipeline_id, scope_suffix=scope_suffix)
+        has_workflows = pipeline_has_workflow_artifacts(pipeline_id, scope_suffix=suffix)
         out.append(
             {
                 "id": pipeline_id,
                 "label": label,
-                "scope_suffix": scope_suffix,
+                "scope_suffix": suffix,
                 "source": "built",
                 "has_workflow_children": has_workflows,
             }
@@ -156,7 +164,7 @@ def list_built_pipeline_entries(*, scope_suffix: str) -> List[Dict[str, Any]]:
     return out
 
 
-_WORKFLOW_YAML_PREFIXES = ("transform/workflows/",)
+_WORKFLOW_YAML_PREFIXES = ("workflows/",)
 _PIPELINE_WORKFLOW_ARTIFACTS = (
     ("Workflow.yaml", "Workflow"),
     ("WorkflowVersion.yaml", "Workflow version"),
@@ -165,7 +173,7 @@ _PIPELINE_WORKFLOW_ARTIFACTS = (
 
 
 def resolve_workflow_yaml_path(rel_path: str) -> Path:
-    """Resolve a module-relative built workflow YAML path under ``transform/workflows/``."""
+    """Resolve a module-relative built workflow YAML path under ``workflows/``."""
     rel = str(rel_path or "").strip().replace("\\", "/").lstrip("/")
     if not rel or not rel.startswith(_WORKFLOW_YAML_PREFIXES):
         raise ValueError(f"Workflow YAML path not allowed: {rel_path!r}")
@@ -174,16 +182,16 @@ def resolve_workflow_yaml_path(rel_path: str) -> Path:
     try:
         path.relative_to(workflows_root)
     except ValueError as exc:
-        raise ValueError(f"Workflow YAML path escapes transform workflows: {rel_path!r}") from exc
+        raise ValueError(f"Workflow YAML path escapes workflows: {rel_path!r}") from exc
     return path
 
 
 def list_pipeline_workflow_artifacts(pipeline_id: str, *, scope_suffix: str) -> List[Dict[str, Any]]:
     """Built Workflow / WorkflowVersion / WorkflowTrigger files for one pipeline scope."""
-    scope = str(scope_suffix).strip() or _DEFAULT_BUILT_SCOPE
+    scope = _normalize_scope_suffix(scope_suffix)
     out: List[Dict[str, Any]] = []
     for filename_suffix, label in _PIPELINE_WORKFLOW_ARTIFACTS:
-        rel = f"transform/workflows/{scope}/etl_{pipeline_id}.{scope}.{filename_suffix}"
+        rel = _workflow_artifact_rel_path(pipeline_id, scope, filename_suffix)
         path = resolve_workflow_yaml_path(rel)
         if path.is_file():
             out.append(
@@ -217,10 +225,15 @@ def write_workflow_yaml(rel_path: str, content: str) -> None:
 
 
 def list_pipeline_tree_entries() -> List[Dict[str, Any]]:
-    """Flat list of built pipelines (all scopes) for APIs that expect a single list."""
-    entries: List[Dict[str, Any]] = []
+    """Flat list of built pipelines (unscoped + scoped folders) for APIs that expect a single list."""
+    entries = list_built_pipeline_entries(scope_suffix="")
+    seen = {str(e["id"]) for e in entries}
     for scope in list_built_scope_suffixes():
-        entries.extend(list_built_pipeline_entries(scope_suffix=scope))
+        for row in list_built_pipeline_entries(scope_suffix=scope):
+            pid = str(row["id"])
+            if pid not in seen:
+                entries.append(row)
+                seen.add(pid)
     return entries
 
 
@@ -372,6 +385,7 @@ def empty_pipeline_document(*, pipeline_id: str, label: str) -> Dict[str, Any]:
             "incremental_skip_unchanged": True,
             "raw_db": "etl_staging",
             "raw_table_key": "cohort",
+            "preview_raw_table_key": "etl_preview",
             "instance_space": "inst_assets",
             "etl_state_instance_space": None,
         },
@@ -380,6 +394,7 @@ def empty_pipeline_document(*, pipeline_id: str, label: str) -> Dict[str, Any]:
         "canvas": {
             "schemaVersion": 1,
             "handle_orientation": "lr",
+            "layout_method": "layered",
             "nodes": [
                 {
                     "id": "start",
@@ -405,8 +420,8 @@ def empty_pipeline_document(*, pipeline_id: str, label: str) -> Dict[str, Any]:
                     "kind": "end",
                     "position": {"x": 480, "y": 200},
                     "data": {
-                        "label": "RAW cleanup",
-                        "config": {"description": "Post-run cohort RAW cleanup"},
+                        "label": "End",
+                        "config": {"description": ""},
                     },
                 },
             ],
@@ -438,7 +453,7 @@ def read_pipeline_document(
     pipeline_id: str, *, scope_suffix: str = _DEFAULT_BUILT_SCOPE
 ) -> Dict[str, Any]:
     """Read workflow definition: built scope config merged with instance canvas when present."""
-    scope = str(scope_suffix).strip() or _DEFAULT_BUILT_SCOPE
+    scope = _normalize_scope_suffix(scope_suffix)
     inst_path = _instance_path(pipeline_id)
     inst_doc: Dict[str, Any] | None = _read_yaml(inst_path) if inst_path.is_file() else None
     built_path = _built_config_path(pipeline_id, scope)
@@ -479,7 +494,7 @@ def write_pipeline_document(
     doc = dict(doc)
     doc["schemaVersion"] = 1
     doc["id"] = pipeline_id
-    scope = str(scope_suffix or doc.get("scope_suffix") or _DEFAULT_BUILT_SCOPE).strip() or _DEFAULT_BUILT_SCOPE
+    scope = _normalize_scope_suffix(scope_suffix or doc.get("scope_suffix"))
     doc["scope_suffix"] = scope
     label = str(doc.get("label") or pipeline_id)
 
@@ -511,19 +526,32 @@ def delete_pipeline_document(pipeline_id: str) -> None:
     if inst_path.is_file():
         inst_path.unlink()
     remove_registry_entry(pipeline_id)
+    wap = _artifact_paths()
     root = _workflows_dir()
     if not root.is_dir():
         return
+    for kind in ("config.yaml", "Workflow.yaml", "WorkflowVersion.yaml", "WorkflowTrigger.yaml"):
+        flat = root / wap.artifact_filename(pipeline_id, "", kind)
+        if flat.is_file():
+            flat.unlink()
+    legacy = root / "all"
+    if legacy.is_dir():
+        for path in legacy.glob(f"etl_{pipeline_id}.*"):
+            if path.is_file():
+                path.unlink()
     for scope_dir in root.iterdir():
         if not scope_dir.is_dir():
             continue
-        for path in scope_dir.glob(f"etl_{pipeline_id}.{scope_dir.name}.*"):
+        suffix = scope_dir.name
+        for path in scope_dir.glob(f"{wap.artifact_basename(pipeline_id, suffix)}.*"):
             if path.is_file():
                 path.unlink()
 
 
 def pipeline_exists(pipeline_id: str) -> bool:
     if _instance_path(pipeline_id).is_file():
+        return True
+    if _built_config_path(pipeline_id, "").is_file():
         return True
     for scope in list_built_scope_suffixes():
         if _built_config_path(pipeline_id, scope).is_file():
@@ -535,9 +563,9 @@ def _build_argv_for_workflow(workflow_id: str, *, scope_suffix: str = _DEFAULT_B
     """CLI argv for ``module.py transform run`` (workflow_definitions + scoped built config)."""
     if _template_path(workflow_id).is_file() and not _instance_path(workflow_id).is_file():
         return ["--template", workflow_id]
-    scope = str(scope_suffix).strip() or _DEFAULT_BUILT_SCOPE
+    scope = _normalize_scope_suffix(scope_suffix)
     argv = ["--workflow", workflow_id]
-    if scope != "all":
+    if scope:
         argv.extend(["--scope-suffix", scope])
     return argv
 
@@ -605,6 +633,17 @@ def delete_template_document(template_id: str) -> None:
     path.unlink()
 
 
+def assert_document_valid_for_run(doc: Dict[str, Any], *, label: str) -> None:
+    """Raise ``ValueError`` when the document fails canvas validation (used before local run)."""
+    result = validate_pipeline_document(doc)
+    if result.get("ok"):
+        return
+    errors = result.get("errors") or []
+    if errors:
+        raise ValueError(f"{label}: " + "; ".join(str(e) for e in errors))
+    raise ValueError(f"{label}: validation failed")
+
+
 def validate_pipeline_document(doc: Dict[str, Any]) -> Dict[str, Any]:
     """Compile-on-save validation using ETL canvas compile."""
     warnings: List[str] = []
@@ -651,7 +690,7 @@ def find_pipeline_for_workflow(workflow_external_id: str) -> Optional[Dict[str, 
     ext = str(workflow_external_id or "").strip()
     if not ext:
         return None
-    for scope in list_built_scope_suffixes():
+    for scope in ("", *list_built_scope_suffixes()):
         for entry in list_built_pipeline_entries(scope_suffix=scope):
             pipeline_id = str(entry.get("id") or "").strip()
             if not pipeline_id:
@@ -669,27 +708,24 @@ def find_pipeline_for_workflow(workflow_external_id: str) -> Optional[Dict[str, 
                     "match": "canvas_start",
                 }
             try:
-                for scoped in (False, True):
-                    pairing = pipeline_build_pairing(
-                        pipeline_id, scoped=scoped, scope_suffix=scope
-                    )
-                    if str(pairing.get("workflow_external_id") or "").strip() == ext:
+                pairing = pipeline_build_pairing(pipeline_id, scope_suffix=scope)
+                if str(pairing.get("workflow_external_id") or "").strip() == ext:
+                    return {
+                        "pipeline_id": pipeline_id,
+                        "scope_suffix": scope,
+                        "pipeline": doc,
+                        "match": "build_pairing",
+                    }
+                for row in pairing.get("pairings") or []:
+                    if not isinstance(row, dict):
+                        continue
+                    if str(row.get("workflow_external_id") or "").strip() == ext:
                         return {
                             "pipeline_id": pipeline_id,
                             "scope_suffix": scope,
                             "pipeline": doc,
-                            "match": "build_pairing",
+                            "match": "build_pairing_row",
                         }
-                    for row in pairing.get("pairings") or []:
-                        if not isinstance(row, dict):
-                            continue
-                        if str(row.get("workflow_external_id") or "").strip() == ext:
-                            return {
-                                "pipeline_id": pipeline_id,
-                                "scope_suffix": scope,
-                                "pipeline": doc,
-                                "match": "build_pairing_scoped",
-                            }
             except Exception:
                 continue
     for entry in list_registry_entries():
@@ -711,24 +747,20 @@ def _workflow_build_pairing(
     resource_id: str,
     source_kind: str,
     doc: Dict[str, Any],
-    scoped: bool = False,
     scope_suffix: str = _DEFAULT_BUILT_SCOPE,
 ) -> Dict[str, Any]:
     """Resolve workflow / trigger external ids the build would emit (paired)."""
-    import sys
+    from ui.server.etl_syspath import ensure_transform_syspath
 
-    transform_root = _module_root() / "transform"
-    scripts = transform_root / "scripts"
-    for p in (str(transform_root), str(scripts)):
-        if p not in sys.path:
-            sys.path.insert(0, p)
+    transform_root = ensure_transform_syspath(_module_root())
 
     from workflow_build.orchestrate import load_yaml
     from workflow_build.targets_resolve import scope_targets_for_source
     from workflow_build.trigger_from_canvas import read_start_trigger_config
     from workflow_build.ids import list_build_pairings, resolve_workflow_base_for_build
 
-    config_path = transform_root / "default.config.yaml"
+    discovery_root = _module_root()
+    config_path = discovery_root / "default.config.yaml"
     config = load_yaml(config_path) if config_path.is_file() else {}
     canvas = doc.get("canvas") if isinstance(doc.get("canvas"), dict) else {}
     default_cron = str(config.get("workflow_schedule") or "0 2 * * *")
@@ -743,10 +775,9 @@ def _workflow_build_pairing(
     targets = scope_targets_for_source(
         workflow_id=resource_id,
         source_kind=source_kind,
-        module_root=transform_root,
+        module_root=discovery_root,
         config=config,
-        scoped=scoped,
-        scope_suffix=scope_suffix if not scoped else None,
+        scope_suffix=scope_suffix,
     )
     suffixes = [t.scope_suffix for t in targets]
     pairings = list_build_pairings(
@@ -758,7 +789,6 @@ def _workflow_build_pairing(
     out: Dict[str, Any] = {
         "workflow_base": workflow_base,
         "workflow_version": workflow_version,
-        "scoped": scoped,
         "workflow_external_id": primary.get("workflow_external_id", ""),
         "trigger_external_id": primary.get("trigger_external_id", ""),
         "pairings": pairings,
@@ -772,7 +802,7 @@ def _workflow_build_pairing(
 
 
 def pipeline_build_pairing(
-    pipeline_id: str, *, scoped: bool = False, scope_suffix: str = _DEFAULT_BUILT_SCOPE
+    pipeline_id: str, *, scope_suffix: str = _DEFAULT_BUILT_SCOPE
 ) -> Dict[str, Any]:
     doc = read_pipeline_document(pipeline_id, scope_suffix=scope_suffix)
     source_kind = "template" if _template_path(pipeline_id).is_file() and not _instance_path(
@@ -782,23 +812,21 @@ def pipeline_build_pairing(
         resource_id=pipeline_id,
         source_kind=source_kind,
         doc=doc,
-        scoped=scoped,
         scope_suffix=scope_suffix,
     )
 
 
-def template_build_pairing(template_id: str, *, scoped: bool = False) -> Dict[str, Any]:
+def template_build_pairing(template_id: str) -> Dict[str, Any]:
     doc = read_template_document(template_id)
     return _workflow_build_pairing(
         resource_id=template_id,
         source_kind="template",
         doc=doc,
-        scoped=scoped,
     )
 
 
 def build_workflow(
-    workflow_id: str, *, scoped: bool = False, scope_suffix: str = _DEFAULT_BUILT_SCOPE
+    workflow_id: str, *, scope_suffix: str = _DEFAULT_BUILT_SCOPE
 ) -> Dict[str, Any]:
     doc = read_pipeline_document(workflow_id, scope_suffix=scope_suffix)
     compiled = _compile_canvas(doc.get("canvas") or {})
@@ -810,12 +838,10 @@ def build_workflow(
     ensure_transform_syspath(_module_root())
     from workflow_build.orchestrate import run_build
 
-    transform_root = _module_root() / "transform"
     result = run_build(
-        module_root=transform_root,
+        module_root=_module_root(),
         workflow_ids=[workflow_id],
-        scoped=scoped,
-        scope_suffix=None if scoped else scope_suffix,
+        scope_suffix=scope_suffix,
     )
     stderr = "\n".join(result.get("errors") or [])
     return {
@@ -823,7 +849,6 @@ def build_workflow(
         "workflow_id": workflow_id,
         "pipeline_id": workflow_id,
         "scope_suffix": scope_suffix,
-        "scoped": scoped,
         "stdout": "\n".join(result.get("written") or []),
         "stderr": stderr,
         "errors": result.get("errors") or [],
@@ -833,31 +858,26 @@ def build_workflow(
 
 
 def build_pipeline(
-    pipeline_id: str, *, scoped: bool = False, scope_suffix: str = _DEFAULT_BUILT_SCOPE
+    pipeline_id: str, *, scope_suffix: str = _DEFAULT_BUILT_SCOPE
 ) -> Dict[str, Any]:
-    return build_workflow(pipeline_id, scoped=scoped, scope_suffix=scope_suffix)
+    return build_workflow(pipeline_id, scope_suffix=scope_suffix)
 
 
-def build_template(template_id: str, *, scoped: bool = False, scope_suffix: str = _DEFAULT_BUILT_SCOPE) -> Dict[str, Any]:
+def build_template(template_id: str) -> Dict[str, Any]:
     from ui.server.etl_syspath import ensure_transform_syspath
 
     ensure_transform_syspath(_module_root())
     from workflow_build.orchestrate import run_build
 
-    transform_root = _module_root() / "transform"
     result = run_build(
-        module_root=transform_root,
+        module_root=_module_root(),
         template_ids=[template_id],
-        scoped=scoped,
-        scope_suffix=None if scoped else scope_suffix,
     )
     stderr = "\n".join(result.get("errors") or [])
     return {
         "ok": bool(result.get("ok")),
         "template_id": template_id,
         "workflow_id": template_id,
-        "scoped": scoped,
-        "scope_suffix": scope_suffix,
         "stdout": "\n".join(result.get("written") or []),
         "stderr": stderr,
         "errors": result.get("errors") or [],
@@ -941,6 +961,7 @@ def _prepare_pipeline_document_for_run(
     pipeline_id: str, *, scope_suffix: str = _DEFAULT_BUILT_SCOPE
 ) -> Dict[str, Any]:
     doc = read_pipeline_document(pipeline_id, scope_suffix=scope_suffix)
+    assert_document_valid_for_run(doc, label=f"pipeline {pipeline_id!r}")
     canvas = doc.get("canvas")
     if isinstance(canvas, dict):
         doc = dict(doc)
@@ -955,6 +976,7 @@ def _prepare_pipeline_document_for_run(
 
 def _prepare_template_document_for_run(template_id: str) -> Dict[str, Any]:
     doc = read_template_document(template_id)
+    assert_document_valid_for_run(doc, label=f"template {template_id!r}")
     canvas = doc.get("canvas")
     if isinstance(canvas, dict):
         doc = dict(doc)

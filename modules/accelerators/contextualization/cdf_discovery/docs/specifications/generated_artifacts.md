@@ -46,6 +46,6 @@ pytest tests/unit/ -q
 
 ## Deploy
 
-1. `python module.py build --force` (from `cdf_discovery` module root; writes under `governance/`)
-2. Include generated `governance/spaces/` and `governance/auth/` in a Toolkit project (`fusion.yaml` / `cdf.toml`)
+1. `python module.py build --force` (from `cdf_discovery` module root; config in `governance/`, artifacts in `spaces/` and `auth/`)
+2. Include generated `spaces/` and `auth/` in a Toolkit project (`fusion.yaml` / `cdf.toml`)
 3. `cdf build` then deploy **spaces** and **auth** resources

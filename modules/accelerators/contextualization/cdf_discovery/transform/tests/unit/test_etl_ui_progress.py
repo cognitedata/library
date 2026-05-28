@@ -57,3 +57,31 @@ def test_emit_handler_progress_noop_without_fd(monkeypatch) -> None:
     etl_ui_progress.bind_handler_progress({"task_id": "t1"})
     etl_ui_progress.emit_handler_progress(1, force=True)
     etl_ui_progress.clear_handler_progress()
+
+
+def test_emit_handler_progress_every_n_rows_at_interval(monkeypatch) -> None:
+    lines: list[str] = []
+
+    def fake_write(fd: int, data: bytes) -> int:
+        lines.append(data.decode("utf-8"))
+        return len(data)
+
+    read_fd, write_fd = os.pipe()
+    os.close(read_fd)
+    monkeypatch.setenv("KEA_UI_PROGRESS_FD", str(write_fd))
+    monkeypatch.setattr(etl_ui_progress.os, "write", fake_write)
+
+    etl_ui_progress.bind_handler_progress({"task_id": "tr1"})
+    etl_ui_progress.emit_handler_progress_every_n_rows(499)
+    etl_ui_progress.emit_handler_progress_every_n_rows(500)
+    etl_ui_progress.emit_handler_progress_rows_complete(750)
+    etl_ui_progress.clear_handler_progress()
+    os.close(write_fd)
+
+    assert len(lines) == 2
+    at_500 = json.loads(lines[0])
+    at_end = json.loads(lines[1])
+    assert at_500["progress_current"] == 500
+    assert at_500["progress_label"] == "rows"
+    assert at_end["progress_current"] == 750
+    assert at_end["progress_label"] == "rows"

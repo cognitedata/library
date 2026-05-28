@@ -9,6 +9,7 @@ from typing import Any, Dict, List
 import yaml
 
 from workflow_build.build_scoped import build_scoped_workflow
+from workflow_build.paths import artifact_filename, workflow_artifacts_root, workflow_artifacts_scope_dir
 from workflow_build.sources import resolve_sources
 from workflow_build.targets_resolve import scope_targets_for_source
 
@@ -29,27 +30,26 @@ def check_scoped_workflow_drift(
     target,
     levels: List[str],
 ) -> List[str]:
-    from workflow_build.sources import WorkflowBuildSource
+    from workflow_build.sources import WorkflowBuildSource, instances_dir
 
     source = WorkflowBuildSource(
         workflow_id=workflow_id,
         source_kind=source_kind,
         document=document,
-        path=module_root / "workflow_definitions" / "instances" / f"{workflow_id}.yaml",
+        path=instances_dir(module_root, config) / f"{workflow_id}.yaml",
     )
-    prefix = f"etl_{workflow_id}.{target.scope_suffix}"
-    out_dir = module_root / "workflows" / target.scope_suffix
+    out_dir = workflow_artifacts_scope_dir(module_root, target.scope_suffix)
     errors: List[str] = []
 
     expected_paths = {
-        out_dir / f"{prefix}.config.yaml",
-        out_dir / f"{prefix}.Workflow.yaml",
-        out_dir / f"{prefix}.WorkflowVersion.yaml",
-        out_dir / f"{prefix}.WorkflowTrigger.yaml",
+        out_dir / artifact_filename(workflow_id, target.scope_suffix, "config.yaml"),
+        out_dir / artifact_filename(workflow_id, target.scope_suffix, "Workflow.yaml"),
+        out_dir / artifact_filename(workflow_id, target.scope_suffix, "WorkflowVersion.yaml"),
+        out_dir / artifact_filename(workflow_id, target.scope_suffix, "WorkflowTrigger.yaml"),
     }
     for p in expected_paths:
         if not p.is_file():
-            errors.append(f"missing artifact: {p.relative_to(module_root)}")
+            errors.append(f"missing artifact: {p.relative_to(workflow_artifacts_root(module_root).parent)}")
 
     if errors:
         return errors
@@ -72,7 +72,6 @@ def run_check(
     config: dict,
     workflow_ids: List[str] | None = None,
     template_ids: List[str] | None = None,
-    scoped: bool = False,
     scope_suffix: str | None = None,
 ) -> int:
     sources = resolve_sources(
@@ -81,8 +80,6 @@ def run_check(
         workflow_ids=workflow_ids,
         template_ids=template_ids,
     )
-    hierarchy = config.get("scope_hierarchy") if isinstance(config.get("scope_hierarchy"), dict) else {}
-    levels = [str(x).strip() for x in (hierarchy.get("levels") or []) if str(x).strip()]
     all_errors: List[str] = []
     for source in sources:
         targets = scope_targets_for_source(
@@ -90,17 +87,15 @@ def run_check(
             source_kind=source.source_kind,
             module_root=module_root,
             config=config,
-            scoped=scoped,
             scope_suffix=scope_suffix,
         )
         for target in targets:
-            prefix = f"etl_{target.workflow_id}.{target.scope_suffix}"
-            out_dir = module_root / "workflows" / target.scope_suffix
+            out_dir = workflow_artifacts_scope_dir(module_root, target.scope_suffix)
             for name in (
-                f"{prefix}.config.yaml",
-                f"{prefix}.Workflow.yaml",
-                f"{prefix}.WorkflowVersion.yaml",
-                f"{prefix}.WorkflowTrigger.yaml",
+                artifact_filename(target.workflow_id, target.scope_suffix, "config.yaml"),
+                artifact_filename(target.workflow_id, target.scope_suffix, "Workflow.yaml"),
+                artifact_filename(target.workflow_id, target.scope_suffix, "WorkflowVersion.yaml"),
+                artifact_filename(target.workflow_id, target.scope_suffix, "WorkflowTrigger.yaml"),
             ):
                 path = out_dir / name
                 if not path.is_file():

@@ -13,7 +13,7 @@ modules = [
     "accelerators/contextualization/cdf_p_and_id_annotation",
     "accelerators/contextualization/cdf_file_annotation",
     "accelerators/contextualization/cdf_entity_matching",
-    "accelerators/contextualization/cdf_discovery/transform",
+    "accelerators/contextualization/cdf_discovery",
 ]
 
 [packages.infield_quickstart]
@@ -84,6 +84,7 @@ modules = [
     "accelerators/cdf_common",
     "accelerators/cdf_ingestion",
     "accelerators/contextualization/cdf_file_annotation",
+    "accelerators/contextualization/cdf_discovery",
     "accelerators/contextualization/cdf_entity_matching",
     "accelerators/contextualization/cdf_connection_sql",
     "accelerators/industrial_tools/cdf_search",

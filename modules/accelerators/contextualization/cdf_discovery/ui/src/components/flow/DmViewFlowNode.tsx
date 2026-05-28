@@ -11,7 +11,8 @@ export type DmViewNodeData = {
 };
 
 function useDmViewHandles(data: FlowHandleOrientationNodeData): { target: Position; source: Position } {
-  const orientation = data.flowHandleOrientation ?? useFlowHandleOrientation();
+  const contextOrientation = useFlowHandleOrientation();
+  const orientation = data.flowHandleOrientation ?? contextOrientation;
   return orientation === "tb"
     ? { target: Position.Top, source: Position.Bottom }
     : { target: Position.Left, source: Position.Right };

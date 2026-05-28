@@ -11,7 +11,7 @@ import {
 import { fetchTreeChildren } from "../api";
 import { useAppSettings } from "../context/AppSettingsContext";
 import { useDiscoveryConfig } from "../context/DiscoveryConfigContext";
-import type { TreeNode } from "../types/discoveryNodes";
+import type { TreeNode, WorkflowRef } from "../types/discoveryNodes";
 import {
   collectDescendantIds,
   collectDescendantKeys,
@@ -19,7 +19,12 @@ import {
   isLoadingPlaceholder,
 } from "../utils/treeFilter";
 import { opensGovernanceTab } from "../utils/governanceTabs";
-import { opensTransformTab, pipelineIdFromNode, templateIdFromNode } from "../utils/transformTabs";
+import {
+  opensTransformTab,
+  pipelineIdFromNode,
+  templateIdFromNode,
+} from "../utils/transformTabs";
+import { workflowRefFromNode } from "../utils/workflowTabs";
 import { opensExtractTab, opensMonitorTab } from "../utils/workspaceTabs";
 import { canQueryTreeNode } from "../utils/sqlQuerySeed";
 import { canDropDataTreeEntity } from "../utils/dataTreeEntityDrop";
@@ -72,6 +77,7 @@ type Props = {
   onRenameTemplate?: (templateId: string, label: string) => void;
   onPipelineDropOnTemplates?: (pipelineId: string, pipelineLabel: string) => void;
   onTemplateDropOnPipelines?: (templateId: string, templateLabel: string) => void;
+  onOpenWorkflowInTransform?: (ref: WorkflowRef) => void;
   dataTreeDragEnabled?: boolean;
 };
 
@@ -95,6 +101,7 @@ export function ObjectDiscovery({
   onRenameTemplate,
   onPipelineDropOnTemplates,
   onTemplateDropOnPipelines,
+  onOpenWorkflowInTransform,
   dataTreeDragEnabled = false,
 }: Props) {
   const { t } = useAppSettings();
@@ -462,6 +469,16 @@ export function ObjectDiscovery({
         onSelect: () => openNode(node),
       });
     }
+    if (node.kind === "workflow" && onOpenWorkflowInTransform) {
+      const wfRef = workflowRefFromNode(node);
+      if (wfRef) {
+        items.push({
+          id: "open-in-transform",
+          label: t("wfViewer.openInTransform"),
+          onSelect: () => onOpenWorkflowInTransform(wfRef),
+        });
+      }
+    }
     const delQuery =
       node.kind === "saved_query" && onDeleteSavedQuery ? savedQueryFromNode(node) : null;
     if (delQuery && onDeleteSavedQuery) {
@@ -527,6 +544,7 @@ export function ObjectDiscovery({
     onDeletePipeline,
     onDeleteSavedQuery,
     onDeleteTemplate,
+    onOpenWorkflowInTransform,
     onRenamePipeline,
     onRenameTemplate,
     onTreeNew,

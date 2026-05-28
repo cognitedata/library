@@ -1,22 +1,2 @@
 schemaVersion: 1
-workflows:
-- id: build_asset_hierarchy
-  label: Build Asset Hierarchy
-  template_id: null
-  created_at: '2026-05-27T19:00:11+00:00'
-  updated_at: '2026-05-27T19:06:39+00:00'
-- id: sa_demo
-  label: SA Demo
-  template_id: null
-  created_at: '2026-05-27T20:48:27+00:00'
-  updated_at: '2026-05-27T21:03:09+00:00'
-- id: juandemo
-  label: Juan Demo
-  template_id: null
-  created_at: '2026-05-27T21:55:23+00:00'
-  updated_at: '2026-05-27T22:11:11+00:00'
-- id: aliasing_workflow_copy
-  label: Aliasing Workflow  Site 1
-  template_id: aliasing_workflow
-  created_at: '2026-05-27T22:24:00+00:00'
-  updated_at: '2026-05-27T22:24:23+00:00'
+workflows: []

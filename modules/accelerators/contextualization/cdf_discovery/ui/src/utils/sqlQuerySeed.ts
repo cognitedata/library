@@ -22,6 +22,19 @@ function sqlStringLiteral(value: string): string {
   return `'${value.replace(/'/g, "''")}'`;
 }
 
+export function sqlQueryForNodePreview(opts: {
+  rawDb: string;
+  previewTable: string;
+  runId: string;
+  previewNodeId: string;
+}): string {
+  const db = quoteIdent(opts.rawDb);
+  const table = quoteIdent(opts.previewTable);
+  const runId = sqlStringLiteral(opts.runId);
+  const previewNodeId = sqlStringLiteral(opts.previewNodeId);
+  return `SELECT * FROM ${db}.${table}\nWHERE RUN_ID = ${runId} AND PREVIEW_NODE_ID = ${previewNodeId}`;
+}
+
 function quoteIdent(segment: string): string {
   if (/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(segment)) {
     return segment;
@@ -61,6 +74,14 @@ export function sqlQueryForOpenTarget(target: OpenTarget): string | null {
     if (target.entity === "nodes") return "SELECT * FROM cdf_nodes()";
     if (target.entity === "edges") return "SELECT * FROM cdf_edges()";
     return null;
+  }
+  if (target.type === "node_preview") {
+    return sqlQueryForNodePreview({
+      rawDb: target.raw_db,
+      previewTable: target.preview_table,
+      runId: target.run_id,
+      previewNodeId: target.preview_node_id,
+    });
   }
   if (target.type === "fusion_data_model") {
     const { model_space, model_external_id, model_version, type_external_id } = target;

@@ -1,6 +1,6 @@
 # Local run
 
-From `cdf_discovery/transform/`:
+From `cdf_discovery/` (module root):
 
 ```bash
 python -m local_runner.run --dry-run          # exercise DAG in-memory (no CDF credentials)
@@ -23,7 +23,7 @@ Or via parent module:
 
 ```bash
 python module.py transform build --pipeline discovery_etl_default
-python module.py transform build --template aliasing_template [--scoped]
+python module.py transform build --template aliasing_template
 python module.py transform run --dry-run
 python module.py transform run --instance discovery_etl_default
 python module.py transform run --template aliasing_template
@@ -31,13 +31,13 @@ python module.py transform run --template aliasing_template
 
 ### Pipeline template build
 
-Templates live under `pipelines/templates/{template_id}.template.yaml`. **Build** compiles the canvas and writes CDF workflow manifests under `workflows/{scope_suffix}/` as `etl_{template_id}.*` (Workflow, WorkflowVersion, WorkflowTrigger, trimmed config). The template file is updated with `compiled_workflow` and start-node workflow/trigger pairing; no file is written under `pipelines/instances/`.
+Templates live under `workflow_definitions/templates/{template_id}.template.yaml`. **Build** compiles the canvas and writes CDF workflow manifests under `workflows/` as `etl_{template_id}.*` (Workflow, WorkflowVersion, WorkflowTrigger, trimmed config). The template file is updated with `compiled_workflow` and start-node workflow/trigger pairing; no file is written under `workflow_definitions/instances/`.
 
 Each template defaults to workflow base `wf_all_etl_{template_id}` (unless the start node sets `workflow_base`), so multiple templates do not share the global `workflow` key from `default.config.yaml`.
 
 From the Transform UI, open a template tab and use **Build** (saves dirty canvas first). **Run locally** on a pipeline or template compiles the current canvas, executes the DAG via the same runner, and shows per-task status in the toolbar.
 
-The object tree **Transform** branch lists build scopes (`all`, `global`, …) as folders; each folder contains pipelines that have `transform/workflows/{scope}/etl_{pipeline_id}.{scope}.config.yaml` from the last build.
+The object tree **Transform** branch lists build scopes (`all`, `global`, …) as folders; each folder contains pipelines that have `workflows/{scope}/etl_{pipeline_id}.{scope}.config.yaml` from the last build.
 
 Credentials: repository root `.env` (`COGNITE_API_KEY` or `COGNITE_*` / `IDP_*` OAuth vars).
 

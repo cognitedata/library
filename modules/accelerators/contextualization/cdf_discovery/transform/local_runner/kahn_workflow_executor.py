@@ -118,6 +118,48 @@ def _effective_function_external_id(task: Mapping[str, Any]) -> str:
     return str(_task_config(task).get("function_external_id") or "").strip()
 
 
+def _work_item_is_raw_cleanup(work: "_LayerTaskWork") -> bool:
+    if work.skipped:
+        return False
+    task = work.task
+    if str(task.get("executable_kind") or "").strip() == "raw_cleanup":
+        return True
+    return _effective_function_external_id(task) == "fn_etl_raw_cleanup"
+
+
+def _maybe_run_preview_snapshots_before_cleanup(
+    *,
+    work_items: Sequence["_LayerTaskWork"],
+    shared_data: MutableMapping[str, Any],
+    summaries: Mapping[str, Any],
+    client: Any,
+    dry_run: bool,
+    logger: logging.Logger,
+) -> None:
+    """Snapshot preview nodes while cohort RAW tables still exist (before ``raw_cleanup``)."""
+    if dry_run or client is None:
+        return
+    if not any(_work_item_is_raw_cleanup(w) for w in work_items):
+        return
+    if shared_data.get("_preview_snapshots_done"):
+        return
+    configuration = shared_data.get("configuration")
+    if not isinstance(configuration, dict):
+        return
+    from local_runner.preview_nodes import run_canvas_preview_snapshots
+
+    previews = run_canvas_preview_snapshots(
+        configuration,
+        shared_data,
+        client=client,
+        task_summaries=summaries,
+        dry_run=False,
+        log=logger,
+    )
+    shared_data["_preview_snapshots_done"] = True
+    shared_data["_preview_snapshots"] = previews
+
+
 def _seed_in_memory_predecessors(data: MutableMapping[str, Any], task_id: str) -> None:
     """Populate task-local ``_predecessor_rows`` from completed predecessor buffers."""
     rows: List[Dict[str, Any]] = []
@@ -476,6 +518,15 @@ def run_compiled_workflow_dag(
                         skip_summary=None,
                     )
                 )
+
+        _maybe_run_preview_snapshots_before_cleanup(
+            work_items=work_items,
+            shared_data=shared_data,
+            summaries=summaries,
+            client=client,
+            dry_run=dry_run,
+            logger=logger,
+        )
 
         layer_workers = resolve_max_workers(
             layer_size=len(work_items),

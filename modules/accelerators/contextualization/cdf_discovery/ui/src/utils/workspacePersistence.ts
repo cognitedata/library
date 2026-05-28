@@ -12,7 +12,6 @@ import {
   createEtlPipelineTab,
   createEtlTemplateTab,
   etlPipelineTabKey,
-  etlScopeTabKey,
   etlTemplateTabKey,
 } from "./transformTabs";
 import { createExtractTab, createMonitorTab } from "./workspaceTabs";
@@ -189,12 +188,6 @@ export function serializeWorkspace(
         label: tab.label,
         template_id: tab.templateId,
       });
-    } else if (tab.kind === "etl_scope") {
-      saved.push({
-        kind: "etl_scope",
-        id: tab.id,
-        label: tab.label,
-      });
     } else if (tab.kind === "extract") {
       saved.push({ kind: "extract", id: tab.id, label: tab.label });
     } else if (tab.kind === "monitor") {
@@ -266,7 +259,8 @@ function restoreSqlTab(
 
 export function restoreWorkspaceTabs(
   workspace: SavedWorkspace,
-  sqlWorkspaceLabel: string
+  sqlWorkspaceLabel: string,
+  governanceInstanceSpacesLabel = "Instance Spaces"
 ): { tabs: DocumentTab[]; activeTabId: string | null } {
   const tabs: DocumentTab[] = [];
 
@@ -327,7 +321,7 @@ export function restoreWorkspaceTabs(
       tabs.push({
         kind: "governance_spaces",
         id: "gov:spaces",
-        label: saved.label?.trim() || "Spaces",
+        label: saved.label?.trim() || governanceInstanceSpacesLabel,
         activeSubTab: saved.active_sub_tab ?? "configure",
         artifactRel: saved.artifact_rel ?? null,
       });
@@ -360,7 +354,8 @@ export function restoreWorkspaceTabs(
         error: null,
       });
     } else if (saved.kind === "etl_pipeline") {
-      const scopeSuffix = saved.scope_suffix?.trim() || "all";
+      const scopeSuffix =
+        saved.scope_suffix?.trim() === "all" ? "" : saved.scope_suffix?.trim() || "";
       const tab = createEtlPipelineTab(
         saved.pipeline_id,
         saved.label?.trim() || saved.pipeline_id,
@@ -376,12 +371,6 @@ export function restoreWorkspaceTabs(
       );
       tab.id = saved.id || etlTemplateTabKey(saved.template_id);
       tabs.push(tab);
-    } else if (saved.kind === "etl_scope") {
-      tabs.push({
-        kind: "etl_scope",
-        id: saved.id || etlScopeTabKey(),
-        label: saved.label?.trim() || "Scope",
-      });
     } else if (saved.kind === "extract") {
       const tab = createExtractTab(saved.label?.trim() || "Extract");
       tab.id = saved.id || EXTRACT_ROOT;

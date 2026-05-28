@@ -188,7 +188,11 @@ export async function streamTransformPipelineRun(
 
   const scopeQ =
     target.kind === "pipeline"
-      ? `?scope_suffix=${encodeURIComponent(target.scopeSuffix ?? "all")}`
+      ? (() => {
+          const scope = (target.scopeSuffix ?? "").trim();
+          const normalized = scope === "all" ? "" : scope;
+          return normalized ? `?scope_suffix=${encodeURIComponent(normalized)}` : "";
+        })()
       : "";
   const res = await fetch(`${apiBase}/run-stream${scopeQ}`, {
     method: "POST",

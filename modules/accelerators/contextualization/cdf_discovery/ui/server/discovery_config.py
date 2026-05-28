@@ -302,12 +302,6 @@ def _normalize_workspace_tab(raw: Any) -> Optional[Dict[str, Any]]:
             out["label"] = label
         return out
 
-    if kind == "etl_scope":
-        out = {"kind": "etl_scope", "id": tab_id}
-        if label:
-            out["label"] = label
-        return out
-
     if kind == "extract":
         out = {"kind": "extract", "id": tab_id}
         if label:

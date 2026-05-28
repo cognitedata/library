@@ -2,16 +2,20 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   buildTransformPipeline,
   buildTransformTemplate,
+  deployTransformPipelineCdf,
   fetchTransformPipeline,
   fetchTransformTemplate,
+  runTransformPipelineCdf,
   saveTransformPipelineCanvas,
   saveTransformTemplateCanvas,
   validateTransformPipeline,
   validateTransformTemplate,
   type TransformBuildResult,
+  type TransformCdfCliResult,
 } from "../../api";
 import type { MessageKey } from "../../i18n/types";
 import { useAppSettings } from "../../context/AppSettingsContext";
+import type { Node } from "@xyflow/react";
 import type { EtlPipelineDocumentTab, EtlTemplateDocumentTab } from "../../types/discoveryNodes";
 import {
   readTransformTabRunSession,
@@ -26,6 +30,7 @@ import { pipelineDocumentToTab, templateDocumentToTab } from "../../utils/transf
 import { usePipelineDryRun, usePipelineRunScope } from "../../utils/pipelineRunScope";
 import { TransformLocalRunDryRunField } from "./TransformLocalRunDryRunField";
 import { TransformFlowPanel } from "./TransformFlowPanel";
+import { canvasValidationNodeIds } from "../../utils/canvasValidationNodeIds";
 import { TransformRunResultsPanel } from "./TransformRunResultsPanel";
 import {
   TransformSaveAsDialog,
@@ -43,6 +48,7 @@ type BaseProps = {
   onRename?: () => void;
   onRunSessionPatch: (tabId: string, patch: TransformTabRunSessionPatch) => void;
   onCopyCreated?: (result: TransformSaveAsResult) => void;
+  onOpenNodePreviewQuery?: (node: Node) => void;
 };
 
 type PipelineProps = BaseProps & {
@@ -78,8 +84,19 @@ function formatTransformBuildStatus(
   return t("transform.toolbar.buildOk", { count: String(result.task_count ?? 0) });
 }
 
+function formatCdfCliLog(result: TransformCdfCliResult): string {
+  const parts = [`exit_code: ${result.exit_code}`];
+  if (result.stdout?.trim()) {
+    parts.push("", "--- stdout ---", result.stdout.trimEnd());
+  }
+  if (result.stderr?.trim()) {
+    parts.push("", "--- stderr ---", result.stderr.trimEnd());
+  }
+  return parts.join("\n");
+}
+
 export function TransformPipelinePane(props: Props) {
-  const { onDelete, onRename, onRunSessionPatch } = props;
+  const { onDelete, onRename, onRunSessionPatch, onOpenNodePreviewQuery } = props;
   const isTemplate = isTemplateProps(props);
   const resourceId = isTemplate ? props.tab.templateId : props.tab.pipelineId;
 
@@ -98,7 +115,7 @@ export function TransformPipelinePane(props: Props) {
 
   const pipelineTab = !isTemplate ? props.tab : null;
   const templateTab = isTemplate ? props.tab : null;
-  const pipelineScopeSuffix = pipelineTab?.scopeSuffix ?? "all";
+  const pipelineScopeSuffix = pipelineTab?.scopeSuffix ?? "";
 
   const activeTab = templateTab ?? pipelineTab;
   const runSession = useMemo(
@@ -106,6 +123,10 @@ export function TransformPipelinePane(props: Props) {
     [activeTab]
   );
   const { editorSubTab, runLog, lastRun, runBusy } = runSession;
+  const [cdfLog, setCdfLog] = useState("");
+  const [cdfBusy, setCdfBusy] = useState(false);
+  const [cdfInstanceSpace, setCdfInstanceSpace] = useState("");
+  const [validationFailedNodeIds, setValidationFailedNodeIds] = useState<string[]>([]);
 
   const activeParameters = pipelineTab?.document?.parameters ?? templateTab?.document?.parameters;
   const [runScope, setRunScope] = usePipelineRunScope(resourceId, activeParameters);
@@ -165,7 +186,7 @@ export function TransformPipelinePane(props: Props) {
       }
       if (pipelineTab) {
         const pipelineId = pipelineTab.pipelineId;
-        const scopeSuffix = pipelineTab.scopeSuffix ?? "all";
+        const scopeSuffix = pipelineTab.scopeSuffix ?? "";
         try {
           const { pipeline } = await fetchTransformPipeline(pipelineId, scopeSuffix);
           if (cancelled || gen !== loadGen.current || tabIdRef.current !== expectedTabId) return;
@@ -205,6 +226,7 @@ export function TransformPipelinePane(props: Props) {
   const onChange = useCallback(
     (doc: TransformCanvasDocument) => {
       setCanvas(doc);
+      setValidationFailedNodeIds([]);
       if (templateTab) {
         updateDocumentTab({ ...templateTab, canvas: doc, dirty: true });
       } else if (pipelineTab) {
@@ -217,6 +239,7 @@ export function TransformPipelinePane(props: Props) {
   const onReload = useCallback(async () => {
     setReloading(true);
     setStatusMessage(null);
+    setValidationFailedNodeIds([]);
     try {
       if (templateTab) {
         const { template } = await fetchTransformTemplate(templateTab.templateId);
@@ -227,7 +250,7 @@ export function TransformPipelinePane(props: Props) {
       } else if (pipelineTab) {
         const { pipeline } = await fetchTransformPipeline(
           pipelineTab.pipelineId,
-          pipelineTab.scopeSuffix ?? "all"
+          pipelineTab.scopeSuffix ?? ""
         );
         const next = pipelineDocumentToTab(pipeline, pipelineTab);
         updateDocumentTab({ ...next, dirty: false, error: null });
@@ -271,15 +294,29 @@ export function TransformPipelinePane(props: Props) {
   const onValidate = useCallback(async () => {
     setStatusMessage(null);
     try {
+      const canvasDoc = canvasRef.current as unknown as Record<string, unknown>;
       const result = templateTab
-        ? await validateTransformTemplate(templateTab.templateId)
+        ? await validateTransformTemplate(templateTab.templateId, canvasDoc)
         : pipelineTab
-          ? await validateTransformPipeline(pipelineTab.pipelineId, pipelineScopeSuffix)
+          ? await validateTransformPipeline(
+              pipelineTab.pipelineId,
+              pipelineScopeSuffix,
+              canvasDoc
+            )
           : { ok: false };
+      if (result.ok) {
+        setValidationFailedNodeIds([]);
+        setStatusMessage(t("transform.toolbar.validateOk"));
+        return;
+      }
+      const errors = result.errors ?? [];
+      setValidationFailedNodeIds(canvasValidationNodeIds(errors));
+      const detail = errors.join("\n").trim();
       setStatusMessage(
-        result.ok ? t("transform.toolbar.validateOk") : t("transform.toolbar.validateFailed")
+        detail ? `${t("transform.toolbar.validateFailed")}\n${detail}` : t("transform.toolbar.validateFailed")
       );
     } catch (e) {
+      setValidationFailedNodeIds([]);
       setStatusMessage(String(e));
     }
   }, [pipelineTab, templateTab, pipelineScopeSuffix, t]);
@@ -308,7 +345,7 @@ export function TransformPipelinePane(props: Props) {
       const result =
         target.kind === "template"
           ? await buildTransformTemplate(target.id)
-          : await buildTransformPipeline(target.id, false, pipelineScopeSuffix);
+          : await buildTransformPipeline(target.id, pipelineScopeSuffix);
       setStatusMessage(formatTransformBuildStatus(result, t));
       if (!result.ok) {
         const log = (result.stderr || result.stdout || "").trim();
@@ -320,6 +357,45 @@ export function TransformPipelinePane(props: Props) {
       setSaving(false);
     }
   }, [pipelineTab, templateTab, pipelineScopeSuffix, updateDocumentTab, patchRunSession, t]);
+
+  const runDeployCdf = useCallback(
+    async (dryRun: boolean) => {
+      if (!pipelineTab) return;
+      setCdfBusy(true);
+      setCdfLog(`${t("status.running")}\n`);
+      try {
+        const result = await deployTransformPipelineCdf(pipelineTab.pipelineId, pipelineScopeSuffix, {
+          dryRun,
+        });
+        setCdfLog(formatCdfCliLog(result));
+      } catch (e) {
+        setCdfLog(String(e));
+      } finally {
+        setCdfBusy(false);
+      }
+    },
+    [pipelineTab, pipelineScopeSuffix, t]
+  );
+
+  const runCdfWorkflow = useCallback(
+    async (dryRun: boolean) => {
+      if (!pipelineTab) return;
+      setCdfBusy(true);
+      setCdfLog(`${t("status.running")}\n`);
+      try {
+        const result = await runTransformPipelineCdf(pipelineTab.pipelineId, pipelineScopeSuffix, {
+          dryRun,
+          instanceSpace: cdfInstanceSpace,
+        });
+        setCdfLog(formatCdfCliLog(result));
+      } catch (e) {
+        setCdfLog(String(e));
+      } finally {
+        setCdfBusy(false);
+      }
+    },
+    [pipelineTab, pipelineScopeSuffix, cdfInstanceSpace, t]
+  );
 
   const runLocalStreamed = useCallback(
     async ({
@@ -335,7 +411,7 @@ export function TransformPipelinePane(props: Props) {
           ? ({
               kind: "pipeline" as const,
               id: pipelineTab.pipelineId,
-              scopeSuffix: pipelineTab.scopeSuffix ?? "all",
+              scopeSuffix: pipelineTab.scopeSuffix ?? "",
               tab: pipelineTab,
             })
           : null;
@@ -356,7 +432,7 @@ export function TransformPipelinePane(props: Props) {
             await saveTransformPipelineCanvas(
               runTarget.id,
               canvasRef.current,
-              runTarget.kind === "pipeline" ? (runTarget.scopeSuffix ?? "all") : "all"
+              runTarget.kind === "pipeline" ? (runTarget.scopeSuffix ?? "") : ""
             );
             updateDocumentTab({ ...runTarget.tab, canvas: canvasRef.current, dirty: false, error: null });
           }
@@ -372,6 +448,42 @@ export function TransformPipelinePane(props: Props) {
         patchRunSession({ runLog: "" });
       }
 
+      try {
+        const validation =
+          runTarget.kind === "template"
+            ? await validateTransformTemplate(
+                runTarget.id,
+                canvasRef.current as unknown as Record<string, unknown>
+              )
+            : await validateTransformPipeline(
+                runTarget.id,
+                runTarget.scopeSuffix ?? "",
+                canvasRef.current as unknown as Record<string, unknown>
+              );
+        if (!validation.ok) {
+          const errors = validation.errors ?? [];
+          setValidationFailedNodeIds(canvasValidationNodeIds(errors));
+          const detail = errors.length ? errors.join("\n") : t("transform.toolbar.validateFailed");
+          patchRunSession((prev) => ({
+            runBusy: false,
+            runLog: `${prev.runLog}${detail}\n`,
+            lastRun: { ok: false, detail },
+          }));
+          setRunProgress(initialTransformFlowRunProgress());
+          setStatusMessage(t("transform.toolbar.validateFailed"));
+          return;
+        }
+        setValidationFailedNodeIds([]);
+      } catch (e) {
+        patchRunSession((prev) => ({
+          runBusy: false,
+          runLog: `${prev.runLog}${String(e)}\n`,
+          lastRun: { ok: false, detail: String(e) },
+        }));
+        setRunProgress(initialTransformFlowRunProgress());
+        return;
+      }
+
       patchRunSession((prev) => ({ runLog: `${prev.runLog}${t("status.running")}\n` }));
 
       try {
@@ -380,7 +492,7 @@ export function TransformPipelinePane(props: Props) {
             ? {
                 kind: "pipeline",
                 id: runTarget.id,
-                scopeSuffix: runTarget.scopeSuffix ?? "all",
+                scopeSuffix: runTarget.scopeSuffix ?? "",
               }
             : { kind: "template", id: runTarget.id },
           { incrementalChangeProcessing, dryRun: dryRunRequested },
@@ -422,7 +534,7 @@ export function TransformPipelinePane(props: Props) {
         kind: "pipeline",
         pipelineId: pipelineTab.pipelineId,
         label: pipelineTab.label,
-        scopeSuffix: pipelineTab.scopeSuffix ?? "all",
+        scopeSuffix: pipelineTab.scopeSuffix ?? "",
       }
     : templateTab
       ? { kind: "template", templateId: templateTab.templateId, label: templateTab.label }
@@ -504,53 +616,125 @@ export function TransformPipelinePane(props: Props) {
           runBusy={runBusy}
           statusMessage={statusMessage}
           runProgress={flowRunProgress}
+          validationFailedNodeIds={validationFailedNodeIds}
+          onOpenNodePreviewQuery={onOpenNodePreviewQuery}
         />
       ) : null}
 
       {editorSubTab === "console" ? (
         <div className="transform-pipeline-console">
-          <div className="transform-flow-toolbar" role="toolbar" aria-label={t("transform.toolbar.aria")}>
-            <button
-              type="button"
-              className="disc-btn disc-btn--primary"
-              disabled={runBusy || saving}
-              onClick={() =>
-                void runLocalStreamed({
-                  incrementalChangeProcessing: runScope === "incremental",
-                  dryRun,
-                })
-              }
-            >
-              {runBusy ? t("status.running") : t("transform.toolbar.runLocal")}
-            </button>
-            <TransformLocalRunDryRunField
-              t={t}
-              dryRun={dryRun}
-              onDryRunChange={setDryRun}
-              disabled={runBusy || saving}
-            />
-            <label className="transform-flow-toolbar__run-scope">
-              <span className="transform-flow-toolbar__run-scope-label">{t("transform.toolbar.runScope")}</span>
-              <select
-                className="gov-input"
-                value={runScope}
-                onChange={(e) => setRunScope(e.target.value as "incremental" | "all")}
-                title={t("transform.toolbar.runScopeHint")}
-                disabled={runBusy || saving}
+          <div className="transform-pipeline-console__section">
+            <p className="transform-pipeline-console__section-title">{t("transform.toolbar.runLocal")}</p>
+            <div className="transform-flow-toolbar" role="toolbar" aria-label={t("transform.toolbar.aria")}>
+              <button
+                type="button"
+                className="disc-btn disc-btn--primary"
+                disabled={runBusy || saving || cdfBusy || isTemplate}
+                onClick={() =>
+                  void runLocalStreamed({
+                    incrementalChangeProcessing: runScope === "incremental",
+                    dryRun,
+                  })
+                }
               >
-                <option value="incremental">{t("transform.toolbar.runScopeIncremental")}</option>
-                <option value="all">{t("transform.toolbar.runScopeAll")}</option>
-              </select>
-            </label>
-            <p className="transform-pipeline-console__hint">{t("transform.console.hint")}</p>
+                {runBusy ? t("status.running") : t("transform.toolbar.runLocal")}
+              </button>
+              <TransformLocalRunDryRunField
+                t={t}
+                dryRun={dryRun}
+                onDryRunChange={setDryRun}
+                disabled={runBusy || saving || cdfBusy || isTemplate}
+              />
+              <label className="transform-flow-toolbar__run-scope">
+                <span className="transform-flow-toolbar__run-scope-label">{t("transform.toolbar.runScope")}</span>
+                <select
+                  className="gov-input"
+                  value={runScope}
+                  onChange={(e) => setRunScope(e.target.value as "incremental" | "all")}
+                  title={t("transform.toolbar.runScopeHint")}
+                  disabled={runBusy || saving || cdfBusy || isTemplate}
+                >
+                  <option value="incremental">{t("transform.toolbar.runScopeIncremental")}</option>
+                  <option value="all">{t("transform.toolbar.runScopeAll")}</option>
+                </select>
+              </label>
+            </div>
+            {isTemplate ? (
+              <p className="transform-pipeline-console__hint">{t("transform.console.templateHint")}</p>
+            ) : (
+              <p className="transform-pipeline-console__hint">{t("transform.console.hint")}</p>
+            )}
+            <textarea
+              readOnly
+              className="gov-textarea gov-textarea--readonly transform-pipeline-console__log"
+              value={runLog}
+              placeholder={t("run.outputPlaceholder")}
+              aria-label={t("transform.toolbar.runLocal")}
+            />
           </div>
-          <textarea
-            readOnly
-            className="gov-textarea gov-textarea--readonly transform-pipeline-console__log"
-            value={runLog}
-            placeholder={t("run.outputPlaceholder")}
-            aria-label={t("transform.editorSubtabs.console")}
-          />
+          {!isTemplate ? (
+            <div className="transform-pipeline-console__section">
+              <p className="transform-pipeline-console__section-title">{t("transform.console.cdfToolsTitle")}</p>
+              <p className="transform-pipeline-console__hint">{t("transform.console.cdfHint")}</p>
+              <div className="transform-pipeline-console__cdf-field">
+                <label htmlFor={`cdf-instance-space-${resourceId}`}>
+                  {t("transform.console.cdfInstanceSpaceLabel")}
+                </label>
+                <input
+                  id={`cdf-instance-space-${resourceId}`}
+                  type="text"
+                  className="gov-input"
+                  value={cdfInstanceSpace}
+                  onChange={(e) => setCdfInstanceSpace(e.target.value)}
+                  placeholder={t("transform.console.cdfInstanceSpacePlaceholder")}
+                  autoComplete="off"
+                  spellCheck={false}
+                  disabled={cdfBusy || runBusy || saving}
+                />
+              </div>
+              <div className="transform-flow-toolbar" role="toolbar">
+                <button
+                  type="button"
+                  className="disc-btn"
+                  disabled={cdfBusy || runBusy || saving}
+                  onClick={() => void runDeployCdf(false)}
+                >
+                  {cdfBusy ? t("transform.console.cdfBusy") : t("transform.console.deployCdf")}
+                </button>
+                <button
+                  type="button"
+                  className="disc-btn"
+                  disabled={cdfBusy || runBusy || saving}
+                  onClick={() => void runCdfWorkflow(false)}
+                >
+                  {t("transform.console.runCdf")}
+                </button>
+                <button
+                  type="button"
+                  className="disc-btn disc-btn--ghost"
+                  disabled={cdfBusy || runBusy || saving}
+                  onClick={() => void runCdfWorkflow(true)}
+                >
+                  {t("transform.console.runCdfDryRun")}
+                </button>
+                <button
+                  type="button"
+                  className="disc-btn disc-btn--ghost"
+                  disabled={cdfBusy || runBusy || saving}
+                  onClick={() => void runDeployCdf(true)}
+                >
+                  {t("transform.console.deployCdfDryRun")}
+                </button>
+              </div>
+              <textarea
+                readOnly
+                className="gov-textarea gov-textarea--readonly transform-pipeline-console__log transform-pipeline-console__log--cdf"
+                value={cdfLog}
+                placeholder={t("transform.console.cdfLogPlaceholder")}
+                aria-label={t("transform.console.deployCdf")}
+              />
+            </div>
+          ) : null}
         </div>
       ) : null}
 

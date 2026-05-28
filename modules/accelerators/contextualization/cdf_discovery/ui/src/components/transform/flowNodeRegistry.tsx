@@ -7,8 +7,8 @@ import type { TransformCanvasHandleOrientation, TransformCanvasNodeKind } from "
 import { kindToRfType } from "../../types/transformCanvas";
 import { useAppSettings } from "../../context/AppSettingsContext";
 import { useFlowHandleOrientation } from "./FlowHandleOrientationContext";
-import type { FlowHandleOrientationNodeData } from "./flowHandleOrientation";
 import { mergeEtlNodeCardStyle } from "./flowNodeAccent";
+import { resolveEtlNodeAccentColor } from "../../utils/etlPaletteGroupColors";
 import {
   canvasNodeProgressPercent,
   canvasNodeProgressVisible,
@@ -31,10 +31,11 @@ import {
 } from "../../utils/dualInputConnectorLabels";
 import { canvasNodeDisplayLabel, canvasNodeKindLabel } from "../../utils/canvasNodeKindLabel";
 
-function useDataHandles(
-  data: FlowHandleOrientationNodeData
-): { in: Position; out: Position; key: TransformCanvasHandleOrientation } {
-  const o = data.flowHandleOrientation ?? useFlowHandleOrientation();
+function useDataHandles(data: {
+  flowHandleOrientation?: TransformCanvasHandleOrientation;
+}): { in: Position; out: Position; key: TransformCanvasHandleOrientation } {
+  const contextOrientation = useFlowHandleOrientation();
+  const o = data.flowHandleOrientation ?? contextOrientation;
   return o === "tb"
     ? { in: Position.Top, out: Position.Bottom, key: "tb" }
     : { in: Position.Left, out: Position.Right, key: "lr" };
@@ -229,7 +230,7 @@ function DualInputFlowNode({
   const description = etlFlowNodeCanvasDescription(kind, data as Record<string, unknown>);
   const disabled = data.canvas_node_enabled === false;
   const resizeEnabled = data.canvas_resize_enabled !== false;
-  const accent = "var(--etl-node-contextualization, #d97706)";
+  const accent = resolveEtlNodeAccentColor(kind, data as Record<string, unknown>);
   const customStyle = mergeEtlNodeCardStyle(data as Record<string, unknown>);
   const bodyStyle = {
     borderLeftColor: customStyle?.borderLeftColor ?? accent,
@@ -342,7 +343,7 @@ function JoinFlowNode({ data, selected }: EtlNodeProps) {
   const description = etlFlowNodeCanvasDescription(kind, data as Record<string, unknown>);
   const disabled = data.canvas_node_enabled === false;
   const resizeEnabled = data.canvas_resize_enabled !== false;
-  const accent = "var(--etl-node-default, #6366f1)";
+  const accent = resolveEtlNodeAccentColor(kind, data as Record<string, unknown>);
   const customStyle = mergeEtlNodeCardStyle(data as Record<string, unknown>);
   const bodyStyle = {
     borderLeftColor: customStyle?.borderLeftColor ?? accent,
@@ -390,6 +391,10 @@ function JoinFlowNode({ data, selected }: EtlNodeProps) {
   );
 }
 
+function NodePreviewFlowNode(props: EtlNodeProps) {
+  return <EtlFlowNode {...props} data={{ ...props.data, kind: "node_preview" }} />;
+}
+
 function EtlFlowNode({ data, selected }: EtlNodeProps) {
   const { t } = useAppSettings();
   const handles = useDataHandles(data);
@@ -399,16 +404,7 @@ function EtlFlowNode({ data, selected }: EtlNodeProps) {
   const description = etlFlowNodeCanvasDescription(kind, data as Record<string, unknown>);
   const disabled = data.canvas_node_enabled === false;
   const resizeEnabled = data.canvas_resize_enabled !== false;
-  const accent =
-    kind === "start"
-      ? "var(--etl-node-start, #22c55e)"
-      : kind === "end"
-        ? "var(--etl-node-end, #ef4444)"
-        : kind.startsWith("query_") || kind.startsWith("save_")
-          ? "var(--etl-node-io, #3b82f6)"
-          : kind === "spark_transform" || kind === "transformation_ref"
-            ? "var(--etl-node-spark, #f59e0b)"
-            : "var(--etl-node-default, #6366f1)";
+  const accent = resolveEtlNodeAccentColor(kind, data as Record<string, unknown>);
   const customStyle = mergeEtlNodeCardStyle(data as Record<string, unknown>);
   const bodyStyle = {
     borderLeftColor: customStyle?.borderLeftColor ?? accent,
@@ -420,7 +416,7 @@ function EtlFlowNode({ data, selected }: EtlNodeProps) {
 
   return (
     <div
-      className={`etl-flow-node etl-flow-node--${kind} etl-flow-node--resizable${selected ? " etl-flow-node--selected" : ""}${disabled ? " etl-flow-node--disabled" : ""}`}
+      className={`etl-flow-node etl-flow-node--${kind} etl-flow-node--resizable${kind === "node_preview" ? " etl-flow-node--preview" : ""}${selected ? " etl-flow-node--selected" : ""}${disabled ? " etl-flow-node--disabled" : ""}`}
     >
       <EtlNodeResizer selected={Boolean(selected)} enabled={resizeEnabled} />
       {kind !== "start" && (
@@ -489,6 +485,7 @@ export const ETL_FLOW_NODE_TYPES = {
   etlSimulation: makeNodeComponent("simulation"),
   etlCdfTask: makeNodeComponent("cdf_task"),
   etlSubgraph: makeNodeComponent("subgraph"),
+  etlNodePreview: NodePreviewFlowNode,
 };
 
 export function nextEtlNodeId(kind: TransformCanvasNodeKind, existingIds: Set<string>): string {

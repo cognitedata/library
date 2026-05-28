@@ -9,6 +9,7 @@ import {
   TRANSFORM_PIPELINES,
   TRANSFORM_ROOT,
   TRANSFORM_TEMPLATES,
+  GOVERNANCE_SPACES,
 } from "./treeNodeIds";
 
 const TREE_LABEL_KEYS: Record<string, MessageKey> = {
@@ -20,6 +21,7 @@ const TREE_LABEL_KEYS: Record<string, MessageKey> = {
   [FUSION_ADMIN]: "fusion.tree.admin",
   [FUSION_GROUPS]: "fusion.tree.groups",
   [MONITOR_ROOT]: "tree.monitor",
+  [GOVERNANCE_SPACES]: "governance.tree.instanceSpaces",
 };
 
 export function treeNodeDisplayLabel(

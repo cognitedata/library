@@ -5,17 +5,21 @@ import type { EtlWorkflowYamlDocumentTab } from "../types/discoveryNodes";
 
 const LEGACY_PIPELINE_ITEM_PREFIX = "transform:pipelines:item:";
 const LEGACY_TEMPLATE_ITEM_PREFIX = "transform:pipelines:templates:item:";
+const LEGACY_UNSCOPED_SCOPE = "all";
 
-export function etlPipelineTabKey(pipelineId: string, scopeSuffix = "all"): string {
-  return `etl:pipeline:${scopeSuffix}:${pipelineId}`;
+export function normalizePipelineScopeSuffix(scopeSuffix?: string | null): string {
+  const s = String(scopeSuffix ?? "").trim();
+  return s === LEGACY_UNSCOPED_SCOPE ? "" : s;
+}
+
+export function etlPipelineTabKey(pipelineId: string, scopeSuffix = ""): string {
+  const scope = normalizePipelineScopeSuffix(scopeSuffix);
+  if (!scope) return `etl:pipeline:${pipelineId}`;
+  return `etl:pipeline:${scope}:${pipelineId}`;
 }
 
 export function etlTemplateTabKey(templateId: string): string {
   return `etl:template:${templateId}`;
-}
-
-export function etlScopeTabKey(): string {
-  return "transform:scope";
 }
 
 function decodeNodeSegment(seg: string): string {
@@ -33,11 +37,11 @@ function pipelineSegmentsFromNodeId(nodeId: string): { scopeSuffix: string; pipe
   const parts = rest.split(":").map(decodeNodeSegment);
   if (parts.length >= 2) {
     const pipelineId = parts[parts.length - 1];
-    const scopeSuffix = parts.slice(0, -1).join(":");
-    return pipelineId ? { scopeSuffix: scopeSuffix || "all", pipelineId } : null;
+    const scopeSuffix = normalizePipelineScopeSuffix(parts.slice(0, -1).join(":"));
+    return pipelineId ? { scopeSuffix, pipelineId } : null;
   }
   if (parts.length === 1) {
-    return { scopeSuffix: "all", pipelineId: parts[0] };
+    return { scopeSuffix: "", pipelineId: parts[0] };
   }
   return null;
 }
@@ -66,9 +70,9 @@ function idAfterPrefix(nodeId: string, prefix: string, legacyPrefix: string): st
 
 export function scopeSuffixFromNode(node: { id?: string; meta?: Record<string, unknown> }): string {
   const fromMeta = node.meta?.scope_suffix;
-  if (typeof fromMeta === "string" && fromMeta.trim()) return fromMeta.trim();
+  if (typeof fromMeta === "string") return normalizePipelineScopeSuffix(fromMeta);
   const parsed = pipelineSegmentsFromNodeId(node.id ?? "");
-  return parsed?.scopeSuffix ?? "all";
+  return parsed?.scopeSuffix ?? "";
 }
 
 export function pipelineIdFromNode(node: { id?: string; meta?: Record<string, unknown> }): string | null {
@@ -92,7 +96,7 @@ export function pipelineLabelFromMeta(meta: Record<string, unknown> | undefined)
   if (typeof label === "string" && label.trim()) return label.trim();
   const id = meta?.id;
   if (typeof id === "string" && id.trim()) return id.trim();
-  return "Pipeline";
+  return "Workflow";
 }
 
 export function templateLabelFromMeta(meta: Record<string, unknown> | undefined): string {
@@ -129,7 +133,6 @@ export function createEtlWorkflowYamlTab(relPath: string, label: string): EtlWor
 /** Tree nodes that open a Transform document tab (scope, canvas, template, workflow YAML). */
 export function opensTransformTab(node: { kind?: string; id?: string }): boolean {
   return (
-    node.kind === "etl_scope" ||
     node.kind === "etl_pipeline" ||
     node.kind === "etl_template" ||
     node.kind === "etl_workflow_yaml"
@@ -148,14 +151,15 @@ export function createEtlPipelineTab(
   pipelineId: string,
   label: string,
   canvas: TransformCanvasDocument | null = null,
-  scopeSuffix = "all"
+  scopeSuffix = ""
 ): EtlPipelineDocumentTab {
+  const scope = normalizePipelineScopeSuffix(scopeSuffix);
   return {
     kind: "etl_pipeline",
-    id: etlPipelineTabKey(pipelineId, scopeSuffix),
+    id: etlPipelineTabKey(pipelineId, scope),
     label,
     pipelineId,
-    scopeSuffix,
+    scopeSuffix: scope,
     document: null,
     canvas,
     loading: true,

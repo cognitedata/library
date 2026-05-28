@@ -7,21 +7,23 @@ function folder(id: string, label: string): TreeNode {
 }
 
 describe("sortTreeNodes connection root", () => {
-  it("keeps Transform above Project when labels would sort otherwise", () => {
+  it("orders top-level domains by canonical id, not label", () => {
     const nodes = [
       folder("transform", "Transform"),
-      { id: "connection:info", label: "Project: acme", kind: "connection", has_children: false },
+      folder("monitor", "Monitor"),
       folder("data", "Data"),
       folder("gov", "Governance"),
       folder("fusion", "Fusion"),
+      folder("extract", "Extract"),
     ];
     const sorted = sortTreeNodes(nodes, []);
     expect(sorted.map((n) => n.id)).toEqual([
       "data",
       "fusion",
       "gov",
+      "extract",
       "transform",
-      "connection:info",
+      "monitor",
     ]);
   });
 });

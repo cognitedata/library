@@ -3,6 +3,8 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
+import pytest
+
 ROOT = Path(__file__).resolve().parent.parent.parent
 FUNCS = ROOT / "functions"
 for p in (str(ROOT), str(FUNCS)):
@@ -18,6 +20,35 @@ from local_runner.run import run_pipeline_document  # noqa: E402
 def test_repo_root_resolves_above_transform_tree() -> None:
     discovery_root = ROOT.parent
     assert _REPO_ROOT == discovery_root.parent.parent.parent.parent
+
+
+def test_run_pipeline_document_rejects_invalid_transform() -> None:
+    doc = {
+        "id": "bad_transform",
+        "canvas": {
+            "nodes": [
+                {"id": "start", "kind": "start"},
+                {
+                    "id": "t1",
+                    "kind": "transform",
+                    "data": {
+                        "config": {
+                            "handler_id": "trim_whitespace",
+                            "trim_whitespace": {"mode": "ends_only"},
+                            "fields": [{"field_name": "name"}],
+                        }
+                    },
+                },
+                {"id": "end", "kind": "end"},
+            ],
+            "edges": [
+                {"source": "start", "target": "t1"},
+                {"source": "t1", "target": "end"},
+            ],
+        },
+    }
+    with pytest.raises(ValueError, match="output_field is required"):
+        run_pipeline_document(doc, dry_run=True)
 
 
 def test_run_pipeline_document_dry_run_minimal_canvas() -> None:

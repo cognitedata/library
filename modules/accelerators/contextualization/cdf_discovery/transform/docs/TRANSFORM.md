@@ -46,13 +46,22 @@ python -m local_runner.run --predecessor-mode cohort --instance discovery_etl_de
 ## Local execution
 
 ```bash
-cd modules/accelerators/contextualization/cdf_discovery/transform
+cd modules/accelerators/contextualization/cdf_discovery
 python -m pytest tests/unit/test_etl_transform_handlers.py tests/unit/test_fn_etl_transform.py -q
 ```
 
 ## UI
 
 Transform nodes in the discovery ETL flow editor use structured fields (`EtlTransformNodeConfigFields`) — handler, fields, regex, output template, multi-step.
+
+## Canvas preview nodes (`node_preview`)
+
+Preview nodes are **canvas-only** (not compiled into deployed workflows). Attach them to any upstream node output to capture that step’s cohort rows for ad-hoc SQL analysis.
+
+- **Local runs only:** after `run_compiled_workflow_dag`, `local_runner/preview_nodes.py` copies predecessor rows into stable RAW (`parameters.raw_db` + `parameters.preview_raw_table_key`, default `etl_staging` / `etl_preview`).
+- **Cleanup:** preview tables are not `{base}__{run}__{node}` cohort tables and are excluded from `fn_etl_raw_cleanup` sweeps.
+- **Columns:** cohort row shape plus `PREVIEW_NODE_ID` and `SOURCE_CANVAS_NODE_ID`; filter with `RUN_ID` and `PREVIEW_NODE_ID` in the SQL workspace.
+- **Compile:** `depends_on` walks through preview nodes (same as subgraph) so inline wiring `A → preview → B` keeps `B` depending on `A`.
 
 ## Scoring vs transform
 
@@ -80,7 +89,7 @@ Canvas kinds `query_records`, `save_records`, and `save_stream` use the CDF Stre
 
 ## RAW cleanup (`raw_cleanup` / `end`)
 
-Post-run **`fn_etl_raw_cleanup`** drops ephemeral per-run cohort RAW tables (`{base_table_key}__{run_segment}__{canvas_node}`) created during the pipeline. It does **not** delete stable tables such as `{base}__incremental` (watermarks / hashes) or `{base}__file_state`.
+Post-run **`fn_etl_raw_cleanup`** drops ephemeral per-run cohort RAW tables (`{base_table_key}__{run_segment}__{canvas_node}`) created during the pipeline. It does **not** delete stable tables such as `{base}__incremental` (watermarks / hashes), `{base}__file_state`, or the preview sink (`preview_raw_table_key`, default `etl_preview`).
 
 | Config key | Default | Purpose |
 |------------|---------|---------|

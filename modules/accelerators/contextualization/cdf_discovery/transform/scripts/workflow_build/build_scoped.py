@@ -28,6 +28,11 @@ from workflow_build.workflow_document_limits import (
     assert_workflow_document_within_limit,
     assert_workflow_trigger_input_within_limit,
 )
+from workflow_build.paths import (
+    artifact_filename,
+    is_scoped_build,
+    workflow_artifacts_scope_dir,
+)
 from workflow_build.workflow_document_trim import build_trigger_input, trim_workflow_document_for_deploy
 
 logger = logging.getLogger(__name__)
@@ -49,40 +54,6 @@ def _validate_codegen_tasks(wv: Dict[str, Any]) -> None:
         assert_minimal_task_config(cfg, executor_kind="function")
 
 
-def _artifact_prefix(workflow_id: str, scope_suffix: str) -> str:
-    return f"etl_{workflow_id}.{scope_suffix}"
-
-
-def _refresh_execution_graph(
-    module_root: Path,
-    *,
-    workflow_id: str,
-    compiled: Dict[str, Any],
-) -> Path:
-    graph_path = module_root / "workflow_template" / "workflow.execution.graph.yaml"
-    graph_path.parent.mkdir(parents=True, exist_ok=True)
-    tasks = []
-    for t in compiled.get("tasks") or []:
-        if not isinstance(t, dict):
-            continue
-        tasks.append(
-            {
-                "id": t.get("id"),
-                "kind": t.get("executable_kind"),
-                "depends_on": t.get("depends_on") or [],
-            }
-        )
-    payload = {
-        "schemaVersion": 1,
-        "workflow_id": workflow_id,
-        "description": "Macro execution DAG refreshed at build from compiled_workflow IR",
-        "tasks": tasks,
-    }
-    with graph_path.open("w", encoding="utf-8") as f:
-        yaml.safe_dump(payload, f, sort_keys=False, default_flow_style=False)
-    return graph_path
-
-
 def build_scoped_workflow(
     *,
     module_root: Path,
@@ -99,7 +70,7 @@ def build_scoped_workflow(
     )
 
     doc = dict(source.document)
-    if target.scope_suffix != "all" and target.scope_id and target.node_chain:
+    if is_scoped_build(target.scope_suffix) and target.scope_id and target.node_chain:
         doc = patch_definition_for_scope(
             doc,
             scope_id=target.scope_id,
@@ -131,11 +102,10 @@ def build_scoped_workflow(
         version=workflow_version,
         compiled_workflow=compiled,
         description=str(doc.get("label") or doc.get("description") or target.workflow_id),
-        module_root=module_root,
     )
     _validate_codegen_tasks(wv)
 
-    if target.scope_suffix == "all" and isinstance(doc.get("canvas"), dict):
+    if not is_scoped_build(target.scope_suffix) and isinstance(doc.get("canvas"), dict):
         patch_start_node_workflow_pairing(
             doc["canvas"],
             workflow_base=workflow_base,
@@ -165,18 +135,17 @@ def build_scoped_workflow(
         trigger_cfg=start_trigger,
     )
 
-    prefix = _artifact_prefix(target.workflow_id, target.scope_suffix)
-    out_dir = module_root / "workflows" / target.scope_suffix
+    out_dir = workflow_artifacts_scope_dir(module_root, target.scope_suffix)
     written: List[Path] = []
     artifacts = {
-        f"{prefix}.config.yaml": trimmed,
-        f"{prefix}.WorkflowVersion.yaml": wv,
-        f"{prefix}.Workflow.yaml": {
+        artifact_filename(target.workflow_id, target.scope_suffix, "config.yaml"): trimmed,
+        artifact_filename(target.workflow_id, target.scope_suffix, "WorkflowVersion.yaml"): wv,
+        artifact_filename(target.workflow_id, target.scope_suffix, "Workflow.yaml"): {
             "externalId": wf_ext,
             "description": str(doc.get("label") or doc.get("description") or target.workflow_id),
             "dataSetExternalId": str(config.get("dataset") or "ds_discovery_etl"),
         },
-        f"{prefix}.WorkflowTrigger.yaml": trigger_doc,
+        artifact_filename(target.workflow_id, target.scope_suffix, "WorkflowTrigger.yaml"): trigger_doc,
     }
     tx_resources = emit_transformation_resources(compiled)
     if tx_resources:
@@ -199,9 +168,11 @@ def build_scoped_workflow(
             logger.info("Wrote %s", out_path)
         written.append(out_path)
 
-    if target.scope_suffix == "all":
+    if not is_scoped_build(target.scope_suffix):
+        from workflow_build.sources import instances_dir, templates_dir
+
         if target.source_kind == "instance":
-            inst_dir = module_root / "workflow_definitions" / "instances"
+            inst_dir = instances_dir(module_root, config)
             inst_path = inst_dir / f"{target.workflow_id}.yaml"
             if dry_run:
                 logger.info("[dry-run] would write %s", inst_path)
@@ -212,7 +183,7 @@ def build_scoped_workflow(
                 logger.info("Wrote %s", inst_path)
             written.append(inst_path)
         else:
-            tpl_dir = module_root / "workflow_definitions" / "templates"
+            tpl_dir = templates_dir(module_root, config)
             tpl_path = tpl_dir / f"{target.workflow_id}.template.yaml"
             tpl_out = dict(doc)
             tpl_out["template_id"] = target.workflow_id
@@ -225,10 +196,6 @@ def build_scoped_workflow(
                     yaml.safe_dump(tpl_out, f, sort_keys=False, default_flow_style=False)
                 logger.info("Wrote %s", tpl_path)
             written.append(tpl_path)
-        if not dry_run:
-            written.append(
-                _refresh_execution_graph(module_root, workflow_id=target.workflow_id, compiled=compiled)
-            )
 
     return written
 
@@ -244,7 +211,7 @@ def prepare_context(
     from cdf_fn_common.workflow_compile.canvas_dag import compile_canvas_dag
 
     doc = dict(source.document)
-    if target.scope_suffix != "all" and target.scope_id and target.node_chain:
+    if is_scoped_build(target.scope_suffix) and target.scope_id and target.node_chain:
         doc = patch_definition_for_scope(
             doc,
             scope_id=target.scope_id,

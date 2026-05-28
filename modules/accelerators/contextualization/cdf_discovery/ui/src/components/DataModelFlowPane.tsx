@@ -22,7 +22,13 @@ import {
   type TransformCanvasHandleOrientation,
 } from "../types/transformCanvas";
 import { filterViewsBySearch, viewMatchesSearch } from "../utils/dataModelFlowSearch";
-import { graphToFlow, layoutDmViewNodes } from "../utils/dataModelFlowLayout";
+import {
+  graphToFlow,
+  layoutDmViewNodesByMethod,
+  normalizeDmFlowLayoutMethod,
+  type DmFlowLayoutMethod,
+} from "../utils/dataModelFlowLayout";
+import { DM_FLOW_LAYOUT_METHOD_OPTIONS } from "../utils/dmFlowLayoutMethodOptions";
 import { DataModelViewProperties } from "./DataModelViewProperties";
 import { alignSelectedTransformFlowNodes, type AlignFlowSelectionMode } from "./transform/alignSelectedNodes";
 import {
@@ -30,10 +36,19 @@ import {
   defaultTransformFlowEdgeOptions,
   FlowHandleOrientationEdgeSync,
 } from "./transform/FlowHandleOrientationEdgeSync";
+import { FlowDocToolbarActions } from "./flow/FlowDocToolbarActions";
 import { TransformFlowLayoutControls } from "./transform/TransformFlowLayoutControls";
 import { highlightEdgesConnectedToNode } from "./flow/highlightEdgesForSelectedNode";
 import { DmViewFlowNode } from "./flow/DmViewFlowNode";
-import { TreeContextMenuPortal } from "./governance/TreeContextMenu";
+import {
+  TreeContextMenuPortal,
+  treeCtxMenuSeparator,
+  useTreeContextMenuState,
+} from "./governance/TreeContextMenu";
+import {
+  flowLayoutContextMenuItems,
+  transformFlowAlignContextMenuItems,
+} from "./transform/transformFlowCanvasContextMenu";
 import { FlowHandleOrientationProvider } from "./transform/FlowHandleOrientationContext";
 import { applyFlowHandleOrientationToNode } from "./transform/flowHandleOrientation";
 
@@ -99,13 +114,16 @@ function FlowInner({ tab, onTabUpdate, onQueryView }: Props) {
   const [selectedView, setSelectedView] = useState<DataModelGraphView | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [focusViewId, setFocusViewId] = useState<string | null>(null);
-  const [ctxMenu, setCtxMenu] = useState<CtxMenu>(null);
+  const [nodeCtxMenu, setNodeCtxMenu] = useState<CtxMenu>(null);
+  const paneCtxMenu = useTreeContextMenuState();
   const [handleOrientation, setHandleOrientation] = useState<TransformCanvasHandleOrientation>("lr");
+  const [layoutMethod, setLayoutMethod] = useState<DmFlowLayoutMethod>("dagre");
   const [edgePathStyle, setEdgePathStyle] = useState<TransformCanvasEdgePathStyle>("smoothstep");
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const rfSelectionRef = useRef<Node[]>([]);
   const [alignableSelectionCount, setAlignableSelectionCount] = useState(0);
+  const [loadNonce, setLoadNonce] = useState(0);
 
   const onFlowSelectionChange = useCallback((sel: Node[]) => {
     rfSelectionRef.current = sel;
@@ -113,7 +131,7 @@ function FlowInner({ tab, onTabUpdate, onQueryView }: Props) {
   }, []);
 
   useEffect(() => {
-    if (tab.graph != null || !tab.loading) return;
+    if (tab.graph != null) return;
     let cancelled = false;
     const load = async () => {
       onTabUpdate({ ...tab, loading: true, error: null });
@@ -123,14 +141,21 @@ function FlowInner({ tab, onTabUpdate, onQueryView }: Props) {
         onTabUpdate({ ...tab, graph, loading: false, error: null });
       } catch (e) {
         if (cancelled) return;
-        onTabUpdate({ ...tab, loading: false, error: String(e) });
+        onTabUpdate({ ...tab, graph: null, loading: false, error: String(e) });
       }
     };
     void load();
     return () => {
       cancelled = true;
     };
-  }, [tab.id, tab.loading, tab.graph]);
+  }, [
+    tab.id,
+    tab.graph,
+    tab.dataModel.space,
+    tab.dataModel.external_id,
+    tab.dataModel.version,
+    loadNonce,
+  ]);
 
   const searchActive = searchQuery.trim().length > 0;
   const searchMatches = useMemo(
@@ -140,34 +165,43 @@ function FlowInner({ tab, onTabUpdate, onQueryView }: Props) {
 
   useEffect(() => {
     if (!tab.graph) return;
-    const seed = graphToFlow(tab.graph, { handleOrientation, edgePathStyle });
+    const seed = graphToFlow(tab.graph, { handleOrientation, edgePathStyle, layoutMethod });
     setNodes(orientDmFlowNodes(seed.nodes, handleOrientation));
     setEdges(seed.edges);
     window.setTimeout(() => fitView({ padding: 0.2, duration: 0 }), 0);
-  }, [tab.graph, setNodes, setEdges, fitView]);
+  }, [tab.graph, layoutMethod, handleOrientation, edgePathStyle, setNodes, setEdges, fitView]);
 
   const applyAutoLayout = useCallback(
-    (orientation: TransformCanvasHandleOrientation) => {
+    (orientation: TransformCanvasHandleOrientation, method: DmFlowLayoutMethod = layoutMethod) => {
       const eds = getEdges();
       setNodes((nds) => {
-        const laidOut = layoutDmViewNodes(nds, eds, orientation);
+        const laidOut = layoutDmViewNodesByMethod(nds, eds, orientation, method);
         return orientDmFlowNodes(laidOut, orientation);
       });
       window.setTimeout(() => fitView({ padding: 0.2, duration: 200 }), 0);
     },
-    [getEdges, setNodes, fitView]
+    [getEdges, setNodes, fitView, layoutMethod]
   );
 
   const handleAutoLayout = useCallback(() => {
-    applyAutoLayout(handleOrientation);
-  }, [applyAutoLayout, handleOrientation]);
+    applyAutoLayout(handleOrientation, layoutMethod);
+  }, [applyAutoLayout, handleOrientation, layoutMethod]);
+
+  const onLayoutMethodChange = useCallback(
+    (next: string) => {
+      const method = normalizeDmFlowLayoutMethod(next);
+      setLayoutMethod(method);
+      applyAutoLayout(handleOrientation, method);
+    },
+    [applyAutoLayout, handleOrientation]
+  );
 
   const onHandleOrientationChange = useCallback(
     (next: TransformCanvasHandleOrientation) => {
       setHandleOrientation(next);
-      applyAutoLayout(next);
+      applyAutoLayout(next, layoutMethod);
     },
-    [applyAutoLayout]
+    [applyAutoLayout, layoutMethod]
   );
 
   const onEdgePathStyleChange = useCallback(
@@ -224,7 +258,7 @@ function FlowInner({ tab, onTabUpdate, onQueryView }: Props) {
   );
 
   const graphRevision = tab.graph
-    ? `${tab.id}:${tab.graph.views.length}:${tab.graph.edges.length}:${handleOrientation}:${edgePathStyle}`
+    ? `${tab.id}:${tab.graph.views.length}:${tab.graph.edges.length}:${handleOrientation}:${layoutMethod}:${edgePathStyle}`
     : tab.id;
 
   const selectView = useCallback((view: DataModelGraphView, focus = true) => {
@@ -246,25 +280,72 @@ function FlowInner({ tab, onTabUpdate, onQueryView }: Props) {
     setSelectedViewId(null);
     setSelectedView(null);
     setFocusViewId(null);
-    setCtxMenu(null);
-  }, []);
+    setNodeCtxMenu(null);
+    paneCtxMenu.close();
+  }, [paneCtxMenu]);
 
-  const onNodeContextMenu = useCallback((e: MouseEvent, node: Node) => {
-    e.preventDefault();
-    const view = (node.data as { view?: DataModelGraphView }).view;
-    if (!view) return;
-    setCtxMenu({ x: e.clientX, y: e.clientY, view });
-  }, []);
+  const onPaneContextMenu = useCallback(
+    (e: MouseEvent) => {
+      e.preventDefault();
+      setNodeCtxMenu(null);
+      paneCtxMenu.open(e, [
+        ...transformFlowAlignContextMenuItems({
+          t,
+          alignDisabled: alignableSelectionCount < 2,
+          onAlignSelection: applySelectionAlign,
+        }),
+        treeCtxMenuSeparator("dm-sep-layout"),
+        ...flowLayoutContextMenuItems({
+          t,
+          handleOrientation,
+          onHandleOrientationChange,
+          layoutMethod,
+          layoutMethodOptions: DM_FLOW_LAYOUT_METHOD_OPTIONS,
+          onLayoutMethodChange,
+          edgePathStyle,
+          onEdgePathStyleChange,
+          onFitView: () => fitView({ padding: 0.2, duration: 200 }),
+          onAutoLayout: handleAutoLayout,
+        }),
+      ]);
+    },
+    [
+      paneCtxMenu,
+      t,
+      alignableSelectionCount,
+      applySelectionAlign,
+      handleOrientation,
+      onHandleOrientationChange,
+      layoutMethod,
+      onLayoutMethodChange,
+      edgePathStyle,
+      onEdgePathStyleChange,
+      fitView,
+      handleAutoLayout,
+    ]
+  );
+
+  const onNodeContextMenu = useCallback(
+    (e: MouseEvent, node: Node) => {
+      e.preventDefault();
+      paneCtxMenu.close();
+      const view = (node.data as { view?: DataModelGraphView }).view;
+      if (!view) return;
+      setNodeCtxMenu({ x: e.clientX, y: e.clientY, view });
+    },
+    [paneCtxMenu]
+  );
 
   useEffect(() => {
-    if (!ctxMenu) return;
-    const close = () => setCtxMenu(null);
+    if (!nodeCtxMenu) return;
+    const close = () => setNodeCtxMenu(null);
     window.addEventListener("click", close);
     return () => window.removeEventListener("click", close);
-  }, [ctxMenu]);
+  }, [nodeCtxMenu]);
 
   const refresh = useCallback(() => {
     onTabUpdate({ ...tab, graph: null, loading: true, error: null });
+    setLoadNonce((n) => n + 1);
     setSelectedViewId(null);
     setSelectedView(null);
     setSearchQuery("");
@@ -292,9 +373,12 @@ function FlowInner({ tab, onTabUpdate, onQueryView }: Props) {
             ? ` · ${tab.graph.views.length} ${t("dmViewer.views")} · ${tab.graph.edges.length} ${t("dmViewer.edges")}`
             : ""}
         </span>
-        <button type="button" className="disc-btn" disabled={tab.loading} onClick={refresh}>
-          {t("dmViewer.refresh")}
-        </button>
+        <FlowDocToolbarActions
+          t={t}
+          refreshLabelKey="dmViewer.refresh"
+          onRefresh={refresh}
+          refreshDisabled={tab.loading}
+        />
       </div>
       {tab.graph && tab.graph.views.length > 0 && (
         <div className="transform-flow-search-row">
@@ -310,8 +394,13 @@ function FlowInner({ tab, onTabUpdate, onQueryView }: Props) {
           </label>
           <TransformFlowLayoutControls
             t={t}
+            layoutAriaLabelKey="dmViewer.layout.aria"
             handleOrientation={handleOrientation}
             onHandleOrientationChange={onHandleOrientationChange}
+            layoutMethod={layoutMethod}
+            layoutMethodOptions={DM_FLOW_LAYOUT_METHOD_OPTIONS}
+            layoutMethodLabelKey="dmViewer.layout.method"
+            onLayoutMethodChange={onLayoutMethodChange}
             edgePathStyle={edgePathStyle}
             onEdgePathStyleChange={onEdgePathStyleChange}
             onAutoLayout={handleAutoLayout}
@@ -402,6 +491,7 @@ function FlowInner({ tab, onTabUpdate, onQueryView }: Props) {
                 onEdgesChange={onEdgesChange}
                 onNodeClick={onNodeClick}
                 onNodeContextMenu={onNodeContextMenu}
+                onPaneContextMenu={onPaneContextMenu}
                 onPaneClick={onPaneClick}
               >
                 <Background variant={BackgroundVariant.Dots} gap={16} size={1} />
@@ -420,23 +510,24 @@ function FlowInner({ tab, onTabUpdate, onQueryView }: Props) {
         </div>
         <DataModelViewProperties graph={tab.graph} view={selectedView} />
       </div>
+      <TreeContextMenuPortal menu={paneCtxMenu.menu} onClose={paneCtxMenu.close} classPrefix="disc" />
       <TreeContextMenuPortal
         menu={
-          ctxMenu
+          nodeCtxMenu
             ? {
-                x: ctxMenu.x,
-                y: ctxMenu.y,
+                x: nodeCtxMenu.x,
+                y: nodeCtxMenu.y,
                 items: [
                   {
                     id: "query",
                     label: t("discovery.query"),
-                    onSelect: () => onQueryView(ctxMenu.view),
+                    onSelect: () => onQueryView(nodeCtxMenu.view),
                   },
                 ],
               }
             : null
         }
-        onClose={() => setCtxMenu(null)}
+        onClose={() => setNodeCtxMenu(null)}
         classPrefix="disc"
       />
     </div>

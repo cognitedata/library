@@ -112,6 +112,39 @@ export function EtlScoreNodeConfigFields({ value, onChange }: Props) {
         </label>
       </div>
 
+      <div className="transform-flow-inspector__field" style={{ marginTop: "0.75rem", flexWrap: "wrap" }}>
+        <label className="gov-label" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <input
+            type="checkbox"
+            checked={value.min_threshold_filter_enabled === true}
+            onChange={(e) =>
+              patch({
+                min_threshold_filter_enabled: e.target.checked,
+                ...(e.target.checked && value.min_threshold == null
+                  ? { min_threshold: value.min_score ?? 0.0 }
+                  : {}),
+              })
+            }
+          />
+          {t("transform.score.minThresholdFilterEnabled")}
+        </label>
+        {value.min_threshold_filter_enabled === true ? (
+          <label className="gov-label">
+            {t("transform.score.minThreshold")}
+            <input
+              className="gov-input"
+              type="number"
+              step="any"
+              min={0}
+              max={1}
+              value={String(value.min_threshold ?? value.min_score ?? 0.0)}
+              onChange={(e) => patch({ min_threshold: Number(e.target.value) })}
+            />
+          </label>
+        ) : null}
+      </div>
+      <p className="transform-node-editor-modal__hint">{t("transform.score.minThresholdFilterHint")}</p>
+
       <ScoringRulesEditor
         rules={rules}
         onChange={(nextRules) => {

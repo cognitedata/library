@@ -2,13 +2,25 @@
  * Serialized flow graph under `canvas` in a v1 pipeline YAML document.
  */
 
+import type { TransformCanvasViewport } from "./transformCanvasViewport";
+
 export const TRANSFORM_CANVAS_SCHEMA_VERSION = 1;
+export type { TransformCanvasViewport } from "./transformCanvasViewport";
+export { normalizeTransformCanvasViewport } from "./transformCanvasViewport";
 
 export type TransformCanvasHandleOrientation = "lr" | "tb";
 
 export function normalizeTransformCanvasHandleOrientation(raw: unknown): TransformCanvasHandleOrientation {
   if (raw === "tb") return "tb";
   return "lr";
+}
+
+/** Auto-layout engine for the transform pipeline canvas. */
+export type TransformCanvasLayoutMethod = "layered" | "dagre";
+
+export function normalizeTransformCanvasLayoutMethod(raw: unknown): TransformCanvasLayoutMethod {
+  if (raw === "dagre") return "dagre";
+  return "layered";
 }
 
 /** React Flow edge path style persisted on the canvas document. */
@@ -59,7 +71,8 @@ export type TransformCanvasNodeKind =
   | "subworkflow"
   | "simulation"
   | "cdf_task"
-  | "subgraph";
+  | "subgraph"
+  | "node_preview";
 
 export type TransformCanvasNodeRfType =
   | "etlStart"
@@ -91,7 +104,8 @@ export type TransformCanvasNodeRfType =
   | "etlSubworkflow"
   | "etlSimulation"
   | "etlCdfTask"
-  | "etlSubgraph";
+  | "etlSubgraph"
+  | "etlNodePreview";
 
 const KIND_TO_RF: Record<TransformCanvasNodeKind, TransformCanvasNodeRfType> = {
   start: "etlStart",
@@ -124,6 +138,7 @@ const KIND_TO_RF: Record<TransformCanvasNodeKind, TransformCanvasNodeRfType> = {
   simulation: "etlSimulation",
   cdf_task: "etlCdfTask",
   subgraph: "etlSubgraph",
+  node_preview: "etlNodePreview",
 };
 
 const RF_TO_KIND: Record<TransformCanvasNodeRfType, TransformCanvasNodeKind> = Object.fromEntries(
@@ -172,8 +187,12 @@ export type TransformCanvasEdge = {
 export type TransformCanvasDocument = {
   schemaVersion: typeof TRANSFORM_CANVAS_SCHEMA_VERSION;
   handle_orientation?: TransformCanvasHandleOrientation;
+  /** Auto-layout algorithm (layered pipeline layout vs Dagre hierarchical). */
+  layout_method?: TransformCanvasLayoutMethod;
   /** Visual edge routing for all connections on the canvas (React Flow edge type). */
   edge_path_style?: TransformCanvasEdgePathStyle;
+  /** Last pan/zoom when the pipeline canvas was saved (optional). */
+  viewport?: TransformCanvasViewport | null;
   nodes: TransformCanvasNode[];
   edges: TransformCanvasEdge[];
 };
@@ -184,6 +203,8 @@ export type TransformPipelineParameters = {
   incremental_skip_unchanged?: boolean;
   raw_db?: string;
   raw_table_key?: string;
+  /** Stable RAW table for canvas preview node snapshots (excluded from cohort cleanup). */
+  preview_raw_table_key?: string;
   instance_space?: string;
   etl_state_instance_space?: string | null;
   [key: string]: unknown;
@@ -219,7 +240,7 @@ export function defaultStartNodeData(): TransformCanvasNodeData {
 
 export function defaultEndNodeData(): TransformCanvasNodeData {
   return {
-    label: "",
+    label: "End",
     config: {
       description: "",
     },
@@ -230,6 +251,7 @@ export function emptyTransformCanvasDocument(): TransformCanvasDocument {
   return {
     schemaVersion: TRANSFORM_CANVAS_SCHEMA_VERSION,
     handle_orientation: "lr",
+    layout_method: "layered",
     edge_path_style: "smoothstep",
     nodes: [
       { id: "start", kind: "start", position: { x: 80, y: 200 }, data: defaultStartNodeData() },
@@ -249,10 +271,8 @@ export const TRANSFORM_PALETTE_STAGES: TransformCanvasNodeKind[] = [
   "query_classic",
   "query_sql",
   "query_records",
-  "transform",
   "score",
   "filter",
-  "json_mapping",
   "join",
   "merge",
   "build_index",
@@ -261,13 +281,14 @@ export const TRANSFORM_PALETTE_STAGES: TransformCanvasNodeKind[] = [
   "save_classic",
   "save_records",
   "save_stream",
-  "spark_transform",
-  "function_ref",
-  "transformation_ref",
-  "subworkflow",
-  "dynamic_fanout",
   "file_annotation",
   "workflow_fanout_plan",
+  "spark_transform",
+  "transformation_ref",
+  "function_ref",
+  "json_mapping",
+  "dynamic_fanout",
+  "subworkflow",
   "simulation",
   "cdf_task",
 ];

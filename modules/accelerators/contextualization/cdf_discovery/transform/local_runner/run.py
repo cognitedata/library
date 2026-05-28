@@ -14,7 +14,7 @@ import yaml
 from local_runner.client import create_cognite_client
 from local_runner.env import load_env
 from local_runner.kahn_workflow_executor import run_compiled_workflow_dag
-from local_runner.paths import ensure_paths, module_root
+from local_runner.paths import built_workflow_scope_dir, ensure_paths, module_root
 from local_runner.run_context import (
     apply_incremental_run_scope,
     ensure_shared_run_id,
@@ -29,6 +29,19 @@ def load_pipeline_instance(path: Path) -> dict:
     if not isinstance(doc, dict):
         raise ValueError(f"Pipeline instance must be a mapping: {path}")
     return doc
+
+
+def validate_pipeline_document_for_run(doc: Mapping[str, Any]) -> None:
+    """Validate canvas (transform I/O, handlers, compile rules) before executing locally."""
+    canvas = doc.get("canvas")
+    if not isinstance(canvas, dict):
+        raise ValueError("Pipeline document has no canvas to validate")
+    from cdf_fn_common.workflow_compile.canvas_dag import CanvasCompileError, compile_canvas_dag
+
+    try:
+        compile_canvas_dag(canvas)
+    except CanvasCompileError as ex:
+        raise ValueError(str(ex)) from ex
 
 
 def ensure_compiled_workflow(doc: Dict[str, Any]) -> Dict[str, Any]:
@@ -57,6 +70,7 @@ def run_pipeline_document(
     """Execute ``compiled_workflow`` from an in-memory pipeline document."""
     ensure_paths()
     working = dict(doc)
+    validate_pipeline_document_for_run(working)
     apply_incremental_run_scope(working, incremental_change_processing=incremental_change_processing)
     compiled = ensure_compiled_workflow(working)
     log = logger or logging.getLogger("etl.run")
@@ -102,10 +116,23 @@ def run_pipeline_document(
             dry_run=dry_run,
             max_workers=max_workers,
         )
+    preview_snapshots = shared.get("_preview_snapshots")
+    if preview_snapshots is None:
+        from local_runner.preview_nodes import run_canvas_preview_snapshots
+
+        preview_snapshots = run_canvas_preview_snapshots(
+            working,
+            shared,
+            client=client,
+            task_summaries=summaries,
+            dry_run=dry_run,
+            log=log,
+        )
     return {
         "run_id": run_id,
         "dry_run": dry_run,
         "task_summaries": summaries,
+        "preview_snapshots": preview_snapshots,
     }
 
 
@@ -146,8 +173,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     parser.add_argument(
         "--scope-suffix",
-        default="all",
-        help="Built scope folder (workflows/<suffix>/etl_<id>.<suffix>.config.yaml)",
+        default="",
+        help="Scope subfolder under workflows/ (empty = flat workflows/etl_<id>.config.yaml)",
     )
     parser.add_argument("--config-dir", type=Path, default=None, help="Override document directory")
     parser.add_argument("--dry-run", action="store_true", help="Skip CDF client; exercise DAG in-memory")
@@ -184,12 +211,20 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 1
     else:
         workflow_id = args.workflow or "discovery_etl_default"
-        scope_suffix = str(args.scope_suffix or "all").strip() or "all"
+        from workflow_artifact_paths import artifact_filename, normalize_scope_suffix
+
+        scope_suffix = normalize_scope_suffix(args.scope_suffix)
         if args.config_dir:
             inst_path = args.config_dir
         else:
-            built_path = root / "workflows" / scope_suffix / f"etl_{workflow_id}.{scope_suffix}.config.yaml"
-            inst_path = root / "workflow_definitions" / "instances" / f"{workflow_id}.yaml"
+            built_path = built_workflow_scope_dir(scope_suffix) / artifact_filename(
+                workflow_id, scope_suffix, "config.yaml"
+            )
+            from local_runner.paths import discovery_root
+
+            inst_path = (
+                discovery_root() / "transform" / "workflow_definitions" / "instances" / f"{workflow_id}.yaml"
+            )
             if built_path.is_file():
                 inst_path = built_path
             elif not inst_path.is_file():

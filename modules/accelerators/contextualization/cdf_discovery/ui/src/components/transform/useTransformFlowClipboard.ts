@@ -1,9 +1,8 @@
-import { useCallback, useEffect, useRef, type MutableRefObject, type RefObject } from "react";
+import { useCallback, useRef, type MutableRefObject } from "react";
 import type { Edge, Node } from "@xyflow/react";
 import { dedupeEdgesByHandles } from "./transformFlowEdgeHelpers";
 import {
   buildTransformFlowClipboardPayload,
-  isTransformFlowKeyboardShortcutBlockedTarget,
   parseTransformFlowClipboardText,
   pasteTransformFlowClipboard,
   serializeTransformFlowClipboardPayload,
@@ -16,7 +15,6 @@ export type UseTransformFlowClipboardOptions = {
   setNodes: React.Dispatch<React.SetStateAction<Node[]>>;
   setEdges: React.Dispatch<React.SetStateAction<Edge[]>>;
   rfSelectionRef: MutableRefObject<Node[]>;
-  flowRootRef: RefObject<HTMLElement | null>;
   readOnly?: boolean;
   onPasted?: (nodes: Node[], edges: Edge[]) => void;
 };
@@ -25,12 +23,6 @@ export type UseTransformFlowClipboardResult = {
   copySelection: () => boolean;
   pasteClipboard: () => Promise<boolean>;
 };
-
-function eventInsideFlowRoot(e: KeyboardEvent, root: HTMLElement | null): boolean {
-  if (!root) return false;
-  const path = e.composedPath();
-  return path.some((n) => n instanceof Node && root.contains(n));
-}
 
 /**
  * In-memory buffer plus system clipboard (``__DISCOVERY_TRANSFORM_V1__`` JSON prefix).
@@ -42,7 +34,6 @@ export function useTransformFlowClipboard({
   setNodes,
   setEdges,
   rfSelectionRef,
-  flowRootRef,
   readOnly = false,
   onPasted,
 }: UseTransformFlowClipboardOptions): UseTransformFlowClipboardResult {
@@ -98,31 +89,6 @@ export function useTransformFlowClipboard({
     }
     return false;
   }, [readOnly, applyPaste]);
-
-  const copyRef = useRef(copySelection);
-  const pasteRef = useRef(pasteClipboard);
-  copyRef.current = copySelection;
-  pasteRef.current = pasteClipboard;
-
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (!(e.metaKey || e.ctrlKey)) return;
-      if (isTransformFlowKeyboardShortcutBlockedTarget(e.target)) return;
-      if (!eventInsideFlowRoot(e, flowRootRef.current)) return;
-
-      const key = e.key.toLowerCase();
-      if (key === "c" && !e.shiftKey) {
-        if (copyRef.current()) e.preventDefault();
-        return;
-      }
-      if (key === "v" && !e.shiftKey) {
-        e.preventDefault();
-        void pasteRef.current();
-      }
-    };
-    window.addEventListener("keydown", onKeyDown, true);
-    return () => window.removeEventListener("keydown", onKeyDown, true);
-  }, [flowRootRef]);
 
   return {
     copySelection,

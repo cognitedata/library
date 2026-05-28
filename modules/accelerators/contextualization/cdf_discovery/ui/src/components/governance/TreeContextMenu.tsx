@@ -6,8 +6,14 @@ export type TreeCtxMenuItem = {
   label: string;
   disabled?: boolean;
   danger?: boolean;
+  /** Renders a non-interactive divider (``label`` / ``onSelect`` ignored). */
+  separator?: boolean;
   onSelect: () => void;
 };
+
+export function treeCtxMenuSeparator(id: string): TreeCtxMenuItem {
+  return { id, label: "", separator: true, onSelect: () => {} };
+}
 
 export function useTreeContextMenuState() {
   const [menu, setMenu] = useState<null | { x: number; y: number; items: TreeCtxMenuItem[] }>(null);
@@ -94,30 +100,34 @@ export function TreeContextMenuPortal({ menu, onClose, classPrefix }: MenuProps)
       role="menu"
       style={{ position: "fixed", left: pos.x, top: pos.y, zIndex: 10000 }}
     >
-      {menu.items.map((item) => (
-        <li key={item.id} role="none">
-          <button
-            type="button"
-            role="menuitem"
-            className={
-              classPrefix === "disc"
-                ? undefined
-                : item.danger
-                  ? `${base}__btn ${base}__btn--danger`
-                  : `${base}__btn`
-            }
-            disabled={item.disabled}
-            onClick={() => {
-              if (!item.disabled) {
-                item.onSelect();
-                onClose();
+      {menu.items.map((item) =>
+        item.separator ? (
+          <li key={item.id} className={classPrefix === "disc" ? "disc-ctx-menu__sep" : `${base}__sep`} role="separator" />
+        ) : (
+          <li key={item.id} role="none">
+            <button
+              type="button"
+              role="menuitem"
+              className={
+                classPrefix === "disc"
+                  ? undefined
+                  : item.danger
+                    ? `${base}__btn ${base}__btn--danger`
+                    : `${base}__btn`
               }
-            }}
-          >
-            {item.label}
-          </button>
-        </li>
-      ))}
+              disabled={item.disabled}
+              onClick={() => {
+                if (!item.disabled) {
+                  item.onSelect();
+                  onClose();
+                }
+              }}
+            >
+              {item.label}
+            </button>
+          </li>
+        )
+      )}
     </ul>,
     document.body
   );

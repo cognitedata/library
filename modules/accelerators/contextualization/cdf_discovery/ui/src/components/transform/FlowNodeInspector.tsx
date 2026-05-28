@@ -6,9 +6,11 @@ import {
   type TransformCanvasNodeKind,
 } from "../../types/transformCanvas";
 import {
+  isNodePreviewKind,
   isOrchestrationNodeKind,
   MODAL_EDITOR_NODE_KINDS,
 } from "../../utils/transformNodeEditorKinds";
+import { EtlNodePreviewConfigFields } from "./EtlNodePreviewConfigFields";
 import { DeferredCommitInput, DeferredCommitTextarea } from "../query/DeferredCommitTextField";
 import type { FlowEdgeData } from "./flowDocumentBridge";
 import { configSummaryForKind } from "./EtlNodeConfigFields";
@@ -31,13 +33,14 @@ type Props = {
   onPatchNode: (nodeId: string, data: Record<string, unknown>) => void;
   onPatchEdge?: (edgeId: string, kind: TransformCanvasEdgeKind) => void;
   onOpenEditor?: (node: Node) => void;
+  onOpenPreviewQuery?: (node: Node) => void;
   onDeleteNode?: (nodeId: string) => void;
   onDeleteEdge?: (edgeId: string) => void;
 };
 
 export function FlowNodeInspector({
   t,
-  pipelineId,
+  pipelineId: _pipelineId,
   selectedNode,
   selectedEdge,
   flowNodes,
@@ -45,6 +48,7 @@ export function FlowNodeInspector({
   onPatchNode,
   onPatchEdge,
   onOpenEditor,
+  onOpenPreviewQuery,
   onDeleteNode,
   onDeleteEdge,
 }: Props) {
@@ -152,7 +156,23 @@ export function FlowNodeInspector({
         </div>
       ) : null}
 
-      {onOpenEditor && (!readOnly || isOrchestrationNodeKind(nodeKind)) ? (
+      {isNodePreviewKind(nodeKind) && onOpenPreviewQuery ? (
+        <div className="transform-flow-inspector__actions">
+          <button type="button" className="disc-btn disc-btn--sm" onClick={() => onOpenPreviewQuery(liveNode)}>
+            {t("transform.inspector.openPreviewQuery")}
+          </button>
+          {!isBoundary && onDeleteNode ? (
+            <button
+              type="button"
+              className="disc-btn disc-btn--sm disc-btn--danger"
+              onClick={() => onDeleteNode(liveNode.id)}
+            >
+              {t("transform.inspector.deleteNode")}
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+      {onOpenEditor && (!readOnly || isOrchestrationNodeKind(nodeKind)) && !isNodePreviewKind(nodeKind) ? (
         <div className="transform-flow-inspector__actions">
           <button type="button" className="disc-btn disc-btn--sm" onClick={() => onOpenEditor(liveNode)}>
             {readOnly ? t("transform.inspector.viewEditor") : t("transform.inspector.openEditor")}
@@ -187,6 +207,13 @@ export function FlowNodeInspector({
 
       <EtlNodeAccentFields t={t} nodeId={liveNode.id} data={data} onPatchNode={onPatchNode} />
 
+      {isNodePreviewKind(nodeKind) && !readOnly ? (
+        <EtlNodePreviewConfigFields
+          value={config}
+          onChange={(next) => onPatchNode(liveNode.id, { ...data, config: next })}
+        />
+      ) : null}
+
       {showConfig && summary ? (
         <p className="transform-flow-inspector__summary">
           <span className="transform-flow-inspector__summary-label">{t("transform.inspector.configSummary")}</span>
@@ -218,7 +245,11 @@ export function FlowNodeInspector({
         )}
       </label>
 
-      {!readOnly || isOrchestrationNodeKind(nodeKind) ? (
+      {isNodePreviewKind(nodeKind) ? (
+        <p className="transform-flow-inspector__hint transform-flow-inspector__hint--footer">
+          {t("transform.nodePreview.canvasHint")}
+        </p>
+      ) : !readOnly || isOrchestrationNodeKind(nodeKind) ? (
         <p className="transform-flow-inspector__hint transform-flow-inspector__hint--footer">
           {t("transform.inspector.doubleClickHint")}
         </p>

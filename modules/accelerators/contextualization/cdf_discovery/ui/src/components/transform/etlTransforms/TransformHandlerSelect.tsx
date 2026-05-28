@@ -1,7 +1,7 @@
 import type { CSSProperties } from "react";
 import {
-  CORE_TRANSFORM_HANDLER_IDS,
-  ELT_TRANSFORM_HANDLER_IDS,
+  TRANSFORM_HANDLER_CATEGORY_DEFS,
+  TRANSFORM_HANDLER_DEFINITIONS,
   type DiscoveryTransformHandlerId,
 } from "../etlHandlerRegistry";
 
@@ -9,53 +9,45 @@ type Props = {
   value: string;
   onChange: (handler: string) => void;
   unsetLabel?: string;
-  coreGroupLabel?: string;
-  eltGroupLabel?: string;
   className?: string;
   style?: CSSProperties;
+  /** @deprecated Use category labels from i18n via TRANSFORM_HANDLER_CATEGORY_DEFS */
+  coreGroupLabel?: string;
+  /** @deprecated Use category labels from i18n via TRANSFORM_HANDLER_CATEGORY_DEFS */
+  eltGroupLabel?: string;
+  /** Localized category headings (same order as TRANSFORM_HANDLER_CATEGORY_DEFS). */
+  categoryLabels?: Record<string, string>;
 };
 
-function HandlerOptions({ ids }: { ids: readonly string[] }) {
-  return (
-    <>
-      {ids.map((h) => (
-        <option key={h} value={h}>
-          {h}
-        </option>
-      ))}
-    </>
-  );
+function handlersForCategory(categoryId: string): DiscoveryTransformHandlerId[] {
+  return TRANSFORM_HANDLER_DEFINITIONS.filter((d) => d.category === categoryId).map((d) => d.id);
 }
 
 export function TransformHandlerSelect({
   value,
   onChange,
   unsetLabel,
-  coreGroupLabel,
-  eltGroupLabel,
   className = "gov-input",
   style,
+  categoryLabels,
 }: Props) {
-  const coreLabel = coreGroupLabel?.trim() ?? "";
-  const eltLabel = eltGroupLabel?.trim() ?? "";
-
   return (
     <select className={className} style={style} value={value} onChange={(e) => onChange(e.target.value)}>
       {unsetLabel ? <option value="">{unsetLabel}</option> : null}
-      {coreLabel ? (
-        <optgroup label={coreLabel}>
-          <HandlerOptions ids={CORE_TRANSFORM_HANDLER_IDS} />
-        </optgroup>
-      ) : (
-        <HandlerOptions ids={CORE_TRANSFORM_HANDLER_IDS} />
-      )}
-      {eltLabel ? (
-        <optgroup label={eltLabel}>
-          <HandlerOptions ids={ELT_TRANSFORM_HANDLER_IDS} />
-        </optgroup>
-      ) : (
-        <HandlerOptions ids={ELT_TRANSFORM_HANDLER_IDS} />
-      )}
+      {TRANSFORM_HANDLER_CATEGORY_DEFS.map((cat) => {
+        const ids = handlersForCategory(cat.id);
+        if (!ids.length) return null;
+        const label = categoryLabels?.[cat.id]?.trim() || cat.id;
+        return (
+          <optgroup key={cat.id} label={label}>
+            {ids.map((h) => (
+              <option key={h} value={h}>
+                {h}
+              </option>
+            ))}
+          </optgroup>
+        );
+      })}
     </select>
   );
 }

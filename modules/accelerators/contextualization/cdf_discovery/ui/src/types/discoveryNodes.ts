@@ -10,6 +10,14 @@ export type OpenTarget =
       instance_kind: DmInstanceKind;
     }
   | { type: "raw_rows"; database: string; table: string }
+  | {
+      type: "node_preview";
+      pipeline_id: string;
+      preview_node_id: string;
+      raw_db: string;
+      preview_table: string;
+      run_id: string;
+    }
   | { type: "record_stream"; stream_external_id: string }
   | { type: "fusion_cdf"; resource: string }
   | { type: "fusion_sequence"; sequence_external_id: string }
@@ -288,7 +296,7 @@ export type EtlPipelineDocumentTab = {
   id: string;
   label: string;
   pipelineId: string;
-  /** Build scope folder (``transform/workflows/{scopeSuffix}/``). */
+  /** Build scope folder (empty = flat ``workflows/``, else ``workflows/{scopeSuffix}/``). */
   scopeSuffix: string;
   document: import("./transformCanvas").TransformPipelineDocument | null;
   canvas: import("./transformCanvas").TransformCanvasDocument | null;
@@ -312,17 +320,11 @@ export type EtlTemplateDocumentTab = {
   runSession?: import("./transformTabRun").TransformTabRunSession | null;
 };
 
-export type EtlScopeDocumentTab = {
-  kind: "etl_scope";
-  id: "transform:scope";
-  label: string;
-};
-
 export type EtlWorkflowYamlDocumentTab = {
   kind: "etl_workflow_yaml";
   id: string;
   label: string;
-  /** Module-relative path under ``transform/workflows/``. */
+  /** Module-relative path under ``workflows/``. */
   relPath: string;
   loading: boolean;
   error: string | null;
@@ -355,7 +357,6 @@ export type DocumentTab =
   | GovernanceCdfGroupDocumentTab
   | EtlPipelineDocumentTab
   | EtlTemplateDocumentTab
-  | EtlScopeDocumentTab
   | EtlWorkflowYamlDocumentTab
   | ExtractDocumentTab
   | MonitorDocumentTab;
@@ -459,12 +460,6 @@ export type SavedWorkspaceEtlTemplateTab = {
   template_id: string;
 };
 
-export type SavedWorkspaceEtlScopeTab = {
-  kind: "etl_scope";
-  id: string;
-  label?: string;
-};
-
 export type SavedWorkspaceExtractTab = {
   kind: "extract";
   id: string;
@@ -490,7 +485,6 @@ export type SavedWorkspaceTab =
   | SavedWorkspaceGovernanceCdfGroupTab
   | SavedWorkspaceEtlPipelineTab
   | SavedWorkspaceEtlTemplateTab
-  | SavedWorkspaceEtlScopeTab
   | SavedWorkspaceExtractTab
   | SavedWorkspaceMonitorTab;
 
@@ -551,10 +545,6 @@ export function isEtlTemplateTab(tab: DocumentTab): tab is EtlTemplateDocumentTa
   return tab.kind === "etl_template";
 }
 
-export function isEtlScopeTab(tab: DocumentTab): tab is EtlScopeDocumentTab {
-  return tab.kind === "etl_scope";
-}
-
 export function isEtlWorkflowYamlTab(tab: DocumentTab): tab is EtlWorkflowYamlDocumentTab {
   return tab.kind === "etl_workflow_yaml";
 }
@@ -585,6 +575,11 @@ export function openTargetKey(target: OpenTarget): string {
   }
   if (target.type === "record_stream") {
     return `record_stream:${encodeURIComponent(target.stream_external_id)}`;
+  }
+  if (target.type === "node_preview") {
+    return `preview:${encodeURIComponent(target.pipeline_id)}:${encodeURIComponent(
+      target.preview_node_id
+    )}`;
   }
   return `raw:${target.database}:${target.table}`;
 }
@@ -624,6 +619,9 @@ export function tabLabelForTarget(target: OpenTarget): string {
   }
   if (target.type === "record_stream") {
     return `Records: ${target.stream_external_id}`;
+  }
+  if (target.type === "node_preview") {
+    return `Preview: ${target.preview_node_id}`;
   }
   return `RAW ${target.database}.${target.table}`;
 }
