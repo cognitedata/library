@@ -319,13 +319,6 @@ def optimize_pipeline_run(original_pipeline_func, client, logger, data, config):
         # optimize_pipeline_run(asset_entity_matching, client, logger, data, config)
     """
     
-    # Initialize optimization components (reserved for future use)
-    _batch_processor = BatchProcessor(batch_size=2000)
-    _concurrent_loader = ConcurrentDataLoader(max_workers=4)
-    _matching_engine = OptimizedMatchingEngine(logger)
-    _robust_client = RobustAPIClient(client, logger)
-    _cache = SimpleCache(max_size=1000)
-    
     # Monitor initial state
     monitor_memory_usage(logger, "Pipeline start")
     
