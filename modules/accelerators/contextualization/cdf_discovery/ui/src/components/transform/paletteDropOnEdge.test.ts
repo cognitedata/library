@@ -95,6 +95,39 @@ describe("transform paletteDropOnEdge", () => {
     ).toBe(false);
   });
 
+  it("creates function_ref from Fusion function drop", () => {
+    const nodes = [node("end1", "etlEnd", { x: 400, y: 0 })];
+    const getNode = (id: string) => nodes.find((n) => n.id === id);
+    const event = {
+      dataTransfer: {
+        getData: (mime: string) => {
+          if (mime === "application/x-transform-cdf-resource") {
+            return JSON.stringify({
+              kind: "cdf_function",
+              functionExternalId: "fn_etl_join",
+              label: "Join",
+            });
+          }
+          return "";
+        },
+      },
+      clientX: 100,
+      clientY: 100,
+    } as unknown as React.DragEvent;
+    const result = applyTransformCanvasDrop({
+      event,
+      screenToFlowPosition: () => ({ x: 100, y: 100 }),
+      getNode,
+      getEdges: () => [],
+      nodes,
+    });
+    expect(result).not.toBeNull();
+    const fnNode = result!.nodes.find((n) => n.type === "etlFunctionRef");
+    expect(fnNode).toBeDefined();
+    const cfg = (fnNode!.data as { config?: Record<string, unknown> }).config;
+    expect(cfg?.function_external_id).toBe("fn_etl_join");
+  });
+
   it("auto-wires dropped save node to first etlEnd", () => {
     const nodes = [
       node("end1", "etlEnd", { x: 400, y: 0 }),

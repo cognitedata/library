@@ -443,13 +443,24 @@ export function applyTransformCanvasDropAtPosition(
   return insertMaterializedNode(node, rfType, flowPosition, input);
 }
 
-/** Apply palette drop; returns updated graph when handled. Data tree drops use applyEntityCanvasDrop after prompting. */
+function isMaterializableCanvasDropPayload(
+  payload: NonNullable<ReturnType<typeof getTransformFlowDropPayload>>
+): boolean {
+  return (
+    payload.kind === "etl_stage" ||
+    payload.kind === "cdf_function" ||
+    payload.kind === "cdf_transformation" ||
+    payload.kind === "cdf_workflow"
+  );
+}
+
+/** Apply palette or Fusion integration drops; data tree drops use applyEntityCanvasDrop after prompting. */
 export function applyTransformCanvasDrop(
   input: ApplyTransformCanvasDropInput
 ): ApplyTransformCanvasDropResult | null {
   const { event, screenToFlowPosition } = input;
   const payload = getTransformFlowDropPayload(event);
-  if (!payload || payload.kind !== "etl_stage") return null;
+  if (!payload || !isMaterializableCanvasDropPayload(payload)) return null;
 
   const flowPosition = screenToFlowPosition({ x: event.clientX, y: event.clientY });
   return applyTransformCanvasDropAtPosition(flowPosition, payload, input);

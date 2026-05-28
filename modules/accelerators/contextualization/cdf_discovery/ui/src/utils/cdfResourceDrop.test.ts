@@ -48,14 +48,18 @@ describe("cdfResourceDrop", () => {
     expect(wfDrop.config.workflow_version).toBe("3");
   });
 
-  it("rejects transformations without external id", () => {
+  it("falls back to numeric id when transformation has no external_id", () => {
     const node: TreeNode = {
       id: "t2",
-      label: "No ext",
+      label: "Legacy tr",
       kind: "transformation",
       has_children: false,
-      meta: { id: 99 },
+      meta: { id: 99, external_id: null },
     };
-    expect(cdfResourceDragPayloadFromNode(node)).toBeNull();
+    const payload = cdfResourceDragPayloadFromNode(node);
+    expect(payload?.kind).toBe("cdf_transformation");
+    if (payload?.kind === "cdf_transformation") {
+      expect(payload.transformationExternalId).toBe("99");
+    }
   });
 });

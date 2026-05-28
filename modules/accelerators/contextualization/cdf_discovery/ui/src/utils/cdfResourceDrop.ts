@@ -48,7 +48,9 @@ export function cdfResourceDragPayloadFromNode(node: TreeNode): CdfResourceDragP
   }
 
   if (node.kind === "transformation") {
-    const transformationExternalId = metaString(meta, "external_id");
+    const transformationExternalId =
+      metaString(meta, "external_id") ||
+      (meta?.id != null && String(meta.id).trim() ? String(meta.id).trim() : "");
     if (!transformationExternalId) return null;
     return { kind: "cdf_transformation", transformationExternalId, label };
   }
