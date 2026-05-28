@@ -14,11 +14,13 @@ Canonical description of what the module does, its boundaries, configuration, AP
 
 | In scope | Out of scope |
 | -------- | ------------ |
-| Read-only CDF browse and SQL preview | Writing or deploying CDF resources from this module |
-| Declared access control (offline `default.config.yaml`, build, generated Space/Group YAML) | Runtime Entra provisioning or CDF ACL writes |
-| Operator prefs (`discovery.local.config.yaml`) | Multi-user auth or hosted SaaS deployment |
-| Local DuckDB queries over downloaded file content | CDF Transformations authoring/deploy |
-| FastAPI + Vite operator UI | `functions/`, `workflows/`, generated Space/Group YAML |
+| Read-only CDF browse and SQL preview (except Streams/Records APIs and local ETL runs) | Hosted multi-user SaaS deployment |
+| Declared access control (`governance/default.config.yaml`, build, generated `spaces/` / `auth/`) | Runtime Entra provisioning |
+| Operator prefs (`discovery.local.config.yaml`) | Production CDF deploy orchestration beyond optional `transform deploy-scope` |
+| ETL workflow authoring (`transform/workflow_definitions/`), build to `workflows/`, local DAG run | Replacing CDF Transformations product authoring |
+| Cognite Functions under `functions/` (Toolkit YAML + Python handlers) | |
+| FastAPI + Vite operator UI (Discovery tree, governance, Fusion / Transform canvas) | |
+| Local DuckDB queries over downloaded file content | |
 
 **Module type:** Toolkit utility (config family **D** in [ACCELERATOR_CONFIG_CONVENTIONS.md](../../ACCELERATOR_CONFIG_CONVENTIONS.md)).
 
@@ -43,6 +45,8 @@ Canonical description of what the module does, its boundaries, configuration, AP
 - **Workflow diagram** — task DAG from workflow version
 - **Transformation / function detail** — definition tabs from tree double-click
 - **Workspace persistence** — open tabs, active tab, saved queries, starred nodes in local config
+- **Fusion / Transform canvas** — ETL pipeline and template editors (React Flow): palette, merge/explode/optimize, build, local run, preview nodes
+- **ETL build** — `module.py transform build` emits Toolkit workflow YAML under `workflows/`
 
 ---
 
@@ -52,8 +56,10 @@ Canonical description of what the module does, its boundaries, configuration, AP
 | ---- | ---- |
 | `discovery.config.template.yaml` | Committed template (`stars`, `workspace`, `saved_queries`) |
 | `discovery.local.config.yaml` | Gitignored operator prefs (copy from template) |
+| `default.config.yaml` | ETL scope: `workflow`, `dataset`, `workflow_definitions` paths |
+| `governance/default.config.yaml` | Declared spaces/groups build config |
 
-Template file: `discovery.config.template.yaml`. Copy to gitignored `discovery.local.config.yaml` for operator prefs.
+Copy `discovery.config.template.yaml` → `discovery.local.config.yaml` for operator prefs. ETL authoring paths default to `transform/workflow_definitions/` (see `default.config.yaml`).
 
 **Discovery tree roots:** `data` (Saved Queries at `data:sq`, RAW `raw`, Data Modeling `dm`, Classic `classic`), `integration` (Workflows `wf`, Pipelines `ep`, Functions `fn`, Transformations `tx`), `gov` (spaces, groups). Legacy starred ids (`sq`, `orch`, …) are migrated on load (`ui/server/tree_node_ids.py`).
 
@@ -65,6 +71,9 @@ Template file: `discovery.config.template.yaml`. Copy to gitignored `discovery.l
 | ------- | ------- |
 | `module.py ui` | Start FastAPI + Vite dev server |
 | `module.py build` | Generate Space/Group YAML under `governance/` (`--spaces-only` / `--groups-only`; compliance gates after write) |
+| `module.py transform build` | Compile workflow canvas → `workflows/` (see `transform/docs/BUILD.md`) |
+| `module.py transform run` | Local ETL DAG (`transform/local_runner/`; `--dry-run`, `--instance`, `--predecessor-mode`) |
+| `module.py transform deploy-scope` | Deploy scoped workflows/functions to CDF |
 
 Flags: `--api-host`, `--api-port` (default **8785**), `--vite-port` (default **5193**), `--no-browser`, `--no-reload`. Env: `CDF_DISCOVERY_ROOT`.
 
@@ -106,7 +115,7 @@ Vite proxies `/api` to the API via `VITE_API_PROXY` (set by `module.py ui`).
 ## 7. Security and NFRs
 
 - **No API authentication** — intended for `127.0.0.1` on a trusted workstation only
-- **Read-only** toward CDF (preview APIs; no module-driven writes)
+- **Read-only browse** toward CDF except Streams/Records APIs, optional `transform deploy-scope`, and local ETL runs that may write cohort RAW when using cohort predecessor mode
 - **Credentials** — repository-root `.env` (`COGNITE_*` / `CDF_*` / `IDP_*`), same as other accelerators
 - SQL preview requires CDF ACLs (e.g. `transformationsAcl:READ` for run-query)
 

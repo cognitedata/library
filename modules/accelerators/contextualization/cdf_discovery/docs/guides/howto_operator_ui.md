@@ -44,6 +44,30 @@ Open document tabs and the active tab id are saved under `workspace` in `discove
 - **Function tabs** — double-click a function under **Integration → Functions** to load its definition JSON.
 - **Pipeline canvas (Preview node)** — attach a **Preview** node to any upstream stage; on **local run** it snapshots cohort rows into stable RAW (`parameters.preview_raw_table_key`, default `etl_preview`). Double-click the preview node to open a SQL tab filtered by `RUN_ID` and `PREVIEW_NODE_ID`.
 
+### Transform (Fusion) workflow canvas
+
+Under **Fusion** → **Transform** in the object tree:
+
+- **Workflows** — pipeline instances (`transform/workflow_definitions/instances/`). Double-click to open the canvas tab.
+- **Templates** — reusable definitions (`transform/workflow_definitions/templates/`).
+
+**Canvas toolbar**
+
+- **Palette** (left) — drag query, transform, score, save, and orchestration nodes onto the graph; connect handles to wire the DAG.
+- **Layout** — auto-layout, fit view, edge style, and handle orientation (left→right or top→bottom).
+- **History** — undo and redo canvas edits.
+- **Build** — compile the canvas to Toolkit YAML under `workflows/` (same as `python module.py transform build`).
+- **Run locally** — execute the DAG with status in the toolbar (`module.py transform run`).
+- **Optimize** — review suggested merges for sequential transform chains or parallel score/transform siblings; approve or decline, then apply.
+
+**Node editing**
+
+- Select a node to configure it in the inspector (handlers, fields, filters, save targets).
+- Right-click or the node toolbar: **Copy** / **Paste**, **Merge** multi-step transforms or score nodes, **Explode** combined nodes back into separate steps.
+- **Preview** nodes are canvas-only (not deployed); use them to snapshot upstream cohort rows for SQL inspection.
+
+Authoring paths and CLI: [transform/docs/BUILD.md](../../transform/docs/BUILD.md), [transform/docs/LOCAL_RUN.md](../../transform/docs/LOCAL_RUN.md).
+
 ### Properties (bottom)
 
 - Select a **tree node** for object metadata, or a **SQL result row** for column values.

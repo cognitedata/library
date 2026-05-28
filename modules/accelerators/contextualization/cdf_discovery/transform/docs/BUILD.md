@@ -18,16 +18,17 @@ python module.py transform build --check
 python module.py transform build --dry-run
 ```
 
-Registry batch (no `--workflow`): reads `workflow_definitions/registry.yaml`.
+Registry batch (no `--workflow`): reads `transform/workflow_definitions/registry.yaml`.
 
 ## Authoring layout
 
 | Path | Role |
 |------|------|
-| `workflow_definitions/instances/{id}.yaml` | Workflow definition (canvas) |
-| `workflow_definitions/templates/{id}.template.yaml` | Template definitions |
-| `workflow_definitions/registry.yaml` | Batch build manifest |
+| `transform/workflow_definitions/instances/{id}.yaml` | Workflow definition (canvas) |
+| `transform/workflow_definitions/templates/{id}.template.yaml` | Template definitions |
+| `transform/workflow_definitions/registry.yaml` | Batch build manifest |
 | `workflows/etl_{id}.*` or `workflows/<scope>/etl_{id}.{scope}.*` | Generated deploy artifacts (module root) |
+| `functions/` | Cognite Function handlers (`fn_etl_*`, shared `cdf_fn_common/`) |
 | `data_sets/ds_discovery_etl.DataSet.yaml` | Toolkit **DataSet** (`{{ dataset }}` → `ds_discovery_etl` in `default.config.yaml`) |
 
 Deploy the data set before workflows/functions (`cdf deploy` or SDK deploy). Workflow and Function YAML reference `dataSetExternalId: ds_discovery_etl`.

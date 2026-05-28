@@ -32,13 +32,31 @@ pip install -r modules/accelerators/contextualization/cdf_discovery/requirements
 | ------- | ------- |
 | `ui` | Start FastAPI + Vite operator UI |
 | `build` | Generate Space/Group YAML via `governance_build` (`--spaces-only` / `--groups-only`; runs compliance gates after write) |
+| `transform build` | Compile workflow canvas YAML → Toolkit artifacts under `workflows/` |
+| `transform run` | Local DAG run (`transform/local_runner/`; `--dry-run`, `--instance`, `--predecessor-mode`) |
+| `transform deploy-scope` | Deploy scoped workflow/functions to CDF (requires credentials) |
 
 ```bash
 python modules/accelerators/contextualization/cdf_discovery/module.py build [--config governance/default.config.yaml] [--dry-run] [--force]
 python modules/accelerators/contextualization/cdf_discovery/module.py build --clean [--yes]
+python modules/accelerators/contextualization/cdf_discovery/module.py transform build --workflow discovery_etl_default
+python modules/accelerators/contextualization/cdf_discovery/module.py transform run --instance discovery_etl_default --dry-run
 ```
 
 Flags: `--api-host`, `--api-port`, `--vite-port`, `--no-browser`, `--no-reload`. Run `python module.py` with no args for help.
+
+## ETL layout
+
+| Path | Role |
+| ---- | ---- |
+| `default.config.yaml` | ETL scope (`workflow`, `dataset`, workflow_definitions paths) |
+| `functions/` | Cognite Functions (`cdf_fn_common/`, `fn_etl_*`) |
+| `transform/workflow_definitions/` | Authoring: instances, templates, `registry.yaml` |
+| `workflows/` | Generated Workflow / WorkflowVersion / WorkflowTrigger / config YAML |
+| `data_sets/ds_discovery_etl.DataSet.yaml` | Toolkit DataSet for ETL resources |
+| `transform/docs/` | Build, local run, transform stage, scoring, DM query |
+
+See [transform/docs/BUILD.md](transform/docs/BUILD.md) and [workflows/README.md](workflows/README.md).
 
 ## Operator UI
 
@@ -67,4 +85,6 @@ Other modules’ default ports: [Accelerators README](../../README.md#dev-port-m
 | [docs/README.md](docs/README.md) | Documentation index |
 | [docs/MODULE_SPECIFICATION.md](docs/MODULE_SPECIFICATION.md) | Canonical spec and API |
 | [docs/guides/howto_operator_ui.md](docs/guides/howto_operator_ui.md) | Operator UI procedures |
+| [transform/docs/BUILD.md](transform/docs/BUILD.md) | Workflow build and deploy layout |
+| [transform/docs/LOCAL_RUN.md](transform/docs/LOCAL_RUN.md) | Local DAG runner |
 | [OPERATOR_UI_STANDARD.md](../../OPERATOR_UI_STANDARD.md) | Shared UI conventions |

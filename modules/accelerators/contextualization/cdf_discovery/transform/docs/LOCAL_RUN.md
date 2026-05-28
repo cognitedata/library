@@ -31,7 +31,7 @@ python module.py transform run --template aliasing_template
 
 ### Pipeline template build
 
-Templates live under `workflow_definitions/templates/{template_id}.template.yaml`. **Build** compiles the canvas and writes CDF workflow manifests under `workflows/` as `etl_{template_id}.*` (Workflow, WorkflowVersion, WorkflowTrigger, trimmed config). The template file is updated with `compiled_workflow` and start-node workflow/trigger pairing; no file is written under `workflow_definitions/instances/`.
+Templates live under `transform/workflow_definitions/templates/{template_id}.template.yaml`. **Build** compiles the canvas and writes CDF workflow manifests under `workflows/` as `etl_{template_id}.*` (Workflow, WorkflowVersion, WorkflowTrigger, trimmed config). The template file is updated with `compiled_workflow` and start-node workflow/trigger pairing; no file is written under `transform/workflow_definitions/instances/`.
 
 Each template defaults to workflow base `wf_all_etl_{template_id}` (unless the start node sets `workflow_base`), so multiple templates do not share the global `workflow` key from `default.config.yaml`.
 
