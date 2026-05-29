@@ -78,24 +78,6 @@ from logger import CogniteFunctionLogger
 
 sys.path.append(str(Path(__file__).parent))
 
-# 🚀 OPTIMIZATION IMPORTS
-try:
-    from pipeline_optimizations import (
-        cleanup_memory,
-        monitor_memory_usage,
-    )
-except ImportError:
-    from contextlib import contextmanager
-    
-    @contextmanager
-    def time_operation(operation_name, logger):
-        """Fallback if optimizations not available"""
-        yield
-    
-    def monitor_memory_usage(logger, operation_name=""): pass
-    def cleanup_memory(): pass
-
-
 
 
 def entity_matching(
