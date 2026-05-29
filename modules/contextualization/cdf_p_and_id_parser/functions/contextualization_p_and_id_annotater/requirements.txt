@@ -1,4 +1,0 @@
-cognite-sdk == 7.*
-pydantic==2.9.*
-pyyaml==6.*
-mixpanel>=4.10.0

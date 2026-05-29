@@ -12,7 +12,6 @@ description = "Module templates for data contextualization"
 canCherryPick = true
 modules = [
     "contextualization/cdf_p_and_id_annotation",
-    "contextualization/cdf_p_and_id_parser",
     "contextualization/cdf_file_annotation",
     "contextualization/cdf_entity_matching",
     "contextualization/cdf_connection_sql",
