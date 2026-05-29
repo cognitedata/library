@@ -41,15 +41,14 @@ sys.path.append(str(Path(__file__).parent))
 import pipeline  # noqa: E402  (after sys.path tweak)
 from config import Config  # noqa: E402
 from logger import CogniteFunctionLogger  # noqa: E402
-from pipeline import (  # noqa: E402
-    _truncate,
-    create_annotation_id,
-    get_all_entities,
-    get_new_files,
-    push_result_to_annotations,
-    read_state_batch_num,
-    read_state_cursor,
-)
+
+_truncate = pipeline._truncate
+create_annotation_id = pipeline.create_annotation_id
+get_all_entities = pipeline.get_all_entities
+get_new_files = pipeline.get_new_files
+push_result_to_annotations = pipeline.push_result_to_annotations
+read_state_batch_num = pipeline.read_state_batch_num
+read_state_cursor = pipeline.read_state_cursor
 
 # --------------------------------------------------------------------------- #
 # Fixtures                                                                    #
