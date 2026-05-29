@@ -430,10 +430,8 @@ def get_new_files(
                 file_cursor = None
                 num_retry += 1
                 if num_retry > 3:
-                    retry = False
                     raise Exception(msg) from e
             else:
-                retry = False
                 raise Exception(msg) from e
             
 
@@ -536,7 +534,6 @@ def run_diagram_detect(
         except Exception as e:
             num_retry += 1
             if num_retry > 3:
-                retry = False
                 if len(file_ids) > 1:
                     raise Exception(f"Batch diagram detect batch failed on {len(file_ids)} files - rerunning with one file at a time")
                 else:             
@@ -601,7 +598,6 @@ def push_result_to_annotations(
         except Exception as e:
             num_retry += 1
             if num_retry > 3:
-                retry = False
                 msg = f"Annotations add/update of: {len(edge_applies)} failed, error: {e.message}"
                 logger.error(msg)
                 raise Exception(msg) from e
