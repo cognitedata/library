@@ -22,14 +22,14 @@ class TestHandler:
         
     @patch('handler.CogniteFunctionLogger')
     @patch('handler.load_config_parameters')
-    @patch('handler.asset_entity_matching')
-    def test_handle_success(self, mock_asset_matching, mock_load_config, mock_logger_class):
+    @patch('handler.entity_matching')
+    def test_handle_success(self, mock_entity_matching, mock_load_config, mock_logger_class):
         """Test successful execution of handle function."""
         # Setup mocks
         mock_logger_instance = Mock()
         mock_logger_class.return_value = mock_logger_instance
         mock_load_config.return_value = self.mock_config
-        mock_asset_matching.return_value = None
+        mock_entity_matching.return_value = None
         
         # Test data
         test_data = {
@@ -43,23 +43,27 @@ class TestHandler:
         # Assertions
         assert result == {"status": "succeeded", "data": test_data}
         mock_logger_class.assert_called_once_with("INFO")
-        mock_logger_instance.info.assert_called_once()
+        # logger.info is now called multiple times legitimately:
+        # the two "Starting / Reading parameters" lines plus emissions from
+        # monitor_memory_usage, time_operation, and PerformanceBenchmark
+        # (per-phase timing + final log_summary). Just assert it was called.
+        mock_logger_instance.info.assert_called()
         mock_load_config.assert_called_once_with(self.mock_client, test_data)
         mock_logger_instance.debug.assert_called_once_with("Loaded config successfully")
-        mock_asset_matching.assert_called_once_with(
+        mock_entity_matching.assert_called_once_with(
             self.mock_client, mock_logger_instance, test_data, self.mock_config
         )
     
     @patch('handler.CogniteFunctionLogger')
     @patch('handler.load_config_parameters')
-    @patch('handler.asset_entity_matching')
-    def test_handle_with_custom_log_level(self, mock_asset_matching, mock_load_config, mock_logger_class):
+    @patch('handler.entity_matching')
+    def test_handle_with_custom_log_level(self, mock_entity_matching, mock_load_config, mock_logger_class):
         """Test handle function with custom log level."""
         # Setup mocks
         mock_logger_instance = Mock()
         mock_logger_class.return_value = mock_logger_instance
         mock_load_config.return_value = self.mock_config
-        mock_asset_matching.return_value = None
+        mock_entity_matching.return_value = None
         
         # Test data with custom log level
         test_data = {
@@ -76,14 +80,14 @@ class TestHandler:
     
     @patch('handler.CogniteFunctionLogger')
     @patch('handler.load_config_parameters')
-    @patch('handler.asset_entity_matching')
-    def test_handle_default_log_level(self, mock_asset_matching, mock_load_config, mock_logger_class):
+    @patch('handler.entity_matching')
+    def test_handle_default_log_level(self, mock_entity_matching, mock_load_config, mock_logger_class):
         """Test handle function with default log level."""
         # Setup mocks
         mock_logger_instance = Mock()
         mock_logger_class.return_value = mock_logger_instance
         mock_load_config.return_value = self.mock_config
-        mock_asset_matching.return_value = None
+        mock_entity_matching.return_value = None
         
         # Test data without log level
         test_data = {
@@ -99,8 +103,8 @@ class TestHandler:
     
     @patch('handler.CogniteFunctionLogger')
     @patch('handler.load_config_parameters')
-    @patch('handler.asset_entity_matching')
-    def test_handle_config_loading_failure(self, mock_asset_matching, mock_load_config, mock_logger_class):
+    @patch('handler.entity_matching')
+    def test_handle_config_loading_failure(self, mock_entity_matching, mock_load_config, mock_logger_class):
         """Test handle function when config loading fails."""
         # Setup mocks
         mock_logger_instance = Mock()
@@ -119,19 +123,22 @@ class TestHandler:
         # Assertions
         assert result["status"] == "failure"
         assert "Config loading failed" in result["message"]
-        mock_logger_instance.error.assert_called_once()
-        mock_asset_matching.assert_not_called()
+        # logger.error is called twice on a failure path: once from
+        # PerformanceBenchmark.benchmark_function when the wrapped call fails,
+        # and once from handle()'s outer except block.
+        assert mock_logger_instance.error.called
+        mock_entity_matching.assert_not_called()
     
     @patch('handler.CogniteFunctionLogger')
     @patch('handler.load_config_parameters')
-    @patch('handler.asset_entity_matching')
-    def test_handle_asset_matching_failure(self, mock_asset_matching, mock_load_config, mock_logger_class):
+    @patch('handler.entity_matching')
+    def test_handle_asset_matching_failure(self, mock_entity_matching, mock_load_config, mock_logger_class):
         """Test handle function when asset matching fails."""
         # Setup mocks
         mock_logger_instance = Mock()
         mock_logger_class.return_value = mock_logger_instance
         mock_load_config.return_value = self.mock_config
-        mock_asset_matching.side_effect = Exception("Asset matching failed")
+        mock_entity_matching.side_effect = Exception("Asset matching failed")
         
         # Test data
         test_data = {
@@ -145,7 +152,10 @@ class TestHandler:
         # Assertions
         assert result["status"] == "failure"
         assert "Asset matching failed" in result["message"]
-        mock_logger_instance.error.assert_called_once()
+        # logger.error is called twice on a failure path: once from
+        # PerformanceBenchmark.benchmark_function when the wrapped call fails,
+        # and once from handle()'s outer except block.
+        assert mock_logger_instance.error.called
     
     @patch('handler.CogniteFunctionLogger')
     @patch('builtins.print')
@@ -190,7 +200,7 @@ class TestRunLocally:
         with pytest.raises(ValueError) as exc_info:
             run_locally()
         
-        assert "Missing one or more env.vars" in str(exc_info.value)
+        assert "Missing required environment variables" in str(exc_info.value)
     
     @patch.dict(os.environ, {
         "CDF_PROJECT": "test_project",
@@ -204,7 +214,7 @@ class TestRunLocally:
         with pytest.raises(ValueError) as exc_info:
             run_locally()
         
-        assert "Missing one or more env.vars" in str(exc_info.value)
+        assert "Missing required environment variables" in str(exc_info.value)
         assert "IDP_TOKEN_URL" in str(exc_info.value)
     
     @patch('handler.handle')
@@ -234,7 +244,7 @@ class TestRunLocally:
         call_args = mock_handle.call_args
         assert call_args[0][0] == {
             "logLevel": "INFO",
-            "ExtractionPipelineExtId": "ep_ctx_timeseries_Springfield_springfield_entity_matching"
+            "ExtractionPipelineExtId": "ep_ctx_timeseries_LOC_SOURCE_entity_matching"
         }
         assert call_args[0][1] == mock_client_instance
     
@@ -262,7 +272,7 @@ class TestRunLocally:
         client_config = mock_cognite_client.call_args[0][0]
         
         # Check client configuration
-        assert client_config.client_name == "Toolkit Entity Matching pipeline"
+        assert client_config.client_name == "Optimized Toolkit Entity Matching Pipeline"
         assert client_config.base_url == "https://test_cluster.cognitedata.com"
         assert client_config.project == "test_project"
         
@@ -277,17 +287,17 @@ class TestRunLocally:
 class TestIntegration:
     """Integration tests for the handler module."""
     
-    @patch('handler.asset_entity_matching')
+    @patch('handler.entity_matching')
     @patch('handler.load_config_parameters')
     @patch('handler.CogniteFunctionLogger')
-    def test_handle_integration_flow(self, mock_logger_class, mock_load_config, mock_asset_matching):
+    def test_handle_integration_flow(self, mock_logger_class, mock_load_config, mock_entity_matching):
         """Test the complete integration flow of the handle function."""
         # Setup mocks
         mock_logger_instance = Mock()
         mock_logger_class.return_value = mock_logger_instance
         mock_config = Mock()
         mock_load_config.return_value = mock_config
-        mock_asset_matching.return_value = None
+        mock_entity_matching.return_value = None
         
         # Test data
         test_data = {
@@ -307,10 +317,14 @@ class TestIntegration:
         
         # Verify the complete flow
         mock_logger_class.assert_called_once_with("DEBUG")
-        mock_logger_instance.info.assert_called_once()
+        # logger.info is now called multiple times legitimately:
+        # the two "Starting / Reading parameters" lines plus emissions from
+        # monitor_memory_usage, time_operation, and PerformanceBenchmark
+        # (per-phase timing + final log_summary). Just assert it was called.
+        mock_logger_instance.info.assert_called()
         mock_load_config.assert_called_once_with(mock_client, test_data)
         mock_logger_instance.debug.assert_called_once_with("Loaded config successfully")
-        mock_asset_matching.assert_called_once_with(
+        mock_entity_matching.assert_called_once_with(
             mock_client, mock_logger_instance, test_data, mock_config
         )
 

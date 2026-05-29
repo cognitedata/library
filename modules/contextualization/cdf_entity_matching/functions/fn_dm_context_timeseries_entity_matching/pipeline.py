@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import json
 import re
 import sys
@@ -5,7 +7,7 @@ import time
 import traceback
 from collections import defaultdict
 from pathlib import Path
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 from cognite.client import CogniteClient
 from cognite.client import data_modeling as dm
@@ -17,8 +19,14 @@ from cognite.client.data_classes.data_modeling import (
 )
 from cognite.client.exceptions import CogniteAPIError
 from cognite.client.utils._text import shorten
-from cognite.extractorutils.uploader import RawUploadQueue
 from config import Config, ViewPropertyConfig
+
+# RawUploadQueue is only constructed at runtime in entity_matching; importing
+# it lazily lets pipeline.py be imported (e.g. for unit tests) without the
+# cognite-extractor-utils package installed. Type hints below stay valid
+# because of `from __future__ import annotations`.
+if TYPE_CHECKING:  # pragma: no cover
+    from cognite.extractorutils.uploader import RawUploadQueue
 from constants import (
     BATCH_SIZE_API_SUBMIT,
     BATCH_SIZE_ENTITIES,
@@ -75,9 +83,32 @@ from constants import (
     STATUS_SUCCESS,
 )
 from logger import CogniteFunctionLogger
+from pipeline_optimizations import (
+    RobustAPIClient,
+    cleanup_memory,
+    monitor_memory_usage,
+    time_operation,
+)
 
 sys.path.append(str(Path(__file__).parent))
 
+
+def _retry_apply(
+    client: CogniteClient,
+    logger: CogniteFunctionLogger,
+    items: list,
+) -> None:
+    """Apply DM instance updates with bounded exponential-backoff retry.
+
+    Wraps `client.data_modeling.instances.apply` via RobustAPIClient so transient
+    failures (rate-limiting, brief network blips, etc.) don't sink an entire
+    matching run. No-op on empty input.
+    """
+    if not items:
+        return
+    RobustAPIClient(client, logger).robust_api_call(
+        client.data_modeling.instances.apply, items
+    )
 
 
 def entity_matching(
@@ -111,6 +142,7 @@ def entity_matching(
             logger.debug("**** Write debug messages and only process one entity *****")
 
         logger.debug("Initiate RAW upload queue used to store output from entity matching")
+        from cognite.extractorutils.uploader import RawUploadQueue
         raw_uploader = RawUploadQueue(cdf_client=client, max_queue_size=500000, trigger_log_level=LOG_LEVEL_INFO)
 
         # Check if we should run all entities (then delete state content in RAW) or just new entities
@@ -123,25 +155,36 @@ def entity_matching(
             logger.debug("Get entity entity matching model ID from state store")
             matching_model_id = read_state_store(client, config, logger, STAT_STORE_MATCH_MODEL_ID)
 
-        logger.info("Read manual mappings to be used in entity matching")
-        manual_mappings, manual_mappings_input = read_manual_mappings(client, logger, config)
+        monitor_memory_usage(logger, "Pipeline start")
 
-        logger.info(f"Read rule mappings to be used in entity matching, NOTE: Uses '{PROP_COL_NAME}' property for rule based matches")
-        rule_mappings = read_rule_mappings(client, logger, config)
+        with time_operation("Read manual mappings", logger):
+            logger.info("Read manual mappings to be used in entity matching")
+            manual_mappings, manual_mappings_input = read_manual_mappings(client, logger, config)
 
-        logger.info(f"Read all {QUERY_FILTER_TYPE_TARGETS} that are input for matching ( based on TAG filtering IF given in config)")
-        targets = get_all_targets(client, logger, config, rule_mappings)
+        with time_operation("Read rule mappings", logger):
+            logger.info(f"Read rule mappings to be used in entity matching, NOTE: Uses '{PROP_COL_NAME}' property for rule based matches")
+            rule_mappings = read_rule_mappings(client, logger, config)
+
+        with time_operation("Read targets", logger):
+            logger.info(f"Read all {QUERY_FILTER_TYPE_TARGETS} that are input for matching ( based on TAG filtering IF given in config)")
+            targets = get_all_targets(client, logger, config, rule_mappings)
+        monitor_memory_usage(logger, "After targets loaded")
+
         if len(targets) == 0:
             logger.warning(f"No {QUERY_FILTER_TYPE_TARGETS} found based on configuration, please check the configuration")
             update_pipeline_run(client, logger, pipeline_ext_id, STATUS_SUCCESS, match_count, not_matches_count, None)
             return
 
-        logger.info("Start by applying manual mappings")
-        good_matches, cnt_manual_mappings = apply_manual_mappings(client, logger, config, raw_uploader, manual_mappings, manual_mappings_input, good_matches, targets)
-    
-        logger.info("Read new entities (ex: time series) that has been updated since last run")
-        list_good_matches = [match[KEY_ENTITY_EXT_ID] for match in good_matches]
-        new_entities = get_new_entities(client, config, logger, list_good_matches, rule_mappings)
+        with time_operation("Apply manual mappings", logger):
+            logger.info("Start by applying manual mappings")
+            good_matches, cnt_manual_mappings = apply_manual_mappings(client, logger, config, raw_uploader, manual_mappings, manual_mappings_input, good_matches, targets)
+
+        with time_operation("Read new entities", logger):
+            logger.info("Read new entities (ex: time series) that has been updated since last run")
+            list_good_matches = [match[KEY_ENTITY_EXT_ID] for match in good_matches]
+            new_entities = get_new_entities(client, config, logger, list_good_matches, rule_mappings)
+        monitor_memory_usage(logger, "After new entities loaded")
+        cleanup_memory()
 
         logger.info(f"Start processing of new entities ({len(new_entities)})")
         if len(new_entities) == 0:
@@ -149,14 +192,21 @@ def entity_matching(
             update_pipeline_run(client, logger, pipeline_ext_id, STATUS_SUCCESS, match_count, not_matches_count, None)
             return
 
-        logger.info(f"Applying rule based mappings - using provided reg expressions to match entities to {QUERY_FILTER_TYPE_TARGETS}")
-        good_matches, cnt_rule_mappings = apply_rule_mappings(client, config, logger, good_matches, targets, new_entities)  # type: ignore
+        with time_operation("Apply rule based mappings", logger):
+            logger.info(f"Applying rule based mappings - using provided reg expressions to match entities to {QUERY_FILTER_TYPE_TARGETS}")
+            good_matches, cnt_rule_mappings = apply_rule_mappings(client, config, logger, good_matches, targets, new_entities)  # type: ignore
 
-        logger.info("NOTE: the matching runs in CDF, and the process could here be split into two steps to avoid long running jobs")
-        match_results = get_matches(client, config, logger, matching_model_id or "", targets, new_entities)  # type: ignore
+        with time_operation("Run entity matching model", logger):
+            logger.info("NOTE: the matching runs in CDF, and the process could here be split into two steps to avoid long running jobs")
+            match_results = get_matches(client, config, logger, matching_model_id or "", targets, new_entities)  # type: ignore
 
-        good_matches, bad_matches, cnt_entity_matching = select_and_apply_matches(client, config, logger, good_matches, match_results)  # type: ignore
-        write_mapping_to_raw(client, config, raw_uploader, good_matches, bad_matches, logger)
+        with time_operation("Select and apply matches", logger):
+            good_matches, bad_matches, cnt_entity_matching = select_and_apply_matches(client, config, logger, good_matches, match_results)  # type: ignore
+
+        with time_operation("Write mapping to RAW", logger):
+            write_mapping_to_raw(client, config, raw_uploader, good_matches, bad_matches, logger)
+        cleanup_memory()
+        monitor_memory_usage(logger, "Pipeline end")
 
         len_good_matches = cnt_manual_mappings + cnt_rule_mappings + cnt_entity_matching
         len_bad_matches = len(bad_matches)
@@ -265,16 +315,23 @@ def rule_table_exists(
 
 
 def read_manual_mappings(
-    client: CogniteClient, 
+    client: CogniteClient,
     logger: CogniteFunctionLogger,
-    config: Config
-) -> list[Row]:
-    manual_mappings = []
-    manual_mappings_input = {}
-    seen_mappings = set()
+    config: Config,
+) -> tuple[list[dict[str, Any]], dict[str, dict[str, Any]]]:
+    """Read manual mapping rows from RAW.
+
+    Returns a `(mappings, mappings_input)` pair so the caller can do
+    `manual_mappings, manual_mappings_input = read_manual_mappings(...)`.
+    Both elements are empty when the manual mapping table doesn't exist or
+    the read fails — never partial — so the unpack is always safe.
+    """
+    manual_mappings: list[dict[str, Any]] = []
+    manual_mappings_input: dict[str, dict[str, Any]] = {}
+    seen_mappings: set[str] = set()
     try:
         if not manual_table_exists(client, config):
-            return manual_mappings
+            return manual_mappings, manual_mappings_input
 
         row_list = client.raw.rows.list(config.parameters.raw_db, config.parameters.raw_tale_ctx_manual, limit=-1)
         for row in row_list:
@@ -418,23 +475,21 @@ def apply_manual_mappings(
             
                 # Apply the updates to the data model in batches of BATCH_SIZE_API_SUBMIT
                 if not config.parameters.debug and config.parameters.dm_update and cnt % BATCH_SIZE_API_SUBMIT == 0:
-                    if len(clean_target_list) > 0:
-                        client.data_modeling.instances.apply(clean_target_list)
-                        clean_target_list = []
+                    _retry_apply(client, logger, clean_target_list)
+                    clean_target_list = []
 
                     logger.info(f"==> Mapping table based matching - Adding batch of {len(item_update)} items to data model, total count: {cnt} / {len(manual_mappings)}")
-                    client.data_modeling.instances.apply(item_update)
+                    _retry_apply(client, logger, item_update)
                     item_update = []  # Reset item_update after applying
 
             if num_batches > 1:
                 logger.info(f"Completed batch {batch_num}/{num_batches}")
 
         if not config.parameters.debug and config.parameters.dm_update:
-            if len(clean_target_list) > 0:
-                client.data_modeling.instances.apply(clean_target_list)
+            _retry_apply(client, logger, clean_target_list)
 
             # Apply the updates to the data model
-            client.data_modeling.instances.apply(item_update)
+            _retry_apply(client, logger, item_update)
             if len(item_update) > 0:
                 if cnt == 0:
                     logger.info("==> Mapping table based matching - No items added to data model based on new items found and manual mappings")
@@ -507,12 +562,21 @@ def list_instances_by_external_id_direct(
     return matching_instances
 
 def read_rule_mappings(
-    client: CogniteClient, 
+    client: CogniteClient,
     logger: CogniteFunctionLogger,
     config: Config
 ) -> list[Row]:
-    rule_mappings = []
-    
+    """Read rule-based mapping definitions from RAW.
+
+    Each rule's entity/target regex is compiled once here and stored as a
+    `re.Pattern` in the resulting dict, so the per-target / per-entity inner
+    loops can call `pattern.search(name)` directly instead of re-compiling
+    (or relying on `re`'s LRU cache) on every name. For pipelines with
+    thousands of entities and a handful of rules this is a measurable hot
+    path.
+    """
+    rule_mappings: list[dict[str, Any]] = []
+
     try:
         if not rule_table_exists(client, config):
             return rule_mappings
@@ -522,11 +586,25 @@ def read_rule_mappings(
         for row in row_list:
             if not row.columns:
                 continue
+
+            entity_pattern_str = row.columns[COL_KEY_RULE_REGEXP_ENTITY].strip()
+            target_pattern_str = row.columns[COL_KEY_RULE_REGEXP_TARGET].strip()
+            try:
+                entity_pattern = re.compile(entity_pattern_str)
+                target_pattern = re.compile(target_pattern_str)
+            except re.error as exc:
+                logger.warning(
+                    f"Skipping rule {idx} due to invalid regex "
+                    f"(entity={entity_pattern_str!r}, target={target_pattern_str!r}): {exc}"
+                )
+                idx += 1
+                continue
+
             rule_mappings.append(
                 {
-                        KEY_RULE: f"{idx}",
-                        COL_KEY_RULE_REGEXP_ENTITY: row.columns[COL_KEY_RULE_REGEXP_ENTITY].strip(),
-                        COL_KEY_RULE_REGEXP_TARGET: row.columns[COL_KEY_RULE_REGEXP_TARGET].strip(),
+                    KEY_RULE: f"{idx}",
+                    COL_KEY_RULE_REGEXP_ENTITY: entity_pattern,
+                    COL_KEY_RULE_REGEXP_TARGET: target_pattern,
                 }
             )
             idx += 1
@@ -565,10 +643,15 @@ def get_all_targets(
     last_external_id: str | None = None
 
     while True:
-        page_filters = []
-        if is_selected:
+        page_filters: list[dm.filters.Filter] = []
+        # `get_query_filter` returns `dm.filters.Filter | None`. Use an explicit
+        # `is not None` check rather than truthiness, because the SDK's Filter
+        # classes override `__bool__` / `__and__` / `__or__` to support
+        # `flt1 & flt2` syntax and emit a UserWarning when evaluated in a
+        # boolean context.
+        if is_selected is not None:
             page_filters.append(is_selected)
-        if last_external_id:
+        if last_external_id is not None:
             page_filters.append(dm.filters.Range(FILTER_PATH_NODE_EXTERNAL_ID, gt=last_external_id))
 
         page_filter = None
@@ -625,8 +708,9 @@ def get_all_targets(
         rule_keys = []
         if rule_mappings:
             for rule in rule_mappings:
-                reg_exp = str(rule[COL_KEY_RULE_REGEXP_TARGET])
-                match = re.search(reg_exp, org_name)
+                # Pattern was pre-compiled in read_rule_mappings (re.Pattern object).
+                pattern = rule[COL_KEY_RULE_REGEXP_TARGET]
+                match = pattern.search(org_name)
 
                 if match:
                     # Concatenate the captured groups directly
@@ -693,8 +777,9 @@ def get_new_entities(
         rule_keys = []
         if rule_mappings:
             for rule in rule_mappings:
-                reg_exp = str(rule[COL_KEY_RULE_REGEXP_ENTITY])
-                match = re.search(reg_exp, org_name)
+                # Pattern was pre-compiled in read_rule_mappings (re.Pattern object).
+                pattern = rule[COL_KEY_RULE_REGEXP_ENTITY]
+                match = pattern.search(org_name)
 
                 if match:
                     # Concatenate the captured groups directly
@@ -732,7 +817,7 @@ def get_new_entities(
     logger.info(f"Num new entities: {len(entities_source)} from view: {entity_view_id}")
 
     if config.parameters.remove_old_links and len(item_update) > 0:
-        client.data_modeling.instances.apply(item_update)
+        _retry_apply(client, logger, item_update)
         logger.info(f"Cleaned up {QUERY_FILTER_TYPE_TARGETS} links for {len(item_update)} entities")
 
     return entities_source
@@ -958,12 +1043,12 @@ def apply_rule_mappings(
             # Apply the updates to the data model in batches of BATCH_SIZE_API_SUBMIT
             if not config.parameters.debug and config.parameters.dm_update and cnt % BATCH_SIZE_API_SUBMIT == 0:
                 logger.info(f"==> Rule based matching - Adding batch of {len(item_update)} items to data model, total count: {cnt} / {len(matches)}")
-                client.data_modeling.instances.apply(item_update)
+                _retry_apply(client, logger, item_update)
                 item_update = []  # Reset item_update after applying
 
         if not config.parameters.debug and config.parameters.dm_update:
             # Apply the updates to the data model
-            client.data_modeling.instances.apply(item_update)
+            _retry_apply(client, logger, item_update)
  
             if cnt == 0:
                 logger.info("==> Rule based matching - No items added to data model based on new items found and rule based mappings")
@@ -1059,11 +1144,11 @@ def select_and_apply_matches(
             # Apply the updates to the data model in batches of BATCH_SIZE_API_SUBMIT
             if not config.parameters.debug and config.parameters.dm_update and cnt % BATCH_SIZE_API_SUBMIT == 0:
                 logger.info(f"==> Entity matching - Adding batch of {len(item_update)} items to data model, total count: {cnt} / {len(new_good_matches)}")
-                client.data_modeling.instances.apply(item_update)
+                _retry_apply(client, logger, item_update)
                 item_update = []  # Reset item_update after applying
 
         if not config.parameters.debug and config.parameters.dm_update:
-            client.data_modeling.instances.apply(item_update)
+            _retry_apply(client, logger, item_update)
             if cnt == 0:
                 logger.info("==> Entity matching - No items added to data model based on new items found and entity matching")
             else:
