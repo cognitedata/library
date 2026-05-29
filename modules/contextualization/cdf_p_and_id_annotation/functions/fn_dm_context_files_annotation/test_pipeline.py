@@ -38,17 +38,21 @@ from cognite.client.exceptions import CogniteAPIError
 # Same path-prepend pattern used by handler.py so flat imports work in-test.
 sys.path.append(str(Path(__file__).parent))
 
-import pipeline  # noqa: E402  (after sys.path tweak)
 from config import Config  # noqa: E402
 from logger import CogniteFunctionLogger  # noqa: E402
-
-_truncate = pipeline._truncate
-create_annotation_id = pipeline.create_annotation_id
-get_all_entities = pipeline.get_all_entities
-get_new_files = pipeline.get_new_files
-push_result_to_annotations = pipeline.push_result_to_annotations
-read_state_batch_num = pipeline.read_state_batch_num
-read_state_cursor = pipeline.read_state_cursor
+from pipeline import (  # noqa: E402
+    EXTERNAL_ID_LIMIT,
+    STAT_STORE_CURSOR,
+    STAT_STORE_NUM_IN_BATCH,
+    STAT_STORE_VALUE,
+    _truncate,
+    create_annotation_id,
+    get_all_entities,
+    get_new_files,
+    push_result_to_annotations,
+    read_state_batch_num,
+    read_state_cursor,
+)
 
 # --------------------------------------------------------------------------- #
 # Fixtures                                                                    #
@@ -162,7 +166,7 @@ class TestCreateAnnotationId:
         file_id, entity, text, raw = self._inputs()
         out = create_annotation_id(file_id, entity, text, raw)
         assert out.startswith("instance:file-001:instance:asset-001:TAG-001:")
-        assert len(out) < pipeline.EXTERNAL_ID_LIMIT
+        assert len(out) < EXTERNAL_ID_LIMIT
 
     def test_deterministic_for_same_raw_annotation(self):
         file_id, entity, text, raw = self._inputs()
@@ -186,7 +190,7 @@ class TestCreateAnnotationId:
         entity = {"space": "instance", "external_id": "y" * 70}
         text = "z" * 40
         out = create_annotation_id(file_id, entity, text, {"any": "data"})
-        assert len(out) < pipeline.EXTERNAL_ID_LIMIT
+        assert len(out) < EXTERNAL_ID_LIMIT
         # short_id form starts with the file's external_id, not the space-prefixed naive form.
         assert out.startswith("x" * 120 + ":" + "y" * 70 + ":" + "z" * 40 + ":")
 
@@ -195,7 +199,7 @@ class TestCreateAnnotationId:
         entity = {"space": "instance", "external_id": "y" * 100}
         text = "z" * 100
         out = create_annotation_id(file_id, entity, text, {"any": "data"})
-        assert len(out) <= pipeline.EXTERNAL_ID_LIMIT
+        assert len(out) <= EXTERNAL_ID_LIMIT
 
 
 # --------------------------------------------------------------------------- #
@@ -211,10 +215,10 @@ class TestReadStateValues:
 
     @staticmethod
     def _row(key, value):
-        return SimpleNamespace(key=key, columns={pipeline.STAT_STORE_VALUE: value})
+        return SimpleNamespace(key=key, columns={STAT_STORE_VALUE: value})
 
     def test_cursor_returns_str_when_present(self, logger):
-        client = self._client_with_rows([self._row(pipeline.STAT_STORE_CURSOR, "abc-cursor")])
+        client = self._client_with_rows([self._row(STAT_STORE_CURSOR, "abc-cursor")])
         assert read_state_cursor(client, logger, "db", "tbl") == "abc-cursor"
 
     def test_cursor_returns_none_when_missing(self, logger):
@@ -225,11 +229,11 @@ class TestReadStateValues:
         # RAW columns are JSON-typed: numbers come back as numbers. The
         # cursor reader should still return a str so callers like
         # sync_query.cursors["files"] = file_cursor get a string.
-        client = self._client_with_rows([self._row(pipeline.STAT_STORE_CURSOR, 12345)])
+        client = self._client_with_rows([self._row(STAT_STORE_CURSOR, 12345)])
         assert read_state_cursor(client, logger, "db", "tbl") == "12345"
 
     def test_batch_num_returns_int_when_present(self, logger):
-        client = self._client_with_rows([self._row(pipeline.STAT_STORE_NUM_IN_BATCH, 42)])
+        client = self._client_with_rows([self._row(STAT_STORE_NUM_IN_BATCH, 42)])
         assert read_state_batch_num(client, logger, "db", "tbl") == 42
 
     def test_batch_num_returns_zero_when_missing(self, logger):
@@ -237,14 +241,14 @@ class TestReadStateValues:
         assert read_state_batch_num(client, logger, "db", "tbl") == 0
 
     def test_batch_num_coerces_string_int(self, logger):
-        client = self._client_with_rows([self._row(pipeline.STAT_STORE_NUM_IN_BATCH, "10")])
+        client = self._client_with_rows([self._row(STAT_STORE_NUM_IN_BATCH, "10")])
         assert read_state_batch_num(client, logger, "db", "tbl") == 10
 
     def test_batch_num_returns_zero_for_unparseable_string(self, logger):
         # The pre-C8 implementation would have returned a non-int and made
         # the caller's `range(file_num, ...)` blow up. Now we coerce and warn.
         client = self._client_with_rows(
-            [self._row(pipeline.STAT_STORE_NUM_IN_BATCH, "not-an-int")]
+            [self._row(STAT_STORE_NUM_IN_BATCH, "not-an-int")]
         )
         assert read_state_batch_num(client, logger, "db", "tbl") == 0
 
