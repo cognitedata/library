@@ -1,7 +1,7 @@
 # The directory with the function code should have the same name
 # and externalId as the function itself as defined below.
-- name: 'dm:context:files:{{location_name}}:{{source_name}}:annotation'
-  externalId: 'fn_dm_context_files_{{location_name}}_{{source_name}}_annotation'
+- name: 'dm:context:files:annotation'
+  externalId: 'fn_dm_context_files_annotation'
   owner: 'Anonymous'
   description: 'Contextualization of P&ID files creating annotations in Data model'
   metadata:

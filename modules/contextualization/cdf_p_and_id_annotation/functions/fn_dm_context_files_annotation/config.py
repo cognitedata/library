@@ -13,7 +13,7 @@ from pydantic.alias_generators import to_camel
 # Configuration classes
 class Parameters(BaseModel, alias_generator=to_camel):
     debug: bool
-    debug_file: str = None
+    debug_file: str | None = None
     run_all: bool
     clean_old_annotations: bool
     raw_db: str
@@ -31,8 +31,8 @@ class ViewPropertyConfig(BaseModel, alias_generator=to_camel):
     version: str
     search_property: str = "alias"
     type: Literal["diagrams.FileLink", "diagrams.AssetLink"]
-    filter_property: str = None
-    filter_values: list[str] = None
+    filter_property: str | None = None
+    filter_values: list[str] | None = None
 
     def as_view_id(self) -> dm.ViewId:
         return dm.ViewId(space=self.schema_space, external_id=self.external_id, version=self.version)
@@ -59,12 +59,6 @@ class ConfigData(BaseModel, alias_generator=to_camel):
 class Config(BaseModel, alias_generator=to_camel):
     parameters: Parameters
     data: ConfigData
-
-    @classmethod
-    def pares_direct_relation(cls, value: Any) -> Any:
-        if isinstance(value, dict):
-            return dm.DirectRelationReference.load(value)
-        return value
 
 
 def load_config_parameters(client: CogniteClient, function_data: dict[str, Any]) -> Config:
