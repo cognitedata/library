@@ -37,7 +37,7 @@ def _report_usage(client: CogniteClient) -> None:
                 "cdf_cluster": client.config.cdf_cluster,
                 "cdf_project": client.config.project,
             })
-        threading.Thread(target=_send, daemon=False).start()
+        threading.Thread(target=_send, daemon=True).start()
     except Exception:
         # Usage tracking is best-effort; must not affect the handler.
         pass
@@ -85,7 +85,7 @@ def run_locally():
             ),
         )
     )
-    data = {"logLevel":"INFO", "ExtractionPipelineExtId": "ep_ctx_files_LOC_SOURCE_pandid_annotation"}
+    data = {"logLevel": "INFO", "ExtractionPipelineExtId": "ep_ctx_files_pandid_annotation"}
     handle(data, client)
 
 
