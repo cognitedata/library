@@ -30,24 +30,26 @@ def _create_cfihos_view_filter(
     property_ref = [container_space, "Tag", "cfihosTagClassCode"]
     default_behaviour = view_filters.get("default", "all")
 
-    if not view_filters.get(class_.name):
+    # Resolve the filter type: when the class has no entry in view_filters
+    # (or an empty entry), behave as "all" — same as the previous code path
+    # that short-circuited to In(...) for that case.
+    class_filters = view_filters.get(class_.name)
+    if class_filters:
+        filter_type = class_filters.get("type", default_behaviour)
+    else:
+        filter_type = "all"
+
+    # Every branch below explicitly returns or raises, so there is no
+    # fall-through path; this avoids CodeQL py/mixed-returns by making the
+    # control flow obvious to static analyzers.
+    if filter_type == "self":
+        return Equals(property=property_ref, value=class_.id_)
+    if filter_type == "all":
         return In(
             property=property_ref,
             values=[class_.id_, *(class_.children_by_id or [])],
         )
-
-    filter_type = view_filters[class_.name].get("type", default_behaviour)
-
-    match filter_type:
-        case "self":
-            return Equals(property=property_ref, value=class_.id_)
-        case "all":
-            return In(
-                property=property_ref,
-                values=[class_.id_, *(class_.children_by_id or [])],
-            )
-        case _:
-            raise ValueError(f"Unspported filter type: {filter_type}")
+    raise ValueError(f"Unsupported filter type: {filter_type}")
 
 
 def create_cfihos_view(
