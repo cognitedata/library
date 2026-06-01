@@ -1,0 +1,19 @@
+externalId: trg_wf_etl_aliasing_template
+workflowExternalId: wf_etl_aliasing_template
+workflowVersion: 1.0.0.3
+triggerRule:
+  triggerType: schedule
+  cronExpression: '*/15 * * * *'
+input:
+  incremental_change_processing: false
+  configuration:
+    schemaVersion: 1
+    id: aliasing_workflow
+    scope: null
+    parameters:
+      incremental_change_processing: false
+      incremental_skip_unchanged: true
+      raw_db: etl_staging
+      raw_table_key: cohort
+      instance_space: inst_assets
+      etl_state_instance_space: null

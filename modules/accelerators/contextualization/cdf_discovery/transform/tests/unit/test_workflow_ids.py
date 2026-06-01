@@ -9,6 +9,7 @@ if str(SCRIPTS) not in sys.path:
 
 from workflow_build.ids import (  # noqa: E402
     patch_start_node_workflow_pairing,
+    resolve_workflow_base_for_build,
     workflow_external_id,
     workflow_trigger_external_id,
 )
@@ -42,3 +43,37 @@ def test_patch_start_node_writes_paired_ids() -> None:
     assert workflow_external_id(workflow_base="wf_all_etl_test", scope_suffix="site_a") == (
         "wf_all_etl_test_site_a"
     )
+
+
+def test_resolve_workflow_base_for_build_prefers_start_workflow_external_id() -> None:
+    canvas = {
+        "nodes": [
+            {
+                "id": "start",
+                "kind": "start",
+                "data": {
+                    "config": {
+                        "workflow_external_id": "wf_custom_from_canvas",
+                        "workflow_base": "wf_should_not_win",
+                    }
+                },
+            }
+        ]
+    }
+    out = resolve_workflow_base_for_build(
+        source_kind="instance",
+        config={"workflow": "wf_from_config"},
+        workflow_id="etl_aliasing",
+        canvas=canvas,
+    )
+    assert out == "wf_custom_from_canvas"
+
+
+def test_resolve_workflow_base_for_build_defaults_to_workflow_id_when_no_override() -> None:
+    out = resolve_workflow_base_for_build(
+        source_kind="instance",
+        config={"workflow": "wf_from_config_should_be_ignored"},
+        workflow_id="etl_aliasing",
+        canvas={},
+    )
+    assert out == "wf_etl_etl_aliasing"

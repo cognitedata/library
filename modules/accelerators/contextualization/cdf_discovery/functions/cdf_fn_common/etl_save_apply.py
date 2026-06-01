@@ -13,10 +13,10 @@ from cdf_fn_common.etl_cohort_storage import (
     canvas_node_id_for_task,
     iter_cohort_entity_rows,
     predecessor_node_table_locations,
-    require_run_id,
+    require_pipeline_run_key,
 )
 from cdf_fn_common.etl_inverted_index import persist_inverted_index_rows
-from cdf_fn_common.etl_common import iter_predecessor_rows
+from cdf_fn_common.etl_common import emit_agent_debug_log, iter_predecessor_rows
 from cdf_fn_common.etl_discovery_cohort import (
     _props_from_row_columns,
     iter_predecessor_raw_locations,
@@ -241,11 +241,27 @@ def etl_apply_view_save(
     view_space = _first_nonempty(cfg.get("view_space"), "cdf_cdm")
     view_external_id = _first_nonempty(cfg.get("view_external_id"))
     view_version = _first_nonempty(cfg.get("view_version"), "v1")
+    pre_run_id = _first_nonempty(data.get("run_id"), "pre-run")
+    # #region agent log
+    emit_agent_debug_log(
+        run_id=pre_run_id,
+        hypothesis_id="H4",
+        location="cdf_fn_common/etl_save_apply.py:248",
+        message="view_save_entry",
+        data={
+            "task_id": _first_nonempty(data.get("task_id"), fn_external_id),
+            "view_space": view_space,
+            "view_external_id": view_external_id,
+            "view_version": view_version,
+            "client_present": client is not None,
+        },
+    )
+    # #endregion
     if not view_external_id:
         raise ValueError("save_view requires config.view_external_id")
 
     view_id = ViewId(space=view_space, external_id=view_external_id, version=view_version)
-    run_id = require_run_id(data)
+    run_id = require_pipeline_run_key(data)
     data["run_id"] = run_id
     task_id = _first_nonempty(data.get("task_id"), fn_external_id)
     dry_run = _resolve_dry_run(data, client, cfg)
@@ -284,7 +300,23 @@ def etl_apply_view_save(
         )
         if len(batch) >= batch_size:
             if not dry_run and client is not None:
-                client.data_modeling.instances.apply(nodes=batch)
+                try:
+                    client.data_modeling.instances.apply(nodes=batch)
+                except Exception as ex:
+                    # #region agent log
+                    emit_agent_debug_log(
+                        run_id=run_id,
+                        hypothesis_id="H4",
+                        location="cdf_fn_common/etl_save_apply.py:305",
+                        message="view_save_apply_exception",
+                        data={
+                            "task_id": task_id,
+                            "batch_size": len(batch),
+                            "error": str(ex),
+                        },
+                    )
+                    # #endregion
+                    raise
             instances_applied += len(batch)
             batch.clear()
         processed_targets += 1
@@ -314,7 +346,23 @@ def etl_apply_view_save(
 
     if batch:
         if not dry_run and client is not None:
-            client.data_modeling.instances.apply(nodes=batch)
+            try:
+                client.data_modeling.instances.apply(nodes=batch)
+            except Exception as ex:
+                # #region agent log
+                emit_agent_debug_log(
+                    run_id=run_id,
+                    hypothesis_id="H4",
+                    location="cdf_fn_common/etl_save_apply.py:344",
+                    message="view_save_final_apply_exception",
+                    data={
+                        "task_id": task_id,
+                        "batch_size": len(batch),
+                        "error": str(ex),
+                    },
+                )
+                # #endregion
+                raise
         instances_applied += len(batch)
 
     if apply_targets > 0:
@@ -365,7 +413,7 @@ def etl_persist_inverted_index_save(
 ) -> Dict[str, Any]:
     """Persist inverted-index cohort rows from predecessors to configured RAW sink."""
     cfg = _prepare_save_cfg(data)
-    run_id = require_run_id(data)
+    run_id = require_pipeline_run_key(data)
     data["run_id"] = run_id
     task_id = _first_nonempty(data.get("task_id"), fn_external_id)
     sink_db, sink_table = resolve_raw_save_sink(cfg)
@@ -430,7 +478,7 @@ def etl_replicate_raw_save(
 
     validate_save_config(cfg, save_kind="raw")
 
-    run_id = require_run_id(data)
+    run_id = require_pipeline_run_key(data)
     data["run_id"] = run_id
     task_id = _first_nonempty(data.get("task_id"), fn_external_id)
     writer_canvas = canvas_node_id_for_task(data, task_id)
@@ -641,8 +689,8 @@ def etl_apply_classic_save(
     cfg = _prepare_save_cfg(data)
     validate_save_config(cfg, save_kind="classic")
 
-    resource_type = _first_nonempty(cfg.get("resource_type"), cfg.get("classic_resource_type"), "assets")
-    run_id = require_run_id(data)
+    resource_type = _first_nonempty(cfg.get("resource_type"), "assets")
+    run_id = require_pipeline_run_key(data)
     data["run_id"] = run_id
     task_id = _first_nonempty(data.get("task_id"), fn_external_id)
     dry_run = _resolve_dry_run(data, client, cfg)

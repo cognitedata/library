@@ -165,5 +165,5 @@ def test_workflow_policy_cleanup_skip_task() -> None:
     from cdf_fn_common.workflow_task_policy import discovery_task_workflow_policy
 
     pol = discovery_task_workflow_policy("fn_etl_raw_cleanup")
-    assert pol["onFailure"] == "skipTask"
+    assert pol["onFailure"] == "abortWorkflow"
     assert pol["timeout"] == 1800

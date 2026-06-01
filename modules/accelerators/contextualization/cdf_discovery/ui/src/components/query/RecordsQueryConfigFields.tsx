@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useAppSettings } from "../../context/AppSettingsContext";
 import type { JsonObject } from "../../types/jsonConfig";
 import {
@@ -8,7 +8,7 @@ import {
   readStreamExternalId,
   validateRecordsQueryConfig,
 } from "../../utils/recordsQueryConfigModel";
-import { QueryEditorTabs, type QueryEditorTabDef } from "./QueryEditorTabs";
+import { QueryEditorTabs, useQueryEditorTabState, type QueryEditorTabDef } from "./QueryEditorTabs";
 import { QueryPreviewPanel, type QueryPreviewResult } from "./QueryPreviewPanel";
 import { QueryScopeModeFields } from "./QueryScopeModeFields";
 import { RecordsFilterEditor } from "./RecordsFilterEditor";
@@ -55,16 +55,12 @@ async function fetchRecordsPreview(config: JsonObject, limit: number): Promise<Q
 export function RecordsQueryConfigFields({ value, onChange, fieldKey }: Props) {
   const { t } = useAppSettings();
   const patch = (p: JsonObject) => onChange({ ...value, ...p });
-  const [activeTab, setActiveTab] = useState(TAB_CONFIG);
+  const [activeTab, setActiveTab] = useQueryEditorTabState(fieldKey, TAB_CONFIG);
   const [streamDetail, setStreamDetail] = useState<JsonObject | null>(null);
   const [previewLimit, setPreviewLimit] = useState(100);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<QueryPreviewResult | null>(null);
-
-  useEffect(() => {
-    setActiveTab(TAB_CONFIG);
-  }, [fieldKey]);
 
   const validation = useMemo(() => validateRecordsQueryConfig(value), [value]);
   const readMode = readReadMode(value);
@@ -185,6 +181,17 @@ export function RecordsQueryConfigFields({ value, onChange, fieldKey }: Props) {
               {t("transform.query.recordsIncludeTombstones")}
             </label>
           ) : null}
+          <label className="transform-query-label transform-query-label--inline" style={{ alignItems: "center", gap: 6 }}>
+            <input
+              type="checkbox"
+              checked={value.lookup_full_scan === true}
+              onChange={(e) => patch({ lookup_full_scan: e.target.checked })}
+            />
+            {t("transform.query.lookupFullScan")}
+          </label>
+          <span className="transform-query-hint" style={{ display: "block", marginTop: "-0.25rem" }}>
+            {t("transform.query.lookupFullScanHint")}
+          </span>
           <QueryScopeModeFields value={value} onChange={onChange} />
         </div>
       ) : null}

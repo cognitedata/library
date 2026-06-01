@@ -4,7 +4,7 @@ import { useDebouncedNodePatch } from "../../hooks/useDebouncedNodePatch";
 import { useModalDialog } from "../../hooks/useModalDialog";
 import { DeferredCommitInput, DeferredCommitTextarea } from "../query/DeferredCommitTextField";
 import type { Node, Edge } from "@xyflow/react";
-import { fetchTransformBuildPairing, type TransformBuildPairing } from "../../api";
+import { fetchTransformWorkflowBuildPairing, type TransformWorkflowBuildPairing } from "../../api";
 import type { MessageKey } from "../../i18n";
 import { rfTypeToKind, type TransformCanvasNodeKind } from "../../types/transformCanvas";
 import { EtlNodeConfigFields } from "./EtlNodeConfigFields";
@@ -156,7 +156,7 @@ function ConfigEditorBody({
   schemaSpace?: string;
   flowNodes: readonly Node[];
   flowEdges: readonly Edge[];
-  buildPairing: TransformBuildPairing | null;
+  buildPairing: TransformWorkflowBuildPairing | null;
   paletteHandlerLocked?: boolean;
   onChange: (next: JsonObject) => void;
   t: TFn;
@@ -177,13 +177,14 @@ function ConfigEditorBody({
       <EtlTransformNodeConfigFields
         value={config}
         onChange={onChange}
+        fieldKey={nodeId}
         handlerLocked={paletteHandlerLocked}
       />
     );
   }
   if (kind === "merge") return <EtlMergeNodeConfigFields value={config} onChange={onChange} />;
   if (kind === "build_index") return <EtlBuildIndexNodeConfigFields value={config} onChange={onChange} />;
-  if (kind === "join") return <EtlJoinNodeConfigFields value={config} onChange={onChange} />;
+  if (kind === "join") return <EtlJoinNodeConfigFields value={config} onChange={onChange} fieldKey={nodeId} />;
   if (kind === "json_mapping") {
     return (
       <JsonMappingNodeConfigFields
@@ -233,7 +234,9 @@ function ConfigEditorBody({
     );
   }
   if (kind === "function_ref" || kind === "subworkflow" || kind === "simulation" || kind === "cdf_task") {
-    return <EtlOrchestrationNodeConfigFields kind={kind} value={config} onChange={onChange} />;
+    return (
+      <EtlOrchestrationNodeConfigFields kind={kind} value={config} onChange={onChange} fieldKey={nodeId} />
+    );
   }
   if (kind === "start") {
     return <EtlStartNodeConfigFields value={config} onChange={onChange} buildPairing={buildPairing} />;
@@ -257,7 +260,7 @@ export function FlowNodeEditorModal({
   readOnly = false,
 }: Props) {
   const kind = node ? rfTypeToKind(node.type) : null;
-  const [buildPairing, setBuildPairing] = useState<TransformBuildPairing | null>(null);
+  const [buildPairing, setBuildPairing] = useState<TransformWorkflowBuildPairing | null>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -266,7 +269,7 @@ export function FlowNodeEditorModal({
       return;
     }
     let cancelled = false;
-    void fetchTransformBuildPairing(pipelineId)
+    void fetchTransformWorkflowBuildPairing(pipelineId)
       .then((p) => {
         if (!cancelled) setBuildPairing(p);
       })
@@ -325,9 +328,12 @@ export function FlowNodeEditorModal({
   const handleClose = useCallback(() => {
     const active = document.activeElement;
     if (active instanceof HTMLElement) active.blur();
-    scheduleNodePatch({ ...dataRef.current, config: configDraftRef.current });
-    flushNodePatch();
-    onCloseRef.current();
+    // Let deferred input blur handlers commit into configDraftRef before final flush.
+    queueMicrotask(() => {
+      scheduleNodePatch({ ...dataRef.current, config: configDraftRef.current });
+      flushNodePatch();
+      onCloseRef.current();
+    });
   }, [flushNodePatch, scheduleNodePatch]);
 
   useModalDialog({ open: Boolean(node), onClose: handleClose, dialogRef });

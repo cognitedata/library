@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { ModalDialogShell } from "../ModalDialogShell";
-import { saveTransformPipelineAsTemplate } from "../../api";
+import { saveTransformWorkflowAsTemplate } from "../../api";
 import { useAppSettings } from "../../context/AppSettingsContext";
 
 const TEMPLATE_ID_RE = /^[a-z][a-z0-9_]{0,127}$/;
@@ -54,7 +54,7 @@ export function SavePipelineAsTemplateDialog({
     setSubmitting(true);
     setError(null);
     try {
-      await saveTransformPipelineAsTemplate(pipelineId, { template_id: id, label: name });
+      await saveTransformWorkflowAsTemplate(pipelineId, { template_id: id, label: name });
       onSaved(id, name);
       onClose();
     } catch (e) {

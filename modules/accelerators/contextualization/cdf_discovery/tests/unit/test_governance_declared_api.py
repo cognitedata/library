@@ -97,3 +97,61 @@ def test_run_build_command_assembly(monkeypatch, tmp_path: Path):
     assert "--spaces-only" in cmd
     assert "--force" in cmd
     assert str(declared) in cmd
+
+
+def test_migrate_governance_sections_into_active_config_uses_primary(tmp_path: Path):
+    declared = tmp_path / "declared"
+    declared.mkdir()
+    (declared / "default.config.yaml").write_text(
+        "scope_hierarchy:\n  type: hierarchy\n  levels: [site]\n  locations: []\n"
+        "dimensions:\n  app:\n    type: list\n    order: 1\n    items: []\n",
+        encoding="utf-8",
+    )
+    active = declared / "config.dev.yaml"
+    active.write_text("environment:\n  name: dev\n", encoding="utf-8")
+
+    out = governance_declared.migrate_governance_sections_into_active_config(
+        declared=declared,
+        config_path=active,
+    )
+    assert out.get("environment", {}).get("name") == "dev"
+    assert out.get("scope_hierarchy", {}).get("type") == "hierarchy"
+    assert "app" in (out.get("dimensions") or {})
+    persisted = active.read_text(encoding="utf-8")
+    assert "scope_hierarchy:" in persisted
+    assert "dimensions:" in persisted
+
+
+def test_migrate_governance_sections_into_active_config_keeps_active_values(tmp_path: Path):
+    declared = tmp_path / "declared"
+    declared.mkdir()
+    (declared / "default.config.yaml").write_text(
+        "scope_hierarchy:\n  type: hierarchy\n  levels: [site]\n  locations: []\n",
+        encoding="utf-8",
+    )
+    active = declared / "config.dev.yaml"
+    active.write_text(
+        "scope_hierarchy:\n  type: hierarchy\n  levels: [plant]\n  locations: []\n",
+        encoding="utf-8",
+    )
+
+    out = governance_declared.migrate_governance_sections_into_active_config(
+        declared=declared,
+        config_path=active,
+    )
+    assert out.get("scope_hierarchy", {}).get("levels") == ["plant"]
+
+
+def test_migrate_governance_sections_removes_legacy_source_id(tmp_path: Path):
+    declared = tmp_path / "declared"
+    declared.mkdir()
+    (declared / "default.config.yaml").write_text("groups:\n  global:\n    source_ids: {}\n", encoding="utf-8")
+    active = declared / "config.dev.yaml"
+    active.write_text("groups:\n  global:\n    sourceId: old\n", encoding="utf-8")
+
+    out = governance_declared.migrate_governance_sections_into_active_config(
+        declared=declared,
+        config_path=active,
+    )
+    assert "sourceId" not in (out.get("groups", {}).get("global", {}))
+    assert "source_ids" in (out.get("groups", {}).get("global", {}))

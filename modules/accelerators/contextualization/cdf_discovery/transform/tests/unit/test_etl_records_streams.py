@@ -136,6 +136,7 @@ def test_etl_handle_query_records_in_memory() -> None:
     api_mod.filter_records = fake_sync  # type: ignore[method-assign]
 
     data: Dict[str, Any] = {
+        "run_id": "00000000-0000-4000-8000-000000000002",
         "task_id": "t1",
         "config": {
             "stream_external_id": "stream-a",

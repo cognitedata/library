@@ -4,8 +4,19 @@ import type { TransformationDetail } from "../../types/discoveryNodes";
 import type { JsonObject } from "../../types/jsonConfig";
 import { SqlEditor } from "../SqlEditor";
 import { QueryPreviewPanel, type QueryPreviewResult } from "../query/QueryPreviewPanel";
+import { QueryEditorTabs, useQueryEditorTabState, type QueryEditorTabDef } from "../query/QueryEditorTabs";
 import { SqlEditorResizablePane } from "../query/SqlEditorResizablePane";
 import { CdfTransformationPicker } from "./CdfTransformationPicker";
+
+const TAB_CONFIG = "config";
+const TAB_QUERY = "query";
+const TAB_PREVIEW = "preview";
+
+const SPARK_TABS: QueryEditorTabDef[] = [
+  { id: TAB_CONFIG, labelKey: "transform.query.tabConfig" },
+  { id: TAB_QUERY, labelKey: "transform.query.tabQuery" },
+  { id: TAB_PREVIEW, labelKey: "transform.query.tabPreview" },
+];
 
 type Props = {
   value: JsonObject;
@@ -59,6 +70,7 @@ export function SparkTransformConfigFields({ value, onChange, fieldKey, nodeId }
 
   const sqlQuery = String(value.query ?? "");
   const externalId = String(value.transformation_external_id ?? "");
+  const [activeTab, setActiveTab] = useQueryEditorTabState(fieldKey, TAB_CONFIG);
   const [previewLimit, setPreviewLimit] = useState(100);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -139,107 +151,120 @@ export function SparkTransformConfigFields({ value, onChange, fieldKey, nodeId }
 
   return (
     <div className="transform-query-fields-wrap transform-query-fields">
-      <div className="transform-query-fields__config">
-        <p className="transform-query-hint transform-query-fields__intro">{t("transform.spark.editorIntro")}</p>
-        <p className="transform-query-hint">{t("transform.spark.toolkitHint")}</p>
+      <QueryEditorTabs
+        tabs={SPARK_TABS}
+        activeTab={activeTab}
+        onActiveTabChange={setActiveTab}
+        ariaLabel={t("transform.query.editorTabsAria")}
+        panelIdPrefix={`spark-transform-${fieldKey}`}
+      >
+        {activeTab === TAB_CONFIG ? (
+          <div className="transform-query-fields__config">
+            <p className="transform-query-hint transform-query-fields__intro">{t("transform.spark.editorIntro")}</p>
+            <p className="transform-query-hint">{t("transform.spark.toolkitHint")}</p>
 
-        <label className="transform-query-label transform-query-label--block">
-          {t("transform.config.description")}
-          <input
-            className="gov-input"
-            style={{ marginTop: "0.35rem" }}
-            value={String(value.description ?? "")}
-            onChange={(e) => patch({ description: e.target.value })}
-            spellCheck={false}
-            autoComplete="off"
-          />
-        </label>
+            <label className="transform-query-label transform-query-label--block">
+              {t("transform.config.description")}
+              <input
+                className="gov-input"
+                style={{ marginTop: "0.35rem" }}
+                value={String(value.description ?? "")}
+                onChange={(e) => patch({ description: e.target.value })}
+                spellCheck={false}
+                autoComplete="off"
+              />
+            </label>
 
-        <label className="transform-query-label transform-query-label--block">
-          {t("transform.config.transformationExternalId")}
-          <div className="transform-spark-picker__row" style={{ marginTop: "0.35rem" }}>
-            <input
-              className="gov-input"
-              value={externalId}
-              spellCheck={false}
-              autoComplete="off"
-              onChange={(e) => patch({ transformation_external_id: e.target.value })}
+            <label className="transform-query-label transform-query-label--block">
+              {t("transform.config.transformationExternalId")}
+              <div className="transform-spark-picker__row" style={{ marginTop: "0.35rem" }}>
+                <input
+                  className="gov-input"
+                  value={externalId}
+                  spellCheck={false}
+                  autoComplete="off"
+                  onChange={(e) => patch({ transformation_external_id: e.target.value })}
+                />
+                <button
+                  type="button"
+                  className="disc-btn disc-btn--sm"
+                  onClick={() => patch({ transformation_external_id: defaultExternalId(nodeId) })}
+                >
+                  {t("transform.spark.generateExternalId")}
+                </button>
+              </div>
+            </label>
+
+            <CdfTransformationPicker
+              externalIdValue={externalId}
+              onExternalIdChange={(ext) => patch({ transformation_external_id: ext })}
+              onImportDetail={onImportDetail}
+              confirmBeforeImport={confirmBeforeImport}
             />
-            <button
-              type="button"
-              className="disc-btn disc-btn--sm"
-              onClick={() => patch({ transformation_external_id: defaultExternalId(nodeId) })}
-            >
-              {t("transform.spark.generateExternalId")}
-            </button>
+
+            <details className="transform-spark-destination">
+              <summary>{t("transform.spark.destination")}</summary>
+              <textarea
+                className="gov-input transform-query-sql-editor"
+                rows={6}
+                spellCheck={false}
+                value={destinationText}
+                onChange={(e) => setDestinationText(e.target.value)}
+                onBlur={onDestinationBlur}
+              />
+              {destinationError ? (
+                <p className="transform-query-hint" style={{ color: "var(--disc-error, #b91c1c)" }}>
+                  {destinationError}
+                </p>
+              ) : (
+                <p className="transform-query-hint">{t("transform.spark.destinationHint")}</p>
+              )}
+            </details>
           </div>
-        </label>
+        ) : null}
 
-        <CdfTransformationPicker
-          externalIdValue={externalId}
-          onExternalIdChange={(ext) => patch({ transformation_external_id: ext })}
-          onImportDetail={onImportDetail}
-          confirmBeforeImport={confirmBeforeImport}
-        />
-
-        <SqlEditorResizablePane label={t("transform.config.sparkSql")}>
-          <SqlEditor
-            value={sqlQuery}
-            theme={theme}
-            height={editorHeight}
-            ariaLabel={t("sql.editor.label")}
-            shortcutsHint={t("sql.editor.shortcutsDesc")}
-            placeholder={t("transform.query.sqlPlaceholder")}
-            onChange={(q) => patch({ query: q })}
-            onRun={() => void run()}
-          />
-        </SqlEditorResizablePane>
-
-        <div className="transform-query-toolbar transform-query-fields__limits">
-          <label className="transform-query-label">
-            {t("transform.query.previewPageSize")}
-            <input
-              className="gov-input"
-              type="number"
-              min={1}
-              max={1000}
-              style={{ marginTop: "0.35rem", width: "6rem" }}
-              value={previewLimit}
-              onChange={(e) => {
-                const n = Number(e.target.value);
-                setPreviewLimit(Number.isFinite(n) ? Math.min(1000, Math.max(1, n)) : 100);
-              }}
+        {activeTab === TAB_QUERY ? (
+          <SqlEditorResizablePane label={t("transform.config.sparkSql")}>
+            <SqlEditor
+              value={sqlQuery}
+              theme={theme}
+              height={editorHeight}
+              ariaLabel={t("sql.editor.label")}
+              shortcutsHint={t("sql.editor.shortcutsDesc")}
+              placeholder={t("transform.query.sqlPlaceholder")}
+              onChange={(q) => patch({ query: q })}
+              onRun={() => void run()}
             />
-          </label>
-        </div>
+          </SqlEditorResizablePane>
+        ) : null}
 
-        <details className="transform-spark-destination">
-          <summary>{t("transform.spark.destination")}</summary>
-          <textarea
-            className="gov-input transform-query-sql-editor"
-            rows={6}
-            spellCheck={false}
-            value={destinationText}
-            onChange={(e) => setDestinationText(e.target.value)}
-            onBlur={onDestinationBlur}
-          />
-          {destinationError ? (
-            <p className="transform-query-hint" style={{ color: "var(--disc-error, #b91c1c)" }}>
-              {destinationError}
-            </p>
-          ) : (
-            <p className="transform-query-hint">{t("transform.spark.destinationHint")}</p>
-          )}
-        </details>
-      </div>
-
-      <QueryPreviewPanel
-        fieldKey={fieldKey}
-        loading={loading}
-        error={error}
-        result={result}
-        onRun={run}
-      />
+        {activeTab === TAB_PREVIEW ? (
+          <div className="transform-query-fields__preview">
+            <label className="transform-query-label">
+              {t("transform.query.previewPageSize")}
+              <input
+                className="gov-input"
+                type="number"
+                min={1}
+                max={1000}
+                style={{ marginTop: "0.35rem", width: "6rem" }}
+                value={previewLimit}
+                onChange={(e) => {
+                  const n = Number(e.target.value);
+                  setPreviewLimit(Number.isFinite(n) ? Math.min(1000, Math.max(1, n)) : 100);
+                }}
+              />
+            </label>
+            <QueryPreviewPanel
+              fieldKey={fieldKey}
+              loading={loading}
+              error={error}
+              result={result}
+              onRun={run}
+            />
+          </div>
+        ) : null}
+      </QueryEditorTabs>
     </div>
   );
 }

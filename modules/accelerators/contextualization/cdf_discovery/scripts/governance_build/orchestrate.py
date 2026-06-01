@@ -16,6 +16,7 @@ from governance_build.config_resolve import (
     merge_spaces_build_config,
     shared_hierarchy_job,
 )
+from governance_build.config_sources import load_yaml_mapping, merge_governance_into_document
 from governance_build.dimensions_registry import (
     FALLBACK_GROUP_DATA_TYPE,
     FALLBACK_SPACE_DATA_TYPE,
@@ -236,10 +237,10 @@ def run_build_groups(
     dry_run: bool,
     force: bool,
     prev_manifest_rels: Optional[Set[str]],
-) -> Tuple[List[str], Dict[str, str]]:
+) -> Tuple[List[str], Dict[str, str], Dict[str, str]]:
     groups = doc.get("groups")
     if not groups:
-        return [], {}
+        return [], {}, {}
     if not isinstance(groups, dict):
         raise ValueError("groups must be a mapping")
     merged = merge_groups_build_config(groups)
@@ -265,6 +266,7 @@ def run_build_groups(
     out_dir = (artifacts_root / merged["output_dir"]).resolve()
     written: List[str] = []
     source_id_updates: Dict[str, str] = {}
+    source_id_rel_paths: Dict[str, str] = {}
     name_tmpl = merged.get("name_template") or ""
     display_tmpl = merged.get("display_name_template") or ""
     data_type = FALLBACK_GROUP_DATA_TYPE
@@ -325,9 +327,9 @@ def run_build_groups(
                 written.append(rel_s)
             if sync:
                 sid = resolve_group_source_id(global_cfg, group_name)
-                if sid:
-                    source_id_updates[group_name] = sid
-    return written, source_id_updates
+                source_id_updates[group_name] = sid if sid else ""
+                source_id_rel_paths[group_name] = rel_s
+    return written, source_id_updates, source_id_rel_paths
 
 
 def save_state(module_root: Path, spaces: List[str], groups: List[str]) -> None:
@@ -464,6 +466,11 @@ def run(argv: Optional[List[str]] = None) -> int:
         return run_clean(module_root, dry_run=args.dry_run, yes=args.yes)
     config_path = args.config or (module_root / DEFAULT_CONFIG)
     doc = load_config(config_path)
+    default_path = module_root / DEFAULT_CONFIG
+    if config_path.resolve() != default_path.resolve() and default_path.is_file():
+        defaults_doc = load_yaml_mapping(default_path)
+        if defaults_doc:
+            doc = merge_governance_into_document(doc, defaults_doc)
     prev = load_state(module_root)
     prev_set: Optional[Set[str]] = None
     if prev:
@@ -471,6 +478,7 @@ def run(argv: Optional[List[str]] = None) -> int:
     space_rels: List[str] = []
     group_rels: List[str] = []
     sid_updates: Dict[str, str] = {}
+    sid_rel_paths: Dict[str, str] = {}
     if not args.groups_only:
         space_rels = run_build_spaces(
             module_root=module_root,
@@ -480,7 +488,7 @@ def run(argv: Optional[List[str]] = None) -> int:
             prev_manifest_rels=prev_set,
         )
     if not args.spaces_only:
-        group_rels, sid_updates = run_build_groups(
+        group_rels, sid_updates, sid_rel_paths = run_build_groups(
             module_root=module_root,
             doc=doc,
             dry_run=args.dry_run,
@@ -488,7 +496,12 @@ def run(argv: Optional[List[str]] = None) -> int:
             prev_manifest_rels=prev_set,
         )
     if not args.dry_run and not args.no_toolkit_sync and sid_updates:
-        merge_source_ids_into_default_config(config_path, sid_updates, dry_run=False)
+        merge_source_ids_into_default_config(
+            config_path,
+            sid_updates,
+            dry_run=False,
+            rel_paths=sid_rel_paths,
+        )
     if not args.dry_run:
         prev_state = load_state(module_root) or {"spaces": [], "groups": []}
         merged_spaces = space_rels if not args.groups_only else list(prev_state.get("spaces") or [])

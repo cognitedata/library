@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+import os
 from typing import Any, Dict, List, Mapping, Optional, Tuple
 
 RAW_VALUE_PREVIEW_LEN = 512
@@ -51,6 +52,31 @@ def connection_info(client: Any) -> Dict[str, str]:
     return {
         "project": str(cfg.project or ""),
         "base_url": str(cfg.base_url or ""),
+        "auth_mode": auth_mode_from_env(),
+    }
+
+
+def connection_info_from_env() -> Dict[str, str]:
+    from local_runner.client import auth_mode_from_env
+
+    def _env(*names: str) -> str:
+        for name in names:
+            value = os.getenv(name)
+            if value and str(value).strip():
+                return str(value).strip()
+        return ""
+
+    project = _env("COGNITE_PROJECT", "CDF_PROJECT", "PROJECT")
+    base_url = _env("COGNITE_BASE_URL", "BASE_URL", "CDF_BASE_URL", "CDF_URL")
+    if not base_url:
+        cluster = _env("CDF_CLUSTER", "COGNITE_CLUSTER")
+        if cluster:
+            base_url = f"https://{cluster}.cognitedata.com"
+    elif not base_url.startswith("http"):
+        base_url = f"https://{base_url}.cognitedata.com"
+    return {
+        "project": project,
+        "base_url": base_url,
         "auth_mode": auth_mode_from_env(),
     }
 

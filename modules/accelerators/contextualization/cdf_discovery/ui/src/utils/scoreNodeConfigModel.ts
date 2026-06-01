@@ -1,5 +1,6 @@
 import type { JsonObject } from "../types/jsonConfig";
 import { commaJoinSegments, splitCommaSegments } from "./commaDelimited";
+import { enrichExpressionDescriptions } from "./scorePatternCatalog";
 
 export type ExpressionMatchOpt = "" | "search" | "fullmatch";
 export type ScoreModMode = "explicit" | "offset";
@@ -68,6 +69,7 @@ export function parseScoringRuleRows(raw: unknown): ScoringRuleRow[] {
       }
     }
     if (expressions.length === 0) expressions.push({ pattern: "", description: "" });
+    const enrichedExpressions = enrichExpressionDescriptions(expressions);
 
     const sm = rule.score_modifier;
     let modMode: ScoreModMode = "offset";
@@ -99,7 +101,7 @@ export function parseScoringRuleRows(raw: unknown): ScoringRuleRow[] {
       priority: rule.priority === null || rule.priority === undefined ? "" : String(rule.priority),
       expressionMatch: parseExpressionMatch(rule.expression_match),
       keywordsText: commaJoinSegments(keywords),
-      expressions,
+      expressions: enrichedExpressions,
       modMode,
       modValue,
       noMatchEnabled,

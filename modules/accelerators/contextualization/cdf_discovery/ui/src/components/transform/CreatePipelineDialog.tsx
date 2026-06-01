@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { createTransformPipeline, fetchTransformTemplates } from "../../api";
+import { createTransformWorkflow, fetchTransformTemplates } from "../../api";
 import { ModalDialogShell } from "../ModalDialogShell";
 import { useAppSettings } from "../../context/AppSettingsContext";
 
@@ -56,7 +56,7 @@ export function CreatePipelineDialog({ open, onClose, onCreated, initialTemplate
     setSubmitting(true);
     setError(null);
     try {
-      await createTransformPipeline({
+      await createTransformWorkflow({
         id,
         label: name,
         template_id: templateId.trim() || undefined,

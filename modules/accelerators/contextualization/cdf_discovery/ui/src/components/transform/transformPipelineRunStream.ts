@@ -136,14 +136,14 @@ export type TransformLocalRunTarget =
 
 export async function streamTransformPipelineRun(
   target: TransformLocalRunTarget,
-  options: { incrementalChangeProcessing: boolean; dryRun?: boolean },
+  options: { incrementalChangeProcessing: boolean; dryRun?: boolean; signal?: AbortSignal },
   canvasDoc: TransformCanvasDocument,
   t: TFn,
   callbacks: TransformRunStreamCallbacks
 ): Promise<void> {
   const apiBase =
     target.kind === "pipeline"
-      ? `/api/transform/pipelines/${encodeURIComponent(target.id)}`
+      ? `/api/transform/workflows/${encodeURIComponent(target.id)}`
       : `/api/transform/templates/${encodeURIComponent(target.id)}`;
   const executingCanvasNodes = new Set<string>();
   const runActiveCanvas = new Set<string>();
@@ -201,6 +201,7 @@ export async function streamTransformPipelineRun(
       dry_run: options.dryRun ?? false,
       incremental_change_processing: options.incrementalChangeProcessing,
     }),
+    signal: options.signal,
   });
 
   if (res.status === 501) {
@@ -235,6 +236,7 @@ export async function streamTransformPipelineRun(
   const dec = new TextDecoder();
   let buf = "";
   let exitCode = -1;
+  let cancelled = false;
 
   const handleLine = (line: string) => {
     if (!line.trim()) return;
@@ -371,6 +373,9 @@ export async function streamTransformPipelineRun(
     }
     if (ev.event === "exit") {
       exitCode = ev.code ?? -1;
+      if ((ev as { cancelled?: boolean }).cancelled) {
+        cancelled = true;
+      }
       callbacks.onLogAppend(`\n${t("run.localRunExitLine", { code: exitCode })}\n`);
       const stderr = String((ev as { stderr?: string }).stderr ?? "").trim();
       if (stderr) {
@@ -391,6 +396,13 @@ export async function streamTransformPipelineRun(
     }
     buf += dec.decode();
     for (const line of buf.split("\n")) handleLine(line);
+  } catch (e) {
+    if (options.signal?.aborted) {
+      cancelled = true;
+      callbacks.onLogAppend(`\n${t("run.localCancelled")}\n`);
+    } else {
+      throw e;
+    }
   } finally {
     flushProgress(false);
     callbacks.onProgress({
@@ -402,14 +414,15 @@ export async function streamTransformPipelineRun(
       warningCanvasNodeIds: [...runWarningCanvas],
       nodeProgressById: {},
     });
-    const detail =
-      Object.keys(taskSummaries).length > 0
+    const detail = cancelled
+      ? t("run.localCancelled")
+      : Object.keys(taskSummaries).length > 0
         ? formatLocalRunDetail(taskSummaries, t)
         : exitCode === 0
           ? t("transform.toolbar.runOk")
           : t("transform.toolbar.runFailed");
     callbacks.onComplete({
-      ok: exitCode === 0,
+      ok: !cancelled && exitCode === 0,
       detail,
       task_summaries: taskSummaries,
     });

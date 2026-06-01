@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { ModalDialogShell } from "../ModalDialogShell";
-import { renameTransformPipeline, renameTransformTemplate } from "../../api";
+import { renameTransformWorkflow, renameTransformTemplate } from "../../api";
 import { useAppSettings } from "../../context/AppSettingsContext";
 
 type Props = {
@@ -41,7 +41,7 @@ export function RenameTransformLabelDialog({
     setError(null);
     try {
       if (kind === "pipeline") {
-        await renameTransformPipeline(resourceId, name);
+        await renameTransformWorkflow(resourceId, name);
       } else {
         await renameTransformTemplate(resourceId, name);
       }

@@ -6,7 +6,7 @@
   owner: 'Anonymous'
   description: 'Discovery ETL view query — DM instances.query cursor enumeration'
   metadata:
-    version: '{{function_version}}'
+    version: '1.0.0'
   envVars:
     ENV_TYPE: '${CDF_BUILD_TYPE}'
     CDF_ENV: '${CDF_ENVIRON}'
@@ -19,7 +19,7 @@
   owner: 'Anonymous'
   description: 'Discovery ETL RAW query stage'
   metadata:
-    version: '{{function_version}}'
+    version: '1.0.0'
   envVars:
     ENV_TYPE: '${CDF_BUILD_TYPE}'
     CDF_ENV: '${CDF_ENVIRON}'
@@ -32,7 +32,7 @@
   owner: 'Anonymous'
   description: 'Discovery ETL classic CDF query stage'
   metadata:
-    version: '{{function_version}}'
+    version: '1.0.0'
   envVars:
     ENV_TYPE: '${CDF_BUILD_TYPE}'
     CDF_ENV: '${CDF_ENVIRON}'
@@ -45,7 +45,7 @@
   owner: 'Anonymous'
   description: 'Discovery ETL records stream query stage'
   metadata:
-    version: '{{function_version}}'
+    version: '1.0.0'
   envVars:
     ENV_TYPE: '${CDF_BUILD_TYPE}'
     CDF_ENV: '${CDF_ENVIRON}'
@@ -58,7 +58,7 @@
   owner: 'Anonymous'
   description: 'Discovery ETL SQL preview query stage'
   metadata:
-    version: '{{function_version}}'
+    version: '1.0.0'
   envVars:
     ENV_TYPE: '${CDF_BUILD_TYPE}'
     CDF_ENV: '${CDF_ENVIRON}'
@@ -71,7 +71,7 @@
   owner: 'Anonymous'
   description: 'Discovery ETL transform stage'
   metadata:
-    version: '{{function_version}}'
+    version: '1.0.0'
   envVars:
     ENV_TYPE: '${CDF_BUILD_TYPE}'
     CDF_ENV: '${CDF_ENVIRON}'
@@ -84,7 +84,7 @@
   owner: 'Anonymous'
   description: 'Discovery ETL instance filter with {field}_score support'
   metadata:
-    version: '{{function_version}}'
+    version: '1.0.0'
   envVars:
     ENV_TYPE: '${CDF_BUILD_TYPE}'
     CDF_ENV: '${CDF_ENVIRON}'
@@ -97,7 +97,7 @@
   owner: 'Anonymous'
   description: 'Discovery ETL scoring stage'
   metadata:
-    version: '{{function_version}}'
+    version: '1.0.0'
   envVars:
     ENV_TYPE: '${CDF_BUILD_TYPE}'
     CDF_ENV: '${CDF_ENVIRON}'
@@ -110,7 +110,7 @@
   owner: 'Anonymous'
   description: 'Discovery ETL join stage'
   metadata:
-    version: '{{function_version}}'
+    version: '1.0.0'
   envVars:
     ENV_TYPE: '${CDF_BUILD_TYPE}'
     CDF_ENV: '${CDF_ENVIRON}'
@@ -123,7 +123,7 @@
   owner: 'Anonymous'
   description: 'Discovery ETL merge stage'
   metadata:
-    version: '{{function_version}}'
+    version: '1.0.0'
   envVars:
     ENV_TYPE: '${CDF_BUILD_TYPE}'
     CDF_ENV: '${CDF_ENVIRON}'
@@ -136,7 +136,7 @@
   owner: 'Anonymous'
   description: 'Discovery ETL inverted-index build stage (cohort handoff)'
   metadata:
-    version: '{{function_version}}'
+    version: '1.0.0'
   envVars:
     ENV_TYPE: '${CDF_BUILD_TYPE}'
     CDF_ENV: '${CDF_ENVIRON}'
@@ -149,7 +149,7 @@
   owner: 'Anonymous'
   description: 'Discovery ETL DM view save stage'
   metadata:
-    version: '{{function_version}}'
+    version: '1.0.0'
   envVars:
     ENV_TYPE: '${CDF_BUILD_TYPE}'
     CDF_ENV: '${CDF_ENVIRON}'
@@ -162,7 +162,7 @@
   owner: 'Anonymous'
   description: 'Discovery ETL RAW save stage'
   metadata:
-    version: '{{function_version}}'
+    version: '1.0.0'
   envVars:
     ENV_TYPE: '${CDF_BUILD_TYPE}'
     CDF_ENV: '${CDF_ENVIRON}'
@@ -175,7 +175,7 @@
   owner: 'Anonymous'
   description: 'Discovery ETL records stream save stage'
   metadata:
-    version: '{{function_version}}'
+    version: '1.0.0'
   envVars:
     ENV_TYPE: '${CDF_BUILD_TYPE}'
     CDF_ENV: '${CDF_ENVIRON}'
@@ -188,7 +188,7 @@
   owner: 'Anonymous'
   description: 'Discovery ETL stream create stage'
   metadata:
-    version: '{{function_version}}'
+    version: '1.0.0'
   envVars:
     ENV_TYPE: '${CDF_BUILD_TYPE}'
     CDF_ENV: '${CDF_ENVIRON}'
@@ -201,7 +201,7 @@
   owner: 'Anonymous'
   description: 'Discovery ETL classic save stage'
   metadata:
-    version: '{{function_version}}'
+    version: '1.0.0'
   envVars:
     ENV_TYPE: '${CDF_BUILD_TYPE}'
     CDF_ENV: '${CDF_ENVIRON}'
@@ -214,7 +214,7 @@
   owner: 'Anonymous'
   description: 'Discovery ETL RAW cleanup sink'
   metadata:
-    version: '{{function_version}}'
+    version: '1.0.0'
   envVars:
     ENV_TYPE: '${CDF_BUILD_TYPE}'
     CDF_ENV: '${CDF_ENVIRON}'
@@ -227,7 +227,7 @@
   owner: 'Anonymous'
   description: 'Build dynamic workflow tasks for file pattern diagram detect'
   metadata:
-    version: '{{function_version}}'
+    version: '1.0.0'
   envVars:
     ENV_TYPE: '${CDF_BUILD_TYPE}'
     CDF_ENV: '${CDF_ENVIRON}'
@@ -240,7 +240,7 @@
   owner: 'Anonymous'
   description: 'File annotation via diagram detect (isAsyncComplete)'
   metadata:
-    version: '{{function_version}}'
+    version: '1.0.0'
   envVars:
     ENV_TYPE: '${CDF_BUILD_TYPE}'
     CDF_ENV: '${CDF_ENVIRON}'

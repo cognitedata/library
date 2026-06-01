@@ -180,12 +180,19 @@ def deploy_workflows(
 
     wv_api = cc.workflows.versions
     wv_body = _workflow_version_body_for_cdf_api(wv_raw)
-    wv_api._create_multiple(
-        [wv_body],
-        list_cls=WorkflowVersionList,
-        resource_cls=WorkflowVersion,
-        input_resource_cls=WorkflowVersionUpsert,
-    )
+    wv_upsert = WorkflowVersionUpsert._load(wv_body)
+    if hasattr(wv_api, "upsert"):
+        wv_api.upsert(wv_upsert)
+    elif hasattr(wv_api, "_create_multiple"):
+        # Backward compatibility for older SDK releases.
+        wv_api._create_multiple(
+            [wv_body],
+            list_cls=WorkflowVersionList,
+            resource_cls=WorkflowVersion,
+            input_resource_cls=WorkflowVersionUpsert,
+        )
+    else:
+        raise RuntimeError("CDF SDK does not support workflow version upsert on this installation.")
     print(
         f"Upserted WorkflowVersion {wv_raw.get('workflowExternalId')!r} {wv_raw.get('version')!r}",
         file=sink,

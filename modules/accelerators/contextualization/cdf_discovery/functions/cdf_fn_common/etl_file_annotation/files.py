@@ -42,7 +42,7 @@ def file_record_from_cohort_row(
     }
 
 
-def files_from_cohort_rows(rows: List[Mapping[str, Any]]) -> List[Dict[str, Any]]:
+def files_from_cohort_rows(rows: List[Mapping[str, Any]], client: Any = None) -> List[Dict[str, Any]]:
     seen: Set[int] = set()
     out: List[Dict[str, Any]] = []
     for row in rows:
@@ -51,6 +51,33 @@ def files_from_cohort_rows(rows: List[Mapping[str, Any]]) -> List[Dict[str, Any]
         if not isinstance(props, dict):
             props = {}
         rec = file_record_from_cohort_row(cols, props)
+        if rec is None and client is not None:
+            ext = str(props.get("external_id") or cols.get("external_id") or "").strip()
+            if ext:
+                try:
+                    fo = client.files.retrieve(external_id=ext)
+                    if fo is not None and getattr(fo, "id", None) is not None:
+                        uploaded = getattr(fo, "uploaded_time", None) or getattr(
+                            fo, "uploadedTime", None
+                        )
+                        if hasattr(uploaded, "isoformat"):
+                            uploaded = uploaded.isoformat()
+                        rec = {
+                            "id": int(fo.id),
+                            "name": getattr(fo, "name", None) or props.get("name"),
+                            "external_id": getattr(fo, "external_id", None) or ext,
+                            "mime_type": getattr(fo, "mime_type", None) or props.get("mimeType"),
+                            "uploadedTime": uploaded,
+                            "page_count": int(
+                                getattr(fo, "page_count", None)
+                                or props.get("page_count")
+                                or props.get("pageCount")
+                                or 1
+                            ),
+                            "instance_space": props.get("instance_space") or cols.get("space"),
+                        }
+                except Exception:
+                    rec = None
         if rec is None:
             continue
         fid = int(rec["id"])
@@ -127,7 +154,7 @@ def resolve_file_annotation_files(
         tid = task_id_from_data(data, "input_b_task_id")
     if tid:
         rows = predecessor_cohort_rows(client, data, tid)
-        from_files = files_from_cohort_rows(rows)
+        from_files = files_from_cohort_rows(rows, client=client)
         if from_files:
             return from_files
 

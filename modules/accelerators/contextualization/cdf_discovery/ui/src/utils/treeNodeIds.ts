@@ -31,6 +31,16 @@ export const CONNECTION_ROOT_CHILD_ORDER = [
   MONITOR_ROOT,
 ] as const;
 
+/** True for Transform → Workflows folder, pipeline rows, and built workflow YAML leaves. */
+export function isTransformWorkflowsSubtreeNodeId(nodeId: string): boolean {
+  return (
+    nodeId === TRANSFORM_ROOT ||
+    nodeId === TRANSFORM_PIPELINES ||
+    nodeId.startsWith(TRANSFORM_PIPELINE_PREFIX) ||
+    nodeId.startsWith(TRANSFORM_WORKFLOW_PREFIX)
+  );
+}
+
 export function dedupeNodeIds(nodeIds: readonly string[]): string[] {
   const out: string[] = [];
   const seen = new Set<string>();

@@ -14,7 +14,7 @@ import {
   etlPipelineTabKey,
   etlTemplateTabKey,
 } from "./transformTabs";
-import { createExtractTab, createMonitorTab } from "./workspaceTabs";
+import { createExtractTab, createMonitorTab, createSettingsTab } from "./workspaceTabs";
 import { EXTRACT_ROOT, MONITOR_ROOT } from "./treeNodeIds";
 import { createTransformationTab } from "./transformationTabs";
 import { createSqlTabFromSavedQuery, savedQueryIdFromTabId } from "./savedQueries";
@@ -191,7 +191,14 @@ export function serializeWorkspace(
     } else if (tab.kind === "extract") {
       saved.push({ kind: "extract", id: tab.id, label: tab.label });
     } else if (tab.kind === "monitor") {
-      saved.push({ kind: "monitor", id: tab.id, label: tab.label });
+      saved.push({
+        kind: "monitor",
+        id: tab.id,
+        label: tab.label,
+        active_section: tab.activeSection,
+      });
+    } else if (tab.kind === "settings") {
+      saved.push({ kind: "settings", id: tab.id, label: tab.label });
     }
   }
 
@@ -376,8 +383,15 @@ export function restoreWorkspaceTabs(
       tab.id = saved.id || EXTRACT_ROOT;
       tabs.push(tab);
     } else if (saved.kind === "monitor") {
-      const tab = createMonitorTab(saved.label?.trim() || "Monitor");
+      const tab = createMonitorTab(
+        saved.label?.trim() || "Monitor",
+        saved.active_section ?? "workflowState"
+      );
       tab.id = saved.id || MONITOR_ROOT;
+      tabs.push(tab);
+    } else if (saved.kind === "settings") {
+      const tab = createSettingsTab(saved.label?.trim() || "Settings");
+      tab.id = saved.id || "settings";
       tabs.push(tab);
     }
   }

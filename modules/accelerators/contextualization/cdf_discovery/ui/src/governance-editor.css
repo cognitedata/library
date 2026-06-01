@@ -827,8 +827,9 @@
   margin: 0;
   padding: 0;
   border: none;
-  background: var(--gov-bg);
-  color: var(--gov-text);
+  /* Portaled to document.body; provide discovery-token fallbacks outside .disc-gov-pane scope. */
+  background: var(--gov-bg, var(--disc-bg));
+  color: var(--gov-text, var(--disc-text));
   min-height: 100vh;
   min-height: 100dvh;
   min-height: -webkit-fill-available;
@@ -852,15 +853,15 @@
   justify-content: space-between;
   gap: 0.75rem 1rem;
   padding: 0.65rem 1rem;
-  border-bottom: 1px solid var(--gov-border);
-  background: var(--gov-bg-elevated);
+  border-bottom: 1px solid var(--gov-border, var(--disc-border));
+  background: var(--gov-bg-elevated, var(--disc-bg-elevated));
 }
 
 .gov-advanced-fs__title {
   margin: 0;
   font-size: 1.1rem;
   font-weight: 600;
-  color: var(--gov-text);
+  color: var(--gov-text, var(--disc-text));
 }
 
 .gov-advanced-fs__header-actions {

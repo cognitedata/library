@@ -14,7 +14,7 @@ from cdf_fn_common.etl_cohort_storage import (
     node_cohort_table_name,
     predecessor_canvas_node_ids,
     predecessor_node_table_locations,
-    require_run_id,
+    require_pipeline_run_key,
     resolve_base_cohort_table,
     sanitize_canvas_node_id_for_table,
 )
@@ -66,7 +66,7 @@ def raw_sink_for_dependency_task(
         cn = ""
     if not cn:
         cn = sanitize_canvas_node_id_for_table(ds)
-    run_id = require_run_id(data)
+    run_id = require_pipeline_run_key(data)
     raw_db, base_table = resolve_base_cohort_table(data)
     return raw_db, node_cohort_table_name(base_table, run_id, cn)
 
@@ -102,7 +102,7 @@ def iter_predecessor_instance_props(
     if not pred_nodes:
         return
     raw_db, base_table = resolve_base_cohort_table(data)
-    run_id = require_run_id(data)
+    run_id = require_pipeline_run_key(data)
     index_cache = data.get("etl_cohort_row_index_cache") if hasattr(data, "get") else None
     if len(pred_nodes) > 1:
         table_indexes = cohort_row_indexes_for_tables(

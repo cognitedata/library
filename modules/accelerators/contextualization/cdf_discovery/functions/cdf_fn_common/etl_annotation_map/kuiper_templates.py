@@ -76,9 +76,8 @@ def prepare_local_json_mapping_input(
         if not isinstance(rows, list) or not rows:
             cohort = predecessor_cohort_rows(client, data, source_task_id)
             if not cohort:
-                raise ValueError(
-                    f"jsonMapping diagram mapper: no cohort rows from predecessor {source_task_id!r}"
-                )
+                inp["rows"] = []
+                return inp
             inp["rows"] = _expand_diagram_rows(cohort, mapper_kind, cfg)
         return inp
 

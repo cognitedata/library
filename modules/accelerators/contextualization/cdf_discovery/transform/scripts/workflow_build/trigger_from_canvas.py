@@ -5,6 +5,14 @@ from __future__ import annotations
 from typing import Any, Dict, Mapping, MutableMapping
 
 
+def _as_bool(value: Any) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.strip().lower() not in {"", "false", "0", "no", "off"}
+    return bool(value)
+
+
 def _start_node_config(canvas: Mapping[str, Any]) -> Dict[str, Any]:
     for n in canvas.get("nodes") or []:
         if not isinstance(n, dict):
@@ -23,26 +31,38 @@ def read_start_trigger_config(
     default_cron: str = "0 2 * * *",
 ) -> Dict[str, Any]:
     cfg = _start_node_config(canvas)
-    trigger_type = (
-        str(cfg.get("trigger_type") or cfg.get("triggerType") or "schedule").strip() or "schedule"
-    )
-    cron = str(cfg.get("cron_expression") or cfg.get("cronExpression") or default_cron).strip()
+    trigger_type = str(cfg.get("trigger_type") or "schedule").strip() or "schedule"
+    cron = str(cfg.get("cron_expression") or default_cron).strip()
     rule: Dict[str, Any] = {"triggerType": trigger_type}
     if trigger_type == "schedule":
         rule["cronExpression"] = cron or default_cron
-    elif trigger_type == "recordStream":
-        stream_ext = str(
-            cfg.get("stream_external_id") or cfg.get("streamExternalId") or ""
-        ).strip()
-        if stream_ext:
-            rule["streamExternalId"] = stream_ext
-        batch_size = cfg.get("batch_size") or cfg.get("batchSize")
+    elif trigger_type == "dataModeling":
+        batch_size = cfg.get("batch_size")
         if batch_size is not None:
             try:
                 rule["batchSize"] = max(1, min(int(batch_size), 1000))
             except (TypeError, ValueError):
                 pass
-        batch_timeout = cfg.get("batch_timeout") or cfg.get("batchTimeout")
+        batch_timeout = cfg.get("batch_timeout")
+        if batch_timeout is not None:
+            try:
+                rule["batchTimeout"] = max(10, min(int(batch_timeout), 86400))
+            except (TypeError, ValueError):
+                pass
+        dm_query = cfg.get("data_modeling_query")
+        if isinstance(dm_query, dict):
+            rule["dataModelingQuery"] = dict(dm_query)
+    elif trigger_type == "recordStream":
+        stream_ext = str(cfg.get("stream_external_id") or "").strip()
+        if stream_ext:
+            rule["streamExternalId"] = stream_ext
+        batch_size = cfg.get("batch_size")
+        if batch_size is not None:
+            try:
+                rule["batchSize"] = max(1, min(int(batch_size), 1000))
+            except (TypeError, ValueError):
+                pass
+        batch_timeout = cfg.get("batch_timeout")
         if batch_timeout is not None:
             try:
                 rule["batchTimeout"] = max(10, min(int(batch_timeout), 86400))
@@ -59,10 +79,9 @@ def read_start_trigger_config(
                 continue
             rule[k] = v
     return {
-        "workflow_version": str(cfg.get("workflow_version") or cfg.get("workflowVersion") or "1"),
+        "workflow_version": str(cfg.get("workflow_version") or "1"),
         "trigger_rule": rule,
-        "incremental_change_processing": bool(cfg.get("incremental_change_processing", True)),
-        "run_id": str(cfg.get("run_id") or ""),
+        "incremental_change_processing": _as_bool(cfg.get("incremental_change_processing", True)),
     }
 
 
@@ -83,7 +102,7 @@ def apply_start_trigger_to_workflow_trigger(
         trigger_doc["triggerRule"] = dict(rule)
     inp = trigger_doc.get("input")
     if isinstance(inp, dict):
-        inp["incremental_change_processing"] = bool(
-            trigger_cfg.get("incremental_change_processing", True)
-        )
-        inp["run_id"] = str(trigger_cfg.get("run_id") or "")
+        if "incremental_change_processing" not in inp:
+            inp["incremental_change_processing"] = _as_bool(
+                trigger_cfg.get("incremental_change_processing", True)
+            )

@@ -85,3 +85,39 @@ def test_emit_handler_progress_every_n_rows_at_interval(monkeypatch) -> None:
     assert at_500["progress_label"] == "rows"
     assert at_end["progress_current"] == 750
     assert at_end["progress_label"] == "rows"
+
+
+def test_emit_cohort_write_progress_every_500_rows(monkeypatch) -> None:
+    lines: list[str] = []
+
+    def fake_write(fd: int, data: bytes) -> int:
+        lines.append(data.decode("utf-8"))
+        return len(data)
+
+    read_fd, write_fd = os.pipe()
+    os.close(read_fd)
+    monkeypatch.setenv("KEA_UI_PROGRESS_FD", str(write_fd))
+    monkeypatch.setattr(etl_ui_progress.os, "write", fake_write)
+
+    etl_ui_progress.bind_handler_progress(
+        {
+            "task_id": "q1",
+            "compiled_task": {"canvas_node_id": "query_view_1", "function_external_id": "fn_etl_view_query"},
+        }
+    )
+    etl_ui_progress.set_cohort_write_progress_total(1200)
+    etl_ui_progress.emit_cohort_write_progress_every_n_rows(499)
+    etl_ui_progress.emit_cohort_write_progress_every_n_rows(500)
+    etl_ui_progress.emit_cohort_write_progress_complete(1200)
+    etl_ui_progress.clear_handler_progress()
+    os.close(write_fd)
+
+    assert len(lines) == 2
+    mid = json.loads(lines[0])
+    end = json.loads(lines[1])
+    assert mid["progress_current"] == 500
+    assert mid["progress_total"] == 1200
+    assert mid["progress_label"] == "cohort_rows"
+    assert end["progress_current"] == 1200
+    assert end["progress_total"] == 1200
+    assert end["progress_label"] == "cohort_rows"

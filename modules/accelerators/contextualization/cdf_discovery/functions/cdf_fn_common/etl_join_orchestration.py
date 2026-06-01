@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Mapping, MutableMapping, Optional, Tuple
 from cdf_fn_common.etl_cohort_storage import (
     canvas_node_id_for_task,
     iter_cohort_entity_rows,
-    require_run_id,
+    require_pipeline_run_key,
     resolve_node_cohort_sink,
 )
 from cdf_fn_common.etl_discovery_cohort import (
@@ -27,7 +27,14 @@ from cdf_fn_common.etl_incremental_scope import RAW_ROW_KEY_COLUMN, NODE_INSTANC
 from cdf_fn_common.etl_join_on_eval import eval_join_on
 from cdf_fn_common.etl_predecessor_mode import use_in_memory_predecessors
 from cdf_fn_common.etl_raw_upload import RawRowsUploadQueue
+from cdf_fn_common.etl_ui_progress import (
+    COHORT_WRITE_ROW_INTERVAL,
+    emit_cohort_write_progress_complete,
+    emit_cohort_write_progress_every_n_rows,
+    set_cohort_write_progress_total,
+)
 from cdf_fn_common.etl_task_runtime import find_compiled_task, merge_compiled_task_into_data
+from cdf_fn_common.etl_common import require_pipeline_run_key
 
 
 def _join_task_ids_from_data(data: Mapping[str, Any]) -> Tuple[str, str]:
@@ -188,7 +195,7 @@ def etl_handle_join_cohort(
     if client is None:
         raise ValueError("cohort join requires a CDF client")
 
-    run_id = require_run_id(data)
+    run_id = require_pipeline_run_key(data)
     data["run_id"] = run_id
     writer_canvas = canvas_node_id_for_task(data, task_id)
     sink_db, sink_table = resolve_query_sink(data)
@@ -242,6 +249,9 @@ def etl_handle_join_cohort(
                     )
                 )
                 rows_written += 1
+                emit_cohort_write_progress_every_n_rows(rows_written)
+                if len(pending) >= COHORT_WRITE_ROW_INTERVAL:
+                    _flush_rows(queue, sink_db, sink_table, pending, client=client)
             continue
         merged = merge_join_props(left_props, matched, right_prefix)
         pending.append(
@@ -255,10 +265,13 @@ def etl_handle_join_cohort(
             )
         )
         rows_written += 1
-        if len(pending) >= 500:
+        emit_cohort_write_progress_every_n_rows(rows_written)
+        if len(pending) >= COHORT_WRITE_ROW_INTERVAL:
             _flush_rows(queue, sink_db, sink_table, pending, client=client)
 
     _flush_rows(queue, sink_db, sink_table, pending, client=client)
+    set_cohort_write_progress_total(rows_written)
+    emit_cohort_write_progress_complete(rows_written)
 
     if log and hasattr(log, "info"):
         log.info(
@@ -313,10 +326,8 @@ def etl_handle_join(
             "reason": "disabled",
         }
 
-    from cdf_fn_common.etl_common import resolve_run_id
-
     task_id = _first_nonempty(data.get("task_id"), fn_external_id)
-    run_id = resolve_run_id(data)
+    run_id = require_pipeline_run_key(data)
     data["run_id"] = run_id
 
     if use_in_memory_predecessors(data, cfg):

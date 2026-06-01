@@ -1,12 +1,15 @@
 import { useAppSettings } from "../../context/AppSettingsContext";
 import type { JsonObject } from "../../types/jsonConfig";
-import type { TransformBuildPairing } from "../../api";
+import type { TransformWorkflowBuildPairing } from "../../api";
+import { DataModelingTriggerConfigFields } from "./DataModelingTriggerConfigFields";
 import { RecordStreamTriggerConfigFields } from "./RecordStreamTriggerConfigFields";
+import { ScheduleEditorControl } from "./ScheduleEditorControl";
+import { TriggerRuleDetailsFields } from "./TriggerRuleDetailsFields";
 
 type Props = {
   value: JsonObject;
   onChange: (next: JsonObject) => void;
-  buildPairing?: TransformBuildPairing | null;
+  buildPairing?: TransformWorkflowBuildPairing | null;
 };
 
 export function EtlStartNodeConfigFields({ value, onChange, buildPairing = null }: Props) {
@@ -21,13 +24,6 @@ export function EtlStartNodeConfigFields({ value, onChange, buildPairing = null 
     String(buildPairing?.trigger_external_id ?? "").trim();
   const wfBase =
     String(value.workflow_base ?? "").trim() || String(buildPairing?.workflow_base ?? "").trim();
-
-  const triggerRuleText =
-    value.trigger_rule == null
-      ? ""
-      : typeof value.trigger_rule === "string"
-        ? value.trigger_rule
-        : JSON.stringify(value.trigger_rule, null, 2);
 
   return (
     <div className="transform-node-editor-fields transform-start-fields">
@@ -61,6 +57,17 @@ export function EtlStartNodeConfigFields({ value, onChange, buildPairing = null 
       ) : null}
 
       <label className="gov-label gov-label--block" style={{ marginTop: "0.75rem" }}>
+        {t("transform.config.workflowExternalId")}
+        <input
+          className="gov-input"
+          style={{ marginTop: "0.35rem" }}
+          value={String(value.workflow_external_id ?? "")}
+          onChange={(e) => patch({ workflow_external_id: e.target.value })}
+          spellCheck={false}
+        />
+      </label>
+
+      <label className="gov-label gov-label--block" style={{ marginTop: "0.75rem" }}>
         {t("transform.config.workflowVersion")}
         <input
           className="gov-input"
@@ -86,22 +93,22 @@ export function EtlStartNodeConfigFields({ value, onChange, buildPairing = null 
       </label>
 
       {triggerType === "schedule" ? (
-        <label className="gov-label gov-label--block" style={{ marginTop: "0.5rem" }}>
-          {t("transform.config.cronExpression")}
-          <input
-            className="gov-input"
-            style={{ marginTop: "0.35rem" }}
-            value={String(value.cron_expression ?? "")}
-            onChange={(e) => patch({ cron_expression: e.target.value })}
-            placeholder={t("transform.start.cronPlaceholder")}
-            spellCheck={false}
+        <div style={{ marginTop: "0.5rem" }}>
+          <ScheduleEditorControl
+            cronExpression={String(value.cron_expression ?? "")}
+            onChange={(next) => patch({ cron_expression: next })}
           />
-        </label>
+        </div>
       ) : null}
 
       {triggerType === "recordStream" ? (
         <div style={{ marginTop: "0.75rem" }}>
           <RecordStreamTriggerConfigFields value={value} onChange={onChange} />
+        </div>
+      ) : null}
+      {triggerType === "dataModeling" ? (
+        <div style={{ marginTop: "0.75rem" }}>
+          <DataModelingTriggerConfigFields value={value} onChange={onChange} />
         </div>
       ) : null}
 
@@ -125,30 +132,8 @@ export function EtlStartNodeConfigFields({ value, onChange, buildPairing = null 
         />
       </label>
 
-      {triggerType !== "recordStream" ? (
-      <label className="gov-label gov-label--block" style={{ marginTop: "0.75rem" }}>
-        {t("transform.config.triggerRuleJson")}
-        <textarea
-          className="gov-input gov-input--mono"
-          style={{ marginTop: "0.35rem", minHeight: "8rem" }}
-          value={triggerRuleText}
-          onChange={(e) => {
-            const raw = e.target.value.trim();
-            if (!raw) {
-              const next = { ...value };
-              delete next.trigger_rule;
-              onChange(next);
-              return;
-            }
-            try {
-              patch({ trigger_rule: JSON.parse(raw) });
-            } catch {
-              patch({ trigger_rule: raw });
-            }
-          }}
-          spellCheck={false}
-        />
-      </label>
+      {triggerType === "schedule" ? (
+        <TriggerRuleDetailsFields value={value} onChange={onChange} triggerType={triggerType} />
       ) : null}
       <p className="transform-node-editor-modal__hint">{t("transform.config.triggerBuildHint")}</p>
     </div>

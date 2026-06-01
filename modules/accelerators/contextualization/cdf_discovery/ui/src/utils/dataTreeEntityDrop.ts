@@ -113,9 +113,7 @@ export function seedConfigForEntityDrop(
     return {
       description: label,
       source_raw_db: db,
-      raw_db: db,
       source_raw_table_key: table,
-      raw_table_key: table,
     };
   }
 
@@ -130,7 +128,6 @@ export function seedConfigForEntityDrop(
     const base = {
       description: label,
       stream_external_id: target.stream_external_id,
-      streamExternalId: target.stream_external_id,
     };
     if (stage === "query_records") {
       return { ...base, read_mode: "sync", batch_size: 100 };

@@ -78,8 +78,61 @@ def active_config_path(
         resolve_registered_config_path,
     )
 
-    rel = (config_rel or "").strip() or _PRIMARY
-    return resolve_registered_config_path(declared, rel)
+    rel = (config_rel or "").strip()
+    if rel:
+        return resolve_registered_config_path(declared, rel)
+
+    return resolve_registered_config_path(declared, _PRIMARY)
+
+
+def migrate_governance_sections_into_active_config(
+    *,
+    declared: Path,
+    config_path: Path,
+) -> Dict[str, Any]:
+    """Migrate missing governance blocks from primary config into active config."""
+    from governance_build.config_sources import resolve_registered_config_path  # noqa: WPS433
+
+    if not config_path.is_file():
+        return {}
+    data = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+    model = data if isinstance(data, dict) else {}
+
+    primary_path = resolve_registered_config_path(declared, PRIMARY_CONFIG)
+    if config_path.resolve() == primary_path.resolve() or not primary_path.is_file():
+        return model
+
+    primary_data = yaml.safe_load(primary_path.read_text(encoding="utf-8"))
+    primary = primary_data if isinstance(primary_data, dict) else {}
+    if not primary:
+        return model
+
+    merged = dict(model)
+    changed = False
+    for key in ("governance_ui", "scope_hierarchy", "dimensions", "spaces", "groups"):
+        if key not in merged and key in primary:
+            merged[key] = primary[key]
+            changed = True
+
+    for section in ("spaces", "groups"):
+        block = merged.get(section)
+        if not isinstance(block, dict):
+            continue
+        glob = block.get("global")
+        if not isinstance(glob, dict):
+            continue
+        legacy_source_id = glob.pop("sourceId", None)
+        if legacy_source_id is not None:
+            changed = True
+        if "source_ids" not in glob:
+            glob["source_ids"] = {}
+            changed = True
+    if not changed:
+        return model
+
+    text = yaml.safe_dump(merged, default_flow_style=False, sort_keys=False, allow_unicode=True)
+    config_path.write_text(text, encoding="utf-8")
+    return merged
 
 
 def list_artifact_paths(declared: Path, kind: Literal["spaces", "groups"]) -> List[str]:

@@ -176,6 +176,8 @@ function materializeDropNode(
       config = defaultBuildIndexNodeConfig();
     } else if (stage === "node_preview") {
       config = { description: label, record_kind: "entity", row_cap: 10_000 };
+    } else if (stage === "cdf_task") {
+      config = { description: label, on_failure: "skipTask" };
     } else if (stage !== "start" && stage !== "end") {
       config = { description: label };
     }

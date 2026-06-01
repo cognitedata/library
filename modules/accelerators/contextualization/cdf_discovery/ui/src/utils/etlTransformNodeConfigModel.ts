@@ -1,5 +1,4 @@
 import type { JsonObject } from "../types/jsonConfig";
-import { readTransformHandlerId } from "./etlTransformHandlerTemplates";
 import {
   parseExecutionMode,
   parseStepsArray,
@@ -21,21 +20,18 @@ function extrasFrom(value: JsonObject): JsonObject {
   return o;
 }
 
-/** One transform step (handler + fields + handler block). */
-export function legacyConfigToStep(cfg: JsonObject): JsonObject {
-  const step: JsonObject = {};
-  for (const [k, v] of Object.entries(cfg)) {
-    if (!PIPELINE_KEYS.has(k)) step[k] = v;
-  }
-  return step;
-}
-
 export function materializeTransformSteps(cfg: JsonObject): JsonObject[] {
   const explicit = parseStepsArray(cfg);
   if (explicit.length > 0) return explicit.map((s) => ({ ...s }));
-  const handler = readTransformHandlerId(cfg as Record<string, unknown>);
-  if (!handler) return [];
-  return [legacyConfigToStep(cfg)];
+  const singleStep: JsonObject = {};
+  for (const [k, v] of Object.entries(cfg)) {
+    if (PIPELINE_KEYS.has(k)) continue;
+    singleStep[k] = v;
+  }
+  if (Object.keys(singleStep).length > 0) {
+    return [singleStep];
+  }
+  return [];
 }
 
 export function isMultiStepTransformConfig(cfg: JsonObject): boolean {
@@ -65,7 +61,6 @@ export function parseTransformNodeConfig(value: JsonObject): ParsedTransformNode
   };
 }
 
-/** Flatten first step to top-level when not multi-step (engine legacy shape). */
 export function serializeTransformNodeConfig(parts: {
   description: string;
   executionMode: ExecutionMode;

@@ -26,6 +26,7 @@ class ViewQueryStats:
     limit_per_page: int = 1000
     sort_property: Optional[str] = None
     api: str = "instances.query"
+    next_cursor: str = ""
 
 
 _INSTANCE_META_PROPERTY_NAMES = frozenset(
@@ -198,6 +199,8 @@ def query_all_view_instances(
     progress_context: str = "",
     stats_out: Optional[ViewQueryStats] = None,
     property_names_cache: Optional[MutableMapping[str, set[str]]] = None,
+    initial_cursor: Optional[str] = None,
+    max_items: int = 0,
 ) -> Iterable[Any]:
     """Page through DM nodes using ``client.data_modeling.instances.query``."""
     task_cfg = dict(cfg or {})
@@ -223,6 +226,8 @@ def query_all_view_instances(
         page_size=page_size,
         property_names=property_names,
     )
+    if initial_cursor:
+        query.cursors = {RESULT_SET_KEY: str(initial_cursor).strip()}
 
     instances_api = client.data_modeling.instances
     query_fn = getattr(instances_api, "query", None)
@@ -234,6 +239,14 @@ def query_all_view_instances(
     total = 0
 
     while True:
+        if max_items > 0:
+            remaining = max_items - total
+            if remaining <= 0:
+                break
+            try:
+                query.with_[RESULT_SET_KEY].limit = max(1, min(page_size, remaining))
+            except Exception:
+                pass
         result = query_fn(query)
         nodes = _nodes_from_query_result(result, RESULT_SET_KEY)
         if not nodes:
@@ -260,8 +273,16 @@ def query_all_view_instances(
         emit_handler_progress(total, label="instances")
         cursors = _cursors_from_query_result(result)
         next_cursor = cursors.get(RESULT_SET_KEY)
-        if not next_cursor:
+        if max_items > 0 and total >= max_items:
+            if stats_out is not None:
+                stats_out.next_cursor = str(next_cursor or "")
             break
+        if not next_cursor:
+            if stats_out is not None:
+                stats_out.next_cursor = ""
+            break
+        if stats_out is not None:
+            stats_out.next_cursor = str(next_cursor)
         query.cursors = {RESULT_SET_KEY: next_cursor}
 
     duration = round(time.perf_counter() - t0, 6)

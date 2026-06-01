@@ -75,16 +75,14 @@ def _transform_config_path() -> Path:
 
 
 def list_built_scope_suffixes() -> List[str]:
-    """Scoped build folders under ``workflows/<scope>/`` (excludes flat root and legacy ``all``)."""
-    wap = _artifact_paths()
-    legacy_unscoped = wap.LEGACY_UNSCOPED_SCOPE
+    """Scoped build folders under ``workflows/<scope>/`` (excludes flat root)."""
 
     root = _workflows_dir()
     if not root.is_dir():
         return []
     scopes: List[str] = []
     for path in sorted(root.iterdir()):
-        if not path.is_dir() or path.name == legacy_unscoped:
+        if not path.is_dir():
             continue
         if any(path.glob("etl_*.config.yaml")):
             scopes.append(path.name)
@@ -383,6 +381,7 @@ def empty_pipeline_document(*, pipeline_id: str, label: str) -> Dict[str, Any]:
             "incremental": True,
             "incremental_change_processing": True,
             "incremental_skip_unchanged": True,
+            "max_records_per_run": 0,
             "raw_db": "etl_staging",
             "raw_table_key": "cohort",
             "preview_raw_table_key": "etl_preview",
@@ -534,11 +533,6 @@ def delete_pipeline_document(pipeline_id: str) -> None:
         flat = root / wap.artifact_filename(pipeline_id, "", kind)
         if flat.is_file():
             flat.unlink()
-    legacy = root / "all"
-    if legacy.is_dir():
-        for path in legacy.glob(f"etl_{pipeline_id}.*"):
-            if path.is_file():
-                path.unlink()
     for scope_dir in root.iterdir():
         if not scope_dir.is_dir():
             continue
@@ -656,10 +650,13 @@ def validate_pipeline_document(doc: Dict[str, Any]) -> Dict[str, Any]:
         if not isinstance(nodes, list) or len(nodes) == 0:
             warnings.append("Canvas has no nodes")
         else:
+            errors.extend(_validate_canvas_errors(canvas))
             try:
                 _compile_canvas(canvas)
             except Exception as ex:
-                errors.append(f"Compile failed: {ex}")
+                msg = f"Compile failed: {ex}"
+                if msg not in errors:
+                    errors.append(msg)
     return {"ok": not errors, "warnings": warnings, "errors": errors}
 
 
@@ -670,6 +667,15 @@ def _compile_canvas(canvas: Dict[str, Any]) -> Dict[str, Any]:
     from cdf_fn_common.workflow_compile.canvas_dag import compile_canvas_dag
 
     return compile_canvas_dag(canvas)
+
+
+def _validate_canvas_errors(canvas: Dict[str, Any]) -> List[str]:
+    from ui.server.etl_syspath import ensure_transform_syspath
+
+    ensure_transform_syspath(_module_root())
+    from cdf_fn_common.workflow_compile.canvas_dag import validate_canvas_dag
+
+    return validate_canvas_dag(canvas)
 
 
 def _canvas_start_workflow_external_ids(canvas: Mapping[str, Any]) -> set[str]:

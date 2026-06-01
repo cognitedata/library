@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useAppSettings } from "../../context/AppSettingsContext";
 import type { JsonObject } from "../../types/jsonConfig";
 import {
@@ -6,7 +6,7 @@ import {
   readStreamSources,
   validateStreamSaveConfig,
 } from "../../utils/streamSaveConfigModel";
-import { QueryEditorTabs, type QueryEditorTabDef } from "../query/QueryEditorTabs";
+import { QueryEditorTabs, useQueryEditorTabState, type QueryEditorTabDef } from "../query/QueryEditorTabs";
 import { RecordsSourcesEditor } from "../query/RecordsSourcesEditor";
 
 type Props = {
@@ -28,7 +28,7 @@ const TABS: QueryEditorTabDef[] = [
 export function StreamSaveConfigFields({ value, onChange, fieldKey }: Props) {
   const { t } = useAppSettings();
   const patch = (p: JsonObject) => onChange({ ...value, ...p });
-  const [activeTab, setActiveTab] = useState(TAB_CONFIG);
+  const [activeTab, setActiveTab] = useQueryEditorTabState(fieldKey, TAB_CONFIG);
   const [advancedJson, setAdvancedJson] = useState(() => {
     const raw = value.stream_definition;
     if (raw == null) return "";
@@ -36,10 +36,6 @@ export function StreamSaveConfigFields({ value, onChange, fieldKey }: Props) {
   });
   const validation = useMemo(() => validateStreamSaveConfig(value), [value]);
   const advancedWins = hasStreamDefinitionOverride(value);
-
-  useEffect(() => {
-    setActiveTab(TAB_CONFIG);
-  }, [fieldKey]);
 
   const applyAdvanced = () => {
     const raw = advancedJson.trim();

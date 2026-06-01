@@ -15,7 +15,7 @@ export function readRecordsWriteMode(cfg: Record<string, unknown>): RecordsWrite
 
 export function validateRecordsSaveConfig(cfg: Record<string, unknown>): RecordsSaveValidation {
   const issues: MessageKey[] = [];
-  const stream = String(cfg.stream_external_id ?? cfg.streamExternalId ?? "").trim();
+  const stream = String(cfg.stream_external_id ?? "").trim();
   if (!stream) issues.push("transform.save.recordsErrorStreamRequired");
   const mode = readRecordsWriteMode(cfg);
   if (!["ingest", "upsert", "delete"].includes(mode)) {
@@ -25,7 +25,7 @@ export function validateRecordsSaveConfig(cfg: Record<string, unknown>): Records
 }
 
 export function recordsSaveSummary(cfg: Record<string, unknown>): string {
-  const stream = String(cfg.stream_external_id ?? cfg.streamExternalId ?? "").trim();
+  const stream = String(cfg.stream_external_id ?? "").trim();
   if (!stream) return "";
   return `${stream} · ${readRecordsWriteMode(cfg)}`;
 }

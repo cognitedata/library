@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any, Dict, List, Mapping, MutableMapping
 
 from cdf_fn_common.etl_build_index.pipeline import resolve_build_index_config
-from cdf_fn_common.etl_cohort_storage import canvas_node_id_for_task, require_run_id
+from cdf_fn_common.etl_cohort_storage import canvas_node_id_for_task, require_pipeline_run_key
 from cdf_fn_common.etl_common import _first_nonempty
 from cdf_fn_common.etl_discovery_cohort import iter_predecessor_raw_locations
 from cdf_fn_common.etl_discovery_query_shared import (
@@ -19,6 +19,12 @@ from cdf_fn_common.etl_inverted_index import parse_index_kinds_config
 from cdf_fn_common.etl_predecessor_mode import use_in_memory_predecessors
 from cdf_fn_common.etl_raw_upload import RawRowsUploadQueue
 from cdf_fn_common.etl_task_runtime import merge_compiled_task_into_data
+from cdf_fn_common.etl_ui_progress import (
+    COHORT_WRITE_ROW_INTERVAL,
+    emit_cohort_write_progress_complete,
+    emit_cohort_write_progress_every_n_rows,
+    set_cohort_write_progress_total,
+)
 
 
 def _index_rows_from_in_memory(data: Mapping[str, Any]) -> List[Dict[str, Any]]:
@@ -128,7 +134,7 @@ def etl_handle_build_index_cohort(
     if client is None:
         raise ValueError("cohort build_index requires a CDF client")
 
-    run_id = require_run_id(data)
+    run_id = require_pipeline_run_key(data)
     data["run_id"] = run_id
     writer_canvas = canvas_node_id_for_task(data, task_id)
     sink_db, sink_table = resolve_query_sink(data)
@@ -146,15 +152,19 @@ def etl_handle_build_index_cohort(
         run_id=run_id,
         canvas_node_id=writer_canvas,
     )
+    set_cohort_write_progress_total(len(raw_rows))
 
     queue = RawRowsUploadQueue(client)
     pending_flush: List[Dict[str, Any]] = []
+    index_rows_written = 0
     for row in raw_rows:
         pending_flush.append(row)
-        if len(pending_flush) >= 500:
+        index_rows_written += 1
+        emit_cohort_write_progress_every_n_rows(index_rows_written)
+        if len(pending_flush) >= COHORT_WRITE_ROW_INTERVAL:
             _flush_rows(queue, sink_db, sink_table, pending_flush, client=client)
-            pending_flush.clear()
     _flush_rows(queue, sink_db, sink_table, pending_flush, client=client)
+    emit_cohort_write_progress_complete(index_rows_written)
 
     pred_locations = iter_predecessor_raw_locations(data, task_id)
     if log and hasattr(log, "info"):
@@ -209,7 +219,7 @@ def etl_handle_build_index(
             "rows_read": 0,
         }
 
-    run_id = require_run_id(data)
+    run_id = require_pipeline_run_key(data)
     data["run_id"] = run_id
 
     if use_in_memory_predecessors(data):

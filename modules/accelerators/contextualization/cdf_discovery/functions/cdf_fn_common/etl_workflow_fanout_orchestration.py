@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-import uuid
 from typing import Any, Dict, MutableMapping
 
+from cdf_fn_common.etl_common import require_pipeline_run_key
 from cdf_fn_common.etl_discovery_query_shared import resolve_task_config
 from cdf_fn_common.etl_fanout_plan.registry import get_fanout_profile
 from cdf_fn_common.etl_file_processing_state import (
@@ -40,10 +40,8 @@ def etl_handle_workflow_fanout_plan(
         params["max_attempts"] = int(cfg.get("max_attempts"))
     task_id = str(data.get("task_id") or fn_external_id)
 
-    run_id = str(data.get("run_id") or "").strip()
-    if not run_id:
-        run_id = str(uuid.uuid4())
-        data["run_id"] = run_id
+    run_id = require_pipeline_run_key(data)
+    data["run_id"] = run_id
 
     profile_name = str(cfg.get("fanout_profile") or "file_annotation").strip().lower()
     profile = get_fanout_profile(profile_name)

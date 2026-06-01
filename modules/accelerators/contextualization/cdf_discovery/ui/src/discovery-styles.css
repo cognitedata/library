@@ -1685,6 +1685,279 @@ a.cognite-logo:focus-visible {
   display: block;
 }
 
+.disc-monitor-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  padding: 1rem;
+  min-height: 0;
+}
+
+.disc-monitor-pane__header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.disc-monitor-pane__title {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.disc-monitor-pane__hint {
+  margin: 0;
+  color: var(--disc-text-muted);
+}
+
+.disc-monitor-tabs {
+  display: flex;
+  gap: 0.25rem;
+  border-bottom: 1px solid var(--disc-border);
+  padding-bottom: 0.25rem;
+}
+
+.disc-monitor-kpis {
+  display: grid;
+  gap: 0.6rem;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+}
+
+.disc-monitor-kpi-card {
+  border: 1px solid var(--disc-border);
+  border-radius: 0.5rem;
+  background: var(--disc-bg-elevated);
+  padding: 0.65rem;
+}
+
+.disc-monitor-kpi-card__label {
+  margin: 0;
+  color: var(--disc-text-muted);
+  font-size: 0.82rem;
+}
+
+.disc-monitor-kpi-card__value {
+  margin: 0.25rem 0 0;
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+.disc-monitor-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.disc-monitor-filters__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 10rem;
+  flex: 1 1 11rem;
+}
+
+.disc-monitor-filters__field input,
+.disc-monitor-filters__field select {
+  border: 1px solid var(--disc-border);
+  border-radius: 0.35rem;
+  background: var(--disc-bg);
+  color: inherit;
+  padding: 0.45rem 0.5rem;
+  min-height: 2.2rem;
+}
+
+.disc-monitor-content {
+  display: grid;
+  grid-template-columns: minmax(16rem, 0.95fr) minmax(0, 1.05fr);
+  gap: 0.8rem;
+  min-height: 0;
+}
+
+.disc-monitor-list,
+.disc-monitor-detail {
+  border: 1px solid var(--disc-border);
+  border-radius: 0.5rem;
+  background: var(--disc-bg-elevated);
+  padding: 0.7rem;
+  min-width: 0;
+}
+
+.disc-monitor-list > h3,
+.disc-monitor-detail > h3,
+.disc-monitor-detail h4 {
+  margin: 0 0 0.55rem;
+}
+
+.disc-monitor-workflow-list,
+.disc-monitor-run-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.disc-monitor-workflow-row {
+  width: 100%;
+  text-align: left;
+  border: 1px solid var(--disc-border);
+  border-radius: 0.4rem;
+  background: var(--disc-bg);
+  color: inherit;
+  padding: 0.55rem;
+  display: grid;
+  gap: 0.25rem;
+}
+
+.disc-monitor-workflow-row.is-selected {
+  border-color: var(--disc-accent);
+}
+
+.disc-monitor-workflow-row__title {
+  font-weight: 600;
+}
+
+.disc-monitor-workflow-row__meta,
+.disc-monitor-run-list__meta {
+  color: var(--disc-text-muted);
+  font-size: 0.82rem;
+}
+
+.disc-monitor-run-list__error {
+  margin: 0.2rem 0 0;
+  color: var(--disc-danger);
+}
+
+.disc-monitor-detail__summary p,
+.disc-monitor-run-list p {
+  margin: 0;
+}
+
+.disc-monitor-status {
+  border-radius: 999px;
+  font-size: 0.76rem;
+  padding: 0.16rem 0.48rem;
+  display: inline-flex;
+  width: fit-content;
+  border: 1px solid var(--disc-border);
+}
+
+.disc-monitor-status--running {
+  border-color: var(--disc-warning);
+}
+
+.disc-monitor-status--succeeded {
+  border-color: var(--disc-success);
+}
+
+.disc-monitor-status--failed {
+  border-color: var(--disc-danger);
+}
+
+.disc-monitor-schedule-table-wrap {
+  overflow-x: auto;
+  min-width: 0;
+}
+
+.disc-monitor-schedule-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+
+.disc-monitor-schedule-table th,
+.disc-monitor-schedule-table td {
+  text-align: left;
+  padding: 0.4rem 0.45rem;
+  border-bottom: 1px solid var(--disc-border);
+  vertical-align: top;
+}
+
+.disc-monitor-schedule-table th {
+  color: var(--disc-text-muted);
+  font-weight: 600;
+}
+
+.disc-settings-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  min-height: 0;
+  padding: 0.9rem;
+}
+
+.disc-settings-pane__header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.disc-settings-pane__title {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.disc-settings-pane__hint {
+  margin: 0;
+  color: var(--disc-text-muted);
+  font-size: 0.82rem;
+}
+
+.disc-settings-pane__controls {
+  display: grid;
+  gap: 0.6rem;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+}
+
+.disc-settings-pane__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.8rem;
+  color: var(--disc-text-muted);
+}
+
+.disc-settings-pane__field select,
+.disc-settings-pane__field input {
+  min-height: 2.2rem;
+}
+
+.disc-settings-table {
+  table-layout: fixed;
+}
+
+.disc-settings-table th:nth-child(1) {
+  width: 24%;
+}
+
+.disc-settings-table th:nth-child(2) {
+  width: 38%;
+}
+
+.disc-settings-table th:nth-child(3) {
+  width: 38%;
+}
+
+.disc-settings-table__key {
+  font-family: var(--disc-font-mono);
+  font-size: 0.76rem;
+  word-break: break-word;
+}
+
+.disc-settings-table__input {
+  width: 100%;
+  min-width: 0;
+}
+
+@media (max-width: 56rem) {
+  .disc-monitor-content {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .disc-monitor-filters__field {
+    flex-basis: min(100%, 15rem);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .etl-flow-node__progress-track--indeterminate .etl-flow-node__progress-fill {
     animation: none !important;

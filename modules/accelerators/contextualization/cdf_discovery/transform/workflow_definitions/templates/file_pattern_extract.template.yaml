@@ -2,7 +2,6 @@ schemaVersion: 1
 template_id: file_pattern_extract
 label: File Pattern Extract
 parameters:
-  incremental: true
   incremental_change_processing: true
   incremental_skip_unchanged: true
   raw_db: etl_staging
@@ -12,6 +11,7 @@ parameters:
 canvas:
   schemaVersion: 1
   handle_orientation: lr
+  layout_method: layered
   edge_path_style: default
   nodes:
   - id: end
@@ -245,6 +245,10 @@ canvas:
     source_handle: out
     target_handle: in
     kind: data
+  viewport:
+    x: -154.54672195873388
+    y: 197.50875887693223
+    zoom: 0.9794202975869313
 compiled_workflow:
   schema_version: 1
   tasks:

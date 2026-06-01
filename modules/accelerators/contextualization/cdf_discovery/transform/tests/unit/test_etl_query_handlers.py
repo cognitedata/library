@@ -80,6 +80,7 @@ def test_etl_handle_query_raw_filters_and_populates_predecessor_rows() -> None:
     }
     summary = etl_handle_query_raw("fn_etl_raw_query", data, client, None)
     assert summary["instances_written"] == 1
+    assert summary["query_scope_mode"] == "inherit"
     assert len(data["_predecessor_rows"]) == 1
     row = data["_predecessor_rows"][0]
     assert row["columns"]["external_id"] == "E1"
@@ -114,6 +115,7 @@ def test_etl_handle_query_classic_applies_filters() -> None:
     }
     summary = etl_handle_query_classic("fn_etl_classic_query", data, client, None)
     assert summary["instances_written"] == 1
+    assert summary["query_scope_mode"] == "inherit"
     assert data["_predecessor_rows"][0]["columns"]["external_id"] == "CL-1"
     assert data["_predecessor_rows"][0]["properties"]["name"] == "Alpha"
 
@@ -140,6 +142,7 @@ def test_etl_handle_query_sql_maps_external_id_column() -> None:
     }
     summary = etl_handle_query_sql("fn_etl_sql_query", data, client, None)
     assert summary["instances_written"] == 2
+    assert summary["query_scope_mode"] == "inherit"
     assert data["_predecessor_rows"][0]["columns"]["external_id"] == "SQL-1"
     assert data["_predecessor_rows"][1]["properties"]["value"] == 20
 
@@ -167,10 +170,10 @@ def test_run_raw_query_preview_applies_filters() -> None:
     out = run_raw_query_preview(
         client,
         {
-            "raw_db": "db",
-            "raw_table": "tbl",
+            "source_raw_db": "db",
+            "source_raw_table": "tbl",
             "filters": [{"operator": "EQUALS", "target_property": "zone", "values": ["A"]}],
-            "limit": 10,
+            "read_limit": 10,
         },
     )
     assert out["row_count"] == 1
@@ -207,3 +210,84 @@ def test_run_classic_query_preview_applies_filters() -> None:
 def test_classic_filter_on_dumped_props() -> None:
     props = {"name": "Pump-101", "externalId": "P-101"}
     assert row_passes_filter(props, [{"operator": "EQUALS", "target_property": "name", "values": ["Pump-101"]}])
+
+
+def test_etl_handle_query_raw_reads_predecessor_buffer_without_source() -> None:
+    data = {
+        "task_id": "raw_downstream",
+        "run_id": "run-1",
+        "config": {},
+        "compiled_workflow": {
+            "tasks": [
+                {"id": "transform_1", "canvas_node_id": "n_transform"},
+                {"id": "raw_downstream", "depends_on": ["transform_1"], "canvas_node_id": "n_raw"},
+            ]
+        },
+        "etl_task_row_buffers": {
+            "transform_1": [
+                {
+                    "columns": {"external_id": "E1", "node_instance_id": "sp:E1"},
+                    "properties": {"name": "keep"},
+                },
+            ],
+        },
+    }
+    summary = etl_handle_query_raw("fn_etl_raw_query", data, None, None)
+    assert summary["instances_written"] == 1
+    assert summary["query_scope_mode"] == "inherit"
+    assert data["_predecessor_rows"][0]["columns"]["external_id"] == "E1"
+
+
+def test_etl_handle_query_raw_returns_early_when_checkpoint_complete(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "fn_etl_raw_query.handler.load_query_checkpoint_state",
+        lambda *_a, **_k: SimpleNamespace(rows_completed=0, is_complete=True, continuation_token=""),
+    )
+    data = {"task_id": "raw_q", "run_id": "run-1", "config": {"source_raw_db": "d", "source_raw_table": "t"}}
+    summary = etl_handle_query_raw("fn_etl_raw_query", data, MagicMock(), None)
+    assert summary["resume_checkpoint_complete"] is True
+
+
+def test_etl_handle_query_classic_applies_max_records_per_run() -> None:
+    class _Asset:
+        def __init__(self, idx: int) -> None:
+            self.external_id = f"CL-{idx}"
+
+        def dump(self) -> dict:
+            return {"externalId": self.external_id, "name": self.external_id}
+
+    client = MagicMock()
+    client.assets.list.return_value = [_Asset(1), _Asset(2), _Asset(3)]
+
+    data = {
+        "task_id": "classic_q",
+        "run_id": "run-c",
+        "configuration": {"parameters": {"max_records_per_run": 2}},
+        "config": {"resource_type": "assets"},
+    }
+    summary = etl_handle_query_classic("fn_etl_classic_query", data, client, None)
+    assert summary["instances_written"] == 2
+    assert summary["rows_truncated"] is True
+
+
+def test_etl_handle_query_classic_lookup_full_scan_ignores_run_cap() -> None:
+    class _Asset:
+        def __init__(self, idx: int) -> None:
+            self.external_id = f"CL-{idx}"
+
+        def dump(self) -> dict:
+            return {"externalId": self.external_id, "name": self.external_id}
+
+    client = MagicMock()
+    client.assets.list.return_value = [_Asset(1), _Asset(2), _Asset(3)]
+
+    data = {
+        "task_id": "classic_lookup",
+        "run_id": "run-c",
+        "configuration": {"parameters": {"max_records_per_run": 1}},
+        "config": {"resource_type": "assets", "lookup_full_scan": True},
+    }
+    summary = etl_handle_query_classic("fn_etl_classic_query", data, client, None)
+    assert summary["instances_written"] == 3
+    assert summary["rows_truncated"] is False
+    assert summary["lookup_full_scan"] is True

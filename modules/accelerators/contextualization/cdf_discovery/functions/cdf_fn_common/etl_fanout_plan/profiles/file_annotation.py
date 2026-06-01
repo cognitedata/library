@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-import uuid
 from typing import Any, Dict, List
 
+from cdf_fn_common.etl_common import require_pipeline_run_key
 from cdf_fn_common.etl_fanout_plan.cohort_inputs import (
     input_b_task_id,
     load_input_a_rows,
@@ -48,10 +48,8 @@ class FileAnnotationFanoutProfile:
         params: Dict[str, Any],
         log: Any,
     ) -> Dict[str, Any]:
-        run_id = str(data.get("run_id") or "").strip()
-        if not run_id:
-            run_id = str(uuid.uuid4())
-            data["run_id"] = run_id
+        run_id = require_pipeline_run_key(data)
+        data["run_id"] = run_id
 
         workflow_scope = params["workflow_scope"]
         raw_db, state_table = file_state_sink_from_data(data)
@@ -67,16 +65,54 @@ class FileAnnotationFanoutProfile:
         if not entities:
             raise ValueError("file_annotation fan-out: no pattern entities from input A")
 
+        b_tid = input_b_task_id(data)
         b_rows = load_input_b_rows(client, data)
-        pending = files_from_cohort_rows(b_rows)
+        pending = files_from_cohort_rows(b_rows, client=client)
         if not pending:
             file_ids = _parse_file_ids(cfg, data)
             if file_ids:
                 pending = files_from_id_list(client, file_ids)
         if not pending:
-            raise ValueError(
-                "file_annotation fan-out: wire in__input_b (files to scan) or set config.file_ids"
+            if not b_tid:
+                raise ValueError(
+                    "file_annotation fan-out: wire in__input_b (files to scan) or set config.file_ids"
+                )
+            checkpoint = {
+                "context_rows": len(context_rows),
+                "pattern_entity_groups": len(entities),
+                "files_pending": 0,
+                "files_skipped_detected": 0,
+                "files_pending_before_cap": 0,
+                "force_redetect": bool(cfg.get("force_redetect")),
+                "incremental_change_processing": resolve_incremental_change_processing(data),
+                "max_files_per_run": params.get("max_files_per_run"),
+                "detect_packs_planned": 0,
+                "packs_per_file": {},
+                "entities": entities,
+                "fanout_profile": self.name,
+            }
+            write_fanout_checkpoint_raw(
+                client,
+                raw_db=raw_db,
+                raw_table=state_table,
+                workflow_scope=workflow_scope,
+                run_id=run_id,
+                checkpoint=checkpoint,
             )
+            return {
+                "status": "completed_with_errors",
+                "reason": "no_pending_files_from_input_b",
+                "tasks": [],
+                "batches_planned": 0,
+                "detect_packs_planned": 0,
+                "files_pending": 0,
+                "files_skipped_detected": 0,
+                "force_redetect": bool(cfg.get("force_redetect")),
+                "incremental_change_processing": resolve_incremental_change_processing(data),
+                "pattern_samples": entities[0].get("sample", []) if entities else [],
+                "run_id": run_id,
+                "fanout_profile": self.name,
+            }
 
         force_redetect = bool(cfg.get("force_redetect"))
         incremental = resolve_incremental_change_processing(data)
@@ -133,7 +169,6 @@ class FileAnnotationFanoutProfile:
             )
 
         depends: List[str] = []
-        b_tid = input_b_task_id(data)
         a_tid = str(data.get("input_a_task_id") or "").strip()
         for tid in (a_tid, b_tid):
             if tid and tid not in depends:

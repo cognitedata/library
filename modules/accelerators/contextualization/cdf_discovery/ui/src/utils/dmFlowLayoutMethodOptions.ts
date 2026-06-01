@@ -3,6 +3,7 @@ import type { FlowLayoutMethodOption } from "../components/transform/transformFl
 import { DM_FLOW_LAYOUT_METHODS, type DmFlowLayoutMethod } from "./dataModelFlowLayout";
 
 export const DM_FLOW_LAYOUT_METHOD_OPTIONS: FlowLayoutMethodOption<DmFlowLayoutMethod>[] = [
+  { value: "force", labelKey: "dmViewer.layout.methodForce" },
   { value: "dagre", labelKey: "dmViewer.layout.methodDagre" },
   { value: "grid", labelKey: "dmViewer.layout.methodGrid" },
 ];

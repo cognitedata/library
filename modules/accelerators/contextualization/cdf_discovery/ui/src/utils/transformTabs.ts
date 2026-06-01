@@ -3,8 +3,6 @@ import type { TransformCanvasDocument, TransformPipelineDocument } from "../type
 import { TRANSFORM_PIPELINE_PREFIX, TRANSFORM_TEMPLATE_PREFIX } from "./treeNodeIds";
 import type { EtlWorkflowYamlDocumentTab } from "../types/discoveryNodes";
 
-const LEGACY_PIPELINE_ITEM_PREFIX = "transform:pipelines:item:";
-const LEGACY_TEMPLATE_ITEM_PREFIX = "transform:pipelines:templates:item:";
 const LEGACY_UNSCOPED_SCOPE = "all";
 
 export function normalizePipelineScopeSuffix(scopeSuffix?: string | null): string {
@@ -46,18 +44,9 @@ function pipelineSegmentsFromNodeId(nodeId: string): { scopeSuffix: string; pipe
   return null;
 }
 
-function idAfterPrefix(nodeId: string, prefix: string, legacyPrefix: string): string | null {
+function idAfterPrefix(nodeId: string, prefix: string): string | null {
   if (nodeId.startsWith(prefix)) {
     const raw = nodeId.slice(prefix.length);
-    if (!raw) return null;
-    try {
-      return decodeURIComponent(raw);
-    } catch {
-      return raw;
-    }
-  }
-  if (nodeId.startsWith(legacyPrefix)) {
-    const raw = nodeId.slice(legacyPrefix.length);
     if (!raw) return null;
     try {
       return decodeURIComponent(raw);
@@ -81,14 +70,14 @@ export function pipelineIdFromNode(node: { id?: string; meta?: Record<string, un
   const parsed = pipelineSegmentsFromNodeId(node.id ?? "");
   if (parsed) return parsed.pipelineId;
   const id = node.id ?? "";
-  return idAfterPrefix(id, TRANSFORM_PIPELINE_PREFIX, LEGACY_PIPELINE_ITEM_PREFIX);
+  return idAfterPrefix(id, TRANSFORM_PIPELINE_PREFIX);
 }
 
 export function templateIdFromNode(node: { id?: string; meta?: Record<string, unknown> }): string | null {
   const fromMeta = node.meta?.id;
   if (typeof fromMeta === "string" && fromMeta.trim()) return fromMeta.trim();
   const id = node.id ?? "";
-  return idAfterPrefix(id, TRANSFORM_TEMPLATE_PREFIX, LEGACY_TEMPLATE_ITEM_PREFIX);
+  return idAfterPrefix(id, TRANSFORM_TEMPLATE_PREFIX);
 }
 
 export function pipelineLabelFromMeta(meta: Record<string, unknown> | undefined): string {

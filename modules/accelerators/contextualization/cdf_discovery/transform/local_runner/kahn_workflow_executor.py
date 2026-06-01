@@ -13,6 +13,7 @@ from cdf_fn_common.etl_common import iter_predecessor_rows_for_task
 from cdf_fn_common.etl_predecessor_mode import use_in_memory_predecessors
 from cdf_fn_common.etl_ui_progress import bind_handler_progress, clear_handler_progress
 from cdf_fn_common.workflow_compile.canvas_dag import etl_local_pipeline_specs
+from cdf_fn_common.workflow_task_failure import abort_workflow_on_task_failure, resolve_task_on_failure
 from local_runner.dynamic_fanout import run_local_dynamic_fanout
 from local_runner.ephemeral_transformation import (
     ephemeral_transformation_external_id,
@@ -25,7 +26,7 @@ from local_runner.parallel import (
     resolve_max_workers,
     run_parallel,
 )
-from local_runner.run_context import disabled_canvas_task_ids
+from local_runner.run_context import disabled_canvas_task_ids, ensure_shared_run_id
 from local_runner.ui_progress import emit_ui_progress, ui_progress_row_counts
 
 _PIPELINES = etl_local_pipeline_specs()
@@ -434,14 +435,28 @@ def _run_single_compiled_task(
                 task_data = data
     except Exception as exc:
         duration_sec = round(time.perf_counter() - t0, 6)
+        err = f"{type(exc).__name__}: {exc}"
         emit_ui_progress(
             "task_end",
             **_ui_task_progress_fields(task, task_id),
             status="failed",
-            error=f"{type(exc).__name__}: {exc}",
+            error=err,
             duration_sec=duration_sec,
         )
-        raise
+        failed_summary: Dict[str, Any] = {
+            "status": "failed",
+            "task_id": task_id,
+            "error": err,
+            "duration_sec": duration_sec,
+        }
+        if abort_workflow_on_task_failure(resolve_task_on_failure(task)):
+            raise
+        return _LayerTaskResult(
+            task_id=task_id,
+            summary=failed_summary,
+            task_data=None,
+            in_memory=False,
+        )
     else:
         duration_sec = round(time.perf_counter() - t0, 6)
         if isinstance(summary, dict):
@@ -470,6 +485,7 @@ def run_compiled_workflow_dag(
     dry_run: bool = False,
     max_workers: int | None = None,
 ) -> Dict[str, Any]:
+    ensure_shared_run_id(shared_data)
     configuration = shared_data.get("configuration")
     disabled_ids = disabled_canvas_task_ids(configuration) if isinstance(configuration, dict) else set()
     cfg = configuration if isinstance(configuration, dict) else None
@@ -490,7 +506,10 @@ def run_compiled_workflow_dag(
     if client is not None and not dry_run:
         run_client = LockedCogniteClient(client, client_lock)
 
+    abort_workflow = False
     for layer in _topological_layers(list(task_by_id.keys()), pred_map):
+        if abort_workflow:
+            break
         work_items: List[_LayerTaskWork] = []
         for task_id in layer:
             task = task_by_id[task_id]
@@ -563,4 +582,11 @@ def run_compiled_workflow_dag(
                     data=result.task_data,
                     in_memory=result.in_memory,
                 )
+            summary = result.summary if isinstance(result.summary, dict) else {}
+            if _task_end_status(summary) == "failed":
+                task = task_by_id.get(result.task_id, {})
+                if abort_workflow_on_task_failure(resolve_task_on_failure(task)):
+                    abort_workflow = True
+        if abort_workflow:
+            break
     return summaries

@@ -10,7 +10,7 @@ Generated files use Toolkit **Space** resource shape:
 
 - **`space:`** — external id (e.g. `inst_site_a_erp`)
 - **`name`**, **`description`** — human-readable metadata
-- Not: top-level-only `externalId` + legacy `access_governance` wrapper
+- Not: top-level-only `externalId` + obsolete `access_governance` wrapper
 
 Instance space naming pattern: `inst_{snake_case}` composed from scope and dimension context (see conventions doc).
 

@@ -127,6 +127,12 @@ def write_record_rows_to_cohort_sink(
     from cdf_fn_common.etl_cohort_storage import canvas_node_id_for_task
     from cdf_fn_common.etl_discovery_query_shared import _flush_rows, resolve_query_sink
     from cdf_fn_common.etl_raw_upload import RawRowsUploadQueue
+    from cdf_fn_common.etl_ui_progress import (
+        COHORT_WRITE_ROW_INTERVAL,
+        emit_cohort_write_progress_complete,
+        emit_cohort_write_progress_every_n_rows,
+        set_cohort_write_progress_total,
+    )
 
     if client is None:
         raise ValueError("cohort handoff requires a CDF client")
@@ -138,6 +144,7 @@ def write_record_rows_to_cohort_sink(
     cfg = data.get("config") if isinstance(data.get("config"), dict) else {}
     entity_type = _first_nonempty(cfg.get("entity_type"), "record")
     value_field = str(cfg.get("value_field") or "aliases")
+    set_cohort_write_progress_total(sum(1 for item in rows if isinstance(item, dict)))
 
     for item in rows:
         if not isinstance(item, dict):
@@ -171,11 +178,12 @@ def write_record_rows_to_cohort_sink(
             )
         )
         n_written += 1
-        if len(pending) >= 500:
+        if len(pending) >= COHORT_WRITE_ROW_INTERVAL:
             _flush_rows(queue, raw_db, raw_table, pending, client=client)
-            pending = []
+            emit_cohort_write_progress_every_n_rows(n_written)
 
     _flush_rows(queue, raw_db, raw_table, pending, client=client)
+    emit_cohort_write_progress_complete(n_written)
     if log and hasattr(log, "info"):
         log.info(
             "record cohort handoff task=%s wrote=%s sink=%s/%s stream=%s",

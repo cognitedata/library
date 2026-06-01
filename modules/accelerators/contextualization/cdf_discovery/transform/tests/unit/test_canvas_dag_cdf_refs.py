@@ -76,6 +76,23 @@ def test_transformation_ref_emits_native_transformation_task() -> None:
     assert task["parameters"]["transformation"]["externalId"] == "tr_load_assets"
 
 
+def test_fusion_task_from_start_has_no_executable_depends_on() -> None:
+    canvas = {
+        "nodes": [
+            {"id": "start", "kind": "start"},
+            {"id": "tr1", "kind": "transformation_ref", "data": {"config": {"transformation_external_id": "tr_root"}}},
+            {"id": "end", "kind": "end"},
+        ],
+        "edges": [
+            {"source": "start", "target": "tr1"},
+            {"source": "tr1", "target": "end"},
+        ],
+    }
+    compiled = compile_canvas_dag(canvas)
+    task = next(t for t in compiled["tasks"] if t["id"] == "tr1")
+    assert task["depends_on"] == []
+
+
 def test_subworkflow_emits_native_subworkflow_task() -> None:
     canvas = _minimal_canvas(
         {

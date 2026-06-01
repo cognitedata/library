@@ -155,11 +155,11 @@ def _run_compliance_gates() -> int:
 
 
 def _run_build(argv: List[str]) -> int:
-    from governance_build.orchestrate import run as governance_run  # noqa: WPS433
-
     scripts = _MODULE_ROOT / "scripts"
     if str(scripts) not in sys.path:
         sys.path.insert(0, str(scripts))
+    from governance_build.orchestrate import run as governance_run  # noqa: WPS433
+
     declared_default = (_MODULE_ROOT / "governance").resolve()
     if not os.environ.get("CDF_DISCOVERY_GOVERNANCE_ROOT"):
         os.environ.setdefault("CDF_DISCOVERY_GOVERNANCE_ROOT", str(declared_default))

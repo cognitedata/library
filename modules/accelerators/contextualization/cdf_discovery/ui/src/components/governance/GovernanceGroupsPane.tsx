@@ -1,7 +1,4 @@
-import { useState } from "react";
 import { useAppSettings } from "../../context/AppSettingsContext";
-import { GovernanceArtifactsSection } from "./GovernanceArtifactsSection";
-import { GovernanceBuildSection } from "./GovernanceBuildSection";
 import { GovernanceConfigPaneHeader } from "./GovernanceConfigPaneHeader";
 import { GroupsEditor } from "./GroupsEditor";
 import { useGovernanceDoc } from "./useGovernanceDoc";
@@ -10,24 +7,21 @@ import type { GovernanceSubTab } from "./GovernanceSpacesPane";
 type Props = {
   initialSubTab?: GovernanceSubTab;
   initialArtifactRel?: string | null;
-  onArtifactsChanged?: (workspace: "spaces" | "groups") => void;
 };
 
 export function GovernanceGroupsPane({
   initialSubTab = "configure",
-  initialArtifactRel,
-  onArtifactsChanged,
+  initialArtifactRel: _initialArtifactRel,
 }: Props) {
   const { t } = useAppSettings();
   const gov = useGovernanceDoc();
-  const [subTab, setSubTab] = useState<GovernanceSubTab>(initialSubTab);
-  const [artifactRefresh, setArtifactRefresh] = useState(0);
+  const subTab = initialSubTab;
 
   return (
     <div className="disc-gov-pane">
       <GovernanceConfigPaneHeader
         subTab={subTab}
-        onSubTabChange={setSubTab}
+        onSubTabChange={() => undefined}
         dirty={gov.dirty}
         loading={gov.loading}
         saving={gov.saving}
@@ -38,27 +32,8 @@ export function GovernanceGroupsPane({
       <div className="disc-gov-pane-body">
         {gov.loading ? (
           <p className="disc-empty-hint">{t("tree.loading")}</p>
-        ) : subTab === "configure" ? (
-          <GroupsEditor doc={gov.doc} onChange={gov.setDoc} />
-        ) : subTab === "build" ? (
-          <GovernanceBuildSection
-            target="groups"
-            onBuildComplete={(r) => {
-              if (r.ok && !r.dryRun) {
-                setArtifactRefresh((n) => n + 1);
-                onArtifactsChanged?.("groups");
-                setSubTab("artifacts");
-              }
-            }}
-          />
         ) : (
-          <GovernanceArtifactsSection
-            kind="groups"
-            doc={gov.doc}
-            setDoc={gov.setDoc}
-            initialRel={initialArtifactRel}
-            refreshToken={artifactRefresh}
-          />
+          <GroupsEditor doc={gov.doc} onChange={gov.setDoc} />
         )}
       </div>
     </div>

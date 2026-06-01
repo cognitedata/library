@@ -2,7 +2,7 @@ import { useAppSettings } from "../../context/AppSettingsContext";
 import type { GovernanceSubTab } from "./GovernanceSpacesPane";
 import { GovernanceToolbar } from "./GovernanceToolbar";
 
-export type GovernanceScopeSubTab = "scope" | "dimensions";
+export type GovernanceScopeSubTab = "scope" | "dimensions" | "build" | "artifacts";
 
 type ToolbarProps = {
   dirty: boolean;
@@ -24,14 +24,14 @@ type ScopeHeaderProps = ToolbarProps & {
   onSubTabChange: (tab: GovernanceScopeSubTab) => void;
 };
 
-/** Configure / Build / Artifacts subtabs plus save toolbar on one row (spaces & groups panes). */
+/** Configure subtab plus save toolbar on one row (spaces & groups panes). */
 export function GovernanceConfigPaneHeader({ subTab, onSubTabChange, ...toolbar }: Props) {
   const { t } = useAppSettings();
   return (
     <header className="disc-gov-pane-header">
       <div className="disc-gov-pane-header__row">
         <div className="disc-gov-subtabs disc-gov-subtabs--in-header" role="tablist">
-          {(["configure", "build", "artifacts"] as const).map((key) => (
+          {(["configure"] as const).map((key) => (
             <button
               key={key}
               type="button"
@@ -50,14 +50,14 @@ export function GovernanceConfigPaneHeader({ subTab, onSubTabChange, ...toolbar 
   );
 }
 
-/** Scope / Dimensions subtabs plus save toolbar (scope governance pane). */
+/** Scope / Dimensions / Build / Artifacts subtabs plus save toolbar (scope governance pane). */
 export function GovernanceScopePaneHeader({ subTab, onSubTabChange, ...toolbar }: ScopeHeaderProps) {
   const { t } = useAppSettings();
   return (
     <header className="disc-gov-pane-header">
       <div className="disc-gov-pane-header__row">
         <div className="disc-gov-subtabs disc-gov-subtabs--in-header" role="tablist">
-          {(["scope", "dimensions"] as const).map((key) => (
+          {(["scope", "dimensions", "build", "artifacts"] as const).map((key) => (
             <button
               key={key}
               type="button"

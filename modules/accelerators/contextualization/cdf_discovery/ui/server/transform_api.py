@@ -6,6 +6,7 @@ import json
 import os
 import sys
 import subprocess
+from pathlib import Path
 from typing import Any, Dict, Iterator, List, Literal, Optional
 
 import yaml
@@ -239,6 +240,12 @@ class DeployWorkflowCdfBody(BaseModel):
     dry_run: bool = False
     allow_unresolved_placeholders: bool = True
     deploy_functions: Literal["never", "if-missing", "if-stale", "always"] = "if-stale"
+    timeout_seconds: float = Field(
+        900.0,
+        ge=30.0,
+        le=7200.0,
+        description="Maximum time to wait for deploy script completion.",
+    )
 
 
 class CdfWorkflowRunBody(BaseModel):
@@ -325,9 +332,10 @@ def list_pipelines() -> Dict[str, Any]:
 @router.get("/workflows")
 def list_workflows() -> Dict[str, Any]:
     entries = transform_registry.list_pipeline_tree_entries()
-    return {"workflows": entries, "pipelines": entries}
+    return {"workflows": entries}
 
 
+@router.post("/workflows")
 @router.post("/pipelines")
 def create_pipeline(body: PipelineCreateBody) -> Dict[str, Any]:
     if transform_registry.pipeline_exists(body.id):
@@ -348,10 +356,6 @@ def create_pipeline(body: PipelineCreateBody) -> Dict[str, Any]:
 
 
 @router.get("/workflows/by-workflow")
-def get_workflow_by_workflow(external_id: str) -> Dict[str, Any]:
-    return get_pipeline_by_workflow(external_id)
-
-
 @router.get("/pipelines/by-workflow")
 def get_pipeline_by_workflow(external_id: str) -> Dict[str, Any]:
     found = transform_registry.find_pipeline_for_workflow(external_id)
@@ -374,6 +378,7 @@ class ImportWorkflowToPipelineBody(BaseModel):
     label: Optional[str] = Field(default=None, max_length=256)
 
 
+@router.post("/workflows/import-from-workflow")
 @router.post("/pipelines/import-from-workflow")
 def import_pipeline_from_workflow(body: ImportWorkflowToPipelineBody) -> Dict[str, Any]:
     from ui.server import cdf_browse
@@ -432,6 +437,7 @@ def import_pipeline_from_workflow(body: ImportWorkflowToPipelineBody) -> Dict[st
     }
 
 
+@router.get("/workflows/{pipeline_id}")
 @router.get("/pipelines/{pipeline_id}")
 def get_pipeline(
     pipeline_id: str,
@@ -444,6 +450,7 @@ def get_pipeline(
     return {"pipeline": doc}
 
 
+@router.put("/workflows/{pipeline_id}")
 @router.put("/pipelines/{pipeline_id}")
 def put_pipeline(
     pipeline_id: str,
@@ -457,6 +464,7 @@ def put_pipeline(
     return {"ok": True, "pipeline": doc}
 
 
+@router.delete("/workflows/{pipeline_id}")
 @router.delete("/pipelines/{pipeline_id}")
 def delete_pipeline(pipeline_id: str) -> Dict[str, Any]:
     if not transform_registry.pipeline_exists(pipeline_id):
@@ -465,6 +473,7 @@ def delete_pipeline(pipeline_id: str) -> Dict[str, Any]:
     return {"ok": True}
 
 
+@router.get("/workflows/{pipeline_id}/canvas")
 @router.get("/pipelines/{pipeline_id}/canvas")
 def get_pipeline_canvas(
     pipeline_id: str,
@@ -482,6 +491,7 @@ def get_pipeline_canvas(
     return {"canvas": canvas}
 
 
+@router.patch("/workflows/{pipeline_id}/label")
 @router.patch("/pipelines/{pipeline_id}/label")
 def patch_pipeline_label(
     pipeline_id: str,
@@ -497,6 +507,7 @@ def patch_pipeline_label(
     return {"ok": True, "pipeline": doc}
 
 
+@router.put("/workflows/{pipeline_id}/canvas")
 @router.put("/pipelines/{pipeline_id}/canvas")
 def put_pipeline_canvas(
     pipeline_id: str,
@@ -512,6 +523,7 @@ def put_pipeline_canvas(
     return {"ok": True, "canvas": body.canvas}
 
 
+@router.post("/workflows/{pipeline_id}/save-as-template")
 @router.post("/pipelines/{pipeline_id}/save-as-template")
 def save_pipeline_as_template(
     pipeline_id: str,
@@ -532,6 +544,7 @@ def save_pipeline_as_template(
     return {"ok": True, "template": tpl}
 
 
+@router.post("/workflows/{pipeline_id}/save-as-pipeline")
 @router.post("/pipelines/{pipeline_id}/save-as-pipeline")
 def save_pipeline_as_pipeline(
     pipeline_id: str,
@@ -728,6 +741,7 @@ def instantiate_template(template_id: str, body: InstantiateTemplateBody) -> Dic
     return {"ok": True, "pipeline": doc}
 
 
+@router.post("/workflows/{pipeline_id}/validate")
 @router.post("/pipelines/{pipeline_id}/validate")
 def validate_pipeline(
     pipeline_id: str,
@@ -744,6 +758,7 @@ def validate_pipeline(
     return {"pipeline_id": pipeline_id, **result}
 
 
+@router.get("/workflows/{pipeline_id}/build-pairing")
 @router.get("/pipelines/{pipeline_id}/build-pairing")
 def pipeline_build_pairing(
     pipeline_id: str,
@@ -821,19 +836,39 @@ def _transform_subprocess_env() -> dict[str, str]:
     return {**os.environ, "PYTHONPATH": joined, "CDF_DISCOVERY_ROOT": str(MODULE_ROOT)}
 
 
-def _run_transform_script(script_name: str, argv: list[str]) -> Dict[str, Any]:
+def _run_transform_script(
+    script_name: str,
+    argv: list[str],
+    *,
+    timeout_seconds: float | None = None,
+) -> Dict[str, Any]:
     from ui.server.main import MODULE_ROOT
 
     script = MODULE_ROOT / "transform" / "scripts" / script_name
     if not script.is_file():
         raise HTTPException(status_code=500, detail=f"Missing script: {script.name}")
-    proc = subprocess.run(
-        [sys.executable, str(script), *argv],
-        cwd=str(MODULE_ROOT),
-        capture_output=True,
-        text=True,
-        env=_transform_subprocess_env(),
-    )
+    try:
+        proc = subprocess.run(
+            [sys.executable, str(script), *argv],
+            cwd=str(MODULE_ROOT),
+            capture_output=True,
+            text=True,
+            env=_transform_subprocess_env(),
+            timeout=timeout_seconds,
+        )
+    except subprocess.TimeoutExpired as e:
+        stdout = e.stdout if isinstance(e.stdout, str) else ""
+        stderr = e.stderr if isinstance(e.stderr, str) else ""
+        timeout_msg = (
+            f"Script timed out after {timeout_seconds:.1f}s: {script_name}. "
+            "Try again with a higher timeout_seconds or deploy with --skip-build / deploy_functions=never to isolate."
+        )
+        return {
+            "exit_code": 124,
+            "ok": False,
+            "stdout": stdout,
+            "stderr": (stderr + ("\n" if stderr else "") + timeout_msg).strip(),
+        }
     return {
         "exit_code": proc.returncode,
         "ok": proc.returncode == 0,
@@ -842,6 +877,7 @@ def _run_transform_script(script_name: str, argv: list[str]) -> Dict[str, Any]:
     }
 
 
+@router.post("/workflows/{pipeline_id}/deploy-cdf")
 @router.post("/pipelines/{pipeline_id}/deploy-cdf")
 def deploy_pipeline_cdf(
     pipeline_id: str,
@@ -865,13 +901,18 @@ def deploy_pipeline_cdf(
     if opts.allow_unresolved_placeholders:
         argv.append("--allow-unresolved-placeholders")
     argv.extend(["--deploy-functions", opts.deploy_functions])
-    result = _run_transform_script("deploy_workflow_cdf.py", argv)
+    result = _run_transform_script(
+        "deploy_workflow_cdf.py",
+        argv,
+        timeout_seconds=float(opts.timeout_seconds),
+    )
     if not result.get("ok"):
         detail = (result.get("stderr") or result.get("stdout") or "deploy failed").strip()
         raise HTTPException(status_code=500, detail=detail[:8000])
     return {"pipeline_id": pipeline_id, "scope_suffix": scope, **result}
 
 
+@router.post("/workflows/{pipeline_id}/cdf-run")
 @router.post("/pipelines/{pipeline_id}/cdf-run")
 def cdf_run_pipeline(
     pipeline_id: str,
@@ -907,6 +948,7 @@ def cdf_run_pipeline(
     return {"pipeline_id": pipeline_id, "scope_suffix": scope, **result}
 
 
+@router.post("/workflows/{pipeline_id}/deploy")
 @router.post("/pipelines/{pipeline_id}/deploy")
 def deploy_pipeline(
     pipeline_id: str,
@@ -917,6 +959,7 @@ def deploy_pipeline(
     return deploy_pipeline_cdf(pipeline_id, body, scope_suffix)
 
 
+@router.post("/workflows/{pipeline_id}/run")
 @router.post("/pipelines/{pipeline_id}/run")
 def run_pipeline(
     pipeline_id: str,
@@ -947,11 +990,32 @@ def _etl_run_pythonpath(module_root) -> str:
     return os.pathsep.join(parts)
 
 
+def _terminate_local_run_process(proc: subprocess.Popen) -> None:
+    """Stop a local run child process (process group on POSIX)."""
+    if proc.poll() is not None:
+        return
+    import signal
+
+    try:
+        os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
+    except (ProcessLookupError, OSError):
+        proc.terminate()
+    try:
+        proc.wait(timeout=10)
+    except subprocess.TimeoutExpired:
+        try:
+            os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+        except (ProcessLookupError, OSError):
+            proc.kill()
+        proc.wait(timeout=5)
+
+
 def _local_run_stream_response(cmd: list[str]) -> StreamingResponse:
     """Run ``module.py transform run`` and stream NDJSON progress from the child."""
     from ui.server.main import MODULE_ROOT
 
     r_fd, w_fd = os.pipe()
+    cancelled = False
     try:
         child_env = {
             **os.environ,
@@ -963,10 +1027,11 @@ def _local_run_stream_response(cmd: list[str]) -> StreamingResponse:
             cmd,
             cwd=str(MODULE_ROOT),
             env=child_env,
-            stderr=subprocess.PIPE,
+            stderr=None,
             text=True,
             close_fds=True,
             pass_fds=(w_fd,),
+            start_new_session=True,
         )
     except Exception:
         os.close(r_fd)
@@ -974,23 +1039,24 @@ def _local_run_stream_response(cmd: list[str]) -> StreamingResponse:
         raise
 
     os.close(w_fd)
-
     def ndjson_iter() -> Iterator[bytes]:
+        nonlocal cancelled
         try:
             with os.fdopen(r_fd, "r", encoding="utf-8", newline="\n") as rf:
                 for line in rf:
                     yield line.encode("utf-8")
+        except GeneratorExit:
+            cancelled = True
+            _terminate_local_run_process(proc)
+            raise
         finally:
+            if proc.poll() is None:
+                _terminate_local_run_process(proc)
             rc = proc.wait()
-            stderr_tail = ""
-            if proc.stderr is not None:
-                try:
-                    stderr_tail = (proc.stderr.read() or "").strip()
-                except OSError:
-                    stderr_tail = ""
-            payload: Dict[str, Any] = {"event": "exit", "code": int(rc or 0)}
-            if stderr_tail:
-                payload["stderr"] = stderr_tail[-8000:]
+            exit_code = 130 if cancelled else int(rc or 0)
+            payload: Dict[str, Any] = {"event": "exit", "code": exit_code}
+            if cancelled:
+                payload["cancelled"] = True
             yield (json.dumps(payload, ensure_ascii=False) + "\n").encode("utf-8")
 
     return StreamingResponse(ndjson_iter(), media_type="application/x-ndjson")
@@ -1004,6 +1070,7 @@ def _stream_not_supported() -> None:
         )
 
 
+@router.post("/workflows/{pipeline_id}/run-stream")
 @router.post("/pipelines/{pipeline_id}/run-stream")
 def run_pipeline_stream(
     pipeline_id: str,

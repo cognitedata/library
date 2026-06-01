@@ -447,6 +447,7 @@ type Props = {
   saving?: boolean;
   reloading?: boolean;
   runBusy?: boolean;
+  onCancelLocalRun?: () => void;
   statusMessage?: string | null;
   runProgress?: TransformFlowRunProgress;
   validationFailedNodeIds?: readonly string[];
@@ -478,6 +479,7 @@ function FlowCanvasBody({
   saving = false,
   reloading = false,
   runBusy = false,
+  onCancelLocalRun,
   statusMessage,
   runProgress,
   validationFailedNodeIds,
@@ -1795,19 +1797,25 @@ function FlowCanvasBody({
             </select>
           </label>
         ) : null}
-        <button
-          type="button"
-          className="disc-btn"
-          disabled={!onRun || saving || reloading || runBusy}
-          onClick={() =>
-            onRun?.({
-              incrementalChangeProcessing: runScope === "incremental",
-              dryRun,
-            })
-          }
-        >
-          {runBusy ? t("status.running") : t("transform.toolbar.runLocal")}
-        </button>
+        {runBusy && onCancelLocalRun ? (
+          <button type="button" className="disc-btn" onClick={onCancelLocalRun}>
+            {t("transform.toolbar.cancelLocalRun")}
+          </button>
+        ) : (
+          <button
+            type="button"
+            className="disc-btn"
+            disabled={!onRun || saving || reloading}
+            onClick={() =>
+              onRun?.({
+                incrementalChangeProcessing: runScope === "incremental",
+                dryRun,
+              })
+            }
+          >
+            {t("transform.toolbar.runLocal")}
+          </button>
+        )}
         {onDryRunChange ? (
           <TransformLocalRunDryRunField
             t={t}

@@ -1,7 +1,7 @@
 import { useMemo } from "react";
+import { QueryEditorTabs, useQueryEditorTabState, type QueryEditorTabDef } from "../query/QueryEditorTabs";
 import { useAppSettings } from "../../context/AppSettingsContext";
 import type { JsonObject } from "../../types/jsonConfig";
-import { legacyConfigToStep } from "../../utils/etlTransformNodeConfigModel";
 import {
   defaultTransformStep,
   parseTransformNodeConfig,
@@ -10,16 +10,26 @@ import {
 import { EtlPipelineExecutionFields } from "./EtlPipelineExecutionFields";
 import { EtlTransformSingleStepFields } from "./EtlTransformSingleStepFields";
 
+const TAB_STEPS = "steps";
+const TAB_EXECUTION = "execution";
+
+const MULTI_STEP_TABS: QueryEditorTabDef[] = [
+  { id: TAB_STEPS, labelKey: "transform.nodeEditor.tabSteps" },
+  { id: TAB_EXECUTION, labelKey: "transform.nodeEditor.tabExecution" },
+];
+
 type Props = {
   value: JsonObject;
   onChange: (next: JsonObject) => void;
+  fieldKey: string;
   /** When true, handler was chosen at node creation (palette / per-handler add) and cannot change. */
   handlerLocked?: boolean;
 };
 
-export function EtlTransformNodeConfigFields({ value, onChange, handlerLocked = false }: Props) {
+export function EtlTransformNodeConfigFields({ value, onChange, fieldKey, handlerLocked = false }: Props) {
   const { t } = useAppSettings();
   const ui = useMemo(() => parseTransformNodeConfig(value), [value]);
+  const [activeTab, setActiveTab] = useQueryEditorTabState(fieldKey, TAB_STEPS);
 
   const commit = (patch: Partial<ReturnType<typeof parseTransformNodeConfig>>) => {
     const next = serializeTransformNodeConfig({
@@ -35,16 +45,16 @@ export function EtlTransformNodeConfigFields({ value, onChange, handlerLocked = 
 
   const setMultiStep = (enabled: boolean) => {
     if (enabled) {
-      const steps = ui.steps.length > 0 ? ui.steps : [legacyConfigToStep(value)];
+      const steps = ui.steps.length > 0 ? ui.steps : [defaultTransformStep([])];
       commit({ multiStep: true, steps });
       return;
     }
-    const steps = ui.steps.length > 0 ? ui.steps : [legacyConfigToStep(value)];
-    commit({ multiStep: false, steps: [steps[0] ?? legacyConfigToStep(value)] });
+    const steps = ui.steps.length > 0 ? ui.steps : [defaultTransformStep([])];
+    commit({ multiStep: false, steps: [steps[0] ?? defaultTransformStep([])] });
   };
 
   if (!ui.multiStep) {
-    const stepValue = ui.steps[0] ?? legacyConfigToStep(value);
+    const stepValue = ui.steps[0] ?? defaultTransformStep([]);
     return (
       <div className="transform-node-editor-fields">
         <label className="gov-label gov-label--block">
@@ -85,43 +95,8 @@ export function EtlTransformNodeConfigFields({ value, onChange, handlerLocked = 
     );
   }
 
-  return (
-    <div className="transform-node-editor-fields">
-      <label className="gov-label gov-label--block">
-        {t("transforms.description")}
-        <input
-          className="gov-input"
-          style={{ marginTop: "0.35rem" }}
-          value={ui.description}
-          onChange={(e) => commit({ description: e.target.value })}
-          spellCheck={false}
-          autoComplete="off"
-        />
-      </label>
-      <label className="gov-label" style={{ marginTop: "0.75rem", display: "flex", alignItems: "center", gap: 8 }}>
-        <input
-          type="checkbox"
-          checked
-          onChange={(e) => {
-            if (!e.target.checked) setMultiStep(false);
-          }}
-        />
-        {t("pipelineSteps.useMultiStep")}
-      </label>
-
-      <h4 className="gov-modal__title" style={{ fontSize: "0.95rem", marginTop: "1rem" }}>
-        {t("pipelineSteps.transformStepsTitle")}
-      </h4>
-      <p className="transform-node-editor-modal__hint">{t("pipelineSteps.transformStepsHint")}</p>
-
-      <EtlPipelineExecutionFields
-        t={t}
-        executionMode={ui.executionMode}
-        onExecutionModeChange={(mode) => commit({ executionMode: mode })}
-        fieldPolicies={ui.fieldPolicies}
-        onFieldPoliciesChange={(policies) => commit({ fieldPolicies: policies })}
-      />
-
+  const stepsContent = (
+    <>
       {ui.steps.map((step, idx) => (
         <div key={idx} className="transform-step-card">
           <EtlTransformSingleStepFields
@@ -182,6 +157,56 @@ export function EtlTransformNodeConfigFields({ value, onChange, handlerLocked = 
       >
         {t("pipelineSteps.addStep")}
       </button>
+    </>
+  );
+
+  return (
+    <div className="transform-node-editor-fields">
+      <label className="gov-label gov-label--block">
+        {t("transforms.description")}
+        <input
+          className="gov-input"
+          style={{ marginTop: "0.35rem" }}
+          value={ui.description}
+          onChange={(e) => commit({ description: e.target.value })}
+          spellCheck={false}
+          autoComplete="off"
+        />
+      </label>
+      <label className="gov-label" style={{ marginTop: "0.75rem", display: "flex", alignItems: "center", gap: 8 }}>
+        <input
+          type="checkbox"
+          checked
+          onChange={(e) => {
+            if (!e.target.checked) setMultiStep(false);
+          }}
+        />
+        {t("pipelineSteps.useMultiStep")}
+      </label>
+
+      <QueryEditorTabs
+        tabs={MULTI_STEP_TABS}
+        activeTab={activeTab}
+        onActiveTabChange={setActiveTab}
+        ariaLabel={t("transform.query.editorTabsAria")}
+        panelIdPrefix={`transform-node-${fieldKey}`}
+      >
+        {activeTab === TAB_STEPS ? (
+          <>
+            <p className="transform-node-editor-modal__hint">{t("pipelineSteps.transformStepsHint")}</p>
+            {stepsContent}
+          </>
+        ) : null}
+        {activeTab === TAB_EXECUTION ? (
+          <EtlPipelineExecutionFields
+            t={t}
+            executionMode={ui.executionMode}
+            onExecutionModeChange={(mode) => commit({ executionMode: mode })}
+            fieldPolicies={ui.fieldPolicies}
+            onFieldPoliciesChange={(policies) => commit({ fieldPolicies: policies })}
+          />
+        ) : null}
+      </QueryEditorTabs>
     </div>
   );
 }

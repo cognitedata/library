@@ -7,10 +7,13 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { createTranslator, type Locale, type MessageKey, type Theme } from "../i18n";
+import { createTranslator, translations, type Locale, type MessageKey, type Theme } from "../i18n";
 
 const THEME_KEY = "cdf-discovery-theme";
 const LOCALE_KEY = "cdf-discovery-locale";
+const TRANSLATION_OVERRIDES_KEY = "cdf-discovery-translation-overrides";
+
+type TranslationOverrides = Partial<Record<Locale, Partial<Record<MessageKey, string>>>>;
 
 function readStoredTheme(): Theme | null {
   try {
@@ -48,6 +51,18 @@ function prefersDark(): boolean {
   return typeof window !== "undefined" && window.matchMedia?.("(prefers-color-scheme: dark)").matches;
 }
 
+function readTranslationOverrides(): TranslationOverrides {
+  try {
+    const raw = localStorage.getItem(TRANSLATION_OVERRIDES_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return {};
+    return parsed as TranslationOverrides;
+  } catch {
+    return {};
+  }
+}
+
 type TFn = (key: MessageKey, vars?: Record<string, string | number>) => string;
 
 type AppSettingsValue = {
@@ -56,6 +71,8 @@ type AppSettingsValue = {
   locale: Locale;
   setLocale: (l: Locale) => void;
   t: TFn;
+  getTranslationValue: (targetLocale: Locale, key: MessageKey) => string;
+  setTranslationValue: (targetLocale: Locale, key: MessageKey, value: string) => void;
 };
 
 const AppSettingsContext = createContext<AppSettingsValue | null>(null);
@@ -65,6 +82,9 @@ export function AppSettingsProvider({ children }: { children: ReactNode }) {
     () => readStoredTheme() ?? (prefersDark() ? "dark" : "light")
   );
   const [locale, setLocaleState] = useState<Locale>(() => readStoredLocale() ?? "en");
+  const [translationOverrides, setTranslationOverrides] = useState<TranslationOverrides>(
+    () => readTranslationOverrides()
+  );
 
   const setTheme = useCallback((next: Theme) => {
     setThemeState(next);
@@ -84,6 +104,38 @@ export function AppSettingsProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const setTranslationValue = useCallback((targetLocale: Locale, key: MessageKey, value: string) => {
+    setTranslationOverrides((prev) => {
+      const currentLocaleOverrides = { ...(prev[targetLocale] ?? {}) };
+      if (value) {
+        currentLocaleOverrides[key] = value;
+      } else {
+        delete currentLocaleOverrides[key];
+      }
+      const next: TranslationOverrides = { ...prev };
+      if (Object.keys(currentLocaleOverrides).length) {
+        next[targetLocale] = currentLocaleOverrides;
+      } else {
+        delete next[targetLocale];
+      }
+      try {
+        localStorage.setItem(TRANSLATION_OVERRIDES_KEY, JSON.stringify(next));
+      } catch {
+        /* ignore */
+      }
+      return next;
+    });
+  }, []);
+
+  const getTranslationValue = useCallback(
+    (targetLocale: Locale, key: MessageKey): string => {
+      const override = translationOverrides[targetLocale]?.[key];
+      if (typeof override === "string") return override;
+      return translations[targetLocale][key];
+    },
+    [translationOverrides]
+  );
+
   useLayoutEffect(() => {
     document.documentElement.dataset.theme = theme;
   }, [theme]);
@@ -94,7 +146,19 @@ export function AppSettingsProvider({ children }: { children: ReactNode }) {
     document.documentElement.dir = locale === "ar" ? "rtl" : "ltr";
   }, [locale]);
 
-  const t = useMemo(() => createTranslator(locale), [locale]);
+  const t = useMemo(() => {
+    const base = createTranslator(locale);
+    return (key: MessageKey, vars?: Record<string, string | number>) => {
+      const override = translationOverrides[locale]?.[key];
+      if (typeof override !== "string") {
+        return base(key, vars);
+      }
+      if (!vars) return override;
+      return override.replace(/\{(\w+)\}/g, (_, k: string) =>
+        Object.prototype.hasOwnProperty.call(vars, k) ? String(vars[k]) : `{${k}}`
+      );
+    };
+  }, [locale, translationOverrides]);
 
   const value = useMemo(
     () => ({
@@ -103,8 +167,10 @@ export function AppSettingsProvider({ children }: { children: ReactNode }) {
       locale,
       setLocale,
       t,
+      getTranslationValue,
+      setTranslationValue,
     }),
-    [theme, setTheme, locale, setLocale, t]
+    [theme, setTheme, locale, setLocale, t, getTranslationValue, setTranslationValue]
   );
 
   return <AppSettingsContext.Provider value={value}>{children}</AppSettingsContext.Provider>;

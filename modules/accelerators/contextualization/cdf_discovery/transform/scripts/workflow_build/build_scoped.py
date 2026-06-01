@@ -66,6 +66,7 @@ def build_scoped_workflow(
     from cdf_fn_common.workflow_compile.canvas_dag import compile_canvas_dag
     from cdf_fn_common.workflow_compile.codegen import (
         build_workflow_version_document,
+        escape_workflow_version_document_for_cdf,
         emit_transformation_resources,
     )
 
@@ -104,6 +105,7 @@ def build_scoped_workflow(
         description=str(doc.get("label") or doc.get("description") or target.workflow_id),
     )
     _validate_codegen_tasks(wv)
+    wv = escape_workflow_version_document_for_cdf(wv)
 
     if not is_scoped_build(target.scope_suffix) and isinstance(doc.get("canvas"), dict):
         patch_start_node_workflow_pairing(

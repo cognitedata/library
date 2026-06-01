@@ -5,15 +5,45 @@ from __future__ import annotations
 from typing import Any
 
 _POLICIES: dict[str, dict[str, Any]] = {
+    "fn_etl_view_query": {
+        "retries": 3,
+        "onFailure": "abortWorkflow",
+        "timeout": 7200,
+        "isAsyncComplete": False,
+    },
+    "fn_etl_raw_query": {
+        "retries": 3,
+        "onFailure": "abortWorkflow",
+        "timeout": 7200,
+        "isAsyncComplete": False,
+    },
+    "fn_etl_classic_query": {
+        "retries": 3,
+        "onFailure": "abortWorkflow",
+        "timeout": 7200,
+        "isAsyncComplete": False,
+    },
+    "fn_etl_sql_query": {
+        "retries": 3,
+        "onFailure": "abortWorkflow",
+        "timeout": 7200,
+        "isAsyncComplete": False,
+    },
+    "fn_etl_records_query": {
+        "retries": 3,
+        "onFailure": "abortWorkflow",
+        "timeout": 7200,
+        "isAsyncComplete": False,
+    },
     "fn_etl_raw_cleanup": {
         "retries": 3,
-        "onFailure": "skipTask",
+        "onFailure": "abortWorkflow",
         "timeout": 1800,
         "isAsyncComplete": False,
     },
     "fn_etl_file_annotation": {
         "retries": 2,
-        "onFailure": "skipTask",
+        "onFailure": "abortWorkflow",
         "timeout": 3600,
         "isAsyncComplete": True,
     },

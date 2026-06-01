@@ -6,7 +6,7 @@ from typing import Any, Dict, List, Mapping, MutableMapping
 
 from cdf_fn_common.etl_annotation_map.kuiper_templates import is_diagram_mapper_kind
 from cdf_fn_common.etl_cohort_handoff import write_entity_rows_to_cohort_sink
-from cdf_fn_common.etl_cohort_storage import require_run_id
+from cdf_fn_common.etl_cohort_storage import require_pipeline_run_key
 
 
 def cohort_rows_from_staging_props(
@@ -78,7 +78,7 @@ def materialize_json_mapping_output_to_cohort(
     if not should_materialize_cohort_after_json_mapping(cfg):
         return 0
 
-    run_id = require_run_id(data)
+    run_id = require_pipeline_run_key(data)
     scope_key = str(
         cfg.get("workflow_scope") or data.get("workflow_scope") or "file_pattern_extract"
     ).strip()

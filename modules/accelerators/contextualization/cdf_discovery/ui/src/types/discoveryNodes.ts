@@ -341,6 +341,13 @@ export type MonitorDocumentTab = {
   kind: "monitor";
   id: "monitor";
   label: string;
+  activeSection: "workflowState" | "schedules";
+};
+
+export type SettingsDocumentTab = {
+  kind: "settings";
+  id: "settings";
+  label: string;
 };
 
 export type DocumentTab =
@@ -359,7 +366,8 @@ export type DocumentTab =
   | EtlTemplateDocumentTab
   | EtlWorkflowYamlDocumentTab
   | ExtractDocumentTab
-  | MonitorDocumentTab;
+  | MonitorDocumentTab
+  | SettingsDocumentTab;
 
 /** Serializable document tab for ``discovery.local.config.yaml`` workspace persistence. */
 export type SavedWorkspaceSqlTab = {
@@ -470,6 +478,13 @@ export type SavedWorkspaceMonitorTab = {
   kind: "monitor";
   id: string;
   label?: string;
+  active_section?: "workflowState" | "schedules";
+};
+
+export type SavedWorkspaceSettingsTab = {
+  kind: "settings";
+  id: string;
+  label?: string;
 };
 
 export type SavedWorkspaceTab =
@@ -486,7 +501,8 @@ export type SavedWorkspaceTab =
   | SavedWorkspaceEtlPipelineTab
   | SavedWorkspaceEtlTemplateTab
   | SavedWorkspaceExtractTab
-  | SavedWorkspaceMonitorTab;
+  | SavedWorkspaceMonitorTab
+  | SavedWorkspaceSettingsTab;
 
 export type SavedWorkspace = {
   active_tab_id: string | null;
@@ -555,6 +571,10 @@ export function isExtractTab(tab: DocumentTab): tab is ExtractDocumentTab {
 
 export function isMonitorTab(tab: DocumentTab): tab is MonitorDocumentTab {
   return tab.kind === "monitor";
+}
+
+export function isSettingsTab(tab: DocumentTab): tab is SettingsDocumentTab {
+  return tab.kind === "settings";
 }
 
 export function openTargetKey(target: OpenTarget): string {

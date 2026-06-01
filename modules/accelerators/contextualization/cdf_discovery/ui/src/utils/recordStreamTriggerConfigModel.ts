@@ -17,20 +17,14 @@ export function readRecordStreamTriggerFromStart(cfg: Record<string, unknown>): 
     cfg.trigger_rule && typeof cfg.trigger_rule === "object" && !Array.isArray(cfg.trigger_rule)
       ? (cfg.trigger_rule as Record<string, unknown>)
       : {};
-  const streamExternalId = String(
-    cfg.stream_external_id ??
-      cfg.streamExternalId ??
-      rule.streamExternalId ??
-      rule.stream_external_id ??
-      ""
-  ).trim();
-  const batchRaw = cfg.batch_size ?? cfg.batchSize ?? rule.batchSize ?? rule.batch_size;
+  const streamExternalId = String(cfg.stream_external_id ?? rule.streamExternalId ?? "").trim();
+  const batchRaw = cfg.batch_size ?? rule.batchSize;
   let batchSize = DEFAULT_BATCH_SIZE;
   if (batchRaw !== undefined && batchRaw !== null && batchRaw !== "") {
     const n = typeof batchRaw === "number" ? batchRaw : parseInt(String(batchRaw), 10);
     if (Number.isFinite(n)) batchSize = Math.max(1, Math.min(1000, Math.floor(n)));
   }
-  const timeoutRaw = cfg.batch_timeout ?? cfg.batchTimeout ?? rule.batchTimeout ?? rule.batch_timeout;
+  const timeoutRaw = cfg.batch_timeout ?? rule.batchTimeout;
   let batchTimeout = DEFAULT_BATCH_TIMEOUT;
   if (timeoutRaw !== undefined && timeoutRaw !== null && timeoutRaw !== "") {
     const n = typeof timeoutRaw === "number" ? timeoutRaw : parseInt(String(timeoutRaw), 10);
@@ -53,11 +47,8 @@ export function mergeRecordStreamTriggerIntoStart(
     ...cfg,
     trigger_type: "recordStream",
     stream_external_id: fields.streamExternalId,
-    streamExternalId: fields.streamExternalId,
     batch_size: fields.batchSize,
-    batchSize: fields.batchSize,
     batch_timeout: fields.batchTimeout,
-    batchTimeout: fields.batchTimeout,
   };
   if (fields.filter && Object.keys(fields.filter).length) {
     next.filter = fields.filter;

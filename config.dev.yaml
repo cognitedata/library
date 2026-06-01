@@ -1,0 +1,194 @@
+environment:
+  name: dev
+  project: darren-core
+  validation-type: dev
+  selected:
+  - modules/accelerators/contextualization/cdf_discovery
+variables:
+  modules:
+    accelerators:
+      contextualization:
+        cdf_discovery:
+          function_version: 1.0.0
+          dataset: ds_discovery_etl
+          function_client_id: ${IDP_CLIENT_ID}
+          function_client_secret: ${IDP_CLIENT_SECRET}
+          auth:
+            site_a:
+              unit_01:
+                gp_asset_site_a_unit_01_extractor: 6c4c04ac-054f-4653-b888-009581985246
+                gp_timeseries_site_a_unit_01_extractor: 6c4c04ac-054f-4653-b888-009581985246
+                gp_workorder_site_a_unit_01_extractor: 6c4c04ac-054f-4653-b888-009581985246
+                gp_files_site_a_unit_01_extractor: 6c4c04ac-054f-4653-b888-009581985246
+                gp_3d_site_a_unit_01_extractor: 6c4c04ac-054f-4653-b888-009581985246
+                gp_dm_site_a_unit_01_extractor: 6c4c04ac-054f-4653-b888-009581985246
+                gp_asset_site_a_unit_01_processing: 6c4c04ac-054f-4653-b888-009581985246
+                gp_timeseries_site_a_unit_01_processing: 6c4c04ac-054f-4653-b888-009581985246
+                gp_workorder_site_a_unit_01_processing: 6c4c04ac-054f-4653-b888-009581985246
+                gp_files_site_a_unit_01_processing: 6c4c04ac-054f-4653-b888-009581985246
+                gp_3d_site_a_unit_01_processing: 6c4c04ac-054f-4653-b888-009581985246
+                gp_dm_site_a_unit_01_processing: 6c4c04ac-054f-4653-b888-009581985246
+                gp_asset_site_a_unit_01_read: 6c4c04ac-054f-4653-b888-009581985246
+                gp_timeseries_site_a_unit_01_read: 6c4c04ac-054f-4653-b888-009581985246
+                gp_workorder_site_a_unit_01_read: 6c4c04ac-054f-4653-b888-009581985246
+                gp_files_site_a_unit_01_read: 6c4c04ac-054f-4653-b888-009581985246
+                gp_3d_site_a_unit_01_read: 6c4c04ac-054f-4653-b888-009581985246
+                gp_dm_site_a_unit_01_read: 6c4c04ac-054f-4653-b888-009581985246
+              unit_02:
+                gp_asset_site_a_unit_02_extractor: 6c4c04ac-054f-4653-b888-009581985246
+                gp_timeseries_site_a_unit_02_extractor: 6c4c04ac-054f-4653-b888-009581985246
+                gp_workorder_site_a_unit_02_extractor: 6c4c04ac-054f-4653-b888-009581985246
+                gp_files_site_a_unit_02_extractor: 6c4c04ac-054f-4653-b888-009581985246
+                gp_3d_site_a_unit_02_extractor: 6c4c04ac-054f-4653-b888-009581985246
+                gp_dm_site_a_unit_02_extractor: 6c4c04ac-054f-4653-b888-009581985246
+                gp_asset_site_a_unit_02_processing: 6c4c04ac-054f-4653-b888-009581985246
+                gp_timeseries_site_a_unit_02_processing: 6c4c04ac-054f-4653-b888-009581985246
+                gp_workorder_site_a_unit_02_processing: 6c4c04ac-054f-4653-b888-009581985246
+                gp_files_site_a_unit_02_processing: 6c4c04ac-054f-4653-b888-009581985246
+                gp_3d_site_a_unit_02_processing: 6c4c04ac-054f-4653-b888-009581985246
+                gp_dm_site_a_unit_02_processing: 6c4c04ac-054f-4653-b888-009581985246
+                gp_asset_site_a_unit_02_read: 6c4c04ac-054f-4653-b888-009581985246
+                gp_timeseries_site_a_unit_02_read: 6c4c04ac-054f-4653-b888-009581985246
+                gp_workorder_site_a_unit_02_read: 6c4c04ac-054f-4653-b888-009581985246
+                gp_files_site_a_unit_02_read: 6c4c04ac-054f-4653-b888-009581985246
+                gp_3d_site_a_unit_02_read: 6c4c04ac-054f-4653-b888-009581985246
+                gp_dm_site_a_unit_02_read: 6c4c04ac-054f-4653-b888-009581985246
+            site_b:
+              gp_asset_site_b_extractor: 6c4c04ac-054f-4653-b888-009581985246
+              gp_timeseries_site_b_extractor: 6c4c04ac-054f-4653-b888-009581985246
+              gp_workorder_site_b_extractor: 6c4c04ac-054f-4653-b888-009581985246
+              gp_files_site_b_extractor: 6c4c04ac-054f-4653-b888-009581985246
+              gp_3d_site_b_extractor: 6c4c04ac-054f-4653-b888-009581985246
+              gp_dm_site_b_extractor: 6c4c04ac-054f-4653-b888-009581985246
+              gp_asset_site_b_processing: 6c4c04ac-054f-4653-b888-009581985246
+              gp_timeseries_site_b_processing: 6c4c04ac-054f-4653-b888-009581985246
+              gp_workorder_site_b_processing: 6c4c04ac-054f-4653-b888-009581985246
+              gp_files_site_b_processing: 6c4c04ac-054f-4653-b888-009581985246
+              gp_3d_site_b_processing: 6c4c04ac-054f-4653-b888-009581985246
+              gp_dm_site_b_processing: 6c4c04ac-054f-4653-b888-009581985246
+              gp_asset_site_b_read: 6c4c04ac-054f-4653-b888-009581985246
+              gp_timeseries_site_b_read: 6c4c04ac-054f-4653-b888-009581985246
+              gp_workorder_site_b_read: 6c4c04ac-054f-4653-b888-009581985246
+              gp_files_site_b_read: 6c4c04ac-054f-4653-b888-009581985246
+              gp_3d_site_b_read: 6c4c04ac-054f-4653-b888-009581985246
+              gp_dm_site_b_read: 6c4c04ac-054f-4653-b888-009581985246
+groups:
+  global:
+    source_ids: {}
+governance_ui:
+  mirror_config_paths: []
+scope_hierarchy:
+  type: hierarchy
+  levels:
+  - site
+  - unit
+  - area
+  - system
+  locations:
+  - id: SITE_A
+    name: Site A
+    description: ''
+    locations:
+    - id: UNIT_01
+      name: 'Site A: Unit 01'
+      description: ''
+      locations: []
+    - id: UNIT_02
+      name: 'Site A: Unit 2'
+      description: ''
+      locations: []
+  - id: SITE_B
+    name: Site B
+    description: ''
+    locations: []
+dimensions:
+  data_type:
+    order: 0
+    naming_element: data_type
+    type: list
+    name: Data type
+    items:
+    - id: asset
+      name: Asset
+    - id: timeseries
+      name: Time series
+    - id: workorder
+      name: Work order
+    - id: files
+      name: Files
+    - id: 3d
+      name: 3D
+    - id: dm
+      name: Data model
+  source:
+    order: 1
+    naming_element: source
+    type: list
+    name: Source system
+    items:
+    - id: sap
+      name: SAP
+    - id: workmate
+      name: Workmate
+    - id: aveva
+      name: Aveva
+    - id: pi
+      name: PI
+    - id: fileshare
+      name: Fileshare
+    - id: sharepoint
+      name: SharePoint
+  pipeline_type:
+    order: 3
+    naming_element: pipeline_type
+    type: list
+    name: Pipeline type
+    items:
+    - id: src
+      name: Source data (src)
+    - id: ctx
+      name: Contextualization (ctx)
+    - id: uc
+      name: Use case (uc)
+  operation_type:
+    order: 4
+    naming_element: operation_type
+    type: list
+    name: Operation type
+    items:
+    - id: extract
+      name: Extract
+    - id: transform
+      name: Transform
+    - id: load
+      name: Load
+    - id: annotation
+      name: Annotation
+    - id: asset_hierarchy
+      name: Asset hierarchy
+    - id: metadata
+      name: Metadata
+    - id: sync
+      name: Sync
+  access_type:
+    order: 2
+    naming_element: access_type
+    type: list
+    name: Access type
+    items:
+    - id: extractor
+      name: Extractor
+    - id: processing
+      name: Processing
+    - id: read
+      name: Read
+spaces:
+  template: templates/spaces/default.Space.template.yaml
+  output_dir: spaces
+  nodes: leaves
+  instance_space_id_template: inst_{{ data_type_id }}_{{ source_system_id }}_{{ scope_id_snake
+    }}
+  name_template: '{{ data_type }}:{{ source_system_id }}:{{ scope_id_snake }}'
+  combine_with:
+  - source
+  - data_type

@@ -1,0 +1,4 @@
+{
+  "errorMessage": "\ufeff<?xml version=\"1.0\" encoding=\"utf-8\"?><Error><Code>UnsupportedHeader</Code><Message>One of the HTTP headers specified in the request is not supported.\nRequestId:257e1e9c-101e-002d-1cd3-ee7bce000000\nTime:2026-05-28T18:55:25.2931186Z</Message><HeaderName>Transfer-Encoding</HeaderName></Error>",
+  "statusCode": 400
+}

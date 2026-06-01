@@ -12,6 +12,23 @@ from cdf_fn_common.etl_discovery_query_shared import (
 )
 from cdf_fn_common.etl_predecessor_mode import use_in_memory_predecessors
 from cdf_fn_common.etl_raw_upload import RawRowsUploadQueue
+from cdf_fn_common.etl_ui_progress import (
+    COHORT_WRITE_ROW_INTERVAL,
+    emit_cohort_write_progress_complete,
+    emit_cohort_write_progress_every_n_rows,
+    set_cohort_write_progress_total,
+)
+
+
+def _count_entity_cohort_source_rows(rows: List[Dict[str, Any]]) -> int:
+    n = 0
+    for item in rows:
+        if not isinstance(item, dict):
+            continue
+        cols = item.get("columns") if isinstance(item.get("columns"), dict) else {}
+        if str(cols.get("node_instance_id") or "").strip():
+            n += 1
+    return n
 
 
 def write_entity_rows_to_cohort_sink(
@@ -38,6 +55,7 @@ def write_entity_rows_to_cohort_sink(
     pending: List[Dict[str, Any]] = []
     n_written = 0
     value_field = str((data.get("config") or {}).get("value_field") or "aliases")
+    set_cohort_write_progress_total(_count_entity_cohort_source_rows(rows))
 
     for item in rows:
         if not isinstance(item, dict):
@@ -65,10 +83,12 @@ def write_entity_rows_to_cohort_sink(
             )
         )
         n_written += 1
-        if len(pending) >= 500:
+        if len(pending) >= COHORT_WRITE_ROW_INTERVAL:
             _flush_rows(queue, raw_db, raw_table, pending, client=client)
+            emit_cohort_write_progress_every_n_rows(n_written)
 
     _flush_rows(queue, raw_db, raw_table, pending, client=client)
+    emit_cohort_write_progress_complete(n_written)
     if log and hasattr(log, "info"):
         log.info(
             "cohort handoff task=%s wrote=%s sink=%s/%s",

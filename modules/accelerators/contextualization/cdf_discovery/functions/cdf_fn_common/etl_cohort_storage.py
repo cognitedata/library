@@ -41,12 +41,18 @@ def _first_nonempty(*values: Any) -> str:
         if s:
             return s
     return ""
+
+
+def require_pipeline_run_key(data: Mapping[str, Any]) -> str:
+    """Return deterministic pipeline run key or raise."""
+    from cdf_fn_common.etl_common import require_pipeline_run_key as _require_pipeline_run_key
+
+    return _require_pipeline_run_key(data)
+
+
 def require_run_id(data: Mapping[str, Any]) -> str:
-    """Return pipeline ``run_id`` from task data or raise."""
-    rid = _first_nonempty(data.get("run_id"))
-    if not rid:
-        raise ValueError("cohort handoff requires non-empty data.run_id")
-    return rid
+    """Deprecated alias: use require_pipeline_run_key()."""
+    return require_pipeline_run_key(data)
 
 
 def _sanitize_table_segment(value: str, *, label: str) -> str:
@@ -137,6 +143,24 @@ def canvas_node_id_for_task(data: Mapping[str, Any], task_id: str) -> str:
     return sanitize_canvas_node_id_for_table(str(task_id))
 
 
+def predecessor_task_ids(data: Mapping[str, Any], task_id: str) -> List[str]:
+    """Compiled task ids for direct ``depends_on`` predecessors of *task_id*."""
+    cw = data.get("compiled_workflow")
+    task = find_compiled_task(cw, task_id=str(task_id)) if cw else None
+    deps = task.get("depends_on") if isinstance(task, dict) else []
+    if not isinstance(deps, list):
+        return []
+    out: List[str] = []
+    seen: set[str] = set()
+    for dep in deps:
+        ds = str(dep).strip()
+        if not ds or ds in seen:
+            continue
+        seen.add(ds)
+        out.append(ds)
+    return out
+
+
 def predecessor_canvas_node_ids(data: Mapping[str, Any], task_id: str) -> List[str]:
     """Canvas node ids for direct ``depends_on`` predecessors of *task_id*."""
     cw = data.get("compiled_workflow")
@@ -152,10 +176,28 @@ def predecessor_canvas_node_ids(data: Mapping[str, Any], task_id: str) -> List[s
             continue
         pred = find_compiled_task(cw, task_id=ds) if cw else None
         if not isinstance(pred, dict):
-            continue
-        cn = _first_nonempty(pred.get("canvas_node_id"), pred.get("pipeline_node_id"))
+            cn = sanitize_canvas_node_id_for_table(ds)
+        else:
+            cn = _first_nonempty(pred.get("canvas_node_id"), pred.get("pipeline_node_id"))
         if not cn:
             cn = sanitize_canvas_node_id_for_table(ds)
+        if cn in seen:
+            continue
+        seen.add(cn)
+        out.append(cn)
+    if out:
+        return out
+    explicit = data.get("predecessors")
+    if not isinstance(explicit, list):
+        return out
+    for dep in explicit:
+        if isinstance(dep, dict):
+            cn = _first_nonempty(dep.get("canvas_node_id"), dep.get("task_id"), dep.get("id"))
+        else:
+            cn = str(dep).strip()
+        if not cn:
+            continue
+        cn = sanitize_canvas_node_id_for_table(cn)
         if cn in seen:
             continue
         seen.add(cn)
@@ -208,7 +250,7 @@ def resolve_incremental_state_sink(data: Mapping[str, Any]) -> Tuple[str, str]:
 
 def resolve_node_cohort_sink(data: Mapping[str, Any], task_id: str) -> Tuple[str, str]:
     """``(raw_db, node_cohort_table)`` for the writer canvas node of *task_id*."""
-    run_id = require_run_id(data)
+    run_id = require_pipeline_run_key(data)
     raw_db, base_table = resolve_base_cohort_table(data)
     writer = canvas_node_id_for_task(data, task_id)
     return raw_db, node_cohort_table_name(base_table, run_id, writer)
@@ -218,7 +260,7 @@ def predecessor_node_table_locations(
     data: Mapping[str, Any], task_id: str
 ) -> List[Tuple[str, str]]:
     """``(raw_db, table)`` for each direct predecessor canvas node."""
-    run_id = require_run_id(data)
+    run_id = require_pipeline_run_key(data)
     raw_db, base_table = resolve_base_cohort_table(data)
     out: List[Tuple[str, str]] = []
     for cn in predecessor_canvas_node_ids(data, task_id):

@@ -13,6 +13,70 @@ import {
   emptyGovernanceDocument,
 } from "../../types/governanceConfig";
 
+const GROUP_VARIABLE_PREFIX = "gp_";
+const TOOLKIT_MODULE_PATH = ["cdf_discovery"] as const;
+
+function isObjectRecord(v: unknown): v is Record<string, unknown> {
+  return typeof v === "object" && v !== null;
+}
+
+function readPathRecord(root: Record<string, unknown>, path: readonly string[]): Record<string, unknown> | null {
+  let cur: Record<string, unknown> = root;
+  for (const part of path) {
+    const nxt = cur[part];
+    if (!isObjectRecord(nxt)) return null;
+    cur = nxt;
+  }
+  return cur;
+}
+
+function ensurePathRecord(root: Record<string, unknown>, path: readonly string[]): Record<string, unknown> {
+  let cur: Record<string, unknown> = root;
+  for (const part of path) {
+    const nxt = cur[part];
+    if (isObjectRecord(nxt)) {
+      cur = nxt;
+      continue;
+    }
+    const created: Record<string, unknown> = {};
+    cur[part] = created;
+    cur = created;
+  }
+  return cur;
+}
+
+function sourceIdsFromConfigVariables(data: GovernanceDocument): Record<string, string> | null {
+  if (!isObjectRecord(data.environment) || !isObjectRecord(data.variables)) {
+    return null;
+  }
+  const moduleVars = readPathRecord(data.variables, ["modules", ...TOOLKIT_MODULE_PATH]);
+  if (!moduleVars) {
+    return null;
+  }
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(moduleVars)) {
+    if (!k.startsWith(GROUP_VARIABLE_PREFIX)) continue;
+    out[k] = typeof v === "string" ? v : "";
+  }
+  return out;
+}
+
+function mergeGroupSourceIdsIntoVariables(data: GovernanceDocument): GovernanceDocument {
+  if (!isObjectRecord(data.environment)) {
+    return data;
+  }
+  const next: GovernanceDocument = { ...data };
+  const variables: Record<string, unknown> = isObjectRecord(next.variables) ? { ...next.variables } : {};
+  const moduleVars = ensurePathRecord(variables, ["modules", ...TOOLKIT_MODULE_PATH]);
+  const sourceIds = next.groups?.global?.source_ids ?? {};
+  for (const [name, sourceId] of Object.entries(sourceIds)) {
+    if (!name.startsWith(GROUP_VARIABLE_PREFIX)) continue;
+    moduleVars[name] = typeof sourceId === "string" ? sourceId : "";
+  }
+  next.variables = variables;
+  return next;
+}
+
 export function useGovernanceDoc() {
   const [doc, setDoc] = useState<GovernanceDocument>(() => emptyGovernanceDocument());
   const [savedSnapshot, setSavedSnapshot] = useState("");
@@ -31,6 +95,7 @@ export function useGovernanceDoc() {
       const data = await fetchGovernanceModel();
       if (gen !== loadGen.current) return;
       const defaults = emptyGovernanceDocument();
+      const groupSourceIdsFromVariables = sourceIdsFromConfigVariables(data);
       const merged: GovernanceDocument = {
         ...defaults,
         ...data,
@@ -52,6 +117,11 @@ export function useGovernanceDoc() {
         groups: {
           ...defaults.groups,
           ...data.groups,
+          global: {
+            ...(defaults.groups?.global ?? {}),
+            ...(data.groups?.global ?? {}),
+            source_ids: groupSourceIdsFromVariables ?? data.groups?.global?.source_ids ?? {},
+          },
           nodes: data.groups?.nodes ?? defaults.groups?.nodes ?? "leaves",
           name_template:
             data.groups?.name_template ??
@@ -81,8 +151,10 @@ export function useGovernanceDoc() {
     setSaving(true);
     setError(null);
     try {
-      await saveGovernanceModel(doc);
-      setSavedSnapshot(JSON.stringify(doc));
+      const next = mergeGroupSourceIdsIntoVariables(doc);
+      await saveGovernanceModel(next);
+      setDoc(next);
+      setSavedSnapshot(JSON.stringify(next));
     } catch (e) {
       setError(String(e));
       throw e;

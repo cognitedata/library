@@ -7,11 +7,11 @@ export type RecordsQueryValidation = {
 };
 
 export function readStreamExternalId(cfg: Record<string, unknown>): string {
-  return String(cfg.stream_external_id ?? cfg.streamExternalId ?? "").trim();
+  return String(cfg.stream_external_id ?? "").trim();
 }
 
 export function readReadMode(cfg: Record<string, unknown>): "sync" | "filter" {
-  const raw = String(cfg.read_mode ?? cfg.sync_mode ?? "sync").trim().toLowerCase();
+  const raw = String(cfg.read_mode ?? "sync").trim().toLowerCase();
   return raw === "filter" ? "filter" : "sync";
 }
 

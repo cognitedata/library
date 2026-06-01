@@ -14,7 +14,7 @@ from cdf_fn_common.etl_common import (
     _as_dict,
     _first_nonempty,
     merge_compiled_task_into_data,
-    resolve_run_id,
+    require_pipeline_run_key,
     resolve_task_config,
 )
 from cdf_fn_common.etl_raw_purge import run_etl_raw_cleanup_action
@@ -28,7 +28,7 @@ def etl_handle_raw_cleanup(
     log: Any,
 ) -> Dict[str, Any]:
     merge_compiled_task_into_data(data)
-    run_id = resolve_run_id(data)
+    run_id = require_pipeline_run_key(data)
     data["run_id"] = run_id
     task_id = _first_nonempty(data.get("task_id"), fn_external_id)
     cfg = resolve_task_config(data)

@@ -6,6 +6,14 @@ import copy
 from typing import Any, Dict, Mapping, MutableMapping
 
 
+def _as_bool(value: Any) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.strip().lower() not in {"", "false", "0", "no", "off"}
+    return bool(value)
+
+
 def _strip_positions_from_node(n: MutableMapping[str, Any]) -> None:
     n.pop("position", None)
     n.pop("selected", None)
@@ -49,10 +57,12 @@ def build_trigger_input(
 
     canvas = workflow_document.get("canvas") if isinstance(workflow_document.get("canvas"), dict) else {}
     trigger_cfg = read_start_trigger_config(canvas, default_cron=default_cron)
+    incremental_change_processing = trigger_cfg.get("incremental_change_processing", True)
+    configuration = extract_trigger_configuration(workflow_document)
+    params = configuration.get("parameters")
+    if isinstance(params, dict):
+        params["incremental_change_processing"] = _as_bool(incremental_change_processing)
     return {
-        "incremental_change_processing": bool(
-            trigger_cfg.get("incremental_change_processing", True)
-        ),
-        "run_id": str(trigger_cfg.get("run_id") or ""),
-        "configuration": extract_trigger_configuration(workflow_document),
+        "incremental_change_processing": _as_bool(incremental_change_processing),
+        "configuration": configuration,
     }

@@ -31,6 +31,7 @@ def test_merge_governance_preserves_other_keys():
     assert out["extra"] == 2
     assert out["dimensions"] == {"b": 2}
     assert out["groups"]["global"]["source_ids"] == {}
+    assert "sourceId" not in out["groups"]["global"]
 
 
 def test_mirror_writes_multiple_files(tmp_path):

@@ -201,6 +201,7 @@ export type TransformPipelineParameters = {
   incremental?: boolean;
   incremental_change_processing?: boolean;
   incremental_skip_unchanged?: boolean;
+  max_records_per_run?: number;
   raw_db?: string;
   raw_table_key?: string;
   /** Stable RAW table for canvas preview node snapshots (excluded from cohort cleanup). */
@@ -209,6 +210,8 @@ export type TransformPipelineParameters = {
   etl_state_instance_space?: string | null;
   [key: string]: unknown;
 };
+
+export type TransformWorkflowParameters = TransformPipelineParameters;
 
 export type TransformPipelineDocument = {
   schemaVersion: number;
@@ -220,6 +223,8 @@ export type TransformPipelineDocument = {
   sources?: unknown[];
   canvas: TransformCanvasDocument;
 };
+
+export type TransformWorkflowDocument = TransformPipelineDocument;
 
 export function defaultStartNodeData(): TransformCanvasNodeData {
   return {

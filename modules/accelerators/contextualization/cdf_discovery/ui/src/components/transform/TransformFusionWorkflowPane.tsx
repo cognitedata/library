@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { fetchTransformPipelineByWorkflow } from "../../api";
+import { fetchTransformWorkflowByWorkflow } from "../../api";
 import { useAppSettings } from "../../context/AppSettingsContext";
 import type { WorkflowDocumentTab } from "../../types/discoveryNodes";
 import {
@@ -53,7 +53,7 @@ export function TransformFusionWorkflowPane({
 }: Props) {
   const { t } = useAppSettings();
   const [canvas, setCanvas] = useState<TransformCanvasDocument>(emptyTransformCanvasDocument());
-  const [pipelineId, setPipelineId] = useState<string | null>(null);
+  const [workflowId, setWorkflowId] = useState<string | null>(null);
   const [reloadNonce, setReloadNonce] = useState(0);
   const [resolved, setResolved] = useState(false);
   const [useCdfGraphFallback, setUseCdfGraphFallback] = useState(false);
@@ -74,19 +74,19 @@ export function TransformFusionWorkflowPane({
       setResolved(false);
       setUseCdfGraphFallback(false);
       setCanvas(emptyTransformCanvasDocument());
-      setPipelineId(null);
+      setWorkflowId(null);
       try {
-        const { pipeline_id, pipeline } = await fetchTransformPipelineByWorkflow(workflowExternalId);
+        const { workflow_id, workflow } = await fetchTransformWorkflowByWorkflow(workflowExternalId);
         if (cancelled || gen !== loadGen.current || tabRef.current.id !== expectedTabId) return;
-        const nextCanvas = pipeline.canvas ?? emptyTransformCanvasDocument();
-        setPipelineId(pipeline_id);
+        const nextCanvas = workflow.canvas ?? emptyTransformCanvasDocument();
+        setWorkflowId(workflow_id);
         setCanvas(nextCanvas);
         setReloadNonce((n) => n + 1);
         setResolved(true);
         onTabUpdateRef.current({ ...tabRef.current, loading: false, error: null });
       } catch {
         if (cancelled || gen !== loadGen.current || tabRef.current.id !== expectedTabId) return;
-        setPipelineId(null);
+        setWorkflowId(null);
         setUseCdfGraphFallback(true);
         setResolved(true);
         // Keep loading true so WorkflowFlowPane fetches the deployed CDF task graph.
@@ -142,7 +142,7 @@ export function TransformFusionWorkflowPane({
       />
       <TransformFlowPanel
         t={t}
-        pipelineId={pipelineId ?? undefined}
+        pipelineId={workflowId ?? undefined}
         initialDocument={canvas}
         reloadNonce={reloadNonce}
         readOnly

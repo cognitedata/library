@@ -199,10 +199,6 @@ export function readTransformHandlerBlock(
   if (nested && typeof nested === "object" && !Array.isArray(nested)) {
     return { ...(nested as Record<string, unknown>) };
   }
-  const legacy = cfg.config;
-  if (legacy && typeof legacy === "object" && !Array.isArray(legacy)) {
-    return { ...(legacy as Record<string, unknown>) };
-  }
   return {};
 }
 

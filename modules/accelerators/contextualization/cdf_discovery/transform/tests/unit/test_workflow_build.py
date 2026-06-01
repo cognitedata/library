@@ -18,7 +18,10 @@ from workflow_build.orchestrate import run_build  # noqa: E402
 from workflow_build.sources import load_template, template_document_for_build  # noqa: E402
 from workflow_build.targets import ScopedWorkflowTarget  # noqa: E402
 from workflow_build.workflow_document_limits import assert_workflow_document_within_limit  # noqa: E402
-from workflow_build.workflow_document_trim import trim_workflow_document_for_deploy  # noqa: E402
+from workflow_build.workflow_document_trim import (  # noqa: E402
+    build_trigger_input,
+    trim_workflow_document_for_deploy,
+)
 
 
 def test_build_workflow_instance_dry_run(tmp_path: Path) -> None:
@@ -97,8 +100,8 @@ def test_build_workflow_instance_dry_run(tmp_path: Path) -> None:
     )
     assert trig["triggerRule"]["cronExpression"] == "30 4 * * *"
     assert trig["workflowVersion"] == "2"
-    assert trig["workflowExternalId"] == "wf_all_etl_test"
-    assert trig["externalId"] == "trg_wf_all_etl_test"
+    assert trig["workflowExternalId"] == "wf_etl_test_inst"
+    assert trig["externalId"] == "trg_wf_etl_test_inst"
 
 
 def _minimal_canvas() -> dict:
@@ -161,11 +164,11 @@ def test_build_template_workflow_base(tmp_path: Path) -> None:
     trig = yaml.safe_load(
         (tmp_path / "workflows" / "etl_my_tpl.WorkflowTrigger.yaml").read_text(encoding="utf-8")
     )
-    assert trig["workflowExternalId"] == "wf_all_etl_my_tpl"
+    assert trig["workflowExternalId"] == "wf_etl_my_tpl"
 
 
 def test_resolve_workflow_base_for_build_template_defaults_per_id() -> None:
-    config = {"workflow": "wf_all_etl_global"}
+    config = {}
     assert (
         resolve_workflow_base_for_build(
             source_kind="template",
@@ -173,7 +176,7 @@ def test_resolve_workflow_base_for_build_template_defaults_per_id() -> None:
             workflow_id="aliasing_template",
             canvas={},
         )
-        == "wf_all_etl_aliasing_template"
+        == "wf_etl_aliasing_template"
     )
     assert (
         resolve_workflow_base_for_build(
@@ -182,7 +185,7 @@ def test_resolve_workflow_base_for_build_template_defaults_per_id() -> None:
             workflow_id="aliasing_template",
             canvas={},
         )
-        == "wf_all_etl_global"
+        == "wf_etl_aliasing_template"
     )
 
 
@@ -191,3 +194,41 @@ def test_trim_and_limit_small_doc() -> None:
     trimmed = trim_workflow_document_for_deploy(doc)
     assert "position" not in trimmed["canvas"]["nodes"][0]
     assert_workflow_document_within_limit(trimmed, workflow_id="x")
+
+
+def test_build_trigger_input_prefers_start_node_incremental_flag() -> None:
+    doc = {
+        "schemaVersion": 1,
+        "id": "wf_test",
+        "parameters": {"incremental_change_processing": False},
+        "canvas": {
+            "nodes": [
+                {
+                    "id": "start",
+                    "kind": "start",
+                    "data": {
+                        "config": {
+                            "trigger_type": "schedule",
+                            "cron_expression": "0 2 * * *",
+                            "incremental_change_processing": True,
+                        }
+                    },
+                }
+            ]
+        },
+    }
+    trigger_input = build_trigger_input(doc)
+    assert trigger_input["incremental_change_processing"] is True
+    assert trigger_input["configuration"]["parameters"]["incremental_change_processing"] is True
+
+
+def test_build_trigger_input_defaults_true_without_start_node_value() -> None:
+    doc = {
+        "schemaVersion": 1,
+        "id": "wf_test",
+        "parameters": {"incremental_change_processing": "false"},
+        "canvas": {"nodes": []},
+    }
+    trigger_input = build_trigger_input(doc)
+    assert trigger_input["incremental_change_processing"] is True
+    assert trigger_input["configuration"]["parameters"]["incremental_change_processing"] is True

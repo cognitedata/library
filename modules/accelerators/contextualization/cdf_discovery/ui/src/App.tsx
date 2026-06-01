@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  deleteTransformPipeline,
+  deleteTransformWorkflow,
   deleteTransformTemplate,
   fetchConnection,
-  fetchTransformPipelineByWorkflow,
-  importTransformPipelineFromWorkflow,
+  fetchTransformWorkflowByWorkflow,
+  importTransformWorkflowFromWorkflow,
   type ConnectionInfo,
 } from "./api";
 import { DocumentTabBar } from "./components/DocumentTabBar";
@@ -41,6 +41,8 @@ import { GovernanceCdfGroupPane } from "./components/governance/GovernanceCdfGro
 import { CreateGovernanceArtifactDialog } from "./components/governance/CreateGovernanceArtifactDialog";
 import { CogniteLogo } from "./components/CogniteLogo";
 import { ComingSoonPane } from "./components/ComingSoonPane";
+import { WorkflowStateDashboardPane } from "./components/monitor/WorkflowStateDashboardPane";
+import { SettingsPane } from "./components/settings/SettingsPane";
 import { useAppSettings } from "./context/AppSettingsContext";
 import { useDiscoveryConfig } from "./context/DiscoveryConfigContext";
 import { openTargetFromSqlTabId } from "./utils/workspacePersistence";
@@ -63,6 +65,7 @@ import {
   isEtlWorkflowYamlTab,
   isExtractTab,
   isMonitorTab,
+  isSettingsTab,
   type DataModelDocumentTab,
   type GovernanceSubTab,
   type GovernanceSpacesDocumentTab,
@@ -114,7 +117,7 @@ import {
   sqlQueryForPreviewNode,
 } from "./utils/nodePreviewQuery";
 import { sqlTabKeyForOpenTarget } from "./utils/sqlTabs";
-import type { TransformPipelineParameters } from "./types/transformCanvas";
+import type { TransformWorkflowParameters } from "./types/transformCanvas";
 import { fileContentRefFromRow } from "./utils/queryableFileFromRow";
 import { downloadCdfFileWithConfirm } from "./utils/downloadCdfFile";
 import {
@@ -146,7 +149,13 @@ import {
   type TransformTabRunSessionPatch,
   withTransformTabRunSession,
 } from "./types/transformTabRun";
-import { createExtractTab, createMonitorTab, opensExtractTab, opensMonitorTab } from "./utils/workspaceTabs";
+import {
+  createExtractTab,
+  createMonitorTab,
+  createSettingsTab,
+  opensExtractTab,
+  opensMonitorTab,
+} from "./utils/workspaceTabs";
 import { opensGovernanceCdfDetailTab, opensGovernanceTab } from "./utils/governanceTabs";
 import type { GovernanceArtifactCreateContext } from "./utils/governanceTreeNew";
 import { restoreWorkspaceTabs, serializeWorkspace } from "./utils/workspacePersistence";
@@ -222,15 +231,15 @@ export function App() {
       setOpenInTransformError(null);
       setOpenInTransformBusyId(wfId);
       try {
-        const result = await importTransformPipelineFromWorkflow({
+        const result = await importTransformWorkflowFromWorkflow({
           workflow_external_id: wfId,
           version: ref.version,
         });
         const scopeSuffix = result.scope_suffix?.trim() ?? "";
         const label =
-          (typeof result.pipeline.label === "string" && result.pipeline.label.trim()) ||
-          result.pipeline_id;
-        openCreatedPipeline(result.pipeline_id, label, scopeSuffix);
+          (typeof result.workflow.label === "string" && result.workflow.label.trim()) ||
+          result.workflow_id;
+        openCreatedPipeline(result.workflow_id, label, scopeSuffix);
         setRowDetail(null);
       } catch (e) {
         setOpenInTransformError(String(e));
@@ -276,6 +285,21 @@ export function App() {
       }
       const tab = createSqlTab({ id: SQL_WORKSPACE_TAB_ID, label: t("sql.title") });
       setActiveTabId(tab.id);
+      return [...prev, tab];
+    });
+    setRowDetail(null);
+  }, [t]);
+
+  const openSettingsTab = useCallback(() => {
+    const id = "settings";
+    setTabs((prev) => {
+      const existing = prev.find((tab) => tab.id === id);
+      if (existing) {
+        setActiveTabId(id);
+        return prev;
+      }
+      const tab = createSettingsTab(t("settings.title"));
+      setActiveTabId(id);
       return [...prev, tab];
     });
     setRowDetail(null);
@@ -406,7 +430,7 @@ export function App() {
         return;
       }
       try {
-        await deleteTransformPipeline(pipelineId);
+        await deleteTransformWorkflow(pipelineId);
       } catch (e) {
         window.alert(`${t("transform.pipelines.deleteFailed")}: ${String(e)}`);
         return;
@@ -459,6 +483,10 @@ export function App() {
     },
     [t]
   );
+
+  const bumpTransformPipelinesTree = useCallback(() => {
+    setTransformPipelinesRevision((n) => n + 1);
+  }, []);
 
   const applyPipelineRename = useCallback((pipelineId: string, newLabel: string) => {
     setTransformPipelinesRevision((n) => n + 1);
@@ -531,7 +559,7 @@ export function App() {
     (
       pipelineId: string,
       previewNodeId: string,
-      parameters: TransformPipelineParameters | null | undefined,
+      parameters: TransformWorkflowParameters | null | undefined,
       previewNodeConfig: Record<string, unknown> | null | undefined,
       runId: string | null | undefined
     ) => {
@@ -677,11 +705,11 @@ export function App() {
         if (!ref) return;
         void (async () => {
           try {
-            const found = await fetchTransformPipelineByWorkflow(ref.external_id);
+            const found = await fetchTransformWorkflowByWorkflow(ref.external_id);
             const scopeSuffix = normalizePipelineScopeSuffix(found.scope_suffix);
-            const pipelineId = found.pipeline_id;
+            const pipelineId = found.workflow_id;
             const label =
-              (typeof found.pipeline.label === "string" && found.pipeline.label.trim()) ||
+              (typeof found.workflow.label === "string" && found.workflow.label.trim()) ||
               pipelineId;
             const id = etlPipelineTabKey(pipelineId, scopeSuffix);
             setTabs((prev) => {
@@ -1196,13 +1224,16 @@ export function App() {
           onTabUpdate={updateEtlDocumentTab}
           onRunSessionPatch={patchEtlTabRunSession}
           onCopyCreated={onTransformCopyCreated}
+          onBuildComplete={(result) => {
+            if (result.ok) bumpTransformPipelinesTree();
+          }}
           onDelete={() => void deletePipeline(tab.pipelineId, tab.label)}
           onRename={() => openRenamePipeline(tab.pipelineId, tab.label)}
           onOpenNodePreviewQuery={(node) =>
             openNodePreviewQuery(
               tab.pipelineId,
               node.id,
-              tab.document?.parameters as TransformPipelineParameters | null | undefined,
+              tab.document?.parameters as TransformWorkflowParameters | null | undefined,
               (node.data as { config?: Record<string, unknown> } | undefined)?.config,
               tab.runSession?.lastRun?.run_id
             )
@@ -1219,13 +1250,16 @@ export function App() {
           onTabUpdate={updateEtlDocumentTab}
           onRunSessionPatch={patchEtlTabRunSession}
           onCopyCreated={onTransformCopyCreated}
+          onBuildComplete={(result) => {
+            if (result.ok) bumpTransformPipelinesTree();
+          }}
           onDelete={() => void deleteTemplate(tab.templateId, tab.label)}
           onRename={() => openRenameTemplate(tab.templateId, tab.label)}
           onOpenNodePreviewQuery={(node) =>
             openNodePreviewQuery(
               tab.templateId,
               node.id,
-              tab.document?.parameters as TransformPipelineParameters | null | undefined,
+              tab.document?.parameters as TransformWorkflowParameters | null | undefined,
               (node.data as { config?: Record<string, unknown> } | undefined)?.config,
               tab.runSession?.lastRun?.run_id
             )
@@ -1248,7 +1282,21 @@ export function App() {
       return <ComingSoonPane workspace="extract" />;
     }
     if (isMonitorTab(tab)) {
-      return <ComingSoonPane workspace="monitor" />;
+      return (
+        <WorkflowStateDashboardPane
+          activeSection={tab.activeSection}
+          onActiveSectionChange={(next) =>
+            setTabs((prev) =>
+              prev.map((row) =>
+                row.id === tab.id && isMonitorTab(row) ? { ...row, activeSection: next } : row
+              )
+            )
+          }
+        />
+      );
+    }
+    if (isSettingsTab(tab)) {
+      return <SettingsPane />;
     }
     if (isRecordsStreamTab(tab)) {
       return (
@@ -1548,13 +1596,24 @@ export function App() {
           </label>
           <label className="disc-toolbar__control" title={t("controls.language.tooltip")}>
             <span className="disc-toolbar__control-label">{t("controls.language")}</span>
-            <select value={locale} onChange={(e) => setLocale(e.target.value as typeof locale)}>
-              {LOCALES.map(({ code, label }) => (
-                <option key={code} value={code}>
-                  {label}
-                </option>
-              ))}
-            </select>
+            <span className="disc-toolbar__locale-settings">
+              <select value={locale} onChange={(e) => setLocale(e.target.value as typeof locale)}>
+                {LOCALES.map(({ code, label }) => (
+                  <option key={code} value={code}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                className="disc-btn disc-toolbar__settings-btn"
+                title={t("controls.settings.tooltip")}
+                aria-label={t("controls.settings")}
+                onClick={openSettingsTab}
+              >
+                ⚙
+              </button>
+            </span>
           </label>
         </div>
       </header>

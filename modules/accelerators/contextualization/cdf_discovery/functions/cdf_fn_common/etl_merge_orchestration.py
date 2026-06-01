@@ -9,9 +9,9 @@ from cdf_fn_common.etl_cohort_storage import (
     canvas_node_id_for_task,
     iter_cohort_entity_rows,
     predecessor_node_table_locations,
-    require_run_id,
+    require_pipeline_run_key,
 )
-from cdf_fn_common.etl_common import _first_nonempty, iter_predecessor_rows
+from cdf_fn_common.etl_common import _first_nonempty, iter_predecessor_rows, require_pipeline_run_key
 from cdf_fn_common.etl_discovery_cohort import (
     _cohort_row_from_columns,
     _props_from_row_columns,
@@ -32,6 +32,12 @@ from cdf_fn_common.etl_incremental_scope import (
 from cdf_fn_common.etl_predecessor_mode import use_in_memory_predecessors
 from cdf_fn_common.etl_property_merge import build_merged_props_for_instance, parse_field_policies
 from cdf_fn_common.etl_raw_upload import RawRowsUploadQueue
+from cdf_fn_common.etl_ui_progress import (
+    COHORT_WRITE_ROW_INTERVAL,
+    emit_cohort_write_progress_complete,
+    emit_cohort_write_progress_every_n_rows,
+    set_cohort_write_progress_total,
+)
 from cdf_fn_common.etl_save_merge import filter_props_internal, score_cohort_row
 from cdf_fn_common.etl_task_runtime import merge_compiled_task_into_data
 
@@ -147,7 +153,7 @@ def etl_handle_merge_cohort(
     if client is None:
         raise ValueError("cohort merge requires a CDF client")
 
-    run_id = require_run_id(data)
+    run_id = require_pipeline_run_key(data)
     data["run_id"] = run_id
     writer_canvas = canvas_node_id_for_task(data, task_id)
     sink_db, sink_table = resolve_query_sink(data)
@@ -155,6 +161,7 @@ def etl_handle_merge_cohort(
 
     all_rows = _iter_entity_rows_for_merge(client, data, task_id)
     grouped = _group_scored_rows(all_rows, cfg=cfg, data=data)
+    set_cohort_write_progress_total(len(grouped))
 
     queue = RawRowsUploadQueue(client)
     pending: List[Dict[str, Any]] = []
@@ -182,10 +189,13 @@ def etl_handle_merge_cohort(
             )
         )
         rows_written += 1
-        if len(pending) >= 500:
+        emit_cohort_write_progress_every_n_rows(rows_written)
+        if len(pending) >= COHORT_WRITE_ROW_INTERVAL:
             _flush_rows(queue, sink_db, sink_table, pending, client=client)
 
     _flush_rows(queue, sink_db, sink_table, pending, client=client)
+    set_cohort_write_progress_total(rows_written)
+    emit_cohort_write_progress_complete(rows_written)
     pred_locations = iter_predecessor_raw_locations(data, task_id)
 
     if log and hasattr(log, "info"):
@@ -236,9 +246,7 @@ def etl_handle_merge(
         }
 
     task_id = _first_nonempty(data.get("task_id"), fn_external_id)
-    from cdf_fn_common.etl_common import resolve_run_id
-
-    run_id = resolve_run_id(data)
+    run_id = require_pipeline_run_key(data)
     data["run_id"] = run_id
 
     if use_in_memory_predecessors(data, cfg):

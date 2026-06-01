@@ -494,6 +494,48 @@ def load_latest_hash_by_node_for_scope(
     return dict(full.get(scope_key, {}))
 
 
+def load_incremental_hashes_for_nodes(
+    client: Any,
+    raw_db: str,
+    raw_table: str,
+    *,
+    workflow_scope: str,
+    scope_key: str,
+    node_instance_ids: Iterable[str],
+) -> Dict[str, str]:
+    """Point-lookup latest hashes for specific node ids from incremental RAW state."""
+    out: Dict[str, str] = {}
+    ws = str(workflow_scope or "").strip()
+    sk = str(scope_key or "").strip()
+    if not sk:
+        return out
+    for raw_nid in node_instance_ids:
+        nid = str(raw_nid or "").strip()
+        if not nid or nid in out:
+            continue
+        key = incremental_entity_row_key(ws, sk, nid)
+        try:
+            row = client.raw.rows.retrieve(raw_db, raw_table, key)
+        except Exception:
+            continue
+        if not row:
+            continue
+        cols = raw_row_columns(row)
+        if cols.get(RECORD_KIND_COLUMN) != RECORD_KIND_ENTITY:
+            continue
+        if str(cols.get(SCOPE_KEY_COLUMN) or "").strip() != sk:
+            continue
+        if not _row_matches_workflow_scope(cols, ws):
+            continue
+        st = norm_workflow_status(cols.get(WORKFLOW_STATUS_COLUMN))
+        if st not in _HASH_INDEX_STATUSES:
+            continue
+        h = str(cols.get(EXTRACTION_INPUTS_HASH_COLUMN) or "").strip()
+        if h:
+            out[nid] = h
+    return out
+
+
 def read_watermark_high_ms(
     client: Any, raw_db: str, raw_table: str, wm_key: str
 ) -> Optional[int]:

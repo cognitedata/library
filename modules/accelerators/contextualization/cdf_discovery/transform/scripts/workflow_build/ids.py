@@ -6,7 +6,10 @@ from typing import Any, Dict, Mapping, MutableMapping
 
 
 def workflow_base_from_config(config: Mapping[str, Any], workflow_id: str) -> str:
-    return str(config.get("workflow") or f"wf_all_etl_{workflow_id}")
+    del config
+    # Build IDs should derive from the workflow being built unless explicitly
+    # overridden on the start node (workflow_external_id / workflow_base).
+    return f"wf_etl_{workflow_id}"
 
 
 def workflow_external_id(*, workflow_base: str, scope_suffix: str = "") -> str:
@@ -39,8 +42,12 @@ def read_workflow_base_override(canvas: Mapping[str, Any]) -> str | None:
         return None
     data = node.get("data") if isinstance(node.get("data"), dict) else {}
     cfg = data.get("config") if isinstance(data.get("config"), dict) else {}
-    raw = str(cfg.get("workflow_base") or "").strip()
-    return raw or None
+    # Prefer an explicit workflow external id override from start-node config.
+    raw_external = str(cfg.get("workflow_external_id") or "").strip()
+    if raw_external:
+        return raw_external or None
+    raw_base = str(cfg.get("workflow_base") or "").strip()
+    return raw_base or None
 
 
 def resolve_workflow_base(
@@ -67,8 +74,7 @@ def resolve_workflow_base_for_build(
         override = read_workflow_base_override(canvas)
         if override:
             return override
-    if source_kind == "template":
-        return f"wf_all_etl_{workflow_id}"
+    del source_kind
     return workflow_base_from_config(config, workflow_id)
 
 

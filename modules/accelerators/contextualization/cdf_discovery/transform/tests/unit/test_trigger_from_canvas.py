@@ -25,7 +25,6 @@ def test_read_start_trigger_schedule_cron() -> None:
                         "cron_expression": "15 3 * * *",
                         "workflow_version": "2",
                         "incremental_change_processing": False,
-                        "run_id": "manual-1",
                     }
                 },
             }
@@ -35,10 +34,30 @@ def test_read_start_trigger_schedule_cron() -> None:
     assert cfg["trigger_rule"] == {"triggerType": "schedule", "cronExpression": "15 3 * * *"}
     assert cfg["workflow_version"] == "2"
     assert cfg["incremental_change_processing"] is False
-    assert cfg["run_id"] == "manual-1"
 
 
 def test_apply_start_trigger_patches_workflow_trigger_doc() -> None:
+    doc: dict = {
+        "externalId": "trg_old",
+        "workflowExternalId": "wf_old",
+        "workflowVersion": "1",
+        "triggerRule": {"triggerType": "schedule", "cronExpression": "0 2 * * *"},
+        "input": {"run_id": "", "configuration": {}},
+    }
+    cfg = {
+        "workflow_version": "3",
+        "trigger_rule": {"triggerType": "schedule", "cronExpression": "0 6 * * *"},
+        "incremental_change_processing": False,
+    }
+    apply_start_trigger_to_workflow_trigger(doc, workflow_external_id="wf_test", trigger_cfg=cfg)
+    assert doc["externalId"] == "trg_wf_test"
+    assert doc["workflowExternalId"] == "wf_test"
+    assert doc["workflowVersion"] == "3"
+    assert doc["triggerRule"]["cronExpression"] == "0 6 * * *"
+    assert doc["input"]["incremental_change_processing"] is False
+
+
+def test_apply_start_trigger_does_not_override_existing_incremental_flag() -> None:
     doc: dict = {
         "externalId": "trg_old",
         "workflowExternalId": "wf_old",
@@ -50,15 +69,9 @@ def test_apply_start_trigger_patches_workflow_trigger_doc() -> None:
         "workflow_version": "3",
         "trigger_rule": {"triggerType": "schedule", "cronExpression": "0 6 * * *"},
         "incremental_change_processing": False,
-        "run_id": "x",
     }
     apply_start_trigger_to_workflow_trigger(doc, workflow_external_id="wf_test", trigger_cfg=cfg)
-    assert doc["externalId"] == "trg_wf_test"
-    assert doc["workflowExternalId"] == "wf_test"
-    assert doc["workflowVersion"] == "3"
-    assert doc["triggerRule"]["cronExpression"] == "0 6 * * *"
-    assert doc["input"]["incremental_change_processing"] is False
-    assert doc["input"]["run_id"] == "x"
+    assert doc["input"]["incremental_change_processing"] is True
 
 
 def test_read_start_trigger_record_stream() -> None:
@@ -84,3 +97,42 @@ def test_read_start_trigger_record_stream() -> None:
     assert rule["streamExternalId"] == "stream-1"
     assert rule["batchSize"] == 50
     assert rule["batchTimeout"] == 120
+
+
+def test_read_start_trigger_data_modeling() -> None:
+    canvas = {
+        "nodes": [
+            {
+                "id": "start",
+                "kind": "start",
+                "data": {
+                    "config": {
+                        "trigger_type": "dataModeling",
+                        "batch_size": 25,
+                        "batch_timeout": 30,
+                        "data_modeling_query": {"with": {}, "select": {}},
+                    }
+                },
+            }
+        ]
+    }
+    cfg = read_start_trigger_config(canvas)
+    rule = cfg["trigger_rule"]
+    assert rule["triggerType"] == "dataModeling"
+    assert rule["batchSize"] == 25
+    assert rule["batchTimeout"] == 30
+    assert isinstance(rule["dataModelingQuery"], dict)
+
+
+def test_read_start_trigger_parses_string_false_incremental_flag() -> None:
+    canvas = {
+        "nodes": [
+            {
+                "id": "start",
+                "kind": "start",
+                "data": {"config": {"incremental_change_processing": "false"}},
+            }
+        ]
+    }
+    cfg = read_start_trigger_config(canvas)
+    assert cfg["incremental_change_processing"] is False

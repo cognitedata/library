@@ -1,11 +1,13 @@
 import type { MessageKey } from "../../i18n";
 import type { TransformCanvasNodeKind } from "../../types/transformCanvas";
+import { kindToRfType } from "../../types/transformCanvas";
 import type { PaletteDragPayload } from "./transformFlowDrag";
 import {
   FUSION_NODE_KINDS,
   PIPELINE_ORCHESTRATION_NODE_KINDS,
 } from "../../utils/transformNodeEditorKinds";
 import { transformHandlerPaletteItems } from "./handlerDropMenuOptions";
+import { isCohortSourceRfType } from "./cohortSourceRfTypes";
 import { etlPersistenceOutboundToEndOnlyRfTypes } from "./transformFlowConstants";
 
 const QUERY_STAGES: readonly TransformCanvasNodeKind[] = [
@@ -100,6 +102,37 @@ function transformHandlerOptions(prefix: string): ConnectEndMenuOption[] {
   }));
 }
 
+/** Query extract stages may follow any upstream task, not only Start. */
+function downstreamQueryConnectOptions(prefix: string): ConnectEndMenuOption[] {
+  return stageOptions(`${prefix}-query`, QUERY_STAGES);
+}
+
+function appendDownstreamQueryOptions(
+  prefix: string,
+  options: ConnectEndMenuOption[]
+): ConnectEndMenuOption[] {
+  return [...options, ...downstreamQueryConnectOptions(prefix)];
+}
+
+/** Transform / score / build_index handlers — only after cohort-producing stages. */
+function downstreamTransformConnectOptions(prefix: string): ConnectEndMenuOption[] {
+  return [
+    ...stageOptions(`${prefix}-transform`, MID_PIPELINE_STAGES),
+    ...transformHandlerOptions(`${prefix}-handler`),
+  ];
+}
+
+function appendDownstreamTransformOptions(
+  prefix: string,
+  sourceType: string,
+  options: ConnectEndMenuOption[]
+): ConnectEndMenuOption[] {
+  if (!isCohortSourceRfType(sourceType)) return options;
+  return [...options, ...downstreamTransformConnectOptions(prefix)];
+}
+
+const FUSION_SOURCE_RF_TYPES = new Set(FUSION_STAGES.map((stage) => kindToRfType(stage)));
+
 function isTransformConnectGroupOption(option: ConnectEndMenuOption): boolean {
   const { stage, handlerId } = option.payload;
   if (stage === "score" || stage === "build_index") return true;
@@ -115,7 +148,10 @@ export function connectEndMenuOptionsForSourceType(sourceType: string | undefine
   }
 
   if (sourceType === "etlStart") {
-    return stageOptions("from-start", QUERY_STAGES);
+    return [
+      ...stageOptions("from-start", QUERY_STAGES),
+      ...stageOptions("from-start-fusion", FUSION_STAGES),
+    ];
   }
 
   const queryTypes = new Set([
@@ -126,15 +162,16 @@ export function connectEndMenuOptionsForSourceType(sourceType: string | undefine
     "etlQueryRecords",
   ]);
   if (queryTypes.has(sourceType)) {
-    return [
-      ...stageOptions(`from-${sourceType}`, MID_PIPELINE_STAGES),
-      ...transformHandlerOptions(`from-${sourceType}-handler`),
-      ...stageOptions(`from-${sourceType}-orch`, PIPELINE_ORCHESTRATION_STAGES),
-      ...stageOptions(`from-${sourceType}-ctx`, CONTEXTUALIZATION_STAGES),
-      ...stageOptions(`from-${sourceType}-load`, LOAD_STAGES),
-      ...stageOptions(`from-${sourceType}-fusion`, FUSION_STAGES),
-      ...stageOptions(`from-${sourceType}-debug`, DEBUG_STAGES),
-    ];
+    return appendDownstreamQueryOptions(
+      `from-${sourceType}`,
+      appendDownstreamTransformOptions(`from-${sourceType}`, sourceType, [
+        ...stageOptions(`from-${sourceType}-orch`, PIPELINE_ORCHESTRATION_STAGES),
+        ...stageOptions(`from-${sourceType}-ctx`, CONTEXTUALIZATION_STAGES),
+        ...stageOptions(`from-${sourceType}-load`, LOAD_STAGES),
+        ...stageOptions(`from-${sourceType}-fusion`, FUSION_STAGES),
+        ...stageOptions(`from-${sourceType}-debug`, DEBUG_STAGES),
+      ])
+    );
   }
 
   const midTypes = new Set([
@@ -157,20 +194,36 @@ export function connectEndMenuOptionsForSourceType(sourceType: string | undefine
     }),
   ]);
   if (midTypes.has(sourceType)) {
-    return [
-      ...stageOptions(`from-${sourceType}`, MID_PIPELINE_STAGES),
-      ...transformHandlerOptions(`from-${sourceType}-handler`),
-      ...stageOptions(`from-${sourceType}-orch`, PIPELINE_ORCHESTRATION_STAGES),
-      ...stageOptions(`from-${sourceType}-ctx`, CONTEXTUALIZATION_STAGES),
-      ...stageOptions(`from-${sourceType}-load`, LOAD_STAGES),
-      ...stageOptions(`from-${sourceType}-fusion`, FUSION_STAGES),
-      ...stageOptions(`from-${sourceType}-debug`, DEBUG_STAGES),
-    ];
+    return appendDownstreamQueryOptions(
+      `from-${sourceType}`,
+      appendDownstreamTransformOptions(`from-${sourceType}`, sourceType, [
+        ...stageOptions(`from-${sourceType}-orch`, PIPELINE_ORCHESTRATION_STAGES),
+        ...stageOptions(`from-${sourceType}-ctx`, CONTEXTUALIZATION_STAGES),
+        ...stageOptions(`from-${sourceType}-load`, LOAD_STAGES),
+        ...stageOptions(`from-${sourceType}-fusion`, FUSION_STAGES),
+        ...stageOptions(`from-${sourceType}-debug`, DEBUG_STAGES),
+      ])
+    );
+  }
+
+  if (FUSION_SOURCE_RF_TYPES.has(sourceType)) {
+    return appendDownstreamQueryOptions(
+      `from-${sourceType}`,
+      appendDownstreamTransformOptions(`from-${sourceType}`, sourceType, [
+        ...stageOptions(`from-${sourceType}-load`, LOAD_STAGES),
+        ...stageOptions(`from-${sourceType}-debug`, DEBUG_STAGES),
+      ])
+    );
   }
 
   const ctxTypes = new Set(["etlFileAnnotation", "etlWorkflowFanoutPlan", "etlDynamicFanout", "etlJsonMapping"]);
   if (ctxTypes.has(sourceType)) {
-    return stageOptions(`from-${sourceType}-debug`, DEBUG_STAGES);
+    return appendDownstreamQueryOptions(
+      `from-${sourceType}`,
+      appendDownstreamTransformOptions(`from-${sourceType}`, sourceType, [
+        ...stageOptions(`from-${sourceType}-debug`, DEBUG_STAGES),
+      ])
+    );
   }
 
   return [];

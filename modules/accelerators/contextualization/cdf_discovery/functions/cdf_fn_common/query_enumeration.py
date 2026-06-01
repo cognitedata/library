@@ -7,8 +7,9 @@ Shared limit / pagination semantics for discovery query handlers.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, Dict, Iterable, Mapping, Optional
+from cdf_fn_common.etl_run_scope import is_lookup_full_scan, pipeline_parameters
 
 # Cognite DM / classic list APIs typically allow up to 1000 per request.
 DEFAULT_PAGE_SIZE = 1000
@@ -74,6 +75,26 @@ def resolve_read_limit(cfg: Mapping[str, Any]) -> int:
     raw = cfg.get("read_limit")
     if raw is None:
         raw = cfg.get("limit")
+    if raw is None:
+        return 0
+    try:
+        return max(0, int(raw))
+    except (TypeError, ValueError):
+        return 0
+
+
+def resolve_run_record_cap(data: Mapping[str, Any], cfg: Mapping[str, Any]) -> int:
+    """
+    Total records budget for a single workflow run.
+
+    ``max_records_per_run`` <= 0 (or unset) means unlimited.
+    Task config takes precedence over workflow parameters.
+    """
+    if is_lookup_full_scan(cfg):
+        return 0
+    raw = cfg.get("max_records_per_run")
+    if raw is None:
+        raw = pipeline_parameters(data).get("max_records_per_run")
     if raw is None:
         return 0
     try:

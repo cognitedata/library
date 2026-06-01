@@ -8,14 +8,12 @@ from __future__ import annotations
 
 import json
 import re
-import secrets
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Mapping, MutableMapping, Optional, Tuple
 
 from cdf_fn_common.etl_cohort_storage import (
     canvas_node_id_for_task,
     instance_cohort_row_key,
-    require_run_id,
     resolve_node_cohort_sink,
 )
 from cdf_fn_common.etl_cdf_utils import create_table_if_not_exists
@@ -94,22 +92,6 @@ DEFAULT_RAW_DB = "db_discovery"
 DEFAULT_RAW_TABLE = "discovery_state"
 
 
-def new_pipeline_run_id() -> str:
-    """
-    Generate a unique workflow run id for cohort RAW keys and ``RUN_ID`` columns.
-
-    Format: ``{utc_timestamp}Z-{random_hex}`` (e.g. ``20260516T125807.080874Z-a1b2c3d4e5f6``).
-    The UTC prefix preserves rough chronological ordering; the suffix avoids collisions when
-    multiple workflow instances start in the same microsecond.
-    """
-    ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S.%f")
-    return f"{ts}Z-{secrets.token_hex(6)}"
-
-
-def _utc_run_id() -> str:
-    return new_pipeline_run_id()
-
-
 def _as_dict(value: Any) -> Dict[str, Any]:
     return dict(value) if isinstance(value, dict) else {}
 
@@ -131,8 +113,9 @@ def resolve_task_config(data: Mapping[str, Any]) -> Dict[str, Any]:
 
 
 def resolve_run_id(data: Mapping[str, Any]) -> str:
-    rid = _first_nonempty(data.get("run_id"))
-    return rid or _utc_run_id()
+    from cdf_fn_common.etl_common import resolve_pipeline_run_key as _resolve_pipeline_run_key
+
+    return _resolve_pipeline_run_key(data)
 
 
 def resolve_query_sink(data: Mapping[str, Any]) -> Tuple[str, str]:

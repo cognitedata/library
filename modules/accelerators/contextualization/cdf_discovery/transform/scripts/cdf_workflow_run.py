@@ -4,16 +4,39 @@
 from __future__ import annotations
 
 import argparse
+import json
 import logging
 import os
 import sys
 import time
+import uuid
 from pathlib import Path
 from typing import Any
 
 logger = logging.getLogger(__name__)
 
 _TERMINAL = frozenset({"completed", "failed", "terminated", "timed_out"})
+_DEBUG_LOG_PATH = Path(
+    "/Users/darren.downtain@cognitedata.com/Documents/GitHub/library/.cursor/debug-d31d35.log"
+)
+_DEBUG_SESSION_ID = "d31d35"
+
+
+def _debug_log(run_id: str, hypothesis_id: str, location: str, message: str, data: dict[str, Any]) -> None:
+    payload = {
+        "sessionId": _DEBUG_SESSION_ID,
+        "runId": run_id,
+        "hypothesisId": hypothesis_id,
+        "location": location,
+        "message": message,
+        "data": data,
+        "timestamp": int(time.time() * 1000),
+    }
+    try:
+        with _DEBUG_LOG_PATH.open("a", encoding="utf-8") as f:
+            f.write(json.dumps(payload, ensure_ascii=True) + "\n")
+    except Exception:
+        return
 
 
 def _transform_root() -> Path:
@@ -32,6 +55,18 @@ def _status_str(status: object) -> str:
     if isinstance(status, str):
         return status
     return getattr(status, "value", str(status))
+
+
+def _ensure_workflow_input_correlation_id(wf_input: dict[str, Any]) -> None:
+    configuration = wf_input.get("configuration")
+    if not isinstance(configuration, dict):
+        return
+    parameters = configuration.get("parameters")
+    params = dict(parameters) if isinstance(parameters, dict) else {}
+    if not str(params.get("correlation_id") or "").strip():
+        params["correlation_id"] = str(uuid.uuid4())
+    configuration["parameters"] = params
+    wf_input["configuration"] = configuration
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -84,6 +119,21 @@ def main(argv: list[str] | None = None) -> int:
         wf_input = workflow_input_from_json(args.input_json.expanduser().resolve())
     else:
         wf_input = workflow_input_from_trigger_yaml(paths["trigger"])
+    # region agent log
+    _debug_log(
+        run_id="pre-run",
+        hypothesis_id="H1",
+        location="cdf_workflow_run.py:90",
+        message="Loaded workflow input before validation",
+        data={
+            "workflow": args.workflow.strip(),
+            "scope_suffix": str(args.scope_suffix or "").strip(),
+            "input_keys": sorted(list(wf_input.keys())) if isinstance(wf_input, dict) else [],
+            "input_run_id": str(wf_input.get("run_id") or "") if isinstance(wf_input, dict) else "",
+            "from_input_json": bool(args.input_json is not None),
+        },
+    )
+    # endregion
     assert_expected_workflow_input_keys(wf_input)
 
     inst_space = (
@@ -94,6 +144,21 @@ def main(argv: list[str] | None = None) -> int:
     if inst_space:
         wf_input = substitute_instance_space_placeholder(wf_input, inst_space)
         logger.info("Substituted {{instance_space}} in workflow input.")
+    if isinstance(wf_input, dict):
+        _ensure_workflow_input_correlation_id(wf_input)
+    # region agent log
+    _debug_log(
+        run_id="pre-run",
+        hypothesis_id="H3",
+        location="cdf_workflow_run.py:111",
+        message="Workflow input after placeholder substitution",
+        data={
+            "instance_space_arg": bool((args.instance_space or "").strip()),
+            "instance_space_env": bool((os.environ.get("KEA_INSTANCE_SPACE") or "").strip()),
+            "input_run_id": str(wf_input.get("run_id") or "") if isinstance(wf_input, dict) else "",
+        },
+    )
+    # endregion
 
     if shallow_has_toolkit_placeholder(wf_input):
         logger.warning("Workflow input still contains {{ … }} placeholders.")
@@ -102,6 +167,15 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.dry_run:
         logger.info("dry-run: would run executions.run with input keys %s", sorted(wf_input.keys()))
+        # region agent log
+        _debug_log(
+            run_id="dry-run",
+            hypothesis_id="H2",
+            location="cdf_workflow_run.py:123",
+            message="Dry run selected, skipping executions.run",
+            data={"input_run_id": str(wf_input.get("run_id") or "") if isinstance(wf_input, dict) else ""},
+        )
+        # endregion
         return 0
 
     from cognite.client.data_classes.iam import ClientCredentials
@@ -114,6 +188,15 @@ def main(argv: list[str] | None = None) -> int:
         client = create_cognite_client()
     except Exception as e:
         logger.error("Failed to create CogniteClient: %s", e)
+        # region agent log
+        _debug_log(
+            run_id="client-init",
+            hypothesis_id="H5",
+            location="cdf_workflow_run.py:176",
+            message="Failed to create CogniteClient",
+            data={"error": str(e)},
+        )
+        # endregion
         return 1
 
     client_credentials = None
@@ -126,6 +209,22 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     try:
+        # region agent log
+        _debug_log(
+            run_id="pre-execution",
+            hypothesis_id="H1",
+            location="cdf_workflow_run.py:148",
+            message="Calling executions.run",
+            data={
+                "workflow_external_id": wf_ext,
+                "version": version,
+                "input_run_id": str(wf_input.get("run_id") or "") if isinstance(wf_input, dict) else "",
+                "input_incremental_change_processing": (
+                    wf_input.get("incremental_change_processing") if isinstance(wf_input, dict) else None
+                ),
+            },
+        )
+        # endregion
         started = client.workflows.executions.run(
             wf_ext,
             version,
@@ -134,10 +233,33 @@ def main(argv: list[str] | None = None) -> int:
         )
     except Exception as e:
         logger.error("executions.run failed: %s", e)
+        # region agent log
+        _debug_log(
+            run_id="run-exception",
+            hypothesis_id="H5",
+            location="cdf_workflow_run.py:219",
+            message="executions.run failed",
+            data={
+                "workflow_external_id": wf_ext,
+                "version": version,
+                "error": str(e),
+                "input_keys": sorted(list(wf_input.keys())) if isinstance(wf_input, dict) else [],
+            },
+        )
+        # endregion
         return 1
 
     ex_id = started.id
     logger.info("Started workflow execution id=%s status=%s", ex_id, _status_str(started.status))
+    # region agent log
+    _debug_log(
+        run_id=str(ex_id),
+        hypothesis_id="H4",
+        location="cdf_workflow_run.py:170",
+        message="Workflow execution started",
+        data={"status": _status_str(started.status), "submitted_input_run_id": str(wf_input.get("run_id") or "")},
+    )
+    # endregion
 
     deadline = time.monotonic() + float(args.timeout_seconds)
     last_status = _status_str(started.status)
@@ -151,6 +273,15 @@ def main(argv: list[str] | None = None) -> int:
             detail = client.workflows.executions.retrieve_detailed(ex_id)
         except Exception as e:
             logger.warning("retrieve_detailed failed: %s", e)
+            # region agent log
+            _debug_log(
+                run_id=str(ex_id),
+                hypothesis_id="H5",
+                location="cdf_workflow_run.py:252",
+                message="retrieve_detailed failed",
+                data={"error": str(e), "last_status": last_status},
+            )
+            # endregion
             continue
         if detail is None:
             continue
@@ -159,9 +290,27 @@ def main(argv: list[str] | None = None) -> int:
 
     if last_status == "completed":
         logger.info("Workflow execution completed successfully.")
+        # region agent log
+        _debug_log(
+            run_id=str(ex_id),
+            hypothesis_id="H5",
+            location="cdf_workflow_run.py:269",
+            message="workflow completed",
+            data={"final_status": last_status},
+        )
+        # endregion
         return 0
     reason = getattr(detail, "reason_for_incompletion", None) if detail is not None else None
     logger.error("Workflow execution finished with status=%s reason=%s", last_status, reason)
+    # region agent log
+    _debug_log(
+        run_id=str(ex_id),
+        hypothesis_id="H5",
+        location="cdf_workflow_run.py:280",
+        message="workflow finished non-terminal-success",
+        data={"final_status": last_status, "reason_for_incompletion": str(reason or "")},
+    )
+    # endregion
     return 1
 
 

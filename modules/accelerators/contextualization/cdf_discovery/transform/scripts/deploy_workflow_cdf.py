@@ -112,7 +112,6 @@ def main(argv: list[str] | None = None) -> int:
 
     tr = args.module_root.resolve()
     paths = resolve_workflow_artifacts(tr, args.workflow.strip(), args.scope_suffix)
-    _validate_artifacts(paths)
 
     fn_mode = cast(DeployFunctionsMode, args.deploy_functions)
     print(
@@ -138,7 +137,7 @@ def main(argv: list[str] | None = None) -> int:
         rc = _run_subprocess(build_cmd, cwd=discovery_root, dry_run=args.dry_run)
         if rc != 0:
             return rc
-        _validate_artifacts(paths)
+    _validate_artifacts(paths)
 
     log_buf = io.StringIO()
 

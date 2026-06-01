@@ -13,6 +13,7 @@ import { fileAnnotationConfigSummary } from "../../utils/fileAnnotationNodeConfi
 import { recordsQuerySummary } from "../../utils/recordsQueryConfigModel";
 import { recordsSaveSummary } from "../../utils/recordsSaveConfigModel";
 import { streamSaveSummary } from "../../utils/streamSaveConfigModel";
+import { ScheduleEditorControl } from "./ScheduleEditorControl";
 
 type TFn = (key: MessageKey, vars?: Record<string, string | number>) => string;
 
@@ -250,15 +251,13 @@ export function EtlNodeConfigFields({ t, kind, config, onChange, compact = false
             <option value="recordStream">{t("transform.config.triggerTypeRecordStream")}</option>
           </select>
         </label>
-        {triggerType === "schedule"
-          ? strField(
-              cfg,
-              "cron_expression",
-              onChange,
-              t("transform.config.cronExpression"),
-              "0 2 * * *"
-            )
-          : null}
+        {triggerType === "schedule" ? (
+          <ScheduleEditorControl
+            cronExpression={String(cfg.cron_expression ?? "")}
+            onChange={(next) => onChange({ ...cfg, cron_expression: next })}
+            className="transform-flow-inspector__field"
+          />
+        ) : null}
         <label className="transform-flow-inspector__field transform-flow-inspector__field--checkbox">
           <span>{t("transform.config.incrementalChangeProcessing")}</span>
           <input

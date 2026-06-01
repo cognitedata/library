@@ -5,7 +5,7 @@ import { runGovernanceBuild, type BuildTarget } from "../../api/governanceDeclar
 type BuildResult = { ok: boolean; dryRun: boolean; exitCode: number };
 
 type Props = {
-  target: Extract<BuildTarget, "spaces" | "groups">;
+  target: BuildTarget;
   onBuildComplete?: (result: BuildResult) => void;
 };
 

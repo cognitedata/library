@@ -5,6 +5,8 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
+import pytest
+
 _TRANSFORM_ROOT = Path(__file__).resolve().parents[1]
 _FUNCTIONS = _TRANSFORM_ROOT / "functions"
 for p in (_TRANSFORM_ROOT, _FUNCTIONS):
@@ -21,6 +23,9 @@ from cdf_fn_common.etl_file_annotation.entities import (  # noqa: E402
     resolve_file_annotation_entities,
 )
 from cdf_fn_common.etl_file_annotation.files import files_from_cohort_rows  # noqa: E402
+from cdf_fn_common.etl_fanout_plan.profiles.file_annotation import (  # noqa: E402
+    FileAnnotationFanoutProfile,
+)
 from cdf_fn_common.etl_fanout_plan.registry import get_fanout_profile  # noqa: E402
 from cdf_fn_common.workflow_compile.canvas_dag import (  # noqa: E402
     FANOUT_PLAN_HANDLE_INPUT_A,
@@ -61,6 +66,36 @@ def test_files_from_cohort_rows():
     files = files_from_cohort_rows(rows)
     assert len(files) == 1
     assert files[0]["id"] == 42
+
+
+def test_files_from_cohort_rows_resolves_id_from_external_id():
+    class _FileObj:
+        id = 99
+        name = "resolved.pdf"
+        external_id = "file-ext-99"
+        mime_type = "application/pdf"
+        page_count = 7
+        uploaded_time = None
+
+    class _FilesApi:
+        @staticmethod
+        def retrieve(*, external_id=None, id=None):
+            assert external_id == "file-ext-99"
+            assert id is None
+            return _FileObj()
+
+    class _Client:
+        files = _FilesApi()
+
+    rows = [
+        {
+            "columns": {"external_id": "file-ext-99"},
+            "properties": {"name": "from-query.pdf", "pageCount": 4},
+        }
+    ]
+    files = files_from_cohort_rows(rows, client=_Client())
+    assert len(files) == 1
+    assert files[0]["id"] == 99
 
 
 def test_resolve_entities_prebuilt_payload():
@@ -190,3 +225,95 @@ def test_expand_dm_rows_from_cohort_hit():
     assert dm[0]["annotation_space"] == "ann-space"
     classic = expand_cohort_rows_to_classic_rows(rows, {})
     assert classic[0]["text"] == "FT-101"
+
+
+def test_file_annotation_fanout_plan_completes_when_wired_input_b_has_no_files(monkeypatch):
+    profile = FileAnnotationFanoutProfile()
+
+    monkeypatch.setattr(
+        "cdf_fn_common.etl_fanout_plan.profiles.file_annotation.load_input_a_rows",
+        lambda _client, _data: [{"columns": {}, "properties": {"aliases": ["FT-101"]}}],
+    )
+    monkeypatch.setattr(
+        "cdf_fn_common.etl_fanout_plan.profiles.file_annotation.resolve_file_annotation_entities",
+        lambda *_args, **_kwargs: [{"sample": ["FT-101"], "category": "equipment"}],
+    )
+    monkeypatch.setattr(
+        "cdf_fn_common.etl_fanout_plan.profiles.file_annotation.input_b_task_id",
+        lambda _data: "query_files",
+    )
+    monkeypatch.setattr(
+        "cdf_fn_common.etl_fanout_plan.profiles.file_annotation.load_input_b_rows",
+        lambda _client, _data: [],
+    )
+    monkeypatch.setattr(
+        "cdf_fn_common.etl_fanout_plan.profiles.file_annotation._parse_file_ids",
+        lambda _cfg, _data: [],
+    )
+
+    captured: dict = {}
+    monkeypatch.setattr(
+        "cdf_fn_common.etl_fanout_plan.profiles.file_annotation.file_state_sink_from_data",
+        lambda _data: ("db", "table"),
+    )
+    monkeypatch.setattr(
+        "cdf_fn_common.etl_fanout_plan.profiles.file_annotation.write_fanout_checkpoint_raw",
+        lambda *_args, **kwargs: captured.setdefault("checkpoint", kwargs.get("checkpoint")),
+    )
+
+    result = profile.build_tasks(
+        client=object(),
+        data={"run_id": "00000000-0000-4000-8000-000000000001", "input_a_task_id": "query_assets", "input_b_task_id": "query_files"},
+        cfg={},
+        params={
+            "workflow_scope": "wf_scope",
+            "max_files_per_run": None,
+        },
+        log=None,
+    )
+
+    assert result["status"] == "completed_with_errors"
+    assert result["reason"] == "no_pending_files_from_input_b"
+    assert result["tasks"] == []
+    assert captured["checkpoint"]["files_pending"] == 0
+
+
+def test_file_annotation_fanout_plan_raises_when_input_b_and_file_ids_missing(monkeypatch):
+    profile = FileAnnotationFanoutProfile()
+
+    monkeypatch.setattr(
+        "cdf_fn_common.etl_fanout_plan.profiles.file_annotation.load_input_a_rows",
+        lambda _client, _data: [{"columns": {}, "properties": {"aliases": ["FT-101"]}}],
+    )
+    monkeypatch.setattr(
+        "cdf_fn_common.etl_fanout_plan.profiles.file_annotation.resolve_file_annotation_entities",
+        lambda *_args, **_kwargs: [{"sample": ["FT-101"], "category": "equipment"}],
+    )
+    monkeypatch.setattr(
+        "cdf_fn_common.etl_fanout_plan.profiles.file_annotation.input_b_task_id",
+        lambda _data: "",
+    )
+    monkeypatch.setattr(
+        "cdf_fn_common.etl_fanout_plan.profiles.file_annotation.load_input_b_rows",
+        lambda _client, _data: [],
+    )
+    monkeypatch.setattr(
+        "cdf_fn_common.etl_fanout_plan.profiles.file_annotation._parse_file_ids",
+        lambda _cfg, _data: [],
+    )
+    monkeypatch.setattr(
+        "cdf_fn_common.etl_fanout_plan.profiles.file_annotation.file_state_sink_from_data",
+        lambda _data: ("db", "table"),
+    )
+
+    with pytest.raises(ValueError, match="wire in__input_b"):
+        profile.build_tasks(
+            client=object(),
+            data={"run_id": "00000000-0000-4000-8000-000000000001", "input_a_task_id": "query_assets"},
+            cfg={},
+            params={
+                "workflow_scope": "wf_scope",
+                "max_files_per_run": None,
+            },
+            log=None,
+        )

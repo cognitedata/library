@@ -4,6 +4,8 @@ import { useAppSettings } from "../../context/AppSettingsContext";
 import { saveGovernanceConfigRaw } from "../../api/governanceDeclared";
 import { AdvancedYamlPanel } from "./AdvancedYamlPanel";
 import { DimensionsEditor } from "./DimensionsEditor";
+import { GovernanceArtifactsSection } from "./GovernanceArtifactsSection";
+import { GovernanceBuildSection } from "./GovernanceBuildSection";
 import {
   GovernanceScopePaneHeader,
   type GovernanceScopeSubTab,
@@ -45,14 +47,23 @@ export function GovernanceScopePane() {
           <>
             {subTab === "scope" ? (
               <ScopeHierarchyEditor doc={gov.doc} onChange={gov.setDoc} />
-            ) : (
+            ) : subTab === "dimensions" ? (
               <DimensionsEditor doc={gov.doc} onChange={gov.setDoc} />
+            ) : subTab === "build" ? (
+              <GovernanceBuildSection target="all" />
+            ) : (
+              <div className="gov-stack gov-stack--lg">
+                <GovernanceArtifactsSection kind="spaces" doc={gov.doc} setDoc={gov.setDoc} refreshToken={0} />
+                <GovernanceArtifactsSection kind="groups" doc={gov.doc} setDoc={gov.setDoc} refreshToken={0} />
+              </div>
             )}
-            <AdvancedYamlPanel
-              initialContent={rawYaml}
-              onSaveRaw={saveGovernanceConfigRaw}
-              onAfterSave={gov.load}
-            />
+            {subTab === "scope" || subTab === "dimensions" ? (
+              <AdvancedYamlPanel
+                initialContent={rawYaml}
+                onSaveRaw={saveGovernanceConfigRaw}
+                onAfterSave={gov.load}
+              />
+            ) : null}
           </>
         )}
       </div>

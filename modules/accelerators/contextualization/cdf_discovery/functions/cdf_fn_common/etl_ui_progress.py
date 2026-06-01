@@ -29,7 +29,9 @@ except ImportError:
 
 _THROTTLE_SEC = 0.2
 HANDLER_PROGRESS_ROW_INTERVAL = 500
+COHORT_WRITE_ROW_INTERVAL = HANDLER_PROGRESS_ROW_INTERVAL
 _ctx: ContextVar[dict[str, Any] | None] = ContextVar("etl_handler_progress", default=None)
+_cohort_write_total: ContextVar[int | None] = ContextVar("etl_cohort_write_total", default=None)
 _last_emit: ContextVar[float] = ContextVar("etl_handler_progress_last_emit", default=0.0)
 
 
@@ -64,11 +66,30 @@ def bind_handler_progress(data: Mapping[str, Any]) -> None:
     if not ui_progress_fd_configured():
         return
     _ctx.set(_fields_from_data(data))
+    _cohort_write_total.set(None)
     _last_emit.set(0.0)
 
 
 def clear_handler_progress() -> None:
     _ctx.set(None)
+    _cohort_write_total.set(None)
+
+
+def set_cohort_write_progress_total(total: int | None) -> None:
+    """When set, cohort write progress events include ``progress_total`` (n/total on canvas)."""
+    if total is not None and int(total) > 0:
+        _cohort_write_total.set(int(total))
+    else:
+        _cohort_write_total.set(None)
+
+
+def _cohort_write_progress_total(rows_written: int, *, finalize: bool = False) -> int | None:
+    bound = _cohort_write_total.get()
+    if bound is not None and bound > 0:
+        return bound
+    if finalize and rows_written > 0:
+        return rows_written
+    return None
 
 
 def emit_handler_progress(
@@ -113,3 +134,27 @@ def emit_handler_progress_rows_complete(
 ) -> None:
     if rows_processed > 0:
         emit_handler_progress(rows_processed, label=label, force=True)
+
+
+def emit_cohort_write_progress_every_n_rows(
+    rows_written: int,
+    *,
+    interval: int = COHORT_WRITE_ROW_INTERVAL,
+) -> None:
+    """Emit ``task_progress`` for the active canvas node every *interval* cohort RAW rows."""
+    if rows_written > 0 and rows_written % interval == 0:
+        emit_handler_progress(
+            rows_written,
+            total=_cohort_write_progress_total(rows_written, finalize=False),
+            label="cohort_rows",
+        )
+
+
+def emit_cohort_write_progress_complete(rows_written: int) -> None:
+    if rows_written > 0:
+        emit_handler_progress(
+            rows_written,
+            total=_cohort_write_progress_total(rows_written, finalize=True),
+            label="cohort_rows",
+            force=True,
+        )

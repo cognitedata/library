@@ -1,0 +1,87 @@
+import { useMemo, useState } from "react";
+import { LOCALES, en, type Locale, type MessageKey } from "../../i18n";
+import { useAppSettings } from "../../context/AppSettingsContext";
+
+const MESSAGE_KEYS = Object.keys(en) as MessageKey[];
+
+export function SettingsPane() {
+  const { t, locale, getTranslationValue, setTranslationValue } = useAppSettings();
+  const [targetLocale, setTargetLocale] = useState<Locale>(locale);
+  const [filter, setFilter] = useState("");
+
+  const normalizedFilter = filter.trim().toLowerCase();
+  const rows = useMemo(() => {
+    if (!normalizedFilter) return MESSAGE_KEYS;
+    return MESSAGE_KEYS.filter((key) => {
+      const baseValue = en[key];
+      const currentValue = getTranslationValue(targetLocale, key);
+      return (
+        key.toLowerCase().includes(normalizedFilter) ||
+        baseValue.toLowerCase().includes(normalizedFilter) ||
+        currentValue.toLowerCase().includes(normalizedFilter)
+      );
+    });
+  }, [normalizedFilter, targetLocale, getTranslationValue]);
+
+  return (
+    <section className="disc-settings-pane" aria-label={t("settings.title")}>
+      <header className="disc-settings-pane__header">
+        <h2 className="disc-settings-pane__title">{t("settings.translationEditor.title")}</h2>
+        <p className="disc-settings-pane__hint">{t("settings.translationEditor.hint")}</p>
+      </header>
+      <div className="disc-settings-pane__controls">
+        <label className="disc-settings-pane__field">
+          <span>{t("settings.translationEditor.locale")}</span>
+          <select
+            value={targetLocale}
+            onChange={(e) => setTargetLocale(e.target.value as Locale)}
+            aria-label={t("settings.translationEditor.locale")}
+          >
+            {LOCALES.map((entry) => (
+              <option key={entry.code} value={entry.code}>
+                {entry.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="disc-settings-pane__field">
+          <span>{t("settings.translationEditor.filter")}</span>
+          <input
+            className="disc-input"
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+            placeholder={t("settings.translationEditor.filterPlaceholder")}
+            aria-label={t("settings.translationEditor.filter")}
+          />
+        </label>
+      </div>
+      <div className="disc-table-wrap">
+        <table className="disc-table disc-settings-table">
+          <thead>
+            <tr>
+              <th>{t("settings.translationEditor.tableKey")}</th>
+              <th>{t("settings.translationEditor.tableEnglish")}</th>
+              <th>{t("settings.translationEditor.tableTranslation")}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((key) => (
+              <tr key={key}>
+                <td className="disc-settings-table__key">{key}</td>
+                <td>{en[key]}</td>
+                <td>
+                  <input
+                    className="disc-input disc-settings-table__input"
+                    value={getTranslationValue(targetLocale, key)}
+                    onChange={(e) => setTranslationValue(targetLocale, key, e.target.value)}
+                    aria-label={t("settings.translationEditor.translationInput", { key })}
+                  />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}

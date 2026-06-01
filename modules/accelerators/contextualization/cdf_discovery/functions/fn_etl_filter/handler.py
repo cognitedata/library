@@ -14,7 +14,7 @@ from cdf_fn_common.etl_common import (
     _first_nonempty,
     iter_predecessor_rows,
     merge_compiled_task_into_data,
-    resolve_run_id,
+    require_pipeline_run_key,
     resolve_task_config,
 )
 from cdf_fn_common.etl_filter_eval import parse_etl_filters, row_passes_filter, validate_filter_config
@@ -30,7 +30,7 @@ def etl_handle_filter(
     cfg = resolve_task_config(data)
     validate_filter_config(cfg)
     filters = parse_etl_filters(cfg)
-    run_id = resolve_run_id(data)
+    run_id = require_pipeline_run_key(data)
     data["run_id"] = run_id
     task_id = _first_nonempty(data.get("task_id"), fn_external_id)
 

@@ -98,10 +98,10 @@ def put_config_raw(
 
 @router.get("/config/model")
 def get_config_model(config_path: Path = Depends(active_config_path)) -> Dict[str, Any]:
-    if not config_path.is_file():
-        return {}
-    data = yaml.safe_load(config_path.read_text(encoding="utf-8"))
-    return data if isinstance(data, dict) else {}
+    return governance_declared.migrate_governance_sections_into_active_config(
+        declared=_declared(),
+        config_path=config_path,
+    )
 
 
 @router.put("/config/model")

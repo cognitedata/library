@@ -17,7 +17,7 @@ from cdf_fn_common.etl_cohort_storage import (
     run_node_table_prefix,
 )
 from cdf_fn_common.etl_common import _as_dict, _first_nonempty
-from cdf_fn_common.etl_run_retention import DEFAULT_RETENTION_HOURS, parse_pipeline_run_id_utc
+from cdf_fn_common.etl_run_retention import DEFAULT_RETENTION_HOURS
 
 
 def _add_raw_table(found: Set[Tuple[str, str]], raw_db: str, raw_table: str) -> None:
@@ -159,9 +159,7 @@ def purge_stale_run_tables(
             continue
         rest = name[len(base_prefix) :]
         run_seg = rest.split("__", 1)[0]
-        ts = parse_pipeline_run_id_utc(run_seg.replace("_", "T", 1) if run_seg else "")
-        if ts is None:
-            ts = _table_created_utc(tbl)
+        ts = _table_created_utc(tbl)
         if ts is not None and ts >= cutoff:
             continue
         if dry_run:

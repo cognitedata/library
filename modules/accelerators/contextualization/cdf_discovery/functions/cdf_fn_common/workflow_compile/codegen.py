@@ -86,6 +86,9 @@ def ir_task_inline_function_data(ir_task: Mapping[str, Any]) -> Dict[str, Any]:
     if isinstance(pers, dict):
         for pk, pv in pers.items():
             out[pk] = copy.deepcopy(pv)
+    deps = ir_task.get("depends_on")
+    if isinstance(deps, list):
+        out["predecessors"] = [str(d).strip() for d in deps if str(d).strip()]
     return out
 
 
@@ -105,7 +108,7 @@ def _function_task(
     data: Dict[str, Any] = {
         "logLevel": "INFO",
         "incremental_change_processing": "${workflow.input.incremental_change_processing}",
-        "run_id": "${workflow.input.run_id}",
+        "run_id": "${workflow.input.configuration.parameters.correlation_id}",
         "configuration": "${workflow.input.configuration}",
         "task_id": task_external_id,
     }
@@ -126,8 +129,8 @@ def _function_task(
     }
     if is_async_complete is None:
         raw_async = policy.get("isAsyncComplete")
-        if raw_async is not None:
-            fn_params["isAsyncComplete"] = bool(raw_async)
+        if raw_async is not None and bool(raw_async):
+            fn_params["isAsyncComplete"] = True
     elif is_async_complete:
         fn_params["isAsyncComplete"] = True
 
@@ -159,7 +162,7 @@ def _json_mapping_task(
     expression: str,
     retries: int = 2,
     timeout: int = 1800,
-    on_failure: str = "abortWorkflow",
+    on_failure: str = "skipTask",
 ) -> Dict[str, Any]:
     return {
         "externalId": task_external_id,
@@ -190,7 +193,6 @@ def build_workflow_version_document(
     if not isinstance(tasks_ir, list):
         tasks_ir = []
 
-    desc = description or "CDF Discovery ETL workflow (canvas DAG)."
     tasks_out: List[Dict[str, Any]] = []
     for t in tasks_ir:
         if not isinstance(t, dict):
@@ -208,6 +210,9 @@ def build_workflow_version_document(
             node_label = str(t.get("label") or "").strip()
             if node_label:
                 nm = node_label
+            from cdf_fn_common.workflow_task_failure import resolve_task_on_failure
+
+            ir_on_failure = resolve_task_on_failure(t, function_external_id=fn)
             tasks_out.append(
                 _function_task(
                     task_external_id=tid,
@@ -217,6 +222,7 @@ def build_workflow_version_document(
                     name=nm,
                     timeout=tmo,
                     extra_data=ir_task_inline_function_data(t),
+                    on_failure=ir_on_failure,
                 )
             )
         elif task_type == "jsonMapping":
@@ -227,6 +233,8 @@ def build_workflow_version_document(
             node_label = str(t.get("label") or "").strip()
             nm = node_label or "JSON mapping"
             dsc = str(cfg.get("description") or "").strip() or "CDF jsonMapping (Kuiper)"
+            from cdf_fn_common.workflow_task_failure import resolve_task_on_failure
+
             tasks_out.append(
                 _json_mapping_task(
                     task_external_id=tid,
@@ -235,9 +243,12 @@ def build_workflow_version_document(
                     description=dsc,
                     input_obj=inp,
                     expression=expr,
+                    on_failure=resolve_task_on_failure(t),
                 )
             )
         else:
+            from cdf_fn_common.workflow_task_failure import resolve_task_on_failure
+
             tasks_out.append(
                 {
                     "externalId": tid,
@@ -246,15 +257,13 @@ def build_workflow_version_document(
                     "parameters": _task_parameters(t),
                     "retries": 3,
                     "timeout": 7200,
-                    "onFailure": "abortWorkflow",
+                    "onFailure": resolve_task_on_failure(t),
                 }
             )
 
     return {
-        "externalId": f"{workflow_external_id}:{version}",
         "workflowExternalId": workflow_external_id,
         "version": version,
-        "description": desc,
         "workflowDefinition": {"tasks": tasks_out},
     }
 
@@ -308,7 +317,7 @@ def _task_parameters(ir_task: Mapping[str, Any]) -> Dict[str, Any]:
             "data": {
                 "task_id": task_id,
                 "incremental_change_processing": "${workflow.input.incremental_change_processing}",
-                "run_id": "${workflow.input.run_id}",
+                "run_id": "${workflow.input.configuration.parameters.correlation_id}",
                 "configuration": "${workflow.input.configuration}",
                 **extra,
             },
@@ -333,6 +342,8 @@ def build_workflow_version_from_ir(
             continue
         task_type = str(t.get("task_type") or "function").strip()
         depends = [{"externalId": str(d)} for d in (t.get("depends_on") or []) if str(d).strip()]
+        from cdf_fn_common.workflow_task_failure import resolve_task_on_failure
+
         tasks_out.append(
             {
                 "externalId": task_id,
@@ -341,14 +352,12 @@ def build_workflow_version_from_ir(
                 "parameters": _task_parameters(t),
                 "retries": 3,
                 "timeout": 7200,
-                "onFailure": "abortWorkflow",
+                "onFailure": resolve_task_on_failure(t),
             }
         )
     return {
-        "externalId": f"{workflow_external_id}:{version}",
         "workflowExternalId": workflow_external_id,
         "version": version,
-        "description": description,
         "workflowDefinition": {"tasks": tasks_out},
     }
 

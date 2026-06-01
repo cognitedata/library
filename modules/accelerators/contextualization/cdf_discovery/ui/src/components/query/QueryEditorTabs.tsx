@@ -1,6 +1,18 @@
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useAppSettings } from "../../context/AppSettingsContext";
 import type { MessageKey } from "../../i18n";
+
+/** Resets to ``defaultTab`` when the owning node (``fieldKey``) changes. */
+export function useQueryEditorTabState(
+  fieldKey: string,
+  defaultTab: string
+): readonly [string, (id: string) => void] {
+  const [activeTab, setActiveTab] = useState(defaultTab);
+  useEffect(() => {
+    setActiveTab(defaultTab);
+  }, [fieldKey, defaultTab]);
+  return [activeTab, setActiveTab] as const;
+}
 
 export type QueryEditorTabDef = {
   id: string;

@@ -1,17 +1,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  buildTransformPipeline,
+  buildTransformWorkflow,
   buildTransformTemplate,
-  deployTransformPipelineCdf,
-  fetchTransformPipeline,
+  deployTransformWorkflowCdf,
+  fetchTransformWorkflow,
   fetchTransformTemplate,
-  runTransformPipelineCdf,
-  saveTransformPipelineCanvas,
+  runTransformWorkflowCdf,
+  saveTransformWorkflowCanvas,
   saveTransformTemplateCanvas,
-  validateTransformPipeline,
+  validateTransformWorkflow,
   validateTransformTemplate,
-  type TransformBuildResult,
-  type TransformCdfCliResult,
+  type TransformWorkflowBuildResult,
+  type TransformWorkflowCdfCliResult,
 } from "../../api";
 import type { MessageKey } from "../../i18n/types";
 import { useAppSettings } from "../../context/AppSettingsContext";
@@ -49,6 +49,8 @@ type BaseProps = {
   onRunSessionPatch: (tabId: string, patch: TransformTabRunSessionPatch) => void;
   onCopyCreated?: (result: TransformSaveAsResult) => void;
   onOpenNodePreviewQuery?: (node: Node) => void;
+  /** Refresh Transform → Workflows tree after a successful build (new workflow YAML children). */
+  onBuildComplete?: (result: TransformWorkflowBuildResult) => void;
 };
 
 type PipelineProps = BaseProps & {
@@ -74,7 +76,7 @@ function isTemplateProps(props: Props): props is TemplateProps {
 }
 
 function formatTransformBuildStatus(
-  result: TransformBuildResult,
+  result: TransformWorkflowBuildResult,
   t: (key: MessageKey, vars?: Record<string, string | number>) => string
 ): string {
   if (!result.ok) {
@@ -84,7 +86,7 @@ function formatTransformBuildStatus(
   return t("transform.toolbar.buildOk", { count: String(result.task_count ?? 0) });
 }
 
-function formatCdfCliLog(result: TransformCdfCliResult): string {
+function formatCdfCliLog(result: TransformWorkflowCdfCliResult): string {
   const parts = [`exit_code: ${result.exit_code}`];
   if (result.stdout?.trim()) {
     parts.push("", "--- stdout ---", result.stdout.trimEnd());
@@ -96,7 +98,7 @@ function formatCdfCliLog(result: TransformCdfCliResult): string {
 }
 
 export function TransformPipelinePane(props: Props) {
-  const { onDelete, onRename, onRunSessionPatch, onOpenNodePreviewQuery } = props;
+  const { onDelete, onRename, onRunSessionPatch, onOpenNodePreviewQuery, onBuildComplete } = props;
   const isTemplate = isTemplateProps(props);
   const resourceId = isTemplate ? props.tab.templateId : props.tab.pipelineId;
 
@@ -112,9 +114,15 @@ export function TransformPipelinePane(props: Props) {
   const [saveAsOpen, setSaveAsOpen] = useState(false);
   const canvasRef = useRef(canvas);
   canvasRef.current = canvas;
+  const consoleLogRef = useRef<HTMLTextAreaElement | null>(null);
+  const localRunAbortRef = useRef<AbortController | null>(null);
+  const localRunGenerationRef = useRef(0);
+  const [localRunInFlight, setLocalRunInFlight] = useState(false);
 
   const pipelineTab = !isTemplate ? props.tab : null;
   const templateTab = isTemplate ? props.tab : null;
+  const activeTabRef = useRef(pipelineTab ?? templateTab);
+  activeTabRef.current = pipelineTab ?? templateTab;
   const pipelineScopeSuffix = pipelineTab?.scopeSuffix ?? "";
 
   const activeTab = templateTab ?? pipelineTab;
@@ -123,6 +131,7 @@ export function TransformPipelinePane(props: Props) {
     [activeTab]
   );
   const { editorSubTab, runLog, lastRun, runBusy } = runSession;
+  const effectiveRunBusy = runBusy || localRunInFlight;
   const [cdfLog, setCdfLog] = useState("");
   const [cdfBusy, setCdfBusy] = useState(false);
   const [cdfInstanceSpace, setCdfInstanceSpace] = useState("");
@@ -131,6 +140,23 @@ export function TransformPipelinePane(props: Props) {
   const activeParameters = pipelineTab?.document?.parameters ?? templateTab?.document?.parameters;
   const [runScope, setRunScope] = usePipelineRunScope(resourceId, activeParameters);
   const [dryRun, setDryRun] = usePipelineDryRun(resourceId);
+  const combinedConsoleLog = useMemo(() => {
+    const parts: string[] = [];
+    if (runLog.trim()) {
+      parts.push(runLog.trimEnd());
+    }
+    if (cdfLog.trim()) {
+      parts.push(cdfLog.trimEnd());
+    }
+    return parts.join("\n\n");
+  }, [runLog, cdfLog]);
+
+  useEffect(() => {
+    if (editorSubTab !== "console") return;
+    const logNode = consoleLogRef.current;
+    if (!logNode) return;
+    logNode.scrollTop = logNode.scrollHeight;
+  }, [editorSubTab, combinedConsoleLog]);
 
   const updateDocumentTab = useCallback(
     (tab: EtlPipelineDocumentTab | EtlTemplateDocumentTab) => {
@@ -188,9 +214,9 @@ export function TransformPipelinePane(props: Props) {
         const pipelineId = pipelineTab.pipelineId;
         const scopeSuffix = pipelineTab.scopeSuffix ?? "";
         try {
-          const { pipeline } = await fetchTransformPipeline(pipelineId, scopeSuffix);
+          const { workflow: workflowDoc } = await fetchTransformWorkflow(pipelineId, scopeSuffix);
           if (cancelled || gen !== loadGen.current || tabIdRef.current !== expectedTabId) return;
-          const next = pipelineDocumentToTab(pipeline, pipelineTab);
+          const next = pipelineDocumentToTab(workflowDoc, pipelineTab);
           onTabUpdate(next);
           setCanvas(next.canvas ?? emptyTransformCanvasDocument());
           setReloadNonce((n) => n + 1);
@@ -225,6 +251,7 @@ export function TransformPipelinePane(props: Props) {
 
   const onChange = useCallback(
     (doc: TransformCanvasDocument) => {
+      canvasRef.current = doc;
       setCanvas(doc);
       setValidationFailedNodeIds([]);
       if (templateTab) {
@@ -248,11 +275,11 @@ export function TransformPipelinePane(props: Props) {
         setCanvas(next.canvas ?? emptyTransformCanvasDocument());
         setReloadNonce((n) => n + 1);
       } else if (pipelineTab) {
-        const { pipeline } = await fetchTransformPipeline(
+        const { workflow: workflowDoc } = await fetchTransformWorkflow(
           pipelineTab.pipelineId,
           pipelineTab.scopeSuffix ?? ""
         );
-        const next = pipelineDocumentToTab(pipeline, pipelineTab);
+        const next = pipelineDocumentToTab(workflowDoc, pipelineTab);
         updateDocumentTab({ ...next, dirty: false, error: null });
         setCanvas(next.canvas ?? emptyTransformCanvasDocument());
         setReloadNonce((n) => n + 1);
@@ -271,13 +298,14 @@ export function TransformPipelinePane(props: Props) {
   const onSave = useCallback(async () => {
     setSaving(true);
     setStatusMessage(null);
+    const latestCanvas = canvasRef.current;
     try {
       if (templateTab) {
-        await saveTransformTemplateCanvas(templateTab.templateId, canvas);
-        updateDocumentTab({ ...templateTab, canvas, dirty: false, error: null });
+        await saveTransformTemplateCanvas(templateTab.templateId, latestCanvas);
+        updateDocumentTab({ ...templateTab, canvas: latestCanvas, dirty: false, error: null });
       } else if (pipelineTab) {
-        await saveTransformPipelineCanvas(pipelineTab.pipelineId, canvas, pipelineScopeSuffix);
-        updateDocumentTab({ ...pipelineTab, canvas, dirty: false, error: null });
+        await saveTransformWorkflowCanvas(pipelineTab.pipelineId, latestCanvas, pipelineScopeSuffix);
+        updateDocumentTab({ ...pipelineTab, canvas: latestCanvas, dirty: false, error: null });
       }
       setStatusMessage(t("transform.toolbar.saved"));
     } catch (e) {
@@ -289,7 +317,7 @@ export function TransformPipelinePane(props: Props) {
     } finally {
       setSaving(false);
     }
-  }, [pipelineTab, templateTab, canvas, updateDocumentTab, pipelineScopeSuffix, t]);
+  }, [pipelineTab, templateTab, updateDocumentTab, pipelineScopeSuffix, t]);
 
   const onValidate = useCallback(async () => {
     setStatusMessage(null);
@@ -298,7 +326,7 @@ export function TransformPipelinePane(props: Props) {
       const result = templateTab
         ? await validateTransformTemplate(templateTab.templateId, canvasDoc)
         : pipelineTab
-          ? await validateTransformPipeline(
+          ? await validateTransformWorkflow(
               pipelineTab.pipelineId,
               pipelineScopeSuffix,
               canvasDoc
@@ -337,7 +365,7 @@ export function TransformPipelinePane(props: Props) {
           await saveTransformTemplateCanvas(target.id, canvasRef.current);
           updateDocumentTab({ ...target.tab, canvas: canvasRef.current, dirty: false, error: null });
         } else {
-          await saveTransformPipelineCanvas(target.id, canvasRef.current, pipelineScopeSuffix);
+          await saveTransformWorkflowCanvas(target.id, canvasRef.current, pipelineScopeSuffix);
           updateDocumentTab({ ...target.tab, canvas: canvasRef.current, dirty: false, error: null });
         }
         setStatusMessage(t("transform.toolbar.buildSavedFirst"));
@@ -345,18 +373,28 @@ export function TransformPipelinePane(props: Props) {
       const result =
         target.kind === "template"
           ? await buildTransformTemplate(target.id)
-          : await buildTransformPipeline(target.id, pipelineScopeSuffix);
+          : await buildTransformWorkflow(target.id, pipelineScopeSuffix);
       setStatusMessage(formatTransformBuildStatus(result, t));
       if (!result.ok) {
         const log = (result.stderr || result.stdout || "").trim();
         if (log) patchRunSession({ runLog: log });
+      } else {
+        onBuildComplete?.(result);
       }
     } catch (e) {
       setStatusMessage(String(e));
     } finally {
       setSaving(false);
     }
-  }, [pipelineTab, templateTab, pipelineScopeSuffix, updateDocumentTab, patchRunSession, t]);
+  }, [
+    pipelineTab,
+    templateTab,
+    pipelineScopeSuffix,
+    updateDocumentTab,
+    patchRunSession,
+    onBuildComplete,
+    t,
+  ]);
 
   const runDeployCdf = useCallback(
     async (dryRun: boolean) => {
@@ -364,7 +402,7 @@ export function TransformPipelinePane(props: Props) {
       setCdfBusy(true);
       setCdfLog(`${t("status.running")}\n`);
       try {
-        const result = await deployTransformPipelineCdf(pipelineTab.pipelineId, pipelineScopeSuffix, {
+        const result = await deployTransformWorkflowCdf(pipelineTab.pipelineId, pipelineScopeSuffix, {
           dryRun,
         });
         setCdfLog(formatCdfCliLog(result));
@@ -383,7 +421,7 @@ export function TransformPipelinePane(props: Props) {
       setCdfBusy(true);
       setCdfLog(`${t("status.running")}\n`);
       try {
-        const result = await runTransformPipelineCdf(pipelineTab.pipelineId, pipelineScopeSuffix, {
+        const result = await runTransformWorkflowCdf(pipelineTab.pipelineId, pipelineScopeSuffix, {
           dryRun,
           instanceSpace: cdfInstanceSpace,
         });
@@ -397,6 +435,18 @@ export function TransformPipelinePane(props: Props) {
     [pipelineTab, pipelineScopeSuffix, cdfInstanceSpace, t]
   );
 
+  const cancelLocalRun = useCallback(() => {
+    localRunGenerationRef.current += 1;
+    localRunAbortRef.current?.abort();
+    localRunAbortRef.current = null;
+    setLocalRunInFlight(false);
+    patchRunSession((prev) => ({
+      runBusy: false,
+      runLog: `${prev.runLog}${t("run.localCancelled")}\n`,
+    }));
+    setRunProgress(initialTransformFlowRunProgress());
+  }, [patchRunSession, t]);
+
   const runLocalStreamed = useCallback(
     async ({
       incrementalChangeProcessing,
@@ -405,128 +455,165 @@ export function TransformPipelinePane(props: Props) {
       incrementalChangeProcessing: boolean;
       dryRun: boolean;
     }) => {
-      const runTarget = templateTab
-        ? ({ kind: "template" as const, id: templateTab.templateId, tab: templateTab })
+      const tabNow = activeTabRef.current;
+      const runTarget = isTemplate && templateTab
+        ? ({ kind: "template" as const, id: templateTab.templateId, tab: tabNow ?? templateTab })
         : pipelineTab
           ? ({
               kind: "pipeline" as const,
               id: pipelineTab.pipelineId,
               scopeSuffix: pipelineTab.scopeSuffix ?? "",
-              tab: pipelineTab,
+              tab: tabNow ?? pipelineTab,
             })
           : null;
       if (!runTarget) return;
 
-      patchRunSession({ runBusy: true });
-      setRunProgress(initialTransformFlowRunProgress());
-      setRunProgress((p) => ({ ...p, busy: true }));
-      setStatusMessage(null);
+      const runGen = ++localRunGenerationRef.current;
+      const runCancelled = () => runGen !== localRunGenerationRef.current;
 
-      if (runTarget.tab.dirty) {
-        patchRunSession({ runLog: `${t("run.savedBeforeLocalRun")}\n` });
-        try {
-          if (runTarget.kind === "template") {
-            await saveTransformTemplateCanvas(runTarget.id, canvasRef.current);
-            updateDocumentTab({ ...runTarget.tab, canvas: canvasRef.current, dirty: false, error: null });
-          } else {
-            await saveTransformPipelineCanvas(
-              runTarget.id,
-              canvasRef.current,
-              runTarget.kind === "pipeline" ? (runTarget.scopeSuffix ?? "") : ""
-            );
-            updateDocumentTab({ ...runTarget.tab, canvas: canvasRef.current, dirty: false, error: null });
+      setLocalRunInFlight(true);
+      try {
+        patchRunSession({ runBusy: true });
+        setRunProgress(initialTransformFlowRunProgress());
+        setRunProgress((p) => ({ ...p, busy: true }));
+        setStatusMessage(null);
+
+        if (runTarget.tab.dirty) {
+          patchRunSession({ runLog: `${t("run.savedBeforeLocalRun")}\n` });
+          try {
+            if (runTarget.kind === "template") {
+              await saveTransformTemplateCanvas(runTarget.id, canvasRef.current);
+            } else {
+              await saveTransformWorkflowCanvas(
+                runTarget.id,
+                canvasRef.current,
+                runTarget.kind === "pipeline" ? (runTarget.scopeSuffix ?? "") : ""
+              );
+            }
+            const tabAfterSave = activeTabRef.current;
+            if (tabAfterSave) {
+              updateDocumentTab({
+                ...tabAfterSave,
+                canvas: canvasRef.current,
+                dirty: false,
+                error: null,
+              });
+            }
+          } catch (e) {
+            patchRunSession((prev) => ({
+              runBusy: false,
+              runLog: `${prev.runLog}${String(e)}\n`,
+            }));
+            setRunProgress(initialTransformFlowRunProgress());
+            return;
           }
+          if (runCancelled()) return;
+        } else {
+          patchRunSession({ runLog: "" });
+        }
+
+        if (runCancelled()) return;
+
+        try {
+          const validation =
+            runTarget.kind === "template"
+              ? await validateTransformTemplate(
+                  runTarget.id,
+                  canvasRef.current as unknown as Record<string, unknown>
+                )
+              : await validateTransformWorkflow(
+                  runTarget.id,
+                  runTarget.scopeSuffix ?? "",
+                  canvasRef.current as unknown as Record<string, unknown>
+                );
+          if (!validation.ok) {
+            const errors = validation.errors ?? [];
+            setValidationFailedNodeIds(canvasValidationNodeIds(errors));
+            const detail = errors.length ? errors.join("\n") : t("transform.toolbar.validateFailed");
+            patchRunSession((prev) => ({
+              runBusy: false,
+              runLog: `${prev.runLog}${detail}\n`,
+              lastRun: { ok: false, detail },
+            }));
+            setRunProgress(initialTransformFlowRunProgress());
+            setStatusMessage(t("transform.toolbar.validateFailed"));
+            return;
+          }
+          setValidationFailedNodeIds([]);
         } catch (e) {
           patchRunSession((prev) => ({
             runBusy: false,
             runLog: `${prev.runLog}${String(e)}\n`,
+            lastRun: { ok: false, detail: String(e) },
           }));
           setRunProgress(initialTransformFlowRunProgress());
           return;
         }
-      } else {
-        patchRunSession({ runLog: "" });
-      }
 
-      try {
-        const validation =
-          runTarget.kind === "template"
-            ? await validateTransformTemplate(
-                runTarget.id,
-                canvasRef.current as unknown as Record<string, unknown>
-              )
-            : await validateTransformPipeline(
-                runTarget.id,
-                runTarget.scopeSuffix ?? "",
-                canvasRef.current as unknown as Record<string, unknown>
-              );
-        if (!validation.ok) {
-          const errors = validation.errors ?? [];
-          setValidationFailedNodeIds(canvasValidationNodeIds(errors));
-          const detail = errors.length ? errors.join("\n") : t("transform.toolbar.validateFailed");
+        if (runCancelled()) return;
+
+        patchRunSession((prev) => ({ runLog: `${prev.runLog}${t("status.running")}\n` }));
+
+        localRunAbortRef.current?.abort();
+        const abortController = new AbortController();
+        localRunAbortRef.current = abortController;
+
+        try {
+          await streamTransformPipelineRun(
+            runTarget.kind === "pipeline"
+              ? {
+                  kind: "pipeline",
+                  id: runTarget.id,
+                  scopeSuffix: runTarget.scopeSuffix ?? "",
+                }
+              : { kind: "template", id: runTarget.id },
+            {
+              incrementalChangeProcessing,
+              dryRun: dryRunRequested,
+              signal: abortController.signal,
+            },
+            canvasRef.current,
+            t,
+            {
+              onLogAppend: (chunk) =>
+                patchRunSession((prev) => ({ runLog: `${prev.runLog}${chunk}` })),
+              onProgress: setRunProgress,
+              onComplete: (result) => {
+                patchRunSession({ lastRun: result });
+                setStatusMessage(result.detail ?? null);
+              },
+            }
+          );
+        } catch (e) {
+          patchRunSession((prev) => ({
+            runLog: `${prev.runLog}${String(e)}\n`,
+            lastRun: { ok: false, detail: String(e) },
+          }));
+        } finally {
+          if (localRunAbortRef.current === abortController) {
+            localRunAbortRef.current = null;
+          }
           patchRunSession((prev) => ({
             runBusy: false,
-            runLog: `${prev.runLog}${detail}\n`,
-            lastRun: { ok: false, detail },
+            editorSubTab: prev.editorSubTab === "console" ? "console" : "results",
           }));
           setRunProgress(initialTransformFlowRunProgress());
-          setStatusMessage(t("transform.toolbar.validateFailed"));
-          return;
         }
-        setValidationFailedNodeIds([]);
-      } catch (e) {
-        patchRunSession((prev) => ({
-          runBusy: false,
-          runLog: `${prev.runLog}${String(e)}\n`,
-          lastRun: { ok: false, detail: String(e) },
-        }));
-        setRunProgress(initialTransformFlowRunProgress());
-        return;
-      }
-
-      patchRunSession((prev) => ({ runLog: `${prev.runLog}${t("status.running")}\n` }));
-
-      try {
-        await streamTransformPipelineRun(
-          runTarget.kind === "pipeline"
-            ? {
-                kind: "pipeline",
-                id: runTarget.id,
-                scopeSuffix: runTarget.scopeSuffix ?? "",
-              }
-            : { kind: "template", id: runTarget.id },
-          { incrementalChangeProcessing, dryRun: dryRunRequested },
-          canvasRef.current,
-          t,
-          {
-            onLogAppend: (chunk) =>
-              patchRunSession((prev) => ({ runLog: `${prev.runLog}${chunk}` })),
-            onProgress: setRunProgress,
-            onComplete: (result) => {
-              patchRunSession({ lastRun: result });
-              setStatusMessage(result.detail ?? null);
-            },
-          }
-        );
-      } catch (e) {
-        patchRunSession((prev) => ({
-          runLog: `${prev.runLog}${String(e)}\n`,
-          lastRun: { ok: false, detail: String(e) },
-        }));
       } finally {
-        patchRunSession({ runBusy: false, editorSubTab: "results" });
-        setRunProgress(initialTransformFlowRunProgress());
+        if (runGen === localRunGenerationRef.current) {
+          setLocalRunInFlight(false);
+        }
       }
     },
-    [pipelineTab, templateTab, updateDocumentTab, patchRunSession, t]
+    [isTemplate, pipelineTab, templateTab, updateDocumentTab, patchRunSession, t]
   );
 
   const flowRunProgress = useMemo(
     (): TransformFlowRunProgress => ({
       ...runProgress,
-      busy: runBusy || runProgress.busy,
+      busy: effectiveRunBusy || runProgress.busy,
     }),
-    [runBusy, runProgress]
+    [effectiveRunBusy, runProgress]
   );
 
   const saveAsSource: TransformSaveAsSource | null = pipelineTab
@@ -613,7 +700,8 @@ export function TransformPipelinePane(props: Props) {
           onDelete={onDelete}
           onRename={onRename}
           saving={saving}
-          runBusy={runBusy}
+          runBusy={effectiveRunBusy}
+          onCancelLocalRun={cancelLocalRun}
           statusMessage={statusMessage}
           runProgress={flowRunProgress}
           validationFailedNodeIds={validationFailedNodeIds}
@@ -624,58 +712,86 @@ export function TransformPipelinePane(props: Props) {
       {editorSubTab === "console" ? (
         <div className="transform-pipeline-console">
           <div className="transform-pipeline-console__section">
-            <p className="transform-pipeline-console__section-title">{t("transform.toolbar.runLocal")}</p>
-            <div className="transform-flow-toolbar" role="toolbar" aria-label={t("transform.toolbar.aria")}>
-              <button
-                type="button"
-                className="disc-btn disc-btn--primary"
-                disabled={runBusy || saving || cdfBusy || isTemplate}
-                onClick={() =>
-                  void runLocalStreamed({
-                    incrementalChangeProcessing: runScope === "incremental",
-                    dryRun,
-                  })
-                }
-              >
-                {runBusy ? t("status.running") : t("transform.toolbar.runLocal")}
-              </button>
-              <TransformLocalRunDryRunField
-                t={t}
-                dryRun={dryRun}
-                onDryRunChange={setDryRun}
-                disabled={runBusy || saving || cdfBusy || isTemplate}
-              />
-              <label className="transform-flow-toolbar__run-scope">
-                <span className="transform-flow-toolbar__run-scope-label">{t("transform.toolbar.runScope")}</span>
-                <select
-                  className="gov-input"
-                  value={runScope}
-                  onChange={(e) => setRunScope(e.target.value as "incremental" | "all")}
-                  title={t("transform.toolbar.runScopeHint")}
-                  disabled={runBusy || saving || cdfBusy || isTemplate}
-                >
-                  <option value="incremental">{t("transform.toolbar.runScopeIncremental")}</option>
-                  <option value="all">{t("transform.toolbar.runScopeAll")}</option>
-                </select>
-              </label>
+            <p className="transform-pipeline-console__section-title">{t("transform.editorSubtabs.console")}</p>
+            <div className="transform-pipeline-console__controls">
+              <div className="transform-flow-toolbar" role="toolbar" aria-label={t("transform.toolbar.aria")}>
+                {effectiveRunBusy ? (
+                  <button type="button" className="disc-btn disc-btn--primary" onClick={cancelLocalRun}>
+                    {t("transform.toolbar.cancelLocalRun")}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="disc-btn disc-btn--primary"
+                    disabled={saving || cdfBusy}
+                    onClick={() =>
+                      void runLocalStreamed({
+                        incrementalChangeProcessing: runScope === "incremental",
+                        dryRun,
+                      })
+                    }
+                  >
+                    {t("transform.toolbar.runLocal")}
+                  </button>
+                )}
+                <TransformLocalRunDryRunField
+                  t={t}
+                  dryRun={dryRun}
+                  onDryRunChange={setDryRun}
+                  disabled={effectiveRunBusy || saving || cdfBusy}
+                />
+                <label className="transform-flow-toolbar__run-scope">
+                  <span className="transform-flow-toolbar__run-scope-label">{t("transform.toolbar.runScope")}</span>
+                  <select
+                    className="gov-input"
+                    value={runScope}
+                    onChange={(e) => setRunScope(e.target.value as "incremental" | "all")}
+                    title={t("transform.toolbar.runScopeHint")}
+                    disabled={effectiveRunBusy || saving || cdfBusy}
+                  >
+                    <option value="incremental">{t("transform.toolbar.runScopeIncremental")}</option>
+                    <option value="all">{t("transform.toolbar.runScopeAll")}</option>
+                  </select>
+                </label>
+              </div>
+              {!isTemplate ? (
+                <div className="transform-flow-toolbar" role="toolbar" aria-label={t("transform.console.cdfToolsTitle")}>
+                  <button
+                    type="button"
+                    className="disc-btn"
+                    disabled={cdfBusy || effectiveRunBusy || saving}
+                    onClick={() => void runDeployCdf(false)}
+                  >
+                    {cdfBusy ? t("transform.console.cdfBusy") : t("transform.console.deployCdf")}
+                  </button>
+                  <button
+                    type="button"
+                    className="disc-btn"
+                    disabled={cdfBusy || effectiveRunBusy || saving}
+                    onClick={() => void runCdfWorkflow(false)}
+                  >
+                    {t("transform.console.runCdf")}
+                  </button>
+                  <button
+                    type="button"
+                    className="disc-btn disc-btn--ghost"
+                    disabled={cdfBusy || effectiveRunBusy || saving}
+                    onClick={() => void runCdfWorkflow(true)}
+                  >
+                    {t("transform.console.runCdfDryRun")}
+                  </button>
+                  <button
+                    type="button"
+                    className="disc-btn disc-btn--ghost"
+                    disabled={cdfBusy || effectiveRunBusy || saving}
+                    onClick={() => void runDeployCdf(true)}
+                  >
+                    {t("transform.console.deployCdfDryRun")}
+                  </button>
+                </div>
+              ) : null}
             </div>
-            {isTemplate ? (
-              <p className="transform-pipeline-console__hint">{t("transform.console.templateHint")}</p>
-            ) : (
-              <p className="transform-pipeline-console__hint">{t("transform.console.hint")}</p>
-            )}
-            <textarea
-              readOnly
-              className="gov-textarea gov-textarea--readonly transform-pipeline-console__log"
-              value={runLog}
-              placeholder={t("run.outputPlaceholder")}
-              aria-label={t("transform.toolbar.runLocal")}
-            />
-          </div>
-          {!isTemplate ? (
-            <div className="transform-pipeline-console__section">
-              <p className="transform-pipeline-console__section-title">{t("transform.console.cdfToolsTitle")}</p>
-              <p className="transform-pipeline-console__hint">{t("transform.console.cdfHint")}</p>
+            {!isTemplate ? (
               <div className="transform-pipeline-console__cdf-field">
                 <label htmlFor={`cdf-instance-space-${resourceId}`}>
                   {t("transform.console.cdfInstanceSpaceLabel")}
@@ -689,52 +805,29 @@ export function TransformPipelinePane(props: Props) {
                   placeholder={t("transform.console.cdfInstanceSpacePlaceholder")}
                   autoComplete="off"
                   spellCheck={false}
-                  disabled={cdfBusy || runBusy || saving}
+                  disabled={cdfBusy || effectiveRunBusy || saving}
                 />
               </div>
-              <div className="transform-flow-toolbar" role="toolbar">
-                <button
-                  type="button"
-                  className="disc-btn"
-                  disabled={cdfBusy || runBusy || saving}
-                  onClick={() => void runDeployCdf(false)}
-                >
-                  {cdfBusy ? t("transform.console.cdfBusy") : t("transform.console.deployCdf")}
-                </button>
-                <button
-                  type="button"
-                  className="disc-btn"
-                  disabled={cdfBusy || runBusy || saving}
-                  onClick={() => void runCdfWorkflow(false)}
-                >
-                  {t("transform.console.runCdf")}
-                </button>
-                <button
-                  type="button"
-                  className="disc-btn disc-btn--ghost"
-                  disabled={cdfBusy || runBusy || saving}
-                  onClick={() => void runCdfWorkflow(true)}
-                >
-                  {t("transform.console.runCdfDryRun")}
-                </button>
-                <button
-                  type="button"
-                  className="disc-btn disc-btn--ghost"
-                  disabled={cdfBusy || runBusy || saving}
-                  onClick={() => void runDeployCdf(true)}
-                >
-                  {t("transform.console.deployCdfDryRun")}
-                </button>
-              </div>
-              <textarea
-                readOnly
-                className="gov-textarea gov-textarea--readonly transform-pipeline-console__log transform-pipeline-console__log--cdf"
-                value={cdfLog}
-                placeholder={t("transform.console.cdfLogPlaceholder")}
-                aria-label={t("transform.console.deployCdf")}
-              />
+            ) : null}
+            <div className="transform-pipeline-console__hint-row">
+              <p className="transform-pipeline-console__hint">
+                {isTemplate ? t("transform.console.templateHint") : t("transform.console.hint")}
+              </p>
+              {!isTemplate ? (
+                <p className="transform-pipeline-console__hint">{t("transform.console.cdfHint")}</p>
+              ) : null}
             </div>
-          ) : null}
+            <textarea
+              ref={consoleLogRef}
+              readOnly
+              className="gov-textarea gov-textarea--readonly transform-pipeline-console__log"
+              value={combinedConsoleLog}
+              placeholder={
+                isTemplate ? t("run.outputPlaceholder") : t("transform.console.cdfLogPlaceholder")
+              }
+              aria-label={t("transform.editorSubtabs.console")}
+            />
+          </div>
         </div>
       ) : null}
 

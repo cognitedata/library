@@ -72,6 +72,8 @@ export type GroupsConfig = {
 };
 
 export type GovernanceDocument = {
+  environment?: JsonObject;
+  variables?: Record<string, unknown>;
   governance_ui?: { mirror_config_paths?: string[] };
   scope_hierarchy?: HierarchyDimension;
   dimensions?: Record<string, DimensionBlock>;

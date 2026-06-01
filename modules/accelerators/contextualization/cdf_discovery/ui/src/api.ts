@@ -9,9 +9,20 @@ import type {
   WorkflowGraph,
   WorkflowRef,
 } from "./types/discoveryNodes";
-import type { TransformCanvasDocument, TransformPipelineDocument } from "./types/transformCanvas";
+import type {
+  TransformCanvasDocument,
+  TransformPipelineDocument,
+  TransformWorkflowDocument,
+} from "./types/transformCanvas";
+import type {
+  MonitorWorkflowDetail as MonitorWorkflowStateDetail,
+  MonitorWorkflowListItem as MonitorWorkflowStateListItem,
+  MonitorScheduleItem,
+  MonitorWorkflowSummary as MonitorWorkflowStateSummary,
+} from "./types/monitorWorkflowState";
 
 const API = "";
+const CONNECTION_TIMEOUT_MS = 15000;
 
 export type ConnectionInfo = {
   project: string;
@@ -20,7 +31,19 @@ export type ConnectionInfo = {
 };
 
 export async function fetchConnection(): Promise<ConnectionInfo> {
-  const r = await fetch(`${API}/api/connection`);
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), CONNECTION_TIMEOUT_MS);
+  let r: Response;
+  try {
+    r = await fetch(`${API}/api/connection`, { signal: controller.signal });
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") {
+      throw new Error(`connection timeout after ${CONNECTION_TIMEOUT_MS}ms`);
+    }
+    throw error;
+  } finally {
+    window.clearTimeout(timeoutId);
+  }
   if (!r.ok) {
     const body = await r.json().catch(() => ({}));
     throw new Error(String((body as { detail?: string }).detail ?? r.status));
@@ -162,6 +185,57 @@ export async function fetchWorkflowGraph(ref: WorkflowRef): Promise<WorkflowGrap
     throw new Error(String((body as { detail?: string }).detail ?? r.status));
   }
   return r.json() as Promise<WorkflowGraph>;
+}
+
+export async function fetchMonitorWorkflowStateSummary(
+  runLimit = 200
+): Promise<MonitorWorkflowStateSummary> {
+  const params = new URLSearchParams({ run_limit: String(runLimit) });
+  const r = await fetch(`${API}/api/monitor/workflow-state/summary?${params}`);
+  if (!r.ok) {
+    const body = await r.json().catch(() => ({}));
+    throw new Error(String((body as { detail?: string }).detail ?? r.status));
+  }
+  return r.json() as Promise<MonitorWorkflowStateSummary>;
+}
+
+export async function fetchMonitorWorkflowStates(
+  runLimit = 200
+): Promise<{ workflows: MonitorWorkflowStateListItem[] }> {
+  const params = new URLSearchParams({ run_limit: String(runLimit) });
+  const r = await fetch(`${API}/api/monitor/workflow-state/workflows?${params}`);
+  if (!r.ok) {
+    const body = await r.json().catch(() => ({}));
+    throw new Error(String((body as { detail?: string }).detail ?? r.status));
+  }
+  return r.json() as Promise<{ workflows: MonitorWorkflowStateListItem[] }>;
+}
+
+export async function fetchMonitorWorkflowStateDetail(
+  workflowId: string,
+  runsLimit = 20
+): Promise<MonitorWorkflowStateDetail> {
+  const params = new URLSearchParams({ runs_limit: String(runsLimit) });
+  const r = await fetch(
+    `${API}/api/monitor/workflow-state/workflows/${encodeURIComponent(workflowId)}?${params}`
+  );
+  if (!r.ok) {
+    const body = await r.json().catch(() => ({}));
+    throw new Error(String((body as { detail?: string }).detail ?? r.status));
+  }
+  return r.json() as Promise<MonitorWorkflowStateDetail>;
+}
+
+export async function fetchMonitorSchedules(
+  lookbackDays = 7
+): Promise<{ lookback_days: number; schedules: MonitorScheduleItem[] }> {
+  const params = new URLSearchParams({ lookback_days: String(lookbackDays) });
+  const r = await fetch(`${API}/api/monitor/schedules?${params}`);
+  if (!r.ok) {
+    const body = await r.json().catch(() => ({}));
+    throw new Error(String((body as { detail?: string }).detail ?? r.status));
+  }
+  return r.json() as Promise<{ lookback_days: number; schedules: MonitorScheduleItem[] }>;
 }
 
 export async function fetchFunctionDetail(functionId: string): Promise<FunctionDetail> {
@@ -346,12 +420,12 @@ export async function fetchTransformTemplates(): Promise<{
   return r.json() as Promise<{ templates: Array<{ id: string; label: string }> }>;
 }
 
-export async function createTransformPipeline(body: {
+async function createTransformPipeline(body: {
   id: string;
   label: string;
   template_id?: string;
 }): Promise<{ pipeline: TransformPipelineDocument }> {
-  const r = await fetch(`${API}/api/transform/pipelines`, {
+  const r = await fetch(`${API}/api/transform/workflows`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -363,7 +437,16 @@ export async function createTransformPipeline(body: {
   return r.json() as Promise<{ pipeline: TransformPipelineDocument }>;
 }
 
-export async function fetchTransformPipelineByWorkflow(
+export async function createTransformWorkflow(body: {
+  id: string;
+  label: string;
+  template_id?: string;
+}): Promise<{ workflow: TransformWorkflowDocument }> {
+  const out = await createTransformPipeline(body);
+  return { workflow: out.pipeline };
+}
+
+async function fetchTransformPipelineByWorkflow(
   workflowExternalId: string
 ): Promise<{
   pipeline_id: string;
@@ -372,7 +455,7 @@ export async function fetchTransformPipelineByWorkflow(
   match: string;
 }> {
   const params = new URLSearchParams({ external_id: workflowExternalId });
-  const r = await fetch(`${API}/api/transform/pipelines/by-workflow?${params}`);
+  const r = await fetch(`${API}/api/transform/workflows/by-workflow?${params}`);
   if (!r.ok) {
     const body = await r.json().catch(() => ({}));
     throw new Error(String((body as { detail?: string }).detail ?? r.status));
@@ -385,7 +468,24 @@ export async function fetchTransformPipelineByWorkflow(
   }>;
 }
 
-export async function importTransformPipelineFromWorkflow(body: {
+export async function fetchTransformWorkflowByWorkflow(
+  workflowExternalId: string
+): Promise<{
+  workflow_id: string;
+  scope_suffix?: string;
+  workflow: TransformWorkflowDocument;
+  match: string;
+}> {
+  const out = await fetchTransformPipelineByWorkflow(workflowExternalId);
+  return {
+    workflow_id: out.pipeline_id,
+    scope_suffix: out.scope_suffix,
+    workflow: out.pipeline,
+    match: out.match,
+  };
+}
+
+async function importTransformPipelineFromWorkflow(body: {
   workflow_external_id: string;
   version?: string;
   pipeline_id?: string;
@@ -397,7 +497,7 @@ export async function importTransformPipelineFromWorkflow(body: {
   pipeline: TransformPipelineDocument;
   match: string;
 }> {
-  const r = await fetch(`${API}/api/transform/pipelines/import-from-workflow`, {
+  const r = await fetch(`${API}/api/transform/workflows/import-from-workflow`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -413,6 +513,33 @@ export async function importTransformPipelineFromWorkflow(body: {
     pipeline: TransformPipelineDocument;
     match: string;
   }>;
+}
+
+export async function importTransformWorkflowFromWorkflow(body: {
+  workflow_external_id: string;
+  version?: string;
+  workflow_id?: string;
+  label?: string;
+}): Promise<{
+  created: boolean;
+  workflow_id: string;
+  scope_suffix?: string;
+  workflow: TransformWorkflowDocument;
+  match: string;
+}> {
+  const out = await importTransformPipelineFromWorkflow({
+    workflow_external_id: body.workflow_external_id,
+    version: body.version,
+    pipeline_id: body.workflow_id,
+    label: body.label,
+  });
+  return {
+    created: out.created,
+    workflow_id: out.pipeline_id,
+    scope_suffix: out.scope_suffix,
+    workflow: out.pipeline,
+    match: out.match,
+  };
 }
 
 export async function fetchTransformWorkflowYaml(
@@ -452,12 +579,12 @@ function transformPipelineScopeQuery(scopeSuffix = ""): string {
   return scope ? `?scope_suffix=${encodeURIComponent(scope)}` : "";
 }
 
-export async function fetchTransformPipeline(
-  pipelineId: string,
+async function fetchTransformPipeline(
+  workflowId: string,
   scopeSuffix = ""
 ): Promise<{ pipeline: TransformPipelineDocument }> {
   const r = await fetch(
-    `${API}/api/transform/pipelines/${encodeURIComponent(pipelineId)}${transformPipelineScopeQuery(scopeSuffix)}`
+    `${API}/api/transform/workflows/${encodeURIComponent(workflowId)}${transformPipelineScopeQuery(scopeSuffix)}`
   );
   if (!r.ok) {
     const body = await r.json().catch(() => ({}));
@@ -466,13 +593,21 @@ export async function fetchTransformPipeline(
   return r.json() as Promise<{ pipeline: TransformPipelineDocument }>;
 }
 
-export async function saveTransformPipelineAsTemplate(
-  pipelineId: string,
+export async function fetchTransformWorkflow(
+  workflowId: string,
+  scopeSuffix = ""
+): Promise<{ workflow: TransformWorkflowDocument }> {
+  const out = await fetchTransformPipeline(workflowId, scopeSuffix);
+  return { workflow: out.pipeline };
+}
+
+async function saveTransformPipelineAsTemplate(
+  workflowId: string,
   body: { template_id: string; label?: string; canvas?: TransformCanvasDocument },
   scopeSuffix = ""
 ): Promise<{ template: Record<string, unknown> }> {
   const r = await fetch(
-    `${API}/api/transform/pipelines/${encodeURIComponent(pipelineId)}/save-as-template${transformPipelineScopeQuery(scopeSuffix)}`,
+    `${API}/api/transform/workflows/${encodeURIComponent(workflowId)}/save-as-template${transformPipelineScopeQuery(scopeSuffix)}`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -486,13 +621,21 @@ export async function saveTransformPipelineAsTemplate(
   return r.json() as Promise<{ template: Record<string, unknown> }>;
 }
 
-export async function saveTransformPipelineAsPipeline(
-  pipelineId: string,
+export async function saveTransformWorkflowAsTemplate(
+  workflowId: string,
+  body: { template_id: string; label?: string; canvas?: TransformCanvasDocument },
+  scopeSuffix = ""
+): Promise<{ template: Record<string, unknown> }> {
+  return saveTransformPipelineAsTemplate(workflowId, body, scopeSuffix);
+}
+
+async function saveTransformPipelineAsPipeline(
+  workflowId: string,
   body: { id: string; label: string; canvas?: TransformCanvasDocument },
   scopeSuffix = ""
 ): Promise<{ pipeline: TransformPipelineDocument }> {
   const r = await fetch(
-    `${API}/api/transform/pipelines/${encodeURIComponent(pipelineId)}/save-as-pipeline${transformPipelineScopeQuery(scopeSuffix)}`,
+    `${API}/api/transform/workflows/${encodeURIComponent(workflowId)}/save-as-pipeline${transformPipelineScopeQuery(scopeSuffix)}`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -504,6 +647,15 @@ export async function saveTransformPipelineAsPipeline(
     throw new Error(String((resBody as { detail?: string }).detail ?? r.status));
   }
   return r.json() as Promise<{ pipeline: TransformPipelineDocument }>;
+}
+
+export async function saveTransformWorkflowAsWorkflow(
+  workflowId: string,
+  body: { id: string; label: string; canvas?: TransformCanvasDocument },
+  scopeSuffix = ""
+): Promise<{ workflow: TransformWorkflowDocument }> {
+  const out = await saveTransformPipelineAsPipeline(workflowId, body, scopeSuffix);
+  return { workflow: out.pipeline };
 }
 
 export async function saveTransformTemplateAsTemplate(
@@ -525,7 +677,7 @@ export async function saveTransformTemplateAsTemplate(
   return r.json() as Promise<{ template: Record<string, unknown> }>;
 }
 
-export async function saveTransformTemplateAsPipeline(
+async function saveTransformTemplateAsPipeline(
   templateId: string,
   body: { id: string; label: string; canvas?: TransformCanvasDocument }
 ): Promise<{ pipeline: TransformPipelineDocument }> {
@@ -544,8 +696,16 @@ export async function saveTransformTemplateAsPipeline(
   return r.json() as Promise<{ pipeline: TransformPipelineDocument }>;
 }
 
-export async function deleteTransformPipeline(pipelineId: string): Promise<void> {
-  const r = await fetch(`${API}/api/transform/pipelines/${encodeURIComponent(pipelineId)}`, {
+export async function saveTransformTemplateAsWorkflow(
+  templateId: string,
+  body: { id: string; label: string; canvas?: TransformCanvasDocument }
+): Promise<{ workflow: TransformWorkflowDocument }> {
+  const out = await saveTransformTemplateAsPipeline(templateId, body);
+  return { workflow: out.pipeline };
+}
+
+async function deleteTransformPipeline(pipelineId: string): Promise<void> {
+  const r = await fetch(`${API}/api/transform/workflows/${encodeURIComponent(pipelineId)}`, {
     method: "DELETE",
   });
   if (!r.ok) {
@@ -554,13 +714,17 @@ export async function deleteTransformPipeline(pipelineId: string): Promise<void>
   }
 }
 
-export async function renameTransformPipeline(
-  pipelineId: string,
+export async function deleteTransformWorkflow(workflowId: string): Promise<void> {
+  return deleteTransformPipeline(workflowId);
+}
+
+async function renameTransformPipeline(
+  workflowId: string,
   label: string,
   scopeSuffix = ""
 ): Promise<{ pipeline: TransformPipelineDocument }> {
   const r = await fetch(
-    `${API}/api/transform/pipelines/${encodeURIComponent(pipelineId)}/label${transformPipelineScopeQuery(scopeSuffix)}`,
+    `${API}/api/transform/workflows/${encodeURIComponent(workflowId)}/label${transformPipelineScopeQuery(scopeSuffix)}`,
     {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -574,13 +738,22 @@ export async function renameTransformPipeline(
   return r.json() as Promise<{ pipeline: TransformPipelineDocument }>;
 }
 
-export async function saveTransformPipelineCanvas(
-  pipelineId: string,
+export async function renameTransformWorkflow(
+  workflowId: string,
+  label: string,
+  scopeSuffix = ""
+): Promise<{ workflow: TransformWorkflowDocument }> {
+  const out = await renameTransformPipeline(workflowId, label, scopeSuffix);
+  return { workflow: out.pipeline };
+}
+
+async function saveTransformPipelineCanvas(
+  workflowId: string,
   canvas: TransformCanvasDocument,
   scopeSuffix = ""
 ): Promise<void> {
   const r = await fetch(
-    `${API}/api/transform/pipelines/${encodeURIComponent(pipelineId)}/canvas${transformPipelineScopeQuery(scopeSuffix)}`,
+    `${API}/api/transform/workflows/${encodeURIComponent(workflowId)}/canvas${transformPipelineScopeQuery(scopeSuffix)}`,
     {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
@@ -592,7 +765,15 @@ export async function saveTransformPipelineCanvas(
   }
 }
 
-export type TransformBuildPairing = {
+export async function saveTransformWorkflowCanvas(
+  workflowId: string,
+  canvas: TransformCanvasDocument,
+  scopeSuffix = ""
+): Promise<void> {
+  return saveTransformPipelineCanvas(workflowId, canvas, scopeSuffix);
+}
+
+type TransformBuildPairing = {
   pipeline_id: string;
   workflow_base: string;
   workflow_version: string;
@@ -606,8 +787,22 @@ export type TransformBuildPairing = {
   }>;
 };
 
-export async function fetchTransformBuildPairing(
-  pipelineId: string,
+export type TransformWorkflowBuildPairing = {
+  workflow_id: string;
+  workflow_base: string;
+  workflow_version: string;
+  workflow_external_id: string;
+  trigger_external_id: string;
+  pairings: Array<{
+    scope_suffix: string;
+    workflow_external_id: string;
+    trigger_external_id: string;
+    workflow_version: string;
+  }>;
+};
+
+async function fetchTransformBuildPairing(
+  workflowId: string,
   scopeSuffix = ""
 ): Promise<TransformBuildPairing> {
   const params = new URLSearchParams();
@@ -615,7 +810,7 @@ export async function fetchTransformBuildPairing(
   if (scope) params.set("scope_suffix", scope);
   const q = params.toString();
   const r = await fetch(
-    `${API}/api/transform/pipelines/${encodeURIComponent(pipelineId)}/build-pairing?${q}`
+    `${API}/api/transform/workflows/${encodeURIComponent(workflowId)}/build-pairing?${q}`
   );
   if (!r.ok) {
     const body = await r.json().catch(() => ({}));
@@ -624,13 +819,28 @@ export async function fetchTransformBuildPairing(
   return r.json() as Promise<TransformBuildPairing>;
 }
 
-export async function validateTransformPipeline(
-  pipelineId: string,
+export async function fetchTransformWorkflowBuildPairing(
+  workflowId: string,
+  scopeSuffix = ""
+): Promise<TransformWorkflowBuildPairing> {
+  const out = await fetchTransformBuildPairing(workflowId, scopeSuffix);
+  return {
+    workflow_id: out.pipeline_id,
+    workflow_base: out.workflow_base,
+    workflow_version: out.workflow_version,
+    workflow_external_id: out.workflow_external_id,
+    trigger_external_id: out.trigger_external_id,
+    pairings: out.pairings,
+  };
+}
+
+async function validateTransformPipeline(
+  workflowId: string,
   scopeSuffix = "",
   canvas?: Record<string, unknown>
 ): Promise<{ ok: boolean; warnings?: string[]; errors?: string[] }> {
   const r = await fetch(
-    `${API}/api/transform/pipelines/${encodeURIComponent(pipelineId)}/validate${transformPipelineScopeQuery(scopeSuffix)}`,
+    `${API}/api/transform/workflows/${encodeURIComponent(workflowId)}/validate${transformPipelineScopeQuery(scopeSuffix)}`,
     {
       method: "POST",
       headers: canvas ? { "Content-Type": "application/json" } : undefined,
@@ -644,7 +854,15 @@ export async function validateTransformPipeline(
   return r.json() as Promise<{ ok: boolean; warnings?: string[]; errors?: string[] }>;
 }
 
-export type TransformBuildResult = {
+export async function validateTransformWorkflow(
+  workflowId: string,
+  scopeSuffix = "",
+  canvas?: Record<string, unknown>
+): Promise<{ ok: boolean; warnings?: string[]; errors?: string[] }> {
+  return validateTransformPipeline(workflowId, scopeSuffix, canvas);
+}
+
+type TransformBuildResult = {
   ok: boolean;
   pipeline_id?: string;
   template_id?: string;
@@ -653,12 +871,21 @@ export type TransformBuildResult = {
   task_count?: number;
 };
 
-export async function buildTransformPipeline(
-  pipelineId: string,
+export type TransformWorkflowBuildResult = {
+  ok: boolean;
+  workflow_id?: string;
+  template_id?: string;
+  stdout?: string;
+  stderr?: string;
+  task_count?: number;
+};
+
+async function buildTransformPipeline(
+  workflowId: string,
   scopeSuffix = ""
 ): Promise<TransformBuildResult> {
   const scopeQ = transformPipelineScopeQuery(scopeSuffix);
-  const url = `${API}/api/transform/workflows/${encodeURIComponent(pipelineId)}/build${scopeQ}`;
+  const url = `${API}/api/transform/workflows/${encodeURIComponent(workflowId)}/build${scopeQ}`;
   const r = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -671,7 +898,22 @@ export async function buildTransformPipeline(
   return r.json() as Promise<TransformBuildResult>;
 }
 
-export type TransformCdfCliResult = {
+export async function buildTransformWorkflow(
+  workflowId: string,
+  scopeSuffix = ""
+): Promise<TransformWorkflowBuildResult> {
+  const out = await buildTransformPipeline(workflowId, scopeSuffix);
+  return {
+    ok: out.ok,
+    workflow_id: out.pipeline_id,
+    template_id: out.template_id,
+    stdout: out.stdout,
+    stderr: out.stderr,
+    task_count: out.task_count,
+  };
+}
+
+type TransformCdfCliResult = {
   ok: boolean;
   exit_code: number;
   stdout: string;
@@ -680,8 +922,17 @@ export type TransformCdfCliResult = {
   scope_suffix?: string;
 };
 
-export async function deployTransformPipelineCdf(
-  pipelineId: string,
+export type TransformWorkflowCdfCliResult = {
+  ok: boolean;
+  exit_code: number;
+  stdout: string;
+  stderr: string;
+  workflow_id?: string;
+  scope_suffix?: string;
+};
+
+async function deployTransformPipelineCdf(
+  workflowId: string,
   scopeSuffix = "",
   options: {
     dryRun?: boolean;
@@ -691,7 +942,7 @@ export async function deployTransformPipelineCdf(
 ): Promise<TransformCdfCliResult> {
   const scopeQ = transformPipelineScopeQuery(scopeSuffix);
   const r = await fetch(
-    `${API}/api/transform/pipelines/${encodeURIComponent(pipelineId)}/deploy-cdf${scopeQ}`,
+    `${API}/api/transform/workflows/${encodeURIComponent(workflowId)}/deploy-cdf${scopeQ}`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -709,8 +960,28 @@ export async function deployTransformPipelineCdf(
   return r.json() as Promise<TransformCdfCliResult>;
 }
 
-export async function runTransformPipelineCdf(
-  pipelineId: string,
+export async function deployTransformWorkflowCdf(
+  workflowId: string,
+  scopeSuffix = "",
+  options: {
+    dryRun?: boolean;
+    skipBuild?: boolean;
+    allowUnresolvedPlaceholders?: boolean;
+  } = {}
+): Promise<TransformWorkflowCdfCliResult> {
+  const out = await deployTransformPipelineCdf(workflowId, scopeSuffix, options);
+  return {
+    ok: out.ok,
+    exit_code: out.exit_code,
+    stdout: out.stdout,
+    stderr: out.stderr,
+    workflow_id: out.pipeline_id,
+    scope_suffix: out.scope_suffix,
+  };
+}
+
+async function runTransformPipelineCdf(
+  workflowId: string,
   scopeSuffix = "",
   options: {
     dryRun?: boolean;
@@ -720,7 +991,7 @@ export async function runTransformPipelineCdf(
 ): Promise<TransformCdfCliResult> {
   const scopeQ = transformPipelineScopeQuery(scopeSuffix);
   const r = await fetch(
-    `${API}/api/transform/pipelines/${encodeURIComponent(pipelineId)}/cdf-run${scopeQ}`,
+    `${API}/api/transform/workflows/${encodeURIComponent(workflowId)}/cdf-run${scopeQ}`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -736,6 +1007,26 @@ export async function runTransformPipelineCdf(
     throw new Error(String((body as { detail?: string }).detail ?? r.status));
   }
   return r.json() as Promise<TransformCdfCliResult>;
+}
+
+export async function runTransformWorkflowCdf(
+  workflowId: string,
+  scopeSuffix = "",
+  options: {
+    dryRun?: boolean;
+    instanceSpace?: string;
+    timeoutSeconds?: number;
+  } = {}
+): Promise<TransformWorkflowCdfCliResult> {
+  const out = await runTransformPipelineCdf(workflowId, scopeSuffix, options);
+  return {
+    ok: out.ok,
+    exit_code: out.exit_code,
+    stdout: out.stdout,
+    stderr: out.stderr,
+    workflow_id: out.pipeline_id,
+    scope_suffix: out.scope_suffix,
+  };
 }
 
 export async function buildTransformTemplate(
@@ -754,8 +1045,8 @@ export async function buildTransformTemplate(
   return r.json() as Promise<TransformBuildResult>;
 }
 
-export async function runTransformPipelineLocal(
-  pipelineId: string,
+async function runTransformPipelineLocal(
+  workflowId: string,
   dryRun = false,
   incrementalChangeProcessing = true
 ): Promise<{
@@ -764,7 +1055,7 @@ export async function runTransformPipelineLocal(
   run_id?: string;
   task_summaries?: Record<string, unknown>;
 }> {
-  const r = await fetch(`${API}/api/transform/pipelines/${encodeURIComponent(pipelineId)}/run`, {
+  const r = await fetch(`${API}/api/transform/workflows/${encodeURIComponent(workflowId)}/run`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -782,6 +1073,19 @@ export async function runTransformPipelineLocal(
     run_id?: string;
     task_summaries?: Record<string, unknown>;
   }>;
+}
+
+export async function runTransformWorkflowLocal(
+  workflowId: string,
+  dryRun = false,
+  incrementalChangeProcessing = true
+): Promise<{
+  ok: boolean;
+  detail?: string;
+  run_id?: string;
+  task_summaries?: Record<string, unknown>;
+}> {
+  return runTransformPipelineLocal(workflowId, dryRun, incrementalChangeProcessing);
 }
 
 export async function fetchTransformTemplate(

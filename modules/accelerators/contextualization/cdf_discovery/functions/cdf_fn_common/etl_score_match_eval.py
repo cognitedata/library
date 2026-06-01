@@ -25,6 +25,8 @@ import re
 from types import SimpleNamespace
 from typing import Any, Callable, List, Optional, Sequence, Tuple
 
+from .isa_tag_pattern import with_optional_isa_tag_area_prefix
+
 ExpressionMatchMode = str  # "search" | "fullmatch"
 
 ModifierPair = Tuple[str, float]  # (mode, value)
@@ -335,8 +337,9 @@ def build_sorted_score_runtime(
             pri = idx * 10
         compiled: List[re.Pattern] = []
         for pat in exprs:
+            effective_pat = with_optional_isa_tag_area_prefix(pat)
             try:
-                compiled.append(re.compile(pat))
+                compiled.append(re.compile(effective_pat))
             except re.error as e:
                 if log_warning:
                     log_warning(

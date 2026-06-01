@@ -77,9 +77,7 @@ def merge_governance_into_document(
                 new_spaces["global"] = {}
                 ng = new_spaces["global"]
             ng.pop("source_ids", None)
-            ng.pop("sourceId", None)
             ng["source_ids"] = copy.deepcopy(old_global.get("source_ids", {}))
-            ng["sourceId"] = copy.deepcopy(old_global.get("sourceId", ""))
         out["spaces"] = new_spaces
     if "groups" in source:
         new_groups = copy.deepcopy(source["groups"])
@@ -91,9 +89,7 @@ def merge_governance_into_document(
                 new_groups["global"] = {}
                 ng = new_groups["global"]
             ng.pop("source_ids", None)
-            ng.pop("sourceId", None)
             ng["source_ids"] = copy.deepcopy(old_global.get("source_ids", {}))
-            ng["sourceId"] = copy.deepcopy(old_global.get("sourceId", ""))
         out["groups"] = new_groups
     return out
 

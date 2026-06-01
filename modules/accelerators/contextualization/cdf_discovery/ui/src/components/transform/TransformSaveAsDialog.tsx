@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { ModalDialogShell } from "../ModalDialogShell";
 import {
-  saveTransformPipelineAsPipeline,
-  saveTransformPipelineAsTemplate,
-  saveTransformTemplateAsPipeline,
+  saveTransformWorkflowAsWorkflow,
+  saveTransformWorkflowAsTemplate,
+  saveTransformTemplateAsWorkflow,
   saveTransformTemplateAsTemplate,
 } from "../../api";
 import { useAppSettings } from "../../context/AppSettingsContext";
@@ -86,14 +86,14 @@ export function TransformSaveAsDialog({ open, source, getCanvas, onClose, onSave
     try {
       if (source.kind === "pipeline") {
         if (targetKind === "template") {
-          await saveTransformPipelineAsTemplate(
+          await saveTransformWorkflowAsTemplate(
             source.pipelineId,
             { template_id: id, label: name, canvas },
             source.scopeSuffix
           );
           onSaved({ kind: "template", templateId: id, label: name });
         } else {
-          await saveTransformPipelineAsPipeline(
+          await saveTransformWorkflowAsWorkflow(
             source.pipelineId,
             { id, label: name, canvas },
             source.scopeSuffix
@@ -108,7 +108,7 @@ export function TransformSaveAsDialog({ open, source, getCanvas, onClose, onSave
         });
         onSaved({ kind: "template", templateId: id, label: name });
       } else {
-        await saveTransformTemplateAsPipeline(source.templateId, { id, label: name, canvas });
+        await saveTransformTemplateAsWorkflow(source.templateId, { id, label: name, canvas });
         onSaved({ kind: "pipeline", pipelineId: id, label: name });
       }
       onClose();

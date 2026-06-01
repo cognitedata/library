@@ -8,7 +8,7 @@ from cdf_fn_common.etl_cohort_storage import (
     canvas_node_id_for_task,
     invalidate_etl_cohort_row_index_cache,
     predecessor_canvas_node_ids,
-    require_run_id,
+    require_pipeline_run_key,
     resolve_base_cohort_table,
 )
 from cdf_fn_common.etl_discovery_cohort import (
@@ -41,8 +41,10 @@ from cdf_fn_common.etl_transform_cumulative_input import (
     resolve_cumulative_input_props,
 )
 from cdf_fn_common.etl_ui_progress import (
-    emit_handler_progress_every_n_rows,
-    emit_handler_progress_rows_complete,
+    COHORT_WRITE_ROW_INTERVAL,
+    emit_cohort_write_progress_complete,
+    emit_cohort_write_progress_every_n_rows,
+    set_cohort_write_progress_total,
 )
 
 
@@ -71,7 +73,7 @@ def etl_handle_transform_cohort(
     if client is None:
         raise ValueError("cohort transform requires a CDF client")
 
-    run_id = require_run_id(data)
+    run_id = require_pipeline_run_key(data)
     data["run_id"] = run_id
     task_id = _first_nonempty(data.get("task_id"), fn_external_id)
     writer_canvas = canvas_node_id_for_task(data, task_id)
@@ -100,6 +102,11 @@ def etl_handle_transform_cohort(
         cfg=cfg,
         index_cache=index_cache,
     )
+    input_keys: set[str] = set()
+    for index in table_indexes.values():
+        input_keys.update(index.keys())
+    if input_keys:
+        set_cohort_write_progress_total(len(input_keys))
 
     for row_key, cols in iter_unique_predecessor_entity_rows(
         client,
@@ -111,7 +118,6 @@ def etl_handle_transform_cohort(
         index_cache=index_cache,
     ):
         rows_read += 1
-        emit_handler_progress_every_n_rows(rows_read)
         try:
             props = resolve_cumulative_input_props(
                 client,
@@ -135,7 +141,8 @@ def etl_handle_transform_cohort(
                     )
                 )
                 rows_written += 1
-                if len(pending) >= 500:
+                emit_cohort_write_progress_every_n_rows(rows_written)
+                if len(pending) >= COHORT_WRITE_ROW_INTERVAL:
                     _flush_rows(queue, sink_db, sink_table, pending, client=client)
         except Exception as row_ex:
             record_entity_processing_failure(
@@ -147,7 +154,8 @@ def etl_handle_transform_cohort(
             )
 
     _flush_rows(queue, sink_db, sink_table, pending, client=client)
-    emit_handler_progress_rows_complete(rows_read)
+    set_cohort_write_progress_total(rows_written)
+    emit_cohort_write_progress_complete(rows_written)
     failure_recorder.flush_fdm(log=log)
     entities_failed = failure_recorder.entities_failed
 

@@ -11,13 +11,25 @@ def _as_dict(value: Any) -> dict[str, Any]:
     return dict(value) if isinstance(value, dict) else {}
 
 
+def _as_bool(value: Any) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.strip().lower() not in {"", "false", "0", "no", "off"}
+    return bool(value)
+
+
 def pipeline_parameters(data: Mapping[str, Any]) -> dict[str, Any]:
     configuration = _as_dict(data.get("configuration"))
     params = configuration.get("parameters")
     if isinstance(params, dict):
         return dict(params)
-    top = data.get("parameters")
-    return dict(top) if isinstance(top, dict) else {}
+    return {}
+
+
+def is_lookup_full_scan(cfg: Mapping[str, Any] | None = None) -> bool:
+    task_cfg = _as_dict(cfg)
+    return bool(task_cfg.get("lookup_full_scan"))
 
 
 def incremental_change_processing_enabled(
@@ -25,19 +37,23 @@ def incremental_change_processing_enabled(
     cfg: Mapping[str, Any] | None = None,
 ) -> bool:
     """True when cross-run incremental state should be read or written."""
-    if bool(data.get("incremental_change_processing")):
-        return True
-    if bool(data.get("incremental")):
-        return True
+    if is_lookup_full_scan(cfg):
+        return False
     params = pipeline_parameters(data)
-    if bool(params.get("incremental_change_processing")):
-        return True
-    if bool(params.get("incremental")):
+    if _as_bool(params.get("incremental_change_processing")):
         return True
     task_cfg = _as_dict(cfg)
-    if bool(task_cfg.get("incremental_change_processing")):
+    if _as_bool(task_cfg.get("incremental_change_processing")):
         return True
     return False
+
+
+def resolve_query_scope_mode(cfg: Mapping[str, Any] | None = None) -> str:
+    task_cfg = _as_dict(cfg)
+    mode = str(task_cfg.get("query_scope_mode") or "inherit").strip().lower()
+    if mode in QUERY_SCOPE_MODES:
+        return mode
+    return "inherit"
 
 
 def resolve_effective_incremental_change_processing(
@@ -45,17 +61,18 @@ def resolve_effective_incremental_change_processing(
     cfg: Mapping[str, Any] | None = None,
 ) -> bool:
     """True when this query should use incremental listing (not full scope)."""
-    task_cfg = _as_dict(cfg)
-    mode = str(task_cfg.get("query_scope_mode") or task_cfg.get("scope_mode") or "inherit").strip().lower()
+    if is_lookup_full_scan(cfg):
+        return False
+    mode = resolve_query_scope_mode(cfg)
     if mode == "all":
         return False
     if mode == "incremental":
         return True
     if "incremental_change_processing" in data:
-        return bool(data.get("incremental_change_processing"))
+        return _as_bool(data.get("incremental_change_processing"))
     params = pipeline_parameters(data)
     if "incremental_change_processing" in params:
-        return bool(params.get("incremental_change_processing"))
+        return _as_bool(params.get("incremental_change_processing"))
     return False
 
 
@@ -78,9 +95,9 @@ def incremental_skip_unchanged(
     if not listing_narrowed:
         return False
     if "incremental_skip_unchanged" in cfg:
-        return bool(cfg.get("incremental_skip_unchanged"))
+        return _as_bool(cfg.get("incremental_skip_unchanged"))
     params = pipeline_parameters(data)
-    return bool(params.get("incremental_skip_unchanged", True))
+    return _as_bool(params.get("incremental_skip_unchanged", True))
 
 
 def resolve_workflow_scope(data: Mapping[str, Any]) -> str:

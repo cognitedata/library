@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, MutableMapping
 
-from cdf_fn_common.etl_cohort_storage import require_run_id
+from cdf_fn_common.etl_cohort_storage import require_pipeline_run_key
 from cdf_fn_common.etl_diagram_detect import chunk_file_into_page_blocks
 from cdf_fn_common.etl_discovery_query_shared import resolve_task_config
 from cdf_fn_common.etl_file_annotation import (
@@ -45,7 +45,7 @@ def etl_handle_file_annotation(
     task_id = str(data.get("task_id") or fn_external_id)
     orch_task_id = orchestration_task_id_from_data(data)
 
-    run_id = require_run_id(data)
+    run_id = require_pipeline_run_key(data)
     workflow_scope = params["workflow_scope"]
     raw_db, state_table = file_state_sink_from_data(data)
 

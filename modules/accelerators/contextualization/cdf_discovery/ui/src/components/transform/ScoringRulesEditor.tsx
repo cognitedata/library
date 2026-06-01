@@ -3,6 +3,7 @@ import {
   defaultScoringRuleRow,
   type ScoringRuleRow,
 } from "../../utils/scoreNodeConfigModel";
+import { lookupScorePatternDescription } from "../../utils/scorePatternCatalog";
 
 type Props = {
   rules: ScoringRuleRow[];
@@ -78,7 +79,7 @@ function ScoringRuleCard({
           <div
             key={i}
             className="transform-flow-inspector__field transform-flow-inspector__field--field-pair transform-flow-inspector__field--align-end"
-            style={{ marginTop: "0.35rem" }}
+            style={{ marginTop: "0.35rem", flexWrap: "wrap" }}
           >
             <label className="gov-label">
               {t("transform.score.rulePattern")}
@@ -90,13 +91,40 @@ function ScoringRuleCard({
                   next[i] = { ...row, pattern: e.target.value };
                   setExpressions(next);
                 }}
+                onBlur={() => {
+                  const trimmed = row.pattern.trim();
+                  if (!trimmed || row.description.trim()) return;
+                  const desc = lookupScorePatternDescription(trimmed);
+                  if (!desc) return;
+                  const next = [...rule.expressions];
+                  next[i] = { ...row, description: desc };
+                  setExpressions(next);
+                }}
+                spellCheck={false}
+              />
+            </label>
+            <label className="gov-label">
+              {t("validationEditor.rule.description")}
+              <input
+                className="gov-input"
+                value={row.description}
+                onChange={(e) => {
+                  const next = [...rule.expressions];
+                  next[i] = { ...row, description: e.target.value };
+                  setExpressions(next);
+                }}
+                placeholder={t("validationEditor.rule.description")}
                 spellCheck={false}
               />
             </label>
             <button
               type="button"
               className="disc-btn disc-btn--ghost disc-btn--sm"
-              onClick={() => setExpressions(rule.expressions.filter((_, j) => j !== i))}
+              disabled={rule.expressions.length <= 1}
+              onClick={() => {
+                const next = rule.expressions.filter((_, j) => j !== i);
+                setExpressions(next.length ? next : [{ pattern: "", description: "" }]);
+              }}
             >
               ×
             </button>

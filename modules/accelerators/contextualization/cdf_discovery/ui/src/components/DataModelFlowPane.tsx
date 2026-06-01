@@ -117,7 +117,7 @@ function FlowInner({ tab, onTabUpdate, onQueryView }: Props) {
   const [nodeCtxMenu, setNodeCtxMenu] = useState<CtxMenu>(null);
   const paneCtxMenu = useTreeContextMenuState();
   const [handleOrientation, setHandleOrientation] = useState<TransformCanvasHandleOrientation>("lr");
-  const [layoutMethod, setLayoutMethod] = useState<DmFlowLayoutMethod>("dagre");
+  const [layoutMethod, setLayoutMethod] = useState<DmFlowLayoutMethod>("force");
   const [edgePathStyle, setEdgePathStyle] = useState<TransformCanvasEdgePathStyle>("smoothstep");
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);

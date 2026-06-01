@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useAppSettings } from "../../context/AppSettingsContext";
 import type { JsonObject } from "../../types/jsonConfig";
+import { QueryEditorTabs, useQueryEditorTabState, type QueryEditorTabDef } from "../query/QueryEditorTabs";
 import {
   JoinOnPredicateEditor,
   defaultJoinOnRoot,
@@ -11,9 +12,18 @@ import {
   joinOnStructuredEditable,
 } from "./JoinOnPredicateEditor";
 
+const TAB_GENERAL = "general";
+const TAB_JOIN_KEYS = "keys";
+
+const JOIN_TABS: QueryEditorTabDef[] = [
+  { id: TAB_GENERAL, labelKey: "transform.join.tabGeneral" },
+  { id: TAB_JOIN_KEYS, labelKey: "transform.join.tabJoinKeys" },
+];
+
 type Props = {
   value: JsonObject;
   onChange: (next: JsonObject) => void;
+  fieldKey: string;
 };
 
 function joinRootGroupKind(n: JsonObject): "and" | "or" | "not" | null {
@@ -39,9 +49,10 @@ function appendJoinPredicate(root: JsonObject, leaf: JsonObject): JsonObject {
   return { and: [root, leaf] };
 }
 
-export function EtlJoinNodeConfigFields({ value, onChange }: Props) {
+export function EtlJoinNodeConfigFields({ value, onChange, fieldKey }: Props) {
   const { t } = useAppSettings();
   const patch = (p: JsonObject) => onChange({ ...value, ...p });
+  const [activeTab, setActiveTab] = useQueryEditorTabState(fieldKey, TAB_GENERAL);
   const joinType = String(value.join_type ?? "inner").trim().toLowerCase();
   const enabled = value.enabled !== false;
 
@@ -66,53 +77,8 @@ export function EtlJoinNodeConfigFields({ value, onChange }: Props) {
   const showStructured = structuredOk && !jsonOverride;
   const setJoinOn = (next: JsonObject) => patch({ join_on: next });
 
-  return (
-    <div className="transform-node-editor-fields transform-join-fields">
-      <p className="transform-node-editor-modal__hint">{t("transform.join.canvasHint")}</p>
-
-      <label className="gov-label gov-label--block">
-        {t("transform.config.description")}
-        <input
-          className="gov-input"
-          style={{ marginTop: "0.35rem" }}
-          value={String(value.description ?? "")}
-          onChange={(e) => patch({ description: e.target.value })}
-          spellCheck={false}
-          autoComplete="off"
-        />
-      </label>
-
-      <label className="gov-label" style={{ marginTop: "0.75rem", display: "flex", alignItems: "center", gap: 8 }}>
-        <input type="checkbox" checked={enabled} onChange={(e) => patch({ enabled: e.target.checked })} />
-        {t("transform.join.enabledLabel")}
-      </label>
-      <p className="transform-node-editor-modal__hint">{t("transform.join.enabledHint")}</p>
-
-      <label className="gov-label gov-label--block" style={{ marginTop: "0.5rem" }}>
-        {t("transform.join.joinType")}
-        <select
-          className="gov-input"
-          style={{ marginTop: "0.35rem", maxWidth: "12rem" }}
-          value={joinType === "left" ? "left" : "inner"}
-          onChange={(e) => patch({ join_type: e.target.value })}
-        >
-          <option value="inner">{t("transform.join.typeInner")}</option>
-          <option value="left">{t("transform.join.typeLeft")}</option>
-        </select>
-      </label>
-
-      <label className="gov-label gov-label--block" style={{ marginTop: "0.5rem" }}>
-        {t("transform.join.rightPrefix")}
-        <input
-          className="gov-input"
-          style={{ marginTop: "0.35rem" }}
-          value={String(value.right_prefix ?? "")}
-          onChange={(e) => patch({ right_prefix: e.target.value })}
-          spellCheck={false}
-          autoComplete="off"
-        />
-      </label>
-
+  const joinKeysContent = (
+    <>
       <h4 className="transform-join-section-title">{t("transform.joinEditor.title")}</h4>
       <p className="transform-node-editor-modal__hint">{t("transform.joinEditor.hint")}</p>
 
@@ -231,7 +197,7 @@ export function EtlJoinNodeConfigFields({ value, onChange }: Props) {
                 }
                 if (g === "or") {
                   const arr = (Array.isArray(joinOnRawObj.or) ? joinOnRawObj.or : []) as JsonObject[];
-                  setJoinOn({ or: [...arr, emptyJoinAnd()] });
+                  setJoinOn({ or: [...arr, emptyJoinOr()] });
                   return;
                 }
                 setJoinOn({ and: [joinOnRawObj, emptyJoinAnd()] });
@@ -335,6 +301,69 @@ export function EtlJoinNodeConfigFields({ value, onChange }: Props) {
       ) : null}
 
       <p className="transform-node-editor-modal__hint">{t("transform.joinEditor.wireHandlesHint")}</p>
+    </>
+  );
+
+  return (
+    <div className="transform-node-editor-fields transform-join-fields">
+      <p className="transform-node-editor-modal__hint">{t("transform.join.canvasHint")}</p>
+
+      <QueryEditorTabs
+        tabs={JOIN_TABS}
+        activeTab={activeTab}
+        onActiveTabChange={setActiveTab}
+        ariaLabel={t("transform.query.editorTabsAria")}
+        panelIdPrefix={`join-node-${fieldKey}`}
+      >
+        {activeTab === TAB_GENERAL ? (
+          <>
+      <label className="gov-label gov-label--block">
+        {t("transform.config.description")}
+        <input
+          className="gov-input"
+          style={{ marginTop: "0.35rem" }}
+          value={String(value.description ?? "")}
+          onChange={(e) => patch({ description: e.target.value })}
+          spellCheck={false}
+          autoComplete="off"
+        />
+      </label>
+
+      <label className="gov-label" style={{ marginTop: "0.75rem", display: "flex", alignItems: "center", gap: 8 }}>
+        <input type="checkbox" checked={enabled} onChange={(e) => patch({ enabled: e.target.checked })} />
+        {t("transform.join.enabledLabel")}
+      </label>
+      <p className="transform-node-editor-modal__hint">{t("transform.join.enabledHint")}</p>
+
+      <label className="gov-label gov-label--block" style={{ marginTop: "0.5rem" }}>
+        {t("transform.join.joinType")}
+        <select
+          className="gov-input"
+          style={{ marginTop: "0.35rem", maxWidth: "12rem" }}
+          value={joinType === "left" ? "left" : "inner"}
+          onChange={(e) => patch({ join_type: e.target.value })}
+        >
+          <option value="inner">{t("transform.join.typeInner")}</option>
+          <option value="left">{t("transform.join.typeLeft")}</option>
+        </select>
+      </label>
+
+      <label className="gov-label gov-label--block" style={{ marginTop: "0.5rem" }}>
+        {t("transform.join.rightPrefix")}
+        <input
+          className="gov-input"
+          style={{ marginTop: "0.35rem" }}
+          value={String(value.right_prefix ?? "")}
+          onChange={(e) => patch({ right_prefix: e.target.value })}
+          spellCheck={false}
+          autoComplete="off"
+        />
+      </label>
+          </>
+        ) : null}
+
+        {activeTab === TAB_JOIN_KEYS ? joinKeysContent : null}
+      </QueryEditorTabs>
     </div>
   );
 }

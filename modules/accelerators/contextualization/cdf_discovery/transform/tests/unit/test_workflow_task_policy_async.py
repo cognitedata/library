@@ -21,10 +21,15 @@ from cdf_fn_common.workflow_compile.codegen import build_workflow_version_docume
 from cdf_fn_common.workflow_task_policy import discovery_task_workflow_policy  # noqa: E402
 
 
+def test_default_etl_function_policy_skip_task():
+    pol = discovery_task_workflow_policy("fn_etl_view_query")
+    assert pol["onFailure"] == "abortWorkflow"
+
+
 def test_diagram_batch_policy_async():
     pol = discovery_task_workflow_policy("fn_etl_file_annotation")
     assert pol["isAsyncComplete"] is True
-    assert pol["onFailure"] == "skipTask"
+    assert pol["onFailure"] == "abortWorkflow"
 
 
 def test_file_pattern_extract_compiles_dynamic_task():

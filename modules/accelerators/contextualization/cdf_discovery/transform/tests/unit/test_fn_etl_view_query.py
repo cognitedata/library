@@ -15,54 +15,8 @@ for p in (str(ROOT), str(FUNCS)):
 
 from fn_etl_view_query.handler import (  # noqa: E402
     _can_skip_hash_by_watermark,
-    _load_hash_index,
-    _resolve_full_hash_index,
     etl_handle_view_query,
 )
-
-
-def test_resolve_full_hash_index_deployed_dict_cache_builds_once() -> None:
-    build_calls = {"n": 0}
-
-    def _fake_build(_client, _db, _tbl, *, workflow_scope="", chunk_size=2500):
-        del _client, chunk_size
-        build_calls["n"] += 1
-        return {
-            "scope_a": {"n1": "h1"},
-            "scope_b": {"n2": "h2"},
-        }
-
-    data: dict = {}
-    client = MagicMock()
-    with patch(
-        "fn_etl_view_query.handler.build_latest_hash_index_for_table",
-        _fake_build,
-    ):
-        full_a = _resolve_full_hash_index(
-            client, data, raw_db="db", raw_table="tbl", workflow_scope="wf"
-        )
-        full_b = _resolve_full_hash_index(
-            client, data, raw_db="db", raw_table="tbl", workflow_scope="wf"
-        )
-    assert full_a == full_b
-    assert build_calls["n"] == 1
-    assert _load_hash_index(
-        client, data, raw_db="db", raw_table="tbl", scope_key="scope_a", workflow_scope="wf"
-    ) == {"n1": "h1"}
-    assert _load_hash_index(
-        client, data, raw_db="db", raw_table="tbl", scope_key="scope_b", workflow_scope="wf"
-    ) == {"n2": "h2"}
-
-
-def test_resolve_full_hash_index_callable_cache() -> None:
-    def _getter(_client, _db, _tbl, workflow_scope=""):
-        return {"sk1": {"n1": f"h_{workflow_scope}"}}
-
-    data = {"etl_raw_hash_index_cache": _getter}
-    client = MagicMock()
-    assert _load_hash_index(
-        client, data, raw_db="d", raw_table="t", scope_key="sk1", workflow_scope="wf"
-    ) == {"n1": "h_wf"}
 
 
 def test_can_skip_hash_by_watermark() -> None:
@@ -71,16 +25,14 @@ def test_can_skip_hash_by_watermark() -> None:
         listing_narrowed=True,
         wm_before=1000,
         lu=500,
-        nid="n1",
-        latest_by_node={"n1": "abc"},
+        previous_hash="abc",
     )
     assert not _can_skip_hash_by_watermark(
         hash_skip=True,
         listing_narrowed=True,
         wm_before=1000,
         lu=1500,
-        nid="n1",
-        latest_by_node={"n1": "abc"},
+        previous_hash="abc",
     )
 
 
@@ -108,7 +60,7 @@ def test_hash_skip_does_not_queue_incremental_upsert(monkeypatch) -> None:
         lambda *_a, **_k: 1000,
     )
     monkeypatch.setattr(
-        "fn_etl_view_query.handler._load_hash_index",
+        "fn_etl_view_query.handler.load_incremental_hashes_for_nodes",
         lambda *_a, **_k: {"sp1:ext1": "same_hash"},
     )
     monkeypatch.setattr(
@@ -131,11 +83,21 @@ def test_hash_skip_does_not_queue_incremental_upsert(monkeypatch) -> None:
         "fn_etl_view_query.handler.resolve_incremental_state_sink",
         lambda *_a, **_k: ("db", "tbl__incremental"),
     )
+    monkeypatch.setattr(
+        "fn_etl_view_query.handler.load_query_checkpoint_state",
+        lambda *_a, **_k: SimpleNamespace(rows_completed=0, is_complete=False, continuation_token=""),
+    )
+    monkeypatch.setattr(
+        "fn_etl_view_query.handler.save_query_checkpoint_state",
+        lambda *_a, **_k: None,
+    )
 
     client = MagicMock()
     data = {
-        "incremental_change_processing": True,
-        "parameters": {"incremental_change_processing": True, "workflow_scope": "wf"},
+        "run_id": "00000000-0000-4000-8000-000000000004",
+        "configuration": {
+            "parameters": {"incremental_change_processing": True, "workflow_scope": "wf"}
+        },
         "config": {
             "view_space": "cdf_cdm",
             "view_external_id": "CogniteAsset",
@@ -150,3 +112,135 @@ def test_hash_skip_does_not_queue_incremental_upsert(monkeypatch) -> None:
     assert summary["query_duration_sec"] >= 0
     assert summary["loop_duration_sec"] >= 0
     assert upsert_calls == []
+
+
+def test_view_query_uses_checkpoint_cursor_and_run_cap(monkeypatch) -> None:
+    inst = SimpleNamespace(
+        external_id="ext1",
+        space="sp1",
+        instance_id="uuid-1",
+        properties={"cdf_cdm": {"CogniteAsset/v1": {"name": "A"}}},
+        last_updated_time=500,
+    )
+    seen: dict[str, object] = {}
+
+    def _fake_query(_client, **kwargs):
+        seen["initial_cursor"] = kwargs.get("initial_cursor")
+        seen["max_items"] = kwargs.get("max_items")
+        stats_out = kwargs.get("stats_out")
+        if stats_out is not None:
+            stats_out.next_cursor = "cursor-next"
+            stats_out.page_count = 1
+            stats_out.instances_yielded = 1
+        yield inst
+
+    saved: dict[str, object] = {}
+    monkeypatch.setattr("fn_etl_view_query.handler.query_all_view_instances", _fake_query)
+    monkeypatch.setattr("fn_etl_view_query.handler.maybe_handoff_predecessor_rows", lambda *_a, **_k: None)
+    monkeypatch.setattr("fn_etl_view_query.handler.load_query_checkpoint_state", lambda *_a, **_k: SimpleNamespace(rows_completed=0, is_complete=False, continuation_token="cursor-1"))
+    monkeypatch.setattr("fn_etl_view_query.handler.save_query_checkpoint_state", lambda *_a, **kwargs: saved.update(kwargs))
+
+    client = MagicMock()
+    data = {
+        "run_id": "00000000-0000-4000-8000-000000000004",
+        "configuration": {"parameters": {"max_records_per_run": 1}},
+        "config": {
+            "view_space": "cdf_cdm",
+            "view_external_id": "CogniteAsset",
+            "view_version": "v1",
+        },
+    }
+    summary = etl_handle_view_query("fn_etl_view_query", data, client, None)
+    assert summary["instances_written"] == 1
+    assert seen["initial_cursor"] == "cursor-1"
+    assert seen["max_items"] == 1
+    assert saved["continuation_token"] == "cursor-next"
+
+
+def test_view_query_lookup_full_scan_skips_checkpoint(monkeypatch) -> None:
+    inst = SimpleNamespace(
+        external_id="ext1",
+        space="sp1",
+        instance_id="uuid-1",
+        properties={"cdf_cdm": {"CogniteAsset/v1": {"name": "A"}}},
+        last_updated_time=500,
+    )
+    seen: dict[str, object] = {}
+
+    def _fake_query(_client, **kwargs):
+        seen["initial_cursor"] = kwargs.get("initial_cursor")
+        seen["max_items"] = kwargs.get("max_items")
+        yield inst
+
+    monkeypatch.setattr("fn_etl_view_query.handler.query_all_view_instances", _fake_query)
+    monkeypatch.setattr("fn_etl_view_query.handler.maybe_handoff_predecessor_rows", lambda *_a, **_k: None)
+
+    load_calls = {"count": 0}
+
+    def _load(*_a, **_k):
+        load_calls["count"] += 1
+        return SimpleNamespace(rows_completed=0, is_complete=False, continuation_token="cursor-1")
+
+    monkeypatch.setattr("fn_etl_view_query.handler.load_query_checkpoint_state", _load)
+    monkeypatch.setattr("fn_etl_view_query.handler.save_query_checkpoint_state", lambda *_a, **_k: None)
+
+    client = MagicMock()
+    data = {
+        "run_id": "00000000-0000-4000-8000-000000000004",
+        "configuration": {"parameters": {"max_records_per_run": 1}},
+        "config": {
+            "view_space": "cdf_cdm",
+            "view_external_id": "CogniteAsset",
+            "view_version": "v1",
+            "lookup_full_scan": True,
+        },
+    }
+    summary = etl_handle_view_query("fn_etl_view_query", data, client, None)
+    assert summary["instances_written"] == 1
+    assert summary["lookup_full_scan"] is True
+    assert load_calls["count"] == 0
+    assert seen["initial_cursor"] is None
+    assert seen["max_items"] == 0
+
+
+def test_view_query_non_incremental_without_cap_skips_checkpoint(monkeypatch) -> None:
+    inst = SimpleNamespace(
+        external_id="ext1",
+        space="sp1",
+        instance_id="uuid-1",
+        properties={"cdf_cdm": {"CogniteAsset/v1": {"name": "A"}}},
+        last_updated_time=500,
+    )
+    seen: dict[str, object] = {}
+    load_calls = {"count": 0}
+
+    def _fake_query(_client, **kwargs):
+        seen["initial_cursor"] = kwargs.get("initial_cursor")
+        seen["max_items"] = kwargs.get("max_items")
+        yield inst
+
+    def _load(*_a, **_k):
+        load_calls["count"] += 1
+        return SimpleNamespace(rows_completed=10, is_complete=True, continuation_token="cursor-1")
+
+    monkeypatch.setattr("fn_etl_view_query.handler.query_all_view_instances", _fake_query)
+    monkeypatch.setattr("fn_etl_view_query.handler.maybe_handoff_predecessor_rows", lambda *_a, **_k: None)
+    monkeypatch.setattr("fn_etl_view_query.handler.load_query_checkpoint_state", _load)
+    monkeypatch.setattr("fn_etl_view_query.handler.save_query_checkpoint_state", lambda *_a, **_k: None)
+
+    client = MagicMock()
+    data = {
+        "run_id": "00000000-0000-4000-8000-000000000004",
+        "configuration": {"parameters": {"incremental_change_processing": False}},
+        "config": {
+            "view_space": "cdf_cdm",
+            "view_external_id": "CogniteAsset",
+            "view_version": "v1",
+        },
+    }
+    summary = etl_handle_view_query("fn_etl_view_query", data, client, None)
+    assert summary["instances_written"] == 1
+    assert summary["incremental_change_processing"] is False
+    assert load_calls["count"] == 0
+    assert seen["initial_cursor"] is None
+    assert seen["max_items"] == 0

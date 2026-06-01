@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAppSettings } from "../../context/AppSettingsContext";
 import type { JsonObject } from "../../types/jsonConfig";
-import { QueryEditorTabs, type QueryEditorTabDef } from "./QueryEditorTabs";
+import { QueryEditorTabs, useQueryEditorTabState, type QueryEditorTabDef } from "./QueryEditorTabs";
 import { QueryPreviewPanel, type QueryPreviewResult } from "./QueryPreviewPanel";
 import { QueryScopeModeFields } from "./QueryScopeModeFields";
 import { SourceViewFiltersSection } from "./SourceViewFiltersSection";
@@ -201,11 +201,7 @@ export function ViewQueryConfigFields({
     }
   }, [value, previewLimit, t]);
 
-  const [activeTab, setActiveTab] = useState(VIEW_QUERY_TAB_CONFIG);
-
-  useEffect(() => {
-    setActiveTab(VIEW_QUERY_TAB_CONFIG);
-  }, [fieldKey]);
+  const [activeTab, setActiveTab] = useQueryEditorTabState(fieldKey, VIEW_QUERY_TAB_CONFIG);
 
   const includeProperties = useMemo(
     () =>
@@ -421,6 +417,17 @@ export function ViewQueryConfigFields({
         />
       </label>
       <QueryScopeModeFields value={value} onChange={onChange} />
+      <label className="transform-query-label transform-query-label--inline" style={{ alignItems: "center", gap: 6 }}>
+        <input
+          type="checkbox"
+          checked={value.lookup_full_scan === true}
+          onChange={(e) => patch({ lookup_full_scan: e.target.checked })}
+        />
+        {t("transform.query.lookupFullScan")}
+      </label>
+      <span className="transform-query-hint" style={{ display: "block", marginTop: "-0.25rem" }}>
+        {t("transform.query.lookupFullScanHint")}
+      </span>
       <SourceViewFiltersSection filters={filters} onFiltersChange={setFilters} fieldKey={fieldKey} />
     </>
   ) : (

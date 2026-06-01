@@ -12,8 +12,9 @@ if str(_staging_root) not in sys.path:
 
 from cdf_fn_common.etl_common import (
     _first_nonempty,
+    emit_agent_debug_log,
     iter_predecessor_rows,
-    resolve_run_id,
+    require_pipeline_run_key,
     resolve_task_config,
 )
 from cdf_fn_common.etl_pipeline_steps import materialize_transform_steps
@@ -39,6 +40,20 @@ def etl_handle_transform(
 ) -> Dict[str, Any]:
     merge_compiled_task_into_data(data)
     cfg = resolve_task_config(data)
+    pre_run_id = _first_nonempty(data.get("run_id"), "pre-run")
+    # #region agent log
+    emit_agent_debug_log(
+        run_id=pre_run_id,
+        hypothesis_id="H3",
+        location="fn_etl_transform/handler.py:44",
+        message="transform_entry",
+        data={
+            "task_id": _first_nonempty(data.get("task_id"), fn_external_id),
+            "enabled": bool(cfg.get("enabled", True)) if isinstance(cfg, dict) else False,
+            "has_config": bool(cfg),
+        },
+    )
+    # #endregion
     if not cfg:
         raise ValueError("transform task requires non-empty config")
     validate_transform_pipeline_config(cfg)
@@ -56,7 +71,7 @@ def etl_handle_transform(
     if not use_in_memory_predecessors(data, cfg):
         return etl_handle_transform_cohort(fn_external_id, data, client, log)
 
-    run_id = resolve_run_id(data)
+    run_id = require_pipeline_run_key(data)
     data["run_id"] = run_id
     task_id = _first_nonempty(data.get("task_id"), fn_external_id)
     _, steps = materialize_transform_steps(cfg)
@@ -73,6 +88,20 @@ def etl_handle_transform(
                 out_rows.append({"columns": dict(cols), "properties": dict(out_props)})
                 rows_written += 1
         except Exception as ex:
+            # #region agent log
+            emit_agent_debug_log(
+                run_id=run_id,
+                hypothesis_id="H3",
+                location="fn_etl_transform/handler.py:93",
+                message="transform_row_exception",
+                data={
+                    "task_id": task_id,
+                    "rows_read": rows_read,
+                    "error": str(ex),
+                    "handler_summary": handler_summary,
+                },
+            )
+            # #endregion
             if log and hasattr(log, "error"):
                 log.error("%s row transform failed: %s", task_id, ex)
             raise

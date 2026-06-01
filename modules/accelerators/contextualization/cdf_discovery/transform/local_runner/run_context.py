@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import uuid
 from typing import Any, Dict, Mapping, MutableMapping, Set
 
 
@@ -22,10 +23,19 @@ def disabled_canvas_task_ids(configuration: Mapping[str, Any]) -> Set[str]:
 
 
 def ensure_shared_run_id(shared_data: MutableMapping[str, Any]) -> str:
-    from cdf_fn_common.etl_common import new_pipeline_run_id, resolve_run_id
+    from cdf_fn_common.etl_common import require_pipeline_run_key
 
-    rid = resolve_run_id(shared_data)
+    configuration = shared_data.get("configuration")
+    cfg = dict(configuration) if isinstance(configuration, dict) else {}
+    params = cfg.get("parameters")
+    params_dict = dict(params) if isinstance(params, dict) else {}
+    correlation_id = str(params_dict.get("correlation_id") or "").strip() or str(uuid.uuid4())
+    params_dict["correlation_id"] = correlation_id
+    cfg["parameters"] = params_dict
+    shared_data["configuration"] = cfg
+    rid = require_pipeline_run_key(shared_data)
     shared_data["run_id"] = rid
+    shared_data["id"] = rid
     return rid
 
 

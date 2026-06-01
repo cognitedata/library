@@ -8,6 +8,7 @@ from fn_etl_transform.handler import etl_handle_transform
 
 def test_transform_trim_whitespace_writes_aliases() -> None:
     data = {
+        "run_id": "00000000-0000-4000-8000-000000000003",
         "task_id": "tr_file",
         "config": {
             "handler_id": "trim_whitespace",
@@ -51,6 +52,7 @@ def test_transform_emits_row_progress_every_500_rows(monkeypatch) -> None:
         for i in range(501)
     ]
     data = {
+        "run_id": "00000000-0000-4000-8000-000000000003",
         "task_id": "tr_bulk",
         "config": {
             "handler_id": "trim_whitespace",

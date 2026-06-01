@@ -167,7 +167,7 @@ def run_classic_query_preview(
     limit: int = 100,
 ) -> Dict[str, Any]:
     """List classic resources (assets/files/events/time series)."""
-    resource_type = _first_nonempty(config.get("resource_type"), config.get("classic_resource_type"), "assets")
+    resource_type = _first_nonempty(config.get("resource_type"), "assets")
     preview_lim = max(1, min(int(limit or 100), _PREVIEW_ROW_CAP))
     filters = parse_etl_filters(config)
 
@@ -195,20 +195,15 @@ def run_raw_query_preview(
     limit: int = 100,
 ) -> Dict[str, Any]:
     """Read entity rows from a RAW table (no cohort write)."""
-    source_db = _first_nonempty(
-        config.get("source_raw_db"),
-        config.get("raw_db"),
-    )
+    source_db = _first_nonempty(config.get("source_raw_db"))
     source_table = _first_nonempty(
         config.get("source_raw_table"),
         config.get("source_raw_table_key"),
-        config.get("raw_table"),
-        config.get("raw_table_key"),
     )
     if not source_db or not source_table:
-        raise ValueError("raw_db and raw_table_key (or source_raw_*) are required")
+        raise ValueError("source_raw_db and source_raw_table/source_raw_table_key are required")
 
-    read_limit = int(config.get("read_limit") or config.get("limit") or limit or 100)
+    read_limit = int(config.get("read_limit") or limit or 100)
     read_limit = max(1, min(read_limit, _PREVIEW_ROW_CAP))
     wanted_run = _first_nonempty(config.get("source_run_id"))
     filters = parse_etl_filters(config)
@@ -247,10 +242,7 @@ def run_records_query_preview(
     limit: int = 100,
 ) -> Dict[str, Any]:
     """Read records from a stream via sync/filter (no cohort RAW write)."""
-    stream_external_id = _first_nonempty(
-        config.get("stream_external_id"),
-        config.get("streamExternalId"),
-    )
+    stream_external_id = _first_nonempty(config.get("stream_external_id"))
     if not stream_external_id:
         raise ValueError("stream_external_id is required")
 
@@ -261,7 +253,7 @@ def run_records_query_preview(
     else:
         read_cap = min(read_cap, preview_lim)
 
-    read_mode = _first_nonempty(config.get("read_mode"), config.get("sync_mode"), "sync").lower()
+    read_mode = _first_nonempty(config.get("read_mode"), "sync").lower()
     body_base = build_records_request_body(config)
 
     items: List[Dict[str, Any]] = []
@@ -290,10 +282,7 @@ def run_records_query_preview(
 
 def validate_records_save_preview(config: Mapping[str, Any]) -> Dict[str, Any]:
     """Dry-run validation for save_records node config (no cohort rows, no CDF writes)."""
-    stream_external_id = _first_nonempty(
-        config.get("stream_external_id"),
-        config.get("streamExternalId"),
-    )
+    stream_external_id = _first_nonempty(config.get("stream_external_id"))
     issues: List[str] = []
     if not stream_external_id:
         issues.append("stream_external_id is required")

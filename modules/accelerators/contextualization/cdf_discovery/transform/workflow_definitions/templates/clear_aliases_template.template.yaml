@@ -1,0 +1,128 @@
+schemaVersion: 1
+template_id: clear_aliases_template
+label: Clear Aliases (template)
+parameters:
+  incremental_change_processing: true
+  incremental_skip_unchanged: true
+  raw_db: etl_staging
+  raw_table_key: cohort
+  preview_raw_table_key: etl_preview
+  instance_space: inst_assets
+  etl_state_instance_space: null
+canvas:
+  schemaVersion: 1
+  handle_orientation: lr
+  layout_method: layered
+  edge_path_style: smoothstep
+  nodes:
+  - id: end
+    kind: end
+    position:
+      x: 972
+      y: -37
+    data:
+      label: End
+      config:
+        description: ''
+    width: 148
+    height: 68
+  - id: query_view_mppwe49g
+    kind: query_view
+    position:
+      x: 210
+      y: -51
+    data:
+      label: CogniteAsset (v1)
+      config:
+        description: CogniteAsset (v1)
+        view_space: cdf_cdm
+        view_external_id: CogniteAsset
+        view_version: v1
+        batch_size: 1000
+        include_properties:
+        - name
+    width: 192
+    height: 96
+  - id: save_view_mppwdkbe
+    kind: save_view
+    position:
+      x: 718
+      y: -51
+    data:
+      label: CogniteAsset (v1)
+      config:
+        description: CogniteAsset (v1)
+        view_space: cdf_cdm
+        view_external_id: CogniteAsset
+        view_version: v1
+    width: 192
+    height: 96
+  - id: start
+    kind: start
+    position:
+      x: 0
+      y: -37
+    data:
+      label: Workflow trigger
+      config:
+        description: Workflow trigger
+        trigger_type: schedule
+        cron_expression: 0 2 * * *
+        workflow_version: '1'
+        workflow_base: wf_etl_clear_aliases
+        workflow_external_id: wf_etl_clear_aliases
+        trigger_external_id: trg_wf_etl_clear_aliases
+        incremental_change_processing: true
+        run_id: ''
+    width: 148
+    height: 68
+  - id: transform_mppwfbt9
+    kind: transform
+    position:
+      x: 464
+      y: -51
+    data:
+      label: Trim whitespace · CogniteAsset (v1)
+      config:
+        handler_id: trim_whitespace
+        enabled: true
+        fields:
+        - field_name: name
+        output_field: aliases
+        output_template: NONE
+        output_mode: append
+        trim_whitespace:
+          mode: ends_only
+        description: Trim whitespace · CogniteAsset (v1)
+      node_color: '#0891b2'
+    width: 192
+    height: 96
+  edges:
+  - id: xy-edge__save_view_mppwdkbeout-endin
+    source: save_view_mppwdkbe
+    target: end
+    source_handle: out
+    target_handle: in
+    kind: data
+  - id: xy-edge__startout-query_view_mppwe49gin
+    source: start
+    target: query_view_mppwe49g
+    source_handle: out
+    target_handle: in
+    kind: data
+  - id: xy-edge__query_view_mppwe49gout-transform_mppwfbt9in
+    source: query_view_mppwe49g
+    target: transform_mppwfbt9
+    source_handle: out
+    target_handle: in
+    kind: data
+  - id: xy-edge__transform_mppwfbt9out-save_view_mppwdkbein
+    source: transform_mppwfbt9
+    target: save_view_mppwdkbe
+    source_handle: out
+    target_handle: in
+    kind: data
+  viewport:
+    x: 57.721996832692696
+    y: 181.91963952178378
+    zoom: 0.8479199646331476

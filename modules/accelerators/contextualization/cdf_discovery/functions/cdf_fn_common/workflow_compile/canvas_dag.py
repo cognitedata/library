@@ -40,6 +40,31 @@ class CanvasCompileError(ValueError):
 
 STRUCTURAL_KINDS: FrozenSet[str] = frozenset({"start", "end"})
 
+# Stages that materialize or pass cohort rows (required upstream of transform / score / build_index).
+_COHORT_SOURCE_KINDS: FrozenSet[str] = frozenset(
+    {
+        "query_view",
+        "query_raw",
+        "query_classic",
+        "query_sql",
+        "query_records",
+        "transform",
+        "score",
+        "build_index",
+        "filter",
+        "join",
+        "merge",
+        "file_annotation",
+        "workflow_fanout_plan",
+        "json_mapping",
+    }
+)
+
+_COHORT_CONSUMER_KINDS: FrozenSet[str] = frozenset({"transform", "score", "build_index"})
+_QUERY_KINDS: FrozenSet[str] = frozenset(
+    {"query_view", "query_raw", "query_classic", "query_sql", "query_records"}
+)
+
 # Canvas-only nodes: never compiled; dependencies walk through them.
 CANVAS_ONLY_KINDS: FrozenSet[str] = frozenset({"subgraph", "node_preview"})
 
@@ -131,6 +156,32 @@ def _resolve_executable_predecessors(
         if pid:
             collect_from(pid)
     return result
+
+
+def _validate_cohort_consumer_predecessors(
+    node_id: str,
+    kind: str,
+    deps: Sequence[str],
+    node_by_id: Mapping[str, Mapping[str, Any]],
+) -> None:
+    if kind not in _COHORT_CONSUMER_KINDS:
+        return
+    if not deps:
+        raise CanvasCompileError(
+            f"{kind} node {node_id!r} requires an upstream stage that materializes cohort rows "
+            "(e.g. query, transform, filter); connect a cohort-producing predecessor"
+        )
+    for dep_id in deps:
+        pred = node_by_id.get(dep_id)
+        if pred is None:
+            continue
+        pred_kind = _node_kind(pred)
+        if pred_kind not in _COHORT_SOURCE_KINDS:
+            raise CanvasCompileError(
+                f"{kind} node {node_id!r}: predecessor {dep_id!r} (kind={pred_kind!r}) does not "
+                f"materialize cohort rows; allowed upstream kinds include "
+                f"{sorted(_COHORT_SOURCE_KINDS)}"
+            )
 
 
 def _node_kind(node: Mapping[str, Any]) -> str:
@@ -264,6 +315,10 @@ def _end_node_cleanup_tasks(
             continue
         data = n.get("data") if isinstance(n.get("data"), dict) else {}
         cfg = data.get("config") if isinstance(data.get("config"), dict) else {}
+        if bool(cfg.get("lookup_full_scan")) and kind not in _QUERY_KINDS:
+            errors.append(
+                f"{kind} node {node_id!r}: lookup_full_scan is only supported on query nodes"
+            )
         if not cfg:
             cfg = {"description": "Post-run cohort RAW cleanup"}
         deps = _resolve_executable_predecessors(
@@ -339,6 +394,20 @@ def _validate_transform_step_config(
         raise CanvasCompileError(str(ex)) from ex
 
 
+def _validate_raw_query_config(node_id: str, cfg: Mapping[str, Any]) -> None:
+    source_db = str(cfg.get("source_raw_db") or "").strip()
+    source_table = str(
+        cfg.get("source_raw_table")
+        or cfg.get("source_raw_table_key")
+        or ""
+    ).strip()
+    if not source_db or not source_table:
+        raise CanvasCompileError(
+            f"query_raw node {node_id!r}: source_raw_db and "
+            "source_raw_table/source_raw_table_key are required"
+        )
+
+
 def validate_transform_canvas_config(node_id: str, cfg: Mapping[str, Any]) -> None:
     """Validate transform node config: I/O fields, execution block, handler-specific rules."""
     if cfg.get("enabled") is False:
@@ -396,6 +465,142 @@ def _reject_removed_mapping_node_kinds(nodes: Sequence[Mapping[str, Any]]) -> No
         )
 
 
+def validate_canvas_dag(canvas: Mapping[str, Any]) -> List[str]:
+    """Collect all validation errors without failing fast."""
+    errors: List[str] = []
+    nodes = list(canvas.get("nodes") or [])
+    try:
+        _reject_removed_mapping_node_kinds(nodes)
+    except CanvasCompileError as ex:
+        errors.append(str(ex))
+    _normalize_mislabeled_fanout_plan_nodes(nodes)
+    edges = canvas.get("edges") or []
+    pred: Dict[str, List[str]] = {}
+    for e in edges:
+        if not isinstance(e, dict):
+            continue
+        src = str(e.get("source") or "").strip()
+        tgt = str(e.get("target") or "").strip()
+        if src and tgt:
+            pred.setdefault(tgt, []).append(src)
+
+    node_by_id: Dict[str, Dict[str, Any]] = {}
+    executable_ids: set[str] = set()
+    for n in nodes:
+        if not isinstance(n, dict):
+            continue
+        kind = _node_kind(n)
+        node_id = str(n.get("id") or kind).strip()
+        if node_id:
+            node_by_id[node_id] = n
+        if kind in STRUCTURAL_KINDS:
+            continue
+        if kind not in _KIND_SPEC:
+            continue
+        executable_ids.add(node_id)
+
+    canvas_only_ids = _canvas_only_node_ids(nodes)
+    for n in nodes:
+        if not isinstance(n, dict):
+            continue
+        kind = _node_kind(n)
+        if kind in STRUCTURAL_KINDS:
+            continue
+        if kind not in _KIND_SPEC:
+            continue
+        node_id = str(n.get("id") or kind).strip()
+        data = n.get("data") if isinstance(n.get("data"), dict) else {}
+        cfg = data.get("config") if isinstance(data.get("config"), dict) else {}
+
+        if kind == "function_ref" and not str(cfg.get("function_external_id") or "").strip():
+            errors.append(f"function_ref node {node_id!r}: function_external_id is required")
+        if kind == "transformation_ref" and not str(cfg.get("transformation_external_id") or "").strip():
+            errors.append(f"transformation_ref node {node_id!r}: transformation_external_id is required")
+        if kind == "subworkflow" and not str(cfg.get("workflow_external_id") or "").strip():
+            errors.append(f"subworkflow node {node_id!r}: workflow_external_id is required")
+        if kind == "transform":
+            try:
+                validate_transform_canvas_config(node_id, cfg)
+            except CanvasCompileError as ex:
+                errors.append(str(ex))
+        if kind == "query_raw":
+            try:
+                _validate_raw_query_config(node_id, cfg)
+            except CanvasCompileError as ex:
+                errors.append(str(ex))
+
+        deps = _resolve_executable_predecessors(
+            node_id,
+            pred,
+            executable_ids=executable_ids,
+            canvas_only_ids=canvas_only_ids,
+        )
+        try:
+            _validate_cohort_consumer_predecessors(node_id, kind, deps, node_by_id)
+        except CanvasCompileError as ex:
+            errors.append(str(ex))
+
+        if kind == "join":
+            try:
+                _join_input_task_ids_from_edges(
+                    node_id,
+                    edges,
+                    node_by_id=node_by_id,
+                    executable_ids=executable_ids,
+                )
+            except CanvasCompileError as ex:
+                errors.append(str(ex))
+        elif kind == "file_annotation":
+            try:
+                _dual_input_task_ids_from_edges(
+                    node_id,
+                    edges,
+                    handle_left=FILE_ANNOTATION_HANDLE_ENTITIES,
+                    handle_right=FILE_ANNOTATION_HANDLE_FILES,
+                    node_by_id=node_by_id,
+                    executable_ids=executable_ids,
+                    node_kind_label="file_annotation",
+                    require_right=not _config_has_file_ids(cfg),
+                )
+            except CanvasCompileError as ex:
+                errors.append(str(ex))
+        elif kind == "workflow_fanout_plan":
+            profile = str(cfg.get("fanout_profile") or "file_annotation").strip().lower()
+            require_b = profile == "file_annotation" and not _config_has_file_ids(cfg)
+            try:
+                _dual_input_task_ids_from_edges(
+                    node_id,
+                    edges,
+                    handle_left=FANOUT_PLAN_HANDLE_INPUT_A,
+                    handle_right=FANOUT_PLAN_HANDLE_INPUT_B,
+                    node_by_id=node_by_id,
+                    executable_ids=executable_ids,
+                    node_kind_label="workflow_fanout_plan",
+                    require_right=require_b,
+                )
+            except CanvasCompileError as ex:
+                errors.append(str(ex))
+        elif kind == "json_mapping":
+            from cdf_fn_common.etl_annotation_map.kuiper_templates import (
+                enrich_json_mapping_config_for_compile,
+                is_diagram_mapper_kind,
+            )
+
+            enriched = enrich_json_mapping_config_for_compile(cfg)
+            try:
+                _validate_json_mapping_config(node_id, enriched)
+            except CanvasCompileError as ex:
+                errors.append(str(ex))
+            if is_diagram_mapper_kind(str(enriched.get("mapper_kind") or "")) and len(deps) != 1:
+                errors.append(
+                    f"json_mapping node {node_id!r} with mapper_kind="
+                    f"{enriched.get('mapper_kind')!r} requires exactly one predecessor "
+                    f"(typically fanout), got {deps!r}"
+                )
+
+    return errors
+
+
 def compile_canvas_dag(canvas: Mapping[str, Any]) -> Dict[str, Any]:
     """Map executable canvas nodes to compiled_workflow tasks."""
     nodes = list(canvas.get("nodes") or [])
@@ -442,6 +647,10 @@ def compile_canvas_dag(canvas: Mapping[str, Any]) -> Dict[str, Any]:
         node_id = str(n.get("id") or kind).strip()
         data = n.get("data") if isinstance(n.get("data"), dict) else {}
         cfg = data.get("config") if isinstance(data.get("config"), dict) else {}
+        if bool(cfg.get("lookup_full_scan")) and kind not in _QUERY_KINDS:
+            raise CanvasCompileError(
+                f"{kind} node {node_id!r}: lookup_full_scan is only supported on query nodes"
+            )
         if kind == "function_ref" and not str(cfg.get("function_external_id") or "").strip():
             raise CanvasCompileError(
                 f"function_ref node {node_id!r}: function_external_id is required"
@@ -458,12 +667,15 @@ def compile_canvas_dag(canvas: Mapping[str, Any]) -> Dict[str, Any]:
             )
         if kind == "transform":
             validate_transform_canvas_config(node_id, cfg)
+        if kind == "query_raw":
+            _validate_raw_query_config(node_id, cfg)
         deps = _resolve_executable_predecessors(
             node_id,
             pred,
             executable_ids=executable_ids,
             canvas_only_ids=canvas_only_ids,
         )
+        _validate_cohort_consumer_predecessors(node_id, kind, deps, node_by_id)
         payload: Dict[str, Any] = {"config": cfg}
         if kind == "join":
             left_tid, right_tid = _join_input_task_ids_from_edges(
@@ -525,18 +737,22 @@ def compile_canvas_dag(canvas: Mapping[str, Any]) -> Dict[str, Any]:
         label = ""
         if isinstance(data.get("label"), str):
             label = str(data.get("label") or "").strip()
-        tasks.append(
-            {
-                "id": node_id,
-                "function_external_id": _resolved_function_external_id(kind, cfg, fn_ext),
-                "executable_kind": exec_kind,
-                "task_type": task_type,
-                "canvas_node_id": node_id,
-                "label": label,
-                "depends_on": deps,
-                "payload": payload,
-            }
-        )
+        on_failure = str(cfg.get("on_failure") or cfg.get("onFailure") or "").strip()
+        if not on_failure and kind == "cdf_task":
+            on_failure = "skipTask"
+        task_entry: Dict[str, Any] = {
+            "id": node_id,
+            "function_external_id": _resolved_function_external_id(kind, cfg, fn_ext),
+            "executable_kind": exec_kind,
+            "task_type": task_type,
+            "canvas_node_id": node_id,
+            "label": label,
+            "depends_on": deps,
+            "payload": payload,
+        }
+        if on_failure:
+            task_entry["on_failure"] = on_failure
+        tasks.append(task_entry)
 
     if not any(t.get("executable_kind") == "raw_cleanup" for t in tasks):
         end_cleanups = _end_node_cleanup_tasks(

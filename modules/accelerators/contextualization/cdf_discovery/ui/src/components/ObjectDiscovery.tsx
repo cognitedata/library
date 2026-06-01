@@ -30,7 +30,13 @@ import { canQueryTreeNode } from "../utils/sqlQuerySeed";
 import { canDropDataTreeEntity } from "../utils/dataTreeEntityDrop";
 import { canDragCdfResourceToTransformCanvas } from "../utils/cdfResourceDrop";
 import { setCdfResourceDragData, setDataTreeEntityDragData } from "./transform/transformFlowDrag";
-import { DATA_SAVED_QUERIES, TRANSFORM_PIPELINES, TRANSFORM_ROOT, TRANSFORM_TEMPLATES } from "../utils/treeNodeIds";
+import {
+  DATA_SAVED_QUERIES,
+  TRANSFORM_PIPELINES,
+  TRANSFORM_ROOT,
+  TRANSFORM_TEMPLATES,
+  isTransformWorkflowsSubtreeNodeId,
+} from "../utils/treeNodeIds";
 import {
   canDragTransformTreeItem,
   endTransformTreeDrag,
@@ -243,11 +249,12 @@ export function ObjectDiscovery({
     if (!transformPipelinesRevision) return;
     invalidateSubtree(TRANSFORM_ROOT);
     invalidateSubtree(TRANSFORM_PIPELINES);
-    if (expanded.has(TRANSFORM_ROOT)) {
-      void loadChildren(TRANSFORM_ROOT, { force: true });
+    const reloadIds = new Set<string>([TRANSFORM_ROOT, TRANSFORM_PIPELINES]);
+    for (const nodeId of expanded) {
+      if (isTransformWorkflowsSubtreeNodeId(nodeId)) reloadIds.add(nodeId);
     }
-    if (expanded.has(TRANSFORM_PIPELINES)) {
-      void loadChildren(TRANSFORM_PIPELINES, { force: true });
+    for (const nodeId of reloadIds) {
+      void loadChildren(nodeId, { force: true });
     }
   }, [transformPipelinesRevision, expanded, invalidateSubtree, loadChildren]);
 

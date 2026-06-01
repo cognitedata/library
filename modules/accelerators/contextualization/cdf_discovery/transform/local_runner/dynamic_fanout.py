@@ -15,7 +15,7 @@ from cdf_fn_common.etl_cohort_storage import (
     canvas_node_id_for_task,
     iter_cohort_entity_rows,
     node_cohort_table_name,
-    require_run_id,
+    require_pipeline_run_key,
     resolve_base_cohort_table,
 )
 from cdf_fn_common.etl_discovery_cohort import _props_from_row_columns
@@ -85,7 +85,7 @@ def _merge_child_cohort_into_fanout(
     shared_lock: Lock,
 ) -> int:
     with shared_lock:
-        run_id = require_run_id(shared_data)
+        run_id = require_pipeline_run_key(shared_data)
         raw_db, base_table = resolve_base_cohort_table(shared_data)
         aggregated: List[Dict[str, Any]] = []
         for child_tid in child_task_ids:

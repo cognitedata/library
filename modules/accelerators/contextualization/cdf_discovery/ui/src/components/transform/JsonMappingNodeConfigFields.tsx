@@ -5,6 +5,7 @@ import type { EditorView } from "@codemirror/view";
 import CodeMirror, { type ReactCodeMirrorRef } from "@uiw/react-codemirror";
 import { useCallback, useMemo, useRef, useState, type ReactNode } from "react";
 import type { Edge, Node } from "@xyflow/react";
+import { QueryEditorTabs, useQueryEditorTabState, type QueryEditorTabDef } from "../query/QueryEditorTabs";
 import { useAppSettings } from "../../context/AppSettingsContext";
 import type { MessageKey } from "../../i18n";
 import type { JsonObject } from "../../types/jsonConfig";
@@ -28,6 +29,16 @@ import {
 
 const JSON_MAPPING_DOCS_URL =
   "https://docs.cognite.com/cdf/data_workflows/task_types#json-mapping-tasks";
+
+const TAB_SETUP = "setup";
+const TAB_INPUT = "input";
+const TAB_EXPRESSION = "expression";
+
+const JSON_MAPPING_TABS: QueryEditorTabDef[] = [
+  { id: TAB_SETUP, labelKey: "transform.jsonMapping.tabSetup" },
+  { id: TAB_INPUT, labelKey: "transform.jsonMapping.tabInput" },
+  { id: TAB_EXPRESSION, labelKey: "transform.jsonMapping.tabExpression" },
+];
 
 type Props = {
   value: JsonObject;
@@ -71,6 +82,7 @@ export function JsonMappingNodeConfigFields({ value, onChange, nodeId, flowNodes
   const expression = readJsonMappingExpression(value as Record<string, unknown>);
 
   const [inputParseError, setInputParseError] = useState<MessageKey | null>(null);
+  const [activeTab, setActiveTab] = useQueryEditorTabState(nodeId, TAB_SETUP);
 
   const validationIssues = validateJsonMappingConfig(value as Record<string, unknown>);
   const cmTheme = theme === "dark" ? oneDark : "light";
@@ -137,126 +149,142 @@ export function JsonMappingNodeConfigFields({ value, onChange, nodeId, flowNodes
         </a>
       </p>
 
-      <label className="gov-label gov-label--block">
-        {t("transform.jsonMapping.mapperKind")}
-        <select
-          className="gov-input"
-          style={{ marginTop: "0.35rem" }}
-          value={mapperKind}
-          onChange={(e) => onMapperKindChange(e.target.value as JsonMappingMapperKind)}
-        >
-          <option value="custom">{t("transform.jsonMapping.mapperCustom")}</option>
-          <option value="diagram_detect_to_dm">{t("transform.jsonMapping.mapperDiagramDetectToDm")}</option>
-          <option value="diagram_detect_to_classic">
-            {t("transform.jsonMapping.mapperDiagramDetectToClassic")}
-          </option>
-        </select>
-      </label>
-
-      <label className="gov-label gov-label--block">
-        {t("transform.config.description")}
-        <input
-          className="gov-input"
-          style={{ marginTop: "0.35rem" }}
-          value={String(value.description ?? "")}
-          onChange={(e) => patch({ description: e.target.value })}
-          spellCheck={false}
-          autoComplete="off"
-        />
-      </label>
-
-      <fieldset className="transform-node-editor-fields__section">
-        <legend>{t("transform.jsonMapping.predecessorsTitle")}</legend>
-        <p className="transform-json-mapping-fields__hint">{t("transform.jsonMapping.predecessorsHint")}</p>
-        {predecessors.length === 0 ? (
-          <p className="transform-json-mapping-fields__empty">{t("transform.jsonMapping.noPredecessors")}</p>
-        ) : (
-          <ul className="transform-json-mapping-fields__predecessors">
-            {predecessors.map((p) => {
-              const ref = workflowOutputRef(p.taskId);
-              return (
-                <li key={p.taskId} className="transform-json-mapping-fields__predecessor">
-                  <span className="transform-json-mapping-fields__predecessor-label" title={p.taskId}>
-                    {p.label}
-                    <code className="transform-json-mapping-fields__predecessor-id">{p.taskId}</code>
-                  </span>
-                  <span className="transform-json-mapping-fields__predecessor-actions">
-                    <button
-                      type="button"
-                      className="gov-btn gov-btn--secondary gov-btn--small"
-                      onClick={() => insertAtView(inputRef.current?.view, ref)}
-                    >
-                      {t("transform.jsonMapping.insertIntoInput")}
-                    </button>
-                    <button
-                      type="button"
-                      className="gov-btn gov-btn--secondary gov-btn--small"
-                      onClick={() => insertAtView(exprRef.current?.view, ref)}
-                    >
-                      {t("transform.jsonMapping.insertIntoExpression")}
-                    </button>
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </fieldset>
-
-      <div className="transform-json-mapping-fields__templates">
-        <span className="transform-json-mapping-fields__templates-label">
-          {t("transform.jsonMapping.templatesLabel")}
-        </span>
-        <div className="transform-json-mapping-fields__template-btns">
-          {JSON_MAPPING_TEMPLATES.map((tpl) => (
-            <button
-              key={tpl.id}
-              type="button"
-              className="gov-btn gov-btn--secondary gov-btn--small"
-              onClick={() => applyTemplate(tpl.id)}
-            >
-              {t(tpl.labelKey)}
-            </button>
-          ))}
-        </div>
-      </div>
-
       {validationStrip}
 
-      <fieldset className="transform-node-editor-fields__section">
-        <legend>{t("transform.jsonMapping.inputTitle")}</legend>
-        <p className="transform-json-mapping-fields__hint">{t("transform.jsonMapping.inputHint")}</p>
-        <div className="transform-json-mapping-fields__toolbar">
-          <button type="button" className="gov-btn gov-btn--secondary gov-btn--small" onClick={formatInput}>
-            {t("transform.jsonMapping.formatInput")}
-          </button>
-        </div>
-        <CodeMirror
-          ref={inputRef}
-          className="transform-json-mapping-fields__editor"
-          value={inputText}
-          height="min(28vh, 14rem)"
-          theme={cmTheme}
-          extensions={[json()]}
-          basicSetup={{ lineNumbers: true, foldGutter: true }}
-          onChange={(next) => commitInputText(next)}
-        />
-      </fieldset>
+      <QueryEditorTabs
+        tabs={JSON_MAPPING_TABS}
+        activeTab={activeTab}
+        onActiveTabChange={setActiveTab}
+        ariaLabel={t("transform.query.editorTabsAria")}
+        panelIdPrefix={`json-mapping-${nodeId}`}
+      >
+        {activeTab === TAB_SETUP ? (
+          <>
+            <label className="gov-label gov-label--block">
+              {t("transform.jsonMapping.mapperKind")}
+              <select
+                className="gov-input"
+                style={{ marginTop: "0.35rem" }}
+                value={mapperKind}
+                onChange={(e) => onMapperKindChange(e.target.value as JsonMappingMapperKind)}
+              >
+                <option value="custom">{t("transform.jsonMapping.mapperCustom")}</option>
+                <option value="diagram_detect_to_dm">{t("transform.jsonMapping.mapperDiagramDetectToDm")}</option>
+                <option value="diagram_detect_to_classic">
+                  {t("transform.jsonMapping.mapperDiagramDetectToClassic")}
+                </option>
+              </select>
+            </label>
 
-      <fieldset className="transform-node-editor-fields__section">
-        <legend>{t("transform.jsonMapping.expressionTitle")}</legend>
-        <p className="transform-json-mapping-fields__hint">{t("transform.jsonMapping.expressionHint")}</p>
-        <CodeMirror
-          ref={exprRef}
-          className="transform-json-mapping-fields__editor"
-          value={expression}
-          height="min(22vh, 11rem)"
-          theme={cmTheme}
-          extensions={[javascript()]}
-          basicSetup={{ lineNumbers: false, foldGutter: false }}
-          onChange={(next) => patch({ expression: next })}
-        />
-      </fieldset>
+            <label className="gov-label gov-label--block">
+              {t("transform.config.description")}
+              <input
+                className="gov-input"
+                style={{ marginTop: "0.35rem" }}
+                value={String(value.description ?? "")}
+                onChange={(e) => patch({ description: e.target.value })}
+                spellCheck={false}
+                autoComplete="off"
+              />
+            </label>
+
+            <fieldset className="transform-node-editor-fields__section">
+              <legend>{t("transform.jsonMapping.predecessorsTitle")}</legend>
+              <p className="transform-json-mapping-fields__hint">{t("transform.jsonMapping.predecessorsHint")}</p>
+              {predecessors.length === 0 ? (
+                <p className="transform-json-mapping-fields__empty">{t("transform.jsonMapping.noPredecessors")}</p>
+              ) : (
+                <ul className="transform-json-mapping-fields__predecessors">
+                  {predecessors.map((p) => {
+                    const ref = workflowOutputRef(p.taskId);
+                    return (
+                      <li key={p.taskId} className="transform-json-mapping-fields__predecessor">
+                        <span className="transform-json-mapping-fields__predecessor-label" title={p.taskId}>
+                          {p.label}
+                          <code className="transform-json-mapping-fields__predecessor-id">{p.taskId}</code>
+                        </span>
+                        <span className="transform-json-mapping-fields__predecessor-actions">
+                          <button
+                            type="button"
+                            className="gov-btn gov-btn--secondary gov-btn--small"
+                            onClick={() => insertAtView(inputRef.current?.view, ref)}
+                          >
+                            {t("transform.jsonMapping.insertIntoInput")}
+                          </button>
+                          <button
+                            type="button"
+                            className="gov-btn gov-btn--secondary gov-btn--small"
+                            onClick={() => insertAtView(exprRef.current?.view, ref)}
+                          >
+                            {t("transform.jsonMapping.insertIntoExpression")}
+                          </button>
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </fieldset>
+
+            <div className="transform-json-mapping-fields__templates">
+              <span className="transform-json-mapping-fields__templates-label">
+                {t("transform.jsonMapping.templatesLabel")}
+              </span>
+              <div className="transform-json-mapping-fields__template-btns">
+                {JSON_MAPPING_TEMPLATES.map((tpl) => (
+                  <button
+                    key={tpl.id}
+                    type="button"
+                    className="gov-btn gov-btn--secondary gov-btn--small"
+                    onClick={() => applyTemplate(tpl.id)}
+                  >
+                    {t(tpl.labelKey)}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </>
+        ) : null}
+
+        {activeTab === TAB_INPUT ? (
+          <fieldset className="transform-node-editor-fields__section">
+            <legend>{t("transform.jsonMapping.inputTitle")}</legend>
+            <p className="transform-json-mapping-fields__hint">{t("transform.jsonMapping.inputHint")}</p>
+            <div className="transform-json-mapping-fields__toolbar">
+              <button type="button" className="gov-btn gov-btn--secondary gov-btn--small" onClick={formatInput}>
+                {t("transform.jsonMapping.formatInput")}
+              </button>
+            </div>
+            <CodeMirror
+              ref={inputRef}
+              className="transform-json-mapping-fields__editor"
+              value={inputText}
+              height="min(28vh, 14rem)"
+              theme={cmTheme}
+              extensions={[json()]}
+              basicSetup={{ lineNumbers: true, foldGutter: true }}
+              onChange={(next) => commitInputText(next)}
+            />
+          </fieldset>
+        ) : null}
+
+        {activeTab === TAB_EXPRESSION ? (
+          <fieldset className="transform-node-editor-fields__section">
+            <legend>{t("transform.jsonMapping.expressionTitle")}</legend>
+            <p className="transform-json-mapping-fields__hint">{t("transform.jsonMapping.expressionHint")}</p>
+            <CodeMirror
+              ref={exprRef}
+              className="transform-json-mapping-fields__editor"
+              value={expression}
+              height="min(22vh, 11rem)"
+              theme={cmTheme}
+              extensions={[javascript()]}
+              basicSetup={{ lineNumbers: false, foldGutter: false }}
+              onChange={(next) => patch({ expression: next })}
+            />
+          </fieldset>
+        ) : null}
+      </QueryEditorTabs>
     </div>
   );
 }

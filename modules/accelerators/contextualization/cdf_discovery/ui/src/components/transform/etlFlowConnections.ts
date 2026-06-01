@@ -1,4 +1,5 @@
 import type { Connection, Edge, Node } from "@xyflow/react";
+import { isCohortConsumerRfType, isCohortSourceRfType } from "./cohortSourceRfTypes";
 import { etlPersistenceOutboundToEndOnlyRfTypes } from "./transformFlowConstants";
 
 const STRUCTURAL = new Set(["etlStart", "etlEnd"]);
@@ -14,6 +15,9 @@ export function isValidEtlFlowConnection(connection: Connection, getNode: (id: s
   if (STRUCTURAL.has(tgt.type) && tgt.type === "etlStart") return false;
   if (etlPersistenceOutboundToEndOnlyRfTypes.has(src.type)) {
     return tgt.type === "etlEnd";
+  }
+  if (isCohortConsumerRfType(tgt.type) && !isCohortSourceRfType(src.type)) {
+    return false;
   }
   return true;
 }

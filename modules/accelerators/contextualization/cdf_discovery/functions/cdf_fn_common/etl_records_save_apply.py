@@ -47,7 +47,7 @@ def etl_apply_records_save(
 ) -> Dict[str, Any]:
     merge_compiled_task_into_data(data)
     cfg = _prepare_save_cfg(data)
-    stream_external_id = _first_nonempty(cfg.get("stream_external_id"), cfg.get("streamExternalId"))
+    stream_external_id = _first_nonempty(cfg.get("stream_external_id"))
     if not stream_external_id:
         raise ValueError("save_records requires config.stream_external_id")
 
