@@ -739,9 +739,11 @@
 
 .etl-flow-node__label {
   display: block;
+  width: 100%;
+  max-width: var(--etl-label-max-width, 100%);
   font-weight: 600;
   white-space: normal;
-  overflow-wrap: break-word;
+  overflow-wrap: anywhere;
   word-break: normal;
   line-height: 1.25;
   hyphens: auto;

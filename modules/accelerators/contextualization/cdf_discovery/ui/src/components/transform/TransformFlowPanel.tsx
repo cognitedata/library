@@ -147,6 +147,7 @@ import {
   explodeMultiStepTransformFlowNode,
   isExplodableMultiStepTransformFlowNode,
 } from "./explodeMultiStepTransformNode";
+import { autoResizeFlowNodesToContent } from "./autoResizeFlowNodesToContent";
 
 type TFn = (key: MessageKey, vars?: Record<string, string | number>) => string;
 
@@ -735,15 +736,20 @@ function FlowCanvasBody({
       orientation: TransformCanvasHandleOrientation,
       method: TransformCanvasLayoutMethod = layoutMethod
     ) => {
-      const eds = getEdges();
-      setNodes((nds) => {
-        const laidOut = layoutTransformFlowNodesByMethod(nds, eds, orientation, method);
-        emitChange(laidOut, eds, { orientation, layoutMethod: method });
-        return laidOut;
+      const autoResized = autoResizeFlowNodesToContent(getNodes());
+      setNodes(autoResized);
+      window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(() => {
+          const latestNodes = getNodes();
+          const latestEdges = getEdges();
+          const laidOut = layoutTransformFlowNodesByMethod(latestNodes, latestEdges, orientation, method);
+          setNodes(laidOut);
+          emitChange(laidOut, latestEdges, { orientation, layoutMethod: method });
+          window.setTimeout(() => fitView({ padding: 0.15, duration: 200 }), 0);
+        });
       });
-      window.setTimeout(() => fitView({ padding: 0.15, duration: 200 }), 0);
     },
-    [getEdges, setNodes, emitChange, fitView, layoutMethod]
+    [getNodes, getEdges, setNodes, emitChange, fitView, layoutMethod]
   );
 
   const handleAutoLayout = useCallback(() => {

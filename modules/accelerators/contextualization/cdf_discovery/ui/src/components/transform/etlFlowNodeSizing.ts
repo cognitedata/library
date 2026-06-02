@@ -3,8 +3,9 @@ import type { TransformCanvasNodeKind } from "../../types/transformCanvas";
 
 export const ETL_NODE_MIN_WIDTH = 112;
 export const ETL_NODE_MIN_HEIGHT = 48;
-export const ETL_NODE_MAX_WIDTH = 560;
+export const ETL_NODE_MAX_WIDTH = 260;
 export const ETL_NODE_MAX_HEIGHT = 400;
+export const ETL_NODE_RESIZE_MAX_WIDTH = 260;
 
 export const ETL_DUAL_INPUT_MIN_WIDTH = 200;
 export const ETL_DUAL_INPUT_MIN_HEIGHT = 80;
@@ -27,6 +28,10 @@ export function defaultEtlNodeSize(kind: TransformCanvasNodeKind): { width: numb
     return { width: 236, height: 116 };
   }
   return { width: 192, height: 96 };
+}
+
+export function maxEtlNodeWidth(kind: TransformCanvasNodeKind): number {
+  return Math.max(defaultEtlNodeSize(kind).width, ETL_NODE_RESIZE_MAX_WIDTH);
 }
 
 export function parseFlowNodeDimension(value: unknown): number | undefined {

@@ -18,10 +18,10 @@ import {
 } from "./canvasNodeRunProgress";
 import {
   ETL_NODE_MAX_HEIGHT,
-  ETL_NODE_MAX_WIDTH,
   ETL_NODE_MIN_HEIGHT,
   ETL_NODE_MIN_WIDTH,
   etlDualInputMinSize,
+  maxEtlNodeWidth,
 } from "./etlFlowNodeSizing";
 import { etlFlowNodeCanvasDescription } from "./etlFlowNodeDescription";
 import {
@@ -35,7 +35,8 @@ import {
 import { canvasNodeDisplayLabel, canvasNodeKindLabel } from "../../utils/canvasNodeKindLabel";
 
 function useDataHandles(data: {
-  flowHandleOrientation?: TransformCanvasHandleOrientation;
+  flowHandleOrientation?: TransformCanvasHandleOrientation | undefined;
+  [key: string]: unknown;
 }): { in: Position; out: Position; key: TransformCanvasHandleOrientation } {
   const contextOrientation = useFlowHandleOrientation();
   const o = data.flowHandleOrientation ?? contextOrientation;
@@ -168,11 +169,13 @@ function EtlNodeResizer({
   enabled,
   minWidth = ETL_NODE_MIN_WIDTH,
   minHeight = ETL_NODE_MIN_HEIGHT,
+  maxWidth,
 }: {
   selected: boolean;
   enabled: boolean;
   minWidth?: number;
   minHeight?: number;
+  maxWidth?: number;
 }) {
   if (!enabled) return null;
   return (
@@ -180,7 +183,7 @@ function EtlNodeResizer({
       isVisible={selected}
       minWidth={minWidth}
       minHeight={minHeight}
-      maxWidth={ETL_NODE_MAX_WIDTH}
+      maxWidth={maxWidth}
       maxHeight={ETL_NODE_MAX_HEIGHT}
       lineClassName="etl-flow-node__resize-line"
       handleClassName="etl-flow-node__resize-handle"
@@ -289,6 +292,7 @@ function DualInputFlowNode({
         enabled={resizeEnabled}
         minWidth={dualMin.width}
         minHeight={dualMin.height}
+        maxWidth={maxEtlNodeWidth(kind)}
       />
       {!inlineConnectorHandles ? (
         <>
@@ -464,7 +468,7 @@ function JoinFlowNode({ data, selected }: EtlNodeProps) {
     <div
       className={`etl-flow-node etl-flow-node--join etl-flow-node--resizable${selected ? " etl-flow-node--selected" : ""}${disabled ? " etl-flow-node--disabled" : ""}`}
     >
-      <EtlNodeResizer selected={Boolean(selected)} enabled={resizeEnabled} />
+      <EtlNodeResizer selected={Boolean(selected)} enabled={resizeEnabled} maxWidth={maxEtlNodeWidth(kind)} />
       {!inlineConnectorHandles ? (
         <>
           <Handle
@@ -583,7 +587,7 @@ function EtlFlowNode({ data, selected }: EtlNodeProps) {
     <div
       className={`etl-flow-node etl-flow-node--${kind} etl-flow-node--resizable${kind === "node_preview" ? " etl-flow-node--preview" : ""}${selected ? " etl-flow-node--selected" : ""}${disabled ? " etl-flow-node--disabled" : ""}`}
     >
-      <EtlNodeResizer selected={Boolean(selected)} enabled={resizeEnabled} />
+      <EtlNodeResizer selected={Boolean(selected)} enabled={resizeEnabled} maxWidth={maxEtlNodeWidth(kind)} />
       {!inlineConnectorHandles && kind !== "start" && (
         <Handle
           key={`in-${handles.key}`}
