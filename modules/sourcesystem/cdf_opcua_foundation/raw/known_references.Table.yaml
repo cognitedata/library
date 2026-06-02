@@ -1,0 +1,2 @@
+dbName: "db_{{location}}_opcua"
+tableName: known_references

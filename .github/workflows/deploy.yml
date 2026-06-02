@@ -33,6 +33,9 @@ jobs:
       - name: Prepare FDP toolkit project
         run: bash .github/scripts/prepare-fdp-project.sh
 
+      - name: Remove local .env (use GitHub Actions credentials only)
+        run: rm -f .env
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
