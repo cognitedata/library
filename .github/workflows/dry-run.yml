@@ -58,6 +58,9 @@ jobs:
         run: pip install pre-commit
 
       - name: YAML and config lint (pre-commit, FDP scope)
+        env:
+          # Check-only in CI; autofix hooks would modify tracked files and fail the job.
+          SKIP: end-of-file-fixer,trailing-whitespace
         run: |
           mapfile -t FILES < <(git ls-files \
             foundation-deployment-pack/ \
