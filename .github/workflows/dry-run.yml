@@ -74,8 +74,7 @@ jobs:
             cdf.toml \
             .pre-commit-config.yaml \
             modules/packages.toml)
-          pre-commit run check-yaml check-toml detect-private-key check-merge-conflict \
-            trailing-whitespace end-of-file-fixer --files "${FILES[@]}"
+          pre-commit run --files "${FILES[@]}"
 
       - name: Ruff
         uses: astral-sh/ruff-action@v3
