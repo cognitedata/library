@@ -87,9 +87,9 @@ Configure under **Settings → Secrets and variables → Actions**. Use a **pref
 
 | Stage (branch) | Variables | Secret |
 |----------------|-----------|--------|
-| `dev` | `DEV_CDF_CLUSTER`, `DEV_CDF_PROJECT`, `DEV_LOGIN_FLOW`, `DEV_IDP_CLIENT_ID` | `DEV_IDP_CLIENT_SECRET` |
-| `test` | `TEST_CDF_CLUSTER`, `TEST_CDF_PROJECT`, `TEST_LOGIN_FLOW`, `TEST_IDP_CLIENT_ID` | `TEST_IDP_CLIENT_SECRET` |
-| `prod` | `PROD_CDF_CLUSTER`, `PROD_CDF_PROJECT`, `PROD_LOGIN_FLOW`, `PROD_IDP_CLIENT_ID` | `PROD_IDP_CLIENT_SECRET` |
+| `dev` | `DEV_CDF_CLUSTER`, `DEV_CDF_PROJECT`, `DEV_LOGIN_FLOW`, `DEV_IDP_TENANT_ID`, `DEV_IDP_CLIENT_ID` | `DEV_IDP_CLIENT_SECRET` |
+| `test` | `TEST_CDF_CLUSTER`, `TEST_CDF_PROJECT`, `TEST_LOGIN_FLOW`, `TEST_IDP_TENANT_ID`, `TEST_IDP_CLIENT_ID` | `TEST_IDP_CLIENT_SECRET` |
+| `prod` | `PROD_CDF_CLUSTER`, `PROD_CDF_PROJECT`, `PROD_LOGIN_FLOW`, `PROD_IDP_TENANT_ID`, `PROD_IDP_CLIENT_ID` | `PROD_IDP_CLIENT_SECRET` |
 
 Example for dev: `DEV_CDF_PROJECT=at-dev`, `DEV_LOGIN_FLOW=client_credentials`. `CDF_PROJECT` must match `config.dev.yaml` / your CDF project name.
 

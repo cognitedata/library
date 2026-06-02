@@ -26,6 +26,7 @@ bash .github/scripts/prepare-fdp-project.sh
 export CDF_CLUSTER=your-cluster
 export CDF_PROJECT=your-dev-project
 export LOGIN_FLOW=client_credentials
+export IDP_TENANT_ID=your-entra-tenant-id
 export IDP_CLIENT_ID=...
 export IDP_CLIENT_SECRET=...
 

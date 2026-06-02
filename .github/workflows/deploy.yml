@@ -24,6 +24,7 @@ jobs:
       CDF_CLUSTER: ${{ github.ref_name == 'dev' && vars.DEV_CDF_CLUSTER || github.ref_name == 'test' && vars.TEST_CDF_CLUSTER || vars.PROD_CDF_CLUSTER }}
       CDF_PROJECT: ${{ github.ref_name == 'dev' && vars.DEV_CDF_PROJECT || github.ref_name == 'test' && vars.TEST_CDF_PROJECT || vars.PROD_CDF_PROJECT }}
       LOGIN_FLOW: ${{ github.ref_name == 'dev' && vars.DEV_LOGIN_FLOW || github.ref_name == 'test' && vars.TEST_LOGIN_FLOW || vars.PROD_LOGIN_FLOW }}
+      IDP_TENANT_ID: ${{ github.ref_name == 'dev' && vars.DEV_IDP_TENANT_ID || github.ref_name == 'test' && vars.TEST_IDP_TENANT_ID || vars.PROD_IDP_TENANT_ID }}
       IDP_CLIENT_ID: ${{ github.ref_name == 'dev' && vars.DEV_IDP_CLIENT_ID || github.ref_name == 'test' && vars.TEST_IDP_CLIENT_ID || vars.PROD_IDP_CLIENT_ID }}
       IDP_CLIENT_SECRET: ${{ github.ref_name == 'dev' && secrets.DEV_IDP_CLIENT_SECRET || github.ref_name == 'test' && secrets.TEST_IDP_CLIENT_SECRET || secrets.PROD_IDP_CLIENT_SECRET }}
     steps:
