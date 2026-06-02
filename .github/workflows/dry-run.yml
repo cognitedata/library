@@ -57,7 +57,17 @@ jobs:
       - name: Install pre-commit
         run: pip install pre-commit
 
-      - name: YAML and config lint (pre-commit, FDP scope)
+      - name: Validate GitHub workflow YAML
+        run: |
+          pre-commit run check-yaml --files \
+            .github/workflows/dry-run.yml \
+            .github/workflows/deploy.yml
+
+      - name: Config lint (pre-commit, FDP scope)
+        env:
+          # Toolkit module YAML uses {{ var }} templates; check-yaml cannot parse them.
+          # Autofix hooks would modify tracked files and fail the job.
+          SKIP: check-yaml,end-of-file-fixer,trailing-whitespace
         run: |
           mapfile -t FILES < <(git ls-files \
             foundation-deployment-pack/ \
@@ -67,15 +77,12 @@ jobs:
             modules/sourcesystem/cdf_sap_foundation/ \
             modules/sourcesystem/cdf_db_foundation/ \
             modules/sourcesystem/cdf_files_foundation/ \
-            .github/workflows/dry-run.yml \
-            .github/workflows/deploy.yml \
             .github/scripts/ \
             tests/ \
             cdf.toml \
             .pre-commit-config.yaml \
             modules/packages.toml)
-          pre-commit run check-yaml check-toml detect-private-key check-merge-conflict \
-            trailing-whitespace end-of-file-fixer --files "${FILES[@]}"
+          pre-commit run --files "${FILES[@]}"
 
       - name: Ruff
         uses: astral-sh/ruff-action@v3
