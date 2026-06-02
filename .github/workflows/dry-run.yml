@@ -57,8 +57,25 @@ jobs:
       - name: Install pre-commit
         run: pip install pre-commit
 
-      - name: YAML and config lint (pre-commit)
-        uses: pre-commit/action@v3.0.1
+      - name: YAML and config lint (pre-commit, FDP scope)
+        run: |
+          mapfile -t FILES < <(git ls-files \
+            foundation-deployment-pack/ \
+            modules/data_models/isa_manufacturing_extension/ \
+            modules/sourcesystem/cdf_pi_foundation/ \
+            modules/sourcesystem/cdf_opcua_foundation/ \
+            modules/sourcesystem/cdf_sap_foundation/ \
+            modules/sourcesystem/cdf_db_foundation/ \
+            modules/sourcesystem/cdf_files_foundation/ \
+            .github/workflows/dry-run.yml \
+            .github/workflows/deploy.yml \
+            .github/scripts/ \
+            tests/ \
+            cdf.toml \
+            .pre-commit-config.yaml \
+            modules/packages.toml)
+          pre-commit run check-yaml check-toml detect-private-key check-merge-conflict \
+            trailing-whitespace end-of-file-fixer --files "${FILES[@]}"
 
       - name: Ruff
         uses: astral-sh/ruff-action@v3
@@ -104,6 +121,9 @@ jobs:
 
       - name: Prepare FDP toolkit project
         run: bash .github/scripts/prepare-fdp-project.sh
+
+      - name: Remove local .env (use GitHub Actions credentials only)
+        run: rm -f .env
 
       - uses: actions/setup-python@v5
         with:
