@@ -1,0 +1,6 @@
+- externalId: ds_pi
+  name: PI Foundation
+  description: Data set for PI foundation extraction pipelines
+  writeProtected: false
+  metadata:
+    origin: cognite-toolkit

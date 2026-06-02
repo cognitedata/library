@@ -1,0 +1,6 @@
+- externalId: ds_files
+  name: Files Foundation
+  description: Data set for CDF Files foundation extraction pipelines
+  writeProtected: false
+  metadata:
+    origin: cognite-toolkit

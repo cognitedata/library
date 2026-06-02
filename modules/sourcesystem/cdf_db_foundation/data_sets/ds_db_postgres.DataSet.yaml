@@ -1,0 +1,6 @@
+- externalId: ds_db_postgres
+  name: Database Foundation
+  description: Data set for database foundation extraction pipelines
+  writeProtected: false
+  metadata:
+    origin: cognite-toolkit
