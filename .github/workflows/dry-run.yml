@@ -1,5 +1,5 @@
 # Foundation Deployment Pack (FDP): validate every PR to dev, test, or prod.
-# Requires GitHub Environments (dev, test, prod) with scoped variables and secrets.
+# CDF credentials: repository variables/secrets prefixed DEV_, TEST_, PROD_ (see README).
 name: FDP Dry Run
 
 on:
@@ -91,13 +91,13 @@ jobs:
       - lint
       - test
     runs-on: ubuntu-latest
-    environment: ${{ github.base_ref }}
+    # PR target branch selects DEV_ / TEST_ / PROD_ repository secrets and variables.
     env:
-      CDF_CLUSTER: ${{ vars.CDF_CLUSTER }}
-      CDF_PROJECT: ${{ vars.CDF_PROJECT }}
-      LOGIN_FLOW: ${{ vars.LOGIN_FLOW }}
-      IDP_CLIENT_ID: ${{ vars.IDP_CLIENT_ID }}
-      IDP_CLIENT_SECRET: ${{ secrets.IDP_CLIENT_SECRET }}
+      CDF_CLUSTER: ${{ github.base_ref == 'dev' && vars.DEV_CDF_CLUSTER || github.base_ref == 'test' && vars.TEST_CDF_CLUSTER || vars.PROD_CDF_CLUSTER }}
+      CDF_PROJECT: ${{ github.base_ref == 'dev' && vars.DEV_CDF_PROJECT || github.base_ref == 'test' && vars.TEST_CDF_PROJECT || vars.PROD_CDF_PROJECT }}
+      LOGIN_FLOW: ${{ github.base_ref == 'dev' && vars.DEV_LOGIN_FLOW || github.base_ref == 'test' && vars.TEST_LOGIN_FLOW || vars.PROD_LOGIN_FLOW }}
+      IDP_CLIENT_ID: ${{ github.base_ref == 'dev' && vars.DEV_IDP_CLIENT_ID || github.base_ref == 'test' && vars.TEST_IDP_CLIENT_ID || vars.PROD_IDP_CLIENT_ID }}
+      IDP_CLIENT_SECRET: ${{ github.base_ref == 'dev' && secrets.DEV_IDP_CLIENT_SECRET || github.base_ref == 'test' && secrets.TEST_IDP_CLIENT_SECRET || secrets.PROD_IDP_CLIENT_SECRET }}
     steps:
       - uses: actions/checkout@v4
 

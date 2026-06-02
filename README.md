@@ -81,16 +81,19 @@ Module source files remain under [`modules/`](modules/); CI links them into `fou
 
 1. `cdf build` then `cdf deploy` for the branch’s environment  
 
-### GitHub Environments (required)
+### Repository secrets and variables (required)
 
-Create environments **`dev`**, **`test`**, and **`prod`**. In each environment, configure:
+Configure under **Settings → Secrets and variables → Actions**. Use a **prefix per stage** (`DEV_`, `TEST_`, `PROD_`) so each branch uses the correct CDF project and service principal.
 
-| Type | Name |
-|------|------|
-| Variable | `CDF_CLUSTER`, `CDF_PROJECT`, `LOGIN_FLOW`, `IDP_CLIENT_ID` |
-| Secret | `IDP_CLIENT_SECRET` |
+| Stage (branch) | Variables | Secret |
+|----------------|-----------|--------|
+| `dev` | `DEV_CDF_CLUSTER`, `DEV_CDF_PROJECT`, `DEV_LOGIN_FLOW`, `DEV_IDP_CLIENT_ID` | `DEV_IDP_CLIENT_SECRET` |
+| `test` | `TEST_CDF_CLUSTER`, `TEST_CDF_PROJECT`, `TEST_LOGIN_FLOW`, `TEST_IDP_CLIENT_ID` | `TEST_IDP_CLIENT_SECRET` |
+| `prod` | `PROD_CDF_CLUSTER`, `PROD_CDF_PROJECT`, `PROD_LOGIN_FLOW`, `PROD_IDP_CLIENT_ID` | `PROD_IDP_CLIENT_SECRET` |
 
-Use environment-scoped values only (no shared repo secrets for CDF auth). `CDF_PROJECT` must match the CDF project for that stage.
+Example for dev: `DEV_CDF_PROJECT=at-dev`, `DEV_LOGIN_FLOW=client_credentials`. `CDF_PROJECT` must match `config.dev.yaml` / your CDF project name.
+
+Workflows select credentials from the PR **target** branch (`dry-run.yml`) or the branch **pushed** (`deploy.yml`). No GitHub Environments UI is required.
 
 ### Branch protection
 
