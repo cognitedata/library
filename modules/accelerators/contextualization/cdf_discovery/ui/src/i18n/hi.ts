@@ -997,7 +997,7 @@ export const hi: Messages = {
   "transform.fileAnnotation.fileIdsPlaceholder": "123, 456",
   "transform.fileAnnotation.fileIdsHint": "in__files अनवायर्ड होने पर वैकल्पिक अल्पविराम से अलग की गई CDF फ़ाइल आईडी।",
   "transform.fanoutPlan.sectionPlanning": "फ़ाइल चयन और बैच",
-  "transform.fanoutPlan.sectionPatterns": "पैटर्न इकाइयाँ",
+  "transform.fanoutPlan.sectionEntities": "Annotation entities",
   "transform.fanoutPlan.sectionDetect": "आरेख का पता लगाएं",
   "transform.fanoutPlan.sectionDetectHint": "प्रति कॉल पेज यह सीमित करते हैं कि एक डिटेक्ट अनुरोध में प्रत्येक पीडीएफ का कितना भाग भेजा जाए। बड़ी फ़ाइलों को पहले FileReference खंडों में विभाजित किया जाता है।",
   "transform.fanoutPlan.dependsOn": "उपनाम क्वेरी पूर्ववर्ती",
@@ -1011,6 +1011,29 @@ export const hi: Messages = {
   "transform.fanoutPlan.childFunction": "चाइल्ड फ़ंक्शन बाहरी आईडी",
   "transform.fanoutPlan.maxPatternSamples": "अधिकतम पैटर्न नमूने",
   "transform.fanoutPlan.maxPatternSamplesHint": "समेकित उपनाम पैटर्न पर कैप आरेख का पता लगाने के लिए भेजा गया।",
+  "transform.fanoutPlan.patternMode": "Pattern mode",
+  "transform.fanoutPlan.patternModeOptionPattern": "Pattern",
+  "transform.fanoutPlan.patternModeOptionAnnotate": "Annotate",
+  "transform.fanoutPlan.patternModePatternHint":
+    "Pattern mode on: aliases are normalized into pattern samples and sent as entities.sample.",
+  "transform.fanoutPlan.patternModeAnnotateHint":
+    "Pattern mode off (annotate mode): actual entity values/aliases are sent directly for annotation.",
+  "transform.fanoutPlan.entitiesProperty": "Entity property",
+  "transform.fanoutPlan.entitiesPropertyPlaceholder": "aliases",
+  "transform.fanoutPlan.entitiesPropertyHintPattern":
+    "Property read from input entities and normalized into pattern samples.",
+  "transform.fanoutPlan.entitiesPropertyHintAnnotate":
+    "Property read from input entities and sent directly for annotation matching.",
+  "transform.fanoutPlan.searchField": "Entity search field",
+  "transform.fanoutPlan.searchFieldPlaceholder": "text",
+  "transform.fanoutPlan.searchFieldHintAnnotate":
+    "Field name used for direct entity matching in annotate mode (for example: text).",
+  "transform.fanoutPlan.patternResourceType": "Entity resource type",
+  "transform.fanoutPlan.patternResourceTypePlaceholder": "equipment",
+  "transform.fanoutPlan.patternResourceTypeHintPattern":
+    "Category used on generated pattern entities in pattern mode.",
+  "transform.fanoutPlan.patternResourceTypeHintAnnotate":
+    "Category used on direct entities in annotate mode.",
   "transform.fanoutPlan.patternNormalization": "पैटर्न सामान्यीकरण",
   "transform.fanoutPlan.patternFileAnnotation": "फ़ाइल एनोटेशन (उपनाम मर्ज)",
   "transform.fanoutPlan.patternHeuristicLiteral": "अनुमानी शाब्दिक",
@@ -1025,6 +1048,13 @@ export const hi: Messages = {
   "transform.fanoutPlan.maxAttempts": "प्रति फ़ाइल अधिकतम विफल प्रयास",
   "transform.fanoutPlan.maxAttemptsHint": "कई विफल डिटेक्ट रन के बाद फ़ाइलें छोड़ें।",
   "transform.fanoutPlan.partialMatch": "आंशिक पैटर्न मिलान",
+  "transform.fanoutPlan.maxDetectJobsPerInvocation": "Max detect jobs per invocation",
+  "transform.fanoutPlan.maxDetectJobsPerInvocationHint":
+    "Maximum diagrams.detect calls this node run may execute. Default 1 for function time safety.",
+  "transform.fanoutPlan.diagramDetectConfig": "Diagram detect config (JSON)",
+  "transform.fanoutPlan.diagramDetectConfigHint":
+    "Optional passthrough JSON for diagrams.detect configuration, including beta options.",
+  "transform.fanoutPlan.diagramDetectConfigPlaceholder": "{\"readEmbeddedText\": true}",
   "transform.fanoutPlan.pagesSummary": "प्रभावी सीमाएँ: {perCall} पृष्ठ प्रति डिटेक्ट कॉल, {perRef} पृष्ठ प्रति फ़ाइल खंड।",
   "transform.dynamicFanout.canvasHint": "रन टाइम पर समानांतर रूप से पता लगाने वाले चाइल्ड कार्यों में फैन-आउट योजना का विस्तार करता है।",
   "transform.dynamicFanout.generatorTaskId": "योजनाकार कार्य आईडी",

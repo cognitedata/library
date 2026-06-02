@@ -142,7 +142,7 @@ def test_monitor_schedules_includes_pipeline_and_avg_runtime():
     with (
         patch("ui.server.monitor_api._cdf_client", return_value=client),
         patch(
-            "ui.server.monitor_api.transform_registry.list_pipeline_tree_entries",
+            "ui.server.monitor_api.transform_registry.list_registry_entries",
             return_value=[{"id": "pipe_a", "label": "Pipeline A", "scope_suffix": ""}],
         ),
         patch(
@@ -158,3 +158,34 @@ def test_monitor_schedules_includes_pipeline_and_avg_runtime():
     assert row["entity_label"] == "Pipeline A"
     assert row["cron_expression"] == "0 6 * * *"
     assert row["avg_runtime_ms_7d"] == 600000
+
+
+def test_monitor_schedules_keeps_unmapped_deployed_workflow_as_workflow():
+    client = MagicMock()
+    client.workflows.executions.list.return_value = [
+        _make_execution(
+            run_id="run-1",
+            workflow_id="wf_deployed_only",
+            status="completed",
+            start_time="2026-05-29T10:00:00+00:00",
+            end_time="2026-05-29T10:10:00+00:00",
+        )
+    ]
+    trigger = MagicMock()
+    trigger.dump.return_value = {
+        "external_id": "trg_wf_deployed_only",
+        "workflow_external_id": "wf_deployed_only",
+        "workflow_version": "v1",
+        "trigger_rule": {"cronExpression": "0 6 * * *"},
+    }
+    client.workflows.triggers.list.return_value = [trigger]
+    with (
+        patch("ui.server.monitor_api._cdf_client", return_value=client),
+        patch("ui.server.monitor_api.transform_registry.list_registry_entries", return_value=[]),
+    ):
+        out = monitor_api.monitor_schedules(lookback_days=7, executions_limit=50, trigger_limit=50)
+    assert out["lookback_days"] == 7
+    assert len(out["schedules"]) == 1
+    row = out["schedules"][0]
+    assert row["entity_type"] == "workflow"
+    assert row["entity_label"] == "wf_deployed_only"

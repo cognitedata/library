@@ -997,7 +997,7 @@ export const es: Messages = {
   "transform.fileAnnotation.fileIdsPlaceholder": "123, 456",
   "transform.fileAnnotation.fileIdsHint": "ID de archivos CDF separados por comas opcionales cuando in__files no está conectado.",
   "transform.fanoutPlan.sectionPlanning": "Selección de archivos y lotes",
-  "transform.fanoutPlan.sectionPatterns": "Entidades de patrón",
+  "transform.fanoutPlan.sectionEntities": "Annotation entities",
   "transform.fanoutPlan.sectionDetect": "Detección de diagrama",
   "transform.fanoutPlan.sectionDetectHint": "Las páginas por llamada limitan la cantidad de cada PDF que se envía en una solicitud de detección. Los archivos grandes se dividen primero en fragmentos de FileReference.",
   "transform.fanoutPlan.dependsOn": "Predecesor de la consulta de alias",
@@ -1011,6 +1011,29 @@ export const es: Messages = {
   "transform.fanoutPlan.childFunction": "Identificación externa de función secundaria",
   "transform.fanoutPlan.maxPatternSamples": "Muestras de patrones máximos",
   "transform.fanoutPlan.maxPatternSamplesHint": "Límite de patrones de alias consolidados enviados a la detección de diagramas.",
+  "transform.fanoutPlan.patternMode": "Pattern mode",
+  "transform.fanoutPlan.patternModeOptionPattern": "Pattern",
+  "transform.fanoutPlan.patternModeOptionAnnotate": "Annotate",
+  "transform.fanoutPlan.patternModePatternHint":
+    "Pattern mode on: aliases are normalized into pattern samples and sent as entities.sample.",
+  "transform.fanoutPlan.patternModeAnnotateHint":
+    "Pattern mode off (annotate mode): actual entity values/aliases are sent directly for annotation.",
+  "transform.fanoutPlan.entitiesProperty": "Entity property",
+  "transform.fanoutPlan.entitiesPropertyPlaceholder": "aliases",
+  "transform.fanoutPlan.entitiesPropertyHintPattern":
+    "Property read from input entities and normalized into pattern samples.",
+  "transform.fanoutPlan.entitiesPropertyHintAnnotate":
+    "Property read from input entities and sent directly for annotation matching.",
+  "transform.fanoutPlan.searchField": "Entity search field",
+  "transform.fanoutPlan.searchFieldPlaceholder": "text",
+  "transform.fanoutPlan.searchFieldHintAnnotate":
+    "Field name used for direct entity matching in annotate mode (for example: text).",
+  "transform.fanoutPlan.patternResourceType": "Entity resource type",
+  "transform.fanoutPlan.patternResourceTypePlaceholder": "equipment",
+  "transform.fanoutPlan.patternResourceTypeHintPattern":
+    "Category used on generated pattern entities in pattern mode.",
+  "transform.fanoutPlan.patternResourceTypeHintAnnotate":
+    "Category used on direct entities in annotate mode.",
   "transform.fanoutPlan.patternNormalization": "Normalización de patrones",
   "transform.fanoutPlan.patternFileAnnotation": "Anotación de archivo (fusión de alias)",
   "transform.fanoutPlan.patternHeuristicLiteral": "Literal heurístico",
@@ -1025,6 +1048,13 @@ export const es: Messages = {
   "transform.fanoutPlan.maxAttempts": "Máximo de intentos fallidos por archivo",
   "transform.fanoutPlan.maxAttemptsHint": "Omita archivos después de tantas ejecuciones de detección fallidas.",
   "transform.fanoutPlan.partialMatch": "Coincidencia parcial del patrón",
+  "transform.fanoutPlan.maxDetectJobsPerInvocation": "Max detect jobs per invocation",
+  "transform.fanoutPlan.maxDetectJobsPerInvocationHint":
+    "Maximum diagrams.detect calls this node run may execute. Default 1 for function time safety.",
+  "transform.fanoutPlan.diagramDetectConfig": "Diagram detect config (JSON)",
+  "transform.fanoutPlan.diagramDetectConfigHint":
+    "Optional passthrough JSON for diagrams.detect configuration, including beta options.",
+  "transform.fanoutPlan.diagramDetectConfigPlaceholder": "{\"readEmbeddedText\": true}",
   "transform.fanoutPlan.pagesSummary": "Límites efectivos: {perCall} páginas por llamada de detección, {perRef} páginas por fragmento de archivo.",
   "transform.dynamicFanout.canvasHint": "Amplía el plan de distribución a tareas secundarias de detección paralela en tiempo de ejecución.",
   "transform.dynamicFanout.generatorTaskId": "ID de tarea del planificador",

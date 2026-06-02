@@ -405,7 +405,10 @@ export function FlowNodeEditorModal({
               onChange={onConfigChange}
               t={t}
             />
-            {kind !== "start" && kind !== "end" ? (
+            {kind !== "start" &&
+            kind !== "end" &&
+            kind !== "workflow_fanout_plan" &&
+            kind !== "file_annotation" ? (
               <ConnectorLabelFields
                 value={configDraft}
                 onChange={onConfigChange}

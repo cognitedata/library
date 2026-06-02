@@ -30,16 +30,13 @@ def _default_output_multi_value(handler_id: str) -> str:
 
 
 def resolve_handler_id(cfg: Mapping[str, Any]) -> str:
-    return AbstractTransformHandler.first_nonempty(cfg.get("handler_id"), cfg.get("handler"))
+    return AbstractTransformHandler.first_nonempty(cfg.get("handler_id"))
 
 
 def resolve_handler_block(cfg: Mapping[str, Any], handler_id: str) -> Dict[str, Any]:
     block = cfg.get(handler_id)
     if isinstance(block, dict):
         return dict(block)
-    nested = cfg.get("config")
-    if isinstance(nested, dict):
-        return dict(nested)
     return {}
 
 

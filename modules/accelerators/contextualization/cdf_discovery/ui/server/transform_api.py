@@ -341,11 +341,6 @@ def transform_health() -> Dict[str, Any]:
     return {"ok": True, "pipeline_count": len(pipelines), "template_count": len(templates)}
 
 
-@router.get("/pipelines")
-def list_pipelines() -> Dict[str, Any]:
-    return {"pipelines": transform_registry.list_pipeline_tree_entries()}
-
-
 @router.get("/workflows")
 def list_workflows() -> Dict[str, Any]:
     entries = transform_registry.list_pipeline_tree_entries()
@@ -353,7 +348,6 @@ def list_workflows() -> Dict[str, Any]:
 
 
 @router.post("/workflows")
-@router.post("/pipelines")
 def create_pipeline(body: PipelineCreateBody) -> Dict[str, Any]:
     if transform_registry.pipeline_exists(body.id):
         raise HTTPException(status_code=409, detail=f"Pipeline already exists: {body.id}")
@@ -373,7 +367,6 @@ def create_pipeline(body: PipelineCreateBody) -> Dict[str, Any]:
 
 
 @router.get("/workflows/by-workflow")
-@router.get("/pipelines/by-workflow")
 def get_pipeline_by_workflow(external_id: str) -> Dict[str, Any]:
     found = transform_registry.find_pipeline_for_workflow(external_id)
     if not found:
@@ -396,7 +389,6 @@ class ImportWorkflowToPipelineBody(BaseModel):
 
 
 @router.post("/workflows/import-from-workflow")
-@router.post("/pipelines/import-from-workflow")
 def import_pipeline_from_workflow(body: ImportWorkflowToPipelineBody) -> Dict[str, Any]:
     from ui.server import cdf_browse
     from ui.server.workflow_to_canvas import resolve_unique_pipeline_id, workflow_graph_to_canvas
@@ -455,7 +447,6 @@ def import_pipeline_from_workflow(body: ImportWorkflowToPipelineBody) -> Dict[st
 
 
 @router.get("/workflows/{pipeline_id}")
-@router.get("/pipelines/{pipeline_id}")
 def get_pipeline(
     pipeline_id: str,
     scope_suffix: str = Query("", description="Scope subfolder under workflows/ (empty = flat workflows/)"),
@@ -468,7 +459,6 @@ def get_pipeline(
 
 
 @router.put("/workflows/{pipeline_id}")
-@router.put("/pipelines/{pipeline_id}")
 def put_pipeline(
     pipeline_id: str,
     body: PipelineDocumentBody,
@@ -482,7 +472,6 @@ def put_pipeline(
 
 
 @router.delete("/workflows/{pipeline_id}")
-@router.delete("/pipelines/{pipeline_id}")
 def delete_pipeline(pipeline_id: str) -> Dict[str, Any]:
     if not transform_registry.pipeline_exists(pipeline_id):
         raise HTTPException(status_code=404, detail=f"Pipeline not found: {pipeline_id}")
@@ -491,7 +480,6 @@ def delete_pipeline(pipeline_id: str) -> Dict[str, Any]:
 
 
 @router.get("/workflows/{pipeline_id}/canvas")
-@router.get("/pipelines/{pipeline_id}/canvas")
 def get_pipeline_canvas(
     pipeline_id: str,
     scope_suffix: str = Query("", description="Scope subfolder under workflows/ (empty = flat workflows/)"),
@@ -509,7 +497,6 @@ def get_pipeline_canvas(
 
 
 @router.patch("/workflows/{pipeline_id}/label")
-@router.patch("/pipelines/{pipeline_id}/label")
 def patch_pipeline_label(
     pipeline_id: str,
     body: LabelUpdateBody,
@@ -525,7 +512,6 @@ def patch_pipeline_label(
 
 
 @router.put("/workflows/{pipeline_id}/canvas")
-@router.put("/pipelines/{pipeline_id}/canvas")
 def put_pipeline_canvas(
     pipeline_id: str,
     body: PipelineCanvasBody,
@@ -541,7 +527,6 @@ def put_pipeline_canvas(
 
 
 @router.post("/workflows/{pipeline_id}/save-as-template")
-@router.post("/pipelines/{pipeline_id}/save-as-template")
 def save_pipeline_as_template(
     pipeline_id: str,
     body: SaveAsTemplateBody,
@@ -562,7 +547,6 @@ def save_pipeline_as_template(
 
 
 @router.post("/workflows/{pipeline_id}/save-as-pipeline")
-@router.post("/pipelines/{pipeline_id}/save-as-pipeline")
 def save_pipeline_as_pipeline(
     pipeline_id: str,
     body: SaveAsPipelineBody,
@@ -759,7 +743,6 @@ def instantiate_template(template_id: str, body: InstantiateTemplateBody) -> Dic
 
 
 @router.post("/workflows/{pipeline_id}/validate")
-@router.post("/pipelines/{pipeline_id}/validate")
 def validate_pipeline(
     pipeline_id: str,
     body: ValidatePipelineBody | None = None,
@@ -776,7 +759,6 @@ def validate_pipeline(
 
 
 @router.get("/workflows/{pipeline_id}/build-pairing")
-@router.get("/pipelines/{pipeline_id}/build-pairing")
 def pipeline_build_pairing(
     pipeline_id: str,
     scope_suffix: str = Query("", description="Scope subfolder under workflows/ (empty = flat workflows/)"),
@@ -802,14 +784,6 @@ def build_workflow_route(
         raise HTTPException(status_code=404, detail=str(e)) from e
 
 
-@router.post("/pipelines/{pipeline_id}/build")
-def build_pipeline(
-    pipeline_id: str,
-    scope_suffix: str = Query("", description="Scope subfolder under workflows/ (empty = flat workflows/)"),
-) -> Dict[str, Any]:
-    return build_workflow_route(pipeline_id, scope_suffix)
-
-
 @router.post("/build-all")
 def build_all_pipelines() -> Dict[str, Any]:
     results: List[Dict[str, Any]] = []
@@ -817,8 +791,7 @@ def build_all_pipelines() -> Dict[str, Any]:
     seen: set[tuple[str, str]] = set()
     for entry in transform_registry.list_pipeline_tree_entries():
         pid = str(entry.get("id") or "")
-        raw_scope = str(entry.get("scope_suffix") or "").strip()
-        scope = "" if raw_scope == "all" else raw_scope
+        scope = str(entry.get("scope_suffix") or "").strip()
         if not pid or (pid, scope) in seen:
             continue
         seen.add((pid, scope))
@@ -895,7 +868,6 @@ def _run_transform_script(
 
 
 @router.post("/workflows/{pipeline_id}/deploy-cdf")
-@router.post("/pipelines/{pipeline_id}/deploy-cdf")
 def deploy_pipeline_cdf(
     pipeline_id: str,
     body: DeployWorkflowCdfBody | None = None,
@@ -930,7 +902,6 @@ def deploy_pipeline_cdf(
 
 
 @router.post("/workflows/{pipeline_id}/cdf-run")
-@router.post("/pipelines/{pipeline_id}/cdf-run")
 def cdf_run_pipeline(
     pipeline_id: str,
     body: CdfWorkflowRunBody | None = None,
@@ -965,19 +936,7 @@ def cdf_run_pipeline(
     return {"pipeline_id": pipeline_id, "scope_suffix": scope, **result}
 
 
-@router.post("/workflows/{pipeline_id}/deploy")
-@router.post("/pipelines/{pipeline_id}/deploy")
-def deploy_pipeline(
-    pipeline_id: str,
-    body: DeployWorkflowCdfBody | None = None,
-    scope_suffix: str = Query("", description="Scope subfolder under workflows/ (empty = flat workflows/)"),
-) -> Dict[str, Any]:
-    """Deploy workflow + functions to CDF (alias for ``deploy-cdf``)."""
-    return deploy_pipeline_cdf(pipeline_id, body, scope_suffix)
-
-
 @router.post("/workflows/{pipeline_id}/run")
-@router.post("/pipelines/{pipeline_id}/run")
 def run_pipeline(
     pipeline_id: str,
     body: RunBody | None = None,
@@ -998,7 +957,6 @@ def run_pipeline(
 
 
 @router.post("/workflows/{pipeline_id}/reset-state")
-@router.post("/pipelines/{pipeline_id}/reset-state")
 def reset_pipeline_state(
     pipeline_id: str,
     scope_suffix: str = Query("", description="Scope subfolder under workflows/ (empty = flat workflows/)"),
@@ -1128,7 +1086,6 @@ def _stream_not_supported() -> None:
 
 
 @router.post("/workflows/{pipeline_id}/run-stream")
-@router.post("/pipelines/{pipeline_id}/run-stream")
 def run_pipeline_stream(
     pipeline_id: str,
     body: RunBody | None = None,

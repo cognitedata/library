@@ -997,7 +997,7 @@ export const ar: Messages = {
   "transform.fileAnnotation.fileIdsPlaceholder": "123، 456",
   "transform.fileAnnotation.fileIdsHint": "معرفات ملفات CDF اختيارية مفصولة بفواصل عندما يكون in__files غير متصل.",
   "transform.fanoutPlan.sectionPlanning": "اختيار الملف والدفعات",
-  "transform.fanoutPlan.sectionPatterns": "كيانات النمط",
+  "transform.fanoutPlan.sectionEntities": "Annotation entities",
   "transform.fanoutPlan.sectionDetect": "كشف الرسم البياني",
   "transform.fanoutPlan.sectionDetectHint": "تحدد الصفحات لكل مكالمة مقدار كل ملف PDF يتم إرساله في طلب اكتشاف واحد. يتم تقسيم الملفات الكبيرة إلى أجزاء FileReference أولاً.",
   "transform.fanoutPlan.dependsOn": "الاسم المستعار الاستعلام السابق",
@@ -1011,6 +1011,29 @@ export const ar: Messages = {
   "transform.fanoutPlan.childFunction": "معرف خارجي لوظيفة الطفل",
   "transform.fanoutPlan.maxPatternSamples": "عينات النمط الأقصى",
   "transform.fanoutPlan.maxPatternSamplesHint": "تم إرسال الحد الأقصى لأنماط الأسماء المستعارة المدمجة إلى اكتشاف الرسم التخطيطي.",
+  "transform.fanoutPlan.patternMode": "Pattern mode",
+  "transform.fanoutPlan.patternModeOptionPattern": "Pattern",
+  "transform.fanoutPlan.patternModeOptionAnnotate": "Annotate",
+  "transform.fanoutPlan.patternModePatternHint":
+    "Pattern mode on: aliases are normalized into pattern samples and sent as entities.sample.",
+  "transform.fanoutPlan.patternModeAnnotateHint":
+    "Pattern mode off (annotate mode): actual entity values/aliases are sent directly for annotation.",
+  "transform.fanoutPlan.entitiesProperty": "Entity property",
+  "transform.fanoutPlan.entitiesPropertyPlaceholder": "aliases",
+  "transform.fanoutPlan.entitiesPropertyHintPattern":
+    "Property read from input entities and normalized into pattern samples.",
+  "transform.fanoutPlan.entitiesPropertyHintAnnotate":
+    "Property read from input entities and sent directly for annotation matching.",
+  "transform.fanoutPlan.searchField": "Entity search field",
+  "transform.fanoutPlan.searchFieldPlaceholder": "text",
+  "transform.fanoutPlan.searchFieldHintAnnotate":
+    "Field name used for direct entity matching in annotate mode (for example: text).",
+  "transform.fanoutPlan.patternResourceType": "Entity resource type",
+  "transform.fanoutPlan.patternResourceTypePlaceholder": "equipment",
+  "transform.fanoutPlan.patternResourceTypeHintPattern":
+    "Category used on generated pattern entities in pattern mode.",
+  "transform.fanoutPlan.patternResourceTypeHintAnnotate":
+    "Category used on direct entities in annotate mode.",
   "transform.fanoutPlan.patternNormalization": "تطبيع النمط",
   "transform.fanoutPlan.patternFileAnnotation": "تعليق توضيحي للملف (دمج الاسم المستعار)",
   "transform.fanoutPlan.patternHeuristicLiteral": "ارشادي حرفي",
@@ -1025,6 +1048,13 @@ export const ar: Messages = {
   "transform.fanoutPlan.maxAttempts": "الحد الأقصى للمحاولات الفاشلة لكل ملف",
   "transform.fanoutPlan.maxAttemptsHint": "تخطي الملفات بعد عمليات التشغيل العديدة الفاشلة للكشف.",
   "transform.fanoutPlan.partialMatch": "مطابقة النمط الجزئي",
+  "transform.fanoutPlan.maxDetectJobsPerInvocation": "Max detect jobs per invocation",
+  "transform.fanoutPlan.maxDetectJobsPerInvocationHint":
+    "Maximum diagrams.detect calls this node run may execute. Default 1 for function time safety.",
+  "transform.fanoutPlan.diagramDetectConfig": "Diagram detect config (JSON)",
+  "transform.fanoutPlan.diagramDetectConfigHint":
+    "Optional passthrough JSON for diagrams.detect configuration, including beta options.",
+  "transform.fanoutPlan.diagramDetectConfigPlaceholder": "{\"readEmbeddedText\": true}",
   "transform.fanoutPlan.pagesSummary": "الحدود الفعالة: {perCall} صفحة لكل مكالمة كشف، {perRef} صفحة لكل مجموعة ملف.",
   "transform.dynamicFanout.canvasHint": "يوسع خطة التوزيع إلى اكتشاف المهام الفرعية بالتوازي في وقت التشغيل.",
   "transform.dynamicFanout.generatorTaskId": "معرف مهمة المخطط",

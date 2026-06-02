@@ -3,11 +3,8 @@ import type { TransformCanvasDocument, TransformPipelineDocument } from "../type
 import { TRANSFORM_PIPELINE_PREFIX, TRANSFORM_TEMPLATE_PREFIX } from "./treeNodeIds";
 import type { EtlWorkflowYamlDocumentTab } from "../types/discoveryNodes";
 
-const LEGACY_UNSCOPED_SCOPE = "all";
-
 export function normalizePipelineScopeSuffix(scopeSuffix?: string | null): string {
-  const s = String(scopeSuffix ?? "").trim();
-  return s === LEGACY_UNSCOPED_SCOPE ? "" : s;
+  return String(scopeSuffix ?? "").trim();
 }
 
 export function etlPipelineTabKey(pipelineId: string, scopeSuffix = ""): string {

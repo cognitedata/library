@@ -9,7 +9,6 @@ from cdf_fn_common.etl_cohort_storage import (
     canvas_node_id_for_task,
     iter_cohort_entity_rows,
     predecessor_node_table_locations,
-    require_pipeline_run_key,
 )
 from cdf_fn_common.etl_common import _first_nonempty, iter_predecessor_rows, require_pipeline_run_key
 from cdf_fn_common.etl_discovery_cohort import (
@@ -48,9 +47,9 @@ def validate_merge_config(cfg: Mapping[str, Any]) -> None:
     desc = _first_nonempty(cfg.get("description"))
     if not desc:
         raise ValueError("merge config requires non-empty description")
-    policies = cfg.get("field_policies") or cfg.get("save_field_policies")
+    policies = cfg.get("field_policies")
     if not policies:
-        raise ValueError("merge config requires field_policies (or save_field_policies)")
+        raise ValueError("merge config requires field_policies")
 
 
 def _iter_entity_rows_for_merge(

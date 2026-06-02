@@ -138,13 +138,6 @@ export function seedConfigForEntityDrop(
   return { description: label };
 }
 
-/** @deprecated Use seedConfigForEntityDrop */
-export function seedQueryConfigForTreeNode(node: TreeNode): Record<string, unknown> {
-  const stage = queryStageForTreeNode(node);
-  if (!stage) return { description: node.label.trim() || "Entity" };
-  return seedConfigForEntityDrop(node, stage);
-}
-
 export function openTargetKey(target: OpenTarget): string {
   if (target.type === "classic_list") return `classic:${target.resource_type}`;
   if (target.type === "dm_instances") {

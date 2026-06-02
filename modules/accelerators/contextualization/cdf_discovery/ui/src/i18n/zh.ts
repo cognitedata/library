@@ -997,7 +997,7 @@ export const zh: Messages = {
   "transform.fileAnnotation.fileIdsPlaceholder": "123, 456",
   "transform.fileAnnotation.fileIdsHint": "当 in__files 未连线时，可选的以逗号分隔的 CDF 文件 ID。",
   "transform.fanoutPlan.sectionPlanning": "文件选择和批次",
-  "transform.fanoutPlan.sectionPatterns": "模式实体",
+  "transform.fanoutPlan.sectionEntities": "Annotation entities",
   "transform.fanoutPlan.sectionDetect": "图检测",
   "transform.fanoutPlan.sectionDetectHint": "每次调用的页数限制在一次检测请求中发送的每个 PDF 的数量。大文件首先被分割成 FileReference 块。",
   "transform.fanoutPlan.dependsOn": "别名查询前驱",
@@ -1011,6 +1011,29 @@ export const zh: Messages = {
   "transform.fanoutPlan.childFunction": "子函数外部 id",
   "transform.fanoutPlan.maxPatternSamples": "最大图案样本",
   "transform.fanoutPlan.maxPatternSamplesHint": "发送到图表检测的合并别名模式的上限。",
+  "transform.fanoutPlan.patternMode": "Pattern mode",
+  "transform.fanoutPlan.patternModeOptionPattern": "Pattern",
+  "transform.fanoutPlan.patternModeOptionAnnotate": "Annotate",
+  "transform.fanoutPlan.patternModePatternHint":
+    "Pattern mode on: aliases are normalized into pattern samples and sent as entities.sample.",
+  "transform.fanoutPlan.patternModeAnnotateHint":
+    "Pattern mode off (annotate mode): actual entity values/aliases are sent directly for annotation.",
+  "transform.fanoutPlan.entitiesProperty": "Entity property",
+  "transform.fanoutPlan.entitiesPropertyPlaceholder": "aliases",
+  "transform.fanoutPlan.entitiesPropertyHintPattern":
+    "Property read from input entities and normalized into pattern samples.",
+  "transform.fanoutPlan.entitiesPropertyHintAnnotate":
+    "Property read from input entities and sent directly for annotation matching.",
+  "transform.fanoutPlan.searchField": "Entity search field",
+  "transform.fanoutPlan.searchFieldPlaceholder": "text",
+  "transform.fanoutPlan.searchFieldHintAnnotate":
+    "Field name used for direct entity matching in annotate mode (for example: text).",
+  "transform.fanoutPlan.patternResourceType": "Entity resource type",
+  "transform.fanoutPlan.patternResourceTypePlaceholder": "equipment",
+  "transform.fanoutPlan.patternResourceTypeHintPattern":
+    "Category used on generated pattern entities in pattern mode.",
+  "transform.fanoutPlan.patternResourceTypeHintAnnotate":
+    "Category used on direct entities in annotate mode.",
   "transform.fanoutPlan.patternNormalization": "模式标准化",
   "transform.fanoutPlan.patternFileAnnotation": "文件注释（别名合并）",
   "transform.fanoutPlan.patternHeuristicLiteral": "启发式文字",
@@ -1025,6 +1048,13 @@ export const zh: Messages = {
   "transform.fanoutPlan.maxAttempts": "每个文件的最大失败尝试次数",
   "transform.fanoutPlan.maxAttemptsHint": "在检测运行多次失败后跳过文件。",
   "transform.fanoutPlan.partialMatch": "部分模式匹配",
+  "transform.fanoutPlan.maxDetectJobsPerInvocation": "Max detect jobs per invocation",
+  "transform.fanoutPlan.maxDetectJobsPerInvocationHint":
+    "Maximum diagrams.detect calls this node run may execute. Default 1 for function time safety.",
+  "transform.fanoutPlan.diagramDetectConfig": "Diagram detect config (JSON)",
+  "transform.fanoutPlan.diagramDetectConfigHint":
+    "Optional passthrough JSON for diagrams.detect configuration, including beta options.",
+  "transform.fanoutPlan.diagramDetectConfigPlaceholder": "{\"readEmbeddedText\": true}",
   "transform.fanoutPlan.pagesSummary": "有效限制：每个检测调用 {perCall} 页，每个文件块 {perRef} 页。",
   "transform.dynamicFanout.canvasHint": "将扇出计划扩展为运行时并行检测子任务。",
   "transform.dynamicFanout.generatorTaskId": "计划器任务 ID",

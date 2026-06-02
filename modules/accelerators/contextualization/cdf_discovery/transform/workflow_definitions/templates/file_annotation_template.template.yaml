@@ -23,6 +23,8 @@ canvas:
       label: End
       config:
         description: Post-run cohort RAW cleanup
+    width: 148
+    height: 68
   - id: fanout
     kind: dynamic_fanout
     position:
@@ -35,6 +37,8 @@ canvas:
         generator_task_id: fanout_plan
         child_function_external_id: fn_etl_file_annotation
         batch_size: 1
+    width: 192
+    height: 96
   - id: fanout_plan
     kind: workflow_fanout_plan
     position:
@@ -56,6 +60,9 @@ canvas:
         min_tokens: 2
         diagram_poll_timeout_sec: 840
         max_detect_jobs_per_invocation: 1
+        pattern_mode: false
+    width: 236
+    height: 116
   - id: map_annotations_classic
     kind: json_mapping
     position:
@@ -70,6 +77,8 @@ canvas:
         input:
           rows: ${fanout.output}
         expression: input.rows
+    width: 192
+    height: 96
   - id: map_annotations_dm
     kind: json_mapping
     position:
@@ -85,6 +94,8 @@ canvas:
         input:
           rows: ${fanout.output}
         expression: input.rows
+    width: 192
+    height: 96
   - id: query_assets
     kind: query_view
     position:
@@ -102,6 +113,8 @@ canvas:
         - aliases
         query_scope_mode: all
         filters: []
+    width: 192
+    height: 96
   - id: query_files
     kind: query_view
     position:
@@ -120,6 +133,8 @@ canvas:
         - mimeType
         - pageCount
         query_scope_mode: all
+    width: 192
+    height: 96
   - id: save_annotation_results_classic
     kind: save_raw
     position:
@@ -132,6 +147,8 @@ canvas:
         source_raw_db: db_discovery
         source_raw_table_key: annotation_results_classic
       node_color: '#0d9488'
+    width: 192
+    height: 96
   - id: save_annotation_results_dm
     kind: save_raw
     position:
@@ -144,6 +161,8 @@ canvas:
         source_raw_db: db_discovery
         source_raw_table_key: annotation_results_dm
       node_color: '#0d9488'
+    width: 192
+    height: 96
   - id: start
     kind: start
     position:
@@ -158,6 +177,8 @@ canvas:
         workflow_version: '1'
         incremental_change_processing: true
         run_id: ''
+    width: 148
+    height: 68
   edges:
   - id: edge_start_query
     source: start
@@ -226,6 +247,6 @@ canvas:
     target_handle: in
     kind: data
   viewport:
-    x: 2.25
-    y: 288
-    zoom: 0.5
+    x: -546.1705246554811
+    y: 297.59771491894014
+    zoom: 1.2674086810825176

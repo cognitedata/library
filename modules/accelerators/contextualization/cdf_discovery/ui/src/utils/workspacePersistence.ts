@@ -361,8 +361,7 @@ export function restoreWorkspaceTabs(
         error: null,
       });
     } else if (saved.kind === "etl_pipeline") {
-      const scopeSuffix =
-        saved.scope_suffix?.trim() === "all" ? "" : saved.scope_suffix?.trim() || "";
+      const scopeSuffix = saved.scope_suffix?.trim() || "";
       const tab = createEtlPipelineTab(
         saved.pipeline_id,
         saved.label?.trim() || saved.pipeline_id,

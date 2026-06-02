@@ -91,9 +91,3 @@ export function getTransformFlowDropPayload(e: DragEvent): TransformFlowDropPayl
   return null;
 }
 
-/** @deprecated Use getTransformFlowDropPayload */
-export function getTransformPaletteDropPayload(e: DragEvent): PaletteDragPayload | null {
-  const payload = getTransformFlowDropPayload(e);
-  if (payload?.kind === "etl_stage") return payload;
-  return null;
-}

@@ -366,7 +366,7 @@ def _extract_cron_expression(trigger_rule: Any) -> Optional[str]:
 
 def _build_pipeline_refs_by_workflow() -> Dict[str, List[Dict[str, str]]]:
     out: Dict[str, List[Dict[str, str]]] = {}
-    for entry in transform_registry.list_pipeline_tree_entries():
+    for entry in transform_registry.list_registry_entries():
         pipeline_id = str(entry.get("id") or "").strip()
         if not pipeline_id:
             continue

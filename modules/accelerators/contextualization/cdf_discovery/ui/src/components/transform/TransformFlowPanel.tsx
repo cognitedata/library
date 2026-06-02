@@ -709,7 +709,7 @@ function FlowCanvasBody({
 
   const transformCanvas = useMemo(
     () => flowToCanvasDocument(nodes, edges, { handleOrientation, layoutMethod, edgePathStyle }),
-    [nodes, edges, handleOrientation, edgePathStyle]
+    [nodes, edges, handleOrientation, layoutMethod, edgePathStyle]
   );
 
   const searchActive = searchQuery.trim().length > 0;
@@ -1229,11 +1229,12 @@ function FlowCanvasBody({
   const onEdgesChangeWrapped = useCallback(
     (changes: Parameters<typeof onEdgesChange>[0]) => {
       const removals = changes.filter((c): c is Extract<(typeof changes)[number], { type: "remove" }> => c.type === "remove");
+      const shouldPersist = changes.some((c) => c.type !== "select");
       onEdgesChange(changes);
       if (removals.some((r) => selectedEdge?.id === r.id)) {
         setSelectedEdge(null);
       }
-      if (readOnly) return;
+      if (readOnly || !shouldPersist) return;
       setEdges((eds) => {
         emitChange(nodes, eds);
         return eds;
@@ -1690,9 +1691,10 @@ function FlowCanvasBody({
     [validationFailedNodeIds]
   );
   const nodesForRf = useMemo(
-    () =>
-      nodes.map((n) => {
-        const cn = transformCanvas.nodes.find((node) => node.id === n.id);
+    () => {
+      const canvasNodesById = new Map(transformCanvas.nodes.map((node) => [node.id, node]));
+      return nodes.map((n) => {
+        const cn = canvasNodesById.get(n.id);
         const matches = cn ? transformCanvasNodeMatchesSearch(cn, searchQuery, t) : true;
         const withRun = applyTransformFlowRunDisplayClasses(n, {
           runFailed: runFailedSet.has(n.id),
@@ -1712,7 +1714,8 @@ function FlowCanvasBody({
             nodeRunExecuting: runExecutingSet.has(n.id),
           },
         };
-      }),
+      });
+    },
     [
       nodes,
       transformCanvas.nodes,

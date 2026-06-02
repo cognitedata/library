@@ -63,40 +63,29 @@ def build_scoped_workflow(
     levels: List[str],
     dry_run: bool = False,
 ) -> List[Path]:
-    from cdf_fn_common.workflow_compile.canvas_dag import compile_canvas_dag
     from cdf_fn_common.workflow_compile.codegen import (
         build_workflow_version_document,
         escape_workflow_version_document_for_cdf,
         emit_transformation_resources,
     )
 
-    doc = dict(source.document)
-    if is_scoped_build(target.scope_suffix) and target.scope_id and target.node_chain:
-        doc = patch_definition_for_scope(
-            doc,
-            scope_id=target.scope_id,
-            node_chain=target.node_chain,
-            levels=levels,
-        )
-    doc.setdefault("id", target.workflow_id)
-
-    canvas = doc.get("canvas") or {}
-    compiled = compile_canvas_dag(canvas if isinstance(canvas, dict) else {})
-    doc["compiled_workflow"] = compiled
-
-    workflow_base = resolve_workflow_base_for_build(
-        source_kind=target.source_kind,
+    ctx = prepare_context(
+        module_root=module_root,
         config=config,
-        workflow_id=target.workflow_id,
-        canvas=canvas if isinstance(canvas, dict) else {},
+        source=source,
+        target=target,
+        levels=levels,
     )
+    doc = dict(ctx.scoped_document)
+    doc.setdefault("id", target.workflow_id)
+    doc["compiled_workflow"] = ctx.compiled_workflow
+    canvas = doc.get("canvas") if isinstance(doc.get("canvas"), dict) else {}
+    compiled = ctx.compiled_workflow
+    workflow_base = ctx.workflow_base
     default_cron = str(config.get("workflow_schedule") or "0 2 * * *")
-    start_trigger = read_start_trigger_config(
-        canvas if isinstance(canvas, dict) else {},
-        default_cron=default_cron,
-    )
-    workflow_version = str(start_trigger.get("workflow_version") or "1")
-    wf_ext = workflow_external_id(workflow_base=workflow_base, scope_suffix=target.scope_suffix)
+    start_trigger = read_start_trigger_config(canvas, default_cron=default_cron)
+    workflow_version = ctx.workflow_version
+    wf_ext = ctx.workflow_external_id
 
     wv = build_workflow_version_document(
         workflow_external_id=wf_ext,

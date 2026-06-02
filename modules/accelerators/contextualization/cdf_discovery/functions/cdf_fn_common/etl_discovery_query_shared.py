@@ -112,12 +112,6 @@ def resolve_task_config(data: Mapping[str, Any]) -> Dict[str, Any]:
     return _as_dict(cfg)
 
 
-def resolve_run_id(data: Mapping[str, Any]) -> str:
-    from cdf_fn_common.etl_common import resolve_pipeline_run_key as _resolve_pipeline_run_key
-
-    return _resolve_pipeline_run_key(data)
-
-
 def resolve_query_sink(data: Mapping[str, Any]) -> Tuple[str, str]:
     """Return ``(raw_db, writer_node_cohort_table)`` for inter-node cohort handoff."""
     task_id = _first_nonempty(data.get("task_id"))

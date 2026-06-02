@@ -256,9 +256,13 @@ export function TransformPipelinePane(props: Props) {
       setCanvas(doc);
       setValidationFailedNodeIds([]);
       if (templateTab) {
-        updateDocumentTab({ ...templateTab, canvas: doc, dirty: true });
+        if (!templateTab.dirty) {
+          updateDocumentTab({ ...templateTab, canvas: doc, dirty: true });
+        }
       } else if (pipelineTab) {
-        updateDocumentTab({ ...pipelineTab, canvas: doc, dirty: true });
+        if (!pipelineTab.dirty) {
+          updateDocumentTab({ ...pipelineTab, canvas: doc, dirty: true });
+        }
       }
     },
     [pipelineTab, templateTab, updateDocumentTab]

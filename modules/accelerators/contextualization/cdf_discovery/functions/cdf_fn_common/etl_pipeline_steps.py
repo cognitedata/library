@@ -38,17 +38,17 @@ def has_explicit_steps(cfg: Mapping[str, Any]) -> bool:
 
 
 def is_transform_step(step: Mapping[str, Any]) -> bool:
-    return bool(str(step.get("handler_id") or step.get("handler") or "").strip())
+    return bool(str(step.get("handler_id") or "").strip())
 
 
 def materialize_transform_steps(cfg: Mapping[str, Any]) -> Tuple[str, List[Dict[str, Any]]]:
-    """Return (execution_mode, steps). Legacy single-handler cfg becomes one implicit step."""
+    """Return (execution_mode, steps). Single-handler cfg becomes one implicit step."""
     steps = parse_steps_list(cfg)
     if steps:
         mode = parse_execution_mode(cfg)
         return mode, steps
 
-    handler = str(cfg.get("handler_id") or cfg.get("handler") or "").strip()
+    handler = str(cfg.get("handler_id") or "").strip()
     if not handler:
         return EXECUTION_ORDERED, []
 

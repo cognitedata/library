@@ -1,5 +1,5 @@
 import type { CSSProperties, ReactNode } from "react";
-import { useEffect, useState } from "react";
+import { memo, useEffect, useState } from "react";
 import type { NodeProps } from "@xyflow/react";
 import { Handle, NodeResizer, Position } from "@xyflow/react";
 import type { MessageKey } from "../../i18n";
@@ -60,6 +60,37 @@ type EtlNodeProps = NodeProps & {
   };
 };
 
+const nowListeners = new Set<() => void>();
+let nowTickerId: number | null = null;
+
+function ensureNowTicker() {
+  if (nowTickerId != null) return;
+  nowTickerId = window.setInterval(() => {
+    for (const listener of nowListeners) listener();
+  }, 1000);
+}
+
+function maybeStopNowTicker() {
+  if (nowListeners.size > 0 || nowTickerId == null) return;
+  window.clearInterval(nowTickerId);
+  nowTickerId = null;
+}
+
+function useSharedNowMs(enabled: boolean): number {
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  useEffect(() => {
+    if (!enabled) return;
+    const listener = () => setNowMs(Date.now());
+    nowListeners.add(listener);
+    ensureNowTicker();
+    return () => {
+      nowListeners.delete(listener);
+      maybeStopNowTicker();
+    };
+  }, [enabled]);
+  return nowMs;
+}
+
 function EtlNodeRunProgressBar({
   progress,
   isExecuting = false,
@@ -68,12 +99,7 @@ function EtlNodeRunProgressBar({
   isExecuting?: boolean;
 }) {
   const { t } = useAppSettings();
-  const [nowMs, setNowMs] = useState(() => Date.now());
-  useEffect(() => {
-    if (!isExecuting || progress.elapsedMs != null) return;
-    const id = window.setInterval(() => setNowMs(Date.now()), 1000);
-    return () => window.clearInterval(id);
-  }, [isExecuting, progress.elapsedMs, progress.startedAtMs]);
+  const nowMs = useSharedNowMs(Boolean(isExecuting && progress.elapsedMs == null));
 
   const pct = canvasNodeProgressPercent(progress);
   const indeterminate = pct == null && progress.current > 0;
@@ -647,10 +673,10 @@ function EtlFlowNode({ data, selected }: EtlNodeProps) {
 }
 
 function makeNodeComponent(defaultKind: TransformCanvasNodeKind) {
-  return function BoundEtlNode(props: NodeProps) {
+  return memo(function BoundEtlNode(props: NodeProps) {
     const data = props.data as EtlNodeProps["data"];
     return <EtlFlowNode {...props} data={{ ...data, kind: data.kind ?? defaultKind }} />;
-  };
+  });
 }
 
 export const ETL_FLOW_NODE_TYPES = {

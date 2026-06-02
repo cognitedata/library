@@ -39,11 +39,12 @@ function discoverMergeCandidatesForKind(
   canMerge: (group: Node[], edges: Edge[]) => boolean
 ): FlowOptimizeCandidate[] {
   const peers = nodes.filter(isMergeable);
+  const peersById = new Map(peers.map((node) => [node.id, node]));
   const peerIds = new Set(peers.map((n) => n.id));
   const raw: FlowOptimizeCandidate[] = [];
 
   for (const nodeIds of findMaximalNodeChains(peers, edges)) {
-    const group = peers.filter((n) => nodeIds.includes(n.id));
+    const group = nodeIds.map((id) => peersById.get(id)).filter((n): n is Node => Boolean(n));
     if (!canMerge(group, edges)) continue;
     raw.push({
       id: candidateId(nodeKind, nodeIds),
@@ -55,7 +56,7 @@ function discoverMergeCandidatesForKind(
   }
 
   for (const nodeIds of findParallelNodeGroups(peers, edges, peerIds)) {
-    const group = peers.filter((n) => nodeIds.includes(n.id));
+    const group = nodeIds.map((id) => peersById.get(id)).filter((n): n is Node => Boolean(n));
     if (!canMerge(group, edges)) continue;
     const ordered = orderNodesForMerge(group, edges).map((n) => n.id);
     raw.push({
@@ -76,11 +77,6 @@ function discoverMergeCandidatesForKind(
   }
   return out;
 }
-
-/** @deprecated Use discoverFlowOptimizeCandidates */
-export type TransformMergeCandidateKind = FlowOptimizeCandidateKind;
-/** @deprecated Use FlowOptimizeCandidate */
-export type TransformMergeCandidate = FlowOptimizeCandidate & { nodeKind: "transform" };
 
 export function discoverTransformMergeCandidates(nodes: Node[], edges: Edge[]): FlowOptimizeCandidate[] {
   return discoverMergeCandidatesForKind(
@@ -108,9 +104,6 @@ export type FlowOptimizeCandidateRow = FlowOptimizeCandidate & {
   conflicts: boolean;
 };
 
-/** @deprecated Use FlowOptimizeCandidateRow */
-export type TransformMergeCandidateRow = FlowOptimizeCandidateRow;
-
 export function buildFlowOptimizeCandidateRows(candidates: FlowOptimizeCandidate[]): FlowOptimizeCandidateRow[] {
   const used = new Set<string>();
   return candidates.map((c) => {
@@ -122,18 +115,12 @@ export function buildFlowOptimizeCandidateRows(candidates: FlowOptimizeCandidate
   });
 }
 
-/** @deprecated Use buildFlowOptimizeCandidateRows */
-export const buildTransformMergeCandidateRows = buildFlowOptimizeCandidateRows;
-
 export function flowCanvasNodeLabel(node: Node | undefined, nodeId: string): string {
   if (!node) return nodeId;
   const data = (node.data ?? {}) as Record<string, unknown>;
   const label = String(data.label ?? "").trim();
   return label || nodeId;
 }
-
-/** @deprecated Use flowCanvasNodeLabel */
-export const transformFlowNodeLabel = flowCanvasNodeLabel;
 
 export function applyFlowOptimizeCandidates(
   nodes: Node[],
@@ -169,11 +156,3 @@ export function applyFlowOptimizeCandidates(
   return { nodes: curNodes, edges: curEdges, appliedCount };
 }
 
-/** @deprecated Use applyFlowOptimizeCandidates */
-export function applyTransformMergeCandidates(
-  nodes: Node[],
-  edges: Edge[],
-  approved: FlowOptimizeCandidate[]
-): { nodes: Node[]; edges: Edge[]; appliedCount: number } | null {
-  return applyFlowOptimizeCandidates(nodes, edges, approved);
-}

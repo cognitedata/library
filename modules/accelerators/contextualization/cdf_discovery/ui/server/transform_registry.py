@@ -650,7 +650,6 @@ def validate_pipeline_document(doc: Dict[str, Any]) -> Dict[str, Any]:
         if not isinstance(nodes, list) or len(nodes) == 0:
             warnings.append("Canvas has no nodes")
         else:
-            errors.extend(_validate_canvas_errors(canvas))
             try:
                 _compile_canvas(canvas)
             except Exception as ex:

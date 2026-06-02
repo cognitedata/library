@@ -50,11 +50,6 @@ def require_pipeline_run_key(data: Mapping[str, Any]) -> str:
     return _require_pipeline_run_key(data)
 
 
-def require_run_id(data: Mapping[str, Any]) -> str:
-    """Deprecated alias: use require_pipeline_run_key()."""
-    return require_pipeline_run_key(data)
-
-
 def _sanitize_table_segment(value: str, *, label: str) -> str:
     raw = str(value or "").strip()
     if not raw:

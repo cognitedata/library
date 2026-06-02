@@ -16,6 +16,8 @@ export function readOptionalPositiveInt(raw: unknown): number | undefined {
 export function workflowFanoutPlanSummary(config: Record<string, unknown>): string {
   const parts: string[] = [];
   const desc = String(config.description ?? "").trim();
+  const mode = config.pattern_mode === false ? "annotate" : "pattern";
+  parts.push(mode);
   const batch = readOptionalPositiveInt(config.batch_size);
   if (batch) parts.push(`batch ${batch}`);
   const pagesCall = readOptionalPositiveInt(config.max_pages_per_detect_request);

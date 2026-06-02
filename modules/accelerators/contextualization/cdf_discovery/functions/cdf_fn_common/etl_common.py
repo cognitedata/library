@@ -75,16 +75,6 @@ def require_pipeline_run_key(data: Mapping[str, Any]) -> str:
     )
 
 
-def require_run_id(data: Mapping[str, Any]) -> str:
-    # Deprecated alias: runtime should call require_pipeline_run_key().
-    return require_pipeline_run_key(data)
-
-
-def resolve_run_id(data: Mapping[str, Any]) -> str:
-    # Deprecated alias: runtime should call resolve_pipeline_run_key().
-    return resolve_pipeline_run_key(data)
-
-
 def resolve_task_config(data: Mapping[str, Any]) -> Dict[str, Any]:
     return _as_dict(data.get("config"))
 

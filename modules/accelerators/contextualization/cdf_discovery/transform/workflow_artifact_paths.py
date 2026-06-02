@@ -5,7 +5,6 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-LEGACY_UNSCOPED_SCOPE = "all"
 WORKFLOW_ARTIFACTS_DIR_NAME = "workflows"
 
 _BUILT_CONFIG_RE = re.compile(
@@ -14,10 +13,7 @@ _BUILT_CONFIG_RE = re.compile(
 
 
 def normalize_scope_suffix(scope_suffix: str | None) -> str:
-    s = str(scope_suffix or "").strip()
-    if s == LEGACY_UNSCOPED_SCOPE:
-        return ""
-    return s
+    return str(scope_suffix or "").strip()
 
 
 def is_scoped_build(scope_suffix: str | None) -> bool:

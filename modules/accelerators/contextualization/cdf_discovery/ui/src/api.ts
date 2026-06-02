@@ -567,11 +567,8 @@ export async function saveTransformWorkflowYaml(path: string, content: string): 
   }
 }
 
-const LEGACY_UNSCOPED_SCOPE = "all";
-
 function normalizePipelineScopeSuffix(scopeSuffix?: string | null): string {
-  const s = String(scopeSuffix ?? "").trim();
-  return s === LEGACY_UNSCOPED_SCOPE ? "" : s;
+  return String(scopeSuffix ?? "").trim();
 }
 
 function transformPipelineScopeQuery(scopeSuffix = ""): string {

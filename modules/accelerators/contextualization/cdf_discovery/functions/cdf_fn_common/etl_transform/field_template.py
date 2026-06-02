@@ -15,7 +15,7 @@ def _field_sort_key(raw: Mapping[str, Any]) -> Tuple[int, str]:
         pri = int(p) if p is not None else 1_000_000
     except (TypeError, ValueError):
         pri = 1_000_000
-    name = AbstractTransformHandler.first_nonempty(raw.get("field_name"), raw.get("name"))
+    name = AbstractTransformHandler.first_nonempty(raw.get("field_name"))
     return (-pri, name)
 
 
@@ -54,14 +54,14 @@ def extract_field_values(props: Mapping[str, Any], fields: Iterable[Any]) -> Dic
     """
     Build ``field_name`` → string values for ``output_template`` substitution.
 
-    Each ``fields[]`` row may include ``field_name`` / ``name``, ``regex``, ``regex_options``,
+    Each ``fields[]`` row may include ``field_name``, ``regex``, ``regex_options``,
     ``max_matches_per_field``, ``priority`` (lower = applied last / wins).
     """
     rows: List[Dict[str, Any]] = [f for f in fields if isinstance(f, dict)]
     rows.sort(key=_field_sort_key)
     out: Dict[str, str] = {}
     for raw in rows:
-        name = AbstractTransformHandler.first_nonempty(raw.get("field_name"), raw.get("name"))
+        name = AbstractTransformHandler.first_nonempty(raw.get("field_name"))
         if not name:
             continue
         val = props.get(name)

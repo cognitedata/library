@@ -20,7 +20,6 @@ import { TransformHandlerCategoryPicker } from "./TransformHandlerCategoryPicker
 export type { PaletteDragPayload } from "./transformFlowDrag";
 export {
   getTransformFlowDropPayload,
-  getTransformPaletteDropPayload,
   setDataTreeEntityDragData,
   setTransformPaletteDragData,
 } from "./transformFlowDrag";

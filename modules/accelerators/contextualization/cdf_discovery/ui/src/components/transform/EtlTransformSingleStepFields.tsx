@@ -70,11 +70,7 @@ export function EtlTransformSingleStepFields({
 
   const setFields = (next: TransformFieldRow[]) => {
     patch({
-      fields: next.map((f) => {
-        const rawName = String(f.field_name ?? f.name ?? "");
-        const { name: _legacyName, ...rest } = f as TransformFieldRow & { name?: string };
-        return { ...rest, field_name: rawName };
-      }),
+      fields: next.map((f) => ({ ...f, field_name: String(f.field_name ?? "") })),
     });
   };
 
@@ -197,7 +193,7 @@ export function EtlTransformSingleStepFields({
         </h4>
         {(fields.length ? fields : [{ field_name: "" }]).map((row, i) => {
           const rowList = fields.length ? fields : [{ field_name: "" }];
-          const fieldName = String(row.field_name ?? row.name ?? "");
+          const fieldName = String(row.field_name ?? "");
           const regexStr = row.regex != null ? String(row.regex) : "";
           return (
             <div

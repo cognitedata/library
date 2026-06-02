@@ -68,13 +68,8 @@ def parse_field_policies_from_list(
 
 
 def parse_field_policies(cfg: Mapping[str, Any]) -> Dict[str, FieldPolicy]:
-    """property_name -> FieldPolicy from save_field_policies or field_policies."""
-    raw = cfg.get("save_field_policies")
-    key = "save_field_policies"
-    if raw is None or raw == []:
-        raw = cfg.get("field_policies")
-        key = "field_policies"
-    return parse_field_policies_from_list(raw, list_key_name=key)
+    """property_name -> FieldPolicy from field_policies."""
+    return parse_field_policies_from_list(cfg.get("field_policies"), list_key_name="field_policies")
 
 
 def _segment_string_for_merge_list(v: Any) -> Optional[str]:

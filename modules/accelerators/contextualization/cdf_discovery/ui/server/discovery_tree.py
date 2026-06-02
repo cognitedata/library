@@ -840,13 +840,21 @@ def list_children(client: Any, node_id: str) -> List[TreeNodeOut]:
             from ui.server import transform_registry
 
             workflows = cdf_browse.list_workflows(client, limit=500)
-            can_delete_by_external_id: Dict[str, bool] = {}
-            for w in workflows:
-                ext = str(w.get("external_id") or "").strip()
-                if not ext:
+            mapped_external_ids: set[str] = set()
+            for entry in transform_registry.list_pipeline_tree_entries():
+                pipeline_id = str(entry.get("id") or "").strip()
+                scope_suffix = str(entry.get("scope_suffix") or "").strip()
+                if not pipeline_id:
                     continue
-                can_delete_by_external_id[ext] = (
-                    transform_registry.find_pipeline_for_workflow(ext) is not None
+                try:
+                    doc = transform_registry.read_pipeline_document(
+                        pipeline_id, scope_suffix=scope_suffix
+                    )
+                except FileNotFoundError:
+                    continue
+                canvas = doc.get("canvas") if isinstance(doc.get("canvas"), dict) else {}
+                mapped_external_ids.update(
+                    transform_registry._canvas_start_workflow_external_ids(canvas)
                 )
             return _sort_nodes(
                 [
@@ -858,9 +866,8 @@ def list_children(client: Any, node_id: str) -> List[TreeNodeOut]:
                         meta={
                             **w,
                             "can_delete_in_transform": bool(
-                                can_delete_by_external_id.get(
-                                    str(w.get("external_id") or "").strip(), False
-                                )
+                                str(w.get("external_id") or "").strip()
+                                in mapped_external_ids
                             ),
                         },
                     )

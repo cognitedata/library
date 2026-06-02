@@ -1027,7 +1027,7 @@ export const en: Messages = {
   "transform.fileAnnotation.fileIdsPlaceholder": "123, 456",
   "transform.fileAnnotation.fileIdsHint": "Optional comma-separated CDF file ids when in__files is unwired.",
   "transform.fanoutPlan.sectionPlanning": "File selection & batches",
-  "transform.fanoutPlan.sectionPatterns": "Pattern entities",
+  "transform.fanoutPlan.sectionEntities": "Annotation entities",
   "transform.fanoutPlan.sectionDetect": "Diagram detect",
   "transform.fanoutPlan.sectionDetectHint":
     "Pages per call limits how much of each PDF is sent in one detect request. Large files are split into FileReference chunks first.",
@@ -1044,6 +1044,29 @@ export const en: Messages = {
   "transform.fanoutPlan.childFunction": "Child function external id",
   "transform.fanoutPlan.maxPatternSamples": "Max pattern samples",
   "transform.fanoutPlan.maxPatternSamplesHint": "Cap on consolidated alias patterns sent to diagram detect.",
+  "transform.fanoutPlan.patternMode": "Pattern mode",
+  "transform.fanoutPlan.patternModeOptionPattern": "Pattern",
+  "transform.fanoutPlan.patternModeOptionAnnotate": "Annotate",
+  "transform.fanoutPlan.patternModePatternHint":
+    "Pattern mode on: aliases are normalized into pattern samples and sent as entities.sample.",
+  "transform.fanoutPlan.patternModeAnnotateHint":
+    "Pattern mode off (annotate mode): actual entity values/aliases are sent directly for annotation.",
+  "transform.fanoutPlan.entitiesProperty": "Entity property",
+  "transform.fanoutPlan.entitiesPropertyPlaceholder": "aliases",
+  "transform.fanoutPlan.entitiesPropertyHintPattern":
+    "Property read from input entities and normalized into pattern samples.",
+  "transform.fanoutPlan.entitiesPropertyHintAnnotate":
+    "Property read from input entities and sent directly for annotation matching.",
+  "transform.fanoutPlan.searchField": "Entity search field",
+  "transform.fanoutPlan.searchFieldPlaceholder": "text",
+  "transform.fanoutPlan.searchFieldHintAnnotate":
+    "Field name used for direct entity matching in annotate mode (for example: text).",
+  "transform.fanoutPlan.patternResourceType": "Entity resource type",
+  "transform.fanoutPlan.patternResourceTypePlaceholder": "equipment",
+  "transform.fanoutPlan.patternResourceTypeHintPattern":
+    "Category used on generated pattern entities in pattern mode.",
+  "transform.fanoutPlan.patternResourceTypeHintAnnotate":
+    "Category used on direct entities in annotate mode.",
   "transform.fanoutPlan.patternNormalization": "Pattern normalization",
   "transform.fanoutPlan.patternFileAnnotation": "File annotation (alias merge)",
   "transform.fanoutPlan.patternHeuristicLiteral": "Heuristic literal",
@@ -1061,6 +1084,13 @@ export const en: Messages = {
   "transform.fanoutPlan.maxAttempts": "Max failed attempts per file",
   "transform.fanoutPlan.maxAttemptsHint": "Skip files after this many failed detect runs.",
   "transform.fanoutPlan.partialMatch": "Partial pattern match",
+  "transform.fanoutPlan.maxDetectJobsPerInvocation": "Max detect jobs per invocation",
+  "transform.fanoutPlan.maxDetectJobsPerInvocationHint":
+    "Maximum diagrams.detect calls this node run may execute. Default 1 for function time safety.",
+  "transform.fanoutPlan.diagramDetectConfig": "Diagram detect config (JSON)",
+  "transform.fanoutPlan.diagramDetectConfigHint":
+    "Optional passthrough JSON for diagrams.detect configuration, including beta options.",
+  "transform.fanoutPlan.diagramDetectConfigPlaceholder": "{\"readEmbeddedText\": true}",
   "transform.fanoutPlan.pagesSummary": "Effective limits: {perCall} pages per detect call, {perRef} pages per file chunk.",
   "transform.dynamicFanout.canvasHint":
     "Expands the fan-out plan into parallel detect child tasks at run time.",

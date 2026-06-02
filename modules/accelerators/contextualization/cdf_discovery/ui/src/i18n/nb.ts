@@ -997,7 +997,7 @@ export const nb: Messages = {
   "transform.fileAnnotation.fileIdsPlaceholder": "123, 456",
   "transform.fileAnnotation.fileIdsHint": "Valgfrie kommaseparerte CDF-fil-IDer når in__files er koblet fra.",
   "transform.fanoutPlan.sectionPlanning": "Filvalg og batcher",
-  "transform.fanoutPlan.sectionPatterns": "Mønsterenheter",
+  "transform.fanoutPlan.sectionEntities": "Annotation entities",
   "transform.fanoutPlan.sectionDetect": "Diagram oppdage",
   "transform.fanoutPlan.sectionDetectHint": "Sider per samtale begrenser hvor mye av hver PDF som sendes i én gjenkjenningsforespørsel. Store filer deles først i FileReference-biter.",
   "transform.fanoutPlan.dependsOn": "Forgjenger for aliasspørring",
@@ -1011,6 +1011,29 @@ export const nb: Messages = {
   "transform.fanoutPlan.childFunction": "Underordnet funksjon ekstern id",
   "transform.fanoutPlan.maxPatternSamples": "Maks mønsterprøver",
   "transform.fanoutPlan.maxPatternSamplesHint": "Topp på konsoliderte aliasmønstre sendt til diagramdeteksjon.",
+  "transform.fanoutPlan.patternMode": "Pattern mode",
+  "transform.fanoutPlan.patternModeOptionPattern": "Pattern",
+  "transform.fanoutPlan.patternModeOptionAnnotate": "Annotate",
+  "transform.fanoutPlan.patternModePatternHint":
+    "Pattern mode on: aliases are normalized into pattern samples and sent as entities.sample.",
+  "transform.fanoutPlan.patternModeAnnotateHint":
+    "Pattern mode off (annotate mode): actual entity values/aliases are sent directly for annotation.",
+  "transform.fanoutPlan.entitiesProperty": "Entity property",
+  "transform.fanoutPlan.entitiesPropertyPlaceholder": "aliases",
+  "transform.fanoutPlan.entitiesPropertyHintPattern":
+    "Property read from input entities and normalized into pattern samples.",
+  "transform.fanoutPlan.entitiesPropertyHintAnnotate":
+    "Property read from input entities and sent directly for annotation matching.",
+  "transform.fanoutPlan.searchField": "Entity search field",
+  "transform.fanoutPlan.searchFieldPlaceholder": "text",
+  "transform.fanoutPlan.searchFieldHintAnnotate":
+    "Field name used for direct entity matching in annotate mode (for example: text).",
+  "transform.fanoutPlan.patternResourceType": "Entity resource type",
+  "transform.fanoutPlan.patternResourceTypePlaceholder": "equipment",
+  "transform.fanoutPlan.patternResourceTypeHintPattern":
+    "Category used on generated pattern entities in pattern mode.",
+  "transform.fanoutPlan.patternResourceTypeHintAnnotate":
+    "Category used on direct entities in annotate mode.",
   "transform.fanoutPlan.patternNormalization": "Mønsternormalisering",
   "transform.fanoutPlan.patternFileAnnotation": "Filkommentar (aliassammenslåing)",
   "transform.fanoutPlan.patternHeuristicLiteral": "Heuristisk bokstavelig",
@@ -1025,6 +1048,13 @@ export const nb: Messages = {
   "transform.fanoutPlan.maxAttempts": "Maks mislykkede forsøk per fil",
   "transform.fanoutPlan.maxAttemptsHint": "Hopp over filer etter så mange mislykkede gjenkjenningskjøringer.",
   "transform.fanoutPlan.partialMatch": "Delvis mønstermatch",
+  "transform.fanoutPlan.maxDetectJobsPerInvocation": "Max detect jobs per invocation",
+  "transform.fanoutPlan.maxDetectJobsPerInvocationHint":
+    "Maximum diagrams.detect calls this node run may execute. Default 1 for function time safety.",
+  "transform.fanoutPlan.diagramDetectConfig": "Diagram detect config (JSON)",
+  "transform.fanoutPlan.diagramDetectConfigHint":
+    "Optional passthrough JSON for diagrams.detect configuration, including beta options.",
+  "transform.fanoutPlan.diagramDetectConfigPlaceholder": "{\"readEmbeddedText\": true}",
   "transform.fanoutPlan.pagesSummary": "Effektive grenser: {perCall} sider per deteksjonsanrop, {perRef} sider per filbit.",
   "transform.dynamicFanout.canvasHint": "Utvider fan-out-planen til parallellregistrering av underordnede oppgaver under kjøring.",
   "transform.dynamicFanout.generatorTaskId": "Planleggeroppgave-ID",

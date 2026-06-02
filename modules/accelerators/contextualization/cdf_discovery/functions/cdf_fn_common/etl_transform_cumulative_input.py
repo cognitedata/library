@@ -271,25 +271,3 @@ def iter_unique_predecessor_entity_rows(
             yield instance_cohort_row_key(nid, scope_key), cols
 
 
-def iter_unique_predecessor_entity_rows_list(
-    client: Any,
-    raw_db: str,
-    base_table: str,
-    run_id: str,
-    *,
-    predecessor_canvas_node_ids: Sequence[str],
-    table_indexes: Optional[Mapping[TableLocation, CohortRowIndex]] = None,
-    index_cache: Any = None,
-) -> List[Tuple[str, Dict[str, Any]]]:
-    """Backward-compatible list materialization of :func:`iter_unique_predecessor_entity_rows`."""
-    return list(
-        iter_unique_predecessor_entity_rows(
-            client,
-            raw_db,
-            base_table,
-            run_id,
-            predecessor_canvas_node_ids=predecessor_canvas_node_ids,
-            table_indexes=table_indexes,
-            index_cache=index_cache,
-        )
-    )

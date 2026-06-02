@@ -997,7 +997,7 @@ export const ja: Messages = {
   "transform.fileAnnotation.fileIdsPlaceholder": "123、456",
   "transform.fileAnnotation.fileIdsHint": "in__files が接続されていない場合の、オプションのカンマ区切りの CDF ファイル ID。",
   "transform.fanoutPlan.sectionPlanning": "ファイル選択とバッチ",
-  "transform.fanoutPlan.sectionPatterns": "パターンエンティティ",
+  "transform.fanoutPlan.sectionEntities": "Annotation entities",
   "transform.fanoutPlan.sectionDetect": "ダイアグラム検出",
   "transform.fanoutPlan.sectionDetectHint": "呼び出しごとのページ数により、1 回の検出リクエストで送信される各 PDF の量が制限されます。大きなファイルは、最初に FileReference チャンクに分割されます。",
   "transform.fanoutPlan.dependsOn": "エイリアスクエリの前身",
@@ -1011,6 +1011,29 @@ export const ja: Messages = {
   "transform.fanoutPlan.childFunction": "子関数の外部ID",
   "transform.fanoutPlan.maxPatternSamples": "最大パターンサンプル",
   "transform.fanoutPlan.maxPatternSamplesHint": "ダイアグラム検出に送信される統合エイリアス パターンの上限。",
+  "transform.fanoutPlan.patternMode": "Pattern mode",
+  "transform.fanoutPlan.patternModeOptionPattern": "Pattern",
+  "transform.fanoutPlan.patternModeOptionAnnotate": "Annotate",
+  "transform.fanoutPlan.patternModePatternHint":
+    "Pattern mode on: aliases are normalized into pattern samples and sent as entities.sample.",
+  "transform.fanoutPlan.patternModeAnnotateHint":
+    "Pattern mode off (annotate mode): actual entity values/aliases are sent directly for annotation.",
+  "transform.fanoutPlan.entitiesProperty": "Entity property",
+  "transform.fanoutPlan.entitiesPropertyPlaceholder": "aliases",
+  "transform.fanoutPlan.entitiesPropertyHintPattern":
+    "Property read from input entities and normalized into pattern samples.",
+  "transform.fanoutPlan.entitiesPropertyHintAnnotate":
+    "Property read from input entities and sent directly for annotation matching.",
+  "transform.fanoutPlan.searchField": "Entity search field",
+  "transform.fanoutPlan.searchFieldPlaceholder": "text",
+  "transform.fanoutPlan.searchFieldHintAnnotate":
+    "Field name used for direct entity matching in annotate mode (for example: text).",
+  "transform.fanoutPlan.patternResourceType": "Entity resource type",
+  "transform.fanoutPlan.patternResourceTypePlaceholder": "equipment",
+  "transform.fanoutPlan.patternResourceTypeHintPattern":
+    "Category used on generated pattern entities in pattern mode.",
+  "transform.fanoutPlan.patternResourceTypeHintAnnotate":
+    "Category used on direct entities in annotate mode.",
   "transform.fanoutPlan.patternNormalization": "パターンの正規化",
   "transform.fanoutPlan.patternFileAnnotation": "ファイルアノテーション（エイリアスマージ）",
   "transform.fanoutPlan.patternHeuristicLiteral": "ヒューリスティックリテラル",
@@ -1025,6 +1048,13 @@ export const ja: Messages = {
   "transform.fanoutPlan.maxAttempts": "ファイルごとの失敗試行の最大数",
   "transform.fanoutPlan.maxAttemptsHint": "これだけ多くの検出が失敗した場合は、ファイルをスキップします。",
   "transform.fanoutPlan.partialMatch": "部分的なパターン一致",
+  "transform.fanoutPlan.maxDetectJobsPerInvocation": "Max detect jobs per invocation",
+  "transform.fanoutPlan.maxDetectJobsPerInvocationHint":
+    "Maximum diagrams.detect calls this node run may execute. Default 1 for function time safety.",
+  "transform.fanoutPlan.diagramDetectConfig": "Diagram detect config (JSON)",
+  "transform.fanoutPlan.diagramDetectConfigHint":
+    "Optional passthrough JSON for diagrams.detect configuration, including beta options.",
+  "transform.fanoutPlan.diagramDetectConfigPlaceholder": "{\"readEmbeddedText\": true}",
   "transform.fanoutPlan.pagesSummary": "有効な制限: 検出呼び出しあたり {perCall} ページ、ファイル チャンクあたり {perRef} ページ。",
   "transform.dynamicFanout.canvasHint": "ファンアウト計画を拡張して、実行時に子タスクを並列検出します。",
   "transform.dynamicFanout.generatorTaskId": "プランナーのタスク ID",

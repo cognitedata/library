@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { Edge, Node } from "@xyflow/react";
 import {
-  buildTransformMergeCandidateRows,
+  buildFlowOptimizeCandidateRows,
   discoverTransformMergeCandidates,
-} from "./discoverTransformMergeCandidates";
+} from "./discoverFlowOptimizeCandidates";
 
 function transformNode(id: string, pos: { x: number; y: number } = { x: 0, y: 0 }): Node {
   return {
@@ -64,7 +64,7 @@ describe("discoverTransformMergeCandidates", () => {
       [transformNode("a"), transformNode("b", { x: 200, y: 0 }), transformNode("c", { x: 400, y: 0 })],
       [dataEdge("a", "b"), dataEdge("b", "c"), dataEdge("a", "c")]
     );
-    const rows = buildTransformMergeCandidateRows(candidates);
+    const rows = buildFlowOptimizeCandidateRows(candidates);
     const approved = rows.filter((r) => r.approved);
     for (const a of approved) {
       for (const b of approved) {

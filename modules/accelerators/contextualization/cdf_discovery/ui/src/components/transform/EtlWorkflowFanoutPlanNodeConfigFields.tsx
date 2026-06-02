@@ -61,6 +61,14 @@ function numField(
 export function EtlWorkflowFanoutPlanNodeConfigFields({ value, onChange }: Props) {
   const { t } = useAppSettings();
   const patch = (p: JsonObject) => onChange({ ...value, ...p });
+  const patternModeEnabled = value.pattern_mode !== false;
+  const rawDiagramDetectConfig = value.diagram_detect_config;
+  const diagramDetectConfigText =
+    rawDiagramDetectConfig == null
+      ? ""
+      : typeof rawDiagramDetectConfig === "string"
+        ? rawDiagramDetectConfig
+        : JSON.stringify(rawDiagramDetectConfig, null, 2);
 
   const patternMode = String(value.pattern_normalization ?? "file_annotation").trim();
   const fanoutProfile = String(value.fanout_profile ?? "file_annotation");
@@ -151,29 +159,98 @@ export function EtlWorkflowFanoutPlanNodeConfigFields({ value, onChange }: Props
       </fieldset>
 
       <fieldset className="transform-node-editor-fields__section" style={{ marginTop: "1rem" }}>
-        <legend>{t("transform.fanoutPlan.sectionPatterns")}</legend>
-
-        {numField(
-          value,
-          "max_pattern_samples",
-          onChange,
-          t("transform.fanoutPlan.maxPatternSamples"),
-          t("transform.fanoutPlan.maxPatternSamplesHint"),
-          String(DEFAULT_MAX_PATTERN_SAMPLES)
-        )}
-
-        <label className="gov-label gov-label--block" style={{ marginTop: "0.75rem" }}>
-          {t("transform.fanoutPlan.patternNormalization")}
+        <legend>{t("transform.fanoutPlan.sectionEntities")}</legend>
+        <label className="gov-label gov-label--block" style={{ marginTop: "0.5rem" }}>
+          {t("transform.fanoutPlan.patternMode")}
           <select
             className="gov-input"
             style={{ marginTop: "0.35rem" }}
-            value={patternMode}
-            onChange={(e) => patch({ pattern_normalization: e.target.value })}
+            value={patternModeEnabled ? "pattern" : "annotate"}
+            onChange={(e) => patch({ pattern_mode: e.target.value === "pattern" })}
           >
-            <option value="file_annotation">{t("transform.fanoutPlan.patternFileAnnotation")}</option>
-            <option value="heuristic_literal">{t("transform.fanoutPlan.patternHeuristicLiteral")}</option>
+            <option value="pattern">{t("transform.fanoutPlan.patternModeOptionPattern")}</option>
+            <option value="annotate">{t("transform.fanoutPlan.patternModeOptionAnnotate")}</option>
           </select>
         </label>
+        <p className="transform-node-editor-modal__hint" style={{ marginTop: "0.35rem" }}>
+          {patternModeEnabled
+            ? t("transform.fanoutPlan.patternModePatternHint")
+            : t("transform.fanoutPlan.patternModeAnnotateHint")}
+        </p>
+        <label className="gov-label gov-label--block" style={{ marginTop: "0.75rem" }}>
+          {t("transform.fanoutPlan.entitiesProperty")}
+          <input
+            className="gov-input"
+            style={{ marginTop: "0.35rem" }}
+            value={String(value.patterns_entity_property ?? "")}
+            placeholder={t("transform.fanoutPlan.entitiesPropertyPlaceholder")}
+            onChange={(e) => patch({ patterns_entity_property: e.target.value })}
+            spellCheck={false}
+          />
+          <span className="transform-node-editor-modal__hint" style={{ display: "block", marginTop: "0.25rem" }}>
+            {patternModeEnabled
+              ? t("transform.fanoutPlan.entitiesPropertyHintPattern")
+              : t("transform.fanoutPlan.entitiesPropertyHintAnnotate")}
+          </span>
+        </label>
+        {!patternModeEnabled ? (
+          <label className="gov-label gov-label--block" style={{ marginTop: "0.75rem" }}>
+            {t("transform.fanoutPlan.searchField")}
+            <input
+              className="gov-input"
+              style={{ marginTop: "0.35rem" }}
+              value={String(value.search_field ?? "")}
+              placeholder={t("transform.fanoutPlan.searchFieldPlaceholder")}
+              onChange={(e) => patch({ search_field: e.target.value })}
+              spellCheck={false}
+            />
+            <span className="transform-node-editor-modal__hint" style={{ display: "block", marginTop: "0.25rem" }}>
+              {t("transform.fanoutPlan.searchFieldHintAnnotate")}
+            </span>
+          </label>
+        ) : null}
+        <label className="gov-label gov-label--block" style={{ marginTop: "0.75rem" }}>
+          {t("transform.fanoutPlan.patternResourceType")}
+          <input
+            className="gov-input"
+            style={{ marginTop: "0.35rem" }}
+            value={String(value.pattern_resource_type ?? "")}
+            placeholder={t("transform.fanoutPlan.patternResourceTypePlaceholder")}
+            onChange={(e) => patch({ pattern_resource_type: e.target.value })}
+            spellCheck={false}
+          />
+          <span className="transform-node-editor-modal__hint" style={{ display: "block", marginTop: "0.25rem" }}>
+            {patternModeEnabled
+              ? t("transform.fanoutPlan.patternResourceTypeHintPattern")
+              : t("transform.fanoutPlan.patternResourceTypeHintAnnotate")}
+          </span>
+        </label>
+
+        {patternModeEnabled ? (
+          <>
+            {numField(
+              value,
+              "max_pattern_samples",
+              onChange,
+              t("transform.fanoutPlan.maxPatternSamples"),
+              t("transform.fanoutPlan.maxPatternSamplesHint"),
+              String(DEFAULT_MAX_PATTERN_SAMPLES)
+            )}
+
+            <label className="gov-label gov-label--block" style={{ marginTop: "0.75rem" }}>
+              {t("transform.fanoutPlan.patternNormalization")}
+              <select
+                className="gov-input"
+                style={{ marginTop: "0.35rem" }}
+                value={patternMode}
+                onChange={(e) => patch({ pattern_normalization: e.target.value })}
+              >
+                <option value="file_annotation">{t("transform.fanoutPlan.patternFileAnnotation")}</option>
+                <option value="heuristic_literal">{t("transform.fanoutPlan.patternHeuristicLiteral")}</option>
+              </select>
+            </label>
+          </>
+        ) : null}
       </fieldset>
 
       <fieldset className="transform-node-editor-fields__section" style={{ marginTop: "1rem" }}>
@@ -224,6 +301,14 @@ export function EtlWorkflowFanoutPlanNodeConfigFields({ value, onChange }: Props
           t("transform.fanoutPlan.maxAttemptsHint"),
           "3"
         )}
+        {numField(
+          value,
+          "max_detect_jobs_per_invocation",
+          onChange,
+          t("transform.fanoutPlan.maxDetectJobsPerInvocation"),
+          t("transform.fanoutPlan.maxDetectJobsPerInvocationHint"),
+          "1"
+        )}
 
         <label
           className="gov-label gov-label--block transform-flow-inspector__field--checkbox"
@@ -235,6 +320,34 @@ export function EtlWorkflowFanoutPlanNodeConfigFields({ value, onChange }: Props
             checked={value.partial_match !== false}
             onChange={(e) => patch({ partial_match: e.target.checked })}
           />
+        </label>
+        <label className="gov-label gov-label--block" style={{ marginTop: "0.75rem" }}>
+          {t("transform.fanoutPlan.diagramDetectConfig")}
+          <textarea
+            className="gov-input transform-flow-inspector__json"
+            rows={5}
+            style={{ marginTop: "0.35rem" }}
+            value={diagramDetectConfigText}
+            placeholder={t("transform.fanoutPlan.diagramDetectConfigPlaceholder")}
+            spellCheck={false}
+            onChange={(e) => {
+              const v = e.target.value.trim();
+              if (!v) {
+                const next = { ...value };
+                delete next.diagram_detect_config;
+                onChange(next);
+                return;
+              }
+              try {
+                onChange({ ...value, diagram_detect_config: JSON.parse(v) as JsonObject });
+              } catch {
+                onChange({ ...value, diagram_detect_config: e.target.value });
+              }
+            }}
+          />
+          <span className="transform-node-editor-modal__hint" style={{ display: "block", marginTop: "0.25rem" }}>
+            {t("transform.fanoutPlan.diagramDetectConfigHint")}
+          </span>
         </label>
       </fieldset>
 

@@ -20,16 +20,13 @@ def validate_scoring_config(cfg: Mapping[str, Any]) -> None:
     if not rules:
         raise ValueError("score config requires non-empty scoring_rules")
     if not _parse_score_fields(cfg):
-        raise ValueError("score config requires non-empty score_fields or score_field")
+        raise ValueError("score config requires non-empty score_fields")
 
 
 def materialize_scoring_rules(cfg: Mapping[str, Any]) -> List[Any]:
     raw = cfg.get("scoring_rules")
     if isinstance(raw, list) and raw:
         return list(raw)
-    steps = cfg.get("steps")
-    if isinstance(steps, list) and steps:
-        return list(steps)
     return []
 
 
@@ -39,9 +36,6 @@ def _parse_score_fields(cfg: Mapping[str, Any]) -> List[str]:
         out = [str(x).strip() for x in raw if str(x).strip()]
         if out:
             return out
-    single = _first_nonempty(cfg.get("score_field"))
-    if single:
-        return [single]
     return []
 
 
@@ -150,7 +144,7 @@ def _write_parallel_scores(
 def score_primary_value_field(cfg: Mapping[str, Any]) -> str:
     fields = _parse_score_fields(cfg)
     if not fields:
-        raise ValueError("score config requires non-empty score_fields or score_field")
+        raise ValueError("score config requires non-empty score_fields")
     return fields[0]
 
 

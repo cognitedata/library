@@ -39,7 +39,7 @@ export function nextDefaultScoringRuleName(rules: ScoringRuleRow[]): string {
 }
 
 export function readScoringRules(cfg: Record<string, unknown>): unknown[] {
-  const raw = cfg.scoring_rules ?? cfg.score_rules ?? cfg.steps;
+  const raw = cfg.scoring_rules;
   return Array.isArray(raw) ? raw : [];
 }
 
@@ -170,8 +170,7 @@ export function readScoreFields(cfg: Record<string, unknown>): string[] {
   if (Array.isArray(raw)) {
     return raw.map((x) => String(x ?? "").trim()).filter(Boolean);
   }
-  const single = String(cfg.score_field ?? "").trim();
-  return single ? [single] : [];
+  return [];
 }
 
 export function scoreSummary(cfg: Record<string, unknown>): string {
