@@ -29,7 +29,9 @@ from cdf_fn_common.etl_common import (
 )
 from cdf_fn_common.etl_dm_query import query_all_view_instances, query_stats_to_enumeration, ViewQueryStats
 from cdf_fn_common.etl_incremental_hash import row_content_hash, should_skip_unchanged
+from cdf_fn_common.etl_rule_inclusion_hash import compute_rule_inclusion_hash
 from cdf_fn_common.etl_incremental_scope import (
+    incremental_state_table_exists,
     load_incremental_hashes_for_nodes,
     node_last_updated_time_ms,
     scope_key_from_view_dict,
@@ -128,6 +130,10 @@ def etl_handle_view_query(
     run_id = require_pipeline_run_key(data)
     data["run_id"] = run_id
     task_id = _first_nonempty(data.get("task_id"), fn_external_id)
+    rule_inclusion_hash, rule_hash_task_ids = compute_rule_inclusion_hash(
+        data.get("compiled_workflow"),
+        task_id=task_id,
+    )
     # #region agent log
     emit_agent_debug_log(
         run_id=run_id,
@@ -166,9 +172,13 @@ def etl_handle_view_query(
     latest_by_node_count = 0
     inc_raw_db = ""
     inc_raw_table = ""
+    state_reads_enabled = False
     if client is not None and persist_state:
         inc_raw_db, inc_raw_table = resolve_incremental_state_sink(data)
-        if listing_narrowed:
+        state_reads_enabled = incremental_state_table_exists(client, inc_raw_db, inc_raw_table)
+        if not state_reads_enabled:
+            hash_skip = False
+        if listing_narrowed and state_reads_enabled:
             wm_key = scope_watermark_row_key(scope_key, workflow_scope)
             wm_before = read_watermark_high_ms(client, inc_raw_db, inc_raw_table, wm_key)
             if wm_before is not None:
@@ -178,7 +188,8 @@ def etl_handle_view_query(
     if log is not None and hasattr(log, "info"):
         log.info(
             "%s view=%s/%s/%s persist_state=%s incremental_change_processing=%s listing_narrowed=%s "
-            "hash_skip=%s watermark_before=%s prior_hash_nodes=%s state_load_duration_sec=%s",
+            "hash_skip=%s watermark_before=%s prior_hash_nodes=%s state_load_duration_sec=%s "
+            "state_reads_enabled=%s rule_hash_enabled=%s rule_hash_tasks=%s",
             task_id,
             view_space,
             view_external_id,
@@ -190,6 +201,9 @@ def etl_handle_view_query(
             wm_before,
             latest_by_node_count,
             state_load_duration_sec,
+            state_reads_enabled,
+            bool(rule_inclusion_hash),
+            len(rule_hash_task_ids),
         )
 
     if not isinstance(data.get("etl_view_property_names_cache"), dict):
@@ -262,7 +276,7 @@ def etl_handle_view_query(
                 max_last_updated = lu if max_last_updated is None else max(max_last_updated, lu)
 
             prev_hash: str | None = None
-            if hash_skip and inc_raw_db and inc_raw_table:
+            if hash_skip and state_reads_enabled and inc_raw_db and inc_raw_table:
                 prev_hash = load_incremental_hashes_for_nodes(
                     client,
                     inc_raw_db,
@@ -284,7 +298,10 @@ def etl_handle_view_query(
                 n_skipped_hash += 1
                 continue
 
-            content_hash = row_content_hash(props)
+            hash_props = dict(props)
+            if rule_inclusion_hash:
+                hash_props["_rule_inclusion_hash"] = rule_inclusion_hash
+            content_hash = row_content_hash(hash_props)
             if hash_skip and should_skip_unchanged(
                 content_hash=content_hash,
                 previous_hash=prev_hash,
@@ -371,6 +388,9 @@ def etl_handle_view_query(
         "workflow_scope": workflow_scope or None,
         "incremental_raw_db": inc_raw_db or None,
         "incremental_raw_table": inc_raw_table or None,
+        "incremental_state_reads_enabled": state_reads_enabled,
+        "rule_inclusion_hash": rule_inclusion_hash or None,
+        "rule_inclusion_hash_task_count": len(rule_hash_task_ids),
         "prior_hash_nodes": latest_by_node_count,
         "state_load_duration_sec": state_load_duration_sec,
         "query_duration_sec": query_duration_sec,

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { fetchTransformWorkflowByWorkflow } from "../../api";
+import { deleteTransformWorkflow, fetchTransformWorkflowByWorkflow } from "../../api";
 import { useAppSettings } from "../../context/AppSettingsContext";
 import type { WorkflowDocumentTab } from "../../types/discoveryNodes";
 import {
@@ -13,17 +13,26 @@ type Props = {
   tab: WorkflowDocumentTab;
   onTabUpdate: (tab: WorkflowDocumentTab) => void;
   onOpenInTransform?: () => void;
+  onDeleteInTransform?: () => void;
   openInTransformBusy?: boolean;
   openInTransformError?: string | null;
 };
 
 function FusionWorkflowOpenInTransformBar({
   onOpenInTransform,
+  onDeleteInTransform,
+  canDeleteInTransform,
+  deleteInTransformBusy,
+  deleteInTransformError,
   openInTransformBusy,
   openInTransformError,
-}: Pick<Props, "onOpenInTransform" | "openInTransformBusy" | "openInTransformError">) {
+}: Pick<Props, "onOpenInTransform" | "onDeleteInTransform" | "openInTransformBusy" | "openInTransformError"> & {
+  canDeleteInTransform: boolean;
+  deleteInTransformBusy: boolean;
+  deleteInTransformError: string | null;
+}) {
   const { t } = useAppSettings();
-  if (!onOpenInTransform) return null;
+  if (!onOpenInTransform && !canDeleteInTransform) return null;
   return (
     <div className="transform-fusion-workflow-pane__actions">
       {openInTransformError ? (
@@ -31,15 +40,33 @@ function FusionWorkflowOpenInTransformBar({
           {t("status.error", { detail: openInTransformError })}
         </div>
       ) : null}
-      <button
-        type="button"
-        className="disc-btn disc-btn--primary"
-        disabled={openInTransformBusy}
-        onClick={onOpenInTransform}
-        title={t("wfViewer.openInTransformHint")}
-      >
-        {openInTransformBusy ? t("wfViewer.openInTransformBusy") : t("wfViewer.openInTransform")}
-      </button>
+      {deleteInTransformError ? (
+        <div className="disc-banner--error" role="alert">
+          {t("status.error", { detail: deleteInTransformError })}
+        </div>
+      ) : null}
+      {onOpenInTransform ? (
+        <button
+          type="button"
+          className="disc-btn disc-btn--primary"
+          disabled={openInTransformBusy || deleteInTransformBusy}
+          onClick={onOpenInTransform}
+          title={t("wfViewer.openInTransformHint")}
+        >
+          {openInTransformBusy ? t("wfViewer.openInTransformBusy") : t("wfViewer.openInTransform")}
+        </button>
+      ) : null}
+      {canDeleteInTransform ? (
+        <button
+          type="button"
+          className="disc-btn disc-btn--ghost"
+          disabled={deleteInTransformBusy || openInTransformBusy}
+          onClick={onDeleteInTransform}
+          title={t("transform.pipelines.delete")}
+        >
+          {deleteInTransformBusy ? t("transform.toolbar.reloading") : t("transform.pipelines.delete")}
+        </button>
+      ) : null}
     </div>
   );
 }
@@ -48,12 +75,16 @@ export function TransformFusionWorkflowPane({
   tab,
   onTabUpdate,
   onOpenInTransform,
+  onDeleteInTransform,
   openInTransformBusy = false,
   openInTransformError = null,
 }: Props) {
   const { t } = useAppSettings();
   const [canvas, setCanvas] = useState<TransformCanvasDocument>(emptyTransformCanvasDocument());
   const [workflowId, setWorkflowId] = useState<string | null>(null);
+  const [deleteInTransformBusy, setDeleteInTransformBusy] = useState(false);
+  const [deleteInTransformError, setDeleteInTransformError] = useState<string | null>(null);
+  const [deleteRefreshNonce, setDeleteRefreshNonce] = useState(0);
   const [reloadNonce, setReloadNonce] = useState(0);
   const [resolved, setResolved] = useState(false);
   const [useCdfGraphFallback, setUseCdfGraphFallback] = useState(false);
@@ -73,6 +104,7 @@ export function TransformFusionWorkflowPane({
       onTabUpdateRef.current({ ...tabRef.current, loading: true, error: null });
       setResolved(false);
       setUseCdfGraphFallback(false);
+      setDeleteInTransformError(null);
       setCanvas(emptyTransformCanvasDocument());
       setWorkflowId(null);
       try {
@@ -102,11 +134,27 @@ export function TransformFusionWorkflowPane({
     return () => {
       cancelled = true;
     };
-  }, [tab.id, tab.workflow.external_id]);
+  }, [tab.id, tab.workflow.external_id, deleteRefreshNonce]);
 
   const onCanvasChange = useCallback((doc: TransformCanvasDocument) => {
     setCanvas(doc);
   }, []);
+
+  const deleteLocalWorkflow = useCallback(async () => {
+    if (!workflowId) return;
+    if (!window.confirm(t("transform.pipelines.deleteConfirm", { name: tab.label }))) return;
+    setDeleteInTransformError(null);
+    setDeleteInTransformBusy(true);
+    try {
+      await deleteTransformWorkflow(workflowId);
+      onDeleteInTransform?.();
+      setDeleteRefreshNonce((n) => n + 1);
+    } catch (e) {
+      setDeleteInTransformError(`${t("transform.pipelines.deleteFailed")}: ${String(e)}`);
+    } finally {
+      setDeleteInTransformBusy(false);
+    }
+  }, [onDeleteInTransform, t, tab.label, workflowId]);
 
   if (!resolved || (tab.loading && !useCdfGraphFallback)) {
     return <div className="transform-flow-loading">{t("transform.fusionWorkflow.loading")}</div>;
@@ -137,6 +185,10 @@ export function TransformFusionWorkflowPane({
       </p>
       <FusionWorkflowOpenInTransformBar
         onOpenInTransform={onOpenInTransform}
+        onDeleteInTransform={() => void deleteLocalWorkflow()}
+        canDeleteInTransform={Boolean(workflowId)}
+        deleteInTransformBusy={deleteInTransformBusy}
+        deleteInTransformError={deleteInTransformError}
         openInTransformBusy={openInTransformBusy}
         openInTransformError={openInTransformError}
       />

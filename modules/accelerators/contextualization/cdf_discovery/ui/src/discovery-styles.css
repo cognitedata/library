@@ -1233,6 +1233,7 @@ body {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
   font-size: 0.78rem;
   text-align: left;
+  position: relative;
 }
 
 .disc-dm-flow-node--selected {
@@ -1267,6 +1268,47 @@ body {
   font-size: 0.68rem;
   color: var(--disc-text-muted);
   margin-top: 0.25rem;
+}
+
+.disc-wf-flow-node__connector-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.4rem;
+  padding-top: 0.35rem;
+  border-top: 1px solid var(--disc-border);
+}
+
+.disc-wf-flow-node__connector-label {
+  font-size: 0.66rem;
+  font-weight: 600;
+  color: var(--disc-text-muted);
+  line-height: 1;
+}
+
+.disc-wf-flow-node__connector-label:first-child {
+  padding-left: 0.15rem;
+}
+
+.disc-wf-flow-node__connector-label:last-child {
+  padding-right: 0.15rem;
+}
+
+.disc-wf-flow-node__handle {
+  width: 0.58rem;
+  height: 0.58rem;
+  background: var(--disc-bg-elevated);
+  border: 2px solid var(--disc-primary, #4338ca);
+  top: calc(100% - 0.83rem) !important;
+}
+
+.disc-wf-flow-node__handle--input {
+  left: -0.38rem !important;
+}
+
+.disc-wf-flow-node__handle--output {
+  right: -0.38rem !important;
 }
 
 .disc-banner--error {

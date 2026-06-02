@@ -25,11 +25,14 @@ export function WfTaskFlowNode({ data }: NodeProps) {
     .join(" ");
   return (
     <div className={className}>
-      <Handle type="target" position={Position.Left} />
       <div className="disc-dm-flow-node__title">{title}</div>
       <div className="disc-dm-flow-node__kind">{kind}</div>
-      <div className="disc-dm-flow-node__props">{task.external_id}</div>
-      <Handle type="source" position={Position.Right} />
+      <div className="disc-wf-flow-node__connector-bar">
+        <span className="disc-wf-flow-node__connector-label">{t("wfViewer.inputConnector")}</span>
+        <span className="disc-wf-flow-node__connector-label">{t("wfViewer.outputConnector")}</span>
+      </div>
+      <Handle type="target" position={Position.Left} className="disc-wf-flow-node__handle disc-wf-flow-node__handle--input" />
+      <Handle type="source" position={Position.Right} className="disc-wf-flow-node__handle disc-wf-flow-node__handle--output" />
     </div>
   );
 }

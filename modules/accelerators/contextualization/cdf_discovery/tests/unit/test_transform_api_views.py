@@ -6,6 +6,7 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 from ui.server.transform_api import (
+    _delete_raw_table_if_exists,
     _find_view_in_space,
     _property_names_from_view,
     _view_fields_from_view,
@@ -42,3 +43,41 @@ def test_find_view_in_space_falls_back_to_listing() -> None:
 
     found = _find_view_in_space(client, space="sp", external_id="Asset", version="v1")
     assert found is listed
+
+
+def test_delete_raw_table_if_exists_reports_deleted() -> None:
+    client = MagicMock()
+    out = _delete_raw_table_if_exists(client, "db", "cohort__incremental")
+    assert out == {
+        "raw_db": "db",
+        "raw_table": "cohort__incremental",
+        "status": "deleted",
+    }
+    client.raw.tables.delete.assert_called_once_with("db", "cohort__incremental")
+
+
+def test_delete_raw_table_if_exists_reports_not_found_for_404() -> None:
+    class _Err(Exception):
+        code = 404
+
+    client = MagicMock()
+    client.raw.tables.delete.side_effect = _Err("not found")
+    out = _delete_raw_table_if_exists(client, "db", "cohort__file_state")
+    assert out == {
+        "raw_db": "db",
+        "raw_table": "cohort__file_state",
+        "status": "not_found",
+    }
+
+
+def test_delete_raw_table_if_exists_reports_error_for_non_404() -> None:
+    class _Err(Exception):
+        code = 500
+
+    client = MagicMock()
+    client.raw.tables.delete.side_effect = _Err("boom")
+    out = _delete_raw_table_if_exists(client, "db", "cohort__file_state")
+    assert out["raw_db"] == "db"
+    assert out["raw_table"] == "cohort__file_state"
+    assert out["status"] == "error"
+    assert "boom" in str(out.get("error"))

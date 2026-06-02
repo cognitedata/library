@@ -663,6 +663,8 @@
   box-sizing: border-box;
   min-width: 7rem;
   font-size: 0.75rem;
+  position: relative;
+  --etl-handle-size: 0.5rem;
 }
 
 .etl-flow-node:not(.etl-flow-node--resizable) {
@@ -767,6 +769,84 @@
   word-break: normal;
 }
 
+.etl-flow-node__connector-bar {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.35rem;
+  padding-top: 0.3rem;
+  border-top: 1px solid var(--disc-border, #d1d5db);
+}
+
+.etl-flow-node__connector-slot {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--etl-handle-size);
+}
+
+.etl-flow-node__connector-slot--input {
+  justify-content: flex-start;
+}
+
+.etl-flow-node__connector-slot--output {
+  justify-content: flex-end;
+}
+
+.etl-flow-node__connector-label {
+  font-size: 0.625rem;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--disc-text-muted, #6b7280);
+}
+
+.etl-flow-node__fanout-connector-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.6rem;
+  margin-top: 0.35rem;
+  padding-top: 0.3rem;
+  border-top: 1px solid var(--disc-border, #d1d5db);
+}
+
+.etl-flow-node__fanout-input-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.etl-flow-node__fanout-input-label {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--etl-handle-size);
+  text-align: left;
+  position: relative;
+  padding-left: calc(var(--etl-handle-size) + 0.25rem);
+}
+
+.etl-flow-node__fanout-output-label {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--etl-handle-size);
+  margin-top: 0.05rem;
+  text-align: right;
+  flex: 0 0 auto;
+  position: relative;
+  padding-right: calc(var(--etl-handle-size) + 0.25rem);
+}
+
+.etl-flow-node__connector-slot--input .etl-flow-node__connector-label {
+  padding-left: calc(var(--etl-handle-size) + 0.2rem);
+}
+
+.etl-flow-node__connector-slot--output .etl-flow-node__connector-label {
+  padding-right: calc(var(--etl-handle-size) + 0.2rem);
+}
+
 .etl-flow-node__progress {
   flex: 0 0 auto;
   padding: 0.35rem 0.5rem 0.45rem;
@@ -835,8 +915,25 @@
 }
 
 .etl-flow-handle {
-  width: 0.5rem;
-  height: 0.5rem;
+  width: var(--etl-handle-size);
+  height: var(--etl-handle-size);
+  z-index: 4;
+  background: var(--disc-bg-elevated, #ffffff);
+  border: 2px solid var(--disc-primary, #4338ca);
+}
+
+.etl-flow-node .etl-flow-handle--input-inline,
+.etl-flow-node .etl-flow-handle--output-inline {
+  top: 50% !important;
+  transform: translateY(-50%);
+}
+
+.etl-flow-node .etl-flow-handle--input-inline {
+  left: calc(var(--etl-handle-size) * -0.5) !important;
+}
+
+.etl-flow-node .etl-flow-handle--output-inline {
+  right: calc(var(--etl-handle-size) * -0.5) !important;
 }
 
 .transform-flow-loading,
@@ -1311,6 +1408,11 @@
   padding-left: 4.25rem;
 }
 
+/* Fan-out planner uses an in-card connector row; do not reserve a separate left label lane. */
+.etl-flow-node--workflow_fanout_plan.etl-flow-node--dual-input.etl-flow-node--in-lr .etl-flow-node__body-main {
+  padding-left: 0.6rem;
+}
+
 .etl-flow-node--dual-input.etl-flow-node--in-tb .etl-flow-node__body-main {
   padding-top: 1.15rem;
 }
@@ -1348,6 +1450,10 @@
 @media (max-width: 900px) {
   .etl-flow-node--dual-input.etl-flow-node--in-lr .etl-flow-node__body-main {
     padding-left: 3.65rem;
+  }
+
+  .etl-flow-node--workflow_fanout_plan.etl-flow-node--dual-input.etl-flow-node--in-lr .etl-flow-node__body-main {
+    padding-left: 0.6rem;
   }
 
   .etl-flow-node--dual-input .etl-flow-handle-label {

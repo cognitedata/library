@@ -1,4 +1,4 @@
-import type { CSSProperties } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { useEffect, useState } from "react";
 import type { NodeProps } from "@xyflow/react";
 import { Handle, NodeResizer, Position } from "@xyflow/react";
@@ -27,6 +27,9 @@ import { etlFlowNodeCanvasDescription } from "./etlFlowNodeDescription";
 import {
   INPUT_A_LABEL_CONFIG_KEY,
   INPUT_B_LABEL_CONFIG_KEY,
+  INPUT_LABEL_CONFIG_KEY,
+  OUTPUT_LABEL_CONFIG_KEY,
+  resolveConnectorLabel,
   resolveDualInputConnectorLabel,
 } from "../../utils/dualInputConnectorLabels";
 import { canvasNodeDisplayLabel, canvasNodeKindLabel } from "../../utils/canvasNodeKindLabel";
@@ -117,19 +120,46 @@ function EtlNodeRunProgressBar({
 
 function EtlNodeBodyContent({
   label,
-  kindLabel,
-  description,
 }: {
   label: string;
-  kindLabel: string;
-  description: string;
 }) {
   return (
     <>
       <span className="etl-flow-node__label">{label}</span>
-      <span className="etl-flow-node__kind">{kindLabel}</span>
-      {description ? <span className="etl-flow-node__description">{description}</span> : null}
     </>
+  );
+}
+
+function EtlNodeConnectorBar({
+  inputLabel,
+  outputLabel,
+  showInput = true,
+  showOutput = true,
+  inputHandle = null,
+  outputHandle = null,
+}: {
+  inputLabel: string;
+  outputLabel: string;
+  showInput?: boolean;
+  showOutput?: boolean;
+  inputHandle?: ReactNode;
+  outputHandle?: ReactNode;
+}) {
+  return (
+    <div className="etl-flow-node__connector-bar" aria-hidden="true">
+      <span className="etl-flow-node__connector-slot etl-flow-node__connector-slot--input">
+        <span className="etl-flow-node__connector-label">
+          {showInput ? inputLabel : ""}
+        </span>
+        {showInput ? inputHandle : null}
+      </span>
+      <span className="etl-flow-node__connector-slot etl-flow-node__connector-slot--output">
+        <span className="etl-flow-node__connector-label">
+          {showOutput ? outputLabel : ""}
+        </span>
+        {showOutput ? outputHandle : null}
+      </span>
+    </div>
   );
 }
 
@@ -215,6 +245,7 @@ function DualInputFlowNode({
   rightHandleId,
   leftLabelKey,
   rightLabelKey,
+  showGenericInputLabel = true,
 }: EtlNodeProps & {
   kind: TransformCanvasNodeKind;
   kindLabelKey: MessageKey;
@@ -222,6 +253,7 @@ function DualInputFlowNode({
   rightHandleId: string;
   leftLabelKey: MessageKey;
   rightLabelKey: MessageKey;
+  showGenericInputLabel?: boolean;
 }) {
   const { t } = useAppSettings();
   const handles = useDataHandles(data);
@@ -242,7 +274,11 @@ function DualInputFlowNode({
   const config = (data.config ?? {}) as Record<string, unknown>;
   const leftLabel = resolveDualInputConnectorLabel(config, INPUT_A_LABEL_CONFIG_KEY, leftLabelKey, t);
   const rightLabel = resolveDualInputConnectorLabel(config, INPUT_B_LABEL_CONFIG_KEY, rightLabelKey, t);
+  const inputLabel = resolveConnectorLabel(config, INPUT_LABEL_CONFIG_KEY, "wfViewer.inputConnector", t);
+  const outputLabel = resolveConnectorLabel(config, OUTPUT_LABEL_CONFIG_KEY, "wfViewer.outputConnector", t);
   const dualMin = etlDualInputMinSize();
+  const isFanoutPlanner = kind === "workflow_fanout_plan";
+  const inlineConnectorHandles = handles.key === "lr";
 
   return (
     <div
@@ -254,42 +290,108 @@ function DualInputFlowNode({
         minWidth={dualMin.width}
         minHeight={dualMin.height}
       />
-      <Handle
-        key={`in-left-${handles.key}`}
-        type="target"
-        id={leftHandleId}
-        position={handles.in}
-        className="etl-flow-handle etl-flow-handle--input-a"
-        style={joinHandleStyle(handles.in, 0, DUAL_INPUT_HANDLE_SLOTS)}
-        aria-label={leftLabel}
-        title={leftLabel}
-      />
-      <Handle
-        key={`in-right-${handles.key}`}
-        type="target"
-        id={rightHandleId}
-        position={handles.in}
-        className="etl-flow-handle etl-flow-handle--input-b"
-        style={joinHandleStyle(handles.in, 1, DUAL_INPUT_HANDLE_SLOTS)}
-        aria-label={rightLabel}
-        title={rightLabel}
-      />
+      {!inlineConnectorHandles ? (
+        <>
+          <Handle
+            key={`in-left-${handles.key}`}
+            type="target"
+            id={leftHandleId}
+            position={handles.in}
+            className="etl-flow-handle etl-flow-handle--input-a"
+            style={joinHandleStyle(handles.in, 0, DUAL_INPUT_HANDLE_SLOTS)}
+            aria-label={leftLabel}
+            title={leftLabel}
+          />
+          <Handle
+            key={`in-right-${handles.key}`}
+            type="target"
+            id={rightHandleId}
+            position={handles.in}
+            className="etl-flow-handle etl-flow-handle--input-b"
+            style={joinHandleStyle(handles.in, 1, DUAL_INPUT_HANDLE_SLOTS)}
+            aria-label={rightLabel}
+            title={rightLabel}
+          />
+        </>
+      ) : null}
       <div className="etl-flow-node__body" style={bodyStyle}>
-        <DualInputConnectorLabels orientation={handles.key} leftLabel={leftLabel} rightLabel={rightLabel} />
+        {!isFanoutPlanner && !inlineConnectorHandles ? (
+          <DualInputConnectorLabels orientation={handles.key} leftLabel={leftLabel} rightLabel={rightLabel} />
+        ) : null}
         <div className="etl-flow-node__body-main">
-          <EtlNodeBodyContent label={label} kindLabel={kindLabel} description={description} />
+          <EtlNodeBodyContent label={label} />
+          <span className="etl-flow-node__kind">{kindLabel}</span>
+          {inlineConnectorHandles ? (
+            <div className="etl-flow-node__fanout-connector-row" aria-hidden="true">
+              <div className="etl-flow-node__fanout-input-stack">
+                <span className="etl-flow-node__connector-label etl-flow-node__fanout-input-label">
+                  {leftLabel}
+                  <Handle
+                    key={`in-inline-left-${handles.key}`}
+                    type="target"
+                    id={leftHandleId}
+                    position={handles.in}
+                    className="etl-flow-handle etl-flow-handle--input-inline etl-flow-handle--input-inline-a"
+                  />
+                </span>
+                <span className="etl-flow-node__connector-label etl-flow-node__fanout-input-label">
+                  {rightLabel}
+                  <Handle
+                    key={`in-inline-right-${handles.key}`}
+                    type="target"
+                    id={rightHandleId}
+                    position={handles.in}
+                    className="etl-flow-handle etl-flow-handle--input-inline etl-flow-handle--input-inline-b"
+                  />
+                </span>
+              </div>
+              <span className="etl-flow-node__connector-label etl-flow-node__fanout-output-label">
+                {outputLabel}
+                <Handle
+                  key={`out-inline-${handles.key}`}
+                  type="source"
+                  id="out"
+                  position={handles.out}
+                  className="etl-flow-handle etl-flow-handle--output-inline"
+                />
+              </span>
+            </div>
+          ) : isFanoutPlanner ? (
+            <div className="etl-flow-node__fanout-connector-row" aria-hidden="true">
+              <div className="etl-flow-node__fanout-input-stack">
+                <span className="etl-flow-node__connector-label etl-flow-node__fanout-input-label">
+                  {leftLabel}
+                </span>
+                <span className="etl-flow-node__connector-label etl-flow-node__fanout-input-label">
+                  {rightLabel}
+                </span>
+              </div>
+              <span className="etl-flow-node__connector-label etl-flow-node__fanout-output-label">
+                {outputLabel}
+              </span>
+            </div>
+          ) : (
+            <EtlNodeConnectorBar
+              inputLabel={inputLabel}
+              outputLabel={outputLabel}
+              showInput={showGenericInputLabel}
+            />
+          )}
+          {description ? <span className="etl-flow-node__description">{description}</span> : null}
         </div>
         {showProgress && data.nodeRunProgress ? (
           <EtlNodeRunProgressBar progress={data.nodeRunProgress} isExecuting={data.nodeRunExecuting} />
         ) : null}
       </div>
-      <Handle
-        key={`out-${handles.key}`}
-        type="source"
-        id="out"
-        position={handles.out}
-        className="etl-flow-handle"
-      />
+      {!inlineConnectorHandles ? (
+        <Handle
+          key={`out-${handles.key}`}
+          type="source"
+          id="out"
+          position={handles.out}
+          className="etl-flow-handle"
+        />
+      ) : null}
     </div>
   );
 }
@@ -316,6 +418,7 @@ function FanoutPlanFlowNode(props: EtlNodeProps) {
       rightHandleId="in__input_b"
       leftLabelKey={labels.left}
       rightLabelKey={labels.right}
+      showGenericInputLabel={false}
     />
   );
 }
@@ -352,41 +455,91 @@ function JoinFlowNode({ data, selected }: EtlNodeProps) {
     ...(customStyle?.borderLeftStyle ? { borderLeftStyle: customStyle.borderLeftStyle } : {}),
   };
   const showProgress = canvasNodeProgressVisible(data.nodeRunProgress);
+  const config = (data.config ?? {}) as Record<string, unknown>;
+  const inputLabel = resolveConnectorLabel(config, INPUT_LABEL_CONFIG_KEY, "wfViewer.inputConnector", t);
+  const outputLabel = resolveConnectorLabel(config, OUTPUT_LABEL_CONFIG_KEY, "wfViewer.outputConnector", t);
+  const inlineConnectorHandles = handles.key === "lr";
 
   return (
     <div
       className={`etl-flow-node etl-flow-node--join etl-flow-node--resizable${selected ? " etl-flow-node--selected" : ""}${disabled ? " etl-flow-node--disabled" : ""}`}
     >
       <EtlNodeResizer selected={Boolean(selected)} enabled={resizeEnabled} />
-      <Handle
-        key={`in-left-${handles.key}`}
-        type="target"
-        id="in__left"
-        position={handles.in}
-        className="etl-flow-handle etl-flow-handle--join-left"
-        style={joinHandleStyle(handles.in, 0, 2)}
-      />
-      <Handle
-        key={`in-right-${handles.key}`}
-        type="target"
-        id="in__right"
-        position={handles.in}
-        className="etl-flow-handle etl-flow-handle--join-right"
-        style={joinHandleStyle(handles.in, 1, 2)}
-      />
-      <div className="etl-flow-node__body" style={bodyStyle}>
-        <EtlNodeBodyContent label={label} kindLabel={kindLabel} description={description} />
-      </div>
-      {showProgress && data.nodeRunProgress ? (
-        <EtlNodeRunProgressBar progress={data.nodeRunProgress} isExecuting={data.nodeRunExecuting} />
+      {!inlineConnectorHandles ? (
+        <>
+          <Handle
+            key={`in-left-${handles.key}`}
+            type="target"
+            id="in__left"
+            position={handles.in}
+            className="etl-flow-handle etl-flow-handle--join-left"
+            style={joinHandleStyle(handles.in, 0, 2)}
+          />
+          <Handle
+            key={`in-right-${handles.key}`}
+            type="target"
+            id="in__right"
+            position={handles.in}
+            className="etl-flow-handle etl-flow-handle--join-right"
+            style={joinHandleStyle(handles.in, 1, 2)}
+          />
+        </>
       ) : null}
-      <Handle
-        key={`out-${handles.key}`}
-        type="source"
-        id="out"
-        position={handles.out}
-        className="etl-flow-handle"
-      />
+      <div className="etl-flow-node__body" style={bodyStyle}>
+        <EtlNodeBodyContent label={label} />
+        <span className="etl-flow-node__kind">{kindLabel}</span>
+        {inlineConnectorHandles ? (
+          <div className="etl-flow-node__fanout-connector-row" aria-hidden="true">
+            <div className="etl-flow-node__fanout-input-stack">
+              <span className="etl-flow-node__connector-label etl-flow-node__fanout-input-label">
+                L
+                <Handle
+                  key={`in-inline-left-${handles.key}`}
+                  type="target"
+                  id="in__left"
+                  position={handles.in}
+                  className="etl-flow-handle etl-flow-handle--input-inline etl-flow-handle--input-inline-a"
+                />
+              </span>
+              <span className="etl-flow-node__connector-label etl-flow-node__fanout-input-label">
+                R
+                <Handle
+                  key={`in-inline-right-${handles.key}`}
+                  type="target"
+                  id="in__right"
+                  position={handles.in}
+                  className="etl-flow-handle etl-flow-handle--input-inline etl-flow-handle--input-inline-b"
+                />
+              </span>
+            </div>
+            <span className="etl-flow-node__connector-label etl-flow-node__fanout-output-label">
+              {outputLabel}
+              <Handle
+                key={`out-inline-${handles.key}`}
+                type="source"
+                id="out"
+                position={handles.out}
+                className="etl-flow-handle etl-flow-handle--output-inline"
+              />
+            </span>
+          </div>
+        ) : (
+          <EtlNodeConnectorBar inputLabel={inputLabel} outputLabel={outputLabel} />
+        )}
+        {description ? <span className="etl-flow-node__description">{description}</span> : null}
+        {showProgress && data.nodeRunProgress ? (
+          <EtlNodeRunProgressBar progress={data.nodeRunProgress} isExecuting={data.nodeRunExecuting} />
+        ) : null}
+      </div>
+      {!inlineConnectorHandles ? (
+        <Handle
+          key={`out-${handles.key}`}
+          type="source"
+          id="out"
+          position={handles.out}
+          className="etl-flow-handle"
+        />
+      ) : null}
     </div>
   );
 }
@@ -401,7 +554,10 @@ function EtlFlowNode({ data, selected }: EtlNodeProps) {
   const kind = data.kind ?? "transform";
   const kindLabel = canvasNodeKindLabel(kind, t);
   const label = data.label?.trim() || canvasNodeDisplayLabel(data, kind, t);
-  const description = etlFlowNodeCanvasDescription(kind, data as Record<string, unknown>);
+  const description =
+    kind === "dynamic_fanout"
+      ? ""
+      : etlFlowNodeCanvasDescription(kind, data as Record<string, unknown>);
   const disabled = data.canvas_node_enabled === false;
   const resizeEnabled = data.canvas_resize_enabled !== false;
   const accent = resolveEtlNodeAccentColor(kind, data as Record<string, unknown>);
@@ -413,34 +569,73 @@ function EtlFlowNode({ data, selected }: EtlNodeProps) {
     ...(customStyle?.borderLeftStyle ? { borderLeftStyle: customStyle.borderLeftStyle } : {}),
   };
   const showProgress = canvasNodeProgressVisible(data.nodeRunProgress);
+  const config = (data.config ?? {}) as Record<string, unknown>;
+  const inputLabel =
+    kind === "dynamic_fanout"
+      ? resolveConnectorLabel(config, INPUT_LABEL_CONFIG_KEY, "transform.dynamicFanout.inputConnector", t)
+      : resolveConnectorLabel(config, INPUT_LABEL_CONFIG_KEY, "wfViewer.inputConnector", t);
+  const outputLabel = resolveConnectorLabel(config, OUTPUT_LABEL_CONFIG_KEY, "wfViewer.outputConnector", t);
+  const showInput = kind !== "start";
+  const showOutput = kind !== "end";
+  const inlineConnectorHandles = handles.key === "lr";
 
   return (
     <div
       className={`etl-flow-node etl-flow-node--${kind} etl-flow-node--resizable${kind === "node_preview" ? " etl-flow-node--preview" : ""}${selected ? " etl-flow-node--selected" : ""}${disabled ? " etl-flow-node--disabled" : ""}`}
     >
       <EtlNodeResizer selected={Boolean(selected)} enabled={resizeEnabled} />
-      {kind !== "start" && (
+      {!inlineConnectorHandles && kind !== "start" && (
         <Handle
           key={`in-${handles.key}`}
           type="target"
           id="in"
           position={handles.in}
-          className="etl-flow-handle"
+          className="etl-flow-handle etl-flow-handle--input"
         />
       )}
       <div className="etl-flow-node__body" style={bodyStyle}>
-        <EtlNodeBodyContent label={label} kindLabel={kindLabel} description={description} />
+        <EtlNodeBodyContent label={label} />
+        <span className="etl-flow-node__kind">{kindLabel}</span>
+        <EtlNodeConnectorBar
+          inputLabel={inputLabel}
+          outputLabel={outputLabel}
+          showInput={showInput}
+          showOutput={showOutput}
+          inputHandle={
+            inlineConnectorHandles && showInput ? (
+              <Handle
+                key={`in-inline-${handles.key}`}
+                type="target"
+                id="in"
+                position={handles.in}
+                className="etl-flow-handle etl-flow-handle--input-inline"
+              />
+            ) : null
+          }
+          outputHandle={
+            inlineConnectorHandles && showOutput ? (
+              <Handle
+                key={`out-inline-${handles.key}`}
+                type="source"
+                id="out"
+                position={handles.out}
+                className="etl-flow-handle etl-flow-handle--output-inline"
+              />
+            ) : null
+          }
+        />
+        {description ? <span className="etl-flow-node__description">{description}</span> : null}
+        {showProgress && data.nodeRunProgress ? (
+          <EtlNodeRunProgressBar progress={data.nodeRunProgress} isExecuting={data.nodeRunExecuting} />
+        ) : null}
       </div>
-      {showProgress && data.nodeRunProgress ? (
-        <EtlNodeRunProgressBar progress={data.nodeRunProgress} isExecuting={data.nodeRunExecuting} />
-      ) : null}
-      {kind !== "end" && (
+      {!inlineConnectorHandles && kind !== "end" && (
         <Handle
           key={`out-${handles.key}`}
           type="source"
           id="out"
           position={handles.out}
-          className="etl-flow-handle"
+          className="etl-flow-handle etl-flow-handle--output"
         />
       )}
     </div>

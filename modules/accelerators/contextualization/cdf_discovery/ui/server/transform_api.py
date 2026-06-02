@@ -259,6 +259,23 @@ class CdfWorkflowRunBody(BaseModel):
     )
 
 
+def _delete_raw_table_if_exists(client: Any, raw_db: str, raw_table: str) -> Dict[str, Any]:
+    """Delete RAW table when present; return idempotent status."""
+    try:
+        client.raw.tables.delete(raw_db, raw_table)
+        return {"raw_db": raw_db, "raw_table": raw_table, "status": "deleted"}
+    except Exception as ex:
+        code = getattr(ex, "code", None)
+        if code == 404:
+            return {"raw_db": raw_db, "raw_table": raw_table, "status": "not_found"}
+        return {
+            "raw_db": raw_db,
+            "raw_table": raw_table,
+            "status": "error",
+            "error": f"{type(ex).__name__}: {ex}",
+        }
+
+
 class QueryPreviewRequest(BaseModel):
     config: Dict[str, Any] = Field(default_factory=dict)
     limit: int = Field(100, ge=1, le=1000)
@@ -978,6 +995,46 @@ def run_pipeline(
         raise HTTPException(status_code=404, detail=str(e)) from e
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
+
+
+@router.post("/workflows/{pipeline_id}/reset-state")
+@router.post("/pipelines/{pipeline_id}/reset-state")
+def reset_pipeline_state(
+    pipeline_id: str,
+    scope_suffix: str = Query("", description="Scope subfolder under workflows/ (empty = flat workflows/)"),
+) -> Dict[str, Any]:
+    """Delete stable incremental and file-state RAW tables for a pipeline scope."""
+    _ensure_transform_fn_path()
+    from cdf_fn_common.etl_cohort_storage import resolve_base_cohort_table
+    from cdf_fn_common.etl_file_processing_state import file_state_table_name
+    from cdf_fn_common.etl_incremental_scope import incremental_state_table_name
+
+    try:
+        doc = transform_registry.read_pipeline_document(pipeline_id, scope_suffix=scope_suffix)
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+
+    params = doc.get("parameters")
+    params_dict = dict(params) if isinstance(params, dict) else {}
+    raw_db, base_table = resolve_base_cohort_table({"configuration": {"parameters": params_dict}})
+    state_tables = [
+        incremental_state_table_name(base_table),
+        file_state_table_name(base_table),
+    ]
+    client = _cdf_client()
+    table_results = [_delete_raw_table_if_exists(client, raw_db, table) for table in state_tables]
+    ok = all(row.get("status") in {"deleted", "not_found"} for row in table_results)
+    result = {
+        "pipeline_id": pipeline_id,
+        "scope_suffix": str(scope_suffix or "").strip(),
+        "raw_db": raw_db,
+        "base_table_key": base_table,
+        "results": table_results,
+        "ok": ok,
+    }
+    if not ok:
+        raise HTTPException(status_code=500, detail=result)
+    return result
 
 
 def _etl_run_pythonpath(module_root) -> str:

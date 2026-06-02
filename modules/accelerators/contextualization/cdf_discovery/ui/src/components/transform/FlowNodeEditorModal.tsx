@@ -32,6 +32,7 @@ import { RecordsQueryConfigFields } from "../query/RecordsQueryConfigFields";
 import { RecordsSaveConfigFields } from "./RecordsSaveConfigFields";
 import { StreamSaveConfigFields } from "./StreamSaveConfigFields";
 import { JsonMappingNodeConfigFields } from "./JsonMappingNodeConfigFields";
+import { ConnectorLabelFields } from "./ConnectorLabelFields";
 import type { JsonObject } from "../../types/jsonConfig";
 import { canvasNodeKindMessageKey } from "../../utils/canvasNodeKindLabel";
 
@@ -404,6 +405,14 @@ export function FlowNodeEditorModal({
               onChange={onConfigChange}
               t={t}
             />
+            {kind !== "start" && kind !== "end" ? (
+              <ConnectorLabelFields
+                value={configDraft}
+                onChange={onConfigChange}
+                showInput={true}
+                showOutput={true}
+              />
+            ) : null}
           </fieldset>
         </div>
         <div className="gov-modal__actions">

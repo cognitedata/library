@@ -2,6 +2,8 @@ import type { MessageKey } from "../i18n";
 
 export const INPUT_A_LABEL_CONFIG_KEY = "input_a_label";
 export const INPUT_B_LABEL_CONFIG_KEY = "input_b_label";
+export const INPUT_LABEL_CONFIG_KEY = "input_label";
+export const OUTPUT_LABEL_CONFIG_KEY = "output_label";
 
 export type DualInputLabelDefaults = {
   inputA: MessageKey;
@@ -11,6 +13,16 @@ export type DualInputLabelDefaults = {
 export function resolveDualInputConnectorLabel(
   config: Record<string, unknown>,
   configKey: typeof INPUT_A_LABEL_CONFIG_KEY | typeof INPUT_B_LABEL_CONFIG_KEY,
+  defaultKey: MessageKey,
+  t: (key: MessageKey) => string
+): string {
+  const custom = String(config[configKey] ?? "").trim();
+  return custom || t(defaultKey);
+}
+
+export function resolveConnectorLabel(
+  config: Record<string, unknown>,
+  configKey: typeof INPUT_LABEL_CONFIG_KEY | typeof OUTPUT_LABEL_CONFIG_KEY,
   defaultKey: MessageKey,
   t: (key: MessageKey) => string
 ): string {

@@ -12,6 +12,7 @@ export type TransformPipelineRunResult = {
 export type TransformTabRunSession = {
   editorSubTab: TransformPipelineEditorSubTab;
   runLog: string;
+  cdfLog: string;
   lastRun: TransformPipelineRunResult | null;
   /** True while a local run stream is active (survives document tab switches). */
   runBusy?: boolean;
@@ -27,6 +28,7 @@ export function readTransformTabRunSession(tab: {
   return {
     editorSubTab: tab.runSession?.editorSubTab ?? "flow",
     runLog: tab.runSession?.runLog ?? "",
+    cdfLog: tab.runSession?.cdfLog ?? "",
     lastRun: tab.runSession?.lastRun ?? null,
     runBusy: tab.runSession?.runBusy ?? false,
   };

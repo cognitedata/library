@@ -84,6 +84,7 @@ type Props = {
   onPipelineDropOnTemplates?: (pipelineId: string, pipelineLabel: string) => void;
   onTemplateDropOnPipelines?: (templateId: string, templateLabel: string) => void;
   onOpenWorkflowInTransform?: (ref: WorkflowRef) => void;
+  onDeleteWorkflowInTransform?: (ref: WorkflowRef, label: string) => void;
   dataTreeDragEnabled?: boolean;
 };
 
@@ -108,6 +109,7 @@ export function ObjectDiscovery({
   onPipelineDropOnTemplates,
   onTemplateDropOnPipelines,
   onOpenWorkflowInTransform,
+  onDeleteWorkflowInTransform,
   dataTreeDragEnabled = false,
 }: Props) {
   const { t } = useAppSettings();
@@ -486,6 +488,18 @@ export function ObjectDiscovery({
         });
       }
     }
+    const canDeleteWorkflowInTransform =
+      node.kind === "workflow" && node.meta?.can_delete_in_transform === true;
+    if (canDeleteWorkflowInTransform && onDeleteWorkflowInTransform) {
+      const wfRef = workflowRefFromNode(node);
+      if (wfRef) {
+        items.push({
+          id: "delete-workflow-in-transform",
+          label: t("transform.pipelines.delete"),
+          onSelect: () => onDeleteWorkflowInTransform(wfRef, node.label),
+        });
+      }
+    }
     const delQuery =
       node.kind === "saved_query" && onDeleteSavedQuery ? savedQueryFromNode(node) : null;
     if (delQuery && onDeleteSavedQuery) {
@@ -551,6 +565,7 @@ export function ObjectDiscovery({
     onDeletePipeline,
     onDeleteSavedQuery,
     onDeleteTemplate,
+    onDeleteWorkflowInTransform,
     onOpenWorkflowInTransform,
     onRenamePipeline,
     onRenameTemplate,

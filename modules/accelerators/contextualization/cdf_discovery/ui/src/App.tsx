@@ -454,6 +454,24 @@ export function App() {
     [t]
   );
 
+  const deleteWorkflowInTransform = useCallback(
+    async (ref: WorkflowRef, fallbackLabel: string) => {
+      const wfId = ref.external_id.trim();
+      if (!wfId) return;
+      try {
+        const found = await fetchTransformWorkflowByWorkflow(wfId);
+        const label =
+          (typeof found.workflow.label === "string" && found.workflow.label.trim()) ||
+          fallbackLabel ||
+          found.workflow_id;
+        await deletePipeline(found.workflow_id, label);
+      } catch (e) {
+        window.alert(`${t("transform.pipelines.deleteFailed")}: ${String(e)}`);
+      }
+    },
+    [deletePipeline, t]
+  );
+
   const deleteTemplate = useCallback(
     async (templateId: string, label: string) => {
       if (!window.confirm(t("transform.templates.deleteConfirm", { name: label }))) {
@@ -1150,6 +1168,7 @@ export function App() {
           tab={tab}
           onTabUpdate={updateWorkflowTab}
           onOpenInTransform={() => void openWorkflowInTransform(tab.workflow)}
+          onDeleteInTransform={() => setTransformPipelinesRevision((n) => n + 1)}
           openInTransformBusy={openInTransformBusyId === tab.workflow.external_id}
           openInTransformError={openInTransformError}
         />
@@ -1496,6 +1515,9 @@ export function App() {
             setCreatePipelineOpen(true);
           }}
           onOpenWorkflowInTransform={(ref) => void openWorkflowInTransform(ref)}
+          onDeleteWorkflowInTransform={(ref, label) =>
+            void deleteWorkflowInTransform(ref, label)
+          }
           dataTreeDragEnabled={
             activeTab != null && (isEtlPipelineTab(activeTab) || isEtlTemplateTab(activeTab))
           }

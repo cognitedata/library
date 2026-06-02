@@ -837,6 +837,17 @@ def list_children(client: Any, node_id: str) -> List[TreeNodeOut]:
                 ]
             )
         if branch == "workflows":
+            from ui.server import transform_registry
+
+            workflows = cdf_browse.list_workflows(client, limit=500)
+            can_delete_by_external_id: Dict[str, bool] = {}
+            for w in workflows:
+                ext = str(w.get("external_id") or "").strip()
+                if not ext:
+                    continue
+                can_delete_by_external_id[ext] = (
+                    transform_registry.find_pipeline_for_workflow(ext) is not None
+                )
             return _sort_nodes(
                 [
                     _node(
@@ -844,9 +855,16 @@ def list_children(client: Any, node_id: str) -> List[TreeNodeOut]:
                         label=w["label"],
                         kind="workflow",
                         has_children=False,
-                        meta=w,
+                        meta={
+                            **w,
+                            "can_delete_in_transform": bool(
+                                can_delete_by_external_id.get(
+                                    str(w.get("external_id") or "").strip(), False
+                                )
+                            ),
+                        },
                     )
-                    for w in cdf_browse.list_workflows(client, limit=500)
+                    for w in workflows
                 ]
             )
         if branch == "functions":

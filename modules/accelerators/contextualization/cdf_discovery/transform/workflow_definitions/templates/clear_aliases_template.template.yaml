@@ -33,7 +33,7 @@ canvas:
       y: -51
     data:
       label: CogniteAsset (v1)
-      config:
+      config: &id001
         description: CogniteAsset (v1)
         view_space: cdf_cdm
         view_external_id: CogniteAsset
@@ -50,7 +50,7 @@ canvas:
       y: -51
     data:
       label: CogniteAsset (v1)
-      config:
+      config: &id002
         description: CogniteAsset (v1)
         view_space: cdf_cdm
         view_external_id: CogniteAsset
@@ -83,7 +83,7 @@ canvas:
       y: -51
     data:
       label: Trim whitespace · CogniteAsset (v1)
-      config:
+      config: &id003
         handler_id: trim_whitespace
         enabled: true
         fields:
@@ -123,6 +123,48 @@ canvas:
     target_handle: in
     kind: data
   viewport:
-    x: 57.721996832692696
-    y: 181.91963952178378
-    zoom: 0.8479199646331476
+    x: -346.6743327920494
+    y: 110.46564161339813
+    zoom: 1.7660119201107278
+compiled_workflow:
+  schema_version: 1
+  tasks:
+  - id: query_view_mppwe49g
+    function_external_id: fn_etl_view_query
+    executable_kind: query_view
+    task_type: function
+    canvas_node_id: query_view_mppwe49g
+    label: CogniteAsset (v1)
+    depends_on: []
+    payload:
+      config: *id001
+  - id: save_view_mppwdkbe
+    function_external_id: fn_etl_view_save
+    executable_kind: save_view
+    task_type: function
+    canvas_node_id: save_view_mppwdkbe
+    label: CogniteAsset (v1)
+    depends_on:
+    - transform_mppwfbt9
+    payload:
+      config: *id002
+  - id: transform_mppwfbt9
+    function_external_id: fn_etl_transform
+    executable_kind: transform
+    task_type: function
+    canvas_node_id: transform_mppwfbt9
+    label: Trim whitespace · CogniteAsset (v1)
+    depends_on:
+    - query_view_mppwe49g
+    payload:
+      config: *id003
+  - id: end
+    function_external_id: fn_etl_raw_cleanup
+    executable_kind: raw_cleanup
+    task_type: function
+    canvas_node_id: end
+    depends_on:
+    - save_view_mppwdkbe
+    payload:
+      config:
+        description: ''

@@ -57,7 +57,7 @@ canvas:
       y: -120
     data:
       label: 'Equipment: SAP'
-      config: &id001
+      config:
         description: ''
       node_color: '#2563eb'
     width: 192
@@ -69,7 +69,7 @@ canvas:
       y: 18
     data:
       label: 'Asset: SAP'
-      config: &id002
+      config:
         description: ''
       node_color: '#2563eb'
     width: 192
@@ -81,7 +81,7 @@ canvas:
       y: -120
     data:
       label: Save Equipment
-      config: &id003
+      config:
         description: Save to view · Fusion JSON mapping · RAW query
       node_color: '#16a34a'
     width: 192
@@ -93,7 +93,7 @@ canvas:
       y: 18
     data:
       label: Save Assets
-      config: &id004
+      config:
         description: Save to view · Fusion JSON mapping · RAW query
       node_color: '#16a34a'
     width: 192
@@ -173,9 +173,9 @@ canvas:
     target_handle: in
     kind: data
   viewport:
-    x: 19.58639783982933
-    y: 239.66014178461324
-    zoom: 0.6677148507798906
+    x: 60
+    y: 288.66964285714283
+    zoom: 0.7232142857142857
 compiled_workflow:
   schema_version: 1
   tasks:
@@ -212,7 +212,8 @@ compiled_workflow:
     label: 'Equipment: SAP'
     depends_on: []
     payload:
-      config: *id001
+      config:
+        description: ''
   - id: query_raw_mppnzwqw
     function_external_id: fn_etl_raw_query
     executable_kind: query_raw
@@ -221,7 +222,8 @@ compiled_workflow:
     label: 'Asset: SAP'
     depends_on: []
     payload:
-      config: *id002
+      config:
+        description: ''
   - id: save_view_mppo1fk8
     function_external_id: fn_etl_view_save
     executable_kind: save_view
@@ -231,7 +233,8 @@ compiled_workflow:
     depends_on:
     - json_mapping_mppo0veh
     payload:
-      config: *id003
+      config:
+        description: Save to view · Fusion JSON mapping · RAW query
   - id: save_view_mppo1mud
     function_external_id: fn_etl_view_save
     executable_kind: save_view
@@ -241,7 +244,8 @@ compiled_workflow:
     depends_on:
     - json_mapping_mppo10t2
     payload:
-      config: *id004
+      config:
+        description: Save to view · Fusion JSON mapping · RAW query
   - id: end
     function_external_id: fn_etl_raw_cleanup
     executable_kind: raw_cleanup

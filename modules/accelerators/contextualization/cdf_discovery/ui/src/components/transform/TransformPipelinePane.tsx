@@ -5,6 +5,7 @@ import {
   deployTransformWorkflowCdf,
   fetchTransformWorkflow,
   fetchTransformTemplate,
+  resetTransformWorkflowState,
   runTransformWorkflowCdf,
   saveTransformWorkflowCanvas,
   saveTransformTemplateCanvas,
@@ -118,6 +119,7 @@ export function TransformPipelinePane(props: Props) {
   const localRunAbortRef = useRef<AbortController | null>(null);
   const localRunGenerationRef = useRef(0);
   const [localRunInFlight, setLocalRunInFlight] = useState(false);
+  const [stateResetBusy, setStateResetBusy] = useState(false);
 
   const pipelineTab = !isTemplate ? props.tab : null;
   const templateTab = isTemplate ? props.tab : null;
@@ -130,9 +132,8 @@ export function TransformPipelinePane(props: Props) {
     () => (activeTab ? readTransformTabRunSession(activeTab) : readTransformTabRunSession({})),
     [activeTab]
   );
-  const { editorSubTab, runLog, lastRun, runBusy } = runSession;
+  const { editorSubTab, runLog, cdfLog, lastRun, runBusy } = runSession;
   const effectiveRunBusy = runBusy || localRunInFlight;
-  const [cdfLog, setCdfLog] = useState("");
   const [cdfBusy, setCdfBusy] = useState(false);
   const [cdfInstanceSpace, setCdfInstanceSpace] = useState("");
   const [validationFailedNodeIds, setValidationFailedNodeIds] = useState<string[]>([]);
@@ -400,40 +401,67 @@ export function TransformPipelinePane(props: Props) {
     async (dryRun: boolean) => {
       if (!pipelineTab) return;
       setCdfBusy(true);
-      setCdfLog(`${t("status.running")}\n`);
+      patchRunSession({ cdfLog: `${t("status.running")}\n` });
       try {
         const result = await deployTransformWorkflowCdf(pipelineTab.pipelineId, pipelineScopeSuffix, {
           dryRun,
         });
-        setCdfLog(formatCdfCliLog(result));
+        patchRunSession({ cdfLog: formatCdfCliLog(result) });
       } catch (e) {
-        setCdfLog(String(e));
+        patchRunSession({ cdfLog: String(e) });
       } finally {
         setCdfBusy(false);
       }
     },
-    [pipelineTab, pipelineScopeSuffix, t]
+    [patchRunSession, pipelineTab, pipelineScopeSuffix, t]
   );
 
   const runCdfWorkflow = useCallback(
     async (dryRun: boolean) => {
       if (!pipelineTab) return;
       setCdfBusy(true);
-      setCdfLog(`${t("status.running")}\n`);
+      patchRunSession({ cdfLog: `${t("status.running")}\n` });
       try {
         const result = await runTransformWorkflowCdf(pipelineTab.pipelineId, pipelineScopeSuffix, {
           dryRun,
           instanceSpace: cdfInstanceSpace,
         });
-        setCdfLog(formatCdfCliLog(result));
+        patchRunSession({ cdfLog: formatCdfCliLog(result) });
       } catch (e) {
-        setCdfLog(String(e));
+        patchRunSession({ cdfLog: String(e) });
       } finally {
         setCdfBusy(false);
       }
     },
-    [pipelineTab, pipelineScopeSuffix, cdfInstanceSpace, t]
+    [patchRunSession, pipelineTab, pipelineScopeSuffix, cdfInstanceSpace, t]
   );
+
+  const runResetState = useCallback(async () => {
+    if (!pipelineTab) return;
+    const confirmed = window.confirm(t("transform.console.resetStateConfirm"));
+    if (!confirmed) return;
+    setStateResetBusy(true);
+    try {
+      const result = await resetTransformWorkflowState(
+        pipelineTab.pipelineId,
+        pipelineScopeSuffix
+      );
+      const lines = result.results.map((row) =>
+        `${row.raw_db}/${row.raw_table}: ${row.status}${row.error ? ` (${row.error})` : ""}`
+      );
+      patchRunSession((prev) => ({
+        runLog: `${prev.runLog}${t("transform.console.resetStateOk")}\n${lines.join("\n")}\n`,
+      }));
+      setStatusMessage(t("transform.console.resetStateOk"));
+    } catch (e) {
+      patchRunSession((prev) => ({
+        runLog: `${prev.runLog}${t("transform.console.resetStateFailed")}: ${String(e)}\n`,
+      }));
+      setStatusMessage(`${t("transform.console.resetStateFailed")}: ${String(e)}`);
+    } finally {
+      setStateResetBusy(false);
+    }
+  }, [patchRunSession, pipelineScopeSuffix, pipelineTab, t]);
 
   const cancelLocalRun = useCallback(() => {
     localRunGenerationRef.current += 1;
@@ -723,7 +751,7 @@ export function TransformPipelinePane(props: Props) {
                   <button
                     type="button"
                     className="disc-btn disc-btn--primary"
-                    disabled={saving || cdfBusy}
+                    disabled={saving || cdfBusy || stateResetBusy}
                     onClick={() =>
                       void runLocalStreamed({
                         incrementalChangeProcessing: runScope === "incremental",
@@ -738,7 +766,7 @@ export function TransformPipelinePane(props: Props) {
                   t={t}
                   dryRun={dryRun}
                   onDryRunChange={setDryRun}
-                  disabled={effectiveRunBusy || saving || cdfBusy}
+                  disabled={effectiveRunBusy || saving || cdfBusy || stateResetBusy}
                 />
                 <label className="transform-flow-toolbar__run-scope">
                   <span className="transform-flow-toolbar__run-scope-label">{t("transform.toolbar.runScope")}</span>
@@ -747,7 +775,7 @@ export function TransformPipelinePane(props: Props) {
                     value={runScope}
                     onChange={(e) => setRunScope(e.target.value as "incremental" | "all")}
                     title={t("transform.toolbar.runScopeHint")}
-                    disabled={effectiveRunBusy || saving || cdfBusy}
+                    disabled={effectiveRunBusy || saving || cdfBusy || stateResetBusy}
                   >
                     <option value="incremental">{t("transform.toolbar.runScopeIncremental")}</option>
                     <option value="all">{t("transform.toolbar.runScopeAll")}</option>
@@ -758,8 +786,18 @@ export function TransformPipelinePane(props: Props) {
                 <div className="transform-flow-toolbar" role="toolbar" aria-label={t("transform.console.cdfToolsTitle")}>
                   <button
                     type="button"
+                    className="disc-btn disc-btn--ghost"
+                    disabled={cdfBusy || effectiveRunBusy || saving || stateResetBusy}
+                    onClick={() => void runResetState()}
+                  >
+                    {stateResetBusy
+                      ? t("transform.console.resetStateBusy")
+                      : t("transform.console.resetState")}
+                  </button>
+                  <button
+                    type="button"
                     className="disc-btn"
-                    disabled={cdfBusy || effectiveRunBusy || saving}
+                    disabled={cdfBusy || effectiveRunBusy || saving || stateResetBusy}
                     onClick={() => void runDeployCdf(false)}
                   >
                     {cdfBusy ? t("transform.console.cdfBusy") : t("transform.console.deployCdf")}
@@ -767,7 +805,7 @@ export function TransformPipelinePane(props: Props) {
                   <button
                     type="button"
                     className="disc-btn"
-                    disabled={cdfBusy || effectiveRunBusy || saving}
+                    disabled={cdfBusy || effectiveRunBusy || saving || stateResetBusy}
                     onClick={() => void runCdfWorkflow(false)}
                   >
                     {t("transform.console.runCdf")}
@@ -775,7 +813,7 @@ export function TransformPipelinePane(props: Props) {
                   <button
                     type="button"
                     className="disc-btn disc-btn--ghost"
-                    disabled={cdfBusy || effectiveRunBusy || saving}
+                    disabled={cdfBusy || effectiveRunBusy || saving || stateResetBusy}
                     onClick={() => void runCdfWorkflow(true)}
                   >
                     {t("transform.console.runCdfDryRun")}
@@ -783,7 +821,7 @@ export function TransformPipelinePane(props: Props) {
                   <button
                     type="button"
                     className="disc-btn disc-btn--ghost"
-                    disabled={cdfBusy || effectiveRunBusy || saving}
+                    disabled={cdfBusy || effectiveRunBusy || saving || stateResetBusy}
                     onClick={() => void runDeployCdf(true)}
                   >
                     {t("transform.console.deployCdfDryRun")}
@@ -805,7 +843,7 @@ export function TransformPipelinePane(props: Props) {
                   placeholder={t("transform.console.cdfInstanceSpacePlaceholder")}
                   autoComplete="off"
                   spellCheck={false}
-                  disabled={cdfBusy || effectiveRunBusy || saving}
+                  disabled={cdfBusy || effectiveRunBusy || saving || stateResetBusy}
                 />
               </div>
             ) : null}

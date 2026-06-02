@@ -555,6 +555,18 @@ def read_watermark_high_ms(
         return None
 
 
+def incremental_state_table_exists(client: Any, raw_db: str, raw_table: str) -> bool:
+    """Return True when the incremental RAW table exists."""
+    db = str(raw_db or "").strip()
+    tbl = str(raw_table or "").strip()
+    if not db or not tbl:
+        return False
+    try:
+        return tbl in client.raw.tables.list(db, limit=-1).as_names()
+    except Exception:
+        return False
+
+
 def discover_single_run_id_for_status(
     client: Any,
     raw_db: str,

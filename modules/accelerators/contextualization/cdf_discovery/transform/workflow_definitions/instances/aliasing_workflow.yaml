@@ -76,8 +76,8 @@ canvas:
     data:
       label: CogniteAsset (v1)
       config: &id003
-        description: "View query \u2014 CogniteAsset name, description, and tags for\
-          \ alias extraction"
+        description: View query — CogniteAsset name, description, and tags for alias
+          extraction
         view_space: cdf_cdm
         view_external_id: CogniteAsset
         view_version: v1
@@ -97,8 +97,8 @@ canvas:
     data:
       label: CogniteEquipment (v1)
       config: &id004
-        description: "View query \u2014 CogniteEquipment instances for shared name\
-          \ passthrough aliases"
+        description: View query — CogniteEquipment instances for shared name passthrough
+          aliases
         view_space: cdf_cdm
         view_external_id: CogniteEquipment
         view_version: v1
@@ -116,8 +116,8 @@ canvas:
     data:
       label: CogniteTimeSeries (v1)
       config: &id005
-        description: "View query \u2014 CogniteTimeSeries instances for shared name\
-          \ passthrough aliases"
+        description: View query — CogniteTimeSeries instances for shared name passthrough
+          aliases
         view_space: cdf_cdm
         view_external_id: CogniteTimeSeries
         view_version: v1
@@ -135,8 +135,7 @@ canvas:
     data:
       label: CogniteFile (v1)
       config: &id006
-        description: "View query \u2014 CogniteFile name and description for index\
-          \ key extraction"
+        description: View query — CogniteFile name and description for index key extraction
         view_space: cdf_cdm
         view_external_id: CogniteFile
         view_version: v1
@@ -190,7 +189,7 @@ canvas:
       x: 972
       y: 18
     data:
-      label: "Asset validation \u2014 ISA \u2192 shape \u2192 blacklist \u2014 isa_compliant"
+      label: Asset validation — ISA → shape → blacklist — isa_compliant
       config: &id009
         description: isa_compliant
         score_fields:
@@ -293,7 +292,7 @@ canvas:
       x: 718
       y: 18
     data:
-      label: "Asset validation \u2014 ISA \u2192 shape \u2192 blacklist \u2014 isa_compliant"
+      label: Asset validation — ISA → shape → blacklist — isa_compliant
       config: &id010
         description: isa_compliant
         score_fields:
@@ -398,12 +397,12 @@ canvas:
     data:
       label: Start
       config:
-        workflow_base: wf_etl_aliasing_template
-        workflow_external_id: wf_etl_aliasing_template
-        trigger_external_id: trg_wf_etl_aliasing_template
-        workflow_version: 1.0.0.3
-        cron_expression: '*/15 * * * *'
-        incremental_change_processing: false
+        workflow_base: wf_etl_aliasing_workflow
+        workflow_external_id: wf_etl_aliasing_workflow
+        trigger_external_id: trg_wf_etl_aliasing_workflow
+        workflow_version: 1.0.0.5
+        cron_expression: '*/10 * * * *'
+        incremental_change_processing: true
     width: 148
     height: 68
   - id: transform_mpk5q5bq
@@ -633,9 +632,9 @@ canvas:
     target_handle: in
     kind: data
   viewport:
-    x: 170.86541637034975
-    y: 340.33093570512153
-    zoom: 1.2096339416729438
+    x: -185.50332204824042
+    y: 285.35894013584
+    zoom: 0.8751880043747985
 scope_suffix: ''
 compiled_workflow:
   schema_version: 1
@@ -722,7 +721,7 @@ compiled_workflow:
     executable_kind: score
     task_type: function
     canvas_node_id: score_mpoukl1q
-    label: "Asset validation \u2014 ISA \u2192 shape \u2192 blacklist \u2014 isa_compliant"
+    label: Asset validation — ISA → shape → blacklist — isa_compliant
     depends_on:
     - merge_mpk5updx
     payload:
@@ -732,7 +731,7 @@ compiled_workflow:
     executable_kind: score
     task_type: function
     canvas_node_id: score_mpoukomr
-    label: "Asset validation \u2014 ISA \u2192 shape \u2192 blacklist \u2014 isa_compliant"
+    label: Asset validation — ISA → shape → blacklist — isa_compliant
     depends_on:
     - transform_mpr2s8sk
     payload:

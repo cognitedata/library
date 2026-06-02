@@ -1,5 +1,5 @@
-workflowExternalId: wf_etl_aliasing_template
-version: 1.0.0.3
+workflowExternalId: wf_etl_aliasing_workflow
+version: 1.0.0.5
 workflowDefinition:
   tasks:
   - externalId: build_index_mpkhwovn

@@ -931,6 +931,22 @@ export type TransformWorkflowCdfCliResult = {
   scope_suffix?: string;
 };
 
+export type TransformStateResetTableResult = {
+  raw_db: string;
+  raw_table: string;
+  status: "deleted" | "not_found" | "error";
+  error?: string;
+};
+
+export type TransformStateResetResult = {
+  pipeline_id: string;
+  scope_suffix: string;
+  raw_db: string;
+  base_table_key: string;
+  results: TransformStateResetTableResult[];
+  ok: boolean;
+};
+
 async function deployTransformPipelineCdf(
   workflowId: string,
   scopeSuffix = "",
@@ -1086,6 +1102,26 @@ export async function runTransformWorkflowLocal(
   task_summaries?: Record<string, unknown>;
 }> {
   return runTransformPipelineLocal(workflowId, dryRun, incrementalChangeProcessing);
+}
+
+export async function resetTransformWorkflowState(
+  workflowId: string,
+  scopeSuffix = ""
+): Promise<TransformStateResetResult> {
+  const scopeQ = transformPipelineScopeQuery(scopeSuffix);
+  const r = await fetch(
+    `${API}/api/transform/workflows/${encodeURIComponent(workflowId)}/reset-state${scopeQ}`,
+    { method: "POST" }
+  );
+  if (!r.ok) {
+    const body = await r.json().catch(() => ({}));
+    const detail =
+      typeof body?.detail === "string"
+        ? body.detail
+        : JSON.stringify(body?.detail ?? body ?? { status: r.status });
+    throw new Error(detail);
+  }
+  return r.json() as Promise<TransformStateResetResult>;
 }
 
 export async function fetchTransformTemplate(

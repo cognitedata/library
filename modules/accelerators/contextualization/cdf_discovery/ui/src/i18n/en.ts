@@ -290,6 +290,8 @@ export const en: Messages = {
   "wfViewer.nodeListLabel": "Workflow tasks (keyboard list)",
   "wfViewer.noTasks": "This workflow version has no tasks.",
   "wfViewer.taskProperties": "Task properties",
+  "wfViewer.inputConnector": "input",
+  "wfViewer.outputConnector": "output",
   "wfViewer.selectTask": "Click a task node to see properties.",
   "wfViewer.taskType.function": "Fusion Function",
   "wfViewer.taskType.task": "Task",
@@ -694,6 +696,12 @@ export const en: Messages = {
   "transform.console.deployCdfDryRun": "Deploy dry-run",
   "transform.console.runCdf": "Run on CDF",
   "transform.console.runCdfDryRun": "Dry-run on CDF",
+  "transform.console.resetState": "Reset state",
+  "transform.console.resetStateConfirm":
+    "Reset persisted incremental and file-processing state for this workflow scope?",
+  "transform.console.resetStateBusy": "Resetting state…",
+  "transform.console.resetStateOk": "Workflow state reset completed.",
+  "transform.console.resetStateFailed": "Workflow state reset failed",
   "transform.console.cdfInstanceSpaceLabel": "Instance space (for Run on CDF)",
   "transform.console.cdfInstanceSpacePlaceholder":
     "DM instance space external id — replaces {{instance_space}} in trigger input",
@@ -978,6 +986,11 @@ export const en: Messages = {
   "transform.nodeEditor.titleBoundary": "Workflow boundary",
   "transform.nodeEditor.hint": "Configure this node; changes apply to the workflow canvas.",
   "transform.nodeEditor.done": "Done",
+  "transform.connector.section": "Connector labels",
+  "transform.connector.inputLabel": "Input label override",
+  "transform.connector.outputLabel": "Output label override",
+  "transform.connector.inputLabelHint": "Leave empty to use the default input label.",
+  "transform.connector.outputLabelHint": "Leave empty to use the default output label.",
   "transform.connectEnd.group.contextualization": "Contextualization",
   "transform.fanoutPlan.canvasHint":
     "Profile-driven fan-out planner: wire search context on Input A and files to scan on Input B, then pair with dynamic fan-out.",
@@ -987,8 +1000,8 @@ export const en: Messages = {
   "transform.fanoutPlan.profileFileAnnotation": "File annotation (diagram detect page-packs)",
   "transform.fanoutPlan.handle.inputA": "Input A",
   "transform.fanoutPlan.handle.inputB": "Input B",
-  "transform.fanoutPlan.handle.inputA.context": "Search context",
-  "transform.fanoutPlan.handle.inputB.files": "Files to scan",
+  "transform.fanoutPlan.handle.inputA.context": "entities",
+  "transform.fanoutPlan.handle.inputB.files": "files",
   "transform.dualInput.sectionConnectorLabels": "Connector labels",
   "transform.dualInput.inputALabel": "Input A label (canvas)",
   "transform.dualInput.inputBLabel": "Input B label (canvas)",
@@ -1058,6 +1071,7 @@ export const en: Messages = {
   "transform.dynamicFanout.childFunctionHint": "Must match the child function configured on the planner node.",
   "transform.dynamicFanout.pagesConfiguredOnPlan":
     "Pages per detect call and other detect settings are configured on the fan-out plan node.",
+  "transform.dynamicFanout.inputConnector": "fan-out plan",
   "transform.merge.canvasHint":
     "N-way property fan-in from parallel upstream stages. Wire multiple edges into this node's input. Distinct from Join (row match on two sources with left/right handles). Use cohort predecessor mode locally for full multi-branch parity.",
   "transform.merge.fieldPoliciesHint":
