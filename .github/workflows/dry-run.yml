@@ -1,0 +1,171 @@
+# Foundation Deployment Pack (FDP): validate every PR to dev, test, or prod.
+# Requires GitHub Environments (dev, test, prod) with scoped variables and secrets.
+name: FDP Dry Run
+
+on:
+  pull_request:
+    branches:
+      - dev
+      - test
+      - prod
+
+concurrency:
+  group: fdp-dry-run-${{ github.head_ref }}-${{ github.base_ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  source-branch-guard:
+    name: Source branch guardrail
+    runs-on: ubuntu-latest
+    steps:
+      - name: Enforce promotion flow
+        env:
+          BASE: ${{ github.base_ref }}
+          HEAD: ${{ github.head_ref }}
+        run: |
+          set -euo pipefail
+          case "${BASE}" in
+            test)
+              if [ "${HEAD}" != "dev" ]; then
+                echo "::error::PRs to 'test' must come from 'dev' only (head: ${HEAD})"
+                exit 1
+              fi
+              ;;
+            prod)
+              if [ "${HEAD}" != "test" ] && [[ "${HEAD}" != hotfix/* ]]; then
+                echo "::error::PRs to 'prod' must come from 'test' or 'hotfix/*' only (head: ${HEAD})"
+                exit 1
+              fi
+              ;;
+          esac
+          echo "Promotion flow OK: ${HEAD} -> ${BASE}"
+
+  lint:
+    name: Lint (YAML, ruff, pyright)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install pre-commit
+        run: pip install pre-commit
+
+      - name: YAML and config lint (pre-commit)
+        uses: pre-commit/action@v3.0.1
+
+      - name: Ruff
+        uses: astral-sh/ruff-action@v3
+
+      - name: Pyright
+        uses: jakebailey/pyright-action@v2
+        with:
+          version: latest
+
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install test dependencies
+        run: pip install pytest pyyaml
+
+      - name: Pytest
+        run: pytest tests/ -q
+
+  cdf-dry-run:
+    name: cdf build & deploy --dry-run (${{ github.base_ref }})
+    needs:
+      - source-branch-guard
+      - lint
+      - test
+    runs-on: ubuntu-latest
+    environment: ${{ github.base_ref }}
+    env:
+      CDF_CLUSTER: ${{ vars.CDF_CLUSTER }}
+      CDF_PROJECT: ${{ vars.CDF_PROJECT }}
+      LOGIN_FLOW: ${{ vars.LOGIN_FLOW }}
+      IDP_CLIENT_ID: ${{ vars.IDP_CLIENT_ID }}
+      IDP_CLIENT_SECRET: ${{ secrets.IDP_CLIENT_SECRET }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Prepare FDP toolkit project
+        run: bash .github/scripts/prepare-fdp-project.sh
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Cognite Toolkit
+        run: pip install "cognite-toolkit==0.7.220" pyyaml
+
+      - name: cdf build
+        run: cdf build --env ${{ github.base_ref }} | tee build-output.txt
+
+      - name: cdf deploy --dry-run
+        run: cdf deploy --dry-run --env ${{ github.base_ref }} | tee dryrun-output.txt
+
+      - name: Comment PR with dry-run output
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const buildOutput = fs.readFileSync('build-output.txt', 'utf8');
+            const dryrunOutput = fs.readFileSync('dryrun-output.txt', 'utf8');
+            const header = '✅ FDP dry-run finished — review before merging';
+            const body = [
+              header,
+              '',
+              '<details><summary>Build output</summary>',
+              '',
+              '```',
+              buildOutput.slice(-12000),
+              '```',
+              '',
+              '</details>',
+              '',
+              '<details><summary>Deploy dry-run output</summary>',
+              '',
+              '```',
+              dryrunOutput.slice(-12000),
+              '```',
+              '',
+              '</details>',
+            ].join('\n');
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            const marker = '✅ FDP dry-run finished';
+            const existing = comments.find(
+              (c) => c.user.type === 'Bot' && c.body.includes(marker),
+            );
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }

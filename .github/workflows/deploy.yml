@@ -1,0 +1,46 @@
+# Foundation Deployment Pack (FDP): deploy to CDF when merging to dev, test, or prod.
+name: FDP Deploy
+
+on:
+  push:
+    branches:
+      - dev
+      - test
+      - prod
+
+concurrency:
+  group: fdp-deploy-${{ github.ref_name }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy to ${{ github.ref_name }}
+    runs-on: ubuntu-latest
+    environment: ${{ github.ref_name }}
+    env:
+      CDF_CLUSTER: ${{ vars.CDF_CLUSTER }}
+      CDF_PROJECT: ${{ vars.CDF_PROJECT }}
+      LOGIN_FLOW: ${{ vars.LOGIN_FLOW }}
+      IDP_CLIENT_ID: ${{ vars.IDP_CLIENT_ID }}
+      IDP_CLIENT_SECRET: ${{ secrets.IDP_CLIENT_SECRET }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Prepare FDP toolkit project
+        run: bash .github/scripts/prepare-fdp-project.sh
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Cognite Toolkit
+        run: pip install "cognite-toolkit==0.7.220" pyyaml
+
+      - name: cdf build
+        run: cdf build --env ${{ github.ref_name }}
+
+      - name: cdf deploy
+        run: cdf deploy --env ${{ github.ref_name }}

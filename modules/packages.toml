@@ -133,6 +133,20 @@ modules = [
     "tools/apps/qualitizer",
 ]
 
+[packages.foundation]
+id = "dp:foundation"
+title = "Foundation Deployment Pack"
+description = "Modular industrial CDF foundation: ISA Manufacturing data model, source-system extractor templates (PI, OPC-UA, SAP, DB, files), and aligned configuration for CI validation in this repository."
+canCherryPick = true
+modules = [
+    "data_models/isa_manufacturing_extension",
+    "sourcesystem/cdf_pi_foundation",
+    "sourcesystem/cdf_opcua_foundation",
+    "sourcesystem/cdf_sap_foundation",
+    "sourcesystem/cdf_db_foundation",
+    "sourcesystem/cdf_files_foundation",
+]
+
 [packages.custom]
 id = "dp:emptymodule"
 title = "Empty Module"

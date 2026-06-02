@@ -53,6 +53,53 @@ external-libraries = true
 
 The Toolkit shows deployment packs defined in [`modules/packages.toml`](modules/packages.toml).
 
+## CI/CD (Foundation Deployment Pack)
+
+Foundation Deployment Pack (`dp:foundation`) modules are validated and deployed from this repo using Cognite Toolkit and GitHub Actions.
+
+### Where it lives
+
+| Location | Role |
+|----------|------|
+| [`.github/workflows/dry-run.yml`](.github/workflows/dry-run.yml) | Runs on every PR to `dev`, `test`, or `prod` |
+| [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) | Runs on push (merge) to `dev`, `test`, or `prod` |
+| [`foundation-deployment-pack/`](foundation-deployment-pack/) | Toolkit org folder (`config.*.yaml`, module symlink) |
+| [`cdf.toml`](cdf.toml) | Toolkit project root (`default_organization_dir`) |
+
+Module source files remain under [`modules/`](modules/); CI links them into `foundation-deployment-pack/modules/` before `cdf build`.
+
+### Workflows
+
+**`dry-run.yml`** (pull request → `dev` | `test` | `prod`):
+
+1. Source-branch guardrail — `test` ← `dev` only; `prod` ← `test` or `hotfix/*` only  
+2. Lint — pre-commit YAML/TOML checks, Ruff, Pyright  
+3. Tests — `pytest`  
+4. `cdf build` and `cdf deploy --dry-run` against the target environment’s CDF project  
+
+**`deploy.yml`** (push to `dev` | `test` | `prod`):
+
+1. `cdf build` then `cdf deploy` for the branch’s environment  
+
+### GitHub Environments (required)
+
+Create environments **`dev`**, **`test`**, and **`prod`**. In each environment, configure:
+
+| Type | Name |
+|------|------|
+| Variable | `CDF_CLUSTER`, `CDF_PROJECT`, `LOGIN_FLOW`, `IDP_CLIENT_ID` |
+| Secret | `IDP_CLIENT_SECRET` |
+
+Use environment-scoped values only (no shared repo secrets for CDF auth). `CDF_PROJECT` must match the CDF project for that stage.
+
+### Branch protection
+
+Protect `dev`, `test`, and `prod` and require the dry-run workflow jobs to pass before merge.
+
+### Triggering locally
+
+See [`foundation-deployment-pack/README.md`](foundation-deployment-pack/README.md).
+
 ## Disclaimer
 
 The open-source Github repository ("Repository") is provided "as is", without warranty of any kind, express or implied, including but not limited to the warranties of merchantability, fitness for a particular purpose, and non-infringement. Usage of the Repository is voluntary and in no event shall Cognite be liable for any claim, damages, or other liability, whether in an action of contract, tort, or otherwise, arising from, out of, or in connection with the use of the Repository.
