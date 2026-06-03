@@ -28,6 +28,7 @@ try:
     import pyodide_http  # type: ignore[import-untyped]
     pyodide_http.patch_all()
 except ImportError:
+    # pyodide_http is only available when Streamlit runs in the browser (Pyodide).
     pass
 
 # Import dashboard modules

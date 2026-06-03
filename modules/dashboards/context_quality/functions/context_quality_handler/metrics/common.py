@@ -535,7 +535,8 @@ class CombinedAccumulator:
         if now_str:
             try:
                 acc.now = datetime.fromisoformat(now_str)
-            except:
+            except ValueError:
+                # Ignore malformed timestamps from persisted batch data.
                 pass
         
         # Time Series Data

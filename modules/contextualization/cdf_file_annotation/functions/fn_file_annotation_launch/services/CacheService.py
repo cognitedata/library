@@ -96,7 +96,7 @@ class GeneralCacheService(ICacheService):
 
         try:
             row: Row | None = self.client.raw.rows.retrieve(db_name=self.db_name, table_name=self.tbl_name, key=key)
-        except:
+        except Exception:
             row = None
 
         # Attempt to retrieve from the cache
