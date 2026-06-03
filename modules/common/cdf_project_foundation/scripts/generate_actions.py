@@ -17,6 +17,8 @@ from __future__ import annotations
 
 import argparse
 import re
+import shutil
+import subprocess
 import sys
 from pathlib import Path
 from typing import Any
@@ -28,6 +30,7 @@ except ImportError:
 
 MODULE_DIR = Path(__file__).resolve().parents[1]
 TEMPLATES_DIR = MODULE_DIR / "templates" / "github"
+GENERATE_ENV_SCRIPT = MODULE_DIR / "scripts" / "generate_env_configs.py"
 
 
 def resolve_modules_root(repo_root: Path, org_dir: str | None) -> Path:
@@ -52,26 +55,6 @@ def find_repo_root(start: Path) -> Path:
 
 def load_cdf_toml(repo_root: Path) -> dict[str, Any]:
     return tomllib.loads((repo_root / "cdf.toml").read_text(encoding="utf-8"))
-
-
-def discover_foundation_module_paths(modules_root: Path, repo_root: Path | None = None) -> list[str]:
-    """Resolve deployable dp:foundation module paths from packages.toml or module.toml scan."""
-    root = repo_root or modules_root.parent
-    packages_toml = root / "modules" / "packages.toml"
-    if packages_toml.is_file():
-        data = tomllib.loads(packages_toml.read_text(encoding="utf-8"))
-        listed = data.get("packages", {}).get("foundation", {}).get("modules") or []
-        if listed:
-            return list(listed)
-
-    paths: list[str] = []
-    for module_toml in sorted(modules_root.rglob("module.toml")):
-        text = module_toml.read_text(encoding="utf-8")
-        if 'package_id = "dp:foundation"' not in text:
-            continue
-        rel = module_toml.parent.relative_to(modules_root)
-        paths.append(rel.as_posix())
-    return paths
 
 
 def render_template(path: Path, values: dict[str, str]) -> str:
@@ -148,52 +131,93 @@ def main() -> None:
         help="Organization directory (default: cdf.toml default_organization_dir)",
     )
     parser.add_argument(
+        "--toolkit-version",
+        help="cognite-toolkit pip version (default: cdf.toml [modules].version)",
+    )
+    parser.add_argument(
+        "--repo-root",
+        type=Path,
+        help="Toolkit project root (default: directory containing cdf.toml)",
+    )
+    parser.add_argument(
         "--force",
         action="store_true",
         help="Overwrite generated files without prompting",
     )
+    parser.add_argument(
+        "--skip-configs",
+        action="store_true",
+        help="Only generate workflows, not config.*.yaml",
+    )
     args = parser.parse_args()
 
-    repo_root = find_repo_root(Path.cwd())
+    repo_root = (args.repo_root or find_repo_root(Path.cwd())).resolve()
     cdf = load_cdf_toml(repo_root)
     org_dir: str | None = args.org_dir or cdf.get("cdf", {}).get("default_organization_dir") or None
-    enterprise = resolve_enterprise(args.enterprise, cdf)
+    if not org_dir:
+        print("Set --org-dir or default_organization_dir in cdf.toml", file=sys.stderr)
+        sys.exit(1)
 
-    toolkit_version = cdf.get("modules", {}).get("version", "0.7.220")
+    enterprise = resolve_enterprise(args.enterprise, cdf)
+    toolkit_version = args.toolkit_version or cdf.get("modules", {}).get("version", "0.7.220")
     resolve_modules_root(repo_root, org_dir)
 
-    base_values: dict[str, str] = {
+    template_values = {
         "ENTERPRISE": enterprise,
+        "ORG_DIR": org_dir,
         "TOOLKIT_VERSION": str(toolkit_version),
         "LINT_PATHS": build_lint_paths(org_dir),
     }
 
-    for name in ("dry-run.yml", "deploy-prod.yml"):
+    workflow_names = [
+        "dry-run.yml",
+        "deploy-dev.yml",
+        "deploy-test.yml",
+        "deploy-prod.yml",
+    ]
+    for name in workflow_names:
         template = TEMPLATES_DIR / name
         if not template.is_file():
             print(f"Missing template: {template}", file=sys.stderr)
             sys.exit(1)
         out = repo_root / ".github" / "workflows" / name
-        write_file(out, render_template(template, base_values), args.force)
+        write_file(out, render_template(template, template_values), args.force)
 
-    deploy_template = TEMPLATES_DIR / "deploy.yml"
-    if not deploy_template.is_file():
-        print(f"Missing template: {deploy_template}", file=sys.stderr)
-        sys.exit(1)
-    for env, branch, label in (
-        ("dev", "dev", "Dev"),
-        ("test", "main", "Test"),
-    ):
-        merged = {**base_values, "ENV": env, "BRANCH": branch, "ENV_LABEL": label}
-        out = repo_root / ".github" / "workflows" / f"deploy-{env}.yml"
-        write_file(out, render_template(deploy_template, merged), args.force)
+    prepare_src = TEMPLATES_DIR / "prepare-toolkit-project.sh"
+    prepare_out = repo_root / ".github" / "scripts" / "prepare-toolkit-project.sh"
+    write_file(prepare_out, render_template(prepare_src, template_values), args.force)
+    prepare_out.chmod(0o755)
+
+    org_scripts = repo_root / org_dir / "scripts"
+    org_scripts.mkdir(parents=True, exist_ok=True)
+    env_gen_dest = org_scripts / "generate_env_configs.py"
+    if env_gen_dest.exists() and not args.force:
+        print(f"Keeping existing {env_gen_dest}")
+    else:
+        shutil.copy2(GENERATE_ENV_SCRIPT, env_gen_dest)
+        print(f"Wrote {env_gen_dest}")
 
     cicd_readme = repo_root / "docs" / "FOUNDATION_CICD.md"
     write_file(
         cicd_readme,
-        render_template(TEMPLATES_DIR / "FOUNDATION_CICD.md", base_values),
+        render_template(TEMPLATES_DIR / "FOUNDATION_CICD.md", template_values),
         args.force,
     )
+
+    if not args.skip_configs:
+        subprocess.run(
+            [
+                sys.executable,
+                str(GENERATE_ENV_SCRIPT),
+                "--enterprise",
+                enterprise,
+                "--org-dir",
+                org_dir,
+                "--repo-root",
+                str(repo_root),
+            ],
+            check=True,
+        )
 
     print()
     print("Next steps:")
