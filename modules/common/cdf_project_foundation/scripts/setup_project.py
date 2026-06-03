@@ -22,7 +22,7 @@ import argparse
 import re
 import shutil
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 import yaml
@@ -275,7 +275,7 @@ def write_config(path: Path, env: str, overlay: dict) -> bool:
         updated = deep_merge(existing, overlay)
         if updated == existing:
             return False
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
         backup = path.with_suffix(f".{timestamp}.bak")
         shutil.copy2(path, backup)
         print(f"  Updated : {path.name}  (backup: {backup.name})")

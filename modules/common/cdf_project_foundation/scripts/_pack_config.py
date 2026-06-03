@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-import re
 from pathlib import Path
 
+import tomllib
 import yaml
 
 MODULE_ROOT = Path(__file__).parent.parent
@@ -38,12 +38,15 @@ def get_org_dir_name(repo_root: Path | None = None) -> str | None:
     toml_path = root / "cdf.toml"
     if not toml_path.exists():
         return None
-    content = toml_path.read_text()
-    m = re.search(r"""default_organization_dir\s*=\s*["']([^"']*)["']""", content)
-    if not m:
-        return None
-    value = m.group(1).strip()
-    return value or None
+    try:
+        data = tomllib.loads(toml_path.read_text())
+        default_dir = data.get("default_organization_dir")
+        if isinstance(default_dir, str):
+            value = default_dir.strip()
+            return value or None
+    except tomllib.TOMLDecodeError:
+        pass
+    return None
 
 
 def get_pack_root(repo_root: Path | None = None) -> Path:
@@ -151,7 +154,10 @@ def detect_data_model_variant(data_models_dir: Path) -> str:
 
 
 def load_yaml(path: Path) -> dict:
-    return yaml.safe_load(path.read_text()) or {}
+    try:
+        return yaml.safe_load(path.read_text()) or {}
+    except yaml.YAMLError as e:
+        raise SystemExit(f"ERROR: Failed to parse YAML file {path}:\n  {e}")
 
 
 def deep_merge(base: dict, overlay: dict) -> dict:
