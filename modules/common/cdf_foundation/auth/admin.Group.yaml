@@ -27,7 +27,7 @@ capabilities:
       scope:
         all: {}
   - dataModelInstancesAcl:
-      actions: [READ, WRITE]
+      actions: [READ, WRITE, WRITE_PROPERTIES]
       scope:
         all: {}
   - timeSeriesAcl:
@@ -39,7 +39,7 @@ capabilities:
       scope:
         all: {}
   - rawAcl:
-      actions: [READ, WRITE]
+      actions: [READ, WRITE, LIST]
       scope:
         all: {}
   - transformationsAcl:
