@@ -18,6 +18,7 @@ try:
     import pyodide_http  # type: ignore[import-untyped]
     pyodide_http.patch_all()
 except ImportError:
+    # pyodide_http is only available when Streamlit runs in the browser (Pyodide).
     pass
 
 from cognite.client import CogniteClient
@@ -204,10 +205,7 @@ def main():
         datasets_dict = None
         dataset_ids = []
     else:
-        metadata = {}
         config = {}
-        datasets_dict = None
-        dataset_ids = []
 
     # Sidebar: only Project URL (organization base); project and cluster from metrics file (set by function from client config)
     with st.sidebar:
@@ -258,7 +256,6 @@ def main():
                 st.caption(f"Loaded {metadata.get('dataset_count') or len(datasets_dict)} dataset(s) from file.")
         else:
             dataset_external_id = "—"
-            payload = {}
             if metrics.get("_error"):
                 st.warning("Load failed. Run the function in **Configuration**, then **Refresh data**.")
             else:
