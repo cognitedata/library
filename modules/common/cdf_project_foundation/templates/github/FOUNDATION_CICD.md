@@ -1,6 +1,6 @@
 # Foundation Deployment Pack — CI/CD setup
 
-Generated for enterprise **`{{ENTERPRISE}}`**.
+Generated for enterprise **`{{ENTERPRISE}}`** (organization directory: **`{{ORG_DIR}}`**).
 
 This follows [sop-cdf-project-setup.md](https://github.com/cognitedata/library/blob/main/sop-cdf-project-setup.md) Step 5.
 
@@ -40,23 +40,26 @@ And this **secret**:
 
 ## Toolkit configs
 
-This generator only writes GitHub Actions workflows and this guide. It does not
-create or refresh `config.dev.yaml`, `config.test.yaml`, or `config.prod.yaml`.
+`generate_actions.py` writes GitHub Actions workflows and, by default, regenerates
+`config.dev.yaml`, `config.test.yaml`, and `config.prod.yaml` under `{{ORG_DIR}}/`.
+Pass `--skip-configs` to refresh workflows only.
 
-Before opening a PR, run the project setup wizard and commit the resulting config
-files together with the workflows:
+CI runs `prepare-toolkit-project.sh` before build/deploy to refresh configs from
+the committed modules. Commit the generated configs together with the workflows.
 
-```bash
-python modules/common/cdf_project_foundation/scripts/setup_project.py
-cdf build --env dev
-```
-
-CI validates the committed configs as-is; it does not regenerate them.
-
-## Regenerate workflows
+## Regenerate workflows or configs
 
 ```bash
 python modules/common/cdf_project_foundation/scripts/generate_actions.py --force
+```
+
+Refresh only environment YAML:
+
+```bash
+python {{ORG_DIR}}/scripts/generate_env_configs.py \
+  --enterprise {{ENTERPRISE}} \
+  --org-dir {{ORG_DIR}} \
+  --repo-root .
 ```
 
 ## Toolkit version
