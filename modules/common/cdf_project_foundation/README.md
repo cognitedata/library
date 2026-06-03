@@ -1,11 +1,11 @@
-# CDF Foundation Module
+# CDF Project Foundation Module
 
 Provides the **project-level foundation** for the `dp:foundation` deployment pack: three persona-based access groups and a project setup script, aligned with the project-setup SOP.
 
 ## Module Architecture
 
 ```
-cdf_foundation/
+cdf_project_foundation/
 ├── auth/
 │   ├── consumer.Group.yaml        # consumer persona (read-only)
 │   ├── producer.Group.yaml        # producer persona (read/write)
@@ -65,7 +65,7 @@ For each environment it:
 2. Detects the data model variant (`isa_manufacturing_extension` or `cfihos_oil_and_gas_extension`), or uses `--variant`.
 3. Merges variables into the config:
 
-- `variables.modules.common.cdf_foundation`: `dataModelVariant`,
+- `variables.modules.common.cdf_project_foundation`: `dataModelVariant`,
  `schemaSpace`, `instanceSpace`, `site`, and the three `*GroupName`
  values (resolved per environment).
 - `variables.modules.data_models.<variant>`
@@ -77,7 +77,7 @@ existing config file. **No secrets are ever written** (SOP Step 3d) — credenti
 are referenced via `${ENV_VAR}` / Key Vault only.
 
 ```bash
-cd modules/common/cdf_foundation
+cd modules/common/cdf_project_foundation
 
 python3 scripts/setup_project.py --help
 python3 scripts/setup_project.py -y                          # apply (auto-detect variant)

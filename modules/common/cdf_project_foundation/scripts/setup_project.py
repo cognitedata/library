@@ -155,7 +155,7 @@ def resolve_sourcesystem_variables(instance_space: str, installed_modules: list[
 
 
 def build_foundation_vars(variant: str, env: str, site: str) -> dict:
-    """variables.modules.common.cdf_foundation for a given env."""
+    """variables.modules.common.cdf_project_foundation for a given env."""
     ingestion = dict(INGESTION_FOUNDATION_VARIABLES[variant])
     ingestion["site"] = site
     for persona in PERSONAS:
@@ -171,7 +171,7 @@ def build_overlay(variant: str, env: str, site: str, repo_root: Path | None = No
         "variables": {
             "modules": {
                 "common": {
-                    "cdf_foundation": build_foundation_vars(variant, env, site),
+                    "cdf_project_foundation": build_foundation_vars(variant, env, site),
                 },
                 "contextualization": resolve_contextualization_variables(variant, instance_space),
                 "sourcesystem": resolve_sourcesystem_variables(instance_space, installed_modules),
@@ -208,8 +208,8 @@ def collect_expected(variant: str, env: str, site: str) -> dict[str, object]:
     overlay = build_overlay(variant, env, site)
     modules = overlay["variables"]["modules"]
     expected: dict[str, object] = {}
-    for key, value in modules["common"]["cdf_foundation"].items():
-        expected[f"common.cdf_foundation.{key}"] = value
+    for key, value in modules["common"]["cdf_project_foundation"].items():
+        expected[f"common.cdf_project_foundation.{key}"] = value
     for module, overrides in modules["contextualization"].items():
         for key, value in overrides.items():
             expected[f"contextualization.{module}.{key}"] = value
@@ -291,7 +291,7 @@ def write_config(path: Path, env: str, overlay: dict) -> bool:
 def remove_redundant_auth_files(repo_root: Path | None = None) -> list[Path]:
     """
     Remove auth group files from contextualization modules that are covered by
-    cdf_foundation. These files are only redundant when cdf_foundation is present
+    cdf_project_foundation. These files are only redundant when cdf_project_foundation is present
     in the same deployment pack; in standalone use those modules keep their own auth.
     Returns the list of files actually removed.
     """
@@ -382,7 +382,7 @@ def main() -> None:
             print("\n  Run: python scripts/setup_project.py -y")
             sys.exit(1)
         if stale_auth:
-            print("ERROR: Redundant auth file(s) still present (covered by cdf_foundation):")
+            print("ERROR: Redundant auth file(s) still present (covered by cdf_project_foundation):")
             for p in stale_auth:
                 print(f"  {p.relative_to(ctx_dir.parent.parent)}")
             print("\n  Run: python scripts/setup_project.py -y")
