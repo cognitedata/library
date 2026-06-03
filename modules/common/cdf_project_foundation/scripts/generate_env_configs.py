@@ -4,13 +4,14 @@
 from __future__ import annotations
 
 import argparse
+import logging
 import sys
 from pathlib import Path
 
 try:
     import yaml
 except ImportError:
-    print("PyYAML is required: pip install pyyaml", file=sys.stderr)
+    logging.error("PyYAML is required: pip install pyyaml")
     sys.exit(1)
 
 ENVIRONMENTS = ("dev", "test", "prod")
