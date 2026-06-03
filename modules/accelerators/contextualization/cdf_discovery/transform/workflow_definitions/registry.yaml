@@ -5,13 +5,3 @@ workflows:
   template_id: aliasing_workflow
   created_at: '2026-06-01T18:26:15+00:00'
   updated_at: '2026-06-02T04:00:42+00:00'
-- id: etl_wf_pbf_aliasing
-  label: PBF Aliasing Workflow
-  template_id: null
-  created_at: '2026-06-02T01:26:46+00:00'
-  updated_at: '2026-06-02T03:52:57+00:00'
-- id: i_demo
-  label: I demo
-  template_id: null
-  created_at: '2026-06-02T21:02:02+00:00'
-  updated_at: '2026-06-02T21:02:59+00:00'
