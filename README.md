@@ -55,53 +55,21 @@ The Toolkit shows deployment packs defined in [`modules/packages.toml`](modules/
 
 ## CI/CD (Foundation Deployment Pack)
 
-Foundation Deployment Pack (`dp:foundation`) modules are validated and deployed from this repo using Cognite Toolkit and GitHub Actions.
+Customer Toolkit projects that use **`dp:foundation`** generate their own GitHub Actions pipelines with the **`cdf_foundation_cicd`** module (see [`sop-cdf-project-setup.md`](sop-cdf-project-setup.md) Step 5).
 
-### Where it lives
+After `cdf modules add -d dp:foundation` in your project:
 
-| Location | Role |
-|----------|------|
-| [`.github/workflows/dry-run.yml`](.github/workflows/dry-run.yml) | Runs on every PR to `dev`, `test`, or `prod` |
-| [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) | Runs on push (merge) to `dev`, `test`, or `prod` |
-| [`foundation-deployment-pack/`](foundation-deployment-pack/) | Toolkit org folder (`config.*.yaml`, module symlink) |
-| [`cdf.toml`](cdf.toml) | Toolkit project root (`default_organization_dir`) |
+```bash
+python modules/common/cdf_foundation_cicd/scripts/generate_actions.py \
+  --enterprise <your-enterprise-slug> \
+  --force
+```
 
-Module source files remain under [`modules/`](modules/); CI links them into `foundation-deployment-pack/modules/` before `cdf build`.
+This writes `.github/workflows/` (`dry-run.yml`, `deploy-dev.yml`, `deploy-test.yml`, `deploy-prod.yml`), environment configs under your organization directory, and `docs/FOUNDATION_CICD.md` (GitHub Environments and secrets checklist).
 
-### Workflows
+Full usage: [`modules/common/cdf_foundation_cicd/README.md`](modules/common/cdf_foundation_cicd/README.md).
 
-**`dry-run.yml`** (pull request → `dev` | `test` | `prod`):
-
-1. Source-branch guardrail — `test` ← `dev` only; `prod` ← `test` or `hotfix/*` only  
-2. Lint — pre-commit YAML/TOML checks, Ruff, Pyright  
-3. Tests — `pytest`  
-4. `cdf build` and `cdf deploy --dry-run` against the target environment’s CDF project  
-
-**`deploy.yml`** (push to `dev` | `test` | `prod`):
-
-1. `cdf build` then `cdf deploy` for the branch’s environment  
-
-### Repository secrets and variables (required)
-
-Configure under **Settings → Secrets and variables → Actions**. Use a **prefix per stage** (`DEV_`, `TEST_`, `PROD_`) so each branch uses the correct CDF project and service principal.
-
-| Stage (branch) | Variables | Secret |
-|----------------|-----------|--------|
-| `dev` | `DEV_CDF_CLUSTER`, `DEV_CDF_PROJECT`, `DEV_LOGIN_FLOW`, `DEV_IDP_TENANT_ID`, `DEV_IDP_CLIENT_ID` | `DEV_IDP_CLIENT_SECRET` |
-| `test` | `TEST_CDF_CLUSTER`, `TEST_CDF_PROJECT`, `TEST_LOGIN_FLOW`, `TEST_IDP_TENANT_ID`, `TEST_IDP_CLIENT_ID` | `TEST_IDP_CLIENT_SECRET` |
-| `prod` | `PROD_CDF_CLUSTER`, `PROD_CDF_PROJECT`, `PROD_LOGIN_FLOW`, `PROD_IDP_TENANT_ID`, `PROD_IDP_CLIENT_ID` | `PROD_IDP_CLIENT_SECRET` |
-
-Example for dev: `DEV_CDF_PROJECT=at-dev`, `DEV_LOGIN_FLOW=client_credentials`. `CDF_PROJECT` must match `config.dev.yaml` / your CDF project name.
-
-Workflows select credentials from the PR **target** branch (`dry-run.yml`) or the branch **pushed** (`deploy.yml`). No GitHub Environments UI is required.
-
-### Branch protection
-
-Protect `dev`, `test`, and `prod` and require the dry-run workflow jobs to pass before merge.
-
-### Triggering locally
-
-See [`foundation-deployment-pack/README.md`](foundation-deployment-pack/README.md).
+This **library** repository uses [`build-packages.yml`](.github/workflows/build-packages.yml) on `main` to publish `packages.zip`; it does not run Foundation deploy workflows itself.
 
 ## Disclaimer
 

@@ -136,9 +136,10 @@ modules = [
 [packages.foundation]
 id = "dp:foundation"
 title = "Foundation Deployment Pack"
-description = "Modular industrial CDF foundation: ISA Manufacturing data model, source-system extractor templates (PI, OPC-UA, SAP, DB, files), and aligned configuration for CI validation in this repository."
+description = "Modular industrial CDF foundation: ISA Manufacturing data model, source-system extractor templates (PI, OPC-UA, SAP, DB, files), and a CI/CD generator for customer Toolkit projects (sop-cdf-project-setup.md)."
 canCherryPick = true
 modules = [
+    "common/cdf_foundation_cicd",
     "data_models/isa_manufacturing_extension",
     "sourcesystem/cdf_pi_foundation",
     "sourcesystem/cdf_opcua_foundation",

@@ -1,0 +1,4 @@
+[module]
+title = "Foundation Deployment Pack — CI/CD generator"
+id = "cdf_foundation_cicd"
+package_id = "dp:foundation"
