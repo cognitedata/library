@@ -1,0 +1,5 @@
+[module]
+title = "CDF Foundation"
+id = "dp:acc:cdf_foundation"
+package_id = "dp:foundation"
+is_selected_by_default = false
