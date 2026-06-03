@@ -1,0 +1,6 @@
+- externalId: ds_opcua
+  name: OPC UA Foundation
+  description: Data set for OPC UA foundation extraction pipelines
+  writeProtected: false
+  metadata:
+    origin: cognite-toolkit
