@@ -1,2 +1,0 @@
--- OPC-UA TimeSeries → ISATimeSeries
--- TODO: Add SELECT from `db_{{location}}_opcua.timeseries` RAW table, mapping to ISATimeSeries view fields

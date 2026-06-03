@@ -1,2 +1,0 @@
--- SAP Equipment → ISAAsset relation
--- TODO: Add SELECT joining equipment to functional_location on Floc field, setting Equipment.asset edge

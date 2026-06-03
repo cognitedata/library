@@ -1,2 +1,0 @@
--- SAP Notifications → Operation
--- TODO: Add SELECT from `db_{{location}}_sap.workitem` RAW table, mapping to Operation view fields

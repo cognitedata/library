@@ -1,2 +1,0 @@
--- PI TimeSeries → ISATimeSeries
--- TODO: Add SELECT from timeseries() filtered by {{piDataset}}, mapping to ISATimeSeries view fields

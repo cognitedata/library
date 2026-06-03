@@ -1,2 +1,0 @@
--- SAP Notifications → WorkOrder relation
--- TODO: Add SELECT joining workitem to workorder on OrderId field, setting Operation.workOrder edge
