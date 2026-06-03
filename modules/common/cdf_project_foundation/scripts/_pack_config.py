@@ -44,8 +44,8 @@ def get_org_dir_name(repo_root: Path | None = None) -> str | None:
         if isinstance(default_dir, str):
             value = default_dir.strip()
             return value or None
-    except tomllib.TOMLDecodeError:
-        pass
+    except tomllib.TOMLDecodeError as e:
+        print(f"WARNING: Failed to parse TOML file {toml_path}: {e}")
     return None
 
 
