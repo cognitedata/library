@@ -21,6 +21,7 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
+from typing import Any
 
 try:
     import tomllib
@@ -51,7 +52,7 @@ def find_repo_root(start: Path) -> Path:
     raise FileNotFoundError("cdf.toml not found — run from a Cognite Toolkit project root")
 
 
-def load_cdf_toml(repo_root: Path) -> dict:
+def load_cdf_toml(repo_root: Path) -> dict[str, Any]:
     return tomllib.loads((repo_root / "cdf.toml").read_text(encoding="utf-8"))
 
 
@@ -76,7 +77,7 @@ def write_file(path: Path, content: str, force: bool) -> None:
 def build_lint_paths(org_dir: str, module_paths: list[str]) -> str:
     entries = [
         f"'{org_dir}/'",
-        "'modules/'",
+        "'modules/packages.toml'",
         "'cdf.toml'",
         "'.pre-commit-config.yaml'",
         "'.github/scripts/'",
