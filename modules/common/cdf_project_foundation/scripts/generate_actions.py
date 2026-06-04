@@ -77,7 +77,6 @@ def write_file(path: Path, content: str, force: bool) -> None:
 def build_lint_paths(org_dir: str, module_paths: list[str]) -> str:
     entries = [
         f"'{org_dir}/'",
-        "'modules/packages.toml'",
         "'cdf.toml'",
         "'.pre-commit-config.yaml'",
         "'.github/scripts/'",
