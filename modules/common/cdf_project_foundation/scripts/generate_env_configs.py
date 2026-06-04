@@ -7,6 +7,7 @@ import argparse
 import logging
 import sys
 from pathlib import Path
+from typing import Any
 
 try:
     import yaml
@@ -57,12 +58,15 @@ def discover_foundation_module_paths(modules_root: Path, repo_root: Path | None 
     return paths
 
 
-def load_default_config(modules_root: Path, module_path: str) -> dict:
+def load_default_config(modules_root: Path, module_path: str) -> dict[str, Any]:
     config_path = modules_root / module_path / "default.config.yaml"
     if not config_path.is_file():
         return {}
-    with config_path.open(encoding="utf-8") as handle:
-        data = yaml.safe_load(handle) or {}
+    try:
+        with config_path.open(encoding="utf-8") as handle:
+            data = yaml.safe_load(handle) or {}
+    except yaml.YAMLError as exc:
+        raise ValueError(f"Failed to parse YAML in {config_path}: {exc}") from exc
     if not isinstance(data, dict):
         raise ValueError(f"Expected mapping in {config_path}")
     return data
@@ -77,14 +81,23 @@ def build_config(
     enterprise: str,
     module_paths: list[str],
     modules_root: Path,
-) -> dict:
-    variables_modules: dict[str, dict] = {}
-    flat_variables: dict = {}
+) -> dict[str, Any]:
+    variables_modules: dict[str, dict[str, Any]] = {}
+    flat_variables: dict[str, Any] = {}
     for module_path in module_paths:
         defaults = load_default_config(modules_root, module_path)
         if defaults:
             variables_modules[module_variable_key(module_path)] = defaults
-            flat_variables.update(defaults)
+            for key, val in defaults.items():
+                if key in flat_variables and flat_variables[key] != val:
+                    logging.warning(
+                        "Conflict for variable '%s': %r is overwritten by %r from '%s'",
+                        key,
+                        flat_variables[key],
+                        val,
+                        module_path,
+                    )
+                flat_variables[key] = val
 
     return {
         "environment": {
