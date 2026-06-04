@@ -31,8 +31,9 @@ export type ResourceReport = {
   resources: ResourceHealth[];
   summary: {
     total: number;
-    healthy: number;
-    unhealthy: number;
+    success: number;
+    warning: number;
+    critical: number;
     noRuns: number;
     aggregateUptime: number;
   };
@@ -43,4 +44,9 @@ export type ResourceReport = {
     message?: string;
   }>;
   error: string | null;
+  sampling?: {
+    isSampled: boolean;
+    sampledCount: number;
+    totalCount: number;
+  };
 };

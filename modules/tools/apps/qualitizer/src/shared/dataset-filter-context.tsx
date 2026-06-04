@@ -62,7 +62,7 @@ export function DatasetFilterProvider({ children }: { children: React.ReactNode 
             items?: Array<{ id: number; externalId?: string; name?: string }>;
             nextCursor?: string | null;
           }>(`/api/v1/projects/${sdk.project}/datasets/list`, {
-            data: JSON.stringify({ limit: 1000, cursor }),
+            data: { limit: 1000, cursor },
           });
           items.push(...(response.data?.items ?? []));
           cursor = response.data?.nextCursor ?? undefined;

@@ -13,12 +13,6 @@ import { I18nProvider, useI18n } from "./shared/i18n";
 import { LimitsProvider } from "./shared/LimitsContext";
 import { NavigationProvider } from "./shared/NavigationContext";
 import { PrivateModeProvider, usePrivateMode } from "./shared/PrivateModeContext";
-import { DatasetFilterProvider, useDatasetFilter } from "./shared/dataset-filter-context";
-import {
-  TimeRangeProvider,
-  useTimeRange,
-  type TimeRangePreset,
-} from "./shared/time-range-context";
 import { loadNavState, saveNavState } from "./shared/nav-persistence";
 import { LruCacheStatsPanel } from "./shared/LruCacheStatsPanel";
 
@@ -116,8 +110,6 @@ function AppContent() {
   return (
     <div className="min-h-screen w-full px-6 py-10">
       <LimitsProvider>
-      <TimeRangeProvider>
-      <DatasetFilterProvider>
       <NavigationProvider onNavigateToTransformations={navigateToTransformations}>
       <DataCacheProvider>
         <div className="mx-auto flex w-full max-w-6xl flex-col gap-8">
@@ -191,11 +183,6 @@ function AppContent() {
               ) : null}
             </div>
             <div className="ml-auto flex shrink-0 items-start gap-3">
-              <div className="flex items-center gap-3 rounded-md border border-slate-200 bg-white px-3 py-2">
-                <TimeRangeSelector />
-                <span className="text-slate-300">|</span>
-                <DatasetSelector />
-              </div>
               <PrivateModeBadge />
               <button
                 type="button"
@@ -262,8 +249,6 @@ function AppContent() {
         </div>
       </DataCacheProvider>
       </NavigationProvider>
-      </DatasetFilterProvider>
-      </TimeRangeProvider>
       </LimitsProvider>
     </div>
   );
@@ -296,56 +281,6 @@ function PrivateModeBadge() {
     </button>
   );
 }
-function TimeRangeSelector() {
-  const { range, setRange } = useTimeRange();
-  const presets: TimeRangePreset[] = ["12h", "1d", "7d", "30d"];
-  return (
-    <label className="flex items-center gap-2 text-xs text-slate-600">
-      <span className="text-slate-400">Range</span>
-      <select
-        className="rounded-md border border-slate-200 bg-white px-2 py-1 text-xs text-slate-700"
-        value={range.kind === "custom" ? "custom" : range.kind}
-        onChange={(event) => {
-          const next = event.target.value as TimeRangePreset | "custom";
-          if (next === "custom") return;
-          setRange({ kind: next });
-        }}
-      >
-        {presets.map((preset) => (
-          <option key={preset} value={preset}>
-            {preset}
-          </option>
-        ))}
-      </select>
-    </label>
-  );
-}
-
-function DatasetSelector() {
-  const { datasets, selectedDatasetId, setSelectedDatasetId, isLoading } = useDatasetFilter();
-  return (
-    <label className="flex items-center gap-2 text-xs text-slate-600">
-      <span className="text-slate-400">Dataset</span>
-      <select
-        className="rounded-md border border-slate-200 bg-white px-2 py-1 text-xs text-slate-700"
-        value={selectedDatasetId ?? ""}
-        onChange={(event) => {
-          const value = event.target.value;
-          setSelectedDatasetId(value === "" ? null : Number(value));
-        }}
-        disabled={isLoading}
-      >
-        <option value="">All datasets</option>
-        {datasets.map((dataset) => (
-          <option key={dataset.id} value={dataset.id}>
-            {dataset.name ?? dataset.externalId ?? String(dataset.id)}
-          </option>
-        ))}
-      </select>
-    </label>
-  );
-}
-
 function App() {
   return (
     <I18nProvider>

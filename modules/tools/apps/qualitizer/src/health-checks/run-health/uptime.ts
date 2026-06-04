@@ -27,15 +27,17 @@ export function uptimePercentage(successful: number, failed: number): number {
   return (successful / total) * 100;
 }
 
-export type HealthClass = "healthy" | "unhealthy" | "no_runs";
+export type HealthClass = "success" | "warning" | "critical" | "no_runs";
 
 export function classifyHealth(
   runs: number,
   uptime: number,
-  thresholdPct: number
+  _thresholdPct: number
 ): HealthClass {
   if (runs <= 0) return "no_runs";
-  return uptime >= thresholdPct ? "healthy" : "unhealthy";
+  if (uptime >= 100) return "success";
+  if (uptime > 10) return "warning";
+  return "critical";
 }
 
 export function uptimeColor(uptime: number): string {

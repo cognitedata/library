@@ -21,6 +21,7 @@ import type { ResourceHealth, ResourceReport, RunEntry } from "./types";
 
 const API_LIST_LIMIT = 500;
 const API_RUNS_LIMIT = 100;
+const SAMPLE_RESOURCE_LIMIT = 50;
 
 type FetcherOpts = {
   sdk: CogniteClient;
@@ -29,6 +30,7 @@ type FetcherOpts = {
   endMs: number;
   thresholdPct: number;
   signal?: { cancelled: boolean };
+  sampleMode?: boolean;
 };
 
 function getExtractionPipelineUrl(project: string, externalId: string): string {
@@ -74,6 +76,10 @@ function finalizeResource(
 
 function sortByFailureFirst(resources: ResourceHealth[]): ResourceHealth[] {
   return [...resources].sort((a, b) => {
+    const aHasRuns = a.runsInWindow > 0 ? 0 : 1;
+    const bHasRuns = b.runsInWindow > 0 ? 0 : 1;
+    if (aHasRuns !== bHasRuns) return aHasRuns - bHasRuns;
+
     const aFailed = isFailed(a.lastStatus) ? 0 : 1;
     const bFailed = isFailed(b.lastStatus) ? 0 : 1;
     if (aFailed !== bFailed) return aFailed - bFailed;
@@ -85,19 +91,22 @@ function buildReport(
   kindLabel: ResourceReport["kindLabel"],
   resources: ResourceHealth[],
   thresholdPct: number,
-  extraErrors: ResourceReport["errors"]
+  extraErrors: ResourceReport["errors"],
+  sampling?: ResourceReport["sampling"]
 ): ResourceReport {
   const sorted = sortByFailureFirst(resources);
-  let healthy = 0;
-  let unhealthy = 0;
+  let success = 0;
+  let warning = 0;
+  let critical = 0;
   let noRuns = 0;
   let totalSuccess = 0;
   let totalFailed = 0;
   const errors = [...extraErrors];
   for (const r of sorted) {
     const cls = classifyHealth(r.runsInWindow, r.uptimePercentage, thresholdPct);
-    if (cls === "healthy") healthy += 1;
-    else if (cls === "unhealthy") unhealthy += 1;
+    if (cls === "success") success += 1;
+    else if (cls === "warning") warning += 1;
+    else if (cls === "critical") critical += 1;
     else noRuns += 1;
     totalSuccess += r.successful;
     totalFailed += r.failed;
@@ -116,9 +125,10 @@ function buildReport(
   return {
     kindLabel,
     resources: sorted,
-    summary: { total: sorted.length, healthy, unhealthy, noRuns, aggregateUptime },
+    summary: { total: sorted.length, success, warning, critical, noRuns, aggregateUptime },
     errors,
     error: null,
+    sampling,
   };
 }
 
@@ -126,7 +136,7 @@ function errorReport(kindLabel: ResourceReport["kindLabel"], message: string): R
   return {
     kindLabel,
     resources: [],
-    summary: { total: 0, healthy: 0, unhealthy: 0, noRuns: 0, aggregateUptime: 100 },
+    summary: { total: 0, success: 0, warning: 0, critical: 0, noRuns: 0, aggregateUptime: 100 },
     errors: [{ resource: kindLabel, status: "error", message }],
     error: message,
   };
@@ -150,7 +160,7 @@ type ExtPipeRun = {
 };
 
 export async function fetchExtractionPipelineHealth(opts: FetcherOpts): Promise<ResourceReport> {
-  const { sdk, datasetId, startMs, endMs, thresholdPct, signal } = opts;
+  const { sdk, datasetId, startMs, endMs, thresholdPct, signal, sampleMode } = opts;
   try {
     const configs: ExtPipeSummary[] = [];
     let cursor: string | undefined;
@@ -166,9 +176,14 @@ export async function fetchExtractionPipelineHealth(opts: FetcherOpts): Promise<
     } while (cursor);
 
     const filtered = configs.filter((c) => matchesDataset(c.dataSetId, datasetId));
+    const totalCount = filtered.length;
+    const toProcess = sampleMode && filtered.length > SAMPLE_RESOURCE_LIMIT
+      ? filtered.slice(0, SAMPLE_RESOURCE_LIMIT) : filtered;
+    const sampling = sampleMode && filtered.length > SAMPLE_RESOURCE_LIMIT
+      ? { isSampled: true, sampledCount: SAMPLE_RESOURCE_LIMIT, totalCount } : undefined;
     const resources: ResourceHealth[] = [];
 
-    for (const cfg of filtered) {
+    for (const cfg of toProcess) {
       if (signal?.cancelled) break;
       try {
         const response = await sdk.post<{
@@ -217,7 +232,7 @@ export async function fetchExtractionPipelineHealth(opts: FetcherOpts): Promise<
       }
     }
 
-    return buildReport("Extraction pipeline", resources, thresholdPct, []);
+    return buildReport("Extraction pipeline", resources, thresholdPct, [], sampling);
   } catch (err) {
     return errorReport(
       "Extraction pipeline",
@@ -245,7 +260,7 @@ type WorkflowExec = {
 };
 
 export async function fetchWorkflowHealth(opts: FetcherOpts): Promise<ResourceReport> {
-  const { sdk, datasetId, startMs, endMs, thresholdPct, signal } = opts;
+  const { sdk, datasetId, startMs, endMs, thresholdPct, signal, sampleMode } = opts;
   try {
     const workflows: WorkflowListItem[] = [];
     let cursor: string | undefined;
@@ -261,6 +276,11 @@ export async function fetchWorkflowHealth(opts: FetcherOpts): Promise<ResourceRe
     } while (cursor);
 
     const filtered = workflows.filter((w) => matchesDataset(w.dataSetId, datasetId));
+    const totalCount = filtered.length;
+    const toProcess = sampleMode && filtered.length > SAMPLE_RESOURCE_LIMIT
+      ? filtered.slice(0, SAMPLE_RESOURCE_LIMIT) : filtered;
+    const sampling = sampleMode && filtered.length > SAMPLE_RESOURCE_LIMIT
+      ? { isSampled: true, sampledCount: SAMPLE_RESOURCE_LIMIT, totalCount } : undefined;
 
     const executions: WorkflowExec[] = [];
     let execCursor: string | undefined;
@@ -292,7 +312,7 @@ export async function fetchWorkflowHealth(opts: FetcherOpts): Promise<ResourceRe
       execsByWorkflow.set(e.workflowExternalId, list);
     }
 
-    const resources: ResourceHealth[] = filtered.map((w) =>
+    const resources: ResourceHealth[] = toProcess.map((w) =>
       finalizeResource(
         {
           id: w.externalId,
@@ -305,7 +325,7 @@ export async function fetchWorkflowHealth(opts: FetcherOpts): Promise<ResourceRe
       )
     );
 
-    return buildReport("Workflow", resources, thresholdPct, []);
+    return buildReport("Workflow", resources, thresholdPct, [], sampling);
   } catch (err) {
     return errorReport(
       "Workflow",
@@ -334,7 +354,7 @@ type TransformationJob = {
 };
 
 export async function fetchTransformationHealth(opts: FetcherOpts): Promise<ResourceReport> {
-  const { sdk, datasetId, startMs, endMs, thresholdPct, signal } = opts;
+  const { sdk, datasetId, startMs, endMs, thresholdPct, signal, sampleMode } = opts;
   try {
     const transformations: TransformationListItem[] = [];
     let cursor: string | undefined;
@@ -350,9 +370,14 @@ export async function fetchTransformationHealth(opts: FetcherOpts): Promise<Reso
     } while (cursor);
 
     const filtered = transformations.filter((t) => matchesDataset(t.dataSetId, datasetId));
+    const totalCount = filtered.length;
+    const toProcess = sampleMode && filtered.length > SAMPLE_RESOURCE_LIMIT
+      ? filtered.slice(0, SAMPLE_RESOURCE_LIMIT) : filtered;
+    const sampling = sampleMode && filtered.length > SAMPLE_RESOURCE_LIMIT
+      ? { isSampled: true, sampledCount: SAMPLE_RESOURCE_LIMIT, totalCount } : undefined;
 
     const resources: ResourceHealth[] = [];
-    for (const t of filtered) {
+    for (const t of toProcess) {
       if (signal?.cancelled) break;
       try {
         const response = await sdk.get<{ items?: TransformationJob[] }>(
@@ -394,7 +419,7 @@ export async function fetchTransformationHealth(opts: FetcherOpts): Promise<Reso
       }
     }
 
-    return buildReport("Transformation", resources, thresholdPct, []);
+    return buildReport("Transformation", resources, thresholdPct, [], sampling);
   } catch (err) {
     return errorReport(
       "Transformation",
@@ -424,7 +449,7 @@ type FunctionCall = {
 };
 
 export async function fetchFunctionHealth(opts: FetcherOpts): Promise<ResourceReport> {
-  const { sdk, datasetId, startMs, endMs, thresholdPct, signal } = opts;
+  const { sdk, datasetId, startMs, endMs, thresholdPct, signal, sampleMode } = opts;
   try {
     const functions: FunctionListItem[] = [];
     let cursor: string | undefined;
@@ -433,7 +458,7 @@ export async function fetchFunctionHealth(opts: FetcherOpts): Promise<ResourceRe
         items?: FunctionListItem[];
         nextCursor?: string | null;
       }>(`/api/v1/projects/${sdk.project}/functions/list`, {
-        data: JSON.stringify({ limit: 100, cursor }),
+        data: { limit: 100, cursor },
       });
       functions.push(...(response.data?.items ?? []));
       cursor = response.data?.nextCursor ?? undefined;
@@ -449,10 +474,10 @@ export async function fetchFunctionHealth(opts: FetcherOpts): Promise<ResourceRe
           const response = await sdk.post<{
             items?: Array<{ id: number; dataSetId?: number }>;
           }>(`/api/v1/projects/${sdk.project}/files/byids`, {
-            data: JSON.stringify({
+            data: {
               items: fileIds.map((id) => ({ id })),
               ignoreUnknownIds: true,
-            }),
+            },
           });
           for (const file of response.data?.items ?? []) {
             if (file.dataSetId != null) dataSetByFileId.set(file.id, file.dataSetId);
@@ -468,10 +493,15 @@ export async function fetchFunctionHealth(opts: FetcherOpts): Promise<ResourceRe
       if (typeof f.fileId !== "number") return false;
       return dataSetByFileId.get(f.fileId) === datasetId;
     });
+    const totalCount = filtered.length;
+    const toProcess = sampleMode && filtered.length > SAMPLE_RESOURCE_LIMIT
+      ? filtered.slice(0, SAMPLE_RESOURCE_LIMIT) : filtered;
+    const sampling = sampleMode && filtered.length > SAMPLE_RESOURCE_LIMIT
+      ? { isSampled: true, sampledCount: SAMPLE_RESOURCE_LIMIT, totalCount } : undefined;
 
     const extraErrors: ResourceReport["errors"] = [];
     const resources: ResourceHealth[] = [];
-    for (const fn of filtered) {
+    for (const fn of toProcess) {
       if (signal?.cancelled) break;
       if (normalize(fn.status) === "failed") {
         extraErrors.push({
@@ -484,10 +514,10 @@ export async function fetchFunctionHealth(opts: FetcherOpts): Promise<ResourceRe
         const response = await sdk.post<{ items?: FunctionCall[] }>(
           `/api/v1/projects/${sdk.project}/functions/${fn.id}/calls/list`,
           {
-            data: JSON.stringify({
+            data: {
               filter: { startTime: { min: startMs, max: endMs } },
               limit: API_RUNS_LIMIT,
-            }),
+            },
           }
         );
         const runs: RunEntry[] = (response.data?.items ?? []).map<RunEntry>((c) => {
@@ -530,7 +560,7 @@ export async function fetchFunctionHealth(opts: FetcherOpts): Promise<ResourceRe
       }
     }
 
-    return buildReport("Function", resources, thresholdPct, extraErrors);
+    return buildReport("Function", resources, thresholdPct, extraErrors, sampling);
   } catch (err) {
     return errorReport(
       "Function",

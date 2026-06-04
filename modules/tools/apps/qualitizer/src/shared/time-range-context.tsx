@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useMemo, useState } from "react";
 
-export type TimeRangePreset = "12h" | "1d" | "7d" | "30d";
+export type TimeRangePreset = "1h" | "6h" | "12h" | "24h" | "7d";
 export type TimeRangeKind = TimeRangePreset | "custom";
 
 export type TimeRangeValue =
@@ -8,14 +8,15 @@ export type TimeRangeValue =
   | { kind: "custom"; startMs: number; endMs: number };
 
 const PRESET_HOURS: Record<TimeRangePreset, number> = {
+  "1h": 1,
+  "6h": 6,
   "12h": 12,
-  "1d": 24,
+  "24h": 24,
   "7d": 24 * 7,
-  "30d": 24 * 30,
 };
 
 const STORAGE_KEY = "qualitizer.timeRange";
-const DEFAULT: TimeRangeValue = { kind: "1d" };
+const DEFAULT: TimeRangeValue = { kind: "1h" };
 
 function load(): TimeRangeValue {
   try {
@@ -30,7 +31,7 @@ function load(): TimeRangeValue {
       }
       return DEFAULT;
     }
-    if (parsed.kind === "12h" || parsed.kind === "1d" || parsed.kind === "7d" || parsed.kind === "30d") {
+    if (parsed.kind === "1h" || parsed.kind === "6h" || parsed.kind === "12h" || parsed.kind === "24h" || parsed.kind === "7d") {
       return { kind: parsed.kind };
     }
     return DEFAULT;
