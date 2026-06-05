@@ -18,6 +18,10 @@ def parse_env_file(path: Path) -> tuple[list[str], dict[str, str], dict[str, int
     key_idx: dict[str, int] = {}
     if path.exists():
         lines = path.read_text().splitlines(keepends=True)
+        # Normalise: ensure every line ends with a newline so appended entries
+        # never run onto the last line of an existing file that lacks a trailing \n.
+        if lines and not lines[-1].endswith("\n"):
+            lines[-1] += "\n"
         for i, line in enumerate(lines):
             stripped = line.strip()
             if stripped and not stripped.startswith("#") and "=" in stripped:
@@ -33,7 +37,7 @@ def upsert_env(
     key: str,
     value: str,
 ) -> None:
-    """Insert or replace a KEY="value" entry in *lines*, updating *key_idx* in place."""
+    """Insert or replace a ``KEY=value`` entry in *lines*, updating *key_idx* in place."""
     entry = f'{key}={value}\n'
     if key in key_idx:
         lines[key_idx[key]] = entry

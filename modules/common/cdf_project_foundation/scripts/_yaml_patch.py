@@ -116,6 +116,52 @@ def set_value(lines: list[str], dotted_path: str, new_val: str) -> tuple[str | N
     return old_val or None, changed
 
 
+def insert_key(lines: list[str], parent_dotted_path: str, key: str, value: str) -> bool:
+    """Append a new ``key: value`` line to the section at *parent_dotted_path*.
+
+    Used when a key is missing from an existing config file (e.g. a new variable
+    was added to the module after the file was first generated).  Determines the
+    correct child indentation from existing sibling lines and inserts the new
+    entry just before the next sibling section at the parent's indent level.
+
+    Returns ``True`` if the parent section was found and the key was inserted.
+    """
+    parent_idx = find_line(lines, parent_dotted_path)
+    if parent_idx is None:
+        return False
+
+    parent_indent = len(lines[parent_idx]) - len(lines[parent_idx].lstrip())
+
+    # Detect child indentation from the first existing child line.
+    child_indent = parent_indent + 2  # sensible default
+    j = parent_idx + 1
+    while j < len(lines):
+        stripped = lines[j].strip()
+        if not stripped or stripped.startswith("#"):
+            j += 1
+            continue
+        line_indent = len(lines[j]) - len(lines[j].lstrip())
+        if line_indent > parent_indent:
+            child_indent = line_indent
+        break
+
+    # Find the end of the parent section (next key at same or lesser indent).
+    insert_at = len(lines)
+    j = parent_idx + 1
+    while j < len(lines):
+        stripped = lines[j].strip()
+        if not stripped or stripped.startswith("#"):
+            j += 1
+            continue
+        if len(lines[j]) - len(lines[j].lstrip()) <= parent_indent:
+            insert_at = j
+            break
+        j += 1
+
+    lines.insert(insert_at, f"{' ' * child_indent}{key}: {value}\n")
+    return True
+
+
 def delete_key(lines: list[str], dotted_path: str) -> bool:
     """Remove the line at *dotted_path* and any owned block-sequence items.
 

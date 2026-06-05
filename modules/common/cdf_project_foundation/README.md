@@ -72,8 +72,7 @@ When run, the wizard:
 
 1. Prompts for which environments to set up (all three, dev only, dev+prod, or custom).
 2. Asks for the CDF project name for each selected environment.
-3. Asks for an optional site segment (inserted into access-group names).
-4. Asks for an optional location name if `cdf_entity_matching` is installed.
+3. Asks for an optional site / location name (used as access-group suffix and entity-matching `location_name`).
 5. Prompts for group source IDs (Entra ID object IDs) and writes them to `.env`.
 6. Asks for the Streamlit ApplicationOwner email if `cdf_file_annotation` is installed.
 7. Shows a pending-changes summary before writing anything.
@@ -89,7 +88,7 @@ When run, the wizard:
 | `prod`  | Production     | `config.prod.yaml` |
 
 
-With `--site <name>` the files use the convention `config.<env>.<site>.yaml` and the site segment is added to the group names.
+With `--site <name>` the site segment is added to access-group names (e.g. `consumer-oslo-dev`). Config filenames are always `config.<env>.yaml` regardless of site.
 
 The script is idempotent and writes a timestamped `.bak` before modifying any existing file. **No secrets are ever written to config files** (SOP Step 3d) — credentials are referenced via `${ENV_VAR}` / Key Vault only.
 
@@ -99,7 +98,7 @@ cd modules/common/cdf_project_foundation
 python3 scripts/setup_project.py              # interactive wizard
 python3 scripts/setup_project.py -y           # skip confirmation prompt
 python3 scripts/setup_project.py -y --variant isa_manufacturing_extension
-python3 scripts/setup_project.py -y --site oslo   # config.<env>.oslo.yaml
+python3 scripts/setup_project.py -y --site oslo   # site used in group names only
 python3 scripts/setup_project.py --check      # CI drift check (exit 1 if out of sync)
 ```
 

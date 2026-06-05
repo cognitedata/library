@@ -32,6 +32,7 @@ from _env_io import parse_env_file, upsert_env  # noqa: F401 (re-exported for te
 from _pack_config import (
     CONTEXTUALIZATION_REDUNDANT_AUTH,
     KNOWN_DATA_MODEL_DIRS,
+    REPO_ROOT,
     deep_merge,
     detect_data_model_variant,
     find_env_configs,
@@ -46,6 +47,7 @@ from _prompts import prompt, prompt_choice, prompt_env_var, prompt_yes_no
 from _style import ChangeRecord, _banner, _hint, _ok, _section, _show_changes_table, _warn
 from _yaml_patch import delete_key as _yaml_delete_key
 from _yaml_patch import find_line as _yaml_find_line
+from _yaml_patch import insert_key as _yaml_insert_key
 from _yaml_patch import set_value as _yaml_set_value
 
 # ── Environment / persona constants ───────────────────────────────────────────
@@ -291,12 +293,19 @@ def _write_config_update(path: Path, project: str, overlay: dict) -> bool:
         for module, mod_vars in cat_vars.items():
             for key, val in mod_vars.items():
                 dotted = f"variables.modules.{category}.{module}.{key}"
+                # Use yaml.dump for all non-string types to get correct YAML
+                # representation (e.g. true/false for bools, [] for empty lists).
                 yaml_val = (
-                    yaml.dump(val, default_flow_style=True).strip()
-                    if isinstance(val, list)
-                    else str(val)
+                    val
+                    if isinstance(val, str)
+                    else yaml.dump(val, default_flow_style=True).strip()
                 )
-                _, c = _yaml_set_value(lines, dotted, yaml_val)
+                old, c = _yaml_set_value(lines, dotted, yaml_val)
+                if old is None and not c:
+                    # Key absent — insert it into the parent section.
+                    parent = f"variables.modules.{category}.{module}"
+                    if _yaml_insert_key(lines, parent, key, yaml_val):
+                        c = True
                 changed = changed or c
 
     # Remove stale standalone-module keys now covered by cdf_project_foundation.
@@ -361,7 +370,7 @@ def _run_cicd_wizard(pack_root: Path) -> None:
     cmd = [sys.executable, str(generate_script), "--enterprise", enterprise, "--force"]
     from _style import _C
     print(f"\n  {_C.DIM}Running: {' '.join(cmd)}{_C.RESET}")
-    result = subprocess.run(cmd, cwd=str(pack_root.parent))
+    result = subprocess.run(cmd, cwd=str(REPO_ROOT))
     if result.returncode == 0:
         _ok("CI/CD workflows generated.  See docs/FOUNDATION_CICD.md for next steps.")
     else:
