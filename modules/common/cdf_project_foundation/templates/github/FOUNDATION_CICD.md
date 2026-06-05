@@ -1,6 +1,6 @@
 # Foundation Deployment Pack — CI/CD setup
 
-Generated for enterprise **`{{ENTERPRISE}}`** (organization directory: **`{{ORG_DIR}}`**).
+Generated for enterprise **`{{ENTERPRISE}}`**.
 
 This follows [sop-cdf-project-setup.md](https://github.com/cognitedata/library/blob/main/sop-cdf-project-setup.md) Step 5.
 
@@ -38,21 +38,10 @@ And this **secret**:
 
 - `IDP_CLIENT_SECRET`
 
-## Regenerate workflows or configs
+## Regenerate workflows
 
 ```bash
-python modules/common/cdf_project_foundation/scripts/generate_actions.py \
-  --enterprise {{ENTERPRISE}} \
-  --force
-```
-
-Refresh only environment YAML:
-
-```bash
-python {{ORG_DIR}}/scripts/generate_env_configs.py \
-  --enterprise {{ENTERPRISE}} \
-  --org-dir {{ORG_DIR}} \
-  --repo-root .
+python modules/common/cdf_project_foundation/scripts/generate_actions.py --force
 ```
 
 ## Toolkit version
