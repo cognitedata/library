@@ -68,6 +68,9 @@ export function TransformationsHelpModal({ open, onClose, subView }: Transformat
                     <tr><td className="py-1.5 pr-3 font-medium">{t("transformations.list.runs24h")}</td><td>{t("transformations.list.columnHelp.runs24h")}</td></tr>
                     <tr><td className="py-1.5 pr-3 font-medium">{t("transformations.list.lastRun")}</td><td>{t("transformations.list.columnHelp.lastRun")}</td></tr>
                     <tr><td className="py-1.5 pr-3 font-medium">{t("transformations.list.totalTime")}</td><td>{t("transformations.list.columnHelp.totalTime")}</td></tr>
+                    <tr><td className="py-1.5 pr-3 font-medium">Uptime 24h</td><td>Successful / total runs over the last 24h, shown as a percentage.</td></tr>
+                    <tr><td className="py-1.5 pr-3 font-medium">S</td><td>Successful transformation jobs over the last 24h.</td></tr>
+                    <tr><td className="py-1.5 pr-3 font-medium">F</td><td>Failed transformation jobs over the last 24h.</td></tr>
                     <tr><td className="py-1.5 pr-3 font-medium">{t("transformations.list.reads")}</td><td>{t("transformations.list.columnHelp.reads")}</td></tr>
                     <tr><td className="py-1.5 pr-3 font-medium">{t("transformations.list.writes")}</td><td>{t("transformations.list.columnHelp.writes")}</td></tr>
                     <tr><td className="py-1.5 pr-3 font-medium">{t("transformations.list.noops")}</td><td>{t("transformations.list.columnHelp.noops")}</td></tr>

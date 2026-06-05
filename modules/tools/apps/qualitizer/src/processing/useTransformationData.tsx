@@ -15,6 +15,7 @@ import {
   isStaleProcessingFetch,
   noteForbiddenFailure,
   processingRequestStats,
+  useProcessingSeriesFetchLoading,
   useProcessingWindowSessionReset,
 } from "./processing-request-stats";
 import {
@@ -67,6 +68,13 @@ export function useTransformationData({
   }, []);
 
   useProcessingWindowSessionReset(windowSessionKey, resetForNewWindow);
+  useProcessingSeriesFetchLoading(
+    fetchEnabled,
+    isSdkLoading,
+    windowRange,
+    fetchGeneration,
+    setTransformationsStatus
+  );
 
   useEffect(() => {
     if (!fetchEnabled) {
@@ -77,9 +85,6 @@ export function useTransformationData({
     if (!windowRange) return;
 
     const generation = fetchGeneration;
-    if (!refetchExecutionsOnly) {
-      setTransformationsStatus("loading");
-    }
     let cancelled = false;
     const loadTransformations = async () => {
       setExecutionsTruncated(false);

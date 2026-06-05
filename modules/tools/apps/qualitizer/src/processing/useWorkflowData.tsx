@@ -13,6 +13,7 @@ import {
   isStaleProcessingFetch,
   noteForbiddenFailure,
   processingRequestStats,
+  useProcessingSeriesFetchLoading,
   useProcessingWindowSessionReset,
 } from "./processing-request-stats";
 
@@ -69,6 +70,13 @@ export function useWorkflowData({
   }, []);
 
   useProcessingWindowSessionReset(windowSessionKey, resetForNewWindow);
+  useProcessingSeriesFetchLoading(
+    fetchEnabled,
+    isSdkLoading,
+    windowRange,
+    fetchGeneration,
+    setWorkflowsStatus
+  );
 
   useEffect(() => {
     if (!fetchEnabled) {
@@ -79,9 +87,6 @@ export function useWorkflowData({
     if (!windowRange) return;
 
     const generation = fetchGeneration;
-    if (!refetchExecutionsOnly) {
-      setWorkflowsStatus("loading");
-    }
     let cancelled = false;
     const loadWorkflows = async () => {
       setExecutionsTruncated(false);

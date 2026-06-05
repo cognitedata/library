@@ -245,7 +245,8 @@ const translations: Record<Language, Record<string, string>> = {
     "permissions.crossProject.viewerHint":
       "Uploaded users use the projects listed in their JSON. Current user uses every project from your live session token.",
     "permissions.crossProject.loading": "Loading memberships and group definitions…",
-    "permissions.crossProject.noProjects": "Your token has no project list from access info.",
+    "permissions.crossProject.noProjects":
+      "No projects found in your access token. Upload access JSON or switch user.",
     "permissions.crossProject.noMemberships": "You have no security group memberships in these projects.",
     "permissions.crossProject.summaryEmpty": "No group memberships to compare across projects.",
     "permissions.crossProject.summaryMatch":
@@ -294,13 +295,13 @@ const translations: Record<Language, Record<string, string>> = {
     "permissions.crossProject.legendCapGap": "Missing here but granted elsewhere",
     "permissions.crossProject.legendScopeDrift": "Different scoping or actions (orange dot)",
     "permissions.crossProject.groupDefinitionsForbiddenSummary":
-      "Could not load group definitions for: {projects} (access forbidden for your user). Membership from the viewed access data is still shown; highlighted columns lack full detail.",
+      "We couldn't load group definitions for: {projects}. You can still compare memberships, but those columns have limited detail.",
     "permissions.crossProject.columnDefinitionsForbiddenTitle":
-      "Group definitions not available — your token cannot list groups in this project",
+      "Details unavailable: your token can't list groups in this project",
     "permissions.crossProject.membershipForbiddenCellTitle":
       "Member in this project, but group details are not visible to your user",
     "permissions.crossProject.capCellDefinitionsForbiddenTitle":
-      "Capabilities unknown — group list is not accessible for this project",
+      "Capabilities unavailable: your token can't list groups in this project",
     "permissions.crossProject.legendDefinitionsForbidden":
       "Column: definitions not loaded (forbidden)",
     "permissions.crossProject.legendCapDefinitionsForbidden":
