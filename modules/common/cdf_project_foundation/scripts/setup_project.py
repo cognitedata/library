@@ -14,13 +14,6 @@ updating a file in-place (``_yaml_patch`` helpers).
 
 Usage:
     python setup_project.py [-y] [--check] [--variant VARIANT] [--site SITE]
-
-Helper modules (same directory):
-    _pack_config.py   — path / config helpers shared with generate_actions.py
-    _style.py         — ANSI colours, section headers, ChangeRecord, changes table
-    _prompts.py       — interactive prompts (text, yes/no, choice, .env variable)
-    _env_io.py        — .env file parse / upsert helpers
-    _yaml_patch.py    — line-preserving YAML scalar patcher
 """
 
 from __future__ import annotations

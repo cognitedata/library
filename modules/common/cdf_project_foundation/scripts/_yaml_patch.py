@@ -1,26 +1,15 @@
 """
-Line-preserving YAML scalar / list patcher for the setup wizard.
+Line-preserving YAML patcher for the setup wizard.
 
-Updates individual scalar values and inline lists in an existing YAML file
-without touching comments, blank lines, or the indentation of unrelated keys.
+Updates existing scalar values and inline lists in a YAML file,
+preserving comments, blank lines, and unrelated indentation.
 
-Algorithm: walk the line list tracking indentation depth to follow a dotted-path
-of section keys, then replace the value on the matching leaf line in-place.
-
-Block-sequence handling: when a key owns a block-sequence below it
-(lines starting with ``-`` at deeper indentation), ``set_value`` removes those
-lines and writes an inline representation instead.  This handles configs
-generated with ``yaml.safe_dump(default_flow_style=False)``.
-
-Limitations:
-  - Assumes a ``key`` appears at most once within its parent section.
-  - Does not write new keys — only updates or deletes existing ones.
+Only updates or deletes existing keys—does not add new ones.
 """
 
 from __future__ import annotations
 
 import re
-
 
 # ── Internal helpers ───────────────────────────────────────────────────────────
 
