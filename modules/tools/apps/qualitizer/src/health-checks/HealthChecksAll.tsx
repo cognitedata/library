@@ -259,7 +259,7 @@ export function HealthChecksAll({ onBack }: Props) {
         do {
           const response = await sdk.post<{ items?: FunctionSummary[]; nextCursor?: string | null }>(
             `/api/v1/projects/${sdk.project}/functions/list`,
-            { data: JSON.stringify({ limit: 100, cursor }) }
+            { data: { limit: 100, cursor } }
           );
           items.push(...(response.data?.items ?? []));
           cursor = response.data?.nextCursor ?? undefined;
