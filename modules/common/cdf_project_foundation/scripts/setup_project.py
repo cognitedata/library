@@ -1,19 +1,26 @@
 """
-Project setup for the dp:foundation deployment pack.
+Interactive setup wizard for the dp:foundation deployment pack.
 
 Aligned with the project-setup SOP. Creates and synchronises the per-environment
-Toolkit config files for the three mandatory environments (SOP Step 1) and keeps
-their data-model-driven variables and persona access-group names consistent.
+Toolkit config files for the selected environments and keeps their data-model-driven
+variables and persona access-group names consistent.
 
-Secrets are NEVER written here. Group `sourceId` values are Entra
-ID object IDs, not secrets, and are left for the operator to fill in per
-environment. Any credential is referenced via ${ENV_VAR} / Key Vault only.
+Secrets are NEVER written to config files.  Group ``sourceId`` values are Entra
+ID object IDs stored only in ``.env`` and referenced via ``${ENV_VAR}`` in YAML.
 
-Idempotent. A timestamped `.bak` of every existing config file is written
-before it is modified.
+Idempotent: a timestamped ``.bak`` of every existing config file is written
+before it is modified.  Existing comments and blank lines are preserved when
+updating a file in-place (``_yaml_patch`` helpers).
 
 Usage:
     python setup_project.py [-y] [--check] [--variant VARIANT] [--site SITE]
+
+Helper modules (same directory):
+    _pack_config.py   — path / config helpers shared with generate_actions.py
+    _style.py         — ANSI colours, section headers, ChangeRecord, changes table
+    _prompts.py       — interactive prompts (text, yes/no, choice, .env variable)
+    _env_io.py        — .env file parse / upsert helpers
+    _yaml_patch.py    — line-preserving YAML scalar patcher
 """
 
 from __future__ import annotations
@@ -21,11 +28,14 @@ from __future__ import annotations
 import argparse
 import re
 import shutil
+import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any
 
 import yaml
+from _env_io import parse_env_file, upsert_env  # noqa: F401 (re-exported for tests)
 from _pack_config import (
     CONTEXTUALIZATION_REDUNDANT_AUTH,
     KNOWN_DATA_MODEL_DIRS,
@@ -39,14 +49,19 @@ from _pack_config import (
     list_installed_source_system_modules,
     load_yaml,
 )
+from _prompts import prompt, prompt_choice, prompt_env_var, prompt_yes_no
+from _style import ChangeRecord, _banner, _hint, _ok, _section, _show_changes_table, _warn
+from _yaml_patch import delete_key as _yaml_delete_key
+from _yaml_patch import find_line as _yaml_find_line
+from _yaml_patch import set_value as _yaml_set_value
 
-# Environments managed by this script (SOP Step 1). staging == test.
+# ── Environment / persona constants ───────────────────────────────────────────
+
 ENVIRONMENTS: tuple[str, ...] = ("dev", "test", "prod")
 
-# Access-group environment suffix (SOP Step 3b): "dev" covers dev + test.
+# Access-group environment suffix: "dev" covers both dev and test environments.
 GROUP_ENV: dict[str, str] = {"dev": "dev", "test": "dev", "prod": "prod"}
 
-# Toolkit environment validation-type per environment.
 ENVIRONMENT_VALIDATION_TYPE: dict[str, str] = {"dev": "dev", "test": "dev", "prod": "prod"}
 
 PERSONAS: tuple[str, ...] = ("consumer", "producer", "admin")
@@ -78,8 +93,8 @@ DATA_MODELS_MODULE_VARIABLES: dict[str, dict[str, str]] = {
 }
 
 # Per-variant overrides for contextualization modules.
-# None values are sentinels meaning "use the variant's instanceSpace at runtime"
-# (resolved by resolve_contextualization_variables before writing to config).
+# ``None`` values are sentinels resolved to the variant's ``instanceSpace``
+# at runtime by ``resolve_contextualization_variables``.
 CONTEXTUALIZATION_VARIABLES: dict[str, dict[str, dict]] = {
     "isa_manufacturing_extension": {
         "cdf_entity_matching": {
@@ -131,62 +146,124 @@ CONTEXTUALIZATION_VARIABLES: dict[str, dict[str, dict]] = {
     },
 }
 
+# Keys that are stale in an existing config when cdf_project_foundation is
+# present (foundation covers these capabilities; standalone modules added them
+# before foundation was installed).
+_STALE_CTX_KEYS: tuple[str, ...] = (
+    "variables.modules.contextualization.cdf_file_annotation.groupSourceId",
+    "variables.modules.contextualization.cdf_entity_matching"
+    ".entity_matching_processing_group_source_id",
+)
+
+# ── Domain helpers ─────────────────────────────────────────────────────────────
 
 def group_name(persona: str, site: str, env: str) -> str:
-    """SOP Step 3b: <persona>[-<site>]-<env>; env is 'dev' (dev+test) or 'prod'."""
+    """SOP Step 3b: ``<persona>[-<site>]-<env>``; env is 'dev' (dev+test) or 'prod'."""
     segments = [persona] + ([site] if site else []) + [GROUP_ENV[env]]
     return "-".join(segments)
 
 
-def resolve_contextualization_variables(variant: str, instance_space: str) -> dict[str, dict]:
+def resolve_contextualization_variables(
+    variant: str,
+    instance_space: str,
+    installed_ctx: list[str],
+) -> dict[str, dict]:
+    """Build ctx variable overrides only for modules that are actually installed."""
     templates = CONTEXTUALIZATION_VARIABLES[variant]
-    return {
-        module: {
+    result: dict[str, dict] = {}
+    for module, overrides in templates.items():
+        if module not in installed_ctx:
+            continue
+        result[module] = {
             key: (instance_space if value is None else value)
             for key, value in overrides.items()
         }
-        for module, overrides in templates.items()
-    }
+    return result
 
 
-def resolve_sourcesystem_variables(instance_space: str, installed_modules: list[str]) -> dict[str, dict]:
-    """instanceSpace for each installed source system module only."""
+def resolve_sourcesystem_variables(
+    instance_space: str,
+    installed_modules: list[str],
+) -> dict[str, dict]:
     return {module: {"instanceSpace": instance_space} for module in installed_modules}
 
 
 def build_foundation_vars(variant: str, env: str, site: str) -> dict:
-    """variables.modules.common.cdf_project_foundation for a given env."""
+    """Variables block for ``variables.modules.common.cdf_project_foundation``."""
     ingestion = dict(INGESTION_FOUNDATION_VARIABLES[variant])
     ingestion["site"] = site
     for persona in PERSONAS:
         ingestion[f"{persona}GroupName"] = group_name(persona, site, env)
+        ingestion[f"{persona}SourceId"] = f"${{{persona.upper()}_SOURCE_ID}}"
     return ingestion
 
 
-def build_overlay(variant: str, env: str, site: str, repo_root: Path | None = None) -> dict:
-    """Variable overlay merged into config.<env>.yaml."""
+def build_overlay(
+    variant: str,
+    env: str,
+    site: str,
+    installed_ctx: list[str],
+    app_owner: str = "",
+    repo_root: Path | None = None,
+) -> dict:
+    """Full ``variables.modules`` overlay dict to merge into a config file."""
     instance_space = INGESTION_FOUNDATION_VARIABLES[variant]["instanceSpace"]
-    installed_modules = list_installed_source_system_modules(repo_root)
-    return {
-        "variables": {
-            "modules": {
-                "common": {
-                    "cdf_project_foundation": build_foundation_vars(variant, env, site),
-                },
-                "contextualization": resolve_contextualization_variables(variant, instance_space),
-                "sourcesystem": resolve_sourcesystem_variables(instance_space, installed_modules),
-                "data_models": {variant: DATA_MODELS_MODULE_VARIABLES[variant]},
-            },
+    installed_ss = list_installed_source_system_modules(repo_root)
+    ctx_vars = resolve_contextualization_variables(variant, instance_space, installed_ctx)
+
+    if app_owner and "cdf_file_annotation" in ctx_vars:
+        ctx_vars["cdf_file_annotation"]["ApplicationOwner"] = app_owner
+    # site doubles as location_name for entity matching (same concept).
+    if site and "cdf_entity_matching" in ctx_vars:
+        ctx_vars["cdf_entity_matching"]["location_name"] = site
+
+    modules_vars: dict[str, Any] = {
+        "common": {
+            "cdf_project_foundation": build_foundation_vars(variant, env, site),
         },
     }
+    if ctx_vars:
+        modules_vars["contextualization"] = ctx_vars
+    if installed_ss:
+        modules_vars["sourcesystem"] = resolve_sourcesystem_variables(instance_space, installed_ss)
+    modules_vars["data_models"] = {variant: DATA_MODELS_MODULE_VARIABLES[variant]}
+
+    return {"variables": {"modules": modules_vars}}
 
 
-def skeleton_config(env: str) -> dict:
-    """Minimal Toolkit config.<env>.yaml created when one does not yet exist."""
+def config_path(pack_root: Path, env: str) -> Path:
+    """Config files are always ``config.<env>.yaml`` — site is for group names only."""
+    return pack_root / f"config.{env}.yaml"
+
+
+def target_config_paths(pack_root: Path, envs: tuple[str, ...]) -> dict[str, Path]:
+    return {env: config_path(pack_root, env) for env in envs}
+
+
+def resolve_variant(args_variant: str | None, data_models_dir: Path) -> str:
+    if args_variant:
+        if args_variant not in INGESTION_FOUNDATION_VARIABLES:
+            raise SystemExit(
+                f"ERROR: Unknown --variant '{args_variant}'.\n"
+                f"  Supported: {', '.join(KNOWN_DATA_MODEL_DIRS)}"
+            )
+        return args_variant
+    return detect_data_model_variant(data_models_dir)
+
+
+# ── Config file writers ────────────────────────────────────────────────────────
+
+_YAML_HEADER = (
+    "# Managed by modules/common/cdf_project_foundation/scripts/setup_project.py\n"
+    "# Re-run the wizard to refresh, or use --check in CI.\n"
+)
+
+
+def _skeleton_config(env: str, project: str) -> dict:
     return {
         "environment": {
             "name": env,
-            "project": "${CDF_PROJECT}",
+            "project": project,
             "validation-type": ENVIRONMENT_VALIDATION_TYPE.get(env, "dev"),
             "selected": ["modules"],
         },
@@ -194,26 +271,316 @@ def skeleton_config(env: str) -> dict:
     }
 
 
-def config_path(pack_root: Path, env: str, site: str) -> Path:
-    name = f"config.{env}.{site}.yaml" if site else f"config.{env}.yaml"
-    return pack_root / name
+def _write_config_fresh(path: Path, env: str, project: str, overlay: dict) -> None:
+    """Create a brand-new config file from the skeleton + overlay."""
+    merged = deep_merge(_skeleton_config(env, project), overlay)
+    path.write_text(
+        _YAML_HEADER
+        + yaml.dump(merged, sort_keys=False, allow_unicode=True, default_flow_style=False)
+    )
+    _ok(f"Created  {path.name}")
 
 
-def target_config_paths(pack_root: Path, site: str) -> dict[str, Path]:
-    return {env: config_path(pack_root, env, site) for env in ENVIRONMENTS}
+def _write_config_update(path: Path, project: str, overlay: dict) -> bool:
+    """Update an existing config file in-place, preserving comments and blank lines.
+
+    Returns ``True`` when at least one value changed.
+    """
+    lines = path.read_text().splitlines(keepends=True)
+    changed = False
+
+    # Update environment.project.
+    _, c = _yaml_set_value(lines, "environment.project", project)
+    changed = changed or c
+
+    # Update every module variable from the overlay.
+    for category, cat_vars in overlay.get("variables", {}).get("modules", {}).items():
+        for module, mod_vars in cat_vars.items():
+            for key, val in mod_vars.items():
+                dotted = f"variables.modules.{category}.{module}.{key}"
+                yaml_val = (
+                    yaml.dump(val, default_flow_style=True).strip()
+                    if isinstance(val, list)
+                    else str(val)
+                )
+                _, c = _yaml_set_value(lines, dotted, yaml_val)
+                changed = changed or c
+
+    # Remove stale standalone-module keys now covered by cdf_project_foundation.
+    for stale in _STALE_CTX_KEYS:
+        if _yaml_find_line(lines, stale) is not None:
+            _yaml_delete_key(lines, stale)
+            changed = True
+
+    if not changed:
+        return False
+
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    backup = path.with_suffix(f".{timestamp}.bak")
+    shutil.copy2(path, backup)
+    path.write_text("".join(lines))
+    from _style import _C  # local import avoids circular dependency at module level
+    _ok(f"Updated  {path.name}  {_C.DIM}(backup: {backup.name}){_C.RESET}")
+    return True
 
 
-def collect_expected(variant: str, env: str, site: str) -> dict[str, object]:
-    """Flat map of dotted variable paths → expected values for --check."""
-    overlay = build_overlay(variant, env, site)
+def write_config(path: Path, env: str, project: str, overlay: dict) -> bool:
+    """Create or update a config file. Returns ``True`` if the file changed."""
+    if not path.exists():
+        _write_config_fresh(path, env, project, overlay)
+        return True
+    return _write_config_update(path, project, overlay)
+
+
+# ── Redundant auth cleanup ─────────────────────────────────────────────────────
+
+def remove_redundant_auth_files(repo_root: Path | None = None) -> list[Path]:
+    """Remove contextualization auth group files covered by cdf_project_foundation."""
+    ctx_dir = get_contextualization_dir(repo_root)
+    removed: list[Path] = []
+    for module_dir in list_installed_contextualization_modules(repo_root):
+        for rel_path in CONTEXTUALIZATION_REDUNDANT_AUTH[module_dir]:
+            auth_file = ctx_dir / module_dir / rel_path
+            if auth_file.exists():
+                auth_file.unlink()
+                removed.append(auth_file)
+                _ok(f"Removed redundant auth: {auth_file.relative_to(ctx_dir.parent.parent)}")
+    return removed
+
+
+# ── CI/CD generation ───────────────────────────────────────────────────────────
+
+def _run_cicd_wizard(pack_root: Path) -> None:
+    _section("CI/CD Pipeline Generation")
+    if not prompt_yes_no("Generate GitHub Actions workflows for this project?", default=False):
+        return
+
+    enterprise = prompt("Enterprise slug (e.g. acme — used for project names like acme-dev)")
+    if not enterprise:
+        _warn("No enterprise slug provided — skipping CI/CD generation.")
+        return
+
+    generate_script = Path(__file__).parent / "generate_actions.py"
+    if not generate_script.exists():
+        _warn(f"Could not find generate_actions.py at {generate_script} — skipping.")
+        return
+
+    cmd = [sys.executable, str(generate_script), "--enterprise", enterprise, "--force"]
+    from _style import _C
+    print(f"\n  {_C.DIM}Running: {' '.join(cmd)}{_C.RESET}")
+    result = subprocess.run(cmd, cwd=str(pack_root.parent))
+    if result.returncode == 0:
+        _ok("CI/CD workflows generated.  See docs/FOUNDATION_CICD.md for next steps.")
+    else:
+        _warn("CI/CD generation completed with warnings — review the output above.")
+
+
+# ── Main wizard ────────────────────────────────────────────────────────────────
+
+def _run_wizard(
+    args_variant: str | None,
+    args_site: str,
+    args_yes: bool,
+    repo_root: Path | None = None,
+) -> None:
+    pack_root = get_pack_root(repo_root)
+    variant = resolve_variant(args_variant, get_data_models_dir(repo_root))
+    installed_ctx = list_installed_contextualization_modules(repo_root)
+
+    _banner("Foundation Deployment Pack — Project Setup")
+    _ok(f"Data model variant : {variant}")
+    _ok(f"Pack root          : {pack_root}")
+    if installed_ctx:
+        _ok(f"Contextualization  : {', '.join(installed_ctx)}")
+    else:
+        _hint("No contextualization modules detected.")
+
+    # ── Environment selection ─────────────────────────────────────────────────
+    _section("Environment Selection")
+    print("  Which environments would you like to set up?\n")
+    choice = prompt_choice(
+        [
+            "All three — dev, test, prod  (recommended)",
+            "dev only",
+            "dev + prod  (skip test / staging)",
+            "Custom — choose individually",
+        ],
+        default=1,
+    )
+    if choice == 1:
+        selected_envs: tuple[str, ...] = ("dev", "test", "prod")
+    elif choice == 2:
+        selected_envs = ("dev",)
+    elif choice == 3:
+        selected_envs = ("dev", "prod")
+    else:
+        selected_envs = tuple(
+            env for env in ENVIRONMENTS
+            if prompt_yes_no(f"  Include environment '{env}'?", default=True)
+        )
+        if not selected_envs:
+            raise SystemExit("No environments selected — nothing to do.")
+
+    # ── CDF project names ─────────────────────────────────────────────────────
+    _section("CDF Project Names")
+    _hint("Format: <enterprise>-<env>  e.g. acme-dev, acme-test, acme-prod")
+    _hint("Only lowercase letters, digits, and hyphens. Cannot be empty.")
+    project_names: dict[str, str] = {}
+    for env in selected_envs:
+        while True:
+            val = prompt(f"Project name for {env}").strip()
+            if not val:
+                _warn("Project name cannot be empty.")
+                continue
+            if not re.fullmatch(r"[a-z0-9][a-z0-9-]*[a-z0-9]", val):
+                _warn("Use only lowercase letters, digits, and hyphens (e.g. acme-dev).")
+                continue
+            project_names[env] = val
+            break
+
+    # ── Site / location name (optional) ──────────────────────────────────────
+    _section("Site / Location Name  (optional)")
+    _hint("Used as suffix in access-group names (<persona>-<site>-<env>)")
+    _hint("and as location_name in entity-matching variables.")
+    _hint("Leave blank to omit.")
+    if args_site:
+        site = args_site
+        _hint(f"Using --site value: {site}")
+    else:
+        site = prompt("Site / location name (e.g. oslo)", default="").strip()
+
+    if site and not re.fullmatch(r"[a-z0-9_-]+", site):
+        raise SystemExit(
+            f"ERROR: site '{site}' contains invalid characters.\n"
+            "  Only lowercase letters, digits, hyphens, and underscores are allowed."
+        )
+
+    # ── Group source IDs → .env ───────────────────────────────────────────────
+    _section("Group Source IDs  (Entra ID object IDs)")
+    _hint("Stored in .env and referenced as ${CONSUMER_SOURCE_ID} etc. in config.")
+    _hint("Leave blank to skip — fill .env manually later.")
+    env_path = pack_root / ".env"
+    env_lines, env_vals, env_key_idx = parse_env_file(env_path)
+    original_env_vals = dict(env_vals)
+
+    for persona in PERSONAS:
+        var = f"{persona.upper()}_SOURCE_ID"
+        print(f"\n  {persona.capitalize()} group  →  {var}")
+        prompt_env_var(var, env_vals, env_lines, env_key_idx)
+
+    # ── ApplicationOwner (file_annotation only) ───────────────────────────────
+    app_owner = ""
+    if "cdf_file_annotation" in installed_ctx:
+        _section("Streamlit Application Owner  (file annotation)")
+        _hint("Email address(es) of the Streamlit app owner for cdf_file_annotation.")
+        _hint("Separate multiple addresses with a comma.")
+        while True:
+            app_owner = prompt("Application owner email(s)", default="").strip()
+            if not app_owner:
+                break  # optional — skip if blank
+            emails = [e.strip() for e in app_owner.split(",") if e.strip()]
+            if all(re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", e) for e in emails):
+                break
+            _warn("One or more addresses look invalid. Use format: name@domain.com")
+
+    # ── Pending changes ───────────────────────────────────────────────────────
+    targets = target_config_paths(pack_root, selected_envs)
+
+    _section("Pending Changes")
+    for env, path in targets.items():
+        overlay = build_overlay(variant, env, site, installed_ctx, app_owner, repo_root)
+        state = "create" if not path.exists() else "update"
+        print(f"\n  [{state}] {path.name}")
+        print(f"  environment.project  →  {project_names[env]}")
+        records = [
+            ChangeRecord(f"{cat}.{mod}.{key}", None, val)
+            for cat, cat_vars in overlay["variables"]["modules"].items()
+            for mod, mod_vars in cat_vars.items()
+            for key, val in mod_vars.items()
+        ]
+        _show_changes_table(records)
+
+    env_dirty = any(
+        env_vals.get(f"{p.upper()}_SOURCE_ID") != original_env_vals.get(f"{p.upper()}_SOURCE_ID")
+        for p in PERSONAS
+    )
+    if env_dirty:
+        print("\n  [.env]")
+        for persona in PERSONAS:
+            var = f"{persona.upper()}_SOURCE_ID"
+            old = original_env_vals.get(var, "(not set)")
+            new = env_vals.get(var, "(not set)")
+            if old != new:
+                masked = new[:3] + "****" if len(new) > 6 else "****"
+                print(f"  {var}: {old} → {masked}")
+
+    # ── Confirm ───────────────────────────────────────────────────────────────
+    print()
+    if not args_yes:
+        if not prompt_yes_no("Apply these changes?", default=True):
+            print("  Aborted — no changes written.")
+            sys.exit(0)
+
+    # ── Write config files ────────────────────────────────────────────────────
+    _section("Writing Config Files")
+    changed_count = 0
+    for env, path in targets.items():
+        overlay = build_overlay(variant, env, site, installed_ctx, app_owner, repo_root)
+        if write_config(path, env, project_names[env], overlay):
+            changed_count += 1
+        else:
+            _hint(f"No change: {path.name}")
+
+    # ── Write .env ────────────────────────────────────────────────────────────
+    if env_dirty and env_lines:
+        _section("Writing .env")
+        if env_path.exists():
+            timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+            backup_env = env_path.with_suffix(f".{timestamp}.bak")
+            shutil.copy2(env_path, backup_env)
+            _ok(f"Updated .env  (backup: {backup_env.name})")
+        else:
+            _ok("Created .env")
+        env_path.write_text("".join(env_lines))
+
+    # ── Remove redundant auth files ───────────────────────────────────────────
+    removed = remove_redundant_auth_files(repo_root)
+
+    # ── CI/CD generation ──────────────────────────────────────────────────────
+    _run_cicd_wizard(pack_root)
+
+    # ── Summary ───────────────────────────────────────────────────────────────
+    _section("Done")
+    _ok(f"{changed_count} config file(s) created/updated.")
+    if removed:
+        _ok(f"{len(removed)} redundant auth file(s) removed.")
+    if env_dirty:
+        _ok(".env updated with group source IDs.")
+    print()
+    _hint("Next steps:")
+    _hint("  1. Verify group source IDs in .env match your Entra ID object IDs.")
+    _hint("  2. Confirm environment.project names in each config.<env>.yaml file.")
+    _hint("  3. Add CI/CD secrets to GitHub Environments (IDP_CLIENT_SECRET).")
+    print()
+
+
+# ── --check mode (CI) ──────────────────────────────────────────────────────────
+
+def collect_expected(
+    variant: str,
+    env: str,
+    site: str,
+    installed_ctx: list[str],
+) -> dict[str, object]:
+    overlay = build_overlay(variant, env, site, installed_ctx)  # app_owner omitted intentionally
     modules = overlay["variables"]["modules"]
     expected: dict[str, object] = {}
     for key, value in modules["common"]["cdf_project_foundation"].items():
         expected[f"common.cdf_project_foundation.{key}"] = value
-    for module, overrides in modules["contextualization"].items():
+    for module, overrides in modules.get("contextualization", {}).items():
         for key, value in overrides.items():
             expected[f"contextualization.{module}.{key}"] = value
-    for module, overrides in modules["sourcesystem"].items():
+    for module, overrides in modules.get("sourcesystem", {}).items():
         for key, value in overrides.items():
             expected[f"sourcesystem.{module}.{key}"] = value
     for key, value in modules["data_models"][variant].items():
@@ -230,82 +597,76 @@ def get_actual_value(config: dict, dotted: str) -> object:
     return node
 
 
-def check_config_file(path: Path, variant: str, env: str, site: str) -> list[str]:
+def check_config_file(
+    path: Path,
+    variant: str,
+    env: str,
+    site: str,
+    installed_ctx: list[str],
+) -> list[str]:
     if not path.exists():
         return ["    (file missing — run without --check to create it)"]
     config = load_yaml(path)
     errors: list[str] = []
-    for dotted, expected_value in collect_expected(variant, env, site).items():
+    for dotted, expected_value in collect_expected(variant, env, site, installed_ctx).items():
         actual = get_actual_value(config, dotted)
         if actual != expected_value:
             errors.append(f"    {dotted}: got {actual!r}, expected {expected_value!r}")
     return errors
 
 
-def resolve_variant(args_variant: str | None, data_models_dir: Path) -> str:
-    if args_variant:
-        if args_variant not in INGESTION_FOUNDATION_VARIABLES:
-            raise SystemExit(
-                f"ERROR: Unknown --variant '{args_variant}'.\n"
-                f"  Supported: {', '.join(KNOWN_DATA_MODEL_DIRS)}"
-            )
-        return args_variant
-    return detect_data_model_variant(data_models_dir)
+def _run_check(
+    args_variant: str | None,
+    args_site: str,
+    repo_root: Path | None = None,
+) -> None:
+    pack_root = get_pack_root(repo_root)
+    variant = resolve_variant(args_variant, get_data_models_dir(repo_root))
+    site = args_site.strip()
+    targets = target_config_paths(pack_root, ENVIRONMENTS)
+    installed_ctx = list_installed_contextualization_modules(repo_root)
 
-
-def print_summary(variant: str, site: str, pack_root: Path, targets: dict[str, Path]) -> None:
-    ingestion = INGESTION_FOUNDATION_VARIABLES[variant]
-    print(f"\n  Data model variant   : {variant}")
-    print(f"  Pack root            : {pack_root}")
-    print(f"  Site segment         : {site or '(none)'}")
-    print(f"  schemaSpace          : {ingestion['schemaSpace']}")
-    print(f"  instanceSpace        : {ingestion['instanceSpace']}")
-    print("\n  Environments / access group names:")
+    all_errors: dict[str, list[str]] = {}
     for env, path in targets.items():
-        state = "update" if path.exists() else "create"
-        names = ", ".join(group_name(p, site, env) for p in PERSONAS)
-        print(f"    {env:<6} {state:<6} {path.name:<26} groups: {names}")
-    print()
+        errs = check_config_file(path, variant, env, site, installed_ctx)
+        if errs:
+            all_errors[path.name] = errs
 
+    target_set = set(targets.values())
+    for path in find_env_configs(repo_root):
+        if path in target_set:
+            continue
+        env_guess = path.name.split(".")[1] if "." in path.name else "dev"
+        env_guess = env_guess if env_guess in ENVIRONMENTS else "dev"
+        errs = check_config_file(path, variant, env_guess, site, installed_ctx)
+        if errs:
+            all_errors[path.name] = errs
 
-def write_config(path: Path, env: str, overlay: dict) -> bool:
-    """Create or update a config file. Returns True if it changed."""
-    if path.exists():
-        existing = load_yaml(path)
-        updated = deep_merge(existing, overlay)
-        if updated == existing:
-            return False
-        timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
-        backup = path.with_suffix(f".{timestamp}.bak")
-        shutil.copy2(path, backup)
-        print(f"  Updated : {path.name}  (backup: {backup.name})")
-    else:
-        updated = deep_merge(skeleton_config(env), overlay)
-        print(f"  Created : {path.name}")
-    path.write_text(
-        yaml.dump(updated, sort_keys=False, allow_unicode=True, default_flow_style=False)
-    )
-    return True
-
-
-def remove_redundant_auth_files(repo_root: Path | None = None) -> list[Path]:
-    """
-    Remove auth group files from contextualization modules that are covered by
-    cdf_project_foundation. These files are only redundant when cdf_project_foundation is present
-    in the same deployment pack; in standalone use those modules keep their own auth.
-    Returns the list of files actually removed.
-    """
     ctx_dir = get_contextualization_dir(repo_root)
-    removed: list[Path] = []
+    stale_auth: list[Path] = []
     for module_dir in list_installed_contextualization_modules(repo_root):
         for rel_path in CONTEXTUALIZATION_REDUNDANT_AUTH[module_dir]:
-            auth_file = ctx_dir / module_dir / rel_path
-            if auth_file.exists():
-                auth_file.unlink()
-                removed.append(auth_file)
-                print(f"  Removed : {auth_file.relative_to(ctx_dir.parent.parent)}")
-    return removed
+            if (ctx_dir / module_dir / rel_path).exists():
+                stale_auth.append(ctx_dir / module_dir / rel_path)
 
+    if all_errors:
+        print(f"ERROR: Config file(s) out of sync with variant '{variant}':\n")
+        for filename, errs in all_errors.items():
+            print(f"  {filename}")
+            for e in errs:
+                print(e)
+        print("\n  Run: python scripts/setup_project.py -y")
+        sys.exit(1)
+    if stale_auth:
+        print("ERROR: Redundant auth file(s) still present (covered by cdf_project_foundation):")
+        for p in stale_auth:
+            print(f"  {p.relative_to(ctx_dir.parent.parent)}")
+        print("\n  Run: python scripts/setup_project.py -y")
+        sys.exit(1)
+    print(f"OK: All config file(s) match variant '{variant}'. No stale auth files.")
+
+
+# ── Entry point ────────────────────────────────────────────────────────────────
 
 def main() -> None:
     parser = argparse.ArgumentParser(
@@ -315,11 +676,10 @@ def main() -> None:
     parser.add_argument(
         "--check",
         action="store_true",
-        help="CI mode: exit 1 if any target config (dev/test/prod) is out of sync",
+        help="CI mode: exit 1 if any target config is out of sync with the installed variant",
     )
     parser.add_argument(
-        "--yes",
-        "-y",
+        "--yes", "-y",
         action="store_true",
         help="Skip the confirmation prompt and apply immediately",
     )
@@ -336,82 +696,15 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    site = args.site.strip()
-    if site and not re.fullmatch(r"[a-z0-9_-]+", site):
-        raise SystemExit(
-            f"ERROR: --site '{site}' contains invalid characters.\n"
-            "  Only lowercase letters, digits, hyphens, and underscores are allowed."
-        )
-    pack_root = get_pack_root()
-    data_models_dir = get_data_models_dir()
-    variant = resolve_variant(args.variant, data_models_dir)
-    targets = target_config_paths(pack_root, site)
-
     if args.check:
-        all_errors: dict[str, list[str]] = {}
-        for env, path in targets.items():
-            errs = check_config_file(path, variant, env, site)
-            if errs:
-                all_errors[path.name] = errs
-        # Flag any other discovered config files that drift on data-model vars.
-        target_set = set(targets.values())
-        for path in find_env_configs():
-            if path in target_set:
-                continue
-            env_guess = path.name.split(".")[1] if "." in path.name else "dev"
-            env_guess = env_guess if env_guess in ENVIRONMENTS else "dev"
-            errs = check_config_file(path, variant, env_guess, site)
-            if errs:
-                all_errors[path.name] = errs
-
-        # Also check for redundant auth files that should have been removed.
-        ctx_dir = get_contextualization_dir()
-        stale_auth: list[Path] = []
-        for module_dir in list_installed_contextualization_modules():
-            for rel_path in CONTEXTUALIZATION_REDUNDANT_AUTH[module_dir]:
-                auth_file = ctx_dir / module_dir / rel_path
-                if auth_file.exists():
-                    stale_auth.append(auth_file)
-
-        if all_errors:
-            print(f"ERROR: Config file(s) out of sync with variant '{variant}':\n")
-            for filename, errs in all_errors.items():
-                print(f"  {filename}")
-                for e in errs:
-                    print(e)
-            print("\n  Run: python scripts/setup_project.py -y")
-            sys.exit(1)
-        if stale_auth:
-            print("ERROR: Redundant auth file(s) still present (covered by cdf_project_foundation):")
-            for p in stale_auth:
-                print(f"  {p.relative_to(ctx_dir.parent.parent)}")
-            print("\n  Run: python scripts/setup_project.py -y")
-            sys.exit(1)
-        print(f"OK: All config file(s) match variant '{variant}'. No stale auth files.")
-        return
-
-    print_summary(variant, site, pack_root, targets)
-
-    if not args.yes:
-        try:
-            answer = input("  Create/update these config files? [y/N] ").strip().lower()
-        except EOFError:
-            answer = "n"
-        if answer not in ("y", "yes"):
-            print("  Aborted — no changes written.")
-            sys.exit(0)
-
-    changed = 0
-    for env, path in targets.items():
-        if write_config(path, env, build_overlay(variant, env, site)):
-            changed += 1
-
-    removed = remove_redundant_auth_files()
-
-    print(f"\n  Done — {changed} config file(s) created/updated, {len(removed)} redundant auth file(s) removed.")
-    print("  Next: fill in project name, group sourceIds (Entra ID object IDs),")
-    print("  and CI/CD secrets (Key Vault / CI secret store — never in the repo).")
+        _run_check(args.variant, args.site)
+    else:
+        _run_wizard(args.variant, args.site, args.yes)
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        print("\n\n  Cancelled by user.")
+        sys.exit(130)

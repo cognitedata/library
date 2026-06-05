@@ -11,8 +11,16 @@ cdf_project_foundation/
 │   ├── producer.Group.yaml        # producer persona (read/write)
 │   └── admin.Group.yaml           # admin persona (full + groups:write)
 ├── scripts/
-│   ├── _pack_config.py            # shared path / config helpers
-│   └── setup_project.py           # project setup for dev / test / prod
+│   ├── _pack_config.py            # shared path / config helpers (also used by generate_actions.py)
+│   ├── _style.py                  # ANSI colours, section headers, ChangeRecord, changes table
+│   ├── _prompts.py                # interactive prompts (text, yes/no, choice, .env variable)
+│   ├── _env_io.py                 # .env file parse / upsert helpers
+│   ├── _yaml_patch.py             # line-preserving YAML scalar patcher
+│   ├── setup_project.py           # interactive wizard — creates / updates config.<env>.yaml
+│   ├── generate_actions.py        # generates GitHub Actions CI/CD workflows
+│   └── generate_env_configs.py    # generates config.{dev,test,prod}.yaml skeletons
+├── templates/
+│   └── github/                    # GitHub Actions workflow templates
 ├── default.config.yaml
 └── module.toml
 ```
@@ -43,11 +51,35 @@ The group `name` is supplied per environment by `setup_project.py` as the comput
 
 > **Service-principal / per-extractor groups**: This module ships only the three core persona groups. Additional producer groups for service principals and extractors (e.g. `producer-ep-opcua-dev`, `producer-pp-prod`, and `cognite_toolkit_service_principal`) are added per the SOP Step 3c minimum-set table as concrete needs arise.
 
-Populate `consumerSourceId` / `producerSourceId` / `adminSourceId` per environment with the Entra ID group Object IDs after the groups have been created. These are object IDs, **not secrets**.
+Populate `consumerSourceId` / `producerSourceId` / `adminSourceId` per environment with the Entra ID group Object IDs after the groups have been created. The wizard stores them in `.env` as `CONSUMER_SOURCE_ID`, `PRODUCER_SOURCE_ID`, `ADMIN_SOURCE_ID` and the config files reference them via `${…}`. These are object IDs, **not secrets**.
 
 ## Project setup — `scripts/setup_project.py`
 
-Creates and synchronises the Toolkit config files for the three mandatory environments (SOP Step 1) at the pack root, and keeps their data-model-driven variables and persona group names consistent with the data model installed under `modules/data_models/`.
+An interactive wizard that creates and synchronises the Toolkit config files for the selected environments at the pack root, and keeps their data-model-driven variables and persona group names consistent with the data model installed under `modules/data_models/`.
+
+The wizard is split across four helper modules for readability:
+
+| Module | Responsibility |
+|--------|---------------|
+| `_style.py` | ANSI colours, `_banner` / `_section` / `_ok` / `_warn` / `_hint`, `ChangeRecord`, changes table |
+| `_prompts.py` | `prompt`, `prompt_yes_no`, `prompt_choice`, `prompt_env_var` |
+| `_env_io.py` | `.env` file parse and upsert helpers |
+| `_yaml_patch.py` | Line-preserving YAML scalar patcher (preserves comments and blank lines) |
+
+### Wizard flow
+
+When run, the wizard:
+
+1. Prompts for which environments to set up (all three, dev only, dev+prod, or custom).
+2. Asks for the CDF project name for each selected environment.
+3. Asks for an optional site segment (inserted into access-group names).
+4. Asks for an optional location name if `cdf_entity_matching` is installed.
+5. Prompts for group source IDs (Entra ID object IDs) and writes them to `.env`.
+6. Asks for the Streamlit ApplicationOwner email if `cdf_file_annotation` is installed.
+7. Shows a pending-changes summary before writing anything.
+8. Creates new config files from a skeleton or updates existing ones in-place (preserving comments).
+9. Removes redundant auth files from contextualization modules covered by the foundation.
+10. Optionally generates GitHub Actions CI/CD workflows (`generate_actions.py`).
 
 
 | Env key | Maps to        | Config file        |
@@ -57,33 +89,18 @@ Creates and synchronises the Toolkit config files for the three mandatory enviro
 | `prod`  | Production     | `config.prod.yaml` |
 
 
-With `--site <name>` the files use the SOP's fuller convention `config.<env>.<site>.yaml` and the site segment is added to the group names.
+With `--site <name>` the files use the convention `config.<env>.<site>.yaml` and the site segment is added to the group names.
 
-For each environment it:
-
-1. Ensures the config file exists (creates a minimal `environment:` block when missing).
-2. Detects the data model variant (`isa_manufacturing_extension` or `cfihos_oil_and_gas_extension`), or uses `--variant`.
-3. Merges variables into the config:
-
-- `variables.modules.common.cdf_project_foundation`: `dataModelVariant`,
- `schemaSpace`, `instanceSpace`, `site`, and the three `*GroupName`
- values (resolved per environment).
-- `variables.modules.data_models.<variant>`
-- `variables.modules.contextualization.`* (entity matching, file annotation)
-- `variables.modules.sourcesystem.<installed module>.instanceSpace`
-
-The script is idempotent and writes a timestamped `.bak` before modifying an
-existing config file. **No secrets are ever written** (SOP Step 3d) — credentials
-are referenced via `${ENV_VAR}` / Key Vault only.
+The script is idempotent and writes a timestamped `.bak` before modifying any existing file. **No secrets are ever written to config files** (SOP Step 3d) — credentials are referenced via `${ENV_VAR}` / Key Vault only.
 
 ```bash
 cd modules/common/cdf_project_foundation
 
-python3 scripts/setup_project.py --help
-python3 scripts/setup_project.py -y                          # apply (auto-detect variant)
+python3 scripts/setup_project.py              # interactive wizard
+python3 scripts/setup_project.py -y           # skip confirmation prompt
 python3 scripts/setup_project.py -y --variant isa_manufacturing_extension
-python3 scripts/setup_project.py -y --site oslo              # config.<env>.oslo.yaml
-python3 scripts/setup_project.py --check                     # CI drift check (exit 1 if out of sync)
+python3 scripts/setup_project.py -y --site oslo   # config.<env>.oslo.yaml
+python3 scripts/setup_project.py --check      # CI drift check (exit 1 if out of sync)
 ```
 
 > When more than one model directory is present under `modules/data_models/`
@@ -105,10 +122,10 @@ consumerGroupName: "consumer-dev"
 producerGroupName: "producer-dev"
 adminGroupName: "admin-dev"
 
-# Entra ID group object IDs (fill in per environment; not secrets):
-consumerSourceId: ""
-producerSourceId: ""
-adminSourceId: ""
+# Entra ID group object IDs — wizard writes values to .env; configs reference ${…}:
+consumerSourceId: "${CONSUMER_SOURCE_ID}"
+producerSourceId: "${PRODUCER_SOURCE_ID}"
+adminSourceId: "${ADMIN_SOURCE_ID}"
 ```
 
 ## Dependencies
