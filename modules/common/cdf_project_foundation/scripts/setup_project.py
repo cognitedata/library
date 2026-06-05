@@ -352,12 +352,26 @@ def remove_redundant_auth_files(repo_root: Path | None = None) -> list[Path]:
 
 # ── CI/CD generation ───────────────────────────────────────────────────────────
 
-def _run_cicd_wizard(pack_root: Path) -> None:
+def _derive_enterprise(project_names: dict[str, str]) -> str | None:
+    """Try to derive the enterprise slug from project names like ``acme-dev`` → ``acme``."""
+    candidates: set[str] = set()
+    for env, name in project_names.items():
+        suffix = f"-{env}"
+        if name.endswith(suffix):
+            candidates.add(name[: -len(suffix)])
+    return candidates.pop() if len(candidates) == 1 else None
+
+
+def _run_cicd_wizard(pack_root: Path, project_names: dict[str, str] | None = None) -> None:
     _section("CI/CD Pipeline Generation")
     if not prompt_yes_no("Generate GitHub Actions workflows for this project?", default=False):
         return
 
-    enterprise = prompt("Enterprise slug (e.g. acme — used for project names like acme-dev)")
+    derived = _derive_enterprise(project_names or {})
+    enterprise = prompt(
+        "Enterprise slug (e.g. acme for acme-dev / acme-prod)",
+        default=derived,
+    ).strip()
     if not enterprise:
         _warn("No enterprise slug provided — skipping CI/CD generation.")
         return
@@ -549,7 +563,7 @@ def _run_wizard(
     removed = remove_redundant_auth_files(repo_root)
 
     # ── CI/CD generation ──────────────────────────────────────────────────────
-    _run_cicd_wizard(pack_root)
+    _run_cicd_wizard(pack_root, project_names)
 
     # ── Summary ───────────────────────────────────────────────────────────────
     _section("Done")
@@ -694,7 +708,7 @@ def main() -> None:
     parser.add_argument(
         "--site",
         default="",
-        help="Optional site segment for group names and config.<env>.<site>.yaml",
+        help="Optional site / location name inserted into access-group names (<persona>-<site>-<env>)",
     )
     args = parser.parse_args()
 
