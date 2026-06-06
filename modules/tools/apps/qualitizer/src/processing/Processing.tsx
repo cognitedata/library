@@ -394,8 +394,14 @@ export function Processing() {
       if (!terminal(currentStatus)) return;
       const rest = truncatedReloadQueue.slice(1);
       if (rest.length === 0) {
+        console.log("[Processing] Load all executions: queue finished", { series: current });
         setTruncatedReloadQueue(null);
       } else {
+        console.log("[Processing] Load all executions: advancing queue", {
+          completed: current,
+          next: rest[0],
+          remaining: rest,
+        });
         setTruncatedReloadQueue(rest);
         setFetchGeneration((g) => g + 1);
       }
@@ -1374,14 +1380,44 @@ export function Processing() {
               disabled={truncatedReloadQueue != null}
               className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
               onClick={() => {
-                if (truncatedReloadQueue) return;
-                const queue = PROCESSING_DIAGRAM_SERIES.filter((series) => {
-                  if (series === "functions") return functionExecutionsTruncated;
-                  if (series === "transformations") return transformationExecutionsTruncated;
-                  if (series === "workflows") return workflowExecutionsTruncated;
-                  return extractorExecutionsTruncated;
+                if (truncatedReloadQueue) {
+                  console.log("[Processing] Load all executions: ignored (reload already in progress)", {
+                    queue: truncatedReloadQueue,
+                  });
+                  return;
+                }
+                const truncatedFlags = {
+                  functions: functionExecutionsTruncated,
+                  transformations: transformationExecutionsTruncated,
+                  workflows: workflowExecutionsTruncated,
+                  extractors: extractorExecutionsTruncated,
+                };
+                const queue = PROCESSING_DIAGRAM_SERIES.filter(
+                  (series) => truncatedFlags[series]
+                );
+                if (queue.length === 0) {
+                  console.log(
+                    "[Processing] Load all executions: nothing to reload (no series marked truncated)",
+                    {
+                      truncatedFlags,
+                      concurrencyDiagramPhase,
+                      statuses: {
+                        functions: status,
+                        transformations: transformationsStatus,
+                        workflows: workflowsStatus,
+                        extractors: extractorsStatus,
+                      },
+                      executionCap: DEFAULT_PROCESSING_EXECUTION_CAP,
+                    }
+                  );
+                  return;
+                }
+                console.log("[Processing] Load all executions: starting uncapped reload", {
+                  queue,
+                  truncatedFlags,
+                  fetchGenerationNext: fetchGeneration + 1,
+                  windowSessionKey,
                 });
-                if (queue.length === 0) return;
                 setUncappedSeries((prev) => new Set([...prev, ...queue]));
                 setTruncatedReloadQueue(queue);
                 setFetchGeneration((g) => g + 1);

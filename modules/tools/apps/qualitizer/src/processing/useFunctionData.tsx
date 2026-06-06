@@ -15,6 +15,7 @@ import {
   isStaleProcessingFetch,
   noteForbiddenFailure,
   processingRequestStats,
+  useProcessingSeriesFetchLoading,
   useProcessingWindowSessionReset,
 } from "./processing-request-stats";
 
@@ -91,6 +92,13 @@ export function useFunctionData({
   }, []);
 
   useProcessingWindowSessionReset(windowSessionKey, resetForNewWindow);
+  useProcessingSeriesFetchLoading(
+    fetchEnabled,
+    isSdkLoading,
+    windowRange,
+    fetchGeneration,
+    setStatus
+  );
 
   const getFailureColor = (run: FunctionRunSummary) => {
     const funcId = run.functionId ?? "";
@@ -173,9 +181,6 @@ export function useFunctionData({
     if (!windowRange) return;
 
     const generation = fetchGeneration;
-    if (!refetchExecutionsOnly) {
-      setStatus("loading");
-    }
     let cancelled = false;
     const loadRuns = async () => {
       const keepCatalog =

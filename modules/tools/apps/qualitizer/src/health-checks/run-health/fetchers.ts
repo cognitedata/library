@@ -41,6 +41,7 @@ function getExtractionPipelineUrl(project: string, externalId: string): string {
 
 function matchesDataset(dataSetId: number | undefined | null, filterId: number | null): boolean {
   if (filterId == null) return true;
+  if (dataSetId == null) return true;
   return dataSetId === filterId;
 }
 
