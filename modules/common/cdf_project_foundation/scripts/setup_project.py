@@ -102,7 +102,6 @@ CONTEXTUALIZATION_VARIABLES: dict[str, dict[str, dict]] = {
             "targetViewFilterValues": [],
             "entityViewSearchProperty": "name",
             "entityViewFilterValues": [],
-            "reservedWordPrefix": "",
         },
         "cdf_file_annotation": {
             "fileSchemaSpace": "sp_isa_manufacturing",
@@ -162,6 +161,8 @@ _STALE_CTX_KEYS: tuple[str, ...] = (
     "variables.modules.contextualization.cdf_file_annotation.groupSourceId",
     "variables.modules.contextualization.cdf_entity_matching"
     ".entity_matching_processing_group_source_id",
+    "variables.modules.cdf_entity_matching.reservedWordPrefix",
+    "variables.modules.contextualization.cdf_entity_matching.reservedWordPrefix",
 )
 
 # ── Domain helpers ─────────────────────────────────────────────────────────────
