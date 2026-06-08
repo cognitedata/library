@@ -70,14 +70,6 @@ jobs:
             pre-commit run --files "${FILES[@]}"
           fi
 
-      - name: Ruff
-        uses: astral-sh/ruff-action@v3
-
-      - name: Pyright
-        uses: jakebailey/pyright-action@v2
-        with:
-          version: latest
-
   cdf-dry-run:
     name: cdf build & deploy --dry-run
     needs:
