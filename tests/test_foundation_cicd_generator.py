@@ -14,20 +14,19 @@ TEMPLATES = MODULE_ROOT / "templates" / "github"
 
 def test_generator_scripts_exist() -> None:
     assert (MODULE_ROOT / "scripts" / "generate_actions.py").is_file()
-    assert (MODULE_ROOT / "scripts" / "generate_env_configs.py").is_file()
     assert (TEMPLATES / "dry-run.yml").is_file()
 
 
 def test_discover_foundation_modules_includes_project_foundation() -> None:
     sys.path.insert(0, str(MODULE_ROOT / "scripts"))
-    from generate_env_configs import discover_foundation_module_paths
+    from generate_actions import discover_foundation_module_paths
 
     paths = discover_foundation_module_paths(REPO_ROOT / "modules", REPO_ROOT)
     assert "common/cdf_project_foundation" in paths
     assert "sourcesystem/cdf_pi_foundation" in paths
 
 
-def test_generate_actions_writes_workflows(tmp_path: Path) -> None:
+def test_generate_actions_writes_workflows_and_docs(tmp_path: Path) -> None:
     org_dir = "industrial"
     (tmp_path / "cdf.toml").write_text(
         f"""
@@ -39,7 +38,7 @@ version = "0.7.220"
 """.strip(),
         encoding="utf-8",
     )
-    mod = tmp_path / "modules" / "sourcesystem" / "cdf_pi_foundation"
+    mod = tmp_path / org_dir / "modules" / "sourcesystem" / "cdf_pi_foundation"
     mod.mkdir(parents=True)
     (mod / "module.toml").write_text(
         'id = "cdf_pi_foundation"\npackage_id = "dp:foundation"\n',
@@ -53,8 +52,6 @@ version = "0.7.220"
             str(GENERATE_ACTIONS),
             "--enterprise",
             "acme",
-            "--repo-root",
-            str(tmp_path),
             "--force",
         ],
         check=True,
@@ -62,7 +59,14 @@ version = "0.7.220"
     )
 
     assert (tmp_path / ".github" / "workflows" / "dry-run.yml").is_file()
-    assert (tmp_path / org_dir / "config.dev.yaml").is_file()
-    content = (tmp_path / org_dir / "config.dev.yaml").read_text(encoding="utf-8")
-    assert "acme-dev" in content
-    assert "modules/sourcesystem/cdf_pi_foundation" in content
+    assert (tmp_path / ".github" / "workflows" / "deploy-dev.yml").is_file()
+    assert (tmp_path / ".github" / "workflows" / "deploy-test.yml").is_file()
+    assert (tmp_path / ".github" / "workflows" / "deploy-prod.yml").is_file()
+    assert (tmp_path / "docs" / "FOUNDATION_CICD.md").is_file()
+    assert not (tmp_path / org_dir / "config.dev.yaml").exists()
+
+    dry_run = (tmp_path / ".github" / "workflows" / "dry-run.yml").read_text(
+        encoding="utf-8"
+    )
+    assert "'industrial/config*.yaml'" in dry_run
+    assert "'industrial/modules/sourcesystem/cdf_pi_foundation/'" in dry_run
