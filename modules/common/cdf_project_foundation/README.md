@@ -10,7 +10,7 @@ Provides the **project-level foundation** for the `dp:foundation` deployment pac
 
 Before you start, ensure the following are in place:
 
-- **Cognite Toolkit latest** installed. Follow the [setup instructions](https://docs.cognite.com/cdf/deploy/cdf_toolkit/guides/setup).
+- **Cognite Toolkit latest >= 0.8.102** installed. Follow the [setup instructions](https://docs.cognite.com/cdf/deploy/cdf_toolkit/guides/setup).
 - A `cdf.toml` exists in your project root. If missing, run `cdf init` and choose **Create toml file (required)**.
 - Authentication configured and verified:
   ```bash
@@ -44,7 +44,7 @@ Select **Foundation Deployment Pack** from the list.
 
 The module selector presents all available modules. Make selections carefully:
 
-**Data model** — select **exactly one**:
+**Data model** — select **exactly one** core variant:
 
 > ⚠️ **Select only one data model variant.** Selecting both will break auto-detection
 > and require the `--variant` flag on every script run.
@@ -53,6 +53,12 @@ The module selector presents all available modules. Make selections carefully:
 |--------|----------|
 | `isa_manufacturing_extension` | ISA-95 / manufacturing assets |
 | `cfihos_oil_and_gas_extension` | CFIHOS / oil & gas assets |
+
+**Data model — search extension** — optional, only when `cfihos_oil_and_gas_extension` is selected:
+
+| Option | Purpose |
+|--------|---------|
+| `cfihos_oil_and_gas_extension_search` | Solution data model adding search spaces for the CFIHOS extension. **Only select this alongside `cfihos_oil_and_gas_extension`** |
 
 **Source system modules** — select any combination:
 

@@ -40,7 +40,6 @@ from _pack_config import (
     get_contextualization_dir,
     get_data_models_dir,
     get_pack_root,
-    get_sourcesystem_dir,
     list_installed_contextualization_modules,
     list_installed_source_system_modules,
     load_yaml,
@@ -74,7 +73,7 @@ INGESTION_FOUNDATION_VARIABLES: dict[str, dict[str, str]] = {
     "cfihos_oil_and_gas_extension": {
         "dataModelVariant": "cfihos_oil_and_gas_extension",
         "schemaSpace": "dm_dom_oil_and_gas",
-        "instanceSpace": "sp_cfihos_instance_space",
+        "instanceSpace": "inst_location",
     },
 }
 
@@ -83,10 +82,7 @@ DATA_MODELS_MODULE_VARIABLES: dict[str, dict[str, str]] = {
         "isaSchemaSpace": "sp_isa_manufacturing",
         "isaInstanceSpace": "sp_isa_instance_space",
     },
-    "cfihos_oil_and_gas_extension": {
-        "isaSchemaSpace": "dm_dom_oil_and_gas",
-        "isaInstanceSpace": "sp_cfihos_instance_space",
-    },
+    "cfihos_oil_and_gas_extension": {},
 }
 
 # Per-variant overrides for contextualization modules.
@@ -141,6 +137,22 @@ CONTEXTUALIZATION_VARIABLES: dict[str, dict[str, dict]] = {
             "targetEntityExternalId": "FunctionalLocation",
         },
     },
+}
+
+# Fallback category for modules that may live in old nested-category config files
+# (e.g. created before the flat-structure migration).  Used by _write_config_update
+# to try an alternative dotted path when the flat path is not found.
+_MODULE_CATEGORY_FALLBACK: dict[str, str] = {
+    "cdf_project_foundation":    "common",
+    "cdf_entity_matching":       "contextualization",
+    "cdf_file_annotation":       "contextualization",
+    "cdf_pi_foundation":         "sourcesystem",
+    "cdf_sap_foundation":        "sourcesystem",
+    "cdf_opcua_foundation":      "sourcesystem",
+    "cdf_db_foundation":         "sourcesystem",
+    "cdf_files_foundation":      "sourcesystem",
+    "isa_manufacturing_extension":    "data_models",
+    "cfihos_oil_and_gas_extension":   "data_models",
 }
 
 # Keys that are stale in an existing config when cdf_project_foundation is
@@ -219,42 +231,17 @@ def resolve_sourcesystem_variables(
     return result
 
 
-def collect_sourcesystem_datasets(
-    installed_modules: list[str],
-    repo_root: Path | None = None,
-) -> list[str]:
-    """Read ``dataset`` from each installed foundation source system module's default.config.yaml.
-
-    Only covers the five foundation modules (cdf_pi_foundation, cdf_sap_foundation,
-    cdf_opcua_foundation, cdf_db_foundation, cdf_files_foundation).
-    Returns a deduplicated ordered list of dataset external IDs.
-    """
-    ss_dir = get_sourcesystem_dir(repo_root)
-    seen: set[str] = set()
-    datasets: list[str] = []
-    for module in installed_modules:
-        cfg = ss_dir / module / "default.config.yaml"
-        if not cfg.exists():
-            continue
-        data = load_yaml(cfg)
-        ds = data.get("dataset")
-        if ds and isinstance(ds, str) and ds not in seen:
-            seen.add(ds)
-            datasets.append(ds)
-    return datasets
-
-
 def build_foundation_vars(
     variant: str,
     env: str,
     site: str,
     datasets: list[str] | None = None,
 ) -> dict:
-    """Variables block for ``variables.modules.common.cdf_project_foundation``."""
+    """Variables block for ``variables.modules.cdf_project_foundation``."""
     ingestion = dict(INGESTION_FOUNDATION_VARIABLES[variant])
     ingestion["site"] = site
-    if datasets is not None:
-        ingestion["dataset"] = datasets
+    # Always write dataset so the key exists; empty list when no SS modules installed.
+    ingestion["dataset"] = datasets if datasets is not None else []
     for persona in PERSONAS:
         ingestion[f"{persona}GroupName"] = group_name(persona, site, env)
         ingestion[f"{persona}SourceId"] = f"${{{persona.upper()}_SOURCE_ID}}"
@@ -269,32 +256,56 @@ def build_overlay(
     app_owner: str = "",
     integration_owners: dict[str, tuple[str, str]] | None = None,
     data_owners: dict[str, tuple[str, str]] | None = None,
+    datasets: list[str] | None = None,
     repo_root: Path | None = None,
 ) -> dict:
-    """Full ``variables.modules`` overlay dict to merge into a config file."""
+    """Full ``variables.modules`` overlay dict to merge into a config file.
+
+    Uses a *flat* module-name structure (no category wrappers) to match both
+    Toolkit conventions and the output of ``generate_env_configs.py``, ensuring
+    ``_write_config_update`` can locate every key in existing config files.
+
+    ``datasets`` should be read from the existing ``config.<env>.yaml`` (populated
+    by Toolkit at module-init time).  The ``default.config.yaml`` files are not
+    reliable as Toolkit may delete them after consuming them.
+    """
     instance_space = INGESTION_FOUNDATION_VARIABLES[variant]["instanceSpace"]
+
     installed_ss = list_installed_source_system_modules(repo_root)
-    datasets = collect_sourcesystem_datasets(installed_ss, repo_root)
     ctx_vars = resolve_contextualization_variables(variant, instance_space, installed_ctx)
 
     if app_owner and "cdf_file_annotation" in ctx_vars:
         ctx_vars["cdf_file_annotation"]["ApplicationOwner"] = app_owner
-    # site doubles as location_name for entity matching (same concept).
     if site and "cdf_entity_matching" in ctx_vars:
         ctx_vars["cdf_entity_matching"]["location_name"] = site
 
+    # Always write dataset (even as empty list) so the key is always present.
     modules_vars: dict[str, Any] = {
-        "common": {
-            "cdf_project_foundation": build_foundation_vars(variant, env, site, datasets or None),
-        },
+        "cdf_project_foundation": build_foundation_vars(variant, env, site, datasets),
     }
-    if ctx_vars:
-        modules_vars["contextualization"] = ctx_vars
+    modules_vars.update(ctx_vars)
     if installed_ss:
-        modules_vars["sourcesystem"] = resolve_sourcesystem_variables(
-            instance_space, installed_ss, site, integration_owners, data_owners
+        modules_vars.update(
+            resolve_sourcesystem_variables(
+                instance_space, installed_ss, site, integration_owners, data_owners
+            )
         )
-    modules_vars["data_models"] = {variant: DATA_MODELS_MODULE_VARIABLES[variant]}
+    if variant == "cfihos_oil_and_gas_extension":
+        # CFIHOS uses its own space / instance_space variables — not the ISA ones.
+        # instance_space is derived from site; space is fixed.
+        modules_vars[variant] = {"instance_space": "inst_location", "environment": env}
+
+        # If the search solution module is also installed, keep its instance_space
+        # in sync with the enterprise module.
+        data_models_dir = get_data_models_dir(repo_root)
+        if (data_models_dir / "cfihos_oil_and_gas_extension_search").is_dir():
+            modules_vars["cfihos_oil_and_gas_extension_search"] = {
+                "instance_space": "inst_location",
+                "environment": env,
+            }
+    else:
+        # ISA variant — static variables (isaSchemaSpace, isaInstanceSpace).
+        modules_vars[variant] = DATA_MODELS_MODULE_VARIABLES[variant]
 
     return {"variables": {"modules": modules_vars}}
 
@@ -362,24 +373,34 @@ def _write_config_update(path: Path, project: str, overlay: dict) -> bool:
     changed = changed or c
 
     # Update every module variable from the overlay.
-    for category, cat_vars in overlay.get("variables", {}).get("modules", {}).items():
-        for module, mod_vars in cat_vars.items():
-            for key, val in mod_vars.items():
-                dotted = f"variables.modules.{category}.{module}.{key}"
-                # Use yaml.dump for all non-string types to get correct YAML
-                # representation (e.g. true/false for bools, [] for empty lists).
-                yaml_val = (
-                    val
-                    if isinstance(val, str)
-                    else yaml.dump(val, default_flow_style=True).strip()
-                )
-                old, c = _yaml_set_value(lines, dotted, yaml_val)
-                if old is None and not c:
-                    # Key absent — insert it into the parent section.
-                    parent = f"variables.modules.{category}.{module}"
-                    if _yaml_insert_key(lines, parent, key, yaml_val):
-                        c = True
-                changed = changed or c
+    # Tries the flat path first (new structure), then the old nested-category path
+    # (e.g. variables.modules.common.cdf_project_foundation.*) for backwards
+    # compatibility with configs created before the flat-structure migration.
+    for module, mod_vars in overlay.get("variables", {}).get("modules", {}).items():
+        if not isinstance(mod_vars, dict):
+            continue
+        for key, val in mod_vars.items():
+            yaml_val = (
+                val
+                if isinstance(val, str)
+                else yaml.dump(val, default_flow_style=True).strip()
+            )
+            # 1. Try flat path: variables.modules.<module>.<key>
+            old, c = _yaml_set_value(lines, f"variables.modules.{module}.{key}", yaml_val)
+            if old is None and not c:
+                # 2. Try legacy nested-category path.
+                category = _MODULE_CATEGORY_FALLBACK.get(module)
+                if category:
+                    old, c = _yaml_set_value(
+                        lines,
+                        f"variables.modules.{category}.{module}.{key}",
+                        yaml_val,
+                    )
+            if old is None and not c:
+                # 3. Key truly absent — insert under flat path.
+                if _yaml_insert_key(lines, f"variables.modules.{module}", key, yaml_val):
+                    c = True
+            changed = changed or c
 
     # Remove stale standalone-module keys now covered by cdf_project_foundation.
     for stale in _STALE_CTX_KEYS:
@@ -445,6 +466,46 @@ def remove_redundant_auth_files(repo_root: Path | None = None) -> list[Path]:
     return removed
 
 
+# ── Data model auth patching ──────────────────────────────────────────────────
+
+def patch_cfihos_auth_for_missing_search(repo_root: Path | None = None) -> list[Path]:
+    """Remove ``{{search_space}}`` from cfihos auth files when the search module is absent.
+
+    The ``cfihos_oil_and_gas_extension`` auth files include ``{{search_space}}`` in
+    the ``dataModelsAcl`` scope.  When ``cfihos_oil_and_gas_extension_search`` is not
+    installed that variable is undefined, which causes Toolkit to fail.  This function
+    strips the offending list item from every auth YAML under the extension's auth/
+    directory when the search module directory does not exist.
+
+    Returns the list of files actually modified.
+    """
+    data_models_dir = get_data_models_dir(repo_root)
+    search_module = data_models_dir / "cfihos_oil_and_gas_extension_search"
+    cfihos_auth_dir = data_models_dir / "cfihos_oil_and_gas_extension" / "auth"
+
+    if search_module.is_dir():
+        return []  # search module present — {{search_space}} is valid, leave as-is
+    if not cfihos_auth_dir.is_dir():
+        return []  # cfihos extension not installed
+
+    patched: list[Path] = []
+    for auth_file in sorted(cfihos_auth_dir.glob("*.yaml")):
+        original = auth_file.read_text()
+        # Remove any line that contains only the {{search_space}} list item.
+        new_lines = [
+            line for line in original.splitlines(keepends=True)
+            if "{{search_space}}" not in line
+        ]
+        if len(new_lines) < len(original.splitlines()):
+            auth_file.write_text("".join(new_lines))
+            patched.append(auth_file)
+            _ok(
+                f"Removed {{{{search_space}}}} from: "
+                f"{auth_file.relative_to(data_models_dir.parent)}"
+            )
+    return patched
+
+
 # ── CI/CD generation ───────────────────────────────────────────────────────────
 
 def _read_existing_values(
@@ -456,6 +517,7 @@ def _read_existing_values(
     existing: dict = {
         "project_names": {},
         "site": "",
+        "dataset": [],
         "app_owner": "",
         "integration_owners": {},
         "data_owners": {},
@@ -469,17 +531,33 @@ def _read_existing_values(
         if proj:
             existing["project_names"][env] = proj
         modules = cfg.get("variables", {}).get("modules", {})
-        foundation = modules.get("common", {}).get("cdf_project_foundation", {})
+        # Support both flat (new) and nested-category (old) structures.
+        foundation = (
+            modules.get("cdf_project_foundation")
+            or modules.get("common", {}).get("cdf_project_foundation", {})
+        )
         if foundation.get("site"):
             existing["site"] = foundation["site"]
+        # Collect dataset values from installed sourcesystem module sections.
+        # Supports both flat (new) and nested-category (old) config structures.
+        ss_section = modules.get("sourcesystem") or modules
+        ss_datasets: list[str] = []
+        for module in installed_ss:
+            mod_vars = ss_section.get(module, {}) if isinstance(ss_section, dict) else {}
+            ds = mod_vars.get("dataset", "")
+            if ds and isinstance(ds, str) and ds not in ss_datasets:
+                ss_datasets.append(ds)
+        if ss_datasets:
+            existing["dataset"] = ss_datasets
         app_owner = (
-            modules.get("contextualization", {})
-            .get("cdf_file_annotation", {})
+            (modules.get("cdf_file_annotation") or
+             modules.get("contextualization", {}).get("cdf_file_annotation", {}))
             .get("ApplicationOwner", "")
         )
         if app_owner and app_owner != "<APPLICATION_OWNER>":
             existing["app_owner"] = app_owner
-        ss = modules.get("sourcesystem", {})
+        # Support both flat and nested-category structures.
+        ss = modules if not modules.get("sourcesystem") else modules.get("sourcesystem", {})
         for module in installed_ss:
             mv = ss.get(module, {})
             if mv.get("integration_owner_name") or mv.get("integration_owner_email"):
@@ -758,7 +836,9 @@ def _run_wizard(
     for env, path in targets.items():
         overlay = build_overlay(
             variant, env, site, installed_ctx, app_owner,
-            integration_owners, data_owners, repo_root
+            integration_owners, data_owners,
+            datasets=existing["dataset"],
+            repo_root=repo_root,
         )
         if write_config(path, env, project_names[env], overlay):
             changed_count += 1
@@ -779,6 +859,7 @@ def _run_wizard(
 
     # ── Remove redundant auth files ───────────────────────────────────────────
     removed = remove_redundant_auth_files(repo_root)
+    patched = patch_cfihos_auth_for_missing_search(repo_root)
 
     # ── CI/CD generation ──────────────────────────────────────────────────────
     _run_cicd_wizard(pack_root, project_names)
@@ -788,6 +869,8 @@ def _run_wizard(
     _ok(f"{changed_count} config file(s) created/updated.")
     if removed:
         _ok(f"{len(removed)} redundant auth file(s) removed.")
+    if patched:
+        _ok(f"{len(patched)} cfihos auth file(s) patched (search_space removed).")
     if env_dirty:
         _ok(".env updated with group source IDs.")
     print()
@@ -806,19 +889,13 @@ def collect_expected(
     site: str,
     installed_ctx: list[str],
 ) -> dict[str, object]:
-    overlay = build_overlay(variant, env, site, installed_ctx)  # app_owner omitted intentionally
+    overlay = build_overlay(variant, env, site, installed_ctx)
     modules = overlay["variables"]["modules"]
     expected: dict[str, object] = {}
-    for key, value in modules["common"]["cdf_project_foundation"].items():
-        expected[f"common.cdf_project_foundation.{key}"] = value
-    for module, overrides in modules.get("contextualization", {}).items():
-        for key, value in overrides.items():
-            expected[f"contextualization.{module}.{key}"] = value
-    for module, overrides in modules.get("sourcesystem", {}).items():
-        for key, value in overrides.items():
-            expected[f"sourcesystem.{module}.{key}"] = value
-    for key, value in modules["data_models"][variant].items():
-        expected[f"data_models.{variant}.{key}"] = value
+    for module, mod_vars in modules.items():
+        if isinstance(mod_vars, dict):
+            for key, value in mod_vars.items():
+                expected[f"{module}.{key}"] = value
     return expected
 
 
