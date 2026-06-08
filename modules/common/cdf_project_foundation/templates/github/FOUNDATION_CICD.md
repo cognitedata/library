@@ -38,6 +38,21 @@ And this **secret**:
 
 - `IDP_CLIENT_SECRET`
 
+## Toolkit configs
+
+This generator only writes GitHub Actions workflows and this guide. It does not
+create or refresh `config.dev.yaml`, `config.test.yaml`, or `config.prod.yaml`.
+
+Before opening a PR, run the project setup wizard and commit the resulting config
+files together with the workflows:
+
+```bash
+python modules/common/cdf_project_foundation/scripts/setup_project.py
+cdf build --env dev
+```
+
+CI validates the committed configs as-is; it does not regenerate them.
+
 ## Regenerate workflows
 
 ```bash
