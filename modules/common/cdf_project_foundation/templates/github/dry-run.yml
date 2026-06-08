@@ -41,16 +41,24 @@ jobs:
         with:
           python-version: "3.13"
 
-      - name: Install pre-commit
-        run: pip install pre-commit
+      - name: Install lint dependencies
+        run: pip install pre-commit pyyaml
 
       - name: Validate workflow YAML
         run: |
-          pre-commit run check-yaml --files \
-            .github/workflows/dry-run.yml \
-            .github/workflows/deploy-dev.yml \
-            .github/workflows/deploy-test.yml \
-            .github/workflows/deploy-prod.yml
+          python - <<'PY'
+          from pathlib import Path
+          import yaml
+
+          for path in (
+              ".github/workflows/dry-run.yml",
+              ".github/workflows/deploy-dev.yml",
+              ".github/workflows/deploy-test.yml",
+              ".github/workflows/deploy-prod.yml",
+          ):
+              yaml.safe_load(Path(path).read_text())
+              print(f"valid yaml: {path}")
+          PY
 
       - name: Config lint (Toolkit templates; skip strict YAML on modules)
         env:
