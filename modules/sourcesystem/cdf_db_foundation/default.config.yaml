@@ -1,15 +1,18 @@
 # DB Foundation — configuration variables
 
 # Site/location code, used in externalIds (e.g. ep_{{location}}_db_postgres, db_{{location}}_db_postgres)
-location: "site1"
+# Populated automatically from the site / location name entered in setup_project.py.
+location: ""
 
 # dataSetExternalId for the extraction pipeline and RAW database
 dataset: "ds_db_postgres"
 
 # Integration owner (technical contact for the pipeline)
-integration_owner_name: "Integration Owner"
-integration_owner_email: "integration.owner@example.com"
+# Populated by setup_project.py wizard.
+integration_owner_name: ""
+integration_owner_email: ""
 
 # Data owner (business contact for the data)
-data_owner_name: "Data Owner"
-data_owner_email: "data.owner@example.com"
+# Populated by setup_project.py wizard.
+data_owner_name: ""
+data_owner_email: ""
