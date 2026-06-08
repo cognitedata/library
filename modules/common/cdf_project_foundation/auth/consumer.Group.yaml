@@ -14,7 +14,7 @@ capabilities:
       actions: [READ]
       scope:
         idScope:
-          ids: ["{{ dataset }}"]
+          ids: {{ dataset }}
   - dataModelsAcl:
       # schemaSpace only: consumers need DM view definitions, not instance-space definitions
       actions: [READ]
@@ -30,12 +30,12 @@ capabilities:
       actions: [READ]
       scope:
         datasetScope:
-          ids: ["{{ dataset }}"]
+          ids: {{ dataset }}
   - filesAcl:
       actions: [READ]
       scope:
         datasetScope:
-          ids: ["{{ dataset }}"]
+          ids: {{ dataset }}
   - rawAcl:
       # rawAcl tableScope requires explicit table names at deploy time; all is the standard workaround
       actions: [READ]

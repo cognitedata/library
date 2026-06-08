@@ -3,7 +3,7 @@ site: ""
 
 # Dataset used to scope the foundation access group ACLs.
 # Must match the dataset used by the source system modules.
-dataset: "ds_ingestion"
+dataset: []
 
 # Computed by scripts/setup_project.py per environment as <persona>[-<site>]-<env>
 # where env is "dev" (covers dev + test) or "prod". These defaults are the

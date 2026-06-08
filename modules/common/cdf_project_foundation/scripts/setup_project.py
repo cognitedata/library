@@ -28,10 +28,11 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-from _env_io import parse_env_file, upsert_env  # noqa: F401 (re-exported for tests)
+from _env_io import parse_env_file  # noqa: F401 (re-exported for tests)
 from _pack_config import (
     CONTEXTUALIZATION_REDUNDANT_AUTH,
     KNOWN_DATA_MODEL_DIRS,
+    TOOLS_REDUNDANT_AUTH,
     REPO_ROOT,
     deep_merge,
     detect_data_model_variant,
@@ -39,12 +40,13 @@ from _pack_config import (
     get_contextualization_dir,
     get_data_models_dir,
     get_pack_root,
+    get_sourcesystem_dir,
     list_installed_contextualization_modules,
     list_installed_source_system_modules,
     load_yaml,
 )
 from _prompts import prompt, prompt_choice, prompt_env_var, prompt_yes_no
-from _style import ChangeRecord, _banner, _hint, _ok, _section, _show_changes_table, _warn
+from _style import _banner, _hint, _ok, _section, _warn
 from _yaml_patch import delete_key as _yaml_delete_key
 from _yaml_patch import find_line as _yaml_find_line
 from _yaml_patch import insert_key as _yaml_insert_key
@@ -176,17 +178,83 @@ def resolve_contextualization_variables(
     return result
 
 
+_MODULE_LABELS: dict[str, str] = {
+    "cdf_pi_foundation":    "PI Foundation",
+    "cdf_sap_foundation":   "SAP Foundation",
+    "cdf_opcua_foundation": "OPC-UA Foundation",
+    "cdf_db_foundation":    "DB Foundation",
+    "cdf_files_foundation": "Files Foundation",
+}
+
+
+def _module_label(module: str) -> str:
+    return _MODULE_LABELS.get(module, module)
+
+
 def resolve_sourcesystem_variables(
     instance_space: str,
     installed_modules: list[str],
+    location: str = "",
+    integration_owners: dict[str, tuple[str, str]] | None = None,
+    data_owners: dict[str, tuple[str, str]] | None = None,
 ) -> dict[str, dict]:
-    return {module: {"instanceSpace": instance_space} for module in installed_modules}
+    result: dict[str, dict] = {}
+    for module in installed_modules:
+        vars_: dict[str, Any] = {"instanceSpace": instance_space}
+        if location:
+            vars_["location"] = location
+        if integration_owners and module in integration_owners:
+            name, email = integration_owners[module]
+            if name:
+                vars_["integration_owner_name"] = name
+            if email:
+                vars_["integration_owner_email"] = email
+        if data_owners and module in data_owners:
+            name, email = data_owners[module]
+            if name:
+                vars_["data_owner_name"] = name
+            if email:
+                vars_["data_owner_email"] = email
+        result[module] = vars_
+    return result
 
 
-def build_foundation_vars(variant: str, env: str, site: str) -> dict:
+def collect_sourcesystem_datasets(
+    installed_modules: list[str],
+    repo_root: Path | None = None,
+) -> list[str]:
+    """Read ``dataset`` from each installed foundation source system module's default.config.yaml.
+
+    Only covers the five foundation modules (cdf_pi_foundation, cdf_sap_foundation,
+    cdf_opcua_foundation, cdf_db_foundation, cdf_files_foundation).
+    Returns a deduplicated ordered list of dataset external IDs.
+    """
+    ss_dir = get_sourcesystem_dir(repo_root)
+    seen: set[str] = set()
+    datasets: list[str] = []
+    for module in installed_modules:
+        cfg = ss_dir / module / "default.config.yaml"
+        if not cfg.exists():
+            continue
+        data = load_yaml(cfg)
+        ds = data.get("dataset")
+        if ds and isinstance(ds, str) and ds not in seen:
+            seen.add(ds)
+            datasets.append(ds)
+    return datasets
+
+
+def build_foundation_vars(
+    variant: str,
+    env: str,
+    site: str,
+    datasets: list[str] | None = None,
+) -> dict:
     """Variables block for ``variables.modules.common.cdf_project_foundation``."""
     ingestion = dict(INGESTION_FOUNDATION_VARIABLES[variant])
     ingestion["site"] = site
+    if datasets is not None:
+        ingestion["dataset"] = datasets
     for persona in PERSONAS:
         ingestion[f"{persona}GroupName"] = group_name(persona, site, env)
         ingestion[f"{persona}SourceId"] = f"${{{persona.upper()}_SOURCE_ID}}"
@@ -199,11 +267,14 @@ def build_overlay(
     site: str,
     installed_ctx: list[str],
     app_owner: str = "",
+    integration_owners: dict[str, tuple[str, str]] | None = None,
+    data_owners: dict[str, tuple[str, str]] | None = None,
     repo_root: Path | None = None,
 ) -> dict:
     """Full ``variables.modules`` overlay dict to merge into a config file."""
     instance_space = INGESTION_FOUNDATION_VARIABLES[variant]["instanceSpace"]
     installed_ss = list_installed_source_system_modules(repo_root)
+    datasets = collect_sourcesystem_datasets(installed_ss, repo_root)
     ctx_vars = resolve_contextualization_variables(variant, instance_space, installed_ctx)
 
     if app_owner and "cdf_file_annotation" in ctx_vars:
@@ -214,13 +285,15 @@ def build_overlay(
 
     modules_vars: dict[str, Any] = {
         "common": {
-            "cdf_project_foundation": build_foundation_vars(variant, env, site),
+            "cdf_project_foundation": build_foundation_vars(variant, env, site, datasets or None),
         },
     }
     if ctx_vars:
         modules_vars["contextualization"] = ctx_vars
     if installed_ss:
-        modules_vars["sourcesystem"] = resolve_sourcesystem_variables(instance_space, installed_ss)
+        modules_vars["sourcesystem"] = resolve_sourcesystem_variables(
+            instance_space, installed_ss, site, integration_owners, data_owners
+        )
     modules_vars["data_models"] = {variant: DATA_MODELS_MODULE_VARIABLES[variant]}
 
     return {"variables": {"modules": modules_vars}}
@@ -337,20 +410,162 @@ def write_config(path: Path, env: str, project: str, overlay: dict) -> bool:
 # ── Redundant auth cleanup ─────────────────────────────────────────────────────
 
 def remove_redundant_auth_files(repo_root: Path | None = None) -> list[Path]:
-    """Remove contextualization auth group files covered by cdf_project_foundation."""
-    ctx_dir = get_contextualization_dir(repo_root)
+    """Remove auth group files covered by cdf_project_foundation.
+
+    Covers contextualization modules (entity matching, file annotation) and
+    tools/apps modules (qualitizer) whose standalone auth becomes redundant
+    once the foundation persona groups are deployed.
+    """
+    from _pack_config import REPO_ROOT as _REPO_ROOT
+    modules_root = (_REPO_ROOT if repo_root is None else repo_root) / "modules"
     removed: list[Path] = []
+
+    # Contextualization modules.
+    ctx_dir = get_contextualization_dir(repo_root)
     for module_dir in list_installed_contextualization_modules(repo_root):
         for rel_path in CONTEXTUALIZATION_REDUNDANT_AUTH[module_dir]:
             auth_file = ctx_dir / module_dir / rel_path
             if auth_file.exists():
                 auth_file.unlink()
                 removed.append(auth_file)
-                _ok(f"Removed redundant auth: {auth_file.relative_to(ctx_dir.parent.parent)}")
+                _ok(f"Removed redundant auth: {auth_file.relative_to(modules_root)}")
+
+    # Tools / apps modules.
+    for module_rel, auth_files in TOOLS_REDUNDANT_AUTH.items():
+        module_dir = modules_root / module_rel
+        if not module_dir.is_dir():
+            continue
+        for rel_path in auth_files:
+            auth_file = module_dir / rel_path
+            if auth_file.exists():
+                auth_file.unlink()
+                removed.append(auth_file)
+                _ok(f"Removed redundant auth: {auth_file.relative_to(modules_root)}")
+
     return removed
 
 
 # ── CI/CD generation ───────────────────────────────────────────────────────────
+
+def _read_existing_values(
+    pack_root: Path,
+    envs: tuple[str, ...],
+    installed_ss: list[str],
+) -> dict:
+    """Read current values from existing config files to pre-fill prompts on re-run."""
+    existing: dict = {
+        "project_names": {},
+        "site": "",
+        "app_owner": "",
+        "integration_owners": {},
+        "data_owners": {},
+    }
+    for env in envs:
+        path = pack_root / f"config.{env}.yaml"
+        if not path.exists():
+            continue
+        cfg = load_yaml(path)
+        proj = cfg.get("environment", {}).get("project", "")
+        if proj:
+            existing["project_names"][env] = proj
+        modules = cfg.get("variables", {}).get("modules", {})
+        foundation = modules.get("common", {}).get("cdf_project_foundation", {})
+        if foundation.get("site"):
+            existing["site"] = foundation["site"]
+        app_owner = (
+            modules.get("contextualization", {})
+            .get("cdf_file_annotation", {})
+            .get("ApplicationOwner", "")
+        )
+        if app_owner and app_owner != "<APPLICATION_OWNER>":
+            existing["app_owner"] = app_owner
+        ss = modules.get("sourcesystem", {})
+        for module in installed_ss:
+            mv = ss.get(module, {})
+            if mv.get("integration_owner_name") or mv.get("integration_owner_email"):
+                existing["integration_owners"][module] = (
+                    mv.get("integration_owner_name", ""),
+                    mv.get("integration_owner_email", ""),
+                )
+            if mv.get("data_owner_name") or mv.get("data_owner_email"):
+                existing["data_owners"][module] = (
+                    mv.get("data_owner_name", ""),
+                    mv.get("data_owner_email", ""),
+                )
+    return existing
+
+
+def _prompt_owner(
+    label: str,
+    default_name: str = "",
+    default_email: str = "",
+) -> tuple[str, str]:
+    """Prompt for an owner's name and a validated email. Both are optional (blank skips)."""
+    name = prompt(f"{label} name", default=default_name or None).strip()
+    while True:
+        email = prompt(f"{label} email", default=default_email or None).strip()
+        if not email or re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", email):
+            return name, email
+        _warn("Invalid email. Use format: name@domain.com")
+
+
+def _all_same(owners: dict[str, tuple[str, str]]) -> bool:
+    """Return True if all modules share the same owner (name, email) pair."""
+    vals = list(owners.values())
+    return bool(vals) and all(v == vals[0] for v in vals)
+
+
+def _prompt_source_system_ownership(
+    installed_ss: list[str],
+    existing_integration: dict[str, tuple[str, str]] | None = None,
+    existing_data: dict[str, tuple[str, str]] | None = None,
+) -> tuple[dict[str, tuple[str, str]], dict[str, tuple[str, str]]]:
+    """Prompt for integration and data owner details for installed source systems.
+
+    Pre-fills prompts from *existing_integration* / *existing_data* on re-runs.
+    Returns (integration_owners, data_owners) — each a dict of module → (name, email).
+    """
+    if not installed_ss:
+        return {}, {}
+
+    ei = existing_integration or {}
+    ed = existing_data or {}
+
+    _section("Source System Ownership")
+    _hint(f"Installed: {', '.join(_module_label(m) for m in installed_ss)}")
+
+    # ── Integration owner ─────────────────────────────────────────────────────
+    print()
+    integration_owners: dict[str, tuple[str, str]] = {}
+    shared_int_default = _all_same(ei) if ei else True
+    if prompt_yes_no("Same integration owner for all source systems?", default=shared_int_default):
+        first = next(iter(ei.values()), ("", "")) if ei else ("", "")
+        name, email = _prompt_owner("  Integration owner", *first)
+        for m in installed_ss:
+            integration_owners[m] = (name, email)
+    else:
+        for m in installed_ss:
+            print(f"\n  {_module_label(m)}")
+            dn, de = ei.get(m, ("", ""))
+            integration_owners[m] = _prompt_owner("    Integration owner", dn, de)
+
+    # ── Data owner ────────────────────────────────────────────────────────────
+    print()
+    data_owners: dict[str, tuple[str, str]] = {}
+    shared_data_default = _all_same(ed) if ed else True
+    if prompt_yes_no("Same data owner for all source systems?", default=shared_data_default):
+        first = next(iter(ed.values()), ("", "")) if ed else ("", "")
+        name, email = _prompt_owner("  Data owner", *first)
+        for m in installed_ss:
+            data_owners[m] = (name, email)
+    else:
+        for m in installed_ss:
+            print(f"\n  {_module_label(m)}")
+            dn, de = ed.get(m, ("", ""))
+            data_owners[m] = _prompt_owner("    Data owner", dn, de)
+
+    return integration_owners, data_owners
+
 
 def _derive_enterprise(project_names: dict[str, str]) -> str | None:
     """Try to derive the enterprise slug from project names like ``acme-dev`` → ``acme``."""
@@ -402,6 +617,7 @@ def _run_wizard(
     pack_root = get_pack_root(repo_root)
     variant = resolve_variant(args_variant, get_data_models_dir(repo_root))
     installed_ctx = list_installed_contextualization_modules(repo_root)
+    installed_ss = list_installed_source_system_modules(repo_root)
 
     _banner("Foundation Deployment Pack — Project Setup")
     _ok(f"Data model variant : {variant}")
@@ -437,6 +653,10 @@ def _run_wizard(
         if not selected_envs:
             raise SystemExit("No environments selected — nothing to do.")
 
+    # Load existing values from config files to pre-fill prompts on re-runs.
+    existing = _read_existing_values(pack_root, selected_envs, installed_ss)
+    targets = target_config_paths(pack_root, selected_envs)
+
     # ── CDF project names ─────────────────────────────────────────────────────
     _section("CDF Project Names")
     _hint("Format: <enterprise>-<env>  e.g. acme-dev, acme-test, acme-prod")
@@ -444,7 +664,10 @@ def _run_wizard(
     project_names: dict[str, str] = {}
     for env in selected_envs:
         while True:
-            val = prompt(f"Project name for {env}").strip()
+            val = prompt(
+                f"Project name for {env}",
+                default=existing["project_names"].get(env) or None,
+            ).strip()
             if not val:
                 _warn("Project name cannot be empty.")
                 continue
@@ -463,13 +686,21 @@ def _run_wizard(
         site = args_site
         _hint(f"Using --site value: {site}")
     else:
-        site = prompt("Site / location name (e.g. oslo)", default="").strip()
+        while True:
+            site = prompt(
+                "Site / location name (e.g. oslo)",
+                default=existing["site"] or None,
+            ).strip().lower()
+            if not site or re.fullmatch(r"[a-z0-9_-]+", site):
+                break
+            _warn("Use only lowercase letters, digits, hyphens, and underscores.")
 
-    if site and not re.fullmatch(r"[a-z0-9_-]+", site):
-        raise SystemExit(
-            f"ERROR: site '{site}' contains invalid characters.\n"
-            "  Only lowercase letters, digits, hyphens, and underscores are allowed."
-        )
+    # ── Source system ownership ───────────────────────────────────────────────
+    integration_owners, data_owners = _prompt_source_system_ownership(
+        installed_ss,
+        existing_integration=existing["integration_owners"] or None,
+        existing_data=existing["data_owners"] or None,
+    )
 
     # ── Group source IDs → .env ───────────────────────────────────────────────
     _section("Group Source IDs  (Entra ID object IDs)")
@@ -491,44 +722,28 @@ def _run_wizard(
         _hint("Email address(es) of the Streamlit app owner for cdf_file_annotation.")
         _hint("Separate multiple addresses with a comma.")
         while True:
-            app_owner = prompt("Application owner email(s)", default="").strip()
+            app_owner = prompt(
+                "Application owner email(s)",
+                default=existing["app_owner"] or None,
+            ).strip()
             if not app_owner:
-                break  # optional — skip if blank
+                break
             emails = [e.strip() for e in app_owner.split(",") if e.strip()]
             if all(re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", e) for e in emails):
                 break
             _warn("One or more addresses look invalid. Use format: name@domain.com")
 
-    # ── Pending changes ───────────────────────────────────────────────────────
-    targets = target_config_paths(pack_root, selected_envs)
-
-    _section("Pending Changes")
-    for env, path in targets.items():
-        overlay = build_overlay(variant, env, site, installed_ctx, app_owner, repo_root)
-        state = "create" if not path.exists() else "update"
-        print(f"\n  [{state}] {path.name}")
-        print(f"  environment.project  →  {project_names[env]}")
-        records = [
-            ChangeRecord(f"{cat}.{mod}.{key}", None, val)
-            for cat, cat_vars in overlay["variables"]["modules"].items()
-            for mod, mod_vars in cat_vars.items()
-            for key, val in mod_vars.items()
-        ]
-        _show_changes_table(records)
-
+    # ── Review summary ────────────────────────────────────────────────────────
     env_dirty = any(
         env_vals.get(f"{p.upper()}_SOURCE_ID") != original_env_vals.get(f"{p.upper()}_SOURCE_ID")
         for p in PERSONAS
     )
+    _section("Review")
+    for env, path in targets.items():
+        state = "create" if not path.exists() else "update"
+        _ok(f"[{state}] {path.name}  —  project: {project_names[env]}")
     if env_dirty:
-        print("\n  [.env]")
-        for persona in PERSONAS:
-            var = f"{persona.upper()}_SOURCE_ID"
-            old = original_env_vals.get(var, "(not set)")
-            new = env_vals.get(var, "(not set)")
-            if old != new:
-                masked = new[:3] + "****" if len(new) > 6 else "****"
-                print(f"  {var}: {old} → {masked}")
+        _ok(".env  —  group source IDs updated")
 
     # ── Confirm ───────────────────────────────────────────────────────────────
     print()
@@ -541,7 +756,10 @@ def _run_wizard(
     _section("Writing Config Files")
     changed_count = 0
     for env, path in targets.items():
-        overlay = build_overlay(variant, env, site, installed_ctx, app_owner, repo_root)
+        overlay = build_overlay(
+            variant, env, site, installed_ctx, app_owner,
+            integration_owners, data_owners, repo_root
+        )
         if write_config(path, env, project_names[env], overlay):
             changed_count += 1
         else:

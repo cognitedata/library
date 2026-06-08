@@ -31,6 +31,13 @@ CONTEXTUALIZATION_REDUNDANT_AUTH: dict[str, tuple[str, ...]] = {
     "cdf_file_annotation": ("auth/file_annotation.Group.yaml",),
 }
 
+# Tools/apps modules whose standalone auth groups become redundant when
+# cdf_foundation is present.
+# Maps module path (relative to modules/) → auth file(s) relative to the module root.
+TOOLS_REDUNDANT_AUTH: dict[str, tuple[str, ...]] = {
+    "tools/apps/qualitizer": ("auth/apps.qualitizer.Group.yaml",),
+}
+
 
 def get_org_dir_name(repo_root: Path | None = None) -> str | None:
     """Return default_organization_dir from cdf.toml, or None if unset/empty."""
