@@ -98,16 +98,33 @@ def write_file(path: Path, content: str, force: bool) -> None:
     print(f"Wrote {path}")
 
 
-def build_lint_paths(org_dir: str | None, module_paths: list[str]) -> str:
+def build_lint_paths(
+    org_dir: str | None,
+    module_paths: list[str],
+    modules_root: Path,
+    repo_root: Path,
+) -> str:
+    """Return git pathspecs for generated workflow linting.
+
+    Keep this scoped to committed project configs and selected foundation modules.
+    The modules directory may live either at repo root or under the organization
+    directory, so module pathspecs must mirror the discovered modules root.
+    """
+    modules_base = "modules"
+    if org_dir and modules_root == repo_root / org_dir / "modules":
+        modules_base = f"{org_dir}/modules"
+
     entries: list[str] = [
         "'cdf.toml'",
         "'.pre-commit-config.yaml'",
         "'.github/scripts/'",
     ]
     if org_dir:
-        entries.insert(0, f"'{org_dir}/'")
+        entries.insert(0, f"'{org_dir}/config*.yaml'")
+    else:
+        entries.insert(0, "'config*.yaml'")
     for path in module_paths:
-        entries.append(f"'modules/{path}/'")
+        entries.append(f"'{modules_base}/{path}/'")
     return " \\\n            ".join(entries)
 
 
@@ -160,7 +177,7 @@ def main() -> None:
     base_values: dict[str, str] = {
         "ENTERPRISE": enterprise,
         "TOOLKIT_VERSION": str(toolkit_version),
-        "LINT_PATHS": build_lint_paths(org_dir, module_paths),
+        "LINT_PATHS": build_lint_paths(org_dir, module_paths, modules_root, repo_root),
     }
 
     for name in ("dry-run.yml", "deploy-prod.yml"):
