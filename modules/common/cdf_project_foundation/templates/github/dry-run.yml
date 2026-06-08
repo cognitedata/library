@@ -75,6 +75,10 @@ jobs:
     needs:
       - source-branch-guard
       - lint
+    if: >-
+      always() &&
+      needs.lint.result == 'success' &&
+      (github.base_ref == 'dev' || needs.source-branch-guard.result == 'success')
     runs-on: ubuntu-latest
     environment: ${{ github.base_ref == 'dev' && 'dev-toolkit-credentials' || 'test-toolkit-credentials' }}
     env:
