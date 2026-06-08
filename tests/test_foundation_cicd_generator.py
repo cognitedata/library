@@ -69,4 +69,4 @@ version = "0.7.220"
         encoding="utf-8"
     )
     assert "'industrial/config*.yaml'" in dry_run
-    assert "'industrial/modules/sourcesystem/cdf_pi_foundation/'" in dry_run
+    assert "'industrial/modules/sourcesystem/cdf_pi_foundation/'" not in dry_run

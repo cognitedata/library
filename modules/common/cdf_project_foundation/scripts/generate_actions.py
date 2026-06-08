@@ -98,22 +98,13 @@ def write_file(path: Path, content: str, force: bool) -> None:
     print(f"Wrote {path}")
 
 
-def build_lint_paths(
-    org_dir: str | None,
-    module_paths: list[str],
-    modules_root: Path,
-    repo_root: Path,
-) -> str:
+def build_lint_paths(org_dir: str | None) -> str:
     """Return git pathspecs for generated workflow linting.
 
-    Keep this scoped to committed project configs and selected foundation modules.
-    The modules directory may live either at repo root or under the organization
-    directory, so module pathspecs must mirror the discovered modules root.
+    Keep this scoped to committed project-level files. Deployment modules often
+    ship README files, notebooks, and generated Python that are not intended to
+    satisfy the destination repository's pre-commit hooks.
     """
-    modules_base = "modules"
-    if org_dir and modules_root == repo_root / org_dir / "modules":
-        modules_base = f"{org_dir}/modules"
-
     entries: list[str] = [
         "'cdf.toml'",
         "'.pre-commit-config.yaml'",
@@ -123,8 +114,6 @@ def build_lint_paths(
         entries.insert(0, f"'{org_dir}/config*.yaml'")
     else:
         entries.insert(0, "'config*.yaml'")
-    for path in module_paths:
-        entries.append(f"'{modules_base}/{path}/'")
     return " \\\n            ".join(entries)
 
 
@@ -171,13 +160,12 @@ def main() -> None:
     enterprise = resolve_enterprise(args.enterprise, cdf)
 
     toolkit_version = cdf.get("modules", {}).get("version", "0.7.220")
-    modules_root = resolve_modules_root(repo_root, org_dir)
-    module_paths = discover_foundation_module_paths(modules_root, repo_root)
+    resolve_modules_root(repo_root, org_dir)
 
     base_values: dict[str, str] = {
         "ENTERPRISE": enterprise,
         "TOOLKIT_VERSION": str(toolkit_version),
-        "LINT_PATHS": build_lint_paths(org_dir, module_paths, modules_root, repo_root),
+        "LINT_PATHS": build_lint_paths(org_dir),
     }
 
     for name in ("dry-run.yml", "deploy-prod.yml"):
