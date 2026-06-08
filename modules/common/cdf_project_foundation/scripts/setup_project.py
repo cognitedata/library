@@ -32,8 +32,8 @@ from _env_io import parse_env_file  # noqa: F401 (re-exported for tests)
 from _pack_config import (
     CONTEXTUALIZATION_REDUNDANT_AUTH,
     KNOWN_DATA_MODEL_DIRS,
-    TOOLS_REDUNDANT_AUTH,
     REPO_ROOT,
+    TOOLS_REDUNDANT_AUTH,
     deep_merge,
     detect_data_model_variant,
     find_env_configs,
