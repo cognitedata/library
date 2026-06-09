@@ -1,5 +1,4 @@
 externalId: "ep_{{location}}_opcua"
-dataSetExternalId: "{{dataset}}"
 config:
   version: 1
   source:
@@ -193,6 +192,6 @@ config:
     # Optional Prometheus push-gateway for extractor metrics.
     push-gateways:
     - host: https://opcua-pushgw.example.com/
-      job: '{{prometheus-job-name}}'
+      job: '{{prometheusJobName}}'
       username: ${PROMETHEUS_USER}
       password: ${PROMETHEUS_PASSWORD}

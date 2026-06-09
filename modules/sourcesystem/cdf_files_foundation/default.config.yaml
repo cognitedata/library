@@ -2,7 +2,8 @@
 # Default example pipeline targets SharePoint Online via the Files Extractor (CDM mode).
 
 # Site/location code, used in externalIds (e.g. ep_{{location}}_files_sharepoint)
-location: "site1"
+# Populated automatically from the site / location name entered in setup_project.py.
+location: ""
 
 # dataSetExternalId for the extraction pipeline (Files written by the extractor land here)
 dataset: "ds_files"
@@ -11,9 +12,11 @@ dataset: "ds_files"
 instanceSpace: "sp_instances"
 
 # Integration owner (technical contact for the pipeline)
-integration_owner_name: "Integration Owner"
-integration_owner_email: "integration.owner@example.com"
+# Populated by setup_project.py wizard.
+integration_owner_name: ""
+integration_owner_email: ""
 
 # Data owner (business contact for the data)
-data_owner_name: "Data Owner"
-data_owner_email: "data.owner@example.com"
+# Populated by setup_project.py wizard.
+data_owner_name: ""
+data_owner_email: ""

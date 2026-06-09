@@ -3,7 +3,7 @@ site: ""
 
 # Dataset used to scope the foundation access group ACLs.
 # Must match the dataset used by the source system modules.
-dataset: "ds_ingestion"
+dataset: []
 
 # Computed by scripts/setup_project.py per environment as <persona>[-<site>]-<env>
 # where env is "dev" (covers dev + test) or "prod". These defaults are the
@@ -13,11 +13,11 @@ producerGroupName: "producer-dev"
 adminGroupName: "admin-dev"
 
 # Object ID of the Entra ID security group mapped to each persona (SOP Step 3d).
-# These are object IDs, not secrets — safe to template, left blank by default.
-# Populate per environment after the Entra ID groups have been created.
-consumerSourceId: ""    # read-only consumers
-producerSourceId: ""    # read/write ingestion producers
-adminSourceId: ""       # foundation administrators
+# Values are stored in .env by setup_project.py and referenced here via ${…}.
+# Run the wizard to populate .env, or set the variables manually.
+consumerSourceId: "${CONSUMER_SOURCE_ID}"    # read-only consumers
+producerSourceId: "${PRODUCER_SOURCE_ID}"    # read/write ingestion producers
+adminSourceId: "${ADMIN_SOURCE_ID}"          # foundation administrators
 
 # Schema space where the selected data model views are defined.
 # Generic across variants: sp_isa_manufacturing (ISA) or dm_dom_oil_and_gas (CHIFO).

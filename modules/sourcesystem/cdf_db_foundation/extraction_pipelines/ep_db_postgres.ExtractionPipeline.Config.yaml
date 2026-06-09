@@ -1,5 +1,4 @@
 externalId: "ep_{{location}}_db_postgres"
-dataSetExternalId: "{{dataset}}"
 config:
   # Runtime config for the DB Extractor — see ep_db_postgres.ExtractionPipeline.yaml
   # documentation block for required environment variables and install steps.
