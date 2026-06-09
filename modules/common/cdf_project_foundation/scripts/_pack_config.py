@@ -1,7 +1,5 @@
 """Shared path / config helpers for setup_project.py."""
 
-from __future__ import annotations
-
 from pathlib import Path
 
 import tomllib
