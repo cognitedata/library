@@ -130,6 +130,26 @@ modules = [
     "tools/apps/qualitizer",
 ]
 
+[packages.foundation]
+id = "dp:foundation"
+title = "Foundation Deployment Pack"
+description = "Quick-start foundation for CDF projects with modular data models, source connectors, and contextualization."
+canCherryPick = true
+modules = [
+    "data_models/isa_manufacturing_extension",
+    "data_models/cfihos_oil_and_gas_extension",
+    "data_models/cfihos_oil_and_gas_extension_search",
+    "sourcesystem/cdf_pi_foundation",
+    "sourcesystem/cdf_opcua_foundation",
+    "sourcesystem/cdf_sap_foundation",
+    "sourcesystem/cdf_db_foundation",
+    "sourcesystem/cdf_files_foundation",
+    "common/cdf_project_foundation",
+    "contextualization/cdf_file_annotation",
+    "contextualization/cdf_entity_matching",
+    "tools/apps/qualitizer",
+]
+
 [packages.custom]
 id = "dp:emptymodule"
 title = "Empty Module"
