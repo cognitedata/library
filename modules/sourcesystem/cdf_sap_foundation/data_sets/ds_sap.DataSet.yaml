@@ -1,0 +1,6 @@
+- externalId: ds_sap
+  name: SAP Foundation
+  description: Data set for SAP foundation extraction pipelines
+  writeProtected: false
+  metadata:
+    origin: cognite-toolkit

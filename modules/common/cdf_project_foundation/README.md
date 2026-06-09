@@ -129,3 +129,17 @@ cdf deploy
 
 See `sop-cdf-project-setup.md` (repo root) for the authoritative project-setup
 procedure, including environments, Entra ID integration, CI/CD, and sign-off.
+
+## CI/CD setup (customer projects)
+
+After `cdf modules add -d dp:foundation`, generate GitHub Actions from the **Toolkit project root**:
+
+```bash
+python modules/common/cdf_project_foundation/scripts/generate_actions.py --force
+```
+
+Set `enterprise` in `cdf.toml` under `[cdf]` (e.g. `enterprise = "acme"`) or pass `--enterprise <slug>` to override. The script reads `org-dir` and toolkit version from `cdf.toml` automatically.
+
+This writes `.github/workflows/` (`dry-run.yml`, `deploy-dev.yml`, `deploy-test.yml`, `deploy-prod.yml`) and adds `docs/FOUNDATION_CICD.md` (GitHub Environments and secrets).
+
+Branching model: PRs to `dev` / `main`; deploy **dev** on merge to `dev`, **test** on merge to `main`, **prod** on GitHub Release from `main` (see generated `docs/FOUNDATION_CICD.md`).

@@ -1,0 +1,44 @@
+name: Toolkit Deploy {{ENV_LABEL}}
+
+on:
+  push:
+    branches:
+      - {{BRANCH}}
+
+concurrency:
+  group: toolkit-deploy-{{ENV}}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy to {{ENTERPRISE}}-{{ENV}}
+    runs-on: ubuntu-latest
+    environment: {{ENV}}-toolkit-credentials
+    env:
+      CDF_CLUSTER: ${{ vars.CDF_CLUSTER }}
+      CDF_PROJECT: ${{ vars.CDF_PROJECT }}
+      LOGIN_FLOW: ${{ vars.LOGIN_FLOW }}
+      IDP_TENANT_ID: ${{ vars.IDP_TENANT_ID }}
+      IDP_CLIENT_ID: ${{ vars.IDP_CLIENT_ID }}
+      IDP_CLIENT_SECRET: ${{ secrets.IDP_CLIENT_SECRET }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Remove local .env
+        run: rm -f .env
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install Cognite Toolkit
+        run: pip install "cognite-toolkit=={{TOOLKIT_VERSION}}" pyyaml
+
+      - name: cdf build
+        run: cdf build --env {{ENV}}
+
+      - name: cdf deploy
+        run: cdf deploy --env {{ENV}}
