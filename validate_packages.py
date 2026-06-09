@@ -5,11 +5,11 @@ Checks structure and validates that all module paths exist.
 Assumes "modules" as the base folder where packages.toml is located.
 """
 
+from collections import defaultdict
 import os
+from pathlib import Path
 import sys
 import tomllib
-from collections import defaultdict
-from pathlib import Path
 from typing import Any, Dict, List
 
 
