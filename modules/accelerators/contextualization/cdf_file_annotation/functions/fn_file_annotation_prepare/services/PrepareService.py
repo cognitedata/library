@@ -2,7 +2,10 @@ import abc
 from typing import Literal, cast
 
 from cognite.client import CogniteClient
-from cognite.client.data_classes.data_modeling import NodeApply, NodeList
+from cognite.client.data_classes.data_modeling import (
+    NodeApply,
+    NodeList,
+)
 from cognite.client.exceptions import CogniteAPIError
 from services.ConfigService import Config, ViewPropertyConfig
 from services.DataModelService import IDataModelService
