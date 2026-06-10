@@ -5,7 +5,7 @@ from typing import Any
 from cognite.client import CogniteClient
 from cognite.client.data_classes.data_modeling import Node, ViewId
 from cognite.client.data_classes.filters import Filter, In
-from services.ConfigService import Config
+from services.ConfigService import Config, build_filter_from_query
 from services.LoggerService import CogniteFunctionLogger
 
 
@@ -265,10 +265,21 @@ class EntitySearchService(IEntitySearchService):
             # Query entities with IN filter on aliases property
             aliases_filter: Filter = In(source.as_property_ref("aliases"), text_variations)
 
+            # Build the pipeline-defined filter for entities and combine
+            # so that global search only considers entities that satisfy the
+            # extraction pipeline's configured filters (e.g. DetectInDiagrams tag).
+            if source == self.file_view_id:
+                entity_query = self.config.launch_function.data_model_service.get_file_entities_query
+            else:
+                entity_query = self.config.launch_function.data_model_service.get_target_entities_query
+
+            entity_query: Filter = build_filter_from_query(query=entity_query)
+            combined_filter: Filter = aliases_filter & entity_query
+
             entities: Any = self.client.data_modeling.instances.list(
                 instance_type="node",
                 sources=source,
-                filter=aliases_filter,
+                filter=combined_filter,
                 space=entity_space,
                 limit=1000,  # Reasonable limit to prevent timeouts
             )
