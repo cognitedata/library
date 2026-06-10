@@ -8,7 +8,7 @@ from cognite.client import CogniteClient
 from cognite.client.data_classes.contextualization import FileReference
 from cognite.client.data_classes.data_modeling import (
     Node,
-    NodeApply,
+    NodeId,
     NodeList,
 )
 from cognite.client.exceptions import CogniteAPIError
@@ -122,6 +122,7 @@ class GeneralLaunchService(AbstractLaunchService):
             if not file_nodes or not file_to_state_map:
                 self.logger.info(message=f"No files found to launch")
                 return "Done"
+            file_nodes = self._preprocess_files(file_nodes, file_to_state_map)  # NOTE: Hook
             self.logger.info(message=f"Launching {len(file_nodes)} files", section="END")
         except CogniteAPIError as e:
             # NOTE: Reliant on the CogniteAPI message to stay the same across new releases. If unexpected changes were to occur please refer to this section of the code and check if error message is now different.
@@ -182,6 +183,13 @@ class GeneralLaunchService(AbstractLaunchService):
             self.tracker.add_files(success=total_files_processed)
 
         return
+
+    def _preprocess_files(self, file_nodes: NodeList, file_to_state_map: dict[NodeId, Node]) -> NodeList:
+        """
+        Hook method. Returns the files exactly as they are.
+        Subclasses/mixins can override this to filter the list further.
+        """
+        return file_nodes
 
     def _organize_files_for_processing(self, list_files: NodeList) -> list[FileProcessingBatch]:
         """
@@ -321,7 +329,6 @@ class GeneralLaunchService(AbstractLaunchService):
                     update_properties["patternModeJobToken"] = pattern_job_token
                 else:
                     self.logger.info("Skipping pattern-mode diagram detect: no sample patterns available.")
-
 
             batch.batch_states.update_node_properties(
                 new_properties=update_properties,
