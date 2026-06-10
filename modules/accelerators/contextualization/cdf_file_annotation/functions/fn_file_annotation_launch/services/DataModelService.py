@@ -1,5 +1,6 @@
 import abc
 from datetime import datetime, timedelta, timezone
+from typing import Any
 
 from cognite.client import CogniteClient
 from cognite.client.data_classes.data_modeling import (
@@ -9,6 +10,7 @@ from cognite.client.data_classes.data_modeling import (
     NodeApplyResultList,
     NodeId,
     NodeList,
+    NodeOrEdgeData,
 )
 from cognite.client.data_classes.filters import (
     Equals,
@@ -184,17 +186,38 @@ class GeneralDataModelService(IDataModelService):
 
         file_to_state_map: dict[NodeId, Node] = {}
         list_file_node_ids: list[NodeId] = []
+        list_state_repairs: list[NodeApply] = []
 
         for node in annotation_state_instances:
-            file_reference = node.properties.get(self.annotation_state_view.as_view_id()).get("linkedFile")
-            if self.file_view.instance_space is None or self.file_view.instance_space == file_reference["space"]:
+            view_props = node.properties.get(self.annotation_state_view.as_view_id()) or {}
+            file_reference = view_props.get("linkedFile")
+
+            # Fallback: recover linkedFile from deterministic annotation state external_id.
+            if not self._is_valid_linked_file(file_reference):
+                file_reference = self._recover_linked_file(node)
+                if self._is_valid_linked_file(file_reference):
+                    list_state_repairs.append(self._build_linked_file_repair_apply(node, file_reference))
+                else:
+                    self.logger.warning(
+                        f"Skipping annotation state {node.space}:{node.external_id} because linkedFile is missing"
+                    )
+                    continue
+
+            if self.file_view.instance_space is None or self.file_view.instance_space == file_reference.get("space"):
                 file_node_id = NodeId(
-                    space=file_reference["space"],
-                    external_id=file_reference["externalId"],
+                    space=file_reference.get("space"),
+                    external_id=file_reference.get("externalId"),
                 )
 
                 file_to_state_map[file_node_id] = node
                 list_file_node_ids.append(file_node_id)
+
+        if list_state_repairs:
+            self.update_annotation_state(list_state_repairs)
+            self.logger.info(f"Recovered linkedFile for {len(list_state_repairs)} annotation states")
+
+        if not list_file_node_ids:
+            return None, None
 
         file_instances: NodeList = self.client.data_modeling.instances.retrieve_nodes(
             nodes=list_file_node_ids,
@@ -234,6 +257,44 @@ class GeneralDataModelService(IDataModelService):
 
         filter = self.filter_files_to_process | filter_stuck  # | == OR
         return filter
+
+    def _is_valid_linked_file(self, file_reference: Any) -> bool:
+        if not isinstance(file_reference, dict):
+            return False
+        return bool(file_reference.get("space")) and bool(file_reference.get("externalId"))
+
+    def _recover_linked_file(self, node: Node) -> dict[str, str] | None:
+        file_space = self.file_view.instance_space
+        if not file_space:
+            return None
+
+        prefix = f"an_state_{file_space}_"
+        if not node.external_id.startswith(prefix):
+            return None
+
+        file_external_id = node.external_id[len(prefix) :]
+        if not file_external_id:
+            return None
+
+        return {
+            "space": file_space,
+            "externalId": file_external_id,
+        }
+
+    def _build_linked_file_repair_apply(self, node: Node, linked_file: dict[str, str]) -> NodeApply:
+        return NodeApply(
+            space=node.space,
+            external_id=node.external_id,
+            sources=[
+                NodeOrEdgeData(
+                    source=self.annotation_state_view.as_view_id(),
+                    properties={
+                        "linkedFile": linked_file,
+                        "sourceUpdatedTime": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
+                    },
+                )
+            ],
+        )
 
     def update_annotation_state(self, list_node_apply: list[NodeApply]) -> NodeApplyResultList:
         """
