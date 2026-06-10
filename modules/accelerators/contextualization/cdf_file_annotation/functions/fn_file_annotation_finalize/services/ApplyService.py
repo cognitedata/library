@@ -17,7 +17,7 @@ from cognite.client.data_classes.data_modeling import (
     NodeOrEdgeData,
     ViewId,
 )
-from cognite.client.data_classes.filters import Equals, In
+from cognite.client.data_classes.filters import Equals
 from services.ConfigService import Config
 from services.LoggerService import CogniteFunctionLogger
 from utils.DataStructures import DiagramAnnotationStatus, remove_protected_properties
@@ -54,6 +54,7 @@ class GeneralApplyService(IApplyService):
 
     EXTERNAL_ID_LIMIT = 256
     FUNCTION_ID = "fn_file_annotation_finalize"
+    BBOX_TOLERANCE = 0.01
 
     def __init__(self, client: CogniteClient, config: Config, logger: CogniteFunctionLogger):
         self.client: CogniteClient = client
@@ -653,10 +654,18 @@ class GeneralApplyService(IApplyService):
     def _bounding_box_to_coords(self, bounding_box: BoundingBox) -> tuple[float, float, float, float]:
         return (bounding_box.x_min, bounding_box.y_min, bounding_box.x_max, bounding_box.y_max)
 
+    def _within_tolerance(self, left: float, right: float) -> bool:
+        return abs(left - right) <= self.BBOX_TOLERANCE
+
     def _bounding_box_contains(
         self, outer: tuple[float, float, float, float], inner: tuple[float, float, float, float]
     ) -> bool:
-        return outer[0] <= inner[0] and outer[1] <= inner[1] and outer[2] >= inner[2] and outer[3] >= inner[3]
+        return (
+            (inner[0] >= outer[0] or self._within_tolerance(inner[0], outer[0]))
+            and (inner[1] >= outer[1] or self._within_tolerance(inner[1], outer[1]))
+            and (inner[2] <= outer[2] or self._within_tolerance(inner[2], outer[2]))
+            and (inner[3] <= outer[3] or self._within_tolerance(inner[3], outer[3]))
+        )
 
     def _add_processed_bounding_box(
         self,
@@ -699,7 +708,7 @@ class GeneralApplyService(IApplyService):
             if existing_page != page:
                 continue
 
-            if existing_coords == coords or self._bounding_box_contains(existing_coords, coords):
+            if self._bounding_box_contains(existing_coords, coords):
                 return True
 
         return False
