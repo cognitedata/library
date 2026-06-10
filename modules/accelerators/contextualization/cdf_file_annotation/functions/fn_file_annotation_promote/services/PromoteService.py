@@ -297,6 +297,42 @@ class GeneralPromoteService(IPromoteService):
                     )
             except Exception as e:
                 self.logger.error("Error updating edges", error=e, section="BOTH")
+                try:
+                    unique_end_nodes: set[tuple[str, str]] = set()
+                    for edge_to_update in edges_to_update:
+                        end_node = getattr(edge_to_update, "end_node", None)
+
+                        if end_node is None:
+                            continue
+
+                        end_node_space = getattr(end_node, "space", None)
+                        end_node_external_id = getattr(end_node, "external_id", None)
+
+                        if end_node_space and end_node_external_id:
+                            unique_end_nodes.add((end_node_space, end_node_external_id))
+
+                    for space, ext_id in unique_end_nodes:
+                        try:
+                            retrieved = self.client.data_modeling.instances.retrieve(nodes=[(space, ext_id)])
+                            exists = bool(getattr(retrieved, "data", None))
+                        except Exception as ex_retr:
+                            self.logger.debug(f"Failed to retrieve node {space}/{ext_id}: {ex_retr}")
+                            exists = True
+
+                        if not exists:
+                            try:
+                                self.cache_service.invalidate_cache_by_end_node(space, ext_id)
+                                self.logger.info(
+                                    f"Invalidated cache entries for deleted entity {space}/{ext_id}", section="BOTH"
+                                )
+                            except Exception as inner_exception:
+                                self.logger.warning(
+                                    f"Failed to invalidate cache for {space}/{ext_id}: {inner_exception}", section="BOTH"
+                                )
+                except Exception as outer_exception:
+                    self.logger.warning(
+                        f"Cache invalidation flow failed after edge update error: {outer_exception}", section="BOTH"
+                    )
 
             try:
                 if edges_to_delete:

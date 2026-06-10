@@ -5,7 +5,6 @@ from typing import Any, Callable
 
 from cognite.client import CogniteClient
 from cognite.client.data_classes.data_modeling import Node, NodeList
-from cognite.client.data_classes.data_modeling.ids import ViewId
 from cognite.client.data_classes.raw import Row
 from services.ConfigService import Config, ViewPropertyConfig
 from services.LoggerService import CogniteFunctionLogger
@@ -428,3 +427,50 @@ class CacheService(ICacheService):
         """Clears the in-memory cache. Useful for testing."""
         self._memory_cache.clear()
         self.logger.debug("In-memory cache cleared")
+
+    def invalidate_cache_by_end_node(self, space: str, external_id: str) -> None:
+        """
+        Removes any cache entries (in-memory and persistent RAW) that point to the
+        given end-node (space + external_id). This is used when an entity that
+        was previously cached has been deleted - we must remove all mappings
+        that reference it so future runs will re-resolve the tag instead of
+        repeatedly attempting to apply edges to a non-existent node.
+
+        Args:
+            space: Instance space of the end node
+            external_id: External id of the end node
+        """
+        removed = 0
+
+        for k, v in list(self._memory_cache.items()):
+            if isinstance(v, CachedEntityInfo) and v.space == space and v.external_id == external_id:
+                del self._memory_cache[k]
+                removed += 1
+
+        if removed:
+            self.logger.info(f"Cleared {removed} in-memory cache entries referencing {space}/{external_id}")
+
+        try:
+            rows = self.client.raw.rows.list(db_name=self.raw_db, table_name=self.cache_table_name, limit=-1)
+            keys_to_delete: list[str] = []
+
+            for row in rows:
+                cols = getattr(row, "columns", {}) or {}
+
+                if cols.get("endNode") == external_id and cols.get("endNodeSpace") == space:
+                    keys_to_delete.append(row.key)
+
+            if keys_to_delete:
+                chunk_size = 1000
+
+                for i in range(0, len(keys_to_delete), chunk_size):
+                    chunk = keys_to_delete[i : i + chunk_size]
+
+                    try:
+                        self.client.raw.rows.delete(db_name=self.raw_db, table_name=self.cache_table_name, key=chunk)
+                    except Exception as inner_exception:
+                        self.logger.warning(f"Failed deleting cache RAW rows for {space}/{external_id}: {inner_exception}")
+
+                self.logger.info(f"Deleted {len(keys_to_delete)} persistent cache rows referencing {space}/{external_id}")
+        except Exception as e:
+            self.logger.warning(f"Failed to scan persistent cache for invalidation for {space}/{external_id}: {e}")
