@@ -333,12 +333,6 @@ class GeneralCacheService(ICacheService):
                         full_template_key_parts.append(f"[{part}]")
                     continue
 
-                # Alphanumeric segment
-                left_ok = (i == 0) or is_separator(tokens[i - 1])
-                right_ok = (i == len(tokens) - 1) or is_separator(tokens[i + 1])
-                if left_ok and right_ok and part == resource_type_key:
-                    full_template_key_parts.append(f"[{part}]")
-                    continue
 
                 segment_template = re.sub(r"\d", "0", part)
                 segment_template = re.sub(r"[A-Za-z]", "A", segment_template)
