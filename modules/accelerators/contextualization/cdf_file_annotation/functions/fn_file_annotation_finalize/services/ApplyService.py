@@ -61,6 +61,7 @@ class GeneralApplyService(IApplyService):
         self.logger: CogniteFunctionLogger = logger
         self.raw_db: str = self.config.raw_tables.raw_db
         self.raw_pattern_table: str = self.config.raw_tables.raw_table_doc_pattern
+        self.raw_pattern_index_table: str | None = self.config.raw_tables.raw_table_doc_pattern_index
         self.raw_doc_doc_table: str = self.config.raw_tables.raw_table_doc_doc
         self.raw_doc_tag_table: str = self.config.raw_tables.raw_table_doc_tag
         self.core_annotation_view_id: ViewId = config.data_model_views.core_annotation_view.as_view_id()
@@ -161,6 +162,7 @@ class GeneralApplyService(IApplyService):
                 row=pattern_rows,
                 ensure_parent=True,
             )
+            self._write_pattern_index(file_id, [row.key for row in pattern_rows])
 
         return (
             f"Applied {len(doc_rows)} doc and {len(tag_rows)} tag annotations.",
@@ -183,6 +185,74 @@ class GeneralApplyService(IApplyService):
             InstancesApplyResult containing the results of the apply operation.
         """
         return self.client.data_modeling.instances.apply(nodes=list_node_apply, edges=list_edge_apply, replace=False)
+
+    def _get_pattern_index_ids(self, file_id: NodeId) -> list[str]:
+        if not self.raw_pattern_index_table:
+            return []
+
+        try:
+            row = self.client.raw.rows.retrieve(
+                db_name=self.raw_db,
+                table_name=self.raw_pattern_index_table,
+                key=file_id.external_id,
+            )
+        except Exception as exc:
+            self.logger.debug(f"Pattern index read failed for {file_id.external_id}: {exc}")
+            return []
+
+        if not row or not row.columns:
+            return []
+
+        pattern_ids = row.columns.get("patternAnnotationIds", [])
+        if not isinstance(pattern_ids, list):
+            return []
+
+        return [str(val) for val in pattern_ids if val]
+
+    def _write_pattern_index(self, file_id: NodeId, pattern_ids: list[str]) -> None:
+        if not self.raw_pattern_index_table or not pattern_ids:
+            return
+
+        existing_ids = self._get_pattern_index_ids(file_id)
+        existing_set = set(existing_ids)
+        merged_ids = list(existing_ids)
+
+        for pattern_id in pattern_ids:
+            if pattern_id and pattern_id not in existing_set:
+                merged_ids.append(pattern_id)
+                existing_set.add(pattern_id)
+
+        row = RowWrite(
+            key=file_id.external_id,
+            columns={
+                "space": file_id.space,
+                "patternAnnotationIds": merged_ids,
+            },
+        )
+        self.client.raw.rows.insert(
+            db_name=self.raw_db,
+            table_name=self.raw_pattern_index_table,
+            row=row,
+            ensure_parent=True,
+        )
+
+    def _clear_pattern_index(self, file_id: NodeId) -> None:
+        if not self.raw_pattern_index_table:
+            return
+
+        row = RowWrite(
+            key=file_id.external_id,
+            columns={
+                "space": file_id.space,
+                "patternAnnotationIds": [],
+            },
+        )
+        self.client.raw.rows.insert(
+            db_name=self.raw_db,
+            table_name=self.raw_pattern_index_table,
+            row=row,
+            ensure_parent=True,
+        )
 
     def _delete_annotations_for_file(self, file_id: NodeId) -> dict[str, int]:
         """
@@ -229,18 +299,23 @@ class GeneralApplyService(IApplyService):
         pattern_edges = self._list_annotations_for_file(
             file_id, self.sink_node_ref.space
         )  # NOTE: Annotations produced from pattern mode are stored in the same instance space as the sink node
+        row_keys: list[str] = []
         if pattern_edges:
             edge_ids = [edge.as_id() for edge in pattern_edges]
             row_keys = [edge.external_id for edge in pattern_edges]
             if edge_ids:
                 self.client.data_modeling.instances.delete(edges=edge_ids)
-            if row_keys:
-                self.client.raw.rows.delete(
-                    db_name=self.raw_db,
-                    table_name=self.raw_pattern_table,
-                    key=row_keys,
-                )
-            counts["pattern"] = len(row_keys)
+
+        index_keys = self._get_pattern_index_ids(file_id)
+        combined_keys = list(dict.fromkeys(row_keys + index_keys))
+        if combined_keys:
+            self.client.raw.rows.delete(
+                db_name=self.raw_db,
+                table_name=self.raw_pattern_table,
+                key=combined_keys,
+            )
+            self._clear_pattern_index(file_id)
+        counts["pattern"] = len(combined_keys)
         return counts
 
     def _list_annotations_for_file(self, node_id: NodeId, edge_instance_space: str):

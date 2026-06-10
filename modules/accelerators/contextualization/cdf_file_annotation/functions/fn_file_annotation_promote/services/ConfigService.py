@@ -177,6 +177,7 @@ class RawTablesConfig(BaseModel, alias_generator=to_camel):
     raw_table_doc_tag: str
     raw_table_doc_doc: str
     raw_table_doc_pattern: str
+    raw_table_doc_pattern_index: str | None = None
     raw_table_promote_cache: str
     raw_manual_patterns_catalog: str
 
