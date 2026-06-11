@@ -81,11 +81,17 @@ environment:
         encoding="utf-8"
     )
     assert "name: Deploy to acme-dev" in deploy_dev
+    assert "ADMIN_SOURCE_ID: ${{ vars.ADMIN_SOURCE_ID }}" in deploy_dev
+    assert "CONSUMER_SOURCE_ID: ${{ vars.CONSUMER_SOURCE_ID }}" in deploy_dev
+    assert "PRODUCER_SOURCE_ID: ${{ vars.PRODUCER_SOURCE_ID }}" in deploy_dev
 
     cicd_docs = (tmp_path / "docs" / "FOUNDATION_CICD.md").read_text(encoding="utf-8")
     assert "`acme-dev`" in cicd_docs
     assert "`acme-test`" in cicd_docs
     assert "`acme-prod`" in cicd_docs
+    assert "`ADMIN_SOURCE_ID`" in cicd_docs
+    assert "`CONSUMER_SOURCE_ID`" in cicd_docs
+    assert "`PRODUCER_SOURCE_ID`" in cicd_docs
 
 
 def test_generate_actions_validates_environment_name(tmp_path: Path) -> None:

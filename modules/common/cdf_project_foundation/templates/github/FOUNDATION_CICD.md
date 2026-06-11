@@ -33,6 +33,9 @@ Each environment needs these **variables**:
 - `LOGIN_FLOW` (typically `client_credentials`)
 - `IDP_TENANT_ID`
 - `IDP_CLIENT_ID`
+- `ADMIN_SOURCE_ID`
+- `CONSUMER_SOURCE_ID`
+- `PRODUCER_SOURCE_ID`
 
 And this **secret**:
 

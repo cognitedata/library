@@ -87,6 +87,9 @@ jobs:
       LOGIN_FLOW: ${{ vars.LOGIN_FLOW }}
       IDP_TENANT_ID: ${{ vars.IDP_TENANT_ID }}
       IDP_CLIENT_ID: ${{ vars.IDP_CLIENT_ID }}
+      ADMIN_SOURCE_ID: ${{ vars.ADMIN_SOURCE_ID }}
+      CONSUMER_SOURCE_ID: ${{ vars.CONSUMER_SOURCE_ID }}
+      PRODUCER_SOURCE_ID: ${{ vars.PRODUCER_SOURCE_ID }}
       IDP_CLIENT_SECRET: ${{ secrets.IDP_CLIENT_SECRET }}
     steps:
       - uses: actions/checkout@v4
