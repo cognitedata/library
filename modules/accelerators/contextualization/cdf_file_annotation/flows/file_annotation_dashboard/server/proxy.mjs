@@ -12,11 +12,19 @@ function readEnv(primaryKey, fallbackKey) {
   return process.env[primaryKey] || process.env[fallbackKey] || "";
 }
 
-if (process.env.DISABLE_TLS_VALIDATION === "true") {
-  // WARNING: Insecure; for local testing only.
-  process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
-  console.warn("TLS validation disabled for local proxy testing.");
+function extractClusterFromUrl(urlValue) {
+  try {
+    const parsed = new URL(urlValue);
+    const match = parsed.hostname.match(/\.([^.]+)\.cognitedata\.com$/i);
+    return match?.[1] || "";
+  } catch {
+    return "";
+  }
 }
+
+// WARNING: Insecure; local proxy intentionally bypasses TLS validation.
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
+console.warn("TLS validation disabled for local proxy.");
 
 const httpsProxy = process.env.HTTPS_PROXY || process.env.HTTP_PROXY;
 const caPath = process.env.NODE_EXTRA_CA_CERTS;
@@ -75,9 +83,12 @@ async function handleTokenRequest(_req, res) {
       ? `https://login.microsoftonline.com/${readEnv("IDP_TENANT_ID", "VITE_IDP_TENANT_ID")}/oauth2/v2.0/token`
       : "");
 
-  const clientId = process.env.IDP_CLIENT_ID;
-  const clientSecret = process.env.IDP_CLIENT_SECRET;
-  const cluster = readEnv("CDF_CLUSTER", "VITE_CDF_CLUSTER");
+  const clientId = readEnv("IDP_CLIENT_ID", "VITE_IDP_CLIENT_ID");
+  const clientSecret = readEnv("IDP_CLIENT_SECRET", "VITE_IDP_CLIENT_SECRET");
+  const cdfUrl = readEnv("CDF_URL", "VITE_CDF_URL");
+  const cluster =
+    readEnv("CDF_CLUSTER", "VITE_CDF_CLUSTER") ||
+    extractClusterFromUrl(cdfUrl);
   const scopes =
     readEnv("IDP_SCOPES", "VITE_IDP_SCOPES") ||
     (cluster ? `https://${cluster}.cognitedata.com/.default` : "");
@@ -112,9 +123,16 @@ async function handleTokenRequest(_req, res) {
 
     res.type("application/json").send(text);
   } catch (error) {
+    const cause = error instanceof Error && error.cause ? error.cause : undefined;
     console.error("Token proxy fetch failed", {
       tokenUrl,
       error: error instanceof Error ? error.message : String(error),
+      errorName: error instanceof Error ? error.name : "unknown",
+      causeMessage: cause instanceof Error ? cause.message : String(cause || ""),
+      causeCode:
+        typeof cause === "object" && cause !== null && "code" in cause
+          ? cause.code
+          : "",
     });
     res.status(500).json({
       error: "proxy_error",
