@@ -16,7 +16,6 @@ import { AnnotationQualityPage } from "./pages/AnnotationQuality";
 import { PatternManagementPage } from "./pages/PatternManagement";
 import { PipelineHealthPage } from "./pages/PipelineHealth";
 import { useAvailablePipelines } from "@/shared/hooks/usePipelineConfig";
-import { clearPerFileDb } from "@/shared/utils/perFileIdb";
 import {
   Target,
   Stethoscope,
@@ -66,7 +65,6 @@ function App() {
   const clearAllBrowserStorage = async () => {
     queryClient.cancelQueries();
     queryClient.clear();
-    await clearPerFileDb();
     if (typeof window !== "undefined") {
       const windowWithFlag = window as typeof window & { __perfileSkipCacheOnce?: boolean };
       windowWithFlag.__perfileSkipCacheOnce = true;
@@ -125,9 +123,6 @@ function App() {
       predicate: (query) => isQueryPrefixMatch(query.queryKey, prefixes),
     });
 
-    if (page === "quality") {
-      void clearPerFileDb();
-    }
   };
 
   const handlePageChange = (nextPage: string) => {
@@ -151,7 +146,6 @@ function App() {
       if (activePage) {
         clearPageCache(activePage);
       }
-      void clearPerFileDb();
       const matchesPreviousPipeline = (queryKey: readonly unknown[]) =>
         queryKey.some((part) => part === previousPipeline);
 
