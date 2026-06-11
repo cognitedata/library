@@ -298,10 +298,10 @@ function App() {
                         value={selectedPipeline || ""}
                         onValueChange={(value) => handlePipelineChange(value === "" ? null : value)}
                       >
-                        <SelectTrigger className="w-full sm:w-[280px] h-10 text-sm bg-background">
+                        <SelectTrigger className="w-full sm:w-[320px] h-10 text-sm bg-background">
                           <SelectValue placeholder="Choose a pipeline..." />
                         </SelectTrigger>
-                        <SelectContent className="max-h-[60vh]">
+                        <SelectContent className="max-w-[95vw] sm:max-w-[34rem]">
                           {availablePipelines && availablePipelines.length === 0 ? (
                             <SelectItem value="__no_pipelines__" disabled>
                               No pipelines available
@@ -309,7 +309,12 @@ function App() {
                           ) : (
                             availablePipelines?.map((pipeline) => (
                               <SelectItem key={pipeline} value={pipeline}>
-                                <span className="font-mono text-xs">{pipeline}</span>
+                                <span
+                                  className="block max-w-[78vw] truncate font-mono text-xs sm:max-w-[30rem]"
+                                  title={pipeline}
+                                >
+                                  {pipeline}
+                                </span>
                               </SelectItem>
                             ))
                           )}
@@ -378,13 +383,18 @@ function App() {
                     value={selectedPipeline || ""}
                     onValueChange={(value) => handlePipelineChange(value === "" ? null : value)}
                   >
-                    <SelectTrigger className="h-8 w-auto min-w-[200px] text-xs font-mono bg-secondary/50 border-dashed">
+                    <SelectTrigger className="h-8 w-[min(92vw,20rem)] sm:w-[320px] min-w-0 text-xs font-mono bg-secondary/50 border-dashed">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="max-w-[95vw] sm:max-w-[34rem]">
                       {availablePipelines?.map((pipeline) => (
                         <SelectItem key={pipeline} value={pipeline}>
-                          <span className="font-mono text-xs">{pipeline}</span>
+                          <span
+                            className="block max-w-[78vw] truncate font-mono text-xs sm:max-w-[30rem]"
+                            title={pipeline}
+                          >
+                            {pipeline}
+                          </span>
                         </SelectItem>
                       ))}
                     </SelectContent>
