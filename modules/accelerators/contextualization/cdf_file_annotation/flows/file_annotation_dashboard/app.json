@@ -1,0 +1,17 @@
+{
+  "name": "File Annotation Dashboard",
+  "description": "Monitor annotation quality, manage patterns and track the pipeline health.",
+  "externalId": "file-annotation-app",
+  "infra": "appsApi",
+  "versionTag": "0.0.1",
+  "deployments": [
+    {
+      "org": "<YOUR_CDF_ORG>",
+      "project": "<YOUR_CDF_PROJECT>",
+      "baseUrl": "https://<YOUR_CDF_CLUSTER>.cognitedata.com",
+      "deployClientId": "",
+      "deploySecretName": ""
+    }
+  ]
+}
+

@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "shadcn": {
+      "command": "npx",
+      "args": ["shadcn@latest", "mcp"]
+    },
+    "cdf-datamodeling-mcp": {
+      "command": "npx cdf-datamodelling-mcp-server"
+    }
+  }
+}
+

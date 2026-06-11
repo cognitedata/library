@@ -1,0 +1,10 @@
+{
+  "name": "File Annotation Pipeline Dashboard App",
+  "short_name": "FileAnnotationApp",
+  "description": "Monitor annotation quality, manage patterns and track pipeline health for your file annotation pipeline.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#000000",
+  "icons": []
+}

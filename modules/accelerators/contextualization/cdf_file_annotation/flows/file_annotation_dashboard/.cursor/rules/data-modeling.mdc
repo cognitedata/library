@@ -1,0 +1,1993 @@
+---
+alwaysApply: true
+---
+
+# Cognite Data Modeling SDK Guide
+
+## Introduction
+
+The Cognite Data Modeling service (DMS) enables you to build, populate, and query flexible data models in Cognite Data Fusion (CDF). This SDK provides JavaScript/TypeScript APIs to work with the core components of data modeling: **Instances** (nodes and edges), **Views**, **Containers**, and **Data Models**. Together, these components allow you to create an industrial knowledge graph that represents your assets, their relationships, and associated data in a structured, scalable way.
+
+Data modeling in CDF follows a property graph approach where:
+
+- **Nodes** represent entities (like assets, equipment, or documents)
+- **Edges** represent relationships between nodes
+- **Properties** store the actual data values
+- **Views** define the schema and how data is accessed
+- **Containers** handle the physical storage and indexing
+- **Data Models** group views together for specific use cases
+
+## Core Concepts
+
+### Spaces
+
+Spaces are logical groupings that help organize and secure data model components. Each container, view, data model, and instance belongs to a specific space. Spaces provide:
+
+- **Organization**: Group related data model components together
+- **Access Control**: Manage permissions at the space level
+- **Isolation**: Separate different projects or domains
+- **Namespacing**: Avoid naming conflicts between components
+
+CDF provides several system spaces:
+
+- `cdf_cdm`: Contains the Cognite core data model
+- `cdf_cdm_units`: Contains unit definitions
+- `cdf_extraction_extensions`: Used by Cognite extractors
+
+Reserved space names that cannot be used:
+
+- `space`, `cdf`, `dms`, `pg3`, `shared`, `system`, `node`, `edge`
+
+### Property Graph Model
+
+CDF uses a property graph where:
+
+- **Nodes** are vertices in the graph with properties
+- **Edges** are directed connections between nodes with their own properties
+- **Direct Relations** are properties that reference other nodes (stored on the node itself)
+- **Types** categorize nodes and edges using direct relations
+
+### Schema Components Hierarchy
+
+1. **Containers**: Define physical storage with properties, constraints, and indexes
+2. **Views**: Provide semantic layers over containers, supporting inheritance and filtering
+3. **Data Models**: Group related views for specific use cases or applications
+
+## Key Methods & Functions
+
+### Spaces API
+
+The Spaces API manages the logical groupings that organize and secure your data model components.
+
+#### client.spaces.upsert(params)
+
+- **Description**: Creates or updates spaces
+- **Parameters**:
+  - `params` (SpaceCreateDefinition[], required): Array of space definitions
+- **Return Type**: Promise<SpaceCollectionResponseV3Response>
+- **Example**:
+
+```javascript
+const spaces = await client.spaces.upsert([
+  {
+    space: "equipment_data",
+    name: "Equipment Data",
+    description: "Space for equipment-related data models and instances",
+  },
+  {
+    space: "maintenance_ops",
+    name: "Maintenance Operations",
+    description: "Space for maintenance workflows and history",
+  },
+]);
+
+console.log(`Created ${spaces.items.length} spaces`);
+```
+
+#### client.spaces.list(params?)
+
+- **Description**: Lists spaces with optional filtering
+- **Parameters**:
+  - `params` (Object, optional): Query parameters
+    - `includeGlobal` (boolean): Include global/system spaces
+    - `limit` (number): Maximum number of results
+    - `cursor` (string): Pagination cursor
+- **Return Type**: CursorAndAsyncIterator<SpaceDefinition>
+- **Example**:
+
+```javascript
+// List user-created spaces
+const userSpaces = await client.spaces
+  .list({
+    includeGlobal: false,
+    limit: 100,
+  })
+  .autoPagingToArray();
+
+console.log("User spaces:");
+userSpaces.forEach((space) => {
+  console.log(`- ${space.space}: ${space.name}`);
+});
+
+// List all spaces including global ones
+const allSpaces = await client.spaces
+  .list({
+    includeGlobal: true,
+  })
+  .autoPagingToArray();
+
+console.log(`Total spaces: ${allSpaces.length}`);
+```
+
+#### client.spaces.retrieve(params)
+
+- **Description**: Retrieves specific spaces by ID
+- **Parameters**:
+  - `params` (string[], required): Array of space IDs
+- **Return Type**: Promise<SpaceCollectionResponseV3Response>
+- **Example**:
+
+```javascript
+const spaces = await client.spaces.retrieve([
+  "equipment_data",
+  "maintenance_ops",
+  "cdf_cdm", // Core data model space
+]);
+
+spaces.items.forEach((space) => {
+  console.log(`Space: ${space.space}`);
+  console.log(`  Name: ${space.name}`);
+  console.log(`  Description: ${space.description}`);
+  console.log(`  Is Global: ${space.isGlobal}`);
+  console.log(`  Created: ${new Date(space.createdTime)}`);
+});
+```
+
+#### client.spaces.delete(params)
+
+- **Description**: Deletes spaces (and all contained data)
+- **Parameters**:
+  - `params` (string[], required): Array of space IDs to delete
+- **Return Type**: Promise<{ items: string[] }>
+- **Example**:
+
+```javascript
+// WARNING: This deletes the space and ALL its contents
+const result = await client.spaces.delete(["obsolete_space"]);
+
+console.log(`Deleted spaces: ${result.items.join(", ")}`);
+```
+
+**Important**: Deleting a space will delete all containers, views, data models, and instances within that space. This operation cannot be undone.
+
+### Instances API
+
+The Instances API manages nodes and edges in your property graph.
+
+#### client.instances.upsert(params)
+
+- **Description**: Creates or updates nodes and edges
+- **Parameters**:
+  - `params` (NodeAndEdgeCreateCollection, required): Collection of nodes/edges to upsert
+- **Return Type**: Promise<SlimNodeAndEdgeCollectionResponse>
+- **Example**:
+
+```javascript
+const result = await client.instances.upsert({
+  items: [
+    {
+      instanceType: "node",
+      externalId: "pump-001",
+      space: "industrial-assets",
+      sources: [
+        {
+          source: {
+            externalId: "Equipment",
+            space: "cdf_core",
+            type: "view",
+            version: "v1",
+          },
+          properties: {
+            name: "Water Pump 001",
+            description: "Primary cooling system pump",
+            manufacturer: "ACME Corp",
+            serialNumber: "WP-5000-001",
+          },
+        },
+      ],
+    },
+    {
+      instanceType: "edge",
+      externalId: "located-in-001",
+      space: "industrial-assets",
+      type: { externalId: "locatedIn", space: "relationships" },
+      startNode: { externalId: "pump-001", space: "industrial-assets" },
+      endNode: { externalId: "facility-001", space: "industrial-assets" },
+      sources: [
+        {
+          source: {
+            externalId: "LocationRelation",
+            space: "relationships",
+            type: "view",
+            version: "v1",
+          },
+          properties: {
+            since: "2024-01-15",
+            floor: 2,
+            room: "2B",
+          },
+        },
+      ],
+    },
+  ],
+  autoCreateDirectRelations: true, // Auto-create missing target nodes
+  replace: false, // Merge properties instead of replacing
+});
+```
+
+#### client.instances.list(params)
+
+- **Description**: Lists instances with filtering and pagination
+- **Parameters**:
+  - `params` (NodeOrEdgeListRequestV3, required): Query parameters
+- **Return Type**: Promise<NodeAndEdgeCollectionResponseWithCursorV3Response>
+- **Example**:
+
+```javascript
+const nodes = await client.instances.list({
+  instanceType: "node",
+  sources: [
+    {
+      source: {
+        externalId: "Equipment",
+        space: "cdf_core",
+        type: "view",
+        version: "v1",
+      },
+    },
+  ],
+  filter: {
+    equals: {
+      property: ["node", "space"],
+      value: "industrial-assets",
+    },
+  },
+  sort: [
+    {
+      property: ["name"],
+      direction: "ascending",
+      nullsFirst: false,
+    },
+  ],
+  limit: 100,
+});
+
+// Iterate through results
+console.log(`Found ${nodes.items.length} equipment nodes`);
+for (const node of nodes.items) {
+  console.log(node.externalId, node.properties);
+}
+```
+
+#### client.instances.retrieve(params)
+
+- **Description**: Retrieves specific instances by ID
+- **Parameters**:
+  - `params` (ListOfSpaceExternalIdsRequestWithTyping, required): Items to retrieve
+- **Return Type**: Promise<NodeAndEdgeCollectionResponseV3Response>
+- **Example**:
+
+```javascript
+const instances = await client.instances.retrieve({
+  sources: [
+    {
+      source: {
+        externalId: "Equipment",
+        space: "cdf_core",
+        type: "view",
+        version: "v1",
+      },
+    },
+  ],
+  items: [
+    {
+      externalId: "pump-001",
+      space: "industrial-assets",
+      instanceType: "node",
+    },
+    {
+      externalId: "pump-002",
+      space: "industrial-assets",
+      instanceType: "node",
+    },
+  ],
+});
+```
+
+#### client.instances.search(params)
+
+- **Description**: Searches instances using text queries and filters
+- **Parameters**:
+  - `params` (NodeOrEdgeSearchRequest, required): Search parameters
+- **Return Type**: Promise<NodeAndEdgeCollectionResponseV3Response>
+- **Example**:
+
+```javascript
+const searchResults = await client.instances.search({
+  view: {
+    externalId: "Equipment",
+    space: "cdf_core",
+    type: "view",
+    version: "v1",
+  },
+  query: "pump ACME", // Text search
+  filter: {
+    and: [
+      {
+        equals: {
+          property: ["manufacturer"],
+          value: "ACME Corp",
+        },
+      },
+      {
+        range: {
+          property: ["installedDate"],
+          gte: "2023-01-01",
+        },
+      },
+    ],
+  },
+  limit: 50,
+});
+```
+
+#### client.instances.aggregate(params)
+
+- **Description**: Aggregates instance data with grouping and calculations
+- **Parameters**:
+  - `params` (ViewAggregationRequest, required): Aggregation query
+- **Return Type**: Promise<AggregationResponse>
+- **Example**:
+
+```javascript
+const aggregation = await client.instances.aggregate({
+  view: {
+    externalId: "Equipment",
+    space: "cdf_core",
+    type: "view",
+    version: "v1",
+  },
+  groupBy: ["manufacturer", "equipmentType"],
+  aggregates: [
+    { count: { property: "externalId" } },
+    { avg: { property: "maintenanceCost" } },
+    { sum: { property: "powerRating" } },
+  ],
+  filter: {
+    prefix: {
+      property: ["name"],
+      value: "Pump",
+    },
+  },
+  limit: 10,
+});
+
+// Process results
+for (const group of aggregation.items) {
+  console.log(
+    `${group.group[0]} - ${group.group[1]}: ${group.aggregates[0].value} units`
+  );
+}
+```
+
+#### client.instances.query(params)
+
+- **Description**: Executes complex queries across multiple node/edge types
+- **Parameters**:
+  - `params` (QueryRequest, required): Query definition
+- **Return Type**: Promise<QueryResponse>
+- **Example**:
+
+```javascript
+const queryResult = await client.instances.query({
+  with: {
+    // Define data sources
+    pumps: {
+      nodes: {
+        filter: {
+          equals: {
+            property: ["node", "type"],
+            value: { space: "types", externalId: "Pump" },
+          },
+        },
+      },
+    },
+    maintenanceEvents: {
+      edges: {
+        from: "pumps",
+        type: { space: "relationships", externalId: "hasMaintenanceEvent" },
+        direction: "outwards",
+      },
+    },
+  },
+  select: {
+    // Define what to return
+    pumps: {
+      sources: [
+        {
+          source: {
+            externalId: "Equipment",
+            space: "cdf_core",
+            type: "view",
+            version: "v1",
+          },
+          properties: ["name", "serialNumber", "manufacturer"],
+        },
+      ],
+    },
+    maintenanceEvents: {
+      sources: [
+        {
+          source: {
+            externalId: "MaintenanceEvent",
+            space: "maintenance",
+            type: "view",
+            version: "v1",
+          },
+          properties: ["scheduledDate", "description", "status"],
+        },
+      ],
+    },
+  },
+  parameters: {
+    limit: 100,
+  },
+});
+```
+
+#### client.instances.sync(params)
+
+- **Description**: Synchronizes data with cursor-based pagination for large datasets
+- **Parameters**:
+  - `params` (SyncRequest, required): Sync query with cursor support
+- **Return Type**: Promise<QueryResponse>
+- **Example**:
+
+```javascript
+let cursor = null;
+const allData = [];
+
+do {
+  const syncResult = await client.instances.sync({
+    with: {
+      equipment: {
+        nodes: {
+          filter: {
+            equals: {
+              property: ["node", "space"],
+              value: "industrial-assets",
+            },
+          },
+        },
+      },
+    },
+    select: {
+      equipment: {},
+    },
+    cursors: cursor ? { equipment: cursor } : {},
+  });
+
+  allData.push(...syncResult.items.equipment);
+  cursor = syncResult.nextCursor?.equipment;
+} while (cursor);
+
+console.log(`Synced ${allData.length} equipment nodes`);
+```
+
+#### client.instances.delete(items)
+
+- **Description**: Deletes instances by ID
+- **Parameters**:
+  - `items` (Array, required): Items to delete
+- **Return Type**: Promise<{}>
+- **Example**:
+
+```javascript
+await client.instances.delete([
+  {
+    instanceType: "node",
+    externalId: "pump-001",
+    space: "industrial-assets",
+  },
+  {
+    instanceType: "edge",
+    externalId: "located-in-001",
+    space: "industrial-assets",
+  },
+]);
+```
+
+### Views API
+
+Views define the semantic schema for your data, supporting inheritance and property mapping.
+
+#### client.views.upsert(params)
+
+- **Description**: Creates or updates view definitions
+- **Parameters**:
+  - `params` (ViewCreateDefinition[], required): Array of view definitions
+- **Return Type**: Promise<ViewCollectionResponse>
+- **Example**:
+
+```javascript
+const views = await client.views.upsert([
+  {
+    externalId: "Pump",
+    space: "equipment-types",
+    name: "Pump Equipment",
+    description: "View for pump equipment with extended properties",
+    version: "v1",
+    implements: [
+      {
+        type: "view",
+        space: "cdf_core",
+        externalId: "Equipment",
+        version: "v1",
+      },
+    ],
+    properties: {
+      flowRate: {
+        container: {
+          type: "container",
+          space: "equipment-data",
+          externalId: "PumpData",
+        },
+        containerPropertyIdentifier: "flowRate",
+        name: "Flow Rate",
+        description: "Maximum flow rate in liters per minute",
+      },
+      pressure: {
+        container: {
+          type: "container",
+          space: "equipment-data",
+          externalId: "PumpData",
+        },
+        containerPropertyIdentifier: "pressure",
+        name: "Operating Pressure",
+        description: "Operating pressure in bar",
+      },
+      manufacturer: {
+        container: {
+          type: "container",
+          space: "equipment-data",
+          externalId: "EquipmentCore",
+        },
+        containerPropertyIdentifier: "manufacturer",
+        name: "Manufacturer",
+        description: "Equipment manufacturer name",
+      },
+    },
+    filter: {
+      equals: {
+        property: ["node", "type"],
+        value: { space: "types", externalId: "Pump" },
+      },
+    },
+  },
+]);
+```
+
+#### client.views.list(params)
+
+- **Description**: Lists views with optional filtering
+- **Parameters**:
+  - `params` (Object, optional): Query parameters
+- **Return Type**: CursorAndAsyncIterator<ViewDefinition>
+- **Example**:
+
+```javascript
+// List all views in a space
+const views = await client.views
+  .list({
+    space: "equipment-types",
+    includeInheritedProperties: true,
+    allVersions: false,
+  })
+  .autoPagingToArray();
+
+// List global views
+const globalViews = await client.views
+  .list({
+    includeGlobal: true,
+    limit: 50,
+  })
+  .autoPagingToArray();
+```
+
+#### client.views.retrieve(params, options?)
+
+- **Description**: Retrieves specific views by ID
+- **Parameters**:
+  - `params` (Array, required): View references
+  - `options` (Object, optional): Additional options
+- **Return Type**: Promise<ViewCollectionResponse>
+- **Example**:
+
+```javascript
+const views = await client.views.retrieve(
+  [
+    {
+      space: "cdf_core",
+      externalId: "Equipment",
+      version: "v1",
+    },
+    {
+      space: "equipment-types",
+      externalId: "Pump",
+      // Omit version to get latest
+    },
+  ],
+  {
+    includeInheritedProperties: true,
+  }
+);
+
+// Inspect view properties
+for (const view of views.items) {
+  console.log(`View: ${view.externalId}`);
+  console.log(`Properties:`, Object.keys(view.properties || {}));
+  console.log(`Implements:`, view.implements);
+}
+```
+
+#### client.views.delete(params)
+
+- **Description**: Deletes views
+- **Parameters**:
+  - `params` (Array, required): View references to delete
+- **Return Type**: Promise<ListOfVersionReferences>
+- **Example**:
+
+```javascript
+await client.views.delete([
+  {
+    space: "equipment-types",
+    externalId: "ObsoletePumpView",
+    version: "v1",
+  },
+]);
+```
+
+### Containers API
+
+Containers define the physical storage layer with properties, constraints, and indexes.
+
+#### client.containers.upsert(params)
+
+- **Description**: Creates or updates container definitions
+- **Parameters**:
+  - `params` (ContainerCreateDefinition[], required): Container definitions
+- **Return Type**: Promise<ContainerCollectionResponse>
+- **Example**:
+
+```javascript
+const containers = await client.containers.upsert([
+  {
+    space: "equipment-data",
+    externalId: "PumpData",
+    name: "Pump Data Container",
+    description: "Stores pump-specific properties",
+    usedFor: "node", // Can be 'node', 'edge', or 'all'
+    properties: {
+      flowRate: {
+        type: {
+          type: "float64",
+        },
+        nullable: true,
+        description: "Flow rate in liters per minute",
+      },
+      pressure: {
+        type: {
+          type: "float64",
+        },
+        nullable: false,
+        defaultValue: 1.0,
+        description: "Operating pressure in bar",
+      },
+      manufacturer: {
+        type: {
+          type: "text",
+          list: false,
+        },
+        nullable: true,
+        description: "Manufacturer name",
+      },
+      installedDate: {
+        type: {
+          type: "timestamp",
+        },
+        nullable: true,
+        description: "Installation date",
+      },
+      maintenanceSchedule: {
+        type: {
+          type: "json",
+        },
+        nullable: true,
+        description: "Maintenance schedule configuration",
+      },
+      relatedAssets: {
+        type: {
+          type: "direct",
+          container: {
+            type: "container",
+            space: "cdf_core",
+            externalId: "Asset",
+          },
+        },
+        list: true,
+        description: "Related asset references",
+      },
+    },
+    constraints: {
+      uniqueSerialNumber: {
+        constraintType: "unique",
+        properties: ["serialNumber"],
+      },
+    },
+    indexes: {
+      byManufacturer: {
+        properties: ["manufacturer"],
+      },
+      byInstallDate: {
+        properties: ["installedDate"],
+      },
+    },
+  },
+]);
+```
+
+#### client.containers.list(params)
+
+- **Description**: Lists containers
+- **Parameters**:
+  - `params` (Object, optional): Query parameters
+- **Return Type**: CursorAndAsyncIterator<ContainerDefinition>
+- **Example**:
+
+```javascript
+// List containers in a specific space
+const containers = await client.containers
+  .list({
+    space: "equipment-data",
+    includeGlobal: false,
+  })
+  .autoPagingToArray();
+
+// List all accessible containers including global ones
+const allContainers = await client.containers
+  .list({
+    includeGlobal: true,
+    limit: 100,
+  })
+  .autoPagingToArray();
+```
+
+#### client.containers.retrieve(params)
+
+- **Description**: Retrieves specific containers
+- **Parameters**:
+  - `params` (Array, required): Container identifiers
+- **Return Type**: Promise<ContainerCollectionResponse>
+- **Example**:
+
+```javascript
+const containers = await client.containers.retrieve([
+  {
+    space: "equipment-data",
+    externalId: "PumpData",
+  },
+  {
+    space: "cdf_core",
+    externalId: "Asset",
+  },
+]);
+```
+
+#### client.containers.delete(params)
+
+- **Description**: Deletes containers
+- **Parameters**:
+  - `params` (Array, required): Container identifiers
+- **Return Type**: Promise<ListOfSpaceExternalIdsResponse>
+- **Example**:
+
+```javascript
+await client.containers.delete([
+  {
+    space: "equipment-data",
+    externalId: "ObsoleteContainer",
+  },
+]);
+```
+
+### Data Models API
+
+Data models group related views together for specific use cases or applications.
+
+#### client.dataModels.upsert(params)
+
+- **Description**: Creates or updates data models
+- **Parameters**:
+  - `params` (DataModelCreate[], required): Data model definitions
+- **Return Type**: Promise<DataModelCollectionResponse>
+- **Example**:
+
+```javascript
+const dataModels = await client.dataModels.upsert([
+  {
+    space: "industrial-models",
+    externalId: "MaintenanceModel",
+    name: "Maintenance Management Model",
+    description: "Data model for equipment maintenance workflows",
+    version: "v1",
+    views: [
+      // Reference existing views
+      {
+        type: "view",
+        space: "cdf_core",
+        externalId: "Asset",
+        version: "v1",
+      },
+      {
+        type: "view",
+        space: "equipment-types",
+        externalId: "Pump",
+        version: "v1",
+      },
+      // Create new view inline
+      {
+        externalId: "MaintenanceEvent",
+        space: "maintenance",
+        version: "v1",
+        name: "Maintenance Event",
+        description: "Maintenance activities on equipment",
+        properties: {
+          scheduledDate: {
+            container: {
+              type: "container",
+              space: "maintenance",
+              externalId: "MaintenanceData",
+            },
+            containerPropertyIdentifier: "scheduledDate",
+            name: "Scheduled Date",
+          },
+          completedDate: {
+            container: {
+              type: "container",
+              space: "maintenance",
+              externalId: "MaintenanceData",
+            },
+            containerPropertyIdentifier: "completedDate",
+            name: "Completed Date",
+          },
+          description: {
+            container: {
+              type: "container",
+              space: "maintenance",
+              externalId: "MaintenanceData",
+            },
+            containerPropertyIdentifier: "description",
+            name: "Description",
+          },
+          status: {
+            container: {
+              type: "container",
+              space: "maintenance",
+              externalId: "MaintenanceData",
+            },
+            containerPropertyIdentifier: "status",
+            name: "Status",
+          },
+        },
+      },
+    ],
+  },
+]);
+```
+
+#### client.dataModels.list(params)
+
+- **Description**: Lists data models
+- **Parameters**:
+  - `params` (Object, optional): Query parameters
+- **Return Type**: DataModelCollectionResponseWithCursorResponse
+- **Example**:
+
+```javascript
+// List all data models
+const models = await client.dataModels.list();
+
+// List with inline views expanded
+const modelsWithViews = await client.dataModels.list({
+  inlineViews: true,
+  includeGlobal: true,
+  allVersions: false,
+});
+
+// Iterate through models
+await modelsWithViews.autoPagingEach((model) => {
+  console.log(`Model: ${model.externalId} v${model.version}`);
+  console.log(`Views: ${model.views?.length || 0}`);
+});
+```
+
+#### client.dataModels.retrieve(params, options?)
+
+- **Description**: Retrieves specific data models
+- **Parameters**:
+  - `params` (Array, required): Model references
+  - `options` (Object, optional): Additional options
+- **Return Type**: Promise<DataModelCollectionResponse>
+- **Example**:
+
+```javascript
+const models = await client.dataModels.retrieve(
+  [
+    {
+      space: "industrial-models",
+      externalId: "MaintenanceModel",
+      version: "v1",
+    },
+  ],
+  {
+    inlineViews: true, // Include full view definitions
+  }
+);
+```
+
+#### client.dataModels.delete(params)
+
+- **Description**: Deletes data models
+- **Parameters**:
+  - `params` (Array, required): Model references
+- **Return Type**: Promise<ListOfVersionReferences>
+- **Example**:
+
+```javascript
+await client.dataModels.delete([
+  {
+    space: "industrial-models",
+    externalId: "DeprecatedModel",
+    version: "v1",
+  },
+]);
+```
+
+## Data Models
+
+### Space Structure
+
+```typescript
+interface SpaceDefinition {
+  space: string; // Space ID (3-43 chars, alphanumeric with _ and -)
+  name?: string; // Human-readable name
+  description?: string; // Space description
+  createdTime: number; // Creation timestamp (epoch milliseconds)
+  lastUpdatedTime: number; // Last update timestamp
+  isGlobal: boolean; // Whether this is a system/global space
+}
+```
+
+Space IDs must:
+
+- Start with a letter
+- Be 3-43 characters long
+- Contain only letters, numbers, underscores, and hyphens
+- Not use reserved names: `space`, `cdf`, `dms`, `pg3`, `shared`, `system`, `node`, `edge`
+
+### Core Property Types
+
+Properties in containers can have the following types:
+
+```typescript
+// Text property
+{
+  type: "text",
+  list?: boolean,       // Array of strings
+  collation?: string,   // Collation for sorting
+}
+
+// Primitive properties
+{
+  type: "int32" | "int64" | "float32" | "float64" | "boolean",
+  list?: boolean,
+}
+
+// Timestamp property
+{
+  type: "timestamp",
+  list?: boolean,
+}
+
+// JSON property
+{
+  type: "json",
+  list?: boolean,
+}
+
+// Direct relation (reference to another node)
+{
+  type: "direct",
+  container?: {         // Optional: enforce target node type
+    type: "container",
+    space: string,
+    externalId: string,
+  },
+  list?: boolean,
+}
+
+// CDF resource reference
+{
+  type: "timeseries" | "file" | "sequence",
+  list?: boolean,
+}
+```
+
+### Node Structure
+
+```typescript
+interface NodeDefinition {
+  instanceType: "node";
+  space: string;
+  externalId: string;
+  version: number;
+  createdTime: number;
+  lastUpdatedTime: number;
+  deletedTime?: number;
+
+  // Optional type categorization
+  type?: {
+    space: string;
+    externalId: string;
+  };
+
+  // Properties grouped by view/container
+  properties?: {
+    [viewOrContainerKey: string]: {
+      [propertyName: string]: any;
+    };
+  };
+}
+```
+
+### Edge Structure
+
+```typescript
+interface EdgeDefinition {
+  instanceType: "edge";
+  space: string;
+  externalId: string;
+  version: number;
+  createdTime: number;
+  lastUpdatedTime: number;
+  deletedTime?: number;
+
+  // Required edge type
+  type: {
+    space: string;
+    externalId: string;
+  };
+
+  // Required start and end nodes
+  startNode: {
+    space: string;
+    externalId: string;
+  };
+  endNode: {
+    space: string;
+    externalId: string;
+  };
+
+  // Properties grouped by view/container
+  properties?: {
+    [viewOrContainerKey: string]: {
+      [propertyName: string]: any;
+    };
+  };
+}
+```
+
+### View Structure
+
+```typescript
+interface ViewDefinition {
+  space: string;
+  externalId: string;
+  version: string;
+  name?: string;
+  description?: string;
+  createdTime: number;
+  lastUpdatedTime: number;
+  writable: boolean;
+  usedFor: "node" | "edge" | "all";
+
+  // Views this view inherits from
+  implements?: Array<{
+    type: "view";
+    space: string;
+    externalId: string;
+    version: string;
+  }>;
+
+  // Filter to apply to instances
+  filter?: FilterDefinition;
+
+  // Property mappings
+  properties?: {
+    [propertyName: string]: {
+      container: {
+        type: "container";
+        space: string;
+        externalId: string;
+      };
+      containerPropertyIdentifier: string;
+      name?: string;
+      description?: string;
+      // For direct relations
+      source?: ViewReference;
+    };
+  };
+}
+```
+
+### Container Structure
+
+```typescript
+interface ContainerDefinition {
+  space: string;
+  externalId: string;
+  name?: string;
+  description?: string;
+  createdTime?: number;
+  lastUpdatedTime?: number;
+  usedFor?: "node" | "edge" | "all";
+
+  // Property definitions
+  properties: {
+    [propertyName: string]: {
+      type: PropertyType;
+      nullable?: boolean;
+      autoIncrement?: boolean;
+      defaultValue?: any;
+      description?: string;
+      name?: string;
+    };
+  };
+
+  // Constraints
+  constraints?: {
+    [constraintName: string]: {
+      constraintType: "unique" | "required";
+      properties: string[];
+    };
+  };
+
+  // Indexes for performance
+  indexes?: {
+    [indexName: string]: {
+      properties: string[];
+    };
+  };
+}
+```
+
+### Filter Definitions
+
+Filters support complex queries using boolean operators and various conditions:
+
+```typescript
+// Boolean filters
+{
+  and: FilterDefinition[];
+}
+{
+  or: FilterDefinition[];
+}
+{
+  not: FilterDefinition;
+}
+
+// Comparison filters
+{
+  equals: {
+    property: string[];
+    value: any;
+  };
+}
+{
+  in: {
+    property: string[];
+    values: any[];
+  };
+}
+{
+  range: {
+    property: string[];
+    gt?: any;
+    gte?: any;
+    lt?: any;
+    lte?: any;
+  };
+}
+{
+  prefix: {
+    property: string[];
+    value: string;
+  };
+}
+{
+  exists: {
+    property: string[];
+  };
+}
+{
+  containsAny: {
+    property: string[];
+    values: any[];
+  };
+}
+{
+  containsAll: {
+    property: string[];
+    values: any[];
+  };
+}
+
+// Nested filter for direct relations
+{
+  nested: {
+    scope: string[];
+    filter: FilterDefinition;
+  };
+}
+
+// Special filters
+{
+  hasData: {
+    sources: Array<{
+      type: "view" | "container";
+      space: string;
+      externalId: string;
+      version?: string;
+    }>;
+  };
+}
+{
+  matchAll: {};
+}
+```
+
+## Core Data Model
+
+CDF provides the Cognite Core Data Model (`cdf_cdm`) as a foundation for industrial data. Key concepts include:
+
+### Core Features (Reusable Property Sets)
+
+- **CogniteDescribable**: Provides `name`, `description`, `tags`, and `aliases`
+- **CogniteSourceable**: Tracks data origin with `sourceId`, `sourceContext`, `source`
+- **CogniteSchedulable**: Manages time windows with `startTime`, `endTime`, `scheduledStartTime`, `scheduledEndTime`
+- **CogniteVisualizable**: Links to 3D representations via `object3D`
+
+### Core Concepts
+
+- **CogniteAsset**: Represents physical or logical assets in your industrial facility
+- **CogniteEquipment**: Specialized assets representing industrial equipment
+- **CogniteTimeSeries**: References to time series data
+- **CogniteFile**: References to files stored in CDF
+- **CogniteActivity**: Represents activities or events with time boundaries
+- **CogniteAnnotation**: Comments or observations on other objects
+
+### 3D Concepts
+
+- **Cognite3DModel**: 3D models (CAD, point cloud, 360 images)
+- **CogniteCADNode**: Individual nodes within CAD models
+- **CognitePointCloudVolume**: Volumes within point cloud data
+- **Cognite360Image**: 360-degree photospheres
+
+## Access Control
+
+Data modeling uses capability-based access control:
+
+### Required Capabilities
+
+```javascript
+// Basic data model access
+{
+  dataModelsAcl: ["READ", "WRITE"],
+  dataModelInstancesAcl: ["READ", "WRITE"],
+}
+
+// For using core data model
+{
+  dataModelsAcl: {
+    actions: ["READ"],
+    scope: { spaceIdScope: { spaceIds: ["cdf_cdm"] } }
+  },
+  dataModelInstancesAcl: {
+    actions: ["READ"],
+    scope: { spaceIdScope: { spaceIds: ["cdf_cdm_units"] } }
+  },
+}
+
+// For specific spaces
+{
+  dataModelInstancesAcl: {
+    actions: ["READ", "WRITE"],
+    scope: { spaceIdScope: { spaceIds: ["your-space"] } }
+  },
+}
+```
+
+## Error Handling
+
+The Data Modeling APIs return specific error types:
+
+### Common Error Scenarios
+
+```javascript
+try {
+  await client.instances.upsert({ items: [...] });
+} catch (error) {
+  if (error instanceof CogniteError) {
+    switch (error.status) {
+      case 400:
+        // Validation errors
+        console.error("Validation failed:", error.errorMessage);
+        if (error.extra?.violations) {
+          // Schema violations
+          console.error("Violations:", error.extra.violations);
+        }
+        break;
+
+      case 409:
+        // Conflict errors (e.g., version mismatch)
+        console.error("Version conflict:", error.errorMessage);
+        break;
+
+      case 422:
+        // Business logic errors
+        console.error("Business rule violation:", error.errorMessage);
+        break;
+
+      default:
+        console.error(`API Error ${error.status}:`, error.errorMessage);
+    }
+  }
+}
+```
+
+### Handling Large Result Sets
+
+```javascript
+// Use cursor pagination for large datasets
+async function getAllEquipment() {
+  const allItems = [];
+  let cursor = null;
+
+  do {
+    try {
+      const response = await client.instances.list({
+        instanceType: "node",
+        sources: [
+          {
+            source: {
+              type: "view",
+              space: "cdf_core",
+              externalId: "Equipment",
+              version: "v1",
+            },
+          },
+        ],
+        cursor: cursor,
+        limit: 1000,
+      });
+
+      allItems.push(...response.items);
+      cursor = response.nextCursor;
+    } catch (error) {
+      console.error("Failed to fetch page:", error);
+      break;
+    }
+  } while (cursor);
+
+  return allItems;
+}
+```
+
+## Code Example
+
+Here's a complete example building an industrial data model:
+
+```javascript
+import { CogniteClient } from "@cognite/sdk";
+
+async function buildIndustrialDataModel() {
+  // 1. Initialize client
+  const client = new CogniteClient({
+    appId: "IndustrialDataModeling",
+    project: "my-project",
+    oidcTokenProvider: async () => process.env.CDF_ACCESS_TOKEN,
+  });
+
+  try {
+    // 2. Create spaces for organization
+    console.log("Creating spaces...");
+    await client.spaces.upsert([
+      {
+        space: "equipment",
+        name: "Equipment Management",
+        description: "Space for equipment data models and instances",
+      },
+      {
+        space: "maintenance",
+        name: "Maintenance Operations",
+        description: "Space for maintenance workflows and events",
+      },
+      {
+        space: "types",
+        name: "Type Definitions",
+        description: "Space for type categorization nodes",
+      },
+      {
+        space: "assets",
+        name: "Asset Instances",
+        description: "Space for actual asset instances",
+      },
+      {
+        space: "industrial",
+        name: "Industrial Models",
+        description: "Space for industrial data models",
+      },
+      {
+        space: "relationships",
+        name: "Relationship Types",
+        description: "Space for edge type definitions",
+      },
+    ]);
+
+    // 3. Create containers for physical storage
+    console.log("Creating containers...");
+    await client.containers.upsert([
+      {
+        space: "equipment",
+        externalId: "EquipmentData",
+        name: "Equipment Data",
+        description: "Core equipment properties",
+        usedFor: "node",
+        properties: {
+          serialNumber: {
+            type: { type: "text" },
+            nullable: false,
+            description: "Unique serial number",
+          },
+          manufacturer: {
+            type: { type: "text" },
+            nullable: true,
+          },
+          model: {
+            type: { type: "text" },
+            nullable: true,
+          },
+          installationDate: {
+            type: { type: "timestamp" },
+            nullable: true,
+          },
+          specifications: {
+            type: { type: "json" },
+            nullable: true,
+            description: "Technical specifications",
+          },
+        },
+        constraints: {
+          uniqueSerial: {
+            constraintType: "unique",
+            properties: ["serialNumber"],
+          },
+        },
+      },
+      {
+        space: "equipment",
+        externalId: "PumpSpecific",
+        name: "Pump Specific Data",
+        usedFor: "node",
+        properties: {
+          flowRate: {
+            type: { type: "float64" },
+            nullable: true,
+            description: "Flow rate in L/min",
+          },
+          headPressure: {
+            type: { type: "float64" },
+            nullable: true,
+            description: "Head pressure in bar",
+          },
+          efficiency: {
+            type: { type: "float64" },
+            nullable: true,
+            description: "Pump efficiency percentage",
+          },
+        },
+      },
+      {
+        space: "maintenance",
+        externalId: "MaintenanceData",
+        name: "Maintenance Data",
+        usedFor: "edge",
+        properties: {
+          scheduledDate: {
+            type: { type: "timestamp" },
+            nullable: false,
+          },
+          completedDate: {
+            type: { type: "timestamp" },
+            nullable: true,
+          },
+          cost: {
+            type: { type: "float64" },
+            nullable: true,
+          },
+          notes: {
+            type: { type: "text" },
+            nullable: true,
+          },
+        },
+      },
+    ]);
+
+    // 4. Create views for semantic access
+    console.log("Creating views...");
+    await client.views.upsert([
+      {
+        space: "equipment",
+        externalId: "BaseEquipment",
+        version: "v1",
+        name: "Base Equipment",
+        description: "Common equipment properties",
+        properties: {
+          serialNumber: {
+            container: {
+              type: "container",
+              space: "equipment",
+              externalId: "EquipmentData",
+            },
+            containerPropertyIdentifier: "serialNumber",
+          },
+          manufacturer: {
+            container: {
+              type: "container",
+              space: "equipment",
+              externalId: "EquipmentData",
+            },
+            containerPropertyIdentifier: "manufacturer",
+          },
+          model: {
+            container: {
+              type: "container",
+              space: "equipment",
+              externalId: "EquipmentData",
+            },
+            containerPropertyIdentifier: "model",
+          },
+          installationDate: {
+            container: {
+              type: "container",
+              space: "equipment",
+              externalId: "EquipmentData",
+            },
+            containerPropertyIdentifier: "installationDate",
+          },
+        },
+      },
+      {
+        space: "equipment",
+        externalId: "Pump",
+        version: "v1",
+        name: "Pump",
+        description: "Industrial pump with extended properties",
+        implements: [
+          {
+            type: "view",
+            space: "equipment",
+            externalId: "BaseEquipment",
+            version: "v1",
+          },
+        ],
+        properties: {
+          flowRate: {
+            container: {
+              type: "container",
+              space: "equipment",
+              externalId: "PumpSpecific",
+            },
+            containerPropertyIdentifier: "flowRate",
+            name: "Flow Rate (L/min)",
+          },
+          headPressure: {
+            container: {
+              type: "container",
+              space: "equipment",
+              externalId: "PumpSpecific",
+            },
+            containerPropertyIdentifier: "headPressure",
+            name: "Head Pressure (bar)",
+          },
+          efficiency: {
+            container: {
+              type: "container",
+              space: "equipment",
+              externalId: "PumpSpecific",
+            },
+            containerPropertyIdentifier: "efficiency",
+            name: "Efficiency (%)",
+          },
+        },
+        filter: {
+          equals: {
+            property: ["node", "type"],
+            value: { space: "types", externalId: "Pump" },
+          },
+        },
+      },
+      {
+        space: "maintenance",
+        externalId: "MaintenanceEvent",
+        version: "v1",
+        name: "Maintenance Event",
+        description: "Maintenance performed on equipment",
+        properties: {
+          scheduledDate: {
+            container: {
+              type: "container",
+              space: "maintenance",
+              externalId: "MaintenanceData",
+            },
+            containerPropertyIdentifier: "scheduledDate",
+          },
+          completedDate: {
+            container: {
+              type: "container",
+              space: "maintenance",
+              externalId: "MaintenanceData",
+            },
+            containerPropertyIdentifier: "completedDate",
+          },
+          cost: {
+            container: {
+              type: "container",
+              space: "maintenance",
+              externalId: "MaintenanceData",
+            },
+            containerPropertyIdentifier: "cost",
+            name: "Cost (USD)",
+          },
+          notes: {
+            container: {
+              type: "container",
+              space: "maintenance",
+              externalId: "MaintenanceData",
+            },
+            containerPropertyIdentifier: "notes",
+          },
+        },
+      },
+    ]);
+
+    // 5. Create data model
+    console.log("Creating data model...");
+    await client.dataModels.upsert([
+      {
+        space: "industrial",
+        externalId: "EquipmentMaintenance",
+        name: "Equipment Maintenance Model",
+        description: "Model for equipment and maintenance management",
+        version: "v1",
+        views: [
+          {
+            type: "view",
+            space: "equipment",
+            externalId: "Pump",
+            version: "v1",
+          },
+          {
+            type: "view",
+            space: "maintenance",
+            externalId: "MaintenanceEvent",
+            version: "v1",
+          },
+        ],
+      },
+    ]);
+
+    // 6. Create type nodes
+    console.log("Creating type nodes...");
+    await client.instances.upsert({
+      items: [
+        {
+          instanceType: "node",
+          space: "types",
+          externalId: "Pump",
+        },
+      ],
+    });
+
+    // 7. Create pump instances
+    console.log("Creating pump instances...");
+    const pumps = await client.instances.upsert({
+      items: [
+        {
+          instanceType: "node",
+          space: "assets",
+          externalId: "pump-001",
+          type: { space: "types", externalId: "Pump" },
+          sources: [
+            {
+              source: {
+                type: "view",
+                space: "equipment",
+                externalId: "Pump",
+                version: "v1",
+              },
+              properties: {
+                serialNumber: "P2024-001",
+                manufacturer: "FlowTech Industries",
+                model: "FT-5000",
+                installationDate: "2024-01-15T10:00:00Z",
+                flowRate: 500.0,
+                headPressure: 10.5,
+                efficiency: 85.0,
+              },
+            },
+          ],
+        },
+        {
+          instanceType: "node",
+          space: "assets",
+          externalId: "pump-002",
+          type: { space: "types", externalId: "Pump" },
+          sources: [
+            {
+              source: {
+                type: "view",
+                space: "equipment",
+                externalId: "Pump",
+                version: "v1",
+              },
+              properties: {
+                serialNumber: "P2024-002",
+                manufacturer: "FlowTech Industries",
+                model: "FT-3000",
+                installationDate: "2024-02-01T14:30:00Z",
+                flowRate: 300.0,
+                headPressure: 8.0,
+                efficiency: 82.0,
+              },
+            },
+          ],
+        },
+      ],
+    });
+
+    // 8. Create maintenance events as edges
+    console.log("Creating maintenance events...");
+    await client.instances.upsert({
+      items: [
+        {
+          instanceType: "edge",
+          space: "maintenance",
+          externalId: "maint-001",
+          type: { space: "relationships", externalId: "hasMaintenanceEvent" },
+          startNode: { space: "assets", externalId: "pump-001" },
+          endNode: { space: "maintenance", externalId: "event-001" },
+          sources: [
+            {
+              source: {
+                type: "view",
+                space: "maintenance",
+                externalId: "MaintenanceEvent",
+                version: "v1",
+              },
+              properties: {
+                scheduledDate: "2024-03-01T08:00:00Z",
+                completedDate: "2024-03-01T12:00:00Z",
+                cost: 1250.0,
+                notes: "Routine maintenance and seal replacement",
+              },
+            },
+          ],
+        },
+      ],
+    });
+
+    // 9. Query data using the model
+    console.log("Querying pump data with maintenance history...");
+    const queryResult = await client.instances.query({
+      with: {
+        pumps: {
+          nodes: {
+            filter: {
+              and: [
+                {
+                  equals: {
+                    property: ["node", "type"],
+                    value: { space: "types", externalId: "Pump" },
+                  },
+                },
+                {
+                  range: {
+                    property: ["pump", "efficiency"],
+                    gte: 80.0,
+                  },
+                },
+              ],
+            },
+          },
+        },
+        maintenance: {
+          edges: {
+            from: "pumps",
+            type: { space: "relationships", externalId: "hasMaintenanceEvent" },
+            direction: "outwards",
+          },
+        },
+      },
+      select: {
+        pumps: {
+          sources: [
+            {
+              source: {
+                type: "view",
+                space: "equipment",
+                externalId: "Pump",
+                version: "v1",
+              },
+              properties: [
+                "serialNumber",
+                "manufacturer",
+                "model",
+                "flowRate",
+                "efficiency",
+              ],
+            },
+          ],
+        },
+        maintenance: {
+          sources: [
+            {
+              source: {
+                type: "view",
+                space: "maintenance",
+                externalId: "MaintenanceEvent",
+                version: "v1",
+              },
+              properties: ["scheduledDate", "completedDate", "cost", "notes"],
+            },
+          ],
+        },
+      },
+    });
+
+    console.log("Query results:");
+    console.log(`Found ${queryResult.items.pumps.length} efficient pumps`);
+    queryResult.items.pumps.forEach((pump) => {
+      console.log(`\nPump: ${pump.externalId}`);
+      console.log(
+        `- Serial: ${pump.properties?.equipment?.Pump?.serialNumber}`
+      );
+      console.log(
+        `- Efficiency: ${pump.properties?.equipment?.Pump?.efficiency}%`
+      );
+    });
+
+    // 10. Aggregate maintenance costs
+    console.log("\nAggregating maintenance costs...");
+    const aggregation = await client.instances.aggregate({
+      view: {
+        type: "view",
+        space: "maintenance",
+        externalId: "MaintenanceEvent",
+        version: "v1",
+      },
+      groupBy: ["notes"],
+      aggregates: [
+        { count: { property: "externalId" } },
+        { sum: { property: "cost" } },
+        { avg: { property: "cost" } },
+      ],
+    });
+
+    console.log("Maintenance cost summary:");
+    aggregation.items.forEach((group) => {
+      console.log(`- Count: ${group.aggregates[0].value}`);
+      console.log(`- Total cost: $${group.aggregates[1].value}`);
+      console.log(`- Average cost: $${group.aggregates[2].value}`);
+    });
+  } catch (error) {
+    if (error instanceof CogniteError) {
+      console.error(`CDF API Error ${error.status}: ${error.errorMessage}`);
+      if (error.extra) {
+        console.error("Details:", JSON.stringify(error.extra, null, 2));
+      }
+    } else {
+      console.error("Unexpected error:", error);
+    }
+  }
+}
+
+// Run the example
+buildIndustrialDataModel();
+```
+
+This example demonstrates:
+
+- Creating spaces for logical organization
+- Creating containers to define physical storage
+- Building views with inheritance and property mapping
+- Composing data models from views
+- Creating nodes with typed properties
+- Establishing relationships using edges
+- Querying across related data
+- Aggregating instance data
+- Handling errors appropriately
+
+## Best Practices
+
+1. **Space Organization**
+
+   - Use meaningful space names that reflect organizational structure
+   - Separate concerns (e.g., `equipment`, `maintenance`, `operations`)
+   - Consider access control requirements when designing spaces
+
+2. **Container Design**
+
+   - Keep containers focused on a single concept
+   - Use appropriate data types and constraints
+   - Add indexes for frequently queried properties
+   - Set sensible defaults and nullable flags
+
+3. **View Composition**
+
+   - Use inheritance to avoid duplication
+   - Apply filters to create specialized views
+   - Document views thoroughly with descriptions
+   - Version views when making breaking changes
+
+4. **Data Model Structure**
+
+   - Group related views into cohesive data models
+   - Version data models for application compatibility
+   - Include all necessary views for a use case
+   - Document the intended usage clearly
+
+5. **Instance Management**
+
+   - Use meaningful external IDs following a naming convention
+   - Leverage node types for categorization
+   - Model relationships explicitly as edges
+   - Include metadata in properties for traceability
+
+6. **Query Optimization**
+
+   - Use filters to reduce result sets early
+   - Leverage indexes in containers
+   - Paginate large result sets with cursors
+   - Select only needed properties
+
+7. **Error Handling**
+   - Implement retry logic for transient failures
+   - Handle version conflicts appropriately
+   - Validate data before upserting
+   - Log errors with context for debugging
+
+
+

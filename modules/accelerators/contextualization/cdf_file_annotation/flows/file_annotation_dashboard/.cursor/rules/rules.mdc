@@ -1,0 +1,9 @@
+---
+description: Describes global rules
+alwaysApply: true
+---
+
+- Use @aura shadcn components as much as possible. Stick with the style guide provided.
+- Look at the PRD.md file at the root for requirements. If the file is empty, write some yourself as the first thing, and confirm with the user the requirements.
+- The PRD.md file should contain the following: 1.1 Purpose, 1.2 Scope, 1.3 Target Audience, 2. Functional Requirements, 3. Non-Functional Requirements, 4. Data Models & Integration, 4.1 CDF Data Model, 4.1.1 Existing views, 4.1.2 New views, 4.1.3 Spaces, 5. User Stories
+

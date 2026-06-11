@@ -1,0 +1,22 @@
+# Dependencies
+node_modules
+
+# Build output
+dist
+.cognite-bundles
+
+# Environment variables
+.env
+.env.local
+
+# Editor directories
+.vscode
+.idea
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Certificates (if used for local development)
+.cer
+

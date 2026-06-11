@@ -2,6 +2,39 @@
     "version": "0.1.0",
     "configurations": [
       {
+        "name": "Flows | File Annotation Dashboard: Local Mode",
+        "type": "chrome",
+        "request": "launch",
+        "url": "https://localhost:3001",
+        "webRoot": "<insert>/modules/accelerators/contextualization/cdf_file_annotation/flows/file_annotation_dashboard",
+        "preLaunchTask": "file-annotation: start local stack (flows)",
+        "env": {
+          "VITE_RUNTIME_MODE": "cdf_local"
+        },
+        "sourceMaps": true,
+        "timeout": 50000,
+      },
+      {
+        "name": "Flows | File Annotation Dashboard: Host Mode",
+        "type": "node-terminal",
+        "request": "launch",
+        "command": "npm start",
+        "cwd": "<insert>/modules/accelerators/contextualization/cdf_file_annotation/flows/file_annotation_dashboard",
+        "env": {
+          "VITE_RUNTIME_MODE": "cdf_host"
+        },
+      },
+      {
+        "name": "Flows | File Annotation Dashboard: Mock Mode",
+        "type": "node-terminal",
+        "request": "launch",
+        "command": "npm start",
+        "cwd": "<insert>/modules/accelerators/contextualization/cdf_file_annotation/flows/file_annotation_dashboard",
+        "env": {
+          "VITE_RUNTIME_MODE": "mock"
+        }
+      },      
+      {
         "name": "Streamlit | Annotation Quality Dashboard",
         "type": "debugpy",
         "request": "launch",
