@@ -74,7 +74,7 @@ export function PerFileFiltersCard({
                 placeholder="Search by file name or ID..."
                 value={searchQuery}
                 onChange={(e) => onSearchQueryChange(e.target.value)}
-                className="h-8 text-xs"
+                className="h-8 text-xs pl-8"
               />
             </div>
           </div>
