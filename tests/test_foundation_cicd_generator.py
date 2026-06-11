@@ -45,13 +45,20 @@ version = "0.7.220"
         encoding="utf-8",
     )
     (mod / "default.config.yaml").write_text("location: site1\n", encoding="utf-8")
+    for env in ("dev", "test", "prod"):
+        (tmp_path / org_dir / f"config.{env}.yaml").write_text(
+            f"""
+environment:
+  name: {env}
+  project: acme-{env}
+""".lstrip(),
+            encoding="utf-8",
+        )
 
     subprocess.run(
         [
             sys.executable,
             str(GENERATE_ACTIONS),
-            "--enterprise",
-            "acme",
             "--force",
         ],
         check=True,
@@ -63,10 +70,60 @@ version = "0.7.220"
     assert (tmp_path / ".github" / "workflows" / "deploy-test.yml").is_file()
     assert (tmp_path / ".github" / "workflows" / "deploy-prod.yml").is_file()
     assert (tmp_path / "docs" / "FOUNDATION_CICD.md").is_file()
-    assert not (tmp_path / org_dir / "config.dev.yaml").exists()
 
     dry_run = (tmp_path / ".github" / "workflows" / "dry-run.yml").read_text(
         encoding="utf-8"
     )
     assert "'industrial/config*.yaml'" in dry_run
     assert "'industrial/modules/sourcesystem/cdf_pi_foundation/'" not in dry_run
+
+    deploy_dev = (tmp_path / ".github" / "workflows" / "deploy-dev.yml").read_text(
+        encoding="utf-8"
+    )
+    assert "name: Deploy to acme-dev" in deploy_dev
+
+    cicd_docs = (tmp_path / "docs" / "FOUNDATION_CICD.md").read_text(encoding="utf-8")
+    assert "`acme-dev`" in cicd_docs
+    assert "`acme-test`" in cicd_docs
+    assert "`acme-prod`" in cicd_docs
+
+
+def test_generate_actions_validates_environment_name(tmp_path: Path) -> None:
+    (tmp_path / "cdf.toml").write_text(
+        """
+[modules]
+version = "0.7.220"
+""".strip(),
+        encoding="utf-8",
+    )
+    modules = tmp_path / "modules" / "common" / "cdf_project_foundation"
+    modules.mkdir(parents=True)
+    (modules / "module.toml").write_text(
+        'id = "cdf_project_foundation"\npackage_id = "dp:foundation"\n',
+        encoding="utf-8",
+    )
+    for env in ("dev", "test", "prod"):
+        name = "prod" if env == "dev" else env
+        (tmp_path / f"config.{env}.yaml").write_text(
+            f"""
+environment:
+  name: {name}
+  project: acme-{env}
+""".lstrip(),
+            encoding="utf-8",
+        )
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(GENERATE_ACTIONS),
+            "--force",
+        ],
+        cwd=tmp_path,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode != 0
+    assert "environment.name='prod'; expected 'dev'" in result.stderr

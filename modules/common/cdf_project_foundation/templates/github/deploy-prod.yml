@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   deploy:
-    name: Deploy to {{ENTERPRISE}}-prod
+    name: Deploy to {{PROD_PROJECT}}
     runs-on: ubuntu-latest
     environment: prod-toolkit-credentials
     env:

@@ -4,9 +4,9 @@ Generate GitHub Actions CI/CD for a Toolkit project using the Foundation Deploym
 
 Implements the branching model and workflows from sop-cdf-project-setup.md (Step 5):
   - PR to dev or main → dry-run (lint, test, cdf build, cdf deploy --dry-run)
-  - Push to dev → deploy to {enterprise}-dev
-  - Push to main → deploy to {enterprise}-test
-  - Release published from main → deploy to {enterprise}-prod
+  - Push to dev → deploy to config.dev.yaml's environment.project
+  - Push to main → deploy to config.test.yaml's environment.project
+  - Release published from main → deploy to config.prod.yaml's environment.project
 
 Run from the Toolkit project root after `cdf modules add -d dp:foundation`:
 
@@ -21,6 +21,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
+import yaml
+
 try:
     import tomllib
 except ImportError:
@@ -28,6 +30,7 @@ except ImportError:
 
 MODULE_DIR = Path(__file__).resolve().parents[1]
 TEMPLATES_DIR = MODULE_DIR / "templates" / "github"
+ENVIRONMENTS = ("dev", "test", "prod")
 
 
 def resolve_modules_root(repo_root: Path, org_dir: str | None) -> Path:
@@ -117,32 +120,37 @@ def build_lint_paths(org_dir: str | None) -> str:
     return " \\\n            ".join(entries)
 
 
-def resolve_enterprise(args_enterprise: str | None, cdf: dict[str, Any]) -> str:
-    if args_enterprise:
-        return args_enterprise
-    from_toml = cdf.get("cdf", {}).get("enterprise", "")
-    if from_toml:
-        return from_toml
-    try:
-        value = input("Enterprise slug (e.g. 'acme' for acme-dev/test/prod): ").strip()
-    except EOFError:
-        value = ""
-    if not value:
-        print(
-            "Enterprise slug is required. Pass --enterprise or set cdf.enterprise in cdf.toml.",
-            file=sys.stderr,
-        )
-        sys.exit(1)
-    return value
+def config_path(repo_root: Path, org_dir: str | None, env: str) -> Path:
+    base = repo_root / org_dir if org_dir else repo_root
+    return base / f"config.{env}.yaml"
+
+
+def load_environment_projects(repo_root: Path, org_dir: str | None) -> dict[str, str]:
+    """Read CDF project names from config.<env>.yaml files."""
+    projects: dict[str, str] = {}
+    for env in ENVIRONMENTS:
+        path = config_path(repo_root, org_dir, env)
+        if not path.is_file():
+            raise FileNotFoundError(
+                f"Missing {path.relative_to(repo_root)}. Run setup_project.py before generating workflows."
+            )
+
+        data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+        environment = data.get("environment") or {}
+        name = environment.get("name")
+        project = environment.get("project")
+        if name != env:
+            raise ValueError(
+                f"{path.relative_to(repo_root)} has environment.name={name!r}; expected {env!r}."
+            )
+        if not project:
+            raise ValueError(f"{path.relative_to(repo_root)} is missing environment.project.")
+        projects[env] = str(project)
+    return projects
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument(
-        "--enterprise",
-        help="Enterprise slug for CDF projects ({enterprise}-dev|test|prod); "
-        "defaults to cdf.enterprise in cdf.toml",
-    )
     parser.add_argument(
         "--org-dir",
         help="Organization directory (default: cdf.toml default_organization_dir)",
@@ -157,13 +165,15 @@ def main() -> None:
     repo_root = find_repo_root(Path.cwd())
     cdf = load_cdf_toml(repo_root)
     org_dir: str | None = args.org_dir or cdf.get("cdf", {}).get("default_organization_dir") or None
-    enterprise = resolve_enterprise(args.enterprise, cdf)
+    projects = load_environment_projects(repo_root, org_dir)
 
     toolkit_version = cdf.get("modules", {}).get("version", "0.7.220")
     resolve_modules_root(repo_root, org_dir)
 
     base_values: dict[str, str] = {
-        "ENTERPRISE": enterprise,
+        "DEV_PROJECT": projects["dev"],
+        "TEST_PROJECT": projects["test"],
+        "PROD_PROJECT": projects["prod"],
         "TOOLKIT_VERSION": str(toolkit_version),
         "LINT_PATHS": build_lint_paths(org_dir),
     }
@@ -184,7 +194,13 @@ def main() -> None:
         ("dev", "dev", "Dev"),
         ("test", "main", "Test"),
     ):
-        merged = {**base_values, "ENV": env, "BRANCH": branch, "ENV_LABEL": label}
+        merged = {
+            **base_values,
+            "ENV": env,
+            "BRANCH": branch,
+            "ENV_LABEL": label,
+            "PROJECT": projects[env],
+        }
         out = repo_root / ".github" / "workflows" / f"deploy-{env}.yml"
         write_file(out, render_template(deploy_template, merged), args.force)
 

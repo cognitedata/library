@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   deploy:
-    name: Deploy to {{ENTERPRISE}}-{{ENV}}
+    name: Deploy to {{PROJECT}}
     runs-on: ubuntu-latest
     environment: {{ENV}}-toolkit-credentials
     env:

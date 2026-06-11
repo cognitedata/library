@@ -1,6 +1,6 @@
 # Foundation Deployment Pack — CI/CD setup
 
-Generated for enterprise **`{{ENTERPRISE}}`**.
+Generated from committed Toolkit environment configs.
 
 This follows [sop-cdf-project-setup.md](https://github.com/cognitedata/library/blob/main/sop-cdf-project-setup.md) Step 5.
 
@@ -8,11 +8,11 @@ This follows [sop-cdf-project-setup.md](https://github.com/cognitedata/library/b
 
 | Git branch / event | CDF project | Trigger |
 |--------------------|-------------|---------|
-| PR → `dev` | `{{ENTERPRISE}}-dev` | Dry-run (`cdf build`, `cdf deploy --dry-run`) |
-| PR → `main` | `{{ENTERPRISE}}-test` | Dry-run |
-| Push to `dev` | `{{ENTERPRISE}}-dev` | Deploy |
-| Push to `main` | `{{ENTERPRISE}}-test` | Deploy |
-| GitHub Release (tag `vX.Y.Z` from `main`) | `{{ENTERPRISE}}-prod` | Deploy |
+| PR → `dev` | `{{DEV_PROJECT}}` | Dry-run (`cdf build`, `cdf deploy --dry-run`) |
+| PR → `main` | `{{TEST_PROJECT}}` | Dry-run |
+| Push to `dev` | `{{DEV_PROJECT}}` | Deploy |
+| Push to `main` | `{{TEST_PROJECT}}` | Deploy |
+| GitHub Release (tag `vX.Y.Z` from `main`) | `{{PROD_PROJECT}}` | Deploy |
 
 PRs to `main` must come from `dev` or `hotfix/*` only.
 
@@ -22,9 +22,9 @@ Create three environments under **Settings → Environments**:
 
 | Environment | Used by | `CDF_PROJECT` example |
 |-------------|---------|-------------------------|
-| `dev-toolkit-credentials` | PR → dev, push `dev` | `{{ENTERPRISE}}-dev` |
-| `test-toolkit-credentials` | PR → main, push `main` | `{{ENTERPRISE}}-test` |
-| `prod-toolkit-credentials` | Release published | `{{ENTERPRISE}}-prod` |
+| `dev-toolkit-credentials` | PR → dev, push `dev` | `{{DEV_PROJECT}}` |
+| `test-toolkit-credentials` | PR → main, push `main` | `{{TEST_PROJECT}}` |
+| `prod-toolkit-credentials` | Release published | `{{PROD_PROJECT}}` |
 
 Each environment needs these **variables**:
 

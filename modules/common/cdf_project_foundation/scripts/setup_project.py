@@ -646,28 +646,9 @@ def _prompt_source_system_ownership(
     return integration_owners, data_owners
 
 
-def _derive_enterprise(project_names: dict[str, str]) -> str | None:
-    """Try to derive the enterprise slug from project names like ``acme-dev`` → ``acme``."""
-    candidates: set[str] = set()
-    for env, name in project_names.items():
-        suffix = f"-{env}"
-        if name.endswith(suffix):
-            candidates.add(name[: -len(suffix)])
-    return candidates.pop() if len(candidates) == 1 else None
-
-
-def _run_cicd_wizard(pack_root: Path, project_names: dict[str, str] | None = None) -> None:
+def _run_cicd_wizard(pack_root: Path) -> None:
     _section("CI/CD Pipeline Generation")
     if not prompt_yes_no("Generate GitHub Actions workflows for this project?", default=False):
-        return
-
-    derived = _derive_enterprise(project_names or {})
-    enterprise = prompt(
-        "Enterprise slug (e.g. acme for acme-dev / acme-prod)",
-        default=derived,
-    ).strip()
-    if not enterprise:
-        _warn("No enterprise slug provided — skipping CI/CD generation.")
         return
 
     generate_script = Path(__file__).parent / "generate_actions.py"
@@ -675,7 +656,7 @@ def _run_cicd_wizard(pack_root: Path, project_names: dict[str, str] | None = Non
         _warn(f"Could not find generate_actions.py at {generate_script} — skipping.")
         return
 
-    cmd = [sys.executable, str(generate_script), "--enterprise", enterprise, "--force"]
+    cmd = [sys.executable, str(generate_script), "--force"]
     from _style import _C
     print(f"\n  {_C.DIM}Running: {' '.join(cmd)}{_C.RESET}")
     result = subprocess.run(cmd, cwd=str(REPO_ROOT))
@@ -863,7 +844,7 @@ def _run_wizard(
     patched = patch_cfihos_auth_for_missing_search(repo_root)
 
     # ── CI/CD generation ──────────────────────────────────────────────────────
-    _run_cicd_wizard(pack_root, project_names)
+    _run_cicd_wizard(pack_root)
 
     # ── Summary ───────────────────────────────────────────────────────────────
     _section("Done")

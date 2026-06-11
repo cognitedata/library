@@ -148,7 +148,7 @@ Generate GitHub Actions workflows that automate build, dry-run, and deploy on PR
 python modules/common/cdf_project_foundation/scripts/generate_actions.py --force
 ```
 
-Set `enterprise` in `cdf.toml` under `[cdf]` (e.g. `enterprise = "acme"`) or pass `--enterprise <slug>` to override. The script reads `org-dir` and toolkit version from `cdf.toml` automatically.
+The script reads `org-dir` and toolkit version from `cdf.toml` automatically. It uses `environment.project` from each `config.<env>.yaml` as the CDF project name and validates that `environment.name` matches the expected environment.
 
 This writes `.github/workflows/` (`dry-run.yml`, `deploy-dev.yml`, `deploy-test.yml`, `deploy-prod.yml`) and `docs/FOUNDATION_CICD.md` (GitHub Environments and secrets).
 
