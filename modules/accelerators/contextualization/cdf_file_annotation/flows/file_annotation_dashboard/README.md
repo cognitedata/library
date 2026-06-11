@@ -104,6 +104,15 @@ npm --version
 npx --version
 ```
 
+### Install dependencies (required)
+Before using Run and Debug or running any app command, install project dependencies:
+
+```bash
+npm install
+```
+
+Repeat this command whenever `package.json` or `package-lock.json` changes.
+
 ### Runtime Selection
 - `cdf_local`: local app execution using token-proxy + CDF project.
 - `cdf_host`: host-authenticated flow through Flows host app.
@@ -190,6 +199,22 @@ https://{org}.fusion.cognite.com/{project}/flows-apps/development/{appExternalId
 
 ## Deploy to CDF (Flows)
 
+### Important: CI/CD strategy for Flows apps
+Flows App Hosting deployment is not handled by the same CI/CD path used for regular toolkit modules.
+
+For this app, CI/CD must run a dedicated flow that:
+- installs Node dependencies (`npm install`)
+- builds the app (`npm run build`)
+- runs App Hosting deploy commands (`npx @cognite/cli@latest apps ...`)
+- exports deployment credentials required by `deploySecretName`
+
+Recommended repository layout:
+- keep Flows app folders outside the main `modules` deployment path
+- configure a dedicated CI/CD pipeline/job specifically for Flows app build + deploy
+
+Reason: treating a Flows app as a standard module usually causes several warning, since `flows` is not a dedicated 
+folder to be deployed through toolkit.
+
 ### 1) Fill `app.json` (required)
 Before running `npm start` in Host Mode or any deploy command, update `app.json`.
 
@@ -262,11 +287,11 @@ npm run build
 
 ### Create `.env`
 ```bash
-cp config.env.example .env
+cp env.app.properties .env
 ```
 Windows PowerShell:
 ```powershell
-Copy-Item config.env.example .env
+Copy-Item env.app.properties .env
 ```
 
 ### Key environment variables
@@ -298,7 +323,7 @@ When `VITE_RUNTIME_MODE=cdf_local`, configure:
 - `VITE_CDF_PROJECT`
 - `VITE_CDF_URL`
 
-Client credentials must be configured only in `token-proxy/.env` (see `token-proxy/config.env.example`).
+Client credentials must be configured only in `token-proxy/.env` (see `token-proxy/env.local.proxy.properties`).
 Token endpoint/scopes can be resolved from `token-proxy/.env` or inherited from app `VITE_*` values if provided.
 
 ### Local credential proxy script
@@ -350,6 +375,6 @@ This app uses `"infra": "appsApi"` in `app.json`.
 - `src/mocks`: local mock data and mock helpers
 
 ## Notes
-- `config.env.example` lists expected keys/defaults.
-- `token-proxy/config.env.example` lists server-side credential keys/defaults.
+- `env.app.properties` lists expected app env keys/defaults.
+- `token-proxy/env.local.proxy.properties` lists server-side credential keys/defaults.
 - Keep credentials out of version control.
