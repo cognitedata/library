@@ -2,11 +2,17 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import https from "node:https";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { HttpsProxyAgent } from "https-proxy-agent";
+
+const currentDir = path.dirname(fileURLToPath(import.meta.url));
+const proxyEnvPath = path.resolve(currentDir, "../token-proxy/.env");
 
 dotenv.config();
 dotenv.config({ path: ".env.local", override: false });
-dotenv.config({ path: "token-proxy/.env", override: false });
+// Proxy-specific variables should take precedence over root/local env values.
+dotenv.config({ path: proxyEnvPath, override: true });
 
 function readEnv(primaryKey, fallbackKey) {
   return process.env[primaryKey] || process.env[fallbackKey] || "";
@@ -21,10 +27,6 @@ function extractClusterFromUrl(urlValue) {
     return "";
   }
 }
-
-// WARNING: Insecure; local proxy intentionally bypasses TLS validation.
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
-console.warn("TLS validation disabled for local proxy.");
 
 const httpsProxy = process.env.HTTPS_PROXY || process.env.HTTP_PROXY;
 const caPath = process.env.NODE_EXTRA_CA_CERTS;
