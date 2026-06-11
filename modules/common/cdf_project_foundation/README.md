@@ -122,8 +122,13 @@ python modules/common/cdf_project_foundation/scripts/setup_project.py --check   
 Run a build and dry-run to catch config errors before touching any live CDF project:
 
 ```bash
+# Toolkit < 0.8.0
 cdf build --env dev
-cdf deploy --env dev --dry-run
+
+# Toolkit >= 0.8.0
+cdf build -c config.dev.yaml
+
+cdf deploy --dry-run
 ```
 
 Repeat for `test` and `prod` as needed. Fix any reported issues and re-run.
@@ -135,7 +140,7 @@ Repeat for `test` and `prod` as needed. Fix any reported issues and re-run.
 Once the dry-run is clean, deploy to your project:
 
 ```bash
-cdf deploy --env dev
+cdf deploy
 ```
 
 ---

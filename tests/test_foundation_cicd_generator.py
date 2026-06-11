@@ -77,11 +77,17 @@ environment:
     assert "'industrial/config*.yaml'" in dry_run
     assert "'industrial/modules/sourcesystem/cdf_pi_foundation/'" not in dry_run
     assert "No .pre-commit-config.yaml found; skipping pre-commit config lint." in dry_run
+    assert "cdf build --env dev" in dry_run
+    assert "cdf deploy --dry-run | tee dryrun-output.txt" in dry_run
+    assert "cdf deploy --dry-run --env" not in dry_run
 
     deploy_dev = (tmp_path / ".github" / "workflows" / "deploy-dev.yml").read_text(
         encoding="utf-8"
     )
     assert "name: Deploy to acme-dev" in deploy_dev
+    assert "run: cdf build --env dev" in deploy_dev
+    assert "run: cdf deploy" in deploy_dev
+    assert "cdf deploy --env" not in deploy_dev
     assert "ADMIN_SOURCE_ID: ${{ vars.ADMIN_SOURCE_ID }}" in deploy_dev
     assert "CONSUMER_SOURCE_ID: ${{ vars.CONSUMER_SOURCE_ID }}" in deploy_dev
     assert "PRODUCER_SOURCE_ID: ${{ vars.PRODUCER_SOURCE_ID }}" in deploy_dev
@@ -135,3 +141,56 @@ environment:
 
     assert result.returncode != 0
     assert "environment.name='prod'; expected 'dev'" in result.stderr
+
+
+def test_generate_actions_uses_config_flag_for_toolkit_0_8(tmp_path: Path) -> None:
+    org_dir = "industrial"
+    (tmp_path / "cdf.toml").write_text(
+        f"""
+[cdf]
+default_organization_dir = "{org_dir}"
+
+[modules]
+version = "0.8.0"
+""".strip(),
+        encoding="utf-8",
+    )
+    modules = tmp_path / org_dir / "modules" / "common" / "cdf_project_foundation"
+    modules.mkdir(parents=True)
+    (modules / "module.toml").write_text(
+        'id = "cdf_project_foundation"\npackage_id = "dp:foundation"\n',
+        encoding="utf-8",
+    )
+    for env in ("dev", "test", "prod"):
+        (tmp_path / org_dir / f"config.{env}.yaml").write_text(
+            f"""
+environment:
+  name: {env}
+  project: acme-{env}
+""".lstrip(),
+            encoding="utf-8",
+        )
+
+    subprocess.run(
+        [
+            sys.executable,
+            str(GENERATE_ACTIONS),
+            "--force",
+        ],
+        check=True,
+        cwd=tmp_path,
+    )
+
+    dry_run = (tmp_path / ".github" / "workflows" / "dry-run.yml").read_text(
+        encoding="utf-8"
+    )
+    assert "cdf build -c industrial/config.dev.yaml" in dry_run
+    assert "cdf build -c industrial/config.test.yaml" in dry_run
+    assert "cdf build --env" not in dry_run
+
+    deploy_prod = (tmp_path / ".github" / "workflows" / "deploy-prod.yml").read_text(
+        encoding="utf-8"
+    )
+    assert "run: cdf build -c industrial/config.prod.yaml" in deploy_prod
+    assert "run: cdf deploy" in deploy_prod
+    assert "cdf deploy --env" not in deploy_prod

@@ -112,14 +112,15 @@ jobs:
       - name: cdf build
         id: build
         run: |
-          ENV="${{ github.base_ref == 'dev' && 'dev' || 'test' }}"
-          cdf build --env "${ENV}" | tee build-output.txt
+          if [ "${{ github.base_ref }}" = "dev" ]; then
+            cdf build {{DEV_BUILD_ARGS}} | tee build-output.txt
+          else
+            cdf build {{TEST_BUILD_ARGS}} | tee build-output.txt
+          fi
 
       - name: cdf deploy --dry-run
         id: deploy
-        run: |
-          ENV="${{ github.base_ref == 'dev' && 'dev' || 'test' }}"
-          cdf deploy --dry-run --env "${ENV}" | tee dryrun-output.txt
+        run: cdf deploy --dry-run | tee dryrun-output.txt
 
       - name: Comment PR with dry-run output
         if: always() && github.event_name == 'pull_request' && (steps.build.outcome == 'success' || steps.build.outcome == 'failure')

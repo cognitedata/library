@@ -31,6 +31,7 @@ except ImportError:
 MODULE_DIR = Path(__file__).resolve().parents[1]
 TEMPLATES_DIR = MODULE_DIR / "templates" / "github"
 ENVIRONMENTS = ("dev", "test", "prod")
+CONFIG_FLAG_MIN_VERSION = (0, 8, 0)
 
 
 def resolve_modules_root(repo_root: Path, org_dir: str | None) -> Path:
@@ -120,6 +121,26 @@ def build_lint_paths(org_dir: str | None) -> str:
     return " \\\n            ".join(entries)
 
 
+def parse_version(version: str) -> tuple[int, int, int]:
+    parts = re.match(r"^(\d+)\.(\d+)\.(\d+)", version)
+    if not parts:
+        return (0, 0, 0)
+    return tuple(int(part) for part in parts.groups())
+
+
+def config_arg(org_dir: str | None, env: str) -> str:
+    config = f"config.{env}.yaml"
+    if org_dir:
+        config = f"{org_dir}/{config}"
+    return f"-c {config}"
+
+
+def build_args(toolkit_version: str, org_dir: str | None, env: str) -> str:
+    if parse_version(toolkit_version) >= CONFIG_FLAG_MIN_VERSION:
+        return config_arg(org_dir, env)
+    return f"--env {env}"
+
+
 def config_path(repo_root: Path, org_dir: str | None, env: str) -> Path:
     base = repo_root / org_dir if org_dir else repo_root
     return base / f"config.{env}.yaml"
@@ -174,6 +195,9 @@ def main() -> None:
         "DEV_PROJECT": projects["dev"],
         "TEST_PROJECT": projects["test"],
         "PROD_PROJECT": projects["prod"],
+        "DEV_BUILD_ARGS": build_args(str(toolkit_version), org_dir, "dev"),
+        "TEST_BUILD_ARGS": build_args(str(toolkit_version), org_dir, "test"),
+        "PROD_BUILD_ARGS": build_args(str(toolkit_version), org_dir, "prod"),
         "TOOLKIT_VERSION": str(toolkit_version),
         "LINT_PATHS": build_lint_paths(org_dir),
     }
@@ -200,6 +224,7 @@ def main() -> None:
             "BRANCH": branch,
             "ENV_LABEL": label,
             "PROJECT": projects[env],
+            "BUILD_ARGS": build_args(str(toolkit_version), org_dir, env),
         }
         out = repo_root / ".github" / "workflows" / f"deploy-{env}.yml"
         write_file(out, render_template(deploy_template, merged), args.force)

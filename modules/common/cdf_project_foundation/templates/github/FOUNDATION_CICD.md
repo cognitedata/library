@@ -51,7 +51,7 @@ files together with the workflows:
 
 ```bash
 python modules/common/cdf_project_foundation/scripts/setup_project.py
-cdf build --env dev
+cdf build {{DEV_BUILD_ARGS}}
 ```
 
 CI validates the committed configs as-is; it does not regenerate them.

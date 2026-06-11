@@ -46,7 +46,7 @@ jobs:
         run: pip install "cognite-toolkit=={{TOOLKIT_VERSION}}" pyyaml
 
       - name: cdf build
-        run: cdf build --env prod
+        run: cdf build {{PROD_BUILD_ARGS}}
 
       - name: cdf deploy
-        run: cdf deploy --env prod
+        run: cdf deploy
