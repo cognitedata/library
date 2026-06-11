@@ -64,6 +64,11 @@ jobs:
         env:
           SKIP: check-yaml,end-of-file-fixer,trailing-whitespace
         run: |
+          if [ ! -f .pre-commit-config.yaml ]; then
+            echo "No .pre-commit-config.yaml found; skipping pre-commit config lint."
+            exit 0
+          fi
+
           mapfile -t FILES < <(git ls-files \
             {{LINT_PATHS}})
           if [ "${#FILES[@]}" -gt 0 ]; then

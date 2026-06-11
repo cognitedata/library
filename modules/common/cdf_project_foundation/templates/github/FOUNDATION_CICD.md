@@ -55,6 +55,8 @@ cdf build --env dev
 ```
 
 CI validates the committed configs as-is; it does not regenerate them.
+If the repository does not have a root `.pre-commit-config.yaml`, the generated
+PR workflow skips the pre-commit config lint step.
 
 ## Regenerate workflows
 

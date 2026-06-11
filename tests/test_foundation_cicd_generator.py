@@ -76,6 +76,7 @@ environment:
     )
     assert "'industrial/config*.yaml'" in dry_run
     assert "'industrial/modules/sourcesystem/cdf_pi_foundation/'" not in dry_run
+    assert "No .pre-commit-config.yaml found; skipping pre-commit config lint." in dry_run
 
     deploy_dev = (tmp_path / ".github" / "workflows" / "deploy-dev.yml").read_text(
         encoding="utf-8"
@@ -92,6 +93,7 @@ environment:
     assert "`ADMIN_SOURCE_ID`" in cicd_docs
     assert "`CONSUMER_SOURCE_ID`" in cicd_docs
     assert "`PRODUCER_SOURCE_ID`" in cicd_docs
+    assert "skips the pre-commit config lint step" in cicd_docs
 
 
 def test_generate_actions_validates_environment_name(tmp_path: Path) -> None:
