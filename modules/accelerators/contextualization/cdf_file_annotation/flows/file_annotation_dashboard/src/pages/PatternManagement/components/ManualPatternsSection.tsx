@@ -149,7 +149,7 @@ interface ManualPatternsSectionProps {
   manualEntityOptions: Array<{ value: string; label: string }>;
   manualScopeOptions: Array<{ value: string; label: string }>;
   manualResourceTypeOptions: Array<{ value: string; label: string }>;
-  manualTableRef: RefObject<HTMLDivElement | null>;
+  manualTableRef: RefObject<HTMLDivElement>;
   manualRowRef: (element: HTMLTableRowElement | null) => void;
   filteredEditable: EditablePattern[];
   manualTopSpacer: number;

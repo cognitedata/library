@@ -48,7 +48,7 @@ interface AutomaticPatternsSectionProps {
   autoResourceTypeOptions: Array<{ value: string; label: string }>;
   isLoadingAuto: boolean;
   filteredAutoCount: number;
-  autoTableRef: RefObject<HTMLDivElement | null>;
+  autoTableRef: RefObject<HTMLDivElement>;
   autoRowRef: (element: HTMLTableRowElement | null) => void;
   autoTopSpacer: number;
   autoBottomSpacer: number;
