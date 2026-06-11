@@ -79,7 +79,7 @@ class FilterOperator(str, Enum):
 @dataclass
 class AnnotationState:
     """
-    Data structure holding the mpcAnnotationState view properties. Time will convert to Timestamp when ingested into CDF.
+    Data structure holding the FileAnnotationState view properties. Time will convert to Timestamp when ingested into CDF.
     """
 
     annotationStatus: AnnotationStatus
@@ -98,7 +98,7 @@ class AnnotationState:
 
     def _create_external_id(self) -> str:
         """
-        Create a deterministic external ID so that we can replace mpcAnnotationState of files that have been updated and aren't new
+        Create a deterministic external ID so that we can replace FileAnnotationState of files that have been updated and aren't new
         """
         prefix = "an_state"
         linked_file_space = self.linkedFile["space"]
