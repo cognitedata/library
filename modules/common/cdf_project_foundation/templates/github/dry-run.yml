@@ -3,8 +3,7 @@ name: Toolkit PR Validate
 on:
   pull_request:
     branches:
-      - dev
-      - main
+{{PR_BRANCHES}}
 
 concurrency:
   group: toolkit-pr-${{ github.head_ref }}-${{ github.base_ref }}
@@ -51,10 +50,7 @@ jobs:
           import yaml
 
           for path in (
-              ".github/workflows/dry-run.yml",
-              ".github/workflows/deploy-dev.yml",
-              ".github/workflows/deploy-test.yml",
-              ".github/workflows/deploy-prod.yml",
+{{WORKFLOW_FILES}}
           ):
               yaml.safe_load(Path(path).read_text())
               print(f"valid yaml: {path}")
@@ -85,7 +81,7 @@ jobs:
       needs.lint.result == 'success' &&
       (github.base_ref == 'dev' || needs.source-branch-guard.result == 'success')
     runs-on: ubuntu-latest
-    environment: ${{ github.base_ref == 'dev' && 'dev-toolkit-credentials' || 'test-toolkit-credentials' }}
+    environment: {{DRY_RUN_ENVIRONMENT}}
     env:
       CDF_CLUSTER: ${{ vars.CDF_CLUSTER }}
       CDF_PROJECT: ${{ vars.CDF_PROJECT }}
@@ -112,11 +108,7 @@ jobs:
       - name: cdf build
         id: build
         run: |
-          if [ "${{ github.base_ref }}" = "dev" ]; then
-            cdf build {{DEV_BUILD_ARGS}} | tee build-output.txt
-          else
-            cdf build {{TEST_BUILD_ARGS}} | tee build-output.txt
-          fi
+{{DRY_RUN_BUILD_SCRIPT}}
 
       - name: cdf deploy --dry-run
         id: deploy

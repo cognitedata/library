@@ -3,9 +3,9 @@
 Generate GitHub Actions CI/CD for a Toolkit project using the Foundation Deployment Pack.
 
 Implements the branching model and workflows from sop-cdf-project-setup.md (Step 5):
-  - PR to dev or main → dry-run (lint, test, cdf build, cdf deploy --dry-run)
+  - PR to dev, and PR to main when config.test.yaml exists → dry-run
   - Push to dev → deploy to config.dev.yaml's environment.project
-  - Push to main → deploy to config.test.yaml's environment.project
+  - Push to main → deploy to config.test.yaml's environment.project when present
   - Release published from main → deploy to config.prod.yaml's environment.project
 
 Run from the Toolkit project root after `cdf modules add -d dp:foundation`:
@@ -31,6 +31,7 @@ except ImportError:
 MODULE_DIR = Path(__file__).resolve().parents[1]
 TEMPLATES_DIR = MODULE_DIR / "templates" / "github"
 ENVIRONMENTS = ("dev", "test", "prod")
+REQUIRED_ENVIRONMENTS = ("dev", "prod")
 CONFIG_FLAG_MIN_VERSION = (0, 8, 0)
 
 
@@ -102,6 +103,12 @@ def write_file(path: Path, content: str, force: bool) -> None:
     print(f"Wrote {path}")
 
 
+def remove_file(path: Path) -> None:
+    if path.exists():
+        path.unlink()
+        print(f"Removed {path}")
+
+
 def build_lint_paths(org_dir: str | None) -> str:
     """Return git pathspecs for generated workflow linting.
 
@@ -152,9 +159,11 @@ def load_environment_projects(repo_root: Path, org_dir: str | None) -> dict[str,
     for env in ENVIRONMENTS:
         path = config_path(repo_root, org_dir, env)
         if not path.is_file():
-            raise FileNotFoundError(
-                f"Missing {path.relative_to(repo_root)}. Run setup_project.py before generating workflows."
-            )
+            if env in REQUIRED_ENVIRONMENTS:
+                raise FileNotFoundError(
+                    f"Missing {path.relative_to(repo_root)}. Run setup_project.py before generating workflows."
+                )
+            continue
 
         data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
         environment = data.get("environment") or {}
@@ -168,6 +177,75 @@ def load_environment_projects(repo_root: Path, org_dir: str | None) -> dict[str,
             raise ValueError(f"{path.relative_to(repo_root)} is missing environment.project.")
         projects[env] = str(project)
     return projects
+
+
+def workflow_file_list(include_test: bool) -> str:
+    files = [
+        '".github/workflows/dry-run.yml"',
+        '".github/workflows/deploy-dev.yml"',
+    ]
+    if include_test:
+        files.append('".github/workflows/deploy-test.yml"')
+    files.append('".github/workflows/deploy-prod.yml"')
+    return "\n".join(f"              {path}," for path in files)
+
+
+def pr_branches(include_test: bool) -> str:
+    branches = ["dev"]
+    if include_test:
+        branches.append("main")
+    return "\n".join(f"      - {branch}" for branch in branches)
+
+
+def dry_run_environment(include_test: bool) -> str:
+    if include_test:
+        return "${{ github.base_ref == 'dev' && 'dev-toolkit-credentials' || 'test-toolkit-credentials' }}"
+    return "dev-toolkit-credentials"
+
+
+def dry_run_build_script(toolkit_version: str, org_dir: str | None, include_test: bool) -> str:
+    dev_build = f"cdf build {build_args(toolkit_version, org_dir, 'dev')} | tee build-output.txt"
+    if not include_test:
+        return dev_build
+    test_build = f"cdf build {build_args(toolkit_version, org_dir, 'test')} | tee build-output.txt"
+    return "\n".join(
+        [
+            'if [ "${{ github.base_ref }}" = "dev" ]; then',
+            f"  {dev_build}",
+            "else",
+            f"  {test_build}",
+            "fi",
+        ]
+    )
+
+
+def indent(text: str, spaces: int) -> str:
+    prefix = " " * spaces
+    return "\n".join(f"{prefix}{line}" if line else line for line in text.splitlines())
+
+
+def test_branching_rows(projects: dict[str, str]) -> str:
+    if "test" not in projects:
+        return ""
+    return "\n".join(
+        [
+            f"| PR → `main` | `{projects['test']}` | Dry-run |",
+            f"| Push to `main` | `{projects['test']}` | Deploy |",
+        ]
+    )
+
+
+def test_environment_row(projects: dict[str, str]) -> str:
+    if "test" not in projects:
+        return ""
+    return f"| `test-toolkit-credentials` | PR → main, push `main` | `{projects['test']}` |"
+
+
+def env_config_list(projects: dict[str, str]) -> str:
+    configs = [f"`config.{env}.yaml`" for env in ENVIRONMENTS if env in projects]
+    if len(configs) == 1:
+        return configs[0]
+    return ", ".join(configs[:-1]) + f", or {configs[-1]}"
 
 
 def main() -> None:
@@ -187,20 +265,33 @@ def main() -> None:
     cdf = load_cdf_toml(repo_root)
     org_dir: str | None = args.org_dir or cdf.get("cdf", {}).get("default_organization_dir") or None
     projects = load_environment_projects(repo_root, org_dir)
+    include_test = "test" in projects
 
     toolkit_version = cdf.get("modules", {}).get("version", "0.7.220")
     resolve_modules_root(repo_root, org_dir)
 
     base_values: dict[str, str] = {
         "DEV_PROJECT": projects["dev"],
-        "TEST_PROJECT": projects["test"],
         "PROD_PROJECT": projects["prod"],
         "DEV_BUILD_ARGS": build_args(str(toolkit_version), org_dir, "dev"),
-        "TEST_BUILD_ARGS": build_args(str(toolkit_version), org_dir, "test"),
         "PROD_BUILD_ARGS": build_args(str(toolkit_version), org_dir, "prod"),
+        "WORKFLOW_FILES": workflow_file_list(include_test),
+        "PR_BRANCHES": pr_branches(include_test),
+        "DRY_RUN_ENVIRONMENT": dry_run_environment(include_test),
+        "DRY_RUN_BUILD_SCRIPT": indent(dry_run_build_script(str(toolkit_version), org_dir, include_test), 10),
+        "TEST_BRANCHING_ROWS": test_branching_rows(projects),
+        "TEST_ENVIRONMENT_ROW": test_environment_row(projects),
+        "ENV_CONFIG_LIST": env_config_list(projects),
         "TOOLKIT_VERSION": str(toolkit_version),
         "LINT_PATHS": build_lint_paths(org_dir),
     }
+    if include_test:
+        base_values.update(
+            {
+                "TEST_PROJECT": projects["test"],
+                "TEST_BUILD_ARGS": build_args(str(toolkit_version), org_dir, "test"),
+            }
+        )
 
     for name in ("dry-run.yml", "deploy-prod.yml"):
         template = TEMPLATES_DIR / name
@@ -214,10 +305,12 @@ def main() -> None:
     if not deploy_template.is_file():
         print(f"Missing template: {deploy_template}", file=sys.stderr)
         sys.exit(1)
-    for env, branch, label in (
-        ("dev", "dev", "Dev"),
-        ("test", "main", "Test"),
-    ):
+    deploy_envs = [("dev", "dev", "Dev")]
+    if include_test:
+        deploy_envs.append(("test", "main", "Test"))
+    else:
+        remove_file(repo_root / ".github" / "workflows" / "deploy-test.yml")
+    for env, branch, label in deploy_envs:
         merged = {
             **base_values,
             "ENV": env,
@@ -237,10 +330,14 @@ def main() -> None:
     )
 
     print()
+    environments = ["dev-toolkit-credentials"]
+    if include_test:
+        environments.append("test-toolkit-credentials")
+    environments.append("prod-toolkit-credentials")
     print("Next steps:")
-    print("  1. Create GitHub Environments: dev-toolkit-credentials, test-toolkit-credentials,")
-    print("     prod-toolkit-credentials (see docs/FOUNDATION_CICD.md)")
-    print("  2. Create branches dev and main; protect them")
+    print(f"  1. Create GitHub Environments: {', '.join(environments)}")
+    print("     (see docs/FOUNDATION_CICD.md)")
+    print("  2. Create and protect the branches used by the generated workflows")
     print("  3. Open a PR to dev to validate dry-run.yml")
 
 

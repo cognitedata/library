@@ -194,3 +194,66 @@ environment:
     assert "run: cdf build -c industrial/config.prod.yaml" in deploy_prod
     assert "run: cdf deploy" in deploy_prod
     assert "cdf deploy --env" not in deploy_prod
+
+
+def test_generate_actions_skips_test_workflow_when_test_config_missing(tmp_path: Path) -> None:
+    org_dir = "industrial"
+    (tmp_path / "cdf.toml").write_text(
+        f"""
+[cdf]
+default_organization_dir = "{org_dir}"
+
+[modules]
+version = "0.8.0"
+""".strip(),
+        encoding="utf-8",
+    )
+    modules = tmp_path / org_dir / "modules" / "common" / "cdf_project_foundation"
+    modules.mkdir(parents=True)
+    (modules / "module.toml").write_text(
+        'id = "cdf_project_foundation"\npackage_id = "dp:foundation"\n',
+        encoding="utf-8",
+    )
+    for env in ("dev", "prod"):
+        (tmp_path / org_dir / f"config.{env}.yaml").write_text(
+            f"""
+environment:
+  name: {env}
+  project: acme-{env}
+""".lstrip(),
+            encoding="utf-8",
+        )
+    stale_test_workflow = tmp_path / ".github" / "workflows" / "deploy-test.yml"
+    stale_test_workflow.parent.mkdir(parents=True)
+    stale_test_workflow.write_text("stale\n", encoding="utf-8")
+
+    subprocess.run(
+        [
+            sys.executable,
+            str(GENERATE_ACTIONS),
+            "--force",
+        ],
+        check=True,
+        cwd=tmp_path,
+    )
+
+    assert (tmp_path / ".github" / "workflows" / "dry-run.yml").is_file()
+    assert (tmp_path / ".github" / "workflows" / "deploy-dev.yml").is_file()
+    assert not stale_test_workflow.exists()
+    assert (tmp_path / ".github" / "workflows" / "deploy-prod.yml").is_file()
+
+    dry_run = (tmp_path / ".github" / "workflows" / "dry-run.yml").read_text(
+        encoding="utf-8"
+    )
+    assert "      - dev" in dry_run
+    assert "      - main" not in dry_run
+    assert "deploy-test.yml" not in dry_run
+    assert "test-toolkit-credentials" not in dry_run
+    assert "config.test.yaml" not in dry_run
+    assert "cdf build -c industrial/config.dev.yaml" in dry_run
+
+    cicd_docs = (tmp_path / "docs" / "FOUNDATION_CICD.md").read_text(encoding="utf-8")
+    assert "`acme-dev`" in cicd_docs
+    assert "`acme-prod`" in cicd_docs
+    assert "`acme-test`" not in cicd_docs
+    assert "config.test.yaml" not in cicd_docs
