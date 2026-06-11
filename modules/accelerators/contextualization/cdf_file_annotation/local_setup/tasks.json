@@ -1,0 +1,30 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "file-annotation: start local stack (flows)",
+            "type": "shell",
+            "command": "node scripts/start-local-stack.mjs",
+            "options": {
+                "cwd": "<insert>/modules/accelerators/contextualization/cdf_file_annotation/flows/file_annotation_dashboard"
+            },
+            "isBackground": true,
+            "problemMatcher": {
+                "owner": "custom",
+                "pattern": {
+                    "regexp": "^(?!)"
+                },
+                "background": {
+                    "activeOnStart": true,
+                    "beginsPattern": ".",
+                    "endsPattern": "ready in"
+                }
+            },
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated",
+                "group": "file-annotation-local"
+            }
+        }
+    ]
+}
