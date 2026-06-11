@@ -21,12 +21,23 @@ function isPortAvailable(port, host = "localhost") {
 }
 
 function spawnNpm(args, extraEnv = {}) {
-  const command = process.platform === "win32" ? "npm.cmd" : "npm";
+  if (process.platform === "win32") {
+    return spawn(`npm ${args.join(" ")}`, {
+      stdio: "inherit",
+      shell: true,
+      detached: false,
+      env: { ...process.env, ...extraEnv },
+    });
+  }
+
+  const command = "npm";
+  const env = { ...process.env, ...extraEnv };
+
   return spawn(command, args, {
     stdio: "inherit",
     shell: false,
-    detached: process.platform !== "win32",
-    env: { ...process.env, ...extraEnv },
+    detached: true,
+    env,
   });
 }
 
