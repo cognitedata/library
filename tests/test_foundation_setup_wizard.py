@@ -183,7 +183,7 @@ class TestYamlPatchInsertKey:
             "  existing: yes\n",
         ]
         insert_key(lines, "section", "newkey", "val")
-        new_line = next(l for l in lines if "newkey" in l)
+        new_line = next(line for line in lines if "newkey" in line)
         assert new_line.startswith("  ")  # same indentation as siblings
 
 
@@ -253,7 +253,7 @@ class TestEnvIO:
         p.write_text("EXISTING=yes\n")
         lines, vals, idx = parse_env_file(p)
         upsert_env(lines, idx, "NEW_KEY", "secret123")
-        assert any("NEW_KEY=secret123" in l for l in lines)
+        assert any("NEW_KEY=secret123" in line for line in lines)
 
     def test_upsert_updates_existing_key(self, tmp_path: Path) -> None:
         from _env_io import parse_env_file, upsert_env
@@ -261,8 +261,8 @@ class TestEnvIO:
         p.write_text("FOO=old\n")
         lines, vals, idx = parse_env_file(p)
         upsert_env(lines, idx, "FOO", "new")
-        assert any("FOO=new" in l for l in lines)
-        assert not any("FOO=old" in l for l in lines)
+        assert any("FOO=new" in line for line in lines)
+        assert not any("FOO=old" in line for line in lines)
 
     def test_upsert_no_quotes(self, tmp_path: Path) -> None:
         from _env_io import parse_env_file, upsert_env
@@ -270,7 +270,7 @@ class TestEnvIO:
         p.write_text("")
         lines, vals, idx = parse_env_file(p)
         upsert_env(lines, idx, "ID", "abc-123")
-        entry = next(l for l in lines if "ID=" in l)
+        entry = next(line for line in lines if "ID=" in line)
         assert '"' not in entry
 
 
