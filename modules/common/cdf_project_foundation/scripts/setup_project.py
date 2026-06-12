@@ -796,8 +796,9 @@ def _run_wizard(
         if not selected_envs:
             raise SystemExit("No environments selected — nothing to do.")
 
-    # Migrate config.staging.yaml → config.test.yaml if needed.
-    _migrate_staging_to_test(pack_root)
+    # Migrate config.staging.yaml → config.test.yaml only when test env is selected.
+    if "test" in selected_envs:
+        _migrate_staging_to_test(pack_root)
 
     # Load existing values from config files to pre-fill prompts on re-runs.
     existing = _read_existing_values(pack_root, selected_envs, installed_ss)

@@ -72,7 +72,7 @@ def get_org_dir_name(repo_root: Path | None = None) -> str | None:
         return None
     try:
         data = tomllib.loads(toml_path.read_text())
-        default_dir = data.get("default_organization_dir")
+        default_dir = data.get("cdf", {}).get("default_organization_dir")
         if isinstance(default_dir, str):
             value = default_dir.strip()
             return value or None
