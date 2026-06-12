@@ -1,6 +1,15 @@
 # CDF Project Foundation Module
 
-Provides the **project-level foundation** for the `dp:foundation` deployment pack: three persona-based access groups and a project setup wizard, aligned with the project-setup SOP.
+The **Foundation Deployment Pack** (`dp:foundation`) is the recommended starting point for any new Cognite Data Fusion project.
+
+- **Built for new projects** — provides exactly what you need to start fresh
+- **Quick to set up** — gets you up and running with minimal friction
+- **Bloat-free** — no demo data or clutter to clean up later
+- **Intuitive** — easy to understand and navigate from day one
+- **Highly extensible** — simple to plug in your own data sources and processing logic
+- **Reliable** — everything included works out of the box
+
+This module provides the **project-level foundation** of the pack: three persona-based access groups and a project setup wizard, aligned with the [project-setup SOP](https://docs.google.com/document/d/14g_hNbJ398sS-iDWBNeXbZi8qzMM-YaZoyskiJt1ql0/edit?usp=sharing).
 
 ---
 
@@ -81,9 +90,11 @@ The module selector presents all available modules. Make selections carefully:
 
 - `cdf_project_foundation` ← this module (access groups + setup wizard)
 
-**Project health** — optional:
+**Project observability** — recommended:
 
-- `qualitizer` ← data quality monitoring tool
+| Module | Purpose |
+|--------|---------|
+| `qualitizer` | Real-time data quality monitoring and KPI dashboards. Not required for the pack to deploy, but strongly recommended — gives visibility into ingestion health and contextualization coverage from day one. |
 
 ---
 
@@ -270,6 +281,8 @@ adminSourceId: "${ADMIN_SOURCE_ID}"
 **Package**: `dp:foundation`
 
 Self-contained. The group ACLs reference `{{ dataset }}`, `{{ instanceSpace }}`, and `{{ schemaSpace }}`, which must match the values used by the deployed source-system and data-model modules.
+
+See the [project-setup SOP](https://docs.google.com/document/d/14g_hNbJ398sS-iDWBNeXbZi8qzMM-YaZoyskiJt1ql0/edit?usp=sharing) for the authoritative procedure covering environments, Entra ID integration, CI/CD, and sign-off.
 
 ---
 

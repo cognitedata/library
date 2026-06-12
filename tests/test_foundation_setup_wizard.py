@@ -814,18 +814,41 @@ class TestReadExistingValues:
 
 # ── setup_project — .env path resolution ─────────────────────────────────────
 
+class TestGetOrgDirName:
+    def test_reads_from_cdf_section(self, tmp_path: Path) -> None:
+        from _pack_config import get_org_dir_name
+        (tmp_path / "cdf.toml").write_text(
+            '[cdf]\ndefault_organization_dir = "industrial"\n'
+        )
+        assert get_org_dir_name(tmp_path) == "industrial"
+
+    def test_returns_none_when_no_toml(self, tmp_path: Path) -> None:
+        from _pack_config import get_org_dir_name
+        assert get_org_dir_name(tmp_path) is None
+
+    def test_returns_none_when_key_absent(self, tmp_path: Path) -> None:
+        from _pack_config import get_org_dir_name
+        (tmp_path / "cdf.toml").write_text("[cdf]\nenterprise = acme\n")
+        assert get_org_dir_name(tmp_path) is None
+
+    def test_top_level_key_not_read(self, tmp_path: Path) -> None:
+        """Ensure top-level default_organization_dir (wrong format) is not read."""
+        from _pack_config import get_org_dir_name
+        (tmp_path / "cdf.toml").write_text('default_organization_dir = "wrong"\n')
+        assert get_org_dir_name(tmp_path) is None
+
+
 class TestEnvPathResolution:
     """The .env file must always be written to repo root (where cdf.toml lives),
     not inside the org directory."""
 
     def test_env_at_repo_root_without_org_dir(self, tmp_path: Path) -> None:
-        env_path = tmp_path / ".env"  # repo_root / ".env"
+        env_path = tmp_path / ".env"
         assert env_path == tmp_path / ".env"
 
     def test_env_at_repo_root_with_org_dir(self, tmp_path: Path) -> None:
         """pack_root = repo_root/industrial, but .env should be at repo_root/.env."""
         repo_root = tmp_path
-        # The wizard uses: env_path = (repo_root or REPO_ROOT) / ".env"
         env_path = repo_root / ".env"
         pack_root = repo_root / "industrial"
         assert env_path == repo_root / ".env"
