@@ -8,7 +8,26 @@ import tomllib
 import yaml
 
 MODULE_ROOT = Path(__file__).parent.parent
-REPO_ROOT = MODULE_ROOT.parent.parent.parent  # scripts/ -> module/ -> common/ -> modules/ -> repo/
+
+
+def _resolve_repo_root() -> Path:
+    """Locate the Toolkit project root by searching up for ``cdf.toml``.
+
+    Handles both layouts:
+    - Flat   : ``<project>/modules/common/cdf_project_foundation/scripts/``
+    - Org-dir: ``<project>/<org>/modules/common/cdf_project_foundation/scripts/``
+
+    Falls back to four levels above this file when no ``cdf.toml`` is found
+    (e.g. the library development repo which has no ``cdf.toml``).
+    """
+    for parent in Path(__file__).resolve().parents:
+        if (parent / "cdf.toml").is_file():
+            return parent
+    # Fallback: scripts/ → cdf_project_foundation/ → common/ → modules/ → repo/
+    return Path(__file__).resolve().parents[4]
+
+
+REPO_ROOT = _resolve_repo_root()
 
 KNOWN_DATA_MODEL_DIRS = (
     "isa_manufacturing_extension",
@@ -36,6 +55,12 @@ CONTEXTUALIZATION_REDUNDANT_AUTH: dict[str, tuple[str, ...]] = {
 # Maps module path (relative to modules/) → auth file(s) relative to the module root.
 TOOLS_REDUNDANT_AUTH: dict[str, tuple[str, ...]] = {
     "tools/apps/qualitizer": ("auth/apps.qualitizer.Group.yaml",),
+    # CFIHOS DM ships its own owner/read auth groups, which are redundant when
+    # cdf_project_foundation persona groups are deployed.
+    "data_models/cfihos_oil_and_gas_extension": (
+        "auth/gp_cdf_owner_cfihos_oil_gas_data_model.group.yaml",
+        "auth/gp_cdf_read_cfihos_oil_gas_data_model.group.yaml",
+    ),
 }
 
 
