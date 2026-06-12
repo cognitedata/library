@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   deploy:
-    name: Deploy to {{ENTERPRISE}}-prod
+    name: Deploy to {{PROD_PROJECT}}
     runs-on: ubuntu-latest
     environment: prod-toolkit-credentials
     env:
@@ -19,6 +19,9 @@ jobs:
       LOGIN_FLOW: ${{ vars.LOGIN_FLOW }}
       IDP_TENANT_ID: ${{ vars.IDP_TENANT_ID }}
       IDP_CLIENT_ID: ${{ vars.IDP_CLIENT_ID }}
+      ADMIN_SOURCE_ID: ${{ vars.ADMIN_SOURCE_ID }}
+      CONSUMER_SOURCE_ID: ${{ vars.CONSUMER_SOURCE_ID }}
+      PRODUCER_SOURCE_ID: ${{ vars.PRODUCER_SOURCE_ID }}
       IDP_CLIENT_SECRET: ${{ secrets.IDP_CLIENT_SECRET }}
     steps:
       - name: Reject releases not created from main
@@ -43,7 +46,7 @@ jobs:
         run: pip install "cognite-toolkit=={{TOOLKIT_VERSION}}" pyyaml
 
       - name: cdf build
-        run: cdf build --env prod
+        run: cdf build {{PROD_BUILD_ARGS}}
 
       - name: cdf deploy
-        run: cdf deploy --env prod
+        run: cdf deploy

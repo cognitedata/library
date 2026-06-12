@@ -122,8 +122,13 @@ python modules/common/cdf_project_foundation/scripts/setup_project.py --check   
 Run a build and dry-run to catch config errors before touching any live CDF project:
 
 ```bash
+# Toolkit < 0.8.0
 cdf build --env dev
-cdf deploy --env dev --dry-run
+
+# Toolkit >= 0.8.0
+cdf build -c config.dev.yaml
+
+cdf deploy --dry-run
 ```
 
 Repeat for `test` and `prod` as needed. Fix any reported issues and re-run.
@@ -135,7 +140,7 @@ Repeat for `test` and `prod` as needed. Fix any reported issues and re-run.
 Once the dry-run is clean, deploy to your project:
 
 ```bash
-cdf deploy --env dev
+cdf deploy
 ```
 
 ---
@@ -148,11 +153,11 @@ Generate GitHub Actions workflows that automate build, dry-run, and deploy on PR
 python modules/common/cdf_project_foundation/scripts/generate_actions.py --force
 ```
 
-Set `enterprise` in `cdf.toml` under `[cdf]` (e.g. `enterprise = "acme"`) or pass `--enterprise <slug>` to override. The script reads `org-dir` and toolkit version from `cdf.toml` automatically.
+The script reads `org-dir` and toolkit version from `cdf.toml` automatically. It uses `environment.project` from each `config.<env>.yaml` as the CDF project name and validates that `environment.name` matches the expected environment.
 
-This writes `.github/workflows/` (`dry-run.yml`, `deploy-dev.yml`, `deploy-test.yml`, `deploy-prod.yml`) and `docs/FOUNDATION_CICD.md` (GitHub Environments and secrets).
+This writes `.github/workflows/` (`dry-run.yml`, `deploy-dev.yml`, `deploy-prod.yml`, and `deploy-test.yml` when `config.test.yaml` exists) and `docs/FOUNDATION_CICD.md` (GitHub Environments and secrets). Configure `ADMIN_SOURCE_ID`, `CONSUMER_SOURCE_ID`, and `PRODUCER_SOURCE_ID` as GitHub Environment variables alongside the CDF auth variables.
 
-Branching model: PRs to `dev` / `main`; deploy **dev** on merge to `dev`, **test** on merge to `main`, **prod** on GitHub Release from `main`.
+Branching model: PRs to `dev`; PRs to `main` and deploy **test** on merge to `main` only when `config.test.yaml` exists; deploy **dev** on merge to `dev`, and **prod** on GitHub Release from `main`.
 
 ---
 

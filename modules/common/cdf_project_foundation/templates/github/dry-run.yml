@@ -3,8 +3,7 @@ name: Toolkit PR Validate
 on:
   pull_request:
     branches:
-      - dev
-      - main
+{{PR_BRANCHES}}
 
 concurrency:
   group: toolkit-pr-${{ github.head_ref }}-${{ github.base_ref }}
@@ -51,10 +50,7 @@ jobs:
           import yaml
 
           for path in (
-              ".github/workflows/dry-run.yml",
-              ".github/workflows/deploy-dev.yml",
-              ".github/workflows/deploy-test.yml",
-              ".github/workflows/deploy-prod.yml",
+{{WORKFLOW_FILES}}
           ):
               yaml.safe_load(Path(path).read_text())
               print(f"valid yaml: {path}")
@@ -64,6 +60,11 @@ jobs:
         env:
           SKIP: check-yaml,end-of-file-fixer,trailing-whitespace
         run: |
+          if [ ! -f .pre-commit-config.yaml ]; then
+            echo "No .pre-commit-config.yaml found; skipping pre-commit config lint."
+            exit 0
+          fi
+
           mapfile -t FILES < <(git ls-files \
             {{LINT_PATHS}})
           if [ "${#FILES[@]}" -gt 0 ]; then
@@ -80,13 +81,16 @@ jobs:
       needs.lint.result == 'success' &&
       (github.base_ref == 'dev' || needs.source-branch-guard.result == 'success')
     runs-on: ubuntu-latest
-    environment: ${{ github.base_ref == 'dev' && 'dev-toolkit-credentials' || 'test-toolkit-credentials' }}
+    environment: {{DRY_RUN_ENVIRONMENT}}
     env:
       CDF_CLUSTER: ${{ vars.CDF_CLUSTER }}
       CDF_PROJECT: ${{ vars.CDF_PROJECT }}
       LOGIN_FLOW: ${{ vars.LOGIN_FLOW }}
       IDP_TENANT_ID: ${{ vars.IDP_TENANT_ID }}
       IDP_CLIENT_ID: ${{ vars.IDP_CLIENT_ID }}
+      ADMIN_SOURCE_ID: ${{ vars.ADMIN_SOURCE_ID }}
+      CONSUMER_SOURCE_ID: ${{ vars.CONSUMER_SOURCE_ID }}
+      PRODUCER_SOURCE_ID: ${{ vars.PRODUCER_SOURCE_ID }}
       IDP_CLIENT_SECRET: ${{ secrets.IDP_CLIENT_SECRET }}
     steps:
       - uses: actions/checkout@v4
@@ -104,14 +108,11 @@ jobs:
       - name: cdf build
         id: build
         run: |
-          ENV="${{ github.base_ref == 'dev' && 'dev' || 'test' }}"
-          cdf build --env "${ENV}" | tee build-output.txt
+{{DRY_RUN_BUILD_SCRIPT}}
 
       - name: cdf deploy --dry-run
         id: deploy
-        run: |
-          ENV="${{ github.base_ref == 'dev' && 'dev' || 'test' }}"
-          cdf deploy --dry-run --env "${ENV}" | tee dryrun-output.txt
+        run: cdf deploy --dry-run | tee dryrun-output.txt
 
       - name: Comment PR with dry-run output
         if: always() && github.event_name == 'pull_request' && (steps.build.outcome == 'success' || steps.build.outcome == 'failure')
