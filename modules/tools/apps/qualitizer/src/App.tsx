@@ -1,6 +1,6 @@
 import mixpanel from "mixpanel-browser";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useDailyDeploymentPackUsageMixpanel } from "@/deployment-pack-usage";
+import { useDailyDeploymentPackUsageMixpanel, DeploymentPackUsagePage } from "@/deployment-pack-usage";
 import { useAppSdk } from "@/shared/auth";
 import { useSdkManager } from "@/shared/SdkManager";
 import { HealthChecks } from "./health-checks";
@@ -254,6 +254,7 @@ function AppContent() {
         {mode === "permissions" ? <Permissions /> : null}
         {mode === "meta" ? <DataCatalog /> : null}
         {mode === "transformations" ? <Transformations /> : null}
+        {mode === "dpUsage" ? <DeploymentPackUsagePage /> : null}
 
         </div>
           <footer className="text-sm text-slate-500">

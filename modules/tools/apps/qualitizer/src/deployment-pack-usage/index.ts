@@ -1,4 +1,5 @@
 export { detectDeploymentPackUsage } from "./detect";
+export { DeploymentPackUsagePage } from "./DeploymentPackUsagePage";
 export { DEPLOYMENT_PACKS } from "./deployment-packs";
 export { QUALITIZER_DEPLOYMENT_PACK } from "./qualitizer-deployment-pack";
 export { fetchLiveDeploymentPackProbeContext } from "./live-probe-context";
