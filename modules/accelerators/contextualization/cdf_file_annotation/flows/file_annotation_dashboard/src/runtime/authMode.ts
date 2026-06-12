@@ -4,20 +4,32 @@ function isHostedFlowsPath() {
 	if (typeof window === "undefined") return false;
 	const { pathname } = window.location;
 	return (
-		pathname.includes("/custom-apps/development/") ||
-		pathname.includes("/flows-apps/development/") ||
-		pathname.includes("/streamlit-apps/dune/development/")
+		pathname.includes("/custom-apps/") ||
+		pathname.includes("/flows-apps/")
 	);
 }
 
-export const runtimeMode =
+function isLocalhostRuntime() {
+	if (typeof window === "undefined") return false;
+	const { hostname } = window.location;
+	return hostname === "localhost" || hostname === "127.0.0.1";
+}
+
+const isConfiguredRuntimeMode =
 	configuredRuntimeMode === "cdf_local" ||
 	configuredRuntimeMode === "cdf_host" ||
-	configuredRuntimeMode === "mock"
-		? configuredRuntimeMode
-		: isHostedFlowsPath()
+	configuredRuntimeMode === "mock";
+
+// Hosted routes must always use host auth, even if build-time env was set to local mode.
+export const runtimeMode = isHostedFlowsPath()
+	? "cdf_host"
+	: isConfiguredRuntimeMode
+		? configuredRuntimeMode === "cdf_local" && !isLocalhostRuntime()
 			? "cdf_host"
-			: "mock";
+			: configuredRuntimeMode
+		: isLocalhostRuntime()
+			? "mock"
+			: "cdf_host";
 
 export const isLocalMode = runtimeMode !== "cdf_host";
 export const isLocalMockMode = runtimeMode === "mock";
