@@ -39,6 +39,7 @@ from _pack_config import (
     find_env_configs,
     get_contextualization_dir,
     get_data_models_dir,
+    get_org_dir_name,
     get_pack_root,
     list_installed_contextualization_modules,
     list_installed_source_system_modules,
@@ -58,7 +59,7 @@ ENVIRONMENTS: tuple[str, ...] = ("dev", "test", "prod")
 # Access-group environment suffix: "dev" covers both dev and test environments.
 GROUP_ENV: dict[str, str] = {"dev": "dev", "test": "dev", "prod": "prod"}
 
-ENVIRONMENT_VALIDATION_TYPE: dict[str, str] = {"dev": "dev", "test": "dev", "prod": "prod"}
+ENVIRONMENT_VALIDATION_TYPE: dict[str, str] = {"dev": "dev", "test": "prod", "prod": "prod"}
 
 PERSONAS: tuple[str, ...] = ("consumer", "producer", "admin")
 
@@ -158,11 +159,17 @@ _MODULE_CATEGORY_FALLBACK: dict[str, str] = {
 # present (foundation covers these capabilities; standalone modules added them
 # before foundation was installed).
 _STALE_CTX_KEYS: tuple[str, ...] = (
+    # Contextualization stale keys.
     "variables.modules.contextualization.cdf_file_annotation.groupSourceId",
     "variables.modules.contextualization.cdf_entity_matching"
     ".entity_matching_processing_group_source_id",
     "variables.modules.cdf_entity_matching.reservedWordPrefix",
     "variables.modules.contextualization.cdf_entity_matching.reservedWordPrefix",
+    # CFIHOS DM source IDs — covered by foundation persona groups.
+    "variables.modules.cfihos_oil_and_gas_extension.owner_source_id",
+    "variables.modules.cfihos_oil_and_gas_extension.read_source_id",
+    "variables.modules.data_models.cfihos_oil_and_gas_extension.owner_source_id",
+    "variables.modules.data_models.cfihos_oil_and_gas_extension.read_source_id",
 )
 
 # ── Domain helpers ─────────────────────────────────────────────────────────────
@@ -258,6 +265,9 @@ def build_overlay(
     integration_owners: dict[str, tuple[str, str]] | None = None,
     data_owners: dict[str, tuple[str, str]] | None = None,
     datasets: list[str] | None = None,
+    cfihos_admin_user: str = "",
+    cfihos_integration_owner_name: str = "",
+    cfihos_integration_owner_email: str = "",
     repo_root: Path | None = None,
 ) -> dict:
     """Full ``variables.modules`` overlay dict to merge into a config file.
@@ -294,7 +304,14 @@ def build_overlay(
     if variant == "cfihos_oil_and_gas_extension":
         # CFIHOS uses its own space / instance_space variables — not the ISA ones.
         # instance_space is derived from site; space is fixed.
-        modules_vars[variant] = {"instance_space": "inst_location", "environment": env}
+        cfihos_dm_vars: dict[str, Any] = {"instance_space": "inst_location", "environment": env}
+        if cfihos_admin_user:
+            cfihos_dm_vars["admin_user"] = cfihos_admin_user
+        if cfihos_integration_owner_name:
+            cfihos_dm_vars["integrationOwnerName"] = cfihos_integration_owner_name
+        if cfihos_integration_owner_email:
+            cfihos_dm_vars["integrationOwnerEmail"] = cfihos_integration_owner_email
+        modules_vars[variant] = cfihos_dm_vars
 
         # If the search solution module is also installed, keep its instance_space
         # in sync with the enterprise module.
@@ -467,6 +484,38 @@ def remove_redundant_auth_files(repo_root: Path | None = None) -> list[Path]:
     return removed
 
 
+# ── Staging → test migration ──────────────────────────────────────────────────
+
+def _migrate_staging_to_test(pack_root: Path) -> bool:
+    """Rename ``config.staging.yaml`` → ``config.test.yaml`` with corrected fields.
+
+    Toolkit creates a ``staging`` environment; the Foundation DP uses ``test``.
+    Updates ``environment.name`` to ``test`` and ``environment.validation-type``
+    to ``prod`` (staging is pre-prod and should use production-like validation).
+
+    Returns ``True`` if a migration was performed.
+    """
+    staging = pack_root / "config.staging.yaml"
+    test    = pack_root / "config.test.yaml"
+
+    if not staging.exists():
+        return False
+    if test.exists():
+        _warn(
+            "Both config.staging.yaml and config.test.yaml exist — "
+            "skipping automatic staging migration. Remove one manually."
+        )
+        return False
+
+    lines = staging.read_text().splitlines(keepends=True)
+    _yaml_set_value(lines, "environment.name", "test")
+    _yaml_set_value(lines, "environment.validation-type", "prod")
+    test.write_text("".join(lines))
+    staging.unlink()
+    _ok("Migrated config.staging.yaml → config.test.yaml  (validation-type: prod)")
+    return True
+
+
 # ── Data model auth patching ──────────────────────────────────────────────────
 
 def patch_cfihos_auth_for_missing_search(repo_root: Path | None = None) -> list[Path]:
@@ -522,6 +571,9 @@ def _read_existing_values(
         "app_owner": "",
         "integration_owners": {},
         "data_owners": {},
+        "cfihos_admin_user": "",
+        "cfihos_integration_owner_name": "",
+        "cfihos_integration_owner_email": "",
     }
     for env in envs:
         path = pack_root / f"config.{env}.yaml"
@@ -557,6 +609,19 @@ def _read_existing_values(
         )
         if app_owner and app_owner != "<APPLICATION_OWNER>":
             existing["app_owner"] = app_owner
+        # CFIHOS DM owner fields (flat or nested data_models category).
+        cfihos_dm = (
+            modules.get("cfihos_oil_and_gas_extension")
+            or modules.get("data_models", {}).get("cfihos_oil_and_gas_extension", {})
+            or {}
+        )
+        _placeholder_emails = {"admin.user@firm.com", "integration.owner@firm.com"}
+        if cfihos_dm.get("admin_user") and cfihos_dm["admin_user"] not in _placeholder_emails:
+            existing["cfihos_admin_user"] = cfihos_dm["admin_user"]
+        if cfihos_dm.get("integrationOwnerName") and cfihos_dm["integrationOwnerName"] != "Integration Owner":
+            existing["cfihos_integration_owner_name"] = cfihos_dm["integrationOwnerName"]
+        if cfihos_dm.get("integrationOwnerEmail") and cfihos_dm["integrationOwnerEmail"] not in _placeholder_emails:
+            existing["cfihos_integration_owner_email"] = cfihos_dm["integrationOwnerEmail"]
         # Support both flat and nested-category structures.
         ss = modules if not modules.get("sourcesystem") else modules.get("sourcesystem", {})
         for module in installed_ss:
@@ -646,24 +711,37 @@ def _prompt_source_system_ownership(
     return integration_owners, data_owners
 
 
-def _run_cicd_wizard(pack_root: Path) -> None:
+def _run_cicd_wizard(pack_root: Path) -> list[Path]:
+    """Run the CI/CD generation step.  Returns the list of files written (empty if skipped)."""
     _section("CI/CD Pipeline Generation")
     if not prompt_yes_no("Generate GitHub Actions workflows for this project?", default=False):
-        return
+        return []
 
     generate_script = Path(__file__).parent / "generate_actions.py"
     if not generate_script.exists():
         _warn(f"Could not find generate_actions.py at {generate_script} — skipping.")
-        return
+        return []
 
     cmd = [sys.executable, str(generate_script), "--force"]
     from _style import _C
     print(f"\n  {_C.DIM}Running: {' '.join(cmd)}{_C.RESET}")
-    result = subprocess.run(cmd, cwd=str(REPO_ROOT))
+    result = subprocess.run(cmd, cwd=str(REPO_ROOT), capture_output=True, text=True)
+    if result.stdout:
+        print(result.stdout, end="" if result.stdout.endswith("\n") else "\n")
+
+    written: list[Path] = []
+    for line in result.stdout.splitlines():
+        if line.startswith("Wrote "):
+            written.append(Path(line[6:].strip()))
+
     if result.returncode == 0:
         _ok("CI/CD workflows generated.  See docs/FOUNDATION_CICD.md for next steps.")
     else:
         _warn("CI/CD generation completed with warnings — review the output above.")
+        for line in result.stderr.splitlines():
+            _hint(f"  {line}")
+
+    return written
 
 
 # ── Main wizard ────────────────────────────────────────────────────────────────
@@ -682,6 +760,11 @@ def _run_wizard(
     _banner("Foundation Deployment Pack — Project Setup")
     _ok(f"Data model variant : {variant}")
     _ok(f"Pack root          : {pack_root}")
+    org_dir = get_org_dir_name()
+    if org_dir:
+        _ok(f"Organization dir   : {org_dir}  (from cdf.toml)")
+    else:
+        _hint("No organization directory set in cdf.toml — config files written to repo root.")
     if installed_ctx:
         _ok(f"Contextualization  : {', '.join(installed_ctx)}")
     else:
@@ -712,6 +795,9 @@ def _run_wizard(
         )
         if not selected_envs:
             raise SystemExit("No environments selected — nothing to do.")
+
+    # Migrate config.staging.yaml → config.test.yaml if needed.
+    _migrate_staging_to_test(pack_root)
 
     # Load existing values from config files to pre-fill prompts on re-runs.
     existing = _read_existing_values(pack_root, selected_envs, installed_ss)
@@ -762,11 +848,47 @@ def _run_wizard(
         existing_data=existing["data_owners"] or None,
     )
 
+    # ── CFIHOS DM owner config (only when CFIHOS variant is selected) ────────
+    cfihos_admin_user = ""
+    cfihos_integration_owner_name = ""
+    cfihos_integration_owner_email = ""
+    if variant == "cfihos_oil_and_gas_extension":
+        _section("CFIHOS Data Model — Owner Configuration")
+        _hint("Configures admin_user, integrationOwnerName, and integrationOwnerEmail")
+        _hint("in the cfihos_oil_and_gas_extension module. Leave blank to skip.")
+
+        while True:
+            cfihos_admin_user = prompt(
+                "Admin user email",
+                default=existing.get("cfihos_admin_user") or None,
+            ).strip()
+            if not cfihos_admin_user or re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", cfihos_admin_user):
+                break
+            _warn("Invalid email. Use format: name@domain.com")
+
+        cfihos_integration_owner_name = prompt(
+            "Integration owner name",
+            default=existing.get("cfihos_integration_owner_name") or None,
+        ).strip()
+
+        while True:
+            cfihos_integration_owner_email = prompt(
+                "Integration owner email",
+                default=existing.get("cfihos_integration_owner_email") or None,
+            ).strip()
+            if not cfihos_integration_owner_email or re.fullmatch(
+                r"[^@\s]+@[^@\s]+\.[^@\s]+", cfihos_integration_owner_email
+            ):
+                break
+            _warn("Invalid email. Use format: name@domain.com")
+
     # ── Group source IDs → .env ───────────────────────────────────────────────
     _section("Group Source IDs  (Entra ID object IDs)")
     _hint("Stored in .env and referenced as ${CONSUMER_SOURCE_ID} etc. in config.")
     _hint("Leave blank to skip — fill .env manually later.")
-    env_path = pack_root / ".env"
+    # .env always lives at repo root (same level as cdf.toml), regardless of
+    # whether an organization directory is configured.
+    env_path = (repo_root or REPO_ROOT) / ".env"
     env_lines, env_vals, env_key_idx = parse_env_file(env_path)
     original_env_vals = dict(env_vals)
 
@@ -820,6 +942,9 @@ def _run_wizard(
             variant, env, site, installed_ctx, app_owner,
             integration_owners, data_owners,
             datasets=existing["dataset"],
+            cfihos_admin_user=cfihos_admin_user,
+            cfihos_integration_owner_name=cfihos_integration_owner_name,
+            cfihos_integration_owner_email=cfihos_integration_owner_email,
             repo_root=repo_root,
         )
         if write_config(path, env, project_names[env], overlay):
@@ -844,7 +969,7 @@ def _run_wizard(
     patched = patch_cfihos_auth_for_missing_search(repo_root)
 
     # ── CI/CD generation ──────────────────────────────────────────────────────
-    _run_cicd_wizard(pack_root)
+    cicd_files = _run_cicd_wizard(pack_root)
 
     # ── Summary ───────────────────────────────────────────────────────────────
     _section("Done")
@@ -855,11 +980,21 @@ def _run_wizard(
         _ok(f"{len(patched)} cfihos auth file(s) patched (search_space removed).")
     if env_dirty:
         _ok(".env updated with group source IDs.")
+    if cicd_files:
+        _ok(f"{len(cicd_files)} CI/CD workflow file(s) generated.")
     print()
     _hint("Next steps:")
     _hint("  1. Verify group source IDs in .env match your Entra ID object IDs.")
     _hint("  2. Confirm environment.project names in each config.<env>.yaml file.")
-    _hint("  3. Add CI/CD secrets to GitHub Environments (IDP_CLIENT_SECRET).")
+    if cicd_files:
+        _hint("  3. Create GitHub Environments: dev-toolkit-credentials,")
+        _hint("     test-toolkit-credentials, prod-toolkit-credentials")
+        _hint("     (see docs/FOUNDATION_CICD.md for variable and secret details).")
+        _hint("  4. Add IDP_CLIENT_SECRET to each GitHub Environment.")
+        _hint("  5. Create and protect branches dev and main;")
+        _hint("     open a PR to dev to validate dry-run.yml.")
+    else:
+        _hint("  3. Add CI/CD secrets to GitHub Environments (IDP_CLIENT_SECRET).")
     print()
 
 

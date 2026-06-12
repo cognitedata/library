@@ -270,3 +270,37 @@ adminSourceId: "${ADMIN_SOURCE_ID}"
 **Package**: `dp:foundation`
 
 Self-contained. The group ACLs reference `{{ dataset }}`, `{{ instanceSpace }}`, and `{{ schemaSpace }}`, which must match the values used by the deployed source-system and data-model modules.
+
+---
+
+## Running the Tests
+
+The test suite lives in `tests/test_foundation_setup_wizard.py` at the repo root and covers `_yaml_patch`, `_env_io`, and the core logic of `setup_project.py`.
+
+**Prerequisites** — a Python environment with `pytest` and `pyyaml`:
+
+```bash
+pip install pytest pyyaml
+```
+
+**Run all foundation wizard tests:**
+
+```bash
+# From the library repo root
+pytest tests/test_foundation_setup_wizard.py -v
+```
+
+**Run alongside the CI/CD generator tests:**
+
+```bash
+pytest tests/ -v
+```
+
+**Run a specific class or test:**
+
+```bash
+pytest tests/test_foundation_setup_wizard.py::TestYamlPatchSetValue -v
+pytest tests/test_foundation_setup_wizard.py::TestMigrateStagingToTest::test_renames_and_patches_file -v
+```
+
+> The tests use `tmp_path` fixtures for all file I/O — no project files are modified.
