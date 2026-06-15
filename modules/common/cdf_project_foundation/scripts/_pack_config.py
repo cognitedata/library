@@ -1,10 +1,8 @@
 """Shared path / config helpers for setup_project.py."""
 
-from __future__ import annotations
-
+import tomllib
 from pathlib import Path
 
-import tomllib
 import yaml
 
 MODULE_ROOT = Path(__file__).parent.parent

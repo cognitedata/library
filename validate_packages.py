@@ -7,11 +7,10 @@ Assumes "modules" as the base folder where packages.toml is located.
 
 import os
 import sys
+import tomllib
 from collections import defaultdict
 from pathlib import Path
 from typing import Any, Dict, List
-
-import tomllib
 
 
 def validate_library_header(data: Dict[str, Any]) -> bool:

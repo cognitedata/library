@@ -1,5 +1,6 @@
 [tool.ruff]
 line-length = 120
+target-version = "py313"  # py314 not yet supported by ruff; update when ruff adds it
 
 [tool.ruff.lint]
 select = ["E", "F", "I"]
