@@ -57,7 +57,7 @@ TOOLS_REDUNDANT_AUTH: dict[str, tuple[str, ...]] = {
     "tools/apps/qualitizer": ("auth/apps.qualitizer.Group.yaml",),
     # CFIHOS DM ships its own owner/read auth groups, which are redundant when
     # cdf_project_foundation persona groups are deployed.
-    "data_models/cfihos_oil_and_gas_extension": (
+    "datamodels/cfihos_oil_and_gas_extension": (
         "auth/gp_cdf_owner_cfihos_oil_gas_data_model.group.yaml",
         "auth/gp_cdf_read_cfihos_oil_gas_data_model.group.yaml",
     ),
@@ -91,8 +91,8 @@ def get_pack_root(repo_root: Path | None = None) -> Path:
 
 
 def get_data_models_dir(repo_root: Path | None = None) -> Path:
-    """Path to modules/data_models under the pack root (org-prefixed when configured)."""
-    return get_pack_root(repo_root) / "modules" / "data_models"
+    """Path to modules/datamodels under the pack root (org-prefixed when configured)."""
+    return get_pack_root(repo_root) / "modules" / "datamodels"
 
 
 def get_sourcesystem_dir(repo_root: Path | None = None) -> Path:
@@ -157,13 +157,13 @@ def find_env_configs(repo_root: Path | None = None) -> list[Path]:
 
 def detect_data_model_variant(data_models_dir: Path) -> str:
     """
-    Detect installed data model from subdirectory names under modules/data_models/.
+    Detect installed data model from subdirectory names under modules/datamodels/.
     Raises SystemExit with a message when zero or multiple models are found.
     """
     if not data_models_dir.is_dir():
         raise SystemExit(
             f"ERROR: Data models directory not found: {data_models_dir}\n"
-            "  Expected modules/data_models/ under the pack root."
+            "  Expected modules/datamodels/ under the pack root."
         )
 
     present = [

@@ -45,12 +45,12 @@ title = "Data models"
 description = "Data models that extend the core data model"
 canCherryPick = true
 modules = [
-    "data_models/rmdm",
-    "data_models/isa_manufacturing_extension",
-    "data_models/cdf_process_industry_extension",
-    "data_models/qs_enterprise_dm",
-    "data_models/cfihos_oil_and_gas_extension",
-    "data_models/cfihos_oil_and_gas_extension_search",
+    "datamodels/rmdm",
+    "datamodels/isa_manufacturing_extension",
+    "datamodels/cdf_process_industry_extension",
+    "datamodels/qs_enterprise_dm",
+    "datamodels/cfihos_oil_and_gas_extension",
+    "datamodels/cfihos_oil_and_gas_extension_search",
 ]
 
 
@@ -94,7 +94,7 @@ modules = [
     "sourcesystem/cdf_sap_events",
     "sourcesystem/cdf_sharepoint",
     "dashboards/report_quality",
-    "data_models/qs_enterprise_dm",
+    "datamodels/qs_enterprise_dm",
 ]
 
 [packages.sourcesystem]
@@ -136,9 +136,9 @@ title = "Foundation Deployment Pack"
 description = "Quick-start foundation for CDF projects with modular data models, source connectors, and contextualization."
 canCherryPick = true
 modules = [
-    "data_models/isa_manufacturing_extension",
-    "data_models/cfihos_oil_and_gas_extension",
-    "data_models/cfihos_oil_and_gas_extension_search",
+    "datamodels/isa_manufacturing_extension",
+    "datamodels/cfihos_oil_and_gas_extension",
+    "datamodels/cfihos_oil_and_gas_extension_search",
     "sourcesystem/cdf_pi_foundation",
     "sourcesystem/cdf_opcua_foundation",
     "sourcesystem/cdf_sap_foundation",

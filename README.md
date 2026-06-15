@@ -14,7 +14,7 @@ All deployable content lives under [`modules/`](modules/). The registry of packs
 |--------|---------|
 | [`common/`](modules/common/) | Shared CDF platform modules (`cdf_common`, `cdf_ingestion`, `cdf_search`) |
 | [`contextualization/`](modules/contextualization/) | File annotation, entity matching, P&ID, connection SQL |
-| [`data_models/`](modules/data_models/) | Industry and extension data models (`rmdm`, ISA, CFIHOS, …) |
+| [`datamodels/`](modules/datamodels/) | Industry and extension data models (`rmdm`, ISA, CFIHOS, …) |
 | [`solutions/`](modules/solutions/) | Product verticals (`cdm_maintain`, `cdf_infield`, `cdf_ai_extractor`) |
 | [`sourcesystem/`](modules/sourcesystem/) | Source connectors (PI, SAP, SharePoint, OID sync) |
 | [`dashboards/`](modules/dashboards/) | Streamlit dashboards and reporting |
@@ -30,7 +30,7 @@ All deployable content lives under [`modules/`](modules/). The registry of packs
 | `cdm_` / `cdf_` | Solutions on Cognite Data Model | `cdm_maintain`, `cdf_infield` |
 | *(none)* | Industry models, dashboards, tools | `rmdm`, `context_quality`, `report_quality` |
 
-Apply the prefix on **module folder names** where it helps discovery. Top-level folders (`common/`, `data_models/`, …) are not prefixed.
+Apply the prefix on **module folder names** where it helps discovery. Top-level folders (`common/`, `datamodels/`, …) are not prefixed.
 
 Contributors: see [ADDING_PACKAGES_AND_MODULES.md](ADDING_PACKAGES_AND_MODULES.md). Validation and module layout details are in [modules/README.md](modules/README.md).
 

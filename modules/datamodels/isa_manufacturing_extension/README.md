@@ -243,7 +243,7 @@ After installation, your project should now contain:
 
 ```
 modules/
-    └── data_models/
+    └── datamodels/
         └── isa_manufacturing_extension/
 ```
 If you want to add more modules, continue with yes ('y') else no ('N')

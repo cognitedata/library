@@ -345,7 +345,7 @@ class TestBuildOverlay:
     def test_cfihos_search_module_added_when_present(self, tmp_path: Path) -> None:
         from setup_project import build_overlay
         # Simulate search module being installed
-        search_dir = tmp_path / "modules" / "data_models" / "cfihos_oil_and_gas_extension_search"
+        search_dir = tmp_path / "modules" / "datamodels" / "cfihos_oil_and_gas_extension_search"
         search_dir.mkdir(parents=True)
         overlay = build_overlay(
             "cfihos_oil_and_gas_extension", "dev", "", [], repo_root=tmp_path
@@ -636,7 +636,7 @@ class TestRemoveRedundantAuthFiles:
             "gp_cdf_read_cfihos_oil_gas_data_model.group.yaml",
         ):
             self._make_auth_file(
-                tmp_path / "modules" / "data_models"
+                tmp_path / "modules" / "datamodels"
                 / "cfihos_oil_and_gas_extension" / "auth" / name
             )
         removed = remove_redundant_auth_files(tmp_path)
@@ -652,7 +652,7 @@ class TestRemoveRedundantAuthFiles:
 
 class TestPatchCfihosAuthForMissingSearch:
     def _cfihos_auth_dir(self, tmp_path: Path) -> Path:
-        d = tmp_path / "modules" / "data_models" / "cfihos_oil_and_gas_extension" / "auth"
+        d = tmp_path / "modules" / "datamodels" / "cfihos_oil_and_gas_extension" / "auth"
         d.mkdir(parents=True, exist_ok=True)
         return d
 
@@ -673,7 +673,7 @@ class TestPatchCfihosAuthForMissingSearch:
         from setup_project import patch_cfihos_auth_for_missing_search
         auth_dir = self._cfihos_auth_dir(tmp_path)
         # Create the search module directory
-        search = tmp_path / "modules" / "data_models" / "cfihos_oil_and_gas_extension_search"
+        search = tmp_path / "modules" / "datamodels" / "cfihos_oil_and_gas_extension_search"
         search.mkdir(parents=True)
         f = auth_dir / "owner.group.yaml"
         f.write_text("  - {{search_space}}\n")

@@ -142,17 +142,17 @@ CONTEXTUALIZATION_VARIABLES: dict[str, dict[str, dict]] = {
 # Fallback category for modules that may live in old nested-category config files
 # (e.g. created before the flat-structure migration).  Used by _write_config_update
 # to try an alternative dotted path when the flat path is not found.
-_MODULE_CATEGORY_FALLBACK: dict[str, str] = {
-    "cdf_project_foundation":    "common",
-    "cdf_entity_matching":       "contextualization",
-    "cdf_file_annotation":       "contextualization",
-    "cdf_pi_foundation":         "sourcesystem",
-    "cdf_sap_foundation":        "sourcesystem",
-    "cdf_opcua_foundation":      "sourcesystem",
-    "cdf_db_foundation":         "sourcesystem",
-    "cdf_files_foundation":      "sourcesystem",
-    "isa_manufacturing_extension":    "data_models",
-    "cfihos_oil_and_gas_extension":   "data_models",
+_MODULE_CATEGORY_FALLBACK: dict[str, tuple[str, ...]] = {
+    "cdf_project_foundation":    ("common",),
+    "cdf_entity_matching":       ("contextualization",),
+    "cdf_file_annotation":       ("contextualization",),
+    "cdf_pi_foundation":         ("sourcesystem",),
+    "cdf_sap_foundation":        ("sourcesystem",),
+    "cdf_opcua_foundation":      ("sourcesystem",),
+    "cdf_db_foundation":         ("sourcesystem",),
+    "cdf_files_foundation":      ("sourcesystem",),
+    "isa_manufacturing_extension":    ("datamodels", "data_models"),
+    "cfihos_oil_and_gas_extension":   ("datamodels", "data_models"),
 }
 
 # Keys that are stale in an existing config when cdf_project_foundation is
@@ -170,6 +170,8 @@ _STALE_CTX_KEYS: tuple[str, ...] = (
     "variables.modules.cfihos_oil_and_gas_extension.read_source_id",
     "variables.modules.data_models.cfihos_oil_and_gas_extension.owner_source_id",
     "variables.modules.data_models.cfihos_oil_and_gas_extension.read_source_id",
+    "variables.modules.datamodels.cfihos_oil_and_gas_extension.owner_source_id",
+    "variables.modules.datamodels.cfihos_oil_and_gas_extension.read_source_id",
 )
 
 # ── Domain helpers ─────────────────────────────────────────────────────────────
@@ -407,13 +409,15 @@ def _write_config_update(path: Path, project: str, overlay: dict) -> bool:
             old, c = _yaml_set_value(lines, f"variables.modules.{module}.{key}", yaml_val)
             if old is None and not c:
                 # 2. Try legacy nested-category path.
-                category = _MODULE_CATEGORY_FALLBACK.get(module)
-                if category:
+                categories = _MODULE_CATEGORY_FALLBACK.get(module, ())
+                for category in categories:
                     old, c = _yaml_set_value(
                         lines,
                         f"variables.modules.{category}.{module}.{key}",
                         yaml_val,
                     )
+                    if old is not None or c:
+                        break
             if old is None and not c:
                 # 3. Key truly absent — insert under flat path.
                 if _yaml_insert_key(lines, f"variables.modules.{module}", key, yaml_val):
@@ -609,9 +613,10 @@ def _read_existing_values(
         )
         if app_owner and app_owner != "<APPLICATION_OWNER>":
             existing["app_owner"] = app_owner
-        # CFIHOS DM owner fields (flat or nested data_models category).
+        # CFIHOS DM owner fields (flat or nested datamodels/data_models category).
         cfihos_dm = (
             modules.get("cfihos_oil_and_gas_extension")
+            or modules.get("datamodels", {}).get("cfihos_oil_and_gas_extension", {})
             or modules.get("data_models", {}).get("cfihos_oil_and_gas_extension", {})
             or {}
         )

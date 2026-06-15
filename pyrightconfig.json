@@ -19,6 +19,6 @@
   "ignore": [
     "modules/**/streamlit/**",
     "modules/tools/notebooks/**",
-    "modules/data_models/**"
+    "modules/datamodels/**"
   ]
 }
