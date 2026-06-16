@@ -50,6 +50,7 @@ properties:
     type:
       list: true
       type: direct
+      maxListSize: 100
     immutable: false
     nullable: true
     autoIncrement: false
@@ -58,6 +59,7 @@ properties:
     type:
       list: true
       type: direct
+      maxListSize: 100
     immutable: false
     nullable: true
     autoIncrement: false
@@ -66,6 +68,7 @@ properties:
     type:
       list: true
       type: direct
+      maxListSize: 100
     immutable: false
     nullable: true
     autoIncrement: false
@@ -74,6 +77,7 @@ properties:
     type:
       list: true
       type: direct
+      maxListSize: 100
     immutable: false
     nullable: true
     autoIncrement: false
@@ -109,6 +113,26 @@ indexes:
     - status
     - valid_from
     cursorable: true
+    indexType: btree
+  unit_index:
+    properties:
+    - unit
+    cursorable: false
+    indexType: btree
+  product_segment_index:
+    properties:
+    - product_segment
+    cursorable: false
+    indexType: btree
+  product_request_index:
+    properties:
+    - product_request
+    cursorable: false
+    indexType: btree
+  files_index:
+    properties:
+    - files
+    cursorable: false
     indexType: btree
 constraints:
   requiresCogniteDescribable:

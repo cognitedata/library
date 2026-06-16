@@ -51,6 +51,7 @@ properties:
     type:
       list: true
       type: direct
+      maxListSize: 100
     immutable: false
     nullable: true
     autoIncrement: false
@@ -59,6 +60,7 @@ properties:
     type:
       list: true
       type: direct
+      maxListSize: 100
     immutable: false
     nullable: true
     autoIncrement: false
@@ -68,6 +70,16 @@ indexes:
     properties:
     - process_parameter_id
     cursorable: true
+    indexType: btree
+  phases_index:
+    properties:
+    - phases
+    cursorable: false
+    indexType: btree
+  product_segment_index:
+    properties:
+    - product_segment
+    cursorable: false
     indexType: btree
 constraints:
   requiresCogniteDescribable:

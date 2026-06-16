@@ -24,6 +24,7 @@ properties:
     type:
       list: true
       type: direct
+      maxListSize: 100
     immutable: false
     nullable: true
     autoIncrement: false
@@ -32,6 +33,7 @@ properties:
     type:
       list: true
       type: direct
+      maxListSize: 100
     immutable: false
     nullable: true
     autoIncrement: false
@@ -40,6 +42,7 @@ properties:
     type:
       list: true
       type: direct
+      maxListSize: 100
     immutable: false
     nullable: true
     autoIncrement: false
@@ -61,6 +64,11 @@ indexes:
   erp_id_index:
     properties:
     - erp_id
+    cursorable: true
+    indexType: btree
+  object3D_index:
+    properties:
+    - object3D
     cursorable: true
     indexType: btree
 constraints:

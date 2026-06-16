@@ -1,0 +1,228 @@
+space: "{{search_space}}"
+externalId: ISAAsset
+name: ISAAsset
+description: Search-optimized ISA asset view. Maps to enterprise ISAAsset and CogniteAsset
+  containers without implementing CogniteAsset to keep the search model decoupled from CDM
+  hierarchy semantics. Hosts reverse relations for search/AI navigation.
+implements:
+- space: cdf_cdm
+  externalId: CogniteDescribable
+  version: v1
+  type: view
+version: "{{search_dm_version}}"
+properties:
+  parent:
+    name: Parent
+    description: Reference to the parent asset in the ISA-95 hierarchical asset tree.
+    container:
+      space: cdf_cdm
+      externalId: CogniteAsset
+      type: container
+    containerPropertyIdentifier: assetHierarchy_parent
+    source:
+      space: "{{search_space}}"
+      externalId: ISAAsset
+      version: "{{search_dm_version}}"
+      type: view
+  root:
+    name: Root
+    description: An automatically updated reference to the top-level asset of the hierarchy.
+    container:
+      space: cdf_cdm
+      externalId: CogniteAsset
+      type: container
+    containerPropertyIdentifier: assetHierarchy_root
+    source:
+      space: "{{search_space}}"
+      externalId: ISAAsset
+      version: "{{search_dm_version}}"
+      type: view
+  path:
+    name: Path
+    description: An automatically updated ordered list of this asset's ancestors, starting
+      with the root asset.
+    container:
+      space: cdf_cdm
+      externalId: CogniteAsset
+      type: container
+    containerPropertyIdentifier: assetHierarchy_path
+    source:
+      space: "{{search_space}}"
+      externalId: ISAAsset
+      version: "{{search_dm_version}}"
+      type: view
+  pathLastUpdatedTime:
+    name: Path last updated time
+    description: The last time the path was updated for this asset.
+    container:
+      space: cdf_cdm
+      externalId: CogniteAsset
+      type: container
+    containerPropertyIdentifier: assetHierarchy_path_last_updated_time
+  assetClass:
+    name: Asset class
+    description: Specifies the class of the asset.
+    container:
+      space: cdf_cdm
+      externalId: CogniteAsset
+      type: container
+    containerPropertyIdentifier: assetClass
+    source:
+      space: cdf_cdm
+      externalId: CogniteAssetClass
+      version: v1
+      type: view
+  type:
+    name: Asset type
+    description: Specifies the type of the asset.
+    container:
+      space: cdf_cdm
+      externalId: CogniteAsset
+      type: container
+    containerPropertyIdentifier: type
+    source:
+      space: cdf_cdm
+      externalId: CogniteAssetType
+      version: v1
+      type: view
+  children:
+    name: Children
+    description: An automatically updated list of assets with this asset as their parent.
+    connectionType: multi_reverse_direct_relation
+    source:
+      space: "{{search_space}}"
+      externalId: ISAAsset
+      version: "{{search_dm_version}}"
+      type: view
+    through:
+      source:
+        space: "{{search_space}}"
+        externalId: ISAAsset
+        version: "{{search_dm_version}}"
+        type: view
+      identifier: parent
+  asset_specific:
+    name: Asset specific
+    description: Polymorphic reference to a related ISA-95 entity (Area, Site, Unit, etc.).
+    container:
+      space: "{{enterprise_space}}"
+      externalId: ISAAsset
+      type: container
+    containerPropertyIdentifier: asset_specific
+  name:
+    name: Name
+    description: Name of the asset.
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: name
+  description:
+    name: Description
+    description: Description of the asset.
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: description
+  labels:
+    name: Labels
+    description: Text-based labels for generic use, limited to 1000.
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: tags
+  aliases:
+    name: Aliases
+    description: Alternative names for the node.
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: aliases
+  sourceId:
+    name: Source Id
+    description: Identifier from the source system.
+    container:
+      space: cdf_cdm
+      externalId: CogniteSourceable
+      type: container
+    containerPropertyIdentifier: sourceId
+  source:
+    name: Source
+    description: Direct relation to a source system.
+    container:
+      space: cdf_cdm
+      externalId: CogniteSourceable
+      type: container
+    containerPropertyIdentifier: source
+    source:
+      space: cdf_cdm
+      externalId: CogniteSourceSystem
+      version: v1
+      type: view
+  equipment:
+    name: Equipment
+    description: Equipment associated with this asset.
+    connectionType: multi_reverse_direct_relation
+    source:
+      space: "{{search_space}}"
+      externalId: Equipment
+      version: "{{search_dm_version}}"
+      type: view
+    through:
+      source:
+        space: "{{search_space}}"
+        externalId: Equipment
+        version: "{{search_dm_version}}"
+        type: view
+      identifier: asset
+  timeSeries:
+    name: Time series
+    description: Time series associated with this asset.
+    connectionType: multi_reverse_direct_relation
+    source:
+      space: "{{search_space}}"
+      externalId: ISATimeSeries
+      version: "{{search_dm_version}}"
+      type: view
+    through:
+      source:
+        space: "{{search_space}}"
+        externalId: ISATimeSeries
+        version: "{{search_dm_version}}"
+        type: view
+      identifier: assets
+  files:
+    name: Files
+    description: Files associated with this asset.
+    connectionType: multi_reverse_direct_relation
+    source:
+      space: "{{search_space}}"
+      externalId: ISAFile
+      version: "{{search_dm_version}}"
+      type: view
+    through:
+      source:
+        space: "{{search_space}}"
+        externalId: ISAFile
+        version: "{{search_dm_version}}"
+        type: view
+      identifier: assets
+  activities:
+    name: Work orders
+    description: Work orders associated with this asset.
+    connectionType: multi_reverse_direct_relation
+    source:
+      space: "{{search_space}}"
+      externalId: WorkOrder
+      version: "{{search_dm_version}}"
+      type: view
+    through:
+      source:
+        space: "{{search_space}}"
+        externalId: WorkOrder
+        version: "{{search_dm_version}}"
+        type: view
+      identifier: assets

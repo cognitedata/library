@@ -1,0 +1,142 @@
+space: "{{search_space}}"
+externalId: ISAFile
+name: ISA File
+description: Search-optimized files view. Maps to CogniteFile containers without implementing
+  CogniteFile to keep the search model decoupled from CDM file semantics.
+implements:
+- space: cdf_cdm
+  externalId: CogniteDescribable
+  version: v1
+  type: view
+version: "{{search_dm_version}}"
+properties:
+  assets:
+    name: Assets
+    description: ISA assets related to this file.
+    container:
+      space: cdf_cdm
+      externalId: CogniteFile
+      type: container
+    containerPropertyIdentifier: assets
+    source:
+      space: "{{search_space}}"
+      externalId: ISAAsset
+      version: "{{search_dm_version}}"
+      type: view
+  name:
+    name: Name
+    description: Name of the file.
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: name
+  description:
+    name: Description
+    description: Description of the file.
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: description
+  labels:
+    name: Labels
+    description: Text-based labels for generic use, limited to 1000.
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: tags
+  aliases:
+    name: Aliases
+    description: Alternative names for the node.
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: aliases
+  sourceId:
+    name: Source Id
+    description: Identifier from the source system.
+    container:
+      space: cdf_cdm
+      externalId: CogniteSourceable
+      type: container
+    containerPropertyIdentifier: sourceId
+  source:
+    name: Source
+    description: Direct relation to a source system.
+    container:
+      space: cdf_cdm
+      externalId: CogniteSourceable
+      type: container
+    containerPropertyIdentifier: source
+    source:
+      space: cdf_cdm
+      externalId: CogniteSourceSystem
+      version: v1
+      type: view
+  equipment:
+    name: Equipment
+    description: Equipment related to this file.
+    connectionType: multi_reverse_direct_relation
+    source:
+      space: "{{search_space}}"
+      externalId: Equipment
+      version: "{{search_dm_version}}"
+      type: view
+    through:
+      source:
+        space: "{{search_space}}"
+        externalId: Equipment
+        version: "{{search_dm_version}}"
+        type: view
+      identifier: files
+  product_definition:
+    name: Product definition
+    description: Product definitions related to this file.
+    connectionType: multi_reverse_direct_relation
+    source:
+      space: "{{search_space}}"
+      externalId: ProductDefinition
+      version: "{{search_dm_version}}"
+      type: view
+    through:
+      source:
+        space: "{{search_space}}"
+        externalId: ProductDefinition
+        version: "{{search_dm_version}}"
+        type: view
+      identifier: files
+  product_requests:
+    name: Product requests
+    description: Product requests related to this file.
+    connectionType: multi_reverse_direct_relation
+    source:
+      space: "{{search_space}}"
+      externalId: ProductRequest
+      version: "{{search_dm_version}}"
+      type: view
+    through:
+      source:
+        space: "{{search_space}}"
+        externalId: ProductRequest
+        version: "{{search_dm_version}}"
+        type: view
+      identifier: files
+  product_segment:
+    name: Product segment
+    description: Product segments related to this file.
+    connectionType: multi_reverse_direct_relation
+    source:
+      space: "{{search_space}}"
+      externalId: ProductSegment
+      version: "{{search_dm_version}}"
+      type: view
+    through:
+      source:
+        space: "{{search_space}}"
+        externalId: ProductSegment
+        version: "{{search_dm_version}}"
+        type: view
+      identifier: files

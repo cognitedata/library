@@ -98,6 +98,7 @@ properties:
     type:
       list: true
       type: direct
+      maxListSize: 100
     immutable: false
     nullable: true
     autoIncrement: false
@@ -106,6 +107,7 @@ properties:
     type:
       list: true
       type: direct
+      maxListSize: 100
     immutable: false
     nullable: true
     autoIncrement: false
@@ -114,6 +116,7 @@ properties:
     type:
       list: true
       type: direct
+      maxListSize: 100
     immutable: false
     nullable: true
     autoIncrement: false
@@ -122,6 +125,7 @@ properties:
     type:
       list: true
       type: direct
+      maxListSize: 100
     immutable: false
     nullable: true
     autoIncrement: false
@@ -141,6 +145,26 @@ indexes:
     properties:
     - valid_to
     cursorable: true
+    indexType: btree
+  timeSeries_index:
+    properties:
+    - timeSeries
+    cursorable: false
+    indexType: btree
+  material_requirements_index:
+    properties:
+    - material_requirements
+    cursorable: false
+    indexType: btree
+  equipment_requirements_index:
+    properties:
+    - equipment_requirements
+    cursorable: false
+    indexType: btree
+  files_index:
+    properties:
+    - files
+    cursorable: false
     indexType: btree
 constraints:
   requiresCogniteDescribable:

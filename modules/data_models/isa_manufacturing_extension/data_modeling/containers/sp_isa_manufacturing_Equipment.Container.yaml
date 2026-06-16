@@ -78,6 +78,7 @@ properties:
     type:
       list: true
       type: direct
+      maxListSize: 100
     immutable: false
     nullable: true
     autoIncrement: false
@@ -86,6 +87,7 @@ properties:
     type:
       list: true
       type: direct
+      maxListSize: 100
     immutable: false
     nullable: true
     autoIncrement: false
@@ -94,6 +96,7 @@ properties:
     type:
       list: true
       type: direct
+      maxListSize: 100
     immutable: false
     nullable: true
     autoIncrement: false
@@ -128,6 +131,11 @@ indexes:
     properties:
     - unit
     cursorable: true
+    indexType: btree
+  files_index:
+    properties:
+    - files
+    cursorable: false
     indexType: btree
 constraints:
   requiresCogniteEquipment:

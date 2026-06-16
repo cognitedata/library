@@ -67,6 +67,7 @@ properties:
     type:
       list: true
       type: direct
+      maxListSize: 100
     immutable: false
     nullable: true
     autoIncrement: false
@@ -75,6 +76,7 @@ properties:
     type:
       list: true
       type: direct
+      maxListSize: 100
     immutable: false
     nullable: true
     autoIncrement: false
@@ -83,6 +85,7 @@ properties:
     type:
       list: true
       type: direct
+      maxListSize: 100
     immutable: false
     nullable: true
     autoIncrement: false
@@ -118,6 +121,21 @@ indexes:
     - request_status
     - due_date
     cursorable: true
+    indexType: btree
+  unit_index:
+    properties:
+    - unit
+    cursorable: false
+    indexType: btree
+  files_index:
+    properties:
+    - files
+    cursorable: false
+    indexType: btree
+  work_orders_index:
+    properties:
+    - work_orders
+    cursorable: false
     indexType: btree
 constraints:
   requiresCogniteDescribable:

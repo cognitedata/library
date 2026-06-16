@@ -25,6 +25,7 @@ properties:
     type:
       list: true
       type: direct
+      maxListSize: 100
     immutable: false
     nullable: true
     autoIncrement: false
@@ -33,6 +34,7 @@ properties:
     type:
       list: true
       type: direct
+      maxListSize: 100
     immutable: false
     nullable: true
     autoIncrement: false
@@ -47,6 +49,16 @@ indexes:
     properties:
     - sequence_number
     cursorable: true
+    indexType: btree
+  batch_index:
+    properties:
+    - batch
+    cursorable: false
+    indexType: btree
+  unit_procedure_index:
+    properties:
+    - unit_procedure
+    cursorable: false
     indexType: btree
 constraints:
   requiresCogniteActivity:

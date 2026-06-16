@@ -62,3 +62,5 @@ coverage.xml
 Thumbs.db
 Desktop.ini
 .cursor/settings.json
+cdf.toml
+config.dev.yaml

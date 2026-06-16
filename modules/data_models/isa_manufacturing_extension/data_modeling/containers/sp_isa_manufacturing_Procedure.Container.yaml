@@ -34,6 +34,7 @@ properties:
     type:
       list: true
       type: direct
+      maxListSize: 100
     immutable: false
     nullable: true
     autoIncrement: false
@@ -53,6 +54,11 @@ indexes:
     properties:
     - recipe
     cursorable: true
+    indexType: btree
+  batch_index:
+    properties:
+    - batch
+    cursorable: false
     indexType: btree
 constraints:
   requiresCogniteDescribable:

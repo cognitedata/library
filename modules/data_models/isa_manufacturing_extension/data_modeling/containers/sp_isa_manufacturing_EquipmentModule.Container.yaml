@@ -63,6 +63,7 @@ properties:
     type:
       list: true
       type: direct
+      maxListSize: 100
     immutable: false
     nullable: true
     autoIncrement: false
@@ -88,4 +89,9 @@ indexes:
     properties:
     - unit
     cursorable: true
+    indexType: btree
+  equipment_index:
+    properties:
+    - equipment
+    cursorable: false
     indexType: btree

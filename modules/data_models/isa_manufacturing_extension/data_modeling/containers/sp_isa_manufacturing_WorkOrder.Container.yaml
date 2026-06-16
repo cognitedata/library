@@ -43,6 +43,7 @@ properties:
     type:
       list: true
       type: direct
+      maxListSize: 100
     immutable: false
     nullable: true
     autoIncrement: false
@@ -51,6 +52,7 @@ properties:
     type:
       list: true
       type: direct
+      maxListSize: 100
     immutable: false
     nullable: true
     autoIncrement: false
@@ -123,6 +125,11 @@ indexes:
     - work_status
     - planned_start_time
     cursorable: true
+    indexType: btree
+  assigned_personnel_index:
+    properties:
+    - assigned_personnel
+    cursorable: false
     indexType: btree
 constraints:
   requiresCogniteActivity:
