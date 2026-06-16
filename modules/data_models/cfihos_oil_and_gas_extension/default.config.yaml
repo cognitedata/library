@@ -25,6 +25,3 @@ data_model_name: "Oil and Gas Domain Model"                        # Display nam
 
 # Workflow versioning
 workflow_version: 'v1'                                   # Version of the data workflow definition
-
-# Environment
-environment: dev                                        # Deployment environment (dev, test, prod)
