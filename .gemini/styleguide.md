@@ -71,7 +71,7 @@ modules under `modules/` and the Python tooling at the repo root.
 ## Python: Line Length and Formatting
 
 - **Maximum line length**: 120 characters
-- **Target Python version**: 3.14+
+- **Target Python version**: 3.13+
 - **Indentation**: 4 spaces per level
 
 ## Python: Type Hints

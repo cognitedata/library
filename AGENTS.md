@@ -12,6 +12,10 @@ helper scripts at the repo root that validate the package registry and build the
 release archive. Most code you touch will be that Python tooling; the rest is
 declarative Toolkit configuration.
 
+The repo also includes **Qualitizer** (`modules/tools/apps/qualitizer`), a
+TypeScript/React web app with its own tooling (Vite, Biome, Vitest). The Python
+conventions below do not apply to it.
+
 ## Repository layout
 
 - **`modules/`** — all deployable content (data models, transformations, functions,
@@ -29,14 +33,15 @@ declarative Toolkit configuration.
 The full style contract is in [.gemini/styleguide.md](.gemini/styleguide.md). It is the
 source of truth. The points below are the ones that bite most often.
 
-- **Target Python 3.14+**, line length **120**, 4-space indentation.
+- **Target Python 3.13+**, line length **120**, 4-space indentation.
 - **Type hints everywhere** — every function, method, and attribute. Avoid `Any`.
   Prefer `dataclass` or Pydantic models over `dict[str, Any]`; parse files into typed
   structures.
 - **Use Pydantic** for data classes where validation or parsing is involved.
 - **Never** use `from __future__ import annotations`.
-- **Imports at the top** of the file, grouped (stdlib, third-party, local) and absolute.
-  Use `TYPE_CHECKING` for type-only imports.
+- **Imports at the top** of the file, grouped (stdlib, third-party, local), sorted
+  alphabetically within each group, and absolute. Use `TYPE_CHECKING` for type-only
+  imports.
 - **Specific exceptions**, not broad `except Exception`. Return `None` / Union types for
   fallible operations and log with context (`log.warning(f"...: {var}")`).
 - **No hard-coded secrets, project/cluster names, or customer identifiers** — anywhere,
@@ -48,7 +53,8 @@ source of truth. The points below are the ones that bite most often.
 Write the smallest change that solves the actual problem. **Nothing speculative** — no
 "might need it later" abstractions, options, or generality that no current caller uses.
 Delete dead and commented-out code rather than leaving it. If a simpler version passes
-the same tests, prefer it.
+the same tests, prefer it. Always keep refactors separate from feature or fix changes —
+never mix them in the same commit or PR.
 
 ## Test-driven development
 
@@ -90,7 +96,7 @@ Run these before committing; CI runs the same and must stay green:
 ```bash
 ruff check .          # lint
 ruff format .         # format (line length 120)
-pyright               # type-check (Python 3.14)
+pyright               # type-check (Python 3.13)
 pytest                # tests
 python validate_packages.py   # registry is valid (run if you touched modules/ or packages.toml)
 ```
