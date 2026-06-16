@@ -26,10 +26,12 @@ type StoredState = {
   jobsById: Set<string>;
   cursor?: string;
   coverageStart: number | null;
+  lastFetched: number;
 };
 
 const JOBS_PAGE_SIZE = "50";
 const TRANSFORMATION_JOBS_PARALLEL_REQUESTS = 3;
+const CACHE_REFRESH_INTERVAL_MS = 30_000;
 const stateByTransformation = new Map<string, StoredState>();
 const inFlightByTransformation = new Map<string, Promise<StoredState>>();
 let activeRequests = 0;
@@ -66,6 +68,17 @@ function recomputeCoverageStart(jobs: TxJob[]): number | null {
     if (min == null || t < min) min = t;
   }
   return min;
+}
+
+function mergeJobs(state: StoredState, incoming: TxJob[]): void {
+  for (const job of incoming) {
+    const id = jobIdentity(job);
+    if (state.jobsById.has(id)) continue;
+    state.jobsById.add(id);
+    state.jobs.push(job);
+  }
+  state.jobs.sort(sortJobsDesc);
+  state.coverageStart = recomputeCoverageStart(state.jobs);
 }
 
 async function fetchPage(
@@ -123,6 +136,13 @@ async function loadWindowIntoState(
   const existing = stateByTransformation.get(key);
   const needsRestart = !existing || existing.coverageStart == null || windowStart < existing.coverageStart;
   if (!needsRestart) {
+    const now = Date.now();
+    if (now - existing.lastFetched > CACHE_REFRESH_INTERVAL_MS) {
+      const latestPage = await fetchPage(sdk, transformationId, JOBS_PAGE_SIZE);
+      mergeJobs(existing, latestPage.items);
+      existing.lastFetched = now;
+      stateByTransformation.set(key, existing);
+    }
     return existing;
   }
   const probe = await fetchPage(sdk, transformationId, "1");
@@ -131,15 +151,9 @@ async function loadWindowIntoState(
     jobsById: new Set<string>(),
     cursor: probe.nextCursor,
     coverageStart: null,
+    lastFetched: Date.now(),
   };
-  for (const job of probe.items) {
-    const id = jobIdentity(job);
-    if (restarted.jobsById.has(id)) continue;
-    restarted.jobsById.add(id);
-    restarted.jobs.push(job);
-  }
-  restarted.jobs.sort(sortJobsDesc);
-  restarted.coverageStart = recomputeCoverageStart(restarted.jobs);
+  mergeJobs(restarted, probe.items);
 
   const latestTime = restarted.jobs.length > 0 ? jobTime(restarted.jobs[0]) : null;
   if (latestTime == null || windowStart > latestTime) {
@@ -153,14 +167,7 @@ async function loadWindowIntoState(
   ) {
     const page = await fetchPage(sdk, transformationId, JOBS_PAGE_SIZE, restarted.cursor);
     restarted.cursor = page.nextCursor;
-    for (const job of page.items) {
-      const id = jobIdentity(job);
-      if (restarted.jobsById.has(id)) continue;
-      restarted.jobsById.add(id);
-      restarted.jobs.push(job);
-    }
-    restarted.jobs.sort(sortJobsDesc);
-    restarted.coverageStart = recomputeCoverageStart(restarted.jobs);
+    mergeJobs(restarted, page.items);
   }
 
   stateByTransformation.set(key, restarted);

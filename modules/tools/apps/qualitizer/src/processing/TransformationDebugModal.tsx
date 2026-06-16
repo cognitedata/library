@@ -142,13 +142,17 @@ export function TransformationDebugModal({
         ? null
         : xForTime(selectedHourStart + 30 * 60 * 1000);
 
-    const linePath =
-      line<ChartPoint>()
-        .x((point) => xForTime(point.time))
-        .y((point) => yForValue(point.value))
-        .curve(curveMonotoneX)(points) ?? "";
+    const hasPath = points.length >= 2;
+    const linePath = hasPath
+      ? line<ChartPoint>()
+          .x((point) => xForTime(point.time))
+          .y((point) => yForValue(point.value))
+          .curve(curveMonotoneX)(points) ?? ""
+      : "";
 
-    const areaPath = `${linePath} L ${xForTime(points[points.length - 1].time)} ${marginTop + plotHeight} L ${xForTime(points[0].time)} ${marginTop + plotHeight} Z`;
+    const areaPath = hasPath
+      ? `${linePath} L ${xForTime(points[points.length - 1].time)} ${marginTop + plotHeight} L ${xForTime(points[0].time)} ${marginTop + plotHeight} Z`
+      : "";
 
     const xTicks = 6;
     const yTicks = 4;
@@ -168,6 +172,7 @@ export function TransformationDebugModal({
       selectedX,
       xForTime,
       yForValue,
+      hasPath,
       linePath,
       areaPath,
       xTicks,
@@ -285,8 +290,12 @@ export function TransformationDebugModal({
                     );
                   })}
 
-                  <path d={graph.areaPath} fill="#fdba74" opacity={0.2} />
-                  <path d={graph.linePath} fill="none" stroke="#ea580c" strokeWidth={2.5} />
+                  {graph.hasPath ? (
+                    <path d={graph.areaPath} fill="#fdba74" opacity={0.2} />
+                  ) : null}
+                  {graph.hasPath ? (
+                    <path d={graph.linePath} fill="none" stroke="#ea580c" strokeWidth={2.5} />
+                  ) : null}
 
                   {graph.points.map((point) => (
                     <circle
