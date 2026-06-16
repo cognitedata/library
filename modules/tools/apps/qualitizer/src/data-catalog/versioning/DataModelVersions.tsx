@@ -21,6 +21,7 @@ import { cachedDataModelsRetrieve, listAllCachedDataModels } from "@/shared/dms-
 import { getDataModelUrl, getTransformationPreviewUrl } from "@/shared/cdf-browser-url";
 import { formatResourceDisplayLabel } from "@/shared/format-resource-display-label";
 import { useI18n } from "@/shared/i18n";
+import { ApiErrorPanel } from "@/shared/ApiErrorPanel";
 import {
   compareVersionStrings,
   cycleLegendFilterState,
@@ -1300,9 +1301,10 @@ export function DataModelVersions() {
       <div className="flex items-stretch gap-4">
         <div className="min-w-0 flex-1 rounded-md border border-slate-200">
           {status === "error" ? (
-            <div className="flex h-64 items-center justify-center bg-red-50 text-sm text-red-700">
-              {errorMessage}
-            </div>
+            <ApiErrorPanel
+              message={errorMessage ?? "Failed to load data models."}
+              minHeightClassName="h-64"
+            />
           ) : isLoading && dmRows.length === 0 ? (
             <div className="flex min-h-64 flex-col items-center justify-center gap-2 bg-sky-100 px-4 py-8 text-sm text-slate-600">
               <p className="font-medium text-slate-800">{t("dataCatalog.dataModelVersions.loadingTitle")}</p>

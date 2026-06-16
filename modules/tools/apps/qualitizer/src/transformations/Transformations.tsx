@@ -49,9 +49,9 @@ function CellSpinner() {
 import { getTransformationPreviewUrl } from "@/shared/cdf-browser-url";
 import {
   cachedTransformationJobMetrics,
-  cachedTransformationJobs,
   cachedTransformationsList,
 } from "./transformations-cache";
+import { loadTransformationJobsForWindow } from "./transformation-jobs-service";
 
 function ExternalLinkIcon({ className }: { className?: string }) {
   return (
@@ -258,8 +258,6 @@ function aggregateJobMetrics(items: JobMetricItem[]): {
 
 /** Smaller API pages load faster; cursor fetches the rest without huge single responses. */
 const TRANSFORMATIONS_LIST_PAGE_LIMIT = 200;
-/** Enough recent jobs for 24h stats + latest job id; avoids multi‑MB payloads per transformation. */
-const TRANSFORMATIONS_JOBS_LIST_LIMIT = "100";
 const TRANSFORMATIONS_JOBS_CONCURRENCY = 3;
 const TRANSFORMATIONS_FILTER_MIN_CHARS = 3;
 const TRANSFORMATIONS_FILTER_DEBOUNCE_MS = 350;
@@ -378,13 +376,12 @@ export function TransformationsList({
             if (cancelled) return;
             const id = String(item.id);
             try {
-              const jobResponse = await cachedTransformationJobs(
+              const jobs = (await loadTransformationJobsForWindow({
                 sdk,
-                id,
-                TRANSFORMATIONS_JOBS_LIST_LIMIT
-              );
-              const data = (jobResponse as { data?: { items?: TransformationJobSummary[] } }).data;
-              const jobs = data?.items ?? [];
+                transformationId: id,
+                windowStart,
+                windowEnd,
+              })) as TransformationJobSummary[];
               const { count, lastRun, totalMs, latestJobId, success, failed, uptime } =
                 computeTransformationJobStats(jobs, windowStart, windowEnd);
               nextStats[id] = { count, lastRun, totalMs };
@@ -566,13 +563,12 @@ export function TransformationsList({
           const id = String(transformation.id);
           if (statsById[id] && id in latestJobById) return;
           try {
-            const jobResponse = await cachedTransformationJobs(
+            const jobs = (await loadTransformationJobsForWindow({
               sdk,
-              id,
-              TRANSFORMATIONS_JOBS_LIST_LIMIT
-            );
-            const data = (jobResponse as { data?: { items?: TransformationJobSummary[] } }).data;
-            const jobs = data?.items ?? [];
+              transformationId: id,
+              windowStart,
+              windowEnd,
+            })) as TransformationJobSummary[];
             const { count, lastRun, totalMs, latestJobId, success, failed, uptime } =
               computeTransformationJobStats(jobs, windowStart, windowEnd);
             if (!cancelled) {

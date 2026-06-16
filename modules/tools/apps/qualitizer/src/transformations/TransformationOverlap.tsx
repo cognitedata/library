@@ -13,7 +13,8 @@ import {
   type NearDuplicateGroup,
 } from "./overlapAnalysis";
 import { fetchTransformationsByIds } from "./fetchTransformationsByIds";
-import { cachedTransformationJobs, cachedTransformationsList } from "./transformations-cache";
+import { cachedTransformationsList } from "./transformations-cache";
+import { loadTransformationJobsForWindow } from "./transformation-jobs-service";
 import { TransformationsHelpModal } from "./TransformationsHelpModal";
 
 type TransformationSummary = {
@@ -91,14 +92,12 @@ export function TransformationOverlap() {
           const id = String(tx.id);
           let totalMs = 0;
           try {
-            const jobResponse = await cachedTransformationJobs(sdk, id, "1000");
-            const data = (jobResponse as { data?: { items?: JobSummary[] } }).data;
-            const jobs = data?.items ?? [];
-            const recent = jobs.filter((job) => {
-              const start = toTimestamp(job.startedTime);
-              if (!start) return false;
-              return start >= windowStart && start <= windowEnd;
-            });
+            const recent = (await loadTransformationJobsForWindow({
+              sdk,
+              transformationId: id,
+              windowStart,
+              windowEnd,
+            })) as JobSummary[];
             totalMs = recent.reduce((acc, job) => {
               const start = toTimestamp(job.startedTime);
               const end = toTimestamp(job.finishedTime);
