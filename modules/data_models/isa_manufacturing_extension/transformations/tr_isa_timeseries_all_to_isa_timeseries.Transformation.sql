@@ -9,7 +9,7 @@ WITH base AS (
     cast(assetExternalId as string) AS assetExternalId,
     cast(equipmentExternalId as string) AS equipmentExternalId
   FROM `{{ rawDatabase }}`.`isa_timeseries`
-  WHERE is_new('{{ rawDatabase }}', 'isa_timeseries')
+  WHERE is_new('isa_timeseries', lastUpdatedTime)
 ),
 withRefs AS (
   SELECT

@@ -5,7 +5,7 @@ WITH base AS (
     cast(parentExternalId as string) AS parentExternalId,
     cast(description as string) AS description
   FROM `{{ rawDatabase }}`.`isa_asset`
-  WHERE is_new('{{ rawDatabase }}', 'isa_asset')
+  WHERE is_new('isa_asset', lastUpdatedTime)
 ),
 withRefs AS (
   SELECT

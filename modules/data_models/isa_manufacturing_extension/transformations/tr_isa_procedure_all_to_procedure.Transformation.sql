@@ -8,7 +8,7 @@ WITH base AS (
     CAST(recipeExternalId AS string) AS recipeExternalId,
     CAST(batchExternalId AS string) AS batchExternalId
   FROM `{{ rawDatabase }}`.`isa_procedure`
-  WHERE is_new('{{ rawDatabase }}', 'isa_procedure')
+  WHERE is_new('isa_procedure', lastUpdatedTime)
 ),
 withRefs AS (
   SELECT

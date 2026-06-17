@@ -37,7 +37,7 @@ WITH base AS (
       ELSE node_reference('{{ instance_space }}', CAST(assignedPersonnelExternalId AS string))
     END AS assignedPersonnelRef
   FROM `{{ rawDatabase }}`.`isa_work_order`
-  WHERE is_new('{{ rawDatabase }}', 'isa_work_order')
+  WHERE is_new('isa_work_order', lastUpdatedTime)
 )
 
 SELECT

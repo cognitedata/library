@@ -20,7 +20,7 @@ WITH base AS (
     CAST(analystExternalId AS string) AS analystExternalId,
     CAST(status AS string) AS status
   FROM `{{ rawDatabase }}`.`isa_quality_result`
-  WHERE is_new('{{ rawDatabase }}', 'isa_quality_result')
+  WHERE is_new('isa_quality_result', lastUpdatedTime)
 ),
 withRefs AS (
   SELECT

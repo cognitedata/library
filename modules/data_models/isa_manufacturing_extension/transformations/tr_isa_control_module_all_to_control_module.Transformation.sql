@@ -8,7 +8,7 @@ WITH base AS (
     cast(controllerAddress as string) AS controllerAddress,
     cast(equipmentModuleExternalId as string) AS equipmentModuleExternalId
   FROM `{{ rawDatabase }}`.`isa_control_module`
-  WHERE is_new('{{ rawDatabase }}', 'isa_control_module')
+  WHERE is_new('isa_control_module', lastUpdatedTime)
 ),
 withRefs AS (
   SELECT

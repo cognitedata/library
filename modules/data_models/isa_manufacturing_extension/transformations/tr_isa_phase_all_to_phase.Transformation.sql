@@ -11,7 +11,7 @@ WITH base AS (
     SPLIT(COALESCE(batchExternalIds, ''), '\\|') AS batchIds,
     SPLIT(COALESCE(timeSeriesExternalIds, ''), '\\|') AS timeseriesIds
   FROM `{{ rawDatabase }}`.`isa_phase`
-  WHERE is_new('{{ rawDatabase }}', 'isa_phase')
+  WHERE is_new('isa_phase', lastUpdatedTime)
 ),
 withRefs AS (
   SELECT

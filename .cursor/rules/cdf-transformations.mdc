@@ -21,18 +21,18 @@ Always use `is_new()` on the primary source table to avoid full-table scans on e
 > **Exception:** `is_new()` only works with Raw tables and some CDF resource types. When reading from data model views or other sources that don't support it, incremental processing isn't available — keep those transformations as simple and fast as possible.
 
 ```sql
--- ✅ GOOD — only processes new/changed rows
+-- ✅ GOOD — only processes new/changed rows (second arg is a Long/Timestamp column)
 SELECT
   cast(`key` as STRING) as externalId,
   cast(name as STRING) as name
-FROM `my_raw_db`.`my_table`
-WHERE is_new('my_raw_db', 'my_table')
+FROM `{{ rawDatabase }}`.`my_table`
+WHERE is_new('my_table', lastUpdatedTime)
 
 -- ❌ BAD — full scan every run, mostly NOOP
 SELECT
   cast(`key` as STRING) as externalId,
   cast(name as STRING) as name
-FROM `my_raw_db`.`my_table`
+FROM `{{ rawDatabase }}`.`my_table`
 ```
 
 ## JOIN Performance

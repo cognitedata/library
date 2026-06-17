@@ -6,7 +6,7 @@ WITH base AS (
     cast(role as string) AS role,
     cast(siteExternalId as string) AS siteExternalId
   FROM `{{ rawDatabase }}`.`isa_personnel`
-  WHERE is_new('{{ rawDatabase }}', 'isa_personnel')
+  WHERE is_new('isa_personnel', lastUpdatedTime)
 ),
 withRefs AS (
   SELECT

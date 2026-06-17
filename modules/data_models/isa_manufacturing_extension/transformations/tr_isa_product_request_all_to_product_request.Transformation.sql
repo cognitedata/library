@@ -17,7 +17,7 @@ WITH base AS (
     SPLIT(COALESCE(fileExternalIds, ''), '\\|') AS fileIds,
     SPLIT(COALESCE(workOrderExternalIds, ''), '\\|') AS workOrderIds
   FROM `{{ rawDatabase }}`.`isa_product_request`
-  WHERE is_new('{{ rawDatabase }}', 'isa_product_request')
+  WHERE is_new('isa_product_request', lastUpdatedTime)
 ),
 withRefs AS (
   SELECT

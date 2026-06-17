@@ -5,7 +5,7 @@ WITH base AS (
     cast(description as string) AS description,
     cast(equipmentModuleExternalId as string) AS equipmentModuleExternalId
   FROM `{{ rawDatabase }}`.`isa_control_module`
-  WHERE is_new('{{ rawDatabase }}', 'isa_control_module')
+  WHERE is_new('isa_control_module', lastUpdatedTime)
 ),
 withRefs AS (
   SELECT

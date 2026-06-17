@@ -5,7 +5,7 @@ WITH base AS (
     cast(name as string) AS enterpriseName
   FROM `{{ rawDatabase }}`.`isa_asset`
   WHERE assetSpecific = 'Enterprise'
-    AND is_new('{{ rawDatabase }}', 'isa_asset')
+    AND is_new('isa_asset', lastUpdatedTime)
 )
 SELECT
   external_id AS externalId,
