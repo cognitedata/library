@@ -59,8 +59,8 @@ The RMDM v1 defines a comprehensive set of entities, grouped into key categories
 
 ### Extended Entities
 
-- **File_ext** – Extended file metadata for maintenance documentation
-- **Timeseries_ext** – Extended time series data for monitoring and analysis
+- **FileExtension** – Extended file metadata for maintenance documentation
+- **TimeSeriesExtension** – Extended time series data for monitoring and analysis
 
 ## Deployment
 
@@ -165,10 +165,10 @@ rmdm/
 │   │   ├── FailureMechanism.container.yaml
 │   │   ├── FailureMode.container.yaml
 │   │   ├── FailureNotification.container.yaml
-│   │   ├── File_ext.container.yaml
+│   │   ├── FileExtension.container.yaml
 │   │   ├── MaintenanceOrder.container.yaml
 │   │   ├── Notification.container.yaml
-│   │   └── Timeseries_ext.container.yaml
+│   │   └── TimeSeriesExtension.container.yaml
 │   ├── views/
 │   │   ├── Asset.view.yaml
 │   │   ├── Equipment.view.yaml
@@ -179,10 +179,10 @@ rmdm/
 │   │   ├── FailureMechanism.view.yaml
 │   │   ├── FailureMode.view.yaml
 │   │   ├── FailureNotification.view.yaml
-│   │   ├── File_ext.view.yaml
+│   │   ├── FileExtension.view.yaml
 │   │   ├── MaintenanceOrder.view.yaml
 │   │   ├── Notification.view.yaml
-│   │   └── Timeseries_ext.view.yaml
+│   │   └── TimeSeriesExtension.view.yaml
 │   ├── rmdm.datamodel.yaml
 │   └── rmdm.space.yaml
 ├── module.toml

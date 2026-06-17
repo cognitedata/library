@@ -1,6 +1,7 @@
 space: rmdm
 externalId: MaintenanceOrder
 name: RM Maintenance Order
+description: Stores RMDM maintenance order extension properties.
 properties:
   typeDescription:
     type:
@@ -51,7 +52,7 @@ properties:
     nullable: true
     autoIncrement: false
     name: Activity Description
-    description: Description of the activity carried out for this particular notifcation.
+    description: Description of the activity carried out for this particular notification.
 constraints:
   cdf_idm_CogniteMaintenanceOrder:
     require:

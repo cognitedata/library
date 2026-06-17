@@ -18,7 +18,7 @@ properties:
     containerPropertyIdentifier: failureMode
     name: Failure Mode
     description: The distinct way in which the piece(s) of equipment related to this
-      notifcation failed.
+      notification failed.
     source:
       space: rmdm
       externalId: FailureMode

@@ -72,13 +72,13 @@ properties:
   files:
     source:
       space: rmdm
-      externalId: File_ext
+      externalId: FileExtension
       version: v1
       type: view
     through:
       source:
         space: rmdm
-        externalId: File_ext
+        externalId: FileExtension
         version: v1
         type: view
       identifier: assets
@@ -88,13 +88,13 @@ properties:
   timeSeries:
     source:
       space: rmdm
-      externalId: Timeseries_ext
+      externalId: TimeSeriesExtension
       version: v1
       type: view
     through:
       source:
         space: rmdm
-        externalId: Timeseries_ext
+        externalId: TimeSeriesExtension
         version: v1
         type: view
       identifier: assets

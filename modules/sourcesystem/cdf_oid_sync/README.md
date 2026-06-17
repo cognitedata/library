@@ -1,6 +1,6 @@
 # Open Industrial Data Sync Module
 
-Library path: `modules/sourcesystem/cdf_oid_sync/` · Included in `dp:quickstart` and `dp:sourcesystem`
+Library path: `modules/sourcesystem/cdf_oid_sync/` · Module ID: `dp:sourcesystem:cdf_oid_sync` · Packs: `dp:quickstart`, `dp:sourcesystem`
 
 This module synchronizes time series data from Cognite's [Open Industrial Data (OID)](https://hub.cognite.com/open-industrial-data-211) project to your target CDF project, simulating real-time data streaming by fetching historical data and time-shifting it to appear current.
 

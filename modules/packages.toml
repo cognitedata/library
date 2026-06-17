@@ -147,7 +147,6 @@ modules = [
     "common/cdf_project_foundation",
     "contextualization/cdf_file_annotation",
     "contextualization/cdf_entity_matching",
-    "tools/apps/qualitizer",
 ]
 
 [packages.custom]

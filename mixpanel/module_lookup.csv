@@ -1,157 +1,41 @@
 moduleId,module name
-"Atlas AI OOTB Agents","Atlas AI OOTB Agents"
-"CDF Common","CDF Common"
-"CDF Entity Matching","CDF Entity Matching"
-"CDF Entity Matching MPL","CDF Entity Matching MPL"
-"CDF Entity Matching SEG","CDF Entity Matching SEG"
-"CDF File Annotation","CDF File Annotation"
-"CDF Project Health Dashboard","CDF Project Health Dashboard"
-"dp:models:cfihos_oil_and_gas_extension","CFIHOS Oil And Gas Data Model template"
-"Contextualization Quality Dashboard","Contextualization Quality Dashboard"
-"DEXPI+ Process Flow Data Model","DEXPI+ Process Flow Data Model"
-"FTA Data Model","FTA Data Model"
-"Maintenance Analytics Dashboard","Maintenance Analytics Dashboard"
-"P&ID Annotation","P&ID Annotation"
-"P&ID Parser","P&ID Parser"
-"Performance Testing Notebook","Performance Testing Notebook"
-"dp:models:isa_manufacturing_extension","Pharma ISA 88/95 Manufacturing Data Model"
-"Qualitizer Application","Qualitizer Application"
-"Reliability Maintenance Data Model","Reliability Maintenance Data Model"
-"Transformation Job Metrics Analysis Notebook","Transformation Job Metrics Analysis Notebook"
-"aquaculture","Custom"
-"asset_hierarchy","Custom"
-"bootcamp_ice_cream_api","Bootcamp Ice Cream API"
-"bootcamp_oee","Bootcamp OEE"
-"cdf_auth_quickstart","CDF Auth Quickstart"
-"cdf_auth_readwrite_all","CDF Auth ReadWrite All"
-"cdf_cdm_extension","CDF CDM Extension"
-"cdf_cdm_extension_full","CDF CDM Extension Full"
-"cdf_cdm_migration","CDF CDM Migration"
-"cdf_common","CDF Common"
-"cdf_connection_sql","CDF Connection SQL"
-"cdf_entity_matching","CDF Entity Matching"
-"cdf_extractor_pipelines","CDF Extractor Pipelines"
-"cdf_infield_app_location_config","CDF Infield App Location Config (Deprecated)"
-"cdf_infield_common","CDF Infield Common (Deprecated)"
-"cdf_infield_location","CDF Infield Location (Deprecated)"
-"cdf_infield_on_cdm_common","CDF Infield on CDM Common"
-"cdf_infield_on_cdm_common_extention","CDF Infield on CDM Common Extension"
-"cdf_infield_on_cdm_location_example_data_extention","CDF Infield on CDM Location Example Data Extension"
-"cdf_infield_on_cdm_location_extention","CDF Infield on CDM Location Extension"
-"cdf_infield_location","CDF Infield Location"
-"cdf_infield_second_location","CDF Infield Second Location"
-"cdf_ingestion","CDF Ingestion"
-"cdf_inrobot_common","CDF Inrobot Common"
-"cdf_inrobot_location","CDF Inrobot Location"
-"cdf_location_filter_asset_centric","CDF Location Filter Asset Centric"
-"cdf_location_filter_datamodel_based","CDF Location Filter Datamodel Based"
-"cdf_myhome","Custom"
-"cdf_p_and_id_parser","CDF P&ID Parser"
-"cdf_pi","CDF PI Data Source"
-"cdf_process_industry_extension","CDF Process Industry Extension"
-"cdf_process_industry_extension_full","CDF Process Industry Extension Full"
-"cdf_sap_assets","CDF SAP Assets"
-"cdf_sap_events","CDF SAP Events"
-"cdf_sap_maintenance","CDF SAP Maintenance"
-"cdf_scene","CDF Scene"
-"cdf_search","CDF Search"
-"cdf_sharepoint","CDF SharePoint Data Source"
-"dp:acc:cdf_ingestion","CDF Ingestion"
-"dp:acc:cdf_streams","CDF Streams"
-"dp:acc:contextualization:cdf_file_annotation","CDF File Annotation"
-"dp:acc:contextualization:cdf_three_dimenssion","CDF 3D Contextualization"
-"dp:acc:contextualization:context_quality","Contextualization Quality Dashboard"
-"dp:acc:contextualization:rpt_quality","RPT Quality Dashboard"
-"dp:acc:ctx:cdf_connection_sql","CDF Connection SQL"
-"dp:acc:ctx:file_annotation","CDF File Annotation"
-"dp:acc:ctx:key_extraction_aliasing","Key Extraction Aliasing"
-"dp:acc:industrial_tools:cdf_search","CDF Search"
-"dp:acc:cdf_oid_sync","Open Industrial Data Sync"
-"dp:argus_ai:main","Custom"
-"dp:atlas_ai:ai_extractor","Custom"
-"dp:dashboards:report_quality","Report Quality Dashboard"
-"dp:models:cdf_process_industry_extension","CDF Process Industry Extension"
-"dp:models:qs_enterprise_dm","Quickstart Enterprise Data Model"
-"dp:models:rmdm","Reliability Maintenance Data Model"
-"dp:sourcesystem:cdf_pi","CDF PI Data Source"
-"dp:sourcesystem:cdf_sap_assets","CDF SAP Assets"
-"dp:sourcesystem:cdf_sap_events","CDF SAP Events"
-"dp:sourcesystem:cdf_sharepoint","CDF SharePoint Data Source"
-"dp:sourcesystem:local_opc_ua","Custom"
-"early_anomaly_detection","Custom"
-"equipment_monitoring","Custom"
-"fn_helloworld","Custom"
-"greg_module","Custom"
-"ip_entity_matching","CDF Entity Matching"
-"knowledge_graph","Custom"
-"my_module","Custom"
-"ops_domain_model","Custom"
-"pandey_process_model","Custom"
-"portfolio_manager","Custom"
-"pål_tester","Custom"
-"reg_import","Custom"
-"solstad_enterprise_dm","Custom"
-"tags","Custom"
-"tags_equipment","Custom"
-"tags_simple","Custom"
-"twb_data_pipeline","Custom"
-"twb_production_context","Custom"
-"xom:emps_site_spaces","Custom"
-"d75e736","Atlas AI OOTB Agents"
-"4ba697e","CDF Common"
-"b464d8d","CDF Entity Matching"
-"af0f2c6","CDF Entity Matching MPL"
-"6910f43","CDF Entity Matching SEG"
-"6bbc3d0","CDF File Annotation"
-"4e9294a","CDF Project Health Dashboard"
-"9355d7e","CFIHOS Oil And Gas Data Model template"
-"5f10bed","Contextualization Quality Dashboard"
-"3e56709","DEXPI+ Process Flow Data Model"
-"3cf2192","FTA Data Model"
-"84b45f3","Maintenance Analytics Dashboard"
-"c668e2c","P&ID Annotation"
-"d8b4579","P&ID Parser"
-"e577256","Performance Testing Notebook"
-"c0670ef","Pharma ISA 88/95 Manufacturing Data Model"
-"d381f66","Qualitizer Application"
-"efd918a","Reliability Maintenance Data Model"
-"39cfa3b","Transformation Job Metrics Analysis Notebook"
-"f9f868b","Bootcamp Ice Cream API"
-"966222c","Bootcamp OEE"
-"83c57ab","CDF Auth Quickstart"
-"239a01c","CDF Auth ReadWrite All"
-"6b19258","CDF CDM Extension"
-"fd7eae6","CDF CDM Extension Full"
-"5cbb94d","CDF CDM Migration"
-"be19654","CDF Connection SQL"
-"9b20162","CDF Extractor Pipelines"
-"726d94a","CDF Infield App Location Config (Deprecated)"
-"971d5a3","CDF Infield Common (Deprecated)"
-"cb40d5d","CDF Infield Location (Deprecated)"
-"26fb2d9","CDF Infield on CDM Common"
-"a83c8a6","CDF Infield on CDM Common Extension"
-"f127617","CDF Infield on CDM Location Example Data Extension"
-"76ff1e6","CDF Infield on CDM Location Extension"
-"7adbe94","CDF Infield Second Location"
-"f96a9df","CDF Ingestion"
-"dbd2ad8","CDF Inrobot Common"
-"5f4320a","CDF Inrobot Location"
-"e273cc5","CDF Location Filter Asset Centric"
-"1bcb470","CDF Location Filter Datamodel Based"
-"7893d2b","CDF P&ID Parser"
-"1f5f0be","CDF PI Data Source"
-"ed6fdc3","CDF Process Industry Extension"
-"dbc87a7","CDF Process Industry Extension Full"
-"c14fe49","CDF SAP Assets"
-"40a2cb8","CDF SAP Events"
-"cf6710f","CDF SAP Maintenance"
-"2b04ef4","CDF Scene"
-"4aedf9f","CDF Search"
-"c61b4c6","CDF SharePoint Data Source"
-"c6f6d76","CDF Streams"
-"03ff12a","CDF 3D Contextualization"
-"0193ef5","RPT Quality Dashboard"
-"2c2e149","Key Extraction Aliasing"
-"fd31ab9","Open Industrial Data Sync"
-"dfc03cb","Quickstart Enterprise Data Model"
-"88661e3","Reliability Maintenance Data Model v1"
+dp:atlas_ai:ai_extractor,AI Property Extractor Function
+dp:atlas_ai:ootb_agents,OOTB AI Agents
+dp:cdm_maintain:cdf_maintain_config_base,Maintain Config Base
+dp:cdm_maintain:cdf_maintain_location,Maintain Location
+dp:cdm_maintain:cdf_maintain_solution_model,Maintain Solution Model
+dp:cdm_maintain:cdf_maintain_source_data_model,Maintain Source Data Model
+dp:cdm_maintain:cdf_sample_data,Maintain Sample Data
+dp:common:cdf_common,CDF Common
+dp:common:cdf_ingestion,Ingestion Workflow
+dp:common:cdf_search,Search configuration with location filter
+dp:contextualization:cdf_connection_sql,Contextualization Direct Relation Transformations
+dp:contextualization:cdf_entity_matching,Contextualization Entity Matching
+dp:contextualization:cdf_file_annotation,Contextualization File Annotation
+dp:contextualization:cdf_p_and_id_annotation,Contextualization P&ID Annotation
+dp:contextualization:cdf_p_and_id_parser,Contextualization P&ID Diagram Parser
+dp:dashboards:context_quality,Contextualization Quality Dashboard
+dp:dashboards:project_health,CDF Project Health Dashboard
+dp:dashboards:report_quality,Quality Reports - Contextualization Rate
+dp:infield:cdf_infield_location,Infield Location
+dp:models:cdf_process_industry_extension,Example of Minimum Extension of the Cognite Process Industry Model
+dp:models:cfihos_oil_and_gas_extension,CFIHOS Oil And Gas Data Model template
+dp:models:cfihos_oil_and_gas_extension_search,CFIHOS Oil And Gas Search Solution Model
+dp:models:isa_manufacturing_extension,ISA 88/95 Manufacturing Data Model template
+dp:models:qs_enterprise_dm,Quick Start Enterprise Data Model
+dp:models:rmdm,Reliability Maintenance Data Model
+dp:sourcesystem:cdf_oid_sync,Open Industrial Data Sync
+dp:sourcesystem:cdf_pi,OSIsoft/AVEVA PI Data Source
+dp:sourcesystem:cdf_sap_assets,SAP Source System Asset/Equipment Metadata
+dp:sourcesystem:cdf_sap_events,SAP Source System Events
+dp:sourcesystem:cdf_sharepoint,Sharepoint Files
+dp:tool:qualitizer,CDF Qualitizer Application
+dp:acc:cdf_oid_sync,Open Industrial Data Sync
+dp:atlas_ai_extractor,AI Property Extractor Function
+dp:cdf_common,CDF Common
+dp:cdf_entity_matching,Contextualization Entity Matching
+dp:cdf_file_annotation,Contextualization File Annotation
+dp:cdf_p_and_id_annotation,Contextualization P&ID Annotation
+dp:cdf_p_and_id_parser,Contextualization P&ID Diagram Parser
+dp:context_quality,Contextualization Quality Dashboard
+dp:project_health,CDF Project Health Dashboard

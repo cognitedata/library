@@ -1,6 +1,7 @@
 space: rmdm
 externalId: FailureCause
 name: RM Failure Cause
+description: Stores failure cause classification properties.
 properties:
   code:
     type:

@@ -1,6 +1,7 @@
 space: rmdm
 externalId: EquipmentType
 name: RM Equipment Type
+description: Stores equipment type classification properties.
 properties:
   class:
     type:
@@ -18,5 +19,10 @@ constraints:
       externalId: CogniteEquipmentType
       type: container
     constraintType: requires
-indexes: {}
+indexes:
+  class:
+    indexType: btree
+    properties:
+    - class
+    cursorable: false
 usedFor: node

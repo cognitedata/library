@@ -32,5 +32,5 @@ properties:
         type: view
       identifier: failureModes
     name: Equipment Classes
-    description: Applicabale equipment classes for a given failure mode.
+    description: Applicable equipment classes for a given failure mode.
     connectionType: multi_reverse_direct_relation

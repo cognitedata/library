@@ -1,6 +1,7 @@
 space: rmdm
 externalId: FailureNotification
-name: RM Failure Notifcation
+name: RM Failure Notification
+description: Stores reliability failure details associated with maintenance notifications.
 properties:
   failureMode:
     type:
@@ -11,7 +12,7 @@ properties:
     autoIncrement: false
     name: Failure Mode
     description: The distinct way in which the piece(s) of equipment related to this
-      notifcation failed.
+      notification failed.
   failureImpactOnHSE:
     type:
       list: false
@@ -91,5 +92,15 @@ constraints:
       externalId: Notification
       type: container
     constraintType: requires
-indexes: {}
+indexes:
+  failureMode:
+    indexType: btree
+    properties:
+    - failureMode
+    cursorable: false
+  failureMechanism:
+    indexType: btree
+    properties:
+    - failureMechanism
+    cursorable: false
 usedFor: node

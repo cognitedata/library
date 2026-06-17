@@ -1,5 +1,7 @@
 # CDF SharePoint Files Module
 
+Library path: `modules/sourcesystem/cdf_sharepoint/` · Module ID: `dp:sourcesystem:cdf_sharepoint` · Deployment pack: `dp:sourcesystem`
+
 This module provides ingestion of document files from SharePoint or similar document management systems into Cognite Data Fusion, transforming file metadata into the process industry data model.
 
 ## Why Use This Module?

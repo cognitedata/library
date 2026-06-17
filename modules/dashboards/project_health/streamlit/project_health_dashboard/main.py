@@ -59,7 +59,7 @@ except Exception as e:
 # ---------------------------------------------------------------------------
 # Usage tracking
 # ---------------------------------------------------------------------------
-_SOURCE = "dp:project_health"
+_SOURCE = "dp:dashboards:project_health"
 _DP_VERSION = "1"
 _TRACKER_VERSION = "1"
 

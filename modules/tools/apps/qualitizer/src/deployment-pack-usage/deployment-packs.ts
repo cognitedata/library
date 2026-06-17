@@ -12,7 +12,7 @@ const HUB_CFIHOS_OIL_AND_GAS_PACK = `${HUB_DEPLOYMENT_PACKS_LIBRARY}/oil-and-gas
 export const DEPLOYMENT_PACKS: DeploymentPackDefinition[] = [
   QUALITIZER_DEPLOYMENT_PACK,
   {
-    id: "dp:accelerators:cdf_common",
+    id: "dp:common:cdf_common",
     name: "CDF Common",
     description: `Shared contextualization writer function (toolkit: modules/common/cdf_common). Hub: ${HUB_DEPLOYMENT_PACKS_LIBRARY}`,
     signals: {
@@ -20,7 +20,7 @@ export const DEPLOYMENT_PACKS: DeploymentPackDefinition[] = [
     },
   },
   {
-    id: "dp:acc:cdf_ingestion",
+    id: "dp:common:cdf_ingestion",
     name: "Ingestion Workflow",
     description: `Orchestrated population workflow; probe uses the first transformation task from the default workflow graph (pi timeseries). Toolkit: modules/common/cdf_ingestion. Hub: ${HUB_DEPLOYMENT_PACKS_LIBRARY}`,
     signals: {
@@ -28,7 +28,7 @@ export const DEPLOYMENT_PACKS: DeploymentPackDefinition[] = [
     },
   },
   {
-    id: "dp:acc:ctx:cdf_connection_sql",
+    id: "dp:contextualization:cdf_connection_sql",
     name: "Contextualization Direct Relation Transformations",
     description: `SQL-based direct-relation population (modules/contextualization/cdf_connection_sql). Hub: ${HUB_DEPLOYMENT_PACKS_LIBRARY}`,
     signals: {
@@ -36,7 +36,7 @@ export const DEPLOYMENT_PACKS: DeploymentPackDefinition[] = [
     },
   },
   {
-    id: "dp:acc:ctx:cdf_entity_matching",
+    id: "dp:contextualization:cdf_entity_matching",
     name: "CDF Entity Matching",
     description: `Entity matching functions (modules/contextualization/cdf_entity_matching). Hub: ${HUB_DEPLOYMENT_PACKS_LIBRARY}`,
     signals: {
@@ -47,7 +47,7 @@ export const DEPLOYMENT_PACKS: DeploymentPackDefinition[] = [
     },
   },
   {
-    id: "dp:acc:ctx:cdf_file_annotation",
+    id: "dp:contextualization:cdf_file_annotation",
     name: "File Annotation (contextualization)",
     description: `Annotation pipeline: helper data model plus all four function stages (modules/contextualization/cdf_file_annotation). Hub: ${HUB_DEPLOYMENT_PACKS_LIBRARY}`,
     signals: {
@@ -67,7 +67,7 @@ export const DEPLOYMENT_PACKS: DeploymentPackDefinition[] = [
     },
   },
   {
-    id: "dp:acc:industrial_tools:cdf_search",
+    id: "dp:common:cdf_search",
     name: "Industrial Data Exploration (location filter)",
     description: `Fusion location filter for enterprise data model scope (modules/common/cdf_search). Hub: ${HUB_DEPLOYMENT_PACKS_LIBRARY}`,
     signals: {
@@ -82,7 +82,7 @@ export const DEPLOYMENT_PACKS: DeploymentPackDefinition[] = [
     },
   },
   {
-    id: "dp:acc:cdf_oid_sync",
+    id: "dp:sourcesystem:cdf_oid_sync",
     name: "Open Industrial Data Sync",
     description: `OID sync function (modules/sourcesystem/cdf_oid_sync). Hub: ${HUB_DEPLOYMENT_PACKS_LIBRARY}`,
     signals: {
@@ -159,7 +159,7 @@ export const DEPLOYMENT_PACKS: DeploymentPackDefinition[] = [
     },
   },
   {
-    id: "dp:atlas:ai_property_extractor",
+    id: "dp:atlas_ai:ai_extractor",
     name: "Atlas AI Property Extractor",
     description: `LLM property extraction function and pipeline (library: modules/solutions/cdf_ai_extractor). Hub: ${HUB_DEPLOYMENT_PACKS_LIBRARY}`,
     signals: {
@@ -167,7 +167,7 @@ export const DEPLOYMENT_PACKS: DeploymentPackDefinition[] = [
     },
   },
   {
-    id: "dp:acc:ctx:cdf_p_and_id_annotation",
+    id: "dp:contextualization:cdf_p_and_id_annotation",
     name: "P&ID Annotation",
     description: `PID tagging transformations from cdf_p_and_id_annotation (library: modules/contextualization/cdf_p_and_id_annotation); customers may rename these transforms. Hub: ${HUB_DEPLOYMENT_PACKS_LIBRARY}`,
     signals: {
@@ -175,15 +175,15 @@ export const DEPLOYMENT_PACKS: DeploymentPackDefinition[] = [
     },
   },
   {
-    id: "dp:acc:infield_quickstart",
-    name: "InField QuickStart",
-    description: `APM / InField quickstart config data model (library: modules/accelerators/infield_quickstart/cdf_apm_base). Hub: ${HUB_DEPLOYMENT_PACKS_LIBRARY}`,
+    id: "dp:infield:cdf_infield_location",
+    name: "Infield Location",
+    description: `Infield location on CDM (library: modules/solutions/cdf_infield/cdf_infield_location). Hub: ${HUB_DEPLOYMENT_PACKS_LIBRARY}`,
     signals: {
       dataModels: [{ space: "APM_Config", externalId: "APM_Config", version: "1" }],
     },
   },
   {
-    id: "cdf_pi",
+    id: "dp:sourcesystem:cdf_pi",
     name: "AVEVA PI / PI System",
     description: `PI timeseries population (modules/sourcesystem/cdf_pi). Hub: ${HUB_DEPLOYMENT_PACKS_LIBRARY}`,
     signals: {
@@ -198,7 +198,7 @@ export const DEPLOYMENT_PACKS: DeploymentPackDefinition[] = [
     },
   },
   {
-    id: "cdf_sap_assets",
+    id: "dp:sourcesystem:cdf_sap_assets",
     name: "SAP S/4HANA — Assets",
     description: `SAP asset & equipment population (modules/sourcesystem/cdf_sap_assets). Hub: ${HUB_DEPLOYMENT_PACKS_LIBRARY}`,
     signals: {
@@ -213,7 +213,7 @@ export const DEPLOYMENT_PACKS: DeploymentPackDefinition[] = [
     },
   },
   {
-    id: "cdf_sap_events",
+    id: "dp:sourcesystem:cdf_sap_events",
     name: "SAP S/4HANA — Activities",
     description: `SAP maintenance orders and operations (modules/sourcesystem/cdf_sap_events). Hub: ${HUB_DEPLOYMENT_PACKS_LIBRARY}`,
     signals: {
@@ -228,7 +228,7 @@ export const DEPLOYMENT_PACKS: DeploymentPackDefinition[] = [
     },
   },
   {
-    id: "cdf_sharepoint",
+    id: "dp:sourcesystem:cdf_sharepoint",
     name: "SharePoint Files",
     description: `SharePoint file metadata ingestion (modules/sourcesystem/cdf_sharepoint). Hub: ${HUB_DEPLOYMENT_PACKS_LIBRARY}`,
     signals: {

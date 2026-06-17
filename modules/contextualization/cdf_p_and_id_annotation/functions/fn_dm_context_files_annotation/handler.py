@@ -16,7 +16,7 @@ from pipeline import annotate_p_and_id
 # ---------------------------------------------------------------------------
 # Usage tracking
 # ---------------------------------------------------------------------------
-_SOURCE = "dp:cdf_p_and_id_annotation"
+_SOURCE = "dp:contextualization:cdf_p_and_id_annotation"
 _DP_VERSION = "1"
 _TRACKER_VERSION = "1"
 

@@ -1,6 +1,6 @@
 # Infield Location
 
-Library path: `modules/solutions/cdf_infield/cdf_infield_location/` · Deployment pack: `dp:infield`
+Library path: `modules/solutions/cdf_infield/cdf_infield_location/` · Module ID: `dp:infield:cdf_infield_location` · Deployment pack: `dp:infield`
 
 This module configures an Infield location backed by CDM/IDM extension views. It is based on the Springfield example and deploys:
 
