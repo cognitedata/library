@@ -29,8 +29,6 @@ dp:sourcesystem:cdf_pi,OSIsoft/AVEVA PI Data Source
 dp:sourcesystem:cdf_sap_assets,SAP Source System Asset/Equipment Metadata
 dp:sourcesystem:cdf_sap_events,SAP Source System Events
 dp:sourcesystem:cdf_sharepoint,Sharepoint Files
-dp:tool:cdf_performance_testing,CDF Performance Testing
-dp:tool:cdf_transformation_jobs_metric_explorer,CDF Transformation Job Metrics Analysis Notebook
 dp:tool:qualitizer,CDF Qualitizer Application
 dp:acc:cdf_oid_sync,Open Industrial Data Sync
 dp:atlas_ai_extractor,AI Property Extractor Function
@@ -39,7 +37,5 @@ dp:cdf_entity_matching,Contextualization Entity Matching
 dp:cdf_file_annotation,Contextualization File Annotation
 dp:cdf_p_and_id_annotation,Contextualization P&ID Annotation
 dp:cdf_p_and_id_parser,Contextualization P&ID Diagram Parser
-dp:cdf_performance_testing,CDF Performance Testing
-dp:cdf_transformation_jobs_metric_explorer,CDF Transformation Job Metrics Analysis Notebook
 dp:context_quality,Contextualization Quality Dashboard
 dp:project_health,CDF Project Health Dashboard

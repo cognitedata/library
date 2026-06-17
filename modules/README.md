@@ -50,8 +50,7 @@ modules/
 │   └── ootb_agents/
 │
 ├── tools/
-│   ├── apps/qualitizer/
-│   └── notebooks/               # cdf_performance_testing, transformation metrics
+│   └── apps/qualitizer/
 │
 └── custom/
     └── my_module/               # Empty template (see custom/README.md)
@@ -115,8 +114,6 @@ Every `module.toml` **`id`** must be `dp:<package_short>:<slug>` where `<package
 | `sourcesystem/cdf_sap_events` | `dp:sourcesystem:cdf_sap_events` | `dp:sourcesystem` |
 | `sourcesystem/cdf_sharepoint` | `dp:sourcesystem:cdf_sharepoint` | `dp:sourcesystem` |
 | `tools/apps/qualitizer` | `dp:tool:qualitizer` | `tool` |
-| `tools/notebooks/cdf_performance_testing` | `dp:tool:cdf_performance_testing` | `tool` |
-| `tools/notebooks/cdf_transformation_jobs_metric_explorer` | `dp:tool:cdf_transformation_jobs_metric_explorer` | `tool` |
 
 `python validate_packages.py` checks unique ids and that each id uses a `dp:<pack>:` prefix allowed for that module (primary `package_id` or any pack in `packages.toml` that lists the module path).
 
