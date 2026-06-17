@@ -108,4 +108,4 @@ properties:
       type: container
     containerPropertyIdentifier: activityDescription
     name: Activity Description
-    description: Description of the activity carried out for this particular notifcation.
+    description: Description of the activity carried out for this particular notification.

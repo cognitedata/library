@@ -1,6 +1,7 @@
 space: rmdm
 externalId: FileExtension
 name: RM File
+description: Stores RMDM file extension properties for maintenance documentation.
 properties:
   updatedDate:
     type:
@@ -59,7 +60,7 @@ properties:
     nullable: true
     autoIncrement: false
     name: Discipline Code
-    description: A code indicating particulat discipline, e.g. P for Process, and
+    description: A code indicating a particular discipline, e.g. P for Process, and
       O for Operations
   className:
     type:
@@ -120,7 +121,7 @@ properties:
     nullable: true
     autoIncrement: false
     name: System
-    description: The system that the document concerns, e,g, System 20 Oil export
+    description: The system that the document concerns, e.g. System 20 Oil export
       system
   workflowStatus:
     type:

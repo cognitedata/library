@@ -1,6 +1,7 @@
 space: rmdm
 externalId: Asset
 name: RM Asset
+description: Stores RMDM asset-specific properties for functional locations and systems.
 properties:
   functionCode:
     type:

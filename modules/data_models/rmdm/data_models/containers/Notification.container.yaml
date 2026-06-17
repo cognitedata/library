@@ -1,36 +1,40 @@
 space: rmdm
 externalId: Notification
 name: RM Notification
+description: Stores RMDM notification extension properties for maintenance requests and issues.
 properties:
   equipment:
     type:
       list: true
+      maxListSize: 300
       type: direct
     immutable: false
     nullable: true
     autoIncrement: false
     name: Equipment
-    description: A list of physical equipment related to this notifcation.
+    description: A list of physical equipment related to this notification.
   subunitFailed:
     type:
       list: true
+      maxListSize: 300
       type: direct
     immutable: false
     nullable: true
     autoIncrement: false
     name: Subunit
     description: A reference to the specific subsystem(s) belonging to the asset in
-      this notifcation that failed.
+      this notification that failed.
   componentFailed:
     type:
       list: true
+      maxListSize: 300
       type: direct
     immutable: false
     nullable: true
     autoIncrement: false
     name: Component
     description: A reference to the specific parts of the subsystem referenced in
-      this notifcation that failed.
+      this notification that failed.
   longDescription:
     type:
       list: false
@@ -41,7 +45,7 @@ properties:
     autoIncrement: false
     name: Long Text
     description: A detailed textual explanation providing additional context or specifications
-      for this notifcation.
+      for this notification.
   discipline:
     type:
       list: false
@@ -51,7 +55,7 @@ properties:
     nullable: true
     autoIncrement: false
     name: Discipline
-    description: The technical field associated with this notifcation.
+    description: The technical field associated with this notification.
   plannerGroup:
     type:
       list: false
@@ -83,7 +87,7 @@ properties:
     nullable: true
     autoIncrement: false
     name: Type Description
-    description: The type of this notifcation as a human readable name.
+    description: The type of this notification as a human readable name.
   statusDescription:
     type:
       list: false
@@ -93,7 +97,7 @@ properties:
     nullable: true
     autoIncrement: false
     name: Status Description
-    description: A string indicating the status of this notifcation.
+    description: A string indicating the status of this notification.
 constraints:
   cdf_idm_CogniteNotification:
     require:
@@ -101,5 +105,20 @@ constraints:
       externalId: CogniteNotification
       type: container
     constraintType: requires
-indexes: {}
+indexes:
+  equipment:
+    indexType: btree
+    properties:
+    - equipment
+    cursorable: false
+  subunitFailed:
+    indexType: btree
+    properties:
+    - subunitFailed
+    cursorable: false
+  componentFailed:
+    indexType: btree
+    properties:
+    - componentFailed
+    cursorable: false
 usedFor: node

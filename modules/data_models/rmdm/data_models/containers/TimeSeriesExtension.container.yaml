@@ -1,6 +1,7 @@
 space: rmdm
 externalId: TimeSeriesExtension
 name: RM Time Series
+description: Stores RMDM time series extension properties for monitoring data.
 properties:
   pointType:
     type:

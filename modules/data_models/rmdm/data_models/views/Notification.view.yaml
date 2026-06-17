@@ -30,7 +30,7 @@ properties:
       type: container
     containerPropertyIdentifier: equipment
     name: Equipment
-    description: A list of physical equipment related to this notifcation.
+    description: A list of physical equipment related to this notification.
     source:
       space: rmdm
       externalId: Equipment
@@ -44,7 +44,7 @@ properties:
     containerPropertyIdentifier: subunitFailed
     name: Subunit
     description: A reference to the specific subsystem(s) belonging to the asset in
-      this notifcation that failed.
+      this notification that failed.
     source:
       space: rmdm
       externalId: Asset
@@ -58,7 +58,7 @@ properties:
     containerPropertyIdentifier: componentFailed
     name: Component
     description: A reference to the specific parts of the subsystem referenced in
-      this notifcation that failed.
+      this notification that failed.
     source:
       space: rmdm
       externalId: Asset
@@ -71,7 +71,7 @@ properties:
       type: container
     containerPropertyIdentifier: maintenanceOrder
     name: Maintenance Order
-    description: The maintenance order that this notifcation relates to.
+    description: The maintenance order that this notification relates to.
     source:
       space: rmdm
       externalId: MaintenanceOrder
@@ -101,7 +101,7 @@ properties:
     containerPropertyIdentifier: longDescription
     name: Long Text
     description: A detailed textual explanation providing additional context or specifications
-      for this notifcation.
+      for this notification.
   discipline:
     container:
       space: rmdm
@@ -109,7 +109,7 @@ properties:
       type: container
     containerPropertyIdentifier: discipline
     name: Discipline
-    description: The technical field associated with this notifcation.
+    description: The technical field associated with this notification.
   plannerGroup:
     container:
       space: rmdm
@@ -135,7 +135,7 @@ properties:
       type: container
     containerPropertyIdentifier: typeDescription
     name: Type Description
-    description: The type of this notifcation as a human readable name.
+    description: The type of this notification as a human readable name.
   statusDescription:
     container:
       space: rmdm
@@ -143,4 +143,4 @@ properties:
       type: container
     containerPropertyIdentifier: statusDescription
     name: Status Description
-    description: A string indicating the status of this notifcation.
+    description: A string indicating the status of this notification.

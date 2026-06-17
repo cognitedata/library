@@ -70,7 +70,7 @@ properties:
       type: container
     containerPropertyIdentifier: disciplineCode
     name: Discipline Code
-    description: A code indicating particulat discipline, e.g. P for Process, and
+    description: A code indicating a particular discipline, e.g. P for Process, and
       O for Operations
   className:
     container:
@@ -119,7 +119,7 @@ properties:
       type: container
     containerPropertyIdentifier: system
     name: System
-    description: The system that the document concerns, e,g, System 20 Oil export
+    description: The system that the document concerns, e.g. System 20 Oil export
       system
   workflowStatus:
     container:
