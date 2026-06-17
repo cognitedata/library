@@ -6,7 +6,6 @@ WITH base AS (
     cast(parentExternalId as string) AS parentExternalId
   FROM `{{ rawDatabase }}`.`isa_asset`
   WHERE assetSpecific = 'ProcessCell'
-    AND is_new('isa_asset', lastUpdatedTime)
 ),
 withRefs AS (
   SELECT

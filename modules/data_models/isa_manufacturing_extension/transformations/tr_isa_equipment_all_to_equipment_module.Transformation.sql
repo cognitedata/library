@@ -2,12 +2,10 @@ WITH changedEquipmentModuleIds AS (
   SELECT CAST(`key` AS STRING) AS equipmentModuleId
   FROM `{{ rawDatabase }}`.`isa_asset`
   WHERE assetSpecific = 'EquipmentModule'
-    AND is_new('isa_asset', lastUpdatedTime)
   UNION
   SELECT CAST(assetExternalId AS STRING) AS equipmentModuleId
   FROM `{{ rawDatabase }}`.`isa_equipment`
   WHERE assetExternalId IS NOT NULL AND assetExternalId <> ''
-    AND is_new('isa_equipment', lastUpdatedTime)
 ),
 equipMod AS (
   SELECT

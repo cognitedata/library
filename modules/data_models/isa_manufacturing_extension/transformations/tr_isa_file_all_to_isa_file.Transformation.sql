@@ -6,7 +6,7 @@ WITH base AS (
     cast(mimeType AS string) AS mimeType,
     cast(assetExternalId AS string) AS assetExternalId
   FROM `{{ rawDatabase }}`.`isa_file`
-  WHERE is_new('isa_file', lastUpdatedTime)
+  WHERE 1=1 -- full reload: is_new('isa_file', lastUpdatedTime)
 ),
 withRefs AS (
   SELECT

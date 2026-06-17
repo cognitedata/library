@@ -12,7 +12,7 @@ WITH base AS (
     END AS createdDate,
     CAST(status AS string) AS status
   FROM `{{ rawDatabase }}`.`isa_recipe`
-  WHERE is_new('isa_recipe', lastUpdatedTime)
+  WHERE 1=1 -- full reload: is_new('isa_recipe', lastUpdatedTime)
 )
 SELECT
   external_id AS externalId,

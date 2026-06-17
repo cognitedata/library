@@ -19,7 +19,7 @@ WITH base AS (
     SPLIT(COALESCE(productSegmentExternalIds, ''), '\\|') AS segmentIds,
     SPLIT(COALESCE(fileExternalIds, ''), '\\|') AS fileIds
   FROM `{{ rawDatabase }}`.`isa_product_definition`
-  WHERE is_new('isa_product_definition', lastUpdatedTime)
+  WHERE 1=1 -- full reload: is_new('isa_product_definition', lastUpdatedTime)
 ),
 withRefs AS (
   SELECT

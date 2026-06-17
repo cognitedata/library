@@ -15,7 +15,7 @@ WITH base AS (
     SPLIT(COALESCE(equipmentExternalIds, ''), '\\|') AS equipmentIds,
     SPLIT(COALESCE(timeSeriesExternalIds, ''), '\\|') AS timeseriesIds
   FROM `{{ rawDatabase }}`.`isa_operation`
-  WHERE is_new('isa_operation', lastUpdatedTime)
+  WHERE 1=1 -- full reload: is_new('isa_operation', lastUpdatedTime)
 ),
 withRefs AS (
   SELECT

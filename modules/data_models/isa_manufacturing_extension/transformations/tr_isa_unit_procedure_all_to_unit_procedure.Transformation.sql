@@ -7,7 +7,7 @@ WITH base AS (
     CAST(procedureExternalId AS string) AS procedureExternalId,
     CAST(unitExternalId AS string) AS unitExternalId
   FROM `{{ rawDatabase }}`.`isa_unit_procedure`
-  WHERE is_new('isa_unit_procedure', lastUpdatedTime)
+  WHERE 1=1 -- full reload: is_new('isa_unit_procedure', lastUpdatedTime)
 )
 SELECT
   external_id AS externalId,

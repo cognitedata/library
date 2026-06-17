@@ -18,7 +18,7 @@ WITH base AS (
     CAST(siteExternalId AS string) AS siteExternalId,
     CAST(primaryWorkOrderExternalId AS string) AS primaryWorkOrderExternalId
   FROM `{{ rawDatabase }}`.`isa_batch`
-  WHERE is_new('isa_batch', lastUpdatedTime)
+  WHERE 1=1 -- full reload: is_new('isa_batch', lastUpdatedTime)
 ),
 withRefs AS (
   SELECT

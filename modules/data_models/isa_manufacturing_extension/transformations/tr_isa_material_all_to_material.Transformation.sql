@@ -8,7 +8,7 @@ WITH base AS (
     CAST(primaryRecipeExternalId AS string) AS primaryRecipeExternalId,
     CAST(batchExternalId AS string) AS batchExternalId
   FROM `{{ rawDatabase }}`.`isa_material`
-  WHERE is_new('isa_material', lastUpdatedTime)
+  WHERE 1=1 -- full reload: is_new('isa_material', lastUpdatedTime)
 ),
 withRefs AS (
   SELECT

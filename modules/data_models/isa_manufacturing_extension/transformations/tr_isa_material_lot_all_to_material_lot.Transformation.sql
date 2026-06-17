@@ -15,7 +15,7 @@ WITH base AS (
     END AS expiryDate,
     CAST(materialExternalId AS string) AS materialExternalId
   FROM `{{ rawDatabase }}`.`isa_material_lot`
-  WHERE is_new('isa_material_lot', lastUpdatedTime)
+  WHERE 1=1 -- full reload: is_new('isa_material_lot', lastUpdatedTime)
 ),
 withRefs AS (
   SELECT

@@ -1,12 +1,11 @@
 WITH changedEquipmentIds AS (
   SELECT CAST(`key` AS STRING) AS external_id
   FROM `{{ rawDatabase }}`.`isa_equipment`
-  WHERE is_new('isa_equipment', lastUpdatedTime)
+  WHERE 1=1 -- full reload: is_new('isa_equipment', lastUpdatedTime)
   UNION
   SELECT CAST(equipmentExternalId AS STRING) AS external_id
   FROM `{{ rawDatabase }}`.`isa_file`
   WHERE equipmentExternalId IS NOT NULL AND equipmentExternalId <> ''
-    AND is_new('isa_file', lastUpdatedTime)
 ),
 src AS (
   SELECT

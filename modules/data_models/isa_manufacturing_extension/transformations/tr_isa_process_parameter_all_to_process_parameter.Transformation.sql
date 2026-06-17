@@ -11,7 +11,7 @@ WITH base AS (
     SPLIT(COALESCE(phaseExternalIds, ''), '\\|') AS phaseIds,
     SPLIT(COALESCE(productSegmentExternalIds, ''), '\\|') AS segmentIds
   FROM `{{ rawDatabase }}`.`isa_process_parameter`
-  WHERE is_new('isa_process_parameter', lastUpdatedTime)
+  WHERE 1=1 -- full reload: is_new('isa_process_parameter', lastUpdatedTime)
 ),
 withRefs AS (
   SELECT

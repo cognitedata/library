@@ -2,11 +2,10 @@ WITH changedWorkOrderIds AS (
   SELECT DISTINCT CAST(workOrderId AS STRING) AS workOrderId
   FROM `{{ rawDatabase }}`.`isa_timeseries`
   WHERE workOrderId IS NOT NULL AND workOrderId <> ''
-    AND is_new('isa_timeseries', lastUpdatedTime)
   UNION
   SELECT DISTINCT CAST(workOrderId AS STRING) AS workOrderId
   FROM `{{ rawDatabase }}`.`isa_work_order`
-  WHERE is_new('isa_work_order', lastUpdatedTime)
+  WHERE 1=1 -- full reload: is_new('isa_work_order', lastUpdatedTime)
 ),
 woTs AS (
   SELECT
