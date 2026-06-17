@@ -7,9 +7,9 @@ import {
 import { fetchTransformationsByIds } from "@/transformations/fetchTransformationsByIds";
 import {
   cachedTransformationJobMetrics,
-  cachedTransformationJobs,
   cachedTransformationsList,
 } from "@/transformations/transformations-cache";
+import { loadLatestTransformationJob } from "@/transformations/transformation-jobs-service";
 import type { NoopTransformation, DmvInconsistency } from "./transformations-health-types";
 import { TRANSFORMATIONS_HEALTH_TX_PAGE_SIZE } from "./transformations-health-types";
 import type { LoadState } from "./types";
@@ -212,10 +212,10 @@ export function useTransformationsHealthChecks({
           }
           const id = String(tr.id);
           try {
-            const jobRes = (await cachedTransformationJobs(sdk, id, "1")) as {
-              data?: { items?: JobSummary[] };
-            };
-            const latestJob = jobRes.data?.items?.[0];
+            const latestJob = (await loadLatestTransformationJob({
+              sdk,
+              transformationId: id,
+            })) as JobSummary | null;
             if (!latestJob?.id) continue;
 
             const metricsRes = (await cachedTransformationJobMetrics(

@@ -99,21 +99,22 @@ export async function cachedTransformationsList(
 export async function cachedTransformationJobs(
   sdk: TxGetSdk,
   transformationId: string,
-  limit: string
+  limit: string,
+  cursor?: string
 ): Promise<unknown> {
   if (!isAppCachingEnabled()) {
     return sdk.get(`/api/v1/projects/${sdk.project}/transformations/jobs`, {
-      params: { limit, transformationId },
+      params: { limit, transformationId, ...(cursor ? { cursor } : {}) },
     });
   }
-  const key = `${sdk.project}:txJobs:${transformationId}:${limit}`;
+  const key = `${sdk.project}:txJobs:${transformationId}:${limit}:${cursor ?? ""}`;
   const hit = jobsCache.get(key);
   if (hit) return hit;
   const inFlight = jobsInFlight.get(key);
   if (inFlight) return inFlight;
   const request = sdk
     .get(`/api/v1/projects/${sdk.project}/transformations/jobs`, {
-      params: { limit, transformationId },
+      params: { limit, transformationId, ...(cursor ? { cursor } : {}) },
     })
     .then((response) => {
       jobsCache.set(key, response as unknown as Record<string, unknown>);
