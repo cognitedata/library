@@ -1,6 +1,6 @@
-import { useLayoutEffect, useRef } from "react";
+import { useLayoutEffect, useRef, type Dispatch, type SetStateAction } from "react";
 import { isForbiddenError } from "@/shared/cdf-errors";
-import type { ProcessingRequestStats } from "./types";
+import type { LoadState, ProcessingRequestStats } from "./types";
 
 export function isStaleProcessingFetch(
   fetchGeneration: number,
@@ -29,6 +29,28 @@ export function useProcessingWindowSessionReset(
     lastKeyRef.current = windowSessionKey;
     reset();
   }, [windowSessionKey, reset]);
+}
+
+/** Marks a series loading in the same commit before serial phase-advance effects run. */
+export function useProcessingSeriesFetchLoading(
+  fetchEnabled: boolean,
+  isSdkLoading: boolean,
+  windowRange: { start: number; end: number } | null | undefined,
+  fetchGeneration: number,
+  setStatus: Dispatch<SetStateAction<LoadState>>
+) {
+  useLayoutEffect(() => {
+    if (!fetchEnabled) return;
+    if (isSdkLoading || !windowRange) return;
+    setStatus("loading");
+  }, [
+    fetchEnabled,
+    fetchGeneration,
+    isSdkLoading,
+    setStatus,
+    windowRange?.end,
+    windowRange?.start,
+  ]);
 }
 
 export function processingRequestStats(

@@ -49,14 +49,25 @@ IDP_TOKEN_URL=https://your-tenant.b2clogin.com/your-tenant.onmicrosoft.com/oauth
 └── test_optimizations.py       # Test suite
 ```
 
-### Key Classes
+### Key helpers in `pipeline_optimizations.py`
 
-- **`MatchTracker`**: Optimized duplicate detection using sets (O(1) lookup)
-- **`OptimizedRuleMapper`**: Pre-compiled regex patterns with LRU cache
-- **`BatchProcessor`**: Efficient batch processing with memory cleanup
-- **`ConcurrentDataLoader`**: Parallel data loading capabilities
-- **`OptimizedMatchingEngine`**: Enhanced matching algorithms
-- **`PerformanceBenchmark`**: Performance monitoring and reporting
+These are the helpers actually wired into production (`handler.py` and
+`pipeline.py`):
+
+- **`time_operation`** — context manager that logs how long a phase took.
+- **`monitor_memory_usage`** / **`cleanup_memory`** — best-effort memory
+  reporting and an explicit `gc.collect()` between phases.
+- **`PerformanceBenchmark`** — per-phase timing accumulator with a roll-up
+  summary printed at the end of the run.
+- **`RobustAPIClient`** — wraps `client.data_modeling.instances.apply` with
+  bounded exponential-backoff retry so a single transient API blip doesn't
+  sink an entire matching run. Used by `_retry_apply` in `pipeline.py`.
+- **`patch_existing_pipeline`** — tightens `gc.set_threshold` and (on Unix)
+  bumps process priority once at function start.
+
+Inverted-index rule matching, set-based duplicate detection, and per-batch
+processing are implemented inline in `pipeline.py` and don't need separate
+helper classes.
 
 ## ⚙️ Configuration
 
@@ -177,77 +188,139 @@ Available `logLevel` values: `INFO`, `DEBUG`, `ERROR`, `WARNING`.
 
 ### Advanced Usage
 
-#### Custom Optimization Configuration
+#### Per-phase timing and memory reporting
 ```python
 from pipeline_optimizations import (
-    BatchProcessor,
-    OptimizedMatchingEngine,
-    PerformanceBenchmark
+    PerformanceBenchmark,
+    monitor_memory_usage,
+    time_operation,
 )
 
-# Configure custom batch processing
-processor = BatchProcessor(batch_size=2000)
-
-# Set up performance monitoring
 benchmark = PerformanceBenchmark(logger)
+
+with time_operation("Custom phase", logger):
+    # ... do work ...
+    pass
+
+monitor_memory_usage(logger, "After custom phase")
+
+# Time and roll up multiple invocations of a single function:
+benchmark.benchmark_function("my_step", my_function, arg1, arg2)
+benchmark.log_summary()
 ```
 
-#### Manual Optimization Application
+#### Resilient API calls
+```python
+from pipeline_optimizations import RobustAPIClient
+
+robust = RobustAPIClient(client, logger)
+robust.robust_api_call(client.data_modeling.instances.apply, items)
+```
+
+#### Manual GC / priority tuning at startup
 ```python
 from pipeline_optimizations import patch_existing_pipeline
 
-# Apply optimizations to existing pipeline
 patch_existing_pipeline()
 ```
 
 ## 🧪 Testing
 
-### Run All Tests
+The function ships with two test files, both runnable via `pytest`:
+
+| File | Tests | Covers |
+|---|---|---|
+| `test_handler.py` | 11 | `handle()` happy path / log levels / config-load failure / pipeline failure / no-logger fallback; `run_locally()` env-var validation, `CogniteClient` config, and dispatch into `handle()`. |
+| `test_optimizations.py` | 5 | `time_operation` / `monitor_memory_usage` / `cleanup_memory`, `RobustAPIClient.robust_api_call` happy path and retry behaviour, `PerformanceBenchmark` accumulator + summary, `patch_existing_pipeline`. |
+
+**Total: 16 tests.** No CDF connection is required — `CogniteClient` is fully mocked. Tests do not exercise CDF API calls.
+
+### Prerequisites
+
+- Python 3.11+ (matches the Cognite Functions runtime).
+- `pytest` (already pinned in `requirements.txt`).
+- The minimum runtime libraries needed to import `pipeline.py` and `handler.py`:
+
+  ```bash
+  pip install pytest cognite-sdk psutil tenacity pyyaml pydantic mixpanel
+  ```
+
+  `cognite-extractor-utils` is **not** needed to run tests — `RawUploadQueue` is lazy-imported inside `entity_matching()` and the test suite never reaches that construction site.
+
+### Run all tests
+
+From the repo root:
+
+```bash
+pytest -q modules/contextualization/cdf_entity_matching/functions/fn_dm_context_timeseries_entity_matching/
+```
+
+Or from the function directory:
+
+```bash
+cd modules/contextualization/cdf_entity_matching/functions/fn_dm_context_timeseries_entity_matching
+pytest -q
+```
+
+Expected output:
+
+```
+................                                                          [100%]
+16 passed in ~3s
+```
+
+> All commands below assume you're in the function directory
+> (`cd modules/contextualization/cdf_entity_matching/functions/fn_dm_context_timeseries_entity_matching`).
+> To run any of them from the **repo root** instead, prepend
+> `modules/contextualization/cdf_entity_matching/functions/fn_dm_context_timeseries_entity_matching/`
+> to the path. For example:
+> `pytest -q modules/contextualization/cdf_entity_matching/functions/fn_dm_context_timeseries_entity_matching/test_handler.py`.
+
+### Run a single file
+
+```bash
+pytest -q test_handler.py
+pytest -q test_optimizations.py
+```
+
+`test_optimizations.py` also still works as a standalone script for ad-hoc smoke checks (it ends with `if __name__ == "__main__": main()`):
+
 ```bash
 python test_optimizations.py
 ```
 
-### Individual Test Categories
+### Run a single test or test class
 
-#### 1. Performance Monitoring Tests
 ```bash
-python -c "
-from test_optimizations import test_performance_monitoring
-test_performance_monitoring()
-"
+# A single test class:
+pytest test_handler.py::TestHandler
+
+# A single test method:
+pytest test_handler.py::TestHandler::test_handle_success
+
+# All tests whose name matches a pattern:
+pytest -k "robust"
+pytest -k "run_locally"
 ```
 
-#### 2. Optimization Component Tests
+### Verbose output / failure detail
+
 ```bash
-python -c "
-from test_optimizations import test_match_tracker, test_rule_mapper, test_batch_processor
-test_match_tracker()
-test_rule_mapper()
-test_batch_processor()
-"
+pytest -v                            # one line per test
+pytest -x                            # stop on first failure
+pytest --tb=long                     # full tracebacks (default is short)
+pytest -v --tb=short -k "handle"     # combine: verbose + filter
+pytest -v -x --tb=long               # combine: verbose + fail-fast + full traceback
 ```
 
-#### 3. Performance Comparison Tests
-```bash
-python -c "
-from test_optimizations import run_performance_comparison
-run_performance_comparison()
-"
-```
+### Known noise
 
-### Test Coverage
-
-The test suite covers:
-- ✅ Performance monitoring utilities
-- ✅ Match tracking and duplicate detection
-- ✅ Rule mapping with regex compilation
-- ✅ Batch processing capabilities
-- ✅ Concurrent data loading
-- ✅ Matching engine optimizations
-- ✅ API client retry mechanisms
-- ✅ Caching functionality
-- ✅ Memory management
-- ✅ Performance benchmarking
+- The Mixpanel usage-tracker daemon thread (`_report_usage`) used to leak a
+  `PytestUnhandledThreadExceptionWarning` for every test that exercises
+  `handle()`, because the thread tried to JSON-encode the mocked
+  `CogniteClient.config.cdf_cluster`. The thread body is now wrapped in its own
+  best-effort `try/except`, so the warning is gone. If you ever see it again,
+  it likely means the guard was reverted — check `handler.py::_report_usage`.
 
 ## 📊 Performance Improvements
 

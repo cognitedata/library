@@ -53,7 +53,7 @@ def create_modules_zip(output_name: str | None = None) -> str:
                 for file in files:
                     file_path = Path(root) / file
                     # Calculate relative path for the zip (relative to modules directory)
-                    arcname = file_path.relative_to(modules_dir)
+                    arcname = file_path.relative_to(modules_dir).as_posix()
 
                     print(f"  Adding: {arcname}")
                     zipf.write(file_path, arcname)

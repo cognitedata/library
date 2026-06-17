@@ -1,0 +1,68 @@
+# Producer persona — read/write on needed resources (SOP Step 3a/3e).
+# name resolves per environment via setup_project.py: <persona>[-<site>]-<env>
+# (e.g. producer-dev, producer-prod). env covers dev+test.
+# Per-extractor / service-principal producer groups (e.g. producer-ep-opcua-dev,
+# producer-pp-prod) are added per SOP Step 3c as concrete needs arise.
+name: "{{ producerGroupName }}"
+sourceId: "{{ producerSourceId }}"
+metadata:
+  origin: cdf-project-templates
+capabilities:
+  - projectsAcl:
+      actions: [READ, LIST]
+      scope:
+        all: {}
+  - sessionsAcl:
+      actions: [CREATE]
+      scope:
+        all: {}
+  - datasetsAcl:
+      actions: [READ]
+      scope:
+        idScope:
+          ids: {{ dataset }}
+  - dataModelsAcl:
+      actions: [READ, WRITE]
+      scope:
+        spaceIdScope:
+          spaceIds: ["{{ schemaSpace }}", "{{ instanceSpace }}"]
+  - dataModelInstancesAcl:
+      actions: [READ, WRITE]
+      scope:
+        spaceIdScope:
+          spaceIds: ["{{ instanceSpace }}"]
+  - timeSeriesAcl:
+      actions: [READ, WRITE]
+      scope:
+        datasetScope:
+          ids: {{ dataset }}
+  - filesAcl:
+      actions: [READ, WRITE]
+      scope:
+        datasetScope:
+          ids: {{ dataset }}
+  - rawAcl:
+      actions: [READ, WRITE]
+      scope:
+        all: {}
+  - transformationsAcl:
+      actions: [READ, WRITE]
+      scope:
+        all: {}
+  - workflowOrchestrationAcl:
+      actions: [READ, WRITE]
+      scope:
+        datasetScope:
+          ids: {{ dataset }}
+  - extractionPipelinesAcl:
+      actions: [READ, WRITE]
+      scope:
+        all: {}
+  - extractionConfigsAcl:
+      actions: [READ, WRITE]
+      scope:
+        all: {}
+  - extractionRunsAcl:
+      actions: [READ, WRITE]
+      scope:
+        all: {}

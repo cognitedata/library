@@ -1,0 +1,92 @@
+externalId: "ep_{{location}}_files_sharepoint"
+name: "ep:{{location}}:files_sharepoint"
+dataSetExternalId: "{{dataset}}"
+description: "Files Extractor pipeline for site {{location}} — reads files from a SharePoint Online site and uploads them to CDF Files (with CogniteFile instances in {{instanceSpace}} when destination-mode: cdm)"
+source: SHAREPOINT
+schedule: Continuous
+contacts:
+  - name: {{integration_owner_name}}
+    email: {{integration_owner_email}}
+    role: Owner
+    sendNotification: true
+  - name: Cognite Support
+    email: support@cognite.com
+    role: Operational Owner
+    sendNotification: true
+  - name: {{data_owner_name}}
+    email: {{data_owner_email}}
+    role: Data Owner
+    sendNotification: true
+notificationConfig:
+  # Files Extractor runs on a schedule; alert if not seen for >2 hours
+  allowedNotSeenRangeInMinutes: 120
+createdBy: cognite-toolkit
+documentation: |
+  ## SharePoint Online (Files Extractor) extraction pipeline
+
+  This extraction pipeline reads files from a SharePoint Online site, document
+  library, folder, or individual files, and uploads them to CDF Files. With
+  `destination-mode: cdm` (the shipped default) the extractor also creates
+  `CogniteFile` instances in the configured DM space. The runtime configuration
+  lives in `ep_files_sharepoint.ExtractionPipeline.Config.yaml` and is fetched
+  by the extractor using its `pipeline-id`.
+
+  Adapt the `paths`, `extensions`, and `file-provider` blocks in `Config.yaml`
+  to point at your SharePoint locations and to the file types you want to
+  ingest. SharePoint authentication parameters are supplied via environment
+  variables on the extractor host (see below).
+
+  ### Required environment variables on the extractor host
+
+  | Variable                | Purpose                                                                              |
+  | ----------------------- | ------------------------------------------------------------------------------------ |
+  | `CDF_PROJECT`           | CDF project name                                                                     |
+  | `CDF_URL`               | CDF base URL (e.g. `https://api.cognitedata.com`)                                    |
+  | `IDP_TENANT_ID`         | IdP tenant ID (for the CDF service account)                                          |
+  | `IDP_CLIENT_ID`         | CDF service account client ID                                                        |
+  | `IDP_CLIENT_SECRET`     | CDF service account client secret                                                    |
+  | `SP_AZURE_TENANT_ID`    | Azure AD tenant ID hosting the SharePoint site                                       |
+  | `SP_CLIENT_ID`          | Azure AD app registration client ID with `Sites.Read.All` (or narrower) permission   |
+  | `SP_EXTRACT_URL`        | URL of the SharePoint site, document library, folder, or file to extract from        |
+
+  Authenticate to SharePoint with **either**:
+
+  | Variable                | Purpose                                                                              |
+  | ----------------------- | ------------------------------------------------------------------------------------ |
+  | `SP_CLIENT_SECRET`      | Azure AD app client secret (simplest)                                                |
+  | `SP_CERTIFICATE_PATH`   | (Alternative) Path to a PFX certificate file — required if using `restrict-to`       |
+  | `SP_CERTIFICATE_DATA`   | (Alternative) PFX certificate data inline — required if using `restrict-to`          |
+
+  ### Install the Files Extractor
+
+  1. **Download the installer** from Cognite Hub or Fusion (Extractors page) on
+     a host with network access to SharePoint Online and CDF. The Files
+     Extractor runs on Windows or Linux.
+  2. **Install** to e.g. `C:\Cognite\FilesExtractor\` (Windows) or
+     `/opt/cognite/files-extractor/` (Linux) and follow the bundled README to
+     register it as a service.
+  3. **Point the extractor at this pipeline** by giving it a minimal local
+     `config.yml` containing only credentials and the pipeline ID — the full
+     runtime configuration is delivered remotely from this extraction pipeline:
+
+     ```yaml
+     version: 1
+     type: remote
+     cognite:
+       project: ${CDF_PROJECT}
+       host: ${CDF_URL}
+       idp-authentication:
+         tenant: ${IDP_TENANT_ID}
+         client-id: ${IDP_CLIENT_ID}
+         secret: ${IDP_CLIENT_SECRET}
+         scopes:
+           - ${CDF_URL}/.default
+       extraction-pipeline:
+         pipeline-id: ep_{{location}}_files_sharepoint
+     ```
+
+  ### References
+
+  * Files Extractor docs: <https://docs.cognite.com/cdf/integration/guides/extraction/files_extractor/>
+  * Files Extractor configuration reference: <https://docs.cognite.com/cdf/integration/guides/extraction/configuration/files_extractor>
+  * SharePoint setup guide: <https://docs.cognite.com/cdf/integration/guides/extraction/file/file_sharepoint_setup>

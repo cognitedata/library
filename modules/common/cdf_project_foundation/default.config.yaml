@@ -1,0 +1,33 @@
+# Optional site segment for access-group names (e.g. "oslo"). Leave blank to omit.
+site: ""
+
+# Dataset used to scope the foundation access group ACLs.
+# Must match the dataset used by the source system modules.
+dataset: []
+
+# Computed by scripts/setup_project.py per environment as <persona>[-<site>]-<env>
+# where env is "dev" (covers dev + test) or "prod". These defaults are the
+# no-site dev values; setup_project.py overrides them in each config.<env>.yaml.
+consumerGroupName: "consumer-dev"
+producerGroupName: "producer-dev"
+adminGroupName: "admin-dev"
+
+# Object ID of the Entra ID security group mapped to each persona (SOP Step 3d).
+# Values are stored in .env by setup_project.py and referenced here via ${…}.
+# Run the wizard to populate .env, or set the variables manually.
+consumerSourceId: "${CONSUMER_SOURCE_ID}"    # read-only consumers
+producerSourceId: "${PRODUCER_SOURCE_ID}"    # read/write ingestion producers
+adminSourceId: "${ADMIN_SOURCE_ID}"          # foundation administrators
+
+# Schema space where the selected data model views are defined.
+# Generic across variants: sp_isa_manufacturing (ISA) or dm_dom_oil_and_gas (CHIFO).
+# Synced by scripts/setup_project.py from the installed data model variant.
+schemaSpace: "sp_isa_manufacturing"
+
+# Space where DM instances (ISAAsset, Equipment, FunctionalLocation, …) are written.
+# Must match the instanceSpace used by the source system modules.
+instanceSpace: "sp_isa_instance_space"
+
+# Data model variant — controls which schema/instance spaces are synced.
+# Supported: isa_manufacturing_extension | cfihos_oil_and_gas_extension
+dataModelVariant: isa_manufacturing_extension

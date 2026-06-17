@@ -77,7 +77,7 @@ cdm_maintain/
     ├── 📄 module.toml
     ├── 📄 default.config.yaml
     ├── 📁 data_modeling/
-    │   └── 📁 nodes/                     # Sample maintenance records
+    │   └── 📁 nodes/                     # Sample maintenance records and grid zone annotations
     └── 📁 upload_data/                   # Files uploaded via `cdf data upload` command
         ├── 📄 *.Manifest.yaml            # Upload manifests
         └── 📁 files/                     # Sample attachments
@@ -112,6 +112,7 @@ Template for integrating source system data:
 ### 5. Sample Data
 Ready-to-load sample records to validate your setup:
 - **Sample activities and assets**
+- **Grid zone annotations** (`gridZoneAnnotations.Node.yaml`) — maps zones on the sample P&ID to activities via `rootLocation` and `gridReference`
 - **Test documents and attachments** (uploaded via `cdf data upload` command, manifests in `upload_data/`)
 
 ## 🔧 Configuration
@@ -130,7 +131,9 @@ Each module's `default.config.yaml` declares the variables used by that module. 
 | `cdf_maintain_location` | `appDataSpace` | `maintain_solution_model` | Solution model space (cross-module ref) |
 | `cdf_maintain_location` | `sourceDataSpace` | `maintain_source_data` | Source data space (cross-module ref) |
 | `cdf_sample_data` | `instanceSpace` | `maintain_source_data` | Space where sample instances are written |
+| `cdf_sample_data` | `appDataSpace` | `maintain_solution_model` | Space for grid zone annotation nodes (must match `cdf_maintain_location`) |
 | `cdf_sample_data` | `location` | *(required)* | Root asset externalId prefix (must match `cdf_maintain_location`) |
+| `cdf_sample_data` | `location_name` | *(required)* | Human-readable location name used in gridzone and activity data (must match `cdf_maintain_location`) |
 
 ## 🏃‍♂️ Getting Started
 
@@ -141,11 +144,6 @@ Each module's `default.config.yaml` declares the variables used by that module. 
   - Data model deployment
   - Instance creation
   - File uploads (for sample data)
-- `data` plugin enabled in `cdf.toml` (required for `cdf data upload` to upload sample files):
-  ```toml
-  [plugins]
-  data = true
-  ```
 
 ### 2. Configure the Package
 
@@ -166,7 +164,9 @@ variables:
       sourceDataSpace: maintain_source_data
     cdf_sample_data:
       instanceSpace: maintain_source_data
+      appDataSpace: maintain_solution_model
       location: <your_location_id>
+      location_name: <Your Location Name>
 ```
 
 ### 3. Add and deploy the package

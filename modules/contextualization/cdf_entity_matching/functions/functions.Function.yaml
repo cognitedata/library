@@ -12,7 +12,7 @@
     ENV_TYPE: '${CDF_BUILD_TYPE}'
     CDF_ENV: '${CDF_ENVIRON}'
   # Number of cores, not available in Azure
-  runtime: 'py312'
+  runtime: 'py313'
   functionPath: 'handler.py'
 - name: 'dm:context:metadata_update'
   externalId: 'fn_dm_context_metadata_update'
@@ -26,5 +26,5 @@
     ENV_TYPE: '${CDF_BUILD_TYPE}'
     CDF_ENV: '${CDF_ENVIRON}'
   # Number of cores, not available in Azure
-  runtime: 'py312'
+  runtime: 'py313'
   functionPath: 'handler.py'

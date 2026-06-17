@@ -1,0 +1,47 @@
+# Consumer persona — read-only (SOP Step 3a/3e).
+# name resolves per environment via setup_project.py: <persona>[-<site>]-<env>
+# (e.g. consumer-dev, consumer-prod, consumer-oslo-prod). env covers dev+test.
+name: "{{ consumerGroupName }}"
+sourceId: "{{ consumerSourceId }}"
+metadata:
+  origin: cdf-project-templates
+capabilities:
+  - projectsAcl:
+      actions: [READ, LIST]
+      scope:
+        all: {}
+  - datasetsAcl:
+      actions: [READ]
+      scope:
+        idScope:
+          ids: {{ dataset }}
+  - dataModelsAcl:
+      # schemaSpace only: consumers need DM view definitions, not instance-space definitions
+      actions: [READ]
+      scope:
+        spaceIdScope:
+          spaceIds: ["{{ schemaSpace }}"]
+  - dataModelInstancesAcl:
+      actions: [READ]
+      scope:
+        spaceIdScope:
+          spaceIds: ["{{ instanceSpace }}"]
+  - timeSeriesAcl:
+      actions: [READ]
+      scope:
+        datasetScope:
+          ids: {{ dataset }}
+  - filesAcl:
+      actions: [READ]
+      scope:
+        datasetScope:
+          ids: {{ dataset }}
+  - rawAcl:
+      # rawAcl tableScope requires explicit table names at deploy time; all is the standard workaround
+      actions: [READ]
+      scope:
+        all: {}
+  - transformationsAcl:
+      actions: [READ]
+      scope:
+        all: {}

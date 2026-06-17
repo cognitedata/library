@@ -10,7 +10,6 @@ import sys
 import time
 import unittest
 from pathlib import Path
-from unittest.mock import MagicMock
 
 # Add current directory to path
 sys.path.append(str(Path(__file__).parent))
@@ -112,23 +111,9 @@ class TestBatchProcessing(unittest.TestCase):
         """Test batch processing functionality"""
         print("🧪 Testing BatchProcessor...")
         
+        # Smoke-test that BatchProcessor can be instantiated. Full NodeList
+        # integration is exercised in dedicated end-to-end tests.
         BatchProcessor(batch_size=3)
-
-        # Mock NodeList and nodes
-        mock_nodes = MagicMock()
-        mock_nodes.__getitem__.return_value = [
-            {"id": i, "name": f"node_{i}"} for i in range(10)
-        ]
-        mock_nodes.__len__.return_value = 10
-        
-        # Mock processing function
-        def mock_process_func(batch, *args, **kwargs):
-            return [{"processed": item["id"]} for item in batch]
-        
-        # Test batch processing (this will test the concept, actual NodeList integration tested separately)
-        # results = processor.process_nodes_in_batches(
-        #     mock_nodes, mock_process_func, self.logger, node_type="test"
-        # )
         
         print("✅ BatchProcessor test passed")
 

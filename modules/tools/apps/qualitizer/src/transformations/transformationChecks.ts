@@ -1,16 +1,28 @@
 import { SparkSQL, SparkSqlParserListener } from "dt-sql-parser";
 import type { ParseError } from "dt-sql-parser";
 
+export type DataModelInteractionSource =
+  | "cdf_data_models"
+  | "cdf_nodes"
+  | "cdf_edges"
+  | "_cdf_datamodels"
+  | "is_new";
+
+export type DataModelInteractionRef = {
+  space?: string;
+  externalId?: string;
+  version?: string;
+  typeExternalId?: string;
+  relationshipProperty?: string;
+  source: DataModelInteractionSource;
+  /** No space/externalId (e.g. cdf_nodes(), cdf_edges(), is_new with DM sources). */
+  unscoped?: boolean;
+};
+
 export type ParsedInsight = {
   errors: Array<{ message?: string; startLine?: number; startCol?: number }>;
   tables: string[];
-  dataModelRefs: Array<{
-    space?: string;
-    externalId?: string;
-    version?: string;
-    typeExternalId?: string;
-    relationshipProperty?: string;
-  }>;
+  dataModelRefs: DataModelInteractionRef[];
   nodeReferences: Array<{
     space?: string;
     externalId?: string;
@@ -72,12 +84,97 @@ function stripLeadingBlockComments(sql: string): string {
   return sql.slice(i).trimStart();
 }
 
-/** Extract cdf_data_models(...) references from query text. */
-export function extractDataModelRefs(query: string): ParsedInsight["dataModelRefs"] {
-  return Array.from(query.matchAll(/cdf_data_models\(([\s\S]*?)\)/gi), (match) => {
-    const raw = match[1] ?? "";
-    const parts = raw.split(",").map(trimQuotes);
+/** Split SQL call arguments on top-level commas (respects quotes, escapes, nesting). */
+function splitSqlCallArgs(raw: string): string[] {
+  const parts: string[] = [];
+  let cur = "";
+  let quote: string | null = null;
+  let parenDepth = 0;
+  let bracketDepth = 0;
+
+  for (let i = 0; i < raw.length; i++) {
+    const ch = raw[i];
+
+    if (quote) {
+      cur += ch;
+      if (ch === "\\" && i + 1 < raw.length) {
+        cur += raw[i + 1];
+        i += 1;
+        continue;
+      }
+      if (ch === quote) quote = null;
+      continue;
+    }
+
+    if (ch === "'" || ch === '"' || ch === "`") {
+      quote = ch;
+      cur += ch;
+      continue;
+    }
+
+    if (ch === "(") {
+      parenDepth += 1;
+      cur += ch;
+      continue;
+    }
+    if (ch === ")") {
+      if (parenDepth > 0) parenDepth -= 1;
+      cur += ch;
+      continue;
+    }
+    if (ch === "[") {
+      bracketDepth += 1;
+      cur += ch;
+      continue;
+    }
+    if (ch === "]") {
+      if (bracketDepth > 0) bracketDepth -= 1;
+      cur += ch;
+      continue;
+    }
+
+    if (ch === "," && parenDepth === 0 && bracketDepth === 0) {
+      parts.push(cur.trim());
+      cur = "";
+      continue;
+    }
+
+    cur += ch;
+  }
+
+  if (cur.trim()) parts.push(cur.trim());
+  return parts.map(trimQuotes);
+}
+
+function refDedupeKey(ref: DataModelInteractionRef): string {
+  return [
+    ref.source,
+    ref.unscoped ? "1" : "0",
+    ref.space ?? "",
+    ref.externalId ?? "",
+    ref.version ?? "",
+    ref.typeExternalId ?? "",
+    ref.relationshipProperty ?? "",
+  ].join("\x1f");
+}
+
+function mergeDataModelInteractionRefs(refs: DataModelInteractionRef[]): DataModelInteractionRef[] {
+  const seen = new Set<string>();
+  const out: DataModelInteractionRef[] = [];
+  for (const ref of refs) {
+    const key = refDedupeKey(ref);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(ref);
+  }
+  return out;
+}
+
+function extractCdfDataModelsRefs(query: string): DataModelInteractionRef[] {
+  return Array.from(query.matchAll(/\bcdf_data_models\s*\(\s*([\s\S]*?)\s*\)/gi), (match) => {
+    const parts = splitSqlCallArgs(match[1] ?? "");
     return {
+      source: "cdf_data_models" as const,
       space: parts[0],
       externalId: parts[1],
       version: parts[2],
@@ -85,6 +182,120 @@ export function extractDataModelRefs(query: string): ParsedInsight["dataModelRef
       relationshipProperty: parts[4],
     };
   });
+}
+
+function extractCdfNodesRefs(query: string): DataModelInteractionRef[] {
+  const refs: DataModelInteractionRef[] = [];
+  for (const match of query.matchAll(/\bcdf_nodes\s*\(\s*([\s\S]*?)\s*\)/gi)) {
+    const raw = (match[1] ?? "").trim();
+    if (!raw) {
+      refs.push({ source: "cdf_nodes", unscoped: true });
+      continue;
+    }
+    const parts = splitSqlCallArgs(raw);
+    refs.push({
+      source: "cdf_nodes",
+      space: parts[0],
+      externalId: parts[1],
+      version: parts[2],
+    });
+  }
+  return refs;
+}
+
+function extractCdfEdgesRefs(query: string): DataModelInteractionRef[] {
+  const refs: DataModelInteractionRef[] = [];
+  for (const match of query.matchAll(/\bcdf_edges\s*\(\s*([\s\S]*?)\s*\)/gi)) {
+    const raw = (match[1] ?? "").trim();
+    if (!raw) {
+      refs.push({ source: "cdf_edges", unscoped: true });
+      continue;
+    }
+    const parts = splitSqlCallArgs(raw);
+    refs.push({
+      source: "cdf_edges",
+      space: parts[0],
+      externalId: parts[1],
+      version: parts[2],
+    });
+  }
+  return refs;
+}
+
+/** Legacy `_cdf_datamodels.\`space:modelExternalId\`` table reads. */
+function extractCdfDatamodelsTableRefs(query: string): DataModelInteractionRef[] {
+  const refs: DataModelInteractionRef[] = [];
+  for (const match of query.matchAll(
+    /\b_cdf_datamodels\s*\.\s*(?:`([^`]+)`|'([^']+)'|"([^"]+)"|([a-zA-Z0-9_.:-]+))/gi
+  )) {
+    const id = (match[1] ?? match[2] ?? match[3] ?? match[4] ?? "").trim();
+    if (!id) continue;
+    const colon = id.indexOf(":");
+    if (colon >= 0) {
+      refs.push({
+        source: "_cdf_datamodels",
+        space: id.slice(0, colon),
+        externalId: id.slice(colon + 1),
+      });
+    } else {
+      refs.push({ source: "_cdf_datamodels", externalId: id });
+    }
+  }
+  return refs;
+}
+
+/** is_new(...) with cdf_nodes / cdf_edges / cdf_data_models sources (incremental DM sync). */
+function extractIsNewDataModelRefs(query: string): DataModelInteractionRef[] {
+  if (!/\bis_new\s*\(/i.test(query)) return [];
+  if (!/\bcdf_(?:nodes|edges|data_models)\s*\(/i.test(query)) return [];
+  return [{ source: "is_new", unscoped: true }];
+}
+
+/**
+ * Detect transformation SQL that reads or syncs against the data model layer:
+ * cdf_data_models, cdf_nodes, cdf_edges, _cdf_datamodels, and is_new on those sources.
+ */
+export function extractDataModelRefs(query: string): DataModelInteractionRef[] {
+  return mergeDataModelInteractionRefs([
+    ...extractCdfDataModelsRefs(query),
+    ...extractCdfNodesRefs(query),
+    ...extractCdfEdgesRefs(query),
+    ...extractCdfDatamodelsTableRefs(query),
+    ...extractIsNewDataModelRefs(query),
+  ]);
+}
+
+/** True when the query uses any documented data-model SQL surface. */
+export function queryUsesDataModelLayer(query: string): boolean {
+  return extractDataModelRefs(query).length > 0;
+}
+
+/** space:externalId for a concrete FDM data model (not cdf_nodes view reads). */
+export function dataModelKeyFromInteractionRef(ref: DataModelInteractionRef): string | null {
+  if (ref.unscoped) return null;
+  if (ref.source !== "cdf_data_models" && ref.source !== "_cdf_datamodels") return null;
+  const key = `${ref.space ?? ""}:${ref.externalId ?? ""}`;
+  return key && key !== ":" ? key : null;
+}
+
+const DM_FUNCTION_GROUP_PREFIX = "__dm_fn__:";
+
+/** Group key for Data model usage page (models or synthetic function buckets). */
+export function interactionRefGroupKey(ref: DataModelInteractionRef): string | null {
+  if (ref.unscoped) return `${DM_FUNCTION_GROUP_PREFIX}${ref.source}`;
+  const modelKey = dataModelKeyFromInteractionRef(ref);
+  if (modelKey) return modelKey;
+  const generic = `${ref.space ?? ""}:${ref.externalId ?? ""}`;
+  return generic && generic !== ":" ? generic : null;
+}
+
+export function isFunctionBucketGroupKey(modelKey: string): boolean {
+  return modelKey.startsWith(DM_FUNCTION_GROUP_PREFIX);
+}
+
+export function functionBucketSourceFromGroupKey(modelKey: string): DataModelInteractionSource | null {
+  if (!isFunctionBucketGroupKey(modelKey)) return null;
+  return modelKey.slice(DM_FUNCTION_GROUP_PREFIX.length) as DataModelInteractionSource;
 }
 
 /** Extract node_reference(...) references from query text. */

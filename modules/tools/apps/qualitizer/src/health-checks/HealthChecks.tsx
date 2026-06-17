@@ -6,8 +6,17 @@ import { DataModelChecks } from "./DataModelChecks";
 import { RawChecks } from "./RawChecks";
 import { PermissionsChecks } from "./PermissionsChecks";
 import { HealthChecksAll } from "./HealthChecksAll";
+import { RunHealthChecks } from "./run-health";
 
-type CheckCategory = "landing" | "all" | "infrastructure" | "transformations" | "dataModels" | "raw" | "permissions";
+type CheckCategory =
+  | "landing"
+  | "all"
+  | "runHealth"
+  | "infrastructure"
+  | "transformations"
+  | "dataModels"
+  | "raw"
+  | "permissions";
 
 const mainCategories: Array<{
   id: Exclude<CheckCategory, "landing" | "all">;
@@ -15,6 +24,12 @@ const mainCategories: Array<{
   description: string;
   icon: string;
 }> = [
+  {
+    id: "runHealth",
+    title: "Run Health",
+    description: "Uptime % and failure counts for pipelines, workflows, transformations, functions",
+    icon: "📈",
+  },
   {
     id: "infrastructure",
     title: "Infrastructure",
@@ -54,6 +69,7 @@ export function HealthChecks() {
   const goBack = () => setActiveCategory("landing");
 
   if (activeCategory === "all") return <HealthChecksAll onBack={goBack} />;
+  if (activeCategory === "runHealth") return <RunHealthChecks onBack={goBack} />;
   if (activeCategory === "infrastructure") return <InfrastructureChecks onBack={goBack} />;
   if (activeCategory === "transformations") return <TransformationsChecks onBack={goBack} />;
   if (activeCategory === "dataModels") return <DataModelChecks onBack={goBack} />;

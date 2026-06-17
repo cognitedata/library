@@ -14,6 +14,7 @@ import {
   isStaleProcessingFetch,
   noteForbiddenFailure,
   processingRequestStats,
+  useProcessingSeriesFetchLoading,
   useProcessingWindowSessionReset,
 } from "./processing-request-stats";
 
@@ -74,6 +75,13 @@ export function useExtractionPipelineData({
   }, []);
 
   useProcessingWindowSessionReset(windowSessionKey, resetForNewWindow);
+  useProcessingSeriesFetchLoading(
+    fetchEnabled,
+    isSdkLoading,
+    windowRange,
+    fetchGeneration,
+    setExtractorsStatus
+  );
 
   useEffect(() => {
     if (!fetchEnabled) {
@@ -84,9 +92,6 @@ export function useExtractionPipelineData({
     if (refetchExecutionsOnly && extractorConfigs.length > 0) return;
 
     const generation = fetchGeneration;
-    if (!refetchExecutionsOnly) {
-      setExtractorsStatus("loading");
-    }
     let cancelled = false;
     const loadExtractorConfigs = async () => {
       setExtractorsError(null);

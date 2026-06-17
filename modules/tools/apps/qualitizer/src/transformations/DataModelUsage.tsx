@@ -5,7 +5,12 @@ import { useAppData } from "@/shared/data-cache";
 import { ApiError } from "@/shared/ApiError";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import type { LoadState } from "@/processing/types";
-import { extractDataModelRefs } from "./transformationChecks";
+import {
+  extractDataModelRefs,
+  functionBucketSourceFromGroupKey,
+  interactionRefGroupKey,
+  isFunctionBucketGroupKey,
+} from "./transformationChecks";
 import { fetchTransformationsByIds } from "./fetchTransformationsByIds";
 import { cachedTransformationsList } from "./transformations-cache";
 import { TransformationsHelpModal } from "./TransformationsHelpModal";
@@ -28,9 +33,11 @@ type DataModelUsageDiagnostics = {
   listLimitReached: boolean;
   withoutQuery: number;
   withQuery: number;
-  withCdfDataModelsInQuery: number;
+  withDataModelInteractionInQuery: number;
+  withUnscopedInteraction: number;
   withOnlyInvalidRefs: number;
   withResolvableRefs: number;
+  interactionBySource: Record<string, number>;
   withDestinationDataModel: number;
   byidsRequested: number;
   uniqueDataModelsInProject: number | null;
@@ -51,10 +58,6 @@ type ModelGroup = {
   usages: ModelUsage[];
   versionInconsistent: boolean;
 };
-
-function buildModelKey(space: string | undefined, externalId: string | undefined): string {
-  return `${space ?? ""}:${externalId ?? ""}`;
-}
 
 export function DataModelUsage() {
   const { t } = useI18n();
@@ -109,10 +112,12 @@ export function DataModelUsage() {
 
         let withoutQuery = 0;
         let withQuery = 0;
-        let withCdfDataModelsInQuery = 0;
+        let withDataModelInteractionInQuery = 0;
+        let withUnscopedInteraction = 0;
         let withOnlyInvalidRefs = 0;
         let withResolvableRefs = 0;
         let withDestinationDataModel = 0;
+        const interactionBySource: Record<string, number> = {};
         const sampleWithQueryNoRefs: string[] = [];
 
         for (const t of items) {
@@ -136,21 +141,29 @@ export function DataModelUsage() {
             if (sampleWithQueryNoRefs.length < 5) sampleWithQueryNoRefs.push(name);
             continue;
           }
-          withCdfDataModelsInQuery += 1;
+          withDataModelInteractionInQuery += 1;
 
           let hadResolvable = false;
+          let hadUnscoped = false;
           let hadInvalidOnly = true;
           const seenVersions = new Set<string>();
           for (const ref of refs) {
-            const space = ref.space ?? "";
-            const externalId = ref.externalId ?? "";
-            const key = buildModelKey(space, externalId);
-            if (!key || key === ":") continue;
+            interactionBySource[ref.source] = (interactionBySource[ref.source] ?? 0) + 1;
+            const key = interactionRefGroupKey(ref);
+            if (!key) continue;
             hadInvalidOnly = false;
-            hadResolvable = true;
+
+            const isFnBucket = isFunctionBucketGroupKey(key);
+            if (isFnBucket) hadUnscoped = true;
+            else hadResolvable = true;
+
+            const space = isFnBucket ? "" : (ref.space ?? "");
+            const externalId = isFnBucket
+              ? (functionBucketSourceFromGroupKey(key) ?? key)
+              : (ref.externalId ?? "");
 
             const version = ref.version?.trim() || undefined;
-            const usageKey = `${id}::${version ?? ""}`;
+            const usageKey = `${id}::${key}::${version ?? ""}`;
             if (seenVersions.has(usageKey)) continue;
             seenVersions.add(usageKey);
 
@@ -171,6 +184,7 @@ export function DataModelUsage() {
             }
           }
           if (hadResolvable) withResolvableRefs += 1;
+          if (hadUnscoped) withUnscopedInteraction += 1;
           else if (hadInvalidOnly) withOnlyInvalidRefs += 1;
         }
 
@@ -181,10 +195,12 @@ export function DataModelUsage() {
           listLimitReached: items.length >= TRANSFORMATIONS_LIST_LIMIT,
           withoutQuery,
           withQuery,
-          withCdfDataModelsInQuery,
+          withDataModelInteractionInQuery,
+          withUnscopedInteraction,
           withOnlyInvalidRefs,
           withResolvableRefs,
           withDestinationDataModel,
+          interactionBySource,
           byidsRequested: idsMissingQuery.length,
           uniqueDataModelsInProject: null,
           dataModelsCatalogStatus: dataModelsStatus,
@@ -332,9 +348,15 @@ export function DataModelUsage() {
                 </div>
                 <div>
                   <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">
-                    {t("transformations.dataModelUsage.diag.withCdfDataModels")}
+                    {t("transformations.dataModelUsage.diag.withDataModelInteraction")}
                   </dt>
-                  <dd>{displayDiagnostics.withCdfDataModelsInQuery}</dd>
+                  <dd>{displayDiagnostics.withDataModelInteractionInQuery}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                    {t("transformations.dataModelUsage.diag.withUnscopedInteraction")}
+                  </dt>
+                  <dd>{displayDiagnostics.withUnscopedInteraction}</dd>
                 </div>
                 <div>
                   <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">
@@ -373,6 +395,22 @@ export function DataModelUsage() {
                   </dd>
                 </div>
               </dl>
+              {Object.keys(displayDiagnostics.interactionBySource).length > 0 ? (
+                <div>
+                  <p className="text-xs font-medium text-slate-600">
+                    {t("transformations.dataModelUsage.diag.interactionBySourceLabel")}
+                  </p>
+                  <ul className="mt-1 list-inside list-disc font-mono text-xs text-slate-600">
+                    {Object.entries(displayDiagnostics.interactionBySource)
+                      .sort(([a], [b]) => a.localeCompare(b))
+                      .map(([source, count]) => (
+                        <li key={source}>
+                          {source}: {count}
+                        </li>
+                      ))}
+                  </ul>
+                </div>
+              ) : null}
               {displayDiagnostics.sampleWithQueryNoRefs.length > 0 ? (
                 <div>
                   <p className="text-xs font-medium text-slate-600">
@@ -409,9 +447,13 @@ export function DataModelUsage() {
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="font-medium text-slate-900">
-                      {group.space && group.externalId
-                        ? `${group.space} · ${group.externalId}`
-                        : group.modelKey || "(unknown)"}
+                      {isFunctionBucketGroupKey(group.modelKey)
+                        ? t("transformations.dataModelUsage.group.functionBucket", {
+                            source: group.externalId,
+                          })
+                        : group.space && group.externalId
+                          ? `${group.space} · ${group.externalId}`
+                          : group.modelKey || "(unknown)"}
                     </div>
                     {group.versionInconsistent ? (
                       <span

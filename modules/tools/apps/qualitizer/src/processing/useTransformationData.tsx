@@ -15,12 +15,13 @@ import {
   isStaleProcessingFetch,
   noteForbiddenFailure,
   processingRequestStats,
+  useProcessingSeriesFetchLoading,
   useProcessingWindowSessionReset,
 } from "./processing-request-stats";
 import {
-  cachedTransformationJobs,
   cachedTransformationsList,
 } from "@/transformations/transformations-cache";
+import { loadTransformationJobsForWindow } from "@/transformations/transformation-jobs-service";
 
 type UseTransformationDataArgs = {
   isSdkLoading: boolean;
@@ -67,6 +68,13 @@ export function useTransformationData({
   }, []);
 
   useProcessingWindowSessionReset(windowSessionKey, resetForNewWindow);
+  useProcessingSeriesFetchLoading(
+    fetchEnabled,
+    isSdkLoading,
+    windowRange,
+    fetchGeneration,
+    setTransformationsStatus
+  );
 
   useEffect(() => {
     if (!fetchEnabled) {
@@ -77,9 +85,6 @@ export function useTransformationData({
     if (!windowRange) return;
 
     const generation = fetchGeneration;
-    if (!refetchExecutionsOnly) {
-      setTransformationsStatus("loading");
-    }
     let cancelled = false;
     const loadTransformations = async () => {
       setExecutionsTruncated(false);
@@ -91,6 +96,7 @@ export function useTransformationData({
         setTransformationMetaMap({});
         setLoadProgress({ kind: "transformations_list" });
       } else {
+        setTransformationJobsAll([]);
         setLoadProgress({
           kind: "transformations_jobs",
           current: 0,
@@ -141,9 +147,14 @@ export function useTransformationData({
           totalRequests++;
           try {
             const jobResponse = (await withTransientRetries(() =>
-              cachedTransformationJobs(sdk, String(transformation.id), "1000")
-            )) as { data?: { items?: TransformationJobSummary[] } };
-            for (const job of jobResponse.data?.items ?? []) {
+              loadTransformationJobsForWindow({
+                sdk,
+                transformationId: String(transformation.id),
+                windowStart: windowRange.start,
+                windowEnd: windowRange.end,
+              })
+            )) as TransformationJobSummary[];
+            for (const job of jobResponse ?? []) {
               if (cap != null && jobs.length >= cap) {
                 hitExecutionCap = true;
                 break;
@@ -161,6 +172,7 @@ export function useTransformationData({
             !isStaleProcessingFetch(fetchGeneration, generation) &&
             (index % 5 === 0 || index === total)
           ) {
+            setTransformationJobsAll([...jobs]);
             setLoadProgress({ kind: "transformations_jobs", current: index, total });
           }
         }

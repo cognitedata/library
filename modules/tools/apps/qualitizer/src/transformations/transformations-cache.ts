@@ -46,6 +46,7 @@ const listCache = new LRUCache<string, Record<string, unknown>>({
   max: TX_LIST_CACHE_MAX,
   ttl: TX_LIST_CACHE_TTL_MS,
 });
+const listInFlight = new Map<string, Promise<unknown>>();
 
 export const TX_JOBS_CACHE_MAX = 3000;
 export const TX_JOBS_CACHE_TTL_MS = 60 * 60 * 1000;
@@ -53,6 +54,7 @@ const jobsCache = new LRUCache<string, Record<string, unknown>>({
   max: TX_JOBS_CACHE_MAX,
   ttl: TX_JOBS_CACHE_TTL_MS,
 });
+const jobsInFlight = new Map<string, Promise<unknown>>();
 
 export const TX_JOB_METRICS_CACHE_MAX = 4000;
 export const TX_JOB_METRICS_CACHE_TTL_MS = 60 * 60 * 1000;
@@ -60,6 +62,7 @@ const jobMetricsCache = new LRUCache<string, Record<string, unknown>>({
   max: TX_JOB_METRICS_CACHE_MAX,
   ttl: TX_JOB_METRICS_CACHE_TTL_MS,
 });
+const jobMetricsInFlight = new Map<string, Promise<unknown>>();
 
 export const TX_BY_ID_ROW_CACHE_MAX = 8000;
 export const TX_BY_ID_ROW_CACHE_TTL_MS = 60 * 60 * 1000;
@@ -78,29 +81,50 @@ export async function cachedTransformationsList(
   const key = `${sdk.project}:txList:${stableParamKey(params)}`;
   const hit = listCache.get(key);
   if (hit) return hit;
-  const response = await sdk.get(`/api/v1/projects/${sdk.project}/transformations`, { params });
-  listCache.set(key, response as unknown as Record<string, unknown>);
-  return response;
+  const inFlight = listInFlight.get(key);
+  if (inFlight) return inFlight;
+  const request = sdk
+    .get(`/api/v1/projects/${sdk.project}/transformations`, { params })
+    .then((response) => {
+      listCache.set(key, response as unknown as Record<string, unknown>);
+      return response;
+    })
+    .finally(() => {
+      listInFlight.delete(key);
+    });
+  listInFlight.set(key, request);
+  return request;
 }
 
 export async function cachedTransformationJobs(
   sdk: TxGetSdk,
   transformationId: string,
-  limit: string
+  limit: string,
+  cursor?: string
 ): Promise<unknown> {
   if (!isAppCachingEnabled()) {
     return sdk.get(`/api/v1/projects/${sdk.project}/transformations/jobs`, {
-      params: { limit, transformationId },
+      params: { limit, transformationId, ...(cursor ? { cursor } : {}) },
     });
   }
-  const key = `${sdk.project}:txJobs:${transformationId}:${limit}`;
+  const key = `${sdk.project}:txJobs:${transformationId}:${limit}:${cursor ?? ""}`;
   const hit = jobsCache.get(key);
   if (hit) return hit;
-  const response = await sdk.get(`/api/v1/projects/${sdk.project}/transformations/jobs`, {
-    params: { limit, transformationId },
-  });
-  jobsCache.set(key, response as unknown as Record<string, unknown>);
-  return response;
+  const inFlight = jobsInFlight.get(key);
+  if (inFlight) return inFlight;
+  const request = sdk
+    .get(`/api/v1/projects/${sdk.project}/transformations/jobs`, {
+      params: { limit, transformationId, ...(cursor ? { cursor } : {}) },
+    })
+    .then((response) => {
+      jobsCache.set(key, response as unknown as Record<string, unknown>);
+      return response;
+    })
+    .finally(() => {
+      jobsInFlight.delete(key);
+    });
+  jobsInFlight.set(key, request);
+  return request;
 }
 
 export async function cachedTransformationJobMetrics(
@@ -115,11 +139,19 @@ export async function cachedTransformationJobMetrics(
   const key = `${sdk.project}:txJobMetrics:${jobId}`;
   const hit = jobMetricsCache.get(key);
   if (hit) return hit;
-  const response = await sdk.get(
-    `/api/v1/projects/${sdk.project}/transformations/jobs/${jobId}/metrics`
-  );
-  jobMetricsCache.set(key, response as unknown as Record<string, unknown>);
-  return response;
+  const inFlight = jobMetricsInFlight.get(key);
+  if (inFlight) return inFlight;
+  const request = sdk
+    .get(`/api/v1/projects/${sdk.project}/transformations/jobs/${jobId}/metrics`)
+    .then((response) => {
+      jobMetricsCache.set(key, response as unknown as Record<string, unknown>);
+      return response;
+    })
+    .finally(() => {
+      jobMetricsInFlight.delete(key);
+    });
+  jobMetricsInFlight.set(key, request);
+  return request;
 }
 
 export const TRANSFORMATIONS_BY_IDS_BATCH_SIZE = 100;

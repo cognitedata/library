@@ -216,6 +216,28 @@ const translations: Record<Language, Record<string, string>> = {
     "processing.modal.transformation.runHistoryLink": "View run history in Fusion",
     "processing.modal.transformation.section.transformation": "Transformation",
     "processing.modal.transformation.section.job": "Job",
+    "processing.debug.transformations.open": "Transformations debug",
+    "processing.debug.transformations.title": "Transformations debug diagnostics",
+    "processing.debug.transformations.subtitle":
+      "Inspect the full fetched transformation-job timeline without issuing more API requests.",
+    "processing.debug.transformations.range": "Fetched timeline (UTC):",
+    "processing.debug.transformations.focusHour": "Current Processing window:",
+    "processing.debug.transformations.emptyGraph":
+      "No transformation jobs with a startedTime were available in the fetched data.",
+    "processing.debug.transformations.totalJobs": "Fetched jobs",
+    "processing.debug.transformations.jobsInWindow": "Jobs in selected hour window",
+    "processing.debug.transformations.uniqueTransformations": "Unique transformations",
+    "processing.debug.transformations.missingStartedTime": "Jobs missing startedTime",
+    "processing.debug.transformations.dataCoverage": "Coverage",
+    "processing.debug.transformations.rowsWithStartTime": "Rows with startedTime",
+    "processing.debug.transformations.rowsWithoutStartTime": "Rows without startedTime",
+    "processing.debug.transformations.rangeStart": "Earliest startedTime (UTC)",
+    "processing.debug.transformations.rangeEnd": "Latest startedTime + 1h (UTC)",
+    "processing.debug.transformations.executionCapApplied": "Execution cap applied",
+    "processing.debug.transformations.yesPotentiallyTruncated": "Yes (data may be truncated)",
+    "processing.debug.transformations.no": "No",
+    "processing.debug.transformations.statusBreakdown": "Status distribution (top 6)",
+    "processing.debug.transformations.noStatuses": "No status values available.",
     "processing.modal.workflow.title": "Workflow execution",
     "processing.modal.workflow.section.execution": "Execution summary",
     "processing.modal.workflow.section.details": "Workflow details",
@@ -245,7 +267,8 @@ const translations: Record<Language, Record<string, string>> = {
     "permissions.crossProject.viewerHint":
       "Uploaded users use the projects listed in their JSON. Current user uses every project from your live session token.",
     "permissions.crossProject.loading": "Loading memberships and group definitions…",
-    "permissions.crossProject.noProjects": "Your token has no project list from access info.",
+    "permissions.crossProject.noProjects":
+      "No projects found in your access token. Upload access JSON or switch user.",
     "permissions.crossProject.noMemberships": "You have no security group memberships in these projects.",
     "permissions.crossProject.summaryEmpty": "No group memberships to compare across projects.",
     "permissions.crossProject.summaryMatch":
@@ -294,13 +317,13 @@ const translations: Record<Language, Record<string, string>> = {
     "permissions.crossProject.legendCapGap": "Missing here but granted elsewhere",
     "permissions.crossProject.legendScopeDrift": "Different scoping or actions (orange dot)",
     "permissions.crossProject.groupDefinitionsForbiddenSummary":
-      "Could not load group definitions for: {projects} (access forbidden for your user). Membership from the viewed access data is still shown; highlighted columns lack full detail.",
+      "We couldn't load group definitions for: {projects}. You can still compare memberships, but those columns have limited detail.",
     "permissions.crossProject.columnDefinitionsForbiddenTitle":
-      "Group definitions not available — your token cannot list groups in this project",
+      "Details unavailable: your token can't list groups in this project",
     "permissions.crossProject.membershipForbiddenCellTitle":
       "Member in this project, but group details are not visible to your user",
     "permissions.crossProject.capCellDefinitionsForbiddenTitle":
-      "Capabilities unknown — group list is not accessible for this project",
+      "Capabilities unavailable: your token can't list groups in this project",
     "permissions.crossProject.legendDefinitionsForbidden":
       "Column: definitions not loaded (forbidden)",
     "permissions.crossProject.legendCapDefinitionsForbidden":
@@ -741,9 +764,10 @@ const translations: Record<Language, Record<string, string>> = {
     "transformations.dataModelUsage.loadingByIdsDone":
       "Transformation queries loaded ({fetched} from cache).",
     "transformations.dataModelUsage.emptyTitle":
-      "No cdf_data_models(...) references found",
+      "No data model layer usage detected in SQL",
     "transformations.dataModelUsage.emptyIntro":
-      "This view only groups transformations that call cdf_data_models(space, externalId, …) in SQL. An empty result is unusual when the project has data-model-backed pipelines.",
+      "This view groups transformations that use cdf_data_models, cdf_nodes, cdf_edges, _cdf_datamodels, or is_new with those sources. An empty result is unusual when the project has data-model-backed pipelines.",
+    "transformations.dataModelUsage.group.functionBucket": "SQL: {source} (no model id in query)",
     "transformations.dataModelUsage.emptyFallback":
       "No cdf_data_models references found in any transformation.",
     "transformations.dataModelUsage.diag.project": "CDF project",
@@ -751,7 +775,12 @@ const translations: Record<Language, Record<string, string>> = {
     "transformations.dataModelUsage.diag.listLimitReached": "list capped at {limit}",
     "transformations.dataModelUsage.diag.withQuery": "With SQL query text",
     "transformations.dataModelUsage.diag.withoutQuery": "Without query (even after byids)",
-    "transformations.dataModelUsage.diag.withCdfDataModels": "Query contains cdf_data_models(...)",
+    "transformations.dataModelUsage.diag.withDataModelInteraction":
+      "Query uses data model layer (any supported syntax)",
+    "transformations.dataModelUsage.diag.withUnscopedInteraction":
+      "Transformations using unscoped cdf_nodes/edges/is_new only",
+    "transformations.dataModelUsage.diag.interactionBySourceLabel":
+      "Detected interaction calls in scanned queries:",
     "transformations.dataModelUsage.diag.withResolvableRefs": "With parseable space + externalId",
     "transformations.dataModelUsage.diag.withOnlyInvalidRefs":
       "cdf_data_models(...) present but arguments not parseable",
@@ -767,7 +796,7 @@ const translations: Record<Language, Record<string, string>> = {
     "transformations.dataModelUsage.emptyHint.destination":
       "If “destination.dataModel” is high but other counts are zero, usage is destination-only.",
     "transformations.dataModelUsage.emptyHint.syntax":
-      "Calls must look like cdf_data_models('space', 'externalId', …) with quoted string arguments for space and external id.",
+      "Supported reads include cdf_data_models(...), cdf_nodes(), cdf_nodes('space','view',…), cdf_edges(), _cdf_datamodels.`space:modelId`, and is_new(...) on those sources.",
     "transformations.dataModelUsage.emptyHint.truncated":
       "The transformation list may be truncated; raise the list limit or check Fusion for transformations beyond the cap.",
     "transformations.subNavLabel": "Transformations sub-views",
@@ -1289,6 +1318,29 @@ const translations: Record<Language, Record<string, string>> = {
     "processing.modal.transformation.runHistoryLink": "Fusionで実行履歴を表示",
     "processing.modal.transformation.section.transformation": "変換",
     "processing.modal.transformation.section.job": "ジョブ",
+    "processing.debug.transformations.open": "Transformation デバッグ",
+    "processing.debug.transformations.title": "Transformation デバッグ診断",
+    "processing.debug.transformations.subtitle":
+      "追加の API リクエストなしで、取得済みジョブの全タイムラインを確認します。",
+    "processing.debug.transformations.range": "取得タイムライン (UTC):",
+    "processing.debug.transformations.focusHour": "現在の Processing ウィンドウ:",
+    "processing.debug.transformations.emptyGraph":
+      "startedTime を持つ transformation ジョブが取得データ内にありません。",
+    "processing.debug.transformations.totalJobs": "取得ジョブ数",
+    "processing.debug.transformations.jobsInWindow": "選択中 1 時間ウィンドウ内ジョブ数",
+    "processing.debug.transformations.uniqueTransformations": "ユニークな transformation 数",
+    "processing.debug.transformations.missingStartedTime": "startedTime 欠損ジョブ数",
+    "processing.debug.transformations.dataCoverage": "カバレッジ",
+    "processing.debug.transformations.rowsWithStartTime": "startedTime あり",
+    "processing.debug.transformations.rowsWithoutStartTime": "startedTime なし",
+    "processing.debug.transformations.rangeStart": "最古の startedTime (UTC)",
+    "processing.debug.transformations.rangeEnd": "最新 startedTime + 1h (UTC)",
+    "processing.debug.transformations.executionCapApplied": "実行上限適用",
+    "processing.debug.transformations.yesPotentiallyTruncated":
+      "はい (データが切り詰められている可能性があります)",
+    "processing.debug.transformations.no": "いいえ",
+    "processing.debug.transformations.statusBreakdown": "ステータス分布 (上位 6)",
+    "processing.debug.transformations.noStatuses": "ステータス値はありません。",
     "processing.modal.workflow.title": "ワークフロー実行",
     "processing.modal.workflow.section.execution": "実行サマリー",
     "processing.modal.workflow.section.details": "ワークフロー詳細",
@@ -1817,9 +1869,10 @@ const translations: Record<Language, Record<string, string>> = {
     "transformations.dataModelUsage.loadingByIdsDone":
       "変換クエリを読み込みました（キャッシュ {fetched} 件）。",
     "transformations.dataModelUsage.emptyTitle":
-      "cdf_data_models(...) 参照が見つかりません",
+      "SQL にデータモデル層の利用が検出されません",
     "transformations.dataModelUsage.emptyIntro":
-      "このビューは SQL 内の cdf_data_models(space, externalId, …) 呼び出しがある変換のみを表示します。データモデルパイプラインがあるプロジェクトで空になるのは通常は稀です。",
+      "cdf_data_models、cdf_nodes、cdf_edges、_cdf_datamodels、またはそれらに対する is_new を使う変換を表示します。データモデルパイプラインがあるプロジェクトで空になるのは通常は稀です。",
+    "transformations.dataModelUsage.group.functionBucket": "SQL: {source}（クエリにモデル ID なし）",
     "transformations.dataModelUsage.emptyFallback":
       "どの変換にも cdf_data_models 参照がありません。",
     "transformations.dataModelUsage.diag.project": "CDF プロジェクト",
@@ -1827,7 +1880,12 @@ const translations: Record<Language, Record<string, string>> = {
     "transformations.dataModelUsage.diag.listLimitReached": "一覧は {limit} 件で打ち切り",
     "transformations.dataModelUsage.diag.withQuery": "SQL クエリあり",
     "transformations.dataModelUsage.diag.withoutQuery": "クエリなし（byids 後も）",
-    "transformations.dataModelUsage.diag.withCdfDataModels": "クエリに cdf_data_models(...) あり",
+    "transformations.dataModelUsage.diag.withDataModelInteraction":
+      "クエリがデータモデル層を使用（対応構文のいずれか）",
+    "transformations.dataModelUsage.diag.withUnscopedInteraction":
+      "スコープなし cdf_nodes/edges/is_new のみの変換",
+    "transformations.dataModelUsage.diag.interactionBySourceLabel":
+      "スキャンしたクエリで検出した呼び出し:",
     "transformations.dataModelUsage.diag.withResolvableRefs": "space + externalId を解析可能",
     "transformations.dataModelUsage.diag.withOnlyInvalidRefs":
       "cdf_data_models(...) はあるが引数を解析できない",
@@ -1843,7 +1901,7 @@ const translations: Record<Language, Record<string, string>> = {
     "transformations.dataModelUsage.emptyHint.destination":
       "「destination.dataModel」だけが多い場合は、書き込み先のみの利用です。",
     "transformations.dataModelUsage.emptyHint.syntax":
-      "cdf_data_models('space', 'externalId', …) のように space と external id を引用符付き文字列で指定する必要があります。",
+      "cdf_data_models(...)、cdf_nodes()、cdf_nodes('space','view',…)、cdf_edges()、_cdf_datamodels.`space:modelId`、およびそれらに対する is_new(...) が対象です。",
     "transformations.dataModelUsage.emptyHint.truncated":
       "変換一覧が上限で打ち切られている可能性があります。Fusion で上限超えの変換を確認してください。",
     "transformations.subNavLabel": "変換サブビュー",

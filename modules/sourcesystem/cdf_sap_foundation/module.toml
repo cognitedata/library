@@ -1,0 +1,4 @@
+[module]
+title = "SAP Foundation"
+id = "dp:foundation:cdf_sap_foundation"
+package_id = "dp:foundation"

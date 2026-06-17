@@ -1,4 +1,4 @@
-externalId: 'ep_ctx_files_{{location_name}}_{{source_name}}_pandid_annotation'
+externalId: 'ep_ctx_files_pandid_annotation'
 config:
   parameters:
     debug: False
@@ -22,16 +22,16 @@ config:
         instanceSpace: {{ fileInstanceSpace }}
         externalId: {{organization}}File
         version: {{ viewVersion }}
-        searchProperty: aliases
+        searchProperty: name
         type: diagrams.FileLink
         filterProperty: tags
-        filterValues: ["PID", "ISO", "PLOT PLANS"]
+        filterValues: []
       entityViews:
         - schemaSpace: {{ schemaSpace }}
           instanceSpace: {{ assetInstanceSpace }}
           externalId: {{organization}}Asset
           version: {{ viewVersion }}
-          searchProperty: aliases
+          searchProperty: name
           type: diagrams.AssetLink
           filterProperty: tags
-          filterValues: ["PID"]
+          filterValues: []

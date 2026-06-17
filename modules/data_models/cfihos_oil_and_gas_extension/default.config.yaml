@@ -13,7 +13,8 @@ read_source_id: "source_id"                             # Source ID for the read
 
 # Data modeling spaces
 space: "dm_dom_oil_and_gas"                             # Primary space for all containers, views, and data model definitions
-instance_space: "inst_location"                         # Space where node/edge instances are stored (shared with the search solution module)
+instance_space: "inst_location"
+search_space: dm_sol_oil_and_gas_search                         # Space where node/edge instances are stored (shared with the search solution module)
 
 # Data model versioning (enterprise model only — search has its own search_dm_version)
 dm_version: v1
@@ -24,6 +25,3 @@ data_model_name: "Oil and Gas Domain Model"                        # Display nam
 
 # Workflow versioning
 workflow_version: 'v1'                                   # Version of the data workflow definition
-
-# Environment
-environment: dev                                        # Deployment environment (dev, test, prod)

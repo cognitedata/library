@@ -1,0 +1,39 @@
+externalId: "ep_{{location}}_db_postgres"
+config:
+  # Runtime config for the DB Extractor — see ep_db_postgres.ExtractionPipeline.yaml
+  # documentation block for required environment variables and install steps.
+
+  log-handlers:
+    - type: console
+      level: INFO
+    - type: file
+      level: INFO
+      path: "file.log"
+
+  # Source databases — connection-string is provided via env var on the extractor host.
+  # Default example is PostgreSQL; change `type` and connection string for other DBs.
+  databases:
+    - type: odbc
+      name: source_db
+      connection-string: ${DB_CONNECTION_STRING}
+
+  # Queries: one per logical extraction. Each query writes to a RAW table.
+  queries:
+    - name: example-query
+      database: source_db
+      query: >
+        SELECT
+          *
+        FROM
+          mytable
+        WHERE
+          {incremental_field} >= '{start_at}'
+        ORDER BY
+          {incremental_field} ASC
+      incremental-field: "id"
+      initial-start: 0
+      destination:
+        type: raw
+        database: "db_{{location}}_db_postgres"
+        table: "mytable"
+      primary-key: "{id}"

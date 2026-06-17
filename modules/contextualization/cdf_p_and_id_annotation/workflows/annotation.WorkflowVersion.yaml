@@ -25,12 +25,12 @@ workflowDefinition:
       retries: 3
       timeout: 3600
       onFailure: 'abortWorkflow'
-    - externalId: 'fn_dm_context_files_{{location_name}}_{{source_name}}_annotation'
+    - externalId: 'fn_dm_context_files_annotation'
       type: 'function'
       parameters:
         function:
-          externalId: 'fn_dm_context_files_{{location_name}}_{{source_name}}_annotation'
-          data: { "ExtractionPipelineExtId": "ep_ctx_files_{{location_name}}_{{source_name}}_pandid_annotation" }
+          externalId: 'fn_dm_context_files_annotation'
+          data: { "ExtractionPipelineExtId": "ep_ctx_files_pandid_annotation" }
       name: 'Annotation Function'
       description: 'Contextualization of P&ID files creating annotations in Data model'
       retries: 3

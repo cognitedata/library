@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Loader } from "@/shared/Loader";
 import { FunctionRunModal } from "./FunctionRunModal";
 import { TransformationRunModal } from "./TransformationRunModal";
+import { TransformationDebugModal } from "./TransformationDebugModal";
 import { WorkflowRunModal } from "./WorkflowRunModal";
 import { ExtractionPipelineRunModal } from "./ExtractionPipelineRunModal";
 import { ProcessingChart } from "./ProcessingChart";
@@ -197,6 +198,7 @@ export function Processing() {
     useState<TransformationJobSummary | null>(null);
   const [selectedTransformation, setSelectedTransformation] =
     useState<Record<string, unknown> | null>(null);
+  const [showTransformationDebug, setShowTransformationDebug] = useState(false);
   const [selectedWorkflowExecution, setSelectedWorkflowExecution] =
     useState<WorkflowExecutionSummary | null>(null);
   const [selectedExtractorRun, setSelectedExtractorRun] =
@@ -313,6 +315,7 @@ export function Processing() {
     loadProgress: transformationLoadProgress,
     requestStats: transformationRequestStats,
     transformationsError,
+    transformationJobsAll,
     transformationNameMap,
     transformationMetaMap,
     filteredTransformationJobs,
@@ -394,8 +397,14 @@ export function Processing() {
       if (!terminal(currentStatus)) return;
       const rest = truncatedReloadQueue.slice(1);
       if (rest.length === 0) {
+        console.log("[Processing] Load all executions: queue finished", { series: current });
         setTruncatedReloadQueue(null);
       } else {
+        console.log("[Processing] Load all executions: advancing queue", {
+          completed: current,
+          next: rest[0],
+          remaining: rest,
+        });
         setTruncatedReloadQueue(rest);
         setFetchGeneration((g) => g + 1);
       }
@@ -1374,14 +1383,44 @@ export function Processing() {
               disabled={truncatedReloadQueue != null}
               className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
               onClick={() => {
-                if (truncatedReloadQueue) return;
-                const queue = PROCESSING_DIAGRAM_SERIES.filter((series) => {
-                  if (series === "functions") return functionExecutionsTruncated;
-                  if (series === "transformations") return transformationExecutionsTruncated;
-                  if (series === "workflows") return workflowExecutionsTruncated;
-                  return extractorExecutionsTruncated;
+                if (truncatedReloadQueue) {
+                  console.log("[Processing] Load all executions: ignored (reload already in progress)", {
+                    queue: truncatedReloadQueue,
+                  });
+                  return;
+                }
+                const truncatedFlags = {
+                  functions: functionExecutionsTruncated,
+                  transformations: transformationExecutionsTruncated,
+                  workflows: workflowExecutionsTruncated,
+                  extractors: extractorExecutionsTruncated,
+                };
+                const queue = PROCESSING_DIAGRAM_SERIES.filter(
+                  (series) => truncatedFlags[series]
+                );
+                if (queue.length === 0) {
+                  console.log(
+                    "[Processing] Load all executions: nothing to reload (no series marked truncated)",
+                    {
+                      truncatedFlags,
+                      concurrencyDiagramPhase,
+                      statuses: {
+                        functions: status,
+                        transformations: transformationsStatus,
+                        workflows: workflowsStatus,
+                        extractors: extractorsStatus,
+                      },
+                      executionCap: DEFAULT_PROCESSING_EXECUTION_CAP,
+                    }
+                  );
+                  return;
+                }
+                console.log("[Processing] Load all executions: starting uncapped reload", {
+                  queue,
+                  truncatedFlags,
+                  fetchGenerationNext: fetchGeneration + 1,
+                  windowSessionKey,
                 });
-                if (queue.length === 0) return;
                 setUncappedSeries((prev) => new Set([...prev, ...queue]));
                 setTruncatedReloadQueue(queue);
                 setFetchGeneration((g) => g + 1);
@@ -1571,6 +1610,13 @@ export function Processing() {
                 >
                   <span className="h-2 w-4 rounded-sm bg-orange-500" />
                   {t("processing.legend.transformations")} ({t("processing.stats.peak", { peak: maxTransformParallel })})
+                </button>
+                <button
+                  type="button"
+                  className="rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                  onClick={() => setShowTransformationDebug(true)}
+                >
+                  {t("processing.debug.transformations.open")}
                 </button>
                 <button
                   type="button"
@@ -2015,6 +2061,22 @@ export function Processing() {
         selectedTransformationJob={selectedTransformationJob as Record<string, unknown> | null}
         formatTimeFields={formatTimeFields}
         contentClassName={privateCls}
+      />
+      <TransformationDebugModal
+        open={showTransformationDebug}
+        onClose={() => setShowTransformationDebug(false)}
+        jobs={transformationJobsAll}
+        filteredJobs={displayTransformationJobs}
+        selectedWindow={windowRange}
+        executionsTruncated={transformationExecutionsTruncated}
+        isLoading={transformationsStatus === "loading"}
+        loadingLabel={
+          transformationsStatus === "loading"
+            ? transformationLoadProgress
+              ? formatProcessingDataProgress(t, transformationLoadProgress)
+              : t("processing.loading.transformations")
+            : null
+        }
       />
       <WorkflowRunModal
         open={!!selectedWorkflowExecution}

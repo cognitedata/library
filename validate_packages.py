@@ -7,14 +7,13 @@ Assumes "modules" as the base folder where packages.toml is located.
 
 import os
 import sys
+import tomllib
 from collections import defaultdict
 from pathlib import Path
-from typing import Any, Dict, List
-
-import tomllib
+from typing import Any
 
 
-def validate_library_header(data: Dict[str, Any]) -> bool:
+def validate_library_header(data: dict[str, Any]) -> bool:
     """Validate that the library header exists and has required fields."""
     if "library" not in data:
         print("ERROR: Missing [library] header")
@@ -33,7 +32,7 @@ def validate_library_header(data: Dict[str, Any]) -> bool:
     return True
 
 
-def validate_packages(data: Dict[str, Any]) -> bool:
+def validate_packages(data: dict[str, Any]) -> bool:
     """Validate that packages exist and have required structure."""
     if "packages" not in data:
         print("ERROR: Missing [packages] section")
@@ -48,7 +47,7 @@ def validate_packages(data: Dict[str, Any]) -> bool:
     return True
 
 
-def validate_package_structure(package_name: str, package_data: Dict[str, Any]) -> bool:
+def validate_package_structure(package_name: str, package_data: dict[str, Any]) -> bool:
     """Validate individual package structure."""
     # Check required fields
     required_fields = ["title", "description", "modules", "id"]
@@ -70,11 +69,12 @@ def validate_package_structure(package_name: str, package_data: Dict[str, Any]) 
         return False
 
     # Validate modules is a list with at least one item
-    if not isinstance(package_data["modules"], list):
+    modules = package_data.get("modules")
+    if not isinstance(modules, list):
         print(f"ERROR: Package '{package_name}' modules must be a list")
         return False
 
-    if len(package_data["modules"]) == 0:
+    if len(modules) == 0:
         print(f"ERROR: Package '{package_name}' modules list cannot be empty")
         return False
 
@@ -83,7 +83,7 @@ def validate_package_structure(package_name: str, package_data: Dict[str, Any]) 
 
 
 def validate_module_paths(
-    package_name: str, modules: List[str], base_path: str = "modules"
+    package_name: str, modules: list[str], base_path: str = "modules"
 ) -> bool:
     """Validate that all module paths exist in the filesystem."""
     base_path_obj = Path(base_path)
@@ -117,8 +117,9 @@ def validate_module_paths(
         with open(module_toml, "rb") as f:
             module_data = tomllib.load(f)
 
+        module = module_data.get("module", {})
         required_fields = {"id", "package_id", "title"}
-        missing_fields = required_fields - set(module_data["module"].keys())
+        missing_fields = required_fields - set(module.keys())
         if missing_fields:
             print(
                 f"ERROR: Package '{package_name}' module path '{module_path}' does not have the following required fields: {missing_fields}"
@@ -127,7 +128,14 @@ def validate_module_paths(
 
         extra_resources = module_data.get("extra_resources", [])
         for extra_resource in extra_resources:
-            full_path = base_path_obj / extra_resource["location"]
+            location = extra_resource.get("location")
+            if not location:
+                print(
+                    f"ERROR: Package '{package_name}' module '{module_path}' has an extra_resource without a location"
+                )
+                return False
+
+            full_path = base_path_obj / location
             if not full_path.exists():
                 print(
                     f"ERROR: Package '{package_name}' module '{module_path}' refers to a non-existent file: {full_path}"
@@ -148,19 +156,21 @@ def _package_id_prefix(package_id: str) -> str:
 def _allowed_id_prefixes_for_module(
     module_rel_path: str,
     package_id: str,
-    packages: Dict[str, Any],
+    packages: dict[str, Any],
 ) -> set[str]:
     """Prefixes allowed for a module id (primary pack + any pack that lists the module)."""
     prefixes = {_package_id_prefix(package_id)}
     for package_data in packages.values():
         if module_rel_path in package_data.get("modules", []):
-            prefixes.add(_package_id_prefix(package_data["id"]))
+            package_id_value = package_data.get("id")
+            if package_id_value:
+                prefixes.add(_package_id_prefix(package_id_value))
     return prefixes
 
 
 def validate_module_id_prefixes(
     base_path: str = "modules",
-    packages: Dict[str, Any] | None = None,
+    packages: dict[str, Any] | None = None,
 ) -> bool:
     """Ensure each module id uses dp:<pack>:<slug> for an allowed pack prefix."""
     base_path_obj = Path(base_path)
@@ -175,10 +185,10 @@ def validate_module_id_prefixes(
         if not module_id or not package_id:
             continue
         if not module_id.startswith("dp:") or module_id.count(":") < 2:
-            rel_path = str(module_toml.relative_to(base_path_obj))
+            rel_path = module_toml.relative_to(base_path_obj).as_posix()
             mismatches.append((rel_path, module_id, set()))
             continue
-        rel_path = str(module_toml.parent.relative_to(base_path_obj))
+        rel_path = module_toml.parent.relative_to(base_path_obj).as_posix()
         allowed = (
             _allowed_id_prefixes_for_module(rel_path, package_id, packages)
             if packages
@@ -217,7 +227,7 @@ def validate_unique_module_ids(base_path: str = "modules") -> bool:
         module_id = module_data.get("module", {}).get("id")
         if not module_id:
             continue
-        rel_path = str(module_toml.relative_to(base_path_obj))
+        rel_path = module_toml.relative_to(base_path_obj).as_posix()
         if module_id in ids_by_path:
             duplicates[module_id].append(ids_by_path[module_id])
             duplicates[module_id].append(rel_path)
@@ -262,7 +272,7 @@ def main():
             sys.exit(1)
 
         # Validate each package
-        packages = data["packages"]
+        packages = data.get("packages", {})
         for package_name, package_data in packages.items():
             print(f"\nValidating package: {package_name}")
 
@@ -271,7 +281,7 @@ def main():
                 sys.exit(1)
 
             # Validate module paths
-            if not validate_module_paths(package_name, package_data["modules"], "modules"):
+            if not validate_module_paths(package_name, package_data.get("modules", []), "modules"):
                 sys.exit(1)
 
         if not validate_module_id_prefixes("modules", packages):

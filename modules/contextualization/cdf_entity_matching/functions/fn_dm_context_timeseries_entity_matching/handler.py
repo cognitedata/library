@@ -28,15 +28,25 @@ def _report_usage(client: CogniteClient) -> None:
         mp = Mixpanel("8f28374a6614237dd49877a0d27daa78", consumer=Consumer(api_host="api-eu.mixpanel.com"))
         distinct_id = f"{client.config.project}:{client.config.cdf_cluster}"
         def _send() -> None:
-            mp.track(distinct_id, "fn-handle", {
-                "source": _SOURCE,
-                "tracker_version": _TRACKER_VERSION,
-                "dp_version": _DP_VERSION,
-                "type": "py-function",
-                "cdf_cluster": client.config.cdf_cluster,
-                "cdf_project": client.config.project,
-            })
-        threading.Thread(target=_send, daemon=False).start()
+            # The outer try/except below only wraps thread creation; exceptions
+            # raised inside the thread body (e.g. Mixpanel JSON-encoding errors,
+            # network failures) need their own guard, otherwise they surface as
+            # unhandled thread exceptions in production stderr and as
+            # PytestUnhandledThreadExceptionWarning in tests.
+            try:
+                mp.track(distinct_id, "fn-handle", {
+                    "source": _SOURCE,
+                    "tracker_version": _TRACKER_VERSION,
+                    "dp_version": _DP_VERSION,
+                    "type": "py-function",
+                    "cdf_cluster": client.config.cdf_cluster,
+                    "cdf_project": client.config.project,
+                })
+            except Exception:
+                # Usage tracking is best-effort; must not affect the handler.
+                pass
+        # daemon=True so the thread can't block process exit if Mixpanel is slow.
+        threading.Thread(target=_send, daemon=True).start()
     except Exception:
         # Usage tracking is best-effort; must not affect the handler.
         pass
@@ -120,13 +130,12 @@ def handle(data: dict, client: CogniteClient) -> dict:
 def run_locally():
     """
     OPTIMIZED Local Runner
-    
+
     Enhanced with better error handling and performance monitoring.
+    `patch_existing_pipeline()` is invoked from `handle()` once the actual
+    function call begins; no need to apply it again here.
     """
-    
-    # Apply optimizations first
-    patch_existing_pipeline()
-    
+
     # Validate environment variables
     required_envvars = ("CDF_PROJECT", "CDF_CLUSTER", "IDP_CLIENT_ID", "IDP_CLIENT_SECRET", "IDP_TOKEN_URL")
     if missing := [envvar for envvar in required_envvars if envvar not in os.environ]:

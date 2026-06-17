@@ -1,0 +1,259 @@
+"""Tests for Foundation Deployment Pack CI/CD generator (cdf_project_foundation)."""
+
+from __future__ import annotations
+
+import subprocess
+import sys
+from pathlib import Path
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+MODULE_ROOT = REPO_ROOT / "modules" / "common" / "cdf_project_foundation"
+GENERATE_ACTIONS = MODULE_ROOT / "scripts" / "generate_actions.py"
+TEMPLATES = MODULE_ROOT / "templates" / "github"
+
+
+def test_generator_scripts_exist() -> None:
+    assert (MODULE_ROOT / "scripts" / "generate_actions.py").is_file()
+    assert (TEMPLATES / "dry-run.yml").is_file()
+
+
+def test_discover_foundation_modules_includes_project_foundation() -> None:
+    sys.path.insert(0, str(MODULE_ROOT / "scripts"))
+    from generate_actions import discover_foundation_module_paths
+
+    paths = discover_foundation_module_paths(REPO_ROOT / "modules", REPO_ROOT)
+    assert "common/cdf_project_foundation" in paths
+    assert "sourcesystem/cdf_pi_foundation" in paths
+
+
+def test_generate_actions_writes_workflows_and_docs(tmp_path: Path) -> None:
+    org_dir = "industrial"
+    (tmp_path / "cdf.toml").write_text(
+        f"""
+[cdf]
+default_organization_dir = "{org_dir}"
+
+[modules]
+version = "0.7.220"
+""".strip(),
+        encoding="utf-8",
+    )
+    mod = tmp_path / org_dir / "modules" / "sourcesystem" / "cdf_pi_foundation"
+    mod.mkdir(parents=True)
+    (mod / "module.toml").write_text(
+        'id = "cdf_pi_foundation"\npackage_id = "dp:foundation"\n',
+        encoding="utf-8",
+    )
+    (mod / "default.config.yaml").write_text("location: site1\n", encoding="utf-8")
+    for env in ("dev", "test", "prod"):
+        (tmp_path / org_dir / f"config.{env}.yaml").write_text(
+            f"""
+environment:
+  name: {env}
+  project: acme-{env}
+""".lstrip(),
+            encoding="utf-8",
+        )
+
+    subprocess.run(
+        [
+            sys.executable,
+            str(GENERATE_ACTIONS),
+            "--force",
+        ],
+        check=True,
+        cwd=tmp_path,
+    )
+
+    assert (tmp_path / ".github" / "workflows" / "dry-run.yml").is_file()
+    assert (tmp_path / ".github" / "workflows" / "deploy-dev.yml").is_file()
+    assert (tmp_path / ".github" / "workflows" / "deploy-test.yml").is_file()
+    assert (tmp_path / ".github" / "workflows" / "deploy-prod.yml").is_file()
+    assert (tmp_path / "docs" / "FOUNDATION_CICD.md").is_file()
+
+    dry_run = (tmp_path / ".github" / "workflows" / "dry-run.yml").read_text(
+        encoding="utf-8"
+    )
+    assert "'industrial/config*.yaml'" in dry_run
+    assert "'industrial/modules/sourcesystem/cdf_pi_foundation/'" not in dry_run
+    assert "No .pre-commit-config.yaml found; skipping pre-commit config lint." in dry_run
+    assert "cdf build --env dev" in dry_run
+    assert "cdf deploy --dry-run | tee dryrun-output.txt" in dry_run
+    assert "cdf deploy --dry-run --env" not in dry_run
+
+    deploy_dev = (tmp_path / ".github" / "workflows" / "deploy-dev.yml").read_text(
+        encoding="utf-8"
+    )
+    assert "name: Deploy to acme-dev" in deploy_dev
+    assert "run: cdf build --env dev" in deploy_dev
+    assert "run: cdf deploy" in deploy_dev
+    assert "cdf deploy --env" not in deploy_dev
+    assert "ADMIN_SOURCE_ID: ${{ vars.ADMIN_SOURCE_ID }}" in deploy_dev
+    assert "CONSUMER_SOURCE_ID: ${{ vars.CONSUMER_SOURCE_ID }}" in deploy_dev
+    assert "PRODUCER_SOURCE_ID: ${{ vars.PRODUCER_SOURCE_ID }}" in deploy_dev
+
+    cicd_docs = (tmp_path / "docs" / "FOUNDATION_CICD.md").read_text(encoding="utf-8")
+    assert "`acme-dev`" in cicd_docs
+    assert "`acme-test`" in cicd_docs
+    assert "`acme-prod`" in cicd_docs
+    assert "`ADMIN_SOURCE_ID`" in cicd_docs
+    assert "`CONSUMER_SOURCE_ID`" in cicd_docs
+    assert "`PRODUCER_SOURCE_ID`" in cicd_docs
+    assert "skips the pre-commit config lint step" in cicd_docs
+
+
+def test_generate_actions_validates_environment_name(tmp_path: Path) -> None:
+    (tmp_path / "cdf.toml").write_text(
+        """
+[modules]
+version = "0.7.220"
+""".strip(),
+        encoding="utf-8",
+    )
+    modules = tmp_path / "modules" / "common" / "cdf_project_foundation"
+    modules.mkdir(parents=True)
+    (modules / "module.toml").write_text(
+        'id = "cdf_project_foundation"\npackage_id = "dp:foundation"\n',
+        encoding="utf-8",
+    )
+    for env in ("dev", "test", "prod"):
+        name = "prod" if env == "dev" else env
+        (tmp_path / f"config.{env}.yaml").write_text(
+            f"""
+environment:
+  name: {name}
+  project: acme-{env}
+""".lstrip(),
+            encoding="utf-8",
+        )
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(GENERATE_ACTIONS),
+            "--force",
+        ],
+        cwd=tmp_path,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode != 0
+    assert "environment.name='prod'; expected 'dev'" in result.stderr
+
+
+def test_generate_actions_uses_config_flag_for_toolkit_0_8(tmp_path: Path) -> None:
+    org_dir = "industrial"
+    (tmp_path / "cdf.toml").write_text(
+        f"""
+[cdf]
+default_organization_dir = "{org_dir}"
+
+[modules]
+version = "0.8.0"
+""".strip(),
+        encoding="utf-8",
+    )
+    modules = tmp_path / org_dir / "modules" / "common" / "cdf_project_foundation"
+    modules.mkdir(parents=True)
+    (modules / "module.toml").write_text(
+        'id = "cdf_project_foundation"\npackage_id = "dp:foundation"\n',
+        encoding="utf-8",
+    )
+    for env in ("dev", "test", "prod"):
+        (tmp_path / org_dir / f"config.{env}.yaml").write_text(
+            f"""
+environment:
+  name: {env}
+  project: acme-{env}
+""".lstrip(),
+            encoding="utf-8",
+        )
+
+    subprocess.run(
+        [
+            sys.executable,
+            str(GENERATE_ACTIONS),
+            "--force",
+        ],
+        check=True,
+        cwd=tmp_path,
+    )
+
+    dry_run = (tmp_path / ".github" / "workflows" / "dry-run.yml").read_text(
+        encoding="utf-8"
+    )
+    assert "cdf build -c industrial/config.dev.yaml" in dry_run
+    assert "cdf build -c industrial/config.test.yaml" in dry_run
+    assert "cdf build --env" not in dry_run
+
+    deploy_prod = (tmp_path / ".github" / "workflows" / "deploy-prod.yml").read_text(
+        encoding="utf-8"
+    )
+    assert "run: cdf build -c industrial/config.prod.yaml" in deploy_prod
+    assert "run: cdf deploy" in deploy_prod
+    assert "cdf deploy --env" not in deploy_prod
+
+
+def test_generate_actions_skips_test_workflow_when_test_config_missing(tmp_path: Path) -> None:
+    org_dir = "industrial"
+    (tmp_path / "cdf.toml").write_text(
+        f"""
+[cdf]
+default_organization_dir = "{org_dir}"
+
+[modules]
+version = "0.8.0"
+""".strip(),
+        encoding="utf-8",
+    )
+    modules = tmp_path / org_dir / "modules" / "common" / "cdf_project_foundation"
+    modules.mkdir(parents=True)
+    (modules / "module.toml").write_text(
+        'id = "cdf_project_foundation"\npackage_id = "dp:foundation"\n',
+        encoding="utf-8",
+    )
+    for env in ("dev", "prod"):
+        (tmp_path / org_dir / f"config.{env}.yaml").write_text(
+            f"""
+environment:
+  name: {env}
+  project: acme-{env}
+""".lstrip(),
+            encoding="utf-8",
+        )
+    stale_test_workflow = tmp_path / ".github" / "workflows" / "deploy-test.yml"
+    stale_test_workflow.parent.mkdir(parents=True)
+    stale_test_workflow.write_text("stale\n", encoding="utf-8")
+
+    subprocess.run(
+        [
+            sys.executable,
+            str(GENERATE_ACTIONS),
+            "--force",
+        ],
+        check=True,
+        cwd=tmp_path,
+    )
+
+    assert (tmp_path / ".github" / "workflows" / "dry-run.yml").is_file()
+    assert (tmp_path / ".github" / "workflows" / "deploy-dev.yml").is_file()
+    assert not stale_test_workflow.exists()
+    assert (tmp_path / ".github" / "workflows" / "deploy-prod.yml").is_file()
+
+    dry_run = (tmp_path / ".github" / "workflows" / "dry-run.yml").read_text(
+        encoding="utf-8"
+    )
+    assert "      - dev" in dry_run
+    assert "      - main" not in dry_run
+    assert "deploy-test.yml" not in dry_run
+    assert "test-toolkit-credentials" not in dry_run
+    assert "config.test.yaml" not in dry_run
+    assert "cdf build -c industrial/config.dev.yaml" in dry_run
+
+    cicd_docs = (tmp_path / "docs" / "FOUNDATION_CICD.md").read_text(encoding="utf-8")
+    assert "`acme-dev`" in cicd_docs
+    assert "`acme-prod`" in cicd_docs
+    assert "`acme-test`" not in cicd_docs
+    assert "config.test.yaml" not in cicd_docs

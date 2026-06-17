@@ -6,6 +6,11 @@ import { ApiError } from "@/shared/ApiError";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import type { LoadState } from "@/processing/types";
 import { formatDuration, formatIso, toTimestamp } from "@/shared/time-utils";
+import {
+  isFailed as isFailedStatus,
+  isSuccess as isSuccessStatus,
+  uptimePercentage,
+} from "@/health-checks/run-health/uptime";
 
 function formatDurationShort(ms: number | undefined): string {
   if (ms == null) return "—";
@@ -44,9 +49,9 @@ function CellSpinner() {
 import { getTransformationPreviewUrl } from "@/shared/cdf-browser-url";
 import {
   cachedTransformationJobMetrics,
-  cachedTransformationJobs,
   cachedTransformationsList,
 } from "./transformations-cache";
+import { loadTransformationJobsForWindow } from "./transformation-jobs-service";
 
 function ExternalLinkIcon({ className }: { className?: string }) {
   return (
@@ -158,6 +163,67 @@ type JobMetricItem = {
   effective?: boolean;
 };
 
+function computeTransformationJobStats(
+  jobs: TransformationJobSummary[],
+  windowStart: number,
+  windowEnd: number
+): {
+  count: number;
+  lastRun?: number;
+  totalMs: number;
+  latestJobId: string | null;
+  success: number;
+  failed: number;
+  uptime: number;
+} {
+  const recent = jobs.filter((job) => {
+    const start = toTimestamp(job.startedTime);
+    if (!start) return false;
+    return start >= windowStart && start <= windowEnd;
+  });
+  const count = recent.length;
+  const lastRun = recent.reduce<number | undefined>((acc, job) => {
+    const start = toTimestamp(job.startedTime);
+    if (!start) return acc;
+    return acc == null || start > acc ? start : acc;
+  }, undefined);
+  const totalMs = recent.reduce((acc, job) => {
+    const start = toTimestamp(job.startedTime);
+    const end = toTimestamp(job.finishedTime);
+    if (!start || !end || end < start) return acc;
+    return acc + (end - start);
+  }, 0);
+  const success = recent.filter((job) => isSuccessStatus(job.status)).length;
+  const failed = recent.filter((job) => isFailedStatus(job.status)).length;
+  const uptime = uptimePercentage(success, failed);
+  const sorted = [...jobs].sort(
+    (a, b) => (toTimestamp(b.startedTime) ?? 0) - (toTimestamp(a.startedTime) ?? 0)
+  );
+  const latest = sorted[0];
+  const latestJobId = latest?.id != null ? String(latest.id) : null;
+  return { count, lastRun, totalMs, latestJobId, success, failed, uptime };
+}
+
+async function runWithConcurrencyLimit<T>(
+  items: T[],
+  concurrency: number,
+  worker: (item: T, index: number) => Promise<void>
+): Promise<void> {
+  if (items.length === 0) return;
+  const maxConcurrent = Math.max(1, Math.floor(concurrency));
+  let nextIndex = 0;
+  const runWorker = async () => {
+    while (true) {
+      const index = nextIndex;
+      nextIndex += 1;
+      if (index >= items.length) return;
+      await worker(items[index], index);
+    }
+  };
+  const workers = Array.from({ length: Math.min(maxConcurrent, items.length) }, () => runWorker());
+  await Promise.all(workers);
+}
+
 function aggregateJobMetrics(items: JobMetricItem[]): {
   reads: number;
   writes: number;
@@ -192,9 +258,9 @@ function aggregateJobMetrics(items: JobMetricItem[]): {
 
 /** Smaller API pages load faster; cursor fetches the rest without huge single responses. */
 const TRANSFORMATIONS_LIST_PAGE_LIMIT = 200;
-/** Enough recent jobs for 24h stats + latest job id; avoids multi‑MB payloads per transformation. */
-const TRANSFORMATIONS_JOBS_LIST_LIMIT = "100";
-const TRANSFORMATIONS_STATS_CONCURRENCY = 5;
+const TRANSFORMATIONS_JOBS_CONCURRENCY = 3;
+const TRANSFORMATIONS_FILTER_MIN_CHARS = 3;
+const TRANSFORMATIONS_FILTER_DEBOUNCE_MS = 350;
 
 type TransformationsListProps = {
   transformationToSelect?: string | null;
@@ -214,10 +280,14 @@ export function TransformationsList({
   const pc = isPrivateMode ? " private-mask" : "";
   const [status, setStatus] = useState<LoadState>("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [loadingMessage, setLoadingMessage] = useState<string | null>(null);
   const [transformations, setTransformations] = useState<TransformationSummary[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [statsById, setStatsById] = useState<
     Record<string, { count: number; lastRun?: number; totalMs: number }>
+  >({});
+  const [uptimeById, setUptimeById] = useState<
+    Record<string, { success: number; failed: number; uptime: number }>
   >({});
   const [countsById, setCountsById] = useState<Record<string, ParsedInsightCounts>>({});
   const [metricsById, setMetricsById] = useState<
@@ -241,14 +311,26 @@ export function TransformationsList({
   >({});
   const [cteQueryExpanded, setCteQueryExpanded] = useState<Set<string>>(new Set());
   const [showHelp, setShowHelp] = useState(false);
-  type TableSortKey = "name" | "count" | "lastRun" | "totalMs";
+  type TableSortKey = "name" | "count" | "lastRun" | "totalMs" | "success" | "failed";
   const [sortKey, setSortKey] = useState<TableSortKey>("totalMs");
   const [sortDesc, setSortDesc] = useState(true);
   const PAGE_SIZE = 20;
   const [page, setPage] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const toSelectRef = useRef(transformationToSelect);
   toSelectRef.current = transformationToSelect;
+
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      setDebouncedSearchQuery("");
+      return;
+    }
+    const id = window.setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, TRANSFORMATIONS_FILTER_DEBOUNCE_MS);
+    return () => window.clearTimeout(id);
+  }, [searchQuery]);
 
   useEffect(() => {
     if (isSdkLoading) return;
@@ -256,9 +338,11 @@ export function TransformationsList({
     const loadList = async () => {
       setStatus("loading");
       setErrorMessage(null);
+      setLoadingMessage("Loading transformations list...");
       try {
         const items: TransformationSummary[] = [];
         let cursor: string | undefined;
+        let listPageCount = 0;
         do {
           const response = (await cachedTransformationsList(sdk, {
             includePublic: "true",
@@ -268,9 +352,94 @@ export function TransformationsList({
             data?: { items?: TransformationSummary[]; nextCursor?: string | null };
           };
           items.push(...(response.data?.items ?? []));
+          listPageCount += 1;
+          if (!cancelled) {
+            setLoadingMessage(
+              `Loading transformations list... fetched ${items.length} rows across ${listPageCount} page${listPageCount === 1 ? "" : "s"}`
+            );
+          }
           const next = response.data?.nextCursor;
           cursor = next && String(next).trim() !== "" ? String(next) : undefined;
         } while (cursor && !cancelled);
+
+        const windowEnd = Date.now();
+        const windowStart = windowEnd - 24 * 60 * 60 * 1000;
+        const nextStats: Record<string, { count: number; lastRun?: number; totalMs: number }> = {};
+        const nextUptime: Record<string, { success: number; failed: number; uptime: number }> = {};
+        const nextLatest: Record<string, string | null> = {};
+
+        let jobsProcessed = 0;
+        await runWithConcurrencyLimit(
+          items,
+          TRANSFORMATIONS_JOBS_CONCURRENCY,
+          async (item) => {
+            if (cancelled) return;
+            const id = String(item.id);
+            try {
+              const jobs = (await loadTransformationJobsForWindow({
+                sdk,
+                transformationId: id,
+                windowStart,
+                windowEnd,
+              })) as TransformationJobSummary[];
+              const { count, lastRun, totalMs, latestJobId, success, failed, uptime } =
+                computeTransformationJobStats(jobs, windowStart, windowEnd);
+              nextStats[id] = { count, lastRun, totalMs };
+              nextUptime[id] = { success, failed, uptime };
+              nextLatest[id] = latestJobId;
+            } catch {
+              nextStats[id] = { count: 0, totalMs: 0 };
+              nextUptime[id] = { success: 0, failed: 0, uptime: 100 };
+              nextLatest[id] = null;
+            } finally {
+              jobsProcessed += 1;
+              if (!cancelled) {
+                setLoadingMessage(
+                  `Computing total time for sorting... ${jobsProcessed}/${items.length} (${Math.max(0, items.length - jobsProcessed)} remaining)`
+                );
+              }
+            }
+          }
+        );
+
+        const firstPage = [...items]
+          .sort((a, b) => {
+            const aId = String(a.id);
+            const bId = String(b.id);
+            const diff = (nextStats[bId]?.totalMs ?? 0) - (nextStats[aId]?.totalMs ?? 0);
+            if (diff !== 0) return diff;
+            const aLabel = a.name ?? aId;
+            const bLabel = b.name ?? bId;
+            return aLabel.localeCompare(bLabel);
+          })
+          .slice(0, PAGE_SIZE);
+        const nextMetrics: Record<
+          string,
+          { reads: number; writes: number; noops: number; rateLimit429: number }
+        > = {};
+        for (let i = 0; i < firstPage.length; i += 1) {
+          if (cancelled) return;
+          const id = String(firstPage[i].id);
+          const jobId = nextLatest[id];
+          setLoadingMessage(
+            `Loading first-page metric columns... ${i + 1}/${firstPage.length} (${Math.max(0, firstPage.length - (i + 1))} remaining)`
+          );
+          if (jobId == null) {
+            nextMetrics[id] = { reads: 0, writes: 0, noops: 0, rateLimit429: 0 };
+            continue;
+          }
+          try {
+            const metricsRes = (await cachedTransformationJobMetrics(
+              sdk,
+              jobId
+            )) as { data?: { items?: JobMetricItem[] } };
+            nextMetrics[id] = aggregateJobMetrics(metricsRes.data?.items ?? []);
+            metricsJobFetchedRef.current[id] = jobId;
+          } catch {
+            nextMetrics[id] = { reads: 0, writes: 0, noops: 0, rateLimit429: 0 };
+            metricsJobFetchedRef.current[id] = jobId;
+          }
+        }
 
         if (!cancelled) {
           setTransformations(items);
@@ -283,12 +452,13 @@ export function TransformationsList({
           if (toSelect && onTransformationSelected) {
             onTransformationSelected();
           }
-          setStatsById({});
+          setStatsById(nextStats);
+          setUptimeById(nextUptime);
           setCountsById({});
-          setLatestJobById({});
-          setMetricsById({});
-          metricsJobFetchedRef.current = {};
+          setLatestJobById(nextLatest);
+          setMetricsById(nextMetrics);
           setStatus("success");
+          setLoadingMessage(null);
         }
       } catch (error) {
         if (!cancelled) {
@@ -296,6 +466,7 @@ export function TransformationsList({
             error instanceof Error ? error.message : t("transformations.list.error")
           );
           setStatus("error");
+          setLoadingMessage(null);
         }
       }
     };
@@ -305,101 +476,17 @@ export function TransformationsList({
     };
   }, [isSdkLoading, sdk, onTransformationSelected, t]);
 
-  useEffect(() => {
-    if (isSdkLoading || transformations.length === 0) return;
-    const windowEnd = Date.now();
-    const windowStart = windowEnd - 24 * 60 * 60 * 1000;
-    let cancelled = false;
-
-    const computeJobStats = (
-      jobs: TransformationJobSummary[]
-    ): {
-      count: number;
-      lastRun?: number;
-      totalMs: number;
-      latestJobId: string | null;
-    } => {
-      const recent = jobs.filter((job) => {
-        const start = toTimestamp(job.startedTime);
-        if (!start) return false;
-        return start >= windowStart && start <= windowEnd;
-      });
-      const count = recent.length;
-      const lastRun = recent.reduce<number | undefined>((acc, job) => {
-        const start = toTimestamp(job.startedTime);
-        if (!start) return acc;
-        return acc == null || start > acc ? start : acc;
-      }, undefined);
-      const totalMs = recent.reduce((acc, job) => {
-        const start = toTimestamp(job.startedTime);
-        const end = toTimestamp(job.finishedTime);
-        if (!start || !end || end < start) return acc;
-        return acc + (end - start);
-      }, 0);
-      const sorted = [...jobs].sort(
-        (a, b) => (toTimestamp(b.startedTime) ?? 0) - (toTimestamp(a.startedTime) ?? 0)
-      );
-      const latest = sorted[0];
-      const latestJobId = latest?.id != null ? String(latest.id) : null;
-      return { count, lastRun, totalMs, latestJobId };
-    };
-
-    const run = async () => {
-      const nextStats: Record<string, { count: number; lastRun?: number; totalMs: number }> = {};
-      const nextLatest: Record<string, string | null> = {};
-
-      for (let i = 0; i < transformations.length; i += TRANSFORMATIONS_STATS_CONCURRENCY) {
-        if (cancelled) return;
-        const chunk = transformations.slice(i, i + TRANSFORMATIONS_STATS_CONCURRENCY);
-        const chunkResults = await Promise.all(
-          chunk.map(async (transformation) => {
-            const id = String(transformation.id);
-            try {
-              const jobResponse = await cachedTransformationJobs(
-                sdk,
-                id,
-                TRANSFORMATIONS_JOBS_LIST_LIMIT
-              );
-              const data = (jobResponse as { data?: { items?: TransformationJobSummary[] } }).data;
-              const jobs = data?.items ?? [];
-              const { count, lastRun, totalMs, latestJobId } = computeJobStats(jobs);
-              return { id, stats: { count, lastRun, totalMs }, latestJobId };
-            } catch {
-              return {
-                id,
-                stats: { count: 0, totalMs: 0 } as { count: number; lastRun?: number; totalMs: number },
-                latestJobId: null,
-              };
-            }
-          })
-        );
-        for (const row of chunkResults) {
-          nextStats[row.id] = row.stats;
-          nextLatest[row.id] = row.latestJobId;
-        }
-      }
-
-      if (!cancelled) {
-        startTransition(() => {
-          setStatsById(nextStats);
-          setLatestJobById(nextLatest);
-        });
-      }
-    };
-
-    void run();
-    return () => {
-      cancelled = true;
-    };
-  }, [transformations, sdk, isSdkLoading]);
-
   const selectedTransformation = useMemo(() => {
     if (!selectedId) return null;
     return transformations.find((item) => String(item.id) === selectedId) ?? null;
   }, [transformations, selectedId]);
 
   const filteredTransformations = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
+    const qRaw = debouncedSearchQuery.trim();
+    if (qRaw.length > 0 && qRaw.length < TRANSFORMATIONS_FILTER_MIN_CHARS) {
+      return transformations;
+    }
+    const q = qRaw.toLowerCase();
     if (!q) return transformations;
     return transformations.filter((t) => {
       const id = String(t.id).toLowerCase();
@@ -407,11 +494,18 @@ export function TransformationsList({
       const query = (t.query ?? "").toLowerCase();
       return id.includes(q) || name.includes(q) || query.includes(q);
     });
-  }, [transformations, searchQuery]);
+  }, [transformations, debouncedSearchQuery]);
+
+  const filterPendingDebounce =
+    searchQuery.trim() !== "" && searchQuery !== debouncedSearchQuery;
+  const filterTooShort =
+    searchQuery.trim().length > 0 &&
+    searchQuery.trim().length < TRANSFORMATIONS_FILTER_MIN_CHARS;
 
   const sortedTransformations = useMemo(() => {
     const items = [...filteredTransformations];
     const getStats = (id: string) => statsById[id] ?? { count: 0, totalMs: 0 };
+    const getUptime = (id: string) => uptimeById[id] ?? { success: 0, failed: 0, uptime: 100 };
     return items.sort((a, b) => {
       const aId = String(a.id);
       const bId = String(b.id);
@@ -428,12 +522,20 @@ export function TransformationsList({
         const diff = getStats(bId).totalMs - getStats(aId).totalMs;
         return sortDesc ? diff : -diff;
       }
+      if (sortKey === "success") {
+        const diff = getUptime(bId).success - getUptime(aId).success;
+        return sortDesc ? diff : -diff;
+      }
+      if (sortKey === "failed") {
+        const diff = getUptime(bId).failed - getUptime(aId).failed;
+        return sortDesc ? diff : -diff;
+      }
       const aLast = getStats(aId).lastRun ?? 0;
       const bLast = getStats(bId).lastRun ?? 0;
       const diff = bLast - aLast;
       return sortDesc ? diff : -diff;
     });
-  }, [filteredTransformations, statsById, sortKey, sortDesc]);
+  }, [filteredTransformations, sortDesc, sortKey, statsById, uptimeById]);
 
   const totalPages = Math.max(1, Math.ceil(sortedTransformations.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages - 1);
@@ -445,6 +547,55 @@ export function TransformationsList({
       ),
     [sortedTransformations, safePage]
   );
+
+  useEffect(() => {
+    if (status !== "success" || isSdkLoading || !sdk || currentPageItems.length === 0) return;
+    const windowEnd = Date.now();
+    const windowStart = windowEnd - 24 * 60 * 60 * 1000;
+    let cancelled = false;
+
+    const run = async () => {
+      await runWithConcurrencyLimit(
+        currentPageItems,
+        TRANSFORMATIONS_JOBS_CONCURRENCY,
+        async (transformation) => {
+          if (cancelled) return;
+          const id = String(transformation.id);
+          if (statsById[id] && id in latestJobById) return;
+          try {
+            const jobs = (await loadTransformationJobsForWindow({
+              sdk,
+              transformationId: id,
+              windowStart,
+              windowEnd,
+            })) as TransformationJobSummary[];
+            const { count, lastRun, totalMs, latestJobId, success, failed, uptime } =
+              computeTransformationJobStats(jobs, windowStart, windowEnd);
+            if (!cancelled) {
+              startTransition(() => {
+                setStatsById((prev) => ({ ...prev, [id]: { count, lastRun, totalMs } }));
+                setUptimeById((prev) => ({ ...prev, [id]: { success, failed, uptime } }));
+                setLatestJobById((prev) => ({ ...prev, [id]: latestJobId }));
+              });
+            }
+          } catch {
+            if (!cancelled) {
+              startTransition(() => {
+                setStatsById((prev) => ({ ...prev, [id]: { count: 0, totalMs: 0 } }));
+                setUptimeById((prev) => ({ ...prev, [id]: { success: 0, failed: 0, uptime: 100 } }));
+                setLatestJobById((prev) => ({ ...prev, [id]: null }));
+              });
+            }
+          }
+        }
+      );
+    };
+
+    void run();
+    return () => {
+      cancelled = true;
+    };
+  }, [currentPageItems, isSdkLoading, latestJobById, sdk, statsById, status]);
 
   useEffect(() => {
     if (page >= totalPages && totalPages > 0) {
@@ -479,7 +630,7 @@ export function TransformationsList({
   }, [safePage, sortedTransformations]);
 
   useEffect(() => {
-    if (isSdkLoading || !sdk) return;
+    if (status !== "success" || isSdkLoading || !sdk) return;
     const items = sortedTransformations.slice(
       safePage * PAGE_SIZE,
       safePage * PAGE_SIZE + PAGE_SIZE
@@ -493,36 +644,35 @@ export function TransformationsList({
       type MetricRow = { reads: number; writes: number; noops: number; rateLimit429: number };
       const pageMetrics: Record<string, MetricRow> = {};
 
-      await Promise.all(
-        items.map(async (t) => {
-          const id = String(t.id);
-          const jobId = latestJobById[id];
-          if (jobId == null) {
+      for (const t of items) {
+        if (cancelled) return;
+        const id = String(t.id);
+        const jobId = latestJobById[id];
+        if (jobId == null) {
+          pageMetrics[id] = { reads: 0, writes: 0, noops: 0, rateLimit429: 0 };
+          continue;
+        }
+        if (metricsJobFetchedRef.current[id] === jobId) {
+          continue;
+        }
+        try {
+          const metricsRes = (await cachedTransformationJobMetrics(
+            sdk,
+            jobId
+          )) as { data?: { items?: JobMetricItem[] } };
+          const metricItems = metricsRes.data?.items ?? [];
+          const agg = aggregateJobMetrics(metricItems);
+          if (!cancelled) {
+            metricsJobFetchedRef.current[id] = jobId;
+            pageMetrics[id] = agg;
+          }
+        } catch {
+          if (!cancelled) {
+            metricsJobFetchedRef.current[id] = jobId;
             pageMetrics[id] = { reads: 0, writes: 0, noops: 0, rateLimit429: 0 };
-            return;
           }
-          if (metricsJobFetchedRef.current[id] === jobId) {
-            return;
-          }
-          try {
-            const metricsRes = (await cachedTransformationJobMetrics(
-              sdk,
-              jobId
-            )) as { data?: { items?: JobMetricItem[] } };
-            const metricItems = metricsRes.data?.items ?? [];
-            const agg = aggregateJobMetrics(metricItems);
-            if (!cancelled) {
-              metricsJobFetchedRef.current[id] = jobId;
-              pageMetrics[id] = agg;
-            }
-          } catch {
-            if (!cancelled) {
-              metricsJobFetchedRef.current[id] = jobId;
-              pageMetrics[id] = { reads: 0, writes: 0, noops: 0, rateLimit429: 0 };
-            }
-          }
-        })
-      );
+        }
+      }
 
       if (!cancelled && Object.keys(pageMetrics).length > 0) {
         startTransition(() => {
@@ -535,7 +685,7 @@ export function TransformationsList({
     return () => {
       cancelled = true;
     };
-  }, [safePage, sortedTransformations, isSdkLoading, sdk, latestJobById]);
+  }, [safePage, sortedTransformations, isSdkLoading, sdk, latestJobById, status]);
 
   const toggleSort = (nextKey: TableSortKey) => {
     if (sortKey === nextKey) {
@@ -833,7 +983,14 @@ export function TransformationsList({
         </CardHeader>
         <CardContent>
           {status === "loading" ? (
-            <div className="min-h-[240px] text-sm text-slate-600">{t("transformations.list.loading")}</div>
+            <div className="min-h-[240px] space-y-2 text-sm text-slate-600">
+              <div>{t("transformations.list.loading")}</div>
+              {loadingMessage ? (
+                <div className="rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-900">
+                  {loadingMessage}
+                </div>
+              ) : null}
+            </div>
           ) : null}
           {status === "error" ? (
             <ApiError message={errorMessage ?? t("transformations.list.error")} />
@@ -859,6 +1016,14 @@ export function TransformationsList({
                         autoComplete="off"
                         className="h-9 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-800 placeholder:text-slate-400 focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-400"
                       />
+                      {filterTooShort ? (
+                        <span className="text-xs text-slate-500">
+                          Type at least {TRANSFORMATIONS_FILTER_MIN_CHARS} characters to filter.
+                        </span>
+                      ) : null}
+                      {filterPendingDebounce ? (
+                        <span className="text-xs text-slate-500">Applying filter...</span>
+                      ) : null}
                     </label>
                   ) : (
                     <div className="min-w-0 flex-1" />
@@ -928,6 +1093,32 @@ export function TransformationsList({
                                 {sortKey === "totalMs" ? (sortDesc ? " ↓" : " ↑") : ""}
                               </button>
                             </th>
+                            <th
+                              className="px-2 py-2 font-medium"
+                              title="Uptime % = successful / (successful + failed) over the last 24h."
+                            >
+                              Uptime 24h
+                            </th>
+                            <th className="whitespace-nowrap px-2 py-2 font-medium" title="Successful jobs over the last 24h.">
+                              <button
+                                type="button"
+                                className="flex items-center gap-1 text-left hover:text-slate-900"
+                                onClick={() => toggleSort("success")}
+                              >
+                                S
+                                {sortKey === "success" ? (sortDesc ? " ↓" : " ↑") : ""}
+                              </button>
+                            </th>
+                            <th className="whitespace-nowrap px-2 py-2 font-medium" title="Failed jobs over the last 24h.">
+                              <button
+                                type="button"
+                                className="flex items-center gap-1 text-left hover:text-slate-900"
+                                onClick={() => toggleSort("failed")}
+                              >
+                                F
+                                {sortKey === "failed" ? (sortDesc ? " ↓" : " ↑") : ""}
+                              </button>
+                            </th>
                             <th className="px-2 py-2 font-medium" title={t("transformations.list.columnHelp.reads")}>
                               {t("transformations.list.reads")}
                             </th>
@@ -993,6 +1184,37 @@ export function TransformationsList({
                                     formatDuration(stats.totalMs)
                                   ) : (
                                     "—"
+                                  )}
+                                </td>
+                                <td className="px-2 py-2 tabular-nums">
+                                  {!statsReady ? (
+                                    <CellSpinner />
+                                  ) : (uptimeById[id]?.success ?? 0) + (uptimeById[id]?.failed ?? 0) > 0 ? (
+                                    <span
+                                      className={`font-semibold ${(uptimeById[id]?.failed ?? 0) > 0 ? "text-red-700" : "text-slate-900"}`}
+                                    >
+                                      {(uptimeById[id]?.uptime ?? 0).toFixed(1)}%
+                                    </span>
+                                  ) : (
+                                    "—"
+                                  )}
+                                </td>
+                                <td className="whitespace-nowrap px-2 py-2 tabular-nums">
+                                  {!statsReady ? (
+                                    <CellSpinner />
+                                  ) : (
+                                    <span className="text-xs text-slate-900">{uptimeById[id]?.success ?? 0}</span>
+                                  )}
+                                </td>
+                                <td className="whitespace-nowrap px-2 py-2 tabular-nums">
+                                  {!statsReady ? (
+                                    <CellSpinner />
+                                  ) : (
+                                    <span
+                                      className={`text-xs ${(uptimeById[id]?.failed ?? 0) > 0 ? "text-red-700" : "text-slate-900"}`}
+                                    >
+                                      {uptimeById[id]?.failed ?? 0}
+                                    </span>
                                   )}
                                 </td>
                                 <td className="px-2 py-2 tabular-nums">
@@ -1239,12 +1461,17 @@ export function TransformationsList({
                           </span>
                         </div>
                       <div className="mt-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
-                        cdf_data_models(...) ({parsedInsight.dataModelRefs.length})
+                        Data model layer ({parsedInsight.dataModelRefs.length})
                       </div>
                       {parsedInsight.dataModelRefs.length > 0 ? (
                         <div className="mt-1 space-y-2">
                           {parsedInsight.dataModelRefs.map((entry, index) => (
-                            <div key={`cdf-data-model-${index}`} className="rounded-md bg-slate-50 p-2">
+                            <div key={`dm-interaction-${index}`} className="rounded-md bg-slate-50 p-2">
+                              <div>
+                                <span className="font-semibold">Source:</span>{" "}
+                                {entry.source}
+                                {entry.unscoped ? " (unscoped)" : ""}
+                              </div>
                               <div>
                                 <span className="font-semibold">Space:</span>{" "}
                                 {entry.space ?? "—"}
@@ -1271,7 +1498,10 @@ export function TransformationsList({
                           ))}
                         </div>
                       ) : (
-                        <div className="text-slate-500">No cdf_data_models references.</div>
+                        <div className="text-slate-500">
+                          No data model layer usage (cdf_data_models, cdf_nodes, cdf_edges,
+                          _cdf_datamodels, is_new).
+                        </div>
                       )}
                       <div className="mt-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
                         node_reference(...) ({parsedInsight.nodeReferences.length})

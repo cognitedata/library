@@ -15,14 +15,9 @@ import {
   isStaleProcessingFetch,
   noteForbiddenFailure,
   processingRequestStats,
+  useProcessingSeriesFetchLoading,
   useProcessingWindowSessionReset,
 } from "./processing-request-stats";
-
-type FunctionCallLogsApiResponse = {
-  data?: {
-    items?: { message?: string }[];
-  };
-};
 
 type FunctionsListApiResponse = {
   data?: {
@@ -71,7 +66,6 @@ export function useFunctionData({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [availabilityMessage, setAvailabilityMessage] = useState<string | null>(null);
   const [runs, setRuns] = useState<FunctionRunSummary[]>([]);
-  const [logMap, setLogMap] = useState<Record<string, Record<string, { message?: string }[]>>>({});
   const [functionNameMap, setFunctionNameMap] = useState<Record<string, string>>({});
   const [functionMetaMap, setFunctionMetaMap] = useState<Record<string, FunctionSummary>>({});
   const [loadProgress, setLoadProgress] = useState<ProcessingDataLoadProgress | null>(null);
@@ -85,30 +79,20 @@ export function useFunctionData({
     setAvailabilityMessage(null);
     setRequestStats(null);
     setRuns([]);
-    setLogMap({});
     setFunctionNameMap({});
     setFunctionMetaMap({});
   }, []);
 
   useProcessingWindowSessionReset(windowSessionKey, resetForNewWindow);
+  useProcessingSeriesFetchLoading(
+    fetchEnabled,
+    isSdkLoading,
+    windowRange,
+    fetchGeneration,
+    setStatus
+  );
 
   const getFailureColor = (run: FunctionRunSummary) => {
-    const funcId = run.functionId ?? "";
-    const callId = run.id ?? "";
-    const entries = logMap[funcId]?.[callId] ?? [];
-    if (entries.length === 0) return "#ef4444";
-    for (const logEntry of entries) {
-      const message = logEntry.message ?? "";
-      if (message.includes("out of memory")) return "#f87171";
-      if (
-        message.includes("Too many concurrent requests") ||
-        message.includes("maximum 100 concurrent jobs")
-      ) {
-        return "#dc2626";
-      }
-      if (message.includes("Internal server error")) return "#fb7185";
-      if (message.includes("upstream request timeout")) return "#e11d48";
-    }
     return "#ef4444";
   };
 
@@ -141,29 +125,6 @@ export function useFunctionData({
     return "#a855f7";
   };
 
-  const fetchRunLogs = async (run: FunctionRunSummary) => {
-    if (!run.functionId || !run.id) return;
-    try {
-      const response = (await withTransientRetries(() =>
-        sdk.get(
-          `/api/v1/projects/${sdk.project}/functions/${run.functionId}/calls/${run.id}/logs`
-        )
-      )) as FunctionCallLogsApiResponse;
-      const logs = response.data?.items ?? [];
-      if (logs.length > 0) {
-        setLogMap((prev) => ({
-          ...prev,
-          [run.functionId ?? "unknown"]: {
-            ...(prev[run.functionId ?? "unknown"] ?? {}),
-            [run.id ?? "unknown"]: logs,
-          },
-        }));
-      }
-    } catch {
-      // Ignore log failures.
-    }
-  };
-
   useEffect(() => {
     if (!fetchEnabled) {
       setLoadProgress(null);
@@ -173,9 +134,6 @@ export function useFunctionData({
     if (!windowRange) return;
 
     const generation = fetchGeneration;
-    if (!refetchExecutionsOnly) {
-      setStatus("loading");
-    }
     let cancelled = false;
     const loadRuns = async () => {
       const keepCatalog =
@@ -186,7 +144,6 @@ export function useFunctionData({
       setErrorMessage(null);
       setAvailabilityMessage(null);
       setRequestStats(null);
-      setLogMap({});
       if (!keepCatalog) {
         setFunctionsCatalogMayBeIncomplete(false);
         setRuns([]);
@@ -342,14 +299,6 @@ export function useFunctionData({
           }
         }
 
-        for (const run of collected) {
-          if (cancelled || isStaleProcessingFetch(fetchGeneration, generation)) return;
-          const statusValue = normalizeStatus(run.status);
-          if (!statusValue.includes("failed") && !statusValue.includes("timeout")) continue;
-          if (!run.functionId || !run.id) continue;
-          await fetchRunLogs(run);
-        }
-
         if (!cancelled && !isStaleProcessingFetch(fetchGeneration, generation)) {
           setRuns(collected);
           setExecutionsTruncated(hitExecutionCap);
@@ -416,14 +365,11 @@ export function useFunctionData({
     runs,
     functionNameMap,
     functionMetaMap,
-    logMap,
     failureDurationMs,
-    fetchRunLogs,
     getRunDuration,
     getRadius,
     getColor,
     setRuns,
-    setLogMap,
     setFunctionNameMap,
     setFunctionMetaMap,
     setStatus,
