@@ -26,12 +26,6 @@ withRefs AS (
       ELSE false
     END AS isStep,
     CASE
-      WHEN lower(isString) = 'true' THEN NULL
-      WHEN sourceUnit IS NULL OR trim(sourceUnit) = '' THEN NULL
-      WHEN try_get_unit(sourceUnit) IS NOT NULL THEN node_reference('cdf_cdm_units', try_get_unit(sourceUnit))
-      ELSE NULL
-    END AS unit,
-    CASE
       WHEN assetExternalId IS NULL OR trim(assetExternalId) = '' THEN NULL
       ELSE array(node_reference('{{ instance_space }}', trim(assetExternalId)))
     END AS assets,
@@ -45,7 +39,6 @@ SELECT
   external_id AS externalId,
   FIRST(name, true) AS name,
   FIRST(description, true) AS description,
-  FIRST(unit, true) AS unit,
   FIRST(sourceUnit, true) AS sourceUnit,
   FIRST(type, true) AS type,
   FIRST(isStep, true) AS isStep,
