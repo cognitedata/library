@@ -66,7 +66,7 @@ client = CogniteClient()
 # ---------------------------------------------------------------------------
 # Usage tracking
 # ---------------------------------------------------------------------------
-_SOURCE = "dp:context_quality"
+_SOURCE = "dp:dashboards:context_quality"
 _DP_VERSION = "1"
 _TRACKER_VERSION = "1"
 

@@ -15,7 +15,7 @@ from pipeline import entity_matching
 # ---------------------------------------------------------------------------
 # Usage tracking
 # ---------------------------------------------------------------------------
-_SOURCE = "dp:cdf_entity_matching"
+_SOURCE = "dp:contextualization:cdf_entity_matching"
 _DP_VERSION = "1"
 _TRACKER_VERSION = "1"
 

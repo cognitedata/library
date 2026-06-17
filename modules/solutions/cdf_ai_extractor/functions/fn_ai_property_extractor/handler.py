@@ -28,7 +28,7 @@ from state_store import StateStoreHandler, _now_iso
 # ---------------------------------------------------------------------------
 # Usage tracking
 # ---------------------------------------------------------------------------
-_SOURCE = "dp:atlas_ai_extractor"
+_SOURCE = "dp:atlas_ai:ai_extractor"
 _DP_VERSION = "1"
 _TRACKER_VERSION = "1"
 

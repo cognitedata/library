@@ -1,5 +1,5 @@
 [module]
-title = "cdf_common"
+title = "CDF Common"
 is_selected_by_default = false
-id = "CDF Common"
+id = "dp:common:cdf_common"
 package_id = "dp:common"

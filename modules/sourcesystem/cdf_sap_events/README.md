@@ -1,5 +1,7 @@
 # CDF SAP Events Module
 
+Library path: `modules/sourcesystem/cdf_sap_events/` · Module ID: `dp:sourcesystem:cdf_sap_events` · Deployment pack: `dp:sourcesystem`
+
 This module provides ingestion of maintenance events data from SAP S/4HANA into Cognite Data Fusion, transforming work orders and operations into the process industry data model.
 
 ## Why Use This Module?

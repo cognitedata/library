@@ -1,5 +1,5 @@
 [module]
 title = "CDF Qualitizer Application"
-id = "Qualitizer Application"
+id = "dp:tool:qualitizer"
 package_id = "tool"
 

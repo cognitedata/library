@@ -2,5 +2,5 @@
 title = "Open Industrial Data Sync"
 description = "Synchronizes time series data from Open Industrial Data (publicdata) to simulate real-time streaming data"
 is_selected_by_default = false
-id = "dp:acc:cdf_oid_sync"
+id = "dp:sourcesystem:cdf_oid_sync"
 package_id = "dp:sourcesystem"
