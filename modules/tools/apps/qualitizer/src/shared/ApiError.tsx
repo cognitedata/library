@@ -56,7 +56,27 @@ const fallbackStrings: Record<string, string> = {
     "Required permissions are listed at the top of each documentation page.",
   "apiError.networkHint":
     "This can happen if you are offline or the backend is not responding.",
+  "apiError.timeoutHint":
+    "The request timed out (HTTP 408). Try reducing query scope, lowering load, or retrying later.",
+  "apiError.section.timeout": "Timeout diagnostics",
+  "apiError.section.statusCode": "Status code",
+  "apiError.section.requestId": "Request ID",
+  "apiError.section.rawMessage": "Raw error message",
+  "apiError.section.unavailable": "Not available in this error context.",
 };
+
+function extractStatusCode(message: string): string | null {
+  const codeMatch = message.match(/\bcode:\s*(\d{3})\b/i);
+  if (codeMatch?.[1]) return codeMatch[1];
+  const httpMatch = message.match(/\b(4\d{2}|5\d{2})\b/);
+  if (httpMatch?.[1]) return httpMatch[1];
+  return null;
+}
+
+function extractRequestId(message: string): string | null {
+  const requestIdMatch = message.match(/\bX-Request-ID:\s*([^\s|]+)/i);
+  return requestIdMatch?.[1] ?? null;
+}
 
 export function ApiError({ message, api, requestBody, details, className }: ApiErrorProps) {
   let t: (key: string) => string;
@@ -69,12 +89,17 @@ export function ApiError({ message, api, requestBody, details, className }: ApiE
   if (!message) return null;
 
   const docUrl = useMemo(() => getDocUrl(api), [api]);
+  const statusCode = useMemo(() => extractStatusCode(message), [message]);
+  const requestId = useMemo(() => extractRequestId(message), [message]);
   const isPermissionError = /401|403|unauthorized|forbidden|permission/i.test(message);
+  const isTimeoutError =
+    /\b408\b|timed?\s*out|timeout|request\s+timeout|query\s+timed?\s*out/i.test(message) ||
+    statusCode === "408";
   const isNetworkError =
     /failed to fetch|networkerror|network request failed|ecconnrefused|econnrefused|timeout/i.test(
       message
     );
-  const hasDetails = Boolean(api || requestBody || details);
+  const hasDetails = Boolean(api || requestBody !== undefined || details || isTimeoutError);
 
   return (
     <div
@@ -85,6 +110,9 @@ export function ApiError({ message, api, requestBody, details, className }: ApiE
       <div>{message}</div>
       {isNetworkError ? (
         <div className="mt-1 text-xs text-red-700">{t("apiError.networkHint")}</div>
+      ) : null}
+      {isTimeoutError ? (
+        <div className="mt-1 text-xs text-red-700">{fallbackStrings["apiError.timeoutHint"]}</div>
       ) : null}
       {docUrl ? (
         <div className="mt-2 text-xs text-red-700">
@@ -130,6 +158,35 @@ export function ApiError({ message, api, requestBody, details, className }: ApiE
                 <div className="mt-3">
                   <div className="font-semibold">{t("apiError.section.details")}</div>
                   <div className="mt-1">{details}</div>
+                </div>
+              ) : null}
+              {isTimeoutError ? (
+                <div className="mt-3">
+                  <div className="font-semibold">{fallbackStrings["apiError.section.timeout"]}</div>
+                  <div className="mt-1 space-y-1">
+                    <div>
+                      <span className="font-medium">{fallbackStrings["apiError.section.statusCode"]}: </span>
+                      {statusCode ?? "408"}
+                    </div>
+                    <div>
+                      <span className="font-medium">{fallbackStrings["apiError.section.requestId"]}: </span>
+                      {requestId ?? fallbackStrings["apiError.section.unavailable"]}
+                    </div>
+                    <div>
+                      <span className="font-medium">{fallbackStrings["apiError.section.api"]}: </span>
+                      {api ?? fallbackStrings["apiError.section.unavailable"]}
+                    </div>
+                    <div>
+                      <span className="font-medium">{fallbackStrings["apiError.section.request"]}: </span>
+                      {requestBody !== undefined
+                        ? "See request body section above."
+                        : fallbackStrings["apiError.section.unavailable"]}
+                    </div>
+                    <div>
+                      <span className="font-medium">{fallbackStrings["apiError.section.rawMessage"]}: </span>
+                      {message}
+                    </div>
+                  </div>
                 </div>
               ) : null}
             </div>

@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Loader } from "@/shared/Loader";
 import { FunctionRunModal } from "./FunctionRunModal";
 import { TransformationRunModal } from "./TransformationRunModal";
+import { TransformationDebugModal } from "./TransformationDebugModal";
 import { WorkflowRunModal } from "./WorkflowRunModal";
 import { ExtractionPipelineRunModal } from "./ExtractionPipelineRunModal";
 import { ProcessingChart } from "./ProcessingChart";
@@ -197,6 +198,7 @@ export function Processing() {
     useState<TransformationJobSummary | null>(null);
   const [selectedTransformation, setSelectedTransformation] =
     useState<Record<string, unknown> | null>(null);
+  const [showTransformationDebug, setShowTransformationDebug] = useState(false);
   const [selectedWorkflowExecution, setSelectedWorkflowExecution] =
     useState<WorkflowExecutionSummary | null>(null);
   const [selectedExtractorRun, setSelectedExtractorRun] =
@@ -313,6 +315,7 @@ export function Processing() {
     loadProgress: transformationLoadProgress,
     requestStats: transformationRequestStats,
     transformationsError,
+    transformationJobsAll,
     transformationNameMap,
     transformationMetaMap,
     filteredTransformationJobs,
@@ -1610,6 +1613,13 @@ export function Processing() {
                 </button>
                 <button
                   type="button"
+                  className="rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                  onClick={() => setShowTransformationDebug(true)}
+                >
+                  {t("processing.debug.transformations.open")}
+                </button>
+                <button
+                  type="button"
                   className={`flex items-center gap-2 rounded-md px-2 py-1 ${
                     visibleSeries.workflows
                       ? "text-slate-700 hover:bg-slate-50"
@@ -2051,6 +2061,22 @@ export function Processing() {
         selectedTransformationJob={selectedTransformationJob as Record<string, unknown> | null}
         formatTimeFields={formatTimeFields}
         contentClassName={privateCls}
+      />
+      <TransformationDebugModal
+        open={showTransformationDebug}
+        onClose={() => setShowTransformationDebug(false)}
+        jobs={transformationJobsAll}
+        filteredJobs={displayTransformationJobs}
+        selectedWindow={windowRange}
+        executionsTruncated={transformationExecutionsTruncated}
+        isLoading={transformationsStatus === "loading"}
+        loadingLabel={
+          transformationsStatus === "loading"
+            ? transformationLoadProgress
+              ? formatProcessingDataProgress(t, transformationLoadProgress)
+              : t("processing.loading.transformations")
+            : null
+        }
       />
       <WorkflowRunModal
         open={!!selectedWorkflowExecution}

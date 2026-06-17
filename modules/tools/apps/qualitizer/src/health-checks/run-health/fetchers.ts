@@ -18,6 +18,7 @@ import {
   uptimePercentage,
 } from "./uptime";
 import type { ResourceHealth, ResourceReport, RunEntry } from "./types";
+import { loadTransformationJobsForWindow } from "@/transformations/transformation-jobs-service";
 
 const API_LIST_LIMIT = 500;
 const API_RUNS_LIMIT = 100;
@@ -381,17 +382,18 @@ export async function fetchTransformationHealth(opts: FetcherOpts): Promise<Reso
     for (const t of toProcess) {
       if (signal?.cancelled) break;
       try {
-        const response = await sdk.get<{ items?: TransformationJob[] }>(
-          `/api/v1/projects/${sdk.project}/transformations/jobs`,
-          { params: { limit: String(API_RUNS_LIMIT), transformationId: String(t.id) } }
-        );
-        const runs: RunEntry[] = (response.data?.items ?? [])
+        const jobs = (await loadTransformationJobsForWindow({
+          sdk,
+          transformationId: String(t.id),
+          windowStart: startMs,
+          windowEnd: endMs,
+        })) as TransformationJob[];
+        const runs: RunEntry[] = jobs
           .map<RunEntry>((j) => ({
             status: j.status ?? "",
             timeMs: toTimestampLoose(j.finishedTime ?? j.startedTime ?? j.createdTime),
             message: j.error,
-          }))
-          .filter((r) => (r.timeMs ?? 0) >= startMs && (r.timeMs ?? 0) <= endMs);
+          }));
         resources.push(
           finalizeResource(
             {

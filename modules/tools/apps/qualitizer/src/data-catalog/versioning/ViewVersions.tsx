@@ -28,6 +28,7 @@ import {
 } from "@/shared/cdf-browser-url";
 import { formatResourceDisplayLabel } from "@/shared/format-resource-display-label";
 import { useI18n } from "@/shared/i18n";
+import { ApiErrorPanel } from "@/shared/ApiErrorPanel";
 import {
   compareVersionStrings,
   countImplicitViewVersions,
@@ -329,6 +330,8 @@ const INITIAL_UNIQUE_VIEW_FETCH_CAP = 100;
 const AUTO_COMPLETE_UNIQUE_VIEW_CAP = INITIAL_UNIQUE_VIEW_FETCH_CAP * 2;
 const VIEWS_LIST_PAGE_LIMIT = 250;
 const VIEW_DETAILS_BATCH = 50;
+const VIEW_VERSIONS_FILTER_MIN_CHARS = 3;
+const VIEW_VERSIONS_FILTER_DEBOUNCE_MS = 350;
 
 function countUniqueViewKeys(items: ViewVersionItem[]): number {
   const s = new Set<string>();
@@ -489,6 +492,7 @@ export function ViewVersions() {
   const [viewLegendFilter, setViewLegendFilter] =
     useState<LegendFilterState<ViewGridLegendFilterId>>(null);
   const [matrixSearch, setMatrixSearch] = useState("");
+  const [debouncedMatrixSearch, setDebouncedMatrixSearch] = useState("");
   const [showHelp, setShowHelp] = useState(false);
   const [selectedModelVersions, setSelectedModelVersions] = useState<
     Array<{ version: string; createdTime?: number }>
@@ -739,6 +743,17 @@ export function ViewVersions() {
     setViewLegendFilter(null);
   }, [selectedModelKey]);
 
+  useEffect(() => {
+    if (!matrixSearch.trim()) {
+      setDebouncedMatrixSearch("");
+      return;
+    }
+    const id = window.setTimeout(() => {
+      setDebouncedMatrixSearch(matrixSearch);
+    }, VIEW_VERSIONS_FILTER_DEBOUNCE_MS);
+    return () => window.clearTimeout(id);
+  }, [matrixSearch]);
+
   const modelFilteredViewRows = useMemo(() => {
     if (!selectedModelKey) return viewRows;
     const opt = modelOptions.find((o) => o.key === selectedModelKey);
@@ -746,11 +761,31 @@ export function ViewVersions() {
     return viewRows.filter((row) => opt.viewKeys.has(row.key));
   }, [viewRows, selectedModelKey, modelOptions]);
 
+  const matrixSearchHaystackByRowKey = useMemo(() => {
+    const byRowKey = new Map<string, string>();
+    for (const row of modelFilteredViewRows) {
+      byRowKey.set(row.key, viewRowSearchHaystack(row, detailsMap));
+    }
+    return byRowKey;
+  }, [modelFilteredViewRows, detailsMap]);
+
+  const effectiveMatrixSearch = useMemo(() => {
+    const q = debouncedMatrixSearch.trim();
+    return q.length >= VIEW_VERSIONS_FILTER_MIN_CHARS ? q.toLowerCase() : "";
+  }, [debouncedMatrixSearch]);
+
+  const matrixSearchPendingDebounce =
+    matrixSearch.trim() !== "" && matrixSearch !== debouncedMatrixSearch;
+
+  const matrixSearchTooShort =
+    matrixSearch.trim().length > 0 &&
+    matrixSearch.trim().length < VIEW_VERSIONS_FILTER_MIN_CHARS;
+
   const filteredViewRows = useMemo(() => {
-    const q = matrixSearch.trim().toLowerCase();
+    const q = effectiveMatrixSearch;
     if (!q) return modelFilteredViewRows;
-    return modelFilteredViewRows.filter((row) => viewRowSearchHaystack(row, detailsMap).includes(q));
-  }, [modelFilteredViewRows, matrixSearch, detailsMap]);
+    return modelFilteredViewRows.filter((row) => matrixSearchHaystackByRowKey.get(row.key)?.includes(q));
+  }, [modelFilteredViewRows, effectiveMatrixSearch, matrixSearchHaystackByRowKey]);
 
   const filteredVersions = useMemo(() => {
     if (filteredViewRows.length === 0) return versions;
@@ -821,7 +856,7 @@ export function ViewVersions() {
   }, [filteredViewRows, viewLegendFilter, viewRowLegendFlagsByKey]);
 
   const cappedLegendViewRows = useMemo(() => {
-    const searchActive = matrixSearch.trim().length > 0;
+    const searchActive = effectiveMatrixSearch.length > 0;
     if (
       showAllViewRows ||
       searchActive ||
@@ -830,7 +865,7 @@ export function ViewVersions() {
       return legendFilteredViewRows;
     }
     return legendFilteredViewRows.slice(0, INITIAL_VIEW_DISPLAY_CAP);
-  }, [legendFilteredViewRows, showAllViewRows, matrixSearch]);
+  }, [legendFilteredViewRows, showAllViewRows, effectiveMatrixSearch]);
 
   const usedViewLegendIds = useMemo(() => {
     const u = new Set<ViewGridLegendFilterId>();
@@ -1568,7 +1603,7 @@ export function ViewVersions() {
 
   const hiddenRowCountByCap =
     !showAllViewRows &&
-    matrixSearch.trim().length === 0 &&
+    effectiveMatrixSearch.length === 0 &&
     legendFilteredViewRows.length > INITIAL_VIEW_DISPLAY_CAP
       ? legendFilteredViewRows.length - INITIAL_VIEW_DISPLAY_CAP
       : 0;
@@ -1661,14 +1696,20 @@ export function ViewVersions() {
             autoComplete="off"
             className="h-9 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-800 placeholder:text-slate-400 focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-400"
           />
+          {matrixSearchTooShort ? (
+            <span className="text-xs text-slate-500">
+              {t("dataCatalog.filter.minCharsHint", { min: VIEW_VERSIONS_FILTER_MIN_CHARS })}
+            </span>
+          ) : null}
+          {matrixSearchPendingDebounce ? (
+            <span className="text-xs text-slate-500">{t("dataCatalog.filter.debouncePending")}</span>
+          ) : null}
         </label>
       ) : null}
       <div className="flex gap-4 items-stretch">
         <div className="min-w-0 flex-1 rounded-md border border-slate-200">
         {status === "error" ? (
-          <div className="flex h-64 items-center justify-center bg-red-50 text-sm text-red-700">
-            {errorMessage}
-          </div>
+          <ApiErrorPanel message={errorMessage ?? "Failed to load views."} minHeightClassName="h-64" />
         ) : isLoading && viewRows.length === 0 ? (
           <div className="flex min-h-64 flex-col items-center justify-center gap-2 bg-sky-100 px-4 py-8 text-sm text-slate-600">
             <p className="font-medium text-slate-800">{t("dataCatalog.viewVersions.loadingTitle")}</p>
@@ -1702,7 +1743,7 @@ export function ViewVersions() {
               ? t("dataCatalog.viewVersions.emptyNoViewsInModel")
               : t("dataCatalog.viewVersions.emptyNoViews")}
           </div>
-        ) : matrixSearch.trim() && filteredViewRows.length === 0 ? (
+        ) : effectiveMatrixSearch && filteredViewRows.length === 0 ? (
           <div className="flex h-64 items-center justify-center bg-sky-100 px-4 text-center text-sm text-slate-600">
             {t("dataCatalog.viewVersions.noSearchResults")}
           </div>

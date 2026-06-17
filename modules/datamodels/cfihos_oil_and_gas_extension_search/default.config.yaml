@@ -20,6 +20,3 @@ instance_space: "inst_location"                # Shared instance space (must mat
 search_dm_version: v1
 search_data_model_external_id: dm_oil_and_gas_domain_model_search
 search_data_model_name: "Oil and Gas Domain Model Search"
-
-# Environment
-environment: dev
