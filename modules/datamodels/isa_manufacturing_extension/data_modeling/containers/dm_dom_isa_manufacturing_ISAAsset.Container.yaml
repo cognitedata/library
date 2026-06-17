@@ -1,0 +1,80 @@
+space: {{ enterprise_space }}
+externalId: ISAAsset
+name: ISAAsset
+description: Canonical ISA‑95 asset metadata (single asset tree)
+properties:
+  assetSpecific:
+    type:
+      list: false
+      type: direct
+    nullable: true
+    immutable: false
+    autoIncrement: false
+    name: assetSpecific
+  erpId:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: erpId
+  equipment:
+    type:
+      list: true
+      type: direct
+      maxListSize: 100
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: equipment
+  timeSeries:
+    type:
+      list: true
+      type: direct
+      maxListSize: 100
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: timeSeries
+  files:
+    type:
+      list: true
+      type: direct
+      maxListSize: 100
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: files
+  object3D:
+    type:
+      list: false
+      type: direct
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: object3D
+indexes:
+  assetSpecificIndex:
+    properties:
+    - assetSpecific
+    cursorable: true
+    indexType: btree
+  erpIdIndex:
+    properties:
+    - erpId
+    cursorable: true
+    indexType: btree
+  object3D_index:
+    properties:
+    - object3D
+    cursorable: true
+    indexType: btree
+constraints:
+  requiresCogniteAsset:
+    constraintType: requires
+    require:
+      space: cdf_cdm
+      externalId: CogniteAsset
+      type: container

@@ -1,0 +1,90 @@
+space: {{ enterprise_space }}
+externalId: ProcessParameter
+name: ProcessParameter
+description: Information that is needed to manufacture a material but does not fall into the
+  classification of process input or process output. Examples of process parameter information
+  are temperature, pressure, and time.
+properties:
+  processParameterId:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: false
+    autoIncrement: false
+    name: processParameterId
+  unitOfMeasure:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: unitOfMeasure
+  targetValue:
+    type:
+      list: false
+      type: float64
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: targetValue
+  minValue:
+    type:
+      list: false
+      type: float64
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: minValue
+  maxValue:
+    type:
+      list: false
+      type: float64
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: maxValue
+  phases:
+    type:
+      list: true
+      type: direct
+      maxListSize: 100
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: phases
+  productSegment:
+    type:
+      list: true
+      type: direct
+      maxListSize: 100
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: productSegment
+indexes:
+  processParameterIdIndex:
+    properties:
+    - processParameterId
+    cursorable: true
+    indexType: btree
+  phasesIndex:
+    properties:
+    - phases
+    cursorable: false
+    indexType: btree
+  productSegmentIndex:
+    properties:
+    - productSegment
+    cursorable: false
+    indexType: btree
+constraints:
+  requiresCogniteDescribable:
+    constraintType: requires
+    require:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container

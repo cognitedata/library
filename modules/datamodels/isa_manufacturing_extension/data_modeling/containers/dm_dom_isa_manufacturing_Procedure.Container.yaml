@@ -1,0 +1,75 @@
+space: {{ enterprise_space }}
+externalId: Procedure
+name: Procedure
+description: The strategy for carrying out a process. In general, it refers to the strategy for
+  making a batch within a process cell. It may also refer to a process that does not result in the
+  production of product, such as a clean-in-place procedure.
+properties:
+  procedureId:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: false
+    autoIncrement: false
+    name: procedureId
+  sequenceNumber:
+    type:
+      list: false
+      type: int32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: sequenceNumber
+  recipe:
+    type:
+      list: false
+      type: direct
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: recipe
+  batch:
+    type:
+      list: true
+      type: direct
+      maxListSize: 100
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: batch
+indexes:
+  procedureIdIndex:
+    properties:
+    - procedureId
+    cursorable: true
+    indexType: btree
+  sequenceNumberIndex:
+    properties:
+    - sequenceNumber
+    cursorable: true
+    indexType: btree
+  recipeIndex:
+    properties:
+    - recipe
+    cursorable: true
+    indexType: btree
+  batchIndex:
+    properties:
+    - batch
+    cursorable: false
+    indexType: btree
+constraints:
+  requiresCogniteDescribable:
+    constraintType: requires
+    require:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+  requiresCogniteSchedulable:
+    constraintType: requires
+    require:
+      space: cdf_cdm
+      externalId: CogniteSchedulable
+      type: container

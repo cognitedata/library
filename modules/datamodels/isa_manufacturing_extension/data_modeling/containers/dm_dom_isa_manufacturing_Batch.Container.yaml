@@ -1,0 +1,168 @@
+space: {{ enterprise_space }}
+externalId: Batch
+name: Batch
+description: 1) The material that is being produced or that has been produced by a single execution
+  of a batch process. 2) An entity that represents the production of a material at any point in the
+  process. Batch means both the material made by and during the process and also an entity that
+  represents the production of that material. Batch is used as an abstract contraction of the words
+  "the production of a batch."
+properties:
+  batchId:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: false
+    autoIncrement: false
+    name: batchId
+  batchNumber:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: false
+    autoIncrement: false
+    name: batchNumber
+  batchSize:
+    type:
+      list: false
+      type: float64
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: batchSize
+  batchSizeUnit:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: batchSizeUnit
+  startTime:
+    type:
+      list: false
+      type: timestamp
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: startTime
+  endTime:
+    type:
+      list: false
+      type: timestamp
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: endTime
+  batchState:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: batchState
+  recipe:
+    type:
+      list: false
+      type: direct
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: recipe
+  material:
+    type:
+      list: false
+      type: direct
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: material
+  workOrders:
+    type:
+      list: true
+      type: direct
+      maxListSize: 100
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: workOrders
+  site:
+    type:
+      list: false
+      type: direct
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: site
+indexes:
+  batchIdIndex:
+    properties:
+    - batchId
+    cursorable: true
+    indexType: btree
+  batchNumberIndex:
+    properties:
+    - batchNumber
+    cursorable: true
+    indexType: btree
+  batchStateIndex:
+    properties:
+    - batchState
+    cursorable: true
+    indexType: btree
+  startTimeIndex:
+    properties:
+    - startTime
+    cursorable: true
+    indexType: btree
+  endTimeIndex:
+    properties:
+    - endTime
+    cursorable: true
+    indexType: btree
+  stateStartTimeIndex:
+    properties:
+    - batchState
+    - startTime
+    cursorable: true
+    indexType: btree
+  recipeIndex:
+    properties:
+    - recipe
+    cursorable: true
+    indexType: btree
+  materialIndex:
+    properties:
+    - material
+    cursorable: true
+    indexType: btree
+  siteIndex:
+    properties:
+    - site
+    cursorable: true
+    indexType: btree
+  workOrdersIndex:
+    properties:
+    - workOrders
+    cursorable: false
+    indexType: btree
+constraints:
+  requiresCogniteSourceable:
+    constraintType: requires
+    require:
+      space: cdf_cdm
+      externalId: CogniteSourceable
+      type: container
+  requiresCogniteSchedulable:
+    constraintType: requires
+    require:
+      space: cdf_cdm
+      externalId: CogniteSchedulable
+      type: container
+

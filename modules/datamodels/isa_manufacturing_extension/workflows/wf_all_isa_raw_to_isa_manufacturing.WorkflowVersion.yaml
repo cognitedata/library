@@ -1,0 +1,410 @@
+workflowExternalId: wf_all_isa_raw_to_isa_manufacturing
+version: {{ workflowVersion }}
+workflowDefinition:
+  description: 'Run ISA asset build, then overlays in parallel'
+  tasks:
+    - externalId: 'wf_all_isa_raw_to_isa_manufacturing_t_isatree'
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: 'tr_isa_asset_all_to_isa_asset'
+          concurrencyPolicy: fail
+      name: 'Build ISA Asset Tree'
+      description: Create ISAAsset nodes and hierarchy from RAW
+      retries: 3
+      timeout: 3600
+      onFailure: 'abortWorkflow'
+    - externalId: 'wf_all_isa_raw_to_isa_manufacturing_t_enterprise'
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: 'tr_isa_asset_all_to_enterprise'
+          concurrencyPolicy: fail
+      name: 'Enterprise overlay'
+      description: Upsert Enterprise view fields
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: 'wf_all_isa_raw_to_isa_manufacturing_t_isatree'
+    - externalId: 'wf_all_isa_raw_to_isa_manufacturing_t_site'
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: 'tr_isa_asset_all_to_site'
+          concurrencyPolicy: fail
+      name: 'Site overlay'
+      description: Upsert Site view fields
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: 'wf_all_isa_raw_to_isa_manufacturing_t_isatree'
+    - externalId: 'wf_all_isa_raw_to_isa_manufacturing_t_area'
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: 'tr_isa_asset_all_to_area'
+          concurrencyPolicy: fail
+      name: 'Area overlay'
+      description: Upsert Area view fields
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: 'wf_all_isa_raw_to_isa_manufacturing_t_isatree'
+    - externalId: 'wf_all_isa_raw_to_isa_manufacturing_t_process_cell'
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: 'tr_isa_asset_all_to_process_cell'
+          concurrencyPolicy: fail
+      name: 'ProcessCell overlay'
+      description: Upsert ProcessCell view fields
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: 'wf_all_isa_raw_to_isa_manufacturing_t_isatree'
+    - externalId: 'wf_all_isa_raw_to_isa_manufacturing_t_unit'
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: 'tr_isa_asset_all_to_unit'
+          concurrencyPolicy: fail
+      name: 'Unit overlay'
+      description: Upsert Unit view fields
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: 'wf_all_isa_raw_to_isa_manufacturing_t_isatree'
+    - externalId: 'wf_all_isa_raw_to_isa_manufacturing_t_equipment_module'
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: 'tr_isa_asset_all_to_equipment_module'
+          concurrencyPolicy: fail
+      name: 'EquipmentModule overlay'
+      description: Upsert EquipmentModule view fields
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: 'wf_all_isa_raw_to_isa_manufacturing_t_isatree'
+    # Personnel
+    - externalId: 'wf_all_isa_raw_to_isa_manufacturing_t_personnel'
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: 'tr_isa_personnel_all_to_personnel'
+          concurrencyPolicy: fail
+      name: 'Personnel'
+      description: Create Personnel nodes
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: 'wf_all_isa_raw_to_isa_manufacturing_t_site'
+    # Control Module
+    - externalId: 'wf_all_isa_raw_to_isa_manufacturing_t_control_module'
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: 'tr_isa_control_module_all_to_control_module'
+          concurrencyPolicy: fail
+      name: 'Control Module'
+      description: Create Control Module nodes
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: 'wf_all_isa_raw_to_isa_manufacturing_t_equipment_module'
+    # Control Module Asset Overlay
+    - externalId: 'wf_all_isa_raw_to_isa_manufacturing_t_control_module_asset'
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: 'tr_isa_control_module_all_to_isa_asset'
+          concurrencyPolicy: fail
+      name: 'Control Module Asset Overlay'
+      description: Create Control Module Asset nodes
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: 'wf_all_isa_raw_to_isa_manufacturing_t_control_module'
+    # Files - Transformation
+    - externalId: 'wf_all_isa_raw_to_isa_manufacturing_t_files'
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: 'tr_isa_file_all_to_isa_file'
+          concurrencyPolicy: fail
+      name: 'Files'
+      description: Create Files nodes
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: 'wf_all_isa_raw_to_isa_manufacturing_t_enterprise'
+        - externalId: 'wf_all_isa_raw_to_isa_manufacturing_t_site'
+        - externalId: 'wf_all_isa_raw_to_isa_manufacturing_t_area'
+        - externalId: 'wf_all_isa_raw_to_isa_manufacturing_t_process_cell'
+        - externalId: 'wf_all_isa_raw_to_isa_manufacturing_t_unit'
+        - externalId: 'wf_all_isa_raw_to_isa_manufacturing_t_equipment_module'
+    # Equipment
+    - externalId: 'wf_all_isa_raw_to_isa_manufacturing_t_equipment'
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: 'tr_isa_equipment_all_to_equipment'
+          concurrencyPolicy: fail
+      name: 'Equipment'
+      description: Create Equipment nodes
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: 'wf_all_isa_raw_to_isa_manufacturing_t_files'
+    # EquipmentModule - Equipment Relationship
+    - externalId: 'wf_all_isa_raw_to_isa_manufacturing_t_equipment_module_equipment'
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: 'tr_isa_equipment_all_to_equipment_module'
+          concurrencyPolicy: fail
+      name: 'EquipmentModule - Equipment Relationship'
+      description: Create EquipmentModule - Equipment relationship
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: 'wf_all_isa_raw_to_isa_manufacturing_t_equipment_module'
+        - externalId: 'wf_all_isa_raw_to_isa_manufacturing_t_equipment'
+    # Work Order
+    - externalId: 'wf_all_isa_raw_to_isa_manufacturing_t_work_order'
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: 'tr_isa_work_order_all_to_work_order'
+          concurrencyPolicy: fail
+      name: 'Work Order'
+      description: Create Work Order nodes
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: 'wf_all_isa_raw_to_isa_manufacturing_t_equipment'
+        - externalId: 'wf_all_isa_raw_to_isa_manufacturing_t_personnel'
+    # TimeSeries
+    - externalId: 'wf_all_isa_raw_to_isa_manufacturing_t_timeseries'
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: 'tr_isa_timeseries_all_to_isa_timeseries'
+          concurrencyPolicy: fail
+      name: 'TimeSeries'
+      description: Create TimeSeries nodes
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: 'wf_all_isa_raw_to_isa_manufacturing_t_equipment'
+    # Relationship between Work Order and TimeSeries
+    - externalId: 'wf_all_isa_raw_to_isa_manufacturing_t_work_order_timeseries'
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: 'tr_isa_timeseries_all_to_work_order'
+          concurrencyPolicy: fail
+      name: 'Work Order - TimeSeries Relationship'
+      description: Create Work Order - TimeSeries relationship
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: 'wf_all_isa_raw_to_isa_manufacturing_t_work_order'
+        - externalId: 'wf_all_isa_raw_to_isa_manufacturing_t_timeseries'
+    # Recipe
+    - externalId: 'wf_all_isa_raw_to_isa_manufacturing_t_recipe'
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: 'tr_isa_recipe_all_to_recipe'
+          concurrencyPolicy: fail
+      name: 'Recipe'
+      description: Create Recipe nodes
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+    # Batch
+    - externalId: 'wf_all_isa_raw_to_isa_manufacturing_t_batch'
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: 'tr_isa_batch_all_to_batch'
+          concurrencyPolicy: fail
+      name: 'Batch'
+      description: Create Batch nodes
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: 'wf_all_isa_raw_to_isa_manufacturing_t_recipe'
+        - externalId: 'wf_all_isa_raw_to_isa_manufacturing_t_work_order'
+        - externalId: 'wf_all_isa_raw_to_isa_manufacturing_t_site'
+    # Material
+    - externalId: 'wf_all_isa_raw_to_isa_manufacturing_t_material'
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: 'tr_isa_material_all_to_material'
+          concurrencyPolicy: fail
+      name: 'Material'
+      description: Create Material nodes
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: 'wf_all_isa_raw_to_isa_manufacturing_t_batch'
+    # MaterialLot
+    - externalId: 'wf_all_isa_raw_to_isa_manufacturing_t_material_lot'
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: 'tr_isa_material_lot_all_to_material_lot'
+          concurrencyPolicy: fail
+      name: 'MaterialLot'
+      description: Create MaterialLot nodes
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: 'wf_all_isa_raw_to_isa_manufacturing_t_material'
+    # QualityResult
+    - externalId: 'wf_all_isa_raw_to_isa_manufacturing_t_quality_result'
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: 'tr_isa_quality_result_all_to_quality_result'
+          concurrencyPolicy: fail
+      name: 'QualityResult'
+      description: Create QualityResult nodes
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: 'wf_all_isa_raw_to_isa_manufacturing_t_material_lot'
+    # ProductRequest
+    - externalId: 'wf_all_isa_raw_to_isa_manufacturing_t_product_request'
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: 'tr_isa_product_request_all_to_product_request'
+          concurrencyPolicy: fail
+      name: 'ProductRequest'
+      description: Create ProductRequest nodes
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: 'wf_all_isa_raw_to_isa_manufacturing_t_work_order'
+    # Procedure
+    - externalId: 'wf_all_isa_raw_to_isa_manufacturing_t_procedure'
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: 'tr_isa_procedure_all_to_procedure'
+          concurrencyPolicy: fail
+      name: 'Procedure'
+      description: Create Procedure nodes
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: 'wf_all_isa_raw_to_isa_manufacturing_t_batch'
+    # ProductSegment
+    - externalId: 'wf_all_isa_raw_to_isa_manufacturing_t_product_segment'
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: 'tr_isa_product_segment_all_to_product_segment'
+          concurrencyPolicy: fail
+      name: 'ProductSegment'
+      description: Create ProductSegment nodes
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: 'wf_all_isa_raw_to_isa_manufacturing_t_material_lot'
+    # ProductDefinition
+    - externalId: 'wf_all_isa_raw_to_isa_manufacturing_t_product_definition'
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: 'tr_isa_product_definition_all_to_product_definition'
+          concurrencyPolicy: fail
+      name: 'ProductDefinition'
+      description: Create ProductDefinition nodes
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: 'wf_all_isa_raw_to_isa_manufacturing_t_product_segment'
+    # ProcessParameter
+    - externalId: 'wf_all_isa_raw_to_isa_manufacturing_t_process_parameter'
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: 'tr_isa_process_parameter_all_to_process_parameter'
+          concurrencyPolicy: fail
+      name: 'ProcessParameter'
+      description: Create ProcessParameter nodes
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: 'wf_all_isa_raw_to_isa_manufacturing_t_product_segment'
+    # UnitProcedure
+    - externalId: 'wf_all_isa_raw_to_isa_manufacturing_t_unit_procedure'
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: 'tr_isa_unit_procedure_all_to_unit_procedure'
+          concurrencyPolicy: fail
+      name: 'UnitProcedure'
+      description: Create UnitProcedure nodes
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: 'wf_all_isa_raw_to_isa_manufacturing_t_procedure'
+    # Operation
+    - externalId: 'wf_all_isa_raw_to_isa_manufacturing_t_operation'
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: 'tr_isa_operation_all_to_operation'
+          concurrencyPolicy: fail
+      name: 'Operation'
+      description: Create Operation nodes
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: 'wf_all_isa_raw_to_isa_manufacturing_t_unit_procedure'
+    # Phase
+    - externalId: 'wf_all_isa_raw_to_isa_manufacturing_t_phase'
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: 'tr_isa_phase_all_to_phase'
+          concurrencyPolicy: fail
+      name: 'Phase'
+      description: Create Phase nodes
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: 'wf_all_isa_raw_to_isa_manufacturing_t_operation'

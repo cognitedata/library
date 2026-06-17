@@ -1,0 +1,69 @@
+space: {{ enterprise_space }}
+externalId: Operation
+name: Operation
+description: A procedural element defining an independent processing activity consisting of the
+  algorithm necessary for the initiation, organization, and control of phases.
+properties:
+  operationId:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: false
+    autoIncrement: false
+    name: operationId
+  sequenceNumber:
+    type:
+      list: false
+      type: int32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: sequenceNumber
+  batch:
+    type:
+      list: true
+      type: direct
+      maxListSize: 100
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: batch
+  unitProcedure:
+    type:
+      list: true
+      type: direct
+      maxListSize: 100
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: unitProcedure
+indexes:
+  operationIdIndex:
+    properties:
+    - operationId
+    cursorable: true
+    indexType: btree
+  sequenceNumberIndex:
+    properties:
+    - sequenceNumber
+    cursorable: true
+    indexType: btree
+  batchIndex:
+    properties:
+    - batch
+    cursorable: false
+    indexType: btree
+  unitProcedureIndex:
+    properties:
+    - unitProcedure
+    cursorable: false
+    indexType: btree
+constraints:
+  requiresCogniteActivity:
+    constraintType: requires
+    require:
+      space: cdf_cdm
+      externalId: CogniteActivity
+      type: container

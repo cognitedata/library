@@ -1,0 +1,248 @@
+space: {{ enterprise_space }}
+externalId: {{ dataModelExternalId }}
+name: ISA Manufacturing Data Model
+description: ISA-95/88 based manufacturing domain model, aggregating all ISA. This is the Enterprise Data Model (EDM) for the ISA Manufacturing domain, including all views and interfaces.
+version: {{ enterprise_dm_version }}
+views:
+
+# List of Cognite views used as Interfaces in DM
+
+- space: cdf_cdm
+  externalId: CogniteDescribable
+  version: v1
+  type: view
+- space: cdf_cdm
+  externalId: CogniteSourceable
+  version: v1
+  type: view
+- space: cdf_cdm
+  externalId: CogniteSourceSystem
+  version: v1
+  type: view
+- space: cdf_cdm
+  externalId: CogniteSchedulable
+  version: v1
+  type: view
+- space: cdf_cdm
+  externalId: CogniteVisualizable
+  version: v1
+  type: view
+- space: cdf_cdm
+  externalId: CogniteAsset
+  version: v1
+  type: view
+- space: cdf_cdm
+  externalId: CogniteAssetClass
+  version: v1
+  type: view
+- space: cdf_cdm
+  externalId: CogniteAssetType
+  version: v1
+  type: view
+- space: cdf_cdm
+  externalId: CogniteEquipment
+  version: v1
+  type: view
+- space: cdf_cdm
+  externalId: CogniteEquipmentType
+  version: v1
+  type: view
+- space: cdf_cdm
+  externalId: CogniteFile
+  version: v1
+  type: view
+- space: cdf_cdm
+  externalId: CogniteFileCategory
+  version: v1
+  type: view
+- space: cdf_cdm
+  externalId: CogniteActivity
+  version: v1
+  type: view
+- space: cdf_cdm
+  externalId: CogniteTimeSeries
+  version: v1
+  type: view
+- space: cdf_cdm
+  externalId: CogniteAnnotation
+  version: v1
+  type: view
+- space: cdf_cdm
+  externalId: CogniteDiagramAnnotation
+  version: v1
+  type: view
+- space: cdf_cdm
+  externalId: CogniteUnit
+  version: v1
+  type: view
+- space: cdf_cdm
+  externalId: Cognite3DTransformation
+  version: v1
+  type: view
+- space: cdf_cdm
+  externalId: CogniteCubeMap
+  version: v1
+  type: view
+- space: cdf_cdm
+  externalId: Cognite3DObject
+  version: v1
+  type: view
+- space: cdf_cdm
+  externalId: Cognite3DModel
+  version: v1
+  type: view
+- space: cdf_cdm
+  externalId: CogniteCADModel
+  version: v1
+  type: view
+- space: cdf_cdm
+  externalId: Cognite3DRevision
+  version: v1
+  type: view
+- space: cdf_cdm
+  externalId: CognitePointCloudModel
+  version: v1
+  type: view
+- space: cdf_cdm
+  externalId: Cognite360ImageModel
+  version: v1
+  type: view
+- space: cdf_cdm
+  externalId: CogniteCADRevision
+  version: v1
+  type: view
+- space: cdf_cdm
+  externalId: CognitePointCloudRevision
+  version: v1
+  type: view
+- space: cdf_cdm
+  externalId: Cognite360ImageCollection
+  version: v1
+  type: view
+- space: cdf_cdm
+  externalId: CogniteCADNode
+  version: v1
+  type: view
+- space: cdf_cdm
+  externalId: CognitePointCloudVolume
+  version: v1
+  type: view
+- space: cdf_cdm
+  externalId: Cognite360Image
+  version: v1
+  type: view
+- space: cdf_cdm
+  externalId: Cognite360ImageStation
+  version: v1
+  type: view
+- space: cdf_cdm
+  externalId: Cognite360ImageAnnotation
+  version: v1
+  type: view
+
+# List of Cognite views in extended DM
+
+- space: {{ enterprise_space }}
+  externalId: ISAAsset
+  version: {{ enterprise_dm_version }}
+  type: view
+- space: {{ enterprise_space }}
+  externalId: Area
+  version: {{ enterprise_dm_version }}
+  type: view
+- space: {{ enterprise_space }}
+  externalId: Batch
+  version: {{ enterprise_dm_version }}
+  type: view
+- space: {{ enterprise_space }}
+  externalId: ControlModule
+  version: {{ enterprise_dm_version }}
+  type: view
+- space: {{ enterprise_space }}
+  externalId: Enterprise
+  version: {{ enterprise_dm_version }}
+  type: view
+- space: {{ enterprise_space }}
+  externalId: Equipment
+  version: {{ enterprise_dm_version }}
+  type: view
+- space: {{ enterprise_space }}
+  externalId: EquipmentModule
+  version: {{ enterprise_dm_version }}
+  type: view
+- space: {{ enterprise_space }}
+  externalId: ProcessParameter
+  version: {{ enterprise_dm_version }}
+  type: view
+- space: {{ enterprise_space }}
+  externalId: Operation
+  version: {{ enterprise_dm_version }}
+  type: view
+- space: {{ enterprise_space }}
+  externalId: Phase
+  version: {{ enterprise_dm_version }}
+  type: view
+- space: {{ enterprise_space }}
+  externalId: Procedure
+  version: {{ enterprise_dm_version }}
+  type: view
+- space: {{ enterprise_space }}
+  externalId: ProcessCell
+  version: {{ enterprise_dm_version }}
+  type: view
+- space: {{ enterprise_space }}
+  externalId: QualityResult
+  version: {{ enterprise_dm_version }}
+  type: view
+- space: {{ enterprise_space }}
+  externalId: Recipe
+  version: {{ enterprise_dm_version }}
+  type: view
+- space: {{ enterprise_space }}
+  externalId: Site
+  version: {{ enterprise_dm_version }}
+  type: view
+- space: {{ enterprise_space }}
+  externalId: Unit
+  version: {{ enterprise_dm_version }}
+  type: view
+- space: {{ enterprise_space }}
+  externalId: UnitProcedure
+  version: {{ enterprise_dm_version }}
+  type: view
+- space: {{ enterprise_space }}
+  externalId: WorkOrder
+  version: {{ enterprise_dm_version }}
+  type: view
+- space: {{ enterprise_space }}
+  externalId: ProductRequest
+  version: {{ enterprise_dm_version }}
+  type: view
+- space: {{ enterprise_space }}
+  externalId: ProductDefinition
+  version: {{ enterprise_dm_version }}
+  type: view
+- space: {{ enterprise_space }}
+  externalId: ProductSegment
+  version: {{ enterprise_dm_version }}
+  type: view
+- space: {{ enterprise_space }}
+  externalId: Material
+  version: {{ enterprise_dm_version }}
+  type: view
+- space: {{ enterprise_space }}
+  externalId: MaterialLot
+  version: {{ enterprise_dm_version }}
+  type: view
+- space: {{ enterprise_space }}
+  externalId: Personnel
+  version: {{ enterprise_dm_version }}
+  type: view
+- space: {{ enterprise_space }}
+  externalId: ISAFile
+  version: {{ enterprise_dm_version }}
+  type: view
+- space: {{ enterprise_space }}
+  externalId: ISATimeSeries
+  version: {{ enterprise_dm_version }}
+  type: view

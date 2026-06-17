@@ -1,0 +1,16 @@
+externalId: tr_isa_product_request_all_to_product_request
+name: ProductRequest
+destination:
+  dataModel:
+    space: {{ enterprise_space }}
+    externalId: {{ dataModelExternalId }}
+    version: {{ enterprise_dm_version }}
+    destinationType: ProductRequest
+  instanceSpace: {{ instance_space }}
+  type: instances
+dataSetExternalId: {{ datasetExternalId }}
+ignoreNullFields: true
+isPublic: true
+conflictMode: upsert
+
+

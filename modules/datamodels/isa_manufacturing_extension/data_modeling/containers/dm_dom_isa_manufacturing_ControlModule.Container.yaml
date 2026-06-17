@@ -1,0 +1,64 @@
+space: {{ enterprise_space }}
+externalId: ControlModule
+name: ControlModule
+description: The lowest level grouping of equipment in the physical model that can carry out basic
+  control. This term applies to both the physical equipment and the equipment entity.
+properties:
+  controlModuleId:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: false
+    autoIncrement: false
+    name: controlModuleId
+  controlType:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: controlType
+  controllerAddress:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: controllerAddress
+  equipmentModule:
+    type:
+      list: false
+      type: direct
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: equipmentModule
+indexes:
+  controlModuleIdIndex:
+    properties:
+    - controlModuleId
+    cursorable: true
+    indexType: btree
+  controlTypeIndex:
+    properties:
+    - controlType
+    cursorable: true
+    indexType: btree
+  equipmentModuleIndex:
+    properties:
+    - equipmentModule
+    cursorable: true
+    indexType: btree
+constraints:
+  requiresCogniteDescribable:
+    constraintType: requires
+    require:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container

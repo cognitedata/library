@@ -1,0 +1,63 @@
+space: {{ enterprise_space }}
+externalId: ProcessCell
+name: ProcessCell
+description: A logical grouping of equipment that includes the equipment required for production of
+  one or more batches. It defines the span of logical control of one set of process equipment within
+  an area. This term applies to both the physical equipment and the equipment entity.
+properties:
+  processCellId:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: false
+    autoIncrement: false
+    name: processCellId
+  processCellName:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: false
+    autoIncrement: false
+    name: processCellName
+  process_cell_type:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: process_cell_type
+  area:
+    type:
+      list: false
+      type: direct
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: area
+indexes:
+  processCellIdIndex:
+    properties:
+    - processCellId
+    cursorable: true
+    indexType: btree
+  processCellNameIndex:
+    properties:
+    - processCellName
+    cursorable: true
+    indexType: btree
+  processCellTypeIndex:
+    properties:
+    - process_cell_type
+    cursorable: true
+    indexType: btree
+  areaIndex:
+    properties:
+    - area
+    cursorable: true
+    indexType: btree

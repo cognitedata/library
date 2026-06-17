@@ -1,0 +1,164 @@
+space: {{ enterprise_space }}
+externalId: QualityResult
+name: QualityResult
+description: Quality test results and analytical data for materials and batches
+properties:
+  qualityResultId:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: false
+    autoIncrement: false
+    name: qualityResultId
+  testName:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: false
+    autoIncrement: false
+    name: testName
+  testMethod:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: testMethod
+  batch:
+    type:
+      list: false
+      type: direct
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: batch
+  materialLot:
+    type:
+      list: false
+      type: direct
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: materialLot
+  resultValue:
+    type:
+      list: false
+      type: float64
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: resultValue
+  resultText:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: resultText
+  unitOfMeasure:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: unitOfMeasure
+  specificationMin:
+    type:
+      list: false
+      type: float64
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: specificationMin
+  specificationMax:
+    type:
+      list: false
+      type: float64
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: specificationMax
+  testDate:
+    type:
+      list: false
+      type: timestamp
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: testDate
+  analyst:
+    type:
+      list: false
+      type: direct
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: analyst
+  status:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: status
+indexes:
+  qualityResultIdIndex:
+    properties:
+    - qualityResultId
+    cursorable: true
+    indexType: btree
+  testNameIndex:
+    properties:
+    - testName
+    cursorable: true
+    indexType: btree
+  statusIndex:
+    properties:
+    - status
+    cursorable: true
+    indexType: btree
+  testDateIndex:
+    properties:
+    - testDate
+    cursorable: true
+    indexType: btree
+  statusTestDateIndex:
+    properties:
+    - status
+    - testDate
+    cursorable: true
+    indexType: btree
+  batchIndex:
+    properties:
+    - batch
+    cursorable: true
+    indexType: btree
+  materialLotIndex:
+    properties:
+    - materialLot
+    cursorable: true
+    indexType: btree
+  analystIndex:
+    properties:
+    - analyst
+    cursorable: true
+    indexType: btree
+constraints:
+  requiresCogniteDescribable:
+    constraintType: requires
+    require:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container

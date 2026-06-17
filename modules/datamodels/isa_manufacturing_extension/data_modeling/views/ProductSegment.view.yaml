@@ -1,4 +1,4 @@
-space: {{ isaSchemaSpace }}
+space: {{ enterprise_space }}
 externalId: ProductSegment
 name: ProductSegment
 description: Segment of the product process and resources (ISA-95 Level 3)
@@ -7,28 +7,28 @@ implements:
   externalId: CogniteDescribable
   version: v1
   type: view
-version: {{ viewVersion }}
+version: {{ enterprise_dm_version }}
 properties:
-  product_segment_id:
+  productSegmentId:
     container:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: ProductSegment
       type: container
-    containerPropertyIdentifier: product_segment_id
+    containerPropertyIdentifier: productSegmentId
     name: Product Segment ID
     description: >
       Unique identifier for the product segment entity, conforming to ISA-95 Level 3 product 
       segment standards. A product segment represents a segment for product activities 
-      and resource allocation. The product_segment_id serves as the primary key and enables 
+      and resource allocation. The productSegmentId serves as the primary key and enables 
       consistent tracking across all manufacturing operations, from segment creation through 
       execution to completion. This identifier should align with product planning systems and 
       support integration with product planning and resource management platforms. [ISA-95 Level 3]
-  set_points:
+  setPoints:
     container:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: ProductSegment
       type: container
-    containerPropertyIdentifier: set_points
+    containerPropertyIdentifier: setPoints
     name: Set Points
     description: >
       Set points for the product segment, typically describing the set points's purpose 
@@ -36,12 +36,12 @@ properties:
       descriptive enough for product planners and operators to identify the set points's purpose. 
       This set points is often used in product planning systems, scheduling displays, and operational 
       documentation. [ISA-95 Level 3]
-  time_requirements:
+  timeRequirements:
     container:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: ProductSegment
       type: container
-    containerPropertyIdentifier: time_requirements
+    containerPropertyIdentifier: timeRequirements
     name: Time Requirements
     description: >
       Time requirements for the product segment, typically describing the time requirements's purpose 
@@ -49,12 +49,12 @@ properties:
       descriptive enough for product planners and operators to identify the time requirements's purpose. 
       This time requirements is often used in product planning systems, scheduling displays, and operational 
       documentation. [ISA-95 Level 3]
-  temperature_requirements:
+  temperatureRequirements:
     container:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: ProductSegment
       type: container
-    containerPropertyIdentifier: temperature_requirements
+    containerPropertyIdentifier: temperatureRequirements
     name: Temperature Requirements
     description: >
       Temperature requirements for the product segment, typically describing the temperature requirements's purpose 
@@ -62,12 +62,12 @@ properties:
       descriptive enough for product planners and operators to identify the temperature requirements's purpose. 
       This temperature requirements is often used in product planning systems, scheduling displays, and operational 
       documentation. [ISA-95 Level 3]
-  flow_rate_requirements:
+  flowRateRequirements:
     container:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: ProductSegment
       type: container
-    containerPropertyIdentifier: flow_rate_requirements
+    containerPropertyIdentifier: flowRateRequirements
     name: Flow Rate Requirements
     description: >
       Flow rate requirements for the product segment, typically describing the flow rate requirements's purpose 
@@ -75,12 +75,12 @@ properties:
       descriptive enough for product planners and operators to identify the flow rate requirements's purpose. 
       This flow rate requirements is often used in product planning systems, scheduling displays, and operational 
       documentation. [ISA-95 Level 3]
-  pressure_requirements:
+  pressureRequirements:
     container:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: ProductSegment
       type: container
-    containerPropertyIdentifier: pressure_requirements
+    containerPropertyIdentifier: pressureRequirements
     name: Pressure Requirements
     description: >
       Pressure requirements for the product segment, typically describing the pressure requirements's purpose 
@@ -88,12 +88,12 @@ properties:
       descriptive enough for product planners and operators to identify the pressure requirements's purpose. 
       This pressure requirements is often used in product planning systems, scheduling displays, and operational 
       documentation. [ISA-95 Level 3]
-  ph_requirements:
+  phRequirements:
     container:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: ProductSegment
       type: container
-    containerPropertyIdentifier: ph_requirements
+    containerPropertyIdentifier: phRequirements
     name: Ph Requirements
     description: >
       Ph requirements for the product segment, typically describing the ph requirements's purpose 
@@ -103,7 +103,7 @@ properties:
       documentation. [ISA-95 Level 3]
   status:
     container:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: ProductSegment
       type: container
     containerPropertyIdentifier: status
@@ -115,38 +115,38 @@ properties:
       descriptive enough for product planners and operators to identify the status's purpose. 
       This status is often used in product planning systems, scheduling displays, and operational 
       documentation. [ISA-95 Level 3]
-  valid_from:
+  validFrom:
     container:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: ProductSegment
       type: container
-    containerPropertyIdentifier: valid_from
+    containerPropertyIdentifier: validFrom
     name: Valid From
     description: >
       Timestamp indicating when the product segment is valid from, enabling 
-      time-based product scheduling and resource allocation. The valid_from, combined 
-      with valid_to, enables calculation of product segment duration, capacity utilization, 
+      time-based product scheduling and resource allocation. The validFrom, combined 
+      with validTo, enables calculation of product segment duration, capacity utilization, 
       and product segment adherence metrics. This timestamp is critical for product planning 
       and schedule optimization. [ISA-95 Level 3]
-  valid_to:
+  validTo:
     container:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: ProductSegment
       type: container
-    containerPropertyIdentifier: valid_to
+    containerPropertyIdentifier: validTo
     name: Valid To
     description: >
       Timestamp indicating when the product segment is valid to, enabling 
-      time-based product scheduling and resource allocation. The valid_to, combined 
-      with valid_from, enables calculation of product segment duration, capacity utilization, 
+      time-based product scheduling and resource allocation. The validTo, combined 
+      with validFrom, enables calculation of product segment duration, capacity utilization, 
       and product segment adherence metrics. This timestamp is critical for product planning 
       and schedule optimization. [ISA-95 Level 3]
-  composition_requirements:
+  compositionRequirements:
     container:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: ProductSegment
       type: container
-    containerPropertyIdentifier: composition_requirements
+    containerPropertyIdentifier: compositionRequirements
     name: Composition Requirements
     description: >
       Composition requirements for the product segment, typically describing the composition requirements's purpose 
@@ -156,7 +156,7 @@ properties:
       documentation. [ISA-95 Level 3]
   timeSeries:
     container:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: ProductSegment
       type: container
     containerPropertyIdentifier: timeSeries
@@ -168,16 +168,16 @@ properties:
       This time series is often used in product planning systems, scheduling displays, and operational 
       documentation. [ISA-95 Level 3]
     source:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: ISATimeSeries
-      version: {{ viewVersion }}
+      version: {{ enterprise_dm_version }}
       type: view
-  material_requirements:
+  materialRequirements:
     container:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: ProductSegment
       type: container
-    containerPropertyIdentifier: material_requirements
+    containerPropertyIdentifier: materialRequirements
     name: Material Requirements
     description: >
       Material requirements for the product segment, typically describing the material requirements's purpose 
@@ -186,16 +186,16 @@ properties:
       This material requirements is often used in product planning systems, scheduling displays, and operational 
       documentation. [ISA-95 Level 3] 
     source: 
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: MaterialLot
-      version: {{ viewVersion }}
+      version: {{ enterprise_dm_version }}
       type: view
-  equipment_requirements:
+  equipmentRequirements:
     container:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: ProductSegment
       type: container
-    containerPropertyIdentifier: equipment_requirements
+    containerPropertyIdentifier: equipmentRequirements
     name: Equipment Requirements
     description: >
       Equipment requirements for the product segment, typically describing the equipment requirements's purpose 
@@ -204,23 +204,23 @@ properties:
       This equipment requirements is often used in product planning systems, scheduling displays, and operational 
       documentation. [ISA-95 Level 3]
     source:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: Equipment
-      version: {{ viewVersion }}
+      version: {{ enterprise_dm_version }}
       type: view
   process_parameters:
     source:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: ProcessParameter
-      version: {{ viewVersion }}
+      version: {{ enterprise_dm_version }}
       type: view
     through:
       source:
-        space: {{ isaSchemaSpace }}
+        space: {{ enterprise_space }}
         externalId: ProcessParameter
-        version: {{ viewVersion }}
+        version: {{ enterprise_dm_version }}
         type: view
-      identifier: product_segment
+      identifier: productSegment
     name: Process Parameters
     description: >
       Reverse relationship collection of all ProcessParameter entities that are associated with this product segment. Process parameters 
@@ -230,7 +230,7 @@ properties:
     connectionType: multi_reverse_direct_relation
   files:
     container:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: ProductSegment
       type: container
     containerPropertyIdentifier: files
@@ -243,23 +243,23 @@ properties:
       and production planning activities. Document organization should follow ISA-95 Level 3 document 
       classification and naming conventions. [ISA-95 Level 3]
     source:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: ISAFile
-      version: {{ viewVersion }}
+      version: {{ enterprise_dm_version }}
       type: view
   product_definition:
     source:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: ProductDefinition
-      version: {{ viewVersion }}
+      version: {{ enterprise_dm_version }}
       type: view
     through:
       source:
-        space: {{ isaSchemaSpace }}
+        space: {{ enterprise_space }}
         externalId: ProductDefinition
-        version: {{ viewVersion }}
+        version: {{ enterprise_dm_version }}
         type: view
-      identifier: product_segment
+      identifier: productSegment
     name: Product Definition
     description: >
       Reverse relationship collection of all ProductDefinition entities that are associated with this product segment. 

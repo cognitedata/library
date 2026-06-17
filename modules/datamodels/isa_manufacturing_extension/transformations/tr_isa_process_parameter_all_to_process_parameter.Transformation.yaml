@@ -1,0 +1,16 @@
+externalId: tr_isa_process_parameter_all_to_process_parameter
+name: ProcessParameter
+destination:
+  dataModel:
+    space: {{ enterprise_space }}
+    externalId: {{ dataModelExternalId }}
+    version: {{ enterprise_dm_version }}
+    destinationType: ProcessParameter
+  instanceSpace: {{ instance_space }}
+  type: instances
+dataSetExternalId: {{ datasetExternalId }}
+ignoreNullFields: true
+isPublic: true
+conflictMode: upsert
+
+

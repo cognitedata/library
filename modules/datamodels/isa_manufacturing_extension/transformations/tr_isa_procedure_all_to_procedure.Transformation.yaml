@@ -1,0 +1,16 @@
+externalId: tr_isa_procedure_all_to_procedure
+name: Procedure
+destination:
+  dataModel:
+    space: {{ enterprise_space }}
+    externalId: {{ dataModelExternalId }}
+    version: {{ enterprise_dm_version }}
+    destinationType: Procedure
+  instanceSpace: {{ instance_space }}
+  type: instances
+dataSetExternalId: {{ datasetExternalId }}
+ignoreNullFields: true
+isPublic: true
+conflictMode: upsert
+
+

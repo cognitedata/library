@@ -1,0 +1,143 @@
+space: {{ enterprise_space }}
+externalId: ProductDefinition 
+name: ProductDefinition
+description: Definition of the product process and resources (ISA-95 Level 3)
+properties:
+  productDefinitionId:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: false
+    autoIncrement: false
+    name: productDefinitionId
+  version:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: version
+  status:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: status
+  validFrom:
+    type:
+      list: false
+      type: timestamp
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: validFrom
+  validTo:
+    type:
+      list: false
+      type: timestamp
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: validTo
+  unit:
+    type:
+      list: true
+      type: direct
+      maxListSize: 100
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: unit
+  productSegment:
+    type:
+      list: true
+      type: direct
+      maxListSize: 100
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: productSegment
+  productRequest:
+    type:
+      list: true
+      type: direct
+      maxListSize: 100
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: productRequest
+  files:
+    type:
+      list: true
+      type: direct
+      maxListSize: 100
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: files
+indexes:
+  productDefinitionIdIndex:
+    properties:
+    - productDefinitionId
+    cursorable: true
+    indexType: btree
+  statusIndex:
+    properties:
+    - status
+    cursorable: true
+    indexType: btree
+  versionIndex:
+    properties:
+    - version
+    cursorable: true
+    indexType: btree
+  validFromIndex:
+    properties:
+    - validFrom
+    cursorable: true
+    indexType: btree
+  validToIndex:
+    properties:
+    - validTo
+    cursorable: true
+    indexType: btree
+  statusValidFromIndex:
+    properties:
+    - status
+    - validFrom
+    cursorable: true
+    indexType: btree
+  unitIndex:
+    properties:
+    - unit
+    cursorable: false
+    indexType: btree
+  productSegmentIndex:
+    properties:
+    - productSegment
+    cursorable: false
+    indexType: btree
+  productRequestIndex:
+    properties:
+    - productRequest
+    cursorable: false
+    indexType: btree
+  filesIndex:
+    properties:
+    - files
+    cursorable: false
+    indexType: btree
+constraints:
+  requiresCogniteDescribable:
+    constraintType: requires
+    require:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container

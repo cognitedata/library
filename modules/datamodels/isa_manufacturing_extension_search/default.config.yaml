@@ -1,0 +1,23 @@
+# Search solution data model configuration.
+#
+# This module is the *solution* layer that consumes containers owned by the
+# enterprise module `isa_manufacturing_extension`. Search views map to those
+# enterprise containers (no `implements:` against enterprise views) so the
+# search model can evolve independently of the enterprise model.
+#
+# Versioning policy: bump `search_dm_version` here independently of the
+# enterprise `enterprise_dm_version`. See `cdf-enterprise-vs-solution.md` §9.
+
+# Enterprise module references (read-only from this solution's perspective)
+enterprise_space: "dm_dom_isa_manufacturing"       # Space owning the enterprise containers
+enterprise_dm_version: v1                      # Enterprise view version (used only for direct-relation source views in CDM/IDM)
+
+# Search solution spaces
+search_space: "dm_sol_isa_manufacturing_search"    # Space for the search solution model and its views
+instance_space: "inst_isa_manufacturing"        # Shared instance space (aligned with enterprise module)
+
+# Search solution data model
+search_dm_version: v1
+search_data_model_external_id: ISA_Manufacturing_Search_SOL
+search_data_model_name: "ISA Manufacturing Domain Model Search"
+

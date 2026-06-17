@@ -1,0 +1,130 @@
+space: {{ enterprise_space }}
+externalId: Phase
+name: Phase
+description: The lowest level of procedural element in the procedural control model.
+properties:
+  phaseId:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: false
+    autoIncrement: false
+    name: phaseId
+  phaseName:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: false
+    autoIncrement: false
+    name: phaseName
+  phaseClass:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: phaseClass
+  operation:
+    type:
+      list: false
+      type: direct
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: operation
+  equipmentModule:
+    type:
+      list: true
+      type: direct
+      maxListSize: 100
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: equipmentModule
+  sequenceNumber:
+    type:
+      list: false
+      type: int32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: sequenceNumber
+  phaseState:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: phaseState
+  batch:
+    type:
+      list: true
+      type: direct
+      maxListSize: 100
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: batch
+  timeSeries:
+    type:
+      list: true
+      type: direct
+      maxListSize: 100
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: timeSeries
+indexes:
+  phaseIdIndex:
+    properties:
+    - phaseId
+    cursorable: true
+    indexType: btree
+  phaseNameIndex:
+    properties:
+    - phaseName
+    cursorable: true
+    indexType: btree
+  phaseClassIndex:
+    properties:
+    - phaseClass
+    cursorable: true
+    indexType: btree
+  phaseStateIndex:
+    properties:
+    - phaseState
+    cursorable: true
+    indexType: btree
+  sequenceNumberIndex:
+    properties:
+    - sequenceNumber
+    cursorable: true
+    indexType: btree
+  operationIndex:
+    properties:
+    - operation
+    cursorable: true
+    indexType: btree
+  equipmentModuleIndex:
+    properties:
+    - equipmentModule
+    cursorable: false
+    indexType: btree
+  batchIndex:
+    properties:
+    - batch
+    cursorable: false
+    indexType: btree
+  timeSeries_index:
+    properties:
+    - timeSeries
+    cursorable: false
+    indexType: btree

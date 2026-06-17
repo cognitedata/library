@@ -1,21 +1,27 @@
 # ISA Manufacturing Extension v2 Module Configuration
 # This configuration file defines variables used by the ISA-95/ISA-88 manufacturing data model module
 
-# Schema space for ISA manufacturing views and containers
-# This space contains all ISA-95/ISA-88 data model definitions
-isaSchemaSpace: sp_isa_manufacturing
+# Enterprise schema space for ISA manufacturing views and containers (DOM tier)
+# Aligns with enterprise_space in isa_manufacturing_extension_search
+enterprise_space: dm_dom_isa_manufacturing
 
-# Instance space for ISA manufacturing data instances
-# This space contains actual ISA entity instances (assets, batches, work orders, etc.)
-isaInstanceSpace: sp_isa_instance_space
+# Shared instance space for ISA manufacturing data instances
+# Aligns with instance_space in isa_manufacturing_extension_search
+instance_space: inst_isa_manufacturing
 
 # Dataset external ID for ISA manufacturing transformations and workflows
 # This dataset is used for lineage tracking and access control
 datasetExternalId: ds_isa_manufacturing
 
-# Version of the ISA manufacturing views
-# Used in all view definitions for versioning
-viewVersion: v1
+# Enterprise data model external ID (DOM tier)
+dataModelExternalId: ISA_Manufacturing_DOM
+
+# Raw database name for ISA manufacturing source tables
+rawDatabase: isa_all_manufacturing
+
+# Enterprise view/data model version — used in all view and data model definitions
+# Aligns with enterprise_dm_version in isa_manufacturing_extension_search
+enterprise_dm_version: v1
 
 # Version of the ISA manufacturing workflow
 # Used in workflow definitions for versioning

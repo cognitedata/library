@@ -1,40 +1,40 @@
-space: {{ isaSchemaSpace }}
+space: {{ enterprise_space }}
 externalId: Enterprise
 name: Enterprise
 description: An organization that coordinates the operation of one or more sites.
-version: {{ viewVersion }}
+version: {{ enterprise_dm_version }}
 properties:
-  enterprise_id:
+  enterpriseId:
     container:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: Enterprise
       type: container
-    containerPropertyIdentifier: enterprise_id
-    name: enterprise_id
+    containerPropertyIdentifier: enterpriseId
+    name: enterpriseId
     description: >
       Unique identifier for the enterprise entity, representing the top-level organizational 
       entity in the ISA-95 hierarchy. The enterprise represents the entire business enterprise 
-      and serves as the root of the manufacturing hierarchy. The enterprise_id follows ISA-95 
+      and serves as the root of the manufacturing hierarchy. The enterpriseId follows ISA-95 
       Level 0 organizational identification standards and enables consistent tracking across all 
       sites, areas, and manufacturing operations within the enterprise. This identifier is critical 
       for multi-enterprise systems and enterprise-level reporting and analysis. [ISA-95 Level 0]
-  enterprise_name:
+  enterpriseName:
     container:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: Enterprise
       type: container
-    containerPropertyIdentifier: enterprise_name
-    name: enterprise_name
+    containerPropertyIdentifier: enterpriseName
+    name: enterpriseName
     description: >
       Human-readable name for the enterprise, typically representing the legal business entity 
-      or corporate organization name. The enterprise_name follows ISA-95 Level 0 naming 
+      or corporate organization name. The enterpriseName follows ISA-95 Level 0 naming 
       conventions and should align with official corporate naming standards. This name is 
       used in enterprise-level reporting, organizational hierarchies, and cross-enterprise 
-      data integration. The enterprise_name should be consistent with corporate identity and 
+      data integration. The enterpriseName should be consistent with corporate identity and 
       legal entity registrations. [ISA-95 Level 0]
   enterprise_type:
     container:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: Enterprise
       type: container
     containerPropertyIdentifier: enterprise_type
@@ -49,15 +49,15 @@ properties:
       [ISA-95 Level 0]
   sites:
     source:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: Site
-      version: {{ viewVersion }}
+      version: {{ enterprise_dm_version }}
       type: view
     through:
       source:
-        space: {{ isaSchemaSpace }}
+        space: {{ enterprise_space }}
         externalId: Site
-        version: {{ viewVersion }}
+        version: {{ enterprise_dm_version }}
         type: view
       identifier: enterprise
     name: sites

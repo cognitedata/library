@@ -1,0 +1,15 @@
+externalId: tr_isa_asset_all_to_process_cell
+name: ProcessCell
+destination:
+  dataModel:
+    space: {{ enterprise_space }}
+    externalId: {{ dataModelExternalId }}
+    version: {{ enterprise_dm_version }}
+    destinationType: ProcessCell
+  instanceSpace: {{ instance_space }}
+  type: instances
+dataSetExternalId: {{ datasetExternalId }}
+ignoreNullFields: true
+isPublic: true
+conflictMode: upsert
+

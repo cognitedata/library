@@ -1,4 +1,4 @@
-space: {{ isaSchemaSpace }}
+space: {{ enterprise_space }}
 externalId: Batch
 name: Batch
 description: 1) The material that is being produced or that has been produced by a single execution
@@ -15,39 +15,39 @@ implements:
   externalId: CogniteSourceable
   version: v1
   type: view
-version: {{ viewVersion }}
+version: {{ enterprise_dm_version }}
 properties:
-  batch_id:
+  batchId:
     container:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: Batch
       type: container
-    containerPropertyIdentifier: batch_id
+    containerPropertyIdentifier: batchId
     name: Batch ID
     description: >
       Unique identifier for the batch entity, conforming to ISA-88 Batch Control standard. A batch 
-      represents a specific instance of a production run executed according to a recipe. The batch_id 
+      represents a specific instance of a production run executed according to a recipe. The batchId 
       serves as the primary key and enables traceability of the batch throughout its lifecycle from 
       initiation through completion. This identifier is critical for batch tracking, quality control, 
-      and regulatory compliance in batch manufacturing processes. The batch_id should be immutable 
+      and regulatory compliance in batch manufacturing processes. The batchId should be immutable 
       once assigned to maintain data integrity and audit trails. [ISA-88]
-  batch_number:
+  batchNumber:
     container:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: Batch
       type: container
-    containerPropertyIdentifier: batch_number
+    containerPropertyIdentifier: batchNumber
     name: Batch Number
     description: >
       Human-readable batch number or identifier assigned to the batch, typically used for operational 
-      reference and displayed on batch records, labels, and documentation. The batch_number follows 
+      reference and displayed on batch records, labels, and documentation. The batchNumber follows 
       ISA-88 naming conventions and may include production date, sequence numbers, or other 
       organizational identifiers. This number is often used in quality control systems, material 
-      traceability, and customer-facing documentation. The batch_number should be unique within the 
+      traceability, and customer-facing documentation. The batchNumber should be unique within the 
       site or production context to ensure proper identification and prevent confusion. [ISA-88]
   recipe:
     container:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: Batch
       type: container
     containerPropertyIdentifier: recipe
@@ -60,34 +60,34 @@ properties:
       traceability from batch execution back to the recipe definition, supporting recipe version 
       control, process optimization, and compliance verification. [ISA-88]
     source:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: Recipe
-      version: {{ viewVersion }}
+      version: {{ enterprise_dm_version }}
       type: view
-  batch_size:
+  batchSize:
     container:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: Batch
       type: container
-    containerPropertyIdentifier: batch_size
+    containerPropertyIdentifier: batchSize
     name: Batch Size
     description: >
       The quantity or volume of product produced by this batch, expressed as a numeric value. The 
-      batch_size represents the actual or planned production quantity for this batch instance. This 
+      batchSize represents the actual or planned production quantity for this batch instance. This 
       value is critical for production planning, material consumption calculations, yield analysis, and 
-      inventory management. The batch_size should be interpreted in conjunction with batch_size_unit 
+      inventory management. The batchSize should be interpreted in conjunction with batchSizeUnit 
       to determine the complete quantity specification. [ISA-88]
-  batch_size_unit:
+  batchSizeUnit:
     container:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: Batch
       type: container
-    containerPropertyIdentifier: batch_size_unit
+    containerPropertyIdentifier: batchSizeUnit
     name: Batch Size Unit
     description: >
-      The unit of measure for the batch_size value, conforming to standard unit of measure 
-      conventions (e.g., "kg", "L", "pieces", "m³"). The batch_size_unit provides the dimensional 
-      context for the batch_size numeric value, enabling proper quantity calculations and conversions. 
+      The unit of measure for the batchSize value, conforming to standard unit of measure 
+      conventions (e.g., "kg", "L", "pieces", "m³"). The batchSizeUnit provides the dimensional 
+      context for the batchSize numeric value, enabling proper quantity calculations and conversions. 
       This field should follow standardized unit naming conventions (e.g., ISO 80000, SI units) to 
       ensure consistency and interoperability across systems and organizations. [ISA-88]
   startTime:
@@ -99,9 +99,9 @@ properties:
     name: Start Time
     description: >
       Timestamp indicating when the batch execution was initiated, marking the beginning of the batch 
-      lifecycle according to ISA-88. The start_time is typically recorded when the first procedural 
+      lifecycle according to ISA-88. The startTime is typically recorded when the first procedural 
       element (procedure or unit procedure) begins execution. This timestamp is critical for 
-      production scheduling, cycle time analysis, and batch duration calculations. The start_time 
+      production scheduling, cycle time analysis, and batch duration calculations. The startTime 
       enables temporal queries and reporting on batch execution patterns and production performance 
       metrics. [ISA-88]
   endTime:
@@ -113,31 +113,31 @@ properties:
     name: End Time
     description: >
       Timestamp indicating when the batch execution was completed, marking the end of the batch 
-      lifecycle according to ISA-88. The end_time is typically recorded when all procedural elements 
+      lifecycle according to ISA-88. The endTime is typically recorded when all procedural elements 
       have completed and the batch is ready for quality release or material transfer. This timestamp, 
-      combined with start_time, enables calculation of batch duration, cycle time, and production 
-      efficiency metrics. The end_time may be null for batches that are currently in progress or have 
+      combined with startTime, enables calculation of batch duration, cycle time, and production 
+      efficiency metrics. The endTime may be null for batches that are currently in progress or have 
       not yet completed. [ISA-88]
-  batch_state:
+  batchState:
     container:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: Batch
       type: container
-    containerPropertyIdentifier: batch_state
+    containerPropertyIdentifier: batchState
     name: Batch State
     description: >
       Current state of the batch execution according to ISA-88 state models. Common batch states 
       include "Idle", "Running", "Held", "Restarting", "Aborting", "Aborted", "Completing", 
-      "Complete", "Archived". The batch_state provides real-time visibility into batch status and 
+      "Complete", "Archived". The batchState provides real-time visibility into batch status and 
       enables state-based queries, reporting, and workflow automation. State transitions should 
       follow ISA-88 state model definitions to ensure consistent batch state management across the 
       manufacturing system. [ISA-88]
-  work_orders:
+  workOrders:
     container:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: Batch
       type: container
-    containerPropertyIdentifier: work_orders
+    containerPropertyIdentifier: workOrders
     name: Work Orders
     description: >
       Reference to the WorkOrder (Product Request) entity that is associated with this batch, establishing the 
@@ -145,13 +145,13 @@ properties:
       navigation from batch to work order level, supporting work order-level production planning analysis and 
       production tracking. This relationship is essential for ISA-88 production tracking, where work orders are used to track batches. [ISA-88]
     source:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: WorkOrder
-      version: {{ viewVersion }}
+      version: {{ enterprise_dm_version }}
       type: view
   site:
     container:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: Batch
       type: container
     containerPropertyIdentifier: site
@@ -163,22 +163,22 @@ properties:
       hierarchy, where batches are executed within specific sites, enabling location-based data 
       organization and site-level production tracking. [ISA-88, ISA-95 Level 4]
     source:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: Site
-      version: {{ viewVersion }}
+      version: {{ enterprise_dm_version }}
       type: view
   # Reverse relationships
   procedures:
     source:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: Procedure
-      version: {{ viewVersion }}
+      version: {{ enterprise_dm_version }}
       type: view
     through:
       source:
-        space: {{ isaSchemaSpace }}
+        space: {{ enterprise_space }}
         externalId: Procedure
-        version: {{ viewVersion }}
+        version: {{ enterprise_dm_version }}
         type: view
       identifier: batch
     name: procedures
@@ -191,15 +191,15 @@ properties:
     connectionType: multi_reverse_direct_relation
   quality_results:
     source:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: QualityResult
-      version: {{ viewVersion }}
+      version: {{ enterprise_dm_version }}
       type: view
     through:
       source:
-        space: {{ isaSchemaSpace }}
+        space: {{ enterprise_space }}
         externalId: QualityResult
-        version: {{ viewVersion }}
+        version: {{ enterprise_dm_version }}
         type: view
       identifier: batch
     name: Quality Results
@@ -212,15 +212,15 @@ properties:
     connectionType: multi_reverse_direct_relation
   phases:
     source:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: Phase
-      version: {{ viewVersion }}
+      version: {{ enterprise_dm_version }}
       type: view
     through:
       source:
-        space: {{ isaSchemaSpace }}
+        space: {{ enterprise_space }}
         externalId: Phase
-        version: {{ viewVersion }}
+        version: {{ enterprise_dm_version }}
         type: view
       identifier: batch
     name: Phases
@@ -233,15 +233,15 @@ properties:
     connectionType: multi_reverse_direct_relation
   operations:
     source:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: Operation
-      version: {{ viewVersion }}
+      version: {{ enterprise_dm_version }}
       type: view
     through:
       source:
-        space: {{ isaSchemaSpace }}
+        space: {{ enterprise_space }}
         externalId: Operation
-        version: {{ viewVersion }}
+        version: {{ enterprise_dm_version }}
         type: view
       identifier: batch
     name: Operations
@@ -254,15 +254,15 @@ properties:
     connectionType: multi_reverse_direct_relation
   materials:
     source:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: Material
-      version: {{ viewVersion }}
+      version: {{ enterprise_dm_version }}
       type: view
     through:
       source:
-        space: {{ isaSchemaSpace }}
+        space: {{ enterprise_space }}
         externalId: Material
-        version: {{ viewVersion }}
+        version: {{ enterprise_dm_version }}
         type: view
       identifier: batch
     name: Materials
@@ -275,15 +275,15 @@ properties:
     connectionType: multi_reverse_direct_relation
   procedure:
     source:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: Procedure
-      version: {{ viewVersion }}
+      version: {{ enterprise_dm_version }}
       type: view
     through:
       source:
-        space: {{ isaSchemaSpace }}
+        space: {{ enterprise_space }}
         externalId: Procedure
-        version: {{ viewVersion }}
+        version: {{ enterprise_dm_version }}
         type: view
       identifier: batch
     name: Procedures

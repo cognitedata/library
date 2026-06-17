@@ -1,4 +1,4 @@
-space: {{ isaSchemaSpace }}
+space: {{ enterprise_space }}
 externalId: EquipmentModule
 name: EquipmentModule
 description: A functional group of equipment that can carry out a finite number of specific minor
@@ -6,40 +6,40 @@ description: A functional group of equipment that can carry out a finite number 
   equipment (a weigh tank, a process heater, a scrubber, etc.). This term applies to both the
   physical equipment and the equipment entity. Examples of minor process activities are dosing
   and weighing.
-version: {{ viewVersion }}
+version: {{ enterprise_dm_version }}
 properties:
-  equipment_module_id:
+  equipmentModuleId:
     container:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: EquipmentModule
       type: container
-    containerPropertyIdentifier: equipment_module_id
+    containerPropertyIdentifier: equipmentModuleId
     name: Equipment module id
     description: >
       Unique identifier for the equipment module entity, conforming to ISA-88 Equipment Model 
       standards. An equipment module represents a functional group of equipment that can perform 
-      specific processing activities. The equipment_module_id serves as the primary key and enables 
+      specific processing activities. The equipmentModuleId serves as the primary key and enables 
       traceability of equipment modules throughout the manufacturing lifecycle. This identifier 
       should align with ISA-88 equipment classification standards and support integration with 
       control systems and engineering databases. Equipment modules bridge physical equipment 
       and procedural control in ISA-88 batch control systems. [ISA-88]
-  equipment_module_name:
+  equipmentModuleName:
     container:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: EquipmentModule
       type: container
-    containerPropertyIdentifier: equipment_module_name
+    containerPropertyIdentifier: equipmentModuleName
     name: Equipment module name
     description: >
       Human-readable name for the equipment module, typically describing its functional purpose 
       or processing capability (e.g., "Reactor Module", "Distillation Module", "Filtration Module"). 
-      The equipment_module_name follows ISA-88 naming conventions for equipment modules and should 
+      The equipmentModuleName follows ISA-88 naming conventions for equipment modules and should 
       be descriptive enough for process engineers and operators to understand the module's function. 
       This name is often used in control system displays, batch recipes, and operational documentation. 
       [ISA-88]
   module_class:
     container:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: EquipmentModule
       type: container
     containerPropertyIdentifier: module_class
@@ -53,7 +53,7 @@ properties:
       This classification should follow standardized module class taxonomies for consistency. [ISA-88]
   unit:
     container:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: EquipmentModule
       type: container
     containerPropertyIdentifier: unit
@@ -66,13 +66,13 @@ properties:
       and process cell organization. This relationship is essential for understanding equipment module 
       utilization within unit operations and batch execution. [ISA-88]
     source:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: Unit
-      version: {{ viewVersion }}
+      version: {{ enterprise_dm_version }}
       type: view
   equipment:
     container:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: EquipmentModule
       type: container
     containerPropertyIdentifier: equipment
@@ -83,13 +83,13 @@ properties:
       pieces of equipment that work together to perform specific processing activities. The equipment 
       relationship enables navigation from equipment module to individual equipment level,
     source:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: Equipment
-      version: {{ viewVersion }}
+      version: {{ enterprise_dm_version }}
       type: view
   capacity:
     container:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: EquipmentModule
       type: container
     containerPropertyIdentifier: capacity
@@ -100,7 +100,7 @@ properties:
       manufacturing operations, and should be consistent with ISA-88 equipment module specifications. [ISA-88]
   capacity_unit:
     container:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: EquipmentModule
       type: container
     containerPropertyIdentifier: capacity_unit
@@ -112,17 +112,17 @@ properties:
       and resource allocation. [ISA-88]
   control_module:
     source:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: ControlModule
-      version: {{ viewVersion }}
+      version: {{ enterprise_dm_version }}
       type: view
     through:
       source:
-        space: {{ isaSchemaSpace }}
+        space: {{ enterprise_space }}
         externalId: ControlModule
-        version: {{ viewVersion }}
+        version: {{ enterprise_dm_version }}
         type: view
-      identifier: equipment_module
+      identifier: equipmentModule
     name: Control Modules
     description: >
       Reverse relationship collection of all ControlModule entities that are part of this equipment 
@@ -134,17 +134,17 @@ properties:
     connectionType: multi_reverse_direct_relation
   phases:
     source:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: Phase
-      version: {{ viewVersion }}
+      version: {{ enterprise_dm_version }}
       type: view
     through:
       source:
-        space: {{ isaSchemaSpace }}
+        space: {{ enterprise_space }}
         externalId: Phase
-        version: {{ viewVersion }}
+        version: {{ enterprise_dm_version }}
         type: view
-      identifier: equipment_module
+      identifier: equipmentModule
     name: Phases
     description: >
       Reverse relationship collection of all Phase entities that utilize this equipment module. 
