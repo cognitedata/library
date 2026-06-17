@@ -1,4 +1,4 @@
-space: {{ isaSchemaSpace }}
+space: {{ enterprise_space }}
 externalId: QualityResult
 name: QualityResult
 description: Quality test results and analytical data for materials and batches
@@ -7,51 +7,51 @@ implements:
   externalId: CogniteDescribable
   version: v1
   type: view
-version: {{ viewVersion }}
+version: {{ enterprise_dm_version }}
 properties:
-  quality_result_id:
+  qualityResultId:
     container:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: QualityResult
       type: container
-    containerPropertyIdentifier: quality_result_id
+    containerPropertyIdentifier: qualityResultId
     name: Quality Result ID
     description: >
       Unique identifier for the quality result entity, conforming to ISA-95 Level 3 quality 
       management standards. A quality result represents quality test results and analytical data 
-      for materials and batches. The quality_result_id serves as the primary key and enables 
+      for materials and batches. The qualityResultId serves as the primary key and enables 
       consistent tracking across all quality operations, from test initiation through result 
       recording to quality release decisions. This identifier is critical for quality control, 
       regulatory compliance, and quality assurance processes. [ISA-95 Level 3]
-  test_name:
+  testName:
     container:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: QualityResult
       type: container
-    containerPropertyIdentifier: test_name
+    containerPropertyIdentifier: testName
     name: Test Name
     description: >
       Human-readable name for the quality test, typically describing the test type or measurement 
-      (e.g., "pH Test", "Viscosity Test", "Purity Test", "Microbial Count"). The test_name follows 
+      (e.g., "pH Test", "Viscosity Test", "Purity Test", "Microbial Count"). The testName follows 
       ISA-95 quality test naming conventions and should be descriptive enough for quality personnel 
       to identify the test's purpose. This name is often used in quality control systems, test 
       records, and regulatory documentation. [ISA-95 Level 3]
-  test_method:
+  testMethod:
     container:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: QualityResult
       type: container
-    containerPropertyIdentifier: test_method
+    containerPropertyIdentifier: testMethod
     name: Test Method
     description: >
       Reference to the standard test method or procedure used to perform the quality test, enabling 
-      test method traceability and compliance verification. The test_method may reference 
+      test method traceability and compliance verification. The testMethod may reference 
       standardized test methods (e.g., ASTM, ISO, USP) or internal test procedures. This field 
       is critical for regulatory compliance, test reproducibility, and quality assurance. The 
-      test_method should align with quality management system documentation. [ISA-95 Level 3]
+      testMethod should align with quality management system documentation. [ISA-95 Level 3]
   batch:
     container:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: QualityResult
       type: container
     containerPropertyIdentifier: batch
@@ -63,108 +63,108 @@ properties:
       batch release decisions. This relationship is essential for batch quality tracking and 
       regulatory compliance in batch manufacturing. [ISA-88, ISA-95 Level 3]
     source:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: Batch
-      version: {{ viewVersion }}
+      version: {{ enterprise_dm_version }}
       type: view
-  material_lot:
+  materialLot:
     container:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: QualityResult
       type: container
-    containerPropertyIdentifier: material_lot
+    containerPropertyIdentifier: materialLot
     name: Material Lot
     description: >
       Reference to the MaterialLot entity that this quality result is associated with, establishing 
-      the relationship between quality results and material lots. The material_lot relationship 
+      the relationship between quality results and material lots. The materialLot relationship 
       enables navigation from quality result to material lot level, supporting lot-level quality 
       analysis and material release decisions. This relationship is essential for material quality 
       tracking and regulatory compliance. [ISA-95 Level 3]
     source:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: MaterialLot
-      version: {{ viewVersion }}
+      version: {{ enterprise_dm_version }}
       type: view
-  result_value:
+  resultValue:
     container:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: QualityResult
       type: container
-    containerPropertyIdentifier: result_value
+    containerPropertyIdentifier: resultValue
     name: Result Value
     description: >
       Numeric value of the quality test result, expressed in the unit of measure specified by 
-      unit_of_measure. The result_value represents the actual measured or calculated test result. 
+      unitOfMeasure. The resultValue represents the actual measured or calculated test result. 
       This value is critical for quality assessment, specification compliance analysis, and 
-      quality control. The result_value should be interpreted in conjunction with specification_min 
-      and specification_max to determine compliance with quality specifications. [ISA-95 Level 3]
-  result_text:
+      quality control. The resultValue should be interpreted in conjunction with specificationMin 
+      and specificationMax to determine compliance with quality specifications. [ISA-95 Level 3]
+  resultText:
     container:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: QualityResult
       type: container
-    containerPropertyIdentifier: result_text
+    containerPropertyIdentifier: resultText
     name: Result Text
     description: >
       Textual value of the quality test result, used for non-numeric test results or discrete 
       outcomes (e.g., "Pass", "Fail", "Acceptable", "Unacceptable", "Within Specification"). 
-      The result_text provides a human-readable representation of the test outcome when numeric 
+      The resultText provides a human-readable representation of the test outcome when numeric 
       values are not applicable or when additional descriptive information is required. This field 
       is essential for qualitative test results and pass/fail determinations. [ISA-95 Level 3]
-  unit_of_measure:
+  unitOfMeasure:
     container:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: QualityResult
       type: container
-    containerPropertyIdentifier: unit_of_measure
+    containerPropertyIdentifier: unitOfMeasure
     name: Unit of Measure
     description: >
-      The unit of measure for the result_value, conforming to standard unit of measure conventions 
-      (e.g., "pH", "cP", "%", "CFU/mL"). The unit_of_measure provides the dimensional context for 
-      the result_value numeric value, enabling proper result interpretation and specification 
+      The unit of measure for the resultValue, conforming to standard unit of measure conventions 
+      (e.g., "pH", "cP", "%", "CFU/mL"). The unitOfMeasure provides the dimensional context for 
+      the resultValue numeric value, enabling proper result interpretation and specification 
       comparisons. This field should follow standardized unit naming conventions (e.g., ISO 80000, 
       SI units) to ensure consistency and interoperability. [ISA-95 Level 3]
-  specification_min:
+  specificationMin:
     container:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: QualityResult
       type: container
-    containerPropertyIdentifier: specification_min
+    containerPropertyIdentifier: specificationMin
     name: Specification Min
     description: >
       The minimum acceptable value for the quality test result, expressed as a numeric value in 
-      the specified unit_of_measure. The specification_min represents the lower bound of the 
+      the specified unitOfMeasure. The specificationMin represents the lower bound of the 
       acceptable quality specification range. This value is critical for quality assessment and 
-      specification compliance analysis. Results below specification_min indicate 
+      specification compliance analysis. Results below specificationMin indicate 
       out-of-specification conditions and may trigger quality holds or rejection. [ISA-95 Level 3]
-  specification_max:
+  specificationMax:
     container:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: QualityResult
       type: container
-    containerPropertyIdentifier: specification_max
+    containerPropertyIdentifier: specificationMax
     name: Specification Max
     description: >
       The maximum acceptable value for the quality test result, expressed as a numeric value in 
-      the specified unit_of_measure. The specification_max represents the upper bound of the 
+      the specified unitOfMeasure. The specificationMax represents the upper bound of the 
       acceptable quality specification range. This value is critical for quality assessment and 
-      specification compliance analysis. Results above specification_max indicate 
+      specification compliance analysis. Results above specificationMax indicate 
       out-of-specification conditions and may trigger quality holds or rejection. [ISA-95 Level 3]
-  test_date:
+  testDate:
     container:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: QualityResult
       type: container
-    containerPropertyIdentifier: test_date
+    containerPropertyIdentifier: testDate
     name: Test Date
     description: >
       Date when the quality test was performed, enabling temporal analysis of quality data and 
-      test result traceability. The test_date is critical for quality record keeping, regulatory 
+      test result traceability. The testDate is critical for quality record keeping, regulatory 
       compliance, and quality trend analysis. This date enables correlation with production dates 
       and supports temporal queries for quality data analysis. [ISA-95 Level 3]
   analyst:
     container:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: QualityResult
       type: container
     containerPropertyIdentifier: analyst
@@ -176,13 +176,13 @@ properties:
       quality assurance. This relationship is essential for quality record keeping and regulatory 
       compliance. [ISA-95 Level 3]
     source:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: Personnel
-      version: {{ viewVersion }}
+      version: {{ enterprise_dm_version }}
       type: view
   status:
     container:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: QualityResult
       type: container
     containerPropertyIdentifier: status

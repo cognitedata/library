@@ -1,0 +1,72 @@
+space: {{ enterprise_space }}
+externalId: Site
+name: Site
+description: A component of a batch manufacturing enterprise that is identified by physical,
+  geographical, or logical segmentation within the enterprise. A site may contain areas, process
+  cells, units, equipment modules, and control modules.
+properties:
+  siteId:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: false
+    autoIncrement: false
+    name: siteId
+  siteName:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: false
+    autoIncrement: false
+    name: siteName
+  location:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: location
+  country:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: country
+  enterprise:
+    type:
+      list: false
+      type: direct
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: enterprise
+indexes:
+  siteIdIndex:
+    properties:
+    - siteId
+    cursorable: true
+    indexType: btree
+  siteNameIndex:
+    properties:
+    - siteName
+    cursorable: true
+    indexType: btree
+  countryIndex:
+    properties:
+    - country
+    cursorable: true
+    indexType: btree
+  enterpriseIndex:
+    properties:
+    - enterprise
+    cursorable: true
+    indexType: btree

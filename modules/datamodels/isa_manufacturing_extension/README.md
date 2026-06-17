@@ -1,8 +1,10 @@
-# ISA Manufacturing Extension
+# ISA Manufacturing Extension (Enterprise)
 
 ## Overview
 
-This module provides an **ISA-95/ISA-88** based manufacturing domain model for Cognite Data Fusion (CDF). It defines spaces, containers, views, and a composed data model, along with optional RAW seed data, SQL transformations, and a workflow to orchestrate data loading. The model is not 100% complete for any customers, but contains place holders and structures where project can add properties add & remove views as required by customer.
+This module provides an **enterprise** ISA-95/ISA-88 based manufacturing domain model for Cognite Data Fusion (CDF). It defines spaces, containers, views, and a composed data model, along with optional RAW seed data, SQL transformations, and a workflow to orchestrate data loading. The model is not 100% complete for any customers, but contains place holders and structures where project can add properties add & remove views as required by customer.
+
+> **Companion search solution module:** [`isa_manufacturing_extension_search`](../isa_manufacturing_extension_search/README.md) provides a search-optimized solution model that **maps to** the enterprise containers defined here without `implements:`-ing the enterprise views. The two modules version independently and live in separate spaces (`dm_dom_isa_manufacturing` vs. `dm_sol_isa_manufacturing_search`), so views can share externalIds (e.g. `ISAAsset`, `Equipment`, `WorkOrder`) without collision. See `.cursor/skills/cognite-data-modeling/references/cdf-enterprise-vs-solution.md` for the layering rationale.
 
 This module follows Cognite's best practices for data modeling, focusing on practical, operational design rather than academic theory. It is optimized for industrial scale, high performance, and flexibility.
 
@@ -61,54 +63,81 @@ The data model integrates both standards to provide a comprehensive manufacturin
 - **Quality and process data**: QualityResult, ProcessParameter with time series integration
 - **Cross-hierarchy relationships**: Seamless navigation between ISA-95 organizational structure, ISA-95 production management, and ISA-88 procedural execution
 
+## Architecture
+
+Use the Data Model Architecture Diagram above as orientation:
+
+- `ISAAsset` is the central asset node and the single `CogniteAsset` implementer in the enterprise model.
+- ISA-95 organizational, ISA-88 procedural, and production-management views connect through direct relations across the hierarchy.
+- The enterprise `ISAAsset` view holds canonical CDM asset semantics and the `children` reverse relation (mirroring `CogniteAsset.parent`). All solution-shaped reverse relations (`activities`, `timeSeries`, `files`, `equipment`, …) live in the **search solution module** on its `ISAAsset` view, not here. This keeps the enterprise model decoupled from solution navigation patterns.
+
+### Why the model is split into enterprise + search
+
+The model is delivered as **two modules** that version independently:
+
+| Module | Space | Role |
+|--------|-------|------|
+| `isa_manufacturing_extension` (this one) | `dm_dom_isa_manufacturing` | Owns containers, indexes, and the canonical CDM-implementing views. Treated as the durable contract. |
+| `isa_manufacturing_extension_search` | `dm_sol_isa_manufacturing_search` | Maps to the enterprise containers via `container:` + `containerPropertyIdentifier:`. Hosts solution-shaped reverse relations. Free to bump versions independently. |
+
+Reasons for the split (per `cdf-enterprise-vs-solution.md`):
+
+1. **Containers are the durable contract.** Solution views map to enterprise *containers* rather than `implements:`-ing enterprise *views*, so the search model can re-shape and re-version without forcing enterprise consumers to migrate.
+2. **Reverse relations live with their forward.** Forward direct relations on solution-shaped views (`WorkOrder.assets`, `WorkOrder.equipment`, `ISATimeSeries.assets`, …) belong to the search model, so the matching reverses (`ISAAsset.activities`, `Equipment.activities`, `ISAAsset.timeSeries`, …) live on the search-side views — not piled onto this enterprise model.
+3. **Single `CogniteAsset` per data model.** Each data model that needs asset semantics defines its own single `CogniteAsset` implementer. This module's `ISAAsset` is the enterprise one; the search module exposes asset-hierarchy properties (`parent`, `root`, `path`, `children`) on its own `ISAAsset` view, self-referencing within the search space, without `implements: CogniteAsset` on the search side.
+4. **Same externalIds in different spaces are intentional.** Both modules expose views named `ISAAsset`, `Equipment`, `WorkOrder`, etc. They live in different spaces, so there is no collision; this gives consumers consistent names whether they read the enterprise or search model.
+5. **Independent lifecycles.** `enterprise_dm_version` (enterprise) and `search_dm_version` (search) bump separately so a search-side change never forces an enterprise version bump, and vice versa.
+
 ## Module structure
 
 ```
 isa_manufacturing_extension/
-├── data_models/
-│   ├── containers/                 # Container definitions for all ISA entities
-│   │   ├── sp_isa_manufacturing_Area.Container.yaml
-│   │   ├── sp_isa_manufacturing_Batch.Container.yaml
+├── default.config.yaml              # enterprise_space, instance_space, enterprise_dm_version, …
+├── module.toml
+├── data_modeling/
+│   ├── containers/                  # 24 enterprise container definitions
+│   │   ├── dm_dom_isa_manufacturing_Area.Container.yaml
+│   │   ├── dm_dom_isa_manufacturing_Batch.Container.yaml
 │   │   ├── ...
-│   │   └── sp_isa_manufacturing_WorkOrder.Container.yaml
-│   ├── views/                      # View definitions mapping containers + relations
+│   │   └── dm_dom_isa_manufacturing_WorkOrder.Container.yaml
+│   ├── views/                       # 26 enterprise view definitions
 │   │   ├── Area.view.yaml
 │   │   ├── Batch.view.yaml
+│   │   ├── ISAFile.view.yaml
+│   │   ├── ISATimeSeries.view.yaml
 │   │   ├── ...
 │   │   └── WorkOrder.view.yaml
-│   ├── ISA_Manufacturing_EDM.DataModel.yaml  # Aggregated data model referencing views
-│   ├── ISA_Manufacturing_SLM.DataModel.yaml  # Aggregated data model referencing views
-│   ├── sp_isa_manufacturing.Space.yaml   # Schema space (views/containers)
-│   └── sp_isa_instance.Space.yaml        # Instance space (optional)
+│   ├── dm_dom_isa_manufacturing.DataModel.yaml   # Enterprise (DOM) data model
+│   ├── dm_dom_isa_manufacturing.Space.yaml       # Schema space ({{ enterprise_space }})
+│   └── inst_isa_manufacturing.Space.yaml         # Instance space ({{ instance_space }})
 ├── data_sets/
-│   └── isa_manufacturing.DataSet.yaml    # Dataset used by this module
+│   └── isa_manufacturing.DataSet.yaml
 ├── locations/
-│   ├── isaManufacturingEDM.LocationFilter.yaml  # EDM Location filter(s) for access control
-│   └── isaManufacturingSLM.LocationFilter.yaml  # SLM Location filter(s) for access control
-├── raw/
-│   ├── isa_asset.Table.yaml             # RAW table definition(s)
-│   ├── isa_asset.Table.csv              # Optional seed data
+│   └── loc_isa_manufacturing_edm.LocationFilter.yaml
+├── raw/                             # RAW table definitions + optional seed CSVs
+├── transformations/                 # tr_isa_* transformations (RAW → instance space)
+│   ├── tr_isa_asset_all_to_area.Transformation.{sql,yaml}
+│   ├── tr_isa_asset_all_to_enterprise.Transformation.{sql,yaml}
 │   ├── ...
-│   └── isa_work_order.Table.csv          # WorkOrder seed data
-├── transformations/
-│   ├── area_tr.Transformation.{sql,yaml}          # Area transformation
-│   ├── enterprise_tr.Transformation.{sql,yaml}    # Enterprise transformation
-│   ├── ...
-│   └── timeseries_tr.Transformation.{sql,yaml}    # ISATimeSeries transformation
-└── workflows/
-    ├── wf_isa_manufacturing.Workflow.yaml
-    └── wf_isa_manufacturing.WorkflowVersion.yaml
+│   └── tr_isa_timeseries_all_to_isa_timeseries.Transformation.{sql,yaml}
+├── workflows/
+│   ├── wf_all_isa_raw_to_isa_manufacturing.Workflow.yaml
+│   └── wf_all_isa_raw_to_isa_manufacturing.WorkflowVersion.yaml
+└── files/                           # Sample PDFs for file-ingestion demos
 ```
 
+The companion search module [`isa_manufacturing_extension_search`](../isa_manufacturing_extension_search/README.md) owns the solution-space views (`Search*`) and its own data model in `dm_sol_isa_manufacturing_search`. Deploy this enterprise module first.
+
 ### What each part does
-- **data_models/containers**: Column-level schemas for each entity (Area, Batch, Equipment, …). Names are prefixed with `sp_isa_manufacturing_` and bound to the `sp_isa_manufacturing` space.
-- **data_models/views**: Logical views over containers with relationships; many views `implement` standard `cdf_cdm` interfaces (e.g., `CogniteActivity`, `CogniteDescribable`).
-- **ISA_Manufacturing_EDM.DataModel.yaml**: The compositional data model that includes all views from this module and referenced `cdf_cdm` interfaces.
-- **Spaces**: `sp_isa_manufacturing.Space.yaml` defines the schema space; `sp_isa_instance.Space.yaml` can hold instances.
+
+- **data_modeling/containers**: Column-level schemas for each entity (Area, Batch, Equipment, …). Filenames are prefixed `dm_dom_isa_manufacturing_`; containers are deployed to `{{ enterprise_space }}`.
+- **data_modeling/views**: Logical views over containers with relationships; many views `implement` standard `cdf_cdm` interfaces (e.g., `CogniteActivity`, `CogniteDescribable`). `ISAFile` and `ISATimeSeries` map to CDM file/time-series containers.
+- **dm_dom_isa_manufacturing.DataModel.yaml**: The enterprise (DOM) data model aggregating all views from this module and referenced `cdf_cdm` interfaces.
+- **Spaces**: `dm_dom_isa_manufacturing.Space.yaml` defines the schema space (`enterprise_space`); `inst_isa_manufacturing.Space.yaml` holds instances (`instance_space`).
 - **data_sets**: CDF dataset used by transformations and for lineage.
-- **raw**: Optional RAW table(s) and seed data to bootstrap asset trees or mappings.
-- **transformations**: SQL transformations to materialize/maintain instances and relations for the views.
-- **workflows**: A CDF Workflow to orchestrate transformations and supporting steps.
+- **raw**: Optional RAW tables and seed data to bootstrap asset trees and entity instances.
+- **transformations**: SQL transformations (`tr_isa_*`) that materialize instances and relations into `{{ instance_space }}`.
+- **workflows**: CDF Workflow orchestrating transformations in dependency order.
 
 ## Key entities (views)
 
@@ -153,10 +182,10 @@ isa_manufacturing_extension/
 ## How to extend
 
 1. Add a new entity
-   - Create a container in `data_models/containers/` (follow naming: `sp_isa_manufacturing_<Entity>.Container.yaml`).
-   - Create a view in `data_models/views/<Entity>.view.yaml` referencing the container and define relations.
+   - Create a container in `data_modeling/containers/` (follow naming: `dm_dom_isa_manufacturing_<Entity>.Container.yaml`).
+   - Create a view in `data_modeling/views/<Entity>.view.yaml` referencing the container and define relations.
    - If applicable, add `implements:` entries with relevant `cdf_cdm` views (e.g., `CogniteDescribable`, `CogniteActivity`).
-   - Include the new view in `ISA_Manufacturing.DataModel.yaml` under `views:`.
+   - Include the new view in `data_modeling/dm_dom_isa_manufacturing.DataModel.yaml` under `views:`.
 
 2. Add relationships
    - Use `source` + `through` in the view to model direct and reverse relations.
@@ -167,11 +196,46 @@ isa_manufacturing_extension/
    - Reference the correct dataset and spaces; reuse existing variables where possible.
 
 4. Extend the workflow
-   - Modify `workflows/wf_isa_manufacturing.Workflow.yaml` to include new transformation tasks, dependencies, and failure handling.
+   - Modify `workflows/wf_all_isa_raw_to_isa_manufacturing.Workflow.yaml` to include new transformation tasks, dependencies, and failure handling.
 
 5. Access control / locations
    - If you need to scope data by location, update or add a `locations/*LocationFilter.yaml` and ensure relevant groups/locations exist in your environment.
-   - There are 2 included location examples on called EDM = Enterprise data Model, including all views and interfaces. The Solution Level Model (SLM), only including ISA-specific views 
+   - This module ships `loc_isa_manufacturing_edm.LocationFilter.yaml` for the enterprise (DOM) data model. The search module ships its own location filter for the solution model.
+
+## Configuration
+
+Variables are defined in `default.config.yaml` and overridden per environment in `config.<env>.yaml` at the project root.
+
+```yaml
+# Enterprise schema space (DOM tier) — views and containers
+enterprise_space: dm_dom_isa_manufacturing
+
+# Shared instance space — used by transformations and both enterprise/search modules
+instance_space: inst_isa_manufacturing
+
+# Enterprise view/data model version
+enterprise_dm_version: v1
+
+# Enterprise data model external ID
+dataModelExternalId: ISA_Manufacturing_DOM
+
+# Lineage and ingestion
+datasetExternalId: ds_isa_manufacturing
+rawDatabase: isa_all_manufacturing
+workflowVersion: '1'
+```
+
+When deploying alongside the search module, align `enterprise_space`, `enterprise_dm_version`, and `instance_space` in both module configs. The search module adds `search_space`, `search_dm_version`, and `search_data_model_external_id` — see its `default.config.yaml`.
+
+| Variable | Purpose |
+|----------|---------|
+| `enterprise_space` | Schema space for containers and enterprise views |
+| `instance_space` | Instance space for all ISA manufacturing nodes |
+| `enterprise_dm_version` | Version pin for enterprise views and data model |
+| `dataModelExternalId` | External ID of the DOM data model |
+| `datasetExternalId` | Dataset for transformation lineage |
+| `rawDatabase` | RAW database name for source tables |
+| `workflowVersion` | Workflow version tag |
 
 ## Deployment (Cognite Toolkit)
 
@@ -239,21 +303,20 @@ Data models: Data models that extend the core data model
 
 ### Step 5: Verify Folder Structure
 
-After installation, your project should now contain:
+After installation, your project should contain:
 
 ```
 modules/
-    └── datamodels/
-        └── isa_manufacturing_extension/
+└── data_models/
+    ├── isa_manufacturing_extension/          # Enterprise (DOM) — deploy first
+    └── isa_manufacturing_extension_search/   # Search (SOL) — optional companion
 ```
-If you want to add more modules, continue with yes ('y') else no ('N')
 
-And continue with creation, yes ('Y') => this then creates a folder structure in your destination with all the files from your selected modules.
-
+Select both modules if you want the full enterprise + search stack. Continue module selection as prompted, then confirm creation to copy files into your project.
 
 ### Step 6: Deploy to CDF
 
-__NOTE__: Update your __config.dev.yaml__ file with __project__ and changes in spaces or versions 
+Update `config.<env>.yaml` with your CDF `project` and module variables (`enterprise_space`, `instance_space`, `enterprise_dm_version`, and search-module equivalents if selected).
 
 Build deployment structure:
 ```bash
@@ -270,6 +333,8 @@ Deploy module to your CDF project
 cdf deploy
 ```
 
+Deploy this enterprise module **before** the companion search module — the search module depends on the containers defined here.
+
 ---
 
 - Note that the deployment uses a set of CDF capabilities, so you might need to add this to the CDF security group used by Toolkit to deploy
@@ -277,7 +342,7 @@ cdf deploy
 
 
 ### Run the workflow / transformations
-- After deployment, trigger `wf_isa_manufacturing` via the CDF Workflows UI or API to execute the transformations in order.
+- After deployment, trigger `wf_all_isa_raw_to_isa_manufacturing` via the CDF Workflows UI or API to execute the transformations in order.
 - The workflow reads from RAW tables (including optional seed data in CSV format) and populates the ISA-95/ISA-88 data model instances.
 - Alternatively, run individual transformations from the CDF UI if you prefer ad‑hoc execution during development.
 
@@ -289,29 +354,29 @@ cdf deploy
 
 Some of the workflow executes transformations:
 
-1. **Build ISA Asset Tree** (`isa_asset_tr`)
+1. **Build ISA Asset Tree** (`tr_isa_asset_all_to_isa_asset`)
    - Creates the base `ISAAsset` hierarchy from RAW data
    - This is a critical first step that all other transformations depend on
-   - Reads from `ISA_Manufacturing.isa_asset` RAW table
+   - Reads from `{{ rawDatabase }}.isa_asset` RAW table
 
 2. **ISA-95 Organizational Hierarchy Overlays** (executed in parallel after asset tree)
-   - **Enterprise** (`enterprise_tr`): Creates Enterprise entities (ISA-95 Level 0)
-   - **Site** (`site_tr`): Creates Site entities with Enterprise relationships (ISA-95 Level 4)
-   - **Area** (`area_tr`): Creates Area entities with Site relationships (ISA-95 Level 4)
-   - **ProcessCell** (`process_cell_tr`): Creates ProcessCell entities with Area relationships (ISA-95 Level 4)
-   - **Unit** (`unit_tr`): Creates Unit entities with ProcessCell relationships (ISA-95 Level 4)
-   - **EquipmentModule** (`equipment_module_tr`): Creates EquipmentModule entities with Unit relationships (ISA-95 Level 4)
+   - **Enterprise** (`tr_isa_asset_all_to_enterprise`): Creates Enterprise entities (ISA-95 Level 0)
+   - **Site** (`tr_isa_asset_all_to_site`): Creates Site entities with Enterprise relationships (ISA-95 Level 4)
+   - **Area** (`tr_isa_asset_all_to_area`): Creates Area entities with Site relationships (ISA-95 Level 4)
+   - **ProcessCell** (`tr_isa_asset_all_to_process_cell`): Creates ProcessCell entities with Area relationships (ISA-95 Level 4)
+   - **Unit** (`tr_isa_asset_all_to_unit`): Creates Unit entities with ProcessCell relationships (ISA-95 Level 4)
+   - **EquipmentModule** (`tr_isa_asset_all_to_equipment_module`): Creates EquipmentModule entities with Unit relationships (ISA-95 Level 4)
 
 3. **Equipment and Relationships**
-   - **Equipment** (`equipment_tr`): Creates Equipment entities linked to assets and units
-   - **EquipmentModule-Equipment Linking** (`equipment_module_link_equipment_tr`): Establishes relationships between EquipmentModule and Equipment entities
+   - **Equipment** (`tr_isa_equipment_all_to_equipment`): Creates Equipment entities linked to assets and units
+   - **EquipmentModule-Equipment Linking** (`tr_isa_equipment_all_to_equipment_module`): Establishes relationships between EquipmentModule and Equipment entities
 
 4. **Work Orders and Time Series** (executed in parallel after equipment)
-   - **WorkOrder** (`work_order_tr`): Creates WorkOrder entities from RAW data
-   - **ISATimeSeries** (`timeseries_tr`): Creates TimeSeries entities linked to assets and equipment
+   - **WorkOrder** (`tr_isa_work_order_all_to_work_order`): Creates WorkOrder entities from RAW data
+   - **ISATimeSeries** (`tr_isa_timeseries_all_to_isa_timeseries`): Creates TimeSeries entities linked to assets and equipment
 
 5. **Final Relationships**
-   - **WorkOrder-TimeSeries Linking** (`work_order_timeseries_tr`): Links WorkOrders to their associated TimeSeries
+   - **WorkOrder-TimeSeries Linking** (`tr_isa_timeseries_all_to_work_order`): Links WorkOrders to their associated TimeSeries
 
 ### Test Data Loading
 
@@ -340,7 +405,7 @@ These CSV files are automatically uploaded to RAW tables during deployment and c
 
 After deployment, you can trigger the workflow in several ways:
 
-1. **CDF Workflows UI**: Navigate to Workflows in CDF and trigger `wf_isa_manufacturing`
+1. **CDF Workflows UI**: Navigate to Workflows in CDF and trigger `wf_all_isa_raw_to_isa_manufacturing`
 2. **CDF API**: Use the Workflows API to trigger the workflow programmatically
 3. **Cognite Toolkit**: Use `cdf workflows run` command (if supported)
 
@@ -541,6 +606,23 @@ ProductSegment → ProcessParameter → Phase → ISATimeSeries
 ```
 WorkOrder → Equipment → Phase → Batch → Recipe
 ```
+
+## Versioning policy
+
+- `enterprise_dm_version` in `default.config.yaml` is the enterprise model version. Bump only on breaking enterprise view changes.
+- Containers are **unversioned** and additive. Property removal or type/`list`/`usedFor` changes require a documented migration (export → recreate → re-ingest), not a version bump.
+- The search solution model has its own `search_dm_version` and bumps independently.
+
+## Consumers
+
+Maintain this list. Update in the same PR that bumps `enterprise_dm_version`. Until CDF exposes per-consumer version usage, this list is the safety net for breaking changes. See `cdf-enterprise-vs-solution.md` §10.
+
+| Consumer | Pinned version | Owner | Notes |
+|----------|---------------|-------|-------|
+| `isa_manufacturing_extension_search` | v1 | this repo | Maps to enterprise containers; reverse relations live there. |
+| _(add other consumers)_ | — | — | Atlas AI, IndustryCanvas, custom apps, etc. |
+
+When deprecating an enterprise view, mark it in the view `description` with `[DEPRECATED — replaced by …]` and keep it deployed for a minimum 90-day window.
 
 ## Conventions & tips
 - Keep `implements:` minimal and purposeful; include only the `cdf_cdm` interfaces your view actually uses.

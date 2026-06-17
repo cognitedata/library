@@ -1,4 +1,4 @@
-key,material_id,material_name,material_class,description,primary_recipe_externalId,batch_externalId
+key,materialId,materialName,materialClass,description,primaryRecipeExternalId,batchExternalId
 MAT_R12_CHARGE_SLURRY,MAT-R12-CHARGE-SLURRY,R12 Charge Preparation Slurry,Intermediate,Intermediate slurry prepared in R12 charge sequence prior to polymerization,REC_MR_R12_CHARGE_V1,BATCH-R12-2024-001
 MAT_R12_CHARGE_SLURRY_V2,MAT-R12-CHARGE-SLURRY-V2,R12 Charge Preparation Slurry V2,Intermediate,Adjusted solids formulation for R12 charge slurry version 2,REC_MR_R12_CHARGE_V2,BATCH-R12-2024-006
 MAT_R12_CHARGE_SLURRY_V3,MAT-R12-CHARGE-SLURRY-V3,R12 Charge Preparation Slurry V3,Intermediate,High solids trial blend for R12 charge recipe version 3,REC_MR_R12_CHARGE_V3,BATCH-R12-TRIAL-007
@@ -18,4 +18,3 @@ MAT_QC_MICRO_MEDIA,MAT-QC-MICRO-MEDIA,QC Microbiology Media,Consumable,Culture m
 MAT_BLDR_BLEND,MAT-BLDR-BLEND,Blender Homogenized Bulk,Intermediate,Bulk homogenized mixture produced in blender operations,REC_MR_BLDR_BLEND_V3,BATCH-BLDR-016
 MAT_BLDR_DRY,MAT-BLDR-DRY,Dried Blender Granulate,Finished,Dried granulated output from blender dry-down recipe,REC_MR_BLDR_BLEND_V4,BATCH-BLDR-015
 MAT_PACK_LABELS,MAT-PACK-LABELS,Packaging Labels Lot,Packaging,Printed labels and packaging materials for labeling operations,REC_MR_PACK_LABEL_V1,BATCH-PACK-017
-

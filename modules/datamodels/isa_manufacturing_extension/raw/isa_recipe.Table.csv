@@ -1,4 +1,4 @@
-key,recipe_id,recipe_name,recipe_version,recipe_type,created_date,status,description,material_externalId
+key,recipeId,recipeName,recipeVersion,recipeType,createdDate,status,description,materialExternalId
 REC_MR_R12_CHARGE_V1,MR-R12-CHARGE,R12 Charge Preparation Recipe,v1.0,Master,2023-11-15T08:00:00Z,Active,Baseline master recipe for preparing charge slurry in Reactor R12,MAT-R12-CHARGE-SLURRY
 REC_MR_R12_CHARGE_V2,MR-R12-CHARGE,R12 Charge Preparation Recipe,v2.0,Master,2024-02-20T07:45:00Z,Under Review,Revised recipe with updated solids profile for Reactor R12 charge,MAT-R12-CHARGE-SLURRY-V2
 REC_MR_R12_CHARGE_V3,MR-R12-CHARGE,R12 Charge Preparation Recipe,v3.0,Master,2024-04-02T09:10:00Z,Draft,Trial recipe assessing high solids adjustments for R12 charge,MAT-R12-CHARGE-SLURRY-V3
@@ -18,4 +18,3 @@ REC_MR_QC_MICRO_V1,MR-QC-MICRO,QC Microbiology Media Preparation,v1.0,General,20
 REC_MR_BLDR_BLEND_V3,MR-BLDR-BLEND,Blender Homogenization Recipe,v3.0,Master,2023-07-03T11:15:00Z,Deprecated,Legacy blender homogenization sequence retained for comparison,MAT-BLDR-BLEND
 REC_MR_BLDR_BLEND_V4,MR-BLDR-BLEND,Blender Homogenization Recipe,v4.0,Master,2024-03-30T13:10:00Z,Active,Current production recipe generating dried blender granulate,MAT-BLDR-DRY
 REC_MR_PACK_LABEL_V1,MR-PACK-LABEL,Packaging and Labeling Recipe,v1.0,General,2024-02-08T10:45:00Z,Active,Packaging recipe coordinating labeling serialization and release,MAT-PACK-LABELS
-

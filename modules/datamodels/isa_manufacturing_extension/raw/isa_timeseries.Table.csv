@@ -1,4 +1,4 @@
-key,name,description,unit,isStep,isString,asset_externalId,equipment_externalId,work_order_id
+key,name,description,unit,isStep,isString,assetExternalId,equipmentExternalId,workOrderId
 TS_R12_CHARGE_PRESS,R12 Charge Pump Discharge Pressure,Discharge pressure measured on the R12 charge pump discharge header,bar,false,false,EM_R12_CHARGE,EQ_R12_CHARGE_PUMP,WO-R12-001
 TS_R12_CHARGE_FLOW,R12 Charge Loop Flow,Flow through the R12 charge loop coriolis meter,m3/h,false,false,EM_R12_CHARGE,EQ_R12_CHARGE_FLOWMETER,WO-R12-001
 TS_R12_CHARGE_TEMP,R12 Charge Loop Temperature,Product temperature downstream of the charge heat exchanger,degC,false,false,EM_R12_CHARGE,EQ_R12_CHARGE_TEMP_SENSOR,WO-R12-002

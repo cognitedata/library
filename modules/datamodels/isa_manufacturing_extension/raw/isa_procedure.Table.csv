@@ -1,4 +1,4 @@
-key,procedure_id,procedure_name,recipe_externalId,sequence_number,description,batch_externalId
+key,procedureId,procedureName,recipeExternalId,sequenceNumber,description,batchExternalId
 PROC_R12_CHARGE_STAGE1,PROC-R12-CHARGE-STAGE1,R12 Charge Slurry Prep,REC_MR_R12_CHARGE_V1,10,Prepare charge slurry raw materials and blend to baseline specs,BATCH-R12-2024-001
 PROC_R12_CHARGE_STAGE2,PROC-R12-CHARGE-STAGE2,R12 Charge Reactor Feed,REC_MR_R12_CHARGE_V2,20,Feed conditioned slurry into Reactor R12 and establish flow,BATCH-R12-2024-006
 PROC_R12_CHARGE_STAGE3,PROC-R12-CHARGE-STAGE3,R12 Charge Trial Adjustments,REC_MR_R12_CHARGE_V3,30,Execute experimental adjustments during R12 charge trial batch,BATCH-R12-TRIAL-007
@@ -18,4 +18,3 @@ PROC_QC_MICRO_MEDIA,PROC-QC-MICRO-MEDIA,QC Micro Media Prep,REC_MR_QC_MICRO_V1,1
 PROC_BLDR_BLEND_MAIN,PROC-BLDR-BLEND-MAIN,Blender Main Mix,REC_MR_BLDR_BLEND_V4,10,Blend bulk ingredients in main mixer and monitor torque,BATCH-BLDR-015
 PROC_BLDR_BLEND_FINISH,PROC-BLDR-BLEND-FINISH,Blender Final Discharge,REC_MR_BLDR_BLEND_V3,20,Discharge blender sample product and stage for drying,BATCH-BLDR-016
 PROC_PACK_LABEL_MAIN,PROC-PACK-LABEL-MAIN,Packaging Label Application,REC_MR_PACK_LABEL_V1,10,Apply labels and verify serialization on packaged units,BATCH-PACK-017
-

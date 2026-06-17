@@ -1,4 +1,4 @@
-space: {{ isaSchemaSpace }}
+space: {{ enterprise_space }}
 externalId: ISAFile
 name: ISA File
 description: Files linked to ISA assets
@@ -7,7 +7,7 @@ implements:
   externalId: CogniteFile
   version: v1
   type: view
-version: {{ viewVersion }}
+version: {{ enterprise_dm_version }}
 properties:
   assets:
     container:
@@ -25,21 +25,21 @@ properties:
       follow ISA-95 document classification and naming conventions to ensure consistency and 
       interoperability. [ISA-95]
     source:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: ISAAsset
-      version: {{ viewVersion }}
+      version: {{ enterprise_dm_version }}
       type: view
   equipment:
     source:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: Equipment
-      version: {{ viewVersion }}
+      version: {{ enterprise_dm_version }}
       type: view
     through:
       source:
-        space: {{ isaSchemaSpace }}
+        space: {{ enterprise_space }}
         externalId: Equipment
-        version: {{ viewVersion }}
+        version: {{ enterprise_dm_version }}
         type: view
       identifier: files
     name: Equipment
@@ -61,28 +61,28 @@ properties:
       production tracking. This relationship is essential for understanding how product definitions are defined and executed within the unit. [ISA-95 Level 3]
     through:
       source:
-        space: {{ isaSchemaSpace }}
+        space: {{ enterprise_space }}
         externalId: ProductDefinition
-        version: {{ viewVersion }}
+        version: {{ enterprise_dm_version }}
         type: view
       identifier: files
     source:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: ProductDefinition
-      version: {{ viewVersion }}
+      version: {{ enterprise_dm_version }}
       type: view
     connectionType: multi_reverse_direct_relation
   product_requests:
     source:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: ProductRequest
-      version: {{ viewVersion }}
+      version: {{ enterprise_dm_version }}
       type: view
     through:
       source:
-        space: {{ isaSchemaSpace }}
+        space: {{ enterprise_space }}
         externalId: ProductRequest
-        version: {{ viewVersion }}
+        version: {{ enterprise_dm_version }}
         type: view
       identifier: files
     name: Product requests
@@ -93,17 +93,17 @@ properties:
       product request sequencing, and resource allocation. Product requests link batch execution to specific 
       units, enabling unit performance and utilization analysis. [ISA-88]
     connectionType: multi_reverse_direct_relation
-  product_segment:
+  productSegment:
     source:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: ProductSegment
-      version: {{ viewVersion }}
+      version: {{ enterprise_dm_version }}
       type: view
     through:
       source:
-        space: {{ isaSchemaSpace }}
+        space: {{ enterprise_space }}
         externalId: ProductSegment
-        version: {{ viewVersion }}
+        version: {{ enterprise_dm_version }}
         type: view
       identifier: files
     name: Product segment

@@ -1,0 +1,4 @@
+[module]
+title = "ISA 88/95 Manufacturing Search Data Model template"
+id = "dp:models:isa_manufacturing_extension_search"
+package_id = "dp:models"

@@ -1,2 +1,2 @@
-- dbName: ISA_Manufacturing
+- dbName: {{ rawDatabase }}
   tableName: isa_work_order

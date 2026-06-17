@@ -1,0 +1,140 @@
+space: {{ enterprise_space }}
+externalId: WorkOrder
+name: WorkOrder
+description: Specific work instruction for manufacturing execution (ISA-95 Level 3)
+properties:
+  workOrderId:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: false
+    autoIncrement: false
+    name: workOrderId
+  workOrderNumber:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: false
+    autoIncrement: false
+    name: workOrderNumber
+  workType:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: workType
+  workStatus:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: workStatus
+  assignedPersonnel:
+    type:
+      list: true
+      type: direct
+      maxListSize: 100
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: assignedPersonnel
+  equipment:
+    type:
+      list: true
+      type: direct
+      maxListSize: 100
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: equipment
+  plannedStartTime:
+    type:
+      list: false
+      type: timestamp
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: plannedStartTime
+  plannedEndTime:
+    type:
+      list: false
+      type: timestamp
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: plannedEndTime
+  actualStartTime:
+    type:
+      list: false
+      type: timestamp
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: actualStartTime
+  actualEndTime:
+    type:
+      list: false
+      type: timestamp
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: actualEndTime
+indexes:
+  workOrderIdIndex:
+    properties:
+    - workOrderId
+    cursorable: true
+    indexType: btree
+  workOrderNumberIndex:
+    properties:
+    - workOrderNumber
+    cursorable: true
+    indexType: btree
+  workStatusIndex:
+    properties:
+    - workStatus
+    cursorable: true
+    indexType: btree
+  workTypeIndex:
+    properties:
+    - workType
+    cursorable: true
+    indexType: btree
+  plannedStartTimeIndex:
+    properties:
+    - plannedStartTime
+    cursorable: true
+    indexType: btree
+  actualStartTimeIndex:
+    properties:
+    - actualStartTime
+    cursorable: true
+    indexType: btree
+  statusPlannedTimeIndex:
+    properties:
+    - workStatus
+    - plannedStartTime
+    cursorable: true
+    indexType: btree
+  assignedPersonnelIndex:
+    properties:
+    - assignedPersonnel
+    cursorable: false
+    indexType: btree
+constraints:
+  requiresCogniteActivity:
+    constraintType: requires
+    require:
+      space: cdf_cdm
+      externalId: CogniteActivity
+      type: container

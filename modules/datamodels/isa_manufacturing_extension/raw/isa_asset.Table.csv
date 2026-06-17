@@ -1,4 +1,4 @@
-key,name,asset_specific,parent_externalId,erp_id,description
+key,name,assetSpecific,parentExternalId,erpId,description
 ENT_EU,Enterprise EU,Enterprise,,,Enterprise node representing the European manufacturing organization (ISA-95 Enterprise).
 SITE_BAS,Basel Site,Site,ENT_EU,SAP:1000,Basel production site belonging to ENT_EU (ISA-95 Site).
 AREA_BIO,Area Bio MFG,Area,SITE_BAS,S4:200,Biopharmaceutical manufacturing area within SITE_BAS (ISA-95 Area).

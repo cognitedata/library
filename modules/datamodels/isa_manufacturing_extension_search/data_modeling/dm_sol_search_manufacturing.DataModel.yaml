@@ -1,0 +1,114 @@
+space: "{{search_space}}"
+externalId: "{{search_data_model_external_id}}"
+name: "{{search_data_model_name}}"
+description: >
+  Search-optimized solution data model for ISA Manufacturing domain. Maps to enterprise
+  containers in the isa_manufacturing_extension module without inheriting enterprise
+  views, so this model can evolve independently. Reverse direct relations live here
+  rather than on the enterprise model.
+version: "{{search_dm_version}}"
+views:
+- space: "{{search_space}}"
+  externalId: ISAAsset
+  version: "{{search_dm_version}}"
+  type: view
+- space: "{{search_space}}"
+  externalId: Area
+  version: "{{search_dm_version}}"
+  type: view
+- space: "{{search_space}}"
+  externalId: Batch
+  version: "{{search_dm_version}}"
+  type: view
+- space: "{{search_space}}"
+  externalId: ControlModule
+  version: "{{search_dm_version}}"
+  type: view
+- space: "{{search_space}}"
+  externalId: Enterprise
+  version: "{{search_dm_version}}"
+  type: view
+- space: "{{search_space}}"
+  externalId: Equipment
+  version: "{{search_dm_version}}"
+  type: view
+- space: "{{search_space}}"
+  externalId: EquipmentModule
+  version: "{{search_dm_version}}"
+  type: view
+- space: "{{search_space}}"
+  externalId: ProcessParameter
+  version: "{{search_dm_version}}"
+  type: view
+- space: "{{search_space}}"
+  externalId: Operation
+  version: "{{search_dm_version}}"
+  type: view
+- space: "{{search_space}}"
+  externalId: Phase
+  version: "{{search_dm_version}}"
+  type: view
+- space: "{{search_space}}"
+  externalId: Procedure
+  version: "{{search_dm_version}}"
+  type: view
+- space: "{{search_space}}"
+  externalId: ProcessCell
+  version: "{{search_dm_version}}"
+  type: view
+- space: "{{search_space}}"
+  externalId: QualityResult
+  version: "{{search_dm_version}}"
+  type: view
+- space: "{{search_space}}"
+  externalId: Recipe
+  version: "{{search_dm_version}}"
+  type: view
+- space: "{{search_space}}"
+  externalId: Site
+  version: "{{search_dm_version}}"
+  type: view
+- space: "{{search_space}}"
+  externalId: Unit
+  version: "{{search_dm_version}}"
+  type: view
+- space: "{{search_space}}"
+  externalId: UnitProcedure
+  version: "{{search_dm_version}}"
+  type: view
+- space: "{{search_space}}"
+  externalId: WorkOrder
+  version: "{{search_dm_version}}"
+  type: view
+- space: "{{search_space}}"
+  externalId: ProductRequest
+  version: "{{search_dm_version}}"
+  type: view
+- space: "{{search_space}}"
+  externalId: ProductDefinition
+  version: "{{search_dm_version}}"
+  type: view
+- space: "{{search_space}}"
+  externalId: ProductSegment
+  version: "{{search_dm_version}}"
+  type: view
+- space: "{{search_space}}"
+  externalId: Material
+  version: "{{search_dm_version}}"
+  type: view
+- space: "{{search_space}}"
+  externalId: MaterialLot
+  version: "{{search_dm_version}}"
+  type: view
+- space: "{{search_space}}"
+  externalId: Personnel
+  version: "{{search_dm_version}}"
+  type: view
+- space: "{{search_space}}"
+  externalId: ISAFile
+  version: "{{search_dm_version}}"
+  type: view
+- space: "{{search_space}}"
+  externalId: ISATimeSeries
+  version: "{{search_dm_version}}"
+  type: view

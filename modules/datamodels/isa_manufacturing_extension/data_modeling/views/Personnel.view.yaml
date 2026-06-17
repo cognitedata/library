@@ -1,4 +1,4 @@
-space: {{ isaSchemaSpace }}
+space: {{ enterprise_space }}
 externalId: Personnel
 name: Personnel
 description: Person involved in manufacturing operations
@@ -7,25 +7,25 @@ implements:
   externalId: CogniteDescribable
   version: v1
   type: view
-version: {{ viewVersion }}
+version: {{ enterprise_dm_version }}
 properties:
-  personnel_id:
+  personnelId:
     container:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: Personnel
       type: container
-    containerPropertyIdentifier: personnel_id
+    containerPropertyIdentifier: personnelId
     name: Personnel ID
     description: >
       Unique identifier for the personnel entity, conforming to ISA-95 Level 3 personnel management 
       standards. Personnel represent individuals involved in manufacturing operations, including 
-      operators, technicians, supervisors, and maintenance staff. The personnel_id serves as the 
+      operators, technicians, supervisors, and maintenance staff. The personnelId serves as the 
       primary key and enables consistent personnel tracking across all manufacturing operations, 
       from work assignment through execution to performance analysis. This identifier should align 
       with human resources systems and support integration with work management platforms. [ISA-95 Level 3]
   name:
     container:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: Personnel
       type: container
     containerPropertyIdentifier: name
@@ -38,7 +38,7 @@ properties:
       with human resources naming standards to ensure consistency across the enterprise. [ISA-95 Level 3]
   role:
     container:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: Personnel
       type: container
     containerPropertyIdentifier: role
@@ -52,7 +52,7 @@ properties:
       role taxonomies for consistency and interoperability. [ISA-95 Level 3]
   site:
     container:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: Personnel
       type: container
     containerPropertyIdentifier: site
@@ -64,23 +64,23 @@ properties:
       and multi-site personnel analysis. This relationship follows ISA-95 organizational hierarchy 
       principles and supports location-based personnel assignment and reporting. [ISA-95 Level 4]
     source:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: Site
-      version: {{ viewVersion }}
+      version: {{ enterprise_dm_version }}
       type: view
   workOrders:
     source:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: WorkOrder
-      version: {{ viewVersion }}
+      version: {{ enterprise_dm_version }}
       type: view
     through:
       source:
-        space: {{ isaSchemaSpace }}
+        space: {{ enterprise_space }}
         externalId: WorkOrder
-        version: {{ viewVersion }}
+        version: {{ enterprise_dm_version }}
         type: view
-      identifier: assigned_personnel
+      identifier: assignedPersonnel
     name: Work Orders
     description: >
       Reverse relationship collection of all WorkOrder entities assigned to this personnel. Work 
@@ -92,15 +92,15 @@ properties:
     connectionType: multi_reverse_direct_relation
   quality_results:
     source:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: QualityResult
-      version: {{ viewVersion }}
+      version: {{ enterprise_dm_version }}
       type: view
     through:
       source:
-        space: {{ isaSchemaSpace }}
+        space: {{ enterprise_space }}
         externalId: QualityResult
-        version: {{ viewVersion }}
+        version: {{ enterprise_dm_version }}
         type: view
       identifier: analyst
     name: Quality Results

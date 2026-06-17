@@ -1,0 +1,10 @@
+externalId: loc_isa_manufacturing_search
+name: 'ISA Manufacturing Search Solution Model (SOL)'
+description: 'Location filter for the ISA Manufacturing Search solution data model.'
+dataModels:
+  - externalId: '{{ search_data_model_external_id }}'
+    space: {{ search_space }}
+    version: {{ search_dm_version }}
+instanceSpaces:
+  - {{ instance_space }}
+dataModelingType: DATA_MODELING_ONLY

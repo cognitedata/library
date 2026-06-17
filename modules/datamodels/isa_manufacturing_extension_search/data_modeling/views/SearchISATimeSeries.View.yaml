@@ -1,0 +1,140 @@
+space: "{{search_space}}"
+externalId: ISATimeSeries
+name: ISA Time Series
+description: Search-optimized time series view. Maps to CogniteTimeSeries containers
+  without implementing CogniteTimeSeries to keep the search model decoupled from CDM
+  time series semantics.
+implements:
+- space: cdf_cdm
+  externalId: CogniteDescribable
+  version: v1
+  type: view
+version: "{{search_dm_version}}"
+properties:
+  assets:
+    name: Assets
+    description: ISA assets related to this time series.
+    container:
+      space: cdf_cdm
+      externalId: CogniteTimeSeries
+      type: container
+    containerPropertyIdentifier: assets
+    source:
+      space: "{{search_space}}"
+      externalId: ISAAsset
+      version: "{{search_dm_version}}"
+      type: view
+  equipment:
+    name: Equipment
+    description: Equipment related to this time series.
+    container:
+      space: cdf_cdm
+      externalId: CogniteTimeSeries
+      type: container
+    containerPropertyIdentifier: equipment
+    source:
+      space: "{{search_space}}"
+      externalId: Equipment
+      version: "{{search_dm_version}}"
+      type: view
+  name:
+    name: Name
+    description: Name of the time series.
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: name
+  description:
+    name: Description
+    description: Description of the time series.
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: description
+  labels:
+    name: Labels
+    description: Text-based labels for generic use, limited to 1000.
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: tags
+  aliases:
+    name: Aliases
+    description: Alternative names for the node.
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: aliases
+  sourceId:
+    name: Source Id
+    description: Identifier from the source system.
+    container:
+      space: cdf_cdm
+      externalId: CogniteSourceable
+      type: container
+    containerPropertyIdentifier: sourceId
+  source:
+    name: Source
+    description: Direct relation to a source system.
+    container:
+      space: cdf_cdm
+      externalId: CogniteSourceable
+      type: container
+    containerPropertyIdentifier: source
+    source:
+      space: cdf_cdm
+      externalId: CogniteSourceSystem
+      version: v1
+      type: view
+  activities:
+    name: Work orders
+    description: Work orders related to this time series.
+    connectionType: multi_reverse_direct_relation
+    source:
+      space: "{{search_space}}"
+      externalId: WorkOrder
+      version: "{{search_dm_version}}"
+      type: view
+    through:
+      source:
+        space: "{{search_space}}"
+        externalId: WorkOrder
+        version: "{{search_dm_version}}"
+        type: view
+      identifier: timeSeries
+  productSegment:
+    name: Product segments
+    description: Product segments related to this time series.
+    connectionType: multi_reverse_direct_relation
+    source:
+      space: "{{search_space}}"
+      externalId: ProductSegment
+      version: "{{search_dm_version}}"
+      type: view
+    through:
+      source:
+        space: "{{search_space}}"
+        externalId: ProductSegment
+        version: "{{search_dm_version}}"
+        type: view
+      identifier: timeSeries
+  phases:
+    name: Phases
+    description: Phases related to this time series.
+    connectionType: multi_reverse_direct_relation
+    source:
+      space: "{{search_space}}"
+      externalId: Phase
+      version: "{{search_dm_version}}"
+      type: view
+    through:
+      source:
+        space: "{{search_space}}"
+        externalId: Phase
+        version: "{{search_dm_version}}"
+        type: view
+      identifier: timeSeries

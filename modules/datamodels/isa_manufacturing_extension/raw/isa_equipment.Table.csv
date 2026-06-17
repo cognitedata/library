@@ -1,4 +1,4 @@
-key,name,equipment_id,equipment_name,equipment_class,equipment_type,description,asset_externalId,unit_externalId,manufacturer,model,serial_number
+key,name,equipmentId,equipmentName,equipmentClass,equipmentType,description,assetExternalId,unitExternalId,manufacturer,model,serialNumber
 EQ_R12_CHARGE_PUMP,R12 Charge Pump,EQ_R12_CHARGE_PUMP,R12 Charge Pump,Process Equipment,Charge Pump,R12 Charge Pump classified as charge pump supporting UNIT_R12 and EM_R12_CHARGE,EM_R12_CHARGE,UNIT_R12,FlowServe,CP-500,R12-CP-0001
 EQ_R12_CHARGE_FLOWMETER,R12 Charge Flow Meter,EQ_R12_CHARGE_FLOWMETER,R12 Charge Flow Meter,Instrumentation,Coriolis Flow Meter,R12 Charge Flow Meter classified as coriolis flow meter supporting UNIT_R12 and EM_R12_CHARGE,EM_R12_CHARGE,UNIT_R12,Emerson,CMF-100,R12-FM-0002
 EQ_R12_CHARGE_PRESSURE_TX,R12 Charge Pressure Transmitter,EQ_R12_CHARGE_PRESSURE_TX,R12 Charge Pressure Transmitter,Instrumentation,Pressure Transmitter,R12 Charge Pressure Transmitter classified as pressure transmitter supporting UNIT_R12 and EM_R12_CHARGE,EM_R12_CHARGE,UNIT_R12,Rosemount,3051S,R12-PT-0003
