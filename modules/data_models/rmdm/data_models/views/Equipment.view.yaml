@@ -49,19 +49,19 @@ properties:
     description: List of files that this equipment is related to.
     source:
       space: rmdm
-      externalId: File_ext
+      externalId: FileExtension
       version: v1
       type: view
   timeSeries:
     source:
       space: rmdm
-      externalId: Timeseries_ext
+      externalId: TimeSeriesExtension
       version: v1
       type: view
     through:
       source:
         space: rmdm
-        externalId: Timeseries_ext
+        externalId: TimeSeriesExtension
         version: v1
         type: view
       identifier: equipment

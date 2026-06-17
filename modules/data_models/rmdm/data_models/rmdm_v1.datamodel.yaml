@@ -185,7 +185,7 @@ views:
   version: v1
   type: view
 - space: rmdm
-  externalId: File_ext
+  externalId: FileExtension
   version: v1
   type: view
 - space: rmdm
@@ -197,6 +197,6 @@ views:
   version: v1
   type: view
 - space: rmdm
-  externalId: Timeseries_ext
+  externalId: TimeSeriesExtension
   version: v1
   type: view

@@ -1,6 +1,6 @@
 space: rmdm
-externalId: Timeseries_ext
-name: RM Timeseries
+externalId: TimeSeriesExtension
+name: RM Time Series
 properties:
   pointType:
     type:
