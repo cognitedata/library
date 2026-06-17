@@ -106,7 +106,7 @@ properties:
         version: "{{search_dm_version}}"
         type: view
       identifier: timeSeries
-  product_segment:
+  productSegment:
     name: Product segments
     description: Product segments related to this time series.
     connectionType: multi_reverse_direct_relation

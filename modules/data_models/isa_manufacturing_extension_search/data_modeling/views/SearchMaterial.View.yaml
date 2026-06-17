@@ -9,18 +9,18 @@ implements:
   type: view
 version: "{{search_dm_version}}"
 properties:
-  material_id:
+  materialId:
     container:
       space: "{{enterprise_space}}"
       externalId: Material
       type: container
-    containerPropertyIdentifier: material_id
+    containerPropertyIdentifier: materialId
     name: Material ID
     description: >
       Unique identifier for the material master entity, conforming to ISA-95 Level 3 material 
       master data standards. A material represents a master material definition used in 
       manufacturing, including raw materials, intermediate products, finished goods, and consumables. 
-      The material_id serves as the primary key and enables consistent material tracking across 
+      The materialId serves as the primary key and enables consistent material tracking across 
       all manufacturing operations, from procurement through production to distribution. This 
       identifier should align with material master data standards and support integration with 
       ERP systems and material management platforms. [ISA-95 Level 3]
@@ -33,23 +33,23 @@ properties:
     name: Material Name
     description: >
       Human-readable name for the material, typically representing the material's common name, 
-      product name, or trade name. The material_name follows ISA-95 material master naming 
+      product name, or trade name. The materialName follows ISA-95 material master naming 
       conventions and should be descriptive enough for operational personnel to identify the 
       material. This name is often used in production orders, batch records, material specifications, 
-      and operational documentation. The material_name should align with material naming standards 
+      and operational documentation. The materialName should align with material naming standards 
       to ensure consistency across the enterprise. [ISA-95 Level 3]
-  material_class:
+  materialClass:
     container:
       space: "{{enterprise_space}}"
       externalId: Material
       type: container
-    containerPropertyIdentifier: material_class
+    containerPropertyIdentifier: materialClass
     name: Material Class
     description: >
       Classification or categorization of the material according to its type, function, or 
       processing characteristics. Common material classes include raw materials, intermediates, 
       finished products, packaging materials, consumables, and hazardous materials. The 
-      material_class enables filtering and analysis by material type, supports material-specific 
+      materialClass enables filtering and analysis by material type, supports material-specific 
       process rules, and facilitates material handling and storage requirements. This classification 
       should follow standardized material classification schemes (e.g., UNSPSC, eCl@ss) for 
       consistency and interoperability. [ISA-95 Level 3]

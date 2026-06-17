@@ -1,0 +1,14 @@
+externalId: tr_isa_asset_all_to_area
+name: Area
+destination:
+  dataModel:
+    space: {{ enterprise_space }}
+    externalId: {{ dataModelExternalId }}
+    version: {{ enterprise_dm_version }}
+    destinationType: Area
+  instanceSpace: {{ instance_space }}
+  type: instances
+dataSetExternalId: {{ datasetExternalId }}
+ignoreNullFields: true
+isPublic: true
+conflictMode: upsert

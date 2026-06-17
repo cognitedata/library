@@ -6,18 +6,18 @@
 # search model can evolve independently of the enterprise model.
 #
 # Versioning policy: bump `search_dm_version` here independently of the
-# enterprise `viewVersion`. See `cdf-enterprise-vs-solution.md` §9.
+# enterprise `enterprise_dm_version`. See `cdf-enterprise-vs-solution.md` §9.
 
 # Enterprise module references (read-only from this solution's perspective)
-enterprise_space: "sp_isa_manufacturing"       # Space owning the enterprise containers
+enterprise_space: "dm_dom_isa_manufacturing"       # Space owning the enterprise containers
 enterprise_dm_version: v1                      # Enterprise view version (used only for direct-relation source views in CDM/IDM)
 
 # Search solution spaces
-search_space: "sp_isa_manufacturing_search"    # Space for the search solution model and its views
-instance_space: "sp_isa_instance_space"        # Shared instance space (must match enterprise isaInstanceSpace)
+search_space: "dm_sol_isa_manufacturing_search"    # Space for the search solution model and its views
+instance_space: "inst_isa_manufacturing"        # Shared instance space (aligned with enterprise module)
 
 # Search solution data model
 search_dm_version: v1
-search_data_model_external_id: dm_isa_manufacturing_domain_model_search
+search_data_model_external_id: ISA_Manufacturing_Search_SOL
 search_data_model_name: "ISA Manufacturing Domain Model Search"
 

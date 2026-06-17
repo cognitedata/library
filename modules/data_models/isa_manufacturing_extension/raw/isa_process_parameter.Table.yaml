@@ -1,4 +1,4 @@
-- dbName: ISA_Manufacturing
+- dbName: {{ rawDatabase }}
   tableName: isa_process_parameter
 
 

@@ -11,17 +11,17 @@ implements:
   type: view
 version: "{{search_dm_version}}"
 properties:
-  recipe_id:
+  recipeId:
     container:
       space: "{{enterprise_space}}"
       externalId: Recipe
       type: container
-    containerPropertyIdentifier: recipe_id
+    containerPropertyIdentifier: recipeId
     name: Recipe ID
     description: >
       Unique identifier for the recipe entity, conforming to ISA-88 recipe management standards. 
       A recipe represents a master recipe defining the manufacturing process steps and parameters. 
-      The recipe_id serves as the primary key and enables traceability of recipes throughout the 
+      The recipeId serves as the primary key and enables traceability of recipes throughout the 
       recipe lifecycle, from recipe creation through version control to batch execution. This 
       identifier is critical for recipe management, version control, and batch execution tracking. 
       [ISA-88]
@@ -34,47 +34,47 @@ properties:
     name: Recipe Name
     description: >
       Human-readable name for the recipe, typically describing the product or process (e.g., 
-      "Product A Production Recipe", "Cleaning Recipe", "Quality Check Recipe"). The recipe_name 
+      "Product A Production Recipe", "Cleaning Recipe", "Quality Check Recipe"). The recipeName 
       follows ISA-88 naming conventions for recipes and should be descriptive enough for process 
       engineers and operators to identify the recipe's purpose. This name is often used in control 
       system displays, batch records, and operational documentation. [ISA-88]
-  recipe_version:
+  recipeVersion:
     container:
       space: "{{enterprise_space}}"
       externalId: Recipe
       type: container
-    containerPropertyIdentifier: recipe_version
+    containerPropertyIdentifier: recipeVersion
     name: Recipe Version
     description: >
       Version identifier for the recipe, enabling recipe version control and change management. 
-      The recipe_version follows ISA-88 recipe versioning conventions and may include version 
+      The recipeVersion follows ISA-88 recipe versioning conventions and may include version 
       numbers, revision dates, or other version identifiers. This field is critical for recipe 
       version tracking, change management, and batch execution traceability. Recipe versions enable 
       tracking of recipe changes over time and support rollback to previous versions if needed. 
       [ISA-88]
-  recipe_type:
+  recipeType:
     container:
       space: "{{enterprise_space}}"
       externalId: Recipe
       type: container
-    containerPropertyIdentifier: recipe_type
+    containerPropertyIdentifier: recipeType
     name: Recipe Type
     description: >
       Classification of the recipe according to its type or purpose, following ISA-88 recipe 
       classifications. Common recipe types include master recipes, control recipes, general recipes, 
-      and site recipes. The recipe_type enables filtering and analysis by recipe function, supports 
+      and site recipes. The recipeType enables filtering and analysis by recipe function, supports 
       recipe design patterns, and facilitates recipe management. This classification should follow 
       standardized recipe type taxonomies for consistency. [ISA-88]
-  created_date:
+  createdDate:
     container:
       space: "{{enterprise_space}}"
       externalId: Recipe
       type: container
-    containerPropertyIdentifier: created_date
+    containerPropertyIdentifier: createdDate
     name: Created Date
     description: >
       Date when the recipe was created or first defined, enabling temporal analysis of recipe 
-      development and recipe lifecycle tracking. The created_date is critical for recipe version 
+      development and recipe lifecycle tracking. The createdDate is critical for recipe version 
       control, change management, and recipe history tracking. This date enables correlation with 
       recipe modifications and supports temporal queries for recipe data analysis. [ISA-88]
   status:

@@ -64,17 +64,17 @@ properties:
       externalId: ISATimeSeries
       version: "{{search_dm_version}}"
       type: view
-  operation_id:
+  operationId:
     container:
       space: "{{enterprise_space}}"
       externalId: Operation
       type: container
-    containerPropertyIdentifier: operation_id
+    containerPropertyIdentifier: operationId
     name: Operation ID
     description: >
       Unique identifier for the operation entity, conforming to ISA-88 procedural element 
       standards. An operation represents a procedural element that groups phases for a specific 
-      processing task. The operation_id serves as the primary key and enables traceability of 
+      processing task. The operationId serves as the primary key and enables traceability of 
       operations throughout the batch execution lifecycle. This identifier is critical for 
       operational-level batch tracking, recipe execution, and process analysis. [ISA-88]
   name:
@@ -86,20 +86,20 @@ properties:
     name: Operation Name
     description: >
       Human-readable name for the operation, typically describing the processing task or function 
-      (e.g., "Heating Operation", "Reaction Operation", "Separation Operation"). The operation_name 
+      (e.g., "Heating Operation", "Reaction Operation", "Separation Operation"). The operationName 
       follows ISA-88 naming conventions for operations and should be descriptive enough for process 
       engineers and operators to understand the operation's purpose. This name is often used in 
       control system displays, batch records, and operational documentation. [ISA-88]
-  unit_procedure:
+  unitProcedure:
     container:
       space: "{{enterprise_space}}"
       externalId: Operation
       type: container
-    containerPropertyIdentifier: unit_procedure
+    containerPropertyIdentifier: unitProcedure
     name: Unit Procedure
     description: >
       Reference to the UnitProcedure entity that contains this operation, establishing the ISA-88 
-      hierarchical relationship where unit procedures contain operations. The unit_procedure 
+      hierarchical relationship where unit procedures contain operations. The unitProcedure 
       relationship enables navigation from operation to unit procedure level, supporting unit-level 
       operational analysis and resource allocation. This relationship is essential for understanding 
       how operations contribute to unit procedure execution and batch execution within specific units. 
@@ -127,16 +127,16 @@ properties:
       externalId: Batch
       version: "{{search_dm_version}}"
       type: view
-  sequence_number:
+  sequenceNumber:
     container:
       space: "{{enterprise_space}}"
       externalId: Operation
       type: container
-    containerPropertyIdentifier: sequence_number
+    containerPropertyIdentifier: sequenceNumber
     name: Sequence Number
     description: >
       Numeric value indicating the order or sequence in which this operation should be executed 
-      within the unit procedure, following ISA-88 operation sequencing standards. The sequence_number 
+      within the unit procedure, following ISA-88 operation sequencing standards. The sequenceNumber 
       enables proper operation ordering and supports sequential execution logic in batch recipes. 
       This value is critical for recipe execution, operation scheduling, and process flow control. 
       Lower sequence numbers indicate earlier execution order. [ISA-88]

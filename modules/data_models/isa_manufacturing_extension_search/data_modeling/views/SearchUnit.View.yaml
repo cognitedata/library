@@ -8,29 +8,29 @@ description: A collection of associated control modules and/or equipment modules
   activities are react, crystallize, and make a solution.
 version: "{{search_dm_version}}"
 properties:
-  unit_id:
+  unitId:
     container:
       space: "{{enterprise_space}}"
       externalId: Unit
       type: container
-    containerPropertyIdentifier: unit_id
+    containerPropertyIdentifier: unitId
     name: Unit id
     description: >
       Unique identifier for the unit entity, conforming to ISA-88 Equipment Model standards. 
       A unit represents a basic equipment entity that can carry out one or more processing activities. 
-      The unit_id serves as the primary key and enables traceability of units throughout the 
+      The unitId serves as the primary key and enables traceability of units throughout the 
       manufacturing lifecycle. This identifier should align with ISA-88 equipment classification 
       standards and support integration with control systems and engineering databases. [ISA-88]
-  unit_name:
+  unitName:
     container:
       space: "{{enterprise_space}}"
       externalId: Unit
       type: container
-    containerPropertyIdentifier: unit_name
+    containerPropertyIdentifier: unitName
     name: Unit name
     description: >
       Human-readable name for the unit, typically describing its processing capability or function 
-      (e.g., "Reactor Unit 1", "Distillation Column A", "Mixing Unit"). The unit_name follows 
+      (e.g., "Reactor Unit 1", "Distillation Column A", "Mixing Unit"). The unitName follows 
       ISA-88 naming conventions for units and should be descriptive enough for process engineers 
       and operators to understand the unit's function. This name is often used in control system 
       displays, batch recipes, and operational documentation. [ISA-88]
@@ -74,16 +74,16 @@ properties:
       context for the capacity numeric value, enabling proper capacity calculations and 
       conversions. This field should follow standardized unit naming conventions (e.g., ISO 80000, 
       SI units) to ensure consistency and interoperability across systems and organizations. [ISA-88]
-  process_cell:
+  processCell:
     container:
       space: "{{enterprise_space}}"
       externalId: Unit
       type: container
-    containerPropertyIdentifier: process_cell
+    containerPropertyIdentifier: processCell
     name: Process cell
     description: >
       Reference to the parent ProcessCell entity that contains this unit, establishing the ISA-95 
-      Level 4 hierarchical relationship. The process_cell relationship enables navigation from 
+      Level 4 hierarchical relationship. The processCell relationship enables navigation from 
       unit to process cell level and supports organizational queries across the manufacturing 
       hierarchy. This relationship follows ISA-95 parent-child location hierarchy principles, 
       ensuring proper containment relationships for functional locations within the process cell 
@@ -109,7 +109,7 @@ properties:
     name: Equipment modules
     description: >
       Reverse relationship collection of all ISA Asset entities that are specifically associated 
-      with this unit through the asset_specific relationship. This enables the unit to be linked 
+      with this unit through the assetSpecific relationship. This enables the unit to be linked 
       to the broader asset hierarchy while maintaining ISA-88 unit relationships. Assets linked 
       through this relationship may include equipment, functional locations, or other asset types 
       that are operationally scoped to this unit. [ISA-88, ISA-95]

@@ -6,30 +6,30 @@ description: A strategy for carrying out a contiguous process within a unit. It 
   of those operations.
 version: "{{search_dm_version}}"
 properties:
-  unit_procedure_id:
+  unitProcedureId:
     container:
       space: "{{enterprise_space}}"
       externalId: UnitProcedure
       type: container
-    containerPropertyIdentifier: unit_procedure_id
+    containerPropertyIdentifier: unitProcedureId
     name: Unit Procedure ID
     description: >
       Unique identifier for the unit procedure entity, conforming to ISA-88 procedural element 
       standards. A unit procedure represents a procedural element that defines operations for 
-      a specific unit. The unit_procedure_id serves as the primary key and enables traceability 
+      a specific unit. The unitProcedureId serves as the primary key and enables traceability 
       of unit procedures throughout the batch execution lifecycle. This identifier is critical 
       for unit-procedure-level batch tracking, recipe execution, and process analysis. [ISA-88]
-  unit_procedure_name:
+  unitProcedureName:
     container:
       space: "{{enterprise_space}}"
       externalId: UnitProcedure
       type: container
-    containerPropertyIdentifier: unit_procedure_name
+    containerPropertyIdentifier: unitProcedureName
     name: Unit Procedure Name
     description: >
       Human-readable name for the unit procedure, typically describing the processing task or 
       function for a specific unit (e.g., "Reaction Unit Procedure", "Distillation Unit Procedure", 
-      "Transfer Unit Procedure"). The unit_procedure_name follows ISA-88 naming conventions for 
+      "Transfer Unit Procedure"). The unitProcedureName follows ISA-88 naming conventions for 
       unit procedures and should be descriptive enough for process engineers and operators to 
       understand the unit procedure's purpose. This name is often used in control system displays, 
       batch records, and operational documentation. [ISA-88]
@@ -70,16 +70,16 @@ properties:
       externalId: Unit
       version: "{{search_dm_version}}"
       type: view
-  sequence_number:
+  sequenceNumber:
     container:
       space: "{{enterprise_space}}"
       externalId: UnitProcedure
       type: container
-    containerPropertyIdentifier: sequence_number
+    containerPropertyIdentifier: sequenceNumber
     name: Sequence Number
     description: >
       Numeric value indicating the order or sequence in which this unit procedure should be executed 
-      within the procedure, following ISA-88 unit procedure sequencing standards. The sequence_number 
+      within the procedure, following ISA-88 unit procedure sequencing standards. The sequenceNumber 
       enables proper unit procedure ordering and supports sequential execution logic in batch 
       recipes. This value is critical for recipe execution, unit procedure scheduling, and process 
       flow control. Lower sequence numbers indicate earlier execution order. [ISA-88]
@@ -96,7 +96,7 @@ properties:
         externalId: Operation
         version: "{{search_dm_version}}"
         type: view
-      identifier: unit_procedure
+      identifier: unitProcedure
     name: Operations
     description: >
       Reverse relationship collection of all Operation entities that belong to this unit procedure. 

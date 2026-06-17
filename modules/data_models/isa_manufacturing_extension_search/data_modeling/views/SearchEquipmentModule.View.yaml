@@ -8,32 +8,32 @@ description: A functional group of equipment that can carry out a finite number 
   and weighing.
 version: "{{search_dm_version}}"
 properties:
-  equipment_module_id:
+  equipmentModuleId:
     container:
       space: "{{enterprise_space}}"
       externalId: EquipmentModule
       type: container
-    containerPropertyIdentifier: equipment_module_id
+    containerPropertyIdentifier: equipmentModuleId
     name: Equipment module id
     description: >
       Unique identifier for the equipment module entity, conforming to ISA-88 Equipment Model 
       standards. An equipment module represents a functional group of equipment that can perform 
-      specific processing activities. The equipment_module_id serves as the primary key and enables 
+      specific processing activities. The equipmentModuleId serves as the primary key and enables 
       traceability of equipment modules throughout the manufacturing lifecycle. This identifier 
       should align with ISA-88 equipment classification standards and support integration with 
       control systems and engineering databases. Equipment modules bridge physical equipment 
       and procedural control in ISA-88 batch control systems. [ISA-88]
-  equipment_module_name:
+  equipmentModuleName:
     container:
       space: "{{enterprise_space}}"
       externalId: EquipmentModule
       type: container
-    containerPropertyIdentifier: equipment_module_name
+    containerPropertyIdentifier: equipmentModuleName
     name: Equipment module name
     description: >
       Human-readable name for the equipment module, typically describing its functional purpose 
       or processing capability (e.g., "Reactor Module", "Distillation Module", "Filtration Module"). 
-      The equipment_module_name follows ISA-88 naming conventions for equipment modules and should 
+      The equipmentModuleName follows ISA-88 naming conventions for equipment modules and should 
       be descriptive enough for process engineers and operators to understand the module's function. 
       This name is often used in control system displays, batch recipes, and operational documentation. 
       [ISA-88]
@@ -122,7 +122,7 @@ properties:
         externalId: ControlModule
         version: "{{search_dm_version}}"
         type: view
-      identifier: equipment_module
+      identifier: equipmentModule
     name: Control Modules
     description: >
       Reverse relationship collection of all ControlModule entities that are part of this equipment 
@@ -144,7 +144,7 @@ properties:
         externalId: Phase
         version: "{{search_dm_version}}"
         type: view
-      identifier: equipment_module
+      identifier: equipmentModule
     name: Phases
     description: >
       Reverse relationship collection of all Phase entities that utilize this equipment module. 

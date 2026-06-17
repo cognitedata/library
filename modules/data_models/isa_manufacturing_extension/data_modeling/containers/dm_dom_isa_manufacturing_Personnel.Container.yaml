@@ -1,0 +1,70 @@
+space: {{ enterprise_space }}
+externalId: Personnel
+name: Personnel
+description: Person involved in manufacturing operations
+properties:
+  personnelId:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: false
+    autoIncrement: false
+    name: personnelId
+  name:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: false
+    autoIncrement: false
+    name: name
+  role:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: role
+  site:
+    type:
+      list: false
+      type: direct
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: site
+indexes:
+  personnelIdIndex:
+    properties:
+    - personnelId
+    cursorable: true
+    indexType: btree
+  nameIndex:
+    properties:
+    - name
+    cursorable: true
+    indexType: btree
+  roleIndex:
+    properties:
+    - role
+    cursorable: true
+    indexType: btree
+  siteIndex:
+    properties:
+    - site
+    cursorable: true
+    indexType: btree
+constraints:
+  requiresCogniteDescribable:
+    constraintType: requires
+    require:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+
+

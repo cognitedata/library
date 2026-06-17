@@ -1,0 +1,75 @@
+space: {{ enterprise_space }}
+externalId: UnitProcedure
+name: UnitProcedure
+description: A strategy for carrying out a contiguous process within a unit. It consists of
+  contiguous operations and the algorithm necessary for the initiation, organization, and control
+  of those operations.
+properties:
+  unitProcedureId:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: false
+    autoIncrement: false
+    name: unitProcedureId
+  unitProcedureName:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: false
+    autoIncrement: false
+    name: unitProcedureName
+  procedure:
+    type:
+      list: false
+      type: direct
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: procedure
+  unit:
+    type:
+      list: false
+      type: direct
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: unit
+  sequenceNumber:
+    type:
+      list: false
+      type: int32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: sequenceNumber
+indexes:
+  unitProcedureIdIndex:
+    properties:
+    - unitProcedureId
+    cursorable: true
+    indexType: btree
+  unitProcedureNameIndex:
+    properties:
+    - unitProcedureName
+    cursorable: true
+    indexType: btree
+  sequenceNumberIndex:
+    properties:
+    - sequenceNumber
+    cursorable: true
+    indexType: btree
+  procedureIndex:
+    properties:
+    - procedure
+    cursorable: true
+    indexType: btree
+  unitIndex:
+    properties:
+    - unit
+    cursorable: true
+    indexType: btree

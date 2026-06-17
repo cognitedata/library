@@ -1,4 +1,4 @@
-key,personnel_id,name,role,site_externalId
+key,personnelId,name,role,siteExternalId
 PERS_BAS_OPS_001,P-OPS-001,Ana Keller,Operator,SITE_BAS
 PERS_BAS_OPS_002,P-OPS-002,Markus Frei,Operator,SITE_BAS
 PERS_BAS_OPS_003,P-OPS-003,Lea Baumgartner,Technician,SITE_BAS

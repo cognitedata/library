@@ -1,0 +1,10 @@
+externalId: loc_isa_manufacturing_edm
+name: 'ISA Manufacturing Location EDM'
+description: 'This is a description of the location ISA Manufacturing Location Enterprise Data Model (EDM), including all views and interfaces.'
+dataModels:
+  - externalId: {{ dataModelExternalId }}
+    space: {{ enterprise_space }}
+    version: {{ enterprise_dm_version }}
+instanceSpaces:
+  - {{ instance_space }}
+dataModelingType: DATA_MODELING_ONLY

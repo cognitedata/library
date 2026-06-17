@@ -124,7 +124,7 @@ properties:
         version: "{{search_dm_version}}"
         type: view
       identifier: files
-  product_segment:
+  productSegment:
     name: Product segment
     description: Product segments related to this file.
     connectionType: multi_reverse_direct_relation

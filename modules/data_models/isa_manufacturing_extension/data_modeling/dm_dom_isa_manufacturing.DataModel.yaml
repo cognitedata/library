@@ -1,8 +1,8 @@
-space: {{ isaSchemaSpace }}
-externalId: ISA_Manufacturing
+space: {{ enterprise_space }}
+externalId: {{ dataModelExternalId }}
 name: ISA Manufacturing Data Model
 description: ISA-95/88 based manufacturing domain model, aggregating all ISA. This is the Enterprise Data Model (EDM) for the ISA Manufacturing domain, including all views and interfaces.
-version: {{ viewVersion }}
+version: {{ enterprise_dm_version }}
 views:
 
 # List of Cognite views used as Interfaces in DM
@@ -142,107 +142,107 @@ views:
 
 # List of Cognite views in extended DM
 
-- space: {{ isaSchemaSpace }}
+- space: {{ enterprise_space }}
   externalId: ISAAsset
-  version: {{ viewVersion }}
+  version: {{ enterprise_dm_version }}
   type: view
-- space: {{ isaSchemaSpace }}
+- space: {{ enterprise_space }}
   externalId: Area
-  version: {{ viewVersion }}
+  version: {{ enterprise_dm_version }}
   type: view
-- space: {{ isaSchemaSpace }}
+- space: {{ enterprise_space }}
   externalId: Batch
-  version: {{ viewVersion }}
+  version: {{ enterprise_dm_version }}
   type: view
-- space: {{ isaSchemaSpace }}
+- space: {{ enterprise_space }}
   externalId: ControlModule
-  version: {{ viewVersion }}
+  version: {{ enterprise_dm_version }}
   type: view
-- space: {{ isaSchemaSpace }}
+- space: {{ enterprise_space }}
   externalId: Enterprise
-  version: {{ viewVersion }}
+  version: {{ enterprise_dm_version }}
   type: view
-- space: {{ isaSchemaSpace }}
+- space: {{ enterprise_space }}
   externalId: Equipment
-  version: {{ viewVersion }}
+  version: {{ enterprise_dm_version }}
   type: view
-- space: {{ isaSchemaSpace }}
+- space: {{ enterprise_space }}
   externalId: EquipmentModule
-  version: {{ viewVersion }}
+  version: {{ enterprise_dm_version }}
   type: view
-- space: {{ isaSchemaSpace }}
+- space: {{ enterprise_space }}
   externalId: ProcessParameter
-  version: {{ viewVersion }}
+  version: {{ enterprise_dm_version }}
   type: view
-- space: {{ isaSchemaSpace }}
+- space: {{ enterprise_space }}
   externalId: Operation
-  version: {{ viewVersion }}
+  version: {{ enterprise_dm_version }}
   type: view
-- space: {{ isaSchemaSpace }}
+- space: {{ enterprise_space }}
   externalId: Phase
-  version: {{ viewVersion }}
+  version: {{ enterprise_dm_version }}
   type: view
-- space: {{ isaSchemaSpace }}
+- space: {{ enterprise_space }}
   externalId: Procedure
-  version: {{ viewVersion }}
+  version: {{ enterprise_dm_version }}
   type: view
-- space: {{ isaSchemaSpace }}
+- space: {{ enterprise_space }}
   externalId: ProcessCell
-  version: {{ viewVersion }}
+  version: {{ enterprise_dm_version }}
   type: view
-- space: {{ isaSchemaSpace }}
+- space: {{ enterprise_space }}
   externalId: QualityResult
-  version: {{ viewVersion }}
+  version: {{ enterprise_dm_version }}
   type: view
-- space: {{ isaSchemaSpace }}
+- space: {{ enterprise_space }}
   externalId: Recipe
-  version: {{ viewVersion }}
+  version: {{ enterprise_dm_version }}
   type: view
-- space: {{ isaSchemaSpace }}
+- space: {{ enterprise_space }}
   externalId: Site
-  version: {{ viewVersion }}
+  version: {{ enterprise_dm_version }}
   type: view
-- space: {{ isaSchemaSpace }}
+- space: {{ enterprise_space }}
   externalId: Unit
-  version: {{ viewVersion }}
+  version: {{ enterprise_dm_version }}
   type: view
-- space: {{ isaSchemaSpace }}
+- space: {{ enterprise_space }}
   externalId: UnitProcedure
-  version: {{ viewVersion }}
+  version: {{ enterprise_dm_version }}
   type: view
-- space: {{ isaSchemaSpace }}
+- space: {{ enterprise_space }}
   externalId: WorkOrder
-  version: {{ viewVersion }}
+  version: {{ enterprise_dm_version }}
   type: view
-- space: {{ isaSchemaSpace }}
+- space: {{ enterprise_space }}
   externalId: ProductRequest
-  version: {{ viewVersion }}
+  version: {{ enterprise_dm_version }}
   type: view
-- space: {{ isaSchemaSpace }}
+- space: {{ enterprise_space }}
   externalId: ProductDefinition
-  version: {{ viewVersion }}
+  version: {{ enterprise_dm_version }}
   type: view
-- space: {{ isaSchemaSpace }}
+- space: {{ enterprise_space }}
   externalId: ProductSegment
-  version: {{ viewVersion }}
+  version: {{ enterprise_dm_version }}
   type: view
-- space: {{ isaSchemaSpace }}
+- space: {{ enterprise_space }}
   externalId: Material
-  version: {{ viewVersion }}
+  version: {{ enterprise_dm_version }}
   type: view
-- space: {{ isaSchemaSpace }}
+- space: {{ enterprise_space }}
   externalId: MaterialLot
-  version: {{ viewVersion }}
+  version: {{ enterprise_dm_version }}
   type: view
-- space: {{ isaSchemaSpace }}
+- space: {{ enterprise_space }}
   externalId: Personnel
-  version: {{ viewVersion }}
+  version: {{ enterprise_dm_version }}
   type: view
-- space: {{ isaSchemaSpace }}
+- space: {{ enterprise_space }}
   externalId: ISAFile
-  version: {{ viewVersion }}
+  version: {{ enterprise_dm_version }}
   type: view
-- space: {{ isaSchemaSpace }}
+- space: {{ enterprise_space }}
   externalId: ISATimeSeries
-  version: {{ viewVersion }}
+  version: {{ enterprise_dm_version }}
   type: view

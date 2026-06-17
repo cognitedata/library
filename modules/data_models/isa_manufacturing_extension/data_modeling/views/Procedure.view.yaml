@@ -1,4 +1,4 @@
-space: {{ isaSchemaSpace }}
+space: {{ enterprise_space }}
 externalId: Procedure
 name: Procedure
 description: The strategy for carrying out a process. In general, it refers to the strategy for
@@ -13,19 +13,19 @@ implements:
   externalId: CogniteSchedulable
   version: v1
   type: view
-version: {{ viewVersion }}
+version: {{ enterprise_dm_version }}
 properties:
-  procedure_id:
+  procedureId:
     container:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: Procedure
       type: container
-    containerPropertyIdentifier: procedure_id
+    containerPropertyIdentifier: procedureId
     name: Procedure ID
     description: >
       Unique identifier for the procedure entity, conforming to ISA-88 procedural element 
       standards. A procedure represents the top-level procedural element that coordinates unit 
-      procedures for batch execution. The procedure_id serves as the primary key and enables 
+      procedures for batch execution. The procedureId serves as the primary key and enables 
       traceability of procedures throughout the batch execution lifecycle. This identifier is 
       critical for procedural-level batch tracking, recipe execution, and process analysis. [ISA-88]
   name:
@@ -38,25 +38,25 @@ properties:
     description: >
       Human-readable name for the procedure, typically describing the overall process or function 
       (e.g., "Production Procedure", "Cleaning Procedure", "Quality Check Procedure"). The 
-      procedure_name follows ISA-88 naming conventions for procedures and should be descriptive 
+      procedureName follows ISA-88 naming conventions for procedures and should be descriptive 
       enough for process engineers and operators to understand the procedure's purpose. This name 
       is often used in control system displays, batch records, and operational documentation. [ISA-88]
-  sequence_number:
+  sequenceNumber:
     container:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: Procedure
       type: container
-    containerPropertyIdentifier: sequence_number
+    containerPropertyIdentifier: sequenceNumber
     name: Sequence Number
     description: >
       Numeric value indicating the order or sequence in which this procedure should be executed 
-      within the recipe, following ISA-88 procedure sequencing standards. The sequence_number 
+      within the recipe, following ISA-88 procedure sequencing standards. The sequenceNumber 
       enables proper procedure ordering and supports sequential execution logic in batch recipes. 
       This value is critical for recipe execution, procedure scheduling, and process flow control. 
       Lower sequence numbers indicate earlier execution order. [ISA-88]
   recipe:
     container:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: Procedure
       type: container
     containerPropertyIdentifier: recipe
@@ -68,13 +68,13 @@ properties:
       recipe design. This relationship is essential for understanding how procedures contribute to 
       recipe execution and enables procedural-level recipe data analysis. [ISA-88]
     source:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: Recipe
-      version: {{ viewVersion }}
+      version: {{ enterprise_dm_version }}
       type: view
   batch:
     container:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: Procedure
       type: container
     containerPropertyIdentifier: batch
@@ -86,22 +86,22 @@ properties:
       This relationship is essential for understanding how procedures contribute to batch execution 
       and enables procedure-level batch data analysis. [ISA-88]
     source:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: Batch
-      version: {{ viewVersion }}
+      version: {{ enterprise_dm_version }}
       type: view
   # Reverse relationships
   unit_procedures:
     source:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: UnitProcedure
-      version: {{ viewVersion }}
+      version: {{ enterprise_dm_version }}
       type: view
     through:
       source:
-        space: {{ isaSchemaSpace }}
+        space: {{ enterprise_space }}
         externalId: UnitProcedure
-        version: {{ viewVersion }}
+        version: {{ enterprise_dm_version }}
         type: view
       identifier: procedure
     name: Unit Procedures

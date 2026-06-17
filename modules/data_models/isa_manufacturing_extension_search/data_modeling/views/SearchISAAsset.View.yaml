@@ -101,14 +101,14 @@ properties:
         version: "{{search_dm_version}}"
         type: view
       identifier: parent
-  asset_specific:
+  assetSpecific:
     name: Asset specific
     description: Polymorphic reference to a related ISA-95 entity (Area, Site, Unit, etc.).
     container:
       space: "{{enterprise_space}}"
       externalId: ISAAsset
       type: container
-    containerPropertyIdentifier: asset_specific
+    containerPropertyIdentifier: assetSpecific
   name:
     name: Name
     description: Name of the asset.

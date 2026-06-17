@@ -1,4 +1,4 @@
-key,control_module_id,control_module_name,control_type,controller_address,equipment_module_externalId,description
+key,controlModuleId,controlModuleName,controlType,controllerAddress,equipmentModuleExternalId,description
 CTRL_EM_R12_CHARGE_FLOW_PID,CM-R12-FLOW,Charge Flow PID Loop,Regulatory,PLC-R12:K1:FIC101,EM_R12_CHARGE,PID loop modulating charge line flow into UNIT_R12 to maintain recipe setpoints.
 CTRL_EM_R12_CHARGE_TEMP_PID,CM-R12-TEMP,Charge Temperature PID,Regulatory,PLC-R12:K1:TIC102,EM_R12_CHARGE,PID controller regulating charge stream temperature for Reactor R12 feed.
 CTRL_EM_R12_CHARGE_LEVEL_SIS,CM-R12-LSIS,Charge Level Safety Interlock,Safety,PLC-R12:K1:LSL103,EM_R12_CHARGE,Safety loop tripping charge pumps on low/high reactor level conditions.

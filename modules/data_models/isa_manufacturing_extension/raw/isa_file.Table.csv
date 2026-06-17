@@ -1,4 +1,4 @@
-key,name,directory,file_name,mimeType,isUploaded,uploadedTime,asset_externalId,equipment_externalId
+key,name,directory,fileName,mimeType,isUploaded,uploadedTime,assetExternalId,equipmentExternalId
 FILE_EM_BLDR_CTRL_EQ_BLDR_CONTROL_DATA_LOGGER,Blender Control Data Logger,/generated/EM_BLDR_CTRL/EQ_BLDR_CONTROL_DATA_LOGGER,EM_BLDR_CTRL_EQ_BLDR_CONTROL_DATA_LOGGER.pdf,application/pdf,true,2024-02-01T00:00:00Z,EM_BLDR_CTRL,EQ_BLDR_CONTROL_DATA_LOGGER
 FILE_EM_BLDR_CTRL_EQ_BLDR_CONTROL_HMI,Blender Control HMI,/generated/EM_BLDR_CTRL/EQ_BLDR_CONTROL_HMI,EM_BLDR_CTRL_EQ_BLDR_CONTROL_HMI.pdf,application/pdf,true,2024-02-01T00:00:00Z,EM_BLDR_CTRL,EQ_BLDR_CONTROL_HMI
 FILE_EM_BLDR_CTRL_EQ_BLDR_CONTROL_IO,Blender Control I/O Rack,/generated/EM_BLDR_CTRL/EQ_BLDR_CONTROL_IO,EM_BLDR_CTRL_EQ_BLDR_CONTROL_IO.pdf,application/pdf,true,2024-02-01T00:00:00Z,EM_BLDR_CTRL,EQ_BLDR_CONTROL_IO

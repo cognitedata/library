@@ -1,4 +1,4 @@
-space: {{ isaSchemaSpace }}
+space: {{ enterprise_space }}
 externalId: ISAAsset
 name: ISAAsset
 description: Canonical ISA‑95 asset tree
@@ -7,7 +7,7 @@ implements:
   externalId: CogniteAsset
   version: v1
   type: view
-version: {{ viewVersion }}
+version: {{ enterprise_dm_version }}
 properties:
   parent:
     container:
@@ -25,9 +25,9 @@ properties:
       hierarchy. The parent relationship is fundamental to asset tree traversal and organizational 
       reporting. [ISA-95 Level 0-4]
     source:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: ISAAsset
-      version: {{ viewVersion }}
+      version: {{ enterprise_dm_version }}
       type: view
   root:
     container:
@@ -44,9 +44,9 @@ properties:
       supports root-level queries, organizational filtering, and hierarchical data organization. 
       The root is automatically updated when the asset hierarchy changes. [ISA-95]
     source:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: ISAAsset
-      version: {{ viewVersion }}
+      version: {{ enterprise_dm_version }}
       type: view
   path:
     container:
@@ -64,21 +64,21 @@ properties:
       asset hierarchy changes and provides a denormalized representation of the asset's position 
       in the hierarchy. [ISA-95]
     source:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: ISAAsset
-      version: {{ viewVersion }}
+      version: {{ enterprise_dm_version }}
       type: view
   children:
     source:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: ISAAsset
-      version: {{ viewVersion }}
+      version: {{ enterprise_dm_version }}
       type: view
     through:
       source:
-        space: {{ isaSchemaSpace }}
+        space: {{ enterprise_space }}
         externalId: ISAAsset
-        version: {{ viewVersion }}
+        version: {{ enterprise_dm_version }}
         type: view
       identifier: parent
     name: Children
@@ -92,15 +92,15 @@ properties:
     connectionType: multi_reverse_direct_relation
   equipment:
     source:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: Equipment
-      version: {{ viewVersion }}
+      version: {{ enterprise_dm_version }}
       type: view
     through:
       source:
-        space: {{ isaSchemaSpace }}
+        space: {{ enterprise_space }}
         externalId: Equipment
-        version: {{ viewVersion }}
+        version: {{ enterprise_dm_version }}
         type: view
       identifier: asset
     name: Equipment
@@ -115,15 +115,15 @@ properties:
     connectionType: multi_reverse_direct_relation
   timeSeries:
     source:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: ISATimeSeries
-      version: {{ viewVersion }}
+      version: {{ enterprise_dm_version }}
       type: view
     through:
       source:
-        space: {{ isaSchemaSpace }}
+        space: {{ enterprise_space }}
         externalId: ISATimeSeries
-        version: {{ viewVersion }}
+        version: {{ enterprise_dm_version }}
         type: view
       identifier: assets
     name: Time Series
@@ -137,15 +137,15 @@ properties:
     connectionType: multi_reverse_direct_relation
   files:
     source:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: ISAFile
-      version: {{ viewVersion }}
+      version: {{ enterprise_dm_version }}
       type: view
     through:
       source:
-        space: {{ isaSchemaSpace }}
+        space: {{ enterprise_space }}
         externalId: ISAFile
-        version: {{ viewVersion }}
+        version: {{ enterprise_dm_version }}
         type: view
       identifier: assets
     name: Files
@@ -159,15 +159,15 @@ properties:
     connectionType: multi_reverse_direct_relation
   activities:
     source:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: WorkOrder
-      version: {{ viewVersion }}
+      version: {{ enterprise_dm_version }}
       type: view
     through:
       source:
-        space: {{ isaSchemaSpace }}
+        space: {{ enterprise_space }}
         externalId: WorkOrder
-        version: {{ viewVersion }}
+        version: {{ enterprise_dm_version }}
         type: view
       identifier: assets
     name: Work Orders
@@ -179,19 +179,19 @@ properties:
       the asset hierarchy to operational activities, enabling comprehensive asset lifecycle 
       management and operational visibility. [ISA-95 Level 3]
     connectionType: multi_reverse_direct_relation
-  asset_specific:
+  assetSpecific:
     container:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: ISAAsset
       type: container
-    containerPropertyIdentifier: asset_specific
-    name: asset_specific
+    containerPropertyIdentifier: assetSpecific
+    name: assetSpecific
     description: >
       Flexible reference field that can point to any ISA-95 node type (Area, ProcessCell, Unit, 
       Site, Enterprise, EquipmentModule) to establish specific asset-to-entity relationships. 
-      The asset_specific relationship enables linking assets to specific ISA-95 entities while 
+      The assetSpecific relationship enables linking assets to specific ISA-95 entities while 
       maintaining the canonical asset hierarchy. This relationship supports flexible asset 
       modeling where assets may be associated with multiple ISA-95 entity types, enabling 
       cross-hierarchy relationships and supporting complex organizational structures. The 
-      asset_specific field provides a polymorphic relationship capability within the ISA-95 
+      assetSpecific field provides a polymorphic relationship capability within the ISA-95 
       data model. [ISA-95]

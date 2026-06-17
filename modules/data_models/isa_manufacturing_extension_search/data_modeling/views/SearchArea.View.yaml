@@ -6,26 +6,26 @@ description: A component of a batch manufacturing site that is identified by phy
   and control modules.
 version: "{{search_dm_version}}"
 properties:
-  area_id:
+  areaId:
     container:
       space: "{{enterprise_space}}"
       externalId: Area
       type: container
-    containerPropertyIdentifier: area_id
-    name: area_id
+    containerPropertyIdentifier: areaId
+    name: areaId
     description: >
       Unique identifier for the area entity, conforming to ISA-95 Level 4 hierarchy standards. 
       This identifier serves as the primary key for the area and ensures consistent tracking across 
-      all manufacturing operations. The area_id follows ISA-95 naming conventions for functional 
+      all manufacturing operations. The areaId follows ISA-95 naming conventions for functional 
       location identification, enabling traceability from design through operations and maintenance 
       phases. This field is mandatory and immutable once assigned. [ISA-95 Level 4]
-  area_name:
+  areaName:
     container:
       space: "{{enterprise_space}}"
       externalId: Area
       type: container
-    containerPropertyIdentifier: area_name
-    name: area_name
+    containerPropertyIdentifier: areaName
+    name: areaName
     description: >
       Human-readable name for the area, representing a logical or physical grouping of process cells 
       within a manufacturing site as defined by ISA-95 Level 4. The area name typically describes 

@@ -1,4 +1,4 @@
-space: {{ isaSchemaSpace }}
+space: {{ enterprise_space }}
 externalId: Equipment
 name: Equipment
 description: Physical equipment used in manufacturing processes (ISA-88 Equipment Model)
@@ -7,7 +7,7 @@ implements:
   externalId: CogniteEquipment
   version: v1
   type: view
-version: {{ viewVersion }}
+version: {{ enterprise_dm_version }}
 properties:
   asset:
     container:
@@ -23,21 +23,21 @@ properties:
       follows ISA-95 equipment-to-asset mapping principles and enables integration between asset 
       management systems and equipment control systems. [ISA-88, ISA-95]  
     source:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: ISAAsset
-      version: {{ viewVersion }}
+      version: {{ enterprise_dm_version }}
       type: view
   activities:
     source:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: WorkOrder
-      version: {{ viewVersion }}
+      version: {{ enterprise_dm_version }}
       type: view
     through:
       source:
-        space: {{ isaSchemaSpace }}
+        space: {{ enterprise_space }}
         externalId: WorkOrder
-        version: {{ viewVersion }}
+        version: {{ enterprise_dm_version }}
         type: view
       identifier: equipment
     name: Work Orders
@@ -47,16 +47,16 @@ properties:
       Level 3. This relationship enables equipment-centric work order queries, supporting 
       maintenance planning, work execution, and equipment activity tracking. [ISA-88, ISA-95 Level 3]  
     connectionType: multi_reverse_direct_relation
-  equipment_id:
+  equipmentId:
     container:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: Equipment
       type: container
-    containerPropertyIdentifier: equipment_id
-    name: equipment_id
+    containerPropertyIdentifier: equipmentId
+    name: equipmentId
     description: >
       Unique identifier for the equipment entity, conforming to ISA-88 Equipment Model standards. 
-      The equipment_id serves as the primary key for physical equipment used in manufacturing 
+      The equipmentId serves as the primary key for physical equipment used in manufacturing 
       processes and ensures consistent tracking and management of equipment across all phases of 
       the asset lifecycle, from design and construction through operation, maintenance, and 
       decommissioning. This identifier should align with ISA-88 equipment classification and naming 
@@ -75,7 +75,7 @@ properties:
       summarizing the functional role for the associated unit or asset.
   unit:
     container:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: Equipment
       type: container
     containerPropertyIdentifier: unit
@@ -88,13 +88,13 @@ properties:
       and process cell organization. This relationship is essential for understanding equipment 
       utilization within unit operations and batch execution. [ISA-88]
     source:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: Unit
-      version: {{ viewVersion }}
+      version: {{ enterprise_dm_version }}
       type: view
   model:
     container:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: Equipment
       type: container
     containerPropertyIdentifier: model
@@ -106,31 +106,31 @@ properties:
       lookups. The model designation is critical for maintenance planning, parts procurement, and 
       equipment replacement decisions. This field should align with manufacturer part number 
       conventions and engineering documentation standards. [ISA-88]
-  serial_number:
+  serialNumber:
     container:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: Equipment
       type: container
-    containerPropertyIdentifier: serial_number
+    containerPropertyIdentifier: serialNumber
     name: Serial number
     description: >
       Unique serial number assigned by the equipment manufacturer, conforming to ISA-88 equipment 
-      identification standards. The serial_number provides manufacturer-level equipment 
+      identification standards. The serialNumber provides manufacturer-level equipment 
       identification and enables traceability to manufacturing records, warranty information, and 
       equipment history. Serial numbers are critical for equipment registration, warranty 
       management, recall tracking, and regulatory compliance. This identifier should be immutable 
       and unique within the manufacturer's product line. [ISA-88]
   timeSeries:
     source:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: ISATimeSeries
-      version: {{ viewVersion }}
+      version: {{ enterprise_dm_version }}
       type: view
     through:
       source:
-        space: {{ isaSchemaSpace }}
+        space: {{ enterprise_space }}
         externalId: ISATimeSeries
-        version: {{ viewVersion }}
+        version: {{ enterprise_dm_version }}
         type: view
       identifier: equipment
     name: Time Series
@@ -144,7 +144,7 @@ properties:
     connectionType: multi_reverse_direct_relation
   files:
     container:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: Equipment
       type: container
     containerPropertyIdentifier: files
@@ -157,21 +157,21 @@ properties:
       and supports engineering, operations, and maintenance activities. Document organization 
       should follow ISA-88 equipment documentation classification and naming conventions. [ISA-88]
     source:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: ISAFile
-      version: {{ viewVersion }}
+      version: {{ enterprise_dm_version }}
       type: view
   equipment_modules:
     source:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: EquipmentModule
-      version: {{ viewVersion }}
+      version: {{ enterprise_dm_version }}
       type: view
     through:
       source:
-        space: {{ isaSchemaSpace }}
+        space: {{ enterprise_space }}
         externalId: EquipmentModule
-        version: {{ viewVersion }}
+        version: {{ enterprise_dm_version }}
         type: view
       identifier: equipment
     name: Equipment Modules
@@ -183,19 +183,19 @@ properties:
       functional equipment grouping. Equipment modules provide the bridge between physical 
       equipment and procedural control in ISA-88 batch control systems. [ISA-88]
     connectionType: multi_reverse_direct_relation
-  product_segment:
+  productSegment:
     source:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: ProductSegment
-      version: {{ viewVersion }}
+      version: {{ enterprise_dm_version }}
       type: view
     through:
       source:
-        space: {{ isaSchemaSpace }}
+        space: {{ enterprise_space }}
         externalId: ProductSegment
-        version: {{ viewVersion }}
+        version: {{ enterprise_dm_version }}
         type: view
-      identifier: equipment_requirements
+      identifier: equipmentRequirements
     name: Equipment requirements
     description: >
       Reverse relationship collection of all ProductSegment entities that are associated with this equipment. 

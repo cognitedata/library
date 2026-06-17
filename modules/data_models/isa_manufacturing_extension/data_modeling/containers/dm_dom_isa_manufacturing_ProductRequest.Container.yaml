@@ -1,0 +1,152 @@
+space: {{ enterprise_space }}
+externalId: ProductRequest  
+name: ProductRequest
+description: Request to produce specific quantities of products (ISA-95 Level 3)
+properties:
+  productRequestId:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: false
+    autoIncrement: false
+    name: productRequestId
+  requestNumber:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: false
+    autoIncrement: false
+    name: requestNumber
+  priority:
+    type:
+      list: false
+      type: int32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: priority
+  dueDate:
+    type:
+      list: false
+      type: timestamp
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: dueDate
+  quantityRequested:
+    type:
+      list: false
+      type: float64
+    immutable: false
+    nullable: false
+    autoIncrement: false
+    name: quantityRequested
+  quantityUnit:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: quantityUnit
+  requestStatus:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: requestStatus
+  unit:
+    type:
+      list: true
+      type: direct
+      maxListSize: 100
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: unit
+  files:
+    type:
+      list: true
+      type: direct
+      maxListSize: 100
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: files
+  workOrders:
+    type:
+      list: true
+      type: direct
+      maxListSize: 100
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: workOrders
+indexes:
+  productRequestIdIndex:
+    properties:
+    - productRequestId
+    cursorable: true
+    indexType: btree
+  requestNumberIndex:
+    properties:
+    - requestNumber
+    cursorable: true
+    indexType: btree
+  requestStatusIndex:
+    properties:
+    - requestStatus
+    cursorable: true
+    indexType: btree
+  priorityIndex:
+    properties:
+    - priority
+    cursorable: true
+    indexType: btree
+  dueDateIndex:
+    properties:
+    - dueDate
+    cursorable: true
+    indexType: btree
+  statusDueDateIndex:
+    properties:
+    - requestStatus
+    - dueDate
+    cursorable: true
+    indexType: btree
+  unitIndex:
+    properties:
+    - unit
+    cursorable: false
+    indexType: btree
+  filesIndex:
+    properties:
+    - files
+    cursorable: false
+    indexType: btree
+  workOrdersIndex:
+    properties:
+    - workOrders
+    cursorable: false
+    indexType: btree
+constraints:
+  requiresCogniteDescribable:
+    constraintType: requires
+    require:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+  requiresCogniteSourceable:
+    constraintType: requires
+    require:
+      space: cdf_cdm
+      externalId: CogniteSourceable
+      type: container

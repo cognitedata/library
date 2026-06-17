@@ -1,4 +1,4 @@
-key,unit_procedure_id,unit_procedure_name,sequence_number,procedure_externalId,unit_externalId
+key,unitProcedureId,unitProcedureName,sequenceNumber,procedureExternalId,unitExternalId
 UP_R12_SLURRY,UP-R12-SLURRY,R12 Slurry Preparation Unit Procedure,10,PROC-R12-CHARGE-STAGE1,UNIT_R12
 UP_R12_FEED,UP-R12-FEED,R12 Charge Reactor Feed Unit Procedure,20,PROC-R12-CHARGE-STAGE2,UNIT_R12
 UP_R12_TRIAL,UP-R12-TRIAL,R12 High Solids Trial Unit Procedure,30,PROC-R12-CHARGE-STAGE3,UNIT_R12

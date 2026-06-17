@@ -1,4 +1,4 @@
-key,procedure_id,procedure_name,recipe_externalId,sequence_number,description,batch_externalId
+key,procedureId,procedureName,recipeExternalId,sequenceNumber,description,batchExternalId
 PROC_R12_CHARGE_STAGE1,PROC-R12-CHARGE-STAGE1,R12 Charge Slurry Prep,REC_MR_R12_CHARGE_V1,10,Prepare charge slurry raw materials and blend to baseline specs,BATCH-R12-2024-001
 PROC_R12_CHARGE_STAGE2,PROC-R12-CHARGE-STAGE2,R12 Charge Reactor Feed,REC_MR_R12_CHARGE_V2,20,Feed conditioned slurry into Reactor R12 and establish flow,BATCH-R12-2024-006
 PROC_R12_CHARGE_STAGE3,PROC-R12-CHARGE-STAGE3,R12 Charge Trial Adjustments,REC_MR_R12_CHARGE_V3,30,Execute experimental adjustments during R12 charge trial batch,BATCH-R12-TRIAL-007

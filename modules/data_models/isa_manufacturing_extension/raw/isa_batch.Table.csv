@@ -1,4 +1,4 @@
-key,batch_id,batch_number,recipe_externalId,batch_size,batch_size_unit,start_time,end_time,batch_state,primary_work_order_externalId,site_externalId
+key,batchId,batchNumber,recipeExternalId,batchSize,batchSizeUnit,startTime,endTime,batchState,primaryWorkOrderExternalId,siteExternalId
 BATCH_R12_2024_001,BATCH-R12-2024-001,BATCH-R12-2024-001,REC_MR_R12_CHARGE_V1,1500,kg,2024-01-10T08:05:00Z,2024-01-10T15:45:00Z,Complete,WO-R12-001,SITE_BAS
 BATCH_R12_2024_006,BATCH-R12-2024-006,BATCH-R12-2024-006,REC_MR_R12_CHARGE_V2,1650,kg,2024-02-21T07:00:00Z,2024-02-21T16:10:00Z,Complete,WO-R12-003,SITE_BAS
 BATCH_R12_TRIAL_007,BATCH-R12-TRIAL-007,BATCH-R12-TRIAL-007,REC_MR_R12_CHARGE_V3,1750,kg,2024-04-04T05:30:00Z,,Planned,WO-R12-004,SITE_BAS

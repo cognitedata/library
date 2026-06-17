@@ -1,0 +1,109 @@
+space: {{ enterprise_space }}
+externalId: Recipe
+name: Recipe
+description: The necessary set of information that uniquely defines the production requirements
+  for a specific product. There are four types of recipes defined in this standard - general, site,
+  master, and control.
+properties:
+  recipeId:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: false
+    autoIncrement: false
+    name: recipeId
+  recipeVersion:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: false
+    autoIncrement: false
+    name: recipeVersion
+  recipeType:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: recipeType
+  material:
+    type:
+      list: false
+      type: direct
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: material
+  createdDate:
+    type:
+      list: false
+      type: timestamp
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: createdDate
+  status:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: status
+indexes:
+  recipeIdIndex:
+    properties:
+    - recipeId
+    cursorable: true
+    indexType: btree
+  recipeVersionIndex:
+    properties:
+    - recipeVersion
+    cursorable: true
+    indexType: btree
+  recipeTypeIndex:
+    properties:
+    - recipeType
+    cursorable: true
+    indexType: btree
+  statusIndex:
+    properties:
+    - status
+    cursorable: true
+    indexType: btree
+  materialIndex:
+    properties:
+    - material
+    cursorable: true
+    indexType: btree
+  createdDateIndex:
+    properties:
+    - createdDate
+    cursorable: true
+    indexType: btree
+  statusRecipeTypeIndex:
+    properties:
+    - status
+    - recipeType
+    cursorable: true
+    indexType: btree
+constraints:
+  requiresCogniteDescribable:
+    constraintType: requires
+    require:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+  requiresCogniteSourceable:
+    constraintType: requires
+    require:
+      space: cdf_cdm
+      externalId: CogniteSourceable
+      type: container

@@ -6,26 +6,26 @@ description: A component of a batch manufacturing enterprise that is identified 
   cells, units, equipment modules, and control modules.
 version: "{{search_dm_version}}"
 properties:
-  site_id:
+  siteId:
     container:
       space: "{{enterprise_space}}"
       externalId: Site
       type: container
-    containerPropertyIdentifier: site_id
+    containerPropertyIdentifier: siteId
     name: Site id
     description: >
       Unique identifier for the site entity, conforming to ISA-95 Level 4 hierarchy standards. 
       A site represents a physical location where manufacturing operations are performed. The 
-      site_id serves as the primary key and ensures consistent tracking across all manufacturing 
+      siteId serves as the primary key and ensures consistent tracking across all manufacturing 
       operations. This identifier should align with ISA-95 naming conventions for functional 
       location identification, enabling traceability from design through operations and maintenance 
       phases. [ISA-95 Level 4]
-  site_name:
+  siteName:
     container:
       space: "{{enterprise_space}}"
       externalId: Site
       type: container
-    containerPropertyIdentifier: site_name
+    containerPropertyIdentifier: siteName
     name: Site name
     description: >
       Human-readable name for the site, representing a physical location where manufacturing 

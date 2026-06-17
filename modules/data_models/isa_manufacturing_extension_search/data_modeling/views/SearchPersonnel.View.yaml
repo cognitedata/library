@@ -9,17 +9,17 @@ implements:
   type: view
 version: "{{search_dm_version}}"
 properties:
-  personnel_id:
+  personnelId:
     container:
       space: "{{enterprise_space}}"
       externalId: Personnel
       type: container
-    containerPropertyIdentifier: personnel_id
+    containerPropertyIdentifier: personnelId
     name: Personnel ID
     description: >
       Unique identifier for the personnel entity, conforming to ISA-95 Level 3 personnel management 
       standards. Personnel represent individuals involved in manufacturing operations, including 
-      operators, technicians, supervisors, and maintenance staff. The personnel_id serves as the 
+      operators, technicians, supervisors, and maintenance staff. The personnelId serves as the 
       primary key and enables consistent personnel tracking across all manufacturing operations, 
       from work assignment through execution to performance analysis. This identifier should align 
       with human resources systems and support integration with work management platforms. [ISA-95 Level 3]
@@ -80,7 +80,7 @@ properties:
         externalId: WorkOrder
         version: "{{search_dm_version}}"
         type: view
-      identifier: assigned_personnel
+      identifier: assignedPersonnel
     name: Work Orders
     description: >
       Reverse relationship collection of all WorkOrder entities assigned to this personnel. Work 

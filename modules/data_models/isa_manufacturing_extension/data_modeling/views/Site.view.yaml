@@ -1,31 +1,31 @@
-space: {{ isaSchemaSpace }}
+space: {{ enterprise_space }}
 externalId: Site
 name: Site
 description: A component of a batch manufacturing enterprise that is identified by physical,
   geographical, or logical segmentation within the enterprise. A site may contain areas, process
   cells, units, equipment modules, and control modules.
-version: {{ viewVersion }}
+version: {{ enterprise_dm_version }}
 properties:
-  site_id:
+  siteId:
     container:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: Site
       type: container
-    containerPropertyIdentifier: site_id
+    containerPropertyIdentifier: siteId
     name: Site id
     description: >
       Unique identifier for the site entity, conforming to ISA-95 Level 4 hierarchy standards. 
       A site represents a physical location where manufacturing operations are performed. The 
-      site_id serves as the primary key and ensures consistent tracking across all manufacturing 
+      siteId serves as the primary key and ensures consistent tracking across all manufacturing 
       operations. This identifier should align with ISA-95 naming conventions for functional 
       location identification, enabling traceability from design through operations and maintenance 
       phases. [ISA-95 Level 4]
-  site_name:
+  siteName:
     container:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: Site
       type: container
-    containerPropertyIdentifier: site_name
+    containerPropertyIdentifier: siteName
     name: Site name
     description: >
       Human-readable name for the site, representing a physical location where manufacturing 
@@ -36,7 +36,7 @@ properties:
       and purpose. [ISA-95 Level 4]
   location:
     container:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: Site
       type: container
     containerPropertyIdentifier: location
@@ -49,7 +49,7 @@ properties:
       consistency and interoperability. [ISA-95 Level 4]
   country:
     container:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: Site
       type: container
     containerPropertyIdentifier: country
@@ -62,7 +62,7 @@ properties:
       [ISA-95 Level 4]
   enterprise:
     container:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: Site
       type: container
     containerPropertyIdentifier: enterprise
@@ -75,21 +75,21 @@ properties:
       proper containment relationships for functional locations within the enterprise boundary. 
       [ISA-95 Level 0-4]
     source:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: Enterprise
-      version: {{ viewVersion }}
+      version: {{ enterprise_dm_version }}
       type: view
   areas:
     source:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: Area
-      version: {{ viewVersion }}
+      version: {{ enterprise_dm_version }}
       type: view
     through:
       source:
-        space: {{ isaSchemaSpace }}
+        space: {{ enterprise_space }}
         externalId: Area
-        version: {{ viewVersion }}
+        version: {{ enterprise_dm_version }}
         type: view
       identifier: site
     name: Areas
@@ -102,15 +102,15 @@ properties:
     connectionType: multi_reverse_direct_relation
   batches:
     source:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: Batch
-      version: {{ viewVersion }}
+      version: {{ enterprise_dm_version }}
       type: view
     through:
       source:
-        space: {{ isaSchemaSpace }}
+        space: {{ enterprise_space }}
         externalId: Batch
-        version: {{ viewVersion }}
+        version: {{ enterprise_dm_version }}
         type: view
       identifier: site
     name: Batches
@@ -122,15 +122,15 @@ properties:
     connectionType: multi_reverse_direct_relation
   personnel:
     source:
-      space: {{ isaSchemaSpace }}
+      space: {{ enterprise_space }}
       externalId: Personnel
-      version: {{ viewVersion }}
+      version: {{ enterprise_dm_version }}
       type: view
     through:
       source:
-        space: {{ isaSchemaSpace }}
+        space: {{ enterprise_space }}
         externalId: Personnel
-        version: {{ viewVersion }}
+        version: {{ enterprise_dm_version }}
         type: view
       identifier: site
     name: Personnel

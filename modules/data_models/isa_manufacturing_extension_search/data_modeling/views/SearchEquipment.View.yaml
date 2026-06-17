@@ -47,16 +47,16 @@ properties:
       Level 3. This relationship enables equipment-centric work order queries, supporting 
       maintenance planning, work execution, and equipment activity tracking. [ISA-88, ISA-95 Level 3]  
     connectionType: multi_reverse_direct_relation
-  equipment_id:
+  equipmentId:
     container:
       space: "{{enterprise_space}}"
       externalId: Equipment
       type: container
-    containerPropertyIdentifier: equipment_id
-    name: equipment_id
+    containerPropertyIdentifier: equipmentId
+    name: equipmentId
     description: >
       Unique identifier for the equipment entity, conforming to ISA-88 Equipment Model standards. 
-      The equipment_id serves as the primary key for physical equipment used in manufacturing 
+      The equipmentId serves as the primary key for physical equipment used in manufacturing 
       processes and ensures consistent tracking and management of equipment across all phases of 
       the asset lifecycle, from design and construction through operation, maintenance, and 
       decommissioning. This identifier should align with ISA-88 equipment classification and naming 
@@ -106,16 +106,16 @@ properties:
       lookups. The model designation is critical for maintenance planning, parts procurement, and 
       equipment replacement decisions. This field should align with manufacturer part number 
       conventions and engineering documentation standards. [ISA-88]
-  serial_number:
+  serialNumber:
     container:
       space: "{{enterprise_space}}"
       externalId: Equipment
       type: container
-    containerPropertyIdentifier: serial_number
+    containerPropertyIdentifier: serialNumber
     name: Serial number
     description: >
       Unique serial number assigned by the equipment manufacturer, conforming to ISA-88 equipment 
-      identification standards. The serial_number provides manufacturer-level equipment 
+      identification standards. The serialNumber provides manufacturer-level equipment 
       identification and enables traceability to manufacturing records, warranty information, and 
       equipment history. Serial numbers are critical for equipment registration, warranty 
       management, recall tracking, and regulatory compliance. This identifier should be immutable 
@@ -177,7 +177,7 @@ properties:
       functional equipment grouping. Equipment modules provide the bridge between physical 
       equipment and procedural control in ISA-88 batch control systems. [ISA-88]
     connectionType: multi_reverse_direct_relation
-  product_segment:
+  productSegment:
     source:
       space: "{{search_space}}"
       externalId: ProductSegment
@@ -189,7 +189,7 @@ properties:
         externalId: ProductSegment
         version: "{{search_dm_version}}"
         type: view
-      identifier: equipment_requirements
+      identifier: equipmentRequirements
     name: Equipment requirements
     description: >
       Reverse relationship collection of all ProductSegment entities that are associated with this equipment. 

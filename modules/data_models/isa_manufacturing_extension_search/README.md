@@ -9,15 +9,15 @@ This module follows the layering described in `.cursor/skills/cognite-data-model
 | Layer | Lives in | Pattern |
 |-------|----------|---------|
 | **Enterprise** containers + views | `isa_manufacturing_extension` | `implements:` against `cdf_cdm` for canonical CDM semantics |
-| **Search solution** views (this module) | `sp_isa_manufacturing_search` | **Mapping** to enterprise containers; `implements: cdf_cdm:CogniteDescribable` only |
+| **Search solution** views (this module) | `dm_sol_isa_manufacturing_search` | **Mapping** to enterprise containers; `implements: cdf_cdm:CogniteDescribable` only |
 
 Specifically:
 
-- Views in this module **map** to enterprise containers (e.g. `isa_manufacturing_extension`'s `Batch`, `WorkOrder`, `Equipment` containers in `sp_isa_manufacturing`) using `container:` + `containerPropertyIdentifier:`. They do **not** `implements:` enterprise views. This decouples the search model's lifecycle from enterprise view version bumps.
+- Views in this module **map** to enterprise containers (e.g. `isa_manufacturing_extension`'s `Batch`, `WorkOrder`, `Equipment` containers in `dm_dom_isa_manufacturing`) using `container:` + `containerPropertyIdentifier:`. They do **not** `implements:` enterprise views. This decouples the search model's lifecycle from enterprise view version bumps.
 - No view in this module `implements: CogniteAsset`, `CogniteFile`, `CogniteTimeSeries`, or `CogniteSourceable`. Asset-hierarchy properties (`parent`, `root`, `path`, `children`) are exposed on the search `ISAAsset` view by referencing the `cdf_cdm:CogniteAsset` container directly and self-referencing within this space. `ISAFile` and `ISATimeSeries` expose CDM file/time-series properties the same way via explicit `CogniteFile` / `CogniteTimeSeries` container mappings. Use the enterprise views for canonical CDM semantics in Asset Explorer / Industry Canvas.
 - All reverse direct relations whose **forward** relation lives on a solution-shaped view (`WorkOrder.assets`, `WorkOrder.equipment`, `ISATimeSeries.assets`, `Equipment.activities`, …) live on the matching view here (`ISAAsset.activities`, `ISAAsset.timeSeries`, `Equipment.activities`, …) — not on the enterprise side.
-- View externalIds in this module (`ISAAsset`, `Equipment`, `WorkOrder`, `Batch`, …) intentionally match the enterprise externalIds. Because the views live in a different space (`sp_isa_manufacturing_search` vs. `sp_isa_manufacturing`), this is not a collision; it gives consumers consistent names whether they read the enterprise or search model.
-- Both modules write/read instances in the **shared instance space** (`sp_isa_instance_space`). External IDs are stable across modules.
+- View externalIds in this module (`ISAAsset`, `Equipment`, `WorkOrder`, `Batch`, …) intentionally match the enterprise externalIds. Because the views live in a different space (`dm_sol_isa_manufacturing_search` vs. `dm_dom_isa_manufacturing`), this is not a collision; it gives consumers consistent names whether they read the enterprise or search model.
+- Both modules write/read instances in the **shared instance space** (`inst_isa_manufacturing`). External IDs are stable across modules.
 
 ### Why the model is split into enterprise + search
 
@@ -25,8 +25,8 @@ The model is delivered as **two modules** that version independently:
 
 | Module | Space | Role |
 |--------|-------|------|
-| `isa_manufacturing_extension` | `sp_isa_manufacturing` | Owns containers, indexes, and the canonical CDM-implementing views. Treated as the durable contract. |
-| `isa_manufacturing_extension_search` (this one) | `sp_isa_manufacturing_search` | Maps to the enterprise containers. Hosts solution-shaped reverse relations. Free to bump versions independently. |
+| `isa_manufacturing_extension` | `dm_dom_isa_manufacturing` | Owns containers, indexes, and the canonical CDM-implementing views. Treated as the durable contract. |
+| `isa_manufacturing_extension_search` (this one) | `dm_sol_isa_manufacturing_search` | Maps to the enterprise containers. Hosts solution-shaped reverse relations. Free to bump versions independently. |
 
 Reasons for the split (per `cdf-enterprise-vs-solution.md`):
 
@@ -34,7 +34,7 @@ Reasons for the split (per `cdf-enterprise-vs-solution.md`):
 2. **Reverse relations live with their forward.** Forward direct relations on solution-shaped views (`WorkOrder.assets`, `WorkOrder.equipment`, `ISATimeSeries.assets`, …) belong to this model, so the matching reverses (`ISAAsset.activities`, `Equipment.activities`, `ISAAsset.timeSeries`, …) live on this side — not on the enterprise model.
 3. **Single `CogniteAsset` per data model.** Each data model that needs asset semantics defines its own single `CogniteAsset` implementer. The enterprise `ISAAsset` is the enterprise one; this module exposes asset-hierarchy properties (`parent`, `root`, `path`, `children`) on its own `ISAAsset` view, self-referencing within this space, without `implements: CogniteAsset` on the search side.
 4. **Same externalIds in different spaces are intentional.** Both modules expose views named `ISAAsset`, `Equipment`, `WorkOrder`, etc. They live in different spaces, so there is no collision; this gives consumers consistent names whether they read the enterprise or search model.
-5. **Independent lifecycles.** `viewVersion` (enterprise) and `search_dm_version` (search) bump separately so a search-side change never forces an enterprise version bump, and vice versa.
+5. **Independent lifecycles.** `enterprise_dm_version` (enterprise) and `search_dm_version` (search) bump separately so a search-side change never forces an enterprise version bump, and vice versa.
 
 ## Module structure
 
@@ -43,7 +43,7 @@ isa_manufacturing_extension_search/
 ├── default.config.yaml          # search_space, search_dm_version, enterprise_space refs
 ├── module.toml
 ├── data_modeling/
-│   ├── sp_isa_manufacturing_search.Space.yaml
+│   ├── dm_sol_isa_manufacturing_search.Space.yaml
 │   ├── dm_sol_search_manufacturing.DataModel.yaml
 │   └── views/
 │       ├── SearchArea.View.yaml
@@ -80,7 +80,7 @@ This module owns **views only** — no containers. All storage and btree indexes
 
 ## Versioning policy
 
-- `search_dm_version` (in `default.config.yaml`) bumps **independently** from `viewVersion` in the enterprise module. Bump it for any breaking change to a `Search*` view.
+- `search_dm_version` (in `default.config.yaml`) bumps **independently** from `enterprise_dm_version` in the enterprise module. Bump it for any breaking change to a `Search*` view.
 - `enterprise_space` and `enterprise_dm_version` are **read-only references**; never modify enterprise containers from this module.
 - Container changes belong in the enterprise module. If you need a new property surfaced for search, add it to the enterprise container first, then add a corresponding mapping in the relevant `Search*` view.
 
@@ -104,9 +104,18 @@ All 26 ISA Manufacturing enterprise views have search-side `Search*` mirrors in 
 
 ## Deployment
 
+Deploy the enterprise module **first**, then this module. The search module depends on enterprise containers existing in CDF.
+
 ```bash
-cdf build
+# 1. Build and deploy enterprise containers/views (required before search Neat validation passes)
+cdf build -c config.dev.yaml
+cdf deploy --env dev   # with only isa_manufacturing_extension selected, or deploy enterprise resources first
+
+# 2. Build and deploy search (requires dm_dom_isa_manufacturing:* containers in CDF)
+cdf build -c config.dev.yaml
 cdf deploy --env dev
 ```
 
-Deploy the enterprise module **first**, then this module. The search module depends on enterprise containers existing.
+### Neat build validation
+
+`cdf build` runs Neat on each data model. The search model maps to enterprise containers in `dm_dom_isa_manufacturing`, which Neat resolves from CDF in rebuild mode — not from the local build output. If you see `EnumerationMissingName: Container dm_dom_isa_manufacturing:Area not found`, the enterprise containers are not in your CDF project yet (common after a space rename). Deploy `isa_manufacturing_extension` first, then rebuild with both modules selected.

@@ -1,0 +1,175 @@
+space: {{ enterprise_space }}
+externalId: ProductSegment 
+name: ProductSegment
+description: Segment of the product process and resources (ISA-95 Level 3)
+properties:
+  productSegmentId:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: false
+    autoIncrement: false
+    name: productSegmentId
+  setPoints:
+    type:
+      list: true
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: setPoints
+  timeRequirements:
+    type:
+      list: false
+      type: float64
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: timeRequirements
+  temperatureRequirements:
+    type:
+      list: false
+      type: float64
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: temperatureRequirements
+  flowRateRequirements:
+    type:
+      list: false
+      type: float64
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: flowRateRequirements
+  pressureRequirements:
+    type:
+      list: false
+      type: float64
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: pressureRequirements
+  phRequirements:
+    type:
+      list: false
+      type: float64
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: phRequirements
+  validFrom:
+    type:
+      list: false
+      type: timestamp
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: validFrom
+  compositionRequirements:
+    type:
+      list: false
+      type: float64
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: compositionRequirements
+  validTo:
+    type:
+      list: false
+      type: timestamp
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: validTo
+  status:
+    type:
+      list: true
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: status
+  timeSeries:
+    type:
+      list: true
+      type: direct
+      maxListSize: 100
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: timeSeries
+  materialRequirements:
+    type:
+      list: true
+      type: direct
+      maxListSize: 100
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: materialRequirements
+  equipmentRequirements:
+    type:
+      list: true
+      type: direct
+      maxListSize: 100
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: equipmentRequirements
+  files:
+    type:
+      list: true
+      type: direct
+      maxListSize: 100
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: files
+indexes:
+  productSegmentIdIndex:
+    properties:
+    - productSegmentId
+    cursorable: true
+    indexType: btree
+  validFromIndex:
+    properties:
+    - validFrom
+    cursorable: true
+    indexType: btree
+  validToIndex:
+    properties:
+    - validTo
+    cursorable: true
+    indexType: btree
+  timeSeries_index:
+    properties:
+    - timeSeries
+    cursorable: false
+    indexType: btree
+  materialRequirementsIndex:
+    properties:
+    - materialRequirements
+    cursorable: false
+    indexType: btree
+  equipmentRequirementsIndex:
+    properties:
+    - equipmentRequirements
+    cursorable: false
+    indexType: btree
+  filesIndex:
+    properties:
+    - files
+    cursorable: false
+    indexType: btree
+constraints:
+  requiresCogniteDescribable:
+    constraintType: requires
+    require:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
