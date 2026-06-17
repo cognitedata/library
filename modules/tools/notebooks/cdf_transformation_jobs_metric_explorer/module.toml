@@ -1,5 +1,0 @@
-[module]
-title = "CDF Transformation Job Metrics Analysis Notebook"
-id = "dp:tool:cdf_transformation_jobs_metric_explorer"
-package_id = "tool"
-
