@@ -1,6 +1,7 @@
 space: rmdm
 externalId: FailureMechanism
 name: RM Failure Mechanism
+description: Stores failure mechanism classification properties.
 properties:
   code:
     type:

@@ -1,6 +1,7 @@
 space: rmdm
 externalId: EquipmentClass
 name: RM Equipment Class
+description: Stores equipment class codes and related failure mode relationships.
 properties:
   code:
     type:
@@ -25,6 +26,7 @@ properties:
   failureModes:
     type:
       list: true
+      maxListSize: 300
       type: direct
     immutable: false
     nullable: true
@@ -44,5 +46,10 @@ constraints:
     - code
     - standard
     constraintType: uniqueness
-indexes: {}
+indexes:
+  failureModes:
+    indexType: btree
+    properties:
+    - failureModes
+    cursorable: false
 usedFor: node

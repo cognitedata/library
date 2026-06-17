@@ -1,6 +1,7 @@
 space: rmdm
 externalId: EquipmentFunction
 name: RM Equipment Function
+description: Stores equipment function classification codes and standards.
 properties:
   code:
     type:

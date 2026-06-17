@@ -1,6 +1,7 @@
 space: rmdm
 externalId: FailureMode
 name: RM Failure Mode
+description: Stores failure mode codes and related equipment class relationships.
 properties:
   code:
     type:

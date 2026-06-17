@@ -1,6 +1,6 @@
 space: rmdm
-externalId: Timeseries_ext
-name: RM Timeseries
+externalId: TimeSeriesExtension
+name: RM Time Series
 description: Represents a series of data points in time order.
 implements:
 - space: cdf_cdm
@@ -38,7 +38,7 @@ properties:
   pointType:
     container:
       space: rmdm
-      externalId: Timeseries_ext
+      externalId: TimeSeriesExtension
       type: container
     containerPropertyIdentifier: pointType
     name: Point Type
@@ -46,7 +46,7 @@ properties:
   pointSource:
     container:
       space: rmdm
-      externalId: Timeseries_ext
+      externalId: TimeSeriesExtension
       type: container
     containerPropertyIdentifier: pointSource
     name: Point Source
@@ -54,7 +54,7 @@ properties:
   contextMatchString:
     container:
       space: rmdm
-      externalId: Timeseries_ext
+      externalId: TimeSeriesExtension
       type: container
     containerPropertyIdentifier: contextMatchString
     name: Context Match String
@@ -62,7 +62,7 @@ properties:
   contextClass:
     container:
       space: rmdm
-      externalId: Timeseries_ext
+      externalId: TimeSeriesExtension
       type: container
     containerPropertyIdentifier: contextClass
     name: Context Class

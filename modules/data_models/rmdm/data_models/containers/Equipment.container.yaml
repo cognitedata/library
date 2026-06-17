@@ -1,6 +1,7 @@
 space: rmdm
 externalId: Equipment
 name: RM Equipment
+description: Stores RMDM equipment-specific properties for physical equipment.
 properties:
   normalOperatingState:
     type:
@@ -58,5 +59,10 @@ constraints:
       externalId: CogniteEquipment
       type: container
     constraintType: requires
-indexes: {}
+indexes:
+  equipmentClass:
+    indexType: btree
+    properties:
+    - equipmentClass
+    cursorable: false
 usedFor: node
