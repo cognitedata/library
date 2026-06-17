@@ -22,7 +22,7 @@ modules/
   packages.toml           # Registry of every deployable package
   common/                 # Shared CDF platform modules
   contextualization/      # Contextualization toolkit modules
-  data_models/            # Industry and extension data models
+  datamodels/             # Industry and extension data models
   solutions/              # Product verticals (cdm_maintain, cdf_infield, cdf_ai_extractor, …)
   sourcesystem/           # Source system connectors
   dashboards/             # Streamlit dashboards and reporting
@@ -49,10 +49,10 @@ Use structured IDs so Toolkit, usage tracking, and docs stay aligned:
 
 `package_id` is the **primary** deployment pack for the module (used for defaults such as `is_selected_by_default`). A module can still appear in **several** packs via `modules/packages.toml`.
 
-Example: `data_models/qs_enterprise_dm` has `package_id = "dp:quickstart"` but is also listed under `dp:models` in `packages.toml`. Choose `package_id` for the pack that best represents how users first discover the module; list the folder in every pack that should ship it.
+Example: `datamodels/qs_enterprise_dm` has `package_id = "dp:quickstart"` but is also listed under `dp:models` in `packages.toml`. Choose `package_id` for the pack that best represents how users first discover the module; list the folder in every pack that should ship it.
 
 ```toml
-# modules/data_models/qs_enterprise_dm/module.toml
+# modules/datamodels/qs_enterprise_dm/module.toml
 [module]
 title = "Quick Start Enterprise Data Model"
 id = "dp:models:qs_enterprise_dm"

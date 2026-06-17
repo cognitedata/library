@@ -122,7 +122,7 @@ python modules/common/cdf_project_foundation/scripts/setup_project.py -y --site 
 python modules/common/cdf_project_foundation/scripts/setup_project.py --check   # CI drift check
 ```
 
-> When more than one data model directory exists under `modules/data_models/` (as in
+> When more than one data model directory exists under `modules/datamodels/` (as in
 > this catalog repo), auto-detection cannot pick one — pass `--variant` explicitly.
 > A real deployment pack contains exactly one model directory.
 

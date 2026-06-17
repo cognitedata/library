@@ -30,7 +30,7 @@ The RMDM v1 module is structured as follows:
 - **data_models/** – Core RMDM data model definitions
 - **containers/** – Container definitions for all RMDM entities
 - **views/** – View definitions for all RMDM entities
-- **rmdm_v1.datamodel.yaml** – Main data model configuration
+- **rmdm.datamodel.yaml** – Main data model configuration
 - **rmdm.space.yaml** – Space configuration for the RMDM data model
 
 ## Data Model Entities
@@ -126,7 +126,7 @@ After installation, your project should now contain:
 
 ```
 modules/
-    └── data_models/
+    └── datamodels/
         └── rmdm/
 ```
 
@@ -183,7 +183,7 @@ rmdm/
 │   │   ├── MaintenanceOrder.view.yaml
 │   │   ├── Notification.view.yaml
 │   │   └── TimeSeriesExtension.view.yaml
-│   ├── rmdm_v1.datamodel.yaml
+│   ├── rmdm.datamodel.yaml
 │   └── rmdm.space.yaml
 ├── module.toml
 └── README.md                   # This file

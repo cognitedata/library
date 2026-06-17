@@ -151,8 +151,8 @@ _MODULE_CATEGORY_FALLBACK: dict[str, str] = {
     "cdf_opcua_foundation":      "sourcesystem",
     "cdf_db_foundation":         "sourcesystem",
     "cdf_files_foundation":      "sourcesystem",
-    "isa_manufacturing_extension":    "data_models",
-    "cfihos_oil_and_gas_extension":   "data_models",
+    "isa_manufacturing_extension":    "datamodels",
+    "cfihos_oil_and_gas_extension":   "datamodels",
 }
 
 # Keys that are stale in an existing config when cdf_project_foundation is
@@ -168,8 +168,8 @@ _STALE_CTX_KEYS: tuple[str, ...] = (
     # CFIHOS DM source IDs — covered by foundation persona groups.
     "variables.modules.cfihos_oil_and_gas_extension.owner_source_id",
     "variables.modules.cfihos_oil_and_gas_extension.read_source_id",
-    "variables.modules.data_models.cfihos_oil_and_gas_extension.owner_source_id",
-    "variables.modules.data_models.cfihos_oil_and_gas_extension.read_source_id",
+    "variables.modules.datamodels.cfihos_oil_and_gas_extension.owner_source_id",
+    "variables.modules.datamodels.cfihos_oil_and_gas_extension.read_source_id",
 )
 
 # ── Domain helpers ─────────────────────────────────────────────────────────────
@@ -609,10 +609,10 @@ def _read_existing_values(
         )
         if app_owner and app_owner != "<APPLICATION_OWNER>":
             existing["app_owner"] = app_owner
-        # CFIHOS DM owner fields (flat or nested data_models category).
+        # CFIHOS DM owner fields (flat or nested datamodels category).
         cfihos_dm = (
             modules.get("cfihos_oil_and_gas_extension")
-            or modules.get("data_models", {}).get("cfihos_oil_and_gas_extension", {})
+            or modules.get("datamodels", {}).get("cfihos_oil_and_gas_extension", {})
             or {}
         )
         _placeholder_emails = {"admin.user@firm.com", "integration.owner@firm.com"}

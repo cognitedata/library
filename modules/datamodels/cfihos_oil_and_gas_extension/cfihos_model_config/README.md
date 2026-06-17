@@ -24,7 +24,7 @@ Provide step-by-step instructions on how to use this artefact. Be clear and spec
 
 1. Clone or download the [Cognite library](https://github.com/cognitedata/library) repository.
 
-2. Open `modules/data_models/cfihos_oil_and_gas_extension/cfihos_model_config/` (this folder).
+2. Open `modules/datamodels/cfihos_oil_and_gas_extension/cfihos_model_config/` (this folder).
 
 3. Copy the contents of this folder into your project repository, or run the generator from this path in the library checkout.
 

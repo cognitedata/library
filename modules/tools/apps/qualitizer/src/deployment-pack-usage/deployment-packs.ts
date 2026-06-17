@@ -100,7 +100,7 @@ export const DEPLOYMENT_PACKS: DeploymentPackDefinition[] = [
   {
     id: "dp:models:qs_enterprise_dm",
     name: "Quick Start Enterprise Data Model",
-    description: `Enterprise and search data models (modules/data_models/qs_enterprise_dm). Hub: ${HUB_DEPLOYMENT_PACKS_LIBRARY}`,
+    description: `Enterprise and search data models (modules/datamodels/qs_enterprise_dm). Hub: ${HUB_DEPLOYMENT_PACKS_LIBRARY}`,
     signals: {
       dataModels: [
         {
@@ -119,7 +119,7 @@ export const DEPLOYMENT_PACKS: DeploymentPackDefinition[] = [
   {
     id: "dp:models:isa_manufacturing_extension",
     name: "ISA Batch Manufacturing Data Model Extension",
-    description: `ISA-95 / ISA-88 manufacturing domain model from the Hub pack and cognitedata/library \`isa_manufacturing_extension\`. Detection fingerprints the official template view set (customer copies may rename spaces/models). Hub: ${HUB_ISA_MANUFACTURING_PACK} · Code: https://github.com/cognitedata/library/tree/main/modules/data_models/isa_manufacturing_extension`,
+    description: `ISA-95 / ISA-88 manufacturing domain model from the Hub pack and cognitedata/library \`isa_manufacturing_extension\`. Detection fingerprints the official template view set (customer copies may rename spaces/models). Hub: ${HUB_ISA_MANUFACTURING_PACK} · Code: https://github.com/cognitedata/library/tree/main/modules/datamodels/isa_manufacturing_extension`,
     signals: {},
     isaManufacturingDerivative: {
       minDistinctiveViewsInOneDataModel: 14,
@@ -128,7 +128,7 @@ export const DEPLOYMENT_PACKS: DeploymentPackDefinition[] = [
   {
     id: "dp:models:cfihos_oil_and_gas_extension",
     name: "Oil and Gas Data Model — CFIHOS & ISO14224 Extension",
-    description: `Tag-centric CFIHOS 2.0 / ISO 14224 oil & gas domain model from the Hub pack and cognitedata/library \`cfihos_oil_and_gas_extension\`. Detection fingerprints customer-space views from the template (renamed spaces/models still match when the view set aligns). Hub: ${HUB_CFIHOS_OIL_AND_GAS_PACK} · Code: https://github.com/cognitedata/library/tree/main/modules/data_models/cfihos_oil_and_gas_extension`,
+    description: `Tag-centric CFIHOS 2.0 / ISO 14224 oil & gas domain model from the Hub pack and cognitedata/library \`cfihos_oil_and_gas_extension\`. Detection fingerprints customer-space views from the template (renamed spaces/models still match when the view set aligns). Hub: ${HUB_CFIHOS_OIL_AND_GAS_PACK} · Code: https://github.com/cognitedata/library/tree/main/modules/datamodels/cfihos_oil_and_gas_extension`,
     signals: {},
     cfihosOilAndGasDerivative: {
       minDistinctiveViewsInOneDataModel: 14,
@@ -137,7 +137,7 @@ export const DEPLOYMENT_PACKS: DeploymentPackDefinition[] = [
   {
     id: "dp:models:rmdm",
     name: "Reliability & Maintenance Data Model (RMDM)",
-    description: `ISO 14224–oriented R&M containers and views (library: modules/data_models/rmdm). Hub: ${HUB_DEPLOYMENT_PACKS_LIBRARY}`,
+    description: `ISO 14224–oriented R&M containers and views (library: modules/datamodels/rmdm). Hub: ${HUB_DEPLOYMENT_PACKS_LIBRARY}`,
     signals: {
       dataModels: [{ space: "rmdm", externalId: "rmdm_v1", version: "v1" }],
     },

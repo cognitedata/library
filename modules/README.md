@@ -22,7 +22,7 @@ modules/
 │   ├── cdf_p_and_id_parser/
 │   └── cdf_connection_sql/
 │
-├── data_models/                 # Industry & extension data models
+├── datamodels/                  # Industry & extension data models
 │   ├── rmdm/
 │   ├── isa_manufacturing_extension/
 │   ├── cfihos_oil_and_gas_extension/
@@ -62,11 +62,11 @@ These are the packs exposed in the Toolkit menu (from `packages.toml`):
 
 | Package ID | Title | Folder roots |
 |------------|-------|----------------|
-| `dp:quickstart` | Quickstart Deployment Pack | `common/`, `contextualization/`, `sourcesystem/`, `dashboards/`, `data_models/qs_enterprise_dm` |
+| `dp:quickstart` | Quickstart Deployment Pack | `common/`, `contextualization/`, `sourcesystem/`, `dashboards/`, `datamodels/qs_enterprise_dm` |
 | `dp:contextualization` | Contextualization | `contextualization/` |
 | `dp:common` | Common | `common/` |
 | `dp:sourcesystem` | Source Systems | `sourcesystem/` |
-| `dp:models` | Data models | `data_models/` |
+| `dp:models` | Data models | `datamodels/` |
 | `dp:dashboards` | Dashboards | `dashboards/` |
 | `dp:atlas_ai` | Atlas AI | `atlas_ai/`, `solutions/cdf_ai_extractor` |
 | `dp:cdm_maintain` | CDM Maintain | `solutions/cdm_maintain/*` |
