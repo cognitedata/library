@@ -455,8 +455,7 @@ def remove_redundant_auth_files(repo_root: Path | None = None) -> list[Path]:
     tools/apps modules (qualitizer) whose standalone auth becomes redundant
     once the foundation persona groups are deployed.
     """
-    from _pack_config import REPO_ROOT as _REPO_ROOT
-    modules_root = (_REPO_ROOT if repo_root is None else repo_root) / "modules"
+    modules_root = get_pack_root(repo_root) / "modules"
     removed: list[Path] = []
 
     # Contextualization modules.
