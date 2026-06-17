@@ -48,7 +48,7 @@ SELECT
   FIRST(targetValue, true) AS targetValue,
   FIRST(minValue, true) AS minValue,
   FIRST(maxValue, true) AS maxValue,
-  array_distinct(flatten(collectList(phases))) AS phases,
-  array_distinct(flatten(collectList(productSegment))) AS productSegment
+  array_distinct(flatten(collect_list(phases))) AS phases,
+  array_distinct(flatten(collect_list(productSegment))) AS productSegment
 FROM withRefs
 GROUP BY external_id

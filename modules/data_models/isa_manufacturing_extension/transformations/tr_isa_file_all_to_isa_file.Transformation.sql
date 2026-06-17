@@ -25,6 +25,6 @@ SELECT
   FIRST(name, true) AS name,
   FIRST(directory, true) AS directory,
   FIRST(mimeType, true) AS mimeType,
-  array_distinct(flatten(collectList(assets))) AS assets
+  array_distinct(flatten(collect_list(assets))) AS assets
 FROM withRefs
 GROUP BY external_id

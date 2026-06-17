@@ -90,7 +90,7 @@ SELECT
   FIRST(productSegmentId, true) AS productSegmentId,
   FIRST(productSegmentName, true) AS name,
   FIRST(segmentDescription, true) AS description,
-  array_distinct(flatten(collectList(setPoints))) AS setPoints,
+  array_distinct(flatten(collect_list(setPoints))) AS setPoints,
   FIRST(timeRequirements, true) AS timeRequirements,
   FIRST(temperatureRequirements, true) AS temperatureRequirements,
   FIRST(flowRateRequirements, true) AS flowRateRequirements,
@@ -99,10 +99,10 @@ SELECT
   FIRST(compositionRequirements, true) AS compositionRequirements,
   FIRST(validFromTs, true) AS validFrom,
   FIRST(validToTs, true) AS validTo,
-  array_distinct(flatten(collectList(status))) AS status,
-  array_distinct(flatten(collectList(timeSeries))) AS timeSeries,
-  array_distinct(flatten(collectList(materialRequirements))) AS materialRequirements,
-  array_distinct(flatten(collectList(equipmentRequirements))) AS equipmentRequirements,
-  array_distinct(flatten(collectList(files))) AS files
+  array_distinct(flatten(collect_list(status))) AS status,
+  array_distinct(flatten(collect_list(timeSeries))) AS timeSeries,
+  array_distinct(flatten(collect_list(materialRequirements))) AS materialRequirements,
+  array_distinct(flatten(collect_list(equipmentRequirements))) AS equipmentRequirements,
+  array_distinct(flatten(collect_list(files))) AS files
 FROM withRefs
 GROUP BY external_id

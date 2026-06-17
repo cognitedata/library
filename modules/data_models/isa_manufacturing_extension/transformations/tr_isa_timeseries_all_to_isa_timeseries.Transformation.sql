@@ -28,7 +28,7 @@ withRefs AS (
     CASE
       WHEN lower(isString) = 'true' THEN NULL
       WHEN sourceUnit IS NULL OR trim(sourceUnit) = '' THEN NULL
-      WHEN tryGetUnit(sourceUnit) IS NOT NULL THEN node_reference('cdfCdmUnits', tryGetUnit(sourceUnit))
+      WHEN try_get_unit(sourceUnit) IS NOT NULL THEN node_reference('cdf_cdm_units', try_get_unit(sourceUnit))
       ELSE NULL
     END AS unit,
     CASE
@@ -49,7 +49,7 @@ SELECT
   FIRST(sourceUnit, true) AS sourceUnit,
   FIRST(type, true) AS type,
   FIRST(isStep, true) AS isStep,
-  array_distinct(flatten(collectList(assets))) AS assets,
-  array_distinct(flatten(collectList(equipment))) AS equipment
+  array_distinct(flatten(collect_list(assets))) AS assets,
+  array_distinct(flatten(collect_list(equipment))) AS equipment
 FROM withRefs
 GROUP BY external_id

@@ -57,6 +57,6 @@ SELECT
   FIRST(endTime, true) AS scheduledEndTime,
   FIRST(recipe, true) AS recipe,
   FIRST(site, true) AS site,
-  array_distinct(flatten(collectList(workOrders))) AS workOrders
+  array_distinct(flatten(collect_list(workOrders))) AS workOrders
 FROM withRefs
 GROUP BY external_id

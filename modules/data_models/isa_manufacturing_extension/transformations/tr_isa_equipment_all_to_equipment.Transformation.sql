@@ -58,7 +58,7 @@ SELECT
   FIRST(withRefs.model, true) AS model,
   FIRST(withRefs.serialNumber, true) AS serialNumber,
   FIRST(withRefs.asset, true) AS asset,
-  array_distinct(flatten(collectList(files.files))) AS files
+  array_distinct(flatten(collect_list(files.files))) AS files
 FROM withRefs
 LEFT JOIN files ON withRefs.external_id = files.external_id
 GROUP BY withRefs.external_id

@@ -70,9 +70,9 @@ SELECT
   FIRST(definitionStatus, true) AS status,
   FIRST(validFromTs, true) AS validFrom,
   FIRST(validToTs, true) AS validTo,
-  array_distinct(flatten(collectList(unit))) AS unit,
-  array_distinct(flatten(collectList(productRequest))) AS productRequest,
-  array_distinct(flatten(collectList(productSegment))) AS productSegment,
-  array_distinct(flatten(collectList(files))) AS files
+  array_distinct(flatten(collect_list(unit))) AS unit,
+  array_distinct(flatten(collect_list(productRequest))) AS productRequest,
+  array_distinct(flatten(collect_list(productSegment))) AS productSegment,
+  array_distinct(flatten(collect_list(files))) AS files
 FROM withRefs
 GROUP BY external_id

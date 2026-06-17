@@ -38,6 +38,6 @@ SELECT
   CAST(NULL AS timestamp) AS scheduledStartTime,
   CAST(NULL AS timestamp) AS scheduledEndTime,
   FIRST(recipe, true) AS recipe,
-  array_distinct(flatten(collectList(batch))) AS batch
+  array_distinct(flatten(collect_list(batch))) AS batch
 FROM withRefs
 GROUP BY external_id

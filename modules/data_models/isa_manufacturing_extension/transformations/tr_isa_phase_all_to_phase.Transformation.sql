@@ -56,8 +56,8 @@ SELECT
   FIRST(sequenceNumber, true) AS sequenceNumber,
   FIRST(phaseState, true) AS phaseState,
   FIRST(operation, true) AS operation,
-  array_distinct(flatten(collectList(equipmentModule))) AS equipmentModule,
-  array_distinct(flatten(collectList(batch))) AS batch,
-  array_distinct(flatten(collectList(timeSeries))) AS timeSeries
+  array_distinct(flatten(collect_list(equipmentModule))) AS equipmentModule,
+  array_distinct(flatten(collect_list(batch))) AS batch,
+  array_distinct(flatten(collect_list(timeSeries))) AS timeSeries
 FROM withRefs
 GROUP BY external_id

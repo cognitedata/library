@@ -69,10 +69,10 @@ SELECT
   FIRST(scheduledStartTime, true) AS scheduledStartTime,
   FIRST(scheduledEndTime, true) AS scheduledEndTime,
   FIRST(sequenceNumber, true) AS sequenceNumber,
-  array_distinct(flatten(collectList(unitProcedure))) AS unitProcedure,
-  array_distinct(flatten(collectList(batch))) AS batch,
-  array_distinct(flatten(collectList(assets))) AS assets,
-  array_distinct(flatten(collectList(equipment))) AS equipment,
-  array_distinct(flatten(collectList(timeSeries))) AS timeSeries
+  array_distinct(flatten(collect_list(unitProcedure))) AS unitProcedure,
+  array_distinct(flatten(collect_list(batch))) AS batch,
+  array_distinct(flatten(collect_list(assets))) AS assets,
+  array_distinct(flatten(collect_list(equipment))) AS equipment,
+  array_distinct(flatten(collect_list(timeSeries))) AS timeSeries
 FROM withRefs
 GROUP BY external_id

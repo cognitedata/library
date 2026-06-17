@@ -65,8 +65,8 @@ SELECT
   FIRST(priority, true) AS priority,
   FIRST(dueDate, true) AS dueDate,
   FIRST(requestStatus, true) AS requestStatus,
-  array_distinct(flatten(collectList(unit))) AS unit,
-  array_distinct(flatten(collectList(files))) AS files,
-  array_distinct(flatten(collectList(workOrders))) AS workOrders
+  array_distinct(flatten(collect_list(unit))) AS unit,
+  array_distinct(flatten(collect_list(files))) AS files,
+  array_distinct(flatten(collect_list(workOrders))) AS workOrders
 FROM withRefs
 GROUP BY external_id

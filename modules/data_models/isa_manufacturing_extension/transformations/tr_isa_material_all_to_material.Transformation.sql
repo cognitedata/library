@@ -33,7 +33,7 @@ SELECT
   FIRST(materialName, true) AS name,
   FIRST(materialClass, true) AS materialClass,
   FIRST(materialDescription, true) AS description,
-  array_distinct(flatten(collectList(recipe))) AS recipe,
-  array_distinct(flatten(collectList(batch))) AS batch
+  array_distinct(flatten(collect_list(recipe))) AS recipe,
+  array_distinct(flatten(collect_list(batch))) AS batch
 FROM withRefs
 GROUP BY external_id
