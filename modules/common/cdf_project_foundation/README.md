@@ -62,11 +62,12 @@ The module selector presents all available modules. Make selections carefully:
 | [`isa_manufacturing_extension`](../../datamodels/isa_manufacturing_extension/README.md) | ISA-95 enterprise data model for manufacturing assets (assets, equipment, functional locations, time series). |
 | [`cfihos_oil_and_gas_extension`](../../datamodels/cfihos_oil_and_gas_extension/README.md) | CFIHOS enterprise data model for oil & gas assets. |
 
-**Data model — search extension** — optional, only when `cfihos_oil_and_gas_extension` is selected:
+**Data model — solution extensions** — optional, select alongside the matching enterprise variant:
 
 | Option | Description |
 |--------|-------------|
-| [`cfihos_oil_and_gas_extension_search`](../../datamodels/cfihos_oil_and_gas_extension_search/README.md) | Solution data model adding search-optimised views on top of the CFIHOS enterprise model. **Only select alongside `cfihos_oil_and_gas_extension`.** |
+| [`isa_manufacturing_extension_search`](../../datamodels/isa_manufacturing_extension_search/README.md) | Search-optimised solution views on top of the ISA manufacturing enterprise model. **Only select alongside `isa_manufacturing_extension`.** |
+| [`cfihos_oil_and_gas_extension_search`](../../datamodels/cfihos_oil_and_gas_extension_search/README.md) | Search-optimised solution views on top of the CFIHOS enterprise model. **Only select alongside `cfihos_oil_and_gas_extension`.** |
 
 **Source system modules** — select any combination:
 

@@ -151,8 +151,10 @@ _MODULE_CATEGORY_FALLBACK: dict[str, str] = {
     "cdf_opcua_foundation":      "sourcesystem",
     "cdf_db_foundation":         "sourcesystem",
     "cdf_files_foundation":      "sourcesystem",
-    "isa_manufacturing_extension":    "datamodels",
-    "cfihos_oil_and_gas_extension":   "datamodels",
+    "isa_manufacturing_extension":         "datamodels",
+    "isa_manufacturing_extension_search":  "datamodels",
+    "cfihos_oil_and_gas_extension":        "datamodels",
+    "cfihos_oil_and_gas_extension_search": "datamodels",
 }
 
 # Keys that are stale in an existing config when cdf_project_foundation is
@@ -342,6 +344,15 @@ def build_overlay(
     else:
         # ISA variant — static variables (isaSchemaSpace, isaInstanceSpace).
         modules_vars[variant] = DATA_MODELS_MODULE_VARIABLES[variant]
+
+        # If the ISA search solution module is also installed, keep its
+        # instance_space in sync with the enterprise module.
+        data_models_dir = get_data_models_dir(repo_root)
+        if (data_models_dir / "isa_manufacturing_extension_search").is_dir():
+            modules_vars["isa_manufacturing_extension_search"] = {
+                "instance_space": "inst_isa_manufacturing",
+                "environment": env,
+            }
 
     return {"variables": {"modules": modules_vars}}
 
