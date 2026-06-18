@@ -118,7 +118,7 @@ Other options:
 
 ```bash
 python modules/common/cdf_project_foundation/scripts/setup_project.py -y --variant isa_manufacturing_extension
-python modules/common/cdf_project_foundation/scripts/setup_project.py -y --site oslo
+
 python modules/common/cdf_project_foundation/scripts/setup_project.py --check   # CI drift check
 ```
 
@@ -236,7 +236,7 @@ The wizard (`scripts/setup_project.py`) is split across four helper modules:
 
 1. Prompts for which environments to set up (all three, dev only, dev+prod, or custom).
 2. Asks for the CDF project name for each selected environment (pre-filled on re-run).
-3. Asks for an optional site / location name — used as access-group suffix and entity-matching `location_name`.
+3. Asks for an required site / location name — used as access-group suffix, source system location, and entity-matching `location_name`.
 4. Prompts for source system integration owner and data owner contacts (shared or per-module).
    - For the CFIHOS data model: prompts for **data model owner** name and email (renamed from "integration owner" to reflect its purpose).
 5. Prompts for group source IDs (Entra ID object IDs) and writes them to `.env`.

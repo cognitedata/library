@@ -13,7 +13,7 @@ before it is modified.  Existing comments and blank lines are preserved when
 updating a file in-place (``_yaml_patch`` helpers).
 
 Usage:
-    python setup_project.py [-y] [--check] [--variant VARIANT] [--site SITE]
+    python setup_project.py [-y] [--check] [--variant VARIANT]
 """
 
 from __future__ import annotations
@@ -804,7 +804,6 @@ def _run_cicd_wizard(pack_root: Path) -> list[Path]:
 
 def _run_wizard(
     args_variant: str | None,
-    args_site: str,
     args_yes: bool,
     repo_root: Path | None = None,
 ) -> None:
@@ -885,21 +884,17 @@ def _run_wizard(
     _hint("Required. Used as suffix in access-group names (<persona>-<site>-<env>),")
     _hint("location for source system external IDs, and location_name in entity-matching.")
     _hint("Only lowercase letters, digits, hyphens, and underscores (e.g. oslo).")
-    if args_site:
-        site = args_site
-        _hint(f"Using --site value: {site}")
-    else:
-        while True:
-            site = prompt(
-                "Site / location name",
-                default=existing["site"] or None,
-            ).strip().lower()
-            if not site:
-                _warn("Site / location name is required and cannot be empty.")
-                continue
-            if re.fullmatch(r"[a-z0-9_-]+", site):
-                break
-            _warn("Use only lowercase letters, digits, hyphens, and underscores.")
+    while True:
+        site = prompt(
+            "Site / location name",
+            default=existing["site"] or None,
+        ).strip().lower()
+        if not site:
+            _warn("Site / location name is required and cannot be empty.")
+            continue
+        if re.fullmatch(r"[a-z0-9_-]+", site):
+            break
+        _warn("Use only lowercase letters, digits, hyphens, and underscores.")
 
     # ── Source system ownership ───────────────────────────────────────────────
     integration_owners, data_owners = _prompt_source_system_ownership(
@@ -1108,8 +1103,9 @@ def collect_expected(
     env: str,
     site: str,
     installed_ctx: list[str],
+    datasets: list[str] | None = None,
 ) -> dict[str, object]:
-    overlay = build_overlay(variant, env, site, installed_ctx)
+    overlay = build_overlay(variant, env, site, installed_ctx, datasets=datasets)
     modules = overlay["variables"]["modules"]
     expected: dict[str, object] = {}
     for module, mod_vars in modules.items():
@@ -1120,8 +1116,18 @@ def collect_expected(
 
 
 def get_actual_value(config: dict, dotted: str) -> object:
-    node = config.get("variables", {}).get("modules", {})
-    for part in dotted.split("."):
+    """Read a value using the nested-category structure ``modules.<category>.<module>.<key>``.
+
+    The canonical config structure groups modules under their category
+    (e.g. ``modules.common.cdf_project_foundation.site``).
+    ``_MODULE_CATEGORY_FALLBACK`` supplies the category for each module name.
+    """
+    parts = dotted.split(".")
+    if not parts:
+        return None
+    category = _MODULE_CATEGORY_FALLBACK.get(parts[0])
+    node: object = config.get("variables", {}).get("modules", {})
+    for part in ([category] + parts if category else parts):
         if not isinstance(node, dict) or part not in node:
             return None
         node = node[part]
@@ -1134,42 +1140,74 @@ def check_config_file(
     env: str,
     site: str,
     installed_ctx: list[str],
+    datasets: list[str] | None = None,
 ) -> list[str]:
     if not path.exists():
         return ["    (file missing — run without --check to create it)"]
     config = load_yaml(path)
     errors: list[str] = []
-    for dotted, expected_value in collect_expected(variant, env, site, installed_ctx).items():
+    for dotted, expected_value in collect_expected(
+        variant, env, site, installed_ctx, datasets
+    ).items():
         actual = get_actual_value(config, dotted)
         if actual != expected_value:
             errors.append(f"    {dotted}: got {actual!r}, expected {expected_value!r}")
     return errors
 
 
+def _read_check_context(pack_root: Path) -> tuple[str, list[str]]:
+    """Read site and dataset values from the first existing config file for --check mode.
+
+    Returns (site, datasets).  Both are needed to build correct expected values
+    so user-configured fields (group names, location, dataset list) don't produce
+    false positives.
+    """
+    for env in ENVIRONMENTS:
+        path = pack_root / f"config.{env}.yaml"
+        if not path.exists():
+            continue
+        cfg = load_yaml(path)
+        modules = cfg.get("variables", {}).get("modules", {})
+        # Support nested (canonical) and flat structures.
+        foundation = (
+            modules.get("common", {}).get("cdf_project_foundation", {})
+            or modules.get("cdf_project_foundation", {})
+        )
+        site = foundation.get("site", "")
+        datasets = foundation.get("dataset") or []
+        if not isinstance(datasets, list):
+            datasets = []
+        return site, datasets
+    return "", []
+
+
 def _run_check(
     args_variant: str | None,
-    args_site: str,
     repo_root: Path | None = None,
 ) -> None:
     pack_root = get_pack_root(repo_root)
     variant = resolve_variant(args_variant, get_data_models_dir(repo_root))
-    site = args_site.strip()
-    targets = target_config_paths(pack_root, ENVIRONMENTS)
+    # Read site and datasets from existing configs so user-configured values
+    # (group names, location, dataset list) don't produce false positives.
+    site, datasets = _read_check_context(pack_root)
     installed_ctx = list_installed_contextualization_modules(repo_root)
 
+    # Only validate config files that actually exist — skip missing ones silently.
     all_errors: dict[str, list[str]] = {}
-    for env, path in targets.items():
-        errs = check_config_file(path, variant, env, site, installed_ctx)
+    for env in ENVIRONMENTS:
+        path = pack_root / f"config.{env}.yaml"
+        if not path.exists():
+            continue
+        errs = check_config_file(path, variant, env, site, installed_ctx, datasets)
         if errs:
             all_errors[path.name] = errs
 
-    target_set = set(targets.values())
     for path in find_env_configs(repo_root):
-        if path in target_set:
+        if (pack_root / path.name) in {pack_root / f"config.{e}.yaml" for e in ENVIRONMENTS}:
             continue
         env_guess = path.name.split(".")[1] if "." in path.name else "dev"
         env_guess = env_guess if env_guess in ENVIRONMENTS else "dev"
-        errs = check_config_file(path, variant, env_guess, site, installed_ctx)
+        errs = check_config_file(path, variant, env_guess, site, installed_ctx, datasets)
         if errs:
             all_errors[path.name] = errs
 
@@ -1220,17 +1258,12 @@ def main() -> None:
         default=None,
         help="Force the data model variant instead of auto-detecting it",
     )
-    parser.add_argument(
-        "--site",
-        default="",
-        help="Optional site / location name inserted into access-group names (<persona>-<site>-<env>)",
-    )
     args = parser.parse_args()
 
     if args.check:
-        _run_check(args.variant, args.site)
+        _run_check(args.variant)
     else:
-        _run_wizard(args.variant, args.site, args.yes)
+        _run_wizard(args.variant, args.yes)
 
 
 if __name__ == "__main__":
