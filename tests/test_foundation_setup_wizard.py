@@ -7,7 +7,8 @@ Covers:
   - setup_project: group_name, build_foundation_vars, build_overlay,
                    _migrate_staging_to_test, _write_config_fresh,
                    _write_config_update, remove_redundant_auth_files,
-                   patch_cfihos_auth_for_missing_search, _read_existing_values
+                   patch_cfihos_auth_for_missing_search, remove_synthetic_data,
+                   _read_existing_values
 """
 
 from __future__ import annotations
@@ -692,6 +693,88 @@ class TestPatchCfihosAuthForMissingSearch:
         f.write_text("  - cdf_cdm\n  - {{space}}\n")
         patched = patch_cfihos_auth_for_missing_search(tmp_path)
         assert patched == []
+
+
+# ── setup_project — synthetic data removal ────────────────────────────────────
+
+class TestRemoveSyntheticData:
+    """remove_synthetic_data targets only cfihos_oil_and_gas_extension."""
+
+    def _cfihos_dir(self, tmp_path: Path) -> Path:
+        d = tmp_path / "modules" / "datamodels" / "cfihos_oil_and_gas_extension"
+        d.mkdir(parents=True, exist_ok=True)
+        return d
+
+    def _make_files(self, directory: Path, *names: str) -> list[Path]:
+        directory.mkdir(parents=True, exist_ok=True)
+        files = []
+        for name in names:
+            f = directory / name
+            f.write_text("example")
+            files.append(f)
+        return files
+
+    def test_removes_upload_data(self, tmp_path: Path) -> None:
+        from setup_project import remove_synthetic_data
+        cfihos = self._cfihos_dir(tmp_path)
+        self._make_files(cfihos / "upload_data", "data.csv", "manifest.yaml")
+        count = remove_synthetic_data(tmp_path)
+        assert count == 2
+        assert not (cfihos / "upload_data").exists()
+
+    def test_removes_raw(self, tmp_path: Path) -> None:
+        from setup_project import remove_synthetic_data
+        cfihos = self._cfihos_dir(tmp_path)
+        self._make_files(cfihos / "raw", "db.Database.yaml")
+        count = remove_synthetic_data(tmp_path)
+        assert count == 1
+        assert not (cfihos / "raw").exists()
+
+    def test_removes_workflows(self, tmp_path: Path) -> None:
+        from setup_project import remove_synthetic_data
+        cfihos = self._cfihos_dir(tmp_path)
+        self._make_files(cfihos / "workflows", "example.Workflow.yaml")
+        count = remove_synthetic_data(tmp_path)
+        assert count == 1
+        assert not (cfihos / "workflows").exists()
+
+    def test_removes_transformations(self, tmp_path: Path) -> None:
+        from setup_project import remove_synthetic_data
+        cfihos = self._cfihos_dir(tmp_path)
+        self._make_files(cfihos / "transformations", "populate.sql")
+        count = remove_synthetic_data(tmp_path)
+        assert count == 1
+        assert not (cfihos / "transformations").exists()
+
+    def test_removes_all_four_dirs(self, tmp_path: Path) -> None:
+        from setup_project import remove_synthetic_data
+        cfihos = self._cfihos_dir(tmp_path)
+        self._make_files(cfihos / "upload_data", "a.csv")
+        self._make_files(cfihos / "raw", "b.yaml")
+        self._make_files(cfihos / "workflows", "c.yaml")
+        self._make_files(cfihos / "transformations", "d.sql")
+        count = remove_synthetic_data(tmp_path)
+        assert count == 4
+        for d in ("upload_data", "raw", "workflows", "transformations"):
+            assert not (cfihos / d).exists()
+
+    def test_no_op_when_cfihos_not_installed(self, tmp_path: Path) -> None:
+        from setup_project import remove_synthetic_data
+        assert remove_synthetic_data(tmp_path) == 0
+
+    def test_idempotent_when_dirs_already_removed(self, tmp_path: Path) -> None:
+        from setup_project import remove_synthetic_data
+        self._cfihos_dir(tmp_path)  # module dir exists but no synthetic dirs
+        assert remove_synthetic_data(tmp_path) == 0
+
+    def test_does_not_touch_other_cfihos_dirs(self, tmp_path: Path) -> None:
+        from setup_project import remove_synthetic_data
+        cfihos = self._cfihos_dir(tmp_path)
+        self._make_files(cfihos / "data_modeling", "model.datamodel.yaml")
+        self._make_files(cfihos / "auth", "group.yaml")
+        remove_synthetic_data(tmp_path)
+        assert (cfihos / "data_modeling").exists()
+        assert (cfihos / "auth").exists()
 
 
 # ── setup_project — read_existing_values ─────────────────────────────────────
