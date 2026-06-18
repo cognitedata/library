@@ -260,8 +260,8 @@ The wizard (`scripts/setup_project.py`) is split across four helper modules:
 # default.config.yaml — key variables (populated by the wizard)
 site: ""                                   # optional site segment for group names
 dataset: []                                # auto-populated from installed source system modules
-schemaSpace: "sp_isa_manufacturing"        # synced from the installed data model variant
-instanceSpace: "sp_isa_instance_space"
+schemaSpace: "dm_dom_isa_manufacturing"    # ISA default; CFIHOS uses dm_dom_oil_and_gas
+instanceSpace: "inst_isa_manufacturing"    # ISA default; CFIHOS uses inst_location
 dataModelVariant: isa_manufacturing_extension
 
 # Computed per env by setup_project.py:

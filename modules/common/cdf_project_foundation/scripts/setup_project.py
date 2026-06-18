@@ -68,8 +68,8 @@ PERSONAS: tuple[str, ...] = ("consumer", "producer", "admin")
 INGESTION_FOUNDATION_VARIABLES: dict[str, dict[str, str]] = {
     "isa_manufacturing_extension": {
         "dataModelVariant": "isa_manufacturing_extension",
-        "schemaSpace": "sp_isa_manufacturing",
-        "instanceSpace": "sp_isa_instance_space",
+        "schemaSpace": "dm_dom_isa_manufacturing",
+        "instanceSpace": "inst_isa_manufacturing",
     },
     "cfihos_oil_and_gas_extension": {
         "dataModelVariant": "cfihos_oil_and_gas_extension",
@@ -78,13 +78,6 @@ INGESTION_FOUNDATION_VARIABLES: dict[str, dict[str, str]] = {
     },
 }
 
-DATA_MODELS_MODULE_VARIABLES: dict[str, dict[str, str]] = {
-    "isa_manufacturing_extension": {
-        "isaSchemaSpace": "sp_isa_manufacturing",
-        "isaInstanceSpace": "sp_isa_instance_space",
-    },
-    "cfihos_oil_and_gas_extension": {},
-}
 
 # Per-variant overrides for contextualization modules.
 # ``None`` values are sentinels resolved to the variant's ``instanceSpace``
@@ -92,7 +85,7 @@ DATA_MODELS_MODULE_VARIABLES: dict[str, dict[str, str]] = {
 CONTEXTUALIZATION_VARIABLES: dict[str, dict[str, dict]] = {
     "isa_manufacturing_extension": {
         "cdf_entity_matching": {
-            "schemaSpace": "sp_isa_manufacturing",
+            "schemaSpace": "dm_dom_isa_manufacturing",
             "assetInstanceSpace": None,
             "timeseriesInstanceSpace": None,
             "AssetViewExternalId": "ISAAsset",
@@ -105,10 +98,10 @@ CONTEXTUALIZATION_VARIABLES: dict[str, dict[str, dict]] = {
             "entityViewFilterValues": [],
         },
         "cdf_file_annotation": {
-            "fileSchemaSpace": "sp_isa_manufacturing",
+            "fileSchemaSpace": "dm_dom_isa_manufacturing",
             "fileInstanceSpace": None,
             "fileExternalId": "ISAFile",
-            "targetEntitySchemaSpace": "sp_isa_manufacturing",
+            "targetEntitySchemaSpace": "dm_dom_isa_manufacturing",
             "targetEntityInstanceSpace": None,
             "targetEntityExternalId": "ISAAsset",
         },
@@ -167,6 +160,11 @@ _STALE_CTX_KEYS: tuple[str, ...] = (
     ".entity_matching_processing_group_source_id",
     "variables.modules.cdf_entity_matching.reservedWordPrefix",
     "variables.modules.contextualization.cdf_entity_matching.reservedWordPrefix",
+    # Stale ISA DM vars — previously written by setup_project.py, now owned by the module.
+    "variables.modules.isa_manufacturing_extension.isaSchemaSpace",
+    "variables.modules.isa_manufacturing_extension.isaInstanceSpace",
+    "variables.modules.datamodels.isa_manufacturing_extension.isaSchemaSpace",
+    "variables.modules.datamodels.isa_manufacturing_extension.isaInstanceSpace",
     # CFIHOS DM source IDs — covered by foundation persona groups.
     "variables.modules.cfihos_oil_and_gas_extension.owner_source_id",
     "variables.modules.cfihos_oil_and_gas_extension.read_source_id",
@@ -342,9 +340,6 @@ def build_overlay(
                 "environment": env,
             }
     else:
-        # ISA variant — static variables (isaSchemaSpace, isaInstanceSpace).
-        modules_vars[variant] = DATA_MODELS_MODULE_VARIABLES[variant]
-
         # If the ISA search solution module is also installed, keep its
         # instance_space in sync with the enterprise module.
         data_models_dir = get_data_models_dir(repo_root)
