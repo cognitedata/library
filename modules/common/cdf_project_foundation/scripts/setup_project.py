@@ -206,6 +206,15 @@ _MODULE_LABELS: dict[str, str] = {
     "cdf_files_foundation": "Files Foundation",
 }
 
+# .env variable name for each SS module's extractor group source ID.
+_MODULE_EXTRACTOR_ENV_VAR: dict[str, str] = {
+    "cdf_pi_foundation":    "PI_EXTRACTOR_GROUP_SOURCE_ID",
+    "cdf_sap_foundation":   "SAP_EXTRACTOR_GROUP_SOURCE_ID",
+    "cdf_opcua_foundation": "OPCUA_EXTRACTOR_GROUP_SOURCE_ID",
+    "cdf_db_foundation":    "DB_EXTRACTOR_GROUP_SOURCE_ID",
+    "cdf_files_foundation": "FILES_EXTRACTOR_GROUP_SOURCE_ID",
+}
+
 
 def _module_label(module: str) -> str:
     return _MODULE_LABELS.get(module, module)
@@ -214,13 +223,15 @@ def _module_label(module: str) -> str:
 def resolve_sourcesystem_variables(
     instance_space: str,
     installed_modules: list[str],
+    env: str = "dev",
     location: str = "",
     integration_owners: dict[str, tuple[str, str]] | None = None,
     data_owners: dict[str, tuple[str, str]] | None = None,
+    extractor_group_source_ids: dict[str, str] | None = None,
 ) -> dict[str, dict]:
     result: dict[str, dict] = {}
     for module in installed_modules:
-        vars_: dict[str, Any] = {"instanceSpace": instance_space}
+        vars_: dict[str, Any] = {"instanceSpace": instance_space, "environment": env}
         if location:
             vars_["location"] = location
         if integration_owners and module in integration_owners:
@@ -235,6 +246,10 @@ def resolve_sourcesystem_variables(
                 vars_["data_owner_name"] = name
             if email:
                 vars_["data_owner_email"] = email
+        if extractor_group_source_ids and module in extractor_group_source_ids:
+            env_var = _MODULE_EXTRACTOR_ENV_VAR.get(module)
+            if env_var:
+                vars_["extractor_group_source_id"] = f"${{{env_var}}}"
         result[module] = vars_
     return result
 
@@ -268,6 +283,7 @@ def build_overlay(
     cfihos_admin_user: str = "",
     cfihos_integration_owner_name: str = "",
     cfihos_integration_owner_email: str = "",
+    extractor_group_source_ids: dict[str, str] | None = None,
     repo_root: Path | None = None,
 ) -> dict:
     """Full ``variables.modules`` overlay dict to merge into a config file.
@@ -289,6 +305,7 @@ def build_overlay(
         ctx_vars["cdf_file_annotation"]["ApplicationOwner"] = app_owner
     if site and "cdf_entity_matching" in ctx_vars:
         ctx_vars["cdf_entity_matching"]["location_name"] = site
+        ctx_vars["cdf_entity_matching"]["source_name"] = site
 
     # Always write dataset (even as empty list) so the key is always present.
     modules_vars: dict[str, Any] = {
@@ -298,7 +315,8 @@ def build_overlay(
     if installed_ss:
         modules_vars.update(
             resolve_sourcesystem_variables(
-                instance_space, installed_ss, site, integration_owners, data_owners
+                instance_space, installed_ss, env, site,
+                integration_owners, data_owners, extractor_group_source_ids
             )
         )
     if variant == "cfihos_oil_and_gas_extension":
@@ -513,6 +531,42 @@ def _migrate_staging_to_test(pack_root: Path) -> bool:
     staging.unlink()
     _ok("Migrated config.staging.yaml → config.test.yaml  (validation-type: prod)")
     return True
+
+
+# ── Synthetic data removal ────────────────────────────────────────────────────
+
+# Directories in cfihos_oil_and_gas_extension that contain synthetic / example data
+# and should be removed when the user opts out.
+_CFIHOS_SYNTHETIC_DIRS: tuple[str, ...] = (
+    "upload_data",
+    "raw",
+    "workflows",
+    "transformations",
+)
+
+
+def remove_synthetic_data(repo_root: Path | None = None) -> int:
+    """Delete synthetic data directories from ``cfihos_oil_and_gas_extension``.
+
+    Only the CFIHOS DM module contains synthetic/example data (upload_data,
+    raw, workflows, transformations).  No other Foundation DP module requires
+    this cleanup.
+
+    Returns the total number of files removed.
+    """
+    data_models_dir = get_data_models_dir(repo_root)
+    cfihos_dir = data_models_dir / "cfihos_oil_and_gas_extension"
+    if not cfihos_dir.is_dir():
+        return 0
+
+    total = 0
+    for dir_name in _CFIHOS_SYNTHETIC_DIRS:
+        target = cfihos_dir / dir_name
+        if target.is_dir():
+            total += sum(1 for f in target.rglob("*") if f.is_file())
+            shutil.rmtree(target)
+
+    return total
 
 
 # ── Data model auth patching ──────────────────────────────────────────────────
@@ -853,7 +907,7 @@ def _run_wizard(
     cfihos_integration_owner_name = ""
     cfihos_integration_owner_email = ""
     if variant == "cfihos_oil_and_gas_extension":
-        _section("CFIHOS Data Model — Owner Configuration")
+        _section("CFIHOS Data Model — Data Model Owner Configuration")
         _hint("Configures admin_user, integrationOwnerName, and integrationOwnerEmail")
         _hint("in the cfihos_oil_and_gas_extension module. Leave blank to skip.")
 
@@ -867,13 +921,13 @@ def _run_wizard(
             _warn("Invalid email. Use format: name@domain.com")
 
         cfihos_integration_owner_name = prompt(
-            "Integration owner name",
+            "Data Model owner name",
             default=existing.get("cfihos_integration_owner_name") or None,
         ).strip()
 
         while True:
             cfihos_integration_owner_email = prompt(
-                "Integration owner email",
+                "Data Model owner email",
                 default=existing.get("cfihos_integration_owner_email") or None,
             ).strip()
             if not cfihos_integration_owner_email or re.fullmatch(
@@ -884,8 +938,9 @@ def _run_wizard(
 
     # ── Group source IDs → .env ───────────────────────────────────────────────
     _section("Group Source IDs  (Entra ID object IDs)")
-    _hint("Stored in .env and referenced as ${CONSUMER_SOURCE_ID} etc. in config.")
-    _hint("Leave blank to skip — fill .env manually later.")
+    _hint("The source ID is the group's object ID in your identity provider (e.g. Entra ID).")
+    _hint("See: https://docs.cognite.com/cdf/access/entra/guides/create_groups_oidc")
+    _hint("Values stored in .env — leave blank to fill manually later.")
     # .env always lives at repo root (same level as cdf.toml), regardless of
     # whether an organization directory is configured.
     env_path = (repo_root or REPO_ROOT) / ".env"
@@ -894,8 +949,22 @@ def _run_wizard(
 
     for persona in PERSONAS:
         var = f"{persona.upper()}_SOURCE_ID"
-        print(f"\n  {persona.capitalize()} group  →  {var}")
+        print(f"\n  {persona.capitalize()} persona group  →  {var}")
+        _hint(f"  Source ID of the '{group_name(persona, site, 'dev')}' group in your IdP.")
         prompt_env_var(var, env_vals, env_lines, env_key_idx)
+
+    # ── Extractor group source IDs (one per installed SS module) ──────────────
+    if installed_ss:
+        _section("Extractor Group Source IDs  (per source system)")
+        _hint("One scoped producer group per extractor — write access limited to its")
+        _hint("dataset, instance space, and RAW tables only (SOP Step 3c).")
+        _hint("See: https://docs.cognite.com/cdf/access/entra/guides/create_groups_oidc")
+        for module in installed_ss:
+            var = _MODULE_EXTRACTOR_ENV_VAR.get(module, "")
+            if not var:
+                continue
+            print(f"\n  {_module_label(module)}  →  {var}")
+            prompt_env_var(var, env_vals, env_lines, env_key_idx)
 
     # ── ApplicationOwner (file_annotation only) ───────────────────────────────
     app_owner = ""
@@ -915,8 +984,22 @@ def _run_wizard(
                 break
             _warn("One or more addresses look invalid. Use format: name@domain.com")
 
+    # ── Synthetic data (CFIHOS only) ─────────────────────────────────────────
+    keep_synthetic = True  # default: keep; only asked for CFIHOS
+    if variant == "cfihos_oil_and_gas_extension":
+        _section("Synthetic / Example Data  (CFIHOS)")
+        _hint("cfihos_oil_and_gas_extension contains synthetic data in upload_data/,")
+        _hint("raw/, workflows/, and transformations/ — not needed in production.")
+        keep_synthetic = prompt_yes_no(
+            "Keep synthetic data and example files?", default=False
+        )
+
     # ── Review summary ────────────────────────────────────────────────────────
-    env_dirty = any(
+    extractor_dirty = any(
+        env_vals.get(v) != original_env_vals.get(v)
+        for v in _MODULE_EXTRACTOR_ENV_VAR.values()
+    )
+    env_dirty = extractor_dirty or any(
         env_vals.get(f"{p.upper()}_SOURCE_ID") != original_env_vals.get(f"{p.upper()}_SOURCE_ID")
         for p in PERSONAS
     )
@@ -945,6 +1028,11 @@ def _run_wizard(
             cfihos_admin_user=cfihos_admin_user,
             cfihos_integration_owner_name=cfihos_integration_owner_name,
             cfihos_integration_owner_email=cfihos_integration_owner_email,
+            extractor_group_source_ids={
+                m: _MODULE_EXTRACTOR_ENV_VAR[m]
+                for m in installed_ss
+                if m in _MODULE_EXTRACTOR_ENV_VAR
+            },
             repo_root=repo_root,
         )
         if write_config(path, env, project_names[env], overlay):
@@ -968,6 +1056,13 @@ def _run_wizard(
     removed = remove_redundant_auth_files(repo_root)
     patched = patch_cfihos_auth_for_missing_search(repo_root)
 
+    # ── Remove synthetic data (if user opted out) ─────────────────────────────
+    synthetic_removed = 0
+    if not keep_synthetic:
+        synthetic_removed = remove_synthetic_data(repo_root)
+        if synthetic_removed:
+            _ok(f"Removed {synthetic_removed} synthetic data file(s) from upload_data/ directories.")
+
     # ── CI/CD generation ──────────────────────────────────────────────────────
     cicd_files = _run_cicd_wizard(pack_root)
 
@@ -980,6 +1075,8 @@ def _run_wizard(
         _ok(f"{len(patched)} cfihos auth file(s) patched (search_space removed).")
     if env_dirty:
         _ok(".env updated with group source IDs.")
+    if synthetic_removed:
+        _ok(f"{synthetic_removed} synthetic data file(s) removed.")
     if cicd_files:
         _ok(f"{len(cicd_files)} CI/CD workflow file(s) generated.")
     print()
