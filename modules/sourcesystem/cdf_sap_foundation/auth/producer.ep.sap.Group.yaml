@@ -15,7 +15,7 @@ capabilities:
       scope:
         tableScope:
           dbsToTables:
-            db_sap: []
+            db_{{location}}_sap: []
   - dataModelInstancesAcl:
       actions: [READ, WRITE, WRITE_PROPERTIES]
       scope:

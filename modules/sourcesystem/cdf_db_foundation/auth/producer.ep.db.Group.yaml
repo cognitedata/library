@@ -15,7 +15,7 @@ capabilities:
       scope:
         tableScope:
           dbsToTables:
-            db_postgres: []
+            db_{{location}}_db_postgres: []
   - dataModelInstancesAcl:
       actions: [READ, WRITE, WRITE_PROPERTIES]
       scope:

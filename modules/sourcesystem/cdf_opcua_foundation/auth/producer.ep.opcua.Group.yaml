@@ -15,7 +15,7 @@ capabilities:
       scope:
         tableScope:
           dbsToTables:
-            db_opcua: []
+            db_{{location}}_opcua: []
   - timeSeriesAcl:
       actions: [READ, WRITE]
       scope:
