@@ -223,17 +223,15 @@ def _module_label(module: str) -> str:
 def resolve_sourcesystem_variables(
     instance_space: str,
     installed_modules: list[str],
-    env: str = "dev",
-    location: str = "",
+    env: str,
+    location: str,
     integration_owners: dict[str, tuple[str, str]] | None = None,
     data_owners: dict[str, tuple[str, str]] | None = None,
     extractor_group_source_ids: dict[str, str] | None = None,
 ) -> dict[str, dict]:
     result: dict[str, dict] = {}
     for module in installed_modules:
-        vars_: dict[str, Any] = {"instanceSpace": instance_space, "environment": env}
-        if location:
-            vars_["location"] = location
+        vars_: dict[str, Any] = {"instanceSpace": instance_space, "environment": env, "location": location}
         if integration_owners and module in integration_owners:
             name, email = integration_owners[module]
             if name:
@@ -247,9 +245,8 @@ def resolve_sourcesystem_variables(
             if email:
                 vars_["data_owner_email"] = email
         if extractor_group_source_ids and module in extractor_group_source_ids:
-            env_var = _MODULE_EXTRACTOR_ENV_VAR.get(module)
-            if env_var:
-                vars_["extractor_group_source_id"] = f"${{{env_var}}}"
+            env_var = extractor_group_source_ids[module]
+            vars_["extractor_group_source_id"] = f"${{{env_var}}}"
         result[module] = vars_
     return result
 

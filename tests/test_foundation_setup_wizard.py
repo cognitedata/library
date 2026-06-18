@@ -303,7 +303,8 @@ class TestBuildFoundationVars:
         from setup_project import build_foundation_vars
         vars_ = build_foundation_vars("isa_manufacturing_extension", "dev", "oslo")
         assert vars_["dataModelVariant"] == "isa_manufacturing_extension"
-        assert vars_["schemaSpace"] == "sp_isa_manufacturing"
+        assert vars_["schemaSpace"] == "dm_dom_isa_manufacturing"
+        assert vars_["instanceSpace"] == "inst_isa_manufacturing"
         assert vars_["site"] == "oslo"
         assert vars_["consumerGroupName"] == "consumer-oslo-dev"
         assert vars_["producerGroupName"] == "producer-oslo-dev"
@@ -328,10 +329,7 @@ class TestBuildOverlay:
         overlay = build_overlay("isa_manufacturing_extension", "dev", "", [])
         mods = overlay["variables"]["modules"]
         assert "cdf_project_foundation" in mods
-        assert "isa_manufacturing_extension" in mods
-        dm = mods["isa_manufacturing_extension"]
-        assert dm["isaSchemaSpace"] == "sp_isa_manufacturing"
-        assert dm["isaInstanceSpace"] == "sp_isa_instance_space"
+        assert "isa_manufacturing_extension" not in mods
 
     def test_cfihos_overlay_has_no_isa_keys(self) -> None:
         from setup_project import build_overlay

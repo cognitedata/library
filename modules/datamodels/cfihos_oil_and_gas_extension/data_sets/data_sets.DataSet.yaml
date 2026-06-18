@@ -6,6 +6,6 @@
     consoleCreatedBy: '{"username": "{{admin_user}}"}'
     consoleGoverned: '{{governed}}'
     consoleLabels: '["OIL AND GAS", "DOMAIN MODEL", "CFIHOS", "ISO 14224"]'
-    consoleOwners: '["{{integrationOwnerEmail}}", "{{integrationOwnerName}}"]'
+    consoleOwners: '[{"email": "{{integrationOwnerEmail}}", "name": "{{integrationOwnerName}}"}]'
     rawTables: '[]'
     transformations: '[]'
