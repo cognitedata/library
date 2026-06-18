@@ -881,20 +881,23 @@ def _run_wizard(
             break
 
     # ── Site / location name (optional) ──────────────────────────────────────
-    _section("Site / Location Name  (optional)")
-    _hint("Used as suffix in access-group names (<persona>-<site>-<env>)")
-    _hint("and as location_name in entity-matching variables.")
-    _hint("Leave blank to omit.")
+    _section("Site / Location Name")
+    _hint("Required. Used as suffix in access-group names (<persona>-<site>-<env>),")
+    _hint("location for source system external IDs, and location_name in entity-matching.")
+    _hint("Only lowercase letters, digits, hyphens, and underscores (e.g. oslo).")
     if args_site:
         site = args_site
         _hint(f"Using --site value: {site}")
     else:
         while True:
             site = prompt(
-                "Site / location name (e.g. oslo)",
+                "Site / location name",
                 default=existing["site"] or None,
             ).strip().lower()
-            if not site or re.fullmatch(r"[a-z0-9_-]+", site):
+            if not site:
+                _warn("Site / location name is required and cannot be empty.")
+                continue
+            if re.fullmatch(r"[a-z0-9_-]+", site):
                 break
             _warn("Use only lowercase letters, digits, hyphens, and underscores.")
 
