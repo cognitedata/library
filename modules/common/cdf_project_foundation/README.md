@@ -59,31 +59,31 @@ The module selector presents all available modules. Make selections carefully:
 
 | Option | Description |
 |--------|-------------|
-| `isa_manufacturing_extension` | ISA-95 enterprise data model for manufacturing assets (assets, equipment, functional locations, time series). |
-| `cfihos_oil_and_gas_extension` | CFIHOS enterprise data model for oil & gas assets. |
+| [`isa_manufacturing_extension`](../../datamodels/isa_manufacturing_extension/README.md) | ISA-95 enterprise data model for manufacturing assets (assets, equipment, functional locations, time series). |
+| [`cfihos_oil_and_gas_extension`](../../datamodels/cfihos_oil_and_gas_extension/README.md) | CFIHOS enterprise data model for oil & gas assets. |
 
 **Data model — search extension** — optional, only when `cfihos_oil_and_gas_extension` is selected:
 
 | Option | Description |
 |--------|-------------|
-| `cfihos_oil_and_gas_extension_search` | Solution data model adding search-optimised views on top of the CFIHOS enterprise model. **Only select alongside `cfihos_oil_and_gas_extension`.** |
+| [`cfihos_oil_and_gas_extension_search`](../../datamodels/cfihos_oil_and_gas_extension_search/README.md) | Solution data model adding search-optimised views on top of the CFIHOS enterprise model. **Only select alongside `cfihos_oil_and_gas_extension`.** |
 
 **Source system modules** — select any combination:
 
 | Module | Description |
 |--------|-------------|
-| `cdf_pi_foundation` | Sets up extraction pipeline configs for OSIsoft PI / AVEVA PI time series data. |
-| `cdf_sap_foundation` | Sets up extraction pipeline configs for SAP assets, equipment, and functional locations via RAW staging. |
-| `cdf_opcua_foundation` | Sets up extraction pipeline configs for OPC-UA data via RAW staging. |
-| `cdf_db_foundation` | Sets up extraction pipeline configs for generic database sources (PostgreSQL, etc.) via RAW staging. |
-| `cdf_files_foundation` | Sets up extraction pipeline configs for file sources such as SharePoint. |
+| [`cdf_pi_foundation`](../../sourcesystem/cdf_pi_foundation/README.md) | Sets up extraction pipeline configs for OSIsoft PI / AVEVA PI time series data. |
+| [`cdf_sap_foundation`](../../sourcesystem/cdf_sap_foundation/README.md) | Sets up extraction pipeline configs for SAP assets, equipment, and functional locations via RAW staging. |
+| [`cdf_opcua_foundation`](../../sourcesystem/cdf_opcua_foundation/README.md) | Sets up extraction pipeline configs for OPC-UA data via RAW staging. |
+| [`cdf_db_foundation`](../../sourcesystem/cdf_db_foundation/README.md) | Sets up extraction pipeline configs for generic database sources (PostgreSQL, etc.) via RAW staging. |
+| [`cdf_files_foundation`](../../sourcesystem/cdf_files_foundation/README.md) | Sets up extraction pipeline configs for file sources such as SharePoint. |
 
 **Contextualization modules** — optional:
 
 | Module | Description |
 |--------|-------------|
-| `cdf_entity_matching` | Automated asset–time series matching using rule-based and ML-assisted methods. |
-| `cdf_file_annotation` | P&ID and document annotation with a Streamlit review app. |
+| [`cdf_entity_matching`](../../contextualization/cdf_entity_matching/README.md) | Automated asset–time series matching using rule-based and ML-assisted methods. |
+| [`cdf_file_annotation`](../../contextualization/cdf_file_annotation/README.md) | P&ID and document annotation with a Streamlit review app. |
 
 **Common module** — always include:
 
@@ -93,7 +93,7 @@ The module selector presents all available modules. Make selections carefully:
 
 | Module | Purpose |
 |--------|---------|
-| `qualitizer` | Real-time data quality monitoring and KPI dashboards. Not required for the pack to deploy, but strongly recommended — gives visibility into ingestion health and contextualization coverage from day one. |
+| [`qualitizer`](../../tools/apps/qualitizer/README.md) | Real-time data quality monitoring and KPI dashboards. Not required for the pack to deploy, but strongly recommended — gives visibility into ingestion health and contextualization coverage from day one. |
 
 ---
 
