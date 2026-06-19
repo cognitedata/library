@@ -9,7 +9,7 @@ The **Foundation Deployment Pack** (`dp:foundation`) is the recommended starting
 - **Highly extensible** — simple to plug in your own data sources and processing logic
 - **Reliable** — everything included works out of the box
 
-This module provides the **project-level foundation** of the pack: three persona-based access groups and a project setup wizard, aligned with the [project-setup SOP](https://docs.google.com/document/d/14g_hNbJ398sS-iDWBNeXbZi8qzMM-YaZoyskiJt1ql0/edit?usp=sharing).
+This module provides the **project-level foundation** of the pack: three persona-based access groups and a project setup wizard, aligned with the [project-setup SOP](https://cogdocs-feat-cdf-project-setup-docs.mintlify.app/gvd/cdf-project-setup/cdf-foundation-setup).
 
 ---
 
@@ -17,7 +17,9 @@ This module provides the **project-level foundation** of the pack: three persona
 
 ### Step 0 — Prerequisites
 
-Before you start, ensure the following are in place:
+> 📖 Before starting, read the [project-setup SOP](https://cogdocs-feat-cdf-project-setup-docs.mintlify.app/gvd/cdf-project-setup/cdf-foundation-setup) — it is required reading before any deployment step.
+
+Ensure the following are in place:
 
 - **Cognite Toolkit latest >= 0.8.102** installed. Follow the [setup instructions](https://docs.cognite.com/cdf/deploy/cdf_toolkit/guides/setup).
 - A `cdf.toml` exists in your project root. If missing, run `cdf init` and choose **Create toml file (required)**.
@@ -27,11 +29,6 @@ Before you start, ensure the following are in place:
   cdf auth verify
   ```
   See the [Toolkit authentication docs](https://docs.cognite.com/cdf/deploy/cdf_toolkit/guides/auth).
-- Library source configured in `cdf.toml`:
-  ```toml
-  [library.cognite]
-  url = "https://github.com/cognitedata/library/releases/download/latest/packages.zip"
-  ```
 
 > **Important:** Keep all client IDs and secrets as environment variables — never hardcode them in config files.
 
@@ -47,6 +44,8 @@ cdf modules init
 
 Select **Foundation Deployment Pack** from the list.
 
+> **Module selector controls:** use **Space** to select / deselect a module, **Enter** to confirm.
+
 ---
 
 ### Step 2 — Select modules
@@ -58,43 +57,44 @@ The module selector presents all available modules. Make selections carefully:
 > ⚠️ **Select only one data model variant.** Selecting both will break auto-detection
 > and require the `--variant` flag on every script run.
 
-| Option | Use when |
-|--------|----------|
-| `isa_manufacturing_extension` | ISA-95 / manufacturing assets |
-| `cfihos_oil_and_gas_extension` | CFIHOS / oil & gas assets |
+| Option | Description |
+|--------|-------------|
+| [`isa_manufacturing_extension`](../../datamodels/isa_manufacturing_extension/README.md) | ISA-95 enterprise data model for manufacturing assets (assets, equipment, functional locations, time series). |
+| [`cfihos_oil_and_gas_extension`](../../datamodels/cfihos_oil_and_gas_extension/README.md) | CFIHOS enterprise data model for oil & gas assets. |
 
-**Data model — search extension** — optional, only when `cfihos_oil_and_gas_extension` is selected:
+**Data model — solution extensions** — optional, select alongside the matching enterprise variant:
 
-| Option | Purpose |
-|--------|---------|
-| `cfihos_oil_and_gas_extension_search` | Solution data model adding search spaces for the CFIHOS extension. **Only select this alongside `cfihos_oil_and_gas_extension`** |
+| Option | Description |
+|--------|-------------|
+| [`isa_manufacturing_extension_search`](../../datamodels/isa_manufacturing_extension_search/README.md) | Search-optimised solution views on top of the ISA manufacturing enterprise model. **Only select alongside `isa_manufacturing_extension`.** |
+| [`cfihos_oil_and_gas_extension_search`](../../datamodels/cfihos_oil_and_gas_extension_search/README.md) | Search-optimised solution views on top of the CFIHOS enterprise model. **Only select alongside `cfihos_oil_and_gas_extension`.** |
 
 **Source system modules** — select any combination:
 
-| Module | Source system |
-|--------|--------------|
-| `cdf_pi_foundation` | OSIsoft PI / AVEVA PI |
-| `cdf_sap_foundation` | SAP (assets, equipment, functional locations) |
-| `cdf_opcua_foundation` | OPC-UA |
-| `cdf_db_foundation` | Generic database (PostgreSQL, etc.) |
-| `cdf_files_foundation` | File sources (SharePoint, etc.) |
+| Module | Description |
+|--------|-------------|
+| [`cdf_pi_foundation`](../../sourcesystem/cdf_pi_foundation/README.md) | Sets up extraction pipeline configs for OSIsoft PI / AVEVA PI time series data. |
+| [`cdf_sap_foundation`](../../sourcesystem/cdf_sap_foundation/README.md) | Sets up extraction pipeline configs for SAP assets, equipment, and functional locations via RAW staging. |
+| [`cdf_opcua_foundation`](../../sourcesystem/cdf_opcua_foundation/README.md) | Sets up extraction pipeline configs for OPC-UA data via RAW staging. |
+| [`cdf_db_foundation`](../../sourcesystem/cdf_db_foundation/README.md) | Sets up extraction pipeline configs for generic database sources (PostgreSQL, etc.) via RAW staging. |
+| [`cdf_files_foundation`](../../sourcesystem/cdf_files_foundation/README.md) | Sets up extraction pipeline configs for file sources such as SharePoint. |
 
 **Contextualization modules** — optional:
 
-| Module | Capability |
-|--------|-----------|
-| `cdf_entity_matching` | Automated asset–time series matching |
-| `cdf_file_annotation` | P&ID / document annotation |
+| Module | Description |
+|--------|-------------|
+| [`cdf_entity_matching`](../../contextualization/cdf_entity_matching/README.md) | Automated asset–time series matching using rule-based and ML-assisted methods. |
+| [`cdf_file_annotation`](../../contextualization/cdf_file_annotation/README.md) | P&ID and document annotation with a Streamlit review app. |
 
 **Common module** — always include:
 
-- `cdf_project_foundation` ← this module (access groups + setup wizard)
+- `cdf_project_foundation` ← this module (access groups, extractor groups, setup wizard)
 
 **Project observability** — recommended:
 
 | Module | Purpose |
 |--------|---------|
-| `qualitizer` | Real-time data quality monitoring and KPI dashboards. Not required for the pack to deploy, but strongly recommended — gives visibility into ingestion health and contextualization coverage from day one. |
+| [`qualitizer`](../../tools/apps/qualitizer/README.md) | Real-time data quality monitoring and KPI dashboards. Not required for the pack to deploy, but strongly recommended — gives visibility into ingestion health and contextualization coverage from day one. |
 
 ---
 
@@ -118,7 +118,7 @@ Other options:
 
 ```bash
 python modules/common/cdf_project_foundation/scripts/setup_project.py -y --variant isa_manufacturing_extension
-python modules/common/cdf_project_foundation/scripts/setup_project.py -y --site oslo
+
 python modules/common/cdf_project_foundation/scripts/setup_project.py --check   # CI drift check
 ```
 
@@ -236,8 +236,9 @@ The wizard (`scripts/setup_project.py`) is split across four helper modules:
 
 1. Prompts for which environments to set up (all three, dev only, dev+prod, or custom).
 2. Asks for the CDF project name for each selected environment (pre-filled on re-run).
-3. Asks for an optional site / location name — used as access-group suffix and entity-matching `location_name`.
-4. Prompts for source system integration and data owner contacts (shared or per-module).
+3. Asks for an required site / location name — used as access-group suffix, source system location, and entity-matching `location_name`.
+4. Prompts for source system integration owner and data owner contacts (shared or per-module).
+   - For the CFIHOS data model: prompts for **data model owner** name and email (renamed from "integration owner" to reflect its purpose).
 5. Prompts for group source IDs (Entra ID object IDs) and writes them to `.env`.
 6. Asks for the Streamlit ApplicationOwner email if `cdf_file_annotation` is installed.
 7. Shows a review summary then confirms before writing anything.
@@ -259,8 +260,8 @@ The wizard (`scripts/setup_project.py`) is split across four helper modules:
 # default.config.yaml — key variables (populated by the wizard)
 site: ""                                   # optional site segment for group names
 dataset: []                                # auto-populated from installed source system modules
-schemaSpace: "sp_isa_manufacturing"        # synced from the installed data model variant
-instanceSpace: "sp_isa_instance_space"
+schemaSpace: "dm_dom_isa_manufacturing"    # ISA default; CFIHOS uses dm_dom_oil_and_gas
+instanceSpace: "inst_isa_manufacturing"    # ISA default; CFIHOS uses inst_location
 dataModelVariant: isa_manufacturing_extension
 
 # Computed per env by setup_project.py:
@@ -282,7 +283,7 @@ adminSourceId: "${ADMIN_SOURCE_ID}"
 
 Self-contained. The group ACLs reference `{{ dataset }}`, `{{ instanceSpace }}`, and `{{ schemaSpace }}`, which must match the values used by the deployed source-system and data-model modules.
 
-See the [project-setup SOP](https://docs.google.com/document/d/14g_hNbJ398sS-iDWBNeXbZi8qzMM-YaZoyskiJt1ql0/edit?usp=sharing) for the authoritative procedure covering environments, Entra ID integration, CI/CD, and sign-off.
+See the [project-setup SOP](https://cogdocs-feat-cdf-project-setup-docs.mintlify.app/gvd/cdf-project-setup/cdf-foundation-setup) for the authoritative procedure covering environments, Entra ID integration, CI/CD, and sign-off.
 
 ---
 

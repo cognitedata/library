@@ -1,0 +1,38 @@
+name: producer-ep-sap-{{environment}}
+sourceId: {{extractor_group_source_id}}
+capabilities:
+  - sessionsAcl:
+      actions: [CREATE]
+      scope:
+        all: {}
+  - datasetsAcl:
+      actions: [READ]
+      scope:
+        idScope:
+          ids: ["{{dataset}}"]
+  - rawAcl:
+      actions: [READ, WRITE, LIST]
+      scope:
+        tableScope:
+          dbsToTables:
+            db_{{location}}_sap: []
+  - dataModelInstancesAcl:
+      actions: [READ, WRITE, WRITE_PROPERTIES]
+      scope:
+        spaceIdScope:
+          spaceIds: ["{{instanceSpace}}"]
+  - extractionPipelinesAcl:
+      actions: [READ, WRITE]
+      scope:
+        datasetScope:
+          ids: ["{{dataset}}"]
+  - extractionConfigsAcl:
+      actions: [READ, WRITE]
+      scope:
+        datasetScope:
+          ids: ["{{dataset}}"]
+  - extractionRunsAcl:
+      actions: [READ, WRITE]
+      scope:
+        datasetScope:
+          ids: ["{{dataset}}"]

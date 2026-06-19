@@ -20,13 +20,9 @@ producerSourceId: "${PRODUCER_SOURCE_ID}"    # read/write ingestion producers
 adminSourceId: "${ADMIN_SOURCE_ID}"          # foundation administrators
 
 # Schema space where the selected data model views are defined.
-# Generic across variants: sp_isa_manufacturing (ISA) or dm_dom_oil_and_gas (CHIFO).
-# Synced by scripts/setup_project.py from the installed data model variant.
-schemaSpace: "sp_isa_manufacturing"
-
-# Space where DM instances (ISAAsset, Equipment, FunctionalLocation, …) are written.
-# Must match the instanceSpace used by the source system modules.
-instanceSpace: "sp_isa_instance_space"
+schemaSpace: "dm_dom_isa_manufacturing"
+# Space where DM instances are written.
+instanceSpace: "inst_isa_manufacturing"
 
 # Data model variant — controls which schema/instance spaces are synced.
 # Supported: isa_manufacturing_extension | cfihos_oil_and_gas_extension

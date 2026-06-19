@@ -2,15 +2,5 @@ externalId: 'ds_timeseries_{{location_name}}'
 name:  'timeseries:{{location_name}}'
 description: 'TimeSeries data for {{location_name}}'
 metadata:
-  consoleSource:
-    names:
-      - '{{source_name}}'
-  rawTables:
-    - databaseName: '{{ dbName }}'
-      tableName: 'contextualization_good'
-    - databaseName: '{{ dbName }}'
-      tableName: 'contextualization_bad'
-    - databaseName: '{{ dbName }}'
-      tableName: 'contextualization_manual_input'
-    - databaseName: '{{ dbName }}'
-      tableName: 'contextualization_state_store'
+  consoleSource: '{"names": ["{{source_name}}"]}'
+  rawTables: '[{"databaseName": "{{ dbName }}", "tableName": "contextualization_good"}, {"databaseName": "{{ dbName }}", "tableName": "contextualization_bad"}, {"databaseName": "{{ dbName }}", "tableName": "contextualization_manual_input"}, {"databaseName": "{{ dbName }}", "tableName": "contextualization_state_store"}]'

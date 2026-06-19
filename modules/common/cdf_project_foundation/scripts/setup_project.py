@@ -13,7 +13,7 @@ before it is modified.  Existing comments and blank lines are preserved when
 updating a file in-place (``_yaml_patch`` helpers).
 
 Usage:
-    python setup_project.py [-y] [--check] [--variant VARIANT] [--site SITE]
+    python setup_project.py [-y] [--check] [--variant VARIANT]
 """
 
 from __future__ import annotations
@@ -68,8 +68,8 @@ PERSONAS: tuple[str, ...] = ("consumer", "producer", "admin")
 INGESTION_FOUNDATION_VARIABLES: dict[str, dict[str, str]] = {
     "isa_manufacturing_extension": {
         "dataModelVariant": "isa_manufacturing_extension",
-        "schemaSpace": "sp_isa_manufacturing",
-        "instanceSpace": "sp_isa_instance_space",
+        "schemaSpace": "dm_dom_isa_manufacturing",
+        "instanceSpace": "inst_isa_manufacturing",
     },
     "cfihos_oil_and_gas_extension": {
         "dataModelVariant": "cfihos_oil_and_gas_extension",
@@ -78,13 +78,6 @@ INGESTION_FOUNDATION_VARIABLES: dict[str, dict[str, str]] = {
     },
 }
 
-DATA_MODELS_MODULE_VARIABLES: dict[str, dict[str, str]] = {
-    "isa_manufacturing_extension": {
-        "isaSchemaSpace": "sp_isa_manufacturing",
-        "isaInstanceSpace": "sp_isa_instance_space",
-    },
-    "cfihos_oil_and_gas_extension": {},
-}
 
 # Per-variant overrides for contextualization modules.
 # ``None`` values are sentinels resolved to the variant's ``instanceSpace``
@@ -92,7 +85,7 @@ DATA_MODELS_MODULE_VARIABLES: dict[str, dict[str, str]] = {
 CONTEXTUALIZATION_VARIABLES: dict[str, dict[str, dict]] = {
     "isa_manufacturing_extension": {
         "cdf_entity_matching": {
-            "schemaSpace": "sp_isa_manufacturing",
+            "schemaSpace": "dm_dom_isa_manufacturing",
             "assetInstanceSpace": None,
             "timeseriesInstanceSpace": None,
             "AssetViewExternalId": "ISAAsset",
@@ -105,10 +98,10 @@ CONTEXTUALIZATION_VARIABLES: dict[str, dict[str, dict]] = {
             "entityViewFilterValues": [],
         },
         "cdf_file_annotation": {
-            "fileSchemaSpace": "sp_isa_manufacturing",
+            "fileSchemaSpace": "dm_dom_isa_manufacturing",
             "fileInstanceSpace": None,
             "fileExternalId": "ISAFile",
-            "targetEntitySchemaSpace": "sp_isa_manufacturing",
+            "targetEntitySchemaSpace": "dm_dom_isa_manufacturing",
             "targetEntityInstanceSpace": None,
             "targetEntityExternalId": "ISAAsset",
         },
@@ -151,8 +144,10 @@ _MODULE_CATEGORY_FALLBACK: dict[str, str] = {
     "cdf_opcua_foundation":      "sourcesystem",
     "cdf_db_foundation":         "sourcesystem",
     "cdf_files_foundation":      "sourcesystem",
-    "isa_manufacturing_extension":    "datamodels",
-    "cfihos_oil_and_gas_extension":   "datamodels",
+    "isa_manufacturing_extension":         "datamodels",
+    "isa_manufacturing_extension_search":  "datamodels",
+    "cfihos_oil_and_gas_extension":        "datamodels",
+    "cfihos_oil_and_gas_extension_search": "datamodels",
 }
 
 # Keys that are stale in an existing config when cdf_project_foundation is
@@ -165,6 +160,11 @@ _STALE_CTX_KEYS: tuple[str, ...] = (
     ".entity_matching_processing_group_source_id",
     "variables.modules.cdf_entity_matching.reservedWordPrefix",
     "variables.modules.contextualization.cdf_entity_matching.reservedWordPrefix",
+    # Stale ISA DM vars — previously written by setup_project.py, now owned by the module.
+    "variables.modules.isa_manufacturing_extension.isaSchemaSpace",
+    "variables.modules.isa_manufacturing_extension.isaInstanceSpace",
+    "variables.modules.datamodels.isa_manufacturing_extension.isaSchemaSpace",
+    "variables.modules.datamodels.isa_manufacturing_extension.isaInstanceSpace",
     # CFIHOS DM source IDs — covered by foundation persona groups.
     "variables.modules.cfihos_oil_and_gas_extension.owner_source_id",
     "variables.modules.cfihos_oil_and_gas_extension.read_source_id",
@@ -206,6 +206,15 @@ _MODULE_LABELS: dict[str, str] = {
     "cdf_files_foundation": "Files Foundation",
 }
 
+# .env variable name for each SS module's extractor group source ID.
+_MODULE_EXTRACTOR_ENV_VAR: dict[str, str] = {
+    "cdf_pi_foundation":    "PI_EXTRACTOR_GROUP_SOURCE_ID",
+    "cdf_sap_foundation":   "SAP_EXTRACTOR_GROUP_SOURCE_ID",
+    "cdf_opcua_foundation": "OPCUA_EXTRACTOR_GROUP_SOURCE_ID",
+    "cdf_db_foundation":    "DB_EXTRACTOR_GROUP_SOURCE_ID",
+    "cdf_files_foundation": "FILES_EXTRACTOR_GROUP_SOURCE_ID",
+}
+
 
 def _module_label(module: str) -> str:
     return _MODULE_LABELS.get(module, module)
@@ -214,15 +223,15 @@ def _module_label(module: str) -> str:
 def resolve_sourcesystem_variables(
     instance_space: str,
     installed_modules: list[str],
-    location: str = "",
+    env: str,
+    location: str,
     integration_owners: dict[str, tuple[str, str]] | None = None,
     data_owners: dict[str, tuple[str, str]] | None = None,
+    extractor_group_source_ids: dict[str, str] | None = None,
 ) -> dict[str, dict]:
     result: dict[str, dict] = {}
     for module in installed_modules:
-        vars_: dict[str, Any] = {"instanceSpace": instance_space}
-        if location:
-            vars_["location"] = location
+        vars_: dict[str, Any] = {"instanceSpace": instance_space, "environment": env, "location": location}
         if integration_owners and module in integration_owners:
             name, email = integration_owners[module]
             if name:
@@ -235,6 +244,9 @@ def resolve_sourcesystem_variables(
                 vars_["data_owner_name"] = name
             if email:
                 vars_["data_owner_email"] = email
+        if extractor_group_source_ids and module in extractor_group_source_ids:
+            env_var = extractor_group_source_ids[module]
+            vars_["extractor_group_source_id"] = f"${{{env_var}}}"
         result[module] = vars_
     return result
 
@@ -268,6 +280,7 @@ def build_overlay(
     cfihos_admin_user: str = "",
     cfihos_integration_owner_name: str = "",
     cfihos_integration_owner_email: str = "",
+    extractor_group_source_ids: dict[str, str] | None = None,
     repo_root: Path | None = None,
 ) -> dict:
     """Full ``variables.modules`` overlay dict to merge into a config file.
@@ -289,6 +302,7 @@ def build_overlay(
         ctx_vars["cdf_file_annotation"]["ApplicationOwner"] = app_owner
     if site and "cdf_entity_matching" in ctx_vars:
         ctx_vars["cdf_entity_matching"]["location_name"] = site
+        ctx_vars["cdf_entity_matching"]["source_name"] = site
 
     # Always write dataset (even as empty list) so the key is always present.
     modules_vars: dict[str, Any] = {
@@ -298,7 +312,8 @@ def build_overlay(
     if installed_ss:
         modules_vars.update(
             resolve_sourcesystem_variables(
-                instance_space, installed_ss, site, integration_owners, data_owners
+                instance_space, installed_ss, env, site,
+                integration_owners, data_owners, extractor_group_source_ids
             )
         )
     if variant == "cfihos_oil_and_gas_extension":
@@ -322,8 +337,14 @@ def build_overlay(
                 "environment": env,
             }
     else:
-        # ISA variant — static variables (isaSchemaSpace, isaInstanceSpace).
-        modules_vars[variant] = DATA_MODELS_MODULE_VARIABLES[variant]
+        # If the ISA search solution module is also installed, keep its
+        # instance_space in sync with the enterprise module.
+        data_models_dir = get_data_models_dir(repo_root)
+        if (data_models_dir / "isa_manufacturing_extension_search").is_dir():
+            modules_vars["isa_manufacturing_extension_search"] = {
+                "instance_space": "inst_isa_manufacturing",
+                "environment": env,
+            }
 
     return {"variables": {"modules": modules_vars}}
 
@@ -455,8 +476,7 @@ def remove_redundant_auth_files(repo_root: Path | None = None) -> list[Path]:
     tools/apps modules (qualitizer) whose standalone auth becomes redundant
     once the foundation persona groups are deployed.
     """
-    from _pack_config import REPO_ROOT as _REPO_ROOT
-    modules_root = (_REPO_ROOT if repo_root is None else repo_root) / "modules"
+    modules_root = get_pack_root(repo_root) / "modules"
     removed: list[Path] = []
 
     # Contextualization modules.
@@ -514,6 +534,42 @@ def _migrate_staging_to_test(pack_root: Path) -> bool:
     staging.unlink()
     _ok("Migrated config.staging.yaml → config.test.yaml  (validation-type: prod)")
     return True
+
+
+# ── Synthetic data removal ────────────────────────────────────────────────────
+
+# Directories in cfihos_oil_and_gas_extension that contain synthetic / example data
+# and should be removed when the user opts out.
+_CFIHOS_SYNTHETIC_DIRS: tuple[str, ...] = (
+    "upload_data",
+    "raw",
+    "workflows",
+    "transformations",
+)
+
+
+def remove_synthetic_data(repo_root: Path | None = None) -> int:
+    """Delete synthetic data directories from ``cfihos_oil_and_gas_extension``.
+
+    Only the CFIHOS DM module contains synthetic/example data (upload_data,
+    raw, workflows, transformations).  No other Foundation DP module requires
+    this cleanup.
+
+    Returns the total number of files removed.
+    """
+    data_models_dir = get_data_models_dir(repo_root)
+    cfihos_dir = data_models_dir / "cfihos_oil_and_gas_extension"
+    if not cfihos_dir.is_dir():
+        return 0
+
+    total = 0
+    for dir_name in _CFIHOS_SYNTHETIC_DIRS:
+        target = cfihos_dir / dir_name
+        if target.is_dir():
+            total += sum(1 for f in target.rglob("*") if f.is_file())
+            shutil.rmtree(target)
+
+    return total
 
 
 # ── Data model auth patching ──────────────────────────────────────────────────
@@ -748,7 +804,6 @@ def _run_cicd_wizard(pack_root: Path) -> list[Path]:
 
 def _run_wizard(
     args_variant: str | None,
-    args_site: str,
     args_yes: bool,
     repo_root: Path | None = None,
 ) -> None:
@@ -825,22 +880,21 @@ def _run_wizard(
             break
 
     # ── Site / location name (optional) ──────────────────────────────────────
-    _section("Site / Location Name  (optional)")
-    _hint("Used as suffix in access-group names (<persona>-<site>-<env>)")
-    _hint("and as location_name in entity-matching variables.")
-    _hint("Leave blank to omit.")
-    if args_site:
-        site = args_site
-        _hint(f"Using --site value: {site}")
-    else:
-        while True:
-            site = prompt(
-                "Site / location name (e.g. oslo)",
-                default=existing["site"] or None,
-            ).strip().lower()
-            if not site or re.fullmatch(r"[a-z0-9_-]+", site):
-                break
-            _warn("Use only lowercase letters, digits, hyphens, and underscores.")
+    _section("Site / Location Name")
+    _hint("Required. Used as suffix in access-group names (<persona>-<site>-<env>),")
+    _hint("location for source system external IDs, and location_name in entity-matching.")
+    _hint("Only lowercase letters, digits, hyphens, and underscores (e.g. oslo).")
+    while True:
+        site = prompt(
+            "Site / location name",
+            default=existing["site"] or None,
+        ).strip().lower()
+        if not site:
+            _warn("Site / location name is required and cannot be empty.")
+            continue
+        if re.fullmatch(r"[a-z0-9_-]+", site):
+            break
+        _warn("Use only lowercase letters, digits, hyphens, and underscores.")
 
     # ── Source system ownership ───────────────────────────────────────────────
     integration_owners, data_owners = _prompt_source_system_ownership(
@@ -854,7 +908,7 @@ def _run_wizard(
     cfihos_integration_owner_name = ""
     cfihos_integration_owner_email = ""
     if variant == "cfihos_oil_and_gas_extension":
-        _section("CFIHOS Data Model — Owner Configuration")
+        _section("CFIHOS Data Model — Data Model Owner Configuration")
         _hint("Configures admin_user, integrationOwnerName, and integrationOwnerEmail")
         _hint("in the cfihos_oil_and_gas_extension module. Leave blank to skip.")
 
@@ -868,13 +922,13 @@ def _run_wizard(
             _warn("Invalid email. Use format: name@domain.com")
 
         cfihos_integration_owner_name = prompt(
-            "Integration owner name",
+            "Data Model owner name",
             default=existing.get("cfihos_integration_owner_name") or None,
         ).strip()
 
         while True:
             cfihos_integration_owner_email = prompt(
-                "Integration owner email",
+                "Data Model owner email",
                 default=existing.get("cfihos_integration_owner_email") or None,
             ).strip()
             if not cfihos_integration_owner_email or re.fullmatch(
@@ -885,8 +939,9 @@ def _run_wizard(
 
     # ── Group source IDs → .env ───────────────────────────────────────────────
     _section("Group Source IDs  (Entra ID object IDs)")
-    _hint("Stored in .env and referenced as ${CONSUMER_SOURCE_ID} etc. in config.")
-    _hint("Leave blank to skip — fill .env manually later.")
+    _hint("The source ID is the group's object ID in your identity provider (e.g. Entra ID).")
+    _hint("See: https://docs.cognite.com/cdf/access/entra/guides/create_groups_oidc")
+    _hint("Values stored in .env — leave blank to fill manually later.")
     # .env always lives at repo root (same level as cdf.toml), regardless of
     # whether an organization directory is configured.
     env_path = (repo_root or REPO_ROOT) / ".env"
@@ -895,8 +950,22 @@ def _run_wizard(
 
     for persona in PERSONAS:
         var = f"{persona.upper()}_SOURCE_ID"
-        print(f"\n  {persona.capitalize()} group  →  {var}")
+        print(f"\n  {persona.capitalize()} persona group  →  {var}")
+        _hint(f"  Source ID of the '{group_name(persona, site, 'dev')}' group in your IdP.")
         prompt_env_var(var, env_vals, env_lines, env_key_idx)
+
+    # ── Extractor group source IDs (one per installed SS module) ──────────────
+    if installed_ss:
+        _section("Extractor Group Source IDs  (per source system)")
+        _hint("One scoped producer group per extractor — write access limited to its")
+        _hint("dataset, instance space, and RAW tables only (SOP Step 3c).")
+        _hint("See: https://docs.cognite.com/cdf/access/entra/guides/create_groups_oidc")
+        for module in installed_ss:
+            var = _MODULE_EXTRACTOR_ENV_VAR.get(module, "")
+            if not var:
+                continue
+            print(f"\n  {_module_label(module)}  →  {var}")
+            prompt_env_var(var, env_vals, env_lines, env_key_idx)
 
     # ── ApplicationOwner (file_annotation only) ───────────────────────────────
     app_owner = ""
@@ -916,8 +985,22 @@ def _run_wizard(
                 break
             _warn("One or more addresses look invalid. Use format: name@domain.com")
 
+    # ── Synthetic data (CFIHOS only) ─────────────────────────────────────────
+    keep_synthetic = True  # default: keep; only asked for CFIHOS
+    if variant == "cfihos_oil_and_gas_extension":
+        _section("Synthetic / Example Data  (CFIHOS)")
+        _hint("cfihos_oil_and_gas_extension contains synthetic data in upload_data/,")
+        _hint("raw/, workflows/, and transformations/ — not needed in production.")
+        keep_synthetic = prompt_yes_no(
+            "Keep synthetic data and example files?", default=False
+        )
+
     # ── Review summary ────────────────────────────────────────────────────────
-    env_dirty = any(
+    extractor_dirty = any(
+        env_vals.get(v) != original_env_vals.get(v)
+        for v in _MODULE_EXTRACTOR_ENV_VAR.values()
+    )
+    env_dirty = extractor_dirty or any(
         env_vals.get(f"{p.upper()}_SOURCE_ID") != original_env_vals.get(f"{p.upper()}_SOURCE_ID")
         for p in PERSONAS
     )
@@ -946,6 +1029,11 @@ def _run_wizard(
             cfihos_admin_user=cfihos_admin_user,
             cfihos_integration_owner_name=cfihos_integration_owner_name,
             cfihos_integration_owner_email=cfihos_integration_owner_email,
+            extractor_group_source_ids={
+                m: _MODULE_EXTRACTOR_ENV_VAR[m]
+                for m in installed_ss
+                if m in _MODULE_EXTRACTOR_ENV_VAR
+            },
             repo_root=repo_root,
         )
         if write_config(path, env, project_names[env], overlay):
@@ -969,6 +1057,13 @@ def _run_wizard(
     removed = remove_redundant_auth_files(repo_root)
     patched = patch_cfihos_auth_for_missing_search(repo_root)
 
+    # ── Remove synthetic data (if user opted out) ─────────────────────────────
+    synthetic_removed = 0
+    if not keep_synthetic:
+        synthetic_removed = remove_synthetic_data(repo_root)
+        if synthetic_removed:
+            _ok(f"Removed {synthetic_removed} synthetic data file(s) from upload_data/ directories.")
+
     # ── CI/CD generation ──────────────────────────────────────────────────────
     cicd_files = _run_cicd_wizard(pack_root)
 
@@ -981,6 +1076,8 @@ def _run_wizard(
         _ok(f"{len(patched)} cfihos auth file(s) patched (search_space removed).")
     if env_dirty:
         _ok(".env updated with group source IDs.")
+    if synthetic_removed:
+        _ok(f"{synthetic_removed} synthetic data file(s) removed.")
     if cicd_files:
         _ok(f"{len(cicd_files)} CI/CD workflow file(s) generated.")
     print()
@@ -1006,8 +1103,9 @@ def collect_expected(
     env: str,
     site: str,
     installed_ctx: list[str],
+    datasets: list[str] | None = None,
 ) -> dict[str, object]:
-    overlay = build_overlay(variant, env, site, installed_ctx)
+    overlay = build_overlay(variant, env, site, installed_ctx, datasets=datasets)
     modules = overlay["variables"]["modules"]
     expected: dict[str, object] = {}
     for module, mod_vars in modules.items():
@@ -1018,8 +1116,18 @@ def collect_expected(
 
 
 def get_actual_value(config: dict, dotted: str) -> object:
-    node = config.get("variables", {}).get("modules", {})
-    for part in dotted.split("."):
+    """Read a value using the nested-category structure ``modules.<category>.<module>.<key>``.
+
+    The canonical config structure groups modules under their category
+    (e.g. ``modules.common.cdf_project_foundation.site``).
+    ``_MODULE_CATEGORY_FALLBACK`` supplies the category for each module name.
+    """
+    parts = dotted.split(".")
+    if not parts:
+        return None
+    category = _MODULE_CATEGORY_FALLBACK.get(parts[0])
+    node: object = config.get("variables", {}).get("modules", {})
+    for part in ([category] + parts if category else parts):
         if not isinstance(node, dict) or part not in node:
             return None
         node = node[part]
@@ -1032,42 +1140,74 @@ def check_config_file(
     env: str,
     site: str,
     installed_ctx: list[str],
+    datasets: list[str] | None = None,
 ) -> list[str]:
     if not path.exists():
         return ["    (file missing — run without --check to create it)"]
     config = load_yaml(path)
     errors: list[str] = []
-    for dotted, expected_value in collect_expected(variant, env, site, installed_ctx).items():
+    for dotted, expected_value in collect_expected(
+        variant, env, site, installed_ctx, datasets
+    ).items():
         actual = get_actual_value(config, dotted)
         if actual != expected_value:
             errors.append(f"    {dotted}: got {actual!r}, expected {expected_value!r}")
     return errors
 
 
+def _read_check_context(pack_root: Path) -> tuple[str, list[str]]:
+    """Read site and dataset values from the first existing config file for --check mode.
+
+    Returns (site, datasets).  Both are needed to build correct expected values
+    so user-configured fields (group names, location, dataset list) don't produce
+    false positives.
+    """
+    for env in ENVIRONMENTS:
+        path = pack_root / f"config.{env}.yaml"
+        if not path.exists():
+            continue
+        cfg = load_yaml(path)
+        modules = cfg.get("variables", {}).get("modules", {})
+        # Support nested (canonical) and flat structures.
+        foundation = (
+            modules.get("common", {}).get("cdf_project_foundation", {})
+            or modules.get("cdf_project_foundation", {})
+        )
+        site = foundation.get("site", "")
+        datasets = foundation.get("dataset") or []
+        if not isinstance(datasets, list):
+            datasets = []
+        return site, datasets
+    return "", []
+
+
 def _run_check(
     args_variant: str | None,
-    args_site: str,
     repo_root: Path | None = None,
 ) -> None:
     pack_root = get_pack_root(repo_root)
     variant = resolve_variant(args_variant, get_data_models_dir(repo_root))
-    site = args_site.strip()
-    targets = target_config_paths(pack_root, ENVIRONMENTS)
+    # Read site and datasets from existing configs so user-configured values
+    # (group names, location, dataset list) don't produce false positives.
+    site, datasets = _read_check_context(pack_root)
     installed_ctx = list_installed_contextualization_modules(repo_root)
 
+    # Only validate config files that actually exist — skip missing ones silently.
     all_errors: dict[str, list[str]] = {}
-    for env, path in targets.items():
-        errs = check_config_file(path, variant, env, site, installed_ctx)
+    for env in ENVIRONMENTS:
+        path = pack_root / f"config.{env}.yaml"
+        if not path.exists():
+            continue
+        errs = check_config_file(path, variant, env, site, installed_ctx, datasets)
         if errs:
             all_errors[path.name] = errs
 
-    target_set = set(targets.values())
     for path in find_env_configs(repo_root):
-        if path in target_set:
+        if (pack_root / path.name) in {pack_root / f"config.{e}.yaml" for e in ENVIRONMENTS}:
             continue
         env_guess = path.name.split(".")[1] if "." in path.name else "dev"
         env_guess = env_guess if env_guess in ENVIRONMENTS else "dev"
-        errs = check_config_file(path, variant, env_guess, site, installed_ctx)
+        errs = check_config_file(path, variant, env_guess, site, installed_ctx, datasets)
         if errs:
             all_errors[path.name] = errs
 
@@ -1118,17 +1258,12 @@ def main() -> None:
         default=None,
         help="Force the data model variant instead of auto-detecting it",
     )
-    parser.add_argument(
-        "--site",
-        default="",
-        help="Optional site / location name inserted into access-group names (<persona>-<site>-<env>)",
-    )
     args = parser.parse_args()
 
     if args.check:
-        _run_check(args.variant, args.site)
+        _run_check(args.variant)
     else:
-        _run_wizard(args.variant, args.site, args.yes)
+        _run_wizard(args.variant, args.yes)
 
 
 if __name__ == "__main__":

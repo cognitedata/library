@@ -20,3 +20,7 @@ integration_owner_email: ""
 # Populated by setup_project.py wizard.
 data_owner_name: ""
 data_owner_email: ""
+# Extractor group source ID — one scoped producer group per extractor.
+extractor_group_source_id: ""
+# Deployment environment — populated per environment by setup_project.py.
+environment: dev
