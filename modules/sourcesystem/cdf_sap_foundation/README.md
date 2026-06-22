@@ -18,7 +18,6 @@ cdf_sap_foundation/
 │   ├── worktask.Table.yaml                     # SAP ExOperationsSet  (operations, daily)
 │   ├── workitem.Table.yaml                     # SAP ExNotifheader    (notifications, daily)
 │   └── state_store.Table.yaml                  # Extractor state (managed by extractor)
-├── default.config.yaml
 └── module.toml
 ```
 
@@ -50,7 +49,7 @@ SAP OData Extractor (single pipeline, 6 entity queries)
 
 ## Configuration
 
-All variables are declared locally in `default.config.yaml` (no inheritance):
+All variables are declared locally in `config.<env>.yaml` (no inheritance):
 
 ```yaml
 variables:

@@ -14,7 +14,6 @@ cdf_opcua_foundation/
 │   └── ep_opcua.ExtractionPipeline.Config.yaml   # Full OPC-UA Extractor config template
 ├── raw/
 │   └── db_opcua.Database.yaml                    # db_{{location}}_opcua
-├── default.config.yaml
 └── module.toml
 ```
 
@@ -48,7 +47,7 @@ OPC-UA Extractor
 
 ## Configuration
 
-All variables are declared locally in `default.config.yaml` (no inheritance):
+All variables are declared locally in `config.<env>.yaml` (no inheritance):
 
 ```yaml
 variables:
