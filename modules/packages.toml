@@ -5,135 +5,10 @@ The open-source Github repository ("Repository") is provided "as is", without wa
 """
 
 
-[packages.contextualization]
-id = "dp:contextualization"
-title = "Contextualization"
-description = "Module templates for data contextualization"
-canCherryPick = true
-modules = [
-    "contextualization/cdf_p_and_id_annotation",
-    "contextualization/cdf_file_annotation",
-    "contextualization/cdf_entity_matching",
-    "contextualization/cdf_connection_sql",
-]
-
-[packages.infield]
-id = "dp:infield"
-title = "Infield"
-description = "Deploy Infield configuration modules for CDM-backed locations."
-canCherryPick = true
-modules = [
-    "solutions/cdf_infield/cdf_infield_location",
-]
-
-[packages.cdm_maintain]
-id = "dp:cdm_maintain"
-title = "CDM Maintain"
-description = "Complete Maintain deployment package with data models, locations, and sample data"
-canCherryPick = false
-modules = [
-    "solutions/cdm_maintain/cdf_maintain_config_base",
-    "solutions/cdm_maintain/cdf_maintain_location",
-    "solutions/cdm_maintain/cdf_maintain_solution_model",
-    "solutions/cdm_maintain/cdf_maintain_source_data_model",
-    "solutions/cdm_maintain/cdf_sample_data",
-]
-
-[packages.models]
-id = "dp:models"
-title = "Data models"
-description = "Data models that extend the core data model"
-canCherryPick = true
-modules = [
-    "datamodels/rmdm",
-    "datamodels/isa_manufacturing_extension",
-    "datamodels/cdf_process_industry_extension",
-    "datamodels/qs_enterprise_dm",
-    "datamodels/cfihos_oil_and_gas_extension",
-    "datamodels/cfihos_oil_and_gas_extension_search",
-]
-
-
-
-[packages.atlas_ai]
-id = "dp:atlas_ai"
-title = "Atlas AI Deployment Pack"
-description = "Deploy all Atlas AI modules in one package."
-canCherryPick = true
-modules = [
-    "atlas_ai/ootb_agents",
-    "solutions/cdf_ai_extractor",
-]
-
-[packages.dashboards]
-id = "dp:dashboards"
-title = "Dashboards"
-description = "Streamlit dashboards and visualization modules"
-canCherryPick = true
-modules = [
-    "dashboards/context_quality",
-    "dashboards/project_health",
-    "dashboards/report_quality",
-]
-
-[packages.quickstartdp]
-id = "dp:quickstart"
-title = "Quickstart Deployment Pack"
-description = "DP to showcase CDF capabilities in a quick and easy way."
-canCherryPick = false
-modules = [
-    "common/cdf_common",
-    "common/cdf_ingestion",
-    "contextualization/cdf_file_annotation",
-    "contextualization/cdf_entity_matching",
-    "contextualization/cdf_connection_sql",
-    "common/cdf_search",
-    "sourcesystem/cdf_oid_sync",
-    "sourcesystem/cdf_pi",
-    "sourcesystem/cdf_sap_assets",
-    "sourcesystem/cdf_sap_events",
-    "sourcesystem/cdf_sharepoint",
-    "dashboards/report_quality",
-    "datamodels/qs_enterprise_dm",
-]
-
-[packages.sourcesystem]
-id = "dp:sourcesystem"
-title = "Source Systems"
-description = "Source systems modules"
-canCherryPick = true
-modules = [
-    "sourcesystem/cdf_pi",
-    "sourcesystem/cdf_sap_assets",
-    "sourcesystem/cdf_sap_events",
-    "sourcesystem/cdf_sharepoint",
-    "sourcesystem/cdf_oid_sync",
-]
-
-[packages.common]
-id = "dp:common"
-title = "Common"
-description = "Common CDF platform modules"
-canCherryPick = true
-modules = [
-    "common/cdf_common",
-    "common/cdf_ingestion",
-    "common/cdf_search",
-]
-
-[packages.tools]
-id = "tool"
-title = "Tools and Accelerators"
-description = "Tools and accelerators for CDF projects"
-canCherryPick = true
-modules = [
-    "tools/apps/qualitizer",
-]
-
 [packages.foundation]
 id = "dp:foundation"
 title = "Foundation Deployment Pack"
-description = "Quick-start foundation for CDF projects with modular data models, source connectors, and contextualization."
+description = "All-in-one starting point: data models, connectors, and contextualization."
 canCherryPick = true
 modules = [
     "datamodels/isa_manufacturing_extension",
@@ -151,10 +26,133 @@ modules = [
     "tools/apps/qualitizer",
 ]
 
+[packages.quickstartdp]
+id = "dp:quickstart"
+title = "Quickstart Deployment Pack"
+description = "Showcase end-to-end CDF: ingestion, contextualization, and dashboards."
+canCherryPick = false
+modules = [
+    "common/cdf_common",
+    "common/cdf_ingestion",
+    "contextualization/cdf_file_annotation",
+    "contextualization/cdf_entity_matching",
+    "contextualization/cdf_connection_sql",
+    "common/cdf_search",
+    "sourcesystem/cdf_oid_sync",
+    "sourcesystem/cdf_pi",
+    "sourcesystem/cdf_sap_assets",
+    "sourcesystem/cdf_sap_events",
+    "sourcesystem/cdf_sharepoint",
+    "dashboards/report_quality",
+    "datamodels/qs_enterprise_dm",
+]
+
+[packages.common]
+id = "dp:common"
+title = "Common"
+description = "Core platform setup: common resources, ingestion pipeline, and search."
+canCherryPick = true
+modules = [
+    "common/cdf_common",
+    "common/cdf_ingestion",
+    "common/cdf_search",
+]
+
+[packages.sourcesystem]
+id = "dp:sourcesystem"
+title = "Source Systems"
+description = "Connectors for PI, SAP, SharePoint, OPCUA, and OID Sync."
+canCherryPick = true
+modules = [
+    "sourcesystem/cdf_pi",
+    "sourcesystem/cdf_sap_assets",
+    "sourcesystem/cdf_sap_events",
+    "sourcesystem/cdf_sharepoint",
+    "sourcesystem/cdf_oid_sync",
+]
+
+[packages.models]
+id = "dp:models"
+title = "Data models"
+description = "Industry data models extending the Cognite Core Data Model."
+canCherryPick = true
+modules = [
+    "datamodels/rmdm",
+    "datamodels/isa_manufacturing_extension",
+    "datamodels/cdf_process_industry_extension",
+    "datamodels/qs_enterprise_dm",
+    "datamodels/cfihos_oil_and_gas_extension",
+    "datamodels/cfihos_oil_and_gas_extension_search",
+]
+
+[packages.contextualization]
+id = "dp:contextualization"
+title = "Contextualization"
+description = "Automate P&ID annotation, file tagging, and entity matching."
+canCherryPick = true
+modules = [
+    "contextualization/cdf_p_and_id_annotation",
+    "contextualization/cdf_file_annotation",
+    "contextualization/cdf_entity_matching",
+    "contextualization/cdf_connection_sql",
+]
+
+[packages.atlas_ai]
+id = "dp:atlas_ai"
+title = "Atlas AI Deployment Pack"
+description = "Ready-to-deploy Atlas AI agents and AI extractor."
+canCherryPick = true
+modules = [
+    "atlas_ai/ootb_agents",
+    "solutions/cdf_ai_extractor",
+]
+
+[packages.infield]
+id = "dp:infield"
+title = "Infield"
+description = "Infield location configuration for CDM-backed deployments."
+canCherryPick = true
+modules = [
+    "solutions/cdf_infield/cdf_infield_location",
+]
+
+[packages.cdm_maintain]
+id = "dp:cdm_maintain"
+title = "CDM Maintain"
+description = "Full Maintain deployment: data models, locations, and sample data."
+canCherryPick = false
+modules = [
+    "solutions/cdm_maintain/cdf_maintain_config_base",
+    "solutions/cdm_maintain/cdf_maintain_location",
+    "solutions/cdm_maintain/cdf_maintain_solution_model",
+    "solutions/cdm_maintain/cdf_maintain_source_data_model",
+    "solutions/cdm_maintain/cdf_sample_data",
+]
+
+[packages.dashboards]
+id = "dp:dashboards"
+title = "Dashboards"
+description = "Dashboards for data quality, project health, and reporting."
+canCherryPick = true
+modules = [
+    "dashboards/context_quality",
+    "dashboards/project_health",
+    "dashboards/report_quality",
+]
+
+[packages.tools]
+id = "tool"
+title = "Tools and Accelerators"
+description = "Qualitizer and other accelerator tools for CDF projects."
+canCherryPick = true
+modules = [
+    "tools/apps/qualitizer",
+]
+
 [packages.custom]
 id = "dp:emptymodule"
 title = "Empty Module"
-description = "Start with an empty module"
+description = "Blank template to build your own custom module."
 canCherryPick = false
 modules = [
     "custom/my_module",
