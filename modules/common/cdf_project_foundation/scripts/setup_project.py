@@ -399,10 +399,13 @@ def _write_config_fresh(path: Path, env: str, project: str, overlay: dict) -> No
     _ok(f"Created  {path.name}")
 
 
-def _write_config_update(path: Path, project: str, overlay: dict) -> bool:
+def _write_config_update(
+    path: Path, project: str, overlay: dict, skip_backup: bool = False
+) -> bool:
     """Update an existing config file in-place, preserving comments and blank lines.
 
     Returns ``True`` when at least one value changed.
+    Set ``skip_backup=True`` when the file was just created (no prior version to back up).
     """
     lines = path.read_text().splitlines(keepends=True)
     changed = False
@@ -450,12 +453,13 @@ def _write_config_update(path: Path, project: str, overlay: dict) -> bool:
     if not changed:
         return False
 
-    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
-    backup = path.with_suffix(f".{timestamp}.bak")
-    shutil.copy2(path, backup)
+    if not skip_backup:
+        timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+        backup = path.with_suffix(f".{timestamp}.bak")
+        shutil.copy2(path, backup)
+        from _style import _C
+        _ok(f"Updated  {path.name}  {_C.DIM}(backup: {backup.name}){_C.RESET}")
     path.write_text("".join(lines))
-    from _style import _C  # local import avoids circular dependency at module level
-    _ok(f"Updated  {path.name}  {_C.DIM}(backup: {backup.name}){_C.RESET}")
     return True
 
 
@@ -494,7 +498,11 @@ def write_config(path: Path, env: str, project: str, overlay: dict) -> bool:
         replicated = _replicate_config_from_existing(path.parent, env, project)
         if replicated:
             _ok(f"Created  {path.name}  (replicated from existing config)")
-            return _write_config_update(path, project, overlay)
+            # Apply the overlay in-place. Skip backup — the file was just created.
+            # Always return True regardless of whether the overlay changed anything,
+            # since the file itself is new.
+            _write_config_update(path, project, overlay, skip_backup=True)
+            return True
         _write_config_fresh(path, env, project, overlay)
         return True
     return _write_config_update(path, project, overlay)
@@ -931,15 +939,6 @@ def _run_wizard(
     if "test" in selected_envs:
         _migrate_staging_to_test(pack_root)
 
-    # Delete config files for environments that are no longer selected.
-    _section("Environment Config Cleanup")
-    for env in ENVIRONMENTS:
-        if env not in selected_envs:
-            path = pack_root / f"config.{env}.yaml"
-            if path.exists():
-                path.unlink()
-                _ok(f"Deleted  {path.name}  (not in selected environments)")
-
     # Load existing values from config files to pre-fill prompts on re-runs.
     existing = _read_existing_values(pack_root, selected_envs, installed_ss)
     targets = target_config_paths(pack_root, selected_envs)
@@ -1135,6 +1134,16 @@ def _run_wizard(
         else:
             _ok("Created .env")
         env_path.write_text("".join(env_lines))
+
+    # ── Delete config files for deselected environments ──────────────────────
+    deleted_envs: list[str] = []
+    for env in ENVIRONMENTS:
+        if env not in selected_envs:
+            path = pack_root / f"config.{env}.yaml"
+            if path.exists():
+                path.unlink()
+                deleted_envs.append(path.name)
+                _ok(f"Deleted  {path.name}  (not in selected environments)")
 
     # ── Remove redundant auth files ───────────────────────────────────────────
     removed = remove_redundant_auth_files(repo_root)
