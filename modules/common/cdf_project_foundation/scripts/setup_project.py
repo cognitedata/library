@@ -457,9 +457,10 @@ def _write_config_update(
         timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
         backup = path.with_suffix(f".{timestamp}.bak")
         shutil.copy2(path, backup)
+    path.write_text("".join(lines))
+    if not skip_backup:
         from _style import _C
         _ok(f"Updated  {path.name}  {_C.DIM}(backup: {backup.name}){_C.RESET}")
-    path.write_text("".join(lines))
     return True
 
 
@@ -1069,7 +1070,7 @@ def _run_wizard(
                 break
             _warn("One or more addresses look invalid. Use format: name@domain.com")
 
-    # ── Synthetic data (CFIHOS only) ─────────────────────────────────────────
+    # ── Synthetic data ────────────────────────────────────────────────────────
     _section("Synthetic / Example Data")
     _hint("Data model modules contain synthetic data, example files, and diagram images")
     _hint("that are not needed in production deployments.")
@@ -1136,13 +1137,11 @@ def _run_wizard(
         env_path.write_text("".join(env_lines))
 
     # ── Delete config files for deselected environments ──────────────────────
-    deleted_envs: list[str] = []
     for env in ENVIRONMENTS:
         if env not in selected_envs:
             path = pack_root / f"config.{env}.yaml"
             if path.exists():
                 path.unlink()
-                deleted_envs.append(path.name)
                 _ok(f"Deleted  {path.name}  (not in selected environments)")
 
     # ── Remove redundant auth files ───────────────────────────────────────────
