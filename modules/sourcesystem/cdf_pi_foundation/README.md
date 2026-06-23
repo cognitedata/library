@@ -9,7 +9,6 @@ cdf_pi_foundation/
 ├── extraction_pipelines/
 │   ├── ep_pi.ExtractionPipeline.yaml          # Pipeline definition (contacts, schedule, source)
 │   └── ep_pi.ExtractionPipeline.Config.yaml   # Full PI .NET Extractor config template (CDM destination)
-├── default.config.yaml
 └── module.toml
 ```
 
@@ -33,7 +32,7 @@ PI .NET Extractor   (time-series.space-id: {{instanceSpace}})
 
 ## Configuration
 
-All variables are declared locally in `default.config.yaml` (no inheritance):
+All variables are declared locally in `config.<env>.yaml` (no inheritance):
 
 ```yaml
 variables:

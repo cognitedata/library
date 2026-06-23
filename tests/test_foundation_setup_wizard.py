@@ -696,7 +696,7 @@ class TestPatchCfihosAuthForMissingSearch:
 # ── setup_project — synthetic data removal ────────────────────────────────────
 
 class TestRemoveSyntheticData:
-    """remove_synthetic_data targets only cfihos_oil_and_gas_extension."""
+    """remove_synthetic_data covers cfihos_oil_and_gas_extension and isa_manufacturing_extension."""
 
     def _cfihos_dir(self, tmp_path: Path) -> Path:
         d = tmp_path / "modules" / "datamodels" / "cfihos_oil_and_gas_extension"
@@ -773,6 +773,129 @@ class TestRemoveSyntheticData:
         remove_synthetic_data(tmp_path)
         assert (cfihos / "data_modeling").exists()
         assert (cfihos / "auth").exists()
+
+    # ── ISA DM cleanup ────────────────────────────────────────────────────────
+
+    def _isa_dir(self, tmp_path: Path) -> Path:
+        d = tmp_path / "modules" / "datamodels" / "isa_manufacturing_extension"
+        d.mkdir(parents=True, exist_ok=True)
+        return d
+
+    def test_isa_removes_files_dir(self, tmp_path: Path) -> None:
+        from setup_project import remove_synthetic_data
+        isa = self._isa_dir(tmp_path)
+        self._make_files(isa / "files", "sample.pdf")
+        count = remove_synthetic_data(tmp_path)
+        assert count == 1
+        assert not (isa / "files").exists()
+
+    def test_isa_removes_raw(self, tmp_path: Path) -> None:
+        from setup_project import remove_synthetic_data
+        isa = self._isa_dir(tmp_path)
+        self._make_files(isa / "raw", "db.Database.yaml")
+        count = remove_synthetic_data(tmp_path)
+        assert count == 1
+        assert not (isa / "raw").exists()
+
+    def test_isa_removes_transformations_and_workflows(self, tmp_path: Path) -> None:
+        from setup_project import remove_synthetic_data
+        isa = self._isa_dir(tmp_path)
+        self._make_files(isa / "transformations", "tr.sql")
+        self._make_files(isa / "workflows", "wf.yaml")
+        count = remove_synthetic_data(tmp_path)
+        assert count == 2
+        assert not (isa / "transformations").exists()
+        assert not (isa / "workflows").exists()
+
+    def test_isa_no_op_when_not_installed(self, tmp_path: Path) -> None:
+        from setup_project import remove_synthetic_data
+        assert remove_synthetic_data(tmp_path) == 0
+
+    # ── Image / diagram file removal ──────────────────────────────────────────
+
+    def test_removes_png_from_cfihos(self, tmp_path: Path) -> None:
+        from setup_project import remove_synthetic_data
+        cfihos = self._cfihos_dir(tmp_path)
+        (cfihos / "data_model_views.png").write_text("img")
+        (cfihos / "dm-workflow.png").write_text("img")
+        count = remove_synthetic_data(tmp_path)
+        assert count == 2
+        assert not (cfihos / "data_model_views.png").exists()
+        assert not (cfihos / "dm-workflow.png").exists()
+
+    def test_removes_svg_from_isa(self, tmp_path: Path) -> None:
+        from setup_project import remove_synthetic_data
+        isa = self._isa_dir(tmp_path)
+        (isa / "diagram.svg").write_text("svg")
+        count = remove_synthetic_data(tmp_path)
+        assert count == 1
+        assert not (isa / "diagram.svg").exists()
+
+    def test_removes_images_from_both_modules(self, tmp_path: Path) -> None:
+        from setup_project import remove_synthetic_data
+        cfihos = self._cfihos_dir(tmp_path)
+        isa = self._isa_dir(tmp_path)
+        (cfihos / "model.png").write_text("img")
+        (isa / "isa.png").write_text("img")
+        count = remove_synthetic_data(tmp_path)
+        assert count == 2
+
+    def test_data_modeling_dir_not_touched(self, tmp_path: Path) -> None:
+        from setup_project import remove_synthetic_data
+        isa = self._isa_dir(tmp_path)
+        self._make_files(isa / "data_modeling", "model.datamodel.yaml")
+        remove_synthetic_data(tmp_path)
+        assert (isa / "data_modeling").exists()
+
+
+# ── setup_project — replicate config from existing ───────────────────────────
+
+class TestReplicateConfigFromExisting:
+    def _write_config(self, path: Path, env: str, project: str) -> None:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(
+            f"environment:\n  name: {env}\n  project: {project}\n"
+            "  validation-type: dev\n  selected:\n  - modules\n"
+            "variables:\n  modules:\n    cdf_project_foundation:\n      site: oslo\n"
+        )
+
+    def test_happy_path_replicates_and_patches(self, tmp_path: Path) -> None:
+        import yaml as _yaml
+        from setup_project import ENVIRONMENT_VALIDATION_TYPE, _replicate_config_from_existing
+        
+        self._write_config(tmp_path / "config.dev.yaml", "dev", "acme-dev")
+        result = _replicate_config_from_existing(tmp_path, "prod", "acme-prod")
+        assert result is not None
+        assert result == tmp_path / "config.prod.yaml"
+        assert result.exists()
+        data = _yaml.safe_load(result.read_text())
+        assert data["environment"]["name"] == "prod"
+        assert data["environment"]["project"] == "acme-prod"
+        assert data["environment"]["validation-type"] == ENVIRONMENT_VALIDATION_TYPE["prod"]
+
+    def test_preserves_existing_variables(self, tmp_path: Path) -> None:
+        from setup_project import _replicate_config_from_existing
+        self._write_config(tmp_path / "config.dev.yaml", "dev", "acme-dev")
+        result = _replicate_config_from_existing(tmp_path, "test", "acme-test")
+        assert result is not None
+        content = result.read_text()
+        # Variables section from source should be preserved
+        assert "site: oslo" in content
+
+    def test_no_source_returns_none(self, tmp_path: Path) -> None:
+        from setup_project import _replicate_config_from_existing
+        # No existing configs at all
+        result = _replicate_config_from_existing(tmp_path, "prod", "acme-prod")
+        assert result is None
+        assert not (tmp_path / "config.prod.yaml").exists()
+
+    def test_does_not_replicate_from_same_env(self, tmp_path: Path) -> None:
+        from setup_project import _replicate_config_from_existing
+        # Only config.prod.yaml exists — must not use it as source for prod itself
+        self._write_config(tmp_path / "config.prod.yaml", "prod", "acme-prod")
+        result = _replicate_config_from_existing(tmp_path, "prod", "acme-prod-new")
+        # Should return None since the only existing file is the target env itself
+        assert result is None
 
 
 # ── setup_project — read_existing_values ─────────────────────────────────────

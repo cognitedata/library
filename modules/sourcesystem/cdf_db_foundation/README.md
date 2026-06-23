@@ -11,7 +11,6 @@ cdf_db_foundation/
 │   └── ep_db_postgres.ExtractionPipeline.Config.yaml   # DB Extractor runtime config (queries, ODBC)
 ├── raw/
 │   └── db_postgres.Database.yaml                       # db_{{location}}_db_postgres
-├── default.config.yaml
 └── module.toml
 ```
 
@@ -35,7 +34,7 @@ DB Extractor
 
 ## Configuration
 
-All variables are declared locally in `default.config.yaml` (no inheritance):
+All variables are declared locally in `config.<env>.yaml` (no inheritance):
 
 ```yaml
 variables:

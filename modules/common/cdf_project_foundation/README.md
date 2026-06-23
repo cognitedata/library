@@ -30,7 +30,7 @@ Ensure the following are in place:
   ```
   See the [Toolkit authentication docs](https://docs.cognite.com/cdf/deploy/cdf_toolkit/guides/auth).
 
-> **Important:** Keep all client IDs and secrets as environment variables — never hardcode them in config files.
+> **Important:** Group source IDs (Entra group object IDs) are stored in `.env` by the setup wizard. Client IDs, client secrets, and other credentials should use interactive or device-code login as per the SOP — never hardcode secrets in config files or `.env`.
 
 ---
 
@@ -43,6 +43,8 @@ cdf modules init
 ```
 
 Select **Foundation Deployment Pack** from the list.
+
+> **Note:** The Toolkit selector shows display titles (e.g. "Foundation Deployment Pack"). The actual module IDs used in config files and referenced in the tables below are the directory names shown in each table (e.g. `cdf_project_foundation`, `isa_manufacturing_extension`).
 
 > **Module selector controls:** use **Space** to select / deselect a module, **Enter** to confirm.
 

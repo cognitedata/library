@@ -9,7 +9,6 @@ cdf_files_foundation/
 ├── extraction_pipelines/
 │   ├── ep_files_sharepoint.ExtractionPipeline.yaml         # Pipeline definition (contacts, schedule, source)
 │   └── ep_files_sharepoint.ExtractionPipeline.Config.yaml  # Files Extractor runtime config (file provider, paths, filters)
-├── default.config.yaml
 └── module.toml
 ```
 
@@ -38,7 +37,7 @@ Files Extractor   (destination-mode: cdm)
 
 ## Configuration
 
-All variables are declared locally in `default.config.yaml` (no inheritance):
+All variables are declared locally in `config.<env>.yaml` (no inheritance):
 
 ```yaml
 variables:

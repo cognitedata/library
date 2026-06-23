@@ -399,10 +399,13 @@ def _write_config_fresh(path: Path, env: str, project: str, overlay: dict) -> No
     _ok(f"Created  {path.name}")
 
 
-def _write_config_update(path: Path, project: str, overlay: dict) -> bool:
+def _write_config_update(
+    path: Path, project: str, overlay: dict, skip_backup: bool = False
+) -> bool:
     """Update an existing config file in-place, preserving comments and blank lines.
 
     Returns ``True`` when at least one value changed.
+    Set ``skip_backup=True`` when the file was just created (no prior version to back up).
     """
     lines = path.read_text().splitlines(keepends=True)
     changed = False
@@ -450,18 +453,57 @@ def _write_config_update(path: Path, project: str, overlay: dict) -> bool:
     if not changed:
         return False
 
-    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
-    backup = path.with_suffix(f".{timestamp}.bak")
-    shutil.copy2(path, backup)
+    if not skip_backup:
+        timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+        backup = path.with_suffix(f".{timestamp}.bak")
+        shutil.copy2(path, backup)
     path.write_text("".join(lines))
-    from _style import _C  # local import avoids circular dependency at module level
-    _ok(f"Updated  {path.name}  {_C.DIM}(backup: {backup.name}){_C.RESET}")
+    if not skip_backup:
+        from _style import _C
+        _ok(f"Updated  {path.name}  {_C.DIM}(backup: {backup.name}){_C.RESET}")
     return True
+
+
+def _replicate_config_from_existing(
+    pack_root: Path, env: str, project: str
+) -> Path | None:
+    """Find an existing config in pack_root and copy it as config.<env>.yaml.
+
+    Updates environment.name and environment.validation-type in-place.
+    Returns the new path if created, None if no source config was found.
+    """
+    # Find any existing config to replicate from
+    source: Path | None = None
+    for candidate_env in ENVIRONMENTS:
+        candidate = pack_root / f"config.{candidate_env}.yaml"
+        if candidate.exists() and candidate_env != env:
+            source = candidate
+            break
+    if source is None:
+        return None
+
+    dest = pack_root / f"config.{env}.yaml"
+    shutil.copy2(source, dest)
+    lines = dest.read_text().splitlines(keepends=True)
+    _yaml_set_value(lines, "environment.name", env)
+    _yaml_set_value(lines, "environment.validation-type", ENVIRONMENT_VALIDATION_TYPE.get(env, "dev"))
+    _yaml_set_value(lines, "environment.project", project)
+    dest.write_text("".join(lines))
+    return dest
 
 
 def write_config(path: Path, env: str, project: str, overlay: dict) -> bool:
     """Create or update a config file. Returns ``True`` if the file changed."""
     if not path.exists():
+        # Try to replicate from an existing env config first; fall back to fresh skeleton.
+        replicated = _replicate_config_from_existing(path.parent, env, project)
+        if replicated:
+            _ok(f"Created  {path.name}  (replicated from existing config)")
+            # Apply the overlay in-place. Skip backup — the file was just created.
+            # Always return True regardless of whether the overlay changed anything,
+            # since the file itself is new.
+            _write_config_update(path, project, overlay, skip_backup=True)
+            return True
         _write_config_fresh(path, env, project, overlay)
         return True
     return _write_config_update(path, project, overlay)
@@ -538,8 +580,6 @@ def _migrate_staging_to_test(pack_root: Path) -> bool:
 
 # ── Synthetic data removal ────────────────────────────────────────────────────
 
-# Directories in cfihos_oil_and_gas_extension that contain synthetic / example data
-# and should be removed when the user opts out.
 _CFIHOS_SYNTHETIC_DIRS: tuple[str, ...] = (
     "upload_data",
     "raw",
@@ -547,27 +587,54 @@ _CFIHOS_SYNTHETIC_DIRS: tuple[str, ...] = (
     "transformations",
 )
 
+_ISA_SYNTHETIC_DIRS: tuple[str, ...] = (
+    "files",
+    "raw",
+    "transformations",
+    "workflows",
+)
+
+# Image/diagram files to remove from DM modules (not needed in production deployments).
+_DM_IMAGE_PATTERNS: tuple[str, ...] = ("*.png", "*.svg", "*.drawio", "*.ipynb")
+
 
 def remove_synthetic_data(repo_root: Path | None = None) -> int:
-    """Delete synthetic data directories from ``cfihos_oil_and_gas_extension``.
+    """Delete synthetic data directories and diagram files from data model modules.
 
-    Only the CFIHOS DM module contains synthetic/example data (upload_data,
-    raw, workflows, transformations).  No other Foundation DP module requires
-    this cleanup.
+    - CFIHOS: upload_data/, raw/, workflows/, transformations/ + image files
+    - ISA: files/, raw/, transformations/, workflows/ + image files
 
     Returns the total number of files removed.
     """
     data_models_dir = get_data_models_dir(repo_root)
-    cfihos_dir = data_models_dir / "cfihos_oil_and_gas_extension"
-    if not cfihos_dir.is_dir():
-        return 0
-
     total = 0
-    for dir_name in _CFIHOS_SYNTHETIC_DIRS:
-        target = cfihos_dir / dir_name
-        if target.is_dir():
-            total += sum(1 for f in target.rglob("*") if f.is_file())
-            shutil.rmtree(target)
+
+    def _remove_dirs(module_dir: Path, dirs: tuple[str, ...]) -> int:
+        count = 0
+        for dir_name in dirs:
+            target = module_dir / dir_name
+            if target.is_dir():
+                count += sum(1 for f in target.rglob("*") if f.is_file())
+                shutil.rmtree(target)
+        return count
+
+    def _remove_images(module_dir: Path) -> int:
+        count = 0
+        for pattern in _DM_IMAGE_PATTERNS:
+            for f in module_dir.glob(pattern):
+                f.unlink()
+                count += 1
+        return count
+
+    cfihos_dir = data_models_dir / "cfihos_oil_and_gas_extension"
+    if cfihos_dir.is_dir():
+        total += _remove_dirs(cfihos_dir, _CFIHOS_SYNTHETIC_DIRS)
+        total += _remove_images(cfihos_dir)
+
+    isa_dir = data_models_dir / "isa_manufacturing_extension"
+    if isa_dir.is_dir():
+        total += _remove_dirs(isa_dir, _ISA_SYNTHETIC_DIRS)
+        total += _remove_images(isa_dir)
 
     return total
 
@@ -765,6 +832,24 @@ def _prompt_source_system_ownership(
             data_owners[m] = _prompt_owner("    Data owner", dn, de)
 
     return integration_owners, data_owners
+
+
+def _cleanup_file_annotation_module(repo_root: Path | None = None) -> None:
+    """Remove developer-facing files from cdf_file_annotation that are not needed
+    in production deployments (CONTRIBUTING.md, DEPLOYMENT.md, detailed_guides/).
+    Runs silently — not reported in the wizard summary.
+    """
+    ctx_dir = get_contextualization_dir(repo_root)
+    fa_dir = ctx_dir / "cdf_file_annotation"
+    if not fa_dir.is_dir():
+        return
+    for name in ("CONTRIBUTING.md", "DEPLOYMENT.md"):
+        f = fa_dir / name
+        if f.exists():
+            f.unlink()
+    guides = fa_dir / "detailed_guides"
+    if guides.is_dir():
+        shutil.rmtree(guides)
 
 
 def _run_cicd_wizard(pack_root: Path) -> list[Path]:
@@ -985,15 +1070,13 @@ def _run_wizard(
                 break
             _warn("One or more addresses look invalid. Use format: name@domain.com")
 
-    # ── Synthetic data (CFIHOS only) ─────────────────────────────────────────
-    keep_synthetic = True  # default: keep; only asked for CFIHOS
-    if variant == "cfihos_oil_and_gas_extension":
-        _section("Synthetic / Example Data  (CFIHOS)")
-        _hint("cfihos_oil_and_gas_extension contains synthetic data in upload_data/,")
-        _hint("raw/, workflows/, and transformations/ — not needed in production.")
-        keep_synthetic = prompt_yes_no(
-            "Keep synthetic data and example files?", default=False
-        )
+    # ── Synthetic data ────────────────────────────────────────────────────────
+    _section("Synthetic / Example Data")
+    _hint("Data model modules contain synthetic data, example files, and diagram images")
+    _hint("that are not needed in production deployments.")
+    keep_synthetic = prompt_yes_no(
+        "Keep synthetic data, example files, and diagram images?", default=False
+    )
 
     # ── Review summary ────────────────────────────────────────────────────────
     extractor_dirty = any(
@@ -1053,9 +1136,18 @@ def _run_wizard(
             _ok("Created .env")
         env_path.write_text("".join(env_lines))
 
+    # ── Delete config files for deselected environments ──────────────────────
+    for env in ENVIRONMENTS:
+        if env not in selected_envs:
+            path = pack_root / f"config.{env}.yaml"
+            if path.exists():
+                path.unlink()
+                _ok(f"Deleted  {path.name}  (not in selected environments)")
+
     # ── Remove redundant auth files ───────────────────────────────────────────
     removed = remove_redundant_auth_files(repo_root)
     patched = patch_cfihos_auth_for_missing_search(repo_root)
+    _cleanup_file_annotation_module(repo_root)
 
     # ── Remove synthetic data (if user opted out) ─────────────────────────────
     synthetic_removed = 0
