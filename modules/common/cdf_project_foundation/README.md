@@ -90,7 +90,9 @@ The module selector presents all available modules. Make selections carefully:
 
 **Common module** — always include:
 
-- `cdf_project_foundation` ← this module (access groups, extractor groups, setup wizard)
+| Module | Description |
+|--------|-------------|
+| `cdf_project_foundation` | This module — persona access groups, per-extractor groups, and the interactive setup wizard. |
 
 **Project observability** — recommended:
 
@@ -102,7 +104,11 @@ The module selector presents all available modules. Make selections carefully:
 
 ### Step 3 — Run the setup wizard
 
-From the Toolkit project root, run the interactive setup wizard. It prompts for CDF project names, site/location, Entra ID group source IDs, source system owner contacts, and ApplicationOwner (if file annotation is installed), then writes all `config.<env>.yaml` files and `.env` in one pass:
+From the Toolkit project root, run the interactive setup wizard. It prompts for CDF project names, site/location, Entra ID group source IDs, source system owner contacts, and ApplicationOwner (if file annotation is installed), then writes all `config.<env>.yaml` files and `.env` in one pass.
+
+> **Environment selection — first prompt:** Toolkit creates `dev`, `prod`, and `staging` (= test) config files during `cdf modules init`. The wizard detects these and asks:
+> *"You selected dev and prod while installing the DP. Continue with current selection (dev, prod)?"*
+> Answer **Y** to proceed with the detected environments, or **N** to modify the selection. Config files for deselected environments are removed after you confirm all changes.
 
 ```bash
 python modules/common/cdf_project_foundation/scripts/setup_project.py

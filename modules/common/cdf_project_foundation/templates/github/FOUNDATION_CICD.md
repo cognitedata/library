@@ -2,7 +2,7 @@
 
 Generated from committed Toolkit environment configs.
 
-This follows [sop-cdf-project-setup.md](https://github.com/cognitedata/library/blob/main/sop-cdf-project-setup.md) Step 5.
+This follows the [CDF Foundation Setup guide](https://cogdocs-feat-cdf-project-setup-docs.mintlify.app/gvd/cdf-project-setup/cdf-foundation-setup) Step 5.
 
 ## Branching model
 

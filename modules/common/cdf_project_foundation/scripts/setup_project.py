@@ -912,29 +912,51 @@ def _run_wizard(
 
     # ── Environment selection ─────────────────────────────────────────────────
     _section("Environment Selection")
-    print("  Which environments would you like to set up?\n")
-    choice = prompt_choice(
-        [
-            "All three — dev, test, prod  (recommended)",
-            "dev only",
-            "dev + prod  (skip test / staging)",
-            "Custom — choose individually",
-        ],
-        default=1,
-    )
-    if choice == 1:
-        selected_envs: tuple[str, ...] = ("dev", "test", "prod")
-    elif choice == 2:
-        selected_envs = ("dev",)
-    elif choice == 3:
-        selected_envs = ("dev", "prod")
+    installed_envs = _detect_installed_envs(pack_root)
+
+    if installed_envs:
+        # Environments already set up by Toolkit — confirm or let user modify.
+        env_list = ", ".join(installed_envs)
+        _hint(f"You selected {env_list} while installing the DP.")
+        _hint("(staging = test; dev/prod/test are the three supported environments.)")
+        print()
+        if prompt_yes_no(
+            f"  Continue with current selection ({env_list})?", default=True
+        ):
+            selected_envs: tuple[str, ...] = installed_envs
+        else:
+            _hint("Select which environments to set up:")
+            selected_envs = tuple(
+                env for env in ENVIRONMENTS
+                if prompt_yes_no(f"  Include '{env}'?", default=(env in installed_envs))
+            )
+            if not selected_envs:
+                raise SystemExit("No environments selected — nothing to do.")
     else:
-        selected_envs = tuple(
-            env for env in ENVIRONMENTS
-            if prompt_yes_no(f"  Include environment '{env}'?", default=True)
+        # No existing configs — show full selection prompt.
+        print("  Which environments would you like to set up?\n")
+        choice = prompt_choice(
+            [
+                "All three — dev, test, prod  (recommended)",
+                "dev only",
+                "dev + prod  (skip test / staging)",
+                "Custom — choose individually",
+            ],
+            default=1,
         )
-        if not selected_envs:
-            raise SystemExit("No environments selected — nothing to do.")
+        if choice == 1:
+            selected_envs = ("dev", "test", "prod")
+        elif choice == 2:
+            selected_envs = ("dev",)
+        elif choice == 3:
+            selected_envs = ("dev", "prod")
+        else:
+            selected_envs = tuple(
+                env for env in ENVIRONMENTS
+                if prompt_yes_no(f"  Include environment '{env}'?", default=True)
+            )
+            if not selected_envs:
+                raise SystemExit("No environments selected — nothing to do.")
 
     # Migrate config.staging.yaml → config.test.yaml only when test env is selected.
     if "test" in selected_envs:
@@ -1245,6 +1267,21 @@ def check_config_file(
         if actual != expected_value:
             errors.append(f"    {dotted}: got {actual!r}, expected {expected_value!r}")
     return errors
+
+
+def _detect_installed_envs(pack_root: Path) -> tuple[str, ...]:
+    """Return the environments that already have a config file in pack_root.
+
+    ``config.staging.yaml`` is treated as the test environment (Toolkit uses
+    'staging' as the name; the Foundation DP normalises it to 'test').
+    """
+    detected: list[str] = []
+    for env in ENVIRONMENTS:
+        if (pack_root / f"config.{env}.yaml").exists():
+            detected.append(env)
+        elif env == "test" and (pack_root / "config.staging.yaml").exists():
+            detected.append(env)
+    return tuple(detected)
 
 
 def _read_check_context(pack_root: Path) -> tuple[str, list[str]]:
