@@ -890,6 +890,21 @@ def _run_cicd_wizard(pack_root: Path) -> list[Path]:
 
 # ── Main wizard ────────────────────────────────────────────────────────────────
 
+def _detect_installed_envs(pack_root: Path) -> tuple[str, ...]:
+    """Return the environments that already have a config file in pack_root.
+
+    ``config.staging.yaml`` is treated as the test environment (Toolkit uses
+    'staging' as the name; the Foundation DP normalises it to 'test').
+    """
+    detected: list[str] = []
+    for env in ENVIRONMENTS:
+        if (pack_root / f"config.{env}.yaml").exists():
+            detected.append(env)
+        elif env == "test" and (pack_root / "config.staging.yaml").exists():
+            detected.append(env)
+    return tuple(detected)
+
+
 def _run_wizard(
     args_variant: str | None,
     args_yes: bool,
@@ -1277,21 +1292,6 @@ def check_config_file(
         if actual != expected_value:
             errors.append(f"    {dotted}: got {actual!r}, expected {expected_value!r}")
     return errors
-
-
-def _detect_installed_envs(pack_root: Path) -> tuple[str, ...]:
-    """Return the environments that already have a config file in pack_root.
-
-    ``config.staging.yaml`` is treated as the test environment (Toolkit uses
-    'staging' as the name; the Foundation DP normalises it to 'test').
-    """
-    detected: list[str] = []
-    for env in ENVIRONMENTS:
-        if (pack_root / f"config.{env}.yaml").exists():
-            detected.append(env)
-        elif env == "test" and (pack_root / "config.staging.yaml").exists():
-            detected.append(env)
-    return tuple(detected)
 
 
 def _read_check_context(pack_root: Path) -> tuple[str, list[str]]:
