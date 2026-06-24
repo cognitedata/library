@@ -700,6 +700,9 @@ def _read_existing_values(
     }
     for env in envs:
         path = pack_root / f"config.{env}.yaml"
+        # For test, fall back to config.staging.yaml if migration hasn't run yet.
+        if not path.exists() and env == "test":
+            path = pack_root / "config.staging.yaml"
         if not path.exists():
             continue
         cfg = load_yaml(path)
@@ -958,17 +961,8 @@ def _run_wizard(
             if not selected_envs:
                 raise SystemExit("No environments selected — nothing to do.")
 
-    # Migrate config.staging.yaml → config.test.yaml when test is selected;
-    # remove it when test is not selected so it doesn't linger as an orphan.
-    if "test" in selected_envs:
-        _migrate_staging_to_test(pack_root)
-    else:
-        staging_path = pack_root / "config.staging.yaml"
-        if staging_path.exists():
-            staging_path.unlink()
-            _ok("Deleted  config.staging.yaml  (test not in selected environments)")
-
     # Load existing values from config files to pre-fill prompts on re-runs.
+    # _read_existing_values falls back to config.staging.yaml for test if needed.
     existing = _read_existing_values(pack_root, selected_envs, installed_ss)
     targets = target_config_paths(pack_root, selected_envs)
 
@@ -1163,6 +1157,16 @@ def _run_wizard(
         else:
             _ok("Created .env")
         env_path.write_text("".join(env_lines))
+
+    # ── Staging migration / cleanup (after confirmation) ─────────────────────
+    # Done here — not before prompts — so no file is touched if the user aborts.
+    if "test" in selected_envs:
+        _migrate_staging_to_test(pack_root)
+    else:
+        staging_path = pack_root / "config.staging.yaml"
+        if staging_path.exists():
+            staging_path.unlink()
+            _ok("Deleted  config.staging.yaml  (test not in selected environments)")
 
     # ── Delete config files for deselected environments ──────────────────────
     for env in ENVIRONMENTS:
