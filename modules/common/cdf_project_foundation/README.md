@@ -9,7 +9,7 @@ The **Foundation Deployment Pack** (`dp:foundation`) is the recommended starting
 - **Highly extensible** — simple to plug in your own data sources and processing logic
 - **Reliable** — everything included works out of the box
 
-This module provides the **project-level foundation** of the pack: three persona-based access groups and a project setup wizard, aligned with the [project-setup SOP](https://cogdocs-feat-cdf-project-setup-docs.mintlify.app/gvd/cdf-project-setup/cdf-foundation-setup).
+This module provides the **project-level foundation** of the pack: three persona-based access groups and a project setup wizard, aligned with the [project-setup SOP](https://cogdocs.mintlify.io/gvd) *(password-protected — request access via [#topic-deployment-packs](https://cognitedata.slack.com/archives/C098QJ09YKX) or contact [Valeriya Naumova](https://cognitedata.slack.com/team/U051XA95S0G)).*
 
 ---
 
@@ -17,7 +17,7 @@ This module provides the **project-level foundation** of the pack: three persona
 
 ### Step 0 — Prerequisites
 
-> 📖 Before starting, read the [project-setup SOP](https://cogdocs-feat-cdf-project-setup-docs.mintlify.app/gvd/cdf-project-setup/cdf-foundation-setup) — it is required reading before any deployment step.
+> 📖 Before starting, read the [project-setup SOP](https://cogdocs.mintlify.io/gvd) *(password-protected — request access via [#topic-deployment-packs](https://cognitedata.slack.com/archives/C098QJ09YKX) or contact [Valeriya Naumova](https://cognitedata.slack.com/team/U051XA95S0G))* — it is required reading before any deployment step.
 
 Ensure the following are in place:
 
@@ -90,7 +90,9 @@ The module selector presents all available modules. Make selections carefully:
 
 **Common module** — always include:
 
-- `cdf_project_foundation` ← this module (access groups, extractor groups, setup wizard)
+| Module | Description |
+|--------|-------------|
+| `cdf_project_foundation` | This module — persona access groups, per-extractor groups, and the interactive setup wizard. |
 
 **Project observability** — recommended:
 
@@ -102,7 +104,11 @@ The module selector presents all available modules. Make selections carefully:
 
 ### Step 3 — Run the setup wizard
 
-From the Toolkit project root, run the interactive setup wizard. It prompts for CDF project names, site/location, Entra ID group source IDs, source system owner contacts, and ApplicationOwner (if file annotation is installed), then writes all `config.<env>.yaml` files and `.env` in one pass:
+From the Toolkit project root, run the interactive setup wizard. It prompts for CDF project names, site/location, Entra ID group source IDs, source system owner contacts, and ApplicationOwner (if file annotation is installed), then writes all `config.<env>.yaml` files and `.env` in one pass.
+
+> **Environment selection — first prompt:** Toolkit creates `dev`, `prod`, and `staging` (= test) config files during `cdf modules init`. The wizard detects these and asks:
+> *"You selected dev and prod while installing the DP. Continue with current selection (dev, prod)?"*
+> Answer **Y** to proceed with the detected environments, or **N** to modify the selection. Config files for deselected environments are removed after you confirm all changes.
 
 ```bash
 python modules/common/cdf_project_foundation/scripts/setup_project.py
@@ -285,7 +291,7 @@ adminSourceId: "${ADMIN_SOURCE_ID}"
 
 Self-contained. The group ACLs reference `{{ dataset }}`, `{{ instanceSpace }}`, and `{{ schemaSpace }}`, which must match the values used by the deployed source-system and data-model modules.
 
-See the [project-setup SOP](https://cogdocs-feat-cdf-project-setup-docs.mintlify.app/gvd/cdf-project-setup/cdf-foundation-setup) for the authoritative procedure covering environments, Entra ID integration, CI/CD, and sign-off.
+See the [project-setup SOP](https://cogdocs.mintlify.io/gvd) *(password-protected — request access via [#topic-deployment-packs](https://cognitedata.slack.com/archives/C098QJ09YKX) or contact [Valeriya Naumova](https://cognitedata.slack.com/team/U051XA95S0G))* for the authoritative procedure covering environments, Entra ID integration, CI/CD, and sign-off.
 
 ---
 

@@ -1016,6 +1016,59 @@ class TestReadExistingValues:
         assert existing["dataset"] == []
 
 
+# ── setup_project — detect installed envs ────────────────────────────────────
+
+class TestDetectInstalledEnvs:
+    def test_returns_empty_when_no_configs(self, tmp_path: Path) -> None:
+        from setup_project import _detect_installed_envs
+        assert _detect_installed_envs(tmp_path) == ()
+
+    def test_detects_single_env(self, tmp_path: Path) -> None:
+        from setup_project import _detect_installed_envs
+        (tmp_path / "config.dev.yaml").write_text("environment:\n  name: dev\n")
+        assert _detect_installed_envs(tmp_path) == ("dev",)
+
+    def test_detects_dev_and_prod(self, tmp_path: Path) -> None:
+        from setup_project import _detect_installed_envs
+        (tmp_path / "config.dev.yaml").write_text("environment:\n  name: dev\n")
+        (tmp_path / "config.prod.yaml").write_text("environment:\n  name: prod\n")
+        result = _detect_installed_envs(tmp_path)
+        assert "dev" in result
+        assert "prod" in result
+        assert "test" not in result
+
+    def test_detects_all_three(self, tmp_path: Path) -> None:
+        from setup_project import _detect_installed_envs
+        for env in ("dev", "test", "prod"):
+            (tmp_path / f"config.{env}.yaml").write_text(f"environment:\n  name: {env}\n")
+        result = _detect_installed_envs(tmp_path)
+        assert set(result) == {"dev", "test", "prod"}
+
+    def test_staging_maps_to_test(self, tmp_path: Path) -> None:
+        from setup_project import _detect_installed_envs
+        (tmp_path / "config.dev.yaml").write_text("environment:\n  name: dev\n")
+        (tmp_path / "config.staging.yaml").write_text("environment:\n  name: staging\n")
+        result = _detect_installed_envs(tmp_path)
+        assert "test" in result
+        assert "staging" not in result
+
+    def test_staging_not_returned_when_test_config_exists(self, tmp_path: Path) -> None:
+        from setup_project import _detect_installed_envs
+        (tmp_path / "config.test.yaml").write_text("environment:\n  name: test\n")
+        (tmp_path / "config.staging.yaml").write_text("environment:\n  name: staging\n")
+        result = _detect_installed_envs(tmp_path)
+        # test appears once, not twice
+        assert result.count("test") == 1
+
+    def test_preserves_environment_order(self, tmp_path: Path) -> None:
+        from setup_project import _detect_installed_envs
+        for env in ("prod", "dev", "test"):  # write in non-canonical order
+            (tmp_path / f"config.{env}.yaml").write_text(f"environment:\n  name: {env}\n")
+        result = _detect_installed_envs(tmp_path)
+        # Should always follow ENVIRONMENTS order: dev, test, prod
+        assert result == ("dev", "test", "prod")
+
+
 # ── setup_project — .env path resolution ─────────────────────────────────────
 
 class TestGetOrgDirName:
