@@ -639,7 +639,7 @@ def remove_synthetic_data(repo_root: Path | None = None) -> int:
         # Remove standalone files at the module root.
         for filename in _CFIHOS_SYNTHETIC_FILES:
             f = cfihos_dir / filename
-            if f.exists():
+            if f.is_file():
                 f.unlink()
                 total += 1
         # Remove the auth/ directory if it is now empty (auth files were
