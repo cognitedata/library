@@ -774,6 +774,36 @@ class TestRemoveSyntheticData:
         assert (cfihos / "data_modeling").exists()
         assert (cfihos / "auth").exists()
 
+    def test_removes_cfihos_model_config(self, tmp_path: Path) -> None:
+        from setup_project import remove_synthetic_data
+        cfihos = self._cfihos_dir(tmp_path)
+        self._make_files(cfihos / "cfihos_model_config", "config.json", "schema.yaml")
+        count = remove_synthetic_data(tmp_path)
+        assert count == 2
+        assert not (cfihos / "cfihos_model_config").exists()
+
+    def test_removes_upload_data_share_readiness_report(self, tmp_path: Path) -> None:
+        from setup_project import remove_synthetic_data
+        cfihos = self._cfihos_dir(tmp_path)
+        (cfihos / "upload_data_share_readiness_report.md").write_text("report")
+        count = remove_synthetic_data(tmp_path)
+        assert count == 1
+        assert not (cfihos / "upload_data_share_readiness_report.md").exists()
+
+    def test_removes_empty_auth_dir(self, tmp_path: Path) -> None:
+        from setup_project import remove_synthetic_data
+        cfihos = self._cfihos_dir(tmp_path)
+        (cfihos / "auth").mkdir()  # empty auth dir (files already removed)
+        remove_synthetic_data(tmp_path)
+        assert not (cfihos / "auth").exists()
+
+    def test_leaves_non_empty_auth_dir(self, tmp_path: Path) -> None:
+        from setup_project import remove_synthetic_data
+        cfihos = self._cfihos_dir(tmp_path)
+        self._make_files(cfihos / "auth", "group.yaml")
+        remove_synthetic_data(tmp_path)
+        assert (cfihos / "auth").exists()  # still has files — must not be removed
+
     # ── ISA DM cleanup ────────────────────────────────────────────────────────
 
     def _isa_dir(self, tmp_path: Path) -> Path:
