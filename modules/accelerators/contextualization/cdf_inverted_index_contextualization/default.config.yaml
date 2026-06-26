@@ -1,0 +1,91 @@
+# Inverted index contextualization — pilot defaults (RAW backend)
+# See docs/cdf_inverted_index_function_spec.md and config/*.example.yaml
+
+name: inverted_index_contextualization
+organization: YourOrg
+index_storage_backend: raw
+index_raw_database: db_contextualization_idx
+
+# Scope: disabled OOTB — site/unit fields are project-specific.
+# Copy from config/scope.example.yaml when ready.
+scope:
+  enabled: false
+  levels: []
+  strict_scope: false
+  fallback_scope_key: global
+  resolve_from: {}
+  resolve_from_default: {}
+
+# CDM metadata index sources (pilot).
+index_field_config:
+  - view: CogniteFile
+    view_space: cdf_cdm
+    version: v1
+    properties:
+      - path: name
+        source_type: asset_metadata
+        extract_mode: regex
+        extract_pattern: '\b[A-Z]{1,2}-\d{3,4}[A-Z]?\b'
+      - path: description
+        source_type: asset_metadata
+        extract_mode: regex
+        extract_pattern: '\b[A-Z]{1,2}-\d{3,4}[A-Z]?\b'
+      - path: description
+        source_type: file_metadata
+        extract_mode: regex
+        extract_pattern: '\b[A-Z]{1,2}-\d{3,4}[A-Z]?\b'
+  - view: CogniteEquipment
+    view_space: cdf_cdm
+    version: v1
+    properties:
+      - path: name
+        source_type: asset_metadata
+        extract_mode: regex
+        extract_pattern: '\b[A-Z]{1,2}-\d{3,4}[A-Z]?\b'
+      - path: description
+        source_type: asset_metadata
+        extract_mode: regex
+        extract_pattern: '\b[A-Z]{1,2}-\d{3,4}[A-Z]?\b'
+  - view: CogniteTimeSeries
+    view_space: cdf_cdm
+    version: v1
+    properties:
+      - path: name
+        source_type: asset_metadata
+        extract_mode: regex
+        extract_pattern: '\b[A-Z]{1,2}-\d{3,4}[A-Z]?\b'
+      - path: description
+        source_type: asset_metadata
+        extract_mode: regex
+        extract_pattern: '\b[A-Z]{1,2}-\d{3,4}[A-Z]?\b'
+
+annotation_index_config:
+  view: CogniteDiagramAnnotation
+  view_space: cdf_cdm
+  version: v1
+  instance_type: edge
+  text_property: startNodeText
+  confidence_property: confidence
+  status_property: status
+  page_property: startNodePageNumber
+  bbox_properties:
+    - startNodeXMin
+    - startNodeYMin
+    - startNodeXMax
+    - startNodeYMax
+
+# Optional: restrict DM instance scan to specific spaces (omit = all spaces).
+# instance_spaces: [your_instance_space]
+
+subscription:
+  enabled: true
+  watch_property: aliases
+  instance_spaces: []
+  asset_views: [CogniteAsset]
+  file_views: [CogniteFile]
+
+direct_relation_config:
+  enabled: true
+  min_confidence: 0.6
+  allowed_annotation_statuses: [Suggested, Approved]
+  write_on_suggested_annotations: true

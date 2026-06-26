@@ -32,6 +32,54 @@ from cdf_fn_common.etl_file_processing_state import (
 )
 
 
+_FANOUT_MODE_VALUES = {"annotation", "pattern", "both"}
+
+
+def _resolve_fanout_mode(cfg: Dict[str, Any], data: Dict[str, Any]) -> str:
+    configuration = data.get("configuration")
+    params = (
+        configuration.get("parameters")
+        if isinstance(configuration, dict) and isinstance(configuration.get("parameters"), dict)
+        else {}
+    )
+    mode = str(cfg.get("fanout_mode") or params.get("fanout_mode") or "both").strip().lower()
+    if mode not in _FANOUT_MODE_VALUES:
+        raise ValueError(
+            "file_annotation fan-out: config.fanout_mode must be one of "
+            "'annotation', 'pattern', 'both'"
+        )
+    return mode
+
+
+def _resolve_fanout_branch(cfg: Dict[str, Any]) -> str:
+    branch = str(cfg.get("fanout_branch") or "").strip().lower()
+    if not branch:
+        return ""
+    if branch not in {"annotation", "pattern"}:
+        raise ValueError(
+            "file_annotation fan-out: config.fanout_branch must be one of "
+            "'annotation', 'pattern' when set"
+        )
+    return branch
+
+
+def _branch_active(*, fanout_mode: str, fanout_branch: str) -> bool:
+    if not fanout_branch:
+        return True
+    return fanout_mode == "both" or fanout_mode == fanout_branch
+
+
+def _branch_child_detect_cfg(base_cfg: Dict[str, Any], branch: str) -> Dict[str, Any]:
+    out = dict(base_cfg)
+    if branch == "pattern":
+        out["pattern_mode"] = True
+        out["search_field"] = str(out.get("search_field") or "sample")
+    elif branch == "annotation":
+        out["pattern_mode"] = False
+        out["search_field"] = str(out.get("search_field") or "aliases")
+    return out
+
+
 class FileAnnotationFanoutProfile:
     name = "file_annotation"
 
@@ -50,6 +98,22 @@ class FileAnnotationFanoutProfile:
     ) -> Dict[str, Any]:
         run_id = require_pipeline_run_key(data)
         data["run_id"] = run_id
+        fanout_mode = _resolve_fanout_mode(cfg, data)
+        fanout_branch = _resolve_fanout_branch(cfg)
+        if not _branch_active(fanout_mode=fanout_mode, fanout_branch=fanout_branch):
+            return {
+                "status": "ok",
+                "tasks": [],
+                "pattern_tasks": [],
+                "annotation_tasks": [],
+                "batches_planned": 0,
+                "detect_packs_planned": 0,
+                "fanout_mode": fanout_mode,
+                "fanout_branch": fanout_branch,
+                "reason": "branch_inactive_for_mode",
+                "run_id": run_id,
+                "fanout_profile": self.name,
+            }
 
         workflow_scope = params["workflow_scope"]
         raw_db, state_table = file_state_sink_from_data(data)
@@ -75,7 +139,7 @@ class FileAnnotationFanoutProfile:
         if not pending:
             if not b_tid:
                 raise ValueError(
-                    "file_annotation fan-out: wire in__input_b (files to scan) or set config.file_ids"
+                    "file_annotation fan-out: wire in__input_b (files to scan) or set config.file_ids/config.file_external_ids"
                 )
             checkpoint = {
                 "context_rows": len(context_rows),
@@ -103,8 +167,12 @@ class FileAnnotationFanoutProfile:
                 "status": "completed_with_errors",
                 "reason": "no_pending_files_from_input_b",
                 "tasks": [],
+                "pattern_tasks": [],
+                "annotation_tasks": [],
                 "batches_planned": 0,
                 "detect_packs_planned": 0,
+                "fanout_mode": fanout_mode,
+                "fanout_branch": fanout_branch,
                 "files_pending": 0,
                 "files_skipped_detected": 0,
                 "force_redetect": bool(cfg.get("force_redetect")),
@@ -135,6 +203,7 @@ class FileAnnotationFanoutProfile:
         pending = cap_files_for_run(pending, params.get("max_files_per_run"))
 
         child_detect_cfg = detect_child_config_from_fanout_cfg(cfg)
+        child_detect_cfg = _branch_child_detect_cfg(child_detect_cfg, fanout_branch)
         max_ref = int(
             child_detect_cfg.get("max_pages_per_file_reference")
             or params["max_pages_per_file_reference"]
@@ -174,17 +243,33 @@ class FileAnnotationFanoutProfile:
             if tid and tid not in depends:
                 depends.append(tid)
 
-        dynamic_tasks = build_dynamic_detect_pack_tasks(
-            pack_specs,
-            entities=entities,
-            run_id=run_id,
-            workflow_scope=workflow_scope,
-            child_function_external_id=params["child_function_external_id"],
-            child_timeout=params["child_timeout"],
-            child_retries=params["child_retries"],
-            depends_on=depends,
-            child_detect_config=child_detect_cfg,
-        )
+        def _build_tasks_for_cfg(detect_cfg: Dict[str, Any]) -> List[Dict[str, Any]]:
+            return build_dynamic_detect_pack_tasks(
+                pack_specs,
+                entities=entities,
+                run_id=run_id,
+                workflow_scope=workflow_scope,
+                child_function_external_id=params["child_function_external_id"],
+                child_timeout=params["child_timeout"],
+                child_retries=params["child_retries"],
+                depends_on=depends,
+                child_detect_config=detect_cfg,
+            )
+
+        pattern_tasks: List[Dict[str, Any]] = []
+        annotation_tasks: List[Dict[str, Any]] = []
+        if fanout_mode == "both" and not fanout_branch:
+            pattern_tasks = _build_tasks_for_cfg(_branch_child_detect_cfg(child_detect_cfg, "pattern"))
+            annotation_tasks = _build_tasks_for_cfg(
+                _branch_child_detect_cfg(child_detect_cfg, "annotation")
+            )
+            dynamic_tasks = [*pattern_tasks, *annotation_tasks]
+        else:
+            dynamic_tasks = _build_tasks_for_cfg(child_detect_cfg)
+            if fanout_branch == "pattern":
+                pattern_tasks = list(dynamic_tasks)
+            elif fanout_branch == "annotation":
+                annotation_tasks = list(dynamic_tasks)
 
         checkpoint = {
             "context_rows": len(context_rows),
@@ -220,8 +305,12 @@ class FileAnnotationFanoutProfile:
         return {
             "status": status,
             "tasks": dynamic_tasks,
+            "pattern_tasks": pattern_tasks,
+            "annotation_tasks": annotation_tasks,
             "batches_planned": len(dynamic_tasks),
             "detect_packs_planned": len(dynamic_tasks),
+            "fanout_mode": fanout_mode,
+            "fanout_branch": fanout_branch,
             "files_pending": len(pending),
             "files_skipped_detected": files_skipped_detected,
             "force_redetect": force_redetect,

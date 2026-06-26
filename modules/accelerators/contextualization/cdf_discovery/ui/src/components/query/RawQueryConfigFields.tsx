@@ -6,6 +6,7 @@ import { QueryEditorTabs, useQueryEditorTabState, type QueryEditorTabDef } from 
 import { QueryScopeModeFields } from "./QueryScopeModeFields";
 import { SourceViewFiltersSection } from "./SourceViewFiltersSection";
 import { readFilters, mergeFilters } from "../../utils/filtersConfigModel";
+import { postPreviewJson } from "./queryApi";
 
 type Props = {
   value: JsonObject;
@@ -24,23 +25,7 @@ const TABS: QueryEditorTabDef[] = [
 ];
 
 async function fetchRawPreview(config: JsonObject, limit: number): Promise<QueryPreviewResult> {
-  const r = await fetch("/api/transform/raw-query/preview", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ config, limit }),
-  });
-  if (!r.ok) {
-    let msg = r.statusText;
-    try {
-      const j = (await r.json()) as { detail?: unknown };
-      const d = j?.detail;
-      if (typeof d === "string") msg = d;
-    } catch {
-      /* ignore */
-    }
-    throw new Error(msg);
-  }
-  return r.json() as Promise<QueryPreviewResult>;
+  return postPreviewJson<QueryPreviewResult>("/api/transform/raw-query/preview", { config, limit });
 }
 
 function readWorkflowCap(cfg: JsonObject): number | undefined {

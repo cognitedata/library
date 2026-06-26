@@ -30,14 +30,20 @@ def test_diagram_batch_policy_async():
     pol = discovery_task_workflow_policy("fn_etl_file_annotation")
     assert pol["isAsyncComplete"] is True
     assert pol["onFailure"] == "abortWorkflow"
+    launch_pol = discovery_task_workflow_policy("fn_etl_file_annotation_launch")
+    finalize_pol = discovery_task_workflow_policy("fn_etl_file_annotation_finalize")
+    barrier_pol = discovery_task_workflow_policy("fn_etl_file_annotation_barrier")
+    assert launch_pol["timeout"] == 600
+    assert finalize_pol["timeout"] == 600
+    assert barrier_pol["timeout"] == 600
 
 
-def test_file_pattern_extract_compiles_dynamic_task():
+def test_file_annotation_compiles_split_dynamic_tasks():
     template = (
         Path(__file__).resolve().parents[2]
         / "workflow_definitions"
         / "templates"
-        / "file_pattern_extract.template.yaml"
+        / "file_annotation.template.yaml"
     )
     assert template.is_file(), template
     import yaml
@@ -45,7 +51,7 @@ def test_file_pattern_extract_compiles_dynamic_task():
     doc = yaml.safe_load(template.read_text(encoding="utf-8"))
     compiled = compile_canvas_dag(doc["canvas"])
     wv = build_workflow_version_document(
-        workflow_external_id="wf_test_file_pattern",
+        workflow_external_id="wf_test_file_annotation",
         version="1",
         compiled_workflow=compiled,
         description="test",
@@ -53,13 +59,23 @@ def test_file_pattern_extract_compiles_dynamic_task():
     tasks = wv["workflowDefinition"]["tasks"]
     types = {t["type"] for t in tasks}
     assert "dynamic" in types
-    dynamic = next(t for t in tasks if t["type"] == "dynamic")
-    assert "fanout_plan.output.tasks" in dynamic["parameters"]["dynamic"]["tasks"]
+    dynamic_ids = sorted(t["externalId"] for t in tasks if t["type"] == "dynamic")
+    assert dynamic_ids == ["fanout_annotation", "fanout_pattern"]
+    dynamic_pattern = next(t for t in tasks if t["externalId"] == "fanout_pattern")
+    dynamic_annotation = next(t for t in tasks if t["externalId"] == "fanout_annotation")
+    assert (
+        dynamic_pattern["parameters"]["dynamic"]["tasks"]
+        == "${fanout_plan_pattern.output.response.body.tasks}"
+    )
+    assert (
+        dynamic_annotation["parameters"]["dynamic"]["tasks"]
+        == "${fanout_plan_annotation.output.response.body.tasks}"
+    )
     map_dm = next(t for t in tasks if t["externalId"] == "map_annotations_dm")
     assert map_dm["type"] == "jsonMapping"
-    assert map_dm["dependsOn"] == [{"externalId": "fanout"}]
+    assert map_dm["dependsOn"] == [{"externalId": "completion_barrier"}]
     assert map_dm["parameters"]["jsonMapping"]["expression"] == "input.rows"
-    assert map_dm["parameters"]["jsonMapping"]["input"]["rows"] == "${fanout.output}"
+    assert map_dm["parameters"]["jsonMapping"]["input"]["rows"] == "${finalize_annotations.output}"
 
 
 def test_json_mapping_compiles_to_cdf_task():

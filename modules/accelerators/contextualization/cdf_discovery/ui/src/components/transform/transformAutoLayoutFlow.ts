@@ -6,6 +6,7 @@ import {
   type TransformCanvasLayoutMethod,
 } from "../../types/transformCanvas";
 import type { FlowEdgeData } from "./flowDocumentBridge";
+import { ETL_NODE_PROGRESS_RESERVED_HEIGHT } from "./etlFlowNodeSizing";
 
 const GAP_X = 56;
 const GAP_Y = 36;
@@ -15,20 +16,11 @@ const BOX_PAD = 6;
 type Rect = { w: number; h: number };
 
 function estimateNodeRect(n: Node): Rect {
-  const ext = n as Node & {
-    width?: number;
-    height?: number;
-    measured?: { width?: number; height?: number };
-  };
-  const mw = ext.measured?.width ?? ext.width;
-  const mh = ext.measured?.height ?? ext.height;
-  if (typeof mw === "number" && typeof mh === "number" && mw > 0 && mh > 0) {
-    return { w: Math.ceil(mw) + BOX_PAD, h: Math.ceil(mh) + BOX_PAD };
-  }
+  const progressReserve = ETL_NODE_PROGRESS_RESERVED_HEIGHT;
   if (n.type === "etlStart" || n.type === "etlEnd") {
     return { w: 148, h: 68 };
   }
-  return { w: 192, h: 96 };
+  return { w: 192, h: 96 + progressReserve };
 }
 
 function nodeById(nodes: Node[]): Map<string, Node> {

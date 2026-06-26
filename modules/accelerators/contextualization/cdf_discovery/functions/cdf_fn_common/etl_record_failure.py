@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Dict, Mapping, Optional
 
+from cdf_fn_common.etl_cdf_utils import create_table_if_not_exists
 from cdf_fn_common.etl_discovery_query_shared import _as_dict
 from cdf_fn_common.etl_incremental_scope import (
     EXTERNAL_ID_COLUMN,
@@ -72,6 +73,7 @@ def mark_cohort_entity_failed(
     new_cols[WORKFLOW_STATUS_UPDATED_AT_COLUMN] = datetime.now(timezone.utc).isoformat(
         timespec="milliseconds"
     )
+    create_table_if_not_exists(client, raw_db, raw_table)
     client.raw.rows.insert(db_name=raw_db, table_name=raw_table, row={rk: new_cols})
 
 
@@ -84,7 +86,19 @@ def record_entity_processing_failure(
     log: Any = None,
 ) -> bool:
     nid = str(cols.get(NODE_INSTANCE_ID_COLUMN) or "").strip()
-    mark_cohort_entity_failed(recorder.client, recorder.raw_db, recorder.raw_table, row_key, cols)
+    try:
+        mark_cohort_entity_failed(recorder.client, recorder.raw_db, recorder.raw_table, row_key, cols)
+    except Exception as write_ex:
+        if log and hasattr(log, "warning"):
+            log.warning(
+                "Failed to persist processing failure node=%s row_key=%s table=%s/%s: %s",
+                nid or "?",
+                row_key,
+                recorder.raw_db,
+                recorder.raw_table,
+                (str(write_ex) or "")[:500],
+            )
+        return False
     recorder.entities_failed += 1
     if log and hasattr(log, "warning"):
         log.warning(

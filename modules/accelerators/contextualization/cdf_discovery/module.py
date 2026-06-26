@@ -94,6 +94,8 @@ def _run_ui(argv: List[str]) -> int:
         args.api_host,
         "--port",
         str(args.api_port),
+        "--log-level",
+        "debug",
     ]
     if not args.no_reload:
         api_cmd.append("--reload")

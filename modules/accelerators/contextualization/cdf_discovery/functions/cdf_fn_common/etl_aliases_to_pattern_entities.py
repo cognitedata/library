@@ -137,16 +137,18 @@ def collect_aliases_from_cohort_rows(
     out: List[str] = []
     for row in rows:
         props = row.get("properties") if isinstance(row.get("properties"), dict) else {}
-        val = props.get(property_name)
-        if isinstance(val, list):
-            for item in val:
-                s = str(item or "").strip()
+        cols = row.get("columns") if isinstance(row.get("columns"), dict) else {}
+        candidates = [props.get(property_name), cols.get(property_name), row.get(property_name)]
+        for val in candidates:
+            if isinstance(val, list):
+                for item in val:
+                    s = str(item or "").strip()
+                    if s:
+                        out.append(s)
+            elif val is not None:
+                s = str(val).strip()
                 if s:
                     out.append(s)
-        elif val is not None:
-            s = str(val).strip()
-            if s:
-                out.append(s)
     return out
 
 

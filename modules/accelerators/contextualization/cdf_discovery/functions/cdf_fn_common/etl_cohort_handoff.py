@@ -20,6 +20,24 @@ from cdf_fn_common.etl_ui_progress import (
 )
 
 
+def _resolve_cohort_write_batch_size(data: Mapping[str, Any]) -> int:
+    cfg = data.get("config") if isinstance(data.get("config"), dict) else {}
+    configuration = data.get("configuration") if isinstance(data.get("configuration"), dict) else {}
+    params = configuration.get("parameters") if isinstance(configuration.get("parameters"), dict) else {}
+    raw = cfg.get("cohort_write_batch_size")
+    if raw is None:
+        raw = data.get("cohort_write_batch_size")
+    if raw is None:
+        raw = params.get("cohort_write_batch_size")
+    if raw is None:
+        return COHORT_WRITE_ROW_INTERVAL
+    try:
+        parsed = int(raw)
+    except (TypeError, ValueError):
+        return COHORT_WRITE_ROW_INTERVAL
+    return parsed if parsed > 0 else COHORT_WRITE_ROW_INTERVAL
+
+
 def _count_entity_cohort_source_rows(rows: List[Dict[str, Any]]) -> int:
     n = 0
     for item in rows:
@@ -54,6 +72,7 @@ def write_entity_rows_to_cohort_sink(
     queue = RawRowsUploadQueue(client)
     pending: List[Dict[str, Any]] = []
     n_written = 0
+    write_batch_size = _resolve_cohort_write_batch_size(data)
     value_field = str((data.get("config") or {}).get("value_field") or "aliases")
     set_cohort_write_progress_total(_count_entity_cohort_source_rows(rows))
 
@@ -83,9 +102,9 @@ def write_entity_rows_to_cohort_sink(
             )
         )
         n_written += 1
-        if len(pending) >= COHORT_WRITE_ROW_INTERVAL:
+        if len(pending) >= write_batch_size:
             _flush_rows(queue, raw_db, raw_table, pending, client=client)
-            emit_cohort_write_progress_every_n_rows(n_written)
+            emit_cohort_write_progress_every_n_rows(n_written, interval=write_batch_size)
 
     _flush_rows(queue, raw_db, raw_table, pending, client=client)
     emit_cohort_write_progress_complete(n_written)

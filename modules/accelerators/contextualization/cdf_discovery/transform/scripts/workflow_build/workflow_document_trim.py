@@ -60,9 +60,18 @@ def build_trigger_input(
     incremental_change_processing = trigger_cfg.get("incremental_change_processing", True)
     configuration = extract_trigger_configuration(workflow_document)
     params = configuration.get("parameters")
+    cohort_write_batch_size = trigger_cfg.get("cohort_write_batch_size")
+    workflow_scope = str(trigger_cfg.get("workflow_scope") or "").strip()
     if isinstance(params, dict):
         params["incremental_change_processing"] = _as_bool(incremental_change_processing)
-    return {
+        if workflow_scope:
+            params["workflow_scope"] = workflow_scope
+        if cohort_write_batch_size is not None:
+            params["cohort_write_batch_size"] = cohort_write_batch_size
+    out = {
         "incremental_change_processing": _as_bool(incremental_change_processing),
         "configuration": configuration,
     }
+    if cohort_write_batch_size is not None:
+        out["cohort_write_batch_size"] = cohort_write_batch_size
+    return out

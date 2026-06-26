@@ -1,0 +1,79 @@
+# CDF Toolkit Function Definitions — Inverted Index Contextualization
+
+- name: 'dm:context:inverted_index:build:metadata'
+  externalId: 'fn_idx_build_metadata'
+  dataSetExternalId: 'ds_inverted_index_all'
+  owner: 'Anonymous'
+  description: 'Build metadata inverted index from DM views via instances.query'
+  metadata:
+    version: '1.0.0'
+  envVars:
+    ENV_TYPE: '${CDF_BUILD_TYPE}'
+    CDF_ENV: '${CDF_ENVIRON}'
+  runtime: 'py311'
+  functionPath: 'handler.py'
+
+- name: 'dm:context:inverted_index:build:annotations'
+  externalId: 'fn_idx_build_annotations'
+  dataSetExternalId: 'ds_inverted_index_all'
+  owner: 'Anonymous'
+  description: 'Build diagram annotation inverted index via instances.query edge enumeration'
+  metadata:
+    version: '1.0.0'
+  envVars:
+    ENV_TYPE: '${CDF_BUILD_TYPE}'
+    CDF_ENV: '${CDF_ENVIRON}'
+  runtime: 'py311'
+  functionPath: 'handler.py'
+
+- name: 'dm:context:inverted_index:process:target_driven'
+  externalId: 'fn_idx_target_driven'
+  dataSetExternalId: 'ds_inverted_index_all'
+  owner: 'Anonymous'
+  description: 'Target-driven contextualization after aliases are populated'
+  metadata:
+    version: '1.0.0'
+  envVars:
+    ENV_TYPE: '${CDF_BUILD_TYPE}'
+    CDF_ENV: '${CDF_ENVIRON}'
+  runtime: 'py311'
+  functionPath: 'handler.py'
+
+- name: 'dm:context:inverted_index:subscription:aliases'
+  externalId: 'fn_idx_handle_subscription'
+  dataSetExternalId: 'ds_inverted_index_all'
+  owner: 'Anonymous'
+  description: 'Handle instance subscription events when CogniteDescribable.aliases changes'
+  metadata:
+    version: '1.0.0'
+  envVars:
+    ENV_TYPE: '${CDF_BUILD_TYPE}'
+    CDF_ENV: '${CDF_ENVIRON}'
+  runtime: 'py311'
+  functionPath: 'handler.py'
+
+- name: 'dm:context:inverted_index:score:contextualization'
+  externalId: 'fn_idx_score'
+  dataSetExternalId: 'ds_inverted_index_all'
+  owner: 'Anonymous'
+  description: 'Compute contextualization score for a diagram file'
+  metadata:
+    version: '1.0.0'
+  envVars:
+    ENV_TYPE: '${CDF_BUILD_TYPE}'
+    CDF_ENV: '${CDF_ENVIRON}'
+  runtime: 'py311'
+  functionPath: 'handler.py'
+
+- name: 'dm:context:inverted_index:deltas:detection'
+  externalId: 'fn_idx_deltas'
+  dataSetExternalId: 'ds_inverted_index_all'
+  owner: 'Anonymous'
+  description: 'Detection mode deltas (pattern vs standard) for a file'
+  metadata:
+    version: '1.0.0'
+  envVars:
+    ENV_TYPE: '${CDF_BUILD_TYPE}'
+    CDF_ENV: '${CDF_ENVIRON}'
+  runtime: 'py311'
+  functionPath: 'handler.py'

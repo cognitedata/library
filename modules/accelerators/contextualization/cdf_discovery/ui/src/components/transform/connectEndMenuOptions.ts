@@ -34,6 +34,8 @@ const LOAD_STAGES: readonly TransformCanvasNodeKind[] = [
 const CONTEXTUALIZATION_STAGES: readonly TransformCanvasNodeKind[] = [
   "file_annotation",
   "workflow_fanout_plan",
+  "subgraph",
+  "raw_cleanup",
 ];
 
 const FUSION_STAGES: readonly TransformCanvasNodeKind[] = FUSION_NODE_KINDS;
@@ -72,7 +74,7 @@ const STAGE_LABEL: Partial<Record<TransformCanvasNodeKind, MessageKey>> = {
   save_classic: "transform.palette.save_classic",
   save_records: "transform.palette.save_records",
   save_stream: "transform.palette.save_stream",
-  raw_cleanup: "transform.palette.transform",
+  raw_cleanup: "transform.palette.raw_cleanup",
   spark_transform: "transform.palette.spark_transform",
   transformation_ref: "transform.palette.transformation_ref",
   function_ref: "transform.palette.function_ref",
@@ -82,7 +84,7 @@ const STAGE_LABEL: Partial<Record<TransformCanvasNodeKind, MessageKey>> = {
   workflow_fanout_plan: "transform.palette.workflow_fanout_plan",
   simulation: "transform.palette.simulation",
   cdf_task: "transform.palette.cdf_task",
-  subgraph: "transform.palette.transform",
+  subgraph: "transform.palette.subgraph",
   node_preview: "transform.palette.node_preview",
 };
 

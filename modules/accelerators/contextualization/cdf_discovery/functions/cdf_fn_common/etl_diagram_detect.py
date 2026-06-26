@@ -139,23 +139,25 @@ def list_cognite_files(
     return out
 
 
-def run_pattern_diagram_detect(
+def run_diagram_detect(
     client: Any,
     file_refs: Sequence[Any],
     entities: List[Dict[str, Any]],
     *,
     partial_match: bool = True,
     min_tokens: int = 1,
+    pattern_mode: bool = True,
+    search_field: str = "sample",
     diagram_detect_config: Optional[Mapping[str, Any]] = None,
 ) -> int:
-    """Submit pattern-mode diagram detect; return job_id."""
+    """Submit diagram detect; return job_id."""
     detect_kwargs: Dict[str, Any] = {
         "file_references": list(file_refs),
         "entities": entities,
         "partial_match": partial_match,
         "min_tokens": min_tokens,
-        "search_field": "sample",
-        "pattern_mode": True,
+        "search_field": str(search_field or "sample"),
+        "pattern_mode": bool(pattern_mode),
     }
     if diagram_detect_config:
         try:
@@ -193,6 +195,20 @@ def wait_for_diagram_job(
                 raise RuntimeError(f"Diagram detect job {job_id} failed: {body.get('error')}")
         time.sleep(poll_interval)
     raise TimeoutError(f"Diagram detect job {job_id} timed out after {timeout_sec}s")
+
+
+def fetch_diagram_job_once(client: Any, job_id: int) -> Dict[str, Any]:
+    """Fetch one diagram detect job status payload."""
+    project = client.config.project
+    job_api = f"/api/v1/projects/{project}/context/diagram/detect/{job_id}"
+    response = client.get(job_api)
+    if response.status_code != 200:
+        raise RuntimeError(
+            f"Failed fetching diagram detect job {job_id}: "
+            f"{response.status_code} {getattr(response, 'text', '')}"
+        )
+    body = response.json()
+    return body if isinstance(body, dict) else {}
 
 
 def bounding_box_from_region(region: Mapping[str, Any]) -> Dict[str, float]:
@@ -339,6 +355,7 @@ def _iter_detect_annotation_hits(
     job_results: Mapping[str, Any],
     *,
     require_entities: bool = False,
+    file_id_by_external_id: Optional[Mapping[str, int]] = None,
 ) -> Iterable[tuple[int, str, Mapping[str, Any], Any, Mapping[str, Any], Mapping[str, Any]]]:
     """
     Yield per-annotation hits from pattern-mode detect JSON.
@@ -346,12 +363,18 @@ def _iter_detect_annotation_hits(
     Mirrors cdf_file_annotation finalize: each ``item`` has ``annotations[]`` with
     ``text``, ``region`` (including ``page``), and optional ``entities``.
     """
-    for item in job_results.get("items") or []:
+    for item_index, item in enumerate(job_results.get("items") or [], start=1):
         if not isinstance(item, dict):
             continue
         file_id = resolve_file_id_from_item(item)
+        if file_id is None and file_id_by_external_id:
+            _space, ext, _node = resolve_file_instance_from_item(item)
+            file_external_id = ext or str(item.get("fileExternalId") or item.get("file_external_id") or "").strip()
+            if file_external_id:
+                file_id = file_id_by_external_id.get(file_external_id)
         if file_id is None:
-            continue
+            # Keep row-level output even when detect payload has no file identifiers.
+            file_id = -item_index
         annotations = item.get("annotations")
         if isinstance(annotations, list) and annotations:
             for ann in annotations:
@@ -417,8 +440,15 @@ def flatten_detect_items_to_cohort_rows(
     }
     rows: List[Dict[str, Any]] = []
     ref_meta = file_ref_meta or {}
+    file_id_by_external_id: Dict[str, int] = {}
+    for file_id, info in file_info_map.items():
+        ext_id = str(info.get("external_id") or "").strip()
+        if ext_id:
+            file_id_by_external_id[ext_id] = int(file_id)
     for file_id, text, region, confidence, item, annotation in _iter_detect_annotation_hits(
-        job_results, require_entities=require_entities
+        job_results,
+        require_entities=require_entities,
+        file_id_by_external_id=file_id_by_external_id,
     ):
         file_info = dict(file_info_map.get(file_id) or {})
         chunk = dict(ref_meta.get(file_id) or {})
@@ -429,7 +459,7 @@ def flatten_detect_items_to_cohort_rows(
             or ext_item
             or item.get("fileExternalId")
             or file_info.get("name")
-            or f"file_{file_id}"
+            or (f"unknown_detect_item_{abs(file_id)}" if int(file_id) <= 0 else f"file_{file_id}")
         )
         inst_space = str(file_info.get("instance_space") or inst_space_item or "")
         node_id = str(
@@ -439,7 +469,6 @@ def flatten_detect_items_to_cohort_rows(
         )
         matched = matched_entities_from_annotation(annotation)
         file_ref = {
-            "file_id": file_id,
             "file_external_id": ext_id,
             "file_name": file_info.get("name"),
             "page_number": first_page,
@@ -448,6 +477,8 @@ def flatten_detect_items_to_cohort_rows(
             "uploaded_time": file_info.get("uploadedTime"),
             "mime_type": file_info.get("mime_type"),
         }
+        if int(file_id) > 0:
+            file_ref["file_id"] = file_id
         if inst_space:
             file_ref["instance_space"] = inst_space
         results_doc = annotation_results_document(

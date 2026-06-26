@@ -50,6 +50,22 @@ type Props = {
   readOnly?: boolean;
 };
 
+const QUERY_EDITOR_KINDS = new Set<TransformCanvasNodeKind>([
+  "query_view",
+  "query_raw",
+  "query_classic",
+  "query_sql",
+  "query_records",
+  "filter",
+]);
+
+const HIDE_GENERIC_CONNECTOR_LABELS = new Set<TransformCanvasNodeKind>([
+  "start",
+  "end",
+  "workflow_fanout_plan",
+  "file_annotation",
+]);
+
 function titleKey(kind: TransformCanvasNodeKind): MessageKey {
   switch (kind) {
     case "query_view":
@@ -162,7 +178,7 @@ function ConfigEditorBody({
   onChange: (next: JsonObject) => void;
   t: TFn;
 }) {
-  if (["query_view", "query_raw", "query_classic", "query_sql", "query_records", "filter"].includes(kind)) {
+  if (QUERY_EDITOR_KINDS.has(kind)) {
     return (
       <QueryEditorBody
         kind={kind}
@@ -405,15 +421,10 @@ export function FlowNodeEditorModal({
               onChange={onConfigChange}
               t={t}
             />
-            {kind !== "start" &&
-            kind !== "end" &&
-            kind !== "workflow_fanout_plan" &&
-            kind !== "file_annotation" ? (
+            {!HIDE_GENERIC_CONNECTOR_LABELS.has(kind) ? (
               <ConnectorLabelFields
                 value={configDraft}
                 onChange={onConfigChange}
-                showInput={true}
-                showOutput={true}
               />
             ) : null}
           </fieldset>

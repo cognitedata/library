@@ -37,9 +37,9 @@ def _pipeline_run_seed_payload(data: Mapping[str, Any]) -> Dict[str, Any]:
         "workflow_scope": _first_nonempty(params.get("workflow_scope")),
         "schema_version": int(configuration.get("schemaVersion") or 1),
     }
-    correlation_id = _first_nonempty(params.get("correlation_id"))
-    if correlation_id:
-        payload["correlation_id"] = correlation_id
+    run_id = _first_nonempty(params.get("run_id"))
+    if run_id:
+        payload["run_id"] = run_id
     return payload
 
 
@@ -71,7 +71,7 @@ def require_pipeline_run_key(data: Mapping[str, Any]) -> str:
     }
     raise ValueError(
         "pipeline_run_key is required. Expected configuration input and optional "
-        f"configuration.parameters.correlation_id. probe={json.dumps(compact_probe, default=str)}"
+        f"configuration.parameters.run_id. probe={json.dumps(compact_probe, default=str)}"
     )
 
 
@@ -80,7 +80,16 @@ def resolve_task_config(data: Mapping[str, Any]) -> Dict[str, Any]:
 
 
 def merge_compiled_task_into_data(data: MutableMapping[str, Any]) -> None:
-    """Merge compiled IR task payload into handler ``data`` when present."""
+    """
+    Merge compiled workflow/task payload into handler ``data`` when present.
+
+    Supports both:
+    - v5 runtime shape: ``data.compiled_workflow`` + ``data.task_id``
+    - legacy shape: ``data.compiled_task``
+    """
+    from cdf_fn_common.etl_task_runtime import merge_compiled_task_into_data as merge_runtime_task
+
+    merge_runtime_task(data)
     compiled = data.get("compiled_task")
     if not isinstance(compiled, dict):
         return

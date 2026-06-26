@@ -29,7 +29,7 @@ except ImportError:
 
 _THROTTLE_SEC = 0.2
 HANDLER_PROGRESS_ROW_INTERVAL = 500
-COHORT_WRITE_ROW_INTERVAL = HANDLER_PROGRESS_ROW_INTERVAL
+COHORT_WRITE_ROW_INTERVAL = 10_000
 _ctx: ContextVar[dict[str, Any] | None] = ContextVar("etl_handler_progress", default=None)
 _cohort_write_total: ContextVar[int | None] = ContextVar("etl_cohort_write_total", default=None)
 _last_emit: ContextVar[float] = ContextVar("etl_handler_progress_last_emit", default=0.0)

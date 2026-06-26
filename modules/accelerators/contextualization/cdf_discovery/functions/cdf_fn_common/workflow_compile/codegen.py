@@ -108,7 +108,7 @@ def _function_task(
     data: Dict[str, Any] = {
         "logLevel": "INFO",
         "incremental_change_processing": "${workflow.input.incremental_change_processing}",
-        "run_id": "${workflow.input.configuration.parameters.correlation_id}",
+        "run_id": "${workflow.input.configuration.parameters.run_id}",
         "configuration": "${workflow.input.configuration}",
         "task_id": task_external_id,
     }
@@ -292,7 +292,11 @@ def _task_parameters(ir_task: Mapping[str, Any]) -> Dict[str, Any]:
         }
     if task_type == "dynamic":
         gen = str(cfg.get("generator_task_id") or "").strip()
-        return {"dynamic": {"tasks": f"${{{gen}.output.tasks}}" if gen else []}}
+        return {
+            "dynamic": {
+                "tasks": f"${{{gen}.output.response.body.tasks}}" if gen else []
+            }
+        }
     if task_type == "simulation":
         return {"simulation": {"externalId": str(cfg.get("simulation_external_id") or "")}}
     if task_type == "cdf":
@@ -317,7 +321,7 @@ def _task_parameters(ir_task: Mapping[str, Any]) -> Dict[str, Any]:
             "data": {
                 "task_id": task_id,
                 "incremental_change_processing": "${workflow.input.incremental_change_processing}",
-                "run_id": "${workflow.input.configuration.parameters.correlation_id}",
+                "run_id": "${workflow.input.configuration.parameters.run_id}",
                 "configuration": "${workflow.input.configuration}",
                 **extra,
             },

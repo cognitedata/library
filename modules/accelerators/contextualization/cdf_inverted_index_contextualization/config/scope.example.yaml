@@ -1,0 +1,28 @@
+# Example scope configuration — copy into default.config.yaml when site/unit
+# fields are mapped on your DM views. Not active OOTB.
+
+scope:
+  enabled: true
+  levels: [site, unit]
+  scope_key_template: "site:{site}|unit:{unit}"
+  strict_scope: true
+  resolve_from:
+    CogniteAsset:
+      site: [metadata.site, siteId]
+      unit: [metadata.unit, unitCode]
+    CogniteFile:
+      site: [metadata.site]
+      unit: [metadata.unit]
+    CogniteEquipment:
+      site: [metadata.site]
+      unit: [metadata.unit]
+    CogniteTimeSeries:
+      site: [metadata.site]
+      unit: [metadata.unit]
+    CogniteDiagramAnnotation:
+      site: [metadata.site]
+      unit: [metadata.unit]
+  resolve_from_default:
+    site: [metadata.site]
+    unit: [metadata.unit]
+  annotation_scope_via_linked_file: true

@@ -4,6 +4,7 @@ import type { JsonObject } from "../../types/jsonConfig";
 import { QueryPreviewPanel, type QueryPreviewResult } from "./QueryPreviewPanel";
 import { QueryEditorTabs, useQueryEditorTabState, type QueryEditorTabDef } from "./QueryEditorTabs";
 import { SqlEditorResizablePane } from "./SqlEditorResizablePane";
+import { postPreviewJson } from "./queryApi";
 
 type Props = {
   value: JsonObject;
@@ -27,23 +28,7 @@ async function runSqlPreview(body: {
   convert_to_string?: boolean;
   timeout?: number;
 }): Promise<QueryPreviewResult> {
-  const r = await fetch("/api/cdf/sql/run", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  if (!r.ok) {
-    let msg = r.statusText;
-    try {
-      const j = (await r.json()) as { detail?: unknown };
-      const d = j?.detail;
-      if (typeof d === "string") msg = d;
-    } catch {
-      /* ignore */
-    }
-    throw new Error(msg);
-  }
-  return r.json() as Promise<QueryPreviewResult>;
+  return postPreviewJson<QueryPreviewResult>("/api/cdf/sql/run", body);
 }
 
 function readWorkflowLimit(cfg: JsonObject): number | undefined {

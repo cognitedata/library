@@ -17,6 +17,7 @@ from cdf_fn_common.etl_incremental_scope import (
 
 RECORD_KIND_FILE = "file"
 RECORD_KIND_CHECKPOINT = "checkpoint"
+RECORD_KIND_DETECT_JOB = "detect_job"
 FILE_STATE_TABLE_SUFFIX = "__file_state"
 
 FILE_STATUS_PENDING = "pending"
@@ -32,6 +33,10 @@ LAST_ERROR_COLUMN = "LAST_ERROR"
 STATE_JSON_COLUMN = "STATE_JSON"
 CHUNKS_DONE_COLUMN = "CHUNKS_DONE"
 CHUNKS_TOTAL_COLUMN = "CHUNKS_TOTAL"
+TASK_ID_COLUMN = "TASK_ID"
+PACK_INDEX_COLUMN = "PACK_INDEX"
+JOB_ID_COLUMN = "JOB_ID"
+JOB_STATUS_COLUMN = "JOB_STATUS"
 
 
 def file_state_table_name(base_table: str) -> str:
@@ -50,6 +55,12 @@ def file_state_row_key(file_id: int, workflow_scope: str = "") -> str:
     if ws:
         return f"file_{ws}_{int(file_id)}"
     return f"file_{int(file_id)}"
+
+
+def detect_job_row_key(*, workflow_scope: str, task_id: str, pack_index: int) -> str:
+    ws = str(workflow_scope or "").strip() or "default"
+    tid = str(task_id or "").strip() or "detect"
+    return f"detect_job_{ws}_{tid}_{int(pack_index)}"[:256]
 
 
 def _cols(row: Any) -> Dict[str, Any]:
@@ -111,6 +122,65 @@ def load_file_processing_state(
     return out
 
 
+def load_detect_job_state(
+    client: Any,
+    raw_db: str,
+    raw_table: str,
+    *,
+    workflow_scope: str = "",
+    run_id: str = "",
+    task_id: Optional[str] = None,
+) -> List[Dict[str, Any]]:
+    """Load persisted detect-job queue rows."""
+    from cdf_fn_common.etl_cdf_utils import create_table_if_not_exists
+    from cdf_fn_common.etl_incremental_scope import iter_raw_table_rows_chunked
+
+    create_table_if_not_exists(client, raw_db, raw_table)
+    out: List[Dict[str, Any]] = []
+    wanted_task_id = str(task_id or "").strip()
+    wanted_run_id = str(run_id or "").strip()
+    for row in iter_raw_table_rows_chunked(client, raw_db, raw_table):
+        cols = _cols(row)
+        if str(cols.get(RECORD_KIND_COLUMN) or "") != RECORD_KIND_DETECT_JOB:
+            continue
+        row_ws = str(cols.get(WORKFLOW_SCOPE_COLUMN) or "").strip()
+        if workflow_scope and row_ws and row_ws != workflow_scope:
+            continue
+        row_run = str(cols.get(RUN_ID_COLUMN) or "").strip()
+        if wanted_run_id and row_run and row_run != wanted_run_id:
+            continue
+        row_task = str(cols.get(TASK_ID_COLUMN) or "").strip()
+        if wanted_task_id and row_task and row_task != wanted_task_id:
+            continue
+        state_json = cols.get(STATE_JSON_COLUMN)
+        if isinstance(state_json, str) and state_json.strip():
+            try:
+                state_data = json.loads(state_json)
+            except json.JSONDecodeError:
+                state_data = {}
+        elif isinstance(state_json, dict):
+            state_data = dict(state_json)
+        else:
+            state_data = {}
+        state_data["task_id"] = row_task or state_data.get("task_id")
+        state_data["workflow_scope"] = row_ws or state_data.get("workflow_scope")
+        state_data["run_id"] = row_run or state_data.get("run_id")
+        try:
+            state_data["pack_index"] = int(cols.get(PACK_INDEX_COLUMN))
+        except (TypeError, ValueError):
+            pass
+        if cols.get(JOB_ID_COLUMN) is not None:
+            try:
+                state_data["job_id"] = int(cols.get(JOB_ID_COLUMN))
+            except (TypeError, ValueError):
+                state_data["job_id"] = cols.get(JOB_ID_COLUMN)
+        if cols.get(JOB_STATUS_COLUMN):
+            state_data["job_status"] = str(cols.get(JOB_STATUS_COLUMN))
+        out.append(state_data)
+    out.sort(key=lambda x: int(x.get("pack_index") or 0))
+    return out
+
+
 def upsert_file_state_raw(
     client: Any,
     *,
@@ -162,6 +232,54 @@ def upsert_file_state_raw(
         db_name=raw_db,
         table_name=raw_table,
         row={file_state_row_key(file_id, workflow_scope): cols},
+    )
+
+
+def upsert_detect_job_state_raw(
+    client: Any,
+    *,
+    raw_db: str,
+    raw_table: str,
+    workflow_scope: str,
+    run_id: str,
+    task_id: str,
+    pack_index: int,
+    state_data: Mapping[str, Any],
+) -> None:
+    from cdf_fn_common.etl_cdf_utils import create_table_if_not_exists
+
+    create_table_if_not_exists(client, raw_db, raw_table)
+    cols: Dict[str, Any] = {
+        RECORD_KIND_COLUMN: RECORD_KIND_DETECT_JOB,
+        WORKFLOW_SCOPE_COLUMN: workflow_scope,
+        RUN_ID_COLUMN: run_id,
+        TASK_ID_COLUMN: str(task_id),
+        PACK_INDEX_COLUMN: int(pack_index),
+        WORKFLOW_STATUS_UPDATED_AT_COLUMN: datetime.now(timezone.utc).isoformat(
+            timespec="milliseconds"
+        ),
+        STATE_JSON_COLUMN: json.dumps(dict(state_data), default=str),
+    }
+    job_id = state_data.get("job_id")
+    if job_id is not None and str(job_id).strip():
+        try:
+            cols[JOB_ID_COLUMN] = int(job_id)
+        except (TypeError, ValueError):
+            cols[JOB_ID_COLUMN] = str(job_id)
+    job_status = state_data.get("job_status") or state_data.get("status")
+    if job_status:
+        cols[JOB_STATUS_COLUMN] = str(job_status)
+        cols[WORKFLOW_STATUS_COLUMN] = str(job_status)
+    client.raw.rows.insert(
+        db_name=raw_db,
+        table_name=raw_table,
+        row={
+            detect_job_row_key(
+                workflow_scope=workflow_scope,
+                task_id=task_id,
+                pack_index=pack_index,
+            ): cols
+        },
     )
 
 
@@ -294,7 +412,7 @@ def resolve_file_workflow_params(data: Mapping[str, Any]) -> Dict[str, Any]:
         "max_files_per_run": optional_positive_int(params.get("max_files_per_run")),
         "mime_type": params.get("mime_type"),
         "instance_space": params.get("instance_space"),
-        "max_pages_per_file_reference": int(params.get("max_pages_per_file_reference") or 15),
+        "max_pages_per_file_reference": int(params.get("max_pages_per_file_reference") or 50),
         "max_pages_per_detect_request": int(params.get("max_pages_per_detect_request") or 15),
         "max_pattern_samples": int(params.get("max_pattern_samples") or 100),
         "min_tokens": int(params.get("min_tokens") or 2),
@@ -304,7 +422,7 @@ def resolve_file_workflow_params(data: Mapping[str, Any]) -> Dict[str, Any]:
         "child_function_external_id": str(
             params.get("child_function_external_id") or "fn_etl_file_annotation"
         ),
-        "child_timeout": int(params.get("child_timeout") or 3600),
+        "child_timeout": int(params.get("child_timeout") or 600),
         "child_retries": int(params.get("child_retries") or 2),
     }
 
@@ -482,25 +600,16 @@ def build_dynamic_detect_pack_tasks(
             if isinstance(r, dict)
         )
         tasks_out.append(
-            {
-                "externalId": task_ext,
-                "type": "function",
-                "dependsOn": [{"externalId": d} for d in deps],
-                "parameters": {
-                    "function": {
-                        "externalId": child_function_external_id,
-                        "data": child_data,
-                        "isAsyncComplete": True,
-                    }
-                },
-                "name": f"Pattern detect pack {pack_index + 1}/{total}",
-                "description": (
-                    f"Diagram pattern detect ({len(file_ids)} file(s), ~{page_span} pages)"
-                ),
-                "retries": child_retries,
-                "timeout": child_timeout,
-                "onFailure": "skipTask",
-            }
+            _build_dynamic_detect_function_task(
+                task_external_id=task_ext,
+                child_function_external_id=child_function_external_id,
+                child_data=child_data,
+                depends_on=deps,
+                name=f"Pattern detect pack {pack_index + 1}/{total}",
+                description=f"Diagram pattern detect ({len(file_ids)} file(s), ~{page_span} pages)",
+                child_retries=child_retries,
+                child_timeout=child_timeout,
+            )
         )
     return tasks_out
 
@@ -542,22 +651,45 @@ def build_dynamic_detect_tasks(
         if child_detect_config:
             child_data["config"] = dict(child_detect_config)
         tasks_out.append(
-            {
-                "externalId": task_ext,
-                "type": "function",
-                "dependsOn": [{"externalId": d} for d in deps],
-                "parameters": {
-                    "function": {
-                        "externalId": child_function_external_id,
-                        "data": child_data,
-                        "isAsyncComplete": True,
-                    }
-                },
-                "name": f"Pattern detect batch {batch_num + 1}/{n_batches}",
-                "description": f"Diagram pattern detect for {len(chunk)} file(s)",
-                "retries": child_retries,
-                "timeout": child_timeout,
-                "onFailure": "skipTask",
-            }
+            _build_dynamic_detect_function_task(
+                task_external_id=task_ext,
+                child_function_external_id=child_function_external_id,
+                child_data=child_data,
+                depends_on=deps,
+                name=f"Pattern detect batch {batch_num + 1}/{n_batches}",
+                description=f"Diagram pattern detect for {len(chunk)} file(s)",
+                child_retries=child_retries,
+                child_timeout=child_timeout,
+            )
         )
     return tasks_out
+
+
+def _build_dynamic_detect_function_task(
+    *,
+    task_external_id: str,
+    child_function_external_id: str,
+    child_data: Mapping[str, Any],
+    depends_on: List[str],
+    name: str,
+    description: str,
+    child_retries: int,
+    child_timeout: int,
+) -> Dict[str, Any]:
+    return {
+        "externalId": task_external_id,
+        "type": "function",
+        "dependsOn": [{"externalId": d} for d in depends_on],
+        "parameters": {
+            "function": {
+                "externalId": child_function_external_id,
+                "data": dict(child_data),
+                "isAsyncComplete": True,
+            }
+        },
+        "name": name,
+        "description": description,
+        "retries": child_retries,
+        "timeout": child_timeout,
+        "onFailure": "abortWorkflow",
+    }

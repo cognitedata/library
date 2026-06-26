@@ -25,6 +25,7 @@ from cdf_fn_common.etl_discovery_cohort import (
 from cdf_fn_common.etl_discovery_query_shared import _flush_rows, resolve_query_sink
 from cdf_fn_common.etl_predecessor_mode import use_in_memory_predecessors
 from cdf_fn_common.etl_raw_upload import RawRowsUploadQueue
+from cdf_fn_common.etl_ui_progress import COHORT_WRITE_ROW_INTERVAL
 from cdf_fn_common.etl_score_validate import (
     score_primary_value_field,
     materialize_scoring_rules,
@@ -86,7 +87,7 @@ def etl_handle_score(
                 )
             )
             rows_written += 1
-            if len(pending) >= 500:
+            if len(pending) >= COHORT_WRITE_ROW_INTERVAL:
                 _flush_rows(queue, sink_db, sink_table, pending, client=client)
         _flush_rows(queue, sink_db, sink_table, pending, client=client)
 

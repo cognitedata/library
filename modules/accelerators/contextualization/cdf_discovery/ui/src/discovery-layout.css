@@ -139,7 +139,7 @@
 .disc-tree-pane {
   display: flex;
   flex-direction: column;
-  background: var(--disc-bg-elevated);
+  background: var(--disc-bg);
   flex: 1 1 auto;
   min-width: 0;
   min-height: 0;

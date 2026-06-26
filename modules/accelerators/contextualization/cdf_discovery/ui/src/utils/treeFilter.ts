@@ -2,6 +2,14 @@ import type { TreeNode } from "../types/discoveryNodes";
 
 export type TreeEntry = { node: TreeNode; depth: number; parentId: string | null };
 
+export type BreadcrumbSegment = { id: string; label: string };
+
+export type DrillDownRow = {
+  node: TreeNode;
+  parentId: string;
+  pathLabel?: string;
+};
+
 const LOADING_KIND = "loading";
 
 export function isLoadingPlaceholder(node: TreeNode): boolean {
@@ -91,6 +99,102 @@ export function flattenVisibleTree(
     walk(rootId, 0);
   }
 
+  return out;
+}
+
+/** Parent folder id for drill-down navigation (top-level nodes parent the connection root). */
+export function parentNodeId(nodeId: string, rootId = "connection"): string {
+  if (nodeId === rootId) return rootId;
+  const idx = nodeId.lastIndexOf(":");
+  if (idx < 0) return rootId;
+  return nodeId.slice(0, idx);
+}
+
+/** Ordered ids from root through ``nodeId`` (inclusive). */
+export function ancestorChainTo(nodeId: string, rootId = "connection"): string[] {
+  const chain: string[] = [];
+  let id = nodeId;
+  while (id && id !== rootId) {
+    chain.unshift(id);
+    const parent = parentNodeId(id, rootId);
+    if (parent === id) break;
+    id = parent;
+  }
+  return [rootId, ...chain];
+}
+
+export function findNodeInTree(
+  nodeId: string,
+  childrenByParent: Map<string, TreeNode[]>,
+  rootNode?: TreeNode
+): TreeNode | null {
+  if (rootNode && nodeId === rootNode.id) return rootNode;
+  for (const kids of childrenByParent.values()) {
+    const found = kids.find((n) => n.id === nodeId);
+    if (found) return found;
+  }
+  return null;
+}
+
+export function buildBreadcrumbTrail(
+  currentParentId: string,
+  childrenByParent: Map<string, TreeNode[]>,
+  rootNode: TreeNode,
+  labelForNode: (node: TreeNode) => string
+): BreadcrumbSegment[] {
+  const ids = ancestorChainTo(currentParentId, rootNode.id);
+  return ids.map((id) => {
+    const node = findNodeInTree(id, childrenByParent, rootNode);
+    return {
+      id,
+      label: node ? labelForNode(node) : id,
+    };
+  });
+}
+
+export function getDrillDownChildren(
+  parentId: string,
+  childrenByParent: Map<string, TreeNode[]>,
+  loadedIds: Set<string>,
+  loadingLabel: string
+): TreeNode[] {
+  if (!loadedIds.has(parentId)) {
+    return [loadingPlaceholder(parentId, loadingLabel)];
+  }
+  return childrenByParent.get(parentId) ?? [];
+}
+
+export function searchLoadedTree(
+  childrenByParent: Map<string, TreeNode[]>,
+  filter: string,
+  rootNode: TreeNode,
+  labelForNode: (node: TreeNode) => string
+): DrillDownRow[] {
+  const q = filter.trim().toLowerCase();
+  if (!q) return [];
+
+  const out: DrillDownRow[] = [];
+  const walk = (parentId: string, pathLabels: string[]) => {
+    const kids = childrenByParent.get(parentId) ?? [];
+    for (const node of kids) {
+      if (isLoadingPlaceholder(node)) continue;
+      const label = labelForNode(node);
+      const nextPath = [...pathLabels, label];
+      const matches = label.toLowerCase().includes(q) || node.id.toLowerCase().includes(q);
+      if (matches) {
+        out.push({
+          node,
+          parentId,
+          pathLabel: pathLabels.length > 0 ? pathLabels.join(" › ") : undefined,
+        });
+      }
+      if (node.has_children) {
+        walk(node.id, nextPath);
+      }
+    }
+  };
+
+  walk(rootNode.id, []);
   return out;
 }
 

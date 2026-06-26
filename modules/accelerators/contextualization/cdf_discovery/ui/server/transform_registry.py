@@ -17,6 +17,60 @@ _WORKFLOW_ID_RE = re.compile(r"^[a-z][a-z0-9_]{0,127}$")
 _DEFAULT_BUILT_SCOPE = ""
 
 
+def default_workflow_scope_for_pipeline_id(pipeline_id: str) -> str:
+    """Default workflow_scope generated for new workflow documents."""
+    raw = str(pipeline_id or "").strip().lower()
+    sanitized = re.sub(r"[^a-z0-9_]+", "_", raw)
+    sanitized = re.sub(r"_+", "_", sanitized).strip("_")
+    if not sanitized:
+        sanitized = "workflow"
+    if not sanitized[0].isalpha():
+        sanitized = f"w_{sanitized}"
+    return sanitized[:128]
+
+
+def ensure_pipeline_workflow_scope(
+    doc: Mapping[str, Any],
+    *,
+    pipeline_id: str,
+    overwrite: bool = False,
+) -> Dict[str, Any]:
+    """
+    Ensure ``parameters.workflow_scope`` and start-node ``config.workflow_scope`` are set.
+
+    When *overwrite* is True, generate from target pipeline id regardless of source value.
+    """
+    out = dict(doc)
+    params = dict(out.get("parameters")) if isinstance(out.get("parameters"), dict) else {}
+    generated_scope = default_workflow_scope_for_pipeline_id(pipeline_id)
+    existing_scope = str(params.get("workflow_scope") or "").strip()
+    workflow_scope = generated_scope if overwrite or not existing_scope else existing_scope
+    params["workflow_scope"] = workflow_scope
+    out["parameters"] = params
+
+    canvas = out.get("canvas")
+    if not isinstance(canvas, dict):
+        return out
+    nodes = canvas.get("nodes")
+    if not isinstance(nodes, list):
+        return out
+    for node in nodes:
+        if not isinstance(node, dict) or str(node.get("kind") or "").strip() != "start":
+            continue
+        data = node.get("data")
+        if not isinstance(data, dict):
+            data = {}
+            node["data"] = data
+        cfg = data.get("config")
+        if not isinstance(cfg, dict):
+            cfg = {}
+            data["config"] = cfg
+        current = str(cfg.get("workflow_scope") or "").strip()
+        if overwrite or not current:
+            cfg["workflow_scope"] = workflow_scope
+    return out
+
+
 def _artifact_paths():
     from ui.server.etl_syspath import ensure_transform_syspath
 
@@ -372,7 +426,7 @@ def remove_registry_entry(pipeline_id: str) -> bool:
 
 
 def empty_pipeline_document(*, pipeline_id: str, label: str) -> Dict[str, Any]:
-    return {
+    doc = {
         "schemaVersion": 1,
         "id": pipeline_id,
         "label": label,
@@ -409,6 +463,7 @@ def empty_pipeline_document(*, pipeline_id: str, label: str) -> Dict[str, Any]:
                             "workflow_base": "",
                             "workflow_external_id": "",
                             "trigger_external_id": "",
+                            "workflow_scope": "",
                             "incremental_change_processing": True,
                             "run_id": "",
                         },
@@ -434,6 +489,7 @@ def empty_pipeline_document(*, pipeline_id: str, label: str) -> Dict[str, Any]:
             ],
         },
     }
+    return ensure_pipeline_workflow_scope(doc, pipeline_id=pipeline_id, overwrite=True)
 
 
 def _canvas_has_layout(canvas: Any) -> bool:
@@ -490,7 +546,7 @@ def read_pipeline_document(
 def write_pipeline_document(
     pipeline_id: str, doc: Dict[str, Any], *, scope_suffix: str | None = None
 ) -> None:
-    doc = dict(doc)
+    doc = ensure_pipeline_workflow_scope(doc, pipeline_id=pipeline_id)
     doc["schemaVersion"] = 1
     doc["id"] = pipeline_id
     scope = _normalize_scope_suffix(scope_suffix or doc.get("scope_suffix"))

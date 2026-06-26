@@ -33,26 +33,18 @@ from cdf_fn_common.etl_ui_progress import (
     emit_cohort_write_progress_every_n_rows,
     set_cohort_write_progress_total,
 )
-from cdf_fn_common.etl_task_runtime import find_compiled_task, merge_compiled_task_into_data
+from cdf_fn_common.etl_task_runtime import merge_compiled_task_into_data
+from cdf_fn_common.etl_task_inputs import resolve_two_task_ids
 from cdf_fn_common.etl_common import require_pipeline_run_key
 
 
 def _join_task_ids_from_data(data: Mapping[str, Any]) -> Tuple[str, str]:
-    left = _first_nonempty(data.get("join_left_task_id"))
-    right = _first_nonempty(data.get("join_right_task_id"))
-    if left and right:
-        return left, right
-    cw = data.get("compiled_workflow")
-    tid = _first_nonempty(data.get("task_id"))
-    task = find_compiled_task(cw, task_id=str(tid)) if cw and tid else None
-    if isinstance(task, dict):
-        payload = task.get("payload")
-        if isinstance(payload, dict):
-            left = left or _first_nonempty(payload.get("join_left_task_id"))
-            right = right or _first_nonempty(payload.get("join_right_task_id"))
-    if not left or not right:
-        raise ValueError("join task requires join_left_task_id and join_right_task_id in payload")
-    return left, right
+    return resolve_two_task_ids(
+        data,
+        left_key="join_left_task_id",
+        right_key="join_right_task_id",
+        error_context="join task",
+    )
 
 
 def validate_join_config(cfg: Mapping[str, Any]) -> None:

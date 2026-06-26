@@ -13,10 +13,16 @@ import { useAppSettings } from "../context/AppSettingsContext";
 import { useDiscoveryConfig } from "../context/DiscoveryConfigContext";
 import type { TreeNode, WorkflowRef } from "../types/discoveryNodes";
 import {
+  ancestorChainTo,
+  buildBreadcrumbTrail,
   collectDescendantIds,
   collectDescendantKeys,
-  flattenVisibleTree,
+  findNodeInTree,
+  getDrillDownChildren,
   isLoadingPlaceholder,
+  parentNodeId,
+  searchLoadedTree,
+  type DrillDownRow,
 } from "../utils/treeFilter";
 import { opensGovernanceTab } from "../utils/governanceTabs";
 import {
@@ -47,6 +53,8 @@ import {
 } from "../utils/transformTreeDrag";
 import { savedQueryFromNode } from "../utils/savedQueries";
 import { treeNodeDisplayLabel } from "../utils/treeNodeLabels";
+import { treeNodeDescription } from "../utils/treeNodeDescriptions";
+import { TreeNavIcon } from "./TreeNavIcon";
 import type { SavedQuery } from "../types/discoveryNodes";
 import {
   resolveTreeToolbarNewAction,
@@ -115,7 +123,7 @@ export function ObjectDiscovery({
   const { t } = useAppSettings();
   const { sortNodes, isStarred, toggleStar, starredIds } = useDiscoveryConfig();
   const [filter, setFilter] = useState("");
-  const [expanded, setExpanded] = useState<Set<string>>(() => new Set([ROOT_ID]));
+  const [currentParentId, setCurrentParentId] = useState(ROOT_ID);
   const [childrenByParent, setChildrenByParent] = useState<Map<string, TreeNode[]>>(new Map());
   const [loadedIds, setLoadedIds] = useState<Set<string>>(() => new Set());
   const [loading, setLoading] = useState<Set<string>>(new Set());
@@ -137,6 +145,16 @@ export function ObjectDiscovery({
       has_children: true,
     }),
     [connectionLabel, t]
+  );
+
+  const nodeLabel = useCallback(
+    (node: TreeNode) => treeNodeDisplayLabel(node, t),
+    [t]
+  );
+
+  const nodeDescription = useCallback(
+    (node: TreeNode) => treeNodeDescription(node, t),
+    [t]
   );
 
   const invalidateSubtree = useCallback((nodeId: string) => {
@@ -203,6 +221,15 @@ export function ObjectDiscovery({
     }
   }, [sortNodes]);
 
+  const preloadPath = useCallback(
+    (targetParentId: string) => {
+      for (const nodeId of ancestorChainTo(targetParentId, ROOT_ID)) {
+        void loadChildren(nodeId);
+      }
+    },
+    [loadChildren]
+  );
+
   useEffect(() => {
     setChildrenByParent((prev) => {
       if (prev.size === 0) return prev;
@@ -221,7 +248,7 @@ export function ObjectDiscovery({
     abortByNode.current.clear();
     setChildrenByParent(new Map());
     setLoadedIds(new Set());
-    setExpanded(new Set([ROOT_ID]));
+    setCurrentParentId(ROOT_ID);
     setErrors(new Map());
     setLoading(new Set());
   }, [refreshKey]);
@@ -239,38 +266,38 @@ export function ObjectDiscovery({
     const prefix = `${rootId}:`;
     invalidateSubtree(rootId);
     const reloadIds = new Set<string>([rootId]);
-    for (const nodeId of expanded) {
+    for (const nodeId of loadedIds) {
       if (nodeId === rootId || nodeId.startsWith(prefix)) reloadIds.add(nodeId);
     }
     for (const nodeId of reloadIds) {
       void loadChildren(nodeId, { force: true });
     }
-  }, [governanceArtifactsRevision, expanded, invalidateSubtree, loadChildren]);
+  }, [governanceArtifactsRevision, loadedIds, invalidateSubtree, loadChildren]);
 
   useEffect(() => {
     if (!transformPipelinesRevision) return;
     invalidateSubtree(TRANSFORM_ROOT);
     invalidateSubtree(TRANSFORM_PIPELINES);
     const reloadIds = new Set<string>([TRANSFORM_ROOT, TRANSFORM_PIPELINES]);
-    for (const nodeId of expanded) {
+    for (const nodeId of loadedIds) {
       if (isTransformWorkflowsSubtreeNodeId(nodeId)) reloadIds.add(nodeId);
     }
     for (const nodeId of reloadIds) {
       void loadChildren(nodeId, { force: true });
     }
-  }, [transformPipelinesRevision, expanded, invalidateSubtree, loadChildren]);
+  }, [transformPipelinesRevision, loadedIds, invalidateSubtree, loadChildren]);
 
   useEffect(() => {
     if (!transformTemplatesRevision) return;
     invalidateSubtree(TRANSFORM_ROOT);
     invalidateSubtree(TRANSFORM_TEMPLATES);
-    if (expanded.has(TRANSFORM_ROOT)) {
+    if (loadedIds.has(TRANSFORM_ROOT)) {
       void loadChildren(TRANSFORM_ROOT, { force: true });
     }
-    if (expanded.has(TRANSFORM_TEMPLATES)) {
+    if (loadedIds.has(TRANSFORM_TEMPLATES)) {
       void loadChildren(TRANSFORM_TEMPLATES, { force: true });
     }
-  }, [transformTemplatesRevision, expanded, invalidateSubtree, loadChildren]);
+  }, [transformTemplatesRevision, loadedIds, invalidateSubtree, loadChildren]);
 
   useEffect(
     () => () => {
@@ -282,40 +309,65 @@ export function ObjectDiscovery({
   );
 
   useEffect(() => {
-    for (const nodeId of expanded) {
-      void loadChildren(nodeId);
-    }
-  }, [expanded, loadChildren]);
+    void loadChildren(currentParentId);
+  }, [currentParentId, loadChildren]);
 
-  const toggleExpand = (node: TreeNode) => {
-    if (isLoadingPlaceholder(node)) return;
-    const next = new Set(expanded);
-    if (next.has(node.id)) {
-      next.delete(node.id);
-    } else {
-      next.add(node.id);
-    }
-    setExpanded(next);
-  };
+  useEffect(() => {
+    preloadPath(currentParentId);
+  }, [currentParentId, preloadPath]);
 
-  const flat = useMemo(
+  const isFiltering = filter.trim().length > 0;
+
+  const breadcrumb = useMemo(
     () =>
-      flattenVisibleTree(ROOT_ID, childrenByParent, expanded, loadedIds, filter, rootNode, t("tree.loading")),
-    [childrenByParent, expanded, loadedIds, filter, rootNode, t]
+      isFiltering
+        ? []
+        : buildBreadcrumbTrail(currentParentId, childrenByParent, rootNode, nodeLabel),
+    [childrenByParent, currentParentId, isFiltering, nodeLabel, rootNode]
   );
 
-  const navigableFlat = useMemo(
-    () => flat.filter((row) => !isLoadingPlaceholder(row.node)),
-    [flat]
+  const currentRows = useMemo((): DrillDownRow[] => {
+    if (isFiltering) {
+      return searchLoadedTree(childrenByParent, filter, rootNode, nodeLabel);
+    }
+    return getDrillDownChildren(
+      currentParentId,
+      childrenByParent,
+      loadedIds,
+      t("tree.loading")
+    ).map((node) => ({ node, parentId: currentParentId }));
+  }, [
+    childrenByParent,
+    currentParentId,
+    filter,
+    isFiltering,
+    loadedIds,
+    nodeLabel,
+    rootNode,
+    t,
+  ]);
+
+  const navigableRows = useMemo(
+    () => currentRows.filter((row) => !isLoadingPlaceholder(row.node)),
+    [currentRows]
   );
 
   useEffect(() => {
     if (selectedId) setFocusedId(selectedId);
   }, [selectedId]);
 
+  useEffect(() => {
+    if (!selectedId) return;
+    const node = findNodeInTree(selectedId, childrenByParent, rootNode);
+    if (!node) return;
+    const nextParent = node.has_children ? node.id : parentNodeId(node.id, ROOT_ID);
+    setCurrentParentId(nextParent);
+    preloadPath(nextParent);
+  }, [selectedId, childrenByParent, rootNode, preloadPath]);
+
   const selectedTreeNode = useMemo(
-    () => (selectedId ? flat.find((row) => row.node.id === selectedId)?.node ?? null : null),
-    [flat, selectedId]
+    () => (selectedId ? findNodeInTree(selectedId, childrenByParent, rootNode) : null),
+    [childrenByParent, rootNode, selectedId]
   );
 
   const toolbarNewAction = useMemo(
@@ -340,6 +392,46 @@ export function ObjectDiscovery({
     if (opensDocumentTab(node) || canQueryTreeNode(node)) onOpenNode(node);
   };
 
+  const drillInto = useCallback(
+    (node: TreeNode) => {
+      if (!node.has_children || isLoadingPlaceholder(node)) return;
+      setCurrentParentId(node.id);
+      setFocusedId(null);
+      void loadChildren(node.id);
+    },
+    [loadChildren]
+  );
+
+  const navigateToParent = useCallback(
+    (parentId: string) => {
+      setCurrentParentId(parentId);
+      setFocusedId(null);
+      void loadChildren(parentId);
+    },
+    [loadChildren]
+  );
+
+  const goBack = useCallback(() => {
+    if (currentParentId === ROOT_ID) return;
+    navigateToParent(parentNodeId(currentParentId, ROOT_ID));
+  }, [currentParentId, navigateToParent]);
+
+  const handleNodeActivate = useCallback(
+    (node: TreeNode) => {
+      if (isLoadingPlaceholder(node)) return;
+      setFocusedId(node.id);
+      onSelectNode(node);
+      if (isFiltering) {
+        const parent = parentNodeId(node.id, ROOT_ID);
+        setCurrentParentId(node.has_children ? node.id : parent);
+        setFilter("");
+      } else if (node.has_children) {
+        drillInto(node);
+      }
+    },
+    [drillInto, isFiltering, onSelectNode]
+  );
+
   const openContextMenuForNode = useCallback((node: TreeNode, anchor?: HTMLElement | null) => {
     const el = anchor ?? document.getElementById(`disc-treeitem-${node.id}`);
     const rect = el?.getBoundingClientRect();
@@ -359,52 +451,57 @@ export function ObjectDiscovery({
 
   const handleTreeKeyDown = useCallback(
     (e: KeyboardEvent<HTMLUListElement>) => {
-      const currentId = focusedId ?? selectedId ?? navigableFlat[0]?.node.id;
+      if (!isFiltering && (e.key === "Backspace" || e.key === "ArrowLeft") && currentParentId !== ROOT_ID) {
+        const active = document.activeElement;
+        if (
+          active instanceof HTMLInputElement ||
+          active instanceof HTMLTextAreaElement ||
+          active instanceof HTMLSelectElement
+        ) {
+          return;
+        }
+        e.preventDefault();
+        goBack();
+        return;
+      }
+
+      const currentId = focusedId ?? selectedId ?? navigableRows[0]?.node.id;
       if (!currentId) return;
-      const idx = navigableFlat.findIndex((row) => row.node.id === currentId);
+      const idx = navigableRows.findIndex((row) => row.node.id === currentId);
       if (idx < 0) return;
-      const row = navigableFlat[idx];
+      const row = navigableRows[idx];
       const node = row.node;
 
       if (e.key === "ArrowDown") {
         e.preventDefault();
-        const next = navigableFlat[idx + 1];
+        const next = navigableRows[idx + 1];
         if (next) focusTreeNode(next.node.id);
       } else if (e.key === "ArrowUp") {
         e.preventDefault();
-        const prev = navigableFlat[idx - 1];
+        const prev = navigableRows[idx - 1];
         if (prev) focusTreeNode(prev.node.id);
       } else if (e.key === "ArrowRight") {
         if (node.has_children && !isLoadingPlaceholder(node)) {
           e.preventDefault();
-          if (!expanded.has(node.id)) {
-            setExpanded((prev) => new Set(prev).add(node.id));
-          }
-        }
-      } else if (e.key === "ArrowLeft") {
-        if (node.has_children && expanded.has(node.id)) {
-          e.preventDefault();
-          setExpanded((prev) => {
-            const next = new Set(prev);
-            next.delete(node.id);
-            return next;
-          });
+          handleNodeActivate(node);
         }
       } else if (e.key === "Enter") {
         e.preventDefault();
-        onSelectNode(node);
-        openNode(node);
+        handleNodeActivate(node);
+        if (!node.has_children) openNode(node);
       } else if (e.key === "ContextMenu" || (e.shiftKey && e.key === "F10")) {
         e.preventDefault();
         openContextMenuForNode(node, document.getElementById(`disc-treeitem-${node.id}`));
       }
     },
     [
-      expanded,
+      currentParentId,
       focusTreeNode,
       focusedId,
-      navigableFlat,
-      onSelectNode,
+      goBack,
+      handleNodeActivate,
+      isFiltering,
+      navigableRows,
       openContextMenuForNode,
       openNode,
       selectedId,
@@ -575,8 +672,11 @@ export function ObjectDiscovery({
     toggleStar,
   ]);
 
+  const currentFolderLabel =
+    breadcrumb.length > 0 ? breadcrumb[breadcrumb.length - 1]?.label : rootNode.label;
+
   return (
-    <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
+    <div className="disc-drill-nav">
       <div className="disc-tree-toolbar">
         <label className="disc-tree-toolbar__filter-label">
           <span className="disc-visually-hidden">{t("discovery.filter")}</span>
@@ -588,33 +688,79 @@ export function ObjectDiscovery({
             onChange={(e) => setFilter(e.target.value)}
           />
         </label>
-        {toolbarNewAction && onTreeNew && toolbarNewLabels ? (
+      </div>
+
+      {!isFiltering && currentParentId !== ROOT_ID ? (
+        <div className="disc-drill-header">
           <button
             type="button"
-            className="disc-btn disc-btn--primary disc-tree-toolbar__new"
-            onClick={() => onTreeNew(toolbarNewAction)}
-            title={t(toolbarNewLabels.titleKey)}
+            className="disc-drill-back"
+            onClick={goBack}
+            aria-label={t("discovery.nav.back")}
           >
-            {t(toolbarNewLabels.labelKey)}
+            <span className="disc-drill-back__icon" aria-hidden>
+              ←
+            </span>
+            <span className="disc-drill-back__label">{t("discovery.nav.back")}</span>
           </button>
-        ) : null}
-      </div>
-      <div className="disc-tree">
-        {flat.length === 0 ? (
-          <p className="disc-empty-hint" style={{ padding: "1rem" }}>
-            {t("discovery.empty")}
-          </p>
+        </div>
+      ) : null}
+
+      {!isFiltering && breadcrumb.length > 1 ? (
+        <nav className="disc-drill-breadcrumb" aria-label={t("a11y.discoveryBreadcrumb")}>
+          <ol className="disc-drill-breadcrumb__list">
+            {breadcrumb.map((segment, index) => {
+              const isLast = index === breadcrumb.length - 1;
+              return (
+                <li key={segment.id} className="disc-drill-breadcrumb__item">
+                  {index > 0 ? (
+                    <span className="disc-drill-breadcrumb__sep" aria-hidden>
+                      /
+                    </span>
+                  ) : null}
+                  {isLast ? (
+                    <span className="disc-drill-breadcrumb__current" aria-current="location">
+                      {segment.label}
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      className="disc-drill-breadcrumb__link"
+                      onClick={() => navigateToParent(segment.id)}
+                    >
+                      {segment.label}
+                    </button>
+                  )}
+                </li>
+              );
+            })}
+          </ol>
+        </nav>
+      ) : null}
+
+      {!isFiltering ? (
+        <div className="disc-drill-folder-title" aria-hidden>
+          {currentFolderLabel}
+        </div>
+      ) : (
+        <div className="disc-drill-folder-title disc-drill-folder-title--search">
+          {t("discovery.nav.searchResults")}
+        </div>
+      )}
+
+      <div className="disc-tree disc-drill-panel">
+        {currentRows.length === 0 ? (
+          <p className="disc-empty-hint disc-drill-empty">{t("discovery.empty")}</p>
         ) : (
           <ul
-            className="disc-tree-list"
+            className="disc-drill-list"
             role="tree"
             aria-label={t("a11y.discoveryTreeLabel")}
             onKeyDown={handleTreeKeyDown}
           >
-            {flat.map(({ node, depth }) => {
+            {currentRows.map(({ node, pathLabel }) => {
               const isPlaceholder = isLoadingPlaceholder(node);
               const isSel = !isPlaceholder && selectedId === node.id;
-              const isExp = expanded.has(node.id);
               const err = errors.get(node.id);
               const isLoading = loading.has(node.id);
               const isDataTreeDraggable =
@@ -636,10 +782,12 @@ export function ObjectDiscovery({
                   : transformDropKind === "pipelines"
                     ? t("transform.treeDrag.dropTemplateOnPipelines")
                     : undefined;
+              const isFolder = node.has_children && !isPlaceholder;
+              const secondaryText = pathLabel ?? nodeDescription(node);
               return (
-                <li key={node.id} className="disc-tree-item" role="none" style={{ paddingLeft: depth * 14 }}>
+                <li key={node.id} className="disc-nav-item" role="none">
                   <div
-                    className={`disc-tree-row${transformDropTarget ? " disc-tree-row--drop-target" : ""}`}
+                    className={`disc-nav-row-wrap${transformDropTarget ? " disc-tree-row--drop-target" : ""}`}
                     onDragOver={
                       transformDropKind
                         ? (e) => handleTransformTreeDragOver(e, node)
@@ -654,43 +802,38 @@ export function ObjectDiscovery({
                       transformDropKind ? (e) => handleTransformTreeDrop(e, node) : undefined
                     }
                   >
-                    {node.has_children && !isPlaceholder ? (
-                      <button
-                        type="button"
-                        className="disc-tree-chevron"
-                        aria-label={isExp ? t("artifacts.treeCollapse") : t("artifacts.treeExpand")}
-                        onClick={() => toggleExpand(node)}
-                      >
-                        {isLoading ? "…" : isExp ? "▼" : "▶"}
-                      </button>
-                    ) : (
-                      <span className="disc-tree-chevron-spacer" aria-hidden />
-                    )}
                     {isPlaceholder ? (
-                      <span className="disc-tree-node disc-tree-node--loading">{node.label}</span>
+                      <span className="disc-nav-row disc-nav-row--loading">
+                        <span className="disc-nav-row__icon-box" aria-hidden />
+                        <span className="disc-nav-row__text">
+                          <span className="disc-nav-row__label">{node.label}</span>
+                        </span>
+                      </span>
                     ) : (
                       <button
                         type="button"
                         id={`disc-treeitem-${node.id}`}
                         role="treeitem"
                         aria-selected={isSel}
-                        aria-expanded={node.has_children ? isExp : undefined}
+                        aria-expanded={isFolder ? false : undefined}
                         tabIndex={focusedId === node.id || (focusedId == null && isSel) ? 0 : -1}
-                        className={`disc-tree-node${isSel ? " disc-tree-node--selected" : ""}${
-                          node.starred || isStarred(node.id) ? " disc-tree-node--starred" : ""
+                        className={`disc-nav-row${isSel ? " disc-nav-row--selected" : ""}${
+                          node.starred || isStarred(node.id) ? " disc-nav-row--starred" : ""
                         }${isDraggable ? " disc-tree-node--draggable" : ""}${
                           transformDropTarget ? " disc-tree-node--drop-target" : ""
-                        }`}
+                        }${isFolder ? " disc-nav-row--folder" : ""}`}
                         draggable={isDraggable}
                         title={
                           transformDropHint ??
-                          (isCdfResourceDraggable
-                            ? t("transform.treeDrag.cdfResourceHint")
-                            : isDataTreeDraggable
-                              ? t("transform.treeDrag.hint")
-                              : isTransformTreeDraggable
-                                ? t("transform.treeDrag.pipelineOrTemplate")
-                                : undefined)
+                          (isFolder
+                            ? t("discovery.nav.drillInto", { name: nodeLabel(node) })
+                            : isCdfResourceDraggable
+                              ? t("transform.treeDrag.cdfResourceHint")
+                              : isDataTreeDraggable
+                                ? t("transform.treeDrag.hint")
+                                : isTransformTreeDraggable
+                                  ? t("transform.treeDrag.pipelineOrTemplate")
+                                  : undefined)
                         }
                         onDragStart={
                           isDraggable
@@ -713,23 +856,33 @@ export function ObjectDiscovery({
                               }
                             : undefined
                         }
-                        onClick={() => {
-                          setFocusedId(node.id);
-                          onSelectNode(node);
-                        }}
+                        onClick={() => handleNodeActivate(node)}
                         onDoubleClick={() => openNode(node)}
                         onContextMenu={(e: MouseEvent) => {
                           e.preventDefault();
                           openContextMenuForNode(node, e.currentTarget as HTMLElement);
                         }}
                       >
-                        {(node.starred || isStarred(node.id)) && (
-                          <span className="disc-tree-star" aria-hidden>
-                            ★{" "}
+                        <span className="disc-nav-row__icon-box">
+                          <TreeNavIcon node={node} className="disc-nav-row__icon" />
+                        </span>
+                        <span className="disc-nav-row__text">
+                          <span className="disc-nav-row__label">
+                            {(node.starred || isStarred(node.id)) && (
+                              <span className="disc-tree-star" aria-hidden>
+                                ★{" "}
+                              </span>
+                            )}
+                            {nodeLabel(node)}
+                            {err ? " ⚠" : ""}
                           </span>
-                        )}
-                        {treeNodeDisplayLabel(node, t)}
-                        {err ? " ⚠" : ""}
+                          <span className="disc-nav-row__desc">{secondaryText}</span>
+                        </span>
+                        {isFolder ? (
+                          <span className="disc-nav-row__chevron" aria-hidden>
+                            {isLoading ? "…" : "›"}
+                          </span>
+                        ) : null}
                       </button>
                     )}
                   </div>
@@ -739,6 +892,18 @@ export function ObjectDiscovery({
           </ul>
         )}
       </div>
+      {toolbarNewAction && onTreeNew && toolbarNewLabels ? (
+        <div className="disc-nav-footer">
+          <button
+            type="button"
+            className="disc-nav-footer__add"
+            onClick={() => onTreeNew(toolbarNewAction)}
+            title={t(toolbarNewLabels.titleKey)}
+          >
+            {t(toolbarNewLabels.labelKey)}
+          </button>
+        </div>
+      ) : null}
       <TreeContextMenuPortal
         menu={ctxMenu ? { x: ctxMenu.x, y: ctxMenu.y, items: ctxMenuItems } : null}
         onClose={() => setCtxMenu(null)}

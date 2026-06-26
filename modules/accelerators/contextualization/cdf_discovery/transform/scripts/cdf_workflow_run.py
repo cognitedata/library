@@ -12,6 +12,7 @@ import time
 import uuid
 from pathlib import Path
 from typing import Any
+from runtime_paths import ensure_import_paths, transform_root_from_path
 
 logger = logging.getLogger(__name__)
 
@@ -39,38 +40,27 @@ def _debug_log(run_id: str, hypothesis_id: str, location: str, message: str, dat
         return
 
 
-def _transform_root() -> Path:
-    return Path(__file__).resolve().parent.parent
-
-
-def _bootstrap_paths() -> Path:
-    tr = _transform_root()
-    for p in (str(tr), str(tr / "functions"), str(tr / "scripts")):
-        if p not in sys.path:
-            sys.path.insert(0, p)
-    return tr
-
-
 def _status_str(status: object) -> str:
     if isinstance(status, str):
         return status
     return getattr(status, "value", str(status))
 
 
-def _ensure_workflow_input_correlation_id(wf_input: dict[str, Any]) -> None:
+def _ensure_workflow_input_run_id(wf_input: dict[str, Any]) -> None:
     configuration = wf_input.get("configuration")
     if not isinstance(configuration, dict):
         return
     parameters = configuration.get("parameters")
     params = dict(parameters) if isinstance(parameters, dict) else {}
-    if not str(params.get("correlation_id") or "").strip():
-        params["correlation_id"] = str(uuid.uuid4())
+    if not str(params.get("run_id") or "").strip():
+        params["run_id"] = str(uuid.uuid4())
     configuration["parameters"] = params
     wf_input["configuration"] = configuration
 
 
 def main(argv: list[str] | None = None) -> int:
-    transform_root = _bootstrap_paths()
+    ensure_import_paths(__file__)
+    transform_root = transform_root_from_path(__file__)
     from cdf_workflow_io import (
         assert_expected_workflow_input_keys,
         shallow_has_toolkit_placeholder,
@@ -145,7 +135,7 @@ def main(argv: list[str] | None = None) -> int:
         wf_input = substitute_instance_space_placeholder(wf_input, inst_space)
         logger.info("Substituted {{instance_space}} in workflow input.")
     if isinstance(wf_input, dict):
-        _ensure_workflow_input_correlation_id(wf_input)
+        _ensure_workflow_input_run_id(wf_input)
     # region agent log
     _debug_log(
         run_id="pre-run",

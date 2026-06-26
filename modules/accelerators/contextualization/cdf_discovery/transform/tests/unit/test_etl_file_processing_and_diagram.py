@@ -187,6 +187,43 @@ def test_flatten_pattern_mode_uses_region_page_and_file_instance_id():
     assert matched_entities_from_annotation(job["items"][0]["annotations"][0]) == entities
 
 
+def test_flatten_detect_items_resolves_file_id_from_external_id_when_missing():
+    from cdf_fn_common.etl_diagram_detect import flatten_detect_items_to_cohort_rows
+
+    rows = flatten_detect_items_to_cohort_rows(
+        {
+            "items": [
+                {
+                    "fileExternalId": "pid-001",
+                    "annotations": [{"text": "FT-101A", "region": {"page": 3}}],
+                }
+            ]
+        },
+        {99: {"id": 99, "external_id": "pid-001", "name": "diagram.pdf"}},
+        run_id="run-1",
+        scope_key="file_pattern_extract",
+    )
+
+    assert len(rows) == 1
+    assert rows[0]["properties"]["file_ref"]["file_id"] == 99
+    assert rows[0]["properties"]["file_ref"]["file_external_id"] == "pid-001"
+
+
+def test_flatten_detect_items_keeps_rows_without_file_identifiers():
+    from cdf_fn_common.etl_diagram_detect import flatten_detect_items_to_cohort_rows
+
+    rows = flatten_detect_items_to_cohort_rows(
+        {"items": [{"text": "FT-201A", "region": {"page": 5}}]},
+        {},
+        run_id="run-1",
+        scope_key="file_pattern_extract",
+    )
+    assert len(rows) == 1
+    assert rows[0]["properties"]["text"] == "FT-201A"
+    assert rows[0]["properties"]["file_ref"]["file_external_id"] == "unknown_detect_item_1"
+    assert "file_id" not in rows[0]["properties"]["file_ref"]
+
+
 def test_flatten_require_entities_skips_text_only_hits():
     from cdf_fn_common.etl_diagram_detect import flatten_detect_items_to_cohort_rows
 
@@ -227,6 +264,12 @@ def test_file_annotation_in_local_pipeline_specs():
 
     spec = etl_local_pipeline_specs().get("fn_etl_file_annotation")
     assert spec == ("fn_etl_file_annotation.pipeline", "file_annotation")
+    launch_spec = etl_local_pipeline_specs().get("fn_etl_file_annotation_launch")
+    finalize_spec = etl_local_pipeline_specs().get("fn_etl_file_annotation_finalize")
+    barrier_spec = etl_local_pipeline_specs().get("fn_etl_file_annotation_barrier")
+    assert launch_spec == ("fn_etl_file_annotation_launch.pipeline", "file_annotation_launch")
+    assert finalize_spec == ("fn_etl_file_annotation_finalize.pipeline", "file_annotation_finalize")
+    assert barrier_spec == ("fn_etl_file_annotation_barrier.pipeline", "file_annotation_barrier")
 
 
 def test_file_pattern_extract_fanout_plan_compiles_to_fanout_function():

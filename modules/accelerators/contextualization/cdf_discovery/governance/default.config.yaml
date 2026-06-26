@@ -24,6 +24,10 @@ scope_hierarchy:
     name: Site B
     description: ''
     locations: []
+  - id: SITE_Cf
+    name: Site C
+    description: ''
+    locations: []
 dimensions:
   data_type:
     order: 0

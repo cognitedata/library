@@ -1,0 +1,110 @@
+space: {{index_schema_space}}
+externalId: InvertedIndexEntry
+name: Inverted Index Entry
+description: >-
+  Maps normalized terms to DM instances or annotations where asset tags, file references,
+  or diagram detections were found — scoped by match_scope_key for unit isolation.
+usedFor: node
+constraints:
+  unique_term_source_ref:
+    constraintType: unique
+    properties:
+      - normalizedTerm
+      - sourceType
+      - referenceExternalId
+      - sourceProperty
+indexes:
+  normalized_term_scope_idx:
+    indexType: btree
+    properties:
+      - normalizedTerm
+      - matchScopeKey
+    cursorable: true
+  source_type_idx:
+    indexType: btree
+    properties:
+      - sourceType
+    cursorable: false
+properties:
+  term:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    nullable: false
+    name: Term
+  normalizedTerm:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    nullable: false
+    name: Normalized term
+  originalValue:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    nullable: true
+    name: Original value
+  sourceType:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    nullable: false
+    name: Source type
+  sourceProperty:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    nullable: false
+    name: Source property
+  referenceExternalId:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    nullable: false
+    name: Reference external id
+  referenceSpace:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    nullable: true
+    name: Reference space
+  referenceType:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    nullable: true
+    name: Reference type
+  matchScopeKey:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    nullable: false
+    name: Match scope key
+  matchScope:
+    type:
+      list: false
+      type: json
+    nullable: true
+    name: Match scope
+  additionalMetadata:
+    type:
+      list: false
+      type: json
+    nullable: true
+    name: Additional metadata
+  buildJobId:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    nullable: true
+    name: Build job id

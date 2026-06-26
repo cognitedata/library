@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence
 
 import yaml
+from runtime_paths import discovery_root_from_path, ensure_import_paths
 
 from workflow_build.build_scoped import build_scoped_workflow
 from workflow_build.paths import workflow_artifacts_root
@@ -22,15 +23,7 @@ DEFAULT_CONFIG = "default.config.yaml"
 
 
 def module_root_from_package() -> Path:
-    return Path(__file__).resolve().parent.parent.parent.parent
-
-
-def _ensure_import_paths(root: Path) -> None:
-    tr = root / "transform"
-    scripts = tr / "scripts" if (tr / "scripts").is_dir() else root / "scripts"
-    for p in (str(root), str(root / "functions"), str(scripts)):
-        if p not in sys.path:
-            sys.path.insert(0, p)
+    return discovery_root_from_path(__file__)
 
 
 def run_build(
@@ -44,7 +37,7 @@ def run_build(
     dry_run: bool = False,
 ) -> Dict[str, Any]:
     """Build workflow artifacts in-process (UI + CLI)."""
-    _ensure_import_paths(module_root)
+    ensure_import_paths(__file__, include_discovery_root=True)
     if config is None:
         cp = config_path or (module_root / DEFAULT_CONFIG)
         config = load_yaml(cp)
@@ -112,7 +105,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         logger.error("Missing config: %s", config_path)
         return 1
 
-    _ensure_import_paths(root)
+    ensure_import_paths(__file__, include_discovery_root=True)
     config = load_yaml(config_path)
 
     if args.check:

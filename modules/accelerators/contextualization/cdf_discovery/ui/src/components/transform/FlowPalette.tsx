@@ -58,7 +58,7 @@ const PALETTE_GROUPS: PaletteGroupDef[] = [
   {
     id: "contextualization",
     titleKey: "transform.palette.groupContextualization",
-    stages: ["file_annotation", "workflow_fanout_plan", "build_index"],
+    stages: ["file_annotation", "workflow_fanout_plan", "build_index", "subgraph", "raw_cleanup"],
   },
   {
     id: "load",

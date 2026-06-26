@@ -15,6 +15,11 @@ type Props = {
 export function EtlStartNodeConfigFields({ value, onChange, buildPairing = null }: Props) {
   const { t } = useAppSettings();
   const patch = (p: JsonObject) => onChange({ ...value, ...p });
+  const cohortWriteBatchSizeRaw = value.cohort_write_batch_size;
+  const cohortWriteBatchSize =
+    typeof cohortWriteBatchSizeRaw === "number" && Number.isFinite(cohortWriteBatchSizeRaw) && cohortWriteBatchSizeRaw > 0
+      ? Math.trunc(cohortWriteBatchSizeRaw)
+      : "";
   const triggerType = String(value.trigger_type ?? "schedule");
   const wfExt =
     String(value.workflow_external_id ?? "").trim() ||
@@ -77,6 +82,17 @@ export function EtlStartNodeConfigFields({ value, onChange, buildPairing = null 
           spellCheck={false}
         />
       </label>
+      <label className="gov-label gov-label--block" style={{ marginTop: "0.75rem" }}>
+        {t("transform.config.workflowScope")}
+        <input
+          className="gov-input"
+          style={{ marginTop: "0.35rem" }}
+          value={String(value.workflow_scope ?? "")}
+          onChange={(e) => patch({ workflow_scope: e.target.value })}
+          spellCheck={false}
+        />
+      </label>
+      <p className="transform-node-editor-modal__hint">{t("transform.config.workflowScopeHint")}</p>
 
       <label className="gov-label gov-label--block" style={{ marginTop: "0.75rem" }}>
         {t("transform.config.triggerType")}
@@ -131,6 +147,32 @@ export function EtlStartNodeConfigFields({ value, onChange, buildPairing = null 
           spellCheck={false}
         />
       </label>
+      <label className="gov-label gov-label--block" style={{ marginTop: "0.5rem" }}>
+        {t("transform.config.cohortWriteBatchSize")}
+        <input
+          className="gov-input"
+          style={{ marginTop: "0.35rem", maxWidth: "10rem" }}
+          type="number"
+          min={1}
+          step={1}
+          value={cohortWriteBatchSize === "" ? "" : String(cohortWriteBatchSize)}
+          onChange={(e) => {
+            const raw = e.target.value.trim();
+            const next = { ...value };
+            if (!raw) {
+              delete next.cohort_write_batch_size;
+              onChange(next);
+              return;
+            }
+            const parsed = Number(raw);
+            if (Number.isFinite(parsed) && parsed > 0) {
+              onChange({ ...value, cohort_write_batch_size: Math.trunc(parsed) });
+            }
+          }}
+          spellCheck={false}
+        />
+      </label>
+      <p className="transform-node-editor-modal__hint">{t("transform.config.cohortWriteBatchSizeHint")}</p>
 
       {triggerType === "schedule" ? (
         <TriggerRuleDetailsFields value={value} onChange={onChange} triggerType={triggerType} />

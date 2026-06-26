@@ -13,6 +13,21 @@ def _as_bool(value: Any) -> bool:
     return bool(value)
 
 
+def _as_optional_positive_int(value: Any) -> int | None:
+    if value is None:
+        return None
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        return None
+    return parsed if parsed > 0 else None
+
+
+def _as_optional_scope(value: Any) -> str | None:
+    scope = str(value or "").strip()
+    return scope or None
+
+
 def _start_node_config(canvas: Mapping[str, Any]) -> Dict[str, Any]:
     for n in canvas.get("nodes") or []:
         if not isinstance(n, dict):
@@ -78,11 +93,18 @@ def read_start_trigger_config(
             if k == "triggerType":
                 continue
             rule[k] = v
-    return {
+    cohort_write_batch_size = _as_optional_positive_int(cfg.get("cohort_write_batch_size"))
+    out = {
         "workflow_version": str(cfg.get("workflow_version") or "1"),
         "trigger_rule": rule,
         "incremental_change_processing": _as_bool(cfg.get("incremental_change_processing", True)),
     }
+    workflow_scope = _as_optional_scope(cfg.get("workflow_scope"))
+    if workflow_scope is not None:
+        out["workflow_scope"] = workflow_scope
+    if cohort_write_batch_size is not None:
+        out["cohort_write_batch_size"] = cohort_write_batch_size
+    return out
 
 
 def apply_start_trigger_to_workflow_trigger(
@@ -106,3 +128,7 @@ def apply_start_trigger_to_workflow_trigger(
             inp["incremental_change_processing"] = _as_bool(
                 trigger_cfg.get("incremental_change_processing", True)
             )
+        if "cohort_write_batch_size" not in inp:
+            parsed = _as_optional_positive_int(trigger_cfg.get("cohort_write_batch_size"))
+            if parsed is not None:
+                inp["cohort_write_batch_size"] = parsed

@@ -1,0 +1,25 @@
+externalId: trg_wf_etl_wf_pbf_aliasing
+workflowExternalId: wf_etl_wf_pbf_aliasing
+workflowVersion: 1.0.0.1
+triggerRule:
+  triggerType: schedule
+  cronExpression: 0 2 * * *
+  cron_expression: 0 2 * * *
+  timezone: UTC
+  trigger_type: schedule
+input:
+  incremental_change_processing: false
+  configuration:
+    schemaVersion: 1
+    id: etl_wf_pbf_aliasing
+    scope: null
+    parameters:
+      incremental: true
+      incremental_change_processing: false
+      incremental_skip_unchanged: true
+      max_records_per_run: 0
+      raw_db: etl_staging
+      raw_table_key: cohort
+      preview_raw_table_key: etl_preview
+      instance_space: inst_assets
+      etl_state_instance_space: null

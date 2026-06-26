@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import json
+from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any, Dict, FrozenSet, List, Mapping, Optional, Sequence, Set, Tuple
 
 COMPILED_WORKFLOW_SCHEMA_VERSION = 1
@@ -37,6 +40,27 @@ _JOIN_INPUT_SOURCE_KINDS: FrozenSet[str] = frozenset(
 
 class CanvasCompileError(ValueError):
     """Invalid canvas graph for compile."""
+
+
+def _agent_log(hypothesis_id: str, location: str, message: str, data: Mapping[str, Any]) -> None:
+    # region agent log
+    try:
+        payload = {
+            "sessionId": "e09635",
+            "runId": "pre-fix",
+            "hypothesisId": hypothesis_id,
+            "location": location,
+            "message": message,
+            "data": dict(data),
+            "timestamp": int(datetime.now(timezone.utc).timestamp() * 1000),
+        }
+        with Path(
+            "/Users/darren.downtain@cognitedata.com/Documents/GitHub/library/.cursor/debug-e09635.log"
+        ).open("a", encoding="utf-8") as fp:
+            fp.write(json.dumps(payload, default=str) + "\n")
+    except Exception:
+        pass
+    # endregion
 
 STRUCTURAL_KINDS: FrozenSet[str] = frozenset({"start", "end"})
 
@@ -265,6 +289,85 @@ def _dual_input_task_ids_from_edges(
     return left_tid, right_tid
 
 
+def _file_annotation_input_task_ids_from_edges(
+    node_id: str,
+    edges: Sequence[Mapping[str, Any]],
+    *,
+    node_by_id: Mapping[str, Mapping[str, Any]],
+    executable_ids: Set[str],
+    require_right: bool,
+) -> Tuple[List[str], Optional[str]]:
+    """Allow one-or-more entity inputs on left handle and optional/required files on right."""
+    left_tids: List[str] = []
+    right_tid: Optional[str] = None
+    right_src: Optional[str] = None
+    seen_left: Set[str] = set()
+
+    for e in edges:
+        if not isinstance(e, dict):
+            continue
+        if str(e.get("target") or "").strip() != node_id:
+            continue
+        src = str(e.get("source") or "").strip()
+        if not src or src not in executable_ids:
+            raise CanvasCompileError(
+                f"file_annotation node {node_id!r}: predecessor {src!r} is not an executable canvas node"
+            )
+        pred = node_by_id.get(src)
+        if pred is None:
+            continue
+        pk = _node_kind(pred)
+        if pk not in _JOIN_INPUT_SOURCE_KINDS:
+            raise CanvasCompileError(
+                f"file_annotation node {node_id!r}: predecessor {src!r} kind={pk!r} is not allowed "
+                f"as input (expected one of: {sorted(_JOIN_INPUT_SOURCE_KINDS)})"
+            )
+        th = str(e.get("target_handle") or "").strip()
+        if th == FILE_ANNOTATION_HANDLE_ENTITIES:
+            if src in seen_left:
+                continue
+            seen_left.add(src)
+            left_tids.append(src)
+        elif th == FILE_ANNOTATION_HANDLE_FILES:
+            if right_tid is not None:
+                raise CanvasCompileError(
+                    f"file_annotation node {node_id!r}: multiple edges target {FILE_ANNOTATION_HANDLE_FILES!r}"
+                )
+            right_tid = src
+            right_src = src
+        else:
+            raise CanvasCompileError(
+                f"file_annotation node {node_id!r}: edge from {src!r} must use "
+                f"target_handle {FILE_ANNOTATION_HANDLE_ENTITIES!r} or "
+                f"{FILE_ANNOTATION_HANDLE_FILES!r}, got {th!r}"
+            )
+
+    if not left_tids:
+        raise CanvasCompileError(
+            f"file_annotation node {node_id!r}: require at least one edge to {FILE_ANNOTATION_HANDLE_ENTITIES!r}"
+        )
+    if require_right and right_tid is None:
+        raise CanvasCompileError(
+            f"file_annotation node {node_id!r}: require exactly one edge to {FILE_ANNOTATION_HANDLE_FILES!r}"
+        )
+    if right_src is not None and right_src in seen_left:
+        raise CanvasCompileError(
+            f"file_annotation node {node_id!r}: entity and file inputs must be different nodes"
+        )
+    _agent_log(
+        "H1",
+        "canvas_dag.py:_file_annotation_input_task_ids_from_edges",
+        "compiled file_annotation handles",
+        {
+            "node_id": node_id,
+            "left_tids": left_tids,
+            "right_tid": right_tid,
+            "require_right": require_right,
+        },
+    )
+    return left_tids, right_tid
+
+
 def _join_input_task_ids_from_edges(
     join_node_id: str,
     edges: Sequence[Mapping[str, Any]],
@@ -286,14 +389,33 @@ def _join_input_task_ids_from_edges(
 
 
 def _config_has_file_ids(cfg: Mapping[str, Any]) -> bool:
-    raw = cfg.get("file_ids")
-    if raw is None or raw == "":
-        return False
-    if isinstance(raw, list):
-        return any(str(x or "").strip() for x in raw)
-    if isinstance(raw, str):
-        return bool(raw.strip())
-    return True
+    raw_ids = cfg.get("file_ids")
+    raw_external_ids = cfg.get("file_external_ids")
+
+    def _has_value(raw: Any) -> bool:
+        if raw is None or raw == "":
+            return False
+        if isinstance(raw, list):
+            return any(str(x or "").strip() for x in raw)
+        if isinstance(raw, str):
+            parts = [p.strip() for p in str(raw).replace(";", ",").split(",") if p.strip()]
+            return bool(parts)
+        return True
+
+    decision = _has_value(raw_ids) or _has_value(raw_external_ids)
+    _agent_log(
+        "H8",
+        "canvas_dag.py:_config_has_file_ids",
+        "file id/external id config gate evaluated",
+        {
+            "raw_ids_type": type(raw_ids).__name__,
+            "raw_ids_value": raw_ids,
+            "raw_external_ids_type": type(raw_external_ids).__name__,
+            "raw_external_ids_value": raw_external_ids,
+            "decision": decision,
+        },
+    )
+    return decision
 
 
 def _end_node_cleanup_tasks(
@@ -349,6 +471,9 @@ def etl_local_pipeline_specs() -> Dict[str, Tuple[str, str]]:
     # Dynamic fan-out children are not canvas node kinds but must run locally.
     _extra_local: Dict[str, str] = {
         "fn_etl_file_annotation": "file_annotation",
+        "fn_etl_file_annotation_launch": "file_annotation_launch",
+        "fn_etl_file_annotation_finalize": "file_annotation_finalize",
+        "fn_etl_file_annotation_barrier": "file_annotation_barrier",
     }
     for fn_ext, entry in _extra_local.items():
         if fn_ext not in out:
@@ -552,14 +677,11 @@ def validate_canvas_dag(canvas: Mapping[str, Any]) -> List[str]:
                 errors.append(str(ex))
         elif kind == "file_annotation":
             try:
-                _dual_input_task_ids_from_edges(
+                _file_annotation_input_task_ids_from_edges(
                     node_id,
                     edges,
-                    handle_left=FILE_ANNOTATION_HANDLE_ENTITIES,
-                    handle_right=FILE_ANNOTATION_HANDLE_FILES,
                     node_by_id=node_by_id,
                     executable_ids=executable_ids,
-                    node_kind_label="file_annotation",
                     require_right=not _config_has_file_ids(cfg),
                 )
             except CanvasCompileError as ex:
@@ -687,17 +809,15 @@ def compile_canvas_dag(canvas: Mapping[str, Any]) -> Dict[str, Any]:
             payload["join_left_task_id"] = left_tid
             payload["join_right_task_id"] = right_tid
         elif kind == "file_annotation":
-            entities_tid, files_tid = _dual_input_task_ids_from_edges(
+            entity_tids, files_tid = _file_annotation_input_task_ids_from_edges(
                 node_id,
                 edges,
-                handle_left=FILE_ANNOTATION_HANDLE_ENTITIES,
-                handle_right=FILE_ANNOTATION_HANDLE_FILES,
                 node_by_id=node_by_id,
                 executable_ids=executable_ids,
-                node_kind_label="file_annotation",
                 require_right=not _config_has_file_ids(cfg),
             )
-            payload["entities_input_task_id"] = entities_tid
+            payload["entities_input_task_id"] = entity_tids[0]
+            payload["entities_input_task_ids"] = entity_tids
             if files_tid:
                 payload["files_input_task_id"] = files_tid
         elif kind == "workflow_fanout_plan":

@@ -6,33 +6,10 @@ import os
 import sys
 from pathlib import Path
 from typing import Any, TextIO, cast
+from runtime_paths import ensure_import_paths, discovery_root_from_path
 
-_DISCOVERY_ROOT = Path(__file__).resolve().parent.parent.parent
-_FUNCTIONS_ROOT = _DISCOVERY_ROOT / "functions"
-_STALE_FUNCTIONS = (_DISCOVERY_ROOT / "transform" / "functions").resolve()
-
-
-def _drop_stale_functions_paths() -> None:
-    kept: list[str] = []
-    for entry in sys.path:
-        if not entry:
-            kept.append(entry)
-            continue
-        try:
-            if Path(entry).resolve() == _STALE_FUNCTIONS:
-                continue
-        except OSError:
-            if entry.replace("\\", "/").endswith("transform/functions"):
-                continue
-        kept.append(entry)
-    sys.path[:] = kept
-
-
-_drop_stale_functions_paths()
-_fn_root = str(_FUNCTIONS_ROOT)
-while _fn_root in sys.path:
-    sys.path.remove(_fn_root)
-sys.path.insert(0, _fn_root)
+_DISCOVERY_ROOT = discovery_root_from_path(__file__)
+ensure_import_paths(__file__)
 for _key in list(sys.modules):
     if _key == "functions" or _key.startswith("functions."):
         del sys.modules[_key]

@@ -31,6 +31,7 @@ from cdf_fn_common.etl_incremental_scope import (
     WORKFLOW_STATUS_UPDATED_AT_COLUMN,
 )
 from cdf_fn_common.etl_confidence_property import confidence_property_key
+from cdf_fn_common.etl_common import resolve_task_config
 from cdf_fn_common.etl_raw_upload import RawRowsUploadQueue
 
 QUERY_SOURCE_COLUMN = "QUERY_SOURCE"
@@ -104,12 +105,6 @@ def _first_nonempty(*values: Any) -> str:
         if s:
             return s
     return ""
-
-
-def resolve_task_config(data: Mapping[str, Any]) -> Dict[str, Any]:
-    """Task ``config`` from inlined IR payload (``data.config``)."""
-    cfg = data.get("config")
-    return _as_dict(cfg)
 
 
 def resolve_query_sink(data: Mapping[str, Any]) -> Tuple[str, str]:
@@ -217,12 +212,14 @@ def split_properties_and_confidence_column(
     Also strips top-level ``confidence`` and any other ``*_confidence`` keys from props.
     """
     props = dict(properties)
-    props.pop("confidence", None)
+    top_level_conf = props.pop("confidence", None)
     score_key = confidence_property_key(value_field)
     conf = props.pop(score_key, None)
     for k in list(props.keys()):
         if k.endswith("_confidence"):
             props.pop(k, None)
+    if conf is None:
+        conf = top_level_conf
     if conf is None:
         ik = props.get("indexKey")
         if isinstance(ik, list) and ik and isinstance(ik[0], dict):
@@ -279,6 +276,8 @@ def merge_confidence_column_into_properties(
     lst = parse_confidence_column_value(cols.get(CONFIDENCE_COLUMN))
     if lst is not None:
         props[confidence_property_key(value_field)] = lst
+        # Backward-compatible scalar confidence used by diagram-detect annotation readers.
+        props["confidence"] = lst[0] if len(lst) == 1 else list(lst)
 
 
 def build_entity_cohort_row(

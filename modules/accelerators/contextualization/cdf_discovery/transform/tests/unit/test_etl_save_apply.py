@@ -63,6 +63,10 @@ def test_coerce_dm_list_property_value() -> None:
         {"aliases": "", "name": "n"},
         list_properties=frozenset({"aliases"}),
     ) == {"name": "n"}
+    assert _prepare_view_apply_properties(
+        {"aliases": ["a"], "aliases_score": [0.8], "name": "n"},
+        list_properties=frozenset({"aliases"}),
+    ) == {"aliases": ["a"], "name": "n"}
 
 
 def test_resolve_save_batch_size_defaults_to_500() -> None:

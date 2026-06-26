@@ -453,6 +453,15 @@
   stroke-width: 2.5;
 }
 
+.transform-flow-canvas-wrap .react-flow__edge .react-flow__edge-path {
+  stroke-width: 1.8;
+}
+
+.transform-flow-canvas-wrap .react-flow__edge.disc-flow-edge--drop-target .react-flow__edge-path {
+  stroke: var(--disc-primary, #4338ca);
+  stroke-width: 3.4;
+}
+
 .transform-flow-inspector__field select {
   width: 100%;
   max-width: 100%;
@@ -550,7 +559,7 @@
 }
 
 .transform-flow-inspector__swatch--active {
-  outline: 2px solid var(--disc-accent, #6366f1);
+  outline: 2px solid var(--disc-accent);
   outline-offset: 1px;
 }
 
@@ -695,14 +704,14 @@
   border-radius: 2px;
   width: 10px;
   height: 10px;
-  border: 2px solid color-mix(in srgb, var(--disc-accent, #6366f1) 75%, var(--disc-surface, #fff));
+  border: 2px solid color-mix(in srgb, var(--disc-accent) 75%, var(--disc-surface));
   background: var(--disc-surface, #fff);
 }
 
 .etl-flow-node--resizable .react-flow__resize-control.line {
   border-width: 2px;
   border-style: solid;
-  border-color: color-mix(in srgb, var(--disc-accent, #6366f1) 70%, var(--disc-surface, #fff));
+  border-color: color-mix(in srgb, var(--disc-accent) 70%, var(--disc-surface));
   border-radius: 2px;
   background: color-mix(in srgb, var(--disc-surface, #fff) 55%, transparent);
 }
@@ -729,7 +738,7 @@
 }
 
 .etl-flow-node--selected .etl-flow-node__body {
-  outline: 2px solid var(--disc-accent, #6366f1);
+  outline: 2px solid var(--disc-accent);
 }
 
 .etl-flow-node--preview .etl-flow-node__body {
@@ -856,6 +865,21 @@
   background: color-mix(in srgb, var(--disc-surface, #fff) 92%, var(--disc-muted, #64748b));
 }
 
+.etl-flow-node__progress--placeholder .etl-flow-node__progress-fill {
+  width: 0;
+  transition: none;
+}
+
+.etl-flow-node__progress--placeholder {
+  background: transparent;
+  border-top-color: transparent;
+}
+
+.etl-flow-node__progress--placeholder .etl-flow-node__progress-track,
+.etl-flow-node__progress--placeholder .etl-flow-node__progress-footer {
+  visibility: hidden;
+}
+
 .etl-flow-node__progress-track {
   position: relative;
   height: 0.35rem;
@@ -874,8 +898,8 @@
   border-radius: inherit;
   background: linear-gradient(
     90deg,
-    color-mix(in srgb, var(--disc-accent, #6366f1) 85%, #fff),
-    var(--disc-accent, #6366f1)
+    color-mix(in srgb, var(--disc-accent) 85%, var(--disc-bg-elevated)),
+    var(--disc-accent)
   );
   transition: width 0.25s ease;
 }
@@ -887,6 +911,10 @@
   gap: 0.35rem;
   margin-top: 0.2rem;
   min-width: 0;
+}
+
+.etl-flow-node__progress-footer--placeholder {
+  opacity: 0;
 }
 
 .etl-flow-node__progress-elapsed {
@@ -1036,6 +1064,8 @@
 .transform-optimize-modal {
   width: min(96vw, 36rem);
   max-width: 100%;
+  background: var(--disc-bg-elevated, #ffffff);
+  color: var(--disc-text, #0f172a);
 }
 
 .transform-optimize-modal__empty {
@@ -1411,7 +1441,8 @@
 }
 
 /* Fan-out planner uses an in-card connector row; do not reserve a separate left label lane. */
-.etl-flow-node--workflow_fanout_plan.etl-flow-node--dual-input.etl-flow-node--in-lr .etl-flow-node__body-main {
+.etl-flow-node--workflow_fanout_plan.etl-flow-node--dual-input.etl-flow-node--in-lr .etl-flow-node__body-main,
+.etl-flow-node--file_annotation.etl-flow-node--dual-input.etl-flow-node--in-lr .etl-flow-node__body-main {
   padding-left: 0.6rem;
 }
 
@@ -1454,7 +1485,8 @@
     padding-left: 3.65rem;
   }
 
-  .etl-flow-node--workflow_fanout_plan.etl-flow-node--dual-input.etl-flow-node--in-lr .etl-flow-node__body-main {
+  .etl-flow-node--workflow_fanout_plan.etl-flow-node--dual-input.etl-flow-node--in-lr .etl-flow-node__body-main,
+  .etl-flow-node--file_annotation.etl-flow-node--dual-input.etl-flow-node--in-lr .etl-flow-node__body-main {
     padding-left: 0.6rem;
   }
 

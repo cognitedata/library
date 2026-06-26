@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from typing import Any, Dict, List, MutableMapping
 
 from cdf_fn_common.etl_cohort_storage import require_pipeline_run_key
@@ -30,6 +31,29 @@ from cdf_fn_common.etl_workflow_task_complete import (
 )
 
 
+def _retrieve_file_for_blob_check(client: Any, file_id: int) -> Any:
+    files_api = getattr(client, "files", None)
+    if files_api is None:
+        return None
+    if hasattr(files_api, "retrieve"):
+        return files_api.retrieve(id=file_id)
+    if callable(files_api):
+        return files_api(id=file_id)
+    return None
+
+
+def _is_file_uploaded(file_obj: Any, file_info: Dict[str, Any]) -> bool:
+    if file_obj is not None:
+        uploaded_flag = getattr(file_obj, "uploaded", None)
+        if isinstance(uploaded_flag, bool):
+            return uploaded_flag
+        uploaded_time = getattr(file_obj, "uploaded_time", None) or getattr(file_obj, "uploadedTime", None)
+        if uploaded_time:
+            return True
+    uploaded_time_info = file_info.get("uploadedTime") or file_info.get("uploaded_time")
+    return bool(uploaded_time_info)
+
+
 def etl_handle_file_annotation(
     fn_external_id: str,
     data: MutableMapping[str, Any],
@@ -51,6 +75,44 @@ def etl_handle_file_annotation(
 
     entities = resolve_file_annotation_entities(data, cfg, client=client, params=params)
     files = resolve_file_annotation_files(data, cfg, client)
+    blob_checks: List[Dict[str, Any]] = []
+    uploaded_files: List[Dict[str, Any]] = []
+    not_uploaded_file_ids: List[int] = []
+    for file_info in files:
+        fid = int(file_info.get("id") or 0)
+        if not fid:
+            continue
+        try:
+            f = _retrieve_file_for_blob_check(client, fid)
+            uploaded = _is_file_uploaded(f, file_info)
+            if not uploaded:
+                not_uploaded_file_ids.append(fid)
+            else:
+                uploaded_files.append(file_info)
+            blob_checks.append(
+                {
+                    "file_id": fid,
+                    "external_id": getattr(f, "external_id", None),
+                    "uploaded": uploaded,
+                    "uploaded_time": str(getattr(f, "uploaded_time", None) or ""),
+                    "mime_type": getattr(f, "mime_type", None),
+                }
+            )
+        except Exception as ex:
+            blob_checks.append({"file_id": fid, "error": f"{type(ex).__name__}: {ex}"})
+    if not_uploaded_file_ids:
+        unique_ids = sorted(set(not_uploaded_file_ids))
+        sample = unique_ids[:10]
+        suffix = " (showing first 10)" if len(unique_ids) > 10 else ""
+        if log is not None and hasattr(log, "info"):
+            log.info(
+                "file_annotation: skipping non-uploaded files for diagram detect: file_ids=%s%s",
+                sample,
+                suffix,
+            )
+    if not uploaded_files:
+        raise ValueError("file_annotation: no uploaded files available to scan.")
+    files = uploaded_files
 
     max_ref = int(
         cfg.get("max_pages_per_file_reference") or params["max_pages_per_file_reference"]

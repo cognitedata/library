@@ -1,0 +1,29 @@
+{
+  "active_tab_id": "tab:overview",
+  "tabs": [
+    {
+      "id": "tab:overview",
+      "kind": "overview",
+      "label": "Overview",
+      "navNodeId": "inverted-index/overview"
+    },
+    {
+      "id": "tab:build-metadata",
+      "kind": "build-metadata",
+      "label": "Build metadata index",
+      "navNodeId": "inverted-index/ops/build-metadata"
+    },
+    {
+      "id": "tab:build-annotations",
+      "kind": "build-annotations",
+      "label": "Build annotation index",
+      "navNodeId": "inverted-index/ops/build-annotations"
+    },
+    {
+      "id": "tab:target-driven",
+      "kind": "target-driven",
+      "label": "Target-driven linking",
+      "navNodeId": "inverted-index/ops/target-driven"
+    }
+  ]
+}

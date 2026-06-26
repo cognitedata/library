@@ -88,7 +88,7 @@ def etl_handle_transform_cohort(
     rows_read = 0
     rows_written = 0
     failure_recorder = build_entity_failure_recorder(
-        client, data, raw_db=raw_db, raw_table=base_table, log=log
+        client, data, raw_db=sink_db, raw_table=sink_table, log=log
     )
     pred_locations = iter_predecessor_raw_locations(data, task_id)
     index_cache = data.get("etl_cohort_row_index_cache")

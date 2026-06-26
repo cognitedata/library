@@ -7,10 +7,11 @@ import logging
 import sys
 from pathlib import Path
 from typing import Sequence
+from runtime_paths import ensure_import_paths, transform_root_from_path
 
 
 def module_root_from_package() -> Path:
-    return Path(__file__).resolve().parent.parent
+    return transform_root_from_path(__file__)
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -36,6 +37,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = parser.parse_args(list(argv) if argv is not None else None)
 
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
+    ensure_import_paths(__file__)
     transform_root = args.module_root or module_root_from_package()
     scripts = transform_root / "scripts"
     if str(scripts) not in sys.path:

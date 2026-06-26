@@ -1,20 +1,4 @@
-async function readFetchError(r: Response): Promise<string> {
-  let msg = r.statusText;
-  try {
-    const j = (await r.json()) as { detail?: unknown };
-    const d = j?.detail;
-    if (typeof d === "string") msg = d;
-    else if (Array.isArray(d)) {
-      msg = d
-        .map((x) => (x && typeof x === "object" && "msg" in x ? String((x as { msg?: unknown }).msg) : ""))
-        .filter(Boolean)
-        .join("; ");
-    }
-  } catch {
-    /* ignore */
-  }
-  return msg;
-}
+import { readFetchError } from "./queryApi";
 
 export type ViewSchemaField = {
   name: string;

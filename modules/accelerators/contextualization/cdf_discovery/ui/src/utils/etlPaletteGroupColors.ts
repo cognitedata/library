@@ -70,7 +70,14 @@ export function paletteGroupIdForStage(
   if (stage.startsWith("query_")) return "extract";
   if (stage.startsWith("save_")) return "load";
   if (stage === "node_preview") return "debug";
-  if (stage === "file_annotation" || stage === "workflow_fanout_plan") return "contextualization";
+  if (
+    stage === "file_annotation" ||
+    stage === "workflow_fanout_plan" ||
+    stage === "subgraph" ||
+    stage === "raw_cleanup"
+  ) {
+    return "contextualization";
+  }
   if (ORCHESTRATION_KIND_SET.has(stage)) return "orchestration";
   if (FUSION_KIND_SET.has(stage)) return "fusion";
   if (stage === "start" || stage === "end") return "orchestration";

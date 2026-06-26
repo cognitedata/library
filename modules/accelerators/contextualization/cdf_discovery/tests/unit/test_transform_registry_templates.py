@@ -139,3 +139,35 @@ def test_template_build_pairing_uses_per_template_workflow_base(tmp_path: Path) 
 
     assert pairing["workflow_base"] == "wf_all_etl_sample"
     assert pairing["workflow_external_id"] == "wf_all_etl_sample"
+
+
+def test_empty_pipeline_document_sets_workflow_scope() -> None:
+    doc = transform_registry.empty_pipeline_document(
+        pipeline_id="aliasing_copy",
+        label="Aliasing copy",
+    )
+    assert doc["parameters"]["workflow_scope"] == "aliasing_copy"
+    start_cfg = doc["canvas"]["nodes"][0]["data"]["config"]
+    assert start_cfg["workflow_scope"] == "aliasing_copy"
+
+
+def test_ensure_pipeline_workflow_scope_overwrite_uses_target_id() -> None:
+    source = {
+        "parameters": {"workflow_scope": "source_scope"},
+        "canvas": {
+            "nodes": [
+                {
+                    "id": "start",
+                    "kind": "start",
+                    "data": {"config": {"workflow_scope": "source_scope"}},
+                }
+            ]
+        },
+    }
+    out = transform_registry.ensure_pipeline_workflow_scope(
+        source,
+        pipeline_id="new_pipeline_copy",
+        overwrite=True,
+    )
+    assert out["parameters"]["workflow_scope"] == "new_pipeline_copy"
+    assert out["canvas"]["nodes"][0]["data"]["config"]["workflow_scope"] == "new_pipeline_copy"

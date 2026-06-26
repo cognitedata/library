@@ -1,0 +1,79 @@
+space: {{index_schema_space}}
+externalId: InvertedIndexEntry
+name: Inverted Index Entry
+description: View projecting inverted index entry container for contextualization lookups.
+version: "{{index_dm_version}}"
+implements: []
+properties:
+  term:
+    container:
+      space: {{index_schema_space}}
+      externalId: InvertedIndexEntry
+      type: container
+    containerPropertyIdentifier: term
+  normalizedTerm:
+    container:
+      space: {{index_schema_space}}
+      externalId: InvertedIndexEntry
+      type: container
+    containerPropertyIdentifier: normalizedTerm
+  originalValue:
+    container:
+      space: {{index_schema_space}}
+      externalId: InvertedIndexEntry
+      type: container
+    containerPropertyIdentifier: originalValue
+  sourceType:
+    container:
+      space: {{index_schema_space}}
+      externalId: InvertedIndexEntry
+      type: container
+    containerPropertyIdentifier: sourceType
+  sourceProperty:
+    container:
+      space: {{index_schema_space}}
+      externalId: InvertedIndexEntry
+      type: container
+    containerPropertyIdentifier: sourceProperty
+  referenceExternalId:
+    container:
+      space: {{index_schema_space}}
+      externalId: InvertedIndexEntry
+      type: container
+    containerPropertyIdentifier: referenceExternalId
+  referenceSpace:
+    container:
+      space: {{index_schema_space}}
+      externalId: InvertedIndexEntry
+      type: container
+    containerPropertyIdentifier: referenceSpace
+  referenceType:
+    container:
+      space: {{index_schema_space}}
+      externalId: InvertedIndexEntry
+      type: container
+    containerPropertyIdentifier: referenceType
+  matchScopeKey:
+    container:
+      space: {{index_schema_space}}
+      externalId: InvertedIndexEntry
+      type: container
+    containerPropertyIdentifier: matchScopeKey
+  matchScope:
+    container:
+      space: {{index_schema_space}}
+      externalId: InvertedIndexEntry
+      type: container
+    containerPropertyIdentifier: matchScope
+  additionalMetadata:
+    container:
+      space: {{index_schema_space}}
+      externalId: InvertedIndexEntry
+      type: container
+    containerPropertyIdentifier: additionalMetadata
+  buildJobId:
+    container:
+      space: {{index_schema_space}}
+      externalId: InvertedIndexEntry
+      type: container
+    containerPropertyIdentifier: buildJobId

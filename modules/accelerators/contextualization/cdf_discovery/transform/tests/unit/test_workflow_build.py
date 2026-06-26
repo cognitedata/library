@@ -232,3 +232,42 @@ def test_build_trigger_input_defaults_true_without_start_node_value() -> None:
     trigger_input = build_trigger_input(doc)
     assert trigger_input["incremental_change_processing"] is True
     assert trigger_input["configuration"]["parameters"]["incremental_change_processing"] is True
+
+
+def test_build_trigger_input_includes_cohort_write_batch_size() -> None:
+    doc = {
+        "schemaVersion": 1,
+        "id": "wf_test",
+        "parameters": {},
+        "canvas": {
+            "nodes": [
+                {
+                    "id": "start",
+                    "kind": "start",
+                    "data": {"config": {"cohort_write_batch_size": 321}},
+                }
+            ]
+        },
+    }
+    trigger_input = build_trigger_input(doc)
+    assert trigger_input["cohort_write_batch_size"] == 321
+    assert trigger_input["configuration"]["parameters"]["cohort_write_batch_size"] == 321
+
+
+def test_build_trigger_input_includes_workflow_scope_from_start_config() -> None:
+    doc = {
+        "schemaVersion": 1,
+        "id": "wf_test",
+        "parameters": {},
+        "canvas": {
+            "nodes": [
+                {
+                    "id": "start",
+                    "kind": "start",
+                    "data": {"config": {"workflow_scope": "aliasing_workflow"}},
+                }
+            ]
+        },
+    }
+    trigger_input = build_trigger_input(doc)
+    assert trigger_input["configuration"]["parameters"]["workflow_scope"] == "aliasing_workflow"

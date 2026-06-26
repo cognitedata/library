@@ -9,6 +9,7 @@ parameters:
   raw_table_key: cohort
   instance_space: inst_assets
   etl_state_instance_space: null
+  workflow_scope: aliasing_workflow
 scope: null
 sources: []
 canvas:
@@ -20,11 +21,11 @@ canvas:
   - id: build_index_mpkhwovn
     kind: build_index
     position:
-      x: 1174
-      y: -117.5
+      x: 948
+      y: -148
     data:
       label: Build Index
-      config:
+      config: &id001
         description: Build inverted index postings from indexKey tokens for alias
           lookup
         handler_id: property_token_index
@@ -40,8 +41,8 @@ canvas:
   - id: end
     kind: end
     position:
-      x: 1747
-      y: -46
+      x: 1444
+      y: -34
     data:
       label: End
       config:
@@ -49,11 +50,11 @@ canvas:
   - id: merge_mpk5updx
     kind: merge
     position:
-      x: 852
-      y: -124.5
+      x: 700
+      y: -148
     data:
       label: Merge Aliases
-      config:
+      config: &id002
         field_policies:
         - property: aliases
           strategy: merge_list
@@ -65,11 +66,11 @@ canvas:
   - id: query_view_mpk5beqq
     kind: query_view
     position:
-      x: 237
-      y: -238
+      x: 204
+      y: -314
     data:
       label: CogniteAsset (v1)
-      config:
+      config: &id003
         description: View query — CogniteAsset name, description, and tags for alias
           extraction
         view_space: cdf_cdm
@@ -84,11 +85,11 @@ canvas:
   - id: query_view_mpkf9ork
     kind: query_view
     position:
-      x: 237
-      y: -110
+      x: 204
+      y: -148
     data:
       label: CogniteEquipment (v1)
-      config:
+      config: &id004
         description: View query — CogniteEquipment instances for shared name passthrough
           aliases
         view_space: cdf_cdm
@@ -101,11 +102,11 @@ canvas:
   - id: query_view_mpkf9xge
     kind: query_view
     position:
-      x: 237
+      x: 204
       y: 18
     data:
       label: CogniteTimeSeries (v1)
-      config:
+      config: &id005
         description: View query — CogniteTimeSeries instances for shared name passthrough
           aliases
         view_space: cdf_cdm
@@ -118,11 +119,11 @@ canvas:
   - id: query_view_mpkfbrkh
     kind: query_view
     position:
-      x: 237
-      y: 146
+      x: 204
+      y: 184
     data:
       label: CogniteFile (v1)
-      config:
+      config: &id006
         description: View query — CogniteFile name and description for index key extraction
         view_space: cdf_cdm
         view_external_id: CogniteFile
@@ -134,13 +135,13 @@ canvas:
   - id: save_raw_mpkhci4w
     kind: save_raw
     position:
-      x: 1496
-      y: -110
+      x: 1196
+      y: -148
     data:
       label: Save Inverted Index to Raw
       notes: Currently saving the index to RAW to avoid instance consumption.  Should
         be evaluated for inclusion in the data model for proper indexing.
-      config:
+      config: &id007
         description: Persist inverted index rows to RAW table inverted_index
         source_raw_db: db_discovery
         source_raw_table_key: inverted_index
@@ -148,11 +149,11 @@ canvas:
   - id: save_view_mpk5bi71
     kind: save_view
     position:
-      x: 1496
+      x: 1196
       y: 18
     data:
       label: CogniteDescribable(v1)
-      config:
+      config: &id008
         description: Save merged aliases to CogniteDescribable instances in CDF
         view_space: cdf_cdm
         view_external_id: CogniteDescribable
@@ -165,17 +166,18 @@ canvas:
             unique: true
             branch_order: by_score
       node_color: '#0d9488'
-  - id: score_mpoukl1q
+  - id: score_mq8b3h4g
     kind: score
     position:
-      x: 1174
-      y: 10.5
+      x: 700
+      y: 18
     data:
-      label: Asset validation — ISA → shape → blacklist — isa_compliant
-      config:
+      label: Asset validation — ISA → shape → blacklist — isa_compliant — isa_compliant
+        — isa_compliant
+      config: &id009
         description: isa_compliant
         score_fields:
-        - aliases
+        - indexKey
         scoring_rules:
         - name: isa_compliant
           enabled: true
@@ -266,17 +268,18 @@ canvas:
           priority: 10
         initial_score: 1
         min_score: 0
-  - id: score_mpoukomr
+  - id: score_mq8b4743
     kind: score
     position:
-      x: 852
-      y: 17.5
+      x: 948
+      y: 18
     data:
-      label: Asset validation — ISA → shape → blacklist — isa_compliant
-      config:
+      label: Asset validation — ISA → shape → blacklist — isa_compliant — isa_compliant
+        — isa_compliant
+      config: &id010
         description: isa_compliant
         score_fields:
-        - indexKey
+        - aliases
         scoring_rules:
         - name: isa_compliant
           enabled: true
@@ -371,7 +374,7 @@ canvas:
     kind: start
     position:
       x: 0
-      y: -46
+      y: -34
     data:
       label: Start
       config:
@@ -381,14 +384,15 @@ canvas:
         workflow_version: 1.0.0.5
         cron_expression: '*/10 * * * *'
         incremental_change_processing: true
+        workflow_scope: aliasing_workflow
   - id: transform_mpk5q5bq
     kind: transform
     position:
-      x: 530
-      y: -188
+      x: 452
+      y: -231
     data:
       label: Name Passthrough
-      config:
+      config: &id011
         handler_id: trim_whitespace
         trim_whitespace:
           mode: ends_only
@@ -398,14 +402,14 @@ canvas:
           regex: ''
         output_template: ''
         description: Trim instance name and append normalized value to aliases
-  - id: transform_mpk5sdjw
+  - id: transform_mq8b3t4p
     kind: transform
     position:
-      x: 530
-      y: -46
+      x: 452
+      y: -65
     data:
-      label: 'Regex Tag Extraction: Name'
-      config:
+      label: Extract ISA-style tag tokens from CogniteAsset name via regex
+      config: &id012
         execution:
           mode: parallel
         steps:
@@ -446,14 +450,14 @@ canvas:
           merge_list:
             unique: true
             branch_order: by_score
-  - id: transform_mpr2s8sk
+  - id: transform_mq8b3v3e
     kind: transform
     position:
-      x: 530
-      y: 96
+      x: 452
+      y: 101
     data:
       label: Heuristic indexKey from file name
-      config:
+      config: &id013
         execution:
           mode: parallel
         steps:
@@ -502,18 +506,6 @@ canvas:
   - id: xy-edge__query_view_mpk5beqqout-transform_mpk5q5bqin
     source: query_view_mpk5beqq
     target: transform_mpk5q5bq
-    source_handle: out
-    target_handle: in
-    kind: data
-  - id: xy-edge__query_view_mpk5beqqout-transform_mpk5sdjwin
-    source: query_view_mpk5beqq
-    target: transform_mpk5sdjw
-    source_handle: out
-    target_handle: in
-    kind: data
-  - id: xy-edge__transform_mpk5sdjwout-merge_mpk5updxin
-    source: transform_mpk5sdjw
-    target: merge_mpk5updx
     source_handle: out
     target_handle: in
     kind: data
@@ -571,40 +563,52 @@ canvas:
     source_handle: out
     target_handle: in
     kind: data
-  - id: xy-edge__merge_mpk5updxout-score_mpoukl1qin
+  - id: xy-edge__query_view_mpk5beqqout-transform_mq8b3t4pin
+    source: query_view_mpk5beqq
+    target: transform_mq8b3t4p
+    source_handle: out
+    target_handle: in
+    kind: data
+  - id: xy-edge__transform_mq8b3t4pout-merge_mpk5updxin
+    source: transform_mq8b3t4p
+    target: merge_mpk5updx
+    source_handle: out
+    target_handle: in
+    kind: data
+  - id: xy-edge__query_view_mpkfbrkhout-transform_mq8b3v3ein
+    source: query_view_mpkfbrkh
+    target: transform_mq8b3v3e
+    source_handle: out
+    target_handle: in
+    kind: data
+  - id: xy-edge__transform_mq8b3v3eout-score_mq8b3h4gin
+    source: transform_mq8b3v3e
+    target: score_mq8b3h4g
+    source_handle: out
+    target_handle: in
+    kind: data
+  - id: xy-edge__merge_mpk5updxout-score_mq8b4743in
     source: merge_mpk5updx
-    target: score_mpoukl1q
+    target: score_mq8b4743
     source_handle: out
     target_handle: in
     kind: data
-  - id: xy-edge__score_mpoukl1qout-save_view_mpk5bi71in
-    source: score_mpoukl1q
-    target: save_view_mpk5bi71
-    source_handle: out
-    target_handle: in
-    kind: data
-  - id: xy-edge__score_mpoukomrout-build_index_mpkhwovnin
-    source: score_mpoukomr
+  - id: xy-edge__score_mq8b3h4gout-build_index_mpkhwovnin
+    source: score_mq8b3h4g
     target: build_index_mpkhwovn
     source_handle: out
     target_handle: in
     kind: data
-  - id: xy-edge__query_view_mpkfbrkhout-transform_mpr2s8skin
-    source: query_view_mpkfbrkh
-    target: transform_mpr2s8sk
-    source_handle: out
-    target_handle: in
-    kind: data
-  - id: xy-edge__transform_mpr2s8skout-score_mpoukomrin
-    source: transform_mpr2s8sk
-    target: score_mpoukomr
+  - id: xy-edge__score_mq8b4743out-save_view_mpk5bi71in
+    source: score_mq8b4743
+    target: save_view_mpk5bi71
     source_handle: out
     target_handle: in
     kind: data
   viewport:
-    x: -15.75
-    y: 288
-    zoom: 0.5
+    x: -775.6999999999998
+    y: 144.375
+    zoom: 1.15
 scope_suffix: ''
 compiled_workflow:
   schema_version: 1
@@ -616,21 +620,9 @@ compiled_workflow:
     canvas_node_id: build_index_mpkhwovn
     label: Build Index
     depends_on:
-    - score_mpoukomr
+    - score_mq8b3h4g
     payload:
-      config:
-        description: Build inverted index postings from indexKey tokens for alias
-          lookup
-        handler_id: property_token_index
-        index_kinds:
-          metadata:
-          - indexKey
-        property_token_index:
-          lookup_key_normalization: strip_casefold
-          token_initial_confidence: 1
-          row_key_template: '{lookup_key}:{scope}|{index_kind}'
-          query_source: build_index
-          default_view_version: v1
+      config: *id001
   - id: merge_mpk5updx
     function_external_id: fn_etl_merge
     executable_kind: merge
@@ -638,18 +630,10 @@ compiled_workflow:
     canvas_node_id: merge_mpk5updx
     label: Merge Aliases
     depends_on:
-    - transform_mpk5sdjw
     - transform_mpk5q5bq
+    - transform_mq8b3t4p
     payload:
-      config:
-        field_policies:
-        - property: aliases
-          strategy: merge_list
-          merge_list:
-            unique: true
-            branch_order: by_score
-        description: Merge alias lists from parallel transform branches into one aliases
-          property
+      config: *id002
   - id: query_view_mpk5beqq
     function_external_id: fn_etl_view_query
     executable_kind: query_view
@@ -658,18 +642,7 @@ compiled_workflow:
     label: CogniteAsset (v1)
     depends_on: []
     payload:
-      config:
-        description: View query — CogniteAsset name, description, and tags for alias
-          extraction
-        view_space: cdf_cdm
-        view_external_id: CogniteAsset
-        view_version: v1
-        batch_size: 1000
-        filters: []
-        include_properties:
-        - description
-        - name
-        - tags
+      config: *id003
   - id: query_view_mpkf9ork
     function_external_id: fn_etl_view_query
     executable_kind: query_view
@@ -678,16 +651,7 @@ compiled_workflow:
     label: CogniteEquipment (v1)
     depends_on: []
     payload:
-      config:
-        description: View query — CogniteEquipment instances for shared name passthrough
-          aliases
-        view_space: cdf_cdm
-        view_external_id: CogniteEquipment
-        view_version: v1
-        batch_size: 1000
-        include_properties:
-        - description
-        - name
+      config: *id004
   - id: query_view_mpkf9xge
     function_external_id: fn_etl_view_query
     executable_kind: query_view
@@ -696,16 +660,7 @@ compiled_workflow:
     label: CogniteTimeSeries (v1)
     depends_on: []
     payload:
-      config:
-        description: View query — CogniteTimeSeries instances for shared name passthrough
-          aliases
-        view_space: cdf_cdm
-        view_external_id: CogniteTimeSeries
-        view_version: v1
-        batch_size: 1000
-        include_properties:
-        - description
-        - name
+      config: *id005
   - id: query_view_mpkfbrkh
     function_external_id: fn_etl_view_query
     executable_kind: query_view
@@ -714,15 +669,7 @@ compiled_workflow:
     label: CogniteFile (v1)
     depends_on: []
     payload:
-      config:
-        description: View query — CogniteFile name and description for index key extraction
-        view_space: cdf_cdm
-        view_external_id: CogniteFile
-        view_version: v1
-        batch_size: 1000
-        include_properties:
-        - description
-        - name
+      config: *id006
   - id: save_raw_mpkhci4w
     function_external_id: fn_etl_raw_save
     executable_kind: save_raw
@@ -732,10 +679,7 @@ compiled_workflow:
     depends_on:
     - build_index_mpkhwovn
     payload:
-      config:
-        description: Persist inverted index rows to RAW table inverted_index
-        source_raw_db: db_discovery
-        source_raw_table_key: inverted_index
+      config: *id007
   - id: save_view_mpk5bi71
     function_external_id: fn_etl_view_save
     executable_kind: save_view
@@ -743,226 +687,31 @@ compiled_workflow:
     canvas_node_id: save_view_mpk5bi71
     label: CogniteDescribable(v1)
     depends_on:
-    - score_mpoukl1q
+    - score_mq8b4743
     payload:
-      config:
-        description: Save merged aliases to CogniteDescribable instances in CDF
-        view_space: cdf_cdm
-        view_external_id: CogniteDescribable
-        view_version: v1
-        save_fan_in_mode: merge_per_instance
-        save_field_policies:
-        - property: aliases
-          strategy: merge_list
-          merge_list:
-            unique: true
-            branch_order: by_score
-  - id: score_mpoukl1q
+      config: *id008
+  - id: score_mq8b3h4g
     function_external_id: fn_etl_score
     executable_kind: score
     task_type: function
-    canvas_node_id: score_mpoukl1q
-    label: Asset validation — ISA → shape → blacklist — isa_compliant
+    canvas_node_id: score_mq8b3h4g
+    label: Asset validation — ISA → shape → blacklist — isa_compliant — isa_compliant
+      — isa_compliant
+    depends_on:
+    - transform_mq8b3v3e
+    payload:
+      config: *id009
+  - id: score_mq8b4743
+    function_external_id: fn_etl_score
+    executable_kind: score
+    task_type: function
+    canvas_node_id: score_mq8b4743
+    label: Asset validation — ISA → shape → blacklist — isa_compliant — isa_compliant
+      — isa_compliant
     depends_on:
     - merge_mpk5updx
     payload:
-      config:
-        description: isa_compliant
-        score_fields:
-        - aliases
-        scoring_rules:
-        - name: isa_compliant
-          enabled: true
-          match:
-            expressions:
-            - pattern: \bP[-_]?\d{1,6}[A-Z]?\b
-              description: Standard pump tags (P-101, P101A, P-2001)
-            - pattern: \b[A-Z]{2,4}P[-_]?\d{1,6}[A-Z]?\b
-              description: Pump with service designation (FWP-101, CWP-201)
-            - pattern: \bCP[-_]?\d{1,6}[A-Z]?\b
-              description: Centrifugal pump tags
-            - pattern: \bC[-_]?\d{1,6}[A-Z]?\b
-              description: Standard compressor tags (C-101, C101A)
-            - pattern: \b[A-Z]{2}C[-_]?\d{1,6}[A-Z]?\b
-              description: Compressor with type designation (AC-101, RC-201)
-            - pattern: \b[A-Z]{2,3}V[-_]?\d{1,6}[A-Z]?\b
-              description: Control valve tags (FCV-101, PCV-201, TCV-301)
-            - pattern: \bV[-_]?\d{1,6}[A-Z]?\b
-              description: Manual valve and vessel tags (V-101, V101A)
-            - pattern: \b[A-Z]{2,3}SV[-_]?\d{1,6}[A-Z]?\b
-              description: Safety valve tags (PSV-101, TSV-201)
-            - pattern: \bT[-_]?\d{1,6}[A-Z]?\b
-              description: Standard tank tags (T-101, T101A)
-            - pattern: \bR[-_]?\d{1,6}[A-Z]?\b
-              description: Reactor tags (R-101, R101A)
-            - pattern: \bE[-_]?\d{1,6}[A-Z]?\b
-              description: Heat exchanger tags (E-101, E101A)
-            - pattern: \b[A-Z]{2}E[-_]?\d{1,6}[A-Z]?\b
-              description: Heat exchanger with type (HE-101, CE-201)
-            - pattern: \bF[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b
-              description: Flow instruments (FIC-101, FIT-201, FCV-301)
-            - pattern: \bP[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b
-              description: Pressure instruments (PIC-101, PIT-201, PCV-301)
-            - pattern: \bT[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b
-              description: Temperature instruments (TIC-101, TIT-201, TCV-301)
-            - pattern: \bL[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b
-              description: Level instruments (LIC-101, LIT-201, LCV-301)
-            - pattern: \bA[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b
-              description: Analytical instruments (AIC-101, AIT-201, ACV-301)
-            - pattern: \b[A-Z]?C[-_]?\d{1,6}[A-Z]?\b
-              description: Distillation column tags (C-101, DC-201)
-            keywords: []
-          score_modifier:
-            mode: explicit
-            value: 1
-          priority: 10
-          on_no_match:
-            score_modifier:
-              mode: offset
-              value: -0.2
-        - name: alias_shape_invalid
-          enabled: true
-          match:
-            expressions:
-            - pattern: ^[0-9]{0,3}$
-              description: Alias is only digits and shorter than 4 characters (empty
-                counts as invalid)
-            - pattern: ^.{81,}$
-              description: Alias exceeds maximum length 80
-            - pattern: '[^A-Za-z0-9-_/. ]'
-              description: Character outside allowed set (letters, digits, _ / . -
-                and space)
-            keywords: []
-          score_modifier:
-            mode: explicit
-            value: 0
-          priority: 0
-          expression_match: fullmatch
-        - name: blacklist
-          enabled: true
-          match:
-            expressions: []
-            keywords:
-            - test
-            - example
-            - sample
-            - dummy
-            - temp
-            - temporary
-            - 'null'
-            - none
-            - n/a
-            - na
-            - unknown
-          score_modifier:
-            mode: explicit
-            value: 0
-          priority: 10
-        initial_score: 1
-        min_score: 0
-  - id: score_mpoukomr
-    function_external_id: fn_etl_score
-    executable_kind: score
-    task_type: function
-    canvas_node_id: score_mpoukomr
-    label: Asset validation — ISA → shape → blacklist — isa_compliant
-    depends_on:
-    - transform_mpr2s8sk
-    payload:
-      config:
-        description: isa_compliant
-        score_fields:
-        - indexKey
-        scoring_rules:
-        - name: isa_compliant
-          enabled: true
-          match:
-            expressions:
-            - pattern: \bP[-_]?\d{1,6}[A-Z]?\b
-              description: Standard pump tags (P-101, P101A, P-2001)
-            - pattern: \b[A-Z]{2,4}P[-_]?\d{1,6}[A-Z]?\b
-              description: Pump with service designation (FWP-101, CWP-201)
-            - pattern: \bCP[-_]?\d{1,6}[A-Z]?\b
-              description: Centrifugal pump tags
-            - pattern: \bC[-_]?\d{1,6}[A-Z]?\b
-              description: Standard compressor tags (C-101, C101A)
-            - pattern: \b[A-Z]{2}C[-_]?\d{1,6}[A-Z]?\b
-              description: Compressor with type designation (AC-101, RC-201)
-            - pattern: \b[A-Z]{2,3}V[-_]?\d{1,6}[A-Z]?\b
-              description: Control valve tags (FCV-101, PCV-201, TCV-301)
-            - pattern: \bV[-_]?\d{1,6}[A-Z]?\b
-              description: Manual valve and vessel tags (V-101, V101A)
-            - pattern: \b[A-Z]{2,3}SV[-_]?\d{1,6}[A-Z]?\b
-              description: Safety valve tags (PSV-101, TSV-201)
-            - pattern: \bT[-_]?\d{1,6}[A-Z]?\b
-              description: Standard tank tags (T-101, T101A)
-            - pattern: \bR[-_]?\d{1,6}[A-Z]?\b
-              description: Reactor tags (R-101, R101A)
-            - pattern: \bE[-_]?\d{1,6}[A-Z]?\b
-              description: Heat exchanger tags (E-101, E101A)
-            - pattern: \b[A-Z]{2}E[-_]?\d{1,6}[A-Z]?\b
-              description: Heat exchanger with type (HE-101, CE-201)
-            - pattern: \bF[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b
-              description: Flow instruments (FIC-101, FIT-201, FCV-301)
-            - pattern: \bP[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b
-              description: Pressure instruments (PIC-101, PIT-201, PCV-301)
-            - pattern: \bT[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b
-              description: Temperature instruments (TIC-101, TIT-201, TCV-301)
-            - pattern: \bL[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b
-              description: Level instruments (LIC-101, LIT-201, LCV-301)
-            - pattern: \bA[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b
-              description: Analytical instruments (AIC-101, AIT-201, ACV-301)
-            - pattern: \b[A-Z]?C[-_]?\d{1,6}[A-Z]?\b
-              description: Distillation column tags (C-101, DC-201)
-            keywords: []
-          score_modifier:
-            mode: explicit
-            value: 1
-          priority: 10
-          on_no_match:
-            score_modifier:
-              mode: offset
-              value: -0.2
-        - name: alias_shape_invalid
-          enabled: true
-          match:
-            expressions:
-            - pattern: ^[0-9]{0,3}$
-              description: Alias is only digits and shorter than 4 characters (empty
-                counts as invalid)
-            - pattern: ^.{81,}$
-              description: Alias exceeds maximum length 80
-            - pattern: '[^A-Za-z0-9-_/. ]'
-              description: Character outside allowed set (letters, digits, _ / . -
-                and space)
-            keywords: []
-          score_modifier:
-            mode: explicit
-            value: 0
-          priority: 0
-          expression_match: fullmatch
-        - name: blacklist
-          enabled: true
-          match:
-            expressions: []
-            keywords:
-            - test
-            - example
-            - sample
-            - dummy
-            - temp
-            - temporary
-            - 'null'
-            - none
-            - n/a
-            - na
-            - unknown
-          score_modifier:
-            mode: explicit
-            value: 0
-          priority: 10
-        initial_score: 1
-        min_score: 0
+      config: *id010
   - id: transform_mpk5q5bq
     function_external_id: fn_etl_transform
     executable_kind: transform
@@ -975,108 +724,27 @@ compiled_workflow:
     - query_view_mpkf9xge
     - query_view_mpkfbrkh
     payload:
-      config:
-        handler_id: trim_whitespace
-        trim_whitespace:
-          mode: ends_only
-        output_field: aliases
-        fields:
-        - field_name: name
-          regex: ''
-        output_template: ''
-        description: Trim instance name and append normalized value to aliases
-  - id: transform_mpk5sdjw
+      config: *id011
+  - id: transform_mq8b3t4p
     function_external_id: fn_etl_transform
     executable_kind: transform
     task_type: function
-    canvas_node_id: transform_mpk5sdjw
-    label: 'Regex Tag Extraction: Name'
+    canvas_node_id: transform_mq8b3t4p
+    label: Extract ISA-style tag tokens from CogniteAsset name via regex
     depends_on:
     - query_view_mpk5beqq
     payload:
-      config:
-        execution:
-          mode: parallel
-        steps:
-        - handler_id: trim_whitespace
-          trim_whitespace:
-            mode: ends_only
-          fields:
-          - field_name: name
-            regex: (?<![\d-])(?:\b|(?<=_))(?:\d{1,8}-?)?[A-Z]{1,8}-?\d{1,10}(?:-\d{1,6})*[A-Z]?\b
-          output_field: aliases
-          description: Extract ISA-style tag tokens from CogniteAsset name via regex
-        - handler_id: heuristic_sampler
-          heuristic_sampler:
-            on_no_match: keep_working
-            samples:
-            - 10-P-1234
-          output_field: aliases
-          fields:
-          - field_name: name
-          description: Infer tag-like aliases from asset name using heuristic sample
-            patterns
-        - handler_id: regex_substitution
-          trim_whitespace:
-            mode: ends_only
-          output_field: aliases
-          fields:
-          - field_name: name
-            regex: ''
-          regex_substitution:
-            patterns:
-            - pattern: ^[^-]+-(?=[^ -]+-[^ -])
-              replacement: ''
-          description: Strip leading unit prefix segment from name before alias merge
-        description: Extract ISA-style tag tokens from CogniteAsset name via regex
-        field_policies:
-        - property: aliases
-          strategy: merge_list
-          merge_list:
-            unique: true
-            branch_order: by_score
-  - id: transform_mpr2s8sk
+      config: *id012
+  - id: transform_mq8b3v3e
     function_external_id: fn_etl_transform
     executable_kind: transform
     task_type: function
-    canvas_node_id: transform_mpr2s8sk
+    canvas_node_id: transform_mq8b3v3e
     label: Heuristic indexKey from file name
     depends_on:
     - query_view_mpkfbrkh
     payload:
-      config:
-        execution:
-          mode: parallel
-        steps:
-        - handler_id: heuristic_sampler
-          heuristic_sampler:
-            samples:
-            - XXX-000000
-            - XXX_000000
-            on_no_match: keep_working
-          output_field: indexKey
-          fields:
-          - field_name: name
-          description: Heuristic indexKey from file name
-        - handler_id: heuristic_sampler
-          enabled: true
-          fields:
-          - field_name: description
-          output_field: indexKey
-          output_template: ''
-          output_mode: append
-          heuristic_sampler:
-            samples:
-            - XXX-000000
-            - XXX_000000
-          description: Append indexKey tokens parsed from file description
-        description: Heuristic indexKey from file name
-        field_policies:
-        - property: indexKey
-          strategy: merge_list
-          merge_list:
-            unique: true
-            branch_order: by_score
+      config: *id013
   - id: end
     function_external_id: fn_etl_raw_cleanup
     executable_kind: raw_cleanup

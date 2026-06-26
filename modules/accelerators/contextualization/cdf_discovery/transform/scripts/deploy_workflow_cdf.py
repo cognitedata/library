@@ -19,39 +19,7 @@ import subprocess
 import sys
 from pathlib import Path
 from typing import cast
-
-
-def _transform_root() -> Path:
-    return Path(__file__).resolve().parent.parent
-
-
-def _discovery_root(transform_root: Path) -> Path:
-    if transform_root.name == "transform" and (transform_root.parent / "transform").resolve() == transform_root:
-        return transform_root.parent
-    return transform_root
-
-
-def _ensure_scripts_on_path() -> Path:
-    tr = _transform_root()
-    sd = tr / "scripts"
-    dr = _discovery_root(tr)
-    stale_functions = (tr / "functions").resolve()
-
-    def _keep(entry: str) -> bool:
-        if not entry:
-            return True
-        try:
-            return Path(entry).resolve() != stale_functions
-        except OSError:
-            return not entry.replace("\\", "/").endswith("transform/functions")
-
-    sys.path[:] = [p for p in sys.path if _keep(p)]
-    # Insert in reverse so ``functions`` ends up first on ``sys.path``.
-    for p in (str(sd), str(tr), str(dr / "functions")):
-        while p in sys.path:
-            sys.path.remove(p)
-        sys.path.insert(0, p)
-    return tr
+from runtime_paths import ensure_import_paths, transform_root_from_path
 
 
 def _validate_artifacts(paths: dict[str, Path]) -> None:
@@ -74,8 +42,8 @@ def _run_subprocess(argv: list[str], *, cwd: Path, dry_run: bool) -> int:
 
 
 def main(argv: list[str] | None = None) -> int:
-    transform_root = _ensure_scripts_on_path()
-    discovery_root = _discovery_root(transform_root)
+    discovery_root = ensure_import_paths(__file__)
+    transform_root = transform_root_from_path(__file__)
 
     from deploy_kea_functions_cdf_api import DeployFunctionsMode, deploy_kea_functions
     from deploy_workflows_cdf_api import deploy_workflows

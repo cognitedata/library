@@ -1,0 +1,10 @@
+space: {{index_schema_space}}
+externalId: InvertedIndex_DOM
+name: Inverted index DOM
+description: Data model for contextualization inverted index entries.
+version: "{{index_dm_version}}"
+views:
+  - space: {{index_schema_space}}
+    externalId: InvertedIndexEntry
+    version: "{{index_dm_version}}"
+    type: view

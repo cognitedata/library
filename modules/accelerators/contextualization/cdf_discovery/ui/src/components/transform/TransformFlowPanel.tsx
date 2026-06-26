@@ -58,7 +58,7 @@ import { TransformLocalRunDryRunField } from "./TransformLocalRunDryRunField";
 import { FlowNodeInspector } from "./FlowNodeInspector";
 import { FlowNodeEditorModal } from "./FlowNodeEditorModal";
 import { FlowPalette } from "./FlowPalette";
-import { getTransformFlowDropPayload } from "./transformFlowDrag";
+import { getTransformFlowDropPayload, hasTransformFlowDragPayload } from "./transformFlowDrag";
 import {
   TransformCanvasNodeList,
   TransformCanvasSearchField,
@@ -73,6 +73,7 @@ import {
   applyEntityCanvasDropPair,
   applyTransformCanvasDrop,
   applyTransformCanvasDropAtPosition,
+  findEdgeAtFlowPoint,
   materializeEtlStageAtPosition,
 } from "./paletteDropOnEdge";
 import { applyWiredCreationLabel } from "../../utils/etlNodeCreationLabel";
@@ -147,7 +148,6 @@ import {
   explodeMultiStepTransformFlowNode,
   isExplodableMultiStepTransformFlowNode,
 } from "./explodeMultiStepTransformNode";
-import { autoResizeFlowNodesToContent } from "./autoResizeFlowNodesToContent";
 
 type TFn = (key: MessageKey, vars?: Record<string, string | number>) => string;
 
@@ -526,6 +526,7 @@ function FlowCanvasBody({
   const [entityDropMenu, setEntityDropMenu] = useState<EntityDropMenuState | null>(null);
   const [handlerDropMenu, setHandlerDropMenu] = useState<HandlerDropMenuState | null>(null);
   const [handlerDropMenuGroupId, setHandlerDropMenuGroupId] = useState<string | null>(null);
+  const [dragHoverEdgeId, setDragHoverEdgeId] = useState<string | null>(null);
   const [optimizeOpen, setOptimizeOpen] = useState(false);
   const [optimizeCandidates, setOptimizeCandidates] = useState<FlowOptimizeCandidate[]>([]);
   const [optimizeNotice, setOptimizeNotice] = useState<string | null>(null);
@@ -736,8 +737,6 @@ function FlowCanvasBody({
       orientation: TransformCanvasHandleOrientation,
       method: TransformCanvasLayoutMethod = layoutMethod
     ) => {
-      const autoResized = autoResizeFlowNodesToContent(getNodes());
-      setNodes(autoResized);
       window.requestAnimationFrame(() => {
         window.requestAnimationFrame(() => {
           const latestNodes = getNodes();
@@ -1228,9 +1227,22 @@ function FlowCanvasBody({
 
   const onEdgesChangeWrapped = useCallback(
     (changes: Parameters<typeof onEdgesChange>[0]) => {
-      const removals = changes.filter((c): c is Extract<(typeof changes)[number], { type: "remove" }> => c.type === "remove");
-      const shouldPersist = changes.some((c) => c.type !== "select");
-      onEdgesChange(changes);
+      const selectedNodeIds = new Set(
+        rfSelectionRef.current.filter((node) => !isBoundaryFlowNode(node)).map((node) => node.id)
+      );
+      const hasSelectedNodes = selectedNodeIds.size > 0;
+      const filteredChanges =
+        hasSelectedNodes
+          ? changes.filter((change) => {
+              if (change.type !== "remove") return true;
+              const edge = edges.find((candidate) => candidate.id === change.id);
+              if (!edge) return true;
+              return !(selectedNodeIds.has(edge.source) || selectedNodeIds.has(edge.target));
+            })
+          : changes;
+      const removals = filteredChanges.filter((c): c is Extract<(typeof filteredChanges)[number], { type: "remove" }> => c.type === "remove");
+      const shouldPersist = filteredChanges.some((c) => c.type !== "select");
+      onEdgesChange(filteredChanges);
       if (removals.some((r) => selectedEdge?.id === r.id)) {
         setSelectedEdge(null);
       }
@@ -1240,7 +1252,7 @@ function FlowCanvasBody({
         return eds;
       });
     },
-    [onEdgesChange, readOnly, setEdges, emitChange, nodes, selectedEdge]
+    [onEdgesChange, readOnly, setEdges, emitChange, nodes, selectedEdge, edges]
   );
 
   const onPatchEdge = useCallback(
@@ -1544,9 +1556,25 @@ function FlowCanvasBody({
     [readOnly, onOpenNodePreviewQuery]
   );
 
-  const onDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = "copy";
+  const onDragOver = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      if (!hasTransformFlowDragPayload(e)) {
+        setDragHoverEdgeId(null);
+        return;
+      }
+      e.dataTransfer.dropEffect = "copy";
+      const flowPosition = screenToFlowPosition({ x: e.clientX, y: e.clientY });
+      const edge = findEdgeAtFlowPoint(flowPosition, getEdges(), getNode, getZoom());
+      setDragHoverEdgeId(edge?.id ?? null);
+    },
+    [screenToFlowPosition, getEdges, getNode, getZoom]
+  );
+
+  const onDragLeave = useCallback((e: React.DragEvent) => {
+    const nextTarget = e.relatedTarget;
+    if (nextTarget instanceof Node && e.currentTarget.contains(nextTarget)) return;
+    setDragHoverEdgeId(null);
   }, []);
 
   const commitEntityDropMenu = useCallback(
@@ -1581,6 +1609,7 @@ function FlowCanvasBody({
     (e: React.DragEvent) => {
       if (readOnly) return;
       e.preventDefault();
+      setDragHoverEdgeId(null);
       const payload = getTransformFlowDropPayload(e);
       if (!payload) return;
 
@@ -1668,8 +1697,14 @@ function FlowCanvasBody({
       ...e,
       animated: e.animated || runProgressAnimatedIds.has(e.id),
     }));
-    return highlightEdgesConnectedToNode(withRun, selectedNode?.id ?? null);
-  }, [edges, runProgressAnimatedIds, selectedNode?.id]);
+    return highlightEdgesConnectedToNode(withRun, selectedNode?.id ?? null).map((edge) => ({
+      ...edge,
+      className:
+        edge.id === dragHoverEdgeId
+          ? [edge.className, "disc-flow-edge--drop-target"].filter(Boolean).join(" ")
+          : edge.className,
+    }));
+  }, [edges, runProgressAnimatedIds, selectedNode?.id, dragHoverEdgeId]);
   const runExecutingSet = useMemo(
     () => new Set(runProgress?.executingCanvasNodeIds ?? []),
     [runProgress?.executingCanvasNodeIds]
@@ -1921,6 +1956,7 @@ function FlowCanvasBody({
           ref={flowRootRef}
           className="transform-flow-canvas-wrap"
           onDragOver={onDragOver}
+          onDragLeave={onDragLeave}
           onDrop={onDrop}
           data-local-run-active={runProgress?.busy ? "true" : undefined}
         >

@@ -45,7 +45,7 @@ export function fanoutPlanConnectorLabelDefaults(profile: string): DualInputLabe
 
 export function fileAnnotationConnectorLabelDefaults(): DualInputLabelDefaults {
   return {
-    inputA: "transform.fileAnnotation.handle.entities",
-    inputB: "transform.fileAnnotation.handle.files",
+    inputA: "transform.fanoutPlan.handle.inputA.context",
+    inputB: "transform.fanoutPlan.handle.inputB.files",
   };
 }

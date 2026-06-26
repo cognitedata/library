@@ -29,8 +29,8 @@ def ensure_shared_run_id(shared_data: MutableMapping[str, Any]) -> str:
     cfg = dict(configuration) if isinstance(configuration, dict) else {}
     params = cfg.get("parameters")
     params_dict = dict(params) if isinstance(params, dict) else {}
-    correlation_id = str(params_dict.get("correlation_id") or "").strip() or str(uuid.uuid4())
-    params_dict["correlation_id"] = correlation_id
+    run_id = str(params_dict.get("run_id") or "").strip() or str(uuid.uuid4())
+    params_dict["run_id"] = run_id
     cfg["parameters"] = params_dict
     shared_data["configuration"] = cfg
     rid = require_pipeline_run_key(shared_data)

@@ -1,0 +1,16 @@
+[module]
+title = "Inverted Index Contextualization"
+id = "inverted_index_contextualization"
+package_id = "dp:accelerators"
+
+[[extra_resources]]
+location = "accelerators/contextualization/cdf_inverted_index_contextualization/raw/contextualization_idx.DataBase.yaml"
+
+[[extra_resources]]
+location = "accelerators/contextualization/cdf_inverted_index_contextualization/raw/inverted_index_registry.Table.yaml"
+
+[[extra_resources]]
+location = "accelerators/contextualization/cdf_inverted_index_contextualization/functions/functions.Function.yaml"
+
+[[extra_resources]]
+location = "accelerators/contextualization/cdf_inverted_index_contextualization/data_modeling/inverted_index.datamodel.yaml"

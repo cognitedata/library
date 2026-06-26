@@ -1,24 +1,42 @@
 schemaVersion: 1
-template_id: file_annotation_template
-label: File Annotation (template)
+id: file_annottion_clk
+label: File Annotation CLK
+template_id: file_annotation
 parameters:
   incremental_change_processing: true
   incremental_skip_unchanged: true
+  fanout_mode: both
   raw_db: etl_staging
   raw_table_key: cohort
   instance_space: inst_assets
   mime_type: application/pdf
+  workflow_scope: file_annottion_clk
+scope: null
+sources: []
 canvas:
   schemaVersion: 1
   handle_orientation: lr
   layout_method: layered
   edge_path_style: default
   nodes:
+  - id: completion_barrier
+    kind: function_ref
+    position:
+      x: 1196
+      y: -65
+    data:
+      label: Detect completion barrier
+      config:
+        description: Ensure all detect jobs are terminal before downstream mapping
+        function_external_id: fn_etl_file_annotation_barrier
+        source_task_id: fanout
+    width: 192
+    height: 130
   - id: end
     kind: end
     position:
-      x: 1675
-      y: -46
+      x: 1940
+      y: -34
     data:
       label: End
       config:
@@ -28,22 +46,22 @@ canvas:
   - id: fanout
     kind: dynamic_fanout
     position:
-      x: 821
-      y: -37
+      x: 700
+      y: -65
     data:
       label: Dynamic fan-out
       config:
         description: Run diagram pattern detect per page-pack (async tasks)
         generator_task_id: fanout_plan
-        child_function_external_id: fn_etl_file_annotation
+        child_function_external_id: fn_etl_file_annotation_launch
         batch_size: 1
     width: 192
-    height: 96
+    height: 130
   - id: fanout_plan
     kind: workflow_fanout_plan
     position:
-      x: 531
-      y: -52.5
+      x: 452
+      y: -65
     data:
       label: Plan detect batches
       config:
@@ -53,21 +71,33 @@ canvas:
         fanout_profile: file_annotation
         max_pattern_samples: 100
         pattern_normalization: file_annotation
-        child_function_external_id: fn_etl_file_annotation
+        child_function_external_id: fn_etl_file_annotation_launch
         batch_size: 10
         max_pages_per_detect_request: 15
-        max_pages_per_file_reference: 15
-        min_tokens: 2
+        max_pages_per_file_reference: 50
+        min_tokens: 1
         diagram_poll_timeout_sec: 840
         max_detect_jobs_per_invocation: 1
-        pattern_mode: false
     width: 236
-    height: 116
+    height: 150
+  - id: finalize_annotations
+    kind: function_ref
+    position:
+      x: 948
+      y: -65
+    data:
+      label: Finalize detect jobs
+      config:
+        description: Finalize launched diagram detect jobs in bounded cycles
+        function_external_id: fn_etl_file_annotation_finalize
+        source_task_id: fanout
+    width: 192
+    height: 130
   - id: map_annotations_classic
     kind: json_mapping
     position:
-      x: 1057
-      y: -124
+      x: 1444
+      y: -148
     data:
       label: Map annotations (classic)
       config:
@@ -75,14 +105,14 @@ canvas:
           rows
         mapper_kind: diagram_detect_to_classic
         input:
-          rows: ${fanout.output}
+          rows: ${finalize_annotations.output}
         expression: input.rows
     width: 192
-    height: 96
+    height: 130
   - id: map_annotations_dm
     kind: json_mapping
     position:
-      x: 1057
+      x: 1444
       y: 18
     data:
       label: Map annotations (DM)
@@ -92,15 +122,15 @@ canvas:
         annotation_space: discovery-annotations
         default_status: Suggested
         input:
-          rows: ${fanout.output}
+          rows: ${finalize_annotations.output}
         expression: input.rows
     width: 192
-    height: 96
+    height: 130
   - id: query_assets
     kind: query_view
     position:
-      x: 268
-      y: -110
+      x: 204
+      y: -231
     data:
       label: CogniteAsset (aliases)
       config:
@@ -114,12 +144,33 @@ canvas:
         query_scope_mode: all
         filters: []
     width: 192
-    height: 96
+    height: 130
   - id: query_files
     kind: query_view
     position:
-      x: 268
-      y: 18
+      x: 204
+      y: -65
+    data:
+      label: CogniteFile (PDFs)
+      config:
+        description: Files to scan via diagram detect
+        view_space: cdf_cdm
+        view_external_id: CogniteFile
+        view_version: v1
+        batch_size: 500
+        include_properties:
+        - name
+        - mimeType
+        - pageCount
+        query_scope_mode: all
+        filters: []
+    width: 192
+    height: 130
+  - id: query_view_mqbadw5y
+    kind: query_view
+    position:
+      x: 204
+      y: 101
     data:
       label: CogniteFile (PDFs)
       config:
@@ -134,12 +185,12 @@ canvas:
         - pageCount
         query_scope_mode: all
     width: 192
-    height: 96
+    height: 130
   - id: save_annotation_results_classic
     kind: save_raw
     position:
-      x: 1379
-      y: -110
+      x: 1692
+      y: -148
     data:
       label: Save classic annotations
       config:
@@ -148,11 +199,11 @@ canvas:
         source_raw_table_key: annotation_results_classic
       node_color: '#0d9488'
     width: 192
-    height: 96
+    height: 130
   - id: save_annotation_results_dm
     kind: save_raw
     position:
-      x: 1379
+      x: 1692
       y: 18
     data:
       label: Save DM annotations
@@ -162,21 +213,21 @@ canvas:
         source_raw_table_key: annotation_results_dm
       node_color: '#0d9488'
     width: 192
-    height: 96
+    height: 130
   - id: start
     kind: start
     position:
       x: 0
-      y: -46
+      y: -34
     data:
       label: Start
       config:
-        workflow_base: wf_all_etl_file_pattern_extract
-        workflow_external_id: wf_all_etl_file_pattern_extract
-        trigger_external_id: trg_wf_all_etl_file_pattern_extract
+        workflow_base: wf_all_etl_file_annotation
+        workflow_external_id: wf_all_etl_file_annotation
+        trigger_external_id: trg_wf_all_etl_file_annotation
         workflow_version: '1'
         incremental_change_processing: true
-        run_id: ''
+        workflow_scope: file_annottion_clk
     width: 148
     height: 68
   edges:
@@ -210,14 +261,26 @@ canvas:
     source_handle: out
     target_handle: in
     kind: data
-  - id: edge_fanout_map_dm
+  - id: edge_fanout_finalize
     source: fanout
+    target: finalize_annotations
+    source_handle: out
+    target_handle: in
+    kind: data
+  - id: edge_finalize_barrier
+    source: finalize_annotations
+    target: completion_barrier
+    source_handle: out
+    target_handle: in
+    kind: data
+  - id: edge_barrier_map_dm
+    source: completion_barrier
     target: map_annotations_dm
     source_handle: out
     target_handle: in
     kind: data
-  - id: edge_fanout_map_classic
-    source: fanout
+  - id: edge_barrier_map_classic
+    source: completion_barrier
     target: map_annotations_classic
     source_handle: out
     target_handle: in
@@ -246,7 +309,20 @@ canvas:
     source_handle: out
     target_handle: in
     kind: data
+  - id: xy-edge__startout-query_view_mqbadw5yin
+    source: start
+    target: query_view_mqbadw5y
+    source_handle: out
+    target_handle: in
+    kind: data
+  - id: xy-edge__query_view_mqbadw5yout-fanout_planin__input_a
+    source: query_view_mqbadw5y
+    target: fanout_plan
+    source_handle: out
+    target_handle: in__input_a
+    kind: data
   viewport:
-    x: -546.1705246554811
-    y: 297.59771491894014
-    zoom: 1.2674086810825176
+    x: -60.5
+    y: 274.5
+    zoom: 0.5
+scope_suffix: ''

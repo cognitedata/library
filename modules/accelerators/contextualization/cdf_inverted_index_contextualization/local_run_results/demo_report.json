@@ -1,0 +1,234 @@
+{
+  "index_entry_count": 9,
+  "match_scope_key": "global",
+  "target_driven": {
+    "instance_external_id": "ASSET_P101",
+    "instance_type": "asset",
+    "match_scope_key": "global",
+    "match_scope": {},
+    "aliases": [
+      "P-101A",
+      "p101a"
+    ],
+    "references_found": 4,
+    "links_created": 2,
+    "annotations_updated": 0,
+    "direct_relations_updated": 2,
+    "direct_relations_by_link": {
+      "file_to_asset": 2,
+      "equipment_to_asset": 0,
+      "equipment_to_file": 0,
+      "timeseries_to_asset": 0
+    },
+    "skipped_already_linked": 0,
+    "dry_run": true,
+    "hits": [
+      {
+        "term": "P-101A",
+        "normalized_term": "p101a",
+        "original_value": "P-101A",
+        "source_type": "asset_metadata",
+        "source_property": "name",
+        "reference_external_id": "EQ-1001",
+        "reference_space": "cdf_cdm",
+        "reference_type": "CogniteEquipment",
+        "match_scope_key": "global",
+        "match_scope": {},
+        "additional_metadata": {
+          "source_view": "CogniteEquipment",
+          "source_view_space": "cdf_cdm",
+          "match_scope": {},
+          "term_kind": "asset_tag",
+          "source_property": "name",
+          "extract_mode": "whole_value",
+          "original_value": "P-101A",
+          "occurrence_count": 1
+        },
+        "build_job_id": "d63b1446-eb8c-461c-89f8-b13760ca8982",
+        "external_id": "iie_a9f3de86835fb9c0_EQ-1001"
+      },
+      {
+        "term": "P-101A",
+        "normalized_term": "p101a",
+        "original_value": "P-101A",
+        "source_type": "asset_metadata",
+        "source_property": "description",
+        "reference_external_id": "EQ-1001",
+        "reference_space": "cdf_cdm",
+        "reference_type": "CogniteEquipment",
+        "match_scope_key": "global",
+        "match_scope": {},
+        "additional_metadata": {
+          "source_view": "CogniteEquipment",
+          "source_view_space": "cdf_cdm",
+          "match_scope": {},
+          "term_kind": "asset_tag",
+          "source_property": "description",
+          "extract_mode": "regex",
+          "match_start": 4,
+          "match_end": 10,
+          "original_value": "P-101A",
+          "occurrence_count": 1
+        },
+        "build_job_id": "d63b1446-eb8c-461c-89f8-b13760ca8982",
+        "external_id": "iie_22d231e892239685_EQ-1001"
+      },
+      {
+        "term": "P-101A",
+        "normalized_term": "p101a",
+        "original_value": "P-101A",
+        "source_type": "diagram_annotation_pattern",
+        "source_property": "startNodeText",
+        "reference_external_id": "ann_pat_001",
+        "reference_space": "cdf_cdm",
+        "reference_type": "CogniteDiagramAnnotation",
+        "match_scope_key": "global",
+        "match_scope": {},
+        "additional_metadata": {
+          "page": 3,
+          "bbox": [
+            0.12,
+            0.45,
+            0.18,
+            0.52
+          ],
+          "confidence": 0.92,
+          "detection_mode": "pattern",
+          "extracted_text": "P-101A",
+          "status": "Suggested",
+          "file_external_id": "FILE_PID_12",
+          "file_space": null,
+          "end_node_external_id": null,
+          "end_node_space": null,
+          "linked_asset_extid": null,
+          "match_scope": {},
+          "vertices": []
+        },
+        "build_job_id": "4b8ccd0f-b87b-452b-beda-09bc364ebb3c",
+        "external_id": "iie_e5ac2da8cf0fefa0_ann_pat_001"
+      },
+      {
+        "term": "P-101A",
+        "normalized_term": "p101a",
+        "original_value": "P-101A",
+        "source_type": "diagram_annotation_standard",
+        "source_property": "startNodeText",
+        "reference_external_id": "ann_std_001",
+        "reference_space": "cdf_cdm",
+        "reference_type": "CogniteDiagramAnnotation",
+        "match_scope_key": "global",
+        "match_scope": {},
+        "additional_metadata": {
+          "page": 3,
+          "bbox": null,
+          "confidence": 0.89,
+          "detection_mode": "standard",
+          "extracted_text": "P-101A",
+          "status": "Approved",
+          "file_external_id": "FILE_PID_12",
+          "file_space": null,
+          "end_node_external_id": null,
+          "end_node_space": null,
+          "linked_asset_extid": null,
+          "match_scope": {},
+          "vertices": []
+        },
+        "build_job_id": "4b8ccd0f-b87b-452b-beda-09bc364ebb3c",
+        "external_id": "iie_855a2d727797a83c_ann_std_001"
+      }
+    ]
+  },
+  "contextualization_score": {
+    "overall_score": 0.4,
+    "annotation_scores": {
+      "pattern_detections": 2,
+      "standard_detections": 2,
+      "mode_overlap_rate": 0.3333,
+      "missing_in_standard_but_in_pattern": 1,
+      "missing_in_pattern_but_in_standard": 1,
+      "annotation_subscore": 0.3333
+    },
+    "metadata_scores": {
+      "unique_detected_terms": 2,
+      "terms_with_asset_metadata_match": 1,
+      "terms_with_file_metadata_match": 0,
+      "terms_with_any_metadata_match": 1,
+      "asset_metadata_match_rate": 0.5,
+      "file_metadata_match_rate": 0.0,
+      "metadata_match_rate": 0.5,
+      "unique_metadata_containing_instances": 1,
+      "metadata_by_containing_view": {
+        "CogniteEquipment": 2
+      },
+      "terms_without_metadata_match": [
+        "p999z"
+      ],
+      "metadata_subscore": 0.5,
+      "metadata_hits": [
+        {
+          "term": "P-101A",
+          "normalized_term": "p101a",
+          "source_type": "asset_metadata",
+          "reference_external_id": "EQ-1001",
+          "reference_type": "CogniteEquipment",
+          "source_property": "name"
+        },
+        {
+          "term": "P-101A",
+          "normalized_term": "p101a",
+          "source_type": "asset_metadata",
+          "reference_external_id": "EQ-1001",
+          "reference_type": "CogniteEquipment",
+          "source_property": "description"
+        }
+      ]
+    },
+    "details": {
+      "terms_pattern_not_standard": [
+        "p999z"
+      ],
+      "terms_standard_not_pattern": [
+        "21pt1017"
+      ]
+    }
+  },
+  "missing_tags": [
+    {
+      "term": "P-999Z",
+      "normalized_term": "p999z",
+      "pages": [
+        2
+      ],
+      "vertices": [],
+      "bbox": null,
+      "confidence": 0.88,
+      "symbol_type": null,
+      "metadata_scores": {
+        "asset_metadata": false,
+        "file_metadata": false
+      },
+      "reason": "No matching standard annotation or metadata index match"
+    }
+  ],
+  "pattern_feedback": [
+    {
+      "term": "21-PT-1017",
+      "normalized_term": "21pt1017",
+      "pages": [
+        5
+      ],
+      "vertices": [],
+      "bbox": null,
+      "confidence": 0.94,
+      "symbol_type": null,
+      "pattern_library_hints": {
+        "suggested_sample": "21-PT-1017",
+        "symbol_type": null,
+        "pages": [
+          5
+        ]
+      },
+      "reason": "In standard detection only; absent from pattern extraction"
+    }
+  ]
+}

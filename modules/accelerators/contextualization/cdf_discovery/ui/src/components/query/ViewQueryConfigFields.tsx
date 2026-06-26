@@ -7,6 +7,7 @@ import { QueryScopeModeFields } from "./QueryScopeModeFields";
 import { SourceViewFiltersSection } from "./SourceViewFiltersSection";
 import { DeferredCommitInput } from "./DeferredCommitTextField";
 import { ViewPropertyPicker } from "./ViewPropertyPicker";
+import { fetchJson, postPreviewJson } from "./queryApi";
 
 type Props = {
   value: JsonObject;
@@ -31,45 +32,8 @@ type CdfDataModelRow = {
   description?: string;
 };
 
-async function fetchCdfJson<T>(path: string): Promise<T> {
-  const r = await fetch(path);
-  if (!r.ok) {
-    let msg = r.statusText;
-    try {
-      const j = (await r.json()) as { detail?: unknown };
-      const d = j?.detail;
-      if (typeof d === "string") msg = d;
-      else if (Array.isArray(d))
-        msg = d
-          .map((x) => (x && typeof x === "object" && "msg" in x ? String((x as { msg?: unknown }).msg) : ""))
-          .filter(Boolean)
-          .join("; ");
-    } catch {
-      /* ignore */
-    }
-    throw new Error(msg);
-  }
-  return r.json() as Promise<T>;
-}
-
 async function fetchViewPreview(config: JsonObject, limit: number): Promise<QueryPreviewResult> {
-  const r = await fetch("/api/transform/view-query/preview", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ config, limit }),
-  });
-  if (!r.ok) {
-    let msg = r.statusText;
-    try {
-      const j = (await r.json()) as { detail?: unknown };
-      const d = j?.detail;
-      if (typeof d === "string") msg = d;
-    } catch {
-      /* ignore */
-    }
-    throw new Error(msg);
-  }
-  return r.json() as Promise<QueryPreviewResult>;
+  return postPreviewJson<QueryPreviewResult>("/api/transform/view-query/preview", { config, limit });
 }
 
 function readPreviewLimit(cfg: JsonObject): number {
@@ -127,7 +91,7 @@ export function ViewQueryConfigFields({
         all_versions: "false",
         inline_views: "false",
       });
-      const data = await fetchCdfJson<{ data_models?: CdfDataModelRow[] }>(
+      const data = await fetchJson<{ data_models?: CdfDataModelRow[] }>(
         `/api/transform/data-modeling/data-models?${params.toString()}`
       );
       setCdfDataModels(Array.isArray(data.data_models) ? data.data_models : []);
@@ -152,7 +116,7 @@ export function ViewQueryConfigFields({
     setCdfViewsBusy(true);
     setCdfErr(null);
     try {
-      const data = await fetchCdfJson<{ views?: CdfViewRow[] }>(
+      const data = await fetchJson<{ views?: CdfViewRow[] }>(
         `/api/transform/data-modeling/views?${new URLSearchParams({ space: s }).toString()}`
       );
       if (rid !== cdfViewsReq.current) return;

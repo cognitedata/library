@@ -1076,6 +1076,22 @@ export function App() {
     []
   );
 
+  const selectTab = useCallback(
+    (id: string) => {
+      if (id === activeTabId) return;
+      if (
+        activeTab &&
+        (isEtlPipelineTab(activeTab) || isEtlTemplateTab(activeTab) || isEtlWorkflowYamlTab(activeTab)) &&
+        activeTab.dirty
+      ) {
+        window.alert(t("tabs.saveBeforeSwitch"));
+        return;
+      }
+      setActiveTabId(id);
+    },
+    [activeTab, activeTabId, t]
+  );
+
   const patchEtlTabRunSession = useCallback((tabId: string, patch: TransformTabRunSessionPatch) => {
     setTabs((prev) =>
       prev.map((tab) => {
@@ -1355,7 +1371,7 @@ export function App() {
         <DocumentTabBar
           tabs={tabs}
           activeId={activeTabId}
-          onSelect={setActiveTabId}
+          onSelect={selectTab}
           onClose={closeTab}
           onReorder={reorderTabs}
           fullscreen={{

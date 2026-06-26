@@ -148,6 +148,10 @@ def _prepare_view_apply_properties(
 ) -> Optional[Dict[str, Any]]:
     out: Dict[str, Any] = {}
     for key, val in props.items():
+        # score stage emits synthetic "<field>_score" arrays for in-pipeline filtering.
+        # Do not persist these helper fields to destination views unless explicitly modeled.
+        if key.endswith("_score"):
+            continue
         if key in list_properties:
             coerced = _coerce_dm_list_property_value(val)
             if coerced is None:

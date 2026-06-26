@@ -6,6 +6,7 @@ export const ETL_NODE_MIN_HEIGHT = 48;
 export const ETL_NODE_MAX_WIDTH = 260;
 export const ETL_NODE_MAX_HEIGHT = 400;
 export const ETL_NODE_RESIZE_MAX_WIDTH = 260;
+export const ETL_NODE_PROGRESS_RESERVED_HEIGHT = 34;
 
 export const ETL_DUAL_INPUT_MIN_WIDTH = 200;
 export const ETL_DUAL_INPUT_MIN_HEIGHT = 80;
@@ -25,9 +26,9 @@ export function defaultEtlNodeSize(kind: TransformCanvasNodeKind): { width: numb
     return { width: 148, height: 68 };
   }
   if (isDualInputCanvasKind(kind)) {
-    return { width: 236, height: 116 };
+    return { width: 236, height: 116 + ETL_NODE_PROGRESS_RESERVED_HEIGHT };
   }
-  return { width: 192, height: 96 };
+  return { width: 192, height: 96 + ETL_NODE_PROGRESS_RESERVED_HEIGHT };
 }
 
 export function maxEtlNodeWidth(kind: TransformCanvasNodeKind): number {

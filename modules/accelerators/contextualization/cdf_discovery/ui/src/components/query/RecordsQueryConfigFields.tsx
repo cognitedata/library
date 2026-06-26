@@ -14,6 +14,7 @@ import { QueryScopeModeFields } from "./QueryScopeModeFields";
 import { RecordsFilterEditor } from "./RecordsFilterEditor";
 import { RecordsSourcesEditor } from "./RecordsSourcesEditor";
 import { StreamPickerField } from "./StreamPickerField";
+import { postPreviewJson } from "./queryApi";
 
 type Props = {
   value: JsonObject;
@@ -34,22 +35,7 @@ const TABS: QueryEditorTabDef[] = [
 ];
 
 async function fetchRecordsPreview(config: JsonObject, limit: number): Promise<QueryPreviewResult> {
-  const r = await fetch("/api/transform/records-query/preview", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ config, limit }),
-  });
-  if (!r.ok) {
-    let msg = r.statusText;
-    try {
-      const j = (await r.json()) as { detail?: unknown };
-      if (typeof j?.detail === "string") msg = j.detail;
-    } catch {
-      /* ignore */
-    }
-    throw new Error(msg);
-  }
-  return r.json() as Promise<QueryPreviewResult>;
+  return postPreviewJson<QueryPreviewResult>("/api/transform/records-query/preview", { config, limit });
 }
 
 export function RecordsQueryConfigFields({ value, onChange, fieldKey }: Props) {

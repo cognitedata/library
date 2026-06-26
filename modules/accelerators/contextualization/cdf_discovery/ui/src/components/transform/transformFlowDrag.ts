@@ -91,3 +91,13 @@ export function getTransformFlowDropPayload(e: DragEvent): TransformFlowDropPayl
   return null;
 }
 
+/** Whether drag event likely carries a Transform Flow payload (safe for dragover). */
+export function hasTransformFlowDragPayload(e: DragEvent): boolean {
+  const types = Array.from(e.dataTransfer.types ?? []);
+  return (
+    types.includes(TRANSFORM_PALETTE_DRAG_MIME) ||
+    types.includes(TRANSFORM_DATA_TREE_DRAG_MIME) ||
+    types.includes(TRANSFORM_CDF_RESOURCE_DRAG_MIME)
+  );
+}
+

@@ -20,13 +20,9 @@ router = APIRouter(prefix="/api/transform", tags=["transform"])
 
 
 def _ensure_transform_fn_path() -> None:
-    import sys
+    from ui.server.etl_syspath import ensure_transform_syspath
 
-    root = transform_registry._module_root()
-    transform = root / "transform"
-    for p in (str(transform), str(transform / "functions")):
-        if p not in sys.path:
-            sys.path.insert(0, p)
+    ensure_transform_syspath(transform_registry._module_root())
 
 
 def _cdf_client():
@@ -305,7 +301,11 @@ def _pipeline_document_copy(
     if isinstance(source.get("parameters"), dict):
         doc["parameters"] = source["parameters"]
     doc["canvas"] = _canvas_from_body_or_doc(canvas_override, source)
-    return doc
+    return transform_registry.ensure_pipeline_workflow_scope(
+        doc,
+        pipeline_id=pipeline_id,
+        overwrite=True,
+    )
 
 
 def _template_document_copy(
@@ -362,6 +362,11 @@ def create_pipeline(body: PipelineCreateBody) -> Dict[str, Any]:
                 doc["canvas"] = tpl["canvas"]
         except FileNotFoundError as e:
             raise HTTPException(status_code=404, detail=str(e)) from e
+    doc = transform_registry.ensure_pipeline_workflow_scope(
+        doc,
+        pipeline_id=body.id,
+        overwrite=True,
+    )
     transform_registry.write_pipeline_document(body.id, doc)
     return {"ok": True, "pipeline": doc}
 
@@ -436,6 +441,11 @@ def import_pipeline_from_workflow(body: ImportWorkflowToPipelineBody) -> Dict[st
     label = (body.label or "").strip() or str(wf_meta.get("name") or wf_ext).strip() or pipeline_id
     doc = transform_registry.empty_pipeline_document(pipeline_id=pipeline_id, label=label)
     doc["canvas"] = canvas
+    doc = transform_registry.ensure_pipeline_workflow_scope(
+        doc,
+        pipeline_id=pipeline_id,
+        overwrite=True,
+    )
     transform_registry.write_pipeline_document(pipeline_id, doc)
     return {
         "created": True,
@@ -738,6 +748,11 @@ def instantiate_template(template_id: str, body: InstantiateTemplateBody) -> Dic
         doc["parameters"] = tpl["parameters"]
     if isinstance(tpl.get("canvas"), dict):
         doc["canvas"] = tpl["canvas"]
+    doc = transform_registry.ensure_pipeline_workflow_scope(
+        doc,
+        pipeline_id=body.id,
+        overwrite=True,
+    )
     transform_registry.write_pipeline_document(body.id, doc)
     return {"ok": True, "pipeline": doc}
 

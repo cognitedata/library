@@ -47,6 +47,24 @@ _POLICIES: dict[str, dict[str, Any]] = {
         "timeout": 3600,
         "isAsyncComplete": True,
     },
+    "fn_etl_file_annotation_launch": {
+        "retries": 2,
+        "onFailure": "abortWorkflow",
+        "timeout": 600,
+        "isAsyncComplete": True,
+    },
+    "fn_etl_file_annotation_finalize": {
+        "retries": 2,
+        "onFailure": "abortWorkflow",
+        "timeout": 600,
+        "isAsyncComplete": True,
+    },
+    "fn_etl_file_annotation_barrier": {
+        "retries": 2,
+        "onFailure": "abortWorkflow",
+        "timeout": 600,
+        "isAsyncComplete": True,
+    },
     "fn_etl_workflow_fanout_plan": {
         "retries": 3,
         "onFailure": "abortWorkflow",

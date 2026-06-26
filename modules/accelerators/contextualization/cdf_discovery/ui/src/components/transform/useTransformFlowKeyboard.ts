@@ -55,10 +55,10 @@ export function useTransformFlowKeyboard({
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (isTransformFlowKeyboardShortcutBlockedTarget(e.target)) return;
-      if (!eventInsideFlowRoot(e, flowRootRef.current)) return;
-
       const mod = e.metaKey || e.ctrlKey;
       const key = e.key.toLowerCase();
+      const isCtrlPaste = e.ctrlKey && !e.metaKey && key === "v" && !e.shiftKey;
+      if (!eventInsideFlowRoot(e, flowRootRef.current) && !isCtrlPaste) return;
 
       if (mod && key === "z" && !e.shiftKey) {
         if (!readOnly && canUndo) {

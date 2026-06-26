@@ -246,3 +246,42 @@
     CDF_ENV: '${CDF_ENVIRON}'
   runtime: 'py311'
   functionPath: 'handler.py'
+
+- name: 'dm:context:discovery:etl:file:annotation:launch'
+  externalId: 'fn_etl_file_annotation_launch'
+  dataSetExternalId: 'ds_discovery_etl'
+  owner: 'Anonymous'
+  description: 'Launch diagram detect jobs for file annotation (7-minute pre-emptive)'
+  metadata:
+    version: '1.0.0'
+  envVars:
+    ENV_TYPE: '${CDF_BUILD_TYPE}'
+    CDF_ENV: '${CDF_ENVIRON}'
+  runtime: 'py311'
+  functionPath: 'handler.py'
+
+- name: 'dm:context:discovery:etl:file:annotation:finalize'
+  externalId: 'fn_etl_file_annotation_finalize'
+  dataSetExternalId: 'ds_discovery_etl'
+  owner: 'Anonymous'
+  description: 'Finalize launched diagram detect jobs for file annotation'
+  metadata:
+    version: '1.0.0'
+  envVars:
+    ENV_TYPE: '${CDF_BUILD_TYPE}'
+    CDF_ENV: '${CDF_ENVIRON}'
+  runtime: 'py311'
+  functionPath: 'handler.py'
+
+- name: 'dm:context:discovery:etl:file:annotation:barrier'
+  externalId: 'fn_etl_file_annotation_barrier'
+  dataSetExternalId: 'ds_discovery_etl'
+  owner: 'Anonymous'
+  description: 'Completion barrier before downstream file annotation mapping'
+  metadata:
+    version: '1.0.0'
+  envVars:
+    ENV_TYPE: '${CDF_BUILD_TYPE}'
+    CDF_ENV: '${CDF_ENVIRON}'
+  runtime: 'py311'
+  functionPath: 'handler.py'

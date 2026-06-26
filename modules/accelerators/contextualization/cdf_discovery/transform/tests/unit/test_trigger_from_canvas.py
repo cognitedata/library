@@ -48,6 +48,7 @@ def test_apply_start_trigger_patches_workflow_trigger_doc() -> None:
         "workflow_version": "3",
         "trigger_rule": {"triggerType": "schedule", "cronExpression": "0 6 * * *"},
         "incremental_change_processing": False,
+        "cohort_write_batch_size": 250,
     }
     apply_start_trigger_to_workflow_trigger(doc, workflow_external_id="wf_test", trigger_cfg=cfg)
     assert doc["externalId"] == "trg_wf_test"
@@ -55,6 +56,7 @@ def test_apply_start_trigger_patches_workflow_trigger_doc() -> None:
     assert doc["workflowVersion"] == "3"
     assert doc["triggerRule"]["cronExpression"] == "0 6 * * *"
     assert doc["input"]["incremental_change_processing"] is False
+    assert doc["input"]["cohort_write_batch_size"] == 250
 
 
 def test_apply_start_trigger_does_not_override_existing_incremental_flag() -> None:
@@ -136,3 +138,31 @@ def test_read_start_trigger_parses_string_false_incremental_flag() -> None:
     }
     cfg = read_start_trigger_config(canvas)
     assert cfg["incremental_change_processing"] is False
+
+
+def test_read_start_trigger_includes_cohort_write_batch_size() -> None:
+    canvas = {
+        "nodes": [
+            {
+                "id": "start",
+                "kind": "start",
+                "data": {"config": {"cohort_write_batch_size": "123"}},
+            }
+        ]
+    }
+    cfg = read_start_trigger_config(canvas)
+    assert cfg["cohort_write_batch_size"] == 123
+
+
+def test_read_start_trigger_includes_workflow_scope() -> None:
+    canvas = {
+        "nodes": [
+            {
+                "id": "start",
+                "kind": "start",
+                "data": {"config": {"workflow_scope": "aliasing_workflow"}},
+            }
+        ]
+    }
+    cfg = read_start_trigger_config(canvas)
+    assert cfg["workflow_scope"] == "aliasing_workflow"

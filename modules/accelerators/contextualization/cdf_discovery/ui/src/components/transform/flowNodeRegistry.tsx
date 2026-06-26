@@ -11,7 +11,6 @@ import { mergeEtlNodeCardStyle } from "./flowNodeAccent";
 import { resolveEtlNodeAccentColor } from "../../utils/etlPaletteGroupColors";
 import {
   canvasNodeProgressPercent,
-  canvasNodeProgressVisible,
   formatNodeRunElapsedMs,
   resolveNodeRunElapsedMs,
   type CanvasNodeRunProgress,
@@ -95,29 +94,35 @@ function EtlNodeRunProgressBar({
   progress,
   isExecuting = false,
 }: {
-  progress: CanvasNodeRunProgress;
+  progress?: CanvasNodeRunProgress;
   isExecuting?: boolean;
 }) {
   const { t } = useAppSettings();
-  const nowMs = useSharedNowMs(Boolean(isExecuting && progress.elapsedMs == null));
+  const nowMs = useSharedNowMs(Boolean(progress && isExecuting && progress.elapsedMs == null));
 
   const pct = canvasNodeProgressPercent(progress);
-  const indeterminate = pct == null && progress.current > 0;
+  const indeterminate = progress ? pct == null && progress.current > 0 : false;
   const countLabel =
-    progress.total != null && progress.total > 0
+    progress && progress.total != null && progress.total > 0
       ? t("run.nodeProgressCount", { current: progress.current, total: progress.total })
-      : progress.current > 0
+      : progress && progress.current > 0
         ? t("run.nodeProgressCountIndeterminate", { current: progress.current })
         : "";
-  const elapsedMs = resolveNodeRunElapsedMs(progress, nowMs);
+  const elapsedMs = progress ? resolveNodeRunElapsedMs(progress, nowMs) : null;
   const elapsedLabel = elapsedMs != null ? formatNodeRunElapsedMs(elapsedMs) : "";
   const ariaDetail = [elapsedLabel, countLabel].filter(Boolean).join(" · ");
-  const ariaLabel = ariaDetail
-    ? t("run.nodeProgressAria", { detail: ariaDetail })
-    : t("run.nodeProgressAriaIndeterminate");
+  const ariaLabel = progress
+    ? ariaDetail
+      ? t("run.nodeProgressAria", { detail: ariaDetail })
+      : t("run.nodeProgressAriaIndeterminate")
+    : "";
 
   return (
-    <div className="etl-flow-node__progress" aria-label={ariaLabel}>
+    <div
+      className={`etl-flow-node__progress${progress ? "" : " etl-flow-node__progress--placeholder"}`}
+      aria-label={ariaLabel}
+      aria-hidden={progress ? undefined : true}
+    >
       <div
         className={`etl-flow-node__progress-track${indeterminate ? " etl-flow-node__progress-track--indeterminate" : ""}`}
       >
@@ -140,7 +145,12 @@ function EtlNodeRunProgressBar({
           )}
           {countLabel ? <span className="etl-flow-node__progress-label">{countLabel}</span> : null}
         </div>
-      ) : null}
+      ) : (
+        <div className="etl-flow-node__progress-footer etl-flow-node__progress-footer--placeholder">
+          <span className="etl-flow-node__progress-elapsed" aria-hidden="true" />
+          <span className="etl-flow-node__progress-label" aria-hidden="true" />
+        </div>
+      )}
     </div>
   );
 }
@@ -235,6 +245,17 @@ function dualInputHandleLabelOffsetStyle(index: number): CSSProperties {
   return { "--etl-dual-handle-pct": `${dualInputHandlePercent(index)}%` } as CSSProperties;
 }
 
+function etlNodeBodyStyle(kind: TransformCanvasNodeKind, data: Record<string, unknown>) {
+  const accent = resolveEtlNodeAccentColor(kind, data);
+  const customStyle = mergeEtlNodeCardStyle(data);
+  return {
+    borderLeftColor: customStyle?.borderLeftColor ?? accent,
+    ...(customStyle?.backgroundColor ? { backgroundColor: customStyle.backgroundColor } : {}),
+    ...(customStyle?.borderLeftWidth ? { borderLeftWidth: customStyle.borderLeftWidth } : {}),
+    ...(customStyle?.borderLeftStyle ? { borderLeftStyle: customStyle.borderLeftStyle } : {}),
+  };
+}
+
 function DualInputConnectorLabels({
   orientation,
   leftLabel,
@@ -291,27 +312,19 @@ function DualInputFlowNode({
   const description = etlFlowNodeCanvasDescription(kind, data as Record<string, unknown>);
   const disabled = data.canvas_node_enabled === false;
   const resizeEnabled = data.canvas_resize_enabled !== false;
-  const accent = resolveEtlNodeAccentColor(kind, data as Record<string, unknown>);
-  const customStyle = mergeEtlNodeCardStyle(data as Record<string, unknown>);
-  const bodyStyle = {
-    borderLeftColor: customStyle?.borderLeftColor ?? accent,
-    ...(customStyle?.backgroundColor ? { backgroundColor: customStyle.backgroundColor } : {}),
-    ...(customStyle?.borderLeftWidth ? { borderLeftWidth: customStyle.borderLeftWidth } : {}),
-    ...(customStyle?.borderLeftStyle ? { borderLeftStyle: customStyle.borderLeftStyle } : {}),
-  };
-  const showProgress = canvasNodeProgressVisible(data.nodeRunProgress);
+  const bodyStyle = etlNodeBodyStyle(kind, data as Record<string, unknown>);
   const config = (data.config ?? {}) as Record<string, unknown>;
   const leftLabel = resolveDualInputConnectorLabel(config, INPUT_A_LABEL_CONFIG_KEY, leftLabelKey, t);
   const rightLabel = resolveDualInputConnectorLabel(config, INPUT_B_LABEL_CONFIG_KEY, rightLabelKey, t);
   const inputLabel = resolveConnectorLabel(config, INPUT_LABEL_CONFIG_KEY, "wfViewer.inputConnector", t);
   const outputLabel = resolveConnectorLabel(config, OUTPUT_LABEL_CONFIG_KEY, "wfViewer.outputConnector", t);
   const dualMin = etlDualInputMinSize();
-  const isFanoutPlanner = kind === "workflow_fanout_plan";
+  const useFanoutPlannerLayout = kind === "workflow_fanout_plan" || kind === "file_annotation";
   const inlineConnectorHandles = handles.key === "lr";
 
   return (
     <div
-      className={`etl-flow-node etl-flow-node--dual-input etl-flow-node--in-${handles.key} etl-flow-node--${kind} etl-flow-node--resizable${selected ? " etl-flow-node--selected" : ""}${disabled ? " etl-flow-node--disabled" : ""}${showProgress ? " etl-flow-node--has-progress" : ""}`}
+      className={`etl-flow-node etl-flow-node--dual-input etl-flow-node--in-${handles.key} etl-flow-node--${kind} etl-flow-node--resizable etl-flow-node--has-progress${selected ? " etl-flow-node--selected" : ""}${disabled ? " etl-flow-node--disabled" : ""}`}
     >
       <EtlNodeResizer
         selected={Boolean(selected)}
@@ -345,7 +358,7 @@ function DualInputFlowNode({
         </>
       ) : null}
       <div className="etl-flow-node__body" style={bodyStyle}>
-        {!isFanoutPlanner && !inlineConnectorHandles ? (
+        {!useFanoutPlannerLayout && !inlineConnectorHandles ? (
           <DualInputConnectorLabels orientation={handles.key} leftLabel={leftLabel} rightLabel={rightLabel} />
         ) : null}
         <div className="etl-flow-node__body-main">
@@ -386,7 +399,7 @@ function DualInputFlowNode({
                 />
               </span>
             </div>
-          ) : isFanoutPlanner ? (
+          ) : useFanoutPlannerLayout ? (
             <div className="etl-flow-node__fanout-connector-row" aria-hidden="true">
               <div className="etl-flow-node__fanout-input-stack">
                 <span className="etl-flow-node__connector-label etl-flow-node__fanout-input-label">
@@ -409,9 +422,7 @@ function DualInputFlowNode({
           )}
           {description ? <span className="etl-flow-node__description">{description}</span> : null}
         </div>
-        {showProgress && data.nodeRunProgress ? (
-          <EtlNodeRunProgressBar progress={data.nodeRunProgress} isExecuting={data.nodeRunExecuting} />
-        ) : null}
+        <EtlNodeRunProgressBar progress={data.nodeRunProgress} isExecuting={data.nodeRunExecuting} />
       </div>
       {!inlineConnectorHandles ? (
         <Handle
@@ -461,8 +472,9 @@ function FileAnnotationFlowNode(props: EtlNodeProps) {
       kindLabelKey="transform.palette.file_annotation"
       leftHandleId="in__entities"
       rightHandleId="in__files"
-      leftLabelKey="transform.fileAnnotation.handle.entities"
-      rightLabelKey="transform.fileAnnotation.handle.files"
+      leftLabelKey="transform.fanoutPlan.handle.inputA.context"
+      rightLabelKey="transform.fanoutPlan.handle.inputB.files"
+      showGenericInputLabel={false}
     />
   );
 }
@@ -476,15 +488,7 @@ function JoinFlowNode({ data, selected }: EtlNodeProps) {
   const description = etlFlowNodeCanvasDescription(kind, data as Record<string, unknown>);
   const disabled = data.canvas_node_enabled === false;
   const resizeEnabled = data.canvas_resize_enabled !== false;
-  const accent = resolveEtlNodeAccentColor(kind, data as Record<string, unknown>);
-  const customStyle = mergeEtlNodeCardStyle(data as Record<string, unknown>);
-  const bodyStyle = {
-    borderLeftColor: customStyle?.borderLeftColor ?? accent,
-    ...(customStyle?.backgroundColor ? { backgroundColor: customStyle.backgroundColor } : {}),
-    ...(customStyle?.borderLeftWidth ? { borderLeftWidth: customStyle.borderLeftWidth } : {}),
-    ...(customStyle?.borderLeftStyle ? { borderLeftStyle: customStyle.borderLeftStyle } : {}),
-  };
-  const showProgress = canvasNodeProgressVisible(data.nodeRunProgress);
+  const bodyStyle = etlNodeBodyStyle(kind, data as Record<string, unknown>);
   const config = (data.config ?? {}) as Record<string, unknown>;
   const inputLabel = resolveConnectorLabel(config, INPUT_LABEL_CONFIG_KEY, "wfViewer.inputConnector", t);
   const outputLabel = resolveConnectorLabel(config, OUTPUT_LABEL_CONFIG_KEY, "wfViewer.outputConnector", t);
@@ -557,9 +561,7 @@ function JoinFlowNode({ data, selected }: EtlNodeProps) {
           <EtlNodeConnectorBar inputLabel={inputLabel} outputLabel={outputLabel} />
         )}
         {description ? <span className="etl-flow-node__description">{description}</span> : null}
-        {showProgress && data.nodeRunProgress ? (
-          <EtlNodeRunProgressBar progress={data.nodeRunProgress} isExecuting={data.nodeRunExecuting} />
-        ) : null}
+        <EtlNodeRunProgressBar progress={data.nodeRunProgress} isExecuting={data.nodeRunExecuting} />
       </div>
       {!inlineConnectorHandles ? (
         <Handle
@@ -590,15 +592,7 @@ function EtlFlowNode({ data, selected }: EtlNodeProps) {
       : etlFlowNodeCanvasDescription(kind, data as Record<string, unknown>);
   const disabled = data.canvas_node_enabled === false;
   const resizeEnabled = data.canvas_resize_enabled !== false;
-  const accent = resolveEtlNodeAccentColor(kind, data as Record<string, unknown>);
-  const customStyle = mergeEtlNodeCardStyle(data as Record<string, unknown>);
-  const bodyStyle = {
-    borderLeftColor: customStyle?.borderLeftColor ?? accent,
-    ...(customStyle?.backgroundColor ? { backgroundColor: customStyle.backgroundColor } : {}),
-    ...(customStyle?.borderLeftWidth ? { borderLeftWidth: customStyle.borderLeftWidth } : {}),
-    ...(customStyle?.borderLeftStyle ? { borderLeftStyle: customStyle.borderLeftStyle } : {}),
-  };
-  const showProgress = canvasNodeProgressVisible(data.nodeRunProgress);
+  const bodyStyle = etlNodeBodyStyle(kind, data as Record<string, unknown>);
   const config = (data.config ?? {}) as Record<string, unknown>;
   const inputLabel =
     kind === "dynamic_fanout"
@@ -611,7 +605,7 @@ function EtlFlowNode({ data, selected }: EtlNodeProps) {
 
   return (
     <div
-      className={`etl-flow-node etl-flow-node--${kind} etl-flow-node--resizable${kind === "node_preview" ? " etl-flow-node--preview" : ""}${selected ? " etl-flow-node--selected" : ""}${disabled ? " etl-flow-node--disabled" : ""}`}
+      className={`etl-flow-node etl-flow-node--${kind} etl-flow-node--resizable etl-flow-node--has-progress${kind === "node_preview" ? " etl-flow-node--preview" : ""}${selected ? " etl-flow-node--selected" : ""}${disabled ? " etl-flow-node--disabled" : ""}`}
     >
       <EtlNodeResizer selected={Boolean(selected)} enabled={resizeEnabled} maxWidth={maxEtlNodeWidth(kind)} />
       {!inlineConnectorHandles && kind !== "start" && (
@@ -655,9 +649,7 @@ function EtlFlowNode({ data, selected }: EtlNodeProps) {
           }
         />
         {description ? <span className="etl-flow-node__description">{description}</span> : null}
-        {showProgress && data.nodeRunProgress ? (
-          <EtlNodeRunProgressBar progress={data.nodeRunProgress} isExecuting={data.nodeRunExecuting} />
-        ) : null}
+        <EtlNodeRunProgressBar progress={data.nodeRunProgress} isExecuting={data.nodeRunExecuting} />
       </div>
       {!inlineConnectorHandles && kind !== "end" && (
         <Handle

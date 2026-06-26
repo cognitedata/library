@@ -1,0 +1,4 @@
+space: {{index_schema_space}}
+externalId: contextualization_idx
+name: Contextualization inverted index
+description: DM space for inverted index entries supporting contextualization scoring and target-driven linking.

@@ -1,0 +1,28 @@
+# Instance subscription for target-driven contextualization after aliasing.
+# Deploy as a CDF subscription / Function trigger filtered to aliases changes.
+
+subscription:
+  enabled: true
+  trigger: instance_subscription
+  watch_property: aliases
+  instance_spaces: [cdf_cdm]
+  asset_views: [CogniteAsset]
+  file_views: [CogniteFile]
+  default_instance_type: asset
+
+# Illustrative event payload (aliases updated by cdf_discovery_aliasing):
+# {
+#   "space": "cdf_cdm",
+#   "externalId": "ASSET_P101",
+#   "view_external_id": "CogniteAsset",
+#   "changed_properties": ["aliases"],
+#   "after": {
+#     "properties": {
+#       "aliases": ["P-101A", "p101a"]
+#     }
+#   }
+# }
+
+# Handler entry point (CDF Function):
+#   from inverted_index.subscription import handle_aliases_subscription_event
+#   result = handle_aliases_subscription_event(client, event)

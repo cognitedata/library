@@ -1,0 +1,723 @@
+workflowExternalId: wf_etl_wf_pbf_aliasing
+version: 1.0.0.1
+workflowDefinition:
+  tasks:
+  - externalId: build_index_mpkhwovn
+    type: function
+    dependsOn:
+    - externalId: score_mprbtiki
+    parameters:
+      function:
+        externalId: fn_etl_build_index
+        data:
+          logLevel: INFO
+          incremental_change_processing: ${workflow.input.incremental_change_processing}
+          run_id: ${workflow.input.configuration.parameters.run_id}
+          configuration: ${workflow.input.configuration}
+          task_id: build_index_mpkhwovn
+          canvas_node_id: build_index_mpkhwovn
+          config:
+            description: Execute fn_etl_build_index
+            handler_id: property_token_index
+            index_kinds:
+              metadata:
+              - indexKey
+            property_token_index:
+              query_source: build_index
+              row_key_template: '{lookup_key}:{scope}|{index_kind}'
+              default_view_version: v1
+              lookup_key_normalization: strip_casefold
+              token_initial_confidence: 1
+          predecessors:
+          - score_mprbtiki
+    name: Build Index
+    description: Execute fn_etl_build_index
+    retries: 3
+    timeout: 7200
+    onFailure: abortWorkflow
+  - externalId: merge_mpk5updx
+    type: function
+    dependsOn:
+    - externalId: transform_mpk5sdjw
+    - externalId: transform_mpk5q5bq
+    - externalId: transform_mprb9cgo
+    parameters:
+      function:
+        externalId: fn_etl_merge
+        data:
+          logLevel: INFO
+          incremental_change_processing: ${workflow.input.incremental_change_processing}
+          run_id: ${workflow.input.configuration.parameters.run_id}
+          configuration: ${workflow.input.configuration}
+          task_id: merge_mpk5updx
+          canvas_node_id: merge_mpk5updx
+          config:
+            description: Execute fn_etl_merge
+            field_policies:
+            - property: aliases
+              strategy: merge_list
+              merge_list:
+                unique: true
+                branch_order: by_score
+          predecessors:
+          - transform_mpk5sdjw
+          - transform_mpk5q5bq
+          - transform_mprb9cgo
+    name: Merge Aliases
+    description: Execute fn_etl_merge
+    retries: 3
+    timeout: 7200
+    onFailure: abortWorkflow
+  - externalId: query_view_mpk5beqq
+    type: function
+    dependsOn: []
+    parameters:
+      function:
+        externalId: fn_etl_view_query
+        data:
+          logLevel: INFO
+          incremental_change_processing: ${workflow.input.incremental_change_processing}
+          run_id: ${workflow.input.configuration.parameters.run_id}
+          configuration: ${workflow.input.configuration}
+          task_id: query_view_mpk5beqq
+          canvas_node_id: query_view_mpk5beqq
+          config:
+            description: Execute fn_etl_view_query
+            filters: []
+            batch_size: 1000
+            view_space: DMASH-ALL-ALL-DMD
+            view_version: '0_0_1'
+            view_external_id: EquipmentTag
+            include_properties:
+            - technicalIdentificationNumber
+          predecessors: []
+    name: Equipment Tag
+    description: Execute fn_etl_view_query
+    retries: 3
+    timeout: 7200
+    onFailure: abortWorkflow
+  - externalId: query_view_mpkf9ork
+    type: function
+    dependsOn: []
+    parameters:
+      function:
+        externalId: fn_etl_view_query
+        data:
+          logLevel: INFO
+          incremental_change_processing: ${workflow.input.incremental_change_processing}
+          run_id: ${workflow.input.configuration.parameters.run_id}
+          configuration: ${workflow.input.configuration}
+          task_id: query_view_mpkf9ork
+          canvas_node_id: query_view_mpkf9ork
+          config:
+            description: Execute fn_etl_view_query
+            filters: []
+            batch_size: 1000
+            view_space: DMASH-ALL-ALL-DMD
+            view_version: '0_0_1'
+            view_external_id: Equipment
+            include_properties:
+            - name
+            - sortField
+          predecessors: []
+    name: CogniteEquipment (v1)
+    description: Execute fn_etl_view_query
+    retries: 3
+    timeout: 7200
+    onFailure: abortWorkflow
+  - externalId: query_view_mpkf9xge
+    type: function
+    dependsOn: []
+    parameters:
+      function:
+        externalId: fn_etl_view_query
+        data:
+          logLevel: INFO
+          incremental_change_processing: ${workflow.input.incremental_change_processing}
+          run_id: ${workflow.input.configuration.parameters.run_id}
+          configuration: ${workflow.input.configuration}
+          task_id: query_view_mpkf9xge
+          canvas_node_id: query_view_mpkf9xge
+          config:
+            description: Execute fn_etl_view_query
+            batch_size: 1000
+            view_space: cdf_cdm
+            view_version: v1
+            view_external_id: CogniteTimeSeries
+            include_properties:
+            - description
+            - name
+          predecessors: []
+    name: CogniteTimeSeries (v1)
+    description: Execute fn_etl_view_query
+    retries: 3
+    timeout: 7200
+    onFailure: abortWorkflow
+  - externalId: query_view_mpkfbrkh
+    type: function
+    dependsOn: []
+    parameters:
+      function:
+        externalId: fn_etl_view_query
+        data:
+          logLevel: INFO
+          incremental_change_processing: ${workflow.input.incremental_change_processing}
+          run_id: ${workflow.input.configuration.parameters.run_id}
+          configuration: ${workflow.input.configuration}
+          task_id: query_view_mpkfbrkh
+          canvas_node_id: query_view_mpkfbrkh
+          config:
+            description: Execute fn_etl_view_query
+            batch_size: 1000
+            view_space: cdf_cdm
+            view_version: v1
+            view_external_id: CogniteFile
+            include_properties:
+            - description
+            - name
+          predecessors: []
+    name: CogniteFile (v1)
+    description: Execute fn_etl_view_query
+    retries: 3
+    timeout: 7200
+    onFailure: abortWorkflow
+  - externalId: save_raw_mpkhci4w
+    type: function
+    dependsOn:
+    - externalId: build_index_mpkhwovn
+    parameters:
+      function:
+        externalId: fn_etl_raw_save
+        data:
+          logLevel: INFO
+          incremental_change_processing: ${workflow.input.incremental_change_processing}
+          run_id: ${workflow.input.configuration.parameters.run_id}
+          configuration: ${workflow.input.configuration}
+          task_id: save_raw_mpkhci4w
+          canvas_node_id: save_raw_mpkhci4w
+          config:
+            description: Execute fn_etl_raw_save
+            source_raw_db: db_discovery
+            source_raw_table_key: inverted_index
+          predecessors:
+          - build_index_mpkhwovn
+    name: Save Inverted Index to Raw
+    description: Execute fn_etl_raw_save
+    retries: 3
+    timeout: 7200
+    onFailure: abortWorkflow
+  - externalId: save_view_mpk5bi71
+    type: function
+    dependsOn:
+    - externalId: score_mpoukl1q
+    parameters:
+      function:
+        externalId: fn_etl_view_save
+        data:
+          logLevel: INFO
+          incremental_change_processing: ${workflow.input.incremental_change_processing}
+          run_id: ${workflow.input.configuration.parameters.run_id}
+          configuration: ${workflow.input.configuration}
+          task_id: save_view_mpk5bi71
+          canvas_node_id: save_view_mpk5bi71
+          config:
+            description: Execute fn_etl_view_save
+            view_space: cdf_cdm
+            view_version: v1
+            save_fan_in_mode: merge_per_instance
+            view_external_id: CogniteDescribable
+            save_field_policies:
+            - property: aliases
+              strategy: merge_list
+              merge_list:
+                unique: true
+                branch_order: by_score
+          predecessors:
+          - score_mpoukl1q
+    name: CogniteDescribable(v1)
+    description: Execute fn_etl_view_save
+    retries: 3
+    timeout: 7200
+    onFailure: abortWorkflow
+  - externalId: score_mpoukl1q
+    type: function
+    dependsOn:
+    - externalId: merge_mpk5updx
+    parameters:
+      function:
+        externalId: fn_etl_score
+        data:
+          logLevel: INFO
+          incremental_change_processing: ${workflow.input.incremental_change_processing}
+          run_id: ${workflow.input.configuration.parameters.run_id}
+          configuration: ${workflow.input.configuration}
+          task_id: score_mpoukl1q
+          canvas_node_id: score_mpoukl1q
+          config:
+            description: Execute fn_etl_score
+            min_score: 0
+            score_fields:
+            - aliases
+            initial_score: 1
+            scoring_rules:
+            - name: isa_compliant
+              match:
+                keywords: []
+                expressions:
+                - pattern: \bP[-_]?\d{1,6}[A-Z]?\b
+                  description: Standard pump tags (P-101, P101A, P-2001)
+                - pattern: \b[A-Z]{2,4}P[-_]?\d{1,6}[A-Z]?\b
+                  description: Pump with service designation (FWP-101, CWP-201)
+                - pattern: \bCP[-_]?\d{1,6}[A-Z]?\b
+                  description: Centrifugal pump tags
+                - pattern: \bC[-_]?\d{1,6}[A-Z]?\b
+                  description: Standard compressor tags (C-101, C101A)
+                - pattern: \b[A-Z]{2}C[-_]?\d{1,6}[A-Z]?\b
+                  description: Compressor with type designation (AC-101, RC-201)
+                - pattern: \b[A-Z]{2,3}V[-_]?\d{1,6}[A-Z]?\b
+                  description: Control valve tags (FCV-101, PCV-201, TCV-301)
+                - pattern: \bV[-_]?\d{1,6}[A-Z]?\b
+                  description: Manual valve and vessel tags (V-101, V101A)
+                - pattern: \b[A-Z]{2,3}SV[-_]?\d{1,6}[A-Z]?\b
+                  description: Safety valve tags (PSV-101, TSV-201)
+                - pattern: \bT[-_]?\d{1,6}[A-Z]?\b
+                  description: Standard tank tags (T-101, T101A)
+                - pattern: \bR[-_]?\d{1,6}[A-Z]?\b
+                  description: Reactor tags (R-101, R101A)
+                - pattern: \bE[-_]?\d{1,6}[A-Z]?\b
+                  description: Heat exchanger tags (E-101, E101A)
+                - pattern: \b[A-Z]{2}E[-_]?\d{1,6}[A-Z]?\b
+                  description: Heat exchanger with type (HE-101, CE-201)
+                - pattern: \bF[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b
+                  description: Flow instruments (FIC-101, FIT-201, FCV-301)
+                - pattern: \bP[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b
+                  description: Pressure instruments (PIC-101, PIT-201, PCV-301)
+                - pattern: \bT[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b
+                  description: Temperature instruments (TIC-101, TIT-201, TCV-301)
+                - pattern: \bL[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b
+                  description: Level instruments (LIC-101, LIT-201, LCV-301)
+                - pattern: \bA[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b
+                  description: Analytical instruments (AIC-101, AIT-201, ACV-301)
+                - pattern: \b[A-Z]?C[-_]?\d{1,6}[A-Z]?\b
+                  description: Distillation column tags (C-101, DC-201)
+              enabled: true
+              priority: 10
+              on_no_match:
+                score_modifier:
+                  mode: offset
+                  value: -0.2
+              score_modifier:
+                mode: explicit
+                value: 1
+            - name: alias_shape_invalid
+              match:
+                keywords: []
+                expressions:
+                - pattern: ^[0-9]{0,3}$$
+                  description: Alias is only digits and shorter than 4 characters
+                    (empty counts as invalid)
+                - pattern: ^.{81,}$$
+                  description: Alias exceeds maximum length 80
+                - pattern: '[^A-Za-z0-9-_/. ]'
+                  description: Character outside allowed set (letters, digits, _ /
+                    . - and space)
+              enabled: true
+              priority: 0
+              score_modifier:
+                mode: explicit
+                value: 0
+              expression_match: fullmatch
+            - name: blacklist
+              match:
+                keywords:
+                - test
+                - example
+                - sample
+                - dummy
+                - temp
+                - temporary
+                - 'null'
+                - none
+                - n/a
+                - na
+                - unknown
+                expressions: []
+              enabled: true
+              priority: 10
+              score_modifier:
+                mode: explicit
+                value: 0
+          predecessors:
+          - merge_mpk5updx
+    name: "Asset validation \u2014 ISA \u2192 shape \u2192 blacklist \u2014 isa_compliant"
+    description: Execute fn_etl_score
+    retries: 3
+    timeout: 7200
+    onFailure: abortWorkflow
+  - externalId: score_mprbtiki
+    type: function
+    dependsOn:
+    - externalId: transform_mprbta54
+    parameters:
+      function:
+        externalId: fn_etl_score
+        data:
+          logLevel: INFO
+          incremental_change_processing: ${workflow.input.incremental_change_processing}
+          run_id: ${workflow.input.configuration.parameters.run_id}
+          configuration: ${workflow.input.configuration}
+          task_id: score_mprbtiki
+          canvas_node_id: score_mprbtiki
+          config:
+            description: Execute fn_etl_score
+            min_score: 0
+            score_fields:
+            - indexKey
+            initial_score: 1
+            min_threshold: 0
+            scoring_rules:
+            - name: isa_compliant
+              match:
+                keywords: []
+                expressions:
+                - pattern: \bP[-_]?\d{1,6}[A-Z]?\b
+                  description: Standard pump tags (P-101, P101A, P-2001)
+                - pattern: \b[A-Z]{2,4}P[-_]?\d{1,6}[A-Z]?\b
+                  description: Pump with service designation (FWP-101, CWP-201)
+                - pattern: \bCP[-_]?\d{1,6}[A-Z]?\b
+                  description: Centrifugal pump tags
+                - pattern: \bC[-_]?\d{1,6}[A-Z]?\b
+                  description: Standard compressor tags (C-101, C101A)
+                - pattern: \b[A-Z]{2}C[-_]?\d{1,6}[A-Z]?\b
+                  description: Compressor with type designation (AC-101, RC-201)
+                - pattern: \b[A-Z]{2,3}V[-_]?\d{1,6}[A-Z]?\b
+                  description: Control valve tags (FCV-101, PCV-201, TCV-301)
+                - pattern: \bV[-_]?\d{1,6}[A-Z]?\b
+                  description: Manual valve and vessel tags (V-101, V101A)
+                - pattern: \b[A-Z]{2,3}SV[-_]?\d{1,6}[A-Z]?\b
+                  description: Safety valve tags (PSV-101, TSV-201)
+                - pattern: \bT[-_]?\d{1,6}[A-Z]?\b
+                  description: Standard tank tags (T-101, T101A)
+                - pattern: \bR[-_]?\d{1,6}[A-Z]?\b
+                  description: Reactor tags (R-101, R101A)
+                - pattern: \bE[-_]?\d{1,6}[A-Z]?\b
+                  description: Heat exchanger tags (E-101, E101A)
+                - pattern: \b[A-Z]{2}E[-_]?\d{1,6}[A-Z]?\b
+                  description: Heat exchanger with type (HE-101, CE-201)
+                - pattern: \bF[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b
+                  description: Flow instruments (FIC-101, FIT-201, FCV-301)
+                - pattern: \bP[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b
+                  description: Pressure instruments (PIC-101, PIT-201, PCV-301)
+                - pattern: \bT[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b
+                  description: Temperature instruments (TIC-101, TIT-201, TCV-301)
+                - pattern: \bL[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b
+                  description: Level instruments (LIC-101, LIT-201, LCV-301)
+                - pattern: \bA[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b
+                  description: Analytical instruments (AIC-101, AIT-201, ACV-301)
+                - pattern: \b[A-Z]?C[-_]?\d{1,6}[A-Z]?\b
+                  description: Distillation column tags (C-101, DC-201)
+              enabled: true
+              priority: 10
+              on_no_match:
+                score_modifier:
+                  mode: offset
+                  value: -0.2
+              score_modifier:
+                mode: explicit
+                value: 1
+            - name: alias_shape_invalid
+              match:
+                keywords: []
+                expressions:
+                - pattern: ^[0-9]{0,3}$$
+                  description: Alias is only digits and shorter than 4 characters
+                    (empty counts as invalid)
+                - pattern: ^.{81,}$$
+                  description: Alias exceeds maximum length 80
+                - pattern: '[^A-Za-z0-9-_/. ]'
+                  description: Character outside allowed set (letters, digits, _ /
+                    . - and space)
+              enabled: true
+              priority: 0
+              score_modifier:
+                mode: explicit
+                value: 0
+              expression_match: fullmatch
+            - name: blacklist
+              match:
+                keywords:
+                - test
+                - example
+                - sample
+                - dummy
+                - temp
+                - temporary
+                - 'null'
+                - none
+                - n/a
+                - na
+                - unknown
+                - delete
+                expressions: []
+              enabled: true
+              priority: 10
+              score_modifier:
+                mode: explicit
+                value: 0
+            min_threshold_filter_enabled: false
+          predecessors:
+          - transform_mprbta54
+    name: "Asset validation \u2014 ISA \u2192 shape \u2192 blacklist \u2014 isa_compliant\
+      \ \u2014 isa_compliant"
+    description: Execute fn_etl_score
+    retries: 3
+    timeout: 7200
+    onFailure: abortWorkflow
+  - externalId: task_end
+    type: function
+    dependsOn:
+    - externalId: save_view_mpk5bi71
+    - externalId: save_raw_mpkhci4w
+    parameters:
+      function:
+        externalId: fn_etl_raw_cleanup
+        data:
+          logLevel: INFO
+          incremental_change_processing: ${workflow.input.incremental_change_processing}
+          run_id: ${workflow.input.configuration.parameters.run_id}
+          configuration: ${workflow.input.configuration}
+          task_id: task_end
+          canvas_node_id: task_end
+          config:
+            description: Execute fn_etl_raw_cleanup
+          predecessors:
+          - save_view_mpk5bi71
+          - save_raw_mpkhci4w
+    name: Workflow step
+    description: Execute fn_etl_raw_cleanup
+    retries: 3
+    timeout: 1800
+    onFailure: abortWorkflow
+  - externalId: transform_mpk5q5bq
+    type: function
+    dependsOn:
+    - externalId: query_view_mpk5beqq
+    - externalId: query_view_mpkf9ork
+    - externalId: query_view_mpkf9xge
+    - externalId: query_view_mpkfbrkh
+    parameters:
+      function:
+        externalId: fn_etl_transform
+        data:
+          logLevel: INFO
+          incremental_change_processing: ${workflow.input.incremental_change_processing}
+          run_id: ${workflow.input.configuration.parameters.run_id}
+          configuration: ${workflow.input.configuration}
+          task_id: transform_mpk5q5bq
+          canvas_node_id: transform_mpk5q5bq
+          config:
+            description: Execute fn_etl_transform
+            fields:
+            - regex: ''
+              field_name: technicalIdentificationNumber
+            handler_id: trim_whitespace
+            output_field: aliases
+            output_template: ''
+            trim_whitespace:
+              mode: ends_only
+          predecessors:
+          - query_view_mpk5beqq
+          - query_view_mpkf9ork
+          - query_view_mpkf9xge
+          - query_view_mpkfbrkh
+    name: Name Passthrough
+    description: Execute fn_etl_transform
+    retries: 3
+    timeout: 7200
+    onFailure: abortWorkflow
+  - externalId: transform_mpk5sdjw
+    type: function
+    dependsOn:
+    - externalId: query_view_mpk5beqq
+    parameters:
+      function:
+        externalId: fn_etl_transform
+        data:
+          logLevel: INFO
+          incremental_change_processing: ${workflow.input.incremental_change_processing}
+          run_id: ${workflow.input.configuration.parameters.run_id}
+          configuration: ${workflow.input.configuration}
+          task_id: transform_mpk5sdjw
+          canvas_node_id: transform_mpk5sdjw
+          config:
+            description: Execute fn_etl_transform
+            steps:
+            - fields:
+              - regex: (?<![\d-])(?:\b|(?<=_))(?:\d{1,8}-?)?[A-Z]{1,8}-?\d{1,10}(?:-\d{1,6})*[A-Z]?\b
+                field_name: technicalIdentificationNumber
+              handler_id: trim_whitespace
+              description: Extract ISA-style tag tokens from CogniteAsset name via
+                regex
+              output_field: aliases
+              trim_whitespace:
+                mode: ends_only
+            - fields:
+              - field_name: technicalIdentificationNumber
+              handler_id: heuristic_sampler
+              description: Infer tag-like aliases from asset name using heuristic
+                sample patterns
+              output_field: aliases
+              heuristic_sampler:
+                samples:
+                - 10-P-1234
+                - 79ZSO096A
+                - 10P1234
+                on_no_match: keep_working
+            - fields:
+              - regex: ''
+                field_name: name
+              handler_id: regex_substitution
+              description: Strip leading unit prefix segment from name before alias
+                merge
+              output_field: aliases
+              trim_whitespace:
+                mode: ends_only
+              regex_substitution:
+                patterns:
+                - pattern: ^[^-]+-(?=[^ -]+-[^ -])
+                  replacement: ''
+            execution:
+              mode: parallel
+            field_policies:
+            - property: aliases
+              strategy: merge_list
+              merge_list:
+                unique: true
+                branch_order: by_score
+          predecessors:
+          - query_view_mpk5beqq
+    name: 'Regex Tag Extraction: Name'
+    description: Execute fn_etl_transform
+    retries: 3
+    timeout: 7200
+    onFailure: abortWorkflow
+  - externalId: transform_mprb9cgo
+    type: function
+    dependsOn:
+    - externalId: query_view_mpkf9ork
+    parameters:
+      function:
+        externalId: fn_etl_transform
+        data:
+          logLevel: INFO
+          incremental_change_processing: ${workflow.input.incremental_change_processing}
+          run_id: ${workflow.input.configuration.parameters.run_id}
+          configuration: ${workflow.input.configuration}
+          task_id: transform_mprb9cgo
+          canvas_node_id: transform_mprb9cgo
+          config:
+            description: Execute fn_etl_transform
+            steps:
+            - fields:
+              - regex: (?<![\d-])(?:\b|(?<=_))(?:\d{1,8}-?)?[A-Z]{1,8}-?\d{1,10}(?:-\d{1,6})*[A-Z]?\b
+                field_name: sortField
+              handler_id: trim_whitespace
+              description: Extract ISA-style tag tokens from CogniteAsset name via
+                regex
+              output_field: aliases
+              trim_whitespace:
+                mode: ends_only
+            - fields:
+              - field_name: sortField
+              handler_id: heuristic_sampler
+              description: Infer tag-like aliases from asset name using heuristic
+                sample patterns
+              output_field: aliases
+              heuristic_sampler:
+                samples:
+                - 10-P-1234
+                - 79ZSO096A
+                - 10P1234
+                on_no_match: keep_working
+            - fields:
+              - regex: ''
+                field_name: name
+              handler_id: regex_substitution
+              description: Strip leading unit prefix segment from name before alias
+                merge
+              output_field: aliases
+              trim_whitespace:
+                mode: ends_only
+              regex_substitution:
+                patterns:
+                - pattern: ^[^-]+-(?=[^ -]+-[^ -])
+                  replacement: ''
+            execution:
+              mode: parallel
+            field_policies:
+            - property: aliases
+              strategy: merge_list
+              merge_list:
+                unique: true
+                branch_order: by_score
+          predecessors:
+          - query_view_mpkf9ork
+    name: 'Regex Tag Extraction: Name'
+    description: Execute fn_etl_transform
+    retries: 3
+    timeout: 7200
+    onFailure: abortWorkflow
+  - externalId: transform_mprbta54
+    type: function
+    dependsOn:
+    - externalId: query_view_mpkfbrkh
+    parameters:
+      function:
+        externalId: fn_etl_transform
+        data:
+          logLevel: INFO
+          incremental_change_processing: ${workflow.input.incremental_change_processing}
+          run_id: ${workflow.input.configuration.parameters.run_id}
+          configuration: ${workflow.input.configuration}
+          task_id: transform_mprbta54
+          canvas_node_id: transform_mprbta54
+          config:
+            description: Execute fn_etl_transform
+            steps:
+            - fields:
+              - field_name: name
+              handler_id: heuristic_sampler
+              description: Heuristic indexKey from file name
+              output_field: indexKey
+              heuristic_sampler:
+                samples:
+                - XXX-000000
+                - XXX_000000
+                on_no_match: keep_working
+            - fields:
+              - field_name: description
+              enabled: true
+              handler_id: heuristic_sampler
+              description: Append indexKey tokens parsed from file description
+              output_mode: append
+              output_field: indexKey
+              output_template: ''
+              heuristic_sampler:
+                samples:
+                - XXX-000000
+                - XXX_000000
+            execution:
+              mode: parallel
+            field_policies:
+            - property: indexKey
+              strategy: merge_list
+              merge_list:
+                unique: true
+                branch_order: by_score
+          predecessors:
+          - query_view_mpkfbrkh
+    name: Heuristic indexKey from file name
+    description: Execute fn_etl_transform
+    retries: 3
+    timeout: 7200
+    onFailure: abortWorkflow
