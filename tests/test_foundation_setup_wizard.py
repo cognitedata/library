@@ -782,14 +782,6 @@ class TestRemoveSyntheticData:
         assert count == 2
         assert not (cfihos / "cfihos_model_config").exists()
 
-    def test_removes_upload_data_share_readiness_report(self, tmp_path: Path) -> None:
-        from setup_project import remove_synthetic_data
-        cfihos = self._cfihos_dir(tmp_path)
-        (cfihos / "upload_data_share_readiness_report.md").write_text("report")
-        count = remove_synthetic_data(tmp_path)
-        assert count == 1
-        assert not (cfihos / "upload_data_share_readiness_report.md").exists()
-
     def test_removes_empty_auth_dir(self, tmp_path: Path) -> None:
         from setup_project import remove_synthetic_data
         cfihos = self._cfihos_dir(tmp_path)

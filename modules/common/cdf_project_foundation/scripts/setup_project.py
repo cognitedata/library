@@ -588,11 +588,6 @@ _CFIHOS_SYNTHETIC_DIRS: tuple[str, ...] = (
     "cfihos_model_config",
 )
 
-# Standalone files to remove from the CFIHOS DM module root.
-_CFIHOS_SYNTHETIC_FILES: tuple[str, ...] = (
-    "upload_data_share_readiness_report.md",
-)
-
 _ISA_SYNTHETIC_DIRS: tuple[str, ...] = (
     "files",
     "raw",
@@ -636,12 +631,6 @@ def remove_synthetic_data(repo_root: Path | None = None) -> int:
     if cfihos_dir.is_dir():
         total += _remove_dirs(cfihos_dir, _CFIHOS_SYNTHETIC_DIRS)
         total += _remove_images(cfihos_dir)
-        # Remove standalone files at the module root.
-        for filename in _CFIHOS_SYNTHETIC_FILES:
-            f = cfihos_dir / filename
-            if f.is_file():
-                f.unlink()
-                total += 1
         # Remove the auth/ directory if it is now empty (auth files were
         # already deleted by remove_redundant_auth_files earlier in the wizard).
         auth_dir = cfihos_dir / "auth"
