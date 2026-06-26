@@ -1,4 +1,3 @@
-dotenv
 pandas
 altair
 PyYaml

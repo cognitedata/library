@@ -585,6 +585,7 @@ _CFIHOS_SYNTHETIC_DIRS: tuple[str, ...] = (
     "raw",
     "workflows",
     "transformations",
+    "cfihos_model_config",
 )
 
 _ISA_SYNTHETIC_DIRS: tuple[str, ...] = (
@@ -630,6 +631,11 @@ def remove_synthetic_data(repo_root: Path | None = None) -> int:
     if cfihos_dir.is_dir():
         total += _remove_dirs(cfihos_dir, _CFIHOS_SYNTHETIC_DIRS)
         total += _remove_images(cfihos_dir)
+        # Remove the auth/ directory if it is now empty (auth files were
+        # already deleted by remove_redundant_auth_files earlier in the wizard).
+        auth_dir = cfihos_dir / "auth"
+        if auth_dir.is_dir() and not any(auth_dir.iterdir()):
+            auth_dir.rmdir()
 
     isa_dir = data_models_dir / "isa_manufacturing_extension"
     if isa_dir.is_dir():
