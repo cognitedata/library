@@ -123,7 +123,7 @@ The workflow figure shows the recommended delivery loop end-to-end:
 - start from the library/HUB baseline and local toolkit setup
 - adapt with rules/skills in Cursor
 - build and deploy with Toolkit
-- verify with Toolkit and NEAT in the target CDF project
+- verify with Toolkit in the target CDF project
 
 The module follows a four-stage workflow from discovery through production verification:
 
@@ -137,11 +137,11 @@ Use Cursor with the data modeling rules and skills (`.cursor/rules/cdf-*.mdc`, `
 
 ### 3. Build & Deploy
 
-Build and deploy with Cognite Toolkit (`cdf build && cdf deploy`). Before deploying, validate the model locally with Toolkit's dry-run and with [NEAT](https://docs.cognite.com/cdf/deploy/neat/index) using the included `NEAT_inspect_DM.ipynb` notebook. NEAT runs 38+ validation rules covering AI readiness, connection integrity, query performance, and CDF schema limits.
+Build and deploy with Cognite Toolkit (`cdf build && cdf deploy`). Before deploying, validate the model locally with Toolkit's dry-run (`cdf deploy --dry-run`).
 
 ### 4. Project & Verification
 
-After deployment to the CDF project, re-run NEAT against the live model to confirm all validation checks pass. Use Toolkit to verify resource state matches the YAML definitions. Iterate as needed — the workflow loops back through AI-assisted development for any fixes.
+After deployment to the CDF project, use Toolkit to verify resource state matches the YAML definitions. Iterate as needed — the workflow loops back through AI-assisted development for any fixes.
 
 ## Module structure
 
