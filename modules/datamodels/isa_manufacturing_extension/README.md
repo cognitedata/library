@@ -115,11 +115,16 @@ isa_manufacturing_extension/
 ├── locations/
 │   └── loc_isa_manufacturing_edm.LocationFilter.yaml
 ├── raw/                             # RAW table definitions + optional seed CSVs
-├── transformations/                 # tr_isa_* transformations (RAW → instance space)
-│   ├── tr_isa_asset_all_to_area.Transformation.{sql,yaml}
-│   ├── tr_isa_asset_all_to_enterprise.Transformation.{sql,yaml}
-│   ├── ...
-│   └── tr_isa_timeseries_all_to_isa_timeseries.Transformation.{sql,yaml}
+├── transformations/                 # 29 tr_isa_* transformation pairs (RAW → instance space)
+│   ├── tr_isa_asset_all_to_isa_asset.Transformation.{sql,yaml}
+│   ├── tr_isa_asset_all_to_{enterprise,site,area,process_cell,unit,equipment_module}.Transformation.{sql,yaml}
+│   ├── tr_isa_{personnel,control_module_all_to_control_module,control_module_all_to_isa_asset}.Transformation.{sql,yaml}
+│   ├── tr_isa_file_all_to_isa_file.Transformation.{sql,yaml}
+│   ├── tr_isa_equipment_all_to_{equipment,equipment_module}.Transformation.{sql,yaml}
+│   ├── tr_isa_{work_order,timeseries_all_to_isa_timeseries,timeseries_all_to_work_order}.Transformation.{sql,yaml}
+│   ├── tr_isa_{recipe,batch,material,material_lot,quality_result}.Transformation.{sql,yaml}
+│   ├── tr_isa_{product_request,product_segment,product_definition,process_parameter}.Transformation.{sql,yaml}
+│   └── tr_isa_{procedure,unit_procedure,operation,phase}.Transformation.{sql,yaml}
 ├── workflows/
 │   ├── wf_all_isa_raw_to_isa_manufacturing.Workflow.yaml
 │   └── wf_all_isa_raw_to_isa_manufacturing.WorkflowVersion.yaml
@@ -143,9 +148,9 @@ The companion search module [`isa_manufacturing_extension_search`](../isa_manufa
 
 ### ISA-95 Organizational Hierarchy (Levels 0-4)
 - **Level 0 (Enterprise)**: `Enterprise` - Top-level organizational entity
-- **Level 4 (Site)**: `Site` - Physical location where manufacturing operations are performed
-- **Level 4 (Area)**: `Area` - Logical or physical grouping of process cells within a site
-- **Level 4 (ProcessCell)**: `ProcessCell` - Collection of units that perform a specific manufacturing function
+- **Level 1 (Site)**: `Site` - Physical location where manufacturing operations are performed
+- **Level 2 (Area)**: `Area` - Logical or physical grouping of process cells within a site
+- **Level 3 (ProcessCell)**: `ProcessCell` - Collection of units that perform a specific manufacturing function
 - **Level 4 (Unit)**: `Unit` - Basic equipment entity that can carry out one or more processing activities
 - **Level 4 (EquipmentModule)**: `EquipmentModule` - Functional grouping of equipment within a unit
 - **Equipment**: `Equipment` - Physical equipment used in manufacturing processes
@@ -165,7 +170,7 @@ The companion search module [`isa_manufacturing_extension_search`](../isa_manufa
 - **ProductSegment**: `ProductSegment` - Segment of the product process and resources (ISA-95 Level 3). Represents discrete segments within a product definition that define specific production activities, resource requirements, and process parameters. Product segments contain requirements such as temperature, pressure, flow rate, pH, and time requirements. They link to ProcessParameters for control and monitoring, and connect to ISATimeSeries for process data acquisition.
 
 ### Execution and Production Management
-- **Batch**: `Batch` - Specific instance of a production run executed according to a recipe (ISA-88). Batches represent actual production executions and link to Recipes (ISA-88 procedural model), WorkOrders (ISA-95 Level 3 work management), and Sites (ISA-95 Level 4 organizational hierarchy). Batches track execution lifecycle from initiation through completion.
+- **Batch**: `Batch` - Specific instance of a production run executed according to a recipe (ISA-88). Batches represent actual production executions and link to Recipes (ISA-88 procedural model), WorkOrders (ISA-95 Level 3 work management), and Sites (ISA-95 Level 1 organizational hierarchy). Batches track execution lifecycle from initiation through completion.
 - **WorkOrder**: `WorkOrder` - Work order for manufacturing execution (ISA-95 Level 3). Work orders represent specific work instructions that can be used for both production activities (linked to ProductRequests) and maintenance activities (linked to Equipment). They implement `CogniteActivity` and link to ISATimeSeries for process data, Equipment for equipment context, and Personnel for assignment tracking.
 
 ### Quality and Process Data
@@ -246,7 +251,7 @@ Before you start, ensure you have:
 - Your project contains the standard `cdf.toml` file
 - Valid authentication to your target CDF environment
 - Access to a CDF project and credentials
-- `cognite-toolkit` >= 0.6.61
+- `cognite-toolkit` >= 0.8.0
 
 
  **Enable Feature Flags** (Required for CDF):
@@ -263,8 +268,7 @@ Before you start, ensure you have:
 
 ### Step 1: Enable External Libraries (Toolkit < 0.7.0 only)
 
-Newer Toolkit versions ship `[library.cognite]` already pointing at this
-repository, so no `cdf.toml` change is needed. On Toolkit < 0.7.0, enable the
+On Toolkit < 0.7.0, enable the
 alpha flag:
 
 ```toml
@@ -352,39 +356,89 @@ Deploy this enterprise module **before** the companion search module — the sea
 ![ISA Manufacturing Data Model Architecture](isa_workflow.png)
 
 
-Some of the workflow executes transformations:
+The workflow runs 24 transformation tasks in dependency order:
 
-1. **Build ISA Asset Tree** (`tr_isa_asset_all_to_isa_asset`)
-   - Creates the base `ISAAsset` hierarchy from RAW data
-   - This is a critical first step that all other transformations depend on
-   - Reads from `{{ rawDatabase }}.isa_asset` RAW table
+1. **Build ISA Asset Tree** (`tr_isa_asset_all_to_isa_asset`) — critical path; aborts workflow on failure
+   - Creates the base `ISAAsset` hierarchy from `{{ rawDatabase }}.isa_asset`
 
-2. **ISA-95 Organizational Hierarchy Overlays** (executed in parallel after asset tree)
-   - **Enterprise** (`tr_isa_asset_all_to_enterprise`): Creates Enterprise entities (ISA-95 Level 0)
-   - **Site** (`tr_isa_asset_all_to_site`): Creates Site entities with Enterprise relationships (ISA-95 Level 4)
-   - **Area** (`tr_isa_asset_all_to_area`): Creates Area entities with Site relationships (ISA-95 Level 4)
-   - **ProcessCell** (`tr_isa_asset_all_to_process_cell`): Creates ProcessCell entities with Area relationships (ISA-95 Level 4)
-   - **Unit** (`tr_isa_asset_all_to_unit`): Creates Unit entities with ProcessCell relationships (ISA-95 Level 4)
-   - **EquipmentModule** (`tr_isa_asset_all_to_equipment_module`): Creates EquipmentModule entities with Unit relationships (ISA-95 Level 4)
+2. **ISA-95 Organizational Hierarchy Overlays** (all run in parallel after step 1, each `skipTask` on failure)
+   - **Enterprise** (`tr_isa_asset_all_to_enterprise`): Enterprise entities (ISA-95 Level 0)
+   - **Site** (`tr_isa_asset_all_to_site`): Site entities with Enterprise relationships (ISA-95 Level 1)
+   - **Area** (`tr_isa_asset_all_to_area`): Area entities with Site relationships (ISA-95 Level 2)
+   - **ProcessCell** (`tr_isa_asset_all_to_process_cell`): ProcessCell entities with Area relationships (ISA-95 Level 3)
+   - **Unit** (`tr_isa_asset_all_to_unit`): Unit entities with ProcessCell relationships (ISA-95 Level 4)
+   - **EquipmentModule** (`tr_isa_asset_all_to_equipment_module`): EquipmentModule entities with Unit relationships (ISA-95 Level 4)
 
-3. **Equipment and Relationships**
-   - **Equipment** (`tr_isa_equipment_all_to_equipment`): Creates Equipment entities linked to assets and units
-   - **EquipmentModule-Equipment Linking** (`tr_isa_equipment_all_to_equipment_module`): Establishes relationships between EquipmentModule and Equipment entities
+3. **Personnel** (`tr_isa_personnel_all_to_personnel`) — depends on Site
 
-4. **Work Orders and Time Series** (executed in parallel after equipment)
-   - **WorkOrder** (`tr_isa_work_order_all_to_work_order`): Creates WorkOrder entities from RAW data
-   - **ISATimeSeries** (`tr_isa_timeseries_all_to_isa_timeseries`): Creates TimeSeries entities linked to assets and equipment
+4. **Control Module** (`tr_isa_control_module_all_to_control_module`) — depends on EquipmentModule
 
-5. **Final Relationships**
-   - **WorkOrder-TimeSeries Linking** (`tr_isa_timeseries_all_to_work_order`): Links WorkOrders to their associated TimeSeries
+5. **Control Module Asset Overlay** (`tr_isa_control_module_all_to_isa_asset`) — depends on Control Module
+
+6. **Files** (`tr_isa_file_all_to_isa_file`) — depends on all six org overlays (Enterprise, Site, Area, ProcessCell, Unit, EquipmentModule)
+
+7. **Equipment** (`tr_isa_equipment_all_to_equipment`) — depends on Files
+
+8. **EquipmentModule–Equipment Relationship** (`tr_isa_equipment_all_to_equipment_module`) — depends on EquipmentModule + Equipment
+
+9. **Work Order** (`tr_isa_work_order_all_to_work_order`) — depends on Equipment + Personnel
+
+10. **TimeSeries** (`tr_isa_timeseries_all_to_isa_timeseries`) — depends on Equipment
+
+11. **Work Order – TimeSeries Relationship** (`tr_isa_timeseries_all_to_work_order`) — depends on Work Order + TimeSeries
+
+12. **Recipe** (`tr_isa_recipe_all_to_recipe`) — no upstream dependency
+
+13. **Batch** (`tr_isa_batch_all_to_batch`) — depends on Recipe + Work Order + Site
+
+14. **Material** (`tr_isa_material_all_to_material`) — depends on Batch
+
+15. **MaterialLot** (`tr_isa_material_lot_all_to_material_lot`) — depends on Material
+
+16. **QualityResult** (`tr_isa_quality_result_all_to_quality_result`) — depends on MaterialLot
+
+17. **ProductRequest** (`tr_isa_product_request_all_to_product_request`) — depends on Work Order
+
+18. **Procedure** (`tr_isa_procedure_all_to_procedure`) — depends on Batch
+
+19. **ProductSegment** (`tr_isa_product_segment_all_to_product_segment`) — depends on MaterialLot
+
+20. **ProductDefinition** (`tr_isa_product_definition_all_to_product_definition`) — depends on ProductSegment
+
+21. **ProcessParameter** (`tr_isa_process_parameter_all_to_process_parameter`) — depends on ProductSegment
+
+22. **UnitProcedure** (`tr_isa_unit_procedure_all_to_unit_procedure`) — depends on Procedure
+
+23. **Operation** (`tr_isa_operation_all_to_operation`) — depends on UnitProcedure
+
+24. **Phase** (`tr_isa_phase_all_to_phase`) — depends on Operation
 
 ### Test Data Loading
 
-The workflow automatically loads test data from the included CSV files in the `raw/` directory:
-- `isa_asset.Table.csv`: Sample ISA asset hierarchy data
-- `isa_equipment.Table.csv`: Sample equipment data
-- `isa_timeseries.Table.csv`: Sample time series data
-- `isa_work_order.Table.csv`: Sample work order data
+The workflow automatically loads test data from the 20 CSV files in the `raw/` directory (one per entity):
+
+| CSV file | Entity |
+|---|---|
+| `isa_asset.Table.csv` | ISAAsset hierarchy |
+| `isa_batch.Table.csv` | Batch |
+| `isa_control_module.Table.csv` | ControlModule |
+| `isa_equipment.Table.csv` | Equipment |
+| `isa_file.Table.csv` | ISAFile |
+| `isa_material.Table.csv` | Material |
+| `isa_material_lot.Table.csv` | MaterialLot |
+| `isa_operation.Table.csv` | Operation |
+| `isa_personnel.Table.csv` | Personnel |
+| `isa_phase.Table.csv` | Phase |
+| `isa_procedure.Table.csv` | Procedure |
+| `isa_process_parameter.Table.csv` | ProcessParameter |
+| `isa_product_definition.Table.csv` | ProductDefinition |
+| `isa_product_request.Table.csv` | ProductRequest |
+| `isa_product_segment.Table.csv` | ProductSegment |
+| `isa_quality_result.Table.csv` | QualityResult |
+| `isa_recipe.Table.csv` | Recipe |
+| `isa_timeseries.Table.csv` | ISATimeSeries |
+| `isa_unit_procedure.Table.csv` | UnitProcedure |
+| `isa_work_order.Table.csv` | WorkOrder |
 
 These CSV files are automatically uploaded to RAW tables during deployment and can be used to:
 - Test the data model structure
@@ -442,7 +496,7 @@ The data model integrates ISA-95 organizational hierarchy with ISA-88 procedural
 #### 1. Organizational to Procedural Integration
 - **Unit (ISA-95 Level 4) ↔ Recipe (ISA-88)**: Units are the physical equipment where recipes are executed. Recipes reference Units through ProductDefinitions, linking procedural control to physical equipment.
 - **Equipment (ISA-88) ↔ Unit (ISA-95 Level 4)**: Equipment entities link to Units, connecting ISA-88 equipment model to ISA-95 organizational hierarchy.
-- **Batch (ISA-88) ↔ Site (ISA-95 Level 4)**: Batches execute at specific Sites, providing organizational context for batch execution.
+- **Batch (ISA-88) ↔ Site (ISA-95 Level 1)**: Batches execute at specific Sites, providing organizational context for batch execution.
 
 #### 2. Production Management Integration
 - **ProductDefinition (ISA-95 Level 3) ↔ Unit (ISA-95 Level 4)**: Product definitions specify which Units are used for production, linking production planning to organizational hierarchy.
@@ -540,7 +594,7 @@ The following example illustrates how ISA-95 Level 3 production management integ
    - References Recipe (ISA-88 procedural model)
    - Executes Phases (ISA-88) with ProcessParameters
    - Links to WorkOrder for work management context
-   - Links to Site (ISA-95 Level 4) for organizational context
+   - Links to Site (ISA-95 Level 1) for organizational context
 
 5. **ISATimeSeries** collects:
    - Process data from Equipment during Phase execution
