@@ -2,7 +2,7 @@ import abc
 import json
 from datetime import UTC, datetime
 from hashlib import sha256
-from typing import Any, cast
+from typing import cast
 
 from cognite.client import CogniteClient
 from cognite.client.data_classes import RowWrite
@@ -76,8 +76,8 @@ class GeneralApplyService(IApplyService):
     def process_and_apply_annotations_for_file(
         self,
         file_node: Node,
-        regular_item: dict[str, Any] | None,
-        pattern_item: dict[str, Any] | None,
+        regular_item: dict[str, object] | None,
+        pattern_item: dict[str, object] | None,
         clean_old: bool,
     ) -> tuple[str, str]:
         """
@@ -269,7 +269,7 @@ class GeneralApplyService(IApplyService):
 
     def _process_pattern_results(
         self,
-        result_item: dict[str, Any],
+        result_item: dict[str, object],
         file_node: Node,
         existing_bounding_boxes: dict[tuple[int, tuple[float, float, float, float]], set[str]],
     ) -> tuple[list[EdgeApply], list[RowWrite], set[str]]:
@@ -383,7 +383,7 @@ class GeneralApplyService(IApplyService):
         source_id: str,
         doc_doc: list[RowWrite],
         doc_tag: list[RowWrite],
-        detect_annotation: dict[str, Any],
+        detect_annotation: dict[str, object],
         processed_bounding_boxes: dict[tuple[int, tuple[float, float, float, float]], set[str]],
     ) -> list[EdgeApply]:
         """
@@ -475,7 +475,7 @@ class GeneralApplyService(IApplyService):
                 doc_tag.append(RowWrite(key=external_id, columns=doc_log))
         return edges
 
-    def _create_stable_hash(self, raw_annotation: dict[str, Any], bounding_box: BoundingBox) -> str:
+    def _create_stable_hash(self, raw_annotation: dict[str, object], bounding_box: BoundingBox) -> str:
         """
         Generates a stable hash for an annotation to enable unique identification.
 
@@ -499,7 +499,7 @@ class GeneralApplyService(IApplyService):
         return sha256(json.dumps(stable_representation, sort_keys=True).encode()).hexdigest()[:10]
 
     def _create_annotation_id(
-        self, file_id: NodeId, entity: dict[str, Any], raw_annotation: dict[str, Any], bounding_box: BoundingBox
+        self, file_id: NodeId, entity: dict[str, object], raw_annotation: dict[str, object], bounding_box: BoundingBox
     ) -> str:
         """
         Creates a unique external ID for a regular annotation edge.
@@ -528,7 +528,7 @@ class GeneralApplyService(IApplyService):
     def _create_pattern_annotation_id(
         self,
         file_id: NodeId,
-        raw_annotation: dict[str, Any],
+        raw_annotation: dict[str, object],
         bounding_box: BoundingBox,
         entity_type: str | None = None,
     ) -> str:
@@ -556,7 +556,7 @@ class GeneralApplyService(IApplyService):
             prefix = prefix[: self.EXTERNAL_ID_LIMIT - 11]
         return f"{prefix}:{hash_}"
 
-    def _extract_bounding_box_from_region(self, region: dict[str, Any]) -> BoundingBox:
+    def _extract_bounding_box_from_region(self, region: dict[str, object]) -> BoundingBox:
         """
         Extracts and creates a BoundingBox from a diagram detection region.
 
@@ -632,10 +632,10 @@ class GeneralApplyService(IApplyService):
     def _create_annotation_properties_from_detection(
         self,
         file_id: NodeId,
-        detect_annotation: dict[str, Any],
+        detect_annotation: dict[str, object],
         status: str,
         bounding_box: BoundingBox | None = None,
-    ) -> dict[str, Any]:
+    ) -> dict[str, object]:
         """
         Creates annotation properties dictionary from a detection result.
 

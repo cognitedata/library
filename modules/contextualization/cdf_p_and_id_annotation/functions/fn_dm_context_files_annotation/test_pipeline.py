@@ -401,9 +401,12 @@ class TestGetNewFiles:
         )
         files_view_id = config.data.annotation_job.file_view.as_view_id()
 
-        with patch("pipeline.update_state_store") as mock_update, patch("pipeline.time.sleep"):
-            with pytest.raises(Exception):
-                get_new_files(client, logger, "old-cursor", files_view_id, config)
+        with (
+            patch("pipeline.update_state_store") as mock_update,
+            patch("pipeline.time.sleep"),
+            pytest.raises(Exception),
+        ):
+            get_new_files(client, logger, "old-cursor", files_view_id, config)
 
         mock_update.assert_not_called()
 

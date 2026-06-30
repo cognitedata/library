@@ -12,7 +12,6 @@ from collections.abc import Callable
 from contextlib import contextmanager
 from dataclasses import dataclass
 from functools import lru_cache
-from typing import Any
 
 import psutil
 from cognite.client import CogniteClient
@@ -160,7 +159,7 @@ class RegexPatternCache:
     def _compile_norsok_patterns(self):
         """Pre-compile common NORSOK patterns"""
         patterns = {
-            'norsok_split': r'[_:.]',
+            'norsok_split': r'[-]',
             'tag_validation': r'^[A-Z0-9]+-[A-Z0-9]+-[A-Z0-9]+',
             'equipment_number': r'[A-Z0-9]+-[A-Z0-9]+-(.+)',
         }
@@ -179,7 +178,7 @@ class RegexPatternCache:
         """Optimized NORSOK tag splitting"""
         pattern = self._pattern_cache.get('norsok_split')
         if pattern:
-            return pattern.split(tag,2)
+            return pattern.split(tag)
         return tag.split('-')
 
 
@@ -429,53 +428,47 @@ class OptimizedMetadataProcessor:
             self.logger.error(f"Error processing file {node.external_id}: {e}")
             return None
     
-    def _parse_norsok_tag_optimized(self, tag: str, tags: list[str], 
-                                   aliases: list[str]) -> tuple[str | None, list[str], list[str]]:
+    def _parse_norsok_tag_optimized(
+        self, tag: str, tags: list[str], aliases: list[str]
+    ) -> tuple[str | None, list[str], list[str]]:
         """Optimized NORSOK tag parsing with caching"""
-        
+
         try:
             tag_elements = self.regex_cache.split_norsok_tag(tag)
-            
+
             if len(tag_elements) < 3:
                 return None, tags, aliases
-            
-            if len(tag_elements) > 1 and f"site:{tag_elements[0]}" not in tags:
-                tags.append(f"site:{tag_elements[0]}")
 
-            if len(tag_elements) > 2:
-                aliases = self._get_timeseries_alias_list_optimized(tag_elements[1]) 
+            site = tag_elements[0]
+            if f"site:{site}" not in tags:
+                tags.append(f"site:{site}")
 
-            pattern = r'[-]'
-            split_result = re.split(pattern, tag_elements[1])
-            if split_result:    
-                area = split_result[0]
-                discipline_code = None
-                if len(split_result) > 1:
-                    discipline_code = split_result[1]
-                equipment_number = None
-                if len(split_result) > 2:
-                    equipment_number = '-'.join(split_result[2:])
-                if f"discipline:{discipline_code}" not in tags:
-                    tags.append(f"discipline:{discipline_code}")
-                if f"area:{area}" not in tags:
-                    tags.append(f"area:{area}")
-            
-                summary = f"Area/System Code: {area}"
-                if discipline_code:
-                    discipline_meaning = self.discipline_cache.get_discipline_meaning(discipline_code)
-                    summary = f"{summary} - Discipline Code: {discipline_code} - Discipline Meaning: {discipline_meaning}"
-                    if discipline_meaning == "Unknown Discipline":
-                        self.logger.warning(f"Unknown discipline code: {discipline_code}")
-                
-                if equipment_number:
-                    summary = f"{summary} - Equipment Number: {equipment_number}"
-                return summary, tags, aliases
-            else:
-                self.logger.error(f"Error: Invalid NORSOK tag format: {tag}")
-                return None, tags, aliases
+            discipline_code = tag_elements[1]
+            aliases = self._get_timeseries_alias_list_optimized(discipline_code, tuple(aliases))
+
+            area = discipline_code
+            equipment_number = "-".join(tag_elements[2:]) if len(tag_elements) > 2 else None
+
+            if discipline_code and f"discipline:{discipline_code}" not in tags:
+                tags.append(f"discipline:{discipline_code}")
+            if area and f"area:{area}" not in tags:
+                tags.append(f"area:{area}")
+
+            summary = f"Area/System Code: {area}"
+            discipline_meaning = self.discipline_cache.get_discipline_meaning(discipline_code)
+            summary = (
+                f"{summary} - Discipline Code: {discipline_code}"
+                f" - Discipline Meaning: {discipline_meaning}"
+            )
+            if discipline_meaning == "Unknown Discipline":
+                self.logger.warning(f"Unknown discipline code: {discipline_code}")
+
+            if equipment_number:
+                summary = f"{summary} - Equipment Number: {equipment_number}"
+            return summary, tags, aliases
         except Exception as e:
             self.logger.error(f"Error: invalid tag : {tag} - error: {e}")
-            return None, tags, aliases  
+            return None, tags, aliases
 
 
     def _parse_asset_tag_optimized(self, name: str, aliases: list[str], 
@@ -498,14 +491,17 @@ class OptimizedMetadataProcessor:
             return tags, aliases
     
     @lru_cache(maxsize=5000)
-    def _get_timeseries_alias_list_optimized(self, name: str) -> list[str]:
+    def _get_timeseries_alias_list_optimized(self, name: str, aliases_tuple: tuple[str, ...] = ()) -> list[str]:
         """Optimized timeseries alias generation with caching"""
-        aliases = []
-        
-        # Add name if not in aliases
+        aliases = list(aliases_tuple)
+
         if name not in aliases:
             aliases.append(name)
-        
+
+        name_no_dash = name.replace("-", "")
+        if name_no_dash and name_no_dash not in aliases:
+            aliases.append(name_no_dash)
+
         return aliases
     
     @lru_cache(maxsize=5000)
@@ -535,7 +531,7 @@ class OptimizedMetadataProcessor:
         
         return aliases
     
-    def get_stats(self) -> dict[str, Any]:
+    def get_stats(self) -> dict[str, float | int]:
         """Get processing statistics"""
         cache_stats = self.discipline_cache.get_stats()
         return {
@@ -557,7 +553,7 @@ class PerformanceBenchmark:
         self.logger = logger
         self.benchmarks: dict[str, list[float]] = {}
     
-    def benchmark_function(self, name: str, func: Callable, *args, **kwargs) -> Any:
+    def benchmark_function(self, name: str, func: Callable[..., object], *args: object, **kwargs: object) -> object:
         """Benchmark a function call"""
         start = time.time()
         try:

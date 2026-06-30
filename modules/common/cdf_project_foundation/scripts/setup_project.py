@@ -437,10 +437,9 @@ def _write_config_update(
                         f"variables.modules.{category}.{module}.{key}",
                         yaml_val,
                     )
-            if old is None and not c:
+            if old is None and not c and _yaml_insert_key(lines, f"variables.modules.{module}", key, yaml_val):
                 # 3. Key truly absent — insert under flat path.
-                if _yaml_insert_key(lines, f"variables.modules.{module}", key, yaml_val):
-                    c = True
+                c = True
             changed = changed or c
 
     # Remove stale standalone-module keys now covered by cdf_project_foundation.

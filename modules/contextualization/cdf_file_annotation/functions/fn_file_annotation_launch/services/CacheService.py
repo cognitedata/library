@@ -3,7 +3,7 @@ import re
 from collections import defaultdict
 from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta
-from typing import Any, cast
+from typing import cast
 
 from cognite.client import CogniteClient
 from cognite.client.data_classes import Row, RowWrite
@@ -279,7 +279,7 @@ class GeneralCacheService(ICacheService):
                 - annotation_type: Annotation type for the entity
         """
         # Structure: { resource_type: {"patterns": { template_key: [...] }, "annotation_type": "..."} }
-        pattern_builders: dict[str, dict[str, Any]] = defaultdict(lambda: {"patterns": {}, "annotation_type": None})
+        pattern_builders: dict[str, dict[str, object]] = defaultdict(lambda: {"patterns": {}, "annotation_type": None})
         self.logger.info(f"Generating pattern samples from {len(entities)} entities.")
 
         def _parse_alias(alias: str, resource_type_key: str) -> tuple[str, list[list[str]]]:
@@ -470,7 +470,7 @@ class GeneralCacheService(ICacheService):
         Returns:
             List of merged pattern dictionaries, deduplicated and organized by resource type.
         """
-        merged: dict[str, dict[str, Any]] = defaultdict(lambda: {"samples": set(), "annotation_type": None})
+        merged: dict[str, dict[str, object]] = defaultdict(lambda: {"samples": set(), "annotation_type": None})
 
         # Process auto-generated patterns
         for item in auto_patterns:

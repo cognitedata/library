@@ -1305,7 +1305,7 @@ def write_mapping_to_raw(
             raw_uploader.upload()
     except Exception as e:
         logger.error(f"ERROR: Failed to write mapping to RAW DB - error: {type(e)}({e})")
-        raise Exception(f"Failed to write mapping to RAW DB - error: {type(e)}({e})")
+        raise Exception(f"Failed to write mapping to RAW DB - error: {type(e)}({e})") from e
 
 
 def create_table(client: CogniteClient, raw_db: str, tbl: str) -> None:

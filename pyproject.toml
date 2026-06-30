@@ -26,6 +26,15 @@ ignore = [
     # Incremental adoption — remove as violations are fixed:
     "S110",  # best-effort side effects in handlers (must not fail the handler)
     "SIM105",  # stylistic; contextlib.suppress vs try/except/pass
+    "B019",  # lru_cache on instance methods; review incrementally
+    "SIM115",  # long-lived log file handles in CogniteFunctionLogger
+    "SIM112",  # CDF function secret env var names use camelCase
+    "S311",  # non-cryptographic random for jitter/backoff
+    "S112",  # try-except-continue in batch processing loops
+    "B027",  # optional hook methods in abstract base classes
+    "B023",  # closure over loop variable; review incrementally
+    "RUF049",  # dataclass enums; refactor incrementally
+    "RUF012",  # mutable class attribute defaults; refactor incrementally
 ]
 
 [tool.ruff.lint.per-file-ignores]
@@ -35,6 +44,7 @@ ignore = [
 "tests/**" = ["S101", "S603", "E402"]
 "**/test_*.py" = ["S101", "B017", "S105", "S603"]
 "**/run_tests.py" = ["S603"]
+"modules/common/cdf_project_foundation/scripts/setup_project.py" = ["S603"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

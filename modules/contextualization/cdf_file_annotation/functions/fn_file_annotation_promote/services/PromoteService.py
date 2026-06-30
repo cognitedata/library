@@ -1,10 +1,10 @@
 import abc
 import time
 from dataclasses import dataclass
-from typing import Any, Literal
+from typing import Literal
 
 from cognite.client import CogniteClient
-from cognite.client.data_classes import RowWrite
+from cognite.client.data_classes import Row, RowWrite
 from cognite.client.data_classes.data_modeling import (
     DirectRelationReference,
     Edge,
@@ -13,6 +13,7 @@ from cognite.client.data_classes.data_modeling import (
     EdgeList,
     Node,
     NodeOrEdgeData,
+    ViewId,
 )
 from services.CacheService import CachedEntityInfo, CacheService
 from services.ConfigService import Config, build_filter_from_query, get_limit_from_query
@@ -36,7 +37,7 @@ class MatchedEntity:
     resource_type: str | None = None
 
     @classmethod
-    def from_node(cls, node: Node, target_view_id: Any) -> "MatchedEntity":
+    def from_node(cls, node: Node, target_view_id: ViewId) -> "MatchedEntity":
         """Creates MatchedEntity from a Node object."""
         entity_props = node.properties.get(target_view_id, {}) if node.properties else {}
         resource_type_value = entity_props.get("resourceType") or entity_props.get("type")
@@ -180,8 +181,8 @@ class GeneralPromoteService(IPromoteService):
         # Group candidates by (startNodeText, annotationType) for deduplication
         grouped_candidates: dict[tuple[str, str], list[Edge]] = {}
         for edge in candidates:
-            properties: dict[str, Any] = edge.properties[self.core_annotation_view.as_view_id()]
-            text: Any = properties.get("startNodeText")
+            properties: dict[str, object] = edge.properties[self.core_annotation_view.as_view_id()]
+            text: object = properties.get("startNodeText")
             annotation_type: str = edge.type.external_id
 
             if text and annotation_type:
@@ -450,17 +451,17 @@ class GeneralPromoteService(IPromoteService):
             Both will always be returned (never None).
         """
         # Get the current edge properties before creating the write version
-        edge_props: Any = edge.properties.get(self.core_annotation_view.as_view_id(), {})
-        current_tags: Any = edge_props.get("tags", [])
+        edge_props: dict[str, object] = edge.properties.get(self.core_annotation_view.as_view_id(), {})
+        current_tags: object = edge_props.get("tags", [])
         updated_tags: list[str] = list(current_tags) if isinstance(current_tags, list) else []
 
         # Now create the write version
         edge_apply: EdgeApply = edge.as_write()
 
         # Fetch existing RAW row to preserve all data
-        raw_data: dict[str, Any] = {}
+        raw_data: dict[str, object] = {}
         try:
-            existing_row: Any = self.client.raw.rows.retrieve(
+            existing_row: Row | None = self.client.raw.rows.retrieve(
                 db_name=self.raw_db, table_name=self.raw_pattern_table, key=edge.external_id
             )
             if existing_row and existing_row.columns:
@@ -469,7 +470,7 @@ class GeneralPromoteService(IPromoteService):
             self.logger.warning(f"Could not retrieve RAW row for edge {edge.external_id}: {e}")
 
         # Prepare update properties for the edge
-        update_properties: dict[str, Any] = {}
+        update_properties: dict[str, object] = {}
 
         if len(found_entities) == 1 and not (
             found_entities[0].space == edge.start_node.space and

@@ -256,7 +256,7 @@ Example output for 2 items:
         try:
             return json.loads(json_str)
         except json.JSONDecodeError:
-            raise ValueError(f"Failed to parse JSON from agent response: {returned_json}")
+            raise ValueError(f"Failed to parse JSON from agent response: {returned_json}") from None
     
     def _parse_batch_with_llm(
         self, 
@@ -290,7 +290,7 @@ Example output for 2 items:
         try:
             parsed_list = json.loads(json_str)
         except json.JSONDecodeError:
-            raise ValueError(f"Failed to parse JSON from agent batch response: {returned_json}")
+            raise ValueError(f"Failed to parse JSON from agent batch response: {returned_json}") from None
         
         # Convert list response to dict keyed by item ID
         if not isinstance(parsed_list, list):

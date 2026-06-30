@@ -487,25 +487,24 @@ def _render_batch_processing_section(client: CogniteClient) -> None:
                 with col_status:
                     st.write(f"{icon} **Batch {i}:** {status_str} (Call ID: {call_id})")
                 with col_retry:
-                    if is_failed:
-                        if st.button("Retry", key=f"retry_batch_{i}", use_container_width=True):
-                            config = _get_current_config()
-                            config["batch_mode"] = True
-                            config["batch_index"] = i
-                            config["batch_size"] = st.session_state.get("batch_size", 200000)
-                            
-                            try:
-                                call = client.functions.call(
-                                    external_id=FUNCTION_EXTERNAL_ID,
-                                    data=config,
-                                    wait=False
-                                )
-                                batch_call_ids[i] = call.id
-                                st.session_state["batch_call_ids"] = batch_call_ids
-                                st.success(f"Batch {i} restarted! Call ID: {call.id}")
-                                st.rerun()
-                            except Exception as e:
-                                st.error(f"Failed to retry batch: {e}")
+                    if is_failed and st.button("Retry", key=f"retry_batch_{i}", use_container_width=True):
+                        config = _get_current_config()
+                        config["batch_mode"] = True
+                        config["batch_index"] = i
+                        config["batch_size"] = st.session_state.get("batch_size", 200000)
+
+                        try:
+                            call = client.functions.call(
+                                external_id=FUNCTION_EXTERNAL_ID,
+                                data=config,
+                                wait=False
+                            )
+                            batch_call_ids[i] = call.id
+                            st.session_state["batch_call_ids"] = batch_call_ids
+                            st.success(f"Batch {i} restarted! Call ID: {call.id}")
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"Failed to retry batch: {e}")
 
 
 def render_configuration_panel(client: CogniteClient, show_getting_started: bool = False) -> None:

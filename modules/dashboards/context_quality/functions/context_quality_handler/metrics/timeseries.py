@@ -236,7 +236,7 @@ def compute_ts_metrics(acc: CombinedAccumulator) -> dict:
     )
     
     # Historical Data Completeness
-    # = (total_time_span - gap_duration) / total_time_span × 100%
+    # = (total_time_span - gap_duration) / total_time_span x 100%
     # Example: 1 year span with 1 month gap = (365-30)/365 = 91.8%
     if acc.total_time_span_days > 0:
         data_with_gaps = acc.total_time_span_days - acc.total_gap_duration_days

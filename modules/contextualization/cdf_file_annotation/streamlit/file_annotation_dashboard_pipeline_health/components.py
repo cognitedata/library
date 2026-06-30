@@ -408,30 +408,29 @@ class DetailedRunHistoryComponent(Component):
                     else:
                         st.info("No logs found for this run.")
 
-            with expander_col2:
-                with st.expander("View Files Processed"):
-                    st.write("External ID(s):")
-                    files_from_service = []
+            with expander_col2, st.expander("View Files Processed"):
+                st.write("External ID(s):")
+                files_from_service = []
 
-                    cid = int(call_id_str) if call_id_str else None
+                cid = int(call_id_str) if call_id_str else None
 
-                    if cid is None:
-                        st.write("No call_id present for this run.")
-                    else:
-                        caller = parsed_message.get(FieldNames.CALLER_LOWER_CASE)
-                        ann_view = None
+                if cid is None:
+                    st.write("No call_id present for this run.")
+                else:
+                    caller = parsed_message.get(FieldNames.CALLER_LOWER_CASE)
+                    ann_view = None
 
-                        if hasattr(self, "extraction_pipeline_cfg") and self.extraction_pipeline_cfg:
-                            ann_view = getattr(self.extraction_pipeline_cfg, "annotation_state_view_cfg", None)
-                        if ann_view is None and hasattr(self, "annotation_state_view"):
-                            ann_view = self.annotation_state_view
+                    if hasattr(self, "extraction_pipeline_cfg") and self.extraction_pipeline_cfg:
+                        ann_view = getattr(self.extraction_pipeline_cfg, "annotation_state_view_cfg", None)
+                    if ann_view is None and hasattr(self, "annotation_state_view"):
+                        ann_view = self.annotation_state_view
 
-                        files_from_service = DataFetcher.fetch_files_by_function_call_id(self.client, cid, ann_view, caller_type=caller)
+                    files_from_service = DataFetcher.fetch_files_by_function_call_id(self.client, cid, ann_view, caller_type=caller)
 
-                    if files_from_service:
-                        st.text("\n".join(files_from_service))
-                    else:
-                        st.write("No associated files found.")
+                if files_from_service:
+                    st.text("\n".join(files_from_service))
+                else:
+                    st.write("No associated files found.")
 
             st.divider()
 

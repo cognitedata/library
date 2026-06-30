@@ -446,7 +446,7 @@ def load_config(client: CogniteClient, function_data: dict[str, object], logger=
     except CogniteAPIError as e:
         raise RuntimeError(
             f"Unable to retrieve pipeline config for extraction pipeline: {pipeline_ext_id!r}. Error: {e}"
-        )
+        ) from e
 
     if logger:
         logger.debug(f"Raw config: {raw_config.config}")

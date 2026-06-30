@@ -442,6 +442,6 @@ class LocalLaunchService(GeneralLaunchService):
                 return
             else:
                 self.logger.error(message="Ran into the following error", error=e)
-                raise Exception(e)
+                raise Exception(e) from e
         finally:
             batch.clear_pair()

@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-from typing import Any, Literal, cast
+from typing import Literal, cast
 
 from cognite.client import ClientConfig, CogniteClient, global_config
 from cognite.client.credentials import OAuthClientCredentials
@@ -109,7 +109,7 @@ def create_logger_service(log_level: str, filepath: str | None = None) -> Cognit
 
 
 def create_config_service(
-    function_data: dict[str, Any], client: CogniteClient | None = None
+    function_data: dict[str, object], client: CogniteClient | None = None
 ) -> tuple[Config, CogniteClient]:
     """
     Creates configuration service and CogniteClient for the function.
