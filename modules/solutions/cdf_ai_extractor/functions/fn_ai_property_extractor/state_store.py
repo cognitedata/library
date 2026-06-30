@@ -19,7 +19,7 @@ Supports two processing patterns:
 """
 
 from datetime import datetime, timezone
-from typing import Any, Dict, Optional
+from typing import TypedDict
 
 from cognite.client import CogniteClient
 from cognite.client.data_classes import Row
@@ -34,6 +34,18 @@ def _now_iso() -> str:
     so we use timespec="milliseconds" to get exactly 3 digits.
     """
     return datetime.now(timezone.utc).isoformat(timespec="milliseconds")
+
+
+class StateStoreStats(TypedDict):
+    """Summary statistics derived from the metadata row."""
+
+    total_processed: int
+    last_run_time: object
+    cursor: object
+    epoch_start: object
+    config_version: object
+    last_reset: object
+    reset_reason: object
 
 
 class StateStoreHandler:
@@ -78,7 +90,7 @@ class StateStoreHandler:
         self.database = database
         self.table = table
         self.logger = logger
-        self._metadata_cache: Optional[Dict[str, Any]] = None
+        self._metadata_cache: dict[str, object] | None = None
     
     def _log(self, level: str, message: str) -> None:
         """Log a message if logger is available."""
@@ -103,7 +115,7 @@ class StateStoreHandler:
         except CogniteAPIError:
             pass  # Already exists
     
-    def get_metadata(self) -> Dict[str, Any]:
+    def get_metadata(self) -> dict[str, object]:
         """
         Get the metadata with cursor and run info.
         
@@ -131,17 +143,19 @@ class StateStoreHandler:
             self._log("warning", f"Could not read state, starting fresh: {e}")
             return {}
     
-    def get_cursor(self) -> Optional[str]:
+    def get_cursor(self) -> str | None:
         """
         Get the last processed cursor (ISO timestamp string).
         
         Returns None if no cursor exists (first run or after reset).
         """
-        return self.get_metadata().get("last_processed_cursor")
-    
-    def get_config_version(self) -> Optional[str]:
+        cursor_value = self.get_metadata().get("last_processed_cursor")
+        return cursor_value if isinstance(cursor_value, str) else None
+
+    def get_config_version(self) -> str | None:
         """Get the stored config version."""
-        return self.get_metadata().get("config_version")
+        version_value = self.get_metadata().get("config_version")
+        return version_value if isinstance(version_value, str) else None
     
     def update_metadata(self, **kwargs) -> None:
         """
@@ -186,7 +200,9 @@ class StateStoreHandler:
             increment_processed: Number of instances processed in this batch
         """
         current = self.get_metadata()
-        total = current.get("total_processed", 0) + increment_processed
+        total_raw = current.get("total_processed", 0)
+        total = total_raw if isinstance(total_raw, int) else 0
+        total += increment_processed
         
         self.update_metadata(
             last_processed_cursor=cursor,
@@ -212,7 +228,7 @@ class StateStoreHandler:
             reset_reason=reason
         )
     
-    def should_reset_for_config_change(self, current_config_version: Optional[str]) -> bool:
+    def should_reset_for_config_change(self, current_config_version: str | None) -> bool:
         """
         Check if config version changed, indicating need for full re-run.
         
@@ -233,19 +249,20 @@ class StateStoreHandler:
             
         return stored_version != current_config_version
     
-    def get_epoch_start(self) -> Optional[str]:
+    def get_epoch_start(self) -> str | None:
         """
         Get the current epoch start timestamp.
         
         Returns None if no epoch exists (first run or after reset).
         """
-        return self.get_metadata().get("epoch_start")
-    
+        epoch_value = self.get_metadata().get("epoch_start")
+        return epoch_value if isinstance(epoch_value, str) else None
+
     def initialize_run(
         self,
-        config_version: Optional[str] = None,
+        config_version: str | None = None,
         force_reset: bool = False
-    ) -> Optional[str]:
+    ) -> str | None:
         """
         Initialize state at start of function run (add_new_only mode).
         
@@ -292,7 +309,7 @@ class StateStoreHandler:
     
     def initialize_epoch(
         self,
-        config_version: Optional[str] = None,
+        config_version: str | None = None,
         force_reset: bool = False
     ) -> str:
         """
@@ -355,7 +372,7 @@ class StateStoreHandler:
         
         return epoch_start
     
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> StateStoreStats:
         """
         Get current state store statistics.
         
@@ -367,8 +384,10 @@ class StateStoreHandler:
         - config_version: Current config version
         """
         metadata = self.get_metadata()
+        total_raw = metadata.get("total_processed", 0)
+        total_processed = total_raw if isinstance(total_raw, int) else 0
         return {
-            "total_processed": metadata.get("total_processed", 0),
+            "total_processed": total_processed,
             "last_run_time": metadata.get("last_run_time"),
             "cursor": metadata.get("last_processed_cursor"),
             "epoch_start": metadata.get("epoch_start"),

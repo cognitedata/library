@@ -16,8 +16,8 @@ from .common import (
 def process_timeseries_batch(
     ts_batch,
     ts_view: ViewId,
-    acc: CombinedAccumulator
-):
+    acc: CombinedAccumulator,
+) -> None:
     """Process time series batch - collect TS metrics data."""
     for ts in ts_batch:
         ts_id = get_external_id(ts)
@@ -117,7 +117,7 @@ def compute_historical_gaps_batch(
     acc: CombinedAccumulator,
     gap_threshold_days: int = 7,
     lookback: str = "1000d-ago",
-):
+) -> None:
     """
     Compute historical data completeness for a batch of timeseries.
     

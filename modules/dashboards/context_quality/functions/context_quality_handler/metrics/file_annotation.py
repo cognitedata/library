@@ -199,8 +199,8 @@ def infer_annotation_type(end_node_external_id: Optional[str]) -> str:
 def process_annotation_batch(
     batch,
     view: ViewId,
-    acc: FileAnnotationAccumulator
-):
+    acc: FileAnnotationAccumulator,
+) -> None:
     """
     Process a batch of CogniteDiagramAnnotation edges.
     

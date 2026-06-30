@@ -217,7 +217,7 @@ class DataSyncService:
             self.logger.warning(f"Error checking backfill status, using all: {str(e)}")
             return all_ts_ids
     
-    def mark_as_backfilled(self, external_id: str):
+    def mark_as_backfilled(self, external_id: str) -> None:
         """Mark a time series as fully backfilled using Data Model tags (similar to file annotation pattern)"""
         try:
             # Retrieve the time series node from Data Model
@@ -271,7 +271,7 @@ class DataSyncService:
             self.logger.warning(f"Could not mark {external_id} as backfilled: {str(e)}")
             self.logger.warning(f"Traceback: {traceback.format_exc()}")
     
-    def reset_backfill_tags(self, all_ts_ids: List[str]):
+    def reset_backfill_tags(self, all_ts_ids: List[str]) -> None:
         """Remove 'oid_backfilled' tag from all time series to restart backfill process"""
         try:
             self.logger.info("=" * 50)
@@ -320,7 +320,7 @@ class DataSyncService:
             self.logger.warning(f"Error resetting backfill tags: {str(e)}")
             self.logger.warning(f"Traceback: {traceback.format_exc()}")
     
-    def update_config_reset_backfill(self):
+    def update_config_reset_backfill(self) -> None:
         """Update extraction pipeline config to set reset_backfill back to false"""
         try:
             # Retrieve current config
@@ -524,7 +524,7 @@ class DataSyncService:
         
         return total_inserted
     
-    def run_full_sync(self):
+    def run_full_sync(self) -> None:
         """Run complete data synchronization with smart backfill to avoid duplicates"""
         self.logger.info("=" * 50)
         self.logger.info("Starting Open Industrial Data Sync")

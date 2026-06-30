@@ -14,14 +14,27 @@ Main Features:
 """
 
 import json
-from typing import Any, Dict, List, Optional
+from typing import TypedDict
 
 import cognite.client.data_classes.data_modeling.data_types as dtypes
 from cognite.client import CogniteClient
-from cognite.client.data_classes.agents import Message
-from cognite.client.data_classes.data_modeling import NodeApply, NodeOrEdgeData, View
+from cognite.client.data_classes.agents import Agent, Message
+from cognite.client.data_classes.data_modeling import Node, NodeApply, NodeOrEdgeData, View
 from cognite.client.data_classes.data_modeling.views import MultiReverseDirectRelation, SingleReverseDirectRelation
 from config import PropertyConfig, WriteMode
+
+
+class PropertyInfo(TypedDict, total=False):
+    name: str
+    description: str
+    type: str
+    is_list: bool
+    skip_reason: str
+
+
+class ExtractablePropertiesResult(TypedDict):
+    extractable: dict[str, PropertyInfo]
+    skipped: dict[str, PropertyInfo]
 
 
 class LLMPropertyExtractor:
@@ -115,8 +128,8 @@ Example output for 2 items:
         client: CogniteClient, 
         agent_external_id: str,
         logger=None,
-        custom_prompt_instructions: Optional[str] = None,
-        prompt_template: Optional[str] = None
+        custom_prompt_instructions: str | None = None,
+        prompt_template: str | None = None
     ):
         """
         Initialize the LLM Property Extractor.
@@ -141,7 +154,7 @@ Example output for 2 items:
             getattr(self.logger, level.lower(), self.logger.info)(message)
     
     @property
-    def agent(self):
+    def agent(self) -> Agent:
         """Lazy load and cache the agent using retrieve by external_id."""
         if self._agent is None:
             self._log("debug", f"Retrieving agent: {self.agent_external_id}")
@@ -150,7 +163,7 @@ Example output for 2 items:
                 raise ValueError(f"Agent with external_id '{self.agent_external_id}' not found")
         return self._agent
     
-    def _build_prompt(self, text: str, properties_to_fill: Dict[str, Dict[str, str]]) -> str:
+    def _build_prompt(self, text: str, properties_to_fill: dict[str, dict[str, str]]) -> str:
         """
         Build the LLM prompt for property extraction using the configured template.
         
@@ -177,9 +190,9 @@ Example output for 2 items:
     
     def _build_batch_prompt(
         self, 
-        items: List[Dict[str, str]], 
-        properties_to_fill: Dict[str, Dict[str, str]],
-        batch_prompt_template: Optional[str] = None
+        items: list[dict[str, str]], 
+        properties_to_fill: dict[str, dict[str, str]],
+        batch_prompt_template: str | None = None
     ) -> str:
         """
         Build the LLM prompt for batch property extraction.
@@ -217,7 +230,7 @@ Example output for 2 items:
         
         return prompt.strip()
     
-    def _parse_text_with_llm(self, text: str, properties_to_fill: Dict[str, Dict[str, str]]) -> Dict[str, Any]:
+    def _parse_text_with_llm(self, text: str, properties_to_fill: dict[str, dict[str, str]]) -> dict[str, object]:
         """
         Parse text using LLM and return extracted properties.
         
@@ -247,10 +260,10 @@ Example output for 2 items:
     
     def _parse_batch_with_llm(
         self, 
-        items: List[Dict[str, str]], 
-        properties_to_fill: Dict[str, Dict[str, str]],
-        batch_prompt_template: Optional[str] = None
-    ) -> Dict[str, Dict[str, Any]]:
+        items: list[dict[str, str]], 
+        properties_to_fill: dict[str, dict[str, str]],
+        batch_prompt_template: str | None = None
+    ) -> dict[str, dict[str, object]]:
         """
         Parse multiple texts using LLM in a single call and return extracted properties for each.
         
@@ -332,8 +345,8 @@ Example output for 2 items:
     def _get_property_dict_from_view(
         self, 
         view: View, 
-        property_ids: List[str]
-    ) -> Dict[str, Dict[str, str]]:
+        property_ids: list[str]
+    ) -> dict[str, dict[str, str]]:
         """
         Extract property metadata from a view.
         
@@ -358,8 +371,8 @@ Example output for 2 items:
         self, 
         instance, 
         view: View,
-        property_ids: Optional[List[str]] = None
-    ) -> List[str]:
+        property_ids: list[str] | None = None
+    ) -> list[str]:
         """
         Get list of property external_ids that are not filled in an instance.
         Skips reverse relation properties as they cannot be set directly.
@@ -384,7 +397,7 @@ Example output for 2 items:
             and (prop_id not in instance_properties or instance_properties[prop_id] is None)
         ]
     
-    def _coerce_value_to_type(self, value: Any, prop_type: type, prop_is_list: bool) -> Any:
+    def _coerce_value_to_type(self, value: object, prop_type: type, prop_is_list: bool) -> object:
         """
         Coerce a value to match the expected property type.
         
@@ -396,7 +409,7 @@ Example output for 2 items:
         Returns:
             Coerced value
         """
-        def coerce_single_value(val):
+        def coerce_single_value(val: object) -> object:
             if val is None:
                 return None
             
@@ -440,11 +453,11 @@ Example output for 2 items:
     
     def _apply_write_mode(
         self,
-        new_value: Any,
-        current_value: Any,
+        new_value: object,
+        current_value: object,
         write_mode: WriteMode,
         prop_is_list: bool
-    ) -> tuple[Any, bool]:
+    ) -> tuple[object, bool]:
         """
         Apply write mode logic to determine the final value to write.
         
@@ -506,12 +519,12 @@ Example output for 2 items:
     def _create_node_apply(
         self, 
         instance, 
-        parsed_dict: Dict[str, Any], 
+        parsed_dict: dict[str, object], 
         source_view: View,
-        property_mapping: Optional[Dict[str, str]] = None,
-        property_configs: Optional[Dict[str, PropertyConfig]] = None,
-        target_view: Optional[View] = None
-    ) -> Optional[NodeApply]:
+        property_mapping: dict[str, str] | None = None,
+        property_configs: dict[str, PropertyConfig] | None = None,
+        target_view: View | None = None
+    ) -> NodeApply | None:
         """
         Create a NodeApply object from parsed properties.
         
@@ -596,11 +609,11 @@ Example output for 2 items:
         instance,
         view: View,
         text_property: str,
-        properties_to_extract: Optional[List[str]] = None,
-        ai_property_mapping: Optional[Dict[str, str]] = None,
-        property_configs: Optional[List[PropertyConfig]] = None,
-        target_view: Optional[View] = None
-    ) -> Optional[NodeApply]:
+        properties_to_extract: list[str] | None = None,
+        ai_property_mapping: dict[str, str] | None = None,
+        property_configs: list[PropertyConfig] | None = None,
+        target_view: View | None = None
+    ) -> NodeApply | None:
         """
         Extract and fill properties from an instance's text field.
         
@@ -743,16 +756,16 @@ Example output for 2 items:
     
     def extract_properties_from_instances(
         self,
-        instances: List,
+        instances: list[Node],
         view: View,
         text_property: str,
-        properties_to_extract: Optional[List[str]] = None,
-        ai_property_mapping: Optional[Dict[str, str]] = None,
-        property_configs: Optional[List[PropertyConfig]] = None,
-        target_view: Optional[View] = None,
+        properties_to_extract: list[str] | None = None,
+        ai_property_mapping: dict[str, str] | None = None,
+        property_configs: list[PropertyConfig] | None = None,
+        target_view: View | None = None,
         dry_run: bool = True,
         llm_batch_size: int = 1
-    ) -> List[NodeApply]:
+    ) -> list[NodeApply]:
         """
         Extract and fill properties from multiple instances.
         
@@ -824,15 +837,15 @@ Example output for 2 items:
     
     def _extract_properties_batched(
         self,
-        instances: List,
+        instances: list[Node],
         view: View,
         text_property: str,
-        properties_to_extract: Optional[List[str]],
-        ai_property_mapping: Optional[Dict[str, str]],
-        property_configs: Optional[List[PropertyConfig]],
-        target_view: Optional[View],
+        properties_to_extract: list[str] | None,
+        ai_property_mapping: dict[str, str] | None,
+        property_configs: list[PropertyConfig] | None,
+        target_view: View | None,
         llm_batch_size: int
-    ) -> List[NodeApply]:
+    ) -> list[NodeApply]:
         """
         Extract properties from multiple instances using batched LLM calls.
         
@@ -981,7 +994,7 @@ Example output for 2 items:
         
         return results
     
-    def get_extractable_properties(self, view: View) -> Dict[str, Dict[str, Any]]:
+    def get_extractable_properties(self, view: View) -> ExtractablePropertiesResult:
         """
         Get all extractable properties from a view (excluding reverse relations).
         

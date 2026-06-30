@@ -236,7 +236,7 @@ def _create_coverage_comparison(
     return fig
 
 
-def render_3d_model_dashboard(metrics: dict, metadata: Optional[dict] = None):
+def render_3d_model_dashboard(metrics: dict, metadata: Optional[dict] = None) -> None:
     """
     Render the 3D Model Contextualization dashboard.
     

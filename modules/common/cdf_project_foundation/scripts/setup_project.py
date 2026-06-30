@@ -25,7 +25,6 @@ import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
 
 import yaml
 from _env_io import parse_env_file  # noqa: F401 (re-exported for tests)
@@ -228,10 +227,10 @@ def resolve_sourcesystem_variables(
     integration_owners: dict[str, tuple[str, str]] | None = None,
     data_owners: dict[str, tuple[str, str]] | None = None,
     extractor_group_source_ids: dict[str, str] | None = None,
-) -> dict[str, dict]:
-    result: dict[str, dict] = {}
+) -> dict[str, dict[str, str]]:
+    result: dict[str, dict[str, str]] = {}
     for module in installed_modules:
-        vars_: dict[str, Any] = {"instanceSpace": instance_space, "environment": env, "location": location}
+        vars_: dict[str, str] = {"instanceSpace": instance_space, "environment": env, "location": location}
         if integration_owners and module in integration_owners:
             name, email = integration_owners[module]
             if name:
@@ -305,7 +304,7 @@ def build_overlay(
         ctx_vars["cdf_entity_matching"]["source_name"] = site
 
     # Always write dataset (even as empty list) so the key is always present.
-    modules_vars: dict[str, Any] = {
+    modules_vars: dict[str, dict[str, object]] = {
         "cdf_project_foundation": build_foundation_vars(variant, env, site, datasets),
     }
     modules_vars.update(ctx_vars)
@@ -319,7 +318,7 @@ def build_overlay(
     if variant == "cfihos_oil_and_gas_extension":
         # CFIHOS uses its own space / instance_space variables — not the ISA ones.
         # instance_space is derived from site; space is fixed.
-        cfihos_dm_vars: dict[str, Any] = {"instance_space": "inst_location", "environment": env}
+        cfihos_dm_vars: dict[str, str] = {"instance_space": "inst_location", "environment": env}
         if cfihos_admin_user:
             cfihos_dm_vars["admin_user"] = cfihos_admin_user
         if cfihos_integration_owner_name:
@@ -911,16 +910,11 @@ def _detect_installed_envs(pack_root: Path) -> tuple[str, ...]:
     return tuple(detected)
 
 
-def _run_wizard(
-    args_variant: str | None,
-    args_yes: bool,
-    repo_root: Path | None = None,
+def _print_wizard_header(
+    variant: str,
+    pack_root: Path,
+    installed_ctx: list[str],
 ) -> None:
-    pack_root = get_pack_root(repo_root)
-    variant = resolve_variant(args_variant, get_data_models_dir(repo_root))
-    installed_ctx = list_installed_contextualization_modules(repo_root)
-    installed_ss = list_installed_source_system_modules(repo_root)
-
     _banner("Foundation Deployment Pack — Project Setup")
     _ok(f"Data model variant : {variant}")
     _ok(f"Pack root          : {pack_root}")
@@ -934,60 +928,56 @@ def _run_wizard(
     else:
         _hint("No contextualization modules detected.")
 
-    # ── Environment selection ─────────────────────────────────────────────────
+
+def _prompt_environments(pack_root: Path) -> tuple[str, ...]:
     _section("Environment Selection")
     installed_envs = _detect_installed_envs(pack_root)
 
     if installed_envs:
-        # Environments already set up by Toolkit — confirm or let user modify.
         env_list = ", ".join(installed_envs)
         _hint(f"You selected {env_list} while installing the DP.")
         _hint("(staging = test; dev/prod/test are the three supported environments.)")
         print()
-        if prompt_yes_no(
-            f"  Continue with current selection ({env_list})?", default=True
-        ):
-            selected_envs: tuple[str, ...] = installed_envs
-        else:
-            _hint("Select which environments to set up:")
-            selected_envs = tuple(
-                env for env in ENVIRONMENTS
-                if prompt_yes_no(f"  Include '{env}'?", default=(env in installed_envs))
-            )
-            if not selected_envs:
-                raise SystemExit("No environments selected — nothing to do.")
-    else:
-        # No existing configs — show full selection prompt.
-        print("  Which environments would you like to set up?\n")
-        choice = prompt_choice(
-            [
-                "All three — dev, test, prod  (recommended)",
-                "dev only",
-                "dev + prod  (skip test / staging)",
-                "Custom — choose individually",
-            ],
-            default=1,
+        if prompt_yes_no(f"  Continue with current selection ({env_list})?", default=True):
+            return installed_envs
+        _hint("Select which environments to set up:")
+        selected = tuple(
+            env for env in ENVIRONMENTS
+            if prompt_yes_no(f"  Include '{env}'?", default=(env in installed_envs))
         )
-        if choice == 1:
-            selected_envs = ("dev", "test", "prod")
-        elif choice == 2:
-            selected_envs = ("dev",)
-        elif choice == 3:
-            selected_envs = ("dev", "prod")
-        else:
-            selected_envs = tuple(
-                env for env in ENVIRONMENTS
-                if prompt_yes_no(f"  Include environment '{env}'?", default=True)
-            )
-            if not selected_envs:
-                raise SystemExit("No environments selected — nothing to do.")
+        if not selected:
+            raise SystemExit("No environments selected — nothing to do.")
+        return selected
 
-    # Load existing values from config files to pre-fill prompts on re-runs.
-    # _read_existing_values falls back to config.staging.yaml for test if needed.
-    existing = _read_existing_values(pack_root, selected_envs, installed_ss)
-    targets = target_config_paths(pack_root, selected_envs)
+    print("  Which environments would you like to set up?\n")
+    choice = prompt_choice(
+        [
+            "All three — dev, test, prod  (recommended)",
+            "dev only",
+            "dev + prod  (skip test / staging)",
+            "Custom — choose individually",
+        ],
+        default=1,
+    )
+    if choice == 1:
+        return ("dev", "test", "prod")
+    if choice == 2:
+        return ("dev",)
+    if choice == 3:
+        return ("dev", "prod")
+    selected = tuple(
+        env for env in ENVIRONMENTS
+        if prompt_yes_no(f"  Include environment '{env}'?", default=True)
+    )
+    if not selected:
+        raise SystemExit("No environments selected — nothing to do.")
+    return selected
 
-    # ── CDF project names ─────────────────────────────────────────────────────
+
+def _prompt_project_names(
+    selected_envs: tuple[str, ...],
+    existing_project_names: dict[str, str],
+) -> dict[str, str]:
     _section("CDF Project Names")
     _hint("Format: <enterprise>-<env>  e.g. acme-dev, acme-test, acme-prod")
     _hint("Only lowercase letters, digits, and hyphens. Cannot be empty.")
@@ -996,7 +986,7 @@ def _run_wizard(
         while True:
             val = prompt(
                 f"Project name for {env}",
-                default=existing["project_names"].get(env) or None,
+                default=existing_project_names.get(env) or None,
             ).strip()
             if not val:
                 _warn("Project name cannot be empty.")
@@ -1006,72 +996,68 @@ def _run_wizard(
                 continue
             project_names[env] = val
             break
+    return project_names
 
-    # ── Site / location name (optional) ──────────────────────────────────────
+
+def _prompt_site(existing_site: str) -> str:
     _section("Site / Location Name")
     _hint("Required. Used as suffix in access-group names (<persona>-<site>-<env>),")
     _hint("location for source system external IDs, and location_name in entity-matching.")
     _hint("Only lowercase letters, digits, hyphens, and underscores (e.g. oslo).")
     while True:
-        site = prompt(
-            "Site / location name",
-            default=existing["site"] or None,
-        ).strip().lower()
+        site = prompt("Site / location name", default=existing_site or None).strip().lower()
         if not site:
             _warn("Site / location name is required and cannot be empty.")
             continue
         if re.fullmatch(r"[a-z0-9_-]+", site):
-            break
+            return site
         _warn("Use only lowercase letters, digits, hyphens, and underscores.")
 
-    # ── Source system ownership ───────────────────────────────────────────────
-    integration_owners, data_owners = _prompt_source_system_ownership(
-        installed_ss,
-        existing_integration=existing["integration_owners"] or None,
-        existing_data=existing["data_owners"] or None,
-    )
 
-    # ── CFIHOS DM owner config (only when CFIHOS variant is selected) ────────
-    cfihos_admin_user = ""
-    cfihos_integration_owner_name = ""
-    cfihos_integration_owner_email = ""
-    if variant == "cfihos_oil_and_gas_extension":
-        _section("CFIHOS Data Model — Data Model Owner Configuration")
-        _hint("Configures admin_user, integrationOwnerName, and integrationOwnerEmail")
-        _hint("in the cfihos_oil_and_gas_extension module. Leave blank to skip.")
+def _prompt_cfihos_owners(existing: dict) -> tuple[str, str, str]:
+    """Prompt for CFIHOS data-model owner fields. Returns admin user and owner name/email."""
+    _section("CFIHOS Data Model — Data Model Owner Configuration")
+    _hint("Configures admin_user, integrationOwnerName, and integrationOwnerEmail")
+    _hint("in the cfihos_oil_and_gas_extension module. Leave blank to skip.")
 
-        while True:
-            cfihos_admin_user = prompt(
-                "Admin user email",
-                default=existing.get("cfihos_admin_user") or None,
-            ).strip()
-            if not cfihos_admin_user or re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", cfihos_admin_user):
-                break
-            _warn("Invalid email. Use format: name@domain.com")
-
-        cfihos_integration_owner_name = prompt(
-            "Data Model owner name",
-            default=existing.get("cfihos_integration_owner_name") or None,
+    while True:
+        cfihos_admin_user = prompt(
+            "Admin user email",
+            default=existing.get("cfihos_admin_user") or None,
         ).strip()
+        if not cfihos_admin_user or re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", cfihos_admin_user):
+            break
+        _warn("Invalid email. Use format: name@domain.com")
 
-        while True:
-            cfihos_integration_owner_email = prompt(
-                "Data Model owner email",
-                default=existing.get("cfihos_integration_owner_email") or None,
-            ).strip()
-            if not cfihos_integration_owner_email or re.fullmatch(
-                r"[^@\s]+@[^@\s]+\.[^@\s]+", cfihos_integration_owner_email
-            ):
-                break
-            _warn("Invalid email. Use format: name@domain.com")
+    cfihos_integration_owner_name = prompt(
+        "Data Model owner name",
+        default=existing.get("cfihos_integration_owner_name") or None,
+    ).strip()
 
-    # ── Group source IDs → .env ───────────────────────────────────────────────
+    while True:
+        cfihos_integration_owner_email = prompt(
+            "Data Model owner email",
+            default=existing.get("cfihos_integration_owner_email") or None,
+        ).strip()
+        if not cfihos_integration_owner_email or re.fullmatch(
+            r"[^@\s]+@[^@\s]+\.[^@\s]+", cfihos_integration_owner_email
+        ):
+            break
+        _warn("Invalid email. Use format: name@domain.com")
+
+    return cfihos_admin_user, cfihos_integration_owner_name, cfihos_integration_owner_email
+
+
+def _prompt_group_source_ids(
+    site: str,
+    installed_ss: list[str],
+    repo_root: Path | None,
+) -> tuple[Path, list[str], dict[str, str], dict[str, int], dict[str, str]]:
+    """Prompt for persona and extractor group source IDs. Returns .env file state."""
     _section("Group Source IDs  (Entra ID object IDs)")
     _hint("The source ID is the group's object ID in your identity provider (e.g. Entra ID).")
     _hint("See: https://docs.cognite.com/cdf/access/entra/guides/create_groups_oidc")
     _hint("Values stored in .env — leave blank to fill manually later.")
-    # .env always lives at repo root (same level as cdf.toml), regardless of
-    # whether an organization directory is configured.
     env_path = (repo_root or REPO_ROOT) / ".env"
     env_lines, env_vals, env_key_idx = parse_env_file(env_path)
     original_env_vals = dict(env_vals)
@@ -1082,7 +1068,6 @@ def _run_wizard(
         _hint(f"  Source ID of the '{group_name(persona, site, 'dev')}' group in your IdP.")
         prompt_env_var(var, env_vals, env_lines, env_key_idx)
 
-    # ── Extractor group source IDs (one per installed SS module) ──────────────
     if installed_ss:
         _section("Extractor Group Source IDs  (per source system)")
         _hint("One scoped producer group per extractor — write access limited to its")
@@ -1095,41 +1080,54 @@ def _run_wizard(
             print(f"\n  {_module_label(module)}  →  {var}")
             prompt_env_var(var, env_vals, env_lines, env_key_idx)
 
-    # ── ApplicationOwner (file_annotation only) ───────────────────────────────
-    app_owner = ""
-    if "cdf_file_annotation" in installed_ctx:
-        _section("Streamlit Application Owner  (file annotation)")
-        _hint("Email address(es) of the Streamlit app owner for cdf_file_annotation.")
-        _hint("Separate multiple addresses with a comma.")
-        while True:
-            app_owner = prompt(
-                "Application owner email(s)",
-                default=existing["app_owner"] or None,
-            ).strip()
-            if not app_owner:
-                break
-            emails = [e.strip() for e in app_owner.split(",") if e.strip()]
-            if all(re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", e) for e in emails):
-                break
-            _warn("One or more addresses look invalid. Use format: name@domain.com")
+    return env_path, env_lines, env_vals, env_key_idx, original_env_vals
 
-    # ── Synthetic data ────────────────────────────────────────────────────────
+
+def _prompt_app_owner(installed_ctx: list[str], existing_app_owner: str) -> str:
+    if "cdf_file_annotation" not in installed_ctx:
+        return ""
+    _section("Streamlit Application Owner  (file annotation)")
+    _hint("Email address(es) of the Streamlit app owner for cdf_file_annotation.")
+    _hint("Separate multiple addresses with a comma.")
+    while True:
+        app_owner = prompt(
+            "Application owner email(s)",
+            default=existing_app_owner or None,
+        ).strip()
+        if not app_owner:
+            return ""
+        emails = [e.strip() for e in app_owner.split(",") if e.strip()]
+        if all(re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", e) for e in emails):
+            return app_owner
+        _warn("One or more addresses look invalid. Use format: name@domain.com")
+
+
+def _prompt_synthetic_data() -> bool:
     _section("Synthetic / Example Data")
     _hint("Data model modules contain synthetic data, example files, and diagram images")
     _hint("that are not needed in production deployments.")
-    keep_synthetic = prompt_yes_no(
-        "Keep synthetic data, example files, and diagram images?", default=False
-    )
+    return prompt_yes_no("Keep synthetic data, example files, and diagram images?", default=False)
 
-    # ── Review summary ────────────────────────────────────────────────────────
+
+def _env_values_dirty(
+    env_vals: dict[str, str],
+    original_env_vals: dict[str, str],
+) -> bool:
     extractor_dirty = any(
         env_vals.get(v) != original_env_vals.get(v)
         for v in _MODULE_EXTRACTOR_ENV_VAR.values()
     )
-    env_dirty = extractor_dirty or any(
+    return extractor_dirty or any(
         env_vals.get(f"{p.upper()}_SOURCE_ID") != original_env_vals.get(f"{p.upper()}_SOURCE_ID")
         for p in PERSONAS
     )
+
+
+def _show_wizard_review(
+    targets: dict[str, Path],
+    project_names: dict[str, str],
+    env_dirty: bool,
+) -> None:
     _section("Review")
     for env, path in targets.items():
         state = "create" if not path.exists() else "update"
@@ -1137,14 +1135,31 @@ def _run_wizard(
     if env_dirty:
         _ok(".env  —  group source IDs updated")
 
-    # ── Confirm ───────────────────────────────────────────────────────────────
-    print()
-    if not args_yes:
-        if not prompt_yes_no("Apply these changes?", default=True):
-            print("  Aborted — no changes written.")
-            sys.exit(0)
 
-    # ── Write config files ────────────────────────────────────────────────────
+def _confirm_wizard_apply(args_yes: bool) -> None:
+    print()
+    if not args_yes and not prompt_yes_no("Apply these changes?", default=True):
+        print("  Aborted — no changes written.")
+        sys.exit(0)
+
+
+def _write_wizard_configs(
+    targets: dict[str, Path],
+    project_names: dict[str, str],
+    *,
+    variant: str,
+    site: str,
+    installed_ctx: list[str],
+    installed_ss: list[str],
+    app_owner: str,
+    integration_owners: dict[str, tuple[str, str]],
+    data_owners: dict[str, tuple[str, str]],
+    existing: dict,
+    cfihos_admin_user: str,
+    cfihos_integration_owner_name: str,
+    cfihos_integration_owner_email: str,
+    repo_root: Path | None,
+) -> int:
     _section("Writing Config Files")
     changed_count = 0
     for env, path in targets.items():
@@ -1166,21 +1181,36 @@ def _run_wizard(
             changed_count += 1
         else:
             _hint(f"No change: {path.name}")
+    return changed_count
 
-    # ── Write .env ────────────────────────────────────────────────────────────
-    if env_dirty and env_lines:
-        _section("Writing .env")
-        if env_path.exists():
-            timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
-            backup_env = env_path.with_suffix(f".{timestamp}.bak")
-            shutil.copy2(env_path, backup_env)
-            _ok(f"Updated .env  (backup: {backup_env.name})")
-        else:
-            _ok("Created .env")
-        env_path.write_text("".join(env_lines))
 
-    # ── Staging migration / cleanup (after confirmation) ─────────────────────
-    # Done here — not before prompts — so no file is touched if the user aborts.
+def _write_env_if_dirty(
+    env_path: Path,
+    env_lines: list[str],
+    env_dirty: bool,
+) -> None:
+    if not env_dirty or not env_lines:
+        return
+    _section("Writing .env")
+    if env_path.exists():
+        timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+        backup_env = env_path.with_suffix(f".{timestamp}.bak")
+        shutil.copy2(env_path, backup_env)
+        _ok(f"Updated .env  (backup: {backup_env.name})")
+    else:
+        _ok("Created .env")
+    env_path.write_text("".join(env_lines))
+
+
+def _finalize_wizard(
+    pack_root: Path,
+    selected_envs: tuple[str, ...],
+    *,
+    keep_synthetic: bool,
+    env_dirty: bool,
+    changed_count: int,
+    repo_root: Path | None,
+) -> None:
     if "test" in selected_envs:
         _migrate_staging_to_test(pack_root)
     else:
@@ -1189,7 +1219,6 @@ def _run_wizard(
             staging_path.unlink()
             _ok("Deleted  config.staging.yaml  (test not in selected environments)")
 
-    # ── Delete config files for deselected environments ──────────────────────
     for env in ENVIRONMENTS:
         if env not in selected_envs:
             path = pack_root / f"config.{env}.yaml"
@@ -1197,22 +1226,18 @@ def _run_wizard(
                 path.unlink()
                 _ok(f"Deleted  {path.name}  (not in selected environments)")
 
-    # ── Remove redundant auth files ───────────────────────────────────────────
     removed = remove_redundant_auth_files(repo_root)
     patched = patch_cfihos_auth_for_missing_search(repo_root)
     _cleanup_file_annotation_module(repo_root)
 
-    # ── Remove synthetic data (if user opted out) ─────────────────────────────
     synthetic_removed = 0
     if not keep_synthetic:
         synthetic_removed = remove_synthetic_data(repo_root)
         if synthetic_removed:
             _ok(f"Removed {synthetic_removed} synthetic data file(s) from upload_data/ directories.")
 
-    # ── CI/CD generation ──────────────────────────────────────────────────────
     cicd_files = _run_cicd_wizard(pack_root)
 
-    # ── Summary ───────────────────────────────────────────────────────────────
     _section("Done")
     _ok(f"{changed_count} config file(s) created/updated.")
     if removed:
@@ -1239,6 +1264,76 @@ def _run_wizard(
     else:
         _hint("  3. Add CI/CD secrets to GitHub Environments (IDP_CLIENT_SECRET).")
     print()
+
+
+def _run_wizard(
+    args_variant: str | None,
+    args_yes: bool,
+    repo_root: Path | None = None,
+) -> None:
+    pack_root = get_pack_root(repo_root)
+    variant = resolve_variant(args_variant, get_data_models_dir(repo_root))
+    installed_ctx = list_installed_contextualization_modules(repo_root)
+    installed_ss = list_installed_source_system_modules(repo_root)
+
+    _print_wizard_header(variant, pack_root, installed_ctx)
+
+    selected_envs = _prompt_environments(pack_root)
+    existing = _read_existing_values(pack_root, selected_envs, installed_ss)
+    targets = target_config_paths(pack_root, selected_envs)
+
+    project_names = _prompt_project_names(selected_envs, existing["project_names"])
+    site = _prompt_site(existing["site"])
+
+    integration_owners, data_owners = _prompt_source_system_ownership(
+        installed_ss,
+        existing_integration=existing["integration_owners"] or None,
+        existing_data=existing["data_owners"] or None,
+    )
+
+    cfihos_admin_user = ""
+    cfihos_integration_owner_name = ""
+    cfihos_integration_owner_email = ""
+    if variant == "cfihos_oil_and_gas_extension":
+        cfihos_admin_user, cfihos_integration_owner_name, cfihos_integration_owner_email = (
+            _prompt_cfihos_owners(existing)
+        )
+
+    env_path, env_lines, env_vals, _env_key_idx, original_env_vals = _prompt_group_source_ids(
+        site, installed_ss, repo_root
+    )
+    app_owner = _prompt_app_owner(installed_ctx, existing["app_owner"])
+    keep_synthetic = _prompt_synthetic_data()
+
+    env_dirty = _env_values_dirty(env_vals, original_env_vals)
+    _show_wizard_review(targets, project_names, env_dirty)
+    _confirm_wizard_apply(args_yes)
+
+    changed_count = _write_wizard_configs(
+        targets,
+        project_names,
+        variant=variant,
+        site=site,
+        installed_ctx=installed_ctx,
+        installed_ss=installed_ss,
+        app_owner=app_owner,
+        integration_owners=integration_owners,
+        data_owners=data_owners,
+        existing=existing,
+        cfihos_admin_user=cfihos_admin_user,
+        cfihos_integration_owner_name=cfihos_integration_owner_name,
+        cfihos_integration_owner_email=cfihos_integration_owner_email,
+        repo_root=repo_root,
+    )
+    _write_env_if_dirty(env_path, env_lines, env_dirty)
+    _finalize_wizard(
+        pack_root,
+        selected_envs,
+        keep_synthetic=keep_synthetic,
+        env_dirty=env_dirty,
+        changed_count=changed_count,
+        repo_root=repo_root,
+    )
 
 
 # ── --check mode (CI) ──────────────────────────────────────────────────────────

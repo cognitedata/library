@@ -15,7 +15,7 @@ DEFAULT_TIME_RANGE_INDEX = 2  # 7 Days
 DEFAULT_UPTIME = 75
 
 
-def _init_function_session_state():
+def _init_function_session_state() -> None:
     """Initialize session state for function run tracking."""
     if "function_call_id" not in st.session_state:
         st.session_state["function_call_id"] = None
@@ -41,7 +41,7 @@ def _check_function_status(client, call_id: int) -> dict:
 
 
 @st.cache_data(ttl=300)
-def get_available_datasets(_client):
+def get_available_datasets(_client) -> list[dict]:
     """Fetch datasets for dropdown."""
     try:
         datasets = list(_client.data_sets.list(limit=500))
@@ -53,7 +53,7 @@ def get_available_datasets(_client):
         return []
 
 
-def _custom_range_to_ms(custom_start, custom_end):
+def _custom_range_to_ms(custom_start, custom_end) -> tuple[int, int]:
     if not custom_start or not custom_end:
         return None, None
     start_dt = datetime.combine(custom_start, datetime.min.time()).replace(tzinfo=timezone.utc)
@@ -61,7 +61,7 @@ def _custom_range_to_ms(custom_start, custom_end):
     return int(start_dt.timestamp() * 1000), int(end_dt.timestamp() * 1000)
 
 
-def _format_ts(ts):
+def _format_ts(ts) -> str:
     if ts is None:
         return "-"
     if isinstance(ts, (int, float)):
@@ -69,7 +69,7 @@ def _format_ts(ts):
     return str(ts)
 
 
-def _get_function_run_status(_client):
+def _get_function_run_status(_client) -> tuple[list | None, str | None]:
     """Fetch last few function calls for project_health_handler."""
     try:
         fn = _client.functions.retrieve(external_id=PROJECT_HEALTH_FUNCTION_EXTERNAL_ID)
@@ -81,7 +81,7 @@ def _get_function_run_status(_client):
         return None, str(e)
 
 
-def render_configuration_tab(client):
+def render_configuration_tab(client) -> None:
     """Render the Configuration tab: dataset, time range, thresholds, Run + Check status."""
     _init_function_session_state()
 

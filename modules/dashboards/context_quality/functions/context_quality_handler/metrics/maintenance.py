@@ -53,8 +53,8 @@ def get_direct_relation_ids(prop) -> List[str]:
 def process_notification_batch(
     batch,
     view: ViewId,
-    acc: CombinedAccumulator
-):
+    acc: CombinedAccumulator,
+) -> None:
     """Process notification batch - collect notification-to-order/asset/equipment linkage."""
     for node in batch:
         node_id = get_external_id(node)
@@ -100,8 +100,8 @@ def process_notification_batch(
 def process_maintenance_order_batch(
     batch,
     view: ViewId,
-    acc: CombinedAccumulator
-):
+    acc: CombinedAccumulator,
+) -> None:
     """Process maintenance order batch - collect order-to-asset/equipment coverage."""
     for node in batch:
         node_id = get_external_id(node)
@@ -153,8 +153,8 @@ def process_maintenance_order_batch(
 def process_failure_notification_batch(
     batch,
     view: ViewId,
-    acc: CombinedAccumulator
-):
+    acc: CombinedAccumulator,
+) -> None:
     """Process failure notification batch - collect failure analysis documentation."""
     for node in batch:
         node_id = get_external_id(node)

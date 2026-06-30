@@ -108,8 +108,8 @@ def get_direct_relation_id(prop) -> Optional[str]:
 def process_file_batch(
     file_batch,
     file_view: ViewId,
-    acc: CombinedAccumulator
-):
+    acc: CombinedAccumulator,
+) -> None:
     """Process file batch - collect file-asset relationship data."""
     for file_node in file_batch:
         file_id = get_external_id(file_node)

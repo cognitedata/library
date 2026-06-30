@@ -17,8 +17,8 @@ from .common import (
 def process_asset_batch(
     asset_batch,
     asset_view: ViewId,
-    acc: CombinedAccumulator
-):
+    acc: CombinedAccumulator,
+) -> None:
     """
     Process asset batch - collect data for:
     - TS metrics (critical asset coverage)

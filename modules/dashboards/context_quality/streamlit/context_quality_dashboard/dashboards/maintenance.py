@@ -18,7 +18,7 @@ from .common import (
 )
 
 
-def render_maintenance_dashboard(metrics: dict):
+def render_maintenance_dashboard(metrics: dict) -> None:
     """Render the Maintenance Workflow Quality dashboard tab."""
     st.title("Maintenance Workflow Quality Dashboard")
     st.markdown("*Based on RMDM v1 Data Model*")

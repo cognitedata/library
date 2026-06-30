@@ -94,7 +94,7 @@ class Model3DAccumulator:
         acc.objects_with_multiple_models = data.get("objects_with_multiple_models", 0)
         return acc
     
-    def merge_from(self, other: "Model3DAccumulator"):
+    def merge_from(self, other: "Model3DAccumulator") -> None:
         """Merge another accumulator (for batch aggregation)."""
         self.total_assets_checked += other.total_assets_checked
         self.assets_with_3d += other.assets_with_3d
@@ -130,8 +130,8 @@ def get_direct_relation_id(prop) -> Optional[str]:
 def process_asset_3d_batch(
     asset_batch,
     asset_view: ViewId,
-    acc: Model3DAccumulator
-):
+    acc: Model3DAccumulator,
+) -> None:
     """
     Process assets to check for 3D object associations.
     
@@ -179,8 +179,8 @@ def process_asset_3d_batch(
 def process_3d_object_batch(
     object_batch,
     object_view: ViewId,
-    acc: Model3DAccumulator
-):
+    acc: Model3DAccumulator,
+) -> None:
     """
     Process 3D objects for contextualization, bounding box, and model type coverage.
     

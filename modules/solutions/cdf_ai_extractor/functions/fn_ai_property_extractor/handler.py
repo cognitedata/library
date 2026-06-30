@@ -13,9 +13,10 @@ from pathlib import Path
 from typing import Literal
 
 from cognite.client import ClientConfig, CogniteClient
+from cognite.client import data_modeling as dm
 from cognite.client.credentials import OAuthClientCredentials
 from cognite.client.data_classes import ExtractionPipelineRunWrite
-from cognite.client.data_classes.data_modeling import NodeApply, NodeOrEdgeData
+from cognite.client.data_classes.data_modeling import NodeApply, NodeOrEdgeData, ViewId
 
 # Add current directory to path for local imports
 sys.path.append(str(Path(__file__).parent))
@@ -466,7 +467,7 @@ def query_instances(
     # logic, so the query filter just needs to avoid *over-filtering* nodes
     # that still have work to do.
     
-    def _build_epoch_filter():
+    def _build_epoch_filter() -> dm.filters.Filter | None:
         """Build the epoch-based timestamp filter for append/overwrite modes."""
         if use_ai_timestamp and epoch_start:
             not_yet_processed = dm.filters.Not(dm.filters.Exists(ai_ts_ref))
@@ -555,7 +556,12 @@ def query_instances(
     return list(instances)
 
 
-def _add_ai_timestamp_to_node_apply(node_apply, write_view_id, ai_ts_property: str, timestamp: str):
+def _add_ai_timestamp_to_node_apply(
+    node_apply: NodeApply,
+    write_view_id: ViewId,
+    ai_ts_property: str,
+    timestamp: str,
+) -> None:
     """
     Add the AI timestamp property to an existing NodeApply.
     
@@ -580,7 +586,7 @@ def _add_ai_timestamp_to_node_apply(node_apply, write_view_id, ai_ts_property: s
     )
 
 
-def build_filter(filter_config: dict, view_id=None):
+def build_filter(filter_config: dict, view_id: ViewId | None = None) -> dm.filters.Filter:
     """
     Build a DM filter from configuration.
     
@@ -620,7 +626,7 @@ def build_filter(filter_config: dict, view_id=None):
         raise ValueError(f"Unsupported filter type: {filter_type}")
 
 
-def run_locally():
+def run_locally() -> None:
     """Run the function locally for development/testing."""
     
     required_envvars = ("CDF_PROJECT", "CDF_CLUSTER", "IDP_CLIENT_ID", "IDP_CLIENT_SECRET", "IDP_TOKEN_URL")

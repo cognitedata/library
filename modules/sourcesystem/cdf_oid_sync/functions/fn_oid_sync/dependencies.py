@@ -31,12 +31,12 @@ def get_env_variables() -> EnvConfig:
     oid_secret = os.getenv("OPEN_ID_CLIENT_SECRET") or os.getenv("openIdClientSecret")
     
     return EnvConfig(
-        cdf_project=os.getenv("CDF_PROJECT"),  # type: ignore
-        cdf_cluster=os.getenv("CDF_CLUSTER"),  # type: ignore
-        tenant_id=os.getenv("IDP_TENANT_ID"),  # type: ignore
-        client_id=os.getenv("IDP_CLIENT_ID"),  # type: ignore
-        client_secret=os.getenv("IDP_CLIENT_SECRET"),  # type: ignore
-        open_id_client_secret=oid_secret  # type: ignore
+        cdf_project=os.environ["CDF_PROJECT"],
+        cdf_cluster=os.environ["CDF_CLUSTER"],
+        tenant_id=os.environ["IDP_TENANT_ID"],
+        client_id=os.environ["IDP_CLIENT_ID"],
+        client_secret=os.environ["IDP_CLIENT_SECRET"],
+        open_id_client_secret=oid_secret,
     )
 
 

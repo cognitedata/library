@@ -174,7 +174,7 @@ def _aggregate_multi_dataset_payload(datasets_dict: dict) -> dict:
     }
 
 
-def main():
+def main() -> None:
     st.title("🏥 CDF Project Health Dashboard")
 
     metrics = load_metrics_from_file(METRICS_FILE_EXTERNAL_ID)

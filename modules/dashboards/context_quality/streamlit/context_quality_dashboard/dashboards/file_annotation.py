@@ -21,7 +21,7 @@ from .common import (
 )
 
 
-def get_status_color_annotation(metric_key, value):
+def get_status_color_annotation(metric_key: str, value: float) -> str:
     """Color function for file annotation metrics."""
     # Confidence-based metrics
     if metric_key == "avg_confidence":
@@ -50,7 +50,7 @@ def get_status_color_annotation(metric_key, value):
     return "#0068C9"
 
 
-def render_file_annotation_dashboard(metrics: dict):
+def render_file_annotation_dashboard(metrics: dict) -> None:
     """Render the File Annotation Quality dashboard tab."""
     st.title("File Annotation Quality Dashboard")
     st.markdown("*Based on CDM CogniteDiagramAnnotation*")

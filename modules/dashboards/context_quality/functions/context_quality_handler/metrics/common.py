@@ -339,7 +339,7 @@ class CombinedAccumulator:
     file_category_counts: Dict[str, int] = field(default_factory=dict)
     file_mime_type_counts: Dict[str, int] = field(default_factory=dict)
     
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         self.fresh_limit = self.now - timedelta(days=self.freshness_days)
     
     @property
@@ -645,7 +645,7 @@ class CombinedAccumulator:
         
         return acc
     
-    def merge_from(self, other: "CombinedAccumulator"):
+    def merge_from(self, other: "CombinedAccumulator") -> None:
         """
         Merge another accumulator into this one (for batch aggregation).
         Counts are summed, sets are unioned, maps are merged.

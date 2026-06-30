@@ -72,8 +72,8 @@ def render_ai_summary_section(
     dashboard_type: str,
     metrics_data: dict,
     system_prompt: str,
-    key_prefix: str
-):
+    key_prefix: str,
+) -> None:
     """
     Render an AI summary section with a generate button.
     

@@ -36,7 +36,6 @@ class FilterParser:
         matches = []
         for key, sub_filter in filter_section.items():
             match key:
-                # TODO: Revisit
                 # Order of operations might matter so this is not necessarily the best way to do this
                 case "and":
                     matches.append(all(self._eval_multi(sub_filter, item)))

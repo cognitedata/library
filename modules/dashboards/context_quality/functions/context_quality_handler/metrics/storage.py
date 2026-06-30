@@ -27,8 +27,8 @@ def save_metrics_to_file(
     client: CogniteClient,
     metrics: dict,
     file_external_id: str,
-    file_name: str
-):
+    file_name: str,
+) -> None:
     """Save metrics to Cognite Files as JSON, overwriting if exists."""
     # Create temp file
     temp_path = os.path.join(tempfile.gettempdir(), file_name)
@@ -72,7 +72,7 @@ def save_batch_file(
     *,
     model3d_accumulator: Optional[Model3DAccumulator] = None,
     file_annotation_accumulator: Optional[FileAnnotationAccumulator] = None,
-):
+) -> None:
     """
     Save accumulator data to a batch file for later aggregation.
     

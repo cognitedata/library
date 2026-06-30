@@ -18,7 +18,7 @@ from .common import (
 )
 
 
-def render_equipment_dashboard(metrics: dict):
+def render_equipment_dashboard(metrics: dict) -> None:
     """Render the Equipment-Asset Quality dashboard tab."""
     st.title("Equipment-Asset Relationship Quality Dashboard")
     

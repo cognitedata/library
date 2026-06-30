@@ -9,81 +9,92 @@ import os
 import sys
 import tomllib
 from collections import defaultdict
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
 
 
-def validate_library_header(data: dict[str, Any]) -> bool:
-    """Validate that the library header exists and has required fields."""
-    if "library" not in data:
+@dataclass(frozen=True)
+class PackageSpec:
+    """One deployment pack entry from packages.toml."""
+
+    id: str
+    title: str
+    description: str
+    modules: list[str]
+
+
+@dataclass(frozen=True)
+class PackagesRegistry:
+    """Parsed packages.toml registry."""
+
+    description: str
+    packages: dict[str, PackageSpec]
+
+
+def _require_non_empty_str(data: dict[str, object], key: str, context: str) -> str | None:
+    value = data.get(key)
+    if not isinstance(value, str) or not value.strip():
+        print(f"ERROR: {context} missing or invalid '{key}' field")
+        return None
+    return value
+
+
+def parse_packages_registry(data: dict[str, object]) -> PackagesRegistry | None:
+    """Parse and validate the top-level packages.toml shape."""
+    library_raw = data.get("library")
+    if not isinstance(library_raw, dict):
         print("ERROR: Missing [library] header")
-        return False
+        return None
 
-    library = data["library"]
-    if "description" not in library:
-        print("ERROR: [library] section missing 'description' field")
-        return False
+    description = _require_non_empty_str(library_raw, "description", "[library] section")
+    if description is None:
+        return None
 
-    if not library["description"] or not isinstance(library["description"], str):
-        print("ERROR: [library] description must be a non-empty string")
-        return False
+    packages_raw = data.get("packages")
+    if not isinstance(packages_raw, dict) or not packages_raw:
+        print("ERROR: Missing or empty [packages] section")
+        return None
 
-    print("✓ [library] header validation passed")
-    return True
+    packages: dict[str, PackageSpec] = {}
+    for package_name, package_data in packages_raw.items():
+        if not isinstance(package_data, dict):
+            print(f"ERROR: Package '{package_name}' must be a table")
+            return None
 
+        package_id = _require_non_empty_str(package_data, "id", f"Package '{package_name}'")
+        title = _require_non_empty_str(package_data, "title", f"Package '{package_name}'")
+        package_description = _require_non_empty_str(
+            package_data, "description", f"Package '{package_name}'"
+        )
+        if package_id is None or title is None or package_description is None:
+            return None
 
-def validate_packages(data: dict[str, Any]) -> bool:
-    """Validate that packages exist and have required structure."""
-    if "packages" not in data:
-        print("ERROR: Missing [packages] section")
-        return False
+        modules_raw = package_data.get("modules")
+        if not isinstance(modules_raw, list) or not modules_raw:
+            print(f"ERROR: Package '{package_name}' modules must be a non-empty list")
+            return None
 
-    packages = data["packages"]
-    if not packages:
-        print("ERROR: No packages defined")
-        return False
+        modules: list[str] = []
+        for module_path in modules_raw:
+            if not isinstance(module_path, str) or not module_path.strip():
+                print(f"ERROR: Package '{package_name}' module path must be a non-empty string")
+                return None
+            modules.append(module_path)
 
-    print(f"✓ Found {len(packages)} packages")
-    return True
+        packages[package_name] = PackageSpec(
+            id=package_id,
+            title=title,
+            description=package_description,
+            modules=modules,
+        )
 
-
-def validate_package_structure(package_name: str, package_data: dict[str, Any]) -> bool:
-    """Validate individual package structure."""
-    # Check required fields
-    required_fields = ["title", "description", "modules", "id"]
-    for field in required_fields:   
-        if field not in package_data:
-            print(f"ERROR: Package '{package_name}' missing '{field}' field")
-            return False
-
-    # Validate title and description are non-empty strings
-    if not isinstance(package_data["title"], str) or not package_data["title"].strip():
-        print(f"ERROR: Package '{package_name}' title must be a non-empty string")
-        return False
-
-    if (
-        not isinstance(package_data["description"], str)
-        or not package_data["description"].strip()
-    ):
-        print(f"ERROR: Package '{package_name}' description must be a non-empty string")
-        return False
-
-    # Validate modules is a list with at least one item
-    modules = package_data.get("modules")
-    if not isinstance(modules, list):
-        print(f"ERROR: Package '{package_name}' modules must be a list")
-        return False
-
-    if len(modules) == 0:
-        print(f"ERROR: Package '{package_name}' modules list cannot be empty")
-        return False
-
-    print(f"✓ Package '{package_name}' structure validation passed")
-    return True
+    return PackagesRegistry(description=description, packages=packages)
 
 
 def validate_module_paths(
-    package_name: str, modules: list[str], base_path: str = "modules"
+    package_name: str,
+    modules: list[str],
+    base_path: str = "modules",
 ) -> bool:
     """Validate that all module paths exist in the filesystem."""
     base_path_obj = Path(base_path)
@@ -93,19 +104,12 @@ def validate_module_paths(
         return False
 
     for module_path in modules:
-        if not isinstance(module_path, str):
-            print(
-                f"ERROR: Package '{package_name}' module path must be a string, got {type(module_path)}"
-            )
-            return False
-
         full_path = base_path_obj / module_path
         if not full_path.exists():
             print(
                 f"ERROR: Package '{package_name}' module path '{module_path}' does not exist at '{full_path}'"
             )
             return False
-
 
         module_toml = full_path / "module.toml"
         if not module_toml.exists():
@@ -117,31 +121,48 @@ def validate_module_paths(
         with open(module_toml, "rb") as f:
             module_data = tomllib.load(f)
 
-        module = module_data.get("module", {})
+        module_raw = module_data.get("module")
+        if not isinstance(module_raw, dict):
+            print(
+                f"ERROR: Package '{package_name}' module path '{module_path}' is missing a [module] table"
+            )
+            return False
+
         required_fields = {"id", "package_id", "title"}
-        missing_fields = required_fields - set(module.keys())
+        missing_fields = required_fields - set(module_raw.keys())
         if missing_fields:
             print(
                 f"ERROR: Package '{package_name}' module path '{module_path}' does not have the following required fields: {missing_fields}"
             )
             return False
 
-        extra_resources = module_data.get("extra_resources", [])
-        for extra_resource in extra_resources:
+        extra_resources_raw = module_data.get("extra_resources", [])
+        if not isinstance(extra_resources_raw, list):
+            print(
+                f"ERROR: Package '{package_name}' module '{module_path}' extra_resources must be a list"
+            )
+            return False
+
+        for extra_resource in extra_resources_raw:
+            if not isinstance(extra_resource, dict):
+                print(
+                    f"ERROR: Package '{package_name}' module '{module_path}' has an invalid extra_resource entry"
+                )
+                return False
             location = extra_resource.get("location")
-            if not location:
+            if not isinstance(location, str) or not location:
                 print(
                     f"ERROR: Package '{package_name}' module '{module_path}' has an extra_resource without a location"
                 )
                 return False
 
-            full_path = base_path_obj / location
-            if not full_path.exists():
+            resource_path = base_path_obj / location
+            if not resource_path.exists():
                 print(
-                    f"ERROR: Package '{package_name}' module '{module_path}' refers to a non-existent file: {full_path}"
+                    f"ERROR: Package '{package_name}' module '{module_path}' refers to a non-existent file: {resource_path}"
                 )
                 return False
-        
+
         print(f"✓ Module '{module_path}' validated successfully")
 
     return True
@@ -156,21 +177,19 @@ def _package_id_prefix(package_id: str) -> str:
 def _allowed_id_prefixes_for_module(
     module_rel_path: str,
     package_id: str,
-    packages: dict[str, Any],
+    packages: dict[str, PackageSpec],
 ) -> set[str]:
     """Prefixes allowed for a module id (primary pack + any pack that lists the module)."""
     prefixes = {_package_id_prefix(package_id)}
-    for package_data in packages.values():
-        if module_rel_path in package_data.get("modules", []):
-            package_id_value = package_data.get("id")
-            if package_id_value:
-                prefixes.add(_package_id_prefix(package_id_value))
+    for package_spec in packages.values():
+        if module_rel_path in package_spec.modules:
+            prefixes.add(_package_id_prefix(package_spec.id))
     return prefixes
 
 
 def validate_module_id_prefixes(
     base_path: str = "modules",
-    packages: dict[str, Any] | None = None,
+    packages: dict[str, PackageSpec] | None = None,
 ) -> bool:
     """Ensure each module id uses dp:<pack>:<slug> for an allowed pack prefix."""
     base_path_obj = Path(base_path)
@@ -179,9 +198,13 @@ def validate_module_id_prefixes(
     for module_toml in sorted(base_path_obj.rglob("module.toml")):
         with open(module_toml, "rb") as f:
             module_data = tomllib.load(f)
-        module = module_data.get("module", {})
-        module_id = module.get("id")
-        package_id = module.get("package_id")
+        module_raw = module_data.get("module")
+        if not isinstance(module_raw, dict):
+            continue
+        module_id = module_raw.get("id")
+        package_id = module_raw.get("package_id")
+        if not isinstance(module_id, str) or not isinstance(package_id, str):
+            continue
         if not module_id or not package_id:
             continue
         if not module_id.startswith("dp:") or module_id.count(":") < 2:
@@ -224,8 +247,11 @@ def validate_unique_module_ids(base_path: str = "modules") -> bool:
     for module_toml in sorted(base_path_obj.rglob("module.toml")):
         with open(module_toml, "rb") as f:
             module_data = tomllib.load(f)
-        module_id = module_data.get("module", {}).get("id")
-        if not module_id:
+        module_raw = module_data.get("module")
+        if not isinstance(module_raw, dict):
+            continue
+        module_id = module_raw.get("id")
+        if not isinstance(module_id, str) or not module_id:
             continue
         rel_path = module_toml.relative_to(base_path_obj).as_posix()
         if module_id in ids_by_path:
@@ -247,57 +273,48 @@ def validate_unique_module_ids(base_path: str = "modules") -> bool:
     return True
 
 
-def main():
+def main() -> None:
     """Main validation function."""
     packages_file = "modules/packages.toml"
 
-    # Check if packages.toml exists
     if not os.path.exists(packages_file):
         print(f"ERROR: {packages_file} not found")
         sys.exit(1)
 
     try:
-        # Read and parse TOML file
         with open(packages_file, "rb") as f:
             data = tomllib.load(f)
 
         print(f"✓ Successfully parsed {packages_file}")
 
-        # Validate library header
-        if not validate_library_header(data):
+        registry = parse_packages_registry(data)
+        if registry is None:
             sys.exit(1)
 
-        # Validate packages section exists
-        if not validate_packages(data):
-            sys.exit(1)
+        print("✓ [library] header validation passed")
+        print(f"✓ Found {len(registry.packages)} packages")
 
-        # Validate each package
-        packages = data.get("packages", {})
-        for package_name, package_data in packages.items():
+        for package_name, package_spec in registry.packages.items():
             print(f"\nValidating package: {package_name}")
+            print(f"✓ Package '{package_name}' structure validation passed")
 
-            # Validate package structure
-            if not validate_package_structure(package_name, package_data):
+            if not validate_module_paths(package_name, package_spec.modules, "modules"):
                 sys.exit(1)
 
-            # Validate module paths
-            if not validate_module_paths(package_name, package_data.get("modules", []), "modules"):
-                sys.exit(1)
-
-        if not validate_module_id_prefixes("modules", packages):
+        if not validate_module_id_prefixes("modules", registry.packages):
             sys.exit(1)
 
         if not validate_unique_module_ids("modules"):
             sys.exit(1)
 
         print(
-            f"\n🎉 All validation checks passed! {len(packages)} packages validated successfully."
+            f"\n🎉 All validation checks passed! {len(registry.packages)} packages validated successfully."
         )
 
     except tomllib.TOMLDecodeError as e:
         print(f"ERROR: Invalid TOML format: {e}")
         sys.exit(1)
-    except Exception as e:
+    except OSError as e:
         print(f"ERROR: Unexpected error: {e}")
         sys.exit(1)
 

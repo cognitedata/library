@@ -9,7 +9,7 @@ import plotly.graph_objects as go
 # COLOR FUNCTIONS
 # ----------------------------------------------------
 
-def get_status_color_hierarchy(metric_name, value):
+def get_status_color_hierarchy(metric_name: str, value: float) -> str:
     if metric_name == "completion":
         if value >= 98: return "#4CAF50"
         elif value >= 95: return "#FFC107"
@@ -25,7 +25,7 @@ def get_status_color_hierarchy(metric_name, value):
     return "#0068C9"
 
 
-def get_status_color_ts(metric_key, value):
+def get_status_color_ts(metric_key: str, value: float) -> str:
     """Color function for time series metrics.
     
     Direction considerations:
@@ -61,7 +61,7 @@ def get_status_color_ts(metric_key, value):
     return "#0068C9"
 
 
-def get_status_color_equipment(metric_key, value):
+def get_status_color_equipment(metric_key: str, value: float) -> str:
     """Color function for equipment metrics.
     
     Direction considerations:
@@ -97,7 +97,7 @@ def get_status_color_equipment(metric_key, value):
     return "#0068C9"
 
 
-def get_status_color_maintenance(metric_key, value):
+def get_status_color_maintenance(metric_key: str, value: float) -> str:
     """Color function for maintenance workflow metrics.
     
     Important direction considerations (per Jan Inge's guidance):
@@ -149,7 +149,7 @@ def get_status_color_maintenance(metric_key, value):
     return "#0068C9"
 
 
-def get_status_color_files(metric_key, value):
+def get_status_color_files(metric_key: str, value: float) -> str:
     """Color function for file contextualization metrics.
     
     Direction considerations:
@@ -206,7 +206,7 @@ def get_status_color_files(metric_key, value):
 # UI COMPONENTS
 # ----------------------------------------------------
 
-def metric_card(col, title, value, metric_key=None, suffix="", color_func=get_status_color_hierarchy, raw_value=None, help_text=None):
+def metric_card(col, title, value, metric_key=None, suffix="", color_func=get_status_color_hierarchy, raw_value=None, help_text=None) -> None:
     """
     Display a styled metric card with optional help tooltip.
     
@@ -239,7 +239,7 @@ def metric_card(col, title, value, metric_key=None, suffix="", color_func=get_st
     """, unsafe_allow_html=True)
 
 
-def gauge(col, title, value, metric_key, color_func, axis_range, suffix="%", key=None, help_text=None):
+def gauge(col, title, value, metric_key, color_func, axis_range, suffix="%", key=None, help_text=None) -> None:
     """Display a gauge with optional help text."""
     color = color_func(metric_key, value)
     fig = go.Figure(go.Indicator(
@@ -264,7 +264,7 @@ def gauge(col, title, value, metric_key, color_func, axis_range, suffix="%", key
         col.markdown(f"<div style='width:300px;text-align:center;font-size:12px;color:#666;margin-top:-15px;'>(i) {help_text}</div>", unsafe_allow_html=True)
 
 
-def gauge_na(col, title, message="N/A", key=None, help_text=None):
+def gauge_na(col, title, message="N/A", key=None, help_text=None) -> None:
     """Display a grayed-out gauge for metrics that are not applicable."""
     fig = go.Figure(go.Indicator(
         mode="gauge+number",

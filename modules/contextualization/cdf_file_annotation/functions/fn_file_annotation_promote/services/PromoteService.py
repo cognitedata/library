@@ -208,7 +208,7 @@ class GeneralPromoteService(IPromoteService):
 
         edges_to_update: list[EdgeApply] = []
         raw_rows_to_update: list[RowWrite] = []
-        # TODO: think about whether we need to delete the cooresponding raw row of edges that we delete OR if it should be placed in another RAW table when rejected
+        # Think about whether we need to delete the corresponding raw row of edges that we delete OR if it should be placed in another RAW table when rejected
         # raw_rows_to_delete: list[RowWrite] = []
         edges_to_delete: list[EdgeId] = []
 
