@@ -1,3 +1,19 @@
+[project]
+name = "cognite-library"
+version = "0.0.0"
+requires-python = ">=3.13"
+
+[project.optional-dependencies]
+test = [
+    "cognite-sdk>=7,<8",
+    "pydantic>=2",
+    "psutil>=5.9",
+    "pytest>=7",
+    "python-dotenv>=1",
+    "pyyaml>=6",
+    "tenacity>=8",
+]
+
 [tool.ruff]
 line-length = 120
 target-version = "py313"
@@ -13,3 +29,11 @@ ignore = [
 "**/__init__.py" = ["F401"]
 "**/*.ipynb" = ["E741", "F401", "F402"]
 "modules/sourcesystem/cdf_oid_sync/test_oid_sync.py" = ["E402"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-ra"
+markers = [
+    "integration: tests that call live external services (skipped without credentials)",
+]

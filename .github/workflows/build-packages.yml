@@ -21,11 +21,20 @@ jobs:
       with:
         python-version: '3.13'
 
+    - name: Install test dependencies
+      run: pip install pytest "cognite-sdk>=7,<8" pydantic pyyaml python-dotenv tenacity psutil
+
     - name: Lint with ruff
       uses: astral-sh/ruff-action@v3
 
     - name: Type check with pyright
       uses: jakebailey/pyright-action@v2
+
+    - name: Run tests
+      run: |
+        pytest tests/ -q
+        pytest modules/contextualization/cdf_entity_matching/functions/fn_dm_context_timeseries_entity_matching/ -q
+        pytest modules/contextualization/cdf_p_and_id_annotation/functions/fn_dm_context_files_annotation/ -q
 
     - name: Validate packages.toml
       run: |

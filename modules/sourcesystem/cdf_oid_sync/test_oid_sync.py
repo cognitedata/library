@@ -6,12 +6,15 @@ This mirrors the logic from ReadFromOpenIndustrialData.ipynb
 import os
 import sys
 
+import pytest
 from dotenv import load_dotenv
 
 load_dotenv()
 
 # Add function directory to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "functions", "fn_oid_sync"))
+
+pytest.importorskip("cognite.client")
 
 from datetime import datetime, timedelta
 
@@ -20,6 +23,11 @@ from services.LoggerService import CompactLogger  # pyright: ignore[reportMissin
 from utils.DataStructures import OIDConfig  # pyright: ignore[reportMissingImports]
 
 
+@pytest.mark.integration
+@pytest.mark.skipif(
+    not os.environ.get("OPEN_ID_CLIENT_SECRET"),
+    reason="OPEN_ID_CLIENT_SECRET not set — live OID integration test skipped",
+)
 def test_oid_connection():
     """Test connection to Open Industrial Data"""
     print("=" * 60)
@@ -96,17 +104,18 @@ def test_oid_connection():
         logger.info("\n" + "=" * 60)
         logger.info("✓ ALL TESTS PASSED!")
         logger.info("=" * 60)
-        
-        return True
-        
+
     except Exception as e:
         logger.error(f"Test failed: {str(e)}")
         import traceback
         traceback.print_exc()
-        return False
+        pytest.fail(str(e))
 
 
 if __name__ == "__main__":
-    success = test_oid_connection()
-    sys.exit(0 if success else 1)
+    try:
+        test_oid_connection()
+    except Exception:
+        sys.exit(1)
+    sys.exit(0)
 
