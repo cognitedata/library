@@ -1,6 +1,5 @@
 import time
 from collections.abc import Callable
-from typing import Any
 
 import pandas as pd
 import streamlit as st
@@ -15,7 +14,9 @@ from data_structures import CallerType, ViewPropertyConfig
 
 class DataFetcher:
     @staticmethod
-    def _call_with_retries(func: Callable[..., Any], *args, max_attempts: int = 100, delay_seconds: float = 10.0, **kwargs) -> Any:
+    def _call_with_retries(
+        func: Callable[..., object], *args: object, max_attempts: int = 100, delay_seconds: float = 10.0, **kwargs: object
+    ) -> object:
         attempt = 0
         while True:
             attempt += 1
