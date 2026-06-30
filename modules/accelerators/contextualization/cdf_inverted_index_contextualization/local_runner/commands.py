@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime
 from typing import Any, Callable
 
 from inverted_index.build import build_diagram_annotation_index, build_metadata_index
@@ -23,7 +24,9 @@ from inverted_index.storage.raw_adapter import validate_raw_scope_config
 from inverted_index.tag_reuse import audit_cross_scope_tags, query_with_reuse_metrics
 from inverted_index.target_driven import (
     process_target_driven_contextualization,
-    run_target_driven_for_all_assets,
+    require_incoming_view_key,
+    resolve_query_property,
+    run_target_driven_backfill,
     run_target_driven_for_instance_ids,
 )
 from inverted_index.cancellation import raise_if_cancelled
@@ -72,29 +75,43 @@ def _runtime() -> dict[str, Any]:
     return cfg
 
 
+def _parse_datetime(value: str | None) -> datetime | None:
+    if value is None or not str(value).strip():
+        return None
+    text = str(value).strip()
+    if text.endswith("Z"):
+        text = text[:-1] + "+00:00"
+    try:
+        return datetime.fromisoformat(text)
+    except ValueError as exc:
+        raise ValueError(f"Invalid filter_updated_after timestamp: {value}") from exc
+
+
 def cmd_build_metadata(
     *,
     dry_run: bool = False,
+    filter_updated_after: str | None = None,
+    batch_size: int | None = None,
+    progress_interval: int = 100,
     on_log: Callable[[str], None] | None = None,
     should_cancel: Callable[[], bool] | None = None,
 ) -> dict:
     cfg = _runtime()
-    client = None if dry_run else create_cognite_client()
-    adapter = (
-        get_storage_adapter(cfg["storage_config"], client)
-        if not dry_run
-        else None
-    )
+    client = create_cognite_client()
+    adapter = None if dry_run else get_storage_adapter(cfg["storage_config"], client)
     return build_metadata_index(
         client,
         index_field_config=cfg["index_field_config"],
         scope_config=cfg["scope_config"],
         storage_config=cfg["storage_config"],
-        instance_spaces=cfg.get("instance_spaces"),
+        filter_updated_after=_parse_datetime(filter_updated_after),
+        batch_size=batch_size if batch_size is not None else 1000,
         dry_run=dry_run,
         storage_adapter=adapter,
+        progress_interval=progress_interval,
         on_progress=on_log,
         should_cancel=should_cancel,
+        virtual_tag_creation_config=cfg.get("virtual_tag_creation_config"),
     )
 
 
@@ -107,25 +124,23 @@ def cmd_build_annotations(
     should_cancel: Callable[[], bool] | None = None,
 ) -> dict:
     cfg = _runtime()
-    client = None if dry_run else create_cognite_client()
+    client = create_cognite_client()
     storage = cfg["storage_config"]
-    adapter = get_storage_adapter(storage, client) if not dry_run else None
+    adapter = None if dry_run else get_storage_adapter(storage, client)
 
     from inverted_index.sources.annotations import list_diagram_annotations
 
-    annotations = None
-    if client is not None:
-        if on_log:
-            on_log(
-                "[build-annotations] fetching annotations "
-                f"file_external_id={file_external_id or 'all'}"
-            )
-        annotations = list_diagram_annotations(
-            client,
-            file_external_id=file_external_id,
-            instance_spaces=cfg.get("instance_spaces"),
-            detection_mode=detection_mode,  # type: ignore[arg-type]
+    if on_log:
+        on_log(
+            "[build-annotations] fetching annotations "
+            f"file_external_id={file_external_id or 'all'}"
         )
+    annotations = list_diagram_annotations(
+        client,
+        file_external_id=file_external_id,
+        instance_spaces=cfg.get("instance_spaces"),
+        detection_mode=detection_mode,  # type: ignore[arg-type]
+    )
     result = build_diagram_annotation_index(
         client,
         detection_mode=detection_mode,  # type: ignore[arg-type]
@@ -137,6 +152,7 @@ def cmd_build_annotations(
         storage_adapter=adapter,
         should_cancel=should_cancel,
         on_progress=on_log,
+        virtual_tag_creation_config=cfg.get("virtual_tag_creation_config"),
     )
     return result
 
@@ -328,7 +344,8 @@ def cmd_target_driven(
     *,
     instance_external_id: str | None = None,
     instance_external_ids: list[str] | None = None,
-    instance_type: str = "asset",
+    incoming_view_key: str | None = None,
+    view_external_id: str | None = None,
     instance_space: str = "cdf_cdm",
     dry_run: bool = False,
     min_confidence: float = 0.6,
@@ -338,6 +355,8 @@ def cmd_target_driven(
     progress_interval: int = 100,
     on_log: Callable[[str], None] | None = None,
     should_cancel: Callable[[], bool] | None = None,
+    query_property: str | None = None,
+    force: bool = False,
 ) -> dict:
     cfg = _runtime()
     client = create_cognite_client()
@@ -352,26 +371,39 @@ def cmd_target_driven(
         )
 
     instance_ids = parse_instance_id_args(instance_external_id, instance_external_ids)
+    td_cfg = cfg.get("target_driven_config")
+    resolved_query_property = resolve_query_property(query_property, td_cfg)
+    dr_cfg = cfg["direct_relation_config"]
+    resolved_incoming_view_key = require_incoming_view_key(
+        incoming_view_key=incoming_view_key,
+        view_external_id_param=view_external_id,
+        view_space=instance_space,
+        direct_relation_config=dr_cfg,
+    )
+
     if instance_ids:
         if len(instance_ids) == 1:
             only_id = instance_ids[0]
             if on_log:
                 on_log(
-                    f"[target-driven] asset {only_id} "
-                    f"space={instance_space} dry_run={dry_run}"
+                    f"[target-driven] instance {only_id} "
+                    f"space={instance_space} incoming_view_key={resolved_incoming_view_key} "
+                    f"query_property={resolved_query_property} dry_run={dry_run}"
                 )
             result = process_target_driven_contextualization(
                 client,
                 instance_external_id=only_id,
-                instance_type=instance_type,  # type: ignore[arg-type]
+                incoming_view_key=resolved_incoming_view_key,
                 instance_space=instance_space,
                 scope_config=cfg["scope_config"],
-                direct_relation_config=cfg["direct_relation_config"],
+                direct_relation_config=dr_cfg,
+                target_driven_config=td_cfg,
                 min_confidence=min_confidence,
                 dry_run=dry_run,
                 storage_adapter=adapter,
                 match_scope_keys=scopes,
                 scope_lookup_override=bool(scopes),
+                query_property=resolved_query_property,
             )
             if on_log:
                 on_log(
@@ -382,10 +414,11 @@ def cmd_target_driven(
         return run_target_driven_for_instance_ids(
             client,
             instance_ids,
-            instance_type=instance_type,  # type: ignore[arg-type]
+            incoming_view_key=resolved_incoming_view_key,
             instance_space=instance_space,
             scope_config=cfg["scope_config"],
-            direct_relation_config=cfg["direct_relation_config"],
+            direct_relation_config=dr_cfg,
+            target_driven_config=td_cfg,
             min_confidence=min_confidence,
             dry_run=dry_run,
             storage_adapter=adapter,
@@ -394,13 +427,21 @@ def cmd_target_driven(
             match_scope_keys=scopes,
             scope_lookup_override=bool(scopes) or scope_lookup_override,
             should_cancel=should_cancel,
+            query_property=resolved_query_property,
+            force=force,
         )
 
-    return run_target_driven_for_all_assets(
+    if on_log:
+        on_log(
+            "[target-driven-backfill] Fleet backfill — use only for initial population; "
+            "steady state should pass --instance-id"
+        )
+    return run_target_driven_backfill(
         client,
-        instance_type=instance_type,  # type: ignore[arg-type]
+        watch_view_keys=cfg.get("subscription_config", {}).get("watch_view_keys"),
         instance_spaces=cfg.get("instance_spaces"),
         subscription_config=cfg.get("subscription_config"),
+        target_driven_config=td_cfg,
         scope_config=cfg["scope_config"],
         direct_relation_config=cfg["direct_relation_config"],
         min_confidence=min_confidence,
@@ -412,6 +453,8 @@ def cmd_target_driven(
         scope_lookup_override=scope_lookup_override,
         on_progress=on_log,
         should_cancel=should_cancel,
+        query_property=resolved_query_property,
+        force=force,
     )
 
 
@@ -424,10 +467,10 @@ def cmd_migrate(
     from inverted_index.migrate import migrate_index
 
     cfg = _runtime()
-    client = None if dry_run else create_cognite_client()
-    adapter = get_storage_adapter(cfg["storage_config"], client) if client else None
+    client = create_cognite_client()
+    adapter = None if dry_run else get_storage_adapter(cfg["storage_config"], client)
     scopes = parse_scope_key_args(match_scope_keys) if match_scope_keys else None
-    if scopes and client is not None:
+    if scopes:
         scopes = resolve_query_scope_keys(
             client,
             cfg["storage_config"],
@@ -444,6 +487,42 @@ def cmd_migrate(
         purge=purge,
         dry_run=dry_run,
         storage_adapter=adapter,
+    )
+
+
+def cmd_partition_health() -> dict:
+    from inverted_index.raw_ops import check_partition_row_counts
+
+    cfg = _runtime()
+    client = create_cognite_client()
+    adapter = get_storage_adapter(cfg["storage_config"], client)
+    local_registry = getattr(adapter, "_local_registry", None)
+    local_cache = getattr(adapter, "_local_partitions", None)
+    return check_partition_row_counts(
+        client,
+        cfg["storage_config"],
+        local_registry=local_registry,
+        local_cache=local_cache,
+    )
+
+
+def cmd_reshard_scope(
+    match_scope_key: str,
+    *,
+    dry_run: bool = False,
+) -> dict:
+    from inverted_index.raw_ops import reshard_scope_partition
+
+    cfg = _runtime()
+    client = create_cognite_client()
+    adapter = get_storage_adapter(cfg["storage_config"], client)
+    return reshard_scope_partition(
+        client,
+        cfg["storage_config"],
+        match_scope_key,
+        local_cache=getattr(adapter, "_local_partitions", None),
+        local_registry=getattr(adapter, "_local_registry", None),
+        dry_run=dry_run,
     )
 
 
@@ -508,6 +587,103 @@ def cmd_list_by_file(
     if on_log:
         on_log(f"[list-by-file] complete entries={len(entries)}")
     return entries
+
+
+def cmd_index_detections(
+    *,
+    detections: list[dict],
+    detection_mode: str = "pattern",
+    write_mode: str = "replace",
+    file_external_id: str | None = None,
+    file_space: str = "cdf_cdm",
+    dry_run: bool = False,
+) -> dict:
+    from inverted_index.incremental import upsert_diagram_detections
+
+    cfg = _runtime()
+    client = create_cognite_client()
+    adapter = None if dry_run else get_storage_adapter(cfg["storage_config"], client)
+    return upsert_diagram_detections(
+        client,
+        detections,
+        detection_mode=detection_mode,  # type: ignore[arg-type]
+        write_mode=write_mode,  # type: ignore[arg-type]
+        file_external_id=file_external_id,
+        file_space=file_space,
+        scope_config=cfg["scope_config"],
+        storage_config=cfg["storage_config"],
+        annotation_config=cfg["annotation_index_config"],
+        dry_run=dry_run,
+        storage_adapter=adapter,
+        virtual_tag_creation_config=cfg.get("virtual_tag_creation_config"),
+    )
+
+
+def cmd_index_metadata_instance(
+    instance_external_id: str,
+    *,
+    view_external_id: str | None = None,
+    incoming_view_key: str | None = None,
+    instance_space: str = "cdf_cdm",
+    write_mode: str = "replace",
+    dry_run: bool = False,
+) -> dict:
+    from inverted_index.incremental import build_metadata_index_for_instance
+
+    cfg = _runtime()
+    client = create_cognite_client()
+    adapter = None if dry_run else get_storage_adapter(cfg["storage_config"], client)
+    return build_metadata_index_for_instance(
+        client,
+        instance_external_id,
+        view_external_id=view_external_id,
+        incoming_view_key=incoming_view_key,
+        direct_relation_config=cfg.get("direct_relation_config"),
+        instance_space=instance_space,
+        write_mode=write_mode,  # type: ignore[arg-type]
+        index_field_config=cfg["index_field_config"],
+        scope_config=cfg["scope_config"],
+        storage_config=cfg["storage_config"],
+        dry_run=dry_run,
+        storage_adapter=adapter,
+        virtual_tag_creation_config=cfg.get("virtual_tag_creation_config"),
+    )
+
+
+def cmd_virtual_tags(
+    *,
+    all_scopes: bool = False,
+    match_scope_keys: list[str] | None = None,
+    dry_run: bool = False,
+    limit: int = 0,
+    term_selection_mode: str | None = None,
+    progress_interval: int = 1000,
+    on_log: Callable[[str], None] | None = None,
+    should_cancel: Callable[[], bool] | None = None,
+) -> dict:
+    from inverted_index.virtual_tags import run_virtual_tag_creation
+
+    cfg = _runtime()
+    client = create_cognite_client()
+    adapter = None if dry_run else get_storage_adapter(cfg["storage_config"], client)
+    explicit_keys = parse_scope_key_args(match_scope_keys)
+    if not all_scopes and not explicit_keys:
+        raise ValueError("virtual-tags requires --all-scopes or at least one --scope-key")
+    return run_virtual_tag_creation(
+        client,
+        virtual_tag_config=cfg.get("virtual_tag_creation_config"),
+        scope_config=cfg["scope_config"],
+        storage_config=cfg["storage_config"],
+        storage_adapter=adapter,
+        all_scopes=all_scopes,
+        match_scope_keys=explicit_keys or None,
+        dry_run=dry_run,
+        limit=limit,
+        term_selection_mode=term_selection_mode,
+        progress_interval=progress_interval,
+        on_progress=on_log,
+        should_cancel=should_cancel,
+    )
 
 
 def cmd_deltas(

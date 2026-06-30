@@ -66,11 +66,16 @@ export async function saveWorkspace(workspace: WorkspaceResponse["workspace"]): 
   });
 }
 
-export async function buildMetadata(dryRun: boolean): Promise<Record<string, unknown>> {
+export async function buildMetadata(body: {
+  dry_run: boolean;
+  filter_updated_after?: string;
+  batch_size?: number;
+  progress_interval?: number;
+}): Promise<Record<string, unknown>> {
   return fetchJson("/api/inverted-index/build/metadata", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ dry_run: dryRun }),
+    body: JSON.stringify(body),
   });
 }
 
@@ -118,7 +123,8 @@ export async function tagReuseAudit(body: {
 export async function runTargetDriven(body: {
   dry_run: boolean;
   instance_external_id?: string;
-  instance_type: string;
+  incoming_view_key?: string;
+  view_external_id?: string;
   instance_space: string;
   min_confidence: number;
   match_scope_keys: string[];

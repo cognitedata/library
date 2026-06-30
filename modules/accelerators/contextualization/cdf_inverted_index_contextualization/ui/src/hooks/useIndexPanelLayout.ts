@@ -69,10 +69,9 @@ export function useIndexPanelLayout() {
 
   useEffect(() => {
     const mq = window.matchMedia("(max-width: 900px)");
-    const apply = () => setTreeCollapsed(mq.matches);
-    apply();
-    mq.addEventListener("change", apply);
-    return () => mq.removeEventListener("change", apply);
+    if (mq.matches && stored.treeCollapsed !== false) {
+      setTreeCollapsed(true);
+    }
   }, []);
 
   const treeMaxWidth = useCallback(

@@ -13,6 +13,9 @@ NODE_RESULT_KEY = "nodes"
 EDGE_RESULT_KEY = "edges"
 INDEX_RESULT_KEY = "index_rows"
 
+# Always select alias fields so metadata build can exclude self-referential terms.
+_ALIAS_EXCLUSION_PROPERTY_PATHS = ("aliases", "tags")
+
 _INSTANCE_META = frozenset(
     {"externalid", "external_id", "space", "instanceid", "instance_id", "lastupdatedtime"}
 )
@@ -71,6 +74,9 @@ def collect_view_property_paths(
         for prop in view_cfg.get("properties") or []:
             if isinstance(prop, dict) and prop.get("path"):
                 paths.append(str(prop["path"]))
+        from inverted_index.view_query_filters import filter_target_property_paths
+
+        paths.extend(filter_target_property_paths(view_cfg.get("filters")))
     resolve_from = (scope_config or {}).get("resolve_from") or {}
     view_resolve = resolve_from.get(view_external_id) or {}
     if isinstance(view_resolve, dict):
@@ -101,6 +107,9 @@ def collect_view_property_paths(
                 path = _resolve_path_from_candidate(candidates)
                 if path:
                     paths.append(path)
+    for alias_path in _ALIAS_EXCLUSION_PROPERTY_PATHS:
+        if alias_path not in paths:
+            paths.append(alias_path)
     return paths
 
 
@@ -570,6 +579,117 @@ def query_index_entries_by_file(
     return results
 
 
+def build_reference_filter(
+    view_id: Any,
+    *,
+    reference_external_id: str,
+    reference_space: str | None = None,
+    match_scope_key: str | None = None,
+    source_types: list[str] | None = None,
+) -> Any:
+    from cognite.client import data_modeling as dm
+
+    container = view_id.external_id
+    parts: list[Any] = [
+        dm.filters.HasData(views=[view_id]),
+        dm.filters.Equals([container, "referenceExternalId"], reference_external_id),
+    ]
+    if reference_space:
+        parts.append(dm.filters.Equals([container, "referenceSpace"], reference_space))
+    if match_scope_key:
+        parts.append(dm.filters.Equals([container, "matchScopeKey"], match_scope_key))
+    if source_types:
+        parts.append(dm.filters.In([container, "sourceType"], source_types))
+    return dm.filters.And(*parts)
+
+
+def query_index_entries_by_reference(
+    client: Any,
+    *,
+    view_id: Any,
+    index_space: str,
+    reference_external_id: str,
+    reference_space: str | None = None,
+    match_scope_key: str | None = None,
+    source_types: list[str] | None = None,
+    page_size: int = 1000,
+    limit: int = 5000,
+    stats_out: QueryStats | None = None,
+) -> list[dict]:
+    """Lookup inverted index rows for a DM instance reference."""
+    from cognite.client import data_modeling as dm
+
+    combined = build_reference_filter(
+        view_id,
+        reference_external_id=reference_external_id,
+        reference_space=reference_space,
+        match_scope_key=match_scope_key,
+        source_types=source_types,
+    )
+    combined = dm.filters.And(
+        combined,
+        dm.filters.Equals(["node", "space"], index_space),
+    )
+    props = [
+        "term",
+        "normalizedTerm",
+        "originalValue",
+        "sourceType",
+        "sourceProperty",
+        "referenceExternalId",
+        "referenceSpace",
+        "referenceType",
+        "matchScopeKey",
+        "matchScope",
+        "additionalMetadata",
+        "buildJobId",
+    ]
+    query = _build_node_query(
+        view_id=view_id,
+        combined_filter=combined,
+        property_names=props,
+        page_size=min(page_size, 1000),
+        result_key=INDEX_RESULT_KEY,
+    )
+    results: list[dict] = []
+    for inst in _query_pages(
+        client,
+        query,
+        result_key=INDEX_RESULT_KEY,
+        page_size=page_size,
+        max_items=limit,
+        stats_out=stats_out,
+    ):
+        props_raw = dict(getattr(inst, "properties", None) or {})
+        flat = props_raw
+        if hasattr(props_raw, "get"):
+            view_props = props_raw.get(view_id)
+            if isinstance(view_props, dict):
+                flat = dict(view_props)
+        results.append(
+            {
+                "external_id": inst.external_id,
+                "term": flat.get("term"),
+                "normalized_term": flat.get("normalizedTerm") or flat.get("normalized_term"),
+                "original_value": flat.get("originalValue") or flat.get("original_value"),
+                "source_type": flat.get("sourceType") or flat.get("source_type"),
+                "source_property": flat.get("sourceProperty") or flat.get("source_property"),
+                "reference_external_id": flat.get("referenceExternalId")
+                or flat.get("reference_external_id"),
+                "reference_space": flat.get("referenceSpace") or flat.get("reference_space"),
+                "reference_type": flat.get("referenceType") or flat.get("reference_type"),
+                "match_scope_key": flat.get("matchScopeKey") or flat.get("match_scope_key"),
+                "match_scope": flat.get("matchScope") or flat.get("match_scope"),
+                "additional_metadata": flat.get("additionalMetadata")
+                or flat.get("additional_metadata"),
+                "build_job_id": flat.get("buildJobId") or flat.get("build_job_id"),
+            }
+        )
+        if len(results) >= limit:
+            break
+    return results
+
+
 def build_index_entry_filter(
     view_id: Any,
     *,
@@ -685,3 +805,103 @@ def query_index_entries(
         if len(results) >= limit:
             break
     return results
+
+
+def _asset_lookup_spaces(virtual_tag_config: dict) -> list[str]:
+    lookup = virtual_tag_config.get("asset_lookup") or {}
+    spaces = lookup.get("instance_spaces") or []
+    if isinstance(spaces, list) and spaces:
+        return [str(s).strip() for s in spaces if str(s).strip()]
+    fallback = str(virtual_tag_config.get("instance_space") or "").strip()
+    return [fallback] if fallback else ["cdf_cdm"]
+
+
+def cognite_asset_exists_for_term(
+    client: Any,
+    *,
+    normalized_term: str,
+    display_term: str,
+    virtual_tag_config: dict,
+    scope_values: dict[str, str] | None = None,
+    limit: int = 1,
+) -> bool:
+    """Return True when a CogniteAsset matches the term by configured properties."""
+    if client is None:
+        return False
+
+    from cognite.client import data_modeling as dm
+    from inverted_index.normalize import normalize_term
+
+    lookup = virtual_tag_config.get("asset_lookup") or {}
+    view_space = str(lookup.get("view_space") or "cdf_cdm")
+    view_external_id = str(lookup.get("view_external_id") or "CogniteAsset")
+    view_version = str(lookup.get("view_version") or "v1")
+    view_id = dm.ViewId(
+        space=view_space,
+        external_id=view_external_id,
+        version=view_version,
+    )
+    match_props = list(lookup.get("match_properties") or ["name", "aliases"])
+    candidates = {normalize_term(display_term), normalize_term(normalized_term)}
+    candidates.discard("")
+
+    term_filters: list[Any] = []
+    for prop in match_props:
+        prop_name = str(prop).strip()
+        if not prop_name:
+            continue
+        prop_ref = view_id.as_property_ref(prop_name)
+        if prop_name.lower() in ("aliases", "tags"):
+            for candidate in sorted(candidates):
+                term_filters.append(dm.filters.Contains(prop_ref, candidate))
+        else:
+            for candidate in sorted(candidates):
+                term_filters.append(dm.filters.Equals(prop_ref, candidate))
+
+    if not term_filters:
+        return False
+
+    match_filter = term_filters[0] if len(term_filters) == 1 else dm.filters.Or(*term_filters)
+    parts: list[Any] = [
+        dm.filters.HasData(views=[view_id]),
+        match_filter,
+    ]
+
+    if lookup.get("scope_filter", True) and scope_values:
+        mapping = virtual_tag_config.get("scope_property_mapping") or {}
+        for level, prop_name in mapping.items():
+            value = scope_values.get(level)
+            if value and prop_name:
+                parts.append(
+                    dm.filters.Equals(
+                        view_id.as_property_ref(str(prop_name)),
+                        value,
+                    )
+                )
+
+    combined = parts[0] if len(parts) == 1 else dm.filters.And(*parts)
+    spaces = _asset_lookup_spaces(virtual_tag_config)
+    space_filters = [
+        dm.filters.Equals(["node", "space"], space) for space in spaces
+    ]
+    if len(space_filters) == 1:
+        combined = dm.filters.And(combined, space_filters[0])
+    elif len(space_filters) > 1:
+        combined = dm.filters.And(combined, dm.filters.Or(*space_filters))
+
+    query = _build_node_query(
+        view_id=view_id,
+        combined_filter=combined,
+        property_names=["name", "aliases"],
+        page_size=min(limit, 10),
+        result_key=NODE_RESULT_KEY,
+    )
+    for _inst in _query_pages(
+        client,
+        query,
+        result_key=NODE_RESULT_KEY,
+        page_size=10,
+        max_items=limit,
+    ):
+        return True
+    return False

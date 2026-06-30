@@ -27,7 +27,28 @@ def test_build_metadata_emits_progress() -> None:
     assert any("starting" in m for m in messages)
     assert any("scanning view=" in m for m in messages)
     assert any("upserting candidate_entries=" in m for m in messages)
+    assert any("upserting lookup_keys=" in m for m in messages)
     assert any("complete" in m for m in messages)
+
+
+def test_build_metadata_emits_upsert_progress() -> None:
+    cfg = {**INDEX_STORAGE_CONFIG, "backend": "raw"}
+    adapter = RawStorageAdapter(cfg, client=None)
+    messages: list[str] = []
+
+    build_metadata_index(
+        client=None,
+        instances_by_view=sample_equipment_instances(),
+        storage_config=cfg,
+        scope_config=SCOPE_CONFIG,
+        storage_adapter=adapter,
+        progress_interval=1,
+        on_progress=messages.append,
+    )
+
+    upsert_lines = [m for m in messages if "upserting lookup_keys=" in m]
+    assert len(upsert_lines) >= 1
+    assert upsert_lines[0].startswith("[build-metadata] upserting lookup_keys=")
 
 
 def test_build_metadata_raises_when_cancelled() -> None:

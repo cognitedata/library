@@ -1,14 +1,18 @@
 # Instance subscription for target-driven contextualization after aliasing.
-# Deploy as a CDF subscription / Function trigger filtered to aliases changes.
+# Deploy as a CDF subscription / Function trigger filtered to watch_property changes.
+# Align watch_property with target_driven.query_property and your CDF subscription filter.
+
+target_driven:
+  query_property: aliases
+  query_property_fallbacks: [name]
+  exclude_empty_aliases: false
 
 subscription:
   enabled: true
   trigger: instance_subscription
-  watch_property: aliases
+  watch_property: aliases  # defaults to query_property when omitted in config merge
   instance_spaces: [cdf_cdm]
-  asset_views: [CogniteAsset]
-  file_views: [CogniteFile]
-  default_instance_type: asset
+  watch_view_keys: [asset, file]
 
 # Illustrative event payload (aliases updated by cdf_discovery_aliasing):
 # {
@@ -22,6 +26,9 @@ subscription:
 #     }
 #   }
 # }
+
+# Dedupe: RAW table target_driven_state stores TERMS_HASH per instance + scope.
+# Re-runs within cooldown_seconds are skipped unless force=True on the handler.
 
 # Handler entry point (CDF Function):
 #   from inverted_index.subscription import handle_aliases_subscription_event

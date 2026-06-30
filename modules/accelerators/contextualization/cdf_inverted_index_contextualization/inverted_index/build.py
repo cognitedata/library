@@ -13,6 +13,7 @@ from inverted_index.config import (
     INDEX_FIELD_CONFIG,
     INDEX_STORAGE_CONFIG,
     SCOPE_CONFIG,
+    VIRTUAL_TAG_CREATION_CONFIG,
 )
 from inverted_index.entries import (
     annotation_to_index_entry,
@@ -46,11 +47,67 @@ def upsert_index_entries(
     *,
     dry_run: bool = False,
     storage_adapter: Any = None,
+    on_progress: Callable[[str], None] | None = None,
+    progress_interval: int = 100,
+    should_cancel: Callable[[], bool] | None = None,
+    log_prefix: str = "index-upsert",
+    virtual_tag_creation_config: dict | None = None,
+    scope_config: dict | None = None,
 ) -> dict:
     """Storage adapter entry point for DM or RAW backends."""
     cfg = storage_config or INDEX_STORAGE_CONFIG
     adapter = storage_adapter or get_storage_adapter(cfg, client)
-    return adapter.upsert_index_entries(entries, dry_run=dry_run)
+    result = adapter.upsert_index_entries(
+        entries,
+        dry_run=dry_run,
+        on_progress=on_progress,
+        progress_interval=progress_interval,
+        should_cancel=should_cancel,
+        log_prefix=log_prefix,
+    )
+    vtc = virtual_tag_creation_config or VIRTUAL_TAG_CREATION_CONFIG
+    if (
+        client is not None
+        and entries
+        and not dry_run
+        and vtc.get("enabled")
+        and vtc.get("incremental_enabled")
+    ):
+        from inverted_index.virtual_tags import process_virtual_tags_for_index_entries
+
+        vt_result = process_virtual_tags_for_index_entries(
+            client,
+            entries,
+            virtual_tag_config=vtc,
+            scope_config=scope_config or SCOPE_CONFIG,
+            storage_config=cfg,
+            storage_adapter=adapter,
+            dry_run=False,
+        )
+        result["virtual_tags"] = vt_result
+    return result
+
+
+def remove_postings_for_reference(
+    storage_adapter: Any,
+    *,
+    match_scope_key: str,
+    reference_external_id: str,
+    reference_space: str,
+    source_types: list[str],
+) -> dict:
+    """Strip postings for a reference within a scope partition (replace mode)."""
+    remover = getattr(storage_adapter, "remove_postings_for_reference", None)
+    if not callable(remover):
+        raise NotImplementedError(
+            f"{type(storage_adapter).__name__} does not support remove_postings_for_reference"
+        )
+    return remover(
+        match_scope_key=match_scope_key,
+        reference_external_id=reference_external_id,
+        reference_space=reference_space,
+        source_types=source_types,
+    )
 
 
 def build_metadata_index(
@@ -62,12 +119,12 @@ def build_metadata_index(
     instances_by_view: dict[str, list[dict]] | None = None,
     filter_updated_after: datetime | None = None,
     batch_size: int = 1000,
-    instance_spaces: list[str] | None = None,
     dry_run: bool = False,
     storage_adapter: Any = None,
     progress_interval: int = 100,
     on_progress: Callable[[str], None] | None = None,
     should_cancel: Callable[[], bool] | None = None,
+    virtual_tag_creation_config: dict | None = None,
 ) -> dict:
     """
     Scan configured DM views and index asset tags / file references in metadata fields.
@@ -87,6 +144,7 @@ def build_metadata_index(
     all_entries: list[dict] = []
     processed = 0
     errors: list[str] = []
+    view_stats: dict[str, dict[str, int]] = {}
     started_at = time.monotonic()
     emit = on_progress if progress_interval > 0 else None
     view_names = [str(v.get("view", "")) for v in field_config if v.get("view")]
@@ -101,8 +159,19 @@ def build_metadata_index(
         raise_if_cancelled(should_cancel)
         view = view_cfg.get("view", "")
         view_space = view_cfg.get("view_space", "")
+        configured_spaces = view_cfg.get("instance_spaces")
+        spaces_label = (
+            ",".join(str(s) for s in configured_spaces)
+            if isinstance(configured_spaces, list) and configured_spaces
+            else "all"
+        )
+        view_processed = 0
+        view_entries = 0
         if emit:
-            emit(f"[build-metadata] scanning view={view} view_space={view_space}")
+            emit(
+                f"[build-metadata] scanning view={view} view_space={view_space} "
+                f"instance_spaces={spaces_label}"
+            )
 
         if instances_by_view is not None:
             instance_iter: Iterable[dict] = instances_by_view.get(view, [])
@@ -110,11 +179,8 @@ def build_metadata_index(
             try:
                 instance_iter = iter_view_instances(
                     client,
-                    view=view,
-                    view_space=view_space,
-                    version=view_cfg.get("version", "v1"),
+                    view_config=view_cfg,
                     batch_size=batch_size,
-                    instance_spaces=instance_spaces,
                     filter_updated_after=filter_updated_after,
                     index_field_config=field_config,
                     scope_config=scope_cfg,
@@ -130,6 +196,7 @@ def build_metadata_index(
         for instance in instance_iter:
             raise_if_cancelled(should_cancel)
             processed += 1
+            view_processed += 1
             entries = build_entries_from_instance(
                 instance,
                 view_cfg,
@@ -137,6 +204,7 @@ def build_metadata_index(
                 build_job_id=build_job_id,
             )
             all_entries.extend(entries)
+            view_entries += len(entries)
             if emit and processed % progress_interval == 0:
                 emit(
                     _format_metadata_progress(
@@ -148,11 +216,35 @@ def build_metadata_index(
                     )
                 )
 
+        if view:
+            view_stats[view] = {
+                "processed": view_processed,
+                "candidate_entries": view_entries,
+            }
+            if emit:
+                emit(
+                    f"[build-metadata] view={view} complete "
+                    f"processed={view_processed} candidate_entries={view_entries}"
+                )
+
     raise_if_cancelled(should_cancel)
 
+    candidate_entries = len(all_entries)
     if emit:
+        if dry_run:
+            emit(
+                "[build-metadata] dry_run=true: RAW partition tables and "
+                f"inverted_index__registry are not updated "
+                f"(candidate_entries={candidate_entries})"
+            )
+        elif candidate_entries == 0:
+            emit(
+                "[build-metadata] no candidate entries; "
+                "partition registry and RAW tables are unchanged"
+            )
         emit(
-            f"[build-metadata] upserting candidate_entries={len(all_entries)} dry_run={dry_run}"
+            f"[build-metadata] upserting candidate_entries={candidate_entries} "
+            f"dry_run={dry_run}"
         )
 
     upsert_result = upsert_index_entries(
@@ -161,21 +253,55 @@ def build_metadata_index(
         storage_cfg,
         dry_run=dry_run,
         storage_adapter=storage_adapter,
+        on_progress=on_progress,
+        progress_interval=progress_interval,
+        should_cancel=should_cancel,
+        log_prefix="build-metadata",
+        virtual_tag_creation_config=virtual_tag_creation_config,
+        scope_config=scope_cfg,
     )
+
+    registry_scopes: list[str] = []
+    if (
+        not dry_run
+        and client is not None
+        and storage_cfg.get("backend") == "raw"
+        and candidate_entries > 0
+    ):
+        raise_if_cancelled(should_cancel)
+        from inverted_index.raw_ops import list_registered_scope_keys
+
+        registry_scopes = list_registered_scope_keys(client, storage_cfg)
+        if emit and not registry_scopes:
+            emit(
+                "[build-metadata] warning: upsert completed but partition registry "
+                "is still empty — check RAW write permissions and build errors"
+            )
+        elif emit:
+            emit(
+                "[build-metadata] registry scopes="
+                f"{','.join(registry_scopes)}"
+            )
+
     if emit:
         emit(
             "[build-metadata] complete "
             f"processed={processed} "
+            f"candidate_entries={candidate_entries} "
             f"entries_created={upsert_result.get('entries_created', 0)} "
             f"entries_updated={upsert_result.get('entries_updated', 0)} "
             f"errors={len(errors)} elapsed={time.monotonic() - started_at:.1f}s"
         )
     return {
         "processed": processed,
+        "candidate_entries": candidate_entries,
+        "dry_run": dry_run,
         "entries_created": upsert_result.get("entries_created", 0),
         "entries_updated": upsert_result.get("entries_updated", 0),
+        "registry_scopes": registry_scopes,
         "build_job_id": build_job_id,
         "errors": errors,
+        "views": view_stats,
     }
 
 
@@ -197,6 +323,7 @@ def build_diagram_annotation_index(
     should_cancel: Callable[[], bool] | None = None,
     progress_interval: int = 100,
     on_progress: Callable[[str], None] | None = None,
+    virtual_tag_creation_config: dict | None = None,
 ) -> dict:
     """Index diagram annotations and index-only pattern/standard detections."""
     scope_cfg = scope_config or SCOPE_CONFIG
@@ -287,6 +414,12 @@ def build_diagram_annotation_index(
         storage_cfg,
         dry_run=dry_run,
         storage_adapter=storage_adapter,
+        on_progress=on_progress,
+        progress_interval=progress_interval,
+        should_cancel=should_cancel,
+        log_prefix="build-annotations",
+        virtual_tag_creation_config=virtual_tag_creation_config,
+        scope_config=scope_cfg,
     )
     if emit:
         emit(

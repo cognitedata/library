@@ -111,7 +111,10 @@ def test_multi_scope_query_and_reuse_summary() -> None:
     assert summary["cross_scope_duplicate_count"] == 1
 
 
-def test_resolve_all_scopes_falls_back_to_global_when_registry_empty() -> None:
+def test_resolve_all_scopes_falls_back_to_global_when_registry_empty(monkeypatch) -> None:
+    from inverted_index import query as query_mod
+
+    monkeypatch.setitem(query_mod.SCOPE_CONFIG, "enabled", False)
     cfg = {**INDEX_STORAGE_CONFIG, "backend": "raw"}
     adapter = RawStorageAdapter(cfg, client=None)
     scopes = resolve_query_scope_keys(

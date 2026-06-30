@@ -40,4 +40,5 @@ def handle(data: dict[str, Any] | None = None, client: Any = None) -> dict[str, 
         instance_spaces=overrides["instance_spaces"],
         dry_run=overrides["dry_run"],
         storage_adapter=adapter,
+        virtual_tag_creation_config=overrides.get("virtual_tag_creation_config"),
     )

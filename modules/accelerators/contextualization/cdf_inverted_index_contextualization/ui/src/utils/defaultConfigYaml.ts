@@ -1,25 +1,38 @@
 import yaml from "js-yaml";
 import type { MessageKey } from "../i18n/types";
 import {
-  DIRECT_RELATION_LINK_KEYS,
+  DEFAULT_DIRECT_RELATION_VIEWS,
+  DEFAULT_EDGE_VIEWS,
+  WRITE_MODES,
+  defaultDirectRelationLinkConfig,
   emptyAnnotationIndexConfig,
-  emptyDirectRelationTopLevel,
+  emptyDirectRelationConfig,
   emptyGeneralConfig,
+  emptyRawTermPartitionConfig,
   emptyIndexFieldProperty,
   emptyIndexFieldView,
   emptyScopeConfig,
   emptySubscriptionConfig,
+  emptyTargetDrivenQueryConfig,
+  emptyVirtualTagCreationConfig,
   type AnnotationIndexConfig,
   type ConfigSection,
-  type DirectRelationTopLevel,
+  type DirectRelationConfig,
+  type DirectRelationLinkConfig,
+  type DmViewRef,
   type GeneralConfig,
   type IndexFieldProperty,
   type IndexFieldView,
+  type RawTermPartitionConfig,
   type ScopeConfig,
   type ScopeLevelPaths,
   type ScopeResolveCandidate,
   type SubscriptionConfig,
+  type TargetDrivenQueryConfig,
+  type VirtualTagCreationConfig,
+  type WriteMode,
 } from "../types/invertedIndexConfig";
+import type { JsonObject } from "../types/jsonConfig";
 
 export const CONFIG_SECTIONS: { id: ConfigSection; labelKey: MessageKey }[] = [
   { id: "general", labelKey: "config.section.general" },
@@ -28,6 +41,7 @@ export const CONFIG_SECTIONS: { id: ConfigSection; labelKey: MessageKey }[] = [
   { id: "annotation", labelKey: "config.section.annotation" },
   { id: "targetDriven", labelKey: "config.section.targetDriven" },
   { id: "linking", labelKey: "config.section.linking" },
+  { id: "virtualTags", labelKey: "config.section.virtualTags" },
 ];
 
 export function parseDefaultDocument(content: string): Record<string, unknown> {
@@ -117,6 +131,20 @@ function serializeResolveCandidates(
   );
 }
 
+export function termPartitionFromDoc(doc: Record<string, unknown>): RawTermPartitionConfig {
+  const base = emptyRawTermPartitionConfig();
+  const tp = asRecord(doc.index_raw_term_partition);
+  const bucketMode = tp.bucket_mode === "ascii_first_char" ? "ascii_first_char" : "script_aware";
+  const activate =
+    tp.activate_above_rows != null ? Number(tp.activate_above_rows) : base.activateAboveRows;
+  return {
+    enabled: Boolean(tp.enabled),
+    strategy: "first_char",
+    activateAboveRows: Number.isFinite(activate) && activate > 0 ? activate : base.activateAboveRows,
+    bucketMode,
+  };
+}
+
 export function generalFromDoc(doc: Record<string, unknown>): GeneralConfig {
   const base = emptyGeneralConfig();
   const backend = doc.index_storage_backend;
@@ -126,6 +154,7 @@ export function generalFromDoc(doc: Record<string, unknown>): GeneralConfig {
     indexStorageBackend: backend === "dm" ? "dm" : "raw",
     indexRawDatabase:
       doc.index_raw_database != null ? String(doc.index_raw_database) : base.indexRawDatabase,
+    termPartition: termPartitionFromDoc(doc),
   };
 }
 
@@ -134,6 +163,12 @@ export function mergeGeneralIntoDoc(doc: Record<string, unknown>, general: Gener
   doc.organization = general.organization;
   doc.index_storage_backend = general.indexStorageBackend;
   doc.index_raw_database = general.indexRawDatabase;
+  doc.index_raw_term_partition = {
+    enabled: general.termPartition.enabled,
+    strategy: general.termPartition.strategy,
+    activate_above_rows: general.termPartition.activateAboveRows,
+    bucket_mode: general.termPartition.bucketMode,
+  };
 }
 
 export function scopeFromDoc(doc: Record<string, unknown>): ScopeConfig {
@@ -191,12 +226,20 @@ function normalizeProperty(raw: unknown): IndexFieldProperty {
   const base = emptyIndexFieldProperty();
   const o = asRecord(raw);
   const sourceType = o.source_type === "file_metadata" ? "file_metadata" : "asset_metadata";
+  const extractPattern =
+    o.extract_pattern != null ? String(o.extract_pattern).trim() : base.extractPattern;
+  const extractMode = extractPattern ? "regex" : "passthrough";
   return {
     path: o.path != null ? String(o.path) : base.path,
     sourceType,
-    extractPattern:
-      o.extract_pattern != null ? String(o.extract_pattern).trim() : base.extractPattern,
+    extractMode,
+    extractPattern,
   };
+}
+
+function normalizeFilters(raw: unknown): JsonObject[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.filter((f): f is JsonObject => f != null && typeof f === "object" && !Array.isArray(f));
 }
 
 function normalizeView(raw: unknown): IndexFieldView {
@@ -209,6 +252,8 @@ function normalizeView(raw: unknown): IndexFieldView {
     view: o.view != null ? String(o.view) : base.view,
     viewSpace: o.view_space != null ? String(o.view_space) : base.viewSpace,
     version: o.version != null ? String(o.version) : base.version,
+    instanceSpaces: stringList(o.instance_spaces),
+    filters: normalizeFilters(o.filters),
     properties: properties.length ? properties : [emptyIndexFieldProperty()],
   };
 }
@@ -224,6 +269,8 @@ export function mergeIndexFieldsIntoDoc(doc: Record<string, unknown>, views: Ind
     view: v.view,
     view_space: v.viewSpace,
     version: v.version || undefined,
+    instance_spaces: v.instanceSpaces,
+    filters: v.filters.length ? v.filters : undefined,
     properties: v.properties
       .filter((p) => p.path.trim())
       .map((p) => {
@@ -231,9 +278,10 @@ export function mergeIndexFieldsIntoDoc(doc: Record<string, unknown>, views: Ind
           path: p.path,
           source_type: p.sourceType,
         };
-        if (p.extractPattern) {
+        const pattern = p.extractPattern.trim();
+        if (pattern) {
           row.extract_mode = "regex";
-          row.extract_pattern = p.extractPattern;
+          row.extract_pattern = pattern;
         }
         return row;
       }),
@@ -279,79 +327,328 @@ export function subscriptionFromDoc(doc: Record<string, unknown>): SubscriptionC
     trigger: o.trigger != null ? String(o.trigger) : base.trigger,
     watchProperty: o.watch_property != null ? String(o.watch_property) : base.watchProperty,
     instanceSpaces: stringList(o.instance_spaces),
-    assetViews: stringList(o.asset_views).length ? stringList(o.asset_views) : base.assetViews,
-    fileViews: stringList(o.file_views).length ? stringList(o.file_views) : base.fileViews,
-    defaultInstanceType:
-      o.default_instance_type != null ? String(o.default_instance_type) : base.defaultInstanceType,
+    watchViewKeys: stringList(o.watch_view_keys).length
+      ? stringList(o.watch_view_keys)
+      : base.watchViewKeys,
   };
 }
 
-export function instanceSpacesFromDoc(doc: Record<string, unknown>): string[] {
-  return stringList(doc.instance_spaces);
+export function targetDrivenQueryFromDoc(doc: Record<string, unknown>): TargetDrivenQueryConfig {
+  const base = emptyTargetDrivenQueryConfig();
+  const o = asRecord(doc.target_driven);
+  const fallbacks = stringList(o.query_property_fallbacks);
+  return {
+    queryProperty:
+      o.query_property != null ? String(o.query_property) : base.queryProperty,
+    queryPropertyFallbacks: fallbacks.length ? fallbacks : base.queryPropertyFallbacks,
+    excludeEmptyAliases:
+      o.exclude_empty_aliases != null
+        ? Boolean(o.exclude_empty_aliases)
+        : base.excludeEmptyAliases,
+  };
 }
 
 export function mergeTargetDrivenIntoDoc(
   doc: Record<string, unknown>,
   subscription: SubscriptionConfig,
-  instanceSpaces: string[]
+  query: TargetDrivenQueryConfig
 ): void {
+  doc.target_driven = {
+    query_property: query.queryProperty,
+    query_property_fallbacks: query.queryPropertyFallbacks,
+    exclude_empty_aliases: query.excludeEmptyAliases,
+  };
   doc.subscription = {
     enabled: subscription.enabled,
     trigger: subscription.trigger,
     watch_property: subscription.watchProperty,
     instance_spaces: subscription.instanceSpaces,
-    asset_views: subscription.assetViews,
-    file_views: subscription.fileViews,
-    default_instance_type: subscription.defaultInstanceType,
+    watch_view_keys: subscription.watchViewKeys,
   };
-  if (instanceSpaces.length) {
-    doc.instance_spaces = instanceSpaces;
-  } else {
-    delete doc.instance_spaces;
-  }
+  delete doc.instance_spaces;
 }
 
-export function directRelationFromDoc(doc: Record<string, unknown>): DirectRelationTopLevel {
-  const base = emptyDirectRelationTopLevel();
-  const o = asRecord(doc.direct_relation_config);
-  const links = asRecord(o.links);
-  const linkEnabled: Record<string, boolean> = { ...base.linkEnabled };
-  for (const key of DIRECT_RELATION_LINK_KEYS) {
-    const link = asRecord(links[key]);
-    linkEnabled[key] = link.enabled != null ? Boolean(link.enabled) : true;
+export function virtualTagCreationFromDoc(
+  doc: Record<string, unknown>
+): VirtualTagCreationConfig {
+  const base = emptyVirtualTagCreationConfig();
+  const o = asRecord(doc.virtual_tag_creation);
+  const criteria = asRecord(o.missing_tag_criteria);
+  return {
+    enabled: o.enabled != null ? Boolean(o.enabled) : base.enabled,
+    incrementalEnabled:
+      o.incremental_enabled != null
+        ? Boolean(o.incremental_enabled)
+        : base.incrementalEnabled,
+    termSelectionMode:
+      o.term_selection_mode === "all" || o.term_selection_mode === "missing_tags_only"
+        ? o.term_selection_mode
+        : base.termSelectionMode,
+    instanceSpace:
+      o.instance_space != null ? String(o.instance_space) : base.instanceSpace,
+    missingTagCriteria: {
+      requirePatternDetection:
+        criteria.require_pattern_detection != null
+          ? Boolean(criteria.require_pattern_detection)
+          : base.missingTagCriteria.requirePatternDetection,
+      checkExistingCogniteAsset:
+        criteria.check_existing_cognite_asset != null
+          ? Boolean(criteria.check_existing_cognite_asset)
+          : base.missingTagCriteria.checkExistingCogniteAsset,
+      excludeWithCogniteAssetMetadata:
+        criteria.exclude_with_cognite_asset_metadata != null
+          ? Boolean(criteria.exclude_with_cognite_asset_metadata)
+          : base.missingTagCriteria.excludeWithCogniteAssetMetadata,
+    },
+  };
+}
+
+export function mergeVirtualTagCreationIntoDoc(
+  doc: Record<string, unknown>,
+  cfg: VirtualTagCreationConfig
+): void {
+  const existing = asRecord(doc.virtual_tag_creation);
+  doc.virtual_tag_creation = {
+    ...existing,
+    enabled: cfg.enabled,
+    incremental_enabled: cfg.incrementalEnabled,
+    term_selection_mode: cfg.termSelectionMode,
+    instance_space: cfg.instanceSpace,
+    missing_tag_criteria: {
+      require_pattern_detection: cfg.missingTagCriteria.requirePatternDetection,
+      check_existing_cognite_asset: cfg.missingTagCriteria.checkExistingCogniteAsset,
+      exclude_with_cognite_asset_metadata:
+        cfg.missingTagCriteria.excludeWithCogniteAssetMetadata,
+    },
+  };
+}
+
+function isWriteMode(value: string): value is WriteMode {
+  return (WRITE_MODES as readonly string[]).includes(value);
+}
+
+function deepMergeRecord(base: Record<string, unknown>, override: Record<string, unknown>): Record<string, unknown> {
+  const merged = { ...base };
+  for (const [key, val] of Object.entries(override)) {
+    if (
+      val != null &&
+      typeof val === "object" &&
+      !Array.isArray(val) &&
+      typeof merged[key] === "object" &&
+      merged[key] != null &&
+      !Array.isArray(merged[key])
+    ) {
+      merged[key] = deepMergeRecord(
+        merged[key] as Record<string, unknown>,
+        val as Record<string, unknown>
+      );
+    } else {
+      merged[key] = val;
+    }
   }
+  return merged;
+}
+
+function effectiveDirectRelationDoc(
+  doc: Record<string, unknown>,
+  runtimeDr?: Record<string, unknown>
+): Record<string, unknown> {
+  const yamlDr = asRecord(doc.direct_relation_config);
+  if (!runtimeDr || !Object.keys(runtimeDr).length) return yamlDr;
+  return deepMergeRecord(runtimeDr, yamlDr);
+}
+
+function dmViewRefFromRecord(raw: unknown, base: DmViewRef): DmViewRef {
+  const o = asRecord(raw);
+  return {
+    space: o.space != null ? String(o.space) : base.space,
+    externalId: o.external_id != null ? String(o.external_id) : base.externalId,
+    version: o.version != null ? String(o.version) : base.version,
+  };
+}
+
+function dmViewRefsFromRecord(
+  raw: unknown,
+  defaults: Record<string, DmViewRef>
+): Record<string, DmViewRef> {
+  const o = asRecord(raw);
+  const keys = new Set([...Object.keys(defaults), ...Object.keys(o)]);
+  const out: Record<string, DmViewRef> = {};
+  for (const key of keys) {
+    out[key] = dmViewRefFromRecord(o[key], defaults[key] ?? { space: "cdf_cdm", externalId: "", version: "v1" });
+  }
+  return out;
+}
+
+function directRelationLinkFromRecord(raw: unknown): DirectRelationLinkConfig {
+  const o = asRecord(raw);
+  const base = defaultDirectRelationLinkConfig(
+    o.forward_view != null ? String(o.forward_view) : "",
+    o.target_view != null ? String(o.target_view) : "",
+    o.property != null ? String(o.property) : ""
+  );
+  const edge = asRecord(o.edge);
+  const diagram = asRecord(o.diagram_annotation);
+  const writeModes = stringList(o.write_modes).filter(isWriteMode);
+  const sourceTypes = stringList(o.source_types);
+  const incomingViews = stringList(o.incoming_views);
+  return {
+    label: o.label != null ? String(o.label) : undefined,
+    enabled: o.enabled != null ? Boolean(o.enabled) : base.enabled,
+    writeModes: writeModes.length ? writeModes : base.writeModes,
+    forwardView: o.forward_view != null ? String(o.forward_view) : base.forwardView,
+    targetView: o.target_view != null ? String(o.target_view) : base.targetView,
+    property: o.property != null ? String(o.property) : base.property,
+    cardinality:
+      o.cardinality === "single"
+        ? "single"
+        : o.cardinality === "list"
+          ? "list"
+          : base.cardinality,
+    overwriteExisting:
+      o.overwrite_existing != null ? Boolean(o.overwrite_existing) : base.overwriteExisting,
+    incomingViews: incomingViews.length ? incomingViews : base.incomingViews,
+    sourceTypes: sourceTypes.length ? sourceTypes : base.sourceTypes,
+    edgeViewKey: edge.edge_view != null ? String(edge.edge_view) : base.edgeViewKey,
+    diagramAnnotation: {
+      createStatus:
+        diagram.create_status != null ? String(diagram.create_status) : base.diagramAnnotation.createStatus,
+      updateEndNodeOnly:
+        diagram.update_end_node_only != null
+          ? Boolean(diagram.update_end_node_only)
+          : base.diagramAnnotation.updateEndNodeOnly,
+      fileFromReference:
+        diagram.file_from_reference != null
+          ? Boolean(diagram.file_from_reference)
+          : base.diagramAnnotation.fileFromReference,
+      annotationIdPath:
+        diagram.annotation_id_path != null
+          ? String(diagram.annotation_id_path)
+          : base.diagramAnnotation.annotationIdPath,
+    },
+    resolveByIncomingView: o.resolve_by_incoming_view,
+  };
+}
+
+export function directRelationFromDoc(
+  doc: Record<string, unknown>,
+  runtimeDr?: Record<string, unknown>
+): DirectRelationConfig {
+  const base = emptyDirectRelationConfig();
+  const o = effectiveDirectRelationDoc(doc, runtimeDr);
+  const linksRaw = asRecord(o.links);
+  const linkKeys = Object.keys(linksRaw);
+  const links = Object.fromEntries(
+    linkKeys.map((key) => [key, directRelationLinkFromRecord(linksRaw[key])])
+  );
+  const linkOrderRaw = stringList(o.link_order);
+  const linkOrder = linkOrderRaw.length ? linkOrderRaw : linkKeys.length ? linkKeys : base.linkOrder;
+  const globalSourceTypes = stringList(o.source_types);
+  const requireStatus = o.require_annotation_status;
   return {
     enabled: o.enabled != null ? Boolean(o.enabled) : base.enabled,
     minConfidence: typeof o.min_confidence === "number" ? o.min_confidence : base.minConfidence,
     allowedAnnotationStatuses: stringList(o.allowed_annotation_statuses).length
       ? stringList(o.allowed_annotation_statuses)
       : base.allowedAnnotationStatuses,
-    writeOnSuggestedAnnotations:
-      o.write_on_suggested_annotations != null
-        ? Boolean(o.write_on_suggested_annotations)
-        : base.writeOnSuggestedAnnotations,
-    sourceTypes: stringList(o.source_types),
+    requireAnnotationStatus:
+      requireStatus != null && String(requireStatus).trim()
+        ? String(requireStatus)
+        : base.requireAnnotationStatus,
+    sourceTypes: globalSourceTypes.length ? globalSourceTypes : base.sourceTypes,
     maxListSize: typeof o.max_list_size === "number" ? o.max_list_size : base.maxListSize,
-    linkEnabled,
+    linkOrder,
+    views: dmViewRefsFromRecord(o.views, DEFAULT_DIRECT_RELATION_VIEWS),
+    edgeViews: dmViewRefsFromRecord(o.edge_views, DEFAULT_EDGE_VIEWS),
+    links,
   };
 }
 
-export function mergeDirectRelationIntoDoc(doc: Record<string, unknown>, cfg: DirectRelationTopLevel): void {
+function serializeDmViewRef(ref: DmViewRef): Record<string, string> {
+  return {
+    space: ref.space,
+    external_id: ref.externalId,
+    version: ref.version,
+  };
+}
+
+function serializeDirectRelationLink(
+  link: DirectRelationLinkConfig,
+  existing: Record<string, unknown>
+): Record<string, unknown> {
+  const out: Record<string, unknown> = {
+    ...existing,
+    enabled: link.enabled,
+    write_modes: link.writeModes,
+    forward_view: link.forwardView,
+    target_view: link.targetView,
+    property: link.property,
+    cardinality: link.cardinality,
+    incoming_views: link.incomingViews,
+  };
+  if (link.label?.trim()) {
+    out.label = link.label.trim();
+  }
+  if (link.overwriteExisting) {
+    out.overwrite_existing = true;
+  } else if ("overwrite_existing" in out) {
+    delete out.overwrite_existing;
+  }
+  if (link.sourceTypes.length) {
+    out.source_types = link.sourceTypes;
+  }
+  if (link.writeModes.includes("edge")) {
+    out.edge = {
+      ...asRecord(existing.edge),
+      ...(link.edgeViewKey ? { edge_view: link.edgeViewKey } : {}),
+    };
+  }
+  if (link.writeModes.includes("diagram_annotation")) {
+    out.diagram_annotation = {
+      ...asRecord(existing.diagram_annotation),
+      create_status: link.diagramAnnotation.createStatus,
+      update_end_node_only: link.diagramAnnotation.updateEndNodeOnly,
+      file_from_reference: link.diagramAnnotation.fileFromReference,
+      annotation_id_path: link.diagramAnnotation.annotationIdPath,
+    };
+  }
+  if (link.resolveByIncomingView != null) {
+    out.resolve_by_incoming_view = link.resolveByIncomingView;
+  }
+  return out;
+}
+
+export function mergeDirectRelationIntoDoc(doc: Record<string, unknown>, cfg: DirectRelationConfig): void {
   const existing = asRecord(doc.direct_relation_config);
-  const links = { ...asRecord(existing.links) };
-  for (const key of DIRECT_RELATION_LINK_KEYS) {
-    const link = { ...asRecord(links[key]) };
-    link.enabled = cfg.linkEnabled[key] ?? true;
-    links[key] = link;
+  const existingLinks = asRecord(existing.links);
+  const linkKeys = cfg.linkOrder.length
+    ? [...new Set([...cfg.linkOrder, ...Object.keys(cfg.links)])]
+    : Object.keys(cfg.links);
+  const links: Record<string, unknown> = {};
+  for (const key of linkKeys) {
+    const link = cfg.links[key];
+    if (!link) continue;
+    links[key] = serializeDirectRelationLink(link, asRecord(existingLinks[key]));
+  }
+  const views: Record<string, unknown> = {};
+  for (const [key, ref] of Object.entries(cfg.views)) {
+    views[key] = serializeDmViewRef(ref);
+  }
+  const edgeViews: Record<string, unknown> = {};
+  for (const [key, ref] of Object.entries(cfg.edgeViews)) {
+    edgeViews[key] = serializeDmViewRef(ref);
   }
   doc.direct_relation_config = {
     ...existing,
     enabled: cfg.enabled,
     min_confidence: cfg.minConfidence,
     allowed_annotation_statuses: cfg.allowedAnnotationStatuses,
-    write_on_suggested_annotations: cfg.writeOnSuggestedAnnotations,
-    source_types: cfg.sourceTypes.length ? cfg.sourceTypes : existing.source_types,
+    require_annotation_status: cfg.requireAnnotationStatus || null,
+    source_types: cfg.sourceTypes,
     max_list_size: cfg.maxListSize,
+    link_order: linkKeys,
+    views,
+    edge_views: edgeViews,
     links,
   };
 }

@@ -12,7 +12,6 @@ from inverted_index.annotation_fields import (
     build_deterministic_annotation_external_id,
     build_detection_key,
 )
-from inverted_index.aliases import normalized_instance_aliases
 from inverted_index.config import ANNOTATION_INDEX_CONFIG
 from inverted_index.extract import (
     dedupe_extracted_terms,
@@ -61,6 +60,10 @@ def build_entries_from_instance(
     if not external_id:
         return []
 
+    instance_space = str(
+        instance.get("space") or instance.get("instance_space") or view_space
+    )
+
     match_scope_key, match_scope = resolve_match_scope(
         instance,
         view,
@@ -71,24 +74,20 @@ def build_entries_from_instance(
         return []
 
     entries: list[dict[str, Any]] = []
-    excluded_aliases = normalized_instance_aliases(instance)
     for prop_cfg in view_config.get("properties", []):
         path = prop_cfg.get("path", "")
         prop_cfg = {**prop_cfg, "path": path}
         value = read_property_path(instance, path)
-        candidates = extract_terms_from_property(
-            value,
-            prop_cfg,
-            exclude_normalized_aliases=excluded_aliases,
-        )
+        source_type = prop_cfg.get("source_type", "asset_metadata")
+        candidates = extract_terms_from_property(value, prop_cfg)
         for term, frag in dedupe_extracted_terms(candidates):
             normalized = normalize_term(term)
             if not normalized:
                 continue
-            source_type = prop_cfg.get("source_type", "asset_metadata")
             additional = {
                 "source_view": view,
                 "source_view_space": view_space,
+                "instance_space": instance_space,
                 "match_scope": match_scope,
                 "term_kind": (
                     "asset_tag"
@@ -106,7 +105,7 @@ def build_entries_from_instance(
                 "source_type": source_type,
                 "source_property": path,
                 "reference_external_id": str(external_id),
-                "reference_space": view_space,
+                "reference_space": instance_space,
                 "reference_type": view,
                 "match_scope_key": match_scope_key or "",
                 "match_scope": match_scope,

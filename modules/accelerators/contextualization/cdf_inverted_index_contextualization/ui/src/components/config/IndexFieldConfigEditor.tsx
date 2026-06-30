@@ -5,6 +5,9 @@ import {
   type IndexFieldProperty,
   type IndexFieldView,
 } from "../../types/invertedIndexConfig";
+import { StringListInput } from "./StringListInput";
+import { ViewQueryFiltersSection } from "./ViewQueryFiltersSection";
+import { FormPanel } from "../shared/FormPanel";
 
 type Props = {
   value: IndexFieldView[];
@@ -25,45 +28,58 @@ function PropertyRow({
   const { t } = useAppSettings();
 
   return (
-    <div className="idx-config-property-row">
-      <span className="idx-config-property-row__index">{index + 1}</span>
-      <label className="idx-label">
-        {t("config.indexFields.path")}
-        <input
-          className="idx-input idx-input--mono"
-          value={property.path}
-          onChange={(e) => onChange({ ...property, path: e.target.value })}
-        />
-      </label>
-      <label className="idx-label">
-        {t("config.indexFields.sourceType")}
-        <select
-          className="idx-select"
-          value={property.sourceType}
-          onChange={(e) =>
-            onChange({
-              ...property,
-              sourceType: e.target.value === "file_metadata" ? "file_metadata" : "asset_metadata",
-            })
-          }
-        >
-          <option value="asset_metadata">{t("config.indexFields.sourceAsset")}</option>
-          <option value="file_metadata">{t("config.indexFields.sourceFile")}</option>
-        </select>
-      </label>
-      <label className="idx-label idx-config-property-row__pattern">
-        {t("config.indexFields.extractPattern")}
-        <input
-          className="idx-input idx-input--mono"
-          value={property.extractPattern}
-          onChange={(e) => onChange({ ...property, extractPattern: e.target.value })}
-        />
-        <span className="idx-config-hint">{t("config.indexFields.extractPatternHint")}</span>
-      </label>
-      <button type="button" className="idx-btn idx-btn--sm idx-btn--danger" onClick={onRemove}>
-        {t("config.indexFields.removeProperty")}
-      </button>
-    </div>
+    <article className="idx-config-card idx-config-card--nested">
+      <div className="idx-config-card__header">
+        <h5 className="idx-config-card__title">
+          {t("config.indexFields.propertyCard", { index: String(index + 1) })}
+        </h5>
+        <button type="button" className="idx-btn idx-btn--sm idx-btn--danger" onClick={onRemove}>
+          {t("config.indexFields.removeProperty")}
+        </button>
+      </div>
+      <div className="idx-config-grid">
+        <label className="idx-label">
+          <span className="idx-label__caption">{t("config.indexFields.path")}</span>
+          <input
+            className="idx-input idx-input--mono"
+            value={property.path}
+            onChange={(e) => onChange({ ...property, path: e.target.value })}
+          />
+        </label>
+        <label className="idx-label">
+          <span className="idx-label__caption">{t("config.indexFields.sourceType")}</span>
+          <select
+            className="idx-select"
+            value={property.sourceType}
+            onChange={(e) =>
+              onChange({
+                ...property,
+                sourceType: e.target.value === "file_metadata" ? "file_metadata" : "asset_metadata",
+              })
+            }
+          >
+            <option value="asset_metadata">{t("config.indexFields.sourceAsset")}</option>
+            <option value="file_metadata">{t("config.indexFields.sourceFile")}</option>
+          </select>
+        </label>
+        <label className="idx-label idx-config-grid__full">
+          <span className="idx-label__caption">{t("config.indexFields.extractPattern")}</span>
+          <input
+            className="idx-input idx-input--mono"
+            value={property.extractPattern}
+            onChange={(e) => {
+              const extractPattern = e.target.value;
+              onChange({
+                ...property,
+                extractPattern,
+                extractMode: extractPattern.trim() ? "regex" : "passthrough",
+              });
+            }}
+          />
+          <span className="idx-config-hint">{t("config.indexFields.extractPatternHint")}</span>
+        </label>
+      </div>
+    </article>
   );
 }
 
@@ -115,7 +131,22 @@ function ViewCard({
             onChange={(e) => onChange({ ...view, version: e.target.value })}
           />
         </label>
+        <label className="idx-label idx-config-grid__full">
+          {t("config.indexFields.instanceSpaces")}
+          <StringListInput
+            value={view.instanceSpaces}
+            onChange={(instanceSpaces) => onChange({ ...view, instanceSpaces })}
+            placeholder={t("config.indexFields.instanceSpacesPlaceholder")}
+            mono
+          />
+          <span className="idx-config-hint">{t("config.indexFields.instanceSpacesHint")}</span>
+        </label>
       </div>
+      <ViewQueryFiltersSection
+        fieldKey={`view-${index}`}
+        filters={view.filters}
+        onFiltersChange={(filters) => onChange({ ...view, filters })}
+      />
       <div className="idx-config-toolbar">
         <h5 className="idx-config-subsection__title" style={{ margin: 0 }}>
           {t("config.indexFields.properties")}
@@ -159,14 +190,9 @@ export function IndexFieldConfigEditor({ value, onChange }: Props) {
   const { t } = useAppSettings();
 
   return (
-    <div className="idx-config-section">
+    <FormPanel title={t("config.indexFields.title")} hint={t("config.indexFields.hint")}>
       <div className="idx-config-toolbar">
-        <div>
-          <h3 className="idx-config-section__title" style={{ margin: 0 }}>
-            {t("config.indexFields.title")}
-          </h3>
-          <p className="idx-pane__hint">{t("config.indexFields.hint")}</p>
-        </div>
+        <div />
         <button
           type="button"
           className="idx-btn idx-btn--primary"
@@ -175,6 +201,12 @@ export function IndexFieldConfigEditor({ value, onChange }: Props) {
           {t("config.indexFields.addView")}
         </button>
       </div>
+      {value.length === 0 ? (
+        <div className="idx-empty-state">
+          <p className="idx-empty-state__text">{t("config.indexFields.hint")}</p>
+        </div>
+      ) : null}
+      <div className="idx-config-card-grid">
       {value.map((view, i) => (
         <ViewCard
           key={i}
@@ -188,6 +220,7 @@ export function IndexFieldConfigEditor({ value, onChange }: Props) {
           onRemove={() => onChange(value.filter((_, j) => j !== i))}
         />
       ))}
-    </div>
+      </div>
+    </FormPanel>
   );
 }

@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { LOCALES, en, type Locale, type MessageKey } from "../../i18n";
 import { useAppSettings } from "../../context/AppSettingsContext";
+import { SectionIntro } from "../shared/SectionIntro";
 
 const MESSAGE_KEYS = Object.keys(en) as MessageKey[];
 
@@ -24,10 +25,10 @@ export function SettingsPane() {
   }, [normalizedFilter, targetLocale, getTranslationValue]);
 
   return (
-    <section className="idx-settings-pane" aria-label={t("settings.title")}>
-      <header>
+    <section className="idx-pane idx-editor-page idx-settings-pane" aria-label={t("settings.title")}>
+      <header className="idx-pane-header">
         <h2 className="idx-pane__title">{t("settings.translationEditor.title")}</h2>
-        <p className="idx-pane__hint">{t("settings.translationEditor.hint")}</p>
+        <SectionIntro>{t("settings.translationEditor.hint")}</SectionIntro>
       </header>
       <div className="idx-settings-pane__controls">
         <label className="idx-settings-pane__field">

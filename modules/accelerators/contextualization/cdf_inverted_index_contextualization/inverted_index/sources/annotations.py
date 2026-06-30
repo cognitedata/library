@@ -9,7 +9,13 @@ from inverted_index.annotation_fields import (
     annotation_text,
     detection_mode_from_annotation,
 )
-from inverted_index.config import ANNOTATION_INDEX_CONFIG, INDEX_FIELD_CONFIG, SCOPE_CONFIG
+from inverted_index.config import (
+    ANNOTATION_INDEX_CONFIG,
+    INDEX_FIELD_CONFIG,
+    SCOPE_CONFIG,
+    view_query_instance_spaces,
+)
+from inverted_index.view_query_filters import compile_view_config_filters
 from inverted_index.dm_query import (
     annotation_select_property_names,
     collect_view_property_paths,
@@ -205,11 +211,8 @@ def list_diagram_annotations(
 def iter_view_instances(
     client: Any,
     *,
-    view: str,
-    view_space: str,
-    version: str = "v1",
+    view_config: dict,
     batch_size: int = 1000,
-    instance_spaces: list[str] | None = None,
     filter_updated_after: datetime | None = None,
     index_field_config: list[dict] | None = None,
     scope_config: dict | None = None,
@@ -217,6 +220,9 @@ def iter_view_instances(
     """Yield DM node instances for a configured metadata view (server-side filtered)."""
     from cognite.client import data_modeling as dm
 
+    view = str(view_config.get("view", ""))
+    view_space = str(view_config.get("view_space", ""))
+    version = str(view_config.get("version", "v1"))
     field_cfg = index_field_config or INDEX_FIELD_CONFIG
     scope_cfg = scope_config or SCOPE_CONFIG
     view_id = dm.ViewId(space=view_space, external_id=view, version=version)
@@ -226,11 +232,8 @@ def iter_view_instances(
         scope_config=scope_cfg,
     )
     property_names = top_level_property_names(paths) or ["name", "description"]
-    spaces: list[str | None]
-    if instance_spaces:
-        spaces = list(instance_spaces)
-    else:
-        spaces = [None]
+    spaces = view_query_instance_spaces(view_config)
+    user_filters = compile_view_config_filters(view_id, view_config.get("filters"))
 
     for query_space in spaces:
         for inst in query_all_nodes(
@@ -238,6 +241,7 @@ def iter_view_instances(
             view_id=view_id,
             property_names=property_names,
             instance_space=query_space,
+            user_filters=user_filters or None,
             filter_updated_after=filter_updated_after,
             page_size=batch_size,
         ):

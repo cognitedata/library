@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from inverted_index.normalize import normalize_query_terms
+from inverted_index.storage.raw_keys import posting_matches_reference
 
 
 class MemoryStorageAdapter:
@@ -14,7 +15,7 @@ class MemoryStorageAdapter:
         self._config = storage_config or {}
         self._entries: dict[str, dict[str, Any]] = {}
 
-    def upsert_index_entries(self, entries: list[dict], *, dry_run: bool = False) -> dict:
+    def upsert_index_entries(self, entries: list[dict], *, dry_run: bool = False, **kwargs: Any) -> dict:
         created = 0
         updated = 0
         if dry_run:
@@ -98,6 +99,36 @@ class MemoryStorageAdapter:
             if file_ref == file_external_id:
                 results.append(dict(entry))
         return results[:limit]
+
+    def remove_postings_for_reference(
+        self,
+        *,
+        match_scope_key: str,
+        reference_external_id: str,
+        reference_space: str,
+        source_types: list[str],
+    ) -> dict:
+        to_delete: list[str] = []
+        postings_removed = 0
+        for ext_id, entry in self._entries.items():
+            if match_scope_key and entry.get("match_scope_key") != match_scope_key:
+                continue
+            posting = dict(entry)
+            if posting_matches_reference(
+                posting,
+                reference_external_id=reference_external_id,
+                reference_space=reference_space,
+                source_types=source_types,
+            ):
+                to_delete.append(ext_id)
+                postings_removed += 1
+        for ext_id in to_delete:
+            del self._entries[ext_id]
+        return {
+            "rows_scanned": len(self._entries) + len(to_delete),
+            "rows_updated": len(to_delete),
+            "postings_removed": postings_removed,
+        }
 
     def delete_subset(
         self,

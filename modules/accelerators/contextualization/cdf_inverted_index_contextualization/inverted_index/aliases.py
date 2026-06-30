@@ -1,4 +1,4 @@
-"""Instance alias reads and self-reference guards."""
+"""Instance query-term reads and self-reference guards."""
 
 from __future__ import annotations
 
@@ -8,20 +8,38 @@ from inverted_index.extract import read_property_path
 from inverted_index.normalize import normalize_term
 
 
+def _coerce_terms(value: Any) -> list[str]:
+    if value is None:
+        return []
+    if isinstance(value, str):
+        stripped = value.strip()
+        return [stripped] if stripped else []
+    if isinstance(value, (list, tuple, set)):
+        return [str(item) for item in value if item]
+    text = str(value).strip()
+    return [text] if text else []
+
+
+def read_instance_query_terms(
+    instance: dict[str, Any],
+    property_path: str,
+    fallbacks: tuple[str, ...] | list[str] = (),
+) -> list[str]:
+    """Return query term strings from a DM instance dict for the given property path."""
+    paths = [property_path, *fallbacks]
+    for path in paths:
+        if not path:
+            continue
+        value = read_property_path(instance, path)
+        terms = _coerce_terms(value)
+        if terms:
+            return terms
+    return []
+
+
 def read_instance_aliases(instance: dict[str, Any]) -> list[str]:
     """Return alias strings from a DM instance dict."""
-    props = instance.get("properties")
-    if not isinstance(props, dict):
-        props = instance if isinstance(instance, dict) else {}
-
-    aliases = read_property_path(instance, "aliases")
-    if aliases is None:
-        aliases = props.get("aliases") or props.get("tags")
-    if aliases is None:
-        return []
-    if isinstance(aliases, str):
-        return [aliases] if aliases.strip() else []
-    return [str(a) for a in aliases if a]
+    return read_instance_query_terms(instance, "aliases", fallbacks=("tags",))
 
 
 def normalized_instance_aliases(instance: dict[str, Any]) -> set[str]:

@@ -1,7 +1,16 @@
-import { useState } from "react";
-import { parseCsvList, redactForDisplay } from "../../api";
+import { useMemo, useState } from "react";
+import { parseCsvList } from "../../api";
 import { useAppSettings } from "../../context/AppSettingsContext";
 import { useOperationRun } from "../../hooks/useOperationRun";
+import { QUERY_SUMMARY_METRICS, REUSE_METRICS } from "../../utils/metricDefs";
+import { queryByTermRows, queryHits, queryReuseMetrics } from "../../utils/resultViews";
+import { ActionsBar } from "../shared/ActionsBar";
+import { DataTable } from "../shared/DataTable";
+import { EditorPage } from "../shared/EditorPage";
+import { EditorWorkflowLayout } from "../shared/EditorWorkflowLayout";
+import { FieldGroup } from "../shared/FieldGroup";
+import { FormPanel } from "../shared/FormPanel";
+import { MetricSummary } from "../shared/MetricSummary";
 import { OperationResultPanel } from "./OperationResultPanel";
 import { OperationRunControls } from "./OperationRunControls";
 
@@ -34,133 +43,191 @@ export function QueryPane({ onSelectRow }: Props) {
     });
   };
 
-  const hits = Array.isArray(result)
-    ? result
-    : result && typeof result === "object" && "hits" in result
-      ? (result as { hits: unknown[] }).hits
-      : [];
+  const hits = queryHits(result);
+  const reuseMetrics = queryReuseMetrics(result);
+  const byTermRows = queryByTermRows(result);
 
-  const summaryResult =
-    result && typeof result === "object" && !Array.isArray(result)
-      ? {
-          scopes_queried: (result as { scopes_queried?: unknown }).scopes_queried,
-          terms_queried: (result as { terms_queried?: unknown }).terms_queried,
-          hit_count: hits.length,
-          reuse_metrics: (result as { reuse_metrics?: unknown }).reuse_metrics,
-        }
-      : { hit_count: hits.length };
+  const summaryResult = useMemo(() => {
+    if (!result || typeof result !== "object" || Array.isArray(result)) {
+      return { hit_count: hits.length };
+    }
+    return {
+      scopes_queried: (result as { scopes_queried?: unknown }).scopes_queried,
+      terms_queried: (result as { terms_queried?: unknown }).terms_queried,
+      hit_count: hits.length,
+    };
+  }, [result, hits.length]);
+
+  const reuseSummary = reuseMetrics
+    ? {
+        ...reuseMetrics,
+        by_term_count: Array.isArray(reuseMetrics.by_term) ? (reuseMetrics.by_term as unknown[]).length : 0,
+      }
+    : null;
 
   return (
-    <div className="idx-pane">
-      <h2 className="idx-pane__title">{t("query.title")}</h2>
-      <p className="idx-pane__hint">{t("query.hint")}</p>
-      <div className="idx-field-row">
-        <label className="idx-label">
-          {t("query.terms")}
-          <input
-            className="idx-input"
-            value={termsRaw}
-            onChange={(e) => setTermsRaw(e.target.value)}
-            placeholder={t("query.termsPlaceholder")}
-          />
-        </label>
-        <label className="idx-label">
-          {t("query.scopeKeys")}
-          <input
-            className="idx-input"
-            value={scopeKeysRaw}
-            onChange={(e) => setScopeKeysRaw(e.target.value)}
-            placeholder={t("query.scopeKeysPlaceholder")}
-            disabled={allScopes}
-          />
-        </label>
-        <label className="idx-label">
-          {t("query.sourceTypes")}
-          <input
-            className="idx-input"
-            value={sourceTypesRaw}
-            onChange={(e) => setSourceTypesRaw(e.target.value)}
-            placeholder={t("query.sourceTypesPlaceholder")}
-          />
-        </label>
-        <label className="idx-label">
-          {t("query.minConfidence")}
-          <input
-            className="idx-input"
-            type="number"
-            min={0}
-            max={1}
-            step={0.05}
-            value={minConfidence}
-            onChange={(e) => setMinConfidence(Number(e.target.value))}
-          />
-        </label>
-      </div>
-      <div className="idx-field-row">
-        <label className="idx-checkbox-label">
-          <input type="checkbox" checked={allScopes} onChange={(e) => setAllScopes(e.target.checked)} />
-          {t("query.allScopes")}
-        </label>
-        <label className="idx-checkbox-label">
-          <input type="checkbox" checked={reuseOnly} onChange={(e) => setReuseOnly(e.target.checked)} />
-          {t("query.reuseOnly")}
-        </label>
-        <label className="idx-checkbox-label">
-          <input type="checkbox" checked={hitsOnly} onChange={(e) => setHitsOnly(e.target.checked)} />
-          {t("query.hitsOnly")}
-        </label>
-        <OperationRunControls
-          loading={loading}
-          onRun={handleRun}
-          onCancel={cancel}
-          runLabelKey="query.run"
-        />
-      </div>
-      <OperationResultPanel
-        loading={loading}
-        cancelled={cancelled}
-        error={error}
-        result={summaryResult}
-        log={log}
-        showConsole
+    <EditorPage title={t("query.title")} hint={t("query.hint")}>
+      <EditorWorkflowLayout
+        parameters={
+          <FormPanel title={t("ops.panel.parameters")}>
+            <ActionsBar sticky>
+              <OperationRunControls loading={loading} onRun={handleRun} onCancel={cancel} runLabelKey="query.run" />
+            </ActionsBar>
+            <FieldGroup label={t("query.panel.search")}>
+              <label className="idx-label">
+                {t("query.terms")}
+                <input
+                  className="idx-input"
+                  value={termsRaw}
+                  onChange={(e) => setTermsRaw(e.target.value)}
+                  placeholder={t("query.termsPlaceholder")}
+                />
+              </label>
+            </FieldGroup>
+            <FieldGroup label={t("query.panel.scope")}>
+              <div className="idx-field-row">
+                <label className="idx-label">
+                  {t("query.scopeKeys")}
+                  <input
+                    className="idx-input"
+                    value={scopeKeysRaw}
+                    onChange={(e) => setScopeKeysRaw(e.target.value)}
+                    placeholder={t("query.scopeKeysPlaceholder")}
+                    disabled={allScopes}
+                  />
+                </label>
+                <label className="idx-label">
+                  {t("query.sourceTypes")}
+                  <input
+                    className="idx-input"
+                    value={sourceTypesRaw}
+                    onChange={(e) => setSourceTypesRaw(e.target.value)}
+                    placeholder={t("query.sourceTypesPlaceholder")}
+                  />
+                </label>
+                <label className="idx-label">
+                  {t("query.minConfidence")}
+                  <input
+                    className="idx-input"
+                    type="number"
+                    min={0}
+                    max={1}
+                    step={0.05}
+                    value={minConfidence}
+                    onChange={(e) => setMinConfidence(Number(e.target.value))}
+                  />
+                </label>
+              </div>
+            </FieldGroup>
+            <FieldGroup label={t("query.panel.output")}>
+              <div className="idx-checkbox-group">
+                <label className="idx-checkbox-label">
+                  <input type="checkbox" checked={allScopes} onChange={(e) => setAllScopes(e.target.checked)} />
+                  {t("query.allScopes")}
+                </label>
+                <label className="idx-checkbox-label">
+                  <input type="checkbox" checked={reuseOnly} onChange={(e) => setReuseOnly(e.target.checked)} />
+                  {t("query.reuseOnly")}
+                </label>
+                <label className="idx-checkbox-label">
+                  <input type="checkbox" checked={hitsOnly} onChange={(e) => setHitsOnly(e.target.checked)} />
+                  {t("query.hitsOnly")}
+                </label>
+              </div>
+            </FieldGroup>
+          </FormPanel>
+        }
+        results={
+          <FormPanel title={t("ops.panel.results")} className="idx-panel--output">
+            <OperationResultPanel
+              loading={loading}
+              cancelled={cancelled}
+              error={error}
+              result={summaryResult}
+              log={log}
+              showConsole
+              metrics={QUERY_SUMMARY_METRICS}
+              metricsData={summaryResult}
+              rawResult={result}
+            >
+              {reuseSummary ? (
+                <section className="idx-result-section">
+                  <h4 className="idx-result-section__title">{t("query.reuseMetrics")}</h4>
+                  <MetricSummary data={reuseSummary} metrics={REUSE_METRICS} />
+                </section>
+              ) : null}
+              {byTermRows.length > 0 ? (
+                <section className="idx-result-section">
+                  <h4 className="idx-result-section__title">{t("query.reuseByTerm")}</h4>
+                  <DataTable
+                    columns={[
+                      {
+                        id: "term",
+                        headerKey: "table.term",
+                        render: (row) => String(row.normalized_term ?? row.term ?? ""),
+                      },
+                      {
+                        id: "scopes",
+                        headerKey: "table.scopes",
+                        render: (row) => {
+                          const scopes = row.scope_keys ?? row.scopes;
+                          return Array.isArray(scopes) ? scopes.join(", ") : String(scopes ?? "");
+                        },
+                      },
+                      {
+                        id: "count",
+                        headerKey: "table.scopeCount",
+                        render: (row) => {
+                          const scopes = row.scope_keys ?? row.scopes;
+                          const count = row.scope_count ?? (Array.isArray(scopes) ? scopes.length : "");
+                          return String(count);
+                        },
+                      },
+                    ]}
+                    rows={byTermRows}
+                    onRowClick={onSelectRow}
+                  />
+                </section>
+              ) : null}
+              <section className="idx-result-section">
+                <h4 className="idx-result-section__title">{t("query.hits")}</h4>
+                <DataTable
+                  columns={[
+                    {
+                      id: "term",
+                      headerKey: "table.term",
+                      render: (row) => String(row.normalized_term ?? row.term ?? ""),
+                    },
+                    {
+                      id: "source",
+                      headerKey: "table.sourceType",
+                      render: (row) => String(row.source_type ?? ""),
+                    },
+                    {
+                      id: "ref",
+                      headerKey: "table.reference",
+                      render: (row) => String(row.reference_external_id ?? ""),
+                    },
+                    {
+                      id: "conf",
+                      headerKey: "table.confidence",
+                      render: (row) =>
+                        row.confidence != null && row.confidence !== "" ? (
+                          <span className="idx-confidence-badge">{String(row.confidence)}</span>
+                        ) : (
+                          "—"
+                        ),
+                    },
+                  ]}
+                  rows={hits}
+                  onRowClick={onSelectRow}
+                  emptyMessage={!loading ? t("query.noHits") : undefined}
+                />
+              </section>
+            </OperationResultPanel>
+          </FormPanel>
+        }
       />
-      {result && !Array.isArray(result) && typeof result === "object" && "reuse_metrics" in result ? (
-        <div>
-          <h3 className="idx-file-section__title">{t("query.reuseMetrics")}</h3>
-          <pre className="idx-json-pre">
-            {JSON.stringify(redactForDisplay((result as { reuse_metrics: unknown }).reuse_metrics), null, 2)}
-          </pre>
-        </div>
-      ) : null}
-      <h3 className="idx-file-section__title">{t("query.hits")}</h3>
-      {hits.length === 0 && !loading ? <p className="idx-pane__hint">{t("query.noHits")}</p> : null}
-      {hits.length > 0 ? (
-        <div className="idx-table-wrap">
-          <table className="idx-table">
-            <thead>
-              <tr>
-                <th>term</th>
-                <th>source_type</th>
-                <th>reference</th>
-                <th>confidence</th>
-              </tr>
-            </thead>
-            <tbody>
-              {hits.map((hit, i) => {
-                const row = hit as Record<string, unknown>;
-                return (
-                  <tr key={i} onClick={() => onSelectRow(hit)}>
-                    <td>{String(row.normalized_term ?? row.term ?? "")}</td>
-                    <td>{String(row.source_type ?? "")}</td>
-                    <td>{String(row.reference_external_id ?? "")}</td>
-                    <td>{String(row.confidence ?? "")}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      ) : null}
-    </div>
+    </EditorPage>
   );
 }

@@ -3,6 +3,7 @@ import type { MessageKey } from "../i18n";
 const NAV_DESC_KEYS: Partial<Record<MessageKey, MessageKey>> = {
   "nav.indexing": "nav.desc.indexing",
   "nav.overview": "nav.desc.overview",
+  "nav.config": "nav.desc.config",
   "nav.ops": "nav.desc.ops",
   "nav.buildMetadata": "nav.desc.buildMetadata",
   "nav.buildAnnotations": "nav.desc.buildAnnotations",

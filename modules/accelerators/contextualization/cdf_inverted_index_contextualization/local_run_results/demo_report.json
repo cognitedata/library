@@ -3,7 +3,7 @@
   "match_scope_key": "global",
   "target_driven": {
     "instance_external_id": "ASSET_P101",
-    "instance_type": "asset",
+    "incoming_view_key": "asset",
     "match_scope_key": "global",
     "match_scope": {},
     "aliases": [
@@ -40,7 +40,7 @@
           "match_scope": {},
           "term_kind": "asset_tag",
           "source_property": "name",
-          "extract_mode": "whole_value",
+          "extract_mode": "passthrough",
           "original_value": "P-101A",
           "occurrence_count": 1
         },

@@ -1,6 +1,12 @@
+import type { ReactNode } from "react";
 import { useAppSettings } from "../../context/AppSettingsContext";
-import { redactForDisplay } from "../../api";
-import { OperationConsole } from "./OperationConsole";
+import { OperationConsole } from "../index/OperationConsole";
+import { CollapsibleJson } from "../shared/CollapsibleJson";
+import { MetricSummary } from "../shared/MetricSummary";
+import { OperationStatus } from "../shared/OperationStatus";
+import type { MessageKey } from "../../i18n";
+
+type MetricDef = { key: string; labelKey: MessageKey };
 
 type Props = {
   loading: boolean;
@@ -10,6 +16,10 @@ type Props = {
   log?: string;
   showConsole?: boolean;
   showResult?: boolean;
+  metrics?: MetricDef[];
+  metricsData?: Record<string, unknown> | null;
+  rawResult?: unknown;
+  children?: ReactNode;
 };
 
 export function OperationResultPanel({
@@ -20,30 +30,35 @@ export function OperationResultPanel({
   log = "",
   showConsole = false,
   showResult = true,
+  metrics,
+  metricsData,
+  rawResult,
+  children,
 }: Props) {
   const { t } = useAppSettings();
+  const displayMetrics = metricsData ?? (result && typeof result === "object" && !Array.isArray(result)
+    ? (result as Record<string, unknown>)
+    : null);
+  const raw = rawResult ?? result;
+  const hasStructured = Boolean(children) || Boolean(metrics?.length && displayMetrics);
 
   return (
     <div className="idx-operation-output">
       {showConsole ? <OperationConsole log={log} loading={loading} /> : null}
-      {loading && !showConsole ? <p className="idx-pane__hint">{t("ops.running")}</p> : null}
-      {cancelled ? (
-        <div className="idx-operation-result">
-          <p className="idx-operation-result__status">{t("ops.cancelled")}</p>
-        </div>
-      ) : null}
-      {error ? (
-        <div className="idx-operation-result">
-          <p className="idx-operation-result__status idx-operation-result__status--error">
-            {t("ops.error")}: {error}
-          </p>
-        </div>
-      ) : null}
-      {!loading && showResult && result != null ? (
-        <div className="idx-operation-result">
-          <p className="idx-operation-result__status idx-operation-result__status--ok">{t("ops.result")}</p>
-          <pre className="idx-json-pre">{JSON.stringify(redactForDisplay(result), null, 2)}</pre>
-        </div>
+      {!showConsole && loading ? <p className="idx-pane__hint">{t("ops.running")}</p> : null}
+      <OperationStatus
+        loading={loading}
+        cancelled={cancelled}
+        error={error}
+        hasResult={!loading && !cancelled && !error && (result != null || Boolean(children))}
+      />
+      {!loading && showResult ? (
+        <>
+          {metrics?.length ? <MetricSummary data={displayMetrics} metrics={metrics} /> : null}
+          {children}
+          {hasStructured && raw != null ? <CollapsibleJson data={raw} /> : null}
+          {!hasStructured && result != null ? <CollapsibleJson data={raw} defaultOpen /> : null}
+        </>
       ) : null}
     </div>
   );
@@ -58,7 +73,7 @@ export function DryRunToggle({
 }) {
   const { t } = useAppSettings();
   return (
-    <label className="idx-checkbox-label">
+    <label className="idx-checkbox-label" title={t("ops.dryRunHint")}>
       <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} />
       {t("ops.dryRun")}
     </label>

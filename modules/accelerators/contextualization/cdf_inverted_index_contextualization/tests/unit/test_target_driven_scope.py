@@ -31,7 +31,7 @@ def test_scope_lookup_override_finds_hits() -> None:
     result = process_target_driven_contextualization(
         None,
         instance_external_id="ASSET_P101",
-        instance_type="asset",
+        incoming_view_key="asset",
         instance_space="cdf_cdm",
         instance=instance,
         storage_adapter=adapter,
@@ -53,7 +53,7 @@ def test_scope_filter_skips_non_matching_asset() -> None:
     result = process_target_driven_contextualization(
         None,
         instance_external_id="ASSET_P101",
-        instance_type="asset",
+        incoming_view_key="asset",
         instance_space="cdf_cdm",
         instance=instance,
         storage_adapter=adapter,
@@ -75,7 +75,7 @@ def test_scope_filter_allows_matching_asset() -> None:
     result = process_target_driven_contextualization(
         None,
         instance_external_id="ASSET_P101",
-        instance_type="asset",
+        incoming_view_key="asset",
         instance_space="cdf_cdm",
         instance=instance,
         storage_adapter=adapter,
@@ -112,7 +112,7 @@ def test_target_driven_counts_query_filtered_by_confidence() -> None:
     result = process_target_driven_contextualization(
         None,
         instance_external_id="ASSET_P101",
-        instance_type="asset",
+        incoming_view_key="asset",
         instance_space="cdf_cdm",
         instance=instance,
         storage_adapter=adapter,
@@ -127,3 +127,27 @@ def test_target_driven_counts_query_filtered_by_confidence() -> None:
         or (h.get("additional_metadata") or {}).get("confidence") is None
         for h in (result.get("hits") or [])
     )
+
+
+def test_target_driven_uses_configured_query_property_name() -> None:
+    adapter = _adapter_with_index()
+    instance = {
+        "externalId": "ASSET_P101",
+        "space": "cdf_cdm",
+        "properties": {"name": "P-101A"},
+    }
+    result = process_target_driven_contextualization(
+        None,
+        instance_external_id="ASSET_P101",
+        incoming_view_key="asset",
+        instance_space="cdf_cdm",
+        instance=instance,
+        storage_adapter=adapter,
+        match_scope_keys=[GLOBAL_SCOPE],
+        scope_lookup_override=True,
+        query_property="name",
+        dry_run=True,
+    )
+    assert result["query_property"] == "name"
+    assert result["query_terms"] == ["P-101A"]
+    assert result["references_found"] >= 1

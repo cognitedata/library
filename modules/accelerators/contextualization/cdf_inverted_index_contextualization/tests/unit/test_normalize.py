@@ -14,6 +14,9 @@ from inverted_index.normalize import normalize_query_terms, normalize_term
         ("", ""),
         ("   ", ""),
         ("Pump 101", "pump101"),
+        ("ポンプ-101", "ポンプ101"),
+        ("ポンプP-101", "ポンプp101"),
+        ("バルブ", "バルブ"),
     ],
 )
 def test_normalize_term(raw: str, expected: str) -> None:

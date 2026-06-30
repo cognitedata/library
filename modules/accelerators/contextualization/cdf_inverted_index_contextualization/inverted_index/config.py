@@ -33,6 +33,23 @@ RAW_POSTINGS_POLICY: dict = {
     "alert_postings_json_bytes": 524_288,
 }
 
+RAW_TERM_PARTITION_POLICY: dict = {
+    "enabled": False,
+    "strategy": "first_char",
+    "activate_above_rows": 400_000,
+    "sharded_table_template": "inverted_index__{scope_slug}__{term_bucket}",
+    "bucket_mode": "script_aware",
+}
+
+PARTITION_STRATEGY_UNIFIED = "unified"
+PARTITION_STRATEGY_TERM_FIRST_CHAR = "term_first_char"
+
+TARGET_DRIVEN_CONFIG: dict = {
+    "query_property": "aliases",
+    "query_property_fallbacks": ["name"],
+    "exclude_empty_aliases": False,
+}
+
 TARGET_DRIVEN_DEDUPE_CONFIG: dict = {
     "enabled": True,
     "cooldown_seconds": 300,
@@ -41,37 +58,37 @@ TARGET_DRIVEN_DEDUPE_CONFIG: dict = {
     "dedupe_key_fields": [
         "instance_space",
         "instance_external_id",
-        "aliases_hash",
+        "terms_hash",
         "match_scope_key",
     ],
 }
 
 SCOPE_CONFIG: dict = {
-    "enabled": False,
+    "enabled": True,
     "levels": [],
     "scope_key_template": "site:{site}|unit:{unit}",
     "resolve_from": {},
     "resolve_from_default": {},
     "resolve_from_examples": {
         "CogniteAsset": {
-            "site": ["metadata.site", "siteId"],
-            "unit": ["metadata.unit", "unitCode"],
+            "site": ["sourceContext", "source"],
+            "unit": ["sourceId"],
         },
         "CogniteFile": {
-            "site": ["metadata.site"],
-            "unit": ["metadata.unit"],
+            "site": ["sourceContext"],
+            "unit": ["sourceId"],
         },
         "CogniteEquipment": {
-            "site": ["metadata.site"],
-            "unit": ["metadata.unit"],
+            "site": ["sourceContext"],
+            "unit": ["sourceId"],
         },
         "CogniteTimeSeries": {
-            "site": ["metadata.site"],
-            "unit": ["metadata.unit"],
+            "site": ["sourceContext"],
+            "unit": ["sourceId"],
         },
         "CogniteDiagramAnnotation": {
-            "site": ["metadata.site"],
-            "unit": ["metadata.unit"],
+            "site": ["sourceContext"],
+            "unit": ["sourceId"],
         },
     },
     "annotation_scope_via_linked_file": True,
@@ -79,49 +96,63 @@ SCOPE_CONFIG: dict = {
     "fallback_scope_key": "global",
 }
 
+_INDEX_TAG_PATTERN = r"\b[A-Z]{1,2}-\d{3,4}[A-Z]?\b"
+_INDEX_FILE_EXT_PATTERN = r"(?i)\b[\w][\w.-]*\.(?:pdf|dwg|png|jpe?g|tif{1,2})\b"
+# Drawing / master-document IDs without file extension (prior revision, master P&ID, etc.)
+_INDEX_DOC_REF_PATTERN = r"\b[A-Z]{2,}(?:-[A-Z]{2,})*-P-\d{4}(?:-\d{3})?\b"
+
+
+def view_query_instance_spaces(view_config: dict) -> list[str | None]:
+    """Resolve DM instance spaces for a metadata ``index_field_config`` view entry."""
+    raw = view_config.get("instance_spaces")
+    if isinstance(raw, list) and raw:
+        return [str(s).strip() for s in raw if str(s).strip()]
+    return [None]
+
+
+_INDEX_METADATA_PROPERTIES: list[dict] = [
+    {
+        "path": "name",
+        "source_type": "asset_metadata",
+        "extract_mode": "regex",
+        "extract_pattern": _INDEX_TAG_PATTERN,
+    },
+    {
+        "path": "description",
+        "source_type": "asset_metadata",
+        "extract_mode": "regex",
+        "extract_pattern": _INDEX_TAG_PATTERN,
+    },
+    {
+        "path": "description",
+        "source_type": "file_metadata",
+        "extract_mode": "regex",
+        "extract_pattern": _INDEX_FILE_EXT_PATTERN,
+    },
+    {
+        "path": "description",
+        "source_type": "file_metadata",
+        "extract_mode": "regex",
+        "extract_pattern": _INDEX_DOC_REF_PATTERN,
+    },
+]
+
+def _index_view_entry(view: str) -> dict:
+    return {
+        "view": view,
+        "view_space": "cdf_cdm",
+        "version": "v1",
+        "instance_spaces": [],
+        "filters": [],
+        "properties": list(_INDEX_METADATA_PROPERTIES),
+    }
+
+
 INDEX_FIELD_CONFIG: list[dict] = [
-    {
-        "view": "CogniteFile",
-        "view_space": "cdf_cdm",
-        "version": "v1",
-        "properties": [
-            {"path": "name", "source_type": "file_metadata"},
-            {
-                "path": "description",
-                "source_type": "asset_metadata",
-                "extract_mode": "regex",
-                "extract_pattern": r"\b[A-Z]{1,2}-\d{3,4}[A-Z]?\b",
-            },
-        ],
-    },
-    {
-        "view": "CogniteEquipment",
-        "view_space": "cdf_cdm",
-        "version": "v1",
-        "properties": [
-            {"path": "name", "source_type": "asset_metadata"},
-            {
-                "path": "description",
-                "source_type": "asset_metadata",
-                "extract_mode": "regex",
-                "extract_pattern": r"\b[A-Z]{1,2}-\d{3,4}[A-Z]?\b",
-            },
-        ],
-    },
-    {
-        "view": "CogniteTimeSeries",
-        "view_space": "cdf_cdm",
-        "version": "v1",
-        "properties": [
-            {"path": "name", "source_type": "asset_metadata"},
-            {
-                "path": "description",
-                "source_type": "asset_metadata",
-                "extract_mode": "regex",
-                "extract_pattern": r"\b[A-Z]{1,2}-\d{3,4}[A-Z]?\b",
-            },
-        ],
-    },
+    _index_view_entry("CogniteFile"),
+    _index_view_entry("CogniteAsset"),
+    _index_view_entry("CogniteEquipment"),
+    _index_view_entry("CogniteTimeSeries"),
 ]
 
 ANNOTATION_INDEX_CONFIG: dict = {
@@ -151,258 +182,8 @@ SUBSCRIPTION_CONFIG: dict = {
     "enabled": True,
     "trigger": "instance_subscription",
     "watch_property": "aliases",
-    "instance_spaces": ["cdf_cdm"],
-    "asset_views": ["CogniteAsset"],
-    "file_views": ["CogniteFile"],
-    "default_instance_type": "asset",
-}
-
-VIEW_INSTANCE_TYPES: dict[str, str] = {
-    "CogniteAsset": "asset",
-    "CogniteFile": "file",
-    "CogniteEquipment": "equipment",
-    "CogniteTimeSeries": "timeseries",
-}
-
-_INCOMING_INSTANCE = {"source": "incoming_instance"}
-
-_FILE_FROM_HIT_RULES = [
-    {
-        "when_reference_types": ["CogniteFile"],
-        "space": "reference_space",
-        "external_id": "reference_external_id",
-    },
-    {
-        "when_reference_types": ["CogniteDiagramAnnotation"],
-        "space": "additional_metadata.file_space",
-        "external_id": "additional_metadata.file_external_id",
-        "fallback": {
-            "space": "additional_metadata.file_space",
-            "external_id": "additional_metadata.linked_file_extid",
-        },
-    },
-]
-
-_ASSET_FROM_HIT_RULES = [
-    {
-        "when_reference_types": ["CogniteAsset"],
-        "space": "reference_space",
-        "external_id": "reference_external_id",
-    },
-]
-
-_EQUIPMENT_FROM_HIT_RULES = [
-    {
-        "when_reference_types": ["CogniteEquipment", "MyCustomEquipment"],
-        "space": "reference_space",
-        "external_id": "reference_external_id",
-    },
-    {
-        "when_reference_types": ["CogniteDiagramAnnotation"],
-        "space": "additional_metadata.equipment_space",
-        "external_id": "additional_metadata.linked_equipment_extid",
-        "fallback": {
-            "space": "reference_space",
-            "external_id": "additional_metadata.linked_equipment_extid",
-        },
-    },
-]
-
-_TIMESERIES_FROM_HIT_RULES = [
-    {
-        "when_reference_types": ["CogniteTimeSeries"],
-        "space": "reference_space",
-        "external_id": "reference_external_id",
-    },
-]
-
-_DIAGRAM_ANNOTATION_DEFAULTS: dict = {
-    "when_source_types": [
-        "diagram_annotation_pattern",
-        "diagram_annotation_standard",
-    ],
-    "annotation_id_path": "additional_metadata.annotation_external_id",
-    "file_from_reference": True,
-    "annotation_space_from": "reference_space",
-    "create_status": "Suggested",
-    "update_end_node_only": True,
-    "property_map": {
-        "startNodeText": "term",
-        "confidence": "additional_metadata.confidence",
-        "status": "additional_metadata.status",
-        "startNodePageNumber": "additional_metadata.page",
-    },
-    "required_for_create": [
-        "reference_external_id",
-        "term",
-        "additional_metadata.page",
-    ],
-}
-
-DIRECT_RELATION_CONFIG: dict = {
-    "enabled": True,
-    "views": {
-        "file": {"space": "cdf_cdm", "external_id": "CogniteFile", "version": "v1"},
-        "asset": {"space": "cdf_cdm", "external_id": "CogniteAsset", "version": "v1"},
-        "equipment": {
-            "space": "cdf_cdm",
-            "external_id": "CogniteEquipment",
-            "version": "v1",
-        },
-        "timeseries": {
-            "space": "cdf_cdm",
-            "external_id": "CogniteTimeSeries",
-            "version": "v1",
-        },
-        "diagram_annotation": {
-            "space": "cdf_cdm",
-            "external_id": "CogniteDiagramAnnotation",
-            "version": "v1",
-        },
-    },
-    "edge_views": {
-        "file_asset_link": {
-            "space": "cdf_cdm",
-            "external_id": "FileAssetLink",
-            "version": "v1",
-        },
-        "equipment_asset_link": {
-            "space": "cdf_cdm",
-            "external_id": "EquipmentAssetLink",
-            "version": "v1",
-        },
-    },
-    "links": {
-        "file_to_asset": {
-            "enabled": True,
-            "write_modes": ["direct_relation"],
-            "forward_view": "file",
-            "property": "assets",
-            "target_view": "asset",
-            "cardinality": "list",
-            "instance_types": ["asset", "file"],
-            "source_types": [
-                "diagram_annotation_pattern",
-                "diagram_annotation_standard",
-            ],
-            "resolve_by_instance_type": {
-                "asset": {
-                    "forward": {"rules": _FILE_FROM_HIT_RULES},
-                    "target": _INCOMING_INSTANCE,
-                },
-                "file": {
-                    "forward": _INCOMING_INSTANCE,
-                    "target": {"rules": _ASSET_FROM_HIT_RULES},
-                },
-            },
-            "diagram_annotation": dict(_DIAGRAM_ANNOTATION_DEFAULTS),
-        },
-        "equipment_to_asset": {
-            "enabled": True,
-            "write_modes": ["direct_relation"],
-            "forward_view": "equipment",
-            "property": "asset",
-            "target_view": "asset",
-            "cardinality": "single",
-            "overwrite_existing": False,
-            "instance_types": ["asset", "equipment"],
-            "source_types": ["asset_metadata", "diagram_annotation_pattern"],
-            "resolve_by_instance_type": {
-                "asset": {
-                    "forward": {"rules": _EQUIPMENT_FROM_HIT_RULES},
-                    "target": _INCOMING_INSTANCE,
-                },
-                "equipment": {
-                    "forward": _INCOMING_INSTANCE,
-                    "target": {"rules": _ASSET_FROM_HIT_RULES},
-                },
-            },
-        },
-        "equipment_to_file": {
-            "enabled": True,
-            "write_modes": ["direct_relation"],
-            "forward_view": "equipment",
-            "property": "files",
-            "target_view": "file",
-            "cardinality": "list",
-            "instance_types": ["asset", "equipment", "file"],
-            "source_types": ["asset_metadata", "file_metadata"],
-            "resolve_by_instance_type": {
-                "asset": {
-                    "forward": {"rules": _EQUIPMENT_FROM_HIT_RULES},
-                    "target": {"rules": _FILE_FROM_HIT_RULES},
-                },
-                "equipment": {
-                    "forward": _INCOMING_INSTANCE,
-                    "target": {"rules": _FILE_FROM_HIT_RULES},
-                },
-                "file": {
-                    "forward": {"rules": _EQUIPMENT_FROM_HIT_RULES},
-                    "target": _INCOMING_INSTANCE,
-                },
-            },
-        },
-        "timeseries_to_asset": {
-            "enabled": True,
-            "write_modes": ["direct_relation"],
-            "forward_view": "timeseries",
-            "property": "assets",
-            "target_view": "asset",
-            "cardinality": "list",
-            "instance_types": ["asset", "timeseries"],
-            "source_types": ["asset_metadata"],
-            "resolve_by_instance_type": {
-                "asset": {
-                    "forward": {"rules": _TIMESERIES_FROM_HIT_RULES},
-                    "target": _INCOMING_INSTANCE,
-                },
-                "timeseries": {
-                    "forward": _INCOMING_INSTANCE,
-                    "target": {"rules": _ASSET_FROM_HIT_RULES},
-                },
-            },
-        },
-        "timeseries_to_equipment": {
-            "enabled": True,
-            "write_modes": ["direct_relation"],
-            "forward_view": "timeseries",
-            "property": "equipment",
-            "target_view": "equipment",
-            "cardinality": "single",
-            "overwrite_existing": False,
-            "instance_types": ["equipment", "timeseries"],
-            "source_types": ["asset_metadata"],
-            "resolve_by_instance_type": {
-                "equipment": {
-                    "forward": {"rules": _TIMESERIES_FROM_HIT_RULES},
-                    "target": _INCOMING_INSTANCE,
-                },
-                "timeseries": {
-                    "forward": _INCOMING_INSTANCE,
-                    "target": {
-                        "rules": [
-                            {
-                                "when_reference_types": ["CogniteEquipment"],
-                                "space": "reference_space",
-                                "external_id": "reference_external_id",
-                            },
-                        ]
-                    },
-                },
-            },
-        },
-    },
-    "min_confidence": 0.6,
-    "require_annotation_status": None,
-    "allowed_annotation_statuses": ["Suggested", "Approved"],
-    "write_on_suggested_annotations": True,
-    "source_types": [
-        "diagram_annotation_pattern",
-        "diagram_annotation_standard",
-        "asset_metadata",
-        "file_metadata",
-    ],
-    "max_list_size": 1000,
+    "instance_spaces": [],
+    "watch_view_keys": ["asset", "file"],
 }
 
 FRESHNESS_CONFIG: dict = {
@@ -413,4 +194,39 @@ FRESHNESS_CONFIG: dict = {
 
 TAG_REUSE_AUDIT_POLICY: dict = {
     "warn_scope_count": 50,
+}
+
+VIRTUAL_TAG_CREATION_CONFIG: dict = {
+    "enabled": False,
+    "incremental_enabled": True,
+    "term_selection_mode": "missing_tags_only",
+    "source_types": ["asset_metadata", "diagram_annotation_pattern"],
+    "missing_tag_criteria": {
+        "require_pattern_detection": True,
+        "check_existing_cognite_asset": True,
+        "exclude_with_cognite_asset_metadata": True,
+    },
+    "asset_lookup": {
+        "view_external_id": "CogniteAsset",
+        "view_space": "cdf_cdm",
+        "view_version": "v1",
+        "instance_spaces": [],
+        "match_properties": ["name", "aliases"],
+        "scope_filter": True,
+    },
+    "hierarchy_levels": [],
+    "leaf_level": "asset_tag",
+    "instance_space": "inst_virtual_tags",
+    "view_space": "cdf_cdm",
+    "view_external_id": "CogniteAsset",
+    "view_version": "v1",
+    "populate_aliases": True,
+    "scope_property_mapping": {
+        "site": "sourceContext",
+        "unit": "sourceId",
+    },
+    "min_confidence": 0.0,
+    "batch_limit": 0,
+    "skip_existing": False,
+    "apply_chunk_size": 500,
 }

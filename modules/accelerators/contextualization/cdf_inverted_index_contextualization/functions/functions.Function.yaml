@@ -77,3 +77,42 @@
     CDF_ENV: '${CDF_ENVIRON}'
   runtime: 'py311'
   functionPath: 'handler.py'
+
+- name: 'dm:context:inverted_index:upsert:detections'
+  externalId: 'fn_idx_upsert_detections'
+  dataSetExternalId: 'ds_inverted_index_all'
+  owner: 'Anonymous'
+  description: 'Incremental diagram detection index writes (upsert or replace)'
+  metadata:
+    version: '1.0.0'
+  envVars:
+    ENV_TYPE: '${CDF_BUILD_TYPE}'
+    CDF_ENV: '${CDF_ENVIRON}'
+  runtime: 'py311'
+  functionPath: 'handler.py'
+
+- name: 'dm:context:inverted_index:index:metadata_instance'
+  externalId: 'fn_idx_index_metadata_instance'
+  dataSetExternalId: 'ds_inverted_index_all'
+  owner: 'Anonymous'
+  description: 'Incremental metadata index write for a single DM instance'
+  metadata:
+    version: '1.0.0'
+  envVars:
+    ENV_TYPE: '${CDF_BUILD_TYPE}'
+    CDF_ENV: '${CDF_ENVIRON}'
+  runtime: 'py311'
+  functionPath: 'handler.py'
+
+- name: 'dm:context:inverted_index:create:virtual_tags'
+  externalId: 'fn_idx_virtual_tags'
+  dataSetExternalId: 'ds_inverted_index_all'
+  owner: 'Anonymous'
+  description: 'Create virtual CogniteAsset tags from scoped inverted-index terms (UC4)'
+  metadata:
+    version: '1.0.0'
+  envVars:
+    ENV_TYPE: '${CDF_BUILD_TYPE}'
+    CDF_ENV: '${CDF_ENVIRON}'
+  runtime: 'py311'
+  functionPath: 'handler.py'

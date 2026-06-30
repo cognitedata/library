@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from inverted_index.aliases import normalized_instance_aliases
@@ -15,12 +16,12 @@ def normalize_resolve_candidate(raw: Any) -> dict | None:
         path = raw.strip()
         if not path:
             return None
-        return {"path": path, "extract_mode": "whole_value"}
+        return {"path": path, "extract_mode": "passthrough"}
     if isinstance(raw, dict):
         path = str(raw.get("path", "")).strip()
         if not path:
             return None
-        mode = raw.get("extract_mode", "whole_value")
+        mode = raw.get("extract_mode", "passthrough")
         if mode == "regex":
             pattern = raw.get("extract_pattern")
             if pattern:
@@ -29,11 +30,11 @@ def normalize_resolve_candidate(raw: Any) -> dict | None:
                     "extract_mode": "regex",
                     "extract_pattern": str(pattern),
                 }
-        return {"path": path, "extract_mode": "whole_value"}
+        return {"path": path, "extract_mode": "passthrough"}
     text = str(raw).strip()
     if not text:
         return None
-    return {"path": text, "extract_mode": "whole_value"}
+    return {"path": text, "extract_mode": "passthrough"}
 
 
 def normalize_resolve_candidates(raw: Any) -> list[dict]:
@@ -111,6 +112,57 @@ def build_scope_key(scope_dict: dict[str, str], scope_config: dict) -> str:
     except KeyError:
         parts = [f"{k}:{v}" for k, v in scope_dict.items()]
         return "|".join(parts)
+
+
+_WHITESPACE_RUN = re.compile(r"\s+")
+_SEG_INVALID = re.compile(r"[/\\\0]")
+
+
+def slugify_scope_code(value: str) -> str:
+    """External-id-safe segment for hierarchy codes."""
+    s = _WHITESPACE_RUN.sub("_", str(value).strip())
+    s = re.sub(r"[^A-Za-z0-9._-]+", "_", s)
+    s = re.sub(r"_+", "_", s).strip("_")
+    return s or "unnamed"
+
+
+def parse_scope_key(match_scope_key: str, scope_config: dict) -> dict[str, str] | None:
+    """Parse match_scope_key back into level -> value using scope config."""
+    key = str(match_scope_key or "").strip()
+    if not key:
+        return None
+    fallback = str(scope_config.get("fallback_scope_key") or "global").strip()
+    if key == fallback:
+        return None
+
+    levels = scope_config.get("levels") or []
+    if not levels:
+        return None
+
+    template = str(scope_config.get("scope_key_template") or "").strip()
+    if template:
+        placeholders = re.findall(r"\{(\w+)\}", template)
+        if placeholders == levels:
+            pattern = re.escape(template)
+            for level in levels:
+                pattern = pattern.replace(re.escape("{" + level + "}"), rf"(?P<{level}>[^|]+)")
+            match = re.fullmatch(pattern, key)
+            if match:
+                return {level: match.group(level).strip() for level in levels}
+
+    parts = key.split("|")
+    result: dict[str, str] = {}
+    for part in parts:
+        if ":" not in part:
+            continue
+        level_name, _, value = part.partition(":")
+        level_name = level_name.strip()
+        value = value.strip()
+        if level_name in levels and value:
+            result[level_name] = value
+    if len(result) != len(levels):
+        return None
+    return result
 
 
 def resolve_match_scope(

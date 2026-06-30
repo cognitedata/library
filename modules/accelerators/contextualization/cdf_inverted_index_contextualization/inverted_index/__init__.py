@@ -5,7 +5,6 @@ from inverted_index.build import (
     build_metadata_index,
 )
 from inverted_index.config import (
-    DIRECT_RELATION_CONFIG,
     INDEX_FIELD_CONFIG,
     INDEX_STORAGE_CONFIG,
     SCOPE_CONFIG,
@@ -23,7 +22,6 @@ from inverted_index.target_driven import (
 )
 
 __all__ = [
-    "DIRECT_RELATION_CONFIG",
     "INDEX_FIELD_CONFIG",
     "INDEX_STORAGE_CONFIG",
     "SCOPE_CONFIG",

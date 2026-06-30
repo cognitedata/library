@@ -1,9 +1,9 @@
 # Function Specification: Inverted Index for Contextualization Support in Cognite Data Fusion (CDF)
 
-**Version:** 2.3  
-**Date:** 2026-06-25  
+**Version:** 2.6.1  
+**Date:** 2026-06-26  
 **Author:** Darren Downtain 
-**Purpose:** Define the functions, data model, and implementation approach for building and using custom inverted indexes to support contextualization scoring, missing tag detection (pattern vs standard diagram detection), and **Target-Driven Contextualization**.
+**Purpose:** Define the functions, data model, and implementation approach for building and using custom inverted indexes to support contextualization scoring, missing tag detection (pattern vs standard diagram detection), **Target-Driven Contextualization**, and **Virtual Tag Creation** (synthetic `CogniteAsset` hierarchy from scoped index terms).
 
 ---
 
@@ -36,12 +36,14 @@ The accelerator module ships with pilot defaults aligned to CDM core views and R
 |----------|---------------|
 | Index storage | **RAW** (`db_contextualization_idx`, scoped postings) |
 | Scope | **Disabled** OOTB → single `global` partition (`scope.enabled: false`, `fallback_scope_key: global`) |
-| Metadata sources | `CogniteFile`, `CogniteEquipment`, `CogniteTimeSeries` — `name` + `description` (regex tag extraction on both; **`default.config.yaml` overrides** `inverted_index/config.py` when present) |
+| Metadata sources | **`CogniteFile`, `CogniteAsset`, `CogniteEquipment`, `CogniteTimeSeries`** — shared property set via YAML anchor `&metadata_properties` in `default.config.yaml` (code fallback in `inverted_index/config.py` when YAML omits `index_field_config`) |
 | Diagram annotations | CDM **edge** `CogniteDiagramAnnotation` — `startNodeText`, `confidence`, `status`, `startNodePageNumber`, bbox via `startNode*Min/Max` |
 | Diagram index reference | **`reference_type: CogniteFile`**; annotation identity in `additional_metadata.annotation_external_id` / `detection_key` |
-| Target-driven trigger | **Instance subscription** on `aliases` changes (`fn_idx_handle_subscription` / `handle_aliases_subscription_event`) |
+| Target-driven trigger | **Instance subscription** on configured `watch_property` (default `aliases`; see `target_driven.query_property`) — `fn_idx_handle_subscription` / `handle_aliases_subscription_event` |
 | CDM link writes | All five link keys enabled; per-link `write_modes: [direct_relation]`; `allowed_annotation_statuses: [Suggested, Approved]` |
+| Virtual tag creation (UC4) | **Disabled** OOTB (`virtual_tag_creation.enabled: false`); `term_selection_mode: missing_tags_only` when enabled; requires `scope.enabled` + non-empty `scope.levels` |
 | Source / index reads | **`instances.query`** with server-side filters (`inverted_index/dm_query.py`); RAW steady-state term lookup via `rows.retrieve` |
+| Operator UI | Local workbench (`python module.py ui`) — structured config editor + operational panes (§3.8) |
 
 **Index migration:** After upgrading to file-as-reference diagram entries, run `python module.py migrate` (purge RAW partitions + full rebuild). Legacy rows with `reference_type: CogniteDiagramAnnotation` are not read.
 
@@ -51,13 +53,13 @@ Runtime config is assembled by `build_runtime_config()` (`inverted_index/config_
 
 | Source | Keys / env vars | Merge behaviour |
 |--------|-----------------|-----------------|
-| `default.config.yaml` | `index_storage_backend`, `index_raw_database`, `scope`, `index_field_config`, `annotation_index_config`, `subscription`, `direct_relation_config`, `instance_spaces` | Shallow merge for most keys; **deep merge** for `direct_relation_config.links.*` and `edge_views` |
+| `default.config.yaml` | `index_storage_backend`, `index_raw_database`, `scope`, `index_field_config`, `annotation_index_config`, `index_raw_term_partition`, `target_driven`, `subscription`, `direct_relation_config`, `virtual_tag_creation`, `instance_spaces` | Shallow merge for most keys; **deep merge** for `direct_relation_config.links.*`, `edge_views`, and `virtual_tag_creation` (nested `missing_tag_criteria`, `asset_lookup`, `scope_property_mapping`) |
 | Code defaults | `inverted_index/config.py` | Base values when YAML omits a key |
 | Environment | `INDEX_STORAGE_BACKEND`, `INDEX_RAW_DATABASE`, `INDEX_INSTANCE_SPACES` (comma-separated) | Override YAML |
 
 `scope_levels` in YAML (legacy) sets `scope.levels` and forces `scope.enabled: true`.
 
-When `default.config.yaml` defines `index_field_config`, it **replaces** the code default list for metadata sources (shallow merge). The shipped pilot YAML applies regex extraction to `name` and `description` on all three CDM views and indexes `CogniteFile.description` under both `asset_metadata` and `file_metadata`.
+When `default.config.yaml` defines `index_field_config`, it **replaces** the code default list for metadata sources (shallow merge). The shipped pilot YAML defines one shared `&metadata_properties` anchor and applies it to all four CDM views uniformly. Rebuild the metadata index after changing `index_field_config`.
 
 CDF Function handlers and the local CLI both call `build_runtime_config()` so deploy-time YAML and code defaults stay aligned.
 
@@ -134,7 +136,7 @@ Use a dedicated **space** (e.g., `contextualization_idx` or project-specific) fo
   - `other_annotation` (future extensibility)
 - `source_property` (String, **indexed**): Property path on the **containing** DM instance from which the term was read (e.g., `relatedEquipmentTag`, `sourceDrawing`, `metadata.drawingNumber`). For diagram annotations (file-as-reference), use `detection:{detection_key}` (§2.4.1) — not the raw annotation text field name. Enables multiple distinct index rows for the same term on the same file when detections differ by page/bbox.
 - `reference_external_id` (String): External ID of the **containing** object where the term was found — the DM instance whose metadata held the asset tag or file reference, or the **parent file** external id for diagram sources (file-as-reference).
-- `reference_space` (String): Space of the containing instance (default: `cdf_cdm` or the view's space).
+- `reference_space` (String): **Instance space** of the containing object (`instance.space` from the DM query), not the view definition space. Required for correct self-reference filtering and link resolution when instances live outside `cdf_cdm`.
 - `reference_type` (String): View of the **containing** instance (e.g., `MyCustomEquipment`, `MaintenanceWorkOrder`, `CogniteFile` for diagram detections) — not the type of asset/file the term identifies.
 - `match_scope_key` (String, **indexed**): Canonical scope identifier for match isolation within a DM space — e.g., `site:Rotterdam|unit:U100`. Required when scope config is enabled. All index lookups for contextualization, scoring, and target-driven linking **must filter on this field** (in addition to `normalized_term`) to avoid false positives when the same tag is reused across units, areas, or plants at one site.
 - `match_scope` (Json, optional): Structured scope dimensions used to build `match_scope_key`, e.g. `{"site": "Rotterdam", "unit": "U100", "area": "Crude"}` — for display, audit, and hierarchical scope rules.
@@ -292,7 +294,7 @@ Helpers:
 
 ### 2.3 Metadata Reference Indexing (Asset Tags & File Names in Other Views)
 
-`asset_metadata` and `file_metadata` index **cross-references embedded in DM metadata** — not terms extracted from `CogniteAsset` or `CogniteFile` records as primary sources.
+`asset_metadata` and `file_metadata` index **cross-references embedded in DM metadata** — typically tags or file names found on domain views (equipment records, work orders, document registries). The pilot also configures CDM core views (`CogniteFile`, `CogniteAsset`, `CogniteEquipment`, `CogniteTimeSeries`) as metadata containers; self-referential rows from those instances are dropped at target-driven lookup, not at build.
 
 | `source_type` | What `term` represents | What `reference_*` points to |
 |---|---|---|
@@ -349,7 +351,7 @@ INDEX_FIELD_CONFIG = [
 
 | `extract_mode` | Behavior |
 |---|---|
-| `whole_value` (default) | Treat the entire property value (after type coercion) as a single candidate term |
+| `passthrough` (default) | Treat the entire property value (after type coercion) as a single candidate term |
 | `regex` | Apply `extract_pattern` to the string form of the value; emit **one candidate term per regex match**, then deduplicate (see below) |
 
 - `extract_pattern` (String, required when `extract_mode="regex"`): Python-compatible regular expression. Use capturing groups only when a subset of the match should become the term; otherwise the full match is used.
@@ -373,31 +375,48 @@ Deduplication rules (implement in `dedupe_extracted_terms(...)` after `extract_t
 
 **Example (regex, multiple distinct terms)**: `notes = "See P-101A and P-102B on line L-200"` → two rows sharing `source_property` and `reference_*`, differing in `term` / `normalized_term`.
 
-**Not in scope for `asset_metadata` / `file_metadata`**: indexing an asset's own `name`/`tags` or a file's own `name` as self-referential records. Those are identity fields on the target entity, not cross-references found in other views. (Diagram detections and annotation indexing remain separate via `diagram_annotation_*` source types.)
+**Self-reference handling:** Index build indexes **all** configured views and properties uniformly — there is **no build-time alias or identity exclusion**. When an instance's own `name`, `aliases`, or extracted tag appears in its metadata, a valid index row is created (`reference_*` points at that instance). **Target-driven contextualization** filters these out at lookup time via `is_self_reference_hit` (same `reference_external_id` and `reference_space` as the incoming instance); the target-driven summary exposes `self_reference_filtered`.
 
-**Pilot exception:** The shipped pilot scans `CogniteFile`, `CogniteEquipment`, and `CogniteTimeSeries` `name`/`description` fields to extract embedded asset tags via regex — treating CDM core instances as *containers* of tag-like strings in free text, not as self-identity index rows. Production projects should prefer custom domain views (equipment records, work orders) per the illustrative `INDEX_FIELD_CONFIG` above.
+**`file_metadata` on CDM core views:** File names and drawing references in `description`, `aliases`, `metadata.appendices`, and passthrough `name` are intentional — equipment descriptions often list master documents, prior revisions, and appendix filenames. Do not strip `file_metadata` at build time.
 
-**Pilot `INDEX_FIELD_CONFIG` (from `default.config.yaml`):**
+**Pilot CDM views:** The shipped pilot scans **`CogniteFile`, `CogniteAsset`, `CogniteEquipment`, and `CogniteTimeSeries`** with the **same** property list. Production projects should add custom domain views (equipment records, work orders) per the illustrative `INDEX_FIELD_CONFIG` above; CDM core views remain valid index sources when configured.
+
+**Pilot `index_field_config` (code default `INDEX_FIELD_CONFIG` / `default.config.yaml` anchor):**
 
 ```yaml
+# Shared across all four CDM views (YAML anchor in default.config.yaml)
+_x_metadata_properties: &metadata_properties
+  - path: name
+    source_type: file_metadata                    # passthrough: file display name
+  - path: name
+    source_type: asset_metadata
+    extract_mode: regex
+    extract_pattern: '\b[A-Z]{1,2}-\d{3,4}[A-Z]?\b'
+  - path: aliases
+    source_type: file_metadata                    # passthrough: alias strings as file refs
+  - path: description
+    source_type: asset_metadata
+    extract_mode: regex
+    extract_pattern: '\b[A-Z]{1,2}-\d{3,4}[A-Z]?\b'
+  - path: description
+    source_type: file_metadata
+    extract_mode: regex
+    extract_pattern: '(?i)\b[\w][\w.-]*\.(?:pdf|dwg|png|jpe?g|tif{1,2})\b'
+  - path: description
+    source_type: file_metadata
+    extract_mode: regex
+    extract_pattern: '\b[A-Z]{2,}(?:-[A-Z]{2,})*-P-\d{4}(?:-\d{3})?\b'   # drawing IDs without extension
+  - path: metadata.appendices
+    source_type: file_metadata                    # passthrough: appendix filename lists
+
 index_field_config:
-  - view: CogniteFile
-    view_space: cdf_cdm
-    properties:
-      - { path: name, source_type: asset_metadata, extract_mode: regex, extract_pattern: '\b[A-Z]{1,2}-\d{3,4}[A-Z]?\b' }
-      - { path: description, source_type: asset_metadata, extract_mode: regex, extract_pattern: '\b[A-Z]{1,2}-\d{3,4}[A-Z]?\b' }
-      - { path: description, source_type: file_metadata, extract_mode: regex, extract_pattern: '\b[A-Z]{1,2}-\d{3,4}[A-Z]?\b' }
-  - view: CogniteEquipment
-    view_space: cdf_cdm
-    properties:
-      - { path: name, source_type: asset_metadata, extract_mode: regex, ... }
-      - { path: description, source_type: asset_metadata, extract_mode: regex, ... }
-  - view: CogniteTimeSeries
-    view_space: cdf_cdm
-    properties:
-      - { path: name, source_type: asset_metadata, extract_mode: regex, ... }
-      - { path: description, source_type: asset_metadata, extract_mode: regex, ... }
+  - { view: CogniteFile, view_space: cdf_cdm, version: v1, properties: *metadata_properties }
+  - { view: CogniteAsset, view_space: cdf_cdm, version: v1, properties: *metadata_properties }
+  - { view: CogniteEquipment, view_space: cdf_cdm, version: v1, properties: *metadata_properties }
+  - { view: CogniteTimeSeries, view_space: cdf_cdm, version: v1, properties: *metadata_properties }
 ```
+
+**Extending indexed properties:** Add entries under `properties` for any view in `index_field_config`. Each entry requires `path` (dot notation for nested fields, e.g. `metadata.drawingNumber`) and `source_type` (`asset_metadata` | `file_metadata`). Optional `extract_mode` (`passthrough` default | `regex`) and `extract_pattern` (required for regex). Rebuild the metadata index after config changes. UI operators can edit the same structure in the module config editor.
 
 **Property path rules**:
 - Dot notation for nested JSON/map properties (e.g., `metadata.drawingNumber`).
@@ -407,24 +426,28 @@ index_field_config:
 
 | DM type | Extraction behavior |
 |---|---|
-| `text` / string | `whole_value`: one candidate term if non-empty. `regex`: one candidate per match; then dedupe by `normalized_term` |
+| `text` / string | `passthrough`: one candidate term if non-empty. `regex`: one candidate per match; then dedupe by `normalized_term` |
 | `text[]` / list of strings | One candidate per element (`additional_metadata.list_index` on each); dedupe across elements by `normalized_term` |
 | JSON / map | Follow configured dot paths only; do not blindly flatten entire JSON blobs |
-| Direct relation / `InstanceId` | `whole_value` only: index `external_id` (and optionally a configured display-name property on the linked instance) |
-| Numeric / boolean | Coerce to string; index only when configured explicitly (`whole_value`) |
+| Direct relation / `InstanceId` | `passthrough` only: index `external_id` (and optionally a configured display-name property on the linked instance) |
+| Numeric / boolean | Coerce to string; index only when configured explicitly (`passthrough`) |
 
 **Build behavior**:
-- For each configured view: enumerate instances via `dm.instances.query` (`NodeResultSetExpression` / `EdgeResultSetExpression`) with server-side filters (view `HasData`, instance space, optional `lastUpdatedTime` watermark, file start-node filter for annotations).
-- For each instance × configured property: resolve `match_scope_key` from containing instance (§2.6) → extract → dedupe → upsert via `upsert_index_entries` (DM `InvertedIndexEntry` rows or RAW postings merge per §2.2).
+- For each configured view: enumerate instances via `dm.instances.query` (`NodeResultSetExpression` / `EdgeResultSetExpression`) with server-side filters (view `HasData`, instance space, optional `lastUpdatedTime` watermark, file start-node filter for annotations). `collect_view_property_paths` always includes `aliases` and `tags` in the DM `Select` list (scope resolution and alias field availability).
+- For each instance × configured property: resolve `match_scope_key` from containing instance (§2.6) → extract → dedupe → upsert via `upsert_index_entries` (DM `InvertedIndexEntry` rows or RAW postings merge per §2.2). Set `reference_space` to the **instance space**, not `view_space`.
+- **Per-view stats:** `build_metadata_index` returns `views: { "<ViewExternalId>": { "processed": int, "candidate_entries": int } }` for operator dashboards and dry-run validation.
+- **`dry_run`:** Still queries CDF and counts candidate entries; skips storage adapter upsert (`storage_adapter=None`). Use to validate config and CDF connectivity before a full build.
 
 **Query behavior**: Lookups match on `normalized_term` **and** `match_scope_key` (when scope is configured). Unscoped queries are discouraged in multi-unit sites — they may return cross-unit false positives. Callers may additionally post-filter on `source_type`, `source_property`, or `reference_type`.
 
 ### 2.4 Integration Points
-- **Reads from**: Configured DM view instances (custom equipment, work orders, document registries, etc.) for `asset_metadata` / `file_metadata`; `CogniteDiagramAnnotation` (or custom annotation views) for diagram sources; legacy `Annotation` API where needed. Does **not** treat `CogniteAsset` / `CogniteFile` as primary scan targets for metadata source types unless explicitly configured for cross-reference fields only.
+- **Reads from**: Configured DM view instances — pilot defaults include CDM `CogniteFile`, `CogniteAsset`, `CogniteEquipment`, and `CogniteTimeSeries`; projects add custom equipment, work orders, document registries, etc. via `index_field_config`. `CogniteDiagramAnnotation` (or custom annotation views) for diagram sources; legacy `Annotation` API where needed.
 - **DM query API**: Source enumeration and DM index lookups use **`instances.query`** with server-side filters (`NodeResultSetExpression` / `EdgeResultSetExpression`, cursor pagination) — see `inverted_index/dm_query.py`. RAW steady-state term lookup remains `rows.retrieve` per `(match_scope_key, normalized_term)`.
 - **Writes to**: The index storage backend (DM §2.1 or RAW postings §2.2) + target data models (`CogniteDiagramAnnotation`, custom link edges/containers for `FileAssetLink`, `AssetAnnotation`, etc.) and **CDM direct relations** on forward properties for file, asset, equipment, and time series (see §2.7).
 - **Triggers (index build)**: CDF Functions (`fn_idx_build_metadata`, `fn_idx_build_annotations`), Workflows, or Extraction Pipelines on schedules, diagram-processing completion, or targeted rebuilds.
-- **Triggers (target-driven contextualization)**: Invoked **after the external aliasing process updates `aliases`** on an asset (see §3.3). Primary pilot path: CDF instance subscription → `fn_idx_handle_subscription` → `handle_aliases_subscription_event`. The aliasing process itself is triggered by the arrival of new assets; target-driven is downstream of alias population, not a direct subscriber to raw ingest events.
+- **Triggers (incremental index writes)**: External diagram detection jobs → `fn_idx_upsert_detections`; DM instance metadata updates → `fn_idx_index_metadata_instance` with `instance_external_id` or `instance_external_ids` (§3.6.3). Prefer `write_mode: replace` when re-submitting the full detection set or metadata snapshot for a reference.
+- **Triggers (virtual tag creation)**: **Batch** — `fn_idx_virtual_tags` or `python module.py virtual-tags` after index build (§3.5). **Incremental** — `upsert_index_entries` calls `process_virtual_tags_for_index_entries` when `virtual_tag_creation.enabled` and `incremental_enabled` are true (§3.5).
+- **Triggers (target-driven contextualization)**: Invoked **after the external aliasing process updates the configured query property** on an asset (default `aliases`; see §3.3). Primary pilot path: CDF instance subscription filtered to `subscription.watch_property` → `fn_idx_handle_subscription` → `handle_aliases_subscription_event`. The aliasing process itself is triggered by the arrival of new assets; target-driven is downstream of query-term population, not a direct subscriber to raw ingest events. Virtual tag leaves populate `aliases` on synthetic assets so UC3 can run once aliasing or direct `fn_idx_target_driven` invocation is wired.
 
 ### 2.4.1 CDM `CogniteDiagramAnnotation` as edge
 
@@ -672,7 +695,7 @@ Use **CDM direct relations** for navigable linkage in Asset Explorer, equipment/
 
 **File** (for `CogniteFile.assets`, `CogniteEquipment.files`):
 
-1. If `reference_type` is `CogniteFile` (or a view implementing it), `reference_external_id` / `reference_space` identify the file directly — **primary path for diagram index entries** (file-as-reference).
+1. If `reference_type` is `CogniteFile` (or a view implementing it), `reference_external_id` / `reference_space` identify the file directly — used for **diagram index entries** (file-as-reference) and **`asset_metadata` / `file_metadata` hits** (tag or file ref found in file metadata). Both feed `file_to_asset` → `CogniteFile.assets`.
 2. If `reference_type` is `CogniteDiagramAnnotation` (legacy rows only), resolve the parent file from `additional_metadata.file_external_id` / `file_space` or the annotation's `startNode`.
 3. Skip file-linked direct-relation writes when the file node cannot be resolved; log and continue with annotation-only linking.
 
@@ -692,18 +715,18 @@ Use **CDM direct relations** for navigable linkage in Asset Explorer, equipment/
 - Resolved from `process_target_driven_contextualization` `instance_external_id` / `instance_space` when `instance_type="asset"`.
 - When `instance_type="equipment"` or `"timeseries"`, optionally resolve a parent asset via `CogniteEquipment.asset` or configured hierarchy rules before writing `CogniteTimeSeries.assets` / `CogniteFile.assets`.
 
-#### Merge semantics (`apply_configured_links` / `_apply_single_relation`, §3.3)
+#### Merge semantics (`apply_configured_links` / `apply_direct_relations_batched`, §3.3)
 
 - **List properties** (`assets`, `files`, `equipment` on time series): read current list via `instances.retrieve_nodes`, append target `NodeId` / `DirectRelationReference` if not present (idempotent upsert). Respect CDM `maxListSize` (typically **1000**); when at capacity, skip and count toward `already_linked`.
 - **Single property** (`CogniteEquipment.asset`): set only when empty or when `equipment_to_asset.overwrite_existing` is true; otherwise skip and count as `already_linked`.
 - **Forward node required:** `direct_relation` writes **require the forward node to already exist** in DM. If `instances.retrieve_nodes` returns nothing, the apply raises an error (logged in `apply_configured_links.errors`) — the system does **not** create missing `CogniteFile` / `CogniteEquipment` / `CogniteTimeSeries` instances.
-- Apply via `client.data_modeling.instances.apply()` with `NodeApply` + `NodeOrEdgeData` for the forward view.
+- **Batched applies:** Pending direct-relation writes are grouped by forward node in `inverted_index/dm_apply.py` (`apply_direct_relations_batched`) — one retrieve + one `instances.apply()` per forward node per batch. Fleet backfill and multi-instance runs may pass a shared `direct_relation_buffer` so applies flush when `write_buffer_size` is reached (`batch_apply_instances`, default chunk 500).
 
 #### Target-driven link matrix (by `instance_type`)
 
 | `instance_type` | Enabled link keys (default) | Default `source_types` per link |
 |---|---|---|
-| `asset` | `file_to_asset`, `equipment_to_asset`, `timeseries_to_asset` | Diagram hits → file/equipment/timeseries links; metadata hits → equipment/timeseries |
+| `asset` | `file_to_asset`, `equipment_to_asset`, `timeseries_to_asset` | Diagram + metadata hits per link config |
 | `equipment` | `equipment_to_asset`, `equipment_to_file`, `timeseries_to_equipment` | Mixed diagram + metadata per link config |
 | `timeseries` | `timeseries_to_asset`, `timeseries_to_equipment` | Primarily `asset_metadata` |
 | `file` | `file_to_asset`, `equipment_to_file` | Diagram + metadata per link config |
@@ -712,7 +735,7 @@ Per-link `source_types` in `DIRECT_RELATION_CONFIG.links.*` override the global 
 
 | Link key | `source_types` |
 |---|---|
-| `file_to_asset` | `diagram_annotation_pattern`, `diagram_annotation_standard` |
+| `file_to_asset` | `diagram_annotation_pattern`, `diagram_annotation_standard`, `asset_metadata`, `file_metadata` |
 | `equipment_to_asset` | `asset_metadata`, `diagram_annotation_pattern` |
 | `equipment_to_file` | `asset_metadata`, `file_metadata` |
 | `timeseries_to_asset` | `asset_metadata` |
@@ -853,7 +876,7 @@ Index storage is selected via `INDEX_STORAGE_CONFIG.backend` (see §2). Sections
 
 Shared utilities (internal):
 - `normalize_term(value: str) -> str`: Consistent normalization (align with entity matching tokenizer where possible; e.g., lowercase + keep alphanum + separators or token split). Document the exact rules in implementation.
-- `extract_terms_from_property(value: Any, property_config: dict) -> list[tuple[str, dict]]`: Extract **candidate** terms from a DM property value per §2.3. `property_config` includes `path`, `source_type`, optional `extract_mode` (`whole_value` | `regex`), and optional `extract_pattern`. Returns one tuple per raw extraction (may include duplicates). Fragments include `list_index`, `match_start`, `match_end`, `extract_mode`, etc.
+- `extract_terms_from_property(value: Any, property_config: dict) -> list[tuple[str, dict]]`: Extract **candidate** terms from a DM property value per §2.3. `property_config` includes `path`, `source_type`, optional `extract_mode` (`passthrough` | `regex`), and optional `extract_pattern`. Returns one tuple per raw extraction (may include duplicates). Fragments include `list_index`, `match_start`, `match_end`, `extract_mode`, etc.
 - `dedupe_extracted_terms(candidates: list[tuple[str, dict]]) -> list[tuple[str, dict]]`: Collapse candidates that share the same `normalize_term(term)`. Merge metadata: first occurrence wins for display fields; set `occurrence_count`; optionally aggregate `match_spans`.
 - `resolve_match_scope(instance, view_external_id, scope_config, *, client=None, linked_file=None) -> tuple[str | None, dict]`: Resolve scope per §2.6 — named `resolve_from` map, per-level fallback path lists, optional linked-file fallback for annotations; build `match_scope_key` via `build_scope_key`.
 - `normalize_resolve_from(view_config, levels) -> dict[str, list[str]]`: Coerce positional list or named dict `resolve_from` to `level -> [paths]` (§2.6).
@@ -865,12 +888,23 @@ Shared utilities (internal):
 - `delete_index_subset(client, scope, source_type=None, build_job_id=None, storage_config) -> int`: Delete or purge index rows for a scope (DM filter delete or RAW partition purge).
 - `build_raw_postings_row_key(scope, normalized_term) -> str`, `merge_postings(...)`, `posting_from_index_entry(...)`, `flatten_postings_to_entries(...)`, `resolve_raw_partition_table(...)`, `scope_slug(...)`: RAW postings helpers (§2.2, §4.7.1).
 - `list_registered_scope_keys(...)`, `iter_partition_terms(...)`, `upsert_partition_registry(...)`, `check_index_freshness(...)`, `should_run_target_driven(...)`: operational helpers (§3.2.1, §4.7.2, §4.7.6).
-- `batch_upsert_instances(...)`: Wrapper around `dm.instances.apply()` with retry, chunking (recommended chunk size 500–1000), and conflict resolution (upsert semantics).
+- `read_instance_query_terms(instance, query_property, *, fallbacks=()) -> list[str]`: Read normalized query terms from a DM instance property (dot paths supported); optional fallback paths when primary is empty (`inverted_index/aliases.py`).
+- `is_self_reference_hit(hit, instance_external_id, instance_space) -> bool`: True when an index hit's `reference_external_id` / `reference_space` match the target instance being contextualized — used to drop self-hits after lookup, not during build (`inverted_index/aliases.py`).
+- `normalized_instance_aliases(instance) -> set[str]`, `is_alias_term(term, instance) -> bool`: Alias normalization helpers for tests and optional callers.
+- `batch_apply_instances(client, applies, *, chunk_size=500) -> int`: Chunked `instances.apply()` for `NodeApply` batches (`inverted_index/dm_apply.py`).
+- `apply_direct_relations_batched(client, pending_applies, *, chunk_size=500) -> dict`: Group direct-relation pending applies by forward node; one retrieve + apply per group.
+- `should_skip_target_driven(...)`, `record_target_driven_run(...)`, `terms_hash(...)`: RAW-backed cooldown dedupe keyed by instance + `terms_hash` + scope (`inverted_index/target_driven_dedupe.py`).
 - `resolve_node_from_config(hit, resolve_cfg, *, incoming_space, incoming_external_id) -> Optional[tuple[str, str]]`: Config-driven forward/target node resolution from index hits (`resolve_by_instance_type` rules in §2.7).
 - `apply_configured_links(...)`: Multi-mode link dispatcher (`direct_relation`, `edge`, `diagram_annotation`) per §2.8.
 - `hit_link_gate_reason(hit, link_cfg, dr_cfg) -> Optional[str]`: Per-link gate failure reason (`source_type`, `confidence`, `require_annotation_status`, `annotation_status`) or `None` when pass.
 - `hit_passes_link_gates(hit, link_cfg, dr_cfg) -> bool`: Per-link source_type, confidence, and annotation status gates.
 - `list_index_entries_by_file(client, file_external_id, *, file_space, match_scope_key, source_types, storage_adapter) -> list[dict]`: Union query for diagram and file-metadata entries where `reference_type == CogniteFile` and `reference_external_id` matches (§3.2).
+- `parse_scope_key(match_scope_key, scope_config) -> dict[str, str] | None`, `slugify_scope_code(value) -> str`: Parse canonical scope keys and produce external-id-safe hierarchy segments (`inverted_index/scope.py`).
+- `is_missing_tag_term(...) -> bool`, `term_passes_selection_mode(...) -> bool`: Classify index terms for UC4 `missing_tags_only` mode (`inverted_index/virtual_tags.py`).
+- `build_structural_assets(...)`, `build_virtual_tag_asset(...)`, `upsert_virtual_tags_for_terms(...)`: Hierarchy and leaf `CogniteAsset` materialization (§3.5).
+- `process_virtual_tags_for_index_entries(...)`, `run_virtual_tag_creation(...)`: Incremental hook and batch fleet scan for virtual tags (§3.5).
+- `cognite_asset_exists_for_term(...) -> bool`: DM lookup for existing assets by normalized/display term within scope (`inverted_index/dm_query.py`).
+- `upsert_diagram_detections(...)`, `build_metadata_index_for_instance(...)`, `build_metadata_index_for_instance_ids(...)`, `remove_postings_for_reference(...)`: Incremental index write APIs (§3.6.3; `inverted_index/incremental.py`).
 - `build_custom_edge_apply(...)`, `upsert_diagram_annotation(...)`: Custom edge and diagram annotation write paths (§2.8).
 - `merge_direct_relation_list(existing: list, target_space: str, target_external_id: str, max_list_size: int = 1000) -> list`: Idempotent append for list-valued CDM direct relations (`assets`, `files`, `equipment` on time series).
 - `merge_direct_relation_single(current: Optional[dict], target_space: str, target_external_id: str, overwrite: bool = False) -> Optional[dict]`: Set or skip single direct relation (`CogniteEquipment.asset`).
@@ -887,15 +921,26 @@ def build_metadata_index(
     scope_config: Optional[dict] = None,  # defaults to SCOPE_CONFIG; see §2.6
     filter_updated_after: Optional[datetime] = None,
     batch_size: int = 1000,
-    dry_run: bool = False
+    dry_run: bool = False,
+    instance_spaces: Optional[list[str]] = None,
+    storage_adapter: Optional[Any] = None,
 ) -> dict:
     """
     Scans configured DM views and indexes asset tags and file names/references found in their metadata fields.
-    Does not index CogniteAsset/CogniteFile identity fields as metadata sources unless explicitly configured.
+    All views in index_field_config are processed uniformly; self-reference hits are filtered at target-driven lookup.
 
     Index destination is selected by INDEX_STORAGE_CONFIG.backend: DM instances.apply to `space`, or RAW postings merge to INDEX_STORAGE_CONFIG.raw.database partitions.
 
-    Returns: {"processed": int, "entries_created": int, "entries_updated": int, "errors": [...]}
+    dry_run=True: query CDF, build candidate entries, count upsert candidates; storage_adapter is omitted so no writes occur.
+
+    Returns: {
+      "processed": int,
+      "entries_created": int,
+      "entries_updated": int,
+      "build_job_id": str,
+      "errors": [...],
+      "views": { "<view>": {"processed": int, "candidate_entries": int}, ... }
+    }
     """
     # 1. For each view in index_field_config: query instances (incrementally if filter_updated_after)
     # 2. For each instance:
@@ -1178,6 +1223,38 @@ python module.py tag-reuse-audit --scope-key 'site:A|unit:1' --scope-key 'site:A
 
 ### 3.3 Target-Driven Contextualization Functions
 
+#### Execution profiles
+
+| Profile | When | Entry points |
+|---------|------|--------------|
+| **Incremental** (steady state) | Query property updated on one or more known instances | `handle_aliases_subscription_event`, `fn_idx_target_driven` with `instance_external_id` / `instance_external_ids`, `run_target_driven_for_instance_ids`, CLI `--instance-id` |
+| **Backfill** (one-time) | Initial link population after index build | `run_target_driven_backfill`, CLI `target-driven` without `--instance-id` |
+
+Configure which DM property supplies index lookup terms via **`TARGET_DRIVEN_CONFIG`** (`target_driven` in YAML). Subscription **`watch_property`** should match the CDF subscription filter and typically equals `query_property`.
+
+```yaml
+target_driven:
+  query_property: aliases          # default; dot paths supported (e.g. cognite:aliases)
+  query_property_fallbacks: []     # tried in order when primary is empty
+```
+
+`SUBSCRIPTION_CONFIG.watch_property` defaults to `query_property` when omitted (`inverted_index/config_loader.py`).
+
+#### `read_instance_query_terms`
+
+```python
+def read_instance_query_terms(
+    instance: dict,
+    query_property: str,
+    *,
+    fallbacks: tuple[str, ...] = (),
+) -> list[str]:
+    """
+    Read normalized query terms from instance properties.
+    Supports dot paths; dedupes while preserving order.
+    """
+```
+
 #### `process_target_driven_contextualization`
 ```python
 def process_target_driven_contextualization(
@@ -1185,49 +1262,36 @@ def process_target_driven_contextualization(
     instance_external_id: str,
     instance_type: Literal["asset", "file", "equipment", "timeseries"],
     instance_space: str = "cdf_cdm",
-    scope_config: Optional[dict] = None,  # defaults to SCOPE_CONFIG; see §2.6
-    source_types_to_consider: list[str] = [
-        "diagram_annotation_pattern",
-        "diagram_annotation_standard",
-        "file_metadata",
-        "asset_metadata"
-    ],
+    scope_config: Optional[dict] = None,
+    source_types_to_consider: list[str] = [...],
     min_confidence: float = 0.6,
     auto_create_links: bool = True,
-    direct_relation_config: Optional[dict] = None,  # defaults to DIRECT_RELATION_CONFIG; see §2.7
+    direct_relation_config: Optional[dict] = None,
+    target_driven_config: Optional[dict] = None,
     dry_run: bool = False,
-    match_scope_keys: Optional[list[str]] = None,  # optional scope filter / override for batch runs
-    scope_lookup_override: bool = False,  # when True with match_scope_keys, query those scopes instead of asset-resolved scope
+    instance: Optional[dict] = None,
+    storage_adapter: Optional[Any] = None,
+    match_scope_keys: Optional[list[str]] = None,
+    scope_lookup_override: bool = False,
+    query_property: Optional[str] = None,  # override TARGET_DRIVEN_CONFIG.query_property
+    direct_relation_buffer: Optional[list[dict]] = None,  # batched flush for fleet runs
 ) -> dict:
     """
-    Main entry point for Target-Driven Contextualization.
+    Main entry point for a single target instance.
 
-    Expected invocation: called by the external aliasing process (or an orchestrating Workflow)
-    immediately after it updates CogniteDescribable.aliases on a newly arrived asset, equipment,
-    or time series (or file when file aliasing is enabled).
+    Steps:
+    1. Retrieve instance (or use pre-fetched `instance`).
+    2. Read query terms via read_instance_query_terms(query_property, fallbacks).
+       Skip with reason `no_query_terms` when empty.
+    3. Resolve match_scope_key; optional scope filter / override.
+    4. query_references_for_aliases (scoped term lookup).
+    5. apply_configured_links when auto_create_links and hits exist.
 
-    Assumes:
-    - The asset has been ingested and the external aliasing process has already written aliases.
-    - Index is up-to-date (or call build functions first if stale).
-
-    Steps performed:
-    1. Retrieve the target instance (`asset`, `file`, `equipment`, or `timeseries`) and read query terms from aliases (primary input from external aliasing).
-       Resolve `match_scope_key` from the instance via `resolve_match_scope(...)` (§2.6).
-       Optional fallbacks (name, tags) only if aliases are empty and config allows.
-    2. Call query_references_for_aliases(..., match_scope_key=...) — **scoped** to the asset's site/unit context.
-    3. Group/filter results (e.g., by source_type, confidence, whether already linked).
-    4. If auto_create_links:
-       - For diagram_annotation_* refs: Create or update CogniteDiagramAnnotation / custom annotation linking the new instance to the diagram/file (or update status/confidence of existing).
-       - For *_metadata refs: Create edges/links from the newly ingested asset/file to the **containing** DM instance that mentioned it (e.g., Asset → referenced on → Equipment record, or FileAssetLink where metadata cited the file name).
-       - When `direct_relation_config.enabled` (§2.7–§2.8): call `apply_configured_links(...)` to dispatch enabled `write_modes` per link (`direct_relation`, `edge`, `diagram_annotation`).
-       - Use appropriate containers/views and respect existing status (Suggested → Approved flow if human-in-loop desired).
-    5. Return summary: `references_found`, `links_created` (sum across modes), `direct_relations_updated`, `edges_created`, `annotations_created`, `annotations_updated`, `annotations_skipped`, `direct_relations_by_link`, `skipped_already_linked`, ...
+  Returns include: query_property, query_terms, references_found, self_reference_filtered,
+  links_created, direct_relations_updated, annotations_*, edges_*, skipped_already_linked,
+  reason (when skipped: no_query_terms | scope_filtered | scope_unresolved).
+  Self-hits (index row reference_* equals incoming instance) are removed before link apply.
     """
-    # Implementation outline in code comments above.
-    # Idempotency: Check for existing links/annotations before creating (query by external_id pattern or relation filters).
-    # Direct relations: skip when target already present; batch applies per forward view where possible.
-    # Use client.data_modeling.instances.apply() for creates/updates.
-    # For edges: Use dm.edges.apply() if using edge-based model, or create annotation instances that act as links.
 ```
 
 #### `apply_configured_links`
@@ -1240,66 +1304,95 @@ def apply_configured_links(
     index_hits: list[dict],
     direct_relation_config: Optional[dict] = None,
     dry_run: bool = False,
+    direct_relation_buffer: Optional[list[dict]] = None,
 ) -> dict:
     """
-    Primary link write-back entry point. For each enabled link in direct_relation_config.links
-    where instance_type matches, resolves forward/target nodes via resolve_by_instance_type rules
-    and dispatches each configured write_mode:
+    Primary link write-back entry point. Dispatches direct_relation, edge,
+    and diagram_annotation write modes per enabled link config.
 
-    - direct_relation: read-merge-write CDM forward property (§2.7)
-    - edge: build_custom_edge_apply + instances.apply (edge_views in config)
-    - diagram_annotation: upsert_diagram_annotation (create edge or patch endNode)
+    direct_relation applies are queued; when direct_relation_buffer is set,
+    pending applies accumulate until the buffer is flushed by the caller
+    (run_target_driven_backfill / run_target_driven_for_instance_ids).
 
-    Returns direct_relations_updated, edges_created, annotations_created/updated/skipped,
+    Returns direct_relations_updated, edges_created, annotations_*,
     per-link counts, already_linked, skipped, errors.
-    Dry-run returns pending_applies, pending_edges, pending_annotations without writes.
     """
 ```
 
 #### `apply_cdm_direct_relations` (legacy wrapper)
 ```python
 def apply_cdm_direct_relations(...) -> dict:
-    """
-    Legacy entry point — delegates to apply_configured_links and returns only
-    direct_relations_updated, direct_relations_by_link, already_linked, skipped, errors.
-    Prefer apply_configured_links for new code.
-    """
+    """Delegates to apply_configured_links; returns direct-relation subset only."""
 ```
 
-#### `run_target_driven_for_all_assets` (batch backfill)
+#### `run_target_driven_for_instance_ids` (incremental batch)
+
 ```python
-def run_target_driven_for_all_assets(
+def run_target_driven_for_instance_ids(
     client: CogniteClient,
+    instance_external_ids: list[str],
     *,
-    instance_spaces: Optional[list[str]] = None,
-    asset_views: Optional[list[str]] = None,
-    scope_config: Optional[dict] = None,
-    direct_relation_config: Optional[dict] = None,
-    min_confidence: float = 0.6,
-    dry_run: bool = False,
-    batch_size: int = 1000,
-    max_assets: Optional[int] = None,
-    match_scope_keys: Optional[list[str]] = None,
-    scope_lookup_override: bool = False,
+    instance_type: Literal["asset", "file", "equipment", "timeseries"] = "asset",
+    query_property: Optional[str] = None,
+    force: bool = False,
+    write_buffer_size: int = 0,  # >0 enables shared direct_relation_buffer flush
+    progress_interval: int = 100,
+    ...
 ) -> dict:
     """
-    Enumerate CogniteAsset instances (instances.query), skip those without aliases,
-    run process_target_driven_contextualization per asset.
+    Explicit-ID batch path (subscription replay, workflow fan-out, fn_idx_target_driven
+    with multiple IDs). Applies should_skip_target_driven unless force=True.
 
-    CLI: python module.py target-driven  (no --instance-id) triggers this path.
-
-    Returns processed, skipped, scope_filtered, references_found, links_created, errors, results (dry_run).
+    Returns processed, dedupe_skipped, skipped, scope_filtered, references_found,
+    links_created, errors, results (dry_run).
     """
 ```
 
-**Invocation Pattern**:
-- **Primary (required)**: Triggered when the **external aliasing process completes an `aliases` update** on an asset it was processing because a new asset arrived. Implementation options:
-  - **Instance subscription (pilot)**: CDF subscription filtered to `aliases` on `CogniteAsset` → `fn_idx_handle_subscription` → `handle_aliases_subscription_event` (dedupe via `TARGET_DRIVEN_DEDUPE_CONFIG` RAW state table).
-  - Direct call / webhook from the aliasing pipeline to `fn_idx_target_driven`.
-  - CDF Workflow with steps: `External Aliasing` → `process_target_driven_contextualization`.
-- **Secondary**: Manual or API-driven runs for replay, dry-run, or backfill after index rebuild.
-- **Not primary**: Raw asset create/ingest events — these fire **before** aliases exist; use only to trigger aliasing, not target-driven directly.
-- Diagram parsing completion may still trigger **index rebuilds** (`build_diagram_annotation_index`); optionally re-run target-driven for assets whose aliases were recently updated if new diagram references appeared.
+#### `run_target_driven_backfill` (fleet backfill)
+
+```python
+def run_target_driven_backfill(
+    client: CogniteClient,
+    *,
+    query_property: Optional[str] = None,
+    write_buffer_size: int = 500,
+    force: bool = False,
+    filter_updated_after: Optional[datetime] = None,
+    max_assets: Optional[int] = None,
+    batch_size: int = 1000,
+    ...
+) -> dict:
+    """
+    One-time fleet scan: instances.query with Exists(top-level query_property),
+    then process_target_driven_contextualization per instance with batched
+    direct-relation writes (write_buffer_size).
+
+    CLI: python module.py target-driven (no --instance-id).
+    Do not use for steady-state — prefer explicit instance IDs.
+    """
+```
+
+`run_target_driven_for_all_assets` is a **deprecated alias** that delegates to `run_target_driven_backfill`.
+
+#### Dedupe (`inverted_index/target_driven_dedupe.py`)
+
+```python
+def should_skip_target_driven(
+    client, instance_space, instance_external_id, query_terms, scope_key,
+    *, force: bool = False,
+) -> bool:
+    """True when same terms_hash ran within TARGET_DRIVEN_DEDUPE_CONFIG.cooldown_seconds."""
+
+def record_target_driven_run(client, instance_space, instance_external_id,
+    query_terms, scope_key, summary) -> None:
+    """Persist RAW state row after successful run."""
+```
+
+**Invocation pattern**
+
+- **Primary (incremental):** External aliasing (or equivalent) updates the configured query property → instance subscription → `handle_aliases_subscription_event` → `process_target_driven_contextualization`. Alternatively call `fn_idx_target_driven` or `run_target_driven_for_instance_ids` with explicit IDs.
+- **Secondary (backfill):** `run_target_driven_backfill` after index rebuild; omit instance IDs. Use `force=True` to bypass cooldown dedupe.
+- **Not primary:** Raw asset create/ingest — runs before query terms exist; use only to trigger aliasing, not target-driven directly.
 
 #### `handle_aliases_subscription_event` (subscription handler)
 ```python
@@ -1308,18 +1401,23 @@ def handle_aliases_subscription_event(
     event: dict,
     *,
     dry_run: bool = False,
+    force: bool = False,
 ) -> dict:
     """
-    Process a CDF instance subscription event when CogniteDescribable.aliases changes.
+    Process a CDF instance subscription event when watch_property changes.
 
-    Config: SUBSCRIPTION_CONFIG (watch_property, instance_spaces, asset_views, default_instance_type).
-    Dedupe: TARGET_DRIVEN_DEDUPE_CONFIG RAW state row keyed by instance + aliases_hash + scope.
+    Config: SUBSCRIPTION_CONFIG (watch_property, instance_spaces, asset_views,
+    default_instance_type). watch_property defaults to target_driven.query_property.
 
-    Expected event shape:
+    Dedupe: should_skip_target_driven unless force=True (RAW state keyed by
+    instance + terms_hash + match_scope_key).
+
+    Expected event shape (aliases example):
       {"space": "cdf_cdm", "externalId": "ASSET_P101", "view_external_id": "CogniteAsset",
        "changed_properties": ["aliases"], "after": {"properties": {"aliases": ["P-101A"]}}}
 
-    Returns {"status": "ok"|"skipped"|"error", "trigger": "instance_subscription", ...summary}.
+    Returns {"status": "ok"|"skipped"|"error", "trigger": "instance_subscription", ...}.
+    Skip reasons include dedupe_cooldown, no_query_terms, scope_filtered.
     """
 ```
 
@@ -1328,7 +1426,7 @@ def handle_aliases_subscription_event(
 SUBSCRIPTION_CONFIG = {
     "enabled": True,
     "trigger": "instance_subscription",
-    "watch_property": "aliases",
+    "watch_property": "aliases",  # defaults to TARGET_DRIVEN_CONFIG.query_property when omitted
     "instance_spaces": ["cdf_cdm"],
     "asset_views": ["CogniteAsset"],
     "default_instance_type": "asset",
@@ -1587,24 +1685,428 @@ def get_standard_not_in_pattern_delta(
 
 ---
 
-### 3.5 CDF Functions (deployable handlers)
+### 3.5 Virtual Tag Creation Functions
 
-Registry: `functions/functions.Function.yaml`. Dataset: `ds_inverted_index_all`. Runtime: `py311`.
+Materialize **virtual `CogniteAsset` instances** from scoped inverted-index terms so diagram-detected tags that do not yet map to a real asset can participate in downstream **target-driven contextualization (UC3)**. Only **`asset_metadata`** and **`diagram_annotation_pattern`** source types are eligible (not standard-mode diagram detections or `file_metadata`).
 
-| externalId | Library entry point | Purpose |
-|------------|---------------------|---------|
-| `fn_idx_build_metadata` | `build_metadata_index` | Metadata index build |
-| `fn_idx_build_annotations` | `build_diagram_annotation_index` | Diagram annotation index build |
-| `fn_idx_target_driven` | `process_target_driven_contextualization` | Target-driven contextualization |
-| `fn_idx_handle_subscription` | `handle_aliases_subscription_event` | `aliases` subscription handler |
-| `fn_idx_score` | `calculate_contextualization_score` | File contextualization score |
-| `fn_idx_deltas` | detection mode deltas | Pattern vs standard detection deltas |
+**Prerequisites**
 
-Handlers accept JSON `data` (merged with `default.config.yaml` via `cdf_fn_common.fn_runtime`). Common fields: `dry_run`, `filter_updated_after`, `instance_spaces`, `file_external_id`, `instance_external_id`, `instance_type`, `match_scope_key`, `detection_mode`, `delta_mode`, `event` (subscription).
+- `virtual_tag_creation.enabled: true`
+- `scope.enabled: true` with non-empty `scope.levels` (or explicit `virtual_tag_creation.hierarchy_levels`)
+- Parseable `match_scope_key` values — skips `global` and keys that do not match `scope_key_template`
+- DM instance space for virtual assets (default `inst_virtual_tags`)
 
-Local invoke: `python module.py invoke-fn fn_idx_build_metadata --data '{"dry_run":true}'`
+**Execution profiles**
 
-### 3.6 Local CLI (`module.py`)
+| Profile | When | Entry point |
+|---------|------|-------------|
+| **Batch** | After index build, migration, or scheduled fleet refresh | `run_virtual_tag_creation`, `fn_idx_virtual_tags`, `python module.py virtual-tags` |
+| **Incremental** | After each successful index upsert (build or incremental write paths) | `upsert_index_entries` → `process_virtual_tags_for_index_entries` when `incremental_enabled` is true |
+
+Incremental processing runs only when `enabled`, `incremental_enabled`, and the upsert is not `dry_run`. It re-evaluates terms touched by the upserted entries only.
+
+#### `VIRTUAL_TAG_CREATION_CONFIG`
+
+```python
+VIRTUAL_TAG_CREATION_CONFIG = {
+    "enabled": False,
+    "incremental_enabled": True,
+    "term_selection_mode": "missing_tags_only",  # "all" | "missing_tags_only"
+    "source_types": ["asset_metadata", "diagram_annotation_pattern"],
+    "missing_tag_criteria": {
+        "require_pattern_detection": True,       # at least one diagram_annotation_pattern hit
+        "check_existing_cognite_asset": True,    # DM name/aliases lookup (asset_lookup)
+        "exclude_with_cognite_asset_metadata": True,  # skip when asset_metadata references CogniteAsset
+    },
+    "asset_lookup": {
+        "view_external_id": "CogniteAsset",
+        "view_space": "cdf_cdm",
+        "view_version": "v1",
+        "instance_spaces": [],  # empty = all spaces
+        "match_properties": ["name", "aliases"],
+        "scope_filter": True,   # filter by scope_property_mapping values when scope resolved
+    },
+    "hierarchy_levels": [],     # defaults to scope.levels when empty
+    "leaf_level": "asset_tag",
+    "instance_space": "inst_virtual_tags",
+    "view_space": "cdf_cdm",
+    "view_external_id": "CogniteAsset",
+    "view_version": "v1",
+    "populate_aliases": True,   # leaf aliases = detected tag text (UC3 query terms)
+    "scope_property_mapping": {"site": "sourceContext", "unit": "sourceId"},
+    "min_confidence": 0.0,
+    "batch_limit": 0,           # 0 = no cap per run
+    "skip_existing": False,
+    "apply_chunk_size": 500,
+}
+```
+
+#### Term selection modes
+
+| Mode | Behaviour |
+|------|-----------|
+| `all` | Every eligible term (after `source_types` + `min_confidence` filters) in the scope partition |
+| `missing_tags_only` (default) | Terms passing **`is_missing_tag_term`** — all enabled `missing_tag_criteria` checks must pass |
+
+**`missing_tags_only` criteria** (each can be disabled in config):
+
+1. **`require_pattern_detection`**: At least one index hit with `source_type == diagram_annotation_pattern`.
+2. **`exclude_with_cognite_asset_metadata`**: No `asset_metadata` hit whose `reference_type == CogniteAsset`.
+3. **`check_existing_cognite_asset`**: No existing `CogniteAsset` in DM whose `name` or `aliases` match the term (scoped when `asset_lookup.scope_filter` is true).
+
+#### Hierarchy and external IDs
+
+For scope `site:Rotterdam|unit:U100` with `levels: [site, unit]`:
+
+| Node | External ID pattern | Example |
+|------|---------------------|---------|
+| Site structural | `{level}_{code}` | `site_rotterdam` |
+| Unit structural | `{level}_{code0}_{code1}` | `unit_rotterdam_u100` |
+| Leaf virtual tag | `{leaf_level}_{scope_path}_{sanitized_term}` | `asset_tag_rotterdam_u100_p101a` |
+
+- **Structural nodes**: One `CogniteAsset` per scope level in the parent chain; `name` is slugified code; `description` is human-readable path; `parent` links to previous level; `tags` holds the level name.
+- **Leaf nodes**: `name` = detected tag text; `aliases` = `[term]` when `populate_aliases`; `scope_property_mapping` copies site/unit onto CDM properties; optional `sourceFile` lists diagram files from pattern hits.
+- **Slugification**: `slugify_scope_code` — lowercase-safe alphanumeric segments for external IDs.
+
+#### `run_virtual_tag_creation` (batch)
+
+```python
+def run_virtual_tag_creation(
+    client: CogniteClient,
+    *,
+    virtual_tag_config: dict | None = None,
+    scope_config: dict | None = None,
+    storage_config: dict | None = None,
+    storage_adapter: Any = None,
+    all_scopes: bool = False,
+    match_scope_keys: list[str] | None = None,
+    dry_run: bool = False,
+    limit: int = 0,
+    term_selection_mode: str | None = None,
+    progress_interval: int = 1000,
+    on_progress: Callable[[str], None] | None = None,
+    should_cancel: Callable[[], bool] | None = None,
+) -> dict:
+    """
+    Fleet scan: enumerate eligible terms per scope partition, upsert structural
+    hierarchy + leaf virtual CogniteAsset instances.
+
+    Raises ValueError when enabled=false, scope disabled, or hierarchy levels empty.
+    Returns scopes_queried, scopes_processed, terms_processed, leaf_assets,
+    term_selection_mode, scope_results[], duration_sec.
+    """
+```
+
+**Invocation**
+
+```bash
+python module.py virtual-tags --all-scopes --dry-run
+python module.py virtual-tags --scope-key 'site:Rotterdam|unit:U100' --term-selection-mode missing_tags_only
+python module.py invoke-fn fn_idx_virtual_tags --data '{"dry_run":true,"all_scopes":true}'
+```
+
+#### `process_virtual_tags_for_index_entries` (incremental)
+
+```python
+def process_virtual_tags_for_index_entries(
+    client: CogniteClient,
+    entries: list[dict],
+    *,
+    virtual_tag_config: dict | None = None,
+    scope_config: dict | None = None,
+    storage_config: dict | None = None,
+    storage_adapter: Any = None,
+    dry_run: bool = False,
+    term_selection_mode: str | None = None,
+) -> dict:
+    """
+    Called from upsert_index_entries after a successful write. Derives unique
+    (match_scope_key, normalized_term) pairs from upserted entries, reloads full
+    term hits, applies selection mode, upserts virtual assets per scope.
+
+    Returns skipped reason when disabled; otherwise scopes_processed,
+    terms_processed, terms_skipped, leaf_assets, scope_results[].
+    """
+```
+
+#### Supporting helpers
+
+```python
+def parse_scope_key(match_scope_key: str, scope_config: dict) -> dict[str, str] | None:
+    """Parse match_scope_key into level -> value; None for global / unparseable."""
+
+def is_missing_tag_term(
+    client, match_scope_key, normalized_term, hits, *,
+    virtual_tag_config, scope_config,
+) -> bool:
+    """True when term is diagram-detected and not mappable to existing CogniteAsset."""
+
+def cognite_asset_exists_for_term(
+    client, *, normalized_term, display_term,
+    virtual_tag_config, scope_values,
+) -> bool:
+    """DM instances.query over CogniteAsset name/aliases within optional scope filter."""
+```
+
+**Relationship to UC3**: Virtual leaves are real `CogniteAsset` instances with `aliases` populated. Wire target-driven (`fn_idx_target_driven`, subscription on `aliases`) or external aliasing to contextualize them against the same inverted index. UC4 does **not** create diagram annotations or CDM links — that remains UC3.
+
+---
+
+### 3.6 CDF Functions (deployable handlers)
+
+Registry: [`functions/functions.Function.yaml`](../functions/functions.Function.yaml). Dataset: `ds_inverted_index_all`. Runtime: `py311`. Handlers live under [`functions/`](../functions/); each folder contains `handler.py`, `pipeline.py`, and `requirements.txt`.
+
+| externalId | CDF name | Handler | Library entry point | Purpose |
+|------------|----------|---------|---------------------|---------|
+| `fn_idx_build_metadata` | `dm:context:inverted_index:build:metadata` | `fn_idx_build_metadata/handler.py` | `build_metadata_index` | Fleet metadata index build (`instances.query` over `index_field_config` views) |
+| `fn_idx_build_annotations` | `dm:context:inverted_index:build:annotations` | `fn_idx_build_annotations/handler.py` | `build_diagram_annotation_index` | Fleet diagram annotation index build |
+| `fn_idx_target_driven` | `dm:context:inverted_index:process:target_driven` | `fn_idx_target_driven/handler.py` | `process_target_driven_contextualization` / `run_target_driven_for_instance_ids` | Target-driven contextualization for explicit instance ID(s) |
+| `fn_idx_handle_subscription` | `dm:context:inverted_index:subscription:aliases` | `fn_idx_handle_subscription/handler.py` | `handle_aliases_subscription_event` | Instance subscription on `watch_property` (default `aliases`) |
+| `fn_idx_score` | `dm:context:inverted_index:score:contextualization` | `fn_idx_score/handler.py` | `calculate_contextualization_score` | File contextualization score |
+| `fn_idx_deltas` | `dm:context:inverted_index:deltas:detection` | `fn_idx_deltas/handler.py` | detection mode deltas | Pattern vs standard detection deltas for a file |
+| `fn_idx_upsert_detections` | `dm:context:inverted_index:upsert:detections` | `fn_idx_upsert_detections/handler.py` | `upsert_diagram_detections` | Incremental diagram detection index writes |
+| `fn_idx_index_metadata_instance` | `dm:context:inverted_index:index:metadata_instance` | `fn_idx_index_metadata_instance/handler.py` | `build_metadata_index_for_instance` / `build_metadata_index_for_instance_ids` | Incremental metadata index write for one or more DM instances |
+| `fn_idx_virtual_tags` | `dm:context:inverted_index:create:virtual_tags` | `fn_idx_virtual_tags/handler.py` | `run_virtual_tag_creation` | Batch virtual CogniteAsset creation from scoped index terms (UC4) |
+
+Handlers accept JSON `data` merged with [`default.config.yaml`](../default.config.yaml) via `cdf_fn_common.fn_runtime.resolve_handler_payload`. Optional top-level `config` in `data` overrides runtime YAML for that invocation.
+
+**Local invoke** (requires module `.env` credentials):
+
+```bash
+python module.py invoke-fn <externalId> --data '<json>'
+```
+
+#### 3.6.1 Common payload fields
+
+| Field | Used by | Description |
+|-------|---------|-------------|
+| `dry_run` | all write paths | Skip index/DM writes; build handlers still scan CDF |
+| `config` | all | Inline runtime config override (same shape as `default.config.yaml`) |
+| `filter_updated_after` | build handlers | ISO timestamp; incremental watermark on `lastUpdatedTime` |
+| `instance_spaces` | build handlers | Restrict DM query to spaces |
+| `file_external_id` / `file_id` | score, deltas, upsert-detections | Target `CogniteFile` external id |
+| `file_space` / `space` | score, deltas, upsert-detections | File instance space (default `cdf_cdm`) |
+| `instance_external_id` / `instance_id` | target-driven, index-metadata-instance | Single target instance |
+| `instance_external_ids` | target-driven, index-metadata-instance | JSON list or comma-separated instance IDs (batch) |
+| `instance_space` | target-driven, index-metadata-instance | Instance space (default `cdf_cdm`) |
+| `instance_type` | target-driven, index-metadata-instance | `asset`, `file`, `equipment`, `timeseries` |
+| `incoming_view_key` | target-driven | View key from `direct_relation_config.views` (e.g. `asset`, `file`) |
+| `view_external_id` / `view` | index-metadata-instance | DM view for `index_field_config` lookup |
+| `view_space` | target-driven | DM view space when resolving by view |
+| `query_property` | target-driven, subscription | Override `target_driven.query_property` (default `aliases`) |
+| `force` | target-driven, subscription | Bypass cooldown dedupe (`terms_hash`) |
+| `match_scope_key` / `match_scope_keys` | score, deltas, target-driven, virtual-tags | Scope partition key(s) |
+| `scope_lookup_override` | target-driven | When true with `match_scope_keys`, query those scopes instead of instance-resolved scope |
+| `detection_mode` | build-annotations, upsert-detections | `standard`, `pattern`, or `all` (build-annotations only) |
+| `write_mode` | upsert-detections, index-metadata-instance | `upsert` or `replace` (default `replace`) |
+| `detections` | upsert-detections | JSON array of index-only detection dicts |
+| `annotations` | upsert-detections | Optional edge-shaped annotation dicts |
+| `delta_mode` | deltas | `both`, `pattern_not_standard`, `standard_not_pattern` |
+| `event` | subscription | Instance subscription event (or pass event fields at top level) |
+| `all_scopes` | virtual-tags | Scan all registered scope partitions |
+| `term_selection_mode` | virtual-tags | `all` or `missing_tags_only` (overrides config) |
+| `limit` | virtual-tags | Max terms to process per run (0 = unlimited) |
+| `progress_interval` | virtual-tags | Progress log interval for large scope scans |
+| `enabled` | virtual-tags | Force-enable for handler invocation when config has `enabled: false` |
+
+#### 3.6.2 Function reference
+
+##### `fn_idx_build_metadata`
+
+Scans configured DM views and upserts metadata index entries.
+
+| | |
+|--|--|
+| **Required payload** | none (uses runtime `index_field_config`) |
+| **Key optional fields** | `dry_run`, `filter_updated_after`, `instance_spaces` |
+| **Response** | `processed`, `candidate_entries`, `entries_created`, `entries_updated`, `build_job_id`, `views`, `errors`, `registry_scopes` |
+
+`dry_run: true` still scans CDF and returns per-view `views` stats — it does not skip the source query.
+
+```bash
+python module.py invoke-fn fn_idx_build_metadata --data '{"dry_run":true}'
+```
+
+##### `fn_idx_build_annotations`
+
+Indexes diagram annotations from CDF (`CogniteDiagramAnnotation` edges) into the inverted index.
+
+| | |
+|--|--|
+| **Required payload** | none |
+| **Key optional fields** | `dry_run`, `filter_updated_after`, `instance_spaces`, `detection_mode` (`standard` \| `pattern` \| `all`) |
+| **Response** | `processed`, `entries_created`, `entries_updated`, `build_job_id`, `annotation_view`, `errors` |
+
+```bash
+python module.py invoke-fn fn_idx_build_annotations --data '{"dry_run":true,"detection_mode":"pattern"}'
+```
+
+##### `fn_idx_target_driven`
+
+Runs target-driven contextualization for one or more explicit instance IDs. **Fleet backfill** (no instance IDs) is CLI/UI only (`run_target_driven_backfill`).
+
+| | |
+|--|--|
+| **Required payload** | `instance_external_id` **or** `instance_external_ids` |
+| **Key optional fields** | `instance_type`, `instance_space`, `incoming_view_key`, `query_property`, `force`, `min_confidence`, `match_scope_key` / `match_scope_keys`, `scope_lookup_override`, `dry_run` |
+| **Response** | `references_found`, `links_applied`, `query_terms`, `match_scope_key`, …; or `{"status":"skipped","reason":"dedupe_cooldown"}` when dedupe applies |
+
+```bash
+python module.py invoke-fn fn_idx_target_driven --data '{"instance_external_id":"ASSET_P101","dry_run":true}'
+python module.py invoke-fn fn_idx_target_driven --data '{"instance_external_ids":["A1","A2"],"query_property":"aliases","force":false,"dry_run":true}'
+```
+
+##### `fn_idx_handle_subscription`
+
+Processes an instance subscription event when `watch_property` changes (default: `aliases`).
+
+| | |
+|--|--|
+| **Required payload** | `event` dict (or subscription fields at top level of `data`) |
+| **Key optional fields** | `dry_run`, `query_property`, `force` |
+| **Response** | Result from `handle_aliases_subscription_event` (target-driven summary or skip reason) |
+
+Wire this function as the **subscription target** in CDF after external aliasing writes query terms.
+
+##### `fn_idx_score`
+
+Computes contextualization score for a diagram file.
+
+| | |
+|--|--|
+| **Required payload** | `file_external_id` or `file_id` |
+| **Key optional fields** | `file_space`, `match_scope_key` |
+| **Response** | `overall_score`, `annotation_score`, `metadata_score`, component breakdowns |
+
+```bash
+python module.py invoke-fn fn_idx_score --data '{"file_external_id":"FILE_PID_12"}'
+```
+
+##### `fn_idx_deltas`
+
+Returns pattern vs standard detection deltas for a file.
+
+| | |
+|--|--|
+| **Required payload** | `file_external_id` or `file_id` |
+| **Key optional fields** | `file_space`, `match_scope_key`, `delta_mode` |
+| **Response** | `missing_tags` (pattern not in standard), `pattern_feedback` (standard not in pattern) — subset depends on `delta_mode` |
+
+```bash
+python module.py invoke-fn fn_idx_deltas --data '{"file_external_id":"FILE_PID_12","delta_mode":"both"}'
+```
+
+##### `fn_idx_upsert_detections`
+
+Writes caller-supplied diagram detections to the index without a fleet annotation scan. See §3.6.3 for `write_mode` semantics and detection JSON schema.
+
+| | |
+|--|--|
+| **Required payload** | `detections` and/or `annotations` (at least one non-empty) |
+| **Key optional fields** | `write_mode`, `detection_mode`, `file_external_id`, `file_space`, `dry_run` |
+| **Response** | `write_mode`, `postings_removed`, `entries_created`, `entries_updated`, `candidate_entries`, `skipped`, `errors`, `build_job_id` |
+
+```bash
+python module.py invoke-fn fn_idx_upsert_detections --data '{"dry_run":true,"detection_mode":"pattern","file_external_id":"FILE_PID_12","detections":[{"file_external_id":"FILE_PID_12","text":"P-101A","page":1,"bbox":[0.1,0.2,0.3,0.4]}]}'
+```
+
+##### `fn_idx_index_metadata_instance`
+
+Re-indexes metadata terms for one or more DM instances using `index_field_config`. See §3.6.3 for `write_mode` semantics.
+
+| | |
+|--|--|
+| **Required payload** | `instance_external_id` or `instance_external_ids`; plus `view_external_id`, `incoming_view_key`, or `instance_type` |
+| **Key optional fields** | `instance_space`, `write_mode`, `dry_run` |
+| **Response** | `write_mode`, `postings_removed`, `entries_created`, `entries_updated`, `candidate_entries`, `view_external_id`, `build_job_id` |
+
+```bash
+python module.py invoke-fn fn_idx_index_metadata_instance --data '{"dry_run":true,"instance_external_ids":["EQ-1001","EQ-1002"],"view_external_id":"CogniteEquipment"}'
+```
+
+##### `fn_idx_virtual_tags`
+
+Batch virtual `CogniteAsset` creation from scoped inverted-index terms (UC4). See §3.5 for hierarchy rules, term selection, and prerequisites.
+
+| | |
+|--|--|
+| **Required payload** | none when `all_scopes: true`; otherwise `match_scope_key` or `match_scope_keys` |
+| **Key optional fields** | `dry_run`, `all_scopes`, `match_scope_key`, `match_scope_keys`, `term_selection_mode`, `limit`, `progress_interval`, `enabled` |
+| **Response** | `scopes_queried`, `scopes_processed`, `terms_processed`, `leaf_assets`, `term_selection_mode`, `scope_results`, `duration_sec`, `dry_run` |
+
+Handler sets `virtual_tag_creation.enabled` to `true` for the invocation unless explicitly disabled in payload/config.
+
+```bash
+python module.py invoke-fn fn_idx_virtual_tags --data '{"dry_run":true,"all_scopes":true}'
+python module.py invoke-fn fn_idx_virtual_tags --data '{"match_scope_key":"site:Rotterdam|unit:U100","term_selection_mode":"missing_tags_only"}'
+```
+
+**Deploy**: Register via Cognite Toolkit [`module.toml`](../module.toml) `extra_resources` → `functions/functions.Function.yaml`. Deploy with project `cdf build` / deploy pipeline for functions and dependent RAW/DM resources.
+
+#### 3.6.3 Incremental index writes
+
+External pipelines can write index entries **without** full `build_*_index` scans via `inverted_index/incremental.py`.
+
+| API | CDF Function | Purpose |
+|-----|--------------|---------|
+| `upsert_diagram_detections` | `fn_idx_upsert_detections` | Caller-supplied standard/pattern detection hits |
+| `build_metadata_index_for_instance` | `fn_idx_index_metadata_instance` | Re-index one or more DM instances using `index_field_config` |
+
+Both accept **`write_mode`**: `"upsert"` (merge-only) or **`"replace"`** (default — delete existing postings for the reference subset, then write).
+
+| Mode | Diagram detections | Metadata instance |
+|------|-------------------|-------------------|
+| `upsert` | Merge new detections; stale detections on other pages/terms remain | Merge new terms; old terms from cleared properties remain |
+| `replace` | Delete postings for **file** + **detection_mode** in scope, then write | Delete postings for **instance** + `asset_metadata` / `file_metadata`, then write |
+
+**Detection input** (index-only; no DM edge required):
+
+```json
+{
+  "dry_run": false,
+  "write_mode": "replace",
+  "detection_mode": "pattern",
+  "file_external_id": "FILE_PID_12",
+  "detections": [
+    {
+      "file_external_id": "FILE_PID_12",
+      "file_space": "cdf_cdm",
+      "text": "P-101A",
+      "page": 2,
+      "bbox": [0.1, 0.2, 0.3, 0.4],
+      "properties": { "confidence": 0.85, "status": "Suggested" }
+    }
+  ],
+  "annotations": []
+}
+```
+
+Optional **`annotations`** on the same call for edge-shaped dicts (`annotation_to_index_entry`).
+
+**Metadata instance input:**
+
+```json
+{
+  "dry_run": false,
+  "write_mode": "replace",
+  "instance_external_id": "EQ-1001",
+  "instance_space": "cdf_cdm",
+  "view_external_id": "CogniteEquipment"
+}
+```
+
+`view_external_id` is required unless `instance_type` (`asset` \| `file` \| `equipment` \| `timeseries`) or `incoming_view_key` is supplied.
+
+Local CLI:
+
+```bash
+python module.py index-detections --mode pattern --detections-file detections.json --write-mode replace
+python module.py index-metadata-instance --instance-id EQ-1001 --view CogniteEquipment --write-mode replace
+```
+
+---
+
+### 3.7 Local CLI (`module.py`)
 
 | Command | Purpose |
 |---------|---------|
@@ -1613,14 +2115,17 @@ Local invoke: `python module.py invoke-fn fn_idx_build_metadata --data '{"dry_ru
 | `migrate [--dry-run] [--skip-purge] [--scope-key global]` | Purge RAW partitions + full rebuild (file-as-reference migration) |
 | `query --terms T [--scope-key K]... \| --all-scopes [--hits-only] [--reuse-only]` | Term lookup with reuse metrics |
 | `tag-reuse-audit --all-scopes \| --scope-key K... [--min-scope-count N] [--limit N]` | Cross-scope duplicate tag audit |
-| `target-driven [--instance-id ID] [--type asset\|file\|equipment\|timeseries] [--scope-key K]... [--scope-override] [--max-assets N] [--progress-interval N] [--dry-run]` | Single instance or batch all assets (no `--instance-id`) |
+| `virtual-tags [--all-scopes \| --scope-key K...] [--term-selection-mode all\|missing_tags_only] [--limit N] [--dry-run]` | Batch virtual CogniteAsset creation (UC4; §3.5) |
+| `target-driven [--instance-id ID] [--type asset\|file\|equipment\|timeseries] [--query-property PROP] [--force] [--scope-key K]... [--scope-override] [--max-assets N] [--progress-interval N] [--dry-run]` | Single instance / explicit IDs (incremental) or fleet backfill (no `--instance-id`) |
 | `score --file-id FILE [--scope-key K] [--space SPACE]` | Contextualization score |
 | `list-by-file --file-id FILE [--scope-key K] [--source-types T,...] [--limit N]` | Index entries for a `CogniteFile` |
 | `deltas --file-id FILE [--scope-key K]` | Pattern vs standard deltas |
+| `index-detections --mode pattern\|standard --detections-file PATH.json [--write-mode upsert\|replace] [--file-id FILE] [--dry-run]` | Incremental diagram detection writes (§3.6.3) |
+| `index-metadata-instance --instance-id ID (--view VIEW \| --type asset\|file\|equipment\|timeseries) [--space SPACE] [--write-mode upsert\|replace] [--dry-run]` | Incremental metadata index for one instance (§3.6.3); batch via `invoke-fn fn_idx_index_metadata_instance` with `instance_external_ids` |
 | `handle-subscription --event-file PATH [--dry-run]` | Replay subscription event locally |
 | `invoke-fn FN_ID --data '{...}'` | Invoke CDF Function handler locally |
 | `demo [--json]` | Offline in-memory end-to-end demo |
-| `ui [--api-port PORT] [--vite-port PORT] [--no-browser]` | Operator workbench (§3.7) |
+| `ui [--api-port PORT] [--vite-port PORT] [--no-browser]` | Operator workbench (§3.8) |
 | `whoami` | Verify `.env` CDF connection |
 
 **Credentials** (repo root or module `.env`):
@@ -1632,7 +2137,7 @@ Local invoke: `python module.py invoke-fn fn_idx_build_metadata --data '{"dry_ru
 
 `python module.py whoami` verifies auth.
 
-### 3.7 Operator workbench (`module.py ui`)
+### 3.8 Operator workbench (`module.py ui`)
 
 Local FastAPI + Vite workbench for configuration editing and operational runs. **Trusted workstation only** — the API binds to localhost and has **no authentication** (`ui/server/main.py`).
 
@@ -1641,15 +2146,23 @@ Local FastAPI + Vite workbench for configuration editing and operational runs. *
 ```bash
 pip install -r requirements.txt
 cd ui && npm install && cd ..
-python module.py ui [--api-port 8786] [--vite-port 5194] [--no-browser]
+python module.py ui [--api-port 8787] [--vite-port 5195] [--no-browser]
 ```
 
 | Component | Default URL |
 |-----------|-------------|
-| Operator API | `http://127.0.0.1:8786` |
-| Vite UI | `http://127.0.0.1:5194` |
+| Operator API | `http://127.0.0.1:8787` |
+| Vite UI | `http://127.0.0.1:5195` |
 
-**Panes:** configuration editor (YAML-backed `default.config.yaml`), metadata build, annotation build, term query (with reuse metrics), file contextualization score, detection deltas, target-driven runs, tag-reuse audit.
+**Panes:** configuration editor (YAML-backed `default.config.yaml`), metadata build, annotation build, term query (with reuse metrics), file contextualization score, detection deltas, target-driven runs (incremental vs backfill, query property, force), tag-reuse audit.
+
+**Config editor nav** (structured YAML panels):
+
+| Nav node | Component | Config keys |
+|----------|-----------|-------------|
+| Target-driven | `TargetDrivenConfigEditor` | `target_driven`, `subscription` |
+| Virtual tag creation | `VirtualTagCreationConfigEditor` | `virtual_tag_creation` (UC4; §3.5) |
+| Linking | `DirectRelationEditor` | `direct_relation_config` |
 
 **Workspace:** `.ui_workspace.json` persists config path and last-open panes (`ui/src/utils/workspacePersistence.ts`).
 
@@ -1661,13 +2174,13 @@ python module.py ui [--api-port 8786] [--vite-port 5194] [--no-browser]
 | `POST /build/annotations` | Diagram annotation index build |
 | `POST /query` | Term lookup with reuse metrics |
 | `POST /tag-reuse-audit` | Cross-scope duplicate audit |
-| `POST /target-driven` | Target-driven contextualization |
+| `POST /target-driven` | Target-driven contextualization (`instance_external_id` incremental; omit for backfill; `query_property`, `force`) |
 | `POST /score` | File contextualization score |
 | `POST /deltas` | Pattern vs standard deltas |
 | `POST /list-by-file` | Index entries for a file |
 | `POST …/stream` variants | Same operations with SSE log streaming and cooperative cancel |
 
-Streaming uses `ui/server/operation_stream.py`; long-running library calls accept `on_progress` / `should_cancel` (`inverted_index/cancellation.py`). Batch target-driven accepts `progress_interval` (default 100; 0 disables progress lines).
+Streaming uses `ui/server/operation_stream.py`; long-running library calls accept `on_progress` / `should_cancel` (`inverted_index/cancellation.py`). Batch target-driven (backfill and multi-ID) accepts `progress_interval` (default 100; 0 disables progress lines). Response metrics include `processed`, `references_found`, `links_created`, `dedupe_skipped`, `skipped`.
 
 ---
 
@@ -1700,7 +2213,7 @@ Streaming uses `ui/server/operation_stream.py`; long-running library calls accep
   - **DM**: Filter-delete or replace by `build_job_id`, then batch apply.
   - **RAW**: Truncate affected scope partition table(s), then rebuild postings from source scans.
 - **Migration (`migrate_index`)**: After the file-as-reference diagram entry shape change, purge RAW partitions and rebuild metadata + annotation indexes (`python module.py migrate`). Legacy `reference_type: CogniteDiagramAnnotation` rows are dropped on purge — not migrated in place. Supports RAW and memory backends only.
-- **Target-driven**: Index is eventually consistent with a bounded freshness SLA (§4.7.6). Runs after external aliasing writes `aliases` on new assets; check `FRESHNESS_CONFIG` before lookup and optionally trigger a scoped incremental build when stale.
+- **Target-driven**: Index is eventually consistent with a bounded freshness SLA (§4.7.6). Runs after external aliasing writes query terms (`target_driven.query_property`, default `aliases`); check `FRESHNESS_CONFIG` before lookup and optionally trigger a scoped incremental build when stale.
 - **Diagram processing completion**: After pattern/standard detection jobs finish, invoke `build_diagram_annotation_index` (filtered to the processed files) before or as part of target-driven runs.
 
 ### 4.3 Extensibility
@@ -1879,8 +2392,11 @@ FRESHNESS_CONFIG = {
 }
 
 TARGET_DRIVEN_DEDUPE_CONFIG = {
+    "enabled": True,
     "cooldown_seconds": 300,
-    "dedupe_key_fields": ["instance_space", "instance_external_id", "aliases_hash", "match_scope_key"],
+    "raw_database": "db_contextualization_idx",
+    "state_table": "target_driven_state",
+    "dedupe_key_fields": ["instance_space", "instance_external_id", "terms_hash", "match_scope_key"],
 }
 ```
 
@@ -1890,9 +2406,9 @@ TARGET_DRIVEN_DEDUPE_CONFIG = {
 - Last successful `build_diagram_annotation_index` workflow run for scope
 - Sampled `max(UPDATED_AT)` from partition rows
 
-**On stale:** Log `index_stale`; optionally enqueue scoped incremental build before `query_references_for_aliases`. When `on_stale = "fail"`, return explicit error to aliasing orchestrator.
+**On stale:** Log `index_stale`; optionally enqueue scoped incremental build before term lookup. When `on_stale = "fail"`, return explicit error to aliasing orchestrator.
 
-**Trigger dedupe:** Store `target_driven_state__{instance_space}:{instance_external_id}` with `last_run_at`, `aliases_hash`, `links_created`. Skip re-run when `aliases_hash` unchanged and within `cooldown_seconds` unless `force=True`.
+**Trigger dedupe:** Store RAW row `target_driven_state__{dedupe_key}` with `LAST_RUN_AT`, `TERMS_HASH` (legacy column `ALIASES_HASH` mirrors the same hash). Skip re-run when `terms_hash` unchanged and within `cooldown_seconds` unless `force=True`.
 
 #### 4.7.7 Workload boundaries (RAW SLO)
 
@@ -1953,6 +2469,31 @@ The index may contain terms and `reference_external_id` values from DM instances
 
 **Implementation priority:** (1) `resolve_raw_partition_table` + registry, (2) scope granularity gate, (3) hot-term policy, (4) freshness + dedupe, (5) monitoring, (6) scoring boundary enforcement.
 
+#### 4.7.12 Term sub-partitioning (opt-in, threshold-triggered)
+
+When `RAW_TERM_PARTITION_POLICY.enabled = true`, scopes remain on a **unified** partition table until `check_partition_row_counts` reports `row_count >= activate_above_rows` (default 400k). Crossing the threshold **does not move data** — it sets `reshard_recommended` on the health report and logs `term_partition_threshold_warning`.
+
+**Reshard** (`python module.py reshard-scope --scope-key …`):
+
+1. Copy every row (primary + `::__overflow_` spill keys) from the unified table into script-aware bucket tables (`inverted_index__{scope_slug}__{term_bucket}`).
+2. Verify source vs copied row counts match.
+3. Truncate the unified table; set registry `PARTITION_STRATEGY=term_first_char`.
+
+**Bucket slugs** (`term_bucket` / `bucket_mode: script_aware`):
+
+| First char | Bucket |
+|------------|--------|
+| `a`–`z`, `0`–`9` | same character |
+| Katakana / Hiragana | `kata` / `hira` |
+| CJK Han | `han_{high_byte}` (e.g. `han_4e`) |
+| Other scripts | `hangul`, `cyrillic`, `other` |
+
+**Unicode normalization:** `normalize_term` uses `\p{L}+|\d+` (requires `regex` package). Changing normalization requires full `migrate` rebuild.
+
+**Registry columns:** `PARTITION_STRATEGY` (`unified` \| `term_first_char`), `RESHARD_IN_PROGRESS`, `ROW_COUNT_ESTIMATE`, `ACTIVATED_BUCKETS`.
+
+**CLI:** `partition-health` (row counts + recommendations), `reshard-scope --scope-key …` (explicit migrate per scope).
+
 ---
 
 ## 5. Example High-Level Flow (Target-Driven Contextualization)
@@ -1961,8 +2502,8 @@ See §2.5 for the canonical orchestration diagram (asset ingest → external ali
 
 Summary:
 1. New asset arrives → external aliasing process runs.
-2. Aliasing writes `aliases` on the asset → **this triggers** `process_target_driven_contextualization`.
-3. Target-driven reads aliases, queries the inverted index, creates links/annotations, and updates **CDM forward direct relations** when enabled.
+2. Aliasing writes query terms (default: `aliases`) on the asset → **this triggers** target-driven (subscription or explicit invoke).
+3. Target-driven reads `query_property` terms, queries the inverted index, creates links/annotations, and updates **CDM forward direct relations** when enabled (batched per forward node).
 
 ```mermaid
 sequenceDiagram
@@ -1974,10 +2515,10 @@ sequenceDiagram
 
     Ingestion->>DM: New asset instance
     Ingestion-->>Aliasing: New asset arrived
-    Aliasing->>DM: Update CogniteDescribable.aliases
-    Aliasing-->>TargetFunc: Trigger on aliases update
-    TargetFunc->>DM: Read asset + aliases
-    TargetFunc->>Index: query_references_for_aliases(aliases, match_scope_key)
+    Aliasing->>DM: Update query property (e.g. aliases)
+    Aliasing-->>TargetFunc: Trigger on property update
+    TargetFunc->>DM: Read asset + query terms
+    TargetFunc->>Index: query_references_for_aliases(query_terms, match_scope_key)
     Index-->>TargetFunc: Matching annotation & metadata references
     TargetFunc->>DM: Create/Update CogniteDiagramAnnotation, CDM direct relations, FileAssetLink edges, etc. (idempotent)
     TargetFunc-->>Aliasing: Summary report / status
@@ -1990,10 +2531,10 @@ sequenceDiagram
 1. **Production index backend**: Deploy DM `InvertedIndexEntry` (`INDEX_STORAGE_CONFIG.backend = "dm"`) for governance, indexed filters, and batch scoring at scale. The shipped pilot uses RAW with `global` scope — migrate when multi-unit scope is enabled.
 2. **Enable site + unit scope**: Copy `config/scope.example.yaml` into project config; set `scope.enabled: true` once DM views expose site/unit fields.
 3. **Integrate with Diagram Parsing Output**: Map CDM edge fields (`startNodeText`, `startNode*Min/Max`, `confidence`, `status`) into `additional_metadata`; store `annotation_external_id` and `detection_key` for file-as-reference rows (§2.4.1).
-4. **CDF Function Deployment**: Deploy `fn_idx_*` handlers; wire `fn_idx_handle_subscription` to instance subscription on `aliases` after `cdf_discovery_aliasing` writeback.
+4. **CDF Function Deployment**: Deploy `fn_idx_*` handlers; wire `fn_idx_handle_subscription` to instance subscription on `watch_property` (align with `target_driven.query_property`) after aliasing writeback.
 5. **Dashboard / Monitoring**: Build a simple UI showing index health, target-driven actions, detection-mode deltas (pattern vs standard), **missing-tags** queues, and **standard-not-in-pattern** queues for pattern library feedback.
 6. **Align with Entity Matching**: Reuse tokenization logic and consider hybrid use (entity matching for initial suggestions, inverted index for fast reactive lookup on new entities).
-7. **Documentation**: Maintain normalization rules, `source_type` taxonomy, `index_field_config`, **`INDEX_STORAGE_CONFIG`**, **`scope_config`**, **`direct_relation_config`**, **`ANNOTATION_INDEX_CONFIG`**, **`SUBSCRIPTION_CONFIG`**, extraction modes, and deduplication behavior in code docstrings and this spec.
+7. **Documentation**: Maintain normalization rules, `source_type` taxonomy, `index_field_config`, **`INDEX_STORAGE_CONFIG`**, **`scope_config`**, **`target_driven`**, **`direct_relation_config`**, **`ANNOTATION_INDEX_CONFIG`**, **`SUBSCRIPTION_CONFIG`**, extraction modes, batched DM apply behaviour, and deduplication (`terms_hash`, `force`) in code docstrings and this spec.
 
 This specification provides a complete, production-oriented blueprint for implementing the required inverted index capabilities while leveraging CDF's native strengths in data modeling, annotations, and orchestration.
 
@@ -2040,7 +2581,8 @@ constraints:
 - **File metadata (source type)**: A file name or file reference found in a metadata field on a DM instance (typically not the file record itself).
 - **Containing instance**: The DM object whose `reference_*` fields are stored on an index entry — where the term was discovered, not necessarily what the term identifies.
 - **Index Field Config**: Project-defined list of DM views and property paths (with `asset_metadata` or `file_metadata` classification, optional `extract_mode` and `extract_pattern`) whose values are scanned for cross-references.
-- **Extract mode**: Per-property setting: `whole_value` (entire field) or `regex` (pattern matches).
+- **Self-reference hit**: Index row whose `reference_external_id` / `reference_space` identify the same instance being contextualized; filtered in target-driven via `is_self_reference_hit`, not excluded at metadata index build.
+- **Extract mode**: Per-property setting: `passthrough` (entire field) or `regex` (pattern matches).
 - **Term deduplication**: Collapsing multiple extractions that normalize to the same term on the same property and containing instance into a single index row.
 - **Pattern Mode**: Full diagram parsing / symbol + relation detection (vector files, symbol libraries).
 - **Standard Mode**: Tag detection (raster + vector).
@@ -2054,7 +2596,10 @@ constraints:
 - **Metadata match rate**: Fraction of diagram-detected terms that also appear in the inverted index under `asset_metadata` and/or `file_metadata` **within the same match scope**.
 - **Metadata subscore**: Coverage-based score from scoped metadata index cross-checks; combined with annotation subscore for `overall_score`.
 - **External aliasing process**: Separate system triggered by new asset arrival; computes and writes `CogniteDescribable.aliases`; responsible for kicking off target-driven contextualization after alias updates.
-- **Target-Driven**: Reactive contextualization triggered when external aliasing updates `aliases` on a new asset (not on raw ingest alone).
+- **Target-Driven**: Reactive contextualization triggered when external aliasing updates the query property on a new asset (not on raw ingest alone). Supports incremental (explicit instance IDs) and backfill (fleet scan) execution profiles (§3.3).
+- **Virtual tag / virtual CogniteAsset**: Synthetic `CogniteAsset` instance materialized from inverted-index terms under a functional-location hierarchy derived from scope config (§3.5). Leaf nodes hold detected tag text; structural nodes mirror `scope.levels`.
+- **Term selection mode**: UC4 filter — `all` (every eligible term) or `missing_tags_only` (diagram-detected terms not mappable to an existing `CogniteAsset`; default).
+- **Virtual tag creation config**: `VIRTUAL_TAG_CREATION_CONFIG` — enables batch and incremental virtual asset materialization; deep-merged from YAML `virtual_tag_creation` (§3.5).
 - **CDM direct relation**: Canonical contextualization links via CDM **forward** properties. Applied by `apply_configured_links` (`direct_relation` write mode). `apply_cdm_direct_relations` is a legacy wrapper. See §2.7.
 - **File-as-reference**: Diagram index entries use `reference_type: CogniteFile`; annotation identity lives in `additional_metadata.annotation_external_id` / `detection_key` (§2.4.1, §2.8).
 - **Detection key**: Stable dedupe fragment `page{N}:bbox_{hash}:{term_prefix}` for multiple detections per file/term.

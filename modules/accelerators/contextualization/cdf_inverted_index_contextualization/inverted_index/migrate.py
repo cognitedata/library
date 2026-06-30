@@ -89,21 +89,17 @@ def migrate_index(
                     logger.exception("Partition purge failed for %s", scope)
                     purge_errors.append(msg)
 
-    metadata_result: dict = {}
-    if not dry_run:
-        metadata_result = build_metadata_index(
-            client,
-            index_field_config=index_field_config,
-            scope_config=scope_config,
-            storage_config=storage_config,
-            instance_spaces=instance_spaces,
-            storage_adapter=adapter,
-        )
-    else:
-        metadata_result = {"dry_run": True, "entries_created": 0, "entries_updated": 0}
+    metadata_result = build_metadata_index(
+        client,
+        index_field_config=index_field_config,
+        scope_config=scope_config,
+        storage_config=storage_config,
+        dry_run=dry_run,
+        storage_adapter=None if dry_run else adapter,
+    )
 
     annotations = None
-    if client is not None and not dry_run:
+    if client is not None:
         annotations = list_diagram_annotations(
             client,
             instance_spaces=instance_spaces,
@@ -117,7 +113,7 @@ def migrate_index(
         annotations=annotations,
         instance_spaces=instance_spaces,
         dry_run=dry_run,
-        storage_adapter=adapter,
+        storage_adapter=None if dry_run else adapter,
     )
 
     return {

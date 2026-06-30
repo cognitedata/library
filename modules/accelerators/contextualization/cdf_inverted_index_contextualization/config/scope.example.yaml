@@ -8,21 +8,21 @@ scope:
   strict_scope: true
   resolve_from:
     CogniteAsset:
-      site: [metadata.site, siteId]
-      unit: [metadata.unit, unitCode]
+      site: [sourceContext, source]
+      unit: [sourceId]
     CogniteFile:
-      site: [metadata.site]
-      unit: [metadata.unit]
+      site: [sourceContext]
+      unit: [sourceId]
     CogniteEquipment:
-      site: [metadata.site]
-      unit: [metadata.unit]
+      site: [sourceContext]
+      unit: [sourceId]
     CogniteTimeSeries:
-      site: [metadata.site]
-      unit: [metadata.unit]
+      site: [sourceContext]
+      unit: [sourceId]
     CogniteDiagramAnnotation:
-      site: [metadata.site]
-      unit: [metadata.unit]
+      site: [sourceContext]
+      unit: [sourceId]
   resolve_from_default:
-    site: [metadata.site]
-    unit: [metadata.unit]
+    site: [sourceContext]
+    unit: [sourceId]
   annotation_scope_via_linked_file: true

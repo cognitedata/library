@@ -3,6 +3,7 @@ import { yaml } from "@codemirror/lang-yaml";
 import { oneDark } from "@codemirror/theme-one-dark";
 import { useEffect, useState } from "react";
 import { useAppSettings } from "../../context/AppSettingsContext";
+import { SectionIntro } from "../shared/SectionIntro";
 
 type Props = {
   yamlText: string;
@@ -10,7 +11,7 @@ type Props = {
 };
 
 export function AdvancedYamlSection({ yamlText, onApply }: Props) {
-  const { t, theme } = useAppSettings();
+  const { t, resolvedTheme } = useAppSettings();
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(yamlText);
 
@@ -29,7 +30,7 @@ export function AdvancedYamlSection({ yamlText, onApply }: Props) {
   };
 
   return (
-    <section className="idx-config-advanced">
+    <section className="idx-config-advanced idx-config-advanced--expert">
       <button
         type="button"
         className="idx-config-advanced__toggle"
@@ -40,12 +41,12 @@ export function AdvancedYamlSection({ yamlText, onApply }: Props) {
       </button>
       {open ? (
         <div className="idx-config-advanced__body">
-          <p className="idx-pane__hint">{t("config.advanced.hint")}</p>
+          <SectionIntro variant="expert">{t("config.advanced.hint")}</SectionIntro>
           <div className="idx-config-editor idx-config-editor--advanced">
             <CodeMirror
               value={draft}
               height="min(50vh, 24rem)"
-              theme={theme === "dark" ? oneDark : "light"}
+              theme={resolvedTheme === "dark" ? oneDark : "light"}
               extensions={[yaml()]}
               onChange={(v) => setDraft(v)}
             />

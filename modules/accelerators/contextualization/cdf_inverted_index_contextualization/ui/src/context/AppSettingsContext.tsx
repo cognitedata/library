@@ -2,23 +2,32 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useLayoutEffect,
   useMemo,
   useState,
   type ReactNode,
 } from "react";
-import { createTranslator, translations, type Locale, type MessageKey, type Theme } from "../i18n";
+import {
+  createTranslator,
+  translations,
+  type Locale,
+  type MessageKey,
+  type ResolvedTheme,
+  type Theme,
+} from "../i18n";
 
 const THEME_KEY = "cdf-inverted-index-theme";
 const LOCALE_KEY = "cdf-inverted-index-locale";
 const TRANSLATION_OVERRIDES_KEY = "cdf-inverted-index-translation-overrides";
+const DEFAULT_THEME: Theme = "system";
 
 type TranslationOverrides = Partial<Record<Locale, Partial<Record<MessageKey, string>>>>;
 
 function readStoredTheme(): Theme | null {
   try {
     const v = localStorage.getItem(THEME_KEY);
-    if (v === "light" || v === "dark") return v;
+    if (v === "light" || v === "dark" || v === "system") return v;
   } catch {
     /* ignore */
   }
@@ -68,6 +77,7 @@ type TFn = (key: MessageKey, vars?: Record<string, string | number>) => string;
 
 type AppSettingsValue = {
   theme: Theme;
+  resolvedTheme: ResolvedTheme;
   setTheme: (t: Theme) => void;
   locale: Locale;
   setLocale: (l: Locale) => void;
@@ -79,9 +89,8 @@ type AppSettingsValue = {
 const AppSettingsContext = createContext<AppSettingsValue | null>(null);
 
 export function AppSettingsProvider({ children }: { children: ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>(
-    () => readStoredTheme() ?? (prefersDark() ? "dark" : "light")
-  );
+  const [theme, setThemeState] = useState<Theme>(() => readStoredTheme() ?? DEFAULT_THEME);
+  const [systemPrefersDark, setSystemPrefersDark] = useState(prefersDark);
   const [locale, setLocaleState] = useState<Locale>(() => readStoredLocale() ?? "en");
   const [translationOverrides, setTranslationOverrides] = useState<TranslationOverrides>(
     () => readTranslationOverrides()
@@ -138,8 +147,29 @@ export function AppSettingsProvider({ children }: { children: ReactNode }) {
   );
 
   useLayoutEffect(() => {
-    document.documentElement.dataset.theme = theme;
-  }, [theme]);
+    try {
+      if (localStorage.getItem(THEME_KEY) === null) {
+        localStorage.setItem(THEME_KEY, DEFAULT_THEME);
+      }
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    const onChange = (event: MediaQueryListEvent) => setSystemPrefersDark(event.matches);
+    setSystemPrefersDark(mq.matches);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+
+  const resolvedTheme: ResolvedTheme =
+    theme === "system" ? (systemPrefersDark ? "dark" : "light") : theme;
+
+  useLayoutEffect(() => {
+    document.documentElement.dataset.theme = resolvedTheme;
+  }, [resolvedTheme]);
 
   useLayoutEffect(() => {
     document.documentElement.lang =
@@ -164,6 +194,7 @@ export function AppSettingsProvider({ children }: { children: ReactNode }) {
   const value = useMemo(
     () => ({
       theme,
+      resolvedTheme,
       setTheme,
       locale,
       setLocale,
@@ -171,7 +202,7 @@ export function AppSettingsProvider({ children }: { children: ReactNode }) {
       getTranslationValue,
       setTranslationValue,
     }),
-    [theme, setTheme, locale, setLocale, t, getTranslationValue, setTranslationValue]
+    [theme, resolvedTheme, setTheme, locale, setLocale, t, getTranslationValue, setTranslationValue]
   );
 
   return <AppSettingsContext.Provider value={value}>{children}</AppSettingsContext.Provider>;

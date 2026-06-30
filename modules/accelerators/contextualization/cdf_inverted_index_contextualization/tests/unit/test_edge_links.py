@@ -2,12 +2,19 @@
 
 from unittest.mock import MagicMock
 
-from inverted_index.config import DIRECT_RELATION_CONFIG
+import pytest
+
+from inverted_index.config_loader import load_direct_relation_preset
 from inverted_index.edge_links import build_custom_edge_apply, upsert_diagram_annotation
 
 
-def test_build_custom_edge_apply_shape() -> None:
-    edge_view = DIRECT_RELATION_CONFIG["edge_views"]["file_asset_link"]
+@pytest.fixture
+def dr_cfg() -> dict:
+    return load_direct_relation_preset()
+
+
+def test_build_custom_edge_apply_shape(dr_cfg: dict) -> None:
+    edge_view = dr_cfg["edge_views"]["file_asset_link"]
     edge_apply = build_custom_edge_apply(
         edge_view_cfg=edge_view,
         start_space="cdf_cdm",
@@ -20,7 +27,7 @@ def test_build_custom_edge_apply_shape() -> None:
     assert edge_apply.end_node.external_id == "ASSET_1"
 
 
-def test_upsert_diagram_annotation_dry_run_create() -> None:
+def test_upsert_diagram_annotation_dry_run_create(dr_cfg: dict) -> None:
     hit = {
         "source_type": "diagram_annotation_pattern",
         "reference_type": "CogniteFile",
@@ -36,7 +43,7 @@ def test_upsert_diagram_annotation_dry_run_create() -> None:
             "detection_key": "page3:bbox_abc:p101a",
         },
     }
-    ann_cfg = DIRECT_RELATION_CONFIG["links"]["file_to_asset"]["diagram_annotation"]
+    ann_cfg = dr_cfg["links"]["file_to_asset"]["diagram_annotation"]
     outcome = upsert_diagram_annotation(
         None,
         hit,
@@ -45,13 +52,13 @@ def test_upsert_diagram_annotation_dry_run_create() -> None:
         end_space="cdf_cdm",
         end_external_id="ASSET_P101",
         diagram_annotation_cfg=ann_cfg,
-        dr_cfg=DIRECT_RELATION_CONFIG,
+        dr_cfg=dr_cfg,
         dry_run=True,
     )
     assert outcome == "created"
 
 
-def test_upsert_diagram_annotation_updates_existing_end_node() -> None:
+def test_upsert_diagram_annotation_updates_existing_end_node(dr_cfg: dict) -> None:
     client = MagicMock()
     existing = MagicMock()
     existing.end_node = MagicMock(space="cdf_cdm", external_id="OLD_ASSET")
@@ -71,7 +78,7 @@ def test_upsert_diagram_annotation_updates_existing_end_node() -> None:
             "status": "Suggested",
         },
     }
-    ann_cfg = DIRECT_RELATION_CONFIG["links"]["file_to_asset"]["diagram_annotation"]
+    ann_cfg = dr_cfg["links"]["file_to_asset"]["diagram_annotation"]
     outcome = upsert_diagram_annotation(
         client,
         hit,
@@ -80,7 +87,7 @@ def test_upsert_diagram_annotation_updates_existing_end_node() -> None:
         end_space="cdf_cdm",
         end_external_id="ASSET_P101",
         diagram_annotation_cfg=ann_cfg,
-        dr_cfg=DIRECT_RELATION_CONFIG,
+        dr_cfg=dr_cfg,
         dry_run=False,
     )
     assert outcome == "updated"

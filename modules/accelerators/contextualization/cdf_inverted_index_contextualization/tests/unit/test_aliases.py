@@ -5,12 +5,25 @@ from inverted_index.aliases import (
     is_self_reference_hit,
     normalized_instance_aliases,
     read_instance_aliases,
+    read_instance_query_terms,
 )
 
 
 def test_read_instance_aliases_from_properties() -> None:
     instance = {"properties": {"aliases": ["P-101A", "P-102B"]}}
     assert read_instance_aliases(instance) == ["P-101A", "P-102B"]
+
+
+def test_read_instance_query_terms_scalar_name() -> None:
+    instance = {"properties": {"name": "P-101A"}}
+    assert read_instance_query_terms(instance, "name") == ["P-101A"]
+
+
+def test_read_instance_query_terms_with_fallback() -> None:
+    instance = {"properties": {"name": "", "tags": ["TAG-1"]}}
+    assert read_instance_query_terms(instance, "aliases", fallbacks=("tags",)) == [
+        "TAG-1"
+    ]
 
 
 def test_normalized_instance_aliases_case_insensitive() -> None:

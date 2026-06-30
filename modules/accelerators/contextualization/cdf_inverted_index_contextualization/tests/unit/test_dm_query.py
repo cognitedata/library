@@ -24,8 +24,8 @@ from inverted_index.dm_query import (
 
 
 def test_top_level_property_names_dedupes_dot_paths() -> None:
-    names = top_level_property_names(["name", "metadata.site", "metadata.unit", "name"])
-    assert names == ["name", "metadata"]
+    names = top_level_property_names(["name", "sourceContext.site", "sourceContext.unit", "name"])
+    assert names == ["name", "sourceContext"]
 
 
 def test_collect_view_property_paths_merges_scope() -> None:
@@ -38,13 +38,15 @@ def test_collect_view_property_paths_merges_scope() -> None:
             }
         ],
         scope_config={
-            "resolve_from": {"CogniteFile": {"site": ["metadata.site"]}},
-            "resolve_from_default": {"unit": ["metadata.unit"]},
+            "resolve_from": {"CogniteFile": {"site": ["sourceContext"]}},
+            "resolve_from_default": {"unit": ["sourceId"]},
         },
     )
     assert "description" in paths
-    assert "metadata.site" in paths
-    assert "metadata.unit" in paths
+    assert "sourceContext" in paths
+    assert "sourceId" in paths
+    assert "aliases" in paths
+    assert "tags" in paths
 
 
 def test_collect_view_property_paths_regex_candidate() -> None:

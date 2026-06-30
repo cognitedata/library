@@ -65,57 +65,65 @@ export function DocumentTabBar({ tabs, activeId, onSelect, onClose, onReorder }:
     [clearDrag, dragIndex, onReorder, visibleTabs]
   );
 
+  if (tabs.length === 0) return null;
+
   return (
-    <div className="idx-tabbar">
-      <div className="idx-tabbar__filter">
+    <div className={`idx-tab-bar-wrap${dragIndex != null ? " idx-tab-bar-wrap--dragging" : ""}`}>
+      <label className="idx-tab-filter">
         <input
           type="search"
+          className="idx-input idx-tab-filter__input"
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
           placeholder={t("tabs.filterPlaceholder")}
           aria-label={t("tabs.filterLabel")}
         />
-      </div>
-      <div className="idx-tablist" role="tablist" aria-label={t("tabs.tablist")}>
-        {visibleTabs.length === 0 ? (
-          <span className="idx-tabpanel-empty">{t("tabs.filterNoResults")}</span>
-        ) : (
-          visibleTabs.map(({ tab }, visibleIndex) => (
-            <div
-              key={tab.id}
-              className="idx-tab"
-              data-active={tab.id === activeId}
-              role="presentation"
-              draggable
-              onDragStart={(e) => handleDragStart(e, visibleIndex)}
-              onDragOver={(e) => {
-                e.preventDefault();
-                setOverIndex(visibleIndex);
-              }}
-              onDrop={(e) => handleDrop(e, visibleIndex)}
-              onDragEnd={clearDrag}
-              style={overIndex === visibleIndex && dragIndex !== visibleIndex ? { opacity: 0.7 } : undefined}
+      </label>
+      <div
+        className={`idx-tab-bar${dragIndex != null ? " idx-tab-bar--dragging" : ""}`}
+        role="tablist"
+        aria-label={t("tabs.tablist")}
+      >
+        {visibleTabs.map(({ tab }, visibleIndex) => (
+          <div
+            key={tab.id}
+            className={`idx-tab${tab.id === activeId ? " idx-tab--active" : ""}${
+              dragIndex === visibleIndex ? " idx-tab--dragging" : ""
+            }${overIndex === visibleIndex && dragIndex !== visibleIndex ? " idx-tab--drag-over" : ""}`}
+            role="presentation"
+            draggable
+            onDragStart={(e) => handleDragStart(e, visibleIndex)}
+            onDragOver={(e) => {
+              e.preventDefault();
+              setOverIndex(visibleIndex);
+            }}
+            onDrop={(e) => handleDrop(e, visibleIndex)}
+            onDragEnd={clearDrag}
+          >
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tab.id === activeId}
+              onClick={() => onSelect(tab.id)}
             >
-              <button
-                type="button"
-                role="tab"
-                aria-selected={tab.id === activeId}
-                onClick={() => onSelect(tab.id)}
-              >
-                {tab.label}
-              </button>
-              <button
-                type="button"
-                className="idx-tab-close"
-                aria-label={t("tabs.closeNamed", { name: tab.label })}
-                onClick={() => onClose(tab.id)}
-              >
-                ×
-              </button>
-            </div>
-          ))
-        )}
+              {tab.label}
+            </button>
+            <button
+              type="button"
+              className="idx-tab-close"
+              aria-label={t("tabs.closeNamed", { name: tab.label })}
+              onClick={() => onClose(tab.id)}
+            >
+              ×
+            </button>
+          </div>
+        ))}
       </div>
+      {visibleTabs.length === 0 ? (
+        <div className="idx-tab-filter-empty" role="status" aria-live="polite">
+          {t("tabs.filterNoResults")}
+        </div>
+      ) : null}
     </div>
   );
 }

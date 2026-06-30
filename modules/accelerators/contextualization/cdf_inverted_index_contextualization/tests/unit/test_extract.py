@@ -3,7 +3,7 @@
 from inverted_index.extract import dedupe_extracted_terms, extract_terms_from_property
 
 
-def test_whole_value_extraction() -> None:
+def test_passthrough_extraction() -> None:
     cfg = {"path": "tag", "source_type": "asset_metadata"}
     result = extract_terms_from_property("P-101A", cfg)
     assert len(result) == 1

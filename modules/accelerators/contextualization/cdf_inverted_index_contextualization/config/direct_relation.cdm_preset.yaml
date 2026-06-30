@@ -1,0 +1,302 @@
+# CDM direct-relation preset — merged into runtime via default.config.yaml
+enabled: true
+min_confidence: 0.6
+require_annotation_status: null
+allowed_annotation_statuses:
+  - Suggested
+  - Approved
+max_list_size: 1000
+file_reference_types:
+  - CogniteFile
+source_types:
+  - diagram_annotation_pattern
+  - diagram_annotation_standard
+  - asset_metadata
+  - file_metadata
+views:
+  file:
+    space: cdf_cdm
+    external_id: CogniteFile
+    version: v1
+  asset:
+    space: cdf_cdm
+    external_id: CogniteAsset
+    version: v1
+  equipment:
+    space: cdf_cdm
+    external_id: CogniteEquipment
+    version: v1
+  timeseries:
+    space: cdf_cdm
+    external_id: CogniteTimeSeries
+    version: v1
+  diagram_annotation:
+    space: cdf_cdm
+    external_id: CogniteDiagramAnnotation
+    version: v1
+edge_views:
+  file_asset_link:
+    space: cdf_cdm
+    external_id: FileAssetLink
+    version: v1
+  equipment_asset_link:
+    space: cdf_cdm
+    external_id: EquipmentAssetLink
+    version: v1
+links:
+  file_to_asset:
+    enabled: true
+    write_modes:
+      - direct_relation
+    forward_view: file
+    property: assets
+    target_view: asset
+    cardinality: list
+    incoming_views:
+      - asset
+      - file
+    source_types:
+      - diagram_annotation_pattern
+      - diagram_annotation_standard
+      - asset_metadata
+      - file_metadata
+    resolve_by_incoming_view:
+      asset:
+        forward:
+          rules:
+            - when_reference_types: [CogniteFile]
+              space: additional_metadata.instance_space
+              external_id: reference_external_id
+            - when_reference_types: [CogniteFile]
+              space: reference_space
+              external_id: reference_external_id
+            - when_reference_types: [CogniteDiagramAnnotation]
+              space: additional_metadata.file_space
+              external_id: additional_metadata.file_external_id
+              fallback:
+                space: additional_metadata.file_space
+                external_id: additional_metadata.linked_file_extid
+        target:
+          source: incoming_instance
+      file:
+        forward:
+          source: incoming_instance
+        target:
+          rules:
+            - when_reference_types: [CogniteAsset]
+              space: additional_metadata.instance_space
+              external_id: reference_external_id
+            - when_reference_types: [CogniteAsset]
+              space: reference_space
+              external_id: reference_external_id
+    diagram_annotation:
+      when_source_types:
+        - diagram_annotation_pattern
+        - diagram_annotation_standard
+      annotation_id_path: additional_metadata.annotation_external_id
+      file_from_reference: true
+      annotation_space_from: reference_space
+      create_status: Suggested
+      update_end_node_only: true
+      property_map:
+        startNodeText: term
+        confidence: additional_metadata.confidence
+        status: additional_metadata.status
+        startNodePageNumber: additional_metadata.page
+      required_for_create:
+        - reference_external_id
+        - term
+        - additional_metadata.page
+  equipment_to_asset:
+    enabled: true
+    write_modes:
+      - direct_relation
+    forward_view: equipment
+    property: asset
+    target_view: asset
+    cardinality: single
+    overwrite_existing: false
+    incoming_views:
+      - asset
+      - equipment
+    source_types:
+      - asset_metadata
+      - diagram_annotation_pattern
+    resolve_by_incoming_view:
+      asset:
+        forward:
+          rules:
+            - when_reference_types: [CogniteEquipment]
+              space: additional_metadata.instance_space
+              external_id: reference_external_id
+            - when_reference_types: [CogniteEquipment]
+              space: reference_space
+              external_id: reference_external_id
+            - when_reference_types: [CogniteDiagramAnnotation]
+              space: additional_metadata.equipment_space
+              external_id: additional_metadata.linked_equipment_extid
+              fallback:
+                space: reference_space
+                external_id: additional_metadata.linked_equipment_extid
+        target:
+          source: incoming_instance
+      equipment:
+        forward:
+          source: incoming_instance
+        target:
+          rules:
+            - when_reference_types: [CogniteAsset]
+              space: additional_metadata.instance_space
+              external_id: reference_external_id
+            - when_reference_types: [CogniteAsset]
+              space: reference_space
+              external_id: reference_external_id
+  equipment_to_file:
+    enabled: true
+    write_modes:
+      - direct_relation
+    forward_view: equipment
+    property: files
+    target_view: file
+    cardinality: list
+    incoming_views:
+      - asset
+      - equipment
+      - file
+    source_types:
+      - asset_metadata
+      - file_metadata
+    resolve_by_incoming_view:
+      asset:
+        forward:
+          rules:
+            - when_reference_types: [CogniteEquipment]
+              space: additional_metadata.instance_space
+              external_id: reference_external_id
+            - when_reference_types: [CogniteEquipment]
+              space: reference_space
+              external_id: reference_external_id
+            - when_reference_types: [CogniteDiagramAnnotation]
+              space: additional_metadata.equipment_space
+              external_id: additional_metadata.linked_equipment_extid
+              fallback:
+                space: reference_space
+                external_id: additional_metadata.linked_equipment_extid
+        target:
+          rules:
+            - when_reference_types: [CogniteFile]
+              space: additional_metadata.instance_space
+              external_id: reference_external_id
+            - when_reference_types: [CogniteFile]
+              space: reference_space
+              external_id: reference_external_id
+            - when_reference_types: [CogniteDiagramAnnotation]
+              space: additional_metadata.file_space
+              external_id: additional_metadata.file_external_id
+              fallback:
+                space: additional_metadata.file_space
+                external_id: additional_metadata.linked_file_extid
+      equipment:
+        forward:
+          source: incoming_instance
+        target:
+          rules:
+            - when_reference_types: [CogniteFile]
+              space: additional_metadata.instance_space
+              external_id: reference_external_id
+            - when_reference_types: [CogniteFile]
+              space: reference_space
+              external_id: reference_external_id
+            - when_reference_types: [CogniteDiagramAnnotation]
+              space: additional_metadata.file_space
+              external_id: additional_metadata.file_external_id
+              fallback:
+                space: additional_metadata.file_space
+                external_id: additional_metadata.linked_file_extid
+      file:
+        forward:
+          rules:
+            - when_reference_types: [CogniteEquipment]
+              space: additional_metadata.instance_space
+              external_id: reference_external_id
+            - when_reference_types: [CogniteEquipment]
+              space: reference_space
+              external_id: reference_external_id
+            - when_reference_types: [CogniteDiagramAnnotation]
+              space: additional_metadata.equipment_space
+              external_id: additional_metadata.linked_equipment_extid
+              fallback:
+                space: reference_space
+                external_id: additional_metadata.linked_equipment_extid
+        target:
+          source: incoming_instance
+  timeseries_to_asset:
+    enabled: true
+    write_modes:
+      - direct_relation
+    forward_view: timeseries
+    property: assets
+    target_view: asset
+    cardinality: list
+    incoming_views:
+      - asset
+      - timeseries
+    source_types:
+      - asset_metadata
+    resolve_by_incoming_view:
+      asset:
+        forward:
+          rules:
+            - when_reference_types: [CogniteTimeSeries]
+              space: additional_metadata.instance_space
+              external_id: reference_external_id
+            - when_reference_types: [CogniteTimeSeries]
+              space: reference_space
+              external_id: reference_external_id
+        target:
+          source: incoming_instance
+      timeseries:
+        forward:
+          source: incoming_instance
+        target:
+          rules:
+            - when_reference_types: [CogniteAsset]
+              space: additional_metadata.instance_space
+              external_id: reference_external_id
+            - when_reference_types: [CogniteAsset]
+              space: reference_space
+              external_id: reference_external_id
+  timeseries_to_equipment:
+    enabled: true
+    write_modes:
+      - direct_relation
+    forward_view: timeseries
+    property: equipment
+    target_view: equipment
+    cardinality: single
+    overwrite_existing: false
+    incoming_views:
+      - equipment
+      - timeseries
+    source_types:
+      - asset_metadata
+    resolve_by_incoming_view:
+      equipment:
+        forward:
+          rules:
+            - when_reference_types: [CogniteTimeSeries]
+              space: additional_metadata.instance_space
+              external_id: reference_external_id
+            - when_reference_types: [CogniteTimeSeries]
+              space: reference_space
+              external_id: reference_external_id
+        target:
+          source: incoming_instance
+      timeseries:
+        forward:
+          source: incoming_instance
+        target:
+          rules:
+            - when_reference_types: [CogniteEquipment]
+              space: reference_space
+              external_id: reference_external_id

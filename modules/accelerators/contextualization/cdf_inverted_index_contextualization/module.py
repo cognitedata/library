@@ -7,6 +7,8 @@ Requires CDF credentials in .env (repo root or module directory).
   python module.py build-metadata [--dry-run]
   python module.py build-annotations [--file FILE_EXT_ID] [--dry-run]
   python module.py migrate [--dry-run] [--skip-purge] [--scope-key global]
+  python module.py partition-health
+  python module.py reshard-scope --scope-key 'site:Rotterdam|unit:U100'
   python module.py query --terms P-101A --scope-key 'site:Rotterdam|unit:U100'
   python module.py query --terms P-101A --scope-key 'site:A|unit:1' --scope-key 'site:A|unit:2'
   python module.py query --terms P-101A --all-scopes
@@ -68,8 +70,8 @@ def _run_ui(argv: List[str]) -> int:
         description="Host the inverted index operator UI (FastAPI + Vite).",
     )
     p.add_argument("--api-host", default="127.0.0.1", help="Bind address for FastAPI")
-    p.add_argument("--api-port", type=int, default=8786, help="Port for FastAPI (default 8786)")
-    p.add_argument("--vite-port", type=int, default=5194, help="Port for Vite dev server (default 5194)")
+    p.add_argument("--api-port", type=int, default=8787, help="Port for FastAPI (default 8787)")
+    p.add_argument("--vite-port", type=int, default=5195, help="Port for Vite dev server (default 5195)")
     p.add_argument("--no-browser", action="store_true", help="Do not open a browser tab")
     p.add_argument("--no-reload", action="store_true", help="Disable uvicorn --reload")
     args = p.parse_args(argv)
@@ -223,6 +225,22 @@ def cmd_tag_reuse_audit(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_virtual_tags(args: argparse.Namespace) -> int:
+    from local_runner.commands import cmd_virtual_tags, parse_scope_key_args, print_json
+
+    print_json(
+        cmd_virtual_tags(
+            all_scopes=args.all_scopes,
+            match_scope_keys=parse_scope_key_args(args.scope_key),
+            dry_run=args.dry_run,
+            limit=args.limit,
+            term_selection_mode=args.term_selection_mode,
+            progress_interval=args.progress_interval,
+        )
+    )
+    return 0
+
+
 def cmd_migrate(args: argparse.Namespace) -> int:
     from local_runner.commands import cmd_migrate, parse_scope_key_args, print_json
 
@@ -233,6 +251,20 @@ def cmd_migrate(args: argparse.Namespace) -> int:
             match_scope_keys=parse_scope_key_args(args.scope_key),
         )
     )
+    return 0
+
+
+def cmd_partition_health(args: argparse.Namespace) -> int:
+    from local_runner.commands import cmd_partition_health, print_json
+
+    print_json(cmd_partition_health())
+    return 0
+
+
+def cmd_reshard_scope(args: argparse.Namespace) -> int:
+    from local_runner.commands import cmd_reshard_scope, print_json
+
+    print_json(cmd_reshard_scope(args.scope_key, dry_run=args.dry_run))
     return 0
 
 
@@ -247,7 +279,8 @@ def cmd_target_driven(args: argparse.Namespace) -> int:
     print_json(
         cmd_target_driven(
             instance_external_ids=parse_instance_id_args(None, args.instance_id) or None,
-            instance_type=args.type,
+            incoming_view_key=args.view_key,
+            view_external_id=args.view_external_id,
             instance_space=args.space,
             dry_run=args.dry_run,
             min_confidence=args.min_confidence,
@@ -255,6 +288,8 @@ def cmd_target_driven(args: argparse.Namespace) -> int:
             scope_lookup_override=args.scope_override,
             max_assets=args.max_assets,
             progress_interval=args.progress_interval,
+            query_property=args.query_property,
+            force=args.force,
         )
     )
     return 0
@@ -306,6 +341,44 @@ def cmd_deltas(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_index_detections(args: argparse.Namespace) -> int:
+    import json
+    from pathlib import Path
+
+    from local_runner.commands import cmd_index_detections, print_json
+
+    detections = json.loads(Path(args.detections_file).read_text(encoding="utf-8"))
+    if not isinstance(detections, list):
+        raise SystemExit("detections file must contain a JSON array")
+    print_json(
+        cmd_index_detections(
+            detections=detections,
+            detection_mode=args.mode,
+            write_mode=args.write_mode,
+            file_external_id=args.file_id,
+            file_space=args.space,
+            dry_run=args.dry_run,
+        )
+    )
+    return 0
+
+
+def cmd_index_metadata_instance(args: argparse.Namespace) -> int:
+    from local_runner.commands import cmd_index_metadata_instance, print_json
+
+    print_json(
+        cmd_index_metadata_instance(
+            args.instance_id,
+            view_external_id=args.view,
+            incoming_view_key=args.view_key,
+            instance_space=args.space,
+            write_mode=args.write_mode,
+            dry_run=args.dry_run,
+        )
+    )
+    return 0
+
+
 def cmd_whoami(_args: argparse.Namespace) -> int:
     from local_runner.commands import print_auth_banner
 
@@ -345,6 +418,8 @@ def cmd_invoke_fn(args: argparse.Namespace) -> int:
         "fn_idx_handle_subscription": "fn_idx_handle_subscription.handler",
         "fn_idx_score": "fn_idx_score.handler",
         "fn_idx_deltas": "fn_idx_deltas.handler",
+        "fn_idx_upsert_detections": "fn_idx_upsert_detections.handler",
+        "fn_idx_index_metadata_instance": "fn_idx_index_metadata_instance.handler",
     }
     module_path = mapping.get(fn_id)
     if not module_path:
@@ -357,7 +432,7 @@ def cmd_invoke_fn(args: argparse.Namespace) -> int:
     mod = importlib.import_module(module_path)
     from local_runner.client import create_cognite_client
 
-    client = None if payload.get("dry_run") else create_cognite_client()
+    client = create_cognite_client()
     result = mod.handle(payload, client)
     print(json.dumps(result, indent=2, default=str))
     return 0
@@ -408,6 +483,24 @@ def main() -> int:
     )
     mg.add_argument("--dry-run", action="store_true")
     mg.set_defaults(func=cmd_migrate)
+
+    ph = sub.add_parser(
+        "partition-health",
+        help="Report RAW partition row counts and reshard recommendations",
+    )
+    ph.set_defaults(func=cmd_partition_health)
+
+    rs = sub.add_parser(
+        "reshard-scope",
+        help="Migrate a unified scope partition into term-bucket tables",
+    )
+    rs.add_argument(
+        "--scope-key",
+        required=True,
+        help="match_scope_key to reshard (must have term_partition.enabled)",
+    )
+    rs.add_argument("--dry-run", action="store_true")
+    rs.set_defaults(func=cmd_reshard_scope)
 
     q = sub.add_parser("query", help="Query RAW index by terms + scope(s)")
     q.add_argument("--terms", required=True, help="Comma-separated alias/terms")
@@ -467,6 +560,43 @@ def main() -> int:
     )
     tra.set_defaults(func=cmd_tag_reuse_audit)
 
+    vt = sub.add_parser(
+        "virtual-tags",
+        help="Create virtual CogniteAsset tags from scoped index terms (UC4)",
+    )
+    vt_scope_group = vt.add_mutually_exclusive_group(required=True)
+    vt_scope_group.add_argument(
+        "--scope-key",
+        action="append",
+        default=None,
+        help="match_scope_key (repeatable; comma-separated values allowed)",
+    )
+    vt_scope_group.add_argument(
+        "--all-scopes",
+        action="store_true",
+        help="Process every scope in the partition registry",
+    )
+    vt.add_argument("--dry-run", action="store_true")
+    vt.add_argument(
+        "--limit",
+        type=int,
+        default=0,
+        help="Max eligible terms to process (0 = no cap)",
+    )
+    vt.add_argument(
+        "--term-selection-mode",
+        choices=["all", "missing_tags_only"],
+        default=None,
+        help="Override virtual_tag_creation.term_selection_mode from config",
+    )
+    vt.add_argument(
+        "--progress-interval",
+        type=int,
+        default=1000,
+        help="Emit stderr progress every N scanned terms (0 to disable)",
+    )
+    vt.set_defaults(func=cmd_virtual_tags)
+
     td = sub.add_parser(
         "target-driven",
         help="Run target-driven contextualization (all assets, or selected with --instance-id)",
@@ -478,7 +608,16 @@ def main() -> int:
         metavar="ID",
         help="Asset/file/equipment/timeseries external id; repeatable, comma-separated allowed",
     )
-    td.add_argument("--type", choices=["asset", "file", "equipment", "timeseries"], default="asset")
+    td.add_argument(
+        "--view-key",
+        default=None,
+        help="Incoming view key from direct_relation_config.views (e.g. asset, file)",
+    )
+    td.add_argument(
+        "--view-external-id",
+        default=None,
+        help="DM view external id when --view-key is omitted",
+    )
     td.add_argument("--space", default="cdf_cdm")
     td.add_argument("--min-confidence", type=float, default=0.6)
     td.add_argument("--dry-run", action="store_true")
@@ -505,6 +644,21 @@ def main() -> int:
         default=100,
         help="Batch only: emit stderr progress every N assets (0 to disable)",
     )
+    td.add_argument(
+        "--query-property",
+        default=None,
+        help="Instance property path for index query terms (default from config, usually aliases)",
+    )
+    td.add_argument(
+        "--force",
+        action="store_true",
+        help="Bypass target-driven dedupe cooldown",
+    )
+    td.add_argument(
+        "--backfill",
+        action="store_true",
+        help="Explicit fleet backfill (default when --instance-id is omitted)",
+    )
     td.set_defaults(func=cmd_target_driven)
 
     sc = sub.add_parser("score", help="Contextualization score for a file")
@@ -526,6 +680,50 @@ def main() -> int:
     dl.add_argument("--scope-key", default=None)
     dl.add_argument("--space", default="cdf_cdm")
     dl.set_defaults(func=cmd_deltas)
+
+    idet = sub.add_parser(
+        "index-detections",
+        help="Incremental diagram detection index write (external detection results)",
+    )
+    idet.add_argument(
+        "--mode",
+        choices=["standard", "pattern"],
+        default="pattern",
+        help="Default detection_mode when not set per detection row",
+    )
+    idet.add_argument("--detections-file", required=True, help="JSON array of detection dicts")
+    idet.add_argument(
+        "--write-mode",
+        choices=["upsert", "replace"],
+        default="replace",
+        help="replace removes existing file+mode postings before write",
+    )
+    idet.add_argument("--file-id", default=None, help="Parent file external id (required for replace)")
+    idet.add_argument("--space", default="cdf_cdm", help="File instance space")
+    idet.add_argument("--dry-run", action="store_true")
+    idet.set_defaults(func=cmd_index_detections)
+
+    imi = sub.add_parser(
+        "index-metadata-instance",
+        help="Incremental metadata index write for one DM instance",
+    )
+    imi.add_argument("--instance-id", required=True, help="Target instance external id")
+    view_group = imi.add_mutually_exclusive_group(required=True)
+    view_group.add_argument("--view", help="DM view external id (e.g. CogniteEquipment)")
+    view_group.add_argument(
+        "--view-key",
+        dest="view_key",
+        help="View key from direct_relation_config.views (e.g. equipment)",
+    )
+    imi.add_argument("--space", default="cdf_cdm", help="Instance space")
+    imi.add_argument(
+        "--write-mode",
+        choices=["upsert", "replace"],
+        default="replace",
+        help="replace removes existing instance metadata postings before write",
+    )
+    imi.add_argument("--dry-run", action="store_true")
+    imi.set_defaults(func=cmd_index_metadata_instance)
 
     sub.add_parser("whoami", help="Verify .env CDF connection").set_defaults(func=cmd_whoami)
 

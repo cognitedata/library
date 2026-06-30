@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-import re
+import regex as re
 
-# Letters (any script) and digit runs — simplified ASCII variant for prototype.
-_TOKEN_PATTERN = re.compile(r"[A-Za-z]+|\d+")
+# Letters (any script) and digit runs — aligned with CDF entity matching.
+_TOKEN_PATTERN = re.compile(r"\p{L}+|\d+")
 
 
 def normalize_query_terms(terms: list[str]) -> list[str]:
@@ -27,14 +27,14 @@ def normalize_term(value: str) -> str:
     """
     Canonical term form for index keys and lookups.
 
-    Rules (prototype):
-    - Lowercase letter tokens; concatenate with digit tokens in order.
-    - Strip leading/trailing whitespace on input.
+    Rules:
+    - Tokenize with Unicode letters (\\p{L}) and digit runs.
+    - casefold letter tokens; concatenate in order.
     - Empty input → empty string.
 
-    Example: ``P-101A`` → ``p101a``; ``21-PT-1017`` → ``21pt1017``.
+    Example: ``P-101A`` → ``p101a``; ``ポンプ-101`` → ``ポンプ101``.
     """
     if not value or not str(value).strip():
         return ""
-    tokens = _TOKEN_PATTERN.findall(str(value).strip().lower())
+    tokens = _TOKEN_PATTERN.findall(str(value).strip().casefold())
     return "".join(tokens)

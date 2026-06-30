@@ -39,10 +39,17 @@ def get_config() -> dict:
             "raw_database": runtime["storage_config"].get("raw", {}).get("database"),
             "scope_enabled": bool(runtime["scope_config"].get("enabled")),
             "scope_fallback": runtime["scope_config"].get("fallback_scope_key"),
+            "term_partition_enabled": bool(
+                (runtime.get("term_partition_config") or {}).get("enabled")
+            ),
+            "term_partition_threshold": (runtime.get("term_partition_config") or {}).get(
+                "activate_above_rows"
+            ),
             "subscription_enabled": bool(runtime["subscription_config"].get("enabled")),
             "watch_property": runtime["subscription_config"].get("watch_property"),
             "index_field_count": len(runtime.get("index_field_config") or []),
             "instance_spaces": runtime.get("instance_spaces"),
+            "direct_relation_config": runtime.get("direct_relation_config"),
         },
     }
 

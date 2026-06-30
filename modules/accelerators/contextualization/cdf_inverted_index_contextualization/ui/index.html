@@ -5,6 +5,20 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Inverted Index Contextualization</title>
     <link rel="stylesheet" href="/brand/cognite-logo.css" />
+    <script>
+      (function () {
+        try {
+          var stored = localStorage.getItem("cdf-inverted-index-theme");
+          var resolved =
+            stored === "light" || stored === "dark"
+              ? stored
+              : window.matchMedia("(prefers-color-scheme: dark)").matches
+                ? "dark"
+                : "light";
+          document.documentElement.dataset.theme = resolved;
+        } catch (e) {}
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

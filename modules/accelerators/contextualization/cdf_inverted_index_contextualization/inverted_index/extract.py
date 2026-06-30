@@ -87,7 +87,7 @@ def extract_terms_from_property(
     if value is None:
         return []
 
-    extract_mode = property_config.get("extract_mode", "whole_value")
+    extract_mode = property_config.get("extract_mode", "passthrough")
     path = property_config.get("path", "")
     source_type = property_config.get("source_type", "asset_metadata")
     base_meta = {"source_property": path, "source_type": source_type}
@@ -107,7 +107,7 @@ def extract_terms_from_property(
     if extract_mode == "regex":
         pattern = property_config.get("extract_pattern")
         if not pattern or not str(pattern).strip():
-            extract_mode = "whole_value"
+            extract_mode = "passthrough"
         else:
             pattern = str(pattern)
             text = str(value)
@@ -133,7 +133,7 @@ def extract_terms_from_property(
     if not text:
         return []
     return _exclude_alias_terms(
-        [(text, {**base_meta, "extract_mode": "whole_value", "original_value": text})],
+        [(text, {**base_meta, "extract_mode": "passthrough", "original_value": text})],
         exclude_normalized_aliases,
     )
 

@@ -18,8 +18,8 @@ app.include_router(workspace_router)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "http://127.0.0.1:5194",
-        "http://localhost:5194",
+        "http://127.0.0.1:5195",
+        "http://localhost:5195",
     ],
     allow_credentials=True,
     allow_methods=["*"],

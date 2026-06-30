@@ -9,6 +9,8 @@ type Props = {
   selectedNodeId: string | null;
   onSelectNode: (id: string) => void;
   onOpenNode: (node: IndexNavNode) => void;
+  collapsed?: boolean;
+  onToggleCollapse?: () => void;
 };
 
 type SearchHit = {
@@ -82,7 +84,13 @@ function NavItemIcon({ node }: { node: IndexNavNode }) {
   );
 }
 
-export function IndexNavTree({ selectedNodeId, onSelectNode, onOpenNode }: Props) {
+export function IndexNavTree({
+  selectedNodeId,
+  onSelectNode,
+  onOpenNode,
+  collapsed = false,
+  onToggleCollapse,
+}: Props) {
   const { t } = useAppSettings();
   const [filter, setFilter] = useState("");
   const [stack, setStack] = useState<IndexNavNode[]>([]);
@@ -153,10 +161,24 @@ export function IndexNavTree({ selectedNodeId, onSelectNode, onOpenNode }: Props
     : t("nav.title");
 
   const visibleNodes = isSearching ? [] : currentNodes;
+  const collapsedNavNodes = tree[0]?.children ?? tree;
+
+  const handleCollapsedActivate = useCallback(
+    (node: IndexNavNode) => {
+      onSelectNode(node.id);
+      if (node.children?.length) {
+        setStack([node]);
+        onToggleCollapse?.();
+        return;
+      }
+      if (node.kind) onOpenNode(node);
+    },
+    [onOpenNode, onSelectNode, onToggleCollapse]
+  );
 
   const renderRow = (
     node: IndexNavNode,
-    options: { secondaryText?: string; onActivate: () => void }
+    options: { secondaryText?: string; onActivate: () => void; iconOnly?: boolean }
   ) => {
     const labelKey = node.labelKey as MessageKey;
     const label = t(labelKey);
@@ -164,6 +186,27 @@ export function IndexNavTree({ selectedNodeId, onSelectNode, onOpenNode }: Props
     const isSelected = selectedNodeId === node.id;
     const secondaryText =
       options.secondaryText ?? navNodeDescription(labelKey, hasChildren, t);
+
+    if (options.iconOnly) {
+      return (
+        <li key={node.id} className="idx-nav-item">
+          <button
+            type="button"
+            className={`idx-nav-row idx-nav-row--icon-only${isSelected ? " idx-nav-row--selected" : ""}${
+              hasChildren ? " idx-nav-row--folder" : ""
+            }`}
+            data-selected={isSelected}
+            aria-label={
+              hasChildren ? t("nav.drillInto", { name: label }) : t("nav.openNamed", { name: label })
+            }
+            title={label}
+            onClick={options.onActivate}
+          >
+            <NavItemIcon node={node} />
+          </button>
+        </li>
+      );
+    }
 
     return (
       <li key={node.id} className="idx-nav-item">
@@ -194,9 +237,24 @@ export function IndexNavTree({ selectedNodeId, onSelectNode, onOpenNode }: Props
   };
 
   return (
-    <nav className="idx-nav-pane idx-drill-nav" aria-label={t("a11y.navTreeLabel")}>
+    <nav
+      className={`idx-nav-pane idx-drill-nav${collapsed ? " idx-nav-pane--collapsed" : ""}`}
+      aria-label={t("a11y.navTreeLabel")}
+    >
       <div className="idx-nav-pane__header">
-        {stack.length > 0 ? (
+        {onToggleCollapse ? (
+          <button
+            type="button"
+            className="idx-btn idx-btn--sm idx-btn--ghost"
+            onClick={onToggleCollapse}
+            aria-expanded={!collapsed}
+            aria-label={collapsed ? t("nav.toggleTreeExpand") : t("nav.toggleTree")}
+            title={collapsed ? t("nav.toggleTreeExpand") : t("nav.toggleTree")}
+          >
+            {collapsed ? "▸" : "◂"}
+          </button>
+        ) : null}
+        {!collapsed && stack.length > 0 ? (
           <button
             type="button"
             className="idx-nav-pane__back"
@@ -211,15 +269,16 @@ export function IndexNavTree({ selectedNodeId, onSelectNode, onOpenNode }: Props
         ) : null}
       </div>
 
-      {!isSearching && stack.length > 0 ? (
+      {!collapsed && !isSearching && stack.length > 0 ? (
         <div className="idx-nav-folder-title">{headerTitle}</div>
       ) : isSearching ? (
         <div className="idx-nav-folder-title idx-nav-folder-title--search">{t("nav.searchResults")}</div>
-      ) : (
+      ) : !collapsed ? (
         <div className="idx-nav-folder-title">{t("nav.title")}</div>
-      )}
+      ) : null}
 
-      <div className="idx-nav-pane__search">
+      {!collapsed ? (
+        <div className="idx-nav-pane__search">
         <label className="idx-nav-pane__search-label">
           <span className="idx-visually-hidden">{t("nav.filter")}</span>
           <input
@@ -231,33 +290,47 @@ export function IndexNavTree({ selectedNodeId, onSelectNode, onOpenNode }: Props
           />
         </label>
       </div>
+      ) : null}
 
-      <div
-        className={`idx-nav-pane__body idx-nav-pane__body--${slideDir ?? "idle"}`}
-        key={stack.map((n) => n.id).join("/") || "root"}
-      >
-        {isSearching ? (
-          <ul className="idx-nav-list">
-            {searchHits.length === 0 ? (
-              <li className="idx-nav-empty">{t("nav.noResults")}</li>
-            ) : (
-              searchHits.map(({ node, path }) => {
-                const breadcrumb = path.map((p) => t(p.labelKey as MessageKey)).join(" › ");
-                return renderRow(node, {
-                  secondaryText: breadcrumb || undefined,
-                  onActivate: () => handleSearchHit({ node, path }),
-                });
+      {collapsed ? (
+        <div className="idx-nav-pane__body idx-nav-pane__body--collapsed">
+          <ul className="idx-nav-list idx-nav-list--icon-rail">
+            {collapsedNavNodes.map((node) =>
+              renderRow(node, {
+                iconOnly: true,
+                onActivate: () => handleCollapsedActivate(node),
               })
             )}
           </ul>
-        ) : (
-          <ul className="idx-nav-list">
-            {visibleNodes.map((node) =>
-              renderRow(node, { onActivate: () => handleItemActivate(node) })
-            )}
-          </ul>
-        )}
-      </div>
+        </div>
+      ) : (
+        <div
+          className={`idx-nav-pane__body idx-nav-pane__body--${slideDir ?? "idle"}`}
+          key={stack.map((n) => n.id).join("/") || "root"}
+        >
+          {isSearching ? (
+            <ul className="idx-nav-list">
+              {searchHits.length === 0 ? (
+                <li className="idx-nav-empty">{t("nav.noResults")}</li>
+              ) : (
+                searchHits.map(({ node, path }) => {
+                  const breadcrumb = path.map((p) => t(p.labelKey as MessageKey)).join(" › ");
+                  return renderRow(node, {
+                    secondaryText: breadcrumb || undefined,
+                    onActivate: () => handleSearchHit({ node, path }),
+                  });
+                })
+              )}
+            </ul>
+          ) : (
+            <ul className="idx-nav-list">
+              {visibleNodes.map((node) =>
+                renderRow(node, { onActivate: () => handleItemActivate(node) })
+              )}
+            </ul>
+          )}
+        </div>
+      )}
     </nav>
   );
 }

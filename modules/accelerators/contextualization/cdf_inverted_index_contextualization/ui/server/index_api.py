@@ -32,6 +32,12 @@ class DryRunBody(BaseModel):
     dry_run: bool = False
 
 
+class BuildMetadataBody(DryRunBody):
+    filter_updated_after: str | None = None
+    batch_size: int | None = None
+    progress_interval: int = 100
+
+
 class BuildAnnotationsBody(DryRunBody):
     file_external_id: str | None = None
     detection_mode: Literal["all", "pattern", "standard"] = "all"
@@ -57,13 +63,16 @@ class TagReuseBody(BaseModel):
 class TargetDrivenBody(DryRunBody):
     instance_external_id: str | None = None
     instance_external_ids: list[str] = Field(default_factory=list)
-    instance_type: str = "asset"
+    incoming_view_key: str | None = None
+    view_external_id: str | None = None
     instance_space: str = "cdf_cdm"
     min_confidence: float = 0.6
     match_scope_keys: list[str] = Field(default_factory=list)
     scope_lookup_override: bool = False
     max_assets: int | None = None
     progress_interval: int = 100
+    query_property: str | None = None
+    force: bool = False
 
 
 class FileBody(BaseModel):
@@ -78,18 +87,23 @@ class ListByFileBody(FileBody):
 
 
 @router.post("/build/metadata")
-def build_metadata(body: DryRunBody) -> dict[str, Any]:
+def build_metadata(body: BuildMetadataBody) -> dict[str, Any]:
     _load_env()
     from local_runner.commands import cmd_build_metadata
 
     try:
-        return cmd_build_metadata(dry_run=body.dry_run)
+        return cmd_build_metadata(
+            dry_run=body.dry_run,
+            filter_updated_after=body.filter_updated_after,
+            batch_size=body.batch_size,
+            progress_interval=body.progress_interval,
+        )
     except Exception as e:
         raise _api_error(e) from e
 
 
 @router.post("/build/metadata/stream")
-def build_metadata_stream(body: DryRunBody, request: Request) -> StreamingResponse:
+def build_metadata_stream(body: BuildMetadataBody, request: Request) -> StreamingResponse:
     _load_env()
     from local_runner.commands import cmd_build_metadata
     from ui.server.operation_stream import stream_operation
@@ -97,6 +111,9 @@ def build_metadata_stream(body: DryRunBody, request: Request) -> StreamingRespon
     return stream_operation(
         lambda on_log, should_cancel: cmd_build_metadata(
             dry_run=body.dry_run,
+            filter_updated_after=body.filter_updated_after,
+            batch_size=body.batch_size,
+            progress_interval=body.progress_interval,
             on_log=on_log,
             should_cancel=should_cancel,
         ),
@@ -181,7 +198,8 @@ def target_driven(body: TargetDrivenBody) -> dict[str, Any]:
         return cmd_target_driven(
             instance_external_id=body.instance_external_id,
             instance_external_ids=body.instance_external_ids or None,
-            instance_type=body.instance_type,
+            incoming_view_key=body.incoming_view_key,
+            view_external_id=body.view_external_id,
             instance_space=body.instance_space,
             dry_run=body.dry_run,
             min_confidence=body.min_confidence,
@@ -189,6 +207,8 @@ def target_driven(body: TargetDrivenBody) -> dict[str, Any]:
             scope_lookup_override=body.scope_lookup_override,
             max_assets=body.max_assets,
             progress_interval=body.progress_interval,
+            query_property=body.query_property,
+            force=body.force,
         )
     except Exception as e:
         raise _api_error(e) from e
@@ -204,7 +224,8 @@ def target_driven_stream(body: TargetDrivenBody, request: Request) -> StreamingR
         lambda on_log, should_cancel: cmd_target_driven(
             instance_external_id=body.instance_external_id,
             instance_external_ids=body.instance_external_ids or None,
-            instance_type=body.instance_type,
+            incoming_view_key=body.incoming_view_key,
+            view_external_id=body.view_external_id,
             instance_space=body.instance_space,
             dry_run=body.dry_run,
             min_confidence=body.min_confidence,
@@ -212,6 +233,8 @@ def target_driven_stream(body: TargetDrivenBody, request: Request) -> StreamingR
             scope_lookup_override=body.scope_lookup_override,
             max_assets=body.max_assets,
             progress_interval=body.progress_interval,
+            query_property=body.query_property,
+            force=body.force,
             on_log=on_log,
             should_cancel=should_cancel,
         ),

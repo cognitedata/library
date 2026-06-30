@@ -21,7 +21,7 @@ class DmStorageAdapter:
             dm_cfg.get("version", "v1"),
         )
 
-    def upsert_index_entries(self, entries: list[dict], *, dry_run: bool = False) -> dict:
+    def upsert_index_entries(self, entries: list[dict], *, dry_run: bool = False, **kwargs: Any) -> dict:
         if dry_run or not entries:
             return {
                 "entries_created": len(entries) if dry_run else 0,
@@ -162,6 +162,50 @@ class DmStorageAdapter:
 
     def delete_subset(self, **kwargs) -> int:
         raise NotImplementedError("DM delete_subset not implemented in prototype")
+
+    def remove_postings_for_reference(
+        self,
+        *,
+        match_scope_key: str,
+        reference_external_id: str,
+        reference_space: str,
+        source_types: list[str],
+    ) -> dict:
+        if self._client is None:
+            raise RuntimeError("CogniteClient required for DM storage adapter")
+
+        from cognite.client import data_modeling as dm
+        from inverted_index.dm_query import query_index_entries_by_reference
+
+        view = dm.ViewId(
+            space=self._view_id[0],
+            external_id=self._view_id[1],
+            version=self._view_id[2],
+        )
+        entries = query_index_entries_by_reference(
+            self._client,
+            view_id=view,
+            index_space=self._space,
+            reference_external_id=reference_external_id,
+            reference_space=reference_space,
+            match_scope_key=match_scope_key,
+            source_types=source_types,
+        )
+        if not entries:
+            return {"rows_scanned": 0, "rows_updated": 0, "postings_removed": 0}
+
+        node_ids = [
+            dm.NodeId(space=self._space, external_id=entry["external_id"])
+            for entry in entries
+            if entry.get("external_id")
+        ]
+        if node_ids:
+            self._client.data_modeling.instances.delete(nodes=node_ids)
+        return {
+            "rows_scanned": len(entries),
+            "rows_updated": len(node_ids),
+            "postings_removed": len(entries),
+        }
 
     @staticmethod
     def _instance_to_entry(inst: Any, props: dict) -> dict:

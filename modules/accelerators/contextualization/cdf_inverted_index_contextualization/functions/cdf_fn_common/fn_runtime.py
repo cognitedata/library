@@ -54,6 +54,10 @@ def resolve_handler_payload(data: dict[str, Any] | None) -> dict[str, Any]:
         "direct_relation_config": payload.get("direct_relation_config")
         or runtime["direct_relation_config"],
         "subscription_config": payload.get("subscription_config") or runtime["subscription_config"],
+        "target_driven_config": payload.get("target_driven_config")
+        or runtime.get("target_driven_config"),
+        "virtual_tag_creation_config": payload.get("virtual_tag_creation_config")
+        or runtime.get("virtual_tag_creation_config"),
     }
     return {"runtime": runtime, "payload": payload, "overrides": overrides}
 

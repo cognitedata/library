@@ -1,6 +1,7 @@
 import { useAppSettings } from "../../context/AppSettingsContext";
 import type { AnnotationIndexConfig } from "../../types/invertedIndexConfig";
 import { StringListInput } from "./StringListInput";
+import { FormPanel } from "../shared/FormPanel";
 
 type Props = {
   value: AnnotationIndexConfig;
@@ -11,9 +12,7 @@ export function AnnotationIndexEditor({ value, onChange }: Props) {
   const { t } = useAppSettings();
 
   return (
-    <div className="idx-config-section">
-      <h3 className="idx-config-section__title">{t("config.annotation.title")}</h3>
-      <p className="idx-pane__hint">{t("config.annotation.hint")}</p>
+    <FormPanel title={t("config.annotation.title")} hint={t("config.annotation.hint")}>
       <div className="idx-config-grid">
         <label className="idx-label">
           {t("config.annotation.view")}
@@ -90,6 +89,6 @@ export function AnnotationIndexEditor({ value, onChange }: Props) {
           <span className="idx-config-hint">{t("config.annotation.bboxHint")}</span>
         </label>
       </div>
-    </div>
+    </FormPanel>
   );
 }

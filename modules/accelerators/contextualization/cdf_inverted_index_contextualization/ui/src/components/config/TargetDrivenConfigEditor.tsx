@@ -1,28 +1,70 @@
 import { useAppSettings } from "../../context/AppSettingsContext";
-import type { SubscriptionConfig } from "../../types/invertedIndexConfig";
+import type { SubscriptionConfig, TargetDrivenQueryConfig } from "../../types/invertedIndexConfig";
 import { StringListInput } from "./StringListInput";
+import { FormPanel } from "../shared/FormPanel";
 
 type Props = {
+  query: TargetDrivenQueryConfig;
   subscription: SubscriptionConfig;
-  instanceSpaces: string[];
+  onQueryChange: (next: TargetDrivenQueryConfig) => void;
   onSubscriptionChange: (next: SubscriptionConfig) => void;
-  onInstanceSpacesChange: (next: string[]) => void;
 };
 
 export function TargetDrivenConfigEditor({
+  query,
   subscription,
-  instanceSpaces,
+  onQueryChange,
   onSubscriptionChange,
-  onInstanceSpacesChange,
 }: Props) {
   const { t } = useAppSettings();
 
   return (
-    <div className="idx-config-section">
-      <h3 className="idx-config-section__title">{t("config.targetDriven.title")}</h3>
-      <p className="idx-pane__hint">{t("config.targetDriven.hint")}</p>
+    <FormPanel title={t("config.targetDriven.title")} hint={t("config.targetDriven.hint")}>
 
-      <h4 className="idx-config-subsection__title">{t("config.targetDriven.subscription")}</h4>
+      <div className="idx-config-subsections--split">
+      <section className="idx-config-subsection">
+        <h4 className="idx-config-subsection__title">{t("config.targetDriven.queryTerms")}</h4>
+        <div className="idx-config-grid">
+        <label className="idx-label">
+          {t("config.targetDriven.queryProperty")}
+          <input
+            className="idx-input idx-input--mono"
+            value={query.queryProperty}
+            onChange={(e) =>
+              onQueryChange({ ...query, queryProperty: e.target.value })
+            }
+            placeholder={t("config.targetDriven.queryPropertyPlaceholder")}
+          />
+        </label>
+        <label className="idx-label idx-config-grid__full">
+          {t("config.targetDriven.queryPropertyFallbacks")}
+          <StringListInput
+            value={query.queryPropertyFallbacks}
+            onChange={(queryPropertyFallbacks) =>
+              onQueryChange({ ...query, queryPropertyFallbacks })
+            }
+            placeholder={t("config.targetDriven.queryPropertyFallbacksPlaceholder")}
+            mono
+          />
+        </label>
+        <label className="idx-checkbox-label idx-config-grid__full">
+          <input
+            type="checkbox"
+            checked={query.excludeEmptyAliases}
+            onChange={(e) =>
+              onQueryChange({ ...query, excludeEmptyAliases: e.target.checked })
+            }
+          />
+          {t("config.targetDriven.excludeEmptyAliases")}
+        </label>
+        <p className="idx-pane__hint idx-config-grid__full">
+          {t("config.targetDriven.excludeEmptyAliasesHint")}
+        </p>
+      </div>
+      </section>
+
+      <section className="idx-config-subsection">
+        <h4 className="idx-config-subsection__title">{t("config.targetDriven.subscription")}</h4>
       <div className="idx-config-grid">
         <label className="idx-checkbox-label">
           <input
@@ -54,16 +96,6 @@ export function TargetDrivenConfigEditor({
             }
           />
         </label>
-        <label className="idx-label">
-          {t("config.targetDriven.defaultInstanceType")}
-          <input
-            className="idx-input"
-            value={subscription.defaultInstanceType}
-            onChange={(e) =>
-              onSubscriptionChange({ ...subscription, defaultInstanceType: e.target.value })
-            }
-          />
-        </label>
         <label className="idx-label idx-config-grid__full">
           {t("config.targetDriven.instanceSpaces")}
           <StringListInput
@@ -76,34 +108,20 @@ export function TargetDrivenConfigEditor({
           />
         </label>
         <label className="idx-label idx-config-grid__full">
-          {t("config.targetDriven.assetViews")}
+          {t("config.targetDriven.watchViewKeys")}
           <StringListInput
-            value={subscription.assetViews}
-            onChange={(assetViews) => onSubscriptionChange({ ...subscription, assetViews })}
-            placeholder={t("config.targetDriven.assetViewsPlaceholder")}
+            value={subscription.watchViewKeys}
+            onChange={(watchViewKeys) =>
+              onSubscriptionChange({ ...subscription, watchViewKeys })
+            }
+            placeholder={t("config.targetDriven.watchViewKeysPlaceholder")}
+            mono
           />
-        </label>
-        <label className="idx-label idx-config-grid__full">
-          {t("config.targetDriven.fileViews")}
-          <StringListInput
-            value={subscription.fileViews}
-            onChange={(fileViews) => onSubscriptionChange({ ...subscription, fileViews })}
-            placeholder={t("config.targetDriven.fileViewsPlaceholder")}
-          />
+          <span className="idx-config-hint">{t("config.targetDriven.watchViewKeysHint")}</span>
         </label>
       </div>
-
-      <h4 className="idx-config-subsection__title">{t("config.targetDriven.indexInstanceSpaces")}</h4>
-      <p className="idx-pane__hint">{t("config.targetDriven.indexInstanceSpacesHint")}</p>
-      <label className="idx-label">
-        {t("config.targetDriven.indexInstanceSpaces")}
-        <StringListInput
-          value={instanceSpaces}
-          onChange={onInstanceSpacesChange}
-          placeholder={t("config.targetDriven.indexInstanceSpacesPlaceholder")}
-          mono
-        />
-      </label>
-    </div>
+      </section>
+      </div>
+    </FormPanel>
   );
 }

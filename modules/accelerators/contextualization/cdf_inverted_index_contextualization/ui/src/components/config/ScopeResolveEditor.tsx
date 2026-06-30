@@ -7,6 +7,7 @@ import {
   type ScopeResolveCandidate,
 } from "../../types/invertedIndexConfig";
 import { StringListInput } from "./StringListInput";
+import { FormPanel } from "../shared/FormPanel";
 
 type Props = {
   value: ScopeConfig;
@@ -191,11 +192,9 @@ export function ScopeResolveEditor({ value, onChange }: Props) {
   };
 
   return (
-    <div className="idx-config-section">
-      <h3 className="idx-config-section__title">{t("config.scope.title")}</h3>
-      <p className="idx-pane__hint">{t("config.scope.hint")}</p>
+    <FormPanel title={t("config.scope.title")} hint={t("config.scope.hint")}>
 
-      <div className="idx-config-grid">
+      <div className="idx-checkbox-group">
         <label className="idx-checkbox-label">
           <input
             type="checkbox"
@@ -252,17 +251,18 @@ export function ScopeResolveEditor({ value, onChange }: Props) {
         </label>
       </div>
 
-      <h4 className="idx-config-subsection__title">{t("config.scope.resolveFromDefault")}</h4>
-      <LevelPathsEditor
-        levels={value.levels}
-        levelPaths={value.resolveFromDefault}
-        onChange={(resolveFromDefault) => onChange({ ...value, resolveFromDefault })}
-      />
+      <section className="idx-config-subsection">
+        <h4 className="idx-config-subsection__title">{t("config.scope.resolveFromDefault")}</h4>
+        <LevelPathsEditor
+          levels={value.levels}
+          levelPaths={value.resolveFromDefault}
+          onChange={(resolveFromDefault) => onChange({ ...value, resolveFromDefault })}
+        />
+      </section>
 
-      <div className="idx-config-toolbar">
-        <h4 className="idx-config-subsection__title" style={{ margin: 0 }}>
-          {t("config.scope.resolveFrom")}
-        </h4>
+      <section className="idx-config-subsection">
+        <div className="idx-config-toolbar">
+          <h4 className="idx-config-subsection__title">{t("config.scope.resolveFrom")}</h4>
         <div className="idx-config-toolbar__actions">
           <input
             className="idx-input"
@@ -282,6 +282,7 @@ export function ScopeResolveEditor({ value, onChange }: Props) {
         </div>
       </div>
 
+      <div className="idx-config-card-grid">
       {Object.entries(value.resolveFrom).map(([viewName, levelPaths]) => (
         <ViewResolveCard
           key={viewName}
@@ -301,6 +302,8 @@ export function ScopeResolveEditor({ value, onChange }: Props) {
           }}
         />
       ))}
-    </div>
+      </div>
+      </section>
+    </FormPanel>
   );
 }

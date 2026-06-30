@@ -1,5 +1,6 @@
 export type IndexTabKind =
   | "overview"
+  | "configuration"
   | "build-metadata"
   | "build-annotations"
   | "query"
@@ -37,12 +38,15 @@ export type ConnectionInfo = {
 export type RuntimeConfigSummary = {
   storage_backend?: string;
   raw_database?: string;
+  term_partition_enabled?: boolean;
+  term_partition_threshold?: number;
   scope_enabled?: boolean;
   scope_fallback?: string;
   subscription_enabled?: boolean;
   watch_property?: string;
   index_field_count?: number;
   instance_spaces?: string[] | null;
+  direct_relation_config?: Record<string, unknown>;
 };
 
 export type OverviewSubTab = "summary" | "configuration";

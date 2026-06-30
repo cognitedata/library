@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { fetchConnection } from "./api";
+import { ConfigPane } from "./components/index/ConfigPane";
 import { BuildAnnotationsPane } from "./components/index/BuildAnnotationsPane";
 import { BuildMetadataPane } from "./components/index/BuildMetadataPane";
 import { FileContextPane } from "./components/index/FileContextPane";
@@ -21,6 +22,7 @@ import type { ConnectionInfo, IndexDocumentTab, IndexNavNode } from "./types/ind
 import {
   createIndexTab,
   isBuildAnnotationsTab,
+  isConfigurationTab,
   isBuildMetadataTab,
   isFileContextTab,
   isOverviewTab,
@@ -135,8 +137,22 @@ export function App() {
 
   const activeTab = tabs.find((tab) => tab.id === activeTabId) ?? null;
 
+  const openQuickTab = useCallback((tab: IndexDocumentTab) => {
+    setTabs((prev) => {
+      const existing = prev.find((item) => item.id === tab.id);
+      if (existing) {
+        setActiveTabId(tab.id);
+        return prev;
+      }
+      setActiveTabId(tab.id);
+      return [...prev, tab];
+    });
+  }, []);
+
   const renderActiveTabContent = (tab: IndexDocumentTab) => {
-    if (isOverviewTab(tab)) return <OverviewPane refreshKey={refreshKey} initialSubTab={overviewSubTab} />;
+    if (isOverviewTab(tab))
+      return <OverviewPane refreshKey={refreshKey} initialSubTab={overviewSubTab} onOpenTab={openQuickTab} />;
+    if (isConfigurationTab(tab)) return <ConfigPane />;
     if (isBuildMetadataTab(tab)) return <BuildMetadataPane />;
     if (isBuildAnnotationsTab(tab)) return <BuildAnnotationsPane />;
     if (isQueryTab(tab)) return <QueryPane onSelectRow={setRowDetail} />;
@@ -147,7 +163,14 @@ export function App() {
     return null;
   };
 
-  const sideWidth = panel.treeCollapsed ? 120 : panel.treeWidth;
+  const sideWidth = panel.treeCollapsed ? 48 : panel.treeWidth;
+  const sideColumnClass = [
+    "idx-side-column",
+    panel.treeCollapsed ? "idx-side-column--collapsed-nav" : "",
+    panel.treeCollapsed ? "idx-side-column--drawer-collapsed" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
 
   return (
     <div className="idx-app">
@@ -164,9 +187,12 @@ export function App() {
         <div className="idx-toolbar__controls">
           <label className="idx-toolbar__control" title={t("controls.theme.tooltip")}>
             <span className="idx-toolbar__control-label">{t("controls.theme")}</span>
-            <span className="idx-theme-toggle" role="group">
+            <span className="idx-theme-toggle" role="group" aria-label={t("controls.theme")}>
               <button type="button" data-active={theme === "light"} onClick={() => setTheme("light")}>
                 {t("controls.themeLight")}
+              </button>
+              <button type="button" data-active={theme === "system"} onClick={() => setTheme("system")}>
+                {t("controls.themeSystem")}
               </button>
               <button type="button" data-active={theme === "dark"} onClick={() => setTheme("dark")}>
                 {t("controls.themeDark")}
@@ -201,11 +227,13 @@ export function App() {
       {connError ? <div className="idx-banner--error">{connError}</div> : null}
       <div className="idx-main">
         <div className="idx-split-h">
-          <div className="idx-side-column" style={{ width: sideWidth }}>
+          <div className={sideColumnClass} style={{ width: sideWidth }}>
             <IndexNavTree
               selectedNodeId={selectedNodeId}
               onSelectNode={setSelectedNodeId}
               onOpenNode={openNavNode}
+              collapsed={panel.treeCollapsed}
+              onToggleCollapse={panel.toggleTreeCollapsed}
             />
             {!panel.propertiesCollapsed ? (
               <>
@@ -220,10 +248,22 @@ export function App() {
                   className="idx-resize-handle idx-resize-handle--vertical"
                 />
                 <div style={{ height: panel.propertiesSize, minHeight: 0, display: "flex", flexDirection: "column" }}>
-                  <PropertiesPanel detail={rowDetail} />
+                  <PropertiesPanel
+                    detail={rowDetail}
+                    collapsed={false}
+                    onToggleCollapse={panel.togglePropertiesCollapsed}
+                  />
                 </div>
               </>
-            ) : null}
+            ) : (
+              <div style={{ minHeight: 0, display: "flex", flexDirection: "column" }}>
+                <PropertiesPanel
+                  detail={rowDetail}
+                  collapsed
+                  onToggleCollapse={panel.togglePropertiesCollapsed}
+                />
+              </div>
+            )}
           </div>
           {!panel.treeCollapsed ? (
             <AccessibleResizeHandle
