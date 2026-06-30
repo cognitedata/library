@@ -7,11 +7,9 @@ select = ["E", "F", "I"]
 ignore = [
     "E501",  # line too long — address per-file as needed
     "E701",  # multiple statements on one line (colon)
-    "E722",  # bare except
-    "E402",  # module level import not at top of file
-    "F841",  # local variable assigned but never used
 ]
 
 [tool.ruff.lint.per-file-ignores]
 "**/__init__.py" = ["F401"]
 "**/*.ipynb" = ["E741", "F401", "F402"]
+"modules/sourcesystem/cdf_oid_sync/test_oid_sync.py" = ["E402"]

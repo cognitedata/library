@@ -117,7 +117,7 @@ def load_metrics_from_file(external_id: str) -> dict:
         file_bytes = client.files.download_bytes(external_id=external_id)
         data = json.loads(file_bytes.decode("utf-8"))
         return data
-    except Exception as e:
+    except Exception:
         return None
 
 

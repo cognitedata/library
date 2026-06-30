@@ -219,7 +219,7 @@ def entity_matching(
     except Exception as e:
         msg = f"failed, Message: {e!s}"
         update_pipeline_run(client, logger, pipeline_ext_id, STATUS_FAILURE, len_good_matches, len_bad_matches, msg)
-        raise Exception("msg")
+        raise
 
 
 def update_pipeline_run(
