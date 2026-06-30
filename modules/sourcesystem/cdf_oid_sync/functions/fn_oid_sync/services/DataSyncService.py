@@ -1,7 +1,6 @@
 import random
 import traceback
 from datetime import timedelta
-from typing import List
 
 import yaml
 from cognite.client import ClientConfig, CogniteClient
@@ -120,7 +119,7 @@ class DataSyncService:
         
         return datapoints_to_insert
     
-    def get_pi_time_series(self) -> List[str]:
+    def get_pi_time_series(self) -> list[str]:
         """Get all time series with 'pi:' prefix from OID"""
         self.logger.info("Fetching PI time series list from OID...")
         
@@ -138,7 +137,7 @@ class DataSyncService:
             self.logger.info(f"✓ Found {len(ext_ids)} PI time series")
             return ext_ids
         except CogniteAPIError as e:
-            self.logger.error(f"Failed to fetch time series: {str(e)}")
+            self.logger.error(f"Failed to fetch time series: {e!s}")
             return []
     
     def check_and_update_string_timeseries(self, external_id: str) -> bool:
@@ -174,7 +173,7 @@ class DataSyncService:
                         self.logger.info(f"✓ Updated {external_id} to support string values")
                     
                 except Exception as e:
-                    self.logger.warning(f"Could not update {external_id} to string: {str(e)}")
+                    self.logger.warning(f"Could not update {external_id} to string: {e!s}")
                 
                 self._string_ts_cache[external_id] = True
                 return True
@@ -183,11 +182,11 @@ class DataSyncService:
                 return False
                 
         except Exception as e:
-            self.logger.warning(f"Could not check string status for {external_id}: {str(e)}")
+            self.logger.warning(f"Could not check string status for {external_id}: {e!s}")
             self._string_ts_cache[external_id] = False
             return False
     
-    def get_unbackfilled_time_series(self, all_ts_ids: List[str]) -> List[str]:
+    def get_unbackfilled_time_series(self, all_ts_ids: list[str]) -> list[str]:
         """Get time series that haven't been fully backfilled yet (no 'oid_backfilled' tag in Data Model)"""
         try:
             # Retrieve time series nodes from Data Model to check tags
@@ -214,7 +213,7 @@ class DataSyncService:
             return unbackfilled
             
         except Exception as e:
-            self.logger.warning(f"Error checking backfill status, using all: {str(e)}")
+            self.logger.warning(f"Error checking backfill status, using all: {e!s}")
             return all_ts_ids
     
     def mark_as_backfilled(self, external_id: str) -> None:
@@ -268,10 +267,10 @@ class DataSyncService:
                 self.logger.info(f"{external_id} already marked as backfilled")
                 
         except Exception as e:
-            self.logger.warning(f"Could not mark {external_id} as backfilled: {str(e)}")
+            self.logger.warning(f"Could not mark {external_id} as backfilled: {e!s}")
             self.logger.warning(f"Traceback: {traceback.format_exc()}")
     
-    def reset_backfill_tags(self, all_ts_ids: List[str]) -> None:
+    def reset_backfill_tags(self, all_ts_ids: list[str]) -> None:
         """Remove 'oid_backfilled' tag from all time series to restart backfill process"""
         try:
             self.logger.info("=" * 50)
@@ -317,7 +316,7 @@ class DataSyncService:
                 self.logger.info("No time series had 'oid_backfilled' tag - nothing to reset")
             
         except Exception as e:
-            self.logger.warning(f"Error resetting backfill tags: {str(e)}")
+            self.logger.warning(f"Error resetting backfill tags: {e!s}")
             self.logger.warning(f"Traceback: {traceback.format_exc()}")
     
     def update_config_reset_backfill(self) -> None:
@@ -351,10 +350,10 @@ class DataSyncService:
                 self.logger.warning("Could not retrieve extraction pipeline config")
                 
         except Exception as e:
-            self.logger.warning(f"Error updating config: {str(e)}")
+            self.logger.warning(f"Error updating config: {e!s}")
     
     def sync_time_series_data(
-        self, external_ids: List[str], start_time: str, description: str = "", end_time: str | None = None
+        self, external_ids: list[str], start_time: str, description: str = "", end_time: str | None = None
     ) -> int:
         """
         Sync data from OID to target project
@@ -429,15 +428,15 @@ class DataSyncService:
             return total_dps
             
         except CogniteAPIError as e:
-            self.logger.error(f"API error during sync: {str(e)}")
+            self.logger.error(f"API error during sync: {e!s}")
             return 0
         except Exception as e:
-            self.logger.error(f"Unexpected error during sync: {str(e)}")
+            self.logger.error(f"Unexpected error during sync: {e!s}")
             return 0
     
     def sync_time_series_data_batched(
         self,
-        external_ids: List[str],
+        external_ids: list[str],
         start_time: str,
         end_time: str | None = None,
         batch_weeks: int = 1,
@@ -510,7 +509,7 @@ class DataSyncService:
                     self.logger.update_stats(ts_synced=len(external_ids), dps_inserted=total_dps)
                 
             except Exception as e:
-                self.logger.warning(f"Error fetching batch {batch_start} to {batch_end}: {str(e)}")
+                self.logger.warning(f"Error fetching batch {batch_start} to {batch_end}: {e!s}")
                 continue
         
         # Always mark as backfilled if requested (even if no data found)

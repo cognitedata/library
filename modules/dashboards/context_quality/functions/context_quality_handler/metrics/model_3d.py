@@ -8,7 +8,6 @@ Metrics:
 """
 
 from dataclasses import dataclass, field
-from typing import Optional, Set
 
 from cognite.client.data_classes.data_modeling import ViewId
 
@@ -26,7 +25,7 @@ class Model3DAccumulator:
     # Asset-3D relationship tracking
     total_assets_checked: int = 0
     assets_with_3d: int = 0
-    asset_ids_with_3d: Set[str] = field(default_factory=set)
+    asset_ids_with_3d: set[str] = field(default_factory=set)
     
     # Critical asset tracking
     critical_assets_total: int = 0
@@ -34,7 +33,7 @@ class Model3DAccumulator:
     
     # 3D Object tracking
     total_3d_objects: int = 0
-    objects_3d_ids_seen: Set[str] = field(default_factory=set)
+    objects_3d_ids_seen: set[str] = field(default_factory=set)
     objects_3d_duplicate_ids: list = field(default_factory=list)  # Duplicate external IDs
     
     # 3D → Asset contextualization (MOST IMPORTANT)
@@ -118,7 +117,7 @@ class Model3DAccumulator:
 # BATCH PROCESSORS
 # ----------------------------------------------------
 
-def get_direct_relation_id(prop) -> Optional[str]:
+def get_direct_relation_id(prop) -> str | None:
     """Extract external ID from a direct relation property."""
     if not prop:
         return None

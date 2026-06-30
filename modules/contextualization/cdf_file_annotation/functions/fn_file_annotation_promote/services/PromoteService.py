@@ -464,7 +464,7 @@ class GeneralPromoteService(IPromoteService):
                 db_name=self.raw_db, table_name=self.raw_pattern_table, key=edge.external_id
             )
             if existing_row and existing_row.columns:
-                raw_data = {k: v for k, v in existing_row.columns.items()}
+                raw_data = dict(existing_row.columns.items())
         except Exception as e:
             self.logger.warning(f"Could not retrieve RAW row for edge {edge.external_id}: {e}")
 

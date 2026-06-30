@@ -20,7 +20,7 @@ capabilities:
         - CREATE
       scope:
         all: {}
-  
+
   # Function capabilities
   - functionsAcl:
       actions:
@@ -28,7 +28,7 @@ capabilities:
         - WRITE
       scope:
         all: {}
-  
+
   # Time series capabilities (core functionality)
   # - timeSeriesAcl:
   #     actions:
@@ -38,7 +38,7 @@ capabilities:
   #       datasetScope:
   #         ids:
   #           - {{ oidDatasetExternalId }}
-  
+
   # Data model instances (for writing time series data)
   - dataModelInstancesAcl:
       actions:
@@ -49,7 +49,7 @@ capabilities:
         spaceIdScope:
           spaceIds:
             - {{ instanceSpace }}
-  
+
   # Data models (for reading schemas)
   - dataModelsAcl:
       actions:
@@ -58,7 +58,7 @@ capabilities:
         spaceIdScope:
           spaceIds:
             - {{ instanceSpace }}
-  
+
   # Extraction pipeline capabilities
   - extractionConfigsAcl:
       actions:
@@ -82,4 +82,3 @@ capabilities:
         datasetScope:
           ids:
             - {{ oidDatasetExternalId }}
-

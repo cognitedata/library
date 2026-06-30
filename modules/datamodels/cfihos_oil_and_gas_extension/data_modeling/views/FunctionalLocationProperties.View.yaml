@@ -1,7 +1,7 @@
 space: '{{space}}'
 externalId: FunctionalLocationProperties
 name: Functional Location Properties
-description: A hierarchical location in the plant structure representing where equipment is installed and maintained. 
+description: A hierarchical location in the plant structure representing where equipment is installed and maintained.
  Common source for FunctionalLocationProperties are sources as SAP, IFS, etc.
 implements:
 - space: cdf_cdm

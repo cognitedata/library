@@ -7,4 +7,3 @@ properties:
       type: text
       list: false
     nullable: true
-

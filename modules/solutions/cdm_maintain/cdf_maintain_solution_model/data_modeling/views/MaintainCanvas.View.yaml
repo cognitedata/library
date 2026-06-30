@@ -62,4 +62,3 @@ properties:
       space: {{schemaSpace}}
       externalId: MaintainCanvas
     containerPropertyIdentifier: owner
-

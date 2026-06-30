@@ -222,7 +222,7 @@ def main() -> None:
         if has_metrics:
             if is_multi and datasets_dict and dataset_ids:
                 st.caption("Filter by dataset (file contains all datasets; view is filtered by selection):")
-                options = ["All datasets"] + dataset_ids
+                options = ["All datasets", *dataset_ids]
                 idx = st.selectbox(
                     "Dataset",
                     range(len(options)),

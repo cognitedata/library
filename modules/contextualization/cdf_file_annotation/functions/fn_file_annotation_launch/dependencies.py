@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-from typing import Any, Tuple
+from typing import Any
 
 from cognite.client import ClientConfig, CogniteClient
 from cognite.client.credentials import OAuthClientCredentials
@@ -65,7 +65,7 @@ def create_client(env_config: EnvConfig, debug: bool = False):
 
 def create_config_service(
     function_data: dict[str, Any], client: CogniteClient | None = None
-) -> Tuple[Config, CogniteClient]:
+) -> tuple[Config, CogniteClient]:
     if client is None:
         env_config = get_env_variables()
         client = create_client(env_config)

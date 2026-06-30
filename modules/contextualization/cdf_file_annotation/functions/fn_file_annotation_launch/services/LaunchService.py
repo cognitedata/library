@@ -1,7 +1,7 @@
 import abc
 import time
 from collections import defaultdict
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Literal
 
 from cognite.client import CogniteClient
@@ -165,7 +165,7 @@ class GeneralLaunchService(AbstractLaunchService):
                 self.logger.info(message=f"Finished processing for {msg}", section="END")
         except CogniteAPIError as e:
             if e.code == 429:
-                self.logger.debug(f"{str(e)}")
+                self.logger.debug(f"{e!s}")
                 self.logger.info(
                     "Reached the max amount of jobs that can be processed by the server at once.",
                     "END",
@@ -211,10 +211,7 @@ class GeneralLaunchService(AbstractLaunchService):
             groups = organized_data[primary_property]
             for secondary_property in sorted(groups.keys()):
                 files_in_batch = groups[secondary_property]
-                if secondary_property == "__NONE__":
-                    actual_secondary_property = None
-                else:
-                    actual_secondary_property = secondary_property
+                actual_secondary_property = None if secondary_property == "__NONE__" else secondary_property
                 final_processing_batches.append(
                     FileProcessingBatch(
                         primary_scope_value=primary_property,
@@ -297,7 +294,7 @@ class GeneralLaunchService(AbstractLaunchService):
 
             update_properties = {
                 "annotationStatus": AnnotationStatus.PROCESSING,
-                "sourceUpdatedTime": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
+                "sourceUpdatedTime": datetime.now(UTC).replace(microsecond=0).isoformat(),
                 "launchFunctionId": self.function_id,
                 "launchFunctionCallId": self.call_id,
             }
@@ -388,7 +385,7 @@ class LocalLaunchService(GeneralLaunchService):
 
             update_properties = {
                 "annotationStatus": AnnotationStatus.PROCESSING,
-                "sourceUpdatedTime": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
+                "sourceUpdatedTime": datetime.now(UTC).replace(microsecond=0).isoformat(),
                 "launchFunctionId": self.function_id,
                 "launchFunctionCallId": self.call_id,
             }
@@ -434,7 +431,7 @@ class LocalLaunchService(GeneralLaunchService):
             )
         except CogniteAPIError as e:
             if e.code == 429:
-                self.logger.debug(f"{str(e)}")
+                self.logger.debug(f"{e!s}")
                 self.logger.info(
                     "Reached the max amount of jobs that can be processed by the server at once.\nSleeping for 15 minutes",
                     "END",

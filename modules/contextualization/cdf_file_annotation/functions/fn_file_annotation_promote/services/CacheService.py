@@ -1,7 +1,8 @@
 import abc
+from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime, timezone
-from typing import Any, Callable
+from datetime import UTC, datetime
+from typing import Any
 
 from cognite.client import CogniteClient
 from cognite.client.data_classes.data_modeling import Node, NodeList
@@ -371,7 +372,7 @@ class CacheService(ICacheService):
                 "endNode": node.external_id,
                 "endNodeSpace": node.space,
                 "annotationType": annotation_type,
-                "lastUpdateTimeUtcIso": datetime.now(timezone.utc).isoformat(),
+                "lastUpdateTimeUtcIso": datetime.now(UTC).isoformat(),
                 "sourceCreatedUser": self.function_id,
             }
 
@@ -399,7 +400,7 @@ class CacheService(ICacheService):
         Handles both single Node and NodeList returns from the SDK.
         """
         if isinstance(retrieved, NodeList) and len(retrieved) > 0:
-            first_node = list(retrieved)[0]
+            first_node = next(iter(retrieved))
             return first_node if isinstance(first_node, Node) else None
         elif isinstance(retrieved, Node):
             return retrieved

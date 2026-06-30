@@ -1,5 +1,6 @@
 import time
-from typing import Any, Callable, Optional
+from collections.abc import Callable
+from typing import Any
 
 import pandas as pd
 import streamlit as st
@@ -39,7 +40,7 @@ class DataFetcher:
 
     @staticmethod
     @st.cache_data(ttl=3600)
-    def load_pipeline_config(_client: CogniteClient, pipeline_external_id: str) -> Optional[dict]:
+    def load_pipeline_config(_client: CogniteClient, pipeline_external_id: str) -> dict | None:
         ep_configuration = DataFetcher._call_with_retries(_client.extraction_pipelines.config.retrieve, external_id=pipeline_external_id)
         if not ep_configuration:
             return None

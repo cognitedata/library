@@ -1,8 +1,9 @@
 import abc
 import re
 from collections import defaultdict
-from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, Iterator, List, Set, cast
+from collections.abc import Iterator
+from datetime import UTC, datetime, timedelta
+from typing import Any, cast
 
 from cognite.client import CogniteClient
 from cognite.client.data_classes import Row, RowWrite
@@ -89,10 +90,7 @@ class GeneralCacheService(ICacheService):
                 - Combined list of pattern sample dictionaries for pattern mode detection.
         """
         entities: list[dict] = []
-        if secondary_scope_value:
-            key = f"{primary_scope_value}_{secondary_scope_value}"
-        else:
-            key = f"{primary_scope_value}"
+        key = f"{primary_scope_value}_{secondary_scope_value}" if secondary_scope_value else f"{primary_scope_value}"
 
         try:
             row: Row | None = self.client.raw.rows.retrieve(db_name=self.db_name, table_name=self.tbl_name, key=key)
@@ -139,7 +137,7 @@ class GeneralCacheService(ICacheService):
                 "FilePatternSamples": file_pattern_samples,
                 "ManualPatternSamples": manual_pattern_samples,
                 "CombinedPatternSamples": combined_pattern_samples,
-                "LastUpdateTimeUtcIso": datetime.now(timezone.utc).isoformat(),
+                "LastUpdateTimeUtcIso": datetime.now(UTC).isoformat(),
             },
         )
         self._update_cache(new_row)
@@ -181,17 +179,14 @@ class GeneralCacheService(ICacheService):
             True if the cache is still valid (within time limit), False if expired.
         """
         last_update_datetime_utc = datetime.fromisoformat(last_update_datetime_str)
-        current_datetime_utc = datetime.now(timezone.utc)
+        current_datetime_utc = datetime.now(UTC)
         time_difference: timedelta = current_datetime_utc - last_update_datetime_utc
 
         cache_validity_period = timedelta(hours=self.cache_time_limit)
         self.logger.debug(f"Cache time limit: {cache_validity_period}")
         self.logger.debug(f"Time difference: {time_difference}")
 
-        if time_difference > cache_validity_period:
-            return False
-
-        return True
+        return not time_difference > cache_validity_period
 
     def _convert_instances_to_entities(
         self, asset_instances: NodeList, file_instances: NodeList
@@ -284,7 +279,7 @@ class GeneralCacheService(ICacheService):
                 - annotation_type: Annotation type for the entity
         """
         # Structure: { resource_type: {"patterns": { template_key: [...] }, "annotation_type": "..."} }
-        pattern_builders: Dict[str, Dict[str, Any]] = defaultdict(lambda: {"patterns": {}, "annotation_type": None})
+        pattern_builders: dict[str, dict[str, Any]] = defaultdict(lambda: {"patterns": {}, "annotation_type": None})
         self.logger.info(f"Generating pattern samples from {len(entities)} entities.")
 
         def _parse_alias(alias: str, resource_type_key: str) -> tuple[str, list[list[str]]]:
@@ -372,26 +367,26 @@ class GeneralCacheService(ICacheService):
                 else:
                     new_variable_sets = []
                     for part_group in variable_parts_from_alias:
-                        new_variable_sets.append([set([lg]) for lg in part_group])
+                        new_variable_sets.append([{lg} for lg in part_group])
                     resource_patterns[template_key] = new_variable_sets
 
         result = []
         for resource_type, data in pattern_builders.items():
             final_samples = []
-            templates: Dict[str, List[List[Set[str]]]] = data.get("patterns") or {}
+            templates: dict[str, list[list[set[str]]]] = data.get("patterns") or {}
             annotation_type = data["annotation_type"]
             for template_key, collected_vars in templates.items():
-                var_iter: Iterator[List[Set[str]]] = iter(collected_vars)
+                var_iter: Iterator[list[set[str]]] = iter(collected_vars)
 
                 def build_segment(segment_template: str) -> str:
                     if "A" not in segment_template:
                         return segment_template
                     try:
-                        letter_groups_for_segment: List[Set[str]] = next(var_iter)
-                        letter_group_iter: Iterator[Set[str]] = iter(letter_groups_for_segment)
+                        letter_groups_for_segment: list[set[str]] = next(var_iter)
+                        letter_group_iter: Iterator[set[str]] = iter(letter_groups_for_segment)
 
                         def replace_A(match):
-                            alternatives = sorted(list(next(letter_group_iter)))
+                            alternatives = sorted(next(letter_group_iter))
                             return f"[{'|'.join(alternatives)}]"
 
                         return re.sub(r"A+", replace_A, segment_template)
@@ -408,9 +403,7 @@ class GeneralCacheService(ICacheService):
                 if re.search(r"[A-Za-z]", s):
                     return True
                 # Character class: bracketed alternatives like [A|B] or [1|2]
-                if re.search(r"\[[^\]]*\|[^\]]*\]", s):
-                    return True
-                return False
+                return bool(re.search(r"\[[^\]]*\|[^\]]*\]", s))
 
             final_samples = [s for s in final_samples if _has_alpha_or_class(s)]
 
@@ -477,14 +470,14 @@ class GeneralCacheService(ICacheService):
         Returns:
             List of merged pattern dictionaries, deduplicated and organized by resource type.
         """
-        merged: Dict[str, Dict[str, Any]] = defaultdict(lambda: {"samples": set(), "annotation_type": None})
+        merged: dict[str, dict[str, Any]] = defaultdict(lambda: {"samples": set(), "annotation_type": None})
 
         # Process auto-generated patterns
         for item in auto_patterns:
             resource_type = item.get("resource_type")
             if resource_type:
                 bucket = merged[resource_type]
-                samples_set = cast(Set[str], bucket["samples"])
+                samples_set = cast(set[str], bucket["samples"])
                 sample_list = item.get("sample") or []
                 samples_set.update(sample_list)
                 # Set annotation_type if not already set
@@ -496,7 +489,7 @@ class GeneralCacheService(ICacheService):
             resource_type = item.get("resource_type")
             if resource_type and item.get("sample"):
                 bucket = merged[resource_type]
-                samples_set = cast(Set[str], bucket["samples"])
+                samples_set = cast(set[str], bucket["samples"])
                 sample_val = item["sample"]
                 if isinstance(sample_val, list):
                     samples_set.update(sample_val)
@@ -510,11 +503,11 @@ class GeneralCacheService(ICacheService):
         # Convert the merged dictionary back to the required list format
         final_list = []
         for resource_type, data in merged.items():
-            samples_safe: Set[str] = cast(Set[str], data.get("samples") or set())
+            samples_safe: set[str] = cast(set[str], data.get("samples") or set())
             final_list.append(
                 {
                     "resource_type": resource_type,
-                    "sample": sorted(list(samples_safe)),
+                    "sample": sorted(samples_safe),
                     "annotation_type": data.get("annotation_type"),
                 }
             )

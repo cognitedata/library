@@ -1,5 +1,5 @@
 # Workflow Trigger for AI Property Extractor
-# 
+#
 # Currently configured with a schedule trigger. To switch to a data modeling trigger,
 # replace the triggerRule section with something like:
 #

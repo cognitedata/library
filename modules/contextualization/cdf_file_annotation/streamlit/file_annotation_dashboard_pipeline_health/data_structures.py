@@ -1,6 +1,5 @@
 from dataclasses import dataclass
-from enum import Enum
-from typing import List, Optional
+from enum import StrEnum
 
 from cognite.client.data_classes.data_modeling.ids import ViewId
 from constants import FieldNames
@@ -26,16 +25,16 @@ class ViewPropertyConfig:
     schema_space: str
     external_id: str
     version: str
-    instance_space: Optional[str] = None
+    instance_space: str | None = None
 
     def as_view_id(self) -> ViewId:
         return ViewId(space=self.schema_space, external_id=self.external_id, version=self.version)
 
-    def as_property_ref(self, property_name: str) -> List[str]:
+    def as_property_ref(self, property_name: str) -> list[str]:
         return [self.schema_space, f"{self.external_id}/{self.version}", property_name]
 
 
-class CallerType(str, Enum):
+class CallerType(StrEnum):
     PREPARE = "Prepare"
     LAUNCH = "Launch"
     FINALIZE = "Finalize"

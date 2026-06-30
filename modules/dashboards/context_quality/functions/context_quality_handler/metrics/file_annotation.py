@@ -7,7 +7,6 @@ Uses CogniteDiagramAnnotation edges from the Core Data Model.
 
 import logging
 from dataclasses import dataclass, field
-from typing import Optional, Set
 
 from cognite.client.data_classes.data_modeling import ViewId
 
@@ -22,13 +21,13 @@ logger = logging.getLogger(__name__)
 class AnnotationData:
     """Data collected for a single diagram annotation edge."""
     annotation_id: str
-    start_node_space: Optional[str]
-    start_node_external_id: Optional[str]  # Source file
-    end_node_space: Optional[str]
-    end_node_external_id: Optional[str]    # Target (asset, file, etc.)
-    status: Optional[str]                  # approved, suggested, rejected
-    confidence: Optional[float]
-    annotation_type: Optional[str]         # Derived from end node type
+    start_node_space: str | None
+    start_node_external_id: str | None  # Source file
+    end_node_space: str | None
+    end_node_external_id: str | None    # Target (asset, file, etc.)
+    status: str | None                  # approved, suggested, rejected
+    confidence: float | None
+    annotation_type: str | None         # Derived from end node type
 
 
 @dataclass
@@ -38,7 +37,7 @@ class FileAnnotationAccumulator:
     """
     # Annotation counts
     total_annotations: int = 0
-    annotation_ids_seen: Set[str] = field(default_factory=set)
+    annotation_ids_seen: set[str] = field(default_factory=set)
     annotation_duplicate_ids: list = field(default_factory=list)  # Duplicate external IDs
     
     # By target type
@@ -62,13 +61,13 @@ class FileAnnotationAccumulator:
     confidence_count: int = 0
     
     # Unique entities
-    unique_source_files: Set[str] = field(default_factory=set)  # Files with annotations
-    unique_target_assets: Set[str] = field(default_factory=set)  # Assets linked
-    unique_target_files: Set[str] = field(default_factory=set)   # Files linked to other files
+    unique_source_files: set[str] = field(default_factory=set)  # Files with annotations
+    unique_target_assets: set[str] = field(default_factory=set)  # Assets linked
+    unique_target_files: set[str] = field(default_factory=set)   # Files linked to other files
     
     # Page tracking
     annotations_with_page: int = 0
-    unique_pages_annotated: Set[tuple] = field(default_factory=set)  # (file_id, page_number)
+    unique_pages_annotated: set[tuple] = field(default_factory=set)  # (file_id, page_number)
     
     @property
     def unique_annotations(self) -> int:
@@ -175,7 +174,7 @@ def get_node_ref(node_ref) -> tuple:
     return (getattr(node_ref, "space", None), getattr(node_ref, "external_id", None))
 
 
-def infer_annotation_type(end_node_external_id: Optional[str]) -> str:
+def infer_annotation_type(end_node_external_id: str | None) -> str:
     """
     Infer annotation type from the end node external ID.
     This is a heuristic - adjust based on your naming conventions.
@@ -228,8 +227,8 @@ def process_annotation_batch(
         start_node = getattr(edge, "start_node", None)
         end_node = getattr(edge, "end_node", None)
         
-        start_space, start_ext_id = get_node_ref(start_node)
-        end_space, end_ext_id = get_node_ref(end_node)
+        _start_space, start_ext_id = get_node_ref(start_node)
+        _end_space, end_ext_id = get_node_ref(end_node)
         
         # Track unique source files
         if start_ext_id:

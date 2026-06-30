@@ -2,7 +2,6 @@
 Asset processing and hierarchy metrics computation.
 """
 
-from typing import Dict, Optional
 
 from cognite.client.data_classes.data_modeling import ViewId
 
@@ -57,9 +56,9 @@ def process_asset_batch(
         acc.asset_type_map[node_id] = asset_type
 
 
-def compute_depth_map(parent_map: Dict[str, Optional[str]]) -> Dict[str, int]:
+def compute_depth_map(parent_map: dict[str, str | None]) -> dict[str, int]:
     """Compute depth for each node in the hierarchy."""
-    depth_cache: Dict[str, int] = {}
+    depth_cache: dict[str, int] = {}
 
     def get_depth(nid: str) -> int:
         if nid in depth_cache:
@@ -83,7 +82,7 @@ def compute_depth_map(parent_map: Dict[str, Optional[str]]) -> Dict[str, int]:
         depth_cache[nid] = d
         return d
 
-    for node_id in parent_map.keys():
+    for node_id in parent_map:
         get_depth(node_id)
     return depth_cache
 
@@ -123,11 +122,11 @@ def compute_asset_hierarchy_metrics(acc: CombinedAccumulator) -> dict:
     max_children = max(children_values) if children_values else 0
     
     # Distributions
-    depth_dist: Dict[int, int] = {}
+    depth_dist: dict[int, int] = {}
     for d in depths_map.values():
         depth_dist[d] = depth_dist.get(d, 0) + 1
     
-    breadth_dist: Dict[int, int] = {}
+    breadth_dist: dict[int, int] = {}
     for c in acc.children_count_map.values():
         breadth_dist[c] = breadth_dist.get(c, 0) + 1
     

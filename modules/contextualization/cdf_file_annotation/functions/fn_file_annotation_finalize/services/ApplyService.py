@@ -1,6 +1,6 @@
 import abc
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from hashlib import sha256
 from typing import Any, cast
 
@@ -620,7 +620,7 @@ class GeneralApplyService(IApplyService):
     ) -> bool:
         coords = self._bounding_box_to_coords(bounding_box)
 
-        for existing_page, existing_coords in processed_bounding_boxes.keys():
+        for existing_page, existing_coords in processed_bounding_boxes:
             if existing_page != page:
                 continue
 
@@ -656,7 +656,7 @@ class GeneralApplyService(IApplyService):
         if bounding_box is None:
             bounding_box = self._extract_bounding_box_from_region(region)
 
-        now = datetime.now(timezone.utc).replace(microsecond=0)
+        now = datetime.now(UTC).replace(microsecond=0)
         properties = {
             "name": file_id.external_id,
             "confidence": detect_annotation.get("confidence", 0.0),

@@ -1,4 +1,4 @@
-from typing import Callable
+from collections.abc import Callable
 
 import streamlit as st
 from constants import FieldNames

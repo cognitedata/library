@@ -1,8 +1,8 @@
 organization: ORG
 function_version: v1.0.0
 # Update your location
-location_name: Springfield 
-# specify the name of the source making it possible to identify where the data originates 
+location_name: Springfield
+# specify the name of the source making it possible to identify where the data originates
 # from, ex: 'workmate', 'sap', 'oracle',..
 # Update SOURCE to your source
 source_name: springfield

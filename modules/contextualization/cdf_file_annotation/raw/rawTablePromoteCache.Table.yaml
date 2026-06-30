@@ -1,3 +1,2 @@
 dbName: {{ rawDb }}
 tableName: {{ rawTablePromoteCache }}
-

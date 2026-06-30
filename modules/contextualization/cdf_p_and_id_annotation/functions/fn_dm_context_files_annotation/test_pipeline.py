@@ -38,9 +38,9 @@ from cognite.client.exceptions import CogniteAPIError
 # Same path-prepend pattern used by handler.py so flat imports work in-test.
 sys.path.append(str(Path(__file__).parent))
 
-from config import Config  # noqa: E402
-from logger import CogniteFunctionLogger  # noqa: E402
-from pipeline import (  # noqa: E402
+from config import Config
+from logger import CogniteFunctionLogger
+from pipeline import (
     EXTERNAL_ID_LIMIT,
     STAT_STORE_CURSOR,
     STAT_STORE_NUM_IN_BATCH,
@@ -415,9 +415,8 @@ class TestGetNewFiles:
         files_view_id = config.data.annotation_job.file_view.as_view_id()
 
         with patch("pipeline.update_state_store") as mock_update, \
-                patch("pipeline.time.sleep") as mock_sleep:
-            with pytest.raises(Exception):
-                get_new_files(client, logger, "old-cursor", files_view_id, config)
+                patch("pipeline.time.sleep") as mock_sleep, pytest.raises(Exception):
+            get_new_files(client, logger, "old-cursor", files_view_id, config)
 
         mock_update.assert_not_called()
         mock_sleep.assert_not_called()

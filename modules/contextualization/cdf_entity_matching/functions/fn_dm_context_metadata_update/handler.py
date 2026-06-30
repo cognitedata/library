@@ -8,7 +8,7 @@ performance monitoring, error handling, and logging as the default implementatio
 import os
 import sys
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 from cognite.client import ClientConfig, CogniteClient
 from cognite.client.credentials import OAuthClientCredentials
@@ -56,7 +56,7 @@ def _report_usage(client: CogniteClient) -> None:
         pass
 
 
-def handle(data: Dict[str, Any], client: CogniteClient) -> Dict[str, Any]:
+def handle(data: dict[str, Any], client: CogniteClient) -> dict[str, Any]:
     """
     Optimized metadata update handler with enhanced performance and monitoring.
     

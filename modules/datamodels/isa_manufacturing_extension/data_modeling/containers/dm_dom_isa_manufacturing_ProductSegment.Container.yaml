@@ -1,5 +1,5 @@
 space: {{ enterprise_space }}
-externalId: ProductSegment 
+externalId: ProductSegment
 name: ProductSegment
 description: Segment of the product process and resources (ISA-95 Level 3)
 properties:

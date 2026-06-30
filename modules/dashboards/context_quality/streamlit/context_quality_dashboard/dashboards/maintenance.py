@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Maintenance Workflow Quality Dashboard (RMDM v1).
 """
@@ -39,7 +38,7 @@ def render_maintenance_dashboard(metrics: dict) -> None:
         """)
         return
     
-    if not maintenance or not maintenance.get("maint_has_notifications", False) and not maintenance.get("maint_has_orders", False):
+    if not maintenance or (not maintenance.get("maint_has_notifications", False) and not maintenance.get("maint_has_orders", False)):
         st.warning("""
         **No Maintenance Data Found**
         

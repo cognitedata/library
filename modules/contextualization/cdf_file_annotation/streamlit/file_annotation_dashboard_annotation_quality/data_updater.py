@@ -1,11 +1,11 @@
-from typing import Any, Dict, List
+from typing import Any
 
 from cognite.client.data_classes import Row
 
 
 class DataUpdater:
     @staticmethod
-    def delete_manual_patterns(client, extraction_pipeline_cfg, scopes_to_be_deleted: List[str], batch_size: int = 1000) -> int:
+    def delete_manual_patterns(client, extraction_pipeline_cfg, scopes_to_be_deleted: list[str], batch_size: int = 1000) -> int:
         db_name = extraction_pipeline_cfg.raw_db
         table_name = extraction_pipeline_cfg.raw_manual_patterns_catalog
 
@@ -19,7 +19,7 @@ class DataUpdater:
         return deleted_count
 
     @staticmethod
-    def upsert_manual_patterns(client, extraction_pipeline_cfg, upsert_payload: Dict[str, List[Dict[str, Any]]]) -> int:
+    def upsert_manual_patterns(client, extraction_pipeline_cfg, upsert_payload: dict[str, list[dict[str, Any]]]) -> int:
         db_name = extraction_pipeline_cfg.raw_db
         table_name = extraction_pipeline_cfg.raw_manual_patterns_catalog
 

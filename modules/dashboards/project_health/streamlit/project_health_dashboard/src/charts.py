@@ -68,12 +68,12 @@ def create_health_gauge(healthy: int, total: int, title: str, icon: str = "") ->
         x=0.5, y=0.35,
         xref="paper", yref="paper",
         showarrow=False,
-        font=dict(size=28, color="#333333"),
+        font={"size": 28, "color": "#333333"},
         xanchor="center", yanchor="middle",
     )
     fig.update_layout(
         height=280,
-        margin=dict(l=15, r=15, t=50, b=30),
+        margin={"l": 15, "r": 15, "t": 50, "b": 30},
         paper_bgcolor="rgba(0,0,0,0)",
         font={"color": "#333333", "family": "Arial"},
         autosize=True,
@@ -103,10 +103,10 @@ def create_status_donut(summary: dict, title: str, time_range_label: str = "") -
     fig.update_layout(
         title={"text": title_text, "x": 0.5, "xanchor": "center"},
         height=300,
-        margin=dict(l=10, r=10, t=70, b=60),
+        margin={"l": 10, "r": 10, "t": 70, "b": 60},
         paper_bgcolor="rgba(0,0,0,0)",
         showlegend=True,
-        legend=dict(orientation="h", yanchor="top", y=-0.05, xanchor="center", x=0.5, font=dict(size=11), itemsizing="constant"),
+        legend={"orientation": "h", "yanchor": "top", "y": -0.05, "xanchor": "center", "x": 0.5, "font": {"size": 11}, "itemsizing": "constant"},
         autosize=True,
     )
     return fig

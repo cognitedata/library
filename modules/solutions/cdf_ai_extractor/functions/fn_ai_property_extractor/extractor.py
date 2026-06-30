@@ -330,10 +330,7 @@ Example output for 2 items:
         if response.startswith("```"):
             lines = response.split("\n")
             # Remove first line (```json or ```) and last line (```)
-            if lines[-1].strip() == "```":
-                lines = lines[1:-1]
-            else:
-                lines = lines[1:]
+            lines = lines[1:-1] if lines[-1].strip() == "```" else lines[1:]
             response = "\n".join(lines)
         
         return response.strip()

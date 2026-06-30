@@ -7,7 +7,7 @@ but without caching or Streamlit.
 """
 
 from abc import ABC, abstractmethod
-from typing import Any, Optional
+from typing import Any
 
 from cognite.client import CogniteClient
 
@@ -90,7 +90,7 @@ class ResourceHealthFetcher(ABC):
         pass
 
     @abstractmethod
-    def get_run_time(self, run: Any) -> Optional[int]:
+    def get_run_time(self, run: Any) -> int | None:
         pass
 
     @abstractmethod
@@ -103,7 +103,7 @@ class ResourceHealthFetcher(ABC):
     def get_failed_statuses(self) -> frozenset:
         return FAILED_STATUSES
 
-    def get_error_message(self, run: Any) -> Optional[str]:
+    def get_error_message(self, run: Any) -> str | None:
         return getattr(run, "message", None) or getattr(run, "error", None)
 
     def get_resource_name(self, resource: Any) -> str:
@@ -250,7 +250,7 @@ class ExtractionPipelineFetcher(ResourceHealthFetcher):
             "uptime_percentage": 100.0,
         }
 
-    def get_run_time(self, run: Any) -> Optional[int]:
+    def get_run_time(self, run: Any) -> int | None:
         return run.created_time
 
     def build_recent_run(self, run: Any) -> dict:
@@ -306,7 +306,7 @@ class TransformationFetcher(ResourceHealthFetcher):
             "uptime_percentage": 100.0,
         }
 
-    def get_run_time(self, run: Any) -> Optional[int]:
+    def get_run_time(self, run: Any) -> int | None:
         return run.finished_time or run.started_time
 
     def build_recent_run(self, run: Any) -> dict:
@@ -317,7 +317,7 @@ class TransformationFetcher(ResourceHealthFetcher):
             "error": run.error,
         }
 
-    def get_error_message(self, run: Any) -> Optional[str]:
+    def get_error_message(self, run: Any) -> str | None:
         return run.error
 
     def build_summary_extra(self, resources_health: list) -> dict:
@@ -375,7 +375,7 @@ class WorkflowFetcher(ResourceHealthFetcher):
             "uptime_percentage": 100.0,
         }
 
-    def get_run_time(self, run: Any) -> Optional[int]:
+    def get_run_time(self, run: Any) -> int | None:
         return getattr(run, "end_time", None) or getattr(run, "start_time", None)
 
     def build_recent_run(self, run: Any) -> dict:
@@ -386,7 +386,7 @@ class WorkflowFetcher(ResourceHealthFetcher):
             "reason_for_incompletion": getattr(run, "reason_for_incompletion", None),
         }
 
-    def get_error_message(self, run: Any) -> Optional[str]:
+    def get_error_message(self, run: Any) -> str | None:
         return getattr(run, "reason_for_incompletion", None)
 
     def calculate_statistics(self, info: dict, runs: list, runs_in_window: list) -> None:
@@ -472,7 +472,7 @@ class FunctionFetcher(ResourceHealthFetcher):
             "uptime_percentage": 100.0,
         }
 
-    def get_run_time(self, run: Any) -> Optional[int]:
+    def get_run_time(self, run: Any) -> int | None:
         return run.end_time or run.start_time
 
     def build_recent_run(self, run: Any) -> dict:
@@ -483,7 +483,7 @@ class FunctionFetcher(ResourceHealthFetcher):
             "error": getattr(run, "error", None),
         }
 
-    def get_error_message(self, run: Any) -> Optional[str]:
+    def get_error_message(self, run: Any) -> str | None:
         error = getattr(run, "error", None)
         if isinstance(error, dict):
             return error.get("message", "Unknown error")
@@ -513,7 +513,7 @@ class FunctionFetcher(ResourceHealthFetcher):
         )
 
 
-def get_dataset_id(client: CogniteClient, dataset_external_id: str) -> Optional[int]:
+def get_dataset_id(client: CogniteClient, dataset_external_id: str) -> int | None:
     try:
         dataset = client.data_sets.retrieve(external_id=dataset_external_id)
         return dataset.id if dataset else None

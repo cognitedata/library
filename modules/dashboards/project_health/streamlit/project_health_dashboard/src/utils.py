@@ -2,7 +2,7 @@
 Utility functions for the CDF Project Health Dashboard.
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from urllib.parse import urlparse
 
 from .config import (
@@ -35,7 +35,7 @@ def format_timestamp(ts) -> str:
     if ts is None:
         return "N/A"
     if isinstance(ts, (int, float)):
-        dt = datetime.fromtimestamp(ts / 1000, tz=timezone.utc)
+        dt = datetime.fromtimestamp(ts / 1000, tz=UTC)
     elif isinstance(ts, datetime):
         dt = ts
     else:
@@ -47,12 +47,12 @@ def get_time_ago(ts) -> str:
     if ts is None:
         return "Never"
     if isinstance(ts, (int, float)):
-        dt = datetime.fromtimestamp(ts / 1000, tz=timezone.utc)
+        dt = datetime.fromtimestamp(ts / 1000, tz=UTC)
     elif isinstance(ts, datetime):
-        dt = ts if ts.tzinfo else ts.replace(tzinfo=timezone.utc)
+        dt = ts if ts.tzinfo else ts.replace(tzinfo=UTC)
     else:
         return "Unknown"
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     delta = now - dt
     if delta.days > 30:
         months = delta.days // 30
@@ -82,8 +82,8 @@ def build_cdf_link(
     base_url: str,
     project: str,
     resource_type: str,
-    resource_id: str = None,
-    cluster: str = None,
+    resource_id: str | None = None,
+    cluster: str | None = None,
 ) -> str:
     """Build CDF Fusion link: base_origin/project/resource_path?cluster=...&workspace=...
     base_url is normalized to origin only (scheme + host); path is resource-specific.

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Configuration panel for Data Model View settings.
 
@@ -252,7 +251,7 @@ def _render_quick_run_section(client: CogniteClient) -> None:
                         Functions can take 2-5 minutes to deploy after `cdf deploy`.
                         """)
                     else:
-                        st.error(f"**Failed to trigger function:** {str(e)}")
+                        st.error(f"**Failed to trigger function:** {e!s}")
 
 
 def _render_batch_processing_section(client: CogniteClient) -> None:

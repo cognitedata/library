@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Callable, List, Optional, Tuple, Union
+from collections.abc import Callable
 
 import altair as alt
 import pandas as pd
@@ -91,7 +91,7 @@ class FileTableComponent(Component):
     def __init__(self, annotation_states: pd.DataFrame):
         self.annotation_states = annotation_states.copy()
 
-    def render(self) -> Optional[pd.DataFrame]:
+    def render(self) -> pd.DataFrame | None:
         st.subheader("File-Centric Debugging")
 
         df = self.annotation_states
@@ -131,7 +131,7 @@ class FileTableComponent(Component):
             st.stop()
 
         if FieldNames.SELECT_TITLE_CASE not in selected_columns:
-            selected_columns = [FieldNames.SELECT_TITLE_CASE] + selected_columns
+            selected_columns = [FieldNames.SELECT_TITLE_CASE, *selected_columns]
 
         editor_key = "status_table_editor"
 
@@ -153,14 +153,14 @@ class FileTableComponent(Component):
 
 
 class TabbedComponent(Component):
-    def __init__(self, tabs: List[Tuple[str, Union[Component, Callable[[], Component]]]]):
+    def __init__(self, tabs: list[tuple[str, Component | Callable[[], Component]]]):
         self.tabs = tabs
 
     def render(self) -> None:
         labels = [label for label, _ in self.tabs]
         tab_widgets = st.tabs(labels)
 
-        for widget, (label, comp_or_factory) in zip(tab_widgets, self.tabs):
+        for widget, (_label, comp_or_factory) in zip(tab_widgets, self.tabs, strict=False):
             with widget:
                 component = comp_or_factory() if callable(comp_or_factory) else comp_or_factory
                 if component is None:
@@ -284,7 +284,7 @@ class RunSummaryMetricsComponent(Component):
         pairs = [configs_to_show[i : i + 2] for i in range(0, len(configs_to_show), 2)]
         for pair in pairs:
             cols = st.columns(len(pair))
-            for col, typ in zip(cols, pair):
+            for col, typ in zip(cols, pair, strict=False):
                 with col:
                     st.subheader(f"{typ} Runs")
                     m1, m2, m3 = st.columns(3)
@@ -393,31 +393,27 @@ class DetailedRunHistoryComponent(Component):
 
             expander_col1, expander_col2 = st.columns(2)
 
-            with expander_col1:
-                with st.expander("View Function Log"):
-                    st.write("**Function Log**")
+            with expander_col1, st.expander("View Function Log"):
+                st.write("**Function Log**")
 
-                    if st.button("Load Log", key=f"load_btn_{run.id}"):
-                        with st.spinner("Fetching logs..."):
-                            func_id = int(function_id_str)
-                            cid = int(call_id_str)
-                            logs = DataFetcher.fetch_function_logs(self.client, function_id=func_id, call_id=cid)
+                if st.button("Load Log", key=f"load_btn_{run.id}"):
+                    with st.spinner("Fetching logs..."):
+                        func_id = int(function_id_str)
+                        cid = int(call_id_str)
+                        logs = DataFetcher.fetch_function_logs(self.client, function_id=func_id, call_id=cid)
 
-                        if logs:
-                            st.download_button("Download Log", logs, f"run_{run.id}_log.txt")
-                            st.code(logs, language="log")
-                        else:
-                            st.info("No logs found for this run.")
+                    if logs:
+                        st.download_button("Download Log", logs, f"run_{run.id}_log.txt")
+                        st.code(logs, language="log")
+                    else:
+                        st.info("No logs found for this run.")
 
             with expander_col2:
                 with st.expander("View Files Processed"):
                     st.write("External ID(s):")
                     files_from_service = []
 
-                    if call_id_str:
-                        cid = int(call_id_str)
-                    else:
-                        cid = None
+                    cid = int(call_id_str) if call_id_str else None
 
                     if cid is None:
                         st.write("No call_id present for this run.")
@@ -428,7 +424,7 @@ class DetailedRunHistoryComponent(Component):
                         if hasattr(self, "extraction_pipeline_cfg") and self.extraction_pipeline_cfg:
                             ann_view = getattr(self.extraction_pipeline_cfg, "annotation_state_view_cfg", None)
                         if ann_view is None and hasattr(self, "annotation_state_view"):
-                            ann_view = getattr(self, "annotation_state_view")
+                            ann_view = self.annotation_state_view
 
                         files_from_service = DataFetcher.fetch_files_by_function_call_id(self.client, cid, ann_view, caller_type=caller)
 

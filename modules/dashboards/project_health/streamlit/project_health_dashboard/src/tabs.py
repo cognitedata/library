@@ -36,7 +36,7 @@ def render_runs_expanders(
     runs_key: str,
     status_key: str = "status",
     time_key: str = "created_time",
-    error_key: str = None,
+    error_key: str | None = None,
 ) -> None:
     for resource in resources:
         runs = resource.get(runs_key, [])

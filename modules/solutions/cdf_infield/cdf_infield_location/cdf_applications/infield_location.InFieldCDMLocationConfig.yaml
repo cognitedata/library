@@ -37,7 +37,7 @@ dataStorage:
     externalId: {{location}}_root
   appInstanceSpace: sp_infield_{{location}}_app_inst # mandatory field. Space for InField to store app data (e.g., uploaded images from Infield, templates, checklists, observations etc.)
 viewMappings: # Replace with customer extended views if needed.
-  asset: 
+  asset:
     space: cdf_cdm
     version: v1
     externalId: CogniteAsset

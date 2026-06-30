@@ -4,7 +4,6 @@ File processing and metrics computation.
 Measures file contextualization quality based on the CogniteFile view from CDM.
 """
 
-from typing import Dict, List, Optional, Tuple
 
 from cognite.client.data_classes.data_modeling import ViewId
 
@@ -16,15 +15,15 @@ from .common import (
 )
 
 
-def _unique_files_by_id(file_list: List[FileData]) -> List[FileData]:
+def _unique_files_by_id(file_list: list[FileData]) -> list[FileData]:
     """One row per file_id (last wins). Needed after batch merge may duplicate IDs."""
-    by_id: Dict[str, FileData] = {}
+    by_id: dict[str, FileData] = {}
     for f in file_list:
         by_id[f.file_id] = f
     return list(by_id.values())
 
 
-def _file_counts_from_unique_files(unique: List[FileData]) -> Tuple[
+def _file_counts_from_unique_files(unique: list[FileData]) -> tuple[
     int,
     int,
     int,
@@ -32,8 +31,8 @@ def _file_counts_from_unique_files(unique: List[FileData]) -> Tuple[
     int,
     int,
     int,
-    Dict[str, int],
-    Dict[str, int],
+    dict[str, int],
+    dict[str, int],
 ]:
     """Derive all per-file numerators and histograms from deduplicated FileData rows."""
     n = len(unique)
@@ -43,8 +42,8 @@ def _file_counts_from_unique_files(unique: List[FileData]) -> Tuple[
     files_with_name = 0
     files_with_description = 0
     files_with_source_id = 0
-    file_category_counts: Dict[str, int] = {}
-    file_mime_type_counts: Dict[str, int] = {}
+    file_category_counts: dict[str, int] = {}
+    file_mime_type_counts: dict[str, int] = {}
     for f in unique:
         if f.asset_ids:
             files_with_assets += 1
@@ -74,7 +73,7 @@ def _file_counts_from_unique_files(unique: List[FileData]) -> Tuple[
     )
 
 
-def get_direct_relation_ids(prop) -> List[str]:
+def get_direct_relation_ids(prop) -> list[str]:
     """Extract list of external_ids from a multi-relation property (e.g., assets)."""
     if not prop:
         return []
@@ -96,7 +95,7 @@ def get_direct_relation_ids(prop) -> List[str]:
     return [eid] if eid else []
 
 
-def get_direct_relation_id(prop) -> Optional[str]:
+def get_direct_relation_id(prop) -> str | None:
     """Extract external_id from a single direct relation property."""
     if not prop:
         return None
@@ -195,7 +194,7 @@ def compute_file_metrics(acc: CombinedAccumulator) -> dict:
     Legacy accumulators without ``file_list`` fall back to summed counters, clamped to
     ``total_files`` so rates stay in [0, 100].
     """
-    unique_files: List[FileData] = []
+    unique_files: list[FileData] = []
     if acc.file_list:
         unique_files = _unique_files_by_id(acc.file_list)
         (
@@ -253,7 +252,7 @@ def compute_file_metrics(acc: CombinedAccumulator) -> dict:
 
     # Files per asset — same deduplicated rows as numerators (avoids double-counting links)
     if acc.assets_with_files and unique_files:
-        asset_file_counts: Dict[str, int] = {}
+        asset_file_counts: dict[str, int] = {}
         for f in unique_files:
             for asset_id in f.asset_ids:
                 asset_file_counts[asset_id] = asset_file_counts.get(asset_id, 0) + 1

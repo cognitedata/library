@@ -42,7 +42,7 @@ workflowDefinition:
         - externalId: wf_task_report_sap_operations_linkrate
       retries: 1
       timeout: {{workflow_timeout_per_job}}
-      
+
     - externalId: wf_task_report_files_annotationrate
       name: Annotation rate for files
       type: transformation

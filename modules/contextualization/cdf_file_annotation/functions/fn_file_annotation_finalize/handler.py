@@ -1,7 +1,7 @@
 import random
 import sys
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from cognite.client import CogniteClient
 from dependencies import (
@@ -64,7 +64,7 @@ def handle(data: dict, function_call_info: dict, client: CogniteClient) -> dict:
     documentation on the calling a function can be found here...  https://api-docs.cognite.com/20230101/tag/Function-calls/operation/postFunctionsCall
     """
     _report_usage(client)
-    start_time = datetime.now(timezone.utc)
+    start_time = datetime.now(UTC)
     log_level = data.get("logLevel", "INFO")
 
     config_instance, client = create_config_service(function_data=data, client=client)
@@ -83,14 +83,14 @@ def handle(data: dict, function_call_info: dict, client: CogniteClient) -> dict:
     delay = random.uniform(0.1, 1.0)
     time.sleep(delay)
     try:
-        while datetime.now(timezone.utc) - start_time < timedelta(minutes=7):
+        while datetime.now(UTC) - start_time < timedelta(minutes=7):
             if finalize_instance.run() == "Done":
                 return {"status": run_status, "data": data}
             logger_instance.info(tracker_instance.generate_local_report(), "START")
         return {"status": run_status, "data": data}
     except Exception as e:
         run_status = "failure"
-        msg = f"{str(e)}"
+        msg = f"{e!s}"
         logger_instance.error(message=msg, section="BOTH")
         return {"status": run_status, "message": msg}
     finally:

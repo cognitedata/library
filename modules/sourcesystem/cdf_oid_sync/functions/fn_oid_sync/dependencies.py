@@ -1,5 +1,4 @@
 import os
-from typing import Tuple
 
 from cognite.client import ClientConfig, CogniteClient, global_config
 from cognite.client.credentials import OAuthClientCredentials
@@ -83,7 +82,7 @@ def _get_oid_secret(secrets: dict | None, env_config: EnvConfig | None) -> str:
 
 def create_config_and_client(
     client: CogniteClient | None = None, secrets: dict | None = None
-) -> Tuple[OIDConfig, CogniteClient]:
+) -> tuple[OIDConfig, CogniteClient]:
     """Create configuration and client
     
     Args:

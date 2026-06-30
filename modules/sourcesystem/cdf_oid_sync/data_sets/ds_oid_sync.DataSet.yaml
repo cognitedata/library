@@ -4,4 +4,3 @@ description: Dataset for time series data synchronized from Open Industrial Data
 metadata:
   source: Open Industrial Data (publicdata)
   sync_type: time_series
-

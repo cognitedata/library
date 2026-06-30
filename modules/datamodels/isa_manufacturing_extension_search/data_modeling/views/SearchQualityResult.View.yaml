@@ -17,11 +17,11 @@ properties:
     containerPropertyIdentifier: qualityResultId
     name: Quality Result ID
     description: >
-      Unique identifier for the quality result entity, conforming to ISA-95 Level 3 quality 
-      management standards. A quality result represents quality test results and analytical data 
-      for materials and batches. The qualityResultId serves as the primary key and enables 
-      consistent tracking across all quality operations, from test initiation through result 
-      recording to quality release decisions. This identifier is critical for quality control, 
+      Unique identifier for the quality result entity, conforming to ISA-95 Level 3 quality
+      management standards. A quality result represents quality test results and analytical data
+      for materials and batches. The qualityResultId serves as the primary key and enables
+      consistent tracking across all quality operations, from test initiation through result
+      recording to quality release decisions. This identifier is critical for quality control,
       regulatory compliance, and quality assurance processes. [ISA-95 Level 3]
   testName:
     container:
@@ -31,10 +31,10 @@ properties:
     containerPropertyIdentifier: testName
     name: Test Name
     description: >
-      Human-readable name for the quality test, typically describing the test type or measurement 
-      (e.g., "pH Test", "Viscosity Test", "Purity Test", "Microbial Count"). The testName follows 
-      ISA-95 quality test naming conventions and should be descriptive enough for quality personnel 
-      to identify the test's purpose. This name is often used in quality control systems, test 
+      Human-readable name for the quality test, typically describing the test type or measurement
+      (e.g., "pH Test", "Viscosity Test", "Purity Test", "Microbial Count"). The testName follows
+      ISA-95 quality test naming conventions and should be descriptive enough for quality personnel
+      to identify the test's purpose. This name is often used in quality control systems, test
       records, and regulatory documentation. [ISA-95 Level 3]
   testMethod:
     container:
@@ -44,10 +44,10 @@ properties:
     containerPropertyIdentifier: testMethod
     name: Test Method
     description: >
-      Reference to the standard test method or procedure used to perform the quality test, enabling 
-      test method traceability and compliance verification. The testMethod may reference 
-      standardized test methods (e.g., ASTM, ISO, USP) or internal test procedures. This field 
-      is critical for regulatory compliance, test reproducibility, and quality assurance. The 
+      Reference to the standard test method or procedure used to perform the quality test, enabling
+      test method traceability and compliance verification. The testMethod may reference
+      standardized test methods (e.g., ASTM, ISO, USP) or internal test procedures. This field
+      is critical for regulatory compliance, test reproducibility, and quality assurance. The
       testMethod should align with quality management system documentation. [ISA-95 Level 3]
   batch:
     container:
@@ -57,10 +57,10 @@ properties:
     containerPropertyIdentifier: batch
     name: Batch
     description: >
-      Reference to the Batch entity that this quality result is associated with, establishing the 
-      relationship between quality results and batch execution. The batch relationship enables 
-      navigation from quality result to batch level, supporting batch-level quality analysis and 
-      batch release decisions. This relationship is essential for batch quality tracking and 
+      Reference to the Batch entity that this quality result is associated with, establishing the
+      relationship between quality results and batch execution. The batch relationship enables
+      navigation from quality result to batch level, supporting batch-level quality analysis and
+      batch release decisions. This relationship is essential for batch quality tracking and
       regulatory compliance in batch manufacturing. [ISA-88, ISA-95 Level 3]
     source:
       space: "{{search_space}}"
@@ -75,10 +75,10 @@ properties:
     containerPropertyIdentifier: materialLot
     name: Material Lot
     description: >
-      Reference to the MaterialLot entity that this quality result is associated with, establishing 
-      the relationship between quality results and material lots. The materialLot relationship 
-      enables navigation from quality result to material lot level, supporting lot-level quality 
-      analysis and material release decisions. This relationship is essential for material quality 
+      Reference to the MaterialLot entity that this quality result is associated with, establishing
+      the relationship between quality results and material lots. The materialLot relationship
+      enables navigation from quality result to material lot level, supporting lot-level quality
+      analysis and material release decisions. This relationship is essential for material quality
       tracking and regulatory compliance. [ISA-95 Level 3]
     source:
       space: "{{search_space}}"
@@ -93,10 +93,10 @@ properties:
     containerPropertyIdentifier: resultValue
     name: Result Value
     description: >
-      Numeric value of the quality test result, expressed in the unit of measure specified by 
-      unitOfMeasure. The resultValue represents the actual measured or calculated test result. 
-      This value is critical for quality assessment, specification compliance analysis, and 
-      quality control. The resultValue should be interpreted in conjunction with specificationMin 
+      Numeric value of the quality test result, expressed in the unit of measure specified by
+      unitOfMeasure. The resultValue represents the actual measured or calculated test result.
+      This value is critical for quality assessment, specification compliance analysis, and
+      quality control. The resultValue should be interpreted in conjunction with specificationMin
       and specificationMax to determine compliance with quality specifications. [ISA-95 Level 3]
   resultText:
     container:
@@ -106,10 +106,10 @@ properties:
     containerPropertyIdentifier: resultText
     name: Result Text
     description: >
-      Textual value of the quality test result, used for non-numeric test results or discrete 
-      outcomes (e.g., "Pass", "Fail", "Acceptable", "Unacceptable", "Within Specification"). 
-      The resultText provides a human-readable representation of the test outcome when numeric 
-      values are not applicable or when additional descriptive information is required. This field 
+      Textual value of the quality test result, used for non-numeric test results or discrete
+      outcomes (e.g., "Pass", "Fail", "Acceptable", "Unacceptable", "Within Specification").
+      The resultText provides a human-readable representation of the test outcome when numeric
+      values are not applicable or when additional descriptive information is required. This field
       is essential for qualitative test results and pass/fail determinations. [ISA-95 Level 3]
   unitOfMeasure:
     container:
@@ -119,10 +119,10 @@ properties:
     containerPropertyIdentifier: unitOfMeasure
     name: Unit of Measure
     description: >
-      The unit of measure for the resultValue, conforming to standard unit of measure conventions 
-      (e.g., "pH", "cP", "%", "CFU/mL"). The unitOfMeasure provides the dimensional context for 
-      the resultValue numeric value, enabling proper result interpretation and specification 
-      comparisons. This field should follow standardized unit naming conventions (e.g., ISO 80000, 
+      The unit of measure for the resultValue, conforming to standard unit of measure conventions
+      (e.g., "pH", "cP", "%", "CFU/mL"). The unitOfMeasure provides the dimensional context for
+      the resultValue numeric value, enabling proper result interpretation and specification
+      comparisons. This field should follow standardized unit naming conventions (e.g., ISO 80000,
       SI units) to ensure consistency and interoperability. [ISA-95 Level 3]
   specificationMin:
     container:
@@ -132,10 +132,10 @@ properties:
     containerPropertyIdentifier: specificationMin
     name: Specification Min
     description: >
-      The minimum acceptable value for the quality test result, expressed as a numeric value in 
-      the specified unitOfMeasure. The specificationMin represents the lower bound of the 
-      acceptable quality specification range. This value is critical for quality assessment and 
-      specification compliance analysis. Results below specificationMin indicate 
+      The minimum acceptable value for the quality test result, expressed as a numeric value in
+      the specified unitOfMeasure. The specificationMin represents the lower bound of the
+      acceptable quality specification range. This value is critical for quality assessment and
+      specification compliance analysis. Results below specificationMin indicate
       out-of-specification conditions and may trigger quality holds or rejection. [ISA-95 Level 3]
   specificationMax:
     container:
@@ -145,10 +145,10 @@ properties:
     containerPropertyIdentifier: specificationMax
     name: Specification Max
     description: >
-      The maximum acceptable value for the quality test result, expressed as a numeric value in 
-      the specified unitOfMeasure. The specificationMax represents the upper bound of the 
-      acceptable quality specification range. This value is critical for quality assessment and 
-      specification compliance analysis. Results above specificationMax indicate 
+      The maximum acceptable value for the quality test result, expressed as a numeric value in
+      the specified unitOfMeasure. The specificationMax represents the upper bound of the
+      acceptable quality specification range. This value is critical for quality assessment and
+      specification compliance analysis. Results above specificationMax indicate
       out-of-specification conditions and may trigger quality holds or rejection. [ISA-95 Level 3]
   testDate:
     container:
@@ -158,9 +158,9 @@ properties:
     containerPropertyIdentifier: testDate
     name: Test Date
     description: >
-      Date when the quality test was performed, enabling temporal analysis of quality data and 
-      test result traceability. The testDate is critical for quality record keeping, regulatory 
-      compliance, and quality trend analysis. This date enables correlation with production dates 
+      Date when the quality test was performed, enabling temporal analysis of quality data and
+      test result traceability. The testDate is critical for quality record keeping, regulatory
+      compliance, and quality trend analysis. This date enables correlation with production dates
       and supports temporal queries for quality data analysis. [ISA-95 Level 3]
   analyst:
     container:
@@ -170,10 +170,10 @@ properties:
     containerPropertyIdentifier: analyst
     name: Analyst
     description: >
-      Reference to the Personnel entity who performed or verified the quality test, establishing 
-      accountability and traceability for quality testing. The analyst relationship enables 
-      navigation from quality result to personnel, supporting analyst performance analysis and 
-      quality assurance. This relationship is essential for quality record keeping and regulatory 
+      Reference to the Personnel entity who performed or verified the quality test, establishing
+      accountability and traceability for quality testing. The analyst relationship enables
+      navigation from quality result to personnel, supporting analyst performance analysis and
+      quality assurance. This relationship is essential for quality record keeping and regulatory
       compliance. [ISA-95 Level 3]
     source:
       space: "{{search_space}}"
@@ -188,9 +188,9 @@ properties:
     containerPropertyIdentifier: status
     name: Status
     description: >
-      Current status of the quality result according to quality management lifecycle. Common 
-      statuses include "Pending", "In Progress", "Completed", "Reviewed", "Approved", "Rejected", 
-      "On Hold". The status provides real-time visibility into quality result progress and enables 
-      status-based queries, reporting, and workflow automation. Status transitions should follow 
-      quality management system definitions to ensure consistent quality result state management. 
+      Current status of the quality result according to quality management lifecycle. Common
+      statuses include "Pending", "In Progress", "Completed", "Reviewed", "Approved", "Rejected",
+      "On Hold". The status provides real-time visibility into quality result progress and enables
+      status-based queries, reporting, and workflow automation. Status transitions should follow
+      quality management system definitions to ensure consistent quality result state management.
       [ISA-95 Level 3]

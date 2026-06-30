@@ -5,7 +5,7 @@ Uses Pydantic for validation and parsing of extraction pipeline configuration.
 """
 
 import json
-from enum import Enum
+from enum import StrEnum
 from typing import cast
 
 import yaml
@@ -16,7 +16,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 from pydantic.alias_generators import to_camel
 
 
-class WriteMode(str, Enum):
+class WriteMode(StrEnum):
     """
     Write mode for property extraction.
     

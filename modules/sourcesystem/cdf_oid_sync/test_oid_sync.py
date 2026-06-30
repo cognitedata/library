@@ -106,7 +106,7 @@ def test_oid_connection():
         logger.info("=" * 60)
 
     except Exception as e:
-        logger.error(f"Test failed: {str(e)}")
+        logger.error(f"Test failed: {e!s}")
         import traceback
         traceback.print_exc()
         pytest.fail(str(e))

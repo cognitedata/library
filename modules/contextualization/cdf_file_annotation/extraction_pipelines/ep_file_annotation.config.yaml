@@ -160,4 +160,3 @@ config:
         removeSpecialCharacters: True  # Remove non-alphanumeric characters (e.g., "V-0912" → "V0912")
         convertToLowercase: False  # Convert to lowercase (e.g., "V0912" → "v0912")
         stripLeadingZeros: True  # Remove leading zeros (e.g., "v0912" → "v912")
-

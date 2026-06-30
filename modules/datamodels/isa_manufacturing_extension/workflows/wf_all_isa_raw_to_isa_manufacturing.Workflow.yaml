@@ -1,4 +1,3 @@
 externalId: wf_all_isa_raw_to_isa_manufacturing
 description: Build ISA assets then enrich with typed overlays
 dataSetExternalId: {{ datasetExternalId }}
-

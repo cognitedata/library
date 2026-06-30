@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Common UI components and color functions for the dashboard.
 """
@@ -255,7 +254,7 @@ def gauge(col, title, value, metric_key, color_func, axis_range, suffix="%", key
     fig.update_layout(
         width=300,
         height=250,
-        margin=dict(l=30, r=30, t=80, b=30)
+        margin={"l": 30, "r": 30, "t": 80, "b": 30}
     )
     col.plotly_chart(fig, use_container_width=False, key=key)
     
@@ -281,17 +280,17 @@ def gauge_na(col, title, message="N/A", key=None, help_text=None) -> None:
     fig.update_layout(
         width=300,
         height=250, 
-        margin=dict(l=30, r=30, t=80, b=30),
+        margin={"l": 30, "r": 30, "t": 80, "b": 30},
         annotations=[
-            dict(
-                text=message,
-                x=0.5,
-                y=0.25,
-                showarrow=False,
-                font=dict(size=14, color='#888888'),
-                xref='paper',
-                yref='paper'
-            )
+            {
+                "text": message,
+                "x": 0.5,
+                "y": 0.25,
+                "showarrow": False,
+                "font": {"size": 14, "color": '#888888'},
+                "xref": 'paper',
+                "yref": 'paper'
+            }
         ]
     )
     col.plotly_chart(fig, use_container_width=False, key=key)

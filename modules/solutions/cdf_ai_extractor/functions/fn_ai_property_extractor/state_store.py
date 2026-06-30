@@ -18,7 +18,7 @@ Supports two processing patterns:
    idempotency. The state store is used only for monitoring (cursor, stats).
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TypedDict
 
 from cognite.client import CogniteClient
@@ -33,7 +33,7 @@ def _now_iso() -> str:
     for timestamps. Python's default isoformat() outputs 6 digits (microseconds),
     so we use timespec="milliseconds" to get exactly 3 digits.
     """
-    return datetime.now(timezone.utc).isoformat(timespec="milliseconds")
+    return datetime.now(UTC).isoformat(timespec="milliseconds")
 
 
 class StateStoreStats(TypedDict):

@@ -23,11 +23,11 @@ import re
 import shutil
 import subprocess
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import yaml
-from _env_io import parse_env_file  # noqa: F401 (re-exported for tests)
+from _env_io import parse_env_file
 from _pack_config import (
     CONTEXTUALIZATION_REDUNDANT_AUTH,
     KNOWN_DATA_MODEL_DIRS,
@@ -453,7 +453,7 @@ def _write_config_update(
         return False
 
     if not skip_backup:
-        timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
         backup = path.with_suffix(f".{timestamp}.bak")
         shutil.copy2(path, backup)
     path.write_text("".join(lines))
@@ -903,9 +903,7 @@ def _detect_installed_envs(pack_root: Path) -> tuple[str, ...]:
     """
     detected: list[str] = []
     for env in ENVIRONMENTS:
-        if (pack_root / f"config.{env}.yaml").exists():
-            detected.append(env)
-        elif env == "test" and (pack_root / "config.staging.yaml").exists():
+        if (pack_root / f"config.{env}.yaml").exists() or (env == "test" and (pack_root / "config.staging.yaml").exists()):
             detected.append(env)
     return tuple(detected)
 
@@ -1193,7 +1191,7 @@ def _write_env_if_dirty(
         return
     _section("Writing .env")
     if env_path.exists():
-        timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
         backup_env = env_path.with_suffix(f".{timestamp}.bak")
         shutil.copy2(env_path, backup_env)
         _ok(f"Updated .env  (backup: {backup_env.name})")
@@ -1367,7 +1365,7 @@ def get_actual_value(config: dict, dotted: str) -> object:
         return None
     category = _MODULE_CATEGORY_FALLBACK.get(parts[0])
     node: object = config.get("variables", {}).get("modules", {})
-    for part in ([category] + parts if category else parts):
+    for part in ([category, *parts] if category else parts):
         if not isinstance(node, dict) or part not in node:
             return None
         node = node[part]

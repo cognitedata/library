@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Report Generator for Context Quality Dashboards.
 
@@ -7,7 +6,6 @@ Uses fpdf2 for lightweight, pure-Python PDF generation.
 """
 
 from datetime import datetime
-from typing import Optional
 
 from fpdf import FPDF
 
@@ -42,7 +40,7 @@ class ContextQualityReport(FPDF):
         self.cell(0, 10, title, ln=True, fill=True)
         self.ln(3)
     
-    def add_metric_row(self, label: str, value: str, status: Optional[str] = None) -> None:
+    def add_metric_row(self, label: str, value: str, status: str | None = None) -> None:
         """Add a metric row with optional status indicator."""
         self.set_font("Helvetica", "", 10)
         

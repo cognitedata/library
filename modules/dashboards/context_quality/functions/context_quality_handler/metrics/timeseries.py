@@ -58,7 +58,7 @@ def process_timeseries_batch(
                 props_dump = ts.dump() if hasattr(ts, 'dump') else {}
                 # Check nested properties structure
                 if "properties" in props_dump:
-                    for view_key, view_props in props_dump.get("properties", {}).items():
+                    for _view_key, view_props in props_dump.get("properties", {}).items():
                         if isinstance(view_props, dict):
                             if unit is None:
                                 unit = view_props.get("unit")

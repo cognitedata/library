@@ -29,7 +29,7 @@ class PipelineHealthUI:
             return
 
         placeholder = "-- Select a Pipeline --"
-        options = [placeholder] + pipeline_ids
+        options = [placeholder, *pipeline_ids]
         selected_pipeline = st.selectbox("Select a pipeline:", options=options, index=0, key="ph_pipeline")
 
         if not selected_pipeline or selected_pipeline == placeholder:

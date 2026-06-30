@@ -15,8 +15,7 @@ import json
 import logging
 import os
 import tempfile
-from datetime import datetime, timedelta, timezone
-from typing import Optional
+from datetime import UTC, datetime, timedelta
 
 from cognite.client import CogniteClient
 from fetchers import (
@@ -82,8 +81,8 @@ DEFAULT_UPTIME_THRESHOLDS = {
 }
 
 
-def get_time_range_ms(selection: str, custom_start_ms: Optional[int] = None, custom_end_ms: Optional[int] = None) -> tuple:
-    now = datetime.now(timezone.utc)
+def get_time_range_ms(selection: str, custom_start_ms: int | None = None, custom_end_ms: int | None = None) -> tuple:
+    now = datetime.now(UTC)
     end_ms = int(now.timestamp() * 1000)
     if selection == "Custom" and custom_start_ms is not None and custom_end_ms is not None:
         start_ms = custom_start_ms
@@ -95,10 +94,10 @@ def get_time_range_ms(selection: str, custom_start_ms: Optional[int] = None, cus
     return start_ms, end_ms
 
 
-def get_time_range_label(selection: str, custom_start_ms: Optional[int], custom_end_ms: Optional[int]) -> str:
+def get_time_range_label(selection: str, custom_start_ms: int | None, custom_end_ms: int | None) -> str:
     if selection == "Custom" and custom_start_ms and custom_end_ms:
-        start_str = datetime.fromtimestamp(custom_start_ms / 1000, tz=timezone.utc).strftime("%Y-%m-%d")
-        end_str = datetime.fromtimestamp(custom_end_ms / 1000, tz=timezone.utc).strftime("%Y-%m-%d")
+        start_str = datetime.fromtimestamp(custom_start_ms / 1000, tz=UTC).strftime("%Y-%m-%d")
+        end_str = datetime.fromtimestamp(custom_end_ms / 1000, tz=UTC).strftime("%Y-%m-%d")
         return f"{start_str} to {end_str}"
     return selection
 
@@ -108,7 +107,7 @@ def run_health_computation(
     dataset_external_id: str,
     start_ms: int,
     end_ms: int,
-    uptime_thresholds: Optional[dict] = None,
+    uptime_thresholds: dict | None = None,
 ) -> dict:
     """Run all health fetchers and return aggregated payload for the dashboard."""
     dataset_id = get_dataset_id(client, dataset_external_id)
@@ -156,7 +155,7 @@ def run_health_computation(
         "function_data": function_data,
         "all_errors": all_errors,
         "metadata": {
-            "computed_at": datetime.now(timezone.utc).isoformat(),
+            "computed_at": datetime.now(UTC).isoformat(),
         },
     }
 
@@ -212,7 +211,7 @@ def handle(data: dict, client: CogniteClient) -> dict:
         }
         out = {
             "metadata": {
-                "computed_at": datetime.now(timezone.utc).isoformat(),
+                "computed_at": datetime.now(UTC).isoformat(),
                 "time_range_label": time_range_label,
                 "config": config,
                 "uptime_thresholds": uptime_thresholds,

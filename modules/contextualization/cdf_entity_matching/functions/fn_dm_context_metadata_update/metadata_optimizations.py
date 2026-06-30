@@ -8,10 +8,11 @@ performance, reduce memory usage, and enhance reliability.
 import gc
 import re
 import time
+from collections.abc import Callable
 from contextlib import contextmanager
 from dataclasses import dataclass
 from functools import lru_cache
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any
 
 import psutil
 from cognite.client import CogniteClient
@@ -153,7 +154,7 @@ class RegexPatternCache:
     """Optimized regex pattern caching"""
     
     def __init__(self):
-        self._pattern_cache: Dict[str, re.Pattern] = {}
+        self._pattern_cache: dict[str, re.Pattern] = {}
         self._compile_norsok_patterns()
     
     def _compile_norsok_patterns(self):
@@ -174,7 +175,7 @@ class RegexPatternCache:
             self._pattern_cache[pattern] = re.compile(pattern)
         return self._pattern_cache[pattern]
     
-    def split_norsok_tag(self, tag: str) -> List[str]:
+    def split_norsok_tag(self, tag: str) -> list[str]:
         """Optimized NORSOK tag splitting"""
         pattern = self._pattern_cache.get('norsok_split')
         if pattern:
@@ -194,7 +195,7 @@ class BatchProcessor:
     def process_nodes_in_batches(self, nodes: NodeList[Node], 
                                 process_func: Callable,
                                 logger: CogniteFunctionLogger,
-                                *args, **kwargs) -> List[NodeApply]:
+                                *args, **kwargs) -> list[NodeApply]:
         """Process nodes in optimized batches"""
         
         results = []
@@ -218,7 +219,7 @@ class BatchProcessor:
         return results
     
     def apply_updates_in_batches(self, client: CogniteClient,
-                                updates: List[NodeApply],
+                                updates: list[NodeApply],
                                 logger: CogniteFunctionLogger,
                                 batch_size: int = 2000) -> int:
         """Apply updates in optimized batches with retry logic"""
@@ -249,7 +250,7 @@ class BatchProcessor:
         return total_applied
     
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
-    def _apply_batch_with_retry(self, client: CogniteClient, batch: List[NodeApply], logger: CogniteFunctionLogger):
+    def _apply_batch_with_retry(self, client: CogniteClient, batch: list[NodeApply], logger: CogniteFunctionLogger):
         """Apply batch with retry logic"""
         try:
             client.data_modeling.instances.apply(batch)
@@ -276,7 +277,7 @@ class OptimizedMetadataProcessor:
         }
     
     def process_timeseries_metadata(self, node: Node, view_id: ViewId, 
-                                   node_space: str) -> Optional[NodeApply]:
+                                   node_space: str) -> NodeApply | None:
         """Process timeseries metadata with optimizations"""
         
         try:
@@ -335,7 +336,7 @@ class OptimizedMetadataProcessor:
             return None
     
     def process_asset_metadata(self, node: Node, view_id: ViewId,
-                              node_space: str) -> Optional[NodeApply]:
+                              node_space: str) -> NodeApply | None:
         """Process asset metadata with optimizations"""
         
         try:
@@ -391,7 +392,7 @@ class OptimizedMetadataProcessor:
             return None
     
     def process_file_metadata(self, node: Node, view_id: ViewId,
-                             node_space: str) -> Optional[NodeApply]:
+                             node_space: str) -> NodeApply | None:
         """Process file metadata with optimizations"""
         
         try:
@@ -428,8 +429,8 @@ class OptimizedMetadataProcessor:
             self.logger.error(f"Error processing file {node.external_id}: {e}")
             return None
     
-    def _parse_norsok_tag_optimized(self, tag: str, tags: List[str], 
-                                   aliases: List[str]) -> Tuple[Optional[str], List[str], List[str]]:
+    def _parse_norsok_tag_optimized(self, tag: str, tags: list[str], 
+                                   aliases: list[str]) -> tuple[str | None, list[str], list[str]]:
         """Optimized NORSOK tag parsing with caching"""
         
         try:
@@ -477,8 +478,8 @@ class OptimizedMetadataProcessor:
             return None, tags, aliases  
 
 
-    def _parse_asset_tag_optimized(self, name: str, aliases: List[str], 
-                                  root: str, tags: List[str]) -> Tuple[List[str], List[str]]:
+    def _parse_asset_tag_optimized(self, name: str, aliases: list[str], 
+                                  root: str, tags: list[str]) -> tuple[list[str], list[str]]:
         """Optimized asset tag parsing"""
         
         try:
@@ -497,7 +498,7 @@ class OptimizedMetadataProcessor:
             return tags, aliases
     
     @lru_cache(maxsize=5000)
-    def _get_timeseries_alias_list_optimized(self, name: str) -> List[str]:
+    def _get_timeseries_alias_list_optimized(self, name: str) -> list[str]:
         """Optimized timeseries alias generation with caching"""
         aliases = []
         
@@ -508,7 +509,7 @@ class OptimizedMetadataProcessor:
         return aliases
     
     @lru_cache(maxsize=5000)
-    def _get_asset_alias_list_optimized(self, name: str, aliases_tuple: Tuple[str, ...]) -> List[str]:
+    def _get_asset_alias_list_optimized(self, name: str, aliases_tuple: tuple[str, ...]) -> list[str]:
         """Optimized asset alias generation with caching"""
         aliases = list(aliases_tuple)
         
@@ -519,7 +520,7 @@ class OptimizedMetadataProcessor:
         return aliases
     
     @lru_cache(maxsize=5000)
-    def _get_file_alias_list_optimized(self, name: str, aliases_tuple: Tuple[str, ...]) -> List[str]:
+    def _get_file_alias_list_optimized(self, name: str, aliases_tuple: tuple[str, ...]) -> list[str]:
         """Optimized file alias generation with caching"""
         aliases = list(aliases_tuple)
         
@@ -534,7 +535,7 @@ class OptimizedMetadataProcessor:
         
         return aliases
     
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Get processing statistics"""
         cache_stats = self.discipline_cache.get_stats()
         return {
@@ -554,7 +555,7 @@ class PerformanceBenchmark:
     
     def __init__(self, logger: CogniteFunctionLogger):
         self.logger = logger
-        self.benchmarks: Dict[str, List[float]] = {}
+        self.benchmarks: dict[str, list[float]] = {}
     
     def benchmark_function(self, name: str, func: Callable, *args, **kwargs) -> Any:
         """Benchmark a function call"""
@@ -609,13 +610,13 @@ def optimize_metadata_processing():
 # ===== EXPORT MAIN CLASSES =====
 
 __all__ = [
-    'time_operation',
-    'monitor_memory_usage',
-    'cleanup_memory',
-    'OptimizedDisciplineCache',
-    'RegexPatternCache',
     'BatchProcessor',
+    'OptimizedDisciplineCache',
     'OptimizedMetadataProcessor',
     'PerformanceBenchmark',
-    'optimize_metadata_processing'
+    'RegexPatternCache',
+    'cleanup_memory',
+    'monitor_memory_usage',
+    'optimize_metadata_processing',
+    'time_operation'
 ] 

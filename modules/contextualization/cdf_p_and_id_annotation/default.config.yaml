@@ -1,4 +1,3 @@
-
 function_version: '1.0.0'
 organization: YourOrg
 
@@ -7,7 +6,7 @@ location_name: LOC
 files_dataset: ds_files_LOC
 
 
-# specify the name of the source making it possible to identify where the data originates 
+# specify the name of the source making it possible to identify where the data originates
 # from, ex: 'workmate', 'sap', 'oracle',..
 # Update SOURCE to your source
 source_name: SOURCE

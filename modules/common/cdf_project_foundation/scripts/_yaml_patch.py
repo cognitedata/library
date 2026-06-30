@@ -61,9 +61,8 @@ def find_line(lines: list[str], dotted_path: str) -> int | None:
             if key == parts[depth] and indent > section_indent[-1]:
                 section_indent.append(indent)
                 depth += 1
-        elif depth == len(parts) - 1:
-            if key == parts[depth] and indent > section_indent[-1]:
-                return i
+        elif depth == len(parts) - 1 and key == parts[depth] and indent > section_indent[-1]:
+            return i
 
     return None
 

@@ -386,8 +386,8 @@ def query_instances(
     config: Config, 
     logger: CogniteFunctionLogger,
     limit: int = 10,
-    epoch_start: str = None,
-    property_configs: list = None,
+    epoch_start: str | None = None,
+    property_configs: list | None = None,
     target_view_id = None
 ) -> list:
     """

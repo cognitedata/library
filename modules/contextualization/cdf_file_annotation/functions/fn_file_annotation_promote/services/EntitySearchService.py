@@ -211,7 +211,7 @@ class EntitySearchService(IEntitySearchService):
                 top_matches = [match[0] for match in sorted_matches[:2]]
             else:
                 # Single consistent match found
-                top_matches = [list(matched_end_nodes.keys())[0]]
+                top_matches = [next(iter(matched_end_nodes.keys()))]
 
             # Fetch the actual node objects for the matched entities
             view_to_use: ViewId = (

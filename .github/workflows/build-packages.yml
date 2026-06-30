@@ -11,11 +11,11 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-      
+
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
@@ -39,7 +39,7 @@ jobs:
     - name: Validate packages.toml
       run: |
         python validate_packages.py
-        
+
     - name: Build packages
       run: python build_packages.py
 
@@ -49,7 +49,7 @@ jobs:
       with:
         name: packages
         path: packages.zip
-        
+
     - name: Create/Update Release
       if: github.ref == 'refs/heads/main' && github.event_name == 'push'
       uses: softprops/action-gh-release@v1
@@ -58,9 +58,9 @@ jobs:
         name: Latest Release
         body: |
           ## Latest Packages Release
-          
+
           **Download:** [packages.zip](https://github.com/${{ github.repository }}/releases/download/latest/packages.zip)
-          
+
           This release is automatically updated on every merge to main.
         files: |
           packages.zip

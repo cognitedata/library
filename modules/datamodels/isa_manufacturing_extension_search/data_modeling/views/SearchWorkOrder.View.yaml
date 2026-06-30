@@ -17,10 +17,10 @@ properties:
     containerPropertyIdentifier: assets
     name: Assets
     description: >
-      Collection of ISA Asset entities associated with this work order, enabling asset-centric 
-      work order queries and asset activity tracking. Assets linked through this relationship 
-      represent the assets that are the subject of the work order activities. This relationship 
-      follows ISA-95 asset-to-activity mapping principles and enables integration between asset 
+      Collection of ISA Asset entities associated with this work order, enabling asset-centric
+      work order queries and asset activity tracking. Assets linked through this relationship
+      represent the assets that are the subject of the work order activities. This relationship
+      follows ISA-95 asset-to-activity mapping principles and enables integration between asset
       management systems and work management systems. [ISA-95 Level 3]
     source:
       space: "{{search_space}}"
@@ -35,10 +35,10 @@ properties:
     containerPropertyIdentifier: equipment
     name: Equipment
     description: >
-      Reference to the Equipment entity that is the subject of this work order, establishing the 
-      relationship between work orders and equipment. The equipment relationship enables navigation 
-      from work order to equipment level, supporting equipment-centric work order queries and 
-      equipment maintenance tracking. This relationship is essential for equipment maintenance, 
+      Reference to the Equipment entity that is the subject of this work order, establishing the
+      relationship between work orders and equipment. The equipment relationship enables navigation
+      from work order to equipment level, supporting equipment-centric work order queries and
+      equipment maintenance tracking. This relationship is essential for equipment maintenance,
       repair, and operational activities. [ISA-88, ISA-95 Level 3]
     source:
       space: "{{search_space}}"
@@ -53,10 +53,10 @@ properties:
     containerPropertyIdentifier: timeSeries
     name: TimeSeries
     description: >
-      Collection of time series data associated with this work order, enabling real-time and 
-      historical process data acquisition related to work order execution. Time series may include 
-      sensor readings, process measurements, equipment status, and performance metrics during work 
-      execution. This relationship follows ISA-95 data acquisition standards for process data and 
+      Collection of time series data associated with this work order, enabling real-time and
+      historical process data acquisition related to work order execution. Time series may include
+      sensor readings, process measurements, equipment status, and performance metrics during work
+      execution. This relationship follows ISA-95 data acquisition standards for process data and
       enables work order performance analysis and condition monitoring. [ISA-95 Level 3]
     source:
       space: "{{search_space}}"
@@ -71,11 +71,11 @@ properties:
     containerPropertyIdentifier: workOrderId
     name: Work Order ID
     description: >
-      Unique identifier for the work order entity, conforming to ISA-95 Level 3 work management 
-      standards. A work order represents a specific work instruction for manufacturing execution. 
-      The workOrderId serves as the primary key and enables consistent tracking across all 
-      manufacturing operations, from work order creation through execution to completion. This 
-      identifier should align with work management system order numbering and support integration 
+      Unique identifier for the work order entity, conforming to ISA-95 Level 3 work management
+      standards. A work order represents a specific work instruction for manufacturing execution.
+      The workOrderId serves as the primary key and enables consistent tracking across all
+      manufacturing operations, from work order creation through execution to completion. This
+      identifier should align with work management system order numbering and support integration
       with maintenance and production systems. [ISA-95 Level 3]
   workOrderNumber:
     container:
@@ -85,11 +85,11 @@ properties:
     containerPropertyIdentifier: workOrderNumber
     name: Work Order Number
     description: >
-      Human-readable work order number or identifier assigned to the work order, typically used 
-      for operational reference and displayed on work documents, labels, and reports. The 
-      workOrderNumber follows ISA-95 Level 3 naming conventions and may include work order date, 
-      sequence numbers, or other organizational identifiers. This number is often used in work 
-      scheduling, resource allocation, and operational documentation. The workOrderNumber should 
+      Human-readable work order number or identifier assigned to the work order, typically used
+      for operational reference and displayed on work documents, labels, and reports. The
+      workOrderNumber follows ISA-95 Level 3 naming conventions and may include work order date,
+      sequence numbers, or other organizational identifiers. This number is often used in work
+      scheduling, resource allocation, and operational documentation. The workOrderNumber should
       be unique within the site or production context to ensure proper identification. [ISA-95 Level 3]
   description:
     container:
@@ -109,10 +109,10 @@ properties:
     containerPropertyIdentifier: workType
     name: Work Type
     description: >
-      Classification of the work order according to its work type or purpose, following ISA-95 
-      Level 3 work order classifications. Common work types include maintenance, repair, inspection, 
-      calibration, production, and cleaning. The workType enables filtering and analysis by work 
-      function, supports work scheduling patterns, and facilitates work order management. This 
+      Classification of the work order according to its work type or purpose, following ISA-95
+      Level 3 work order classifications. Common work types include maintenance, repair, inspection,
+      calibration, production, and cleaning. The workType enables filtering and analysis by work
+      function, supports work scheduling patterns, and facilitates work order management. This
       classification should follow standardized work type taxonomies for consistency. [ISA-95 Level 3]
   workStatus:
     container:
@@ -122,11 +122,11 @@ properties:
     containerPropertyIdentifier: workStatus
     name: Work Status
     description: >
-      Current status of the work order according to ISA-95 Level 3 work order lifecycle. Common 
-      work statuses include "Planned", "Released", "In Progress", "On Hold", "Completed", 
-      "Cancelled", "Archived". The workStatus provides real-time visibility into work order 
-      progress and enables status-based queries, reporting, and workflow automation. Status 
-      transitions should follow ISA-95 work order lifecycle definitions to ensure consistent work 
+      Current status of the work order according to ISA-95 Level 3 work order lifecycle. Common
+      work statuses include "Planned", "Released", "In Progress", "On Hold", "Completed",
+      "Cancelled", "Archived". The workStatus provides real-time visibility into work order
+      progress and enables status-based queries, reporting, and workflow automation. Status
+      transitions should follow ISA-95 work order lifecycle definitions to ensure consistent work
       order state management across the manufacturing system. [ISA-95 Level 3]
   assignedPersonnel:
     container:
@@ -136,10 +136,10 @@ properties:
     containerPropertyIdentifier: assignedPersonnel
     name: Assigned Personnel
     description: >
-      Reference to the Personnel entity assigned to execute this work order, establishing the 
-      relationship between work orders and personnel. The assignedPersonnel relationship enables 
-      navigation from work order to personnel level, supporting personnel-centric work queries and 
-      workload management. This relationship is essential for work assignment, personnel scheduling, 
+      Reference to the Personnel entity assigned to execute this work order, establishing the
+      relationship between work orders and personnel. The assignedPersonnel relationship enables
+      navigation from work order to personnel level, supporting personnel-centric work queries and
+      workload management. This relationship is essential for work assignment, personnel scheduling,
       and personnel performance analysis. [ISA-95 Level 3]
     source:
       space: "{{search_space}}"
@@ -154,9 +154,9 @@ properties:
     containerPropertyIdentifier: plannedStartTime
     name: Planned Start Time
     description: >
-      Timestamp indicating when the work order is planned to begin, enabling time-based work 
-      scheduling and resource allocation. The plannedStartTime is critical for work planning, 
-      schedule optimization, and resource utilization analysis. This timestamp enables temporal 
+      Timestamp indicating when the work order is planned to begin, enabling time-based work
+      scheduling and resource allocation. The plannedStartTime is critical for work planning,
+      schedule optimization, and resource utilization analysis. This timestamp enables temporal
       queries and reporting on work scheduling patterns and schedule adherence metrics. [ISA-95 Level 3]
   plannedEndTime:
     container:
@@ -166,9 +166,9 @@ properties:
     containerPropertyIdentifier: plannedEndTime
     name: Planned End Time
     description: >
-      Timestamp indicating when the work order is planned to complete, enabling time-based work 
-      scheduling and resource allocation. The plannedEndTime, combined with plannedStartTime, 
-      enables calculation of planned duration, capacity utilization, and schedule adherence metrics. 
+      Timestamp indicating when the work order is planned to complete, enabling time-based work
+      scheduling and resource allocation. The plannedEndTime, combined with plannedStartTime,
+      enables calculation of planned duration, capacity utilization, and schedule adherence metrics.
       This timestamp is critical for work planning and schedule optimization. [ISA-95 Level 3]
   actualStartTime:
     container:
@@ -178,9 +178,9 @@ properties:
     containerPropertyIdentifier: actualStartTime
     name: Actual Start Time
     description: >
-      Timestamp indicating when the work order execution actually began, enabling actual vs. planned 
-      performance analysis. The actualStartTime is critical for work performance tracking, 
-      schedule adherence analysis, and work duration calculations. This timestamp enables temporal 
+      Timestamp indicating when the work order execution actually began, enabling actual vs. planned
+      performance analysis. The actualStartTime is critical for work performance tracking,
+      schedule adherence analysis, and work duration calculations. This timestamp enables temporal
       queries and reporting on work execution patterns and performance metrics. [ISA-95 Level 3]
   actualEndTime:
     container:
@@ -190,9 +190,9 @@ properties:
     containerPropertyIdentifier: actualEndTime
     name: Actual End Time
     description: >
-      Timestamp indicating when the work order execution actually completed, enabling actual vs. 
-      planned performance analysis. The actualEndTime, combined with actualStartTime, enables 
-      calculation of actual duration, schedule adherence, and work efficiency metrics. This 
+      Timestamp indicating when the work order execution actually completed, enabling actual vs.
+      planned performance analysis. The actualEndTime, combined with actualStartTime, enables
+      calculation of actual duration, schedule adherence, and work efficiency metrics. This
       timestamp is critical for work performance tracking and schedule optimization. [ISA-95 Level 3]
   productRequest:
     source:
@@ -209,9 +209,9 @@ properties:
       identifier: workOrders
     name: Product request
     description: >
-      Reference to the ProductRequest entity that is associated with this work order, establishing 
-      the relationship between work orders and product requests. The productRequest relationship enables 
-      navigation from work order to product request level, supporting product request-level production planning analysis and 
+      Reference to the ProductRequest entity that is associated with this work order, establishing
+      the relationship between work orders and product requests. The productRequest relationship enables
+      navigation from work order to product request level, supporting product request-level production planning analysis and
       production tracking. This relationship is essential for understanding how product requests are executed within the work order. [ISA-95 Level 3]
     connectionType: multi_reverse_direct_relation
   batches:
@@ -229,9 +229,9 @@ properties:
       identifier: workOrders
     name: Batches
     description: >
-      Reference to the Batch entity that is associated with this work order, establishing the 
-      relationship between work orders and batches. The batch relationship enables 
-      navigation from work order to batch level, supporting batch-level production planning analysis and 
+      Reference to the Batch entity that is associated with this work order, establishing the
+      relationship between work orders and batches. The batch relationship enables
+      navigation from work order to batch level, supporting batch-level production planning analysis and
       production tracking. This relationship is essential for ISA-88 production tracking, where work orders are used to track batches. [ISA-88]
     connectionType: multi_reverse_direct_relation
   name:

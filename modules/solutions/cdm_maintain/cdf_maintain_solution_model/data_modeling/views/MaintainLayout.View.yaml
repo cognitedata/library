@@ -83,4 +83,3 @@ properties:
       space: {{schemaSpace}}
       externalId: MaintainLayout
     containerPropertyIdentifier: activeColorCoding
-

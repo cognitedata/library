@@ -2,7 +2,6 @@
 Maintenance workflow processing and metrics computation (RMDM v1).
 """
 
-from typing import List, Optional
 
 from cognite.client.data_classes.data_modeling import ViewId
 
@@ -17,7 +16,7 @@ from .common import (
 )
 
 
-def get_direct_relation_id(prop) -> Optional[str]:
+def get_direct_relation_id(prop) -> str | None:
     """Extract external_id from a direct relation property."""
     if not prop:
         return None
@@ -31,7 +30,7 @@ def get_direct_relation_id(prop) -> Optional[str]:
     return getattr(prop, "external_id", None)
 
 
-def get_direct_relation_ids(prop) -> List[str]:
+def get_direct_relation_ids(prop) -> list[str]:
     """Extract list of external_ids from a multi-relation property."""
     if not prop:
         return []

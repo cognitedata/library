@@ -1,4 +1,4 @@
-from typing import Any, Optional
+from typing import Any
 
 import streamlit as st
 from client_factory import CogniteClientFactory
@@ -55,7 +55,7 @@ def _report_usage(cdf_client) -> None:
 
 def main() -> None:
     load_dotenv()
-    client: Optional[Any] = CogniteClientFactory.create_from_env()
+    client: Any | None = CogniteClientFactory.create_from_env()
     _report_usage(client)
     ui = PipelineHealthUI(client)
     ui.render()
