@@ -7,6 +7,7 @@ but without caching or Streamlit.
 """
 
 from abc import ABC, abstractmethod
+from collections.abc import Sequence
 
 from cognite.client import CogniteClient
 from cognite.client.data_classes import (
@@ -35,7 +36,7 @@ def _calculate_uptime_percentage(successful: int, failed: int) -> float:
     return (successful / total) * 100 if total > 0 else 100.0
 
 
-def _count_by_status(items: list[HealthRun], status_attr: str, target_statuses: frozenset[str]) -> int:
+def _count_by_status(items: Sequence[HealthRun], status_attr: str, target_statuses: frozenset[str]) -> int:
     count = 0
     for item in items:
         status = getattr(item, status_attr, None) if hasattr(item, status_attr) else item.get(status_attr)
@@ -65,7 +66,7 @@ def _sort_runs_failed_first(runs: list[dict[str, object]], status_key: str = "st
     return sorted(runs, key=sort_key)
 
 
-class ResourceHealthFetcher(ABC):
+class ResourceHealthFetcher[TResource: HealthResource, TRun: HealthRun](ABC):
     resource_type_name: str = "Resource"
     resources_key: str = "resources"
     runs_key: str = "recent_runs"
@@ -89,50 +90,50 @@ class ResourceHealthFetcher(ABC):
         self.errors: list[dict[str, object]] = []
 
     @abstractmethod
-    def fetch_resources(self) -> list[HealthResource]:
+    def fetch_resources(self) -> list[TResource]:
         pass
 
     @abstractmethod
-    def fetch_runs(self, resource: HealthResource) -> list[HealthRun]:
+    def fetch_runs(self, resource: TResource) -> list[TRun]:
         pass
 
     @abstractmethod
-    def build_resource_info(self, resource: HealthResource) -> dict[str, object]:
+    def build_resource_info(self, resource: TResource) -> dict[str, object]:
         pass
 
     @abstractmethod
-    def get_run_time(self, run: HealthRun) -> int | None:
+    def get_run_time(self, run: TRun) -> int | None:
         pass
 
     @abstractmethod
-    def build_recent_run(self, run: HealthRun) -> dict[str, object]:
+    def build_recent_run(self, run: TRun) -> dict[str, object]:
         pass
 
-    def get_success_statuses(self) -> frozenset:
+    def get_success_statuses(self) -> frozenset[str]:
         return SUCCESS_STATUSES
 
-    def get_failed_statuses(self) -> frozenset:
+    def get_failed_statuses(self) -> frozenset[str]:
         return FAILED_STATUSES
 
-    def get_error_message(self, run: HealthRun) -> str | None:
+    def get_error_message(self, run: TRun) -> str | None:
         return getattr(run, "message", None) or getattr(run, "error", None)
 
-    def get_resource_name(self, resource: HealthResource) -> str:
+    def get_resource_name(self, resource: TResource) -> str:
         return getattr(resource, "name", None) or getattr(resource, "external_id", "Unknown")
 
     def post_process_info(
-        self, info: dict[str, object], resource: HealthResource, runs: list[HealthRun], runs_in_window: list[HealthRun]
+        self, info: dict[str, object], resource: TResource, runs: list[TRun], runs_in_window: list[TRun]
     ) -> None:
         pass
 
-    def custom_sort_key(self, resource_info: dict[str, object]) -> tuple[int, str]:
+    def custom_sort_key(self, resource_info: dict[str, object]) -> tuple[int | str, ...]:
         failed = (resource_info.get("last_status") or "").lower() in FAILED_STATUSES
         return (0 if failed else 1, (resource_info.get("name", "") or "").lower())
 
     def build_summary_extra(self, resources_health: list[dict[str, object]]) -> dict[str, object]:
         return {}
 
-    def filter_runs_in_window(self, runs: list[HealthRun]) -> list[HealthRun]:
+    def filter_runs_in_window(self, runs: list[TRun]) -> list[TRun]:
         filtered = []
         for run in runs:
             t = self.get_run_time(run)
@@ -140,7 +141,7 @@ class ResourceHealthFetcher(ABC):
                 filtered.append(run)
         return filtered
 
-    def calculate_statistics(self, info: dict[str, object], runs: list[HealthRun], runs_in_window: list[HealthRun]) -> None:
+    def calculate_statistics(self, info: dict[str, object], runs: list[TRun], runs_in_window: list[TRun]) -> None:
         success_statuses = self.get_success_statuses()
         failed_statuses = self.get_failed_statuses()
         if runs:
@@ -156,7 +157,7 @@ class ResourceHealthFetcher(ABC):
             info["successful_in_window"], info["failed_in_window"]
         )
 
-    def collect_run_errors(self, info: dict[str, object], runs_in_window: list[HealthRun]) -> None:
+    def collect_run_errors(self, info: dict[str, object], runs_in_window: list[TRun]) -> None:
         failed_statuses = self.get_failed_statuses()
         for run in runs_in_window:
             status = getattr(run, self.status_field, None)
@@ -215,13 +216,13 @@ class ResourceHealthFetcher(ABC):
         }
 
 
-class ExtractionPipelineFetcher(ResourceHealthFetcher):
+class ExtractionPipelineFetcher(ResourceHealthFetcher[ExtractionPipeline, ExtractionPipelineRun]):
     resource_type_name = "Extraction Pipeline"
     resources_key = "pipelines"
     runs_key = "recent_runs"
     runs_count_key = "runs_in_window"
 
-    def get_success_statuses(self) -> frozenset:
+    def get_success_statuses(self) -> frozenset[str]:
         return SUCCESS_STATUSES | {"seen"}
 
     def fetch_resources(self) -> list[ExtractionPipeline]:
@@ -269,13 +270,15 @@ class ExtractionPipelineFetcher(ResourceHealthFetcher):
     def build_recent_run(self, run: ExtractionPipelineRun) -> dict[str, object]:
         return {"status": run.status, "created_time": run.created_time, "message": run.message}
 
-    def calculate_statistics(self, info: dict[str, object], runs: list[HealthRun], runs_in_window: list[HealthRun]) -> None:
+    def calculate_statistics(
+        self, info: dict[str, object], runs: list[ExtractionPipelineRun], runs_in_window: list[ExtractionPipelineRun]
+    ) -> None:
         super().calculate_statistics(info, runs, runs_in_window)
         if runs:
             info["last_seen"] = runs[0].created_time
 
 
-class TransformationFetcher(ResourceHealthFetcher):
+class TransformationFetcher(ResourceHealthFetcher[Transformation, TransformationJob]):
     resource_type_name = "Transformation"
     resources_key = "transformations"
     runs_key = "recent_jobs"
@@ -343,7 +346,7 @@ class TransformationFetcher(ResourceHealthFetcher):
         }
 
 
-class WorkflowFetcher(ResourceHealthFetcher):
+class WorkflowFetcher(ResourceHealthFetcher[Workflow, WorkflowExecution]):
     resource_type_name = "Workflow"
     resources_key = "workflows"
     runs_key = "recent_executions"
@@ -402,7 +405,9 @@ class WorkflowFetcher(ResourceHealthFetcher):
     def get_error_message(self, run: WorkflowExecution) -> str | None:
         return getattr(run, "reason_for_incompletion", None)
 
-    def calculate_statistics(self, info: dict[str, object], runs: list[HealthRun], runs_in_window: list[HealthRun]) -> None:
+    def calculate_statistics(
+        self, info: dict[str, object], runs: list[WorkflowExecution], runs_in_window: list[WorkflowExecution]
+    ) -> None:
         super().calculate_statistics(info, runs, runs_in_window)
         if runs:
             info["last_execution"] = self.get_run_time(runs[0])
@@ -417,7 +422,7 @@ class WorkflowFetcher(ResourceHealthFetcher):
         }
 
 
-class FunctionFetcher(ResourceHealthFetcher):
+class FunctionFetcher(ResourceHealthFetcher[Function, FunctionCall]):
     resource_type_name = "Function"
     resources_key = "functions"
     runs_key = "recent_calls"
@@ -437,7 +442,7 @@ class FunctionFetcher(ResourceHealthFetcher):
         self.dataset_external_id = dataset_external_id
         self._file_dataset_map: dict[int, int | None] = {}
 
-    def get_failed_statuses(self) -> frozenset:
+    def get_failed_statuses(self) -> frozenset[str]:
         return FAILED_STATUSES | {"timeout"}
 
     def fetch_resources(self) -> list[Function]:
@@ -502,7 +507,9 @@ class FunctionFetcher(ResourceHealthFetcher):
             return error.get("message", "Unknown error")
         return str(error) if error else None
 
-    def calculate_statistics(self, info: dict[str, object], runs: list[HealthRun], runs_in_window: list[HealthRun]) -> None:
+    def calculate_statistics(
+        self, info: dict[str, object], runs: list[FunctionCall], runs_in_window: list[FunctionCall]
+    ) -> None:
         super().calculate_statistics(info, runs, runs_in_window)
         if runs:
             info["last_call"] = self.get_run_time(runs[0])
