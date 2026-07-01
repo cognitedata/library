@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Report Generator for Context Quality Dashboards.
 
@@ -7,7 +6,6 @@ Uses fpdf2 for lightweight, pure-Python PDF generation.
 """
 
 from datetime import datetime
-from typing import Optional
 
 from fpdf import FPDF
 
@@ -20,7 +18,7 @@ class ContextQualityReport(FPDF):
         self.report_title = title
         self.set_auto_page_break(auto=True, margin=15)
     
-    def header(self):
+    def header(self) -> None:
         self.set_font("Helvetica", "B", 12)
         self.cell(0, 10, self.report_title, border=0, ln=True, align="C")
         self.set_font("Helvetica", "", 8)
@@ -29,20 +27,20 @@ class ContextQualityReport(FPDF):
         self.set_text_color(0, 0, 0)
         self.ln(5)
     
-    def footer(self):
+    def footer(self) -> None:
         self.set_y(-15)
         self.set_font("Helvetica", "I", 8)
         self.set_text_color(128, 128, 128)
         self.cell(0, 10, f"Page {self.page_no()}/{{nb}} | Context Quality Dashboard Report", align="C")
     
-    def add_section_header(self, title: str):
+    def add_section_header(self, title: str) -> None:
         """Add a section header with styling."""
         self.set_font("Helvetica", "B", 14)
         self.set_fill_color(240, 240, 240)
         self.cell(0, 10, title, ln=True, fill=True)
         self.ln(3)
     
-    def add_metric_row(self, label: str, value: str, status: Optional[str] = None):
+    def add_metric_row(self, label: str, value: str, status: str | None = None) -> None:
         """Add a metric row with optional status indicator."""
         self.set_font("Helvetica", "", 10)
         
@@ -62,12 +60,12 @@ class ContextQualityReport(FPDF):
         self.set_text_color(0, 0, 0)
         self.set_font("Helvetica", "", 10)
     
-    def add_key_metric(self, label: str, value: float, suffix: str = "%", threshold_good: float = 90, threshold_warn: float = 70):
+    def add_key_metric(self, label: str, value: float, suffix: str = "%", threshold_good: float = 90, threshold_warn: float = 70) -> None:
         """Add a key metric with automatic status coloring."""
         status = "good" if value >= threshold_good else "warning" if value >= threshold_warn else "error"
         self.add_metric_row(label, f"{value:.1f}{suffix}", status)
     
-    def add_table(self, headers: list, rows: list):
+    def add_table(self, headers: list, rows: list) -> None:
         """Add a simple table."""
         self.set_font("Helvetica", "B", 9)
         self.set_fill_color(220, 220, 220)
@@ -84,7 +82,7 @@ class ContextQualityReport(FPDF):
             self.ln()
         self.ln(3)
     
-    def add_paragraph(self, text: str):
+    def add_paragraph(self, text: str) -> None:
         """Add a paragraph of text."""
         self.set_font("Helvetica", "", 10)
         self.multi_cell(0, 6, text)

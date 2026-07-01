@@ -6,7 +6,7 @@ source: "Open Industrial Data (publicdata)"
 documentation: >
   # Open Industrial Data Sync Configuration Guide
 
-  Synchronizes time series data from the [Cognite Open Industrial Data project](https://hub.cognite.com/open-industrial-data-211) 
+  Synchronizes time series data from the [Cognite Open Industrial Data project](https://hub.cognite.com/open-industrial-data-211)
   (publicdata) to your target CDF project. Data is time-shifted to simulate real-time streams for development and testing.
 
   ## How It Works
@@ -46,10 +46,10 @@ documentation: >
   - **`sync_realtime_start`**: Recent data window per run (default: `15m-ago`)
     - Match to schedule frequency + buffer (e.g., `15m-ago` for 10-min schedule)
     - Prevents re-syncing same data repeatedly
-  
+
   - **`sync_all_end`**: End boundary for all syncs (default: `168h-ago`)
     - OID has ~1 week publication delay
-  
+
   - **`sync_random_start`**: Historical backfill range (default: `12w-ago`)
     - One random time series per run gets backfilled from this point
     - Gradually populates 12 weeks of history
@@ -81,7 +81,7 @@ documentation: >
   ```yaml
   sync_configuration:
     sync_realtime_start: "15m-ago"   # For 10-minute schedule
-    # sync_realtime_start: "35m-ago"  # For 30-minute schedule  
+    # sync_realtime_start: "35m-ago"  # For 30-minute schedule
     # sync_realtime_start: "1h-ago"   # For hourly schedule
   ```
 
@@ -101,4 +101,3 @@ documentation: >
           └── Time Offset (+1 week +10 min)
               └── Target CDF Project (simulated real-time)
   ```
-

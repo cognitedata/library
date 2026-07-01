@@ -1,0 +1,64 @@
+---
+# Cognite library — yamllint config for Toolkit module YAML.
+# Relaxes rules that conflict with Toolkit conventions ({{ variables }},
+# flush-left list items, long SQL/config strings). Enforces hygiene:
+# no trailing whitespace, Unix line endings, newline at EOF.
+
+extends: default
+
+yaml-files:
+  - "*.yaml"
+  - "*.yml"
+  - ".yamllint.yml"
+
+ignore: |
+  modules/tools/apps/qualitizer/node_modules/
+  # GitHub Actions templates use {{PLACEHOLDER}} blocks yamllint cannot parse.
+  modules/common/cdf_project_foundation/templates/
+
+rules:
+  # Toolkit uses {{ variable_name }} with spaces inside double braces.
+  braces: disable
+
+  document-start: disable
+
+  line-length:
+    max: 120
+    allow-non-breakable-inline-mappings: true
+    level: warning
+
+  # Toolkit YAML uses mixed indentation (flush-left lists, nested blocks).
+  indentation: disable
+
+  comments:
+    require-starting-space: false
+    min-spaces-from-content: 1
+
+  comments-indentation: disable
+
+  empty-lines:
+    max: 2
+    max-start: 0
+    max-end: 1
+
+  new-lines:
+    type: unix
+
+  trailing-spaces: enable
+
+  new-line-at-end-of-file: enable
+
+  # Flow-style maps/sequences and aligned values appear in module configs.
+  commas: disable
+
+  colons:
+    max-spaces-before: 0
+    max-spaces-after: -1
+
+  truthy:
+    allowed-values: ['true', 'false', 'yes', 'no', 'on', 'off']
+    check-keys: false
+
+  octal-values: disable
+
+  key-duplicates: enable

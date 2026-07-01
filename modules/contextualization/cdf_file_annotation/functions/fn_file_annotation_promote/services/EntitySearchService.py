@@ -1,9 +1,8 @@
 import abc
 import re
-from typing import Any
 
 from cognite.client import CogniteClient
-from cognite.client.data_classes.data_modeling import Node, ViewId
+from cognite.client.data_classes.data_modeling import EdgeList, Node, NodeList, ViewId
 from cognite.client.data_classes.filters import Filter, In
 from services.ConfigService import Config
 from services.LoggerService import CogniteFunctionLogger
@@ -39,7 +38,7 @@ class EntitySearchService(IEntitySearchService):
 
     **Why query entities directly instead of annotation edges?**
     - Entity dataset is smaller and stable (~1,000-10,000 entities)
-    - Annotation edges grow quadratically (Files × Entities = potentially millions)
+    - Annotation edges grow quadratically (Files x Entities = potentially millions)
     - Neither startNodeText nor aliases properties are indexed
     - Without indexes, smaller dataset = better performance
     - Entity count doesn't increase as more files are annotated
@@ -139,7 +138,7 @@ class EntitySearchService(IEntitySearchService):
         While this was originally designed as a "smart" optimization to find proven matches,
         it actually queries the LARGER dataset:
 
-        - Annotation edges grow quadratically: O(Files × Entities) = potentially millions
+        - Annotation edges grow quadratically: O(Files x Entities) = potentially millions
         - Entity/file nodes grow linearly: O(Entities) = thousands
         - Neither startNodeText nor aliases properties are indexed
         - Without indexes, querying the smaller dataset (entities) is always faster
@@ -167,7 +166,7 @@ class EntitySearchService(IEntitySearchService):
             # These are annotation edges that are from regular diagram detect (not pattern mode)
             # NOTE: manually promoted results from pattern mode are added to the
             text_filter: Filter = In(self.core_annotation_view_id.as_property_ref("startNodeText"), text_variations)
-            edges: Any = self.client.data_modeling.instances.list(
+            edges: EdgeList = self.client.data_modeling.instances.list(
                 instance_type="edge",
                 sources=[self.core_annotation_view_id],
                 filter=text_filter,
@@ -182,14 +181,14 @@ class EntitySearchService(IEntitySearchService):
             matched_end_nodes: dict[tuple[str, str], int] = {}  # {(space, externalId): count}
             for edge in edges:
                 # Check annotation type matches
-                edge_props: dict[str, Any] = edge.properties.get(self.core_annotation_view_id, {})
-                edge_type: Any = edge_props.get("type")
+                edge_props: dict[str, object] = edge.properties.get(self.core_annotation_view_id, {})
+                edge_type: object = edge_props.get("type")
 
                 if edge_type != annotation_type:
                     continue  # Skip edges of different type
 
                 # Extract endNode from the edge
-                end_node_ref: Any = edge.end_node
+                end_node_ref = edge.end_node
                 if end_node_ref:
                     key: tuple[str, str] = (end_node_ref.space, end_node_ref.external_id)
                     matched_end_nodes[key] = matched_end_nodes.get(key, 0) + 1
@@ -211,7 +210,7 @@ class EntitySearchService(IEntitySearchService):
                 top_matches = [match[0] for match in sorted_matches[:2]]
             else:
                 # Single consistent match found
-                top_matches = [list(matched_end_nodes.keys())[0]]
+                top_matches = [next(iter(matched_end_nodes.keys()))]
 
             # Fetch the actual node objects for the matched entities
             view_to_use: ViewId = (
@@ -220,7 +219,7 @@ class EntitySearchService(IEntitySearchService):
 
             matched_nodes: list[Node] = []
             for space, ext_id in top_matches:
-                retrieved: Any = self.client.data_modeling.instances.retrieve_nodes(
+                retrieved: NodeList[Node] = self.client.data_modeling.instances.retrieve_nodes(
                     nodes=(space, ext_id), sources=view_to_use
                 )
                 # Handle both single Node and NodeList returns
@@ -265,7 +264,7 @@ class EntitySearchService(IEntitySearchService):
             # Query entities with IN filter on aliases property
             aliases_filter: Filter = In(source.as_property_ref("aliases"), text_variations)
 
-            entities: Any = self.client.data_modeling.instances.list(
+            entities: NodeList[Node] = self.client.data_modeling.instances.list(
                 instance_type="node",
                 sources=source,
                 filter=aliases_filter,

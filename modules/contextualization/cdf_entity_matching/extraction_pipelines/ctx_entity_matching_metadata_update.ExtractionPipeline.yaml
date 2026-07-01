@@ -1,19 +1,19 @@
 externalId: 'ep_ctx_entity_matching_metadata_update'
 name: 'ctx:entity_matching_metadata_update'
-dataSetExternalId: 'ds_timeseries_{{location_name}}' 
+dataSetExternalId: 'ds_timeseries_{{location_name}}'
 description: 'Update / add alias and tags timeseries and assets'
 source: '{{source_name}}'
 documentation: >
   # Create Alias and tags for timeseries and assets
- 
+
   Uses the DM sync api to get all timeseries and assets and creates aliases, summary and tags for each object.
-  The aliases are used in the entity matching process to link matched timeseries to assets. 
+  The aliases are used in the entity matching process to link matched timeseries to assets.
   The alias process is used to make it possible to generalize the entity matching process. So that the same process can be used for different sites/assets/facilities.
-  
-  Default configuration is provided as part of the deployment, but can be overwritten 
+
+  Default configuration is provided as part of the deployment, but can be overwritten
   by configuration provided in configuration section below
- 
-  
+
+
   ```
    debug -  write DEBUG messages and only process one file if True
    debugTimeseries - if debug is True, process only this file name
@@ -28,5 +28,5 @@ documentation: >
    instanceSpace - Instance space ( where data is stored) for the views, same or different for each view
    externalId: External id of the view
    version: Version of the view
-  
+
   ```

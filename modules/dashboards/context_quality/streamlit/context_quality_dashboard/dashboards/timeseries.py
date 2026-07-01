@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Time Series Contextualization Dashboard.
 """
@@ -18,7 +17,7 @@ from .common import (
 )
 
 
-def render_time_series_dashboard(metrics: dict):
+def render_time_series_dashboard(metrics: dict) -> None:
     """Render the Time Series Contextualization dashboard tab."""
     st.title("Time Series Contextualization Quality Dashboard")
     

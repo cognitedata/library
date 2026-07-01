@@ -174,7 +174,7 @@ def _aggregate_multi_dataset_payload(datasets_dict: dict) -> dict:
     }
 
 
-def main():
+def main() -> None:
     st.title("🏥 CDF Project Health Dashboard")
 
     metrics = load_metrics_from_file(METRICS_FILE_EXTERNAL_ID)
@@ -222,7 +222,7 @@ def main():
         if has_metrics:
             if is_multi and datasets_dict and dataset_ids:
                 st.caption("Filter by dataset (file contains all datasets; view is filtered by selection):")
-                options = ["All datasets"] + dataset_ids
+                options = ["All datasets", *dataset_ids]
                 idx = st.selectbox(
                     "Dataset",
                     range(len(options)),

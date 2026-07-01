@@ -1,4 +1,4 @@
-from typing import Callable, Optional
+from collections.abc import Callable
 
 import streamlit as st
 from constants import FieldNames
@@ -15,7 +15,7 @@ class FactoryHandler:
     @staticmethod
     def make_single_selection_handler(
         editor_key: str,
-        selected_index_state_key: Optional[str] = None,
+        selected_index_state_key: str | None = None,
     ) -> Callable[[], None]:
         def _handler() -> None:
             if selected_index_state_key is None:

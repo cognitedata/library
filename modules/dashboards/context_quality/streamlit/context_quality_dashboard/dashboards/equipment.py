@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Equipment-Asset Quality Dashboard.
 """
@@ -18,7 +17,7 @@ from .common import (
 )
 
 
-def render_equipment_dashboard(metrics: dict):
+def render_equipment_dashboard(metrics: dict) -> None:
     """Render the Equipment-Asset Quality dashboard tab."""
     st.title("Equipment-Asset Relationship Quality Dashboard")
     
@@ -131,7 +130,7 @@ def render_equipment_dashboard(metrics: dict):
     
     st.write("")
     
-    g4, g5, g6 = st.columns(3)
+    g4, g5, _g6 = st.columns(3)
     gauge(g4, "Type Consistency", type_consistency_rate, "type_consistency", 
           get_status_color_equipment, [0, 100], "%", key="eq_type",
           help_text="% of equipment where type matches linked asset type")

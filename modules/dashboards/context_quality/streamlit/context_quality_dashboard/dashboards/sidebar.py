@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Sidebar metadata display component.
 """
@@ -60,7 +59,7 @@ def _merge_instance_counts(metadata_counts: dict, metrics_counts: dict) -> dict:
     return merged
 
 
-def render_metadata_sidebar(metrics: dict):
+def render_metadata_sidebar(metrics: dict) -> None:
     """Display metadata in the sidebar."""
     metadata = metrics.get("metadata", {})
     
@@ -232,7 +231,7 @@ def render_metadata_sidebar(metrics: dict):
         return "\n".join(lines)
     
     # Helper function to display counts with optional duplicate download
-    def display_counts(label: str, counts: dict, limit_key: str = None, view_key: str = None):
+    def display_counts(label: str, counts: dict, limit_key: str | None = None, view_key: str | None = None) -> None:
         total = counts.get("total_instances", counts.get("unique", 0))
         unique = counts.get("unique", total)
         dups = counts.get("duplicates", 0)

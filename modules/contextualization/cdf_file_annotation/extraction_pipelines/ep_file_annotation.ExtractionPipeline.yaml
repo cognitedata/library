@@ -18,7 +18,7 @@ rawTables:
 source: "Files"
 documentation: >
   ## Configuration Structure
-  
+
   Configuration parsed by Pydantic models in Python. See detailed_guides/CONFIG.md for comprehensive documentation.
 
   ### 1. dataModelViews (ViewPropertyConfig)
@@ -43,8 +43,8 @@ documentation: >
 
 
   **Direct params:**
-  
-  
+
+
   batchSize, fileSearchProperty, targetEntitiesSearchProperty, primaryScopeProperty, secondaryScopeProperty, patternMode, fileResourceProperty, targetEntitiesResourceProperty
 
 
@@ -59,7 +59,7 @@ documentation: >
 
 
   **Direct params:**
-  
+
 
   cleanOldAnnotations, maxRetryAttempts
 
@@ -71,8 +71,8 @@ documentation: >
 
   ### 5. promoteFunction (PromoteFunctionConfig)
 
-  **Direct params:** 
-  
+  **Direct params:**
+
 
   getCandidatesQuery, rawDb, rawTableDocPattern, rawTableDocTag, rawTableDocDoc, deleteRejectedEdges, deleteSuggestedEdges
 

@@ -1,7 +1,6 @@
-from typing import Any, Optional
-
 import streamlit as st
 from client_factory import CogniteClientFactory
+from cognite.client import CogniteClient
 from dotenv import load_dotenv
 from ui import AnnotationQualityUI
 
@@ -15,7 +14,7 @@ _DP_VERSION = "1"
 _TRACKER_VERSION = "1"
 
 
-def _report_usage(cdf_client) -> None:
+def _report_usage(cdf_client: CogniteClient | None) -> None:
     if cdf_client is None or st.session_state.get("_usage_tracked"):
         return
     try:
@@ -55,7 +54,7 @@ def _report_usage(cdf_client) -> None:
 
 def main() -> None:
     load_dotenv()
-    client: Optional[Any] = CogniteClientFactory.create_from_env()
+    client: CogniteClient | None = CogniteClientFactory.create_from_env()
     _report_usage(client)
     ui = AnnotationQualityUI(client=client)
     ui.render()

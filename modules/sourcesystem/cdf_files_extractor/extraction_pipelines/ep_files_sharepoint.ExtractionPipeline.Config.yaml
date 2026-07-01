@@ -20,7 +20,6 @@ config:
       #retention: 7
 
 
-
   # (Optional) Where to store extraction states (progress) between runs.
   # Required for incremental load to work.
   state-store:
@@ -43,8 +42,6 @@ config:
     #upload-interval: 30s
 
 
-
-
   files:
     # (Optional) A list of extensions to fetch. If included, only files matching
     # these extensions will be uploaded.
@@ -60,11 +57,11 @@ config:
 
     data_model:
       space: {{instanceSpace}}
-      
+
     source:
       name: ${SP_EXTRACT_URL}
       external_id: ${SP_EXTRACT_URL}
-    
+
     # (Optional) Maximum number of consecutive errors before crashing extractor
     #errors-threshold: 5
 

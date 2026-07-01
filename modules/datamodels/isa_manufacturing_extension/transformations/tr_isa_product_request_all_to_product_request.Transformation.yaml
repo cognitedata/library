@@ -12,5 +12,3 @@ dataSetExternalId: {{ datasetExternalId }}
 ignoreNullFields: true
 isPublic: true
 conflictMode: upsert
-
-

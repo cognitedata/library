@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-from typing import Any
-
 import yaml
 from cognite.client import CogniteClient
 from cognite.client import data_modeling as dm
 from cognite.client.exceptions import CogniteAPIError
+from pipeline_types import FunctionInputData
 from pydantic import BaseModel, Field
 from pydantic.alias_generators import to_camel
 
@@ -49,12 +48,13 @@ class Config(BaseModel, alias_generator=to_camel):
     data: ConfigData
 
     @classmethod
-    def pares_direct_relation(cls, value: Any) -> Any:
+    def pares_direct_relation(cls, value: object) -> object:
         if isinstance(value, dict):
             return dm.DirectRelationReference.load(value)
         return value
 
-def load_config_parameters(client: CogniteClient, function_data: dict[str, Any]) -> Config:
+
+def load_config_parameters(client: CogniteClient, function_data: FunctionInputData) -> Config:
     """Retrieves the configuration parameters from the function data and loads the configuration from CDF."""
     if "ExtractionPipelineExtId" not in function_data:
         raise ValueError("Missing key 'ExtractionPipelineExtId' in input data to the function")
@@ -64,7 +64,7 @@ def load_config_parameters(client: CogniteClient, function_data: dict[str, Any])
         raw_config = client.extraction_pipelines.config.retrieve(external_id=pipeline_ext_id)
         if raw_config.config is None:
             raise ValueError(f"No config found for extraction pipeline: {pipeline_ext_id!r}")
-    except CogniteAPIError:
-        raise RuntimeError(f"Not able to retrieve pipeline config for extraction pipeline: {pipeline_ext_id!r}")
+    except CogniteAPIError as e:
+        raise RuntimeError(f"Not able to retrieve pipeline config for extraction pipeline: {pipeline_ext_id!r}") from e
 
     return Config.model_validate(yaml.safe_load(raw_config.config))

@@ -7,7 +7,7 @@ import time
 import traceback
 from collections import defaultdict
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any
 
 from cognite.client import CogniteClient
 from cognite.client import data_modeling as dm
@@ -219,7 +219,7 @@ def entity_matching(
     except Exception as e:
         msg = f"failed, Message: {e!s}"
         update_pipeline_run(client, logger, pipeline_ext_id, STATUS_FAILURE, len_good_matches, len_bad_matches, msg)
-        raise Exception("msg")
+        raise
 
 
 def update_pipeline_run(
@@ -229,7 +229,7 @@ def update_pipeline_run(
     status: str,
     match_count: int = 0,
     not_matches_count: int = 0,
-    input_msg: Optional[str] = None
+    input_msg: str | None = None
 ) -> None:
 
     total_entities = match_count + not_matches_count
@@ -1168,7 +1168,7 @@ def add_to_items(
     target_ext_ids: list[str],
     entity_ext_id: str,
     entity_view_id: dm.ViewId,
-    entity_targets: Optional[str] = None  
+    entity_targets: str | None = None  
 ) -> list[NodeApply]:
 
     targets = []
@@ -1305,7 +1305,7 @@ def write_mapping_to_raw(
             raw_uploader.upload()
     except Exception as e:
         logger.error(f"ERROR: Failed to write mapping to RAW DB - error: {type(e)}({e})")
-        raise Exception(f"Failed to write mapping to RAW DB - error: {type(e)}({e})")
+        raise Exception(f"Failed to write mapping to RAW DB - error: {type(e)}({e})") from e
 
 
 def create_table(client: CogniteClient, raw_db: str, tbl: str) -> None:

@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Any, Literal, Optional
+from typing import Literal
 
 import yaml
 from cognite.client import CogniteClient
@@ -21,10 +21,10 @@ from utils.DataStructures import AnnotationStatus, FilterOperator
 # Configuration Classes
 class ViewPropertyConfig(BaseModel, alias_generator=to_camel):
     schema_space: str
-    instance_space: Optional[str] = None
+    instance_space: str | None = None
     external_id: str
     version: str
-    annotation_type: Optional[Literal["diagrams.FileLink", "diagrams.AssetLink"]] = None
+    annotation_type: Literal["diagrams.FileLink", "diagrams.AssetLink"] | None = None
 
     def as_view_id(self) -> dm.ViewId:
         return dm.ViewId(space=self.schema_space, external_id=self.external_id, version=self.version)
@@ -34,7 +34,7 @@ class ViewPropertyConfig(BaseModel, alias_generator=to_camel):
 
 
 class FilterConfig(BaseModel, alias_generator=to_camel):
-    values: Optional[list[AnnotationStatus | str] | AnnotationStatus | str] = None
+    values: list[AnnotationStatus | str] | AnnotationStatus | str | None = None
     negate: bool = False
     operator: FilterOperator
     target_property: str
@@ -78,7 +78,7 @@ class FilterConfig(BaseModel, alias_generator=to_camel):
 class QueryConfig(BaseModel, alias_generator=to_camel):
     target_view: ViewPropertyConfig
     filters: list[FilterConfig]
-    limit: Optional[int] = -1
+    limit: int | None = -1
 
     def build_filter(self) -> Filter:
         list_filters: list[Filter] = [f.as_filter(self.target_view) for f in self.filters]
@@ -90,8 +90,8 @@ class QueryConfig(BaseModel, alias_generator=to_camel):
 
 
 class ConnectionFlagsConfig(BaseModel, alias_generator=to_camel):
-    no_text_inbetween: Optional[bool] = None
-    natural_reading_order: Optional[bool] = None
+    no_text_inbetween: bool | None = None
+    natural_reading_order: bool | None = None
 
     def as_connection_flag(self) -> ConnectionFlags:
         params = {key: value for key, value in self.model_dump().items() if value is not None}
@@ -99,9 +99,9 @@ class ConnectionFlagsConfig(BaseModel, alias_generator=to_camel):
 
 
 class CustomizeFuzzinessConfig(BaseModel, alias_generator=to_camel):
-    fuzzy_score: Optional[float] = None
-    max_boxes: Optional[int] = None
-    min_chars: Optional[int] = None
+    fuzzy_score: float | None = None
+    max_boxes: int | None = None
+    min_chars: int | None = None
 
     def as_customize_fuzziness(self) -> CustomizeFuzziness:
         params = {key: value for key, value in self.model_dump().items() if value is not None}
@@ -109,10 +109,10 @@ class CustomizeFuzzinessConfig(BaseModel, alias_generator=to_camel):
 
 
 class DirectionWeightsConfig(BaseModel, alias_generator=to_camel):
-    left: Optional[float] = None
-    right: Optional[float] = None
-    up: Optional[float] = None
-    down: Optional[float] = None
+    left: float | None = None
+    right: float | None = None
+    up: float | None = None
+    down: float | None = None
 
     def as_direction_weights(self) -> DirectionWeights:
         params = {key: value for key, value in self.model_dump().items() if value is not None}
@@ -121,16 +121,16 @@ class DirectionWeightsConfig(BaseModel, alias_generator=to_camel):
 
 class DiagramDetectConfigModel(BaseModel, alias_generator=to_camel):
     # NOTE: configs come from V7 of the cognite python sdk cognite SDK
-    annotation_extract: Optional[bool] = None
-    case_sensitive: Optional[bool] = None
-    connection_flags: Optional[ConnectionFlagsConfig] = None
-    customize_fuzziness: Optional[CustomizeFuzzinessConfig] = None
-    direction_delta: Optional[float] = None
-    direction_weights: Optional[DirectionWeightsConfig] = None
-    min_fuzzy_score: Optional[float] = None
-    read_embedded_text: Optional[bool] = None
-    remove_leading_zeros: Optional[bool] = None
-    substitutions: Optional[dict[str, list[str]]] = None
+    annotation_extract: bool | None = None
+    case_sensitive: bool | None = None
+    connection_flags: ConnectionFlagsConfig | None = None
+    customize_fuzziness: CustomizeFuzzinessConfig | None = None
+    direction_delta: float | None = None
+    direction_weights: DirectionWeightsConfig | None = None
+    min_fuzzy_score: float | None = None
+    read_embedded_text: bool | None = None
+    remove_leading_zeros: bool | None = None
+    substitutions: dict[str, list[str]] | None = None
 
     def as_config(self) -> DiagramDetectConfig:
         params = {}
@@ -189,23 +189,23 @@ class AnnotationServiceConfig(BaseModel, alias_generator=to_camel):
     page_range: int = Field(gt=0, le=50)
     partial_match: bool = True
     min_tokens: int = 1
-    diagram_detect_config: Optional[DiagramDetectConfigModel] = None
+    diagram_detect_config: DiagramDetectConfigModel | None = None
 
 
 class PrepareFunction(BaseModel, alias_generator=to_camel):
-    get_files_for_annotation_reset_query: Optional[QueryConfig | list[QueryConfig]] = None
+    get_files_for_annotation_reset_query: QueryConfig | list[QueryConfig] | None = None
     get_files_to_annotate_query: QueryConfig | list[QueryConfig]
 
 
 class LaunchFunction(BaseModel, alias_generator=to_camel):
     batch_size: int = Field(gt=0, le=50)
     primary_scope_property: str
-    secondary_scope_property: Optional[str] = None
+    secondary_scope_property: str | None = None
     file_search_property: str = "aliases"
     target_entities_search_property: str = "aliases"
     pattern_mode: bool
-    file_resource_property: Optional[str] = None
-    target_entities_resource_property: Optional[str] = None
+    file_resource_property: str | None = None
+    target_entities_resource_property: str | None = None
     data_model_service: DataModelServiceConfig
     cache_service: CacheServiceConfig
     annotation_service: AnnotationServiceConfig
@@ -311,7 +311,7 @@ class Config(BaseModel, alias_generator=to_camel):
     promote_function: PromoteFunctionConfig
 
     @classmethod
-    def parse_direct_relation(cls, value: Any) -> Any:
+    def parse_direct_relation(cls, value: object) -> object:
         if isinstance(value, dict):
             return dm.DirectRelationReference.load(value)
         return value
@@ -642,7 +642,7 @@ def format_promote_config(config: Config, pipeline_ext_id: str) -> str:
 
 def load_config_parameters(
     client: CogniteClient,
-    function_data: dict[str, Any],
+    function_data: dict[str, object],
 ) -> Config:
     """
     Retrieves the configuration parameters from the function data and loads the configuration from CDF.
@@ -655,8 +655,8 @@ def load_config_parameters(
         raw_config = client.extraction_pipelines.config.retrieve(external_id=pipeline_ext_id)
         if raw_config.config is None:
             raise ValueError(f"No config found for extraction pipeline: {pipeline_ext_id!r}")
-    except CogniteAPIError:
-        raise RuntimeError(f"Not able to retrieve pipeline config for extraction pipeline: {pipeline_ext_id!r}")
+    except CogniteAPIError as e:
+        raise RuntimeError(f"Not able to retrieve pipeline config for extraction pipeline: {pipeline_ext_id!r}") from e
 
     loaded_yaml_data = yaml.safe_load(raw_config.config)
 

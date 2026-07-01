@@ -55,4 +55,3 @@ capabilities:
         datasetScope:
           ids:
             - ds_quality_reports
-

@@ -10,6 +10,13 @@ sys.path.append(str(Path(__file__).parent))
 from config import load_config_parameters
 from logger import CogniteFunctionLogger
 from pipeline import entity_matching
+from pipeline_optimizations import (
+    PerformanceBenchmark,
+    cleanup_memory,
+    monitor_memory_usage,
+    patch_existing_pipeline,
+    time_operation,
+)
 
 # IMPORT OPTIMIZATIONS
 # ---------------------------------------------------------------------------
@@ -50,15 +57,6 @@ def _report_usage(client: CogniteClient) -> None:
     except Exception:
         # Usage tracking is best-effort; must not affect the handler.
         pass
-
-
-from pipeline_optimizations import (
-    PerformanceBenchmark,
-    cleanup_memory,
-    monitor_memory_usage,
-    patch_existing_pipeline,
-    time_operation,
-)
 
 
 def handle(data: dict, client: CogniteClient) -> dict:

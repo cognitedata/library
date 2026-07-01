@@ -52,10 +52,10 @@ def _get_resource_runs_count(resource: dict) -> int:
     return 0
 
 
-def _render_table_header(columns: list, widths: list = None) -> None:
+def _render_table_header(columns: list, widths: list | None = None) -> None:
     widths = widths or [3, 2, 2, 2, 1]
     cols = st.columns(widths)
-    for col, header in zip(cols, columns):
+    for col, header in zip(cols, columns, strict=False):
         with col:
             st.markdown(f"**{header}**")
     st.markdown("---")

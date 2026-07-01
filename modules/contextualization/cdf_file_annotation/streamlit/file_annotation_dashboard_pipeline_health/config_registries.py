@@ -1,11 +1,10 @@
-from typing import Dict, List
 
 from constants import FieldNames
 from data_structures import CallerType, FunctionRunConfig
 
 
 class FunctionRunConfigRegistry:
-    _CONFIGS: List[FunctionRunConfig] = [
+    _CONFIGS: list[FunctionRunConfig] = [
         FunctionRunConfig(
             caller_type=CallerType.LAUNCH,
             function_id_field=FieldNames.LAUNCH_FUNCTION_ID_CAMEL_CASE,
@@ -37,8 +36,8 @@ class FunctionRunConfigRegistry:
     ]
 
     @classmethod
-    def get_available_function_configs_for_row(cls, selected_row: Dict) -> List[FunctionRunConfig]:
-        available_functions: List[FunctionRunConfig] = []
+    def get_available_function_configs_for_row(cls, selected_row: dict) -> list[FunctionRunConfig]:
+        available_functions: list[FunctionRunConfig] = []
         for config in cls._CONFIGS:
             function_id = selected_row.get(config.function_id_field)
             call_id = selected_row.get(config.function_call_id_field)
@@ -48,5 +47,5 @@ class FunctionRunConfigRegistry:
         return available_functions
 
     @classmethod
-    def get_all_configs(cls) -> List[FunctionRunConfig]:
+    def get_all_configs(cls) -> list[FunctionRunConfig]:
         return list(cls._CONFIGS)

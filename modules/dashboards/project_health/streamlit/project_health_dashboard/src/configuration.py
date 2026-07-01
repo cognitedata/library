@@ -5,7 +5,7 @@ Uses async trigger (wait=False): after clicking Run, shows "Function is running.
 and a "Check Status" button until the call completes, then shows completed or failed.
 """
 
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 
 import streamlit as st
 
@@ -15,7 +15,7 @@ DEFAULT_TIME_RANGE_INDEX = 2  # 7 Days
 DEFAULT_UPTIME = 75
 
 
-def _init_function_session_state():
+def _init_function_session_state() -> None:
     """Initialize session state for function run tracking."""
     if "function_call_id" not in st.session_state:
         st.session_state["function_call_id"] = None
@@ -41,7 +41,7 @@ def _check_function_status(client, call_id: int) -> dict:
 
 
 @st.cache_data(ttl=300)
-def get_available_datasets(_client):
+def get_available_datasets(_client) -> list[dict]:
     """Fetch datasets for dropdown."""
     try:
         datasets = list(_client.data_sets.list(limit=500))
@@ -53,23 +53,23 @@ def get_available_datasets(_client):
         return []
 
 
-def _custom_range_to_ms(custom_start, custom_end):
+def _custom_range_to_ms(custom_start, custom_end) -> tuple[int, int]:
     if not custom_start or not custom_end:
         return None, None
-    start_dt = datetime.combine(custom_start, datetime.min.time()).replace(tzinfo=timezone.utc)
-    end_dt = datetime.combine(custom_end, datetime.max.time()).replace(tzinfo=timezone.utc)
+    start_dt = datetime.combine(custom_start, datetime.min.time()).replace(tzinfo=UTC)
+    end_dt = datetime.combine(custom_end, datetime.max.time()).replace(tzinfo=UTC)
     return int(start_dt.timestamp() * 1000), int(end_dt.timestamp() * 1000)
 
 
-def _format_ts(ts):
+def _format_ts(ts) -> str:
     if ts is None:
         return "-"
     if isinstance(ts, (int, float)):
-        return datetime.fromtimestamp(ts / 1000, tz=timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+        return datetime.fromtimestamp(ts / 1000, tz=UTC).strftime("%Y-%m-%d %H:%M:%S UTC")
     return str(ts)
 
 
-def _get_function_run_status(_client):
+def _get_function_run_status(_client) -> tuple[list | None, str | None]:
     """Fetch last few function calls for project_health_handler."""
     try:
         fn = _client.functions.retrieve(external_id=PROJECT_HEALTH_FUNCTION_EXTERNAL_ID)
@@ -81,7 +81,7 @@ def _get_function_run_status(_client):
         return None, str(e)
 
 
-def render_configuration_tab(client):
+def render_configuration_tab(client) -> None:
     """Render the Configuration tab: dataset, time range, thresholds, Run + Check status."""
     _init_function_session_state()
 
@@ -147,14 +147,14 @@ def render_configuration_tab(client):
         status = status_info.get("status", "Unknown")
 
         if status == "Running":
-            st.info("""
+            st.info(f"""
 **Function is running...**
 
 - **Call ID:** `{call_id}`
 - **Status:** {status}
 
 This typically takes 1-5 minutes depending on data volume. Click **Check Status** to refresh.
-            """.format(call_id=call_id, status=status))
+            """)
             col1, col2 = st.columns(2)
             with col1:
                 if st.button("Check Status", use_container_width=True, key="config_check_running"):
@@ -167,13 +167,13 @@ This typically takes 1-5 minutes depending on data volume. Click **Check Status*
             return
 
         if status == "Completed":
-            st.success("""
+            st.success(f"""
 **Function completed successfully!**
 
 - **Call ID:** `{call_id}`
 
 Click **Refresh data** in the sidebar or any dashboard tab to view your metrics.
-            """.format(call_id=call_id))
+            """)
             if st.button("Run Again", use_container_width=True, key="config_run_again"):
                 st.session_state["function_call_id"] = None
                 st.session_state["function_status"] = None
@@ -182,12 +182,12 @@ Click **Refresh data** in the sidebar or any dashboard tab to view your metrics.
 
         if status == "Failed":
             error_msg = status_info.get("error", "Unknown error")
-            st.error("""
+            st.error(f"""
 **Function failed**
 
 - **Call ID:** `{call_id}`
 - **Error:** {error_msg}
-            """.format(call_id=call_id, error_msg=error_msg))
+            """)
             if st.button("Try Again", use_container_width=True, key="config_try_again"):
                 st.session_state["function_call_id"] = None
                 st.session_state["function_status"] = None
@@ -195,7 +195,7 @@ Click **Refresh data** in the sidebar or any dashboard tab to view your metrics.
             return
 
         # Other status (e.g. Timeout, Error from API)
-        st.warning("**Function Status:** {status} (Call ID: `{call_id}`)".format(status=status, call_id=call_id))
+        st.warning(f"**Function Status:** {status} (Call ID: `{call_id}`)")
         if st.button("Check Status", use_container_width=True, key="config_check_other"):
             st.rerun()
         return
@@ -210,7 +210,7 @@ Click **Refresh data** in the sidebar or any dashboard tab to view your metrics.
     if check_clicked:
         calls, err = _get_function_run_status(client)
         if err:
-            st.error("Could not load status: {0}".format(err))
+            st.error(f"Could not load status: {err}")
         elif not calls:
             st.info("No function calls found.")
         else:
@@ -219,10 +219,10 @@ Click **Refresh data** in the sidebar or any dashboard tab to view your metrics.
                 status = getattr(c, "status", None) or "-"
                 start_ts = getattr(c, "start_time", None)
                 end_ts = getattr(c, "end_time", None)
-                with st.expander("Run {0}: **{1}** - started {2}".format(i + 1, status, _format_ts(start_ts)), expanded=(i == 0)):
-                    st.write("**Status:** {0}".format(status))
-                    st.write("**Started:** {0}".format(_format_ts(start_ts)))
-                    st.write("**Ended:** {0}".format(_format_ts(end_ts)))
+                with st.expander(f"Run {i + 1}: **{status}** - started {_format_ts(start_ts)}", expanded=(i == 0)):
+                    st.write(f"**Status:** {status}")
+                    st.write(f"**Started:** {_format_ts(start_ts)}")
+                    st.write(f"**Ended:** {_format_ts(end_ts)}")
                     if getattr(c, "error", None):
                         st.error(c.error)
 
@@ -259,11 +259,11 @@ Click **Refresh data** in the sidebar or any dashboard tab to view your metrics.
             except Exception as e:
                 error_str = str(e).lower()
                 if "not found" in error_str or "does not exist" in error_str:
-                    st.error("""
+                    st.error(f"""
 **Function not available yet**
 
-The function `{0}` was not found.
+The function `{PROJECT_HEALTH_FUNCTION_EXTERNAL_ID}` was not found.
 Functions may take a few minutes to deploy after `cdf deploy`.
-                    """.format(PROJECT_HEALTH_FUNCTION_EXTERNAL_ID))
+                    """)
                 else:
-                    st.error("**Failed to trigger function:** {0}".format(str(e)))
+                    st.error(f"**Failed to trigger function:** {e!s}")

@@ -1,4 +1,4 @@
-externalId: 'ds_timeseries_{{location_name}}' 
+externalId: 'ds_timeseries_{{location_name}}'
 name:  'timeseries:{{location_name}}'
 description: 'TimeSeries data for {{location_name}}'
 metadata:

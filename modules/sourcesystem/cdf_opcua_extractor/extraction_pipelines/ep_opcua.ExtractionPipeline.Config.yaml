@@ -3,11 +3,11 @@ config:
   version: 1
   source:
     # Primary OPC-UA server endpoint. Replace host/port with your server.
-    endpoint-url: opc.tcp://opcua-server-primary.example.com:4840 # TODO: Update with actual endpoint
+    endpoint-url: opc.tcp://opcua-server-primary.example.com:4840 # Update with actual endpoint
     # Optional redundant endpoints — used when the primary becomes unavailable
     # or when monitor-service-level switches to a healthier server.
     alt-endpoint-urls:
-    - opc.tcp://opcua-server-secondary.example.com:4840 # TODO: Update with actual secondary endpoint
+    - opc.tcp://opcua-server-secondary.example.com:4840 # Update with actual secondary endpoint
     redundancy:
       service-level-threshold: 200
       reconnect-interval: 10m

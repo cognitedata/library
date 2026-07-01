@@ -71,7 +71,7 @@ def load_config_parameters(client: CogniteClient, function_data: dict[str, Any])
         raw_config = client.extraction_pipelines.config.retrieve(external_id=pipeline_ext_id)
         if raw_config.config is None:
             raise ValueError(f"No config found for extraction pipeline: {pipeline_ext_id!r}")
-    except CogniteAPIError:
-        raise RuntimeError(f"Not able to retrieve pipeline config for extraction pipeline: {pipeline_ext_id!r}")
+    except CogniteAPIError as e:
+        raise RuntimeError(f"Not able to retrieve pipeline config for extraction pipeline: {pipeline_ext_id!r}") from e
 
     return Config.model_validate(yaml.safe_load(raw_config.config))

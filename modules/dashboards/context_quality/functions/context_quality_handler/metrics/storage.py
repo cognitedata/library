@@ -12,7 +12,6 @@ import json
 import logging
 import os
 import tempfile
-from typing import List, Optional, Tuple
 
 from cognite.client import CogniteClient
 
@@ -27,8 +26,8 @@ def save_metrics_to_file(
     client: CogniteClient,
     metrics: dict,
     file_external_id: str,
-    file_name: str
-):
+    file_name: str,
+) -> None:
     """Save metrics to Cognite Files as JSON, overwriting if exists."""
     # Create temp file
     temp_path = os.path.join(tempfile.gettempdir(), file_name)
@@ -68,11 +67,11 @@ def save_batch_file(
     client: CogniteClient,
     accumulator: CombinedAccumulator,
     batch_index: int,
-    batch_metadata: Optional[dict] = None,
+    batch_metadata: dict | None = None,
     *,
-    model3d_accumulator: Optional[Model3DAccumulator] = None,
-    file_annotation_accumulator: Optional[FileAnnotationAccumulator] = None,
-):
+    model3d_accumulator: Model3DAccumulator | None = None,
+    file_annotation_accumulator: FileAnnotationAccumulator | None = None,
+) -> None:
     """
     Save accumulator data to a batch file for later aggregation.
     
@@ -123,7 +122,7 @@ def save_batch_file(
     logger.info(f"📁 Saved batch file: {file_external_id}")
 
 
-def list_batch_files(client: CogniteClient, max_batches: int = 20) -> List[str]:
+def list_batch_files(client: CogniteClient, max_batches: int = 20) -> list[str]:
     """
     List all batch files in CDF by checking for expected external IDs.
     
@@ -157,7 +156,7 @@ def list_batch_files(client: CogniteClient, max_batches: int = 20) -> List[str]:
     return batch_files
 
 
-def load_batch_file(client: CogniteClient, file_external_id: str) -> Optional[dict]:
+def load_batch_file(client: CogniteClient, file_external_id: str) -> dict | None:
     """
     Load a single batch file.
     
@@ -178,8 +177,8 @@ def load_batch_file(client: CogniteClient, file_external_id: str) -> Optional[di
 
 def load_and_merge_all_batches(
     client: CogniteClient,
-) -> Tuple[
-    Optional[CombinedAccumulator],
+) -> tuple[
+    CombinedAccumulator | None,
     Model3DAccumulator,
     FileAnnotationAccumulator,
 ]:
@@ -197,9 +196,9 @@ def load_and_merge_all_batches(
     
     logger.info(f"Found {len(batch_files)} batch files to merge")
     
-    merged_acc: Optional[CombinedAccumulator] = None
-    merged_m3d: Optional[Model3DAccumulator] = None
-    merged_ann: Optional[FileAnnotationAccumulator] = None
+    merged_acc: CombinedAccumulator | None = None
+    merged_m3d: Model3DAccumulator | None = None
+    merged_ann: FileAnnotationAccumulator | None = None
     
     for file_ext_id in batch_files:
         logger.info(f"Loading batch file: {file_ext_id}")

@@ -1,17 +1,8 @@
-from typing import Callable, Optional
+from collections.abc import Callable
 
 import streamlit as st
 from constants import FieldNames
 
-
-class SingleSelectionHandlerFactory:
-    @staticmethod
-    def make_single_selection_handler(editor_key: str, df_state_key: str, selected_index_state_key: Optional[str] = None, selected_tag_suffix: str = "_selected_tag") -> Callable:
-        def _handler(_editor_key: str = editor_key, _df_state_key: str = df_state_key):
-            # TODO: Implement SingleSelectionHandler logic
-            pass
-
-        return _handler
 
 class DataEditorChangeCaptureFactory:
     @staticmethod

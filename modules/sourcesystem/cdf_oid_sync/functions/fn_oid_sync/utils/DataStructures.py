@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from typing import Optional
 
 
 @dataclass
@@ -10,7 +9,7 @@ class EnvConfig:
     tenant_id: str
     client_id: str
     client_secret: str
-    open_id_client_secret: Optional[str] = None  # Secret for OID access
+    open_id_client_secret: str | None = None  # Secret for OID access
 
 
 @dataclass

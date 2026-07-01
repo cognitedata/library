@@ -1,17 +1,55 @@
+[project]
+name = "cognite-library"
+version = "0.0.0"
+requires-python = ">=3.13"
+
+[project.optional-dependencies]
+test = [
+    "cognite-sdk>=7,<8",
+    "pydantic>=2",
+    "psutil>=5.9",
+    "pytest>=7",
+    "python-dotenv>=1",
+    "pyyaml>=6",
+    "tenacity>=8",
+]
+
 [tool.ruff]
 line-length = 120
 target-version = "py313"
 
 [tool.ruff.lint]
-select = ["E", "F", "I"]
+select = ["E", "F", "I", "B", "UP", "S", "RUF", "C4", "SIM"]
 ignore = [
     "E501",  # line too long — address per-file as needed
     "E701",  # multiple statements on one line (colon)
-    "E722",  # bare except
-    "E402",  # module level import not at top of file
-    "F841",  # local variable assigned but never used
+    # Incremental adoption — remove as violations are fixed:
+    "S110",  # best-effort side effects in handlers (must not fail the handler)
+    "SIM105",  # stylistic; contextlib.suppress vs try/except/pass
+    "B019",  # lru_cache on instance methods; review incrementally
+    "SIM115",  # long-lived log file handles in CogniteFunctionLogger
+    "SIM112",  # CDF function secret env var names use camelCase
+    "S311",  # non-cryptographic random for jitter/backoff
+    "S112",  # try-except-continue in batch processing loops
+    "B027",  # optional hook methods in abstract base classes
+    "B023",  # closure over loop variable; review incrementally
+    "RUF049",  # dataclass enums; refactor incrementally
+    "RUF012",  # mutable class attribute defaults; refactor incrementally
 ]
 
 [tool.ruff.lint.per-file-ignores]
 "**/__init__.py" = ["F401"]
 "**/*.ipynb" = ["E741", "F401", "F402"]
+"modules/sourcesystem/cdf_oid_sync/test_oid_sync.py" = ["E402"]
+"tests/**" = ["S101", "S603", "E402"]
+"**/test_*.py" = ["S101", "B017", "S105", "S603"]
+"**/run_tests.py" = ["S603"]
+"modules/common/cdf_project_foundation/scripts/setup_project.py" = ["S603"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-ra"
+markers = [
+    "integration: tests that call live external services (skipped without credentials)",
+]

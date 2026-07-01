@@ -1,6 +1,6 @@
 import abc
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Literal, cast
 
 from cognite.client import CogniteClient
@@ -354,7 +354,7 @@ class GeneralFinalizeService(AbstractFinalizeService):
         """
         update_properties = {
             "annotationStatus": status,
-            "sourceUpdatedTime": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
+            "sourceUpdatedTime": datetime.now(UTC).replace(microsecond=0).isoformat(),
             "annotationMessage": annotation_message,
             "patternModeMessage": pattern_mode_message,
             "attemptCount": attempt_count,
@@ -411,10 +411,7 @@ class GeneralFinalizeService(AbstractFinalizeService):
         )
 
         if not annotated_page_count:
-            if self.page_range >= page_count:
-                annotated_page_count = page_count
-            else:
-                annotated_page_count = self.page_range
+            annotated_page_count = page_count if self.page_range >= page_count else self.page_range
             self.logger.info(f"Annotated pages 1-to-{annotated_page_count} out of {page_count} total pages", "END")
         else:
             start_page = annotated_page_count + 1
@@ -455,7 +452,7 @@ class GeneralFinalizeService(AbstractFinalizeService):
         if failed:
             node_update_properties = {
                 "annotationStatus": status,
-                "sourceUpdatedTime": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
+                "sourceUpdatedTime": datetime.now(UTC).replace(microsecond=0).isoformat(),
                 "diagramDetectJobId": None,
                 "patternModeJobId": None,
             }
@@ -468,7 +465,7 @@ class GeneralFinalizeService(AbstractFinalizeService):
         else:
             node_update_properties = {
                 "annotationStatus": status,
-                "sourceUpdatedTime": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
+                "sourceUpdatedTime": datetime.now(UTC).replace(microsecond=0).isoformat(),
             }
         batch.update_node_properties(
             new_properties=node_update_properties,

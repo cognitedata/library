@@ -8,7 +8,6 @@ Metrics:
 """
 
 from dataclasses import dataclass, field
-from typing import Optional, Set
 
 from cognite.client.data_classes.data_modeling import ViewId
 
@@ -26,7 +25,7 @@ class Model3DAccumulator:
     # Asset-3D relationship tracking
     total_assets_checked: int = 0
     assets_with_3d: int = 0
-    asset_ids_with_3d: Set[str] = field(default_factory=set)
+    asset_ids_with_3d: set[str] = field(default_factory=set)
     
     # Critical asset tracking
     critical_assets_total: int = 0
@@ -34,7 +33,7 @@ class Model3DAccumulator:
     
     # 3D Object tracking
     total_3d_objects: int = 0
-    objects_3d_ids_seen: Set[str] = field(default_factory=set)
+    objects_3d_ids_seen: set[str] = field(default_factory=set)
     objects_3d_duplicate_ids: list = field(default_factory=list)  # Duplicate external IDs
     
     # 3D → Asset contextualization (MOST IMPORTANT)
@@ -94,7 +93,7 @@ class Model3DAccumulator:
         acc.objects_with_multiple_models = data.get("objects_with_multiple_models", 0)
         return acc
     
-    def merge_from(self, other: "Model3DAccumulator"):
+    def merge_from(self, other: "Model3DAccumulator") -> None:
         """Merge another accumulator (for batch aggregation)."""
         self.total_assets_checked += other.total_assets_checked
         self.assets_with_3d += other.assets_with_3d
@@ -118,7 +117,7 @@ class Model3DAccumulator:
 # BATCH PROCESSORS
 # ----------------------------------------------------
 
-def get_direct_relation_id(prop) -> Optional[str]:
+def get_direct_relation_id(prop) -> str | None:
     """Extract external ID from a direct relation property."""
     if not prop:
         return None
@@ -130,8 +129,8 @@ def get_direct_relation_id(prop) -> Optional[str]:
 def process_asset_3d_batch(
     asset_batch,
     asset_view: ViewId,
-    acc: Model3DAccumulator
-):
+    acc: Model3DAccumulator,
+) -> None:
     """
     Process assets to check for 3D object associations.
     
@@ -179,8 +178,8 @@ def process_asset_3d_batch(
 def process_3d_object_batch(
     object_batch,
     object_view: ViewId,
-    acc: Model3DAccumulator
-):
+    acc: Model3DAccumulator,
+) -> None:
     """
     Process 3D objects for contextualization, bounding box, and model type coverage.
     

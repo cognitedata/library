@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-from typing import Any, Literal, Tuple, cast
+from typing import Literal, cast
 
 from cognite.client import ClientConfig, CogniteClient, global_config
 from cognite.client.credentials import OAuthClientCredentials
@@ -49,11 +49,11 @@ def get_env_variables() -> EnvConfig:
         raise ValueError(f"Missing one or more env.vars: {missing}")
 
     return EnvConfig(
-        cdf_project=os.getenv("CDF_PROJECT"),  # type: ignore
-        cdf_cluster=os.getenv("CDF_CLUSTER"),  # type: ignore
-        tenant_id=os.getenv("IDP_TENANT_ID"),  # type: ignore
-        client_id=os.getenv("IDP_CLIENT_ID"),  # type: ignore
-        client_secret=os.getenv("IDP_CLIENT_SECRET"),  # type: ignore
+        cdf_project=os.environ["CDF_PROJECT"],
+        cdf_cluster=os.environ["CDF_CLUSTER"],
+        tenant_id=os.environ["IDP_TENANT_ID"],
+        client_id=os.environ["IDP_CLIENT_ID"],
+        client_secret=os.environ["IDP_CLIENT_SECRET"],
     )
 
 
@@ -109,8 +109,8 @@ def create_logger_service(log_level: str, filepath: str | None = None) -> Cognit
 
 
 def create_config_service(
-    function_data: dict[str, Any], client: CogniteClient | None = None
-) -> Tuple[Config, CogniteClient]:
+    function_data: dict[str, object], client: CogniteClient | None = None
+) -> tuple[Config, CogniteClient]:
     """
     Creates configuration service and CogniteClient for the function.
 

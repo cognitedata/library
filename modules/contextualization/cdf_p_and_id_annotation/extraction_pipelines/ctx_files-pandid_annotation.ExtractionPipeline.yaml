@@ -18,10 +18,8 @@ documentation: >
   updated documents using sync api.
 
 
-
   Extracts all tags in P&ID that matches tags from Assets and creates CDF annotations
   used for linking found objects in document to other resource types in CDF.
-
 
 
   Default configuration is provided as part of the deployment, but can be overwritten
@@ -59,7 +57,7 @@ documentation: >
 
   ```
 
-  
+
   Available logLevels are INFO, DEBUG, ERROR, WARNING
 
 

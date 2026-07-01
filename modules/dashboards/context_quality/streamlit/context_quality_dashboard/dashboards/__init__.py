@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Dashboard Modules for Contextualization Quality Dashboard.
 

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Asset Hierarchy Quality Dashboard.
 """
@@ -19,7 +18,7 @@ from .common import (
 )
 
 
-def render_asset_hierarchy_dashboard(metrics: dict):
+def render_asset_hierarchy_dashboard(metrics: dict) -> None:
     """Render the Asset Hierarchy Quality dashboard tab."""
     st.title("Asset Hierarchy Quality Dashboard")
     

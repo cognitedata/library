@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 AI Summary Generator for Context Quality Dashboards.
 
@@ -65,15 +64,15 @@ Keep the tone professional but conversational. Use specific numbers from the dat
         )
         return response.json()["choices"][0]["message"]["content"]
     except Exception as e:
-        return f"Unable to generate AI summary: {str(e)}"
+        return f"Unable to generate AI summary: {e!s}"
 
 
 def render_ai_summary_section(
     dashboard_type: str,
     metrics_data: dict,
     system_prompt: str,
-    key_prefix: str
-):
+    key_prefix: str,
+) -> None:
     """
     Render an AI summary section with a generate button.
     
@@ -89,7 +88,7 @@ def render_ai_summary_section(
     summary_key = f"{key_prefix}_ai_summary"
     loading_key = f"{key_prefix}_loading"
     
-    col1, col2 = st.columns([3, 1])
+    _col1, col2 = st.columns([3, 1])
     
     with col2:
         if st.button("Generate Insights", key=f"{key_prefix}_generate_btn"):
@@ -109,7 +108,7 @@ def render_ai_summary_section(
             st.rerun()
     
     # Display the summary if available
-    if summary_key in st.session_state and st.session_state[summary_key]:
+    if st.session_state.get(summary_key):
         st.info(st.session_state[summary_key])
 
 
