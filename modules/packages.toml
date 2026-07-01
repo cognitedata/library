@@ -28,8 +28,8 @@ modules = [
 
 [packages.quickstartdp]
 id = "dp:quickstart"
-title = "Quickstart Deployment Pack"
-description = "Showcase end-to-end CDF: ingestion, contextualization, and dashboards."
+title = "Foundation Deployment Pack Demo"
+description = "Showcase end-to-end CDF: ingestion, contextualization, and dashboards. Use this to explore CDF; for production deployments use the Foundation Deployment Pack."
 canCherryPick = false
 modules = [
     "common/cdf_common",
