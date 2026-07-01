@@ -1,0 +1,4 @@
+[module]
+title = "DB Extractor"
+id = "dp:foundation:cdf_db_extractor"
+package_id = "dp:foundation"

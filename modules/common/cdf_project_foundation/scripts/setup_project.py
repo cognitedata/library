@@ -138,11 +138,11 @@ _MODULE_CATEGORY_FALLBACK: dict[str, str] = {
     "cdf_project_foundation":    "common",
     "cdf_entity_matching":       "contextualization",
     "cdf_file_annotation":       "contextualization",
-    "cdf_pi_foundation":         "sourcesystem",
-    "cdf_sap_foundation":        "sourcesystem",
-    "cdf_opcua_foundation":      "sourcesystem",
-    "cdf_db_foundation":         "sourcesystem",
-    "cdf_files_foundation":      "sourcesystem",
+    "cdf_pi_extractor":          "sourcesystem",
+    "cdf_sap_extractor":         "sourcesystem",
+    "cdf_opcua_extractor":       "sourcesystem",
+    "cdf_db_extractor":          "sourcesystem",
+    "cdf_files_extractor":       "sourcesystem",
     "isa_manufacturing_extension":         "datamodels",
     "isa_manufacturing_extension_search":  "datamodels",
     "cfihos_oil_and_gas_extension":        "datamodels",
@@ -174,9 +174,9 @@ _STALE_CTX_KEYS: tuple[str, ...] = (
 # ── Domain helpers ─────────────────────────────────────────────────────────────
 
 def group_name(persona: str, site: str, env: str) -> str:
-    """SOP Step 3b: ``<persona>[-<site>]-<env>``; env is 'dev' (dev+test) or 'prod'."""
-    segments = [persona] + ([site] if site else []) + [GROUP_ENV[env]]
-    return "-".join(segments)
+    """SOP pattern: ``<persona>_[{site}_]all_<env>``; env is 'dev' (dev+test) or 'prod'."""
+    segments = [persona] + ([site] if site else []) + ["all", GROUP_ENV[env]]
+    return "_".join(segments)
 
 
 def resolve_contextualization_variables(
@@ -198,21 +198,37 @@ def resolve_contextualization_variables(
 
 
 _MODULE_LABELS: dict[str, str] = {
-    "cdf_pi_foundation":    "PI Foundation",
-    "cdf_sap_foundation":   "SAP Foundation",
-    "cdf_opcua_foundation": "OPC-UA Foundation",
-    "cdf_db_foundation":    "DB Foundation",
-    "cdf_files_foundation": "Files Foundation",
+    "cdf_pi_extractor":    "PI Extractor",
+    "cdf_sap_extractor":   "SAP Extractor",
+    "cdf_opcua_extractor": "OPC-UA Extractor",
+    "cdf_db_extractor":    "DB Extractor",
+    "cdf_files_extractor": "Files Extractor",
 }
 
 # .env variable name for each SS module's extractor group source ID.
 _MODULE_EXTRACTOR_ENV_VAR: dict[str, str] = {
-    "cdf_pi_foundation":    "PI_EXTRACTOR_GROUP_SOURCE_ID",
-    "cdf_sap_foundation":   "SAP_EXTRACTOR_GROUP_SOURCE_ID",
-    "cdf_opcua_foundation": "OPCUA_EXTRACTOR_GROUP_SOURCE_ID",
-    "cdf_db_foundation":    "DB_EXTRACTOR_GROUP_SOURCE_ID",
-    "cdf_files_foundation": "FILES_EXTRACTOR_GROUP_SOURCE_ID",
+    "cdf_pi_extractor":    "PI_EXTRACTOR_GROUP_SOURCE_ID",
+    "cdf_sap_extractor":   "SAP_EXTRACTOR_GROUP_SOURCE_ID",
+    "cdf_opcua_extractor": "OPCUA_EXTRACTOR_GROUP_SOURCE_ID",
+    "cdf_db_extractor":    "DB_EXTRACTOR_GROUP_SOURCE_ID",
+    "cdf_files_extractor": "FILES_EXTRACTOR_GROUP_SOURCE_ID",
 }
+
+# Instance space suffix per extractor module — combined with location to form
+# a per-extractor space: sp_{location}_{suffix}.
+_MODULE_INSTANCE_SPACE_SUFFIX: dict[str, str] = {
+    "cdf_pi_extractor":    "pi",
+    "cdf_sap_extractor":   "sap",
+    "cdf_opcua_extractor": "opcua",
+    "cdf_db_extractor":    "db",
+    "cdf_files_extractor": "files",
+}
+
+
+def _module_instance_space(module: str, location: str) -> str:
+    """Return a per-extractor instance space name: ``sp_{location}_{suffix}``."""
+    suffix = _MODULE_INSTANCE_SPACE_SUFFIX.get(module, module)
+    return f"sp_{location}_{suffix}"
 
 
 def _module_label(module: str) -> str:
@@ -220,7 +236,6 @@ def _module_label(module: str) -> str:
 
 
 def resolve_sourcesystem_variables(
-    instance_space: str,
     installed_modules: list[str],
     env: str,
     location: str,
@@ -230,7 +245,11 @@ def resolve_sourcesystem_variables(
 ) -> dict[str, dict[str, str]]:
     result: dict[str, dict[str, str]] = {}
     for module in installed_modules:
-        vars_: dict[str, str] = {"instanceSpace": instance_space, "environment": env, "location": location}
+        vars_: dict[str, str] = {
+            "instanceSpace": _module_instance_space(module, location),
+            "environment": env,
+            "location": location,
+        }
         if integration_owners and module in integration_owners:
             name, email = integration_owners[module]
             if name:
@@ -311,10 +330,15 @@ def build_overlay(
     if installed_ss:
         modules_vars.update(
             resolve_sourcesystem_variables(
-                instance_space, installed_ss, env, site,
+                installed_ss, env, site,
                 integration_owners, data_owners, extractor_group_source_ids
             )
         )
+    # instanceSpaces for consumer group: project-level DM space + one per installed extractor.
+    # Always written so the key is present even when no SS modules are installed.
+    modules_vars["cdf_project_foundation"]["instanceSpaces"] = (
+        [instance_space] + [_module_instance_space(m, site) for m in installed_ss]
+    )
     if variant == "cfihos_oil_and_gas_extension":
         # CFIHOS uses its own space / instance_space variables — not the ISA ones.
         # instance_space is derived from site; space is fixed.
@@ -995,10 +1019,9 @@ def _prompt_project_names(
             break
     return project_names
 
-
 def _prompt_site(existing_site: str) -> str:
     _section("Site / Location Name")
-    _hint("Required. Used as suffix in access-group names (<persona>-<site>-<env>),")
+    _hint("Required. Used in access-group names (<persona>_<site>_all_<env>),")
     _hint("location for source system external IDs, and location_name in entity-matching.")
     _hint("Only lowercase letters, digits, hyphens, and underscores (e.g. oslo).")
     while True:

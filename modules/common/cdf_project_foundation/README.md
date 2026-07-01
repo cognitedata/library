@@ -75,11 +75,11 @@ The module selector presents all available modules. Make selections carefully:
 
 | Module | Description |
 |--------|-------------|
-| [`cdf_pi_foundation`](../../sourcesystem/cdf_pi_foundation/README.md) | Sets up extraction pipeline configs for OSIsoft PI / AVEVA PI time series data. |
-| [`cdf_sap_foundation`](../../sourcesystem/cdf_sap_foundation/README.md) | Sets up extraction pipeline configs for SAP assets, equipment, and functional locations via RAW staging. |
-| [`cdf_opcua_foundation`](../../sourcesystem/cdf_opcua_foundation/README.md) | Sets up extraction pipeline configs for OPC-UA data via RAW staging. |
-| [`cdf_db_foundation`](../../sourcesystem/cdf_db_foundation/README.md) | Sets up extraction pipeline configs for generic database sources (PostgreSQL, etc.) via RAW staging. |
-| [`cdf_files_foundation`](../../sourcesystem/cdf_files_foundation/README.md) | Sets up extraction pipeline configs for file sources such as SharePoint. |
+| [`cdf_pi_extractor`](../../sourcesystem/cdf_pi_extractor/README.md) | Sets up extraction pipeline configs for OSIsoft PI / AVEVA PI time series data. |
+| [`cdf_sap_extractor`](../../sourcesystem/cdf_sap_extractor/README.md) | Sets up extraction pipeline configs for SAP assets, equipment, and functional locations via RAW staging. |
+| [`cdf_opcua_extractor`](../../sourcesystem/cdf_opcua_extractor/README.md) | Sets up extraction pipeline configs for OPC-UA data via RAW staging. |
+| [`cdf_db_extractor`](../../sourcesystem/cdf_db_extractor/README.md) | Sets up extraction pipeline configs for generic database sources (PostgreSQL, etc.) via RAW staging. |
+| [`cdf_files_extractor`](../../sourcesystem/cdf_files_extractor/README.md) | Sets up extraction pipeline configs for file sources such as SharePoint. |
 
 **Contextualization modules** — optional:
 
@@ -210,18 +210,19 @@ cdf_project_foundation/
 Three CDF groups are deployed, each bound to an Entra ID security group via its `sourceId` (the Entra ID group **Object ID**, recorded per SOP Step 3d). Naming follows the **SOP**:
 
 ```
-<persona>-[site]-<environment>
+<persona>_[{site}_]all_<environment>
 ```
 
 - `persona` (required): `consumer` | `producer` | `admin`
 - `site` (optional): e.g. `oslo` — set via the site / location prompt in the wizard
+- `type` (required): `all` for broad persona groups; `ep_<source>` for per-extractor groups (e.g. `ep_sap`, `ep_pi`)
 - `environment` (required): `dev` (covers **dev + test**) | `prod`
 
 | Group | Name (example) | Persona | Capability scope |
 |-------|---------------|---------|-----------------|
-| `consumer.Group.yaml` | `consumer-dev` / `consumer-prod` | Read-only | READ on data models / instances / timeseries / files / RAW / transformations, scoped to `{{ dataset }}` / `{{ instanceSpace }}` / `{{ schemaSpace }}` |
-| `producer.Group.yaml` | `producer-dev` / `producer-prod` | Read/write | Consumer rights plus WRITE to instances / timeseries / files / RAW, run transformations, workflow orchestration, sessions CREATE |
-| `admin.Group.yaml` | `admin-dev` / `admin-prod` | Admin | Full capabilities including `groups:write`, projects, datasets, data models, transformations, workflows, extraction pipelines |
+| `consumer.Group.yaml` | `consumer_all_dev` / `consumer_oslo_all_prod` | Read-only | READ on data models / instances / timeseries / files / transformations, scoped to `{{ dataset }}` / `{{ instanceSpaces }}` / `{{ schemaSpace }}` — `instanceSpaces` includes the project-level DM space plus one per installed extractor |
+| `producer.Group.yaml` | `producer_all_dev` / `producer_oslo_all_prod` | Read/write | Consumer rights plus WRITE to instances / timeseries / files / RAW, run transformations, workflow orchestration, sessions CREATE |
+| `admin.Group.yaml` | `admin_all_dev` / `admin_all_prod` | Admin | Full capabilities including `groups:write`, projects, datasets, data models, transformations, workflows, extraction pipelines |
 
 The wizard stores group source IDs in `.env` as `CONSUMER_SOURCE_ID`, `PRODUCER_SOURCE_ID`, `ADMIN_SOURCE_ID` and the config files reference them via `${…}`. These are Entra ID object IDs, **not secrets**.
 
@@ -270,12 +271,13 @@ site: ""                                   # optional site segment for group nam
 dataset: []                                # auto-populated from installed source system modules
 schemaSpace: "dm_dom_isa_manufacturing"    # ISA default; CFIHOS uses dm_dom_oil_and_gas
 instanceSpace: "inst_isa_manufacturing"    # ISA default; CFIHOS uses inst_location
+instanceSpaces: ["inst_isa_manufacturing"] # project-level space + per-extractor spaces (computed by wizard)
 dataModelVariant: isa_manufacturing_extension
 
 # Computed per env by setup_project.py:
-consumerGroupName: "consumer-dev"
-producerGroupName: "producer-dev"
-adminGroupName: "admin-dev"
+consumerGroupName: "consumer_all_dev"
+producerGroupName: "producer_all_dev"
+adminGroupName: "admin_all_dev"
 
 # Entra ID group object IDs — stored in .env, referenced here via ${…}:
 consumerSourceId: "${CONSUMER_SOURCE_ID}"
@@ -289,7 +291,7 @@ adminSourceId: "${ADMIN_SOURCE_ID}"
 
 **Package**: `dp:foundation`
 
-Self-contained. The group ACLs reference `{{ dataset }}`, `{{ instanceSpace }}`, and `{{ schemaSpace }}`, which must match the values used by the deployed source-system and data-model modules.
+Self-contained. The group ACLs reference `{{ dataset }}`, `{{ instanceSpaces }}`, and `{{ schemaSpace }}`, which must match the values used by the deployed source-system and data-model modules. `instanceSpaces` is computed by the setup wizard as the project-level DM space plus one per installed extractor module.
 
 See the [project-setup SOP](https://cogdocs.mintlify.io/gvd) *(password-protected — request access via [#topic-deployment-packs](https://cognitedata.slack.com/archives/C098QJ09YKX) or contact [Valeriya Naumova](https://cognitedata.slack.com/team/U051XA95S0G))* for the authoritative procedure covering environments, Entra ID integration, CI/CD, and sign-off.
 

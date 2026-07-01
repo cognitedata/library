@@ -9,13 +9,13 @@ implements:
   type: view
 version: v1
 properties:
-  class:
+  equipmentClass:
     container:
       space: rmdm
       externalId: EquipmentType
       type: container
-    containerPropertyIdentifier: class
-    name: Class
+    containerPropertyIdentifier: equipmentClass
+    name: Equipment Class
     description: Specifies the class of the equipment.
     source:
       space: rmdm

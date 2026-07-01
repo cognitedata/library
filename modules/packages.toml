@@ -15,11 +15,11 @@ modules = [
     "datamodels/isa_manufacturing_extension_search",
     "datamodels/cfihos_oil_and_gas_extension",
     "datamodels/cfihos_oil_and_gas_extension_search",
-    "sourcesystem/cdf_pi_foundation",
-    "sourcesystem/cdf_opcua_foundation",
-    "sourcesystem/cdf_sap_foundation",
-    "sourcesystem/cdf_db_foundation",
-    "sourcesystem/cdf_files_foundation",
+    "sourcesystem/cdf_pi_extractor",
+    "sourcesystem/cdf_opcua_extractor",
+    "sourcesystem/cdf_sap_extractor",
+    "sourcesystem/cdf_db_extractor",
+    "sourcesystem/cdf_files_extractor",
     "common/cdf_project_foundation",
     "contextualization/cdf_file_annotation",
     "contextualization/cdf_entity_matching",
@@ -28,8 +28,8 @@ modules = [
 
 [packages.quickstartdp]
 id = "dp:quickstart"
-title = "Quickstart Deployment Pack"
-description = "Showcase end-to-end CDF: ingestion, contextualization, and dashboards."
+title = "Foundation Deployment Pack Demo"
+description = "Showcase end-to-end CDF: ingestion, contextualization, and dashboards. Use this to explore CDF; for production deployments use the Foundation Deployment Pack."
 canCherryPick = false
 modules = [
     "common/cdf_common",

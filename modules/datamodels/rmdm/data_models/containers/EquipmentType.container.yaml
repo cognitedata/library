@@ -3,14 +3,14 @@ externalId: EquipmentType
 name: RM Equipment Type
 description: Stores equipment type classification properties.
 properties:
-  class:
+  equipmentClass:
     type:
       list: false
       type: direct
     immutable: false
     nullable: true
     autoIncrement: false
-    name: Class
+    name: Equipment Class
     description: Specifies the class of the equipment.
 constraints:
   cdf_cdm_CogniteEquipmentType:

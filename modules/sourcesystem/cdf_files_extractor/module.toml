@@ -1,0 +1,4 @@
+[module]
+title = "Files Extractor"
+id = "dp:foundation:cdf_files_extractor"
+package_id = "dp:foundation"

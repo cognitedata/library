@@ -1,0 +1,4 @@
+[module]
+title = "SAP Extractor"
+id = "dp:foundation:cdf_sap_extractor"
+package_id = "dp:foundation"
