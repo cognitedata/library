@@ -1,13 +1,13 @@
 import abc
+import ast
+import json
 import re
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, Iterator, List, Set, cast
-
 from cognite.client import CogniteClient
 from cognite.client.data_classes import Row, RowWrite
 from cognite.client.data_classes.data_modeling import (
-    Node,
     NodeList,
 )
 from cognite.client.exceptions import CogniteNotFoundError
@@ -419,6 +419,65 @@ class GeneralCacheService(ICacheService):
                 )
         return result
 
+    def _normalize_manual_patterns_column(self, patterns_value: Any) -> list[dict]:
+        """
+        Normalizes the RAW manual_patterns_catalog `patterns` column.
+
+        Input:
+            The value from the RAW row's `patterns` column. It can be:
+            - None or empty string: no patterns.
+            - A JSON string: parsed into Python data, for example '[{"sample": "..."}]'.
+            - A Python-literal string: parsed via ast.literal_eval, for example "[{'sample': '...'}]".
+            - A dictionary: treated as a single pattern object.
+            - A native list from RAW: treated as one or more pattern objects.
+            - A list containing JSON strings: each string is parsed into a pattern object.
+
+        Output:
+            A list of dictionaries. Invalid values are ignored and return no entries.
+
+        How it works:
+            1. Empty values become an empty list.
+            2. String values are parsed with json.loads(), then ast.literal_eval() as a fallback.
+            3. Single dictionaries are wrapped into a list.
+            4. Lists are walked item by item.
+            5. Each item is included only when it is or can be parsed into a dictionary.
+        """
+        def _parse_pattern_string(value: str) -> Any:
+            value = value.strip()
+            try:
+                return json.loads(value)
+            except json.JSONDecodeError:
+                try:
+                    return ast.literal_eval(value)
+                except (ValueError, SyntaxError):
+                    return None
+
+        if patterns_value in (None, ""):
+            return []
+
+        if isinstance(patterns_value, str):
+            patterns_value = _parse_pattern_string(patterns_value)
+            if patterns_value is None:
+                return []
+
+        if isinstance(patterns_value, dict):
+            patterns_value = [patterns_value]
+
+        if not isinstance(patterns_value, list):
+            return []
+
+        normalized_patterns: list[dict] = []
+        for item in patterns_value:
+            if isinstance(item, str):
+                item = _parse_pattern_string(item)
+                if item is None:
+                    continue
+
+            if isinstance(item, dict):
+                normalized_patterns.append(item)
+
+        return normalized_patterns
+
     def _get_manual_patterns(self, primary_scope: str, secondary_scope: str | None) -> list[dict]:
         """
         Retrieves manually defined pattern samples from the RAW catalog.
@@ -449,7 +508,7 @@ class GeneralCacheService(ICacheService):
                     key=key,
                 )
                 if row:
-                    patterns = (row.columns or {}).get("patterns", [])
+                    patterns = self._normalize_manual_patterns_column((row.columns or {}).get("patterns", []))
                     all_manual_patterns.extend(patterns)
             except CogniteNotFoundError:
                 self.logger.info(f"No manual patterns found for key: {key}. This may be expected.")
