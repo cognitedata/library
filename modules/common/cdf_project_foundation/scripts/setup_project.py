@@ -1031,7 +1031,7 @@ def _run_wizard(
             project_names[env] = val
             break
 
-    # ── Site / location name (optional) ──────────────────────────────────────
+    # ── Site / location name ─────────────────────────────────────────────────
     _section("Site / Location Name")
     _hint("Required. Used in access-group names (<persona>_<site>_all_<env>),")
     _hint("location for source system external IDs, and location_name in entity-matching.")
