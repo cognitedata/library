@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState, useMemo, useCallback } from "react";
+import { useRef, useState, useMemo, useCallback, useEffect } from "react";
 import type { CogniteClient } from "@cognite/sdk";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
 import { Button } from "@/shared/components/ui/button";
@@ -28,6 +28,12 @@ import {
 } from "lucide-react";
 import { useFileCdfId, useFilePreview, useFilePageCount } from "@/pages/AnnotationQuality/hooks/useFilePreview";
 import type { AnnotationRecord } from "@/shared/utils/types";
+import { useCanvasViewport } from "@/shared/hooks/useCanvasViewport";
+import { useAnnotationSearch } from "@/shared/hooks/useAnnotationSearch";
+import { useAnnotationPreviewInteraction } from "@/shared/hooks/useAnnotationPreviewInteraction";
+import { ANNOTATION_PREVIEW_DEFAULTS, ANNOTATION_PREVIEW_ZOOM } from "@/shared/constants/annotationPreview";
+import { ANNOTATION_COLORS, ANNOTATION_STYLE } from "@/pages/AnnotationQuality/constants/annotationStyles";
+import { PreviewAnnotationNavigator } from "@/pages/AnnotationQuality/components/PreviewAnnotationNavigator";
 
 interface AnnotationOverlay {
   id: string;
@@ -55,32 +61,6 @@ interface FilePreviewCanvasProps {
   setSelectedFileId?: (id: string | null) => void;
 }
 
-const ANNOTATION_COLORS = {
-  actual: {
-    stroke: "#22c55e",
-    fill: "rgba(34, 197, 94, 0.15)",
-    text: "#166534",
-  },
-  potential: {
-    stroke: "#f59e0b",
-    fill: "rgba(245, 158, 11, 0.15)",
-    text: "#92400e",
-  },
-  hover: {
-    stroke: "#3b82f6",
-    fill: "rgba(59, 130, 246, 0.25)",
-  },
-};
-
-// Fixed sizes for annotations (in CSS pixels, won't scale with zoom)
-const ANNOTATION_STYLE = {
-  borderWidth: 2,
-  borderWidthHover: 3,
-  fontSize: 11,
-  labelPadding: 4,
-  labelHeight: 18,
-};
-
 export function FilePreviewCanvas({
   sdk,
   fileExternalId,
@@ -94,19 +74,16 @@ export function FilePreviewCanvas({
 }: FilePreviewCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
+  const searchResultsListRef = useRef<HTMLDivElement>(null);
 
-  const [currentPage, setCurrentPage] = useState(1);
-  const [zoom, setZoom] = useState(0.5); // Start at 50% to fit large diagrams
-  const [showActual, setShowActual] = useState(true);
-  const [showPotential, setShowPotential] = useState(true);
-  const [hoveredAnnotation, setHoveredAnnotation] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState<number>(ANNOTATION_PREVIEW_DEFAULTS.page);
+  const [showActual, setShowActual] = useState<boolean>(ANNOTATION_PREVIEW_DEFAULTS.showActual);
+  const [showPotential, setShowPotential] = useState<boolean>(ANNOTATION_PREVIEW_DEFAULTS.showPotential);
+  const [activeAnnotationCategory, setActiveAnnotationCategory] = useState<"all" | "actual" | "potential">(
+    ANNOTATION_PREVIEW_DEFAULTS.activeCategory
+  );
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageDimensions, setImageDimensions] = useState({ width: 0, height: 0 });
-
-  // Pan state
-  const [isPanning, setIsPanning] = useState(false);
-  const [panStart, setPanStart] = useState({ x: 0, y: 0 });
-  const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
 
   // Fetch file info (CDF ID) - pass fileName to skip DMS lookup
   const fileLookupId = fileSourceId || fileExternalId;
@@ -183,61 +160,83 @@ export function FilePreviewCanvas({
     return { actual, potential };
   }, [actualAnnotations, potentialAnnotations, currentPage]);
 
-  // Reset pan when page changes
-  useEffect(() => {
-    setPanOffset({ x: 0, y: 0 });
-  }, [currentPage]);
-
-  // Handle mouse down for panning
-  const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    // Only pan with middle mouse button or when holding space
-    if (e.button === 1 || e.altKey) {
-      e.preventDefault();
-      setIsPanning(true);
-      setPanStart({ x: e.clientX - panOffset.x, y: e.clientY - panOffset.y });
+  const navigableAnnotations = useMemo(() => {
+    if (activeAnnotationCategory === "actual") {
+      return currentPageAnnotations.filter((annotation) => annotation.isActual);
     }
-  }, [panOffset]);
-
-  // Handle mouse move for panning
-  const handleMouseMove = useCallback((e: React.MouseEvent) => {
-    if (isPanning) {
-      setPanOffset({
-        x: e.clientX - panStart.x,
-        y: e.clientY - panStart.y,
-      });
+    if (activeAnnotationCategory === "potential") {
+      return currentPageAnnotations.filter((annotation) => !annotation.isActual);
     }
-  }, [isPanning, panStart]);
+    return currentPageAnnotations;
+  }, [currentPageAnnotations, activeAnnotationCategory]);
 
-  // Handle mouse up
-  const handleMouseUp = useCallback(() => {
-    setIsPanning(false);
-  }, []);
+  const {
+    zoom,
+    setZoom,
+    isPanning,
+    panOffset,
+    setPanOffset,
+    handleMouseDown,
+    handleMouseMove,
+    handleMouseUp,
+    handleWheel,
+    handleFitToView,
+    resetView,
+    focusOnBoundingBox,
+  } = useCanvasViewport({
+    containerRef,
+    imageDimensions,
+    resetToken: currentPage,
+  });
 
-  // Handle wheel for zoom
-  const handleWheel = useCallback((e: React.WheelEvent) => {
-    if (e.shiftKey) {
-      e.preventDefault();
-      const delta = e.deltaY > 0 ? -0.1 : 0.1;
-      setZoom((z) => Math.max(0.25, Math.min(4, z + delta)));
-    }
-  }, []);
+  const {
+    searchQuery,
+    setSearchQuery,
+    clearSearch,
+    activeMatchIndex,
+    matches: annotationMatches,
+    matchingIds: matchingAnnotationIds,
+    hasSearchQuery,
+    activeMatch,
+    goToPreviousMatch,
+    goToNextMatch,
+    handleSearchKeyDown,
+    handleResultClick,
+    handleResultDoubleClick,
+    handleOverlayClickById,
+    handleOverlayDoubleClickById,
+  } = useAnnotationSearch<AnnotationOverlay>({
+    annotations: navigableAnnotations,
+    resultsListRef: searchResultsListRef,
+    resetToken: `${currentPage}-${activeAnnotationCategory}`,
+    onSelectMatch: (annotation) => focusOnBoundingBox(annotation?.boundingBox ?? null),
+    enablePanelDismiss: false,
+    initialPanelOpen: true,
+  });
 
-  // Fit to viewport
-  const handleFitToView = useCallback(() => {
-    if (!containerRef.current || !imageDimensions.width) return;
-    const containerWidth = containerRef.current.clientWidth - 20;
-    const containerHeight = 560; // Account for padding
-    const scaleX = containerWidth / imageDimensions.width;
-    const scaleY = containerHeight / imageDimensions.height;
-    const newZoom = Math.min(scaleX, scaleY, 1);
-    setZoom(newZoom);
-    setPanOffset({ x: 0, y: 0 });
-  }, [imageDimensions]);
-
-  // Handle annotation hover
-  const handleAnnotationHover = useCallback((id: string | null) => {
-    setHoveredAnnotation(id);
-  }, []);
+  const {
+    hoveredAnnotation,
+    selectedAnnotationId,
+    navigatorOpenSignal,
+    displayMatchIndex,
+    handleAnnotationHover,
+    handleNavigatorSearchKeyDown,
+    handleNavigatorResultClick,
+    handleNavigatorResultDoubleClick,
+    handleCanvasAnnotationClick,
+    handleCanvasAnnotationDoubleClick,
+    clearSelection,
+    resetInteractionState,
+  } = useAnnotationPreviewInteraction({
+    annotationMatches,
+    activeMatchIndex,
+    searchResultsListRef,
+    handleSearchKeyDown,
+    handleResultClick,
+    handleResultDoubleClick,
+    handleOverlayClickById,
+    handleOverlayDoubleClickById,
+  });
 
   // Handle annotation click
   const handleAnnotationClick = useCallback(
@@ -265,10 +264,37 @@ export function FilePreviewCanvas({
   const isLoading = isLoadingId || isLoadingPreview;
   const hasError = idError || previewError;
 
+  useEffect(() => {
+    setCurrentPage(ANNOTATION_PREVIEW_DEFAULTS.page);
+    setShowActual(ANNOTATION_PREVIEW_DEFAULTS.showActual);
+    setShowPotential(ANNOTATION_PREVIEW_DEFAULTS.showPotential);
+    setActiveAnnotationCategory(ANNOTATION_PREVIEW_DEFAULTS.activeCategory);
+    resetInteractionState();
+    setImageLoaded(false);
+    setImageDimensions({ width: 0, height: 0 });
+    setZoom(ANNOTATION_PREVIEW_DEFAULTS.zoom);
+    setPanOffset({ x: 0, y: 0 });
+    clearSearch();
+  }, [fileExternalId, clearSearch, resetInteractionState, setPanOffset, setZoom]);
+
+  useEffect(() => {
+    resetInteractionState();
+  }, [fileExternalId, currentPage, activeAnnotationCategory, resetInteractionState]);
+
+  useEffect(() => {
+    setZoom(ANNOTATION_PREVIEW_DEFAULTS.zoom);
+    setPanOffset({ x: 0, y: 0 });
+  }, [currentPage, setPanOffset, setZoom]);
+
   // Render annotation box as a DOM element (doesn't scale with zoom)
   const renderAnnotationBox = (annotation: AnnotationOverlay) => {
     const colors = annotation.isActual ? ANNOTATION_COLORS.actual : ANNOTATION_COLORS.potential;
     const isHovered = hoveredAnnotation === annotation.id;
+    const isSearchMatch = hasSearchQuery && matchingAnnotationIds.has(annotation.id);
+    const isActiveMatch = isSearchMatch && activeMatch?.id === annotation.id;
+    const isSelected = selectedAnnotationId === annotation.id;
+    const isSearchOutlined = isSearchMatch && !selectedAnnotationId;
+    const isHighlighted = isActiveMatch || isSelected || isSearchOutlined;
 
     // Calculate position in image coordinates (will be scaled by CSS transform)
     const left = annotation.boundingBox.xMin * 100;
@@ -282,6 +308,7 @@ export function FilePreviewCanvas({
     return (
       <div
         key={annotation.id}
+        data-annotation-id={annotation.id}
         className="absolute cursor-pointer transition-colors"
         style={{
           left: `${left}%`,
@@ -289,18 +316,30 @@ export function FilePreviewCanvas({
           width: `${width}%`,
           height: `${height}%`,
           backgroundColor: isHovered ? ANNOTATION_COLORS.hover.fill : colors.fill,
-          border: `${ANNOTATION_STYLE.borderWidth * inverseScale}px solid ${isHovered ? ANNOTATION_COLORS.hover.stroke : colors.stroke}`,
+          border: `${(isHighlighted ? ANNOTATION_STYLE.borderWidthHover : ANNOTATION_STYLE.borderWidth) * inverseScale}px solid ${
+            isHovered
+                ? ANNOTATION_COLORS.hover.stroke
+                : colors.stroke
+          }`,
+          outline: isHighlighted ? `${2.5 * inverseScale}px solid ${ANNOTATION_COLORS.activeMatch.stroke}` : "none",
+          outlineOffset: isHighlighted ? `${1 * inverseScale}px` : "0px",
           boxSizing: "border-box",
         }}
         onMouseEnter={() => handleAnnotationHover(annotation.id)}
         onMouseLeave={() => handleAnnotationHover(null)}
         onClick={(e) => {
           e.stopPropagation();
+          handleCanvasAnnotationClick(annotation.id);
+          handleAnnotationClick(annotation);
+        }}
+        onDoubleClick={(e) => {
+          e.stopPropagation();
+          handleCanvasAnnotationDoubleClick(annotation.id);
           handleAnnotationClick(annotation);
         }}
       >
         {/* Label - only shown on hover */}
-        {isHovered && (
+        {(isHovered || isSelected) && (
           <div
             className="absolute whitespace-nowrap overflow-hidden text-ellipsis pointer-events-none z-50"
             style={{
@@ -362,7 +401,7 @@ export function FilePreviewCanvas({
               </Button>
             )}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 mt-7">
             {annotationCounts.actual > 0 && (
               <Badge variant="success" className="text-[10px]">
                 <CheckCircle2 className="h-3 w-3" />
@@ -391,7 +430,7 @@ export function FilePreviewCanvas({
               size="icon"
               className="h-7 w-7"
               disabled={currentPage <= 1}
-              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              onClick={() => setCurrentPage((p: number) => Math.max(1, p - 1))}
             >
               <ChevronLeft className="h-3.5 w-3.5" />
             </Button>
@@ -403,7 +442,7 @@ export function FilePreviewCanvas({
               size="icon"
               className="h-7 w-7"
               disabled={currentPage >= pageCount}
-              onClick={() => setCurrentPage((p) => Math.min(pageCount, p + 1))}
+              onClick={() => setCurrentPage((p: number) => Math.min(pageCount, p + 1))}
             >
               <ChevronRight className="h-3.5 w-3.5" />
             </Button>
@@ -417,8 +456,8 @@ export function FilePreviewCanvas({
               variant="outline"
               size="icon"
               className="h-7 w-7"
-              disabled={zoom <= 0.25}
-              onClick={() => setZoom((z) => Math.max(0.25, z - 0.25))}
+              disabled={zoom <= ANNOTATION_PREVIEW_ZOOM.min}
+              onClick={() => setZoom((z: number) => Math.max(ANNOTATION_PREVIEW_ZOOM.min, z - ANNOTATION_PREVIEW_ZOOM.buttonStep))}
             >
               <ZoomOut className="h-3.5 w-3.5" />
             </Button>
@@ -429,8 +468,8 @@ export function FilePreviewCanvas({
               variant="outline"
               size="icon"
               className="h-7 w-7"
-              disabled={zoom >= 4}
-              onClick={() => setZoom((z) => Math.min(4, z + 0.25))}
+              disabled={zoom >= ANNOTATION_PREVIEW_ZOOM.max}
+              onClick={() => setZoom((z: number) => Math.min(ANNOTATION_PREVIEW_ZOOM.max, z + ANNOTATION_PREVIEW_ZOOM.buttonStep))}
             >
               <ZoomIn className="h-3.5 w-3.5" />
             </Button>
@@ -458,10 +497,7 @@ export function FilePreviewCanvas({
                     variant="outline"
                     size="icon"
                     className="h-7 w-7"
-                    onClick={() => {
-                      setZoom(1);
-                      setPanOffset({ x: 0, y: 0 });
-                    }}
+                    onClick={resetView}
                   >
                     <RotateCcw className="h-3.5 w-3.5" />
                   </Button>
@@ -480,9 +516,9 @@ export function FilePreviewCanvas({
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
-                  variant={showActual ? "default" : "outline"}
+                  variant="outline"
                   size="sm"
-                  className="h-7 text-xs gap-1"
+                  className={`h-7 text-xs gap-1 ${showActual ? "bg-muted" : ""}`}
                   onClick={() => setShowActual(!showActual)}
                 >
                   {showActual ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
@@ -499,9 +535,9 @@ export function FilePreviewCanvas({
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
-                  variant={showPotential ? "secondary" : "outline"}
+                  variant="outline"
                   size="sm"
-                  className="h-7 text-xs gap-1"
+                  className={`h-7 text-xs gap-1 ${showPotential ? "bg-muted" : ""}`}
                   onClick={() => setShowPotential(!showPotential)}
                 >
                   {showPotential ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
@@ -523,11 +559,43 @@ export function FilePreviewCanvas({
           </div>
         </div>
 
+        <PreviewAnnotationNavigator
+          counts={annotationCounts}
+          activeCategory={activeAnnotationCategory}
+          onCategoryChange={setActiveAnnotationCategory}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          onSearchKeyDown={handleNavigatorSearchKeyDown}
+          onClearSearch={clearSearch}
+          matches={annotationMatches}
+          activeMatchIndex={activeMatchIndex}
+          onPrevious={goToPreviousMatch}
+          onNext={goToNextMatch}
+          onResultClick={handleNavigatorResultClick}
+          onResultDoubleClick={handleNavigatorResultDoubleClick}
+          onResultHover={handleAnnotationHover}
+          resultsListRef={searchResultsListRef}
+          hoveredAnnotationId={hoveredAnnotation}
+          openSignal={navigatorOpenSignal}
+          displayMatchIndex={displayMatchIndex}
+          selectedAnnotationId={selectedAnnotationId}
+        />
+
         {/* Viewport container */}
         <div
           ref={containerRef}
           className="relative"
-          style={{ height: "600px" }}
+          style={{ height: `${ANNOTATION_PREVIEW_DEFAULTS.viewportHeightPx}px` }}
+          onClick={(event) => {
+            const target = event.target as HTMLElement | null;
+            if (target?.closest("[data-annotation-id]")) {
+              return;
+            }
+            clearSelection();
+          }}
+          onContextMenu={(event) => {
+            event.preventDefault();
+          }}
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}

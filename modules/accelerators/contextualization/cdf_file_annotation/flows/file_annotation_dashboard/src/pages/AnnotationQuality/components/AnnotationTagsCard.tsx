@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowUp, ArrowUpDown, Info, Loader2, Search, X } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, Check, Copy, Info, Loader2, Search, X } from "lucide-react";
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
@@ -21,6 +21,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/shared/components/ui/table";
+import { useClickOutside } from "@/shared/hooks/useClickOutside";
+import { useClipboard } from "@/shared/hooks/useClipboard";
+import { useSortedPagination } from "@/shared/hooks/useSortedPagination";
 
 interface TagEntryData {
   count: number;
@@ -45,23 +48,52 @@ interface AnnotationTagsCardProps {
   emptyText: string;
   entries: Array<[string, TagEntryData]>;
   renderStatusBadge: (status?: string) => ReactNode;
+  resolveFileInfo: (fileExternalId: string) => { fileName?: string; fileExternalId: string };
   extraNoSelectionContent?: ReactNode;
   viewAll: boolean;
   setViewAll: (v: boolean) => void;
 }
 
 type TagSortField = "tag" | "type" | "status" | "count" | "files";
-type TagSortDirection = "asc" | "desc";
-
 interface TagRowProps {
   tag: string;
   data: TagEntryData;
   renderStatusBadge: (status?: string) => React.ReactNode;
   rowRef: (element: HTMLTableRowElement | null) => void;
   dataIndex: number;
+  isFilesOpen: boolean;
+  onFilesToggle: (tag: string) => void;
+  onFilesClose: () => void;
+  resolveFileInfo: (fileExternalId: string) => { fileName?: string; fileExternalId: string };
 }
 
-const TagRow = memo(function TagRow({ tag, data, renderStatusBadge, rowRef, dataIndex }: TagRowProps) {
+const TagRow = memo(function TagRow({
+  tag,
+  data,
+  renderStatusBadge,
+  rowRef,
+  dataIndex,
+  isFilesOpen,
+  onFilesToggle,
+  onFilesClose,
+  resolveFileInfo,
+}: TagRowProps) {
+  const filesPanelRef = useRef<HTMLDivElement | null>(null);
+  const { copiedValue, copyValue } = useClipboard();
+
+  useClickOutside({
+    isEnabled: isFilesOpen,
+    ref: filesPanelRef,
+    onClickOutside: onFilesClose,
+    onEscape: onFilesClose,
+  });
+
+  const fileList = useMemo(() => {
+    return Array.from(data.files)
+      .map((fileExternalId) => resolveFileInfo(fileExternalId))
+      .sort((a, b) => (a.fileName || a.fileExternalId).localeCompare(b.fileName || b.fileExternalId));
+  }, [data.files, resolveFileInfo]);
+
   return (
     <TableRow ref={rowRef} data-index={dataIndex}>
       <TableCell className="font-medium text-xs truncate max-w-[120px]">{tag}</TableCell>
@@ -72,7 +104,74 @@ const TagRow = memo(function TagRow({ tag, data, renderStatusBadge, rowRef, data
       </TableCell>
       <TableCell>{renderStatusBadge(data.normalizedStatus)}</TableCell>
       <TableCell className="text-right font-medium text-xs">{data.count}</TableCell>
-      <TableCell className="text-right text-xs text-muted-foreground">{data.files.size}</TableCell>
+      <TableCell className="text-right text-xs text-muted-foreground relative">
+        {data.files.size > 0 ? (
+          <div ref={filesPanelRef} className="inline-block text-left">
+            <button
+              type="button"
+              className="underline underline-offset-2 hover:text-foreground"
+              onClick={() => onFilesToggle(tag)}
+            >
+              {data.files.size}
+            </button>
+            {isFilesOpen && (
+              <div className="absolute right-0 top-full mt-1 z-30 w-[360px] rounded-md border bg-popover shadow-xl p-2">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-[11px] font-medium text-foreground">{data.files.size} files</p>
+                  <button
+                    type="button"
+                    className="text-muted-foreground hover:text-foreground"
+                    onClick={onFilesClose}
+                    aria-label="Close files list"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+                <div className="max-h-[220px] overflow-y-auto space-y-1">
+                  {fileList.map((file) => (
+                    <div
+                      key={file.fileExternalId}
+                      className="rounded border bg-background/70 px-2 py-1.5"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="text-[11px] font-medium text-foreground truncate">
+                            {file.fileName || "Unnamed file"}
+                          </p>
+                          <p className="text-[10px] text-muted-foreground truncate">
+                            {file.fileExternalId}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <button
+                            type="button"
+                            className="inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-[10px] hover:bg-muted"
+                            onClick={() => copyValue(file.fileName || "")}
+                            disabled={!file.fileName}
+                          >
+                            {copiedValue === file.fileName ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                            Name
+                          </button>
+                          <button
+                            type="button"
+                            className="inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-[10px] hover:bg-muted"
+                            onClick={() => copyValue(file.fileExternalId)}
+                          >
+                            {copiedValue === file.fileExternalId ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                            Id
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          <span>{data.files.size}</span>
+        )}
+      </TableCell>
     </TableRow>
   );
 });
@@ -94,86 +193,49 @@ export function AnnotationTagsCard(props: AnnotationTagsCardProps) {
     emptyText,
     entries,
     renderStatusBadge,
+    resolveFileInfo,
     extraNoSelectionContent,
     viewAll,
     setViewAll,
   } = props;
-  const [sortField, setSortField] = useState<TagSortField | null>(null);
-  const [sortDirection, setSortDirection] = useState<TagSortDirection>("asc");
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(50);
+  const [openFilesTag, setOpenFilesTag] = useState<string | null>(null);
   const tableRef = useRef<HTMLDivElement | null>(null);
 
-  const sortedEntries = useMemo(() => {
-    if (!sortField) return entries;
-
-    const result = [...entries];
-    result.sort(([tagA, dataA], [tagB, dataB]) => {
-      let comparison = 0;
-      switch (sortField) {
+  const {
+    sortField,
+    sortDirection,
+    currentPage,
+    pageSize,
+    totalPages,
+    startIndex,
+    pagedItems: pagedEntries,
+    rangeLabel,
+    setPageSize,
+    setCurrentPage,
+    toggleSort,
+  } = useSortedPagination<[string, TagEntryData], TagSortField>({
+    items: entries,
+    resetToken: searchValue,
+    initialPageSize: 50,
+    compare: ([tagA, dataA], [tagB, dataB], field) => {
+      switch (field) {
         case "tag":
-          comparison = tagA.localeCompare(tagB);
-          break;
+          return tagA.localeCompare(tagB);
         case "type":
-          comparison = (dataA.resourceType || "").localeCompare(dataB.resourceType || "");
-          break;
+          return (dataA.resourceType || "").localeCompare(dataB.resourceType || "");
         case "status":
-          comparison = (dataA.normalizedStatus || "").localeCompare(dataB.normalizedStatus || "");
-          break;
+          return (dataA.normalizedStatus || "").localeCompare(dataB.normalizedStatus || "");
         case "count":
-          comparison = dataA.count - dataB.count;
-          break;
+          return dataA.count - dataB.count;
         case "files":
-          comparison = dataA.files.size - dataB.files.size;
-          break;
+          return dataA.files.size - dataB.files.size;
       }
-      return sortDirection === "desc" ? -comparison : comparison;
-    });
-
-    return result;
-  }, [entries, sortField, sortDirection]);
-
-  const totalPages = useMemo(() => {
-    return Math.max(1, Math.ceil(sortedEntries.length / pageSize));
-  }, [sortedEntries.length, pageSize]);
+    },
+  });
 
   useEffect(() => {
-    if (currentPage > totalPages) {
-      setCurrentPage(totalPages);
-    }
-  }, [currentPage, totalPages]);
-
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [sortField, sortDirection, searchValue, pageSize]);
-
-  const startIndex = (currentPage - 1) * pageSize;
-  const pagedEntries = useMemo(() => {
-    return sortedEntries.slice(startIndex, startIndex + pageSize);
-  }, [sortedEntries, startIndex, pageSize]);
-
-  const rangeLabel = useMemo(() => {
-    if (sortedEntries.length === 0) return "0 of 0";
-    const start = startIndex + 1;
-    const end = Math.min(startIndex + pageSize, sortedEntries.length);
-    return `${start}-${end} of ${sortedEntries.length}`;
-  }, [sortedEntries.length, startIndex, pageSize]);
-
-  const toggleSort = (field: TagSortField) => {
-    if (sortField !== field) {
-      setSortField(field);
-      setSortDirection("asc");
-      return;
-    }
-
-    if (sortDirection === "asc") {
-      setSortDirection("desc");
-      return;
-    }
-
-    setSortField(null);
-    setSortDirection("asc");
-  };
+    setOpenFilesTag(null);
+  }, [currentPage, pageSize, sortField, sortDirection, searchValue]);
 
   const renderSortIcon = (field: TagSortField) => {
     if (sortField !== field) return <ArrowUpDown className="h-3 w-3" />;
@@ -230,11 +292,6 @@ export function AnnotationTagsCard(props: AnnotationTagsCardProps) {
             <Loader2 className="h-5 w-5 animate-spin mb-2" />
             <p className="text-xs">{loadingText}</p>
           </div>
-        ) : entries.length === 0 ? (
-          <div className="flex flex-col items-center py-10 text-muted-foreground">
-            <Info className="h-6 w-6 mb-2 opacity-30" />
-            <p className="text-xs">{emptyText}</p>
-          </div>
         ) : (
           <>
             <div className="mb-3">
@@ -258,75 +315,88 @@ export function AnnotationTagsCard(props: AnnotationTagsCardProps) {
                 )}
               </div>
             </div>
-            <div
-              ref={tableRef}
-              className="rounded-lg border overflow-hidden"
-              style={{ maxHeight: "300px", overflow: "auto" }}
-            >
-            <Table>
-              <TableHeader className="sticky top-0 bg-muted/80 backdrop-blur-sm">
-                <TableRow>
-                  <TableHead>
-                    <button type="button" className="inline-flex items-center gap-1" onClick={() => toggleSort("tag")}> 
-                      Tag
-                      {renderSortIcon("tag")}
-                    </button>
-                  </TableHead>
-                  <TableHead>
-                    <button type="button" className="inline-flex items-center gap-1" onClick={() => toggleSort("type")}> 
-                      Type
-                      {renderSortIcon("type")}
-                    </button>
-                  </TableHead>
-                  <TableHead>
-                    <button type="button" className="inline-flex items-center gap-1" onClick={() => toggleSort("status")}> 
-                      Status
-                      {renderSortIcon("status")}
-                    </button>
-                  </TableHead>
-                  <TableHead className="text-right w-16">
-                    <button type="button" className="inline-flex items-center gap-1" onClick={() => toggleSort("count")}> 
-                      Count
-                      {renderSortIcon("count")}
-                    </button>
-                  </TableHead>
-                  <TableHead className="text-right w-14">
-                    <button type="button" className="inline-flex items-center gap-1" onClick={() => toggleSort("files")}> 
-                      Files
-                      {renderSortIcon("files")}
-                    </button>
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {topSpacerHeight > 0 && (
-                  <TableRow aria-hidden>
-                    <TableCell colSpan={5} style={{ height: topSpacerHeight }} />
+            {entries.length === 0 ? (
+              <div className="flex flex-col items-center py-10 text-muted-foreground">
+                <Info className="h-6 w-6 mb-2 opacity-30" />
+                <p className="text-xs">{emptyText}</p>
+              </div>
+            ) : (
+              <div
+                ref={tableRef}
+                className="rounded-lg border overflow-hidden"
+                style={{ maxHeight: "300px", overflow: "auto" }}
+              >
+              <Table>
+                <TableHeader className="sticky top-0 bg-muted/80 backdrop-blur-sm">
+                  <TableRow>
+                    <TableHead>
+                      <button type="button" className="inline-flex items-center gap-1" onClick={() => toggleSort("tag")}> 
+                        Tag
+                        {renderSortIcon("tag")}
+                      </button>
+                    </TableHead>
+                    <TableHead>
+                      <button type="button" className="inline-flex items-center gap-1" onClick={() => toggleSort("type")}> 
+                        Type
+                        {renderSortIcon("type")}
+                      </button>
+                    </TableHead>
+                    <TableHead>
+                      <button type="button" className="inline-flex items-center gap-1" onClick={() => toggleSort("status")}> 
+                        Status
+                        {renderSortIcon("status")}
+                      </button>
+                    </TableHead>
+                    <TableHead className="text-right w-16">
+                      <button type="button" className="inline-flex items-center gap-1" onClick={() => toggleSort("count")}> 
+                        Count
+                        {renderSortIcon("count")}
+                      </button>
+                    </TableHead>
+                    <TableHead className="text-right w-14">
+                      <button type="button" className="inline-flex items-center gap-1" onClick={() => toggleSort("files")}> 
+                        Files
+                        {renderSortIcon("files")}
+                      </button>
+                    </TableHead>
                   </TableRow>
-                )}
-                {virtualRows.map((virtualRow) => {
-                  const entry = pagedEntries[virtualRow.index];
-                  if (!entry) return null;
-                  const [tag, data] = entry;
-                  return (
-                    <TagRow
-                      key={virtualRow.key}
-                      tag={tag}
-                      data={data}
-                      renderStatusBadge={renderStatusBadge}
-                      rowRef={rowVirtualizer.measureElement}
-                      dataIndex={virtualRow.index}
-                    />
-                  );
-                })}
-                {bottomSpacerHeight > 0 && (
-                  <TableRow aria-hidden>
-                    <TableCell colSpan={5} style={{ height: bottomSpacerHeight }} />
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-            </div>
+                </TableHeader>
+                <TableBody>
+                  {topSpacerHeight > 0 && (
+                    <TableRow aria-hidden>
+                      <TableCell colSpan={5} style={{ height: topSpacerHeight }} />
+                    </TableRow>
+                  )}
+                  {virtualRows.map((virtualRow) => {
+                    const entry = pagedEntries[virtualRow.index];
+                    if (!entry) return null;
+                    const [tag, data] = entry;
+                    return (
+                      <TagRow
+                        key={virtualRow.key}
+                        tag={tag}
+                        data={data}
+                        renderStatusBadge={renderStatusBadge}
+                        rowRef={rowVirtualizer.measureElement}
+                        dataIndex={virtualRow.index}
+                        isFilesOpen={openFilesTag === tag}
+                        onFilesToggle={(clickedTag) => {
+                          setOpenFilesTag((current) => (current === clickedTag ? null : clickedTag));
+                        }}
+                        onFilesClose={() => setOpenFilesTag(null)}
+                        resolveFileInfo={resolveFileInfo}
+                      />
+                    );
+                  })}
+                  {bottomSpacerHeight > 0 && (
+                    <TableRow aria-hidden>
+                      <TableCell colSpan={5} style={{ height: bottomSpacerHeight }} />
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+              </div>
+            )}
           </>
         )}
         {entries.length > 0 && (

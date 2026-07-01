@@ -5,16 +5,19 @@ import { ThresholdChart } from "@/pages/AnnotationQuality/components/ThresholdCh
 import { FilePreviewCanvas } from "./components/FilePreviewCanvas";
 import { ManualPromotion } from "@/pages/AnnotationQuality/components/ManualPromotion";
 import { Button } from "@/shared/components/ui/button";
-import { Badge } from "@/shared/components/ui/badge";
 import { Card, CardContent } from "@/shared/components/ui/card";
 import { CheckCircle2, Loader2, Sparkles, X, Info } from "lucide-react";
-import { NormalizedStatus } from "@/shared/utils/constants";
 import type { PipelineConfig } from "@/shared/utils/types";
 import { useFilterState } from "@/pages/AnnotationQuality/hooks/useFilterState";
 import { useLoadingDuration } from "@/shared/hooks/useLoadingDuration";
 import { usePagination } from "@/shared/hooks/usePagination";
 import { useAnnotations } from "@/shared/hooks/useAnnotationData";
+import { StatusBadge } from "@/shared/components/StatusBadge";
 import { usePerFileMetrics } from "@/pages/AnnotationQuality/hooks/usePerFileMetrics";
+import {
+  buildFileInfoByExternalId,
+  resolveFileInfo as resolveFileInfoByExternalId,
+} from "@/shared/utils/fileInfoResolver";
 import { AnnotationTagsCard } from "./components/AnnotationTagsCard";
 import { PerFileAggregationCard } from "./components/PerFileAggregationCard";
 import { PerFileFiltersCard } from "./components/PerFileFiltersCard";
@@ -73,6 +76,7 @@ export function PerFileTab({
   const [previewFileId, setPreviewFileId] = useState<string | null>(null);
   const [previewFileName, setPreviewFileName] = useState<string | undefined>(undefined);
   const [previewFileSourceId, setPreviewFileSourceId] = useState<string | undefined>(undefined);
+  const [previewFocusToken, setPreviewFocusToken] = useState(0);
 
   // Manual promotion state
   const [selectedPotentialTags, setSelectedPotentialTags] = useState<Set<string>>(new Set());
@@ -184,6 +188,7 @@ export function PerFileTab({
   );
 
   const {
+    allRecords,
     resourceTypeOptions,
     primaryScopeOptions,
     secondaryScopeOptions,
@@ -206,6 +211,15 @@ export function PerFileTab({
     previewFileId,
     filters,
   });
+
+  const fileInfoByExternalId = useMemo(() => buildFileInfoByExternalId(allRecords), [allRecords]);
+
+  const resolveFileInfo = useCallback(
+    (fileExternalId: string) => {
+      return resolveFileInfoByExternalId(fileInfoByExternalId, fileExternalId);
+    },
+    [fileInfoByExternalId]
+  );
 
   useEffect(() => {
     if (fileAggregations.length === 0) {
@@ -287,6 +301,7 @@ export function PerFileTab({
     setPreviewFileId(fileId);
     setPreviewFileName(fileName);
     setPreviewFileSourceId(fileSourceId);
+    setPreviewFocusToken((token) => token + 1);
   };
 
   const handleClosePreview = () => {
@@ -310,82 +325,9 @@ export function PerFileTab({
     return () => {
       target.style.scrollMarginTop = previousMargin;
     };
-  }, [previewFileId]);
+  }, [previewFileId, previewFocusToken]);
 
-  const renderStatusBadge = (status?: string) => {
-    const label = status || "Pattern Found";
-    if (label === NormalizedStatus.AMBIGUOUS) {
-      return (
-        <Badge
-          variant="secondary"
-          className="text-[9px]"
-        >
-          {label}
-        </Badge>
-      );
-    }
-
-    if (label === NormalizedStatus.NO_MATCH) {
-      return (
-        <Badge
-          variant="secondary"
-          className="text-[9px]"
-        >
-          {label}
-        </Badge>
-      );
-    }
-
-    if (label === NormalizedStatus.REGULARLY_ANNOTATED) {
-      return (
-        <Badge
-          variant="secondary"
-          className="text-[9px] bg-emerald-100 text-emerald-700 border border-emerald-200 dark:bg-emerald-900/60 dark:text-emerald-200 dark:border-emerald-700"
-        >
-          {label}
-        </Badge>
-      );
-    }
-
-    if (label === NormalizedStatus.AUTOMATICALLY_PROMOTED) {
-      return (
-        <Badge
-          variant="secondary"
-          className="text-[9px]"
-        >
-          {label}
-        </Badge>
-      );
-    }
-
-    if (label === NormalizedStatus.MANUALLY_PROMOTED) {
-      return (
-        <Badge
-          variant="secondary"
-          className="text-[9px] bg-emerald-100 text-emerald-700 border border-emerald-200 dark:bg-emerald-900/60 dark:text-emerald-200 dark:border-emerald-700"
-        >
-          {label}
-        </Badge>
-      );
-    }
-
-    if (label === NormalizedStatus.PATTERN_FOUND) {
-      return (
-        <Badge
-          variant="secondary"
-          className="text-[9px]"
-        >
-          {label}
-        </Badge>
-      );
-    }
-
-    return (
-      <Badge variant="warning" className="text-[9px]">
-        {label}
-      </Badge>
-    );
-  };
+  const renderStatusBadge = (status?: string) => <StatusBadge status={status} />;
 
   if (isAnnotationsLoading || annotationsQuery.isError) {
     return (
@@ -529,8 +471,9 @@ export function PerFileTab({
           emptyText="No actual annotations"
           entries={viewAllActual ? actualTagEntries : hasFileSelection ? actualTagEntries : []}
           renderStatusBadge={renderStatusBadge}
+          resolveFileInfo={resolveFileInfo}
           extraNoSelectionContent={
-            !hasFileSelection && actualTagEntries.length > 0 ? (
+            !hasFileSelection && filteredActual.length > 0 ? (
               <div className="flex flex-col items-center gap-2 mt-2">
                 <Button
                   size="xs"
@@ -566,8 +509,9 @@ export function PerFileTab({
           emptyText="No potential annotations"
           entries={viewAllPotential ? potentialTagEntries : hasFileSelection ? potentialTagEntries : []}
           renderStatusBadge={renderStatusBadge}
+          resolveFileInfo={resolveFileInfo}
           extraNoSelectionContent={
-            !hasFileSelection && potentialTagEntries.length > 0 ? (
+            !hasFileSelection && filteredPotential.length > 0 ? (
               <div className="flex flex-col items-center gap-2 mt-2">
                 <Button
                   size="xs"
@@ -628,10 +572,3 @@ export function PerFileTab({
     </div>
   );
 }
-
-
-
-
-
-
-

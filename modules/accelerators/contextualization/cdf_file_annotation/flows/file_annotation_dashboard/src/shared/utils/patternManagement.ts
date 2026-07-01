@@ -38,10 +38,27 @@ interface AnnotationEntity {
   search_property: string[];
 }
 
+function isFullNumericAlias(value: unknown): boolean {
+  const alias = String(value || "").trim();
+  return /\d/.test(alias) && !/[A-Za-z]/.test(alias);
+}
+
+function removeFullNumericAssetAliases(entities: AnnotationEntity[]): AnnotationEntity[] {
+  return entities.map((entity) => {
+    if (entity.annotation_type !== "diagrams.AssetLink") return entity;
+    const filteredAliases = (entity.search_property || []).filter((alias) => !isFullNumericAlias(alias));
+    return { ...entity, search_property: filteredAliases };
+  });
+}
+
 
 abstract class PatternSampleGenerator {
   getMessage(): string | undefined {
     return undefined;
+  }
+
+  prepareEntitiesForCache(entities: AnnotationEntity[]): AnnotationEntity[] {
+    return entities;
   }
 
   abstract generateFromEntities(entities: AnnotationEntity[]): PatternSample[];
@@ -189,11 +206,15 @@ class ElPasoPatternSampleGenerator extends DefaultPatternSampleGenerator {
   private static readonly numericSample = "000-000-00000-000";
 
   getMessage(): string | undefined {
-    return "Extended PatternSampleGenerator - Generating file full-numeric patterns";
+    return "Extended PatternSampleGenerator - Generating full-numeric file patterns and excluding full-numeric asset aliases";
+  }
+
+  prepareEntitiesForCache(entities: AnnotationEntity[]): AnnotationEntity[] {
+    return removeFullNumericAssetAliases(entities);
   }
 
   generateFromEntities(entities: AnnotationEntity[]): PatternSample[] {
-    const baseEntities = entities.map((entity) => {
+    const baseEntities = this.prepareEntitiesForCache(entities).map((entity) => {
       if (entity.annotation_type !== "diagrams.FileLink") return entity;
       const filteredAliases = entity.search_property.filter((aliasRaw) => /[A-Za-z]/.test(String(aliasRaw || "")));
       return { ...entity, search_property: filteredAliases };
@@ -1040,7 +1061,7 @@ export async function buildCachePreviewRows(
 
     onProgress?.(`Building preview ${processed}/${total} (${scopeKey})`, Math.round((processed / total) * 100));
 
-    const assetEntities = assetPair?.view
+    const rawAssetEntities = assetPair?.view
       ? await fetchEntitiesForScope(
           sdk,
           assetPair.view,
@@ -1052,6 +1073,7 @@ export async function buildCachePreviewRows(
           assetScopeFilterBuilder
         )
       : [];
+    const assetEntities = patternSampleGenerator.prepareEntitiesForCache(rawAssetEntities);
 
     const fileEntities = filePair?.view
       ? await fetchEntitiesForScope(

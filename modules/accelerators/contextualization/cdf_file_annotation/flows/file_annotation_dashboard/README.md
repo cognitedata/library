@@ -8,56 +8,6 @@ Main pages:
 - Pattern Management
 - Pipeline Health
 
-## Quick Start
-
-### Prerequisites
-- Node.js 20+
-- npm 11+
-
-### First-time setup
-```bash
-npm install
-cp env.app.properties .env
-```
-
-Windows PowerShell:
-```powershell
-npm install
-Copy-Item env.app.properties .env
-```
-
-### Pick runtime mode
-Set `VITE_RUNTIME_MODE` in `.env`:
-- `cdf_local`: local CDF via token proxy
-- `cdf_host`: host-authenticated flow through Flows host app
-- `mock`: local app execution with mock data
-
-### Launch vs Terminal (equivalent)
-Use this quick map to understand what each VS Code launch profile does and the equivalent terminal flow.
-
-- `cdf_local`
-  - VS Code launch: `Flows | File Annotation Dashboard: Local Mode`
-  - Terminal equivalent: `node scripts/start-local-stack.mjs`
-- `cdf_host`
-  - VS Code launch: `Flows | File Annotation Dashboard: Host Mode`
-  - Terminal equivalent: set `VITE_RUNTIME_MODE=cdf_host`, then run `npm start`
-- `mock`
-  - VS Code launch: `Flows | File Annotation Dashboard: Mock Mode`
-  - Terminal equivalent: set `VITE_RUNTIME_MODE=mock`, then run `npm start`
-
-Note: launch profiles inject runtime env values for that process and do not modify `.env` on disk.
-
-### Start locally (recommended)
-```bash
-node scripts/start-local-stack.mjs
-```
-
-This starts token proxy + Vite for local CDF mode.
-
-### Alternative starts
-- Local proxy only: `npm run proxy`
-- Vite only: `npm start`
-
 ## Main entry flow
 1. Select an extraction pipeline.
 - The list is filtered by a configured substring.
@@ -109,42 +59,140 @@ Highlights:
 - Switching pages/pipelines clears in-memory queries, but browser memory may not drop immediately.
 - Use hard reload (`Ctrl+F5`) after leaving Per-File if you need memory to drop quickly.
 
-## Advanced Setup Notes
+## Running the App
+
+### Prerequisites
+Tools required in PATH:
+- Node.js 20+
+- npm 11+
 
 ### Platform setup
-- Windows: install Node.js LTS from https://nodejs.org.
-- macOS:
+
+#### Windows
+1. Install Node.js LTS from https://nodejs.org.
+
+#### macOS
+1. Install Node:
 ```bash
 brew install node@20
 ```
-- Linux (nvm example):
+
+#### Linux
+1. Install Node (example with nvm):
 ```bash
 curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
 nvm install 20
 nvm use 20
 ```
 
-### No-admin Windows option
-If you cannot install Node system-wide, use a user-scoped install and update PATH.
+#### PATH configuration (no admin access)
+If you cannot install system-wide, install for current user and add to PATH.
 
-Registry path:
-- `HKEY_CURRENT_USER\Environment`
+Windows (Registry):
+1. Open Registry Editor.
+2. Go to `HKEY_CURRENT_USER\Environment`.
+3. Edit `Path` and add Node/npm install paths.
 
 Common user install paths:
 - Node: `%LOCALAPPDATA%\Programs\nodejs\`
 - npm/npx global bin: `%APPDATA%\npm`
 
-You can also use a portable manager such as `nvm-windows-noinstall` in restricted environments.
-
-Verify toolchain:
+Verify:
 ```bash
 node --version
 npm --version
 npx --version
 ```
 
-### CDF host URL (host mode)
-When using `cdf_host`, open through CDF development URL (not plain localhost):
+### Install dependencies (required)
+Before using Run and Debug or running any app command, install project dependencies:
+
+```bash
+npm install
+```
+
+Repeat this command whenever `package.json` or `package-lock.json` changes.
+
+### Runtime Selection
+- `cdf_local`: local app execution using token-proxy + CDF project.
+- `cdf_host`: host-authenticated flow through Flows host app.
+- `mock`: local app execution with mock data.
+
+Set mode with `VITE_RUNTIME_MODE`.
+
+### Option A: VS Code Run and Debug
+Available configurations:
+- `Flows | File Annotation Dashboard: Local Mode`
+- `Flows | File Annotation Dashboard: Host Mode`
+- `Flows | File Annotation Dashboard: Mock Mode`
+
+#### A1) Local Mode
+Run `Flows | File Annotation Dashboard: Local Mode`.
+
+What it does:
+- Runs task `file-annotation: start local stack (flows)`.
+- Starts local credential proxy script (`node server/proxy.mjs`, via `npm run proxy`) and Vite (`npm start`).
+- Opens `https://localhost:3001`.
+- Injects `VITE_RUNTIME_MODE=cdf_local` from `launch.json`.
+
+#### A2) Host Mode
+Run `Flows | File Annotation Dashboard: Host Mode`.
+
+What it does:
+- Starts `npm start`.
+- Injects `VITE_RUNTIME_MODE=cdf_host` from `launch.json`.
+
+#### A3) Mock Mode
+Run `Flows | File Annotation Dashboard: Mock Mode`.
+
+What it does:
+- Starts `npm start`.
+- Injects `VITE_RUNTIME_MODE=mock` from `launch.json`.
+- Does not start token-proxy.
+
+VS Code env injection behavior:
+- `launch.json` values override `.env` only for that process.
+- `.env` on disk is not modified.
+
+### Option B: Terminal
+
+#### B1) Local CDF Mode (works without Flows host access)
+1. Set `.env`:
+- `VITE_RUNTIME_MODE=cdf_local`
+2. Start local stack:
+```bash
+npm install
+node scripts/start-local-stack.mjs
+```
+
+Manual split (optional):
+```bash
+npm install
+npm run proxy
+```
+Then in a second terminal:
+```bash
+npm start
+```
+
+#### B2) Mock Mode (no external connections)
+1. Set `.env`:
+- `VITE_RUNTIME_MODE=mock`
+2. Start dev server:
+```bash
+npm install
+npm start
+```
+
+#### B3) Host Mode
+1. Set `.env`:
+- `VITE_RUNTIME_MODE=cdf_host`
+2. Start dev server:
+```bash
+npm install
+npm start
+```
+3. Open through CDF development URL (not plain localhost):
 ```text
 https://{org}.fusion.cognite.com/{project}/flows-apps/development/{appExternalId}/3001
 ```
@@ -235,7 +283,7 @@ npx @cognite/cli@latest apps deploy --interactive --org {org}
 npm run build
 ```
 
-## Advanced Environment and Proxy Configuration
+## Environment Configuration
 
 ### Create `.env`
 ```bash
@@ -248,40 +296,11 @@ Copy-Item env.app.properties .env
 
 ### Key environment variables
 - `VITE_RUNTIME_MODE`
-  - `cdf_local`: local CDF via token proxy
-  - `cdf_host`: host-managed auth and CDF context
-  - `mock`: local mock data
+	- `cdf_local`: local CDF via token proxy
+	- `cdf_host`: host-managed auth and CDF context
+	- `mock`: local mock data
 - `VITE_PROJECT_LABEL`
-  - display label only
-
-### TLS troubleshooting (local only)
-Some corporate environments require temporary TLS relaxation for local troubleshooting.
-
-Recommended order:
-1. Prefer proper certificates via `NODE_EXTRA_CA_CERTS`.
-2. Use `NODE_TLS_REJECT_UNAUTHORIZED=0` only as a temporary local workaround.
-
-PowerShell (temporary for one run):
-```powershell
-$env:NODE_TLS_REJECT_UNAUTHORIZED="0"; npm run proxy; Remove-Item Env:NODE_TLS_REJECT_UNAUTHORIZED
-```
-
-PowerShell (set for current terminal session, then clear):
-```powershell
-$env:NODE_TLS_REJECT_UNAUTHORIZED="0"
-npm run proxy
-Remove-Item Env:NODE_TLS_REJECT_UNAUTHORIZED
-```
-
-`.env` option (local machine only):
-```env
-NODE_TLS_REJECT_UNAUTHORIZED=0
-```
-
-Important:
-- Do not hardcode TLS bypass in source code.
-- Do not use TLS bypass in CI/CD or production.
-- `.env` is gitignored in this app, but this setting still weakens security while active.
+	- display label only
 
 ### Mode behavior
 When `VITE_RUNTIME_MODE=cdf_host`:
@@ -304,8 +323,7 @@ When `VITE_RUNTIME_MODE=cdf_local`, configure:
 - `VITE_CDF_PROJECT`
 - `VITE_CDF_URL`
 
-Client credentials must be configured only in `token-proxy/.env` (see `token-proxy/env.proxy.properties`).
-The proxy loads `token-proxy/.env` with precedence for proxy runtime values.
+Client credentials must be configured only in `token-proxy/.env` (see `token-proxy/env.local.proxy.properties`).
 Token endpoint/scopes can be resolved from `token-proxy/.env` or inherited from app `VITE_*` values if provided.
 
 ### Local credential proxy script
@@ -358,5 +376,5 @@ This app uses `"infra": "appsApi"` in `app.json`.
 
 ## Notes
 - `env.app.properties` lists expected app env keys/defaults.
-- `token-proxy/env.proxy.properties` lists server-side credential keys/defaults.
+- `token-proxy/env.local.proxy.properties` lists server-side credential keys/defaults.
 - Keep credentials out of version control.
