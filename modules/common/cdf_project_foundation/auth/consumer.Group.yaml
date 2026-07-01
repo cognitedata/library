@@ -1,8 +1,4 @@
-# Consumer persona — read-only (SOP Step 3a/3e).
-# name resolves per environment via setup_project.py: <persona>[-<site>]-<env>
-# (e.g. consumer-dev, consumer-prod, consumer-oslo-prod). env covers dev+test.
-# instanceSpaces: project-level DM space + one per installed extractor module,
-# computed by setup_project.py as [instanceSpace, sp_{site}_{type}, ...].
+# Consumer persona — read-only.
 name: "{{ consumerGroupName }}"
 sourceId: "{{ consumerSourceId }}"
 metadata:

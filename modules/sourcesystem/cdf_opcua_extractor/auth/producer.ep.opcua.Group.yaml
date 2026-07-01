@@ -1,4 +1,4 @@
-name: producer-{{location}}-ep-opcua-{{environment}}
+name: producer_{{location}}_ep_opcua_{{environment}}
 sourceId: {{extractor_group_source_id}}
 capabilities:
   - sessionsAcl:

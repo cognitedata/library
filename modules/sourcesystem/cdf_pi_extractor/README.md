@@ -34,7 +34,7 @@ PI .NET Extractor   (time-series.space-id: {{instanceSpace}})
 |---|---|---|
 | ExtractionPipeline | `ep_{{location}}_pi` | Pipeline health tracking and config delivery |
 | DM Space | `{{instanceSpace}}` | Per-extractor instance space for DM instances |
-| Access Group | `producer-{{location}}-ep-pi-{{environment}}` | Scoped service-principal group for the PI extractor |
+| Access Group | `producer_{{location}}_ep_pi_{{environment}}` | Scoped service-principal group for the PI extractor |
 
 ## Configuration
 

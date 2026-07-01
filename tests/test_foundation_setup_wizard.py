@@ -280,22 +280,22 @@ class TestEnvIO:
 class TestGroupName:
     def test_no_site(self) -> None:
         from setup_project import group_name
-        assert group_name("consumer", "", "dev") == "consumer-dev"
-        assert group_name("admin", "", "prod") == "admin-prod"
+        assert group_name("consumer", "", "dev") == "consumer_all_dev"
+        assert group_name("admin", "", "prod") == "admin_all_prod"
 
     def test_with_site(self) -> None:
         from setup_project import group_name
-        assert group_name("producer", "oslo", "dev") == "producer-oslo-dev"
-        assert group_name("consumer", "oslo", "prod") == "consumer-oslo-prod"
+        assert group_name("producer", "oslo", "dev") == "producer_oslo_all_dev"
+        assert group_name("consumer", "oslo", "prod") == "consumer_oslo_all_prod"
 
     def test_test_env_maps_to_dev_suffix(self) -> None:
         from setup_project import group_name
         # test env uses the same group as dev (GROUP_ENV["test"] == "dev")
-        assert group_name("consumer", "", "test") == "consumer-dev"
+        assert group_name("consumer", "", "test") == "consumer_all_dev"
 
     def test_test_env_with_site(self) -> None:
         from setup_project import group_name
-        assert group_name("admin", "oslo", "test") == "admin-oslo-dev"
+        assert group_name("admin", "oslo", "test") == "admin_oslo_all_dev"
 
 
 class TestBuildFoundationVars:
@@ -306,9 +306,9 @@ class TestBuildFoundationVars:
         assert vars_["schemaSpace"] == "dm_dom_isa_manufacturing"
         assert vars_["instanceSpace"] == "inst_isa_manufacturing"
         assert vars_["site"] == "oslo"
-        assert vars_["consumerGroupName"] == "consumer-oslo-dev"
-        assert vars_["producerGroupName"] == "producer-oslo-dev"
-        assert vars_["adminGroupName"] == "admin-oslo-dev"
+        assert vars_["consumerGroupName"] == "consumer_oslo_all_dev"
+        assert vars_["producerGroupName"] == "producer_oslo_all_dev"
+        assert vars_["adminGroupName"] == "admin_oslo_all_dev"
         assert vars_["consumerSourceId"] == "${CONSUMER_SOURCE_ID}"
 
     def test_dataset_always_present(self) -> None:
@@ -494,9 +494,9 @@ class TestWriteConfigUpdate:
                 cdf_project_foundation:
                   site: ''
                   dataset: []
-                  consumerGroupName: consumer-dev
-                  producerGroupName: producer-dev
-                  adminGroupName: admin-dev
+                  consumerGroupName: consumer_all_dev
+                  producerGroupName: producer_all_dev
+                  adminGroupName: admin_all_dev
                   consumerSourceId: ${CONSUMER_SOURCE_ID}
                   producerSourceId: ${PRODUCER_SOURCE_ID}
                   adminSourceId: ${ADMIN_SOURCE_ID}
@@ -527,9 +527,9 @@ class TestWriteConfigUpdate:
                 cdf_project_foundation:
                   site: oslo  # keep this comment
                   dataset: []
-                  consumerGroupName: consumer-dev
-                  producerGroupName: producer-dev
-                  adminGroupName: admin-dev
+                  consumerGroupName: consumer_all_dev
+                  producerGroupName: producer_all_dev
+                  adminGroupName: admin_all_dev
                   consumerSourceId: ${CONSUMER_SOURCE_ID}
                   producerSourceId: ${PRODUCER_SOURCE_ID}
                   adminSourceId: ${ADMIN_SOURCE_ID}

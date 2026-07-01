@@ -175,9 +175,9 @@ _STALE_CTX_KEYS: tuple[str, ...] = (
 # ── Domain helpers ─────────────────────────────────────────────────────────────
 
 def group_name(persona: str, site: str, env: str) -> str:
-    """SOP Step 3b: ``<persona>[-<site>]-<env>``; env is 'dev' (dev+test) or 'prod'."""
-    segments = [persona] + ([site] if site else []) + [GROUP_ENV[env]]
-    return "-".join(segments)
+    """SOP pattern: ``<persona>_[{site}_]all_<env>``; env is 'dev' (dev+test) or 'prod'."""
+    segments = [persona] + ([site] if site else []) + ["all", GROUP_ENV[env]]
+    return "_".join(segments)
 
 
 def resolve_contextualization_variables(
@@ -1033,7 +1033,7 @@ def _run_wizard(
 
     # ── Site / location name (optional) ──────────────────────────────────────
     _section("Site / Location Name")
-    _hint("Required. Used as suffix in access-group names (<persona>-<site>-<env>),")
+    _hint("Required. Used in access-group names (<persona>_<site>_all_<env>),")
     _hint("location for source system external IDs, and location_name in entity-matching.")
     _hint("Only lowercase letters, digits, hyphens, and underscores (e.g. oslo).")
     while True:

@@ -8,9 +8,9 @@ dataset: []
 # Computed by scripts/setup_project.py per environment as <persona>[-<site>]-<env>
 # where env is "dev" (covers dev + test) or "prod". These defaults are the
 # no-site dev values; setup_project.py overrides them in each config.<env>.yaml.
-consumerGroupName: "consumer-dev"
-producerGroupName: "producer-dev"
-adminGroupName: "admin-dev"
+consumerGroupName: "consumer_all_dev"
+producerGroupName: "producer_all_dev"
+adminGroupName: "admin_all_dev"
 
 # Object ID of the Entra ID security group mapped to each persona (SOP Step 3d).
 # Values are stored in .env by setup_project.py and referenced here via ${…}.

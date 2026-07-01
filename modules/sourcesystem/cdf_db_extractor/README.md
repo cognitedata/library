@@ -36,7 +36,7 @@ DB Extractor
 | ExtractionPipeline | `ep_{{location}}_db_postgres` | Pipeline health tracking and config delivery |
 | RAW Database | `db_{{location}}_db_postgres` | Landing zone for query result rows |
 | DM Space | `{{instanceSpace}}` | Per-extractor instance space for DM instances |
-| Access Group | `producer-{{location}}-ep-db-{{environment}}` | Scoped service-principal group for the DB extractor |
+| Access Group | `producer_{{location}}_ep_db_{{environment}}` | Scoped service-principal group for the DB extractor |
 
 ## Configuration
 

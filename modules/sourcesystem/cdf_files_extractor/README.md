@@ -39,7 +39,7 @@ Files Extractor   (destination-mode: cdm)
 |---|---|---|
 | ExtractionPipeline | `ep_{{location}}_files_sharepoint` | Pipeline health tracking and config delivery |
 | DM Space | `{{instanceSpace}}` | Per-extractor instance space for DM instances |
-| Access Group | `producer-{{location}}-ep-files-{{environment}}` | Scoped service-principal group for the Files extractor |
+| Access Group | `producer_{{location}}_ep_files_{{environment}}` | Scoped service-principal group for the Files extractor |
 
 ## Configuration
 

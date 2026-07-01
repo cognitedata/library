@@ -51,7 +51,7 @@ SAP OData Extractor (single pipeline, 6 entity queries)
 | RAW Database | `db_{{location}}_sap` | SAP entity landing zone |
 | RAW Tables | `functional_location`, `equipment`, `workorder`, `workpackage`, `worktask`, `workitem`, `state_store` | One per OData query plus an extractor-managed state-store table |
 | DM Space | `{{instanceSpace}}` | Per-extractor instance space for DM instances |
-| Access Group | `producer-{{location}}-ep-sap-{{environment}}` | Scoped service-principal group for the SAP extractor |
+| Access Group | `producer_{{location}}_ep_sap_{{environment}}` | Scoped service-principal group for the SAP extractor |
 
 ## Configuration
 

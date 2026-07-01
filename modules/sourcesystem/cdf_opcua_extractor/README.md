@@ -49,7 +49,7 @@ OPC-UA Extractor
 | ExtractionPipeline | `ep_{{location}}_opcua` | Pipeline health tracking and config delivery |
 | RAW Database | `db_{{location}}_opcua` | OPC-UA node metadata + state landing zone |
 | DM Space | `{{instanceSpace}}` | Per-extractor instance space for DM instances |
-| Access Group | `producer-{{location}}-ep-opcua-{{environment}}` | Scoped service-principal group for the OPC-UA extractor |
+| Access Group | `producer_{{location}}_ep_opcua_{{environment}}` | Scoped service-principal group for the OPC-UA extractor |
 
 ## Configuration
 

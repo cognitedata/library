@@ -210,18 +210,19 @@ cdf_project_foundation/
 Three CDF groups are deployed, each bound to an Entra ID security group via its `sourceId` (the Entra ID group **Object ID**, recorded per SOP Step 3d). Naming follows the **SOP**:
 
 ```
-<persona>-[site]-<environment>
+<persona>_[{site}_]all_<environment>
 ```
 
 - `persona` (required): `consumer` | `producer` | `admin`
 - `site` (optional): e.g. `oslo` — set via the site / location prompt in the wizard
+- `type` (required): `all` for broad persona groups; `ep_<source>` for per-extractor groups (e.g. `ep_sap`, `ep_pi`)
 - `environment` (required): `dev` (covers **dev + test**) | `prod`
 
 | Group | Name (example) | Persona | Capability scope |
 |-------|---------------|---------|-----------------|
-| `consumer.Group.yaml` | `consumer-dev` / `consumer-prod` | Read-only | READ on data models / instances / timeseries / files / transformations, scoped to `{{ dataset }}` / `{{ instanceSpaces }}` / `{{ schemaSpace }}` — `instanceSpaces` includes the project-level DM space plus one per installed extractor |
-| `producer.Group.yaml` | `producer-dev` / `producer-prod` | Read/write | Consumer rights plus WRITE to instances / timeseries / files / RAW, run transformations, workflow orchestration, sessions CREATE |
-| `admin.Group.yaml` | `admin-dev` / `admin-prod` | Admin | Full capabilities including `groups:write`, projects, datasets, data models, transformations, workflows, extraction pipelines |
+| `consumer.Group.yaml` | `consumer_all_dev` / `consumer_oslo_all_prod` | Read-only | READ on data models / instances / timeseries / files / transformations, scoped to `{{ dataset }}` / `{{ instanceSpaces }}` / `{{ schemaSpace }}` — `instanceSpaces` includes the project-level DM space plus one per installed extractor |
+| `producer.Group.yaml` | `producer_all_dev` / `producer_oslo_all_prod` | Read/write | Consumer rights plus WRITE to instances / timeseries / files / RAW, run transformations, workflow orchestration, sessions CREATE |
+| `admin.Group.yaml` | `admin_all_dev` / `admin_all_prod` | Admin | Full capabilities including `groups:write`, projects, datasets, data models, transformations, workflows, extraction pipelines |
 
 The wizard stores group source IDs in `.env` as `CONSUMER_SOURCE_ID`, `PRODUCER_SOURCE_ID`, `ADMIN_SOURCE_ID` and the config files reference them via `${…}`. These are Entra ID object IDs, **not secrets**.
 
@@ -274,9 +275,9 @@ instanceSpaces: ["inst_isa_manufacturing"] # project-level space + per-extractor
 dataModelVariant: isa_manufacturing_extension
 
 # Computed per env by setup_project.py:
-consumerGroupName: "consumer-dev"
-producerGroupName: "producer-dev"
-adminGroupName: "admin-dev"
+consumerGroupName: "consumer_all_dev"
+producerGroupName: "producer_all_dev"
+adminGroupName: "admin_all_dev"
 
 # Entra ID group object IDs — stored in .env, referenced here via ${…}:
 consumerSourceId: "${CONSUMER_SOURCE_ID}"
