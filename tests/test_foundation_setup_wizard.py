@@ -280,22 +280,22 @@ class TestEnvIO:
 class TestGroupName:
     def test_no_site(self) -> None:
         from setup_project import group_name
-        assert group_name("consumer", "", "dev") == "consumer-dev"
-        assert group_name("admin", "", "prod") == "admin-prod"
+        assert group_name("consumer", "", "dev") == "consumer_all_dev"
+        assert group_name("admin", "", "prod") == "admin_all_prod"
 
     def test_with_site(self) -> None:
         from setup_project import group_name
-        assert group_name("producer", "oslo", "dev") == "producer-oslo-dev"
-        assert group_name("consumer", "oslo", "prod") == "consumer-oslo-prod"
+        assert group_name("producer", "oslo", "dev") == "producer_oslo_all_dev"
+        assert group_name("consumer", "oslo", "prod") == "consumer_oslo_all_prod"
 
     def test_test_env_maps_to_dev_suffix(self) -> None:
         from setup_project import group_name
         # test env uses the same group as dev (GROUP_ENV["test"] == "dev")
-        assert group_name("consumer", "", "test") == "consumer-dev"
+        assert group_name("consumer", "", "test") == "consumer_all_dev"
 
     def test_test_env_with_site(self) -> None:
         from setup_project import group_name
-        assert group_name("admin", "oslo", "test") == "admin-oslo-dev"
+        assert group_name("admin", "oslo", "test") == "admin_oslo_all_dev"
 
 
 class TestBuildFoundationVars:
@@ -306,9 +306,9 @@ class TestBuildFoundationVars:
         assert vars_["schemaSpace"] == "dm_dom_isa_manufacturing"
         assert vars_["instanceSpace"] == "inst_isa_manufacturing"
         assert vars_["site"] == "oslo"
-        assert vars_["consumerGroupName"] == "consumer-oslo-dev"
-        assert vars_["producerGroupName"] == "producer-oslo-dev"
-        assert vars_["adminGroupName"] == "admin-oslo-dev"
+        assert vars_["consumerGroupName"] == "consumer_oslo_all_dev"
+        assert vars_["producerGroupName"] == "producer_oslo_all_dev"
+        assert vars_["adminGroupName"] == "admin_oslo_all_dev"
         assert vars_["consumerSourceId"] == "${CONSUMER_SOURCE_ID}"
 
     def test_dataset_always_present(self) -> None:
@@ -399,6 +399,60 @@ class TestBuildOverlay:
         assert dm["integrationOwnerEmail"] == "alice@firm.com"
 
 
+class TestModuleInstanceSpace:
+    def test_per_extractor_space_uses_location_and_suffix(self) -> None:
+        from setup_project import _module_instance_space
+        assert _module_instance_space("cdf_sap_extractor", "oslo") == "sp_oslo_sap"
+        assert _module_instance_space("cdf_pi_extractor", "oslo") == "sp_oslo_pi"
+        assert _module_instance_space("cdf_opcua_extractor", "oslo") == "sp_oslo_opcua"
+        assert _module_instance_space("cdf_db_extractor", "oslo") == "sp_oslo_db"
+        assert _module_instance_space("cdf_files_extractor", "oslo") == "sp_oslo_files"
+
+    def test_different_locations_produce_different_spaces(self) -> None:
+        from setup_project import _module_instance_space
+        assert _module_instance_space("cdf_sap_extractor", "oslo") != _module_instance_space("cdf_sap_extractor", "hou")
+        assert _module_instance_space("cdf_pi_extractor", "berlin") == "sp_berlin_pi"
+
+    def test_resolve_sourcesystem_gives_per_module_spaces(self, tmp_path: Path) -> None:
+        from setup_project import resolve_sourcesystem_variables
+        result = resolve_sourcesystem_variables(
+            ["cdf_sap_extractor", "cdf_pi_extractor"], "dev", "oslo"
+        )
+        assert result["cdf_sap_extractor"]["instanceSpace"] == "sp_oslo_sap"
+        assert result["cdf_pi_extractor"]["instanceSpace"] == "sp_oslo_pi"
+        # Confirm they are distinct
+        assert result["cdf_sap_extractor"]["instanceSpace"] != result["cdf_pi_extractor"]["instanceSpace"]
+
+    def test_build_overlay_instancespaces_no_ss_modules(self, tmp_path: Path) -> None:
+        from setup_project import build_overlay
+        # Use tmp_path as repo_root so no SS modules are found
+        overlay = build_overlay("isa_manufacturing_extension", "dev", "oslo", [], repo_root=tmp_path)
+        pf = overlay["variables"]["modules"]["cdf_project_foundation"]
+        assert pf["instanceSpaces"] == ["inst_isa_manufacturing"]
+
+    def test_build_overlay_instancespaces_with_ss_modules(self, tmp_path: Path) -> None:
+        from setup_project import build_overlay
+        # Simulate SAP and PI extractors installed
+        ss_dir = tmp_path / "modules" / "sourcesystem"
+        (ss_dir / "cdf_sap_extractor").mkdir(parents=True)
+        (ss_dir / "cdf_pi_extractor").mkdir(parents=True)
+        overlay = build_overlay(
+            "isa_manufacturing_extension", "dev", "oslo", [], repo_root=tmp_path
+        )
+        pf = overlay["variables"]["modules"]["cdf_project_foundation"]
+        assert "inst_isa_manufacturing" in pf["instanceSpaces"]
+        assert "sp_oslo_sap" in pf["instanceSpaces"]
+        assert "sp_oslo_pi" in pf["instanceSpaces"]
+        assert len(pf["instanceSpaces"]) == 3
+
+    def test_build_overlay_instancespaces_cfihos_variant(self, tmp_path: Path) -> None:
+        from setup_project import build_overlay
+        overlay = build_overlay("cfihos_oil_and_gas_extension", "dev", "oslo", [], repo_root=tmp_path)
+        pf = overlay["variables"]["modules"]["cdf_project_foundation"]
+        # CFIHOS uses inst_location as project-level space
+        assert pf["instanceSpaces"] == ["inst_location"]
+
+
 # ── setup_project — config file writers ───────────────────────────────────────
 
 class TestWriteConfigFresh:
@@ -440,9 +494,9 @@ class TestWriteConfigUpdate:
                 cdf_project_foundation:
                   site: ''
                   dataset: []
-                  consumerGroupName: consumer-dev
-                  producerGroupName: producer-dev
-                  adminGroupName: admin-dev
+                  consumerGroupName: consumer_all_dev
+                  producerGroupName: producer_all_dev
+                  adminGroupName: admin_all_dev
                   consumerSourceId: ${CONSUMER_SOURCE_ID}
                   producerSourceId: ${PRODUCER_SOURCE_ID}
                   adminSourceId: ${ADMIN_SOURCE_ID}
@@ -473,9 +527,9 @@ class TestWriteConfigUpdate:
                 cdf_project_foundation:
                   site: oslo  # keep this comment
                   dataset: []
-                  consumerGroupName: consumer-dev
-                  producerGroupName: producer-dev
-                  adminGroupName: admin-dev
+                  consumerGroupName: consumer_all_dev
+                  producerGroupName: producer_all_dev
+                  adminGroupName: admin_all_dev
                   consumerSourceId: ${CONSUMER_SOURCE_ID}
                   producerSourceId: ${PRODUCER_SOURCE_ID}
                   adminSourceId: ${ADMIN_SOURCE_ID}
@@ -493,16 +547,15 @@ class TestWriteConfigUpdate:
         assert "# keep this comment" in content
 
     def test_returns_false_when_nothing_changed(self, tmp_path: Path) -> None:
-        from setup_project import _write_config_update, build_overlay
-        overlay = build_overlay("isa_manufacturing_extension", "dev", "oslo", [])
-        # Build a config that already matches the overlay
-        merged = {
-            "environment": {"name": "dev", "project": "acme-dev",
-                            "validation-type": "dev", "selected": ["modules"]},
-            "variables": {"modules": overlay["variables"]["modules"]},
-        }
+        from setup_project import _write_config_fresh, _write_config_update, build_overlay
+        # Use tmp_path as repo_root to avoid picking up real SS modules
+        overlay = build_overlay("isa_manufacturing_extension", "dev", "oslo", [], repo_root=tmp_path)
         p = tmp_path / "config.dev.yaml"
-        p.write_text(yaml.dump(merged, sort_keys=False))
+        # _write_config_fresh uses block-style lists; the first _write_config_update
+        # normalises them to inline style (counts as a change). A second call with the
+        # same overlay must find nothing to change.
+        _write_config_fresh(p, "dev", "acme-dev", overlay)
+        _write_config_update(p, "acme-dev", overlay)   # normalise list formats
         assert not _write_config_update(p, "acme-dev", overlay)
 
     def test_removes_stale_groupsourceid(self, tmp_path: Path) -> None:
@@ -964,12 +1017,12 @@ class TestReadExistingValues:
             "environment": {"project": "acme-dev"},
             "variables": {"modules": {
                 "cdf_project_foundation": {"site": ""},
-                "cdf_pi_foundation": {"dataset": "ds_pi", "instanceSpace": "sp_isa"},
-                "cdf_sap_foundation": {"dataset": "ds_sap", "instanceSpace": "sp_isa"},
+                "cdf_pi_extractor": {"dataset": "ds_pi", "instanceSpace": "sp_oslo_pi"},
+                "cdf_sap_extractor": {"dataset": "ds_sap", "instanceSpace": "sp_oslo_sap"},
             }},
         })
         existing = _read_existing_values(
-            tmp_path, ("dev",), ["cdf_pi_foundation", "cdf_sap_foundation"]
+            tmp_path, ("dev",), ["cdf_pi_extractor", "cdf_sap_extractor"]
         )
         assert "ds_pi" in existing["dataset"]
         assert "ds_sap" in existing["dataset"]

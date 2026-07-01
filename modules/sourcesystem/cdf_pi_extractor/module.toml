@@ -1,0 +1,4 @@
+[module]
+title = "PI Extractor"
+id = "dp:foundation:cdf_pi_extractor"
+package_id = "dp:foundation"

@@ -33,11 +33,11 @@ KNOWN_DATA_MODEL_DIRS = (
 )
 
 SOURCE_SYSTEM_MODULE_DIRS: tuple[str, ...] = (
-    "cdf_pi_foundation",
-    "cdf_sap_foundation",
-    "cdf_opcua_foundation",
-    "cdf_db_foundation",
-    "cdf_files_foundation",
+    "cdf_pi_extractor",
+    "cdf_sap_extractor",
+    "cdf_opcua_extractor",
+    "cdf_db_extractor",
+    "cdf_files_extractor",
 )
 
 # Contextualization modules whose standalone auth groups become redundant when

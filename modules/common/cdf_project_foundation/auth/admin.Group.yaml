@@ -1,6 +1,4 @@
-# Admin persona — full capabilities including groups:write (SOP Step 3a/3e).
-# name resolves per environment via setup_project.py: <persona>[-<site>]-<env>
-# (e.g. admin-dev, admin-prod). env covers dev+test.
+# Admin persona — full capabilities including groups:write.
 name: "{{ adminGroupName }}"
 sourceId: "{{ adminSourceId }}"
 metadata:

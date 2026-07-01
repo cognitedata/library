@@ -1,6 +1,4 @@
-# Consumer persona — read-only (SOP Step 3a/3e).
-# name resolves per environment via setup_project.py: <persona>[-<site>]-<env>
-# (e.g. consumer-dev, consumer-prod, consumer-oslo-prod). env covers dev+test.
+# Consumer persona — read-only.
 name: "{{ consumerGroupName }}"
 sourceId: "{{ consumerSourceId }}"
 metadata:
@@ -25,7 +23,7 @@ capabilities:
       actions: [READ]
       scope:
         spaceIdScope:
-          spaceIds: ["{{ instanceSpace }}"]
+          spaceIds: {{ instanceSpaces }}
   - timeSeriesAcl:
       actions: [READ]
       scope:
@@ -36,11 +34,6 @@ capabilities:
       scope:
         datasetScope:
           ids: {{ dataset }}
-  - rawAcl:
-      # rawAcl tableScope requires explicit table names at deploy time; all is the standard workaround
-      actions: [READ]
-      scope:
-        all: {}
   - transformationsAcl:
       actions: [READ]
       scope:

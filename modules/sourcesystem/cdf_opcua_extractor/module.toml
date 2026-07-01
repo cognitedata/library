@@ -1,0 +1,4 @@
+[module]
+title = "OPC-UA Extractor"
+id = "dp:foundation:cdf_opcua_extractor"
+package_id = "dp:foundation"

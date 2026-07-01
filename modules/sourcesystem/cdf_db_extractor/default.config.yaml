@@ -1,0 +1,25 @@
+# DB Extractor — configuration variables
+
+# Site/location code, used in externalIds (e.g. ep_{{location}}_db_postgres, db_{{location}}_db_postgres)
+# Populated automatically from the site / location name entered in setup_project.py.
+location: ""
+
+# DM space where DB extractor instances are written — one space per extractor.
+# Computed by setup_project.py as sp_{location}_db.
+instanceSpace: "sp_db_instance_space"
+# dataSetExternalId for the extraction pipeline and RAW database
+dataset: "ds_db_postgres"
+
+# Integration owner (technical contact for the pipeline)
+# Populated by setup_project.py wizard.
+integration_owner_name: ""
+integration_owner_email: ""
+
+# Data owner (business contact for the data)
+# Populated by setup_project.py wizard.
+data_owner_name: ""
+data_owner_email: ""
+# Extractor group source ID — one scoped producer group per extractor.
+extractor_group_source_id: ""
+# Deployment environment — populated per environment by setup_project.py.
+environment: dev

@@ -23,7 +23,7 @@ def test_discover_foundation_modules_includes_project_foundation() -> None:
 
     paths = discover_foundation_module_paths(REPO_ROOT / "modules", REPO_ROOT)
     assert "common/cdf_project_foundation" in paths
-    assert "sourcesystem/cdf_pi_foundation" in paths
+    assert "sourcesystem/cdf_pi_extractor" in paths
 
 
 def test_generate_actions_writes_workflows_and_docs(tmp_path: Path) -> None:
@@ -38,10 +38,10 @@ version = "0.7.220"
 """.strip(),
         encoding="utf-8",
     )
-    mod = tmp_path / org_dir / "modules" / "sourcesystem" / "cdf_pi_foundation"
+    mod = tmp_path / org_dir / "modules" / "sourcesystem" / "cdf_pi_extractor"
     mod.mkdir(parents=True)
     (mod / "module.toml").write_text(
-        'id = "cdf_pi_foundation"\npackage_id = "dp:foundation"\n',
+        'id = "cdf_pi_extractor"\npackage_id = "dp:foundation"\n',
         encoding="utf-8",
     )
     (mod / "default.config.yaml").write_text("location: site1\n", encoding="utf-8")
@@ -75,7 +75,7 @@ environment:
         encoding="utf-8"
     )
     assert "'industrial/config*.yaml'" in dry_run
-    assert "'industrial/modules/sourcesystem/cdf_pi_foundation/'" not in dry_run
+    assert "'industrial/modules/sourcesystem/cdf_pi_extractor/'" not in dry_run
     assert "No .pre-commit-config.yaml found; skipping pre-commit config lint." in dry_run
     assert "cdf build --env dev" in dry_run
     assert "cdf deploy --dry-run | tee dryrun-output.txt" in dry_run
