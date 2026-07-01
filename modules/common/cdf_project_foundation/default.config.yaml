@@ -21,8 +21,11 @@ adminSourceId: "${ADMIN_SOURCE_ID}"          # foundation administrators
 
 # Schema space where the selected data model views are defined.
 schemaSpace: "dm_dom_isa_manufacturing"
-# Space where DM instances are written.
+# Space where DM instances are written (project-level).
 instanceSpace: "inst_isa_manufacturing"
+# All DM spaces the consumer group needs read access to: project-level space +
+# one per installed extractor module. Computed by setup_project.py.
+instanceSpaces: ["inst_isa_manufacturing"]
 
 # Data model variant — controls which schema/instance spaces are synced.
 # Supported: isa_manufacturing_extension | cfihos_oil_and_gas_extension
