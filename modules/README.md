@@ -43,7 +43,6 @@ modules/
 │
 ├── dashboards/                  # Streamlit apps & reporting
 │   ├── context_quality/
-│   ├── project_health/
 │   └── report_quality/
 │
 ├── atlas_ai/
@@ -93,7 +92,6 @@ Every `module.toml` **`id`** must be `dp:<package_short>:<slug>` where `<package
 | `contextualization/cdf_p_and_id_parser` | `dp:contextualization:cdf_p_and_id_parser` | `dp:contextualization` |
 | `custom/my_module` | `dp:emptymodule:my_module` | `dp:emptymodule` |
 | `dashboards/context_quality` | `dp:dashboards:context_quality` | `dp:dashboards` |
-| `dashboards/project_health` | `dp:dashboards:project_health` | `dp:dashboards` |
 | `dashboards/report_quality` | `dp:dashboards:report_quality` | `dp:dashboards` |
 | `data_models/cdf_process_industry_extension` | `dp:models:cdf_process_industry_extension` | `dp:quickstart` |
 | `data_models/cfihos_oil_and_gas_extension` | `dp:models:cfihos_oil_and_gas_extension` | `dp:models` |
