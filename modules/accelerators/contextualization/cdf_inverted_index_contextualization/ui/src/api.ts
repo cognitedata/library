@@ -1,4 +1,4 @@
-import type { ConnectionInfo, RuntimeConfigSummary } from "./types/indexWorkspace";
+import type { ConnectionInfo, RuntimeConfigSummary, DashboardSummary } from "./types/indexWorkspace";
 
 async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, init);
@@ -56,6 +56,70 @@ export async function saveConfig(yamlText: string): Promise<ConfigResponse> {
 
 export async function fetchWorkspace(): Promise<WorkspaceResponse> {
   return fetchJson("/api/inverted-index/workspace");
+}
+
+export async function fetchDashboardSummary(): Promise<DashboardSummary> {
+  return fetchJson("/api/inverted-index/dashboard/summary");
+}
+
+export const DASHBOARD_TAG_REUSE_STREAM_URL = "/api/inverted-index/dashboard/tag-reuse/stream";
+export const DASHBOARD_FILE_DELTAS_STREAM_URL = "/api/inverted-index/dashboard/file-deltas/stream";
+
+export async function runDashboardTagReuse(): Promise<Record<string, unknown>> {
+  return fetchJson("/api/inverted-index/dashboard/tag-reuse", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({}),
+  });
+}
+
+export function dashboardFileDeltasBody(input: {
+  file_external_ids: string[];
+  file_space?: string;
+  match_scope_key?: string;
+  detail_limit?: number;
+}) {
+  return {
+    file_external_ids: input.file_external_ids,
+    file_space: input.file_space ?? "cdf_cdm",
+    match_scope_key: input.match_scope_key,
+    detail_limit: input.detail_limit ?? 20,
+  };
+}
+
+const FILE_CONTEXT_PREFILL_KEY = "idx-file-context-prefill";
+
+export type FileContextPrefill = {
+  file_external_id: string;
+  file_space?: string;
+  match_scope_key?: string;
+  tab?: "score" | "deltas" | "entries";
+};
+
+export function setFileContextPrefill(prefill: FileContextPrefill): void {
+  sessionStorage.setItem(FILE_CONTEXT_PREFILL_KEY, JSON.stringify(prefill));
+  window.dispatchEvent(new CustomEvent("idx-file-context-prefill", { detail: prefill }));
+}
+
+export function applyFileContextPrefill(
+  prefill: FileContextPrefill,
+  apply: (prefill: FileContextPrefill) => void
+): void {
+  if (!prefill?.file_external_id) return;
+  apply(prefill);
+}
+
+export function consumeFileContextPrefill(): FileContextPrefill | null {
+  try {
+    const raw = sessionStorage.getItem(FILE_CONTEXT_PREFILL_KEY);
+    if (!raw) return null;
+    sessionStorage.removeItem(FILE_CONTEXT_PREFILL_KEY);
+    const parsed = JSON.parse(raw) as FileContextPrefill;
+    if (!parsed?.file_external_id) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
 }
 
 export async function saveWorkspace(workspace: WorkspaceResponse["workspace"]): Promise<WorkspaceResponse> {

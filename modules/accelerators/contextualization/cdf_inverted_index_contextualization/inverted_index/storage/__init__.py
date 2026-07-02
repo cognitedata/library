@@ -17,3 +17,17 @@ def get_storage_adapter(storage_config: dict, client=None):
     if backend == "raw":
         return RawStorageAdapter(storage_config, client)
     return DmStorageAdapter(storage_config, client)
+
+
+def adapter_local_registry(adapter: object, client) -> dict | None:
+    """Return in-memory registry only for offline (no CDF client) runs."""
+    if client is not None:
+        return None
+    return getattr(adapter, "_local_registry", None)
+
+
+def adapter_local_cache(adapter: object, client) -> dict | None:
+    """Return in-memory partition cache only for offline (no CDF client) runs."""
+    if client is not None:
+        return None
+    return getattr(adapter, "_local_partitions", None)

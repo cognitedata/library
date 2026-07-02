@@ -17,6 +17,10 @@ from inverted_index.target_driven_dedupe import (
     record_target_driven_run,
     should_skip_target_driven,
 )
+from inverted_index.workflow_items import (
+    workflow_item_to_event,
+    workflow_items_to_events,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -80,6 +84,37 @@ def _incoming_view_key_for_event(
         return resolve_view_key(views, space=str(space) if space else None, external_id=str(view_ext))
     watch_keys = _subscription_watch_view_keys(cfg, views)
     return watch_keys[0] if len(watch_keys) == 1 else None
+
+
+def workflow_item_to_subscription_event(
+    item: dict[str, Any],
+    *,
+    watch_property: str,
+    views: dict,
+    watch_view_keys: list[str],
+) -> dict[str, Any] | None:
+    """Map a dataModeling WorkflowTrigger item to a subscription event dict."""
+    return workflow_item_to_event(
+        item,
+        watch_property=watch_property,
+        views=views,
+        watch_view_keys=watch_view_keys,
+    )
+
+
+def workflow_items_to_subscription_events(
+    items: list[dict[str, Any]],
+    *,
+    watch_property: str,
+    views: dict,
+    watch_view_keys: list[str],
+) -> list[dict[str, Any]]:
+    return workflow_items_to_events(
+        items,
+        watch_property=watch_property,
+        views=views,
+        watch_view_keys=watch_view_keys,
+    )
 
 
 def _matches_subscription_filter(
@@ -187,6 +222,7 @@ def handle_subscription_batch(
     events: list[dict[str, Any]],
     *,
     dry_run: bool = False,
+    runtime_config: dict | None = None,
     force: bool = False,
 ) -> list[dict]:
     """Process a batch of subscription events (e.g. from a CDF Function handler)."""
@@ -195,10 +231,68 @@ def handle_subscription_batch(
         try:
             results.append(
                 handle_aliases_subscription_event(
-                    client, event, dry_run=dry_run, force=force
+                    client,
+                    event,
+                    dry_run=dry_run,
+                    runtime_config=runtime_config,
+                    force=force,
                 )
             )
         except Exception as exc:
             logger.exception("Subscription event failed")
             results.append({"status": "error", "error": str(exc), "event": event})
     return results
+
+
+def handle_aliases_subscription_payload(
+    client: Any,
+    payload: dict[str, Any],
+    *,
+    dry_run: bool = False,
+    runtime_config: dict | None = None,
+    force: bool = False,
+) -> dict[str, Any]:
+    """Handle a function payload with either workflow ``items`` or a single subscription ``event``."""
+    runtime = runtime_config or build_runtime_config()
+    sub_cfg = runtime.get("subscription_config") or SUBSCRIPTION_CONFIG
+    dr_cfg = runtime.get("direct_relation_config") or {}
+    views = dr_cfg.get("views") or {}
+    watch_property = _subscription_watch_property(sub_cfg, runtime)
+    watch_view_keys = _subscription_watch_view_keys(sub_cfg, views)
+
+    items = payload.get("items")
+    if isinstance(items, list) and items:
+        events = workflow_items_to_subscription_events(
+            items,
+            watch_property=watch_property,
+            views=views,
+            watch_view_keys=watch_view_keys,
+        )
+        if not events:
+            return {"status": "skipped", "reason": "no_mappable_workflow_items"}
+        results = handle_subscription_batch(
+            client,
+            events,
+            dry_run=dry_run,
+            runtime_config=runtime,
+            force=force,
+        )
+        ok_count = sum(1 for row in results if row.get("status") == "ok")
+        return {
+            "status": "ok",
+            "trigger": "workflow_data_modeling",
+            "processed": len(results),
+            "ok_count": ok_count,
+            "results": results,
+        }
+
+    event = payload.get("event") or payload
+    if not isinstance(event, dict):
+        return {"error": "event dict or items list is required"}
+    return handle_aliases_subscription_event(
+        client,
+        event,
+        dry_run=dry_run,
+        runtime_config=runtime,
+        force=force,
+    )

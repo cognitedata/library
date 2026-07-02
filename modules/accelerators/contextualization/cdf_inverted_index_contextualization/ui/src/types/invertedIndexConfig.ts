@@ -48,6 +48,13 @@ export type IndexFieldProperty = {
   extractPattern: string;
 };
 
+export type ScopePropertyOverrideMode = "merge" | "replace";
+
+export type ScopePropertyOverride = {
+  mode: ScopePropertyOverrideMode;
+  properties: IndexFieldProperty[];
+};
+
 export type IndexFieldView = {
   view: string;
   viewSpace: string;
@@ -55,6 +62,7 @@ export type IndexFieldView = {
   instanceSpaces: string[];
   filters: JsonObject[];
   properties: IndexFieldProperty[];
+  propertiesByScope: Record<string, ScopePropertyOverride>;
 };
 
 export type AnnotationIndexConfig = {
@@ -221,6 +229,13 @@ export function emptyIndexFieldProperty(): IndexFieldProperty {
   };
 }
 
+export function emptyScopePropertyOverride(): ScopePropertyOverride {
+  return {
+    mode: "merge",
+    properties: [emptyIndexFieldProperty()],
+  };
+}
+
 export function emptyIndexFieldView(): IndexFieldView {
   return {
     view: "",
@@ -229,6 +244,7 @@ export function emptyIndexFieldView(): IndexFieldView {
     instanceSpaces: [],
     filters: [],
     properties: [emptyIndexFieldProperty()],
+    propertiesByScope: {},
   };
 }
 

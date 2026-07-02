@@ -1,0 +1,13 @@
+# Template variables for wf_idx_target_driven_incremental Toolkit deploy.
+# Merge into project config.*.yaml (module variables) before cdf build / deploy.
+#
+# Required:
+#   workflowClientId, workflowClientSecret — service principal for WorkflowTrigger auth
+#
+# Optional (defaults shown):
+subscription_batch_size: 50
+subscription_batch_timeout: 60
+subscription_view_space: cdf_cdm
+subscription_asset_view: CogniteAsset
+subscription_file_view: CogniteFile
+subscription_view_version: v1

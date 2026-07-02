@@ -1,0 +1,101 @@
+externalId: wf_idx_source_metadata_incremental_trigger
+triggerRule:
+  triggerType: dataModeling
+  batchSize: {{ source_metadata_batch_size }}
+  batchTimeout: {{ source_metadata_batch_timeout }}
+  dataModelingQuery:
+    with:
+      files:
+        limit: {{ source_metadata_batch_size }}
+        nodes:
+          filter:
+            hasData:
+              - type: view
+                space: {{ source_metadata_view_space }}
+                externalId: {{ source_metadata_file_view }}
+                version: {{ source_metadata_view_version }}
+      assets:
+        limit: {{ source_metadata_batch_size }}
+        nodes:
+          filter:
+            hasData:
+              - type: view
+                space: {{ source_metadata_view_space }}
+                externalId: {{ source_metadata_asset_view }}
+                version: {{ source_metadata_view_version }}
+      equipment:
+        limit: {{ source_metadata_batch_size }}
+        nodes:
+          filter:
+            hasData:
+              - type: view
+                space: {{ source_metadata_view_space }}
+                externalId: {{ source_metadata_equipment_view }}
+                version: {{ source_metadata_view_version }}
+      timeseries:
+        limit: {{ source_metadata_batch_size }}
+        nodes:
+          filter:
+            hasData:
+              - type: view
+                space: {{ source_metadata_view_space }}
+                externalId: {{ source_metadata_timeseries_view }}
+                version: {{ source_metadata_view_version }}
+    select:
+      files:
+        sources:
+          - source:
+              type: view
+              space: {{ source_metadata_view_space }}
+              externalId: {{ source_metadata_file_view }}
+              version: {{ source_metadata_view_version }}
+            properties:
+              - name
+              - description
+              - sourceContext
+              - sourceId
+              - tags
+      assets:
+        sources:
+          - source:
+              type: view
+              space: {{ source_metadata_view_space }}
+              externalId: {{ source_metadata_asset_view }}
+              version: {{ source_metadata_view_version }}
+            properties:
+              - name
+              - description
+              - sourceContext
+              - sourceId
+              - tags
+      equipment:
+        sources:
+          - source:
+              type: view
+              space: {{ source_metadata_view_space }}
+              externalId: {{ source_metadata_equipment_view }}
+              version: {{ source_metadata_view_version }}
+            properties:
+              - name
+              - description
+              - sourceContext
+              - sourceId
+              - tags
+      timeseries:
+        sources:
+          - source:
+              type: view
+              space: {{ source_metadata_view_space }}
+              externalId: {{ source_metadata_timeseries_view }}
+              version: {{ source_metadata_view_version }}
+            properties:
+              - name
+              - description
+              - sourceContext
+              - sourceId
+              - tags
+workflowExternalId: wf_idx_source_metadata_incremental
+workflowVersion: v1
+authentication:
+  clientId: '{{ workflowClientId }}'
+  clientSecret: '{{ workflowClientSecret }}'

@@ -132,3 +132,25 @@ def test_fn_idx_virtual_tags_dry_run() -> None:
             client=MagicMock(),
         )
     assert result["terms_processed"] == 1
+
+
+def test_fn_idx_handle_source_metadata_dry_run() -> None:
+    from fn_idx_handle_source_metadata.handler import handle
+
+    with __import__("unittest.mock", fromlist=["patch"]).patch(
+        "fn_idx_handle_source_metadata.handler.handle_source_metadata_payload",
+        return_value={"status": "ok", "processed": 0},
+    ):
+        result = handle({"dry_run": True, "items": []}, client=MagicMock())
+    assert result.get("status") == "ok"
+
+
+def test_fn_idx_build_watermark_incremental_dry_run() -> None:
+    from fn_idx_build_watermark_incremental.handler import handle
+
+    with __import__("unittest.mock", fromlist=["patch"]).patch(
+        "fn_idx_build_watermark_incremental.handler.run_watermark_incremental_build",
+        return_value={"status": "ok", "dry_run": True},
+    ):
+        result = handle({"dry_run": True}, client=MagicMock())
+    assert result.get("status") == "ok"

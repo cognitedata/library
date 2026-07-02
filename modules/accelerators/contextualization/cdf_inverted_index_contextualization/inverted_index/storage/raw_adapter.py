@@ -251,7 +251,9 @@ class RawStorageAdapter:
             )
 
         scopes = [match_scope_key] if match_scope_key else list_registered_scope_keys(
-            self._client, self._config, local_registry=self._local_registry
+            self._client,
+            self._config,
+            local_registry=self._local_registry if self._client is None else None,
         )
         if not scopes:
             return []

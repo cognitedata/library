@@ -1,6 +1,6 @@
-# Instance subscription for target-driven contextualization after aliasing.
-# Deploy as a CDF subscription / Function trigger filtered to watch_property changes.
-# Align watch_property with target_driven.query_property and your CDF subscription filter.
+# Target-driven incremental trigger (Toolkit deploy)
+# Merge workflows/target_driven_incremental.config.yaml into project config.*.yaml.
+# See workflows/ for Workflow + WorkflowVersion + dataModeling WorkflowTrigger artifacts.
 
 target_driven:
   query_property: aliases
@@ -14,7 +14,10 @@ subscription:
   instance_spaces: [cdf_cdm]
   watch_view_keys: [asset, file]
 
-# Illustrative event payload (aliases updated by cdf_discovery_aliasing):
+# Toolkit path: dataModeling WorkflowTrigger → wf_idx_target_driven_incremental →
+# fn_idx_handle_subscription with workflow.input.items (not a native subscription YAML).
+
+# Illustrative subscription event payload (manual replay / future native subscription):
 # {
 #   "space": "cdf_cdm",
 #   "externalId": "ASSET_P101",
@@ -27,9 +30,20 @@ subscription:
 #   }
 # }
 
+# Illustrative workflow trigger item (from dataModeling batch):
+# {
+#   "externalId": "ASSET_P101",
+#   "space": "cdf_cdm",
+#   "properties": {
+#     "cdf_cdm": {
+#       "CogniteAsset/v1": { "aliases": ["P-101A"], "name": "Pump 101" }
+#     }
+#   }
+# }
+
 # Dedupe: RAW table target_driven_state stores TERMS_HASH per instance + scope.
 # Re-runs within cooldown_seconds are skipped unless force=True on the handler.
 
-# Handler entry point (CDF Function):
+# Handler entry points:
 #   from inverted_index.subscription import handle_aliases_subscription_event
-#   result = handle_aliases_subscription_event(client, event)
+#   from inverted_index.subscription import handle_aliases_subscription_payload

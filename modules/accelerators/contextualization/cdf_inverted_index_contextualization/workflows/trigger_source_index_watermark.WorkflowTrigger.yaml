@@ -1,0 +1,9 @@
+externalId: wf_idx_source_index_watermark_trigger
+triggerRule:
+  triggerType: schedule
+  cronExpression: '{{ source_index_watermark_cron }}'
+workflowExternalId: wf_idx_source_index_watermark
+workflowVersion: v1
+authentication:
+  clientId: '{{ workflowClientId }}'
+  clientSecret: '{{ workflowClientSecret }}'

@@ -8,13 +8,12 @@ import {
   type ReactNode,
 } from "react";
 import { fetchWorkspace, saveWorkspace } from "../api";
-import type { IndexDocumentTab, OverviewSubTab, WorkspaceState } from "../types/indexWorkspace";
+import type { IndexDocumentTab, WorkspaceState } from "../types/indexWorkspace";
 import { restoreWorkspaceTabs, serializeWorkspace } from "../utils/workspacePersistence";
 
 type IndexWorkspaceValue = {
   workspace: WorkspaceState;
   loading: boolean;
-  overviewSubTab: OverviewSubTab;
   persistWorkspace: (tabs: IndexDocumentTab[], activeTabId: string | null) => void;
 };
 
@@ -22,7 +21,6 @@ const IndexWorkspaceContext = createContext<IndexWorkspaceValue | null>(null);
 
 export function IndexWorkspaceProvider({ children }: { children: ReactNode }) {
   const [workspace, setWorkspace] = useState<WorkspaceState>({ active_tab_id: null, tabs: [] });
-  const [overviewSubTab, setOverviewSubTab] = useState<OverviewSubTab>("summary");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -35,7 +33,6 @@ export function IndexWorkspaceProvider({ children }: { children: ReactNode }) {
           active_tab_id: res.workspace.active_tab_id,
           tabs: res.workspace.tabs as IndexDocumentTab[],
         });
-        setOverviewSubTab(restored.overviewSubTab);
         setWorkspace(serializeWorkspace(restored.tabs, restored.activeTabId));
       } catch {
         if (!cancelled) setWorkspace({ active_tab_id: null, tabs: [] });
@@ -57,8 +54,8 @@ export function IndexWorkspaceProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo(
-    () => ({ workspace, loading, overviewSubTab, persistWorkspace }),
-    [workspace, loading, overviewSubTab, persistWorkspace]
+    () => ({ workspace, loading, persistWorkspace }),
+    [workspace, loading, persistWorkspace]
   );
 
   return <IndexWorkspaceContext.Provider value={value}>{children}</IndexWorkspaceContext.Provider>;

@@ -18,6 +18,7 @@ from inverted_index.config import (
     INDEX_STORAGE_CONFIG,
     RAW_TERM_PARTITION_POLICY,
     SCOPE_CONFIG,
+    SOURCE_INDEX_CONFIG,
     SUBSCRIPTION_CONFIG,
     TARGET_DRIVEN_CONFIG,
     VIRTUAL_TAG_CREATION_CONFIG,
@@ -104,6 +105,11 @@ def _merge_subscription(yaml_sub: dict | None) -> dict:
     return sub
 
 
+def _merge_source_index(yaml_src: dict | None) -> dict:
+    src = _deep_merge_dict(dict(SOURCE_INDEX_CONFIG), yaml_src or {})
+    return src
+
+
 def build_runtime_config(yaml_cfg: dict[str, Any] | None = None) -> dict[str, Any]:
     y = yaml_cfg or load_yaml_config()
     storage = dict(INDEX_STORAGE_CONFIG)
@@ -129,6 +135,7 @@ def build_runtime_config(yaml_cfg: dict[str, Any] | None = None) -> dict[str, An
         subscription_cfg["watch_property"] = target_driven_cfg.get(
             "query_property", "aliases"
         )
+    source_index_cfg = _merge_source_index(y.get("source_index"))
 
     instance_spaces_env = os.getenv("INDEX_INSTANCE_SPACES", "").strip()
     if instance_spaces_env:
@@ -169,6 +176,7 @@ def build_runtime_config(yaml_cfg: dict[str, Any] | None = None) -> dict[str, An
         "annotation_index_config": annotation_cfg,
         "target_driven_config": target_driven_cfg,
         "subscription_config": subscription_cfg,
+        "source_index_config": source_index_cfg,
         "direct_relation_config": direct_rel,
         "virtual_tag_creation_config": virtual_tag_cfg,
         "instance_spaces": instance_spaces,

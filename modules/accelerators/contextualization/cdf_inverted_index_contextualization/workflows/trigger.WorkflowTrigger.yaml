@@ -1,0 +1,51 @@
+externalId: wf_idx_target_driven_incremental_trigger
+triggerRule:
+  triggerType: dataModeling
+  batchSize: {{ subscription_batch_size }}
+  batchTimeout: {{ subscription_batch_timeout }}
+  dataModelingQuery:
+    with:
+      assets:
+        limit: {{ subscription_batch_size }}
+        nodes:
+          filter:
+            hasData:
+              - type: view
+                space: {{ subscription_view_space }}
+                externalId: {{ subscription_asset_view }}
+                version: {{ subscription_view_version }}
+      files:
+        limit: {{ subscription_batch_size }}
+        nodes:
+          filter:
+            hasData:
+              - type: view
+                space: {{ subscription_view_space }}
+                externalId: {{ subscription_file_view }}
+                version: {{ subscription_view_version }}
+    select:
+      assets:
+        sources:
+          - source:
+              type: view
+              space: {{ subscription_view_space }}
+              externalId: {{ subscription_asset_view }}
+              version: {{ subscription_view_version }}
+            properties:
+              - aliases
+              - name
+      files:
+        sources:
+          - source:
+              type: view
+              space: {{ subscription_view_space }}
+              externalId: {{ subscription_file_view }}
+              version: {{ subscription_view_version }}
+            properties:
+              - aliases
+              - name
+workflowExternalId: wf_idx_target_driven_incremental
+workflowVersion: v1
+authentication:
+  clientId: '{{ workflowClientId }}'
+  clientSecret: '{{ workflowClientSecret }}'

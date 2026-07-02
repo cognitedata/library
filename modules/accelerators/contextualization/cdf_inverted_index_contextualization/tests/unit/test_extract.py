@@ -1,5 +1,6 @@
 """Unit tests for term extraction and deduplication."""
 
+from inverted_index.config import _INDEX_TAG_PATTERN
 from inverted_index.extract import dedupe_extracted_terms, extract_terms_from_property
 
 
@@ -27,11 +28,23 @@ def test_regex_multiple_terms() -> None:
         "path": "notes",
         "source_type": "asset_metadata",
         "extract_mode": "regex",
-        "extract_pattern": r"\b[A-Z]{1,2}-\d{3,4}[A-Z]?\b",
+        "extract_pattern": _INDEX_TAG_PATTERN,
     }
     result = extract_terms_from_property("See P-101A and P-102B", cfg)
     terms = {t for t, _ in result}
     assert terms == {"P-101A", "P-102B"}
+
+
+def test_regex_optional_two_digit_prefix() -> None:
+    cfg = {
+        "path": "notes",
+        "source_type": "asset_metadata",
+        "extract_mode": "regex",
+        "extract_pattern": _INDEX_TAG_PATTERN,
+    }
+    result = extract_terms_from_property("See 01-P-101A and P-102B", cfg)
+    terms = {t for t, _ in result}
+    assert terms == {"01-P-101A", "P-102B"}
 
 
 def test_regex_excludes_instance_aliases() -> None:
@@ -39,7 +52,7 @@ def test_regex_excludes_instance_aliases() -> None:
         "path": "notes",
         "source_type": "asset_metadata",
         "extract_mode": "regex",
-        "extract_pattern": r"\b[A-Z]{1,2}-\d{3,4}[A-Z]?\b",
+        "extract_pattern": _INDEX_TAG_PATTERN,
     }
     result = extract_terms_from_property(
         "See P-101A and P-102B",

@@ -28,6 +28,27 @@ def test_top_level_property_names_dedupes_dot_paths() -> None:
     assert names == ["name", "sourceContext"]
 
 
+def test_collect_view_property_paths_includes_scoped_only_paths() -> None:
+    paths = collect_view_property_paths(
+        view_external_id="CogniteEquipment",
+        index_field_config=[
+            {
+                "view": "CogniteEquipment",
+                "properties": [{"path": "description"}],
+                "properties_by_scope": {
+                    "site:*": {
+                        "mode": "merge",
+                        "properties": [{"path": "metadata.notes"}],
+                    }
+                },
+            }
+        ],
+        scope_config={},
+    )
+    assert "description" in paths
+    assert "metadata.notes" in paths
+
+
 def test_collect_view_property_paths_merges_scope() -> None:
     paths = collect_view_property_paths(
         view_external_id="CogniteFile",

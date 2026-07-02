@@ -9,7 +9,9 @@ Deployable Cognite Functions for [`cdf_inverted_index_contextualization`](../REA
 | `fn_idx_build_metadata` | [`fn_idx_build_metadata/handler.py`](fn_idx_build_metadata/handler.py) | `build_metadata_index` |
 | `fn_idx_build_annotations` | [`fn_idx_build_annotations/handler.py`](fn_idx_build_annotations/handler.py) | `build_diagram_annotation_index` |
 | `fn_idx_target_driven` | [`fn_idx_target_driven/handler.py`](fn_idx_target_driven/handler.py) | `process_target_driven_contextualization` / `run_target_driven_for_instance_ids` |
-| `fn_idx_handle_subscription` | [`fn_idx_handle_subscription/handler.py`](fn_idx_handle_subscription/handler.py) | `handle_aliases_subscription_event` |
+| `fn_idx_handle_subscription` | [`fn_idx_handle_subscription/handler.py`](fn_idx_handle_subscription/handler.py) | `handle_aliases_subscription_payload` / `handle_aliases_subscription_event` |
+| `fn_idx_handle_source_metadata` | [`fn_idx_handle_source_metadata/handler.py`](fn_idx_handle_source_metadata/handler.py) | `handle_source_metadata_payload` |
+| `fn_idx_build_watermark_incremental` | [`fn_idx_build_watermark_incremental/handler.py`](fn_idx_build_watermark_incremental/handler.py) | `run_watermark_incremental_build` |
 | `fn_idx_score` | [`fn_idx_score/handler.py`](fn_idx_score/handler.py) | `calculate_contextualization_score` |
 | `fn_idx_deltas` | [`fn_idx_deltas/handler.py`](fn_idx_deltas/handler.py) | detection mode deltas |
 | `fn_idx_upsert_detections` | [`fn_idx_upsert_detections/handler.py`](fn_idx_upsert_detections/handler.py) | `upsert_diagram_detections` |
@@ -35,7 +37,6 @@ Common fields:
 | `incoming_view_key` | target-driven | View key from `direct_relation_config.views` (e.g. `asset`, `file`) |
 | `view_external_id` / `view_space` | target-driven, index-metadata-instance | DM view lookup when `incoming_view_key` is omitted |
 | `query_property` | target-driven, subscription | Override `target_driven.query_property` (default `aliases`) |
-| `force` | target-driven, subscription | Bypass cooldown dedupe (`terms_hash`) |
 | `match_scope_key` / `match_scope_keys` | score, deltas, query, target-driven | Scope partition key(s) |
 | `scope_lookup_override` | target-driven | When true with `match_scope_keys`, query those scopes instead of instance-resolved scope |
 | `detection_mode` | build-annotations, upsert-detections | `standard`, `pattern`, or `all` (build only) |
@@ -45,6 +46,9 @@ Common fields:
 | `view_external_id` | index-metadata-instance | DM view for `index_field_config` lookup |
 | `delta_mode` | deltas | `both`, `pattern_not_standard`, `standard_not_pattern` |
 | `event` | subscription | Instance subscription event (or pass event fields at top level) |
+| `items` | subscription, source metadata | Workflow `dataModeling` trigger batch (`workflow.input.items`) |
+| `force` | target-driven, subscription, source metadata | Bypass cooldown dedupe (`terms_hash` / content hash) |
+| `force_full_lookback` | watermark incremental | Ignore persisted watermark; use `initial_lookback_seconds` |
 | `all_scopes` | virtual-tags | Scan every scope in the partition registry |
 | `term_selection_mode` | virtual-tags | `all` or `missing_tags_only` (override config) |
 | `limit` | virtual-tags | Max eligible terms to process (0 = no cap) |
@@ -64,6 +68,8 @@ python module.py invoke-fn fn_idx_target_driven --data '{"instance_external_id":
 python module.py invoke-fn fn_idx_target_driven --data '{"instance_external_ids":["A1","A2"],"query_property":"aliases","force":false,"dry_run":true}'
 python module.py invoke-fn fn_idx_upsert_detections --data '{"dry_run":true,"detection_mode":"pattern","file_external_id":"FILE_PID_12","detections":[{"file_external_id":"FILE_PID_12","text":"P-101A","page":1,"bbox":[0.1,0.2,0.3,0.4]}]}'
 python module.py invoke-fn fn_idx_index_metadata_instance --data '{"dry_run":true,"instance_external_id":"EQ-1001","view_external_id":"CogniteEquipment"}'
+python module.py invoke-fn fn_idx_handle_source_metadata --data '{"dry_run":true,"items":[{"externalId":"FILE_1","space":"cdf_cdm","properties":{"cdf_cdm":{"CogniteFile/v1":{"name":"P-101A","description":"tag ref"}}}}]}'
+python module.py invoke-fn fn_idx_build_watermark_incremental --data '{"dry_run":true}'
 python module.py invoke-fn fn_idx_virtual_tags --data '{"dry_run":true,"all_scopes":true,"term_selection_mode":"missing_tags_only"}'
 ```
 

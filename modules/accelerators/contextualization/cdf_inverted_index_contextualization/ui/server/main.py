@@ -8,11 +8,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from ui.server.paths import MODULE_ROOT  # noqa: F401
 
 from ui.server.config_api import router as config_router  # noqa: E402
+from ui.server.dashboard_api import router as dashboard_router  # noqa: E402
 from ui.server.index_api import router as index_router  # noqa: E402
 from ui.server.workspace_api import router as workspace_router  # noqa: E402
 
 app = FastAPI(title="Inverted Index operator API", version="1.0.0")
 app.include_router(config_router)
+app.include_router(dashboard_router)
 app.include_router(index_router)
 app.include_router(workspace_router)
 app.add_middleware(

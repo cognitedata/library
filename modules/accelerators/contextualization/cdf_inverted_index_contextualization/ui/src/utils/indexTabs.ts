@@ -5,7 +5,7 @@ const NAV_NODES: IndexNavNode[] = [
     id: "inverted-index/indexing",
     labelKey: "nav.indexing",
     children: [
-      { id: "inverted-index/overview", labelKey: "nav.overview", kind: "overview" },
+      { id: "inverted-index/dashboard", labelKey: "nav.dashboard", kind: "dashboard" },
       { id: "inverted-index/config", labelKey: "nav.config", kind: "configuration" },
       {
         id: "inverted-index/ops",
@@ -65,8 +65,8 @@ export function createIndexTab(
   return { id: tabIdForKind(kind), kind, label, navNodeId };
 }
 
-export function isOverviewTab(tab: IndexDocumentTab): boolean {
-  return tab.kind === "overview";
+export function isDashboardTab(tab: IndexDocumentTab): boolean {
+  return tab.kind === "dashboard";
 }
 
 export function isConfigurationTab(tab: IndexDocumentTab): boolean {

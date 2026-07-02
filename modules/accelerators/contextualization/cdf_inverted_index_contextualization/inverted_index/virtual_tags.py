@@ -19,7 +19,7 @@ from inverted_index.raw_ops import (
     resolve_scope_partition_table,
 )
 from inverted_index.scope import parse_scope_key, slugify_scope_code
-from inverted_index.storage import get_storage_adapter
+from inverted_index.storage import adapter_local_cache, adapter_local_registry, get_storage_adapter
 from inverted_index.storage.raw_keys import build_raw_postings_row_key, flatten_postings_to_entries
 
 logger = logging.getLogger(__name__)
@@ -321,8 +321,8 @@ def load_term_hits(
     cfg = storage_config or INDEX_STORAGE_CONFIG
     adapter = storage_adapter or get_storage_adapter(cfg, client)
     if cfg.get("backend") == "raw":
-        local_cache = getattr(adapter, "_local_partitions", None)
-        local_registry = getattr(adapter, "_local_registry", None)
+        local_cache = adapter_local_cache(adapter, client)
+        local_registry = adapter_local_registry(adapter, client)
         hits = _hits_for_term_raw(
             client,
             cfg,
@@ -499,8 +499,8 @@ def collect_eligible_terms_for_scope(
     mode = effective_term_selection_mode(
         virtual_tag_config, override=term_selection_mode
     )
-    local_cache = getattr(adapter, "_local_partitions", None)
-    local_registry = getattr(adapter, "_local_registry", None)
+    local_cache = adapter_local_cache(adapter, client)
+    local_registry = adapter_local_registry(adapter, client)
 
     eligible: dict[str, list[dict]] = {}
     scanned = 0

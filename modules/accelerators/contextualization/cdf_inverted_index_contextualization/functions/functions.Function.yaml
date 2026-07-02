@@ -52,6 +52,32 @@
   runtime: 'py311'
   functionPath: 'handler.py'
 
+- name: 'dm:context:inverted_index:source:metadata'
+  externalId: 'fn_idx_handle_source_metadata'
+  dataSetExternalId: 'ds_inverted_index_all'
+  owner: 'Anonymous'
+  description: 'Incremental metadata index writes from dataModeling workflow trigger items'
+  metadata:
+    version: '1.0.0'
+  envVars:
+    ENV_TYPE: '${CDF_BUILD_TYPE}'
+    CDF_ENV: '${CDF_ENVIRON}'
+  runtime: 'py311'
+  functionPath: 'handler.py'
+
+- name: 'dm:context:inverted_index:build:watermark_incremental'
+  externalId: 'fn_idx_build_watermark_incremental'
+  dataSetExternalId: 'ds_inverted_index_all'
+  owner: 'Anonymous'
+  description: 'Scheduled watermark incremental metadata and annotation index builds'
+  metadata:
+    version: '1.0.0'
+  envVars:
+    ENV_TYPE: '${CDF_BUILD_TYPE}'
+    CDF_ENV: '${CDF_ENVIRON}'
+  runtime: 'py311'
+  functionPath: 'handler.py'
+
 - name: 'dm:context:inverted_index:score:contextualization'
   externalId: 'fn_idx_score'
   dataSetExternalId: 'ds_inverted_index_all'

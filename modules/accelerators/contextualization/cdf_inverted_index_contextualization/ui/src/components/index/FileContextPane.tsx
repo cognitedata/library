@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { applyFileContextPrefill, consumeFileContextPrefill } from "../../api";
 import { useAppSettings } from "../../context/AppSettingsContext";
 import { useOperationRun } from "../../hooks/useOperationRun";
 import { asHitRows } from "../../utils/resultViews";
@@ -26,6 +27,30 @@ export function FileContextPane({ onSelectRow }: Props) {
   const scoreOp = useOperationRun();
   const deltasOp = useOperationRun();
   const listOp = useOperationRun();
+
+  useEffect(() => {
+    const applyPrefill = (prefill: {
+      file_external_id: string;
+      file_space?: string;
+      match_scope_key?: string;
+      tab?: FileContextTab;
+    }) => {
+      setFileId(prefill.file_external_id);
+      if (prefill.file_space) setFileSpace(prefill.file_space);
+      if (prefill.match_scope_key) setScopeKey(prefill.match_scope_key);
+      if (prefill.tab) setActiveTab(prefill.tab);
+    };
+
+    const stored = consumeFileContextPrefill();
+    if (stored) applyFileContextPrefill(stored, applyPrefill);
+
+    const onPrefill = (event: Event) => {
+      const detail = (event as CustomEvent).detail;
+      applyFileContextPrefill(detail, applyPrefill);
+    };
+    window.addEventListener("idx-file-context-prefill", onPrefill);
+    return () => window.removeEventListener("idx-file-context-prefill", onPrefill);
+  }, []);
 
   const body = () => ({
     file_external_id: fileId.trim(),

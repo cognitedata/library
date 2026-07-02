@@ -1,9 +1,13 @@
+import { useState } from "react";
 import { useAppSettings } from "../../context/AppSettingsContext";
 import {
   emptyIndexFieldProperty,
   emptyIndexFieldView,
+  emptyScopePropertyOverride,
   type IndexFieldProperty,
   type IndexFieldView,
+  type ScopeConfig,
+  type ScopePropertyOverride,
 } from "../../types/invertedIndexConfig";
 import { StringListInput } from "./StringListInput";
 import { ViewQueryFiltersSection } from "./ViewQueryFiltersSection";
@@ -12,7 +16,44 @@ import { FormPanel } from "../shared/FormPanel";
 type Props = {
   value: IndexFieldView[];
   onChange: (next: IndexFieldView[]) => void;
+  scopeConfig?: ScopeConfig;
 };
+
+function propertyRuleKey(property: IndexFieldProperty): string {
+  return `${property.path}\0${property.sourceType}`;
+}
+
+function summarizeMergeInheritance(
+  defaults: IndexFieldProperty[],
+  scoped: IndexFieldProperty[]
+): { inherited: number; overridden: number; added: number } {
+  const defaultKeys = new Set(defaults.map(propertyRuleKey));
+  const scopedKeys = new Set(scoped.map(propertyRuleKey));
+  let overridden = 0;
+  for (const key of scopedKeys) {
+    if (defaultKeys.has(key)) overridden += 1;
+  }
+  let added = 0;
+  for (const key of scopedKeys) {
+    if (!defaultKeys.has(key)) added += 1;
+  }
+  const inherited = defaults.length - overridden;
+  return { inherited, overridden, added };
+}
+
+function buildScopeKeyPlaceholder(scopeConfig: ScopeConfig | undefined): string {
+  const levels = scopeConfig?.levels ?? [];
+  if (!levels.length) {
+    return scopeConfig?.fallbackScopeKey?.trim() || "global";
+  }
+  const parts = levels.map((level, index) => {
+    if (index === levels.length - 1) {
+      return `${level}:*`;
+    }
+    return `${level}:example_${level}`;
+  });
+  return parts.join("|");
+}
 
 function PropertyRow({
   property,
@@ -83,14 +124,243 @@ function PropertyRow({
   );
 }
 
+function PropertyListEditor({
+  properties,
+  onChange,
+}: {
+  properties: IndexFieldProperty[];
+  onChange: (next: IndexFieldProperty[]) => void;
+}) {
+  const { t } = useAppSettings();
+
+  return (
+    <>
+      {properties.map((p, i) => (
+        <PropertyRow
+          key={i}
+          property={p}
+          index={i}
+          onChange={(next) => {
+            const rows = [...properties];
+            rows[i] = next;
+            onChange(rows);
+          }}
+          onRemove={() => onChange(properties.filter((_, j) => j !== i))}
+        />
+      ))}
+      <button
+        type="button"
+        className="idx-btn idx-btn--sm"
+        onClick={() => onChange([...properties, emptyIndexFieldProperty()])}
+      >
+        {t("config.indexFields.addProperty")}
+      </button>
+    </>
+  );
+}
+
+function detectAmbiguousScopeKeys(keys: string[]): string[] {
+  const wildcardTier = (key: string): number => {
+    const trimmed = key.trim();
+    if (!trimmed || trimmed === "*") return 10_000;
+    return trimmed.split("|").filter((part) => part.endsWith(":*") || part === "*").length;
+  };
+  const byTier = new Map<number, string[]>();
+  for (const key of keys) {
+    const tier = wildcardTier(key);
+    const group = byTier.get(tier) ?? [];
+    group.push(key);
+    byTier.set(tier, group);
+  }
+  const ambiguous: string[] = [];
+  for (const group of byTier.values()) {
+    if (group.length > 1) ambiguous.push(...group);
+  }
+  return ambiguous;
+}
+
+function ScopePropertyOverrideCard({
+  scopeKey,
+  override,
+  defaultProperties,
+  scopeKeyPlaceholder,
+  onChange,
+  onRemove,
+}: {
+  scopeKey: string;
+  override: ScopePropertyOverride;
+  defaultProperties: IndexFieldProperty[];
+  scopeKeyPlaceholder: string;
+  onChange: (next: ScopePropertyOverride) => void;
+  onRemove: () => void;
+}) {
+  const { t } = useAppSettings();
+  const [open, setOpen] = useState(true);
+  const inheritance =
+    override.mode === "merge"
+      ? summarizeMergeInheritance(defaultProperties, override.properties)
+      : null;
+
+  return (
+    <article className="idx-config-card idx-config-scope-override-card">
+      <div className="idx-config-card__header">
+        <button
+          type="button"
+          className="idx-config-card__toggle"
+          onClick={() => setOpen((o) => !o)}
+          aria-expanded={open}
+        >
+          <span className="idx-config-card__title idx-config-card__title--mono">{scopeKey}</span>
+        </button>
+        <button type="button" className="idx-btn idx-btn--sm idx-btn--danger" onClick={onRemove}>
+          {t("config.indexFields.scopeOverrides.removeOverride")}
+        </button>
+      </div>
+      {open ? (
+        <div className="idx-config-scope-override-card__body">
+          <div className="idx-config-grid idx-config-scope-override-card__mode-row">
+            <label className="idx-label">
+              <span className="idx-label__caption">{t("config.indexFields.scopeOverrides.mode")}</span>
+              <select
+                className="idx-select"
+                value={override.mode}
+                onChange={(e) =>
+                  onChange({
+                    ...override,
+                    mode: e.target.value === "replace" ? "replace" : "merge",
+                  })
+                }
+              >
+                <option value="merge">{t("config.indexFields.scopeOverrides.modeMerge")}</option>
+                <option value="replace">{t("config.indexFields.scopeOverrides.modeReplace")}</option>
+              </select>
+              <span className="idx-config-hint">
+                {override.mode === "replace"
+                  ? t("config.indexFields.scopeOverrides.modeReplaceHint")
+                  : t("config.indexFields.scopeOverrides.modeMergeHint")}
+              </span>
+            </label>
+          </div>
+          {inheritance ? (
+            <p className="idx-config-hint">
+              {t("config.indexFields.scopeOverrides.inheritanceSummary", {
+                inherited: String(inheritance.inherited),
+                overridden: String(inheritance.overridden),
+                added: String(inheritance.added),
+              })}
+            </p>
+          ) : null}
+          <PropertyListEditor
+            properties={override.properties}
+            onChange={(properties) => onChange({ ...override, properties })}
+          />
+          <span className="idx-config-hint">{scopeKeyPlaceholder}</span>
+        </div>
+      ) : null}
+    </article>
+  );
+}
+
+function ScopeOverridesSection({
+  view,
+  scopeConfig,
+  onChange,
+}: {
+  view: IndexFieldView;
+  scopeConfig?: ScopeConfig;
+  onChange: (next: IndexFieldView) => void;
+}) {
+  const { t } = useAppSettings();
+  const [newScopeKey, setNewScopeKey] = useState("");
+  const scopeKeyPlaceholder = buildScopeKeyPlaceholder(scopeConfig);
+  const ambiguousKeys = detectAmbiguousScopeKeys(Object.keys(view.propertiesByScope));
+
+  const addOverride = () => {
+    const key = newScopeKey.trim();
+    if (!key || view.propertiesByScope[key]) return;
+    onChange({
+      ...view,
+      propertiesByScope: {
+        ...view.propertiesByScope,
+        [key]: emptyScopePropertyOverride(),
+      },
+    });
+    setNewScopeKey("");
+  };
+
+  return (
+    <section className="idx-config-subsection">
+      <h5 className="idx-config-subsection__title">{t("config.indexFields.scopeOverrides.title")}</h5>
+      <p className="idx-pane__hint">{t("config.indexFields.scopeOverrides.hint")}</p>
+      <p className="idx-config-hint">{t("config.indexFields.scopeOverrides.scopeKeyWildcardHint")}</p>
+      <div className="idx-config-toolbar idx-config-scope-override-toolbar">
+        <label className="idx-label idx-config-scope-override-toolbar__key">
+          <span className="idx-label__caption">{t("config.indexFields.scopeOverrides.scopeKey")}</span>
+          <input
+            className="idx-input idx-input--mono"
+            value={newScopeKey}
+            placeholder={scopeKeyPlaceholder}
+            onChange={(e) => setNewScopeKey(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                addOverride();
+              }
+            }}
+          />
+        </label>
+        <button type="button" className="idx-btn idx-btn--sm idx-btn--primary" onClick={addOverride}>
+          {t("config.indexFields.scopeOverrides.addOverride")}
+        </button>
+      </div>
+      {ambiguousKeys.length > 0 ? (
+        <p className="idx-config-warning" role="status">
+          {t("config.indexFields.scopeOverrides.ambiguityWarning", {
+            keys: ambiguousKeys.join(", "),
+          })}
+        </p>
+      ) : null}
+      {Object.keys(view.propertiesByScope).length === 0 ? (
+        <p className="idx-pane__hint">{t("config.indexFields.scopeOverrides.noOverrides")}</p>
+      ) : null}
+      <div className="idx-config-card-grid">
+        {Object.entries(view.propertiesByScope).map(([scopeKey, override]) => (
+          <ScopePropertyOverrideCard
+            key={scopeKey}
+            scopeKey={scopeKey}
+            override={override}
+            defaultProperties={view.properties}
+            scopeKeyPlaceholder={t("config.indexFields.scopeOverrides.scopeKeyPlaceholder", {
+              example: scopeKeyPlaceholder,
+            })}
+            onChange={(next) =>
+              onChange({
+                ...view,
+                propertiesByScope: { ...view.propertiesByScope, [scopeKey]: next },
+              })
+            }
+            onRemove={() => {
+              const next = { ...view.propertiesByScope };
+              delete next[scopeKey];
+              onChange({ ...view, propertiesByScope: next });
+            }}
+          />
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function ViewCard({
   view,
   index,
+  scopeConfig,
   onChange,
   onRemove,
 }: {
   view: IndexFieldView;
   index: number;
+  scopeConfig?: ScopeConfig;
   onChange: (v: IndexFieldView) => void;
   onRemove: () => void;
 }) {
@@ -151,42 +421,17 @@ function ViewCard({
         <h5 className="idx-config-subsection__title" style={{ margin: 0 }}>
           {t("config.indexFields.properties")}
         </h5>
-        <button
-          type="button"
-          className="idx-btn idx-btn--sm"
-          onClick={() =>
-            onChange({
-              ...view,
-              properties: [...view.properties, emptyIndexFieldProperty()],
-            })
-          }
-        >
-          {t("config.indexFields.addProperty")}
-        </button>
       </div>
-      {view.properties.map((p, i) => (
-        <PropertyRow
-          key={i}
-          property={p}
-          index={i}
-          onChange={(next) => {
-            const properties = [...view.properties];
-            properties[i] = next;
-            onChange({ ...view, properties });
-          }}
-          onRemove={() =>
-            onChange({
-              ...view,
-              properties: view.properties.filter((_, j) => j !== i),
-            })
-          }
-        />
-      ))}
+      <PropertyListEditor
+        properties={view.properties}
+        onChange={(properties) => onChange({ ...view, properties })}
+      />
+      <ScopeOverridesSection view={view} scopeConfig={scopeConfig} onChange={onChange} />
     </article>
   );
 }
 
-export function IndexFieldConfigEditor({ value, onChange }: Props) {
+export function IndexFieldConfigEditor({ value, onChange, scopeConfig }: Props) {
   const { t } = useAppSettings();
 
   return (
@@ -207,19 +452,20 @@ export function IndexFieldConfigEditor({ value, onChange }: Props) {
         </div>
       ) : null}
       <div className="idx-config-card-grid">
-      {value.map((view, i) => (
-        <ViewCard
-          key={i}
-          view={view}
-          index={i}
-          onChange={(next) => {
-            const views = [...value];
-            views[i] = next;
-            onChange(views);
-          }}
-          onRemove={() => onChange(value.filter((_, j) => j !== i))}
-        />
-      ))}
+        {value.map((view, i) => (
+          <ViewCard
+            key={i}
+            view={view}
+            index={i}
+            scopeConfig={scopeConfig}
+            onChange={(next) => {
+              const views = [...value];
+              views[i] = next;
+              onChange(views);
+            }}
+            onRemove={() => onChange(value.filter((_, j) => j !== i))}
+          />
+        ))}
       </div>
     </FormPanel>
   );

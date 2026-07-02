@@ -62,3 +62,66 @@ def test_build_metadata_dry_run_counts_candidates_without_adapter() -> None:
     assert result["processed"] == 1
     assert result["entries_created"] >= 1
     assert result.get("entries_updated", 0) == 0
+    assert "scope_override_ambiguous" in result
+    assert result["views"]["CogniteEquipment"]["scope_override_default"] == 1
+
+
+def test_build_metadata_tracks_ambiguous_scope_override() -> None:
+    from inverted_index.build import build_metadata_index
+
+    scope_config = {
+        "enabled": True,
+        "levels": ["site", "unit"],
+        "scope_key_template": "site:{site}|unit:{unit}",
+        "strict_scope": False,
+        "fallback_scope_key": "global",
+        "resolve_from": {
+            "CogniteEquipment": {
+                "site": ["sourceContext"],
+                "unit": ["sourceId"],
+            }
+        },
+        "resolve_from_default": {},
+    }
+    view_cfg = {
+        "view": "CogniteEquipment",
+        "properties": [{"path": "description", "source_type": "asset_metadata"}],
+        "properties_by_scope": {
+            "site:Rotterdam|unit:*": {
+                "mode": "merge",
+                "properties": [
+                    {"path": "description", "source_type": "asset_metadata", "extract_pattern": r"\bA\b"}
+                ],
+            },
+            "site:*|unit:U100": {
+                "mode": "merge",
+                "properties": [
+                    {"path": "description", "source_type": "asset_metadata", "extract_pattern": r"\bB\b"}
+                ],
+            },
+        },
+    }
+    instances = {
+        "CogniteEquipment": [
+            {
+                "externalId": "EQ-1",
+                "properties": {
+                    "sourceContext": "Rotterdam",
+                    "sourceId": "U100",
+                    "description": "Pump",
+                },
+            }
+        ],
+    }
+    result = build_metadata_index(
+        MagicMock(),
+        index_field_config=[view_cfg],
+        scope_config=scope_config,
+        storage_config=INDEX_STORAGE_CONFIG,
+        instances_by_view=instances,
+        dry_run=True,
+        storage_adapter=None,
+    )
+    assert result["scope_override_ambiguous"] == 1
+    assert result["views"]["CogniteEquipment"]["scope_override_ambiguous"] == 1
+    assert result["candidate_entries"] == 0

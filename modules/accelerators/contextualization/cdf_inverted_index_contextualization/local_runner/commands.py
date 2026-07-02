@@ -19,7 +19,7 @@ from inverted_index.scoring import (
     get_pattern_not_in_standard_delta,
     get_standard_not_in_pattern_delta,
 )
-from inverted_index.storage import get_storage_adapter
+from inverted_index.storage import adapter_local_cache, adapter_local_registry, get_storage_adapter
 from inverted_index.storage.raw_adapter import validate_raw_scope_config
 from inverted_index.tag_reuse import audit_cross_scope_tags, query_with_reuse_metrics
 from inverted_index.target_driven import (
@@ -496,14 +496,129 @@ def cmd_partition_health() -> dict:
     cfg = _runtime()
     client = create_cognite_client()
     adapter = get_storage_adapter(cfg["storage_config"], client)
-    local_registry = getattr(adapter, "_local_registry", None)
-    local_cache = getattr(adapter, "_local_partitions", None)
+    local_registry = adapter_local_registry(adapter, client)
+    local_cache = adapter_local_cache(adapter, client)
     return check_partition_row_counts(
         client,
         cfg["storage_config"],
         local_registry=local_registry,
         local_cache=local_cache,
     )
+
+
+PARTITION_ROW_WARN_THRESHOLD = 300_000
+PARTITION_ROW_CRITICAL_THRESHOLD = 450_000
+BATCH_DELTA_DETAIL_LIMIT = 20
+
+
+def _parse_registry_int(value: Any) -> int | None:
+    if value is None or value == "":
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _parse_registry_bool(value: Any) -> bool:
+    if isinstance(value, bool):
+        return value
+    if value is None:
+        return False
+    return str(value).strip().lower() in {"1", "true", "yes"}
+
+
+def _partition_row_status(row_count: int) -> str:
+    if row_count >= PARTITION_ROW_CRITICAL_THRESHOLD:
+        return "critical"
+    if row_count >= PARTITION_ROW_WARN_THRESHOLD:
+        return "warn"
+    return "ok"
+
+
+def cmd_registry_summary() -> dict:
+    from inverted_index.raw_ops import get_scope_registry_entry, list_registered_scope_keys
+
+    cfg = _runtime()
+    client = create_cognite_client()
+    adapter = get_storage_adapter(cfg["storage_config"], client)
+    local_registry = adapter_local_registry(adapter, client)
+    scopes = list_registered_scope_keys(
+        client, cfg["storage_config"], local_registry=local_registry
+    )
+    entries: list[dict[str, Any]] = []
+    for scope in scopes:
+        entry = get_scope_registry_entry(
+            client,
+            cfg["storage_config"],
+            scope,
+            local_registry=local_registry,
+        )
+        entries.append(
+            {
+                "match_scope_key": scope,
+                "partition_strategy": entry.get("PARTITION_STRATEGY"),
+                "row_count_estimate": _parse_registry_int(entry.get("ROW_COUNT_ESTIMATE")),
+                "reshard_in_progress": _parse_registry_bool(entry.get("RESHARD_IN_PROGRESS")),
+                "last_build_at": entry.get("LAST_BUILD_AT"),
+                "partition_table": entry.get("PARTITION_TABLE"),
+            }
+        )
+    return {"scopes": entries, "scope_count": len(entries)}
+
+
+def cmd_dashboard_summary() -> dict:
+    partition = cmd_partition_health()
+    registry = cmd_registry_summary()
+
+    registry_by_scope = {s["match_scope_key"]: s for s in registry["scopes"]}
+    partition_by_scope = {s["match_scope_key"]: s for s in partition.get("scopes", [])}
+    all_scopes = sorted(set(registry_by_scope) | set(partition_by_scope))
+
+    scope_rows: list[dict[str, Any]] = []
+    total_row_count = 0
+    scopes_over_warn = 0
+    scopes_over_critical = 0
+
+    for scope in all_scopes:
+        partition_row = partition_by_scope.get(scope, {})
+        registry_row = registry_by_scope.get(scope, {})
+        row_count = int(partition_row.get("row_count") or 0)
+        total_row_count += row_count
+        status = _partition_row_status(row_count)
+        if status == "warn":
+            scopes_over_warn += 1
+        elif status == "critical":
+            scopes_over_critical += 1
+
+        scope_rows.append(
+            {
+                "match_scope_key": scope,
+                "partition_strategy": partition_row.get("partition_strategy")
+                or registry_row.get("partition_strategy"),
+                "partition_table": partition_row.get("partition_table")
+                or registry_row.get("partition_table"),
+                "row_count": row_count,
+                "row_count_estimate": registry_row.get("row_count_estimate"),
+                "bucket_tables_with_data": partition_row.get("bucket_tables_with_data"),
+                "reshard_recommended": bool(partition_row.get("reshard_recommended")),
+                "reshard_in_progress": registry_row.get("reshard_in_progress"),
+                "last_build_at": registry_row.get("last_build_at"),
+                "row_status": status,
+            }
+        )
+
+    return {
+        "scope_count": len(all_scopes),
+        "total_row_count": total_row_count,
+        "reshard_recommended_count": len(partition.get("reshard_recommended") or []),
+        "scopes_over_warn_threshold": scopes_over_warn,
+        "scopes_over_critical_threshold": scopes_over_critical,
+        "term_partition_enabled": partition.get("term_partition_enabled"),
+        "activate_above_rows": partition.get("activate_above_rows"),
+        "reshard_recommended": partition.get("reshard_recommended") or [],
+        "scopes": scope_rows,
+    }
 
 
 def cmd_reshard_scope(
@@ -520,8 +635,8 @@ def cmd_reshard_scope(
         client,
         cfg["storage_config"],
         match_scope_key,
-        local_cache=getattr(adapter, "_local_partitions", None),
-        local_registry=getattr(adapter, "_local_registry", None),
+        local_cache=adapter_local_cache(adapter, client),
+        local_registry=adapter_local_registry(adapter, client),
         dry_run=dry_run,
     )
 
@@ -726,6 +841,79 @@ def cmd_deltas(
             "[deltas] complete "
             f"missing_tags={len(missing_tags)} "
             f"pattern_feedback={len(pattern_feedback)}"
+        )
+    return result
+
+
+def cmd_batch_file_deltas(
+    file_external_ids: list[str],
+    *,
+    file_space: str = "cdf_cdm",
+    match_scope_key: str | None = None,
+    detail_limit: int = BATCH_DELTA_DETAIL_LIMIT,
+    on_log: Callable[[str], None] | None = None,
+    should_cancel: Callable[[], bool] | None = None,
+) -> dict:
+    ids = parse_instance_id_args(None, file_external_ids)
+    if not ids:
+        raise ValueError("file_external_ids must contain at least one file id")
+
+    if on_log:
+        on_log(
+            f"[batch-deltas] starting files={len(ids)} space={file_space} "
+            f"scope={match_scope_key or 'default'}"
+        )
+    raise_if_cancelled(should_cancel)
+    cfg = _runtime()
+    client = create_cognite_client()
+    adapter = get_storage_adapter(cfg["storage_config"], client)
+
+    by_file: list[dict[str, Any]] = []
+    total_missing = 0
+    total_pattern = 0
+    cap = max(1, int(detail_limit))
+
+    for file_id in ids:
+        raise_if_cancelled(should_cancel)
+        if on_log:
+            on_log(f"[batch-deltas] file={file_id}")
+        missing_tags = get_pattern_not_in_standard_delta(
+            client,
+            file_id,
+            file_space=file_space,
+            match_scope_key=match_scope_key,
+            storage_adapter=adapter,
+        )
+        raise_if_cancelled(should_cancel)
+        pattern_feedback = get_standard_not_in_pattern_delta(
+            client,
+            file_id,
+            file_space=file_space,
+            storage_adapter=adapter,
+        )
+        total_missing += len(missing_tags)
+        total_pattern += len(pattern_feedback)
+        by_file.append(
+            {
+                "file_external_id": file_id,
+                "missing_tags_count": len(missing_tags),
+                "pattern_feedback_count": len(pattern_feedback),
+                "missing_tags": missing_tags[:cap],
+                "pattern_feedback": pattern_feedback[:cap],
+            }
+        )
+
+    result = {
+        "files_scanned": len(ids),
+        "total_missing_tags": total_missing,
+        "total_pattern_feedback": total_pattern,
+        "by_file": by_file,
+    }
+    if on_log:
+        on_log(
+            "[batch-deltas] complete "
+            f"files={len(ids)} missing_tags={total_missing} "
+            f"pattern_feedback={total_pattern}"
         )
     return result
 

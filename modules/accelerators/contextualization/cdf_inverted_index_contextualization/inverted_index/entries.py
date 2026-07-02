@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import logging
 from typing import Any
 
 from inverted_index.annotation_fields import (
@@ -18,10 +19,12 @@ from inverted_index.extract import (
     extract_terms_from_property,
     read_property_path,
 )
+from inverted_index.index_field_scope import resolve_scope_property_override
 from inverted_index.normalize import normalize_term
 from inverted_index.scope import resolve_match_scope
 
 FILE_VIEW = "CogniteFile"
+logger = logging.getLogger(__name__)
 
 
 def build_entry_external_id(entry: dict[str, Any]) -> str:
@@ -48,7 +51,7 @@ def build_entries_from_instance(
     *,
     linked_file: dict | None = None,
     build_job_id: str | None = None,
-) -> list[dict[str, Any]]:
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     view = view_config.get("view", "")
     view_space = view_config.get("view_space", "")
     external_id = (
@@ -58,7 +61,7 @@ def build_entries_from_instance(
         or ""
     )
     if not external_id:
-        return []
+        return [], {}
 
     instance_space = str(
         instance.get("space") or instance.get("instance_space") or view_space
@@ -71,10 +74,32 @@ def build_entries_from_instance(
         linked_file=linked_file,
     )
     if scope_config.get("strict_scope", False) and not match_scope_key:
-        return []
+        return [], {"skip_reason": "scope_unresolved"}
+
+    override_result = resolve_scope_property_override(
+        view_config, match_scope_key, scope_config
+    )
+    instance_meta: dict[str, Any] = {
+        "scope_override_resolution": override_result.resolution,
+        "match_scope_key": match_scope_key or "",
+    }
+    if override_result.matched_key:
+        instance_meta["scope_override_matched_key"] = override_result.matched_key
+    if override_result.resolution == "ambiguous":
+        instance_meta["skip_reason"] = "scope_property_override_ambiguous"
+        instance_meta["matching_override_keys"] = list(override_result.matching_keys)
+        logger.warning(
+            "scope_property_override_ambiguous view=%s instance=%s "
+            "match_scope_key=%s matching_keys=%s",
+            view,
+            external_id,
+            match_scope_key,
+            override_result.matching_keys,
+        )
+        return [], instance_meta
 
     entries: list[dict[str, Any]] = []
-    for prop_cfg in view_config.get("properties", []):
+    for prop_cfg in override_result.properties:
         path = prop_cfg.get("path", "")
         prop_cfg = {**prop_cfg, "path": path}
         value = read_property_path(instance, path)
@@ -114,7 +139,7 @@ def build_entries_from_instance(
             }
             entry["external_id"] = build_entry_external_id(entry)
             entries.append(entry)
-    return entries
+    return entries, instance_meta
 
 
 def _diagram_entry_metadata(

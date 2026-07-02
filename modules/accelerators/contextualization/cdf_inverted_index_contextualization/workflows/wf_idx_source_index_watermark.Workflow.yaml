@@ -1,0 +1,3 @@
+externalId: wf_idx_source_index_watermark
+description: Scheduled watermark incremental metadata and annotation index builds
+dataSetExternalId: ds_inverted_index_all

@@ -39,7 +39,7 @@ The accelerator module ships with pilot defaults aligned to CDM core views and R
 | Metadata sources | **`CogniteFile`, `CogniteAsset`, `CogniteEquipment`, `CogniteTimeSeries`** — shared property set via YAML anchor `&metadata_properties` in `default.config.yaml` (code fallback in `inverted_index/config.py` when YAML omits `index_field_config`) |
 | Diagram annotations | CDM **edge** `CogniteDiagramAnnotation` — `startNodeText`, `confidence`, `status`, `startNodePageNumber`, bbox via `startNode*Min/Max` |
 | Diagram index reference | **`reference_type: CogniteFile`**; annotation identity in `additional_metadata.annotation_external_id` / `detection_key` |
-| Target-driven trigger | **Instance subscription** on configured `watch_property` (default `aliases`; see `target_driven.query_property`) — `fn_idx_handle_subscription` / `handle_aliases_subscription_event` |
+| Target-driven trigger | **`dataModeling` WorkflowTrigger** (`wf_idx_target_driven_incremental`) → `fn_idx_handle_subscription` on `watch_property` (default `aliases`; see `target_driven.query_property`) — Toolkit-deployable; native DM instance subscription YAML not supported |
 | CDM link writes | All five link keys enabled; per-link `write_modes: [direct_relation]`; `allowed_annotation_statuses: [Suggested, Approved]` |
 | Virtual tag creation (UC4) | **Disabled** OOTB (`virtual_tag_creation.enabled: false`); `term_selection_mode: missing_tags_only` when enabled; requires `scope.enabled` + non-empty `scope.levels` |
 | Source / index reads | **`instances.query`** with server-side filters (`inverted_index/dm_query.py`); RAW steady-state term lookup via `rows.retrieve` |
@@ -418,6 +418,8 @@ index_field_config:
 
 **Extending indexed properties:** Add entries under `properties` for any view in `index_field_config`. Each entry requires `path` (dot notation for nested fields, e.g. `metadata.drawingNumber`) and `source_type` (`asset_metadata` | `file_metadata`). Optional `extract_mode` (`passthrough` default | `regex`) and `extract_pattern` (required for regex). Rebuild the metadata index after config changes. UI operators can edit the same structure in the module config editor.
 
+**Scoped extraction overrides (`properties_by_scope`):** Per-view map keyed by `match_scope_key` patterns (exact or wildcard `*` in level values). Each entry is `{mode: merge|replace, properties: [...]}` or a bare property list (implies `merge`). Runtime resolves **exact key first**, then walks wildcard tiers from most to least specific. If multiple config keys match at the same tier, indexing **aborts** for that instance with `skip_reason: scope_property_override_ambiguous` (counted in batch `view_stats.scope_override_ambiguous` and incremental handler results). Config lives in `default.config.yaml` loaded by all `fn_idx_*` handlers — redeploy functions after edits; workflow YAML is unchanged. Incremental `watch_properties` unions paths from scoped overrides.
+
 **Property path rules**:
 - Dot notation for nested JSON/map properties (e.g., `metadata.drawingNumber`).
 - Each configured property is read from the instance; extractors produce zero or more candidate terms, then deduplication yields zero or more **unique** terms per property.
@@ -445,9 +447,9 @@ index_field_config:
 - **DM query API**: Source enumeration and DM index lookups use **`instances.query`** with server-side filters (`NodeResultSetExpression` / `EdgeResultSetExpression`, cursor pagination) — see `inverted_index/dm_query.py`. RAW steady-state term lookup remains `rows.retrieve` per `(match_scope_key, normalized_term)`.
 - **Writes to**: The index storage backend (DM §2.1 or RAW postings §2.2) + target data models (`CogniteDiagramAnnotation`, custom link edges/containers for `FileAssetLink`, `AssetAnnotation`, etc.) and **CDM direct relations** on forward properties for file, asset, equipment, and time series (see §2.7).
 - **Triggers (index build)**: CDF Functions (`fn_idx_build_metadata`, `fn_idx_build_annotations`), Workflows, or Extraction Pipelines on schedules, diagram-processing completion, or targeted rebuilds.
-- **Triggers (incremental index writes)**: External diagram detection jobs → `fn_idx_upsert_detections`; DM instance metadata updates → `fn_idx_index_metadata_instance` with `instance_external_id` or `instance_external_ids` (§3.6.3). Prefer `write_mode: replace` when re-submitting the full detection set or metadata snapshot for a reference.
+- **Triggers (incremental index writes)**: External diagram detection jobs → `fn_idx_upsert_detections`; DM instance metadata updates → `fn_idx_index_metadata_instance` with `instance_external_id` or `instance_external_ids` (§3.6.3). **Toolkit workflows**: `wf_idx_source_metadata_incremental` (`dataModeling` trigger → `fn_idx_handle_source_metadata` with `workflow.input.items`); `wf_idx_source_index_watermark` (schedule → `fn_idx_build_watermark_incremental` with persisted `filter_updated_after` watermark). Prefer `write_mode: replace` when re-submitting the full detection set or metadata snapshot for a reference.
 - **Triggers (virtual tag creation)**: **Batch** — `fn_idx_virtual_tags` or `python module.py virtual-tags` after index build (§3.5). **Incremental** — `upsert_index_entries` calls `process_virtual_tags_for_index_entries` when `virtual_tag_creation.enabled` and `incremental_enabled` are true (§3.5).
-- **Triggers (target-driven contextualization)**: Invoked **after the external aliasing process updates the configured query property** on an asset (default `aliases`; see §3.3). Primary pilot path: CDF instance subscription filtered to `subscription.watch_property` → `fn_idx_handle_subscription` → `handle_aliases_subscription_event`. The aliasing process itself is triggered by the arrival of new assets; target-driven is downstream of query-term population, not a direct subscriber to raw ingest events. Virtual tag leaves populate `aliases` on synthetic assets so UC3 can run once aliasing or direct `fn_idx_target_driven` invocation is wired.
+- **Triggers (target-driven contextualization)**: Invoked **after the external aliasing process updates the configured query property** on an asset (default `aliases`; see §3.3). Primary Toolkit-deployable path: `dataModeling` **WorkflowTrigger** on `wf_idx_target_driven_incremental` (see `workflows/`) → `fn_idx_handle_subscription` with `workflow.input.items` → `handle_aliases_subscription_event`. Fires on `lastUpdatedTime` changes (not property-level filters); handler skips empty query terms and applies dedupe. The aliasing process itself is triggered by the arrival of new assets; target-driven is downstream of query-term population, not a direct subscriber to raw ingest events. Virtual tag leaves populate `aliases` on synthetic assets so UC3 can run once aliasing or direct `fn_idx_target_driven` invocation is wired.
 
 ### 2.4.1 CDM `CogniteDiagramAnnotation` as edge
 
@@ -657,7 +659,7 @@ filters.And(
 
 **RAW backend** (`backend == "raw"`): Scope isolation is via **partition table selection**, not a `match_scope_key` column filter. Resolve the scope partition with `resolve_raw_partition_table(match_scope_key, config)` (§2.2), then per-term `client.raw.rows.retrieve(db, table, build_raw_postings_row_key(scope, term))`. Post-filter `source_types` and `min_confidence` in memory after `flatten_postings_to_entries`.
 
-**Target-driven**: Before alias lookup, resolve scope from the **incoming asset** using `SCOPE_CONFIG.resolve_from[CogniteAsset]` (or custom asset view). Only index hits within that scope are eligible for link creation.
+**Target-driven**: Before term lookup, resolve scope from the **incoming target instance** (primary path: `CogniteAsset` via `SCOPE_CONFIG.resolve_from[CogniteAsset]` or custom asset view; same mechanism for file, equipment, and time series when those are the trigger). Query the index with `(normalized_term, match_scope_key)` so only hits indexed under that scope are eligible — including `diagram_annotation_*` (file-as-reference), `file_metadata`, and `asset_metadata` rows. Scope is **organizational isolation** (site/unit), not graph traversal; link targets still come from each hit's `reference_*` fields after confidence, source-type, and self-reference filters. OOTB (`scope.levels: []`, `fallback_scope_key: global`) disables real isolation; configure `levels` + `resolve_from` + `strict_scope: true` for multi-unit sites. Skip reasons: `scope_unresolved`, `scope_filtered` (see §3.3). End-to-end flow: [target_driven_contextualization_flow.md](target_driven_contextualization_flow.md) — "Scope isolation and target-driven matching".
 
 **Scoring / deltas**: File-level functions already scope by `file_external_id`; metadata cross-checks inside `calculate_metadata_match_score` must also pass the file's (or asset's) `match_scope_key` so metadata mentions from other units are excluded.
 
@@ -883,7 +885,7 @@ Shared utilities (internal):
 - `resolve_scope_level(instance, paths) -> tuple[str | None, str | None]`: First non-empty property path wins (§2.6).
 - `read_property_path(instance, path) -> Any`: Dot-path property read; direct relations → `external_id` (§2.6).
 - `build_scope_key(scope_dict: dict, scope_config) -> str`: Format `scope_key_template` with normalized dimension values.
-- `build_entries_from_instance(instance, view_config, scope_config) -> list[dict]`: Walk configured properties, resolve scope, extract + dedupe, produce `InvertedIndexEntry` payloads with `match_scope_key`.
+- `build_entries_from_instance(instance, view_config, scope_config) -> tuple[list[dict], dict]`: Walk configured properties (after scoped override resolution), resolve scope, extract + dedupe, produce `InvertedIndexEntry` payloads with `match_scope_key`. Instance meta includes `scope_override_resolution` and `skip_reason` when ambiguous.
 - `upsert_index_entries(client, entries: list[dict], storage_config) -> dict`: Storage adapter entry point — DM `instances.apply` or RAW postings merge/upsert per §2.2.
 - `delete_index_subset(client, scope, source_type=None, build_job_id=None, storage_config) -> int`: Delete or purge index rows for a scope (DM filter delete or RAW partition purge).
 - `build_raw_postings_row_key(scope, normalized_term) -> str`, `merge_postings(...)`, `posting_from_index_entry(...)`, `flatten_postings_to_entries(...)`, `resolve_raw_partition_table(...)`, `scope_slug(...)`: RAW postings helpers (§2.2, §4.7.1).
@@ -1293,6 +1295,35 @@ def process_target_driven_contextualization(
   Self-hits (index row reference_* equals incoming instance) are removed before link apply.
     """
 ```
+
+#### Scope in target-driven matching
+
+Target-driven uses scope so an incoming target instance only matches index hits from the same operational context (e.g. site + unit). See §2.6 for `SCOPE_CONFIG`, `resolve_match_scope`, and `resolve_from` shapes; [target_driven_contextualization_flow.md](target_driven_contextualization_flow.md) for the end-to-end flow diagram.
+
+**Algorithm (inside `process_target_driven_contextualization`):**
+
+1. Read query terms from the target instance (`read_instance_query_terms`).
+2. Resolve `match_scope_key` on the target via `resolve_match_scope(target, view_external_id, scope_config)` using the same `resolve_from` rules as index build.
+3. Determine `lookup_scope_keys`:
+   - Default: `[match_scope_key]` when resolved.
+   - `match_scope_keys` + `scope_lookup_override: false`: skip with `reason: scope_filtered` unless the instance's key is in the filter list.
+   - `match_scope_keys` + `scope_lookup_override: true`: query those keys without requiring instance scope to match (replay / admin).
+   - Unresolved scope when strict: skip with `reason: scope_unresolved`.
+4. For each scope key: `query_index_by_terms(terms, match_scope_key=scope_key, source_types=…, min_confidence=…)`.
+5. Remove self-references; call `apply_configured_links` on remaining hits.
+
+**Index-side scope (symmetric):** Every index row stores the scope of the **source** instance at build time — metadata on `CogniteFile` / `CogniteAsset`, diagram detections (optionally inheriting from linked file when `annotation_scope_via_linked_file: true`). Target-driven query scope must align with index build scope or hits will not match.
+
+**OOTB behaviour:** Shipped `default.config.yaml` uses `scope.levels: []`, `strict_scope: false`, `fallback_scope_key: global`. All instances and index rows share the `global` partition — no cross-unit isolation until `levels` and `resolve_from` are configured (see `config/scope.example.yaml`).
+
+**What scope does not do:** Scope does not traverse DM relations (except annotation → linked file). It does not select among multiple same-scope file hits beyond term match — `reference_type` / `reference_external_id` on each hit drive link apply (`§2.7` resolution rules).
+
+| Concern | Mechanism |
+|---------|-----------|
+| Same tag, different units | `match_scope_key` filter on index query |
+| Same tag, wrong file within scope | Term match + hit `reference_*` + link config / write modes |
+| Annotation without site/unit on edge | `annotation_scope_via_linked_file` reads scope from parent file |
+| Multi-unit migration | `strict_scope: false` + `global` fallback (discouraged in production) |
 
 #### `apply_configured_links`
 ```python
@@ -1861,7 +1892,7 @@ Registry: [`functions/functions.Function.yaml`](../functions/functions.Function.
 | `fn_idx_build_metadata` | `dm:context:inverted_index:build:metadata` | `fn_idx_build_metadata/handler.py` | `build_metadata_index` | Fleet metadata index build (`instances.query` over `index_field_config` views) |
 | `fn_idx_build_annotations` | `dm:context:inverted_index:build:annotations` | `fn_idx_build_annotations/handler.py` | `build_diagram_annotation_index` | Fleet diagram annotation index build |
 | `fn_idx_target_driven` | `dm:context:inverted_index:process:target_driven` | `fn_idx_target_driven/handler.py` | `process_target_driven_contextualization` / `run_target_driven_for_instance_ids` | Target-driven contextualization for explicit instance ID(s) |
-| `fn_idx_handle_subscription` | `dm:context:inverted_index:subscription:aliases` | `fn_idx_handle_subscription/handler.py` | `handle_aliases_subscription_event` | Instance subscription on `watch_property` (default `aliases`) |
+| `fn_idx_handle_subscription` | `dm:context:inverted_index:subscription:aliases` | `fn_idx_handle_subscription/handler.py` | `handle_aliases_subscription_payload` | Workflow `items` batch or subscription `event` on `watch_property` (default `aliases`) |
 | `fn_idx_score` | `dm:context:inverted_index:score:contextualization` | `fn_idx_score/handler.py` | `calculate_contextualization_score` | File contextualization score |
 | `fn_idx_deltas` | `dm:context:inverted_index:deltas:detection` | `fn_idx_deltas/handler.py` | detection mode deltas | Pattern vs standard detection deltas for a file |
 | `fn_idx_upsert_detections` | `dm:context:inverted_index:upsert:detections` | `fn_idx_upsert_detections/handler.py` | `upsert_diagram_detections` | Incremental diagram detection index writes |
@@ -1958,15 +1989,15 @@ python module.py invoke-fn fn_idx_target_driven --data '{"instance_external_ids"
 
 ##### `fn_idx_handle_subscription`
 
-Processes an instance subscription event when `watch_property` changes (default: `aliases`).
+Processes subscription events or workflow `dataModeling` trigger items when `watch_property` changes (default: `aliases`).
 
 | | |
 |--|--|
-| **Required payload** | `event` dict (or subscription fields at top level of `data`) |
+| **Required payload** | `event` dict **or** `items` list (workflow trigger batch) |
 | **Key optional fields** | `dry_run`, `query_property`, `force` |
-| **Response** | Result from `handle_aliases_subscription_event` (target-driven summary or skip reason) |
+| **Response** | Single event: result from `handle_aliases_subscription_event`. Batch: `{status, trigger: workflow_data_modeling, processed, ok_count, results}` |
 
-Wire this function as the **subscription target** in CDF after external aliasing writes query terms.
+Toolkit deploy: register `workflows/wf_idx_target_driven_incremental.*` via `module.toml`; merge `workflows/target_driven_incremental.config.yaml` template vars (`workflowClientId`, `workflowClientSecret`, batch size/timeout) into project config before `cdf build` / deploy.
 
 ##### `fn_idx_score`
 
@@ -2531,7 +2562,7 @@ sequenceDiagram
 1. **Production index backend**: Deploy DM `InvertedIndexEntry` (`INDEX_STORAGE_CONFIG.backend = "dm"`) for governance, indexed filters, and batch scoring at scale. The shipped pilot uses RAW with `global` scope — migrate when multi-unit scope is enabled.
 2. **Enable site + unit scope**: Copy `config/scope.example.yaml` into project config; set `scope.enabled: true` once DM views expose site/unit fields.
 3. **Integrate with Diagram Parsing Output**: Map CDM edge fields (`startNodeText`, `startNode*Min/Max`, `confidence`, `status`) into `additional_metadata`; store `annotation_external_id` and `detection_key` for file-as-reference rows (§2.4.1).
-4. **CDF Function Deployment**: Deploy `fn_idx_*` handlers; wire `fn_idx_handle_subscription` to instance subscription on `watch_property` (align with `target_driven.query_property`) after aliasing writeback.
+4. **CDF Function + Workflow Deployment**: Deploy `fn_idx_*` handlers and `wf_idx_target_driven_incremental` workflow artifacts (`workflows/` + `module.toml`); configure `dataModeling` WorkflowTrigger credentials and batch settings from `workflows/target_driven_incremental.config.yaml`.
 5. **Dashboard / Monitoring**: Build a simple UI showing index health, target-driven actions, detection-mode deltas (pattern vs standard), **missing-tags** queues, and **standard-not-in-pattern** queues for pattern library feedback.
 6. **Align with Entity Matching**: Reuse tokenization logic and consider hybrid use (entity matching for initial suggestions, inverted index for fast reactive lookup on new entities).
 7. **Documentation**: Maintain normalization rules, `source_type` taxonomy, `index_field_config`, **`INDEX_STORAGE_CONFIG`**, **`scope_config`**, **`target_driven`**, **`direct_relation_config`**, **`ANNOTATION_INDEX_CONFIG`**, **`SUBSCRIPTION_CONFIG`**, extraction modes, batched DM apply behaviour, and deduplication (`terms_hash`, `force`) in code docstrings and this spec.

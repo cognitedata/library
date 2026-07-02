@@ -1,0 +1,18 @@
+workflowExternalId: wf_idx_source_metadata_incremental
+version: v1
+workflowDefinition:
+  description: >-
+    Invoke fn_idx_handle_source_metadata with workflow trigger items (dataModeling batch).
+  tasks:
+    - externalId: fn_idx_handle_source_metadata
+      type: function
+      parameters:
+        function:
+          externalId: fn_idx_handle_source_metadata
+          data:
+            items: '${workflow.input.items}'
+      name: Source metadata index handler
+      description: Map workflow items to source index events and upsert metadata postings
+      retries: 3
+      timeout: 3600
+      onFailure: abortWorkflow

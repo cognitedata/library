@@ -664,6 +664,39 @@ body {
   align-self: end;
 }
 
+.idx-config-scope-override-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.idx-config-scope-override-toolbar {
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.5rem;
+}
+
+.idx-config-scope-override-toolbar__key {
+  flex: 1 1 min(100%, 16rem);
+  min-width: 0;
+}
+
+.idx-config-scope-override-card__mode-row {
+  margin-bottom: 0;
+}
+
+.idx-config-card__title--mono {
+  font-family: var(--idx-font-mono, ui-monospace, monospace);
+  font-size: 0.9rem;
+}
+
+.idx-config-warning {
+  color: var(--idx-warning, #b45309);
+  margin: 0.25rem 0 0.5rem;
+  font-size: 0.875rem;
+}
+
 .idx-config-link-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 12rem), 1fr));
@@ -1291,6 +1324,130 @@ body {
 :root[data-theme="dark"] .idx-badge--warn {
   color: #fbbf24;
   background: rgba(234, 179, 8, 0.12);
+}
+
+.idx-badge--error {
+  border-color: rgba(239, 68, 68, 0.45);
+  color: #b91c1c;
+  background: rgba(239, 68, 68, 0.1);
+}
+
+:root[data-theme="dark"] .idx-badge--error {
+  color: #f87171;
+  background: rgba(239, 68, 68, 0.12);
+}
+
+.idx-dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  min-width: 0;
+}
+
+.idx-dashboard__hero {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.15rem;
+  border: 1px solid var(--idx-border);
+  border-radius: var(--idx-radius);
+  background: linear-gradient(135deg, var(--idx-primary-soft) 0%, var(--idx-bg-elevated) 55%);
+  box-shadow: var(--idx-shadow-sm);
+  min-width: 0;
+}
+
+.idx-dashboard__hero-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  flex: 1 1 16rem;
+  min-width: 0;
+}
+
+.idx-dashboard__quick-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.idx-dashboard__quick-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--idx-text-muted);
+}
+
+.idx-dashboard__refresh {
+  flex-shrink: 0;
+  align-self: flex-start;
+}
+
+.idx-dashboard__panel {
+  min-width: 0;
+}
+
+.idx-dashboard__ops-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 28rem), 1fr));
+  gap: 1.25rem;
+  min-width: 0;
+}
+
+.idx-dashboard-runtime {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.idx-dashboard-runtime__connection {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.idx-dashboard-runtime__groups {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+  gap: 1.15rem;
+  min-width: 0;
+}
+
+.idx-dashboard-runtime__group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  min-width: 0;
+}
+
+.idx-dashboard__toolbar,
+.idx-dashboard__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.idx-dashboard__section {
+  min-width: 0;
+}
+
+.idx-dashboard__form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.idx-dashboard__watchlist {
+  min-height: 5rem;
+  resize: vertical;
+  width: 100%;
+  max-width: 100%;
 }
 
 /* —— Editor page layout —— */

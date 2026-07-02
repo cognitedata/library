@@ -43,3 +43,17 @@ export const TARGET_DRIVEN_METRICS: { key: string; labelKey: MessageKey }[] = [
   { key: "skipped", labelKey: "metrics.skipped" },
   { key: "dry_run", labelKey: "metrics.dryRun" },
 ];
+
+export const DASHBOARD_SUMMARY_METRICS: { key: string; labelKey: MessageKey }[] = [
+  { key: "scope_count", labelKey: "metrics.scopeCount" },
+  { key: "total_row_count", labelKey: "metrics.totalRowCount" },
+  { key: "reshard_recommended_count", labelKey: "metrics.reshardRecommendedCount" },
+  { key: "scopes_over_warn_threshold", labelKey: "metrics.scopesOverWarn" },
+  { key: "scopes_over_critical_threshold", labelKey: "metrics.scopesOverCritical" },
+];
+
+export const DASHBOARD_DELTA_METRICS: { key: string; labelKey: MessageKey }[] = [
+  { key: "files_scanned", labelKey: "metrics.filesScanned" },
+  { key: "total_missing_tags", labelKey: "metrics.totalMissingTags" },
+  { key: "total_pattern_feedback", labelKey: "metrics.totalPatternFeedback" },
+];

@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { fetchConnection } from "./api";
 import { ConfigPane } from "./components/index/ConfigPane";
+import { DashboardPane } from "./components/index/DashboardPane";
 import { BuildAnnotationsPane } from "./components/index/BuildAnnotationsPane";
 import { BuildMetadataPane } from "./components/index/BuildMetadataPane";
 import { FileContextPane } from "./components/index/FileContextPane";
-import { OverviewPane } from "./components/index/OverviewPane";
 import { QueryPane } from "./components/index/QueryPane";
 import { TagReusePane } from "./components/index/TagReusePane";
 import { TargetDrivenPane } from "./components/index/TargetDrivenPane";
@@ -23,9 +23,9 @@ import {
   createIndexTab,
   isBuildAnnotationsTab,
   isConfigurationTab,
+  isDashboardTab,
   isBuildMetadataTab,
   isFileContextTab,
-  isOverviewTab,
   isQueryTab,
   isSettingsTab,
   isTagReuseTab,
@@ -36,7 +36,7 @@ import type { MessageKey } from "./i18n";
 
 export function App() {
   const { t, theme, setTheme, locale, setLocale } = useAppSettings();
-  const { workspace, loading: workspaceLoading, overviewSubTab, persistWorkspace } = useIndexWorkspace();
+  const { workspace, loading: workspaceLoading, persistWorkspace } = useIndexWorkspace();
   const panel = useIndexPanelLayout();
   const [connection, setConnection] = useState<ConnectionInfo | null>(null);
   const [connError, setConnError] = useState<string | null>(null);
@@ -150,8 +150,8 @@ export function App() {
   }, []);
 
   const renderActiveTabContent = (tab: IndexDocumentTab) => {
-    if (isOverviewTab(tab))
-      return <OverviewPane refreshKey={refreshKey} initialSubTab={overviewSubTab} onOpenTab={openQuickTab} />;
+    if (isDashboardTab(tab))
+      return <DashboardPane refreshKey={refreshKey} onOpenTab={openQuickTab} />;
     if (isConfigurationTab(tab)) return <ConfigPane />;
     if (isBuildMetadataTab(tab)) return <BuildMetadataPane />;
     if (isBuildAnnotationsTab(tab)) return <BuildAnnotationsPane />;

@@ -15,11 +15,11 @@ _x_metadata_properties:
   - path: name
     source_type: asset_metadata
     extract_mode: regex
-    extract_pattern: \b[A-Z]{1,2}-\d{3,4}[A-Z]?\b
+    extract_pattern: \b(?:\d{2}-)?[A-Z]{1,2}-\d{3,4}[A-Z]?\b
   - path: description
     source_type: asset_metadata
     extract_mode: regex
-    extract_pattern: \b[A-Z]{1,2}-\d{3,4}[A-Z]?\b
+    extract_pattern: \b(?:\d{2}-)?[A-Z]{1,2}-\d{3,4}[A-Z]?\b
   - path: description
     source_type: file_metadata
     extract_mode: regex
@@ -33,16 +33,15 @@ index_field_config:
     view_space: cdf_cdm
     version: v1
     instance_spaces: []
-    filters: []
     properties:
       - path: name
         source_type: asset_metadata
         extract_mode: regex
-        extract_pattern: \b[A-Z]{1,2}-\d{3,4}[A-Z]?\b
+        extract_pattern: \b(?:\d{2}-)?[A-Z]{1,2}-\d{3,4}[A-Z]?\b
       - path: description
         source_type: asset_metadata
         extract_mode: regex
-        extract_pattern: \b[A-Z]{1,2}-\d{3,4}[A-Z]?\b
+        extract_pattern: \b(?:\d{2}-)?[A-Z]{1,2}-\d{3,4}[A-Z]?\b
       - path: description
         source_type: file_metadata
         extract_mode: regex
@@ -59,7 +58,7 @@ index_field_config:
       - path: description
         source_type: asset_metadata
         extract_mode: regex
-        extract_pattern: \b[A-Z]{1,2}-\d{3,4}[A-Z]?\b
+        extract_pattern: \b(?:\d{2}-)?[A-Z]{1,2}-\d{3,4}[A-Z]?\b
       - path: description
         source_type: file_metadata
         extract_mode: regex
@@ -76,11 +75,11 @@ index_field_config:
       - path: name
         source_type: asset_metadata
         extract_mode: regex
-        extract_pattern: \b[A-Z]{1,2}-\d{3,4}[A-Z]?\b
+        extract_pattern: \b(?:\d{2}-)?[A-Z]{1,2}-\d{3,4}[A-Z]?\b
       - path: description
         source_type: asset_metadata
         extract_mode: regex
-        extract_pattern: \b[A-Z]{1,2}-\d{3,4}[A-Z]?\b
+        extract_pattern: \b(?:\d{2}-)?[A-Z]{1,2}-\d{3,4}[A-Z]?\b
       - path: description
         source_type: file_metadata
         extract_mode: regex
@@ -94,22 +93,14 @@ index_field_config:
     version: v1
     instance_spaces: []
     properties:
-      - path: name
+      - path: aliases
         source_type: asset_metadata
         extract_mode: regex
-        extract_pattern: \b[A-Z]{1,2}-\d{3,4}[A-Z]?\b
+        extract_pattern: \b(?:\d{2}-)?[A-Z]{1,2}-\d{3,4}[A-Z]?\b
       - path: description
         source_type: asset_metadata
         extract_mode: regex
-        extract_pattern: \b[A-Z]{1,2}-\d{3,4}[A-Z]?\b
-      - path: description
-        source_type: file_metadata
-        extract_mode: regex
-        extract_pattern: (?i)\b[\w][\w.-]*\.(?:pdf|dwg|png|jpe?g|tif{1,2})\b
-      - path: description
-        source_type: file_metadata
-        extract_mode: regex
-        extract_pattern: \b[A-Z]{2,}(?:-[A-Z]{2,})*-P-\d{4}(?:-\d{3})?\b
+        extract_pattern: \b(?:\d{2}-)?[A-Z]{1,2}-\d{3,4}[A-Z]?\b
 annotation_index_config:
   view: CogniteDiagramAnnotation
   view_space: cdf_cdm
@@ -142,6 +133,21 @@ subscription:
   watch_view_keys:
     - asset
     - file
+source_index:
+  enabled: true
+  watch_view_keys: []
+  watch_properties: []
+  instance_spaces: []
+  dedupe:
+    enabled: true
+    cooldown_seconds: 300
+    raw_database: db_contextualization_idx
+    state_table: source_index_state
+  watermark:
+    enabled: true
+    raw_database: db_contextualization_idx
+    state_table: index_build_state
+    initial_lookback_seconds: 3600
 direct_relation_config:
   enabled: true
   min_confidence: 0.6

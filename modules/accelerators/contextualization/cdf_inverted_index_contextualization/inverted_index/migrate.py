@@ -9,7 +9,7 @@ from inverted_index.build import build_diagram_annotation_index, build_metadata_
 from inverted_index.config import SCOPE_CONFIG
 from inverted_index.raw_ops import list_registered_scope_keys
 from inverted_index.sources.annotations import list_diagram_annotations
-from inverted_index.storage import get_storage_adapter
+from inverted_index.storage import adapter_local_registry, get_storage_adapter
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +24,7 @@ def _resolve_purge_scopes(
 ) -> list[str]:
     if match_scope_keys:
         return list(match_scope_keys)
-    local_registry = getattr(storage_adapter, "_local_registry", None)
+    local_registry = adapter_local_registry(storage_adapter, client)
     scopes = list_registered_scope_keys(
         client,
         storage_config,

@@ -47,7 +47,7 @@ PARTITION_STRATEGY_TERM_FIRST_CHAR = "term_first_char"
 TARGET_DRIVEN_CONFIG: dict = {
     "query_property": "aliases",
     "query_property_fallbacks": ["name"],
-    "exclude_empty_aliases": False,
+    "exclude_empty_aliases": True,
 }
 
 TARGET_DRIVEN_DEDUPE_CONFIG: dict = {
@@ -96,7 +96,7 @@ SCOPE_CONFIG: dict = {
     "fallback_scope_key": "global",
 }
 
-_INDEX_TAG_PATTERN = r"\b[A-Z]{1,2}-\d{3,4}[A-Z]?\b"
+_INDEX_TAG_PATTERN = r"\b(?:\d{2}-)?[A-Z]{1,2}-\d{3,4}[A-Z]?\b"
 _INDEX_FILE_EXT_PATTERN = r"(?i)\b[\w][\w.-]*\.(?:pdf|dwg|png|jpe?g|tif{1,2})\b"
 # Drawing / master-document IDs without file extension (prior revision, master P&ID, etc.)
 _INDEX_DOC_REF_PATTERN = r"\b[A-Z]{2,}(?:-[A-Z]{2,})*-P-\d{4}(?:-\d{3})?\b"
@@ -110,7 +110,7 @@ def view_query_instance_spaces(view_config: dict) -> list[str | None]:
     return [None]
 
 
-_INDEX_METADATA_PROPERTIES: list[dict] = [
+_INDEX_METADATA_PROPERTIES_FILE: list[dict] = [
     {
         "path": "name",
         "source_type": "asset_metadata",
@@ -137,22 +137,60 @@ _INDEX_METADATA_PROPERTIES: list[dict] = [
     },
 ]
 
-def _index_view_entry(view: str) -> dict:
+_INDEX_METADATA_PROPERTIES_ASSET: list[dict] = [
+    {
+        "path": "description",
+        "source_type": "asset_metadata",
+        "extract_mode": "regex",
+        "extract_pattern": _INDEX_TAG_PATTERN,
+    },
+    {
+        "path": "description",
+        "source_type": "file_metadata",
+        "extract_mode": "regex",
+        "extract_pattern": _INDEX_FILE_EXT_PATTERN,
+    },
+    {
+        "path": "description",
+        "source_type": "file_metadata",
+        "extract_mode": "regex",
+        "extract_pattern": _INDEX_DOC_REF_PATTERN,
+    },
+]
+
+_INDEX_METADATA_PROPERTIES_TIMESERIES: list[dict] = [
+    {
+        "path": "aliases",
+        "source_type": "asset_metadata",
+        "extract_mode": "regex",
+        "extract_pattern": _INDEX_TAG_PATTERN,
+    },
+    {
+        "path": "description",
+        "source_type": "asset_metadata",
+        "extract_mode": "regex",
+        "extract_pattern": _INDEX_TAG_PATTERN,
+    },
+]
+
+
+def _index_view_entry(view: str, properties: list[dict]) -> dict:
     return {
         "view": view,
         "view_space": "cdf_cdm",
         "version": "v1",
         "instance_spaces": [],
         "filters": [],
-        "properties": list(_INDEX_METADATA_PROPERTIES),
+        "properties": [dict(p) for p in properties],
+        "properties_by_scope": {},
     }
 
 
 INDEX_FIELD_CONFIG: list[dict] = [
-    _index_view_entry("CogniteFile"),
-    _index_view_entry("CogniteAsset"),
-    _index_view_entry("CogniteEquipment"),
-    _index_view_entry("CogniteTimeSeries"),
+    _index_view_entry("CogniteFile", _INDEX_METADATA_PROPERTIES_FILE),
+    _index_view_entry("CogniteAsset", _INDEX_METADATA_PROPERTIES_ASSET),
+    _index_view_entry("CogniteEquipment", _INDEX_METADATA_PROPERTIES_FILE),
+    _index_view_entry("CogniteTimeSeries", _INDEX_METADATA_PROPERTIES_TIMESERIES),
 ]
 
 ANNOTATION_INDEX_CONFIG: dict = {
@@ -184,6 +222,25 @@ SUBSCRIPTION_CONFIG: dict = {
     "watch_property": "aliases",
     "instance_spaces": [],
     "watch_view_keys": ["asset", "file"],
+}
+
+SOURCE_INDEX_CONFIG: dict = {
+    "enabled": True,
+    "watch_view_keys": [],
+    "watch_properties": [],
+    "instance_spaces": [],
+    "dedupe": {
+        "enabled": True,
+        "cooldown_seconds": 300,
+        "raw_database": "db_contextualization_idx",
+        "state_table": "source_index_state",
+    },
+    "watermark": {
+        "enabled": True,
+        "raw_database": "db_contextualization_idx",
+        "state_table": "index_build_state",
+        "initial_lookback_seconds": 3600,
+    },
 }
 
 FRESHNESS_CONFIG: dict = {

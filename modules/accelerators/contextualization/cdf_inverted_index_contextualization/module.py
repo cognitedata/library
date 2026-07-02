@@ -416,6 +416,8 @@ def cmd_invoke_fn(args: argparse.Namespace) -> int:
         "fn_idx_build_annotations": "fn_idx_build_annotations.handler",
         "fn_idx_target_driven": "fn_idx_target_driven.handler",
         "fn_idx_handle_subscription": "fn_idx_handle_subscription.handler",
+        "fn_idx_handle_source_metadata": "fn_idx_handle_source_metadata.handler",
+        "fn_idx_build_watermark_incremental": "fn_idx_build_watermark_incremental.handler",
         "fn_idx_score": "fn_idx_score.handler",
         "fn_idx_deltas": "fn_idx_deltas.handler",
         "fn_idx_upsert_detections": "fn_idx_upsert_detections.handler",

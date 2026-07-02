@@ -9,7 +9,7 @@ from inverted_index.config import INDEX_STORAGE_CONFIG, SCOPE_CONFIG
 from inverted_index.normalize import normalize_query_terms
 from inverted_index.raw_ops import list_registered_scope_keys
 from inverted_index.scope import build_scope_key
-from inverted_index.storage import get_storage_adapter
+from inverted_index.storage import adapter_local_registry, get_storage_adapter
 from inverted_index.storage.raw_keys import merge_postings
 
 logger = logging.getLogger(__name__)
@@ -29,7 +29,7 @@ def resolve_query_scope_keys(
         raise ValueError("Provide match_scope_key or match_scope_keys, not both")
 
     if all_scopes:
-        local_registry = getattr(storage_adapter, "_local_registry", None)
+        local_registry = adapter_local_registry(storage_adapter, client)
         scopes = list_registered_scope_keys(
             client,
             storage_config,

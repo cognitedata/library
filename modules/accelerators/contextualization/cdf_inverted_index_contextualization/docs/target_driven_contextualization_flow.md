@@ -2,7 +2,7 @@
 
 End-to-end view of the **target-driven contextualization** pipeline in `cdf_inverted_index_contextualization`: from index entry creation and pattern/standard extraction, through scoped matching, to edge and direct-reference creation and virtual tag materialization.
 
-For API contracts, configuration schemas, and function signatures, see [cdf_inverted_index_function_spec.md](cdf_inverted_index_function_spec.md) (§2.3–§2.8, §3.3, §3.5).
+For a step-by-step setup path, see [QUICKSTART.md](QUICKSTART.md). For API contracts, configuration schemas, and function signatures, see [cdf_inverted_index_function_spec.md](cdf_inverted_index_function_spec.md) (§2.3–§2.8, §3.3, §3.5). Scope behaviour for target-driven matching is documented below under **Scope isolation and target-driven matching** and in the function spec §2.6 / §3.3.
 
 ## End-to-end process
 
@@ -35,6 +35,8 @@ flowchart TB
   subgraph incremental["2c — Incremental index writes"]
     UpsertDet["fn_idx_upsert_detections"]
     IndexMetaInst["fn_idx_index_metadata_instance"]
+    SourceWF["wf_idx_source_metadata_incremental\nfn_idx_handle_source_metadata"]
+    WatermarkWF["wf_idx_source_index_watermark\nfn_idx_build_watermark_incremental"]
   end
 
   subgraph storage["3 — Inverted index storage"]
@@ -60,7 +62,7 @@ flowchart TB
     subgraph altTrigger["Alternative trigger path"]
       VTAliases["Virtual tag leaf assets<br/>already have aliases populated"]
     end
-    Sub["Instance subscription<br/>fn_idx_handle_subscription"]
+    Sub["WorkflowTrigger dataModeling<br/>wf_idx_target_driven_incremental"]
     TDEntry["process_target_driven_contextualization<br/>(or fn_idx_target_driven)"]
     Ingest --> Aliasing
     Aliasing --> Sub --> TDEntry
@@ -87,11 +89,14 @@ flowchart TB
 
   DMViews --> MetaFn
   DMViews --> IndexMetaInst
+  DMViews --> SourceWF
   Diagrams --> AnnFn
   Diagrams --> UpsertDet
+  WatermarkWF --> Upsert
   ScopeMeta --> Upsert
   ScopeAnn --> Upsert
   IndexMetaInst --> Upsert
+  SourceWF --> Upsert
   UpsertDet --> Upsert
   Upsert --> VTIncr
   IndexRow --> Query
@@ -154,15 +159,74 @@ sequenceDiagram
 
 ## Key relationships
 
-### Scope isolation
+### Scope isolation and target-driven matching
 
-Both index build and target-driven matching use `match_scope_key` (e.g. `site:Rotterdam|unit:U100`) so reused tags across units do not cross-match. Unscoped lookups are discouraged at multi-unit sites.
+Target-driven contextualization is **target-first**: it starts from the **incoming instance** (typically a `CogniteAsset` with query terms on `aliases`), resolves scope on that instance, then queries the inverted index with **both** normalized query terms and `match_scope_key`. Index hits (diagram detections, file metadata, asset metadata) that share the term but were indexed under a different scope are excluded.
+
+#### Bidirectional scope (index build + query)
+
+Scope is applied on **both sides** of the lookup so file and asset targets stay within the same operational boundary:
+
+| Phase | When | What happens |
+|-------|------|--------------|
+| **Index build** | `build_metadata_index`, `build_diagram_annotation_index`, incremental upserts | `resolve_match_scope(instance, view, scope_config)` on each indexed instance → `match_scope_key` stored on every index row / RAW posting |
+| **Target-driven query** | `process_target_driven_contextualization` | Same `resolve_match_scope` on the **incoming target** (asset, file, equipment, or time series per `incoming_view_key`) → `query_index_by_terms(terms, match_scope_key=…)` |
+
+Index storage is keyed by `(match_scope_key, normalized_term)`, so an asset in `site:Rotterdam|unit:U100` only sees hits indexed under that same key — not the same tag from another unit's files or assets.
+
+**Per view at index build:**
+
+- **Files / assets / equipment / time series** — scope from configured `resolve_from` property paths (e.g. `sourceContext`, `sourceId`; see `config/scope.example.yaml`).
+- **Diagram annotations** — scope from annotation properties; when a level is still empty and `annotation_scope_via_linked_file: true`, scope is read from the **linked `CogniteFile`** (file-as-reference rows use the file's scope).
+
+#### Out-of-the-box vs configured scope
+
+| Setting | OOTB (`default.config.yaml`) | Multi-unit production (recommended) |
+|---------|------------------------------|--------------------------------------|
+| `scope.levels` | `[]` (empty) | e.g. `[site, unit]` |
+| `scope.strict_scope` | `false` | `true` |
+| Effective partition | Single **`global`** fallback (`fallback_scope_key: global`) | One partition per resolved scope, e.g. `site:Rotterdam\|unit:U100` |
+| Isolation | **None** — all terms share one partition; cross-unit false positives possible | Same tag in unit A does not match files/assets indexed in unit B |
+
+Enable scope explicitly for multi-unit sites: copy `config/scope.example.yaml` into project config, map `resolve_from` per view, and set `strict_scope: true`. See [cdf_inverted_index_function_spec.md](cdf_inverted_index_function_spec.md) §2.6.
+
+#### What scope ensures — and what it does not
+
+**Scope ensures** organizational isolation: when the same tag (e.g. `P-101A`) appears in multiple units at one site, target-driven only links to index entries (file detections, `file_metadata`, `asset_metadata`) that were built under the **same** `match_scope_key`.
+
+**Scope does not:**
+
+- Walk DM relations to infer scope (except annotations → linked file via `annotation_scope_via_linked_file`).
+- By itself pick "the correct file for this asset" beyond "same scope + term match".
+- Replace link resolution — which file or asset gets linked still comes from each hit's `reference_type` / `reference_external_id`, plus post-filters below.
+
+#### Skip reasons and strict scope
+
+When scope cannot be resolved or does not pass optional filters, target-driven skips link creation:
+
+| `reason` | When |
+|----------|------|
+| `scope_unresolved` | `strict_scope: true` (or empty `levels` with strict enabled) and `resolve_match_scope` returned no key |
+| `scope_filtered` | Caller passed `match_scope_keys` and the instance's resolved key is not in that list (`scope_lookup_override: false`) |
+
+Optional CLI / function args: `match_scope_keys` restricts which scopes may run; `scope_lookup_override: true` queries those keys without requiring the instance to resolve to one of them (admin / replay use).
+
+#### Filters beyond scope
+
+After scoped term lookup, target-driven applies additional gates before `apply_configured_links`:
+
+- **Self-reference removal** — hits where `reference_external_id` / `reference_space` equal the incoming instance (`is_self_reference_hit`).
+- **`min_confidence`** — diagram detection confidence threshold.
+- **`source_types_to_consider`** — e.g. `diagram_annotation_pattern`, `diagram_annotation_standard`, `file_metadata`, `asset_metadata` (from `direct_relation_config.source_types` or per-link overrides).
+- **Annotation status** — where configured on link apply paths.
+
+Unscoped or `global`-only deployments are acceptable for single-partition pilots; at multi-unit sites, unscoped lookups can return cross-unit false positives.
 
 ### Trigger contract
 
 Target-driven does **not** run on raw ingest alone. It expects query terms on the target instance (default property: `aliases`, populated by an external aliasing process). Virtual tag leaves are an exception: they pre-populate `aliases` so target-driven can link diagram-detected tags that have no real asset yet.
 
-Primary incremental path: instance subscription on `watch_property` → `fn_idx_handle_subscription` → `handle_aliases_subscription_event` → `process_target_driven_contextualization`.
+Primary incremental path (Toolkit-deployable): **`dataModeling` WorkflowTrigger** on `wf_idx_target_driven_incremental` → `fn_idx_handle_subscription` with `workflow.input.items` → `handle_aliases_subscription_event` → `process_target_driven_contextualization`. Runtime `subscription:` config controls handler filters (`watch_property`, `watch_view_keys`). Cognite Toolkit does not ship a YAML resource for native DM instance subscriptions that invoke a Function directly.
 
 ### Pattern vs standard diagram detections
 

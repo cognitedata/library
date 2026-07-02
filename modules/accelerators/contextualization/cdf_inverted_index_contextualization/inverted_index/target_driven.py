@@ -892,8 +892,7 @@ def run_target_driven_backfill(
                         resolved_query_property,
                         fallbacks=effective_query_fallbacks(td_cfg),
                     )
-                    view_name = view
-                    scope_key, _ = resolve_match_scope(instance, view_name, scope_cfg)
+                    scope_key, _ = resolve_match_scope(instance, view_ext, scope_cfg)
                     if (
                         not dry_run
                         and query_terms

@@ -279,12 +279,27 @@ def build_metadata_index_for_instance(
         view=view,
         version=version,
     )
-    entries = build_entries_from_instance(
+    entries, instance_meta = build_entries_from_instance(
         instance,
         view_cfg,
         scope_cfg,
         build_job_id=job_id,
     )
+
+    if instance_meta.get("skip_reason") == "scope_property_override_ambiguous":
+        return {
+            "status": "skipped",
+            "reason": "scope_property_override_ambiguous",
+            "matching_override_keys": instance_meta.get("matching_override_keys", []),
+            "scope_override_resolution": instance_meta.get("scope_override_resolution"),
+            "match_scope_key": instance_meta.get("match_scope_key", ""),
+            "instance_external_id": instance_external_id,
+            "view_external_id": view,
+            "candidate_entries": 0,
+            "errors": [],
+            "build_job_id": job_id,
+            "dry_run": dry_run,
+        }
 
     adapter = storage_adapter
     if adapter is None and not dry_run:
@@ -295,9 +310,14 @@ def build_metadata_index_for_instance(
         scope_key = entries[0].get("match_scope_key", "") if entries else ""
         if not scope_key:
             for _view_cfg in field_config:
-                probe = build_entries_from_instance(instance, _view_cfg, scope_cfg)
-                if probe:
-                    scope_key = probe[0].get("match_scope_key", "")
+                probe_entries, probe_meta = build_entries_from_instance(
+                    instance, _view_cfg, scope_cfg
+                )
+                if probe_entries:
+                    scope_key = probe_entries[0].get("match_scope_key", "")
+                    break
+                if probe_meta.get("match_scope_key"):
+                    scope_key = probe_meta.get("match_scope_key", "")
                     break
         remove_result = remove_postings_for_reference(
             adapter,
@@ -327,6 +347,7 @@ def build_metadata_index_for_instance(
         "candidate_entries": len(entries),
         "instance_external_id": instance_external_id,
         "view_external_id": view,
+        "scope_override_resolution": instance_meta.get("scope_override_resolution"),
         "errors": [],
         "build_job_id": job_id,
         "dry_run": dry_run or upsert_result.get("dry_run", False),

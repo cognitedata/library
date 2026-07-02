@@ -14,7 +14,7 @@ from inverted_index.config import INDEX_STORAGE_CONFIG, TAG_REUSE_AUDIT_POLICY
 from inverted_index.normalize import normalize_query_terms
 from inverted_index.query import query_index_by_terms, resolve_query_scope_keys
 from inverted_index.raw_ops import iter_partition_terms
-from inverted_index.storage import get_storage_adapter
+from inverted_index.storage import adapter_local_cache, get_storage_adapter
 
 logger = logging.getLogger(__name__)
 
@@ -127,7 +127,7 @@ def audit_cross_scope_tags(
             warn_threshold,
         )
 
-    local_cache = getattr(adapter, "_local_partitions", None)
+    local_cache = adapter_local_cache(adapter, client)
     term_scopes: dict[str, set[str]] = defaultdict(set)
     lookup_keys_scanned = 0
     t0 = time.perf_counter()

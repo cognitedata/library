@@ -1,0 +1,16 @@
+# Template variables for source index incremental Toolkit deploy.
+# Merge into project config.*.yaml (module variables) before cdf build / deploy.
+#
+# Required:
+#   workflowClientId, workflowClientSecret — service principal for WorkflowTrigger auth
+#
+# Optional (defaults shown):
+source_metadata_batch_size: 50
+source_metadata_batch_timeout: 60
+source_metadata_view_space: cdf_cdm
+source_metadata_view_version: v1
+source_metadata_file_view: CogniteFile
+source_metadata_asset_view: CogniteAsset
+source_metadata_equipment_view: CogniteEquipment
+source_metadata_timeseries_view: CogniteTimeSeries
+source_index_watermark_cron: "0 * * * *"

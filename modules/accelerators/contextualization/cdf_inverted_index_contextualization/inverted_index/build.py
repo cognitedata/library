@@ -167,6 +167,10 @@ def build_metadata_index(
         )
         view_processed = 0
         view_entries = 0
+        scope_override_exact = 0
+        scope_override_wildcard = 0
+        scope_override_default = 0
+        scope_override_ambiguous = 0
         if emit:
             emit(
                 f"[build-metadata] scanning view={view} view_space={view_space} "
@@ -197,12 +201,33 @@ def build_metadata_index(
             raise_if_cancelled(should_cancel)
             processed += 1
             view_processed += 1
-            entries = build_entries_from_instance(
+            entries, instance_meta = build_entries_from_instance(
                 instance,
                 view_cfg,
                 scope_cfg,
                 build_job_id=build_job_id,
             )
+            resolution = instance_meta.get("scope_override_resolution", "default")
+            if resolution == "exact":
+                scope_override_exact += 1
+            elif resolution == "wildcard":
+                scope_override_wildcard += 1
+            elif resolution == "ambiguous":
+                scope_override_ambiguous += 1
+                ext_id = (
+                    instance.get("externalId")
+                    or instance.get("external_id")
+                    or ""
+                )
+                if emit:
+                    emit(
+                        "[build-metadata] scope_override_ambiguous "
+                        f"view={view} instance={ext_id} "
+                        f"match_scope_key={instance_meta.get('match_scope_key', '')} "
+                        f"matching_keys={instance_meta.get('matching_override_keys', [])}"
+                    )
+            else:
+                scope_override_default += 1
             all_entries.extend(entries)
             view_entries += len(entries)
             if emit and processed % progress_interval == 0:
@@ -220,11 +245,16 @@ def build_metadata_index(
             view_stats[view] = {
                 "processed": view_processed,
                 "candidate_entries": view_entries,
+                "scope_override_exact": scope_override_exact,
+                "scope_override_wildcard": scope_override_wildcard,
+                "scope_override_default": scope_override_default,
+                "scope_override_ambiguous": scope_override_ambiguous,
             }
             if emit:
                 emit(
                     f"[build-metadata] view={view} complete "
-                    f"processed={view_processed} candidate_entries={view_entries}"
+                    f"processed={view_processed} candidate_entries={view_entries} "
+                    f"scope_override_ambiguous={scope_override_ambiguous}"
                 )
 
     raise_if_cancelled(should_cancel)
@@ -290,7 +320,9 @@ def build_metadata_index(
             f"candidate_entries={candidate_entries} "
             f"entries_created={upsert_result.get('entries_created', 0)} "
             f"entries_updated={upsert_result.get('entries_updated', 0)} "
-            f"errors={len(errors)} elapsed={time.monotonic() - started_at:.1f}s"
+            f"errors={len(errors)} "
+            f"scope_override_ambiguous={sum(v.get('scope_override_ambiguous', 0) for v in view_stats.values())} "
+            f"elapsed={time.monotonic() - started_at:.1f}s"
         )
     return {
         "processed": processed,
@@ -302,6 +334,9 @@ def build_metadata_index(
         "build_job_id": build_job_id,
         "errors": errors,
         "views": view_stats,
+        "scope_override_ambiguous": sum(
+            v.get("scope_override_ambiguous", 0) for v in view_stats.values()
+        ),
     }
 
 

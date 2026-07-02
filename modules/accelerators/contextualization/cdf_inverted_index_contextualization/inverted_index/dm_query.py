@@ -9,6 +9,8 @@ from typing import Any, Iterable, Iterator, List, Optional
 
 from inverted_index.scope import normalize_resolve_candidate
 
+from inverted_index.index_field_scope import collect_view_config_property_paths
+
 NODE_RESULT_KEY = "nodes"
 EDGE_RESULT_KEY = "edges"
 INDEX_RESULT_KEY = "index_rows"
@@ -71,9 +73,7 @@ def collect_view_property_paths(
     for view_cfg in index_field_config or []:
         if view_cfg.get("view") != view_external_id:
             continue
-        for prop in view_cfg.get("properties") or []:
-            if isinstance(prop, dict) and prop.get("path"):
-                paths.append(str(prop["path"]))
+        paths.extend(collect_view_config_property_paths(view_cfg))
         from inverted_index.view_query_filters import filter_target_property_paths
 
         paths.extend(filter_target_property_paths(view_cfg.get("filters")))

@@ -13,6 +13,7 @@ import {
   mergeDirectRelationIntoDoc,
   mergeGeneralIntoDoc,
   mergeIndexFieldsIntoDoc,
+  sanitizeIndexFieldsForPersist,
   mergeScopeIntoDoc,
   mergeTargetDrivenIntoDoc,
   mergeVirtualTagCreationIntoDoc,
@@ -90,7 +91,10 @@ export function ConfigPane({ embedded = false }: { embedded?: boolean }) {
     setError(null);
     setMessage(null);
     try {
-      const cfg = await saveConfig(yamlText);
+      const persistDoc = docFromYaml(yamlText);
+      sanitizeIndexFieldsForPersist(persistDoc);
+      const textToSave = yamlFromDoc(persistDoc);
+      const cfg = await saveConfig(textToSave);
       setSavedText(cfg.yaml_text);
       setYamlText(cfg.yaml_text);
       setRuntimeDirectRelation(cfg.runtime.direct_relation_config);
@@ -140,6 +144,7 @@ export function ConfigPane({ embedded = false }: { embedded?: boolean }) {
         return (
           <IndexFieldConfigEditor
             value={indexFieldsFromDoc(doc)}
+            scopeConfig={scopeFromDoc(doc)}
             onChange={(views) => updateDoc((d) => mergeIndexFieldsIntoDoc(d, views))}
           />
         );

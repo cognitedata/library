@@ -26,6 +26,7 @@ import {
   type RawTermPartitionConfig,
   type ScopeConfig,
   type ScopeLevelPaths,
+  type ScopePropertyOverride,
   type ScopeResolveCandidate,
   type SubscriptionConfig,
   type TargetDrivenQueryConfig,
@@ -242,6 +243,37 @@ function normalizeFilters(raw: unknown): JsonObject[] {
   return raw.filter((f): f is JsonObject => f != null && typeof f === "object" && !Array.isArray(f));
 }
 
+function normalizeScopePropertyOverride(raw: unknown): ScopePropertyOverride {
+  const base = emptyScopePropertyOverride();
+  if (Array.isArray(raw)) {
+    const properties = raw.map((p) => normalizeProperty(p)).filter((p) => p.path.trim());
+    return {
+      mode: "merge",
+      properties: properties.length ? properties : base.properties,
+    };
+  }
+  const o = asRecord(raw);
+  const mode = o.mode === "replace" ? "replace" : "merge";
+  const properties = Array.isArray(o.properties)
+    ? o.properties.map((p) => normalizeProperty(p)).filter((p) => p.path.trim())
+    : base.properties;
+  return {
+    mode,
+    properties: properties.length ? properties : base.properties,
+  };
+}
+
+function normalizePropertiesByScope(raw: unknown): Record<string, ScopePropertyOverride> {
+  const o = asRecord(raw);
+  const out: Record<string, ScopePropertyOverride> = {};
+  for (const [scopeKey, entry] of Object.entries(o)) {
+    const key = scopeKey.trim();
+    if (!key) continue;
+    out[key] = normalizeScopePropertyOverride(entry);
+  }
+  return out;
+}
+
 function normalizeView(raw: unknown): IndexFieldView {
   const base = emptyIndexFieldView();
   const o = asRecord(raw);
@@ -255,6 +287,7 @@ function normalizeView(raw: unknown): IndexFieldView {
     instanceSpaces: stringList(o.instance_spaces),
     filters: normalizeFilters(o.filters),
     properties: properties.length ? properties : [emptyIndexFieldProperty()],
+    propertiesByScope: normalizePropertiesByScope(o.properties_by_scope),
   };
 }
 
@@ -265,27 +298,72 @@ export function indexFieldsFromDoc(doc: Record<string, unknown>): IndexFieldView
 }
 
 export function mergeIndexFieldsIntoDoc(doc: Record<string, unknown>, views: IndexFieldView[]): void {
-  doc.index_field_config = views.map((v) => ({
-    view: v.view,
-    view_space: v.viewSpace,
-    version: v.version || undefined,
-    instance_spaces: v.instanceSpaces,
-    filters: v.filters.length ? v.filters : undefined,
-    properties: v.properties
-      .filter((p) => p.path.trim())
-      .map((p) => {
-        const row: Record<string, unknown> = {
+  doc.index_field_config = views.map((v) => {
+    const row: Record<string, unknown> = {
+      view: v.view,
+      view_space: v.viewSpace,
+      version: v.version || undefined,
+      instance_spaces: v.instanceSpaces,
+      filters: v.filters.length ? v.filters : undefined,
+      properties: v.properties.map((p) => {
+        const propRow: Record<string, unknown> = {
           path: p.path,
           source_type: p.sourceType,
         };
         const pattern = p.extractPattern.trim();
         if (pattern) {
-          row.extract_mode = "regex";
-          row.extract_pattern = pattern;
+          propRow.extract_mode = "regex";
+          propRow.extract_pattern = pattern;
         }
-        return row;
+        return propRow;
       }),
+    };
+    const scopeEntries = Object.entries(v.propertiesByScope).filter(([key]) => key.trim());
+    if (scopeEntries.length) {
+      const propertiesByScope: Record<string, Record<string, unknown>> = {};
+      for (const [scopeKey, override] of scopeEntries) {
+        propertiesByScope[scopeKey] = {
+          mode: override.mode,
+          properties: override.properties
+            .filter((p) => p.path.trim())
+            .map((p) => {
+              const propRow: Record<string, unknown> = {
+                path: p.path,
+                source_type: p.sourceType,
+              };
+              const pattern = p.extractPattern.trim();
+              if (pattern) {
+                propRow.extract_mode = "regex";
+                propRow.extract_pattern = pattern;
+              }
+              return propRow;
+            }),
+        };
+      }
+      row.properties_by_scope = propertiesByScope;
+    }
+    return row;
+  });
+}
+
+/** Drop draft property rows with blank paths before persisting config to disk. */
+export function sanitizeIndexFieldsForPersist(doc: Record<string, unknown>): void {
+  const views = indexFieldsFromDoc(doc).map((v) => ({
+    ...v,
+    properties: v.properties.filter((p) => p.path.trim()),
+    propertiesByScope: Object.fromEntries(
+      Object.entries(v.propertiesByScope)
+        .filter(([key]) => key.trim())
+        .map(([key, override]) => [
+          key,
+          {
+            ...override,
+            properties: override.properties.filter((p) => p.path.trim()),
+          },
+        ])
+    ),
   }));
+  mergeIndexFieldsIntoDoc(doc, views);
 }
 
 export function annotationFromDoc(doc: Record<string, unknown>): AnnotationIndexConfig {

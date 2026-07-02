@@ -11,7 +11,7 @@ if str(_staging_root) not in sys.path:
     sys.path.insert(0, str(_staging_root))
 
 from cdf_fn_common.fn_runtime import require_client, resolve_handler_payload  # noqa: E402
-from inverted_index.subscription import handle_aliases_subscription_event  # noqa: E402
+from inverted_index.subscription import handle_aliases_subscription_payload  # noqa: E402
 
 
 def handle(data: dict[str, Any] | None = None, client: Any = None) -> dict[str, Any]:
@@ -19,12 +19,10 @@ def handle(data: dict[str, Any] | None = None, client: Any = None) -> dict[str, 
     payload = resolved["payload"]
     overrides = resolved["overrides"]
     client = require_client(client)
-    event = payload.get("event") or payload
-    if not isinstance(event, dict):
-        return {"error": "event dict is required"}
-    return handle_aliases_subscription_event(
+    return handle_aliases_subscription_payload(
         client,
-        event,
+        payload,
         dry_run=overrides["dry_run"],
         runtime_config=resolved["runtime"],
+        force=bool(payload.get("force", False)),
     )

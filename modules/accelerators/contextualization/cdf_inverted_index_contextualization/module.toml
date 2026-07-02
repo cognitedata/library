@@ -14,3 +14,39 @@ location = "accelerators/contextualization/cdf_inverted_index_contextualization/
 
 [[extra_resources]]
 location = "accelerators/contextualization/cdf_inverted_index_contextualization/data_modeling/inverted_index.datamodel.yaml"
+
+[[extra_resources]]
+location = "accelerators/contextualization/cdf_inverted_index_contextualization/data_sets/ds_inverted_index_all.DataSet.yaml"
+
+[[extra_resources]]
+location = "accelerators/contextualization/cdf_inverted_index_contextualization/workflows/wf_idx_target_driven_incremental.Workflow.yaml"
+
+[[extra_resources]]
+location = "accelerators/contextualization/cdf_inverted_index_contextualization/workflows/v1.WorkflowVersion.yaml"
+
+[[extra_resources]]
+location = "accelerators/contextualization/cdf_inverted_index_contextualization/workflows/trigger.WorkflowTrigger.yaml"
+
+[[extra_resources]]
+location = "accelerators/contextualization/cdf_inverted_index_contextualization/raw/index_build_state.Table.yaml"
+
+[[extra_resources]]
+location = "accelerators/contextualization/cdf_inverted_index_contextualization/raw/source_index_state.Table.yaml"
+
+[[extra_resources]]
+location = "accelerators/contextualization/cdf_inverted_index_contextualization/workflows/wf_idx_source_metadata_incremental.Workflow.yaml"
+
+[[extra_resources]]
+location = "accelerators/contextualization/cdf_inverted_index_contextualization/workflows/v1_source_metadata.WorkflowVersion.yaml"
+
+[[extra_resources]]
+location = "accelerators/contextualization/cdf_inverted_index_contextualization/workflows/trigger_source_metadata.WorkflowTrigger.yaml"
+
+[[extra_resources]]
+location = "accelerators/contextualization/cdf_inverted_index_contextualization/workflows/wf_idx_source_index_watermark.Workflow.yaml"
+
+[[extra_resources]]
+location = "accelerators/contextualization/cdf_inverted_index_contextualization/workflows/v1_source_watermark.WorkflowVersion.yaml"
+
+[[extra_resources]]
+location = "accelerators/contextualization/cdf_inverted_index_contextualization/workflows/trigger_source_index_watermark.WorkflowTrigger.yaml"

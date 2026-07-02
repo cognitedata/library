@@ -1,0 +1,3 @@
+externalId: wf_idx_source_metadata_incremental
+description: Incremental metadata index maintenance when configured source views change
+dataSetExternalId: ds_inverted_index_all

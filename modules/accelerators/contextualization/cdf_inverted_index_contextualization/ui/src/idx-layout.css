@@ -735,6 +735,15 @@
     grid-column: auto;
   }
 
+  .idx-config-scope-override-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .idx-config-scope-override-toolbar__key {
+    flex-basis: auto;
+  }
+
   .idx-config-pane__header {
     grid-template-columns: 1fr;
   }
@@ -795,5 +804,31 @@
 @media (max-width: 42rem) {
   .idx-toolbar__title {
     font-size: 0.95rem;
+  }
+
+  .idx-dashboard__hero {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .idx-dashboard__refresh {
+    width: 100%;
+  }
+
+  .idx-dashboard__ops-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .idx-dashboard-runtime__groups {
+    grid-template-columns: 1fr;
+  }
+
+  .idx-dashboard__form .idx-field-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .idx-dashboard__watchlist {
+    min-height: 6rem;
   }
 }
