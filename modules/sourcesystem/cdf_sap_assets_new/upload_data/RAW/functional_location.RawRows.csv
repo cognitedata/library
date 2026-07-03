@@ -1,0 +1,8 @@
+key,name,description,flocFunctionalLocation,flocCategory,flocDisciplineType,flocObjectType,flocMainAsset,flocSuperiorFunctionalLocation,flocSystemStatus,flocMaintenancePlant,flocPlannerGroup,flocCriticalityCombined,flocBarrierArea,flocMainWorkCenter,area,facility,system,tagNumber,isDeleted
+VAL-PH,Valhall Process Hall,Main process hall platform,VAL-PH,Installation,Multi-discipline,Platform,,,Active,VAL,PM-01,Medium,,MECH-PH,23,Valhall PH,Process,VAL-PH,false
+VAL-PH-23,Area 23 Gas Compression,Gas compression area 23,VAL-PH-23,Area,Process,Process Area,,VAL-PH,Active,VAL,PM-01,High,,MECH-23,23,Valhall PH,Gas Compression,VAL-PH-23,false
+VAL-PH-48,Area 48 Subsea Systems,Subsea systems area 48,VAL-PH-48,Area,Subsea,Process Area,,VAL-PH,Active,VAL,PM-02,High,,SUB-48,48,Valhall PH,Subsea Systems,VAL-PH-48,false
+VAL-PH-23-GC,Gas Compression System,1st 2nd 3rd stage gas compression,VAL-PH-23-GC,System,Process,System,23-KA-9101,VAL-PH-23,Active,VAL,PM-01,Critical,Yes,MECH-23,23,Valhall PH,Gas Compression,VAL-PH-23-GC,false
+VAL-PH-23-WT,Water Treatment System,Seawater and chemical injection,VAL-PH-23-WT,System,Process,System,23-PA-9201A,VAL-PH-23,Active,VAL,PM-01,Medium,,MECH-23,23,Valhall PH,Water Treatment,VAL-PH-23-WT,false
+VAL-PH-23-EL,Electrical Distribution,Power generation and distribution,VAL-PH-23-EL,System,Electrical,System,23-GT-9401,VAL-PH-23,Active,VAL,PM-03,Critical,Yes,ELEC-23,23,Valhall PH,Electrical Distribution,VAL-PH-23-EL,false
+VAL-PH-23-UT,Utilities System,General utilities and support,VAL-PH-23-UT,System,Multi-discipline,System,,VAL-PH-23,Active,VAL,PM-01,Low,,MECH-23,23,Valhall PH,Utilities,VAL-PH-23-UT,false

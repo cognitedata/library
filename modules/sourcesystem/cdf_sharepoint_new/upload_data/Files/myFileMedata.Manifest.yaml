@@ -1,0 +1,14 @@
+
+kind: FileContent
+type: fileDataModelingTemplate
+fileDirectory: data
+viewId: # Can be replaced with an extension view
+  space: cdf_cdm
+  externalId: CogniteFile
+  version: v1
+template:
+  instanceId:
+    space: inst_location
+    externalId: file_$FILENAME
+  name: $FILENAME
+  mimeType: application/pdf

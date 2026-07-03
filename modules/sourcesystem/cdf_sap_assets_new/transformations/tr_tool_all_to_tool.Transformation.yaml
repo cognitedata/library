@@ -1,0 +1,14 @@
+externalId: tr_tool_all_to_tool
+name: Tool
+destination:
+  dataModel:
+    space: '{{ space }}'
+    externalId: '{{ data_model_external_id }}'
+    version: '{{ dm_version }}'
+    destinationType: Tool
+  instanceSpace: '{{ instance_space }}'
+  type: instances
+dataSetExternalId: '{{ dataset_external_id }}'
+ignoreNullFields: true
+isPublic: true
+conflictMode: upsert

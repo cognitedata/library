@@ -1,0 +1,14 @@
+externalId: tr_timeseries_all_to_timeseries_equipment_connection
+name: Time series to equipment connection
+destination:
+  dataModel:
+    space: '{{ space }}'
+    externalId: '{{ data_model_external_id }}'
+    version: '{{ dm_version }}'
+    destinationType: TimeSeriesData
+  instanceSpace: '{{ instance_space }}'
+  type: instances
+dataSetExternalId: '{{ dataset_external_id }}'
+ignoreNullFields: true
+isPublic: true
+conflictMode: upsert
