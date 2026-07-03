@@ -1,6 +1,5 @@
 import abc
 import copy
-from typing import Any
 
 from cognite.client import CogniteClient
 from cognite.client.data_classes.contextualization import (
@@ -18,12 +17,12 @@ class IAnnotationService(abc.ABC):
     """
 
     @abc.abstractmethod
-    def run_diagram_detect(self, files: list[FileReference], entities: list[dict[str, Any]]) -> tuple[int, str]:
+    def run_diagram_detect(self, files: list[FileReference], entities: list[dict[str, object]]) -> tuple[int, str]:
         pass
 
     @abc.abstractmethod
     def run_pattern_mode_detect(
-        self, files: list[FileReference], pattern_samples: list[dict[str, Any]]
+        self, files: list[FileReference], pattern_samples: list[dict[str, object]]
     ) -> tuple[int, str]:
         pass
 
@@ -50,7 +49,7 @@ class GeneralAnnotationService(IAnnotationService):
                 self.pattern_detect_config = copy.copy(self.diagram_detect_config)
                 self.pattern_detect_config.remove_leading_zeros = False
 
-    def run_diagram_detect(self, files: list[FileReference], entities: list[dict[str, Any]]) -> tuple[int, str]:
+    def run_diagram_detect(self, files: list[FileReference], entities: list[dict[str, object]]) -> tuple[int, str]:
         """
         Initiates a diagram detection job using CDF's diagram detect API.
 
@@ -78,7 +77,7 @@ class GeneralAnnotationService(IAnnotationService):
             raise Exception("API call to diagram/detect did not return a job ID or job Token")
 
     def run_pattern_mode_detect(
-        self, files: list[FileReference], pattern_samples: list[dict[str, Any]]
+        self, files: list[FileReference], pattern_samples: list[dict[str, object]]
     ) -> tuple[int, str]:
         """
         Initiates a diagram detection job in pattern mode using generated pattern samples.

@@ -1,3 +1,2 @@
 - dbName: {{ rawDatabase }}
   tableName: isa_personnel
-

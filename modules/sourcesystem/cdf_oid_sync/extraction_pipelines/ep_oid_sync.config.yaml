@@ -15,15 +15,15 @@ config:
     # Should be LARGER than schedule frequency to prevent gaps
     # Examples: "15m-ago" for 10-min schedule (50% buffer), "35m-ago" for 30-min schedule
     sync_realtime_start: "15m-ago"     # Start time for real-time sync (15 minutes of data for 10-min schedule)
-    
+
     sync_all_end: "168h-ago"           # End time for all syncs (7 days ago, due to OID publication delay)
     sync_random_start: "12w-ago"       # Start time for random backfill (12 weeks ago)
     instance_space: {{ instanceSpace }}  # Target space for writing time series
-    
+
     # Reset backfill: Set to true to remove all "oid_backfilled" tags and restart backfill process
     # This will be automatically reset to false after running once
     reset_backfill: false
-    
+
     # TimeSeries view configuration - derived from root variables
     timeseries_view_space: {{ schemaSpace }}
     timeseries_view_external_id: {{ reservedWordPrefix }}TimeSeries
@@ -38,4 +38,3 @@ config:
   # Logging configuration
   logging:
     log_level: "INFO"    # Options: DEBUG, INFO, WARNING, ERROR
-

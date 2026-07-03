@@ -39,7 +39,7 @@ config:
     customInstructions: {{customPromptInstructions}}
     # Custom prompt template. Leave empty to use the default template shown below.
     # Required placeholders: {text}, {properties}, {custom_instructions}
-    # 
+    #
     # DEFAULT TEMPLATE (used when template is empty):
     # -----------------------------------------------
     # You are an expert data analyst. You will receive a free text. Your task is to
@@ -73,7 +73,7 @@ config:
     #   "Property_ABC": null,
     #   "Property_List": ["value1", "value2"]
     # }
-    # ----------------------------------------------- 
+    # -----------------------------------------------
     template: ""
   # State store configuration for incremental processing
   stateStore:

@@ -1,4 +1,2 @@
 - dbName: {{ rawDatabase }}
   tableName: isa_unit_procedure
-
-

@@ -1,6 +1,6 @@
 externalId: 'ep_ctx_timeseries_{{location_name}}_{{source_name}}_entity_matching'
 name: 'ctx:timeseries:{{location_name}}:{{source_name}}:_entity_matching'
-dataSetExternalId: 'ds_timeseries_{{location_name}}' 
+dataSetExternalId: 'ds_timeseries_{{location_name}}'
 description: 'Entity Matching of timeseries and assets from source  {{location_name}}:{{source_name}}'
 rawTables:
   - dbName: '{{ dbName }}'
@@ -14,7 +14,7 @@ rawTables:
 source: '{{source_name}}'
 documentation: >
  # Time series and assets Contextualization
- 
+
  The Time series and assets Contextualization runs as a process in CDF Functions.
 
  Process triggers on new time series that not is connected to an asset.
@@ -34,8 +34,8 @@ documentation: >
     8. Output in good/bad table can then be used in workflow to update manual mappings
   ```
 
- Default configuration is provided as part of the deployment, but can be overwritten  
- 
+ Default configuration is provided as part of the deployment, but can be overwritten
+
  by configuration provided in configuration section below:
 
   ```
@@ -45,9 +45,9 @@ documentation: >
    externalId: External id of the view
    version: Version of the view
    searchProperty: Property used to create the entity matching link, typically alias
-   
+
    debug -  write DEBUG messages and only process one timeseries if True
-   runAll - if True run on all found timeseries, 
+   runAll - if True run on all found timeseries,
             if False only run on document not updated since last entity matching
    dmUpdate - if True, update the metadata in the DM, if False, only update the RAW tables
    rawdb - Raw database where status Information is stored
@@ -65,13 +65,13 @@ documentation: >
 
   ```
   data = {
-    "logLevel":"INFO", 
+    "logLevel":"INFO",
     "ExtractionPipelineExtId": "ep_ctx_timeseries_{{location_name}}_{{source_name}}_entity_matching"
   }
 
   ```
 
-  
+
   Available logLevels are INFO, DEBUG, ERROR, WARNING
 
 

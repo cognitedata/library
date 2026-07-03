@@ -216,12 +216,12 @@ class TestEnvIO:
         from _env_io import parse_env_file
         p = tmp_path / ".env"
         p.write_text("")
-        lines, vals, idx = parse_env_file(p)
+        _lines, vals, _idx = parse_env_file(p)
         assert vals == {}
 
     def test_parse_missing_file(self, tmp_path: Path) -> None:
         from _env_io import parse_env_file
-        lines, vals, idx = parse_env_file(tmp_path / ".env")
+        lines, vals, _idx = parse_env_file(tmp_path / ".env")
         assert lines == []
         assert vals == {}
 
@@ -252,7 +252,7 @@ class TestEnvIO:
         from _env_io import parse_env_file, upsert_env
         p = tmp_path / ".env"
         p.write_text("EXISTING=yes\n")
-        lines, vals, idx = parse_env_file(p)
+        lines, _vals, idx = parse_env_file(p)
         upsert_env(lines, idx, "NEW_KEY", "secret123")
         assert any("NEW_KEY=secret123" in line for line in lines)
 
@@ -260,7 +260,7 @@ class TestEnvIO:
         from _env_io import parse_env_file, upsert_env
         p = tmp_path / ".env"
         p.write_text("FOO=old\n")
-        lines, vals, idx = parse_env_file(p)
+        lines, _vals, idx = parse_env_file(p)
         upsert_env(lines, idx, "FOO", "new")
         assert any("FOO=new" in line for line in lines)
         assert not any("FOO=old" in line for line in lines)
@@ -269,7 +269,7 @@ class TestEnvIO:
         from _env_io import parse_env_file, upsert_env
         p = tmp_path / ".env"
         p.write_text("")
-        lines, vals, idx = parse_env_file(p)
+        lines, _vals, idx = parse_env_file(p)
         upsert_env(lines, idx, "ID", "abc-123")
         entry = next(line for line in lines if "ID=" in line)
         assert '"' not in entry

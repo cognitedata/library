@@ -1,5 +1,5 @@
 space: {{ enterprise_space }}
-externalId: ProductDefinition 
+externalId: ProductDefinition
 name: ProductDefinition
 description: Definition of the product process and resources (ISA-95 Level 3)
 properties:

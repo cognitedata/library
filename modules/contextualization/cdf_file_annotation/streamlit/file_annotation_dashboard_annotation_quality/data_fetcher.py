@@ -1,5 +1,5 @@
 import time
-from typing import Any, Callable, Optional
+from collections.abc import Callable
 
 import pandas as pd
 import streamlit as st
@@ -17,7 +17,9 @@ from data_structures import (
 
 class DataFetcher:
     @staticmethod
-    def _call_with_retries(func: Callable[..., Any], *args, max_attempts: int = 100, delay_seconds: float = 10.0, **kwargs) -> Any:
+    def _call_with_retries(
+        func: Callable[..., object], *args: object, max_attempts: int = 100, delay_seconds: float = 10.0, **kwargs: object
+    ) -> object:
         attempt = 0
 
         while True:
@@ -46,7 +48,7 @@ class DataFetcher:
 
     @staticmethod
     @st.cache_data(ttl=7200)
-    def load_pipeline_config(_client: CogniteClient, pipeline_external_id: str) -> Optional[dict]:
+    def load_pipeline_config(_client: CogniteClient, pipeline_external_id: str) -> dict | None:
         ep_configuration = DataFetcher._call_with_retries(func=_client.extraction_pipelines.config.retrieve, external_id=pipeline_external_id)
 
         if not ep_configuration:
@@ -218,7 +220,7 @@ class DataFetcher:
         if entity_resource_type_property:
             metadata_columns.append(entity_resource_type_property)
 
-        entities_df = pd.DataFrame(columns=[FieldNames.EXTERNAL_ID_CAMEL_CASE] + metadata_columns)
+        entities_df = pd.DataFrame(columns=[FieldNames.EXTERNAL_ID_CAMEL_CASE, *metadata_columns])
 
         for nodes in DataFetcher._call_with_retries(
             func=_client.data_modeling.instances,
@@ -246,7 +248,7 @@ class DataFetcher:
                 chunk_rows.append(row_dict)
 
             if chunk_rows:
-                df_chunk = pd.DataFrame(chunk_rows, columns=[FieldNames.EXTERNAL_ID_CAMEL_CASE] + metadata_columns)
+                df_chunk = pd.DataFrame(chunk_rows, columns=[FieldNames.EXTERNAL_ID_CAMEL_CASE, *metadata_columns])
                 entities_df = pd.concat([entities_df, df_chunk], ignore_index=True, sort=False)
 
         return entities_df

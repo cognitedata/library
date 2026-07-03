@@ -8,7 +8,7 @@ with improved performance, caching, batch processing, and error handling.
 import sys
 import traceback
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from cognite.client import CogniteClient
 from cognite.client import data_modeling as dm
@@ -46,7 +46,7 @@ sys.path.append(str(Path(__file__).parent))
 def metadata_update(
     client: CogniteClient,
     logger: CogniteFunctionLogger,
-    data: Dict[str, Any],
+    data: dict[str, Any],
     config: Config
 ) -> None:
     """
@@ -244,7 +244,7 @@ def update_pipeline_run(
     logger: CogniteFunctionLogger,
     xid: str,
     status: str,
-    msg: Optional[str] = None
+    msg: str | None = None
 ) -> None:
     """
     Update extraction pipeline run status with enhanced error handling
@@ -278,7 +278,7 @@ def get_new_items(
     view_id: ViewId,
     config: Config,
     node_type: str,
-) -> Optional[NodeList[Node]]:
+) -> NodeList[Node] | None:
     """
     Get new items with enhanced error handling and retry logic
     """
@@ -325,7 +325,7 @@ def get_new_items(
 
 def get_ts_filter(
     view_config: ViewPropertyConfig,
-    debug_ts: Optional[str],
+    debug_ts: str | None,
     run_all: bool,
     logger: CogniteFunctionLogger,
 ) -> dm.filters.Filter:
@@ -333,7 +333,7 @@ def get_ts_filter(
     Create timeseries filter with enhanced logic
     """
     
-    filters: List[dm.filters.Filter] = [HasData(views=[view_config.as_view_id()])]
+    filters: list[dm.filters.Filter] = [HasData(views=[view_config.as_view_id()])]
     
 
         # Check if the view entity already is matched or not
@@ -363,7 +363,7 @@ def get_asset_filter(
     
     logger.debug("Creating asset filter")
 
-    filters: List[dm.filters.Filter] = [HasData(views=[view_config.as_view_id()])]
+    filters: list[dm.filters.Filter] = [HasData(views=[view_config.as_view_id()])]
     
  
     if not run_all:  
@@ -376,9 +376,9 @@ def get_asset_filter(
 
 # Export all functions for backward compatibility
 __all__ = [
-    'metadata_update',
-    'update_pipeline_run',
+    'get_asset_filter',
     'get_new_items',
     'get_ts_filter',
-    'get_asset_filter'
+    'metadata_update',
+    'update_pipeline_run'
 ]

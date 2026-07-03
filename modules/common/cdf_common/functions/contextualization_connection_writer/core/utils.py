@@ -17,7 +17,7 @@ from core.models import Config, DirectRelationMapping, State
 T = TypeVar("T")
 
 
-def chunker(items: Sequence[T], chunk_size: int) -> Iterable[Sequence[T]]:
+def chunker[T](items: Sequence[T], chunk_size: int) -> Iterable[Sequence[T]]:
     for i in range(0, len(items), chunk_size):
         yield items[i : i + chunk_size]
 
@@ -53,7 +53,7 @@ def write_connections(
     connection_count = 0
     updated_nodes: list[dm.NodeApply] = []
     for view_id, annotation_by_source_by_property in annotation_by_source_by_property_by_view.items():
-        node_ids = [node_id for node_id, _ in annotation_by_source_by_property.keys()]
+        node_ids = [node_id for node_id, _ in annotation_by_source_by_property]
         existing_node_list = client.data_modeling.instances.retrieve(node_ids, sources=[view_id]).nodes
         existing_node_by_id = {node.as_id(): node.as_write() for node in existing_node_list}
 

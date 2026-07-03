@@ -1,5 +1,4 @@
 import uuid
-from typing import Optional
 
 import streamlit as st
 from cognite.client import CogniteClient
@@ -11,7 +10,7 @@ from tabs import OverallTab, PatternManagementTab, PerFileTab
 
 
 class AnnotationQualityUI:
-    def __init__(self, client: Optional[CogniteClient] = None):
+    def __init__(self, client: CogniteClient | None = None):
         self.client = client or CogniteClient()
 
     def render(self):
@@ -34,7 +33,7 @@ class AnnotationQualityUI:
             return
 
         placeholder = "-- Select a Pipeline --"
-        options = [placeholder] + pipeline_ids
+        options = [placeholder, *pipeline_ids]
         selected_pipeline = st.selectbox("Select a pipeline:", options=options, index=0, key="ph_pipeline")
 
         if not selected_pipeline or selected_pipeline == placeholder:

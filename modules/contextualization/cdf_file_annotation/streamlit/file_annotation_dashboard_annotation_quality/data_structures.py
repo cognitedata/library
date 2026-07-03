@@ -1,6 +1,5 @@
 from dataclasses import dataclass
-from enum import Enum
-from typing import List, Optional
+from enum import StrEnum
 
 import pandas as pd
 from cognite.client.data_classes.data_modeling.ids import ViewId
@@ -30,7 +29,7 @@ class AnnotationTag:
     status: str
     annotation_type: str | None = None
 
-class NormalizedStatus(str, Enum):
+class NormalizedStatus(StrEnum):
     REGULARLY_ANNOTATED = "Regularly Annotated"
     AUTOMATICALLY_PROMOTED = "Automatically Promoted"
     MANUALLY_PROMOTED = "Manually Promoted"
@@ -38,7 +37,7 @@ class NormalizedStatus(str, Enum):
     NO_MATCH = "No Match"
     AMBIGUOUS = "Ambiguous"
 
-class TagsStatus(str, Enum):
+class TagsStatus(StrEnum):
     PROMOTED_AUTO = "PromotedAuto"
     PROMOTED_MANUALLY = "PromotedManually"
     PROMOTE_ATTEMPTED = "PromoteAttempted"
@@ -49,22 +48,22 @@ class ViewPropertyConfig:
     schema_space: str
     external_id: str
     version: str
-    instance_space: Optional[str] = None
+    instance_space: str | None = None
 
     def as_view_id(self) -> ViewId:
         return ViewId(space=self.schema_space, external_id=self.external_id, version=self.version)
 
-    def as_property_ref(self, property_name: str) -> List[str]:
+    def as_property_ref(self, property_name: str) -> list[str]:
         return [self.schema_space, f"{self.external_id}/{self.version}", property_name]
 
-class CallerType(str, Enum):
+class CallerType(StrEnum):
     PREPARE = "Prepare"
     LAUNCH = "Launch"
     FINALIZE = "Finalize"
     PROMOTE = "Promote"
 
 @dataclass
-class AnnotationStatus(str, Enum):
+class AnnotationStatus(StrEnum):
     APPROVED = "Approved"
     SUGGESTED = "Suggested"
     REJECTED = "Rejected"
@@ -77,13 +76,13 @@ class AnnotationCoverageData:
     total_possible: int
 
 @dataclass
-class ActualAnnotationStatus(str, Enum):
+class ActualAnnotationStatus(StrEnum):
     REGULARLY_ANNOTATED = "Regularly Annotated"
     AUTOMATICALLY_PROMOTED = "Automatically Promoted"
     MANUALLY_PROMOTED = "Manually Promoted"
 
 @dataclass
-class PotentialAnnotationStatus(str, Enum):
+class PotentialAnnotationStatus(StrEnum):
     PATTERN_FOUND = "Pattern Found"
     AMBIGUOUS = "Ambiguous"
     NO_MATCH = "No Match"

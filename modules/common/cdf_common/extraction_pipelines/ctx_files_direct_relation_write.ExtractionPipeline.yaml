@@ -5,7 +5,7 @@ description: Writes direct relations based on annotations.
 documentation: >
   # Direct Relation Writer
 
-  This extraction pipeline is responsible for writing the direct relations into 
+  This extraction pipeline is responsible for writing the direct relations into
   a data model based on annotations.
 
   ## Annotations
@@ -33,7 +33,7 @@ documentation: >
   The configuration of the direct relation writer:
 
   ```yaml
-  state: # The Annotation writer uses the instances/sync endpoint to fetch annotations. 
+  state: # The Annotation writer uses the instances/sync endpoint to fetch annotations.
     # The state stores the last cursor.
     rawDatabase: <>
     rawTable: <>
@@ -43,7 +43,7 @@ documentation: >
       - startNodeView: # The view of the start node.
          space: <> .
          externalId: <>
-         version: <> 
+         version: <>
          directRelationProperty: <> # The property that contains the direct relation.
           # Must be set either on the start or end node.
         endNodeView: # The view of the end node.

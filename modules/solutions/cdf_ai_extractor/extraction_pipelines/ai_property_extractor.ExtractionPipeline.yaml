@@ -9,8 +9,8 @@ documentation: |
 
   ## Overview
 
-  The AI Property Extractor uses LLM agents to extract structured property values from unstructured 
-  text fields in data modeling instances. It reads a text property from instances and populates 
+  The AI Property Extractor uses LLM agents to extract structured property values from unstructured
+  text fields in data modeling instances. It reads a text property from instances and populates
   other properties based on the extracted values.
 
   ## Write Modes
@@ -21,7 +21,7 @@ documentation: |
   - **append**: Merge new values into existing lists (deduplicates). Requires `aiTimestampProperty`.
   - **overwrite**: Always replace with the latest extraction. Requires `aiTimestampProperty`.
 
-  `append` and `overwrite` modes use epoch-based processing with an AI timestamp property 
+  `append` and `overwrite` modes use epoch-based processing with an AI timestamp property
   (a user-defined `Timestamp` field in the target view) to prevent infinite reprocessing.
 
   ## Configuration

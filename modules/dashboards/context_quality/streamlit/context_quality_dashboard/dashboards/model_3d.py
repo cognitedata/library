@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 3D Model Contextualization Dashboard.
 
@@ -11,7 +10,6 @@ Displays metrics for 3D model associations:
 Features creative visualizations since there are only a few primary metrics.
 """
 
-from typing import Optional
 
 import plotly.graph_objects as go
 import streamlit as st
@@ -152,7 +150,7 @@ def _create_model_type_bars(
     
     fig = go.Figure()
     
-    for i, (cat, val, pct, color) in enumerate(zip(categories, values, pcts, colors)):
+    for _i, (cat, val, pct, color) in enumerate(zip(categories, values, pcts, colors, strict=False)):
         fig.add_trace(go.Bar(
             y=[cat],
             x=[pct],
@@ -189,8 +187,8 @@ def _create_coverage_comparison(
     values = [contextualization_rate, asset_coverage, critical_coverage, bbox_completeness]
     
     # Close the polygon
-    categories_closed = categories + [categories[0]]
-    values_closed = values + [values[0]]
+    categories_closed = [*categories, categories[0]]
+    values_closed = [*values, values[0]]
     
     fig = go.Figure()
     
@@ -236,7 +234,7 @@ def _create_coverage_comparison(
     return fig
 
 
-def render_3d_model_dashboard(metrics: dict, metadata: Optional[dict] = None):
+def render_3d_model_dashboard(metrics: dict, metadata: dict | None = None) -> None:
     """
     Render the 3D Model Contextualization dashboard.
     

@@ -340,7 +340,7 @@ properties:
       externalId: CommonLCIProperties
       version: "{{search_dm_version}}"
       type: view
-  
+
   # ------------------------------------------------------------------
   # CDM properties (re-sourced from cdf_cdm)
   # ------------------------------------------------------------------

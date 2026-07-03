@@ -1,5 +1,5 @@
 import time
-from typing import Any, Callable, Optional
+from collections.abc import Callable
 
 import pandas as pd
 import streamlit as st
@@ -14,7 +14,9 @@ from data_structures import CallerType, ViewPropertyConfig
 
 class DataFetcher:
     @staticmethod
-    def _call_with_retries(func: Callable[..., Any], *args, max_attempts: int = 100, delay_seconds: float = 10.0, **kwargs) -> Any:
+    def _call_with_retries(
+        func: Callable[..., object], *args: object, max_attempts: int = 100, delay_seconds: float = 10.0, **kwargs: object
+    ) -> object:
         attempt = 0
         while True:
             attempt += 1
@@ -39,7 +41,7 @@ class DataFetcher:
 
     @staticmethod
     @st.cache_data(ttl=3600)
-    def load_pipeline_config(_client: CogniteClient, pipeline_external_id: str) -> Optional[dict]:
+    def load_pipeline_config(_client: CogniteClient, pipeline_external_id: str) -> dict | None:
         ep_configuration = DataFetcher._call_with_retries(_client.extraction_pipelines.config.retrieve, external_id=pipeline_external_id)
         if not ep_configuration:
             return None

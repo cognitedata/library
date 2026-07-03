@@ -16,8 +16,8 @@ from .common import (
 def process_timeseries_batch(
     ts_batch,
     ts_view: ViewId,
-    acc: CombinedAccumulator
-):
+    acc: CombinedAccumulator,
+) -> None:
     """Process time series batch - collect TS metrics data."""
     for ts in ts_batch:
         ts_id = get_external_id(ts)
@@ -58,7 +58,7 @@ def process_timeseries_batch(
                 props_dump = ts.dump() if hasattr(ts, 'dump') else {}
                 # Check nested properties structure
                 if "properties" in props_dump:
-                    for view_key, view_props in props_dump.get("properties", {}).items():
+                    for _view_key, view_props in props_dump.get("properties", {}).items():
                         if isinstance(view_props, dict):
                             if unit is None:
                                 unit = view_props.get("unit")
@@ -117,7 +117,7 @@ def compute_historical_gaps_batch(
     acc: CombinedAccumulator,
     gap_threshold_days: int = 7,
     lookback: str = "1000d-ago",
-):
+) -> None:
     """
     Compute historical data completeness for a batch of timeseries.
     
@@ -236,7 +236,7 @@ def compute_ts_metrics(acc: CombinedAccumulator) -> dict:
     )
     
     # Historical Data Completeness
-    # = (total_time_span - gap_duration) / total_time_span × 100%
+    # = (total_time_span - gap_duration) / total_time_span x 100%
     # Example: 1 year span with 1 month gap = (365-30)/365 = 91.8%
     if acc.total_time_span_days > 0:
         data_with_gaps = acc.total_time_span_days - acc.total_gap_duration_days

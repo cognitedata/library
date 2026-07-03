@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Maintenance Workflow Quality Dashboard (RMDM v1).
 """
@@ -18,7 +17,7 @@ from .common import (
 )
 
 
-def render_maintenance_dashboard(metrics: dict):
+def render_maintenance_dashboard(metrics: dict) -> None:
     """Render the Maintenance Workflow Quality dashboard tab."""
     st.title("Maintenance Workflow Quality Dashboard")
     st.markdown("*Based on RMDM v1 Data Model*")
@@ -39,7 +38,7 @@ def render_maintenance_dashboard(metrics: dict):
         """)
         return
     
-    if not maintenance or not maintenance.get("maint_has_notifications", False) and not maintenance.get("maint_has_orders", False):
+    if not maintenance or (not maintenance.get("maint_has_notifications", False) and not maintenance.get("maint_has_orders", False)):
         st.warning("""
         **No Maintenance Data Found**
         

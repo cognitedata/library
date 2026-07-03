@@ -3,8 +3,7 @@ Common utilities, data classes, and accumulator for metrics computation.
 """
 
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
-from typing import Dict, List, Optional, Set
+from datetime import UTC, datetime, timedelta
 
 from cognite.client.data_classes.data_modeling import ViewId
 
@@ -110,7 +109,7 @@ def get_props(node, view: ViewId) -> dict:
     return node.properties.get(view, {}) or {}
 
 
-def get_external_id(node) -> Optional[str]:
+def get_external_id(node) -> str | None:
     """Safely retrieves external ID from a Cognite object."""
     return getattr(node, "external_id", None) or getattr(node, "externalId", None)
 
@@ -122,7 +121,7 @@ def format_elapsed(seconds: float) -> str:
     return f"{mins:02d}:{secs:02d}"
 
 
-def normalize_timestamp(ts) -> Optional[datetime]:
+def normalize_timestamp(ts) -> datetime | None:
     """Converts various timestamp formats to UTC datetime."""
     if ts is None:
         return None
@@ -130,7 +129,7 @@ def normalize_timestamp(ts) -> Optional[datetime]:
         return ts
     if isinstance(ts, (int, float)):
         try:
-            return datetime.fromtimestamp(ts / 1000, tz=timezone.utc)
+            return datetime.fromtimestamp(ts / 1000, tz=UTC)
         except Exception:
             return None
     if isinstance(ts, str):
@@ -141,7 +140,7 @@ def normalize_timestamp(ts) -> Optional[datetime]:
     return None
 
 
-def extract_parent_external_id(node, view: ViewId) -> Optional[str]:
+def extract_parent_external_id(node, view: ViewId) -> str | None:
     """Extract parent external ID from node properties."""
     props = get_props(node, view)
     parent = props.get("parent")
@@ -152,7 +151,7 @@ def extract_parent_external_id(node, view: ViewId) -> Optional[str]:
     return getattr(parent, "external_id", None)
 
 
-def get_asset_link(node, view: ViewId) -> Optional[str]:
+def get_asset_link(node, view: ViewId) -> str | None:
     """Extract asset link from equipment node."""
     props = get_props(node, view)
     asset = props.get("asset")
@@ -165,7 +164,7 @@ def get_asset_link(node, view: ViewId) -> Optional[str]:
     return None
 
 
-def is_type_consistent(equipment_type: Optional[str], asset_type: Optional[str]) -> bool:
+def is_type_consistent(equipment_type: str | None, asset_type: str | None) -> bool:
     """Check if equipment_type is consistent with asset_type."""
     if not equipment_type or not asset_type:
         return False
@@ -182,54 +181,54 @@ def is_type_consistent(equipment_type: Optional[str], asset_type: Optional[str])
 class EquipmentData:
     """Data collected for a single equipment node."""
     equipment_id: str
-    equipment_type: Optional[str]
-    asset_id: Optional[str]
-    serial_number: Optional[str]
-    manufacturer: Optional[str]
-    criticality: Optional[str]
+    equipment_type: str | None
+    asset_id: str | None
+    serial_number: str | None
+    manufacturer: str | None
+    criticality: str | None
 
 
 @dataclass
 class NotificationData:
     """Data collected for a single notification node."""
     notification_id: str
-    asset_id: Optional[str]
-    equipment_ids: List[str]
-    maintenance_order_id: Optional[str]
-    status: Optional[str]
+    asset_id: str | None
+    equipment_ids: list[str]
+    maintenance_order_id: str | None
+    status: str | None
 
 
 @dataclass
 class MaintenanceOrderData:
     """Data collected for a single maintenance order node."""
     order_id: str
-    asset_ids: List[str]
-    equipment_ids: List[str]
-    status: Optional[str]
-    actual_end_time: Optional[datetime]
+    asset_ids: list[str]
+    equipment_ids: list[str]
+    status: str | None
+    actual_end_time: datetime | None
 
 
 @dataclass
 class FailureNotificationData:
     """Data collected for a failure notification with failure analysis."""
     notification_id: str
-    failure_mode_id: Optional[str]
-    failure_mechanism_id: Optional[str]
-    failure_cause: Optional[str]  # String field in RMDM
+    failure_mode_id: str | None
+    failure_mechanism_id: str | None
+    failure_cause: str | None  # String field in RMDM
 
 
 @dataclass
 class FileData:
     """Data collected for a single file node (CogniteFile)."""
     file_id: str
-    asset_ids: List[str]  # Files can be linked to multiple assets
-    category_id: Optional[str]  # CogniteFileCategory
-    mime_type: Optional[str]
-    directory: Optional[str]
+    asset_ids: list[str]  # Files can be linked to multiple assets
+    category_id: str | None  # CogniteFileCategory
+    mime_type: str | None
+    directory: str | None
     is_uploaded: bool
-    name: Optional[str]
-    description: Optional[str]
-    source_id: Optional[str]
+    name: str | None
+    description: str | None
+    source_id: str | None
 
 
 # ----------------------------------------------------
@@ -243,22 +242,22 @@ class CombinedAccumulator:
     Processes assets once and reuses data across all metric computations.
     """
     # Time reference
-    now: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    now: datetime = field(default_factory=lambda: datetime.now(UTC))
     freshness_days: int = 30
     
     # ----- TIME SERIES DATA -----
-    assets_with_ts: Set[str] = field(default_factory=set)
+    assets_with_ts: set[str] = field(default_factory=set)
     ts_with_asset_link: int = 0  # TS that have at least one asset link
     total_ts_instances: int = 0  # Total instances (including duplicates)
-    ts_ids_seen: Set[str] = field(default_factory=set)  # For tracking unique TS
-    ts_duplicate_ids: List[str] = field(default_factory=list)  # Duplicate external IDs
+    ts_ids_seen: set[str] = field(default_factory=set)  # For tracking unique TS
+    ts_duplicate_ids: list[str] = field(default_factory=list)  # Duplicate external IDs
     # Unit metrics
     unit_checks: int = 0  # Total TS checked for units
     has_source_unit: int = 0  # TS with sourceUnit defined
     has_target_unit: int = 0  # TS with unit (standardized) defined
     has_any_unit: int = 0  # TS with either unit defined
     units_match: int = 0  # TS where unit == sourceUnit (when both present)
-    source_units_seen: Set[str] = field(default_factory=set)  # Track unique source units
+    source_units_seen: set[str] = field(default_factory=set)  # Track unique source units
     # Freshness and lag
     fresh_count: int = 0
     lag_sum: float = 0.0
@@ -273,73 +272,73 @@ class CombinedAccumulator:
     
     # ----- ASSET DATA (shared) -----
     total_asset_instances: int = 0  # Total instances (including duplicates)
-    asset_ids_seen: Set[str] = field(default_factory=set)  # For tracking unique assets
-    asset_duplicate_ids: List[str] = field(default_factory=list)  # Duplicate external IDs
+    asset_ids_seen: set[str] = field(default_factory=set)  # For tracking unique assets
+    asset_duplicate_ids: list[str] = field(default_factory=list)  # Duplicate external IDs
     # For TS metrics
     critical_assets_total: int = 0
     critical_assets_with_ts: int = 0
     # For hierarchy metrics
-    parent_of: Dict[str, Optional[str]] = field(default_factory=dict)
-    children_count_map: Dict[str, int] = field(default_factory=dict)
+    parent_of: dict[str, str | None] = field(default_factory=dict)
+    children_count_map: dict[str, int] = field(default_factory=dict)
     # For equipment type consistency
-    asset_type_map: Dict[str, Optional[str]] = field(default_factory=dict)
+    asset_type_map: dict[str, str | None] = field(default_factory=dict)
     
     # ----- EQUIPMENT DATA -----
-    equipment_list: List[EquipmentData] = field(default_factory=list)
-    equipment_to_asset: Dict[str, Optional[str]] = field(default_factory=dict)
-    assets_with_equipment: Dict[str, List[str]] = field(default_factory=dict)
+    equipment_list: list[EquipmentData] = field(default_factory=list)
+    equipment_to_asset: dict[str, str | None] = field(default_factory=dict)
+    assets_with_equipment: dict[str, list[str]] = field(default_factory=dict)
     total_equipment_instances: int = 0  # Total instances (including duplicates)
-    equipment_ids_seen: Set[str] = field(default_factory=set)  # For tracking unique equipment
-    equipment_duplicate_ids: List[str] = field(default_factory=list)  # Duplicate external IDs
+    equipment_ids_seen: set[str] = field(default_factory=set)  # For tracking unique equipment
+    equipment_duplicate_ids: list[str] = field(default_factory=list)  # Duplicate external IDs
     
     # ----- MAINTENANCE WORKFLOW DATA (RMDM v1) -----
     # Notifications
-    notification_list: List[NotificationData] = field(default_factory=list)
-    notification_ids_seen: Set[str] = field(default_factory=set)
+    notification_list: list[NotificationData] = field(default_factory=list)
+    notification_ids_seen: set[str] = field(default_factory=set)
     total_notification_instances: int = 0
-    notification_duplicate_ids: List[str] = field(default_factory=list)  # Duplicate external IDs
+    notification_duplicate_ids: list[str] = field(default_factory=list)  # Duplicate external IDs
     notifications_with_order: int = 0
     notifications_with_asset: int = 0
     notifications_with_equipment: int = 0
-    assets_with_notifications: Set[str] = field(default_factory=set)
-    equipment_with_notifications: Set[str] = field(default_factory=set)
+    assets_with_notifications: set[str] = field(default_factory=set)
+    equipment_with_notifications: set[str] = field(default_factory=set)
     
     # Maintenance Orders
-    order_list: List[MaintenanceOrderData] = field(default_factory=list)
-    order_ids_seen: Set[str] = field(default_factory=set)
+    order_list: list[MaintenanceOrderData] = field(default_factory=list)
+    order_ids_seen: set[str] = field(default_factory=set)
     total_order_instances: int = 0
-    order_duplicate_ids: List[str] = field(default_factory=list)  # Duplicate external IDs
+    order_duplicate_ids: list[str] = field(default_factory=list)  # Duplicate external IDs
     orders_with_asset: int = 0
     orders_with_equipment: int = 0
     orders_completed: int = 0
-    assets_with_orders: Set[str] = field(default_factory=set)
-    equipment_with_orders: Set[str] = field(default_factory=set)
-    orders_with_notification: Set[str] = field(default_factory=set)  # WOs referenced by notifications
+    assets_with_orders: set[str] = field(default_factory=set)
+    equipment_with_orders: set[str] = field(default_factory=set)
+    orders_with_notification: set[str] = field(default_factory=set)  # WOs referenced by notifications
     
     # Failure Notifications
-    failure_notification_list: List[FailureNotificationData] = field(default_factory=list)
-    failure_notification_ids_seen: Set[str] = field(default_factory=set)
+    failure_notification_list: list[FailureNotificationData] = field(default_factory=list)
+    failure_notification_ids_seen: set[str] = field(default_factory=set)
     total_failure_notification_instances: int = 0
     failure_notif_with_mode: int = 0
     failure_notif_with_mechanism: int = 0
     failure_notif_with_cause: int = 0
     
     # ----- FILE DATA -----
-    file_list: List[FileData] = field(default_factory=list)
-    file_ids_seen: Set[str] = field(default_factory=set)
+    file_list: list[FileData] = field(default_factory=list)
+    file_ids_seen: set[str] = field(default_factory=set)
     total_file_instances: int = 0
-    file_duplicate_ids: List[str] = field(default_factory=list)  # Duplicate external IDs
+    file_duplicate_ids: list[str] = field(default_factory=list)  # Duplicate external IDs
     files_with_assets: int = 0
     files_with_category: int = 0
     files_uploaded: int = 0
     files_with_name: int = 0
     files_with_description: int = 0
     files_with_source_id: int = 0
-    assets_with_files: Set[str] = field(default_factory=set)
-    file_category_counts: Dict[str, int] = field(default_factory=dict)
-    file_mime_type_counts: Dict[str, int] = field(default_factory=dict)
+    assets_with_files: set[str] = field(default_factory=set)
+    file_category_counts: dict[str, int] = field(default_factory=dict)
+    file_mime_type_counts: dict[str, int] = field(default_factory=dict)
     
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         self.fresh_limit = self.now - timedelta(days=self.freshness_days)
     
     @property
@@ -645,7 +644,7 @@ class CombinedAccumulator:
         
         return acc
     
-    def merge_from(self, other: "CombinedAccumulator"):
+    def merge_from(self, other: "CombinedAccumulator") -> None:
         """
         Merge another accumulator into this one (for batch aggregation).
         Counts are summed, sets are unioned, maps are merged.

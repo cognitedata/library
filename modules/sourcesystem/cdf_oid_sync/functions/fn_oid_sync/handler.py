@@ -82,7 +82,7 @@ def handle(client: CogniteClient, secrets: dict) -> dict:
         }
         
     except Exception as e:
-        error_msg = f"Function failed: {str(e)}"
+        error_msg = f"Function failed: {e!s}"
         print(f"ERROR: {error_msg}")
         import traceback
         traceback.print_exc()

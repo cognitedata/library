@@ -1,6 +1,6 @@
 from dataclasses import asdict, dataclass, field
-from datetime import datetime, timedelta, timezone
-from enum import Enum
+from datetime import UTC, datetime, timedelta
+from enum import StrEnum
 from typing import Literal, cast
 
 from cognite.client.data_classes.contextualization import (
@@ -28,13 +28,13 @@ class EnvConfig:
     client_secret: str
 
 
-class DiagramAnnotationStatus(str, Enum):
+class DiagramAnnotationStatus(StrEnum):
     SUGGESTED = "Suggested"
     APPROVED = "Approved"
     REJECTED = "Rejected"
 
 
-class AnnotationStatus(str, Enum):
+class AnnotationStatus(StrEnum):
     """
     Defines the types of values that the annotationStatus property can be for the Annotation State Instances.
     Inherits from 'str' so that the enum members are also string instances,
@@ -50,7 +50,7 @@ class AnnotationStatus(str, Enum):
     FAILED = "Failed"
 
 
-class FilterOperator(str, Enum):
+class FilterOperator(StrEnum):
     """
     Defines the types of filter operations that can be specified in the configuration.
     Inherits from 'str' so that the enum members are also string instances,
@@ -76,10 +76,10 @@ class AnnotationState:
     annotationMessage: str | None = None
     diagramDetectJobId: int | None = None
     sourceCreatedTime: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+        default_factory=lambda: datetime.now(UTC).replace(microsecond=0).isoformat()
     )
     sourceUpdatedTime: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+        default_factory=lambda: datetime.now(UTC).replace(microsecond=0).isoformat()
     )
     sourceCreatedUser: str = "fn_dm_context_annotation_launch"
     sourceUpdatedUser: str = "fn_dm_context_annotation_launch"
@@ -267,9 +267,7 @@ class BatchOfPairedNodes:
         return len(self.file_references)
 
     def is_empty(self) -> bool:
-        if self.file_references:
-            return False
-        return True
+        return not self.file_references
 
 
 @dataclass
@@ -282,10 +280,10 @@ class PerformanceTracker:
     files_failed: int = 0
     total_runs: int = 0
     total_time_delta: timedelta = timedelta(0)
-    latest_run_time: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    latest_run_time: datetime = field(default_factory=lambda: datetime.now(UTC))
 
     def _run_time(self) -> timedelta:
-        time_delta = datetime.now(timezone.utc) - self.latest_run_time
+        time_delta = datetime.now(UTC) - self.latest_run_time
         return time_delta
 
     def _average_run_time(self) -> timedelta:
@@ -301,13 +299,13 @@ class PerformanceTracker:
         self.total_runs += 1
         time_delta = self._run_time()
         self.total_time_delta += time_delta
-        self.latest_run_time = datetime.now(timezone.utc)
+        self.latest_run_time = datetime.now(UTC)
 
         report = f"run time: {time_delta}"
         return report
 
     def generate_overall_report(self) -> str:
-        report = f" Run started {datetime.now(timezone.utc)}\n- total runs: {self.total_runs}\n- total files processed: {self.files_success+self.files_failed}\n- successful files: {self.files_success}\n- failed files: {self.files_failed}\n- total run time: {self.total_time_delta}\n- average run time: {self._average_run_time()}"
+        report = f" Run started {datetime.now(UTC)}\n- total runs: {self.total_runs}\n- total files processed: {self.files_success+self.files_failed}\n- successful files: {self.files_success}\n- failed files: {self.files_failed}\n- total run time: {self.total_time_delta}\n- average run time: {self._average_run_time()}"
         return report
 
     def generate_ep_run(
@@ -330,7 +328,7 @@ class PerformanceTracker:
         self.files_failed = 0
         self.total_runs: int = 0
         self.total_time_delta = timedelta(0)
-        self.latest_run_time = datetime.now(timezone.utc)
+        self.latest_run_time = datetime.now(UTC)
         print("PerformanceTracker state has been reset")
 
 
@@ -352,11 +350,11 @@ class PromoteTracker:
     edges_ambiguous: int = 0
     total_runs: int = 0
     total_time_delta: timedelta = field(default_factory=lambda: timedelta(0))
-    latest_run_time: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    latest_run_time: datetime = field(default_factory=lambda: datetime.now(UTC))
 
     def _run_time(self) -> timedelta:
         """Calculates time since last run started."""
-        time_delta: timedelta = datetime.now(timezone.utc) - self.latest_run_time
+        time_delta: timedelta = datetime.now(UTC) - self.latest_run_time
         return time_delta
 
     def _average_run_time(self) -> timedelta:
@@ -388,7 +386,7 @@ class PromoteTracker:
         self.total_runs += 1
         time_delta: timedelta = self._run_time()
         self.total_time_delta += time_delta
-        self.latest_run_time = datetime.now(timezone.utc)
+        self.latest_run_time = datetime.now(UTC)
 
         report: str = f"Batch run time: {time_delta}"
         return report
@@ -441,7 +439,7 @@ class PromoteTracker:
         self.edges_ambiguous = 0
         self.total_runs = 0
         self.total_time_delta = timedelta(0)
-        self.latest_run_time = datetime.now(timezone.utc)
+        self.latest_run_time = datetime.now(UTC)
         print("PromoteTracker state has been reset")
 
 

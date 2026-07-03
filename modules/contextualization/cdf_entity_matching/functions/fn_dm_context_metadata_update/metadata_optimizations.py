@@ -8,10 +8,10 @@ performance, reduce memory usage, and enhance reliability.
 import gc
 import re
 import time
+from collections.abc import Callable
 from contextlib import contextmanager
 from dataclasses import dataclass
 from functools import lru_cache
-from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import psutil
 from cognite.client import CogniteClient
@@ -153,13 +153,13 @@ class RegexPatternCache:
     """Optimized regex pattern caching"""
     
     def __init__(self):
-        self._pattern_cache: Dict[str, re.Pattern] = {}
+        self._pattern_cache: dict[str, re.Pattern] = {}
         self._compile_norsok_patterns()
     
     def _compile_norsok_patterns(self):
         """Pre-compile common NORSOK patterns"""
         patterns = {
-            'norsok_split': r'[_:.]',
+            'norsok_split': r'[-]',
             'tag_validation': r'^[A-Z0-9]+-[A-Z0-9]+-[A-Z0-9]+',
             'equipment_number': r'[A-Z0-9]+-[A-Z0-9]+-(.+)',
         }
@@ -174,11 +174,11 @@ class RegexPatternCache:
             self._pattern_cache[pattern] = re.compile(pattern)
         return self._pattern_cache[pattern]
     
-    def split_norsok_tag(self, tag: str) -> List[str]:
+    def split_norsok_tag(self, tag: str) -> list[str]:
         """Optimized NORSOK tag splitting"""
         pattern = self._pattern_cache.get('norsok_split')
         if pattern:
-            return pattern.split(tag,2)
+            return pattern.split(tag)
         return tag.split('-')
 
 
@@ -194,7 +194,7 @@ class BatchProcessor:
     def process_nodes_in_batches(self, nodes: NodeList[Node], 
                                 process_func: Callable,
                                 logger: CogniteFunctionLogger,
-                                *args, **kwargs) -> List[NodeApply]:
+                                *args, **kwargs) -> list[NodeApply]:
         """Process nodes in optimized batches"""
         
         results = []
@@ -218,7 +218,7 @@ class BatchProcessor:
         return results
     
     def apply_updates_in_batches(self, client: CogniteClient,
-                                updates: List[NodeApply],
+                                updates: list[NodeApply],
                                 logger: CogniteFunctionLogger,
                                 batch_size: int = 2000) -> int:
         """Apply updates in optimized batches with retry logic"""
@@ -249,7 +249,7 @@ class BatchProcessor:
         return total_applied
     
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
-    def _apply_batch_with_retry(self, client: CogniteClient, batch: List[NodeApply], logger: CogniteFunctionLogger):
+    def _apply_batch_with_retry(self, client: CogniteClient, batch: list[NodeApply], logger: CogniteFunctionLogger):
         """Apply batch with retry logic"""
         try:
             client.data_modeling.instances.apply(batch)
@@ -276,7 +276,7 @@ class OptimizedMetadataProcessor:
         }
     
     def process_timeseries_metadata(self, node: Node, view_id: ViewId, 
-                                   node_space: str) -> Optional[NodeApply]:
+                                   node_space: str) -> NodeApply | None:
         """Process timeseries metadata with optimizations"""
         
         try:
@@ -335,7 +335,7 @@ class OptimizedMetadataProcessor:
             return None
     
     def process_asset_metadata(self, node: Node, view_id: ViewId,
-                              node_space: str) -> Optional[NodeApply]:
+                              node_space: str) -> NodeApply | None:
         """Process asset metadata with optimizations"""
         
         try:
@@ -391,7 +391,7 @@ class OptimizedMetadataProcessor:
             return None
     
     def process_file_metadata(self, node: Node, view_id: ViewId,
-                             node_space: str) -> Optional[NodeApply]:
+                             node_space: str) -> NodeApply | None:
         """Process file metadata with optimizations"""
         
         try:
@@ -428,57 +428,51 @@ class OptimizedMetadataProcessor:
             self.logger.error(f"Error processing file {node.external_id}: {e}")
             return None
     
-    def _parse_norsok_tag_optimized(self, tag: str, tags: List[str], 
-                                   aliases: List[str]) -> Tuple[Optional[str], List[str], List[str]]:
+    def _parse_norsok_tag_optimized(
+        self, tag: str, tags: list[str], aliases: list[str]
+    ) -> tuple[str | None, list[str], list[str]]:
         """Optimized NORSOK tag parsing with caching"""
-        
+
         try:
             tag_elements = self.regex_cache.split_norsok_tag(tag)
-            
+
             if len(tag_elements) < 3:
                 return None, tags, aliases
-            
-            if len(tag_elements) > 1 and f"site:{tag_elements[0]}" not in tags:
-                tags.append(f"site:{tag_elements[0]}")
 
-            if len(tag_elements) > 2:
-                aliases = self._get_timeseries_alias_list_optimized(tag_elements[1]) 
+            site = tag_elements[0]
+            if f"site:{site}" not in tags:
+                tags.append(f"site:{site}")
 
-            pattern = r'[-]'
-            split_result = re.split(pattern, tag_elements[1])
-            if split_result:    
-                area = split_result[0]
-                discipline_code = None
-                if len(split_result) > 1:
-                    discipline_code = split_result[1]
-                equipment_number = None
-                if len(split_result) > 2:
-                    equipment_number = '-'.join(split_result[2:])
-                if f"discipline:{discipline_code}" not in tags:
-                    tags.append(f"discipline:{discipline_code}")
-                if f"area:{area}" not in tags:
-                    tags.append(f"area:{area}")
-            
-                summary = f"Area/System Code: {area}"
-                if discipline_code:
-                    discipline_meaning = self.discipline_cache.get_discipline_meaning(discipline_code)
-                    summary = f"{summary} - Discipline Code: {discipline_code} - Discipline Meaning: {discipline_meaning}"
-                    if discipline_meaning == "Unknown Discipline":
-                        self.logger.warning(f"Unknown discipline code: {discipline_code}")
-                
-                if equipment_number:
-                    summary = f"{summary} - Equipment Number: {equipment_number}"
-                return summary, tags, aliases
-            else:
-                self.logger.error(f"Error: Invalid NORSOK tag format: {tag}")
-                return None, tags, aliases
+            discipline_code = tag_elements[1]
+            aliases = self._get_timeseries_alias_list_optimized(discipline_code, tuple(aliases))
+
+            area = discipline_code
+            equipment_number = "-".join(tag_elements[2:]) if len(tag_elements) > 2 else None
+
+            if discipline_code and f"discipline:{discipline_code}" not in tags:
+                tags.append(f"discipline:{discipline_code}")
+            if area and f"area:{area}" not in tags:
+                tags.append(f"area:{area}")
+
+            summary = f"Area/System Code: {area}"
+            discipline_meaning = self.discipline_cache.get_discipline_meaning(discipline_code)
+            summary = (
+                f"{summary} - Discipline Code: {discipline_code}"
+                f" - Discipline Meaning: {discipline_meaning}"
+            )
+            if discipline_meaning == "Unknown Discipline":
+                self.logger.warning(f"Unknown discipline code: {discipline_code}")
+
+            if equipment_number:
+                summary = f"{summary} - Equipment Number: {equipment_number}"
+            return summary, tags, aliases
         except Exception as e:
             self.logger.error(f"Error: invalid tag : {tag} - error: {e}")
-            return None, tags, aliases  
+            return None, tags, aliases
 
 
-    def _parse_asset_tag_optimized(self, name: str, aliases: List[str], 
-                                  root: str, tags: List[str]) -> Tuple[List[str], List[str]]:
+    def _parse_asset_tag_optimized(self, name: str, aliases: list[str], 
+                                  root: str, tags: list[str]) -> tuple[list[str], list[str]]:
         """Optimized asset tag parsing"""
         
         try:
@@ -497,18 +491,21 @@ class OptimizedMetadataProcessor:
             return tags, aliases
     
     @lru_cache(maxsize=5000)
-    def _get_timeseries_alias_list_optimized(self, name: str) -> List[str]:
+    def _get_timeseries_alias_list_optimized(self, name: str, aliases_tuple: tuple[str, ...] = ()) -> list[str]:
         """Optimized timeseries alias generation with caching"""
-        aliases = []
-        
-        # Add name if not in aliases
+        aliases = list(aliases_tuple)
+
         if name not in aliases:
             aliases.append(name)
-        
+
+        name_no_dash = name.replace("-", "")
+        if name_no_dash and name_no_dash not in aliases:
+            aliases.append(name_no_dash)
+
         return aliases
     
     @lru_cache(maxsize=5000)
-    def _get_asset_alias_list_optimized(self, name: str, aliases_tuple: Tuple[str, ...]) -> List[str]:
+    def _get_asset_alias_list_optimized(self, name: str, aliases_tuple: tuple[str, ...]) -> list[str]:
         """Optimized asset alias generation with caching"""
         aliases = list(aliases_tuple)
         
@@ -519,7 +516,7 @@ class OptimizedMetadataProcessor:
         return aliases
     
     @lru_cache(maxsize=5000)
-    def _get_file_alias_list_optimized(self, name: str, aliases_tuple: Tuple[str, ...]) -> List[str]:
+    def _get_file_alias_list_optimized(self, name: str, aliases_tuple: tuple[str, ...]) -> list[str]:
         """Optimized file alias generation with caching"""
         aliases = list(aliases_tuple)
         
@@ -534,7 +531,7 @@ class OptimizedMetadataProcessor:
         
         return aliases
     
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, float | int]:
         """Get processing statistics"""
         cache_stats = self.discipline_cache.get_stats()
         return {
@@ -554,9 +551,9 @@ class PerformanceBenchmark:
     
     def __init__(self, logger: CogniteFunctionLogger):
         self.logger = logger
-        self.benchmarks: Dict[str, List[float]] = {}
+        self.benchmarks: dict[str, list[float]] = {}
     
-    def benchmark_function(self, name: str, func: Callable, *args, **kwargs) -> Any:
+    def benchmark_function(self, name: str, func: Callable[..., object], *args: object, **kwargs: object) -> object:
         """Benchmark a function call"""
         start = time.time()
         try:
@@ -609,13 +606,13 @@ def optimize_metadata_processing():
 # ===== EXPORT MAIN CLASSES =====
 
 __all__ = [
-    'time_operation',
-    'monitor_memory_usage',
-    'cleanup_memory',
-    'OptimizedDisciplineCache',
-    'RegexPatternCache',
     'BatchProcessor',
+    'OptimizedDisciplineCache',
     'OptimizedMetadataProcessor',
     'PerformanceBenchmark',
-    'optimize_metadata_processing'
+    'RegexPatternCache',
+    'cleanup_memory',
+    'monitor_memory_usage',
+    'optimize_metadata_processing',
+    'time_operation'
 ] 

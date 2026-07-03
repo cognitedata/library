@@ -17,7 +17,6 @@ workload.
 import gc
 import time
 from contextlib import contextmanager
-from typing import Dict, List
 
 import psutil
 from logger import CogniteFunctionLogger
@@ -110,7 +109,7 @@ class PerformanceBenchmark:
 
     def __init__(self, logger: CogniteFunctionLogger):
         self.logger = logger
-        self.benchmarks: Dict[str, List[float]] = {}
+        self.benchmarks: dict[str, list[float]] = {}
 
     def benchmark_function(self, name: str, func, *args, **kwargs):
         """Time a single function call and record the duration."""
@@ -126,9 +125,9 @@ class PerformanceBenchmark:
             self.logger.error(f"{name} failed after {duration:.2f}s: {e}")
             raise
 
-    def get_summary(self) -> Dict[str, Dict[str, float]]:
+    def get_summary(self) -> dict[str, dict[str, float]]:
         """Return per-name count / total / average / min / max statistics."""
-        summary: Dict[str, Dict[str, float]] = {}
+        summary: dict[str, dict[str, float]] = {}
         for name, times in self.benchmarks.items():
             summary[name] = {
                 "count": len(times),

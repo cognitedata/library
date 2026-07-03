@@ -1,5 +1,5 @@
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from cognite.client import CogniteClient
 from dependencies import (
@@ -76,7 +76,7 @@ def handle(data: dict, function_call_info: dict, client: CogniteClient) -> dict[
         Exception: Any unexpected errors are caught, logged, and returned in status dict
     """
     _report_usage(client)
-    start_time: datetime = datetime.now(timezone.utc)
+    start_time: datetime = datetime.now(UTC)
 
     config_instance: Config
     config_instance, client = create_config_service(function_data=data, client=client)
@@ -98,7 +98,7 @@ def handle(data: dict, function_call_info: dict, client: CogniteClient) -> dict[
     run_status: str = "success"
     try:
         # Run in a loop for a maximum of 7 minutes b/c serverless functions can run for max 10 minutes before hardware dies
-        while datetime.now(timezone.utc) - start_time < timedelta(minutes=7):
+        while datetime.now(UTC) - start_time < timedelta(minutes=7):
             result: str | None = promote_service.run()
             if result == "Done":
                 logger_instance.info("No more candidates to process. Exiting.", section="END")

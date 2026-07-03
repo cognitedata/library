@@ -20,4 +20,3 @@ instance_space: "inst_isa_manufacturing"        # Shared instance space (aligned
 search_dm_version: v1
 search_data_model_external_id: ISA_Manufacturing_Search_SOL
 search_data_model_name: "ISA Manufacturing Domain Model Search"
-

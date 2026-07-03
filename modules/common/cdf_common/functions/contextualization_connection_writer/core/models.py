@@ -1,17 +1,10 @@
-import sys
-from typing import ClassVar
+from typing import ClassVar, Self
 
 from cognite.client import CogniteClient
 from cognite.client import data_modeling as dm
 from cognite.client.data_classes import RowWrite
 from pydantic import BaseModel, model_validator
 from pydantic.alias_generators import to_camel
-
-if sys.version_info >= (3, 11):
-    from typing import Self
-else:
-    from typing_extensions import Self
-
 
 FUNCTION_ID = "connection_writer"
 
