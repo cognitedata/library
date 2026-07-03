@@ -161,13 +161,13 @@ cfihos_oil_and_gas_extension/
 
 ## Generating CFIHOS containers and views
 
-The `cfihos_model_config/` directory contains a Python tool that generates container and view YAML files from the CFIHOS standard. Use this to create your own CFIHOS equipment class definitions.
+The `cfihos_model_config/` directory contains a Python tool that generates container and view YAML files from the CFIHOS standard. Use this to create your own CFIHOS equipment class definitions. Python dependencies are managed with [uv](https://docs.astral.sh/uv/) — see [cfihos_model_config/README.md](cfihos_model_config/README.md).
 
 ### How it works
 
 1. Parse CFIHOS tag class data from Excel into JSON using the `src/cfihos.ipynb` notebook (supports CFIHOS 1.5.1 and 2.0)
 2. Configure which tag classes to include in `src/config.yaml` using name-based filters
-3. Run `src/main.py` to generate Toolkit-compatible YAML files in a `toolkit-output/` folder
+3. Run `uv run python src/main.py` (from `cfihos_model_config/`, after `uv sync` at repo root) to generate Toolkit-compatible YAML files in a `toolkit-output/` folder
 4. Copy the generated files into your module's `data_modeling/containers/` and `data_modeling/views/` directories
 
 ### Configuration

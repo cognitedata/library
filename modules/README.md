@@ -130,6 +130,19 @@ Each deployable module is a directory with:
 
 Optional **`[[extra_resources]]`** in `module.toml` references shared files under other module paths (paths relative to `modules/`). `validate_packages.py` checks that each path exists.
 
+## Python dependencies (uv)
+
+Modules that ship Python (CDF Functions, Streamlit apps, or helper packages) declare dependencies in a per-folder `pyproject.toml` under the [uv workspace](../pyproject.toml) at the repository root. The `requirements.txt` next to each handler is **generated** for CDF deploy — edit `pyproject.toml`, then run `uv lock` and `python scripts/export_deploy_requirements.py`.
+
+From the repository root:
+
+```bash
+uv sync --group dev          # install repo + workspace dev tools
+uv run pytest tests/ -q      # repo tooling tests
+```
+
+Each module README lists paths and test commands for its Python components. See [AGENTS.md](../AGENTS.md) for the full workflow.
+
 ## Validation
 
 From the repository `library/` directory:

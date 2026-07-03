@@ -17,13 +17,13 @@ A high-performance entity matching pipeline for Cognite Data Fusion (CDF) that m
 ## 📋 Requirements
 
 ### Dependencies
-```
-cognite-extractor-utils>=7
-cognite-sdk == 7.*
-pyyaml >= 6.0.1
-pytest >= 7.0.0
-tenacity >= 8.0.0
-psutil >= 5.9.0
+
+Runtime dependencies are declared in `pyproject.toml` and exported to `requirements.txt` for CDF deploy. Direct deps include `cognite-extractor-utils`, `cognite-sdk`, `pyyaml`, `tenacity`, `psutil`, and `mixpanel`. Dev-only: `pytest`.
+
+Install from the **repository root** with [uv](https://docs.astral.sh/uv/):
+
+```bash
+uv sync --group dev
 ```
 
 ### Environment Variables
@@ -238,12 +238,7 @@ The function ships with two test files, both runnable via `pytest`:
 ### Prerequisites
 
 - Python 3.11+ (matches the Cognite Functions runtime).
-- `pytest` (already pinned in `requirements.txt`).
-- The minimum runtime libraries needed to import `pipeline.py` and `handler.py`:
-
-  ```bash
-  pip install pytest cognite-sdk psutil tenacity pyyaml pydantic mixpanel
-  ```
+- [uv](https://docs.astral.sh/uv/) and a one-time `uv sync --group dev` from the repository root (installs `pytest` and runtime libs for the workspace).
 
   `cognite-extractor-utils` is **not** needed to run tests — `RawUploadQueue` is lazy-imported inside `entity_matching()` and the test suite never reaches that construction site.
 
@@ -252,14 +247,14 @@ The function ships with two test files, both runnable via `pytest`:
 From the repo root:
 
 ```bash
-pytest -q modules/contextualization/cdf_entity_matching/functions/fn_dm_context_timeseries_entity_matching/
+uv run pytest modules/contextualization/cdf_entity_matching/functions/fn_dm_context_timeseries_entity_matching/ -q
 ```
 
 Or from the function directory:
 
 ```bash
 cd modules/contextualization/cdf_entity_matching/functions/fn_dm_context_timeseries_entity_matching
-pytest -q
+uv run pytest -q
 ```
 
 Expected output:

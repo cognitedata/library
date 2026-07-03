@@ -27,22 +27,21 @@ A Streamlit app to monitor and manage file annotation quality for a selected pip
 - `pandas` for DataFrame manipulation.
 - `cognite-sdk` to read and write raw rows (manual patterns) when configured.
 
-All Python dependencies for the module are listed in `requirements.txt`. Install them in your virtual environment with Poetry or pip.
+All Python dependencies are declared in `pyproject.toml` and exported to `requirements.txt` for CDF deploy. Use [uv](https://docs.astral.sh/uv/) from the **repository root**:
+
+```bash
+uv sync --group dev
+```
 
 ## Installation and Run
 
-1. From the repository root, create/activate your virtual environment and install dependencies. Example with Poetry:
+1. Install workspace dependencies (see above).
 
-```bash
-poetry install
-poetry shell
-```
-
-2. Run the app by changing to this folder and launching Streamlit:
+2. Run the app from this folder:
 
 ```bash
 cd modules/contextualization/cdf_file_annotation/streamlit/file_annotation_dashboard_annotation_quality
-streamlit run Annotation_Quality.py
+uv run streamlit run Annotation_Quality.py
 ```
 
 ## Environment Variables

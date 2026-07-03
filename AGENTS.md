@@ -82,22 +82,47 @@ pins the fixed behaviour so it can't regress.
 
 ```bash
 # Run the whole suite
-pytest
+uv run pytest
 
 # Run one file or test
-pytest tests/test_foundation_cicd_generator.py
-pytest tests/test_foundation_cicd_generator.py::test_name
+uv run pytest tests/test_foundation_cicd_generator.py
+uv run pytest tests/test_foundation_cicd_generator.py::test_name
 ```
+
+## Python dependencies (uv)
+
+Python packages in this repo are managed with [uv](https://docs.astral.sh/uv/). The
+root `pyproject.toml` defines a **workspace** of deployable function/streamlit packages
+under `modules/`, plus repo dev tools. CDF still deploys `requirements.txt` beside each
+handler; those files are **generated** from the lockfile.
+
+```bash
+# One-time / after pulling dependency changes
+uv sync --group dev
+
+# After changing any member pyproject.toml or root [dependency-groups]
+uv lock
+python scripts/export_deploy_requirements.py
+
+# Run a function's tests
+uv run pytest modules/contextualization/cdf_p_and_id_annotation/functions/fn_dm_context_files_annotation/ -q
+```
+
+When you add a new CDF Function with Python deps: add a `pyproject.toml` in the function
+folder, register the path in root `[tool.uv.workspace].members`, run `uv lock`, and
+export `requirements.txt` via `scripts/export_deploy_requirements.py` (add the path to
+`EXPORT_TARGETS` in that script).
 
 ## Local checks
 
 Run these before committing; CI runs the same and must stay green:
 
 ```bash
+uv sync --group dev      # install dev dependencies
 ruff check .          # lint
 ruff format .         # format (line length 120)
 pyright               # type-check (Python 3.13)
-pytest                # tests
+uv run pytest         # tests
 python validate_packages.py   # registry is valid (run if you touched modules/ or packages.toml)
 ```
 

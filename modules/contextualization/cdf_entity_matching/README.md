@@ -286,16 +286,35 @@ The codebase has been optimized through multiple production deployments, ensurin
 
 ## 🧪 Testing
 
+Python packages in this module use [uv](https://docs.astral.sh/uv/) (see repo root `pyproject.toml`). Each function folder has `pyproject.toml`; `requirements.txt` is generated for CDF deploy.
+
+From the **repository root**:
+
+```bash
+uv sync --group dev
+uv run pytest modules/contextualization/cdf_entity_matching/functions/fn_dm_context_timeseries_entity_matching/ -q
+uv run pytest modules/contextualization/cdf_entity_matching/functions/fn_dm_context_metadata_update/test_metadata_optimizations.py -q
+```
+
+Run a handler locally (set `CDF_*` / `IDP_*` env vars first):
+
+```bash
+cd modules/contextualization/cdf_entity_matching/functions/fn_dm_context_timeseries_entity_matching
+uv run python handler.py
+```
+
+After changing dependencies: `uv lock` and `python scripts/export_deploy_requirements.py`.
+
 ### Module Testing
 
 ```bash
-# Test entity matching function
+# Entity matching optimizations (also runnable directly)
 cd functions/fn_dm_context_timeseries_entity_matching
-python test_optimizations.py
+uv run python test_optimizations.py
 
-# Test metadata update function
+# Metadata update tests
 cd functions/fn_dm_context_metadata_update
-python test_metadata_optimizations.py
+uv run python test_metadata_optimizations.py
 ```
 
 ### Integration Testing

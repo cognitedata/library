@@ -71,6 +71,16 @@ Before you start, ensure you have:
 - A Cognite Toolkit project set up locally
 - Your project contains the standard `cdf.toml` file
 - Valid authentication to your target CDF environment
+- [uv](https://docs.astral.sh/uv/) for local Python work (`uv sync --group dev` from the repository root)
+
+### Python packages in this module
+
+| Path | Package | Deploy artifact |
+|------|---------|-----------------|
+| `functions/context_quality_handler/` | `context-quality-handler` | `requirements.txt` (generated) |
+| `streamlit/context_quality_dashboard/` | `context-quality-dashboard` | `requirements.txt` (generated) |
+
+Edit `pyproject.toml` in each folder; regenerate deploy requirements with `uv lock` and `python scripts/export_deploy_requirements.py` from the repo root.
 
 ### Step 1: Enable External Libraries (Toolkit < 0.7.0 only)
 

@@ -22,7 +22,8 @@ fn_dm_context_metadata_update/
 ├── config.py                     # Configuration management
 ├── logger.py                     # Enhanced logging functionality
 ├── constants.py                  # Module constants
-├── requirements.txt              # Python dependencies
+├── requirements.txt              # Generated for CDF deploy (see pyproject.toml)
+├── pyproject.toml                # uv package definition
 ├── test_metadata_optimizations.py # Comprehensive test suite
 └── README.md                     # This file
 ```
@@ -86,6 +87,8 @@ Deploy the function to CDF and configure it with an extraction pipeline:
 
 ### 2. Local Development
 
+Dependencies are managed with [uv](https://docs.astral.sh/uv/) (`pyproject.toml` in this folder; `requirements.txt` is generated for CDF deploy). From the **repository root**, run `uv sync --group dev` once.
+
 ```bash
 # Set environment variables
 export CDF_PROJECT=your-project
@@ -95,7 +98,8 @@ export IDP_CLIENT_SECRET=your-secret
 export IDP_TOKEN_URL=your-token-url
 
 # Run the handler directly
-python handler.py
+cd modules/contextualization/cdf_entity_matching/functions/fn_dm_context_metadata_update
+uv run python handler.py
 ```
 
 ### 3. Programmatic Usage
@@ -163,29 +167,34 @@ print(f"Status: {result['status']}")
 
 ### Run All Tests
 
+From the repository root:
+
 ```bash
-# Run the comprehensive test suite
-python test_metadata_optimizations.py
+uv run pytest modules/contextualization/cdf_entity_matching/functions/fn_dm_context_metadata_update/test_metadata_optimizations.py -q
+```
+
+Or run the script directly:
+
+```bash
+cd modules/contextualization/cdf_entity_matching/functions/fn_dm_context_metadata_update
+uv run python test_metadata_optimizations.py
 ```
 
 ### Test Categories
 
 #### 1. **Unit Tests**
 ```bash
-# Test individual optimization components
-python -m pytest test_metadata_optimizations.py::TestOptimizedMetadataProcessor -v
+uv run pytest modules/contextualization/cdf_entity_matching/functions/fn_dm_context_metadata_update/test_metadata_optimizations.py::TestOptimizedMetadataProcessor -v
 ```
 
 #### 2. **Performance Tests**
 ```bash
-# Test performance improvements
-python -m pytest test_metadata_optimizations.py::TestPerformanceBenchmark -v
+uv run pytest modules/contextualization/cdf_entity_matching/functions/fn_dm_context_metadata_update/test_metadata_optimizations.py::TestPerformanceBenchmark -v
 ```
 
 #### 3. **Integration Tests**
 ```bash
-# Test complete pipeline scenarios
-python -m pytest test_metadata_optimizations.py::test_integration_scenario -v
+uv run pytest modules/contextualization/cdf_entity_matching/functions/fn_dm_context_metadata_update/test_metadata_optimizations.py::test_integration_scenario -v
 ```
 
 ### Test Coverage
@@ -226,7 +235,7 @@ The module provides detailed monitoring:
 
 ## 🛠️ Dependencies
 
-See `requirements.txt` for complete dependencies:
+See `pyproject.toml` for direct dependencies; `requirements.txt` is the generated, pinned deploy lockfile.
 
 ```txt
 cognite-sdk>=7.0.0

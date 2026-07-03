@@ -32,22 +32,17 @@ The app discovers extraction pipelines, loads their configuration, queries data-
 - cognite-sdk (cognite-client) to read extraction pipeline configs, data model instances, functions logs and raw rows
 - altair for charts
 
-All Python dependencies for the module are listed in `requirements.txt`.
+Dependencies are in `pyproject.toml` (`requirements.txt` is generated for CDF deploy). From the **repository root**: `uv sync --group dev`.
 
 ## Installation and Run
 
-1. From the repository root, create/activate your virtual environment and install dependencies. Example with Poetry:
+1. Install workspace dependencies (see above).
 
-```bash
-poetry install
-poetry shell
-```
-
-2. Change to the module folder and run the Streamlit app:
+2. Run the Streamlit app from this folder:
 
 ```bash
 cd modules/contextualization/cdf_file_annotation/streamlit/file_annotation_dashboard_pipeline_health
-streamlit run Pipeline_Health.py
+uv run streamlit run Pipeline_Health.py
 ```
 
 ## Environment Variables

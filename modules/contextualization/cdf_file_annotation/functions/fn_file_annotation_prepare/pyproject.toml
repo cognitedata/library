@@ -1,0 +1,14 @@
+[project]
+name = "fn-file-annotation-prepare"
+version = "0.0.0"
+requires-python = ">=3.11,<3.14"
+dependencies = [
+    "cognite-sdk>=7.76.0,<8",
+    "msal==1.32.3",
+    "pydantic>=2.11.4,<3.0",
+    "PyJWT>=2.13.0,<3.0",
+    "python-dotenv>=1.2.2,<2.0",
+    "PyYAML>=6.0.2,<7.0",
+    "mixpanel>=4.10.0",
+    "protobuf>=6.33.5,<7.0",
+]

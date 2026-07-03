@@ -1,0 +1,13 @@
+[project]
+name = "context-quality-dashboard"
+version = "0.0.0"
+requires-python = ">=3.11,<3.14"
+dependencies = [
+    "pyodide-http>=0.2.1",
+    "cognite-sdk>=7.89.0,<8",
+    "cognite-pygen",
+    "packaging",
+    "plotly",
+    "matplotlib",
+    "fpdf2>=2.7.0",
+]

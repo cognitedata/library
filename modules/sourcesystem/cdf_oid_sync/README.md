@@ -356,13 +356,13 @@ Starting Open Industrial Data Sync
 
 ## 🧪 Testing
 
-### Local Testing
+Use [uv](https://docs.astral.sh/uv/) from the **repository root** (`uv sync --group dev`).
 
-You can test the function locally before deployment:
+### Local Testing
 
 ```bash
 cd modules/sourcesystem/cdf_oid_sync
-python test_oid_sync.py
+uv run python test_oid_sync.py
 ```
 
 This validation script mirrors the original notebook logic to ensure consistency.
