@@ -1,2 +1,0 @@
-cognite-sdk>=7.0.0
-mixpanel>=4.10.0
