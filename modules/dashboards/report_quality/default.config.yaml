@@ -1,6 +1,6 @@
 organization: ORG
-schemaSpace: sp_enterprise_process_industry
-datamodelExternalId: ORGProcessIndustries
+schemaSpace: dm_dom_oil_and_gas
+datamodelExternalId: dm_oil_and_gas_domain_model
 datamodelVersion: v1
 dataset: ingestion
 functionClientId: ${IDP_CLIENT_ID}
@@ -11,7 +11,7 @@ annotation_docs_tbl: annotation_documents_docs
 annotation_tags_tbl: annotation_documents_tags
 contextualization_rate_workflow: "0 0 29 2 *"
 workflow_timeout_per_job: 3600
-reservedWordPrefix: Enterprise_
+reservedWordPrefix: ""
 
 # used in /auth
 # Update GROUP_SOURCE_ID to your group source ID
