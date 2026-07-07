@@ -77,10 +77,11 @@ Before you start, ensure you have:
 
 | Path | Package | Deploy artifact |
 |------|---------|-----------------|
-| `functions/context_quality_handler/` | `context-quality-handler` | `requirements.txt` (generated) |
-| `streamlit/context_quality_dashboard/` | `context-quality-dashboard` | `requirements.txt` (generated) |
+| `functions/context_quality_handler/` | `context-quality-handler` | `requirements.txt` (direct deploy deps) |
+| `streamlit/context_quality_dashboard/` | `context-quality-dashboard` | `requirements.txt` (direct deploy deps) |
 
-Edit `pyproject.toml` in each folder; regenerate deploy requirements with `uv lock` and `python scripts/export_deploy_requirements.py` from the repo root.
+- **Local deps:** edit `pyproject.toml` in each folder, then `uv lock` and `uv sync --group dev` from the repo root.
+- **CDF deploy deps:** edit `deploy_dependencies` in `scripts/generate_uv_member_projects.py`, then `python scripts/export_deploy_requirements.py`.
 
 ### Step 1: Enable External Libraries (Toolkit < 0.7.0 only)
 

@@ -7,7 +7,7 @@ requires-python = ">=3.13"
 dev = [
     "cognite-sdk>=7,<8",
     "psutil>=5.9",
-    "pydantic>=2",
+    "pydantic>=2.12.4,<3.0.0",
     "pytest>=7",
     "python-dotenv>=1",
     "pyyaml>=6",

@@ -56,7 +56,7 @@ List any external dependencies required to use this artefact (e.g., specific lib
 
 * Python 3.11+
 * Cognite SDK 7.0+
-* pydantic 2.0+
+* pydantic 2.12.4+
 * duckdb 1.4+
 * polars 1.3+ (polars has two packages, so if `polars-lts-cpu` does not work, try `polars`)
 * ipykernel 7.0+ (notebook)

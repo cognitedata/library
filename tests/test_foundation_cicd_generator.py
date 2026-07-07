@@ -1,6 +1,5 @@
 """Tests for Foundation Deployment Pack CI/CD generator (cdf_project_foundation)."""
 
-from __future__ import annotations
 
 import subprocess
 import sys

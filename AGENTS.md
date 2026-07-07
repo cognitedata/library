@@ -94,7 +94,10 @@ uv run pytest tests/test_foundation_cicd_generator.py::test_name
 Python packages in this repo are managed with [uv](https://docs.astral.sh/uv/). The
 root `pyproject.toml` defines a **workspace** of deployable function/streamlit packages
 under `modules/`, plus repo dev tools. CDF still deploys `requirements.txt` beside each
-handler; those files are **generated** from the lockfile.
+handler; those files list **direct deploy dependencies only** — packages installed on top
+of the CDF Functions runtime, not the full transitive lockfile. Source of truth is
+`deploy_dependencies` in `scripts/generate_uv_member_projects.py`; regenerate with
+`scripts/export_deploy_requirements.py` after changing deploy deps.
 
 ```bash
 # One-time / after pulling dependency changes
@@ -109,9 +112,9 @@ uv run pytest modules/contextualization/cdf_p_and_id_annotation/functions/fn_dm_
 ```
 
 When you add a new CDF Function with Python deps: add a `pyproject.toml` in the function
-folder, register the path in root `[tool.uv.workspace].members`, run `uv lock`, and
-export `requirements.txt` via `scripts/export_deploy_requirements.py` (add the path to
-`EXPORT_TARGETS` in that script).
+folder, register the path in `scripts/generate_uv_member_projects.py` (`PACKAGE_SPECS`),
+run `python scripts/generate_uv_member_projects.py`, then `uv lock`, and
+`python scripts/export_deploy_requirements.py`.
 
 ## Local checks
 

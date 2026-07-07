@@ -22,7 +22,7 @@ fn_dm_context_metadata_update/
 ├── config.py                     # Configuration management
 ├── logger.py                     # Enhanced logging functionality
 ├── constants.py                  # Module constants
-├── requirements.txt              # Generated for CDF deploy (see pyproject.toml)
+├── requirements.txt              # Direct deploy dependencies for CDF
 ├── pyproject.toml                # uv package definition
 ├── test_metadata_optimizations.py # Comprehensive test suite
 └── README.md                     # This file
@@ -87,7 +87,9 @@ Deploy the function to CDF and configure it with an extraction pipeline:
 
 ### 2. Local Development
 
-Dependencies are managed with [uv](https://docs.astral.sh/uv/) (`pyproject.toml` in this folder; `requirements.txt` is generated for CDF deploy). From the **repository root**, run `uv sync --group dev` once.
+Dependencies are managed with [uv](https://docs.astral.sh/uv/). Use `pyproject.toml` for local dev; `requirements.txt` lists direct deploy packages for CDF. From the **repository root**, run `uv sync --group dev` once.
+
+After changing local dependencies: `uv lock` then `uv sync --group dev`. After changing CDF deploy dependencies: edit `deploy_dependencies` in `scripts/generate_uv_member_projects.py`, then `python scripts/export_deploy_requirements.py`.
 
 ```bash
 # Set environment variables
@@ -235,7 +237,7 @@ The module provides detailed monitoring:
 
 ## 🛠️ Dependencies
 
-See `pyproject.toml` for direct dependencies; `requirements.txt` is the generated, pinned deploy lockfile.
+See `pyproject.toml` for local dev dependencies; `requirements.txt` lists direct deploy packages for CDF.
 
 ```txt
 cognite-sdk>=7.0.0

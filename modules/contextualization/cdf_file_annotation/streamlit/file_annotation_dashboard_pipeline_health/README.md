@@ -32,7 +32,7 @@ The app discovers extraction pipelines, loads their configuration, queries data-
 - cognite-sdk (cognite-client) to read extraction pipeline configs, data model instances, functions logs and raw rows
 - altair for charts
 
-Dependencies are in `pyproject.toml` (`requirements.txt` is generated for CDF deploy). From the **repository root**: `uv sync --group dev`.
+Dependencies are in `pyproject.toml` for local dev. `requirements.txt` lists direct deploy packages for CDF. From the **repository root**: `uv sync --group dev`. After changing deploy deps: edit `deploy_dependencies` in `scripts/generate_uv_member_projects.py`, then `python scripts/export_deploy_requirements.py`.
 
 ## Installation and Run
 

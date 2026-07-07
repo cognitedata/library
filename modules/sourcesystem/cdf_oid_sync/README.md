@@ -356,7 +356,7 @@ Starting Open Industrial Data Sync
 
 ## 🧪 Testing
 
-Use [uv](https://docs.astral.sh/uv/) from the **repository root** (`uv sync --group dev`).
+Use [uv](https://docs.astral.sh/uv/) from the **repository root** (`uv sync --group dev`). Local dependencies are in `pyproject.toml`; `requirements.txt` lists direct deploy packages for CDF. After changing deploy deps: edit `deploy_dependencies` in `scripts/generate_uv_member_projects.py`, then `python scripts/export_deploy_requirements.py`.
 
 ### Local Testing
 

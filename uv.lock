@@ -303,7 +303,7 @@ dev = [
 dev = [
     { name = "cognite-sdk", specifier = ">=7,<8" },
     { name = "psutil", specifier = ">=5.9" },
-    { name = "pydantic", specifier = ">=2" },
+    { name = "pydantic", specifier = ">=2.12.4,<3.0.0" },
     { name = "pytest", specifier = ">=7" },
     { name = "python-dotenv", specifier = ">=1" },
     { name = "pyyaml", specifier = ">=6" },
@@ -416,7 +416,7 @@ dependencies = [
 requires-dist = [
     { name = "cognite-sdk", specifier = ">=7,<8" },
     { name = "mixpanel", specifier = ">=4.10.0" },
-    { name = "pydantic", specifier = ">=2.12.4,<3.0" },
+    { name = "pydantic", specifier = ">=2.12.4,<3.0.0" },
     { name = "pyyaml", specifier = ">=6" },
 ]
 
@@ -651,7 +651,7 @@ dependencies = [
 requires-dist = [
     { name = "cognite-sdk", specifier = ">=7,<8" },
     { name = "mixpanel", specifier = ">=4.10.0" },
-    { name = "pydantic", specifier = ">=2.0.0" },
+    { name = "pydantic", specifier = ">=2.12.4,<3.0.0" },
     { name = "pyyaml", specifier = ">=6.0.1" },
 ]
 
@@ -749,7 +749,7 @@ requires-dist = [
     { name = "mixpanel", specifier = ">=4.10.0" },
     { name = "msal", specifier = "==1.32.3" },
     { name = "protobuf", specifier = ">=6.33.5,<7.0" },
-    { name = "pydantic", specifier = ">=2.11.4,<3.0" },
+    { name = "pydantic", specifier = ">=2.12.4,<3.0.0" },
     { name = "pyjwt", specifier = ">=2.13.0,<3.0" },
     { name = "python-dotenv", specifier = ">=1.2.2,<2.0" },
     { name = "pyyaml", specifier = ">=6.0.2,<7.0" },
@@ -776,7 +776,7 @@ requires-dist = [
     { name = "mixpanel", specifier = ">=4.10.0" },
     { name = "msal", specifier = "==1.32.3" },
     { name = "protobuf", specifier = ">=6.33.5,<7.0" },
-    { name = "pydantic", specifier = ">=2.11.4,<3.0" },
+    { name = "pydantic", specifier = ">=2.12.4,<3.0.0" },
     { name = "pyjwt", specifier = ">=2.13.0,<3.0" },
     { name = "python-dotenv", specifier = ">=1.2.2,<2.0" },
     { name = "pyyaml", specifier = ">=6.0.2,<7.0" },
@@ -803,7 +803,7 @@ requires-dist = [
     { name = "mixpanel", specifier = ">=4.10.0" },
     { name = "msal", specifier = "==1.32.3" },
     { name = "protobuf", specifier = ">=6.33.5,<7.0" },
-    { name = "pydantic", specifier = ">=2.11.4,<3.0" },
+    { name = "pydantic", specifier = ">=2.12.4,<3.0.0" },
     { name = "pyjwt", specifier = ">=2.13.0,<3.0" },
     { name = "python-dotenv", specifier = ">=1.2.2,<2.0" },
     { name = "pyyaml", specifier = ">=6.0.2,<7.0" },
@@ -830,7 +830,7 @@ requires-dist = [
     { name = "mixpanel", specifier = ">=4.10.0" },
     { name = "msal", specifier = "==1.32.3" },
     { name = "protobuf", specifier = ">=6.33.5,<7.0" },
-    { name = "pydantic", specifier = ">=2.11.4,<3.0" },
+    { name = "pydantic", specifier = ">=2.12.4,<3.0.0" },
     { name = "pyjwt", specifier = ">=2.13.0,<3.0" },
     { name = "python-dotenv", specifier = ">=1.2.2,<2.0" },
     { name = "pyyaml", specifier = ">=6.0.2,<7.0" },

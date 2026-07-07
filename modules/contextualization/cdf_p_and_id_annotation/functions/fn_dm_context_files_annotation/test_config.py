@@ -8,7 +8,6 @@ Run from the function directory:
 
     pytest -q test_config.py
 """
-from __future__ import annotations
 
 import sys
 from pathlib import Path

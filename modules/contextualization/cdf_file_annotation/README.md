@@ -603,11 +603,13 @@ graph TD
 
 ### Local Development
 
-Python deps for each function and Streamlit app are managed with [uv](https://docs.astral.sh/uv/) (`pyproject.toml` per folder; `requirements.txt` generated for CDF). From the **repository root**:
+Python deps for each function and Streamlit app are managed with [uv](https://docs.astral.sh/uv/) (`pyproject.toml` per folder for local dev; `requirements.txt` lists direct deploy dependencies for CDF). From the **repository root**:
 
 ```bash
 uv sync --group dev
 ```
+
+After changing local dependencies: `uv lock`. After changing CDF deploy dependencies: edit `deploy_dependencies` in `scripts/generate_uv_member_projects.py`, then `python scripts/export_deploy_requirements.py`.
 
 Run handlers locally (set `CDF_*` / `IDP_*` in `.env` first):
 

@@ -3,19 +3,20 @@
 Run from the repository root after editing PACKAGE_SPECS:
 
     python scripts/generate_uv_member_projects.py
+    python scripts/export_deploy_requirements.py
 """
 
-from __future__ import annotations
 
 import json
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
+# Local dev / uv lock dependencies (may include broader ranges than deploy).
 FILE_ANNOTATION_RUNTIME = [
     "cognite-sdk>=7.76.0,<8",
     "msal==1.32.3",
-    "pydantic>=2.11.4,<3.0",
+    "pydantic>=2.12.4,<3.0.0",
     "PyJWT>=2.13.0,<3.0",
     "python-dotenv>=1.2.2,<2.0",
     "PyYAML>=6.0.2,<7.0",
@@ -32,6 +33,42 @@ FILE_ANNOTATION_STREAMLIT_RUNTIME = [
     "python-dotenv>=1.0.0",
 ]
 
+# CDF deploy: direct packages installed on top of the Functions runtime.
+FILE_ANNOTATION_DEPLOY = [
+    "annotated-types==0.7.0",
+    "certifi==2025.4.26",
+    "cffi>=1.17.1",
+    "charset-normalizer==3.4.2",
+    "cognite-sdk==7.76.0",
+    "cryptography==48.0.1",
+    "dotenv==0.9.9",
+    "idna==3.15",
+    "msal==1.32.3",
+    "oauthlib==3.2.2",
+    "packaging==25.0",
+    "protobuf>=6.33.5",
+    "pycparser==2.22",
+    "pydantic>=2.12.4,<3.0.0",
+    "PyJWT==2.13.0",
+    "python-dotenv==1.2.2",
+    "PyYAML==6.0.2",
+    "requests==2.33.0",
+    "requests-oauthlib==1.3.1",
+    "typing-inspection==0.4.0",
+    "typing_extensions==4.13.2",
+    "urllib3==2.7.0",
+    "mixpanel>=4.10.0",
+]
+
+FILE_ANNOTATION_STREAMLIT_DEPLOY = [
+    "pandas",
+    "altair",
+    "PyYaml",
+    "pyodide-http==0.2.1",
+    "cognite-sdk==7.73.4",
+    "python-dotenv>=1.0.0",
+]
+
 PACKAGE_SPECS: list[dict[str, object]] = [
     {
         "path": "modules/common/cdf_common/functions/contextualization_connection_writer",
@@ -39,8 +76,14 @@ PACKAGE_SPECS: list[dict[str, object]] = [
         "requires_python": ">=3.11,<3.14",
         "dependencies": [
             "cognite-sdk>=7,<8",
-            "pydantic>=2.12.4,<3.0",
+            "pydantic>=2.12.4,<3.0.0",
             "pyyaml>=6",
+            "mixpanel>=4.10.0",
+        ],
+        "deploy_dependencies": [
+            "cognite-sdk == 7.*",
+            "pydantic>=2.12.4,<3.0.0",
+            "pyyaml==6.*",
             "mixpanel>=4.10.0",
         ],
     },
@@ -56,6 +99,14 @@ PACKAGE_SPECS: list[dict[str, object]] = [
             "psutil>=5.9.0",
             "mixpanel>=4.10.0",
         ],
+        "deploy_dependencies": [
+            "cognite-extractor-utils>=7",
+            "cognite-sdk == 7.*",
+            "pyyaml >= 6.0.1",
+            "tenacity >= 8.0.0",
+            "psutil >= 5.9.0",
+            "mixpanel>=4.10.0",
+        ],
     },
     {
         "path": "modules/contextualization/cdf_entity_matching/functions/fn_dm_context_timeseries_entity_matching",
@@ -69,6 +120,14 @@ PACKAGE_SPECS: list[dict[str, object]] = [
             "psutil>=5.9.0",
             "mixpanel>=4.10.0",
         ],
+        "deploy_dependencies": [
+            "cognite-extractor-utils>=7",
+            "cognite-sdk == 7.*",
+            "pyyaml >= 6.0.1",
+            "tenacity >= 8.0.0",
+            "psutil >= 5.9.0",
+            "mixpanel>=4.10.0",
+        ],
         "dev_dependencies": ["pytest>=7.0.0"],
         "pytest": True,
     },
@@ -77,36 +136,42 @@ PACKAGE_SPECS: list[dict[str, object]] = [
         "name": "fn-file-annotation-finalize",
         "requires_python": ">=3.11,<3.14",
         "dependencies": FILE_ANNOTATION_RUNTIME,
+        "deploy_dependencies": FILE_ANNOTATION_DEPLOY,
     },
     {
         "path": "modules/contextualization/cdf_file_annotation/functions/fn_file_annotation_launch",
         "name": "fn-file-annotation-launch",
         "requires_python": ">=3.11,<3.14",
         "dependencies": FILE_ANNOTATION_RUNTIME,
+        "deploy_dependencies": FILE_ANNOTATION_DEPLOY,
     },
     {
         "path": "modules/contextualization/cdf_file_annotation/functions/fn_file_annotation_prepare",
         "name": "fn-file-annotation-prepare",
         "requires_python": ">=3.11,<3.14",
         "dependencies": FILE_ANNOTATION_RUNTIME,
+        "deploy_dependencies": FILE_ANNOTATION_DEPLOY,
     },
     {
         "path": "modules/contextualization/cdf_file_annotation/functions/fn_file_annotation_promote",
         "name": "fn-file-annotation-promote",
         "requires_python": ">=3.11,<3.14",
         "dependencies": FILE_ANNOTATION_RUNTIME,
+        "deploy_dependencies": FILE_ANNOTATION_DEPLOY,
     },
     {
         "path": "modules/contextualization/cdf_file_annotation/streamlit/file_annotation_dashboard_annotation_quality",
         "name": "file-annotation-dashboard-annotation-quality",
         "requires_python": ">=3.11,<3.14",
         "dependencies": FILE_ANNOTATION_STREAMLIT_RUNTIME,
+        "deploy_dependencies": FILE_ANNOTATION_STREAMLIT_DEPLOY,
     },
     {
         "path": "modules/contextualization/cdf_file_annotation/streamlit/file_annotation_dashboard_pipeline_health",
         "name": "file-annotation-dashboard-pipeline-health",
         "requires_python": ">=3.11,<3.14",
         "dependencies": FILE_ANNOTATION_STREAMLIT_RUNTIME,
+        "deploy_dependencies": FILE_ANNOTATION_STREAMLIT_DEPLOY,
     },
     {
         "path": "modules/contextualization/cdf_p_and_id_annotation/functions/fn_dm_context_files_annotation",
@@ -118,6 +183,12 @@ PACKAGE_SPECS: list[dict[str, object]] = [
             "pyyaml>=6.0.1",
             "mixpanel>=4.10.0",
         ],
+        "deploy_dependencies": [
+            "cognite-extractor-utils>=7",
+            "cognite-sdk == 7.*",
+            "pyyaml >= 6.0.1",
+            "mixpanel>=4.10.0",
+        ],
         "pytest": True,
     },
     {
@@ -126,6 +197,10 @@ PACKAGE_SPECS: list[dict[str, object]] = [
         "requires_python": ">=3.11,<3.14",
         "dependencies": [
             "cognite-sdk>=7,<8",
+            "mixpanel>=4.10.0",
+        ],
+        "deploy_dependencies": [
+            "cognite-sdk>=7.0.0",
             "mixpanel>=4.10.0",
         ],
     },
@@ -142,6 +217,15 @@ PACKAGE_SPECS: list[dict[str, object]] = [
             "matplotlib",
             "fpdf2>=2.7.0",
         ],
+        "deploy_dependencies": [
+            "pyodide-http>=0.2.1",
+            "cognite-sdk>=7.89.0,<8",
+            "cognite-pygen",
+            "packaging",
+            "plotly",
+            "matplotlib",
+            "fpdf2>=2.7.0",
+        ],
     },
     {
         "path": "modules/solutions/cdf_ai_extractor/functions/fn_ai_property_extractor",
@@ -150,7 +234,13 @@ PACKAGE_SPECS: list[dict[str, object]] = [
         "dependencies": [
             "cognite-sdk>=7,<8",
             "pyyaml>=6.0.1",
-            "pydantic>=2.0.0",
+            "pydantic>=2.12.4,<3.0.0",
+            "mixpanel>=4.10.0",
+        ],
+        "deploy_dependencies": [
+            "cognite-sdk>=7.0.0",
+            "pyyaml>=6.0.1",
+            "pydantic>=2.12.4,<3.0.0",
             "mixpanel>=4.10.0",
         ],
     },
@@ -162,6 +252,12 @@ PACKAGE_SPECS: list[dict[str, object]] = [
             "cognite-sdk>=7,<8",
             "python-dotenv>=1.0.0",
             "pyyaml>=6.0",
+            "mixpanel>=4.10.0",
+        ],
+        "deploy_dependencies": [
+            "cognite-sdk == 7.*",
+            "python-dotenv >= 1.0.0",
+            "pyyaml >= 6.0",
             "mixpanel>=4.10.0",
         ],
     },

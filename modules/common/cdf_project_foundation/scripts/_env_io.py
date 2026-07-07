@@ -1,6 +1,5 @@
 """Read and write helpers for ``.env`` files used by the setup wizard."""
 
-from __future__ import annotations
 
 from pathlib import Path
 

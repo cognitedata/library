@@ -286,7 +286,7 @@ The codebase has been optimized through multiple production deployments, ensurin
 
 ## 🧪 Testing
 
-Python packages in this module use [uv](https://docs.astral.sh/uv/) (see repo root `pyproject.toml`). Each function folder has `pyproject.toml`; `requirements.txt` is generated for CDF deploy.
+Python packages in this module use [uv](https://docs.astral.sh/uv/) (see repo root `pyproject.toml`). Each function folder has `pyproject.toml` for local dev; `requirements.txt` lists direct deploy dependencies for CDF.
 
 From the **repository root**:
 
@@ -303,7 +303,8 @@ cd modules/contextualization/cdf_entity_matching/functions/fn_dm_context_timeser
 uv run python handler.py
 ```
 
-After changing dependencies: `uv lock` and `python scripts/export_deploy_requirements.py`.
+- **Local deps:** edit `pyproject.toml`, then `uv lock` and `uv sync --group dev`.
+- **CDF deploy deps:** edit `deploy_dependencies` in `scripts/generate_uv_member_projects.py`, then `python scripts/export_deploy_requirements.py`.
 
 ### Module Testing
 

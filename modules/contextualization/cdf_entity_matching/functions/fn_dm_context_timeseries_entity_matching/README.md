@@ -18,13 +18,15 @@ A high-performance entity matching pipeline for Cognite Data Fusion (CDF) that m
 
 ### Dependencies
 
-Runtime dependencies are declared in `pyproject.toml` and exported to `requirements.txt` for CDF deploy. Direct deps include `cognite-extractor-utils`, `cognite-sdk`, `pyyaml`, `tenacity`, `psutil`, and `mixpanel`. Dev-only: `pytest`.
+Runtime dependencies are declared in `pyproject.toml` for local dev. `requirements.txt` lists direct deploy packages for CDF (e.g. `cognite-extractor-utils`, `cognite-sdk`, `pyyaml`, `tenacity`, `psutil`, `mixpanel`). Dev-only: `pytest`.
 
 Install from the **repository root** with [uv](https://docs.astral.sh/uv/):
 
 ```bash
 uv sync --group dev
 ```
+
+After changing local deps: `uv lock`. After changing CDF deploy deps: edit `deploy_dependencies` in `scripts/generate_uv_member_projects.py`, then `python scripts/export_deploy_requirements.py`.
 
 ### Environment Variables
 ```bash

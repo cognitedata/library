@@ -27,11 +27,13 @@ A Streamlit app to monitor and manage file annotation quality for a selected pip
 - `pandas` for DataFrame manipulation.
 - `cognite-sdk` to read and write raw rows (manual patterns) when configured.
 
-All Python dependencies are declared in `pyproject.toml` and exported to `requirements.txt` for CDF deploy. Use [uv](https://docs.astral.sh/uv/) from the **repository root**:
+All Python dependencies are declared in `pyproject.toml` for local dev. `requirements.txt` lists direct deploy packages for CDF. Use [uv](https://docs.astral.sh/uv/) from the **repository root**:
 
 ```bash
 uv sync --group dev
 ```
+
+After changing CDF deploy dependencies: edit `deploy_dependencies` in `scripts/generate_uv_member_projects.py`, then `python scripts/export_deploy_requirements.py`.
 
 ## Installation and Run
 

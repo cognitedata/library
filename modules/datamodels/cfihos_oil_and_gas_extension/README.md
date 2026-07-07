@@ -219,7 +219,7 @@ cdf data purge space dm_dom_oil_and_gas
 
 ### Dependencies
 
-- Python 3.11+, Cognite SDK 7.0+, pydantic 2.0+, duckdb 1.4+, polars 1.3+, pyyaml 6.0+
+- Python 3.11+, Cognite SDK 7.0+, pydantic 2.12.4+, duckdb 1.4+, polars 1.3+, pyyaml 6.0+
 
 ## Deployment
 

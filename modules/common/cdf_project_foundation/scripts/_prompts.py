@@ -1,6 +1,5 @@
 """Interactive prompt helpers for the setup wizard."""
 
-from __future__ import annotations
 
 from _env_io import upsert_env
 from _style import _C, _warn

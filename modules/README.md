@@ -132,7 +132,7 @@ Optional **`[[extra_resources]]`** in `module.toml` references shared files unde
 
 ## Python dependencies (uv)
 
-Modules that ship Python (CDF Functions, Streamlit apps, or helper packages) declare dependencies in a per-folder `pyproject.toml` under the [uv workspace](../pyproject.toml) at the repository root. The `requirements.txt` next to each handler is **generated** for CDF deploy — edit `pyproject.toml`, then run `uv lock` and `python scripts/export_deploy_requirements.py`.
+Modules that ship Python (CDF Functions, Streamlit apps, or helper packages) declare dependencies in a per-folder `pyproject.toml` under the [uv workspace](../pyproject.toml) at the repository root. The `requirements.txt` next to each handler lists **direct deploy dependencies** for CDF (packages on top of the Functions runtime) — edit `deploy_dependencies` in `scripts/generate_uv_member_projects.py`, then run `python scripts/export_deploy_requirements.py`. Use `pyproject.toml` / `uv lock` for local dev and tests.
 
 From the repository root:
 
@@ -141,7 +141,7 @@ uv sync --group dev          # install repo + workspace dev tools
 uv run pytest tests/ -q      # repo tooling tests
 ```
 
-Each module README lists paths and test commands for its Python components. See [AGENTS.md](../AGENTS.md) for the full workflow.
+Each module README lists paths and test commands for its Python components. See [AGENTS.md](../AGENTS.md) and [scripts/README.md](../scripts/README.md) for the full uv / deploy-requirements workflow.
 
 ## Validation
 

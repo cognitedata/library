@@ -79,7 +79,7 @@ That's it. The function will fill `discipline`, `priority`, and `category` for a
 
 ## Local development (uv)
 
-The function `functions/fn_ai_property_extractor/` is part of the repository [uv](https://docs.astral.sh/uv/) workspace. Runtime deps live in `pyproject.toml`; `requirements.txt` is generated for CDF deploy.
+The function `functions/fn_ai_property_extractor/` is part of the repository [uv](https://docs.astral.sh/uv/) workspace. Runtime deps live in `pyproject.toml` for local dev; `requirements.txt` lists direct deploy packages for CDF.
 
 From the **repository root**:
 
@@ -89,7 +89,8 @@ cd modules/solutions/cdf_ai_extractor/functions/fn_ai_property_extractor
 uv run python handler.py    # requires CDF_* / IDP_* env vars
 ```
 
-After changing `pyproject.toml`: `uv lock` and `python scripts/export_deploy_requirements.py`.
+- **Local deps:** edit `pyproject.toml`, then `uv lock` and `uv sync --group dev`.
+- **CDF deploy deps:** edit `deploy_dependencies` in `scripts/generate_uv_member_projects.py`, then `python scripts/export_deploy_requirements.py`.
 
 ---
 

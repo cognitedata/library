@@ -388,6 +388,8 @@ the initial bulk pass before switching to incremental mode.
    uv sync --group dev
    ```
 
+   Local deps are in `pyproject.toml`. `requirements.txt` lists direct deploy packages for CDF. After changing deploy deps: edit `deploy_dependencies` in `scripts/generate_uv_member_projects.py`, then `python scripts/export_deploy_requirements.py`.
+
 4. Run the handler:
 
    ```bash
