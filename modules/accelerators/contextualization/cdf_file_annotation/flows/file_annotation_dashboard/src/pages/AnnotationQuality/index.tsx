@@ -2,12 +2,14 @@ import { useState } from "react";
 import { useAppSdk } from "@/providers/AppSdkProvider";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/components/ui/tabs";
 import { Card, CardContent } from "@/shared/components/ui/card";
+import { Button } from "@/shared/components/ui/button";
 import { OverallTab } from "./OverallTab";
 import { PerFileTab } from "./PerFileTab";
 import { useAnnotationOverviewMetrics } from "@/shared/hooks/useAnnotationData";
 import { usePipelineConfig } from "@/shared/hooks/usePipelineConfig";
 import { useLoadingDuration } from "@/shared/hooks/useLoadingDuration";
-import { BarChart3, FileSearch, Loader2 } from "lucide-react";
+import { useScopedCacheReset } from "@/shared/hooks/useScopedCacheReset";
+import { BarChart3, FileSearch, Loader2, RotateCcw } from "lucide-react";
 
 
 
@@ -16,9 +18,15 @@ interface AnnotationQualityPageProps {
   pipelineId: string | null;
 }
 
+const TAB_QUERY_PREFIXES: Record<string, string[]> = {
+  overall: ["annotationOverviewMetrics"],
+  perfile: ["annotations", "annotationsByFile", "fileInfo", "filePreview", "filePageCount", "fileMetadata"],
+};
+
 export function AnnotationQualityPage({ pipelineId }: AnnotationQualityPageProps) {
   const { sdk } = useAppSdk();
   const [activeTab, setActiveTab] = useState("overall");
+  const { isResetting, resetCounts, resetScope } = useScopedCacheReset(TAB_QUERY_PREFIXES);
   const resetKey = pipelineId || "none";
   const {
     data: config,
@@ -99,16 +107,27 @@ export function AnnotationQualityPage({ pipelineId }: AnnotationQualityPageProps
 
       {/* Sub-tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="h-9 p-0.5 bg-muted/50">
-          <TabsTrigger value="overall" className="h-8 px-4 text-xs data-[state=active]:shadow-none">
-            <BarChart3 className="h-3.5 w-3.5 mr-1.5" />
-            Overall
-          </TabsTrigger>
-          <TabsTrigger value="perfile" className="h-8 px-4 text-xs data-[state=active]:shadow-none">
-            <FileSearch className="h-3.5 w-3.5 mr-1.5" />
-            Per-File
-          </TabsTrigger>
-        </TabsList>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <TabsList className="h-9 p-0.5 bg-muted/50">
+            <TabsTrigger value="overall" className="h-8 px-4 text-xs data-[state=active]:shadow-none">
+              <BarChart3 className="h-3.5 w-3.5 mr-1.5" />
+              Overall
+            </TabsTrigger>
+            <TabsTrigger value="perfile" className="h-8 px-4 text-xs data-[state=active]:shadow-none">
+              <FileSearch className="h-3.5 w-3.5 mr-1.5" />
+              Per-File
+            </TabsTrigger>
+          </TabsList>
+          <Button
+            variant="outline"
+            size="xs"
+            onClick={() => void resetScope(activeTab)}
+            disabled={isResetting}
+          >
+            {isResetting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RotateCcw className="h-3.5 w-3.5" />}
+            Reset Tab
+          </Button>
+        </div>
 
         <TabsContent value="overall" className="mt-5">
           {isOverviewBlocking ? (
@@ -126,6 +145,7 @@ export function AnnotationQualityPage({ pipelineId }: AnnotationQualityPageProps
             </Card>
           ) : (
             <OverallTab
+              key={`${resetKey}:overall:${resetCounts.overall}`}
               metrics={overviewMetrics ?? null}
               config={config ?? null}
             />
@@ -134,6 +154,7 @@ export function AnnotationQualityPage({ pipelineId }: AnnotationQualityPageProps
 
         <TabsContent value="perfile" className="mt-5">
           <PerFileTab
+            key={`${resetKey}:perfile:${resetCounts.perfile}`}
             sdk={sdk}
             config={config ?? null}
             pipelineId={pipelineId}

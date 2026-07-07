@@ -2,13 +2,15 @@ import { useEffect, useState } from "react";
 import { useAppSdk } from "@/providers/AppSdkProvider";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/components/ui/tabs";
 import { Card, CardContent } from "@/shared/components/ui/card";
+import { Button } from "@/shared/components/ui/button";
 import { OverviewTab } from "./OverviewTab";
 import { FileExplorerTab } from "./FileExplorerTab";
 import { RunHistoryTab } from "./RunHistoryTab";
 import { useAnnotationStates } from "@/shared/hooks/useAnnotationData";
 import { usePipelineConfig } from "@/shared/hooks/usePipelineConfig";
 import { useLoadingDuration } from "@/shared/hooks/useLoadingDuration";
-import { LayoutDashboard, FolderSearch, History, Loader2 } from "lucide-react";
+import { useScopedCacheReset } from "@/shared/hooks/useScopedCacheReset";
+import { LayoutDashboard, FolderSearch, History, Loader2, RotateCcw } from "lucide-react";
 
 
 
@@ -16,6 +18,12 @@ import { LayoutDashboard, FolderSearch, History, Loader2 } from "lucide-react";
 interface PipelineHealthPageProps {
   pipelineId: string | null;
 }
+
+const TAB_QUERY_PREFIXES: Record<string, string[]> = {
+  overview: ["annotationStates"],
+  files: ["function-logs"],
+  history: ["pipeline-runs", "function-logs"],
+};
 
 export function PipelineHealthPage({ pipelineId }: PipelineHealthPageProps) {
   const { sdk } = useAppSdk();
@@ -38,6 +46,7 @@ export function PipelineHealthPage({ pipelineId }: PipelineHealthPageProps) {
     { onProgress: setLoadingStage }
   );
   const [activeTab, setActiveTab] = useState("overview");
+  const { isResetting, resetCounts, resetScope } = useScopedCacheReset(TAB_QUERY_PREFIXES);
 
   const isConfigBlocking = (isConfigLoading || isConfigFetching) && !config;
   const isStatesBlocking = (isStatesLoading || isStatesFetching) && !annotationStates;
@@ -114,31 +123,51 @@ export function PipelineHealthPage({ pipelineId }: PipelineHealthPageProps) {
 
       {/* Sub-tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="h-9 p-0.5 bg-muted/50">
-          <TabsTrigger value="overview" className="h-8 px-4 text-xs data-[state=active]:shadow-none">
-            <LayoutDashboard className="h-3.5 w-3.5 mr-1.5" />
-            Overview
-          </TabsTrigger>
-          <TabsTrigger value="files" className="h-8 px-4 text-xs data-[state=active]:shadow-none">
-            <FolderSearch className="h-3.5 w-3.5 mr-1.5" />
-            Files
-          </TabsTrigger>
-          <TabsTrigger value="history" className="h-8 px-4 text-xs data-[state=active]:shadow-none">
-            <History className="h-3.5 w-3.5 mr-1.5" />
-            History
-          </TabsTrigger>
-        </TabsList>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <TabsList className="h-9 p-0.5 bg-muted/50">
+            <TabsTrigger value="overview" className="h-8 px-4 text-xs data-[state=active]:shadow-none">
+              <LayoutDashboard className="h-3.5 w-3.5 mr-1.5" />
+              Overview
+            </TabsTrigger>
+            <TabsTrigger value="files" className="h-8 px-4 text-xs data-[state=active]:shadow-none">
+              <FolderSearch className="h-3.5 w-3.5 mr-1.5" />
+              Files
+            </TabsTrigger>
+            <TabsTrigger value="history" className="h-8 px-4 text-xs data-[state=active]:shadow-none">
+              <History className="h-3.5 w-3.5 mr-1.5" />
+              History
+            </TabsTrigger>
+          </TabsList>
+          <Button
+            variant="outline"
+            size="xs"
+            onClick={() => void resetScope(activeTab)}
+            disabled={isResetting}
+          >
+            {isResetting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RotateCcw className="h-3.5 w-3.5" />}
+            Reset Tab
+          </Button>
+        </div>
 
         <TabsContent value="overview" className="mt-5">
-          <OverviewTab annotationStates={states} />
+          <OverviewTab key={`${pipelineId || "none"}:overview:${resetCounts.overview}`} annotationStates={states} />
         </TabsContent>
 
         <TabsContent value="files" className="mt-5">
-          <FileExplorerTab annotationStates={states} config={config ?? null} />
+          <FileExplorerTab
+            key={`${pipelineId || "none"}:files:${resetCounts.files}`}
+            annotationStates={states}
+            config={config ?? null}
+          />
         </TabsContent>
 
         <TabsContent value="history" className="mt-5">
-          <RunHistoryTab annotationStates={states} config={config ?? null} pipelineId={pipelineId} />
+          <RunHistoryTab
+            key={`${pipelineId || "none"}:history:${resetCounts.history}`}
+            annotationStates={states}
+            config={config ?? null}
+            pipelineId={pipelineId}
+          />
         </TabsContent>
       </Tabs>
     </div>

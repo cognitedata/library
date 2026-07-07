@@ -3,6 +3,7 @@ import { useAppSdk } from "@/providers/AppSdkProvider";
 import { useAutomaticPatterns, useManualPatterns } from "@/shared/hooks/useAnnotationData";
 import { usePipelineConfig } from "@/shared/hooks/usePipelineConfig";
 import { useLoadingDuration } from "@/shared/hooks/useLoadingDuration";
+import { useScopedCacheReset } from "@/shared/hooks/useScopedCacheReset";
 import { ManualPatternsSection } from "@/pages/PatternManagement/components/ManualPatternsSection";
 import { ImportCsvSection } from "@/pages/PatternManagement/components/ImportCsvSection";
 import { ProposePrimaryScopeSection } from "@/pages/PatternManagement/components/ProposePrimaryScopeSection";
@@ -25,8 +26,13 @@ interface PatternManagementPageProps {
   pipelineId: string | null;
 }
 
+const PATTERN_QUERY_PREFIXES = ["manualPatterns", "automaticPatterns"];
+
 export function PatternManagementPage({ pipelineId }: PatternManagementPageProps) {
   const { sdk } = useAppSdk();
+  const { isResetting, resetCounts, resetScope } = useScopedCacheReset({
+    page: PATTERN_QUERY_PREFIXES,
+  });
   const {
     data: config,
     isLoading: isConfigLoading,
@@ -61,6 +67,78 @@ export function PatternManagementPage({ pipelineId }: PatternManagementPageProps
   const manualPatternsData = manualPatterns ?? [];
   const automaticPatternsData = automaticPatterns ?? [];
 
+  if (!pipelineId) {
+    return (
+      <Card className="border-dashed">
+        <CardContent className="py-12">
+          <div className="text-center text-muted-foreground">
+            <p className="text-sm">Please select a pipeline to manage patterns.</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const isLoading = isConfigBlocking || isManualBlocking || isAutoBlocking;
+  const loadDuration = useLoadingDuration(isLoading, pipelineId || "none", {
+    keepRunningWhile: !config || !manualPatterns || !automaticPatterns,
+  });
+  const retryCount = Math.max(configFailureCount, manualFailureCount, autoFailureCount);
+
+  if (isLoading) {
+    return (
+      <PatternManagementLoading
+        elapsedLabel={loadDuration.elapsedLabel}
+        retryCount={retryCount}
+      />
+    );
+  }
+
+  const showMissingConfigWarning = !config?.rawDb || (!config?.rawManualPatternsCatalog && !config?.rawTablePatternCache);
+
+  return (
+    <div className="space-y-6 animate-fade-in">
+      <PatternManagementHeader
+        lastDurationLabel={loadDuration.lastDurationLabel || null}
+        onResetPage={() => void resetScope("page")}
+        isResettingPage={isResetting}
+      />
+
+      {showMissingConfigWarning && <PatternManagementMissingConfigWarning />}
+
+      <PatternManagementContent
+        key={`${pipelineId || "none"}:${resetCounts.page}`}
+        sdk={sdk}
+        config={config ?? null}
+        pipelineId={pipelineId}
+        manualPatternsData={manualPatternsData}
+        automaticPatternsData={automaticPatternsData}
+        isLoadingManual={isLoadingManual}
+        isLoadingAuto={isLoadingAuto}
+      />
+    </div>
+  );
+}
+
+interface PatternManagementContentProps {
+  sdk: ReturnType<typeof useAppSdk>["sdk"];
+  config: ReturnType<typeof usePipelineConfig>["data"] | null;
+  pipelineId: string | null;
+  manualPatternsData: ReturnType<typeof useManualPatterns>["data"] extends infer T ? (T extends Array<infer U> ? U[] : never) : never;
+  automaticPatternsData: ReturnType<typeof useAutomaticPatterns>["data"] extends infer T ? (T extends Array<infer U> ? U[] : never) : never;
+  isLoadingManual: boolean;
+  isLoadingAuto: boolean;
+}
+
+function PatternManagementContent({
+  sdk,
+  config,
+  pipelineId,
+  manualPatternsData,
+  automaticPatternsData,
+  isLoadingManual,
+  isLoadingAuto,
+}: PatternManagementContentProps) {
   const manualState = useManualPatternsState({
     sdk,
     config: config ?? null,
@@ -93,44 +171,10 @@ export function PatternManagementPage({ pipelineId }: PatternManagementPageProps
     automaticPatternsData,
   });
 
-  if (!pipelineId) {
-    return (
-      <Card className="border-dashed">
-        <CardContent className="py-12">
-          <div className="text-center text-muted-foreground">
-            <p className="text-sm">Please select a pipeline to manage patterns.</p>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  const isLoading = isConfigBlocking || isManualBlocking || isAutoBlocking;
-  const loadDuration = useLoadingDuration(isLoading, pipelineId || "none", {
-    keepRunningWhile: !config || !manualPatterns || !automaticPatterns,
-  });
-  const retryCount = Math.max(configFailureCount, manualFailureCount, autoFailureCount);
-
-  if (isLoading) {
-    return (
-      <PatternManagementLoading
-        elapsedLabel={loadDuration.elapsedLabel}
-        retryCount={retryCount}
-      />
-    );
-  }
-
-  const showMissingConfigWarning = !config?.rawDb || (!config?.rawManualPatternsCatalog && !config?.rawTablePatternCache);
-
   return (
-    <div className="space-y-6 animate-fade-in">
-      <PatternManagementHeader lastDurationLabel={loadDuration.lastDurationLabel || null} />
-
-      {showMissingConfigWarning && <PatternManagementMissingConfigWarning />}
-
-      <div className="grid gap-6 lg:grid-cols-2">
-        <div className="space-y-6">
-          <ManualPatternsSection
+    <div className="grid gap-6 lg:grid-cols-2">
+      <div className="space-y-6">
+        <ManualPatternsSection
             isLoadingManual={isLoadingManual}
             hasChanges={manualState.hasChanges}
             editablePatterns={manualState.editablePatterns}
@@ -180,9 +224,9 @@ export function PatternManagementPage({ pipelineId }: PatternManagementPageProps
             handleSave={manualState.handleSave}
             isSaving={manualState.isSaving}
             canEditManualPatterns={manualState.canEditManualPatterns}
-          />
+        />
 
-          <ImportCsvSection
+        <ImportCsvSection
             csvPreview={csvState.csvPreview}
             csvFileName={csvState.csvFileName}
             csvDefaultScope={csvState.csvDefaultScope}
@@ -197,9 +241,9 @@ export function PatternManagementPage({ pipelineId }: PatternManagementPageProps
             handleCsvRemove={csvState.handleCsvRemove}
             handleCsvStage={csvState.handleCsvStage}
             handleCsvClear={csvState.handleCsvClear}
-          />
+        />
 
-          <ProposePrimaryScopeSection
+        <ProposePrimaryScopeSection
             primaryScopeInput={proposeState.primaryScopeInput}
             setPrimaryScopeInput={(value) => proposeState.setPrimaryScopeInput(value)}
             proposeAnnotationType={proposeState.proposeAnnotationType}
@@ -221,11 +265,11 @@ export function PatternManagementPage({ pipelineId }: PatternManagementPageProps
             handleStageProposals={proposeState.handleStageProposals}
             handleClearProposals={proposeState.handleClearProposals}
             handleProposedUpdate={proposeState.handleProposedUpdate}
-          />
-        </div>
+        />
+      </div>
 
-        <div className="space-y-6">
-          <AutomaticPatternsSection
+      <div className="space-y-6">
+        <AutomaticPatternsSection
             automaticPatternsCount={autoState.automaticPatternsCount}
             lastCacheWriteInfo={refreshState.lastCacheWriteInfo}
             autoSearchTerm={autoState.autoSearchTerm}
@@ -259,9 +303,9 @@ export function PatternManagementPage({ pipelineId }: PatternManagementPageProps
             autoPageSize={autoState.autoPageSize}
             setAutoPageSize={(value) => autoState.setAutoPageSize(value)}
             pageSizeOptions={PAGE_SIZE_OPTIONS}
-          />
+        />
 
-          <RefreshCacheSection
+        <RefreshCacheSection
             finalPreview={refreshState.finalPreview}
             finalRowsCount={refreshState.finalRows.length}
             handleDiscoverScopes={refreshState.handleDiscoverScopes}
@@ -278,8 +322,7 @@ export function PatternManagementPage({ pipelineId }: PatternManagementPageProps
             cacheLogs={refreshState.cacheLogs}
             scopePreview={refreshState.scopePreview}
             isLocalMockMode={refreshState.isLocalMockMode}
-          />
-        </div>
+        />
       </div>
     </div>
   );
