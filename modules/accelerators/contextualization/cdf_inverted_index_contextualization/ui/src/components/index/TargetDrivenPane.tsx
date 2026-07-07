@@ -40,6 +40,11 @@ export function TargetDrivenPane({ watchViewKeys = DEFAULT_VIEW_KEYS }: TargetDr
   const [scopeOverride, setScopeOverride] = useState(false);
   const [minConfidence, setMinConfidence] = useState(0.6);
   const [maxAssets, setMaxAssets] = useState("");
+  const [batchSize, setBatchSize] = useState("");
+  const [writeBufferSize, setWriteBufferSize] = useState("");
+  const [concurrency, setConcurrency] = useState("1");
+  const [filterUpdatedAfter, setFilterUpdatedAfter] = useState("");
+  const [recordDedupeState, setRecordDedupeState] = useState(true);
   const [force, setForce] = useState(false);
   const [dryRun, setDryRun] = useState(true);
   const { loading, cancelled, error, result, log, run, cancel } = useOperationRun();
@@ -76,6 +81,11 @@ export function TargetDrivenPane({ watchViewKeys = DEFAULT_VIEW_KEYS }: TargetDr
       max_assets: maxAssets.trim() ? Number(maxAssets) : undefined,
       query_property: trimmedQueryProperty || undefined,
       force,
+      batch_size: batchSize.trim() ? Number(batchSize) : undefined,
+      write_buffer_size: writeBufferSize.trim() ? Number(writeBufferSize) : undefined,
+      filter_updated_after: filterUpdatedAfter.trim() || undefined,
+      concurrency: concurrency.trim() ? Number(concurrency) : undefined,
+      record_dedupe_state: recordDedupeState,
     });
   };
 
@@ -151,6 +161,51 @@ export function TargetDrivenPane({ watchViewKeys = DEFAULT_VIEW_KEYS }: TargetDr
                     />
                     <span className="idx-field-hint">{t("targetDriven.maxAssetsHint")}</span>
                   </label>
+                  <div className="idx-field-row">
+                    <label className="idx-label">
+                      {t("targetDriven.batchSize")}
+                      <input
+                        className="idx-input"
+                        type="number"
+                        min={1}
+                        value={batchSize}
+                        onChange={(e) => setBatchSize(e.target.value)}
+                      />
+                      <span className="idx-field-hint">{t("targetDriven.batchSizeHint")}</span>
+                    </label>
+                    <label className="idx-label">
+                      {t("targetDriven.writeBufferSize")}
+                      <input
+                        className="idx-input"
+                        type="number"
+                        min={1}
+                        value={writeBufferSize}
+                        onChange={(e) => setWriteBufferSize(e.target.value)}
+                      />
+                      <span className="idx-field-hint">{t("targetDriven.writeBufferSizeHint")}</span>
+                    </label>
+                    <label className="idx-label">
+                      {t("targetDriven.concurrency")}
+                      <input
+                        className="idx-input"
+                        type="number"
+                        min={1}
+                        value={concurrency}
+                        onChange={(e) => setConcurrency(e.target.value)}
+                      />
+                      <span className="idx-field-hint">{t("targetDriven.concurrencyHint")}</span>
+                    </label>
+                  </div>
+                  <label className="idx-label">
+                    {t("targetDriven.filterUpdatedAfter")}
+                    <input
+                      className="idx-input"
+                      value={filterUpdatedAfter}
+                      onChange={(e) => setFilterUpdatedAfter(e.target.value)}
+                      placeholder={t("targetDriven.filterUpdatedAfterPlaceholder")}
+                    />
+                    <span className="idx-field-hint">{t("targetDriven.filterUpdatedAfterHint")}</span>
+                  </label>
                 </>
               )}
             </FieldGroup>
@@ -201,6 +256,20 @@ export function TargetDrivenPane({ watchViewKeys = DEFAULT_VIEW_KEYS }: TargetDr
                   {t("targetDriven.force")}
                 </label>
                 <p className="idx-field-hint">{t("targetDriven.forceHint")}</p>
+                {mode === "batch" ? (
+                  <label className="idx-checkbox-label">
+                    <input
+                      type="checkbox"
+                      checked={recordDedupeState}
+                      disabled={force}
+                      onChange={(e) => setRecordDedupeState(e.target.checked)}
+                    />
+                    {t("targetDriven.recordDedupeState")}
+                  </label>
+                ) : null}
+                {mode === "batch" && !force ? (
+                  <p className="idx-field-hint">{t("targetDriven.recordDedupeStateHint")}</p>
+                ) : null}
               </div>
             </FieldGroup>
           </FormPanel>

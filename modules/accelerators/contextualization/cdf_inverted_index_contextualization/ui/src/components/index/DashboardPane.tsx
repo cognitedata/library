@@ -423,6 +423,7 @@ export function DashboardPane({ refreshKey, onOpenTab }: Props) {
                       onChange={(e) => setScopeKey(e.target.value)}
                       placeholder={t("fileContext.scopeKeyPlaceholder")}
                     />
+                    <span className="idx-field-hint">{t("dashboard.deltasScopeHint")}</span>
                   </label>
                 </div>
               </div>

@@ -148,6 +148,7 @@ def run_demo(output_dir: Path | None = None) -> dict:
         file_external_id="FILE_PID_12",
         storage_adapter=adapter,
         annotations=annotations,
+        match_scope_key=GLOBAL_SCOPE,
     )
 
     report = {

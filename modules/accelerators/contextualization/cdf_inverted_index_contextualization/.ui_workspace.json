@@ -1,11 +1,11 @@
 {
-  "active_tab_id": "tab:dashboard",
+  "active_tab_id": "tab:target-driven",
   "tabs": [
     {
-      "id": "tab:configuration",
-      "kind": "configuration",
-      "label": "Configuration",
-      "navNodeId": "inverted-index/config"
+      "id": "tab:query",
+      "kind": "query",
+      "label": "Query index",
+      "navNodeId": "inverted-index/query"
     },
     {
       "id": "tab:dashboard",
@@ -14,10 +14,22 @@
       "navNodeId": "inverted-index/dashboard"
     },
     {
-      "id": "tab:query",
-      "kind": "query",
-      "label": "Query index",
-      "navNodeId": "inverted-index/quick/query"
+      "id": "tab:file-context",
+      "kind": "file-context",
+      "label": "File contextualization",
+      "navNodeId": "inverted-index/file"
+    },
+    {
+      "id": "tab:configuration",
+      "kind": "configuration",
+      "label": "Configuration",
+      "navNodeId": "inverted-index/config"
+    },
+    {
+      "id": "tab:target-driven",
+      "kind": "target-driven",
+      "label": "Target-driven linking",
+      "navNodeId": "inverted-index/ops/target-driven"
     }
   ]
 }

@@ -41,16 +41,22 @@ def test_fn_idx_deltas_both_modes() -> None:
     with __import__("unittest.mock", fromlist=["patch"]).patch(
         "fn_idx_deltas.handler.get_pattern_not_in_standard_delta",
         return_value=[{"term": "A"}],
-    ), __import__("unittest.mock", fromlist=["patch"]).patch(
+    ) as missing_mock, __import__("unittest.mock", fromlist=["patch"]).patch(
         "fn_idx_deltas.handler.get_standard_not_in_pattern_delta",
         return_value=[{"term": "B"}],
-    ):
+    ) as feedback_mock:
         result = handle(
-            {"file_external_id": "FILE_1", "delta_mode": "both"},
+            {
+                "file_external_id": "FILE_1",
+                "delta_mode": "both",
+                "match_scope_key": "site:X|unit:Y",
+            },
             client=client,
         )
     assert "missing_tags" in result
     assert "pattern_feedback" in result
+    assert missing_mock.call_args.kwargs["match_scope_key"] == "site:X|unit:Y"
+    assert feedback_mock.call_args.kwargs["match_scope_key"] == "site:X|unit:Y"
 
 
 def test_fn_idx_upsert_detections_dry_run() -> None:

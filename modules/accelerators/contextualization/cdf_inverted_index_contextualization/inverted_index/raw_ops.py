@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import logging
 from collections.abc import Iterator
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from typing import Any
 
@@ -106,6 +107,92 @@ def parse_postings_json(raw_value: Any) -> list[dict]:
     return []
 
 
+def _overflow_keys_from_columns(columns: dict[str, Any]) -> list[str]:
+    raw_overflow = columns.get("OVERFLOW_KEYS")
+    if isinstance(raw_overflow, str) and raw_overflow.strip():
+        try:
+            parsed = json.loads(raw_overflow)
+            if isinstance(parsed, list):
+                return [str(k) for k in parsed if isinstance(k, str)]
+        except json.JSONDecodeError:
+            return []
+    if isinstance(raw_overflow, list):
+        return [str(k) for k in raw_overflow if isinstance(k, str)]
+    return []
+
+
+def _retrieve_row_columns(
+    client: Any,
+    raw_db: str,
+    table: str,
+    row_key: str,
+) -> dict[str, Any]:
+    try:
+        row = client.raw.rows.retrieve(raw_db, table, row_key)
+        return _row_columns(row)
+    except Exception:
+        return {}
+
+
+def _retrieve_row_columns_batch(
+    client: Any,
+    raw_db: str,
+    table: str,
+    row_keys: list[str],
+    *,
+    max_workers: int = 8,
+) -> dict[str, dict[str, Any]]:
+    if not row_keys:
+        return {}
+    unique_keys = list(dict.fromkeys(row_keys))
+    if len(unique_keys) == 1:
+        return {unique_keys[0]: _retrieve_row_columns(client, raw_db, table, unique_keys[0])}
+
+    workers = max(1, min(int(max_workers), len(unique_keys)))
+    columns_by_key: dict[str, dict[str, Any]] = {}
+
+    def fetch(key: str) -> tuple[str, dict[str, Any]]:
+        return key, _retrieve_row_columns(client, raw_db, table, key)
+
+    with ThreadPoolExecutor(max_workers=workers) as executor:
+        futures = [executor.submit(fetch, key) for key in unique_keys]
+        for future in as_completed(futures):
+            key, columns = future.result()
+            columns_by_key[key] = columns
+    return columns_by_key
+
+
+def _postings_from_columns(
+    columns: dict[str, Any],
+    *,
+    client: Any | None,
+    raw_db: str,
+    table: str,
+    local_cache: dict[str, dict[str, dict]] | None = None,
+    columns_cache: dict[str, dict[str, Any]] | None = None,
+) -> list[dict]:
+    postings = parse_postings_json(columns.get("POSTINGS_JSON"))
+    overflow_keys = _overflow_keys_from_columns(columns)
+    if not overflow_keys:
+        return postings
+
+    spill_columns: dict[str, dict[str, Any]] = {}
+    if client is not None:
+        spill_columns = columns_cache or _retrieve_row_columns_batch(
+            client, raw_db, table, overflow_keys
+        )
+    elif local_cache is not None:
+        spill_columns = {
+            spill_key: dict(local_cache.get(table, {}).get(spill_key, {}))
+            for spill_key in overflow_keys
+        }
+
+    for spill_key in overflow_keys:
+        spill_cols = spill_columns.get(spill_key, {})
+        postings.extend(parse_postings_json(spill_cols.get("POSTINGS_JSON")))
+    return postings
+
+
 def load_postings_row(
     client: Any | None,
     raw_db: str,
@@ -114,48 +201,79 @@ def load_postings_row(
     *,
     local_cache: dict[str, dict[str, dict]] | None = None,
 ) -> tuple[list[dict], dict[str, Any]]:
-    columns: dict[str, Any] = {}
     if client is not None:
-        try:
-            row = client.raw.rows.retrieve(raw_db, table, row_key)
-            columns = _row_columns(row)
-        except Exception:
-            columns = {}
+        columns = _retrieve_row_columns(client, raw_db, table, row_key)
     elif local_cache is not None:
         columns = dict(local_cache.get(table, {}).get(row_key, {}))
+    else:
+        columns = {}
 
-    postings = parse_postings_json(columns.get("POSTINGS_JSON"))
-    overflow_keys: list[Any] = []
-    raw_overflow = columns.get("OVERFLOW_KEYS")
-    if isinstance(raw_overflow, str) and raw_overflow.strip():
-        try:
-            overflow_keys = json.loads(raw_overflow)
-        except json.JSONDecodeError:
-            overflow_keys = []
-    elif isinstance(raw_overflow, list):
-        overflow_keys = raw_overflow
-
-    spill_sources = []
-    if client is not None:
-        spill_sources = overflow_keys
-    elif local_cache is not None:
-        spill_sources = overflow_keys
-
-    for spill_key in spill_sources:
-        if not isinstance(spill_key, str):
-            continue
-        if client is not None:
-            try:
-                spill_row = client.raw.rows.retrieve(raw_db, table, spill_key)
-                spill_cols = _row_columns(spill_row)
-                postings.extend(parse_postings_json(spill_cols.get("POSTINGS_JSON")))
-            except Exception:
-                continue
-        elif local_cache is not None:
-            spill_cols = local_cache.get(table, {}).get(spill_key, {})
-            postings.extend(parse_postings_json(spill_cols.get("POSTINGS_JSON")))
-
+    postings = _postings_from_columns(
+        columns,
+        client=client,
+        raw_db=raw_db,
+        table=table,
+        local_cache=local_cache,
+    )
     return postings, columns
+
+
+def load_postings_rows_batch(
+    client: Any | None,
+    raw_db: str,
+    table: str,
+    row_keys: list[str],
+    *,
+    local_cache: dict[str, dict[str, dict]] | None = None,
+    max_workers: int = 8,
+) -> dict[str, tuple[list[dict], dict[str, Any]]]:
+    """Load postings for multiple row keys, batching RAW retrieves per table."""
+    if not row_keys:
+        return {}
+
+    unique_keys = list(dict.fromkeys(row_keys))
+    if client is not None:
+        primary_columns = _retrieve_row_columns_batch(
+            client, raw_db, table, unique_keys, max_workers=max_workers
+        )
+        spill_keys: list[str] = []
+        for columns in primary_columns.values():
+            spill_keys.extend(_overflow_keys_from_columns(columns))
+        spill_columns = (
+            _retrieve_row_columns_batch(
+                client, raw_db, table, spill_keys, max_workers=max_workers
+            )
+            if spill_keys
+            else {}
+        )
+        result: dict[str, tuple[list[dict], dict[str, Any]]] = {}
+        for row_key in unique_keys:
+            columns = primary_columns.get(row_key, {})
+            postings = _postings_from_columns(
+                columns,
+                client=client,
+                raw_db=raw_db,
+                table=table,
+                columns_cache=spill_columns,
+            )
+            result[row_key] = (postings, columns)
+        return result
+
+    if local_cache is None:
+        return {key: ([], {}) for key in unique_keys}
+
+    result = {}
+    for row_key in unique_keys:
+        columns = dict(local_cache.get(table, {}).get(row_key, {}))
+        postings = _postings_from_columns(
+            columns,
+            client=None,
+            raw_db=raw_db,
+            table=table,
+            local_cache=local_cache,
+        )
+        result[row_key] = (postings, columns)
+    return result
 
 
 def _split_postings_with_overflow(

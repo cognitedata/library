@@ -87,12 +87,14 @@ def _terms_for_file(
     storage_adapter: Any = None,
     annotations: list[dict] | None = None,
     file_space: str = "cdf_cdm",
+    match_scope_key: str | None = None,
 ) -> set[str]:
     if storage_adapter is not None and hasattr(storage_adapter, "list_by_file"):
         entries = storage_adapter.list_by_file(
             file_external_id,
             source_types=[source_type],
             file_space=file_space,
+            match_scope_key=match_scope_key,
         )
         if entries:
             return {
@@ -128,19 +130,36 @@ def get_detection_mode_delta(
     right_source_type: str,
     storage_adapter: Any = None,
     annotations: list[dict] | None = None,
+    file_space: str = "cdf_cdm",
+    match_scope_key: str | None = None,
 ) -> list[dict]:
     """Set difference on normalized terms with enrichment from left source."""
     left_terms = _terms_for_file(
-        client, file_external_id, left_source_type, storage_adapter, annotations
+        client,
+        file_external_id,
+        left_source_type,
+        storage_adapter,
+        annotations,
+        file_space,
+        match_scope_key,
     )
     right_terms = _terms_for_file(
-        client, file_external_id, right_source_type, storage_adapter, annotations
+        client,
+        file_external_id,
+        right_source_type,
+        storage_adapter,
+        annotations,
+        file_space,
+        match_scope_key,
     )
     delta_norm = left_terms - right_terms
     results: list[dict] = []
     if storage_adapter:
         entries = storage_adapter.list_by_file(
-            file_external_id, source_types=[left_source_type]
+            file_external_id,
+            source_types=[left_source_type],
+            file_space=file_space,
+            match_scope_key=match_scope_key,
         )
         for entry in entries:
             if entry.get("normalized_term") not in delta_norm:
@@ -192,7 +211,6 @@ def get_pattern_not_in_standard_delta(
     match_scope_key: str | None = None,
 ) -> list[dict]:
     """Missing tags: pattern terms not in standard detection."""
-    del file_space
     delta = get_detection_mode_delta(
         client,
         file_external_id,
@@ -200,6 +218,8 @@ def get_pattern_not_in_standard_delta(
         "diagram_annotation_standard",
         storage_adapter,
         annotations,
+        file_space,
+        match_scope_key,
     )
     if include_metadata_gap and delta:
         terms = [d["term"] for d in delta if d.get("term")]
@@ -233,9 +253,9 @@ def get_standard_not_in_pattern_delta(
     include_pattern_library_hints: bool = True,
     storage_adapter: Any = None,
     annotations: list[dict] | None = None,
+    match_scope_key: str | None = None,
 ) -> list[dict]:
     """Pattern improvement candidates: standard terms not in pattern."""
-    del file_space
     delta = get_detection_mode_delta(
         client,
         file_external_id,
@@ -243,6 +263,8 @@ def get_standard_not_in_pattern_delta(
         "diagram_annotation_pattern",
         storage_adapter,
         annotations,
+        file_space,
+        match_scope_key,
     )
     filtered = [
         d
@@ -282,6 +304,7 @@ def calculate_contextualization_score(
         storage_adapter,
         annotations,
         file_space,
+        match_scope_key,
     )
     standard_terms = _terms_for_file(
         client,
@@ -290,6 +313,7 @@ def calculate_contextualization_score(
         storage_adapter,
         annotations,
         file_space,
+        match_scope_key,
     )
     union = pattern_terms | standard_terms
     overlap = pattern_terms & standard_terms

@@ -73,6 +73,11 @@ class TargetDrivenBody(DryRunBody):
     progress_interval: int = 100
     query_property: str | None = None
     force: bool = False
+    batch_size: int | None = None
+    write_buffer_size: int | None = None
+    filter_updated_after: str | None = None
+    concurrency: int | None = None
+    record_dedupe_state: bool = True
 
 
 class FileBody(BaseModel):
@@ -209,6 +214,11 @@ def target_driven(body: TargetDrivenBody) -> dict[str, Any]:
             progress_interval=body.progress_interval,
             query_property=body.query_property,
             force=body.force,
+            batch_size=body.batch_size,
+            write_buffer_size=body.write_buffer_size,
+            filter_updated_after=body.filter_updated_after,
+            concurrency=body.concurrency,
+            record_dedupe_state=body.record_dedupe_state,
         )
     except Exception as e:
         raise _api_error(e) from e
@@ -235,6 +245,11 @@ def target_driven_stream(body: TargetDrivenBody, request: Request) -> StreamingR
             progress_interval=body.progress_interval,
             query_property=body.query_property,
             force=body.force,
+            batch_size=body.batch_size,
+            write_buffer_size=body.write_buffer_size,
+            filter_updated_after=body.filter_updated_after,
+            concurrency=body.concurrency,
+            record_dedupe_state=body.record_dedupe_state,
             on_log=on_log,
             should_cancel=should_cancel,
         ),

@@ -357,6 +357,11 @@ def cmd_target_driven(
     should_cancel: Callable[[], bool] | None = None,
     query_property: str | None = None,
     force: bool = False,
+    batch_size: int | None = None,
+    write_buffer_size: int | None = None,
+    filter_updated_after: str | None = None,
+    concurrency: int | None = None,
+    record_dedupe_state: bool = True,
 ) -> dict:
     cfg = _runtime()
     client = create_cognite_client()
@@ -457,6 +462,11 @@ def cmd_target_driven(
         should_cancel=should_cancel,
         query_property=resolved_query_property,
         force=force,
+        batch_size=batch_size if batch_size is not None else 1000,
+        write_buffer_size=write_buffer_size if write_buffer_size is not None else 500,
+        filter_updated_after=_parse_datetime(filter_updated_after),
+        concurrency=concurrency if concurrency is not None else 1,
+        record_dedupe_state=record_dedupe_state and not force,
     )
 
 
@@ -832,6 +842,7 @@ def cmd_deltas(
         client,
         file_external_id,
         file_space=file_space,
+        match_scope_key=match_scope_key,
         storage_adapter=adapter,
     )
     result = {
@@ -891,6 +902,7 @@ def cmd_batch_file_deltas(
             client,
             file_id,
             file_space=file_space,
+            match_scope_key=match_scope_key,
             storage_adapter=adapter,
         )
         total_missing += len(missing_tags)

@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import logging
 import sys
+import threading
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from typing import Any, Callable
 
@@ -23,12 +25,16 @@ from inverted_index.config import SCOPE_CONFIG, SUBSCRIPTION_CONFIG, TARGET_DRIV
 from inverted_index.config_loader import load_direct_relation_preset
 from inverted_index.dm_apply import apply_direct_relations_batched
 from inverted_index.dm_query import query_all_nodes, top_level_property_names
-from inverted_index.edge_links import build_custom_edge_apply, upsert_diagram_annotation
+from inverted_index.edge_links import (
+    apply_pending_custom_edges,
+    upsert_diagram_annotations_batched,
+)
 from inverted_index.query import query_index_by_terms
 from inverted_index.scope import resolve_match_scope
 from inverted_index.sources.annotations import _view_properties
 from inverted_index.storage.raw_keys import posting_dedupe_key
 from inverted_index.target_driven_dedupe import (
+    TargetDrivenDedupeBuffer,
     record_target_driven_run,
     should_skip_target_driven,
 )
@@ -778,6 +784,175 @@ def _aggregate_backfill_summary(
     }
 
 
+class _ThreadSafeDirectRelationBuffer(list):
+    """List subclass that flushes direct-relation applies under a lock."""
+
+    def __init__(
+        self,
+        *,
+        lock: threading.Lock,
+        client: Any,
+        write_buffer_size: int,
+        flush_stats: dict[str, Any],
+    ) -> None:
+        super().__init__()
+        self._lock = lock
+        self._client = client
+        self._write_buffer_size = write_buffer_size
+        self._flush_stats = flush_stats
+
+    def extend(self, items: Any) -> None:
+        if not items:
+            return
+        with self._lock:
+            super().extend(items)
+            if (
+                self._write_buffer_size > 0
+                and len(self) >= self._write_buffer_size
+            ):
+                flush_result = _flush_direct_relation_buffer(self._client, self)
+                self._flush_stats["direct_relations_updated"] = int(
+                    self._flush_stats.get("direct_relations_updated") or 0
+                ) + int(flush_result.get("direct_relations_updated") or 0)
+                self._flush_stats["already_linked"] = int(
+                    self._flush_stats.get("already_linked") or 0
+                ) + int(flush_result.get("already_linked") or 0)
+                for link_err in flush_result.get("errors") or []:
+                    self._flush_stats.setdefault("errors", []).append(str(link_err))
+
+
+def _process_backfill_instance(
+    client: Any,
+    *,
+    view_key: str,
+    view_ext: str,
+    instance: dict[str, Any],
+    external_id: str,
+    scope_cfg: dict,
+    dr_cfg: dict,
+    td_cfg: dict,
+    min_confidence: float,
+    dry_run: bool,
+    storage_adapter: Any,
+    match_scope_keys: list[str] | None,
+    scope_lookup_override: bool,
+    resolved_query_property: str,
+    direct_relation_buffer: list[dict] | None,
+    force: bool,
+    record_dedupe_state: bool,
+) -> dict[str, Any]:
+    resolved_space = instance["space"]
+    query_terms = read_instance_query_terms(
+        instance,
+        resolved_query_property,
+        fallbacks=effective_query_fallbacks(td_cfg),
+    )
+    scope_key, _ = resolve_match_scope(instance, view_ext, scope_cfg)
+    if (
+        record_dedupe_state
+        and not dry_run
+        and query_terms
+        and should_skip_target_driven(
+            client,
+            resolved_space,
+            external_id,
+            query_terms,
+            scope_key or "",
+            force=force,
+        )
+    ):
+        return {"status": "dedupe_skipped"}
+
+    summary = process_target_driven_contextualization(
+        client,
+        instance_external_id=external_id,
+        incoming_view_key=view_key,
+        instance_space=resolved_space,
+        scope_config=scope_cfg,
+        direct_relation_config=dr_cfg,
+        target_driven_config=td_cfg,
+        min_confidence=min_confidence,
+        dry_run=dry_run,
+        instance=instance,
+        storage_adapter=storage_adapter,
+        match_scope_keys=match_scope_keys,
+        scope_lookup_override=scope_lookup_override,
+        query_property=resolved_query_property,
+        direct_relation_buffer=direct_relation_buffer,
+    )
+    return {
+        "status": "ok",
+        "summary": summary,
+        "external_id": external_id,
+        "instance_space": resolved_space,
+        "query_terms": query_terms,
+    }
+
+
+def _apply_backfill_outcome(
+    agg: dict[str, Any],
+    outcome: dict[str, Any],
+    *,
+    dry_run: bool,
+    results: list[dict],
+) -> dict[str, Any] | None:
+    """Merge one backfill instance outcome into aggregate counters."""
+    if outcome.get("status") == "dedupe_skipped":
+        agg["dedupe_skipped"] += 1
+        agg["skipped"] += 1
+        return None
+
+    summary = outcome.get("summary") or {}
+    external_id = outcome.get("external_id") or ""
+    instance_space = outcome.get("instance_space") or ""
+
+    if summary.get("skipped") and summary.get("reason") == "scope_filtered":
+        agg["scope_filtered"] += 1
+        return None
+
+    agg["processed"] += 1
+    if summary.get("skipped"):
+        agg["skipped"] += 1
+    if summary.get("error"):
+        agg["errors"].append(
+            {
+                "instance_external_id": external_id,
+                "instance_space": instance_space,
+                "error": summary["error"],
+            }
+        )
+        return None
+
+    agg["references_found"] += int(summary.get("references_found") or 0)
+    agg["references_found_by_type"] = _merge_references_found_by_type(
+        agg["references_found_by_type"],
+        summary.get("references_found_by_type"),
+    )
+    agg["links_created"] += int(summary.get("links_created") or 0)
+    agg["query_filtered_by_confidence"] += int(
+        summary.get("query_filtered_by_confidence") or 0
+    )
+    agg["links_filtered_by_confidence"] += int(
+        summary.get("links_filtered_by_confidence") or 0
+    )
+    agg["skipped_already_linked"] += int(summary.get("skipped_already_linked") or 0)
+    for link_err in summary.get("errors") or []:
+        agg["errors"].append(
+            {
+                "instance_external_id": external_id,
+                "instance_space": instance_space,
+                "error": str(link_err),
+            }
+        )
+    if dry_run and (
+        summary.get("references_found")
+        or summary.get("skipped")
+        or summary.get("reason")
+    ):
+        results.append(summary)
+    return summary
+
+
 def run_target_driven_backfill(
     client: Any,
     *,
@@ -803,6 +978,9 @@ def run_target_driven_backfill(
     force: bool = False,
     write_buffer_size: int = 500,
     filter_updated_after: datetime | None = None,
+    concurrency: int = 1,
+    record_dedupe_state: bool = True,
+    dedupe_buffer_size: int = 500,
 ) -> dict:
     """Fleet backfill: enumerate instances with query property set, then contextualize."""
     scope_cfg = scope_config or SCOPE_CONFIG
@@ -811,6 +989,8 @@ def run_target_driven_backfill(
     td_cfg = target_driven_config or TARGET_DRIVEN_CONFIG
     resolved_query_property = resolve_query_property(query_property, td_cfg)
     property_names = batch_scan_top_level_properties(resolved_query_property, td_cfg)
+    workers = max(1, int(concurrency))
+    dedupe_enabled = record_dedupe_state and not force
 
     view_keys = _resolve_backfill_view_keys(
         direct_relation_config=dr_cfg,
@@ -827,22 +1007,44 @@ def run_target_driven_backfill(
         else:
             spaces = [None]
 
-    processed = 0
-    skipped = 0
-    scope_filtered = 0
-    dedupe_skipped = 0
-    references_found = 0
-    references_found_by_type: dict[str, int] = {}
-    links_created = 0
-    query_filtered_by_confidence = 0
-    links_filtered_by_confidence = 0
-    skipped_already_linked = 0
-    errors: list[dict] = []
+    agg: dict[str, Any] = {
+        "processed": 0,
+        "skipped": 0,
+        "scope_filtered": 0,
+        "dedupe_skipped": 0,
+        "references_found": 0,
+        "references_found_by_type": {},
+        "links_created": 0,
+        "query_filtered_by_confidence": 0,
+        "links_filtered_by_confidence": 0,
+        "skipped_already_linked": 0,
+        "errors": [],
+    }
     results: list[dict] = []
     started_at = time.monotonic()
     scope_label = ", ".join(str(s) for s in spaces if s) or "all"
     emit = on_progress if progress_interval > 0 else None
-    direct_buffer: list[dict] | None = [] if write_buffer_size > 0 and not dry_run else None
+    buffer_lock = threading.Lock()
+    flush_stats: dict[str, Any] = {
+        "direct_relations_updated": 0,
+        "already_linked": 0,
+        "errors": [],
+    }
+    direct_buffer: list[dict] | None
+    if write_buffer_size > 0 and not dry_run:
+        direct_buffer = _ThreadSafeDirectRelationBuffer(
+            lock=buffer_lock,
+            client=client,
+            write_buffer_size=write_buffer_size,
+            flush_stats=flush_stats,
+        )
+    else:
+        direct_buffer = None
+    dedupe_buffer = (
+        TargetDrivenDedupeBuffer(chunk_size=dedupe_buffer_size)
+        if dedupe_enabled and not dry_run
+        else None
+    )
 
     if emit:
         scope_mode = "override" if scope_lookup_override else "filter"
@@ -854,8 +1056,114 @@ def run_target_driven_backfill(
             f"view_keys={','.join(view_keys)} spaces={scope_label} "
             f"query_property={resolved_query_property} scope_keys={scope_keys_label} "
             f"scope_mode={scope_mode} dry_run={dry_run} "
-            f"progress_interval={progress_interval}"
+            f"progress_interval={progress_interval} concurrency={workers} "
+            f"write_buffer_size={write_buffer_size}"
         )
+
+    def _record_dedupe_for_outcome(outcome: dict[str, Any], summary: dict[str, Any]) -> None:
+        if dry_run or not dedupe_enabled or summary.get("skipped"):
+            return
+        query_terms = outcome.get("query_terms") or summary.get("query_terms") or []
+        if not query_terms:
+            return
+        if dedupe_buffer is not None:
+            dedupe_buffer.append(
+                outcome.get("instance_space") or "",
+                outcome.get("external_id") or "",
+                query_terms,
+                summary.get("match_scope_key") or "",
+                summary,
+            )
+            if dedupe_buffer.should_flush():
+                dedupe_buffer.flush(client, force=True)
+        else:
+            record_target_driven_run(
+                client,
+                outcome.get("instance_space") or "",
+                outcome.get("external_id") or "",
+                query_terms,
+                summary.get("match_scope_key") or "",
+                summary,
+            )
+
+    def _handle_outcome(outcome: dict[str, Any]) -> None:
+        with buffer_lock:
+            summary = _apply_backfill_outcome(
+                agg, outcome, dry_run=dry_run, results=results
+            )
+            if summary is not None:
+                _record_dedupe_for_outcome(outcome, summary)
+
+    def _run_work_item(work: dict[str, Any]) -> dict[str, Any]:
+        try:
+            return _process_backfill_instance(
+                client,
+                view_key=work["view_key"],
+                view_ext=work["view_ext"],
+                instance=work["instance"],
+                external_id=work["external_id"],
+                scope_cfg=scope_cfg,
+                dr_cfg=dr_cfg,
+                td_cfg=td_cfg,
+                min_confidence=min_confidence,
+                dry_run=dry_run,
+                storage_adapter=storage_adapter,
+                match_scope_keys=match_scope_keys,
+                scope_lookup_override=scope_lookup_override,
+                resolved_query_property=resolved_query_property,
+                direct_relation_buffer=direct_buffer,
+                force=force,
+                record_dedupe_state=dedupe_enabled,
+            )
+        except Exception as exc:
+            logger.exception(
+                "Target-driven backfill failed for %s/%s",
+                work.get("space"),
+                work.get("external_id"),
+            )
+            return {
+                "status": "error",
+                "error": str(exc),
+                "external_id": work.get("external_id"),
+                "instance_space": work.get("instance", {}).get("space"),
+            }
+
+    def _flush_work_batch(batch: list[dict[str, Any]]) -> None:
+        nonlocal agg
+        if workers == 1:
+            for work in batch:
+                outcome = _run_work_item(work)
+                if outcome.get("status") == "error":
+                    agg["errors"].append(
+                        {
+                            "instance_external_id": outcome.get("external_id"),
+                            "instance_space": outcome.get("instance_space"),
+                            "error": outcome.get("error"),
+                        }
+                    )
+                    if emit:
+                        emit(
+                            f"[target-driven-backfill] error "
+                            f"{outcome.get('instance_space')}/{outcome.get('external_id')}: "
+                            f"{outcome.get('error')}"
+                        )
+                    continue
+                _handle_outcome(outcome)
+        else:
+            with ThreadPoolExecutor(max_workers=workers) as executor:
+                futures = [executor.submit(_run_work_item, work) for work in batch]
+                for future in as_completed(futures):
+                    outcome = future.result()
+                    if outcome.get("status") == "error":
+                        agg["errors"].append(
+                            {
+                                "instance_external_id": outcome.get("external_id"),
+                                "instance_space": outcome.get("instance_space"),
+                                "error": outcome.get("error"),
+                            }
+                        )
+                        continue
+                    _handle_outcome(outcome)
 
     for view_key in view_keys:
         raise_if_cancelled(should_cancel)
@@ -867,6 +1175,7 @@ def run_target_driven_backfill(
         exists_filter = batch_exists_filter(view_id, resolved_query_property, td_cfg)
         for space in spaces:
             raise_if_cancelled(should_cancel)
+            pending_batch: list[dict[str, Any]] = []
             for inst in query_all_nodes(
                 client,
                 view_id=view_id,
@@ -880,202 +1189,99 @@ def run_target_driven_backfill(
                 raise_if_cancelled(should_cancel)
                 external_id = inst.external_id
                 resolved_space = getattr(inst, "space", None) or space or view_sp
-                instance = {
-                    "externalId": external_id,
-                    "space": resolved_space,
-                    "properties": _view_properties(
-                        inst,
-                        view_space=view_sp,
-                        view=view_ext,
-                        version=view_ver,
-                    ),
-                }
-                try:
-                    query_terms = read_instance_query_terms(
-                        instance,
-                        resolved_query_property,
-                        fallbacks=effective_query_fallbacks(td_cfg),
-                    )
-                    scope_key, _ = resolve_match_scope(instance, view_ext, scope_cfg)
-                    if (
-                        not dry_run
-                        and query_terms
-                        and should_skip_target_driven(
-                            client,
-                            resolved_space,
-                            external_id,
-                            query_terms,
-                            scope_key or "",
-                            force=force,
-                        )
-                    ):
-                        dedupe_skipped += 1
-                        skipped += 1
-                        continue
-
-                    summary = process_target_driven_contextualization(
-                        client,
-                        instance_external_id=external_id,
-                        incoming_view_key=view_key,
-                        instance_space=instance["space"],
-                        scope_config=scope_cfg,
-                        direct_relation_config=dr_cfg,
-                        target_driven_config=td_cfg,
-                        min_confidence=min_confidence,
-                        dry_run=dry_run,
-                        instance=instance,
-                        storage_adapter=storage_adapter,
-                        match_scope_keys=match_scope_keys,
-                        scope_lookup_override=scope_lookup_override,
-                        query_property=resolved_query_property,
-                        direct_relation_buffer=direct_buffer,
-                    )
-                except Exception as exc:
-                    logger.exception(
-                        "Target-driven backfill failed for %s/%s", space, external_id
-                    )
-                    errors.append(
-                        {
-                            "instance_external_id": external_id,
-                            "instance_space": instance["space"],
-                            "error": str(exc),
-                        }
-                    )
-                    if emit:
+                pending_batch.append(
+                    {
+                        "view_key": view_key,
+                        "view_ext": view_ext,
+                        "space": space,
+                        "external_id": external_id,
+                        "instance": {
+                            "externalId": external_id,
+                            "space": resolved_space,
+                            "properties": _view_properties(
+                                inst,
+                                view_space=view_sp,
+                                view=view_ext,
+                                version=view_ver,
+                            ),
+                        },
+                    }
+                )
+                if len(pending_batch) >= workers:
+                    _flush_work_batch(pending_batch)
+                    pending_batch.clear()
+                    if emit and agg["processed"] % progress_interval == 0 and agg["processed"]:
                         emit(
-                            f"[target-driven-backfill] error {instance['space']}/{external_id}: {exc}"
+                            _format_batch_progress(
+                                processed=agg["processed"],
+                                skipped=agg["skipped"],
+                                references_found=agg["references_found"],
+                                links_created=agg["links_created"],
+                                errors=len(agg["errors"]),
+                                elapsed_sec=time.monotonic() - started_at,
+                                query_filtered_by_confidence=agg[
+                                    "query_filtered_by_confidence"
+                                ],
+                                links_filtered_by_confidence=agg[
+                                    "links_filtered_by_confidence"
+                                ],
+                                skipped_already_linked=agg["skipped_already_linked"],
+                                label="target-driven-backfill",
+                            )
                         )
-                    continue
-
-                if summary.get("skipped") and summary.get("reason") == "scope_filtered":
-                    scope_filtered += 1
-                    continue
-
-                processed += 1
-                if summary.get("skipped"):
-                    skipped += 1
-                if summary.get("error"):
-                    errors.append(
-                        {
-                            "instance_external_id": external_id,
-                            "instance_space": instance["space"],
-                            "error": summary["error"],
-                        }
-                    )
-                    if emit:
-                        emit(
-                            f"[target-driven-backfill] error {instance['space']}/{external_id}: "
-                            f"{summary['error']}"
-                        )
-                    continue
-
-                if (
-                    direct_buffer is not None
-                    and write_buffer_size > 0
-                    and len(direct_buffer) >= write_buffer_size
-                ):
-                    flush_result = _flush_direct_relation_buffer(client, direct_buffer)
-                    links_created += int(flush_result.get("direct_relations_updated") or 0)
-                    skipped_already_linked += int(
-                        flush_result.get("already_linked") or 0
-                    )
-
-                query_terms = summary.get("query_terms") or []
-                if not dry_run and query_terms and not summary.get("skipped"):
-                    record_target_driven_run(
-                        client,
-                        instance["space"],
-                        external_id,
-                        query_terms,
-                        summary.get("match_scope_key") or "",
-                        summary,
-                    )
-
-                references_found += int(summary.get("references_found") or 0)
-                references_found_by_type = _merge_references_found_by_type(
-                    references_found_by_type,
-                    summary.get("references_found_by_type"),
-                )
-                links_created += int(summary.get("links_created") or 0)
-                for link_err in summary.get("errors") or []:
-                    errors.append(
-                        {
-                            "instance_external_id": external_id,
-                            "instance_space": instance["space"],
-                            "error": str(link_err),
-                        }
-                    )
-                query_filtered_by_confidence += int(
-                    summary.get("query_filtered_by_confidence") or 0
-                )
-                links_filtered_by_confidence += int(
-                    summary.get("links_filtered_by_confidence") or 0
-                )
-                skipped_already_linked += int(summary.get("skipped_already_linked") or 0)
-                if dry_run and (
-                    summary.get("references_found")
-                    or summary.get("skipped")
-                    or summary.get("reason")
-                ):
-                    results.append(summary)
-                if emit and processed % progress_interval == 0:
-                    emit(
-                        _format_batch_progress(
-                            processed=processed,
-                            skipped=skipped,
-                            references_found=references_found,
-                            links_created=links_created,
-                            errors=len(errors),
-                            elapsed_sec=time.monotonic() - started_at,
-                            query_filtered_by_confidence=query_filtered_by_confidence,
-                            links_filtered_by_confidence=links_filtered_by_confidence,
-                            skipped_already_linked=skipped_already_linked,
-                            label="target-driven-backfill",
-                        )
-                    )
-                if max_assets and processed >= max_assets:
+                if max_assets and agg["processed"] >= max_assets:
                     break
-            if max_assets and processed >= max_assets:
+            if pending_batch:
+                _flush_work_batch(pending_batch)
+            if max_assets and agg["processed"] >= max_assets:
                 break
-        if max_assets and processed >= max_assets:
+        if max_assets and agg["processed"] >= max_assets:
             break
 
     if direct_buffer is not None and direct_buffer:
-        flush_result = _flush_direct_relation_buffer(client, direct_buffer)
-        links_created += int(flush_result.get("direct_relations_updated") or 0)
-        skipped_already_linked += int(flush_result.get("already_linked") or 0)
+        with buffer_lock:
+            flush_result = _flush_direct_relation_buffer(client, direct_buffer)
+        agg["links_created"] += int(flush_result.get("direct_relations_updated") or 0)
+        agg["skipped_already_linked"] += int(flush_result.get("already_linked") or 0)
         for link_err in flush_result.get("errors") or []:
-            errors.append({"error": str(link_err)})
+            agg["errors"].append({"error": str(link_err)})
+    agg["links_created"] += int(flush_stats.get("direct_relations_updated") or 0)
+    agg["skipped_already_linked"] += int(flush_stats.get("already_linked") or 0)
+    for link_err in flush_stats.get("errors") or []:
+        agg["errors"].append({"error": str(link_err)})
+
+    if dedupe_buffer is not None:
+        dedupe_buffer.flush(client, force=True)
 
     if emit:
         emit(
             _format_batch_progress(
-                processed=processed,
-                skipped=skipped,
-                references_found=references_found,
-                links_created=links_created,
-                errors=len(errors),
+                processed=agg["processed"],
+                skipped=agg["skipped"],
+                references_found=agg["references_found"],
+                links_created=agg["links_created"],
+                errors=len(agg["errors"]),
                 elapsed_sec=time.monotonic() - started_at,
-                query_filtered_by_confidence=query_filtered_by_confidence,
-                links_filtered_by_confidence=links_filtered_by_confidence,
-                skipped_already_linked=skipped_already_linked,
+                query_filtered_by_confidence=agg["query_filtered_by_confidence"],
+                links_filtered_by_confidence=agg["links_filtered_by_confidence"],
+                skipped_already_linked=agg["skipped_already_linked"],
                 label="target-driven-backfill",
             )
             + " — complete"
         )
 
     return _aggregate_backfill_summary(
-        processed=processed,
-        skipped=skipped,
-        scope_filtered=scope_filtered,
-        dedupe_skipped=dedupe_skipped,
-        references_found=references_found,
-        references_found_by_type=references_found_by_type,
-        links_created=links_created,
-        query_filtered_by_confidence=query_filtered_by_confidence,
-        links_filtered_by_confidence=links_filtered_by_confidence,
-        skipped_already_linked=skipped_already_linked,
-        errors=errors,
+        processed=agg["processed"],
+        skipped=agg["skipped"],
+        scope_filtered=agg["scope_filtered"],
+        dedupe_skipped=agg["dedupe_skipped"],
+        references_found=agg["references_found"],
+        references_found_by_type=agg["references_found_by_type"],
+        links_created=agg["links_created"],
+        query_filtered_by_confidence=agg["query_filtered_by_confidence"],
+        links_filtered_by_confidence=agg["links_filtered_by_confidence"],
+        skipped_already_linked=agg["skipped_already_linked"],
+        errors=agg["errors"],
         dry_run=dry_run,
         watch_view_keys=view_keys,
         view_keys_scanned=view_keys,
@@ -1309,44 +1515,23 @@ def apply_configured_links(
             already_linked = int(batch_result.get("already_linked") or 0)
             errors.extend(batch_result.get("errors") or [])
 
-        for edge in pending_edges:
-            try:
-                edge_apply = build_custom_edge_apply(
-                    edge_view_cfg=edge["edge_view"],
-                    start_space=edge["start_space"],
-                    start_external_id=edge["start_external_id"],
-                    end_space=edge["end_space"],
-                    end_external_id=edge["end_external_id"],
-                    edge_space=edge.get("edge_space"),
-                    external_id_template=edge.get("external_id_template"),
-                )
-                client.data_modeling.instances.apply([edge_apply])
-                edges_created += 1
-            except Exception as exc:
-                errors.append(str(exc))
+        if pending_edges:
+            batch_created, batch_errors = apply_pending_custom_edges(
+                client, pending_edges
+            )
+            edges_created = batch_created
+            errors.extend(batch_errors)
 
-        for ann in pending_annotations:
-            try:
-                outcome = upsert_diagram_annotation(
-                    client,
-                    ann["hit"],
-                    start_space=ann["start_space"],
-                    start_external_id=ann["start_external_id"],
-                    end_space=ann["end_space"],
-                    end_external_id=ann["end_external_id"],
-                    diagram_annotation_cfg=ann["diagram_annotation_cfg"],
-                    dr_cfg=dr_cfg,
-                    dry_run=False,
-                    annotation_config=annotation_config,
-                )
-                if outcome == "created":
-                    annotations_created += 1
-                elif outcome == "updated":
-                    annotations_updated += 1
-                else:
-                    annotations_skipped += 1
-            except Exception as exc:
-                errors.append(str(exc))
+        if pending_annotations:
+            ann_result = upsert_diagram_annotations_batched(
+                client,
+                pending_annotations,
+                dr_cfg=dr_cfg,
+                annotation_config=annotation_config,
+            )
+            annotations_created = int(ann_result.get("created") or 0)
+            annotations_updated = int(ann_result.get("updated") or 0)
+            annotations_skipped = int(ann_result.get("skipped") or 0)
 
     return {
         "direct_relations_updated": direct_updated,

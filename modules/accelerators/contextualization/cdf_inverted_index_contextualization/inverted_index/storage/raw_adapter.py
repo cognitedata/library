@@ -15,7 +15,7 @@ from inverted_index.raw_ops import (
     create_table_if_not_exists,
     get_scope_partition_strategy,
     list_registered_scope_keys,
-    load_postings_row,
+    load_postings_rows_batch,
     merge_and_upsert_lookup_key,
     parse_postings_json,
     resolve_scope_partition_table,
@@ -201,6 +201,7 @@ class RawStorageAdapter:
         results: list[dict] = []
 
         for scope in scopes:
+            term_tables: list[tuple[str, str, str]] = []
             for term in normalized_terms:
                 table = resolve_scope_partition_table(
                     self._client,
@@ -210,27 +211,37 @@ class RawStorageAdapter:
                     local_registry=local_registry,
                 )
                 row_key = build_raw_postings_row_key(scope, term)
-                postings, _cols = load_postings_row(
+                term_tables.append((term, table, row_key))
+
+            by_table: dict[str, list[tuple[str, str]]] = {}
+            for term, table, row_key in term_tables:
+                by_table.setdefault(table, []).append((term, row_key))
+
+            for table, term_rows in by_table.items():
+                row_keys = [row_key for _term, row_key in term_rows]
+                loaded = load_postings_rows_batch(
                     self._client,
                     raw_db,
                     table,
-                    row_key,
+                    row_keys,
                     local_cache=local_cache,
                 )
-                entries = flatten_postings_to_entries(
-                    postings,
-                    match_scope_key=scope,
-                    normalized_term=term,
-                )
-                for entry in entries:
-                    if source_types and entry.get("source_type") not in source_types:
-                        continue
-                    conf = (entry.get("additional_metadata") or {}).get("confidence")
-                    if conf is not None and float(conf) < min_confidence:
-                        continue
-                    results.append(entry)
-                    if len(results) >= limit:
-                        return results
+                for term, row_key in term_rows:
+                    postings, _cols = loaded.get(row_key, ([], {}))
+                    entries = flatten_postings_to_entries(
+                        postings,
+                        match_scope_key=scope,
+                        normalized_term=term,
+                    )
+                    for entry in entries:
+                        if source_types and entry.get("source_type") not in source_types:
+                            continue
+                        conf = (entry.get("additional_metadata") or {}).get("confidence")
+                        if conf is not None and float(conf) < min_confidence:
+                            continue
+                        results.append(entry)
+                        if len(results) >= limit:
+                            return results
         return results
 
     def list_by_file(

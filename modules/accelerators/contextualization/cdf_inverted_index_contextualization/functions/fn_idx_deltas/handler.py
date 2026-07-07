@@ -49,6 +49,7 @@ def handle(data: dict[str, Any] | None = None, client: Any = None) -> dict[str, 
             client,
             file_external_id,
             file_space=file_space,
+            match_scope_key=match_scope_key,
             storage_adapter=adapter,
         )
     return result

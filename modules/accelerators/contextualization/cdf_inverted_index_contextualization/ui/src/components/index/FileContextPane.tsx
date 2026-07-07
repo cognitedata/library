@@ -140,6 +140,7 @@ export function FileContextPane({ onSelectRow }: Props) {
                     onChange={(e) => setScopeKey(e.target.value)}
                     placeholder={t("fileContext.scopeKeyPlaceholder")}
                   />
+                  <span className="idx-field-hint">{t("fileContext.scopeKeyHint")}</span>
                 </label>
               </div>
             </FieldGroup>

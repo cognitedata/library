@@ -202,7 +202,7 @@ def handle_aliases_subscription_event(
         dry_run=dry_run,
         storage_adapter=storage_adapter,
         query_property=watch_property,
-        annotation_config=runtime["annotation_index_config"],
+        annotation_config=runtime.get("annotation_index_config"),
     )
 
     if not dry_run and client and not summary.get("skipped"):
