@@ -2,7 +2,6 @@ externalId: context_quality_dashboard
 name: Contextualization Quality
 description: This is a Template Streamlit app for Context Quality
 published: True
-creator: charan.raju@cognitedata.com
+creator: {{ creator_email }}
 entrypoint: main.py
 dataSetExternalId: context_quality_apps
-

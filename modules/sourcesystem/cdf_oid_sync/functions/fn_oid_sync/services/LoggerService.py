@@ -35,34 +35,34 @@ class CompactLogger:
             "errors": 0
         }
     
-    def info(self, message: str):
+    def info(self, message: str) -> None:
         """Log info message"""
         self.logger.info(message)
     
-    def warning(self, message: str):
+    def warning(self, message: str) -> None:
         """Log warning message"""
         self.logger.warning(message)
     
-    def error(self, message: str):
+    def error(self, message: str) -> None:
         """Log error message"""
         self.logger.error(message)
         self.stats["errors"] += 1
     
-    def debug(self, message: str):
+    def debug(self, message: str) -> None:
         """Log debug message"""
         self.logger.debug(message)
     
-    def progress(self, current: int, total: int, item_type: str = "items"):
+    def progress(self, current: int, total: int, item_type: str = "items") -> None:
         """Log progress in compact format"""
         percent = (current / total * 100) if total > 0 else 0
         self.logger.info(f"Progress: {current}/{total} {item_type} ({percent:.0f}%)")
     
-    def update_stats(self, ts_synced: int = 0, dps_inserted: int = 0):
+    def update_stats(self, ts_synced: int = 0, dps_inserted: int = 0) -> None:
         """Update statistics"""
         self.stats["ts_synced"] += ts_synced
         self.stats["dps_inserted"] += dps_inserted
     
-    def summary(self):
+    def summary(self) -> None:
         """Print compact summary"""
         duration = (datetime.now() - self.start_time).total_seconds()
         self.logger.info("=" * 50)

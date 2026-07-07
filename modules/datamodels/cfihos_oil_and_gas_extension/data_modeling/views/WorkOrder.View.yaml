@@ -572,4 +572,3 @@ properties:
       type: container
     containerPropertyIdentifier: scheduledEndTime
     description: The planned end time of the activity
-

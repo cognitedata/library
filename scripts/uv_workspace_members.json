@@ -1,0 +1,17 @@
+[
+  "modules/datamodels/cfihos_oil_and_gas_extension/cfihos_model_config",
+  "modules/common/cdf_common/functions/contextualization_connection_writer",
+  "modules/contextualization/cdf_entity_matching/functions/fn_dm_context_metadata_update",
+  "modules/contextualization/cdf_entity_matching/functions/fn_dm_context_timeseries_entity_matching",
+  "modules/contextualization/cdf_file_annotation/functions/fn_file_annotation_finalize",
+  "modules/contextualization/cdf_file_annotation/functions/fn_file_annotation_launch",
+  "modules/contextualization/cdf_file_annotation/functions/fn_file_annotation_prepare",
+  "modules/contextualization/cdf_file_annotation/functions/fn_file_annotation_promote",
+  "modules/contextualization/cdf_file_annotation/streamlit/file_annotation_dashboard_annotation_quality",
+  "modules/contextualization/cdf_file_annotation/streamlit/file_annotation_dashboard_pipeline_health",
+  "modules/contextualization/cdf_p_and_id_annotation/functions/fn_dm_context_files_annotation",
+  "modules/dashboards/context_quality/functions/context_quality_handler",
+  "modules/dashboards/context_quality/streamlit/context_quality_dashboard",
+  "modules/solutions/cdf_ai_extractor/functions/fn_ai_property_extractor",
+  "modules/sourcesystem/cdf_oid_sync/functions/fn_oid_sync"
+]

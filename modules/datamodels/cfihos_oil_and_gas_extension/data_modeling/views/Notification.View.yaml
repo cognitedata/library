@@ -48,7 +48,7 @@ properties:
       space: "{{space}}"
       externalId: FailureMode
       version: "{{dm_version}}"
-      type: view    
+      type: view
   labels:
     name: Labels
     container:

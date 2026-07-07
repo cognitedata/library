@@ -8,11 +8,11 @@ on:
 jobs:
   check-artifacts:
     runs-on: ubuntu-latest
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-      
+
     - name: Check for packages.zip
       run: |
         if [ -f "packages.zip" ]; then
@@ -22,4 +22,3 @@ jobs:
         else
           echo "✅ No packages.zip found - check passed"
         fi
-

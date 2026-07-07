@@ -1,5 +1,4 @@
 import os
-from typing import Optional
 
 from cognite.client import ClientConfig, CogniteClient, global_config
 from cognite.client.credentials import OAuthClientCredentials
@@ -7,7 +6,7 @@ from cognite.client.credentials import OAuthClientCredentials
 
 class CogniteClientFactory:
     @staticmethod
-    def create_from_env(base_url_prefix: str = "", debug: bool = False) -> Optional[CogniteClient]:
+    def create_from_env(base_url_prefix: str = "", debug: bool = False) -> CogniteClient | None:
         project = os.getenv("CDF_PROJECT")
         cluster = os.getenv("CDF_CLUSTER")
         tenant_id = os.getenv("IDP_TENANT_ID")

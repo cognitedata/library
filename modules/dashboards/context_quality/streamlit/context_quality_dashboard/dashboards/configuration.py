@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Configuration panel for Data Model View settings.
 
@@ -74,7 +73,7 @@ DEFAULT_CONFIG = {
 FUNCTION_EXTERNAL_ID = "context_quality_handler"
 
 
-def _init_session_state():
+def _init_session_state() -> None:
     """Initialize session state with default config values."""
     if "config_initialized" not in st.session_state:
         for key, value in DEFAULT_CONFIG.items():
@@ -111,7 +110,7 @@ def _check_function_status(client: CogniteClient, call_id: int) -> dict:
         return {"status": "Error", "error": str(e)}
 
 
-def _render_view_inputs(label: str, space_key: str, external_id_key: str, version_key: str):
+def _render_view_inputs(label: str, space_key: str, external_id_key: str, version_key: str) -> None:
     """Render a row of inputs for a single view configuration."""
     # Ensure session state is initialized for these keys BEFORE widget rendering
     keys_to_init = [space_key, external_id_key, version_key]
@@ -157,7 +156,7 @@ def _render_view_inputs(label: str, space_key: str, external_id_key: str, versio
             st.session_state[version_key] = new_version
 
 
-def _render_quick_run_section(client: CogniteClient):
+def _render_quick_run_section(client: CogniteClient) -> None:
     """Render the quick run section for small datasets (in expander)."""
     
     # Check if there's an active function call
@@ -252,10 +251,10 @@ def _render_quick_run_section(client: CogniteClient):
                         Functions can take 2-5 minutes to deploy after `cdf deploy`.
                         """)
                     else:
-                        st.error(f"**Failed to trigger function:** {str(e)}")
+                        st.error(f"**Failed to trigger function:** {e!s}")
 
 
-def _render_batch_processing_section(client: CogniteClient):
+def _render_batch_processing_section(client: CogniteClient) -> None:
     """Render the batch processing section (primary method for running the function)."""
     st.subheader("Run Metrics Function")
     
@@ -488,28 +487,27 @@ def _render_batch_processing_section(client: CogniteClient):
                 with col_status:
                     st.write(f"{icon} **Batch {i}:** {status_str} (Call ID: {call_id})")
                 with col_retry:
-                    if is_failed:
-                        if st.button("Retry", key=f"retry_batch_{i}", use_container_width=True):
-                            config = _get_current_config()
-                            config["batch_mode"] = True
-                            config["batch_index"] = i
-                            config["batch_size"] = st.session_state.get("batch_size", 200000)
-                            
-                            try:
-                                call = client.functions.call(
-                                    external_id=FUNCTION_EXTERNAL_ID,
-                                    data=config,
-                                    wait=False
-                                )
-                                batch_call_ids[i] = call.id
-                                st.session_state["batch_call_ids"] = batch_call_ids
-                                st.success(f"Batch {i} restarted! Call ID: {call.id}")
-                                st.rerun()
-                            except Exception as e:
-                                st.error(f"Failed to retry batch: {e}")
+                    if is_failed and st.button("Retry", key=f"retry_batch_{i}", use_container_width=True):
+                        config = _get_current_config()
+                        config["batch_mode"] = True
+                        config["batch_index"] = i
+                        config["batch_size"] = st.session_state.get("batch_size", 200000)
+
+                        try:
+                            call = client.functions.call(
+                                external_id=FUNCTION_EXTERNAL_ID,
+                                data=config,
+                                wait=False
+                            )
+                            batch_call_ids[i] = call.id
+                            st.session_state["batch_call_ids"] = batch_call_ids
+                            st.success(f"Batch {i} restarted! Call ID: {call.id}")
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"Failed to retry batch: {e}")
 
 
-def render_configuration_panel(client: CogniteClient, show_getting_started: bool = False):
+def render_configuration_panel(client: CogniteClient, show_getting_started: bool = False) -> None:
     """
     Render the configuration panel for data model view settings.
     

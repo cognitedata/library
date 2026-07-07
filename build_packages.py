@@ -72,7 +72,7 @@ def create_modules_zip(output_name: str | None = None) -> str:
         sys.exit(1)
 
 
-def main():
+def main() -> str:
     """Main function."""
     print("🚀 Starting modules build process...")
     print(f"📂 Current working directory: {Path.cwd()}")

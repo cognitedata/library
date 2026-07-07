@@ -1,6 +1,5 @@
 """Terminal styling, change tracking, and change-table display for the setup wizard."""
 
-from __future__ import annotations
 
 import re
 import sys

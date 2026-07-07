@@ -17,8 +17,8 @@ from .common import (
 def process_equipment_batch(
     equipment_batch,
     eq_view: ViewId,
-    acc: CombinedAccumulator
-):
+    acc: CombinedAccumulator,
+) -> None:
     """Process equipment batch - collect equipment-asset relationship data."""
     for eq in equipment_batch:
         eq_id = get_external_id(eq)

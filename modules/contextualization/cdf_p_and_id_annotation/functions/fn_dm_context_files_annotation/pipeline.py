@@ -1,9 +1,8 @@
-from __future__ import annotations
 
 import json
 import time
 import traceback
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 from hashlib import sha256
 from typing import TYPE_CHECKING, Any
@@ -31,8 +30,7 @@ from config import Config, ViewPropertyConfig
 
 # RawUploadQueue is only constructed at runtime in annotate_p_and_id; importing
 # it lazily lets pipeline.py be imported (e.g. for unit tests) without the
-# cognite-extractor-utils package installed. The type hint below stays valid
-# because of `from __future__ import annotations`.
+# cognite-extractor-utils package installed. Type hints use forward references.
 if TYPE_CHECKING:  # pragma: no cover
     from cognite.extractorutils.uploader import RawUploadQueue
 from constants import (
@@ -233,7 +231,7 @@ def update_pipeline_run(
     status: str,
     annotated_count: int,
     error_count: int,
-    error: str = None
+    error: str | None = None
 ) -> None:
 
     if status == "success":
@@ -494,10 +492,7 @@ def get_new_files(
     """
 
     file_view_config = config.data.annotation_job.file_view
-    if config.parameters.debug:
-        debug_file = config.parameters.debug_file
-    else:
-        debug_file = None
+    debug_file = config.parameters.debug_file if config.parameters.debug else None
 
     logger.debug(f"Get new files from view: {files_view_id}, based on config: {file_view_config}")
     is_selected = get_file_filter(file_view_config, debug_file, logger)
@@ -830,7 +825,7 @@ def _detect_annotation_to_edge_applies(
                 "view_space":annotation_view_id.space,
                 "view_version":annotation_view_id.version,
             }
-            now = datetime.now(timezone.utc).replace(microsecond=0)
+            now = datetime.now(UTC).replace(microsecond=0)
 
             annotation_properties = {
                 "name": file_instance_id.external_id,
@@ -914,7 +909,7 @@ def create_annotation_id(
 def write_mapping_to_raw(
     client: CogniteClient,
     config: Config,
-    raw_uploader: RawUploadQueue,
+    raw_uploader: "RawUploadQueue",
     doc_doc: list[dict],
     doc_tag: list[dict],
     logger: CogniteFunctionLogger,

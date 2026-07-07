@@ -14,8 +14,3 @@ cdmDataModelVersion: v1
 
 # Reserved word prefix (used for views whose names start with numbers or reserved words)
 reservedWordPrefix: Enterprise_
-
-
-
-
-

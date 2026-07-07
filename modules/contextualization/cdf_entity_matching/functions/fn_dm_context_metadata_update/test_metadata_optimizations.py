@@ -134,7 +134,7 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
         tags = ["existing:tag"]
         aliases = ["existing_alias"]
         
-        summary, upd_tags, upd_aliases = self.processor._parse_norsok_tag_optimized(
+        summary, upd_tags, _upd_aliases = self.processor._parse_norsok_tag_optimized(
             tag, tags, aliases
         )
         

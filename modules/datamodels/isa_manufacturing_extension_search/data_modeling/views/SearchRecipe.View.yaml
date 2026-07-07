@@ -19,11 +19,11 @@ properties:
     containerPropertyIdentifier: recipeId
     name: Recipe ID
     description: >
-      Unique identifier for the recipe entity, conforming to ISA-88 recipe management standards. 
-      A recipe represents a master recipe defining the manufacturing process steps and parameters. 
-      The recipeId serves as the primary key and enables traceability of recipes throughout the 
-      recipe lifecycle, from recipe creation through version control to batch execution. This 
-      identifier is critical for recipe management, version control, and batch execution tracking. 
+      Unique identifier for the recipe entity, conforming to ISA-88 recipe management standards.
+      A recipe represents a master recipe defining the manufacturing process steps and parameters.
+      The recipeId serves as the primary key and enables traceability of recipes throughout the
+      recipe lifecycle, from recipe creation through version control to batch execution. This
+      identifier is critical for recipe management, version control, and batch execution tracking.
       [ISA-88]
   name:
     container:
@@ -33,10 +33,10 @@ properties:
     containerPropertyIdentifier: name
     name: Recipe Name
     description: >
-      Human-readable name for the recipe, typically describing the product or process (e.g., 
-      "Product A Production Recipe", "Cleaning Recipe", "Quality Check Recipe"). The recipeName 
-      follows ISA-88 naming conventions for recipes and should be descriptive enough for process 
-      engineers and operators to identify the recipe's purpose. This name is often used in control 
+      Human-readable name for the recipe, typically describing the product or process (e.g.,
+      "Product A Production Recipe", "Cleaning Recipe", "Quality Check Recipe"). The recipeName
+      follows ISA-88 naming conventions for recipes and should be descriptive enough for process
+      engineers and operators to identify the recipe's purpose. This name is often used in control
       system displays, batch records, and operational documentation. [ISA-88]
   recipeVersion:
     container:
@@ -46,11 +46,11 @@ properties:
     containerPropertyIdentifier: recipeVersion
     name: Recipe Version
     description: >
-      Version identifier for the recipe, enabling recipe version control and change management. 
-      The recipeVersion follows ISA-88 recipe versioning conventions and may include version 
-      numbers, revision dates, or other version identifiers. This field is critical for recipe 
-      version tracking, change management, and batch execution traceability. Recipe versions enable 
-      tracking of recipe changes over time and support rollback to previous versions if needed. 
+      Version identifier for the recipe, enabling recipe version control and change management.
+      The recipeVersion follows ISA-88 recipe versioning conventions and may include version
+      numbers, revision dates, or other version identifiers. This field is critical for recipe
+      version tracking, change management, and batch execution traceability. Recipe versions enable
+      tracking of recipe changes over time and support rollback to previous versions if needed.
       [ISA-88]
   recipeType:
     container:
@@ -60,10 +60,10 @@ properties:
     containerPropertyIdentifier: recipeType
     name: Recipe Type
     description: >
-      Classification of the recipe according to its type or purpose, following ISA-88 recipe 
-      classifications. Common recipe types include master recipes, control recipes, general recipes, 
-      and site recipes. The recipeType enables filtering and analysis by recipe function, supports 
-      recipe design patterns, and facilitates recipe management. This classification should follow 
+      Classification of the recipe according to its type or purpose, following ISA-88 recipe
+      classifications. Common recipe types include master recipes, control recipes, general recipes,
+      and site recipes. The recipeType enables filtering and analysis by recipe function, supports
+      recipe design patterns, and facilitates recipe management. This classification should follow
       standardized recipe type taxonomies for consistency. [ISA-88]
   createdDate:
     container:
@@ -73,9 +73,9 @@ properties:
     containerPropertyIdentifier: createdDate
     name: Created Date
     description: >
-      Date when the recipe was created or first defined, enabling temporal analysis of recipe 
-      development and recipe lifecycle tracking. The createdDate is critical for recipe version 
-      control, change management, and recipe history tracking. This date enables correlation with 
+      Date when the recipe was created or first defined, enabling temporal analysis of recipe
+      development and recipe lifecycle tracking. The createdDate is critical for recipe version
+      control, change management, and recipe history tracking. This date enables correlation with
       recipe modifications and supports temporal queries for recipe data analysis. [ISA-88]
   status:
     container:
@@ -85,11 +85,11 @@ properties:
     containerPropertyIdentifier: status
     name: Status
     description: >
-      Current status of the recipe according to ISA-88 recipe lifecycle. Common recipe statuses 
-      include "Draft", "Under Review", "Approved", "Active", "Deprecated", "Archived". The status 
-      provides real-time visibility into recipe progress and enables status-based queries, 
-      reporting, and workflow automation. Status transitions should follow ISA-88 recipe lifecycle 
-      definitions to ensure consistent recipe state management across the manufacturing system. 
+      Current status of the recipe according to ISA-88 recipe lifecycle. Common recipe statuses
+      include "Draft", "Under Review", "Approved", "Active", "Deprecated", "Archived". The status
+      provides real-time visibility into recipe progress and enables status-based queries,
+      reporting, and workflow automation. Status transitions should follow ISA-88 recipe lifecycle
+      definitions to ensure consistent recipe state management across the manufacturing system.
       [ISA-88]
   # Reverse relationships
   procedures:
@@ -107,11 +107,11 @@ properties:
       identifier: recipe
     name: Procedures
     description: >
-      Reverse relationship collection of all Procedure entities that belong to this recipe. 
-      Procedures represent top-level procedural elements in ISA-88 that coordinate unit procedures 
-      for batch execution. This relationship enables recipe-to-procedure navigation, supporting 
-      detailed recipe analysis at the procedure level, including procedure sequencing, duration, 
-      and resource allocation. Procedures provide the structural framework for recipe execution. 
+      Reverse relationship collection of all Procedure entities that belong to this recipe.
+      Procedures represent top-level procedural elements in ISA-88 that coordinate unit procedures
+      for batch execution. This relationship enables recipe-to-procedure navigation, supporting
+      detailed recipe analysis at the procedure level, including procedure sequencing, duration,
+      and resource allocation. Procedures provide the structural framework for recipe execution.
       [ISA-88]
     connectionType: multi_reverse_direct_relation
   batches:
@@ -129,10 +129,10 @@ properties:
       identifier: recipe
     name: Batches
     description: >
-      Reverse relationship collection of all Batch entities that were executed using this recipe. 
-      Batches represent specific instances of production runs executed according to the recipe. 
-      This relationship enables recipe-to-batch navigation, supporting recipe performance analysis, 
-      batch execution tracking, and recipe optimization. The batches relationship links recipe 
+      Reverse relationship collection of all Batch entities that were executed using this recipe.
+      Batches represent specific instances of production runs executed according to the recipe.
+      This relationship enables recipe-to-batch navigation, supporting recipe performance analysis,
+      batch execution tracking, and recipe optimization. The batches relationship links recipe
       definitions to actual batch executions. [ISA-88]
     connectionType: multi_reverse_direct_relation
   materials:
@@ -150,10 +150,10 @@ properties:
       identifier: recipe
     name: Materials
     description: >
-      Reverse relationship collection of all Material entities that are produced by this recipe. 
-      Materials represent finished products or intermediate materials that result from recipe 
-      execution. This relationship enables recipe-to-material navigation, supporting material 
-      requirements planning, recipe design, and production planning activities. Materials linked 
-      through this relationship represent products that are manufactured according to the recipe. 
+      Reverse relationship collection of all Material entities that are produced by this recipe.
+      Materials represent finished products or intermediate materials that result from recipe
+      execution. This relationship enables recipe-to-material navigation, supporting material
+      requirements planning, recipe design, and production planning activities. Materials linked
+      through this relationship represent products that are manufactured according to the recipe.
       [ISA-88, ISA-95 Level 3]
     connectionType: multi_reverse_direct_relation

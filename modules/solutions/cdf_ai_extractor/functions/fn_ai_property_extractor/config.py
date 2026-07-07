@@ -5,8 +5,8 @@ Uses Pydantic for validation and parsing of extraction pipeline configuration.
 """
 
 import json
-from enum import Enum
-from typing import Any, Dict, List, Optional
+from enum import StrEnum
+from typing import cast
 
 import yaml
 from cognite.client import CogniteClient
@@ -16,7 +16,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 from pydantic.alias_generators import to_camel
 
 
-class WriteMode(str, Enum):
+class WriteMode(StrEnum):
     """
     Write mode for property extraction.
     
@@ -37,7 +37,7 @@ class WriteMode(str, Enum):
 SUPPORTED_WRITE_MODES = {WriteMode.ADD_NEW_ONLY, WriteMode.APPEND, WriteMode.OVERWRITE}
 
 
-def parse_json_string(v: Any, expected_type: type) -> Any:
+def parse_json_string(v: object, expected_type: type) -> list[object] | dict[str, object] | None:
     """
     Parse a JSON string to dict/list, or return value as-is if already parsed.
     Also handles empty values by returning None.
@@ -63,10 +63,13 @@ def parse_json_string(v: Any, expected_type: type) -> Any:
             # If it can't be parsed, return None for safety
             return None
     
+    if v is not None and not isinstance(v, expected_type):
+        return None
+
     # Normalize empty collections to None
     if isinstance(v, (list, dict)) and len(v) == 0:
         return None
-    
+
     return v
 
 
@@ -80,7 +83,7 @@ class PropertyConfig(BaseModel, alias_generator=to_camel):
         ...,
         description="The source property ID to extract from the view"
     )
-    target_property: Optional[str] = Field(
+    target_property: str | None = Field(
         default=None,
         description="Target property ID to write to. Defaults to source property if not specified."
     )
@@ -123,7 +126,7 @@ class StateStoreConfig(BaseModel, alias_generator=to_camel):
         default="extraction_state",
         description="RAW table name for state storage"
     )
-    config_version: Optional[str] = Field(
+    config_version: str | None = Field(
         default=None,
         description="Config version string. Changing this triggers a full re-run."
     )
@@ -213,7 +216,7 @@ class ExtractionConfig(BaseModel, alias_generator=to_camel):
         ..., 
         description="The property containing text to extract from"
     )
-    ai_timestamp_property: Optional[str] = Field(
+    ai_timestamp_property: str | None = Field(
         default=None,
         description="Property name used to stamp each processed node with a timestamp. "
                     "Required when any property uses 'append' or 'overwrite' write mode. "
@@ -223,47 +226,47 @@ class ExtractionConfig(BaseModel, alias_generator=to_camel):
     
     @field_validator('ai_timestamp_property', mode='before')
     @classmethod
-    def empty_string_to_none(cls, v):
+    def empty_string_to_none(cls, v: object) -> object:
         """Convert empty strings to None (common in YAML configs)."""
         if isinstance(v, str) and v.strip() == '':
             return None
         return v
     
     # New-style per-property configuration with write modes
-    properties: Optional[List[PropertyConfig]] = Field(
+    properties: list[PropertyConfig] | None = Field(
         default=None,
         description="List of property configurations with per-property write modes"
     )
     
     # Legacy fields (maintained for backward compatibility)
-    properties_to_extract: Optional[List[str]] = Field(
+    properties_to_extract: list[str] | None = Field(
         default=None,
         description="[Legacy] List of property IDs to extract. Use 'properties' instead for write mode support."
     )
-    ai_property_mapping: Optional[Dict[str, str]] = Field(
+    ai_property_mapping: dict[str, str] | None = Field(
         default=None,
         description="[Legacy] Mapping from source property to target property. Use 'properties' instead."
     )
     
     @field_validator('properties_to_extract', mode='before')
     @classmethod
-    def parse_properties_to_extract(cls, v):
+    def parse_properties_to_extract(cls, v: object) -> object:
         """Parse JSON string to list, handle empty values."""
         return parse_json_string(v, list)
     
     @field_validator('ai_property_mapping', mode='before')
     @classmethod
-    def parse_ai_property_mapping(cls, v):
+    def parse_ai_property_mapping(cls, v: object) -> object:
         """Parse JSON string to dict, handle empty values."""
         return parse_json_string(v, dict)
     
     @field_validator('properties', mode='before')
     @classmethod
-    def parse_properties(cls, v):
+    def parse_properties(cls, v: object) -> object:
         """Parse JSON string to list of property configs."""
         return parse_json_string(v, list)
     
-    def get_property_configs(self) -> List[PropertyConfig]:
+    def get_property_configs(self) -> list[PropertyConfig]:
         """
         Get list of property configurations.
         
@@ -288,13 +291,13 @@ class ExtractionConfig(BaseModel, alias_generator=to_camel):
         
         return []
     
-    def get_properties_to_extract(self) -> Optional[List[str]]:
+    def get_properties_to_extract(self) -> list[str] | None:
         """Get list of source property IDs to extract (for backward compatibility)."""
         if self.properties:
             return [p.property for p in self.properties]
         return self.properties_to_extract
     
-    def get_ai_property_mapping(self) -> Optional[Dict[str, str]]:
+    def get_ai_property_mapping(self) -> dict[str, str] | None:
         """Get source->target property mapping (for backward compatibility)."""
         if self.properties:
             mapping = {}
@@ -321,25 +324,25 @@ class ProcessingConfig(BaseModel, alias_generator=to_camel):
                     "Set to 1 for individual processing (default). "
                     "Higher values reduce API calls but require more context window."
     )
-    filters: Optional[List[Dict[str, Any]]] = Field(
+    filters: list[dict[str, object]] | None = Field(
         default=None,
         description="Optional filters for instance selection"
     )
     
     @field_validator('filters', mode='before')
     @classmethod
-    def parse_filters(cls, v):
+    def parse_filters(cls, v: object) -> object:
         """Parse JSON string to list, handle empty values."""
         return parse_json_string(v, list)
 
 
 class PromptConfig(BaseModel, alias_generator=to_camel):
     """Configuration for the LLM prompt."""
-    custom_instructions: Optional[str] = Field(
+    custom_instructions: str | None = Field(
         default=None,
         description="Additional instructions appended to the base prompt to customize LLM behavior"
     )
-    template: Optional[str] = Field(
+    template: str | None = Field(
         default=None,
         description="Custom prompt template. Available placeholders: {text}, {properties}, {custom_instructions}"
     )
@@ -361,7 +364,7 @@ class Config(BaseModel, alias_generator=to_camel):
     """Root configuration model for the AI Property Extractor."""
     agent: AgentConfig
     view: ViewConfig
-    target_view: Optional[TargetViewConfig] = Field(
+    target_view: TargetViewConfig | None = Field(
         default=None,
         description="Optional target view for writing extracted properties. If not specified, writes to the source view."
     )
@@ -415,7 +418,7 @@ class Config(BaseModel, alias_generator=to_camel):
         )
 
 
-def load_config(client: CogniteClient, function_data: Dict[str, Any], logger=None) -> Config:
+def load_config(client: CogniteClient, function_data: dict[str, object], logger=None) -> Config:
     """
     Load configuration from the extraction pipeline.
     
@@ -434,7 +437,7 @@ def load_config(client: CogniteClient, function_data: Dict[str, Any], logger=Non
     if "ExtractionPipelineExtId" not in function_data:
         raise ValueError("Missing key 'ExtractionPipelineExtId' in input data to the function")
 
-    pipeline_ext_id = function_data["ExtractionPipelineExtId"]
+    pipeline_ext_id = cast(str, function_data["ExtractionPipelineExtId"])
     
     try:
         raw_config = client.extraction_pipelines.config.retrieve(external_id=pipeline_ext_id)
@@ -443,7 +446,7 @@ def load_config(client: CogniteClient, function_data: Dict[str, Any], logger=Non
     except CogniteAPIError as e:
         raise RuntimeError(
             f"Unable to retrieve pipeline config for extraction pipeline: {pipeline_ext_id!r}. Error: {e}"
-        )
+        ) from e
 
     if logger:
         logger.debug(f"Raw config: {raw_config.config}")

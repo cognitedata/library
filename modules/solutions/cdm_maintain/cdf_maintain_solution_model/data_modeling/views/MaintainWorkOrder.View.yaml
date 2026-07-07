@@ -20,4 +20,3 @@ properties:
       space: {{schemaSpace}}
       externalId: MaintainWorkOrder
     containerPropertyIdentifier: gridReference
-

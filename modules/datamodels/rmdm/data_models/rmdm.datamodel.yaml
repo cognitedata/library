@@ -1,6 +1,6 @@
 space: rmdm
 externalId: rmdm_v1
-name: Reliability Maintenance Data Model 
+name: Reliability Maintenance Data Model
 description: 'Reliability & Maintenance Data Model, ISO14224 compliant'
 version: v1
 views:

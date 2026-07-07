@@ -187,7 +187,7 @@ def load_yaml(path: Path) -> dict:
     try:
         return yaml.safe_load(path.read_text()) or {}
     except yaml.YAMLError as e:
-        raise SystemExit(f"ERROR: Failed to parse YAML file {path}:\n  {e}")
+        raise SystemExit(f"ERROR: Failed to parse YAML file {path}:\n  {e}") from e
 
 
 def deep_merge(base: dict, overlay: dict) -> dict:

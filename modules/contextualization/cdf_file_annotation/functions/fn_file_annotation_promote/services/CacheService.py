@@ -1,7 +1,7 @@
 import abc
+from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime, timezone
-from typing import Any, Callable
+from datetime import UTC, datetime
 
 from cognite.client import CogniteClient
 from cognite.client.data_classes.data_modeling import Node, NodeList
@@ -315,7 +315,7 @@ class CacheService(ICacheService):
             # Normalize text for consistent cache keys
             cache_key: str = self.normalize(text)
 
-            row: Any = self.client.raw.rows.retrieve(
+            row: Row | None = self.client.raw.rows.retrieve(
                 db_name=self.raw_db,
                 table_name=self.cache_table_name,
                 key=cache_key,
@@ -329,18 +329,20 @@ class CacheService(ICacheService):
                 return None
 
             # Extract cached entity info directly from RAW row
-            end_node_space: Any = row.columns.get("endNodeSpace")
-            end_node_ext_id: Any = row.columns.get("endNode")
-            resource_type: Any = row.columns.get("resourceType")
+            end_node_space: object = row.columns.get("endNodeSpace")
+            end_node_ext_id: object = row.columns.get("endNode")
+            resource_type: object = row.columns.get("resourceType")
 
-            if not end_node_space or not end_node_ext_id:
+            if not isinstance(end_node_space, str) or not isinstance(end_node_ext_id, str):
                 return None
+
+            cached_resource_type: str | None = resource_type if isinstance(resource_type, str) else None
 
             # Return CachedEntityInfo directly - no retrieve_nodes call needed
             return CachedEntityInfo(
                 space=end_node_space,
                 external_id=end_node_ext_id,
-                resource_type=resource_type,
+                resource_type=cached_resource_type,
             )
 
         except Exception as e:
@@ -366,12 +368,12 @@ class CacheService(ICacheService):
         try:
             cache_key: str = self.normalize(text)
 
-            cache_columns: dict[str, Any] = {
+            cache_columns: dict[str, object] = {
                 "originalText": text,
                 "endNode": node.external_id,
                 "endNodeSpace": node.space,
                 "annotationType": annotation_type,
-                "lastUpdateTimeUtcIso": datetime.now(timezone.utc).isoformat(),
+                "lastUpdateTimeUtcIso": datetime.now(UTC).isoformat(),
                 "sourceCreatedUser": self.function_id,
             }
 
@@ -399,7 +401,7 @@ class CacheService(ICacheService):
         Handles both single Node and NodeList returns from the SDK.
         """
         if isinstance(retrieved, NodeList) and len(retrieved) > 0:
-            first_node = list(retrieved)[0]
+            first_node = next(iter(retrieved))
             return first_node if isinstance(first_node, Node) else None
         elif isinstance(retrieved, Node):
             return retrieved

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 File Contextualization Dashboard.
 
@@ -48,7 +47,7 @@ File Contextualization Metrics:
 """
 
 
-def render_files_dashboard(metrics: dict):
+def render_files_dashboard(metrics: dict) -> None:
     """Render the File Contextualization dashboard tab."""
     st.title("File Contextualization Quality Dashboard")
     

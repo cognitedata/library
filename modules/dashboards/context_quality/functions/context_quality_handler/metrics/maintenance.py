@@ -2,7 +2,6 @@
 Maintenance workflow processing and metrics computation (RMDM v1).
 """
 
-from typing import List, Optional
 
 from cognite.client.data_classes.data_modeling import ViewId
 
@@ -17,7 +16,7 @@ from .common import (
 )
 
 
-def get_direct_relation_id(prop) -> Optional[str]:
+def get_direct_relation_id(prop) -> str | None:
     """Extract external_id from a direct relation property."""
     if not prop:
         return None
@@ -31,7 +30,7 @@ def get_direct_relation_id(prop) -> Optional[str]:
     return getattr(prop, "external_id", None)
 
 
-def get_direct_relation_ids(prop) -> List[str]:
+def get_direct_relation_ids(prop) -> list[str]:
     """Extract list of external_ids from a multi-relation property."""
     if not prop:
         return []
@@ -53,8 +52,8 @@ def get_direct_relation_ids(prop) -> List[str]:
 def process_notification_batch(
     batch,
     view: ViewId,
-    acc: CombinedAccumulator
-):
+    acc: CombinedAccumulator,
+) -> None:
     """Process notification batch - collect notification-to-order/asset/equipment linkage."""
     for node in batch:
         node_id = get_external_id(node)
@@ -100,8 +99,8 @@ def process_notification_batch(
 def process_maintenance_order_batch(
     batch,
     view: ViewId,
-    acc: CombinedAccumulator
-):
+    acc: CombinedAccumulator,
+) -> None:
     """Process maintenance order batch - collect order-to-asset/equipment coverage."""
     for node in batch:
         node_id = get_external_id(node)
@@ -153,8 +152,8 @@ def process_maintenance_order_batch(
 def process_failure_notification_batch(
     batch,
     view: ViewId,
-    acc: CombinedAccumulator
-):
+    acc: CombinedAccumulator,
+) -> None:
     """Process failure notification batch - collect failure analysis documentation."""
     for node in batch:
         node_id = get_external_id(node)

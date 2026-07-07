@@ -1,4 +1,3 @@
-from __future__ import annotations
 
 import json
 import re
@@ -7,7 +6,7 @@ import time
 import traceback
 from collections import defaultdict
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any
 
 from cognite.client import CogniteClient
 from cognite.client import data_modeling as dm
@@ -23,8 +22,7 @@ from config import Config, ViewPropertyConfig
 
 # RawUploadQueue is only constructed at runtime in entity_matching; importing
 # it lazily lets pipeline.py be imported (e.g. for unit tests) without the
-# cognite-extractor-utils package installed. Type hints below stay valid
-# because of `from __future__ import annotations`.
+# cognite-extractor-utils package installed. Type hints use forward references.
 if TYPE_CHECKING:  # pragma: no cover
     from cognite.extractorutils.uploader import RawUploadQueue
 from constants import (
@@ -219,7 +217,7 @@ def entity_matching(
     except Exception as e:
         msg = f"failed, Message: {e!s}"
         update_pipeline_run(client, logger, pipeline_ext_id, STATUS_FAILURE, len_good_matches, len_bad_matches, msg)
-        raise Exception("msg")
+        raise
 
 
 def update_pipeline_run(
@@ -229,7 +227,7 @@ def update_pipeline_run(
     status: str,
     match_count: int = 0,
     not_matches_count: int = 0,
-    input_msg: Optional[str] = None
+    input_msg: str | None = None
 ) -> None:
 
     total_entities = match_count + not_matches_count
@@ -371,7 +369,7 @@ def apply_manual_mappings(
     client: CogniteClient, 
     logger: CogniteFunctionLogger,
     config: Config, 
-    raw_uploader: RawUploadQueue, 
+    raw_uploader: "RawUploadQueue", 
     manual_mappings: list[Row],
     manual_mappings_input: dict[str, dict[str, Any]],
     good_matches: list[dict[str, Any]] | None = None,
@@ -1168,7 +1166,7 @@ def add_to_items(
     target_ext_ids: list[str],
     entity_ext_id: str,
     entity_view_id: dm.ViewId,
-    entity_targets: Optional[str] = None  
+    entity_targets: str | None = None  
 ) -> list[NodeApply]:
 
     targets = []
@@ -1261,7 +1259,7 @@ def add_to_dict(
 def write_mapping_to_raw(
     client: CogniteClient,
     config: Config,
-    raw_uploader: RawUploadQueue,
+    raw_uploader: "RawUploadQueue",
     good_matches: list[dict[str, Any]],
     bad_matches: list[dict[str, Any]],
     logger: CogniteFunctionLogger
@@ -1305,7 +1303,7 @@ def write_mapping_to_raw(
             raw_uploader.upload()
     except Exception as e:
         logger.error(f"ERROR: Failed to write mapping to RAW DB - error: {type(e)}({e})")
-        raise Exception(f"Failed to write mapping to RAW DB - error: {type(e)}({e})")
+        raise Exception(f"Failed to write mapping to RAW DB - error: {type(e)}({e})") from e
 
 
 def create_table(client: CogniteClient, raw_db: str, tbl: str) -> None:

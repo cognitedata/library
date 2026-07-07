@@ -1,6 +1,5 @@
 """Interactive prompt helpers for the setup wizard."""
 
-from __future__ import annotations
 
 from _env_io import upsert_env
 from _style import _C, _warn
@@ -8,10 +7,7 @@ from _style import _C, _warn
 
 def prompt(msg: str, default: str | None = None) -> str:
     """Prompt for a string value, returning *default* on empty input."""
-    if default:
-        prompt_str = f"  {msg} [{_C.CYAN}{default}{_C.RESET}]: "
-    else:
-        prompt_str = f"  {msg}: "
+    prompt_str = f"  {msg} [{_C.CYAN}{default}{_C.RESET}]: " if default else f"  {msg}: "
     try:
         answer = input(prompt_str).strip()
     except EOFError:

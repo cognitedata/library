@@ -1,6 +1,5 @@
 import uuid
 from abc import ABC, abstractmethod
-from typing import Optional
 
 import altair as alt
 import pandas as pd
@@ -279,7 +278,7 @@ class AnnotationComparisonComponent(Component):
         return df
 
 class ManualPromotingComponent(Component):
-    def __init__(self, client: Optional[CogniteClient] = None, extraction_pipeline_cfg: ExtractionPipelineConfig | None = None, actual_df: pd.DataFrame | None = None, potential_df: pd.DataFrame | None = None):
+    def __init__(self, client: CogniteClient | None = None, extraction_pipeline_cfg: ExtractionPipelineConfig | None = None, actual_df: pd.DataFrame | None = None, potential_df: pd.DataFrame | None = None):
         self.client = client
         self.extraction_pipeline_cfg = extraction_pipeline_cfg
         self.actual_df = actual_df
@@ -596,7 +595,7 @@ class FileAggregationComponent(Component):
                 file_metadata_properties.append(prefixed_source_id)
 
         if not sample_rows.empty and file_external_id_property in sample_rows.columns and file_metadata_properties:
-            meta = sample_rows.groupby(file_external_id_property).first().reset_index()[[file_external_id_property] + file_metadata_properties]
+            meta = sample_rows.groupby(file_external_id_property).first().reset_index()[[file_external_id_property, *file_metadata_properties]]
             files_df = files_df.merge(meta, on=file_external_id_property, how="left")
 
         display_df = files_df.reset_index(drop=True)
@@ -627,7 +626,7 @@ class FileAggregationComponent(Component):
             ),
         }
 
-        column_order = [k for k in column_config.keys() if k in display_df.columns]
+        column_order = [k for k in column_config if k in display_df.columns]
 
         if column_order:
             display_df = display_df.loc[:, column_order]
@@ -771,13 +770,13 @@ class PatternCatalogComponent(Component):
                 return []
             return sorted(df[col].dropna().unique().tolist())
 
-        manual_patterns_entity_type_opts = [FieldNames.ALL_TITLE_CASE] + _unique_sorted(manual_df, FieldNames.ANNOTATION_TYPE_SNAKE_CASE) if manual_df is not None else [FieldNames.ALL_TITLE_CASE]
-        manual_patterns_pattern_scope_opts = [FieldNames.ALL_TITLE_CASE] + _unique_sorted(manual_df, FieldNames.PATTERN_SCOPE_SNAKE_CASE) if manual_df is not None else [FieldNames.ALL_TITLE_CASE]
-        manual_patterns_resource_type_opts = [FieldNames.ALL_TITLE_CASE] + _unique_sorted(manual_df, FieldNames.RESOURCE_TYPE_SNAKE_CASE) if manual_df is not None else [FieldNames.ALL_TITLE_CASE]
+        manual_patterns_entity_type_opts = [FieldNames.ALL_TITLE_CASE, *_unique_sorted(manual_df, FieldNames.ANNOTATION_TYPE_SNAKE_CASE)] if manual_df is not None else [FieldNames.ALL_TITLE_CASE]
+        manual_patterns_pattern_scope_opts = [FieldNames.ALL_TITLE_CASE, *_unique_sorted(manual_df, FieldNames.PATTERN_SCOPE_SNAKE_CASE)] if manual_df is not None else [FieldNames.ALL_TITLE_CASE]
+        manual_patterns_resource_type_opts = [FieldNames.ALL_TITLE_CASE, *_unique_sorted(manual_df, FieldNames.RESOURCE_TYPE_SNAKE_CASE)] if manual_df is not None else [FieldNames.ALL_TITLE_CASE]
 
-        automatic_patterns_entity_type_opts = [FieldNames.ALL_TITLE_CASE] + _unique_sorted(automatic_df, FieldNames.ANNOTATION_TYPE_SNAKE_CASE) if automatic_df is not None else [FieldNames.ALL_TITLE_CASE]
-        automatic_patterns_pattern_scope_opts = [FieldNames.ALL_TITLE_CASE] + _unique_sorted(automatic_df, FieldNames.PATTERN_SCOPE_SNAKE_CASE) if automatic_df is not None else [FieldNames.ALL_TITLE_CASE]
-        automatic_patterns_resource_type_opts = [FieldNames.ALL_TITLE_CASE] + _unique_sorted(automatic_df, FieldNames.RESOURCE_TYPE_SNAKE_CASE) if automatic_df is not None else [FieldNames.ALL_TITLE_CASE]
+        automatic_patterns_entity_type_opts = [FieldNames.ALL_TITLE_CASE, *_unique_sorted(automatic_df, FieldNames.ANNOTATION_TYPE_SNAKE_CASE)] if automatic_df is not None else [FieldNames.ALL_TITLE_CASE]
+        automatic_patterns_pattern_scope_opts = [FieldNames.ALL_TITLE_CASE, *_unique_sorted(automatic_df, FieldNames.PATTERN_SCOPE_SNAKE_CASE)] if automatic_df is not None else [FieldNames.ALL_TITLE_CASE]
+        automatic_patterns_resource_type_opts = [FieldNames.ALL_TITLE_CASE, *_unique_sorted(automatic_df, FieldNames.RESOURCE_TYPE_SNAKE_CASE)] if automatic_df is not None else [FieldNames.ALL_TITLE_CASE]
 
         left, right = st.columns(2)
 
@@ -878,7 +877,7 @@ class PatternCatalogComponent(Component):
             if automatic_df is None or automatic_df.empty:
                 st.info("No automatic patterns available.")
             else:
-                columns = [c for c in automatic_column_config.keys() if c in automatic_df.columns]
+                columns = [c for c in automatic_column_config if c in automatic_df.columns]
 
                 st.dataframe(
                     automatic_df.loc[:, columns],

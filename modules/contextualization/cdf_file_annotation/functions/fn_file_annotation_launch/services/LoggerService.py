@@ -160,7 +160,7 @@ class CogniteFunctionLogger:
 
         error_info = ""
         if error:
-            error_info = f"\nError Type: {type(error).__name__}\nError Message: {str(error)}"
+            error_info = f"\nError Type: {type(error).__name__}\nError Message: {error!s}"
 
         full_message = f"{message}{context_info}{error_info}"
 

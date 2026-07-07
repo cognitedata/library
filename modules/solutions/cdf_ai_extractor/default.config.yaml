@@ -75,7 +75,7 @@ stateStoreEnabled: true
 # RAW database name for state storage
 stateStoreDatabase: ai_extractor_state
 
-# RAW table name for state storage  
+# RAW table name for state storage
 stateStoreTable: extraction_state
 
 # Config version - bump this to trigger a full re-run (e.g., after LLM upgrade)

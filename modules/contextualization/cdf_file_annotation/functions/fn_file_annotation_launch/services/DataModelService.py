@@ -1,5 +1,5 @@
 import abc
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from cognite.client import CogniteClient
 from cognite.client.data_classes.data_modeling import (
@@ -225,7 +225,7 @@ class GeneralDataModelService(IDataModelService):
         annotation_status_property = self.annotation_state_view.as_property_ref("annotationStatus")
         annotation_last_updated_property = self.annotation_state_view.as_property_ref("sourceUpdatedTime")
         # NOTE: While this number is hard coded, I believe it doesn't need to be configured. Number comes from my experience with the pipeline. Feel free to change if your experience leads to a different number
-        latest_permissible_time_utc = datetime.now(timezone.utc) - timedelta(minutes=720)
+        latest_permissible_time_utc = datetime.now(UTC) - timedelta(minutes=720)
         latest_permissible_time_utc = latest_permissible_time_utc.isoformat(timespec="milliseconds")
         filter_stuck = In(
             annotation_status_property,

@@ -1,5 +1,5 @@
 space: {{ enterprise_space }}
-externalId: ProductRequest  
+externalId: ProductRequest
 name: ProductRequest
 description: Request to produce specific quantities of products (ISA-95 Level 3)
 properties:

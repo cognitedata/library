@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 File Annotation Quality Dashboard (CDM CogniteDiagramAnnotation).
 
@@ -21,7 +20,7 @@ from .common import (
 )
 
 
-def get_status_color_annotation(metric_key, value):
+def get_status_color_annotation(metric_key: str, value: float) -> str:
     """Color function for file annotation metrics."""
     # Confidence-based metrics
     if metric_key == "avg_confidence":
@@ -50,7 +49,7 @@ def get_status_color_annotation(metric_key, value):
     return "#0068C9"
 
 
-def render_file_annotation_dashboard(metrics: dict):
+def render_file_annotation_dashboard(metrics: dict) -> None:
     """Render the File Annotation Quality dashboard tab."""
     st.title("File Annotation Quality Dashboard")
     st.markdown("*Based on CDM CogniteDiagramAnnotation*")
@@ -304,9 +303,9 @@ def render_file_annotation_dashboard(metrics: dict):
         fig.update_layout(
             title="Confidence Distribution",
             height=300,
-            margin=dict(l=20, r=20, t=40, b=20),
+            margin={"l": 20, "r": 20, "t": 40, "b": 20},
             showlegend=True,
-            legend=dict(orientation="h", y=-0.1, x=0.5, xanchor="center")
+            legend={"orientation": "h", "y": -0.1, "x": 0.5, "xanchor": "center"}
         )
         st.plotly_chart(fig, use_container_width=True, key="conf_pie")
     
@@ -351,7 +350,7 @@ def render_file_annotation_dashboard(metrics: dict):
         fig.update_layout(
             title="Status Distribution",
             height=300,
-            margin=dict(l=20, r=20, t=40, b=20),
+            margin={"l": 20, "r": 20, "t": 40, "b": 20},
             showlegend=False
         )
         st.plotly_chart(fig, use_container_width=True, key="status_pie")
@@ -395,7 +394,7 @@ def render_file_annotation_dashboard(metrics: dict):
         fig.update_layout(
             title="Annotations by Target Type",
             height=300,
-            margin=dict(l=20, r=20, t=40, b=20),
+            margin={"l": 20, "r": 20, "t": 40, "b": 20},
             xaxis_title="Type",
             yaxis_title="Count"
         )

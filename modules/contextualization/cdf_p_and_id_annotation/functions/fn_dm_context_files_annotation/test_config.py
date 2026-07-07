@@ -8,7 +8,6 @@ Run from the function directory:
 
     pytest -q test_config.py
 """
-from __future__ import annotations
 
 import sys
 from pathlib import Path
@@ -18,7 +17,7 @@ import pytest
 # Same path-prepend pattern used by handler.py so flat imports work in-test.
 sys.path.append(str(Path(__file__).parent))
 
-from config import Config, Parameters, ViewPropertyConfig  # noqa: E402
+from config import Config, Parameters, ViewPropertyConfig
 
 
 def _minimal_config_dict() -> dict:
