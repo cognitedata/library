@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useState } from "react";
 import { useAppSettings } from "../../context/AppSettingsContext";
 import type { TransformationDetail } from "../../types/discoveryNodes";
 import type { JsonObject } from "../../types/jsonConfig";
@@ -77,8 +77,6 @@ export function SparkTransformConfigFields({ value, onChange, fieldKey, nodeId }
   const [result, setResult] = useState<QueryPreviewResult | null>(null);
   const [destinationText, setDestinationText] = useState(() => destinationToText(value.destination));
   const [destinationError, setDestinationError] = useState<string | null>(null);
-
-  const editorHeight = useMemo(() => "min(40vh, 320px)", []);
 
   const confirmBeforeImport = useCallback(() => {
     const hasLocal =
@@ -225,16 +223,21 @@ export function SparkTransformConfigFields({ value, onChange, fieldKey, nodeId }
 
         {activeTab === TAB_QUERY ? (
           <SqlEditorResizablePane label={t("transform.config.sparkSql")}>
-            <SqlEditor
-              value={sqlQuery}
-              theme={theme}
-              height={editorHeight}
-              ariaLabel={t("sql.editor.label")}
-              shortcutsHint={t("sql.editor.shortcutsDesc")}
-              placeholder={t("transform.query.sqlPlaceholder")}
-              onChange={(q) => patch({ query: q })}
-              onRun={() => void run()}
-            />
+            {(bodyHeight) =>
+              bodyHeight > 0 ? (
+                <SqlEditor
+                  value={sqlQuery}
+                  theme={theme}
+                  height={`${bodyHeight}px`}
+                  maxHeight={`${bodyHeight}px`}
+                  ariaLabel={t("sql.editor.label")}
+                  shortcutsHint={t("sql.editor.shortcutsDesc")}
+                  placeholder={t("transform.query.sqlPlaceholder")}
+                  onChange={(q) => patch({ query: q })}
+                  onRun={() => void run()}
+                />
+              ) : null
+            }
           </SqlEditorResizablePane>
         ) : null}
 

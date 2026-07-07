@@ -13,6 +13,7 @@ from inverted_index.config import (
     PARTITION_STRATEGY_UNIFIED,
     RAW_POSTINGS_POLICY,
 )
+from inverted_index.raw_rest import iter_raw_rows
 from inverted_index.storage.raw_keys import (
     all_term_bucket_slugs,
     build_raw_postings_row_key,
@@ -490,20 +491,7 @@ def count_partition_table_rows(
         return len(local_cache.get(table) or {})
     if client is None or not raw_db:
         return 0
-    total = 0
-    cursor: str | None = None
-    while True:
-        result = client.raw.rows.list(
-            db_name=raw_db,
-            table_name=table,
-            limit=1000,
-            cursor=cursor,
-        )
-        total += len(list(result))
-        if not result.has_next:
-            break
-        cursor = result.cursor
-    return total
+    return sum(1 for _ in iter_raw_rows(client, raw_db, table))
 
 
 def check_partition_row_counts(
@@ -597,24 +585,13 @@ def list_registered_scope_keys(
         return []
 
     scopes: set[str] = set()
-    cursor: str | None = None
-    while True:
-        result = client.raw.rows.list(
-            db_name=raw_db,
-            table_name=registry_table,
-            limit=1000,
-            cursor=cursor,
-        )
-        for row in result:
-            cols = _row_columns(row)
-            if cols.get("RECORD_KIND") != "partition_registry":
-                continue
-            scope = str(cols.get("MATCH_SCOPE_KEY") or "").strip()
-            if scope:
-                scopes.add(scope)
-        if not result.has_next:
-            break
-        cursor = result.cursor
+    for row in iter_raw_rows(client, raw_db, registry_table):
+        cols = _row_columns(row)
+        if cols.get("RECORD_KIND") != "partition_registry":
+            continue
+        scope = str(cols.get("MATCH_SCOPE_KEY") or "").strip()
+        if scope:
+            scopes.add(scope)
     return sorted(scopes)
 
 
@@ -653,23 +630,12 @@ def iter_partition_terms(
         if client is None or not raw_db:
             continue
 
-        cursor: str | None = None
-        while True:
-            result = client.raw.rows.list(
-                db_name=raw_db,
-                table_name=table,
-                limit=1000,
-                cursor=cursor,
-            )
-            for row in result:
-                row_key = _row_key_from_raw_row(row)
-                term = _normalized_term_from_lookup_key(row_key, match_scope_key)
-                if term and term not in seen:
-                    seen.add(term)
-                    yield term
-            if not result.has_next:
-                break
-            cursor = result.cursor
+        for row in iter_raw_rows(client, raw_db, table):
+            row_key = _row_key_from_raw_row(row)
+            term = _normalized_term_from_lookup_key(row_key, match_scope_key)
+            if term and term not in seen:
+                seen.add(term)
+                yield term
 
 
 def upsert_partition_registry(
@@ -793,21 +759,10 @@ def _iter_all_raw_rows(
         return
     if client is None:
         return
-    cursor: str | None = None
-    while True:
-        result = client.raw.rows.list(
-            db_name=raw_db,
-            table_name=table,
-            limit=1000,
-            cursor=cursor,
-        )
-        for row in result:
-            key = _row_key_from_raw_row(row)
-            if key:
-                yield key, _row_columns(row)
-        if not result.has_next:
-            break
-        cursor = result.cursor
+    for row in iter_raw_rows(client, raw_db, table):
+        key = _row_key_from_raw_row(row)
+        if key:
+            yield key, _row_columns(row)
 
 
 def reshard_scope_partition(

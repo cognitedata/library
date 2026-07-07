@@ -15,6 +15,7 @@ import type { TreeNode, WorkflowRef } from "../types/discoveryNodes";
 import {
   ancestorChainTo,
   buildBreadcrumbTrail,
+  buildParentIndex,
   collectDescendantIds,
   collectDescendantKeys,
   findNodeInTree,
@@ -22,18 +23,14 @@ import {
   isLoadingPlaceholder,
   parentNodeId,
   searchLoadedTree,
+  treeNodeDrillable,
   type DrillDownRow,
 } from "../utils/treeFilter";
-import { opensGovernanceTab } from "../utils/governanceTabs";
-import {
-  opensTransformTab,
-  pipelineIdFromNode,
-  templateIdFromNode,
-} from "../utils/transformTabs";
-import { workflowRefFromNode } from "../utils/workflowTabs";
-import { opensExtractTab, opensMonitorTab } from "../utils/workspaceTabs";
-import { canQueryTreeNode } from "../utils/sqlQuerySeed";
 import { canDropDataTreeEntity } from "../utils/dataTreeEntityDrop";
+import { treeNodeOpenable, treeNodeOpensDocumentTab } from "../utils/treeNodeOpenable";
+import { pipelineIdFromNode, templateIdFromNode } from "../utils/transformTabs";
+import { workflowRefFromNode } from "../utils/workflowTabs";
+import { canQueryTreeNode } from "../utils/sqlQuerySeed";
 import { canDragCdfResourceToTransformCanvas } from "../utils/cdfResourceDrop";
 import { setCdfResourceDragData, setDataTreeEntityDragData } from "./transform/transformFlowDrag";
 import {
@@ -67,6 +64,7 @@ import {
 } from "./governance/TreeContextMenu";
 
 const ROOT_ID = "connection";
+const DRILL_DELAY_MS = 280;
 
 export type GovernanceArtifactsRevision = {
   token: number;
@@ -132,6 +130,7 @@ export function ObjectDiscovery({
   const [focusedId, setFocusedId] = useState<string | null>(selectedId);
   const [transformTreeDropTargetId, setTransformTreeDropTargetId] = useState<string | null>(null);
   const abortByNode = useRef<Map<string, AbortController>>(new Map());
+  const pendingDrillRef = useRef<Map<string, number>>(new Map());
   const loadedRef = useRef(loadedIds);
   const loadingRef = useRef(loading);
   loadedRef.current = loadedIds;
@@ -156,6 +155,8 @@ export function ObjectDiscovery({
     (node: TreeNode) => treeNodeDescription(node, t),
     [t]
   );
+
+  const parentIndex = useMemo(() => buildParentIndex(childrenByParent), [childrenByParent]);
 
   const invalidateSubtree = useCallback((nodeId: string) => {
     setChildrenByParent((prev) => {
@@ -223,11 +224,11 @@ export function ObjectDiscovery({
 
   const preloadPath = useCallback(
     (targetParentId: string) => {
-      for (const nodeId of ancestorChainTo(targetParentId, ROOT_ID)) {
+      for (const nodeId of ancestorChainTo(targetParentId, ROOT_ID, parentIndex)) {
         void loadChildren(nodeId);
       }
     },
-    [loadChildren]
+    [loadChildren, parentIndex]
   );
 
   useEffect(() => {
@@ -304,6 +305,10 @@ export function ObjectDiscovery({
       for (const c of abortByNode.current.values()) {
         c.abort();
       }
+      for (const timer of pendingDrillRef.current.values()) {
+        window.clearTimeout(timer);
+      }
+      pendingDrillRef.current.clear();
     },
     []
   );
@@ -356,14 +361,19 @@ export function ObjectDiscovery({
     if (selectedId) setFocusedId(selectedId);
   }, [selectedId]);
 
+  const nodeDrillable = useCallback(
+    (node: TreeNode) => treeNodeDrillable(node, childrenByParent, loadedIds),
+    [childrenByParent, loadedIds]
+  );
+
   useEffect(() => {
     if (!selectedId) return;
     const node = findNodeInTree(selectedId, childrenByParent, rootNode);
     if (!node) return;
-    const nextParent = node.has_children ? node.id : parentNodeId(node.id, ROOT_ID);
+    const nextParent = nodeDrillable(node) ? node.id : parentNodeId(node.id, ROOT_ID, parentIndex);
     setCurrentParentId(nextParent);
     preloadPath(nextParent);
-  }, [selectedId, childrenByParent, rootNode, preloadPath]);
+  }, [selectedId, childrenByParent, rootNode, preloadPath, nodeDrillable, parentIndex]);
 
   const selectedTreeNode = useMemo(
     () => (selectedId ? findNodeInTree(selectedId, childrenByParent, rootNode) : null),
@@ -377,29 +387,41 @@ export function ObjectDiscovery({
 
   const toolbarNewLabels = toolbarNewAction ? treeToolbarNewLabels(toolbarNewAction) : null;
 
-  const opensDocumentTab = (node: TreeNode) =>
-    node.kind === "dm_data_model" ||
-    node.kind === "workflow" ||
-    node.kind === "transformation" ||
-    node.kind === "function" ||
-    node.kind === "saved_query" ||
-    opensGovernanceTab(node) ||
-    opensTransformTab(node) ||
-    opensExtractTab(node) ||
-    opensMonitorTab(node);
+  const openNode = useCallback(
+    (node: TreeNode) => {
+      if (treeNodeOpenable(node)) onOpenNode(node);
+    },
+    [onOpenNode]
+  );
 
-  const openNode = (node: TreeNode) => {
-    if (opensDocumentTab(node) || canQueryTreeNode(node)) onOpenNode(node);
-  };
+  const cancelPendingDrill = useCallback((nodeId: string) => {
+    const timer = pendingDrillRef.current.get(nodeId);
+    if (timer != null) {
+      window.clearTimeout(timer);
+      pendingDrillRef.current.delete(nodeId);
+    }
+  }, []);
 
   const drillInto = useCallback(
     (node: TreeNode) => {
-      if (!node.has_children || isLoadingPlaceholder(node)) return;
+      if (!nodeDrillable(node) || isLoadingPlaceholder(node)) return;
       setCurrentParentId(node.id);
       setFocusedId(null);
       void loadChildren(node.id);
     },
-    [loadChildren]
+    [loadChildren, nodeDrillable]
+  );
+
+  const scheduleDrillInto = useCallback(
+    (node: TreeNode) => {
+      cancelPendingDrill(node.id);
+      const timer = window.setTimeout(() => {
+        pendingDrillRef.current.delete(node.id);
+        drillInto(node);
+      }, DRILL_DELAY_MS);
+      pendingDrillRef.current.set(node.id, timer);
+    },
+    [cancelPendingDrill, drillInto]
   );
 
   const navigateToParent = useCallback(
@@ -413,8 +435,8 @@ export function ObjectDiscovery({
 
   const goBack = useCallback(() => {
     if (currentParentId === ROOT_ID) return;
-    navigateToParent(parentNodeId(currentParentId, ROOT_ID));
-  }, [currentParentId, navigateToParent]);
+    navigateToParent(parentNodeId(currentParentId, ROOT_ID, parentIndex));
+  }, [currentParentId, navigateToParent, parentIndex]);
 
   const handleNodeActivate = useCallback(
     (node: TreeNode) => {
@@ -422,14 +444,23 @@ export function ObjectDiscovery({
       setFocusedId(node.id);
       onSelectNode(node);
       if (isFiltering) {
-        const parent = parentNodeId(node.id, ROOT_ID);
-        setCurrentParentId(node.has_children ? node.id : parent);
+        const parent = parentNodeId(node.id, ROOT_ID, parentIndex);
+        setCurrentParentId(nodeDrillable(node) ? node.id : parent);
         setFilter("");
-      } else if (node.has_children) {
-        drillInto(node);
+      } else if (nodeDrillable(node)) {
+        scheduleDrillInto(node);
       }
     },
-    [drillInto, isFiltering, onSelectNode]
+    [isFiltering, nodeDrillable, onSelectNode, parentIndex, scheduleDrillInto]
+  );
+
+  const handleNodeDoubleClick = useCallback(
+    (node: TreeNode) => {
+      if (isLoadingPlaceholder(node)) return;
+      cancelPendingDrill(node.id);
+      openNode(node);
+    },
+    [cancelPendingDrill, openNode]
   );
 
   const openContextMenuForNode = useCallback((node: TreeNode, anchor?: HTMLElement | null) => {
@@ -481,27 +512,37 @@ export function ObjectDiscovery({
         const prev = navigableRows[idx - 1];
         if (prev) focusTreeNode(prev.node.id);
       } else if (e.key === "ArrowRight") {
-        if (node.has_children && !isLoadingPlaceholder(node)) {
+        if (nodeDrillable(node) && !isLoadingPlaceholder(node)) {
           e.preventDefault();
-          handleNodeActivate(node);
+          cancelPendingDrill(node.id);
+          drillInto(node);
         }
       } else if (e.key === "Enter") {
         e.preventDefault();
-        handleNodeActivate(node);
-        if (!node.has_children) openNode(node);
+        if (nodeDrillable(node)) {
+          cancelPendingDrill(node.id);
+          drillInto(node);
+        } else if (treeNodeOpenable(node)) {
+          openNode(node);
+        } else {
+          handleNodeActivate(node);
+        }
       } else if (e.key === "ContextMenu" || (e.shiftKey && e.key === "F10")) {
         e.preventDefault();
         openContextMenuForNode(node, document.getElementById(`disc-treeitem-${node.id}`));
       }
     },
     [
+      cancelPendingDrill,
       currentParentId,
+      drillInto,
       focusTreeNode,
       focusedId,
       goBack,
       handleNodeActivate,
       isFiltering,
       navigableRows,
+      nodeDrillable,
       openContextMenuForNode,
       openNode,
       selectedId,
@@ -568,7 +609,7 @@ export function ObjectDiscovery({
         onSelect: () => void toggleStar(node.id),
       });
     }
-    if (opensDocumentTab(node)) {
+    if (treeNodeOpensDocumentTab(node)) {
       items.push({
         id: "open",
         label: t("discovery.open"),
@@ -782,7 +823,7 @@ export function ObjectDiscovery({
                   : transformDropKind === "pipelines"
                     ? t("transform.treeDrag.dropTemplateOnPipelines")
                     : undefined;
-              const isFolder = node.has_children && !isPlaceholder;
+              const isFolder = nodeDrillable(node);
               const secondaryText = pathLabel ?? nodeDescription(node);
               return (
                 <li key={node.id} className="disc-nav-item" role="none">
@@ -857,7 +898,7 @@ export function ObjectDiscovery({
                             : undefined
                         }
                         onClick={() => handleNodeActivate(node)}
-                        onDoubleClick={() => openNode(node)}
+                        onDoubleClick={() => handleNodeDoubleClick(node)}
                         onContextMenu={(e: MouseEvent) => {
                           e.preventDefault();
                           openContextMenuForNode(node, e.currentTarget as HTMLElement);

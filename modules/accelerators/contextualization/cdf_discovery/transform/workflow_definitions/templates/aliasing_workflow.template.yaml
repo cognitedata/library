@@ -657,9 +657,9 @@ canvas:
     target_handle: in
     kind: data
   viewport:
-    x: -554.6806879613254
-    y: 184.73419810907677
-    zoom: 1.063452349836082
+    x: -3.3097010919420313
+    y: 240.7617309072847
+    zoom: 0.5
 compiled_workflow:
   schema_version: 1
   tasks:

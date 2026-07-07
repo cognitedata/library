@@ -382,18 +382,24 @@ def _model_node_id(space: str, model_ext: str, model_ver: str) -> str:
 
 def _dm_data_model_nodes(client: Any) -> List[TreeNodeOut]:
     models = cdf_browse.dm_list_all_data_models(client, limit=500)
-    return _sort_nodes(
-        [
+    out: List[TreeNodeOut] = []
+    for m in models:
+        views = cdf_browse.dm_list_views_for_data_model(
+            client,
+            space=m["space"],
+            external_id=m["external_id"],
+            version=m["version"],
+        )
+        out.append(
             _node(
                 id=_model_node_id(m["space"], m["external_id"], m["version"]),
                 label=_data_model_label(m),
                 kind="dm_data_model",
-                has_children=True,
+                has_children=len(views) > 0,
                 meta={**m},
             )
-            for m in models
-        ]
-    )
+        )
+    return _sort_nodes(out)
 
 
 def _dm_view_nodes_under_model(
@@ -498,19 +504,67 @@ def _fusion_dm_container_nodes(
     return out
 
 
-def _fusion_dm_model_nodes(
-    models: List[Dict[str, str]], *, space: str
-) -> List[TreeNodeOut]:
+def _fusion_dm_space_folder_nodes(client: Any, space: str) -> List[TreeNodeOut]:
+    include_global = cdf_browse.is_system_dm_space(space)
+    views = cdf_browse.fusion_list_views_in_space(
+        client, space, include_global=include_global
+    )
+    containers = cdf_browse.fusion_list_containers_in_space(
+        client, space, include_global=include_global
+    )
+    models = cdf_browse.dm_list_data_models(
+        client, space=space, limit=500, include_global=include_global
+    )
+    spe = encode_segment(space)
     return [
         _node(
-            id=_fusion_model_node_id(space, m["external_id"], m["version"]),
-            label=_data_model_label(m),
-            kind="dm_data_model",
-            has_children=True,
-            meta={**m, "space": space},
-        )
-        for m in models
+            id=f"fusion:dm:space:{spe}:views",
+            label="Views",
+            kind="folder",
+            has_children=len(views) > 0,
+            meta={"domain": "fusion_dm_views", "space": space},
+        ),
+        _node(
+            id=f"fusion:dm:space:{spe}:containers",
+            label="Containers",
+            kind="folder",
+            has_children=len(containers) > 0,
+            meta={"domain": "fusion_dm_containers", "space": space},
+        ),
+        _node(
+            id=f"fusion:dm:space:{spe}:models",
+            label="Data models",
+            kind="folder",
+            has_children=len(models) > 0,
+            meta={"domain": "fusion_dm_models", "space": space},
+        ),
     ]
+
+
+def _fusion_dm_model_nodes(
+    client: Any,
+    models: List[Dict[str, str]],
+    *,
+    space: str,
+) -> List[TreeNodeOut]:
+    out: List[TreeNodeOut] = []
+    for m in models:
+        views = cdf_browse.dm_list_views_for_data_model(
+            client,
+            space=space,
+            external_id=m["external_id"],
+            version=m["version"],
+        )
+        out.append(
+            _node(
+                id=_fusion_model_node_id(space, m["external_id"], m["version"]),
+                label=_data_model_label(m),
+                kind="dm_data_model",
+                has_children=len(views) > 0,
+                meta={**m, "space": space},
+            )
+        )
+    return out
 
 
 def _fusion_model_node_id(space: str, model_ext: str, model_ver: str) -> str:
@@ -562,18 +616,19 @@ def _fusion_dm_view_nodes_under_model(
 
 def _raw_database_nodes(client: Any) -> List[TreeNodeOut]:
     dbs = cdf_browse.raw_list_databases(client, limit=200)
-    return _sort_nodes(
-        [
+    out: List[TreeNodeOut] = []
+    for db in dbs:
+        tables = cdf_browse.raw_list_tables(client, database=db, limit=1)
+        out.append(
             _node(
                 id=f"raw:db:{encode_segment(db)}",
                 label=db,
                 kind="raw_database",
-                has_children=True,
+                has_children=len(tables) > 0,
                 meta={"database": db},
             )
-            for db in dbs
-        ]
-    )
+        )
+    return _sort_nodes(out)
 
 
 def list_children(client: Any, node_id: str) -> List[TreeNodeOut]:
@@ -947,29 +1002,7 @@ def list_children(client: Any, node_id: str) -> List[TreeNodeOut]:
         space = decode_segment(segs[2])
         spe = encode_segment(space)
         if len(segs) == 3:
-            return [
-                _node(
-                    id=f"fusion:dm:space:{spe}:views",
-                    label="Views",
-                    kind="folder",
-                    has_children=True,
-                    meta={"domain": "fusion_dm_views", "space": space},
-                ),
-                _node(
-                    id=f"fusion:dm:space:{spe}:containers",
-                    label="Containers",
-                    kind="folder",
-                    has_children=True,
-                    meta={"domain": "fusion_dm_containers", "space": space},
-                ),
-                _node(
-                    id=f"fusion:dm:space:{spe}:models",
-                    label="Data models",
-                    kind="folder",
-                    has_children=True,
-                    meta={"domain": "fusion_dm_models", "space": space},
-                ),
-            ]
+            return _fusion_dm_space_folder_nodes(client, space)
         if len(segs) == 4 and segs[3] == "views":
             include_global = cdf_browse.is_system_dm_space(space)
             views = cdf_browse.fusion_list_views_in_space(
@@ -994,7 +1027,7 @@ def list_children(client: Any, node_id: str) -> List[TreeNodeOut]:
             models = cdf_browse.dm_list_data_models(
                 client, space=space, limit=500, include_global=cdf_browse.is_system_dm_space(space)
             )
-            return _sort_nodes(_fusion_dm_model_nodes(models, space=space))
+            return _sort_nodes(_fusion_dm_model_nodes(client, models, space=space))
         if len(segs) == 6 and segs[3] == "model":
             return _fusion_dm_view_nodes_under_model(
                 client,

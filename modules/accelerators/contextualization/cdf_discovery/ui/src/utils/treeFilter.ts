@@ -16,6 +16,18 @@ export function isLoadingPlaceholder(node: TreeNode): boolean {
   return node.kind === LOADING_KIND;
 }
 
+/** True when the node should behave as a drill-down folder in the object tree. */
+export function treeNodeDrillable(
+  node: TreeNode,
+  childrenByParent: Map<string, TreeNode[]>,
+  loadedIds: Set<string>
+): boolean {
+  if (isLoadingPlaceholder(node) || !node.has_children) return false;
+  if (!loadedIds.has(node.id)) return true;
+  const kids = (childrenByParent.get(node.id) ?? []).filter((c) => !isLoadingPlaceholder(c));
+  return kids.length > 0;
+}
+
 export function loadingPlaceholder(parentId: string, label: string): TreeNode {
   return {
     id: `${parentId}:__loading__`,
@@ -102,21 +114,43 @@ export function flattenVisibleTree(
   return out;
 }
 
+/** Map each loaded tree node id to the parent folder that listed it. */
+export function buildParentIndex(childrenByParent: Map<string, TreeNode[]>): Map<string, string> {
+  const index = new Map<string, string>();
+  for (const [parentId, kids] of childrenByParent) {
+    for (const kid of kids) {
+      if (isLoadingPlaceholder(kid)) continue;
+      index.set(kid.id, parentId);
+    }
+  }
+  return index;
+}
+
 /** Parent folder id for drill-down navigation (top-level nodes parent the connection root). */
-export function parentNodeId(nodeId: string, rootId = "connection"): string {
+export function parentNodeId(
+  nodeId: string,
+  rootId = "connection",
+  parentIndex?: Map<string, string>
+): string {
   if (nodeId === rootId) return rootId;
+  const indexed = parentIndex?.get(nodeId);
+  if (indexed != null) return indexed;
   const idx = nodeId.lastIndexOf(":");
   if (idx < 0) return rootId;
   return nodeId.slice(0, idx);
 }
 
 /** Ordered ids from root through ``nodeId`` (inclusive). */
-export function ancestorChainTo(nodeId: string, rootId = "connection"): string[] {
+export function ancestorChainTo(
+  nodeId: string,
+  rootId = "connection",
+  parentIndex?: Map<string, string>
+): string[] {
   const chain: string[] = [];
   let id = nodeId;
   while (id && id !== rootId) {
     chain.unshift(id);
-    const parent = parentNodeId(id, rootId);
+    const parent = parentNodeId(id, rootId, parentIndex);
     if (parent === id) break;
     id = parent;
   }
@@ -142,7 +176,8 @@ export function buildBreadcrumbTrail(
   rootNode: TreeNode,
   labelForNode: (node: TreeNode) => string
 ): BreadcrumbSegment[] {
-  const ids = ancestorChainTo(currentParentId, rootNode.id);
+  const parentIndex = buildParentIndex(childrenByParent);
+  const ids = ancestorChainTo(currentParentId, rootNode.id, parentIndex);
   return ids.map((id) => {
     const node = findNodeInTree(id, childrenByParent, rootNode);
     return {

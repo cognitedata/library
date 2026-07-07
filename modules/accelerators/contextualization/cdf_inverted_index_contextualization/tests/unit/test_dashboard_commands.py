@@ -58,19 +58,21 @@ def test_cmd_registry_summary_reads_cdf_registry_when_client_connected() -> None
     cfg = _cfg()
     adapter = RawStorageAdapter(cfg, client=MagicMock())
     mock_client = MagicMock()
-    mock_row = MagicMock()
-    mock_row.columns = {
+    mock_client.config.project = "test-project"
+    registry_columns = {
         "RECORD_KIND": "partition_registry",
         "MATCH_SCOPE_KEY": "global",
         "PARTITION_TABLE": "inverted_index__global",
         "PARTITION_STRATEGY": "unified",
         "LAST_BUILD_AT": "2026-01-01T00:00:00+00:00",
     }
-    mock_result = MagicMock()
-    mock_result.__iter__ = lambda self: iter([mock_row])
-    mock_result.has_next = False
-    mock_client.raw.rows.list.return_value = mock_result
-    mock_client.raw.rows.retrieve.return_value = mock_row
+    list_response = MagicMock()
+    list_response.status_code = 200
+    list_response.json.return_value = {
+        "items": [{"key": "global", "columns": registry_columns}],
+    }
+    mock_client.get.return_value = list_response
+    mock_client.raw.rows.retrieve.return_value = MagicMock(columns=registry_columns)
 
     with patch("local_runner.commands._runtime", return_value={"storage_config": cfg}), patch(
         "local_runner.commands.create_cognite_client", return_value=mock_client
@@ -79,7 +81,8 @@ def test_cmd_registry_summary_reads_cdf_registry_when_client_connected() -> None
 
     assert result["scope_count"] == 1
     assert result["scopes"][0]["match_scope_key"] == "global"
-    mock_client.raw.rows.list.assert_called_once()
+    mock_client.get.assert_called_once()
+    assert "/raw/dbs/db_test/tables/inverted_index__registry/rows" in mock_client.get.call_args[0][0]
 
 
 def test_cmd_dashboard_summary_aggregates_kpis() -> None:

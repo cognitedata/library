@@ -345,9 +345,23 @@ def test_list_children_fusion_space_models_open_flow_viewer():
             "name": "Cognite Core",
         }
     ]
-    with patch(
-        "ui.server.discovery_tree.cdf_browse.dm_list_data_models",
-        return_value=model_rows,
+    view_rows = [
+        {
+            "space": "cdf_cdm",
+            "external_id": "CogniteAsset",
+            "version": "v1",
+            "name": "Asset",
+        }
+    ]
+    with (
+        patch(
+            "ui.server.discovery_tree.cdf_browse.dm_list_data_models",
+            return_value=model_rows,
+        ),
+        patch(
+            "ui.server.discovery_tree.cdf_browse.dm_list_views_for_data_model",
+            return_value=view_rows,
+        ),
     ):
         models = discovery_tree.list_children(client, "fusion:dm:space:cdf_cdm:models")
     assert len(models) == 1
@@ -387,22 +401,70 @@ def test_encode_decode_roundtrip():
 
 def test_list_children_dm_lists_data_models_directly():
     client = MagicMock()
-    with patch(
-        "ui.server.discovery_tree.cdf_browse.dm_list_all_data_models",
-        return_value=[
-            {
-                "space": "cdf_cdm",
-                "external_id": "CogniteCore",
-                "version": "v1",
-                "name": "Cognite Core",
-            }
-        ],
+    model_row = {
+        "space": "cdf_cdm",
+        "external_id": "CogniteCore",
+        "version": "v1",
+        "name": "Cognite Core",
+    }
+    with (
+        patch(
+            "ui.server.discovery_tree.cdf_browse.dm_list_all_data_models",
+            return_value=[model_row],
+        ),
+        patch(
+            "ui.server.discovery_tree.cdf_browse.dm_list_views_for_data_model",
+            return_value=[{"space": "cdf_cdm", "external_id": "CogniteAsset", "version": "v1"}],
+        ),
     ):
         nodes = discovery_tree.list_children(client, "dm")
     assert len(nodes) == 1
     assert nodes[0]["id"] == "dm:model:cdf_cdm:CogniteCore:v1"
     assert "Cognite Core" in nodes[0]["label"]
     assert nodes[0]["has_children"] is True
+
+
+def test_list_children_dm_data_model_without_views_is_not_drillable():
+    client = MagicMock()
+    model_row = {
+        "space": "cdf_cdm",
+        "external_id": "EmptyModel",
+        "version": "v1",
+        "name": "Empty",
+    }
+    with (
+        patch(
+            "ui.server.discovery_tree.cdf_browse.dm_list_all_data_models",
+            return_value=[model_row],
+        ),
+        patch(
+            "ui.server.discovery_tree.cdf_browse.dm_list_views_for_data_model",
+            return_value=[],
+        ),
+    ):
+        nodes = discovery_tree.list_children(client, "dm")
+    assert nodes[0]["has_children"] is False
+
+
+def test_list_children_fusion_space_folder_nodes_reflect_empty_counts():
+    client = MagicMock()
+    with (
+        patch(
+            "ui.server.discovery_tree.cdf_browse.fusion_list_views_in_space",
+            return_value=[],
+        ),
+        patch(
+            "ui.server.discovery_tree.cdf_browse.fusion_list_containers_in_space",
+            return_value=[],
+        ),
+        patch(
+            "ui.server.discovery_tree.cdf_browse.dm_list_data_models",
+            return_value=[],
+        ),
+    ):
+        folders = discovery_tree.list_children(client, "fusion:dm:space:cdf_cdm")
+    assert [n["label"] for n in folders] == ["Views", "Containers", "Data models"]
+    assert all(n["has_children"] is False for n in folders)
 
 
 def test_list_children_dm_model_lists_views_directly():
@@ -431,9 +493,15 @@ def test_list_children_dm_model_lists_views_directly():
 
 def test_list_children_raw_databases_and_tables():
     client = MagicMock()
-    with patch(
-        "ui.server.discovery_tree.cdf_browse.raw_list_databases",
-        return_value=["db_discovery_aliasing"],
+    with (
+        patch(
+            "ui.server.discovery_tree.cdf_browse.raw_list_databases",
+            return_value=["db_discovery_aliasing"],
+        ),
+        patch(
+            "ui.server.discovery_tree.cdf_browse.raw_list_tables",
+            return_value=[{"name": "asset_aliases", "row_count": 10}],
+        ),
     ):
         dbs = discovery_tree.list_children(client, "raw")
     assert len(dbs) == 1
@@ -449,4 +517,21 @@ def test_list_children_raw_databases_and_tables():
     assert tables[0]["id"] == "raw:db:db_discovery_aliasing:table:asset_aliases"
     assert tables[0]["open_target"]["type"] == "raw_rows"
     assert tables[0]["open_target"]["table"] == "asset_aliases"
+
+
+def test_list_children_raw_database_without_tables_is_not_drillable():
+    client = MagicMock()
+    with (
+        patch(
+            "ui.server.discovery_tree.cdf_browse.raw_list_databases",
+            return_value=["empty_db"],
+        ),
+        patch(
+            "ui.server.discovery_tree.cdf_browse.raw_list_tables",
+            return_value=[],
+        ),
+    ):
+        dbs = discovery_tree.list_children(client, "raw")
+    assert len(dbs) == 1
+    assert dbs[0]["has_children"] is False
 

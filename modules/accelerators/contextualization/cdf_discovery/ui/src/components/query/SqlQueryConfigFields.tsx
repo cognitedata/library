@@ -1,6 +1,7 @@
 import { useCallback, useState } from "react";
 import { useAppSettings } from "../../context/AppSettingsContext";
 import type { JsonObject } from "../../types/jsonConfig";
+import { SqlEditor } from "../SqlEditor";
 import { QueryPreviewPanel, type QueryPreviewResult } from "./QueryPreviewPanel";
 import { QueryEditorTabs, useQueryEditorTabState, type QueryEditorTabDef } from "./QueryEditorTabs";
 import { SqlEditorResizablePane } from "./SqlEditorResizablePane";
@@ -41,7 +42,7 @@ function readWorkflowLimit(cfg: JsonObject): number | undefined {
 
 /** Editor for ``query_sql`` node ``data.config`` — CDF SQL preview (same API as cdf_discovery). */
 export function SqlQueryConfigFields({ value, onChange, fieldKey }: Props) {
-  const { t } = useAppSettings();
+  const { t, theme } = useAppSettings();
   const patch = (p: JsonObject) => onChange({ ...value, ...p });
 
   const sqlQuery = String(value.sql_query ?? value.query ?? "");
@@ -177,19 +178,21 @@ export function SqlQueryConfigFields({ value, onChange, fieldKey }: Props) {
 
         {activeTab === TAB_QUERY ? (
           <SqlEditorResizablePane label={t("transform.query.sqlQuery")}>
-            <textarea
-              className="gov-input transform-query-sql-editor"
-              spellCheck={false}
-              value={sqlQuery}
-              placeholder={t("transform.query.sqlPlaceholder")}
-              onChange={(e) => patch({ sql_query: e.target.value })}
-              onKeyDown={(e) => {
-                if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
-                  e.preventDefault();
-                  void run();
-                }
-              }}
-            />
+            {(bodyHeight) =>
+              bodyHeight > 0 ? (
+                <SqlEditor
+                  value={sqlQuery}
+                  theme={theme}
+                  height={`${bodyHeight}px`}
+                  maxHeight={`${bodyHeight}px`}
+                  ariaLabel={t("sql.editor.label")}
+                  shortcutsHint={t("sql.editor.shortcutsDesc")}
+                  placeholder={t("transform.query.sqlPlaceholder")}
+                  onChange={(q) => patch({ sql_query: q })}
+                  onRun={() => void run()}
+                />
+              ) : null
+            }
           </SqlEditorResizablePane>
         ) : null}
 

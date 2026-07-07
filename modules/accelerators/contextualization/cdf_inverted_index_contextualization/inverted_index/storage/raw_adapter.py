@@ -21,6 +21,7 @@ from inverted_index.raw_ops import (
     resolve_scope_partition_table,
     upsert_partition_registry,
 )
+from inverted_index.raw_rest import iter_raw_rows
 from inverted_index.storage.raw_keys import (
     build_raw_postings_row_key,
     flatten_postings_to_entries,
@@ -268,16 +269,10 @@ class RawStorageAdapter:
             for table in tables:
                 partition: dict[str, dict] = {}
                 try:
-                    result = self._client.raw.rows.list(
-                        db_name=raw_db,
-                        table_name=table,
-                        limit=10_000,
-                    )
                     partition = {
-                        getattr(row, "key", row.get("key")): dict(
-                            getattr(row, "columns", row.get("columns", {}))
-                        )
-                        for row in result
+                        row.get("key"): dict(row.get("columns") or {})
+                        for row in iter_raw_rows(self._client, raw_db, table)
+                        if row.get("key")
                     }
                 except Exception as exc:
                     logger.warning("RAW list_by_file scan failed for %s: %s", table, exc)

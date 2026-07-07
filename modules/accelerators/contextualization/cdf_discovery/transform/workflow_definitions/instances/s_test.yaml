@@ -1,0 +1,55 @@
+schemaVersion: 1
+id: s_test
+label: s_test
+template_id: null
+parameters:
+  incremental: true
+  incremental_change_processing: true
+  incremental_skip_unchanged: true
+  max_records_per_run: 0
+  raw_db: etl_staging
+  raw_table_key: cohort
+  preview_raw_table_key: etl_preview
+  instance_space: inst_assets
+  etl_state_instance_space: null
+  workflow_scope: s_test
+scope: null
+sources: []
+canvas:
+  schemaVersion: 1
+  handle_orientation: lr
+  layout_method: layered
+  nodes:
+  - id: start
+    kind: start
+    position:
+      x: 80
+      y: 200
+    data:
+      label: Workflow trigger
+      config:
+        description: Workflow trigger
+        trigger_type: schedule
+        cron_expression: 0 2 * * *
+        workflow_version: '1'
+        workflow_base: ''
+        workflow_external_id: ''
+        trigger_external_id: ''
+        workflow_scope: s_test
+        incremental_change_processing: true
+        run_id: ''
+  - id: end
+    kind: end
+    position:
+      x: 480
+      y: 200
+    data:
+      label: End
+      config:
+        description: ''
+  edges:
+  - id: e_start_end
+    source: start
+    target: end
+    kind: data
+scope_suffix: ''

@@ -20,6 +20,7 @@ type Props = {
   onRun?: () => void;
   onRunSelection?: () => void;
   height: string;
+  maxHeight?: string;
   readOnly?: boolean;
   placeholder?: string;
   theme: "light" | "dark";
@@ -34,6 +35,7 @@ export const SqlEditor = forwardRef<SqlEditorHandle, Props>(function SqlEditor(
     onRun,
     onRunSelection,
     height,
+    maxHeight,
     readOnly,
     placeholder: placeholderText,
     theme,
@@ -83,8 +85,10 @@ export const SqlEditor = forwardRef<SqlEditorHandle, Props>(function SqlEditor(
 
   const describedBy = shortcutsHint ? shortcutsId : undefined;
 
+  const boundedHeight = maxHeight ?? height;
+
   return (
-    <div className="disc-sql-editor-wrap">
+    <div className="disc-sql-editor-wrap" style={{ height: "100%", minHeight: 0, overflow: "hidden" }}>
       <span id={labelId} className="disc-visually-hidden">
         {ariaLabel}
       </span>
@@ -98,6 +102,7 @@ export const SqlEditor = forwardRef<SqlEditorHandle, Props>(function SqlEditor(
         className="disc-sql-editor disc-sql-editor--cm"
         value={value}
         height={height}
+        maxHeight={boundedHeight}
         theme={theme === "dark" ? oneDark : "light"}
         extensions={extensions}
         editable={!readOnly}
