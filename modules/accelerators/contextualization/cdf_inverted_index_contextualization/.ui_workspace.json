@@ -8,22 +8,16 @@
       "navNodeId": "inverted-index/config"
     },
     {
-      "id": "tab:query",
-      "kind": "query",
-      "label": "Query index",
-      "navNodeId": "inverted-index/query"
-    },
-    {
       "id": "tab:dashboard",
       "kind": "dashboard",
       "label": "Dashboard",
       "navNodeId": "inverted-index/dashboard"
     },
     {
-      "id": "tab:build-metadata",
-      "kind": "build-metadata",
-      "label": "Build metadata index",
-      "navNodeId": "inverted-index/ops/build-metadata"
+      "id": "tab:query",
+      "kind": "query",
+      "label": "Query index",
+      "navNodeId": "inverted-index/quick/query"
     }
   ]
 }

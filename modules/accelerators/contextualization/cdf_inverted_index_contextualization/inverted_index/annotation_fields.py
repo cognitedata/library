@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
-import hashlib
 from typing import Any
 
+from inverted_index.annotation_identity import (
+    apply_external_id_limit,
+    build_identity_context,
+    resolve_annotation_identity,
+)
 from inverted_index.config import ANNOTATION_INDEX_CONFIG
-from inverted_index.normalize import normalize_term
+from inverted_index.jinja_render import render_template_string
 
 EXTERNAL_ID_LIMIT = 256
 
@@ -109,11 +113,17 @@ def detection_mode_from_annotation(
     return str(c.get("default_detection_mode", "standard"))
 
 
-def build_bbox_hash(bbox: list[float] | None) -> str:
-    if not bbox or len(bbox) != 4:
-        return "nobbox"
-    rounded = ",".join(f"{float(v):.4f}" for v in bbox)
-    return hashlib.sha256(rounded.encode("utf-8")).hexdigest()[:8]
+def build_bbox_hash(
+    bbox: list[float] | None,
+    *,
+    decimal_places: int = 4,
+    hex_length: int = 8,
+) -> str:
+    from inverted_index.annotation_identity import compute_bbox_hash
+
+    return compute_bbox_hash(
+        bbox, decimal_places=decimal_places, hex_length=hex_length
+    )
 
 
 def build_detection_key(
@@ -121,11 +131,24 @@ def build_detection_key(
     page: int | None,
     bbox: list[float] | None,
     normalized_term: str = "",
+    file_external_id: str = "",
+    identity: dict | None = None,
+    annotation_config: dict | None = None,
 ) -> str:
-    page_label = f"page{page}" if page is not None else "page0"
-    bbox_hash = build_bbox_hash(bbox)
-    term_part = normalized_term[:12] if normalized_term else "noterm"
-    return f"{page_label}:bbox_{bbox_hash}:{term_part}"
+    resolved = identity or resolve_annotation_identity(annotation_config)
+    ctx = build_identity_context(
+        file_external_id,
+        page=page,
+        normalized_term=normalized_term,
+        bbox=bbox,
+        identity=resolved,
+    )
+    template = resolved.get("detection_key_template")
+    if template:
+        return render_template_string(str(template), ctx).strip()
+    return (
+        f"{ctx['page_label']}:bbox_{ctx['bbox_hash']}:{ctx['term_prefix']}"
+    )
 
 
 def build_deterministic_annotation_external_id(
@@ -134,15 +157,29 @@ def build_deterministic_annotation_external_id(
     page: int | None,
     normalized_term: str,
     bbox: list[float] | None,
-    prefix: str = "idx_ann",
+    prefix: str | None = None,
+    identity: dict | None = None,
+    annotation_config: dict | None = None,
 ) -> str:
     """Stable annotation edge external id for index-only and upsert paths."""
-    text_hash = hashlib.sha256(normalized_term.encode("utf-8")).hexdigest()[:8]
-    bbox_hash = build_bbox_hash(bbox)
-    page_label = str(page) if page is not None else "0"
-    raw = f"{prefix}_{file_external_id}_{page_label}_{text_hash}_{bbox_hash}"
-    if len(raw) <= EXTERNAL_ID_LIMIT:
-        return raw
-    digest = hashlib.sha256(raw.encode("utf-8")).hexdigest()[:16]
-    short_file = file_external_id[:40]
-    return f"{prefix}_{digest}_{short_file}"[:EXTERNAL_ID_LIMIT]
+    resolved = dict(identity or resolve_annotation_identity(annotation_config))
+    if prefix is not None:
+        resolved["annotation_external_id_prefix"] = prefix
+    ctx = build_identity_context(
+        file_external_id,
+        page=page,
+        normalized_term=normalized_term,
+        bbox=bbox,
+        identity=resolved,
+    )
+    template = resolved.get("annotation_external_id_template")
+    if template:
+        raw = render_template_string(str(template), ctx).strip()
+    else:
+        raw = (
+            f"{ctx['prefix']}_{file_external_id}_{ctx['page_external_id']}_"
+            f"{ctx['text_hash']}_{ctx['bbox_hash']}"
+        )
+    return apply_external_id_limit(
+        raw, file_external_id=file_external_id, identity=resolved
+    )

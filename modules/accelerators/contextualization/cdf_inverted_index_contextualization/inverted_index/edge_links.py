@@ -8,6 +8,7 @@ from typing import Any, Literal
 from inverted_index.annotation_fields import (
     build_deterministic_annotation_external_id,
 )
+from inverted_index.config import ANNOTATION_INDEX_CONFIG
 from inverted_index.extract import read_property_path
 
 
@@ -119,6 +120,7 @@ def upsert_diagram_annotation(
     diagram_annotation_cfg: dict,
     dr_cfg: dict,
     dry_run: bool = False,
+    annotation_config: dict | None = None,
 ) -> Literal["created", "updated", "skipped"]:
     """Create or patch endNode on a CogniteDiagramAnnotation edge."""
     if not _required_paths_present(hit, diagram_annotation_cfg.get("required_for_create") or []):
@@ -139,6 +141,7 @@ def upsert_diagram_annotation(
             page=page,
             normalized_term=hit.get("normalized_term") or "",
             bbox=bbox,
+            annotation_config=annotation_config or ANNOTATION_INDEX_CONFIG,
         )
 
     ann_views = dr_cfg.get("views") or {}

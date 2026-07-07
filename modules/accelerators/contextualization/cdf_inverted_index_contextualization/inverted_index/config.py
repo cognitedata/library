@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from inverted_index.annotation_identity import DEFAULT_ANNOTATION_IDENTITY
+
 INDEX_STORAGE_CONFIG: dict = {
     "backend": "raw",
     "dm": {
@@ -214,6 +216,7 @@ ANNOTATION_INDEX_CONFIG: dict = {
         "standard": ["standard", "tag", "tag_detection"],
     },
     "default_detection_mode": "pattern",
+    "identity": dict(DEFAULT_ANNOTATION_IDENTITY),
 }
 
 SUBSCRIPTION_CONFIG: dict = {

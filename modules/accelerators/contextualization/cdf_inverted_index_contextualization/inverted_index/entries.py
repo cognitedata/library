@@ -159,13 +159,20 @@ def _diagram_entry_metadata(
     end_node_space: str | None = None,
     store_vertices: bool = False,
 ) -> dict[str, Any]:
-    detection_key = build_detection_key(page=page, bbox=bbox, normalized_term=normalized)
+    detection_key = build_detection_key(
+        page=page,
+        bbox=bbox,
+        normalized_term=normalized,
+        file_external_id=file_external_id,
+        annotation_config=cfg,
+    )
     if not annotation_external_id:
         annotation_external_id = build_deterministic_annotation_external_id(
             file_external_id,
             page=page,
             normalized_term=normalized,
             bbox=bbox,
+            annotation_config=cfg,
         )
     additional: dict[str, Any] = {
         "page": page,
@@ -326,6 +333,7 @@ def pattern_detection_to_index_entry(
             page=page,
             normalized_term=normalized,
             bbox=bbox if isinstance(bbox, list) else None,
+            annotation_config=cfg,
         )
     )
 

@@ -12,6 +12,7 @@ import {
   emptyIndexFieldProperty,
   emptyIndexFieldView,
   emptyScopeConfig,
+  emptyScopePropertyOverride,
   emptySubscriptionConfig,
   emptyTargetDrivenQueryConfig,
   emptyVirtualTagCreationConfig,
@@ -204,7 +205,7 @@ export function mergeScopeIntoDoc(doc: Record<string, unknown>, scope: ScopeConf
       const serialized = serializeResolveCandidates(candidates);
       if (serialized.length) levelOut[level] = serialized;
     }
-    if (Object.keys(levelOut).length) resolveFrom[view] = levelOut;
+    resolveFrom[view] = levelOut;
   }
   const resolveFromDefault: Record<string, Array<string | Record<string, unknown>>> = {};
   for (const [level, candidates] of Object.entries(scope.resolveFromDefault)) {
@@ -369,6 +370,8 @@ export function sanitizeIndexFieldsForPersist(doc: Record<string, unknown>): voi
 export function annotationFromDoc(doc: Record<string, unknown>): AnnotationIndexConfig {
   const base = emptyAnnotationIndexConfig();
   const o = asRecord(doc.annotation_index_config);
+  const identityRaw = asRecord(o.identity);
+  const identityBase = base.identity;
   return {
     view: o.view != null ? String(o.view) : base.view,
     viewSpace: o.view_space != null ? String(o.view_space) : base.viewSpace,
@@ -380,11 +383,36 @@ export function annotationFromDoc(doc: Record<string, unknown>): AnnotationIndex
     statusProperty: o.status_property != null ? String(o.status_property) : base.statusProperty,
     pageProperty: o.page_property != null ? String(o.page_property) : base.pageProperty,
     bboxProperties: stringList(o.bbox_properties),
+    identity: {
+      annotationExternalIdPrefix:
+        identityRaw.annotation_external_id_prefix != null
+          ? String(identityRaw.annotation_external_id_prefix)
+          : identityBase.annotationExternalIdPrefix,
+      detectionKeyTermPrefixLength:
+        identityRaw.detection_key_term_prefix_length != null
+          ? Number(identityRaw.detection_key_term_prefix_length)
+          : identityBase.detectionKeyTermPrefixLength,
+      bboxHashDecimalPlaces:
+        identityRaw.bbox_hash_decimal_places != null
+          ? Number(identityRaw.bbox_hash_decimal_places)
+          : identityBase.bboxHashDecimalPlaces,
+      hashHexLength:
+        identityRaw.hash_hex_length != null
+          ? Number(identityRaw.hash_hex_length)
+          : identityBase.hashHexLength,
+      externalIdLimit:
+        identityRaw.external_id_limit != null
+          ? Number(identityRaw.external_id_limit)
+          : identityBase.externalIdLimit,
+    },
   };
 }
 
 export function mergeAnnotationIntoDoc(doc: Record<string, unknown>, cfg: AnnotationIndexConfig): void {
+  const existing = asRecord(doc.annotation_index_config);
+  const existingIdentity = asRecord(existing.identity);
   doc.annotation_index_config = {
+    ...existing,
     view: cfg.view,
     view_space: cfg.viewSpace,
     version: cfg.version,
@@ -394,6 +422,14 @@ export function mergeAnnotationIntoDoc(doc: Record<string, unknown>, cfg: Annota
     status_property: cfg.statusProperty,
     page_property: cfg.pageProperty,
     bbox_properties: cfg.bboxProperties,
+    identity: {
+      ...existingIdentity,
+      annotation_external_id_prefix: cfg.identity.annotationExternalIdPrefix,
+      detection_key_term_prefix_length: cfg.identity.detectionKeyTermPrefixLength,
+      bbox_hash_decimal_places: cfg.identity.bboxHashDecimalPlaces,
+      hash_hex_length: cfg.identity.hashHexLength,
+      external_id_limit: cfg.identity.externalIdLimit,
+    },
   };
 }
 

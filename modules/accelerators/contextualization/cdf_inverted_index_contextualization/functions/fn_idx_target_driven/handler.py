@@ -145,6 +145,7 @@ def handle(data: dict[str, Any] | None = None, client: Any = None) -> dict[str, 
             match_scope_keys=scope_keys_list,
             scope_lookup_override=scope_lookup_override,
             query_property=query_property,
+            annotation_config=overrides["annotation_config"],
         )
         if (
             not dry_run
@@ -176,4 +177,5 @@ def handle(data: dict[str, Any] | None = None, client: Any = None) -> dict[str, 
         scope_lookup_override=scope_lookup_override,
         query_property=query_property,
         force=force,
+        annotation_config=overrides["annotation_config"],
     )

@@ -53,7 +53,7 @@ Runtime config is assembled by `build_runtime_config()` (`inverted_index/config_
 
 | Source | Keys / env vars | Merge behaviour |
 |--------|-----------------|-----------------|
-| `default.config.yaml` | `index_storage_backend`, `index_raw_database`, `scope`, `index_field_config`, `annotation_index_config`, `index_raw_term_partition`, `target_driven`, `subscription`, `direct_relation_config`, `virtual_tag_creation`, `instance_spaces` | Shallow merge for most keys; **deep merge** for `direct_relation_config.links.*`, `edge_views`, and `virtual_tag_creation` (nested `missing_tag_criteria`, `asset_lookup`, `scope_property_mapping`) |
+| `default.config.yaml` | `index_storage_backend`, `index_raw_database`, `scope`, `index_field_config`, `annotation_index_config`, `index_raw_term_partition`, `target_driven`, `subscription`, `direct_relation_config`, `virtual_tag_creation`, `instance_spaces` | Shallow merge for most keys; **deep merge** for `annotation_index_config.identity`, `direct_relation_config.links.*`, `edge_views`, and `virtual_tag_creation` (nested `missing_tag_criteria`, `asset_lookup`, `scope_property_mapping`) |
 | Code defaults | `inverted_index/config.py` | Base values when YAML omits a key |
 | Environment | `INDEX_STORAGE_BACKEND`, `INDEX_RAW_DATABASE`, `INDEX_INSTANCE_SPACES` (comma-separated) | Override YAML |
 
@@ -479,6 +479,27 @@ ANNOTATION_INDEX_CONFIG = {
 **Detection mode inference** (`detection_mode_from_annotation`): (1) configured `detection_mode_property` when present; (2) `tags` list matching `detection_mode_tags`; (3) external-id heuristics (`pat` / `std` / `pattern`); (4) `default_detection_mode`.
 
 **Index entry shape (file-as-reference):** `reference_type` / `reference_external_id` / `reference_space` identify the **parent file** (`start_node`). Annotation identity is stored in `additional_metadata.annotation_external_id` (real edge id when present, or deterministic `idx_ann_*` for index-only detections). `source_property` is `detection:{detection_key}` where `detection_key = page{N}:bbox_{hash}:{term_prefix}` — enabling multiple detections of the same term on one file without merge collapse.
+
+**Annotation identity (`annotation_index_config.identity`):** Diagram `detection_key` and `annotation_external_id` are configurable under `identity`. Safe knobs (editable in the structured UI and YAML):
+
+| Key | Default | Purpose |
+|---|---|---|
+| `annotation_external_id_prefix` | `idx_ann` | Prefix for deterministic annotation edge external IDs |
+| `detection_key_term_prefix_length` | `12` | Truncated normalized term in built-in `detection_key` |
+| `bbox_hash_decimal_places` | `4` | Rounding for bbox hash input |
+| `hash_hex_length` | `8` | Truncation for `bbox_hash` and `text_hash` hex digests |
+| `external_id_limit` | `256` | Max length; longer built-in IDs use `digest16` fallback |
+
+**YAML-only Jinja overrides** (omit or `null` to use parameterized built-in algorithms; not exposed in the structured UI):
+
+- `detection_key_template` — when set, **fully replaces** the built-in `page{N}:bbox_{hash}:{term_prefix}` algorithm.
+- `annotation_external_id_template` — when set, **fully replaces** the built-in `{prefix}_{file}_{page}_{text_hash}_{bbox_hash}` algorithm (still subject to `external_id_limit` / digest fallback).
+
+Template context variables (available in both templates): `file_external_id`, `normalized_term`, `page`, `page_label` (`page{N}` / `page0`), `page_external_id`, `bbox`, `bbox_hash`, `text_hash`, `term_prefix`, `prefix`, `external_id_limit`, `digest16`. Rendering uses Jinja2 with `StrictUndefined` — unknown variables fail config validation at load time.
+
+**Migration warning:** Changing `identity` settings changes dedupe keys for diagram index rows and deterministic annotation external IDs. After any change, rebuild the diagram annotation index and reconcile DM annotations if you rely on stable `idx_ann_*` IDs.
+
+See `config/annotation_identity.example.yaml` for a commented YAML snippet. Index entry external IDs (`iie_*` from `build_entry_external_id`) are **not** configurable via `identity`.
 
 **Pattern-mode index-only detections:** Pattern pipelines may persist detections to the inverted index without promoting every hit to a DM `CogniteDiagramAnnotation` edge. Use `pattern_detection_to_index_entry(...)` with the same file-as-reference shape; target-driven can still create edges/annotations via `write_modes` including `diagram_annotation`.
 

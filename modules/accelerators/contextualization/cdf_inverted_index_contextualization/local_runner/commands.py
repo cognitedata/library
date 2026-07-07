@@ -404,6 +404,7 @@ def cmd_target_driven(
                 match_scope_keys=scopes,
                 scope_lookup_override=bool(scopes),
                 query_property=resolved_query_property,
+                annotation_config=cfg["annotation_index_config"],
             )
             if on_log:
                 on_log(
@@ -429,6 +430,7 @@ def cmd_target_driven(
             should_cancel=should_cancel,
             query_property=resolved_query_property,
             force=force,
+            annotation_config=cfg["annotation_index_config"],
         )
 
     if on_log:

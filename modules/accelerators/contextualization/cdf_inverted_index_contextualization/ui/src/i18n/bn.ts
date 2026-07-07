@@ -212,6 +212,16 @@ export const bn: LocaleMessages = {
   "config.annotation.bboxProperties": "Bounding box properties",
   "config.annotation.bboxPlaceholder": "startNodeXMin, startNodeYMin, …",
   "config.annotation.bboxHint": "Comma-separated property names for annotation bounding boxes.",
+  "config.annotation.identity.title": "Identity keys",
+  "config.annotation.identity.hint":
+    "Deterministic detection_key and annotation external IDs for diagram index entries. Rebuild the annotation index after changes.",
+  "config.annotation.identity.prefix": "Annotation external ID prefix",
+  "config.annotation.identity.termPrefixLength": "Detection key term prefix length",
+  "config.annotation.identity.bboxHashDecimals": "BBox hash decimal places",
+  "config.annotation.identity.hashHexLength": "Hash hex length",
+  "config.annotation.identity.externalIdLimit": "External ID max length",
+  "config.annotation.identity.templatesYamlHint":
+    "Full Jinja2 templates (detection_key_template, annotation_external_id_template) are YAML-only — edit Advanced YAML or default.config.yaml.",
   "config.targetDriven.title": "Target-driven & subscription",
   "config.targetDriven.hint": "Query terms default to aliases with name fallback. Subscription watches alias changes for automatic linking.",
   "config.targetDriven.queryTerms": "Query terms",

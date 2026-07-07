@@ -1,0 +1,16 @@
+# Example annotation identity overrides — merge into default.config.yaml under
+# annotation_index_config.identity. Safe knobs are also editable in the UI.
+#
+# Jinja templates below are YAML-only (Advanced YAML / hand-edited config).
+# Changing identity settings requires rebuilding the annotation index.
+
+annotation_index_config:
+  identity:
+    annotation_external_id_prefix: idx_ann
+    detection_key_term_prefix_length: 12
+    bbox_hash_decimal_places: 4
+    hash_hex_length: 8
+    external_id_limit: 256
+    # Optional full overrides (omit or null to use parameterized built-in algorithms):
+    # detection_key_template: "{{ page_label }}:bbox_{{ bbox_hash }}:{{ term_prefix }}"
+    # annotation_external_id_template: "{{ prefix }}_{{ file_external_id }}_{{ page_external_id }}_{{ text_hash }}_{{ bbox_hash }}"

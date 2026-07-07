@@ -283,6 +283,7 @@ def process_target_driven_contextualization(
     query_property: str | None = None,
     target_driven_config: dict | None = None,
     direct_relation_buffer: list[dict] | None = None,
+    annotation_config: dict | None = None,
 ) -> dict:
     """
     Target-driven contextualization using configurable instance query terms.
@@ -436,6 +437,7 @@ def process_target_driven_contextualization(
             direct_relation_config=dr_cfg,
             dry_run=dry_run,
             direct_relation_buffer=direct_relation_buffer,
+            annotation_config=annotation_config,
         )
         _merge_link_result(result, link_result)
         if dry_run:
@@ -466,6 +468,7 @@ def run_target_driven_for_instance_ids(
     query_property: str | None = None,
     force: bool = False,
     write_buffer_size: int = 0,
+    annotation_config: dict | None = None,
 ) -> dict:
     """Run target-driven contextualization for an explicit list of instance external IDs."""
     scope_cfg = scope_config or SCOPE_CONFIG
@@ -562,6 +565,7 @@ def run_target_driven_for_instance_ids(
                 scope_lookup_override=scope_lookup_override,
                 query_property=resolved_query_property,
                 direct_relation_buffer=direct_buffer,
+                annotation_config=annotation_config,
             )
         except Exception as exc:
             logger.exception(
@@ -1258,6 +1262,7 @@ def apply_configured_links(
     direct_relation_config: dict | None = None,
     dry_run: bool = False,
     direct_relation_buffer: list[dict] | None = None,
+    annotation_config: dict | None = None,
 ) -> dict:
     """Dispatch direct_relation, edge, and diagram_annotation write modes per link."""
     dr_cfg = direct_relation_config or _default_direct_relation_config()
@@ -1332,6 +1337,7 @@ def apply_configured_links(
                     diagram_annotation_cfg=ann["diagram_annotation_cfg"],
                     dr_cfg=dr_cfg,
                     dry_run=False,
+                    annotation_config=annotation_config,
                 )
                 if outcome == "created":
                     annotations_created += 1

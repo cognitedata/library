@@ -183,14 +183,12 @@ function ScopePropertyOverrideCard({
   scopeKey,
   override,
   defaultProperties,
-  scopeKeyPlaceholder,
   onChange,
   onRemove,
 }: {
   scopeKey: string;
   override: ScopePropertyOverride;
   defaultProperties: IndexFieldProperty[];
-  scopeKeyPlaceholder: string;
   onChange: (next: ScopePropertyOverride) => void;
   onRemove: () => void;
 }) {
@@ -254,7 +252,6 @@ function ScopePropertyOverrideCard({
             properties={override.properties}
             onChange={(properties) => onChange({ ...override, properties })}
           />
-          <span className="idx-config-hint">{scopeKeyPlaceholder}</span>
         </div>
       ) : null}
     </article>
@@ -330,9 +327,6 @@ function ScopeOverridesSection({
             scopeKey={scopeKey}
             override={override}
             defaultProperties={view.properties}
-            scopeKeyPlaceholder={t("config.indexFields.scopeOverrides.scopeKeyPlaceholder", {
-              example: scopeKeyPlaceholder,
-            })}
             onChange={(next) =>
               onChange({
                 ...view,

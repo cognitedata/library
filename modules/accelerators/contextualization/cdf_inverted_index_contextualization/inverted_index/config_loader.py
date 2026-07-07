@@ -8,6 +8,10 @@ from typing import Any
 
 import yaml
 
+from inverted_index.annotation_identity import (
+    resolve_annotation_identity,
+    validate_annotation_identity,
+)
 from inverted_index.cdm_relations import (
     validate_direct_relation_config,
     validate_subscription_config,
@@ -110,6 +114,12 @@ def _merge_source_index(yaml_src: dict | None) -> dict:
     return src
 
 
+def _merge_annotation_config(yaml_ann: dict | None) -> dict:
+    ann = _deep_merge_dict(dict(ANNOTATION_INDEX_CONFIG), yaml_ann or {})
+    ann["identity"] = resolve_annotation_identity(ann)
+    return ann
+
+
 def build_runtime_config(yaml_cfg: dict[str, Any] | None = None) -> dict[str, Any]:
     y = yaml_cfg or load_yaml_config()
     storage = dict(INDEX_STORAGE_CONFIG)
@@ -128,7 +138,7 @@ def build_runtime_config(yaml_cfg: dict[str, Any] | None = None) -> dict[str, An
         scope["enabled"] = True
 
     index_fields = y.get("index_field_config") or INDEX_FIELD_CONFIG
-    annotation_cfg = {**ANNOTATION_INDEX_CONFIG, **(y.get("annotation_index_config") or {})}
+    annotation_cfg = _merge_annotation_config(y.get("annotation_index_config"))
     target_driven_cfg = {**TARGET_DRIVEN_CONFIG, **(y.get("target_driven") or {})}
     subscription_cfg = _merge_subscription(y.get("subscription"))
     if "watch_property" not in (y.get("subscription") or {}):
@@ -154,7 +164,8 @@ def build_runtime_config(yaml_cfg: dict[str, Any] | None = None) -> dict[str, An
     sub_errors = validate_subscription_config(
         subscription_cfg, views=direct_rel.get("views") or {}
     )
-    config_errors = dr_errors + sub_errors
+    identity_errors = validate_annotation_identity(annotation_cfg.get("identity") or {})
+    config_errors = dr_errors + sub_errors + identity_errors
     if config_errors:
         raise ValueError(
             "Invalid configuration:\n" + "\n".join(f"  - {e}" for e in config_errors)

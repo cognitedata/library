@@ -65,6 +65,14 @@ export type IndexFieldView = {
   propertiesByScope: Record<string, ScopePropertyOverride>;
 };
 
+export type AnnotationIdentityConfig = {
+  annotationExternalIdPrefix: string;
+  detectionKeyTermPrefixLength: number;
+  bboxHashDecimalPlaces: number;
+  hashHexLength: number;
+  externalIdLimit: number;
+};
+
 export type AnnotationIndexConfig = {
   view: string;
   viewSpace: string;
@@ -75,6 +83,7 @@ export type AnnotationIndexConfig = {
   statusProperty: string;
   pageProperty: string;
   bboxProperties: string[];
+  identity: AnnotationIdentityConfig;
 };
 
 export type SubscriptionConfig = {
@@ -248,6 +257,16 @@ export function emptyIndexFieldView(): IndexFieldView {
   };
 }
 
+export function emptyAnnotationIdentityConfig(): AnnotationIdentityConfig {
+  return {
+    annotationExternalIdPrefix: "idx_ann",
+    detectionKeyTermPrefixLength: 12,
+    bboxHashDecimalPlaces: 4,
+    hashHexLength: 8,
+    externalIdLimit: 256,
+  };
+}
+
 export function emptyAnnotationIndexConfig(): AnnotationIndexConfig {
   return {
     view: "CogniteDiagramAnnotation",
@@ -259,6 +278,7 @@ export function emptyAnnotationIndexConfig(): AnnotationIndexConfig {
     statusProperty: "status",
     pageProperty: "startNodePageNumber",
     bboxProperties: [],
+    identity: emptyAnnotationIdentityConfig(),
   };
 }
 
