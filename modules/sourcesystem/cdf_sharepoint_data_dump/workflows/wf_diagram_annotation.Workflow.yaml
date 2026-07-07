@@ -1,0 +1,3 @@
+externalId: '{{ workflow_external_id }}'
+description: Populates Files and CFIHOS diagram annotations from synthetic RAW data (standalone/native pipeline)
+dataSetExternalId: '{{ dataset_external_id }}'

@@ -1,0 +1,10 @@
+space: dm_dom_oil_and_gas
+instance_space: inst_location
+dm_version: v1
+data_model_external_id: dm_oil_and_gas_domain_model
+dataset_external_id: ds_oil_and_gas_domain_model
+workflow_external_id: wf_diagram_annotation
+workflow_version: v1
+run_workflow_schedule: "0 0 29 2 *"
+client_id: ${IDP_CLIENT_ID}
+client_secret: ${IDP_CLIENT_SECRET}

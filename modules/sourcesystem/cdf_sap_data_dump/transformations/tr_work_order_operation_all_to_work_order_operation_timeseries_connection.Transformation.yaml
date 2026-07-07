@@ -1,0 +1,14 @@
+externalId: tr_work_order_operation_all_to_work_order_operation_timeseries_connection
+dataSetExternalId: '{{ dataset_external_id }}'
+name: Work order operation to time series connection
+destination:
+  type: instances
+  dataModel:
+    space: '{{ space }}'
+    externalId: '{{ data_model_external_id }}'
+    destinationType: WorkOrderOperation
+    version: '{{ dm_version }}'
+  instanceSpace: '{{ instance_space }}'
+ignoreNullFields: true
+isPublic: true
+conflictMode: upsert
