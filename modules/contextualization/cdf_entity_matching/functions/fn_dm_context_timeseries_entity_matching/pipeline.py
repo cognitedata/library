@@ -1,4 +1,3 @@
-from __future__ import annotations
 
 import json
 import re
@@ -23,8 +22,7 @@ from config import Config, ViewPropertyConfig
 
 # RawUploadQueue is only constructed at runtime in entity_matching; importing
 # it lazily lets pipeline.py be imported (e.g. for unit tests) without the
-# cognite-extractor-utils package installed. Type hints below stay valid
-# because of `from __future__ import annotations`.
+# cognite-extractor-utils package installed. Type hints use forward references.
 if TYPE_CHECKING:  # pragma: no cover
     from cognite.extractorutils.uploader import RawUploadQueue
 from constants import (
@@ -371,7 +369,7 @@ def apply_manual_mappings(
     client: CogniteClient, 
     logger: CogniteFunctionLogger,
     config: Config, 
-    raw_uploader: RawUploadQueue, 
+    raw_uploader: "RawUploadQueue", 
     manual_mappings: list[Row],
     manual_mappings_input: dict[str, dict[str, Any]],
     good_matches: list[dict[str, Any]] | None = None,
@@ -1261,7 +1259,7 @@ def add_to_dict(
 def write_mapping_to_raw(
     client: CogniteClient,
     config: Config,
-    raw_uploader: RawUploadQueue,
+    raw_uploader: "RawUploadQueue",
     good_matches: list[dict[str, Any]],
     bad_matches: list[dict[str, Any]],
     logger: CogniteFunctionLogger

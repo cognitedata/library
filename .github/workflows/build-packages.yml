@@ -16,13 +16,13 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Set up Python
-      uses: actions/setup-python@v4
+    - name: Install uv
+      uses: astral-sh/setup-uv@v5
       with:
-        python-version: '3.13'
+        enable-cache: true
 
-    - name: Install test dependencies
-      run: pip install pytest "cognite-sdk>=7,<8" pydantic pyyaml python-dotenv tenacity psutil
+    - name: Install dependencies
+      run: uv sync --group dev
 
     - name: Lint with ruff
       uses: astral-sh/ruff-action@v3
@@ -32,10 +32,10 @@ jobs:
 
     - name: Run tests
       run: |
-        pytest tests/ -q
-        pytest modules/contextualization/cdf_entity_matching/functions/fn_dm_context_timeseries_entity_matching/ -q
-        pytest modules/contextualization/cdf_entity_matching/functions/fn_dm_context_metadata_update/test_metadata_optimizations.py -q
-        pytest modules/contextualization/cdf_p_and_id_annotation/functions/fn_dm_context_files_annotation/ -q
+        uv run pytest tests/ -q
+        uv run pytest modules/contextualization/cdf_entity_matching/functions/fn_dm_context_timeseries_entity_matching/ -q
+        uv run pytest modules/contextualization/cdf_entity_matching/functions/fn_dm_context_metadata_update/test_metadata_optimizations.py -q
+        uv run pytest modules/contextualization/cdf_p_and_id_annotation/functions/fn_dm_context_files_annotation/ -q
 
     - name: Validate packages.toml
       run: |

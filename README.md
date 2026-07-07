@@ -22,6 +22,8 @@ All deployable content lives under [`modules/`](modules/). The registry of packs
 | [`tools/`](modules/tools/) | Qualitizer, performance notebooks |
 | [`custom/`](modules/custom/) | Empty module template |
 
+[`scripts/`](scripts/) — contributor tooling for the uv workspace and CDF deploy `requirements.txt` generation ([scripts/README.md](scripts/README.md)).
+
 ### Naming conventions
 
 | Prefix | Use for | Examples |
@@ -32,7 +34,7 @@ All deployable content lives under [`modules/`](modules/). The registry of packs
 
 Apply the prefix on **module folder names** where it helps discovery. Top-level folders (`common/`, `datamodels/`, …) are not prefixed.
 
-Contributors: see [ADDING_PACKAGES_AND_MODULES.md](ADDING_PACKAGES_AND_MODULES.md). Validation and module layout details are in [modules/README.md](modules/README.md).
+Contributors: see [ADDING_PACKAGES_AND_MODULES.md](ADDING_PACKAGES_AND_MODULES.md), [scripts/README.md](scripts/README.md) (uv workspace and deploy requirements), and [modules/README.md](modules/README.md).
 
 ## Usage
 

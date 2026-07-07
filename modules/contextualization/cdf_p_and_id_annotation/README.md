@@ -246,7 +246,6 @@ Then select **Contextualization P&ID Annotation**.
 ### Step 4: Build and Deploy
 
 ```bash
-poetry shell
 cdf build
 cdf deploy
 ```
@@ -383,16 +382,19 @@ the initial bulk pass before switching to incremental mode.
    IDP_TOKEN_URL=...
    ```
 
-3. Install the function's runtime dependencies into your local environment:
+3. Install dependencies with uv from the **repository root** (function package: `fn-dm-context-files-annotation`):
 
    ```bash
-   pip install -r requirements.txt
+   uv sync --group dev
    ```
+
+   Local deps are in `pyproject.toml`. `requirements.txt` lists direct deploy packages for CDF. After changing deploy deps: edit `deploy_dependencies` in `scripts/generate_uv_member_projects.py`, then `python scripts/export_deploy_requirements.py`.
 
 4. Run the handler:
 
    ```bash
-   python handler.py
+   cd modules/contextualization/cdf_p_and_id_annotation/functions/fn_dm_context_files_annotation
+   uv run python handler.py
    ```
 
    This calls `run_locally()`, which authenticates to CDF and invokes the same
@@ -423,11 +425,7 @@ CDF connection — the `CogniteClient` is fully mocked.
 ### Prerequisites
 
 - Python 3.11+ (matches the Cognite Functions runtime)
-- The minimum runtime libraries needed to import `pipeline.py` and `config.py`:
-
-  ```bash
-  pip install pytest cognite-sdk pyyaml pydantic
-  ```
+- [uv](https://docs.astral.sh/uv/) — run `uv sync --group dev` from the repository root
 
   `cognite-extractor-utils` is **not** required to run the suite — it is
   lazy-imported inside the runtime function and the test suite never reaches
@@ -438,7 +436,7 @@ CDF connection — the `CogniteClient` is fully mocked.
 From the repo root:
 
 ```bash
-pytest -q modules/contextualization/cdf_p_and_id_annotation/functions/fn_dm_context_files_annotation/
+uv run pytest modules/contextualization/cdf_p_and_id_annotation/functions/fn_dm_context_files_annotation/ -q
 ```
 
 Expected output (47 tests):

@@ -16,7 +16,6 @@ Usage:
     python setup_project.py [-y] [--check] [--variant VARIANT]
 """
 
-from __future__ import annotations
 
 import argparse
 import re

@@ -603,19 +603,22 @@ graph TD
 
 ### Local Development
 
-All function handlers support local execution with VSCode debugging:
+Python deps for each function and Streamlit app are managed with [uv](https://docs.astral.sh/uv/) (`pyproject.toml` per folder for local dev; `requirements.txt` lists direct deploy dependencies for CDF). From the **repository root**:
 
 ```bash
-# Set up environment
-cp .env.example .env
-# Edit .env with your credentials
+uv sync --group dev
+```
 
-# Run individual functions locally
+After changing local dependencies: `uv lock`. After changing CDF deploy dependencies: edit `deploy_dependencies` in `scripts/generate_uv_member_projects.py`, then `python scripts/export_deploy_requirements.py`.
+
+Run handlers locally (set `CDF_*` / `IDP_*` in `.env` first):
+
+```bash
 cd functions/fn_file_annotation_prepare
-python handler.py
+uv run python handler.py
 
 cd functions/fn_file_annotation_launch
-python handler.py
+uv run python handler.py
 ```
 
 ### Integration Testing

@@ -9,9 +9,7 @@ Before deploying this module, ensure you have the following:
 - **Python 3.11+** installed on your system
 - **An active Cognite Data Fusion (CDF) project**
 - **CDF Toolkit** installed (see step 1 below)
-- **Required Python packages** are listed in:
-  - `cdf_file_annotation/functions/fn_file_annotation_launch/requirements.txt`
-  - `cdf_file_annotation/functions/fn_file_annotation_finalize/requirements.txt`
+- **Required Python packages** for CDF deploy are listed in each function's `requirements.txt` (direct deploy dependencies only — packages on top of the Functions runtime). Source of truth: `deploy_dependencies` in `scripts/generate_uv_member_projects.py`.
 
 ### Data Preparation Requirements
 

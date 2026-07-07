@@ -53,7 +53,8 @@ cdf_common/
 │   ├── 📁 contextualization_connection_writer/ # Annotation processor
 │   │   ├── 📄 handler.py
 │   │   ├── 📁 core/
-│   │   └── 📄 requirements.txt
+│   │   ├── 📄 pyproject.toml
+│   │   └── 📄 requirements.txt              # direct deploy deps for CDF
 │   └── 📄 write.Function.yaml
 ├── 📄 default.config.yaml               # Module configuration
 └── 📄 module.toml                       # Module metadata
@@ -212,6 +213,23 @@ cdf datasets list
 # Check function deployment
 cdf functions list
 ```
+
+## Python dependencies (uv)
+
+The function `functions/contextualization_connection_writer/` is a uv workspace member.
+
+- **Local dev / tests:** declare dependencies in `pyproject.toml`. From the **repository root**:
+
+```bash
+uv sync --group dev
+uv run pytest modules/common/cdf_common/functions/contextualization_connection_writer/ -q   # if tests are added
+cd modules/common/cdf_common/functions/contextualization_connection_writer
+uv run python handler.py
+```
+
+After changing `pyproject.toml`: `uv lock` then `uv sync --group dev`.
+
+- **CDF deploy:** `requirements.txt` lists direct packages installed on top of the Functions runtime. Edit `deploy_dependencies` in `scripts/generate_uv_member_projects.py`, then run `python scripts/export_deploy_requirements.py` from the repo root.
 
 ## 📊 Data Flow
 

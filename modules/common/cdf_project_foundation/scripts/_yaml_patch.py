@@ -7,7 +7,6 @@ preserving comments, blank lines, and unrelated indentation.
 Only updates or deletes existing keys—does not add new ones.
 """
 
-from __future__ import annotations
 
 import re
 

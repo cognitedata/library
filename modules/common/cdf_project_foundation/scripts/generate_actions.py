@@ -13,7 +13,6 @@ Run from the Toolkit project root after `cdf modules add -d dp:foundation`:
   python modules/common/cdf_project_foundation/scripts/generate_actions.py
 """
 
-from __future__ import annotations
 
 import argparse
 import re

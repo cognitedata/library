@@ -1,4 +1,4 @@
 cognite-sdk == 7.*
-pydantic==2.9.*
+pydantic>=2.12.4,<3.0.0
 pyyaml==6.*
 mixpanel>=4.10.0

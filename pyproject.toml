@@ -3,15 +3,37 @@ name = "cognite-library"
 version = "0.0.0"
 requires-python = ">=3.13"
 
-[project.optional-dependencies]
-test = [
+[dependency-groups]
+dev = [
     "cognite-sdk>=7,<8",
-    "pydantic>=2",
     "psutil>=5.9",
+    "pydantic>=2.12.4,<3.0.0",
     "pytest>=7",
     "python-dotenv>=1",
     "pyyaml>=6",
     "tenacity>=8",
+]
+
+[tool.uv]
+package = false
+
+[tool.uv.workspace]
+members = [
+    "modules/common/cdf_common/functions/contextualization_connection_writer",
+    "modules/contextualization/cdf_entity_matching/functions/fn_dm_context_metadata_update",
+    "modules/contextualization/cdf_entity_matching/functions/fn_dm_context_timeseries_entity_matching",
+    "modules/contextualization/cdf_file_annotation/functions/fn_file_annotation_finalize",
+    "modules/contextualization/cdf_file_annotation/functions/fn_file_annotation_launch",
+    "modules/contextualization/cdf_file_annotation/functions/fn_file_annotation_prepare",
+    "modules/contextualization/cdf_file_annotation/functions/fn_file_annotation_promote",
+    "modules/contextualization/cdf_file_annotation/streamlit/file_annotation_dashboard_annotation_quality",
+    "modules/contextualization/cdf_file_annotation/streamlit/file_annotation_dashboard_pipeline_health",
+    "modules/contextualization/cdf_p_and_id_annotation/functions/fn_dm_context_files_annotation",
+    "modules/dashboards/context_quality/functions/context_quality_handler",
+    "modules/dashboards/context_quality/streamlit/context_quality_dashboard",
+    "modules/solutions/cdf_ai_extractor/functions/fn_ai_property_extractor",
+    "modules/sourcesystem/cdf_oid_sync/functions/fn_oid_sync",
+    "modules/datamodels/cfihos_oil_and_gas_extension/cfihos_model_config",
 ]
 
 [tool.ruff]
@@ -45,6 +67,7 @@ ignore = [
 "**/test_*.py" = ["S101", "B017", "S105", "S603"]
 "**/run_tests.py" = ["S603"]
 "modules/common/cdf_project_foundation/scripts/setup_project.py" = ["S603"]
+"scripts/**" = ["S603"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

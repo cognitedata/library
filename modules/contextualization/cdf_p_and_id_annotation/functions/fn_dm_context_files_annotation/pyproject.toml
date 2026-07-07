@@ -1,0 +1,15 @@
+[project]
+name = "fn-dm-context-files-annotation"
+version = "0.0.0"
+requires-python = ">=3.11,<3.14"
+dependencies = [
+    "cognite-extractor-utils>=7",
+    "cognite-sdk>=7,<8",
+    "pyyaml>=6.0.1",
+    "mixpanel>=4.10.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["."]
+pythonpath = ["."]
+addopts = "-ra"

@@ -28,16 +28,25 @@ Provide step-by-step instructions on how to use this artefact. Be clear and spec
 
 3. Copy the contents of this folder into your project repository, or run the generator from this path in the library checkout.
 
-4. Setup the virtual environment with the defined dependencies in the pyproject.toml or defined below.
-   - poetry lock    # build lock file and .venv folder
-   - poetry install # build env
+4. Setup the environment with [uv](https://docs.astral.sh/uv/) from the **repository root**:
+
+   ```bash
+   uv sync
+   cd modules/datamodels/cfihos_oil_and_gas_extension/cfihos_model_config
+   ```
 
 5. Run the `src/cfihos.ipynb` notebook to generate a JSON output that contains the parsed contents of the CFIHOS tag classes, either from CFIHOS 1.5.1 or CFIHOS 2.0.
    1. More information is also available in the notebook itself.
 
 6. Update the configuration variables within the `src/config.yaml`. Make sure that the output JSON is referred to in the `cfihos.source_input`.
 
-7. Run the `main.py` file. This should create a folder called `toolkit-output` where your view and container YAML definitions should end up.
+7. Run the generator:
+
+   ```bash
+   uv run python src/main.py
+   ```
+
+   This should create a folder called `toolkit-output` where your view and container YAML definitions should end up.
 
 8. Follow any additional setup or execution instructions specific to this artefact.
 
@@ -47,7 +56,7 @@ List any external dependencies required to use this artefact (e.g., specific lib
 
 * Python 3.11+
 * Cognite SDK 7.0+
-* pydantic 2.0+
+* pydantic 2.12.4+
 * duckdb 1.4+
 * polars 1.3+ (polars has two packages, so if `polars-lts-cpu` does not work, try `polars`)
 * ipykernel 7.0+ (notebook)
