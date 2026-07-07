@@ -1,380 +1,289 @@
-# File Annotation Dashboard
-
-## Overview
-This app is a React (Vite) dashboard for monitoring annotation quality, managing patterns and tracking the pipeline health.
-
-Main pages:
-- Annotation Quality
-- Pattern Management
-- Pipeline Health
-
-## Main entry flow
-1. Select an extraction pipeline.
-- The list is filtered by a configured substring.
-- Default filter is `file_annotation` (see `fetchExtractionPipelines` in `usePipelineConfig.ts`).
-- In Refining, a common substring is `files-annotation`.
-2. Choose a page card.
-3. Click the action button to open the selected page.
-
-## Page summary
-
-### 1) Annotation Quality
-Tabs:
-- Overall
-- Per-File
-
-Highlights:
-- Coverage KPIs and breakdowns.
-- Per-file aggregation table and filters.
-- Actual vs potential annotations by tag.
-- Coverage distribution chart.
-- File preview (bounding boxes), when available.
-
-### 2) Pattern Management
-Sections:
-- Manual Patterns
-- Import CSV
-- Propose
-- Refresh Cache
-
-Highlights:
-- Edit and persist manual patterns.
-- Stage CSV proposals into manual patterns.
-- Generate candidate patterns from automatic patterns.
-- Rebuild cache used by the annotation pipeline.
-
-### 3) Pipeline Health
-Tabs:
-- Overview
-- File Explorer
-- Run History
-
-Highlights:
-- Processing KPIs and throughput.
-- File status table and log viewer.
-- Run-level summaries and details.
-
-## In-memory cache behavior
-- Annotation Quality (Per-File) loads large datasets in memory.
-- Switching pages/pipelines clears in-memory queries, but browser memory may not drop immediately.
-- Use hard reload (`Ctrl+F5`) after leaving Per-File if you need memory to drop quickly.
-
-## Running the App
-
-### Prerequisites
-Tools required in PATH:
-- Node.js 20+
-- npm 11+
-
-### Platform setup
-
-#### Windows
-1. Install Node.js LTS from https://nodejs.org.
-
-#### macOS
-1. Install Node:
-```bash
-brew install node@20
-```
-
-#### Linux
-1. Install Node (example with nvm):
-```bash
-curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
-nvm install 20
-nvm use 20
-```
-
-#### PATH configuration (no admin access)
-If you cannot install system-wide, install for current user and add to PATH.
-
-Windows (Registry):
-1. Open Registry Editor.
-2. Go to `HKEY_CURRENT_USER\Environment`.
-3. Edit `Path` and add Node/npm install paths.
-
-Common user install paths:
-- Node: `%LOCALAPPDATA%\Programs\nodejs\`
-- npm/npx global bin: `%APPDATA%\npm`
-
-Verify:
-```bash
-node --version
-npm --version
-npx --version
-```
-
-### Install dependencies (required)
-Before using Run and Debug or running any app command, install project dependencies:
-
-```bash
-npm install
-```
-
-Repeat this command whenever `package.json` or `package-lock.json` changes.
-
-### Runtime Selection
-- `cdf_local`: local app execution using token-proxy + CDF project.
-- `cdf_host`: host-authenticated flow through Flows host app.
-- `mock`: local app execution with mock data.
-
-Set mode with `VITE_RUNTIME_MODE`.
-
-### Option A: VS Code Run and Debug
-Available configurations:
-- `Flows | File Annotation Dashboard: Local Mode`
-- `Flows | File Annotation Dashboard: Host Mode`
-- `Flows | File Annotation Dashboard: Mock Mode`
-
-#### A1) Local Mode
-Run `Flows | File Annotation Dashboard: Local Mode`.
-
-What it does:
-- Runs task `file-annotation: start local stack (flows)`.
-- Starts local credential proxy script (`node server/proxy.mjs`, via `npm run proxy`) and Vite (`npm start`).
-- Opens `https://localhost:3001`.
-- Injects `VITE_RUNTIME_MODE=cdf_local` from `launch.json`.
-
-#### A2) Host Mode
-Run `Flows | File Annotation Dashboard: Host Mode`.
-
-What it does:
-- Starts `npm start`.
-- Injects `VITE_RUNTIME_MODE=cdf_host` from `launch.json`.
-
-#### A3) Mock Mode
-Run `Flows | File Annotation Dashboard: Mock Mode`.
-
-What it does:
-- Starts `npm start`.
-- Injects `VITE_RUNTIME_MODE=mock` from `launch.json`.
-- Does not start token-proxy.
-
-VS Code env injection behavior:
-- `launch.json` values override `.env` only for that process.
-- `.env` on disk is not modified.
-
-### Option B: Terminal
-
-#### B1) Local CDF Mode (works without Flows host access)
-1. Set `.env`:
-- `VITE_RUNTIME_MODE=cdf_local`
-2. Start local stack:
-```bash
-npm install
-node scripts/start-local-stack.mjs
-```
-
-Manual split (optional):
-```bash
-npm install
-npm run proxy
-```
-Then in a second terminal:
-```bash
-npm start
-```
-
-#### B2) Mock Mode (no external connections)
-1. Set `.env`:
-- `VITE_RUNTIME_MODE=mock`
-2. Start dev server:
-```bash
-npm install
-npm start
-```
-
-#### B3) Host Mode
-1. Set `.env`:
-- `VITE_RUNTIME_MODE=cdf_host`
-2. Start dev server:
-```bash
-npm install
-npm start
-```
-3. Open through CDF development URL (not plain localhost):
-```text
-https://{org}.fusion.cognite.com/{project}/flows-apps/development/{appExternalId}/3001
-```
-
-## Deploy to CDF (Flows)
-
-### Important: CI/CD strategy for Flows apps
-Flows App Hosting deployment is not handled by the same CI/CD path used for regular toolkit modules.
-
-For this app, CI/CD must run a dedicated flow that:
-- installs Node dependencies (`npm install`)
-- builds the app (`npm run build`)
-- runs App Hosting deploy commands (`npx @cognite/cli@latest apps ...`)
-- exports deployment credentials required by `deploySecretName`
-
-Recommended repository layout:
-- keep Flows app folders outside the main `modules` deployment path
-- configure a dedicated CI/CD pipeline/job specifically for Flows app build + deploy
-
-Reason: treating a Flows app as a standard module usually causes several warning, since `flows` is not a dedicated 
-folder to be deployed through toolkit.
-
-### 1) Fill `app.json` (required)
-Before running `npm start` in Host Mode or any deploy command, update `app.json`.
-
-Required for all modes:
-- `externalId`
-- `deployments[0].org`
-- `deployments[0].project`
-- `deployments[0].baseUrl`
-
-Interactive deploy defaults:
-- `deployments[0].deployClientId` may be empty (`""`).
-- `deployments[0].deploySecretName` may be empty (`""`).
-
-Required for CI/CD deploy:
-- `deployments[0].deployClientId`
-- `deployments[0].deploySecretName`
-
-If using Microsoft Entra ID:
-- `deployments[0].idpType=entra_id`
-- `deployments[0].tenantId=<tenant-id>`
-
-CI/CD secret export example:
-```bash
-export <DEPLOY_SECRET_ENV_VAR_NAME>="<your-client-secret>"
-```
-
-### 2) Confirm deployment prerequisites
-- Dataset `published-custom-apps` exists.
-- Deploy identity has `apphosting:read` and `apphosting:write`.
-- Add `apphosting:run` if same identity also runs apps.
-- `package-lock.json` exists (`apps deploy` requirement).
-
-### 3) Deploy commands
-```bash
-npx @cognite/cli@latest apps deploy --interactive
-```
-
-Versioning rule for redeploy:
-- App Hosting does not allow overwriting an existing published `versionTag`.
-- Before each redeploy, bump `versionTag` in `app.json` (for example `0.0.1` -> `0.0.2`).
-
-Useful options:
-```bash
-npx @cognite/cli@latest apps deploy --interactive -d 0
-npx @cognite/cli@latest apps deploy --interactive --skip-build
-```
-
-Lifecycle commands:
-```bash
-npx @cognite/cli@latest apps status . --interactive
-npx @cognite/cli@latest apps publish . --interactive
-npx @cognite/cli@latest apps activate . --interactive
-```
-
-### 4) Deploy troubleshooting
-- Interactive sign-in fails:
-```bash
-npx @cognite/cli@latest apps deploy --interactive --org {org}
-```
-- `409 Version already exists`:
-  - cause: current `versionTag` already exists (often in `PUBLISHED` lifecycle state)
-  - fix: bump `versionTag` in `app.json` and run deploy again
-- `Deployment secret not found`: confirm env var name matches `deploySecretName`.
-- Build/deploy errors: run local build first:
-```bash
-npm run build
-```
-
-## Environment Configuration
-
-### Create `.env`
-```bash
-cp env.app.properties .env
-```
-Windows PowerShell:
-```powershell
-Copy-Item env.app.properties .env
-```
-
-### Key environment variables
-- `VITE_RUNTIME_MODE`
-	- `cdf_local`: local CDF via token proxy
-	- `cdf_host`: host-managed auth and CDF context
-	- `mock`: local mock data
-- `VITE_PROJECT_LABEL`
-	- display label only
-
-### Mode behavior
-When `VITE_RUNTIME_MODE=cdf_host`:
-- App uses Flows host SDK/auth.
-- Local-only settings are ignored: `VITE_PROJECT_LABEL`.
-- Not used in host auth: `VITE_TOKEN_PROXY_URL`.
-
-When `VITE_RUNTIME_MODE=mock`:
-- App uses local mock data (no token proxy required).
-- App does not call CDF APIs or host authentication endpoints.
-
-When `VITE_RUNTIME_MODE=cdf_local`:
-- App uses local CDF via token proxy.
-
-The Flows CLI reads `app.json` for org/project/baseUrl in hosted development and deployment.
-
-### Local Mode with CDF data
-When `VITE_RUNTIME_MODE=cdf_local`, configure:
-- `VITE_TOKEN_PROXY_URL`
-- `VITE_CDF_PROJECT`
-- `VITE_CDF_URL`
-
-Client credentials must be configured only in `token-proxy/.env` (see `token-proxy/env.local.proxy.properties`).
-Token endpoint/scopes can be resolved from `token-proxy/.env` or inherited from app `VITE_*` values if provided.
-
-### Local credential proxy script
-This app uses local script `server/proxy.mjs` so credentials are not exposed to browser runtime.
-
-Start with either command:
-```bash
-npm run proxy
-# or
-node server/proxy.mjs
-```
-
-Proxy target variable:
-- `VITE_TOKEN_PROXY_URL`
-
-Optional proxy settings:
-- `TOKEN_PROXY_PORT`
-- `HTTPS_PROXY`, `HTTP_PROXY`
-- `NODE_TLS_REJECT_UNAUTHORIZED` (local troubleshooting only)
-- `NODE_EXTRA_CA_CERTS`
-
-Local stack helper:
-```bash
-node scripts/start-local-stack.mjs
-```
-
-## Flows App Hosting Notes
-
-### Infrastructure
-This app uses `"infra": "appsApi"` in `app.json`.
-
-### Capabilities
-- Draft-first deployment lifecycle
-- Versioned releases via `versionTag`
-- App hosting capabilities (`apphosting:*`)
-- Controlled deployment via `published-custom-apps` dataset
-
-### Access control
-- Users: `apphosting:read`, `apphosting:run`
-- Deploy identity: `apphosting:write`
-
-## Project Structure
-- `src/pages`: page-level screens
-- `src/components`: reusable UI and visual components
-- `src/hooks`: data fetching and state helpers
-- `src/shared`: shared utils/types/constants/domain logic
-- `src/providers`: app-level SDK/auth/global providers
-- `src/runtime`: auth and runtime mode helpers
-- `src/mocks`: local mock data and mock helpers
-
-## Notes
-- `env.app.properties` lists expected app env keys/defaults.
-- `token-proxy/env.local.proxy.properties` lists server-side credential keys/defaults.
-- Keep credentials out of version control.
+# File Annotation Dashboard User Guide
+
+For setup, runtime, and deployment, see [CONFIG.md](CONFIG.md).
+
+![Dashboard Home](./docs/screenshots/01-app-home.png)
+
+## Purpose
+The File Annotation Dashboard is designed to help users operate the file annotation process, investigate file-level results, improve pattern quality and troubleshoot pipeline execution.
+
+This guide explains how to use the app in day-to-day scenarios.
+
+## App navigation
+After selecting a pipeline, you can open three areas:
+
+| Area | What it is for |
+| --- | --- |
+| Annotation Quality | Coverage analysis and file-level annotation inspection |
+| Pattern Management | Pattern curation and candidate onboarding |
+| Pipeline Health | Operational monitoring and troubleshooting |
+
+## Page guide
+
+### Annotation Quality
+
+#### Overall tab
+Use this tab to answer: How healthy is annotation quality right now?
+
+![Annotation Quality - Overall](./docs/screenshots/02-annotation-quality-overall.png)
+
+What you can do:
+- Review annotation coverage KPIs.
+- Analyze coverage split by dimensions such as file resource type, tag resource type and scope (e.g. site or unit).
+- Identify where to drill down next.
+
+#### Per-File tab
+Use this tab to answer: What was detected for each file versus what was actually linked?
+
+![Annotation Quality - Per-File](./docs/screenshots/03-annotation-quality-per-file.png)
+
+What you can do:
+- Filter and sort files by coverage and metadata.
+- Open a file in preview mode.
+- Compare Actual Annotations and Potential Annotations.
+- Navigate and search annotations with the Annotation Navigator.
+
+### Pattern Management
+Use this page to maintain matching behavior.
+
+![Pattern Management](./docs/screenshots/04-pattern-management.png)
+
+What you can do:
+- Add, edit and save manual patterns.
+- Import patterns from CSV.
+- Generate proposals by primary scope (based on automatic patterns).
+- Refresh cache after alias updates.
+
+### Pipeline Health
+Use this page to monitor and debug execution behavior.
+
+#### Overview tab
+Use this tab to answer: Is the pipeline currently healthy?
+
+![Pipeline Health - Overview](./docs/screenshots/05-pipeline-health-overview.png)
+
+What you can do:
+- Review live KPIs (for example, files awaiting processing, processed volume, failure indicators).
+- Check throughput behavior over time.
+- Identify whether there is an immediate operational issue before drilling down.
+
+#### Files tab
+Use this tab to answer: What happened to this specific file?
+
+![Pipeline Health - Files](./docs/screenshots/06-pipeline-health-files.png)
+
+What you can do:
+- Search files by name, source ID, external ID or status.
+- Inspect status and file-level metadata.
+- Open stage logs (Prepare, Launch, Finalize, Promote) for troubleshooting.
+
+#### History tab
+Use this tab to answer: How has the pipeline performed over recent runs?
+
+![Pipeline Health - History](./docs/screenshots/07-pipeline-health-history.png)
+
+What you can do:
+- Filter runs by time window, status and caller type.
+- Compare success and failure outcomes.
+- Open run details to support trend analysis and escalation.
+
+## Task-based tutorials
+
+### Task 1: Check annotations for a specific file
+Use this when a user asks: Did this file get annotated correctly?
+
+1. Open the app and select the target extraction pipeline.
+2. Open Annotation Quality.
+3. Confirm you are on Overall first, then switch to Per-File.
+4. Scroll to the File Aggregation section.
+5. Find the file using search, filters or sorting.
+6. Select the file row and click Preview.
+7. Scroll down to the File Preview section.
+8. Review Actual Annotations and Potential Annotations.
+9. Hover or click annotations to inspect details.
+10. Use Annotation Navigator to search by tag and jump to results.
+
+Expected outcome:
+- You can confirm whether the file was correctly annotated and identify missing or only-potential matches.
+
+[Screenshot sequence here: Task 1 - pipeline selection to preview]
+
+### Task 2: Find low-coverage files to prioritize remediation
+Use this when a team wants to improve quality where impact is highest.
+
+1. Open Annotation Quality > Per-File.
+2. Apply coverage and metadata filters.
+3. Sort files by lowest annotation coverage first.
+4. Identify repeated patterns in low-performing files.
+5. Open one or two representative files in Preview to confirm behavior.
+6. Mark tags that do not appear even as potential annotations, because this usually indicates a missing pattern.
+7. Use those missing-tag findings as direct input for Task 3 (add or edit manual pattern).
+
+Expected outcome:
+- You have a shortlist of files and categories to target with pattern or data improvements.
+- You also identify tags that are not detected even as potential annotations, creating a clear remediation list for Task 3.
+
+[Screenshot sequence here: Task 2 - Per-File low coverage investigation]
+
+### Task 3: Add a manual pattern and make it usable
+Use this when matching fails for known tag formats.
+
+1. Open Pattern Management.
+2. Go to Manual Patterns.
+3. Add a new pattern row or edit an existing one.
+4. Fill required fields and save.
+5. Trigger Refresh Cache.
+6. Return to quality views after the next pipeline cycle to validate impact.
+
+Expected outcome:
+- The new pattern is stored and available for runtime matching after cache refresh.
+
+[Screenshot sequence here: Task 3 - add manual pattern and refresh cache]
+
+### Task 4: Import multiple patterns from CSV
+Use this when many patterns need to be onboarded at once.
+
+Clean-start recommendation (for guaranteed updated results):
+1. Go to Manual Patterns table first.
+2. Click the Select All checkbox (square next to the first header).
+3. Click Delete Selected.
+4. This clears old manual rows before import, so you start from a clean list.
+
+1. Open Pattern Management > Import CSV.
+2. Upload the CSV file.
+3. Validate parsed rows.
+4. Remove invalid rows.
+5. Commit selected rows to the manual catalog.
+6. Return to Manual Patterns and click Save.
+7. Refresh cache.
+
+Expected outcome:
+- Multiple patterns are onboarded quickly and are ready for use.
+- With clean-start + Save, both Manual Patterns and the ManualPatternScopes column in Annotation Entities Cache are refreshed without legacy values.
+
+[Screenshot sequence here: Task 4 - CSV import and save]
+
+### Task 5: Refresh Annotation Entities Cache after alias changes
+Use this when aliases changed and you want a more complete and current pattern view before analysis.
+
+1. Open Pattern Management.
+2. Click Discover Scopes.
+3. Review discovered scopes and confirm the set you want to process.
+4. Click Generate Preview.
+5. Review preview output to validate what will be written.
+6. Click Write Cache Rows.
+7. Wait for completion message.
+8. Re-check pattern tables for the scopes you are investigating.
+
+What each step does:
+- Discover Scopes: loads the current scope universe from entities/aliases and prepares the scope list for refresh.
+- Generate Preview: computes candidate cache rows without persisting, so you can inspect scope and pattern impact first.
+- Write Cache Rows: persists generated rows to cache storage so Launch and downstream operations can use updated context.
+
+Why this helps:
+- Without manual refresh, cache is eventually updated by incremental pipeline runs.
+- After cache expiration, Launch will refresh that scope naturally.
+- However, manual refresh is useful when you need an up-to-date view now, for example to investigate pattern coverage by scope.
+
+Advanced extension options:
+- This refresh flow is intended to simulate what Launch does for scope/entity/pattern cache generation.
+- If your project extends Launch behavior (for example custom DataModelService or CacheService), reflect the same logic in the app refresh path.
+- DataModelService customizations can change entity/alias query strategy, grouping rules and enrichment before generation.
+- CacheService customizations can change key strategy, row shape, write policy and invalidation logic.
+- If app refresh and Launch are not aligned, users may see cache previews/results in the app that differ from runtime Launch behavior.
+
+Connection to annotation gaps:
+- If a tag does not appear even as Potential Annotation, one cause is scope context: the file scope may not contain any entity alias matching that pattern.
+- In that case, use the next task (Propose) to propagate patterns found in other scopes.
+
+Scope behavior notes:
+- Best results come when primary and secondary scopes are configured.
+- If only primary scope exists, proposal fallback is GLOBAL.
+- If no scope exists, scope-based propagation has no practical effect.
+
+Expected outcome:
+- Cache-backed entity and pattern context is refreshed and ready for proposal and validation.
+
+[Screenshot sequence here: Task 5 - discover scopes, preview, write cache rows]
+
+### Task 6: Propose patterns by primary scope
+Use this to propagate patterns that are present in some units/scopes but missing in others.
+
+Clean-start recommendation (for guaranteed updated results):
+1. Go to Manual Patterns table first.
+2. Click the Select All checkbox (square next to the first header).
+3. Click Delete Selected.
+4. This removes old rows so proposal results are written into a clean baseline.
+
+1. Open Pattern Management > Propose.
+2. Select the primary scope target for propagation.
+3. Generate proposals.
+4. Review suggested patterns and select relevant ones.
+5. Create manual patterns from selected proposals.
+6. Go to Manual Patterns and click Save.
+7. Validate in Annotation Quality > Per-File on affected files.
+
+Why this helps:
+- Propose can turn scope-specific recurring patterns into manual patterns at primary-scope level.
+- This enables matching for files that previously had no potential detection due to scope alias coverage differences.
+- Save after proposal updates both Manual Patterns and ManualPatternScopes cache values using the new clean set.
+
+Expected outcome:
+- Patterns are propagated across scope context, improving detection consistency and reducing missing potential annotations.
+
+[Screenshot sequence here: Task 6 - propose and create manual patterns]
+
+### Task 7: Debug a failed file
+Use this when a file is stuck, failed or did not reach expected state.
+
+1. Open Pipeline Health > Files.
+2. Search by file name, external ID or source ID.
+3. Select the file.
+4. Open stage logs one by one: Prepare, Launch, Finalize, Promote.
+5. Capture the first failing stage and key error details.
+6. If needed, download logs for sharing and escalation.
+
+Expected outcome:
+- You identify where processing failed and what evidence supports the next action.
+
+[Screenshot sequence here: Task 7 - files and stage-by-stage log review]
+
+### Task 8: Review operational trend in recent runs
+Use this for daily or weekly pipeline health checks.
+
+1. Open Pipeline Health > History.
+2. Select a time window.
+3. Filter by status and caller type.
+4. Compare success and failure patterns.
+5. Open specific runs to inspect details.
+
+Expected outcome:
+- You can report run quality trends and identify operational hotspots.
+
+[Screenshot sequence here: Task 8 - history filters and trend review]
+
+## Common user questions
+
+### Why is preview not showing for a file?
+- The file may not have supported preview format.
+- Preview data may be unavailable for that file.
+
+### Why does Per-File feel slow sometimes?
+- Large datasets are loaded in memory.
+- Reduce filter scope to improve responsiveness.
+
+### Why do some pipelines not appear in selector?
+- Pipeline list depends on configured selector filters.
+
+## Quick start note
+This page is intentionally focused on usage.
+
+For setup, runtime, deployment details and local execution, use the dedicated setup documentation.
+
+## Related guides
+- Setup and runtime: [CONFIG.md](CONFIG.md)
+- Product requirements: [PRD.md](PRD.md)
+- Pipeline Overview
+- Configuration Guide
+- Operations Guide
+- Developer Extension Guide
