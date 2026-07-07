@@ -6,7 +6,7 @@ destination:
   dataModel:
     space: {{ schemaSpace }}
     externalId: {{ datamodelExternalId }}
-    destinationType: MaintenanceOrder
+    destinationType: WorkOrder
     version: {{ datamodelVersion }}
   instanceSpace: {{ instanceSpace }}
 ignoreNullFields: true

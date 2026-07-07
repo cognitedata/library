@@ -6,7 +6,7 @@ destination:
   dataModel:
     space: {{ schemaSpace }}
     externalId: {{ datamodelExternalId }}
-    destinationType: Operation
+    destinationType: WorkOrderOperation
     version: {{ datamodelVersion }}
   instanceSpace: {{ instanceSpace }}
 ignoreNullFields: true

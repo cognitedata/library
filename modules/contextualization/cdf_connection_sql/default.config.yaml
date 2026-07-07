@@ -1,9 +1,9 @@
-schemaSpace: sp_enterprise_process_industry
+schemaSpace: dm_dom_oil_and_gas
 organization: ORG
-datamodelExternalId: ORGProcessIndustries
+datamodelExternalId: dm_oil_and_gas_domain_model
 datamodelVersion: v1
 dataset: ingestion
-instanceSpace: springfield_instances
+instanceSpace: inst_location
 activityToTimeSeriesTransformationExternalId: activity_to_timeseries
 maintenanceOrderToAssetTransformationExternalId: maintenance_order_to_asset
 operationToAssetTransformationExternalId: operation_to_asset

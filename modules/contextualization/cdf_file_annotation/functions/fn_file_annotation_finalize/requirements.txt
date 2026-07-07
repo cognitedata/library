@@ -6,7 +6,7 @@ cognite-sdk==7.76.0
 cryptography==48.0.1
 dotenv==0.9.9
 idna==3.15
-msal==1.32.3
+msal==1.37.0
 oauthlib==3.2.2
 packaging==25.0
 protobuf>=6.33.5

@@ -7,9 +7,9 @@ annotationStateSchemaSpace: sp_hdm #NOTE: stands for space helper data model
 annotationStateVersion: v1.0.0
 patternModeInstanceSpace: sp_dat_pattern_mode_results
 patternDetectSink: pattern_detection_sink_node
-fileSchemaSpace: sp_enterprise_process_industry
-fileInstanceSpace: springfield_instances
-fileExternalId: FileRevision
+fileSchemaSpace: dm_dom_oil_and_gas
+fileInstanceSpace: inst_location
+fileExternalId: Files
 fileVersion: v1
 
 # used in /raw and /extraction_pipelines
@@ -23,9 +23,9 @@ rawTablePromoteCache: annotation_tags_cache
 
 # used in /extraction_pipelines
 extractionPipelineExternalId: ep_file_annotation
-targetEntitySchemaSpace: sp_enterprise_process_industry
-targetEntityInstanceSpace: springfield_instances
-targetEntityExternalId: Asset
+targetEntitySchemaSpace: dm_dom_oil_and_gas
+targetEntityInstanceSpace: inst_location
+targetEntityExternalId: Tag
 targetEntityVersion: v1
 
 # used in /functions

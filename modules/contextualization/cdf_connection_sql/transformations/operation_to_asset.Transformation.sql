@@ -1,53 +1,33 @@
 --
--- Update Operations and link to assets based on matches in asset name with sysTagsFound
+-- CFIHOS: Backfill WorkOrderOperation assets/mainAsset from self or parent WorkOrder.
 --
 SELECT
-  dm_operations.externalId,
-  dm_operations.name,
-  dm_operations.description,
-  
-  -- Asset References: Aggregate multiple asset matches into an array, limited to 1200 elements
-  slice(
-    array_agg(CASE
-      WHEN asset.externalId IS NOT NULL AND asset.externalId != ''
-      THEN node_reference('{{ instanceSpace }}', asset.externalId)
-      ELSE NULL
-    END), 1, 1200
-  ) AS assets,
-  
-  -- Sort sysTagsFound array
-  ARRAY_SORT(dm_operations.sysTagsFound) AS sysTagsFound,
-  
-  -- Populate and sort sysTagsLinked with the asset.name value for each matching asset tag
-  ARRAY_SORT(
-    COLLECT_SET(
-      CASE 
-        WHEN asset.name IS NOT NULL AND asset.name != 'NULL' THEN asset.name
-        ELSE NULL
-      END
-    )
-  ) AS sysTagsLinked
-
+  op.externalId,
+  COALESCE(op.mainAsset, wo.mainAsset) AS mainAsset,
+  CASE
+    WHEN op.assets IS NOT NULL AND size(op.assets) > 0 THEN op.assets
+    WHEN op.mainAsset IS NOT NULL THEN array(op.mainAsset)
+    WHEN wo.mainAsset IS NOT NULL THEN array(wo.mainAsset)
+    WHEN wo.assets IS NOT NULL AND size(wo.assets) > 0 THEN wo.assets
+    ELSE NULL
+  END AS assets
 FROM
   cdf_data_models(
-    "sp_enterprise_process_industry",
+    "{{ schemaSpace }}",
     "{{ datamodelExternalId }}",
     "{{ datamodelVersion }}",
-    "Operation"
-  ) dm_operations
-
+    "WorkOrderOperation"
+  ) op
 LEFT JOIN
   cdf_data_models(
-    "sp_enterprise_process_industry",
+    "{{ schemaSpace }}",
     "{{ datamodelExternalId }}",
     "{{ datamodelVersion }}",
-    "Asset"
-  ) asset
+    "WorkOrder"
+  ) wo
 ON
-  array_contains(dm_operations.sysTagsFound, asset.name)
-
-GROUP BY 
-  dm_operations.externalId,
-  dm_operations.name,
-  dm_operations.description,
-  dm_operations.sysTagsFound;
+  wo.space = '{{ instanceSpace }}'
+  AND op.maintenanceOrder.externalId = wo.externalId
+WHERE
+  op.space = '{{ instanceSpace }}'
+  AND op.externalId IS NOT NULL
