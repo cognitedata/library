@@ -111,7 +111,7 @@ function parseConfigToViewConfig(rawConfig: Record<string, unknown>): PipelineCo
   // Parse view configs from dataModelViews
   const annotationStateViewCfg = (dataModelViews.annotationStateView || dataModelViews.annotation_state_view) as Record<string, string> | undefined;
   const fileViewCfg = (dataModelViews.fileView || dataModelViews.file_view) as Record<string, string> | undefined;
-  const assetViewCfg = (dataModelViews.targetEntityView || dataModelViews.asset_view || dataModelViews.assetView) as Record<string, string> | undefined;
+  const assetViewCfg = (dataModelViews.targetEntitiesView || dataModelViews.target_entities_view) as Record<string, string> | undefined;
 
   // Parse raw table names
   const rawDb = rawTables.rawDb || rawTables.raw_db || (rawConfig.rawDb as string) || (rawConfig.raw_db as string);
@@ -130,10 +130,10 @@ function parseConfigToViewConfig(rawConfig: Record<string, unknown>): PipelineCo
     undefined;
 
   const assetResourceProperty = 
-    (launchFunction.assetResourceProperty as string) ||
-    (launchFunction.asset_resource_property as string) ||
-    (rawConfig.assetResourceProperty as string) ||
-    (rawConfig.asset_resource_property as string);
+    (launchFunction.targetEntitiesResourceProperty as string) ||
+    (launchFunction.target_entities_resource_property as string) ||
+    (rawConfig.targetEntitiesResourceProperty as string) ||
+    (rawConfig.target_entities_resource_property as string);
 
   const secondaryScopeProperty = 
     (launchFunction.secondaryScopeProperty as string) ||
