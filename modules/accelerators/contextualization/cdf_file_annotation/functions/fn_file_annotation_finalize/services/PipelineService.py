@@ -27,7 +27,7 @@ class GeneralPipelineService(IPipelineService):
     Implementation of the pipeline interface
     """
 
-    def __init__(self, pipeline_ext_id: str, client: CogniteClient):
+    def __init__(self, client: CogniteClient, pipeline_ext_id: str):
         self.client: CogniteClient = client
         self.ep_write: ExtractionPipelineRunWrite = ExtractionPipelineRunWrite(
             extpipe_external_id=pipeline_ext_id,

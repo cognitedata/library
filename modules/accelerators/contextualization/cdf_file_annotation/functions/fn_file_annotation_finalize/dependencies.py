@@ -105,4 +105,4 @@ def create_general_apply_service(
 
 
 def create_general_pipeline_service(client: CogniteClient, pipeline_ext_id: str) -> GeneralPipelineService:
-    return GeneralPipelineService(pipeline_ext_id, client)
+    return GeneralPipelineService(client, pipeline_ext_id)
