@@ -21,6 +21,10 @@ notificationConfig:
   # PI extractor streams continuously; alert if not seen for >2 hours
   allowedNotSeenRangeInMinutes: 120
 createdBy: cognite-toolkit
+# The sample config.yml below uses $${VAR} (not ${VAR}): Toolkit substitutes ${VAR} from
+# .env anywhere in this file, so a single $ would leak real secret values into the
+# deployed pipeline's documentation. $${VAR} renders as literal ${VAR}, which is what the
+# extractor host should read from its own environment.
 documentation: |
   ## PI extraction pipeline
 
@@ -65,14 +69,14 @@ documentation: |
      version: 3
      type: remote
      cognite:
-       project: ${CDF_PROJECT}
-       host: ${CDF_URL}
+       project: $${CDF_PROJECT}
+       host: $${CDF_URL}
        idp-authentication:
-         tenant: ${IDP_TENANT_ID}
-         client-id: ${IDP_CLIENT_ID}
-         secret: ${IDP_CLIENT_SECRET}
+         tenant: $${IDP_TENANT_ID}
+         client-id: $${IDP_CLIENT_ID}
+         secret: $${IDP_CLIENT_SECRET}
          scopes:
-           - ${CDF_URL}/.default
+           - $${CDF_URL}/.default
        extraction-pipeline:
          external-id: ep_{{location}}_pi
      ```

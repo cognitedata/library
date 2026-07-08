@@ -129,6 +129,6 @@ Check that uploaded documents appear under the `{{dataset}}` data set in CDF Dat
 
 ## References
 
-* Files Extractor docs: <https://docs.cognite.com/cdf/integration/guides/extraction/files_extractor/>
-* Files Extractor configuration reference: <https://docs.cognite.com/cdf/integration/guides/extraction/configuration/files_extractor>
+* Files Extractor docs: <https://docs.cognite.com/cdf/integration/guides/extraction/file>
+* Files Extractor configuration reference: <https://docs.cognite.com/cdf/integration/guides/extraction/configuration/file-extractor>
 * SharePoint setup guide: <https://docs.cognite.com/cdf/integration/guides/extraction/file/file_sharepoint_setup>
