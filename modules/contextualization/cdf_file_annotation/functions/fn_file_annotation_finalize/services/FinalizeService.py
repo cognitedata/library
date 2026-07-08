@@ -224,7 +224,7 @@ class GeneralFinalizeService(AbstractFinalizeService):
                 if annotated_pages == page_count:
                     file_node_apply: NodeApply = remove_protected_properties(file_node.as_apply())
                     file_node_apply.existing_version = None
-                    tags = list(cast(list[str], file_node_apply.sources[0].properties.get("tags", [])))
+                    tags = list(cast(list[str], file_node_apply.sources[0].properties.get("tags") or []))
                     if "AnnotationInProcess" in tags:
                         tags[tags.index("AnnotationInProcess")] = "Annotated"
                     elif "Annotated" not in tags:
@@ -260,7 +260,7 @@ class GeneralFinalizeService(AbstractFinalizeService):
                 if next_attempt >= self.max_retries:
                     file_node_apply: NodeApply = remove_protected_properties(file_node.as_apply())
                     file_node_apply.existing_version = None
-                    tags = list(cast(list[str], file_node_apply.sources[0].properties.get("tags", [])))
+                    tags = list(cast(list[str], file_node_apply.sources[0].properties.get("tags") or []))
                     if "AnnotationInProcess" in tags:
                         tags[tags.index("AnnotationInProcess")] = "AnnotationFailed"
                     elif "AnnotationFailed" not in tags:
