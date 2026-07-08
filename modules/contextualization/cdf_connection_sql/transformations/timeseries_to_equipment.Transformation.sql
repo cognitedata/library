@@ -7,7 +7,7 @@ SELECT
   cast(ts.type as string) as type,
   CASE
     WHEN max(CASE WHEN eq.externalId IS NOT NULL AND eq.externalId != '' THEN 1 ELSE 0 END) = 0 THEN NULL
-    ELSE collect_set(node_reference('{{ instanceSpace }}', cast(eq.externalId as string)))
+    ELSE collect_set(CASE WHEN eq.externalId IS NOT NULL AND eq.externalId != '' THEN node_reference('{{ instanceSpace }}', cast(eq.externalId as string)) ELSE NULL END)
   END as equipment
 FROM
   cdf_data_models(

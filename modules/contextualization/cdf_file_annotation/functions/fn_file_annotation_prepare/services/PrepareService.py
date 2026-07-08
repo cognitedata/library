@@ -108,7 +108,9 @@ class GeneralPrepareService(AbstractPrepareService):
                     tags_to_remove = {"AnnotationInProcess", "Annotated", "AnnotationFailed"}
                     for file_node in file_nodes_to_reset:
                         file_node_apply: NodeApply = remove_protected_properties(file_node.as_write())
-                        tags_property: list[str] = cast(list[str], file_node_apply.sources[0].properties["tags"])
+                        tags_property: list[str] = cast(
+                            list[str], file_node_apply.sources[0].properties.get("tags", [])
+                        )
                         set_describable_tags(
                             file_node_apply,
                             [t for t in tags_property if t not in tags_to_remove],

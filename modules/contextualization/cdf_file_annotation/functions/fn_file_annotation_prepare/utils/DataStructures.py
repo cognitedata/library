@@ -275,7 +275,7 @@ class PerformanceTracker:
 
     files_success: int = 0
     files_failed: int = 0
-    total_runs = 0
+    total_runs: int = 0
     total_time_delta: timedelta = timedelta(0)
     latest_run_time: datetime = field(default_factory=lambda: datetime.now(UTC))
 
