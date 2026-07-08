@@ -4,7 +4,7 @@ version = "0.0.0"
 requires-python = ">=3.11,<3.14"
 dependencies = [
     "cognite-sdk>=7.76.0,<8",
-    "msal==1.32.3",
+    "msal==1.37.0",
     "pydantic>=2.12.4,<3.0.0",
     "PyJWT>=2.13.0,<3.0",
     "python-dotenv>=1.2.2,<2.0",
