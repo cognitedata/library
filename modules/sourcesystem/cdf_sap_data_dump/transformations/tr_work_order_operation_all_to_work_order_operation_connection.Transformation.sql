@@ -21,11 +21,21 @@ SELECT
   END as maintenanceOrder,
   CASE
     WHEN max(CASE WHEN raw_eq.`key` IS NOT NULL AND trim(cast(raw_eq.`key` as string)) != '' THEN 1 ELSE 0 END) = 0 THEN NULL
-    ELSE collect_set(node_reference('{{ instance_space }}', trim(cast(raw_eq.`key` as string))))
+    ELSE collect_set(
+      CASE
+        WHEN raw_eq.`key` IS NOT NULL AND trim(cast(raw_eq.`key` as string)) != '' THEN node_reference('{{ instance_space }}', trim(cast(raw_eq.`key` as string)))
+        ELSE NULL
+      END
+    )
   END as equipment,
   CASE
     WHEN max(CASE WHEN raw_ts.`key` IS NOT NULL AND trim(cast(raw_ts.`key` as string)) != '' THEN 1 ELSE 0 END) = 0 THEN NULL
-    ELSE collect_set(node_reference('{{ instance_space }}', trim(cast(raw_ts.`key` as string))))
+    ELSE collect_set(
+      CASE
+        WHEN raw_ts.`key` IS NOT NULL AND trim(cast(raw_ts.`key` as string)) != '' THEN node_reference('{{ instance_space }}', trim(cast(raw_ts.`key` as string)))
+        ELSE NULL
+      END
+    )
   END as timeSeries,
   CASE
     WHEN max(flm.fl_external_id) IS NULL OR trim(cast(max(flm.fl_external_id) as string)) = '' THEN NULL

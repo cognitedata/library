@@ -27,7 +27,10 @@ SELECT
     WHEN labels IS NULL OR trim(cast(labels as string)) = '' THEN array('DetectInDiagrams')
     ELSE array(cast(labels as string), 'DetectInDiagrams')
   END as tags,
-  array(cast(name as string), cast(tagNumber as string)) as aliases,
+  FILTER(
+    array(cast(name as string), cast(tagNumber as string)),
+    x -> x IS NOT NULL AND trim(x) != ''
+  ) as aliases,
   cast(key as string) as sourceId,
   'cfihos_test' as sourceContext
 FROM `cfihos_oil_and_gas`.`tag`

@@ -11,6 +11,7 @@ from utils.DataStructures import (
     AnnotationState,
     AnnotationStatus,
     PerformanceTracker,
+    get_source_properties,
     remove_protected_properties,
     set_describable_tags,
 )
@@ -109,7 +110,7 @@ class GeneralPrepareService(AbstractPrepareService):
                     for file_node in file_nodes_to_reset:
                         file_node_apply: NodeApply = remove_protected_properties(file_node.as_write())
                         tags_property: list[str] = cast(
-                            list[str], file_node_apply.sources[0].properties.get("tags") or []
+                            list[str], get_source_properties(file_node_apply).get("tags") or []
                         )
                         set_describable_tags(
                             file_node_apply,
@@ -178,7 +179,7 @@ class GeneralPrepareService(AbstractPrepareService):
 
             file_node_apply: NodeApply = remove_protected_properties(file_node.as_write())
             tags_property: list[str] = list(
-                cast(list[str], file_node_apply.sources[0].properties.get("tags") or [])
+                cast(list[str], get_source_properties(file_node_apply).get("tags") or [])
             )
             if "AnnotationInProcess" not in tags_property:
                 tags_property.append("AnnotationInProcess")

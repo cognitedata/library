@@ -5,7 +5,12 @@ SELECT
   op.externalId,
   CASE
     WHEN max(CASE WHEN ts.externalId IS NOT NULL AND ts.externalId != '' THEN 1 ELSE 0 END) = 0 THEN NULL
-    ELSE collect_set(node_reference('{{ instanceSpace }}', cast(ts.externalId as string)))
+    ELSE collect_set(
+      CASE
+        WHEN ts.externalId IS NOT NULL AND ts.externalId != '' THEN node_reference('{{ instanceSpace }}', cast(ts.externalId as string))
+        ELSE NULL
+      END
+    )
   END AS timeSeries
 FROM
   cdf_data_models(

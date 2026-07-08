@@ -11,8 +11,14 @@ SELECT
   cast(woo.operationDesc as string) as operationDesc,
   cast(woo.wctrDesc as string) as wctrDesc,
   cast(woo.wctrDiscipline as string) as wctrDiscipline,
-  array(cast(woo.systemStatusCode AS STRING)) AS systemStatusCode,
-  array(cast(woo.systemStatusDesc AS STRING)) AS systemStatusCodeDesc,
+  CASE
+    WHEN woo.systemStatusCode IS NULL OR trim(cast(woo.systemStatusCode as string)) = '' THEN NULL
+    ELSE array(cast(woo.systemStatusCode AS STRING))
+  END AS systemStatusCode,
+  CASE
+    WHEN woo.systemStatusDesc IS NULL OR trim(cast(woo.systemStatusDesc as string)) = '' THEN NULL
+    ELSE array(cast(woo.systemStatusDesc AS STRING))
+  END AS systemStatusCodeDesc,
   CASE
     WHEN woo.userStatusCode IS NULL OR trim(cast(woo.userStatusCode as string)) = '' THEN NULL
     ELSE array(cast(woo.userStatusCode AS STRING))

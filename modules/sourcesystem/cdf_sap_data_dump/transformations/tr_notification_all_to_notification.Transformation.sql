@@ -9,8 +9,14 @@ SELECT
   cast(failureModeDesc as string) as failureModeDesc,
   cast(failureEffectCode as string) as failureEffectCode,
   cast(failureEffectDesc as string) as failureEffectDesc,
-  array(cast(systemStatusCode AS STRING)) AS systemStatusCode,
-  array(cast(systemStatusDesc AS STRING)) AS systemStatusCodeDesc,
+  CASE
+    WHEN systemStatusCode IS NULL OR trim(cast(systemStatusCode as string)) = '' THEN NULL
+    ELSE array(cast(systemStatusCode AS STRING))
+  END AS systemStatusCode,
+  CASE
+    WHEN systemStatusDesc IS NULL OR trim(cast(systemStatusDesc as string)) = '' THEN NULL
+    ELSE array(cast(systemStatusDesc AS STRING))
+  END AS systemStatusCodeDesc,
   cast(notificationPriorityType as string) as notificationPriorityType,
   cast(plannerGroup as string) as plannerGroup,
   CASE

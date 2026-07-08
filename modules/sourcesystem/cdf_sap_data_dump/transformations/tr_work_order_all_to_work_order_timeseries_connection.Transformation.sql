@@ -4,7 +4,12 @@ SELECT
   wo.assets as assets,
   CASE
     WHEN max(CASE WHEN ts.externalId IS NOT NULL AND ts.externalId != '' THEN 1 ELSE 0 END) = 0 THEN NULL
-    ELSE collect_set(node_reference('{{ instance_space }}', cast(ts.externalId as string)))
+    ELSE collect_set(
+      CASE
+        WHEN ts.externalId IS NOT NULL AND ts.externalId != '' THEN node_reference('{{ instance_space }}', cast(ts.externalId as string))
+        ELSE NULL
+      END
+    )
   END as timeSeries
 FROM cdf_nodes('{{ space }}', 'WorkOrder', '{{ dm_version }}') wo
 LEFT JOIN cdf_nodes('{{ space }}', 'TimeSeriesData', '{{ dm_version }}') ts

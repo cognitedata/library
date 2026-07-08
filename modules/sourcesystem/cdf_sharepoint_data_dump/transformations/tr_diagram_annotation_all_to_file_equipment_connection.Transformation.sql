@@ -2,7 +2,12 @@ SELECT
   cast(eq.externalId as string) as externalId,
   CASE
     WHEN max(CASE WHEN f.externalId IS NOT NULL AND trim(f.externalId) != '' THEN 1 ELSE 0 END) = 0 THEN NULL
-    ELSE collect_set(node_reference('{{ instance_space }}', cast(f.externalId as string)))
+    ELSE collect_set(
+      CASE
+        WHEN f.externalId IS NOT NULL AND trim(f.externalId) != '' THEN node_reference('{{ instance_space }}', cast(f.externalId as string))
+        ELSE NULL
+      END
+    )
   END as files
 FROM cdf_nodes('{{ space }}', 'Equipment', '{{ dm_version }}') eq
 LEFT JOIN cdf_nodes('{{ space }}', 'Files', '{{ dm_version }}') f

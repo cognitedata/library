@@ -461,12 +461,21 @@ def remove_protected_properties(node_apply: NodeApply) -> NodeApply:
     return node_apply
 
 
+def get_source_properties(node_apply: NodeApply) -> dict:
+    """Return the first source's properties dict, or {} if there are no sources or properties is None."""
+    if not node_apply.sources:
+        return {}
+    return node_apply.sources[0].properties or {}
+
+
 def set_describable_tags(node_apply: NodeApply, tags: list[str]) -> None:
     """Write tags on a node apply.
 
     CFIHOS Files/Tag views map both `labels` and `tags` to CogniteDescribable.tags.
     as_write() can include both; writing only one avoids 400 conflicting-property errors.
     """
+    if not node_apply.sources:
+        return
     if node_apply.sources[0].properties is None:
         node_apply.sources[0].properties = {}
     properties = node_apply.sources[0].properties
