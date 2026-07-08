@@ -14,6 +14,20 @@ from tests.module_test_support import (
 _original_module_getobj = Module._getobj
 
 
+def _disable_cognite_pypi_version_check() -> None:
+    """Stop cognite-sdk background PyPI checks (can segfault in CI on thread teardown)."""
+    try:
+        from cognite.client.config import global_config
+
+        global_config.disable_pypi_version_check = True
+    except ImportError:
+        # cognite-sdk is optional for some test environments; nothing to disable when absent.
+        pass
+
+
+_disable_cognite_pypi_version_check()
+
+
 def _isolated_module_getobj(self: Module):
     function_dir = function_dir_for_test_file(Path(self.path))
     if function_dir is not None:
