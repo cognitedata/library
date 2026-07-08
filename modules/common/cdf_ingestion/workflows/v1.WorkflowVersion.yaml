@@ -16,10 +16,7 @@ workflowDefinition:
           concurrencyPolicy: fail
       onFailure: abortWorkflow
       dependsOn:
-        - externalId: {{ assetTransformationExternalId }}
         - externalId: {{ maintenanceOrderTransformationExternalId }}
-        - externalId: {{ operationTransformationExternalId }}
-        - externalId: {{ operationToMaintenanceOrderTransformationExternalId }}
     - externalId: {{ operationToAssetTransformationExternalId }}
       type: transformation
       parameters:
@@ -28,11 +25,8 @@ workflowDefinition:
           concurrencyPolicy: fail
       onFailure: abortWorkflow
       dependsOn:
-        - externalId: {{ equipmentTransformationExternalId }}
         - externalId: {{ maintenanceOrderTransformationExternalId }}
         - externalId: {{ operationTransformationExternalId }}
-        - externalId: {{ equipmentToAssetTransformationExternalId }}
-        - externalId: {{ operationToMaintenanceOrderTransformationExternalId }}
     - externalId: {{ activityToTimeSeriesTransformationExternalId }}
       type: transformation
       parameters:
@@ -42,9 +36,7 @@ workflowDefinition:
       onFailure: abortWorkflow
       dependsOn:
         - externalId: {{ timeseriesTransformationExternalId }}
-        - externalId: {{ maintenanceOrderTransformationExternalId }}
         - externalId: {{ operationTransformationExternalId }}
-        - externalId: {{ operationToMaintenanceOrderTransformationExternalId }}
 
     # ── Wave 1: Base tag hierarchy ──────────────────────────────────────
     - externalId: {{ assetTransformationExternalId }}
