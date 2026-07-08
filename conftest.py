@@ -21,6 +21,7 @@ def _disable_cognite_pypi_version_check() -> None:
 
         global_config.disable_pypi_version_check = True
     except ImportError:
+        # cognite-sdk is optional for some test environments; nothing to disable when absent.
         pass
 
 
