@@ -16,6 +16,18 @@ type Props = {
   t: TFn;
 };
 
+type InvertedIndexTaskConfig = {
+  index_storage_backend?: "raw" | "dm";
+  index_raw_database?: string;
+  index_schema_space?: string;
+  scope?: {
+    enabled?: boolean;
+    levels?: string[];
+    scope_key_template?: string;
+    fallback_scope_key?: string;
+  };
+};
+
 function defaultInvertedIndexConfig(): InvertedIndexPersistenceConfig {
   return { kind: "inverted_index" };
 }
@@ -28,22 +40,53 @@ function readInvertedConfig(data: WorkflowCanvasNodeData): InvertedIndexPersiste
   return defaultInvertedIndexConfig();
 }
 
-function patchPersistence(
+function readTaskConfig(data: WorkflowCanvasNodeData): InvertedIndexTaskConfig {
+  const cfg = data.config;
+  if (cfg && typeof cfg === "object" && !Array.isArray(cfg)) {
+    return { ...(cfg as InvertedIndexTaskConfig) };
+  }
+  return {};
+}
+
+function patchNode(
   canvas: WorkflowCanvasDocument,
   nodeId: string,
-  cfg: InvertedIndexPersistenceConfig
+  patch: {
+    persistence?: InvertedIndexPersistenceConfig;
+    config?: Record<string, unknown>;
+  }
 ): WorkflowCanvasDocument {
   return {
     ...canvas,
-    nodes: canvas.nodes.map((n) =>
-      n.id !== nodeId ? n : { ...n, data: { ...n.data, persistence_config: cfg } }
-    ),
+    nodes: canvas.nodes.map((n) => {
+      if (n.id !== nodeId) return n;
+      const nextData: WorkflowCanvasNodeData = { ...n.data };
+      if (patch.persistence) nextData.persistence_config = patch.persistence;
+      if (patch.config) {
+        nextData.config = { ...(n.data.config as Record<string, unknown> | undefined), ...patch.config };
+      }
+      return { ...n, data: nextData };
+    }),
   };
 }
 
 export function InvertedIndexNodeConfigFields({ canvas, onChange, nodeId, t }: Props) {
   const node = useMemo(() => canvas.nodes.find((n) => n.id === nodeId) ?? null, [canvas.nodes, nodeId]);
   const cfg = useMemo(() => (node ? readInvertedConfig(node.data) : defaultInvertedIndexConfig()), [node]);
+  const taskCfg = useMemo(() => (node ? readTaskConfig(node.data) : {}), [node]);
+
+  const applyConfigPatch = useCallback(
+    (partial: InvertedIndexTaskConfig) => {
+      const n = canvas.nodes.find((x) => x.id === nodeId);
+      if (!n) return;
+      const cur = readTaskConfig(n.data);
+      const scope = { ...(cur.scope ?? {}), ...(partial.scope ?? {}) };
+      const merged: Record<string, unknown> = { ...cur, ...partial, scope };
+      if (partial.scope === undefined && !cur.scope) delete merged.scope;
+      onChange(patchNode(canvas, nodeId, { config: merged }));
+    },
+    [canvas, nodeId, onChange]
+  );
 
   const applyPersistencePatch = useCallback(
     (partial: Partial<InvertedIndexPersistenceConfig>) => {
@@ -56,7 +99,7 @@ export function InvertedIndexNodeConfigFields({ canvas, onChange, nodeId, t }: P
         else out[k] = v;
       }
       out.kind = "inverted_index";
-      onChange(patchPersistence(canvas, nodeId, out as InvertedIndexPersistenceConfig));
+      onChange(patchNode(canvas, nodeId, { persistence: out as InvertedIndexPersistenceConfig }));
     },
     [canvas, nodeId, onChange]
   );
@@ -64,6 +107,8 @@ export function InvertedIndexNodeConfigFields({ canvas, onChange, nodeId, t }: P
   if (!node) {
     return <p className="discovery-hint">{t("flow.saveNodeMissing")}</p>;
   }
+
+  const storageBackend = taskCfg.index_storage_backend ?? "raw";
 
   return (
     <div className="discovery-loc-fields" style={{ maxWidth: "52rem" }}>
@@ -74,7 +119,93 @@ export function InvertedIndexNodeConfigFields({ canvas, onChange, nodeId, t }: P
         {t("flow.inspectorInvertedIndexHint")}
       </p>
 
+      <h4 className="discovery-section-title" style={{ fontSize: "0.95rem", marginTop: "0.5rem" }}>
+        {t("flow.invertedIndex.sectionStorage")}
+      </h4>
       <label className="discovery-label discovery-label--block">
+        {t("flow.invertedIndex.storageBackend")}
+        <select
+          className="discovery-input"
+          value={storageBackend}
+          onChange={(e) => {
+            const backend = e.target.value === "dm" ? "dm" : "raw";
+            applyConfigPatch({ index_storage_backend: backend });
+          }}
+        >
+          <option value="raw">{t("flow.invertedIndex.storageBackendRaw")}</option>
+          <option value="dm">{t("flow.invertedIndex.storageBackendDm")}</option>
+        </select>
+      </label>
+      <div className="discovery-filter-row discovery-filter-row--pair discovery-filter-row--gap-md">
+        <label className="discovery-label">
+          {t("flow.invertedIndex.indexRawDatabase")}
+          <DeferredCommitInput
+            className="discovery-input"
+            committedValue={String(taskCfg.index_raw_database ?? "")}
+            syncKey={`${nodeId}-ii-raw-db`}
+            onCommit={(v) => {
+              const s = v.trim();
+              applyConfigPatch({ index_raw_database: s || undefined });
+            }}
+          />
+        </label>
+        <label className="discovery-label">
+          {t("flow.invertedIndex.indexSchemaSpace")}
+          <DeferredCommitInput
+            className="discovery-input"
+            committedValue={String(taskCfg.index_schema_space ?? "")}
+            syncKey={`${nodeId}-ii-dm-space`}
+            onCommit={(v) => {
+              const s = v.trim();
+              applyConfigPatch({ index_schema_space: s || undefined });
+            }}
+          />
+        </label>
+      </div>
+
+      <h4 className="discovery-section-title" style={{ fontSize: "0.95rem", marginTop: "1rem" }}>
+        {t("flow.invertedIndex.sectionScope")}
+      </h4>
+      <label className="discovery-label discovery-label--block">
+        {t("flow.invertedIndex.scopeKeyTemplate")}
+        <DeferredCommitInput
+          className="discovery-input"
+          committedValue={String(taskCfg.scope?.scope_key_template ?? "")}
+          syncKey={`${nodeId}-ii-scope-tpl`}
+          onCommit={(v) => {
+            const s = v.trim();
+            applyConfigPatch({
+              scope: {
+                enabled: true,
+                levels: taskCfg.scope?.levels ?? ["site", "unit"],
+                scope_key_template: s || undefined,
+                fallback_scope_key: taskCfg.scope?.fallback_scope_key,
+              },
+            });
+          }}
+        />
+      </label>
+      <label className="discovery-label discovery-label--block" style={{ marginTop: "0.5rem" }}>
+        {t("flow.invertedIndex.scopeFallbackKey")}
+        <DeferredCommitInput
+          className="discovery-input"
+          committedValue={String(taskCfg.scope?.fallback_scope_key ?? "")}
+          syncKey={`${nodeId}-ii-scope-fb`}
+          onCommit={(v) => {
+            const s = v.trim();
+            applyConfigPatch({
+              scope: {
+                enabled: true,
+                levels: taskCfg.scope?.levels ?? ["site", "unit"],
+                scope_key_template: taskCfg.scope?.scope_key_template,
+                fallback_scope_key: s || undefined,
+              },
+            });
+          }}
+        />
+      </label>
+
+      <label className="discovery-label discovery-label--block" style={{ marginTop: "1rem" }}>
         {t("flow.invertedIndex.profileOptional")}
         <DeferredCommitInput
           className="discovery-input"
@@ -112,130 +243,6 @@ export function InvertedIndexNodeConfigFields({ canvas, onChange, nodeId, t }: P
             onCommit={(v) => {
               const s = v.trim();
               applyPersistencePatch(s ? { source_raw_table_key: s } : { source_raw_table_key: undefined });
-            }}
-          />
-        </label>
-      </div>
-      <label className="discovery-label discovery-label--block" style={{ marginTop: "0.5rem" }}>
-        {t("flow.invertedIndex.sourceRawReadLimit")}
-        <input
-          className="discovery-input"
-          type="number"
-          min={0}
-          value={cfg.source_raw_read_limit != null ? String(cfg.source_raw_read_limit) : ""}
-          onChange={(e) => {
-            const raw = e.target.value.trim();
-            if (raw === "") {
-              applyPersistencePatch({ source_raw_read_limit: undefined });
-              return;
-            }
-            const n = Math.floor(Number(raw));
-            if (Number.isFinite(n) && n >= 0) applyPersistencePatch({ source_raw_read_limit: n });
-          }}
-        />
-      </label>
-
-      <h4 className="discovery-section-title" style={{ fontSize: "0.95rem", marginTop: "1rem" }}>
-        {t("flow.invertedIndex.sectionSinkRaw")}
-      </h4>
-      <div className="discovery-filter-row discovery-filter-row--pair discovery-filter-row--gap-md">
-        <label className="discovery-label">
-          {t("flow.invertedIndex.sinkRawDb")}
-          <DeferredCommitInput
-            className="discovery-input"
-            committedValue={String(cfg.inverted_index_raw_db ?? "")}
-            syncKey={`${nodeId}-ii-sink-raw-db`}
-            onCommit={(v) => {
-              const s = v.trim();
-              applyPersistencePatch(s ? { inverted_index_raw_db: s } : { inverted_index_raw_db: undefined });
-            }}
-          />
-        </label>
-        <label className="discovery-label">
-          {t("flow.invertedIndex.sinkRawTable")}
-          <DeferredCommitInput
-            className="discovery-input"
-            committedValue={String(cfg.inverted_index_raw_table ?? "")}
-            syncKey={`${nodeId}-ii-sink-raw-tbl`}
-            onCommit={(v) => {
-              const s = v.trim();
-              applyPersistencePatch(s ? { inverted_index_raw_table: s } : { inverted_index_raw_table: undefined });
-            }}
-          />
-        </label>
-      </div>
-
-      <h4 className="discovery-section-title" style={{ fontSize: "0.95rem", marginTop: "1rem" }}>
-        {t("flow.invertedIndex.sectionEntityTypes")}
-      </h4>
-      <div className="discovery-filter-row discovery-filter-row--pair discovery-filter-row--gap-md">
-        <label className="discovery-label">
-          {t("flow.invertedIndex.fkEntityType")}
-          <DeferredCommitInput
-            className="discovery-input"
-            committedValue={String(cfg.inverted_index_fk_entity_type ?? "")}
-            syncKey={`${nodeId}-ii-fk-et`}
-            onCommit={(v) => {
-              const s = v.trim();
-              applyPersistencePatch(
-                s ? { inverted_index_fk_entity_type: s } : { inverted_index_fk_entity_type: undefined }
-              );
-            }}
-          />
-        </label>
-        <label className="discovery-label">
-          {t("flow.invertedIndex.documentEntityType")}
-          <DeferredCommitInput
-            className="discovery-input"
-            committedValue={String(cfg.inverted_index_document_entity_type ?? "")}
-            syncKey={`${nodeId}-ii-doc-et`}
-            onCommit={(v) => {
-              const s = v.trim();
-              applyPersistencePatch(
-                s ? { inverted_index_document_entity_type: s } : { inverted_index_document_entity_type: undefined }
-              );
-            }}
-          />
-        </label>
-      </div>
-
-      <h4 className="discovery-section-title" style={{ fontSize: "0.95rem", marginTop: "1rem" }}>
-        {t("flow.invertedIndex.sectionSourceView")}
-      </h4>
-      <div className="discovery-filter-row discovery-filter-row--triple discovery-filter-row--gap-md">
-        <label className="discovery-label">
-          {t("flow.invertedIndex.sourceViewSpace")}
-          <DeferredCommitInput
-            className="discovery-input"
-            committedValue={String(cfg.source_view_space ?? "")}
-            syncKey={`${nodeId}-ii-sv-sp`}
-            onCommit={(v) => {
-              const s = v.trim();
-              applyPersistencePatch(s ? { source_view_space: s } : { source_view_space: undefined });
-            }}
-          />
-        </label>
-        <label className="discovery-label">
-          {t("flow.invertedIndex.sourceViewExternalId")}
-          <DeferredCommitInput
-            className="discovery-input"
-            committedValue={String(cfg.source_view_external_id ?? "")}
-            syncKey={`${nodeId}-ii-sv-ext`}
-            onCommit={(v) => {
-              const s = v.trim();
-              applyPersistencePatch(s ? { source_view_external_id: s } : { source_view_external_id: undefined });
-            }}
-          />
-        </label>
-        <label className="discovery-label">
-          {t("flow.invertedIndex.sourceViewVersion")}
-          <DeferredCommitInput
-            className="discovery-input"
-            committedValue={String(cfg.source_view_version ?? "")}
-            syncKey={`${nodeId}-ii-sv-ver`}
-            onCommit={(v) => {
-              const s = v.trim();
-              applyPersistencePatch(s ? { source_view_version: s } : { source_view_version: undefined });
             }}
           />
         </label>

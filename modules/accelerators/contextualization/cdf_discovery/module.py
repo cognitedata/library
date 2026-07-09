@@ -5,9 +5,12 @@ CDF Discovery — local read-only browser for Classic, Data Modeling, and RAW.
   python module.py build [--config default.config.yaml] [--dry-run] [--force]
   python module.py build --clean [--yes]
   python module.py build --check-generated
+  python module.py build --build-inverted-index-triggers [--force]
+  python module.py build --check-inverted-index-triggers
   python module.py transform build [--pipeline ID | --template ID] [--scoped] [--dry-run]
   python module.py transform run [--instance ID | --template ID] [--dry-run] [--predecessor-mode in_memory|cohort]
   python module.py transform deploy-scope [--dry-run]
+  python module.py index {build-metadata|query|target-driven|…}  (inverted index CLI)
 
 Reads CDF credentials from the repository root ``.env`` (same variables as cdf_discovery_aliasing).
 """
@@ -35,6 +38,15 @@ _REPO_ROOT = _MODULE_ROOT.parent.parent.parent.parent
 for _p in (_REPO_ROOT, _MODULE_ROOT):
     if str(_p) not in sys.path:
         sys.path.insert(0, str(_p))
+
+from shared.python.paths import (  # noqa: E402
+    ensure_sys_path,
+    governance_root,
+    inverted_index_root,
+    module_root,
+    submodules_root,
+    transform_root,
+)
 
 
 def _wait_for_http(url: str, *, timeout_sec: float = 45.0, poll_interval: float = 0.25) -> bool:
@@ -84,7 +96,12 @@ def _run_ui(argv: List[str]) -> int:
         if r.returncode != 0:
             return r.returncode
 
-    env = {**os.environ, "PYTHONPATH": str(_MODULE_ROOT)}
+    idx_root = inverted_index_root()
+    env = {
+        **os.environ,
+        "PYTHONPATH": str(_MODULE_ROOT),
+        "CDF_INVERTED_INDEX_ROOT": str(idx_root),
+    }
     api_cmd = [
         sys.executable,
         "-m",
@@ -156,13 +173,39 @@ def _run_compliance_gates() -> int:
     return int(proc.returncode or 0)
 
 
-def _run_build(argv: List[str]) -> int:
+def _run_inverted_index_triggers(argv: List[str]) -> int:
+    ensure_sys_path()
     scripts = _MODULE_ROOT / "scripts"
     if str(scripts) not in sys.path:
         sys.path.insert(0, str(scripts))
+    from inverted_index_build.orchestrate import main as trigger_build_main  # noqa: WPS433
+
+    if "--module-root" not in argv:
+        argv = ["--module-root", str(_MODULE_ROOT), *argv]
+    return int(trigger_build_main(argv))
+
+
+def _run_build(argv: List[str]) -> int:
+    if "--check-inverted-index-triggers" in argv:
+        return _run_inverted_index_triggers(
+            ["--check-inverted-index-triggers", "--module-root", str(_MODULE_ROOT)]
+        )
+
+    if "--build-inverted-index-triggers" in argv:
+        build_argv = ["--build-inverted-index-triggers", "--module-root", str(_MODULE_ROOT)]
+        if "--force" in argv:
+            build_argv.append("--force")
+        code = _run_inverted_index_triggers(build_argv)
+        if code != 0:
+            return code
+        argv = [a for a in argv if a not in ("--build-inverted-index-triggers", "--force")]
+        if not argv:
+            return _run_compliance_gates()
+
+    ensure_sys_path()
     from governance_build.orchestrate import run as governance_run  # noqa: WPS433
 
-    declared_default = (_MODULE_ROOT / "governance").resolve()
+    declared_default = governance_root().resolve()
     if not os.environ.get("CDF_DISCOVERY_GOVERNANCE_ROOT"):
         os.environ.setdefault("CDF_DISCOVERY_GOVERNANCE_ROOT", str(declared_default))
     if "--module-root" not in argv:
@@ -173,16 +216,8 @@ def _run_build(argv: List[str]) -> int:
     return _run_compliance_gates()
 
 
-def _transform_root() -> Path:
-    return _MODULE_ROOT / "transform"
-
-
 def _run_transform_build(argv: List[str]) -> int:
-    transform = _transform_root()
-    scripts = transform / "scripts"
-    for p in (str(_MODULE_ROOT), str(transform), str(_MODULE_ROOT / "functions"), str(scripts)):
-        if p not in sys.path:
-            sys.path.insert(0, p)
+    ensure_sys_path()
     from workflow_build.orchestrate import main as workflow_build_main
 
     if "--module-root" not in argv:
@@ -200,15 +235,30 @@ def _run_transform_run(argv: List[str]) -> int:
 
 
 def _run_transform_deploy_scope(argv: List[str]) -> int:
-    transform = _transform_root()
-    scripts = transform / "scripts"
-    if str(scripts) not in sys.path:
-        sys.path.insert(0, str(scripts))
+    ensure_sys_path()
     from deploy_scope import main as deploy_scope_main
 
+    tr = transform_root()
     if "--module-root" not in argv:
-        argv = ["--module-root", str(transform), *argv]
+        argv = ["--module-root", str(tr), *argv]
     return int(deploy_scope_main(argv))
+
+
+def _run_index(argv: List[str]) -> int:
+    """Run inverted-index CLI from ``submodules/inverted_index/cli.py``."""
+    if argv and argv[0] == "ui":
+        print(
+            "The standalone inverted index UI was removed. "
+            "Use: python module.py ui  (from cdf_discovery)",
+            file=sys.stderr,
+        )
+        return 2
+    ensure_sys_path()
+    idx_root = inverted_index_root()
+    os.environ.setdefault("CDF_INVERTED_INDEX_ROOT", str(idx_root))
+    from inverted_index.cli import main as index_cli_main  # noqa: WPS433
+
+    return int(index_cli_main(argv))
 
 
 def main() -> None:
@@ -234,6 +284,8 @@ def main() -> None:
             raise SystemExit(_run_transform_deploy_scope(sub_argv))
         print(f"Unknown transform subcommand: {sub}", file=sys.stderr)
         raise SystemExit(2)
+    if args[0] == "index":
+        raise SystemExit(_run_index(args[1:]))
     print(f"Unknown command: {args[0]}\n{__doc__}", file=sys.stderr)
     raise SystemExit(2)
 

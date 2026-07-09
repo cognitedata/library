@@ -350,6 +350,12 @@ export type SettingsDocumentTab = {
   label: string;
 };
 
+export type {
+  InvertedIndexDocumentTab,
+  InvertedIndexTabKind,
+} from "../modules/invertedIndex/types";
+import type { InvertedIndexDocumentTab } from "../modules/invertedIndex/types";
+
 export type DocumentTab =
   | DataModelDocumentTab
   | RecordsStreamDocumentTab
@@ -367,7 +373,8 @@ export type DocumentTab =
   | EtlWorkflowYamlDocumentTab
   | ExtractDocumentTab
   | MonitorDocumentTab
-  | SettingsDocumentTab;
+  | SettingsDocumentTab
+  | InvertedIndexDocumentTab;
 
 /** Serializable document tab for ``discovery.local.config.yaml`` workspace persistence. */
 export type SavedWorkspaceSqlTab = {
@@ -487,6 +494,13 @@ export type SavedWorkspaceSettingsTab = {
   label?: string;
 };
 
+export type SavedWorkspaceInvertedIndexTab = {
+  kind: import("../modules/invertedIndex/types").InvertedIndexTabKind;
+  id: string;
+  label?: string;
+  nav_node_id?: string;
+};
+
 export type SavedWorkspaceTab =
   | SavedWorkspaceSqlTab
   | SavedWorkspaceDataModelTab
@@ -502,7 +516,8 @@ export type SavedWorkspaceTab =
   | SavedWorkspaceEtlTemplateTab
   | SavedWorkspaceExtractTab
   | SavedWorkspaceMonitorTab
-  | SavedWorkspaceSettingsTab;
+  | SavedWorkspaceSettingsTab
+  | SavedWorkspaceInvertedIndexTab;
 
 export type SavedWorkspace = {
   active_tab_id: string | null;

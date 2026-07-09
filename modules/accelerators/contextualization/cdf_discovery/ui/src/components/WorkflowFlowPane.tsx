@@ -73,7 +73,7 @@ function FlowInner({
   openInTransformBusy = false,
   openInTransformError = null,
 }: Props) {
-  const { t, theme } = useAppSettings();
+  const { t, resolvedTheme } = useAppSettings();
   const flowRootRef = useRef<HTMLDivElement>(null);
   const viewportRef = useRef<TransformCanvasViewport | null>(null);
   const viewportPersistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -392,7 +392,7 @@ function FlowInner({
               nodes={nodes}
               edges={displayEdges}
               nodeTypes={nodeTypes}
-              colorMode={theme}
+              colorMode={resolvedTheme}
               onNodesChange={onNodesChange}
               onNodeDragStart={onNodeDragStart}
               onMoveEnd={onMoveEnd}

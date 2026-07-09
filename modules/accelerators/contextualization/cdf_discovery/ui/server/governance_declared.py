@@ -23,7 +23,7 @@ GOVERNANCE_SUBDIR = "governance"
 
 
 def default_declared_root(discovery_module_root: Optional[Path] = None) -> Path:
-    """Default declared root: ``<cdf_discovery>/governance/`` (local build output)."""
+    """Default declared root: ``<cdf_discovery>/submodules/governance/`` (local build output)."""
     base = discovery_module_root.resolve() if discovery_module_root is not None else _DISCOVERY_MODULE_ROOT
     return (base / GOVERNANCE_SUBDIR).resolve()
 

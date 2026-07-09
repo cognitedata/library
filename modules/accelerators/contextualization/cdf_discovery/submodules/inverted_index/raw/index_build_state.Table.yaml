@@ -1,0 +1,2 @@
+dbName: {{ index_raw_database }}
+tableName: index_build_state

@@ -27,7 +27,8 @@ def run_inverted_index(
         inv = {
             "status": "skipped",
             "reason": summary.get("reason", "no_index_kinds_configured"),
-            "inverted_writes": 0,
+            "entries_created": 0,
+            "entries_updated": 0,
             "entities": 0,
             "postings": 0,
             "index_kinds_configured": summary.get("index_kinds_configured"),
@@ -35,21 +36,25 @@ def run_inverted_index(
     else:
         inv = {
             "status": "ok",
-            "inverted_writes": int(summary.get("inverted_writes") or 0),
+            "entries_created": int(summary.get("entries_created") or 0),
+            "entries_updated": int(summary.get("entries_updated") or 0),
             "entities": int(summary.get("entities") or 0),
             "postings": int(summary.get("postings") or 0),
             "rows_read": int(summary.get("rows_read") or 0),
-            "raw_db": summary.get("raw_db"),
-            "raw_table": summary.get("raw_table"),
+            "storage_backend": summary.get("storage_backend"),
+            "match_scope_key": summary.get("match_scope_key"),
+            "raw_database": summary.get("raw_database"),
             "run_id": summary.get("run_id"),
             "index_kinds_configured": summary.get("index_kinds_configured"),
             "predecessor_raw_sources": summary.get("predecessor_raw_sources"),
         }
     if log and hasattr(log, "info"):
         log.info(
-            "fn_dm_inverted_index writes=%s postings=%s",
-            inv.get("inverted_writes"),
+            "fn_dm_inverted_index created=%s updated=%s postings=%s backend=%s",
+            inv.get("entries_created"),
+            inv.get("entries_updated"),
             inv.get("postings"),
+            inv.get("storage_backend"),
         )
     return {
         "function_external_id": "fn_dm_inverted_index",

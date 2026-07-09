@@ -343,7 +343,7 @@ def _name_source_for_task_id(kind: str, canvas_node_id: str, data: Mapping[str, 
         if inv_desc:
             return inv_desc
     pc = data.get("persistence_config") if isinstance(data.get("persistence_config"), dict) else {}
-    for key in ("description", "inverted_index_raw_table", "source_raw_table_key", "raw_table_key"):
+    for key in ("description", "index_raw_database", "source_raw_table_key", "raw_table_key"):
         v = str(pc.get(key) or "").strip()
         if v:
             return v

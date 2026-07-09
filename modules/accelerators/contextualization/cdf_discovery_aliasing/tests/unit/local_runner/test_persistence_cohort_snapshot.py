@@ -49,7 +49,11 @@ def test_build_inverted_index_snapshot_without_client() -> None:
     data = {
         "run_id": "run_1",
         "task_id": "ii_a",
-        "configuration": {"inverted_index_raw_table": "idx_tbl"},
+        "config": {
+            "index_storage_backend": "raw",
+            "index_raw_database": "db_contextualization_idx",
+            "scope": {"enabled": True, "fallback_scope_key": "global"},
+        },
         "compiled_workflow": {
             "tasks": [
                 {
@@ -67,4 +71,5 @@ def test_build_inverted_index_snapshot_without_client() -> None:
         function_external_id="fn_dm_inverted_index",
     )
     assert "inverted_index_persistence" in snap
+    assert snap["inverted_index_persistence"]["storage_backend"] == "raw"
     assert snap["inverted_index_persistence"]["error"] == "no_client"

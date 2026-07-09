@@ -9,7 +9,7 @@ import sys
 from pathlib import Path
 
 MODULE_ROOT = Path(__file__).resolve().parents[1]
-FUNCS = MODULE_ROOT / "functions"
+FUNCS = MODULE_ROOT / "submodules/transform/functions"
 if str(FUNCS) not in sys.path:
     sys.path.insert(0, str(FUNCS))
 

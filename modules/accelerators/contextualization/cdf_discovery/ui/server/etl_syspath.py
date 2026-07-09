@@ -1,4 +1,4 @@
-"""Ensure ETL ``transform/`` packages win over the module-root ``local_runner`` stub."""
+"""Ensure ETL ``submodules/transform/`` packages win over the module-root ``local_runner`` stub."""
 
 from __future__ import annotations
 
@@ -7,21 +7,22 @@ from pathlib import Path
 
 
 def transform_root(module_root: Path) -> Path:
-    return module_root / "transform"
+    return module_root / "submodules" / "transform"
 
 
 def ensure_transform_syspath(module_root: Path) -> Path:
     """
-    Prepend ``functions/``, ``transform/``, and ``transform/scripts`` so ``local_runner``
-    resolves to ``transform/local_runner`` (full runner), not ``cdf_discovery/local_runner``
-    (client-only stub), and ``workflow_build`` is importable for UI compile/build.
-
-    Paths are moved to the front even when already on ``sys.path`` (e.g. from ``PYTHONPATH``),
-    because the script directory is always ``cdf_discovery/`` and would otherwise win first.
+    Prepend function handlers, transform tree, scripts, and shared cdf_fn_common so
+    ``local_runner`` resolves to ``submodules/transform/local_runner``.
     """
     tr = transform_root(module_root)
     root = module_root.resolve()
-    for p in (str(root / "functions"), str(tr), str(tr / "scripts")):
+    for p in (
+        str(root / "shared" / "cdf_fn_common"),
+        str(root / "submodules" / "transform" / "functions"),
+        str(tr),
+        str(tr / "scripts"),
+    ):
         while p in sys.path:
             sys.path.remove(p)
         sys.path.insert(0, p)

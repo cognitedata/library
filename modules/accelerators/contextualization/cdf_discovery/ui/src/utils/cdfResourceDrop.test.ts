@@ -9,18 +9,18 @@ import {
 describe("cdfResourceDrop", () => {
   it("maps function tree nodes to function_ref config", () => {
     const node: TreeNode = {
-      id: "fusion:integration:functions:item:fn_etl_join",
+      id: "fusion:integration:functions:item:fn_discovery_etl_join",
       label: "Join",
       kind: "function",
       has_children: false,
-      meta: { external_id: "fn_etl_join", id: "fn_etl_join" },
+      meta: { external_id: "fn_discovery_etl_join", id: "fn_discovery_etl_join" },
     };
     expect(canDragCdfResourceToTransformCanvas(node)).toBe(true);
     const payload = cdfResourceDragPayloadFromNode(node);
     expect(payload?.kind).toBe("cdf_function");
     const drop = cdfResourceDropStage(payload!);
     expect(drop.stage).toBe("function_ref");
-    expect(drop.config.function_external_id).toBe("fn_etl_join");
+    expect(drop.config.function_external_id).toBe("fn_discovery_etl_join");
   });
 
   it("maps transformation and workflow nodes", () => {

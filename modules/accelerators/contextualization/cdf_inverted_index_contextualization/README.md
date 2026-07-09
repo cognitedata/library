@@ -1,5 +1,7 @@
 # Inverted Index Contextualization
 
+> **Deprecation:** The standalone operator UI (`cdf_inverted_index_contextualization/ui`) has been removed. Use the **Indexing** module in [`cdf_discovery`](../cdf_discovery/README.md): `cd cdf_discovery && python module.py ui`. CLI subcommands remain available via `python module.py index …` from `cdf_discovery`, or directly from this folder's `module.py` when `CDF_INVERTED_INDEX_ROOT` points at `cdf_discovery/inverted_index`.
+
 **New to this module?** Start with [docs/QUICKSTART.md](docs/QUICKSTART.md).
 
 Implementation per [cdf_inverted_index_function_spec.md](docs/cdf_inverted_index_function_spec.md). See [target_driven_contextualization_flow.md](docs/target_driven_contextualization_flow.md) for an end-to-end flow diagram (index build → matching → links → virtual tags). **RAW** scoped postings index; DM source reads use **`instances.query`** with server-side filters; contextualization outputs via CDM data modeling.

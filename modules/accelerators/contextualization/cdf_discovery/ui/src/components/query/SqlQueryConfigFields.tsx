@@ -42,7 +42,7 @@ function readWorkflowLimit(cfg: JsonObject): number | undefined {
 
 /** Editor for ``query_sql`` node ``data.config`` — CDF SQL preview (same API as cdf_discovery). */
 export function SqlQueryConfigFields({ value, onChange, fieldKey }: Props) {
-  const { t, theme } = useAppSettings();
+  const { t, resolvedTheme } = useAppSettings();
   const patch = (p: JsonObject) => onChange({ ...value, ...p });
 
   const sqlQuery = String(value.sql_query ?? value.query ?? "");
@@ -182,7 +182,7 @@ export function SqlQueryConfigFields({ value, onChange, fieldKey }: Props) {
               bodyHeight > 0 ? (
                 <SqlEditor
                   value={sqlQuery}
-                  theme={theme}
+                  theme={resolvedTheme}
                   height={`${bodyHeight}px`}
                   maxHeight={`${bodyHeight}px`}
                   ariaLabel={t("sql.editor.label")}

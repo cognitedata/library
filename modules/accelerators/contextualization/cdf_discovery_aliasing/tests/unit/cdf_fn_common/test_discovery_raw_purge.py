@@ -149,7 +149,7 @@ def test_delete_all_run_node_cohort_tables_deletes_prefixed_tables() -> None:
     client.raw.tables.list.return_value = [
         SimpleNamespace(name="discovery_state"),
         SimpleNamespace(name="discovery_state__20260101T120000.000000Z-abc__tr"),
-        SimpleNamespace(name="discovery_inverted_index"),
+        SimpleNamespace(name="other_persistent_table"),
         SimpleNamespace(name="other_table"),
     ]
     out = delete_all_run_node_cohort_tables(

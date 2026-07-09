@@ -11,6 +11,7 @@ import {
   GOVERNANCE_GROUPS,
   GOVERNANCE_ROOT,
   GOVERNANCE_SPACES,
+  INDEX_ROOT,
   MONITOR_ROOT,
   TRANSFORM_PIPELINES,
   TRANSFORM_ROOT,
@@ -23,6 +24,7 @@ const TREE_DESC_KEYS: Record<string, MessageKey> = {
   [GOVERNANCE_ROOT]: "tree.desc.gov",
   [EXTRACT_ROOT]: "tree.desc.extract",
   [TRANSFORM_ROOT]: "tree.desc.transform",
+  [INDEX_ROOT]: "invertedIndex.nav.desc.indexing",
   [MONITOR_ROOT]: "tree.desc.monitor",
   "data:raw": "tree.desc.dataRaw",
   "data:dm": "tree.desc.dataDm",
@@ -38,6 +40,15 @@ const TREE_DESC_KEYS: Record<string, MessageKey> = {
   [TRANSFORM_TEMPLATES]: "tree.desc.transformTemplates",
   "fusion:dm": "tree.desc.fusionDm",
   "fusion:integration": "tree.desc.fusionIntegration",
+  "index:dashboard": "invertedIndex.nav.desc.dashboard",
+  "index:config": "invertedIndex.nav.desc.config",
+  "index:ops": "invertedIndex.nav.desc.ops",
+  "index:query": "invertedIndex.nav.desc.query",
+  "index:file": "invertedIndex.nav.desc.fileContext",
+  "index:tag-reuse": "invertedIndex.nav.desc.tagReuse",
+  "index:ops:build-metadata": "invertedIndex.nav.desc.buildMetadata",
+  "index:ops:build-annotations": "invertedIndex.nav.desc.buildAnnotations",
+  "index:ops:target-driven": "invertedIndex.nav.desc.targetDriven",
 };
 
 const KIND_DESC_KEYS: Record<string, MessageKey> = {
@@ -62,6 +73,14 @@ const KIND_DESC_KEYS: Record<string, MessageKey> = {
   gov_group: "tree.desc.kindGovArtifact",
   extract: "tree.desc.extract",
   monitor: "tree.desc.monitor",
+  inverted_index_dashboard: "invertedIndex.nav.desc.dashboard",
+  inverted_index_configuration: "invertedIndex.nav.desc.config",
+  inverted_index_build_metadata: "invertedIndex.nav.desc.buildMetadata",
+  inverted_index_build_annotations: "invertedIndex.nav.desc.buildAnnotations",
+  inverted_index_target_driven: "invertedIndex.nav.desc.targetDriven",
+  inverted_index_query: "invertedIndex.nav.desc.query",
+  inverted_index_file_context: "invertedIndex.nav.desc.fileContext",
+  inverted_index_tag_reuse: "invertedIndex.nav.desc.tagReuse",
 };
 
 export function treeNodeDescription(

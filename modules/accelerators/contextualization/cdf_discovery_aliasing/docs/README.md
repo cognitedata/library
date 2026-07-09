@@ -75,7 +75,7 @@ Incremental **listing cursor**, **per-record content hash**, and **prior classif
 | [fn_dm_view_save](../functions/fn_dm_view_save/handler.py) | DM apply from predecessor payloads |
 | [fn_dm_raw_save](../functions/fn_dm_raw_save/handler.py) | RAW save stage |
 | [fn_dm_classic_save](../functions/fn_dm_classic_save/handler.py) | Classic save stage |
-| [fn_dm_inverted_index](../functions/fn_dm_inverted_index/handler.py) | RAW inverted index for FK + document reference strings |
+| [fn_dm_inverted_index](../functions/fn_dm_inverted_index/handler.py) | Contextualization inverted index (DM or RAW scoped postings) |
 | [fn_dm_discovery_raw_cleanup](../functions/fn_dm_discovery_raw_cleanup/handler.py) | Post-run RAW cleanup |
 | [ISA patterns (aliasing)](specifications/2.%20aliasing.md) | Pattern-based rules (spec)                                                                                 |
 | [Tag pattern library](../config/tag_patterns.yaml) | Shared regex fragments for scopes and docs                                                          |

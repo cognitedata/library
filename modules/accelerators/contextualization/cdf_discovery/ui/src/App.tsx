@@ -9,7 +9,6 @@ import {
 } from "./api";
 import { DocumentTabBar } from "./components/DocumentTabBar";
 import { DocumentTabFullscreenOverlay } from "./components/DocumentTabFullscreenOverlay";
-import { DataModelFlowPane } from "./components/DataModelFlowPane";
 import { ObjectDiscovery } from "./components/ObjectDiscovery";
 import { AccessibleResizeHandle } from "./components/AccessibleResizeHandle";
 import { TreePanelDockMenu } from "./components/PanelDockToggleButtons";
@@ -23,55 +22,28 @@ import {
   type TreePanelSide,
 } from "./hooks/useDiscoveryPanelLayout";
 import { useDocumentTabFullscreen } from "./hooks/useDocumentTabFullscreen";
-import { SqlQueryPane } from "./components/SqlQueryPane";
-import { RecordsStreamDocumentTab as RecordsStreamPane } from "./components/RecordsStreamDocumentTab";
-import { FunctionPane } from "./components/FunctionPane";
-import { TransformationPane } from "./components/TransformationPane";
-import { TransformPipelinePane } from "./components/transform/TransformPipelinePane";
-import { TransformFusionWorkflowPane } from "./components/transform/TransformFusionWorkflowPane";
 import { CreatePipelineDialog } from "./components/transform/CreatePipelineDialog";
 import { RenameTransformLabelDialog } from "./components/transform/RenameTransformLabelDialog";
 import { SavePipelineAsTemplateDialog } from "./components/transform/SavePipelineAsTemplateDialog";
-import { GovernanceScopePane } from "./components/governance/GovernanceScopePane";
-import { TransformWorkflowYamlPane } from "./components/transform/TransformWorkflowYamlPane";
-import { GovernanceSpacesPane } from "./components/governance/GovernanceSpacesPane";
-import { GovernanceGroupsPane } from "./components/governance/GovernanceGroupsPane";
-import { GovernanceCdfSpacePane } from "./components/governance/GovernanceCdfSpacePane";
-import { GovernanceCdfGroupPane } from "./components/governance/GovernanceCdfGroupPane";
 import { CreateGovernanceArtifactDialog } from "./components/governance/CreateGovernanceArtifactDialog";
 import { CogniteLogo } from "./components/CogniteLogo";
-import { ComingSoonPane } from "./components/ComingSoonPane";
-import { WorkflowStateDashboardPane } from "./components/monitor/WorkflowStateDashboardPane";
-import { SettingsPane } from "./components/settings/SettingsPane";
 import { useAppSettings } from "./context/AppSettingsContext";
 import { useDiscoveryConfig } from "./context/DiscoveryConfigContext";
 import { openTargetFromSqlTabId } from "./utils/workspacePersistence";
 import { dmInstanceKindFromOpenTarget } from "./utils/dmInstanceFromRow";
 import { LOCALES } from "./i18n";
 import {
-  isDataModelTab,
-  isFunctionTab,
   isSqlTab,
   isRecordsStreamTab,
-  isTransformationTab,
-  isWorkflowTab,
-  isGovernanceScopeTab,
   isGovernanceSpacesTab,
   isGovernanceGroupsTab,
-  isGovernanceCdfSpaceTab,
-  isGovernanceCdfGroupTab,
   isEtlPipelineTab,
   isEtlTemplateTab,
   isEtlWorkflowYamlTab,
-  isExtractTab,
-  isMonitorTab,
-  isSettingsTab,
   type DataModelDocumentTab,
   type GovernanceSubTab,
   type GovernanceSpacesDocumentTab,
   type GovernanceGroupsDocumentTab,
-  type GovernanceCdfSpaceDocumentTab,
-  type GovernanceCdfGroupDocumentTab,
   type DataModelGraphView,
   type DocumentTab,
   type FunctionDocumentTab,
@@ -85,38 +57,20 @@ import {
   type RecordsStreamDocumentTab,
   type TreeNode,
 } from "./types/discoveryNodes";
-import { dataModelTabKey, dataModelTabLabel, dataModelRefFromNode } from "./utils/dataModelTabs";
-import {
-  workflowRefFromNode,
-  workflowTabKey,
-  workflowTabLabel,
-} from "./utils/workflowTabs";
-import {
-  createFunctionTab,
-  functionIdFromNode,
-  functionLabelFromMeta,
-  functionTabKey,
-} from "./utils/functionTabs";
-import {
-  createTransformationTab,
-  transformationIdFromNode,
-  transformationLabelFromMeta,
-  transformationTabKey,
-} from "./utils/transformationTabs";
 import {
   createSqlTab,
   createSqlTabForOpenTarget,
   createFileContentSqlTab,
   SQL_WORKSPACE_TAB_ID,
+  sqlTabKeyForOpenTarget,
 } from "./utils/sqlTabs";
 import { createRecordsStreamTab } from "./utils/recordsStreamTabs";
-import { canQueryTreeNode, labelForDmView, openTargetForDmView } from "./utils/sqlQuerySeed";
+import { labelForDmView, openTargetForDmView } from "./utils/sqlQuerySeed";
 import {
   nodePreviewOpenTarget,
   resolvePreviewRawSink,
   sqlQueryForPreviewNode,
 } from "./utils/nodePreviewQuery";
-import { sqlTabKeyForOpenTarget } from "./utils/sqlTabs";
 import type { TransformWorkflowParameters } from "./types/transformCanvas";
 import { fileContentRefFromRow } from "./utils/queryableFileFromRow";
 import { downloadCdfFileWithConfirm } from "./utils/downloadCdfFile";
@@ -131,27 +85,17 @@ import {
 import {
   createEtlPipelineTab,
   createEtlTemplateTab,
-  createEtlWorkflowYamlTab,
   etlPipelineTabKey,
   etlTemplateTabKey,
-  normalizePipelineScopeSuffix,
-  pipelineIdFromNode,
-  scopeSuffixFromNode,
-  pipelineLabelFromMeta,
-  templateIdFromNode,
-  templateLabelFromMeta,
-  workflowYamlRelPathFromNode,
-  workflowYamlTabKey,
   opensTransformTab,
+  pipelineIdFromNode,
+  templateIdFromNode,
 } from "./utils/transformTabs";
-import { TRANSFORM_ROOT } from "./utils/treeNodeIds";
 import {
   type TransformTabRunSessionPatch,
   withTransformTabRunSession,
 } from "./types/transformTabRun";
 import {
-  createExtractTab,
-  createMonitorTab,
   createSettingsTab,
   opensExtractTab,
   opensMonitorTab,
@@ -160,6 +104,13 @@ import { opensGovernanceCdfDetailTab, opensGovernanceTab } from "./utils/governa
 import type { GovernanceArtifactCreateContext } from "./utils/governanceTreeNew";
 import { restoreWorkspaceTabs, serializeWorkspace } from "./utils/workspacePersistence";
 import type { SavedQuery } from "./types/discoveryNodes";
+import { DISCOVERY_MODULES } from "./modules/discoveryModules";
+import {
+  openModuleNode,
+  renderModuleTab,
+} from "./shell/discoveryShellDispatch";
+import type { OpenNodeContext, RenderTabContext } from "./shell/discoveryShell";
+import { invertedIndexKindFromNode } from "./modules/invertedIndex/utils/indexTabs";
 
 export function App() {
   const { t, theme, setTheme, locale, setLocale } = useAppSettings();
@@ -652,7 +603,7 @@ export function App() {
   );
 
   const openGovernanceWorkspaceTab = useCallback(
-    (which: "spaces" | "groups", subTab: GovernanceSubTab, artifactRel?: string) => {
+    (which: "spaces" | "groups", subTab: GovernanceSubTab, artifactRel?: string | null) => {
       const id = which === "spaces" ? "gov:spaces" : "gov:groups";
       const label =
         which === "spaces" ? t("governance.tree.instanceSpaces") : t("fusion.tree.groups");
@@ -713,301 +664,17 @@ export function App() {
 
   const openDiscoveryNode = useCallback(
     (node: TreeNode) => {
-      if (node.kind === "saved_query") {
-        const query = savedQueryFromNode(node);
-        if (query) openSavedQuery(query);
-        return;
-      }
-      if (node.kind === "workflow") {
-        const ref = workflowRefFromNode(node);
-        if (!ref) return;
-        void (async () => {
-          try {
-            const found = await fetchTransformWorkflowByWorkflow(ref.external_id);
-            const scopeSuffix = normalizePipelineScopeSuffix(found.scope_suffix);
-            const pipelineId = found.workflow_id;
-            const label =
-              (typeof found.workflow.label === "string" && found.workflow.label.trim()) ||
-              pipelineId;
-            const id = etlPipelineTabKey(pipelineId, scopeSuffix);
-            setTabs((prev) => {
-              const existing = prev.find((tab) => tab.id === id);
-              if (existing) {
-                setActiveTabId(id);
-                return prev;
-              }
-              const tab = createEtlPipelineTab(pipelineId, label, null, scopeSuffix);
-              setActiveTabId(id);
-              return [...prev, tab];
-            });
-            setRowDetail(null);
-          } catch {
-            const id = workflowTabKey(ref);
-            setTabs((prev) => {
-              const existing = prev.find((tab) => tab.id === id);
-              if (existing) {
-                setActiveTabId(id);
-                return prev;
-              }
-              const tab: WorkflowDocumentTab = {
-                kind: "workflow",
-                id,
-                label: workflowTabLabel(ref),
-                workflow: ref,
-                graph: null,
-                loading: true,
-                error: null,
-              };
-              setActiveTabId(id);
-              return [...prev, tab];
-            });
-            setRowDetail(null);
-          }
-        })();
-        return;
-      }
-      if (node.kind === "function") {
-        const fnId = functionIdFromNode(node);
-        if (fnId == null) return;
-        const id = functionTabKey(fnId);
-        const label = functionLabelFromMeta(node.meta);
-        setTabs((prev) => {
-          const existing = prev.find((tab) => tab.id === id);
-          if (existing) {
-            setActiveTabId(id);
-            return prev;
-          }
-          const tab = createFunctionTab(fnId, label);
-          setActiveTabId(id);
-          return [...prev, tab];
-        });
-        setRowDetail(null);
-        return;
-      }
-      if (node.kind === "etl_pipeline") {
-        const pipelineId = pipelineIdFromNode(node);
-        if (!pipelineId) return;
-        const scopeSuffix = scopeSuffixFromNode(node);
-        const id = etlPipelineTabKey(pipelineId, scopeSuffix);
-        const label = pipelineLabelFromMeta(node.meta);
-        setTabs((prev) => {
-          const existing = prev.find((tab) => tab.id === id);
-          if (existing) {
-            setActiveTabId(id);
-            return prev;
-          }
-          const tab = createEtlPipelineTab(pipelineId, label, null, scopeSuffix);
-          setActiveTabId(id);
-          return [...prev, tab];
-        });
-        setRowDetail(null);
-        return;
-      }
-      if (node.kind === "etl_template") {
-        const templateId = templateIdFromNode(node);
-        if (!templateId) return;
-        const id = etlTemplateTabKey(templateId);
-        const label = templateLabelFromMeta(node.meta);
-        setTabs((prev) => {
-          const existing = prev.find((tab) => tab.id === id);
-          if (existing) {
-            setActiveTabId(id);
-            return prev;
-          }
-          const tab = createEtlTemplateTab(templateId, label);
-          setActiveTabId(id);
-          return [...prev, tab];
-        });
-        setRowDetail(null);
-        return;
-      }
-      if (node.kind === "etl_workflow_yaml") {
-        const relPath = workflowYamlRelPathFromNode(node);
-        if (!relPath) return;
-        const id = workflowYamlTabKey(relPath);
-        const label = node.label?.trim() || relPath.split("/").pop() || relPath;
-        setTabs((prev) => {
-          const existing = prev.find((tab) => tab.id === id);
-          if (existing) {
-            setActiveTabId(id);
-            return prev;
-          }
-          const tab = createEtlWorkflowYamlTab(relPath, label);
-          setActiveTabId(id);
-          return [...prev, tab];
-        });
-        setRowDetail(null);
-        return;
-      }
-      if (opensExtractTab(node)) {
-        const id = "extract" as const;
-        setTabs((prev) => {
-          const existing = prev.find((tab) => tab.id === id);
-          if (existing) {
-            setActiveTabId(id);
-            return prev;
-          }
-          const tab = createExtractTab(t("tree.extract"));
-          setActiveTabId(id);
-          return [...prev, tab];
-        });
-        setRowDetail(null);
-        return;
-      }
-      if (opensMonitorTab(node)) {
-        const id = "monitor" as const;
-        setTabs((prev) => {
-          const existing = prev.find((tab) => tab.id === id);
-          if (existing) {
-            setActiveTabId(id);
-            return prev;
-          }
-          const tab = createMonitorTab(t("tree.monitor"));
-          setActiveTabId(id);
-          return [...prev, tab];
-        });
-        setRowDetail(null);
-        return;
-      }
-      if (node.kind === "transformation") {
-        const txId = transformationIdFromNode(node);
-        if (txId == null) return;
-        const id = transformationTabKey(txId);
-        const label = transformationLabelFromMeta(node.meta);
-        setTabs((prev) => {
-          const existing = prev.find((tab) => tab.id === id);
-          if (existing) {
-            setActiveTabId(id);
-            return prev;
-          }
-          const tab = createTransformationTab(txId, label);
-          setActiveTabId(id);
-          return [...prev, tab];
-        });
-        setRowDetail(null);
-        return;
-      }
-      if (node.kind === "dm_data_model") {
-        const ref = dataModelRefFromNode(node);
-        if (!ref) return;
-        const id = dataModelTabKey(ref);
-        setTabs((prev) => {
-          const existing = prev.find((tab) => tab.id === id);
-          if (existing) {
-            setActiveTabId(id);
-            return prev;
-          }
-          const tab: DocumentTab = {
-            kind: "data_model",
-            id,
-            label: dataModelTabLabel(ref),
-            dataModel: ref,
-            graph: null,
-            loading: true,
-            error: null,
-          };
-          setActiveTabId(id);
-          return [...prev, tab];
-        });
-        setRowDetail(null);
-        return;
-      }
-      const ws = node.meta?.governance_workspace as string | undefined;
-      if (ws === "scope" || node.id === "gov") {
-        const id = "gov:scope";
-        setTabs((prev) => {
-          const existing = prev.find((tab) => tab.id === id);
-          if (existing) {
-            setActiveTabId(id);
-            return prev;
-          }
-          setActiveTabId(id);
-          return [
-            ...prev,
-            { kind: "governance_scope", id, label: t("governance.subtab.scope") },
-          ];
-        });
-        setRowDetail(null);
-        return;
-      }
-      if (ws === "spaces" || node.id === "gov:spaces") {
-        openGovernanceWorkspaceTab("spaces", "configure");
-        setRowDetail(null);
-        return;
-      }
-      if (ws === "groups" || node.id === "gov:groups") {
-        openGovernanceWorkspaceTab("groups", "configure");
-        setRowDetail(null);
-        return;
-      }
-      if (node.kind === "gov_artifact_file") {
-        const rel = String(node.meta?.artifact_rel ?? "");
-        const workspace = (node.meta?.governance_workspace as "spaces" | "groups") ?? "spaces";
-        openGovernanceWorkspaceTab(workspace, "artifacts", rel);
-        setRowDetail(null);
-        return;
-      }
-      if (node.kind === "gov_space") {
-        const space = String(node.meta?.space ?? "");
-        if (!space) return;
-        const id = `gov:space:tab:${space}`;
-        setTabs((prev) => {
-          const existing = prev.find((tab) => tab.id === id);
-          if (existing) {
-            setActiveTabId(id);
-            return prev;
-          }
-          const tab: GovernanceCdfSpaceDocumentTab = {
-            kind: "governance_cdf_space",
-            id,
-            label: node.label,
-            space,
-            detail: null,
-            loading: true,
-            error: null,
-          };
-          setActiveTabId(id);
-          return [...prev, tab];
-        });
-        setRowDetail(null);
-        return;
-      }
-      if (node.kind === "gov_group") {
-        const gid = node.meta?.id;
-        const groupId = typeof gid === "number" ? gid : Number(gid);
-        if (!Number.isFinite(groupId)) return;
-        const id = `gov:group:tab:${groupId}`;
-        setTabs((prev) => {
-          const existing = prev.find((tab) => tab.id === id);
-          if (existing) {
-            setActiveTabId(id);
-            return prev;
-          }
-          const tab: GovernanceCdfGroupDocumentTab = {
-            kind: "governance_cdf_group",
-            id,
-            label: node.label,
-            groupId,
-            detail: null,
-            loading: true,
-            error: null,
-          };
-          setActiveTabId(id);
-          return [...prev, tab];
-        });
-        setRowDetail(null);
-        return;
-      }
-      if (
-        node.kind === "record_stream" &&
-        node.open_target?.type === "record_stream"
-      ) {
-        openRecordsStreamTab(node.open_target.stream_external_id, node.label);
-        return;
-      }
-      if (canQueryTreeNode(node) && node.open_target) {
-        openSqlForOpenTarget(node.open_target, node.label);
-      }
+      const ctx: OpenNodeContext = {
+        setTabs,
+        setActiveTabId,
+        setRowDetail,
+        t,
+        openSavedQuery,
+        openGovernanceWorkspaceTab,
+        openRecordsStreamTab,
+        openSqlForOpenTarget,
+      };
+      openModuleNode(node, ctx, DISCOVERY_MODULES);
     },
     [openGovernanceWorkspaceTab, openRecordsStreamTab, openSavedQuery, openSqlForOpenTarget, t]
   );
@@ -1174,186 +841,38 @@ export function App() {
   };
 
   const renderActiveTabContent = (tab: DocumentTab) => {
-    if (isDataModelTab(tab)) {
-      return <DataModelFlowPane tab={tab} onTabUpdate={updateDataModelTab} onQueryView={queryDmView} />;
-    }
-    if (isWorkflowTab(tab)) {
-      return (
-        <TransformFusionWorkflowPane
-          key={tab.id}
-          tab={tab}
-          onTabUpdate={updateWorkflowTab}
-          onOpenInTransform={() => void openWorkflowInTransform(tab.workflow)}
-          onDeleteInTransform={() => setTransformPipelinesRevision((n) => n + 1)}
-          openInTransformBusy={openInTransformBusyId === tab.workflow.external_id}
-          openInTransformError={openInTransformError}
-        />
-      );
-    }
-    if (isTransformationTab(tab)) {
-      return (
-        <TransformationPane
-          tab={tab}
-          onTabUpdate={updateTransformationTab}
-          onSelectRow={(row) => setRowDetail(row)}
-          onQueryFile={openFileContentQueryFromRow}
-          onDownloadFile={downloadFileFromRow}
-        />
-      );
-    }
-    if (isFunctionTab(tab)) {
-      return <FunctionPane tab={tab} onTabUpdate={updateFunctionTab} />;
-    }
-    if (isGovernanceScopeTab(tab)) {
-      return <GovernanceScopePane />;
-    }
-    if (isGovernanceSpacesTab(tab)) {
-      return (
-        <GovernanceSpacesPane
-          initialSubTab={tab.activeSubTab}
-          initialArtifactRel={tab.artifactRel}
-          onArtifactsChanged={(workspace) =>
-            setGovernanceArtifactsRevision((prev) => ({
-              token: prev.token + 1,
-              workspace,
-            }))
-          }
-        />
-      );
-    }
-    if (isGovernanceGroupsTab(tab)) {
-      return (
-        <GovernanceGroupsPane
-          initialSubTab={tab.activeSubTab}
-          initialArtifactRel={tab.artifactRel}
-          onArtifactsChanged={(workspace) =>
-            setGovernanceArtifactsRevision((prev) => ({
-              token: prev.token + 1,
-              workspace,
-            }))
-          }
-        />
-      );
-    }
-    if (isGovernanceCdfSpaceTab(tab)) {
-      return (
-        <GovernanceCdfSpacePane
-          tab={tab}
-          onTabUpdate={(updated) => setTabs((prev) => prev.map((row) => (row.id === updated.id ? updated : row)))}
-        />
-      );
-    }
-    if (isGovernanceCdfGroupTab(tab)) {
-      return (
-        <GovernanceCdfGroupPane
-          tab={tab}
-          onTabUpdate={(updated) => setTabs((prev) => prev.map((row) => (row.id === updated.id ? updated : row)))}
-        />
-      );
-    }
-    if (isEtlPipelineTab(tab)) {
-      return (
-        <TransformPipelinePane
-          key={tab.id}
-          tab={tab}
-          onTabUpdate={updateEtlDocumentTab}
-          onRunSessionPatch={patchEtlTabRunSession}
-          onCopyCreated={onTransformCopyCreated}
-          onBuildComplete={(result) => {
-            if (result.ok) bumpTransformPipelinesTree();
-          }}
-          onDelete={() => void deletePipeline(tab.pipelineId, tab.label)}
-          onRename={() => openRenamePipeline(tab.pipelineId, tab.label)}
-          onOpenNodePreviewQuery={(node) =>
-            openNodePreviewQuery(
-              tab.pipelineId,
-              node.id,
-              tab.document?.parameters as TransformWorkflowParameters | null | undefined,
-              (node.data as { config?: Record<string, unknown> } | undefined)?.config,
-              tab.runSession?.lastRun?.run_id
-            )
-          }
-        />
-      );
-    }
-    if (isEtlTemplateTab(tab)) {
-      return (
-        <TransformPipelinePane
-          key={tab.id}
-          editorKind="template"
-          tab={tab}
-          onTabUpdate={updateEtlDocumentTab}
-          onRunSessionPatch={patchEtlTabRunSession}
-          onCopyCreated={onTransformCopyCreated}
-          onBuildComplete={(result) => {
-            if (result.ok) bumpTransformPipelinesTree();
-          }}
-          onDelete={() => void deleteTemplate(tab.templateId, tab.label)}
-          onRename={() => openRenameTemplate(tab.templateId, tab.label)}
-          onOpenNodePreviewQuery={(node) =>
-            openNodePreviewQuery(
-              tab.templateId,
-              node.id,
-              tab.document?.parameters as TransformWorkflowParameters | null | undefined,
-              (node.data as { config?: Record<string, unknown> } | undefined)?.config,
-              tab.runSession?.lastRun?.run_id
-            )
-          }
-        />
-      );
-    }
-    if (isEtlWorkflowYamlTab(tab)) {
-      return (
-        <TransformWorkflowYamlPane
-          key={tab.id}
-          tab={tab}
-          onTabUpdate={(updated) =>
-            setTabs((prev) => prev.map((row) => (row.id === updated.id ? updated : row)))
-          }
-        />
-      );
-    }
-    if (isExtractTab(tab)) {
-      return <ComingSoonPane workspace="extract" />;
-    }
-    if (isMonitorTab(tab)) {
-      return (
-        <WorkflowStateDashboardPane
-          activeSection={tab.activeSection}
-          onActiveSectionChange={(next) =>
-            setTabs((prev) =>
-              prev.map((row) =>
-                row.id === tab.id && isMonitorTab(row) ? { ...row, activeSection: next } : row
-              )
-            )
-          }
-        />
-      );
-    }
-    if (isSettingsTab(tab)) {
-      return <SettingsPane />;
-    }
-    if (isRecordsStreamTab(tab)) {
-      return (
-        <RecordsStreamPane
-          tab={tab}
-          onTabUpdate={updateRecordsStreamTab}
-          onSelectRow={(row) => setRowDetail(row)}
-        />
-      );
-    }
-    if (isSqlTab(tab)) {
-      return (
-        <SqlQueryPane
-          tab={tab}
-          onTabUpdate={updateSqlTab}
-          onSelectRow={(row) => setRowDetail(row)}
-          onQueryFile={openFileContentQueryFromRow}
-          onDownloadFile={downloadFileFromRow}
-          onSave={tab.engine === "file_content" ? undefined : () => void saveSqlTab(tab, "save")}
-          onSaveAs={tab.engine === "file_content" ? undefined : () => void saveSqlTab(tab, "saveAs")}
-        />
-      );
+    const ctx: RenderTabContext = {
+      setTabs,
+      setRowDetail,
+      t,
+      updateDataModelTab,
+      updateSqlTab,
+      updateRecordsStreamTab,
+      updateTransformationTab,
+      updateFunctionTab,
+      updateWorkflowTab,
+      updateEtlDocumentTab,
+      patchEtlTabRunSession,
+      queryDmView,
+      openWorkflowInTransform,
+      openInTransformBusyId,
+      openInTransformError,
+      setTransformPipelinesRevision,
+      setGovernanceArtifactsRevision,
+      bumpTransformPipelinesTree,
+      deletePipeline,
+      deleteTemplate,
+      openRenamePipeline,
+      openRenameTemplate,
+      onTransformCopyCreated,
+      openNodePreviewQuery,
+      openFileContentQueryFromRow,
+      downloadFileFromRow,
+      saveSqlTab: (sqlTab, mode) => void saveSqlTab(sqlTab, mode),
+    };
+    const rendered = renderModuleTab(tab, ctx, DISCOVERY_MODULES);
+    if (rendered != null) {
+      return rendered;
     }
     return (
       <div
@@ -1475,7 +994,8 @@ export function App() {
                 opensGovernanceCdfDetailTab(node) ||
                 opensTransformTab(node) ||
                 opensExtractTab(node) ||
-                opensMonitorTab(node))
+                opensMonitorTab(node) ||
+                invertedIndexKindFromNode(node) != null)
             ) {
               openDiscoveryNode(node);
             }
@@ -1623,9 +1143,12 @@ export function App() {
         <div className="disc-toolbar__controls">
           <label className="disc-toolbar__control" title={t("controls.theme.tooltip")}>
             <span className="disc-toolbar__control-label">{t("controls.theme")}</span>
-            <span className="disc-theme-toggle" role="group">
+            <span className="disc-theme-toggle" role="group" aria-label={t("controls.theme")}>
               <button type="button" data-active={theme === "light"} onClick={() => setTheme("light")}>
                 {t("controls.themeLight")}
+              </button>
+              <button type="button" data-active={theme === "system"} onClick={() => setTheme("system")}>
+                {t("controls.themeSystem")}
               </button>
               <button type="button" data-active={theme === "dark"} onClick={() => setTheme("dark")}>
                 {t("controls.themeDark")}

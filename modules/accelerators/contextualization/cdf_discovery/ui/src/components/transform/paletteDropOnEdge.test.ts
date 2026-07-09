@@ -104,7 +104,7 @@ describe("transform paletteDropOnEdge", () => {
           if (mime === "application/x-transform-cdf-resource") {
             return JSON.stringify({
               kind: "cdf_function",
-              functionExternalId: "fn_etl_join",
+              functionExternalId: "fn_discovery_etl_join",
               label: "Join",
             });
           }
@@ -125,7 +125,7 @@ describe("transform paletteDropOnEdge", () => {
     const fnNode = result!.nodes.find((n) => n.type === "etlFunctionRef");
     expect(fnNode).toBeDefined();
     const cfg = (fnNode!.data as { config?: Record<string, unknown> }).config;
-    expect(cfg?.function_external_id).toBe("fn_etl_join");
+    expect(cfg?.function_external_id).toBe("fn_discovery_etl_join");
   });
 
   it("auto-wires dropped save node to first etlEnd", () => {

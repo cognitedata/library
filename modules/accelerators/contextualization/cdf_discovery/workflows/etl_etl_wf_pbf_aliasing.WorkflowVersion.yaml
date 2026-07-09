@@ -8,7 +8,7 @@ workflowDefinition:
     - externalId: score_mprbtiki
     parameters:
       function:
-        externalId: fn_etl_build_index
+        externalId: fn_discovery_etl_build_index
         data:
           logLevel: INFO
           incremental_change_processing: ${workflow.input.incremental_change_processing}
@@ -17,7 +17,7 @@ workflowDefinition:
           task_id: build_index_mpkhwovn
           canvas_node_id: build_index_mpkhwovn
           config:
-            description: Execute fn_etl_build_index
+            description: Execute fn_discovery_etl_build_index
             handler_id: property_token_index
             index_kinds:
               metadata:
@@ -31,7 +31,7 @@ workflowDefinition:
           predecessors:
           - score_mprbtiki
     name: Build Index
-    description: Execute fn_etl_build_index
+    description: Execute fn_discovery_etl_build_index
     retries: 3
     timeout: 7200
     onFailure: abortWorkflow
@@ -43,7 +43,7 @@ workflowDefinition:
     - externalId: transform_mprb9cgo
     parameters:
       function:
-        externalId: fn_etl_merge
+        externalId: fn_discovery_etl_merge
         data:
           logLevel: INFO
           incremental_change_processing: ${workflow.input.incremental_change_processing}
@@ -52,7 +52,7 @@ workflowDefinition:
           task_id: merge_mpk5updx
           canvas_node_id: merge_mpk5updx
           config:
-            description: Execute fn_etl_merge
+            description: Execute fn_discovery_etl_merge
             field_policies:
             - property: aliases
               strategy: merge_list
@@ -64,7 +64,7 @@ workflowDefinition:
           - transform_mpk5q5bq
           - transform_mprb9cgo
     name: Merge Aliases
-    description: Execute fn_etl_merge
+    description: Execute fn_discovery_etl_merge
     retries: 3
     timeout: 7200
     onFailure: abortWorkflow
@@ -73,7 +73,7 @@ workflowDefinition:
     dependsOn: []
     parameters:
       function:
-        externalId: fn_etl_view_query
+        externalId: fn_discovery_etl_view_query
         data:
           logLevel: INFO
           incremental_change_processing: ${workflow.input.incremental_change_processing}
@@ -82,7 +82,7 @@ workflowDefinition:
           task_id: query_view_mpk5beqq
           canvas_node_id: query_view_mpk5beqq
           config:
-            description: Execute fn_etl_view_query
+            description: Execute fn_discovery_etl_view_query
             filters: []
             batch_size: 1000
             view_space: DMASH-ALL-ALL-DMD
@@ -92,7 +92,7 @@ workflowDefinition:
             - technicalIdentificationNumber
           predecessors: []
     name: Equipment Tag
-    description: Execute fn_etl_view_query
+    description: Execute fn_discovery_etl_view_query
     retries: 3
     timeout: 7200
     onFailure: abortWorkflow
@@ -101,7 +101,7 @@ workflowDefinition:
     dependsOn: []
     parameters:
       function:
-        externalId: fn_etl_view_query
+        externalId: fn_discovery_etl_view_query
         data:
           logLevel: INFO
           incremental_change_processing: ${workflow.input.incremental_change_processing}
@@ -110,7 +110,7 @@ workflowDefinition:
           task_id: query_view_mpkf9ork
           canvas_node_id: query_view_mpkf9ork
           config:
-            description: Execute fn_etl_view_query
+            description: Execute fn_discovery_etl_view_query
             filters: []
             batch_size: 1000
             view_space: DMASH-ALL-ALL-DMD
@@ -121,7 +121,7 @@ workflowDefinition:
             - sortField
           predecessors: []
     name: CogniteEquipment (v1)
-    description: Execute fn_etl_view_query
+    description: Execute fn_discovery_etl_view_query
     retries: 3
     timeout: 7200
     onFailure: abortWorkflow
@@ -130,7 +130,7 @@ workflowDefinition:
     dependsOn: []
     parameters:
       function:
-        externalId: fn_etl_view_query
+        externalId: fn_discovery_etl_view_query
         data:
           logLevel: INFO
           incremental_change_processing: ${workflow.input.incremental_change_processing}
@@ -139,7 +139,7 @@ workflowDefinition:
           task_id: query_view_mpkf9xge
           canvas_node_id: query_view_mpkf9xge
           config:
-            description: Execute fn_etl_view_query
+            description: Execute fn_discovery_etl_view_query
             batch_size: 1000
             view_space: cdf_cdm
             view_version: v1
@@ -149,7 +149,7 @@ workflowDefinition:
             - name
           predecessors: []
     name: CogniteTimeSeries (v1)
-    description: Execute fn_etl_view_query
+    description: Execute fn_discovery_etl_view_query
     retries: 3
     timeout: 7200
     onFailure: abortWorkflow
@@ -158,7 +158,7 @@ workflowDefinition:
     dependsOn: []
     parameters:
       function:
-        externalId: fn_etl_view_query
+        externalId: fn_discovery_etl_view_query
         data:
           logLevel: INFO
           incremental_change_processing: ${workflow.input.incremental_change_processing}
@@ -167,7 +167,7 @@ workflowDefinition:
           task_id: query_view_mpkfbrkh
           canvas_node_id: query_view_mpkfbrkh
           config:
-            description: Execute fn_etl_view_query
+            description: Execute fn_discovery_etl_view_query
             batch_size: 1000
             view_space: cdf_cdm
             view_version: v1
@@ -177,7 +177,7 @@ workflowDefinition:
             - name
           predecessors: []
     name: CogniteFile (v1)
-    description: Execute fn_etl_view_query
+    description: Execute fn_discovery_etl_view_query
     retries: 3
     timeout: 7200
     onFailure: abortWorkflow
@@ -187,7 +187,7 @@ workflowDefinition:
     - externalId: build_index_mpkhwovn
     parameters:
       function:
-        externalId: fn_etl_raw_save
+        externalId: fn_discovery_etl_raw_save
         data:
           logLevel: INFO
           incremental_change_processing: ${workflow.input.incremental_change_processing}
@@ -196,13 +196,20 @@ workflowDefinition:
           task_id: save_raw_mpkhci4w
           canvas_node_id: save_raw_mpkhci4w
           config:
-            description: Execute fn_etl_raw_save
-            source_raw_db: db_discovery
-            source_raw_table_key: inverted_index
+            description: Persist inverted index entries via contextualization storage adapter
+            index_storage_backend: raw
+            index_raw_database: db_contextualization_idx
+            scope:
+              enabled: true
+              levels:
+              - site
+              - unit
+              scope_key_template: 'site:{site}|unit:{unit}'
+              fallback_scope_key: global
           predecessors:
           - build_index_mpkhwovn
     name: Save Inverted Index to Raw
-    description: Execute fn_etl_raw_save
+    description: Execute fn_discovery_etl_raw_save
     retries: 3
     timeout: 7200
     onFailure: abortWorkflow
@@ -212,7 +219,7 @@ workflowDefinition:
     - externalId: score_mpoukl1q
     parameters:
       function:
-        externalId: fn_etl_view_save
+        externalId: fn_discovery_etl_view_save
         data:
           logLevel: INFO
           incremental_change_processing: ${workflow.input.incremental_change_processing}
@@ -221,7 +228,7 @@ workflowDefinition:
           task_id: save_view_mpk5bi71
           canvas_node_id: save_view_mpk5bi71
           config:
-            description: Execute fn_etl_view_save
+            description: Execute fn_discovery_etl_view_save
             view_space: cdf_cdm
             view_version: v1
             save_fan_in_mode: merge_per_instance
@@ -235,7 +242,7 @@ workflowDefinition:
           predecessors:
           - score_mpoukl1q
     name: CogniteDescribable(v1)
-    description: Execute fn_etl_view_save
+    description: Execute fn_discovery_etl_view_save
     retries: 3
     timeout: 7200
     onFailure: abortWorkflow
@@ -245,7 +252,7 @@ workflowDefinition:
     - externalId: merge_mpk5updx
     parameters:
       function:
-        externalId: fn_etl_score
+        externalId: fn_discovery_etl_score
         data:
           logLevel: INFO
           incremental_change_processing: ${workflow.input.incremental_change_processing}
@@ -254,7 +261,7 @@ workflowDefinition:
           task_id: score_mpoukl1q
           canvas_node_id: score_mpoukl1q
           config:
-            description: Execute fn_etl_score
+            description: Execute fn_discovery_etl_score
             min_score: 0
             score_fields:
             - aliases
@@ -350,7 +357,7 @@ workflowDefinition:
           predecessors:
           - merge_mpk5updx
     name: "Asset validation \u2014 ISA \u2192 shape \u2192 blacklist \u2014 isa_compliant"
-    description: Execute fn_etl_score
+    description: Execute fn_discovery_etl_score
     retries: 3
     timeout: 7200
     onFailure: abortWorkflow
@@ -360,7 +367,7 @@ workflowDefinition:
     - externalId: transform_mprbta54
     parameters:
       function:
-        externalId: fn_etl_score
+        externalId: fn_discovery_etl_score
         data:
           logLevel: INFO
           incremental_change_processing: ${workflow.input.incremental_change_processing}
@@ -369,7 +376,7 @@ workflowDefinition:
           task_id: score_mprbtiki
           canvas_node_id: score_mprbtiki
           config:
-            description: Execute fn_etl_score
+            description: Execute fn_discovery_etl_score
             min_score: 0
             score_fields:
             - indexKey
@@ -469,7 +476,7 @@ workflowDefinition:
           - transform_mprbta54
     name: "Asset validation \u2014 ISA \u2192 shape \u2192 blacklist \u2014 isa_compliant\
       \ \u2014 isa_compliant"
-    description: Execute fn_etl_score
+    description: Execute fn_discovery_etl_score
     retries: 3
     timeout: 7200
     onFailure: abortWorkflow
@@ -480,7 +487,7 @@ workflowDefinition:
     - externalId: save_raw_mpkhci4w
     parameters:
       function:
-        externalId: fn_etl_raw_cleanup
+        externalId: fn_discovery_etl_raw_cleanup
         data:
           logLevel: INFO
           incremental_change_processing: ${workflow.input.incremental_change_processing}
@@ -489,12 +496,12 @@ workflowDefinition:
           task_id: task_end
           canvas_node_id: task_end
           config:
-            description: Execute fn_etl_raw_cleanup
+            description: Execute fn_discovery_etl_raw_cleanup
           predecessors:
           - save_view_mpk5bi71
           - save_raw_mpkhci4w
     name: Workflow step
-    description: Execute fn_etl_raw_cleanup
+    description: Execute fn_discovery_etl_raw_cleanup
     retries: 3
     timeout: 1800
     onFailure: abortWorkflow
@@ -507,7 +514,7 @@ workflowDefinition:
     - externalId: query_view_mpkfbrkh
     parameters:
       function:
-        externalId: fn_etl_transform
+        externalId: fn_discovery_etl_transform
         data:
           logLevel: INFO
           incremental_change_processing: ${workflow.input.incremental_change_processing}
@@ -516,7 +523,7 @@ workflowDefinition:
           task_id: transform_mpk5q5bq
           canvas_node_id: transform_mpk5q5bq
           config:
-            description: Execute fn_etl_transform
+            description: Execute fn_discovery_etl_transform
             fields:
             - regex: ''
               field_name: technicalIdentificationNumber
@@ -531,7 +538,7 @@ workflowDefinition:
           - query_view_mpkf9xge
           - query_view_mpkfbrkh
     name: Name Passthrough
-    description: Execute fn_etl_transform
+    description: Execute fn_discovery_etl_transform
     retries: 3
     timeout: 7200
     onFailure: abortWorkflow
@@ -541,7 +548,7 @@ workflowDefinition:
     - externalId: query_view_mpk5beqq
     parameters:
       function:
-        externalId: fn_etl_transform
+        externalId: fn_discovery_etl_transform
         data:
           logLevel: INFO
           incremental_change_processing: ${workflow.input.incremental_change_processing}
@@ -550,7 +557,7 @@ workflowDefinition:
           task_id: transform_mpk5sdjw
           canvas_node_id: transform_mpk5sdjw
           config:
-            description: Execute fn_etl_transform
+            description: Execute fn_discovery_etl_transform
             steps:
             - fields:
               - regex: (?<![\d-])(?:\b|(?<=_))(?:\d{1,8}-?)?[A-Z]{1,8}-?\d{1,10}(?:-\d{1,6})*[A-Z]?\b
@@ -597,7 +604,7 @@ workflowDefinition:
           predecessors:
           - query_view_mpk5beqq
     name: 'Regex Tag Extraction: Name'
-    description: Execute fn_etl_transform
+    description: Execute fn_discovery_etl_transform
     retries: 3
     timeout: 7200
     onFailure: abortWorkflow
@@ -607,7 +614,7 @@ workflowDefinition:
     - externalId: query_view_mpkf9ork
     parameters:
       function:
-        externalId: fn_etl_transform
+        externalId: fn_discovery_etl_transform
         data:
           logLevel: INFO
           incremental_change_processing: ${workflow.input.incremental_change_processing}
@@ -616,7 +623,7 @@ workflowDefinition:
           task_id: transform_mprb9cgo
           canvas_node_id: transform_mprb9cgo
           config:
-            description: Execute fn_etl_transform
+            description: Execute fn_discovery_etl_transform
             steps:
             - fields:
               - regex: (?<![\d-])(?:\b|(?<=_))(?:\d{1,8}-?)?[A-Z]{1,8}-?\d{1,10}(?:-\d{1,6})*[A-Z]?\b
@@ -663,7 +670,7 @@ workflowDefinition:
           predecessors:
           - query_view_mpkf9ork
     name: 'Regex Tag Extraction: Name'
-    description: Execute fn_etl_transform
+    description: Execute fn_discovery_etl_transform
     retries: 3
     timeout: 7200
     onFailure: abortWorkflow
@@ -673,7 +680,7 @@ workflowDefinition:
     - externalId: query_view_mpkfbrkh
     parameters:
       function:
-        externalId: fn_etl_transform
+        externalId: fn_discovery_etl_transform
         data:
           logLevel: INFO
           incremental_change_processing: ${workflow.input.incremental_change_processing}
@@ -682,7 +689,7 @@ workflowDefinition:
           task_id: transform_mprbta54
           canvas_node_id: transform_mprbta54
           config:
-            description: Execute fn_etl_transform
+            description: Execute fn_discovery_etl_transform
             steps:
             - fields:
               - field_name: name
@@ -717,7 +724,7 @@ workflowDefinition:
           predecessors:
           - query_view_mpkfbrkh
     name: Heuristic indexKey from file name
-    description: Execute fn_etl_transform
+    description: Execute fn_discovery_etl_transform
     retries: 3
     timeout: 7200
     onFailure: abortWorkflow

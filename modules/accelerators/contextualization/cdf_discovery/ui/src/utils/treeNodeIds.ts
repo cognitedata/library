@@ -19,6 +19,7 @@ export const GOVERNANCE_ROOT = "gov";
 export const GOVERNANCE_SPACES = "gov:spaces";
 export const GOVERNANCE_GROUPS = "gov:groups";
 export const EXTRACT_ROOT = "extract";
+export const INDEX_ROOT = "index";
 export const MONITOR_ROOT = "monitor";
 
 /** Sibling order under ``connection`` (tree root label shows the CDF project). */
@@ -28,6 +29,7 @@ export const CONNECTION_ROOT_CHILD_ORDER = [
   GOVERNANCE_ROOT,
   EXTRACT_ROOT,
   TRANSFORM_ROOT,
+  INDEX_ROOT,
   MONITOR_ROOT,
 ] as const;
 

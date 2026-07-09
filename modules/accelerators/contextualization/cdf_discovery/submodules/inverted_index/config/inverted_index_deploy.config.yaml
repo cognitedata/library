@@ -1,0 +1,26 @@
+# Toolkit deploy variables for wf_discovery_idx_* inverted-index workflows.
+# Merge into project config.*.yaml (module variables) before cdf build / deploy.
+#
+# View external IDs and dataModelingQuery branches are generated from
+# inverted_index/default.config.yaml by:
+#   python module.py build --build-inverted-index-triggers --force
+#
+# Required:
+#   workflowClientId, workflowClientSecret — service principal for WorkflowTrigger auth
+#
+# Index storage (required for workflow writes):
+#   index_storage_backend — "raw" (scoped postings) or "dm" (InvertedIndexEntry)
+#   index_raw_database — RAW database when backend is raw (default db_contextualization_idx)
+#   index_schema_space — DM space when backend is dm (default contextualization_idx)
+#
+# Optional (defaults shown):
+workflowClientId: ""
+workflowClientSecret: ""
+index_storage_backend: raw
+index_raw_database: db_contextualization_idx
+index_schema_space: contextualization_idx
+source_metadata_batch_size: 50
+source_metadata_batch_timeout: 60
+subscription_batch_size: 50
+subscription_batch_timeout: 60
+source_index_watermark_cron: "0 * * * *"

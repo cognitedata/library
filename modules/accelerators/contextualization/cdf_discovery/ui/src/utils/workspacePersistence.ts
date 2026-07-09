@@ -17,6 +17,8 @@ import {
 import { createExtractTab, createMonitorTab, createSettingsTab } from "./workspaceTabs";
 import { EXTRACT_ROOT, MONITOR_ROOT } from "./treeNodeIds";
 import { createTransformationTab } from "./transformationTabs";
+import { isInvertedIndexTab } from "../modules/invertedIndex/types";
+import { createInvertedIndexTab } from "../modules/invertedIndex/utils/indexTabs";
 import { createSqlTabFromSavedQuery, savedQueryIdFromTabId } from "./savedQueries";
 import { createSqlTab, createSqlTabForOpenTarget, createFileContentSqlTab, SQL_WORKSPACE_TAB_ID } from "./sqlTabs";
 import { workflowTabKey, workflowTabLabel } from "./workflowTabs";
@@ -199,6 +201,13 @@ export function serializeWorkspace(
       });
     } else if (tab.kind === "settings") {
       saved.push({ kind: "settings", id: tab.id, label: tab.label });
+    } else if (isInvertedIndexTab(tab)) {
+      saved.push({
+        kind: tab.kind,
+        id: tab.id,
+        label: tab.label,
+        nav_node_id: tab.navNodeId,
+      });
     }
   }
 
@@ -378,20 +387,37 @@ export function restoreWorkspaceTabs(
       tab.id = saved.id || etlTemplateTabKey(saved.template_id);
       tabs.push(tab);
     } else if (saved.kind === "extract") {
-      const tab = createExtractTab(saved.label?.trim() || "Extract");
-      tab.id = saved.id || EXTRACT_ROOT;
-      tabs.push(tab);
+      tabs.push({
+        ...createExtractTab(saved.label?.trim() || "Extract"),
+        id: saved.id || EXTRACT_ROOT,
+      });
     } else if (saved.kind === "monitor") {
-      const tab = createMonitorTab(
-        saved.label?.trim() || "Monitor",
-        saved.active_section ?? "workflowState"
-      );
-      tab.id = saved.id || MONITOR_ROOT;
-      tabs.push(tab);
+      tabs.push({
+        ...createMonitorTab(saved.label?.trim() || "Monitor", saved.active_section ?? "workflowState"),
+        id: saved.id || MONITOR_ROOT,
+      });
     } else if (saved.kind === "settings") {
-      const tab = createSettingsTab(saved.label?.trim() || "Settings");
-      tab.id = saved.id || "settings";
-      tabs.push(tab);
+      tabs.push({
+        ...createSettingsTab(saved.label?.trim() || "Settings"),
+        id: saved.id || "settings",
+      });
+    } else if (
+      saved.kind === "inverted_index_dashboard" ||
+      saved.kind === "inverted_index_configuration" ||
+      saved.kind === "inverted_index_build_metadata" ||
+      saved.kind === "inverted_index_build_annotations" ||
+      saved.kind === "inverted_index_target_driven" ||
+      saved.kind === "inverted_index_query" ||
+      saved.kind === "inverted_index_file_context" ||
+      saved.kind === "inverted_index_tag_reuse"
+    ) {
+      tabs.push(
+        createInvertedIndexTab(
+          saved.kind,
+          saved.label?.trim() || saved.kind,
+          saved.nav_node_id ?? saved.id
+        )
+      );
     }
   }
 

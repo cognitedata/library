@@ -12,7 +12,7 @@ import { pt } from "./pt";
 import { zh } from "./zh";
 import { ar } from "./ar";
 
-export type { Locale, LocaleMessages, MessageKey, Messages, Theme } from "./types";
+export type { Locale, LocaleMessages, MessageKey, Messages, ResolvedTheme, Theme } from "./types";
 export { ar, bn, de, en, es, fr, hi, ja, nb, pt, zh };
 
 export const LOCALES: { code: Locale; label: string }[] = [

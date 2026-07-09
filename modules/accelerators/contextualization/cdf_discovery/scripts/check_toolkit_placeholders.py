@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Ensure {{ placeholder }} tokens in Toolkit YAML exist in default.config.yaml."""
+"""Ensure {{ placeholder }} tokens in Toolkit YAML exist in module deploy config."""
 
 from __future__ import annotations
 
@@ -10,6 +10,8 @@ from pathlib import Path
 import yaml
 
 PLACEHOLDER = re.compile(r"\{\{\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\}\}")
+
+DEFAULT_DEPLOY_CONFIG = Path("inverted_index") / "config" / "inverted_index_deploy.config.yaml"
 
 
 def _collect_placeholders(path: Path) -> set[str]:
@@ -35,25 +37,38 @@ def _config_keys(config_path: Path) -> set[str]:
     return walk("", doc)
 
 
+def _merged_config_keys(module_root: Path, config: Path | None) -> set[str]:
+    keys: set[str] = set()
+    primary = config or (module_root / "default.config.yaml")
+    if primary.is_file():
+        keys |= _config_keys(primary)
+    deploy = module_root / DEFAULT_DEPLOY_CONFIG
+    if deploy.is_file():
+        keys |= _config_keys(deploy)
+    return keys
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--module-root", type=Path, required=True)
     parser.add_argument("--config", type=Path, default=None)
     args = parser.parse_args()
     root = args.module_root.resolve()
-    config = args.config or (root / "default.config.yaml")
-    if not config.is_file():
-        raise SystemExit(f"Missing config: {config}")
-    keys = _config_keys(config)
+    primary = args.config or (root / "default.config.yaml")
+    if not primary.is_file() and not (root / DEFAULT_DEPLOY_CONFIG).is_file():
+        raise SystemExit(f"Missing config: {primary}")
+    keys = _merged_config_keys(root, args.config)
     globs = [
         "data_sets/**/*.yaml",
-        "functions/**/*.yaml",
+        "submodules/transform/functions/**/*.yaml",
         "workflows/**/*.yaml",
     ]
     missing: list[str] = []
     for pattern in globs:
         for path in root.glob(pattern):
             if not path.is_file():
+                continue
+            if path.name.endswith(".config.yaml"):
                 continue
             for ph in _collect_placeholders(path):
                 if ph not in keys:

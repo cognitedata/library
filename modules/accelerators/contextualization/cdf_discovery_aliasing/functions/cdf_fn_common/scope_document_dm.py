@@ -57,9 +57,6 @@ def materialize_scope_confidence_refs_on_task_data(data: MutableMapping[str, Any
             data[key] = doc
 
 
-from .inverted_index_naming import inverted_index_raw_table_from_key_extraction_table
-
-
 def _workflow_v1_from_task_data(data: Mapping[str, Any]) -> Dict[str, Any]:
     """Read v1 scope mapping from task ``data``.
 
@@ -305,14 +302,6 @@ def build_aliasing_workflow_config(
     return {"externalId": ext, "config": inner}
 
 
-def inverted_index_raw_table_key_from_scope(ke_params: Mapping[str, Any], raw_table_key: str) -> str:
-    """Resolve inverted-index RAW table key from scope parameters or naming convention."""
-    explicit = ke_params.get("inverted_index_raw_table_key")
-    if explicit is not None and str(explicit).strip():
-        return str(explicit).strip()
-    return inverted_index_raw_table_from_key_extraction_table(str(raw_table_key))
-
-
 def read_enable_inverted_index(doc: Dict[str, Any]) -> bool:
     ke = doc.get("key_extraction")
     if not isinstance(ke, dict):
@@ -412,14 +401,11 @@ def apply_inverted_index_scope_document(
         data.setdefault("source_raw_table_key", raw_key)
         data.setdefault("source_raw_db", str(ke_params.get("raw_db") or "db_key_extraction"))
         data.setdefault("source_instance_space", str(space))
-        data.setdefault(
-            "inverted_index_raw_table",
-            inverted_index_raw_table_key_from_scope(ke_params, raw_key),
-        )
-        data.setdefault(
-            "inverted_index_raw_db",
-            str(data.get("source_raw_db") or "db_key_extraction"),
-        )
+    data.setdefault("index_storage_backend", str(ke_params.get("index_storage_backend") or "raw"))
+    data.setdefault(
+        "index_raw_database",
+        str(ke_params.get("index_raw_database") or "db_contextualization_idx"),
+    )
     if not data.get("enable_inverted_index"):
         return
     if isinstance(data.get("config"), dict) and data["config"]:

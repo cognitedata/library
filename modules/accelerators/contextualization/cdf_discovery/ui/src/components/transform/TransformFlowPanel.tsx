@@ -486,7 +486,7 @@ function FlowCanvasBody({
   validationFailedNodeIds,
   onOpenNodePreviewQuery,
 }: Props) {
-  const { theme } = useAppSettings();
+  const { resolvedTheme } = useAppSettings();
   const { screenToFlowPosition, getNode, getEdges, getNodes, getZoom, fitView, setViewport } =
     useReactFlow();
   const flowRootRef = useRef<HTMLDivElement>(null);
@@ -1962,7 +1962,7 @@ function FlowCanvasBody({
         >
           <FlowHandleOrientationProvider value={handleOrientation}>
             <ReactFlow
-            colorMode={theme}
+            colorMode={resolvedTheme}
             nodes={nodesForRf}
             edges={edgesForRf}
             nodeTypes={nodeTypes}

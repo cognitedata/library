@@ -14,7 +14,8 @@ Local read-only browser for CDF data and integration resources. Layout follows *
 
 ### Object tree (left)
 
-- **Connection** — project info; expand **Data** for **Saved Queries**, **RAW**, **Data Modeling** (data models and views), and **Classic**; **Integration** for **Workflows**, **Pipelines**, **Functions**, and **Transformations**; **Governance** for **Spaces** and **Groups**.
+- **Connection** — project info; expand **Data**, **Fusion**, **Governance**, **Extract**, **Transform**, **Indexing**, and **Monitor** (Settings is a separate root).
+- **Indexing** — dashboard, configuration, build/query operations, file context, and tag reuse audit. Double-click a leaf to open its document tab; long-running operations stream NDJSON progress in the operation console.
 - **Classic** — Assets, Time Series, Files, Events, Sequences, Data Sets, Relationships, and Labels (**Open** / double-click → SQL query tab).
 - **Data Modeling** — double-click a data model for a **diagram tab** (React Flow). Expand a model for its views; **Open** / double-click a view → SQL query tab seeded with `cdf_nodes(...)`.
 - **RAW** — databases listed directly under the folder → tables (**Open** / double-click → SQL query tab for that table).

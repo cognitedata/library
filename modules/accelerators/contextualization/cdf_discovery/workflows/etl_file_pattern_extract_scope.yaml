@@ -1,0 +1,190 @@
+schemaVersion: 1
+template_id: file_pattern_extract
+label: File Pattern Extract
+parameters:
+  incremental_change_processing: true
+  incremental_skip_unchanged: true
+  fanout_mode: both
+  raw_db: etl_staging
+  raw_table_key: cohort
+  instance_space: inst_assets
+  mime_type: application/pdf
+canvas:
+  schemaVersion: 1
+  handle_orientation: lr
+  layout_method: layered
+  edge_path_style: default
+  nodes:
+  - id: start
+    kind: start
+    data:
+      label: Start
+      config:
+        workflow_base: wf_all_wf_discovery_wf_discovery_wf_discovery_etl_file_pattern_extract
+        workflow_external_id: wf_all_wf_discovery_wf_discovery_wf_discovery_etl_file_pattern_extract
+        trigger_external_id: trg_wf_all_wf_discovery_wf_discovery_wf_discovery_etl_file_pattern_extract
+        workflow_version: '1'
+        incremental_change_processing: true
+    width: 148
+    height: 68
+  - id: query_assets
+    kind: query_view
+    data:
+      label: CogniteAsset (aliases)
+      config: &id001
+        description: Load CogniteAsset aliases for pattern-mode diagram detect entities
+        view_space: cdf_cdm
+        view_external_id: CogniteAsset
+        view_version: v1
+        batch_size: 1000
+        include_properties:
+        - aliases
+        query_scope_mode: all
+        filters: []
+    width: 192
+    height: 130
+  - id: query_files
+    kind: query_view
+    data:
+      label: CogniteFile (PDFs)
+      config: &id002
+        description: Files to scan via diagram pattern detect
+        view_space: cdf_cdm
+        view_external_id: CogniteFile
+        view_version: v1
+        batch_size: 500
+        include_properties:
+        - name
+        - mimeType
+        - pageCount
+        query_scope_mode: all
+        filters: []
+    width: 192
+    height: 130
+  - id: fanout_plan
+    kind: workflow_fanout_plan
+    data:
+      label: Plan detect batches
+      config: &id003
+        description: Build pattern entities and dynamic detect tasks per page-pack
+        fanout_profile: file_annotation
+        child_function_external_id: fn_discovery_etl_file_annotation_launch
+        batch_size: 10
+        max_pages_per_detect_request: 15
+        max_pages_per_file_reference: 50
+        diagram_poll_timeout_sec: 840
+        max_detect_jobs_per_invocation: 1
+    width: 236
+    height: 150
+  - id: fanout
+    kind: dynamic_fanout
+    data:
+      label: Dynamic fan-out
+      config: &id004
+        description: Run diagram pattern detect per page-pack (async tasks)
+        generator_task_id: fanout_plan
+        child_function_external_id: fn_discovery_etl_file_annotation_launch
+        batch_size: 1
+    width: 192
+    height: 130
+  - id: end
+    kind: end
+    data:
+      label: End
+      config:
+        description: Post-run cohort RAW cleanup
+    width: 148
+    height: 68
+  edges:
+  - id: edge_start_query_assets
+    source: start
+    target: query_assets
+    source_handle: out
+    target_handle: in
+    kind: data
+  - id: edge_start_query_files
+    source: start
+    target: query_files
+    source_handle: out
+    target_handle: in
+    kind: data
+  - id: edge_assets_plan
+    source: query_assets
+    target: fanout_plan
+    source_handle: out
+    target_handle: in__input_a
+    kind: data
+  - id: edge_files_plan
+    source: query_files
+    target: fanout_plan
+    source_handle: out
+    target_handle: in__input_b
+    kind: data
+  - id: edge_plan_fanout
+    source: fanout_plan
+    target: fanout
+    source_handle: out
+    target_handle: in
+    kind: data
+  - id: edge_fanout_end
+    source: fanout
+    target: end
+    source_handle: out
+    target_handle: in
+    kind: data
+compiled_workflow:
+  schema_version: 1
+  tasks:
+  - id: query_assets
+    function_external_id: fn_discovery_etl_view_query
+    executable_kind: query_view
+    task_type: function
+    canvas_node_id: query_assets
+    label: CogniteAsset (aliases)
+    depends_on: []
+    payload:
+      config: *id001
+  - id: query_files
+    function_external_id: fn_discovery_etl_view_query
+    executable_kind: query_view
+    task_type: function
+    canvas_node_id: query_files
+    label: CogniteFile (PDFs)
+    depends_on: []
+    payload:
+      config: *id002
+  - id: fanout_plan
+    function_external_id: fn_discovery_etl_fanout_plan
+    executable_kind: workflow_fanout_plan
+    task_type: function
+    canvas_node_id: fanout_plan
+    label: Plan detect batches
+    depends_on:
+    - query_assets
+    - query_files
+    payload:
+      config: *id003
+      input_a_task_id: query_assets
+      input_b_task_id: query_files
+      fanout_profile: file_annotation
+  - id: fanout
+    function_external_id: null
+    executable_kind: dynamic_fanout
+    task_type: dynamic
+    canvas_node_id: fanout
+    label: Dynamic fan-out
+    depends_on:
+    - fanout_plan
+    payload:
+      config: *id004
+  - id: end
+    function_external_id: fn_discovery_etl_raw_cleanup
+    executable_kind: raw_cleanup
+    task_type: function
+    canvas_node_id: end
+    depends_on:
+    - fanout
+    payload:
+      config:
+        description: Post-run cohort RAW cleanup
+id: file_pattern_extract

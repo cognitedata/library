@@ -3,3 +3,90 @@ title = "CDF Discovery"
 is_selected_by_default = false
 id = "dp:acc:ctx:discovery"
 package_id = "dp:contextualization"
+
+[[extra_resources]]
+location = "accelerators/contextualization/cdf_discovery/data_sets/ds_discovery_etl.DataSet.yaml"
+
+[[extra_resources]]
+location = "accelerators/contextualization/cdf_discovery/data_sets/ds_inverted_index_all.DataSet.yaml"
+
+[[extra_resources]]
+location = "accelerators/contextualization/cdf_discovery/submodules/transform/functions/functions.Function.yaml"
+
+[[extra_resources]]
+location = "accelerators/contextualization/cdf_discovery/submodules/inverted_index/functions/functions.Function.yaml"
+
+[[extra_resources]]
+location = "accelerators/contextualization/cdf_discovery/submodules/inverted_index/raw/contextualization_idx.DataBase.yaml"
+
+[[extra_resources]]
+location = "accelerators/contextualization/cdf_discovery/submodules/inverted_index/raw/inverted_index_registry.Table.yaml"
+
+[[extra_resources]]
+location = "accelerators/contextualization/cdf_discovery/submodules/inverted_index/raw/inverted_index_partition.Table.yaml"
+
+[[extra_resources]]
+location = "accelerators/contextualization/cdf_discovery/submodules/inverted_index/raw/index_build_state.Table.yaml"
+
+[[extra_resources]]
+location = "accelerators/contextualization/cdf_discovery/submodules/inverted_index/raw/source_index_state.Table.yaml"
+
+[[extra_resources]]
+location = "accelerators/contextualization/cdf_discovery/submodules/inverted_index/data_modeling/inverted_index.datamodel.yaml"
+
+[[extra_resources]]
+location = "accelerators/contextualization/cdf_discovery/submodules/inverted_index/data_modeling/spaces/contextualization_idx.Space.yaml"
+
+[[extra_resources]]
+location = "accelerators/contextualization/cdf_discovery/submodules/inverted_index/data_modeling/containers/InvertedIndexEntry.Container.yaml"
+
+[[extra_resources]]
+location = "accelerators/contextualization/cdf_discovery/submodules/inverted_index/data_modeling/views/InvertedIndexEntry.View.yaml"
+
+[[extra_resources]]
+location = "accelerators/contextualization/cdf_discovery/workflows/wf_idx_target_driven_incremental.Workflow.yaml"
+
+[[extra_resources]]
+location = "accelerators/contextualization/cdf_discovery/workflows/v1_target_driven.WorkflowVersion.yaml"
+
+[[extra_resources]]
+location = "accelerators/contextualization/cdf_discovery/workflows/trigger_target_driven_asset.WorkflowTrigger.yaml"
+
+[[extra_resources]]
+location = "accelerators/contextualization/cdf_discovery/workflows/trigger_target_driven_file.WorkflowTrigger.yaml"
+
+[[extra_resources]]
+location = "accelerators/contextualization/cdf_discovery/workflows/wf_idx_source_metadata_incremental.Workflow.yaml"
+
+[[extra_resources]]
+location = "accelerators/contextualization/cdf_discovery/workflows/v1_source_metadata.WorkflowVersion.yaml"
+
+[[extra_resources]]
+location = "accelerators/contextualization/cdf_discovery/workflows/trigger_source_metadata_asset.WorkflowTrigger.yaml"
+
+[[extra_resources]]
+location = "accelerators/contextualization/cdf_discovery/workflows/trigger_source_metadata_equipment.WorkflowTrigger.yaml"
+
+[[extra_resources]]
+location = "accelerators/contextualization/cdf_discovery/workflows/trigger_source_metadata_file.WorkflowTrigger.yaml"
+
+[[extra_resources]]
+location = "accelerators/contextualization/cdf_discovery/workflows/trigger_source_metadata_timeseries.WorkflowTrigger.yaml"
+
+[[extra_resources]]
+location = "accelerators/contextualization/cdf_discovery/workflows/wf_idx_source_index_watermark.Workflow.yaml"
+
+[[extra_resources]]
+location = "accelerators/contextualization/cdf_discovery/workflows/v1_source_watermark.WorkflowVersion.yaml"
+
+[[extra_resources]]
+location = "accelerators/contextualization/cdf_discovery/workflows/trigger_source_index_watermark.WorkflowTrigger.yaml"
+
+[[extra_resources]]
+location = "accelerators/contextualization/cdf_discovery/workflows/etl_aliasing_workflow.Workflow.yaml"
+
+[[extra_resources]]
+location = "accelerators/contextualization/cdf_discovery/workflows/etl_aliasing_workflow.WorkflowVersion.yaml"
+
+[[extra_resources]]
+location = "accelerators/contextualization/cdf_discovery/workflows/etl_aliasing_workflow.WorkflowTrigger.yaml"

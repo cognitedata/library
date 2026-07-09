@@ -72,7 +72,7 @@ When **`incremental_change_processing`** is enabled in scope parameters:
 
 ### 3.5 Inverted index
 
-When enabled (`enable_inverted_index` in scope), **`fn_dm_inverted_index`** consumes predecessor discovery payloads (IR) and/or FK/document JSON on RAW and writes an **inverted index** table (key from `inverted_index_raw_table_key` or naming convention derived from `raw_table_key`). Candidate keys are **not** indexed here unless a transform stage materializes them into FK/doc reference columns consumed by the index task.
+When enabled (`enable_inverted_index` in scope), **`fn_dm_inverted_index`** consumes predecessor discovery payloads (IR) and/or FK/document JSON on RAW and writes **contextualization inverted-index entries** (DM **`InvertedIndexEntry`** or RAW scoped postings in **`db_contextualization_idx`**, keyed by `{match_scope_key}::{normalized_term}`). Candidate keys are **not** indexed here unless a transform stage materializes them into FK/doc reference columns consumed by the index task.
 
 ---
 
@@ -131,7 +131,7 @@ The diagram shows the **default** view-query and view-save path. The compiled **
 | `fn_dm_transform` | Transform / alias expansion on RAW payloads (**cumulative** by default: read–merge–write on inter-node RAW; per-step `output_mode` defaults to `append`; opt out with `input_mode: replace` or `output_mode: overwrite`). |
 | `fn_dm_validate` | Validation + confidence on RAW payloads. |
 | `fn_dm_join` | Merge two predecessor cohort RAW streams. |
-| `fn_dm_inverted_index` | Inverted FK/document index RAW (optional branch). |
+| `fn_dm_inverted_index` | Contextualization inverted index (DM or RAW; optional branch). |
 | `fn_dm_view_save` | `instances.apply` patch to describables (+ optional FK strings). |
 | `fn_dm_raw_save` | RAW upsert from predecessor payloads. |
 | `fn_dm_classic_save` | Classic write path from predecessor payloads. |
@@ -190,7 +190,7 @@ Shared **`aliasing_rule_definitions`** / **`aliasing_rule_sequences`** at the to
 | -------- | ----------------- | --------- |
 | **`db_key_extraction`** | Entity rows, run summaries, watermarks, cohort keys | `raw_table_key`, `raw_table_state` (and related parameters) in scope |
 | **`db_discovery_aliasing`** | Rows keyed by **`original_tag`** with `aliases`, metadata, entity map | `raw_table_aliases` |
-| **`db_key_extraction`** (index) | Inverted index rows | `inverted_index_raw_table_key` or derived suffix |
+| **`db_contextualization_idx`** | Scoped inverted-index postings (RAW backend) | `index_raw_database` + `scope` on inverted-index task |
 
 Exact column semantics: per-function `handler.py` / `pipeline.py` under `functions/fn_dm_*/` and [`functions/README.md`](../functions/README.md).
 

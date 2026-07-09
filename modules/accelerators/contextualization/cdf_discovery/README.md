@@ -45,18 +45,34 @@ python modules/accelerators/contextualization/cdf_discovery/module.py transform 
 
 Flags: `--api-host`, `--api-port`, `--vite-port`, `--no-browser`, `--no-reload`. Run `python module.py` with no args for help.
 
+## Module layout
+
+| Path | Role |
+| ---- | ---- |
+| `submodules/governance/` | Declared spaces/groups config and build |
+| `submodules/transform/` | ETL authoring, workflow build, local runner |
+| `submodules/inverted_index/` | Inverted-index library, functions, RAW/DM deploy YAML |
+| `submodules/_registry.py` | Submodule registry (CLI commands, Toolkit roots) |
+| `shared/cdf_fn_common/` | Shared Cognite Function Python library |
+| `shared/python/paths.py` | Central path resolution |
+| `ui/` | Unified operator shell (plugin modules in `ui/src/modules/`) |
+| `workflows/` | Generated Toolkit workflow YAML |
+| `data_sets/` | Toolkit DataSet resources |
+
+Function external ids: `fn_discovery_etl_*`, `fn_discovery_idx_*` (see [submodules/transform/docs/CDF_STANDARDS.md](submodules/transform/docs/CDF_STANDARDS.md)).
+
 ## ETL layout
 
 | Path | Role |
 | ---- | ---- |
 | `default.config.yaml` | ETL scope (`workflow`, `dataset`, workflow_definitions paths) |
-| `functions/` | Cognite Functions (`cdf_fn_common/`, `fn_etl_*`) |
-| `transform/workflow_definitions/` | Authoring: instances, templates, `registry.yaml` |
+| `submodules/transform/functions/` | Cognite Functions (`fn_discovery_etl_*`) |
+| `submodules/transform/workflow_definitions/` | Authoring: instances, templates, `registry.yaml` |
 | `workflows/` | Generated Workflow / WorkflowVersion / WorkflowTrigger / config YAML |
 | `data_sets/ds_discovery_etl.DataSet.yaml` | Toolkit DataSet for ETL resources |
-| `transform/docs/` | Build, local run, transform stage, scoring, DM query |
+| `submodules/transform/docs/` | Build, local run, transform stage, scoring, DM query |
 
-See [transform/docs/BUILD.md](transform/docs/BUILD.md) and [workflows/README.md](workflows/README.md).
+See [submodules/transform/docs/BUILD.md](submodules/transform/docs/BUILD.md) and [workflows/README.md](workflows/README.md).
 
 ## Operator UI
 

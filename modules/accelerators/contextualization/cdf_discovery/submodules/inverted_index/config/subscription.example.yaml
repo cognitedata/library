@@ -1,0 +1,51 @@
+# Target-driven incremental trigger (Toolkit deploy)
+# Merge inverted_index/config/inverted_index_deploy.config.yaml into project config.*.yaml.
+# Regenerate workflows/trigger_target_driven_*.WorkflowTrigger.yaml after subscription/view changes:
+#   python module.py build --build-inverted-index-triggers --force
+# See workflows/ for Workflow + WorkflowVersion + dataModeling WorkflowTrigger artifacts.
+
+target_driven:
+  query_property: aliases
+  query_property_fallbacks: [name]
+  exclude_empty_aliases: false
+
+subscription:
+  enabled: true
+  trigger: instance_subscription
+  watch_property: aliases  # defaults to query_property when omitted in config merge
+  instance_spaces: [cdf_cdm]
+  watch_view_keys: [asset, file]
+
+# Toolkit path: dataModeling WorkflowTrigger → wf_discovery_idx_target_driven_incremental →
+# fn_discovery_idx_handle_subscription with workflow.input.items (not a native subscription YAML).
+
+# Illustrative subscription event payload (manual replay / future native subscription):
+# {
+#   "space": "cdf_cdm",
+#   "externalId": "ASSET_P101",
+#   "view_external_id": "CogniteAsset",
+#   "changed_properties": ["aliases"],
+#   "after": {
+#     "properties": {
+#       "aliases": ["P-101A", "p101a"]
+#     }
+#   }
+# }
+
+# Illustrative workflow trigger item (from dataModeling batch):
+# {
+#   "externalId": "ASSET_P101",
+#   "space": "cdf_cdm",
+#   "properties": {
+#     "cdf_cdm": {
+#       "CogniteAsset/v1": { "aliases": ["P-101A"], "name": "Pump 101" }
+#     }
+#   }
+# }
+
+# Dedupe: RAW table target_driven_state stores TERMS_HASH per instance + scope.
+# Re-runs within cooldown_seconds are skipped unless force=True on the handler.
+
+# Handler entry points:
+#   from inverted_index.subscription import handle_aliases_subscription_event
+#   from inverted_index.subscription import handle_aliases_subscription_payload

@@ -28,7 +28,7 @@ def test_workflow_graph_to_canvas_maps_function_tasks_and_edges() -> None:
                 "description": "Load assets",
                 "parameters": {
                     "function": {
-                        "externalId": "fn_etl_view_query",
+                        "externalId": "fn_discovery_etl_view_query",
                         "data": {"task_id": "query_assets"},
                     }
                 },
@@ -39,7 +39,7 @@ def test_workflow_graph_to_canvas_maps_function_tasks_and_edges() -> None:
                 "type": "function",
                 "parameters": {
                     "function": {
-                        "externalId": "fn_etl_view_save",
+                        "externalId": "fn_discovery_etl_view_save",
                         "data": {"task_id": "save_rows"},
                     }
                 },

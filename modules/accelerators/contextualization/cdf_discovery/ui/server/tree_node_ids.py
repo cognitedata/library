@@ -21,6 +21,7 @@ GOVERNANCE_ROOT = "gov"
 GOVERNANCE_SPACES = "gov:spaces"
 GOVERNANCE_GROUPS = "gov:groups"
 EXTRACT_ROOT = "extract"
+INDEX_ROOT = "index"
 MONITOR_ROOT = "monitor"
 
 # Sibling order under ``connection`` (tree root label shows the CDF project).
@@ -30,5 +31,6 @@ CONNECTION_ROOT_CHILD_ORDER = (
     GOVERNANCE_ROOT,
     EXTRACT_ROOT,
     TRANSFORM_ROOT,
+    INDEX_ROOT,
     MONITOR_ROOT,
 )

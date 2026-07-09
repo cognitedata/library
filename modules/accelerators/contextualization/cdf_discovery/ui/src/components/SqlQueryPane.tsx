@@ -51,7 +51,7 @@ function isAbortError(e: unknown): boolean {
 }
 
 export function SqlQueryPane({ tab, onTabUpdate, onSelectRow, onQueryFile, onDownloadFile, onSave, onSaveAs }: Props) {
-  const { t, theme } = useAppSettings();
+  const { t, resolvedTheme } = useAppSettings();
   const {
     height: editorPaneHeight,
     onResizeStart: onEditorPaneResizeStart,
@@ -490,7 +490,7 @@ export function SqlQueryPane({ tab, onTabUpdate, onSelectRow, onQueryFile, onDow
             key={tab.id}
             ref={editorRef}
             value={queryDraft}
-            theme={theme}
+            theme={resolvedTheme}
             height={`${editorPaneHeight}px`}
             ariaLabel={t("sql.editor.label")}
             shortcutsHint={t("sql.editor.shortcutsDesc")}

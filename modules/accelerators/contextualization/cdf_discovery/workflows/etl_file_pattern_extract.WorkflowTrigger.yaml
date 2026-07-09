@@ -1,0 +1,23 @@
+externalId: trg_wf_all_wf_discovery_wf_discovery_wf_discovery_etl_file_pattern_extract
+workflowExternalId: wf_all_wf_discovery_wf_discovery_wf_discovery_etl_file_pattern_extract
+workflowVersion: '1'
+triggerRule:
+  triggerType: schedule
+  cronExpression: 0 2 * * *
+input:
+  incremental_change_processing: true
+  configuration:
+    schemaVersion: 1
+    id: file_pattern_extract
+    scope: null
+    parameters:
+      incremental_change_processing: true
+      incremental_skip_unchanged: true
+      fanout_mode: both
+      raw_db: etl_staging
+      raw_table_key: cohort
+      instance_space: inst_assets
+      mime_type: application/pdf
+authentication:
+  clientId: '{{ workflowClientId }}'
+  clientSecret: '{{ workflowClientSecret }}'

@@ -1,13 +1,15 @@
 import type { TreeNode } from "../types/discoveryNodes";
 import { CONNECTION_ROOT_CHILD_ORDER } from "./treeNodeIds";
 
-const CONNECTION_ROOT_ORDER = new Map(
+type ConnectionRootId = (typeof CONNECTION_ROOT_CHILD_ORDER)[number];
+
+const CONNECTION_ROOT_ORDER = new Map<ConnectionRootId, number>(
   CONNECTION_ROOT_CHILD_ORDER.map((id, index) => [id, index])
 );
 
 function isConnectionRootSiblings(nodes: TreeNode[]): boolean {
   if (nodes.length < 2) return false;
-  return nodes.every((n) => CONNECTION_ROOT_ORDER.has(n.id));
+  return nodes.every((n) => CONNECTION_ROOT_ORDER.has(n.id as ConnectionRootId));
 }
 
 function compareStarredThenPinned(
@@ -21,8 +23,8 @@ function compareStarredThenPinned(
   const bStar = bRank !== undefined;
   if (aStar && bStar) return aRank - bRank;
   if (aStar !== bStar) return aStar ? -1 : 1;
-  const aPin = CONNECTION_ROOT_ORDER.get(a.id) ?? 999;
-  const bPin = CONNECTION_ROOT_ORDER.get(b.id) ?? 999;
+  const aPin = CONNECTION_ROOT_ORDER.get(a.id as ConnectionRootId) ?? 999;
+  const bPin = CONNECTION_ROOT_ORDER.get(b.id as ConnectionRootId) ?? 999;
   return aPin - bPin;
 }
 

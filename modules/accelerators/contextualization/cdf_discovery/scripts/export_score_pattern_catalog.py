@@ -14,7 +14,7 @@ except ImportError as exc:  # pragma: no cover
 
 MODULE_ROOT = Path(__file__).resolve().parents[1]
 ALIASING_ROOT = MODULE_ROOT.parent / "cdf_discovery_aliasing"
-FUNCS = MODULE_ROOT / "functions"
+FUNCS = MODULE_ROOT / "submodules/transform/functions"
 if str(FUNCS) not in sys.path:
     sys.path.insert(0, str(FUNCS))
 
@@ -73,7 +73,7 @@ def main() -> None:
         if path.is_file():
             _collect_pattern_descriptions(_load_yaml(path), out)
 
-    etl_config = MODULE_ROOT / "workflows" / "etl_aliasing_workflow.config.yaml"
+    etl_config = MODULE_ROOT / "workflows" / "wf_discovery_wf_discovery_wf_discovery_etl_aliasing_workflow.config.yaml"
     if etl_config.is_file():
         _collect_pattern_descriptions(_load_yaml(etl_config), out)
 

@@ -133,48 +133,6 @@ def resolve_raw_save_sink(cfg: Mapping[str, Any]) -> Tuple[str, str]:
     return raw_db, raw_table
 
 
-def resolve_inverted_index_sink(data: Mapping[str, Any]) -> Tuple[str, str]:
-    """Return ``(raw_db, inverted_index_raw_table)`` for ``fn_dm_inverted_index`` writes."""
-    from .inverted_index_naming import inverted_index_raw_table_from_key_extraction_table
-
-    persistence = _as_dict(data.get("persistence"))
-    cfg = resolve_task_config(data)
-    configuration = _as_dict(data.get("configuration"))
-    ke_params = _as_dict(
-        _as_dict(_as_dict(configuration.get("key_extraction")).get("config")).get("parameters")
-    )
-    source_table = _first_nonempty(
-        persistence.get("raw_table_key"),
-        persistence.get("raw_table"),
-        persistence.get("sink_raw_table"),
-        cfg.get("source_raw_table_key"),
-        cfg.get("raw_table_key"),
-        cfg.get("raw_table"),
-        ke_params.get("raw_table_key"),
-        DEFAULT_RAW_TABLE,
-    )
-    default_inv = inverted_index_raw_table_from_key_extraction_table(str(source_table))
-    raw_db = _first_nonempty(
-        persistence.get("raw_db"),
-        persistence.get("sink_raw_db"),
-        persistence.get("inverted_index_raw_db"),
-        cfg.get("raw_db"),
-        cfg.get("sink_raw_db"),
-        cfg.get("inverted_index_raw_db"),
-        ke_params.get("raw_db"),
-        DEFAULT_RAW_DB,
-    )
-    raw_table = _first_nonempty(
-        persistence.get("inverted_index_raw_table"),
-        persistence.get("inverted_index_raw_table_key"),
-        cfg.get("inverted_index_raw_table"),
-        cfg.get("inverted_index_raw_table_key"),
-        ke_params.get("inverted_index_raw_table_key"),
-        default_inv,
-    )
-    return raw_db, raw_table
-
-
 def _serialize_confidence_column(conf: Any) -> Optional[str]:
     """Serialize per-key scores for the dedicated RAW ``CONFIDENCE`` column (JSON array string)."""
     if conf is None:

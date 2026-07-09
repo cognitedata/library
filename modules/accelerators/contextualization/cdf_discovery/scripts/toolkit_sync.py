@@ -97,19 +97,10 @@ def merge_source_ids_into_default_config(
         for name, sid in updates.items():
             if not isinstance(name, str) or not name.strip():
                 continue
-            scope_vars = module_vars
-            rel = (rel_paths or {}).get(name)
-            if isinstance(rel, str) and rel.strip():
-                rel_n = rel.replace("\\", "/").strip("/")
-                if rel_n.startswith("auth/"):
-                    parts = [p for p in rel_n.split("/") if p]
-                    scope_parts = parts[1:-1]
-                    if scope_parts:
-                        scope_vars = _ensure_nested_mapping(module_vars, tuple(scope_parts))
             if sid and not is_toolkit_source_id_placeholder(sid):
-                scope_vars[name] = sid
+                module_vars[name] = sid
             else:
-                scope_vars.setdefault(name, "")
+                module_vars.setdefault(name, "")
     if dry_run:
         logger.info("Would update source_ids in %s (%d keys)", config_path, len(updates))
         return True

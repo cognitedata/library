@@ -9,9 +9,9 @@ from typing import Any, Dict, List, Mapping, Optional
 
 import yaml
 
-_REGISTRY_REL = "transform/workflow_definitions/registry.yaml"
-_INSTANCES_DIR = "transform/workflow_definitions/instances"
-_TEMPLATES_DIR = "transform/workflow_definitions/templates"
+_REGISTRY_REL = "submodules/transform/workflow_definitions/registry.yaml"
+_INSTANCES_DIR = "submodules/transform/workflow_definitions/instances"
+_TEMPLATES_DIR = "submodules/transform/workflow_definitions/templates"
 
 _WORKFLOW_ID_RE = re.compile(r"^[a-z][a-z0-9_]{0,127}$")
 _DEFAULT_BUILT_SCOPE = ""

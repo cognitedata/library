@@ -7,7 +7,7 @@ import {
   readOptionalPositiveInt,
 } from "./fanoutNodeConfigModel";
 
-export const DEFAULT_CHILD_FUNCTION = "fn_etl_file_annotation";
+export const DEFAULT_CHILD_FUNCTION = "fn_discovery_etl_file_annotation";
 
 export type EntityTargetPreset = "asset" | "file" | "custom";
 

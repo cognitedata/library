@@ -1,4 +1,4 @@
-"""Capture cohort RAW rows (and inverted-index sink) at persistence tasks for run results."""
+"""Capture cohort RAW rows (and inverted-index persistence) at persistence tasks for run results."""
 
 from __future__ import annotations
 
@@ -14,9 +14,9 @@ from cdf_fn_common.discovery_cohort import iter_predecessor_cohort_rows
 from cdf_fn_common.discovery_query_shared import (
     RECORD_KIND_COLUMN,
     RECORD_KIND_ENTITY,
-    resolve_inverted_index_sink,
     resolve_task_config,
 )
+from cdf_fn_common.index_entry_bridge import resolve_index_raw_sample_location
 from cdf_fn_common.task_runtime import merge_compiled_task_into_data
 
 from .raw_results_attachment import _fetch_rows_sample
@@ -81,7 +81,7 @@ def _collect_predecessor_cohort_rows(
     }
 
 
-def _sample_inverted_index_sink(
+def _sample_inverted_index_persistence(
     client: Any,
     data: Mapping[str, Any],
     *,
@@ -89,7 +89,26 @@ def _sample_inverted_index_sink(
     logger: Any,
     max_raw_rows_scanned: Optional[int],
 ) -> Dict[str, Any]:
-    raw_db, raw_table = resolve_inverted_index_sink(data)
+    task_cfg = resolve_task_config(data)
+    loc = resolve_index_raw_sample_location(data, task_cfg=task_cfg)
+    out: Dict[str, Any] = {
+        "storage_backend": loc.get("storage_backend"),
+        "match_scope_key": loc.get("match_scope_key"),
+        "match_scope": loc.get("match_scope"),
+        "row_limit": row_limit,
+    }
+    if loc.get("storage_backend") != "raw":
+        out.update(
+            {
+                "row_count": 0,
+                "truncated": False,
+                "index_rows": [],
+            }
+        )
+        return out
+
+    raw_db = str(loc.get("raw_db") or "")
+    raw_table = str(loc.get("raw_table") or "")
     rows, truncated, err, examined, scan_truncated = _fetch_rows_sample(
         client,
         raw_db,
@@ -99,16 +118,17 @@ def _sample_inverted_index_sink(
         run_id=None,
         max_raw_rows_scanned=max_raw_rows_scanned,
     )
-    out: Dict[str, Any] = {
-        "raw_db": raw_db,
-        "raw_table": raw_table,
-        "row_count": len(rows),
-        "row_limit": row_limit,
-        "truncated": truncated,
-        "rows_examined": examined,
-        "raw_scan_truncated": scan_truncated,
-        "index_rows": rows,
-    }
+    out.update(
+        {
+            "raw_db": raw_db,
+            "raw_table": raw_table,
+            "row_count": len(rows),
+            "truncated": truncated,
+            "rows_examined": examined,
+            "raw_scan_truncated": scan_truncated,
+            "index_rows": rows,
+        }
+    )
     if err:
         out["error"] = err
     return out
@@ -125,7 +145,7 @@ def build_persistence_cohort_snapshot(
     max_raw_rows_scanned: Optional[int] = None,
 ) -> Dict[str, Any]:
     """
-    Snapshot cohort entity rows read by save / inverted-index handlers, plus inverted-index sink rows.
+    Snapshot cohort entity rows read by save / inverted-index handlers, plus index persistence rows.
 
     Reads predecessor **node tables** for the current pipeline run.
     """
@@ -161,10 +181,13 @@ def build_persistence_cohort_snapshot(
 
     if function_external_id == "fn_dm_inverted_index":
         if client is None:
-            raw_db, raw_table = resolve_inverted_index_sink(data)
+            task_cfg = resolve_task_config(data)
+            loc = resolve_index_raw_sample_location(data, task_cfg=task_cfg)
             out["inverted_index_persistence"] = {
-                "raw_db": raw_db,
-                "raw_table": raw_table,
+                "storage_backend": loc.get("storage_backend"),
+                "match_scope_key": loc.get("match_scope_key"),
+                "raw_db": loc.get("raw_db"),
+                "raw_table": loc.get("raw_table"),
                 "row_count": 0,
                 "row_limit": limit,
                 "truncated": False,
@@ -172,7 +195,7 @@ def build_persistence_cohort_snapshot(
                 "error": "no_client",
             }
         else:
-            out["inverted_index_persistence"] = _sample_inverted_index_sink(
+            out["inverted_index_persistence"] = _sample_inverted_index_persistence(
                 client,
                 data,
                 row_limit=limit,

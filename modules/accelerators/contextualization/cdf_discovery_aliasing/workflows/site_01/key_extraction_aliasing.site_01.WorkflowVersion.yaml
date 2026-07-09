@@ -49,13 +49,18 @@ workflowDefinition:
             index_kinds:
               metadata:
               - indexKey
-            inverted_index_raw_db: db_discovery
-            inverted_index_raw_table: discovery_inverted_index
+            index_storage_backend: raw
+            index_raw_database: db_contextualization_idx
+            scope:
+              enabled: true
+              levels:
+              - site
+              - unit
+              scope_key_template: site:{site}|unit:{unit}
+              fallback_scope_key: global
           inverted_index_input_source: discovery_predecessor_payloads
           upstream_compiled_task_ids:
           - kea__confidence_filter__Confidence_filter_for_inverted_index
-          raw_db: db_discovery
-          inverted_index_raw_table: discovery_inverted_index
     name: Inverted index
     description: Build inverted RAW index from discovery predecessor payloads (stub).
     retries: 3

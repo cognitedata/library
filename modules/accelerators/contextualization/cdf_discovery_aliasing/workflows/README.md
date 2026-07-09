@@ -10,7 +10,7 @@ This module ships a **discovery canvas** workflow (compiled from **`canvas`** to
 2. **`fn_dm_transform`** — read predecessor RAW cohort payloads, apply transform rules, write transform sink RAW.
 3. **`fn_dm_validate`** — run validation / confidence chains where the canvas wires match-definition nodes.
 4. **`fn_dm_view_save`** (and optional **`fn_dm_raw_save`** / **`fn_dm_classic_save`**) — apply upstream payloads to the data model or RAW sinks (for example **`cdf_cdm:CogniteDescribable`** alias lists).
-5. **`fn_dm_inverted_index`** (optional branch) — build or refresh an inverted index RAW table from predecessor task payloads (see task **`data`** / IR).
+5. **`fn_dm_inverted_index`** (optional branch) — write contextualization inverted-index entries from predecessor task payloads (see inverted-index node `config` and task **`data`**).
 6. **`fn_dm_discovery_raw_cleanup`** (optional) — operator-configured post-run RAW cleanup.
 
 Authoring source for rules and views is the v1 scope mapping embedded in each schedule trigger as **`input.configuration`** (template: [`../workflow_template/workflow.template.config.yaml`](../workflow_template/workflow.template.config.yaml)), patched per leaf by **`scripts/build_scopes.py`**. Local default scope (same v1 shape): [`../workflow.local.config.yaml`](../workflow.local.config.yaml) at module root.
@@ -32,7 +32,8 @@ For a leaf in [`default.config.yaml`](../default.config.yaml), **`key_extraction
 - **`run_all`** (bool, default `false`): when sent on **`workflow.input`**, overrides **`key_extraction.config.parameters.run_all`** after the scope document is applied; query stages use it with cohort / watermark semantics (see configuration guide).
 - **`run_id`** (string, optional): reserved for operator/trigger use when wiring task outputs; when unset, downstream tasks may use `incremental_auto_run_id` to discover a single active `RUN_ID` in RAW (single-run deployments only).
 - **`configuration`**: v1 scope mapping (`key_extraction`, `aliasing`, optional `scope` metadata, embedded **`canvas`**) — **required** for deployed runs; generated triggers embed the **trimmed** document per leaf (see **Configuration** above). **`instance_space`** for DM/RAW is derived from top-level **`source_views`** in **`configuration`** when not set on task **`data`**.
-- **RAW keys** (extraction, aliasing, inverted index): authored under **`key_extraction.config.parameters`** / **`aliasing.config.parameters`** inside **`configuration`** (`raw_table_key`, `raw_table_aliases`, `raw_table_state`; optional **`inverted_index_raw_table_key`**, otherwise derived from `raw_table_key` by replacing the `_key_extraction_state` suffix with `_inverted_index`).
+- **RAW keys** (extraction, aliasing): authored under **`key_extraction.config.parameters`** / **`aliasing.config.parameters`** inside **`configuration`** (`raw_table_key`, `raw_table_aliases`, `raw_table_state`).
+- **Inverted index storage**: configured on the inverted-index canvas node (`index_storage_backend`, `index_raw_database`, `scope`); enable with **`enable_inverted_index`** in **`key_extraction.config.parameters`**.
 
 #### Discovery stages (canvas order)
 

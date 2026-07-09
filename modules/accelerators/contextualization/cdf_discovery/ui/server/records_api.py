@@ -10,7 +10,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 _TRANSFORM_FUNCTIONS = (
-    Path(__file__).resolve().parent.parent.parent / "transform" / "functions"
+    Path(__file__).resolve().parent.parent.parent / "submodules" / "transform" / "functions"
 )
 if str(_TRANSFORM_FUNCTIONS) not in sys.path:
     sys.path.insert(0, str(_TRANSFORM_FUNCTIONS))

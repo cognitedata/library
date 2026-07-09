@@ -19,6 +19,7 @@ from ui.server.tree_node_ids import (
     CONNECTION_ROOT_CHILD_ORDER,
     EXTRACT_ROOT,
     GOVERNANCE_ROOT,
+    INDEX_ROOT,
     MONITOR_ROOT,
     TRANSFORM_PIPELINE_PREFIX,
     TRANSFORM_PIPELINES,
@@ -131,7 +132,7 @@ def _records_stream_nodes(client: Any) -> List[TreeNodeOut]:
     import sys
     from pathlib import Path
 
-    fn_root = Path(__file__).resolve().parent.parent.parent / "transform" / "functions"
+    fn_root = Path(__file__).resolve().parent.parent.parent / "submodules" / "transform" / "functions"
     if str(fn_root) not in sys.path:
         sys.path.insert(0, str(fn_root))
     try:
@@ -635,52 +636,16 @@ def list_children(client: Any, node_id: str) -> List[TreeNodeOut]:
     kind, segs = parse_node_id(node_id)
 
     if kind == "connection":
-        return _sort_connection_root_children(
-            [
-                _node(
-                    id=DATA_ROOT,
-                    label="Data",
-                    kind="folder",
-                    has_children=True,
-                    meta={"domain": "data"},
-                ),
-                _node(
-                    id=FUSION_ROOT,
-                    label="Fusion",
-                    kind="folder",
-                    has_children=True,
-                    meta={"domain": "fusion"},
-                ),
-                _node(
-                    id=GOVERNANCE_ROOT,
-                    label="Governance",
-                    kind="folder",
-                    has_children=True,
-                    meta={"domain": "governance", "governance_workspace": "scope"},
-                ),
-                _node(
-                    id=EXTRACT_ROOT,
-                    label="Extract",
-                    kind="extract",
-                    has_children=False,
-                    meta={"domain": "extract"},
-                ),
-                _node(
-                    id=TRANSFORM_ROOT,
-                    label="Transform",
-                    kind="folder",
-                    has_children=True,
-                    meta={"domain": "transform"},
-                ),
-                _node(
-                    id=MONITOR_ROOT,
-                    label="Monitor",
-                    kind="monitor",
-                    has_children=False,
-                    meta={"domain": "monitor"},
-                ),
-            ]
-        )
+        from ui.server.discovery_modules import connection_root_nodes
+
+        return _sort_connection_root_children(connection_root_nodes())
+
+    if kind == INDEX_ROOT:
+        from ui.server.modules.inverted_index.tree import list_children as index_list_children
+
+        index_nodes = index_list_children(client, node_id)
+        if index_nodes is not None:
+            return index_nodes
 
     if kind == TRANSFORM_ROOT and not segs:
         from ui.server import transform_registry

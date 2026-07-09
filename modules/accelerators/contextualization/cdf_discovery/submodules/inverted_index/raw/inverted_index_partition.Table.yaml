@@ -1,0 +1,2 @@
+dbName: {{ index_raw_database }}
+tableName: inverted_index__partition_template

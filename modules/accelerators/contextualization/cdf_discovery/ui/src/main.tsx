@@ -8,6 +8,8 @@ import "./discovery-styles.css";
 import "./governance-editor.css";
 import "./discovery-layout.css";
 import "./transform-flow.css";
+import "./inverted-index-styles.css";
+import "./inverted-index-layout.css";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>

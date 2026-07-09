@@ -51,12 +51,13 @@ def test_merge_unions_save_and_index_predecessor_cohorts() -> None:
                     ],
                 },
                 "inverted_index_persistence": {
-                    "raw_db": "db_discovery",
-                    "raw_table": "discovery_inverted_index",
+                    "storage_backend": "raw",
+                    "raw_db": "db_contextualization_idx",
+                    "raw_table": "inverted_index__site_site_01",
                     "index_rows": [
                         {
-                            "key": "metadata:P-101",
-                            "columns": {"INDEX_KIND": "metadata", "LOOKUP_KEY": "P-101"},
+                            "key": "site:SITE_01::p-101",
+                            "columns": {"normalized_term": "p-101"},
                         },
                     ],
                 },

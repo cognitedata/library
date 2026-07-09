@@ -112,14 +112,17 @@ export type AliasPersistenceConfig = PersistenceProfileRef & {
   foreign_key_writeback_property?: string;
 };
 
-/** Inverted-index RAW sink for ``kind: inverted_index`` nodes. */
+/** Inverted-index storage config for ``kind: inverted_index`` nodes. */
 export type InvertedIndexPersistenceConfig = PersistenceProfileRef & {
   kind: "inverted_index";
   source_raw_db?: string;
   source_raw_table_key?: string;
   source_raw_read_limit?: number;
-  inverted_index_raw_db?: string;
-  inverted_index_raw_table?: string;
+  index_storage_backend?: "raw" | "dm";
+  index_raw_database?: string;
+  index_schema_space?: string;
+  scope_key_template?: string;
+  scope_fallback_key?: string;
   inverted_index_fk_entity_type?: string;
   inverted_index_document_entity_type?: string;
   source_view_space?: string;

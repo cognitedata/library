@@ -16,7 +16,8 @@ from .cohort_storage import (
     run_node_table_prefix,
     sanitize_run_id_for_table,
 )
-from .discovery_query_shared import _as_dict, _first_nonempty
+from .discovery_query_shared import _as_dict, _first_nonempty, resolve_task_config
+from .index_entry_bridge import collect_contextualization_index_raw_tables
 from .run_id_retention import DEFAULT_RETENTION_HOURS, parse_pipeline_run_id_utc
 
 _COHORT_HANDOFF_EXECUTOR_KINDS: frozenset[str] = frozenset(
@@ -99,12 +100,16 @@ def collect_discovery_raw_tables(
                 pers.get("sink_raw_table"),
             )
             _add_raw_table(found, db, tbl)
-            inv_tbl = _first_nonempty(
-                pers.get("inverted_index_raw_table"),
-                pers.get("inverted_index_raw_table_key"),
-            )
-            if db and inv_tbl:
-                found.add((db, inv_tbl))
+
+    for t in cw.get("tasks") or []:
+        if not isinstance(t, dict):
+            continue
+        if str(t.get("function_external_id") or "").strip() != "fn_dm_inverted_index":
+            continue
+        task_cfg = resolve_task_config(t)
+        payload = {"configuration": cfg_root, "config": task_cfg}
+        for db, tbl in collect_contextualization_index_raw_tables(payload, task_cfg=task_cfg):
+            found.add((db, tbl))
     return sorted(found)
 
 

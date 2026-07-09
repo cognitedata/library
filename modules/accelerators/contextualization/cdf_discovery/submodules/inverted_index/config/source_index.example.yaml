@@ -1,0 +1,51 @@
+# Incremental index maintenance (Toolkit deploy)
+# Merge inverted_index/config/inverted_index_deploy.config.yaml into project config.*.yaml.
+# Regenerate workflows/trigger_*.WorkflowTrigger.yaml after config changes:
+#   python module.py build --build-inverted-index-triggers --force
+# See workflows/ for Workflow + WorkflowVersion + WorkflowTrigger artifacts.
+
+source_index:
+  enabled: true
+  watch_view_keys: []       # empty → all views in index_field_config
+  watch_properties: []      # empty → derive per view via collect_view_property_paths
+  instance_spaces: []
+  dedupe:
+    enabled: true
+    cooldown_seconds: 300
+    raw_database: db_contextualization_idx
+    state_table: source_index_state
+  watermark:
+    enabled: true
+    raw_database: db_contextualization_idx
+    state_table: index_build_state
+    initial_lookback_seconds: 3600
+
+# Metadata event-driven path:
+# dataModeling WorkflowTrigger → wf_discovery_idx_source_metadata_incremental →
+# fn_discovery_idx_handle_source_metadata with workflow.input.items
+
+# Illustrative workflow trigger item (metadata):
+# {
+#   "instanceType": "node",
+#   "externalId": "FILE_DOC_1",
+#   "space": "cdf_cdm",
+#   "properties": {
+#     "cdf_cdm": {
+#       "CogniteFile/v1": {
+#         "name": "PID-101",
+#         "description": "Drawing for P-101A"
+#       }
+#     }
+#   }
+# }
+
+# Scheduled watermark path:
+# schedule WorkflowTrigger → wf_discovery_idx_source_index_watermark →
+# fn_discovery_idx_build_watermark_incremental (metadata + annotation incremental builds)
+
+# Dedupe: RAW table source_index_state stores CONTENT_HASH per instance.
+# Re-index within cooldown_seconds is skipped unless force=True on the handler.
+
+# Handler entry points:
+#   from inverted_index.source_index import handle_source_metadata_payload
+#   from inverted_index.index_build_watermark import run_watermark_incremental_build

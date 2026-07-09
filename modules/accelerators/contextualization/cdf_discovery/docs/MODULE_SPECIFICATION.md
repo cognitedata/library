@@ -37,7 +37,7 @@ Canonical description of what the module does, its boundaries, configuration, AP
 
 ## 3. Capabilities
 
-- **Object tree** — lazy-loaded tree for Data, Integration, Governance; filter and favorites
+- **Object tree** — lazy-loaded tree for Data, Fusion, Governance, Extract, Transform, **Indexing**, Monitor; filter and favorites
 - **Governance (declared)** — **Governance** node: scope hierarchy + dimensions; **Spaces** / **Groups** nodes: configure, scoped build, generated artifacts; live CDF leaves open detail tabs
 - **SQL query tabs** — CDF run-query preview with export (JSON, YAML, CSV, Excel, Parquet)
 - **File content queries** — DuckDB `SELECT` over parquet/CSV/JSON CDF Files (cached under `.cache/file_content/`)
@@ -47,6 +47,7 @@ Canonical description of what the module does, its boundaries, configuration, AP
 - **Workspace persistence** — open tabs, active tab, saved queries, starred nodes in local config
 - **Fusion / Transform canvas** — ETL pipeline and template editors (React Flow): palette, merge/explode/optimize, build, local run, preview nodes
 - **ETL build** — `module.py transform build` emits Toolkit workflow YAML under `workflows/`
+- **Indexing (inverted index)** — scoped RAW postings index: build metadata/annotations, query, target-driven contextualization, file context, tag reuse audit (`inverted_index/` package; operator panes under **Indexing** in the Discovery tree)
 
 ---
 
@@ -61,7 +62,7 @@ Canonical description of what the module does, its boundaries, configuration, AP
 
 Copy `discovery.config.template.yaml` → `discovery.local.config.yaml` for operator prefs. ETL authoring paths default to `transform/workflow_definitions/` (see `default.config.yaml`).
 
-**Discovery tree roots:** `data` (Saved Queries at `data:sq`, RAW `raw`, Data Modeling `dm`, Classic `classic`), `integration` (Workflows `wf`, Pipelines `ep`, Functions `fn`, Transformations `tx`), `gov` (spaces, groups). Legacy starred ids (`sq`, `orch`, …) are migrated on load (`ui/server/tree_node_ids.py`).
+**Discovery tree roots:** `data` (Saved Queries at `data:sq`, RAW `raw`, Data Modeling `dm`, Classic `classic`), `fusion` (Integration, Data Modeling admin, Spaces, …), `gov` (spaces, groups), `extract`, `transform` (pipelines/templates), `index` (**Indexing** — dashboard, configuration, operations, query, file context, tag reuse), `monitor`. Legacy starred ids (`sq`, `orch`, …) are migrated on load (`ui/server/tree_node_ids.py`).
 
 ---
 
@@ -74,8 +75,9 @@ Copy `discovery.config.template.yaml` → `discovery.local.config.yaml` for oper
 | `module.py transform build` | Compile workflow canvas → `workflows/` (see `transform/docs/BUILD.md`) |
 | `module.py transform run` | Local ETL DAG (`transform/local_runner/`; `--dry-run`, `--instance`, `--predecessor-mode`) |
 | `module.py transform deploy-scope` | Deploy scoped workflows/functions to CDF |
+| `module.py index …` | Inverted index CLI (`build-metadata`, `query`, `target-driven`, …); see `inverted_index/cli.py` |
 
-Flags: `--api-host`, `--api-port` (default **8785**), `--vite-port` (default **5193**), `--no-browser`, `--no-reload`. Env: `CDF_DISCOVERY_ROOT`.
+Flags: `--api-host`, `--api-port` (default **8785**), `--vite-port` (default **5193**), `--no-browser`, `--no-reload`. Env: `CDF_DISCOVERY_ROOT`, `CDF_INVERTED_INDEX_ROOT` (defaults to `inverted_index/` under the module root).
 
 ---
 
@@ -105,6 +107,9 @@ FastAPI app: `ui.server.main:app`. Base URL default `http://127.0.0.1:8785`.
 | POST | `/api/governance/declared/build` | Build (`target`: `spaces` \| `groups` \| `all`) |
 | GET | `/api/governance/declared/artifacts?kind=` | List generated YAML paths |
 | GET/PUT | `/api/governance/declared/file?rel=` | Read/write generated artifact |
+| GET/PUT | `/api/inverted-index/config` | Read/write `inverted_index/default.config.yaml` |
+| GET | `/api/inverted-index/dashboard` | Index health and partition summary |
+| POST | `/api/inverted-index/operations/*` | Build/query/target-driven operations (NDJSON stream) |
 
 Declared root: `CDF_DISCOVERY_GOVERNANCE_ROOT` or `governance.declared_root` in `discovery.local.config.yaml` (default: `governance/` for config and templates; generated `spaces/` and `auth/` at module root).
 

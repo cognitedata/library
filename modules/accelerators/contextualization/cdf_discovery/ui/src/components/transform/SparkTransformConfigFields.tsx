@@ -65,7 +65,7 @@ function destinationToText(raw: unknown): string {
 }
 
 export function SparkTransformConfigFields({ value, onChange, fieldKey, nodeId }: Props) {
-  const { t, theme } = useAppSettings();
+  const { t, resolvedTheme } = useAppSettings();
   const patch = (p: JsonObject) => onChange({ ...value, ...p });
 
   const sqlQuery = String(value.query ?? "");
@@ -227,7 +227,7 @@ export function SparkTransformConfigFields({ value, onChange, fieldKey, nodeId }
               bodyHeight > 0 ? (
                 <SqlEditor
                   value={sqlQuery}
-                  theme={theme}
+                  theme={resolvedTheme}
                   height={`${bodyHeight}px`}
                   maxHeight={`${bodyHeight}px`}
                   ariaLabel={t("sql.editor.label")}

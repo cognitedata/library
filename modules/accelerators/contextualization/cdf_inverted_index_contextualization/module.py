@@ -2,6 +2,8 @@
 """
 Local CLI for inverted index contextualization (RAW backend default).
 
+**Operator UI:** use ``cdf_discovery`` — ``python module.py ui`` (Indexing module in the Discovery tree).
+
 Requires CDF credentials in .env (repo root or module directory).
 
   python module.py build-metadata [--dry-run]
@@ -19,28 +21,24 @@ Requires CDF credentials in .env (repo root or module directory).
   python module.py deltas --file-id FILE_PID_12
   python module.py invoke-fn fn_idx_build_metadata --data '{"dry_run":true}'
   python module.py demo [--json]   # offline in-memory demo
-  python module.py ui [--api-port PORT] [--vite-port PORT] [--no-browser]
+
+From ``cdf_discovery``: ``python module.py index <subcommand> …`` (same subcommands).
 """
 
 from __future__ import annotations
 
 import argparse
-import atexit
 import json
 import os
-import shutil
-import signal
 import subprocess
 import sys
-import time
-import urllib.error
-import urllib.request
-import webbrowser
 from pathlib import Path
 from typing import List
 
-_PACKAGE_ROOT = Path(__file__).resolve().parent
-_UI_DIR = _PACKAGE_ROOT / "ui"
+_MODULE_DIR = Path(__file__).resolve().parent
+_PACKAGE_ROOT = Path(
+    os.environ.get("CDF_INVERTED_INDEX_ROOT") or _MODULE_DIR
+).resolve()
 if str(_PACKAGE_ROOT) not in sys.path:
     sys.path.insert(0, str(_PACKAGE_ROOT))
 
@@ -49,108 +47,6 @@ def _load_env() -> None:
     from local_runner.env import load_env
 
     load_env(_PACKAGE_ROOT)
-
-
-def _wait_for_http(url: str, *, timeout_sec: float = 45.0, poll_interval: float = 0.25) -> bool:
-    deadline = time.monotonic() + timeout_sec
-    while time.monotonic() < deadline:
-        try:
-            with urllib.request.urlopen(url, timeout=2) as resp:
-                if 200 <= resp.status < 400:
-                    return True
-        except (urllib.error.URLError, OSError, TimeoutError):
-            pass
-        time.sleep(poll_interval)
-    return False
-
-
-def _run_ui(argv: List[str]) -> int:
-    p = argparse.ArgumentParser(
-        prog="module.py ui",
-        description="Host the inverted index operator UI (FastAPI + Vite).",
-    )
-    p.add_argument("--api-host", default="127.0.0.1", help="Bind address for FastAPI")
-    p.add_argument("--api-port", type=int, default=8787, help="Port for FastAPI (default 8787)")
-    p.add_argument("--vite-port", type=int, default=5195, help="Port for Vite dev server (default 5195)")
-    p.add_argument("--no-browser", action="store_true", help="Do not open a browser tab")
-    p.add_argument("--no-reload", action="store_true", help="Disable uvicorn --reload")
-    args = p.parse_args(argv)
-
-    if not shutil.which("npm"):
-        print("npm not found on PATH; install Node.js.", file=sys.stderr)
-        return 1
-    if not (_UI_DIR / "package.json").is_file():
-        print(f"Missing {_UI_DIR / 'package.json'}", file=sys.stderr)
-        return 1
-    if not (_UI_DIR / "node_modules").is_dir():
-        print("Installing UI dependencies (npm install)…")
-        r = subprocess.run(["npm", "install"], cwd=str(_UI_DIR), check=False)
-        if r.returncode != 0:
-            return r.returncode
-
-    env = {
-        **os.environ,
-        "PYTHONPATH": str(_PACKAGE_ROOT),
-        "CDF_INVERTED_INDEX_ROOT": str(_PACKAGE_ROOT),
-    }
-    api_cmd = [
-        sys.executable,
-        "-m",
-        "uvicorn",
-        "ui.server.main:app",
-        "--host",
-        args.api_host,
-        "--port",
-        str(args.api_port),
-        "--log-level",
-        "debug",
-    ]
-    if not args.no_reload:
-        api_cmd.append("--reload")
-
-    procs: List[subprocess.Popen] = []
-
-    def _terminate_all() -> None:
-        for pr in reversed(procs):
-            if pr.poll() is None:
-                pr.terminate()
-        for pr in reversed(procs):
-            try:
-                pr.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                pr.kill()
-
-    atexit.register(_terminate_all)
-
-    def _handle_sigint(_signum: int, _frame: object) -> None:
-        _terminate_all()
-        sys.exit(130)
-
-    signal.signal(signal.SIGINT, _handle_sigint)
-
-    print(f"Starting API on http://{args.api_host}:{args.api_port} …")
-    procs.append(subprocess.Popen(api_cmd, cwd=str(_PACKAGE_ROOT), env=env))
-    time.sleep(0.8)
-
-    vite_env = {
-        **os.environ,
-        "VITE_API_PROXY": f"http://{args.api_host}:{args.api_port}",
-    }
-    vite_cmd = ["npm", "run", "dev", "--", "--host", "127.0.0.1", "--port", str(args.vite_port)]
-    print(f"Starting Vite on http://127.0.0.1:{args.vite_port} …")
-    procs.append(subprocess.Popen(vite_cmd, cwd=str(_UI_DIR), env=vite_env))
-
-    ui_url = f"http://127.0.0.1:{args.vite_port}/"
-    if _wait_for_http(ui_url):
-        print(f"UI ready at {ui_url}")
-        if not args.no_browser:
-            webbrowser.open(ui_url)
-    else:
-        print(f"Timed out waiting for {ui_url}", file=sys.stderr)
-
-    for pr in procs:
-        pr.wait()
-    return 0
 
 
 def cmd_demo(args: argparse.Namespace) -> int:
@@ -441,8 +337,6 @@ def cmd_invoke_fn(args: argparse.Namespace) -> int:
 
 
 def main() -> int:
-    if len(sys.argv) > 1 and sys.argv[1] == "ui":
-        return _run_ui(sys.argv[2:])
     _load_env()
     parser = argparse.ArgumentParser(
         description="CDF inverted index contextualization (RAW backend)"

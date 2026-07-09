@@ -3,6 +3,7 @@ import { opensGovernanceCdfDetailTab, opensGovernanceTab } from "./governanceTab
 import { canQueryTreeNode } from "./sqlQuerySeed";
 import { opensTransformTab } from "./transformTabs";
 import { opensExtractTab, opensMonitorTab } from "./workspaceTabs";
+import { invertedIndexKindFromNode } from "../modules/invertedIndex/utils/indexTabs";
 
 function opensDocumentTab(node: TreeNode): boolean {
   return (
@@ -14,7 +15,8 @@ function opensDocumentTab(node: TreeNode): boolean {
     opensGovernanceTab(node) ||
     opensTransformTab(node) ||
     opensExtractTab(node) ||
-    opensMonitorTab(node)
+    opensMonitorTab(node) ||
+    invertedIndexKindFromNode(node) != null
   );
 }
 

@@ -1,0 +1,17 @@
+workflowExternalId: wf_discovery_idx_source_index_watermark
+version: v1
+workflowDefinition:
+  description: >-
+    Run fn_discovery_idx_build_watermark_incremental for scheduled metadata + annotation index catch-up.
+  tasks:
+    - externalId: fn_discovery_idx_build_watermark_incremental
+      type: function
+      parameters:
+        function:
+          externalId: fn_discovery_idx_build_watermark_incremental
+          data: {}
+      name: Watermark incremental index build
+      description: Incremental metadata and diagram annotation index builds with persisted cursor
+      retries: 3
+      timeout: 3600
+      onFailure: abortWorkflow

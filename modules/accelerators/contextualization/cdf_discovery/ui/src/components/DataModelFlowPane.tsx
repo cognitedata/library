@@ -108,7 +108,7 @@ function DmFlowSelectionBridge({
 }
 
 function FlowInner({ tab, onTabUpdate, onQueryView }: Props) {
-  const { t, theme } = useAppSettings();
+  const { t, resolvedTheme } = useAppSettings();
   const { fitView, getEdges } = useReactFlow();
   const [selectedViewId, setSelectedViewId] = useState<string | null>(null);
   const [selectedView, setSelectedView] = useState<DataModelGraphView | null>(null);
@@ -479,7 +479,7 @@ function FlowInner({ tab, onTabUpdate, onQueryView }: Props) {
                 nodes={displayNodes}
                 edges={displayEdges}
                 nodeTypes={nodeTypes}
-                colorMode={theme}
+                colorMode={resolvedTheme}
                 nodesDraggable
                 nodesConnectable={false}
                 elementsSelectable

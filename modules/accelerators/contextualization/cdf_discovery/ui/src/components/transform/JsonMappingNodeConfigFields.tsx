@@ -64,7 +64,7 @@ function validationMessageKey(issue: JsonMappingValidationIssue): MessageKey {
 }
 
 export function JsonMappingNodeConfigFields({ value, onChange, nodeId, flowNodes, flowEdges }: Props) {
-  const { t, theme } = useAppSettings();
+  const { t, resolvedTheme } = useAppSettings();
   const patch = (p: JsonObject) => onChange({ ...value, ...p });
 
   const graphCtx = useMemo<CanvasPredecessorContext>(
@@ -85,7 +85,7 @@ export function JsonMappingNodeConfigFields({ value, onChange, nodeId, flowNodes
   const [activeTab, setActiveTab] = useQueryEditorTabState(nodeId, TAB_SETUP);
 
   const validationIssues = validateJsonMappingConfig(value as Record<string, unknown>);
-  const cmTheme = theme === "dark" ? oneDark : "light";
+  const cmTheme = resolvedTheme === "dark" ? oneDark : "light";
 
   const commitInputText = useCallback(
     (text: string) => {

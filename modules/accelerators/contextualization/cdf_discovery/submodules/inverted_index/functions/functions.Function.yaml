@@ -1,0 +1,144 @@
+# CDF Toolkit Function Definitions — Inverted Index Contextualization
+
+- name: 'dm:context:inverted_index:build:metadata'
+  externalId: 'fn_discovery_idx_build_metadata'
+  dataSetExternalId: 'ds_inverted_index_all'
+  owner: 'Anonymous'
+  description: 'Build metadata inverted index from DM views via instances.query'
+  metadata:
+    version: '1.0.0'
+  envVars:
+    ENV_TYPE: '${CDF_BUILD_TYPE}'
+    CDF_ENV: '${CDF_ENVIRON}'
+  runtime: 'py311'
+  functionPath: 'handler.py'
+
+- name: 'dm:context:inverted_index:build:annotations'
+  externalId: 'fn_discovery_idx_build_annotations'
+  dataSetExternalId: 'ds_inverted_index_all'
+  owner: 'Anonymous'
+  description: 'Build diagram annotation inverted index via instances.query edge enumeration'
+  metadata:
+    version: '1.0.0'
+  envVars:
+    ENV_TYPE: '${CDF_BUILD_TYPE}'
+    CDF_ENV: '${CDF_ENVIRON}'
+  runtime: 'py311'
+  functionPath: 'handler.py'
+
+- name: 'dm:context:inverted_index:process:target_driven'
+  externalId: 'fn_discovery_idx_target_driven'
+  dataSetExternalId: 'ds_inverted_index_all'
+  owner: 'Anonymous'
+  description: 'Target-driven contextualization after aliases are populated'
+  metadata:
+    version: '1.0.0'
+  envVars:
+    ENV_TYPE: '${CDF_BUILD_TYPE}'
+    CDF_ENV: '${CDF_ENVIRON}'
+  runtime: 'py311'
+  functionPath: 'handler.py'
+
+- name: 'dm:context:inverted_index:subscription:aliases'
+  externalId: 'fn_discovery_idx_handle_subscription'
+  dataSetExternalId: 'ds_inverted_index_all'
+  owner: 'Anonymous'
+  description: 'Handle instance subscription events when CogniteDescribable.aliases changes'
+  metadata:
+    version: '1.0.0'
+  envVars:
+    ENV_TYPE: '${CDF_BUILD_TYPE}'
+    CDF_ENV: '${CDF_ENVIRON}'
+  runtime: 'py311'
+  functionPath: 'handler.py'
+
+- name: 'dm:context:inverted_index:source:metadata'
+  externalId: 'fn_discovery_idx_handle_source_metadata'
+  dataSetExternalId: 'ds_inverted_index_all'
+  owner: 'Anonymous'
+  description: 'Incremental metadata index writes from dataModeling workflow trigger items'
+  metadata:
+    version: '1.0.0'
+  envVars:
+    ENV_TYPE: '${CDF_BUILD_TYPE}'
+    CDF_ENV: '${CDF_ENVIRON}'
+  runtime: 'py311'
+  functionPath: 'handler.py'
+
+- name: 'dm:context:inverted_index:build:watermark_incremental'
+  externalId: 'fn_discovery_idx_build_watermark_incremental'
+  dataSetExternalId: 'ds_inverted_index_all'
+  owner: 'Anonymous'
+  description: 'Scheduled watermark incremental metadata and annotation index builds'
+  metadata:
+    version: '1.0.0'
+  envVars:
+    ENV_TYPE: '${CDF_BUILD_TYPE}'
+    CDF_ENV: '${CDF_ENVIRON}'
+  runtime: 'py311'
+  functionPath: 'handler.py'
+
+- name: 'dm:context:inverted_index:score:contextualization'
+  externalId: 'fn_discovery_idx_score'
+  dataSetExternalId: 'ds_inverted_index_all'
+  owner: 'Anonymous'
+  description: 'Compute contextualization score for a diagram file'
+  metadata:
+    version: '1.0.0'
+  envVars:
+    ENV_TYPE: '${CDF_BUILD_TYPE}'
+    CDF_ENV: '${CDF_ENVIRON}'
+  runtime: 'py311'
+  functionPath: 'handler.py'
+
+- name: 'dm:context:inverted_index:deltas:detection'
+  externalId: 'fn_discovery_idx_deltas'
+  dataSetExternalId: 'ds_inverted_index_all'
+  owner: 'Anonymous'
+  description: 'Detection mode deltas (pattern vs standard) for a file'
+  metadata:
+    version: '1.0.0'
+  envVars:
+    ENV_TYPE: '${CDF_BUILD_TYPE}'
+    CDF_ENV: '${CDF_ENVIRON}'
+  runtime: 'py311'
+  functionPath: 'handler.py'
+
+- name: 'dm:context:inverted_index:upsert:detections'
+  externalId: 'fn_discovery_idx_upsert_detections'
+  dataSetExternalId: 'ds_inverted_index_all'
+  owner: 'Anonymous'
+  description: 'Incremental diagram detection index writes (upsert or replace)'
+  metadata:
+    version: '1.0.0'
+  envVars:
+    ENV_TYPE: '${CDF_BUILD_TYPE}'
+    CDF_ENV: '${CDF_ENVIRON}'
+  runtime: 'py311'
+  functionPath: 'handler.py'
+
+- name: 'dm:context:inverted_index:index:metadata_instance'
+  externalId: 'fn_discovery_idx_index_metadata_instance'
+  dataSetExternalId: 'ds_inverted_index_all'
+  owner: 'Anonymous'
+  description: 'Incremental metadata index write for a single DM instance'
+  metadata:
+    version: '1.0.0'
+  envVars:
+    ENV_TYPE: '${CDF_BUILD_TYPE}'
+    CDF_ENV: '${CDF_ENVIRON}'
+  runtime: 'py311'
+  functionPath: 'handler.py'
+
+- name: 'dm:context:inverted_index:create:virtual_tags'
+  externalId: 'fn_discovery_idx_virtual_tags'
+  dataSetExternalId: 'ds_inverted_index_all'
+  owner: 'Anonymous'
+  description: 'Create virtual CogniteAsset tags from scoped inverted-index terms (UC4)'
+  metadata:
+    version: '1.0.0'
+  envVars:
+    ENV_TYPE: '${CDF_BUILD_TYPE}'
+    CDF_ENV: '${CDF_ENVIRON}'
+  runtime: 'py311'
+  functionPath: 'handler.py'

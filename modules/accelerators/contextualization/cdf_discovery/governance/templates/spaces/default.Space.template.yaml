@@ -1,3 +1,0 @@
-space: "{{ instance_space }}"
-name: "{{ name }}"
-description: "{{ description | default('', true) }}"

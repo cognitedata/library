@@ -4,9 +4,7 @@ workflowVersion: 1.0.0.1
 triggerRule:
   triggerType: schedule
   cronExpression: 0 2 * * *
-  cron_expression: 0 2 * * *
   timezone: UTC
-  trigger_type: schedule
 input:
   incremental_change_processing: false
   configuration:
@@ -23,3 +21,6 @@ input:
       preview_raw_table_key: etl_preview
       instance_space: inst_assets
       etl_state_instance_space: null
+authentication:
+  clientId: '{{ workflowClientId }}'
+  clientSecret: '{{ workflowClientSecret }}'

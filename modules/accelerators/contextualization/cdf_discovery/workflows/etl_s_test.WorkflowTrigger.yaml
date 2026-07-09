@@ -1,0 +1,26 @@
+externalId: trg_wf_wf_discovery_wf_discovery_wf_discovery_etl_s_test
+workflowExternalId: wf_wf_discovery_wf_discovery_wf_discovery_etl_s_test
+workflowVersion: '1'
+triggerRule:
+  triggerType: schedule
+  cronExpression: 0 2 * * *
+input:
+  incremental_change_processing: true
+  configuration:
+    schemaVersion: 1
+    id: s_test
+    scope: null
+    parameters:
+      incremental: true
+      incremental_change_processing: true
+      incremental_skip_unchanged: true
+      max_records_per_run: 0
+      raw_db: etl_staging
+      raw_table_key: cohort
+      preview_raw_table_key: etl_preview
+      instance_space: inst_assets
+      etl_state_instance_space: null
+      workflow_scope: s_test
+authentication:
+  clientId: '{{ workflowClientId }}'
+  clientSecret: '{{ workflowClientSecret }}'

@@ -1,0 +1,227 @@
+"""Inverted-index cohort row shape and helpers for ETL build_index handoff."""
+
+from __future__ import annotations
+
+import json
+import re
+from datetime import datetime, timezone
+from typing import Any, Callable, Dict, List, Mapping, Optional, Tuple
+
+from cdf_fn_common.etl_discovery_query_shared import (
+    ENTITY_TYPE_COLUMN,
+    EXTERNAL_ID_COLUMN,
+    NODE_INSTANCE_ID_COLUMN,
+    QUERY_SOURCE_COLUMN,
+    QUERY_TASK_ID_COLUMN,
+    RECORD_KIND_COLUMN,
+    VIEW_EXTERNAL_ID_COLUMN,
+    VIEW_SPACE_COLUMN,
+    VIEW_VERSION_COLUMN,
+    _first_nonempty,
+)
+from cdf_fn_common.etl_incremental_scope import RECORD_KIND_INDEX, RUN_ID_COLUMN
+
+INDEX_KIND_COLUMN = "INDEX_KIND"
+LOOKUP_KEY_COLUMN = "LOOKUP_KEY"
+POSTINGS_JSON_COLUMN = "POSTINGS_JSON"
+SCOPE_COLUMN = "SCOPE"
+UPDATED_AT_COLUMN = "UPDATED_AT"
+
+DEFAULT_INVERTED_INDEX_ROW_KEY_TEMPLATE = "{lookup_key}:{scope}|{index_kind}"
+
+# Delimiters commonly used in instance space external ids (site, unit, …).
+_SCOPE_SEGMENT_SPLIT = re.compile(r"[-_/.:]+")
+
+
+def scope_from_instance_space(instance_space: str) -> str:
+    """Build colon-separated scope from an instance space (site/unit segments for now)."""
+    raw = str(instance_space or "").strip()
+    if not raw:
+        return ""
+    parts = [p for p in _SCOPE_SEGMENT_SPLIT.split(raw) if p]
+    return ":".join(parts) if parts else raw
+
+
+def scope_from_postings(postings: List[Mapping[str, Any]]) -> str:
+    """Derive scope from the first posting that carries an ``instance_space``."""
+    for posting in postings:
+        if not isinstance(posting, Mapping):
+            continue
+        space = _first_nonempty(posting.get("instance_space"))
+        if space:
+            return scope_from_instance_space(space)
+    return ""
+
+
+def normalize_lookup_key(token: str) -> str:
+    return str(token or "").strip().casefold()
+
+
+def parse_index_kinds_config(cfg: Mapping[str, Any]) -> List[Tuple[str, str]]:
+    """Build ``(index_kind, property_name)`` pairs from ``cfg['index_kinds']``."""
+    raw = cfg.get("index_kinds")
+    if not isinstance(raw, dict) or not raw:
+        return []
+    out: List[Tuple[str, str]] = []
+    for kind, props in raw.items():
+        kind_s = str(kind or "").strip()
+        if not kind_s or not isinstance(props, list):
+            continue
+        for prop in props:
+            prop_s = str(prop or "").strip()
+            if prop_s:
+                out.append((kind_s, prop_s))
+    return out
+
+
+def _instance_identity_from_row(
+    cols: Mapping[str, Any],
+    props: Mapping[str, Any],
+) -> Tuple[str, str, str]:
+    ext_id = _first_nonempty(cols.get(EXTERNAL_ID_COLUMN))
+    inst_space = _first_nonempty(props.get("instance_space"))
+    nid = str(cols.get(NODE_INSTANCE_ID_COLUMN) or "").strip()
+    if not inst_space and nid and ":" in nid:
+        inst_space = nid.split(":", 1)[0].strip()
+    return inst_space, ext_id, nid
+
+
+def build_index_posting(
+    *,
+    cols: Mapping[str, Any],
+    props: Mapping[str, Any],
+    index_kind: str,
+    source_property: str,
+    token: str,
+    confidence: Optional[float],
+    run_id: str,
+    default_view_version: str = "v1",
+) -> Dict[str, Any]:
+    inst_space, ext_id, nid = _instance_identity_from_row(cols, props)
+    posting: Dict[str, Any] = {
+        "term": token,
+        "instance_space": inst_space,
+        "external_id": ext_id,
+        "node_instance_id": nid,
+        "view_space": _first_nonempty(cols.get(VIEW_SPACE_COLUMN)),
+        "view_external_id": _first_nonempty(cols.get(VIEW_EXTERNAL_ID_COLUMN)),
+        "view_version": _first_nonempty(cols.get(VIEW_VERSION_COLUMN), default_view_version),
+        "entity_type": _first_nonempty(cols.get(ENTITY_TYPE_COLUMN)),
+        "source_property": source_property,
+        "index_kind": index_kind,
+        "run_id": run_id,
+    }
+    if confidence is not None:
+        posting["confidence"] = confidence
+    return posting
+
+
+def region_fingerprint(region: Mapping[str, Any]) -> str:
+    vertices = region.get("vertices") if isinstance(region.get("vertices"), list) else []
+    parts: list[str] = []
+    for v in vertices:
+        if isinstance(v, dict):
+            parts.append(f"{v.get('x')}:{v.get('y')}")
+    if parts:
+        return "|".join(sorted(parts))
+    bb = region.get("bounding_box") if isinstance(region.get("bounding_box"), dict) else {}
+    if bb:
+        return f"bb:{bb.get('x_min')}:{bb.get('y_min')}:{bb.get('x_max')}:{bb.get('y_max')}"
+    return ""
+
+
+def posting_dedupe_key(posting: Mapping[str, Any]) -> Tuple[str, ...]:
+    index_kind = str(posting.get("index_kind") or "")
+    if index_kind == "annotation":
+        file_ref = posting.get("file_ref") if isinstance(posting.get("file_ref"), dict) else {}
+        file_id = str(file_ref.get("file_id") or "")
+        page = str(file_ref.get("page_number") or file_ref.get("first_page") or "")
+        text = str(posting.get("lookup_key") or posting.get("source_property") or "")
+        region = posting.get("region") if isinstance(posting.get("region"), dict) else {}
+        return (index_kind, file_id, page, text, region_fingerprint(region))
+    return (
+        str(posting.get("instance_space") or ""),
+        str(posting.get("external_id") or ""),
+        str(posting.get("source_property") or ""),
+    )
+
+
+def merge_postings(
+    existing: List[Dict[str, Any]],
+    incoming: List[Dict[str, Any]],
+) -> List[Dict[str, Any]]:
+    """Merge by (instance_space, external_id, source_property); incoming replaces same run_id."""
+    by_key: Dict[Tuple[str, ...], Dict[str, Any]] = {}
+    for p in existing:
+        if isinstance(p, dict):
+            by_key[posting_dedupe_key(p)] = dict(p)
+    for p in incoming:
+        if not isinstance(p, dict):
+            continue
+        key = posting_dedupe_key(p)
+        prior = by_key.get(key)
+        if prior and str(prior.get("run_id") or "") == str(p.get("run_id") or ""):
+            by_key[key] = dict(p)
+        elif prior is None:
+            by_key[key] = dict(p)
+        else:
+            merged = dict(prior)
+            if p.get("confidence") is not None:
+                merged["confidence"] = p["confidence"]
+            merged["run_id"] = p.get("run_id")
+            by_key[key] = merged
+    return list(by_key.values())
+
+
+def format_inverted_index_row_key(
+    index_kind: str,
+    lookup_key: str,
+    template: str,
+    scope: str,
+) -> str:
+    tpl = (
+        str(template or DEFAULT_INVERTED_INDEX_ROW_KEY_TEMPLATE).strip()
+        or DEFAULT_INVERTED_INDEX_ROW_KEY_TEMPLATE
+    )
+    return (
+        tpl.replace("{index_kind}", str(index_kind))
+        .replace("{lookup_key}", str(lookup_key))
+        .replace("{scope}", str(scope))
+    )
+
+
+def build_inverted_index_rows(
+    *,
+    pending: Mapping[Tuple[str, str], List[Dict[str, Any]]],
+    run_id: str,
+    canvas_node_id: str,
+    query_source: str = "build_index",
+    row_key_template: str = DEFAULT_INVERTED_INDEX_ROW_KEY_TEMPLATE,
+    row_key_formatter: Optional[Callable[[str, str, str, str], str]] = None,
+) -> List[Dict[str, Any]]:
+    """Materialize cohort inverted-index rows for downstream save via storage adapter."""
+    now = datetime.now(timezone.utc).isoformat(timespec="milliseconds")
+    raw_rows: List[Dict[str, Any]] = []
+    format_key = row_key_formatter or format_inverted_index_row_key
+    for (index_kind, lookup_key), new_posts in pending.items():
+        merged = merge_postings([], new_posts)
+        scope = scope_from_postings(merged)
+        row_key = format_key(index_kind, lookup_key, row_key_template, scope)
+        raw_rows.append(
+            {
+                "key": row_key,
+                "columns": {
+                    RECORD_KIND_COLUMN: RECORD_KIND_INDEX,
+                    RUN_ID_COLUMN: run_id,
+                    SCOPE_COLUMN: scope,
+                    INDEX_KIND_COLUMN: index_kind,
+                    LOOKUP_KEY_COLUMN: lookup_key,
+                    POSTINGS_JSON_COLUMN: json.dumps(merged, default=str),
+                    UPDATED_AT_COLUMN: now,
+                    QUERY_SOURCE_COLUMN: query_source,
+                    QUERY_TASK_ID_COLUMN: canvas_node_id,
+                },
+            }
+        )
+    return raw_rows
+

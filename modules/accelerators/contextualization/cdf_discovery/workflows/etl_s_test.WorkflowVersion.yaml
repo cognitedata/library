@@ -1,0 +1,25 @@
+workflowExternalId: wf_wf_discovery_wf_discovery_wf_discovery_etl_s_test
+version: '1'
+workflowDefinition:
+  tasks:
+  - externalId: end
+    type: function
+    dependsOn: []
+    parameters:
+      function:
+        externalId: fn_discovery_etl_raw_cleanup
+        data:
+          logLevel: INFO
+          incremental_change_processing: ${workflow.input.incremental_change_processing}
+          run_id: ${workflow.input.configuration.parameters.run_id}
+          configuration: ${workflow.input.configuration}
+          task_id: end
+          canvas_node_id: end
+          config:
+            description: ''
+          predecessors: []
+    name: Workflow step
+    description: Execute fn_discovery_etl_raw_cleanup
+    retries: 3
+    timeout: 1800
+    onFailure: abortWorkflow

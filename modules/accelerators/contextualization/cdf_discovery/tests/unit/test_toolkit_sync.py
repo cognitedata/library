@@ -91,8 +91,6 @@ def test_seed_toolkit_env_variables_in_auth_scope_path(tmp_path):
         },
     )
     doc = yaml.safe_load(p.read_text(encoding="utf-8"))
-    assert doc["variables"]["modules"]["cdf_discovery"]["site_b"]["gp_asset_site_b_read"] == ""
-    assert (
-        doc["variables"]["modules"]["cdf_discovery"]["site_a"]["unit_02"]["gp_asset_site_a_unit_02_read"]
-        == ""
-    )
+    mod = doc["variables"]["modules"]["cdf_discovery"]
+    assert mod["gp_asset_site_b_read"] == ""
+    assert mod["gp_asset_site_a_unit_02_read"] == ""

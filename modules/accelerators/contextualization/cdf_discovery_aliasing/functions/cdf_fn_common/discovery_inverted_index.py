@@ -1,43 +1,32 @@
-"""Discovery inverted index: config-driven lookup keys → CDM instance postings in RAW."""
+"""Discovery inverted index: config-driven lookup keys → contextualization index entries."""
 
 from __future__ import annotations
 
-import json
 from collections import defaultdict
-from datetime import datetime, timezone
 from typing import Any, DefaultDict, Dict, List, Mapping, MutableMapping, Optional, Tuple
 
-from .cdf_utils import create_table_if_not_exists
 from .cohort_storage import require_run_id
 from .discovery_cohort import (
-    _props_from_row_columns,
     iter_predecessor_instance_props,
     iter_predecessor_raw_locations,
 )
 from .discovery_validate import _normalize_field_values
 from .discovery_query_shared import (
-    ENTITY_TYPE_COLUMN,
     EXTERNAL_ID_COLUMN,
     NODE_INSTANCE_ID_COLUMN,
-    RECORD_KIND_COLUMN,
-    RECORD_KIND_ENTITY,
     VIEW_EXTERNAL_ID_COLUMN,
     VIEW_SPACE_COLUMN,
     VIEW_VERSION_COLUMN,
-    resolve_inverted_index_sink,
-    resolve_run_id,
     resolve_task_config,
     _first_nonempty,
-    _flush_rows,
 )
-from .incremental_scope import raw_row_columns
-from .raw_upload import RawRowsUploadQueue
+from .index_entry_bridge import (
+    pending_groups_to_index_entries,
+    persist_index_entries_via_adapter,
+    resolve_index_storage_config,
+    resolve_match_scope_key_from_workflow,
+)
 from .task_runtime import merge_compiled_task_into_data
-
-INDEX_KIND_COLUMN = "INDEX_KIND"
-LOOKUP_KEY_COLUMN = "LOOKUP_KEY"
-POSTINGS_JSON_COLUMN = "POSTINGS_JSON"
-UPDATED_AT_COLUMN = "UPDATED_AT"
 
 KIND_METADATA = "metadata"
 KIND_FILE_ANNOTATION = "file_annotation"
@@ -50,9 +39,9 @@ def normalize_lookup_key(token: str) -> str:
 
 def parse_index_kinds_config(cfg: Mapping[str, Any]) -> List[Tuple[str, str]]:
     """
-  Build ``(index_kind, property_name)`` pairs from ``cfg['index_kinds']`` only.
+    Build ``(index_kind, property_name)`` pairs from ``cfg['index_kinds']`` only.
 
-  No hardcoded property list — empty config means the handler skips indexing.
+    No hardcoded property list — empty config means the handler skips indexing.
     """
     raw = cfg.get("index_kinds")
     if not isinstance(raw, dict) or not raw:
@@ -95,13 +84,13 @@ def _build_posting(
 ) -> Dict[str, Any]:
     inst_space, ext_id, nid = _instance_identity_from_row(cols, props)
     posting: Dict[str, Any] = {
+        "term": token,
         "instance_space": inst_space,
         "external_id": ext_id,
         "node_instance_id": nid,
         "view_space": _first_nonempty(cols.get(VIEW_SPACE_COLUMN)),
         "view_external_id": _first_nonempty(cols.get(VIEW_EXTERNAL_ID_COLUMN)),
         "view_version": _first_nonempty(cols.get(VIEW_VERSION_COLUMN), "v1"),
-        "entity_type": _first_nonempty(cols.get(ENTITY_TYPE_COLUMN)),
         "source_property": source_property,
         "index_kind": index_kind,
         "run_id": run_id,
@@ -146,25 +135,6 @@ def merge_postings(
     return list(by_key.values())
 
 
-def _load_existing_postings(client: Any, raw_db: str, raw_table: str, row_key: str) -> List[Dict[str, Any]]:
-    try:
-        row = client.raw.rows.retrieve(raw_db, raw_table, row_key)
-    except Exception:
-        return []
-    if not row:
-        return []
-    cols = raw_row_columns(row)
-    raw = cols.get(POSTINGS_JSON_COLUMN)
-    if isinstance(raw, str) and raw.strip():
-        try:
-            parsed = json.loads(raw)
-            if isinstance(parsed, list):
-                return [dict(x) for x in parsed if isinstance(x, dict)]
-        except json.JSONDecodeError:
-            return []
-    return []
-
-
 def run_discovery_inverted_index(
     fn_external_id: str,
     data: MutableMapping[str, Any],
@@ -177,23 +147,27 @@ def run_discovery_inverted_index(
     task_id = _first_nonempty(data.get("task_id"), fn_external_id)
 
     if not index_pairs:
-        summary = {
+        return {
             "function_external_id": fn_external_id,
             "task_id": task_id,
             "status": "skipped",
             "reason": "no_index_kinds_configured",
-            "inverted_writes": 0,
+            "entries_created": 0,
+            "entries_updated": 0,
             "entities": 0,
             "postings": 0,
         }
-        return summary
 
     if not client:
         raise ValueError("CogniteClient is required")
 
     run_id = require_run_id(data)
     data["run_id"] = run_id
-    raw_db, raw_table = resolve_inverted_index_sink(data)
+    storage_config, scope_config = resolve_index_storage_config(data, cfg)
+    match_scope_key, match_scope = resolve_match_scope_key_from_workflow(data, scope_config)
+    source_type_overrides = cfg.get("source_type_overrides")
+    if not isinstance(source_type_overrides, dict):
+        source_type_overrides = {}
 
     pending: DefaultDict[Tuple[str, str], List[Dict[str, Any]]] = defaultdict(list)
     entities_seen: set[Tuple[str, str]] = set()
@@ -234,34 +208,19 @@ def run_discovery_inverted_index(
                     )
                 )
 
-    queue = RawRowsUploadQueue(client)
-    raw_rows: List[Dict[str, Any]] = []
-    inverted_writes = 0
-    total_postings = 0
-    now = datetime.now(timezone.utc).isoformat(timespec="milliseconds")
-
-    for (index_kind, lookup_key), new_posts in pending.items():
-        row_key = f"{index_kind}:{lookup_key}"
-        existing = _load_existing_postings(client, raw_db, raw_table, row_key)
-        merged = merge_postings(existing, new_posts)
-        total_postings += len(merged)
-        raw_rows.append(
-            {
-                "key": row_key,
-                "columns": {
-                    INDEX_KIND_COLUMN: index_kind,
-                    LOOKUP_KEY_COLUMN: lookup_key,
-                    POSTINGS_JSON_COLUMN: json.dumps(merged, default=str),
-                    UPDATED_AT_COLUMN: now,
-                },
-            }
-        )
-        inverted_writes += 1
-
-    if raw_rows:
-        create_table_if_not_exists(client, raw_db, raw_table, log)
-
-    _flush_rows(queue, raw_db, raw_table, raw_rows, client=client)
+    entries = pending_groups_to_index_entries(
+        pending,
+        match_scope_key=match_scope_key,
+        match_scope=match_scope,
+        build_job_id=run_id,
+        source_type_overrides=source_type_overrides,
+    )
+    upsert_result = persist_index_entries_via_adapter(
+        client,
+        entries,
+        storage_config,
+        log=log,
+    )
 
     index_kinds_configured = {
         kind: sorted({p for k, p in index_pairs if k == kind})
@@ -272,26 +231,29 @@ def run_discovery_inverted_index(
         "function_external_id": fn_external_id,
         "task_id": task_id,
         "rows_read": rows_read,
-        "inverted_writes": inverted_writes,
+        "entries_created": int(upsert_result.get("entries_created") or 0),
+        "entries_updated": int(upsert_result.get("entries_updated") or 0),
         "entities": len(entities_seen),
-        "postings": total_postings,
-        "raw_db": raw_db,
-        "raw_table": raw_table,
+        "postings": len(entries),
+        "storage_backend": storage_config.get("backend"),
+        "match_scope_key": match_scope_key,
         "run_id": run_id,
         "index_kinds_configured": index_kinds_configured,
         "predecessor_raw_sources": [
             {"raw_db": d, "raw_table": t} for d, t in pred_locations
         ],
     }
+    if storage_config.get("backend") == "raw":
+        summary["raw_database"] = storage_config.get("raw", {}).get("database")
+
     if log and hasattr(log, "info"):
         log.info(
-            "%s inverted_index writes=%s postings=%s rows_read=%s table=%s/%s",
+            "%s inverted_index backend=%s created=%s updated=%s rows_read=%s scope=%s",
             fn_external_id,
-            inverted_writes,
-            total_postings,
+            summary["storage_backend"],
+            summary["entries_created"],
+            summary["entries_updated"],
             rows_read,
-            raw_db,
-            raw_table,
+            match_scope_key,
         )
-    data["run_id"] = run_id
     return summary
