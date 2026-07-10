@@ -3,6 +3,7 @@ import type { GovernanceDocument, SpacesConfig } from "../../types/governanceCon
 import {
   DEFAULT_INSTANCE_SPACE_ID_TEMPLATE,
   DEFAULT_SPACE_NAME_TEMPLATE,
+  GOVERNANCE_SPACES_OUTPUT_DIR,
   listDimensionKeys,
 } from "../../types/governanceConfig";
 import { DeferredCommitInput } from "./DeferredCommitTextField";
@@ -56,7 +57,7 @@ export function SpacesEditor({ doc, onChange }: Props) {
             {t("spaces.field.outputDir")}
             <DeferredCommitInput
               className="gov-input"
-              committedValue={spaces.output_dir ?? "spaces"}
+              committedValue={spaces.output_dir ?? GOVERNANCE_SPACES_OUTPUT_DIR}
               onCommit={(output_dir) => patch({ output_dir })}
             />
           </label>

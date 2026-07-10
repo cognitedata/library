@@ -684,8 +684,8 @@ def _build_dynamic_detect_function_task(
             "function": {
                 "externalId": child_function_external_id,
                 "data": dict(child_data),
-                "isAsyncComplete": True,
-            }
+            },
+            "isAsyncComplete": True,
         },
         "name": name,
         "description": description,

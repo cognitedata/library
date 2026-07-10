@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 from typing import Any, Optional
 
-_DISCOVERY_ROOT = Path(__file__).resolve().parent.parent.parent
+_DISCOVERY_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 
 
 def _discovery_auth():

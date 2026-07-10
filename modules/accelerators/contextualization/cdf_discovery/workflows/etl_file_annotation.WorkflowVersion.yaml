@@ -22,7 +22,7 @@ workflowDefinition:
             source_task_id: fanout
           predecessors:
           - finalize_annotations
-        isAsyncComplete: true
+      isAsyncComplete: true
     name: Detect completion barrier
     description: Execute fn_discovery_etl_file_annotation_barrier
     retries: 2
@@ -103,7 +103,7 @@ workflowDefinition:
             source_task_id: fanout
           predecessors:
           - fanout
-        isAsyncComplete: true
+      isAsyncComplete: true
     name: Finalize detect jobs
     description: Execute fn_discovery_etl_file_annotation_finalize
     retries: 2
@@ -201,25 +201,10 @@ workflowDefinition:
     retries: 3
     timeout: 7200
     onFailure: abortWorkflow
-  - externalId: map_annotations_dm
-    type: jsonMapping
-    dependsOn:
-    - externalId: completion_barrier
-    parameters:
-      jsonMapping:
-        input:
-          rows: ${finalize_annotations.output}
-        expression: input.rows
-    name: Map annotations (DM)
-    description: Expand file-annotation cohort hits to CogniteDiagramAnnotation staging
-      rows
-    retries: 2
-    timeout: 1800
-    onFailure: skipTask
   - externalId: save_annotation_results_dm
     type: function
     dependsOn:
-    - externalId: map_annotations_dm
+    - externalId: completion_barrier
     parameters:
       function:
         externalId: fn_discovery_etl_view_save
@@ -237,7 +222,7 @@ workflowDefinition:
             view_version: v1
             annotation_space: discovery-annotations
           predecessors:
-          - map_annotations_dm
+          - completion_barrier
     name: Save CogniteDiagramAnnotation
     description: Execute fn_discovery_etl_view_save
     retries: 3

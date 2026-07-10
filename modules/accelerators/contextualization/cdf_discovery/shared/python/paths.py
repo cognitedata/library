@@ -62,6 +62,10 @@ def workflows_root() -> Path:
     return module_root() / "workflows"
 
 
+def workflow_scopes_root() -> Path:
+    return module_root() / "workflow_scopes"
+
+
 def data_sets_root() -> Path:
     return module_root() / "data_sets"
 

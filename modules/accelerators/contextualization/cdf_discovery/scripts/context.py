@@ -59,7 +59,7 @@ def top_level_scope_folder(segments: List[str]) -> str:
 
 
 def scope_tree_folder_parts(segments: List[str]) -> List[str]:
-    """One filesystem directory per scope hierarchy segment under ``spaces/`` or ``auth/``."""
+    """One filesystem directory per scope hierarchy segment under ``data_modeling/spaces/`` or ``auth/``."""
     if not segments:
         return ["_ungrouped"]
     return [scope_id_to_snake(seg) for seg in segments]

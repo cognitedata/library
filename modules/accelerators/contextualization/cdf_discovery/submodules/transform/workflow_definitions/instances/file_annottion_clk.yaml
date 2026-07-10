@@ -205,9 +205,9 @@ canvas:
     data:
       label: Start
       config:
-        workflow_base: wf_all_wf_discovery_etl_file_annotation
-        workflow_external_id: wf_all_wf_discovery_etl_file_annotation
-        trigger_external_id: trg_wf_all_wf_discovery_etl_file_annotation
+        workflow_base: wf_all_wf_discovery_etl_file_annottion_clk
+        workflow_external_id: wf_all_wf_discovery_etl_file_annottion_clk
+        trigger_external_id: trg_wf_all_wf_discovery_etl_file_annottion_clk
         workflow_version: '1'
         incremental_change_processing: true
         workflow_scope: file_annottion_clk
@@ -347,9 +347,9 @@ compiled_workflow:
     payload:
       config: *id004
   - id: map_annotations_classic
-    function_external_id: null
+    function_external_id: fn_discovery_etl_json_mapping
     executable_kind: json_mapping
-    task_type: jsonMapping
+    task_type: function
     canvas_node_id: map_annotations_classic
     label: Map annotations (classic)
     depends_on:
@@ -361,11 +361,11 @@ compiled_workflow:
         mapper_kind: diagram_detect_to_classic
         input: *id005
         expression: input.rows
-      source_task_id: completion_barrier
+      source_task_id: finalize_annotations
   - id: map_annotations_dm
-    function_external_id: null
+    function_external_id: fn_discovery_etl_json_mapping
     executable_kind: json_mapping
-    task_type: jsonMapping
+    task_type: function
     canvas_node_id: map_annotations_dm
     label: Map annotations (DM)
     depends_on:
@@ -379,7 +379,7 @@ compiled_workflow:
         default_status: Suggested
         input: *id006
         expression: input.rows
-      source_task_id: completion_barrier
+      source_task_id: finalize_annotations
   - id: query_assets
     function_external_id: fn_discovery_etl_view_query
     executable_kind: query_view

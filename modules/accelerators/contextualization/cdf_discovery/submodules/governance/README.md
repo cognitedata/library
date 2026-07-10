@@ -12,7 +12,7 @@ Authoring for scoped **Space** and **Group** Toolkit YAML: scope hierarchy, dime
 
 | Path | Purpose |
 |------|---------|
-| `../spaces/` | Generated `*.Space.yaml` (gitignored) |
+| `../data_modeling/spaces/` | Generated `*.Space.yaml` (gitignored) |
 | `../auth/` | Generated `*.Group.yaml` (gitignored) |
 
 Override the declared config root with `governance.declared_root` in `discovery.local.config.yaml` or `CDF_DISCOVERY_GOVERNANCE_ROOT`.

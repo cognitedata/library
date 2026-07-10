@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock, patch
 
 from ui.server import monitor_api
@@ -122,13 +123,16 @@ def test_workflow_state_workflow_detail_returns_task_status_counts():
 
 def test_monitor_schedules_includes_pipeline_and_avg_runtime():
     client = MagicMock()
+    now = datetime.now(timezone.utc)
+    start = (now - timedelta(days=1)).isoformat()
+    end = (now - timedelta(days=1) + timedelta(minutes=10)).isoformat()
     client.workflows.executions.list.return_value = [
         _make_execution(
             run_id="run-1",
             workflow_id="wf_pipeline",
             status="completed",
-            start_time="2026-05-29T10:00:00+00:00",
-            end_time="2026-05-29T10:10:00+00:00",
+            start_time=start,
+            end_time=end,
         )
     ]
     trigger = MagicMock()

@@ -878,18 +878,34 @@ def compile_canvas_dag(canvas: Mapping[str, Any]) -> Dict[str, Any]:
                         f"{enriched.get('mapper_kind')!r} requires exactly one predecessor "
                         f"(typically fanout), got {deps!r}"
                     )
-                payload["source_task_id"] = deps[0]
+                from cdf_fn_common.etl_annotation_map.kuiper_templates import (
+                    resolve_cohort_source_task_id_from_json_mapping_config,
+                )
+
+                payload["source_task_id"] = resolve_cohort_source_task_id_from_json_mapping_config(
+                    enriched,
+                    fallback=deps[0],
+                )
         label = ""
         if isinstance(data.get("label"), str):
             label = str(data.get("label") or "").strip()
         on_failure = str(cfg.get("on_failure") or cfg.get("onFailure") or "").strip()
         if not on_failure and kind == "cdf_task":
             on_failure = "skipTask"
+        resolved_fn_ext = _resolved_function_external_id(kind, cfg, fn_ext)
+        resolved_exec_kind = exec_kind
+        resolved_task_type = task_type
+        if kind == "json_mapping" and str(
+            (payload.get("config") or {}).get("mapper_kind") or ""
+        ).strip().lower() in _DIAGRAM_ANNOTATION_MAPPER_KINDS:
+            resolved_fn_ext = "fn_discovery_etl_json_mapping"
+            resolved_exec_kind = "json_mapping"
+            resolved_task_type = "function"
         task_entry: Dict[str, Any] = {
             "id": node_id,
-            "function_external_id": _resolved_function_external_id(kind, cfg, fn_ext),
-            "executable_kind": exec_kind,
-            "task_type": task_type,
+            "function_external_id": resolved_fn_ext,
+            "executable_kind": resolved_exec_kind,
+            "task_type": resolved_task_type,
             "canvas_node_id": node_id,
             "label": label,
             "depends_on": deps,

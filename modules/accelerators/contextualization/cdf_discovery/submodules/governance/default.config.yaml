@@ -11,22 +11,6 @@ scope_hierarchy:
   - id: SITE_A
     name: Site A
     description: ''
-    locations:
-    - id: UNIT_01
-      name: 'Site A: Unit 01'
-      description: ''
-      locations: []
-    - id: UNIT_02
-      name: 'Site A: Unit 2'
-      description: ''
-      locations: []
-  - id: SITE_B
-    name: Site B
-    description: ''
-    locations: []
-  - id: SITE_Cf
-    name: Site C
-    description: ''
     locations: []
 dimensions:
   data_type:
@@ -55,14 +39,8 @@ dimensions:
     items:
     - id: sap
       name: SAP
-    - id: workmate
-      name: Workmate
-    - id: aveva
-      name: Aveva
     - id: pi
       name: PI
-    - id: fileshare
-      name: Fileshare
     - id: sharepoint
       name: SharePoint
   pipeline_type:
@@ -75,8 +53,6 @@ dimensions:
       name: Source data (src)
     - id: ctx
       name: Contextualization (ctx)
-    - id: uc
-      name: Use case (uc)
   operation_type:
     order: 4
     naming_element: operation_type
@@ -111,7 +87,7 @@ dimensions:
       name: Read
 spaces:
   template: templates/spaces/default.Space.template.yaml
-  output_dir: data_modeling
+  output_dir: data_modeling/spaces
   nodes: leaves
   instance_space_id_template: inst_{{ data_type_id }}_{{ source_system_id }}_{{ scope_id_snake
     }}

@@ -273,7 +273,7 @@ def build_watermark_trigger_doc() -> dict[str, Any]:
         "externalId": "wf_discovery_idx_source_index_watermark_trigger",
         "triggerRule": {
             "triggerType": "schedule",
-            "cronExpression": "{{ source_index_watermark_cron }}",
+            "cronExpression": ToolkitPlaceholder("source_index_watermark_cron"),
         },
         "workflowExternalId": "wf_discovery_idx_source_index_watermark",
         "workflowVersion": "v1",
@@ -318,13 +318,13 @@ _PLACEHOLDER_QUOTED = re.compile(
 
 
 def _normalize_trigger_body(body: str) -> str:
-    """Match hand-authored Toolkit trigger style (unquoted ``{{ var }}`` scalars)."""
+    """Quote Toolkit placeholder scalars so YAML parses before variable substitution."""
     lines: list[str] = []
     for line in body.splitlines():
         match = _PLACEHOLDER_QUOTED.match(line)
         if match:
             indent, key, name = match.groups()
-            lines.append(f"{indent}{key}: {{{{ {name} }}}}")
+            lines.append(f"{indent}{key}: '{{{{ {name} }}}}'")
             continue
         lines.append(line)
     return "\n".join(lines).strip() + "\n"

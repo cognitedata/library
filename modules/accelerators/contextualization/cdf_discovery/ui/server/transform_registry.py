@@ -73,8 +73,9 @@ def ensure_pipeline_workflow_scope(
 
 def _artifact_paths():
     from ui.server.etl_syspath import ensure_transform_syspath
+    from ui.server.main import MODULE_ROOT
 
-    ensure_transform_syspath(_module_root())
+    ensure_transform_syspath(MODULE_ROOT)
     import workflow_artifact_paths as wap
 
     return wap
@@ -109,8 +110,8 @@ def _workflows_dir() -> Path:
 def _built_config_path(workflow_id: str, scope_suffix: str) -> Path:
     wap = _artifact_paths()
     suffix = _normalize_scope_suffix(scope_suffix)
-    out_dir = wap.workflow_artifacts_output_dir(_module_root(), suffix)
-    return out_dir / wap.artifact_filename(workflow_id, suffix, "config.yaml")
+    out_dir = wap.workflow_scopes_output_dir(_module_root(), suffix)
+    return out_dir / wap.artifact_filename(workflow_id, suffix, "scope.yaml")
 
 
 def _workflow_artifact_rel_path(
@@ -119,6 +120,10 @@ def _workflow_artifact_rel_path(
     wap = _artifact_paths()
     suffix = _normalize_scope_suffix(scope_suffix)
     name = wap.artifact_filename(pipeline_id, suffix, filename_kind)
+    if filename_kind == "scope.yaml":
+        if suffix:
+            return f"workflow_scopes/{suffix}/{name}"
+        return f"workflow_scopes/{name}"
     if suffix:
         return f"workflows/{suffix}/{name}"
     return f"workflows/{name}"
@@ -129,16 +134,16 @@ def _transform_config_path() -> Path:
 
 
 def list_built_scope_suffixes() -> List[str]:
-    """Scoped build folders under ``workflows/<scope>/`` (excludes flat root)."""
+    """Scoped build folders under ``workflow_scopes/<scope>/`` (excludes flat root)."""
 
-    root = _workflows_dir()
+    root = _module_root() / "workflow_scopes"
     if not root.is_dir():
         return []
     scopes: List[str] = []
     for path in sorted(root.iterdir()):
         if not path.is_dir():
             continue
-        if any(path.glob("etl_*.config.yaml")):
+        if any(path.glob("etl_*_scope.yaml")):
             scopes.append(path.name)
     return scopes
 
@@ -187,20 +192,18 @@ def list_instance_pipeline_entries() -> List[Dict[str, Any]]:
 
 
 def list_built_pipeline_entries(*, scope_suffix: str) -> List[Dict[str, Any]]:
-    """Pipeline rows for one build scope (flat ``workflows/`` or ``workflows/<scope>/``)."""
+    """Pipeline rows for one build scope (flat ``workflow_scopes/`` or ``workflow_scopes/<scope>/``)."""
     wap = _artifact_paths()
     suffix = _normalize_scope_suffix(scope_suffix)
-    scope_dir = wap.workflow_artifacts_output_dir(_module_root(), suffix)
+    scope_dir = wap.workflow_scopes_output_dir(_module_root(), suffix)
     if not scope_dir.is_dir():
         return []
     out: List[Dict[str, Any]] = []
-    for path in sorted(scope_dir.glob("etl_*.config.yaml")):
-        parsed = wap.parse_built_config_filename(path.name)
-        if not parsed:
+    for path in sorted(scope_dir.glob("etl_*_scope.yaml")):
+        pipeline_id = wap.parse_scoped_scope_filename(path.name, suffix)
+        if not pipeline_id:
             continue
-        pipeline_id, scope = parsed
-        if scope != suffix:
-            continue
+        scope = suffix
         doc = _read_yaml(path)
         label = str(doc.get("label") or doc.get("description") or pipeline_id)
         has_workflows = pipeline_has_workflow_artifacts(pipeline_id, scope_suffix=suffix)
@@ -582,20 +585,31 @@ def delete_pipeline_document(pipeline_id: str) -> None:
         inst_path.unlink()
     remove_registry_entry(pipeline_id)
     wap = _artifact_paths()
-    root = _workflows_dir()
-    if not root.is_dir():
-        return
-    for kind in ("config.yaml", "Workflow.yaml", "WorkflowVersion.yaml", "WorkflowTrigger.yaml"):
-        flat = root / wap.artifact_filename(pipeline_id, "", kind)
-        if flat.is_file():
-            flat.unlink()
-    for scope_dir in root.iterdir():
-        if not scope_dir.is_dir():
-            continue
-        suffix = scope_dir.name
-        for path in scope_dir.glob(f"{wap.artifact_basename(pipeline_id, suffix)}.*"):
-            if path.is_file():
-                path.unlink()
+    workflows_root = _workflows_dir()
+    scopes_root = _module_root() / "workflow_scopes"
+    if workflows_root.is_dir():
+        for kind in ("Workflow.yaml", "WorkflowVersion.yaml", "WorkflowTrigger.yaml"):
+            flat = workflows_root / wap.artifact_filename(pipeline_id, "", kind)
+            if flat.is_file():
+                flat.unlink()
+        for scope_dir in workflows_root.iterdir():
+            if not scope_dir.is_dir():
+                continue
+            suffix = scope_dir.name
+            for path in scope_dir.glob(f"{wap.artifact_basename(pipeline_id, suffix)}.*"):
+                if path.is_file():
+                    path.unlink()
+    if scopes_root.is_dir():
+        flat_scope = scopes_root / wap.artifact_filename(pipeline_id, "", "scope.yaml")
+        if flat_scope.is_file():
+            flat_scope.unlink()
+        for scope_dir in scopes_root.iterdir():
+            if not scope_dir.is_dir():
+                continue
+            suffix = scope_dir.name
+            scoped = scope_dir / wap.artifact_filename(pipeline_id, suffix, "scope.yaml")
+            if scoped.is_file():
+                scoped.unlink()
 
 
 def pipeline_exists(pipeline_id: str) -> bool:

@@ -44,13 +44,21 @@ app.add_middleware(
 )
 
 
+def _load_env() -> None:
+    from ui.server.etl_syspath import prepare_etl_local_runner
+
+    prepare_etl_local_runner(MODULE_ROOT)
+    from local_runner.env import load_env
+
+    load_env()
+
+
 def _cdf_client():
     try:
-        from local_runner.client import create_cognite_client
-        from local_runner.env import load_env
+        from cdf_client_auth import create_cognite_client
     except ImportError as e:
-        raise HTTPException(status_code=503, detail=f"local_runner not available: {e}") from e
-    load_env()
+        raise HTTPException(status_code=503, detail=f"cdf_client_auth not available: {e}") from e
+    _load_env()
     try:
         return create_cognite_client()
     except RuntimeError as e:
@@ -80,9 +88,7 @@ def health() -> dict:
 @app.get("/api/connection")
 def connection() -> dict:
     try:
-        from local_runner.env import load_env
-
-        load_env()
+        _load_env()
     except Exception:
         # Best-effort: continue with current process env.
         pass

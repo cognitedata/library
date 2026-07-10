@@ -19,20 +19,32 @@ _UUID_RE = re.compile(
 )
 
 _DISCOVERY_MODULE_ROOT = Path(__file__).resolve().parent.parent.parent
-GOVERNANCE_SUBDIR = "governance"
+GOVERNANCE_SUBDIR = Path("submodules") / "governance"
 
 
 def default_declared_root(discovery_module_root: Optional[Path] = None) -> Path:
-    """Default declared root: ``<cdf_discovery>/submodules/governance/`` (local build output)."""
+    """Default declared root: ``<cdf_discovery>/submodules/governance/``."""
     base = discovery_module_root.resolve() if discovery_module_root is not None else _DISCOVERY_MODULE_ROOT
     return (base / GOVERNANCE_SUBDIR).resolve()
 
 
 def artifacts_root(declared: Path) -> Path:
-    """Module root for generated ``spaces/`` and ``auth/`` Toolkit YAML."""
+    """Module root for generated ``data_modeling/spaces/`` and ``auth/`` Toolkit YAML."""
     from governance_build.paths import governance_artifacts_root  # noqa: WPS433
 
     return governance_artifacts_root(declared)
+
+
+def spaces_artifact_prefix() -> str:
+    from governance_build.paths import GOVERNANCE_SPACES_OUTPUT_REL  # noqa: WPS433
+
+    return GOVERNANCE_SPACES_OUTPUT_REL
+
+
+def groups_artifact_prefix() -> str:
+    from governance_build.paths import GOVERNANCE_GROUPS_OUTPUT_REL  # noqa: WPS433
+
+    return GOVERNANCE_GROUPS_OUTPUT_REL
 
 
 def declared_root(discovery_module_root: Optional[Path] = None) -> Path:
@@ -139,14 +151,14 @@ def list_artifact_paths(declared: Path, kind: Literal["spaces", "groups"]) -> Li
     root = artifacts_root(declared)
     out: List[str] = []
     if kind == "spaces":
-        sp = root / "spaces"
+        sp = root / spaces_artifact_prefix()
         if sp.is_dir():
             out = sorted(
                 str(p.relative_to(root)).replace("\\", "/")
                 for p in sp.rglob("*.Space.yaml")
             )
     else:
-        au = root / "auth"
+        au = root / groups_artifact_prefix()
         if au.is_dir():
             out = sorted(
                 str(p.relative_to(root)).replace("\\", "/")
@@ -162,7 +174,7 @@ def list_artifact_tree_children(
     prefix: str = "",
 ) -> List[Dict[str, Any]]:
     """Return immediate child folders/files for lazy tree expansion."""
-    base = "spaces" if kind == "spaces" else "auth"
+    base = spaces_artifact_prefix() if kind == "spaces" else groups_artifact_prefix()
     norm = prefix.strip().replace("\\", "/").strip("/")
     if norm and not norm.startswith(base):
         return []
@@ -202,7 +214,7 @@ _GROUP_NAME_RE = re.compile(r"^gp_[a-z][a-z0-9_]{0,126}$")
 
 
 def _normalize_artifact_parent_rel(kind: Literal["spaces", "groups"], parent_rel: Optional[str]) -> str:
-    base = "spaces" if kind == "spaces" else "auth"
+    base = spaces_artifact_prefix() if kind == "spaces" else groups_artifact_prefix()
     raw = (parent_rel or "").strip().replace("\\", "/").strip("/")
     if not raw:
         return base
@@ -296,12 +308,14 @@ def create_artifact_file(
 
 def validate_artifact_rel(rel: str, kind: Literal["spaces", "groups"]) -> None:
     norm = rel.replace("\\", "/")
+    spaces_prefix = spaces_artifact_prefix()
+    groups_prefix = groups_artifact_prefix()
     if kind == "spaces":
-        if not norm.startswith("spaces/") or not norm.endswith(".Space.yaml"):
-            raise ValueError("Path must be under spaces/ and end with .Space.yaml")
+        if not norm.startswith(f"{spaces_prefix}/") or not norm.endswith(".Space.yaml"):
+            raise ValueError(f"Path must be under {spaces_prefix}/ and end with .Space.yaml")
     else:
-        if not norm.startswith("auth/") or not norm.endswith(".Group.yaml"):
-            raise ValueError("Path must be under auth/ and end with .Group.yaml")
+        if not norm.startswith(f"{groups_prefix}/") or not norm.endswith(".Group.yaml"):
+            raise ValueError(f"Path must be under {groups_prefix}/ and end with .Group.yaml")
 
 
 def run_build(

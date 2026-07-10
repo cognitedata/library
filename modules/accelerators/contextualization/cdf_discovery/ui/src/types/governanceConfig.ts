@@ -82,6 +82,9 @@ export type GovernanceDocument = {
   toolkit?: JsonObject;
 };
 
+export const GOVERNANCE_SPACES_OUTPUT_DIR = "data_modeling/spaces";
+export const GOVERNANCE_GROUPS_OUTPUT_DIR = "auth";
+
 export const DEFAULT_INSTANCE_SPACE_ID_TEMPLATE =
   "inst_{{ data_type_id }}_{{ source_system_id }}_{{ scope_id_snake }}";
 
@@ -194,7 +197,7 @@ export function emptyGovernanceDocument(): GovernanceDocument {
     dimensions: defaultNamingDimensions(),
     spaces: {
       template: "templates/spaces/default.Space.template.yaml",
-      output_dir: "spaces",
+      output_dir: GOVERNANCE_SPACES_OUTPUT_DIR,
       nodes: "leaves",
       instance_space_id_template: DEFAULT_INSTANCE_SPACE_ID_TEMPLATE,
       name_template: DEFAULT_SPACE_NAME_TEMPLATE,
@@ -202,7 +205,7 @@ export function emptyGovernanceDocument(): GovernanceDocument {
     },
     groups: {
       template: "templates/groups/global.Group.template.yaml",
-      output_dir: "auth",
+      output_dir: GOVERNANCE_GROUPS_OUTPUT_DIR,
       nodes: "leaves",
       name_template: DEFAULT_GROUP_NAME_TEMPLATE,
       display_name_template: DEFAULT_GROUP_DISPLAY_NAME_TEMPLATE,

@@ -7,8 +7,18 @@ schema_space: cdf_cdm
 view_version: v1
 function_client_id: ${IDP_CLIENT_ID}
 function_client_secret: ${IDP_CLIENT_SECRET}
+workflowClientId: ${IDP_CLIENT_ID}
+workflowClientSecret: ${IDP_CLIENT_SECRET}
 workflow_schedule: '0 2 * * *'
 dataset: ds_discovery_etl
+index_storage_backend: raw
+index_raw_database: db_contextualization_idx
+index_schema_space: contextualization_idx
+source_metadata_batch_size: 50
+source_metadata_batch_timeout: 60
+subscription_batch_size: 50
+subscription_batch_timeout: 60
+source_index_watermark_cron: "0 * * * *"
 workflow_definitions:
   registry: submodules/transform/workflow_definitions/registry.yaml
   instances_dir: submodules/transform/workflow_definitions/instances

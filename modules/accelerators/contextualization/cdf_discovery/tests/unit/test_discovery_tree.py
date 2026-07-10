@@ -78,7 +78,7 @@ def test_list_children_functions():
 def test_list_children_data_branches():
     client = MagicMock()
     nodes = discovery_tree.list_children(client, "data")
-    assert [n["id"] for n in nodes] == ["data:sq", "raw", "dm", "classic"]
+    assert [n["id"] for n in nodes] == ["data:sq", "raw", "dm", "classic", "records"]
     assert nodes[0]["label"] == "Saved Queries"
     assert nodes[1]["label"] == "RAW"
     assert nodes[2]["label"] == "Data Models"
@@ -119,7 +119,7 @@ def test_list_children_governance_branches():
     client = MagicMock()
     nodes = discovery_tree.list_children(client, "gov")
     assert [n["id"] for n in nodes] == ["gov:spaces", "gov:groups"]
-    assert nodes[0]["label"] == "Spaces"
+    assert nodes[0]["label"] == "Instance Spaces"
     assert nodes[0]["meta"]["governance_workspace"] == "spaces"
     assert nodes[1]["label"] == "Groups"
     assert nodes[1]["meta"]["governance_workspace"] == "groups"

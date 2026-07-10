@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 import yaml
 
+from governance_build.paths import GOVERNANCE_SPACES_OUTPUT_REL
 from ui.server import governance_declared
 
 
@@ -26,11 +27,11 @@ def test_create_space_artifact_file(tmp_path: Path):
         kind="spaces",
         external_id="inst_site_a_asset",
         display_name="Site A Asset",
-        parent_rel="spaces/site_a",
+        parent_rel=f"{GOVERNANCE_SPACES_OUTPUT_REL}/site_a",
     )
     rel = out["path"]
     assert rel.endswith(".Space.yaml")
-    assert rel.startswith("spaces/site_a/")
+    assert rel.startswith(f"{GOVERNANCE_SPACES_OUTPUT_REL}/site_a/")
     path = mod / rel
     assert path.is_file()
     doc = yaml.safe_load(path.read_text(encoding="utf-8"))
@@ -75,7 +76,7 @@ def test_create_rejects_duplicate(tmp_path: Path):
     (mod / "scripts").mkdir()
     declared = mod / "governance"
     declared.mkdir()
-    sp = mod / "spaces"
+    sp = mod / GOVERNANCE_SPACES_OUTPUT_REL
     sp.mkdir(parents=True)
     (sp / "foo.Space.yaml").write_text("space: inst_x\nname: x\n", encoding="utf-8")
     cfg = declared / "default.config.yaml"
@@ -89,5 +90,5 @@ def test_create_rejects_duplicate(tmp_path: Path):
             kind="spaces",
             external_id="inst_x",
             display_name="Foo",
-            parent_rel="spaces",
+            parent_rel=GOVERNANCE_SPACES_OUTPUT_REL,
         )

@@ -20,9 +20,10 @@ def _load(path: Path) -> dict:
     return doc
 
 
-def check_governance(root: Path) -> list[str]:
+def check_governance(module_root: Path) -> list[str]:
     errs: list[str] = []
-    cfg = root / "default.config.yaml"
+    gov = module_root / "submodules" / "governance"
+    cfg = gov / "default.config.yaml"
     if cfg.is_file():
         doc = _load(cfg)
         if "scope_hierarchy" not in doc:
@@ -34,16 +35,16 @@ def check_governance(root: Path) -> list[str]:
                     errs.append(
                         f"dimensions.{name}: hierarchy blocks belong in scope_hierarchy, not dimensions"
                     )
-    for p in root.glob("spaces/**/*.Space.yaml"):
+    for p in module_root.glob("data_modeling/spaces/**/*.Space.yaml"):
         d = _load(p)
         space = d.get("space")
         if not space or not INST_RE.match(str(space)):
-            errs.append(f"{p.relative_to(root)}: space must match inst_*")
-    for p in root.glob("auth/**/*.Group.yaml"):
+            errs.append(f"{p.relative_to(module_root)}: space must match inst_*")
+    for p in module_root.glob("auth/**/*.Group.yaml"):
         d = _load(p)
         name = d.get("name")
         if not name or not GP_RE.match(str(name)):
-            errs.append(f"{p.relative_to(root)}: name must match gp_*")
+            errs.append(f"{p.relative_to(module_root)}: name must match gp_*")
     return errs
 
 
@@ -67,7 +68,7 @@ def check_file_asset(root: Path) -> list[str]:
 
 def _discovery_governance_config(root: Path) -> Path | None:
     """Governance config path (ETL ``default.config.yaml`` may live at module root)."""
-    gov_cfg = root / "governance" / "default.config.yaml"
+    gov_cfg = root / "submodules" / "governance" / "default.config.yaml"
     if gov_cfg.is_file():
         return gov_cfg
     root_cfg = root / "default.config.yaml"
@@ -103,9 +104,9 @@ def main() -> None:
     name = root.name
     if name == "cdf_discovery":
         errs = check_discovery(root)
-        gov = root / "governance"
+        gov = root / "submodules" / "governance"
         if gov.is_dir():
-            errs.extend(check_governance(gov))
+            errs.extend(check_governance(root))
     elif "file_asset" in name:
         errs = check_file_asset(root)
     elif "discovery" in name or "aliasing" in name:

@@ -1,4 +1,4 @@
-"""Transform tree lists pipelines from build output under workflows/."""
+"""Transform tree lists pipelines from build output under workflows/ and workflow_scopes/."""
 
 from __future__ import annotations
 
@@ -11,14 +11,14 @@ from ui.server import discovery_tree, transform_registry
 
 
 def test_list_built_scope_suffixes_and_entries(tmp_path: Path) -> None:
-    workflows = tmp_path / "workflows"
-    workflows.mkdir(parents=True)
-    (workflows / "global").mkdir(parents=True)
-    (workflows / "etl_demo.config.yaml").write_text(
+    scopes_root = tmp_path / "workflow_scopes"
+    scopes_root.mkdir(parents=True)
+    (scopes_root / "global").mkdir(parents=True)
+    (scopes_root / "etl_demo_scope.yaml").write_text(
         yaml.safe_dump({"id": "demo", "label": "Demo"}),
         encoding="utf-8",
     )
-    (workflows / "global" / "etl_discovery_etl_default.global.config.yaml").write_text(
+    (scopes_root / "global" / "etl_discovery_etl_default_global_scope.yaml").write_text(
         yaml.safe_dump({"id": "discovery_etl_default", "description": "Default"}),
         encoding="utf-8",
     )
@@ -34,10 +34,9 @@ def test_list_built_scope_suffixes_and_entries(tmp_path: Path) -> None:
 
 
 def test_list_instance_pipeline_entries(tmp_path: Path) -> None:
-    instances = tmp_path / "transform" / "workflow_definitions" / "instances"
+    instances = tmp_path / "submodules" / "transform" / "workflow_definitions" / "instances"
     instances.mkdir(parents=True)
-    registry = tmp_path / "transform" / "workflow_definitions" / "registry.yaml"
-    registry.parent.mkdir(parents=True, exist_ok=True)
+    registry = tmp_path / "submodules" / "transform" / "workflow_definitions" / "registry.yaml"
     (instances / "data_wranglers.yaml").write_text(
         yaml.safe_dump({"id": "data_wranglers", "label": "Data wranglers"}),
         encoding="utf-8",
@@ -60,13 +59,13 @@ def test_list_instance_pipeline_entries(tmp_path: Path) -> None:
 
 
 def test_transform_tree_lists_pipelines_folder(tmp_path: Path) -> None:
-    instances = tmp_path / "transform" / "workflow_definitions" / "instances"
+    instances = tmp_path / "submodules" / "transform" / "workflow_definitions" / "instances"
     instances.mkdir(parents=True)
     (instances / "data_wranglers.yaml").write_text(
         yaml.safe_dump({"id": "data_wranglers", "label": "Data wranglers"}),
         encoding="utf-8",
     )
-    (tmp_path / "transform" / "workflow_definitions" / "registry.yaml").write_text(
+    (tmp_path / "submodules" / "transform" / "workflow_definitions" / "registry.yaml").write_text(
         yaml.safe_dump(
             {
                 "schemaVersion": 1,
@@ -89,9 +88,9 @@ def test_transform_tree_lists_pipelines_folder(tmp_path: Path) -> None:
 
 
 def test_transform_tree_lists_flat_built_under_pipelines(tmp_path: Path) -> None:
-    workflows = tmp_path / "workflows"
-    workflows.mkdir(parents=True)
-    (workflows / "etl_demo.config.yaml").write_text(
+    scopes_root = tmp_path / "workflow_scopes"
+    scopes_root.mkdir(parents=True)
+    (scopes_root / "etl_demo_scope.yaml").write_text(
         yaml.safe_dump({"id": "demo", "label": "Demo"}),
         encoding="utf-8",
     )
@@ -108,4 +107,3 @@ def test_transform_tree_lists_flat_built_under_pipelines(tmp_path: Path) -> None
     assert pipeline_nodes[0]["kind"] == "etl_pipeline"
     assert pipeline_nodes[0]["meta"]["id"] == "demo"
     assert pipeline_nodes[0]["meta"]["scope_suffix"] == ""
-

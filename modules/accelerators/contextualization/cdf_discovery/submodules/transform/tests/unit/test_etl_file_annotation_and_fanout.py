@@ -539,7 +539,8 @@ def test_compile_json_mapping_diagram_detect_to_cdf_json_mapping():
     }
     compiled = compile_canvas_dag(canvas)
     task = next(t for t in compiled["tasks"] if t["id"] == "map_dm")
-    assert task["task_type"] == "jsonMapping"
+    assert task["task_type"] == "function"
+    assert task["function_external_id"] == "fn_discovery_etl_json_mapping"
     assert task["executable_kind"] == "json_mapping"
     assert task["payload"]["config"]["expression"] == "input.rows"
     assert task["payload"]["config"]["mapper_kind"] == "diagram_detect_to_dm"

@@ -9,7 +9,13 @@ from typing import Any, Dict, List
 import yaml
 
 from workflow_build.build_scoped import build_scoped_workflow
-from workflow_build.paths import artifact_filename, workflow_artifacts_root, workflow_artifacts_scope_dir
+from workflow_build.paths import (
+    artifact_filename,
+    artifact_output_dir,
+    workflow_artifacts_output_dir,
+    workflow_artifacts_root,
+    workflow_artifacts_scope_dir,
+)
 from workflow_build.sources import resolve_sources
 from workflow_build.targets_resolve import scope_targets_for_source
 from workflow_build.ids import workflow_trigger_external_id
@@ -151,14 +157,15 @@ def check_scoped_workflow_drift(
         document=document,
         path=instances_dir(module_root, config) / f"{workflow_id}.yaml",
     )
-    out_dir = workflow_artifacts_scope_dir(module_root, target.scope_suffix)
+    scope_dir = workflow_artifacts_scope_dir(module_root, target.scope_suffix)
+    wf_dir = workflow_artifacts_output_dir(module_root, target.scope_suffix)
     errors: List[str] = []
 
     expected_paths = {
-        out_dir / artifact_filename(workflow_id, target.scope_suffix, "scope.yaml"),
-        out_dir / artifact_filename(workflow_id, target.scope_suffix, "Workflow.yaml"),
-        out_dir / artifact_filename(workflow_id, target.scope_suffix, "WorkflowVersion.yaml"),
-        out_dir / artifact_filename(workflow_id, target.scope_suffix, "WorkflowTrigger.yaml"),
+        scope_dir / artifact_filename(workflow_id, target.scope_suffix, "scope.yaml"),
+        wf_dir / artifact_filename(workflow_id, target.scope_suffix, "Workflow.yaml"),
+        wf_dir / artifact_filename(workflow_id, target.scope_suffix, "WorkflowVersion.yaml"),
+        wf_dir / artifact_filename(workflow_id, target.scope_suffix, "WorkflowTrigger.yaml"),
     }
     for p in expected_paths:
         if not p.is_file():
@@ -203,17 +210,18 @@ def run_check(
             scope_suffix=scope_suffix,
         )
         for target in targets:
-            out_dir = workflow_artifacts_scope_dir(module_root, target.scope_suffix)
-            cfg_path = out_dir / artifact_filename(
+            scope_dir = workflow_artifacts_scope_dir(module_root, target.scope_suffix)
+            wf_dir = workflow_artifacts_output_dir(module_root, target.scope_suffix)
+            cfg_path = scope_dir / artifact_filename(
                 target.workflow_id, target.scope_suffix, "scope.yaml"
             )
-            wf_path = out_dir / artifact_filename(
+            wf_path = wf_dir / artifact_filename(
                 target.workflow_id, target.scope_suffix, "Workflow.yaml"
             )
-            wv_path = out_dir / artifact_filename(
+            wv_path = wf_dir / artifact_filename(
                 target.workflow_id, target.scope_suffix, "WorkflowVersion.yaml"
             )
-            trg_path = out_dir / artifact_filename(
+            trg_path = wf_dir / artifact_filename(
                 target.workflow_id, target.scope_suffix, "WorkflowTrigger.yaml"
             )
             for path in (cfg_path, wf_path, wv_path, trg_path):

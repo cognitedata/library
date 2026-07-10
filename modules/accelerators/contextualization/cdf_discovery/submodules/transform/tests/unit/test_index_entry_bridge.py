@@ -12,7 +12,7 @@ if str(ROOT) not in sys.path:
 FUNCS = ROOT / "functions"
 if str(FUNCS) not in sys.path:
     sys.path.insert(0, str(FUNCS))
-os.environ.setdefault("CDF_INVERTED_INDEX_ROOT", str(ROOT / "inverted_index"))
+os.environ.setdefault("CDF_INVERTED_INDEX_ROOT", str(ROOT.parent / "inverted_index"))
 
 from cdf_fn_common.index_entry_bridge import cohort_index_rows_to_index_entries  # noqa: E402
 

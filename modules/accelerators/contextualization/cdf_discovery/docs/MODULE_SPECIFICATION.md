@@ -15,7 +15,7 @@ Canonical description of what the module does, its boundaries, configuration, AP
 | In scope | Out of scope |
 | -------- | ------------ |
 | Read-only CDF browse and SQL preview (except Streams/Records APIs and local ETL runs) | Hosted multi-user SaaS deployment |
-| Declared access control (`governance/default.config.yaml`, build, generated `spaces/` / `auth/`) | Runtime Entra provisioning |
+| Declared access control (`submodules/governance/default.config.yaml`, build, generated `data_modeling/spaces/` / `auth/`) | Runtime Entra provisioning |
 | Operator prefs (`discovery.local.config.yaml`) | Production CDF deploy orchestration beyond optional `transform deploy-scope` |
 | ETL workflow authoring (`transform/workflow_definitions/`), build to `workflows/`, local DAG run | Replacing CDF Transformations product authoring |
 | Cognite Functions under `functions/` (Toolkit YAML + Python handlers) | |
@@ -58,7 +58,7 @@ Canonical description of what the module does, its boundaries, configuration, AP
 | `discovery.config.template.yaml` | Committed template (`stars`, `workspace`, `saved_queries`) |
 | `discovery.local.config.yaml` | Gitignored operator prefs (copy from template) |
 | `default.config.yaml` | ETL scope: `workflow`, `dataset`, `workflow_definitions` paths |
-| `governance/default.config.yaml` | Declared spaces/groups build config |
+| `submodules/governance/default.config.yaml` | Declared spaces/groups build config |
 
 Copy `discovery.config.template.yaml` → `discovery.local.config.yaml` for operator prefs. ETL authoring paths default to `transform/workflow_definitions/` (see `default.config.yaml`).
 
@@ -111,7 +111,7 @@ FastAPI app: `ui.server.main:app`. Base URL default `http://127.0.0.1:8785`.
 | GET | `/api/inverted-index/dashboard` | Index health and partition summary |
 | POST | `/api/inverted-index/operations/*` | Build/query/target-driven operations (NDJSON stream) |
 
-Declared root: `CDF_DISCOVERY_GOVERNANCE_ROOT` or `governance.declared_root` in `discovery.local.config.yaml` (default: `governance/` for config and templates; generated `spaces/` and `auth/` at module root).
+Declared root: `CDF_DISCOVERY_GOVERNANCE_ROOT` or `governance.declared_root` in `discovery.local.config.yaml` (default: `submodules/governance/` for config and templates; generated `data_modeling/spaces/` and `auth/` at module root).
 
 Vite proxies `/api` to the API via `VITE_API_PROXY` (set by `module.py ui`).
 

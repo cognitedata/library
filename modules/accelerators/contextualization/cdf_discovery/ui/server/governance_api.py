@@ -59,7 +59,7 @@ class ArtifactCreateBody(BaseModel):
     external_id: str = Field(..., description="inst_* space id or gp_* group name")
     display_name: Optional[str] = Field(None, description="Space display name (spaces only)")
     parent_rel: Optional[str] = Field(
-        None, description="Folder under spaces/ or auth/ (e.g. spaces/site_a)"
+        None, description="Folder under data_modeling/spaces/ or auth/ (e.g. data_modeling/spaces/site_a)"
     )
     source_id: Optional[str] = Field(None, description="Group sourceId override (groups only)")
 

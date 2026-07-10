@@ -17,5 +17,5 @@
 | `fn_etl_*` | `fn_discovery_etl_*` |
 | `fn_idx_*` | `fn_discovery_idx_*` |
 | `fn_etl_workflow_fanout_plan` | `fn_discovery_etl_fanout_plan` |
-| `wf_idx_*` | `wf_discovery_idx_*` |
+| `wf_idx_*` (filenames) | `wf_discovery_idx_*` (filenames + externalIds) |
 | `etl_*` workflows (internal) | `wf_discovery_etl_*` where regenerated |

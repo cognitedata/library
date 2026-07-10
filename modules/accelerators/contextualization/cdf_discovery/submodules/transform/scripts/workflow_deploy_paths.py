@@ -32,6 +32,6 @@ def workflow_trigger_rel(
     workflow_id: str,
     scope_suffix: str | None = None,
 ) -> str:
-    transform_root = discovery_root / "transform"
+    transform_root = discovery_root / "submodules" / "transform"
     paths = resolve_workflow_artifacts(transform_root, workflow_id, scope_suffix)
     return str(paths["trigger"].relative_to(discovery_root.resolve())).replace("\\", "/")

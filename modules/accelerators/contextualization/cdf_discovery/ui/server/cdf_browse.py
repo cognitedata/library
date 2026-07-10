@@ -46,7 +46,7 @@ def _truncate(value: Any, max_len: int = RAW_VALUE_PREVIEW_LEN) -> Any:
 
 
 def connection_info(client: Any) -> Dict[str, str]:
-    from local_runner.client import auth_mode_from_env
+    from cdf_client_auth import auth_mode_from_env
 
     cfg = client.config
     return {
@@ -57,7 +57,7 @@ def connection_info(client: Any) -> Dict[str, str]:
 
 
 def connection_info_from_env() -> Dict[str, str]:
-    from local_runner.client import auth_mode_from_env
+    from cdf_client_auth import auth_mode_from_env
 
     def _env(*names: str) -> str:
         for name in names:

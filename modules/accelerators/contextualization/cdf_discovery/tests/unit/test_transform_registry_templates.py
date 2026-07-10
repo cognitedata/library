@@ -12,7 +12,7 @@ from ui.server import transform_registry
 
 
 def test_delete_template_document_removes_file(tmp_path: Path) -> None:
-    templates_dir = tmp_path / "transform" / "workflow_definitions" / "templates"
+    templates_dir = tmp_path / "submodules" / "transform" / "workflow_definitions" / "templates"
     templates_dir.mkdir(parents=True)
     template_path = templates_dir / "sample.template.yaml"
     template_path.write_text("template_id: sample\nlabel: Sample\n", encoding="utf-8")
@@ -30,9 +30,9 @@ def test_delete_template_document_missing_raises(tmp_path: Path) -> None:
 
 
 def test_update_pipeline_label_updates_registry(tmp_path: Path) -> None:
-    instances_dir = tmp_path / "transform" / "workflow_definitions" / "instances"
+    instances_dir = tmp_path / "submodules" / "transform" / "workflow_definitions" / "instances"
     instances_dir.mkdir(parents=True)
-    registry_path = tmp_path / "transform" / "workflow_definitions" / "registry.yaml"
+    registry_path = tmp_path / "submodules" / "transform" / "workflow_definitions" / "registry.yaml"
     registry_path.parent.mkdir(parents=True, exist_ok=True)
     registry_path.write_text(
         "schemaVersion: 1\nworkflows:\n  - id: sample\n    label: Old\n",
@@ -52,7 +52,7 @@ def test_update_pipeline_label_updates_registry(tmp_path: Path) -> None:
 
 
 def test_update_template_label_writes_file(tmp_path: Path) -> None:
-    templates_dir = tmp_path / "transform" / "workflow_definitions" / "templates"
+    templates_dir = tmp_path / "submodules" / "transform" / "workflow_definitions" / "templates"
     templates_dir.mkdir(parents=True)
     template_path = templates_dir / "sample.template.yaml"
     template_path.write_text("template_id: sample\nlabel: Old\n", encoding="utf-8")
@@ -65,7 +65,7 @@ def test_update_template_label_writes_file(tmp_path: Path) -> None:
 
 
 def test_template_run_stream_argv_includes_template_flag(tmp_path: Path) -> None:
-    templates_dir = tmp_path / "transform" / "workflow_definitions" / "templates"
+    templates_dir = tmp_path / "submodules" / "transform" / "workflow_definitions" / "templates"
     templates_dir.mkdir(parents=True)
     template_path = templates_dir / "sample.template.yaml"
     template_path.write_text(
@@ -86,14 +86,14 @@ def test_template_run_stream_argv_includes_template_flag(tmp_path: Path) -> None
 
 
 def test_build_template_uses_in_process_workflow_build(tmp_path: Path) -> None:
-    templates_dir = tmp_path / "transform" / "workflow_definitions" / "templates"
+    templates_dir = tmp_path / "submodules" / "transform" / "workflow_definitions" / "templates"
     templates_dir.mkdir(parents=True)
     template_path = templates_dir / "sample.template.yaml"
     template_path.write_text(
         "template_id: sample\nlabel: Sample\ncanvas:\n  schemaVersion: 1\n  nodes: []\n  edges: []\n",
         encoding="utf-8",
     )
-    config_path = tmp_path / "transform" / "default.config.yaml"
+    config_path = tmp_path / "default.config.yaml"
     config_path.write_text("workflow: wf_all_etl_global\n", encoding="utf-8")
 
     with patch.object(transform_registry, "_module_root", return_value=tmp_path):
@@ -108,7 +108,7 @@ def test_build_template_uses_in_process_workflow_build(tmp_path: Path) -> None:
 
 
 def test_template_build_pairing_uses_per_template_workflow_base(tmp_path: Path) -> None:
-    templates_dir = tmp_path / "transform" / "workflow_definitions" / "templates"
+    templates_dir = tmp_path / "submodules" / "transform" / "workflow_definitions" / "templates"
     templates_dir.mkdir(parents=True)
     (templates_dir / "sample.template.yaml").write_text(
         yaml.safe_dump(
@@ -130,7 +130,7 @@ def test_template_build_pairing_uses_per_template_workflow_base(tmp_path: Path) 
         ),
         encoding="utf-8",
     )
-    config_path = tmp_path / "transform" / "default.config.yaml"
+    config_path = tmp_path / "default.config.yaml"
     config_path.parent.mkdir(parents=True, exist_ok=True)
     config_path.write_text("workflow: wf_all_etl_global\nworkflow_schedule: '0 2 * * *'\n", encoding="utf-8")
 

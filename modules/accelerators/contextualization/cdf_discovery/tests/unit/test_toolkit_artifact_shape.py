@@ -7,7 +7,8 @@ from pathlib import Path
 
 import yaml
 
-MODULE_ROOT = Path(__file__).resolve().parents[2] / "governance"
+MODULE_ROOT = Path(__file__).resolve().parents[2]
+SPACES_GLOB = "data_modeling/spaces/**/*.Space.yaml"
 
 
 def _load_yaml(path: Path) -> dict:
@@ -17,7 +18,7 @@ def _load_yaml(path: Path) -> dict:
 
 
 def test_sample_space_and_group_shape_if_present():
-    spaces = list(MODULE_ROOT.glob("spaces/**/*.Space.yaml"))
+    spaces = list(MODULE_ROOT.glob(SPACES_GLOB))
     groups = list(MODULE_ROOT.glob("auth/**/*.Group.yaml"))
     if not spaces and not groups:
         return

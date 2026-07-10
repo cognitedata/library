@@ -23,4 +23,4 @@ def test_discovery_children_connection_is_lazy_entry_point():
     data = next(n for n in nodes if n["id"] == "data")
     assert data["has_children"] is True
     branches = discovery_tree.list_children(client, "data")
-    assert {n["id"] for n in branches} == {"data:sq", "raw", "dm", "classic"}
+    assert {n["id"] for n in branches} == {"data:sq", "raw", "dm", "classic", "records"}

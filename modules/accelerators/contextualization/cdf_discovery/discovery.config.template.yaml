@@ -28,8 +28,8 @@ workspace:
 governance:
   # Folder levels for live CDF spaces/groups in the Discovery tree (0 = flat leaves).
   live_tree_token_depth: 2
-  # Declared root for config, templates, and generated spaces/auth YAML. Default: ./governance under this module.
-  # declared_root: governance
+  # Declared root for config, templates, and generated spaces/auth YAML. Default: submodules/governance.
+  # declared_root: submodules/governance
 
 saved_queries:
   # Named SQL queries shown under **Data → Saved Queries** in the object tree.

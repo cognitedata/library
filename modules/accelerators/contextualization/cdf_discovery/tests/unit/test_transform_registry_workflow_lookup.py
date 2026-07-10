@@ -5,16 +5,18 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import patch
 
+import yaml
+
 from ui.server import transform_registry
 
 
 def _write_pipeline(tmp_path: Path, pipeline_id: str, canvas: dict) -> None:
-    instances = tmp_path / "transform" / "pipelines" / "instances"
+    instances = tmp_path / "submodules" / "transform" / "workflow_definitions" / "instances"
     instances.mkdir(parents=True)
-    reg_dir = tmp_path / "transform" / "pipelines"
-    reg_dir.mkdir(parents=True, exist_ok=True)
-    (reg_dir / "registry.yaml").write_text(
-        f"schemaVersion: 1\npipelines:\n  - id: {pipeline_id}\n    label: Test\n",
+    reg_path = tmp_path / "submodules" / "transform" / "workflow_definitions" / "registry.yaml"
+    reg_path.parent.mkdir(parents=True, exist_ok=True)
+    reg_path.write_text(
+        f"schemaVersion: 1\nworkflows:\n  - id: {pipeline_id}\n    label: Test\n",
         encoding="utf-8",
     )
     doc = {
@@ -23,8 +25,6 @@ def _write_pipeline(tmp_path: Path, pipeline_id: str, canvas: dict) -> None:
         "label": "Test",
         "canvas": canvas,
     }
-    import yaml
-
     (instances / f"{pipeline_id}.yaml").write_text(yaml.safe_dump(doc), encoding="utf-8")
 
 
@@ -56,9 +56,9 @@ def test_find_pipeline_for_workflow_matches_canvas_start_node(tmp_path: Path) ->
 
 
 def test_find_pipeline_for_workflow_no_match(tmp_path: Path) -> None:
-    reg_dir = tmp_path / "transform" / "pipelines"
-    reg_dir.mkdir(parents=True)
-    (reg_dir / "registry.yaml").write_text("schemaVersion: 1\npipelines: []\n", encoding="utf-8")
+    reg_path = tmp_path / "submodules" / "transform" / "workflow_definitions" / "registry.yaml"
+    reg_path.parent.mkdir(parents=True, exist_ok=True)
+    reg_path.write_text("schemaVersion: 1\nworkflows: []\n", encoding="utf-8")
 
     with patch.object(transform_registry, "_module_root", return_value=tmp_path):
         assert transform_registry.find_pipeline_for_workflow("missing_wf") is None

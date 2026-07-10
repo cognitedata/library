@@ -60,22 +60,18 @@ def test_file_annotation_compiles_split_dynamic_tasks():
     types = {t["type"] for t in tasks}
     assert "dynamic" in types
     dynamic_ids = sorted(t["externalId"] for t in tasks if t["type"] == "dynamic")
-    assert dynamic_ids == ["fanout_annotation", "fanout_pattern"]
-    dynamic_pattern = next(t for t in tasks if t["externalId"] == "fanout_pattern")
-    dynamic_annotation = next(t for t in tasks if t["externalId"] == "fanout_annotation")
+    assert dynamic_ids == ["fanout"]
+    dynamic_fanout = next(t for t in tasks if t["externalId"] == "fanout")
     assert (
-        dynamic_pattern["parameters"]["dynamic"]["tasks"]
-        == "${fanout_plan_pattern.output.response.body.tasks}"
+        dynamic_fanout["parameters"]["dynamic"]["tasks"]
+        == "${fanout_plan.output.response.body.tasks}"
     )
+    save_dm = next(t for t in tasks if t["externalId"] == "save_annotation_results_dm")
+    assert save_dm["type"] == "function"
     assert (
-        dynamic_annotation["parameters"]["dynamic"]["tasks"]
-        == "${fanout_plan_annotation.output.response.body.tasks}"
+        save_dm["parameters"]["function"]["externalId"]
+        == "fn_discovery_etl_view_save"
     )
-    map_dm = next(t for t in tasks if t["externalId"] == "map_annotations_dm")
-    assert map_dm["type"] == "jsonMapping"
-    assert map_dm["dependsOn"] == [{"externalId": "completion_barrier"}]
-    assert map_dm["parameters"]["jsonMapping"]["expression"] == "input.rows"
-    assert map_dm["parameters"]["jsonMapping"]["input"]["rows"] == "${finalize_annotations.output}"
 
 
 def test_json_mapping_compiles_to_cdf_task():
@@ -151,7 +147,8 @@ def test_diagram_json_mapping_wires_source_task_id():
     }
     compiled = compile_canvas_dag(canvas)
     task = next(t for t in compiled["tasks"] if t["id"] == "map_dm")
-    assert task["task_type"] == "jsonMapping"
+    assert task["task_type"] == "function"
+    assert task["function_external_id"] == "fn_discovery_etl_json_mapping"
     assert task["payload"]["source_task_id"] == "fanout"
     assert "compile_as" not in task["payload"]["config"]
 

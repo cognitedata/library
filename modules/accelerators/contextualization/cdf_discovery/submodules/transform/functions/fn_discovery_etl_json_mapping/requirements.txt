@@ -1,0 +1,2 @@
+cognite-sdk>=7.0.0
+cognite-kuiper>=0.1.0

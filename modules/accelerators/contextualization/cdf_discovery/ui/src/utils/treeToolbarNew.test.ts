@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { GOVERNANCE_SPACES_OUTPUT_DIR } from "../types/governanceConfig";
 import { resolveTreeToolbarNewAction } from "./treeToolbarNew";
 import { DATA_SAVED_QUERIES, GOVERNANCE_SPACES, TRANSFORM_ROOT } from "./treeNodeIds";
 
@@ -35,7 +36,7 @@ describe("resolveTreeToolbarNewAction", () => {
   it("returns governance space artifact action under Spaces", () => {
     expect(resolveTreeToolbarNewAction({ id: GOVERNANCE_SPACES, kind: "folder" })).toEqual({
       kind: "governance_space_artifact",
-      parentRel: "spaces",
+      parentRel: GOVERNANCE_SPACES_OUTPUT_DIR,
     });
   });
 });

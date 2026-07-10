@@ -6,18 +6,23 @@ from pathlib import Path
 
 GOVERNANCE_CONFIG_DIR_NAME = "governance"
 STATE_NAME = "access_governance_state.json"
+GOVERNANCE_SPACES_OUTPUT_REL = "data_modeling/spaces"
+GOVERNANCE_GROUPS_OUTPUT_REL = "auth"
 
 
 def discovery_package_root(governance_config_root: Path) -> Path:
-    """cdf_discovery module root when config lives under ``governance/``."""
+    """cdf_discovery module root when config lives under ``submodules/governance/``."""
     root = governance_config_root.resolve()
     if root.name == GOVERNANCE_CONFIG_DIR_NAME:
-        return root.parent
+        parent = root.parent
+        if parent.name == "submodules":
+            return parent.parent
+        return parent
     return root
 
 
 def governance_artifacts_root(governance_config_root: Path) -> Path:
-    """Generated ``spaces/`` and ``auth/`` YAML (Toolkit deploy targets)."""
+    """Generated ``data_modeling/spaces/`` and ``auth/`` YAML (Toolkit deploy targets)."""
     return discovery_package_root(governance_config_root)
 
 

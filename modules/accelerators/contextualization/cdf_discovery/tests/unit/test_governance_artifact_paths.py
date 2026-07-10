@@ -1,4 +1,4 @@
-"""Governance build writes Space/Group YAML under module spaces/ and auth/."""
+"""Governance build writes Space/Group YAML under module data_modeling/spaces/ and auth/."""
 
 from __future__ import annotations
 
@@ -7,7 +7,23 @@ from pathlib import Path
 import yaml
 
 from governance_build.orchestrate import run_build_spaces
-from governance_build.paths import governance_artifacts_root
+from governance_build.paths import (
+    GOVERNANCE_SPACES_OUTPUT_REL,
+    discovery_package_root,
+    governance_artifacts_root,
+)
+
+
+def test_discovery_package_root_submodules_layout(tmp_path: Path) -> None:
+    gov = tmp_path / "submodules" / "governance"
+    gov.mkdir(parents=True)
+    assert discovery_package_root(gov) == tmp_path.resolve()
+
+
+def test_discovery_package_root_legacy_layout(tmp_path: Path) -> None:
+    gov = tmp_path / "governance"
+    gov.mkdir()
+    assert discovery_package_root(gov) == tmp_path.resolve()
 
 
 def test_build_spaces_writes_under_module_root(tmp_path: Path) -> None:
@@ -26,7 +42,7 @@ def test_build_spaces_writes_under_module_root(tmp_path: Path) -> None:
         },
         "spaces": {
             "template": "templates/spaces/t.Space.template.yaml",
-            "output_dir": "spaces",
+            "output_dir": GOVERNANCE_SPACES_OUTPUT_REL,
             "nodes": "leaves",
             "instance_space_id_template": "inst_site_a",
             "name_template": "{{ instance_space }}",
@@ -53,17 +69,17 @@ def test_build_spaces_dry_run_paths(tmp_path: Path) -> None:
     tpl.parent.mkdir(parents=True)
     tpl.write_text("space: x\nname: y\n", encoding="utf-8")
     doc = yaml.safe_load(
-        """
+        f"""
 scope_hierarchy:
   type: hierarchy
   levels: [site]
-  locations: [{id: SITE_A, name: Site A}]
+  locations: [{{id: SITE_A, name: Site A}}]
 spaces:
   template: templates/spaces/t.Space.template.yaml
-  output_dir: spaces
+  output_dir: {GOVERNANCE_SPACES_OUTPUT_REL}
   nodes: leaves
   instance_space_id_template: inst_x
-  name_template: "{{ instance_space }}"
+  name_template: "{{{{ instance_space }}}}"
   combine_with: []
 """
     )
@@ -74,4 +90,5 @@ spaces:
         force=False,
         prev_manifest_rels=None,
     )
-    assert not (tmp_path / "spaces").exists() or not any((tmp_path / "spaces").rglob("*.yaml"))
+    out_root = tmp_path / GOVERNANCE_SPACES_OUTPUT_REL
+    assert not out_root.exists() or not any(out_root.rglob("*.yaml"))

@@ -1,4 +1,4 @@
-workflowExternalId: wf_all_wf_discovery_etl_file_annotation
+workflowExternalId: wf_all_wf_discovery_etl_file_annottion_clk
 version: '1'
 workflowDefinition:
   tasks:
@@ -22,7 +22,7 @@ workflowDefinition:
             source_task_id: fanout
           predecessors:
           - finalize_annotations
-        isAsyncComplete: true
+      isAsyncComplete: true
     name: Detect completion barrier
     description: Execute fn_discovery_etl_file_annotation_barrier
     retries: 2
@@ -100,42 +100,72 @@ workflowDefinition:
             source_task_id: fanout
           predecessors:
           - fanout
-        isAsyncComplete: true
+      isAsyncComplete: true
     name: Finalize detect jobs
     description: Execute fn_discovery_etl_file_annotation_finalize
     retries: 2
     timeout: 600
     onFailure: abortWorkflow
   - externalId: map_annotations_classic
-    type: jsonMapping
+    type: function
     dependsOn:
     - externalId: completion_barrier
     parameters:
-      jsonMapping:
-        input:
-          rows: ${finalize_annotations.output}
-        expression: input.rows
+      function:
+        externalId: fn_discovery_etl_json_mapping
+        data:
+          logLevel: INFO
+          incremental_change_processing: ${workflow.input.incremental_change_processing}
+          run_id: ${workflow.input.configuration.parameters.run_id}
+          configuration: ${workflow.input.configuration}
+          task_id: map_annotations_classic
+          canvas_node_id: map_annotations_classic
+          config:
+            description: Expand file-annotation cohort hits to classic annotation
+              staging rows
+            mapper_kind: diagram_detect_to_classic
+            input:
+              rows: ${finalize_annotations.output}
+            expression: input.rows
+          source_task_id: finalize_annotations
+          predecessors:
+          - completion_barrier
     name: Map annotations (classic)
-    description: Expand file-annotation cohort hits to classic annotation staging
-      rows
-    retries: 2
-    timeout: 1800
-    onFailure: skipTask
+    description: Execute fn_discovery_etl_json_mapping
+    retries: 3
+    timeout: 7200
+    onFailure: abortWorkflow
   - externalId: map_annotations_dm
-    type: jsonMapping
+    type: function
     dependsOn:
     - externalId: completion_barrier
     parameters:
-      jsonMapping:
-        input:
-          rows: ${finalize_annotations.output}
-        expression: input.rows
+      function:
+        externalId: fn_discovery_etl_json_mapping
+        data:
+          logLevel: INFO
+          incremental_change_processing: ${workflow.input.incremental_change_processing}
+          run_id: ${workflow.input.configuration.parameters.run_id}
+          configuration: ${workflow.input.configuration}
+          task_id: map_annotations_dm
+          canvas_node_id: map_annotations_dm
+          config:
+            description: Expand file-annotation cohort hits to CogniteDiagramAnnotation
+              staging rows
+            mapper_kind: diagram_detect_to_dm
+            annotation_space: discovery-annotations
+            default_status: Suggested
+            input:
+              rows: ${finalize_annotations.output}
+            expression: input.rows
+          source_task_id: finalize_annotations
+          predecessors:
+          - completion_barrier
     name: Map annotations (DM)
-    description: Expand file-annotation cohort hits to CogniteDiagramAnnotation staging
-      rows
-    retries: 2
-    timeout: 1800
-    onFailure: skipTask
+    description: Execute fn_discovery_etl_json_mapping
+    retries: 3
+    timeout: 7200
+    onFailure: abortWorkflow
   - externalId: query_assets
     type: function
     dependsOn: []

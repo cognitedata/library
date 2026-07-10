@@ -174,7 +174,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument(
         "--scope-suffix",
         default="",
-        help="Scope subfolder under workflows/ (empty = flat workflows/etl_<id>_scope.yaml)",
+        help="Scope subfolder under workflow_scopes/ (empty = flat workflow_scopes/etl_<id>_scope.yaml)",
     )
     parser.add_argument("--config-dir", type=Path, default=None, help="Override document directory")
     parser.add_argument("--dry-run", action="store_true", help="Skip CDF client; exercise DAG in-memory")
@@ -223,7 +223,12 @@ def main(argv: Sequence[str] | None = None) -> int:
             from local_runner.paths import discovery_root
 
             inst_path = (
-                discovery_root() / "transform" / "workflow_definitions" / "instances" / f"{workflow_id}.yaml"
+                discovery_root()
+                / "submodules"
+                / "transform"
+                / "workflow_definitions"
+                / "instances"
+                / f"{workflow_id}.yaml"
             )
             if built_path.is_file():
                 inst_path = built_path

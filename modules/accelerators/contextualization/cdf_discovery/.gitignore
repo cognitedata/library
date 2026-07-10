@@ -1,6 +1,5 @@
 .cache/
 discovery.local.config.yaml
-spaces/
 data_modeling/
 auth/
 governance/access_governance_state.json

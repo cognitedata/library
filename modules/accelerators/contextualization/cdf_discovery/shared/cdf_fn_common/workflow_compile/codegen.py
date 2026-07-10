@@ -127,12 +127,13 @@ def _function_task(
         "externalId": function_external_id,
         "data": data,
     }
+    params: Dict[str, Any] = {"function": fn_params}
     if is_async_complete is None:
         raw_async = policy.get("isAsyncComplete")
         if raw_async is not None and bool(raw_async):
-            fn_params["isAsyncComplete"] = True
+            params["isAsyncComplete"] = True
     elif is_async_complete:
-        fn_params["isAsyncComplete"] = True
+        params["isAsyncComplete"] = True
 
     task_timeout = int(policy.get("timeout") or timeout)
 
@@ -140,9 +141,7 @@ def _function_task(
         "externalId": task_external_id,
         "type": "function",
         "dependsOn": [{"externalId": ext} for ext in depends_on] if depends_on else [],
-        "parameters": {
-            "function": fn_params,
-        },
+        "parameters": params,
         "name": name,
         "description": description,
         "retries": task_retries,

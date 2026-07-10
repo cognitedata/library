@@ -6,6 +6,7 @@ from typing import Any, Dict, List, Mapping, Tuple
 
 from governance_build.dimensions import cartesian_list_combos, get_scope_hierarchy
 from governance_build.hierarchy import collect_scope_rows, parse_levels
+from governance_build.paths import GOVERNANCE_SPACES_OUTPUT_REL
 
 # CDF naming: external ids use underscores; names use colons.
 # https://docs.cognite.com/cdf/deploy/cdf_toolkit/references/naming_conventions
@@ -89,7 +90,7 @@ def merge_spaces_build_config(spaces: Mapping[str, Any]) -> Dict[str, Any]:
     )
     nodes = _strip_str(s.get("nodes")) or _strip_str(expansion.get("nodes")) or "leaves"
     template = _strip_str(s.get("template")) or _strip_str(glob.get("template"))
-    output_dir = _strip_str(s.get("output_dir")) or "spaces"
+    output_dir = _strip_str(s.get("output_dir")) or GOVERNANCE_SPACES_OUTPUT_REL
     instance_space_id_template = (
         _strip_str(s.get("instance_space_id_template"))
         or _strip_str(glob.get("instance_space_id_template"))

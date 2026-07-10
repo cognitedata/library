@@ -1,6 +1,7 @@
 schemaVersion: 1
+id: file_annottion_clk
+label: File Annotation CLK
 template_id: file_annotation
-label: File Annotation
 parameters:
   incremental_change_processing: true
   incremental_skip_unchanged: true
@@ -9,6 +10,9 @@ parameters:
   raw_table_key: cohort
   instance_space: inst_assets
   mime_type: application/pdf
+  workflow_scope: file_annottion_clk
+scope: null
+sources: []
 canvas:
   schemaVersion: 1
   handle_orientation: lr
@@ -74,11 +78,39 @@ canvas:
         source_task_id: fanout
     width: 192
     height: 130
+  - id: map_annotations_classic
+    kind: json_mapping
+    data:
+      label: Map annotations (classic)
+      config:
+        description: Expand file-annotation cohort hits to classic annotation staging
+          rows
+        mapper_kind: diagram_detect_to_classic
+        input: &id005
+          rows: ${finalize_annotations.output}
+        expression: input.rows
+    width: 192
+    height: 130
+  - id: map_annotations_dm
+    kind: json_mapping
+    data:
+      label: Map annotations (DM)
+      config:
+        description: Expand file-annotation cohort hits to CogniteDiagramAnnotation
+          staging rows
+        mapper_kind: diagram_detect_to_dm
+        annotation_space: discovery-annotations
+        default_status: Suggested
+        input: &id006
+          rows: ${finalize_annotations.output}
+        expression: input.rows
+    width: 192
+    height: 130
   - id: query_assets
     kind: query_view
     data:
       label: CogniteAsset (aliases)
-      config: &id005
+      config: &id007
         description: Load CogniteAsset aliases for pattern-mode diagram detect entities
         view_space: cdf_cdm
         view_external_id: CogniteAsset
@@ -94,7 +126,7 @@ canvas:
     kind: query_view
     data:
       label: CogniteFile (PDFs)
-      config: &id006
+      config: &id008
         description: Files to scan via diagram detect
         view_space: cdf_cdm
         view_external_id: CogniteFile
@@ -108,44 +140,22 @@ canvas:
         filters: []
     width: 192
     height: 130
-  - id: query_view_mre057x4
-    kind: query_view
+  - id: save_annotation_results_classic
+    kind: save_raw
     data:
-      label: CogniteFile (PDFs)
-      config: &id007
-        description: Files to scan via diagram detect
-        view_space: cdf_cdm
-        view_external_id: CogniteFile
-        view_version: v1
-        batch_size: 500
-        include_properties:
-        - name
-        - mimeType
-        - pageCount
-        query_scope_mode: all
-        filters: []
-    width: 192
-    height: 130
-  - id: map_annotations_dm
-    kind: json_mapping
-    data:
-      label: Map annotations (DM)
-      config:
-        description: Expand file-annotation cohort hits to CogniteDiagramAnnotation
-          staging rows
-        mapper_kind: diagram_detect_to_dm
-        annotation_space: discovery-annotations
-        default_status: Suggested
-        input: &id008
-          rows: ${finalize_annotations.output}
-        expression: input.rows
+      label: Save classic annotations
+      config: &id009
+        description: Persist classic annotation staging rows to RAW
+        source_raw_db: db_discovery
+        source_raw_table_key: annotation_results_classic
+      node_color: '#0d9488'
     width: 192
     height: 130
   - id: save_annotation_results_dm
     kind: save_view
     data:
       label: Save CogniteDiagramAnnotation
-      config: &id009
+      config: &id010
         description: Write CogniteDiagramAnnotation edges to the CDF data model
         view_space: cdf_cdm
         view_external_id: CogniteDiagramAnnotation
@@ -159,11 +169,12 @@ canvas:
     data:
       label: Start
       config:
-        workflow_base: wf_all_wf_discovery_etl_file_annotation
-        workflow_external_id: wf_all_wf_discovery_etl_file_annotation
-        trigger_external_id: trg_wf_all_wf_discovery_etl_file_annotation
+        workflow_base: wf_all_wf_discovery_etl_file_annottion_clk
+        workflow_external_id: wf_all_wf_discovery_etl_file_annottion_clk
+        trigger_external_id: trg_wf_all_wf_discovery_etl_file_annottion_clk
         workflow_version: '1'
         incremental_change_processing: true
+        workflow_scope: file_annottion_clk
     width: 148
     height: 68
   edges:
@@ -215,9 +226,21 @@ canvas:
     source_handle: out
     target_handle: in
     kind: data
+  - id: edge_barrier_map_classic
+    source: completion_barrier
+    target: map_annotations_classic
+    source_handle: out
+    target_handle: in
+    kind: data
   - id: edge_map_dm_save
     source: map_annotations_dm
     target: save_annotation_results_dm
+    source_handle: out
+    target_handle: in
+    kind: data
+  - id: edge_map_classic_save
+    source: map_annotations_classic
+    target: save_annotation_results_classic
     source_handle: out
     target_handle: in
     kind: data
@@ -227,22 +250,17 @@ canvas:
     source_handle: out
     target_handle: in
     kind: data
-  - id: xy-edge__query_view_mre057x4out-fanout_planin__input_a
-    source: query_view_mre057x4
-    target: fanout_plan
-    source_handle: out
-    target_handle: in__input_a
-    kind: data
-  - id: xy-edge__startout-query_view_mre057x4in
-    source: start
-    target: query_view_mre057x4
+  - id: edge_save_classic_end
+    source: save_annotation_results_classic
+    target: end
     source_handle: out
     target_handle: in
     kind: data
   viewport:
-    x: -1147.436603475931
-    y: 214.38071160513255
-    zoom: 1.0086199233232962
+    x: -60.5
+    y: 274.5
+    zoom: 0.5
+scope_suffix: ''
 compiled_workflow:
   schema_version: 1
   tasks:
@@ -275,13 +293,11 @@ compiled_workflow:
     depends_on:
     - query_assets
     - query_files
-    - query_view_mre057x4
     payload:
       config: *id003
       input_a_task_id: query_assets
       input_a_task_ids:
       - query_assets
-      - query_view_mre057x4
       input_b_task_id: query_files
       fanout_profile: file_annotation
   - id: finalize_annotations
@@ -294,37 +310,26 @@ compiled_workflow:
     - fanout
     payload:
       config: *id004
-  - id: query_assets
-    function_external_id: fn_discovery_etl_view_query
-    executable_kind: query_view
-    task_type: function
-    canvas_node_id: query_assets
-    label: CogniteAsset (aliases)
-    depends_on: []
-    payload:
-      config: *id005
-  - id: query_files
-    function_external_id: fn_discovery_etl_view_query
-    executable_kind: query_view
-    task_type: function
-    canvas_node_id: query_files
-    label: CogniteFile (PDFs)
-    depends_on: []
-    payload:
-      config: *id006
-  - id: query_view_mre057x4
-    function_external_id: fn_discovery_etl_view_query
-    executable_kind: query_view
-    task_type: function
-    canvas_node_id: query_view_mre057x4
-    label: CogniteFile (PDFs)
-    depends_on: []
-    payload:
-      config: *id007
-  - id: map_annotations_dm
-    function_external_id: null
+  - id: map_annotations_classic
+    function_external_id: fn_discovery_etl_json_mapping
     executable_kind: json_mapping
-    task_type: jsonMapping
+    task_type: function
+    canvas_node_id: map_annotations_classic
+    label: Map annotations (classic)
+    depends_on:
+    - completion_barrier
+    payload:
+      config:
+        description: Expand file-annotation cohort hits to classic annotation staging
+          rows
+        mapper_kind: diagram_detect_to_classic
+        input: *id005
+        expression: input.rows
+      source_task_id: finalize_annotations
+  - id: map_annotations_dm
+    function_external_id: fn_discovery_etl_json_mapping
+    executable_kind: json_mapping
+    task_type: function
     canvas_node_id: map_annotations_dm
     label: Map annotations (DM)
     depends_on:
@@ -336,9 +341,37 @@ compiled_workflow:
         mapper_kind: diagram_detect_to_dm
         annotation_space: discovery-annotations
         default_status: Suggested
-        input: *id008
+        input: *id006
         expression: input.rows
-      source_task_id: completion_barrier
+      source_task_id: finalize_annotations
+  - id: query_assets
+    function_external_id: fn_discovery_etl_view_query
+    executable_kind: query_view
+    task_type: function
+    canvas_node_id: query_assets
+    label: CogniteAsset (aliases)
+    depends_on: []
+    payload:
+      config: *id007
+  - id: query_files
+    function_external_id: fn_discovery_etl_view_query
+    executable_kind: query_view
+    task_type: function
+    canvas_node_id: query_files
+    label: CogniteFile (PDFs)
+    depends_on: []
+    payload:
+      config: *id008
+  - id: save_annotation_results_classic
+    function_external_id: fn_discovery_etl_raw_save
+    executable_kind: save_raw
+    task_type: function
+    canvas_node_id: save_annotation_results_classic
+    label: Save classic annotations
+    depends_on:
+    - map_annotations_classic
+    payload:
+      config: *id009
   - id: save_annotation_results_dm
     function_external_id: fn_discovery_etl_view_save
     executable_kind: save_view
@@ -348,7 +381,7 @@ compiled_workflow:
     depends_on:
     - map_annotations_dm
     payload:
-      config: *id009
+      config: *id010
   - id: end
     function_external_id: fn_discovery_etl_raw_cleanup
     executable_kind: raw_cleanup
@@ -356,7 +389,7 @@ compiled_workflow:
     canvas_node_id: end
     depends_on:
     - save_annotation_results_dm
+    - save_annotation_results_classic
     payload:
       config:
         description: Post-run cohort RAW cleanup
-id: file_annotation

@@ -18,7 +18,7 @@ from local_runner.run import run_pipeline_document  # noqa: E402
 
 
 def test_repo_root_resolves_above_transform_tree() -> None:
-    discovery_root = ROOT.parent
+    discovery_root = ROOT.parent.parent
     assert _REPO_ROOT == discovery_root.parent.parent.parent.parent
 
 

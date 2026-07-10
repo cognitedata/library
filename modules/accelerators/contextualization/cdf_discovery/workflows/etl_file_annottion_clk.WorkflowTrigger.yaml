@@ -1,5 +1,5 @@
-externalId: trg_wf_all_wf_discovery_etl_file_annotation
-workflowExternalId: wf_all_wf_discovery_etl_file_annotation
+externalId: trg_wf_all_wf_discovery_etl_file_annottion_clk
+workflowExternalId: wf_all_wf_discovery_etl_file_annottion_clk
 workflowVersion: '1'
 triggerRule:
   triggerType: schedule

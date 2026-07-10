@@ -30,8 +30,8 @@ from workflow_build.workflow_document_limits import (
 )
 from workflow_build.paths import (
     artifact_filename,
+    artifact_output_dir,
     is_scoped_build,
-    workflow_artifacts_scope_dir,
 )
 from workflow_build.workflow_document_trim import build_trigger_input, trim_workflow_document_for_deploy
 
@@ -130,30 +130,38 @@ def build_scoped_workflow(
         trigger_cfg=start_trigger,
     )
 
-    out_dir = workflow_artifacts_scope_dir(module_root, target.scope_suffix)
     written: List[Path] = []
-    artifacts = {
-        artifact_filename(target.workflow_id, target.scope_suffix, "scope.yaml"): trimmed,
-        artifact_filename(target.workflow_id, target.scope_suffix, "WorkflowVersion.yaml"): wv,
-        artifact_filename(target.workflow_id, target.scope_suffix, "Workflow.yaml"): {
+    artifacts: dict[tuple[str, str], Any] = {
+        ("scope.yaml", artifact_filename(target.workflow_id, target.scope_suffix, "scope.yaml")): trimmed,
+        (
+            "WorkflowVersion.yaml",
+            artifact_filename(target.workflow_id, target.scope_suffix, "WorkflowVersion.yaml"),
+        ): wv,
+        (
+            "Workflow.yaml",
+            artifact_filename(target.workflow_id, target.scope_suffix, "Workflow.yaml"),
+        ): {
             "externalId": wf_ext,
             "description": str(doc.get("label") or doc.get("description") or target.workflow_id),
             "dataSetExternalId": str(config.get("dataset") or "ds_discovery_etl"),
         },
-        artifact_filename(target.workflow_id, target.scope_suffix, "WorkflowTrigger.yaml"): trigger_doc,
+        (
+            "WorkflowTrigger.yaml",
+            artifact_filename(target.workflow_id, target.scope_suffix, "WorkflowTrigger.yaml"),
+        ): trigger_doc,
     }
     tx_resources = emit_transformation_resources(compiled)
     if tx_resources:
         for i, tx in enumerate(tx_resources):
             ext = str(tx.get("externalId") or f"tr_{target.workflow_id}_{i}")
-            artifacts[f"../transformations/{ext}.Transformation.yaml"] = tx
+            artifacts[("Transformation.yaml", f"../transformations/{ext}.Transformation.yaml")] = tx
 
-    for rel_name, payload in artifacts.items():
-        out_path = (
-            (out_dir / rel_name).resolve()
-            if not rel_name.startswith("../")
-            else (module_root / rel_name[3:]).resolve()
-        )
+    for (kind, rel_name), payload in artifacts.items():
+        if rel_name.startswith("../"):
+            out_path = (module_root / rel_name[3:]).resolve()
+        else:
+            out_dir = artifact_output_dir(module_root, target.scope_suffix, kind)
+            out_path = (out_dir / rel_name).resolve()
         if dry_run:
             logger.info("[dry-run] would write %s", out_path)
         else:

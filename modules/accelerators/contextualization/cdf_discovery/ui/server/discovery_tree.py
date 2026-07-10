@@ -278,8 +278,11 @@ def _gov_artifact_branch_nodes(*, workspace: str, prefix: str) -> List[TreeNodeO
 
 
 def _gov_spaces_children(client: Any, segs: List[str]) -> List[TreeNodeOut]:
+    from ui.server.governance_declared import spaces_artifact_prefix
+
+    spaces_root = spaces_artifact_prefix()
     if not segs:
-        return _sort_nodes(_gov_artifact_branch_nodes(workspace="spaces", prefix="spaces"))
+        return _sort_nodes(_gov_artifact_branch_nodes(workspace="spaces", prefix=spaces_root))
 
     if segs[0] == "adir" and len(segs) == 2:
         prefix = decode_segment(segs[1])

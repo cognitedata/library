@@ -78,6 +78,19 @@
   runtime: 'py311'
   functionPath: 'handler.py'
 
+- name: 'dm:context:discovery:etl:json:mapping'
+  externalId: 'fn_discovery_etl_json_mapping'
+  dataSetExternalId: 'ds_discovery_etl'
+  owner: 'Anonymous'
+  description: 'Discovery ETL diagram annotation jsonMapping stage'
+  metadata:
+    version: '1.0.0'
+  envVars:
+    ENV_TYPE: '${CDF_BUILD_TYPE}'
+    CDF_ENV: '${CDF_ENVIRON}'
+  runtime: 'py311'
+  functionPath: 'handler.py'
+
 - name: 'dm:context:discovery:etl:filter'
   externalId: 'fn_discovery_etl_filter'
   dataSetExternalId: 'ds_discovery_etl'

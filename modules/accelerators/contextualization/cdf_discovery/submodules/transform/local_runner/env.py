@@ -5,8 +5,8 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-# ``transform/local_runner/env.py`` → ``cdf_discovery/`` module root → repo root
-_DISCOVERY_ROOT = Path(__file__).resolve().parent.parent.parent
+# ``submodules/transform/local_runner/env.py`` → ``cdf_discovery/`` module root → repo root
+_DISCOVERY_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 _REPO_ROOT = _DISCOVERY_ROOT.parent.parent.parent.parent
 
 

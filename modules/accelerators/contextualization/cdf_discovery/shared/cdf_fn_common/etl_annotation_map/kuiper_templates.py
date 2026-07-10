@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Mapping, MutableMapping, Sequence
+import re
+from typing import Any, Dict, Iterable, List, Mapping, MutableMapping, Sequence
+
+_OUTPUT_REF_RE = re.compile(r"^\$\{([A-Za-z0-9_]+)\.output(?:\.(.+))?\}$")
 
 from cdf_fn_common.etl_annotation_map.expand import (
     expand_cohort_rows_to_classic_rows,
@@ -16,6 +19,34 @@ _DIAGRAM_MAPPER_KINDS = frozenset({"diagram_detect_to_dm", "diagram_detect_to_cl
 
 def is_diagram_mapper_kind(mapper_kind: str) -> bool:
     return str(mapper_kind or "").strip().lower() in _DIAGRAM_MAPPER_KINDS
+
+
+def _walk_json_mapping_input_refs(value: Any) -> Iterable[str]:
+    if isinstance(value, str):
+        yield value
+    elif isinstance(value, list):
+        for item in value:
+            yield from _walk_json_mapping_input_refs(item)
+    elif isinstance(value, dict):
+        for item in value.values():
+            yield from _walk_json_mapping_input_refs(item)
+
+
+def resolve_cohort_source_task_id_from_json_mapping_config(
+    cfg: Mapping[str, Any],
+    *,
+    fallback: str = "",
+) -> str:
+    """Resolve which predecessor task owns detect cohort rows for diagram mappers."""
+    raw_input = cfg.get("input") if isinstance(cfg.get("input"), dict) else {}
+    for text in _walk_json_mapping_input_refs(raw_input):
+        match = _OUTPUT_REF_RE.match(str(text).strip())
+        if match:
+            return match.group(1)
+    explicit = str(cfg.get("source_task_id") or "").strip()
+    if explicit:
+        return explicit
+    return str(fallback or "").strip()
 
 
 def default_kuiper_expression(cfg: Mapping[str, Any]) -> str:

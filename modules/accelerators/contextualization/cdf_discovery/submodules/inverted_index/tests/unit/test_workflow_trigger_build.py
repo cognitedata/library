@@ -104,7 +104,7 @@ def test_subscription_properties_from_target_driven() -> None:
 def test_watermark_trigger_static_shape() -> None:
     doc = build_watermark_trigger_doc()
     assert doc["triggerRule"]["triggerType"] == "schedule"
-    assert doc["triggerRule"]["cronExpression"] == "{{ source_index_watermark_cron }}"
+    assert doc["triggerRule"]["cronExpression"].name == "source_index_watermark_cron"
     assert "dataModelingQuery" not in doc["triggerRule"]
 
 

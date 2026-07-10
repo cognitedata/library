@@ -73,7 +73,7 @@ def test_build_workflow_instance_dry_run(tmp_path: Path) -> None:
         dry_run=True,
     )
     assert result["ok"]
-    assert any("workflows/etl_test_inst_scope.yaml" in str(p) for p in result["written"])
+    assert any("workflow_scopes/etl_test_inst_scope.yaml" in str(p) for p in result["written"])
     assert not (tmp_path / "workflows" / "all").exists()
 
     from workflow_build.sources import load_instance
@@ -141,7 +141,7 @@ def test_build_template_workflow_base(tmp_path: Path) -> None:
     config = {"workflow": "wf_all_etl_global", "dataset": "ds_discovery_etl"}
     result = run_build(module_root=tmp_path, config=config, template_ids=["my_tpl"], dry_run=True)
     assert result["ok"]
-    assert any("workflows/etl_my_tpl_scope.yaml" in str(p) for p in result["written"])
+    assert any("workflow_scopes/etl_my_tpl_scope.yaml" in str(p) for p in result["written"])
 
     source = load_template(tmp_path, "my_tpl", config)
     target = ScopedWorkflowTarget(

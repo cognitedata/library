@@ -8,6 +8,7 @@ from unittest.mock import patch
 import pytest
 
 from ui.server import governance_declared
+from governance_build.paths import GOVERNANCE_SPACES_OUTPUT_REL
 
 
 def test_declared_root_env(monkeypatch, tmp_path: Path):
@@ -18,14 +19,14 @@ def test_declared_root_env(monkeypatch, tmp_path: Path):
 def test_default_declared_root_under_discovery_module(tmp_path: Path):
     mod = tmp_path / "cdf_discovery"
     mod.mkdir()
-    expected = (mod / "governance").resolve()
+    expected = (mod / "submodules" / "governance").resolve()
     assert governance_declared.default_declared_root(mod) == expected
 
 
 def test_declared_root_defaults_to_discovery_governance(tmp_path: Path):
     mod = tmp_path / "cdf_discovery"
     mod.mkdir()
-    assert governance_declared.declared_root(mod) == (mod / "governance").resolve()
+    assert governance_declared.declared_root(mod) == (mod / "submodules" / "governance").resolve()
 
 
 def test_list_artifact_paths_empty(tmp_path: Path):
@@ -33,7 +34,7 @@ def test_list_artifact_paths_empty(tmp_path: Path):
 
 
 def test_list_artifact_tree_children(tmp_path: Path):
-    sp = tmp_path / "spaces" / "site_a"
+    sp = tmp_path / GOVERNANCE_SPACES_OUTPUT_REL / "site_a"
     sp.mkdir(parents=True)
     f = sp / "foo.Space.yaml"
     f.write_text("space: x\n", encoding="utf-8")

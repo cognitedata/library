@@ -376,7 +376,7 @@ def test_build_dynamic_detect_pack_tasks_one_per_pack():
     assert len(tasks) == 1
     data = tasks[0]["parameters"]["function"]["data"]
     assert data["detect_pack"]
-    assert tasks[0]["parameters"]["function"]["isAsyncComplete"] is True
+    assert tasks[0]["parameters"]["isAsyncComplete"] is True
 
 
 def test_record_detect_pack_completion_marks_detected_when_done():
@@ -432,7 +432,7 @@ def test_build_dynamic_tasks_async_flag():
         child_detect_config={"max_pages_per_detect_request": 40},
     )
     assert len(tasks) == 1
-    assert tasks[0]["parameters"]["function"]["isAsyncComplete"] is True
+    assert tasks[0]["parameters"]["isAsyncComplete"] is True
     assert tasks[0]["parameters"]["function"]["data"]["file_ids"] == [10]
     assert tasks[0]["parameters"]["function"]["data"]["config"]["max_pages_per_detect_request"] == 40
 

@@ -31,6 +31,7 @@ def test_merge_spaces_applies_cdf_template_defaults():
     cfg = merge_spaces_build_config({"template": "templates/spaces/default.Space.template.yaml"})
     assert cfg["instance_space_id_template"] == DEFAULT_INSTANCE_SPACE_ID_TEMPLATE
     assert cfg["name_template"] == DEFAULT_SPACE_NAME_TEMPLATE
+    assert cfg["output_dir"] == "data_modeling/spaces"
 
 
 def test_merge_groups_applies_cdf_name_template_default():

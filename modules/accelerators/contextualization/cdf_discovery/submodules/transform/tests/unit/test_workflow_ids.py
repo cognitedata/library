@@ -35,10 +35,10 @@ def test_patch_start_node_writes_paired_ids() -> None:
         workflow_version="2",
     )
     cfg = canvas["nodes"][0]["data"]["config"]
-    assert out["workflow_external_id"] == "wf_all_etl_test"
-    assert out["trigger_external_id"] == "trg_wf_all_etl_test"
-    assert cfg["workflow_external_id"] == "wf_all_etl_test"
-    assert cfg["trigger_external_id"] == "trg_wf_all_etl_test"
+    assert out["workflow_external_id"] == "wf_all_etl_test_all"
+    assert out["trigger_external_id"] == "trg_wf_all_etl_test_all"
+    assert cfg["workflow_external_id"] == "wf_all_etl_test_all"
+    assert cfg["trigger_external_id"] == "trg_wf_all_etl_test_all"
     assert cfg["workflow_version"] == "2"
     assert workflow_external_id(workflow_base="wf_all_etl_test", scope_suffix="site_a") == (
         "wf_all_etl_test_site_a"

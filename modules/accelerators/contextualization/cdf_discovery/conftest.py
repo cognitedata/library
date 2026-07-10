@@ -6,13 +6,13 @@ import sys
 from pathlib import Path
 
 _ROOT = Path(__file__).resolve().parent
+
 for _p in (
     str(_ROOT),
     str(_ROOT / "shared"),
     str(_ROOT / "shared" / "python"),
     str(_ROOT / "submodules"),
-    str(_ROOT / "submodules" / "transform" / "functions"),
-    str(_ROOT / "submodules" / "inverted_index"),
+    str(_ROOT / "scripts"),
 ):
     if _p not in sys.path:
         sys.path.insert(0, _p)

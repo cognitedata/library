@@ -855,7 +855,7 @@ def _run_transform_script(
 ) -> Dict[str, Any]:
     from ui.server.main import MODULE_ROOT
 
-    script = MODULE_ROOT / "transform" / "scripts" / script_name
+    script = MODULE_ROOT / "submodules" / "transform" / "scripts" / script_name
     if not script.is_file():
         raise HTTPException(status_code=500, detail=f"Missing script: {script.name}")
     try:

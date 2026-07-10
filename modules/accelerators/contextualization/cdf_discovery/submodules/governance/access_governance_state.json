@@ -1,4 +1,42 @@
 {
-  "spaces": [],
-  "groups": []
+  "spaces": [
+    "data_modeling/spaces/site_a/asset_sap_site_a.Space.yaml",
+    "data_modeling/spaces/site_a/timeseries_sap_site_a.Space.yaml",
+    "data_modeling/spaces/site_a/workorder_sap_site_a.Space.yaml",
+    "data_modeling/spaces/site_a/files_sap_site_a.Space.yaml",
+    "data_modeling/spaces/site_a/3d_sap_site_a.Space.yaml",
+    "data_modeling/spaces/site_a/dm_sap_site_a.Space.yaml",
+    "data_modeling/spaces/site_a/asset_pi_site_a.Space.yaml",
+    "data_modeling/spaces/site_a/timeseries_pi_site_a.Space.yaml",
+    "data_modeling/spaces/site_a/workorder_pi_site_a.Space.yaml",
+    "data_modeling/spaces/site_a/files_pi_site_a.Space.yaml",
+    "data_modeling/spaces/site_a/3d_pi_site_a.Space.yaml",
+    "data_modeling/spaces/site_a/dm_pi_site_a.Space.yaml",
+    "data_modeling/spaces/site_a/asset_sharepoint_site_a.Space.yaml",
+    "data_modeling/spaces/site_a/timeseries_sharepoint_site_a.Space.yaml",
+    "data_modeling/spaces/site_a/workorder_sharepoint_site_a.Space.yaml",
+    "data_modeling/spaces/site_a/files_sharepoint_site_a.Space.yaml",
+    "data_modeling/spaces/site_a/3d_sharepoint_site_a.Space.yaml",
+    "data_modeling/spaces/site_a/dm_sharepoint_site_a.Space.yaml"
+  ],
+  "groups": [
+    "auth/site_a/gp_asset_site_a_extractor.Group.yaml",
+    "auth/site_a/gp_timeseries_site_a_extractor.Group.yaml",
+    "auth/site_a/gp_workorder_site_a_extractor.Group.yaml",
+    "auth/site_a/gp_files_site_a_extractor.Group.yaml",
+    "auth/site_a/gp_3d_site_a_extractor.Group.yaml",
+    "auth/site_a/gp_dm_site_a_extractor.Group.yaml",
+    "auth/site_a/gp_asset_site_a_processing.Group.yaml",
+    "auth/site_a/gp_timeseries_site_a_processing.Group.yaml",
+    "auth/site_a/gp_workorder_site_a_processing.Group.yaml",
+    "auth/site_a/gp_files_site_a_processing.Group.yaml",
+    "auth/site_a/gp_3d_site_a_processing.Group.yaml",
+    "auth/site_a/gp_dm_site_a_processing.Group.yaml",
+    "auth/site_a/gp_asset_site_a_read.Group.yaml",
+    "auth/site_a/gp_timeseries_site_a_read.Group.yaml",
+    "auth/site_a/gp_workorder_site_a_read.Group.yaml",
+    "auth/site_a/gp_files_site_a_read.Group.yaml",
+    "auth/site_a/gp_3d_site_a_read.Group.yaml",
+    "auth/site_a/gp_dm_site_a_read.Group.yaml"
+  ]
 }

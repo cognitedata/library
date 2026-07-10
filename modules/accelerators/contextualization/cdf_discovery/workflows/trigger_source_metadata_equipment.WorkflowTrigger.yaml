@@ -2,12 +2,12 @@
 externalId: wf_discovery_idx_source_metadata_incremental_trigger_equipment
 triggerRule:
   triggerType: dataModeling
-  batchSize: {{ source_metadata_batch_size }}
-  batchTimeout: {{ source_metadata_batch_timeout }}
+  batchSize: '{{ source_metadata_batch_size }}'
+  batchTimeout: '{{ source_metadata_batch_timeout }}'
   dataModelingQuery:
     with:
       equipment:
-        limit: {{ source_metadata_batch_size }}
+        limit: '{{ source_metadata_batch_size }}'
         nodes:
           filter:
             hasData:

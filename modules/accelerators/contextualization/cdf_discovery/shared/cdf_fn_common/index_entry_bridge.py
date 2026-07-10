@@ -34,7 +34,7 @@ def ensure_inverted_index_importable() -> None:
     contextualization = here.parents[3]
     candidates.extend(
         [
-            contextualization / "cdf_discovery" / "inverted_index",
+            contextualization / "cdf_discovery" / "submodules" / "inverted_index",
             contextualization / "cdf_inverted_index_contextualization" / "inverted_index",
         ]
     )

@@ -39,7 +39,7 @@ DISCOVERY_SUBMODULES: tuple[DiscoverySubmodule, ...] = (
         cli_commands=("build",),
         toolkit_roots=(
             _rel("submodules/governance"),
-            _rel("spaces"),
+            _rel("data_modeling/spaces"),
             _rel("auth"),
         ),
     ),
