@@ -136,7 +136,8 @@ canvas:
     data:
       label: Save Inverted Index to Raw
       config: &id007
-        description: Persist inverted index entries via contextualization storage adapter
+        description: Persist inverted index entries via contextualization storage
+          adapter
         index_storage_backend: raw
         index_raw_database: db_contextualization_idx
         scope:
@@ -144,7 +145,7 @@ canvas:
           levels:
           - site
           - unit
-          scope_key_template: 'site:{site}|unit:{unit}'
+          scope_key_template: site:{site}|unit:{unit}
           fallback_scope_key: global
   - id: save_view_mpk5bi71
     kind: save_view
@@ -383,13 +384,13 @@ canvas:
     data:
       label: Workflow trigger
       config:
-        description: Imported from CDF workflow wf_etl_wf_pbf_aliasing
+        description: Imported from CDF workflow wf_discovery_etl_wf_pbf_aliasing
         trigger_type: schedule
         cron_expression: 0 2 * * *
         workflow_version: 1.0.0.1
-        workflow_base: wf_etl_wf_pbf_aliasing
-        workflow_external_id: wf_etl_wf_pbf_aliasing
-        trigger_external_id: trg_wf_etl_wf_pbf_aliasing
+        workflow_base: wf_discovery_etl_wf_pbf_aliasing
+        workflow_external_id: wf_discovery_etl_wf_pbf_aliasing
+        trigger_external_id: trg_wf_discovery_etl_wf_pbf_aliasing
         incremental_change_processing: false
         trigger_rule:
           cron_expression: 0 2 * * *

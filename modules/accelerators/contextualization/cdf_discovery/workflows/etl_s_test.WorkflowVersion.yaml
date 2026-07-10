@@ -1,4 +1,4 @@
-workflowExternalId: wf_wf_discovery_wf_discovery_wf_discovery_etl_s_test
+workflowExternalId: wf_discovery_etl_s_test
 version: '1'
 workflowDefinition:
   tasks:

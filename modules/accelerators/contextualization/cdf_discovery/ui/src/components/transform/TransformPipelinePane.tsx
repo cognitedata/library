@@ -251,18 +251,23 @@ export function TransformPipelinePane(props: Props) {
   }, [props.tab.id, props.tab.canvas, pipelineTab?.document, templateTab?.document]);
 
   const onChange = useCallback(
-    (doc: TransformCanvasDocument) => {
+    (doc: TransformCanvasDocument, options?: { markDirty?: boolean }) => {
+      const markDirty = options?.markDirty !== false;
       canvasRef.current = doc;
       setCanvas(doc);
       setValidationFailedNodeIds([]);
       if (templateTab) {
-        if (!templateTab.dirty) {
-          updateDocumentTab({ ...templateTab, canvas: doc, dirty: true });
-        }
+        updateDocumentTab({
+          ...templateTab,
+          canvas: doc,
+          dirty: markDirty ? true : templateTab.dirty,
+        });
       } else if (pipelineTab) {
-        if (!pipelineTab.dirty) {
-          updateDocumentTab({ ...pipelineTab, canvas: doc, dirty: true });
-        }
+        updateDocumentTab({
+          ...pipelineTab,
+          canvas: doc,
+          dirty: markDirty ? true : pipelineTab.dirty,
+        });
       }
     },
     [pipelineTab, templateTab, updateDocumentTab]

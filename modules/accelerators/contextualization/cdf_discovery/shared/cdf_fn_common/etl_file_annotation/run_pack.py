@@ -129,7 +129,7 @@ def run_one_annotation_pack(
         search_field=search_field,
         diagram_cfg=diagram_cfg,
     )
-    job_id = run_diagram_detect(
+    job_id, job_token = run_diagram_detect(
         client,
         pack,
         entities,
@@ -139,7 +139,7 @@ def run_one_annotation_pack(
         search_field=search_field,
         diagram_detect_config=diagram_cfg if isinstance(diagram_cfg, dict) else None,
     )
-    results = wait_for_diagram_job(client, job_id, timeout_sec=poll_timeout)
+    results = wait_for_diagram_job(client, job_id, timeout_sec=poll_timeout, job_token=job_token)
     items = results.get("items") if isinstance(results, dict) else []
     first_item = items[0] if isinstance(items, list) and items else {}
     annotations = first_item.get("annotations") if isinstance(first_item, dict) else []

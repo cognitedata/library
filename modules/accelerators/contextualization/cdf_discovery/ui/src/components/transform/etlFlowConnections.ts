@@ -4,8 +4,34 @@ import { etlPersistenceOutboundToEndOnlyRfTypes } from "./transformFlowConstants
 
 const STRUCTURAL = new Set(["etlStart", "etlEnd"]);
 
+/** Target handles that accept at most one incoming data edge (matches canvas compile rules). */
+const SINGLE_INPUT_TARGET_HANDLES: Readonly<Record<string, ReadonlySet<string>>> = {
+  etlWorkflowFanoutPlan: new Set(["in__input_b"]),
+  etlJoin: new Set(["in__left", "in__right"]),
+  etlFileAnnotation: new Set(["in__files"]),
+};
+
+function targetHandleAlreadyWired(
+  edges: readonly Edge[],
+  targetId: string,
+  targetHandle: string,
+  excludeEdgeId?: string
+): boolean {
+  return edges.some(
+    (e) =>
+      e.id !== excludeEdgeId &&
+      e.target === targetId &&
+      (e.targetHandle ?? "in") === targetHandle
+  );
+}
+
 /** Basic ETL canvas connection rules for React Flow. */
-export function isValidEtlFlowConnection(connection: Connection, getNode: (id: string) => Node | undefined): boolean {
+export function isValidEtlFlowConnection(
+  connection: Connection,
+  getNode: (id: string) => Node | undefined,
+  edges: readonly Edge[] = [],
+  options?: { excludeEdgeId?: string }
+): boolean {
   const src = getNode(connection.source);
   const tgt = getNode(connection.target);
   if (!src?.type || !tgt?.type) return false;
@@ -17,6 +43,14 @@ export function isValidEtlFlowConnection(connection: Connection, getNode: (id: s
     return tgt.type === "etlEnd";
   }
   if (isCohortConsumerRfType(tgt.type) && !isCohortSourceRfType(src.type)) {
+    return false;
+  }
+  const targetHandle = connection.targetHandle ?? "in";
+  const singleHandles = SINGLE_INPUT_TARGET_HANDLES[tgt.type];
+  if (
+    singleHandles?.has(targetHandle) &&
+    targetHandleAlreadyWired(edges, connection.target, targetHandle, options?.excludeEdgeId)
+  ) {
     return false;
   }
   return true;

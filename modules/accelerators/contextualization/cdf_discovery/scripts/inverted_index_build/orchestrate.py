@@ -7,7 +7,14 @@ import logging
 import sys
 from pathlib import Path
 
-from inverted_index_build.workflow_triggers import (
+_MODULE_ROOT = Path(__file__).resolve().parent.parent.parent
+if str(_MODULE_ROOT) not in sys.path:
+    sys.path.insert(0, str(_MODULE_ROOT))
+from shared.python.paths import ensure_sys_path  # noqa: E402
+
+ensure_sys_path()
+
+from inverted_index_build.workflow_triggers import (  # noqa: E402
     check_inverted_index_triggers,
     generate_inverted_index_triggers,
 )

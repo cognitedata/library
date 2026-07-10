@@ -76,4 +76,4 @@ def test_resolve_workflow_base_for_build_defaults_to_workflow_id_when_no_overrid
         workflow_id="etl_aliasing",
         canvas={},
     )
-    assert out == "wf_etl_etl_aliasing"
+    assert out == "wf_discovery_etl_etl_aliasing"

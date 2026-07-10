@@ -38,6 +38,8 @@ canvas:
           row_key_template: '{lookup_key}:{scope}|{index_kind}'
           query_source: build_index
           default_view_version: v1
+    width: 192
+    height: 130
   - id: end
     kind: end
     position:
@@ -47,6 +49,8 @@ canvas:
       label: End
       config:
         description: Post-run cohort RAW cleanup
+    width: 148
+    height: 68
   - id: merge_mpk5updx
     kind: merge
     position:
@@ -63,6 +67,8 @@ canvas:
             branch_order: by_score
         description: Merge alias lists from parallel transform branches into one aliases
           property
+    width: 192
+    height: 130
   - id: query_view_mpk5beqq
     kind: query_view
     position:
@@ -71,8 +77,8 @@ canvas:
     data:
       label: CogniteAsset (v1)
       config: &id003
-        description: "View query \u2014 CogniteAsset name, description, and tags for\
-          \ alias extraction"
+        description: View query — CogniteAsset name, description, and tags for alias
+          extraction
         view_space: cdf_cdm
         view_external_id: CogniteAsset
         view_version: v1
@@ -82,6 +88,8 @@ canvas:
         - description
         - name
         - tags
+    width: 192
+    height: 130
   - id: query_view_mpkf9ork
     kind: query_view
     position:
@@ -90,8 +98,8 @@ canvas:
     data:
       label: CogniteEquipment (v1)
       config: &id004
-        description: "View query \u2014 CogniteEquipment instances for shared name\
-          \ passthrough aliases"
+        description: View query — CogniteEquipment instances for shared name passthrough
+          aliases
         view_space: cdf_cdm
         view_external_id: CogniteEquipment
         view_version: v1
@@ -99,6 +107,8 @@ canvas:
         include_properties:
         - description
         - name
+    width: 192
+    height: 130
   - id: query_view_mpkf9xge
     kind: query_view
     position:
@@ -107,8 +117,8 @@ canvas:
     data:
       label: CogniteTimeSeries (v1)
       config: &id005
-        description: "View query \u2014 CogniteTimeSeries instances for shared name\
-          \ passthrough aliases"
+        description: View query — CogniteTimeSeries instances for shared name passthrough
+          aliases
         view_space: cdf_cdm
         view_external_id: CogniteTimeSeries
         view_version: v1
@@ -116,6 +126,8 @@ canvas:
         include_properties:
         - description
         - name
+    width: 192
+    height: 130
   - id: query_view_mpkfbrkh
     kind: query_view
     position:
@@ -124,8 +136,7 @@ canvas:
     data:
       label: CogniteFile (v1)
       config: &id006
-        description: "View query \u2014 CogniteFile name and description for index\
-          \ key extraction"
+        description: View query — CogniteFile name and description for index key extraction
         view_space: cdf_cdm
         view_external_id: CogniteFile
         view_version: v1
@@ -133,6 +144,8 @@ canvas:
         include_properties:
         - description
         - name
+    width: 192
+    height: 130
   - id: save_raw_mpkhci4w
     kind: save_raw
     position:
@@ -143,7 +156,8 @@ canvas:
       notes: Currently saving the index to RAW to avoid instance consumption.  Should
         be evaluated for inclusion in the data model for proper indexing.
       config: &id007
-        description: Persist inverted index entries via contextualization storage adapter
+        description: Persist inverted index entries via contextualization storage
+          adapter
         index_storage_backend: raw
         index_raw_database: db_contextualization_idx
         scope:
@@ -151,9 +165,11 @@ canvas:
           levels:
           - site
           - unit
-          scope_key_template: 'site:{site}|unit:{unit}'
+          scope_key_template: site:{site}|unit:{unit}
           fallback_scope_key: global
       node_color: '#0d9488'
+    width: 192
+    height: 130
   - id: save_view_mpk5bi71
     kind: save_view
     position:
@@ -174,14 +190,16 @@ canvas:
             unique: true
             branch_order: by_score
       node_color: '#0d9488'
+    width: 192
+    height: 130
   - id: score_mq8b3h4g
     kind: score
     position:
       x: 700
       y: 18
     data:
-      label: "Asset validation \u2014 ISA \u2192 shape \u2192 blacklist \u2014 isa_compliant\
-        \ \u2014 isa_compliant \u2014 isa_compliant"
+      label: Asset validation — ISA → shape → blacklist — isa_compliant — isa_compliant
+        — isa_compliant
       config: &id009
         description: isa_compliant
         score_fields:
@@ -276,14 +294,16 @@ canvas:
           priority: 10
         initial_score: 1
         min_score: 0
+    width: 192
+    height: 130
   - id: score_mq8b4743
     kind: score
     position:
       x: 948
       y: 18
     data:
-      label: "Asset validation \u2014 ISA \u2192 shape \u2192 blacklist \u2014 isa_compliant\
-        \ \u2014 isa_compliant \u2014 isa_compliant"
+      label: Asset validation — ISA → shape → blacklist — isa_compliant — isa_compliant
+        — isa_compliant
       config: &id010
         description: isa_compliant
         score_fields:
@@ -378,6 +398,8 @@ canvas:
           priority: 10
         initial_score: 1
         min_score: 0
+    width: 192
+    height: 130
   - id: start
     kind: start
     position:
@@ -386,13 +408,15 @@ canvas:
     data:
       label: Start
       config:
-        workflow_base: wf_wf_discovery_wf_discovery_wf_discovery_etl_aliasing_workflow
-        workflow_external_id: wf_wf_discovery_wf_discovery_wf_discovery_etl_aliasing_workflow
-        trigger_external_id: trg_wf_wf_discovery_wf_discovery_wf_discovery_etl_aliasing_workflow
+        workflow_base: wf_discovery_etl_aliasing_workflow
+        workflow_external_id: wf_discovery_etl_aliasing_workflow
+        trigger_external_id: trg_wf_discovery_etl_aliasing_workflow
         workflow_version: 1.0.0.5
         cron_expression: '*/10 * * * *'
         incremental_change_processing: true
         workflow_scope: aliasing_workflow
+    width: 148
+    height: 68
   - id: transform_mpk5q5bq
     kind: transform
     position:
@@ -410,6 +434,8 @@ canvas:
           regex: ''
         output_template: ''
         description: Trim instance name and append normalized value to aliases
+    width: 192
+    height: 130
   - id: transform_mq8b3t4p
     kind: transform
     position:
@@ -458,6 +484,8 @@ canvas:
           merge_list:
             unique: true
             branch_order: by_score
+    width: 192
+    height: 130
   - id: transform_mq8b3v3e
     kind: transform
     position:
@@ -498,6 +526,8 @@ canvas:
           merge_list:
             unique: true
             branch_order: by_score
+    width: 192
+    height: 130
   edges:
   - id: xy-edge__startout-query_view_mpk5beqqin
     source: start
@@ -614,9 +644,9 @@ canvas:
     target_handle: in
     kind: data
   viewport:
-    x: -775.6999999999998
-    y: 144.375
-    zoom: 1.15
+    x: 10.086956521739182
+    y: 214.0743885869565
+    zoom: 0.5
 scope_suffix: ''
 compiled_workflow:
   schema_version: 1
@@ -703,8 +733,8 @@ compiled_workflow:
     executable_kind: score
     task_type: function
     canvas_node_id: score_mq8b3h4g
-    label: "Asset validation \u2014 ISA \u2192 shape \u2192 blacklist \u2014 isa_compliant\
-      \ \u2014 isa_compliant \u2014 isa_compliant"
+    label: Asset validation — ISA → shape → blacklist — isa_compliant — isa_compliant
+      — isa_compliant
     depends_on:
     - transform_mq8b3v3e
     payload:
@@ -714,8 +744,8 @@ compiled_workflow:
     executable_kind: score
     task_type: function
     canvas_node_id: score_mq8b4743
-    label: "Asset validation \u2014 ISA \u2192 shape \u2192 blacklist \u2014 isa_compliant\
-      \ \u2014 isa_compliant \u2014 isa_compliant"
+    label: Asset validation — ISA → shape → blacklist — isa_compliant — isa_compliant
+      — isa_compliant
     depends_on:
     - merge_mpk5updx
     payload:

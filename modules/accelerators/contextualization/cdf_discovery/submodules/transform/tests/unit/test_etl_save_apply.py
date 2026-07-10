@@ -16,6 +16,10 @@ FUNCS = ROOT / "functions"
 if str(FUNCS) not in sys.path:
     sys.path.insert(0, str(FUNCS))
 
+from cdf_fn_common.etl_diagram_annotation_save import (  # noqa: E402
+    edge_apply_from_staging_row,
+    etl_apply_diagram_annotation_save,
+)
 from cdf_fn_common.etl_save_apply import (  # noqa: E402
     DEFAULT_SAVE_BATCH_SIZE,
     _coerce_dm_list_property_value,
@@ -353,3 +357,76 @@ def test_raw_save_flushes_at_configured_batch_size(
     summary = etl_replicate_raw_save("fn_discovery_etl_raw_save", data, client, None)
     assert summary["rows_written"] == 3
     assert mock_flush.call_count == 2
+
+
+def test_edge_apply_from_staging_row_maps_cdm_fields() -> None:
+    from cognite.client.data_classes.data_modeling.ids import ViewId
+
+    view_id = ViewId(space="cdf_cdm", external_id="CogniteDiagramAnnotation", version="v1")
+    cols = {
+        "external_id": "f1_p1_0",
+        "instance_space": "discovery-annotations",
+    }
+    props = {
+        "annotation_space": "discovery-annotations",
+        "annotation_external_id": "f1_p1_0",
+        "start_node_space": "inst_files",
+        "start_node_external_id": "f1",
+        "end_node_space": "inst_assets",
+        "end_node_external_id": "asset-101",
+        "text": "FT-101",
+        "page": 1,
+        "confidence": 0.9,
+        "status": "Suggested",
+        "x_min": 0.1,
+        "y_min": 0.2,
+        "x_max": 0.2,
+        "y_max": 0.3,
+    }
+    edge = edge_apply_from_staging_row(
+        cols, props, view_id=view_id, default_annotation_space="discovery-annotations"
+    )
+    assert edge is not None
+    assert edge.space == "discovery-annotations"
+    assert edge.external_id == "f1_p1_0"
+    assert edge.start_node.space == "inst_files"
+    assert edge.end_node.external_id == "asset-101"
+    assert edge.sources[0].properties["startNodeText"] == "FT-101"
+    assert edge.sources[0].properties["startNodePageNumber"] == 1
+
+
+@patch("cdf_fn_common.etl_diagram_annotation_save._iter_entity_rows_for_save")
+def test_diagram_annotation_save_applies_edges(mock_iter_rows: MagicMock) -> None:
+    run_id = "run_dm_ann"
+    cols = {
+        "external_id": "f1_p1_0",
+        "instance_space": "discovery-annotations",
+    }
+    props = {
+        "annotation_space": "discovery-annotations",
+        "annotation_external_id": "f1_p1_0",
+        "start_node_space": "inst_files",
+        "start_node_external_id": "f1",
+        "end_node_space": "inst_assets",
+        "end_node_external_id": "asset-101",
+        "text": "FT-101",
+        "page": 1,
+        "status": "Suggested",
+    }
+    mock_iter_rows.return_value = [(0, cols, props)]
+    client = MagicMock()
+    data = {
+        "task_id": "save_annotation_results_dm",
+        "run_id": run_id,
+        "config": {
+            "view_space": "cdf_cdm",
+            "view_external_id": "CogniteDiagramAnnotation",
+            "view_version": "v1",
+            "annotation_space": "discovery-annotations",
+        },
+    }
+    summary = etl_apply_diagram_annotation_save("fn_discovery_etl_view_save", data, client, None)
+    assert summary["edges_applied"] == 1
+    assert summary["skipped"] == 0
+    assert summary["save_kind"] == "diagram_annotation"
+    client.data_modeling.instances.apply.assert_called_once()

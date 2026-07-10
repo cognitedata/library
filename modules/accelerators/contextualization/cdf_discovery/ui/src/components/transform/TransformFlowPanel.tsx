@@ -425,13 +425,17 @@ function FocusTransformFlowNode({ nodeId }: { nodeId: string | null }) {
   return null;
 }
 
+type CanvasChangeOptions = {
+  markDirty?: boolean;
+};
+
 type Props = {
   t: TFn;
   pipelineId?: string;
   initialDocument: TransformCanvasDocument;
   reloadNonce: number;
   readOnly?: boolean;
-  onChange: (doc: TransformCanvasDocument) => void;
+  onChange: (doc: TransformCanvasDocument, options?: CanvasChangeOptions) => void;
   onSave?: () => void;
   onSaveAs?: () => void;
   onReload?: () => void;
@@ -603,7 +607,7 @@ function FlowCanvasBody({
         layoutMethod?: TransformCanvasLayoutMethod;
         edgePathStyle?: TransformCanvasEdgePathStyle;
       },
-      meta?: { viewport?: TransformCanvasViewport | null; recordHistory?: boolean }
+      meta?: { viewport?: TransformCanvasViewport | null; recordHistory?: boolean; markDirty?: boolean }
     ) => {
       if (meta?.recordHistory !== false && !flowHistory.isApplying()) {
         flowHistory.recordBeforeChange();
@@ -618,7 +622,8 @@ function FlowCanvasBody({
           layoutMethod: opts?.layoutMethod ?? layoutMethod,
           edgePathStyle: opts?.edgePathStyle ?? edgePathStyle,
           viewport: vp,
-        })
+        }),
+        { markDirty: meta?.markDirty !== false }
       );
     },
     [onChange, handleOrientation, layoutMethod, edgePathStyle, flowHistory]
@@ -666,6 +671,7 @@ function FlowCanvasBody({
         emitChange(nodes, edges, undefined, {
           viewport: viewportRef.current,
           recordHistory: false,
+          markDirty: false,
         });
       }, 400);
     },
@@ -804,8 +810,9 @@ function FlowCanvasBody({
   const onConnect = useCallback(
     (connection: Connection) => {
       if (readOnly) return;
-      if (!isValidEtlFlowConnection(connection, getNode)) return;
-      if (wouldCreateCycle(getEdges(), connection.source, connection.target)) return;
+      const eds = getEdges();
+      if (!isValidEtlFlowConnection(connection, getNode, eds)) return;
+      if (wouldCreateCycle(eds, connection.source, connection.target)) return;
       setEdges((eds) => {
         const merged = appendEtlConnectionEdge(getNode, eds, connection);
         emitChange(nodes, merged);
@@ -892,7 +899,7 @@ function FlowCanvasBody({
         targetHandle: "in",
       };
       const resolveNode = (id: string) => (id === node.id ? node : getNode(id));
-      if (!isValidEtlFlowConnection(conn, resolveNode)) return;
+      if (!isValidEtlFlowConnection(conn, resolveNode, eds)) return;
       if (wouldCreateCycle(eds, conn.source, conn.target)) return;
       const nextNodes = [...nds, node];
       const toEnd = persistenceOutboundEdgesToEnd(materialized.rfType, node.id, nextNodes);
@@ -983,7 +990,7 @@ function FlowCanvasBody({
           targetHandle: "in",
         };
         const resolveNode = (id: string) => (id === node.id ? node : getNode(id));
-        if (!isValidEtlFlowConnection(conn, resolveNode)) return;
+        if (!isValidEtlFlowConnection(conn, resolveNode, eds)) return;
         if (wouldCreateCycle(eds, conn.source, conn.target)) return;
         const nextNodes = [...nds, node];
         const toEnd = persistenceOutboundEdgesToEnd(materialized.rfType, node.id, nextNodes);
@@ -1985,7 +1992,8 @@ function FlowCanvasBody({
                 sourceHandle: conn.sourceHandle ?? null,
                 targetHandle: conn.targetHandle ?? null,
               };
-              return isValidEtlFlowConnection(c, getNode) && !wouldCreateCycle(getEdges(), c.source, c.target);
+              const eds = getEdges();
+              return isValidEtlFlowConnection(c, getNode, eds) && !wouldCreateCycle(eds, c.source, c.target);
             }}
             onNodeClick={onNodeClick}
             onEdgeClick={onEdgeClick}

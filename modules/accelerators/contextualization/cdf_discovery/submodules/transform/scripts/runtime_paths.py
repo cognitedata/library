@@ -7,21 +7,21 @@ from pathlib import Path
 def discovery_root_from_path(start_file: str) -> Path:
     start = Path(start_file).resolve()
     for parent in (start.parent, *start.parents):
-        if (parent / "submodules/transform/functions").is_dir() and (parent / "transform").is_dir():
+        if (parent / "module.py").is_file() and (parent / "submodules" / "transform" / "functions").is_dir():
             return parent
     raise RuntimeError(f"Could not resolve discovery root from: {start}")
 
 
 def transform_root_from_path(start_file: str) -> Path:
     root = discovery_root_from_path(start_file)
-    transform_root = root / "transform"
+    transform_root = root / "submodules" / "transform"
     if transform_root.is_dir():
         return transform_root
     raise RuntimeError(f"Missing transform directory under: {root}")
 
 
-def _drop_stale_transform_functions_path(transform_root: Path) -> None:
-    stale_functions = (transform_root / "submodules/transform/functions").resolve()
+def _drop_stale_transform_functions_path(discovery_root: Path) -> None:
+    stale_functions = (discovery_root / "transform" / "functions").resolve()
     kept: list[str] = []
     for entry in sys.path:
         if not entry:
@@ -43,8 +43,13 @@ def ensure_import_paths(start_file: str, *, include_discovery_root: bool = False
     scripts_root = transform_root / "scripts"
     functions_root = discovery_root / "submodules/transform/functions"
 
-    _drop_stale_transform_functions_path(transform_root)
-    inserts = [str(scripts_root), str(transform_root), str(functions_root)]
+    _drop_stale_transform_functions_path(discovery_root)
+    inserts = [
+        str(discovery_root / "shared"),
+        str(scripts_root),
+        str(transform_root),
+        str(functions_root),
+    ]
     if include_discovery_root:
         inserts.append(str(discovery_root))
 

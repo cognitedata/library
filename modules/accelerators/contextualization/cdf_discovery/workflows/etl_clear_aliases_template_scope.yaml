@@ -57,9 +57,9 @@ canvas:
         trigger_type: schedule
         cron_expression: 0 2 * * *
         workflow_version: '1'
-        workflow_base: wf_etl_clear_aliases
-        workflow_external_id: wf_etl_clear_aliases
-        trigger_external_id: trg_wf_etl_clear_aliases
+        workflow_base: wf_discovery_etl_clear_aliases
+        workflow_external_id: wf_discovery_etl_clear_aliases
+        trigger_external_id: trg_wf_discovery_etl_clear_aliases
         incremental_change_processing: true
     width: 148
     height: 68

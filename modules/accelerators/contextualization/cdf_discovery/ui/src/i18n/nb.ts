@@ -1012,7 +1012,7 @@ export const nb: Messages = {
   "transform.connector.outputLabelHint": "Leave empty to use the default output label.",
   "transform.connectEnd.group.contextualization": "Kontekstualisering",
   "transform.fanoutPlan.canvasHint": "Plans file batches and pattern entities for diagram detect. Page limits here control each CDF diagrams.detect call.",
-  "transform.fanoutPlan.wiringHint": "Koble kohortutganger til in__input_a (søkekontekst) og in__input_b (filer som skal skannes). Filer er ikke oppført globalt.",
+  "transform.fanoutPlan.wiringHint": "Wire one or more cohort outputs to in__input_a (search context, e.g. CogniteAsset aliases and CogniteFile names) and one to in__input_b (PDFs to scan). Files are not listed globally.",
   "transform.fanoutPlan.fanoutProfile": "Fan-out profil",
   "transform.fanoutPlan.profileFileAnnotation": "Filkommentar (diagram oppdager sidepakker)",
   "transform.fanoutPlan.handle.inputA": "Inngang A",

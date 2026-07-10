@@ -73,7 +73,7 @@ def main() -> None:
         if path.is_file():
             _collect_pattern_descriptions(_load_yaml(path), out)
 
-    etl_config = MODULE_ROOT / "workflows" / "wf_discovery_wf_discovery_wf_discovery_etl_aliasing_workflow.config.yaml"
+    etl_config = MODULE_ROOT / "workflows" / "etl_aliasing_workflow_scope.yaml"
     if etl_config.is_file():
         _collect_pattern_descriptions(_load_yaml(etl_config), out)
 

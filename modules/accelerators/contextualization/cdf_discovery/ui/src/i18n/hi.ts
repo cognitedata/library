@@ -1012,7 +1012,7 @@ export const hi: Messages = {
   "transform.connector.outputLabelHint": "Leave empty to use the default output label.",
   "transform.connectEnd.group.contextualization": "प्रासंगिकता",
   "transform.fanoutPlan.canvasHint": "Plans file batches and pattern entities for diagram detect. Page limits here control each CDF diagrams.detect call.",
-  "transform.fanoutPlan.wiringHint": "कोहोर्ट आउटपुट को in__input_a (खोज संदर्भ) और in__input_b (स्कैन करने के लिए फ़ाइलें) से कनेक्ट करें। फ़ाइलें विश्व स्तर पर सूचीबद्ध नहीं हैं.",
+  "transform.fanoutPlan.wiringHint": "Wire one or more cohort outputs to in__input_a (search context, e.g. CogniteAsset aliases and CogniteFile names) and one to in__input_b (PDFs to scan). Files are not listed globally.",
   "transform.fanoutPlan.fanoutProfile": "फैन-आउट प्रोफ़ाइल",
   "transform.fanoutPlan.profileFileAnnotation": "फ़ाइल एनोटेशन (आरेख पृष्ठ-पैक का पता लगाता है)",
   "transform.fanoutPlan.handle.inputA": "इनपुट ए",

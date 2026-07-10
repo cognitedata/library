@@ -21,9 +21,6 @@ canvas:
   nodes:
   - id: completion_barrier
     kind: function_ref
-    position:
-      x: 1196
-      y: -65
     data:
       label: Detect completion barrier
       config: &id001
@@ -34,9 +31,6 @@ canvas:
     height: 130
   - id: end
     kind: end
-    position:
-      x: 1940
-      y: -34
     data:
       label: End
       config:
@@ -45,9 +39,6 @@ canvas:
     height: 68
   - id: fanout
     kind: dynamic_fanout
-    position:
-      x: 700
-      y: -65
     data:
       label: Dynamic fan-out
       config: &id002
@@ -59,9 +50,6 @@ canvas:
     height: 130
   - id: fanout_plan
     kind: workflow_fanout_plan
-    position:
-      x: 452
-      y: -65
     data:
       label: Plan detect batches
       config: &id003
@@ -82,9 +70,6 @@ canvas:
     height: 150
   - id: finalize_annotations
     kind: function_ref
-    position:
-      x: 948
-      y: -65
     data:
       label: Finalize detect jobs
       config: &id004
@@ -95,9 +80,6 @@ canvas:
     height: 130
   - id: map_annotations_classic
     kind: json_mapping
-    position:
-      x: 1444
-      y: -148
     data:
       label: Map annotations (classic)
       config:
@@ -111,9 +93,6 @@ canvas:
     height: 130
   - id: map_annotations_dm
     kind: json_mapping
-    position:
-      x: 1444
-      y: 18
     data:
       label: Map annotations (DM)
       config:
@@ -129,9 +108,6 @@ canvas:
     height: 130
   - id: query_assets
     kind: query_view
-    position:
-      x: 204
-      y: -231
     data:
       label: CogniteAsset (aliases)
       config: &id007
@@ -148,9 +124,6 @@ canvas:
     height: 130
   - id: query_files
     kind: query_view
-    position:
-      x: 204
-      y: -65
     data:
       label: CogniteFile (PDFs)
       config: &id008
@@ -169,9 +142,6 @@ canvas:
     height: 130
   - id: save_annotation_results_classic
     kind: save_raw
-    position:
-      x: 1692
-      y: -148
     data:
       label: Save classic annotations
       config: &id009
@@ -183,9 +153,6 @@ canvas:
     height: 130
   - id: save_annotation_results_dm
     kind: save_view
-    position:
-      x: 1692
-      y: 18
     data:
       label: Save CogniteDiagramAnnotation
       config: &id010
@@ -199,9 +166,6 @@ canvas:
     height: 130
   - id: start
     kind: start
-    position:
-      x: 0
-      y: -34
     data:
       label: Start
       config:

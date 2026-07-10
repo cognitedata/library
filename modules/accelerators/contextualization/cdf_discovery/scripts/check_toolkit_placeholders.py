@@ -11,7 +11,9 @@ import yaml
 
 PLACEHOLDER = re.compile(r"\{\{\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\}\}")
 
-DEFAULT_DEPLOY_CONFIG = Path("inverted_index") / "config" / "inverted_index_deploy.config.yaml"
+DEFAULT_DEPLOY_CONFIG = (
+    Path("submodules") / "inverted_index" / "config" / "inverted_index_deploy.config.yaml"
+)
 
 
 def _collect_placeholders(path: Path) -> set[str]:

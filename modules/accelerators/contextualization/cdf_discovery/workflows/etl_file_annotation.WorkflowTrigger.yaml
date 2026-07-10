@@ -1,5 +1,5 @@
-externalId: trg_wf_discovery_etl_clear_aliases
-workflowExternalId: wf_discovery_etl_clear_aliases
+externalId: trg_wf_all_wf_discovery_etl_file_annotation
+workflowExternalId: wf_all_wf_discovery_etl_file_annotation
 workflowVersion: '1'
 triggerRule:
   triggerType: schedule
@@ -8,16 +8,16 @@ input:
   incremental_change_processing: true
   configuration:
     schemaVersion: 1
-    id: clear_aliases_template
+    id: file_annotation
     scope: null
     parameters:
       incremental_change_processing: true
       incremental_skip_unchanged: true
+      fanout_mode: both
       raw_db: etl_staging
       raw_table_key: cohort
-      preview_raw_table_key: etl_preview
       instance_space: inst_assets
-      etl_state_instance_space: null
+      mime_type: application/pdf
 authentication:
   clientId: '{{ workflowClientId }}'
   clientSecret: '{{ workflowClientSecret }}'

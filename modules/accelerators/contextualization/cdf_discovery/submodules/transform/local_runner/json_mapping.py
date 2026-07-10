@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 import re
-from typing import Any, Dict, Mapping, MutableMapping
+from typing import Any, Dict, Iterable, Mapping, MutableMapping
 
 from cdf_fn_common.etl_annotation_map.kuiper_templates import (
     prepare_local_json_mapping_input,
@@ -65,12 +65,33 @@ def resolve_json_mapping_input(
     return value
 
 
+def _resolve_cohort_source_task_id(cfg: Mapping[str, Any], source_task_id: str) -> str:
+    """Prefer explicit ${task.output} refs in jsonMapping input over graph depends_on."""
+    raw_input = cfg.get("input") if isinstance(cfg.get("input"), dict) else {}
+
+    def _walk(value: Any) -> Iterable[str]:
+        if isinstance(value, str):
+            yield value
+        elif isinstance(value, list):
+            for item in value:
+                yield from _walk(item)
+        elif isinstance(value, dict):
+            for item in value.values():
+                yield from _walk(item)
+
+    for text in _walk(raw_input):
+        m = _OUTPUT_REF_RE.match(text.strip())
+        if m:
+            return m.group(1)
+    return source_task_id
+
+
 def _source_task_id(task: Mapping[str, Any], cfg: Mapping[str, Any]) -> str:
     deps = [str(d) for d in (task.get("depends_on") or []) if str(d).strip()]
-    if deps:
-        return deps[0]
+    fallback = deps[0] if deps else ""
     raw = cfg.get("source_task_id")
-    return str(raw).strip() if raw is not None else ""
+    base = str(raw).strip() if raw is not None else fallback
+    return _resolve_cohort_source_task_id(cfg, base)
 
 
 def run_local_json_mapping_task(

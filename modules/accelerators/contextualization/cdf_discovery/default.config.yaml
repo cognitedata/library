@@ -10,6 +10,6 @@ function_client_secret: ${IDP_CLIENT_SECRET}
 workflow_schedule: '0 2 * * *'
 dataset: ds_discovery_etl
 workflow_definitions:
-  registry: transform/workflow_definitions/registry.yaml
-  instances_dir: transform/workflow_definitions/instances
-  templates_dir: transform/workflow_definitions/templates
+  registry: submodules/transform/workflow_definitions/registry.yaml
+  instances_dir: submodules/transform/workflow_definitions/instances
+  templates_dir: submodules/transform/workflow_definitions/templates

@@ -981,7 +981,7 @@ export const bn: Messages = {
   "transform.connector.outputLabelHint": "ডিফল্ট আউটপুট লেবেল ব্যবহার করতে খালি ছেড়ে দিন।",
   "transform.connectEnd.group.contextualization": "প্রাসঙ্গিককরণ",
   "transform.fanoutPlan.canvasHint": "প্রোফাইল-চালিত ফ্যান-আউট প্ল্যানার: ইনপুট A-তে তারের অনুসন্ধান প্রসঙ্গ এবং ইনপুট B-তে স্ক্যান করার জন্য ফাইলগুলি, তারপর গতিশীল ফ্যান-আউটের সাথে যুক্ত করুন৷",
-  "transform.fanoutPlan.wiringHint": "কোহর্ট আউটপুটকে in__input_a (অনুসন্ধান প্রসঙ্গ) এবং in__input_b (স্ক্যান করার জন্য ফাইলগুলি) সাথে সংযুক্ত করুন। ফাইল বিশ্বব্যাপী তালিকাভুক্ত করা হয় না.",
+  "transform.fanoutPlan.wiringHint": "Wire one or more cohort outputs to in__input_a (search context, e.g. CogniteAsset aliases and CogniteFile names) and one to in__input_b (PDFs to scan). Files are not listed globally.",
   "transform.fanoutPlan.fanoutProfile": "ফ্যান-আউট প্রোফাইল",
   "transform.fanoutPlan.profileFileAnnotation": "ফাইল টীকা (ডায়াগ্রাম পৃষ্ঠা-প্যাক সনাক্ত)",
   "transform.fanoutPlan.handle.inputA": "ইনপুট A",

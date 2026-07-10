@@ -149,8 +149,8 @@ def run_diagram_detect(
     pattern_mode: bool = True,
     search_field: str = "sample",
     diagram_detect_config: Optional[Mapping[str, Any]] = None,
-) -> int:
-    """Submit diagram detect; return job_id."""
+) -> Tuple[int, str]:
+    """Submit diagram detect; return (job_id, job_token)."""
     detect_kwargs: Dict[str, Any] = {
         "file_references": list(file_refs),
         "entities": entities,
@@ -168,9 +168,17 @@ def run_diagram_detect(
             detect_kwargs["configuration"] = dict(diagram_detect_config)
     detect_job = client.diagrams.detect(**detect_kwargs)
     job_id = getattr(detect_job, "job_id", None)
+    job_token = getattr(detect_job, "job_token", None)
     if not job_id:
         raise RuntimeError("diagrams.detect did not return a job_id")
-    return int(job_id)
+    if not job_token:
+        raise RuntimeError("diagrams.detect did not return a job_token")
+    return int(job_id), str(job_token)
+
+
+def _diagram_job_headers(job_token: Optional[str]) -> Dict[str, str]:
+    token = str(job_token or "").strip()
+    return {"X-Job-Token": token} if token else {}
 
 
 def wait_for_diagram_job(
@@ -179,13 +187,15 @@ def wait_for_diagram_job(
     *,
     timeout_sec: int = 3600,
     poll_interval: float = 5.0,
+    job_token: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Poll diagram detect job until completed or failed."""
     deadline = time.monotonic() + timeout_sec
     project = client.config.project
     job_api = f"/api/v1/projects/{project}/context/diagram/detect/{job_id}"
+    headers = _diagram_job_headers(job_token)
     while time.monotonic() < deadline:
-        response = client.get(job_api)
+        response = client.get(job_api, headers=headers)
         if response.status_code == 200:
             body = response.json()
             status = body.get("status", "unknown")
@@ -197,11 +207,11 @@ def wait_for_diagram_job(
     raise TimeoutError(f"Diagram detect job {job_id} timed out after {timeout_sec}s")
 
 
-def fetch_diagram_job_once(client: Any, job_id: int) -> Dict[str, Any]:
+def fetch_diagram_job_once(client: Any, job_id: int, job_token: Optional[str] = None) -> Dict[str, Any]:
     """Fetch one diagram detect job status payload."""
     project = client.config.project
     job_api = f"/api/v1/projects/{project}/context/diagram/detect/{job_id}"
-    response = client.get(job_api)
+    response = client.get(job_api, headers=_diagram_job_headers(job_token))
     if response.status_code != 200:
         raise RuntimeError(
             f"Failed fetching diagram detect job {job_id}: "

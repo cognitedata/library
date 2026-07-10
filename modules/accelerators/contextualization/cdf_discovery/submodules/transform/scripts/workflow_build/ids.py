@@ -5,11 +5,18 @@ from __future__ import annotations
 from typing import Any, Dict, Mapping, MutableMapping
 
 
-def workflow_base_from_config(config: Mapping[str, Any], workflow_id: str) -> str:
+def workflow_base_from_config(
+    config: Mapping[str, Any],
+    workflow_id: str,
+    *,
+    source_kind: str = "instance",
+) -> str:
     del config
     # Build IDs should derive from the workflow being built unless explicitly
     # overridden on the start node (workflow_external_id / workflow_base).
-    return f"wf_etl_{workflow_id}"
+    if source_kind == "template":
+        return f"wf_all_wf_discovery_etl_{workflow_id}"
+    return f"wf_discovery_etl_{workflow_id}"
 
 
 def workflow_external_id(*, workflow_base: str, scope_suffix: str = "") -> str:
@@ -60,7 +67,7 @@ def resolve_workflow_base(
         override = read_workflow_base_override(canvas)
         if override:
             return override
-    return workflow_base_from_config(config, workflow_id)
+    return workflow_base_from_config(config, workflow_id, source_kind="instance")
 
 
 def resolve_workflow_base_for_build(
@@ -74,8 +81,7 @@ def resolve_workflow_base_for_build(
         override = read_workflow_base_override(canvas)
         if override:
             return override
-    del source_kind
-    return workflow_base_from_config(config, workflow_id)
+    return workflow_base_from_config(config, workflow_id, source_kind=source_kind)
 
 
 def patch_start_node_workflow_pairing(

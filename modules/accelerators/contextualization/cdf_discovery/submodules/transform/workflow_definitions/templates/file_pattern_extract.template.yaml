@@ -23,9 +23,9 @@ canvas:
     data:
       label: Start
       config:
-        workflow_base: wf_all_wf_discovery_wf_discovery_wf_discovery_etl_file_pattern_extract
-        workflow_external_id: wf_all_wf_discovery_wf_discovery_wf_discovery_etl_file_pattern_extract
-        trigger_external_id: trg_wf_all_wf_discovery_wf_discovery_wf_discovery_etl_file_pattern_extract
+        workflow_base: wf_all_wf_discovery_etl_file_pattern_extract
+        workflow_external_id: wf_all_wf_discovery_etl_file_pattern_extract
+        trigger_external_id: trg_wf_all_wf_discovery_etl_file_pattern_extract
         workflow_version: '1'
         incremental_change_processing: true
     width: 148

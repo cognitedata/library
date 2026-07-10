@@ -819,7 +819,7 @@ def build_all_pipelines() -> Dict[str, Any]:
 
 def _transform_subprocess_env() -> dict[str, str]:
     from ui.server.main import MODULE_ROOT
-    from ui.server.etl_syspath import ensure_transform_syspath, transform_root
+    from ui.server.etl_syspath import ensure_transform_syspath, shared_root, transform_root
 
     ensure_transform_syspath(MODULE_ROOT)
     tr = transform_root(MODULE_ROOT)
@@ -836,7 +836,13 @@ def _transform_subprocess_env() -> dict[str, str]:
             if entry.replace("\\", "/").endswith("submodules/transform/functions"):
                 continue
         existing_parts.append(entry)
-    parts = [str(MODULE_ROOT / "submodules/transform/functions"), str(tr), str(tr / "scripts"), *existing_parts]
+    parts = [
+        str(shared_root(MODULE_ROOT)),
+        str(MODULE_ROOT / "submodules/transform/functions"),
+        str(tr),
+        str(tr / "scripts"),
+        *existing_parts,
+    ]
     joined = os.pathsep.join(parts)
     return {**os.environ, "PYTHONPATH": joined, "CDF_DISCOVERY_ROOT": str(MODULE_ROOT)}
 
@@ -1012,8 +1018,15 @@ def reset_pipeline_state(
 
 def _etl_run_pythonpath(module_root) -> str:
     """``PYTHONPATH`` for transform subprocesses — omit module root so it does not shadow ``transform/local_runner``."""
-    transform = module_root / "submodules/transform"
-    parts = [str(module_root / "submodules/transform/functions"), str(transform)]
+    from ui.server.etl_syspath import shared_root, transform_root
+
+    transform = transform_root(module_root)
+    parts = [
+        str(shared_root(module_root)),
+        str(module_root / "submodules/transform/functions"),
+        str(transform),
+        str(transform / "scripts"),
+    ]
     existing = os.environ.get("PYTHONPATH", "")
     if existing:
         parts.append(existing)

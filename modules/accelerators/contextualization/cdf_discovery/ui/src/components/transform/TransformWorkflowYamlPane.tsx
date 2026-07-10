@@ -19,6 +19,7 @@ export function TransformWorkflowYamlPane({ tab, onTabUpdate }: Props) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const loadGen = useRef(0);
+  const loadingRef = useRef(false);
   const tabRef = useRef(tab);
   const onTabUpdateRef = useRef(onTabUpdate);
   tabRef.current = tab;
@@ -28,9 +29,10 @@ export function TransformWorkflowYamlPane({ tab, onTabUpdate }: Props) {
 
   const load = useCallback(async () => {
     const gen = ++loadGen.current;
+    loadingRef.current = true;
     setLoading(true);
     setError(null);
-    onTabUpdateRef.current({ ...tabRef.current, loading: true, error: null });
+    onTabUpdateRef.current({ ...tabRef.current, loading: true, error: null, dirty: false });
     try {
       const data = await fetchTransformWorkflowYaml(tabRef.current.relPath);
       if (gen !== loadGen.current) return;
@@ -47,16 +49,16 @@ export function TransformWorkflowYamlPane({ tab, onTabUpdate }: Props) {
       if (gen !== loadGen.current) return;
       const message = String(e);
       setError(message);
-      onTabUpdateRef.current({ ...tabRef.current, loading: false, error: message });
+      onTabUpdateRef.current({ ...tabRef.current, loading: false, error: message, dirty: false });
     } finally {
-      if (gen === loadGen.current) setLoading(false);
+      if (gen === loadGen.current) {
+        loadingRef.current = false;
+        setLoading(false);
+      }
     }
   }, [tab.relPath]);
 
   useEffect(() => {
-    setContent("");
-    setSavedSnapshot("");
-    savedSnapshotRef.current = "";
     void load();
   }, [load]);
 
@@ -91,6 +93,7 @@ export function TransformWorkflowYamlPane({ tab, onTabUpdate }: Props) {
 
   useEffect(() => {
     const id = window.setTimeout(() => {
+      if (loadingRef.current) return;
       const dirty = content !== savedSnapshotRef.current;
       if (tabRef.current.dirty === dirty) return;
       onTabUpdateRef.current({ ...tabRef.current, dirty });

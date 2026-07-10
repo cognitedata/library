@@ -468,6 +468,47 @@ def test_compile_fanout_plan_dual_handles():
     compiled = compile_canvas_dag(canvas)
     task = next(t for t in compiled["tasks"] if t["id"] == "plan")
     assert task["payload"]["input_a_task_id"] == "ctx"
+    assert task["payload"]["input_a_task_ids"] == ["ctx"]
+    assert task["payload"]["input_b_task_id"] == "files"
+
+
+def test_compile_fanout_plan_allows_multiple_context_inputs():
+    canvas = {
+        "nodes": [
+            {"id": "ctx_assets", "kind": "query_view", "data": {"config": {}}},
+            {"id": "ctx_files", "kind": "query_view", "data": {"config": {}}},
+            {"id": "files", "kind": "query_view", "data": {"config": {}}},
+            {
+                "id": "plan",
+                "kind": "workflow_fanout_plan",
+                "data": {"config": {"fanout_profile": "file_annotation"}},
+            },
+        ],
+        "edges": [
+            {
+                "source": "ctx_assets",
+                "target": "plan",
+                "source_handle": "out",
+                "target_handle": FANOUT_PLAN_HANDLE_INPUT_A,
+            },
+            {
+                "source": "ctx_files",
+                "target": "plan",
+                "source_handle": "out",
+                "target_handle": FANOUT_PLAN_HANDLE_INPUT_A,
+            },
+            {
+                "source": "files",
+                "target": "plan",
+                "source_handle": "out",
+                "target_handle": FANOUT_PLAN_HANDLE_INPUT_B,
+            },
+        ],
+    }
+    compiled = compile_canvas_dag(canvas)
+    task = next(t for t in compiled["tasks"] if t["id"] == "plan")
+    assert task["payload"]["input_a_task_ids"] == ["ctx_assets", "ctx_files"]
+    assert task["payload"]["input_a_task_id"] == "ctx_assets"
     assert task["payload"]["input_b_task_id"] == "files"
 
 
@@ -507,18 +548,36 @@ def test_compile_json_mapping_diagram_detect_to_cdf_json_mapping():
 def test_expand_dm_rows_from_cohort_hit():
     rows = [
         {
-            "columns": {"external_id": "f1", "node_instance_id": "s:f1"},
+            "columns": {"external_id": "f1", "node_instance_id": "inst_files:f1"},
             "properties": {
                 "text": "FT-101",
                 "region": {"page": 1, "x": 0.1, "y": 0.2, "width": 0.1, "height": 0.1},
-                "file_ref": {"file_id": 1, "page_number": 1},
-                "annotation": {"text": "FT-101", "entities": []},
+                "file_ref": {"file_id": 1, "page_number": 1, "file_external_id": "f1", "instance_space": "inst_files"},
+                "annotation": {
+                    "text": "FT-101",
+                    "entities": [
+                        {
+                            "annotation_type": "diagrams.AssetLink",
+                            "space": "inst_assets",
+                            "external_id": "asset-101",
+                        }
+                    ],
+                },
+                "entities": [
+                    {
+                        "annotation_type": "diagrams.AssetLink",
+                        "space": "inst_assets",
+                        "external_id": "asset-101",
+                    }
+                ],
             },
         }
     ]
     dm = expand_cohort_rows_to_dm_rows(rows, {"annotation_space": "ann-space"})
     assert dm
     assert dm[0]["annotation_space"] == "ann-space"
+    assert dm[0]["start_node_external_id"] == "f1"
+    assert dm[0]["end_node_external_id"] == "asset-101"
     classic = expand_cohort_rows_to_classic_rows(rows, {})
     assert classic[0]["text"] == "FT-101"
 
@@ -749,7 +808,7 @@ def test_file_annotation_fanout_plan_marks_inactive_branch(monkeypatch):
     assert result["tasks"] == []
 
 
-def test_file_annotation_template_has_split_pattern_annotation_flows():
+def test_file_annotation_template_uses_single_fanout_for_both_mode():
     import yaml
 
     tpl_path = (
@@ -762,16 +821,11 @@ def test_file_annotation_template_has_split_pattern_annotation_flows():
     compiled = doc["compiled_workflow"]["tasks"]
     by_id = {t["id"]: t for t in compiled}
 
-    assert "fanout_plan_pattern" in by_id
-    assert "fanout_plan_annotation" in by_id
-    assert "fanout_pattern" in by_id
-    assert "fanout_annotation" in by_id
-    assert by_id["fanout_pattern"]["payload"]["config"]["generator_task_id"] == "fanout_plan_pattern"
-    assert (
-        by_id["fanout_annotation"]["payload"]["config"]["generator_task_id"]
-        == "fanout_plan_annotation"
-    )
-    assert set(by_id["finalize_annotations"]["depends_on"]) == {"fanout_pattern", "fanout_annotation"}
+    assert doc["parameters"]["fanout_mode"] == "both"
+    assert "fanout" in by_id
+    assert "fanout_plan" in by_id
+    assert by_id["finalize_annotations"]["payload"]["config"]["source_task_id"] == "fanout"
+    assert by_id["finalize_annotations"]["depends_on"] == ["fanout"]
 
 
 def test_resolve_queue_task_ids_honors_both_mode():
@@ -786,6 +840,16 @@ def test_resolve_queue_task_ids_honors_both_mode():
         error_context="file_annotation finalize",
     )
     assert queue_ids == ["fanout_pattern", "fanout_annotation"]
+
+
+def test_resolve_queue_task_ids_both_mode_falls_back_to_shared_source_task_id():
+    queue_ids = _resolve_queue_task_ids(
+        data={"configuration": {"parameters": {"fanout_mode": "both"}}},
+        cfg={"source_task_id": "fanout"},
+        task_id="finalize_annotations",
+        error_context="file_annotation finalize",
+    )
+    assert queue_ids == ["fanout"]
 
 
 def test_resolve_queue_task_ids_honors_single_mode():

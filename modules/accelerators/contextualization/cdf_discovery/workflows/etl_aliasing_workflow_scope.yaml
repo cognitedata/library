@@ -35,12 +35,16 @@ canvas:
           row_key_template: '{lookup_key}:{scope}|{index_kind}'
           query_source: build_index
           default_view_version: v1
+    width: 192
+    height: 130
   - id: end
     kind: end
     data:
       label: End
       config:
         description: Post-run cohort RAW cleanup
+    width: 148
+    height: 68
   - id: merge_mpk5updx
     kind: merge
     data:
@@ -54,6 +58,8 @@ canvas:
             branch_order: by_score
         description: Merge alias lists from parallel transform branches into one aliases
           property
+    width: 192
+    height: 130
   - id: query_view_mpk5beqq
     kind: query_view
     data:
@@ -70,6 +76,8 @@ canvas:
         - description
         - name
         - tags
+    width: 192
+    height: 130
   - id: query_view_mpkf9ork
     kind: query_view
     data:
@@ -84,6 +92,8 @@ canvas:
         include_properties:
         - description
         - name
+    width: 192
+    height: 130
   - id: query_view_mpkf9xge
     kind: query_view
     data:
@@ -98,6 +108,8 @@ canvas:
         include_properties:
         - description
         - name
+    width: 192
+    height: 130
   - id: query_view_mpkfbrkh
     kind: query_view
     data:
@@ -112,6 +124,8 @@ canvas:
         include_properties:
         - description
         - name
+    width: 192
+    height: 130
   - id: save_raw_mpkhci4w
     kind: save_raw
     data:
@@ -119,7 +133,8 @@ canvas:
       notes: Currently saving the index to RAW to avoid instance consumption.  Should
         be evaluated for inclusion in the data model for proper indexing.
       config: &id007
-        description: Persist inverted index entries via contextualization storage adapter
+        description: Persist inverted index entries via contextualization storage
+          adapter
         index_storage_backend: raw
         index_raw_database: db_contextualization_idx
         scope:
@@ -127,9 +142,11 @@ canvas:
           levels:
           - site
           - unit
-          scope_key_template: 'site:{site}|unit:{unit}'
+          scope_key_template: site:{site}|unit:{unit}
           fallback_scope_key: global
       node_color: '#0d9488'
+    width: 192
+    height: 130
   - id: save_view_mpk5bi71
     kind: save_view
     data:
@@ -147,6 +164,8 @@ canvas:
             unique: true
             branch_order: by_score
       node_color: '#0d9488'
+    width: 192
+    height: 130
   - id: score_mq8b3h4g
     kind: score
     data:
@@ -246,6 +265,8 @@ canvas:
           priority: 10
         initial_score: 1
         min_score: 0
+    width: 192
+    height: 130
   - id: score_mq8b4743
     kind: score
     data:
@@ -345,18 +366,22 @@ canvas:
           priority: 10
         initial_score: 1
         min_score: 0
+    width: 192
+    height: 130
   - id: start
     kind: start
     data:
       label: Start
       config:
-        workflow_base: wf_wf_discovery_wf_discovery_wf_discovery_etl_aliasing_workflow
-        workflow_external_id: wf_wf_discovery_wf_discovery_wf_discovery_etl_aliasing_workflow
-        trigger_external_id: trg_wf_wf_discovery_wf_discovery_wf_discovery_etl_aliasing_workflow
+        workflow_base: wf_discovery_etl_aliasing_workflow
+        workflow_external_id: wf_discovery_etl_aliasing_workflow
+        trigger_external_id: trg_wf_discovery_etl_aliasing_workflow
         workflow_version: 1.0.0.5
         cron_expression: '*/10 * * * *'
         incremental_change_processing: true
         workflow_scope: aliasing_workflow
+    width: 148
+    height: 68
   - id: transform_mpk5q5bq
     kind: transform
     data:
@@ -371,6 +396,8 @@ canvas:
           regex: ''
         output_template: ''
         description: Trim instance name and append normalized value to aliases
+    width: 192
+    height: 130
   - id: transform_mq8b3t4p
     kind: transform
     data:
@@ -416,6 +443,8 @@ canvas:
           merge_list:
             unique: true
             branch_order: by_score
+    width: 192
+    height: 130
   - id: transform_mq8b3v3e
     kind: transform
     data:
@@ -453,6 +482,8 @@ canvas:
           merge_list:
             unique: true
             branch_order: by_score
+    width: 192
+    height: 130
   edges:
   - id: xy-edge__startout-query_view_mpk5beqqin
     source: start
@@ -569,9 +600,9 @@ canvas:
     target_handle: in
     kind: data
   viewport:
-    x: -775.6999999999998
-    y: 144.375
-    zoom: 1.15
+    x: 10.086956521739182
+    y: 214.0743885869565
+    zoom: 0.5
 scope_suffix: ''
 compiled_workflow:
   schema_version: 1

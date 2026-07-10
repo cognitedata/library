@@ -29,9 +29,9 @@ canvas:
         trigger_type: schedule
         cron_expression: 0 2 * * *
         workflow_version: '1'
-        workflow_base: wf_wf_discovery_wf_discovery_wf_discovery_etl_s_test
-        workflow_external_id: wf_wf_discovery_wf_discovery_wf_discovery_etl_s_test
-        trigger_external_id: trg_wf_wf_discovery_wf_discovery_wf_discovery_etl_s_test
+        workflow_base: wf_discovery_etl_s_test
+        workflow_external_id: wf_discovery_etl_s_test
+        trigger_external_id: trg_wf_discovery_etl_s_test
         workflow_scope: s_test
         incremental_change_processing: true
         run_id: ''

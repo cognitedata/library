@@ -15,15 +15,29 @@ PLACEHOLDERS = _SCRIPTS / "check_toolkit_placeholders.py"
 TRIGGER_ORCHESTRATE = _SCRIPTS / "inverted_index_build" / "orchestrate.py"
 
 
+def _pythonpath_for(module_root: Path) -> str:
+    import os
+
+    root = module_root.resolve()
+    if str(root) not in sys.path:
+        sys.path.insert(0, str(root))
+    from shared.python.paths import prepare_sys_path  # noqa: WPS433
+
+    parts = prepare_sys_path()
+    existing = os.environ.get("PYTHONPATH", "")
+    if existing:
+        parts.append(existing)
+    return os.pathsep.join(parts)
+
+
 def _run(script: Path, module_root: Path, *, extra_argv: list[str] | None = None) -> int:
     import os
 
     argv = [sys.executable, str(script), "--module-root", str(module_root)]
     if extra_argv:
         argv.extend(extra_argv)
-    scripts = module_root / "scripts"
     env = os.environ.copy()
-    env["PYTHONPATH"] = f"{scripts}:{module_root}{os.pathsep}{env.get('PYTHONPATH', '')}"
+    env["PYTHONPATH"] = _pythonpath_for(module_root)
     proc = subprocess.run(argv, cwd=str(module_root), env=env)
     return int(proc.returncode or 0)
 

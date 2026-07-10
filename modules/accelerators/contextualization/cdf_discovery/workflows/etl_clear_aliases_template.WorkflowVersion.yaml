@@ -1,4 +1,4 @@
-workflowExternalId: wf_etl_clear_aliases
+workflowExternalId: wf_discovery_etl_clear_aliases
 version: '1'
 workflowDefinition:
   tasks:

@@ -289,15 +289,18 @@ def _dual_input_task_ids_from_edges(
     return left_tid, right_tid
 
 
-def _file_annotation_input_task_ids_from_edges(
+def _multi_left_single_right_cohort_input_task_ids_from_edges(
     node_id: str,
     edges: Sequence[Mapping[str, Any]],
     *,
+    handle_left: str,
+    handle_right: str,
     node_by_id: Mapping[str, Mapping[str, Any]],
     executable_ids: Set[str],
+    node_kind_label: str,
     require_right: bool,
 ) -> Tuple[List[str], Optional[str]]:
-    """Allow one-or-more entity inputs on left handle and optional/required files on right."""
+    """Allow one-or-more cohort inputs on the left handle and optional/required right handle."""
     left_tids: List[str] = []
     right_tid: Optional[str] = None
     right_src: Optional[str] = None
@@ -311,7 +314,7 @@ def _file_annotation_input_task_ids_from_edges(
         src = str(e.get("source") or "").strip()
         if not src or src not in executable_ids:
             raise CanvasCompileError(
-                f"file_annotation node {node_id!r}: predecessor {src!r} is not an executable canvas node"
+                f"{node_kind_label} node {node_id!r}: predecessor {src!r} is not an executable canvas node"
             )
         pred = node_by_id.get(src)
         if pred is None:
@@ -319,41 +322,62 @@ def _file_annotation_input_task_ids_from_edges(
         pk = _node_kind(pred)
         if pk not in _JOIN_INPUT_SOURCE_KINDS:
             raise CanvasCompileError(
-                f"file_annotation node {node_id!r}: predecessor {src!r} kind={pk!r} is not allowed "
+                f"{node_kind_label} node {node_id!r}: predecessor {src!r} kind={pk!r} is not allowed "
                 f"as input (expected one of: {sorted(_JOIN_INPUT_SOURCE_KINDS)})"
             )
         th = str(e.get("target_handle") or "").strip()
-        if th == FILE_ANNOTATION_HANDLE_ENTITIES:
+        if th == handle_left:
             if src in seen_left:
                 continue
             seen_left.add(src)
             left_tids.append(src)
-        elif th == FILE_ANNOTATION_HANDLE_FILES:
+        elif th == handle_right:
             if right_tid is not None:
                 raise CanvasCompileError(
-                    f"file_annotation node {node_id!r}: multiple edges target {FILE_ANNOTATION_HANDLE_FILES!r}"
+                    f"{node_kind_label} node {node_id!r}: multiple edges target {handle_right!r}"
                 )
             right_tid = src
             right_src = src
         else:
             raise CanvasCompileError(
-                f"file_annotation node {node_id!r}: edge from {src!r} must use "
-                f"target_handle {FILE_ANNOTATION_HANDLE_ENTITIES!r} or "
-                f"{FILE_ANNOTATION_HANDLE_FILES!r}, got {th!r}"
+                f"{node_kind_label} node {node_id!r}: edge from {src!r} must use "
+                f"target_handle {handle_left!r} or {handle_right!r}, got {th!r}"
             )
 
     if not left_tids:
         raise CanvasCompileError(
-            f"file_annotation node {node_id!r}: require at least one edge to {FILE_ANNOTATION_HANDLE_ENTITIES!r}"
+            f"{node_kind_label} node {node_id!r}: require at least one edge to {handle_left!r}"
         )
     if require_right and right_tid is None:
         raise CanvasCompileError(
-            f"file_annotation node {node_id!r}: require exactly one edge to {FILE_ANNOTATION_HANDLE_FILES!r}"
+            f"{node_kind_label} node {node_id!r}: require exactly one edge to {handle_right!r}"
         )
     if right_src is not None and right_src in seen_left:
         raise CanvasCompileError(
-            f"file_annotation node {node_id!r}: entity and file inputs must be different nodes"
+            f"{node_kind_label} node {node_id!r}: left and right inputs must be different nodes"
         )
+    return left_tids, right_tid
+
+
+def _file_annotation_input_task_ids_from_edges(
+    node_id: str,
+    edges: Sequence[Mapping[str, Any]],
+    *,
+    node_by_id: Mapping[str, Mapping[str, Any]],
+    executable_ids: Set[str],
+    require_right: bool,
+) -> Tuple[List[str], Optional[str]]:
+    """Allow one-or-more entity inputs on left handle and optional/required files on right."""
+    left_tids, right_tid = _multi_left_single_right_cohort_input_task_ids_from_edges(
+        node_id,
+        edges,
+        handle_left=FILE_ANNOTATION_HANDLE_ENTITIES,
+        handle_right=FILE_ANNOTATION_HANDLE_FILES,
+        node_by_id=node_by_id,
+        executable_ids=executable_ids,
+        node_kind_label="file_annotation",
+        require_right=require_right,
+    )
     _agent_log(
         "H1",
         "canvas_dag.py:_file_annotation_input_task_ids_from_edges",
@@ -690,7 +714,7 @@ def validate_canvas_dag(canvas: Mapping[str, Any]) -> List[str]:
             profile = str(cfg.get("fanout_profile") or "file_annotation").strip().lower()
             require_b = profile == "file_annotation" and not _config_has_file_ids(cfg)
             try:
-                _dual_input_task_ids_from_edges(
+                _multi_left_single_right_cohort_input_task_ids_from_edges(
                     node_id,
                     edges,
                     handle_left=FANOUT_PLAN_HANDLE_INPUT_A,
@@ -823,7 +847,7 @@ def compile_canvas_dag(canvas: Mapping[str, Any]) -> Dict[str, Any]:
         elif kind == "workflow_fanout_plan":
             profile = str(cfg.get("fanout_profile") or "file_annotation").strip().lower()
             require_b = profile == "file_annotation" and not _config_has_file_ids(cfg)
-            input_a_tid, input_b_tid = _dual_input_task_ids_from_edges(
+            input_a_tids, input_b_tid = _multi_left_single_right_cohort_input_task_ids_from_edges(
                 node_id,
                 edges,
                 handle_left=FANOUT_PLAN_HANDLE_INPUT_A,
@@ -833,7 +857,8 @@ def compile_canvas_dag(canvas: Mapping[str, Any]) -> Dict[str, Any]:
                 node_kind_label="workflow_fanout_plan",
                 require_right=require_b,
             )
-            payload["input_a_task_id"] = input_a_tid
+            payload["input_a_task_id"] = input_a_tids[0]
+            payload["input_a_task_ids"] = input_a_tids
             if input_b_tid:
                 payload["input_b_task_id"] = input_b_tid
             payload["fanout_profile"] = profile

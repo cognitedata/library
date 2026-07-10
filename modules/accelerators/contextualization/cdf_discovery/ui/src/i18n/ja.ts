@@ -1012,7 +1012,7 @@ export const ja: Messages = {
   "transform.connector.outputLabelHint": "Leave empty to use the default output label.",
   "transform.connectEnd.group.contextualization": "コンテキスト化",
   "transform.fanoutPlan.canvasHint": "Plans file batches and pattern entities for diagram detect. Page limits here control each CDF diagrams.detect call.",
-  "transform.fanoutPlan.wiringHint": "コホートの出力を in__input_a (検索コンテキスト) と in__input_b (スキャンするファイル) に接続します。ファイルはグローバルにリストされません。",
+  "transform.fanoutPlan.wiringHint": "Wire one or more cohort outputs to in__input_a (search context, e.g. CogniteAsset aliases and CogniteFile names) and one to in__input_b (PDFs to scan). Files are not listed globally.",
   "transform.fanoutPlan.fanoutProfile": "ファンアウトプロファイル",
   "transform.fanoutPlan.profileFileAnnotation": "ファイルの注釈 (ページパックを検出する図)",
   "transform.fanoutPlan.handle.inputA": "入力A",

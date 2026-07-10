@@ -1012,7 +1012,7 @@ export const zh: Messages = {
   "transform.connector.outputLabelHint": "Leave empty to use the default output label.",
   "transform.connectEnd.group.contextualization": "情境化",
   "transform.fanoutPlan.canvasHint": "Plans file batches and pattern entities for diagram detect. Page limits here control each CDF diagrams.detect call.",
-  "transform.fanoutPlan.wiringHint": "将队列输出连接到 in__input_a （搜索上下文）和 in__input_b （要扫描的文件）。文件未全局列出。",
+  "transform.fanoutPlan.wiringHint": "Wire one or more cohort outputs to in__input_a (search context, e.g. CogniteAsset aliases and CogniteFile names) and one to in__input_b (PDFs to scan). Files are not listed globally.",
   "transform.fanoutPlan.fanoutProfile": "扇出型材",
   "transform.fanoutPlan.profileFileAnnotation": "文件注释（图表检测页面包）",
   "transform.fanoutPlan.handle.inputA": "输入A",

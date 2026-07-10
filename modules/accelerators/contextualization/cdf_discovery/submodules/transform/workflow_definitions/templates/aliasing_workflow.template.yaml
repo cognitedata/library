@@ -401,9 +401,9 @@ canvas:
     data:
       label: Start
       config:
-        workflow_base: wf_etl_aliasing_template
-        workflow_external_id: wf_etl_aliasing_template
-        trigger_external_id: trg_wf_etl_aliasing_template
+        workflow_base: wf_discovery_etl_aliasing_template
+        workflow_external_id: wf_discovery_etl_aliasing_template
+        trigger_external_id: trg_wf_discovery_etl_aliasing_template
         workflow_version: 1.0.0.2
         cron_expression: '*/15 * * * *'
     width: 148

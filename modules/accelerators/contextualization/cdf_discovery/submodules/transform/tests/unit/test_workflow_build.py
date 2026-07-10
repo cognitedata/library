@@ -100,8 +100,8 @@ def test_build_workflow_instance_dry_run(tmp_path: Path) -> None:
     )
     assert trig["triggerRule"]["cronExpression"] == "30 4 * * *"
     assert trig["workflowVersion"] == "2"
-    assert trig["workflowExternalId"] == "wf_etl_test_inst"
-    assert trig["externalId"] == "trg_wf_etl_test_inst"
+    assert trig["workflowExternalId"] == "wf_discovery_etl_test_inst"
+    assert trig["externalId"] == "trg_wf_discovery_etl_test_inst"
 
 
 def _minimal_canvas() -> dict:
@@ -164,7 +164,7 @@ def test_build_template_workflow_base(tmp_path: Path) -> None:
     trig = yaml.safe_load(
         (tmp_path / "workflows" / "etl_my_tpl.WorkflowTrigger.yaml").read_text(encoding="utf-8")
     )
-    assert trig["workflowExternalId"] == "wf_etl_my_tpl"
+    assert trig["workflowExternalId"] == "wf_all_wf_discovery_etl_my_tpl"
 
 
 def test_resolve_workflow_base_for_build_template_defaults_per_id() -> None:
@@ -176,7 +176,7 @@ def test_resolve_workflow_base_for_build_template_defaults_per_id() -> None:
             workflow_id="aliasing_template",
             canvas={},
         )
-        == "wf_etl_aliasing_template"
+        == "wf_all_wf_discovery_etl_aliasing_template"
     )
     assert (
         resolve_workflow_base_for_build(
@@ -185,7 +185,7 @@ def test_resolve_workflow_base_for_build_template_defaults_per_id() -> None:
             workflow_id="aliasing_template",
             canvas={},
         )
-        == "wf_etl_aliasing_template"
+        == "wf_discovery_etl_aliasing_template"
     )
 
 

@@ -55,4 +55,54 @@ describe("isValidEtlFlowConnection", () => {
       isValidEtlFlowConnection({ source: "start", target: "sub" }, getFusionNode)
     ).toBe(true);
   });
+
+  it("allows multiple edges to workflow_fanout_plan in__input_a", () => {
+    const nodes = [
+      node("ctx1", "etlQueryView"),
+      node("ctx2", "etlQueryView"),
+      node("plan", "etlWorkflowFanoutPlan"),
+    ];
+    const getNode = (id: string) => nodes.find((n) => n.id === id);
+    const edges = [
+      {
+        id: "e1",
+        source: "ctx1",
+        target: "plan",
+        sourceHandle: "out",
+        targetHandle: "in__input_a",
+      },
+    ];
+    expect(
+      isValidEtlFlowConnection(
+        { source: "ctx2", target: "plan", targetHandle: "in__input_a" },
+        getNode,
+        edges
+      )
+    ).toBe(true);
+  });
+
+  it("rejects a second edge to workflow_fanout_plan in__input_b", () => {
+    const nodes = [
+      node("files1", "etlQueryView"),
+      node("files2", "etlQueryView"),
+      node("plan", "etlWorkflowFanoutPlan"),
+    ];
+    const getNode = (id: string) => nodes.find((n) => n.id === id);
+    const edges = [
+      {
+        id: "e1",
+        source: "files1",
+        target: "plan",
+        sourceHandle: "out",
+        targetHandle: "in__input_b",
+      },
+    ];
+    expect(
+      isValidEtlFlowConnection(
+        { source: "files2", target: "plan", targetHandle: "in__input_b" },
+        getNode,
+        edges
+      )
+    ).toBe(false);
+  });
 });

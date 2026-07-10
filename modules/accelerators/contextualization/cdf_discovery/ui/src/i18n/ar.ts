@@ -1012,7 +1012,7 @@ export const ar: Messages = {
   "transform.connector.outputLabelHint": "Leave empty to use the default output label.",
   "transform.connectEnd.group.contextualization": "وضع السياق",
   "transform.fanoutPlan.canvasHint": "Plans file batches and pattern entities for diagram detect. Page limits here control each CDF diagrams.detect call.",
-  "transform.fanoutPlan.wiringHint": "قم بتوصيل مخرجات المجموعة بـ in__input_a (سياق البحث) وin__input_b (الملفات المطلوب فحصها). لم يتم سرد الملفات على مستوى العالم.",
+  "transform.fanoutPlan.wiringHint": "Wire one or more cohort outputs to in__input_a (search context, e.g. CogniteAsset aliases and CogniteFile names) and one to in__input_b (PDFs to scan). Files are not listed globally.",
   "transform.fanoutPlan.fanoutProfile": "ملف تعريف المروحة",
   "transform.fanoutPlan.profileFileAnnotation": "تعليق توضيحي للملف (رسم تخطيطي للكشف عن حزم الصفحات)",
   "transform.fanoutPlan.handle.inputA": "الإدخال أ",

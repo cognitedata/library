@@ -1012,7 +1012,7 @@ export const de: Messages = {
   "transform.connector.outputLabelHint": "Leave empty to use the default output label.",
   "transform.connectEnd.group.contextualization": "Kontextualisierung",
   "transform.fanoutPlan.canvasHint": "Plans file batches and pattern entities for diagram detect. Page limits here control each CDF diagrams.detect call.",
-  "transform.fanoutPlan.wiringHint": "Verbinden Sie Kohortenausgaben mit in__input_a (Suchkontext) und in__input_b (zu scannende Dateien). Dateien werden nicht global aufgelistet.",
+  "transform.fanoutPlan.wiringHint": "Wire one or more cohort outputs to in__input_a (search context, e.g. CogniteAsset aliases and CogniteFile names) and one to in__input_b (PDFs to scan). Files are not listed globally.",
   "transform.fanoutPlan.fanoutProfile": "Fan-Out-Profil",
   "transform.fanoutPlan.profileFileAnnotation": "Dateianmerkung (Diagramm erkennt Seitenpakete)",
   "transform.fanoutPlan.handle.inputA": "Geben Sie A ein",

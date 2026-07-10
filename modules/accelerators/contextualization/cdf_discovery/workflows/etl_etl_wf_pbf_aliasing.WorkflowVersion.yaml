@@ -1,4 +1,4 @@
-workflowExternalId: wf_etl_wf_pbf_aliasing
+workflowExternalId: wf_discovery_etl_wf_pbf_aliasing
 version: 1.0.0.1
 workflowDefinition:
   tasks:
@@ -196,7 +196,8 @@ workflowDefinition:
           task_id: save_raw_mpkhci4w
           canvas_node_id: save_raw_mpkhci4w
           config:
-            description: Persist inverted index entries via contextualization storage adapter
+            description: Persist inverted index entries via contextualization storage
+              adapter
             index_storage_backend: raw
             index_raw_database: db_contextualization_idx
             scope:
@@ -204,7 +205,7 @@ workflowDefinition:
               levels:
               - site
               - unit
-              scope_key_template: 'site:{site}|unit:{unit}'
+              scope_key_template: site:{site}|unit:{unit}
               fallback_scope_key: global
           predecessors:
           - build_index_mpkhwovn

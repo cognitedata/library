@@ -1,4 +1,4 @@
-workflowExternalId: wf_all_wf_discovery_wf_discovery_wf_discovery_etl_file_pattern_extract
+workflowExternalId: wf_all_wf_discovery_etl_file_pattern_extract
 version: '1'
 workflowDefinition:
   tasks:

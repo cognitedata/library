@@ -1038,7 +1038,7 @@ export const en: Messages = {
   "transform.fanoutPlan.canvasHint":
     "Profile-driven fan-out planner: wire search context on Input A and files to scan on Input B, then pair with dynamic fan-out.",
   "transform.fanoutPlan.wiringHint":
-    "Connect cohort outputs to in__input_a (search context) and in__input_b (files to scan). Files are not listed globally.",
+    "Wire one or more cohort outputs to in__input_a (search context, e.g. CogniteAsset aliases and CogniteFile names) and one to in__input_b (PDFs to scan). Files are not listed globally.",
   "transform.fanoutPlan.fanoutProfile": "Fan-out profile",
   "transform.fanoutPlan.profileFileAnnotation": "File annotation (diagram detect page-packs)",
   "transform.fanoutPlan.handle.inputA": "Input A",

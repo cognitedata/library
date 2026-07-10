@@ -10,15 +10,19 @@ def transform_root(module_root: Path) -> Path:
     return module_root / "submodules" / "transform"
 
 
+def shared_root(module_root: Path) -> Path:
+    return module_root / "shared"
+
+
 def ensure_transform_syspath(module_root: Path) -> Path:
     """
-    Prepend function handlers, transform tree, scripts, and shared cdf_fn_common so
-    ``local_runner`` resolves to ``submodules/transform/local_runner``.
+    Prepend function handlers, transform tree, scripts, and shared library root so
+    ``import cdf_fn_common`` and ``local_runner`` resolve under cdf_discovery.
     """
     tr = transform_root(module_root)
     root = module_root.resolve()
     for p in (
-        str(root / "shared" / "cdf_fn_common"),
+        str(shared_root(root)),
         str(root / "submodules" / "transform" / "functions"),
         str(tr),
         str(tr / "scripts"),

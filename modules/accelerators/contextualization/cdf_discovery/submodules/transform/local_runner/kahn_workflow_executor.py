@@ -14,6 +14,7 @@ from cdf_fn_common.etl_predecessor_mode import use_in_memory_predecessors
 from cdf_fn_common.etl_ui_progress import bind_handler_progress, clear_handler_progress
 from cdf_fn_common.workflow_compile.canvas_dag import etl_local_pipeline_specs
 from cdf_fn_common.workflow_task_failure import abort_workflow_on_task_failure, resolve_task_on_failure
+from cdf_fn_common.workflow_task_policy import discovery_task_workflow_policy
 from local_runner.dynamic_fanout import run_local_dynamic_fanout
 from local_runner.ephemeral_transformation import (
     ephemeral_transformation_external_id,
@@ -82,11 +83,30 @@ def _task_end_status(summary: Mapping[str, Any]) -> str:
     raw = str(summary.get("status") or "succeeded").strip().lower()
     if raw in {"failed", "error"}:
         return "failed"
+    if raw == "deferred":
+        return "deferred"
     if raw in {"completed_with_errors", "warning", "skipped"} and summary.get("reason"):
         return "completed_with_errors"
     if raw == "failed":
         return "failed"
     return "succeeded"
+
+
+def _async_defer_retry_budget_sec(shared_data: Mapping[str, Any]) -> float:
+    configuration = shared_data.get("configuration")
+    params = (
+        configuration.get("parameters")
+        if isinstance(configuration, dict) and isinstance(configuration.get("parameters"), dict)
+        else {}
+    )
+    timeout_sec = float(params.get("diagram_poll_timeout_sec") or 840)
+    # finalize + barrier each poll up to one function budget; allow several defer cycles locally.
+    return max(1200.0, timeout_sec * 3.0)
+
+
+def _is_async_complete_function(fn_ext: str) -> bool:
+    pol = discovery_task_workflow_policy(fn_ext)
+    return bool(pol.get("isAsyncComplete"))
 
 
 def _topological_layers(task_ids: Sequence[str], pred_map: Dict[str, Set[str]]) -> List[List[str]]:
@@ -429,7 +449,30 @@ def _run_single_compiled_task(
                 logger.info("Running task %s (%s.%s)", task_id, mod_name, entry)
                 bind_handler_progress(data)
                 try:
+                    defer_deadline = time.monotonic() + _async_defer_retry_budget_sec(shared_data)
                     summary = fn(fn_ext, data, client, logger)
+                    while (
+                        _is_async_complete_function(fn_ext)
+                        and isinstance(summary, dict)
+                        and str(summary.get("status") or "").strip().lower() == "deferred"
+                        and time.monotonic() < defer_deadline
+                    ):
+                        logger.info(
+                            "Task %s deferred (%s jobs pending); re-invoking until detect jobs finish",
+                            task_id,
+                            summary.get("jobs_pending"),
+                        )
+                        time.sleep(1.0)
+                        summary = fn(fn_ext, data, client, logger)
+                    if (
+                        isinstance(summary, dict)
+                        and str(summary.get("status") or "").strip().lower() == "deferred"
+                    ):
+                        pending = summary.get("jobs_pending")
+                        raise ValueError(
+                            f"{task_id}: detect jobs still pending after local async poll budget "
+                            f"(jobs_pending={pending})"
+                        )
                 finally:
                     clear_handler_progress()
                 task_data = data

@@ -11,7 +11,7 @@ export function reconnectTransformFlowEdge(
   edges: Edge[],
   getNode: GetNode
 ): Edge[] {
-  if (!isValidEtlFlowConnection(newConnection, getNode)) return edges;
+  if (!isValidEtlFlowConnection(newConnection, getNode, edges, { excludeEdgeId: oldEdge.id })) return edges;
   const withoutOld = edges.filter((e) => e.id !== oldEdge.id);
   if (wouldCreateCycle(withoutOld, newConnection.source, newConnection.target)) return edges;
   const next = reconnectEdge(oldEdge, newConnection, edges);

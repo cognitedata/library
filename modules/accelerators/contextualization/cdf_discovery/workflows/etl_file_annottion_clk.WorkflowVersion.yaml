@@ -1,0 +1,276 @@
+workflowExternalId: wf_all_wf_discovery_etl_file_annotation
+version: '1'
+workflowDefinition:
+  tasks:
+  - externalId: completion_barrier
+    type: function
+    dependsOn:
+    - externalId: finalize_annotations
+    parameters:
+      function:
+        externalId: fn_discovery_etl_file_annotation_barrier
+        data:
+          logLevel: INFO
+          incremental_change_processing: ${workflow.input.incremental_change_processing}
+          run_id: ${workflow.input.configuration.parameters.run_id}
+          configuration: ${workflow.input.configuration}
+          task_id: completion_barrier
+          canvas_node_id: completion_barrier
+          config:
+            description: Ensure all detect jobs are terminal before downstream mapping
+            function_external_id: fn_discovery_etl_file_annotation_barrier
+            source_task_id: fanout
+          predecessors:
+          - finalize_annotations
+        isAsyncComplete: true
+    name: Detect completion barrier
+    description: Execute fn_discovery_etl_file_annotation_barrier
+    retries: 2
+    timeout: 600
+    onFailure: abortWorkflow
+  - externalId: fanout
+    type: dynamic
+    dependsOn:
+    - externalId: fanout_plan
+    parameters:
+      dynamic:
+        tasks: ${fanout_plan.output.response.body.tasks}
+    retries: 3
+    timeout: 7200
+    onFailure: abortWorkflow
+  - externalId: fanout_plan
+    type: function
+    dependsOn:
+    - externalId: query_assets
+    - externalId: query_files
+    parameters:
+      function:
+        externalId: fn_discovery_etl_fanout_plan
+        data:
+          logLevel: INFO
+          incremental_change_processing: ${workflow.input.incremental_change_processing}
+          run_id: ${workflow.input.configuration.parameters.run_id}
+          configuration: ${workflow.input.configuration}
+          task_id: fanout_plan
+          canvas_node_id: fanout_plan
+          config:
+            description: Build normalized pattern entities and one dynamic task per
+              detect page-pack
+            debug_explicit_patterns: true
+            fanout_profile: file_annotation
+            max_pattern_samples: 100
+            pattern_normalization: file_annotation
+            child_function_external_id: fn_discovery_etl_file_annotation_launch
+            batch_size: 10
+            max_pages_per_detect_request: 15
+            max_pages_per_file_reference: 50
+            min_tokens: 1
+            diagram_poll_timeout_sec: 840
+            max_detect_jobs_per_invocation: 1
+          input_a_task_id: query_assets
+          input_a_task_ids:
+          - query_assets
+          input_b_task_id: query_files
+          fanout_profile: file_annotation
+          predecessors:
+          - query_assets
+          - query_files
+    name: Plan detect batches
+    description: Execute fn_discovery_etl_fanout_plan
+    retries: 3
+    timeout: 1800
+    onFailure: abortWorkflow
+  - externalId: finalize_annotations
+    type: function
+    dependsOn:
+    - externalId: fanout
+    parameters:
+      function:
+        externalId: fn_discovery_etl_file_annotation_finalize
+        data:
+          logLevel: INFO
+          incremental_change_processing: ${workflow.input.incremental_change_processing}
+          run_id: ${workflow.input.configuration.parameters.run_id}
+          configuration: ${workflow.input.configuration}
+          task_id: finalize_annotations
+          canvas_node_id: finalize_annotations
+          config:
+            description: Finalize launched diagram detect jobs in bounded cycles
+            function_external_id: fn_discovery_etl_file_annotation_finalize
+            source_task_id: fanout
+          predecessors:
+          - fanout
+        isAsyncComplete: true
+    name: Finalize detect jobs
+    description: Execute fn_discovery_etl_file_annotation_finalize
+    retries: 2
+    timeout: 600
+    onFailure: abortWorkflow
+  - externalId: map_annotations_classic
+    type: jsonMapping
+    dependsOn:
+    - externalId: completion_barrier
+    parameters:
+      jsonMapping:
+        input:
+          rows: ${finalize_annotations.output}
+        expression: input.rows
+    name: Map annotations (classic)
+    description: Expand file-annotation cohort hits to classic annotation staging
+      rows
+    retries: 2
+    timeout: 1800
+    onFailure: skipTask
+  - externalId: map_annotations_dm
+    type: jsonMapping
+    dependsOn:
+    - externalId: completion_barrier
+    parameters:
+      jsonMapping:
+        input:
+          rows: ${finalize_annotations.output}
+        expression: input.rows
+    name: Map annotations (DM)
+    description: Expand file-annotation cohort hits to CogniteDiagramAnnotation staging
+      rows
+    retries: 2
+    timeout: 1800
+    onFailure: skipTask
+  - externalId: query_assets
+    type: function
+    dependsOn: []
+    parameters:
+      function:
+        externalId: fn_discovery_etl_view_query
+        data:
+          logLevel: INFO
+          incremental_change_processing: ${workflow.input.incremental_change_processing}
+          run_id: ${workflow.input.configuration.parameters.run_id}
+          configuration: ${workflow.input.configuration}
+          task_id: query_assets
+          canvas_node_id: query_assets
+          config:
+            description: Load CogniteAsset aliases for pattern-mode diagram detect
+              entities
+            view_space: cdf_cdm
+            view_external_id: CogniteAsset
+            view_version: v1
+            batch_size: 1000
+            include_properties:
+            - aliases
+            query_scope_mode: all
+            filters: []
+          predecessors: []
+    name: CogniteAsset (aliases)
+    description: Execute fn_discovery_etl_view_query
+    retries: 3
+    timeout: 7200
+    onFailure: abortWorkflow
+  - externalId: query_files
+    type: function
+    dependsOn: []
+    parameters:
+      function:
+        externalId: fn_discovery_etl_view_query
+        data:
+          logLevel: INFO
+          incremental_change_processing: ${workflow.input.incremental_change_processing}
+          run_id: ${workflow.input.configuration.parameters.run_id}
+          configuration: ${workflow.input.configuration}
+          task_id: query_files
+          canvas_node_id: query_files
+          config:
+            description: Files to scan via diagram detect
+            view_space: cdf_cdm
+            view_external_id: CogniteFile
+            view_version: v1
+            batch_size: 500
+            include_properties:
+            - name
+            - mimeType
+            - pageCount
+            query_scope_mode: all
+            filters: []
+          predecessors: []
+    name: CogniteFile (PDFs)
+    description: Execute fn_discovery_etl_view_query
+    retries: 3
+    timeout: 7200
+    onFailure: abortWorkflow
+  - externalId: save_annotation_results_classic
+    type: function
+    dependsOn:
+    - externalId: map_annotations_classic
+    parameters:
+      function:
+        externalId: fn_discovery_etl_raw_save
+        data:
+          logLevel: INFO
+          incremental_change_processing: ${workflow.input.incremental_change_processing}
+          run_id: ${workflow.input.configuration.parameters.run_id}
+          configuration: ${workflow.input.configuration}
+          task_id: save_annotation_results_classic
+          canvas_node_id: save_annotation_results_classic
+          config:
+            description: Persist classic annotation staging rows to RAW
+            source_raw_db: db_discovery
+            source_raw_table_key: annotation_results_classic
+          predecessors:
+          - map_annotations_classic
+    name: Save classic annotations
+    description: Execute fn_discovery_etl_raw_save
+    retries: 3
+    timeout: 7200
+    onFailure: abortWorkflow
+  - externalId: save_annotation_results_dm
+    type: function
+    dependsOn:
+    - externalId: map_annotations_dm
+    parameters:
+      function:
+        externalId: fn_discovery_etl_view_save
+        data:
+          logLevel: INFO
+          incremental_change_processing: ${workflow.input.incremental_change_processing}
+          run_id: ${workflow.input.configuration.parameters.run_id}
+          configuration: ${workflow.input.configuration}
+          task_id: save_annotation_results_dm
+          canvas_node_id: save_annotation_results_dm
+          config:
+            description: Write CogniteDiagramAnnotation edges to the CDF data model
+            view_space: cdf_cdm
+            view_external_id: CogniteDiagramAnnotation
+            view_version: v1
+            annotation_space: discovery-annotations
+          predecessors:
+          - map_annotations_dm
+    name: Save CogniteDiagramAnnotation
+    description: Execute fn_discovery_etl_view_save
+    retries: 3
+    timeout: 7200
+    onFailure: abortWorkflow
+  - externalId: end
+    type: function
+    dependsOn:
+    - externalId: save_annotation_results_dm
+    - externalId: save_annotation_results_classic
+    parameters:
+      function:
+        externalId: fn_discovery_etl_raw_cleanup
+        data:
+          logLevel: INFO
+          incremental_change_processing: ${workflow.input.incremental_change_processing}
+          run_id: ${workflow.input.configuration.parameters.run_id}
+          configuration: ${workflow.input.configuration}
+          task_id: end
+          canvas_node_id: end
+          config:
+            description: Post-run cohort RAW cleanup
+          predecessors:
+          - save_annotation_results_dm
+          - save_annotation_results_classic
+    name: Workflow step
+    description: Execute fn_discovery_etl_raw_cleanup
+    retries: 3
+    timeout: 1800
+    onFailure: abortWorkflow

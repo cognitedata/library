@@ -6,6 +6,7 @@ from typing import Any, Dict, List
 
 from cdf_fn_common.etl_common import require_pipeline_run_key
 from cdf_fn_common.etl_fanout_plan.cohort_inputs import (
+    input_a_task_ids,
     input_b_task_id,
     load_input_a_rows,
     load_input_b_rows,
@@ -238,10 +239,11 @@ class FileAnnotationFanoutProfile:
             )
 
         depends: List[str] = []
-        a_tid = str(data.get("input_a_task_id") or "").strip()
-        for tid in (a_tid, b_tid):
+        for tid in input_a_task_ids(data):
             if tid and tid not in depends:
                 depends.append(tid)
+        if b_tid and b_tid not in depends:
+            depends.append(b_tid)
 
         def _build_tasks_for_cfg(detect_cfg: Dict[str, Any]) -> List[Dict[str, Any]]:
             return build_dynamic_detect_pack_tasks(

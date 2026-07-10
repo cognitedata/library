@@ -28,8 +28,8 @@ def cohort_rows_from_staging_props(
             ext = str(p.get("annotation_external_id") or "").strip()
             node_id = f"{space}:{ext}" if space and ext else ext or space
             entity_type = "CogniteDiagramAnnotation"
-            view_space = "cdf_discovery"
-            view_external_id = "AnnotationStaging"
+            view_space = "cdf_cdm"
+            view_external_id = "CogniteDiagramAnnotation"
         else:
             space = ""
             ext = str(p.get("file_external_id") or p.get("annotation_external_id") or "").strip()
