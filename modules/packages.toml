@@ -36,15 +36,11 @@ modules = [
     "common/cdf_ingestion",
     "contextualization/cdf_file_annotation",
     "contextualization/cdf_entity_matching",
-    "contextualization/cdf_connection_sql",
-    "common/cdf_search",
-    "sourcesystem/cdf_oid_sync",
-    "sourcesystem/cdf_pi",
-    "sourcesystem/cdf_sap_assets",
-    "sourcesystem/cdf_sap_events",
-    "sourcesystem/cdf_sharepoint",
-    "dashboards/report_quality",
-    "datamodels/qs_enterprise_dm",
+    "sourcesystem/cdf_pi_data_dump",
+    "sourcesystem/cdf_sap_data_dump",
+    "sourcesystem/cdf_sharepoint_data_dump",
+    "datamodels/cfihos_oil_and_gas_extension",
+    "datamodels/cfihos_oil_and_gas_extension_search",
 ]
 
 [packages.common]

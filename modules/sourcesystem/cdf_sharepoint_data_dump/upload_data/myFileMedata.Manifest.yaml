@@ -1,9 +1,9 @@
 kind: FileContent
 type: fileDataModelingTemplate
-fileDirectory: data
-viewId: # Can be replaced with an extension view
-  space: cdf_cdm
-  externalId: CogniteFile
+fileDirectory: ./data
+viewId:
+  space: dm_dom_oil_and_gas
+  externalId: Files
   version: v1
 template:
   instanceId:

@@ -19,7 +19,9 @@ from utils.DataStructures import (
     AnnotationStatus,
     BatchOfNodes,
     PerformanceTracker,
+    get_source_properties,
     remove_protected_properties,
+    set_describable_tags,
 )
 
 
@@ -223,13 +225,14 @@ class GeneralFinalizeService(AbstractFinalizeService):
                 if annotated_pages == page_count:
                     file_node_apply: NodeApply = remove_protected_properties(file_node.as_apply())
                     file_node_apply.existing_version = None
-                    tags = cast(list[str], file_node_apply.sources[0].properties["tags"])
+                    tags = list(cast(list[str], get_source_properties(file_node_apply).get("tags") or []))
                     if "AnnotationInProcess" in tags:
                         tags[tags.index("AnnotationInProcess")] = "Annotated"
                     elif "Annotated" not in tags:
                         self.logger.warning(
                             f"File {file_id.external_id} was processed, but 'AnnotationInProcess' tag was not found."
                         )
+                    set_describable_tags(file_node_apply, tags)
                     file_node_applies.append(file_node_apply)
                     job_node_to_update = self._process_annotation_state(
                         annotation_state_node,
@@ -258,13 +261,14 @@ class GeneralFinalizeService(AbstractFinalizeService):
                 if next_attempt >= self.max_retries:
                     file_node_apply: NodeApply = remove_protected_properties(file_node.as_apply())
                     file_node_apply.existing_version = None
-                    tags = cast(list[str], file_node_apply.sources[0].properties["tags"])
+                    tags = list(cast(list[str], get_source_properties(file_node_apply).get("tags") or []))
                     if "AnnotationInProcess" in tags:
                         tags[tags.index("AnnotationInProcess")] = "AnnotationFailed"
                     elif "AnnotationFailed" not in tags:
                         self.logger.warning(
                             f"File {file_id.external_id} failed processing, but 'AnnotationInProcess' tag was not found."
                         )
+                    set_describable_tags(file_node_apply, tags)
                     file_node_applies.append(file_node_apply)
                     job_node_to_update = self._process_annotation_state(
                         annotation_state_node,

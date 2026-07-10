@@ -13,21 +13,21 @@ SELECT
   END AS assets
 FROM
   cdf_data_models(
-    "{{ schemaSpace }}",
-    "{{ datamodelExternalId }}",
-    "{{ datamodelVersion }}",
+    "{{ space }}",
+    "{{ data_model_external_id }}",
+    "{{ dm_version }}",
     "WorkOrderOperation"
   ) op
 LEFT JOIN
   cdf_data_models(
-    "{{ schemaSpace }}",
-    "{{ datamodelExternalId }}",
-    "{{ datamodelVersion }}",
+    "{{ space }}",
+    "{{ data_model_external_id }}",
+    "{{ dm_version }}",
     "WorkOrder"
   ) wo
 ON
-  wo.space = '{{ instanceSpace }}'
+  wo.space = '{{ instance_space }}'
   AND op.maintenanceOrder.externalId = wo.externalId
 WHERE
-  op.space = '{{ instanceSpace }}'
+  op.space = '{{ instance_space }}'
   AND op.externalId IS NOT NULL

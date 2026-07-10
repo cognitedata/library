@@ -18,6 +18,11 @@ SELECT
   cast(mainAsset as string) as mainAsset,
   cast(documentSource as string) as documentSource,
   cast(mimeType as string) as mimeType,
+  array('ToAnnotate', 'DetectInDiagrams') as tags,
+  CASE
+    WHEN name IS NULL OR cast(name as string) = '' THEN NULL
+    ELSE array(regexp_replace(cast(name as string), '(?i)\\.pdf$', ''))
+  END as aliases,
   CASE
     WHEN asset_externalId IS NULL OR asset_externalId = '' THEN NULL
     ELSE array(node_reference('{{ instance_space }}', cast(asset_externalId as string)))

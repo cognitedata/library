@@ -15,7 +15,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 # Local dev / uv lock dependencies (may include broader ranges than deploy).
 FILE_ANNOTATION_RUNTIME = [
     "cognite-sdk>=7.76.0,<8",
-    "msal==1.32.3",
+    "msal==1.37.0",
     "pydantic>=2.12.4,<3.0.0",
     "PyJWT>=2.13.0,<3.0",
     "python-dotenv>=1.2.2,<2.0",
@@ -41,9 +41,8 @@ FILE_ANNOTATION_DEPLOY = [
     "charset-normalizer==3.4.2",
     "cognite-sdk==7.76.0",
     "cryptography==48.0.1",
-    "dotenv==0.9.9",
     "idna==3.15",
-    "msal==1.32.3",
+    "msal==1.37.0",
     "oauthlib==3.2.2",
     "packaging==25.0",
     "protobuf>=6.33.5",

@@ -23,7 +23,14 @@ SELECT
     WHEN parentTag IS NULL OR parentTag = '' THEN NULL
     ELSE node_reference('{{ instance_space }}', cast(parentTag as string))
   END as parent,
-  array(cast(labels as string)) as labels,
+  CASE
+    WHEN labels IS NULL OR trim(cast(labels as string)) = '' THEN array('DetectInDiagrams')
+    ELSE array(cast(labels as string), 'DetectInDiagrams')
+  END as tags,
+  FILTER(
+    array(cast(name as string), cast(tagNumber as string)),
+    x -> x IS NOT NULL AND trim(x) != ''
+  ) as aliases,
   cast(key as string) as sourceId,
   'cfihos_test' as sourceContext
 FROM `cfihos_oil_and_gas`.`tag`

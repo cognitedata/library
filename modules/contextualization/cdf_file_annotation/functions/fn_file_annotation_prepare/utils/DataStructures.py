@@ -235,7 +235,7 @@ class BatchOfPairedNodes:
             annotation_state_node.properties[annotation_state_view_id].get("pageCount"),
         )
         if not annotated_page_count or not page_count:
-            file_reference: FileReference = FileReference(
+            file_reference = FileReference(
                 file_instance_id=file_node_id,
                 first_page=1,
                 last_page=page_range,
@@ -247,7 +247,7 @@ class BatchOfPairedNodes:
             last_page = annotated_page_count + page_range
             if page_count <= last_page:
                 last_page = page_count
-            file_reference: FileReference = FileReference(
+            file_reference = FileReference(
                 file_instance_id=file_node_id,
                 first_page=first_page,
                 last_page=last_page,
@@ -452,8 +452,32 @@ def remove_protected_properties(node_apply: NodeApply) -> NodeApply:
         "uploadedTime",
     ]  # NOTE: These are just the protected properties of CogniteFile. There are also protected properties for CogniteAsset, though we don't use it in this deployment pack.
     for source in node_apply.sources:
+        if source.properties is None:
+            source.properties = {}
         # Safely remove the keys if they exist using .pop(key, None)
         for property in protected_properties:
             source.properties.pop(property, None)
 
     return node_apply
+
+
+def get_source_properties(node_apply: NodeApply) -> dict:
+    """Return the first source's properties dict, or {} if there are no sources or properties is None."""
+    if not node_apply.sources:
+        return {}
+    return node_apply.sources[0].properties or {}
+
+
+def set_describable_tags(node_apply: NodeApply, tags: list[str]) -> None:
+    """Write tags on a node apply.
+
+    CFIHOS Files/Tag views map both `labels` and `tags` to CogniteDescribable.tags.
+    as_write() can include both; writing only one avoids 400 conflicting-property errors.
+    """
+    if not node_apply.sources:
+        return
+    if node_apply.sources[0].properties is None:
+        node_apply.sources[0].properties = {}
+    properties = node_apply.sources[0].properties
+    properties.pop("labels", None)
+    properties["tags"] = tags

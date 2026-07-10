@@ -62,6 +62,7 @@ capabilities:
             - {{ schemaSpace }}
             - {{ schemaSpace2 }}
             - {{ schemaSpace3 }}
+            - {{ schemaSpace4 }}
             - cdf_cdm_units
   # Needed to write CogniteAsset.parent
   - dataModelInstancesAcl:

@@ -1,32 +1,32 @@
-select
-  /* three first properties are required */
-  cast(timeseries.`externalId` as STRING) as externalId, 
-  cast(timeseries.`isStep` as BOOLEAN) as isStep,
-  cast(timeseries.`type` as STRING) as type,
-  /* direct relation */
-  array(
-    node_reference(
-      '{{ instanceSpace }}',
-      equipment_lookup.`externalId`
-    )
-  ) as equipment
-from
+--
+-- CFIHOS: Link TimeSeriesData.equipment via shared tag (assets -> Equipment.asset).
+--
+SELECT
+  cast(ts.externalId as string) as externalId,
+  cast(ts.isStep as boolean) as isStep,
+  cast(ts.type as string) as type,
+  CASE
+    WHEN max(CASE WHEN eq.externalId IS NOT NULL AND eq.externalId != '' THEN 1 ELSE 0 END) = 0 THEN NULL
+    ELSE collect_set(CASE WHEN eq.externalId IS NOT NULL AND eq.externalId != '' THEN node_reference('{{ instanceSpace }}', cast(eq.externalId as string)) ELSE NULL END)
+  END as equipment
+FROM
   cdf_data_models(
-    "cdf_idm",
-    "CogniteProcessIndustries",
-    "v1",
-    "CogniteTimeSeries"
-  ) as timeseries
-left join cdf_data_models(
-    "cdf_idm",
-    "CogniteProcessIndustries",
-    "v1",
-    "CogniteEquipment"
-  ) as equipment_lookup 
-  /* update to the correct matching criteria for your data */
-  on substring_index(replace(timeseries.`name`, 'VAL_', ''), ':', 1) == equipment_lookup.`name`
-where
-  timeseries.space == '{{ instanceSpace }}' and
-  isnotnull(timeseries.`externalId`) and
-  equipment_lookup.space == '{{ instanceSpace }}' and
-  isnotnull(equipment_lookup.`externalId`)
+    "{{ schemaSpace }}",
+    "{{ datamodelExternalId }}",
+    "{{ datamodelVersion }}",
+    "TimeSeriesData"
+  ) ts
+LEFT JOIN
+  cdf_data_models(
+    "{{ schemaSpace }}",
+    "{{ datamodelExternalId }}",
+    "{{ datamodelVersion }}",
+    "Equipment"
+  ) eq
+ON
+  eq.space = '{{ instanceSpace }}'
+  AND array_contains(ts.assets, eq.asset)
+WHERE
+  ts.space = '{{ instanceSpace }}'
+GROUP BY
+  ts.externalId, ts.isStep, ts.type

@@ -9,17 +9,17 @@ source_name: springfield
 dbName: db_asset_entity_matching
 contextualizationId: entity_matcher
 contextualizationName: Entity Matcher
-schemaSpace: sp_enterprise_process_industry
+schemaSpace: dm_dom_oil_and_gas
 viewVersion: v1
-assetInstanceSpace: springfield_instances
-timeseriesInstanceSpace: springfield_instances
+assetInstanceSpace: inst_location
+timeseriesInstanceSpace: inst_location
 functionSpace: sp_entity_matching_fn # space where function code nodes are stored — created by this module
-AssetViewExternalId: YourOrgAsset # use Asset as external Id if using QS datamodel
-TimeSeriesViewExternalId: YourOrgTimeSeries # use Enterprise_TimeSeries as external Id if using QS datamodel
-targetViewExternalId: YourOrgAsset # use Asset as external Id if using QS datamodel
-entityViewExternalId: YourOrgTimeSeries # use Enterprise_TimeSeries as external Id if using QS datamodel
-targetViewSearchProperty: name # use aliases property if using QS deployment pack
-targetViewFilterValues: ["root:WMT"] # use root:ast_VAL as filter value if using QS deployment pack
+AssetViewExternalId: Tag
+TimeSeriesViewExternalId: TimeSeriesData
+targetViewExternalId: Tag
+entityViewExternalId: TimeSeriesData
+targetViewSearchProperty: name
+targetViewFilterValues: ["root:WMT"]
 entityViewSearchProperty: aliases
 entityViewFilterValues: ["site:VAL"]
 
@@ -29,4 +29,3 @@ workflowClientId: ${IDP_CLIENT_ID}
 workflowClientSecret: ${IDP_CLIENT_SECRET}
 # Update GROUP_SOURCE_ID to your group source ID
 entity_matching_processing_group_source_id: ${GROUP_SOURCE_ID}
-reservedWordPrefix: Enterprise_

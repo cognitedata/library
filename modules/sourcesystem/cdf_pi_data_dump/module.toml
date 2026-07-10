@@ -1,0 +1,5 @@
+[module]
+title = "PI Source System (CFIHOS)"
+is_selected_by_default = false
+id = "dp:sourcesystem:cdf_pi_data_dump"
+package_id = "dp:sourcesystem"

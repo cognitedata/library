@@ -1,0 +1,38 @@
+workflowExternalId: '{{ workflow_external_id }}'
+version: '{{ workflow_version }}'
+workflowDefinition:
+  tasks:
+    - externalId: tr_file_all_to_file
+      type: transformation
+      parameters:
+        transformation:
+          externalId: tr_file_all_to_file
+          concurrencyPolicy: fail
+      onFailure: abortWorkflow
+    - externalId: tr_diagram_annotation_all_to_cognite_diagram_annotation
+      type: transformation
+      parameters:
+        transformation:
+          externalId: tr_diagram_annotation_all_to_cognite_diagram_annotation
+          concurrencyPolicy: fail
+      onFailure: abortWorkflow
+      dependsOn:
+        - externalId: tr_file_all_to_file
+    - externalId: tr_diagram_annotation_all_to_file_tag_connection
+      type: transformation
+      parameters:
+        transformation:
+          externalId: tr_diagram_annotation_all_to_file_tag_connection
+          concurrencyPolicy: fail
+      onFailure: abortWorkflow
+      dependsOn:
+        - externalId: tr_diagram_annotation_all_to_cognite_diagram_annotation
+    - externalId: tr_diagram_annotation_all_to_file_equipment_connection
+      type: transformation
+      parameters:
+        transformation:
+          externalId: tr_diagram_annotation_all_to_file_equipment_connection
+          concurrencyPolicy: fail
+      onFailure: abortWorkflow
+      dependsOn:
+        - externalId: tr_diagram_annotation_all_to_file_tag_connection

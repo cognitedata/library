@@ -11,8 +11,14 @@ SELECT
   cast(plannerGroup as string) as plannerGroup,
   cast(maintActivityType as string) as maintActivityType,
   cast(typeDescription as string) as typeDescription,
-  array(cast(systemStatusCode AS STRING)) AS systemStatusCode,
-  array(cast(systemStatusDesc AS STRING)) AS systemStatusCodeDesc,
+  CASE
+    WHEN systemStatusCode IS NULL OR trim(cast(systemStatusCode as string)) = '' THEN NULL
+    ELSE array(cast(systemStatusCode AS STRING))
+  END AS systemStatusCode,
+  CASE
+    WHEN systemStatusDesc IS NULL OR trim(cast(systemStatusDesc as string)) = '' THEN NULL
+    ELSE array(cast(systemStatusDesc AS STRING))
+  END AS systemStatusCodeDesc,
   CASE
     WHEN SPNPriority IS NULL OR TRIM(SPNPriority) = '' THEN NULL
     ELSE cast(NULLIF(regexp_extract(SPNPriority, '^\\s*([0-9]+(?:\\.[0-9]+)?)', 1), '') as double)

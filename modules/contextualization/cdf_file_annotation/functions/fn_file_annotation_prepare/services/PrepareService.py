@@ -11,7 +11,9 @@ from utils.DataStructures import (
     AnnotationState,
     AnnotationStatus,
     PerformanceTracker,
+    get_source_properties,
     remove_protected_properties,
+    set_describable_tags,
 )
 
 
@@ -107,10 +109,13 @@ class GeneralPrepareService(AbstractPrepareService):
                     tags_to_remove = {"AnnotationInProcess", "Annotated", "AnnotationFailed"}
                     for file_node in file_nodes_to_reset:
                         file_node_apply: NodeApply = remove_protected_properties(file_node.as_write())
-                        tags_property: list[str] = cast(list[str], file_node_apply.sources[0].properties["tags"])
-                        file_node_apply.sources[0].properties["tags"] = [
-                            t for t in tags_property if t not in tags_to_remove
-                        ]
+                        tags_property: list[str] = cast(
+                            list[str], get_source_properties(file_node_apply).get("tags") or []
+                        )
+                        set_describable_tags(
+                            file_node_apply,
+                            [t for t in tags_property if t not in tags_to_remove],
+                        )
                         reset_node_apply.append(file_node_apply)
                     update_results = self.data_model_service.update_annotation_state(reset_node_apply)
                     self.logger.info(
@@ -173,9 +178,12 @@ class GeneralPrepareService(AbstractPrepareService):
             annotation_state_instances.append(annotation_node_apply)
 
             file_node_apply: NodeApply = remove_protected_properties(file_node.as_write())
-            tags_property: list[str] = cast(list[str], file_node_apply.sources[0].properties["tags"])
+            tags_property: list[str] = list(
+                cast(list[str], get_source_properties(file_node_apply).get("tags") or [])
+            )
             if "AnnotationInProcess" not in tags_property:
                 tags_property.append("AnnotationInProcess")
+                set_describable_tags(file_node_apply, tags_property)
                 file_apply_instances.append(file_node_apply)
 
         try:

@@ -11,11 +11,11 @@ SELECT
   END AS assets
 FROM
   cdf_data_models(
-    "{{ schemaSpace }}",
-    "{{ datamodelExternalId }}",
-    "{{ datamodelVersion }}",
+    "{{ space }}",
+    "{{ data_model_external_id }}",
+    "{{ dm_version }}",
     "WorkOrder"
   ) wo
 WHERE
-  wo.space = '{{ instanceSpace }}'
+  wo.space = '{{ instance_space }}'
   AND wo.externalId IS NOT NULL

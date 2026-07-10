@@ -2,70 +2,12 @@ workflowExternalId: {{ workflow }}
 version: v1
 workflowDefinition:
   tasks:
-    # Population of the transformation tasks
-    - externalId: {{ timeseriesTransformationExternalId }}
-      type: transformation
-      parameters:
-        transformation:
-          externalId: {{ timeseriesTransformationExternalId }}
-          concurrencyPolicy: fail
-      onFailure: abortWorkflow
-    - externalId: {{ assetTransformationExternalId}}
-      type: transformation
-      parameters:
-        transformation:
-          externalId: {{ assetTransformationExternalId}}
-          concurrencyPolicy: fail
-      onFailure: abortWorkflow
-    - externalId: {{ equipmentTransformationExternalId }}
-      type: transformation
-      parameters:
-        transformation:
-          externalId: {{ equipmentTransformationExternalId }}
-          concurrencyPolicy: fail
-      onFailure: abortWorkflow
-    - externalId: {{ equipmentToAssetTransformationExternalId}}
-      type: transformation
-      parameters:
-        transformation:
-          externalId: {{ equipmentToAssetTransformationExternalId}}
-          concurrencyPolicy: fail
-      onFailure: abortWorkflow
-      dependsOn:
-        - externalId: {{ assetTransformationExternalId }}
-        - externalId: {{ equipmentTransformationExternalId }}
-    - externalId: {{ maintenanceOrderTransformationExternalId }}
-      type: transformation
-      parameters:
-        transformation:
-          externalId: {{ maintenanceOrderTransformationExternalId }}
-          concurrencyPolicy: fail
-      onFailure: abortWorkflow
-    - externalId: {{ operationTransformationExternalId }}
-      type: transformation
-      parameters:
-        transformation:
-          externalId: {{ operationTransformationExternalId }}
-          concurrencyPolicy: fail
-      onFailure: abortWorkflow
-    - externalId: {{ operationToMaintenanceOrderTransformationExternalId}}
-      type: transformation
-      parameters:
-        transformation:
-          externalId: {{ operationToMaintenanceOrderTransformationExternalId }}
-          concurrencyPolicy: fail
-      onFailure: abortWorkflow
-      dependsOn:
-        - externalId: {{ maintenanceOrderTransformationExternalId }}
-        - externalId: {{ operationTransformationExternalId }}
-    - externalId: {{ fileTransformationExternalId }}
-      type: transformation
-      parameters:
-        transformation:
-          externalId: {{ fileTransformationExternalId }}
-          concurrencyPolicy: fail
-      onFailure: abortWorkflow
-    # Contextualization tasks
+    # Contextualization tasks (the corresponding population tasks are covered by the
+    # CFIHOS wave tasks below — tr_tag_all_to_tag, tr_equipment_all_to_equipment,
+    # tr_work_order_all_to_work_order, tr_work_order_operation_all_to_work_order_operation,
+    # and tr_work_order_operation_all_to_work_order_operation_connection are each invoked
+    # exactly once, by their CFIHOS wave task, to avoid two tasks racing to run the same
+    # transformation concurrently).
     - externalId: {{ maintenanceOrderToAssetTransformationExternalId }}
       type: transformation
       parameters:
@@ -74,10 +16,7 @@ workflowDefinition:
           concurrencyPolicy: fail
       onFailure: abortWorkflow
       dependsOn:
-        - externalId: {{ assetTransformationExternalId }}
         - externalId: {{ maintenanceOrderTransformationExternalId }}
-        - externalId: {{ operationTransformationExternalId }}
-        - externalId: {{ operationToMaintenanceOrderTransformationExternalId }}
     - externalId: {{ operationToAssetTransformationExternalId }}
       type: transformation
       parameters:
@@ -86,11 +25,8 @@ workflowDefinition:
           concurrencyPolicy: fail
       onFailure: abortWorkflow
       dependsOn:
-        - externalId: {{ equipmentTransformationExternalId }}
         - externalId: {{ maintenanceOrderTransformationExternalId }}
         - externalId: {{ operationTransformationExternalId }}
-        - externalId: {{ equipmentToAssetTransformationExternalId }}
-        - externalId: {{ operationToMaintenanceOrderTransformationExternalId }}
     - externalId: {{ activityToTimeSeriesTransformationExternalId }}
       type: transformation
       parameters:
@@ -100,17 +36,600 @@ workflowDefinition:
       onFailure: abortWorkflow
       dependsOn:
         - externalId: {{ timeseriesTransformationExternalId }}
-        - externalId: {{ maintenanceOrderTransformationExternalId }}
         - externalId: {{ operationTransformationExternalId }}
-        - externalId: {{ operationToMaintenanceOrderTransformationExternalId }}
-    - externalId: {{ timeSeriesToEquipmentTransformationExternalId }}
-      type: transformation
+
+    # ── Wave 1: Base tag hierarchy ──────────────────────────────────────
+    - externalId: {{ assetTransformationExternalId }}
+      type: 'transformation'
       parameters:
         transformation:
-          externalId: {{ timeSeriesToEquipmentTransformationExternalId }}
+          externalId: {{ assetTransformationExternalId }}
           concurrencyPolicy: fail
-      onFailure: abortWorkflow
+      name: 'Build tag hierarchy'
+      description: Create Tag nodes and parent hierarchy from RAW
+      retries: 3
+      timeout: 3600
+      onFailure: 'abortWorkflow'
+
+    # ── Wave 2a: Structural overlays + first equipment classes (8 tasks) ──
+    - externalId: {{ functionalLocationTransformationExternalId }}
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: {{ functionalLocationTransformationExternalId }}
+          concurrencyPolicy: fail
+      name: 'Functional location overlay'
+      description: Upsert FunctionalLocation view fields
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: {{ assetTransformationExternalId }}
+
+    - externalId: {{ functionalLocationNodeTransformationExternalId }}
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: {{ functionalLocationNodeTransformationExternalId }}
+          concurrencyPolicy: fail
+      name: 'Functional location node'
+      description: Upsert FunctionalLocation container nodes (flocMainAsset, etc.) for WorkOrderOperation.functionalLocation
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: {{ assetTransformationExternalId }}
+
+    - externalId: {{ equipmentTransformationExternalId }}
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: {{ equipmentTransformationExternalId }}
+          concurrencyPolicy: fail
+      name: 'Equipment overlay'
+      description: Upsert Equipment view fields
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: {{ assetTransformationExternalId }}
+
+    - externalId: {{ maintenanceIntegrityTransformationExternalId }}
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: {{ maintenanceIntegrityTransformationExternalId }}
+          concurrencyPolicy: fail
+      name: 'Maintenance and integrity overlay'
+      description: Upsert MaintenanceAndIntegrity view fields
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: {{ assetTransformationExternalId }}
+
+    - externalId: {{ maintenanceOrderTransformationExternalId }}
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: {{ maintenanceOrderTransformationExternalId }}
+          concurrencyPolicy: fail
+      name: 'Work order'
+      description: Create WorkOrder nodes with asset references
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: {{ assetTransformationExternalId }}
+
+    - externalId: {{ compressorTransformationExternalId }}
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: {{ compressorTransformationExternalId }}
+          concurrencyPolicy: fail
+      name: 'Compressor overlay'
+      description: Upsert Compressor view fields
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: {{ assetTransformationExternalId }}
+
+    - externalId: {{ valveTransformationExternalId }}
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: {{ valveTransformationExternalId }}
+          concurrencyPolicy: fail
+      name: 'Valve overlay'
+      description: Upsert Valve view fields
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: {{ assetTransformationExternalId }}
+
+    - externalId: {{ pumpTransformationExternalId }}
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: {{ pumpTransformationExternalId }}
+          concurrencyPolicy: fail
+      name: 'Pump overlay'
+      description: Upsert Pump view fields
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: {{ assetTransformationExternalId }}
+
+    - externalId: {{ turbineTransformationExternalId }}
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: {{ turbineTransformationExternalId }}
+          concurrencyPolicy: fail
+      name: 'Turbine overlay'
+      description: Upsert Turbine view fields
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: {{ assetTransformationExternalId }}
+
+    # ── Wave 2b: More equipment classes (8 tasks, waits for 2a) ──────────
+    - externalId: {{ heatExchangerTransformationExternalId }}
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: {{ heatExchangerTransformationExternalId }}
+          concurrencyPolicy: fail
+      name: 'Heat exchanger overlay'
+      description: Upsert HeatExchanger view fields
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: {{ functionalLocationTransformationExternalId }}
+
+    - externalId: {{ pipingPipelineTransformationExternalId }}
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: {{ pipingPipelineTransformationExternalId }}
+          concurrencyPolicy: fail
+      name: 'Piping and pipeline equipment overlay'
+      description: Upsert PipingAndPipelineEquipment view fields
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: {{ functionalLocationTransformationExternalId }}
+
+    - externalId: {{ instrumentEquipmentTransformationExternalId }}
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: {{ instrumentEquipmentTransformationExternalId }}
+          concurrencyPolicy: fail
+      name: 'Instrument equipment overlay'
+      description: Upsert InstrumentEquipment view fields
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: {{ functionalLocationTransformationExternalId }}
+
+    - externalId: {{ electricalEquipmentTransformationExternalId }}
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: {{ electricalEquipmentTransformationExternalId }}
+          concurrencyPolicy: fail
+      name: 'Electrical equipment class overlay'
+      description: Upsert ElectricalEquipmentClass view fields
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: {{ functionalLocationTransformationExternalId }}
+
+    - externalId: {{ mechanicalEquipmentTransformationExternalId }}
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: {{ mechanicalEquipmentTransformationExternalId }}
+          concurrencyPolicy: fail
+      name: 'Mechanical equipment class overlay'
+      description: Upsert MechanicalEquipmentClass view fields
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: {{ functionalLocationTransformationExternalId }}
+
+    - externalId: {{ drillingEquipmentTransformationExternalId }}
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: {{ drillingEquipmentTransformationExternalId }}
+          concurrencyPolicy: fail
+      name: 'Drilling equipment overlay'
+      description: Upsert DrillingEquipment view fields
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: {{ functionalLocationTransformationExternalId }}
+
+    - externalId: {{ enclosureTransformationExternalId }}
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: {{ enclosureTransformationExternalId }}
+          concurrencyPolicy: fail
+      name: 'Enclosure overlay'
+      description: Upsert Enclosure view fields
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: {{ functionalLocationTransformationExternalId }}
+
+    - externalId: {{ hseEquipmentTransformationExternalId }}
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: {{ hseEquipmentTransformationExternalId }}
+          concurrencyPolicy: fail
+      name: 'HSE equipment class overlay'
+      description: Upsert HealthSafetyAndEnvironmentEquipmentClass view fields
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: {{ functionalLocationTransformationExternalId }}
+
+    # ── Wave 2c: Remaining equipment + data entities (8 tasks, waits for 2b) ──
+    - externalId: {{ infrastructureTransformationExternalId }}
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: {{ infrastructureTransformationExternalId }}
+          concurrencyPolicy: fail
+      name: 'Infrastructure overlay'
+      description: Upsert Infrastructure view fields
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: {{ heatExchangerTransformationExternalId }}
+
+    - externalId: {{ itTelecomEquipmentTransformationExternalId }}
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: {{ itTelecomEquipmentTransformationExternalId }}
+          concurrencyPolicy: fail
+      name: 'IT and telecom equipment overlay'
+      description: Upsert ItAndTelecomEquipment view fields
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: {{ heatExchangerTransformationExternalId }}
+
+    - externalId: {{ miscellaneousEquipmentTransformationExternalId }}
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: {{ miscellaneousEquipmentTransformationExternalId }}
+          concurrencyPolicy: fail
+      name: 'Miscellaneous equipment overlay'
+      description: Upsert MiscellaneousEquipment view fields
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: {{ heatExchangerTransformationExternalId }}
+
+    - externalId: {{ subseaEquipmentTransformationExternalId }}
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: {{ subseaEquipmentTransformationExternalId }}
+          concurrencyPolicy: fail
+      name: 'Subsea equipment class overlay'
+      description: Upsert SubseaEquipmentClass view fields
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: {{ heatExchangerTransformationExternalId }}
+
+    - externalId: {{ toolTransformationExternalId }}
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: {{ toolTransformationExternalId }}
+          concurrencyPolicy: fail
+      name: 'Tool overlay'
+      description: Upsert Tool view fields
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: {{ heatExchangerTransformationExternalId }}
+
+    - externalId: {{ fileTransformationExternalId }}
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: {{ fileTransformationExternalId }}
+          concurrencyPolicy: fail
+      name: 'File'
+      description: Create File nodes with asset references
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: {{ heatExchangerTransformationExternalId }}
+
+    - externalId: {{ diagramAnnotationTransformationExternalId }}
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: {{ diagramAnnotationTransformationExternalId }}
+          concurrencyPolicy: fail
+      name: 'Diagram annotation'
+      description: Create CogniteDiagramAnnotation edges from RAW diagram annotation rows
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: {{ fileTransformationExternalId }}
+        - externalId: {{ assetTransformationExternalId }}
+
+    - externalId: {{ fileTagConnectionTransformationExternalId }}
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: {{ fileTagConnectionTransformationExternalId }}
+          concurrencyPolicy: fail
+      name: 'File to tag connection from diagram annotation'
+      description: Connect Files.assets to Tag using diagram annotation AssetLink rows
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: {{ fileTransformationExternalId }}
+        - externalId: {{ assetTransformationExternalId }}
+
+    - externalId: {{ fileEquipmentConnectionTransformationExternalId }}
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: {{ fileEquipmentConnectionTransformationExternalId }}
+          concurrencyPolicy: fail
+      name: 'File to equipment connection via tags'
+      description: Connect Equipment.files by matching Equipment.asset against Files.assets
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: {{ fileTagConnectionTransformationExternalId }}
+        - externalId: {{ equipmentTransformationExternalId }}
+
+    - externalId: {{ timeseriesTransformationExternalId }}
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: {{ timeseriesTransformationExternalId }}
+          concurrencyPolicy: fail
+      name: 'Time series data'
+      description: Create TimeSeriesData nodes with asset references
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: {{ heatExchangerTransformationExternalId }}
+
+    - externalId: {{ failureModeTransformationExternalId }}
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: {{ failureModeTransformationExternalId }}
+          concurrencyPolicy: fail
+      name: 'Failure mode'
+      description: Create FailureMode nodes with asset references
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: {{ heatExchangerTransformationExternalId }}
+
+    - externalId: {{ timeseriesEquipmentConnectionTransformationExternalId }}
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: {{ timeseriesEquipmentConnectionTransformationExternalId }}
+          concurrencyPolicy: fail
+      name: 'Time series to equipment connection'
+      description: Connect TimeSeriesData to Equipment based on asset external id mapping
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
       dependsOn:
         - externalId: {{ timeseriesTransformationExternalId }}
         - externalId: {{ equipmentTransformationExternalId }}
+
+    - externalId: {{ tagFunctionalLocationPropertiesConnectionTransformationExternalId }}
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: {{ tagFunctionalLocationPropertiesConnectionTransformationExternalId }}
+          concurrencyPolicy: fail
+      name: 'Tag to functional location properties connection'
+      description: Connect Tag.FunctionalLocationProperties to FunctionalLocationProperties nodes by externalId
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: {{ assetTransformationExternalId }}
+        - externalId: {{ functionalLocationTransformationExternalId }}
+
+    - externalId: {{ equipmentToAssetTransformationExternalId }}
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: {{ equipmentToAssetTransformationExternalId }}
+          concurrencyPolicy: fail
+      name: 'Tag to common LCI properties connection'
+      description: Connect Tag.CommonLCIProperties to CommonLCIProperties nodes by externalId
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: {{ assetTransformationExternalId }}
+
+    - externalId: {{ tagClassSpecificConnectionTransformationExternalId }}
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: {{ tagClassSpecificConnectionTransformationExternalId }}
+          concurrencyPolicy: fail
+      name: 'Tag to class specific connection'
+      description: Connect Tag.classSpecific to class-specific equipment view nodes by externalId
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: {{ assetTransformationExternalId }}
+        - externalId: {{ compressorTransformationExternalId }}
+        - externalId: {{ valveTransformationExternalId }}
+        - externalId: {{ pumpTransformationExternalId }}
+        - externalId: {{ turbineTransformationExternalId }}
+        - externalId: {{ heatExchangerTransformationExternalId }}
+        - externalId: {{ pipingPipelineTransformationExternalId }}
+        - externalId: {{ instrumentEquipmentTransformationExternalId }}
+        - externalId: {{ electricalEquipmentTransformationExternalId }}
+        - externalId: {{ mechanicalEquipmentTransformationExternalId }}
+        - externalId: {{ drillingEquipmentTransformationExternalId }}
+        - externalId: {{ enclosureTransformationExternalId }}
+        - externalId: {{ hseEquipmentTransformationExternalId }}
+        - externalId: {{ infrastructureTransformationExternalId }}
+        - externalId: {{ itTelecomEquipmentTransformationExternalId }}
+        - externalId: {{ miscellaneousEquipmentTransformationExternalId }}
+        - externalId: {{ subseaEquipmentTransformationExternalId }}
+        - externalId: {{ toolTransformationExternalId }}
+
+    - externalId: {{ tagAdditionalPropertiesTransformationExternalId }}
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: {{ tagAdditionalPropertiesTransformationExternalId }}
+          concurrencyPolicy: fail
+      name: 'Tag additional properties enrichment'
+      description: Populate Tag.additionalProperties with connected CFIHOS context and class-specific content
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
         - externalId: {{ equipmentToAssetTransformationExternalId }}
+        - externalId: {{ tagFunctionalLocationPropertiesConnectionTransformationExternalId }}
+        - externalId: {{ tagClassSpecificConnectionTransformationExternalId }}
+
+    - externalId: {{ workOrderTimeseriesConnectionTransformationExternalId }}
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: {{ workOrderTimeseriesConnectionTransformationExternalId }}
+          concurrencyPolicy: fail
+      name: 'Work order to time series connection'
+      description: Connect WorkOrder to TimeSeriesData based on mainAsset_externalId and asset_externalId
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: {{ maintenanceOrderTransformationExternalId }}
+        - externalId: {{ timeseriesTransformationExternalId }}
+
+    # ── Wave 3: Entities that reference WorkOrder nodes (waits for 2c) ───
+    - externalId: {{ notificationTransformationExternalId }}
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: {{ notificationTransformationExternalId }}
+          concurrencyPolicy: fail
+      name: 'Notification'
+      description: Create Notification nodes with work order and asset references
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: {{ infrastructureTransformationExternalId }}
+
+    - externalId: {{ notificationWorkOrderConnectionTransformationExternalId }}
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: {{ notificationWorkOrderConnectionTransformationExternalId }}
+          concurrencyPolicy: fail
+      name: 'Notification to work order connection'
+      description: Connect Notification to WorkOrder based on asset_externalId and mainAsset_externalId
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: {{ notificationTransformationExternalId }}
+        - externalId: {{ maintenanceOrderTransformationExternalId }}
+
+    - externalId: {{ notificationFailureModeConnectionTransformationExternalId }}
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: {{ notificationFailureModeConnectionTransformationExternalId }}
+          concurrencyPolicy: fail
+      name: 'Notification to failure mode connection'
+      description: Connect Notification.failureMode to FailureMode using failureModeCode
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: {{ notificationTransformationExternalId }}
+        - externalId: {{ failureModeTransformationExternalId }}
+
+    - externalId: {{ operationTransformationExternalId }}
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: {{ operationTransformationExternalId }}
+          concurrencyPolicy: fail
+      name: 'Work order operation'
+      description: Create WorkOrderOperation nodes with work order and asset references
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: {{ infrastructureTransformationExternalId }}
+        - externalId: {{ functionalLocationNodeTransformationExternalId }}
+
+    - externalId: {{ operationToMaintenanceOrderTransformationExternalId }}
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: {{ operationToMaintenanceOrderTransformationExternalId }}
+          concurrencyPolicy: fail
+      name: 'Work order operation connection'
+      description: Connect WorkOrderOperation to Equipment, TimeSeriesData, WorkOrder, and FunctionalLocation based on asset_externalId and mainAsset_externalId
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: {{ operationTransformationExternalId }}
+        - externalId: {{ equipmentTransformationExternalId }}
+        - externalId: {{ timeseriesTransformationExternalId }}
+        - externalId: {{ maintenanceOrderTransformationExternalId }}
+        - externalId: {{ functionalLocationTransformationExternalId }}
+        - externalId: {{ functionalLocationNodeTransformationExternalId }}
