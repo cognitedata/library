@@ -61,9 +61,11 @@ The module selector presents all available modules. Make selections carefully:
 > pack automatically configures itself against the base Cognite Data Model
 > (CogniteCore, space `cdf_cdm`) — no extra module required, and the setup wizard
 > will not error. Since there's no extension module to create the instance space,
-> `cdf_project_foundation` creates it itself as `sp_{site}_instances` (the same
-> `sp_<site>_<suffix>` convention used for the extractor instance spaces), and
-> removes that resource automatically if you later add a data model extension.
+> the setup wizard writes a `data_modeling/cdm_instance_space.Space.yaml` resource
+> into `cdf_project_foundation` that creates `sp_{site}_instances` (the same
+> `sp_<site>_<suffix>` convention used for the extractor instance spaces). This
+> file is only ever written when no extension is selected — it isn't shipped by
+> the module itself.
 
 | Option | Description |
 |--------|-------------|

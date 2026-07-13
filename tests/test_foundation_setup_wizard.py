@@ -783,47 +783,49 @@ class TestRemoveRedundantAuthFiles:
         assert auth_dir.exists()
 
 
-class TestRemoveRedundantCdmSpaceFile:
-    def _make_space_file(self, tmp_path: Path) -> Path:
-        space_file = (
+class TestRestoreCdmSpaceFile:
+    """The CDM instance-space file is never shipped as a module asset — the
+    wizard is the only thing that ever writes it, and only for variant == 'cdm'."""
+
+    def _space_file(self, tmp_path: Path) -> Path:
+        return (
             tmp_path / "modules" / "common" / "cdf_project_foundation"
             / "data_modeling" / "cdm_instance_space.Space.yaml"
         )
-        space_file.parent.mkdir(parents=True, exist_ok=True)
-        space_file.write_text("space: {{ instanceSpace }}\n")
-        return space_file
 
-    def test_kept_when_variant_is_cdm(self, tmp_path: Path) -> None:
-        from setup_project import remove_redundant_cdm_space_file
-        space_file = self._make_space_file(tmp_path)
-        removed = remove_redundant_cdm_space_file("cdm", tmp_path)
-        assert removed is None
+    def test_creates_file_when_missing_and_variant_is_cdm(self, tmp_path: Path) -> None:
+        from setup_project import restore_cdm_space_file
+        space_file = self._space_file(tmp_path)
+        created = restore_cdm_space_file("cdm", tmp_path)
+        assert created == space_file
         assert space_file.exists()
+        assert "{{ instanceSpace }}" in space_file.read_text()
 
-    def test_removed_when_extension_installed(self, tmp_path: Path) -> None:
-        from setup_project import remove_redundant_cdm_space_file
-        space_file = self._make_space_file(tmp_path)
-        removed = remove_redundant_cdm_space_file("isa_manufacturing_extension", tmp_path)
-        assert removed == space_file
+    def test_noop_when_file_already_present(self, tmp_path: Path) -> None:
+        from setup_project import restore_cdm_space_file
+        space_file = self._space_file(tmp_path)
+        space_file.parent.mkdir(parents=True)
+        space_file.write_text("space: {{ instanceSpace }}\ncustom: true\n")
+        created = restore_cdm_space_file("cdm", tmp_path)
+        assert created is None
+        assert "custom: true" in space_file.read_text()  # left untouched
+
+    def test_noop_when_variant_is_an_extension(self, tmp_path: Path) -> None:
+        from setup_project import restore_cdm_space_file
+        space_file = self._space_file(tmp_path)
+        created = restore_cdm_space_file("isa_manufacturing_extension", tmp_path)
+        assert created is None
         assert not space_file.exists()
 
-    def test_removes_now_empty_data_modeling_dir(self, tmp_path: Path) -> None:
-        from setup_project import remove_redundant_cdm_space_file
-        space_file = self._make_space_file(tmp_path)
-        remove_redundant_cdm_space_file("isa_manufacturing_extension", tmp_path)
-        assert not space_file.parent.exists()
-
-    def test_leaves_non_empty_data_modeling_dir(self, tmp_path: Path) -> None:
-        from setup_project import remove_redundant_cdm_space_file
-        space_file = self._make_space_file(tmp_path)
-        (space_file.parent / "other.DataModel.yaml").write_text("name: dummy\n")
-        remove_redundant_cdm_space_file("isa_manufacturing_extension", tmp_path)
-        assert space_file.parent.exists()
-
-    def test_idempotent_when_already_removed(self, tmp_path: Path) -> None:
-        from setup_project import remove_redundant_cdm_space_file
-        removed = remove_redundant_cdm_space_file("cfihos_oil_and_gas_extension", tmp_path)
-        assert removed is None
+    def test_leaves_existing_file_untouched_when_variant_is_extension(self, tmp_path: Path) -> None:
+        """A file created during a prior cdm run is intentionally left alone if the
+        project later switches to an extension — nothing deletes it."""
+        from setup_project import restore_cdm_space_file
+        space_file = self._space_file(tmp_path)
+        space_file.parent.mkdir(parents=True)
+        space_file.write_text("space: {{ instanceSpace }}\n")
+        restore_cdm_space_file("isa_manufacturing_extension", tmp_path)
+        assert space_file.exists()
 
 
 # ── setup_project — CFIHOS auth patching ──────────────────────────────────────

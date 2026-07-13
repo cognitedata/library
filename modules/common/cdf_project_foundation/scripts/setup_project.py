@@ -618,26 +618,33 @@ def remove_redundant_auth_files(repo_root: Path | None = None) -> list[Path]:
     return removed
 
 
-# Space resource that creates the base-CDM instance space — only needed when no
-# data model extension is installed (an installed extension ships its own).
+# Space resource that creates the base-CDM instance space. Not shipped as a
+# module asset — cdf_project_foundation has no fixed instance space of its own,
+# so this is written by the wizard only when no data model extension is
+# installed (an installed extension ships its own instance-space resource).
 _CDM_INSTANCE_SPACE_REL_PATH = "modules/common/cdf_project_foundation/data_modeling/cdm_instance_space.Space.yaml"
+_CDM_INSTANCE_SPACE_CONTENT = (
+    "space: {{ instanceSpace }}\n"
+    "name: Instance space\n"
+    "description: Base Cognite Data Model (CogniteCore) instance space\n"
+)
 
 
-def remove_redundant_cdm_space_file(variant: str, repo_root: Path | None = None) -> Path | None:
-    """Remove the CDM instance-space file once a data model extension is installed.
+def restore_cdm_space_file(variant: str, repo_root: Path | None = None) -> Path | None:
+    """Write the CDM instance-space file when no data model extension is installed.
 
-    The extension ships its own instance-space resource for the same
-    ``instanceSpace`` value, so keeping both would declare the same space twice.
-    Removes the ``data_modeling/`` directory too once it is left empty.
+    No-op unless ``variant == "cdm"``. Since the file is never shipped in the
+    module, this is the only place it gets created — including when a project
+    switches back to ``cdm`` after previously using an extension.
     """
-    if variant == "cdm":
+    if variant != "cdm":
         return None
     space_file = get_pack_root(repo_root) / _CDM_INSTANCE_SPACE_REL_PATH
-    if not space_file.exists():
+    if space_file.exists():
         return None
-    space_file.unlink()
-    _ok(f"Removed redundant CDM instance space file: {_CDM_INSTANCE_SPACE_REL_PATH}")
-    _rmdir_if_empty(space_file.parent)
+    space_file.parent.mkdir(parents=True, exist_ok=True)
+    space_file.write_text(_CDM_INSTANCE_SPACE_CONTENT)
+    _ok(f"Created CDM instance space file: {_CDM_INSTANCE_SPACE_REL_PATH}")
     return space_file
 
 
@@ -1323,7 +1330,7 @@ def _finalize_wizard(
 
     removed = remove_redundant_auth_files(repo_root)
     patched = patch_cfihos_auth_for_missing_search(repo_root)
-    removed_cdm_space = remove_redundant_cdm_space_file(variant, repo_root)
+    created_cdm_space = restore_cdm_space_file(variant, repo_root)
     _cleanup_file_annotation_module(repo_root)
 
     synthetic_removed = 0
@@ -1340,8 +1347,8 @@ def _finalize_wizard(
         _ok(f"{len(removed)} redundant auth file(s) removed.")
     if patched:
         _ok(f"{len(patched)} cfihos auth file(s) patched (search_space removed).")
-    if removed_cdm_space:
-        _ok("Redundant CDM instance space file removed (data model extension covers it).")
+    if created_cdm_space:
+        _ok("CDM instance space file created (no data model extension installed).")
     if env_dirty:
         _ok(".env updated with group source IDs.")
     if synthetic_removed:
@@ -1401,7 +1408,9 @@ def _run_wizard(
         site, installed_ss, repo_root
     )
     app_owner = _prompt_app_owner(installed_ctx, existing["app_owner"])
-    keep_synthetic = _prompt_synthetic_data()
+    # No data model extension installed under "cdm" — nothing for
+    # remove_synthetic_data to clean up, so don't ask.
+    keep_synthetic = True if variant == "cdm" else _prompt_synthetic_data()
 
     env_dirty = _env_values_dirty(env_vals, original_env_vals)
     _show_wizard_review(targets, project_names, env_dirty)
@@ -1557,9 +1566,9 @@ def _run_check(
             if (ctx_dir / module_dir / rel_path).exists():
                 stale_auth.append(ctx_dir / module_dir / rel_path)
 
-    stale_cdm_space = (
-        variant != "cdm" and (get_pack_root(repo_root) / _CDM_INSTANCE_SPACE_REL_PATH).exists()
-    )
+    missing_cdm_space = variant == "cdm" and not (
+        get_pack_root(repo_root) / _CDM_INSTANCE_SPACE_REL_PATH
+    ).exists()
 
     if all_errors:
         print(f"ERROR: Config file(s) out of sync with variant '{variant}':\n")
@@ -1575,9 +1584,9 @@ def _run_check(
             print(f"  {p.relative_to(ctx_dir.parent.parent)}")
         print("\n  Run: python scripts/setup_project.py -y")
         sys.exit(1)
-    if stale_cdm_space:
+    if missing_cdm_space:
         print(
-            f"ERROR: Redundant CDM instance space file still present for variant '{variant}':\n"
+            f"ERROR: CDM instance space file missing for variant '{variant}':\n"
             f"  {_CDM_INSTANCE_SPACE_REL_PATH}"
         )
         print("\n  Run: python scripts/setup_project.py -y")
