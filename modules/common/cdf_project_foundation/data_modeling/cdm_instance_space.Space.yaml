@@ -1,0 +1,3 @@
+space: {{ instanceSpace }}
+name: Instance space
+description: Base Cognite Data Model (CogniteCore) instance space

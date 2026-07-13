@@ -32,6 +32,10 @@ KNOWN_DATA_MODEL_DIRS = (
     "cfihos_oil_and_gas_extension",
 )
 
+# Fallback variant used when no data model extension is installed — the base
+# Cognite Data Model (CogniteCore), always available without extra modules.
+DEFAULT_DATA_MODEL_VARIANT = "cdm"
+
 SOURCE_SYSTEM_MODULE_DIRS: tuple[str, ...] = (
     "cdf_pi_extractor",
     "cdf_sap_extractor",
@@ -156,13 +160,12 @@ def find_env_configs(repo_root: Path | None = None) -> list[Path]:
 def detect_data_model_variant(data_models_dir: Path) -> str:
     """
     Detect installed data model from subdirectory names under modules/datamodels/.
-    Raises SystemExit with a message when zero or multiple models are found.
+    Falls back to ``DEFAULT_DATA_MODEL_VARIANT`` (base CDM) when the directory is
+    missing or contains no supported extension. Raises SystemExit only when
+    multiple supported extensions are found (ambiguous).
     """
     if not data_models_dir.is_dir():
-        raise SystemExit(
-            f"ERROR: Data models directory not found: {data_models_dir}\n"
-            "  Expected modules/datamodels/ under the pack root."
-        )
+        return DEFAULT_DATA_MODEL_VARIANT
 
     present = [
         name
@@ -170,10 +173,7 @@ def detect_data_model_variant(data_models_dir: Path) -> str:
         if (data_models_dir / name).is_dir()
     ]
     if not present:
-        raise SystemExit(
-            f"ERROR: No supported data model found under {data_models_dir}\n"
-            f"  Expected one of: {', '.join(KNOWN_DATA_MODEL_DIRS)}"
-        )
+        return DEFAULT_DATA_MODEL_VARIANT
     if len(present) > 1:
         raise SystemExit(
             f"ERROR: Multiple data models found under {data_models_dir}: {present}\n"

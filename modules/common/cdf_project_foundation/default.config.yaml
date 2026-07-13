@@ -20,13 +20,13 @@ producerSourceId: "${PRODUCER_SOURCE_ID}"    # read/write ingestion producers
 adminSourceId: "${ADMIN_SOURCE_ID}"          # foundation administrators
 
 # Schema space where the selected data model views are defined.
-schemaSpace: "dm_dom_isa_manufacturing"
+schemaSpace: "cdf_cdm"
 # Space where DM instances are written (project-level).
-instanceSpace: "inst_isa_manufacturing"
+instanceSpace: "sp_cdm_instances"
 # All DM spaces the consumer group needs read access to: project-level space +
 # one per installed extractor module. Computed by setup_project.py.
-instanceSpaces: ["inst_isa_manufacturing"]
+instanceSpaces: ["sp_cdm_instances"]
 
 # Data model variant — controls which schema/instance spaces are synced.
-# Supported: isa_manufacturing_extension | cfihos_oil_and_gas_extension
-dataModelVariant: isa_manufacturing_extension
+# Supported: cdm | isa_manufacturing_extension | cfihos_oil_and_gas_extension
+dataModelVariant: cdm
