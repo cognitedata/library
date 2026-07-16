@@ -321,6 +321,29 @@ class TestBuildFoundationVars:
         assert vars_["schemaSpace"] == "dm_dom_oil_and_gas"
         assert vars_["instanceSpace"] == "inst_location"
 
+    def test_cdm_variant_contains_required_keys(self) -> None:
+        from setup_project import build_foundation_vars
+        vars_ = build_foundation_vars("cdm", "dev", "")
+        assert vars_["dataModelVariant"] == "cdm"
+        assert vars_["schemaSpace"] == "cdf_cdm"
+        # No site set — falls back to the static no-site placeholder.
+        assert vars_["instanceSpace"] == "sp_cdm_instances"
+
+    def test_cdm_variant_instance_space_derived_from_site(self) -> None:
+        from setup_project import build_foundation_vars
+        vars_ = build_foundation_vars("cdm", "dev", "oslo")
+        assert vars_["instanceSpace"] == "sp_oslo_instances"
+
+
+class TestCdmInstanceSpace:
+    def test_uses_site_when_set(self) -> None:
+        from setup_project import _cdm_instance_space
+        assert _cdm_instance_space("oslo") == "sp_oslo_instances"
+
+    def test_falls_back_to_static_placeholder_when_site_blank(self) -> None:
+        from setup_project import _cdm_instance_space
+        assert _cdm_instance_space("") == "sp_cdm_instances"
+
 
 class TestBuildOverlay:
     def test_isa_overlay_structure(self) -> None:
@@ -396,6 +419,24 @@ class TestBuildOverlay:
         assert dm["admin_user"] == "admin@firm.com"
         assert dm["integrationOwnerName"] == "Alice"
         assert dm["integrationOwnerEmail"] == "alice@firm.com"
+
+    def test_cdm_overlay_uses_base_cognite_core_views(self) -> None:
+        from setup_project import build_overlay
+        overlay = build_overlay(
+            "cdm", "dev", "oslo", ["cdf_entity_matching", "cdf_file_annotation"]
+        )
+        mods = overlay["variables"]["modules"]
+        em = mods["cdf_entity_matching"]
+        assert em["schemaSpace"] == "cdf_cdm"
+        assert em["AssetViewExternalId"] == "CogniteAsset"
+        assert em["TimeSeriesViewExternalId"] == "CogniteTimeSeries"
+        assert em["assetInstanceSpace"] == "sp_oslo_instances"
+        fa = mods["cdf_file_annotation"]
+        assert fa["fileSchemaSpace"] == "cdf_cdm"
+        assert fa["fileExternalId"] == "CogniteFile"
+        assert fa["targetEntityExternalId"] == "CogniteAsset"
+        # No CDM-specific module block — CDM has no extension module to configure.
+        assert "cdm" not in mods
 
 
 class TestModuleInstanceSpace:
@@ -698,6 +739,94 @@ class TestRemoveRedundantAuthFiles:
         removed = remove_redundant_auth_files(tmp_path)
         assert removed == []
 
+    def test_removes_empty_ctx_auth_dir(self, tmp_path: Path) -> None:
+        from setup_project import remove_redundant_auth_files
+        auth_dir = (
+            tmp_path / "modules" / "contextualization" / "cdf_entity_matching" / "auth"
+        )
+        self._make_auth_file(auth_dir / "entity.matching.processing.groups.Group.yaml")
+        remove_redundant_auth_files(tmp_path)
+        assert not auth_dir.exists()
+
+    def test_leaves_non_empty_ctx_auth_dir(self, tmp_path: Path) -> None:
+        from setup_project import remove_redundant_auth_files
+        auth_dir = (
+            tmp_path / "modules" / "contextualization" / "cdf_entity_matching" / "auth"
+        )
+        self._make_auth_file(auth_dir / "entity.matching.processing.groups.Group.yaml")
+        self._make_auth_file(auth_dir / "other.Group.yaml")  # unrelated file stays
+        remove_redundant_auth_files(tmp_path)
+        assert auth_dir.exists()
+
+    def test_removes_empty_cfihos_auth_dir(self, tmp_path: Path) -> None:
+        from setup_project import remove_redundant_auth_files
+        auth_dir = (
+            tmp_path / "modules" / "datamodels" / "cfihos_oil_and_gas_extension" / "auth"
+        )
+        for name in (
+            "gp_cdf_owner_cfihos_oil_gas_data_model.group.yaml",
+            "gp_cdf_read_cfihos_oil_gas_data_model.group.yaml",
+        ):
+            self._make_auth_file(auth_dir / name)
+        remove_redundant_auth_files(tmp_path)
+        assert not auth_dir.exists()
+
+    def test_leaves_non_empty_cfihos_auth_dir(self, tmp_path: Path) -> None:
+        from setup_project import remove_redundant_auth_files
+        auth_dir = (
+            tmp_path / "modules" / "datamodels" / "cfihos_oil_and_gas_extension" / "auth"
+        )
+        self._make_auth_file(auth_dir / "gp_cdf_owner_cfihos_oil_gas_data_model.group.yaml")
+        self._make_auth_file(auth_dir / "gp_cdf_read_cfihos_oil_gas_data_model.group.yaml")
+        self._make_auth_file(auth_dir / "other.group.yaml")  # unrelated file stays
+        remove_redundant_auth_files(tmp_path)
+        assert auth_dir.exists()
+
+
+class TestRestoreCdmSpaceFile:
+    """The CDM instance-space file is never shipped as a module asset — the
+    wizard is the only thing that ever writes it, and only for variant == 'cdm'."""
+
+    def _space_file(self, tmp_path: Path) -> Path:
+        return (
+            tmp_path / "modules" / "common" / "cdf_project_foundation"
+            / "data_modeling" / "cdm_instance_space.Space.yaml"
+        )
+
+    def test_creates_file_when_missing_and_variant_is_cdm(self, tmp_path: Path) -> None:
+        from setup_project import restore_cdm_space_file
+        space_file = self._space_file(tmp_path)
+        created = restore_cdm_space_file("cdm", tmp_path)
+        assert created == space_file
+        assert space_file.exists()
+        assert "{{ instanceSpace }}" in space_file.read_text()
+
+    def test_noop_when_file_already_present(self, tmp_path: Path) -> None:
+        from setup_project import restore_cdm_space_file
+        space_file = self._space_file(tmp_path)
+        space_file.parent.mkdir(parents=True)
+        space_file.write_text("space: {{ instanceSpace }}\ncustom: true\n")
+        created = restore_cdm_space_file("cdm", tmp_path)
+        assert created is None
+        assert "custom: true" in space_file.read_text()  # left untouched
+
+    def test_noop_when_variant_is_an_extension(self, tmp_path: Path) -> None:
+        from setup_project import restore_cdm_space_file
+        space_file = self._space_file(tmp_path)
+        created = restore_cdm_space_file("isa_manufacturing_extension", tmp_path)
+        assert created is None
+        assert not space_file.exists()
+
+    def test_leaves_existing_file_untouched_when_variant_is_extension(self, tmp_path: Path) -> None:
+        """A file created during a prior cdm run is intentionally left alone if the
+        project later switches to an extension — nothing deletes it."""
+        from setup_project import restore_cdm_space_file
+        space_file = self._space_file(tmp_path)
+        space_file.parent.mkdir(parents=True)
+        space_file.write_text("space: {{ instanceSpace }}\n")
+        restore_cdm_space_file("isa_manufacturing_extension", tmp_path)
+        assert space_file.exists()
+
 
 # ── setup_project — CFIHOS auth patching ──────────────────────────────────────
 
@@ -764,11 +893,14 @@ class TestRemoveSyntheticData:
             files.append(f)
         return files
 
+    _CFIHOS = "cfihos_oil_and_gas_extension"
+    _ISA = "isa_manufacturing_extension"
+
     def test_removes_upload_data(self, tmp_path: Path) -> None:
         from setup_project import remove_synthetic_data
         cfihos = self._cfihos_dir(tmp_path)
         self._make_files(cfihos / "upload_data", "data.csv", "manifest.yaml")
-        count = remove_synthetic_data(tmp_path)
+        count = remove_synthetic_data(self._CFIHOS, tmp_path)
         assert count == 2
         assert not (cfihos / "upload_data").exists()
 
@@ -776,7 +908,7 @@ class TestRemoveSyntheticData:
         from setup_project import remove_synthetic_data
         cfihos = self._cfihos_dir(tmp_path)
         self._make_files(cfihos / "raw", "db.Database.yaml")
-        count = remove_synthetic_data(tmp_path)
+        count = remove_synthetic_data(self._CFIHOS, tmp_path)
         assert count == 1
         assert not (cfihos / "raw").exists()
 
@@ -784,7 +916,7 @@ class TestRemoveSyntheticData:
         from setup_project import remove_synthetic_data
         cfihos = self._cfihos_dir(tmp_path)
         self._make_files(cfihos / "workflows", "example.Workflow.yaml")
-        count = remove_synthetic_data(tmp_path)
+        count = remove_synthetic_data(self._CFIHOS, tmp_path)
         assert count == 1
         assert not (cfihos / "workflows").exists()
 
@@ -792,7 +924,7 @@ class TestRemoveSyntheticData:
         from setup_project import remove_synthetic_data
         cfihos = self._cfihos_dir(tmp_path)
         self._make_files(cfihos / "transformations", "populate.sql")
-        count = remove_synthetic_data(tmp_path)
+        count = remove_synthetic_data(self._CFIHOS, tmp_path)
         assert count == 1
         assert not (cfihos / "transformations").exists()
 
@@ -803,26 +935,26 @@ class TestRemoveSyntheticData:
         self._make_files(cfihos / "raw", "b.yaml")
         self._make_files(cfihos / "workflows", "c.yaml")
         self._make_files(cfihos / "transformations", "d.sql")
-        count = remove_synthetic_data(tmp_path)
+        count = remove_synthetic_data(self._CFIHOS, tmp_path)
         assert count == 4
         for d in ("upload_data", "raw", "workflows", "transformations"):
             assert not (cfihos / d).exists()
 
     def test_no_op_when_cfihos_not_installed(self, tmp_path: Path) -> None:
         from setup_project import remove_synthetic_data
-        assert remove_synthetic_data(tmp_path) == 0
+        assert remove_synthetic_data(self._CFIHOS, tmp_path) == 0
 
     def test_idempotent_when_dirs_already_removed(self, tmp_path: Path) -> None:
         from setup_project import remove_synthetic_data
         self._cfihos_dir(tmp_path)  # module dir exists but no synthetic dirs
-        assert remove_synthetic_data(tmp_path) == 0
+        assert remove_synthetic_data(self._CFIHOS, tmp_path) == 0
 
     def test_does_not_touch_other_cfihos_dirs(self, tmp_path: Path) -> None:
         from setup_project import remove_synthetic_data
         cfihos = self._cfihos_dir(tmp_path)
         self._make_files(cfihos / "data_modeling", "model.datamodel.yaml")
         self._make_files(cfihos / "auth", "group.yaml")
-        remove_synthetic_data(tmp_path)
+        remove_synthetic_data(self._CFIHOS, tmp_path)
         assert (cfihos / "data_modeling").exists()
         assert (cfihos / "auth").exists()
 
@@ -830,23 +962,22 @@ class TestRemoveSyntheticData:
         from setup_project import remove_synthetic_data
         cfihos = self._cfihos_dir(tmp_path)
         self._make_files(cfihos / "cfihos_model_config", "config.json", "schema.yaml")
-        count = remove_synthetic_data(tmp_path)
+        count = remove_synthetic_data(self._CFIHOS, tmp_path)
         assert count == 2
         assert not (cfihos / "cfihos_model_config").exists()
 
-    def test_removes_empty_auth_dir(self, tmp_path: Path) -> None:
+    def test_cdm_variant_does_not_touch_cfihos_or_isa(self, tmp_path: Path) -> None:
+        """No data model selected (variant == 'cdm') must not delete anything, even
+        if stray ISA/CFIHOS directories are still physically present."""
         from setup_project import remove_synthetic_data
         cfihos = self._cfihos_dir(tmp_path)
-        (cfihos / "auth").mkdir()  # empty auth dir (files already removed)
-        remove_synthetic_data(tmp_path)
-        assert not (cfihos / "auth").exists()
-
-    def test_leaves_non_empty_auth_dir(self, tmp_path: Path) -> None:
-        from setup_project import remove_synthetic_data
-        cfihos = self._cfihos_dir(tmp_path)
-        self._make_files(cfihos / "auth", "group.yaml")
-        remove_synthetic_data(tmp_path)
-        assert (cfihos / "auth").exists()  # still has files — must not be removed
+        isa = self._isa_dir(tmp_path)
+        self._make_files(cfihos / "upload_data", "a.csv")
+        self._make_files(isa / "files", "sample.pdf")
+        count = remove_synthetic_data("cdm", tmp_path)
+        assert count == 0
+        assert (cfihos / "upload_data").exists()
+        assert (isa / "files").exists()
 
     # ── ISA DM cleanup ────────────────────────────────────────────────────────
 
@@ -859,7 +990,7 @@ class TestRemoveSyntheticData:
         from setup_project import remove_synthetic_data
         isa = self._isa_dir(tmp_path)
         self._make_files(isa / "files", "sample.pdf")
-        count = remove_synthetic_data(tmp_path)
+        count = remove_synthetic_data(self._ISA, tmp_path)
         assert count == 1
         assert not (isa / "files").exists()
 
@@ -867,7 +998,7 @@ class TestRemoveSyntheticData:
         from setup_project import remove_synthetic_data
         isa = self._isa_dir(tmp_path)
         self._make_files(isa / "raw", "db.Database.yaml")
-        count = remove_synthetic_data(tmp_path)
+        count = remove_synthetic_data(self._ISA, tmp_path)
         assert count == 1
         assert not (isa / "raw").exists()
 
@@ -876,14 +1007,21 @@ class TestRemoveSyntheticData:
         isa = self._isa_dir(tmp_path)
         self._make_files(isa / "transformations", "tr.sql")
         self._make_files(isa / "workflows", "wf.yaml")
-        count = remove_synthetic_data(tmp_path)
+        count = remove_synthetic_data(self._ISA, tmp_path)
         assert count == 2
         assert not (isa / "transformations").exists()
         assert not (isa / "workflows").exists()
 
     def test_isa_no_op_when_not_installed(self, tmp_path: Path) -> None:
         from setup_project import remove_synthetic_data
-        assert remove_synthetic_data(tmp_path) == 0
+        assert remove_synthetic_data(self._ISA, tmp_path) == 0
+
+    def test_cfihos_variant_does_not_touch_isa_dir(self, tmp_path: Path) -> None:
+        from setup_project import remove_synthetic_data
+        isa = self._isa_dir(tmp_path)
+        self._make_files(isa / "files", "sample.pdf")
+        remove_synthetic_data(self._CFIHOS, tmp_path)
+        assert (isa / "files").exists()
 
     # ── Image / diagram file removal ──────────────────────────────────────────
 
@@ -892,7 +1030,7 @@ class TestRemoveSyntheticData:
         cfihos = self._cfihos_dir(tmp_path)
         (cfihos / "data_model_views.png").write_text("img")
         (cfihos / "dm-workflow.png").write_text("img")
-        count = remove_synthetic_data(tmp_path)
+        count = remove_synthetic_data(self._CFIHOS, tmp_path)
         assert count == 2
         assert not (cfihos / "data_model_views.png").exists()
         assert not (cfihos / "dm-workflow.png").exists()
@@ -901,24 +1039,15 @@ class TestRemoveSyntheticData:
         from setup_project import remove_synthetic_data
         isa = self._isa_dir(tmp_path)
         (isa / "diagram.svg").write_text("svg")
-        count = remove_synthetic_data(tmp_path)
+        count = remove_synthetic_data(self._ISA, tmp_path)
         assert count == 1
         assert not (isa / "diagram.svg").exists()
-
-    def test_removes_images_from_both_modules(self, tmp_path: Path) -> None:
-        from setup_project import remove_synthetic_data
-        cfihos = self._cfihos_dir(tmp_path)
-        isa = self._isa_dir(tmp_path)
-        (cfihos / "model.png").write_text("img")
-        (isa / "isa.png").write_text("img")
-        count = remove_synthetic_data(tmp_path)
-        assert count == 2
 
     def test_data_modeling_dir_not_touched(self, tmp_path: Path) -> None:
         from setup_project import remove_synthetic_data
         isa = self._isa_dir(tmp_path)
         self._make_files(isa / "data_modeling", "model.datamodel.yaml")
-        remove_synthetic_data(tmp_path)
+        remove_synthetic_data(self._ISA, tmp_path)
         assert (isa / "data_modeling").exists()
 
 
@@ -1167,6 +1296,41 @@ class TestGetOrgDirName:
         from _pack_config import get_org_dir_name
         (tmp_path / "cdf.toml").write_text('default_organization_dir = "wrong"\n')
         assert get_org_dir_name(tmp_path) is None
+
+
+class TestDetectDataModelVariant:
+    def test_missing_directory_falls_back_to_cdm(self, tmp_path: Path) -> None:
+        from _pack_config import detect_data_model_variant
+        assert detect_data_model_variant(tmp_path / "modules" / "datamodels") == "cdm"
+
+    def test_empty_directory_falls_back_to_cdm(self, tmp_path: Path) -> None:
+        from _pack_config import detect_data_model_variant
+        data_models_dir = tmp_path / "modules" / "datamodels"
+        data_models_dir.mkdir(parents=True)
+        assert detect_data_model_variant(data_models_dir) == "cdm"
+
+    def test_directory_with_unsupported_subdir_falls_back_to_cdm(self, tmp_path: Path) -> None:
+        from _pack_config import detect_data_model_variant
+        data_models_dir = tmp_path / "modules" / "datamodels"
+        (data_models_dir / "qs_enterprise_dm").mkdir(parents=True)
+        assert detect_data_model_variant(data_models_dir) == "cdm"
+
+    def test_single_known_extension_detected(self, tmp_path: Path) -> None:
+        from _pack_config import detect_data_model_variant
+        data_models_dir = tmp_path / "modules" / "datamodels"
+        (data_models_dir / "isa_manufacturing_extension").mkdir(parents=True)
+        assert detect_data_model_variant(data_models_dir) == "isa_manufacturing_extension"
+
+    def test_multiple_known_extensions_raise(self, tmp_path: Path) -> None:
+        from _pack_config import detect_data_model_variant
+        data_models_dir = tmp_path / "modules" / "datamodels"
+        (data_models_dir / "isa_manufacturing_extension").mkdir(parents=True)
+        (data_models_dir / "cfihos_oil_and_gas_extension").mkdir(parents=True)
+        try:
+            detect_data_model_variant(data_models_dir)
+            raise AssertionError("expected SystemExit")
+        except SystemExit:
+            pass
 
 
 class TestEnvPathResolution:

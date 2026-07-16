@@ -29,7 +29,6 @@ import yaml
 from _env_io import parse_env_file
 from _pack_config import (
     CONTEXTUALIZATION_REDUNDANT_AUTH,
-    KNOWN_DATA_MODEL_DIRS,
     REPO_ROOT,
     TOOLS_REDUNDANT_AUTH,
     deep_merge,
@@ -64,6 +63,11 @@ PERSONAS: tuple[str, ...] = ("consumer", "producer", "admin")
 # ── Data-model-driven variable maps (per variant) ─────────────────────────────
 
 INGESTION_FOUNDATION_VARIABLES: dict[str, dict[str, str]] = {
+    "cdm": {
+        "dataModelVariant": "cdm",
+        "schemaSpace": "cdf_cdm",
+        "instanceSpace": "sp_cdm_instances",
+    },
     "isa_manufacturing_extension": {
         "dataModelVariant": "isa_manufacturing_extension",
         "schemaSpace": "dm_dom_isa_manufacturing",
@@ -81,6 +85,29 @@ INGESTION_FOUNDATION_VARIABLES: dict[str, dict[str, str]] = {
 # ``None`` values are sentinels resolved to the variant's ``instanceSpace``
 # at runtime by ``resolve_contextualization_variables``.
 CONTEXTUALIZATION_VARIABLES: dict[str, dict[str, dict]] = {
+    "cdm": {
+        "cdf_entity_matching": {
+            "schemaSpace": "cdf_cdm",
+            "assetInstanceSpace": None,
+            "timeseriesInstanceSpace": None,
+            "AssetViewExternalId": "CogniteAsset",
+            "TimeSeriesViewExternalId": "CogniteTimeSeries",
+            "targetViewExternalId": "CogniteAsset",
+            "entityViewExternalId": "CogniteTimeSeries",
+            "targetViewSearchProperty": "name",
+            "targetViewFilterValues": [],
+            "entityViewSearchProperty": "name",
+            "entityViewFilterValues": [],
+        },
+        "cdf_file_annotation": {
+            "fileSchemaSpace": "cdf_cdm",
+            "fileInstanceSpace": None,
+            "fileExternalId": "CogniteFile",
+            "targetEntitySchemaSpace": "cdf_cdm",
+            "targetEntityInstanceSpace": None,
+            "targetEntityExternalId": "CogniteAsset",
+        },
+    },
     "isa_manufacturing_extension": {
         "cdf_entity_matching": {
             "schemaSpace": "dm_dom_isa_manufacturing",
@@ -176,6 +203,15 @@ def group_name(persona: str, site: str, env: str) -> str:
     """SOP pattern: ``<persona>_[{site}_]all_<env>``; env is 'dev' (dev+test) or 'prod'."""
     segments = [persona] + ([site] if site else []) + ["all", GROUP_ENV[env]]
     return "_".join(segments)
+
+
+def _cdm_instance_space(site: str) -> str:
+    """Instance space for the base-CDM fallback: ``sp_{site}_instances``.
+
+    Falls back to ``sp_cdm_instances`` when no site has been set yet (matches
+    the "no-site" placeholder convention used for the other foundation defaults).
+    """
+    return f"sp_{site}_instances" if site else "sp_cdm_instances"
 
 
 def resolve_contextualization_variables(
@@ -277,6 +313,8 @@ def build_foundation_vars(
     """Variables block for ``variables.modules.cdf_project_foundation``."""
     ingestion = dict(INGESTION_FOUNDATION_VARIABLES[variant])
     ingestion["site"] = site
+    if variant == "cdm":
+        ingestion["instanceSpace"] = _cdm_instance_space(site)
     # Always write dataset so the key exists; empty list when no SS modules installed.
     ingestion["dataset"] = datasets if datasets is not None else []
     for persona in PERSONAS:
@@ -311,6 +349,8 @@ def build_overlay(
     reliable as Toolkit may delete them after consuming them.
     """
     instance_space = INGESTION_FOUNDATION_VARIABLES[variant]["instanceSpace"]
+    if variant == "cdm":
+        instance_space = _cdm_instance_space(site)
 
     installed_ss = list_installed_source_system_modules(repo_root)
     ctx_vars = resolve_contextualization_variables(variant, instance_space, installed_ctx)
@@ -385,7 +425,7 @@ def resolve_variant(args_variant: str | None, data_models_dir: Path) -> str:
         if args_variant not in INGESTION_FOUNDATION_VARIABLES:
             raise SystemExit(
                 f"ERROR: Unknown --variant '{args_variant}'.\n"
-                f"  Supported: {', '.join(KNOWN_DATA_MODEL_DIRS)}"
+                f"  Supported: {', '.join(INGESTION_FOUNDATION_VARIABLES)}"
             )
         return args_variant
     return detect_data_model_variant(data_models_dir)
@@ -532,12 +572,19 @@ def write_config(path: Path, env: str, project: str, overlay: dict) -> bool:
 
 # ── Redundant auth cleanup ─────────────────────────────────────────────────────
 
+def _rmdir_if_empty(directory: Path) -> None:
+    """Remove ``directory`` if it exists and is now empty."""
+    if directory.is_dir() and not any(directory.iterdir()):
+        directory.rmdir()
+
+
 def remove_redundant_auth_files(repo_root: Path | None = None) -> list[Path]:
     """Remove auth group files covered by cdf_project_foundation.
 
     Covers contextualization modules (entity matching, file annotation) and
     tools/apps modules (qualitizer) whose standalone auth becomes redundant
-    once the foundation persona groups are deployed.
+    once the foundation persona groups are deployed. Removes each module's
+    ``auth/`` directory too once it is left empty.
     """
     modules_root = get_pack_root(repo_root) / "modules"
     removed: list[Path] = []
@@ -545,26 +592,60 @@ def remove_redundant_auth_files(repo_root: Path | None = None) -> list[Path]:
     # Contextualization modules.
     ctx_dir = get_contextualization_dir(repo_root)
     for module_dir in list_installed_contextualization_modules(repo_root):
+        auth_dir = ctx_dir / module_dir / "auth"
         for rel_path in CONTEXTUALIZATION_REDUNDANT_AUTH[module_dir]:
             auth_file = ctx_dir / module_dir / rel_path
             if auth_file.exists():
                 auth_file.unlink()
                 removed.append(auth_file)
                 _ok(f"Removed redundant auth: {auth_file.relative_to(modules_root)}")
+        _rmdir_if_empty(auth_dir)
 
     # Tools / apps modules.
     for module_rel, auth_files in TOOLS_REDUNDANT_AUTH.items():
         module_dir = modules_root / module_rel
         if not module_dir.is_dir():
             continue
+        auth_dir = module_dir / "auth"
         for rel_path in auth_files:
             auth_file = module_dir / rel_path
             if auth_file.exists():
                 auth_file.unlink()
                 removed.append(auth_file)
                 _ok(f"Removed redundant auth: {auth_file.relative_to(modules_root)}")
+        _rmdir_if_empty(auth_dir)
 
     return removed
+
+
+# Space resource that creates the base-CDM instance space. Not shipped as a
+# module asset — cdf_project_foundation has no fixed instance space of its own,
+# so this is written by the wizard only when no data model extension is
+# installed (an installed extension ships its own instance-space resource).
+_CDM_INSTANCE_SPACE_REL_PATH = "modules/common/cdf_project_foundation/data_modeling/cdm_instance_space.Space.yaml"
+_CDM_INSTANCE_SPACE_CONTENT = (
+    "space: {{ instanceSpace }}\n"
+    "name: Instance space\n"
+    "description: Base Cognite Data Model (CogniteCore) instance space\n"
+)
+
+
+def restore_cdm_space_file(variant: str, repo_root: Path | None = None) -> Path | None:
+    """Write the CDM instance-space file when no data model extension is installed.
+
+    No-op unless ``variant == "cdm"``. Since the file is never shipped in the
+    module, this is the only place it gets created — including when a project
+    switches back to ``cdm`` after previously using an extension.
+    """
+    if variant != "cdm":
+        return None
+    space_file = get_pack_root(repo_root) / _CDM_INSTANCE_SPACE_REL_PATH
+    if space_file.exists():
+        return None
+    space_file.parent.mkdir(parents=True, exist_ok=True)
+    space_file.write_text(_CDM_INSTANCE_SPACE_CONTENT)
+    _ok(f"Created CDM instance space file: {_CDM_INSTANCE_SPACE_REL_PATH}")
+    return space_file
 
 
 # ── Staging → test migration ──────────────────────────────────────────────────
@@ -620,11 +701,15 @@ _ISA_SYNTHETIC_DIRS: tuple[str, ...] = (
 _DM_IMAGE_PATTERNS: tuple[str, ...] = ("*.png", "*.svg", "*.drawio", "*.ipynb")
 
 
-def remove_synthetic_data(repo_root: Path | None = None) -> int:
-    """Delete synthetic data directories and diagram files from data model modules.
+def remove_synthetic_data(variant: str, repo_root: Path | None = None) -> int:
+    """Delete synthetic data directories and diagram files from the *installed* data model.
 
     - CFIHOS: upload_data/, raw/, workflows/, transformations/ + image files
     - ISA: files/, raw/, transformations/, workflows/ + image files
+
+    Only touches the extension matching ``variant`` — with ``variant == "cdm"``
+    (no extension selected) this is a no-op, even if a stray ISA/CFIHOS directory
+    happens to be present. Idempotent: does nothing if already cleaned up.
 
     Returns the total number of files removed.
     """
@@ -648,20 +733,17 @@ def remove_synthetic_data(repo_root: Path | None = None) -> int:
                 count += 1
         return count
 
-    cfihos_dir = data_models_dir / "cfihos_oil_and_gas_extension"
-    if cfihos_dir.is_dir():
-        total += _remove_dirs(cfihos_dir, _CFIHOS_SYNTHETIC_DIRS)
-        total += _remove_images(cfihos_dir)
-        # Remove the auth/ directory if it is now empty (auth files were
-        # already deleted by remove_redundant_auth_files earlier in the wizard).
-        auth_dir = cfihos_dir / "auth"
-        if auth_dir.is_dir() and not any(auth_dir.iterdir()):
-            auth_dir.rmdir()
+    if variant == "cfihos_oil_and_gas_extension":
+        cfihos_dir = data_models_dir / "cfihos_oil_and_gas_extension"
+        if cfihos_dir.is_dir():
+            total += _remove_dirs(cfihos_dir, _CFIHOS_SYNTHETIC_DIRS)
+            total += _remove_images(cfihos_dir)
 
-    isa_dir = data_models_dir / "isa_manufacturing_extension"
-    if isa_dir.is_dir():
-        total += _remove_dirs(isa_dir, _ISA_SYNTHETIC_DIRS)
-        total += _remove_images(isa_dir)
+    if variant == "isa_manufacturing_extension":
+        isa_dir = data_models_dir / "isa_manufacturing_extension"
+        if isa_dir.is_dir():
+            total += _remove_dirs(isa_dir, _ISA_SYNTHETIC_DIRS)
+            total += _remove_images(isa_dir)
 
     return total
 
@@ -1225,6 +1307,7 @@ def _finalize_wizard(
     pack_root: Path,
     selected_envs: tuple[str, ...],
     *,
+    variant: str,
     keep_synthetic: bool,
     env_dirty: bool,
     changed_count: int,
@@ -1247,11 +1330,12 @@ def _finalize_wizard(
 
     removed = remove_redundant_auth_files(repo_root)
     patched = patch_cfihos_auth_for_missing_search(repo_root)
+    created_cdm_space = restore_cdm_space_file(variant, repo_root)
     _cleanup_file_annotation_module(repo_root)
 
     synthetic_removed = 0
     if not keep_synthetic:
-        synthetic_removed = remove_synthetic_data(repo_root)
+        synthetic_removed = remove_synthetic_data(variant, repo_root)
         if synthetic_removed:
             _ok(f"Removed {synthetic_removed} synthetic data file(s) from upload_data/ directories.")
 
@@ -1263,6 +1347,8 @@ def _finalize_wizard(
         _ok(f"{len(removed)} redundant auth file(s) removed.")
     if patched:
         _ok(f"{len(patched)} cfihos auth file(s) patched (search_space removed).")
+    if created_cdm_space:
+        _ok("CDM instance space file created (no data model extension installed).")
     if env_dirty:
         _ok(".env updated with group source IDs.")
     if synthetic_removed:
@@ -1322,7 +1408,9 @@ def _run_wizard(
         site, installed_ss, repo_root
     )
     app_owner = _prompt_app_owner(installed_ctx, existing["app_owner"])
-    keep_synthetic = _prompt_synthetic_data()
+    # No data model extension installed under "cdm" — nothing for
+    # remove_synthetic_data to clean up, so don't ask.
+    keep_synthetic = True if variant == "cdm" else _prompt_synthetic_data()
 
     env_dirty = _env_values_dirty(env_vals, original_env_vals)
     _show_wizard_review(targets, project_names, env_dirty)
@@ -1348,6 +1436,7 @@ def _run_wizard(
     _finalize_wizard(
         pack_root,
         selected_envs,
+        variant=variant,
         keep_synthetic=keep_synthetic,
         env_dirty=env_dirty,
         changed_count=changed_count,
@@ -1477,6 +1566,10 @@ def _run_check(
             if (ctx_dir / module_dir / rel_path).exists():
                 stale_auth.append(ctx_dir / module_dir / rel_path)
 
+    missing_cdm_space = variant == "cdm" and not (
+        get_pack_root(repo_root) / _CDM_INSTANCE_SPACE_REL_PATH
+    ).exists()
+
     if all_errors:
         print(f"ERROR: Config file(s) out of sync with variant '{variant}':\n")
         for filename, errs in all_errors.items():
@@ -1489,6 +1582,13 @@ def _run_check(
         print("ERROR: Redundant auth file(s) still present (covered by cdf_project_foundation):")
         for p in stale_auth:
             print(f"  {p.relative_to(ctx_dir.parent.parent)}")
+        print("\n  Run: python scripts/setup_project.py -y")
+        sys.exit(1)
+    if missing_cdm_space:
+        print(
+            f"ERROR: CDM instance space file missing for variant '{variant}':\n"
+            f"  {_CDM_INSTANCE_SPACE_REL_PATH}"
+        )
         print("\n  Run: python scripts/setup_project.py -y")
         sys.exit(1)
     print(f"OK: All config file(s) match variant '{variant}'. No stale auth files.")
@@ -1513,7 +1613,7 @@ def main() -> None:
     )
     parser.add_argument(
         "--variant",
-        choices=list(KNOWN_DATA_MODEL_DIRS),
+        choices=list(INGESTION_FOUNDATION_VARIABLES),
         default=None,
         help="Force the data model variant instead of auto-detecting it",
     )

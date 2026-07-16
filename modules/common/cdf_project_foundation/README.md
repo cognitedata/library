@@ -54,13 +54,22 @@ Select **Foundation Deployment Pack** from the list.
 
 The module selector presents all available modules. Make selections carefully:
 
-**Data model** — select **exactly one** core variant:
+**Data model** — optional, select **at most one** core variant:
 
 > ⚠️ **Select only one data model variant.** Selecting both will break auto-detection
-> and require the `--variant` flag on every script run.
+> and require the `--variant` flag on every script run. If you select **none**, the
+> pack automatically configures itself against the base Cognite Data Model
+> (CogniteCore, space `cdf_cdm`) — no extra module required, and the setup wizard
+> will not error. Since there's no extension module to create the instance space,
+> the setup wizard writes a `data_modeling/cdm_instance_space.Space.yaml` resource
+> into `cdf_project_foundation` that creates `sp_{site}_instances` (the same
+> `sp_<site>_<suffix>` convention used for the extractor instance spaces). This
+> file is only ever written when no extension is selected — it isn't shipped by
+> the module itself.
 
 | Option | Description |
 |--------|-------------|
+| *(none selected)* | Falls back to the base Cognite Data Model (CogniteCore) — `CogniteAsset` / `CogniteTimeSeries` / `CogniteFile` in space `cdf_cdm`. |
 | [`isa_manufacturing_extension`](../../datamodels/isa_manufacturing_extension/README.md) | ISA-95 enterprise data model for manufacturing assets (assets, equipment, functional locations, time series). |
 | [`cfihos_oil_and_gas_extension`](../../datamodels/cfihos_oil_and_gas_extension/README.md) | CFIHOS enterprise data model for oil & gas assets. |
 
@@ -126,6 +135,8 @@ Other options:
 
 ```bash
 python modules/common/cdf_project_foundation/scripts/setup_project.py -y --variant isa_manufacturing_extension
+
+python modules/common/cdf_project_foundation/scripts/setup_project.py -y --variant cdm
 
 python modules/common/cdf_project_foundation/scripts/setup_project.py --check   # CI drift check
 ```

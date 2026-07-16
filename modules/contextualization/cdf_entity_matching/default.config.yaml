@@ -9,19 +9,19 @@ source_name: springfield
 dbName: db_asset_entity_matching
 contextualizationId: entity_matcher
 contextualizationName: Entity Matcher
-schemaSpace: dm_dom_oil_and_gas
+schemaSpace: cdf_cdm
 viewVersion: v1
-assetInstanceSpace: inst_location
-timeseriesInstanceSpace: inst_location
+assetInstanceSpace: sp_cdm_instances
+timeseriesInstanceSpace: sp_cdm_instances
 functionSpace: sp_entity_matching_fn # space where function code nodes are stored — created by this module
-AssetViewExternalId: Tag
-TimeSeriesViewExternalId: TimeSeriesData
-targetViewExternalId: Tag
-entityViewExternalId: TimeSeriesData
+AssetViewExternalId: CogniteAsset
+TimeSeriesViewExternalId: CogniteTimeSeries
+targetViewExternalId: CogniteAsset
+entityViewExternalId: CogniteTimeSeries
 targetViewSearchProperty: name
-targetViewFilterValues: ["root:WMT"]
+targetViewFilterValues: []
 entityViewSearchProperty: aliases
-entityViewFilterValues: ["site:VAL"]
+entityViewFilterValues: []
 
 workflow: EntityMatching
 ### UPDATE THE FOLLOWING VALUES FOR YOUR IDP CONFIGURATION ###
