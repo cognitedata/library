@@ -31,11 +31,13 @@ jobs:
       uses: jakebailey/pyright-action@v2
 
     - name: Run tests
+      env:
+        PYTHONPATH: .
       run: |
         uv run pytest tests/ -q
-        uv run pytest modules/contextualization/cdf_entity_matching/functions/fn_dm_context_timeseries_entity_matching/ -q
-        uv run pytest modules/contextualization/cdf_entity_matching/functions/fn_dm_context_metadata_update/test_metadata_optimizations.py -q
-        uv run pytest modules/contextualization/cdf_p_and_id_annotation/functions/fn_dm_context_files_annotation/ -q
+        uv run pytest modules/contextualization/cdf_entity_matching/functions/fn_dm_context_timeseries_entity_matching/ --rootdir=. -q
+        uv run pytest modules/contextualization/cdf_entity_matching/functions/fn_dm_context_metadata_update/test_metadata_optimizations.py --rootdir=. -q
+        uv run pytest modules/contextualization/cdf_p_and_id_annotation/functions/fn_dm_context_files_annotation/ --rootdir=. -q
 
     - name: Validate packages.toml
       run: |
