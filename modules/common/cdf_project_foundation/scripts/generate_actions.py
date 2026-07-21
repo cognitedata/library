@@ -3,9 +3,9 @@
 Generate GitHub Actions CI/CD for a Toolkit project using the Foundation Deployment Pack.
 
 Implements the branching model and workflows from sop-cdf-project-setup.md (Step 5):
-  - PR to dev, and PR to main when config.test.yaml exists → dry-run
+  - PR to dev, and PR to main when config.test.yaml or config.staging.yaml exists → dry-run
   - Push to dev → deploy to config.dev.yaml's environment.project
-  - Push to main → deploy to config.test.yaml's environment.project when present
+  - Push to main → deploy to the detected test/staging environment.project when present
   - Release published from main → deploy to config.prod.yaml's environment.project
 
 Run from the Toolkit project root after `cdf modules add -d dp:foundation`:
@@ -29,9 +29,9 @@ except ImportError:
 
 MODULE_DIR = Path(__file__).resolve().parents[1]
 TEMPLATES_DIR = MODULE_DIR / "templates" / "github"
-ENVIRONMENTS = ("dev", "test", "prod")
-DEPLOY_BRANCHES = {"dev": "dev", "test": "main"}
-ENV_LABELS = {"dev": "Dev", "test": "Test"}
+ENVIRONMENTS = ("dev", "test", "staging", "prod")
+DEPLOY_BRANCHES = {"dev": "dev", "test": "main", "staging": "main"}
+ENV_LABELS = {"dev": "Dev", "test": "Test", "staging": "Staging"}
 CONFIG_FLAG_MIN_VERSION = (0, 8, 0)
 
 
@@ -180,7 +180,7 @@ def load_environment_projects(repo_root: Path, org_dir: str | None) -> dict[str,
 
 
 def deployable_envs(projects: dict[str, str]) -> list[str]:
-    return [env for env in ("dev", "test") if env in projects]
+    return [env for env in ("dev", "test", "staging") if env in projects]
 
 
 def workflow_file_list(projects: dict[str, str]) -> str:
@@ -199,7 +199,8 @@ def branch_envs(projects: dict[str, str]) -> dict[str, str]:
         branch = DEPLOY_BRANCHES[env]
         if branch in envs_by_branch:
             raise ValueError(
-                f"Both {envs_by_branch[branch]!r} and {env!r} map to branch {branch!r}."
+                f"Both {envs_by_branch[branch]!r} and {env!r} map to branch {branch!r}. "
+                "Use either config.test.yaml or config.staging.yaml, not both."
             )
         envs_by_branch[branch] = env
     return envs_by_branch
@@ -366,7 +367,7 @@ def main() -> None:
     if not deploy_template.is_file():
         print(f"Missing template: {deploy_template}", file=sys.stderr)
         sys.exit(1)
-    for env in ("dev", "test"):
+    for env in ("dev", "test", "staging"):
         if env not in projects:
             remove_file(repo_root / ".github" / "workflows" / f"deploy-{env}.yml")
             continue
