@@ -18,7 +18,7 @@ def test_generator_scripts_exist() -> None:
 
 def test_discover_foundation_modules_includes_project_foundation() -> None:
     sys.path.insert(0, str(MODULE_ROOT / "scripts"))
-    from generate_actions import discover_foundation_module_paths
+    from generate_actions import discover_foundation_module_paths  # pyright: ignore[reportMissingImports]
 
     paths = discover_foundation_module_paths(REPO_ROOT / "modules", REPO_ROOT)
     assert "common/cdf_project_foundation" in paths
@@ -256,3 +256,147 @@ environment:
     assert "`acme-prod`" in cicd_docs
     assert "`acme-test`" not in cicd_docs
     assert "config.test.yaml" not in cicd_docs
+
+
+def test_generate_actions_supports_dev_only_config(tmp_path: Path) -> None:
+    (tmp_path / "cdf.toml").write_text(
+        """
+[modules]
+version = "0.8.0"
+""".strip(),
+        encoding="utf-8",
+    )
+    modules = tmp_path / "modules" / "common" / "cdf_project_foundation"
+    modules.mkdir(parents=True)
+    (modules / "module.toml").write_text(
+        'id = "cdf_project_foundation"\npackage_id = "dp:foundation"\n',
+        encoding="utf-8",
+    )
+    (tmp_path / "config.dev.yaml").write_text(
+        """
+environment:
+  name: dev
+  project: acme-dev
+""".lstrip(),
+        encoding="utf-8",
+    )
+    workflows = tmp_path / ".github" / "workflows"
+    workflows.mkdir(parents=True)
+    stale_test_workflow = workflows / "deploy-test.yml"
+    stale_prod_workflow = workflows / "deploy-prod.yml"
+    stale_test_workflow.write_text("stale\n", encoding="utf-8")
+    stale_prod_workflow.write_text("stale\n", encoding="utf-8")
+
+    subprocess.run(
+        [
+            sys.executable,
+            str(GENERATE_ACTIONS),
+            "--force",
+        ],
+        check=True,
+        cwd=tmp_path,
+    )
+
+    assert (workflows / "dry-run.yml").is_file()
+    assert (workflows / "deploy-dev.yml").is_file()
+    assert not stale_test_workflow.exists()
+    assert not stale_prod_workflow.exists()
+
+    dry_run = (workflows / "dry-run.yml").read_text(encoding="utf-8")
+    assert "      - dev" in dry_run
+    assert "      - main" not in dry_run
+    assert "deploy-test.yml" not in dry_run
+    assert "deploy-prod.yml" not in dry_run
+    assert "test-toolkit-credentials" not in dry_run
+    assert "prod-toolkit-credentials" not in dry_run
+    assert "config.test.yaml" not in dry_run
+    assert "config.prod.yaml" not in dry_run
+    assert "cdf build -c config.dev.yaml" in dry_run
+
+    cicd_docs = (tmp_path / "docs" / "FOUNDATION_CICD.md").read_text(encoding="utf-8")
+    assert "`acme-dev`" in cicd_docs
+    assert "`acme-test`" not in cicd_docs
+    assert "`acme-prod`" not in cicd_docs
+    assert "config.test.yaml" not in cicd_docs
+    assert "config.prod.yaml" not in cicd_docs
+
+
+def test_generate_actions_supports_selected_environment_combinations(tmp_path: Path) -> None:
+    cases = [
+        ("dev",),
+        ("test",),
+        ("prod",),
+        ("dev", "test"),
+        ("dev", "prod"),
+        ("test", "prod"),
+        ("dev", "test", "prod"),
+    ]
+    deployable = {"dev", "test"}
+    all_workflows = {
+        "dry-run.yml",
+        "deploy-dev.yml",
+        "deploy-test.yml",
+        "deploy-prod.yml",
+    }
+
+    for envs in cases:
+        case_dir = tmp_path / "-".join(envs)
+        case_dir.mkdir()
+        (case_dir / "cdf.toml").write_text(
+            """
+[modules]
+version = "0.8.0"
+""".strip(),
+            encoding="utf-8",
+        )
+        modules = case_dir / "modules" / "common" / "cdf_project_foundation"
+        modules.mkdir(parents=True)
+        (modules / "module.toml").write_text(
+            'id = "cdf_project_foundation"\npackage_id = "dp:foundation"\n',
+            encoding="utf-8",
+        )
+        for env in envs:
+            (case_dir / f"config.{env}.yaml").write_text(
+                f"""
+environment:
+  name: {env}
+  project: acme-{env}
+""".lstrip(),
+                encoding="utf-8",
+            )
+
+        workflows = case_dir / ".github" / "workflows"
+        workflows.mkdir(parents=True)
+        for name in all_workflows:
+            (workflows / name).write_text("stale\n", encoding="utf-8")
+
+        subprocess.run(
+            [
+                sys.executable,
+                str(GENERATE_ACTIONS),
+                "--force",
+            ],
+            check=True,
+            cwd=case_dir,
+        )
+
+        expected = set()
+        if deployable.intersection(envs):
+            expected.add("dry-run.yml")
+        for env in envs:
+            expected.add(f"deploy-{env}.yml")
+
+        for name in all_workflows:
+            path = workflows / name
+            if name in expected:
+                assert path.is_file(), f"{envs}: expected {name}"
+            else:
+                assert not path.exists(), f"{envs}: unexpected stale {name}"
+
+        docs = (case_dir / "docs" / "FOUNDATION_CICD.md").read_text(encoding="utf-8")
+        for env in envs:
+            assert f"`acme-{env}`" in docs
+            assert f"`config.{env}.yaml`" in docs
+        for env in {"dev", "test", "prod"} - set(envs):
+            assert f"`acme-{env}`" not in docs
+            assert f"`config.{env}.yaml`" not in docs
