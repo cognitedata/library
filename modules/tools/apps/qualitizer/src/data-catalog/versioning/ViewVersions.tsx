@@ -559,7 +559,7 @@ export function ViewVersions() {
   }, [dataModelsStatus, dataModels, retrieveDataModels]);
 
   useEffect(() => {
-    if (isSdkLoading) return;
+    if (isSdkLoading || modelOptions.length === 0) return;
     let cancelled = false;
     const load = async () => {
       const destinationTxByCell = new Map<string, Array<{ id: string; name: string }>>();

@@ -20,14 +20,14 @@ export function normalizeDeploymentPackId(raw: string): string {
   const trimmed = raw.trim();
   if (!trimmed) return trimmed;
 
-  const synonym = SYNONYM_TO_ID.get(trimmed);
+  const lower = trimmed.toLowerCase();
+  const synonym = SYNONYM_TO_ID.get(lower);
   if (synonym) return synonym;
-  if (KNOWN_IDS.has(trimmed)) return trimmed;
+  if (KNOWN_IDS.has(lower)) return lower;
 
   const byName = NAME_TO_ID.get(trimmed);
   if (byName) return byName;
 
-  const lower = trimmed.toLowerCase();
   for (const [name, id] of NAME_TO_ID) {
     if (name.toLowerCase() === lower) return id;
   }

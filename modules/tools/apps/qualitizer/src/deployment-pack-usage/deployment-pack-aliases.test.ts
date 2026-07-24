@@ -47,6 +47,12 @@ describe("normalizeDeploymentPackId", () => {
     expect(normalizeDeploymentPackId("CDF Common")).toBe("dp:accelerators:cdf_common");
   });
 
+  it("matches synonyms and ids case-insensitively", () => {
+    expect(normalizeDeploymentPackId("DP:cdf_common")).toBe("dp:accelerators:cdf_common");
+    expect(normalizeDeploymentPackId("DP:Accelerators:CDF_Common")).toBe("dp:accelerators:cdf_common");
+    expect(normalizeDeploymentPackId("DP:TOOL:Qualitizer")).toBe("dp:app:qualitizer");
+  });
+
   it("leaves unknown values unchanged", () => {
     expect(normalizeDeploymentPackId("dp:unknown:pack")).toBe("dp:unknown:pack");
   });
