@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { useAppSdk } from "@/shared/auth";
+import { useI18n } from "@/shared/i18n";
 import { ApiError } from "@/shared/ApiError";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { LoadProgressCard } from "@/shared/LoadProgressCard";
@@ -34,7 +35,8 @@ import {
   CogniteDescribableCard,
 } from "./doc-lookup-property-cards";
 import {
-  DATA_CATEGORY_LABELS,
+  DATA_CATEGORY_SWATCHES,
+  getDataCategoryLabels,
   getPropertyColorClasses,
   getViewSpaceDataCategory,
   getViewSpaceTheme,
@@ -107,6 +109,7 @@ function countDefinitionsWithVersionDrift(entry: DocLookupNodeResult): number {
 }
 
 function LookupSummary({ result }: { result: DocLookupData }) {
+  const { t } = useI18n();
   const spaceCount = result.nodes.length;
   const viewVersionCount = result.nodes.reduce((sum, entry) => sum + entry.views.length, 0);
   const uniqueViewCount = result.nodes.reduce(
@@ -119,34 +122,43 @@ function LookupSummary({ result }: { result: DocLookupData }) {
   return (
     <div className="flex flex-wrap gap-3 text-sm text-slate-700">
       <span className="rounded-md border border-slate-200 bg-white px-3 py-1.5">
-        <span className="font-medium tabular-nums">{spaceCount}</span> instance
-        {spaceCount === 1 ? "" : "s"} in {spaceCount === 1 ? "1 space" : `${spaceCount} spaces`}
+        {spaceCount === 1
+          ? t("dataCatalog.docLookup.summary.instancesOneSpace", { count: spaceCount })
+          : t("dataCatalog.docLookup.summary.instancesManySpaces", {
+              count: spaceCount,
+              spaceCount,
+            })}
       </span>
       <span className="rounded-md border border-slate-200 bg-white px-3 py-1.5">
-        <span className="font-medium tabular-nums">{viewVersionCount}</span> view version
-        {viewVersionCount === 1 ? "" : "s"}
+        {viewVersionCount === 1
+          ? t("dataCatalog.docLookup.summary.viewVersionOne", { count: viewVersionCount })
+          : t("dataCatalog.docLookup.summary.viewVersionMany", { count: viewVersionCount })}
         {uniqueViewCount !== viewVersionCount ? (
           <>
             {" "}
-            (<span className="font-medium tabular-nums">{uniqueViewCount}</span> unique view
-            {uniqueViewCount === 1 ? "" : "s"})
+            {uniqueViewCount === 1
+              ? t("dataCatalog.docLookup.summary.uniqueViewOne", { count: uniqueViewCount })
+              : t("dataCatalog.docLookup.summary.uniqueViewMany", { count: uniqueViewCount })}
           </>
         ) : null}
       </span>
       {driftCount > 0 ? (
         <span className="rounded-md border border-amber-200 bg-amber-50 px-3 py-1.5 text-amber-900">
-          <span className="font-medium tabular-nums">{driftCount}</span> view
-          {driftCount === 1 ? "" : "s"} with differing stored data
+          {driftCount === 1
+            ? t("dataCatalog.docLookup.summary.driftOne", { count: driftCount })
+            : t("dataCatalog.docLookup.summary.driftMany", { count: driftCount })}
         </span>
       ) : null}
       {inspectErrors > 0 ? (
         <span className="rounded-md border border-amber-200 bg-amber-50 px-3 py-1.5 text-amber-900">
-          {inspectErrors} inspect error{inspectErrors === 1 ? "" : "s"}
+          {inspectErrors === 1
+            ? t("dataCatalog.docLookup.summary.inspectErrorOne", { count: inspectErrors })
+            : t("dataCatalog.docLookup.summary.inspectErrorMany", { count: inspectErrors })}
         </span>
       ) : null}
       {result.listTruncated ? (
         <span className="rounded-md border border-amber-200 bg-amber-50 px-3 py-1.5 text-amber-900">
-          List capped — refine the external ID if needed
+          {t("dataCatalog.docLookup.summary.listTruncated")}
         </span>
       ) : null}
     </div>
@@ -172,6 +184,7 @@ function countViewDefinitionProperties(definition: DocLookupViewDefinitionData):
 }
 
 function PropertyCountMatrix({ result }: { result: DocLookupData }) {
+  const { t } = useI18n();
   const [selected, setSelected] = useState<{
     entry: DocLookupNodeResult;
     definition: DocLookupViewDefinitionData;
@@ -207,7 +220,7 @@ function PropertyCountMatrix({ result }: { result: DocLookupData }) {
 
   return (
     <div className="flex flex-col gap-1.5">
-      <h3 className="text-sm font-medium text-slate-900">Metadata properties by instance space and view</h3>
+      <h3 className="text-sm font-medium text-slate-900">{t("dataCatalog.docLookup.matrix.title")}</h3>
       <div className="overflow-auto rounded-md border border-slate-200">
         <table className="border-collapse text-xs">
           <thead>
@@ -216,7 +229,7 @@ function PropertyCountMatrix({ result }: { result: DocLookupData }) {
                 rowSpan={2}
                 className="sticky left-0 z-10 border-b border-r border-slate-200 bg-slate-50 px-3 py-1.5 text-left font-medium text-slate-600"
               >
-                Instance space
+                {t("dataCatalog.docLookup.matrix.instanceSpace")}
               </th>
               {groups.map((group) => {
                 const theme = getViewSpaceTheme(group.category);
@@ -224,7 +237,7 @@ function PropertyCountMatrix({ result }: { result: DocLookupData }) {
                   <th
                     key={group.viewSpace}
                     colSpan={group.columns.length}
-                    className={`border-b border-l border-slate-200 px-3 py-1.5 text-center font-medium ${DATA_CATEGORY_LABELS[group.category].swatch} ${theme.headerText}`}
+                    className={`border-b border-l border-slate-200 px-3 py-1.5 text-center font-medium ${DATA_CATEGORY_SWATCHES[group.category]} ${theme.headerText}`}
                   >
                     <span className="font-mono">{group.viewSpace}</span>
                   </th>
@@ -279,7 +292,11 @@ function PropertyCountMatrix({ result }: { result: DocLookupData }) {
                         <button
                           type="button"
                           className="block w-full cursor-pointer px-3 py-1.5 font-medium tabular-nums text-slate-800 hover:bg-slate-100 hover:underline"
-                          title={`View ${count} field${count === 1 ? "" : "s"}`}
+                          title={
+                            count === 1
+                              ? t("dataCatalog.docLookup.matrix.viewFieldsOne", { count })
+                              : t("dataCatalog.docLookup.matrix.viewFieldsMany", { count })
+                          }
                           onClick={() => setSelected({ entry, definition })}
                         >
                           {count}
@@ -306,6 +323,7 @@ function PropertyCountCellDialog({
   selected: { entry: DocLookupNodeResult; definition: DocLookupViewDefinitionData } | null;
   onClose: () => void;
 }) {
+  const { t } = useI18n();
   const entry = selected?.definition.displayVersions[0] ?? selected?.definition.versions[0] ?? null;
   const category =
     selected !== null ? getViewSpaceDataCategory(selected.definition.viewSpace) : "standard";
@@ -324,9 +342,11 @@ function PropertyCountCellDialog({
       {selected !== null && entry !== null ? (
         <div className="flex flex-col gap-3">
           <p className="text-xs text-slate-500">
-            Instance <span className="font-mono">{selected.entry.node.externalId}</span> in space{" "}
-            <span className="font-mono">{selected.entry.node.space}</span> — fields from{" "}
-            <span className="font-mono">{formatViewRef(entry.view)}</span>.
+            {t("dataCatalog.docLookup.matrix.instanceInSpace", {
+              externalId: selected.entry.node.externalId,
+              space: selected.entry.node.space,
+              viewRef: formatViewRef(entry.view),
+            })}
           </p>
           <PropertiesBlock
             properties={entry.properties}
@@ -342,6 +362,7 @@ function PropertyCountCellDialog({
 }
 
 function DiagnosticJsonButton({ result }: { result: DocLookupData }) {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const json = useMemo(() => buildDocLookupDiagnosticJson(result), [result]);
   const [copied, setCopied] = useState(false);
@@ -361,17 +382,16 @@ function DiagnosticJsonButton({ result }: { result: DocLookupData }) {
       <button
         type="button"
         className={PANEL_TOOL_ICON_BUTTON_CLASS}
-        title="Raw JSON (diagnostics)"
-        aria-label="Raw JSON (diagnostics)"
+        title={t("dataCatalog.docLookup.diagnostics.title")}
+        aria-label={t("dataCatalog.docLookup.diagnostics.title")}
         onClick={() => setOpen(true)}
       >
         <JsonBracesIcon className="h-3.5 w-3.5" />
       </button>
 
-      <Dialog open={open} onClose={() => setOpen(false)} title="Raw JSON (diagnostics)" wide>
+      <Dialog open={open} onClose={() => setOpen(false)} title={t("dataCatalog.docLookup.diagnostics.title")} wide>
         <p className="mb-3 text-xs text-slate-500">
-          Parsed summary plus raw <code className="rounded bg-slate-100 px-1">instances.list</code>,{" "}
-          <code className="rounded bg-slate-100 px-1">instances.inspect</code>, and retrieved view properties.
+          {t("dataCatalog.docLookup.diagnostics.description")}
         </p>
         <div className="mb-2 flex justify-end">
           <button
@@ -379,7 +399,7 @@ function DiagnosticJsonButton({ result }: { result: DocLookupData }) {
             onClick={() => void copyJson()}
             className="cursor-pointer rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
           >
-            {copied ? "Copied" : "Copy JSON"}
+            {copied ? t("dataCatalog.docLookup.diagnostics.copied") : t("dataCatalog.docLookup.diagnostics.copy")}
           </button>
         </div>
         <pre className="overflow-auto rounded-md bg-slate-100 p-4 font-mono text-xs whitespace-pre-wrap text-slate-800">
@@ -399,6 +419,7 @@ function PropertyChangesTable({
   baselineLabel: string;
   valueLabel: string;
 }) {
+  const { t } = useI18n();
   if (changes.length === 0) return null;
 
   return (
@@ -406,7 +427,9 @@ function PropertyChangesTable({
       <table className="w-full border-collapse text-xs">
         <thead className="bg-amber-50 text-left text-slate-700">
           <tr>
-            <th className="border-b border-amber-200 px-2 py-1.5 font-medium">Property</th>
+            <th className="border-b border-amber-200 px-2 py-1.5 font-medium">
+              {t("dataCatalog.docLookup.propertyTable.property")}
+            </th>
             <th className="border-b border-amber-200 px-2 py-1.5 font-medium">{baselineLabel}</th>
             <th className="border-b border-amber-200 px-2 py-1.5 font-medium">{valueLabel}</th>
           </tr>
@@ -550,6 +573,7 @@ function PropertiesBlock({
   viewExternalId: string;
   category: DocLookupDataCategory;
 }) {
+  const { t } = useI18n();
   const json = useMemo(() => JSON.stringify(properties, null, 2), [properties]);
   const isEmpty = Object.keys(properties).length === 0;
   const useStructuredDisplay =
@@ -572,10 +596,11 @@ function PropertiesBlock({
   if (isEmpty) {
     return (
       <div className="flex flex-col gap-1">
-        <p className="text-sm text-slate-500">No properties returned for this view version.</p>
+        <p className="text-sm text-slate-500">{t("dataCatalog.docLookup.noProperties")}</p>
         {propertyKey !== null ? (
           <p className="text-xs text-slate-400">
-            Expected property key: <span className="font-mono">{propertyKey}</span>
+            {t("dataCatalog.docLookup.expectedPropertyKey")}{" "}
+            <span className="font-mono">{propertyKey}</span>
           </p>
         ) : null}
       </div>
@@ -651,6 +676,7 @@ function ViewVersionSearchDialog({
   node: DocLookupNodeSummary;
   view: DocLookupViewRef;
 }) {
+  const { t } = useI18n();
   const { sdk } = useAppSdk();
   const defaultRequest = useMemo(
     () => buildViewVersionSearchRequest(node, view, node.externalId),
@@ -676,13 +702,13 @@ function ViewVersionSearchDialog({
       try {
         const parsed = JSON.parse(requestBodyJson) as unknown;
         if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-          setParseError("Request must be a JSON object.");
+          setParseError(t("dataCatalog.docLookup.search.requestNotObject"));
           setLoading(false);
           return;
         }
         requestBody = parsed as Record<string, unknown>;
       } catch {
-        setParseError("Request JSON is invalid.");
+        setParseError(t("dataCatalog.docLookup.search.requestInvalid"));
         setLoading(false);
         return;
       }
@@ -699,7 +725,7 @@ function ViewVersionSearchDialog({
       }
       setLoading(false);
     },
-    [sdk]
+    [sdk, t]
   );
 
   useEffect(() => {
@@ -734,24 +760,21 @@ function ViewVersionSearchDialog({
       }
       setParseError(null);
     } catch {
-      setParseError("Request JSON is invalid — fix it before sorting keys.");
+      setParseError(t("dataCatalog.docLookup.search.requestInvalidSort"));
     }
   }, [requestJson, responseJson]);
 
   return (
-    <Dialog open={open} onClose={onClose} title={`Search: ${formatViewRef(view)}`} wide>
+    <Dialog open={open} onClose={onClose} title={t("dataCatalog.docLookup.search.title", { viewRef: formatViewRef(view) })} wide>
       <form onSubmit={onSubmit} className="flex h-full min-h-0 flex-col gap-3">
-        <p className="text-xs text-slate-500">
-          Edit the <code className="rounded bg-slate-100 px-1">instances/search</code> request body, then run
-          the query. Response is shown separately below.
-        </p>
+        <p className="text-xs text-slate-500">{t("dataCatalog.docLookup.search.description")}</p>
         <div className="flex flex-wrap gap-2">
           <button
             type="submit"
             disabled={loading}
             className="cursor-pointer rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
           >
-            {loading ? "Running…" : "Run search"}
+            {loading ? t("dataCatalog.docLookup.search.running") : t("dataCatalog.docLookup.search.run")}
           </button>
           <button
             type="button"
@@ -759,7 +782,7 @@ function ViewVersionSearchDialog({
             onClick={resetRequest}
             className="cursor-pointer rounded-md border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            Reset request
+            {t("dataCatalog.docLookup.search.reset")}
           </button>
           <button
             type="button"
@@ -767,7 +790,7 @@ function ViewVersionSearchDialog({
             onClick={sortJsonKeys}
             className="cursor-pointer rounded-md border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            Sort keys
+            {t("dataCatalog.docLookup.search.sortKeys")}
           </button>
         </div>
         {parseError !== null ? (
@@ -782,7 +805,7 @@ function ViewVersionSearchDialog({
               htmlFor={`doc-lookup-search-request-${view.space}-${view.version}`}
               className="text-xs font-medium text-slate-700"
             >
-              Request
+              {t("dataCatalog.docLookup.search.requestLabel")}
             </label>
             <textarea
               id={`doc-lookup-search-request-${view.space}-${view.version}`}
@@ -794,16 +817,18 @@ function ViewVersionSearchDialog({
             />
           </div>
           <div className="flex min-h-0 flex-col gap-1">
-            <div className="text-xs font-medium text-slate-700">Response</div>
+            <div className="text-xs font-medium text-slate-700">
+              {t("dataCatalog.docLookup.search.responseLabel")}
+            </div>
             {loading ? (
-              <p className="text-sm text-slate-500">Running search…</p>
+              <p className="text-sm text-slate-500">{t("dataCatalog.docLookup.search.runningSearch")}</p>
             ) : responseJson !== null ? (
               <pre className="min-h-64 flex-1 overflow-auto rounded-md border border-slate-200 bg-slate-100 p-3 font-mono text-xs whitespace-pre-wrap text-slate-800">
                 {responseJson}
               </pre>
             ) : (
               <div className="min-h-64 rounded-md border border-dashed border-slate-200 bg-slate-50 p-3 text-sm text-slate-500">
-                Run search to see the response.
+                {t("dataCatalog.docLookup.search.emptyResponse")}
               </div>
             )}
           </div>
@@ -824,17 +849,25 @@ function ViewDefinitionDiagnosticsDialog({
   definition: DocLookupViewDefinitionData;
   diagnosticsJson: string;
 }) {
+  const { t } = useI18n();
   return (
     <Dialog
       open={open}
       onClose={onClose}
-      title={`Retrieve diagnostics: ${definition.viewSpace} / ${definition.viewExternalId}`}
+      title={t("dataCatalog.docLookup.retrieveDiagnostics.title", {
+        viewSpace: definition.viewSpace,
+        viewExternalId: definition.viewExternalId,
+      })}
       wide
     >
       <p className="mb-3 text-xs text-slate-500">
-        Raw <code className="rounded bg-slate-100 px-1">instances/byids</code> request and response for this
-        view ({definition.retrieveDiagnostics.length} request
-        {definition.retrieveDiagnostics.length === 1 ? "" : "s"}).
+        {definition.retrieveDiagnostics.length === 1
+          ? t("dataCatalog.docLookup.retrieveDiagnostics.descriptionOne", {
+              count: definition.retrieveDiagnostics.length,
+            })
+          : t("dataCatalog.docLookup.retrieveDiagnostics.descriptionMany", {
+              count: definition.retrieveDiagnostics.length,
+            })}
       </p>
       <pre className="h-full overflow-auto rounded-md bg-slate-100 p-4 font-mono text-xs whitespace-pre-wrap text-slate-800">
         {diagnosticsJson}
@@ -860,6 +893,7 @@ function EmptyViewDefinitionRow({
   onDiagnosticsOpen: () => void;
   diagnosticsLabel: string;
 }) {
+  const { t } = useI18n();
   const versionCount = definition.versions.length;
 
   return (
@@ -869,12 +903,12 @@ function EmptyViewDefinitionRow({
       <span className={`font-mono font-medium ${theme.headerText}`}>{definition.viewExternalId}</span>
       {category === "legacy" ? (
         <span className="rounded bg-stone-200 px-1 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-stone-700">
-          Legacy
+          {t("dataCatalog.docLookup.category.badge.legacy")}
         </span>
       ) : null}
       {category === "custom" ? (
         <span className="rounded bg-indigo-200 px-1 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-indigo-900">
-          Custom
+          {t("dataCatalog.docLookup.category.badge.custom")}
         </span>
       ) : null}
       <span className={theme.spaceLabel}>
@@ -882,16 +916,18 @@ function EmptyViewDefinitionRow({
       </span>
       <span className={`${theme.spaceLabel} opacity-50`}>·</span>
       <span className={theme.spaceLabel}>
-        {versionCount} version{versionCount === 1 ? "" : "s"}
+        {versionCount === 1
+          ? t("dataCatalog.docLookup.versionCountOne", { count: versionCount })
+          : t("dataCatalog.docLookup.versionCountMany", { count: versionCount })}
       </span>
       <span className={`${theme.spaceLabel} opacity-50`}>·</span>
-      <span className="text-slate-500">No properties</span>
+      <span className="text-slate-500">{t("dataCatalog.docLookup.noPropertiesShort")}</span>
       <button
         type="button"
         onClick={onExpand}
         className="cursor-pointer rounded border border-slate-200 bg-white px-1.5 py-0.5 text-[11px] font-medium text-slate-600 hover:bg-slate-50"
       >
-        Details
+        {t("dataCatalog.docLookup.details")}
       </button>
       {hasDiagnostics ? (
         <button
@@ -915,6 +951,7 @@ function ViewDefinitionPanel({
   definition: DocLookupViewDefinitionData;
   node: DocLookupNodeSummary;
 }) {
+  const { t } = useI18n();
   const [diagnosticsOpen, setDiagnosticsOpen] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const category = getViewSpaceDataCategory(definition.viewSpace);
@@ -924,9 +961,14 @@ function ViewDefinitionPanel({
     [definition.retrieveDiagnostics]
   );
   const hasDiagnostics = definition.retrieveDiagnostics.length > 0;
-  const diagnosticsLabel = `Retrieve diagnostics (${definition.retrieveDiagnostics.length} request${
-    definition.retrieveDiagnostics.length === 1 ? "" : "s"
-  })`;
+  const diagnosticsLabel =
+    definition.retrieveDiagnostics.length === 1
+      ? t("dataCatalog.docLookup.retrieveDiagnostics.buttonOne", {
+          count: definition.retrieveDiagnostics.length,
+        })
+      : t("dataCatalog.docLookup.retrieveDiagnostics.buttonMany", {
+          count: definition.retrieveDiagnostics.length,
+        });
   const latestEntry = definition.displayVersions[0];
   const historyEntries = definition.displayVersions.slice(1);
   const hasHistory = historyEntries.length > 0;
@@ -969,7 +1011,7 @@ function ViewDefinitionPanel({
               onClick={() => setExpanded(false)}
               className="cursor-pointer text-[11px] font-medium text-slate-600 hover:text-slate-900"
             >
-              Collapse
+              {t("dataCatalog.docLookup.collapse")}
             </button>
           </div>
         ) : null}
@@ -980,12 +1022,12 @@ function ViewDefinitionPanel({
             </div>
             {category === "legacy" ? (
               <span className="rounded bg-stone-200 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-stone-700">
-                Legacy
+                {t("dataCatalog.docLookup.category.badge.legacy")}
               </span>
             ) : null}
             {category === "custom" ? (
               <span className="rounded bg-indigo-200 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-indigo-900">
-                Custom
+                {t("dataCatalog.docLookup.category.badge.custom")}
               </span>
             ) : null}
             {hasDiagnostics ? (
@@ -1002,27 +1044,42 @@ function ViewDefinitionPanel({
           </div>
           <div className={`mt-1 flex flex-wrap items-center gap-2 text-xs ${theme.spaceLabel}`}>
             <span>
-              View space: <span className="font-mono">{definition.viewSpace}</span>
+              {t("dataCatalog.docLookup.viewSpace")}{" "}
+              <span className="font-mono">{definition.viewSpace}</span>
             </span>
             <span>·</span>
             <span>
-              {definition.versions.length} schema version{definition.versions.length === 1 ? "" : "s"}
+              {definition.versions.length === 1
+                ? t("dataCatalog.docLookup.schemaVersionCountOne", {
+                    count: definition.versions.length,
+                  })
+                : t("dataCatalog.docLookup.schemaVersionCountMany", {
+                    count: definition.versions.length,
+                  })}
               {definition.uniqueStoredDataCount > 1 ? (
                 <>
                   {" "}
-                  · <span className="font-medium">{definition.uniqueStoredDataCount}</span> unique stored
-                  data snapshot{definition.uniqueStoredDataCount === 1 ? "" : "s"}
+                  ·{" "}
+                  {definition.uniqueStoredDataCount === 1
+                    ? t("dataCatalog.docLookup.uniqueStoredDataOne", {
+                        count: definition.uniqueStoredDataCount,
+                      })
+                    : t("dataCatalog.docLookup.uniqueStoredDataMany", {
+                        count: definition.uniqueStoredDataCount,
+                      })}
                 </>
               ) : null}
             </span>
             {definition.versions.length > 1 ? (
               definition.allVersionsIdentical ? (
                 <span className="rounded bg-emerald-50 px-1.5 py-0.5 font-medium text-emerald-800">
-                  Identical stored data — showing latest ({definition.latestVersion})
+                  {t("dataCatalog.docLookup.identicalStoredData", {
+                    version: definition.latestVersion,
+                  })}
                 </span>
               ) : (
                 <span className="rounded bg-amber-100 px-1.5 py-0.5 font-medium text-amber-900">
-                  Stored data differs across versions
+                  {t("dataCatalog.docLookup.storedDataDiffers")}
                 </span>
               )
             ) : null}
@@ -1046,8 +1103,8 @@ function ViewDefinitionPanel({
                 onClick={() => setShowHistory((open) => !open)}
               >
                 {showHistory
-                  ? `Hide version history (${historyEntries.length} older)`
-                  : `Show version history (${historyEntries.length} older)`}
+                  ? t("dataCatalog.docLookup.hideVersionHistory", { count: historyEntries.length })
+                  : t("dataCatalog.docLookup.showVersionHistory", { count: historyEntries.length })}
               </button>
               {showHistory ? (
                 <div className="flex flex-col gap-2 border-l-2 border-slate-200 pl-3">
@@ -1088,6 +1145,7 @@ function ViewVersionPanel({
   node: DocLookupNodeSummary;
   category: DocLookupDataCategory;
 }) {
+  const { t } = useI18n();
   const [showDiff, setShowDiff] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const theme = getViewSpaceTheme(category);
@@ -1110,7 +1168,7 @@ function ViewVersionPanel({
             ? "border-amber-300 bg-amber-50/40"
             : `${theme.versionPanelBorder} ${theme.versionPanelBg}`
         }`}
-        open={isPropertyEmpty ? false : isLatest}
+        defaultOpen={isPropertyEmpty ? false : isLatest}
       >
       <summary
         className={`cursor-pointer ${isPropertyEmpty ? "px-2 py-1 text-xs" : "px-3 py-2 text-sm"}`}
@@ -1118,37 +1176,50 @@ function ViewVersionPanel({
         {isPropertyEmpty ? (
           <>
             <span className="font-mono font-medium text-slate-900">{entry.view.version}</span>
-            <span className="ml-2 text-slate-500">No properties</span>
+            <span className="ml-2 text-slate-500">{t("dataCatalog.docLookup.noPropertiesShort")}</span>
           </>
         ) : (
           <>
         <span className="font-mono font-medium text-slate-900">{entry.view.version}</span>
         <span className="ml-2 text-xs text-slate-500">{formatViewRef(entry.view)}</span>
         <span className="ml-2 text-xs text-slate-500">
-          Last saved {formatTimestamp(entry.viewLastUpdatedTime)}
+          {t("dataCatalog.docLookup.lastSaved", {
+            time: formatTimestamp(entry.viewLastUpdatedTime),
+          })}
         </span>
         {hasMultipleVersions && isLatest ? (
           <span className="ml-2 rounded bg-slate-100 px-1.5 py-0.5 text-xs font-medium text-slate-600">
-            latest
+            {t("dataCatalog.docLookup.badge.latest")}
           </span>
         ) : null}
         {hasMultipleVersions && dataDiffers ? (
           <span className="ml-2 rounded bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-900">
-            {entry.changesFromPrevious.length} stored change
-            {entry.changesFromPrevious.length === 1 ? "" : "s"} from {entry.previousVersion}
+            {entry.changesFromPrevious.length === 1
+              ? t("dataCatalog.docLookup.storedChangeOne", {
+                  count: entry.changesFromPrevious.length,
+                  version: entry.previousVersion ?? "",
+                })
+              : t("dataCatalog.docLookup.storedChangeMany", {
+                  count: entry.changesFromPrevious.length,
+                  version: entry.previousVersion ?? "",
+                })}
           </span>
         ) : hasMultipleVersions && !isOldest ? (
           <span className="ml-2 rounded bg-emerald-50 px-1.5 py-0.5 text-xs font-medium text-emerald-800">
-            same stored data as {entry.previousVersion}
+            {t("dataCatalog.docLookup.sameStoredDataAs", {
+              version: entry.previousVersion ?? "",
+            })}
           </span>
         ) : hasMultipleVersions && isOldest ? (
           <span className="ml-2 rounded bg-slate-100 px-1.5 py-0.5 text-xs font-medium text-slate-600">
-            oldest version
+            {t("dataCatalog.docLookup.oldestVersion")}
           </span>
         ) : null}
         {hasMultipleVersions && definition.allVersionsIdentical && isLatest ? (
           <span className="ml-2 rounded bg-emerald-50 px-1.5 py-0.5 text-xs font-medium text-emerald-800">
-            {definition.versions.length} schema versions · identical stored data
+            {t("dataCatalog.docLookup.identicalAcrossVersions", {
+              count: definition.versions.length,
+            })}
           </span>
         ) : null}
           </>
@@ -1156,8 +1227,8 @@ function ViewVersionPanel({
         <button
           type="button"
           className={`${PANEL_TOOL_ICON_BUTTON_CLASS} ml-1 align-middle`}
-          title="Search API for this view version"
-          aria-label="Search API for this view version"
+          title={t("dataCatalog.docLookup.searchApiTitle")}
+          aria-label={t("dataCatalog.docLookup.searchApiTitle")}
           onClick={(event) => {
             event.preventDefault();
             event.stopPropagation();
@@ -1182,16 +1253,28 @@ function ViewVersionPanel({
                   onClick={() => setShowDiff((open) => !open)}
                 >
                   {showDiff
-                    ? `Hide changes from ${entry.previousVersion}`
-                    : `Show ${entry.changesFromPrevious.length} change${
-                        entry.changesFromPrevious.length === 1 ? "" : "s"
-                      } from ${entry.previousVersion}`}
+                    ? t("dataCatalog.docLookup.hideChangesFrom", {
+                        version: entry.previousVersion ?? "",
+                      })
+                    : entry.changesFromPrevious.length === 1
+                      ? t("dataCatalog.docLookup.showChangesFromOne", {
+                          count: entry.changesFromPrevious.length,
+                          version: entry.previousVersion ?? "",
+                        })
+                      : t("dataCatalog.docLookup.showChangesFromMany", {
+                          count: entry.changesFromPrevious.length,
+                          version: entry.previousVersion ?? "",
+                        })}
                 </button>
                 {showDiff ? (
                   <PropertyChangesTable
                     changes={entry.changesFromPrevious}
-                    baselineLabel={`Previous (${entry.previousVersion})`}
-                    valueLabel={`This version (${entry.view.version})`}
+                    baselineLabel={t("dataCatalog.docLookup.baselinePrevious", {
+                      version: entry.previousVersion ?? "",
+                    })}
+                    valueLabel={t("dataCatalog.docLookup.baselineThis", {
+                      version: entry.view.version,
+                    })}
                   />
                 ) : null}
               </div>
@@ -1231,13 +1314,17 @@ function HighlightedDefaultViewPanel({
   definition: DocLookupViewDefinitionData;
   defaultView: DocLookupViewRef;
 }) {
+  const { t } = useI18n();
   return (
     <div className="overflow-hidden rounded-lg border-2 border-violet-300 bg-violet-50/50 shadow-sm ring-1 ring-violet-200">
       <div className="border-b border-violet-200 bg-violet-100/80 px-3 py-2">
-        <p className="text-xs font-semibold uppercase tracking-wide text-violet-900">Default view</p>
+        <p className="text-xs font-semibold uppercase tracking-wide text-violet-900">
+          {t("dataCatalog.docLookup.defaultView")}
+        </p>
         <p className="mt-0.5 font-mono text-sm text-violet-950">{formatViewRef(defaultView)}</p>
         <p className="mt-0.5 text-xs text-violet-800">
-          Instance <span className="font-mono">{node.space}</span> /{" "}
+          {t("dataCatalog.docLookup.instance")}{" "}
+          <span className="font-mono">{node.space}</span> /{" "}
           <span className="font-mono">{node.externalId}</span>
         </p>
       </div>
@@ -1255,6 +1342,8 @@ function NodeUsageCard({
   entry: DocLookupNodeResult;
   omitDefinitionKey?: string | null;
 }) {
+  const { t } = useI18n();
+  const categoryLabels = getDataCategoryLabels(t);
   const uniqueViewCount = countUniqueViewDefinitions(entry.views);
   const viewDefinitionsBySpace = useMemo(() => {
     const groups = new Map<string, DocLookupViewDefinitionData[]>();
@@ -1273,29 +1362,38 @@ function NodeUsageCard({
     <Card className="overflow-hidden border-slate-200 shadow-sm">
       <CardHeader className="border-b border-slate-100 bg-slate-50/80 pb-4">
         <CardTitle className="text-base font-semibold text-slate-900">
-          <span className="font-mono text-sm text-slate-500">space</span>{" "}
+          <span className="font-mono text-sm text-slate-500">{t("dataCatalog.docLookup.spaceLabel")}</span>{" "}
           <span className="font-mono">{entry.node.space}</span>
         </CardTitle>
         <CardDescription className="text-sm text-slate-600">
-          Node <span className="font-mono text-slate-800">{entry.node.externalId}</span>
+          {t("dataCatalog.docLookup.nodeLabel")}{" "}
+          <span className="font-mono text-slate-800">{entry.node.externalId}</span>
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4 pt-4">
         <dl className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
           <div>
-            <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">Type</dt>
+            <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">
+              {t("dataCatalog.docLookup.type")}
+            </dt>
             <dd className="mt-1 font-mono text-slate-800">{formatTypeLabel(entry.node)}</dd>
           </div>
           <div>
-            <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">Instance version</dt>
+            <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">
+              {t("dataCatalog.docLookup.instanceVersion")}
+            </dt>
             <dd className="mt-1 tabular-nums text-slate-800">{entry.node.version ?? "—"}</dd>
           </div>
           <div>
-            <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">Created</dt>
+            <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">
+              {t("dataCatalog.docLookup.created")}
+            </dt>
             <dd className="mt-1 text-slate-800">{formatTimestamp(entry.node.createdTime)}</dd>
           </div>
           <div>
-            <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">Last updated</dt>
+            <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">
+              {t("dataCatalog.docLookup.lastUpdated")}
+            </dt>
             <dd className="mt-1 text-slate-800">{formatTimestamp(entry.node.lastUpdatedTime)}</dd>
           </div>
         </dl>
@@ -1306,19 +1404,33 @@ function NodeUsageCard({
 
         <div>
           <h3 className="text-sm font-medium text-slate-900">
-            Views and data ({entry.views.length} version{entry.views.length === 1 ? "" : "s"}
-            {uniqueViewCount !== entry.views.length
-              ? `, ${uniqueViewCount} unique view${uniqueViewCount === 1 ? "" : "s"}`
-              : ""}
-            )
+            {t("dataCatalog.docLookup.viewsAndData", {
+              detail:
+                uniqueViewCount !== entry.views.length
+                  ? entry.views.length === 1
+                    ? t("dataCatalog.docLookup.viewsAndDataDetailUniqueOne", {
+                        versionCount: entry.views.length,
+                        uniqueViewCount,
+                      })
+                    : t("dataCatalog.docLookup.viewsAndDataDetailUniqueMany", {
+                        versionCount: entry.views.length,
+                        uniqueViewCount,
+                      })
+                  : entry.views.length === 1
+                    ? t("dataCatalog.docLookup.viewsAndDataDetailOne", {
+                        versionCount: entry.views.length,
+                      })
+                    : t("dataCatalog.docLookup.viewsAndDataDetailMany", {
+                        versionCount: entry.views.length,
+                      }),
+            })}
           </h3>
           <p className="mt-1 text-xs text-slate-500">
-            Properties retrieved per view version. When stored data is identical across schema versions,
-            only the latest is shown. Otherwise each version is compared to the chronologically previous one.
+            {t("dataCatalog.docLookup.viewsAndDataDescription")}
           </p>
 
           {entry.viewDefinitions.length === 0 && entry.inspectError === null ? (
-            <p className="mt-3 text-sm text-slate-500">No views returned for this instance.</p>
+            <p className="mt-3 text-sm text-slate-500">{t("dataCatalog.docLookup.noViewsForInstance")}</p>
           ) : null}
 
           {viewDefinitionsBySpace.length > 0 ? (
@@ -1326,7 +1438,7 @@ function NodeUsageCard({
               {viewDefinitionsBySpace.map(([viewSpace, definitions]) => {
                 const category = getViewSpaceDataCategory(viewSpace);
                 const theme = getViewSpaceTheme(category);
-                const spaceLegend = DATA_CATEGORY_LABELS[category];
+                const spaceLegend = categoryLabels[category];
 
                 return (
                 <div key={viewSpace}>
@@ -1334,7 +1446,8 @@ function NodeUsageCard({
                     className={`mb-2 flex flex-wrap items-center gap-2 rounded-md border px-2 py-1.5 text-xs ${spaceLegend.swatch}`}
                   >
                     <span className={`font-medium ${theme.headerText}`}>
-                      View space: <span className="font-mono">{viewSpace}</span>
+                      {t("dataCatalog.docLookup.viewSpace")}{" "}
+                      <span className="font-mono">{viewSpace}</span>
                     </span>
                     <span className={`${theme.spaceLabel} opacity-80`}>{spaceLegend.label}</span>
                   </div>
@@ -1358,10 +1471,13 @@ function NodeUsageCard({
   );
 }
 
-function progressPhaseLabel(phase: "list" | "inspect" | "retrieve"): string {
-  if (phase === "list") return "Finding node instances";
-  if (phase === "inspect") return "Inspecting views";
-  return "Loading view properties";
+function progressPhaseLabel(
+  phase: "list" | "inspect" | "retrieve",
+  t: (key: string) => string
+): string {
+  if (phase === "list") return t("dataCatalog.docLookup.progress.findingInstances");
+  if (phase === "inspect") return t("dataCatalog.docLookup.progress.inspectingViews");
+  return t("dataCatalog.docLookup.progress.loadingProperties");
 }
 
 export function DocLookupResult({
@@ -1371,6 +1487,7 @@ export function DocLookupResult({
   showTitle = true,
   showDiagnostics = true,
 }: DocLookupResultProps) {
+  const { t } = useI18n();
   const { sdk, isLoading: isSdkLoading } = useAppSdk();
   const trimmedId = externalId.trim();
   const [result, setResult] = useState<DocLookupData | null>(null);
@@ -1393,14 +1510,14 @@ export function DocLookupResult({
       setStatus("loading");
       setError(null);
       setResult(null);
-      setProgress({ phase: "Searching nodes", current: 0, total: 0 });
+      setProgress({ phase: t("dataCatalog.docLookup.progress.searchingNodes"), current: 0, total: 0 });
 
       try {
         const lookupResult = await lookupExternalIdInDms(sdk, trimmedId, {
           onProgress: (p) => {
             if (cancelled) return;
             setProgress({
-              phase: progressPhaseLabel(p.phase),
+              phase: progressPhaseLabel(p.phase, t),
               current: p.current,
               total: p.total,
               detail: p.detail,
@@ -1414,7 +1531,7 @@ export function DocLookupResult({
         }
       } catch (lookupError) {
         if (!cancelled) {
-          setError(lookupError instanceof Error ? lookupError.message : "Lookup failed.");
+          setError(lookupError instanceof Error ? lookupError.message : t("dataCatalog.docLookup.lookupFailed"));
           setStatus("error");
           setProgress(null);
         }
@@ -1425,7 +1542,7 @@ export function DocLookupResult({
     return () => {
       cancelled = true;
     };
-  }, [sdk, isSdkLoading, trimmedId]);
+  }, [sdk, isSdkLoading, trimmedId, t]);
 
   const defaultViewContext = useMemo(() => {
     if (result === null || defaultView === null) return null;
@@ -1450,7 +1567,8 @@ export function DocLookupResult({
           {showTitle ? (
             <div className="flex flex-col gap-2">
               <h3 className="text-sm font-medium text-slate-900">
-                Results for <span className="font-mono">{trimmedId}</span>
+                {t("dataCatalog.docLookup.resultsFor")}{" "}
+                <span className="font-mono">{trimmedId}</span>
               </h3>
               <div className="flex flex-wrap items-center gap-3">
                 <LookupSummary result={result} />
@@ -1477,7 +1595,7 @@ export function DocLookupResult({
           {result.nodes.length === 0 ? (
             <Card className="border-dashed border-slate-300 bg-slate-50/50">
               <CardContent className="py-8 text-center text-sm text-slate-600">
-                No node instances found with external ID{" "}
+                {t("dataCatalog.docLookup.noInstances")}{" "}
                 <span className="font-mono text-slate-800">{trimmedId}</span>.
               </CardContent>
             </Card>

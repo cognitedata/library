@@ -1,5 +1,5 @@
 import { useI18n } from "@/shared/i18n";
-import { DATA_CATEGORY_LABELS, type DocLookupDataCategory } from "./doc-lookup-colors";
+import { getDataCategoryLabels, type DocLookupDataCategory } from "./doc-lookup-colors";
 
 type DocLookupHelpModalProps = {
   open: boolean;
@@ -8,6 +8,7 @@ type DocLookupHelpModalProps = {
 
 export function DocLookupHelpModal({ open, onClose }: DocLookupHelpModalProps) {
   const { t } = useI18n();
+  const categoryLabels = getDataCategoryLabels(t);
   if (!open) return null;
 
   return (
@@ -21,8 +22,8 @@ export function DocLookupHelpModal({ open, onClose }: DocLookupHelpModalProps) {
       >
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h3 className="text-lg font-semibold text-slate-900">Doc Lookup</h3>
-            <p className="text-sm text-slate-500">How to read view space colors and property highlights.</p>
+            <h3 className="text-lg font-semibold text-slate-900">{t("dataCatalog.docLookup.title")}</h3>
+            <p className="text-sm text-slate-500">{t("dataCatalog.docLookup.help.subtitle")}</p>
           </div>
           <button
             type="button"
@@ -34,14 +35,13 @@ export function DocLookupHelpModal({ open, onClose }: DocLookupHelpModalProps) {
         </div>
         <div className="mt-4 space-y-3 text-sm text-slate-700">
           <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
-            <div className="text-sm font-semibold text-slate-900">View space categories</div>
-            <p className="mt-2">
-              Each view space panel is tinted by category. Property chips inside a panel use a matching
-              palette so you can scan which fields belong together.
-            </p>
+            <div className="text-sm font-semibold text-slate-900">
+              {t("dataCatalog.docLookup.help.sectionCategories")}
+            </div>
+            <p className="mt-2">{t("dataCatalog.docLookup.help.categoriesBody")}</p>
             <ul className="mt-3 space-y-2">
-              {(Object.keys(DATA_CATEGORY_LABELS) as DocLookupDataCategory[]).map((category) => {
-                const entry = DATA_CATEGORY_LABELS[category];
+              {(Object.keys(categoryLabels) as DocLookupDataCategory[]).map((category) => {
+                const entry = categoryLabels[category];
                 return (
                   <li key={category} className="flex items-start gap-2">
                     <span
@@ -56,8 +56,8 @@ export function DocLookupHelpModal({ open, onClose }: DocLookupHelpModalProps) {
             </ul>
           </div>
           <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-amber-950">
-            <div className="text-sm font-semibold">Changed properties</div>
-            <p className="mt-2">Changed properties use amber highlight when stored values differ across view versions.</p>
+            <div className="text-sm font-semibold">{t("dataCatalog.docLookup.help.sectionChanged")}</div>
+            <p className="mt-2">{t("dataCatalog.docLookup.help.changedBody")}</p>
           </div>
         </div>
       </div>

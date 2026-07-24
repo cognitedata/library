@@ -1,4 +1,5 @@
 import { Fragment, type ReactNode } from "react";
+import { useI18n } from "@/shared/i18n";
 import {
   getPropertyColorClasses,
   type DocLookupDataCategory,
@@ -105,27 +106,27 @@ function hierarchyNodeRole(
 
 const HIERARCHY_ROLE_STYLES: Record<
   HierarchyNodeRole,
-  { node: string; badge: string; label: string }
+  { node: string; badge: string; labelKey: string | null }
 > = {
   root: {
     node: "border-emerald-300 bg-emerald-100 font-semibold text-emerald-950",
     badge: "bg-emerald-200 text-emerald-900",
-    label: "root",
+    labelKey: "dataCatalog.docLookup.hierarchy.role.root",
   },
   parent: {
     node: "border-blue-300 bg-blue-100 font-medium text-blue-950",
     badge: "bg-blue-200 text-blue-900",
-    label: "parent",
+    labelKey: "dataCatalog.docLookup.hierarchy.role.parent",
   },
   current: {
     node: "border-slate-400 bg-slate-200 font-semibold text-slate-950",
     badge: "bg-slate-300 text-slate-900",
-    label: "self",
+    labelKey: "dataCatalog.docLookup.hierarchy.role.self",
   },
   ancestor: {
     node: "border-transparent bg-transparent text-slate-800",
     badge: "",
-    label: "",
+    labelKey: null,
   },
 };
 
@@ -140,10 +141,11 @@ export function AssetHierarchyBreadcrumb({
   parent: NodeInstanceRef | null;
   category: DocLookupDataCategory;
 }) {
+  const { t } = useI18n();
   const colors = getPropertyColorClasses("path", category);
 
   if (path.length === 0) {
-    return <p className="text-sm text-slate-500">No path in hierarchy.</p>;
+    return <p className="text-sm text-slate-500">{t("dataCatalog.docLookup.hierarchy.noPath")}</p>;
   }
 
   return (
@@ -160,11 +162,11 @@ export function AssetHierarchyBreadcrumb({
               className={`inline-flex items-center gap-1 rounded border px-1.5 py-0.5 font-mono text-xs ${roleStyles.node}`}
               title={`${ref.space} / ${ref.externalId}`}
             >
-              {showRole ? (
+              {showRole && roleStyles.labelKey !== null ? (
                 <span
                   className={`rounded px-1 text-[9px] font-semibold uppercase tracking-wide ${roleStyles.badge}`}
                 >
-                  {roleStyles.label}
+                  {t(roleStyles.labelKey)}
                 </span>
               ) : null}
               {ref.externalId}
@@ -176,20 +178,28 @@ export function AssetHierarchyBreadcrumb({
   );
 }
 
-function hierarchyWarningMessage(warning: AssetHierarchyWarning): string {
+function hierarchyWarningMessage(
+  warning: AssetHierarchyWarning,
+  t: (key: string, params?: Record<string, string | number>) => string
+): string {
   if (warning.kind === "path_missing") {
-    return "Path is missing — root and parent cannot be verified against a hierarchy.";
+    return t("dataCatalog.docLookup.hierarchy.warning.pathMissing");
   }
   if (warning.kind === "parent_missing") {
-    return "Parent property is missing.";
+    return t("dataCatalog.docLookup.hierarchy.warning.parentMissing");
   }
   if (warning.kind === "root_missing") {
-    return "Root property is missing (using first path element as root).";
+    return t("dataCatalog.docLookup.hierarchy.warning.rootMissing");
   }
   if (warning.kind === "parent_not_in_path") {
-    return `Parent (${warning.parent.externalId}) is not present in the path hierarchy.`;
+    return t("dataCatalog.docLookup.hierarchy.warning.parentNotInPath", {
+      externalId: warning.parent.externalId,
+    });
   }
-  return `Root (${warning.root.externalId}) does not match the first path element (${warning.pathRoot.externalId}).`;
+  return t("dataCatalog.docLookup.hierarchy.warning.rootMismatch", {
+    rootExternalId: warning.root.externalId,
+    pathRootExternalId: warning.pathRoot.externalId,
+  });
 }
 
 function hierarchyFieldChanged(changedPaths: string[], field: string): boolean {
@@ -207,6 +217,7 @@ export function CogniteAssetHierarchyCard({
   changedPaths: string[];
   category: DocLookupDataCategory;
 }) {
+  const { t } = useI18n();
   const colors = getPropertyColorClasses("path", category);
   const changed =
     hierarchyFieldChanged(changedPaths, "path") ||
@@ -224,7 +235,7 @@ export function CogniteAssetHierarchyCard({
               key={`${warning.kind}-${index}`}
               className="rounded border border-amber-300 bg-amber-50 px-2 py-0.5 text-xs text-amber-950"
             >
-              {hierarchyWarningMessage(warning)}
+              {hierarchyWarningMessage(warning, t)}
             </p>
           ))}
         </div>
@@ -233,7 +244,7 @@ export function CogniteAssetHierarchyCard({
         <span
           className={`shrink-0 text-[11px] font-semibold uppercase tracking-wide ${styles.label}`}
         >
-          Hierarchy
+          {t("dataCatalog.docLookup.hierarchy.title")}
         </span>
         {hierarchy.path.length > 0 ? (
           <AssetHierarchyBreadcrumb
@@ -247,7 +258,7 @@ export function CogniteAssetHierarchyCard({
             {hierarchy.root !== null ? (
               <span className="font-mono">
                 <span className={`font-sans text-[10px] font-medium uppercase ${styles.label} opacity-75`}>
-                  Root{" "}
+                  {t("dataCatalog.docLookup.hierarchy.root")}{" "}
                 </span>
                 {hierarchy.root.space} / {hierarchy.root.externalId}
               </span>
@@ -255,7 +266,7 @@ export function CogniteAssetHierarchyCard({
             {hierarchy.parent !== null ? (
               <span className="font-mono">
                 <span className={`font-sans text-[10px] font-medium uppercase ${styles.label} opacity-75`}>
-                  Parent{" "}
+                  {t("dataCatalog.docLookup.hierarchy.parent")}{" "}
                 </span>
                 {hierarchy.parent.space} / {hierarchy.parent.externalId}
               </span>
@@ -276,10 +287,11 @@ export function CogniteAssetPathCard({
   changed: boolean;
   category: DocLookupDataCategory;
 }) {
+  const { t } = useI18n();
   const colors = getPropertyColorClasses("path", category);
 
   return (
-    <PropertyTypeCard title="CogniteAsset path" colors={colors} changed={changed}>
+    <PropertyTypeCard title={t("dataCatalog.docLookup.cogniteAssetPath")} colors={colors} changed={changed}>
       <AssetPathBreadcrumb path={path} category={category} />
     </PropertyTypeCard>
   );
@@ -300,6 +312,7 @@ export function CogniteDescribableCard({
   changedPaths: string[];
   category: DocLookupDataCategory;
 }) {
+  const { t } = useI18n();
   const colors = getPropertyColorClasses("CogniteDescribable", category);
   const changed =
     describableFieldChanged(changedPaths, "name") ||
@@ -315,12 +328,12 @@ export function CogniteDescribableCard({
         <span
           className={`shrink-0 text-[11px] font-semibold uppercase tracking-wide ${styles.label}`}
         >
-          CogniteDescribable
+          {t("dataCatalog.docLookup.cogniteDescribable")}
         </span>
         {data.name !== null ? (
           <>
             <span className={`text-[10px] font-medium uppercase ${styles.label} opacity-75`}>
-              Name
+              {t("dataCatalog.docLookup.field.name")}
             </span>
             <span className="text-sm font-medium text-slate-900">{data.name}</span>
           </>
@@ -328,7 +341,7 @@ export function CogniteDescribableCard({
         {data.description !== null ? (
           <>
             <span className={`text-[10px] font-medium uppercase ${styles.label} opacity-75`}>
-              Description
+              {t("dataCatalog.docLookup.field.description")}
             </span>
             <span className="min-w-0 text-sm text-slate-900">{data.description}</span>
           </>
@@ -339,7 +352,7 @@ export function CogniteDescribableCard({
           {data.tags.length > 0 ? (
             <>
               <span className={`text-[10px] font-medium uppercase ${styles.label} opacity-75`}>
-                Tags
+                {t("dataCatalog.docLookup.field.tags")}
               </span>
               <StringChipList items={data.tags} colors={colors} />
             </>
@@ -347,7 +360,7 @@ export function CogniteDescribableCard({
           {data.aliases.length > 0 ? (
             <>
               <span className={`text-[10px] font-medium uppercase ${styles.label} opacity-75`}>
-                Aliases
+                {t("dataCatalog.docLookup.field.aliases")}
               </span>
               <StringChipList items={data.aliases} colors={colors} />
             </>

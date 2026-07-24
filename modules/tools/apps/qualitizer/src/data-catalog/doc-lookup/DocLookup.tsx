@@ -28,11 +28,8 @@ export function DocLookup() {
 
       <Card className="border-slate-200 shadow-sm">
         <CardHeader className="relative">
-          <CardTitle className="text-lg">Doc Lookup</CardTitle>
-          <CardDescription>
-            Find where a node external ID is used. External IDs are unique per space — the same ID can
-            exist in multiple spaces.
-          </CardDescription>
+          <CardTitle className="text-lg">{t("dataCatalog.docLookup.title")}</CardTitle>
+          <CardDescription>{t("dataCatalog.docLookup.description")}</CardDescription>
           <button
             type="button"
             className="absolute right-4 top-4 rounded-md bg-blue-600 px-2 py-1 text-xs font-medium text-white hover:bg-blue-700"
@@ -46,14 +43,14 @@ export function DocLookup() {
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
               <div className="flex min-w-0 flex-1 flex-col gap-1">
                 <label htmlFor="doc-lookup-external-id" className="text-sm font-medium text-slate-700">
-                  External ID
+                  {t("dataCatalog.docLookup.externalIdLabel")}
                 </label>
                 <input
                   id="doc-lookup-external-id"
                   type="text"
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
-                  placeholder="e.g. pump-001"
+                  placeholder={t("dataCatalog.docLookup.externalIdPlaceholder")}
                   disabled={isSdkLoading}
                   className="rounded-md border border-slate-300 bg-white px-3 py-2 font-mono text-sm text-slate-800 shadow-sm focus:border-slate-400 focus:outline-none disabled:opacity-50"
                 />
@@ -63,7 +60,7 @@ export function DocLookup() {
                 disabled={isSdkLoading || query.trim().length === 0}
                 className="cursor-pointer rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
               >
-                Look up
+                {t("dataCatalog.docLookup.lookupButton")}
               </button>
             </div>
           </form>

@@ -125,23 +125,30 @@ export function getViewSpaceTheme(category: DocLookupDataCategory): ViewSpaceThe
   };
 }
 
-export const DATA_CATEGORY_LABELS: Record<
-  DocLookupDataCategory,
-  { label: string; description: string; swatch: string }
-> = {
-  standard: {
-    label: "Standard",
-    description: "cdf_cdm / cdf_idm / cdf_infield",
-    swatch: "bg-sky-100 border-sky-200",
-  },
-  custom: {
-    label: "Custom",
-    description: "User-defined spaces",
-    swatch: "bg-indigo-200 border-indigo-400",
-  },
-  legacy: {
-    label: "Legacy",
-    description: "Deprecated models (e.g. cdf_apm)",
-    swatch: "bg-stone-200 border-stone-300",
-  },
+export const DATA_CATEGORY_SWATCHES: Record<DocLookupDataCategory, string> = {
+  standard: "bg-sky-100 border-sky-200",
+  custom: "bg-indigo-200 border-indigo-400",
+  legacy: "bg-stone-200 border-stone-300",
 };
+
+export function getDataCategoryLabels(
+  t: (key: string) => string
+): Record<DocLookupDataCategory, { label: string; description: string; swatch: string }> {
+  return {
+    standard: {
+      label: t("dataCatalog.docLookup.category.standard.label"),
+      description: t("dataCatalog.docLookup.category.standard.description"),
+      swatch: DATA_CATEGORY_SWATCHES.standard,
+    },
+    custom: {
+      label: t("dataCatalog.docLookup.category.custom.label"),
+      description: t("dataCatalog.docLookup.category.custom.description"),
+      swatch: DATA_CATEGORY_SWATCHES.custom,
+    },
+    legacy: {
+      label: t("dataCatalog.docLookup.category.legacy.label"),
+      description: t("dataCatalog.docLookup.category.legacy.description"),
+      swatch: DATA_CATEGORY_SWATCHES.legacy,
+    },
+  };
+}
