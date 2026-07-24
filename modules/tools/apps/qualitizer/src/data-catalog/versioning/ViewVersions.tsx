@@ -23,8 +23,8 @@ import {
 } from "@/shared/dms-catalog-cache";
 import {
   getDataModelUrl,
-  getDataModelViewPreviewUrl,
   getTransformationPreviewUrl,
+  getViewUrl,
 } from "@/shared/cdf-browser-url";
 import { formatResourceDisplayLabel } from "@/shared/format-resource-display-label";
 import { useI18n } from "@/shared/i18n";
@@ -405,10 +405,17 @@ type TransformationApiItem = {
 
 type ViewCellPinIndex = {
   txByCell: Map<string, Array<{ id: string; name: string }>>;
+  txByViewKey: Map<string, Array<{ id: string; name: string }>>;
   dmByCell: Map<
     string,
     Array<{ key: string; baseKey: string; label: string; space: string; externalId: string; version: string }>
   >;
+};
+
+type WriteTransformationItem = {
+  id: string;
+  name: string;
+  url: string;
 };
 
 type DataModelOption = { key: string; baseKey: string; label: string; viewKeys: Set<string> };
@@ -428,28 +435,6 @@ function dataModelRefFromOption(opt: { key: string; baseKey: string }): {
 
 function modelsContainingView(viewKey: string, options: DataModelOption[]): DataModelOption[] {
   return options.filter((o) => o.viewKeys.has(viewKey)).sort((a, b) => a.label.localeCompare(b.label));
-}
-
-function viewPreviewUrlForRow(
-  project: string,
-  viewKey: string,
-  viewExternalId: string,
-  options: DataModelOption[]
-): { url?: string; models: DataModelOption[] } {
-  const models = modelsContainingView(viewKey, options);
-  const first = models[0];
-  if (!first) return { models, url: undefined };
-  const dm = dataModelRefFromOption(first);
-  return {
-    models,
-    url: getDataModelViewPreviewUrl(
-      project,
-      dm.space,
-      dm.externalId,
-      dm.version,
-      viewExternalId
-    ),
-  };
 }
 
 export function ViewVersions() {
@@ -487,6 +472,7 @@ export function ViewVersions() {
   >(new Map());
   const [viewCellPinIndex, setViewCellPinIndex] = useState<ViewCellPinIndex>({
     txByCell: new Map(),
+    txByViewKey: new Map(),
     dmByCell: new Map(),
   });
   const [viewLegendFilter, setViewLegendFilter] =
@@ -573,15 +559,24 @@ export function ViewVersions() {
   }, [dataModelsStatus, dataModels, retrieveDataModels]);
 
   useEffect(() => {
-    if (isSdkLoading || modelOptions.length === 0) return;
+    if (isSdkLoading) return;
     let cancelled = false;
     const load = async () => {
       const destinationTxByCell = new Map<string, Array<{ id: string; name: string }>>();
+      const destinationTxByViewKey = new Map<string, Array<{ id: string; name: string }>>();
       const pushDestTx = (cellKey: string, txItem: { id: string; name: string }) => {
         let arr = destinationTxByCell.get(cellKey);
         if (!arr) {
           arr = [];
           destinationTxByCell.set(cellKey, arr);
+        }
+        if (!arr.some((x) => x.id === txItem.id)) arr.push(txItem);
+      };
+      const pushDestTxView = (viewKey: string, txItem: { id: string; name: string }) => {
+        let arr = destinationTxByViewKey.get(viewKey);
+        if (!arr) {
+          arr = [];
+          destinationTxByViewKey.set(viewKey, arr);
         }
         if (!arr.some((x) => x.id === txItem.id)) arr.push(txItem);
       };
@@ -629,6 +624,7 @@ export function ViewVersions() {
           if (dv?.space && dv?.externalId) {
             const vk = `${dv.space}:${dv.externalId}`;
             destinationViewKeys.add(vk);
+            pushDestTxView(vk, txItem);
             const verPart = dv.version?.trim();
             const versionToken = verPart ? verPart : DEST_VIEW_VERSION_UNSPECIFIED;
             pushDestTx(`${vk}:${versionToken}`, txItem);
@@ -663,7 +659,11 @@ export function ViewVersions() {
         if (!cancelled) {
           setModelVersionRefs(versionRefs);
           setTransformationRefsByModelVersion(txByModelVersion);
-          setViewCellPinIndex({ txByCell: destinationTxByCell, dmByCell: new Map() });
+          setViewCellPinIndex({
+            txByCell: destinationTxByCell,
+            txByViewKey: destinationTxByViewKey,
+            dmByCell: new Map(),
+          });
         }
         const viewKeys = new Set<string>();
         for (const opt of modelOptions) {
@@ -676,7 +676,7 @@ export function ViewVersions() {
       } catch {
         if (!cancelled) {
           setViewKeysInTransformation(new Set());
-          setViewCellPinIndex({ txByCell: new Map(), dmByCell: new Map() });
+          setViewCellPinIndex({ txByCell: new Map(), txByViewKey: new Map(), dmByCell: new Map() });
         }
       }
     };
@@ -1159,60 +1159,45 @@ export function ViewVersions() {
     if (!pinnedBubble) return [];
     const items: ReferrerItem[] = [];
     if (pinnedBubble.type === "view") {
-      const { url: dmPreviewUrl, models } = viewPreviewUrlForRow(
-        sdk.project,
-        pinnedBubble.viewKey,
-        pinnedBubble.externalId,
-        modelOptions
-      );
+      const models = modelsContainingView(pinnedBubble.viewKey, modelOptions);
       if (models.length > 1) {
         items.push({
           type: "note",
-          text: `This view appears on ${models.length} catalog data models. The Fusion link uses the first (${models[0].label}) as data model context—switch data model in Fusion if you need another.`,
+          text: `This view appears on ${models.length} catalog data models. Open a data model below for Fusion context.`,
         });
       } else if (models.length === 0) {
         items.push({
           type: "note",
           text:
-            "No loaded catalog data model lists this view as an inline view, so a Data management preview URL cannot be built.",
+            "No loaded catalog data model lists this view as an inline view.",
+        });
+      }
+      for (const model of models) {
+        const dm = dataModelRefFromOption(model);
+        items.push({
+          type: "dataModel",
+          key: model.key,
+          baseKey: model.baseKey,
+          label: model.label,
+          space: dm.space,
+          externalId: dm.externalId,
+          version: dm.version,
+          url: getDataModelUrl(sdk.project, dm.space, dm.externalId, dm.version),
         });
       }
       const pinRow = viewRows.find((r) => r.key === pinnedBubble.viewKey);
       const vLabel = pinRow
         ? virtualImplicitLabelForRawOnRow(pinRow, pinnedBubble.version, detailsMap)
         : pinnedBubble.version;
+      const colonIdx = pinnedBubble.viewKey.indexOf(":");
+      const viewSpace = colonIdx >= 0 ? pinnedBubble.viewKey.slice(0, colonIdx) : pinnedBubble.space;
+      const viewExternalId =
+        colonIdx >= 0 ? pinnedBubble.viewKey.slice(colonIdx + 1) : pinnedBubble.externalId;
       items.push({
         type: "view",
         label: `${pinnedBubble.label} ${vLabel}`,
-        url: dmPreviewUrl,
+        url: getViewUrl(sdk.project, viewSpace, viewExternalId, pinnedBubble.version),
       });
-      const row = viewRows.find((r) => r.key === pinnedBubble.viewKey);
-      const orderedRaw =
-        row != null
-          ? gridVersions
-              .map((gv) => resolveMatrixColumnToRawForRow(row, gv, detailsMap))
-              .filter((r): r is string => r != null)
-          : [];
-      const latestV = orderedRaw[orderedRaw.length - 1];
-      const cellKey = `${pinnedBubble.viewKey}:${pinnedBubble.version}`;
-      const destLatestKey = `${pinnedBubble.viewKey}:${DEST_VIEW_VERSION_UNSPECIFIED}`;
-      const seenTx = new Set<string>();
-      const pushDestTxList = (list: Array<{ id: string; name: string }> | undefined) => {
-        for (const tx of list ?? []) {
-          if (seenTx.has(tx.id)) continue;
-          seenTx.add(tx.id);
-          items.push({
-            type: "transformation",
-            id: tx.id,
-            name: tx.name,
-            url: getTransformationPreviewUrl(sdk.project, tx.id),
-          });
-        }
-      };
-      pushDestTxList(viewCellPinIndex.txByCell.get(cellKey));
-      if (latestV != null && pinnedBubble.version === latestV) {
-        pushDestTxList(viewCellPinIndex.txByCell.get(destLatestKey));
-      }
     } else {
       items.push({
         type: "dataModel",
@@ -1247,15 +1232,23 @@ export function ViewVersions() {
     return items;
   }, [
     pinnedBubble,
-    viewCellPinIndex,
     transformationRefsByModelVersion,
     selectedModelVersions,
     viewRows,
-    gridVersions,
     detailsMap,
     sdk.project,
     modelOptions,
   ]);
+
+  const writeTransformations = useMemo((): WriteTransformationItem[] => {
+    if (!pinnedBubble || pinnedBubble.type !== "view") return [];
+    const txs = viewCellPinIndex.txByViewKey.get(pinnedBubble.viewKey) ?? [];
+    return txs.map((tx) => ({
+      id: tx.id,
+      name: tx.name,
+      url: getTransformationPreviewUrl(sdk.project, tx.id),
+    }));
+  }, [pinnedBubble, viewCellPinIndex.txByViewKey, sdk.project]);
 
   const handleViewBubbleClick = useCallback((d: NonNullable<CellDot>) => {
     if (d.viewKey != null && d.version != null && d.label != null && d.space != null && d.externalId != null) {
@@ -1978,8 +1971,8 @@ export function ViewVersions() {
                   {t("dataCatalog.viewVersions.unpin")}
                 </button>
               </div>
-              <p className="mt-1 text-slate-500 shrink-0">{t("dataCatalog.viewVersions.referrers")}</p>
-              <ul className="mt-1 flex-1 min-h-0 space-y-1 overflow-auto pl-1">
+              <p className="mt-1 shrink-0 text-slate-500">{t("dataCatalog.viewVersions.referrers")}</p>
+              <ul className="mt-1 min-h-0 space-y-1 overflow-auto pl-1">
                 {referrers.length === 0 ? (
                   <li className="text-slate-500">{t("dataCatalog.viewVersions.noReferrers")}</li>
                 ) : (
@@ -2009,7 +2002,7 @@ export function ViewVersions() {
                             href={item.url}
                             target="_blank"
                             rel="noreferrer"
-                            className="text-blue-600 hover:underline truncate"
+                            className="truncate text-blue-600 hover:underline"
                           >
                             {item.label}
                           </a>
@@ -2022,7 +2015,7 @@ export function ViewVersions() {
                             href={item.url}
                             target="_blank"
                             rel="noreferrer"
-                            className="text-blue-600 hover:underline truncate"
+                            className="truncate text-blue-600 hover:underline"
                           >
                             {item.name}
                           </a>
@@ -2035,7 +2028,7 @@ export function ViewVersions() {
                             href={item.url}
                             target="_blank"
                             rel="noreferrer"
-                            className="text-blue-600 hover:underline truncate"
+                            className="truncate text-blue-600 hover:underline"
                           >
                             {item.label}
                           </a>
@@ -2047,6 +2040,34 @@ export function ViewVersions() {
                   ))
                 )}
               </ul>
+              {pinnedBubble.type === "view" ? (
+                <>
+                  <p className="mt-3 shrink-0 text-slate-500">
+                    {t("dataCatalog.viewVersions.writeTransformations")}
+                  </p>
+                  <ul className="mt-1 min-h-0 flex-1 space-y-1 overflow-auto pl-1">
+                    {writeTransformations.length === 0 ? (
+                      <li className="text-slate-500">{t("dataCatalog.viewVersions.noWriteTransformations")}</li>
+                    ) : (
+                      writeTransformations.map((tx) => (
+                        <li key={tx.id} className="flex items-center gap-1.5">
+                          <span className="text-slate-500">
+                            {t("dataCatalog.viewVersions.refKindTransformation")}
+                          </span>
+                          <a
+                            href={tx.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="truncate text-blue-600 hover:underline"
+                          >
+                            {tx.name}
+                          </a>
+                        </li>
+                      ))
+                    )}
+                  </ul>
+                </>
+              ) : null}
             </>
           ) : (
             <div className="text-slate-500 flex-1 flex items-center">

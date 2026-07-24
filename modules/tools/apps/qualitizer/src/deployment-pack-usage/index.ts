@@ -1,6 +1,14 @@
 export { detectDeploymentPackUsage } from "./detect";
 export { DEPLOYMENT_PACKS } from "./deployment-packs";
-export { QUALITIZER_DEPLOYMENT_PACK } from "./qualitizer-deployment-pack";
+export {
+  deploymentPackDisplayName,
+  isKnownDeploymentPackId,
+  normalizeDeploymentPackId,
+  normalizePackInUse,
+  packIdsFromNormalizedInUse,
+} from "./deployment-pack-aliases";
+export { QUALITIZER_DEPLOYMENT_PACK, TOOLKIT_MODULE_ID_EXCLUSIONS } from "./qualitizer-deployment-pack";
+export { classifyToolkitModuleIds } from "./toolkit-module-ids";
 export { fetchLiveDeploymentPackProbeContext } from "./live-probe-context";
 export { useDailyDeploymentPackUsageMixpanel } from "./useDailyDeploymentPackUsageMixpanel";
 export {

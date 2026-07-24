@@ -8,7 +8,8 @@ export type PersistedDataCatalogSubView =
   | "overview"
   | "propertyExplorer"
   | "dataModelVersions"
-  | "viewVersions";
+  | "viewVersions"
+  | "docLookup";
 
 export type PersistedPermissionsSubView =
   | "groups"
@@ -20,6 +21,18 @@ export type PersistedPermissionsSubView =
 /** Internal Assets area: catalog models with asset views vs all CogniteAsset-shaped views. */
 export type PersistedAssetsSubView = "dataModels" | "standaloneViews";
 
+export type PersistedInfieldSubView =
+  | "legacyConfig"
+  | "infield2Data"
+  | "connectivityMap"
+  | "migrationScripts";
+
+export type PersistedInfieldCdmSubView = "cdmSetup" | "cdmDataExplorer";
+
+export type PersistedInfieldSampleCap = 500 | 5000 | 25000 | 100000 | "all";
+
+export type PersistedConsistencyPageSize = 25 | 50 | 100 | 250 | 500 | 1000;
+
 export type PersistedNavState = {
   mode?: string;
   transformationsSubView?: PersistedTransformationsSubView;
@@ -27,6 +40,12 @@ export type PersistedNavState = {
   dataCatalogSubView?: PersistedDataCatalogSubView;
   permissionsSubView?: PersistedPermissionsSubView;
   assetsSubView?: PersistedAssetsSubView;
+  infieldSubView?: PersistedInfieldSubView;
+  infieldCdmSubView?: PersistedInfieldCdmSubView;
+  infieldSampleCap?: PersistedInfieldSampleCap;
+  infield2DataLocationKey?: string;
+  infieldCdmDataLocationKey?: string;
+  infieldConsistencyPageSize?: PersistedConsistencyPageSize;
 };
 
 export function loadNavState(): PersistedNavState {
@@ -52,7 +71,8 @@ export function loadNavState(): PersistedNavState {
         obj.dataCatalogSubView === "overview" ||
         obj.dataCatalogSubView === "propertyExplorer" ||
         obj.dataCatalogSubView === "dataModelVersions" ||
-        obj.dataCatalogSubView === "viewVersions"
+        obj.dataCatalogSubView === "viewVersions" ||
+        obj.dataCatalogSubView === "docLookup"
           ? obj.dataCatalogSubView
           : undefined,
       permissionsSubView:
@@ -66,6 +86,46 @@ export function loadNavState(): PersistedNavState {
       assetsSubView:
         obj.assetsSubView === "dataModels" || obj.assetsSubView === "standaloneViews"
           ? obj.assetsSubView
+          : undefined,
+      infieldSubView:
+        obj.infieldSubView === "legacyConfig" ||
+        obj.infieldSubView === "infield2Data" ||
+        obj.infieldSubView === "connectivityMap" ||
+        obj.infieldSubView === "migrationScripts"
+          ? obj.infieldSubView
+          : undefined,
+      infieldCdmSubView:
+        obj.infieldCdmSubView === "cdmSetup" || obj.infieldCdmSubView === "cdmDataExplorer"
+          ? obj.infieldCdmSubView
+          : obj.infieldSubView === "newConfig"
+            ? "cdmSetup"
+            : obj.infieldSubView === "infieldCdmData" || obj.infieldSubView === "infieldData"
+              ? "cdmDataExplorer"
+              : undefined,
+      infieldSampleCap:
+        obj.infieldSampleCap === 500 ||
+        obj.infieldSampleCap === 5000 ||
+        obj.infieldSampleCap === 25000 ||
+        obj.infieldSampleCap === 100000 ||
+        obj.infieldSampleCap === "all"
+          ? obj.infieldSampleCap
+          : undefined,
+      infield2DataLocationKey:
+        typeof obj.infield2DataLocationKey === "string" && obj.infield2DataLocationKey.length > 0
+          ? obj.infield2DataLocationKey
+          : undefined,
+      infieldCdmDataLocationKey:
+        typeof obj.infieldCdmDataLocationKey === "string" && obj.infieldCdmDataLocationKey.length > 0
+          ? obj.infieldCdmDataLocationKey
+          : undefined,
+      infieldConsistencyPageSize:
+        obj.infieldConsistencyPageSize === 25 ||
+        obj.infieldConsistencyPageSize === 50 ||
+        obj.infieldConsistencyPageSize === 100 ||
+        obj.infieldConsistencyPageSize === 250 ||
+        obj.infieldConsistencyPageSize === 500 ||
+        obj.infieldConsistencyPageSize === 1000
+          ? obj.infieldConsistencyPageSize
           : undefined,
     };
   } catch {

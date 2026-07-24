@@ -28,6 +28,7 @@ const translations: Record<Language, Record<string, string>> = {
     "nav.processing": "Processing",
     "nav.permissions": "Permissions",
     "nav.dataCatalog": "Data Catalog",
+    "nav.infield": "Infield",
     "nav.healthChecks": "Health Checks",
     "nav.transformations": "Transformations",
     "apiError.showDetails": "Show details",
@@ -457,6 +458,71 @@ const translations: Record<Language, Record<string, string>> = {
     "dataCatalog.propertyExplorer.hideExtraFilters": "Hide extra filters",
     "dataCatalog.subnav.dataModelVersions": "Data Model Versions",
     "dataCatalog.subnav.viewVersions": "View Versions",
+    "dataCatalog.subnav.docLookup": "Doc Lookup",
+    "infield.title": "Infield",
+    "infield.sectionSubtitle":
+      "Validate Infield CDM location configuration and explore sampled view data across configured instance spaces.",
+    "infield.subNavAria": "Infield sections",
+    "infield.subnav.cdmSetup": "Infield CDM Setup",
+    "infield.subnav.cdmDataExplorer": "Infield CDM Data Explorer",
+    "infield.cdmSetup.help.title": "Infield CDM Setup",
+    "infield.cdmSetup.help.subtitle":
+      "How to read config validation, space probes, and issue counts.",
+    "infield.cdmSetup.help.sectionPurpose": "What this page does",
+    "infield.cdmSetup.help.purpose.one":
+      "Lists every InFieldCDMLocationConfig node and validates cross-location space rules.",
+    "infield.cdmSetup.help.purpose.two":
+      "Probes each view-mapping column by verifying instance spaces exist and contain at least one node of the configured view (instances/list with that view as source).",
+    "infield.cdmSetup.help.purpose.three":
+      "Open Infield CDM Data Explorer for sampled view counts, preview rows, and data-quality tables.",
+    "infield.cdmSetup.help.sectionConfig": "Config column",
+    "infield.cdmSetup.help.config.intro":
+      "Shows the config node space and external ID. Checks run asynchronously; a green check means all rules passed.",
+    "infield.cdmSetup.help.config.rule1":
+      "Config space must be unique — it cannot be reused as another location's config, appInstanceSpace, or reference-data space.",
+    "infield.cdmSetup.help.config.rule2":
+      "Config external ID must exist only in its own config space (same external-ID lookup as Doc Lookup).",
+    "infield.cdmSetup.help.config.rule3":
+      "operation, notification, and maintenanceOrder must share one reference-data instance space, unique across all locations.",
+    "infield.cdmSetup.help.config.rule4":
+      "appInstanceSpace is required, unique per location, and must not match any other location's config or reference-data space.",
+    "infield.cdmSetup.help.sectionColumns": "View mapping columns",
+    "infield.cdmSetup.help.columns.intro":
+      "Each column is a viewMappings entry. Rows list the instance spaces probed for that mapping's configured view.",
+    "infield.cdmSetup.help.columns.asset":
+      "Asset probes dataFilters.assets.instanceSpaces only (not appInstanceSpace).",
+    "infield.cdmSetup.help.columns.reference":
+      "operation, notification, and maintenanceOrder probe their dataFilters.instanceSpaces.",
+    "infield.cdmSetup.help.columns.other":
+      "file, observation, and timeseries probe appInstanceSpace, plus any extra filter spaces when configured.",
+    "infield.cdmSetup.help.columns.multi":
+      "Multiple rows appear when more than one instance space is configured for a mapping.",
+    "infield.cdmSetup.help.columns.probe":
+      "Hover a cell for the full status message. Customized views show the default mapping under the column header.",
+    "infield.cdmSetup.help.sectionStatus": "Space probe status",
+    "infield.cdmSetup.help.status.inUseLabel": "Green check",
+    "infield.cdmSetup.help.status.inUse":
+      "At least one node exists for the configured view. Click to open the API request and response.",
+    "infield.cdmSetup.help.status.emptyLabel": "Amber warning",
+    "infield.cdmSetup.help.status.empty": "Space exists but has no nodes of the configured view.",
+    "infield.cdmSetup.help.status.optionalLabel": "Blue info",
+    "infield.cdmSetup.help.status.optional":
+      "Empty appInstanceSpace on File or Timeseries only — normal when nothing has been uploaded yet.",
+    "infield.cdmSetup.help.status.missingLabel": "Missing",
+    "infield.cdmSetup.help.status.missing":
+      "DMS space was not found, or instances/list failed for that view.",
+    "infield.cdmSetup.help.sectionAssetWarning": "Asset column highlight",
+    "infield.cdmSetup.help.assetWarning":
+      "An amber row background on Asset means appInstanceSpace is not listed in any dataFilters.instanceSpaces.",
+    "infield.cdmSetup.help.sectionIssues": "Issues column",
+    "infield.cdmSetup.help.issues":
+      "Counts probe problems per location: empty or missing spaces. Optional File/Timeseries empties on appInstanceSpace are excluded.",
+    "infield.cdmSetup.help.sectionInteractions": "Interactions",
+    "infield.cdmSetup.help.interactions.filter":
+      "Filter matches location name, external ID, or any probed space substring.",
+    "infield.cdmSetup.help.interactions.location":
+      "Click a location row to inspect JSON, view mappings, and per-space probe results.",
+    "infield.cdmSetup.help.interactions.sort": "Click a column header to sort locations by probe status.",
     "dataCatalog.versionMatrix.showChecksumVersions":
       "Show implicit version columns",
     "dataCatalog.versionMatrix.onlyChecksumColumns":
@@ -669,7 +735,7 @@ const translations: Record<Language, Record<string, string>> = {
       "Click a legend entry once to show only rows that contain at least one cell matching that category (include). Click again to hide those rows (exclude). A third click clears that filter. Active mode is indicated under the swatch.",
     "dataCatalog.viewVersions.help.sectionInteractions": "Referrers and rings",
     "dataCatalog.viewVersions.help.interactionsBody":
-      "Click a cell bubble to pin it and list referrers in the side panel: data models that include the view, transformations that reference related models or destinations, and notes when nothing was found. Pinned cells use an orange ring so they are distinct from indigo rings, which mark transformation write targets aimed at that cell’s view version (red ring when the destination pins an older published version).",
+      "Click a cell bubble to pin it and open the side panel. Referrers lists catalog data models that include the view and a Fusion link to the view itself. Write transformations lists transformations with `destination.view` aimed at this view (any version), each opening in Fusion. Pinned cells use an orange ring so they are distinct from indigo rings, which mark transformation write targets aimed at that cell’s view version (red ring when the destination pins an older published version).",
     "dataCatalog.viewVersions.help.sectionCatalogLimits": "Loading and row limits",
     "dataCatalog.viewVersions.help.catalogLimitsBody":
       "The first load may stop after a fixed number of unique views for a fast paint; use Load all from server to continue listing. The matrix may show only the first chunk of rows sorted by name; expand with Show all in matrix when offered.",
@@ -695,10 +761,12 @@ const translations: Record<Language, Record<string, string>> = {
     "dataCatalog.viewVersions.legendNoRows":
       "No rows match this legend setting. Click the same legend entry again to switch include → exclude → off.",
     "dataCatalog.viewVersions.sidebarEmpty":
-      "Click a bubble to pin referrers here. Pinned cells use an orange ring; indigo rings mark transformation write targets to the latest column.",
+      "Click a bubble to pin referrers and write transformations here. Pinned cells use an orange ring; indigo rings mark transformation write targets to the latest column.",
     "dataCatalog.viewVersions.unpin": "Unpin",
     "dataCatalog.viewVersions.referrers": "Referrers",
     "dataCatalog.viewVersions.noReferrers": "No referrers found.",
+    "dataCatalog.viewVersions.writeTransformations": "Write transformations",
+    "dataCatalog.viewVersions.noWriteTransformations": "No transformations write to this view.",
     "dataCatalog.viewVersions.labelDataModel": "Data model",
     "dataCatalog.viewVersions.optionAllViews": "All views",
     "dataCatalog.viewVersions.filterAll": "All",
@@ -1130,6 +1198,7 @@ const translations: Record<Language, Record<string, string>> = {
     "nav.processing": "処理",
     "nav.permissions": "権限",
     "nav.dataCatalog": "データカタログ",
+    "nav.infield": "Infield",
     "nav.healthChecks": "ヘルスチェック",
     "nav.transformations": "変換",
     "apiError.showDetails": "詳細を表示",
@@ -1561,6 +1630,71 @@ const translations: Record<Language, Record<string, string>> = {
     "dataCatalog.propertyExplorer.hideExtraFilters": "追加フィルターを隠す",
     "dataCatalog.subnav.dataModelVersions": "データモデルバージョン",
     "dataCatalog.subnav.viewVersions": "ビューバージョン",
+    "dataCatalog.subnav.docLookup": "ドキュメント検索",
+    "infield.title": "Infield",
+    "infield.sectionSubtitle":
+      "Infield CDM のロケーション設定を検証し、設定されたインスタンススペースのサンプルビューデータを確認します。",
+    "infield.subNavAria": "Infield セクション",
+    "infield.subnav.cdmSetup": "Infield CDM セットアップ",
+    "infield.subnav.cdmDataExplorer": "Infield CDM データエクスプローラー",
+    "infield.cdmSetup.help.title": "Infield CDM セットアップ",
+    "infield.cdmSetup.help.subtitle":
+      "設定の検証、スペースプローブ、問題件数の読み方。",
+    "infield.cdmSetup.help.sectionPurpose": "このページの目的",
+    "infield.cdmSetup.help.purpose.one":
+      "すべての InFieldCDMLocationConfig ノードを一覧し、ロケーション間のスペースルールを検証します。",
+    "infield.cdmSetup.help.purpose.two":
+      "各 viewMappings 列について、インスタンススペースが存在し、設定されたビューのノードが少なくとも 1 件あることを確認します（そのビューを source にした instances/list）。",
+    "infield.cdmSetup.help.purpose.three":
+      "サンプルビュー件数、プレビュー行、データ品質テーブルは Infield CDM データエクスプローラーを開いてください。",
+    "infield.cdmSetup.help.sectionConfig": "Config 列",
+    "infield.cdmSetup.help.config.intro":
+      "設定ノードの space と external ID を表示します。チェックは非同期で実行され、緑のチェックはすべてのルールに合格したことを意味します。",
+    "infield.cdmSetup.help.config.rule1":
+      "設定スペースは一意である必要があります。他ロケーションの config、appInstanceSpace、参照データスペースとして再利用できません。",
+    "infield.cdmSetup.help.config.rule2":
+      "設定 external ID は自身の設定スペースにのみ存在する必要があります（Doc Lookup と同じ external ID 検索）。",
+    "infield.cdmSetup.help.config.rule3":
+      "operation、notification、maintenanceOrder は 1 つの参照データインスタンススペースを共有し、全ロケーションで一意である必要があります。",
+    "infield.cdmSetup.help.config.rule4":
+      "appInstanceSpace は必須で、ロケーションごとに一意であり、他ロケーションの config または参照データスペースと一致してはいけません。",
+    "infield.cdmSetup.help.sectionColumns": "View mapping 列",
+    "infield.cdmSetup.help.columns.intro":
+      "各列は viewMappings のエントリです。行はそのマッピングの設定ビューに対してプローブしたインスタンススペースを示します。",
+    "infield.cdmSetup.help.columns.asset":
+      "Asset は dataFilters.assets.instanceSpaces のみをプローブします（appInstanceSpace は対象外）。",
+    "infield.cdmSetup.help.columns.reference":
+      "operation、notification、maintenanceOrder は各 dataFilters.instanceSpaces をプローブします。",
+    "infield.cdmSetup.help.columns.other":
+      "file、observation、timeseries は appInstanceSpace と、設定されている追加のフィルタースペースをプローブします。",
+    "infield.cdmSetup.help.columns.multi":
+      "マッピングに複数のインスタンススペースが設定されている場合、複数行が表示されます。",
+    "infield.cdmSetup.help.columns.probe":
+      "セルにホバーすると完全なステータスメッセージが表示されます。カスタムビューは列ヘッダー下にデフォルトマッピングを表示します。",
+    "infield.cdmSetup.help.sectionStatus": "スペースプローブのステータス",
+    "infield.cdmSetup.help.status.inUseLabel": "緑のチェック",
+    "infield.cdmSetup.help.status.inUse":
+      "設定ビューのノードが 1 件以上あります。クリックすると API リクエストとレスポンスを表示します。",
+    "infield.cdmSetup.help.status.emptyLabel": "琥珀色の警告",
+    "infield.cdmSetup.help.status.empty": "スペースは存在しますが、設定ビューのノードがありません。",
+    "infield.cdmSetup.help.status.optionalLabel": "青色の情報",
+    "infield.cdmSetup.help.status.optional":
+      "File または Timeseries の appInstanceSpace のみが空 — まだアップロードがない場合は正常です。",
+    "infield.cdmSetup.help.status.missingLabel": "Missing",
+    "infield.cdmSetup.help.status.missing":
+      "DMS スペースが見つからないか、そのビューに対する instances/list が失敗しました。",
+    "infield.cdmSetup.help.sectionAssetWarning": "Asset 列のハイライト",
+    "infield.cdmSetup.help.assetWarning":
+      "Asset 行の琥珀色の背景は、appInstanceSpace が dataFilters.instanceSpaces に含まれていないことを意味します。",
+    "infield.cdmSetup.help.sectionIssues": "Issues 列",
+    "infield.cdmSetup.help.issues":
+      "ロケーションごとのプローブ問題（空または欠落スペース）の件数。appInstanceSpace 上の File/Timeseries の任意の空状態は除外されます。",
+    "infield.cdmSetup.help.sectionInteractions": "操作",
+    "infield.cdmSetup.help.interactions.filter":
+      "フィルターはロケーション名、external ID、またはプローブしたスペースの部分文字列に一致します。",
+    "infield.cdmSetup.help.interactions.location":
+      "ロケーション行をクリックすると JSON、view mappings、スペースごとのプローブ結果を確認できます。",
+    "infield.cdmSetup.help.interactions.sort": "列ヘッダーをクリックするとプローブステータスでロケーションを並べ替えます。",
     "dataCatalog.versionMatrix.showChecksumVersions":
       "暗黙バージョン列を表示",
     "dataCatalog.versionMatrix.onlyChecksumColumns":
@@ -1773,7 +1907,7 @@ const translations: Record<Language, Record<string, string>> = {
       "凡例を一度クリックすると、そのカテゴリに一致するセルを少なくとも一つ含む行だけを表示（インクルード）します。もう一度クリックするとそれらの行を非表示（エクスクルード）。三回目でそのフィルターを解除します。モードはスウォッチ下の表示で分かります。",
     "dataCatalog.viewVersions.help.sectionInteractions": "参照元とリング",
     "dataCatalog.viewVersions.help.interactionsBody":
-      "セルのバブルをクリックして固定すると、横のパネルに参照元が並びます：ビューを含むデータモデル、関連モデルや書き込み先を参照する変換、見つからない場合の注記です。固定されたセルは橙のリングで、変換の書き込み先（そのセルのビューバージョンを指す）を示すインディゴのリングとは別です（公開の古いバージョン列を指す書き込み先は赤リング）。",
+      "セルのバブルをクリックして固定すると、横のパネルが開きます。参照元には、このビューを含むカタログのデータモデルと、Fusion のビューへのリンクが表示されます。書き込み変換には、このビューを `destination.view` の書き込み先とする変換（バージョンは問わない）が並び、クリックで Fusion を開けます。固定されたセルは橙のリングで、変換の書き込み先（そのセルのビューバージョンを指す）を示すインディゴのリングとは別です（公開の古いバージョン列を指す書き込み先は赤リング）。",
     "dataCatalog.viewVersions.help.sectionCatalogLimits": "読み込みと行数の上限",
     "dataCatalog.viewVersions.help.catalogLimitsBody":
       "初回の一覧はユニークビュー数の上限で止まり、先に画面を出すことがあります。残りは「サーバーからすべて読み込み」で続けます。マトリックスは名前順の先頭のみ表示する場合があり、表示されるときは「マトリックスですべて表示」で展開できます。",
@@ -1800,10 +1934,12 @@ const translations: Record<Language, Record<string, string>> = {
     "dataCatalog.viewVersions.legendNoRows":
       "この凡例条件に一致する行がありません。同じ凡例をもう一度クリックしてインクルード → エクスクルード → オフに切り替えてください。",
     "dataCatalog.viewVersions.sidebarEmpty":
-      "バブルをクリックして参照元をここに固定します。固定セルは橙の輪、インディゴの輪は最新列への変換の書き込み先です。",
+      "バブルをクリックして参照元と書き込み変換をここに固定します。固定セルは橙の輪、インディゴの輪は最新列への変換の書き込み先です。",
     "dataCatalog.viewVersions.unpin": "固定解除",
     "dataCatalog.viewVersions.referrers": "参照元",
     "dataCatalog.viewVersions.noReferrers": "参照元が見つかりません。",
+    "dataCatalog.viewVersions.writeTransformations": "書き込み変換",
+    "dataCatalog.viewVersions.noWriteTransformations": "このビューへの書き込み変換は見つかりません。",
     "dataCatalog.viewVersions.labelDataModel": "データモデル",
     "dataCatalog.viewVersions.optionAllViews": "すべてのビュー",
     "dataCatalog.viewVersions.filterAll": "すべて",

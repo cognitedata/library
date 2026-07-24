@@ -6,6 +6,7 @@ import { useSdkManager } from "@/shared/SdkManager";
 import { HealthChecks } from "./health-checks";
 import { Processing } from "./processing";
 import { Permissions } from "./permissions";
+import { InfieldSection } from "./infield";
 import { Transformations } from "./transformations";
 import { DataCatalog } from "./data-catalog";
 import { DataCacheProvider } from "./shared/data-cache";
@@ -23,11 +24,13 @@ const productionPages = [
   { id: "transformations", labelKey: "nav.transformations" },
   { id: "permissions", labelKey: "nav.permissions" },
   { id: "meta", labelKey: "nav.dataCatalog" },
+  { id: "infield", labelKey: "nav.infield" },
 ] as const;
 
 const internalPages = [
   { id: "healthInternal", label: "Health Checks" },
   { id: "assets", label: "Assets" },
+  { id: "infieldInternal", label: "Infield 2" },
   { id: "models", label: "Data models" },
   { id: "views", label: "Views" },
   { id: "streams", label: "Streams" },
@@ -35,6 +38,7 @@ const internalPages = [
   { id: "spaces", label: "Spaces" },
   { id: "dpUsage", label: "DP Usage" },
   { id: "dpCross", label: "DP Cross Project" },
+  { id: "dpAdoption", label: "DP Adoption" },
   { id: "overlap", label: "Overlap" },
   { id: "settings", label: "Settings" },
   { id: "apiConsole", label: "API Console" },
@@ -43,6 +47,26 @@ const internalPages = [
 type AppMode =
   | (typeof productionPages)[number]["id"]
   | (typeof internalPages)[number]["id"];
+
+const WIDE_LAYOUT_MODES = new Set<AppMode>([
+  "processing",
+  "transformations",
+  "permissions",
+  "meta",
+  "infield",
+  "assets",
+  "infieldInternal",
+  "models",
+  "views",
+  "streams",
+  "edges",
+  "spaces",
+  "dpUsage",
+  "dpCross",
+  "dpAdoption",
+  "overlap",
+  "apiConsole",
+]);
 
 function AppContent() {
   const { isLoading } = useAppSdk();
@@ -62,11 +86,13 @@ function AppContent() {
   const { isPrivateMode } = usePrivateMode();
   const showInternal =
     import.meta.env.VITE_SHOW_INTERNAL === "true" || import.meta.env.VITE_STANDALONE !== "true";
+
   const validModes = useMemo(() => {
     const prod = productionPages.map((p) => p.id);
     const internal = showInternal ? internalPages.map((p) => p.id) : [];
     return new Set<AppMode>([...prod, ...internal] as AppMode[]);
   }, [showInternal]);
+
   const initialMode = useMemo(() => {
     const state = loadNavState();
     let stored = state.mode;
@@ -96,6 +122,7 @@ function AppContent() {
   }, [validModes]);
   const [mode, setModeState] = useState<AppMode>(initialMode);
   const [showLruStats, setShowLruStats] = useState(false);
+  const wideLayout = WIDE_LAYOUT_MODES.has(mode);
 
   const setMode = useCallback(
     (next: AppMode) => {
@@ -104,6 +131,7 @@ function AppContent() {
     },
     []
   );
+
   const navigateToTransformations = useCallback(() => {
     setMode("transformations");
   }, []);
@@ -114,8 +142,6 @@ function AppContent() {
     }
   }, [selectedProject]);
 
-
-
   if (isLoading || !projectResolved) {
     return <div>Loading...</div>;
   }
@@ -125,7 +151,8 @@ function AppContent() {
       <LimitsProvider>
       <NavigationProvider onNavigateToTransformations={navigateToTransformations}>
       <DataCacheProvider>
-        <div className="mx-auto flex w-full max-w-6xl flex-col gap-8">
+        <div className="flex w-full flex-col gap-8">
+          <header className="mx-auto flex w-full max-w-6xl flex-col gap-8">
           <div className="flex flex-nowrap items-start justify-between gap-4">
             <div className="flex flex-col gap-3">
               {availableProjects.length > 1 ? (
@@ -248,15 +275,20 @@ function AppContent() {
             </div>
           </div>
           {showLruStats ? <LruCacheStatsPanel onClose={() => setShowLruStats(false)} /> : null}
-        <div data-private-mode={isPrivateMode && mode !== "settings" && mode !== "apiConsole" && mode !== "dpCross" && mode !== "health" && mode !== "processing" && mode !== "permissions" && mode !== "transformations" ? "true" : undefined}>
+          </header>
+        <main
+          className={wideLayout ? "w-full" : "mx-auto w-full max-w-6xl"}
+          data-private-mode={isPrivateMode && mode !== "settings" && mode !== "apiConsole" && mode !== "dpCross" && mode !== "dpAdoption" && mode !== "health" && mode !== "processing" && mode !== "permissions" && mode !== "transformations" ? "true" : undefined}
+        >
         {mode === "health" ? <HealthChecks /> : null}
+        {mode === "infield" ? <InfieldSection /> : null}
         {mode === "processing" ? <Processing /> : null}
         {mode === "permissions" ? <Permissions /> : null}
         {mode === "meta" ? <DataCatalog /> : null}
         {mode === "transformations" ? <Transformations /> : null}
 
-        </div>
-          <footer className="text-sm text-slate-500">
+        </main>
+          <footer className="mx-auto w-full max-w-6xl text-sm text-slate-500">
             Project: <span className={isPrivateMode ? "private-mask" : ""}>{selectedProject}</span>
           </footer>
         </div>
@@ -294,6 +326,7 @@ function PrivateModeBadge() {
     </button>
   );
 }
+
 function App() {
   return (
     <I18nProvider>
