@@ -9,7 +9,9 @@ Covers:
                    _write_config_update, remove_redundant_auth_files,
                    patch_cfihos_auth_for_missing_search, remove_synthetic_data,
                    _read_existing_values, remove_redundant_diagram_annotation,
-                   diagram_annotation_stale_paths
+                   diagram_annotation_stale_paths, resolve_pack_kind,
+                   resolve_pack_kind_for_check
+  - _pack_config  : detect_data_model_variant, detect_pack_kind
 """
 
 
@@ -18,6 +20,7 @@ import sys
 import textwrap
 from pathlib import Path
 
+import pytest
 import yaml
 
 REPO_ROOT   = Path(__file__).resolve().parents[1]
@@ -1587,6 +1590,123 @@ class TestDetectDataModelVariant:
         (data_models_dir / "cfihos_oil_and_gas_extension").mkdir(parents=True)
         try:
             detect_data_model_variant(data_models_dir)
+            raise AssertionError("expected SystemExit")
+        except SystemExit:
+            pass
+
+
+# ── _pack_config — pack-kind detection ────────────────────────────────────────
+
+class TestDetectPackKind:
+    """detect_pack_kind distinguishes Foundation (*_extractor) from Demo
+    (*_data_dump) sourcesystem modules, or reports "ambiguous" when the signal
+    isn't clean — the caller decides how to handle ambiguity (see TestResolvePackKind)."""
+
+    def test_missing_sourcesystem_dir_is_ambiguous(self, tmp_path: Path) -> None:
+        from _pack_config import detect_pack_kind
+        assert detect_pack_kind(tmp_path / "modules" / "sourcesystem") == "ambiguous"
+
+    def test_empty_sourcesystem_dir_is_ambiguous(self, tmp_path: Path) -> None:
+        from _pack_config import detect_pack_kind
+        sourcesystem_dir = tmp_path / "modules" / "sourcesystem"
+        sourcesystem_dir.mkdir(parents=True)
+        assert detect_pack_kind(sourcesystem_dir) == "ambiguous"
+
+    def test_extractor_only_is_foundation(self, tmp_path: Path) -> None:
+        from _pack_config import detect_pack_kind
+        sourcesystem_dir = tmp_path / "modules" / "sourcesystem"
+        (sourcesystem_dir / "cdf_pi_extractor").mkdir(parents=True)
+        (sourcesystem_dir / "cdf_sap_extractor").mkdir(parents=True)
+        assert detect_pack_kind(sourcesystem_dir) == "foundation"
+
+    def test_data_dump_only_is_demo(self, tmp_path: Path) -> None:
+        from _pack_config import detect_pack_kind
+        sourcesystem_dir = tmp_path / "modules" / "sourcesystem"
+        (sourcesystem_dir / "cdf_pi_data_dump").mkdir(parents=True)
+        (sourcesystem_dir / "cdf_sharepoint_data_dump").mkdir(parents=True)
+        assert detect_pack_kind(sourcesystem_dir) == "demo"
+
+    def test_mixed_extractor_and_data_dump_is_ambiguous(self, tmp_path: Path) -> None:
+        from _pack_config import detect_pack_kind
+        sourcesystem_dir = tmp_path / "modules" / "sourcesystem"
+        (sourcesystem_dir / "cdf_pi_extractor").mkdir(parents=True)
+        (sourcesystem_dir / "cdf_sharepoint_data_dump").mkdir(parents=True)
+        assert detect_pack_kind(sourcesystem_dir) == "ambiguous"
+
+    def test_unrelated_module_only_is_ambiguous(self, tmp_path: Path) -> None:
+        """cdf_sharepoint / cdf_sap_assets / etc. are neither extractor nor
+        data-dump modules — their presence alone must not resolve either way."""
+        from _pack_config import detect_pack_kind
+        sourcesystem_dir = tmp_path / "modules" / "sourcesystem"
+        (sourcesystem_dir / "cdf_sharepoint").mkdir(parents=True)
+        assert detect_pack_kind(sourcesystem_dir) == "ambiguous"
+
+
+# ── setup_project — pack-kind resolution ──────────────────────────────────────
+
+class TestResolvePackKind:
+    """resolve_pack_kind: always auto-detected — no override flag, since every
+    cleanup function downstream already decides from installed module
+    directories rather than from this value. Prompts only when detection is
+    ambiguous (mirrors resolve_variant/detect_data_model_variant)."""
+
+    def test_unambiguous_demo_detected_without_prompting(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        import setup_project
+        from setup_project import resolve_pack_kind
+
+        def _fail_if_prompted() -> str:
+            raise AssertionError("must not prompt when detection is unambiguous")
+
+        monkeypatch.setattr(setup_project, "_prompt_pack_kind", _fail_if_prompted)
+        sourcesystem_dir = tmp_path / "modules" / "sourcesystem"
+        (sourcesystem_dir / "cdf_sharepoint_data_dump").mkdir(parents=True)
+        assert resolve_pack_kind(sourcesystem_dir) == "demo"
+
+    def test_unambiguous_foundation_detected_without_prompting(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        import setup_project
+        from setup_project import resolve_pack_kind
+
+        def _fail_if_prompted() -> str:
+            raise AssertionError("must not prompt when detection is unambiguous")
+
+        monkeypatch.setattr(setup_project, "_prompt_pack_kind", _fail_if_prompted)
+        sourcesystem_dir = tmp_path / "modules" / "sourcesystem"
+        (sourcesystem_dir / "cdf_pi_extractor").mkdir(parents=True)
+        assert resolve_pack_kind(sourcesystem_dir) == "foundation"
+
+    def test_ambiguous_detection_prompts_and_uses_answer(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        import setup_project
+        from setup_project import resolve_pack_kind
+
+        monkeypatch.setattr(setup_project, "_prompt_pack_kind", lambda: "demo")
+        # Sourcesystem dir missing entirely -> ambiguous.
+        sourcesystem_dir = tmp_path / "modules" / "sourcesystem"
+        assert resolve_pack_kind(sourcesystem_dir) == "demo"
+
+
+class TestResolvePackKindForCheck:
+    """--check must never block on a prompt: ambiguous detection raises SystemExit.
+    No override flag — a mismatch between installed modules and the expected pack
+    shape is a malformed module selection to fix, not something to override."""
+
+    def test_unambiguous_detection_resolved(self, tmp_path: Path) -> None:
+        from setup_project import resolve_pack_kind_for_check
+        sourcesystem_dir = tmp_path / "modules" / "sourcesystem"
+        (sourcesystem_dir / "cdf_sap_extractor").mkdir(parents=True)
+        assert resolve_pack_kind_for_check(sourcesystem_dir) == "foundation"
+
+    def test_ambiguous_detection_raises_without_prompting(self, tmp_path: Path) -> None:
+        from setup_project import resolve_pack_kind_for_check
+        # Sourcesystem dir missing entirely -> ambiguous.
+        sourcesystem_dir = tmp_path / "modules" / "sourcesystem"
+        try:
+            resolve_pack_kind_for_check(sourcesystem_dir)
             raise AssertionError("expected SystemExit")
         except SystemExit:
             pass
