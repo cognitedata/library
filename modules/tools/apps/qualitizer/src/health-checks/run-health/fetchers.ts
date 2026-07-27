@@ -391,7 +391,7 @@ export async function fetchTransformationHealth(opts: FetcherOpts): Promise<Reso
         const runs: RunEntry[] = jobs
           .map<RunEntry>((j) => ({
             status: j.status ?? "",
-            timeMs: toTimestampLoose(j.finishedTime ?? j.startedTime ?? j.createdTime),
+            timeMs: toTimestampLoose(j.startedTime ?? j.finishedTime ?? j.createdTime),
             message: j.error,
           }));
         resources.push(

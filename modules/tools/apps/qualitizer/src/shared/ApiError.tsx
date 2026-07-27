@@ -66,10 +66,16 @@ const fallbackStrings: Record<string, string> = {
 };
 
 function extractStatusCode(message: string): string | null {
-  const codeMatch = message.match(/\bcode:\s*(\d{3})\b/i);
-  if (codeMatch?.[1]) return codeMatch[1];
-  const httpMatch = message.match(/\b(4\d{2}|5\d{2})\b/);
-  if (httpMatch?.[1]) return httpMatch[1];
+  const contextualPatterns = [
+    /\bstatus(?:\s+code)?\s*[:=]?\s*\[?(4\d{2}|5\d{2})\]?/i,
+    /\bcode\s*[:=]?\s*\[?(4\d{2}|5\d{2})\]?/i,
+    /\bhttp(?:\s+status)?\s*[:=]?\s*\[?(4\d{2}|5\d{2})\]?/i,
+    /\[(4\d{2}|5\d{2})\]/,
+  ];
+  for (const pattern of contextualPatterns) {
+    const match = message.match(pattern);
+    if (match?.[1]) return match[1];
+  }
   return null;
 }
 

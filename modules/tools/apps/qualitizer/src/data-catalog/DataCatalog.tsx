@@ -9,13 +9,15 @@ import { Properties } from "./Properties";
 import { DataModelVersions } from "./versioning/DataModelVersions";
 import { ViewVersions } from "./versioning/ViewVersions";
 import { DataCatalogOverview } from "./DataCatalogOverview";
+import { DocLookup } from "./doc-lookup/DocLookup";
 
 function isDataCatalogSubView(v: unknown): v is PersistedDataCatalogSubView {
   return (
     v === "overview" ||
     v === "propertyExplorer" ||
     v === "dataModelVersions" ||
-    v === "viewVersions"
+    v === "viewVersions" ||
+    v === "docLookup"
   );
 }
 
@@ -102,6 +104,17 @@ export function DataCatalog() {
         >
           {t("dataCatalog.subnav.viewVersions")}
         </button>
+        <button
+          type="button"
+          onClick={() => selectTab("docLookup")}
+          className={`cursor-pointer rounded-md px-4 py-2 text-sm font-medium transition ${
+            tab === "docLookup"
+              ? "bg-slate-900 text-white"
+              : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+          }`}
+        >
+          {t("dataCatalog.subnav.docLookup")}
+        </button>
       </nav>
       {mountedTabs.has("overview") ? (
         <div className={tab === "overview" ? undefined : "hidden"}>
@@ -121,6 +134,11 @@ export function DataCatalog() {
       {mountedTabs.has("viewVersions") ? (
         <div className={tab === "viewVersions" ? undefined : "hidden"}>
           <ViewVersions />
+        </div>
+      ) : null}
+      {mountedTabs.has("docLookup") ? (
+        <div className={tab === "docLookup" ? undefined : "hidden"}>
+          <DocLookup />
         </div>
       ) : null}
     </section>

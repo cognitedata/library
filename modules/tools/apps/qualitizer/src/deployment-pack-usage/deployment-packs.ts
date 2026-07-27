@@ -12,15 +12,16 @@ const HUB_CFIHOS_OIL_AND_GAS_PACK = `${HUB_DEPLOYMENT_PACKS_LIBRARY}/oil-and-gas
 export const DEPLOYMENT_PACKS: DeploymentPackDefinition[] = [
   QUALITIZER_DEPLOYMENT_PACK,
   {
-    id: "dp:common:cdf_common",
+    id: "dp:accelerators:cdf_common",
     name: "CDF Common",
+    synonyms: ["dp:cdf_common"],
     description: `Shared contextualization writer function (toolkit: modules/common/cdf_common). Hub: ${HUB_DEPLOYMENT_PACKS_LIBRARY}`,
     signals: {
       functionExternalIds: ["contextualization_connection_writer"],
     },
   },
   {
-    id: "dp:common:cdf_ingestion",
+    id: "dp:acc:cdf_ingestion",
     name: "Ingestion Workflow",
     description: `Orchestrated population workflow; probe uses the first transformation task from the default workflow graph (pi timeseries). Toolkit: modules/common/cdf_ingestion. Hub: ${HUB_DEPLOYMENT_PACKS_LIBRARY}`,
     signals: {
@@ -28,7 +29,7 @@ export const DEPLOYMENT_PACKS: DeploymentPackDefinition[] = [
     },
   },
   {
-    id: "dp:contextualization:cdf_connection_sql",
+    id: "dp:acc:ctx:cdf_connection_sql",
     name: "Contextualization Direct Relation Transformations",
     description: `SQL-based direct-relation population (modules/contextualization/cdf_connection_sql). Hub: ${HUB_DEPLOYMENT_PACKS_LIBRARY}`,
     signals: {
@@ -36,8 +37,9 @@ export const DEPLOYMENT_PACKS: DeploymentPackDefinition[] = [
     },
   },
   {
-    id: "dp:contextualization:cdf_entity_matching",
+    id: "dp:acc:ctx:cdf_entity_matching",
     name: "CDF Entity Matching",
+    synonyms: ["dp:cdf_entity_matching", "dp:contextualization:cdf_entity_matching"],
     description: `Entity matching functions (modules/contextualization/cdf_entity_matching). Hub: ${HUB_DEPLOYMENT_PACKS_LIBRARY}`,
     signals: {
       functionExternalIds: [
@@ -47,8 +49,14 @@ export const DEPLOYMENT_PACKS: DeploymentPackDefinition[] = [
     },
   },
   {
-    id: "dp:contextualization:cdf_file_annotation",
+    id: "dp:acc:ctx:cdf_file_annotation",
     name: "File Annotation (contextualization)",
+    synonyms: [
+      "dp:acc:contextualization:cdf_file_annotation",
+      "dp:contextualization:cdf_file_annotation",
+      "dp:acc:ctx:file_annotation",
+      "dp:cdf_file_annotation",
+    ],
     description: `Annotation pipeline: helper data model plus all four function stages (modules/contextualization/cdf_file_annotation). Hub: ${HUB_DEPLOYMENT_PACKS_LIBRARY}`,
     signals: {
       functionExternalIds: [
@@ -67,7 +75,7 @@ export const DEPLOYMENT_PACKS: DeploymentPackDefinition[] = [
     },
   },
   {
-    id: "dp:common:cdf_search",
+    id: "dp:acc:industrial_tools:cdf_search",
     name: "Industrial Data Exploration (location filter)",
     description: `Fusion location filter for enterprise data model scope (modules/common/cdf_search). Hub: ${HUB_DEPLOYMENT_PACKS_LIBRARY}`,
     signals: {
@@ -82,8 +90,9 @@ export const DEPLOYMENT_PACKS: DeploymentPackDefinition[] = [
     },
   },
   {
-    id: "dp:sourcesystem:cdf_oid_sync",
+    id: "dp:acc:cdf_oid_sync",
     name: "Open Industrial Data Sync",
+    synonyms: ["dp:acc:open_industrial_data_sync", "dp:open_industrial_data_sync"],
     description: `OID sync function (modules/sourcesystem/cdf_oid_sync). Hub: ${HUB_DEPLOYMENT_PACKS_LIBRARY}`,
     signals: {
       functionExternalIds: ["fn_oid_sync"],
@@ -92,6 +101,7 @@ export const DEPLOYMENT_PACKS: DeploymentPackDefinition[] = [
   {
     id: "dp:dashboards:report_quality",
     name: "Quality Reports — Contextualization Rate",
+    synonyms: ["dp:dashboards:rpt_quality"],
     description: `Reporting transformations (modules/dashboards/report_quality); probe uses the files annotation rate job. Hub: ${HUB_DEPLOYMENT_PACKS_LIBRARY}`,
     signals: {
       transformationExternalIds: ["tr_report_files_annotationrate"],
@@ -100,7 +110,7 @@ export const DEPLOYMENT_PACKS: DeploymentPackDefinition[] = [
   {
     id: "dp:models:qs_enterprise_dm",
     name: "Quick Start Enterprise Data Model",
-    description: `Enterprise and search data models (modules/datamodels/qs_enterprise_dm). Hub: ${HUB_DEPLOYMENT_PACKS_LIBRARY}`,
+    description: `Enterprise and search data models (modules/data_models/qs_enterprise_dm). Hub: ${HUB_DEPLOYMENT_PACKS_LIBRARY}`,
     signals: {
       dataModels: [
         {
@@ -117,9 +127,23 @@ export const DEPLOYMENT_PACKS: DeploymentPackDefinition[] = [
     },
   },
   {
+    id: "dp:models:cdf_process_industry_extension",
+    name: "Process Industry Extension",
+    description: `Minimum extension of the Cognite process industry model (library: modules/datamodels/cdf_process_industry_extension). Hub: ${HUB_DEPLOYMENT_PACKS_LIBRARY}`,
+    signals: {
+      dataModels: [
+        {
+          space: "sp_enterprise_process_industry",
+          externalId: "ORGProcessIndustries",
+          version: "v1.0",
+        },
+      ],
+    },
+  },
+  {
     id: "dp:models:isa_manufacturing_extension",
     name: "ISA Batch Manufacturing Data Model Extension",
-    description: `ISA-95 / ISA-88 manufacturing domain model from the Hub pack and cognitedata/library \`isa_manufacturing_extension\`. Detection fingerprints the official template view set (customer copies may rename spaces/models). Hub: ${HUB_ISA_MANUFACTURING_PACK} · Code: https://github.com/cognitedata/library/tree/main/modules/datamodels/isa_manufacturing_extension`,
+    description: `ISA-95 / ISA-88 manufacturing domain model from the Hub pack and cognitedata/library \`isa_manufacturing_extension\`. Detection fingerprints the official template view set (customer copies may rename spaces/models). Hub: ${HUB_ISA_MANUFACTURING_PACK} · Code: https://github.com/cognitedata/library/tree/main/modules/data_models/isa_manufacturing_extension`,
     signals: {},
     isaManufacturingDerivative: {
       minDistinctiveViewsInOneDataModel: 14,
@@ -128,7 +152,8 @@ export const DEPLOYMENT_PACKS: DeploymentPackDefinition[] = [
   {
     id: "dp:models:cfihos_oil_and_gas_extension",
     name: "Oil and Gas Data Model — CFIHOS & ISO14224 Extension",
-    description: `Tag-centric CFIHOS 2.0 / ISO 14224 oil & gas domain model from the Hub pack and cognitedata/library \`cfihos_oil_and_gas_extension\`. Detection fingerprints customer-space views from the template (renamed spaces/models still match when the view set aligns). Hub: ${HUB_CFIHOS_OIL_AND_GAS_PACK} · Code: https://github.com/cognitedata/library/tree/main/modules/datamodels/cfihos_oil_and_gas_extension`,
+    synonyms: ["dp:models:cfihos_oil_and_gas_extension_search"],
+    description: `Tag-centric CFIHOS 2.0 / ISO 14224 oil & gas domain model from the Hub pack and cognitedata/library \`cfihos_oil_and_gas_extension\`. Detection fingerprints customer-space views from the template (renamed spaces/models still match when the view set aligns). Hub: ${HUB_CFIHOS_OIL_AND_GAS_PACK} · Code: https://github.com/cognitedata/library/tree/main/modules/data_models/cfihos_oil_and_gas_extension`,
     signals: {},
     cfihosOilAndGasDerivative: {
       minDistinctiveViewsInOneDataModel: 14,
@@ -137,7 +162,8 @@ export const DEPLOYMENT_PACKS: DeploymentPackDefinition[] = [
   {
     id: "dp:models:rmdm",
     name: "Reliability & Maintenance Data Model (RMDM)",
-    description: `ISO 14224–oriented R&M containers and views (library: modules/datamodels/rmdm). Hub: ${HUB_DEPLOYMENT_PACKS_LIBRARY}`,
+    synonyms: ["dp:models:rmdm_v1"],
+    description: `ISO 14224–oriented R&M containers and views (library: modules/data_models/rmdm). Hub: ${HUB_DEPLOYMENT_PACKS_LIBRARY}`,
     signals: {
       dataModels: [{ space: "rmdm", externalId: "rmdm_v1", version: "v1" }],
     },
@@ -145,6 +171,7 @@ export const DEPLOYMENT_PACKS: DeploymentPackDefinition[] = [
   {
     id: "dp:dashboards:project_health",
     name: "CDF Project Health Dashboard",
+    synonyms: ["dp:project_health"],
     description: `Project health metrics function for the Streamlit dashboard (library: modules/dashboards/project_health). Hub: ${HUB_DEPLOYMENT_PACKS_LIBRARY}`,
     signals: {
       functionExternalIds: ["project_health_handler"],
@@ -153,38 +180,50 @@ export const DEPLOYMENT_PACKS: DeploymentPackDefinition[] = [
   {
     id: "dp:dashboards:context_quality",
     name: "Contextualization Quality Dashboard",
+    synonyms: ["dp:context_quality"],
     description: `Contextualization quality metrics function (library: modules/dashboards/context_quality). Hub: ${HUB_DEPLOYMENT_PACKS_LIBRARY}`,
     signals: {
       functionExternalIds: ["context_quality_handler"],
     },
   },
   {
-    id: "dp:atlas_ai:ai_extractor",
+    id: "dp:atlas:ai_property_extractor",
     name: "Atlas AI Property Extractor",
+    synonyms: ["dp:atlas_ai_extractor"],
     description: `LLM property extraction function and pipeline (library: modules/solutions/cdf_ai_extractor). Hub: ${HUB_DEPLOYMENT_PACKS_LIBRARY}`,
     signals: {
       functionExternalIds: ["fn_ai_property_extractor"],
     },
   },
   {
-    id: "dp:contextualization:cdf_p_and_id_annotation",
+    id: "dp:acc:ctx:cdf_p_and_id_annotation",
     name: "P&ID Annotation",
+    synonyms: ["dp:cdf_p_and_id_annotation", "dp:contextualization:cdf_p_and_id_annotation"],
     description: `PID tagging transformations from cdf_p_and_id_annotation (library: modules/contextualization/cdf_p_and_id_annotation); customers may rename these transforms. Hub: ${HUB_DEPLOYMENT_PACKS_LIBRARY}`,
     signals: {
       transformationExternalIds: ["asset_tagging_tr", "file_tagging_tr"],
     },
   },
   {
-    id: "dp:infield:cdf_infield_location",
-    name: "Infield Location",
-    description: `Infield location on CDM (library: modules/solutions/cdf_infield/cdf_infield_location). Hub: ${HUB_DEPLOYMENT_PACKS_LIBRARY}`,
+    id: "dp:acc:ctx:p_and_id_parser",
+    name: "P&ID Diagram Parser",
+    synonyms: ["dp:cdf_p_and_id_parser"],
+    description: `P&ID diagram parser pipeline detecting assets, equipment, and time series in diagrams (library: modules/contextualization/cdf_p_and_id_parser). Hub: ${HUB_DEPLOYMENT_PACKS_LIBRARY}`,
+    signals: {},
+  },
+  {
+    id: "dp:acc:infield_quickstart",
+    name: "InField QuickStart",
+    synonyms: ["dp:infield:cdf_infield_location"],
+    description: `APM / InField quickstart config data model (library: modules/accelerators/infield_quickstart/cdf_apm_base). Hub: ${HUB_DEPLOYMENT_PACKS_LIBRARY}`,
     signals: {
       dataModels: [{ space: "APM_Config", externalId: "APM_Config", version: "1" }],
     },
   },
   {
-    id: "dp:sourcesystem:cdf_pi",
+    id: "cdf_pi",
     name: "AVEVA PI / PI System",
+    synonyms: ["dp:sourcesystem:cdf_pi"],
     description: `PI timeseries population (modules/sourcesystem/cdf_pi). Hub: ${HUB_DEPLOYMENT_PACKS_LIBRARY}`,
     signals: {
       transformationExternalIds: ["pi_timeseries_springfield_aveva_pi"],
@@ -198,8 +237,9 @@ export const DEPLOYMENT_PACKS: DeploymentPackDefinition[] = [
     },
   },
   {
-    id: "dp:sourcesystem:cdf_sap_assets",
+    id: "cdf_sap_assets",
     name: "SAP S/4HANA — Assets",
+    synonyms: ["dp:sourcesystem:cdf_sap_assets"],
     description: `SAP asset & equipment population (modules/sourcesystem/cdf_sap_assets). Hub: ${HUB_DEPLOYMENT_PACKS_LIBRARY}`,
     signals: {
       transformationExternalIds: ["sap_assets_springfield_s4hana"],
@@ -213,8 +253,9 @@ export const DEPLOYMENT_PACKS: DeploymentPackDefinition[] = [
     },
   },
   {
-    id: "dp:sourcesystem:cdf_sap_events",
+    id: "cdf_sap_events",
     name: "SAP S/4HANA — Activities",
+    synonyms: ["dp:sourcesystem:cdf_sap_events"],
     description: `SAP maintenance orders and operations (modules/sourcesystem/cdf_sap_events). Hub: ${HUB_DEPLOYMENT_PACKS_LIBRARY}`,
     signals: {
       transformationExternalIds: ["sap_maintenance_orders_springfield_s4hana"],
@@ -228,8 +269,9 @@ export const DEPLOYMENT_PACKS: DeploymentPackDefinition[] = [
     },
   },
   {
-    id: "dp:sourcesystem:cdf_sharepoint",
+    id: "cdf_sharepoint",
     name: "SharePoint Files",
+    synonyms: ["dp:sourcesystem:cdf_sharepoint"],
     description: `SharePoint file metadata ingestion (modules/sourcesystem/cdf_sharepoint). Hub: ${HUB_DEPLOYMENT_PACKS_LIBRARY}`,
     signals: {
       transformationExternalIds: ["files_metadata_springfield"],

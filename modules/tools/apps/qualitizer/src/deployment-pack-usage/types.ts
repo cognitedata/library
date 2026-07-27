@@ -16,6 +16,8 @@ export type DeploymentPackDefinition = {
   id: string;
   name: string;
   description: string;
+  /** Legacy Mixpanel keys (alternate ids) that map to this pack's canonical id. */
+  synonyms?: string[];
   signals: {
     functionExternalIds?: string[];
     dataModels?: DataModelRef[];
