@@ -185,6 +185,8 @@ environment:
     )
     assert "cdf build -c industrial/config.dev.yaml" in dry_run
     assert "cdf build -c industrial/config.test.yaml" in dry_run
+    assert 'case "$GITHUB_BASE_REF" in' in dry_run
+    assert "Unsupported base branch $GITHUB_BASE_REF" in dry_run
     assert "cdf build --env" not in dry_run
 
     deploy_prod = (tmp_path / ".github" / "workflows" / "deploy-prod.yml").read_text(
@@ -283,10 +285,8 @@ environment:
     workflows = tmp_path / ".github" / "workflows"
     workflows.mkdir(parents=True)
     stale_test_workflow = workflows / "deploy-test.yml"
-    stale_staging_workflow = workflows / "deploy-staging.yml"
     stale_prod_workflow = workflows / "deploy-prod.yml"
     stale_test_workflow.write_text("stale\n", encoding="utf-8")
-    stale_staging_workflow.write_text("stale\n", encoding="utf-8")
     stale_prod_workflow.write_text("stale\n", encoding="utf-8")
 
     subprocess.run(
@@ -302,110 +302,42 @@ environment:
     assert (workflows / "dry-run.yml").is_file()
     assert (workflows / "deploy-dev.yml").is_file()
     assert not stale_test_workflow.exists()
-    assert not stale_staging_workflow.exists()
     assert not stale_prod_workflow.exists()
 
     dry_run = (workflows / "dry-run.yml").read_text(encoding="utf-8")
     assert "      - dev" in dry_run
     assert "      - main" not in dry_run
     assert "deploy-test.yml" not in dry_run
-    assert "deploy-staging.yml" not in dry_run
     assert "deploy-prod.yml" not in dry_run
     assert "test-toolkit-credentials" not in dry_run
-    assert "staging-toolkit-credentials" not in dry_run
     assert "prod-toolkit-credentials" not in dry_run
     assert "config.test.yaml" not in dry_run
-    assert "config.staging.yaml" not in dry_run
     assert "config.prod.yaml" not in dry_run
     assert "cdf build -c config.dev.yaml" in dry_run
 
     cicd_docs = (tmp_path / "docs" / "FOUNDATION_CICD.md").read_text(encoding="utf-8")
     assert "`acme-dev`" in cicd_docs
     assert "`acme-test`" not in cicd_docs
-    assert "`acme-staging`" not in cicd_docs
     assert "`acme-prod`" not in cicd_docs
     assert "config.test.yaml" not in cicd_docs
-    assert "config.staging.yaml" not in cicd_docs
     assert "config.prod.yaml" not in cicd_docs
-
-
-def test_generate_actions_uses_staging_when_staging_config_exists(tmp_path: Path) -> None:
-    (tmp_path / "cdf.toml").write_text(
-        """
-[modules]
-version = "0.8.0"
-""".strip(),
-        encoding="utf-8",
-    )
-    modules = tmp_path / "modules" / "common" / "cdf_project_foundation"
-    modules.mkdir(parents=True)
-    (modules / "module.toml").write_text(
-        'id = "cdf_project_foundation"\npackage_id = "dp:foundation"\n',
-        encoding="utf-8",
-    )
-    for env in ("dev", "staging", "prod"):
-        (tmp_path / f"config.{env}.yaml").write_text(
-            f"""
-environment:
-  name: {env}
-  project: acme-{env}
-""".lstrip(),
-            encoding="utf-8",
-        )
-
-    subprocess.run(
-        [
-            sys.executable,
-            str(GENERATE_ACTIONS),
-            "--force",
-        ],
-        check=True,
-        cwd=tmp_path,
-    )
-
-    workflows = tmp_path / ".github" / "workflows"
-    assert (workflows / "deploy-staging.yml").is_file()
-    assert not (workflows / "deploy-test.yml").exists()
-
-    dry_run = (workflows / "dry-run.yml").read_text(encoding="utf-8")
-    assert "deploy-staging.yml" in dry_run
-    assert "deploy-test.yml" not in dry_run
-    assert "staging-toolkit-credentials" in dry_run
-    assert "test-toolkit-credentials" not in dry_run
-    assert "cdf build -c config.staging.yaml" in dry_run
-    assert "cdf build -c config.test.yaml" not in dry_run
-
-    deploy_staging = (workflows / "deploy-staging.yml").read_text(encoding="utf-8")
-    assert "name: Deploy to acme-staging" in deploy_staging
-    assert "environment: staging-toolkit-credentials" in deploy_staging
-    assert "run: cdf build -c config.staging.yaml" in deploy_staging
-
-    cicd_docs = (tmp_path / "docs" / "FOUNDATION_CICD.md").read_text(encoding="utf-8")
-    assert "`staging-toolkit-credentials`" in cicd_docs
-    assert "`config.staging.yaml`" in cicd_docs
-    assert "`config.test.yaml`" not in cicd_docs
 
 
 def test_generate_actions_supports_selected_environment_combinations(tmp_path: Path) -> None:
     cases = [
         ("dev",),
         ("test",),
-        ("staging",),
         ("prod",),
         ("dev", "test"),
-        ("dev", "staging"),
         ("dev", "prod"),
         ("test", "prod"),
-        ("staging", "prod"),
         ("dev", "test", "prod"),
-        ("dev", "staging", "prod"),
     ]
-    deployable = {"dev", "test", "staging"}
+    deployable = {"dev", "test"}
     all_workflows = {
         "dry-run.yml",
         "deploy-dev.yml",
         "deploy-test.yml",
-        "deploy-staging.yml",
         "deploy-prod.yml",
     }
 
@@ -467,6 +399,6 @@ environment:
         for env in envs:
             assert f"`acme-{env}`" in docs
             assert f"`config.{env}.yaml`" in docs
-        for env in {"dev", "test", "staging", "prod"} - set(envs):
+        for env in {"dev", "test", "prod"} - set(envs):
             assert f"`acme-{env}`" not in docs
             assert f"`config.{env}.yaml`" not in docs
