@@ -5,6 +5,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 REPO_ROOT = Path(__file__).resolve().parents[1]
 MODULE_ROOT = REPO_ROOT / "modules" / "common" / "cdf_project_foundation"
 GENERATE_ACTIONS = MODULE_ROOT / "scripts" / "generate_actions.py"
@@ -23,6 +25,17 @@ def test_discover_foundation_modules_includes_project_foundation() -> None:
     paths = discover_foundation_module_paths(REPO_ROOT / "modules", REPO_ROOT)
     assert "common/cdf_project_foundation" in paths
     assert "sourcesystem/cdf_pi_extractor" in paths
+
+
+def test_dry_run_environment_rejects_more_than_two_branches(monkeypatch: pytest.MonkeyPatch) -> None:
+    sys.path.insert(0, str(MODULE_ROOT / "scripts"))
+    import generate_actions  # pyright: ignore[reportMissingImports]
+
+    monkeypatch.setattr(generate_actions, "deployable_envs", lambda projects: ["dev", "test", "qa"])
+    monkeypatch.setitem(generate_actions.DEPLOY_BRANCHES, "qa", "qa")
+
+    with pytest.raises(ValueError, match="Unsupported number of deployable branches: 3"):
+        generate_actions.dry_run_environment({"dev": "acme-dev", "test": "acme-test", "qa": "acme-qa"})
 
 
 def test_generate_actions_writes_workflows_and_docs(tmp_path: Path) -> None:

@@ -217,6 +217,8 @@ def dry_run_environment(projects: dict[str, str]) -> str:
     if len(branches) == 1:
         env = next(iter(branches.values()))
         return f"{env}-toolkit-credentials"
+    if len(branches) > 2:
+        raise ValueError(f"Unsupported number of deployable branches: {len(branches)}")
     first_branch, first_env = next(iter(branches.items()))
     fallback_env = next(env for branch, env in branches.items() if branch != first_branch)
     return (
