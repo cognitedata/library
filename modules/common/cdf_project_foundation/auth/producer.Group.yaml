@@ -8,6 +8,10 @@ capabilities:
       actions: [READ, LIST]
       scope:
         all: {}
+  - groupsAcl:
+      actions: [LIST]
+      scope:
+        all: {}
   - sessionsAcl:
       actions: [CREATE]
       scope:
@@ -22,11 +26,22 @@ capabilities:
       scope:
         spaceIdScope:
           spaceIds: ["{{ schemaSpace }}", "{{ instanceSpace }}"]
+  - dataModelsAcl:
+      actions: [READ]
+      scope:
+        spaceIdScope:
+          spaceIds: {{ additionalSchemaSpaces }}
   - dataModelInstancesAcl:
-      actions: [READ, WRITE]
+      actions: [READ, WRITE, WRITE_PROPERTIES]
       scope:
         spaceIdScope:
           spaceIds: {{ instanceSpaces }}
+  - dataModelInstancesAcl:
+      actions: [READ]
+      scope:
+        spaceIdScope:
+          spaceIds:
+            - cdf_cdm
   - timeSeriesAcl:
       actions: [READ, WRITE]
       scope:
@@ -38,10 +53,18 @@ capabilities:
         datasetScope:
           ids: {{ dataset }}
   - rawAcl:
-      actions: [READ, WRITE]
+      actions: [READ, WRITE, LIST]
       scope:
         all: {}
   - transformationsAcl:
+      actions: [READ, WRITE]
+      scope:
+        all: {}
+  - functionsAcl:
+      actions: [READ, WRITE]
+      scope:
+        all: {}
+  - entitymatchingAcl:
       actions: [READ, WRITE]
       scope:
         all: {}

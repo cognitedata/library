@@ -339,6 +339,23 @@ class TestBuildFoundationVars:
         vars_ = build_foundation_vars("cdm", "dev", "oslo")
         assert vars_["instanceSpace"] == "sp_oslo_instances"
 
+    def test_additional_schema_spaces_present_for_every_variant(self) -> None:
+        """additionalSchemaSpaces backs producer.Group.yaml's second dataModelsAcl
+        entry — must always be present, regardless of variant, so the Jinja var is
+        never undefined at build time. Base CDM/IDM spaces are universal; each
+        variant additionally gets only its own search-solution space, not every
+        variant's."""
+        from setup_project import build_foundation_vars
+
+        cdm_only = build_foundation_vars("cdm", "dev", "")["additionalSchemaSpaces"]
+        assert cdm_only == ["cdf_cdm", "cdf_idm", "cdf_cdm_units"]
+
+        isa = build_foundation_vars("isa_manufacturing_extension", "dev", "")["additionalSchemaSpaces"]
+        assert isa == ["cdf_cdm", "cdf_idm", "cdf_cdm_units", "dm_sol_isa_manufacturing_search"]
+
+        cfihos = build_foundation_vars("cfihos_oil_and_gas_extension", "dev", "")["additionalSchemaSpaces"]
+        assert cfihos == ["cdf_cdm", "cdf_idm", "cdf_cdm_units", "dm_sol_oil_and_gas_search"]
+
 
 class TestCdmInstanceSpace:
     def test_uses_site_when_set(self) -> None:

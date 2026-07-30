@@ -92,6 +92,12 @@ environment:
     assert "cdf build --env dev" in dry_run
     assert "cdf deploy --dry-run | tee dryrun-output.txt" in dry_run
     assert "cdf deploy --dry-run --env" not in dry_run
+    assert (
+        "run: python industrial/modules/common/cdf_project_foundation/scripts/"
+        "setup_project.py --check"
+    ) in dry_run
+    # The check step must run before the "cdf build" step, not after.
+    assert dry_run.index("Verify project config is in sync") < dry_run.index("- name: cdf build")
 
     deploy_dev = (tmp_path / ".github" / "workflows" / "deploy-dev.yml").read_text(
         encoding="utf-8"
@@ -103,6 +109,19 @@ environment:
     assert "ADMIN_SOURCE_ID: ${{ vars.ADMIN_SOURCE_ID }}" in deploy_dev
     assert "CONSUMER_SOURCE_ID: ${{ vars.CONSUMER_SOURCE_ID }}" in deploy_dev
     assert "PRODUCER_SOURCE_ID: ${{ vars.PRODUCER_SOURCE_ID }}" in deploy_dev
+    assert (
+        "run: python industrial/modules/common/cdf_project_foundation/scripts/"
+        "setup_project.py --check"
+    ) in deploy_dev
+    assert deploy_dev.index("Verify project config is in sync") < deploy_dev.index("- name: cdf build")
+
+    deploy_prod = (tmp_path / ".github" / "workflows" / "deploy-prod.yml").read_text(
+        encoding="utf-8"
+    )
+    assert (
+        "run: python industrial/modules/common/cdf_project_foundation/scripts/"
+        "setup_project.py --check"
+    ) in deploy_prod
 
     cicd_docs = (tmp_path / "docs" / "FOUNDATION_CICD.md").read_text(encoding="utf-8")
     assert "`acme-dev`" in cicd_docs

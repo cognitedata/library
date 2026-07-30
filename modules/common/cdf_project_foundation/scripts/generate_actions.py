@@ -142,6 +142,18 @@ def config_arg(org_dir: str | None, env: str) -> str:
     return f"-c {config}"
 
 
+def setup_project_check_cmd(org_dir: str | None) -> str:
+    """Command to verify config.<env>.yaml is in sync with the installed variant
+    and pack before ``cdf build`` runs — catches drift (e.g. a new variable added
+    to a module since the config was last generated) with an actionable message
+    instead of a raw Toolkit "undefined variable" build failure.
+    """
+    script = "modules/common/cdf_project_foundation/scripts/setup_project.py"
+    if org_dir:
+        script = f"{org_dir}/{script}"
+    return f"python {script} --check"
+
+
 def build_args(toolkit_version: str, org_dir: str | None, env: str) -> str:
     if parse_version(toolkit_version) >= CONFIG_FLAG_MIN_VERSION:
         return config_arg(org_dir, env)
@@ -331,6 +343,7 @@ def main() -> None:
         "ENV_CONFIG_LIST": env_config_list(projects),
         "TOOLKIT_VERSION": str(toolkit_version),
         "LINT_PATHS": build_lint_paths(org_dir),
+        "SETUP_PROJECT_CHECK_CMD": setup_project_check_cmd(org_dir),
     }
 
     if deployable_envs(projects):
