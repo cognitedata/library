@@ -83,6 +83,26 @@ INGESTION_FOUNDATION_VARIABLES: dict[str, dict[str, str]] = {
     },
 }
 
+# Producer dataModelsAcl read spaces: base CDM/IDM/units; variant search space appended below.
+BASE_ADDITIONAL_SCHEMA_SPACES: list[str] = ["cdf_cdm", "cdf_idm", "cdf_cdm_units"]
+
+# Per-variant search-solution schema space appended to the base list above.
+# None for "cdm" — the base Cognite Data Model has no separate search solution module.
+VARIANT_SEARCH_SCHEMA_SPACE: dict[str, str | None] = {
+    "cdm": None,
+    "isa_manufacturing_extension": "dm_sol_isa_manufacturing_search",
+    "cfihos_oil_and_gas_extension": "dm_sol_oil_and_gas_search",
+}
+
+
+def additional_schema_spaces_for_variant(variant: str) -> list[str]:
+    """Producer's dataModelsAcl read-only space list for the given variant."""
+    spaces = list(BASE_ADDITIONAL_SCHEMA_SPACES)
+    extra = VARIANT_SEARCH_SCHEMA_SPACE.get(variant)
+    if extra:
+        spaces.append(extra)
+    return spaces
+
 
 # Per-variant overrides for contextualization modules.
 # ``None`` values are sentinels resolved to the variant's ``instanceSpace``
@@ -320,6 +340,7 @@ def build_foundation_vars(
         ingestion["instanceSpace"] = _cdm_instance_space(site)
     # Always write dataset so the key exists; empty list when no SS modules installed.
     ingestion["dataset"] = datasets if datasets is not None else []
+    ingestion["additionalSchemaSpaces"] = additional_schema_spaces_for_variant(variant)
     for persona in PERSONAS:
         ingestion[f"{persona}GroupName"] = group_name(persona, site, env)
         ingestion[f"{persona}SourceId"] = f"${{{persona.upper()}_SOURCE_ID}}"
