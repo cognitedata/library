@@ -30,7 +30,8 @@ except ImportError:
 MODULE_DIR = Path(__file__).resolve().parents[1]
 TEMPLATES_DIR = MODULE_DIR / "templates" / "github"
 ENVIRONMENTS = ("dev", "test", "prod")
-REQUIRED_ENVIRONMENTS = ("dev", "prod")
+DEPLOY_BRANCHES = {"dev": "dev", "test": "main"}
+ENV_LABELS = {"dev": "Dev", "test": "Test"}
 CONFIG_FLAG_MIN_VERSION = (0, 8, 0)
 
 
@@ -158,10 +159,6 @@ def load_environment_projects(repo_root: Path, org_dir: str | None) -> dict[str,
     for env in ENVIRONMENTS:
         path = config_path(repo_root, org_dir, env)
         if not path.is_file():
-            if env in REQUIRED_ENVIRONMENTS:
-                raise FileNotFoundError(
-                    f"Missing {path.relative_to(repo_root)}. Run setup_project.py before generating workflows."
-                )
             continue
 
         data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
@@ -175,46 +172,103 @@ def load_environment_projects(repo_root: Path, org_dir: str | None) -> dict[str,
         if not project:
             raise ValueError(f"{path.relative_to(repo_root)} is missing environment.project.")
         projects[env] = str(project)
+    if not projects:
+        raise FileNotFoundError(
+            "No config.<env>.yaml files found. Run setup_project.py before generating workflows."
+        )
     return projects
 
 
-def workflow_file_list(include_test: bool) -> str:
-    files = [
-        '".github/workflows/dry-run.yml"',
-        '".github/workflows/deploy-dev.yml"',
-    ]
-    if include_test:
-        files.append('".github/workflows/deploy-test.yml"')
-    files.append('".github/workflows/deploy-prod.yml"')
+def deployable_envs(projects: dict[str, str]) -> list[str]:
+    return [env for env in ("dev", "test") if env in projects]
+
+
+def workflow_file_list(projects: dict[str, str]) -> str:
+    files: list[str] = []
+    if deployable_envs(projects):
+        files.append('".github/workflows/dry-run.yml"')
+    files.extend(f'".github/workflows/deploy-{env}.yml"' for env in deployable_envs(projects))
+    if "prod" in projects:
+        files.append('".github/workflows/deploy-prod.yml"')
     return "\n".join(f"              {path}," for path in files)
 
 
-def pr_branches(include_test: bool) -> str:
-    branches = ["dev"]
-    if include_test:
-        branches.append("main")
+def branch_envs(projects: dict[str, str]) -> dict[str, str]:
+    envs_by_branch: dict[str, str] = {}
+    for env in deployable_envs(projects):
+        branch = DEPLOY_BRANCHES[env]
+        if branch in envs_by_branch:
+            raise ValueError(
+                f"Both {envs_by_branch[branch]!r} and {env!r} map to branch {branch!r}."
+            )
+        envs_by_branch[branch] = env
+    return envs_by_branch
+
+
+def pr_branches(projects: dict[str, str]) -> str:
+    branches = branch_envs(projects)
     return "\n".join(f"      - {branch}" for branch in branches)
 
 
-def dry_run_environment(include_test: bool) -> str:
-    if include_test:
-        return "${{ github.base_ref == 'dev' && 'dev-toolkit-credentials' || 'test-toolkit-credentials' }}"
-    return "dev-toolkit-credentials"
+def dry_run_environment(projects: dict[str, str]) -> str:
+    branches = branch_envs(projects)
+    if not branches:
+        return ""
+    if len(branches) == 1:
+        env = next(iter(branches.values()))
+        return f"{env}-toolkit-credentials"
+    if len(branches) > 2:
+        raise ValueError(f"Unsupported number of deployable branches: {len(branches)}")
+    first_branch, first_env = next(iter(branches.items()))
+    fallback_env = next(env for branch, env in branches.items() if branch != first_branch)
+    return (
+        f"${{{{ github.base_ref == '{first_branch}' && "
+        f"'{first_env}-toolkit-credentials' || '{fallback_env}-toolkit-credentials' }}}}"
+    )
 
 
-def dry_run_build_script(toolkit_version: str, org_dir: str | None, include_test: bool) -> str:
-    dev_build = f"cdf build {build_args(toolkit_version, org_dir, 'dev')} | tee build-output.txt"
-    if not include_test:
-        return dev_build
-    test_build = f"cdf build {build_args(toolkit_version, org_dir, 'test')} | tee build-output.txt"
-    return "\n".join(
+def dry_run_build_script(toolkit_version: str, org_dir: str | None, projects: dict[str, str]) -> str:
+    branches = branch_envs(projects)
+    if not branches:
+        return ""
+    if len(branches) == 1:
+        env = next(iter(branches.values()))
+        return f"cdf build {build_args(toolkit_version, org_dir, env)} | tee build-output.txt"
+    cases: list[str] = ['case "$GITHUB_BASE_REF" in']
+    for branch, env in branches.items():
+        cases.extend(
+            [
+                f"  {branch})",
+                f"    cdf build {build_args(toolkit_version, org_dir, env)} | tee build-output.txt",
+                "    ;;",
+            ]
+        )
+    cases.extend(
         [
-            'if [ "${{ github.base_ref }}" = "dev" ]; then',
-            f"  {dev_build}",
-            "else",
-            f"  {test_build}",
-            "fi",
+            "  *)",
+            '    echo "::error::Unsupported base branch $GITHUB_BASE_REF"',
+            "    exit 1",
+            "    ;;",
+            "esac",
         ]
+    )
+    return "\n".join(cases)
+
+
+def branching_rows(projects: dict[str, str]) -> str:
+    rows: list[str] = []
+    for env in deployable_envs(projects):
+        branch = DEPLOY_BRANCHES[env]
+        rows.extend(
+            [
+                f"| PR → `{branch}` | `{projects[env]}` | Dry-run (`cdf build`, `cdf deploy --dry-run`) |",
+                f"| Push to `{branch}` | `{projects[env]}` | Deploy |",
+            ]
+        )
+    if "prod" in projects:
+        rows.append(f"| GitHub Release (tag `vX.Y.Z` from `main`) | `{projects['prod']}` | Deploy |")
+    return "\n".join(
+        rows or ["| *(none)* | *(none)* | No CI/CD workflows generated |"]
     )
 
 
@@ -223,21 +277,14 @@ def indent(text: str, spaces: int) -> str:
     return "\n".join(f"{prefix}{line}" if line else line for line in text.splitlines())
 
 
-def test_branching_rows(projects: dict[str, str]) -> str:
-    if "test" not in projects:
-        return ""
-    return "\n".join(
-        [
-            f"| PR → `main` | `{projects['test']}` | Dry-run |",
-            f"| Push to `main` | `{projects['test']}` | Deploy |",
-        ]
-    )
-
-
-def test_environment_row(projects: dict[str, str]) -> str:
-    if "test" not in projects:
-        return ""
-    return f"| `test-toolkit-credentials` | PR → main, push `main` | `{projects['test']}` |"
+def environment_rows(projects: dict[str, str]) -> str:
+    rows: list[str] = []
+    for env in deployable_envs(projects):
+        branch = DEPLOY_BRANCHES[env]
+        rows.append(f"| `{env}-toolkit-credentials` | PR → {branch}, push `{branch}` | `{projects[env]}` |")
+    if "prod" in projects:
+        rows.append(f"| `prod-toolkit-credentials` | Release published | `{projects['prod']}` |")
+    return "\n".join(rows)
 
 
 def env_config_list(projects: dict[str, str]) -> str:
@@ -245,6 +292,11 @@ def env_config_list(projects: dict[str, str]) -> str:
     if len(configs) == 1:
         return configs[0]
     return ", ".join(configs[:-1]) + f", or {configs[-1]}"
+
+
+def example_build_args(toolkit_version: str, org_dir: str | None, projects: dict[str, str]) -> str:
+    env = next(env for env in ENVIRONMENTS if env in projects)
+    return build_args(toolkit_version, org_dir, env)
 
 
 def main() -> None:
@@ -264,57 +316,67 @@ def main() -> None:
     cdf = load_cdf_toml(repo_root)
     org_dir: str | None = args.org_dir or cdf.get("cdf", {}).get("default_organization_dir") or None
     projects = load_environment_projects(repo_root, org_dir)
-    include_test = "test" in projects
 
     toolkit_version = cdf.get("modules", {}).get("version", "0.7.220")
     resolve_modules_root(repo_root, org_dir)
 
     base_values: dict[str, str] = {
-        "DEV_PROJECT": projects["dev"],
-        "PROD_PROJECT": projects["prod"],
-        "DEV_BUILD_ARGS": build_args(str(toolkit_version), org_dir, "dev"),
-        "PROD_BUILD_ARGS": build_args(str(toolkit_version), org_dir, "prod"),
-        "WORKFLOW_FILES": workflow_file_list(include_test),
-        "PR_BRANCHES": pr_branches(include_test),
-        "DRY_RUN_ENVIRONMENT": dry_run_environment(include_test),
-        "DRY_RUN_BUILD_SCRIPT": indent(dry_run_build_script(str(toolkit_version), org_dir, include_test), 10),
-        "TEST_BRANCHING_ROWS": test_branching_rows(projects),
-        "TEST_ENVIRONMENT_ROW": test_environment_row(projects),
+        "WORKFLOW_FILES": workflow_file_list(projects),
+        "PR_BRANCHES": pr_branches(projects),
+        "DRY_RUN_ENVIRONMENT": dry_run_environment(projects),
+        "DRY_RUN_BUILD_SCRIPT": indent(dry_run_build_script(str(toolkit_version), org_dir, projects), 10),
+        "BRANCHING_ROWS": branching_rows(projects),
+        "ENVIRONMENT_ROWS": environment_rows(projects),
+        "EXAMPLE_BUILD_ARGS": example_build_args(str(toolkit_version), org_dir, projects),
         "ENV_CONFIG_LIST": env_config_list(projects),
         "TOOLKIT_VERSION": str(toolkit_version),
         "LINT_PATHS": build_lint_paths(org_dir),
     }
-    if include_test:
-        base_values.update(
-            {
-                "TEST_PROJECT": projects["test"],
-                "TEST_BUILD_ARGS": build_args(str(toolkit_version), org_dir, "test"),
-            }
-        )
 
-    for name in ("dry-run.yml", "deploy-prod.yml"):
-        template = TEMPLATES_DIR / name
+    if deployable_envs(projects):
+        template = TEMPLATES_DIR / "dry-run.yml"
         if not template.is_file():
             print(f"Missing template: {template}", file=sys.stderr)
             sys.exit(1)
-        out = repo_root / ".github" / "workflows" / name
-        write_file(out, render_template(template, base_values), args.force)
+        write_file(
+            repo_root / ".github" / "workflows" / "dry-run.yml",
+            render_template(template, base_values),
+            args.force,
+        )
+    else:
+        remove_file(repo_root / ".github" / "workflows" / "dry-run.yml")
+
+    if "prod" in projects:
+        deploy_prod_template = TEMPLATES_DIR / "deploy-prod.yml"
+        if not deploy_prod_template.is_file():
+            print(f"Missing template: {deploy_prod_template}", file=sys.stderr)
+            sys.exit(1)
+        prod_values = {
+            **base_values,
+            "PROD_PROJECT": projects["prod"],
+            "PROD_BUILD_ARGS": build_args(str(toolkit_version), org_dir, "prod"),
+        }
+        write_file(
+            repo_root / ".github" / "workflows" / "deploy-prod.yml",
+            render_template(deploy_prod_template, prod_values),
+            args.force,
+        )
+    else:
+        remove_file(repo_root / ".github" / "workflows" / "deploy-prod.yml")
 
     deploy_template = TEMPLATES_DIR / "deploy.yml"
     if not deploy_template.is_file():
         print(f"Missing template: {deploy_template}", file=sys.stderr)
         sys.exit(1)
-    deploy_envs = [("dev", "dev", "Dev")]
-    if include_test:
-        deploy_envs.append(("test", "main", "Test"))
-    else:
-        remove_file(repo_root / ".github" / "workflows" / "deploy-test.yml")
-    for env, branch, label in deploy_envs:
+    for env in ("dev", "test"):
+        if env not in projects:
+            remove_file(repo_root / ".github" / "workflows" / f"deploy-{env}.yml")
+            continue
         merged = {
             **base_values,
             "ENV": env,
-            "BRANCH": branch,
-            "ENV_LABEL": label,
+            "BRANCH": DEPLOY_BRANCHES[env],
+            "ENV_LABEL": ENV_LABELS[env],
             "PROJECT": projects[env],
             "BUILD_ARGS": build_args(str(toolkit_version), org_dir, env),
         }
@@ -329,15 +391,14 @@ def main() -> None:
     )
 
     print()
-    environments = ["dev-toolkit-credentials"]
-    if include_test:
-        environments.append("test-toolkit-credentials")
-    environments.append("prod-toolkit-credentials")
+    environments = [f"{env}-toolkit-credentials" for env in ENVIRONMENTS if env in projects]
     print("Next steps:")
     print(f"  1. Create GitHub Environments: {', '.join(environments)}")
     print("     (see docs/FOUNDATION_CICD.md)")
     print("  2. Create and protect the branches used by the generated workflows")
-    print("  3. Open a PR to dev to validate dry-run.yml")
+    if deployable_envs(projects):
+        branches = ", ".join(branch_envs(projects))
+        print(f"  3. Open a PR to {branches} to validate dry-run.yml")
 
 
 if __name__ == "__main__":

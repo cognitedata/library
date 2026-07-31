@@ -20,9 +20,20 @@ def _disable_cognite_pypi_version_check() -> None:
         from cognite.client.config import global_config
 
         global_config.disable_pypi_version_check = True
+        try:
+            from cognite.client.utils import _version_checker
+
+            def _no_version_check() -> None:
+                return None
+
+            _version_checker.check_client_is_running_latest_version = _no_version_check
+        except (AttributeError, ImportError):
+            # Older cognite-sdk versions may not expose the internal helper;
+            # the public global_config flag above is enough in that case.
+            return
     except ImportError:
         # cognite-sdk is optional for some test environments; nothing to disable when absent.
-        pass
+        return
 
 
 _disable_cognite_pypi_version_check()

@@ -8,22 +8,17 @@ This follows the [CDF Foundation Setup guide](https://cogdocs.mintlify.io/gvd) *
 
 | Git branch / event | CDF project | Trigger |
 |--------------------|-------------|---------|
-| PR → `dev` | `{{DEV_PROJECT}}` | Dry-run (`cdf build`, `cdf deploy --dry-run`) |
-| Push to `dev` | `{{DEV_PROJECT}}` | Deploy |
-{{TEST_BRANCHING_ROWS}}
-| GitHub Release (tag `vX.Y.Z` from `main`) | `{{PROD_PROJECT}}` | Deploy |
+{{BRANCHING_ROWS}}
 
-If the test environment is present, PRs to `main` must come from `dev` or `hotfix/*` only.
+If a pre-production environment is present, PRs to `main` must come from `dev` or `hotfix/*` only.
 
 ## GitHub Environments
 
-Create three environments under **Settings → Environments**:
+Create the generated environments under **Settings → Environments**:
 
 | Environment | Used by | `CDF_PROJECT` example |
 |-------------|---------|-------------------------|
-| `dev-toolkit-credentials` | PR → dev, push `dev` | `{{DEV_PROJECT}}` |
-{{TEST_ENVIRONMENT_ROW}}
-| `prod-toolkit-credentials` | Release published | `{{PROD_PROJECT}}` |
+{{ENVIRONMENT_ROWS}}
 
 Each environment needs these **variables**:
 
@@ -50,7 +45,7 @@ files together with the workflows:
 
 ```bash
 python modules/common/cdf_project_foundation/scripts/setup_project.py
-cdf build {{DEV_BUILD_ARGS}}
+cdf build {{EXAMPLE_BUILD_ARGS}}
 ```
 
 CI validates the committed configs as-is; it does not regenerate them.
