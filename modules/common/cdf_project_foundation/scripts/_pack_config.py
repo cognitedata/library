@@ -68,8 +68,8 @@ CONTEXTUALIZATION_REDUNDANT_AUTH: dict[str, tuple[str, ...]] = {
     "cdf_file_annotation": ("auth/file_annotation.Group.yaml",),
 }
 
-# Tools/apps modules whose standalone auth groups become redundant when
-# cdf_foundation is present.
+# Other modules (outside contextualization/) whose standalone auth groups become
+# redundant when cdf_project_foundation is present.
 # Maps module path (relative to modules/) → auth file(s) relative to the module root.
 TOOLS_REDUNDANT_AUTH: dict[str, tuple[str, ...]] = {
     "tools/apps/qualitizer": ("auth/apps.qualitizer.Group.yaml",),
@@ -78,6 +78,11 @@ TOOLS_REDUNDANT_AUTH: dict[str, tuple[str, ...]] = {
     "datamodels/cfihos_oil_and_gas_extension": (
         "auth/gp_cdf_owner_cfihos_oil_gas_data_model.group.yaml",
         "auth/gp_cdf_read_cfihos_oil_gas_data_model.group.yaml",
+    ),
+    # cdf_ingestion's own auth (Demo pack only) is redundant
+    "common/cdf_ingestion": (
+        "auth/user.Group.yaml",
+        "auth/workflow.Group.yaml",
     ),
 }
 

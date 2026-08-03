@@ -356,6 +356,27 @@ class TestBuildFoundationVars:
         cfihos = build_foundation_vars("cfihos_oil_and_gas_extension", "dev", "")["additionalSchemaSpaces"]
         assert cfihos == ["cdf_cdm", "cdf_idm", "cdf_cdm_units", "dm_sol_oil_and_gas_search"]
 
+    def test_no_demo_specific_keys_leak_into_foundation_config(self) -> None:
+        """"cdf_project_foundation is now shared by both
+        packs, but build_foundation_vars() takes no pack-kind parameter at all — it
+        must keep producing the exact same fixed key set regardless of which pack
+        (Foundation or Demo) triggered the wizard, for every variant. If a
+        Demo-specific key were ever added here by mistake, it would silently reach
+        every Foundation deploy too."""
+        from setup_project import build_foundation_vars
+
+        expected_keys = {
+            "dataModelVariant", "schemaSpace", "instanceSpace", "site", "dataset",
+            "additionalSchemaSpaces",
+            "consumerGroupName", "producerGroupName", "adminGroupName",
+            "consumerSourceId", "producerSourceId", "adminSourceId",
+        }
+        for variant in ("cdm", "isa_manufacturing_extension", "cfihos_oil_and_gas_extension"):
+            vars_ = build_foundation_vars(variant, "dev", "oslo", ["ds_pi"])
+            assert set(vars_.keys()) == expected_keys, (
+                f"unexpected key set for variant={variant}: {set(vars_.keys())}"
+            )
+
 
 class TestCdmInstanceSpace:
     def test_uses_site_when_set(self) -> None:
@@ -803,6 +824,41 @@ class TestRemoveRedundantAuthFiles:
         self._make_auth_file(auth_dir / "other.group.yaml")  # unrelated file stays
         remove_redundant_auth_files(tmp_path)
         assert auth_dir.exists()
+
+    # ── cdf_ingestion (Chunk D: redundant once cdf_project_foundation covers Demo) ──
+
+    def test_removes_cdf_ingestion_auth(self, tmp_path: Path) -> None:
+        from setup_project import remove_redundant_auth_files
+        ingestion_auth = tmp_path / "modules" / "common" / "cdf_ingestion" / "auth"
+        self._make_auth_file(ingestion_auth / "user.Group.yaml")
+        self._make_auth_file(ingestion_auth / "workflow.Group.yaml")
+        removed = remove_redundant_auth_files(tmp_path)
+        assert len(removed) == 2
+        assert not (ingestion_auth / "user.Group.yaml").exists()
+        assert not (ingestion_auth / "workflow.Group.yaml").exists()
+
+    def test_removes_empty_cdf_ingestion_auth_dir(self, tmp_path: Path) -> None:
+        from setup_project import remove_redundant_auth_files
+        ingestion_auth = tmp_path / "modules" / "common" / "cdf_ingestion" / "auth"
+        self._make_auth_file(ingestion_auth / "user.Group.yaml")
+        self._make_auth_file(ingestion_auth / "workflow.Group.yaml")
+        remove_redundant_auth_files(tmp_path)
+        assert not ingestion_auth.exists()
+
+    def test_leaves_non_empty_cdf_ingestion_auth_dir(self, tmp_path: Path) -> None:
+        from setup_project import remove_redundant_auth_files
+        ingestion_auth = tmp_path / "modules" / "common" / "cdf_ingestion" / "auth"
+        self._make_auth_file(ingestion_auth / "user.Group.yaml")
+        self._make_auth_file(ingestion_auth / "workflow.Group.yaml")
+        self._make_auth_file(ingestion_auth / "other.Group.yaml")  # unrelated file stays
+        remove_redundant_auth_files(tmp_path)
+        assert ingestion_auth.exists()
+
+    def test_no_op_when_cdf_ingestion_not_installed(self, tmp_path: Path) -> None:
+        """Foundation-only projects never ship cdf_ingestion — must not error."""
+        from setup_project import remove_redundant_auth_files
+        removed = remove_redundant_auth_files(tmp_path)
+        assert removed == []
 
 
 class TestRestoreCdmSpaceFile:
@@ -1729,6 +1785,22 @@ class TestResolvePackKindForCheck:
             pass
 
 
+class TestWizardHeaderTitle:
+
+    def test_foundation_banner(self, tmp_path: Path, capsys: pytest.CaptureFixture) -> None:
+        from setup_project import _print_wizard_header
+        _print_wizard_header("cdm", tmp_path, [], "foundation")
+        out = capsys.readouterr().out
+        assert "Foundation Deployment Pack — Project Setup" in out
+        assert "Foundation Deployment Pack Demo" not in out
+
+    def test_demo_banner(self, tmp_path: Path, capsys: pytest.CaptureFixture) -> None:
+        from setup_project import _print_wizard_header
+        _print_wizard_header("cfihos_oil_and_gas_extension", tmp_path, [], "demo")
+        out = capsys.readouterr().out
+        assert "Foundation Deployment Pack Demo — Project Setup" in out
+
+
 class TestEnvPathResolution:
     """The .env file must always be written to repo root (where cdf.toml lives),
     not inside the org directory."""
@@ -1793,3 +1865,24 @@ class TestStaleKeyRemoval:
         content = p.read_text()
         assert "owner_source_id" not in content
         assert "read_source_id" not in content
+
+    def test_cdf_ingestion_group_source_id_in_stale_keys(self) -> None:
+        from setup_project import _STALE_CTX_KEYS
+        assert any(k.endswith("cdf_ingestion.groupSourceId") for k in _STALE_CTX_KEYS)
+
+    def test_stale_cdf_ingestion_group_source_id_removed_from_config(self, tmp_path: Path) -> None:
+        from setup_project import _write_config_update, build_overlay
+        p = tmp_path / "config.dev.yaml"
+        p.write_text(textwrap.dedent("""\
+            environment:
+              project: acme-dev
+            variables:
+              modules:
+                cdf_ingestion:
+                  groupSourceId: ${GROUP_SOURCE_ID}
+                  dataset: ingestion
+        """))
+        overlay = build_overlay("cfihos_oil_and_gas_extension", "dev", "", [])
+        _write_config_update(p, "acme-dev", overlay)
+        content = p.read_text()
+        assert "groupSourceId" not in content
