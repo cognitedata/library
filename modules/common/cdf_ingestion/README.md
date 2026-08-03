@@ -39,6 +39,8 @@ cdf_ingestion/
 ├── 📁 auth/                             # Authentication groups
 │   ├── 📄 user.Group.yaml                      # User permissions for manual runs
 │   └── 📄 workflow.Group.yaml                  # Service account permissions
+├── 📁 data_sets/                        # Dataset definitions
+│   └── 📄 ingestion.DataSet.yaml               # Dataset referenced by the workflow (dataSetExternalId)
 ├── 📁 workflows/                        # Workflow definitions
 │   ├── 📄 ingest.Workflow.yaml                 # Main workflow definition
 │   ├── 📄 v1.WorkflowVersion.yaml              # Workflow version with tasks
