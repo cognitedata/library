@@ -51,6 +51,12 @@ cdf_ingestion/
 
 ### 1. Auth Groups
 
+> **Note:** When `common/cdf_project_foundation` is also installed (as it is on
+> `dp:quickstart`), these two files are automatically removed by
+> `setup_project.py` — the persona groups in `cdf_project_foundation` already cover
+> every capability listed below. See that module's
+> [README](../cdf_project_foundation/README.md#access-groups) for details.
+
 | Resource | Description |
 |----------|-------------|
 | `user.Group` | Permissions for users to run the workflow manually |

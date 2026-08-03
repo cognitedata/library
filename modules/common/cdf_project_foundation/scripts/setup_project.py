@@ -220,6 +220,11 @@ _STALE_CTX_KEYS: tuple[str, ...] = (
     "variables.modules.cfihos_oil_and_gas_extension.read_source_id",
     "variables.modules.datamodels.cfihos_oil_and_gas_extension.owner_source_id",
     "variables.modules.datamodels.cfihos_oil_and_gas_extension.read_source_id",
+    # cdf_ingestion's own group source ID (Demo pack) — only ever referenced by its
+    # own auth/{user,workflow}.Group.yaml, which remove_redundant_auth_files() deletes
+    # once cdf_project_foundation's persona groups are present.
+    "variables.modules.cdf_ingestion.groupSourceId",
+    "variables.modules.common.cdf_ingestion.groupSourceId",
 )
 
 # ── Domain helpers ─────────────────────────────────────────────────────────────
@@ -1225,13 +1230,19 @@ def _detect_installed_envs(pack_root: Path) -> tuple[str, ...]:
     return tuple(detected)
 
 
+_PACK_KIND_TITLE: dict[str, str] = {
+    "foundation": "Foundation Deployment Pack",
+    "demo": "Foundation Deployment Pack Demo",
+}
+
+
 def _print_wizard_header(
     variant: str,
     pack_root: Path,
     installed_ctx: list[str],
     pack_kind: Literal["foundation", "demo"],
 ) -> None:
-    _banner("Foundation Deployment Pack — Project Setup")
+    _banner(f"{_PACK_KIND_TITLE[pack_kind]} — Project Setup")
     _ok(f"Deployment pack    : {pack_kind}")
     _ok(f"Data model variant : {variant}")
     _ok(f"Pack root          : {pack_root}")
