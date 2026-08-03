@@ -65,10 +65,9 @@ Select **Foundation Deployment Pack** for a real customer project, or **Foundati
 
 > **Demo pack users can skip this step.** `dp:quickstart` ships a fixed module list
 > (`canCherryPick = false` in `packages.toml`) — `cdf modules init` installs everything
-> below automatically: `cdf_common`, `cdf_ingestion`, `cdf_project_foundation`,
-> `cdf_file_annotation`, `cdf_entity_matching`, the three `*_data_dump` source modules,
-> and the CFIHOS data model + search extension. Go straight to
-> [Step 3](#step-3--run-the-setup-wizard).
+> below automatically: `cdf_ingestion`, `cdf_project_foundation`, `cdf_file_annotation`,
+> `cdf_entity_matching`, the three `*_data_dump` source modules, and the CFIHOS data
+> model + search extension. Go straight to [Step 3](#step-3--run-the-setup-wizard).
 
 The Foundation pack's module selector presents all available modules individually. Make selections carefully:
 
@@ -119,7 +118,7 @@ The Foundation pack's module selector presents all available modules individuall
 
 | Module | Description |
 |--------|-------------|
-| `cdf_project_foundation` | This module — persona access groups, per-extractor groups, and the interactive setup wizard. Also shipped by `dp:quickstart`, where it covers the same capabilities `cdf_common`/`cdf_ingestion` used to grant via their own auth files (now removed by the wizard as redundant — see [Access Groups](#access-groups)). |
+| `cdf_project_foundation` | This module — persona access groups, per-extractor groups, and the interactive setup wizard. Also shipped by `dp:quickstart`, where it covers the same capabilities `cdf_ingestion` used to grant via its own auth files (now removed by the wizard as redundant — see [Access Groups](#access-groups)). |
 
 **Project observability** — recommended:
 
