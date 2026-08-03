@@ -165,24 +165,6 @@ properties:
     autoIncrement: false
     name: additionalProperties
 constraints:
-  describablePresent:
-    constraintType: requires
-    require:
-      space: cdf_cdm
-      externalId: CogniteDescribable
-      type: container
-  sourceablePresent:
-    constraintType: requires
-    require:
-      space: cdf_cdm
-      externalId: CogniteSourceable
-      type: container
-  schedulablePresent:
-    constraintType: requires
-    require:
-      space: cdf_cdm
-      externalId: CogniteSchedulable
-      type: container
   activityPresent:
     constraintType: requires
     require:
