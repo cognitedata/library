@@ -104,6 +104,24 @@ def additional_schema_spaces_for_variant(variant: str) -> list[str]:
     return spaces
 
 
+VARIANT_DATA_MODEL_DATASET: dict[str, str | None] = {
+    "cdm": None,
+    "isa_manufacturing_extension": "ds_isa_manufacturing",
+    "cfihos_oil_and_gas_extension": "ds_oil_and_gas_domain_model",
+}
+
+
+def datasets_for_variant(variant: str, datasets: list[str] | None) -> list[str]:
+    """Merge the variant's own DM-extension dataset into the persona-group dataset
+    list, alongside whatever source-system-module datasets were already collected.
+    Order-preserving, de-duplicated."""
+    result = list(datasets) if datasets else []
+    extra = VARIANT_DATA_MODEL_DATASET.get(variant)
+    if extra and extra not in result:
+        result.append(extra)
+    return result
+
+
 # Per-variant overrides for contextualization modules.
 # ``None`` values are sentinels resolved to the variant's ``instanceSpace``
 # at runtime by ``resolve_contextualization_variables``.
@@ -344,7 +362,7 @@ def build_foundation_vars(
     if variant == "cdm":
         ingestion["instanceSpace"] = _cdm_instance_space(site)
     # Always write dataset so the key exists; empty list when no SS modules installed.
-    ingestion["dataset"] = datasets if datasets is not None else []
+    ingestion["dataset"] = datasets_for_variant(variant, datasets)
     ingestion["additionalSchemaSpaces"] = additional_schema_spaces_for_variant(variant)
     for persona in PERSONAS:
         ingestion[f"{persona}GroupName"] = group_name(persona, site, env)
