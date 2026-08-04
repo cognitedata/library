@@ -241,23 +241,6 @@ PACKAGE_SPECS: list[dict[str, object]] = [
             "mixpanel>=4.10.0",
         ],
     },
-    {
-        "path": "modules/sourcesystem/cdf_oid_sync/functions/fn_oid_sync",
-        "name": "fn-oid-sync",
-        "requires_python": ">=3.11,<3.14",
-        "dependencies": [
-            "cognite-sdk>=7,<8",
-            "python-dotenv>=1.0.0",
-            "pyyaml>=6.0",
-            "mixpanel>=4.10.0",
-        ],
-        "deploy_dependencies": [
-            "cognite-sdk == 7.*",
-            "python-dotenv >= 1.0.0",
-            "pyyaml >= 6.0",
-            "mixpanel>=4.10.0",
-        ],
-    },
 ]
 
 

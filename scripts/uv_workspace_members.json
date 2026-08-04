@@ -12,6 +12,5 @@
   "modules/contextualization/cdf_p_and_id_annotation/functions/fn_dm_context_files_annotation",
   "modules/dashboards/context_quality/functions/context_quality_handler",
   "modules/dashboards/context_quality/streamlit/context_quality_dashboard",
-  "modules/solutions/cdf_ai_extractor/functions/fn_ai_property_extractor",
-  "modules/sourcesystem/cdf_oid_sync/functions/fn_oid_sync"
+  "modules/solutions/cdf_ai_extractor/functions/fn_ai_property_extractor"
 ]

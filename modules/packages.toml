@@ -57,14 +57,9 @@ modules = [
 [packages.sourcesystem]
 id = "dp:sourcesystem"
 title = "Source Systems"
-description = "Connectors for PI, SAP, SharePoint, OPCUA, and OID Sync."
+description = "Extraction pipeline configs for real source systems (PI, OPC-UA, SAP, database, files), and synthetic data-dump modules for exploring CDF without live connectors."
 canCherryPick = true
 modules = [
-    "sourcesystem/cdf_pi",
-    "sourcesystem/cdf_sap_assets",
-    "sourcesystem/cdf_sap_events",
-    "sourcesystem/cdf_sharepoint",
-    "sourcesystem/cdf_oid_sync",
     # Extraction pipeline configs — for a real project, wired to a live source system.
     "sourcesystem/cdf_pi_extractor",
     "sourcesystem/cdf_opcua_extractor",
@@ -85,8 +80,6 @@ canCherryPick = true
 modules = [
     "datamodels/rmdm",
     "datamodels/isa_manufacturing_extension",
-    "datamodels/cdf_process_industry_extension",
-    "datamodels/qs_enterprise_dm",
     "datamodels/cfihos_oil_and_gas_extension",
     "datamodels/cfihos_oil_and_gas_extension_search",
 ]

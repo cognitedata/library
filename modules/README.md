@@ -24,9 +24,7 @@ modules/
 ├── datamodels/                  # Industry & extension data models
 │   ├── rmdm/
 │   ├── isa_manufacturing_extension/
-│   ├── cfihos_oil_and_gas_extension/
-│   ├── cdf_process_industry_extension/
-│   └── qs_enterprise_dm/
+│   └── cfihos_oil_and_gas_extension/
 │
 ├── solutions/                   # Product verticals (CDM-backed)
 │   ├── cdm_maintain/            # CDM Maintain (5 submodules)
@@ -34,15 +32,17 @@ modules/
 │   └── cdf_ai_extractor/        # Atlas AI property extractor
 │
 ├── sourcesystem/              # Source system connectors
-│   ├── cdf_pi/
-│   ├── cdf_sap_assets/
-│   ├── cdf_sap_events/
-│   ├── cdf_sharepoint/
-│   └── cdf_oid_sync/
+│   ├── cdf_pi_extractor/        # Foundation: OSIsoft/AVEVA PI extraction pipeline config
+│   ├── cdf_opcua_extractor/     # Foundation: OPC-UA extraction pipeline config
+│   ├── cdf_sap_extractor/       # Foundation: SAP extraction pipeline config
+│   ├── cdf_db_extractor/        # Foundation: generic database extraction pipeline config
+│   ├── cdf_files_extractor/     # Foundation: file-source extraction pipeline config
+│   ├── cdf_pi_data_dump/        # Demo: synthetic PI-shaped sample data
+│   ├── cdf_sap_data_dump/       # Demo: synthetic SAP-shaped sample data
+│   └── cdf_sharepoint_data_dump/ # Demo: synthetic SharePoint-shaped sample data
 │
 ├── dashboards/                  # Streamlit apps & reporting
-│   ├── context_quality/
-│   └── report_quality/
+│   └── context_quality/
 │
 ├── atlas_ai/
 │   └── ootb_agents/
@@ -60,10 +60,10 @@ These are the packs exposed in the Toolkit menu (from `packages.toml`):
 
 | Package ID | Title | Folder roots |
 |------------|-------|----------------|
-| `dp:quickstart` | Quickstart Deployment Pack | `common/`, `contextualization/`, `sourcesystem/`, `dashboards/`, `datamodels/qs_enterprise_dm` |
+| `dp:quickstart` | Foundation Deployment Pack Demo | `common/cdf_ingestion`, `common/cdf_project_foundation`, `contextualization/cdf_file_annotation`, `contextualization/cdf_entity_matching`, `sourcesystem/*_data_dump`, `datamodels/cfihos_oil_and_gas_extension*` |
 | `dp:contextualization` | Contextualization | `contextualization/` |
 | `dp:common` | Common | `common/` |
-| `dp:sourcesystem` | Source Systems | `sourcesystem/` |
+| `dp:sourcesystem` | Source Systems | `sourcesystem/*_extractor` (real connector configs), `sourcesystem/*_data_dump` (synthetic sample data) |
 | `dp:models` | Data models | `datamodels/` |
 | `dp:dashboards` | Dashboards | `dashboards/` |
 | `dp:atlas_ai` | Atlas AI | `atlas_ai/`, `solutions/cdf_ai_extractor` |
@@ -72,7 +72,7 @@ These are the packs exposed in the Toolkit menu (from `packages.toml`):
 | `tool` | Tools and Accelerators | `tools/` |
 | `dp:emptymodule` | Empty Module | `custom/my_module` |
 
-Some modules appear in more than one pack (for example `dashboards/report_quality` is in both `dp:dashboards` and `dp:quickstart`). See [ADDING_PACKAGES_AND_MODULES.md](../ADDING_PACKAGES_AND_MODULES.md) for how `package_id` relates to multi-pack membership.
+Some modules appear in more than one pack (for example `contextualization/cdf_file_annotation` is in `dp:foundation`, `dp:quickstart`, and `dp:contextualization`). See [ADDING_PACKAGES_AND_MODULES.md](../ADDING_PACKAGES_AND_MODULES.md) for how `package_id` relates to multi-pack membership.
 
 ## Module IDs (canonical)
 
@@ -90,12 +90,9 @@ Every `module.toml` **`id`** must be `dp:<package_short>:<slug>` where `<package
 | `contextualization/cdf_p_and_id_parser` | `dp:contextualization:cdf_p_and_id_parser` | `dp:contextualization` |
 | `custom/my_module` | `dp:emptymodule:my_module` | `dp:emptymodule` |
 | `dashboards/context_quality` | `dp:dashboards:context_quality` | `dp:dashboards` |
-| `dashboards/report_quality` | `dp:dashboards:report_quality` | `dp:dashboards` |
-| `data_models/cdf_process_industry_extension` | `dp:models:cdf_process_industry_extension` | `dp:quickstart` |
 | `data_models/cfihos_oil_and_gas_extension` | `dp:models:cfihos_oil_and_gas_extension` | `dp:models` |
 | `data_models/cfihos_oil_and_gas_extension_search` | `dp:models:cfihos_oil_and_gas_extension_search` | `dp:models` |
 | `data_models/isa_manufacturing_extension` | `dp:models:isa_manufacturing_extension` | `dp:models` |
-| `data_models/qs_enterprise_dm` | `dp:models:qs_enterprise_dm` | `dp:quickstart` |
 | `data_models/rmdm` | `dp:models:rmdm` | `dp:models` |
 | `solutions/cdf_ai_extractor` | `dp:atlas_ai:ai_extractor` | `dp:atlas_ai` |
 | `solutions/cdf_infield/cdf_infield_location` | `dp:infield:cdf_infield_location` | `dp:infield` |
@@ -104,11 +101,14 @@ Every `module.toml` **`id`** must be `dp:<package_short>:<slug>` where `<package
 | `solutions/cdm_maintain/cdf_maintain_solution_model` | `dp:cdm_maintain:cdf_maintain_solution_model` | `dp:cdm_maintain` |
 | `solutions/cdm_maintain/cdf_maintain_source_data_model` | `dp:cdm_maintain:cdf_maintain_source_data_model` | `dp:cdm_maintain` |
 | `solutions/cdm_maintain/cdf_sample_data` | `dp:cdm_maintain:cdf_sample_data` | `dp:cdm_maintain` |
-| `sourcesystem/cdf_oid_sync` | `dp:sourcesystem:cdf_oid_sync` | `dp:sourcesystem` |
-| `sourcesystem/cdf_pi` | `dp:sourcesystem:cdf_pi` | `dp:sourcesystem` |
-| `sourcesystem/cdf_sap_assets` | `dp:sourcesystem:cdf_sap_assets` | `dp:sourcesystem` |
-| `sourcesystem/cdf_sap_events` | `dp:sourcesystem:cdf_sap_events` | `dp:sourcesystem` |
-| `sourcesystem/cdf_sharepoint` | `dp:sourcesystem:cdf_sharepoint` | `dp:sourcesystem` |
+| `sourcesystem/cdf_db_extractor` | `dp:foundation:cdf_db_extractor` | `dp:foundation` |
+| `sourcesystem/cdf_files_extractor` | `dp:foundation:cdf_files_extractor` | `dp:foundation` |
+| `sourcesystem/cdf_opcua_extractor` | `dp:foundation:cdf_opcua_extractor` | `dp:foundation` |
+| `sourcesystem/cdf_pi_data_dump` | `dp:sourcesystem:cdf_pi_data_dump` | `dp:sourcesystem` |
+| `sourcesystem/cdf_pi_extractor` | `dp:foundation:cdf_pi_extractor` | `dp:foundation` |
+| `sourcesystem/cdf_sap_data_dump` | `dp:sourcesystem:cdf_sap_data_dump` | `dp:sourcesystem` |
+| `sourcesystem/cdf_sap_extractor` | `dp:foundation:cdf_sap_extractor` | `dp:foundation` |
+| `sourcesystem/cdf_sharepoint_data_dump` | `dp:sourcesystem:cdf_sharepoint_data_dump` | `dp:sourcesystem` |
 | `tools/apps/qualitizer` | `dp:tool:qualitizer` | `tool` |
 
 `python validate_packages.py` checks unique ids and that each id uses a `dp:<pack>:` prefix allowed for that module (primary `package_id` or any pack in `packages.toml` that lists the module path).
