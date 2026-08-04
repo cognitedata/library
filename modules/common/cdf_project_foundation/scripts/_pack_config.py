@@ -45,7 +45,7 @@ SOURCE_SYSTEM_MODULE_DIRS: tuple[str, ...] = (
     "cdf_files_extractor",
 )
 
-# Demo-pack (dp:quickstartdp) counterparts of SOURCE_SYSTEM_MODULE_DIRS — synthetic
+# Demo-pack (dp:quickstart) counterparts of SOURCE_SYSTEM_MODULE_DIRS — synthetic
 # data-dump modules instead of real extractors. Used only to detect which pack a
 # project is set up for (see detect_pack_kind); not consulted by the variant/auth
 # helpers above.

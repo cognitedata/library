@@ -4,24 +4,8 @@
 
 This module provides CFIHOS-shaped synthetic document data and the transformations that populate
 the `Files` view and CFIHOS diagram-annotation edges of the CFIHOS Oil & Gas domain model
-(`cfihos_oil_and_gas_extension`). It is the CFIHOS counterpart of `cdf_sharepoint`: it ships
-CFIHOS-shaped file metadata and P&ID diagram annotation records instead of the SharePoint-style
-sample data.
-
-Use this module when deploying `dp:quickstart` against the `cfihos_oil_and_gas_extension` data
-model. It is not a replacement for `cdf_sharepoint` in other deployment packs — `cdf_sharepoint`
-remains the correct choice for `dp:foundation`.
-
-> **Diagram-annotation cleanup:** the `diagram_annotation.*` RAW data, its 3 transformation
-> pairs, and the standalone `wf_diagram_annotation.*` workflow work on their own — this module
-> doesn't require `contextualization/cdf_file_annotation` to produce annotation edges. But
-> `dp:quickstart` installs both, and running both together would write competing
-> `CogniteDiagramAnnotation` edges. `common/cdf_project_foundation`'s setup wizard
-> (`setup_project.py`) detects this and automatically removes the diagram-annotation files
-> from your project (and the matching tasks from `common/cdf_ingestion`'s workflow) the first
-> time it runs — nothing is removed from the library module itself, and a project using only
-> this module keeps the synthetic pipeline unchanged. `tr_file_all_to_file` (populates `Files`)
-> is never removed by either path.
+(`cfihos_oil_and_gas_extension`). It ships CFIHOS-shaped file metadata and P&ID diagram annotation 
+records instead of the SharePoint-style sample data.
 
 ## Module Components
 
@@ -37,7 +21,7 @@ remains the correct choice for `dp:foundation`.
 
 ### Prerequisites
 
-- Cognite Toolkit (minimum version as required by `dp:quickstart`).
+- Cognite Toolkit.
 - The `cfihos_oil_and_gas_extension` data model module deployed to the same project/space.
 - `cdf_sap_assets_new` deployed first (or in the same run) so the `Equipment` and `Tag` nodes
   referenced by the diagram-annotation connection transformations exist.

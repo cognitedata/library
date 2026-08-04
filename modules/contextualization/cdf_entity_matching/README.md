@@ -55,19 +55,23 @@ cdf_entity_matching/
 │   ├── 📁 fn_dm_context_metadata_update/            # Metadata optimization
 │   └── 📄 functions.Function.yaml                   # Function definitions
 ├── 📁 workflows/                           # CDF Workflows
-│   ├── 📄 annotation.Workflow.yaml                  # Main workflow definition
-│   ├── 📄 annotation.WorkflowVersion.yaml           # Workflow version config
+│   ├── 📄 entity_matching.Workflow.yaml             # Main workflow definition
+│   ├── 📄 entity_matching.WorkflowVersion.yaml      # Workflow version config
 │   └── 📄 trigger.WorkflowTrigger.yaml             # Workflow triggers
-├── 📁 raw/                                # Raw data storage
-│   ├── 📄 contextualization_*.Table.yaml           # State and rule tables
-│   ├── 📄 contextualization_rule_input.Table.json  # Rule definitions
-│   ├── 📄 contextualization_manual_input.Table.*   # Manual mapping definitions
+├── 📁 raw/                                # RAW table definitions
+│   ├── 📄 entityMatchingDb.Database.yaml           # RAW database
+│   ├── 📄 contextualization_rule_input.Table.yaml  # Rule definitions
+│   ├── 📄 contextualization_manual_input.Table.yaml # Manual mapping definitions
+│   ├── 📄 contextualization_state_store.Table.yaml # Incremental-processing state
 │   ├── 📄 contextualization_good.Table.yaml        # Validated good matches
-│   ├── 📄 contextualization_bad.Table.yaml         # Rejected matches
+│   └── 📄 contextualization_bad.Table.yaml         # Rejected matches
+├── 📁 upload_data/                        # Sample rule/manual-mapping data
+├── 📁 data_modeling/                      # Function-code space + helper nodes
 ├── 📁 extraction_pipelines/               # Pipeline configurations
 ├── 📁 data_sets/                          # Data set definitions
 ├── 📁 auth/                               # Authentication and permissions
-└── 📄 default.config.yaml                 # Module configuration
+├── 📄 default.config.yaml                 # Module configuration
+└── 📄 module.toml                         # Module metadata
 ```
 
 ## 🚀 Core Functions
@@ -114,26 +118,32 @@ cdf_entity_matching/
 
 ```yaml
 # Core Settings
-function_version: '1.0.0'
+function_version: v1.0.0
 organization: ORG
-location_name: Springfield
-source_name: springfield
+location_name: Springfield  # Update to your location
+source_name: springfield    # Update to your source system, e.g. 'workmate', 'sap'
 
 # Data Model Configuration
-schemaSpace: sp_enterprise_process_industry
-annotationSchemaSpace: cdf_cdm
-viewVersion: v1.0
-fileInstanceSpace: springfield_instances
-equipmentInstanceSpace: springfield_instances
-assetInstanceSpace: springfield_instances
+dbName: db_asset_entity_matching
+schemaSpace: cdf_cdm
+viewVersion: v1
+assetInstanceSpace: sp_cdm_instances
+timeseriesInstanceSpace: sp_cdm_instances
+functionSpace: sp_entity_matching_fn  # space where function code nodes are stored
+AssetViewExternalId: CogniteAsset
+TimeSeriesViewExternalId: CogniteTimeSeries
+targetViewExternalId: CogniteAsset
+entityViewExternalId: CogniteTimeSeries
+targetViewSearchProperty: name
+entityViewSearchProperty: aliases
 
 # Authentication
-functionClientId: ${IDP_CLIENT_ID}
-functionClientSecret: ${IDP_CLIENT_SECRET}
+workflowClientId: ${IDP_CLIENT_ID}
+workflowClientSecret: ${IDP_CLIENT_SECRET}
+entity_matching_processing_group_source_id: ${GROUP_SOURCE_ID}
 
 # Workflow Settings
-workflow: annotation
-files_dataset: ingestion
+workflow: EntityMatching
 ```
 
 ### Environment Variables
@@ -156,7 +166,7 @@ DEBUG_MODE=false
 ### 1. Prerequisites
 
 - CDF project with appropriate permissions
-- Data models deployed (Enterprise Process Industry)
+- CogniteAsset/CogniteTimeSeries-implementing data model deployed
 - Timeseries and asset data available
 - Authentication credentials configured
 
@@ -168,20 +178,24 @@ Update your `config.<env>.yaml` under the module variables section:
 variables:
   modules:
     cdf_entity_matching:
-      function_version: '1.0.0'
+      function_version: v1.0.0
       organization: YOUR_ORG
       location_name: Your Location
       source_name: your_source
-      schemaSpace: sp_enterprise_process_industry
-      annotationSchemaSpace: cdf_cdm
-      viewVersion: v1.0
-      fileInstanceSpace: your_instances
-      equipmentInstanceSpace: your_instances
+      dbName: db_asset_entity_matching
+      schemaSpace: cdf_cdm
+      viewVersion: v1
       assetInstanceSpace: your_instances
-      functionClientId: ${IDP_CLIENT_ID}
-      functionClientSecret: ${IDP_CLIENT_SECRET}
-      workflow: annotation
-      files_dataset: ingestion
+      timeseriesInstanceSpace: your_instances
+      functionSpace: sp_entity_matching_fn
+      AssetViewExternalId: CogniteAsset
+      TimeSeriesViewExternalId: CogniteTimeSeries
+      targetViewExternalId: CogniteAsset
+      entityViewExternalId: CogniteTimeSeries
+      workflowClientId: ${IDP_CLIENT_ID}
+      workflowClientSecret: ${IDP_CLIENT_SECRET}
+      entity_matching_processing_group_source_id: ${GROUP_SOURCE_ID}
+      workflow: EntityMatching
 ```
 
 ### 3. Deploy the Module
@@ -219,7 +233,7 @@ The module includes automated workflows that:
 cdf functions logs fn_dm_context_timeseries_entity_matching
 
 # Monitor workflow execution
-cdf workflows status annotation
+cdf workflows status EntityMatching
 
 # View processing statistics
 cdf raw rows list contextualization_state contextualization_state_store
@@ -322,10 +336,10 @@ uv run python test_metadata_optimizations.py
 
 ```bash
 # Test complete workflow
-cdf workflows trigger annotation
+cdf workflows trigger EntityMatching
 
 # Monitor test execution
-cdf workflows logs annotation
+cdf workflows logs EntityMatching
 ```
 
 ## 🔧 Troubleshooting
@@ -333,8 +347,8 @@ cdf workflows logs annotation
 ### Common Issues
 
 1. **Matching Performance**
-   - Review rule definitions in `raw/contextualization_rule_input.Table.json`
-   - Check manual mapping definitions in `raw/contextualization_manual_input.Table.*`
+   - Review rule definitions in `raw/contextualization_rule_input.Table.yaml`
+   - Check manual mapping definitions in `raw/contextualization_manual_input.Table.yaml`
    - Validate good/bad matches in respective tables
    - Check entity matching algorithm parameters
    - Monitor cache hit rates and optimization effectiveness

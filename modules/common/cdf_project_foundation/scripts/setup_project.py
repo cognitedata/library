@@ -371,9 +371,9 @@ def build_overlay(
 ) -> dict:
     """Full ``variables.modules`` overlay dict to merge into a config file.
 
-    Uses a *flat* module-name structure (no category wrappers) to match both
-    Toolkit conventions and the output of ``generate_env_configs.py``, ensuring
-    ``_write_config_update`` can locate every key in existing config files.
+    Uses a *flat* module-name structure (no category wrappers) to match Toolkit
+    conventions, ensuring ``_write_config_update`` can locate every key in existing
+    config files.
 
     ``datasets`` should be read from the existing ``config.<env>.yaml`` (populated
     by Toolkit at module-init time).  The ``default.config.yaml`` files are not

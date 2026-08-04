@@ -197,19 +197,24 @@ cfihos:
 - **Property trimming**: Many CFIHOS classes have hundreds of properties. The tool supports filtering by property presence/importance if a class library is integrated. The 100-property container limit applies — overflow goes to `additionalProperties`.
 - **Property propagation**: Properties from child tag classes are propagated upward to parents during generation, excluding properties unique to sub-hierarchies that already have their own views.
 
-### Data Upload commands
+### Synthetic sample data
+
+This module ships **no synthetic data of its own** — it defines the data model only.
+CFIHOS-shaped synthetic RAW rows and sample files live in
+[`sourcesystem/cdf_sharepoint_data_dump`](../../sourcesystem/cdf_sharepoint_data_dump/README.md)
+instead — see that module's own README for its deployment steps.
 
 cdf.toml file, add :
 ```bash
 [plugins]
-purge = true
 data = true
 ```
 
 ```bash
-cdf data upload dir  C:\Cognite\context\modules\models\cfihos_oil_and_gas_extension\upload_data\raw
-cdf data upload dir  C:\Cognite\context\modules\models\cfihos_oil_and_gas_extension\upload_data\Files
+cdf data upload dir modules/sourcesystem/cdf_sharepoint_data_dump/upload_data
 ```
+
+If your modules directory is under an organization directory, prepend that directory name to this path.
 
 ### Data Purge
 
