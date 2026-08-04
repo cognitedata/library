@@ -66,6 +66,8 @@ cdf_file_annotation/
 │   ├── 📄 wf_file_annotation.Workflow.yaml        # Main workflow definition
 │   ├── 📄 wf_file_annotation.WorkflowVersion.yaml # Workflow version config
 │   └── 📄 wf_file_annotation.WorkflowTrigger.yaml # Workflow triggers
+├── 📁 transformations/                     # SQL transformations
+│   └── 📄 file_to_asset.Transformation.{yaml,sql} # Populate Files.assets from annotations
 ├── 📁 data_modeling/                       # Data model definitions
 │   ├── 📁 containers/                             # Container definitions
 │   ├── 📁 views/                                  # View definitions
@@ -83,13 +85,19 @@ cdf_file_annotation/
 │   └── 📄 ep_file_annotation.config.yaml          # Main configuration file
 ├── 📁 data_sets/                           # Data set definitions
 ├── 📁 auth/                                # Authentication and permissions
-├── 📁 streamlit/                           # Dashboard application
-│   └── 📁 file_annotation_dashboard/              # Annotation quality dashboard
+├── 📁 streamlit/                           # Dashboard applications
+│   ├── 📁 file_annotation_dashboard_annotation_quality/  # Annotation quality dashboard
+│   └── 📁 file_annotation_dashboard_pipeline_health/     # Pipeline health dashboard
 ├── 📁 upload_data/                         # Sample data for patterns
+├── 📁 local_setup/                         # Local dev environment (.env.tmpl, notebook, launch.json)
 ├── 📄 default.config.yaml                  # Module configuration
-├── 📄 CONFIG.md                            # Configuration guide
-├── 📄 CONFIG_PATTERNS.md                   # Operational recipes
-└── 📄 DEVELOPING.md                        # Developer extension guide
+├── 📄 module.toml                          # Module metadata
+├── 📄 DEPLOYMENT.md                        # Deployment guide
+├── 📄 CONTRIBUTING.md                      # Contribution guide
+└── 📁 detailed_guides/                     # Additional documentation
+    ├── 📄 CONFIG.md                            # Configuration guide
+    ├── 📄 CONFIG_PATTERNS.md                   # Operational recipes
+    └── 📄 DEVELOPING.md                        # Developer extension guide
 ```
 
 ## 🚀 Core Functions
@@ -706,9 +714,11 @@ The module is built around abstract interfaces for customization:
 
 ## 📚 Documentation
 
-- [**CONFIG.md**](./CONFIG.md) - Comprehensive guide to configuration options
-- [**CONFIG_PATTERNS.md**](./CONFIG_PATTERNS.md) - Recipes for common operational tasks
-- [**DEVELOPING.md**](./DEVELOPING.md) - Guide for extending the template
+- [**detailed_guides/CONFIG.md**](./detailed_guides/CONFIG.md) - Comprehensive guide to configuration options
+- [**detailed_guides/CONFIG_PATTERNS.md**](./detailed_guides/CONFIG_PATTERNS.md) - Recipes for common operational tasks
+- [**detailed_guides/DEVELOPING.md**](./detailed_guides/DEVELOPING.md) - Guide for extending the template
+- [**DEPLOYMENT.md**](./DEPLOYMENT.md) - Deployment guide
+- [**CONTRIBUTING.md**](./CONTRIBUTING.md) - Contribution guide
 
 ## 🤝 Contributing
 
