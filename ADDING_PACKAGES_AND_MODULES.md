@@ -49,15 +49,15 @@ Use structured IDs so Toolkit, usage tracking, and docs stay aligned:
 
 `package_id` is the **primary** deployment pack for the module (used for defaults such as `is_selected_by_default`). A module can still appear in **several** packs via `modules/packages.toml`.
 
-Example: `datamodels/qs_enterprise_dm` has `package_id = "dp:quickstart"` but is also listed under `dp:models` in `packages.toml`. Choose `package_id` for the pack that best represents how users first discover the module; list the folder in every pack that should ship it.
+Example: `contextualization/cdf_file_annotation` has `package_id = "dp:contextualization"` but is also listed under `dp:foundation` and `dp:quickstart` in `packages.toml`. Choose `package_id` for the pack that best represents how users first discover the module; list the folder in every pack that should ship it.
 
 ```toml
-# modules/datamodels/qs_enterprise_dm/module.toml
+# modules/contextualization/cdf_file_annotation/module.toml
 [module]
-title = "Quick Start Enterprise Data Model"
-id = "dp:models:qs_enterprise_dm"
-package_id = "dp:quickstart"
+title = "Contextualization File Annotation"
 is_selected_by_default = false
+id = "dp:contextualization:cdf_file_annotation"
+package_id = "dp:contextualization"
 ```
 
 ## Adding a new module

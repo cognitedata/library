@@ -19,7 +19,6 @@ members = [
     "fn-file-annotation-launch",
     "fn-file-annotation-prepare",
     "fn-file-annotation-promote",
-    "fn-oid-sync",
 ]
 
 [[package]]
@@ -832,25 +831,6 @@ requires-dist = [
     { name = "pyjwt", specifier = ">=2.13.0,<3.0" },
     { name = "python-dotenv", specifier = ">=1.2.2,<2.0" },
     { name = "pyyaml", specifier = ">=6.0.2,<7.0" },
-]
-
-[[package]]
-name = "fn-oid-sync"
-version = "0.0.0"
-source = { virtual = "modules/sourcesystem/cdf_oid_sync/functions/fn_oid_sync" }
-dependencies = [
-    { name = "cognite-sdk" },
-    { name = "mixpanel" },
-    { name = "python-dotenv" },
-    { name = "pyyaml" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "cognite-sdk", specifier = ">=7,<8" },
-    { name = "mixpanel", specifier = ">=4.10.0" },
-    { name = "python-dotenv", specifier = ">=1.0.0" },
-    { name = "pyyaml", specifier = ">=6.0" },
 ]
 
 [[package]]
