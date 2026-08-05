@@ -19,8 +19,7 @@ modules/
 │   ├── cdf_file_annotation/
 │   ├── cdf_entity_matching/
 │   ├── cdf_p_and_id_annotation/
-│   ├── cdf_p_and_id_parser/
-│   └── cdf_connection_sql/
+│   └── cdf_p_and_id_parser/
 │
 ├── datamodels/                  # Industry & extension data models
 │   ├── rmdm/
@@ -85,7 +84,6 @@ Every `module.toml` **`id`** must be `dp:<package_short>:<slug>` where `<package
 | `common/cdf_common` | `dp:common:cdf_common` | `dp:common` |
 | `common/cdf_ingestion` | `dp:common:cdf_ingestion` | `dp:common` |
 | `common/cdf_search` | `dp:common:cdf_search` | `dp:common` |
-| `contextualization/cdf_connection_sql` | `dp:contextualization:cdf_connection_sql` | `dp:contextualization` |
 | `contextualization/cdf_entity_matching` | `dp:contextualization:cdf_entity_matching` | `dp:contextualization` |
 | `contextualization/cdf_file_annotation` | `dp:contextualization:cdf_file_annotation` | `dp:contextualization` |
 | `contextualization/cdf_p_and_id_annotation` | `dp:contextualization:cdf_p_and_id_annotation` | `dp:contextualization` |

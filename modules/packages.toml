@@ -90,7 +90,6 @@ modules = [
     "contextualization/cdf_p_and_id_annotation",
     "contextualization/cdf_file_annotation",
     "contextualization/cdf_entity_matching",
-    "contextualization/cdf_connection_sql",
 ]
 
 [packages.atlas_ai]
