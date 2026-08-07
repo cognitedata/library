@@ -18,15 +18,6 @@ def test_generator_scripts_exist() -> None:
     assert (TEMPLATES / "dry-run.yml").is_file()
 
 
-def test_discover_foundation_modules_includes_project_foundation() -> None:
-    sys.path.insert(0, str(MODULE_ROOT / "scripts"))
-    from generate_actions import discover_foundation_module_paths  # pyright: ignore[reportMissingImports]
-
-    paths = discover_foundation_module_paths(REPO_ROOT / "modules", REPO_ROOT)
-    assert "common/cdf_project_foundation" in paths
-    assert "sourcesystem/cdf_pi_extractor" in paths
-
-
 def test_dry_run_environment_rejects_more_than_two_branches(monkeypatch: pytest.MonkeyPatch) -> None:
     sys.path.insert(0, str(MODULE_ROOT / "scripts"))
     import generate_actions  # pyright: ignore[reportMissingImports]

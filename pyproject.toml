@@ -32,7 +32,6 @@ members = [
     "modules/dashboards/context_quality/functions/context_quality_handler",
     "modules/dashboards/context_quality/streamlit/context_quality_dashboard",
     "modules/solutions/cdf_ai_extractor/functions/fn_ai_property_extractor",
-    "modules/sourcesystem/cdf_oid_sync/functions/fn_oid_sync",
     "modules/datamodels/cfihos_oil_and_gas_extension/cfihos_model_config",
 ]
 
@@ -62,7 +61,6 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 "**/__init__.py" = ["F401"]
 "**/*.ipynb" = ["E741", "F401", "F402"]
-"modules/sourcesystem/cdf_oid_sync/test_oid_sync.py" = ["E402"]
 "tests/**" = ["S101", "S603", "E402"]
 "**/test_*.py" = ["S101", "B017", "S105", "S603"]
 "**/run_tests.py" = ["S603"]

@@ -59,26 +59,6 @@ def load_cdf_toml(repo_root: Path) -> dict[str, Any]:
     return tomllib.loads((repo_root / "cdf.toml").read_text(encoding="utf-8"))
 
 
-def discover_foundation_module_paths(modules_root: Path, repo_root: Path | None = None) -> list[str]:
-    """Resolve deployable dp:foundation module paths from packages.toml or module.toml scan."""
-    root = repo_root or modules_root.parent
-    packages_toml = root / "modules" / "packages.toml"
-    if packages_toml.is_file():
-        data = tomllib.loads(packages_toml.read_text(encoding="utf-8"))
-        listed = data.get("packages", {}).get("foundation", {}).get("modules") or []
-        if listed:
-            return list(listed)
-
-    paths: list[str] = []
-    for module_toml in sorted(modules_root.rglob("module.toml")):
-        text = module_toml.read_text(encoding="utf-8")
-        if 'package_id = "dp:foundation"' not in text:
-            continue
-        rel = module_toml.parent.relative_to(modules_root)
-        paths.append(rel.as_posix())
-    return paths
-
-
 def render_template(path: Path, values: dict[str, str]) -> str:
     text = path.read_text(encoding="utf-8")
     for key, value in values.items():

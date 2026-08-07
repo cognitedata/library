@@ -17,7 +17,6 @@ _FLAT_MODULE_NAMES = (
 
 _MODULE_TEST_PATH_MARKERS = (
     "modules/contextualization/",
-    "modules/sourcesystem/cdf_oid_sync/",
 )
 
 
@@ -38,8 +37,6 @@ def function_dir_for_test_file(path: Path) -> Path | None:
     """Return the deployed function directory for a module test file."""
     if not is_module_function_test_file(path):
         return None
-    if path.name == "test_oid_sync.py":
-        return path.parent / "functions" / "fn_oid_sync"
     return path.parent
 
 
