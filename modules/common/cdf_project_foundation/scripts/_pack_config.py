@@ -2,6 +2,7 @@
 
 import tomllib
 from pathlib import Path
+from typing import Literal
 
 import yaml
 
@@ -43,6 +44,21 @@ SOURCE_SYSTEM_MODULE_DIRS: tuple[str, ...] = (
     "cdf_db_extractor",
     "cdf_files_extractor",
 )
+
+# Demo-pack (dp:quickstartdp) counterparts of SOURCE_SYSTEM_MODULE_DIRS — synthetic
+# data-dump modules instead of real extractors. Used only to detect which pack a
+# project is set up for (see detect_pack_kind); not consulted by the variant/auth
+# helpers above.
+DEMO_SOURCE_SYSTEM_MODULE_DIRS: tuple[str, ...] = (
+    "cdf_pi_data_dump",
+    "cdf_sap_data_dump",
+    "cdf_sharepoint_data_dump",
+)
+
+# "foundation": only *_extractor modules installed.
+# "demo": only *_data_dump modules installed.
+# "ambiguous": both kinds installed (cherry-picked mix) or neither — caller must ask.
+PackKind = Literal["foundation", "demo", "ambiguous"]
 
 # Contextualization modules whose standalone auth groups become redundant when
 # cdf_foundation is present (it covers all required capabilities).
@@ -181,6 +197,27 @@ def detect_data_model_variant(data_models_dir: Path) -> str:
             "  or pass --variant to select one explicitly."
         )
     return present[0]
+
+
+def detect_pack_kind(sourcesystem_dir: Path) -> PackKind:
+    """Detect whether the installed sourcesystem modules match the Foundation pack
+    (``*_extractor`` modules) or the Demo pack (``*_data_dump`` modules).
+
+    Returns ``"ambiguous"`` when both kinds are installed (a cherry-picked mix) or
+    when neither is installed — the caller should prompt the user in that case and
+    default the prompt itself to Foundation.
+    """
+    if not sourcesystem_dir.is_dir():
+        return "ambiguous"
+
+    has_extractor = any((sourcesystem_dir / name).is_dir() for name in SOURCE_SYSTEM_MODULE_DIRS)
+    has_data_dump = any((sourcesystem_dir / name).is_dir() for name in DEMO_SOURCE_SYSTEM_MODULE_DIRS)
+
+    if has_data_dump and not has_extractor:
+        return "demo"
+    if has_extractor and not has_data_dump:
+        return "foundation"
+    return "ambiguous"
 
 
 def load_yaml(path: Path) -> dict:
