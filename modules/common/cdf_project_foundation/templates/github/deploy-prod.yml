@@ -45,6 +45,9 @@ jobs:
       - name: Install Cognite Toolkit
         run: pip install "cognite-toolkit=={{TOOLKIT_VERSION}}" pyyaml
 
+      - name: Verify project config is in sync
+        run: {{SETUP_PROJECT_CHECK_CMD}}
+
       - name: cdf build
         run: cdf build {{PROD_BUILD_ARGS}}
 

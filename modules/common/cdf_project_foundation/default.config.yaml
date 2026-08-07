@@ -27,6 +27,13 @@ instanceSpace: "sp_cdm_instances"
 # one per installed extractor module. Computed by setup_project.py.
 instanceSpaces: ["sp_cdm_instances"]
 
+# Additional schema spaces the producer persona reads from, in addition to
+# schemaSpace. Default (this file, and the "cdm" variant) is CDM-only.
+# setup_project.py extends this per variant with that variant's own search-solution
+# space — e.g. cfihos_oil_and_gas_extension adds dm_sol_oil_and_gas_search,
+# isa_manufacturing_extension adds dm_sol_isa_manufacturing_search.
+additionalSchemaSpaces: ["cdf_cdm", "cdf_idm", "cdf_cdm_units"]
+
 # Data model variant — controls which schema/instance spaces are synced.
 # Supported: cdm | isa_manufacturing_extension | cfihos_oil_and_gas_extension
 dataModelVariant: cdm
