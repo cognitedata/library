@@ -846,7 +846,7 @@ def diagram_annotation_stale_paths(repo_root: Path | None = None) -> list[Path]:
     workflow_path = _ingestion_workflow_path(repo_root)
     if workflow_path.exists():
         text = workflow_path.read_text()
-        if any(f"{{{{ {var} }}}}" in text for var in _INGESTION_DIAGRAM_ANNOTATION_TASK_VARS):
+        if any(re.search(r"\\{\\{\\s*" + var + r"\\s*\\}\\}", text) for var in _INGESTION_DIAGRAM_ANNOTATION_TASK_VARS):
             stale.append(workflow_path)
 
     config_path = _ingestion_config_path(repo_root)
