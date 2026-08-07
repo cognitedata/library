@@ -32,8 +32,8 @@ title = "Foundation Deployment Pack Demo"
 description = "Showcase end-to-end CDF: ingestion, contextualization, and dashboards. Use this to explore CDF; for production deployments use the Foundation Deployment Pack."
 canCherryPick = false
 modules = [
-    "common/cdf_common",
     "common/cdf_ingestion",
+    "common/cdf_project_foundation",
     "contextualization/cdf_file_annotation",
     "contextualization/cdf_entity_matching",
     "sourcesystem/cdf_pi_data_dump",

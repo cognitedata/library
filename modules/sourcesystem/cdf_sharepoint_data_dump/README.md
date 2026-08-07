@@ -12,6 +12,17 @@ Use this module when deploying `dp:quickstart` against the `cfihos_oil_and_gas_e
 model. It is not a replacement for `cdf_sharepoint` in other deployment packs — `cdf_sharepoint`
 remains the correct choice for `dp:foundation`.
 
+> **Diagram-annotation cleanup:** the `diagram_annotation.*` RAW data, its 3 transformation
+> pairs, and the standalone `wf_diagram_annotation.*` workflow work on their own — this module
+> doesn't require `contextualization/cdf_file_annotation` to produce annotation edges. But
+> `dp:quickstart` installs both, and running both together would write competing
+> `CogniteDiagramAnnotation` edges. `common/cdf_project_foundation`'s setup wizard
+> (`setup_project.py`) detects this and automatically removes the diagram-annotation files
+> from your project (and the matching tasks from `common/cdf_ingestion`'s workflow) the first
+> time it runs — nothing is removed from the library module itself, and a project using only
+> this module keeps the synthetic pipeline unchanged. `tr_file_all_to_file` (populates `Files`)
+> is never removed by either path.
+
 ## Module Components
 
 - `raw/file.Table.yaml`, `diagram_annotation.Table.yaml` — RAW table definitions.
