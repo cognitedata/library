@@ -72,14 +72,6 @@ capabilities:
         spaceIdScope:
           spaceIds:
             - cdf_cdm
-  # - annotationsAcl:
-  #     actions:
-  #       - READ
-  #       - WRITE
-  #       - SUGGEST
-  #       - REVIEW
-  #     scope:
-  #       all: {}
   - entitymatchingAcl:
       actions:
         - READ

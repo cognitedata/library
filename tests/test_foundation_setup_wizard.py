@@ -316,15 +316,47 @@ class TestBuildFoundationVars:
         assert vars_["consumerSourceId"] == "${CONSUMER_SOURCE_ID}"
 
     def test_dataset_always_present(self) -> None:
+        """dataset always includes the variant's own DM-extension dataset (e.g.
+        ds_isa_manufacturing), folded in alongside any source-system datasets. An
+        empty dataset list renders as an empty idScope/datasetScope, which CDF's API
+        rejects as an invalid capability — this must never happen for a variant that
+        ships its own dataset."""
         from setup_project import build_foundation_vars
-        assert build_foundation_vars("isa_manufacturing_extension", "dev", "")["dataset"] == []
-        assert build_foundation_vars("isa_manufacturing_extension", "dev", "", ["ds_pi"])["dataset"] == ["ds_pi"]
+        assert build_foundation_vars("isa_manufacturing_extension", "dev", "")["dataset"] == [
+            "ds_isa_manufacturing"
+        ]
+        assert build_foundation_vars("isa_manufacturing_extension", "dev", "", ["ds_pi"])["dataset"] == [
+            "ds_pi", "ds_isa_manufacturing"
+        ]
 
     def test_cfihos_variant(self) -> None:
         from setup_project import build_foundation_vars
         vars_ = build_foundation_vars("cfihos_oil_and_gas_extension", "prod", "")
         assert vars_["schemaSpace"] == "dm_dom_oil_and_gas"
         assert vars_["instanceSpace"] == "inst_location"
+
+    def test_cfihos_variant_dataset_includes_dm_dataset(self) -> None:
+        """Demo DP always uses this variant — cfihos_oil_and_gas_extension's own
+        ds_oil_and_gas_domain_model dataset (which every Demo DP data-dump module's
+        transformations/RAW tables are tagged with) must be in the persona groups'
+        dataset scope, or producer/consumer/admin have no access to those resources."""
+        from setup_project import build_foundation_vars
+        vars_ = build_foundation_vars("cfihos_oil_and_gas_extension", "dev", "")
+        assert vars_["dataset"] == ["ds_oil_and_gas_domain_model"]
+
+    def test_cdm_variant_dataset_has_no_dm_extension_dataset(self) -> None:
+        """cdm ships no DM extension module, so there is no extra dataset to fold in —
+        dataset stays exactly whatever the source-system modules contributed."""
+        from setup_project import build_foundation_vars
+        assert build_foundation_vars("cdm", "dev", "")["dataset"] == []
+        assert build_foundation_vars("cdm", "dev", "", ["ds_pi"])["dataset"] == ["ds_pi"]
+
+    def test_datasets_for_variant_does_not_duplicate(self) -> None:
+        from setup_project import datasets_for_variant
+        result = datasets_for_variant(
+            "cfihos_oil_and_gas_extension", ["ds_oil_and_gas_domain_model", "ds_pi"]
+        )
+        assert result == ["ds_oil_and_gas_domain_model", "ds_pi"]
 
     def test_cdm_variant_contains_required_keys(self) -> None:
         from setup_project import build_foundation_vars
