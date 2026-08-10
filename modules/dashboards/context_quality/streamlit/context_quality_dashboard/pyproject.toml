@@ -5,7 +5,6 @@ requires-python = ">=3.11,<3.14"
 dependencies = [
     "pyodide-http>=0.2.1",
     "cognite-sdk>=7.89.0,<8",
-    "cognite-pygen",
     "packaging",
     "plotly",
     "matplotlib",

@@ -707,6 +707,19 @@ client.functions.schedules.create(
 2. Re-run all batches from the beginning
 3. Ensure each batch shows "✅ Completed" before running aggregation
 
+### Browser console shows CORS errors (`NetworkError`, "blocked by CORS policy")
+
+**Symptom:** Running a batch fails immediately with errors like `Failed to execute 'send' on 'XMLHttpRequest'` or `Access to XMLHttpRequest at '.../functions/byids' ... has been blocked by CORS policy: ... No 'Access-Control-Allow-Origin' header is present`, referencing an origin such as `https://cognite-stlite-fusion-standalone-production.web.app`.
+
+**Cause:** This is **not a bug in this module** — some CDF clusters (staging clusters, and greenfield-type clusters) enforce strict CORS checks that require the browser's Origin header to be on an allow-list of registered "Applications" for the project. The Streamlit dashboard runs in-browser (via Pyodide/stlite) from that fixed Cognite-hosted origin, so it's blocked until that origin is allow-listed for your project.
+
+**Solution:**
+1. Ask a CDF **organization admin** for your project to open Fusion → **Admin** → **My Organization** → **Applications**.
+2. Register (or confirm) an application entry for the origin `https://cognite-stlite-fusion-standalone-production.web.app` — this is the same origin for every Cognite Streamlit custom app, so this is a one-time, per-project fix, not something to repeat per dashboard.
+3. Re-run the batch once the origin is allow-listed.
+
+This requires org-admin access to the CDF project and cannot be worked around from inside the module.
+
 ---
 
 ## Metrics Reference
