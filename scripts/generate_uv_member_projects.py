@@ -195,11 +195,11 @@ PACKAGE_SPECS: list[dict[str, object]] = [
         "name": "context-quality-handler",
         "requires_python": ">=3.11,<3.14",
         "dependencies": [
-            "cognite-sdk>=7,<8",
+            "cognite-sdk>=7.89.0,<8",
             "mixpanel>=4.10.0",
         ],
         "deploy_dependencies": [
-            "cognite-sdk>=7.0.0",
+            "cognite-sdk>=7.89.0,<8",
             "mixpanel>=4.10.0",
         ],
     },
@@ -210,7 +210,6 @@ PACKAGE_SPECS: list[dict[str, object]] = [
         "dependencies": [
             "pyodide-http>=0.2.1",
             "cognite-sdk>=7.89.0,<8",
-            "cognite-pygen",
             "packaging",
             "plotly",
             "matplotlib",
@@ -219,7 +218,6 @@ PACKAGE_SPECS: list[dict[str, object]] = [
         "deploy_dependencies": [
             "pyodide-http>=0.2.1",
             "cognite-sdk>=7.89.0,<8",
-            "cognite-pygen",
             "packaging",
             "plotly",
             "matplotlib",

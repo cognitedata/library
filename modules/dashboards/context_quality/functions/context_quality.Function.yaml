@@ -3,6 +3,7 @@ externalId: context_quality_handler
 owner: 'Anonymous'
 description: Handles contextualization quality metrics operations.
 functionPath: 'handler.py'
+runtime: 'py312'
 # Required when the project is in DATA_MODELING_ONLY mode: used as the space for the
 # CogniteFile that stores the function code. Omit or override if using dataset-only.
 space: context_quality
