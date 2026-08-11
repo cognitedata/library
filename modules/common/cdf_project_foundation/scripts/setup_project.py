@@ -117,6 +117,8 @@ def datasets_for_variant(variant: str, datasets: list[str] | None) -> list[str]:
     """Merge the variant's own DM-extension dataset into the persona-group dataset
     list, alongside whatever source-system-module datasets were already collected.
     Order-preserving, de-duplicated."""
+    if variant not in VARIANT_DATA_MODEL_DATASET:
+        raise ValueError(f"Unknown data model variant: {variant}")
     result = list(datasets) if datasets else []
     extra = VARIANT_DATA_MODEL_DATASET.get(variant)
     if extra and extra not in result:
