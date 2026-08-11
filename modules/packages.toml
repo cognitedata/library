@@ -65,6 +65,16 @@ modules = [
     "sourcesystem/cdf_sap_events",
     "sourcesystem/cdf_sharepoint",
     "sourcesystem/cdf_oid_sync",
+    # Extraction pipeline configs — for a real project, wired to a live source system.
+    "sourcesystem/cdf_pi_extractor",
+    "sourcesystem/cdf_opcua_extractor",
+    "sourcesystem/cdf_sap_extractor",
+    "sourcesystem/cdf_db_extractor",
+    "sourcesystem/cdf_files_extractor",
+    # Synthetic data-dump modules — sample data for exploring CDF without a live source.
+    "sourcesystem/cdf_pi_data_dump",
+    "sourcesystem/cdf_sap_data_dump",
+    "sourcesystem/cdf_sharepoint_data_dump",
 ]
 
 [packages.models]
