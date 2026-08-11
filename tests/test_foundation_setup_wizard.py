@@ -1515,6 +1515,16 @@ class TestReadExistingValues:
         existing = _read_existing_values(tmp_path, ("dev",), [])
         assert "ds_custom_ingestion" in existing["dataset"]
 
+    def test_reads_cdf_ingestion_dataset_when_common_key_is_null(self, tmp_path: Path) -> None:
+        from setup_project import _read_existing_values
+        (tmp_path / "modules" / "common" / "cdf_ingestion").mkdir(parents=True)
+        self._write_config(tmp_path / "config.dev.yaml", {
+            "environment": {"project": "acme-dev"},
+            "variables": {"modules": {"common": None}},
+        })
+        existing = _read_existing_values(tmp_path, ("dev",), [])
+        assert "ingestion" in existing["dataset"]
+
     def test_reads_cdf_ingestion_dataset_default_when_no_override(self, tmp_path: Path) -> None:
         from setup_project import _read_existing_values
         (tmp_path / "modules" / "common" / "cdf_ingestion").mkdir(parents=True)

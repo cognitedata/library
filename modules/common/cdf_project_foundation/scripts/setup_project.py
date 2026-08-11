@@ -1040,7 +1040,8 @@ def _read_existing_values(
         # Support both flat (new) and nested-category (old) structures.
         foundation = (
             modules.get("cdf_project_foundation")
-            or modules.get("common", {}).get("cdf_project_foundation", {})
+            or (modules.get("common") or {}).get("cdf_project_foundation")
+            or {}
         )
         if foundation.get("site"):
             existing["site"] = foundation["site"]
@@ -1060,7 +1061,7 @@ def _read_existing_values(
         if (pack_root / "modules" / "common" / "cdf_ingestion").is_dir():
             ingestion_vars = (
                 modules.get("cdf_ingestion")
-                or modules.get("common", {}).get("cdf_ingestion", {})
+                or (modules.get("common") or {}).get("cdf_ingestion")
                 or {}
             )
             ingestion_dataset = ingestion_vars.get("dataset", "ingestion")
