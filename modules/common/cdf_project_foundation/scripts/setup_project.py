@@ -97,8 +97,10 @@ VARIANT_SEARCH_SCHEMA_SPACE: dict[str, str | None] = {
 
 def additional_schema_spaces_for_variant(variant: str) -> list[str]:
     """Producer's dataModelsAcl read-only space list for the given variant."""
+    if variant not in VARIANT_SEARCH_SCHEMA_SPACE:
+        raise ValueError(f"Unknown data model variant: {variant}")
     spaces = list(BASE_ADDITIONAL_SCHEMA_SPACES)
-    extra = VARIANT_SEARCH_SCHEMA_SPACE.get(variant)
+    extra = VARIANT_SEARCH_SCHEMA_SPACE[variant]
     if extra:
         spaces.append(extra)
     return spaces

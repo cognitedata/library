@@ -356,6 +356,15 @@ class TestBuildFoundationVars:
         cfihos = build_foundation_vars("cfihos_oil_and_gas_extension", "dev", "")["additionalSchemaSpaces"]
         assert cfihos == ["cdf_cdm", "cdf_idm", "cdf_cdm_units", "dm_sol_oil_and_gas_search"]
 
+    def test_additional_schema_spaces_rejects_unknown_variant(self) -> None:
+        """Guards against a variant added to INGESTION_FOUNDATION_VARIABLES without a
+        matching entry in VARIANT_SEARCH_SCHEMA_SPACE — must fail loudly rather than
+        silently omit the variant's search-solution space."""
+        from setup_project import additional_schema_spaces_for_variant
+
+        with pytest.raises(ValueError, match="Unknown data model variant"):
+            additional_schema_spaces_for_variant("not_a_real_variant")
+
 
 class TestCdmInstanceSpace:
     def test_uses_site_when_set(self) -> None:
