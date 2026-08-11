@@ -801,11 +801,11 @@ def _remove_ingestion_diagram_annotation_tasks(lines: list[str]) -> int:
     transformation var is one of ``_INGESTION_DIAGRAM_ANNOTATION_TASK_VARS``.
 
     A block runs from its ``- externalId:`` line up to (but not including) the next
-    sibling task at the same indentation (any first key, not just ``externalId:`` —
-    YAML doesn't guarantee key order), or the next top-level (unindented) key.
-    Returns the number of task blocks removed.
+    line indented 4 spaces or less (any sibling task, regardless of its first key since
+    YAML doesn't guarantee key order; any sibling key of ``tasks:`` itself; or the next
+    top-level key). Returns the number of task blocks removed.
     """
-    marker_re = re.compile(r"^    - externalId:\s*\{\{\s*(\w+)\s*\}\}\s*$")
+    marker_re = re.compile(r"^    - externalId:\s*['\"]?\{\{\s*(\w+)\s*\}\}['\"]?\s*$")
     ranges: list[tuple[int, int]] = []
     i = 0
     while i < len(lines):
@@ -813,7 +813,7 @@ def _remove_ingestion_diagram_annotation_tasks(lines: list[str]) -> int:
         if match and match.group(1) in _INGESTION_DIAGRAM_ANNOTATION_TASK_VARS:
             start = i
             j = i + 1
-            while j < len(lines) and not re.match(r"^    - ", lines[j]) and not re.match(r"^\S", lines[j]):
+            while j < len(lines) and not re.match(r"^ {0,4}\S", lines[j]):
                 j += 1
             ranges.append((start, j))
             i = j

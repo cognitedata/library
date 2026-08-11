@@ -1060,7 +1060,7 @@ class TestRemoveRedundantDiagramAnnotation:
     and cdf_file_annotation are installed in the same project — otherwise the synthetic
     pipeline is the only annotation mechanism present and must be left alone."""
 
-    _DIAGRAM_ANNOTATION_FILES = (
+    _DIAGRAM_ANNOTATION_FILES: tuple[str, ...] = (
         "raw/diagram_annotation.Table.yaml",
         "upload_data/diagram_annotation.Manifest.yaml",
         "upload_data/diagram_annotation.RawRows.csv",
@@ -1075,7 +1075,7 @@ class TestRemoveRedundantDiagramAnnotation:
         "workflows/wf_diagram_annotation.WorkflowTrigger.yaml",
     )
 
-    _WORKFLOW_YAML = """\
+    _WORKFLOW_YAML: str = """\
         workflowExternalId: {{ workflow }}
         version: v1
         workflowDefinition:
@@ -1148,7 +1148,7 @@ class TestRemoveRedundantDiagramAnnotation:
               name: 'Time series data'
         """
 
-    _CONFIG_YAML = """\
+    _CONFIG_YAML: str = """\
         fileTransformationExternalId: tr_file_all_to_file
         diagramAnnotationTransformationExternalId: tr_diagram_annotation_all_to_cognite_diagram_annotation
         fileTagConnectionTransformationExternalId: tr_diagram_annotation_all_to_file_tag_connection
