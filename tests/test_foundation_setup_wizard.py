@@ -1499,6 +1499,41 @@ class TestReadExistingValues:
         assert "ds_pi" in existing["dataset"]
         assert "ds_sap" in existing["dataset"]
 
+    def test_reads_cdf_ingestion_dataset_when_installed(self, tmp_path: Path) -> None:
+        """cdf_ingestion's own dataset must be folded into the persona dataset list —
+        remove_redundant_auth_files() deletes the auth file that used to scope its
+        transformations/extraction-pipeline access to this dataset, so the persona
+        groups are the only thing left granting it."""
+        from setup_project import _read_existing_values
+        (tmp_path / "modules" / "common" / "cdf_ingestion").mkdir(parents=True)
+        self._write_config(tmp_path / "config.dev.yaml", {
+            "environment": {"project": "acme-dev"},
+            "variables": {"modules": {
+                "cdf_ingestion": {"dataset": "ds_custom_ingestion"},
+            }},
+        })
+        existing = _read_existing_values(tmp_path, ("dev",), [])
+        assert "ds_custom_ingestion" in existing["dataset"]
+
+    def test_reads_cdf_ingestion_dataset_default_when_no_override(self, tmp_path: Path) -> None:
+        from setup_project import _read_existing_values
+        (tmp_path / "modules" / "common" / "cdf_ingestion").mkdir(parents=True)
+        self._write_config(tmp_path / "config.dev.yaml", {
+            "environment": {"project": "acme-dev"},
+            "variables": {"modules": {}},
+        })
+        existing = _read_existing_values(tmp_path, ("dev",), [])
+        assert "ingestion" in existing["dataset"]
+
+    def test_skips_cdf_ingestion_dataset_when_not_installed(self, tmp_path: Path) -> None:
+        from setup_project import _read_existing_values
+        self._write_config(tmp_path / "config.dev.yaml", {
+            "environment": {"project": "acme-dev"},
+            "variables": {"modules": {}},
+        })
+        existing = _read_existing_values(tmp_path, ("dev",), [])
+        assert existing["dataset"] == []
+
     def test_reads_app_owner(self, tmp_path: Path) -> None:
         from setup_project import _read_existing_values
         self._write_config(tmp_path / "config.dev.yaml", {

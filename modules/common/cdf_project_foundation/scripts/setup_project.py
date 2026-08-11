@@ -1053,6 +1053,19 @@ def _read_existing_values(
             ds = mod_vars.get("dataset", "")
             if ds and isinstance(ds, str) and ds not in ss_datasets:
                 ss_datasets.append(ds)
+        # cdf_ingestion (Demo pack only) has its own dataset, scoped by the
+        # workflow.Group.yaml auth that remove_redundant_auth_files() deletes once
+        # cdf_project_foundation's persona groups take over — fold it into the persona
+        # dataset list too, or the producer group loses that access entirely.
+        if (pack_root / "modules" / "common" / "cdf_ingestion").is_dir():
+            ingestion_vars = (
+                modules.get("cdf_ingestion")
+                or modules.get("common", {}).get("cdf_ingestion", {})
+                or {}
+            )
+            ingestion_dataset = ingestion_vars.get("dataset", "ingestion")
+            if ingestion_dataset and isinstance(ingestion_dataset, str) and ingestion_dataset not in ss_datasets:
+                ss_datasets.append(ingestion_dataset)
         if ss_datasets:
             existing["dataset"] = ss_datasets
         app_owner = (
