@@ -434,3 +434,32 @@ environment:
         for env in {"dev", "test", "prod"} - set(envs):
             assert f"`acme-{env}`" not in docs
             assert f"`config.{env}.yaml`" not in docs
+
+
+def _make_foundation_module(modules_root: Path) -> None:
+    module_dir = modules_root / "common" / "cdf_project_foundation" / "scripts"
+    module_dir.mkdir(parents=True)
+    (module_dir / "setup_project.py").write_text("", encoding="utf-8")
+
+
+def test_setup_project_check_cmd_org_dir_set_but_modules_at_repo_root(tmp_path: Path) -> None:
+    """org_dir being configured in cdf.toml doesn't guarantee modules/ is nested
+    under it — resolve_modules_root checks the repo root first. The generated
+    command must point at wherever modules/ actually is, not blindly prefix org_dir."""
+    sys.path.insert(0, str(MODULE_ROOT / "scripts"))
+    import generate_actions  # pyright: ignore[reportMissingImports]
+
+    _make_foundation_module(tmp_path / "modules")
+
+    cmd = generate_actions.setup_project_check_cmd(tmp_path, "industrial")
+    assert cmd == "python modules/common/cdf_project_foundation/scripts/setup_project.py --check"
+
+
+def test_setup_project_check_cmd_modules_nested_under_org_dir(tmp_path: Path) -> None:
+    sys.path.insert(0, str(MODULE_ROOT / "scripts"))
+    import generate_actions  # pyright: ignore[reportMissingImports]
+
+    _make_foundation_module(tmp_path / "industrial" / "modules")
+
+    cmd = generate_actions.setup_project_check_cmd(tmp_path, "industrial")
+    assert cmd == "python industrial/modules/common/cdf_project_foundation/scripts/setup_project.py --check"
