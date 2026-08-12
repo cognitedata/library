@@ -6,7 +6,7 @@ import time
 import traceback
 from collections import defaultdict
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from cognite.client import CogniteClient
 from cognite.client import data_modeling as dm
@@ -18,9 +18,8 @@ from cognite.client.data_classes.data_modeling import (
 )
 from cognite.client.exceptions import CogniteAPIError
 from cognite.client.utils._text import shorten
-from config import Config, ViewPropertyConfig
-
 from cognite.extractorutils.uploader import RawUploadQueue
+from config import Config, ViewPropertyConfig
 from constants import (
     BATCH_SIZE_API_SUBMIT,
     BATCH_SIZE_ENTITIES,
@@ -939,7 +938,6 @@ def apply_rule_mappings(
     matched_entity_ids = {match[KEY_ENTITY_EXT_ID] for match in good_matches}
 
     key_field = KEY_RULE_KEYS  # The field in the dictionaries that contains the rule keys
-    num_added_matches = 0
     cnt = 0
     
     try:
