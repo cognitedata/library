@@ -8,6 +8,9 @@ from collections import defaultdict
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+if TYPE_CHECKING:
+    from cognite.extractorutils.uploader import RawUploadQueue
+
 from cognite.client import CogniteClient
 from cognite.client import data_modeling as dm
 from cognite.client.data_classes import ExtractionPipelineRun, Row
@@ -19,12 +22,6 @@ from cognite.client.data_classes.data_modeling import (
 from cognite.client.exceptions import CogniteAPIError
 from cognite.client.utils._text import shorten
 from config import Config, ViewPropertyConfig
-
-# RawUploadQueue is only constructed at runtime in entity_matching; importing
-# it lazily lets pipeline.py be imported (e.g. for unit tests) without the
-# cognite-extractor-utils package installed. Type hints use forward references.
-if TYPE_CHECKING:  # pragma: no cover
-    from cognite.extractorutils.uploader import RawUploadQueue
 from constants import (
     BATCH_SIZE_API_SUBMIT,
     BATCH_SIZE_ENTITIES,
@@ -141,8 +138,9 @@ def entity_matching(
 
         logger.debug("Initiate RAW upload queue used to store output from entity matching")
         from cognite.extractorutils.uploader import RawUploadQueue
-        raw_uploader = RawUploadQueue(cdf_client=client, max_queue_size=500000, trigger_log_level=LOG_LEVEL_INFO)
 
+        raw_uploader = RawUploadQueue(cdf_client=client, max_queue_size=500000, trigger_log_level=LOG_LEVEL_INFO)
+        
         # Check if we should run all entities (then delete state content in RAW) or just new entities
         if config.parameters.run_all:
             logger.debug("Run all entities, delete state content in RAW since we are rerunning based on all input")
@@ -476,7 +474,7 @@ def apply_manual_mappings(
                     _retry_apply(client, logger, clean_target_list)
                     clean_target_list = []
 
-                    logger.info(f"==> Mapping table based matching - Adding batch of {len(item_update)} items to data model, total count: {cnt} / {len(manual_mappings)}")
+                    logger.info(f"==> Mapping table based matching - Adding batch of {len(item_update)} items to data model, total count/matches: {cnt} / {len(manual_mappings)}")
                     _retry_apply(client, logger, item_update)
                     item_update = []  # Reset item_update after applying
 
@@ -492,7 +490,7 @@ def apply_manual_mappings(
                 if cnt == 0:
                     logger.info("==> Mapping table based matching - No items added to data model based on new items found and manual mappings")
                 else:
-                    logger.info(f"==> Mapping table based matching - Adding remaining batch of {len(item_update)} items to data model, total count: {cnt} / {len(manual_mappings)}")
+                    logger.info(f"==> Mapping table based matching - Adding batch of {len(item_update)} items to data model, total count/matches: {cnt} / {len(manual_mappings)}")
 
             raw_uploader.upload()
 
@@ -944,7 +942,6 @@ def apply_rule_mappings(
     matched_entity_ids = {match[KEY_ENTITY_EXT_ID] for match in good_matches}
 
     key_field = KEY_RULE_KEYS  # The field in the dictionaries that contains the rule keys
-    num_added_matches = 0
     cnt = 0
     
     try:
@@ -965,6 +962,7 @@ def apply_rule_mappings(
         unique_matches_tracker = set()
 
         for d2 in new_entities:
+            cnt = len(new_entities)
             if not d2.get(key_field, []):  # Ensure the key_field exists
                 continue  # Skip if no rule keys are present
             set2 = set(d2.get(key_field, [])) # Convert to set once
@@ -992,7 +990,6 @@ def apply_rule_mappings(
                             unique_target_list = list(set(matches.get(entity_id, ())))
                             if d1_match[KEY_TARGET_EXT_ID] and d1_match[KEY_TARGET_EXT_ID] not in unique_target_list:
                                 unique_target_list = [*unique_target_list, d1_match[KEY_TARGET_EXT_ID]]
-                                num_added_matches += 1
                                 good_matches.append(
                                     {
                                         KEY_MATCH_TYPE: MATCH_TYPE_RULE,
@@ -1028,7 +1025,6 @@ def apply_rule_mappings(
         # Iterate through the matches and prepare the item updates
         
         for entity_ext_id in matches:
-            cnt += 1
             target_ext_ids = matches[entity_ext_id] # Assuming the first target is the one to match with
 
             item_update = add_to_items(config, 
@@ -1040,7 +1036,7 @@ def apply_rule_mappings(
             
             # Apply the updates to the data model in batches of BATCH_SIZE_API_SUBMIT
             if not config.parameters.debug and config.parameters.dm_update and cnt % BATCH_SIZE_API_SUBMIT == 0:
-                logger.info(f"==> Rule based matching - Adding batch of {len(item_update)} items to data model, total count: {cnt} / {len(matches)}")
+                logger.info(f"==> Rule based matching - Adding batch of {len(item_update)} items to data model, total count/matches: {cnt} / {len(matches)}")
                 _retry_apply(client, logger, item_update)
                 item_update = []  # Reset item_update after applying
 
@@ -1051,14 +1047,13 @@ def apply_rule_mappings(
             if cnt == 0:
                 logger.info("==> Rule based matching - No items added to data model based on new items found and rule based mappings")
             else:
-                logger.info(f"==> Rule based matching - Adding remaining batch of {len(item_update)} items to data model, total count: {cnt} / {len(matches)}")
-                logger.info(f"==> Rule based matching - Total number of new matches based on rules matching one or more targets per entity added: {num_added_matches}")
+                logger.info(f"==> Rule based matching - Adding batch of {len(item_update)} items to data model, total count/matches: {cnt} / {len(matches)}")
 
-        return good_matches, cnt
+        return good_matches, len(matches)
 
     except Exception as e:
         logger.error(f"ERROR: Not able run rule based mapping - error: {e}")
-        return good_matches, cnt
+        return good_matches, len(matches)
 
 
 
@@ -1124,9 +1119,9 @@ def select_and_apply_matches(
         logger.info(f"Got {len(new_good_matches)} matches with score >= {config.parameters.auto_approval_threshold}")
         logger.info(f"Got {len(bad_matches)} matches with score < {config.parameters.auto_approval_threshold}")
 
+        cnt = len(new_good_matches) + len(bad_matches)
         # Update time series with matches
         for match in new_good_matches:
-            cnt += 1
             entity_ext_id = match[KEY_ENTITY_EXT_ID]
             target_ext_id = match[KEY_TARGET_EXT_ID]
             entity_targets = match[KEY_ENTITY_EXISTING_TARGETS]
@@ -1141,7 +1136,7 @@ def select_and_apply_matches(
 
             # Apply the updates to the data model in batches of BATCH_SIZE_API_SUBMIT
             if not config.parameters.debug and config.parameters.dm_update and cnt % BATCH_SIZE_API_SUBMIT == 0:
-                logger.info(f"==> Entity matching - Adding batch of {len(item_update)} items to data model, total count: {cnt} / {len(new_good_matches)}")
+                logger.info(f"==> Entity matching - Adding batch of {len(item_update)} items to data model, total count/matches: {cnt} / {len(new_good_matches)}")
                 _retry_apply(client, logger, item_update)
                 item_update = []  # Reset item_update after applying
 
@@ -1150,14 +1145,14 @@ def select_and_apply_matches(
             if cnt == 0:
                 logger.info("==> Entity matching - No items added to data model based on new items found and entity matching")
             else:
-                logger.info(f"==> Entity matching - Adding remaining batch of {len(item_update)} items to data model, total count: {cnt} / {len(new_good_matches)}")
+                logger.info(f"==> Entity matching - Adding batch of {len(item_update)} items to data model, total count/matches: {cnt} / {len(new_good_matches)}")
 
 
-        return good_matches + new_good_matches, bad_matches, cnt
+        return good_matches + new_good_matches, bad_matches, len(new_good_matches)
 
     except Exception as e:
         print(f"ERROR: Failed to parse results from entity matching - error: {type(e)}({e})")
-        return good_matches, [], cnt  # type: ignore
+        return good_matches, [], len(new_good_matches)  # type: ignore
 
 def add_to_items(
     config: Config,
@@ -1287,7 +1282,7 @@ def write_mapping_to_raw(
             logger.info(f"Clean up GOOD table: {raw_db}/{raw_tale_ctx_good} before writing new status")
             delete_table(client, raw_db, raw_tale_ctx_good)
 
-            logger.info("Create DB / Table for DB: {raw_db}  Tables: {raw_tale_ctx_bad} and {raw_tale_ctx_good} if it does not exist")
+            logger.info(f"Create DB / Table for DB: {raw_db}  Tables: {raw_tale_ctx_bad} and {raw_tale_ctx_good} if it does not exist")
             create_table(client, raw_db, raw_tale_ctx_bad)
             create_table(client, raw_db, raw_tale_ctx_good)
 

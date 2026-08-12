@@ -301,6 +301,7 @@ def get_new_items(
             try:
                 result = client.data_modeling.instances.list(
                     instance_type="node",
+                    space=view_config.instance_space,
                     sources=[view_id],
                     filter=filter_query,
                     limit=BATCH_SIZE

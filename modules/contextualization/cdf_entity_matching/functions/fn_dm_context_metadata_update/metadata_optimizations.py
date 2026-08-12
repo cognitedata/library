@@ -444,7 +444,7 @@ class OptimizedMetadataProcessor:
                 tags.append(f"site:{site}")
 
             discipline_code = tag_elements[1]
-            aliases = self._get_timeseries_alias_list_optimized(discipline_code, tuple(aliases))
+            aliases = self._get_timeseries_alias_list_optimized(tag, tuple(aliases))
 
             area = discipline_code
             equipment_number = "-".join(tag_elements[2:]) if len(tag_elements) > 2 else None
@@ -495,12 +495,13 @@ class OptimizedMetadataProcessor:
         """Optimized timeseries alias generation with caching"""
         aliases = list(aliases_tuple)
 
-        if name not in aliases:
-            aliases.append(name)
+        pattern = re.compile(r"(\d{2})[-_.:]([A-Z]{2,3})[-_.:](\d{4,5})")
+        match = pattern.search(name)
 
-        name_no_dash = name.replace("-", "")
-        if name_no_dash and name_no_dash not in aliases:
-            aliases.append(name_no_dash)
+        cleaned_value = None if not match else "_".join(match.groups())
+
+        if cleaned_value and cleaned_value not in aliases:
+            aliases.append(cleaned_value)
 
         return aliases
     
@@ -509,9 +510,13 @@ class OptimizedMetadataProcessor:
         """Optimized asset alias generation with caching"""
         aliases = list(aliases_tuple)
         
-        # Add name if not in aliases
-        if name not in aliases:
-            aliases.append(name)
+        pattern = re.compile(r"(\d{2})[-_.:]([A-Z]{2,3})[-_.:](\d{4,5})")
+        match = pattern.search(name)
+
+        cleaned_value = None if not match else "_".join(match.groups())
+
+        if cleaned_value and cleaned_value not in aliases:
+            aliases.append(cleaned_value)
         
         return aliases
     

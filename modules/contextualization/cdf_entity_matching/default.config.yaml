@@ -11,8 +11,8 @@ contextualizationId: entity_matcher
 contextualizationName: Entity Matcher
 schemaSpace: cdf_cdm
 viewVersion: v1
-assetInstanceSpace: sp_cdm_instances
-timeseriesInstanceSpace: sp_cdm_instances
+assetInstanceSpace: inst_location
+timeseriesInstanceSpace: inst_location
 functionSpace: sp_entity_matching_fn # space where function code nodes are stored — created by this module
 AssetViewExternalId: CogniteAsset
 TimeSeriesViewExternalId: CogniteTimeSeries
@@ -20,7 +20,7 @@ targetViewExternalId: CogniteAsset
 entityViewExternalId: CogniteTimeSeries
 targetViewSearchProperty: name
 targetViewFilterValues: []
-entityViewSearchProperty: aliases
+entityViewSearchProperty: name
 entityViewFilterValues: []
 
 workflow: EntityMatching
