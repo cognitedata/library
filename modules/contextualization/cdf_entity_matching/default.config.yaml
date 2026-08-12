@@ -20,7 +20,7 @@ targetViewExternalId: CogniteAsset
 entityViewExternalId: CogniteTimeSeries
 targetViewSearchProperty: name
 targetViewFilterValues: []
-entityViewSearchProperty: aliases
+entityViewSearchProperty: name
 entityViewFilterValues: []
 
 workflow: EntityMatching
