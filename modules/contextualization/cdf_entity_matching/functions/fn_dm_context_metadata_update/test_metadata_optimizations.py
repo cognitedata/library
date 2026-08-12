@@ -150,25 +150,28 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
     def test_alias_generation_caching(self):
         """Test alias generation with caching"""
         print("🧪 Testing alias generation caching...")
-        
+
+        tag = "VAL_23-KA-9101:X.Value"
+
         # Test timeseries alias generation
         aliases1 = self.processor._get_timeseries_alias_list_optimized(
-            "test-name", ("existing",)
+            tag, ("existing",)
         )
         aliases2 = self.processor._get_timeseries_alias_list_optimized(
-            "test-name", ("existing",)
+            tag, ("existing",)
         )  # Should use cache
-        
+
         self.assertEqual(aliases1, aliases2)
-        self.assertIn("test-name", aliases1)
-        self.assertIn("testname", aliases1)  # No dash version
-        
+        self.assertIn("existing", aliases1)
+        self.assertIn("23_KA_9101", aliases1)
+
         # Test asset alias generation
         asset_aliases = self.processor._get_asset_alias_list_optimized(
-            "asset_name", ("existing",)
+            "23-KA-9101", ("existing",)
         )
-        self.assertIn("asset_name", asset_aliases)
-        
+        self.assertIn("existing", asset_aliases)
+        self.assertIn("23_KA_9101", asset_aliases)
+
         print("✅ Alias generation caching test passed")
     
     def test_processing_statistics(self):
