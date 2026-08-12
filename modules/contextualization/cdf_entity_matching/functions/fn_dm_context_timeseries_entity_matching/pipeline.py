@@ -6,7 +6,10 @@ import time
 import traceback
 from collections import defaultdict
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from cognite.extractorutils.uploader import RawUploadQueue
 
 from cognite.client import CogniteClient
 from cognite.client import data_modeling as dm
@@ -18,7 +21,6 @@ from cognite.client.data_classes.data_modeling import (
 )
 from cognite.client.exceptions import CogniteAPIError
 from cognite.client.utils._text import shorten
-from cognite.extractorutils.uploader import RawUploadQueue
 from config import Config, ViewPropertyConfig
 from constants import (
     BATCH_SIZE_API_SUBMIT,
@@ -135,6 +137,8 @@ def entity_matching(
             logger.debug("**** Write debug messages and only process one entity *****")
 
         logger.debug("Initiate RAW upload queue used to store output from entity matching")
+        from cognite.extractorutils.uploader import RawUploadQueue
+
         raw_uploader = RawUploadQueue(cdf_client=client, max_queue_size=500000, trigger_log_level=LOG_LEVEL_INFO)
         
         # Check if we should run all entities (then delete state content in RAW) or just new entities
