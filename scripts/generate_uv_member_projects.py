@@ -53,8 +53,8 @@ FILE_ANNOTATION_DEPLOY = [
     "PyYAML==6.0.2",
     "requests==2.33.0",
     "requests-oauthlib==1.3.1",
-    "typing-inspection==0.4.0",
-    "typing_extensions==4.13.2",
+    "typing-inspection==0.4.2",
+    "typing_extensions==4.16.0",
     "urllib3==2.7.0",
     "mixpanel>=4.10.0",
 ]
