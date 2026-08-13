@@ -236,6 +236,23 @@ def env_config_list(projects: dict[str, str]) -> str:
     return ", ".join(configs[:-1]) + f", or {configs[-1]}"
 
 
+def branch_protection_rows(projects: dict[str, str]) -> str:
+    rows = ["| `dev` | none | `cdf build & deploy --dry-run` |"]
+    if "test" in projects:
+        rows.append("| `main` | 1 | `Source branch guardrail`, `cdf build & deploy --dry-run` |")
+    return "\n".join(rows)
+
+
+def branch_protection_note(projects: dict[str, str]) -> str:
+    note = "PRs to `dev` only run dry-run CI (0 reviewers)."
+    if "test" in projects:
+        note += (
+            " The `Source branch guardrail` check does not run on `dev` — it only applies to PRs"
+            " targeting `main`, where it enforces that changes are promoted from `dev` or `hotfix/*`."
+        )
+    return note
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -269,6 +286,8 @@ def main() -> None:
         "TEST_BRANCHING_ROWS": test_branching_rows(projects),
         "TEST_ENVIRONMENT_ROW": test_environment_row(projects),
         "ENV_CONFIG_LIST": env_config_list(projects),
+        "BRANCH_PROTECTION_ROWS": branch_protection_rows(projects),
+        "BRANCH_PROTECTION_NOTE": branch_protection_note(projects),
         "TOOLKIT_VERSION": str(toolkit_version),
         "LINT_PATHS": build_lint_paths(org_dir),
     }
