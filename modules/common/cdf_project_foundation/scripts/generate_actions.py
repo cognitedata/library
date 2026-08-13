@@ -183,16 +183,6 @@ def deployable_envs(projects: dict[str, str]) -> list[str]:
     return [env for env in ("dev", "test") if env in projects]
 
 
-def workflow_file_list(projects: dict[str, str]) -> str:
-    files: list[str] = []
-    if deployable_envs(projects):
-        files.append('".github/workflows/dry-run.yml"')
-    files.extend(f'".github/workflows/deploy-{env}.yml"' for env in deployable_envs(projects))
-    if "prod" in projects:
-        files.append('".github/workflows/deploy-prod.yml"')
-    return "\n".join(f"              {path}," for path in files)
-
-
 def branch_envs(projects: dict[str, str]) -> dict[str, str]:
     envs_by_branch: dict[str, str] = {}
     for env in deployable_envs(projects):
@@ -321,7 +311,6 @@ def main() -> None:
     resolve_modules_root(repo_root, org_dir)
 
     base_values: dict[str, str] = {
-        "WORKFLOW_FILES": workflow_file_list(projects),
         "PR_BRANCHES": pr_branches(projects),
         "DRY_RUN_ENVIRONMENT": dry_run_environment(projects),
         "DRY_RUN_BUILD_SCRIPT": indent(dry_run_build_script(str(toolkit_version), org_dir, projects), 10),
