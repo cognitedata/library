@@ -483,30 +483,38 @@ def resolve_variant(args_variant: str | None, data_models_dir: Path) -> str:
     return detect_data_model_variant(data_models_dir)
 
 
-def resolve_pack_kind(sourcesystem_dir: Path) -> Literal["foundation", "demo"]:
+def resolve_pack_kind(variant: str, sourcesystem_dir: Path) -> Literal["foundation", "demo"]:
     """Resolve which pack (Foundation or Demo) this project is set up for.
 
-    Always derived from the installed sourcesystem modules (see
+    ISA has no Demo/synthetic-data path — cdf_pi_data_dump/cdf_sap_data_dump/
+    cdf_sharepoint_data_dump are CFIHOS-shaped and write into the CFIHOS DM only —
+    so an ISA project is always Foundation, without asking.
+
+    Otherwise, derived from the installed sourcesystem modules (see
     ``detect_pack_kind``) — there is no override flag, since every cleanup
     function downstream already makes its own decision from installed module
     directories rather than from this value. When detection is ``"ambiguous"``
     (neither or both kinds present), prompt the user, defaulting to Foundation.
     """
+    if variant == "isa_manufacturing_extension":
+        return "foundation"
     detected = detect_pack_kind(sourcesystem_dir)
     if detected == "ambiguous":
         return _prompt_pack_kind()
     return detected
 
 
-def resolve_pack_kind_for_check(sourcesystem_dir: Path) -> Literal["foundation", "demo"]:
+def resolve_pack_kind_for_check(variant: str, sourcesystem_dir: Path) -> Literal["foundation", "demo"]:
     """Non-interactive counterpart of ``resolve_pack_kind`` for ``--check`` (CI) mode.
 
     CI must never block on a prompt, so an ambiguous detection raises ``SystemExit``
     instead — same shape as ``detect_data_model_variant``'s multiple-data-models error.
     There is no override flag: a project with both extractor and data-dump modules
     installed (or neither) is a malformed module selection that must be fixed, not
-    papered over.
+    papered over. ISA is always Foundation (see ``resolve_pack_kind``) — never ambiguous.
     """
+    if variant == "isa_manufacturing_extension":
+        return "foundation"
     detected = detect_pack_kind(sourcesystem_dir)
     if detected == "ambiguous":
         raise SystemExit(
@@ -1514,7 +1522,7 @@ def _exit_if_demo_has_no_source_system_modules(
     _hint("No extractor or data-dump modules are installed yet. The Demo pack needs the")
     _hint("synthetic data-dump modules and cdf_ingestion to populate the data model.")
     print()
-    _hint("Add them, then re-run this script:")
+    _hint("Add them using below commands, then re-run the setup_project.py script:")
     print()
     for module in _DEMO_SOURCE_SYSTEM_INSTALL_MODULES:
         print(f"  cdf modules add -d {module}")
@@ -1697,7 +1705,7 @@ def _run_wizard(
 ) -> None:
     pack_root = get_pack_root(repo_root)
     variant = resolve_variant(args_variant, get_data_models_dir(repo_root))
-    pack_kind = resolve_pack_kind(get_sourcesystem_dir(repo_root))
+    pack_kind = resolve_pack_kind(variant, get_sourcesystem_dir(repo_root))
     installed_ctx = list_installed_contextualization_modules(repo_root)
     installed_ss = list_installed_source_system_modules(repo_root)
     _exit_if_demo_has_no_source_system_modules(pack_kind, installed_ss, repo_root)
@@ -1858,7 +1866,7 @@ def _run_check(
 ) -> None:
     pack_root = get_pack_root(repo_root)
     variant = resolve_variant(args_variant, get_data_models_dir(repo_root))
-    resolve_pack_kind_for_check(get_sourcesystem_dir(repo_root))
+    resolve_pack_kind_for_check(variant, get_sourcesystem_dir(repo_root))
     # Read site and datasets from existing configs so user-configured values
     # (group names, location, dataset list) don't produce false positives.
     site, datasets = _read_check_context(pack_root)

@@ -1821,7 +1821,7 @@ class TestResolvePackKind:
         monkeypatch.setattr(setup_project, "_prompt_pack_kind", _fail_if_prompted)
         sourcesystem_dir = tmp_path / "modules" / "sourcesystem"
         (sourcesystem_dir / "cdf_sharepoint_data_dump").mkdir(parents=True)
-        assert resolve_pack_kind(sourcesystem_dir) == "demo"
+        assert resolve_pack_kind("cfihos_oil_and_gas_extension", sourcesystem_dir) == "demo"
 
     def test_unambiguous_foundation_detected_without_prompting(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -1835,7 +1835,7 @@ class TestResolvePackKind:
         monkeypatch.setattr(setup_project, "_prompt_pack_kind", _fail_if_prompted)
         sourcesystem_dir = tmp_path / "modules" / "sourcesystem"
         (sourcesystem_dir / "cdf_pi_extractor").mkdir(parents=True)
-        assert resolve_pack_kind(sourcesystem_dir) == "foundation"
+        assert resolve_pack_kind("cfihos_oil_and_gas_extension", sourcesystem_dir) == "foundation"
 
     def test_ambiguous_detection_prompts_and_uses_answer(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -1846,7 +1846,25 @@ class TestResolvePackKind:
         monkeypatch.setattr(setup_project, "_prompt_pack_kind", lambda: "demo")
         # Sourcesystem dir missing entirely -> ambiguous.
         sourcesystem_dir = tmp_path / "modules" / "sourcesystem"
-        assert resolve_pack_kind(sourcesystem_dir) == "demo"
+        assert resolve_pack_kind("cfihos_oil_and_gas_extension", sourcesystem_dir) == "demo"
+
+    def test_isa_is_always_foundation_without_prompting(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """ISA has no Demo/synthetic-data path — the data-dump modules are
+        CFIHOS-shaped only — so an ISA project is always Foundation, even when
+        no sourcesystem modules are installed (which would otherwise be ambiguous
+        and prompt)."""
+        import setup_project
+        from setup_project import resolve_pack_kind
+
+        def _fail_if_prompted() -> str:
+            raise AssertionError("must not prompt for ISA")
+
+        monkeypatch.setattr(setup_project, "_prompt_pack_kind", _fail_if_prompted)
+        # Sourcesystem dir missing entirely -> would be ambiguous for any other variant.
+        sourcesystem_dir = tmp_path / "modules" / "sourcesystem"
+        assert resolve_pack_kind("isa_manufacturing_extension", sourcesystem_dir) == "foundation"
 
 
 class TestExitIfDemoHasNoSourceSystemModules:
@@ -1889,17 +1907,23 @@ class TestResolvePackKindForCheck:
         from setup_project import resolve_pack_kind_for_check
         sourcesystem_dir = tmp_path / "modules" / "sourcesystem"
         (sourcesystem_dir / "cdf_sap_extractor").mkdir(parents=True)
-        assert resolve_pack_kind_for_check(sourcesystem_dir) == "foundation"
+        assert resolve_pack_kind_for_check("cfihos_oil_and_gas_extension", sourcesystem_dir) == "foundation"
 
     def test_ambiguous_detection_raises_without_prompting(self, tmp_path: Path) -> None:
         from setup_project import resolve_pack_kind_for_check
         # Sourcesystem dir missing entirely -> ambiguous.
         sourcesystem_dir = tmp_path / "modules" / "sourcesystem"
         try:
-            resolve_pack_kind_for_check(sourcesystem_dir)
+            resolve_pack_kind_for_check("cfihos_oil_and_gas_extension", sourcesystem_dir)
             raise AssertionError("expected SystemExit")
         except SystemExit:
             pass
+
+    def test_isa_is_always_foundation_never_ambiguous(self, tmp_path: Path) -> None:
+        from setup_project import resolve_pack_kind_for_check
+        # Sourcesystem dir missing entirely -> would raise SystemExit for any other variant.
+        sourcesystem_dir = tmp_path / "modules" / "sourcesystem"
+        assert resolve_pack_kind_for_check("isa_manufacturing_extension", sourcesystem_dir) == "foundation"
 
 
 class TestWizardHeaderTitle:
