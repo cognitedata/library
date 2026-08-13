@@ -43,7 +43,7 @@ jobs:
           python-version: "3.13"
 
       - name: Install Cognite Toolkit
-        run: pip install "cognite-toolkit=={{TOOLKIT_VERSION}}" pyyaml
+        run: pip install "cognite-toolkit=={{TOOLKIT_VERSION}}"
 
       - name: cdf build
         run: cdf build {{PROD_BUILD_ARGS}}
