@@ -12,6 +12,16 @@ This follows the [CDF Foundation Setup guide](https://cogdocs.mintlify.io/gvd) *
 
 If a pre-production environment is present, PRs to `main` must come from `dev` or `hotfix/*` only.
 
+## Branch protection
+
+Protect the branches used above under **Settings → Branches**. This is required, not optional:
+
+| Branch | Required reviewers | Required status checks |
+|--------|---------------------|--------------------------|
+{{BRANCH_PROTECTION_ROWS}}
+
+{{BRANCH_PROTECTION_NOTE}}
+
 ## GitHub Environments
 
 Create the generated environments under **Settings → Environments**:

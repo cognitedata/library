@@ -262,6 +262,35 @@ def branching_rows(projects: dict[str, str]) -> str:
     )
 
 
+def branch_protection_rows(projects: dict[str, str]) -> str:
+    rows: list[str] = []
+    for env in deployable_envs(projects):
+        branch = DEPLOY_BRANCHES[env]
+        if branch == "main":
+            rows.append("| `main` | 1 | `Source branch guardrail`, `cdf build & deploy --dry-run` |")
+        else:
+            rows.append(f"| `{branch}` | none | `cdf build & deploy --dry-run` |")
+    return "\n".join(rows or ["| *(none)* | *(none)* | No PR workflow generated |"])
+
+
+def branch_protection_note(projects: dict[str, str]) -> str:
+    branches = {DEPLOY_BRANCHES[env] for env in deployable_envs(projects)}
+    if not branches:
+        return "No PR workflow is generated without a dev or test environment configured."
+    if branches == {"dev"}:
+        return "PRs to `dev` only run dry-run CI (0 reviewers)."
+    if branches == {"main"}:
+        return (
+            "PRs to `main` require a reviewer and the `Source branch guardrail` check, which"
+            " enforces that changes are promoted from `dev` or `hotfix/*`, in addition to dry-run CI."
+        )
+    return (
+        "PRs to `dev` only run dry-run CI (0 reviewers). The `Source branch guardrail` check does"
+        " not run on `dev` — it only applies to PRs targeting `main`, where it enforces that changes"
+        " are promoted from `dev` or `hotfix/*`."
+    )
+
+
 def indent(text: str, spaces: int) -> str:
     prefix = " " * spaces
     return "\n".join(f"{prefix}{line}" if line else line for line in text.splitlines())
@@ -318,6 +347,8 @@ def main() -> None:
         "ENVIRONMENT_ROWS": environment_rows(projects),
         "EXAMPLE_BUILD_ARGS": example_build_args(str(toolkit_version), org_dir, projects),
         "ENV_CONFIG_LIST": env_config_list(projects),
+        "BRANCH_PROTECTION_ROWS": branch_protection_rows(projects),
+        "BRANCH_PROTECTION_NOTE": branch_protection_note(projects),
         "TOOLKIT_VERSION": str(toolkit_version),
         "LINT_PATHS": build_lint_paths(org_dir),
     }
