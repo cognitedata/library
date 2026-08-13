@@ -25,7 +25,7 @@ records instead of the SharePoint-style sample data.
   the file manifest.
 - `transformations/` — 4 transformations: `Files` population, `CogniteDiagramAnnotation`
   population (written to the base `cdf_cdm`/`CogniteCore` space), and the diagram-annotation
-  connections that link annotated files to `Equipment` (owned by `cdf_sap_assets_new`) and `Tag`
+  connections that link annotated files to `Equipment` (owned by `cdf_sap_data_dump`) and `Tag`
   nodes.
 
 ## Deployment
@@ -34,13 +34,13 @@ records instead of the SharePoint-style sample data.
 
 - Cognite Toolkit.
 - The `cfihos_oil_and_gas_extension` data model module deployed to the same project/space.
-- `cdf_sap_assets_new` deployed first (or in the same run) so the `Equipment` and `Tag` nodes
+- `cdf_sap_data_dump` deployed first (or in the same run) so the `Equipment` and `Tag` nodes
   referenced by the diagram-annotation connection transformations exist.
 
 ### Adding to an existing Toolkit project
 
-Add `sourcesystem/cdf_sharepoint_new` to your package's module list and configure the variables
-under `variables.modules.cdf_sharepoint_new` in your `config.<env>.yaml`.
+Add `sourcesystem/cdf_sharepoint_data_dump` to your package's module list and configure the variables
+under `variables.modules.cdf_sharepoint_data_dump` in your `config.<env>.yaml`.
 
 ### Starting from scratch
 
@@ -52,7 +52,7 @@ cdf-tk deploy --env <your-env>
 ## Module Structure
 
 ```
-cdf_sharepoint_new/
+cdf_sharepoint_data_dump/
 ├── module.toml
 ├── default.config.yaml
 ├── raw/

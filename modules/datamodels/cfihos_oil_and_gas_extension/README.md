@@ -197,24 +197,56 @@ cfihos:
 - **Property trimming**: Many CFIHOS classes have hundreds of properties. The tool supports filtering by property presence/importance if a class library is integrated. The 100-property container limit applies — overflow goes to `additionalProperties`.
 - **Property propagation**: Properties from child tag classes are propagated upward to parents during generation, excluding properties unique to sub-hierarchies that already have their own views.
 
-### Synthetic sample data
+### Testing with synthetic data
 
-This module ships **no synthetic data of its own** — it defines the data model only.
-CFIHOS-shaped synthetic RAW rows and sample files live in
-[`sourcesystem/cdf_sharepoint_data_dump`](../../sourcesystem/cdf_sharepoint_data_dump/README.md)
-instead — see that module's own README for its deployment steps.
+This module ships **no synthetic data of its own** — it defines the data model only. Pair it
+with these modules to ingest CFIHOS-shaped sample data and exercise the diagram-annotation
+pipeline:
 
-cdf.toml file, add :
-```bash
-[plugins]
-data = true
+```
+modules
+├── common
+│   └── cdf_ingestion             # orchestrates all transformations below as one workflow
+└── sourcesystem
+    ├── cdf_pi_data_dump          # optional — time series
+    ├── cdf_sap_data_dump         # required — Tag, Equipment, work-management data
+    └── cdf_sharepoint_data_dump  # required — sample files + diagram-annotation pipeline
 ```
 
-```bash
-cdf data upload dir modules/sourcesystem/cdf_sharepoint_data_dump/upload_data
-```
 
-If your modules directory is under an organization directory, prepend that directory name to this path.
+#### Steps
+
+1. Add this module plus the ones above to your project with `cdf modules add`, then build and
+   deploy (`cdf build && cdf deploy`).
+
+   `cdf modules add` alone opens an interactive selector where you can check off
+   `cfihos_oil_and_gas_extension`, `cdf_ingestion`, `cdf_sap_data_dump`, `cdf_sharepoint_data_dump`,
+   and `cdf_pi_data_dump`. To skip the prompt, add them non-interactively instead:
+   ```bash
+   cdf modules add -d cfihos_oil_and_gas_extension
+   cdf modules add -d cdf_ingestion
+   cdf modules add -d cdf_sap_data_dump
+   cdf modules add -d cdf_sharepoint_data_dump
+   cdf modules add -d cdf_pi_data_dump
+   ```
+2. Upload the sample files — add to `cdf.toml` once:
+   ```toml
+   [plugins]
+   data = true
+   ```
+   then:
+   ```bash
+   cdf data upload dir modules/sourcesystem/cdf_sharepoint_data_dump/upload_data
+   cdf data upload dir modules/sourcesystem/cdf_sap_data_dump/upload_data
+   cdf data upload dir modules/sourcesystem/cdf_pi_data_dump/upload_data
+   ```
+   Prepend your organization directory name if `modules/` sits under one.
+3. Trigger ingestion:
+   ```bash
+   cdf workflows trigger ingestion
+   ```
+4. Verify: `Tag`, `Equipment`, and `Files` instances appear in `dm_dom_oil_and_gas`, and annotated
+   files show populated `assets` relations once the diagram-annotation transformations complete.
 
 ### Data Purge
 
