@@ -5,6 +5,10 @@ on:
     types:
       - published
 
+concurrency:
+  group: toolkit-deploy-prod
+  cancel-in-progress: false
+
 permissions:
   contents: read
 
@@ -24,16 +28,26 @@ jobs:
       PRODUCER_SOURCE_ID: ${{ vars.PRODUCER_SOURCE_ID }}
       IDP_CLIENT_SECRET: ${{ secrets.IDP_CLIENT_SECRET }}
     steps:
-      - name: Reject releases not created from main
+      - name: Enforce release tag pattern
         run: |
-          if [ "${{ github.event.release.target_commitish }}" != "main" ]; then
-            echo "::error::Production releases must be published from branch main"
+          TAG="${{ github.event.release.tag_name }}"
+          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Release tag must match vX.Y.Z (got: $TAG)"
             exit 1
           fi
 
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.release.tag_name }}
+          fetch-depth: 0
+
+      - name: Reject releases not reachable from main
+        run: |
+          git fetch origin main
+          if ! git merge-base --is-ancestor HEAD origin/main; then
+            echo "::error::Production releases must be published from a commit reachable from main"
+            exit 1
+          fi
 
       - name: Remove local .env
         run: rm -f .env
@@ -47,6 +61,9 @@ jobs:
 
       - name: cdf build
         run: cdf build {{PROD_BUILD_ARGS}}
+
+      - name: cdf deploy --dry-run
+        run: cdf deploy --dry-run
 
       - name: cdf deploy
         run: cdf deploy
