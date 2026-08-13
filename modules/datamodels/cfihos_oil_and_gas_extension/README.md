@@ -241,10 +241,7 @@ modules
    cdf data upload dir modules/sourcesystem/cdf_pi_data_dump/upload_data
    ```
    Prepend your organization directory name if `modules/` sits under one.
-3. Trigger ingestion:
-   ```bash
-   cdf workflows trigger ingestion
-   ```
+3. Trigger `ingestion` workflow through CDF UI
 4. Verify: `Tag`, `Equipment`, and `Files` instances appear in `dm_dom_oil_and_gas`, and annotated
    files show populated `assets` relations once the diagram-annotation transformations complete.
 
