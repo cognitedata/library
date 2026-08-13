@@ -178,17 +178,6 @@ def load_environment_projects(repo_root: Path, org_dir: str | None) -> dict[str,
     return projects
 
 
-def workflow_file_list(include_test: bool) -> str:
-    files = [
-        '".github/workflows/dry-run.yml"',
-        '".github/workflows/deploy-dev.yml"',
-    ]
-    if include_test:
-        files.append('".github/workflows/deploy-test.yml"')
-    files.append('".github/workflows/deploy-prod.yml"')
-    return "\n".join(f"              {path}," for path in files)
-
-
 def pr_branches(include_test: bool) -> str:
     branches = ["dev"]
     if include_test:
@@ -274,7 +263,6 @@ def main() -> None:
         "PROD_PROJECT": projects["prod"],
         "DEV_BUILD_ARGS": build_args(str(toolkit_version), org_dir, "dev"),
         "PROD_BUILD_ARGS": build_args(str(toolkit_version), org_dir, "prod"),
-        "WORKFLOW_FILES": workflow_file_list(include_test),
         "PR_BRANCHES": pr_branches(include_test),
         "DRY_RUN_ENVIRONMENT": dry_run_environment(include_test),
         "DRY_RUN_BUILD_SCRIPT": indent(dry_run_build_script(str(toolkit_version), org_dir, include_test), 10),
