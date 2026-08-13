@@ -30,6 +30,7 @@ import yaml
 from _env_io import parse_env_file
 from _pack_config import (
     CONTEXTUALIZATION_REDUNDANT_AUTH,
+    DEMO_SOURCE_SYSTEM_MODULE_DIRS,
     REPO_ROOT,
     TOOLS_REDUNDANT_AUTH,
     deep_merge,
@@ -1486,6 +1487,41 @@ def _prompt_pack_kind() -> Literal["foundation", "demo"]:
     return "foundation" if choice == 1 else "demo"
 
 
+# Modules to install for a from-scratch Demo pack setup: cdf_ingestion orchestrates the
+# transformations shipped by the data-dump modules, so it's listed first.
+_DEMO_SOURCE_SYSTEM_INSTALL_MODULES: tuple[str, ...] = (
+    "cdf_ingestion",
+    *DEMO_SOURCE_SYSTEM_MODULE_DIRS,
+)
+
+
+def _exit_if_demo_has_no_source_system_modules(
+    pack_kind: Literal["foundation", "demo"],
+    installed_ss: list[str],
+    repo_root: Path | None,
+) -> None:
+    """Demo pack setup needs the synthetic data-dump modules and cdf_ingestion to
+    populate the data model — if the project has neither those nor any extractor
+    modules installed yet, stop and tell the user what to add instead of continuing
+    with an empty source-system config."""
+    if pack_kind != "demo" or installed_ss:
+        return
+    sourcesystem_dir = get_sourcesystem_dir(repo_root)
+    if any((sourcesystem_dir / name).is_dir() for name in DEMO_SOURCE_SYSTEM_MODULE_DIRS):
+        return
+
+    _section("Demo Pack — Source System Modules Required")
+    _hint("No extractor or data-dump modules are installed yet. The Demo pack needs the")
+    _hint("synthetic data-dump modules and cdf_ingestion to populate the data model.")
+    print()
+    _hint("Add them, then re-run this script:")
+    print()
+    for module in _DEMO_SOURCE_SYSTEM_INSTALL_MODULES:
+        print(f"  cdf modules add -d {module}")
+    print()
+    sys.exit(0)
+
+
 def _env_values_dirty(
     env_vals: dict[str, str],
     original_env_vals: dict[str, str],
@@ -1584,6 +1620,7 @@ def _finalize_wizard(
     selected_envs: tuple[str, ...],
     *,
     variant: str,
+    pack_kind: Literal["foundation", "demo"],
     keep_synthetic: bool,
     env_dirty: bool,
     changed_count: int,
@@ -1616,7 +1653,7 @@ def _finalize_wizard(
         if synthetic_removed:
             _ok(f"Removed {synthetic_removed} synthetic data file(s) from upload_data/ directories.")
 
-    cicd_files = _run_cicd_wizard(pack_root)
+    cicd_files = _run_cicd_wizard(pack_root) if pack_kind == "foundation" else []
 
     _section("Done")
     _ok(f"{changed_count} config file(s) created/updated.")
@@ -1648,7 +1685,7 @@ def _finalize_wizard(
         _hint("  4. Add IDP_CLIENT_SECRET to each GitHub Environment.")
         _hint("  5. Create and protect branches dev and main;")
         _hint("     open a PR to dev to validate dry-run.yml.")
-    else:
+    elif pack_kind == "foundation":
         _hint("  3. Add CI/CD secrets to GitHub Environments (IDP_CLIENT_SECRET).")
     print()
 
@@ -1663,6 +1700,7 @@ def _run_wizard(
     pack_kind = resolve_pack_kind(get_sourcesystem_dir(repo_root))
     installed_ctx = list_installed_contextualization_modules(repo_root)
     installed_ss = list_installed_source_system_modules(repo_root)
+    _exit_if_demo_has_no_source_system_modules(pack_kind, installed_ss, repo_root)
 
     _print_wizard_header(variant, pack_root, installed_ctx, pack_kind)
 
@@ -1691,9 +1729,10 @@ def _run_wizard(
         site, installed_ss, repo_root
     )
     app_owner = _prompt_app_owner(installed_ctx, existing["app_owner"])
-    # No data model extension installed under "cdm" — nothing for
-    # remove_synthetic_data to clean up, so don't ask.
-    keep_synthetic = True if variant == "cdm" else _prompt_synthetic_data()
+    # No data model extension installed under "cdm" — nothing for remove_synthetic_data
+    # to clean up. Demo pack needs its synthetic data to function — always keep it,
+    # no need to ask.
+    keep_synthetic = True if variant == "cdm" or pack_kind == "demo" else _prompt_synthetic_data()
 
     env_dirty = _env_values_dirty(env_vals, original_env_vals)
     _show_wizard_review(targets, project_names, env_dirty)
@@ -1720,6 +1759,7 @@ def _run_wizard(
         pack_root,
         selected_envs,
         variant=variant,
+        pack_kind=pack_kind,
         keep_synthetic=keep_synthetic,
         env_dirty=env_dirty,
         changed_count=changed_count,

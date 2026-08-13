@@ -1849,6 +1849,37 @@ class TestResolvePackKind:
         assert resolve_pack_kind(sourcesystem_dir) == "demo"
 
 
+class TestExitIfDemoHasNoSourceSystemModules:
+    """Demo pack setup needs the data-dump modules + cdf_ingestion to populate the
+    data model — with none of those and no extractor modules installed, the wizard
+    must stop and tell the user what to add, rather than run with an empty
+    source-system config."""
+
+    def test_exits_when_demo_and_no_source_system_modules_installed(
+        self, tmp_path: Path
+    ) -> None:
+        from setup_project import _exit_if_demo_has_no_source_system_modules
+        try:
+            _exit_if_demo_has_no_source_system_modules("demo", [], tmp_path)
+            raise AssertionError("expected SystemExit")
+        except SystemExit:
+            pass
+
+    def test_does_not_exit_when_foundation(self, tmp_path: Path) -> None:
+        from setup_project import _exit_if_demo_has_no_source_system_modules
+        _exit_if_demo_has_no_source_system_modules("foundation", [], tmp_path)
+
+    def test_does_not_exit_when_extractor_modules_installed(self, tmp_path: Path) -> None:
+        from setup_project import _exit_if_demo_has_no_source_system_modules
+        _exit_if_demo_has_no_source_system_modules("demo", ["cdf_pi_extractor"], tmp_path)
+
+    def test_does_not_exit_when_data_dump_modules_installed(self, tmp_path: Path) -> None:
+        from setup_project import _exit_if_demo_has_no_source_system_modules
+        sourcesystem_dir = tmp_path / "modules" / "sourcesystem"
+        (sourcesystem_dir / "cdf_sharepoint_data_dump").mkdir(parents=True)
+        _exit_if_demo_has_no_source_system_modules("demo", [], tmp_path)
+
+
 class TestResolvePackKindForCheck:
     """--check must never block on a prompt: ambiguous detection raises SystemExit.
     No override flag — a mismatch between installed modules and the expected pack
@@ -1972,3 +2003,41 @@ class TestStaleKeyRemoval:
         _write_config_update(p, "acme-dev", overlay)
         content = p.read_text()
         assert "groupSourceId" not in content
+
+
+class TestFinalizeWizardCicdGeneration:
+    """CI/CD generation is a production-deployment concern — it must still run for
+    the Foundation pack, but is skipped entirely for the Demo pack (meant for local
+    exploration, not a CI/CD pipeline of its own)."""
+
+    def _finalize(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        pack_kind: str,
+    ) -> list:
+        import setup_project
+
+        calls: list = []
+        monkeypatch.setattr(
+            setup_project, "_run_cicd_wizard", lambda pack_root: calls.append(pack_root) or []
+        )
+        setup_project._finalize_wizard(
+            tmp_path,
+            (),
+            variant="cdm",
+            pack_kind=pack_kind,
+            keep_synthetic=True,
+            env_dirty=False,
+            changed_count=0,
+            repo_root=tmp_path,
+        )
+        return calls
+
+    def test_runs_for_foundation(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        calls = self._finalize(tmp_path, monkeypatch, "foundation")
+        assert calls == [tmp_path]
+
+    def test_skipped_for_demo(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        calls = self._finalize(tmp_path, monkeypatch, "demo")
+        assert calls == []
