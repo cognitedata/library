@@ -183,16 +183,6 @@ def deployable_envs(projects: dict[str, str]) -> list[str]:
     return [env for env in ("dev", "test") if env in projects]
 
 
-def workflow_file_list(projects: dict[str, str]) -> str:
-    files: list[str] = []
-    if deployable_envs(projects):
-        files.append('".github/workflows/dry-run.yml"')
-    files.extend(f'".github/workflows/deploy-{env}.yml"' for env in deployable_envs(projects))
-    if "prod" in projects:
-        files.append('".github/workflows/deploy-prod.yml"')
-    return "\n".join(f"              {path}," for path in files)
-
-
 def branch_envs(projects: dict[str, str]) -> dict[str, str]:
     envs_by_branch: dict[str, str] = {}
     for env in deployable_envs(projects):
@@ -272,6 +262,35 @@ def branching_rows(projects: dict[str, str]) -> str:
     )
 
 
+def branch_protection_rows(projects: dict[str, str]) -> str:
+    rows: list[str] = []
+    for env in deployable_envs(projects):
+        branch = DEPLOY_BRANCHES[env]
+        if branch == "main":
+            rows.append("| `main` | 1 | `Source branch guardrail`, `cdf build & deploy --dry-run` |")
+        else:
+            rows.append(f"| `{branch}` | none | `cdf build & deploy --dry-run` |")
+    return "\n".join(rows or ["| *(none)* | *(none)* | No PR workflow generated |"])
+
+
+def branch_protection_note(projects: dict[str, str]) -> str:
+    branches = {DEPLOY_BRANCHES[env] for env in deployable_envs(projects)}
+    if not branches:
+        return "No PR workflow is generated without a dev or test environment configured."
+    if branches == {"dev"}:
+        return "PRs to `dev` only run dry-run CI (0 reviewers)."
+    if branches == {"main"}:
+        return (
+            "PRs to `main` require a reviewer and the `Source branch guardrail` check, which"
+            " enforces that changes are promoted from `dev` or `hotfix/*`, in addition to dry-run CI."
+        )
+    return (
+        "PRs to `dev` only run dry-run CI (0 reviewers). The `Source branch guardrail` check does"
+        " not run on `dev` — it only applies to PRs targeting `main`, where it enforces that changes"
+        " are promoted from `dev` or `hotfix/*`."
+    )
+
+
 def indent(text: str, spaces: int) -> str:
     prefix = " " * spaces
     return "\n".join(f"{prefix}{line}" if line else line for line in text.splitlines())
@@ -321,7 +340,6 @@ def main() -> None:
     resolve_modules_root(repo_root, org_dir)
 
     base_values: dict[str, str] = {
-        "WORKFLOW_FILES": workflow_file_list(projects),
         "PR_BRANCHES": pr_branches(projects),
         "DRY_RUN_ENVIRONMENT": dry_run_environment(projects),
         "DRY_RUN_BUILD_SCRIPT": indent(dry_run_build_script(str(toolkit_version), org_dir, projects), 10),
@@ -329,6 +347,8 @@ def main() -> None:
         "ENVIRONMENT_ROWS": environment_rows(projects),
         "EXAMPLE_BUILD_ARGS": example_build_args(str(toolkit_version), org_dir, projects),
         "ENV_CONFIG_LIST": env_config_list(projects),
+        "BRANCH_PROTECTION_ROWS": branch_protection_rows(projects),
+        "BRANCH_PROTECTION_NOTE": branch_protection_note(projects),
         "TOOLKIT_VERSION": str(toolkit_version),
         "LINT_PATHS": build_lint_paths(org_dir),
     }

@@ -31,7 +31,7 @@ jobs:
           echo "Promotion flow OK: ${HEAD} -> main"
 
   lint:
-    name: Lint (ruff, pyright, config)
+    name: Lint (workflow YAML)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -40,8 +40,8 @@ jobs:
         with:
           python-version: "3.13"
 
-      - name: Install lint dependencies
-        run: pip install pre-commit pyyaml
+      - name: Install pyyaml
+        run: pip install pyyaml
 
       - name: Validate workflow YAML
         run: |
@@ -49,27 +49,29 @@ jobs:
           from pathlib import Path
           import yaml
 
-          for path in (
-{{WORKFLOW_FILES}}
-          ):
-              yaml.safe_load(Path(path).read_text())
+          for path in sorted(Path(".github/workflows").glob("*.yml")):
+              yaml.safe_load(path.read_text())
               print(f"valid yaml: {path}")
           PY
 
+      - name: Install pre-commit
+        if: hashFiles('.pre-commit-config.yaml') != ''
+        run: pip install pre-commit
+
       - name: Config lint (Toolkit templates; skip strict YAML on modules)
+        if: hashFiles('.pre-commit-config.yaml') != ''
         env:
           SKIP: check-yaml,end-of-file-fixer,trailing-whitespace
         run: |
-          if [ ! -f .pre-commit-config.yaml ]; then
-            echo "No .pre-commit-config.yaml found; skipping pre-commit config lint."
-            exit 0
-          fi
-
           mapfile -t FILES < <(git ls-files \
             {{LINT_PATHS}})
           if [ "${#FILES[@]}" -gt 0 ]; then
             pre-commit run --files "${FILES[@]}"
           fi
+
+      - name: No pre-commit config
+        if: hashFiles('.pre-commit-config.yaml') == ''
+        run: echo "No .pre-commit-config.yaml found; skipping pre-commit config lint."
 
   cdf-dry-run:
     name: cdf build & deploy --dry-run
@@ -103,7 +105,7 @@ jobs:
           python-version: "3.13"
 
       - name: Install Cognite Toolkit
-        run: pip install "cognite-toolkit=={{TOOLKIT_VERSION}}" pyyaml
+        run: pip install "cognite-toolkit=={{TOOLKIT_VERSION}}"
 
       - name: cdf build
         id: build
