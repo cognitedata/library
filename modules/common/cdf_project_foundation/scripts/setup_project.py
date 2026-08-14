@@ -24,6 +24,7 @@ import subprocess
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Literal
 
 import yaml
 from _env_io import parse_env_file
@@ -33,6 +34,7 @@ from _pack_config import (
     TOOLS_REDUNDANT_AUTH,
     deep_merge,
     detect_data_model_variant,
+    detect_pack_kind,
     find_env_configs,
     get_contextualization_dir,
     get_data_models_dir,
@@ -430,6 +432,42 @@ def resolve_variant(args_variant: str | None, data_models_dir: Path) -> str:
             )
         return args_variant
     return detect_data_model_variant(data_models_dir)
+
+
+def resolve_pack_kind(sourcesystem_dir: Path) -> Literal["foundation", "demo"]:
+    """Resolve which pack (Foundation or Demo) this project is set up for.
+
+    Always derived from the installed sourcesystem modules (see
+    ``detect_pack_kind``) — there is no override flag, since every cleanup
+    function downstream already makes its own decision from installed module
+    directories rather than from this value. When detection is ``"ambiguous"``
+    (neither or both kinds present), prompt the user, defaulting to Foundation.
+    """
+    detected = detect_pack_kind(sourcesystem_dir)
+    if detected == "ambiguous":
+        return _prompt_pack_kind()
+    return detected
+
+
+def resolve_pack_kind_for_check(sourcesystem_dir: Path) -> Literal["foundation", "demo"]:
+    """Non-interactive counterpart of ``resolve_pack_kind`` for ``--check`` (CI) mode.
+
+    CI must never block on a prompt, so an ambiguous detection raises ``SystemExit``
+    instead — same shape as ``detect_data_model_variant``'s multiple-data-models error.
+    There is no override flag: a project with both extractor and data-dump modules
+    installed (or neither) is a malformed module selection that must be fixed, not
+    papered over.
+    """
+    detected = detect_pack_kind(sourcesystem_dir)
+    if detected == "ambiguous":
+        raise SystemExit(
+            "ERROR: Could not determine deployment pack kind from installed sourcesystem "
+            "modules under 'modules/sourcesystem/'\n"
+            "  (found both extractor and data-dump modules, or neither).\n"
+            "  A project should have either *_extractor modules (Foundation) or\n"
+            "  *_data_dump modules (Demo), not both or neither — fix the module selection."
+        )
+    return detected
 
 
 # ── Config file writers ────────────────────────────────────────────────────────
@@ -1168,8 +1206,10 @@ def _print_wizard_header(
     variant: str,
     pack_root: Path,
     installed_ctx: list[str],
+    pack_kind: Literal["foundation", "demo"],
 ) -> None:
     _banner("Foundation Deployment Pack — Project Setup")
+    _ok(f"Deployment pack    : {pack_kind}")
     _ok(f"Data model variant : {variant}")
     _ok(f"Pack root          : {pack_root}")
     org_dir = get_org_dir_name()
@@ -1362,6 +1402,22 @@ def _prompt_synthetic_data() -> bool:
     return prompt_yes_no("Keep synthetic data, example files, and diagram images?", default=False)
 
 
+def _prompt_pack_kind() -> Literal["foundation", "demo"]:
+    """Ask which pack this project is set up for when auto-detection is ambiguous
+    (both extractor and data-dump sourcesystem modules installed, or neither)."""
+    _section("Deployment Pack")
+    _hint("Could not determine from the installed sourcesystem modules whether this")
+    _hint("project is set up for the Foundation pack or the Demo pack.")
+    choice = prompt_choice(
+        [
+            "Foundation project (no synthetic data)",
+            "Demo project with synthetic data (recreated transformations and workflows)",
+        ],
+        default=1,
+    )
+    return "foundation" if choice == 1 else "demo"
+
+
 def _env_values_dirty(
     env_vals: dict[str, str],
     original_env_vals: dict[str, str],
@@ -1536,10 +1592,11 @@ def _run_wizard(
 ) -> None:
     pack_root = get_pack_root(repo_root)
     variant = resolve_variant(args_variant, get_data_models_dir(repo_root))
+    pack_kind = resolve_pack_kind(get_sourcesystem_dir(repo_root))
     installed_ctx = list_installed_contextualization_modules(repo_root)
     installed_ss = list_installed_source_system_modules(repo_root)
 
-    _print_wizard_header(variant, pack_root, installed_ctx)
+    _print_wizard_header(variant, pack_root, installed_ctx, pack_kind)
 
     selected_envs = _prompt_environments(pack_root)
     existing = _read_existing_values(pack_root, selected_envs, installed_ss)
@@ -1693,6 +1750,7 @@ def _run_check(
 ) -> None:
     pack_root = get_pack_root(repo_root)
     variant = resolve_variant(args_variant, get_data_models_dir(repo_root))
+    resolve_pack_kind_for_check(get_sourcesystem_dir(repo_root))
     # Read site and datasets from existing configs so user-configured values
     # (group names, location, dataset list) don't produce false positives.
     site, datasets = _read_check_context(pack_root)
