@@ -88,7 +88,7 @@ jobs:
           done
           status=0
           ruff check "${PY_FILES[@]}" || status=$?
-          mapfile -t FUNC_DIRS < <(for f in "${PY_FILES[@]}"; do dirname "$f"; done | sort -u)
+          mapfile -t FUNC_DIRS < <(for f in "${PY_FILES[@]}"; do echo "$f" | sed -E 's|^(.*functions/[^/]+).*|\1|'; done | sort -u)
           for dir in "${FUNC_DIRS[@]}"; do
             (cd "$dir" && pyright --pythonversion 3.13 .) || status=$?
           done
