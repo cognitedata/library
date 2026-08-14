@@ -73,23 +73,21 @@ jobs:
         if: hashFiles('.pre-commit-config.yaml') == ''
         run: echo "No .pre-commit-config.yaml found; skipping pre-commit config lint."
 
-      - name: Install function dependencies
-        if: hashFiles('**/functions/**/*.py') != ''
+      - name: Lint functions (ruff, pyright)
         run: |
+          set -euo pipefail
+          mapfile -t PY_FILES < <(find . -path '*/functions/*' -name '*.py')
+          if [ "${#PY_FILES[@]}" -eq 0 ]; then
+            echo "No Python found under functions/; skipping ruff and pyright."
+            exit 0
+          fi
           pip install ruff pyright
-          find . -path '*/functions/*/requirements.txt' -exec pip install -r {} \;
-
-      - name: ruff check (functions)
-        if: hashFiles('**/functions/**/*.py') != ''
-        run: ruff check $(find . -path '*/functions/*' -name '*.py')
-
-      - name: pyright (functions)
-        if: hashFiles('**/functions/**/*.py') != ''
-        run: pyright --pythonversion 3.13 $(find . -path '*/functions/*' -name '*.py')
-
-      - name: No function code
-        if: hashFiles('**/functions/**/*.py') == ''
-        run: echo "No Python found under functions/; skipping ruff and pyright."
+          mapfile -t REQS < <(find . -path '*/functions/*/requirements.txt')
+          for req in "${REQS[@]}"; do
+            pip install -r "$req"
+          done
+          find . -path '*/functions/*' -name '*.py' -exec ruff check {} +
+          find . -path '*/functions/*' -name '*.py' -exec pyright --pythonversion 3.13 {} +
 
   cdf-dry-run:
     name: cdf build & deploy --dry-run
