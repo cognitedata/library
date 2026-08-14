@@ -89,6 +89,9 @@ environment:
     assert "'industrial/config*.yaml'" in dry_run
     assert "'industrial/modules/sourcesystem/cdf_pi_extractor/'" not in dry_run
     assert "No .pre-commit-config.yaml found; skipping pre-commit config lint." in dry_run
+    assert "ruff check" in dry_run
+    assert "pyright --pythonversion 3.13" in dry_run
+    assert "No Python found under functions/; skipping ruff and pyright." in dry_run
     assert "cdf build --env dev" in dry_run
     assert "cdf deploy --dry-run | tee dryrun-output.txt" in dry_run
     assert "cdf deploy --dry-run --env" not in dry_run
@@ -112,6 +115,7 @@ environment:
     assert "`CONSUMER_SOURCE_ID`" in cicd_docs
     assert "`PRODUCER_SOURCE_ID`" in cicd_docs
     assert "skips the pre-commit config lint step" in cicd_docs
+    assert "ruff check` and `pyright`" in cicd_docs
 
 
 def test_generate_actions_validates_environment_name(tmp_path: Path) -> None:

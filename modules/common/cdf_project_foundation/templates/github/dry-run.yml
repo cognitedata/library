@@ -73,6 +73,24 @@ jobs:
         if: hashFiles('.pre-commit-config.yaml') == ''
         run: echo "No .pre-commit-config.yaml found; skipping pre-commit config lint."
 
+      - name: Install function dependencies
+        if: hashFiles('**/functions/**/*.py') != ''
+        run: |
+          pip install ruff pyright
+          find . -path '*/functions/*/requirements.txt' -exec pip install -r {} \;
+
+      - name: ruff check (functions)
+        if: hashFiles('**/functions/**/*.py') != ''
+        run: ruff check $(find . -path '*/functions/*' -name '*.py')
+
+      - name: pyright (functions)
+        if: hashFiles('**/functions/**/*.py') != ''
+        run: pyright --pythonversion 3.13 $(find . -path '*/functions/*' -name '*.py')
+
+      - name: No function code
+        if: hashFiles('**/functions/**/*.py') == ''
+        run: echo "No Python found under functions/; skipping ruff and pyright."
+
   cdf-dry-run:
     name: cdf build & deploy --dry-run
     needs:
