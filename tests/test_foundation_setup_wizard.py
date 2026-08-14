@@ -8,10 +8,12 @@ Covers:
                    _migrate_staging_to_test, _write_config_fresh,
                    _write_config_update, remove_redundant_auth_files,
                    patch_cfihos_auth_for_missing_search, remove_synthetic_data,
-                   _read_existing_values
+                   _read_existing_values, remove_redundant_diagram_annotation,
+                   diagram_annotation_stale_paths
 """
 
 
+import re
 import sys
 import textwrap
 from pathlib import Path
@@ -1049,6 +1051,263 @@ class TestRemoveSyntheticData:
         self._make_files(isa / "data_modeling", "model.datamodel.yaml")
         remove_synthetic_data(self._ISA, tmp_path)
         assert (isa / "data_modeling").exists()
+
+
+# ── setup_project — diagram-annotation redundancy ─────────────────────────────
+
+class TestRemoveRedundantDiagramAnnotation:
+    """remove_redundant_diagram_annotation only acts when both cdf_sharepoint_data_dump
+    and cdf_file_annotation are installed in the same project — otherwise the synthetic
+    pipeline is the only annotation mechanism present and must be left alone."""
+
+    _DIAGRAM_ANNOTATION_FILES: tuple[str, ...] = (
+        "raw/diagram_annotation.Table.yaml",
+        "upload_data/diagram_annotation.Manifest.yaml",
+        "upload_data/diagram_annotation.RawRows.csv",
+        "transformations/tr_diagram_annotation_all_to_cognite_diagram_annotation.Transformation.yaml",
+        "transformations/tr_diagram_annotation_all_to_cognite_diagram_annotation.Transformation.sql",
+        "transformations/tr_diagram_annotation_all_to_file_tag_connection.Transformation.yaml",
+        "transformations/tr_diagram_annotation_all_to_file_tag_connection.Transformation.sql",
+        "transformations/tr_diagram_annotation_all_to_file_equipment_connection.Transformation.yaml",
+        "transformations/tr_diagram_annotation_all_to_file_equipment_connection.Transformation.sql",
+        "workflows/wf_diagram_annotation.Workflow.yaml",
+        "workflows/wf_diagram_annotation.WorkflowVersion.yaml",
+        "workflows/wf_diagram_annotation.WorkflowTrigger.yaml",
+    )
+
+    _WORKFLOW_YAML: str = """\
+        workflowExternalId: {{ workflow }}
+        version: v1
+        workflowDefinition:
+          tasks:
+            - externalId: {{ fileTransformationExternalId }}
+              type: 'transformation'
+              parameters:
+                transformation:
+                  externalId: {{ fileTransformationExternalId }}
+                  concurrencyPolicy: fail
+              name: 'File'
+              description: Create File nodes with asset references
+              retries: 3
+              timeout: 3600
+              onFailure: 'skipTask'
+              dependsOn:
+                - externalId: {{ heatExchangerTransformationExternalId }}
+
+            - externalId: {{ diagramAnnotationTransformationExternalId }}
+              type: 'transformation'
+              parameters:
+                transformation:
+                  externalId: {{ diagramAnnotationTransformationExternalId }}
+                  concurrencyPolicy: fail
+              name: 'Diagram annotation'
+              description: Create CogniteDiagramAnnotation edges from RAW diagram annotation rows
+              retries: 3
+              timeout: 3600
+              onFailure: 'skipTask'
+              dependsOn:
+                - externalId: {{ fileTransformationExternalId }}
+                - externalId: {{ assetTransformationExternalId }}
+
+            - externalId: {{ fileTagConnectionTransformationExternalId }}
+              type: 'transformation'
+              parameters:
+                transformation:
+                  externalId: {{ fileTagConnectionTransformationExternalId }}
+                  concurrencyPolicy: fail
+              name: 'File to tag connection from diagram annotation'
+              description: Connect Files.assets to Tag using diagram annotation AssetLink rows
+              retries: 3
+              timeout: 3600
+              onFailure: 'skipTask'
+              dependsOn:
+                - externalId: {{ fileTransformationExternalId }}
+                - externalId: {{ assetTransformationExternalId }}
+
+            - externalId: {{ fileEquipmentConnectionTransformationExternalId }}
+              type: 'transformation'
+              parameters:
+                transformation:
+                  externalId: {{ fileEquipmentConnectionTransformationExternalId }}
+                  concurrencyPolicy: fail
+              name: 'File to equipment connection via tags'
+              description: Connect Equipment.files by matching Equipment.asset against Files.assets
+              retries: 3
+              timeout: 3600
+              onFailure: 'skipTask'
+              dependsOn:
+                - externalId: {{ fileTagConnectionTransformationExternalId }}
+                - externalId: {{ equipmentTransformationExternalId }}
+
+            - externalId: {{ timeseriesTransformationExternalId }}
+              type: 'transformation'
+              parameters:
+                transformation:
+                  externalId: {{ timeseriesTransformationExternalId }}
+                  concurrencyPolicy: fail
+              name: 'Time series data'
+        """
+
+    _CONFIG_YAML: str = """\
+        fileTransformationExternalId: tr_file_all_to_file
+        diagramAnnotationTransformationExternalId: tr_diagram_annotation_all_to_cognite_diagram_annotation
+        fileTagConnectionTransformationExternalId: tr_diagram_annotation_all_to_file_tag_connection
+        fileEquipmentConnectionTransformationExternalId: tr_diagram_annotation_all_to_file_equipment_connection
+        timeseriesTransformationExternalId: tr_timeseries_all_to_timeseries_data
+        """
+
+    def _make_sharepoint_data_dump(self, tmp_path: Path) -> Path:
+        module_dir = tmp_path / "modules" / "sourcesystem" / "cdf_sharepoint_data_dump"
+        for rel_path in self._DIAGRAM_ANNOTATION_FILES:
+            f = module_dir / rel_path
+            f.parent.mkdir(parents=True, exist_ok=True)
+            f.write_text("example")
+        # Non-diagram-annotation file that must never be touched.
+        keep = module_dir / "transformations" / "tr_file_all_to_file.Transformation.yaml"
+        keep.parent.mkdir(parents=True, exist_ok=True)
+        keep.write_text("example")
+        return module_dir
+
+    def _make_file_annotation(self, tmp_path: Path) -> Path:
+        module_dir = tmp_path / "modules" / "contextualization" / "cdf_file_annotation"
+        module_dir.mkdir(parents=True, exist_ok=True)
+        return module_dir
+
+    def _make_ingestion(self, tmp_path: Path) -> tuple[Path, Path]:
+        ingestion_dir = tmp_path / "modules" / "common" / "cdf_ingestion"
+        workflow_path = ingestion_dir / "workflows" / "v1.WorkflowVersion.yaml"
+        config_path = ingestion_dir / "default.config.yaml"
+        workflow_path.parent.mkdir(parents=True, exist_ok=True)
+        workflow_path.write_text(textwrap.dedent(self._WORKFLOW_YAML))
+        config_path.write_text(textwrap.dedent(self._CONFIG_YAML))
+        return workflow_path, config_path
+
+    def test_no_op_when_file_annotation_not_installed(self, tmp_path: Path) -> None:
+        from setup_project import remove_redundant_diagram_annotation
+        module_dir = self._make_sharepoint_data_dump(tmp_path)
+        removed = remove_redundant_diagram_annotation(tmp_path)
+        assert removed == []
+        for rel_path in self._DIAGRAM_ANNOTATION_FILES:
+            assert (module_dir / rel_path).exists()
+
+    def test_no_op_when_sharepoint_data_dump_not_installed(self, tmp_path: Path) -> None:
+        from setup_project import remove_redundant_diagram_annotation
+        self._make_file_annotation(tmp_path)
+        assert remove_redundant_diagram_annotation(tmp_path) == []
+
+    def test_removes_files_when_both_installed(self, tmp_path: Path) -> None:
+        from setup_project import remove_redundant_diagram_annotation
+        module_dir = self._make_sharepoint_data_dump(tmp_path)
+        self._make_file_annotation(tmp_path)
+        removed = remove_redundant_diagram_annotation(tmp_path)
+        assert len(removed) >= len(self._DIAGRAM_ANNOTATION_FILES)
+        for rel_path in self._DIAGRAM_ANNOTATION_FILES:
+            assert not (module_dir / rel_path).exists()
+
+    def test_keeps_tr_file_all_to_file(self, tmp_path: Path) -> None:
+        from setup_project import remove_redundant_diagram_annotation
+        module_dir = self._make_sharepoint_data_dump(tmp_path)
+        self._make_file_annotation(tmp_path)
+        remove_redundant_diagram_annotation(tmp_path)
+        assert (module_dir / "transformations" / "tr_file_all_to_file.Transformation.yaml").exists()
+
+    def test_removes_ingestion_workflow_tasks(self, tmp_path: Path) -> None:
+        from setup_project import remove_redundant_diagram_annotation
+        self._make_sharepoint_data_dump(tmp_path)
+        self._make_file_annotation(tmp_path)
+        workflow_path, config_path = self._make_ingestion(tmp_path)
+        remove_redundant_diagram_annotation(tmp_path)
+
+        workflow_text = workflow_path.read_text()
+        assert "diagramAnnotationTransformationExternalId" not in workflow_text
+        assert "fileTagConnectionTransformationExternalId" not in workflow_text
+        assert "fileEquipmentConnectionTransformationExternalId" not in workflow_text
+        # Untouched sibling tasks stay, including their own dependsOn blocks.
+        assert "fileTransformationExternalId" in workflow_text
+        assert "timeseriesTransformationExternalId" in workflow_text
+        assert "heatExchangerTransformationExternalId" in workflow_text
+
+        config_text = config_path.read_text()
+        assert "diagramAnnotationTransformationExternalId" not in config_text
+        assert "fileTagConnectionTransformationExternalId" not in config_text
+        assert "fileEquipmentConnectionTransformationExternalId" not in config_text
+        assert "fileTransformationExternalId: tr_file_all_to_file" in config_text
+        assert "timeseriesTransformationExternalId" in config_text
+
+    def test_workflow_yaml_stays_parseable_after_removal(self, tmp_path: Path) -> None:
+        from setup_project import remove_redundant_diagram_annotation
+        self._make_sharepoint_data_dump(tmp_path)
+        self._make_file_annotation(tmp_path)
+        workflow_path, _ = self._make_ingestion(tmp_path)
+        remove_redundant_diagram_annotation(tmp_path)
+
+        # Strip the {{ jinja }} placeholders so plain yaml.safe_load can parse the
+        # structural skeleton (tasks/parameters/dependsOn) that must remain intact.
+        text = re.sub(r"\{\{.*?\}\}", "PLACEHOLDER", workflow_path.read_text())
+        parsed = yaml.safe_load(text)
+        tasks = parsed["workflowDefinition"]["tasks"]
+        assert len(tasks) == 2
+        assert [t["name"] for t in tasks] == ["File", "Time series data"]
+
+    def test_no_op_when_ingestion_not_installed(self, tmp_path: Path) -> None:
+        from setup_project import remove_redundant_diagram_annotation
+        self._make_sharepoint_data_dump(tmp_path)
+        self._make_file_annotation(tmp_path)
+        # No modules/common/cdf_ingestion at all — must not raise.
+        removed = remove_redundant_diagram_annotation(tmp_path)
+        assert len(removed) == len(self._DIAGRAM_ANNOTATION_FILES)
+
+    def test_idempotent_on_second_run(self, tmp_path: Path) -> None:
+        from setup_project import remove_redundant_diagram_annotation
+        self._make_sharepoint_data_dump(tmp_path)
+        self._make_file_annotation(tmp_path)
+        self._make_ingestion(tmp_path)
+        first = remove_redundant_diagram_annotation(tmp_path)
+        assert first != []
+        second = remove_redundant_diagram_annotation(tmp_path)
+        assert second == []
+
+
+class TestDiagramAnnotationStalePaths:
+    """diagram_annotation_stale_paths backs --check: it must report leftover
+    synthetic-pipeline files/tasks only when both modules are installed."""
+
+    def test_empty_when_file_annotation_not_installed(self, tmp_path: Path) -> None:
+        from setup_project import diagram_annotation_stale_paths
+        TestRemoveRedundantDiagramAnnotation()._make_sharepoint_data_dump(tmp_path)
+        assert diagram_annotation_stale_paths(tmp_path) == []
+
+    def test_flags_leftover_files_when_both_installed(self, tmp_path: Path) -> None:
+        from setup_project import diagram_annotation_stale_paths
+        helper = TestRemoveRedundantDiagramAnnotation()
+        helper._make_sharepoint_data_dump(tmp_path)
+        helper._make_file_annotation(tmp_path)
+        stale = diagram_annotation_stale_paths(tmp_path)
+        assert len(stale) >= len(helper._DIAGRAM_ANNOTATION_FILES)
+
+    def test_empty_after_cleanup(self, tmp_path: Path) -> None:
+        from setup_project import diagram_annotation_stale_paths, remove_redundant_diagram_annotation
+        helper = TestRemoveRedundantDiagramAnnotation()
+        helper._make_sharepoint_data_dump(tmp_path)
+        helper._make_file_annotation(tmp_path)
+        helper._make_ingestion(tmp_path)
+        remove_redundant_diagram_annotation(tmp_path)
+        assert diagram_annotation_stale_paths(tmp_path) == []
+
+    def test_flags_stale_ingestion_workflow_when_files_removed_but_workflow_not_patched(
+        self, tmp_path: Path
+    ) -> None:
+        """Guards against a partial cleanup: module files gone but the ingestion
+        workflow still references the retired tasks."""
+        from setup_project import diagram_annotation_stale_paths
+        helper = TestRemoveRedundantDiagramAnnotation()
+        module_dir = helper._make_sharepoint_data_dump(tmp_path)
+        helper._make_file_annotation(tmp_path)
+        helper._make_ingestion(tmp_path)
+        for rel_path in helper._DIAGRAM_ANNOTATION_FILES:
+            (module_dir / rel_path).unlink()
+        stale = diagram_annotation_stale_paths(tmp_path)
+        assert any("v1.WorkflowVersion.yaml" in str(p) for p in stale)
 
 
 # ── setup_project — replicate config from existing ───────────────────────────

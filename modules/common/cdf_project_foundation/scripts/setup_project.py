@@ -38,6 +38,7 @@ from _pack_config import (
     get_data_models_dir,
     get_org_dir_name,
     get_pack_root,
+    get_sourcesystem_dir,
     list_installed_contextualization_modules,
     list_installed_source_system_modules,
     load_yaml,
@@ -748,6 +749,157 @@ def remove_synthetic_data(variant: str, repo_root: Path | None = None) -> int:
     return total
 
 
+# ── Diagram-annotation redundancy ───────────────────────────────────────────────
+#
+# cdf_sharepoint_data_dump ships a standalone synthetic diagram-annotation pipeline
+# (RAW rows + transformations + its own workflow) that produces CogniteDiagramAnnotation
+# edges without needing cdf_file_annotation at all. It stays fully supported and
+# deployable on its own. It only becomes redundant when cdf_file_annotation (the real
+# annotation pipeline) is *also* installed in the same project — at that point both
+# pipelines would write competing annotation edges, so the wizard removes the synthetic
+# one from this project's copy only. The library module itself is never touched.
+
+_DIAGRAM_ANNOTATION_MODULE = "cdf_sharepoint_data_dump"
+_FILE_ANNOTATION_MODULE = "cdf_file_annotation"
+
+_DIAGRAM_ANNOTATION_FILES: tuple[str, ...] = (
+    "raw/diagram_annotation.Table.yaml",
+    "upload_data/diagram_annotation.Manifest.yaml",
+    "upload_data/diagram_annotation.RawRows.csv",
+    "transformations/tr_diagram_annotation_all_to_cognite_diagram_annotation.Transformation.yaml",
+    "transformations/tr_diagram_annotation_all_to_cognite_diagram_annotation.Transformation.sql",
+    "transformations/tr_diagram_annotation_all_to_file_tag_connection.Transformation.yaml",
+    "transformations/tr_diagram_annotation_all_to_file_tag_connection.Transformation.sql",
+    "transformations/tr_diagram_annotation_all_to_file_equipment_connection.Transformation.yaml",
+    "transformations/tr_diagram_annotation_all_to_file_equipment_connection.Transformation.sql",
+    "workflows/wf_diagram_annotation.Workflow.yaml",
+    "workflows/wf_diagram_annotation.WorkflowVersion.yaml",
+    "workflows/wf_diagram_annotation.WorkflowTrigger.yaml",
+)
+
+# cdf_ingestion task/config vars driving the 3 synthetic-annotation transformations
+# above (see modules/common/cdf_ingestion/workflows/v1.WorkflowVersion.yaml and its
+# default.config.yaml). The sibling "File" task (fileTransformationExternalId) stays.
+_INGESTION_DIAGRAM_ANNOTATION_TASK_VARS: tuple[str, ...] = (
+    "diagramAnnotationTransformationExternalId",
+    "fileTagConnectionTransformationExternalId",
+    "fileEquipmentConnectionTransformationExternalId",
+)
+
+
+def diagram_annotation_is_redundant(repo_root: Path | None = None) -> bool:
+    """True when both the synthetic and real annotation pipelines are installed."""
+    sourcesystem_dir = get_sourcesystem_dir(repo_root)
+    ctx_dir = get_contextualization_dir(repo_root)
+    return (sourcesystem_dir / _DIAGRAM_ANNOTATION_MODULE).is_dir() and (
+        ctx_dir / _FILE_ANNOTATION_MODULE
+    ).is_dir()
+
+
+def _remove_ingestion_diagram_annotation_tasks(lines: list[str]) -> int:
+    """Remove ``tasks:`` list items (indent-4 ``- externalId: {{ VAR }}`` blocks) whose
+    transformation var is one of ``_INGESTION_DIAGRAM_ANNOTATION_TASK_VARS``.
+
+    A block runs from its ``- externalId:`` line up to (but not including) the next
+    line indented 4 spaces or less (any sibling task, regardless of its first key since
+    YAML doesn't guarantee key order; any sibling key of ``tasks:`` itself; or the next
+    top-level key). Returns the number of task blocks removed.
+    """
+    marker_re = re.compile(r"^    - externalId:\s*['\"]?\{\{\s*(\w+)\s*\}\}['\"]?\s*$")
+    ranges: list[tuple[int, int]] = []
+    i = 0
+    while i < len(lines):
+        match = marker_re.match(lines[i])
+        if match and match.group(1) in _INGESTION_DIAGRAM_ANNOTATION_TASK_VARS:
+            start = i
+            j = i + 1
+            while j < len(lines) and not re.match(r"^ {0,4}\S", lines[j]):
+                j += 1
+            ranges.append((start, j))
+            i = j
+        else:
+            i += 1
+    for start, end in reversed(ranges):
+        del lines[start:end]
+    return len(ranges)
+
+
+def _ingestion_workflow_path(repo_root: Path | None = None) -> Path:
+    return get_pack_root(repo_root) / "modules" / "common" / "cdf_ingestion" / "workflows" / "v1.WorkflowVersion.yaml"
+
+
+def _ingestion_config_path(repo_root: Path | None = None) -> Path:
+    return get_pack_root(repo_root) / "modules" / "common" / "cdf_ingestion" / "default.config.yaml"
+
+
+def diagram_annotation_stale_paths(repo_root: Path | None = None) -> list[Path]:
+    """Diagram-annotation paths that should have been removed but are still present."""
+    if not diagram_annotation_is_redundant(repo_root):
+        return []
+
+    stale: list[Path] = []
+    module_dir = get_sourcesystem_dir(repo_root) / _DIAGRAM_ANNOTATION_MODULE
+    for rel_path in _DIAGRAM_ANNOTATION_FILES:
+        f = module_dir / rel_path
+        if f.exists():
+            stale.append(f)
+
+    workflow_path = _ingestion_workflow_path(repo_root)
+    if workflow_path.exists():
+        text = workflow_path.read_text()
+        if any(re.search(r"{{\s*" + var + r"\s*}}", text) for var in _INGESTION_DIAGRAM_ANNOTATION_TASK_VARS):
+            stale.append(workflow_path)
+
+    config_path = _ingestion_config_path(repo_root)
+    if config_path.exists():
+        text = config_path.read_text()
+        if any(f"{var}:" in text for var in _INGESTION_DIAGRAM_ANNOTATION_TASK_VARS):
+            stale.append(config_path)
+
+    return stale
+
+
+def remove_redundant_diagram_annotation(repo_root: Path | None = None) -> list[Path]:
+    """Remove the synthetic diagram-annotation pipeline from this project's copy of
+    cdf_sharepoint_data_dump, and the 3 corresponding tasks/vars from cdf_ingestion,
+    but only when cdf_file_annotation (the real pipeline) is also installed.
+
+    No-op otherwise — the synthetic pipeline remains fully supported standalone, and
+    nothing is ever deleted from the library module itself. Idempotent.
+    """
+    removed: list[Path] = []
+    if not diagram_annotation_is_redundant(repo_root):
+        return removed
+
+    modules_root = get_pack_root(repo_root) / "modules"
+    module_dir = get_sourcesystem_dir(repo_root) / _DIAGRAM_ANNOTATION_MODULE
+    for rel_path in _DIAGRAM_ANNOTATION_FILES:
+        f = module_dir / rel_path
+        if f.exists():
+            f.unlink()
+            removed.append(f)
+            _ok(f"Removed redundant diagram-annotation file: {f.relative_to(modules_root)}")
+
+    workflow_path = _ingestion_workflow_path(repo_root)
+    if workflow_path.exists():
+        lines = workflow_path.read_text().splitlines(keepends=True)
+        task_count = _remove_ingestion_diagram_annotation_tasks(lines)
+        if task_count:
+            workflow_path.write_text("".join(lines))
+            removed.append(workflow_path)
+            _ok(f"Removed {task_count} redundant diagram-annotation task(s) from cdf_ingestion workflow.")
+
+    config_path = _ingestion_config_path(repo_root)
+    if config_path.exists():
+        lines = config_path.read_text().splitlines(keepends=True)
+        changed = [_yaml_delete_key(lines, var) for var in _INGESTION_DIAGRAM_ANNOTATION_TASK_VARS]
+        if any(changed):
+            config_path.write_text("".join(lines))
+            removed.append(config_path)
+
+    return removed
+
+
 # ── Data model auth patching ──────────────────────────────────────────────────
 
 def patch_cfihos_auth_for_missing_search(repo_root: Path | None = None) -> list[Path]:
@@ -1332,6 +1484,7 @@ def _finalize_wizard(
     patched = patch_cfihos_auth_for_missing_search(repo_root)
     created_cdm_space = restore_cdm_space_file(variant, repo_root)
     _cleanup_file_annotation_module(repo_root)
+    diagram_annotation_removed = remove_redundant_diagram_annotation(repo_root)
 
     synthetic_removed = 0
     if not keep_synthetic:
@@ -1353,6 +1506,11 @@ def _finalize_wizard(
         _ok(".env updated with group source IDs.")
     if synthetic_removed:
         _ok(f"{synthetic_removed} synthetic data file(s) removed.")
+    if diagram_annotation_removed:
+        _ok(
+            f"{len(diagram_annotation_removed)} redundant diagram-annotation file(s) "
+            "removed (cdf_file_annotation is installed)."
+        )
     if cicd_files:
         _ok(f"{len(cicd_files)} CI/CD workflow file(s) generated.")
     print()
@@ -1570,6 +1728,8 @@ def _run_check(
         get_pack_root(repo_root) / _CDM_INSTANCE_SPACE_REL_PATH
     ).exists()
 
+    stale_diagram_annotation = diagram_annotation_stale_paths(repo_root)
+
     if all_errors:
         print(f"ERROR: Config file(s) out of sync with variant '{variant}':\n")
         for filename, errs in all_errors.items():
@@ -1589,6 +1749,15 @@ def _run_check(
             f"ERROR: CDM instance space file missing for variant '{variant}':\n"
             f"  {_CDM_INSTANCE_SPACE_REL_PATH}"
         )
+        print("\n  Run: python scripts/setup_project.py -y")
+        sys.exit(1)
+    if stale_diagram_annotation:
+        print(
+            "ERROR: Redundant diagram-annotation file(s) still present "
+            "(superseded by cdf_file_annotation):"
+        )
+        for p in stale_diagram_annotation:
+            print(f"  {p.relative_to(get_pack_root(repo_root))}")
         print("\n  Run: python scripts/setup_project.py -y")
         sys.exit(1)
     print(f"OK: All config file(s) match variant '{variant}'. No stale auth files.")
