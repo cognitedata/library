@@ -30,7 +30,7 @@ All deployable content lives under [`modules/`](modules/). The registry of packs
 |--------|---------|----------|
 | `cdf_` | Cognite-built platform capabilities | `cdf_common`, `cdf_pi`, `cdf_file_annotation` |
 | `cdm_` / `cdf_` | Solutions on Cognite Data Model | `cdm_maintain`, `cdf_infield` |
-| *(none)* | Industry models, dashboards, tools | `rmdm`, `context_quality`, `report_quality` |
+| *(none)* | Industry models, dashboards, tools | `rmdm`, `context_quality`, `qualitizer` |
 
 Apply the prefix on **module folder names** where it helps discovery. Top-level folders (`common/`, `datamodels/`, …) are not prefixed.
 

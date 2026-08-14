@@ -8,8 +8,8 @@ governed: false                                         # Whether the dataset is
 admin_user: "admin.user@firm.com"                       # Admin user email used in owner and read groups
 integrationOwnerEmail: "integration.owner@firm.com"     # Email of the integration owner (used in dataset metadata)
 integrationOwnerName: "Integration Owner"               # Name of the integration owner (used in dataset metadata)
-owner_source_id: "source_id"                            # Source ID for the owner security group
-read_source_id: "source_id"                             # Source ID for the read security group
+owner_source_id: ${OWNER_GROUP_SOURCE_ID}              # Source ID for the owner security group
+read_source_id: ${READ_GROUP_SOURCE_ID}                # Source ID for the read security group
 
 # Data modeling spaces
 space: "dm_dom_oil_and_gas"                             # Primary space for all containers, views, and data model definitions

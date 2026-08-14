@@ -132,8 +132,7 @@ ingestionClientId: ${INGESTION_CLIENT_ID}
 ingestionClientSecret: ${INGESTION_CLIENT_SECRET}
 
 # Data Sources
-rawSourceDatabase: ingestion
-rawStateDatabase: contextualizationState
+rawDatabase: cfihos_oil_and_gas
 
 # Schema Spaces
 schemaSpace: sp_enterprise_process_industry
@@ -191,8 +190,7 @@ variables:
       groupSourceId: your-azure-ad-group-source-id  # UPDATE REQUIRED
       ingestionClientId: ${INGESTION_CLIENT_ID}
       ingestionClientSecret: ${INGESTION_CLIENT_SECRET}
-      rawSourceDatabase: ingestion
-      rawStateDatabase: contextualizationState
+      rawDatabase: cfihos_oil_and_gas
       schemaSpace: sp_enterprise_process_industry
       schemaSpace2: cdf_cdm
       schemaSpace3: cdf_idm

@@ -7,6 +7,17 @@ the `Files` view and CFIHOS diagram-annotation edges of the CFIHOS Oil & Gas dom
 (`cfihos_oil_and_gas_extension`). It ships CFIHOS-shaped file metadata and P&ID diagram annotation 
 records instead of the SharePoint-style sample data.
 
+> **Diagram-annotation cleanup:** the `diagram_annotation.*` RAW data, its 3 transformation
+> pairs, and the standalone `wf_diagram_annotation.*` workflow work on their own — this module
+> doesn't require `contextualization/cdf_file_annotation` to produce annotation edges. But
+> `dp:quickstart` installs both, and running both together would write competing
+> `CogniteDiagramAnnotation` edges. `common/cdf_project_foundation`'s setup wizard
+> (`setup_project.py`) detects this and automatically removes the diagram-annotation files
+> from your project (and the matching tasks from `common/cdf_ingestion`'s workflow) the first
+> time it runs — nothing is removed from the library module itself, and a project using only
+> this module keeps the synthetic pipeline unchanged. `tr_file_all_to_file` (populates `Files`)
+> is never removed by either path.
+
 ## Module Components
 
 - `raw/file.Table.yaml`, `diagram_annotation.Table.yaml` — RAW table definitions.
@@ -14,7 +25,7 @@ records instead of the SharePoint-style sample data.
   the file manifest.
 - `transformations/` — 4 transformations: `Files` population, `CogniteDiagramAnnotation`
   population (written to the base `cdf_cdm`/`CogniteCore` space), and the diagram-annotation
-  connections that link annotated files to `Equipment` (owned by `cdf_sap_assets_new`) and `Tag`
+  connections that link annotated files to `Equipment` (owned by `cdf_sap_data_dump`) and `Tag`
   nodes.
 
 ## Deployment
@@ -23,13 +34,13 @@ records instead of the SharePoint-style sample data.
 
 - Cognite Toolkit.
 - The `cfihos_oil_and_gas_extension` data model module deployed to the same project/space.
-- `cdf_sap_assets_new` deployed first (or in the same run) so the `Equipment` and `Tag` nodes
+- `cdf_sap_data_dump` deployed first (or in the same run) so the `Equipment` and `Tag` nodes
   referenced by the diagram-annotation connection transformations exist.
 
 ### Adding to an existing Toolkit project
 
-Add `sourcesystem/cdf_sharepoint_new` to your package's module list and configure the variables
-under `variables.modules.cdf_sharepoint_new` in your `config.<env>.yaml`.
+Add `sourcesystem/cdf_sharepoint_data_dump` to your package's module list and configure the variables
+under `variables.modules.cdf_sharepoint_data_dump` in your `config.<env>.yaml`.
 
 ### Starting from scratch
 
@@ -41,7 +52,7 @@ cdf-tk deploy --env <your-env>
 ## Module Structure
 
 ```
-cdf_sharepoint_new/
+cdf_sharepoint_data_dump/
 ├── module.toml
 ├── default.config.yaml
 ├── raw/

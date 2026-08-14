@@ -30,6 +30,7 @@ import yaml
 from _env_io import parse_env_file
 from _pack_config import (
     CONTEXTUALIZATION_REDUNDANT_AUTH,
+    DEMO_SOURCE_SYSTEM_MODULE_DIRS,
     REPO_ROOT,
     TOOLS_REDUNDANT_AUTH,
     deep_merge,
@@ -181,9 +182,9 @@ CONTEXTUALIZATION_VARIABLES: dict[str, dict[str, dict]] = {
             "schemaSpace": "dm_dom_oil_and_gas",
             "assetInstanceSpace": None,
             "timeseriesInstanceSpace": None,
-            "AssetViewExternalId": "FunctionalLocation",
+            "AssetViewExternalId": "Tag",
             "TimeSeriesViewExternalId": "TimeSeriesData",
-            "targetViewExternalId": "FunctionalLocation",
+            "targetViewExternalId": "Tag",
             "entityViewExternalId": "TimeSeriesData",
             "targetViewSearchProperty": "name",
             "targetViewFilterValues": [],
@@ -197,7 +198,7 @@ CONTEXTUALIZATION_VARIABLES: dict[str, dict[str, dict]] = {
             "fileExternalId": "Files",
             "targetEntitySchemaSpace": "dm_dom_oil_and_gas",
             "targetEntityInstanceSpace": None,
-            "targetEntityExternalId": "FunctionalLocation",
+            "targetEntityExternalId": "Tag",
         },
     },
 }
@@ -482,30 +483,38 @@ def resolve_variant(args_variant: str | None, data_models_dir: Path) -> str:
     return detect_data_model_variant(data_models_dir)
 
 
-def resolve_pack_kind(sourcesystem_dir: Path) -> Literal["foundation", "demo"]:
+def resolve_pack_kind(variant: str, sourcesystem_dir: Path) -> Literal["foundation", "demo"]:
     """Resolve which pack (Foundation or Demo) this project is set up for.
 
-    Always derived from the installed sourcesystem modules (see
+    ISA has no Demo/synthetic-data path — cdf_pi_data_dump/cdf_sap_data_dump/
+    cdf_sharepoint_data_dump are CFIHOS-shaped and write into the CFIHOS DM only —
+    so an ISA project is always Foundation, without asking.
+
+    Otherwise, derived from the installed sourcesystem modules (see
     ``detect_pack_kind``) — there is no override flag, since every cleanup
     function downstream already makes its own decision from installed module
     directories rather than from this value. When detection is ``"ambiguous"``
     (neither or both kinds present), prompt the user, defaulting to Foundation.
     """
+    if variant == "isa_manufacturing_extension":
+        return "foundation"
     detected = detect_pack_kind(sourcesystem_dir)
     if detected == "ambiguous":
         return _prompt_pack_kind()
     return detected
 
 
-def resolve_pack_kind_for_check(sourcesystem_dir: Path) -> Literal["foundation", "demo"]:
+def resolve_pack_kind_for_check(variant: str, sourcesystem_dir: Path) -> Literal["foundation", "demo"]:
     """Non-interactive counterpart of ``resolve_pack_kind`` for ``--check`` (CI) mode.
 
     CI must never block on a prompt, so an ambiguous detection raises ``SystemExit``
     instead — same shape as ``detect_data_model_variant``'s multiple-data-models error.
     There is no override flag: a project with both extractor and data-dump modules
     installed (or neither) is a malformed module selection that must be fixed, not
-    papered over.
+    papered over. ISA is always Foundation (see ``resolve_pack_kind``) — never ambiguous.
     """
+    if variant == "isa_manufacturing_extension":
+        return "foundation"
     detected = detect_pack_kind(sourcesystem_dir)
     if detected == "ambiguous":
         raise SystemExit(
@@ -1486,6 +1495,41 @@ def _prompt_pack_kind() -> Literal["foundation", "demo"]:
     return "foundation" if choice == 1 else "demo"
 
 
+# Modules to install for a from-scratch Demo pack setup: cdf_ingestion orchestrates the
+# transformations shipped by the data-dump modules, so it's listed first.
+_DEMO_SOURCE_SYSTEM_INSTALL_MODULES: tuple[str, ...] = (
+    "cdf_ingestion",
+    *DEMO_SOURCE_SYSTEM_MODULE_DIRS,
+)
+
+
+def _exit_if_demo_has_no_source_system_modules(
+    pack_kind: Literal["foundation", "demo"],
+    installed_ss: list[str],
+    repo_root: Path | None,
+) -> None:
+    """Demo pack setup needs the synthetic data-dump modules and cdf_ingestion to
+    populate the data model — if the project has neither those nor any extractor
+    modules installed yet, stop and tell the user what to add instead of continuing
+    with an empty source-system config."""
+    if pack_kind != "demo" or installed_ss:
+        return
+    sourcesystem_dir = get_sourcesystem_dir(repo_root)
+    if any((sourcesystem_dir / name).is_dir() for name in DEMO_SOURCE_SYSTEM_MODULE_DIRS):
+        return
+
+    _section("Demo Pack — Source System Modules Required")
+    _hint("No extractor or data-dump modules are installed yet. The Demo pack needs the")
+    _hint("synthetic data-dump modules and cdf_ingestion to populate the data model.")
+    print()
+    _hint("Add them using below commands, then re-run the setup_project.py script:")
+    print()
+    for module in _DEMO_SOURCE_SYSTEM_INSTALL_MODULES:
+        print(f"  cdf modules add -d {module}")
+    print()
+    sys.exit(0)
+
+
 def _env_values_dirty(
     env_vals: dict[str, str],
     original_env_vals: dict[str, str],
@@ -1584,6 +1628,7 @@ def _finalize_wizard(
     selected_envs: tuple[str, ...],
     *,
     variant: str,
+    pack_kind: Literal["foundation", "demo"],
     keep_synthetic: bool,
     env_dirty: bool,
     changed_count: int,
@@ -1616,7 +1661,7 @@ def _finalize_wizard(
         if synthetic_removed:
             _ok(f"Removed {synthetic_removed} synthetic data file(s) from upload_data/ directories.")
 
-    cicd_files = _run_cicd_wizard(pack_root)
+    cicd_files = _run_cicd_wizard(pack_root) if pack_kind == "foundation" else []
 
     _section("Done")
     _ok(f"{changed_count} config file(s) created/updated.")
@@ -1648,7 +1693,7 @@ def _finalize_wizard(
         _hint("  4. Add IDP_CLIENT_SECRET to each GitHub Environment.")
         _hint("  5. Create and protect branches dev and main;")
         _hint("     open a PR to dev to validate dry-run.yml.")
-    else:
+    elif pack_kind == "foundation":
         _hint("  3. Add CI/CD secrets to GitHub Environments (IDP_CLIENT_SECRET).")
     print()
 
@@ -1660,9 +1705,10 @@ def _run_wizard(
 ) -> None:
     pack_root = get_pack_root(repo_root)
     variant = resolve_variant(args_variant, get_data_models_dir(repo_root))
-    pack_kind = resolve_pack_kind(get_sourcesystem_dir(repo_root))
+    pack_kind = resolve_pack_kind(variant, get_sourcesystem_dir(repo_root))
     installed_ctx = list_installed_contextualization_modules(repo_root)
     installed_ss = list_installed_source_system_modules(repo_root)
+    _exit_if_demo_has_no_source_system_modules(pack_kind, installed_ss, repo_root)
 
     _print_wizard_header(variant, pack_root, installed_ctx, pack_kind)
 
@@ -1691,9 +1737,10 @@ def _run_wizard(
         site, installed_ss, repo_root
     )
     app_owner = _prompt_app_owner(installed_ctx, existing["app_owner"])
-    # No data model extension installed under "cdm" — nothing for
-    # remove_synthetic_data to clean up, so don't ask.
-    keep_synthetic = True if variant == "cdm" else _prompt_synthetic_data()
+    # No data model extension installed under "cdm" — nothing for remove_synthetic_data
+    # to clean up. Demo pack needs its synthetic data to function — always keep it,
+    # no need to ask.
+    keep_synthetic = True if variant == "cdm" or pack_kind == "demo" else _prompt_synthetic_data()
 
     env_dirty = _env_values_dirty(env_vals, original_env_vals)
     _show_wizard_review(targets, project_names, env_dirty)
@@ -1720,6 +1767,7 @@ def _run_wizard(
         pack_root,
         selected_envs,
         variant=variant,
+        pack_kind=pack_kind,
         keep_synthetic=keep_synthetic,
         env_dirty=env_dirty,
         changed_count=changed_count,
@@ -1818,7 +1866,7 @@ def _run_check(
 ) -> None:
     pack_root = get_pack_root(repo_root)
     variant = resolve_variant(args_variant, get_data_models_dir(repo_root))
-    resolve_pack_kind_for_check(get_sourcesystem_dir(repo_root))
+    resolve_pack_kind_for_check(variant, get_sourcesystem_dir(repo_root))
     # Read site and datasets from existing configs so user-configured values
     # (group names, location, dataset list) don't produce false positives.
     site, datasets = _read_check_context(pack_root)
