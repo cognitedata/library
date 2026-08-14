@@ -76,18 +76,20 @@ jobs:
       - name: Lint functions (ruff, pyright)
         run: |
           set -euo pipefail
-          mapfile -t PY_FILES < <(find . -path '*/functions/*' -name '*.py')
+          mapfile -t PY_FILES < <(git ls-files | grep -E '/functions/.*\.py$' || true)
           if [ "${#PY_FILES[@]}" -eq 0 ]; then
             echo "No Python found under functions/; skipping ruff and pyright."
             exit 0
           fi
           pip install ruff pyright
-          mapfile -t REQS < <(find . -path '*/functions/*/requirements.txt')
+          mapfile -t REQS < <(git ls-files | grep -E '/functions/.*requirements\.txt$' || true)
           for req in "${REQS[@]}"; do
             pip install -r "$req"
           done
-          find . -path '*/functions/*' -name '*.py' -exec ruff check {} +
-          find . -path '*/functions/*' -name '*.py' -exec pyright --pythonversion 3.13 {} +
+          status=0
+          ruff check "${PY_FILES[@]}" || status=$?
+          pyright --pythonversion 3.13 "${PY_FILES[@]}" || status=$?
+          exit "$status"
 
   cdf-dry-run:
     name: cdf build & deploy --dry-run
