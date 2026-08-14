@@ -39,6 +39,8 @@ cdf_ingestion/
 ├── 📁 auth/                             # Authentication groups
 │   ├── 📄 user.Group.yaml                      # User permissions for manual runs
 │   └── 📄 workflow.Group.yaml                  # Service account permissions
+├── 📁 data_sets/                        # Dataset definitions
+│   └── 📄 ingestion.DataSet.yaml               # Dataset referenced by the workflow (dataSetExternalId)
 ├── 📁 workflows/                        # Workflow definitions
 │   ├── 📄 ingest.Workflow.yaml                 # Main workflow definition
 │   ├── 📄 v1.WorkflowVersion.yaml              # Workflow version with tasks
@@ -50,6 +52,12 @@ cdf_ingestion/
 ## 🚀 Core Components
 
 ### 1. Auth Groups
+
+> **Note:** When `common/cdf_project_foundation` is also installed (as it is on
+> `dp:quickstart`), these two files are automatically removed by
+> `setup_project.py` — the persona groups in `cdf_project_foundation` already cover
+> every capability listed below. See that module's
+> [README](../cdf_project_foundation/README.md#access-groups) for details.
 
 | Resource | Description |
 |----------|-------------|

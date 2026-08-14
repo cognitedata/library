@@ -220,6 +220,11 @@ _STALE_CTX_KEYS: tuple[str, ...] = (
     "variables.modules.cfihos_oil_and_gas_extension.read_source_id",
     "variables.modules.datamodels.cfihos_oil_and_gas_extension.owner_source_id",
     "variables.modules.datamodels.cfihos_oil_and_gas_extension.read_source_id",
+    # cdf_ingestion's own group source ID (Demo pack) — only ever referenced by its
+    # own auth/{user,workflow}.Group.yaml, which remove_redundant_auth_files() deletes
+    # once cdf_project_foundation's persona groups are present.
+    "variables.modules.cdf_ingestion.groupSourceId",
+    "variables.modules.common.cdf_ingestion.groupSourceId",
 )
 
 # ── Domain helpers ─────────────────────────────────────────────────────────────
@@ -1035,7 +1040,8 @@ def _read_existing_values(
         # Support both flat (new) and nested-category (old) structures.
         foundation = (
             modules.get("cdf_project_foundation")
-            or modules.get("common", {}).get("cdf_project_foundation", {})
+            or (modules.get("common") or {}).get("cdf_project_foundation")
+            or {}
         )
         if foundation.get("site"):
             existing["site"] = foundation["site"]
@@ -1048,6 +1054,19 @@ def _read_existing_values(
             ds = mod_vars.get("dataset", "")
             if ds and isinstance(ds, str) and ds not in ss_datasets:
                 ss_datasets.append(ds)
+        # cdf_ingestion (Demo pack only) has its own dataset, scoped by the
+        # workflow.Group.yaml auth that remove_redundant_auth_files() deletes once
+        # cdf_project_foundation's persona groups take over — fold it into the persona
+        # dataset list too, or the producer group loses that access entirely.
+        if (pack_root / "modules" / "common" / "cdf_ingestion").is_dir():
+            ingestion_vars = (
+                modules.get("cdf_ingestion")
+                or (modules.get("common") or {}).get("cdf_ingestion")
+                or {}
+            )
+            ingestion_dataset = ingestion_vars.get("dataset", "ingestion")
+            if ingestion_dataset and isinstance(ingestion_dataset, str) and ingestion_dataset not in ss_datasets:
+                ss_datasets.append(ingestion_dataset)
         if ss_datasets:
             existing["dataset"] = ss_datasets
         app_owner = (
@@ -1225,13 +1244,19 @@ def _detect_installed_envs(pack_root: Path) -> tuple[str, ...]:
     return tuple(detected)
 
 
+_PACK_KIND_TITLE: dict[str, str] = {
+    "foundation": "Foundation Deployment Pack",
+    "demo": "Foundation Deployment Pack Demo",
+}
+
+
 def _print_wizard_header(
     variant: str,
     pack_root: Path,
     installed_ctx: list[str],
     pack_kind: Literal["foundation", "demo"],
 ) -> None:
-    _banner("Foundation Deployment Pack — Project Setup")
+    _banner(f"{_PACK_KIND_TITLE[pack_kind]} — Project Setup")
     _ok(f"Deployment pack    : {pack_kind}")
     _ok(f"Data model variant : {variant}")
     _ok(f"Pack root          : {pack_root}")

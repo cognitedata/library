@@ -9,11 +9,22 @@ The **Foundation Deployment Pack** (`dp:foundation`) is the recommended starting
 - **Highly extensible** — simple to plug in your own data sources and processing logic
 - **Reliable** — everything included works out of the box
 
-This module provides the **project-level foundation** of the pack: three persona-based access groups and a project setup wizard, aligned with the [project-setup SOP](https://cogdocs.mintlify.io/gvd) *(password-protected — request access via [#topic-deployment-packs](https://cognitedata.slack.com/archives/C098QJ09YKX) or contact [Valeriya Naumova](https://cognitedata.slack.com/team/U051XA95S0G)).*
+This module provides the **project-level foundation** shared by two deployment packs: three persona-based access groups and a project setup wizard, aligned with the [project-setup SOP](https://cogdocs.mintlify.io/gvd) *(password-protected — request access via [#topic-deployment-packs](https://cognitedata.slack.com/archives/C098QJ09YKX) or contact [Valeriya Naumova](https://cognitedata.slack.com/team/U051XA95S0G)).*
+
+## Foundation vs. Demo
+
+| | `dp:foundation` (Foundation) | `dp:quickstart` (Foundation Deployment Pack Demo) |
+|---|---|---|
+| **Use for** | Real customer projects, no synthetic data | Exploring CDF / showcasing end-to-end ingestion + contextualization |
+| **Source systems** | `*_extractor` modules (`cdf_pi_extractor`, `cdf_sap_extractor`, …) | `*_data_dump` modules (`cdf_pi_data_dump`, `cdf_sap_data_dump`, `cdf_sharepoint_data_dump`) |
+| **Data model** | Choose CDM / ISA / CFIHOS | Always CFIHOS (`cfihos_oil_and_gas_extension`) |
+| **Ingestion orchestration** | Each extractor module owns its own extraction pipeline config | `common/cdf_ingestion` (shared workflow driving all the CFIHOS transformations) |
+
+Both packs include this module (`cdf_project_foundation`) for the persona access groups and the setup wizard. The wizard **auto-detects which pack you're running** from the sourcesystem modules you selected in Step 2 — you don't need to tell it which pack you're on. See [Which pack am I on?](#which-pack-am-i-on) below for how detection works.
 
 ---
 
-## Deploying the Foundation Deployment Pack
+## Deploying the Foundation Deployment Pack (or the Demo)
 
 ### Step 0 — Prerequisites
 
@@ -42,7 +53,7 @@ From a clean Toolkit project directory, run the interactive module selector:
 cdf modules init
 ```
 
-Select **Foundation Deployment Pack** from the list.
+Select **Foundation Deployment Pack** for a real customer project, or **Foundation Deployment Pack Demo** to explore CDF with synthetic data.
 
 > **Note:** The Toolkit selector shows display titles (e.g. "Foundation Deployment Pack"). The actual module IDs used in config files and referenced in the tables below are the directory names shown in each table (e.g. `cdf_project_foundation`, `isa_manufacturing_extension`).
 
@@ -52,7 +63,13 @@ Select **Foundation Deployment Pack** from the list.
 
 ### Step 2 — Select modules
 
-The module selector presents all available modules. Make selections carefully:
+> **Demo pack users can skip this step.** `dp:quickstart` ships a fixed module list
+> (`canCherryPick = false` in `packages.toml`) — `cdf modules init` installs everything
+> below automatically: `cdf_ingestion`, `cdf_project_foundation`, `cdf_file_annotation`,
+> `cdf_entity_matching`, the three `*_data_dump` source modules, and the CFIHOS data
+> model + search extension. Go straight to [Step 3](#step-3--run-the-setup-wizard).
+
+The Foundation pack's module selector presents all available modules individually. Make selections carefully:
 
 **Data model** — optional, select **at most one** core variant:
 
@@ -101,7 +118,7 @@ The module selector presents all available modules. Make selections carefully:
 
 | Module | Description |
 |--------|-------------|
-| `cdf_project_foundation` | This module — persona access groups, per-extractor groups, and the interactive setup wizard. |
+| `cdf_project_foundation` | This module — persona access groups, per-extractor groups, and the interactive setup wizard. Also shipped by `dp:quickstart`, where it covers the same capabilities `cdf_ingestion` used to grant via its own auth files (now removed by the wizard as redundant — see [Access Groups](#access-groups)). |
 
 **Project observability** — recommended:
 
@@ -114,6 +131,28 @@ The module selector presents all available modules. Make selections carefully:
 ### Step 3 — Run the setup wizard
 
 From the Toolkit project root, run the interactive setup wizard. It prompts for CDF project names, site/location, Entra ID group source IDs, source system owner contacts, and ApplicationOwner (if file annotation is installed), then writes all `config.<env>.yaml` files and `.env` in one pass.
+
+#### Which pack am I on?
+
+The wizard header shows the resolved pack and data model variant on every run:
+
+```
+──────────────────────────────────────────────────────────
+  Foundation Deployment Pack Demo — Project Setup
+──────────────────────────────────────────────────────────
+  ✓  Deployment pack    : demo
+  ✓  Data model variant : cfihos_oil_and_gas_extension
+```
+
+Detection looks at which `modules/sourcesystem/` modules are installed:
+
+| Installed sourcesystem modules | Resolved pack |
+|---|---|
+| Only `*_extractor` modules (`cdf_pi_extractor`, …) | `foundation` |
+| Only `*_data_dump` modules (`cdf_pi_data_dump`, …) | `demo` |
+| Both kinds, or neither | **Ambiguous** — the wizard prompts you to choose |
+
+You never need to pass a flag for this — it's fully automatic for both packs shipped via `cdf modules init`. The ambiguous case only comes up if you hand-cherry-picked source system modules from both packs into the same project.
 
 > **Environment selection — first prompt:** Toolkit creates `dev`, `prod`, and `staging` (= test) config files during `cdf modules init`. The wizard detects these and asks:
 > *"You selected dev and prod while installing the DP. Continue with current selection (dev, prod)?"*
@@ -232,7 +271,7 @@ Three CDF groups are deployed, each bound to an Entra ID security group via its 
 | Group | Name (example) | Persona | Capability scope |
 |-------|---------------|---------|-----------------|
 | `consumer.Group.yaml` | `consumer_all_dev` / `consumer_oslo_all_prod` | Read-only | READ on data models / instances / timeseries / files / transformations, scoped to `{{ dataset }}` / `{{ instanceSpaces }}` / `{{ schemaSpace }}` — `instanceSpaces` includes the project-level DM space plus one per installed extractor |
-| `producer.Group.yaml` | `producer_all_dev` / `producer_oslo_all_prod` | Read/write | Consumer rights plus WRITE to instances / timeseries / files / RAW, run transformations, workflow orchestration, sessions CREATE |
+| `producer.Group.yaml` | `producer_all_dev` / `producer_oslo_all_prod` | Read/write | Consumer rights plus WRITE to instances / timeseries / files / RAW, run transformations, workflow orchestration, sessions CREATE, plus `functionsAcl` and `entitymatchingAcl` and read access to `{{ additionalSchemaSpaces }}` (base CDM/IDM + the installed variant's search-solution space) |
 | `admin.Group.yaml` | `admin_all_dev` / `admin_all_prod` | Admin | Full capabilities including `groups:write`, projects, datasets, data models, transformations, workflows, extraction pipelines |
 
 The wizard stores group source IDs in `.env` as `CONSUMER_SOURCE_ID`, `PRODUCER_SOURCE_ID`, `ADMIN_SOURCE_ID` and the config files reference them via `${…}`. These are Entra ID object IDs, **not secrets**.
@@ -254,17 +293,19 @@ The wizard (`scripts/setup_project.py`) is split across four helper modules:
 
 ### Wizard flow
 
-1. Prompts for which environments to set up (all three, dev only, dev+prod, or custom).
-2. Asks for the CDF project name for each selected environment (pre-filled on re-run).
-3. Asks for an required site / location name — used as access-group suffix, source system location, and entity-matching `location_name`.
-4. Prompts for source system integration owner and data owner contacts (shared or per-module).
+1. Resolves which pack (`foundation` or `demo`) this project is set up for — see [Which pack am I on?](#which-pack-am-i-on). Shown in the header; only prompts if genuinely ambiguous.
+2. Prompts for which environments to set up (all three, dev only, dev+prod, or custom).
+3. Asks for the CDF project name for each selected environment (pre-filled on re-run).
+4. Asks for an required site / location name — used as access-group suffix, source system location, and entity-matching `location_name`.
+5. Prompts for source system integration owner and data owner contacts (shared or per-module).
    - For the CFIHOS data model: prompts for **data model owner** name and email (renamed from "integration owner" to reflect its purpose).
-5. Prompts for group source IDs (Entra ID object IDs) and writes them to `.env`.
-6. Asks for the Streamlit ApplicationOwner email if `cdf_file_annotation` is installed.
-7. Shows a review summary then confirms before writing anything.
-8. Creates new config files or updates existing ones in-place (preserving comments).
-9. Removes redundant auth files from contextualization and tools modules covered by the foundation.
-10. Optionally generates GitHub Actions CI/CD workflows.
+6. Prompts for group source IDs (Entra ID object IDs) and writes them to `.env`.
+7. Asks for the Streamlit ApplicationOwner email if `cdf_file_annotation` is installed.
+8. Shows a review summary then confirms before writing anything.
+9. Creates new config files or updates existing ones in-place (preserving comments).
+10. Removes redundant auth files from contextualization, tools, and (Demo pack) `cdf_ingestion` modules covered by the foundation.
+11. Removes the synthetic diagram-annotation pipeline if both `cdf_sharepoint_data_dump` and `cdf_file_annotation` are installed — see [Demo pack: synthetic diagram-annotation cleanup](#demo-pack-synthetic-diagram-annotation-cleanup).
+12. Optionally generates GitHub Actions CI/CD workflows (this now includes a `setup_project.py --check` step before every `cdf build`, so a project with stale config fails with an actionable message instead of a raw Toolkit build error).
 
 | Env key | Maps to | Config file |
 |---------|---------|------------|
@@ -285,6 +326,13 @@ instanceSpace: "inst_isa_manufacturing"    # ISA default; CFIHOS uses inst_locat
 instanceSpaces: ["inst_isa_manufacturing"] # project-level space + per-extractor spaces (computed by wizard)
 dataModelVariant: isa_manufacturing_extension
 
+# Read-only producer.Group.yaml scope, in addition to schemaSpace. Base CDM/IDM spaces
+# are always included; the installed variant's own search-solution space is appended
+# (cfihos_oil_and_gas_extension -> dm_sol_oil_and_gas_search,
+#  isa_manufacturing_extension -> dm_sol_isa_manufacturing_search, cdm -> none extra).
+# Computed per env by setup_project.py; static default here is CDM-only.
+additionalSchemaSpaces: ["cdf_cdm", "cdf_idm", "cdf_cdm_units"]
+
 # Computed per env by setup_project.py:
 consumerGroupName: "consumer_all_dev"
 producerGroupName: "producer_all_dev"
@@ -300,9 +348,11 @@ adminSourceId: "${ADMIN_SOURCE_ID}"
 
 ## Dependencies
 
-**Package**: `dp:foundation`
+**Package**: `dp:foundation` (primary), also shipped by `dp:quickstart` (Demo).
 
-Self-contained. The group ACLs reference `{{ dataset }}`, `{{ instanceSpaces }}`, and `{{ schemaSpace }}`, which must match the values used by the deployed source-system and data-model modules. `instanceSpaces` is computed by the setup wizard as the project-level DM space plus one per installed extractor module.
+Self-contained. The group ACLs reference `{{ dataset }}`, `{{ instanceSpaces }}`, `{{ schemaSpace }}`, and `{{ additionalSchemaSpaces }}`, which must match the values used by the deployed source-system and data-model modules. `instanceSpaces` is computed by the setup wizard as the project-level DM space plus one per installed extractor module.
+
+On `dp:quickstart`, this module's persona groups replace `common/cdf_ingestion`'s own auth files (removed by the wizard as redundant) — `cdf_ingestion` itself (workflows, datasets) stays installed and required.
 
 See the [project-setup SOP](https://cogdocs.mintlify.io/gvd) *(password-protected — request access via [#topic-deployment-packs](https://cognitedata.slack.com/archives/C098QJ09YKX) or contact [Valeriya Naumova](https://cognitedata.slack.com/team/U051XA95S0G))* for the authoritative procedure covering environments, Entra ID integration, CI/CD, and sign-off.
 
