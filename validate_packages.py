@@ -154,7 +154,7 @@ def validate_module_paths(
                 )
                 return False
 
-        print(f"✓ Module '{module_path}' validated successfully")
+        print(f"OK: Module '{module_path}' validated successfully")
 
     return True
 
@@ -221,7 +221,7 @@ def validate_module_id_prefixes(
                 print(f"  {rel_path}: id={module_id!r} (allowed prefixes: {allowed_str})")
         return False
 
-    print("\n✓ All module ids use an allowed dp:<pack>: prefix")
+    print("\nOK: All module ids use an allowed dp:<pack>: prefix")
     return True
 
 
@@ -260,7 +260,7 @@ def validate_unique_module_ids(base_path: str = "modules") -> bool:
                 print(f"    - {path}")
         return False
 
-    print(f"\n✓ All {len(ids_by_path)} module ids are unique")
+    print(f"\nOK: All {len(ids_by_path)} module ids are unique")
     return True
 
 
@@ -337,7 +337,7 @@ def validate_raw_databases(base_path: str = "modules") -> bool:
             )
         return False
 
-    print("\n✓ All RAW tables have a matching Database.yaml in their own module")
+    print("\nOK: All RAW tables have a matching Database.yaml in their own module")
     return True
 
 
@@ -353,18 +353,18 @@ def main() -> None:
         with open(packages_file, "rb") as f:
             data = tomllib.load(f)
 
-        print(f"✓ Successfully parsed {packages_file}")
+        print(f"OK: Successfully parsed {packages_file}")
 
         registry = parse_packages_registry(data)
         if registry is None:
             sys.exit(1)
 
-        print("✓ [library] header validation passed")
-        print(f"✓ Found {len(registry.packages)} packages")
+        print("OK: [library] header validation passed")
+        print(f"OK: Found {len(registry.packages)} packages")
 
         for package_name, package_spec in registry.packages.items():
             print(f"\nValidating package: {package_name}")
-            print(f"✓ Package '{package_name}' structure validation passed")
+            print(f"OK: Package '{package_name}' structure validation passed")
 
             if not validate_module_paths(package_name, package_spec.modules, "modules"):
                 sys.exit(1)
@@ -378,7 +378,7 @@ def main() -> None:
         if not validate_raw_databases("modules"):
             sys.exit(1)
 
-        print(f"\n🎉 All validation checks passed! {len(registry.packages)} packages validated successfully.")
+        print(f"\nAll validation checks passed! {len(registry.packages)} packages validated successfully.")
 
     except tomllib.TOMLDecodeError as e:
         print(f"ERROR: Invalid TOML format: {e}")
