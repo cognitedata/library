@@ -4,6 +4,7 @@ config:
     debug: False
     debugTimeseries: 'VAL_23-KA-9101-M01_E_stop_active:VALUE'
     runAll: True
+    updateAll: False
     rawDb: '{{ dbName }}'
     rawTableState: 'ts_state_store'
   data:

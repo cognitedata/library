@@ -122,6 +122,134 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
 
         print("✅ Timeseries skip unchanged aliases test passed")
 
+    def test_timeseries_update_all_replaces_stale_aliases(self):
+        """Test updateAll clears stale aliases and recomputes managed values"""
+        print("🧪 Testing timeseries updateAll...")
+
+        node = MagicMock()
+        node.external_id = "pi:160003"
+        node.properties = {
+            self.view_id: {
+                "name": "VAL_23-KA-9101:X.Value",
+                "aliases": ["stale_alias", "23_KA_9101"],
+            }
+        }
+
+        result = self.processor.process_timeseries_metadata(
+            node, self.view_id, "inst_location", update_all=True
+        )
+
+        self.assertIsNotNone(result)
+        properties = result.sources[0].properties
+        self.assertEqual(properties["aliases"], ["23_KA_9101"])
+
+        print("✅ Timeseries updateAll test passed")
+
+    def test_timeseries_update_all_applies_even_when_aliases_already_correct(self):
+        """Test updateAll writes managed metadata even when values already match"""
+        print("🧪 Testing timeseries updateAll re-apply...")
+
+        node = MagicMock()
+        node.external_id = "pi:160004"
+        node.properties = {
+            self.view_id: {
+                "name": "VAL_23-KA-9101:X.Value",
+                "aliases": ["23_KA_9101"],
+            }
+        }
+
+        result = self.processor.process_timeseries_metadata(
+            node, self.view_id, "inst_location", update_all=True
+        )
+
+        self.assertIsNotNone(result)
+        self.assertEqual(result.sources[0].properties["aliases"], ["23_KA_9101"])
+
+        print("✅ Timeseries updateAll re-apply test passed")
+
+    def test_asset_update_all_replaces_stale_aliases(self):
+        """Test updateAll clears stale aliases and recomputes managed values"""
+        print("🧪 Testing asset updateAll...")
+
+        asset_view_id = ViewId(space="cdf_cdm", external_id="CogniteAsset", version="v1")
+        node = MagicMock()
+        node.external_id = "23-KA-9101"
+        node.properties = {
+            asset_view_id: {
+                "name": "23-KA-9101",
+                "aliases": ["stale_alias", "23_KA_9101"],
+                "tags": ["discipline:KA", "tag", "root:old_root"],
+                "root": {"space": "inst_location", "externalId": "VAL-PH"},
+            }
+        }
+
+        result = self.processor.process_asset_metadata(
+            node, asset_view_id, "inst_location", update_all=True
+        )
+
+        self.assertIsNotNone(result)
+        properties = result.sources[0].properties
+        self.assertEqual(properties["aliases"], ["23_KA_9101"])
+        self.assertIn("discipline:KA", properties["tags"])
+        self.assertIn("root:VAL-PH", properties["tags"])
+        self.assertNotIn("tag", properties["tags"])
+        self.assertNotIn("root:old_root", properties["tags"])
+
+        print("✅ Asset updateAll test passed")
+
+    def test_asset_update_all_applies_even_when_metadata_already_correct(self):
+        """Test updateAll writes managed asset metadata even when values already match"""
+        print("🧪 Testing asset updateAll re-apply...")
+
+        asset_view_id = ViewId(space="cdf_cdm", external_id="CogniteAsset", version="v1")
+        node = MagicMock()
+        node.external_id = "23-KA-9101"
+        node.properties = {
+            asset_view_id: {
+                "name": "23-KA-9101",
+                "aliases": ["23_KA_9101"],
+                "tags": ["discipline:KA", "root:VAL-PH"],
+                "root": {"space": "inst_location", "externalId": "VAL-PH"},
+            }
+        }
+
+        result = self.processor.process_asset_metadata(
+            node, asset_view_id, "inst_location", update_all=True
+        )
+
+        self.assertIsNotNone(result)
+        properties = result.sources[0].properties
+        self.assertEqual(properties["aliases"], ["23_KA_9101"])
+        self.assertIn("root:VAL-PH", properties["tags"])
+
+        print("✅ Asset updateAll re-apply test passed")
+
+    def test_asset_incremental_adds_root_tag_from_relation(self):
+        """Test incremental asset processing adds root tag from relation external id"""
+        print("🧪 Testing asset incremental root tag...")
+
+        asset_view_id = ViewId(space="cdf_cdm", external_id="CogniteAsset", version="v1")
+        node = MagicMock()
+        node.external_id = "23-KA-9101"
+        node.properties = {
+            asset_view_id: {
+                "name": "23-KA-9101",
+                "aliases": ["23_KA_9101"],
+                "tags": ["discipline:KA"],
+                "root": {"space": "inst_location", "externalId": "VAL-PH"},
+            }
+        }
+
+        result = self.processor.process_asset_metadata(
+            node, asset_view_id, "inst_location", update_all=False
+        )
+
+        self.assertIsNotNone(result)
+        properties = result.sources[0].properties
+        self.assertEqual(properties["tags"], ["discipline:KA", "root:VAL-PH"])
+
+        print("✅ Asset incremental root tag test passed")
+
     def test_alias_generation_caching(self):
         """Test alias generation with caching"""
         print("🧪 Testing alias generation caching...")

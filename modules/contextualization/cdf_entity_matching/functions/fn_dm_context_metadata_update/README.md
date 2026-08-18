@@ -57,6 +57,7 @@ ExtractionPipelineExtId: "ep_ctx_entity_matching_metadata_update"
 parameters:
   debug: false
   run_all: false
+  update_all: false
   batch_size: 1000
   raw_db: "contextualization_state"
   raw_table_state: "state_store"
@@ -73,6 +74,13 @@ data:
       version: "v1"
       instance_space: "your_instance_space"
 ```
+
+| Parameter | Purpose |
+|-----------|---------|
+| `runAll` | Fetch all instances (not only those missing `aliases`) |
+| `updateAll` | Reset managed metadata and reprocess every fetched instance (implies `runAll`) |
+
+For a full metadata refresh, set `updateAll: true` in the extraction pipeline config.
 
 ## 🏃‍♂️ How to Run
 

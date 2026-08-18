@@ -43,6 +43,20 @@ from metadata_optimizations import (
 sys.path.append(str(Path(__file__).parent))
 
 
+def effective_run_all(config: Config) -> bool:
+    """Return whether to fetch all instances (not only those missing aliases)."""
+    return config.parameters.run_all or config.parameters.update_all
+
+
+def describe_processing_mode(config: Config) -> str:
+    """Human-readable description of the configured fetch/update mode."""
+    if config.parameters.update_all:
+        return "updateAll — all instances, managed metadata reset before recompute"
+    if config.parameters.run_all:
+        return "runAll — all instances, merge with existing metadata"
+    return "incremental — instances without aliases only"
+
+
 def metadata_update(
     client: CogniteClient,
     logger: CogniteFunctionLogger,
@@ -63,6 +77,11 @@ def metadata_update(
     
     pipeline_ext_id = data["ExtractionPipelineExtId"]
     try:
+        if config.parameters.update_all:
+            logger.warning(
+                "updateAll enabled — fetching all instances and resetting managed metadata properties before reprocessing"
+            )
+
         # Monitor initial memory usage
         monitor_memory_usage(logger, "Pipeline start")
         
@@ -86,10 +105,16 @@ def metadata_update(
             )
             
             if ts_updates > 0:
-                msg = f"Successfully updated {ts_updates} timeseries metadata entries"
+                msg = (
+                    f"Timeseries metadata finished — {ts_updates} instance(s) updated "
+                    f"({describe_processing_mode(config)})"
+                )
                 update_pipeline_run(client, logger, pipeline_ext_id, "success", msg)
             else:
-                msg = "No timeseries metadata updates needed"
+                msg = (
+                    f"Timeseries metadata finished — no updates required "
+                    f"({describe_processing_mode(config)})"
+                )
                 update_pipeline_run(client, logger, pipeline_ext_id, "success", msg)
         
         # Process assets
@@ -101,10 +126,16 @@ def metadata_update(
             )
             
             if asset_updates > 0:
-                msg = f"Successfully updated {asset_updates} asset metadata entries"
+                msg = (
+                    f"Asset metadata finished — {asset_updates} instance(s) updated "
+                    f"({describe_processing_mode(config)})"
+                )
                 update_pipeline_run(client, logger, pipeline_ext_id, "success", msg)
             else:
-                msg = "No asset metadata updates needed"
+                msg = (
+                    f"Asset metadata finished — no updates required "
+                    f"({describe_processing_mode(config)})"
+                )
                 update_pipeline_run(client, logger, pipeline_ext_id, "success", msg)
         
         # Log performance statistics
@@ -135,52 +166,83 @@ def _process_timeseries_optimized(
     batch_processor: BatchProcessor
 ) -> int:
     """Process timeseries metadata with optimizations"""
-    
+
     total_updates = 0
-    
+    total_examined = 0
+    pass_num = 0
+    mode = describe_processing_mode(config)
+    run_all = effective_run_all(config)
+
+    logger.info(f"Starting timeseries metadata — mode: {mode}")
+
     ts_view_id = config.data.job.timeseries_view.as_view_id()
-    
+
     while True:
-        # Get new timeseries
-        with time_operation("Fetch timeseries batch", logger):
+        pass_num += 1
+
+        with time_operation(f"Fetch timeseries batch (pass {pass_num})", logger):
             new_timeseries = get_new_items(
                 client, logger, ts_view_id, config, TS_NODE
             )
-        
+
         if not new_timeseries or len(new_timeseries) == 0:
-            logger.info("No more timeseries to process")
+            logger.info(f"Timeseries complete — no instances returned on pass {pass_num}")
             break
-        
-        # Process timeseries in batches
-        with time_operation(f"Process {len(new_timeseries)} timeseries", logger):
+
+        batch_count = len(new_timeseries)
+        total_examined += batch_count
+        fetch_scope = "all instances in scope" if run_all else "instances missing aliases"
+        logger.info(
+            f"Timeseries pass {pass_num}: fetched {batch_count} instances ({fetch_scope})"
+        )
+
+        with time_operation(f"Process {batch_count} timeseries (pass {pass_num})", logger):
             updates = []
-            
+
             for node in new_timeseries:
                 update = metadata_processor.process_timeseries_metadata(
-                    node, ts_view_id, config.data.job.timeseries_view.instance_space
+                    node,
+                    ts_view_id,
+                    config.data.job.timeseries_view.instance_space,
+                    update_all=config.parameters.update_all,
                 )
                 if update:
                     updates.append(update)
-            
-            # Apply updates in batches
+
             if updates:
                 batch_updates = batch_processor.apply_updates_in_batches(
                     client, updates, logger
                 )
                 total_updates += batch_updates
-                logger.info(f"Applied {batch_updates} timeseries updates")
+                logger.info(
+                    f"Timeseries pass {pass_num}: applied {batch_updates} updates "
+                    f"({len(updates)} of {batch_count} examined instances changed)"
+                )
             else:
-                logger.info("No timeseries updates needed") 
+                logger.info(
+                    f"Timeseries pass {pass_num}: no metadata changes needed "
+                    f"({batch_count} instances examined)"
+                )
                 break
-        
-        
-        # Break if debug mode
+
+        if run_all:
+            logger.info(
+                f"Timeseries complete — {mode}: {total_examined} examined, "
+                f"{total_updates} updated (single pass)"
+            )
+            break
+
         if config.parameters.debug:
             break
-        
-        # Memory cleanup
+
         cleanup_memory()
-    
+
+    if not run_all:
+        logger.info(
+            f"Timeseries complete — {mode}: {total_examined} examined across "
+            f"{pass_num} pass(es), {total_updates} updated"
+        )
+
     return total_updates
 
 
@@ -192,51 +254,83 @@ def _process_assets_optimized(
     batch_processor: BatchProcessor
 ) -> int:
     """Process asset metadata with optimizations"""
-    
-    total_updates = 0    
+
+    total_updates = 0
+    total_examined = 0
+    pass_num = 0
+    mode = describe_processing_mode(config)
+    run_all = effective_run_all(config)
+
+    logger.info(f"Starting asset metadata — mode: {mode}")
+
     asset_view_id = config.data.job.asset_view.as_view_id()
-    
+
     while True:
-        # Get new assets
-        with time_operation("Fetch assets batch", logger):
+        pass_num += 1
+
+        with time_operation(f"Fetch assets batch (pass {pass_num})", logger):
             new_assets = get_new_items(
                 client, logger, asset_view_id, config, ASSET_NODE
             )
-        
+
         if not new_assets or len(new_assets) == 0:
-            logger.info("No more assets to process")
+            logger.info(f"Assets complete — no instances returned on pass {pass_num}")
             break
-        
-        # Process assets in batches
-        with time_operation(f"Process {len(new_assets)} assets", logger):
+
+        batch_count = len(new_assets)
+        total_examined += batch_count
+        fetch_scope = "all instances in scope" if run_all else "instances missing aliases"
+        logger.info(
+            f"Assets pass {pass_num}: fetched {batch_count} instances ({fetch_scope})"
+        )
+
+        with time_operation(f"Process {batch_count} assets (pass {pass_num})", logger):
             updates = []
-            
+
             for node in new_assets:
                 update = metadata_processor.process_asset_metadata(
-                    node, asset_view_id, config.data.job.asset_view.instance_space
+                    node,
+                    asset_view_id,
+                    config.data.job.asset_view.instance_space,
+                    update_all=config.parameters.update_all,
                 )
                 if update:
                     updates.append(update)
-            
-            # Apply updates in batches
+
             if updates:
                 batch_updates = batch_processor.apply_updates_in_batches(
                     client, updates, logger
                 )
                 total_updates += batch_updates
-                logger.info(f"Applied {batch_updates} asset updates")
+                logger.info(
+                    f"Assets pass {pass_num}: applied {batch_updates} updates "
+                    f"({len(updates)} of {batch_count} examined instances changed)"
+                )
             else:
-                logger.info("No asset updates needed") 
+                logger.info(
+                    f"Assets pass {pass_num}: no metadata changes needed "
+                    f"({batch_count} instances examined)"
+                )
                 break
-        
-        
-        # Break if debug mode
+
+        if run_all:
+            logger.info(
+                f"Assets complete — {mode}: {total_examined} examined, "
+                f"{total_updates} updated (single pass)"
+            )
+            break
+
         if config.parameters.debug:
             break
-        
-        # Memory cleanup
+
         cleanup_memory()
-    
+
+    if not run_all:
+        logger.info(
+            f"Assets complete — {mode}: {total_examined} examined across "
+            f"{pass_num} pass(es), {total_updates} updated"
+        )
+
     return total_updates
 
 
@@ -291,10 +385,12 @@ def get_new_items(
         if node_type == TS_NODE:
             view_config = config.data.job.timeseries_view
             debug_item = config.parameters.debug_timeseries if config.parameters.debug else None
-            filter_query = get_ts_filter(view_config, debug_item, config.parameters.run_all, logger)
+            filter_query = get_ts_filter(
+                view_config, debug_item, effective_run_all(config), logger
+            )
         else:  # ASSET_NODE
             view_config = config.data.job.asset_view
-            filter_query = get_asset_filter(view_config, logger, config.parameters.run_all)
+            filter_query = get_asset_filter(view_config, logger, effective_run_all(config))
         
         # Query with retry logic
         max_retries = 3
@@ -308,7 +404,7 @@ def get_new_items(
                     limit=BATCH_SIZE
                 )
                 
-                logger.info(f"Retrieved {len(result)} ")
+                logger.debug(f"Query returned {len(result)} {node_type} instances")
                 return result
                 
             except CogniteAPIError as e:
@@ -378,6 +474,8 @@ def get_asset_filter(
 
 # Export all functions for backward compatibility
 __all__ = [
+    'describe_processing_mode',
+    'effective_run_all',
     'get_asset_filter',
     'get_new_items',
     'get_ts_filter',

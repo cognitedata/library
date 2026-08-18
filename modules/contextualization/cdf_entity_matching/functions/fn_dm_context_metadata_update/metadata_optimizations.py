@@ -16,6 +16,7 @@ import psutil
 from cognite.client import CogniteClient
 from cognite.client.data_classes.data_modeling import Node, NodeApply, NodeList, NodeOrEdgeData, ViewId
 from cognite.client.exceptions import CogniteAPIError
+from constants import MANAGED_ASSET_TAG_PREFIX
 from logger import CogniteFunctionLogger
 from tenacity import retry, stop_after_attempt, wait_exponential
 
@@ -136,8 +137,13 @@ class OptimizedMetadataProcessor:
             'updated': 0,
         }
     
-    def process_timeseries_metadata(self, node: Node, view_id: ViewId, 
-                                   node_space: str) -> NodeApply | None:
+    def process_timeseries_metadata(
+        self,
+        node: Node,
+        view_id: ViewId,
+        node_space: str,
+        update_all: bool = False,
+    ) -> NodeApply | None:
         """Process timeseries metadata with optimizations"""
         
         try:
@@ -146,15 +152,17 @@ class OptimizedMetadataProcessor:
             
             name = str(properties.get("name", ""))
             aliases_raw = properties.get("aliases", [])
-            aliases = [str(x) for x in aliases_raw] if isinstance(aliases_raw, list) else []
-            org_aliases = aliases.copy()
+            org_aliases = (
+                [str(x) for x in aliases_raw] if isinstance(aliases_raw, list) else []
+            )
+            aliases = [] if update_all else org_aliases.copy()
 
             upd_aliases = self._get_timeseries_alias_list_optimized(name, tuple(aliases))
 
             update_needed = False
             properties_dict = {}
 
-            if upd_aliases != org_aliases:
+            if update_all or upd_aliases != org_aliases:
                 properties_dict["aliases"] = upd_aliases
                 update_needed = True
             
@@ -181,8 +189,13 @@ class OptimizedMetadataProcessor:
             self.logger.error(f"Error processing timeseries {node.external_id}: {e}")
             return None
     
-    def process_asset_metadata(self, node: Node, view_id: ViewId,
-                              node_space: str) -> NodeApply | None:
+    def process_asset_metadata(
+        self,
+        node: Node,
+        view_id: ViewId,
+        node_space: str,
+        update_all: bool = False,
+    ) -> NodeApply | None:
         """Process asset metadata with optimizations"""
         
         try:
@@ -192,27 +205,39 @@ class OptimizedMetadataProcessor:
             name = str(properties.get("name", ""))
             aliases_raw = properties.get("aliases", [])
             tags_raw = properties.get("tags", [])
-            aliases = [str(x) for x in aliases_raw] if isinstance(aliases_raw, list) else []
-            tags = [str(x) for x in tags_raw] if isinstance(tags_raw, list) else []
-            root_obj = properties.get("root", {})
-            root = str(root_obj.get("externalId", "")) if isinstance(root_obj, dict) else ""
-            org_aliases = aliases.copy()
-            org_tags = tags.copy()
-            
-            # Optimized parsing
-            upd_tags, upd_aliases = self._parse_asset_tag_optimized(name, aliases, root, tags)
-            
-            # Check if update is needed
+            org_aliases = (
+                [str(x) for x in aliases_raw] if isinstance(aliases_raw, list) else []
+            )
+            org_tags = [str(x) for x in tags_raw] if isinstance(tags_raw, list) else []
+            aliases = [] if update_all else org_aliases.copy()
+            if update_all:
+                tags = [
+                    tag
+                    for tag in org_tags
+                    if not tag.startswith(MANAGED_ASSET_TAG_PREFIX) and tag != "tag"
+                ]
+            else:
+                tags = [tag for tag in org_tags if tag != "tag"]
+
+            root_external_id = _direct_relation_external_id(properties.get("root"))
+            upd_tags, upd_aliases = self._parse_asset_tag_optimized(
+                name, aliases, root_external_id, tags
+            )
+
             update_needed = False
             properties_dict = {}
-            
-            if upd_tags != org_tags:
+
+            if update_all:
+                properties_dict["aliases"] = upd_aliases
                 properties_dict["tags"] = upd_tags
                 update_needed = True
-            
-            if upd_aliases != org_aliases:
-                properties_dict["aliases"] = upd_aliases
-                update_needed = True
+            else:
+                if upd_aliases != org_aliases:
+                    properties_dict["aliases"] = upd_aliases
+                    update_needed = True
+                if upd_tags != org_tags:
+                    properties_dict["tags"] = upd_tags
+                    update_needed = True
             
             self.stats['processed'] += 1
             
@@ -275,25 +300,28 @@ class OptimizedMetadataProcessor:
             self.logger.error(f"Error processing file {node.external_id}: {e}")
             return None
     
-    def _parse_asset_tag_optimized(self, name: str, aliases: list[str], 
-                                  root: str, tags: list[str]) -> tuple[list[str], list[str]]:
-        """Optimized asset tag parsing"""
-        
+    def _parse_asset_tag_optimized(
+        self,
+        name: str,
+        aliases: list[str],
+        root_external_id: str,
+        tags: list[str],
+    ) -> tuple[list[str], list[str]]:
+        """Build asset aliases and root tag from the root relation external id."""
         try:
-            # Simple optimization for asset parsing
             upd_aliases = self._get_asset_alias_list_optimized(name, tuple(aliases))
-            
-            # Add root tag if not present
-            root_tag = root.split(':')[0] if root else None
-            if root_tag and f"root:{root_tag}" not in tags:
-                tags.append(f"root:{root_tag}")
+
+            if root_external_id:
+                managed_tag = f"{MANAGED_ASSET_TAG_PREFIX}{root_external_id}"
+                if managed_tag not in tags:
+                    tags.append(managed_tag)
 
             return tags, upd_aliases
-            
+
         except Exception as e:
             self.logger.error(f"Error parsing asset tag {name}: {e}")
             return tags, aliases
-    
+
     @lru_cache(maxsize=5000)
     def _get_timeseries_alias_list_optimized(self, name: str, aliases_tuple: tuple[str, ...] = ()) -> list[str]:
         """Optimized timeseries alias generation with caching"""
@@ -390,6 +418,19 @@ class PerformanceBenchmark:
 
 
 # ===== UTILITY FUNCTIONS =====
+
+def _direct_relation_external_id(relation: object) -> str:
+    """Return the external id from a direct relation property value."""
+    if relation is None:
+        return ""
+
+    if isinstance(relation, dict):
+        external_id = relation.get("externalId") or relation.get("external_id")
+        return str(external_id) if external_id else ""
+
+    external_id = getattr(relation, "external_id", None) or getattr(relation, "externalId", None)
+    return str(external_id) if external_id else ""
+
 
 def optimize_metadata_processing():
     """Apply global optimizations for metadata processing"""
