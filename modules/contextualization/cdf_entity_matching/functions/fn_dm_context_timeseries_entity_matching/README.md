@@ -85,10 +85,10 @@ parameters:
   removeOldLinks: false
   rawDb: '{{ dbName }}'
   rawTableState: 'contextualization_state_store'
-  rawTaleCtxGood: 'contextualization_good'
-  rawTaleCtxBad: 'contextualization_bad'
-  rawTaleCtxManual: 'contextualization_manual_input'
-  rawTaleCtxRule: 'contextualization_rule_input'
+  rawTableCtxGood: 'contextualization_good'
+  rawTableCtxBad: 'contextualization_bad'
+  rawTableCtxManual: 'contextualization_manual_input'
+  rawTableCtxRule: 'contextualization_rule_input'
   autoApprovalThreshold: 0.85
 
 data:
@@ -121,10 +121,10 @@ data:
 | `autoApprovalThreshold` | Confidence threshold for auto-approval (0.0–1.0) | `0.85` |
 | `rawDb` | Raw database name | Required |
 | `rawTableState` | State tracking table | `contextualization_state_store` |
-| `rawTaleCtxGood` | Table for entities with score ≥ autoApprovalThreshold | `contextualization_good` |
-| `rawTaleCtxBad` | Table for entities with score < autoApprovalThreshold | `contextualization_bad` |
-| `rawTaleCtxManual` | Table for manual mappings | `contextualization_manual_input` |
-| `rawTaleCtxRule` | Table for rule-based mapping inputs | `contextualization_rule_input` |
+| `rawTableCtxGood` | Table for entities with score ≥ autoApprovalThreshold | `contextualization_good` |
+| `rawTableCtxBad` | Table for entities with score < autoApprovalThreshold | `contextualization_bad` |
+| `rawTableCtxManual` | Table for manual mappings | `contextualization_manual_input` |
+| `rawTableCtxRule` | Table for rule-based mapping inputs | `contextualization_rule_input` |
 
 ### Process Flow
 
