@@ -17,27 +17,28 @@ config:
       #level: INFO
       #path: "/path/to/file.log"
 
+  extractor:
 
-  # (Optional) Where to store extraction states (progress) between runs.
-  # Required for incremental load to work.
-  state-store:
-    # Uncomment to use a local json file for state storage
-    type: local
-    path:  "/path/to/state-store.json"
+    # (Optional) Where to store extraction states (progress) between runs.
+    # Required for incremental load to work.
+    state-store:
+      # Uncomment to use a local json file for state storage
+      type: local
+      path:  "/path/to/state-store.json"
 
-    # (Optional) Save interval (in seconds) for intermediate file saves. A
-    # final save will also be made on extractor shutdown.
-    #save-interval: 30s
+      # (Optional) Save interval (in seconds) for intermediate file saves. A
+      # final save will also be made on extractor shutdown.
+      #save-interval: 30s
 
-    # Uncomment to use a RAW table for state storage
-    #type: raw
-      # RAW database and table to use
-    #database:
-    #table:
+      # Uncomment to use a RAW table for state storage
+      #type: raw
+        # RAW database and table to use
+      #database:
+      #table:
 
-    # (Optional) Upload interval (in seconds) for intermediate uploads. A
-    # final upload will also be made on extractor shutdown.
-    #upload-interval: 30s
+      # (Optional) Upload interval (in seconds) for intermediate uploads. A
+      # final upload will also be made on extractor shutdown.
+      #upload-interval: 30s
 
 
   files:
