@@ -124,3 +124,12 @@ def test_find_raw_database_gaps_matches_table_yaml_case_insensitively(tmp_path: 
     (raw_dir / "contextualization_state.DataBase.yaml").write_text("dbName: contextualizationState\n")
 
     assert find_raw_database_gaps(str(tmp_path)) == []
+
+
+def test_find_raw_database_gaps_matches_uppercase_names_and_yml_extension(tmp_path: Path) -> None:
+    raw_dir = tmp_path / "sourcesystem" / "cdf_db_extractor" / "raw"
+    raw_dir.mkdir(parents=True)
+    (raw_dir / "db_postgres.TABLE.yml").write_text('dbName: "db_postgres"\ntableName: mytable\n')
+    (raw_dir / "db_postgres.DATABASE.YML").write_text('dbName: "db_postgres"\n')
+
+    assert find_raw_database_gaps(str(tmp_path)) == []

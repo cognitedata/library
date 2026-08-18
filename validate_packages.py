@@ -303,13 +303,17 @@ def find_raw_database_gaps(base_path: str = "modules") -> list[RawDatabaseGap]:
         module_path = raw_dir.parent.relative_to(Path(base_path)).as_posix()
 
         declared_db_names: set[str] = set()
-        for database_file in raw_dir.glob("*.[Dd]ata[Bb]ase.yaml"):
-            declared_db_names.update(_extract_db_names(database_file))
-
         referenced_by: defaultdict[str, list[str]] = defaultdict(list)
-        for table_file in raw_dir.glob("*.[Tt]able.yaml"):
-            for db_name in _extract_db_names(table_file):
-                referenced_by[db_name].append(table_file.name)
+        for file_path in sorted(raw_dir.iterdir()):
+            if not file_path.is_file():
+                continue
+            # Match the Cognite Toolkit's own file matching: any casing, .yaml or .yml.
+            name_lower = file_path.name.lower()
+            if name_lower.endswith((".database.yaml", ".database.yml")):
+                declared_db_names.update(_extract_db_names(file_path))
+            elif name_lower.endswith((".table.yaml", ".table.yml")):
+                for db_name in _extract_db_names(file_path):
+                    referenced_by[db_name].append(file_path.name)
 
         for db_name, table_files in sorted(referenced_by.items()):
             if db_name not in declared_db_names:
