@@ -86,14 +86,16 @@ schemaSpace: cdf_cdm
 annotationSpace: springfield_instances
 ```
 
-5. **Reference shared assets with `[[extra_resources]]`** — only when files live **outside** the module folder. Each `location` is relative to `modules/`. Prefer keeping assets inside the module when possible; use `extra_resources` for shared YAML under `common/cdf_common` and similar. `validate_packages.py` fails if a path does not exist.
+5. **If the module has a `raw/` directory, give every RAW database its own `.Database.yaml`** — every `dbName` referenced by a `*.Table.yaml` file must have a matching `<name>.Database.yaml` file **in the same module's `raw/` directory**. The Cognite Toolkit only creates RAW databases from `*.Database.yaml` files, and RAW tables depend on their database, so a module that references a database declared only in a *different* module fails at `cdf deploy` with a "DB not found" error the moment someone deploys it on its own (deployment packs are independently selectable — don't assume a sibling module is always deployed alongside it). `validate_packages.py` enforces this automatically; run it after touching any `raw/` file.
+
+6. **Reference shared assets with `[[extra_resources]]`** — only when files live **outside** the module folder. Each `location` is relative to `modules/`. Prefer keeping assets inside the module when possible; use `extra_resources` for shared YAML under `common/cdf_common` and similar. `validate_packages.py` fails if a path does not exist.
 
 ```toml
 [[extra_resources]]
 location = "common/cdf_common/data_sets/demo.DataSet.yaml"
 ```
 
-6. **Wire the module into `packages.toml`** — add the module path (relative to `modules/`) to every pack that should include it.
+7. **Wire the module into `packages.toml`** — add the module path (relative to `modules/`) to every pack that should include it.
 
 ## Adding a new package
 
