@@ -273,7 +273,7 @@ class RawDatabaseGap:
     table_files: tuple[str, ...]
 
 
-_DB_NAME_PATTERN = re.compile(r'^\s*-?\s*dbName:\s*["\']?(.+?)["\']?\s*$', re.MULTILINE)
+_DB_NAME_PATTERN = re.compile(r'^\s*-?\s*dbName:\s*["\']?(.+?)["\']?\s*(?:#.*)?$', re.MULTILINE)
 
 
 def _extract_db_names(path: Path) -> list[str]:

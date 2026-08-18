@@ -102,3 +102,14 @@ def test_find_raw_database_gaps_handles_list_shaped_table_files(tmp_path: Path) 
     (raw_dir / "isa_all_manufacturing.Database.yaml").write_text("dbName: {{ rawDatabase }}\n")
 
     assert find_raw_database_gaps(str(tmp_path)) == []
+
+
+def test_find_raw_database_gaps_ignores_trailing_comments(tmp_path: Path) -> None:
+    raw_dir = tmp_path / "sourcesystem" / "cdf_pi_data_dump" / "raw"
+    raw_dir.mkdir(parents=True)
+    (raw_dir / "timeseries.Table.yaml").write_text(
+        "dbName: cfihos_oil_and_gas  # some comment\ntableName: timeseries\n"
+    )
+    (raw_dir / "cfihos_oil_and_gas.Database.yaml").write_text('dbName: "cfihos_oil_and_gas"  # another comment\n')
+
+    assert find_raw_database_gaps(str(tmp_path)) == []
