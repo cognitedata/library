@@ -10,7 +10,6 @@ import re
 import time
 from collections.abc import Callable
 from contextlib import contextmanager
-from dataclasses import dataclass
 from functools import lru_cache
 
 import psutil
@@ -46,140 +45,6 @@ def monitor_memory_usage(logger: CogniteFunctionLogger, operation_name: str = ""
 def cleanup_memory():
     """Force garbage collection"""
     gc.collect()
-
-
-# ===== CACHING UTILITIES =====
-
-@dataclass
-class CacheStats:
-    """Cache statistics for monitoring"""
-    hits: int = 0
-    misses: int = 0
-    
-    @property
-    def hit_rate(self) -> float:
-        total = self.hits + self.misses
-        return self.hits / total if total > 0 else 0.0
-
-
-class OptimizedDisciplineCache:
-    """Optimized caching for discipline codes with statistics"""
-    
-    def __init__(self):
-        self.stats = CacheStats()
-        # Pre-populate with NORSOK discipline codes
-        self._discipline_cache = {
-            "KA": "Emergency Power System",
-            "PI": "Pressure Instrument",
-            "EL": "Electrical System",
-            "PS": "Process System",
-            "IN": "Instrumentation",
-            "HV": "HVAC System",
-            "ME": "Mechanical Equipment",
-            "TE": "Telecommunication",
-            "FI": "Fire & Gas Detection",
-            "ES": "Emergency Shutdown System",
-            "MO": "Monitoring System",
-            "PU": "Pumps and Piping",
-            "VA": "Valves and Actuators",
-            "ST": "Structures",
-            "LY": "Hydraulic System",
-            "TIC": "Technical Information and Communication",
-            "TT": "Temperature Transmitter",
-            "PIC": "Pressure Indicating Controller",
-            "PT": "Pressure Transmitter",
-            "FT": "Flow Transmitter",
-            "NY": "Non-standard code (project-specific or unknown)",
-            "LIC": "Level Indicating Controller",
-            "FE": "Fire and Gas Detection Equipment",
-            "YA": "Analyzer Systems",
-            "PDT": "Differential Pressure Transmitter",
-            "XA": "Cathodic Protection Systems",
-            "GK": "Gas Compression Systems",
-            "PC": "Process Control Systems",
-            "FZSL": "Fire Zone Safety Logic",
-            "ESDV": "Emergency Shutdown Valve",
-            "PDI": "Pressure Differential Indicator",
-            "LV": "Level Valve",
-            "LT": "Level Transmitter",
-            "ZA": "Miscellaneous Systems",
-            "YZSL": "Utility Zone Safety Logic",
-            "YZSH": "Utility Zone Safety High",
-            "ZS": "Safety Systems",
-            "A": "Automation / Analyzer Systems",
-            "B": "Building / Structural",
-            "C": "Civil / Concrete / Roads",
-            "D": "Drilling Equipment",
-            "E": "Electrical",
-            "F": "Fire & Safety Systems",
-            "G": "Gas & Metering",
-            "H": "HVAC (Heating, Ventilation & Air Conditioning)",
-            "I": "Instrumentation & Control",
-            "J": "Jacking & Lifting Equipment",
-            "K": "Telecommunications",
-            "L": "Loading / Lifting Equipment",
-            "M": "Mechanical / Rotating Equipment",
-            "N": "Naval / Marine Systems",
-            "P": "Process / Piping",
-            "Q": "Subsea Equipment",
-            "R": "Riser System",
-            "S": "Structural",
-            "T": "Turbines / Power Generation",
-            "U": "Umbilicals",
-            "V": "Valves / Actuators",
-            "W": "Water Treatment",
-            "X": "Cathodic Protection / Corrosion",
-            "Y": "Utility Systems",
-            "Z": "Miscellaneous / Special Systems",
-        }
-    
-    def get_discipline_meaning(self, code: str) -> str:
-        """Get discipline meaning with caching"""
-        if code in self._discipline_cache:
-            self.stats.hits += 1
-            return self._discipline_cache[code]
-        
-        self.stats.misses += 1
-        return "Unknown Discipline"
-    
-    def get_stats(self) -> CacheStats:
-        """Get cache statistics"""
-        return self.stats
-
-
-# ===== OPTIMIZED REGEX UTILITIES =====
-
-class RegexPatternCache:
-    """Optimized regex pattern caching"""
-    
-    def __init__(self):
-        self._pattern_cache: dict[str, re.Pattern] = {}
-        self._compile_norsok_patterns()
-    
-    def _compile_norsok_patterns(self):
-        """Pre-compile common NORSOK patterns"""
-        patterns = {
-            'norsok_split': r'[-]',
-            'tag_validation': r'^[A-Z0-9]+-[A-Z0-9]+-[A-Z0-9]+',
-            'equipment_number': r'[A-Z0-9]+-[A-Z0-9]+-(.+)',
-        }
-        
-        for name, pattern in patterns.items():
-            self._pattern_cache[name] = re.compile(pattern)
-    
-    @lru_cache(maxsize=1000)
-    def get_pattern(self, pattern: str) -> re.Pattern:
-        """Get compiled regex pattern with caching"""
-        if pattern not in self._pattern_cache:
-            self._pattern_cache[pattern] = re.compile(pattern)
-        return self._pattern_cache[pattern]
-    
-    def split_norsok_tag(self, tag: str) -> list[str]:
-        """Optimized NORSOK tag splitting"""
-        pattern = self._pattern_cache.get('norsok_split')
-        if pattern:
-            return pattern.split(tag)
-        return tag.split('-')
 
 
 # ===== BATCH PROCESSING UTILITIES =====
@@ -265,14 +130,10 @@ class OptimizedMetadataProcessor:
     
     def __init__(self, logger: CogniteFunctionLogger):
         self.logger = logger
-        self.discipline_cache = OptimizedDisciplineCache()
-        self.regex_cache = RegexPatternCache()
         self.batch_processor = BatchProcessor()
         self.stats = {
             'processed': 0,
             'updated': 0,
-            'cache_hits': 0,
-            'cache_misses': 0
         }
     
     def process_timeseries_metadata(self, node: Node, view_id: ViewId, 
@@ -284,29 +145,15 @@ class OptimizedMetadataProcessor:
             properties = node.properties[view_id]
             
             name = str(properties.get("name", ""))
-            description = str(properties.get("description", ""))
             aliases_raw = properties.get("aliases", [])
-            tags_raw = properties.get("tags", [])
             aliases = [str(x) for x in aliases_raw] if isinstance(aliases_raw, list) else []
-            tags = [str(x) for x in tags_raw] if isinstance(tags_raw, list) else []
             org_aliases = aliases.copy()
-            org_tags = tags.copy()
 
-            # Optimized parsing
-            summary, upd_tags, upd_aliases = self._parse_norsok_tag_optimized(name, tags, aliases)
-            
-            # Check if update is needed
+            upd_aliases = self._get_timeseries_alias_list_optimized(name, tuple(aliases))
+
             update_needed = False
             properties_dict = {}
-            
-            if not description and summary:
-                properties_dict["description"] = summary
-                update_needed = True
-            
-            if upd_tags != org_tags:
-                properties_dict["tags"] = upd_tags
-                update_needed = True
-            
+
             if upd_aliases != org_aliases:
                 properties_dict["aliases"] = upd_aliases
                 update_needed = True
@@ -428,49 +275,6 @@ class OptimizedMetadataProcessor:
             self.logger.error(f"Error processing file {node.external_id}: {e}")
             return None
     
-    def _parse_norsok_tag_optimized(
-        self, tag: str, tags: list[str], aliases: list[str]
-    ) -> tuple[str | None, list[str], list[str]]:
-        """Optimized NORSOK tag parsing with caching"""
-
-        try:
-            tag_elements = self.regex_cache.split_norsok_tag(tag)
-
-            if len(tag_elements) < 3:
-                return None, tags, aliases
-
-            site = tag_elements[0]
-            if f"site:{site}" not in tags:
-                tags.append(f"site:{site}")
-
-            discipline_code = tag_elements[1]
-            aliases = self._get_timeseries_alias_list_optimized(tag, tuple(aliases))
-
-            area = discipline_code
-            equipment_number = "-".join(tag_elements[2:]) if len(tag_elements) > 2 else None
-
-            if discipline_code and f"discipline:{discipline_code}" not in tags:
-                tags.append(f"discipline:{discipline_code}")
-            if area and f"area:{area}" not in tags:
-                tags.append(f"area:{area}")
-
-            summary = f"Area/System Code: {area}"
-            discipline_meaning = self.discipline_cache.get_discipline_meaning(discipline_code)
-            summary = (
-                f"{summary} - Discipline Code: {discipline_code}"
-                f" - Discipline Meaning: {discipline_meaning}"
-            )
-            if discipline_meaning == "Unknown Discipline":
-                self.logger.warning(f"Unknown discipline code: {discipline_code}")
-
-            if equipment_number:
-                summary = f"{summary} - Equipment Number: {equipment_number}"
-            return summary, tags, aliases
-        except Exception as e:
-            self.logger.error(f"Error: invalid tag : {tag} - error: {e}")
-            return None, tags, aliases
-
-
     def _parse_asset_tag_optimized(self, name: str, aliases: list[str], 
                                   root: str, tags: list[str]) -> tuple[list[str], list[str]]:
         """Optimized asset tag parsing"""
@@ -538,14 +342,10 @@ class OptimizedMetadataProcessor:
     
     def get_stats(self) -> dict[str, float | int]:
         """Get processing statistics"""
-        cache_stats = self.discipline_cache.get_stats()
         return {
             'processed': self.stats['processed'],
             'updated': self.stats['updated'],
             'update_rate': self.stats['updated'] / self.stats['processed'] if self.stats['processed'] > 0 else 0,
-            'cache_hit_rate': cache_stats.hit_rate,
-            'cache_hits': cache_stats.hits,
-            'cache_misses': cache_stats.misses
         }
 
 
@@ -612,12 +412,10 @@ def optimize_metadata_processing():
 
 __all__ = [
     'BatchProcessor',
-    'OptimizedDisciplineCache',
     'OptimizedMetadataProcessor',
     'PerformanceBenchmark',
-    'RegexPatternCache',
     'cleanup_memory',
     'monitor_memory_usage',
     'optimize_metadata_processing',
-    'time_operation'
+    'time_operation',
 ] 

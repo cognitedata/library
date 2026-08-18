@@ -130,7 +130,7 @@ print(f"Status: {result['status']}")
 
 #### 1. **OptimizedMetadataProcessor**
 - Processes timeseries and asset metadata with caching
-- Applies discipline-based categorization using NORSOK standards
+- Adds normalized tag aliases for entity matching
 - Handles batch updates with memory management
 
 #### 2. **BatchProcessor**
@@ -147,9 +147,9 @@ print(f"Status: {result['status']}")
 
 1. **Initialization**: Apply global optimizations and setup monitoring
 2. **Configuration**: Load parameters from extraction pipeline
-3. **Timeseries Processing**: 
+3. **Timeseries Processing**:
    - Fetch timeseries in batches
-   - Apply discipline classification
+   - Add normalized aliases when tag patterns match
    - Update metadata with optimized batch operations
 4. **Asset Processing**:
    - Fetch assets in batches
@@ -159,7 +159,7 @@ print(f"Status: {result['status']}")
 
 ### Performance Optimizations
 
-- **Caching**: Pre-compiled regex patterns and discipline mappings
+- **Caching**: LRU-cached alias generation for repeated tag patterns
 - **Batch Processing**: Configurable batch sizes with retry logic
 - **Memory Management**: Automatic cleanup and monitoring
 - **Concurrent Processing**: Optimized for parallel operations

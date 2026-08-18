@@ -109,10 +109,11 @@ def metadata_update(
         
         # Log performance statistics
         processor_stats = metadata_processor.get_stats()
-        logger.info(f"📊 Processing Stats: {processor_stats['processed']} processed, "
-                   f"{processor_stats['updated']} updated, "
-                   f"{processor_stats['update_rate']:.2%} update rate, "
-                   f"{processor_stats['cache_hit_rate']:.2%} cache hit rate")
+        logger.info(
+            f"📊 Processing Stats: {processor_stats['processed']} processed, "
+            f"{processor_stats['updated']} updated, "
+            f"{processor_stats['update_rate']:.2%} update rate"
+        )
         
         # Final cleanup and monitoring
         cleanup_memory()

@@ -101,14 +101,14 @@ cdf_entity_matching/
 
 **Key Features**:
 - ⚡ **Optimized processing** with caching and batch operations
-- 🏷️ **Discipline classification** using NORSOK standards
+- 🏷️ **Alias normalization** for PI-style tags to improve matching
 - 🧠 **Memory optimization** with automatic cleanup
 - 📊 **Performance monitoring** with detailed benchmarking
 - 🛡️ **Enhanced error handling** with comprehensive logging
 
 **Use Cases**:
 - Metadata enrichment for better search
-- Discipline-based asset categorization
+- Normalized aliases for entity matching
 - Data quality improvement
 - Search optimization
 

@@ -65,3 +65,4 @@ Desktop.ini
 cdf.toml
 config.dev.yaml
 *.jib03
+.env.jib02
