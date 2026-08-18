@@ -113,3 +113,14 @@ def test_find_raw_database_gaps_ignores_trailing_comments(tmp_path: Path) -> Non
     (raw_dir / "cfihos_oil_and_gas.Database.yaml").write_text('dbName: "cfihos_oil_and_gas"  # another comment\n')
 
     assert find_raw_database_gaps(str(tmp_path)) == []
+
+
+def test_find_raw_database_gaps_matches_table_yaml_case_insensitively(tmp_path: Path) -> None:
+    raw_dir = tmp_path / "common" / "cdf_common" / "raw"
+    raw_dir.mkdir(parents=True)
+    (raw_dir / "contextualization_state.table.yaml").write_text(
+        "dbName: contextualizationState\ntableName: diagramParsing\n"
+    )
+    (raw_dir / "contextualization_state.DataBase.yaml").write_text("dbName: contextualizationState\n")
+
+    assert find_raw_database_gaps(str(tmp_path)) == []

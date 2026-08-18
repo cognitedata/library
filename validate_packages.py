@@ -283,7 +283,7 @@ def _extract_db_names(path: Path) -> list[str]:
     templated Jinja expression (for example ``{{ location }}``), which PyYAML's
     safe loader cannot parse as a plain string.
     """
-    return [match.strip() for match in _DB_NAME_PATTERN.findall(path.read_text())]
+    return [match.strip() for match in _DB_NAME_PATTERN.findall(path.read_text(encoding="utf-8"))]
 
 
 def find_raw_database_gaps(base_path: str = "modules") -> list[RawDatabaseGap]:
@@ -307,7 +307,7 @@ def find_raw_database_gaps(base_path: str = "modules") -> list[RawDatabaseGap]:
             declared_db_names.update(_extract_db_names(database_file))
 
         referenced_by: defaultdict[str, list[str]] = defaultdict(list)
-        for table_file in raw_dir.glob("*.Table.yaml"):
+        for table_file in raw_dir.glob("*.[Tt]able.yaml"):
             for db_name in _extract_db_names(table_file):
                 referenced_by[db_name].append(table_file.name)
 
