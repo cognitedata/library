@@ -3,21 +3,19 @@ config:
   # Runtime config for the Files Extractor — see ep_files.ExtractionPipeline.yaml
   # documentation block for required environment variables and install steps.
 
+
   # (Optional) Configure logging to standard out (console) and/or file. Level can
   # be DEBUG, INFO, WARNING or CRITICAL
-  log-handlers:
+  logger:
     # Logging to console/terminal. Remove or comment out to disable terminal
     # logging
-    - type: console
+    console:
       level: INFO
 
     # Logging to file. Include to enable file logging
-    # - type: file
-    #   level: INFO
-    #   path: "/path/to/file.log"
-
-      # (Optional) Log retention (in days).
-      #retention: 7
+    #file:
+      #level: INFO
+      #path: "/path/to/file.log"
 
 
   # (Optional) Where to store extraction states (progress) between runs.
