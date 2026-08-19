@@ -15,7 +15,7 @@ from unittest.mock import MagicMock
 # Add current directory to path
 sys.path.append(str(Path(__file__).parent))
 
-from cognite.client.data_classes.data_modeling import ViewId
+from cognite.client.data_classes.data_modeling import NodeApply, ViewId
 from logger import CogniteFunctionLogger
 from metadata_optimizations import (
     BatchProcessor,
@@ -59,15 +59,25 @@ class TestBatchProcessing(unittest.TestCase):
     def setUp(self) -> None:
         self.logger = CogniteFunctionLogger("DEBUG")
 
-    def test_batch_processor(self) -> None:
-        """Test batch processing functionality"""
-        print("🧪 Testing BatchProcessor...")
+    def test_apply_updates_chunks_by_constructor_batch_size(self) -> None:
+        """Updates are applied in chunks of the batch size given to the constructor"""
+        client = MagicMock()
+        updates = [NodeApply(space="sp", external_id=f"item-{i}") for i in range(7)]
 
-        # Smoke-test that BatchProcessor can be instantiated. Full NodeList
-        # integration is exercised in dedicated end-to-end tests.
-        BatchProcessor(batch_size=3)
+        applied = BatchProcessor(batch_size=3).apply_updates_in_batches(client, updates, self.logger)
 
-        print("✅ BatchProcessor test passed")
+        self.assertEqual(applied, 7)
+        batch_sizes = [len(call.args[0]) for call in client.data_modeling.instances.apply.call_args_list]
+        self.assertEqual(batch_sizes, [3, 3, 1])
+
+    def test_apply_updates_with_no_updates(self) -> None:
+        """An empty update list applies nothing"""
+        client = MagicMock()
+
+        applied = BatchProcessor().apply_updates_in_batches(client, [], self.logger)
+
+        self.assertEqual(applied, 0)
+        client.data_modeling.instances.apply.assert_not_called()
 
 
 class TestOptimizedMetadataProcessor(unittest.TestCase):
@@ -472,7 +482,6 @@ class TestIntegrationScenarios(unittest.TestCase):
 
         # Initialize components
         processor = OptimizedMetadataProcessor(self.logger)
-        BatchProcessor(batch_size=10)
         benchmark = PerformanceBenchmark(self.logger)
 
         # Simulate processing workflow
@@ -521,109 +530,5 @@ class TestIntegrationScenarios(unittest.TestCase):
         print("✅ Large dataset simulation test passed")
 
 
-def run_performance_comparison() -> None:
-    """Run performance comparison between optimized and non-optimized approaches"""
-    print("\n🚀 PERFORMANCE COMPARISON")
-    print("=" * 50)
-
-    logger = CogniteFunctionLogger("INFO")
-
-    # Non-optimized approach (simulated)
-    def non_optimized_processing() -> list[list[str]]:
-        results = []
-        for i in range(1000):
-            # Simulate slow operations
-            import re
-            name = f"test-item-{i}"
-            aliases = ["existing"]
-
-            # No caching - recompile regex each time
-            pattern = re.compile(r'[-]')
-            pattern.split(name)
-
-            # Slow list operations
-            if name not in aliases:
-                aliases.append(name)
-
-            results.append(aliases)
-        return results
-
-    # Optimized approach
-    def optimized_processing() -> list[list[str]]:
-        processor = OptimizedMetadataProcessor(logger)
-        results = []
-        for i in range(1000):
-            name = f"test-item-{i}"
-            aliases = processor._get_timeseries_alias_list_optimized(name, ("existing",))
-            results.append(aliases)
-        return results
-
-    # Benchmark both approaches
-    print("Testing non-optimized approach...")
-    start = time.time()
-    non_opt_results = non_optimized_processing()
-    non_opt_time = time.time() - start
-
-    print("Testing optimized approach...")
-    start = time.time()
-    opt_results = optimized_processing()
-    opt_time = time.time() - start
-
-    # Calculate improvement
-    improvement = ((non_opt_time - opt_time) / non_opt_time) * 100
-
-    print("\n📊 Performance Results:")
-    print(f"   Non-optimized: {non_opt_time:.3f}s")
-    print(f"   Optimized:     {opt_time:.3f}s")
-    print(f"   Improvement:   {improvement:.1f}% faster")
-    print(f"   Speedup:       {non_opt_time/opt_time:.1f}x")
-
-    # Verify results are equivalent
-    assert len(non_opt_results) == len(opt_results)
-    print("   ✅ Results verified as equivalent")
-
-
-def main() -> None:
-    """Run all tests"""
-    print("🧪 METADATA UPDATE OPTIMIZATION TESTS")
-    print("=" * 50)
-
-    # Run unit tests
-    test_classes = [
-        TestPerformanceMonitoring,
-        TestBatchProcessing,
-        TestOptimizedMetadataProcessor,
-        TestPerformanceBenchmark,
-        TestGlobalOptimizations,
-        TestIntegrationScenarios,
-    ]
-
-    for test_class in test_classes:
-        print(f"\n🔬 Running {test_class.__name__}...")
-        suite = unittest.TestLoader().loadTestsFromTestCase(test_class)
-        with open("/dev/null", "w") as devnull:
-            runner = unittest.TextTestRunner(verbosity=0, stream=devnull)
-            result = runner.run(suite)
-
-        if result.wasSuccessful():
-            print(f"✅ {test_class.__name__} - All tests passed!")
-        else:
-            print(f"❌ {test_class.__name__} - Some tests failed!")
-            for failure in result.failures + result.errors:
-                print(f"   Failed: {failure[0]}")
-
-    # Run performance comparison
-    run_performance_comparison()
-
-    print("\n🎉 ALL TESTS COMPLETED!")
-    print("\n📝 Summary:")
-    print("   ✅ Performance monitoring utilities tested")
-    print("   ✅ Batch processing verified")
-    print("   ✅ Metadata processing optimizations confirmed")
-    print("   ✅ Performance benchmarking working")
-    print("   ✅ Integration scenarios tested")
-    print("   ✅ Performance improvements demonstrated")
-
-
 if __name__ == "__main__":
-    main()
+    unittest.main()

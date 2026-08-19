@@ -14,7 +14,7 @@ from functools import lru_cache
 
 import psutil
 from cognite.client import CogniteClient
-from cognite.client.data_classes.data_modeling import Node, NodeApply, NodeList, NodeOrEdgeData, ViewId
+from cognite.client.data_classes.data_modeling import Node, NodeApply, NodeOrEdgeData, ViewId
 from cognite.client.exceptions import CogniteAPIError
 from constants import INVALID_ASSET_TAG, MANAGED_ASSET_TAG_PREFIX
 from logger import CogniteFunctionLogger
@@ -54,47 +54,21 @@ def cleanup_memory():
 # ===== BATCH PROCESSING UTILITIES =====
 
 class BatchProcessor:
-    """Optimized batch processing for metadata updates"""
+    """Applies metadata updates to CDF in retried batches"""
     
-    def __init__(self, batch_size: int = 1000, max_workers: int = 4):
+    def __init__(self, batch_size: int = 1000):
         self.batch_size = batch_size
-        self.max_workers = max_workers
-    
-    def process_nodes_in_batches(self, nodes: NodeList[Node], 
-                                process_func: Callable,
-                                logger: CogniteFunctionLogger,
-                                *args, **kwargs) -> list[NodeApply]:
-        """Process nodes in optimized batches"""
-        
-        results = []
-        node_type = kwargs.get('node_type', 'nodes')
-        total_nodes = len(nodes[node_type])
-        
-        with time_operation(f"Batch processing {total_nodes} {node_type}", logger):
-            for i in range(0, total_nodes, self.batch_size):
-                batch_end = min(i + self.batch_size, total_nodes)
-                batch = nodes[node_type][i:batch_end]
-                
-                batch_results = process_func(batch, *args, **kwargs)
-                if batch_results:
-                    results.extend(batch_results)
-                
-                # Memory cleanup every 10 batches
-                if (i // self.batch_size) % 10 == 0:
-                    cleanup_memory()
-                    monitor_memory_usage(logger, f"After batch {i//self.batch_size + 1}")
-        
-        return results
     
     def apply_updates_in_batches(self, client: CogniteClient,
                                 updates: list[NodeApply],
                                 logger: CogniteFunctionLogger,
-                                batch_size: int = 2000) -> int:
+                                batch_size: int | None = None) -> int:
         """Apply updates in optimized batches with retry logic"""
         
         if not updates:
             return 0
         
+        batch_size = batch_size or self.batch_size
         total_applied = 0
         
         with time_operation(f"Applying {len(updates)} updates in batches", logger):
@@ -134,7 +108,6 @@ class OptimizedMetadataProcessor:
     
     def __init__(self, logger: CogniteFunctionLogger):
         self.logger = logger
-        self.batch_processor = BatchProcessor()
         self.stats = {
             'processed': 0,
             'updated': 0,
@@ -274,47 +247,6 @@ class OptimizedMetadataProcessor:
             self.logger.error(f"Error processing asset {node.external_id}: {e}")
             return None
     
-    def process_file_metadata(self, node: Node, view_id: ViewId,
-                             node_space: str) -> NodeApply | None:
-        """Process file metadata with optimizations"""
-        
-        try:
-            ext_id = node.external_id
-            properties = node.properties.get(view_id)
-            if not properties:
-                self.logger.warning(f"No properties for view {view_id} on file: {ext_id}")
-                return None
-
-            name = str(properties.get("name", ""))
-            aliases_raw = properties.get("aliases", [])
-            aliases = [str(x) for x in aliases_raw] if isinstance(aliases_raw, list) else []
-            org_aliases = aliases.copy()
-            # Optimized alias generation
-            upd_aliases = self._get_file_alias_list_optimized(name, tuple(aliases))
-            
-            self.stats['processed'] += 1
-            
-            if upd_aliases != org_aliases:
-                self.stats['updated'] += 1
-                self.logger.debug(f"Updating file: {ext_id} with {len(upd_aliases)} aliases")
-                
-                return NodeApply(
-                    space=node_space,
-                    external_id=ext_id,
-                    sources=[
-                        NodeOrEdgeData(
-                            source=view_id,
-                            properties={"aliases": upd_aliases},
-                        )
-                    ],
-                )
-            
-            return None
-            
-        except Exception as e:
-            self.logger.error(f"Error processing file {node.external_id}: {e}")
-            return None
-    
     def _parse_asset_tag_optimized(
         self,
         name: str,
@@ -364,23 +296,6 @@ class OptimizedMetadataProcessor:
 
         if cleaned_value and cleaned_value not in aliases:
             aliases.append(cleaned_value)
-        
-        return aliases
-    
-    @staticmethod
-    @lru_cache(maxsize=5000)
-    def _get_file_alias_list_optimized(name: str, aliases_tuple: tuple[str, ...]) -> list[str]:
-        """Optimized file alias generation with caching"""
-        aliases = list(aliases_tuple)
-        
-        # Add name if not in aliases
-        if name not in aliases:
-            aliases.append(name)
-        
-        # Add name without extension
-        name_no_ext = name.split('.')[0] if '.' in name else name
-        if name_no_ext not in aliases:
-            aliases.append(name_no_ext)
         
         return aliases
     
