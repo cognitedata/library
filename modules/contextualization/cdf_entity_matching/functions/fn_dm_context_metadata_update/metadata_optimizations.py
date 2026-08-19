@@ -337,8 +337,9 @@ class OptimizedMetadataProcessor:
             self.logger.error(f"Error parsing asset tag {name}: {e}")
             return tags, aliases
 
+    @staticmethod
     @lru_cache(maxsize=5000)
-    def _get_timeseries_alias_list_optimized(self, name: str, aliases_tuple: tuple[str, ...] = ()) -> list[str]:
+    def _get_timeseries_alias_list_optimized(name: str, aliases_tuple: tuple[str, ...] = ()) -> list[str]:
         """Optimized timeseries alias generation with caching"""
         aliases = list(aliases_tuple)
 
@@ -351,8 +352,9 @@ class OptimizedMetadataProcessor:
 
         return aliases
     
+    @staticmethod
     @lru_cache(maxsize=5000)
-    def _get_asset_alias_list_optimized(self, name: str, aliases_tuple: tuple[str, ...]) -> list[str]:
+    def _get_asset_alias_list_optimized(name: str, aliases_tuple: tuple[str, ...]) -> list[str]:
         """Optimized asset alias generation with caching"""
         aliases = list(aliases_tuple)
 
@@ -365,8 +367,9 @@ class OptimizedMetadataProcessor:
         
         return aliases
     
+    @staticmethod
     @lru_cache(maxsize=5000)
-    def _get_file_alias_list_optimized(self, name: str, aliases_tuple: tuple[str, ...]) -> list[str]:
+    def _get_file_alias_list_optimized(name: str, aliases_tuple: tuple[str, ...]) -> list[str]:
         """Optimized file alias generation with caching"""
         aliases = list(aliases_tuple)
         
