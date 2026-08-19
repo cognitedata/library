@@ -23,6 +23,11 @@ from tenacity import retry, stop_after_attempt, wait_exponential
 # Tag pattern shared by timeseries and asset aliases, e.g. VAL_23-KA-9101 -> 23_KA_9101
 ALIAS_PATTERN = re.compile(r"(\d{2})[-_.:]([A-Z]{2,3})[-_.:](\d{4,5})")
 
+# The exact shape of an alias this function generates: the ALIAS_PATTERN groups joined
+# by "_" and nothing else. Matched in full, so an alias that merely contains a tag
+# pattern (e.g. "spare for 23-AB-1234") is someone else's data and is left alone.
+MANAGED_ALIAS_PATTERN = re.compile(r"\d{2}_[A-Z]{2,3}_\d{4,5}")
+
 # ===== PERFORMANCE MONITORING =====
 
 @contextmanager
@@ -136,7 +141,8 @@ class OptimizedMetadataProcessor:
             org_aliases = (
                 [str(x) for x in aliases_raw] if isinstance(aliases_raw, list) else []
             )
-            aliases = [] if update_all else org_aliases.copy()
+            # Only the generated aliases are rebuilt; hand-curated ones are preserved.
+            aliases = _unmanaged_aliases(org_aliases) if update_all else org_aliases.copy()
 
             upd_aliases = self._get_timeseries_alias_list_optimized(name, tuple(aliases))
 
@@ -195,7 +201,8 @@ class OptimizedMetadataProcessor:
                 [str(x) for x in aliases_raw] if isinstance(aliases_raw, list) else []
             )
             org_tags = [str(x) for x in tags_raw] if isinstance(tags_raw, list) else []
-            aliases = [] if update_all else org_aliases.copy()
+            # Only the generated aliases are rebuilt; hand-curated ones are preserved.
+            aliases = _unmanaged_aliases(org_aliases) if update_all else org_aliases.copy()
             # Managed tags are always rebuilt so a changed or removed root relation
             # cannot leave a stale root:* tag behind.
             tags = [
@@ -349,6 +356,11 @@ class PerformanceBenchmark:
 
 
 # ===== UTILITY FUNCTIONS =====
+
+def _unmanaged_aliases(aliases: list[str]) -> list[str]:
+    """Return the aliases this function did not generate, preserving their order."""
+    return [alias for alias in aliases if not MANAGED_ALIAS_PATTERN.fullmatch(alias)]
+
 
 def _direct_relation_external_id(relation: object) -> str:
     """Return the external id from a direct relation property value."""

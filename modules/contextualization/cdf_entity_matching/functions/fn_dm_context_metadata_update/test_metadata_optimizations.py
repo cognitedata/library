@@ -132,8 +132,8 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
 
         print("✅ Timeseries skip unchanged aliases test passed")
 
-    def test_timeseries_update_all_replaces_stale_aliases(self) -> None:
-        """Test updateAll clears stale aliases and recomputes managed values"""
+    def test_timeseries_update_all_replaces_stale_managed_alias(self) -> None:
+        """Test updateAll drops a managed alias left over from an earlier name"""
         print("🧪 Testing timeseries updateAll...")
 
         node = MagicMock()
@@ -141,7 +141,7 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
         node.properties = {
             self.view_id: {
                 "name": "VAL_23-KA-9101:X.Value",
-                "aliases": ["stale_alias", "23_KA_9101"],
+                "aliases": ["11_PT_2222", "23_KA_9101"],
             }
         }
 
@@ -154,6 +154,33 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
         self.assertEqual(properties["aliases"], ["23_KA_9101"])
 
         print("✅ Timeseries updateAll test passed")
+
+    def test_timeseries_update_all_keeps_unmanaged_aliases(self) -> None:
+        """Test updateAll leaves aliases this function never generated in place"""
+        print("🧪 Testing timeseries updateAll keeps unmanaged aliases...")
+
+        node = MagicMock()
+        node.external_id = "pi:160005"
+        node.properties = {
+            self.view_id: {
+                "name": "VAL_23-KA-9101:X.Value",
+                # Curated by hand: the second one embeds a tag pattern but is not a
+                # value this function would ever have written.
+                "aliases": ["operator note", "spare for 23-AB-1234"],
+            }
+        }
+
+        result = self.processor.process_timeseries_metadata(
+            node, self.view_id, "inst_location", update_all=True
+        )
+
+        self.assertIsNotNone(result)
+        self.assertEqual(
+            result.sources[0].properties["aliases"],
+            ["operator note", "spare for 23-AB-1234", "23_KA_9101"],
+        )
+
+        print("✅ Timeseries updateAll unmanaged alias test passed")
 
     def test_timeseries_update_all_applies_even_when_aliases_already_correct(self) -> None:
         """Test updateAll writes managed metadata even when values already match"""
@@ -177,8 +204,8 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
 
         print("✅ Timeseries updateAll re-apply test passed")
 
-    def test_asset_update_all_replaces_stale_aliases(self) -> None:
-        """Test updateAll clears stale aliases and recomputes managed values"""
+    def test_asset_update_all_replaces_stale_managed_alias(self) -> None:
+        """Test updateAll drops managed aliases but keeps unmanaged ones"""
         print("🧪 Testing asset updateAll...")
 
         asset_view_id = ViewId(space="cdf_cdm", external_id="CogniteAsset", version="v1")
@@ -187,7 +214,7 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
         node.properties = {
             asset_view_id: {
                 "name": "23-KA-9101",
-                "aliases": ["stale_alias", "23_KA_9101"],
+                "aliases": ["operator note", "11_PT_2222", "spare for 23-AB-1234"],
                 "tags": ["discipline:KA", "tag", "root:old_root"],
                 "root": {"space": "inst_location", "externalId": "VAL-PH"},
             }
@@ -199,7 +226,10 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
 
         self.assertIsNotNone(result)
         properties = result.sources[0].properties
-        self.assertEqual(properties["aliases"], ["23_KA_9101"])
+        self.assertEqual(
+            properties["aliases"],
+            ["operator note", "spare for 23-AB-1234", "23_KA_9101"],
+        )
         self.assertIn("discipline:KA", properties["tags"])
         self.assertIn("root:VAL-PH", properties["tags"])
         self.assertNotIn("tag", properties["tags"])
