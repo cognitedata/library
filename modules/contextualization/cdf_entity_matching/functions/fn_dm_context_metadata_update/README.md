@@ -156,11 +156,11 @@ print(f"Status: {result['status']}")
 1. **Initialization**: Apply global optimizations and setup monitoring
 2. **Configuration**: Load parameters from extraction pipeline
 3. **Timeseries Processing**:
-   - Fetch timeseries in batches
+   - Fetch every timeseries in scope in one call (the SDK paginates internally)
    - Add normalized aliases when tag patterns match
    - Update metadata with optimized batch operations
 4. **Asset Processing**:
-   - Fetch assets in batches
+   - Fetch every asset in scope in one call (the SDK paginates internally)
    - Add normalized aliases when tag patterns match
    - Rebuild the `root:<externalId>` tag from the `root` relation on every run, so a
      changed or removed relation cannot leave a stale `root:*` tag behind
