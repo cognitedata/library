@@ -15,11 +15,24 @@ capabilities:
       scope:
         datasetScope:
           ids: ["{{dataset}}"]
+  - dataModelsAcl:
+      actions: [READ]
+      scope:
+        spaceIdScope:
+          spaceIds:
+            - cdf_cdm
+            - cdf_extraction_extensions
   - dataModelInstancesAcl:
       actions: [READ, WRITE, WRITE_PROPERTIES]
       scope:
         spaceIdScope:
           spaceIds: ["{{instanceSpace}}"]
+  - dataModelInstancesAcl:
+      actions: [READ]
+      scope:
+        spaceIdScope:
+          spaceIds:
+            - cdf_cdm_units
   - extractionPipelinesAcl:
       actions: [READ, WRITE]
       scope:
