@@ -12,13 +12,14 @@ from collections.abc import Callable
 from contextlib import contextmanager
 from functools import lru_cache
 
-import psutil
 from cognite.client import CogniteClient
 from cognite.client.data_classes.data_modeling import Node, NodeApply, NodeOrEdgeData, ViewId
 from cognite.client.exceptions import CogniteAPIError
-from constants import INVALID_ASSET_TAG, MANAGED_ASSET_TAG_PREFIX
-from logger import CogniteFunctionLogger
+from psutil import Process
 from tenacity import retry, stop_after_attempt, wait_exponential
+
+from constants import INVALID_ASSET_TAG, MANAGED_ASSET_TAG_PREFIX  # isort: skip
+from logger import CogniteFunctionLogger  # isort: skip
 
 # Tag pattern shared by timeseries and asset aliases, e.g. VAL_23-KA-9101 -> 23_KA_9101
 ALIAS_PATTERN = re.compile(r"(\d{2})[-_.:]([A-Z]{2,3})[-_.:](\d{4,5})")
@@ -44,7 +45,7 @@ def time_operation(operation_name: str, logger: CogniteFunctionLogger):
 def monitor_memory_usage(logger: CogniteFunctionLogger, operation_name: str = ""):
     """Monitor memory usage"""
     try:
-        process = psutil.Process()
+        process = Process()
         memory_mb = process.memory_info().rss / 1024 / 1024
         logger.info(f"📊 Memory: {operation_name} - {memory_mb:.1f} MB")
     except Exception as e:

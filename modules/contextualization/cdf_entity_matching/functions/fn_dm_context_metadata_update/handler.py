@@ -128,7 +128,7 @@ def handle(data: dict[str, Any], client: CogniteClient) -> dict[str, Any]:
         return {"status": "failure", "message": message}
 
 
-def run_locally():
+def run_locally() -> dict[str, Any]:
     """
     Run the optimized metadata update locally with enhanced error handling.
     """
