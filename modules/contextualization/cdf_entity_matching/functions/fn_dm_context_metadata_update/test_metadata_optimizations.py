@@ -12,12 +12,12 @@ import unittest
 from pathlib import Path
 from unittest.mock import MagicMock
 
-# Add current directory to path
 sys.path.append(str(Path(__file__).parent))
 
 from cognite.client.data_classes.data_modeling import NodeApply, ViewId
-from logger import CogniteFunctionLogger
-from metadata_optimizations import (
+
+from logger import CogniteFunctionLogger  # isort: skip
+from metadata_optimizations import (  # isort: skip
     BatchProcessor,
     OptimizedMetadataProcessor,
     PerformanceBenchmark,
