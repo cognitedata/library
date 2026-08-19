@@ -250,6 +250,81 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
 
         print("✅ Asset incremental root tag test passed")
 
+    def test_asset_incremental_replaces_stale_root_tag(self):
+        """Test incremental asset processing replaces a root tag from an old relation"""
+        print("🧪 Testing asset incremental stale root tag...")
+
+        asset_view_id = ViewId(space="cdf_cdm", external_id="CogniteAsset", version="v1")
+        node = MagicMock()
+        node.external_id = "23-KA-9101"
+        node.properties = {
+            asset_view_id: {
+                "name": "23-KA-9101",
+                "aliases": ["23_KA_9101"],
+                "tags": ["root:OLD-PH", "discipline:KA"],
+                "root": {"space": "inst_location", "externalId": "VAL-PH"},
+            }
+        }
+
+        result = self.processor.process_asset_metadata(
+            node, asset_view_id, "inst_location", update_all=False
+        )
+
+        self.assertIsNotNone(result)
+        properties = result.sources[0].properties
+        self.assertEqual(properties["tags"], ["discipline:KA", "root:VAL-PH"])
+
+        print("✅ Asset incremental stale root tag test passed")
+
+    def test_asset_incremental_removes_root_tag_when_relation_missing(self):
+        """Test incremental asset processing drops the root tag when root is unset"""
+        print("🧪 Testing asset incremental root tag removal...")
+
+        asset_view_id = ViewId(space="cdf_cdm", external_id="CogniteAsset", version="v1")
+        node = MagicMock()
+        node.external_id = "23-KA-9101"
+        node.properties = {
+            asset_view_id: {
+                "name": "23-KA-9101",
+                "aliases": ["23_KA_9101"],
+                "tags": ["root:OLD-PH", "discipline:KA"],
+                "root": None,
+            }
+        }
+
+        result = self.processor.process_asset_metadata(
+            node, asset_view_id, "inst_location", update_all=False
+        )
+
+        self.assertIsNotNone(result)
+        self.assertEqual(result.sources[0].properties["tags"], ["discipline:KA"])
+
+        print("✅ Asset incremental root tag removal test passed")
+
+    def test_asset_incremental_skips_update_when_only_tag_order_differs(self):
+        """Test incremental asset processing does not rewrite reordered tags"""
+        print("🧪 Testing asset incremental tag order no-op...")
+
+        asset_view_id = ViewId(space="cdf_cdm", external_id="CogniteAsset", version="v1")
+        node = MagicMock()
+        node.external_id = "23-KA-9101"
+        node.properties = {
+            asset_view_id: {
+                "name": "23-KA-9101",
+                "aliases": ["23_KA_9101"],
+                "tags": ["root:VAL-PH", "discipline:KA"],
+                "root": {"space": "inst_location", "externalId": "VAL-PH"},
+            }
+        }
+
+        result = self.processor.process_asset_metadata(
+            node, asset_view_id, "inst_location", update_all=False
+        )
+
+        self.assertIsNone(result)
+
+        print("✅ Asset incremental tag order no-op test passed")
+
     def test_alias_generation_caching(self):
         """Test alias generation with caching"""
         print("🧪 Testing alias generation caching...")

@@ -161,7 +161,9 @@ print(f"Status: {result['status']}")
    - Update metadata with optimized batch operations
 4. **Asset Processing**:
    - Fetch assets in batches
-   - Apply metadata enhancements
+   - Add normalized aliases when tag patterns match
+   - Rebuild the `root:<externalId>` tag from the `root` relation on every run, so a
+     changed or removed relation cannot leave a stale `root:*` tag behind
    - Update with batch operations
 5. **Cleanup**: Memory cleanup and performance reporting
 

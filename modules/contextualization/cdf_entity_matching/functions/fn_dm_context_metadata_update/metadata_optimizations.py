@@ -20,6 +20,9 @@ from constants import MANAGED_ASSET_TAG_PREFIX
 from logger import CogniteFunctionLogger
 from tenacity import retry, stop_after_attempt, wait_exponential
 
+# Tag pattern shared by timeseries and asset aliases, e.g. VAL_23-KA-9101 -> 23_KA_9101
+ALIAS_PATTERN = re.compile(r"(\d{2})[-_.:]([A-Z]{2,3})[-_.:](\d{4,5})")
+
 # ===== PERFORMANCE MONITORING =====
 
 @contextmanager
@@ -210,14 +213,13 @@ class OptimizedMetadataProcessor:
             )
             org_tags = [str(x) for x in tags_raw] if isinstance(tags_raw, list) else []
             aliases = [] if update_all else org_aliases.copy()
-            if update_all:
-                tags = [
-                    tag
-                    for tag in org_tags
-                    if not tag.startswith(MANAGED_ASSET_TAG_PREFIX) and tag != "tag"
-                ]
-            else:
-                tags = [tag for tag in org_tags if tag != "tag"]
+            # Managed tags are always rebuilt so a changed or removed root relation
+            # cannot leave a stale root:* tag behind.
+            tags = [
+                tag
+                for tag in org_tags
+                if not tag.startswith(MANAGED_ASSET_TAG_PREFIX) and tag != "tag"
+            ]
 
             root_external_id = _direct_relation_external_id(properties.get("root"))
             upd_tags, upd_aliases = self._parse_asset_tag_optimized(
@@ -235,7 +237,7 @@ class OptimizedMetadataProcessor:
                 if upd_aliases != org_aliases:
                     properties_dict["aliases"] = upd_aliases
                     update_needed = True
-                if upd_tags != org_tags:
+                if set(upd_tags) != set(org_tags):
                     properties_dict["tags"] = upd_tags
                     update_needed = True
             
@@ -327,8 +329,7 @@ class OptimizedMetadataProcessor:
         """Optimized timeseries alias generation with caching"""
         aliases = list(aliases_tuple)
 
-        pattern = re.compile(r"(\d{2})[-_.:]([A-Z]{2,3})[-_.:](\d{4,5})")
-        match = pattern.search(name)
+        match = ALIAS_PATTERN.search(name)
 
         cleaned_value = None if not match else "_".join(match.groups())
 
@@ -341,9 +342,8 @@ class OptimizedMetadataProcessor:
     def _get_asset_alias_list_optimized(self, name: str, aliases_tuple: tuple[str, ...]) -> list[str]:
         """Optimized asset alias generation with caching"""
         aliases = list(aliases_tuple)
-        
-        pattern = re.compile(r"(\d{2})[-_.:]([A-Z]{2,3})[-_.:](\d{4,5})")
-        match = pattern.search(name)
+
+        match = ALIAS_PATTERN.search(name)
 
         cleaned_value = None if not match else "_".join(match.groups())
 
