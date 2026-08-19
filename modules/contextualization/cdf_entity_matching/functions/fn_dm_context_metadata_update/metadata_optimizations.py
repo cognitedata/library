@@ -16,7 +16,7 @@ import psutil
 from cognite.client import CogniteClient
 from cognite.client.data_classes.data_modeling import Node, NodeApply, NodeList, NodeOrEdgeData, ViewId
 from cognite.client.exceptions import CogniteAPIError
-from constants import MANAGED_ASSET_TAG_PREFIX
+from constants import INVALID_ASSET_TAG, MANAGED_ASSET_TAG_PREFIX
 from logger import CogniteFunctionLogger
 from tenacity import retry, stop_after_attempt, wait_exponential
 
@@ -228,7 +228,7 @@ class OptimizedMetadataProcessor:
             tags = [
                 tag
                 for tag in org_tags
-                if not tag.startswith(MANAGED_ASSET_TAG_PREFIX) and tag != "tag"
+                if not tag.startswith(MANAGED_ASSET_TAG_PREFIX) and tag != INVALID_ASSET_TAG
             ]
 
             root_external_id = _direct_relation_external_id(properties.get("root"))
