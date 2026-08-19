@@ -131,7 +131,7 @@ class OptimizedMetadataProcessor:
             ext_id = node.external_id
             # Skip rather than recompute from an empty payload, which under updateAll
             # would overwrite the managed properties with empty values.
-            properties = node.properties.get(view_id)
+            properties = node.properties.get(view_id) if node.properties else None
             if not properties:
                 self.logger.warning(f"No properties for view {view_id} on timeseries: {ext_id}")
                 return None
@@ -189,7 +189,7 @@ class OptimizedMetadataProcessor:
             ext_id = node.external_id
             # Skip rather than recompute from an empty payload, which under updateAll
             # would overwrite the managed properties with empty values.
-            properties = node.properties.get(view_id)
+            properties = node.properties.get(view_id) if node.properties else None
             if not properties:
                 self.logger.warning(f"No properties for view {view_id} on asset: {ext_id}")
                 return None
@@ -262,19 +262,14 @@ class OptimizedMetadataProcessor:
         tags: list[str],
     ) -> tuple[list[str], list[str]]:
         """Build asset aliases and root tag from the root relation external id."""
-        try:
-            upd_aliases = self._get_asset_alias_list_optimized(name, tuple(aliases))
+        upd_aliases = self._get_asset_alias_list_optimized(name, tuple(aliases))
 
-            if root_external_id:
-                managed_tag = f"{MANAGED_ASSET_TAG_PREFIX}{root_external_id}"
-                if managed_tag not in tags:
-                    tags.append(managed_tag)
+        if root_external_id:
+            managed_tag = f"{MANAGED_ASSET_TAG_PREFIX}{root_external_id}"
+            if managed_tag not in tags:
+                tags.append(managed_tag)
 
-            return tags, upd_aliases
-
-        except Exception as e:
-            self.logger.error(f"Error parsing asset tag {name}: {e}")
-            return tags, aliases
+        return tags, upd_aliases
 
     @staticmethod
     @lru_cache(maxsize=5000)

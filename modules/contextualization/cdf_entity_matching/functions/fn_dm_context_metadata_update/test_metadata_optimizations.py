@@ -399,6 +399,39 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
 
         print("✅ Timeseries skip on empty view properties test passed")
 
+    def test_asset_skips_node_with_none_properties(self) -> None:
+        """Nodes with no properties populated must be skipped safely"""
+        print("🧪 Testing asset skip on None properties...")
+
+        asset_view_id = ViewId(space="cdf_cdm", external_id="CogniteAsset", version="v1")
+        node = MagicMock()
+        node.external_id = "23-KA-9101"
+        node.properties = None
+
+        result = self.processor.process_asset_metadata(
+            node, asset_view_id, "inst_location", update_all=True
+        )
+
+        self.assertIsNone(result)
+
+        print("✅ Asset skip on None properties test passed")
+
+    def test_timeseries_skips_node_with_none_properties(self) -> None:
+        """Nodes with no properties populated must be skipped safely"""
+        print("🧪 Testing timeseries skip on None properties...")
+
+        node = MagicMock()
+        node.external_id = "pi:160005"
+        node.properties = None
+
+        result = self.processor.process_timeseries_metadata(
+            node, self.view_id, "inst_location", update_all=True
+        )
+
+        self.assertIsNone(result)
+
+        print("✅ Timeseries skip on None properties test passed")
+
     def test_alias_generation_caching(self) -> None:
         """Test alias generation with caching"""
         print("🧪 Testing alias generation caching...")
