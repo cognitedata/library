@@ -31,10 +31,10 @@ from metadata_optimizations import (
 class TestPerformanceMonitoring(unittest.TestCase):
     """Test performance monitoring utilities"""
 
-    def setUp(self):
+    def setUp(self) -> None:
         self.logger = CogniteFunctionLogger("DEBUG")
 
-    def test_time_operation(self):
+    def test_time_operation(self) -> None:
         """Test timing context manager"""
         print("🧪 Testing time_operation...")
 
@@ -43,7 +43,7 @@ class TestPerformanceMonitoring(unittest.TestCase):
 
         print("✅ time_operation test passed")
 
-    def test_memory_monitoring(self):
+    def test_memory_monitoring(self) -> None:
         """Test memory monitoring"""
         print("🧪 Testing memory monitoring...")
 
@@ -56,10 +56,10 @@ class TestPerformanceMonitoring(unittest.TestCase):
 class TestBatchProcessing(unittest.TestCase):
     """Test batch processing utilities"""
 
-    def setUp(self):
+    def setUp(self) -> None:
         self.logger = CogniteFunctionLogger("DEBUG")
 
-    def test_batch_processor(self):
+    def test_batch_processor(self) -> None:
         """Test batch processing functionality"""
         print("🧪 Testing BatchProcessor...")
 
@@ -73,12 +73,12 @@ class TestBatchProcessing(unittest.TestCase):
 class TestOptimizedMetadataProcessor(unittest.TestCase):
     """Test optimized metadata processing"""
 
-    def setUp(self):
+    def setUp(self) -> None:
         self.logger = CogniteFunctionLogger("DEBUG")
         self.processor = OptimizedMetadataProcessor(self.logger)
         self.view_id = ViewId(space="cdf_cdm", external_id="CogniteTimeSeries", version="v1")
 
-    def test_timeseries_alias_enrichment(self):
+    def test_timeseries_alias_enrichment(self) -> None:
         """Test timeseries metadata updates aliases only"""
         print("🧪 Testing timeseries alias enrichment...")
 
@@ -104,7 +104,7 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
 
         print("✅ Timeseries alias enrichment test passed")
 
-    def test_timeseries_skips_update_when_aliases_unchanged(self):
+    def test_timeseries_skips_update_when_aliases_unchanged(self) -> None:
         """Test timeseries processing skips DM update when aliases already match"""
         print("🧪 Testing timeseries skip unchanged aliases...")
 
@@ -122,7 +122,7 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
 
         print("✅ Timeseries skip unchanged aliases test passed")
 
-    def test_timeseries_update_all_replaces_stale_aliases(self):
+    def test_timeseries_update_all_replaces_stale_aliases(self) -> None:
         """Test updateAll clears stale aliases and recomputes managed values"""
         print("🧪 Testing timeseries updateAll...")
 
@@ -145,7 +145,7 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
 
         print("✅ Timeseries updateAll test passed")
 
-    def test_timeseries_update_all_applies_even_when_aliases_already_correct(self):
+    def test_timeseries_update_all_applies_even_when_aliases_already_correct(self) -> None:
         """Test updateAll writes managed metadata even when values already match"""
         print("🧪 Testing timeseries updateAll re-apply...")
 
@@ -167,7 +167,7 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
 
         print("✅ Timeseries updateAll re-apply test passed")
 
-    def test_asset_update_all_replaces_stale_aliases(self):
+    def test_asset_update_all_replaces_stale_aliases(self) -> None:
         """Test updateAll clears stale aliases and recomputes managed values"""
         print("🧪 Testing asset updateAll...")
 
@@ -197,7 +197,7 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
 
         print("✅ Asset updateAll test passed")
 
-    def test_asset_update_all_applies_even_when_metadata_already_correct(self):
+    def test_asset_update_all_applies_even_when_metadata_already_correct(self) -> None:
         """Test updateAll writes managed asset metadata even when values already match"""
         print("🧪 Testing asset updateAll re-apply...")
 
@@ -224,7 +224,7 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
 
         print("✅ Asset updateAll re-apply test passed")
 
-    def test_asset_incremental_adds_root_tag_from_relation(self):
+    def test_asset_incremental_adds_root_tag_from_relation(self) -> None:
         """Test incremental asset processing adds root tag from relation external id"""
         print("🧪 Testing asset incremental root tag...")
 
@@ -250,7 +250,7 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
 
         print("✅ Asset incremental root tag test passed")
 
-    def test_asset_incremental_replaces_stale_root_tag(self):
+    def test_asset_incremental_replaces_stale_root_tag(self) -> None:
         """Test incremental asset processing replaces a root tag from an old relation"""
         print("🧪 Testing asset incremental stale root tag...")
 
@@ -276,7 +276,7 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
 
         print("✅ Asset incremental stale root tag test passed")
 
-    def test_asset_incremental_removes_root_tag_when_relation_missing(self):
+    def test_asset_incremental_removes_root_tag_when_relation_missing(self) -> None:
         """Test incremental asset processing drops the root tag when root is unset"""
         print("🧪 Testing asset incremental root tag removal...")
 
@@ -301,7 +301,7 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
 
         print("✅ Asset incremental root tag removal test passed")
 
-    def test_asset_incremental_skips_update_when_only_tag_order_differs(self):
+    def test_asset_incremental_skips_update_when_only_tag_order_differs(self) -> None:
         """Test incremental asset processing does not rewrite reordered tags"""
         print("🧪 Testing asset incremental tag order no-op...")
 
@@ -325,7 +325,41 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
 
         print("✅ Asset incremental tag order no-op test passed")
 
-    def test_alias_generation_caching(self):
+    def test_asset_update_all_skips_node_without_view_properties(self) -> None:
+        """updateAll must not blank managed properties when the view payload is empty"""
+        print("🧪 Testing asset skip on empty view properties...")
+
+        asset_view_id = ViewId(space="cdf_cdm", external_id="CogniteAsset", version="v1")
+        other_view_id = ViewId(space="cdf_cdm", external_id="CogniteDescribable", version="v1")
+        node = MagicMock()
+        node.external_id = "23-KA-9101"
+        node.properties = {other_view_id: {"name": "23-KA-9101"}}
+
+        result = self.processor.process_asset_metadata(
+            node, asset_view_id, "inst_location", update_all=True
+        )
+
+        self.assertIsNone(result)
+
+        print("✅ Asset skip on empty view properties test passed")
+
+    def test_timeseries_update_all_skips_node_without_view_properties(self) -> None:
+        """updateAll must not blank managed properties when the view payload is empty"""
+        print("🧪 Testing timeseries skip on empty view properties...")
+
+        node = MagicMock()
+        node.external_id = "pi:160005"
+        node.properties = {self.view_id: {}}
+
+        result = self.processor.process_timeseries_metadata(
+            node, self.view_id, "inst_location", update_all=True
+        )
+
+        self.assertIsNone(result)
+
+        print("✅ Timeseries skip on empty view properties test passed")
+
+    def test_alias_generation_caching(self) -> None:
         """Test alias generation with caching"""
         print("🧪 Testing alias generation caching...")
 
@@ -352,7 +386,7 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
 
         print("✅ Alias generation caching test passed")
 
-    def test_processing_statistics(self):
+    def test_processing_statistics(self) -> None:
         """Test processing statistics collection"""
         print("🧪 Testing processing statistics...")
 
@@ -372,15 +406,15 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
 class TestPerformanceBenchmark(unittest.TestCase):
     """Test performance benchmarking"""
 
-    def setUp(self):
+    def setUp(self) -> None:
         self.logger = CogniteFunctionLogger("DEBUG")
         self.benchmark = PerformanceBenchmark(self.logger)
 
-    def test_function_benchmarking(self):
+    def test_function_benchmarking(self) -> None:
         """Test function benchmarking"""
         print("🧪 Testing function benchmarking...")
 
-        def test_function(x, y):
+        def test_function(x: int, y: int) -> int:
             time.sleep(0.05)
             return x * y
 
@@ -394,7 +428,7 @@ class TestPerformanceBenchmark(unittest.TestCase):
 
         print("✅ Function benchmarking test passed")
 
-    def test_benchmark_summary(self):
+    def test_benchmark_summary(self) -> None:
         """Test benchmark summary logging"""
         print("🧪 Testing benchmark summary...")
 
@@ -413,7 +447,7 @@ class TestPerformanceBenchmark(unittest.TestCase):
 class TestGlobalOptimizations(unittest.TestCase):
     """Test global optimization utilities"""
 
-    def test_optimize_metadata_processing(self):
+    def test_optimize_metadata_processing(self) -> None:
         """Test global optimization application"""
         print("🧪 Testing global optimizations...")
 
@@ -426,10 +460,10 @@ class TestGlobalOptimizations(unittest.TestCase):
 class TestIntegrationScenarios(unittest.TestCase):
     """Test integration scenarios and real-world usage patterns"""
 
-    def setUp(self):
+    def setUp(self) -> None:
         self.logger = CogniteFunctionLogger("DEBUG")
 
-    def test_full_optimization_workflow(self):
+    def test_full_optimization_workflow(self) -> None:
         """Test full optimization workflow"""
         print("🧪 Testing full optimization workflow...")
 
@@ -445,7 +479,7 @@ class TestIntegrationScenarios(unittest.TestCase):
         start_time = time.time()
 
         # Mock some processing operations
-        def mock_operation():
+        def mock_operation() -> str:
             time.sleep(0.01)
             return "processed"
 
@@ -462,7 +496,7 @@ class TestIntegrationScenarios(unittest.TestCase):
 
         print("✅ Full optimization workflow test passed")
 
-    def test_large_dataset_simulation(self):
+    def test_large_dataset_simulation(self) -> None:
         """Test optimization performance with simulated large dataset"""
         print("🧪 Testing large dataset simulation...")
 
@@ -487,7 +521,7 @@ class TestIntegrationScenarios(unittest.TestCase):
         print("✅ Large dataset simulation test passed")
 
 
-def run_performance_comparison():
+def run_performance_comparison() -> None:
     """Run performance comparison between optimized and non-optimized approaches"""
     print("\n🚀 PERFORMANCE COMPARISON")
     print("=" * 50)
@@ -495,7 +529,7 @@ def run_performance_comparison():
     logger = CogniteFunctionLogger("INFO")
 
     # Non-optimized approach (simulated)
-    def non_optimized_processing():
+    def non_optimized_processing() -> list[list[str]]:
         results = []
         for i in range(1000):
             # Simulate slow operations
@@ -515,7 +549,7 @@ def run_performance_comparison():
         return results
 
     # Optimized approach
-    def optimized_processing():
+    def optimized_processing() -> list[list[str]]:
         processor = OptimizedMetadataProcessor(logger)
         results = []
         for i in range(1000):
@@ -549,7 +583,7 @@ def run_performance_comparison():
     print("   ✅ Results verified as equivalent")
 
 
-def main():
+def main() -> None:
     """Run all tests"""
     print("🧪 METADATA UPDATE OPTIMIZATION TESTS")
     print("=" * 50)

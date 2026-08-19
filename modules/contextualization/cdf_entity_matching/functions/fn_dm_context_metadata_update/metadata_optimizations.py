@@ -151,8 +151,13 @@ class OptimizedMetadataProcessor:
         
         try:
             ext_id = node.external_id
-            properties = node.properties[view_id]
-            
+            # Skip rather than recompute from an empty payload, which under updateAll
+            # would overwrite the managed properties with empty values.
+            properties = node.properties.get(view_id)
+            if not properties:
+                self.logger.warning(f"No properties for view {view_id} on timeseries: {ext_id}")
+                return None
+
             name = str(properties.get("name", ""))
             aliases_raw = properties.get("aliases", [])
             org_aliases = (
@@ -203,8 +208,13 @@ class OptimizedMetadataProcessor:
         
         try:
             ext_id = node.external_id
-            properties = node.properties[view_id]
-            
+            # Skip rather than recompute from an empty payload, which under updateAll
+            # would overwrite the managed properties with empty values.
+            properties = node.properties.get(view_id)
+            if not properties:
+                self.logger.warning(f"No properties for view {view_id} on asset: {ext_id}")
+                return None
+
             name = str(properties.get("name", ""))
             aliases_raw = properties.get("aliases", [])
             tags_raw = properties.get("tags", [])
@@ -270,8 +280,11 @@ class OptimizedMetadataProcessor:
         
         try:
             ext_id = node.external_id
-            properties = node.properties[view_id]
-            
+            properties = node.properties.get(view_id)
+            if not properties:
+                self.logger.warning(f"No properties for view {view_id} on file: {ext_id}")
+                return None
+
             name = str(properties.get("name", ""))
             aliases_raw = properties.get("aliases", [])
             aliases = [str(x) for x in aliases_raw] if isinstance(aliases_raw, list) else []

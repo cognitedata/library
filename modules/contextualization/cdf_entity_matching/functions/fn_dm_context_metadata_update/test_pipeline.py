@@ -21,7 +21,7 @@ from pipeline import (
 
 
 class TestPipelineHelpers(unittest.TestCase):
-    def setUp(self):
+    def setUp(self) -> None:
         self.logger = CogniteFunctionLogger("DEBUG")
         self.view_config = ViewPropertyConfig(
             schemaSpace="cdf_cdm",
@@ -53,35 +53,35 @@ class TestPipelineHelpers(unittest.TestCase):
             ),
         )
 
-    def test_effective_run_all_when_update_all_enabled(self):
+    def test_effective_run_all_when_update_all_enabled(self) -> None:
         config = self._config(run_all=False, update_all=True)
         self.assertTrue(effective_run_all(config))
 
-    def test_describe_processing_mode_update_all(self):
+    def test_describe_processing_mode_update_all(self) -> None:
         config = self._config(run_all=False, update_all=True)
         self.assertIn("updateAll", describe_processing_mode(config))
 
-    def test_describe_processing_mode_incremental(self):
+    def test_describe_processing_mode_incremental(self) -> None:
         config = self._config(run_all=False, update_all=False)
         self.assertIn("incremental", describe_processing_mode(config))
 
-    def test_get_ts_filter_skips_alias_exists_when_incremental(self):
+    def test_get_ts_filter_skips_alias_exists_when_incremental(self) -> None:
         filter_query = get_ts_filter(self.view_config, None, run_all=False, logger=self.logger)
         self.assertIsInstance(filter_query, dm.filters.And)
 
-    def test_get_ts_filter_fetches_all_when_run_all(self):
+    def test_get_ts_filter_fetches_all_when_run_all(self) -> None:
         filter_query = get_ts_filter(self.view_config, None, run_all=True, logger=self.logger)
         self.assertIsInstance(filter_query, dm.filters.HasData)
 
-    def test_get_asset_filter_skips_alias_exists_when_incremental(self):
+    def test_get_asset_filter_skips_alias_exists_when_incremental(self) -> None:
         filter_query = get_asset_filter(self.view_config, self.logger, run_all=False)
         self.assertIsInstance(filter_query, dm.filters.And)
 
-    def test_get_asset_filter_fetches_all_when_run_all(self):
+    def test_get_asset_filter_fetches_all_when_run_all(self) -> None:
         filter_query = get_asset_filter(self.view_config, self.logger, run_all=True)
         self.assertIsInstance(filter_query, dm.filters.HasData)
 
-    def test_process_timeseries_fetches_once_in_incremental_mode(self):
+    def test_process_timeseries_fetches_once_in_incremental_mode(self) -> None:
         """Incremental mode must fetch once; get_new_items already returns every match."""
         config = self._config(run_all=False, update_all=False)
         processor = MagicMock()
@@ -97,7 +97,7 @@ class TestPipelineHelpers(unittest.TestCase):
         self.assertEqual(fetch.call_count, 1)
         self.assertEqual(total, 2)
 
-    def test_process_assets_fetches_once_in_incremental_mode(self):
+    def test_process_assets_fetches_once_in_incremental_mode(self) -> None:
         """Incremental mode must fetch once; get_new_items already returns every match."""
         config = self._config(run_all=False, update_all=False)
         processor = MagicMock()
@@ -113,7 +113,7 @@ class TestPipelineHelpers(unittest.TestCase):
         self.assertEqual(fetch.call_count, 1)
         self.assertEqual(total, 2)
 
-    def test_process_timeseries_handles_empty_fetch(self):
+    def test_process_timeseries_handles_empty_fetch(self) -> None:
         config = self._config(run_all=False, update_all=False)
 
         with patch("pipeline.get_new_items", return_value=None):
