@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Generate GitHub Actions CI/CD for a Toolkit project using the Foundation Deployment Pack.
+Generate CI/CD for a Toolkit project using the Foundation Deployment Pack.
 
 Implements the branching model and workflows from sop-cdf-project-setup.md (Step 5):
   - PR to dev, and PR to main when config.test.yaml exists → dry-run
@@ -8,9 +8,14 @@ Implements the branching model and workflows from sop-cdf-project-setup.md (Step
   - Push to main → deploy to config.test.yaml's environment.project when present
   - Release published from main → deploy to config.prod.yaml's environment.project
 
+Supports multiple CI/CD providers via --provider (default: github). Provider-specific
+templates live under templates/<provider>/; output is written to a provider-specific
+directory (.github/workflows for GitHub, .devops for Azure DevOps).
+
 Run from the Toolkit project root after `cdf modules add -d dp:foundation`:
 
   python modules/common/cdf_project_foundation/scripts/generate_actions.py
+  python modules/common/cdf_project_foundation/scripts/generate_actions.py --provider ado
 """
 
 
@@ -28,11 +33,28 @@ except ImportError:
     import tomli as tomllib  # type: ignore[no-redef]
 
 MODULE_DIR = Path(__file__).resolve().parents[1]
-TEMPLATES_DIR = MODULE_DIR / "templates" / "github"
+TEMPLATES_ROOT = MODULE_DIR / "templates"
 ENVIRONMENTS = ("dev", "test", "prod")
 DEPLOY_BRANCHES = {"dev": "dev", "test": "main"}
 ENV_LABELS = {"dev": "Dev", "test": "Test"}
 CONFIG_FLAG_MIN_VERSION = (0, 8, 0)
+
+PROVIDERS = ("github", "ado")
+DEFAULT_PROVIDER = "github"
+PROVIDER_WORKFLOWS_DIR = {
+    "github": Path(".github") / "workflows",
+    "ado": Path(".devops"),
+}
+
+
+def templates_dir(provider: str) -> Path:
+    """Provider-specific template directory (e.g. templates/github, templates/ado)."""
+    return TEMPLATES_ROOT / provider
+
+
+def workflows_output_dir(provider: str, repo_root: Path) -> Path:
+    """Where generated CI/CD files are written for this provider."""
+    return repo_root / PROVIDER_WORKFLOWS_DIR[provider]
 
 
 def resolve_modules_root(repo_root: Path, org_dir: str | None) -> Path:
@@ -320,12 +342,20 @@ def main() -> None:
         action="store_true",
         help="Overwrite generated files without prompting",
     )
+    parser.add_argument(
+        "--provider",
+        choices=PROVIDERS,
+        default=DEFAULT_PROVIDER,
+        help=f"CI/CD provider to generate for (default: {DEFAULT_PROVIDER})",
+    )
     args = parser.parse_args()
 
+    templates = templates_dir(args.provider)
     repo_root = find_repo_root(Path.cwd())
     cdf = load_cdf_toml(repo_root)
     org_dir: str | None = args.org_dir or cdf.get("cdf", {}).get("default_organization_dir") or None
     projects = load_environment_projects(repo_root, org_dir)
+    workflows_dir = workflows_output_dir(args.provider, repo_root)
 
     toolkit_version = cdf.get("modules", {}).get("version", "0.7.220")
     resolve_modules_root(repo_root, org_dir)
@@ -346,20 +376,20 @@ def main() -> None:
     }
 
     if deployable_envs(projects):
-        template = TEMPLATES_DIR / "dry-run.yml"
+        template = templates / "dry-run.yml"
         if not template.is_file():
             print(f"Missing template: {template}", file=sys.stderr)
             sys.exit(1)
         write_file(
-            repo_root / ".github" / "workflows" / "dry-run.yml",
+            workflows_dir / "dry-run.yml",
             render_template(template, base_values),
             args.force,
         )
     else:
-        remove_file(repo_root / ".github" / "workflows" / "dry-run.yml")
+        remove_file(workflows_dir / "dry-run.yml")
 
     if "prod" in projects:
-        deploy_prod_template = TEMPLATES_DIR / "deploy-prod.yml"
+        deploy_prod_template = templates / "deploy-prod.yml"
         if not deploy_prod_template.is_file():
             print(f"Missing template: {deploy_prod_template}", file=sys.stderr)
             sys.exit(1)
@@ -369,20 +399,20 @@ def main() -> None:
             "PROD_BUILD_ARGS": build_args(str(toolkit_version), org_dir, "prod"),
         }
         write_file(
-            repo_root / ".github" / "workflows" / "deploy-prod.yml",
+            workflows_dir / "deploy-prod.yml",
             render_template(deploy_prod_template, prod_values),
             args.force,
         )
     else:
-        remove_file(repo_root / ".github" / "workflows" / "deploy-prod.yml")
+        remove_file(workflows_dir / "deploy-prod.yml")
 
-    deploy_template = TEMPLATES_DIR / "deploy.yml"
+    deploy_template = templates / "deploy.yml"
     if not deploy_template.is_file():
         print(f"Missing template: {deploy_template}", file=sys.stderr)
         sys.exit(1)
     for env in ("dev", "test"):
         if env not in projects:
-            remove_file(repo_root / ".github" / "workflows" / f"deploy-{env}.yml")
+            remove_file(workflows_dir / f"deploy-{env}.yml")
             continue
         merged = {
             **base_values,
@@ -392,13 +422,13 @@ def main() -> None:
             "PROJECT": projects[env],
             "BUILD_ARGS": build_args(str(toolkit_version), org_dir, env),
         }
-        out = repo_root / ".github" / "workflows" / f"deploy-{env}.yml"
+        out = workflows_dir / f"deploy-{env}.yml"
         write_file(out, render_template(deploy_template, merged), args.force)
 
     cicd_readme = repo_root / "docs" / "FOUNDATION_CICD.md"
     write_file(
         cicd_readme,
-        render_template(TEMPLATES_DIR / "FOUNDATION_CICD.md", base_values),
+        render_template(templates / "FOUNDATION_CICD.md", base_values),
         args.force,
     )
 
