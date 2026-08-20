@@ -57,6 +57,7 @@ ExtractionPipelineExtId: "ep_ctx_entity_matching_metadata_update"
 parameters:
   debug: false
   run_all: false
+  update_all: false
   batch_size: 1000
   raw_db: "contextualization_state"
   raw_table_state: "state_store"
@@ -73,6 +74,16 @@ data:
       version: "v1"
       instance_space: "your_instance_space"
 ```
+
+| Parameter | Purpose |
+|-----------|---------|
+| `runAll` | Fetch all instances (not only those missing `aliases`) |
+| `updateAll` | Reset managed metadata and reprocess every fetched instance (implies `runAll`) |
+
+For a full metadata refresh, set `updateAll: true` in the extraction pipeline config.
+"Reset" covers only the values this function generates — aliases of the form
+`23_KA_9101` and `root:*` tags. Hand-curated aliases and tags are preserved, including
+aliases that merely mention a tag (for example `spare for 23-AB-1234`).
 
 ## 🏃‍♂️ How to Run
 
@@ -130,13 +141,12 @@ print(f"Status: {result['status']}")
 
 #### 1. **OptimizedMetadataProcessor**
 - Processes timeseries and asset metadata with caching
-- Applies discipline-based categorization using NORSOK standards
+- Adds normalized tag aliases for entity matching
 - Handles batch updates with memory management
 
 #### 2. **BatchProcessor**
-- Processes items in configurable batches
-- Implements retry logic for failed operations
-- Provides memory cleanup between batches
+- Applies node updates in configurable batches (default 1000, the SDK's own chunk size)
+- Retries each batch with exponential backoff, then splits into smaller chunks on failure
 
 #### 3. **PerformanceBenchmark**
 - Monitors execution time for all operations
@@ -147,22 +157,23 @@ print(f"Status: {result['status']}")
 
 1. **Initialization**: Apply global optimizations and setup monitoring
 2. **Configuration**: Load parameters from extraction pipeline
-3. **Timeseries Processing**: 
-   - Fetch timeseries in batches
-   - Apply discipline classification
+3. **Timeseries Processing**:
+   - Fetch every timeseries in scope in one call (the SDK paginates internally)
+   - Add normalized aliases when tag patterns match
    - Update metadata with optimized batch operations
 4. **Asset Processing**:
-   - Fetch assets in batches
-   - Apply metadata enhancements
+   - Fetch every asset in scope in one call (the SDK paginates internally)
+   - Add normalized aliases when tag patterns match
+   - Rebuild the `root:<externalId>` tag from the `root` relation on every run, so a
+     changed or removed relation cannot leave a stale `root:*` tag behind
    - Update with batch operations
 5. **Cleanup**: Memory cleanup and performance reporting
 
 ### Performance Optimizations
 
-- **Caching**: Pre-compiled regex patterns and discipline mappings
+- **Caching**: LRU-cached alias generation for repeated tag patterns
 - **Batch Processing**: Configurable batch sizes with retry logic
 - **Memory Management**: Automatic cleanup and monitoring
-- **Concurrent Processing**: Optimized for parallel operations
 - **Error Recovery**: Robust error handling with fallback mechanisms
 
 ## 🧪 Testing
@@ -196,7 +207,7 @@ uv run pytest modules/contextualization/cdf_entity_matching/functions/fn_dm_cont
 
 #### 3. **Integration Tests**
 ```bash
-uv run pytest modules/contextualization/cdf_entity_matching/functions/fn_dm_context_metadata_update/test_metadata_optimizations.py::test_integration_scenario -v
+uv run pytest modules/contextualization/cdf_entity_matching/functions/fn_dm_context_metadata_update/test_metadata_optimizations.py::TestIntegrationScenarios -v
 ```
 
 ### Test Coverage
@@ -212,22 +223,12 @@ The test suite covers:
 
 ## 📊 Performance Metrics
 
-### Benchmark Results
-
-| Component | Improvement | Details |
-|-----------|-------------|---------|
-| Overall Pipeline | 35-55% faster | Complete execution time |
-| Memory Usage | 30-50% reduction | Peak memory consumption |
-| API Calls | 25-40% faster | With retry logic |
-| Data Loading | 40-60% faster | Batch processing |
-| Caching | 70%+ hit rate | Discipline/regex caching |
-
 ### Monitoring
 
 The module provides detailed monitoring:
 
 ```
-📊 Processing Stats: 1500 processed, 1200 updated, 80.00% update rate, 75.50% cache hit rate
+📊 Processing Stats: 1500 processed, 1200 updated, 80.00% update rate
 ⏱️ Time: Configuration processing took 0.15 seconds
 ⏱️ Time: Timeseries processing took 45.30 seconds
 ⏱️ Time: Asset processing took 32.10 seconds

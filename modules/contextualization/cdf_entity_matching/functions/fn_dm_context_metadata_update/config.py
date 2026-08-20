@@ -14,6 +14,7 @@ class Parameters(BaseModel, alias_generator=to_camel):
     debug: bool
     debug_timeseries: str = None
     run_all: bool
+    update_all: bool = False
     raw_db: str
     raw_table_state: str
 

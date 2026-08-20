@@ -52,9 +52,9 @@ documentation: >
    dmUpdate - if True, update the metadata in the DM, if False, only update the RAW tables
    rawdb - Raw database where status Information is stored
    rawTableState - Table to store state related to process
-   rawTaleCtxGood: Table to store entities with score higher than the autoApprovalThreshold
-   rawTaleCtxBad: Table to store entities with score lower than the autoApprovalThreshold
-   rawTaleCtxManual: Raw table to store manual mappings
+   rawTableCtxGood: Table to store entities with score higher than the autoApprovalThreshold
+   rawTableCtxBad: Table to store entities with score lower than the autoApprovalThreshold
+   rawTableCtxManual: Raw table to store manual mappings
    autoApprovalThreshold - Threshold for auto approval of entity matching
 
    ```

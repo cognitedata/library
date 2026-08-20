@@ -3,7 +3,7 @@ externalId: "ep_{{location}}_pi"
 config:
   # Template for the PI Extractor configuration file.
   # Fields that are commented out are optional.
-  # The extractor requires the configuration file to be in the config/config.yml file wrt the installation/working directory.
+  # The extractor requires the configuration file to be in the config/config.yaml file wrt the installation/working directory.
   # In general, all secrets should be kept out of the configuration file, using references to environment variables.
   # Also, don't enable default values in the configuration file, as this provides a safer upgrade path.
 

@@ -3,43 +3,42 @@ config:
   # Runtime config for the Files Extractor — see ep_files.ExtractionPipeline.yaml
   # documentation block for required environment variables and install steps.
 
+
   # (Optional) Configure logging to standard out (console) and/or file. Level can
   # be DEBUG, INFO, WARNING or CRITICAL
-  log-handlers:
+  logger:
     # Logging to console/terminal. Remove or comment out to disable terminal
     # logging
-    - type: console
+    console:
       level: INFO
 
     # Logging to file. Include to enable file logging
-    # - type: file
-    #   level: INFO
-    #   path: "/path/to/file.log"
+    #file:
+      #level: INFO
+      #path: "/path/to/file.log"
 
-      # (Optional) Log retention (in days).
-      #retention: 7
+  extractor:
 
+    # (Optional) Where to store extraction states (progress) between runs.
+    # Required for incremental load to work.
+    state-store:
+      # Uncomment to use a local json file for state storage
+      type: local
+      path:  "/path/to/state-store.json"
 
-  # (Optional) Where to store extraction states (progress) between runs.
-  # Required for incremental load to work.
-  state-store:
-    # Uncomment to use a local json file for state storage
-    type: local
-    path:  "/path/to/state-store.json"
+      # (Optional) Save interval (in seconds) for intermediate file saves. A
+      # final save will also be made on extractor shutdown.
+      #save-interval: 30s
 
-    # (Optional) Save interval (in seconds) for intermediate file saves. A
-    # final save will also be made on extractor shutdown.
-    #save-interval: 30s
+      # Uncomment to use a RAW table for state storage
+      #type: raw
+        # RAW database and table to use
+      #database:
+      #table:
 
-    # Uncomment to use a RAW table for state storage
-    #type: raw
-      # RAW database and table to use
-    #database:
-    #table:
-
-    # (Optional) Upload interval (in seconds) for intermediate uploads. A
-    # final upload will also be made on extractor shutdown.
-    #upload-interval: 30s
+      # (Optional) Upload interval (in seconds) for intermediate uploads. A
+      # final upload will also be made on extractor shutdown.
+      #upload-interval: 30s
 
 
   files:
