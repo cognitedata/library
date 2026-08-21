@@ -29,6 +29,14 @@ def test_dry_run_environment_rejects_more_than_two_branches(monkeypatch: pytest.
         generate_actions.dry_run_environment({"dev": "acme-dev", "test": "acme-test", "qa": "acme-qa"})
 
 
+def test_workflows_output_dir_rejects_unsupported_provider(tmp_path: Path) -> None:
+    sys.path.insert(0, str(MODULE_ROOT / "scripts"))
+    import generate_actions  # pyright: ignore[reportMissingImports]
+
+    with pytest.raises(ValueError, match="Unsupported provider: gitlab"):
+        generate_actions.workflows_output_dir("gitlab", tmp_path)
+
+
 def test_generate_actions_writes_workflows_and_docs(tmp_path: Path) -> None:
     org_dir = "industrial"
     (tmp_path / "cdf.toml").write_text(

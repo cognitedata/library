@@ -54,6 +54,8 @@ def templates_dir(provider: str) -> Path:
 
 def workflows_output_dir(provider: str, repo_root: Path) -> Path:
     """Where generated CI/CD files are written for this provider."""
+    if provider not in PROVIDER_WORKFLOWS_DIR:
+        raise ValueError(f"Unsupported provider: {provider}")
     return repo_root / PROVIDER_WORKFLOWS_DIR[provider]
 
 
