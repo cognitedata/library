@@ -427,10 +427,14 @@ def main() -> None:
         out = workflows_dir / f"deploy-{env}.yml"
         write_file(out, render_template(deploy_template, merged), args.force)
 
+    readme_template = templates / "FOUNDATION_CICD.md"
+    if not readme_template.is_file():
+        print(f"Missing template: {readme_template}", file=sys.stderr)
+        sys.exit(1)
     cicd_readme = repo_root / "docs" / "FOUNDATION_CICD.md"
     write_file(
         cicd_readme,
-        render_template(templates / "FOUNDATION_CICD.md", base_values),
+        render_template(readme_template, base_values),
         args.force,
     )
 
