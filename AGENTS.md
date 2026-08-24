@@ -185,7 +185,7 @@ When adding or changing modules under `modules/`:
 ### Every module needs a README
 
 Each module must contain a `README.md` following the structure of
-[`modules/data_models/rmdm/README.md`](https://github.com/cognitedata/library/blob/main/modules/data_models/rmdm/README.md).
+[`modules/datamodels/rmdm/README.md`](https://github.com/cognitedata/library/blob/main/modules/datamodels/rmdm/README.md).
 Adapt the sections to the module, but keep this skeleton and order:
 
 1. **Title** — module name plus a short descriptive name.
