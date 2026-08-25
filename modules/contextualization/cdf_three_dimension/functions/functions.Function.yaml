@@ -1,0 +1,67 @@
+# The directory with the function code should have the same name
+# and externalId as the function itself as defined below.
+- name: 'context:3d:upload_manual_mappings'
+  externalId: 'fn_context_3d_upload_manual_mappings'
+  owner: '{{module_owner}}'
+  description: 'Upload manual 3D-asset mappings from CSV (CDF File) to contextualization_manual_input RAW table'
+  metadata:
+    version: '0.1.0'
+  envVars:
+    ENV_TYPE: '${CDF_BUILD_TYPE}'
+    CDF_ENV: '${CDF_ENVIRON}'
+  cpu: 0.25
+  runtime: 'py311'
+  functionPath: './handler.py'
+  dataSetExternalId: 'ds_3d_{{default_location}}'
+  space: '{{function_space}}'
+
+- name: 'context:3d:upload_asset_hierarchy'
+  externalId: 'fn_context_3d_upload_asset_hierarchy'
+  owner: '{{module_owner}}'
+  description: 'Upload Asset hierarchy (DM nodes) from CSV in CDF Files'
+  metadata:
+    version: '0.1.0'
+  envVars:
+    ENV_TYPE: '${CDF_BUILD_TYPE}'
+    CDF_ENV: '${CDF_ENVIRON}'
+    ASSET_INSTANCE_SPACE: '{{asset_instance_space}}'
+    RAW_DB: '{{raw_db}}'
+    RAW_TABLE: three_dimension_asset
+    ASSET_VIEW_SPACE: '{{data_model_space}}'
+    ASSET_VIEW_EXT_ID: '{{asset_view_ext_id}}'
+    ASSET_VIEW_VERSION: '{{asset_view_version}}'
+  cpu: 0.25
+  runtime: 'py311'
+  functionPath: './handler.py'
+  dataSetExternalId: 'ds_3d_{{default_location}}'
+  space: '{{function_space}}'
+
+- name: 'context:3d:cad:asset:contextualization'
+  externalId: 'fn_context_3d_cad_asset_contextualization'
+  owner: '{{module_owner}}'
+  description: 'Contextualization of 3d model and asset data for {{default_location}}:{{source_name}}'
+  metadata:
+    version: '0.1.0'
+  envVars:
+    ENV_TYPE: '${CDF_BUILD_TYPE}'
+    CDF_ENV: '${CDF_ENVIRON}'
+  cpu: 0.60
+  runtime: 'py311'
+  functionPath: './handler.py'
+  dataSetExternalId: 'ds_3d_{{default_location}}'
+  space: '{{function_space}}'
+
+- name: 'context:3d:cad:asset:contextualization:quality_check'
+  externalId: 'fn_context_3d_asset_contextualization_quality_check'
+  owner: '{{module_owner}}'
+  description: 'Quality checking the contextualization of 3D model and assets for {{default_location}}:{{source_name}} after possible manual changes'
+  metadata:
+    version: '0.1.0'
+  envVars:
+    ENV_TYPE: '${CDF_BUILD_TYPE}'
+    CDF_ENV: '${CDF_ENVIRON}'
+  cpu: 0.60
+  runtime: 'py311'
+  functionPath: './handler.py'
+  dataSetExternalId: 'ds_3d_{{default_location}}'
+  space: '{{function_space}}'

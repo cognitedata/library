@@ -1,0 +1,105 @@
+# Single group for all 3D pipeline actors: file extractor, contextualization functions, and read-only users.
+# Merged from 3d.extractor.Group, 3d.processing.Group, 3d.read.Group for simplified dev/small-team setup.
+name: 'gp_3d_{{default_location}}'
+sourceId: '{{3d_location_group_source_id}}'
+metadata:
+  origin: 'cdf-project-templates'
+capabilities:
+  # RAW: read/write (extractor + processing)
+  - rawAcl:
+      actions:
+        - READ
+        - WRITE
+      scope:
+        tableScope:
+          dbsToTables:
+            3d_{{default_location}}_{{source_name}}: []
+
+  # Files: read/write (extractor uploads, processing reads, users view)
+  - filesAcl:
+      actions:
+        - READ
+        - WRITE
+      scope:
+        datasetScope:
+          ids: ['ds_3d_{{default_location}}']
+
+  # 3D models: read (processing + users)
+  - threedAcl:
+      actions:
+        - READ
+      scope:
+        datasetScope:
+          ids: ['ds_3d_{{default_location}}']
+
+  # Data Model instances: read/write. Scope to every instance space this module touches:
+  # AssetExtension nodes (asset_instance_space), CogniteCADNode + scene nodes (cad_node_instance_space,
+  # default_scene_space), function code nodes (function_space), the data model space, and cdf_cdm (CDM views).
+  - dataModelInstancesAcl:
+      actions:
+        - READ
+        - WRITE
+      scope:
+        spaceIdScope:
+          spaceIds:
+            - '{{data_model_space}}'
+            - '{{asset_instance_space}}'
+            - '{{cad_node_instance_space}}'
+            - '{{default_scene_space}}'
+            - '{{function_space}}'
+            - cdf_cdm
+
+  # Extraction pipelines: read configs, read/write runs
+  - extractionConfigsAcl:
+      actions:
+        - READ
+        - WRITE
+      scope:
+        datasetScope:
+          ids: ['ds_3d_{{default_location}}']
+  - extractionRunsAcl:
+      actions:
+        - READ
+        - WRITE
+      scope:
+        datasetScope:
+          ids: ['ds_3d_{{default_location}}']
+
+  # Sessions: needed for CDF Functions
+  - sessionsAcl:
+      actions:
+        - LIST
+        - CREATE
+        - DELETE
+      scope:
+        all: {}
+
+  # Entity matching + functions (contextualization processing).
+  # NOTE: entitymatchingAcl and functionsAcl do not support dataset/space scoping in CDF —
+  # `all: {}` is the only valid scope. Kept broad by necessity; these are processing-only
+  # capabilities. If you need least-privilege, split processing into a dedicated runtime group.
+  - entitymatchingAcl:
+      actions:
+        - READ
+        - WRITE
+      scope:
+        all: {}
+  - functionsAcl:
+      actions:
+        - READ
+        - WRITE
+      scope:
+        all: {}
+
+  # Annotations + labels: read (users).
+  # NOTE: annotationsAcl read does not support dataset scoping — `all: {}` is required.
+  - annotationsAcl:
+      actions:
+        - READ
+      scope:
+        all: {}
+  - labelsAcl:
+      actions:
+        - READ
+      scope:
+        all: {}

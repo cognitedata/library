@@ -1,0 +1,9 @@
+externalId: 'ep_ctx_3d_{{default_location}}_{{source_name}}_upload_asset_hierarchy'
+name: 'ctx:3d:{{default_location}}:{{source_name}}:upload_asset_hierarchy'
+dataSetExternalId: 'ds_3d_{{default_location}}'
+description: 'Upload Asset hierarchy (DM nodes) from CSV for {{default_location}}:{{source_name}}'
+source: '{{source_name}}'
+documentation: >
+  Run this pipeline to create or update Asset instances in CDF Data Modeling from a CSV file.
+  CSV columns: externalId (required), name, description, parentExternalId, tags, aliases, assetType.
+  Set fileExternalId (and dataSetExternalId) in config or in the run input to point to the CSV in CDF Files.

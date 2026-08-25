@@ -1,0 +1,2 @@
+cognite-sdk>=7.26
+pyyaml>=6

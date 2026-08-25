@@ -1,0 +1,14 @@
+externalId: 'ep_ctx_3d_{{default_location}}_{{source_name}}_annotation_quality_check'
+name: 'ctx:3d:{{default_location}}:{{source_name}}:annotation_quality_check'
+dataSetExternalId: 'ds_3d_{{default_location}}'
+description: 'Quality checking the contextualization of 3D model and assets for  {{default_location}}:{{source_name}} after possible manual changes'
+rawTables:
+  - dbName: '3d_{{default_location}}_{{source_name}}'
+    tableName: 'contextualization_good'
+  - dbName: '3d_{{default_location}}_{{source_name}}'
+    tableName: 'contextualization_bad'
+  - dbName: '3d_{{default_location}}_{{source_name}}'
+    tableName: 'contextualization_manual_input'
+    
+source: '{{source_name}}'
+

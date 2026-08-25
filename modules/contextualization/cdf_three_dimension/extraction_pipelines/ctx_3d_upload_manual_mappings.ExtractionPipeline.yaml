@@ -1,0 +1,15 @@
+externalId: 'ep_ctx_3d_{{default_location}}_{{source_name}}_upload_manual_mappings'
+name: 'ctx:3d:{{default_location}}:{{source_name}}:upload_manual_mappings'
+dataSetExternalId: 'ds_3d_{{default_location}}'
+description: 'Upload manual 3D–asset mappings from CSV to RAW table for {{default_location}}:{{source_name}}'
+rawTables:
+  - dbName: '3d_{{default_location}}_{{source_name}}'
+    tableName: 'contextualization_manual_input'
+source: '{{source_name}}'
+documentation: >
+  Run this pipeline to upload manual mapping rows from a CSV file into the
+  contextualization_manual_input RAW table. The CSV must have columns 3DId and assetId
+  (and optionally 3dNodeName, assetExternalId, contextualized).
+
+  Either set fileExternalId (and dataSetExternalId) in the pipeline config to a CDF File
+  containing the CSV, or pass them when triggering the pipeline run.

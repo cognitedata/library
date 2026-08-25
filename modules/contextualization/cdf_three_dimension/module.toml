@@ -1,0 +1,5 @@
+[module]
+title = "Contextualization 3D"
+is_selected_by_default = false
+id = "dp:contextualization:cdf_three_dimension"
+package_id = "dp:contextualization"

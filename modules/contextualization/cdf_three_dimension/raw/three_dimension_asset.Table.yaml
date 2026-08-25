@@ -1,0 +1,3 @@
+# Reference / staging for 3D node ↔ asset rows. Load manually from upload_data/three_dimension_asset.csv (see upload_data/manifest.yaml).
+dbName: 3d_{{default_location}}_{{source_name}}
+tableName: three_dimension_asset
