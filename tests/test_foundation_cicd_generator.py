@@ -560,6 +560,12 @@ def test_generate_actions_ado_writes_pipelines_and_docs(tmp_path: Path) -> None:
     deploy_job_names = {job["job"] for job in deploy_yaml["jobs"]}
     assert deploy_job_names == {"deploy_dev", "deploy_test", "deploy_prod"}
 
+    # Azure Repos doesn't support YAML `pr:` triggers — a `pr:` block here would be
+    # dead config that misleads readers into thinking it controls PR execution.
+    assert "pr" not in dry_run_yaml
+    dry_run_raw = dry_run_path.read_text(encoding="utf-8")
+    assert "Build Validation branch policy" in dry_run_raw
+
     for job in dry_run_yaml["jobs"]:
         if job["job"] in ("dry_run_dev", "dry_run_test"):
             # An explicit condition replaces the default succeeded() gate in Azure

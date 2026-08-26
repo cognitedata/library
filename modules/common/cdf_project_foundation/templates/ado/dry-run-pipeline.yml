@@ -1,9 +1,9 @@
 trigger: none
 
-pr:
-  branches:
-    include:
-{{PR_BRANCHES}}
+# Azure Repos Git does not support YAML `pr:` triggers — Azure Pipelines only
+# evaluates that block for GitHub or Bitbucket Cloud repos. For Azure Repos, register
+# this pipeline as a Build Validation branch policy instead (see docs/FOUNDATION_CICD.md);
+# that policy is what actually triggers a run for a pull request, not this file's triggers.
 
 pool:
   vmImage: ubuntu-latest
