@@ -113,17 +113,18 @@ def remove_file(path: Path) -> None:
         print(f"Removed {path}")
 
 
-def build_lint_paths(org_dir: str | None) -> str:
+def build_lint_paths(org_dir: str | None, provider: str) -> str:
     """Return git pathspecs for generated workflow linting.
 
     Keep this scoped to committed project-level files. Deployment modules often
     ship README files, notebooks, and generated Python that are not intended to
     satisfy the destination repository's pre-commit hooks.
     """
+    ci_scripts_dir = ".github/scripts/" if provider == "github" else ".devops/scripts/"
     entries: list[str] = [
         "'cdf.toml'",
         "'.pre-commit-config.yaml'",
-        "'.github/scripts/'",
+        f"'{ci_scripts_dir}'",
     ]
     if org_dir:
         entries.insert(0, f"'{org_dir}/config*.yaml'")
@@ -215,7 +216,13 @@ def pr_branches(projects: dict[str, str]) -> str:
     return "\n".join(f"      - {branch}" for branch in branches)
 
 
-def dry_run_environment(projects: dict[str, str]) -> str:
+def github_dry_run_environment(projects: dict[str, str]) -> str:
+    """GitHub Actions ``environment:`` expression for the dry-run job.
+
+    GitHub Actions-specific: relies on the ``github.base_ref`` expression context,
+    which has no equivalent on other providers. See ``ado_dry_run_jobs`` for the
+    Azure DevOps approach (one conditioned job per target branch).
+    """
     branches = branch_envs(projects)
     if not branches:
         return ""
@@ -232,7 +239,12 @@ def dry_run_environment(projects: dict[str, str]) -> str:
     )
 
 
-def dry_run_build_script(toolkit_version: str, org_dir: str | None, projects: dict[str, str]) -> str:
+def github_dry_run_build_script(toolkit_version: str, org_dir: str | None, projects: dict[str, str]) -> str:
+    """Bash build script for the dry-run job, keyed on ``$GITHUB_BASE_REF``.
+
+    GitHub Actions-specific: ``GITHUB_BASE_REF`` is a GitHub Actions runner
+    environment variable. See ``ado_dry_run_jobs`` for the Azure DevOps approach.
+    """
     branches = branch_envs(projects)
     if not branches:
         return ""
@@ -260,7 +272,193 @@ def dry_run_build_script(toolkit_version: str, org_dir: str | None, projects: di
     return "\n".join(cases)
 
 
-def branching_rows(projects: dict[str, str]) -> str:
+def _ado_promotion_guard_lines() -> list[str]:
+    return [
+        "      - script: |",
+        "          set -euo pipefail",
+        '          HEAD="$(System.PullRequest.SourceBranch)"',
+        '          HEAD="${HEAD#refs/heads/}"',
+        '          if [ "${HEAD}" != "dev" ] && [[ "${HEAD}" != hotfix/* ]]; then',
+        "            echo \"##vso[task.logissue type=error]PRs to 'main' must come from 'dev' or 'hotfix/*' only (head: ${HEAD})\"",
+        "            exit 1",
+        "          fi",
+        '          echo "Promotion flow OK: ${HEAD} -> main"',
+        "        displayName: 'Enforce promotion flow (main <- dev or hotfix/* only)'",
+        "",
+    ]
+
+
+def ado_dry_run_jobs(toolkit_version: str, org_dir: str | None, setup_check_cmd: str, projects: dict[str, str]) -> str:
+    """Azure DevOps jobs for the dry-run pipeline: one job per deployable branch,
+    each scoped to its own ``<env>-toolkit-credentials`` variable group and gated
+    on ``System.PullRequest.TargetBranch`` when more than one branch is deployable.
+    Avoids ever loading two environments' variable groups into the same job.
+    """
+    branches = branch_envs(projects)
+    if not branches:
+        return ""
+    if len(branches) > 2:
+        raise ValueError(f"Unsupported number of deployable branches: {len(branches)}")
+    gate_on_branch = len(branches) > 1
+
+    jobs: list[str] = []
+    for branch, env in branches.items():
+        lines = [
+            f"  - job: dry_run_{env}",
+            f"    displayName: 'cdf build & deploy --dry-run ({env})'",
+            "    dependsOn: lint",
+        ]
+        if gate_on_branch:
+            lines.append(f"    condition: eq(variables['System.PullRequest.TargetBranch'], 'refs/heads/{branch}')")
+        lines.extend(
+            [
+                "    variables:",
+                f"      - group: {env}-toolkit-credentials",
+                "    steps:",
+                "      - checkout: self",
+                "",
+            ]
+        )
+        if branch == "main":
+            lines.extend(_ado_promotion_guard_lines())
+        lines.extend(
+            [
+                "      - script: rm -f .env",
+                "        displayName: 'Remove local .env'",
+                "",
+                "      - task: UsePythonVersion@0",
+                "        inputs:",
+                "          versionSpec: '3.13'",
+                "",
+                f'      - script: pip install "cognite-toolkit=={toolkit_version}"',
+                "        displayName: 'Install Cognite Toolkit'",
+                "",
+                f"      - script: {setup_check_cmd}",
+                "        displayName: 'Verify project config is in sync'",
+                "",
+                f"      - script: cdf build {build_args(toolkit_version, org_dir, env)}",
+                "        displayName: 'cdf build'",
+                "",
+                "      - script: cdf deploy --dry-run",
+                "        displayName: 'cdf deploy --dry-run'",
+            ]
+        )
+        jobs.append("\n".join(lines))
+    return "\n\n".join(jobs)
+
+
+ADO_DEPLOY_PIPELINE_NAMES = {"dev": "toolkit-deploy-dev", "test": "toolkit-deploy-test", "prod": "toolkit-deploy-prod"}
+ADO_DEPLOY_PIPELINE_TRIGGERS = {
+    "dev": "Push to `dev`",
+    "test": "Push to `main`",
+    "prod": "Git tag `vX.Y.Z` from `main`",
+}
+
+
+def ado_deploy_pipeline_rows(projects: dict[str, str]) -> str:
+    rows = [
+        f"| `{ADO_DEPLOY_PIPELINE_NAMES[env]}` | `.devops/deploy-pipeline.yml` | {ADO_DEPLOY_PIPELINE_TRIGGERS[env]} |"
+        for env in ENVIRONMENTS
+        if env in projects
+    ]
+    return "\n".join(rows)
+
+
+def _ado_deploy_condition(env: str) -> str:
+    if env == "dev":
+        return "eq(variables['Build.SourceBranch'], 'refs/heads/dev')"
+    if env == "test":
+        return "eq(variables['Build.SourceBranch'], 'refs/heads/main')"
+    return "startsWith(variables['Build.SourceBranch'], 'refs/tags/v')"
+
+
+def ado_deploy_jobs(toolkit_version: str, org_dir: str | None, setup_check_cmd: str, projects: dict[str, str]) -> str:
+    """Azure DevOps jobs for the single, reusable deploy-pipeline.yml: one job per
+    environment present in config.<env>.yaml, each gated on the branch or tag that
+    should trigger it and scoped to its own ``<env>-toolkit-credentials`` group.
+    Register the generated file three times in Azure DevOps (toolkit-deploy-dev,
+    toolkit-deploy-test, toolkit-deploy-prod) so history and permissions stay
+    per-environment; the job conditions make each registration a no-op outside its
+    own trigger.
+    """
+    envs = [env for env in ENVIRONMENTS if env in projects]
+    jobs: list[str] = []
+    for env in envs:
+        lines = [
+            f"  - job: deploy_{env}",
+            f"    displayName: 'Deploy to {projects[env]}'",
+            f"    condition: {_ado_deploy_condition(env)}",
+            "    variables:",
+            f"      - group: {env}-toolkit-credentials",
+            "    steps:",
+        ]
+        if env == "prod":
+            lines.extend(
+                [
+                    "      - checkout: self",
+                    "        fetchDepth: 0",
+                    "",
+                    "      - script: |",
+                    "          set -euo pipefail",
+                    '          TAG="$(Build.SourceBranchName)"',
+                    '          if [[ ! "$TAG" =~ ^v[0-9]+\\.[0-9]+\\.[0-9]+$ ]]; then',
+                    '            echo "##vso[task.logissue type=error]Release tag must match vX.Y.Z (got: $TAG)"',
+                    "            exit 1",
+                    "          fi",
+                    "        displayName: 'Enforce release tag pattern'",
+                    "",
+                    "      - script: |",
+                    "          set -euo pipefail",
+                    "          git fetch origin main",
+                    "          if ! git merge-base --is-ancestor HEAD origin/main; then",
+                    '            echo "##vso[task.logissue type=error]Production releases must be published from a commit reachable from main"',
+                    "            exit 1",
+                    "          fi",
+                    "        displayName: 'Reject releases not reachable from main'",
+                    "",
+                ]
+            )
+        else:
+            lines.extend(["      - checkout: self", ""])
+        lines.extend(
+            [
+                "      - script: rm -f .env",
+                "        displayName: 'Remove local .env'",
+                "",
+                "      - task: UsePythonVersion@0",
+                "        inputs:",
+                "          versionSpec: '3.13'",
+                "",
+                f'      - script: pip install "cognite-toolkit=={toolkit_version}"',
+                "        displayName: 'Install Cognite Toolkit'",
+                "",
+                f"      - script: {setup_check_cmd}",
+                "        displayName: 'Verify project config is in sync'",
+                "",
+                f"      - script: cdf build {build_args(toolkit_version, org_dir, env)}",
+                "        displayName: 'cdf build'",
+            ]
+        )
+        if env == "prod":
+            lines.extend(
+                [
+                    "",
+                    "      - script: cdf deploy --dry-run",
+                    "        displayName: 'cdf deploy --dry-run'",
+                ]
+            )
+        lines.extend(
+            [
+                "",
+                "      - script: cdf deploy",
+                "        displayName: 'cdf deploy'",
+            ]
+        )
+        jobs.append("\n".join(lines))
+    return "\n\n".join(jobs)
+
+
+def branching_rows(projects: dict[str, str], provider: str) -> str:
     rows: list[str] = []
     for env in deployable_envs(projects):
         branch = DEPLOY_BRANCHES[env]
@@ -271,10 +469,9 @@ def branching_rows(projects: dict[str, str]) -> str:
             ]
         )
     if "prod" in projects:
-        rows.append(f"| GitHub Release (tag `vX.Y.Z` from `main`) | `{projects['prod']}` | Deploy |")
-    return "\n".join(
-        rows or ["| *(none)* | *(none)* | No CI/CD workflows generated |"]
-    )
+        prod_trigger = "GitHub Release (tag `vX.Y.Z` from `main`)" if provider == "github" else "Git tag `vX.Y.Z` pushed to `main`"
+        rows.append(f"| {prod_trigger} | `{projects['prod']}` | Deploy |")
+    return "\n".join(rows or ["| *(none)* | *(none)* | No CI/CD workflows generated |"])
 
 
 def branch_protection_rows(projects: dict[str, str]) -> str:
@@ -311,13 +508,14 @@ def indent(text: str, spaces: int) -> str:
     return "\n".join(f"{prefix}{line}" if line else line for line in text.splitlines())
 
 
-def environment_rows(projects: dict[str, str]) -> str:
+def environment_rows(projects: dict[str, str], provider: str) -> str:
     rows: list[str] = []
     for env in deployable_envs(projects):
         branch = DEPLOY_BRANCHES[env]
         rows.append(f"| `{env}-toolkit-credentials` | PR → {branch}, push `{branch}` | `{projects[env]}` |")
     if "prod" in projects:
-        rows.append(f"| `prod-toolkit-credentials` | Release published | `{projects['prod']}` |")
+        prod_trigger = "Release published" if provider == "github" else "Tag pushed"
+        rows.append(f"| `prod-toolkit-credentials` | {prod_trigger} | `{projects['prod']}` |")
     return "\n".join(rows)
 
 
@@ -362,70 +560,103 @@ def main() -> None:
     toolkit_version = cdf.get("modules", {}).get("version", "0.7.220")
     resolve_modules_root(repo_root, org_dir)
 
+    setup_check_cmd = setup_project_check_cmd(repo_root, org_dir)
     base_values: dict[str, str] = {
         "PR_BRANCHES": pr_branches(projects),
-        "DRY_RUN_ENVIRONMENT": dry_run_environment(projects),
-        "DRY_RUN_BUILD_SCRIPT": indent(dry_run_build_script(str(toolkit_version), org_dir, projects), 10),
-        "BRANCHING_ROWS": branching_rows(projects),
-        "ENVIRONMENT_ROWS": environment_rows(projects),
+        "BRANCHING_ROWS": branching_rows(projects, args.provider),
+        "ENVIRONMENT_ROWS": environment_rows(projects, args.provider),
         "EXAMPLE_BUILD_ARGS": example_build_args(str(toolkit_version), org_dir, projects),
         "ENV_CONFIG_LIST": env_config_list(projects),
         "BRANCH_PROTECTION_ROWS": branch_protection_rows(projects),
         "BRANCH_PROTECTION_NOTE": branch_protection_note(projects),
         "TOOLKIT_VERSION": str(toolkit_version),
-        "LINT_PATHS": build_lint_paths(org_dir),
-        "SETUP_PROJECT_CHECK_CMD": setup_project_check_cmd(repo_root, org_dir),
+        "LINT_PATHS": build_lint_paths(org_dir, args.provider),
+        "SETUP_PROJECT_CHECK_CMD": setup_check_cmd,
     }
 
-    if deployable_envs(projects):
-        template = templates / "dry-run.yml"
-        if not template.is_file():
-            print(f"Missing template: {template}", file=sys.stderr)
+    if args.provider == "github":
+        base_values["DRY_RUN_ENVIRONMENT"] = github_dry_run_environment(projects)
+        base_values["DRY_RUN_BUILD_SCRIPT"] = indent(
+            github_dry_run_build_script(str(toolkit_version), org_dir, projects), 10
+        )
+
+        if deployable_envs(projects):
+            template = templates / "dry-run.yml"
+            if not template.is_file():
+                print(f"Missing template: {template}", file=sys.stderr)
+                sys.exit(1)
+            write_file(
+                workflows_dir / "dry-run.yml",
+                render_template(template, base_values),
+                args.force,
+            )
+        else:
+            remove_file(workflows_dir / "dry-run.yml")
+
+        if "prod" in projects:
+            deploy_prod_template = templates / "deploy-prod.yml"
+            if not deploy_prod_template.is_file():
+                print(f"Missing template: {deploy_prod_template}", file=sys.stderr)
+                sys.exit(1)
+            prod_values = {
+                **base_values,
+                "PROD_PROJECT": projects["prod"],
+                "PROD_BUILD_ARGS": build_args(str(toolkit_version), org_dir, "prod"),
+            }
+            write_file(
+                workflows_dir / "deploy-prod.yml",
+                render_template(deploy_prod_template, prod_values),
+                args.force,
+            )
+        else:
+            remove_file(workflows_dir / "deploy-prod.yml")
+
+        deploy_template = templates / "deploy.yml"
+        if not deploy_template.is_file():
+            print(f"Missing template: {deploy_template}", file=sys.stderr)
+            sys.exit(1)
+        for env in ("dev", "test"):
+            if env not in projects:
+                remove_file(workflows_dir / f"deploy-{env}.yml")
+                continue
+            merged = {
+                **base_values,
+                "ENV": env,
+                "BRANCH": DEPLOY_BRANCHES[env],
+                "ENV_LABEL": ENV_LABELS[env],
+                "PROJECT": projects[env],
+                "BUILD_ARGS": build_args(str(toolkit_version), org_dir, env),
+            }
+            out = workflows_dir / f"deploy-{env}.yml"
+            write_file(out, render_template(deploy_template, merged), args.force)
+
+    elif args.provider == "ado":
+        base_values["DRY_RUN_JOBS"] = ado_dry_run_jobs(str(toolkit_version), org_dir, setup_check_cmd, projects)
+        base_values["DEPLOY_JOBS"] = ado_deploy_jobs(str(toolkit_version), org_dir, setup_check_cmd, projects)
+        base_values["DEPLOY_PIPELINE_ROWS"] = ado_deploy_pipeline_rows(projects)
+
+        if deployable_envs(projects):
+            dry_run_template = templates / "dry-run-pipeline.yml"
+            if not dry_run_template.is_file():
+                print(f"Missing template: {dry_run_template}", file=sys.stderr)
+                sys.exit(1)
+            write_file(
+                workflows_dir / "dry-run-pipeline.yml",
+                render_template(dry_run_template, base_values),
+                args.force,
+            )
+        else:
+            remove_file(workflows_dir / "dry-run-pipeline.yml")
+
+        deploy_pipeline_template = templates / "deploy-pipeline.yml"
+        if not deploy_pipeline_template.is_file():
+            print(f"Missing template: {deploy_pipeline_template}", file=sys.stderr)
             sys.exit(1)
         write_file(
-            workflows_dir / "dry-run.yml",
-            render_template(template, base_values),
+            workflows_dir / "deploy-pipeline.yml",
+            render_template(deploy_pipeline_template, base_values),
             args.force,
         )
-    else:
-        remove_file(workflows_dir / "dry-run.yml")
-
-    if "prod" in projects:
-        deploy_prod_template = templates / "deploy-prod.yml"
-        if not deploy_prod_template.is_file():
-            print(f"Missing template: {deploy_prod_template}", file=sys.stderr)
-            sys.exit(1)
-        prod_values = {
-            **base_values,
-            "PROD_PROJECT": projects["prod"],
-            "PROD_BUILD_ARGS": build_args(str(toolkit_version), org_dir, "prod"),
-        }
-        write_file(
-            workflows_dir / "deploy-prod.yml",
-            render_template(deploy_prod_template, prod_values),
-            args.force,
-        )
-    else:
-        remove_file(workflows_dir / "deploy-prod.yml")
-
-    deploy_template = templates / "deploy.yml"
-    if not deploy_template.is_file():
-        print(f"Missing template: {deploy_template}", file=sys.stderr)
-        sys.exit(1)
-    for env in ("dev", "test"):
-        if env not in projects:
-            remove_file(workflows_dir / f"deploy-{env}.yml")
-            continue
-        merged = {
-            **base_values,
-            "ENV": env,
-            "BRANCH": DEPLOY_BRANCHES[env],
-            "ENV_LABEL": ENV_LABELS[env],
-            "PROJECT": projects[env],
-            "BUILD_ARGS": build_args(str(toolkit_version), org_dir, env),
-        }
-        out = workflows_dir / f"deploy-{env}.yml"
-        write_file(out, render_template(deploy_template, merged), args.force)
 
     readme_template = templates / "FOUNDATION_CICD.md"
     if not readme_template.is_file():
@@ -441,12 +672,21 @@ def main() -> None:
     print()
     environments = [f"{env}-toolkit-credentials" for env in ENVIRONMENTS if env in projects]
     print("Next steps:")
-    print(f"  1. Create GitHub Environments: {', '.join(environments)}")
-    print("     (see docs/FOUNDATION_CICD.md)")
-    print("  2. Create and protect the branches used by the generated workflows")
-    if deployable_envs(projects):
-        branches = ", ".join(branch_envs(projects))
-        print(f"  3. Open a PR to {branches} to validate dry-run.yml")
+    if args.provider == "github":
+        print(f"  1. Create GitHub Environments: {', '.join(environments)}")
+        print("     (see docs/FOUNDATION_CICD.md)")
+        print("  2. Create and protect the branches used by the generated workflows")
+        if deployable_envs(projects):
+            branches = ", ".join(branch_envs(projects))
+            print(f"  3. Open a PR to {branches} to validate dry-run.yml")
+    else:
+        pipeline_names = [ADO_DEPLOY_PIPELINE_NAMES[env] for env in ENVIRONMENTS if env in projects]
+        print(f"  1. Create Azure DevOps variable groups: {', '.join(environments)}")
+        print("     (see docs/FOUNDATION_CICD.md)")
+        print(f"  2. Register deploy-pipeline.yml as: {', '.join(pipeline_names)}")
+        if deployable_envs(projects):
+            branches = ", ".join(branch_envs(projects))
+            print(f"  3. Add dry-run-pipeline.yml as a Build Validation policy on {branches}")
 
 
 if __name__ == "__main__":

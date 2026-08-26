@@ -216,17 +216,20 @@ cdf deploy
 
 ### Step 6 — Set up CI/CD (optional)
 
-Generate GitHub Actions workflows that automate build, dry-run, and deploy on PR / merge / release. This can also be triggered through the setup wizard (Step 3):
+Generate CI/CD that automates build, dry-run, and deploy on PR / merge / release, for either GitHub Actions (default) or Azure DevOps. This can also be triggered through the setup wizard (Step 3):
 
 ```bash
 python modules/common/cdf_project_foundation/scripts/generate_actions.py --force
+python modules/common/cdf_project_foundation/scripts/generate_actions.py --force --provider ado
 ```
 
 The script reads `org-dir` and toolkit version from `cdf.toml` automatically. It uses `environment.project` from each `config.<env>.yaml` as the CDF project name and validates that `environment.name` matches the expected environment.
 
-This writes `.github/workflows/` (`dry-run.yml`, `deploy-dev.yml`, `deploy-prod.yml`, and `deploy-test.yml` when `config.test.yaml` exists) and `docs/FOUNDATION_CICD.md` (GitHub Environments and secrets). Configure `ADMIN_SOURCE_ID`, `CONSUMER_SOURCE_ID`, and `PRODUCER_SOURCE_ID` as GitHub Environment variables alongside the CDF auth variables.
+**GitHub (default):** writes `.github/workflows/` (`dry-run.yml`, `deploy-dev.yml`, `deploy-prod.yml`, and `deploy-test.yml` when `config.test.yaml` exists) and `docs/FOUNDATION_CICD.md` (GitHub Environments and secrets). Configure `ADMIN_SOURCE_ID`, `CONSUMER_SOURCE_ID`, and `PRODUCER_SOURCE_ID` as GitHub Environment variables alongside the CDF auth variables.
 
-Branching model: PRs to `dev`; PRs to `main` and deploy **test** on merge to `main` only when `config.test.yaml` exists; deploy **dev** on merge to `dev`, and **prod** on GitHub Release from `main`.
+**Azure DevOps (`--provider ado`):** writes `.devops/` (`dry-run-pipeline.yml` and the reusable `deploy-pipeline.yml`) and `docs/FOUNDATION_CICD.md` (variable groups, the three `deploy-pipeline.yml` registrations, and the Build Validation branch policy). See `docs/FOUNDATION_CICD.md` for the exact setup steps — variable groups follow the same `<env>-toolkit-credentials` naming as GitHub Environments.
+
+Branching model: PRs to `dev`; PRs to `main` and deploy **test** on merge to `main` only when `config.test.yaml` exists; deploy **dev** on merge to `dev`, and **prod** on a GitHub Release (or, for Azure DevOps, a `vX.Y.Z` tag) from `main`.
 
 ---
 
@@ -245,10 +248,11 @@ cdf_project_foundation/
 │   ├── _env_io.py                 # .env file parse / upsert helpers
 │   ├── _yaml_patch.py             # line-preserving YAML scalar patcher
 │   ├── setup_project.py           # interactive wizard — creates / updates config.<env>.yaml
-│   ├── generate_actions.py        # generates GitHub Actions CI/CD workflows
+│   ├── generate_actions.py        # generates GitHub Actions or Azure DevOps CI/CD (--provider)
 │   └── generate_env_configs.py    # generates config.{dev,test,prod}.yaml skeletons
 ├── templates/
-│   └── github/                    # GitHub Actions workflow templates
+│   ├── github/                    # GitHub Actions workflow templates
+│   └── ado/                       # Azure DevOps pipeline templates
 ├── default.config.yaml
 └── module.toml
 ```

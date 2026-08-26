@@ -1,0 +1,74 @@
+trigger: none
+
+pr:
+  branches:
+    include:
+{{PR_BRANCHES}}
+
+pool:
+  vmImage: ubuntu-latest
+
+jobs:
+  - job: lint
+    displayName: 'Lint (pipeline YAML, config, functions)'
+    steps:
+      - checkout: self
+
+      - task: UsePythonVersion@0
+        inputs:
+          versionSpec: '3.13'
+
+      - script: pip install pyyaml
+        displayName: 'Install pyyaml'
+
+      - script: |
+          python - <<'PY'
+          from pathlib import Path
+          import yaml
+
+          for path in sorted(Path(".devops").glob("*.yml")):
+              yaml.safe_load(path.read_text())
+              print(f"valid yaml: {path}")
+          PY
+        displayName: 'Validate pipeline YAML'
+
+      - script: |
+          set -euo pipefail
+          if [ -f .pre-commit-config.yaml ]; then
+            pip install pre-commit
+            mapfile -t FILES < <(git ls-files \
+            {{LINT_PATHS}})
+            if [ "${#FILES[@]}" -gt 0 ]; then
+              SKIP=check-yaml,end-of-file-fixer,trailing-whitespace pre-commit run --files "${FILES[@]}"
+            fi
+          else
+            echo "No .pre-commit-config.yaml found; skipping pre-commit config lint."
+          fi
+        displayName: 'Config lint (Toolkit templates; skip strict YAML on modules)'
+
+      - script: |
+          set -euo pipefail
+          mapfile -t PY_FILES < <(git ls-files | grep -E '/functions/.*\.py$' || true)
+          if [ "${#PY_FILES[@]}" -eq 0 ]; then
+            echo "No Python found under functions/; skipping ruff and pyright."
+            exit 0
+          fi
+          pip install ruff pyright
+          mapfile -t REQS < <(git ls-files | grep -E '/functions/.*requirements\.txt$' || true)
+          for req in "${REQS[@]}"; do
+            pip install -r "$req"
+          done
+          status=0
+          ruff check "${PY_FILES[@]}" || status=$?
+          mapfile -t FUNC_DIRS < <(
+            for f in "${PY_FILES[@]}"; do
+              dirname "$f" | sed -E 's|^(.*functions/[^/]+).*|\1|'
+            done | sort -u
+          )
+          for dir in "${FUNC_DIRS[@]}"; do
+            (cd "$dir" && pyright --pythonversion 3.13 .) || status=$?
+          done
+          exit "$status"
+        displayName: 'Lint functions (ruff, pyright)'
+
+{{DRY_RUN_JOBS}}

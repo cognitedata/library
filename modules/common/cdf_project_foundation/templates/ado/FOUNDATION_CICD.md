@@ -1,0 +1,93 @@
+# Foundation Deployment Pack — CI/CD setup
+
+Generated from committed Toolkit environment configs.
+
+This follows the [CDF Foundation Setup guide](https://cogdocs.mintlify.io/gvd) *(password-protected — request access via [#topic-deployment-packs](https://cognitedata.slack.com/archives/C098QJ09YKX) or contact [Valeriya Naumova](https://cognitedata.slack.com/team/U051XA95S0G))* — Step 5, Option B (Azure DevOps).
+
+## Branching model
+
+| Git branch / event | CDF project | Trigger |
+|--------------------|-------------|---------|
+{{BRANCHING_ROWS}}
+
+If a pre-production environment is present, PRs to `main` must come from `dev` or `hotfix/*` only.
+
+## Branch policies
+
+Protect the branches used above under **Repos → Branches → Branch policies**. This is required, not optional:
+
+| Branch | Required reviewers | Required status checks |
+|--------|---------------------|--------------------------|
+{{BRANCH_PROTECTION_ROWS}}
+
+{{BRANCH_PROTECTION_NOTE}}
+
+Register `dry-run-pipeline.yml` (the `toolkit-pr-validate` pipeline, see below) as a **Build Validation** policy on every branch listed above, so it runs automatically as a required check on each PR.
+
+## Variable groups
+
+Create one variable group per environment under **Pipelines → Library**:
+
+| Variable group | Used by | `CDF_PROJECT` example |
+|----------------|---------|-------------------------|
+{{ENVIRONMENT_ROWS}}
+
+Scope each group via **Pipeline permissions** to only the pipeline(s) that need it — the `dev-toolkit-credentials` group should grant access to `toolkit-pr-validate` and `toolkit-deploy-dev` only, and so on per environment.
+
+Each group needs these **variables**:
+
+- `CDF_CLUSTER`
+- `CDF_PROJECT` (must match `config.<env>.yaml`)
+- `LOGIN_FLOW` (typically `client_credentials`)
+- `IDP_TENANT_ID`
+- `IDP_CLIENT_ID`
+- `ADMIN_SOURCE_ID`
+- `CONSUMER_SOURCE_ID`
+- `PRODUCER_SOURCE_ID`
+
+And this **secret** (mark it secret in the Library UI):
+
+- `IDP_CLIENT_SECRET`
+
+## Pipelines to register
+
+Import the generated YAML as Azure DevOps pipelines under **Pipelines → New pipeline → Azure Repos Git**, selecting **Existing Azure Pipelines YAML file**:
+
+| Pipeline name | YAML file | Trigger |
+|---------------|-----------|---------|
+| `toolkit-pr-validate` | `.devops/dry-run-pipeline.yml` | PR to `dev` or `main` (via Build Validation policy above) |
+{{DEPLOY_PIPELINE_ROWS}}
+
+`deploy-pipeline.yml` is the same file for all three deploy registrations — each job inside it is gated on its own branch or tag, so only the matching registration actually deploys. Both `dry-run-pipeline.yml` and `deploy-pipeline.yml` set `trigger: none`; for each of the three deploy registrations, open **Edit → Triggers → Continuous integration** and override it to the one branch or tag pattern from the table above, so each registration's run history stays scoped to its own environment.
+
+## Toolkit configs
+
+This generator only writes Azure DevOps pipeline YAML and this guide. It does not
+create or refresh {{ENV_CONFIG_LIST}}.
+
+Before opening a PR, run the project setup wizard and commit the resulting config
+files together with the pipelines:
+
+```bash
+python modules/common/cdf_project_foundation/scripts/setup_project.py
+cdf build {{EXAMPLE_BUILD_ARGS}}
+```
+
+CI validates the committed configs as-is; it does not regenerate them.
+If the repository does not have a root `.pre-commit-config.yaml`, the generated
+PR pipeline skips the pre-commit config lint step.
+
+If any CDF Function under a `functions/` folder has Python source, the PR pipeline
+also runs `ruff check` and `pyright` against it, installing each function's
+`requirements.txt` first so imports resolve. Projects with no `functions/` Python
+code skip this step.
+
+## Regenerate pipelines
+
+```bash
+python modules/common/cdf_project_foundation/scripts/generate_actions.py --provider ado --force
+```
+
+## Toolkit version
+
+Pipelines install `cognite-toolkit=={{TOOLKIT_VERSION}}`. Keep in sync with `[modules].version` in `cdf.toml`.

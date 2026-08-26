@@ -6,6 +6,7 @@ import sys
 from pathlib import Path
 
 import pytest
+import yaml
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 MODULE_ROOT = REPO_ROOT / "modules" / "common" / "cdf_project_foundation"
@@ -18,7 +19,7 @@ def test_generator_scripts_exist() -> None:
     assert (TEMPLATES / "dry-run.yml").is_file()
 
 
-def test_dry_run_environment_rejects_more_than_two_branches(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_github_dry_run_environment_rejects_more_than_two_branches(monkeypatch: pytest.MonkeyPatch) -> None:
     sys.path.insert(0, str(MODULE_ROOT / "scripts"))
     import generate_actions  # pyright: ignore[reportMissingImports]
 
@@ -26,7 +27,23 @@ def test_dry_run_environment_rejects_more_than_two_branches(monkeypatch: pytest.
     monkeypatch.setitem(generate_actions.DEPLOY_BRANCHES, "qa", "qa")
 
     with pytest.raises(ValueError, match="Unsupported number of deployable branches: 3"):
-        generate_actions.dry_run_environment({"dev": "acme-dev", "test": "acme-test", "qa": "acme-qa"})
+        generate_actions.github_dry_run_environment({"dev": "acme-dev", "test": "acme-test", "qa": "acme-qa"})
+
+
+def test_ado_dry_run_jobs_rejects_more_than_two_branches(monkeypatch: pytest.MonkeyPatch) -> None:
+    sys.path.insert(0, str(MODULE_ROOT / "scripts"))
+    import generate_actions  # pyright: ignore[reportMissingImports]
+
+    monkeypatch.setattr(generate_actions, "deployable_envs", lambda projects: ["dev", "test", "qa"])
+    monkeypatch.setitem(generate_actions.DEPLOY_BRANCHES, "qa", "qa")
+
+    with pytest.raises(ValueError, match="Unsupported number of deployable branches: 3"):
+        generate_actions.ado_dry_run_jobs(
+            "0.8.0",
+            None,
+            "python scripts/setup_project.py --check",
+            {"dev": "acme-dev", "test": "acme-test", "qa": "acme-qa"},
+        )
 
 
 def test_workflows_output_dir_rejects_unsupported_provider(tmp_path: Path) -> None:
@@ -493,6 +510,97 @@ def test_generate_actions_explicit_provider_github_is_byte_identical_to_default(
     assert not (explicit_dir / ".devops").exists()
 
 
+def _scaffold_project_with_envs(project_dir: Path, envs: tuple[str, ...], org_dir: str | None = None) -> None:
+    (project_dir / "cdf.toml").write_text(
+        """
+[modules]
+version = "0.8.0"
+""".strip(),
+        encoding="utf-8",
+    )
+    base = (project_dir / org_dir) if org_dir else project_dir
+    modules = base / "modules" / "common" / "cdf_project_foundation"
+    modules.mkdir(parents=True)
+    (modules / "module.toml").write_text(
+        'id = "cdf_project_foundation"\npackage_id = "dp:foundation"\n',
+        encoding="utf-8",
+    )
+    for env in envs:
+        (base / f"config.{env}.yaml").write_text(
+            f"""
+environment:
+  name: {env}
+  project: acme-{env}
+""".lstrip(),
+            encoding="utf-8",
+        )
+
+
+def test_generate_actions_ado_writes_pipelines_and_docs(tmp_path: Path) -> None:
+    _scaffold_project_with_envs(tmp_path, ("dev", "test", "prod"))
+
+    subprocess.run(
+        [sys.executable, str(GENERATE_ACTIONS), "--force", "--provider", "ado"],
+        check=True,
+        cwd=tmp_path,
+    )
+
+    dry_run_path = tmp_path / ".devops" / "dry-run-pipeline.yml"
+    deploy_path = tmp_path / ".devops" / "deploy-pipeline.yml"
+    assert dry_run_path.is_file()
+    assert deploy_path.is_file()
+    assert (tmp_path / "docs" / "FOUNDATION_CICD.md").is_file()
+    # Nothing GitHub-specific should leak into ado's own output tree.
+    assert not (tmp_path / ".github").exists()
+
+    dry_run_yaml = yaml.safe_load(dry_run_path.read_text(encoding="utf-8"))
+    deploy_yaml = yaml.safe_load(deploy_path.read_text(encoding="utf-8"))
+    job_names = {job["job"] for job in dry_run_yaml["jobs"]}
+    assert job_names == {"lint", "dry_run_dev", "dry_run_test"}
+    deploy_job_names = {job["job"] for job in deploy_yaml["jobs"]}
+    assert deploy_job_names == {"deploy_dev", "deploy_test", "deploy_prod"}
+
+    dry_run_text = dry_run_path.read_text(encoding="utf-8")
+    assert "GITHUB_BASE_REF" not in dry_run_text
+    assert "github." not in dry_run_text
+    assert "System.PullRequest.TargetBranch" in dry_run_text
+    assert "dev-toolkit-credentials" in dry_run_text
+    assert "test-toolkit-credentials" in dry_run_text
+
+    deploy_text = deploy_path.read_text(encoding="utf-8")
+    assert "startsWith(variables['Build.SourceBranch'], 'refs/tags/v')" in deploy_text
+    assert "prod-toolkit-credentials" in deploy_text
+    assert "Enforce release tag pattern" in deploy_text
+
+    docs = (tmp_path / "docs" / "FOUNDATION_CICD.md").read_text(encoding="utf-8")
+    assert "toolkit-deploy-dev" in docs
+    assert "toolkit-deploy-test" in docs
+    assert "toolkit-deploy-prod" in docs
+    assert "Build Validation" in docs
+    assert "GitHub Release" not in docs
+
+
+def test_generate_actions_ado_dev_only_has_no_branch_condition(tmp_path: Path) -> None:
+    _scaffold_project_with_envs(tmp_path, ("dev",))
+
+    subprocess.run(
+        [sys.executable, str(GENERATE_ACTIONS), "--force", "--provider", "ado"],
+        check=True,
+        cwd=tmp_path,
+    )
+
+    dry_run_path = tmp_path / ".devops" / "dry-run-pipeline.yml"
+    deploy_path = tmp_path / ".devops" / "deploy-pipeline.yml"
+    dry_run_yaml = yaml.safe_load(dry_run_path.read_text(encoding="utf-8"))
+    deploy_yaml = yaml.safe_load(deploy_path.read_text(encoding="utf-8"))
+
+    dry_run_dev_job = next(job for job in dry_run_yaml["jobs"] if job["job"] == "dry_run_dev")
+    assert "condition" not in dry_run_dev_job
+    assert {job["job"] for job in deploy_yaml["jobs"]} == {"deploy_dev"}
+    # The promotion-flow guard only applies to the main/test job.
+    assert "Enforce promotion flow" not in dry_run_path.read_text(encoding="utf-8")
+
+
 def test_generate_actions_rejects_invalid_provider(tmp_path: Path) -> None:
     _scaffold_dev_only_project(tmp_path)
 
@@ -510,24 +618,36 @@ def test_generate_actions_rejects_invalid_provider(tmp_path: Path) -> None:
     assert not (tmp_path / ".devops").exists()
 
 
-def test_generate_actions_provider_ado_fails_with_missing_template_error(tmp_path: Path) -> None:
-    _scaffold_dev_only_project(tmp_path)
+def test_generate_actions_ado_missing_dry_run_template_fails_gracefully(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    sys.path.insert(0, str(MODULE_ROOT / "scripts"))
+    import generate_actions  # pyright: ignore[reportMissingImports]
 
-    result = subprocess.run(
-        [sys.executable, str(GENERATE_ACTIONS), "--force", "--provider", "ado"],
-        cwd=tmp_path,
-        check=False,
-        capture_output=True,
-        text=True,
-    )
+    project_dir = tmp_path / "project"
+    project_dir.mkdir()
+    _scaffold_dev_only_project(project_dir)
 
-    assert result.returncode != 0
-    assert "Missing template" in result.stderr
-    assert "templates/ado" in result.stderr
-    # No-op: nothing should be written for a provider whose templates don't exist yet.
-    assert not (tmp_path / ".devops").exists()
-    assert not (tmp_path / ".github").exists()
-    assert not (tmp_path / "docs" / "FOUNDATION_CICD.md").exists()
+    # An ado template set missing dry-run-pipeline.yml — simulates an incomplete install.
+    ado_templates = MODULE_ROOT / "templates" / "ado"
+    fake_templates_root = tmp_path / "templates"
+    fake_ado_dir = fake_templates_root / "ado"
+    fake_ado_dir.mkdir(parents=True)
+    for name in ("deploy-pipeline.yml", "FOUNDATION_CICD.md"):
+        (fake_ado_dir / name).write_text((ado_templates / name).read_text(encoding="utf-8"), encoding="utf-8")
+
+    monkeypatch.setattr(generate_actions, "TEMPLATES_ROOT", fake_templates_root)
+    monkeypatch.setattr(sys, "argv", ["generate_actions.py", "--force", "--provider", "ado"])
+    monkeypatch.chdir(project_dir)
+
+    with pytest.raises(SystemExit) as exc_info:
+        generate_actions.main()
+
+    assert exc_info.value.code == 1
+    captured = capsys.readouterr()
+    assert "Missing template" in captured.err
+    assert "dry-run-pipeline.yml" in captured.err
+    assert not (project_dir / ".devops").exists()
 
 
 def test_generate_actions_missing_readme_template_fails_gracefully(
@@ -540,16 +660,15 @@ def test_generate_actions_missing_readme_template_fails_gracefully(
     project_dir.mkdir()
     _scaffold_dev_only_project(project_dir)
 
-    # A provider whose template set is missing FOUNDATION_CICD.md — everything else is present.
-    fake_provider_dir = tmp_path / "templates" / "fake"
-    fake_provider_dir.mkdir(parents=True)
+    # A github template set missing FOUNDATION_CICD.md — everything else is present.
+    fake_templates_root = tmp_path / "templates"
+    fake_github_dir = fake_templates_root / "github"
+    fake_github_dir.mkdir(parents=True)
     for name in ("dry-run.yml", "deploy.yml"):
-        (fake_provider_dir / name).write_text((TEMPLATES / name).read_text(encoding="utf-8"), encoding="utf-8")
+        (fake_github_dir / name).write_text((TEMPLATES / name).read_text(encoding="utf-8"), encoding="utf-8")
 
-    monkeypatch.setattr(generate_actions, "TEMPLATES_ROOT", tmp_path / "templates")
-    monkeypatch.setattr(generate_actions, "PROVIDERS", (*generate_actions.PROVIDERS, "fake"))
-    monkeypatch.setitem(generate_actions.PROVIDER_WORKFLOWS_DIR, "fake", Path(".github") / "workflows")
-    monkeypatch.setattr(sys, "argv", ["generate_actions.py", "--force", "--provider", "fake"])
+    monkeypatch.setattr(generate_actions, "TEMPLATES_ROOT", fake_templates_root)
+    monkeypatch.setattr(sys, "argv", ["generate_actions.py", "--force", "--provider", "github"])
     monkeypatch.chdir(project_dir)
 
     with pytest.raises(SystemExit) as exc_info:
