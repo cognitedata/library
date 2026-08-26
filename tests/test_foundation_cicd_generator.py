@@ -589,6 +589,10 @@ def test_generate_actions_ado_writes_pipelines_and_docs(tmp_path: Path) -> None:
     prod_job = next(job for job in deploy_yaml["jobs"] if job["job"] == "deploy_prod")
     assert prod_job["steps"][0]["checkout"] == "self"
     assert prod_job["steps"][0]["persistCredentials"] is True
+    # A shallow/single-branch CI checkout may not have origin/main as a valid
+    # remote-tracking ref; FETCH_HEAD is always populated by the preceding fetch.
+    assert "git merge-base --is-ancestor HEAD FETCH_HEAD" in deploy_text
+    assert "origin/main; then" not in deploy_text
     assert all(len(line) <= 120 for line in deploy_text.splitlines())
     assert all(len(line) <= 120 for line in dry_run_text.splitlines())
 
@@ -622,6 +626,29 @@ def test_generate_actions_ado_dev_only_has_no_branch_condition(tmp_path: Path) -
     assert {job["job"] for job in deploy_yaml["jobs"]} == {"deploy_dev"}
     # The promotion-flow guard only applies to the main/test job.
     assert "Enforce promotion flow" not in dry_run_path.read_text(encoding="utf-8")
+
+
+def test_generate_actions_ado_test_only_promotion_guard_skips_non_pr_runs(tmp_path: Path) -> None:
+    """With only config.test.yaml present, dry_run_test is the sole branch (main) so it
+    gets no job-level condition (single-branch case) -- it runs on any pipeline trigger,
+    including a manual run where System.PullRequest.SourceBranch is empty. The promotion
+    guard must skip itself in that case instead of always rejecting on an empty HEAD."""
+    _scaffold_project_with_envs(tmp_path, ("test",))
+
+    subprocess.run(
+        [sys.executable, str(GENERATE_ACTIONS), "--force", "--provider", "ado"],
+        check=True,
+        cwd=tmp_path,
+    )
+
+    dry_run_path = tmp_path / ".devops" / "dry-run-pipeline.yml"
+    dry_run_yaml = yaml.safe_load(dry_run_path.read_text(encoding="utf-8"))
+    dry_run_test_job = next(job for job in dry_run_yaml["jobs"] if job["job"] == "dry_run_test")
+    assert "condition" not in dry_run_test_job
+
+    dry_run_text = dry_run_path.read_text(encoding="utf-8")
+    assert "Enforce promotion flow" in dry_run_text
+    assert 'if [ -n "${HEAD}" ]; then' in dry_run_text
 
 
 def test_generate_actions_rejects_invalid_provider(tmp_path: Path) -> None:
