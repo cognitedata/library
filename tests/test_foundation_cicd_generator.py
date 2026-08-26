@@ -29,6 +29,14 @@ def test_dry_run_environment_rejects_more_than_two_branches(monkeypatch: pytest.
         generate_actions.dry_run_environment({"dev": "acme-dev", "test": "acme-test", "qa": "acme-qa"})
 
 
+def test_workflows_output_dir_rejects_unsupported_provider(tmp_path: Path) -> None:
+    sys.path.insert(0, str(MODULE_ROOT / "scripts"))
+    import generate_actions  # pyright: ignore[reportMissingImports]
+
+    with pytest.raises(ValueError, match="Unsupported provider: gitlab"):
+        generate_actions.workflows_output_dir("gitlab", tmp_path)
+
+
 def test_generate_actions_writes_workflows_and_docs(tmp_path: Path) -> None:
     org_dir = "industrial"
     (tmp_path / "cdf.toml").write_text(
@@ -429,6 +437,131 @@ environment:
         for env in {"dev", "test", "prod"} - set(envs):
             assert f"`acme-{env}`" not in docs
             assert f"`config.{env}.yaml`" not in docs
+
+
+def _scaffold_dev_only_project(project_dir: Path) -> None:
+    (project_dir / "cdf.toml").write_text(
+        """
+[modules]
+version = "0.8.0"
+""".strip(),
+        encoding="utf-8",
+    )
+    modules = project_dir / "modules" / "common" / "cdf_project_foundation"
+    modules.mkdir(parents=True)
+    (modules / "module.toml").write_text(
+        'id = "cdf_project_foundation"\npackage_id = "dp:foundation"\n',
+        encoding="utf-8",
+    )
+    (project_dir / "config.dev.yaml").write_text(
+        """
+environment:
+  name: dev
+  project: acme-dev
+""".lstrip(),
+        encoding="utf-8",
+    )
+
+
+def test_generate_actions_explicit_provider_github_is_byte_identical_to_default(tmp_path: Path) -> None:
+    default_dir = tmp_path / "default"
+    explicit_dir = tmp_path / "explicit"
+    default_dir.mkdir()
+    explicit_dir.mkdir()
+    _scaffold_dev_only_project(default_dir)
+    _scaffold_dev_only_project(explicit_dir)
+
+    subprocess.run([sys.executable, str(GENERATE_ACTIONS), "--force"], check=True, cwd=default_dir)
+    subprocess.run(
+        [sys.executable, str(GENERATE_ACTIONS), "--force", "--provider", "github"],
+        check=True,
+        cwd=explicit_dir,
+    )
+
+    default_workflows = default_dir / ".github" / "workflows"
+    explicit_workflows = explicit_dir / ".github" / "workflows"
+    for name in ("dry-run.yml", "deploy-dev.yml"):
+        default_content = (default_workflows / name).read_text(encoding="utf-8")
+        explicit_content = (explicit_workflows / name).read_text(encoding="utf-8")
+        assert default_content == explicit_content
+
+    default_docs = (default_dir / "docs" / "FOUNDATION_CICD.md").read_text(encoding="utf-8")
+    explicit_docs = (explicit_dir / "docs" / "FOUNDATION_CICD.md").read_text(encoding="utf-8")
+    assert default_docs == explicit_docs
+
+    # Nothing provider-specific should leak into GitHub's own output tree.
+    assert not (explicit_dir / ".devops").exists()
+
+
+def test_generate_actions_rejects_invalid_provider(tmp_path: Path) -> None:
+    _scaffold_dev_only_project(tmp_path)
+
+    result = subprocess.run(
+        [sys.executable, str(GENERATE_ACTIONS), "--force", "--provider", "gitlab"],
+        cwd=tmp_path,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode != 0
+    assert "invalid choice: 'gitlab'" in result.stderr
+    assert not (tmp_path / ".github").exists()
+    assert not (tmp_path / ".devops").exists()
+
+
+def test_generate_actions_provider_ado_fails_with_missing_template_error(tmp_path: Path) -> None:
+    _scaffold_dev_only_project(tmp_path)
+
+    result = subprocess.run(
+        [sys.executable, str(GENERATE_ACTIONS), "--force", "--provider", "ado"],
+        cwd=tmp_path,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode != 0
+    assert "Missing template" in result.stderr
+    assert "templates/ado" in result.stderr
+    # No-op: nothing should be written for a provider whose templates don't exist yet.
+    assert not (tmp_path / ".devops").exists()
+    assert not (tmp_path / ".github").exists()
+    assert not (tmp_path / "docs" / "FOUNDATION_CICD.md").exists()
+
+
+def test_generate_actions_missing_readme_template_fails_gracefully(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    sys.path.insert(0, str(MODULE_ROOT / "scripts"))
+    import generate_actions  # pyright: ignore[reportMissingImports]
+
+    project_dir = tmp_path / "project"
+    project_dir.mkdir()
+    _scaffold_dev_only_project(project_dir)
+
+    # A provider whose template set is missing FOUNDATION_CICD.md — everything else is present.
+    fake_provider_dir = tmp_path / "templates" / "fake"
+    fake_provider_dir.mkdir(parents=True)
+    for name in ("dry-run.yml", "deploy.yml"):
+        (fake_provider_dir / name).write_text((TEMPLATES / name).read_text(encoding="utf-8"), encoding="utf-8")
+
+    monkeypatch.setattr(generate_actions, "TEMPLATES_ROOT", tmp_path / "templates")
+    monkeypatch.setattr(generate_actions, "PROVIDERS", (*generate_actions.PROVIDERS, "fake"))
+    monkeypatch.setitem(generate_actions.PROVIDER_WORKFLOWS_DIR, "fake", Path(".github") / "workflows")
+    monkeypatch.setattr(sys, "argv", ["generate_actions.py", "--force", "--provider", "fake"])
+    monkeypatch.chdir(project_dir)
+
+    with pytest.raises(SystemExit) as exc_info:
+        generate_actions.main()
+
+    assert exc_info.value.code == 1
+    captured = capsys.readouterr()
+    assert "Missing template" in captured.err
+    assert "FOUNDATION_CICD.md" in captured.err
+    assert not (project_dir / "docs" / "FOUNDATION_CICD.md").exists()
+    # Workflow files ahead of the README step should still have been written.
+    assert (project_dir / ".github" / "workflows" / "dry-run.yml").is_file()
 
 
 def _make_foundation_module(modules_root: Path) -> None:
