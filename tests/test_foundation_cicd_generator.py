@@ -592,6 +592,7 @@ def test_generate_actions_ado_writes_pipelines_and_docs(tmp_path: Path) -> None:
     assert "Build Validation" in docs
     assert "Branch control" in docs
     assert "Pipeline permissions alone are not sufficient" in docs
+    assert "IDP_TOKEN_URL" in docs
     assert "GitHub Release" not in docs
 
 

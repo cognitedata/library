@@ -42,6 +42,7 @@ Each group needs these **variables**:
 - `CDF_PROJECT` (must match `config.<env>.yaml`)
 - `LOGIN_FLOW` (typically `client_credentials`)
 - `IDP_TENANT_ID`
+- `IDP_TOKEN_URL` — token URL for non-Entra identity providers; for Entra ID, use the standard Entra configuration and `IDP_TENANT_ID`.
 - `IDP_CLIENT_ID`
 - `ADMIN_SOURCE_ID`
 - `CONSUMER_SOURCE_ID`
