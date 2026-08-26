@@ -34,6 +34,8 @@ Create one variable group per environment under **Pipelines → Library**:
 
 Scope each group via **Pipeline permissions** to only the pipeline(s) that need it — the `dev-toolkit-credentials` group should grant access to `toolkit-pr-validate` and `toolkit-deploy-dev` only, and so on per environment.
 
+**Pipeline permissions alone are not sufficient for `toolkit-pr-validate`.** It runs as a Build Validation policy, which executes the pipeline YAML as modified by the pull request itself — a PR author who edits `.devops/dry-run-pipeline.yml` could otherwise use that access to exfiltrate the loaded secrets, including `IDP_CLIENT_SECRET`. On every variable group, also add an **Approvals and checks → Branch control** check (and/or a required approval) under **Pipelines → Library**, so secrets are only released to runs building from a trusted target branch and pipeline definition, not to arbitrary PR-modified YAML. Do this before using any of these variable groups against a real customer project.
+
 Each group needs these **variables**:
 
 - `CDF_CLUSTER`

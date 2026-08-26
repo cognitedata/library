@@ -309,7 +309,10 @@ def ado_dry_run_jobs(toolkit_version: str, org_dir: str | None, setup_check_cmd:
             "    dependsOn: lint",
         ]
         if gate_on_branch:
-            lines.append(f"    condition: eq(variables['System.PullRequest.TargetBranch'], 'refs/heads/{branch}')")
+            lines.append(
+                "    condition: and(succeeded(), "
+                f"eq(variables['System.PullRequest.TargetBranch'], 'refs/heads/{branch}'))"
+            )
         lines.extend(
             [
                 "    variables:",

@@ -560,6 +560,13 @@ def test_generate_actions_ado_writes_pipelines_and_docs(tmp_path: Path) -> None:
     deploy_job_names = {job["job"] for job in deploy_yaml["jobs"]}
     assert deploy_job_names == {"deploy_dev", "deploy_test", "deploy_prod"}
 
+    for job in dry_run_yaml["jobs"]:
+        if job["job"] in ("dry_run_dev", "dry_run_test"):
+            # An explicit condition replaces the default succeeded() gate in Azure
+            # Pipelines — without succeeded() here, a PR could still build/deploy
+            # against live CDF credentials even when the lint job failed.
+            assert job["condition"].startswith("and(succeeded(), ")
+
     dry_run_text = dry_run_path.read_text(encoding="utf-8")
     assert "GITHUB_BASE_REF" not in dry_run_text
     assert "github." not in dry_run_text
@@ -577,6 +584,8 @@ def test_generate_actions_ado_writes_pipelines_and_docs(tmp_path: Path) -> None:
     assert "toolkit-deploy-test" in docs
     assert "toolkit-deploy-prod" in docs
     assert "Build Validation" in docs
+    assert "Branch control" in docs
+    assert "Pipeline permissions alone are not sufficient" in docs
     assert "GitHub Release" not in docs
 
 
