@@ -279,7 +279,8 @@ def _ado_promotion_guard_lines() -> list[str]:
         '          HEAD="$(System.PullRequest.SourceBranch)"',
         '          HEAD="${HEAD#refs/heads/}"',
         '          if [ "${HEAD}" != "dev" ] && [[ "${HEAD}" != hotfix/* ]]; then',
-        "            echo \"##vso[task.logissue type=error]PRs to 'main' must come from 'dev' or 'hotfix/*' only (head: ${HEAD})\"",
+        "            MSG=\"PRs to 'main' must come from 'dev' or 'hotfix/*' only (head: ${HEAD})\"",
+        '            echo "##vso[task.logissue type=error]${MSG}"',
         "            exit 1",
         "          fi",
         '          echo "Promotion flow OK: ${HEAD} -> main"',
@@ -400,12 +401,14 @@ def ado_deploy_jobs(toolkit_version: str, org_dir: str | None, setup_check_cmd: 
                 [
                     "      - checkout: self",
                     "        fetchDepth: 0",
+                    "        persistCredentials: true",
                     "",
                     "      - script: |",
                     "          set -euo pipefail",
                     '          TAG="$(Build.SourceBranchName)"',
                     '          if [[ ! "$TAG" =~ ^v[0-9]+\\.[0-9]+\\.[0-9]+$ ]]; then',
-                    '            echo "##vso[task.logissue type=error]Release tag must match vX.Y.Z (got: $TAG)"',
+                    '            MSG="Release tag must match vX.Y.Z (got: $TAG)"',
+                    '            echo "##vso[task.logissue type=error]${MSG}"',
                     "            exit 1",
                     "          fi",
                     "        displayName: 'Enforce release tag pattern'",
@@ -414,7 +417,8 @@ def ado_deploy_jobs(toolkit_version: str, org_dir: str | None, setup_check_cmd: 
                     "          set -euo pipefail",
                     "          git fetch origin main",
                     "          if ! git merge-base --is-ancestor HEAD origin/main; then",
-                    '            echo "##vso[task.logissue type=error]Production releases must be published from a commit reachable from main"',
+                    '            MSG="Production releases must be published from a commit reachable from main"',
+                    '            echo "##vso[task.logissue type=error]${MSG}"',
                     "            exit 1",
                     "          fi",
                     "        displayName: 'Reject releases not reachable from main'",
@@ -472,7 +476,11 @@ def branching_rows(projects: dict[str, str], provider: str) -> str:
             ]
         )
     if "prod" in projects:
-        prod_trigger = "GitHub Release (tag `vX.Y.Z` from `main`)" if provider == "github" else "Git tag `vX.Y.Z` pushed to `main`"
+        prod_trigger = (
+            "GitHub Release (tag `vX.Y.Z` from `main`)"
+            if provider == "github"
+            else "Git tag `vX.Y.Z` pushed to `main`"
+        )
         rows.append(f"| {prod_trigger} | `{projects['prod']}` | Deploy |")
     return "\n".join(rows or ["| *(none)* | *(none)* | No CI/CD workflows generated |"])
 

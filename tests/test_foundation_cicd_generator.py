@@ -584,6 +584,13 @@ def test_generate_actions_ado_writes_pipelines_and_docs(tmp_path: Path) -> None:
     assert "startsWith(variables['Build.SourceBranch'], 'refs/tags/v')" in deploy_text
     assert "prod-toolkit-credentials" in deploy_text
     assert "Enforce release tag pattern" in deploy_text
+    # checkout doesn't persist git credentials by default — the prod job's own
+    # `git fetch origin main` step needs them to authenticate.
+    prod_job = next(job for job in deploy_yaml["jobs"] if job["job"] == "deploy_prod")
+    assert prod_job["steps"][0]["checkout"] == "self"
+    assert prod_job["steps"][0]["persistCredentials"] is True
+    assert all(len(line) <= 120 for line in deploy_text.splitlines())
+    assert all(len(line) <= 120 for line in dry_run_text.splitlines())
 
     docs = (tmp_path / "docs" / "FOUNDATION_CICD.md").read_text(encoding="utf-8")
     assert "toolkit-deploy-dev" in docs
