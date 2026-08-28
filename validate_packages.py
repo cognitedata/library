@@ -6,6 +6,7 @@ Assumes "modules" as the base folder where packages.toml is located.
 """
 
 import os
+import re
 import sys
 import tomllib
 from collections import defaultdict
@@ -63,9 +64,7 @@ def parse_packages_registry(data: dict[str, object]) -> PackagesRegistry | None:
 
         package_id = _require_non_empty_str(package_data, "id", f"Package '{package_name}'")
         title = _require_non_empty_str(package_data, "title", f"Package '{package_name}'")
-        package_description = _require_non_empty_str(
-            package_data, "description", f"Package '{package_name}'"
-        )
+        package_description = _require_non_empty_str(package_data, "description", f"Package '{package_name}'")
         if package_id is None or title is None or package_description is None:
             return None
 
@@ -106,9 +105,7 @@ def validate_module_paths(
     for module_path in modules:
         full_path = base_path_obj / module_path
         if not full_path.exists():
-            print(
-                f"ERROR: Package '{package_name}' module path '{module_path}' does not exist at '{full_path}'"
-            )
+            print(f"ERROR: Package '{package_name}' module path '{module_path}' does not exist at '{full_path}'")
             return False
 
         module_toml = full_path / "module.toml"
@@ -123,9 +120,7 @@ def validate_module_paths(
 
         module_raw = module_data.get("module")
         if not isinstance(module_raw, dict):
-            print(
-                f"ERROR: Package '{package_name}' module path '{module_path}' is missing a [module] table"
-            )
+            print(f"ERROR: Package '{package_name}' module path '{module_path}' is missing a [module] table")
             return False
 
         required_fields = {"id", "package_id", "title"}
@@ -138,16 +133,12 @@ def validate_module_paths(
 
         extra_resources_raw = module_data.get("extra_resources", [])
         if not isinstance(extra_resources_raw, list):
-            print(
-                f"ERROR: Package '{package_name}' module '{module_path}' extra_resources must be a list"
-            )
+            print(f"ERROR: Package '{package_name}' module '{module_path}' extra_resources must be a list")
             return False
 
         for extra_resource in extra_resources_raw:
             if not isinstance(extra_resource, dict):
-                print(
-                    f"ERROR: Package '{package_name}' module '{module_path}' has an invalid extra_resource entry"
-                )
+                print(f"ERROR: Package '{package_name}' module '{module_path}' has an invalid extra_resource entry")
                 return False
             location = extra_resource.get("location")
             if not isinstance(location, str) or not location:
@@ -163,7 +154,7 @@ def validate_module_paths(
                 )
                 return False
 
-        print(f"✓ Module '{module_path}' validated successfully")
+        print(f"OK: Module '{module_path}' validated successfully")
 
     return True
 
@@ -230,7 +221,7 @@ def validate_module_id_prefixes(
                 print(f"  {rel_path}: id={module_id!r} (allowed prefixes: {allowed_str})")
         return False
 
-    print("\n✓ All module ids use an allowed dp:<pack>: prefix")
+    print("\nOK: All module ids use an allowed dp:<pack>: prefix")
     return True
 
 
@@ -269,7 +260,88 @@ def validate_unique_module_ids(base_path: str = "modules") -> bool:
                 print(f"    - {path}")
         return False
 
-    print(f"\n✓ All {len(ids_by_path)} module ids are unique")
+    print(f"\nOK: All {len(ids_by_path)} module ids are unique")
+    return True
+
+
+@dataclass(frozen=True)
+class RawDatabaseGap:
+    """A RAW table dbName with no matching Database.yaml in the same module."""
+
+    module_path: str
+    db_name: str
+    table_files: tuple[str, ...]
+
+
+_DB_NAME_PATTERN = re.compile(r'^\s*-?\s*dbName:\s*["\']?(.+?)["\']?\s*(?:#.*)?$', re.MULTILINE)
+
+
+def _extract_db_names(path: Path) -> list[str]:
+    """Extract dbName values from a *.Table.yaml or *.Database.yaml file.
+
+    Uses a regex instead of a YAML parser because dbName is frequently a
+    templated Jinja expression (for example ``{{ location }}``), which PyYAML's
+    safe loader cannot parse as a plain string.
+    """
+    return [match.strip() for match in _DB_NAME_PATTERN.findall(path.read_text(encoding="utf-8"))]
+
+
+def find_raw_database_gaps(base_path: str = "modules") -> list[RawDatabaseGap]:
+    """Find RAW tables whose dbName has no matching Database.yaml in the same module.
+
+    Every module with a raw/ directory must be independently deployable: any
+    dbName referenced by a *.Table.yaml file must have a matching
+    *.Database.yaml file within the same module, not merely somewhere else in
+    the repo. The Cognite Toolkit only creates RAW databases from
+    *.Database.yaml files, and RAW tables depend on their RAW database, so a
+    module deployed on its own without that file fails at `cdf deploy` with a
+    "DB not found" error -- even if a different, unrelated module happens to
+    declare a database with the same name.
+    """
+    gaps: list[RawDatabaseGap] = []
+    for raw_dir in sorted(Path(base_path).glob("**/raw")):
+        module_path = raw_dir.parent.relative_to(Path(base_path)).as_posix()
+
+        declared_db_names: set[str] = set()
+        referenced_by: defaultdict[str, list[str]] = defaultdict(list)
+        for file_path in sorted(raw_dir.iterdir()):
+            if not file_path.is_file():
+                continue
+            # Match the Cognite Toolkit's own file matching: any casing, .yaml or .yml.
+            name_lower = file_path.name.lower()
+            if name_lower.endswith((".database.yaml", ".database.yml")):
+                declared_db_names.update(_extract_db_names(file_path))
+            elif name_lower.endswith((".table.yaml", ".table.yml")):
+                for db_name in _extract_db_names(file_path):
+                    referenced_by[db_name].append(file_path.name)
+
+        for db_name, table_files in sorted(referenced_by.items()):
+            if db_name not in declared_db_names:
+                gaps.append(
+                    RawDatabaseGap(
+                        module_path=module_path,
+                        db_name=db_name,
+                        table_files=tuple(sorted(table_files)),
+                    )
+                )
+
+    return gaps
+
+
+def validate_raw_databases(base_path: str = "modules") -> bool:
+    """Ensure every module with a raw/ directory can create its own RAW databases."""
+    gaps = find_raw_database_gaps(base_path)
+    if gaps:
+        print("\nERROR: RAW table(s) reference a database with no matching Database.yaml in the same module:")
+        for gap in gaps:
+            table_files = ", ".join(gap.table_files)
+            print(
+                f"  {gap.module_path}: dbName={gap.db_name!r} referenced by [{table_files}] "
+                "has no matching <name>.Database.yaml in this module's raw/ directory"
+            )
+        return False
+
+    print("\nOK: All RAW tables have a matching Database.yaml in their own module")
     return True
 
 
@@ -285,18 +357,18 @@ def main() -> None:
         with open(packages_file, "rb") as f:
             data = tomllib.load(f)
 
-        print(f"✓ Successfully parsed {packages_file}")
+        print(f"OK: Successfully parsed {packages_file}")
 
         registry = parse_packages_registry(data)
         if registry is None:
             sys.exit(1)
 
-        print("✓ [library] header validation passed")
-        print(f"✓ Found {len(registry.packages)} packages")
+        print("OK: [library] header validation passed")
+        print(f"OK: Found {len(registry.packages)} packages")
 
         for package_name, package_spec in registry.packages.items():
             print(f"\nValidating package: {package_name}")
-            print(f"✓ Package '{package_name}' structure validation passed")
+            print(f"OK: Package '{package_name}' structure validation passed")
 
             if not validate_module_paths(package_name, package_spec.modules, "modules"):
                 sys.exit(1)
@@ -307,9 +379,10 @@ def main() -> None:
         if not validate_unique_module_ids("modules"):
             sys.exit(1)
 
-        print(
-            f"\n🎉 All validation checks passed! {len(registry.packages)} packages validated successfully."
-        )
+        if not validate_raw_databases("modules"):
+            sys.exit(1)
+
+        print(f"\nAll validation checks passed! {len(registry.packages)} packages validated successfully.")
 
     except tomllib.TOMLDecodeError as e:
         print(f"ERROR: Invalid TOML format: {e}")

@@ -14,10 +14,10 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
     - name: Install uv
-      uses: astral-sh/setup-uv@v5
+      uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5
       with:
         enable-cache: true
 
@@ -25,10 +25,10 @@ jobs:
       run: uv sync --group dev
 
     - name: Lint with ruff
-      uses: astral-sh/ruff-action@v3
+      uses: astral-sh/ruff-action@4919ec5cf1f49eff0871dbcea0da843445b837e6 # v3
 
     - name: Type check with pyright
-      uses: jakebailey/pyright-action@v2
+      uses: jakebailey/pyright-action@6cabc0f01c4994be48fd45cd9dbacdd6e1ee6e5e # v2
 
     - name: Run tests
       env:
@@ -48,14 +48,14 @@ jobs:
 
     - name: Upload packages artifact
       if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
       with:
         name: packages
         path: packages.zip
 
     - name: Create/Update Release
       if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-      uses: softprops/action-gh-release@v1
+      uses: softprops/action-gh-release@de2c0eb89ae2a093876385947365aca7b0e5f844 # v1
       with:
         tag_name: latest
         name: Latest Release
