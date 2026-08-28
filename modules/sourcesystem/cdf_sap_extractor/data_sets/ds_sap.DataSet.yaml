@@ -1,4 +1,4 @@
-- externalId: ds_sap
+- externalId: "{{dataset}}"
   name: SAP Foundation
   description: Data set for SAP foundation extraction pipelines
   writeProtected: false

@@ -523,6 +523,93 @@ class TestBuildOverlay:
         assert "cdm" not in mods
 
 
+class TestModuleDataset:
+    """Extractor data sets follow ds_<data_type>_<location>, the same location scoping
+    the extraction pipelines (ep_<location>_<type>) and instance spaces already use.
+    Without the location suffix two sites deploying the same extractor collide on a
+    single shared data set."""
+
+    def test_per_extractor_dataset_uses_location(self) -> None:
+        from setup_project import _module_dataset
+        assert _module_dataset("cdf_pi_extractor", "oslo") == "ds_pi_oslo"
+        assert _module_dataset("cdf_sap_extractor", "oslo") == "ds_sap_oslo"
+        assert _module_dataset("cdf_files_extractor", "oslo") == "ds_files_oslo"
+        assert _module_dataset("cdf_opcua_extractor", "oslo") == "ds_opcua_oslo"
+        assert _module_dataset("cdf_db_extractor", "oslo") == "ds_db_postgres_oslo"
+
+    def test_falls_back_to_base_when_location_blank(self) -> None:
+        """Matches the module default in default.config.yaml, so a project set up
+        without the wizard still resolves to a valid externalId."""
+        from setup_project import _module_dataset
+        assert _module_dataset("cdf_pi_extractor", "") == "ds_pi"
+
+    def test_resolve_sourcesystem_writes_dataset(self) -> None:
+        from setup_project import resolve_sourcesystem_variables
+        result = resolve_sourcesystem_variables(
+            ["cdf_sap_extractor", "cdf_pi_extractor"], "dev", "oslo"
+        )
+        assert result["cdf_sap_extractor"]["dataset"] == "ds_sap_oslo"
+        assert result["cdf_pi_extractor"]["dataset"] == "ds_pi_oslo"
+
+    def test_build_overlay_foundation_dataset_uses_resolved_ids(self, tmp_path: Path) -> None:
+        """The persona groups' dataset scope must list the same externalIds the
+        extractor modules deploy, or producer/consumer/admin lose access to them."""
+        from setup_project import build_overlay
+        ss_dir = tmp_path / "modules" / "sourcesystem"
+        (ss_dir / "cdf_sap_extractor").mkdir(parents=True)
+        (ss_dir / "cdf_pi_extractor").mkdir(parents=True)
+        overlay = build_overlay("cdm", "dev", "oslo", [], repo_root=tmp_path)
+        pf = overlay["variables"]["modules"]["cdf_project_foundation"]
+        assert pf["dataset"] == ["ds_pi_oslo", "ds_sap_oslo"]
+
+    def test_build_overlay_drops_stale_unscoped_extractor_dataset(self, tmp_path: Path) -> None:
+        """Re-running the wizard on a project written before location scoping reads
+        the old ds_pi from disk — it must be replaced, not appended alongside."""
+        from setup_project import build_overlay
+        ss_dir = tmp_path / "modules" / "sourcesystem"
+        (ss_dir / "cdf_pi_extractor").mkdir(parents=True)
+        overlay = build_overlay(
+            "cdm", "dev", "oslo", [], datasets=["ds_pi"], repo_root=tmp_path
+        )
+        pf = overlay["variables"]["modules"]["cdf_project_foundation"]
+        assert pf["dataset"] == ["ds_pi_oslo"]
+
+    def test_build_overlay_keeps_non_extractor_datasets(self, tmp_path: Path) -> None:
+        """cdf_ingestion's dataset (Demo pack) is not owned by any extractor module —
+        it is read from the config and must survive."""
+        from setup_project import build_overlay
+        overlay = build_overlay(
+            "cfihos_oil_and_gas_extension", "dev", "oslo",
+            [], datasets=["ds_custom_ingestion"], repo_root=tmp_path,
+        )
+        pf = overlay["variables"]["modules"]["cdf_project_foundation"]
+        assert pf["dataset"] == ["ds_custom_ingestion", "ds_oil_and_gas_domain_model"]
+
+
+class TestExtractorDataSetResources:
+    """The DataSet resource must resolve from {{dataset}} — the same variable the
+    extraction pipeline and the producer group already scope themselves to. A
+    hardcoded externalId silently drifts from them once location scoping applies."""
+
+    _EXTRACTOR_MODULES = (
+        "cdf_pi_extractor",
+        "cdf_sap_extractor",
+        "cdf_files_extractor",
+        "cdf_opcua_extractor",
+        "cdf_db_extractor",
+    )
+
+    @pytest.mark.parametrize("module", _EXTRACTOR_MODULES)
+    def test_dataset_external_id_is_templated(self, module: str) -> None:
+        data_sets = REPO_ROOT / "modules" / "sourcesystem" / module / "data_sets"
+        files = list(data_sets.glob("*.DataSet.yaml"))
+        assert files, f"{module} has no DataSet resource"
+        for path in files:
+            resources = yaml.safe_load(path.read_text(encoding="utf-8"))
+            for resource in resources:
+                assert resource["externalId"] == "{{dataset}}"
+
+
 class TestModuleInstanceSpace:
     def test_per_extractor_space_uses_location_and_suffix(self) -> None:
         from setup_project import _module_instance_space
@@ -1521,15 +1608,15 @@ class TestReadExistingValues:
             "environment": {"project": "acme-dev"},
             "variables": {"modules": {
                 "cdf_project_foundation": {"site": ""},
-                "cdf_pi_extractor": {"dataset": "ds_pi", "instanceSpace": "sp_oslo_pi"},
-                "cdf_sap_extractor": {"dataset": "ds_sap", "instanceSpace": "sp_oslo_sap"},
+                "cdf_pi_extractor": {"dataset": "ds_pi_oslo", "instanceSpace": "sp_oslo_pi"},
+                "cdf_sap_extractor": {"dataset": "ds_sap_oslo", "instanceSpace": "sp_oslo_sap"},
             }},
         })
         existing = _read_existing_values(
             tmp_path, ("dev",), ["cdf_pi_extractor", "cdf_sap_extractor"]
         )
-        assert "ds_pi" in existing["dataset"]
-        assert "ds_sap" in existing["dataset"]
+        assert "ds_pi_oslo" in existing["dataset"]
+        assert "ds_sap_oslo" in existing["dataset"]
 
     def test_reads_cdf_ingestion_dataset_when_installed(self, tmp_path: Path) -> None:
         """cdf_ingestion's own dataset must be folded into the persona dataset list —

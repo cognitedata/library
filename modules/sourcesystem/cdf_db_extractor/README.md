@@ -48,7 +48,7 @@ variables:
     cdf_db_extractor:
       location: "oslo"                                        # Site code, used in externalIds (ep_<location>_db_postgres, db_<location>_db_postgres)
       instanceSpace: "sp_oslo_db"                            # Per-extractor DM instance space — computed by setup_project.py
-      dataset: "ds_db_postgres"                               # dataSetExternalId for the pipeline and RAW database
+      dataset: "ds_db_postgres_oslo"                          # ds_<data_type>_<location> — computed by setup_project.py
 
       integration_owner_name: "Integration Owner"             # Technical contact for the pipeline
       integration_owner_email: "integration.owner@example.com"
@@ -93,7 +93,7 @@ example with a single query against `mytable`. Before production use:
    `db_{{location}}_db_postgres` so rows land in the database declared by this
    module.
 5. **If targeting a different DB engine**, rename this pipeline (and `dataset`)
-   accordingly, e.g. `ep_db_mssql` / `ds_db_mssql`.
+   accordingly, e.g. `ep_{{location}}_db_mssql` / `ds_db_mssql_{{location}}`.
 
 See `.cursor/rules/cdf-transformations.mdc` for AI-assisted guidance when
 authoring the downstream transformation from RAW into a data model.
@@ -104,7 +104,7 @@ authoring the downstream transformation from RAW into a data model.
 
 - Source database reachable from the extractor host with appropriate ODBC driver installed
 - DB Extractor service account with read access to the source database
-- Cognite service account with read/write to the `db_{{location}}_db_postgres` RAW database and read access to the `{{dataset}}` data set (default: `ds_db_postgres`)
+- Cognite service account with read/write to the `db_{{location}}_db_postgres` RAW database and read access to the `{{dataset}}` data set (`ds_db_postgres_{{location}}`)
 
 ### Deploy
 

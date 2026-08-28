@@ -63,7 +63,7 @@ variables:
     cdf_sap_extractor:
       location: "oslo"                                        # Site code, used in externalIds (ep_<location>_sap, db_<location>_sap)
       instanceSpace: "sp_oslo_sap"                           # Per-extractor DM instance space — computed by setup_project.py
-      dataset: "ds_sap"                                       # dataSetExternalId for the pipeline and RAW database
+      dataset: "ds_sap_oslo"                                  # ds_<data_type>_<location> — computed by setup_project.py
       sapPlant: "1000"                                        # SAP plant code, used in OData filter expressions (MaintPlant eq '<sapPlant>')
       sapDisableSsl: false                                    # Set true only if SAP server uses an untrusted self-signed certificate
 

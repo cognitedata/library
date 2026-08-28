@@ -61,7 +61,7 @@ variables:
     cdf_opcua_extractor:
       location: "oslo"                                        # Site code, used in externalIds (ep_<location>_opcua, db_<location>_opcua)
       instanceSpace: "sp_oslo_opcua"                         # Per-extractor DM instance space — computed by setup_project.py
-      dataset: "ds_opcua"                                    # dataSetExternalId for the pipeline and RAW database
+      dataset: "ds_opcua_oslo"                               # ds_<data_type>_<location> — computed by setup_project.py
 
       integration_owner_name: "Integration Owner"             # Technical contact for the pipeline
       integration_owner_email: "integration.owner@example.com"

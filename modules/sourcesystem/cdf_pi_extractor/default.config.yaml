@@ -8,7 +8,8 @@ location: ""
 # Computed by setup_project.py as sp_{location}_pi.
 instanceSpace: "sp_pi_instance_space"
 
-# dataSetExternalId for the extraction pipeline
+# dataSetExternalId for the extraction pipeline and the data set this module deploys.
+# Computed by setup_project.py as ds_pi_{location}.
 dataset: "ds_pi"
 
 # External ID prefix for PI tag timeseries instances (used by the extractor)

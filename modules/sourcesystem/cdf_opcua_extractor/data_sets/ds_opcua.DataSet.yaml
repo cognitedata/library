@@ -1,4 +1,4 @@
-- externalId: ds_opcua
+- externalId: "{{dataset}}"
   name: OPC UA Foundation
   description: Data set for OPC UA foundation extraction pipelines
   writeProtected: false

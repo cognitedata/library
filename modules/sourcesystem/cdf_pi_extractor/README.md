@@ -46,7 +46,7 @@ variables:
     cdf_pi_extractor:
       location: "oslo"                                       # Site code, used in externalIds (ep_<location>_pi)
       instanceSpace: "sp_oslo_pi"                           # Per-extractor DM instance space — computed by setup_project.py
-      dataset: "ds_pi"                                      # dataSetExternalId for the pipeline
+      dataset: "ds_pi_oslo"                                 # ds_<data_type>_<location> — computed by setup_project.py
       piIdPrefix: "pi:"                                     # External ID prefix for all PI tag timeseries
 
       integration_owner_name: "Integration Owner"            # Technical contact for the pipeline

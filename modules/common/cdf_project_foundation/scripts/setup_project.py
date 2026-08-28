@@ -317,6 +317,39 @@ def _module_instance_space(module: str, location: str) -> str:
     return f"sp_{location}_{suffix}"
 
 
+# Unscoped data set externalId per extractor module — the ``default.config.yaml``
+# value, combined with location to form ds_{data_type}_{location}.
+_MODULE_DATASET_BASE: dict[str, str] = {
+    "cdf_pi_extractor":    "ds_pi",
+    "cdf_sap_extractor":   "ds_sap",
+    "cdf_opcua_extractor": "ds_opcua",
+    "cdf_db_extractor":    "ds_db_postgres",
+    "cdf_files_extractor": "ds_files",
+}
+
+
+def _module_dataset(module: str, location: str) -> str:
+    """Return a per-extractor data set externalId: ``ds_{data_type}_{location}``.
+
+    Falls back to the unscoped base when no location is set, matching the module's
+    ``default.config.yaml`` so a project configured without the wizard still resolves.
+    """
+    base = _MODULE_DATASET_BASE.get(module, module)
+    return f"{base}_{location}" if location else base
+
+
+def _is_extractor_dataset(dataset: str) -> bool:
+    """True when *dataset* is owned by an extractor module (scoped or not).
+
+    Values read from an existing config are stale once the location changes, so the
+    wizard drops them in favour of freshly resolved ones.
+    """
+    return any(
+        dataset == base or dataset.startswith(f"{base}_")
+        for base in _MODULE_DATASET_BASE.values()
+    )
+
+
 def _module_label(module: str) -> str:
     return _MODULE_LABELS.get(module, module)
 
@@ -333,6 +366,7 @@ def resolve_sourcesystem_variables(
     for module in installed_modules:
         vars_: dict[str, str] = {
             "instanceSpace": _module_instance_space(module, location),
+            "dataset": _module_dataset(module, location),
             "environment": env,
             "location": location,
         }
@@ -398,7 +432,8 @@ def build_overlay(
 
     ``datasets`` should be read from the existing ``config.<env>.yaml`` (populated
     by Toolkit at module-init time).  The ``default.config.yaml`` files are not
-    reliable as Toolkit may delete them after consuming them.
+    reliable as Toolkit may delete them after consuming them.  Extractor-owned
+    datasets in that list are ignored — they are recomputed from ``site`` instead.
     """
     instance_space = INGESTION_FOUNDATION_VARIABLES[variant]["instanceSpace"]
     if variant == "cdm":
@@ -413,9 +448,17 @@ def build_overlay(
         ctx_vars["cdf_entity_matching"]["location_name"] = site
         ctx_vars["cdf_entity_matching"]["source_name"] = site
 
+    # Extractor data sets are derived from the installed modules and the site, not
+    # taken from the config — the value on disk is stale whenever the site changes.
+    # Anything else read from the config (e.g. cdf_ingestion's own dataset) is kept.
+    ss_datasets = [_module_dataset(m, site) for m in installed_ss]
+    foundation_datasets = ss_datasets + [
+        d for d in (datasets or []) if not _is_extractor_dataset(d)
+    ]
+
     # Always write dataset (even as empty list) so the key is always present.
     modules_vars: dict[str, dict[str, object]] = {
-        "cdf_project_foundation": build_foundation_vars(variant, env, site, datasets),
+        "cdf_project_foundation": build_foundation_vars(variant, env, site, foundation_datasets),
     }
     modules_vars.update(ctx_vars)
     if installed_ss:

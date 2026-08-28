@@ -50,7 +50,7 @@ variables:
   modules:
     cdf_files_extractor:
       location: "oslo"                                       # Site code, used in externalIds (ep_<location>_files_sharepoint)
-      dataset: "ds_files"                                    # dataSetExternalId for the pipeline (Files land in this data set)
+      dataset: "ds_files_oslo"                               # ds_<data_type>_<location> — computed by setup_project.py
       instanceSpace: "sp_oslo_files"                        # Per-extractor DM instance space — computed by setup_project.py
 
       integration_owner_name: "Integration Owner"            # Technical contact for the pipeline

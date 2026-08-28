@@ -9,7 +9,8 @@ prometheusJobName: opcua-extractor
 # Computed by setup_project.py as sp_{location}_opcua.
 instanceSpace: "sp_opcua_instance_space"
 
-# dataSetExternalId for the extraction pipeline and RAW database
+# dataSetExternalId for the extraction pipeline, RAW database, and the data set this
+# module deploys. Computed by setup_project.py as ds_opcua_{location}.
 dataset: "ds_opcua"
 
 # Integration owner (technical contact for the pipeline)
