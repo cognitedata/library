@@ -133,6 +133,18 @@ views:
 
 # List of Cognite views used as Interfaces in DM
 
+- space: cdf_idm
+  externalId: CogniteMaintenanceOrder
+  version: v1
+  type: view
+- space: cdf_idm
+  externalId: CogniteOperation
+  version: v1
+  type: view
+- space: cdf_idm
+  externalId: CogniteNotification
+  version: v1
+  type: view
 - space: cdf_cdm
   externalId: CogniteDescribable
   version: v1
@@ -187,6 +199,10 @@ views:
   type: view
 - space: cdf_cdm
   externalId: CogniteTimeSeries
+  version: v1
+  type: view
+- space: cdf_cdm
+  externalId: CogniteStateSet
   version: v1
   type: view
 - space: cdf_cdm
