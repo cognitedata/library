@@ -574,6 +574,49 @@ class TestModuleDataset:
         pf = overlay["variables"]["modules"]["cdf_project_foundation"]
         assert pf["dataset"] == ["ds_pi_oslo"]
 
+    def test_build_overlay_keeps_custom_dataset_sharing_an_extractor_prefix(
+        self, tmp_path: Path
+    ) -> None:
+        """ds_files_archive is not an id the wizard generates — dropping it would
+        silently revoke the persona groups' access to a data set the user added."""
+        from setup_project import build_overlay
+        ss_dir = tmp_path / "modules" / "sourcesystem"
+        (ss_dir / "cdf_files_extractor").mkdir(parents=True)
+        overlay = build_overlay(
+            "cdm", "dev", "oslo", [],
+            datasets=["ds_files_archive"], repo_root=tmp_path,
+        )
+        pf = overlay["variables"]["modules"]["cdf_project_foundation"]
+        assert pf["dataset"] == ["ds_files_oslo", "ds_files_archive"]
+
+    def test_build_overlay_replaces_previous_sites_datasets(self, tmp_path: Path) -> None:
+        """On a site rename the ids the last run wrote are replaced, not accumulated."""
+        from setup_project import build_overlay
+        ss_dir = tmp_path / "modules" / "sourcesystem"
+        (ss_dir / "cdf_pi_extractor").mkdir(parents=True)
+        overlay = build_overlay(
+            "cdm", "dev", "bergen", [],
+            datasets=["ds_pi_oslo"], previous_site="oslo", repo_root=tmp_path,
+        )
+        pf = overlay["variables"]["modules"]["cdf_project_foundation"]
+        assert pf["dataset"] == ["ds_pi_bergen"]
+
+    def test_build_overlay_keeps_unknown_site_dataset_when_no_previous_site(
+        self, tmp_path: Path
+    ) -> None:
+        """Without a recorded previous site the old id cannot be told apart from a
+        custom one, so it is kept. That data set exists in CDF, so the result is a
+        stale grant the user can remove — never a scope referencing a data set that
+        was never deployed."""
+        from setup_project import build_overlay
+        ss_dir = tmp_path / "modules" / "sourcesystem"
+        (ss_dir / "cdf_pi_extractor").mkdir(parents=True)
+        overlay = build_overlay(
+            "cdm", "dev", "bergen", [], datasets=["ds_pi_oslo"], repo_root=tmp_path
+        )
+        pf = overlay["variables"]["modules"]["cdf_project_foundation"]
+        assert pf["dataset"] == ["ds_pi_bergen", "ds_pi_oslo"]
+
     def test_build_overlay_keeps_non_extractor_datasets(self, tmp_path: Path) -> None:
         """cdf_ingestion's dataset (Demo pack) is not owned by any extractor module —
         it is read from the config and must survive."""

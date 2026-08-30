@@ -338,16 +338,22 @@ def _module_dataset(module: str, location: str) -> str:
     return f"{base}_{location}" if location else base
 
 
-def _is_extractor_dataset(dataset: str) -> bool:
-    """True when *dataset* is owned by an extractor module (scoped or not).
+def _wizard_generated_datasets(sites: tuple[str, ...]) -> set[str]:
+    """Every extractor data set id this wizard can generate for *sites*.
 
-    Values read from an existing config are stale once the location changes, so the
-    wizard drops them in favour of freshly resolved ones.
+    Used to drop ids an earlier wizard run wrote, so they are replaced rather than
+    accumulated.  Matching is exact — a data set that merely shares a prefix with an
+    extractor base (``ds_files_archive``) is not a wizard-generated id and is kept.
+
+    The unscoped base is always included: it is the ``default.config.yaml`` value
+    Toolkit seeds a new project with, and no such data set is deployed once a
+    location is set.
     """
-    return any(
-        dataset == base or dataset.startswith(f"{base}_")
-        for base in _MODULE_DATASET_BASE.values()
-    )
+    return {
+        _module_dataset(module, site)
+        for module in _MODULE_DATASET_BASE
+        for site in ("", *sites)
+    }
 
 
 def _module_label(module: str) -> str:
@@ -423,6 +429,7 @@ def build_overlay(
     cfihos_integration_owner_email: str = "",
     extractor_group_source_ids: dict[str, str] | None = None,
     repo_root: Path | None = None,
+    previous_site: str = "",
 ) -> dict:
     """Full ``variables.modules`` overlay dict to merge into a config file.
 
@@ -432,8 +439,10 @@ def build_overlay(
 
     ``datasets`` should be read from the existing ``config.<env>.yaml`` (populated
     by Toolkit at module-init time).  The ``default.config.yaml`` files are not
-    reliable as Toolkit may delete them after consuming them.  Extractor-owned
-    datasets in that list are ignored — they are recomputed from ``site`` instead.
+    reliable as Toolkit may delete them after consuming them.  Extractor datasets in
+    that list are recomputed from ``site`` instead; ``previous_site`` is the site
+    recorded in that config, so ids the last run wrote are replaced rather than
+    accumulated.
     """
     instance_space = INGESTION_FOUNDATION_VARIABLES[variant]["instanceSpace"]
     if variant == "cdm":
@@ -450,10 +459,12 @@ def build_overlay(
 
     # Extractor data sets are derived from the installed modules and the site, not
     # taken from the config — the value on disk is stale whenever the site changes.
-    # Anything else read from the config (e.g. cdf_ingestion's own dataset) is kept.
+    # Only ids this wizard itself could have written are dropped; everything else
+    # read from the config (cdf_ingestion's dataset, or one the user added) is kept.
+    generated = _wizard_generated_datasets((site, previous_site))
     ss_datasets = [_module_dataset(m, site) for m in installed_ss]
     foundation_datasets = ss_datasets + [
-        d for d in (datasets or []) if not _is_extractor_dataset(d)
+        d for d in (datasets or []) if d not in generated
     ]
 
     # Always write dataset (even as empty list) so the key is always present.
@@ -1640,6 +1651,7 @@ def _write_wizard_configs(
                 if m in _MODULE_EXTRACTOR_ENV_VAR
             },
             repo_root=repo_root,
+            previous_site=existing["site"],
         )
         if write_config(path, env, project_names[env], overlay):
             changed_count += 1
