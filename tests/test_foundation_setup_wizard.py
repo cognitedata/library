@@ -634,7 +634,7 @@ class TestExtractorDataSetResources:
     extraction pipeline and the producer group already scope themselves to. A
     hardcoded externalId silently drifts from them once location scoping applies."""
 
-    _EXTRACTOR_MODULES = (
+    _EXTRACTOR_MODULES: tuple[str, ...] = (
         "cdf_pi_extractor",
         "cdf_sap_extractor",
         "cdf_files_extractor",
