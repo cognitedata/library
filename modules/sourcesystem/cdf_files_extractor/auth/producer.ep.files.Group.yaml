@@ -15,12 +15,6 @@ capabilities:
       scope:
         datasetScope:
           ids: ["{{dataset}}"]
-  - rawAcl:
-      actions: [READ, WRITE, LIST]
-      scope:
-        tableScope:
-          dbsToTables:
-            db_{{location}}_files: [] 
   - dataModelInstancesAcl:
       actions: [READ, WRITE, WRITE_PROPERTIES]
       scope:

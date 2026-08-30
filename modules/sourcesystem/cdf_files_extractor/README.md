@@ -96,7 +96,9 @@ SharePoint Online example with a single extraction path. Before production use:
 5. **Pick a state-store path** in `Config.yaml` that the extractor service
    account can write to (default: `/path/to/state-store.json` is a placeholder
    — change before running). Optionally switch to RAW-backed state-store for
-   cluster deployments.
+   cluster deployments — that also requires adding a `raw/` folder with the
+   database and table, and a matching `rawAcl` in
+   `auth/producer.ep.files.Group.yaml`.
 6. **Confirm `data_model.space`** matches your `instanceSpace` — `CogniteFile`
    instances are written there. The CDM destination requires that the space
    already exists (this module deploys it automatically).
