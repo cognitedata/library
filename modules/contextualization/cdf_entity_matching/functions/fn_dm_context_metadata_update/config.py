@@ -15,6 +15,7 @@ class Parameters(BaseModel, alias_generator=to_camel):
     debug_timeseries: str = None
     run_all: bool
     update_all: bool = False
+    view_filter_property: str = "tags"
     raw_db: str
     raw_table_state: str
 
