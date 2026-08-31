@@ -1,0 +1,10 @@
+# Copy to terraform.tfvars and fill in.
+
+tenant_id   = "00000000-0000-0000-0000-000000000000"
+name_prefix = "cdf"
+
+# Only used to render the .env
+cdf_cluster = "westeurope-1"
+cdf_project = "my-cdf-project"
+
+# secret_validity_days = 180  # default
