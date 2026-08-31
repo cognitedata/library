@@ -144,8 +144,8 @@ def entity_matching(
         # Check if we should run all entities (then delete state content in RAW) or just new entities
         if config.parameters.run_all:
             logger.debug("Run all entities, delete state content in RAW since we are rerunning based on all input")
-            delete_table(client, config.parameters.raw_db, config.parameters.raw_tale_ctx_bad)
-            delete_table(client, config.parameters.raw_db, config.parameters.raw_tale_ctx_good)
+            delete_table(client, config.parameters.raw_db, config.parameters.raw_table_ctx_bad)
+            delete_table(client, config.parameters.raw_db, config.parameters.raw_table_ctx_good)
             delete_table(client, config.parameters.raw_db, config.parameters.raw_table_state)
         else:
             logger.debug("Get entity entity matching model ID from state store")
@@ -299,7 +299,7 @@ def manual_table_exists(
     config: Config
 ) -> bool:
     tables = client.raw.tables.list(config.parameters.raw_db, limit=None)
-    return any(tbl.name == config.parameters.raw_tale_ctx_manual for tbl in tables)
+    return any(tbl.name == config.parameters.raw_table_ctx_manual for tbl in tables)
 
 
 def rule_table_exists(
@@ -307,7 +307,7 @@ def rule_table_exists(
     config: Config
 ) -> bool:
     tables = client.raw.tables.list(config.parameters.raw_db, limit=None)
-    return any(tbl.name == config.parameters.raw_tale_ctx_rule for tbl in tables)
+    return any(tbl.name == config.parameters.raw_table_ctx_rule for tbl in tables)
 
 
 def read_manual_mappings(
@@ -329,7 +329,7 @@ def read_manual_mappings(
         if not manual_table_exists(client, config):
             return manual_mappings, manual_mappings_input
 
-        row_list = client.raw.rows.list(config.parameters.raw_db, config.parameters.raw_tale_ctx_manual, limit=-1)
+        row_list = client.raw.rows.list(config.parameters.raw_db, config.parameters.raw_table_ctx_manual, limit=-1)
         for row in row_list:
             if not (
                 config.parameters.run_all
@@ -354,7 +354,7 @@ def read_manual_mappings(
                 )
                 manual_mappings_input[row.key] = row.columns
 
-        logger.info(f"Number of manual mappings in table: {config.parameters.raw_db}/{config.parameters.raw_tale_ctx_manual}: {len(manual_mappings)}")
+        logger.info(f"Number of manual mappings in table: {config.parameters.raw_db}/{config.parameters.raw_table_ctx_manual}: {len(manual_mappings)}")
 
     except Exception as e:
         logger.error(f"Read manual mappings. Error: {type(e)}({e})")
@@ -467,7 +467,7 @@ def apply_manual_mappings(
                 row_key = key_lookup[entity.external_id]
                 mapping = manual_mappings_input[row_key].copy()
                 mapping[COL_KEY_MAN_CONTEXTUALIZED] = True
-                raw_uploader.add_to_upload_queue(config.parameters.raw_db, config.parameters.raw_tale_ctx_manual, Row(row_key, mapping))
+                raw_uploader.add_to_upload_queue(config.parameters.raw_db, config.parameters.raw_table_ctx_manual, Row(row_key, mapping))
             
                 # Apply the updates to the data model in batches of BATCH_SIZE_API_SUBMIT
                 if not config.parameters.debug and config.parameters.dm_update and cnt % BATCH_SIZE_API_SUBMIT == 0:
@@ -577,7 +577,7 @@ def read_rule_mappings(
         if not rule_table_exists(client, config):
             return rule_mappings
 
-        row_list = client.raw.rows.list(config.parameters.raw_db, config.parameters.raw_tale_ctx_rule, limit=-1)
+        row_list = client.raw.rows.list(config.parameters.raw_db, config.parameters.raw_table_ctx_rule, limit=-1)
         idx = 1
         for row in row_list:
             if not row.columns:
@@ -1271,28 +1271,28 @@ def write_mapping_to_raw(
     """
 
     raw_db = config.parameters.raw_db
-    raw_tale_ctx_bad = config.parameters.raw_tale_ctx_bad
-    raw_tale_ctx_good = config.parameters.raw_tale_ctx_good
+    raw_table_ctx_bad = config.parameters.raw_table_ctx_bad
+    raw_table_ctx_good = config.parameters.raw_table_ctx_good
 
     try:
         if config.parameters.run_all and not config.parameters.debug:
-            logger.info(f"Clean up BAD table: {raw_db}/{raw_tale_ctx_bad} before writing new status")
-            delete_table(client, raw_db, raw_tale_ctx_bad)
+            logger.info(f"Clean up BAD table: {raw_db}/{raw_table_ctx_bad} before writing new status")
+            delete_table(client, raw_db, raw_table_ctx_bad)
 
-            logger.info(f"Clean up GOOD table: {raw_db}/{raw_tale_ctx_good} before writing new status")
-            delete_table(client, raw_db, raw_tale_ctx_good)
+            logger.info(f"Clean up GOOD table: {raw_db}/{raw_table_ctx_good} before writing new status")
+            delete_table(client, raw_db, raw_table_ctx_good)
 
-            logger.info(f"Create DB / Table for DB: {raw_db}  Tables: {raw_tale_ctx_bad} and {raw_tale_ctx_good} if it does not exist")
-            create_table(client, raw_db, raw_tale_ctx_bad)
-            create_table(client, raw_db, raw_tale_ctx_good)
+            logger.info(f"Create DB / Table for DB: {raw_db}  Tables: {raw_table_ctx_bad} and {raw_table_ctx_good} if it does not exist")
+            create_table(client, raw_db, raw_table_ctx_bad)
+            create_table(client, raw_db, raw_table_ctx_good)
 
             for match in good_matches:
-                raw_uploader.add_to_upload_queue(raw_db, raw_tale_ctx_good, Row(match[KEY_ENTITY_EXT_ID], match))  # type: ignore
-                logger.debug(f"Added matched entity: {match[KEY_ENTITY_EXT_ID]} to {raw_db}/{raw_tale_ctx_good}")
+                raw_uploader.add_to_upload_queue(raw_db, raw_table_ctx_good, Row(match[KEY_ENTITY_EXT_ID], match))  # type: ignore
+                logger.debug(f"Added matched entity: {match[KEY_ENTITY_EXT_ID]} to {raw_db}/{raw_table_ctx_good}")
 
             for not_match in bad_matches:
-                raw_uploader.add_to_upload_queue(raw_db, raw_tale_ctx_bad, Row(not_match[KEY_ENTITY_EXT_ID], not_match))  # type: ignore
-                logger.debug(f"Added NOT matched entity: {not_match[KEY_ENTITY_EXT_ID]} to {raw_db}/{raw_tale_ctx_bad}")
+                raw_uploader.add_to_upload_queue(raw_db, raw_table_ctx_bad, Row(not_match[KEY_ENTITY_EXT_ID], not_match))  # type: ignore
+                logger.debug(f"Added NOT matched entity: {not_match[KEY_ENTITY_EXT_ID]} to {raw_db}/{raw_table_ctx_bad}")
 
             # Upload any remaining RAW cols in queue
             raw_uploader.upload()

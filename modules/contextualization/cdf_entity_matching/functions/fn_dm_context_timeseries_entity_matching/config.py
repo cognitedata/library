@@ -16,10 +16,10 @@ class Parameters(BaseModel, alias_generator=to_camel):
     remove_old_links: bool
     raw_db: str
     raw_table_state: str
-    raw_tale_ctx_good: str
-    raw_tale_ctx_bad: str
-    raw_tale_ctx_manual: str = None
-    raw_tale_ctx_rule: str = None
+    raw_table_ctx_good: str
+    raw_table_ctx_bad: str
+    raw_table_ctx_manual: str = None
+    raw_table_ctx_rule: str = None
     auto_approval_threshold: float = Field(gt=0.0, le=1.0)
 
 
