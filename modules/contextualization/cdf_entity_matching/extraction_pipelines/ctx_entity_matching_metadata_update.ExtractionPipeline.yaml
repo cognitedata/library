@@ -4,9 +4,9 @@ dataSetExternalId: 'ds_timeseries_{{location_name}}'
 description: 'Update / add alias and tags timeseries and assets'
 source: '{{source_name}}'
 documentation: >
-  # Create Alias and tags for timeseries and assets
+  # Create Alias and {{viewFilterProperty}} for assets and timeseries
 
-  Uses the DM sync api to get all timeseries and assets and creates aliases, summary and tags for each object.
+  Uses the DM sync api to get all timeseries and assets and creates aliases, summary and {{viewFilterProperty}} for each object.
   The aliases are used in the entity matching process to link matched timeseries to assets.
   The alias process is used to make it possible to generalize the entity matching process. So that the same process can be used for different sites/assets/facilities.
 

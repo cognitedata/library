@@ -18,7 +18,7 @@ from cognite.client.exceptions import CogniteAPIError
 from psutil import Process
 from tenacity import retry, stop_after_attempt, wait_exponential
 
-from constants import INVALID_ASSET_TAG, MANAGED_ASSET_TAG_PREFIX  # isort: skip
+from constants import INVALID_ASSET_TAG, MANAGED_ASSET_TAG_PREFIX, VIEW_FILTER_PROPERTY  # isort: skip
 from logger import CogniteFunctionLogger  # isort: skip
 
 # Tag pattern shared by timeseries and asset aliases, e.g. VAL_23-KA-9101 -> 23_KA_9101
@@ -197,7 +197,7 @@ class OptimizedMetadataProcessor:
 
             name = str(properties.get("name", ""))
             aliases_raw = properties.get("aliases", [])
-            tags_raw = properties.get("tags", [])
+            tags_raw = properties.get(VIEW_FILTER_PROPERTY, [])
             org_aliases = (
                 [str(x) for x in aliases_raw] if isinstance(aliases_raw, list) else []
             )
@@ -222,14 +222,14 @@ class OptimizedMetadataProcessor:
 
             if update_all:
                 properties_dict["aliases"] = upd_aliases
-                properties_dict["tags"] = upd_tags
+                properties_dict[VIEW_FILTER_PROPERTY] = upd_tags
                 update_needed = True
             else:
                 if upd_aliases != org_aliases:
                     properties_dict["aliases"] = upd_aliases
                     update_needed = True
                 if set(upd_tags) != set(org_tags):
-                    properties_dict["tags"] = upd_tags
+                    properties_dict[VIEW_FILTER_PROPERTY] = upd_tags
                     update_needed = True
             
             self.stats['processed'] += 1

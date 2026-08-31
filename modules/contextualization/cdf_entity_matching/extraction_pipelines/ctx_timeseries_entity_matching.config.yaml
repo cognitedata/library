@@ -19,7 +19,7 @@ config:
       externalId: {{ targetViewExternalId }}
       version: {{ viewVersion }}
       searchProperty: {{ targetViewSearchProperty }}
-      filterProperty: tags
+      filterProperty: {{ viewFilterProperty }}
       filterValues: {{ targetViewFilterValues }}
     entityView: # entity our source for values to be matched against, ex: TimeSeries, etc.
       schemaSpace: {{ schemaSpace }}
@@ -27,5 +27,5 @@ config:
       externalId: {{ entityViewExternalId }}
       version: {{ viewVersion }}
       searchProperty: {{ entityViewSearchProperty }}
-      filterProperty: tags
+      filterProperty: {{ viewFilterProperty }}
       filterValues: {{ entityViewFilterValues }}
