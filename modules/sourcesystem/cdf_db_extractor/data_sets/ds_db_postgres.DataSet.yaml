@@ -1,4 +1,4 @@
-- externalId: ds_db_postgres
+- externalId: "{{dataset}}"
   name: Database Foundation
   description: Data set for database foundation extraction pipelines
   writeProtected: false

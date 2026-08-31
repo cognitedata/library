@@ -5,7 +5,9 @@
 # Populated automatically from the site / location name entered in setup_project.py.
 location: ""
 
-# dataSetExternalId for the extraction pipeline (Files written by the extractor land here)
+# dataSetExternalId for the extraction pipeline and the data set this module deploys
+# (Files written by the extractor land here).
+# Computed by setup_project.py as ds_files_{location}.
 dataset: "ds_files"
 
 # DM space where CogniteFile instances are written — one space per extractor.

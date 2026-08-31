@@ -1,4 +1,4 @@
-- externalId: ds_files
+- externalId: "{{dataset}}"
   name: Files Foundation
   description: Data set for CDF Files foundation extraction pipelines
   writeProtected: false

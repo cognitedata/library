@@ -8,7 +8,8 @@ location: ""
 # Computed by setup_project.py as sp_{location}_sap.
 instanceSpace: "sp_sap_instance_space"
 
-# dataSetExternalId for the extraction pipeline and RAW database
+# dataSetExternalId for the extraction pipeline, RAW database, and the data set this
+# module deploys. Computed by setup_project.py as ds_sap_{location}.
 dataset: "ds_sap"
 
 # SAP plant code — used in OData filter expressions (e.g. MaintPlant eq '{{sapPlant}}')

@@ -317,6 +317,45 @@ def _module_instance_space(module: str, location: str) -> str:
     return f"sp_{location}_{suffix}"
 
 
+# Unscoped data set externalId per extractor module — the ``default.config.yaml``
+# value, combined with location to form ds_{data_type}_{location}.
+_MODULE_DATASET_BASE: dict[str, str] = {
+    "cdf_pi_extractor":    "ds_pi",
+    "cdf_sap_extractor":   "ds_sap",
+    "cdf_opcua_extractor": "ds_opcua",
+    "cdf_db_extractor":    "ds_db_postgres",
+    "cdf_files_extractor": "ds_files",
+}
+
+
+def _module_dataset(module: str, location: str) -> str:
+    """Return a per-extractor data set externalId: ``ds_{data_type}_{location}``.
+
+    Falls back to the unscoped base when no location is set, matching the module's
+    ``default.config.yaml`` so a project configured without the wizard still resolves.
+    """
+    base = _MODULE_DATASET_BASE.get(module, module)
+    return f"{base}_{location}" if location else base
+
+
+def _wizard_generated_datasets(sites: tuple[str, ...]) -> set[str]:
+    """Every extractor data set id this wizard can generate for *sites*.
+
+    Used to drop ids an earlier wizard run wrote, so they are replaced rather than
+    accumulated.  Matching is exact — a data set that merely shares a prefix with an
+    extractor base (``ds_files_archive``) is not a wizard-generated id and is kept.
+
+    The unscoped base is always included: it is the ``default.config.yaml`` value
+    Toolkit seeds a new project with, and no such data set is deployed once a
+    location is set.
+    """
+    return {
+        _module_dataset(module, site)
+        for module in _MODULE_DATASET_BASE
+        for site in ("", *sites)
+    }
+
+
 def _module_label(module: str) -> str:
     return _MODULE_LABELS.get(module, module)
 
@@ -333,6 +372,7 @@ def resolve_sourcesystem_variables(
     for module in installed_modules:
         vars_: dict[str, str] = {
             "instanceSpace": _module_instance_space(module, location),
+            "dataset": _module_dataset(module, location),
             "environment": env,
             "location": location,
         }
@@ -389,6 +429,7 @@ def build_overlay(
     cfihos_integration_owner_email: str = "",
     extractor_group_source_ids: dict[str, str] | None = None,
     repo_root: Path | None = None,
+    previous_site: str = "",
 ) -> dict:
     """Full ``variables.modules`` overlay dict to merge into a config file.
 
@@ -398,7 +439,10 @@ def build_overlay(
 
     ``datasets`` should be read from the existing ``config.<env>.yaml`` (populated
     by Toolkit at module-init time).  The ``default.config.yaml`` files are not
-    reliable as Toolkit may delete them after consuming them.
+    reliable as Toolkit may delete them after consuming them.  Extractor datasets in
+    that list are recomputed from ``site`` instead; ``previous_site`` is the site
+    recorded in that config, so ids the last run wrote are replaced rather than
+    accumulated.
     """
     instance_space = INGESTION_FOUNDATION_VARIABLES[variant]["instanceSpace"]
     if variant == "cdm":
@@ -413,9 +457,19 @@ def build_overlay(
         ctx_vars["cdf_entity_matching"]["location_name"] = site
         ctx_vars["cdf_entity_matching"]["source_name"] = site
 
+    # Extractor data sets are derived from the installed modules and the site, not
+    # taken from the config — the value on disk is stale whenever the site changes.
+    # Only ids this wizard itself could have written are dropped; everything else
+    # read from the config (cdf_ingestion's dataset, or one the user added) is kept.
+    generated = _wizard_generated_datasets((site, previous_site))
+    ss_datasets = [_module_dataset(m, site) for m in installed_ss]
+    foundation_datasets = ss_datasets + [
+        d for d in (datasets or []) if d not in generated
+    ]
+
     # Always write dataset (even as empty list) so the key is always present.
     modules_vars: dict[str, dict[str, object]] = {
-        "cdf_project_foundation": build_foundation_vars(variant, env, site, datasets),
+        "cdf_project_foundation": build_foundation_vars(variant, env, site, foundation_datasets),
     }
     modules_vars.update(ctx_vars)
     if installed_ss:
@@ -1096,6 +1150,16 @@ def _read_existing_values(
             ingestion_dataset = ingestion_vars.get("dataset", "ingestion")
             if ingestion_dataset and isinstance(ingestion_dataset, str) and ingestion_dataset not in ss_datasets:
                 ss_datasets.append(ingestion_dataset)
+        # Persona-group scope lives on cdf_project_foundation.dataset. Extractor
+        # ids are recomputed from the installed modules; anything else on this
+        # list (a data set the user added, or one folded in by an earlier run)
+        # must be carried forward or the overlay silently revokes that access.
+        foundation_datasets = foundation.get("dataset") or []
+        if not isinstance(foundation_datasets, list):
+            foundation_datasets = []
+        for ds in foundation_datasets:
+            if ds and isinstance(ds, str) and ds not in ss_datasets:
+                ss_datasets.append(ds)
         if ss_datasets:
             existing["dataset"] = ss_datasets
         app_owner = (
@@ -1597,6 +1661,7 @@ def _write_wizard_configs(
                 if m in _MODULE_EXTRACTOR_ENV_VAR
             },
             repo_root=repo_root,
+            previous_site=existing["site"],
         )
         if write_config(path, env, project_names[env], overlay):
             changed_count += 1

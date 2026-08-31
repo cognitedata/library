@@ -1,4 +1,4 @@
-- externalId: ds_pi
+- externalId: "{{dataset}}"
   name: PI Foundation
   description: Data set for PI foundation extraction pipelines
   writeProtected: false
