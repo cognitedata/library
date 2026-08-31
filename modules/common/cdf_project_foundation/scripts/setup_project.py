@@ -1150,6 +1150,16 @@ def _read_existing_values(
             ingestion_dataset = ingestion_vars.get("dataset", "ingestion")
             if ingestion_dataset and isinstance(ingestion_dataset, str) and ingestion_dataset not in ss_datasets:
                 ss_datasets.append(ingestion_dataset)
+        # Persona-group scope lives on cdf_project_foundation.dataset. Extractor
+        # ids are recomputed from the installed modules; anything else on this
+        # list (a data set the user added, or one folded in by an earlier run)
+        # must be carried forward or the overlay silently revokes that access.
+        foundation_datasets = foundation.get("dataset") or []
+        if not isinstance(foundation_datasets, list):
+            foundation_datasets = []
+        for ds in foundation_datasets:
+            if ds and isinstance(ds, str) and ds not in ss_datasets:
+                ss_datasets.append(ds)
         if ss_datasets:
             existing["dataset"] = ss_datasets
         app_owner = (

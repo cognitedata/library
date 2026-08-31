@@ -628,6 +628,56 @@ class TestModuleDataset:
         pf = overlay["variables"]["modules"]["cdf_project_foundation"]
         assert pf["dataset"] == ["ds_custom_ingestion", "ds_oil_and_gas_domain_model"]
 
+    def test_wizard_path_keeps_foundation_custom_dataset(self, tmp_path: Path) -> None:
+        """The wizard reads via _read_existing_values then writes via build_overlay.
+        Custom ids on cdf_project_foundation.dataset must survive that round-trip;
+        build_overlay-only tests miss the gap if the reader never surfaces them."""
+        from setup_project import _read_existing_values, build_overlay
+        ss_dir = tmp_path / "modules" / "sourcesystem"
+        (ss_dir / "cdf_pi_extractor").mkdir(parents=True)
+        (tmp_path / "config.dev.yaml").write_text(yaml.dump({
+            "environment": {"project": "acme-dev"},
+            "variables": {"modules": {
+                "cdf_project_foundation": {
+                    "site": "oslo",
+                    "dataset": ["ds_pi", "ds_files_archive"],
+                },
+                "cdf_pi_extractor": {"dataset": "ds_pi"},
+            }},
+        }, sort_keys=False))
+        existing = _read_existing_values(tmp_path, ("dev",), ["cdf_pi_extractor"])
+        overlay = build_overlay(
+            "cdm", "dev", "oslo", [],
+            datasets=existing["dataset"],
+            previous_site=existing["site"],
+            repo_root=tmp_path,
+        )
+        pf = overlay["variables"]["modules"]["cdf_project_foundation"]
+        assert pf["dataset"] == ["ds_pi_oslo", "ds_files_archive"]
+
+    def test_wizard_path_does_not_duplicate_variant_dataset(self, tmp_path: Path) -> None:
+        """ds_oil_and_gas_domain_model is already on the foundation list and is
+        also folded in by datasets_for_variant — the round-trip must not double it."""
+        from setup_project import _read_existing_values, build_overlay
+        (tmp_path / "config.dev.yaml").write_text(yaml.dump({
+            "environment": {"project": "acme-dev"},
+            "variables": {"modules": {
+                "cdf_project_foundation": {
+                    "site": "oslo",
+                    "dataset": ["ds_custom_ingestion", "ds_oil_and_gas_domain_model"],
+                },
+            }},
+        }, sort_keys=False))
+        existing = _read_existing_values(tmp_path, ("dev",), [])
+        overlay = build_overlay(
+            "cfihos_oil_and_gas_extension", "dev", "oslo", [],
+            datasets=existing["dataset"],
+            previous_site=existing["site"],
+            repo_root=tmp_path,
+        )
+        pf = overlay["variables"]["modules"]["cdf_project_foundation"]
+        assert pf["dataset"] == ["ds_custom_ingestion", "ds_oil_and_gas_domain_model"]
+
 
 class TestExtractorDataSetResources:
     """The DataSet resource must resolve from {{dataset}} — the same variable the
@@ -1660,6 +1710,53 @@ class TestReadExistingValues:
         )
         assert "ds_pi_oslo" in existing["dataset"]
         assert "ds_sap_oslo" in existing["dataset"]
+
+    def test_reads_custom_datasets_from_foundation(self, tmp_path: Path) -> None:
+        """Persona-group scope lives on cdf_project_foundation.dataset. A data set
+        the user added there is not on any extractor module, so it is lost unless
+        this reader surfaces it to build_overlay."""
+        from setup_project import _read_existing_values
+        self._write_config(tmp_path / "config.dev.yaml", {
+            "environment": {"project": "acme-dev"},
+            "variables": {"modules": {
+                "cdf_project_foundation": {
+                    "site": "oslo",
+                    "dataset": ["ds_pi_oslo", "ds_files_archive"],
+                },
+                "cdf_pi_extractor": {"dataset": "ds_pi_oslo"},
+            }},
+        })
+        existing = _read_existing_values(tmp_path, ("dev",), ["cdf_pi_extractor"])
+        assert existing["dataset"] == ["ds_pi_oslo", "ds_files_archive"]
+
+    def test_reads_custom_datasets_from_nested_foundation(self, tmp_path: Path) -> None:
+        from setup_project import _read_existing_values
+        self._write_config(tmp_path / "config.dev.yaml", {
+            "environment": {"project": "acme-dev"},
+            "variables": {"modules": {
+                "common": {
+                    "cdf_project_foundation": {
+                        "site": "oslo",
+                        "dataset": ["ds_custom"],
+                    },
+                },
+            }},
+        })
+        existing = _read_existing_values(tmp_path, ("dev",), [])
+        assert existing["dataset"] == ["ds_custom"]
+
+    def test_ignores_non_list_foundation_dataset(self, tmp_path: Path) -> None:
+        """A scalar dataset on an extractor module is a string; the foundation
+        key is a list. A stray string must not be iterated character by character."""
+        from setup_project import _read_existing_values
+        self._write_config(tmp_path / "config.dev.yaml", {
+            "environment": {"project": "acme-dev"},
+            "variables": {"modules": {
+                "cdf_project_foundation": {"site": "oslo", "dataset": "ds_pi"},
+            }},
+        })
+        existing = _read_existing_values(tmp_path, ("dev",), [])
+        assert existing["dataset"] == []
 
     def test_reads_cdf_ingestion_dataset_when_installed(self, tmp_path: Path) -> None:
         """cdf_ingestion's own dataset must be folded into the persona dataset list —
