@@ -1,0 +1,59 @@
+ruleSetExternalId: notification_shacl_rules
+version: "1.0.0"
+rules:
+  - |
+    @prefix sh: <http://www.w3.org/ns/shacl#> .
+    @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+    @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+    @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+    @prefix dq: <http://example.org/dataquality/> .
+    @prefix dqs: <http://purl.org/cognite/dqs#> .
+    @prefix sp: <http://purl.org/cognite/sp_enterprise_process_industry/YourOrgNotification/> .
+
+    # YourOrgNotification SHACL Rules for Data Quality Validation
+    # Testing integer field partitioning with priority field
+
+    <#NotificationShape>
+        a sh:NodeShape ;
+        sh:targetClass sp:YourOrgNotification ;
+        sh:name "Notification Validation" ;
+        sh:description "SHACL validation rules for YourOrgNotification - testing integer field handling" ;
+
+        # Priority must be present and valid
+        sh:property [
+            sh:path sp:priority ;
+            dq:dimension "Completeness" ;
+            sh:name "Priority" ;
+            sh:description "Priority must be 1, 2, or 3" ;
+            sh:minCount 1 ;
+            sh:maxCount 1 ;
+            sh:datatype xsd:integer ;
+            sh:minInclusive 1 ;
+            sh:maxInclusive 3 ;
+            sh:severity sh:Violation ;
+            sh:message "Notification must have a priority value between 1 and 3" ;
+        ] ;
+
+        # Name should be present
+        sh:property [
+            sh:path sp:name ;
+            sh:name "Name" ;
+            sh:description "Notification should have a name" ;
+            sh:minCount 1 ;
+            sh:datatype xsd:string ;
+            sh:severity sh:Warning ;
+            sh:message "Notification should have a name" ;
+        ] .
+
+    # ==============================================================================
+    # Uniqueness Rule: Notification name must be unique
+    # ==============================================================================
+    <#NotificationNameUniqueness>
+        a sh:NodeShape ;
+        sh:targetClass sp:YourOrgNotification ;
+        sh:name "Notification Name Uniqueness Validation" ;
+        sh:description "Ensures notification names are unique across the target class." ;
+        sh:severity sh:Violation ;
+        dqs:uniquenessConstraint [
+            dqs:property "name" ;
+        ] .

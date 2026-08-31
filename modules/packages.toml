@@ -136,6 +136,15 @@ modules = [
     "dashboards/context_quality",
 ]
 
+[packages.data_quality]
+id = "dp:data_quality"
+title = "Data Quality Validation"
+description = "Data quality validation for Data Products."
+canCherryPick = true
+modules = [
+    "common/cdf_dq_runtime",
+]
+
 [packages.tools]
 id = "tool"
 title = "Tools and Accelerators"

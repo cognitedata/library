@@ -1,0 +1,29 @@
+# data-quality-validation-deploy/config/environments/cog-ai/timeseries/yourorg_timeseries_quality.yaml
+# SHACL is published by Toolkit (timeseries_quality_rules RuleSet).
+
+name: yourorg_timeseries_quality
+description: "YourOrgTimeSeries datapoint quality rules (hourly)"
+
+schedule:
+  cron: "2 * * * *"
+
+filter:
+  space: springfield_instances
+  external_id_prefix: "pi:"
+
+datamodel:
+  space: sp_enterprise_process_industry
+  external_id: YourOrgTimeSeries
+  version: v1
+
+shacl_rules:
+  ruleset_references:
+    - externalId: timeseries_quality_rules
+      version: "1.0.0"
+
+validation:
+  verbose: true
+
+records:
+  rule_set_id: YourOrgTimeSeriesSHACL
+  rule_set_version: "1.1.9"

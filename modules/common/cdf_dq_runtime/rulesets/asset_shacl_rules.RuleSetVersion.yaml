@@ -1,0 +1,43 @@
+ruleSetExternalId: asset_shacl_rules
+version: "1.0.0"
+rules:
+  - |
+    @prefix sh: <http://www.w3.org/ns/shacl#> .
+    @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+    @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+    @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+    @prefix dqs: <http://purl.org/cognite/dqs#> .
+    @prefix sp_asset: <http://purl.org/cognite/sp_enterprise_process_industry/YourOrgAsset/> .
+
+    # ==============================================================================
+    # YourOrgAsset — base shape
+    # ==============================================================================
+    sp_asset:AssetShape
+        a sh:NodeShape ;
+        sh:targetClass sp_asset:YourOrgAsset ;
+        sh:name "Asset Validation" ;
+        sh:description "Validates YourOrgAsset instances." ;
+        sh:severity sh:Info .
+
+    # ==============================================================================
+    # Edge existence: asset hierarchy (cdf_cdm has-parent)
+    #
+    # Validates typed parent edges in the asset hierarchy. Root assets may have zero
+    # incoming has-parent edges (minCount 0). Non-root assets should have at most
+    # one parent (maxCount 1).
+    #
+    # Production runtime: ADR-0008 edge_existence_event handler (instances.query).
+    # ==============================================================================
+    sp_asset:AssetParentEdgeExistenceShape
+        a sh:NodeShape ;
+        sh:targetClass sp_asset:YourOrgAsset ;
+        sh:name "Asset Parent Edge Existence" ;
+        sh:description "Validates hierarchy parent edges (cdf_cdm/has-parent) on assets." ;
+        sh:severity sh:Violation ;
+        dqs:edgeExistenceConstraint [
+            dqs:connectionProperty "parent" ;
+            dqs:edgeType "cdf_cdm/has-parent" ;
+            dqs:direction "inwards" ;
+            dqs:minCount 0 ;
+            dqs:maxCount 1
+        ] .

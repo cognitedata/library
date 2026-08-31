@@ -1,0 +1,63 @@
+dataProductExternalId: enterprise-process-industry
+version: "1.1.10"
+status: published
+description: YourOrg views on enterprise-process-industry (cog-ai data-quality-validation-deploy sample).
+views:
+  - space: sp_enterprise_process_industry
+    externalId: YourOrgAsset
+    version: "v1"
+    instanceSpaces:
+      read:
+        - springfield_instances
+      write: []
+  - space: sp_enterprise_process_industry
+    externalId: YourOrgEquipment
+    version: "v1"
+    instanceSpaces:
+      read:
+        - springfield_instances
+      write: []
+  - space: sp_enterprise_process_industry
+    externalId: YourOrgMaintenanceOrder
+    version: "v1"
+    instanceSpaces:
+      read:
+        - test_data_pumps
+      write: []
+  - space: sp_enterprise_process_industry
+    externalId: YourOrgNotification
+    version: "v1"
+    instanceSpaces:
+      read:
+        - test_data_pumps
+      write: []
+  - space: sp_enterprise_process_industry
+    externalId: YourOrgOperation
+    version: "v1"
+    instanceSpaces:
+      read:
+        - test_data_pumps
+      write: []
+  - space: sp_enterprise_process_industry
+    externalId: YourOrgTimeSeries
+    version: "v1"
+    instanceSpaces:
+      read:
+        - springfield_instances
+      write: []
+quality:
+  rules:
+    - externalId: asset_shacl_rules
+      version: "1.0.0"
+    - externalId: equipment_shacl_rules
+      version: "1.0.0"
+    - externalId: maintenance_order_shacl_rules
+      version: "1.0.0"
+    - externalId: maintenance_order_rule_logic_test_shacl_rules
+      version: "1.0.0"
+    - externalId: notification_shacl_rules
+      version: "1.0.0"
+    - externalId: operation_shacl_rules
+      version: "1.0.0"
+    - externalId: timeseries_quality_rules
+      version: "1.0.0"

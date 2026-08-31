@@ -12,6 +12,7 @@ modules/
 │
 ├── common/                      # Shared CDF platform building blocks
 │   ├── cdf_common/
+│   ├── cdf_dq_runtime/          # SHACL data-quality validation (dp:data_quality)
 │   ├── cdf_ingestion/
 │   └── cdf_search/
 │
@@ -66,6 +67,7 @@ These are the packs exposed in the Toolkit menu (from `packages.toml`):
 | `dp:sourcesystem` | Source Systems | `sourcesystem/*_extractor` (real connector configs), `sourcesystem/*_data_dump` (synthetic sample data) |
 | `dp:models` | Data models | `datamodels/` |
 | `dp:dashboards` | Dashboards | `dashboards/` |
+| `dp:data_quality` | Data Quality Validation | `common/cdf_dq_runtime` |
 | `dp:atlas_ai` | Atlas AI | `atlas_ai/`, `solutions/cdf_ai_extractor` |
 | `dp:cdm_maintain` | CDM Maintain | `solutions/cdm_maintain/*` |
 | `dp:infield` | Infield | `solutions/cdf_infield/cdf_infield_location` |
@@ -90,6 +92,7 @@ Every `module.toml` **`id`** must be `dp:<package_short>:<slug>` where `<package
 | `contextualization/cdf_p_and_id_parser` | `dp:contextualization:cdf_p_and_id_parser` | `dp:contextualization` |
 | `custom/my_module` | `dp:emptymodule:my_module` | `dp:emptymodule` |
 | `dashboards/context_quality` | `dp:dashboards:context_quality` | `dp:dashboards` |
+| `common/cdf_dq_runtime` | `dp:data_quality:cdf_dq_runtime` | `dp:data_quality` |
 | `data_models/cfihos_oil_and_gas_extension` | `dp:models:cfihos_oil_and_gas_extension` | `dp:models` |
 | `data_models/cfihos_oil_and_gas_extension_search` | `dp:models:cfihos_oil_and_gas_extension_search` | `dp:models` |
 | `data_models/isa_manufacturing_extension` | `dp:models:isa_manufacturing_extension` | `dp:models` |
