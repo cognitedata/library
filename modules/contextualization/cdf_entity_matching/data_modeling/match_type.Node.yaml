@@ -1,2 +1,2 @@
-space: {{ contextualizationInstanceSpace }}
+space: {{ functionSpace }}
 externalId: "entity.match"

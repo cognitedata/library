@@ -11,6 +11,8 @@ from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock
 
+from cognite.client.data_classes.data_modeling import DirectRelationReference, NodeApply
+
 sys.path.append(str(Path(__file__).parent))
 
 from config import Config, ViewPropertyConfig
@@ -131,6 +133,13 @@ def _requested_spaces(list_mock: MagicMock) -> set[str]:
     return {call.kwargs["space"] for call in list_mock.call_args_list}
 
 
+def _links(item: NodeApply) -> list[DirectRelationReference]:
+    """Direct relations queued on a node update."""
+    links = item.sources[0].properties[PROP_COL_LINK_NAME]  # type: ignore[index, union-attr]
+    assert isinstance(links, list)
+    return links
+
+
 def _target(view_id: Any, space: str, external_id: str) -> Instance:
     return Instance(space, external_id, {view_id: {PROP_COL_NAME: external_id}})
 
@@ -246,8 +255,7 @@ def test_match_is_written_to_the_space_each_instance_came_from() -> None:
     )
 
     assert items[0].space == "inst_ts_sap"
-    links = items[0].sources[0].properties[PROP_COL_LINK_NAME]
-    assert [(link.space, link.external_id) for link in links] == [("inst_asset_b", "asset-b")]
+    assert [(link.space, link.external_id) for link in _links(items[0])] == [("inst_asset_b", "asset-b")]
 
 
 def test_write_falls_back_to_the_first_configured_space() -> None:
@@ -257,7 +265,7 @@ def test_write_falls_back_to_the_first_configured_space() -> None:
     items = add_to_items(config, MagicMock(), [], ["asset-x"], "pi:1", config.data.entity_view.as_view_id())
 
     assert items[0].space == "inst_ts_pi"
-    assert items[0].sources[0].properties[PROP_COL_LINK_NAME][0].space == "inst_asset_a"
+    assert _links(items[0])[0].space == "inst_asset_a"
 
 
 def test_single_space_string_is_written_to_that_one_space() -> None:
@@ -267,7 +275,7 @@ def test_single_space_string_is_written_to_that_one_space() -> None:
     items = add_to_items(config, MagicMock(), [], ["asset-x"], "ts:1", config.data.entity_view.as_view_id())
 
     assert items[0].space == "inst_ts"
-    assert items[0].sources[0].properties[PROP_COL_LINK_NAME][0].space == "inst_asset"
+    assert _links(items[0])[0].space == "inst_asset"
 
 
 def test_existing_links_keep_their_space_when_reapplied() -> None:
@@ -287,7 +295,7 @@ def test_existing_links_keep_their_space_when_reapplied() -> None:
         target_spaces={"asset-new": "inst_asset_a"},
     )
 
-    links = {link.external_id: link.space for link in items[0].sources[0].properties[PROP_COL_LINK_NAME]}
+    links = {link.external_id: link.space for link in _links(items[0])}
     assert links == {"asset-old": "inst_asset_b", "asset-new": "inst_asset_a"}
 
 
@@ -299,6 +307,66 @@ def test_clean_links_resets_the_entity_in_its_own_space() -> None:
 
     assert items[0].space == "inst_ts_sap"
     assert items[0].sources[0].properties == {PROP_COL_LINK_NAME: None}
+
+
+# --- Unknown spaces -------------------------------------------------------------------
+# Falling back to the first configured space keeps a write from failing outright, but with
+# several spaces configured it can point a link at a space the node does not live in. The
+# fallback must therefore be visible in the log.
+
+
+def test_unknown_entity_space_warns_when_several_are_configured() -> None:
+    logger = MagicMock()
+    config = _config("inst_asset", ["inst_ts_pi", "inst_ts_sap"])
+
+    add_to_items(config, logger, [], ["asset-a"], "ts:1", config.data.entity_view.as_view_id())
+
+    assert any("ts:1" in call[0][0] for call in logger.warning.call_args_list)
+
+
+def test_unknown_target_space_warns_when_several_are_configured() -> None:
+    logger = MagicMock()
+    config = _config(["inst_asset_a", "inst_asset_b"], "inst_ts")
+
+    add_to_items(
+        config,
+        logger,
+        [],
+        ["asset-a"],
+        "ts:1",
+        config.data.entity_view.as_view_id(),
+        entity_space="inst_ts",
+    )
+
+    assert any("asset-a" in call[0][0] for call in logger.warning.call_args_list)
+
+
+def test_unknown_space_is_not_flagged_with_one_space() -> None:
+    """With one space per view the fallback is always the right space."""
+    logger = MagicMock()
+    config = _config("inst_asset", "inst_ts")
+
+    add_to_items(config, logger, [], ["asset-a"], "ts:1", config.data.entity_view.as_view_id())
+
+    logger.warning.assert_not_called()
+
+
+def test_known_spaces_are_not_flagged() -> None:
+    logger = MagicMock()
+    config = _config(["inst_asset_a", "inst_asset_b"], ["inst_ts_pi", "inst_ts_sap"])
+
+    add_to_items(
+        config,
+        logger,
+        [],
+        ["asset-a"],
+        "ts:1",
+        config.data.entity_view.as_view_id(),
+        entity_space="inst_ts_sap",
+        target_spaces={"asset-a": "inst_asset_b"},
+    )
+
+    logger.warning.assert_not_called()
 
 
 # --- Space bookkeeping helpers --------------------------------------------------------

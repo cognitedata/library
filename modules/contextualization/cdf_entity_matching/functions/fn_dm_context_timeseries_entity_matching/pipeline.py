@@ -1284,15 +1284,28 @@ def add_to_items(
 ) -> list[NodeApply]:
     """Queue a node update linking an entity to its targets.
 
+    Each instance is written to the space it was read from. Where a space is unknown the
+    first configured space is used and the fallback is logged, unless the view is
+    configured with a single space, where the fallback is always correct.
+
     Args:
-        entity_space: Space the entity lives in. Falls back to the first configured
-            entity instance space when the caller does not know it.
-        target_spaces: Target external ID to the space it lives in. Targets missing from
-            the mapping fall back to the first configured target instance space.
+        entity_space: Space the entity lives in.
+        target_spaces: Target external ID to the space it lives in.
     """
-    entity_space = entity_space or config.data.entity_view.default_instance_space
     target_spaces = target_spaces or {}
     default_target_space = config.data.target_view.default_instance_space
+    # With one space per view the fallback is by definition the right space. With several,
+    # it is a guess that can point the update at a space the instance does not live in.
+    warn_on_entity_fallback = len(config.data.entity_view.instance_spaces) > 1
+    warn_on_target_fallback = len(config.data.target_view.instance_spaces) > 1
+
+    if entity_space is None:
+        entity_space = config.data.entity_view.default_instance_space
+        if warn_on_entity_fallback:
+            logger.warning(
+                f"Unknown instance space for entity: {entity_ext_id} - writing the update to "
+                f"{entity_space}. A new node is created there if the entity lives in another space."
+            )
 
     targets = []
 
@@ -1311,9 +1324,18 @@ def add_to_items(
             logger.debug(f"Asset: {target_ext_id} already exists in entity: {entity_ext_id}, skipping")
             continue
         logger.debug(f"Adding target: {target_ext_id} to entity: {entity_ext_id}")   
+        target_space = target_spaces.get(target_ext_id)
+        if target_space is None:
+            target_space = default_target_space
+            if warn_on_target_fallback:
+                logger.warning(
+                    f"Unknown instance space for target: {target_ext_id} linked from entity: "
+                    f"{entity_ext_id} - linking to {target_space}. The link dangles if the target "
+                    f"lives in another space."
+                )
         targets.append(
             DirectRelationReference(
-                space=target_spaces.get(target_ext_id, default_target_space),
+                space=target_space,
                 external_id=target_ext_id
             )
         )

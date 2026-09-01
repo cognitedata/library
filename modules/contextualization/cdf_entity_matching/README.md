@@ -129,8 +129,7 @@ schemaSpace: cdf_cdm
 viewVersion: v1
 assetInstanceSpace: sp_cdm_instances
 timeseriesInstanceSpace: sp_cdm_instances
-contextualizationInstanceSpace: sp_cdm_instances  # single space for this module's own nodes
-functionSpace: sp_entity_matching_fn  # space where function code nodes are stored
+functionSpace: sp_entity_matching_fn  # space for this module's own nodes
 AssetViewExternalId: CogniteAsset
 TimeSeriesViewExternalId: CogniteTimeSeries
 targetViewExternalId: CogniteAsset
@@ -189,18 +188,14 @@ restricted by space — a time series in one space can match an asset in another
 external IDs must be unique across the spaces you list. Entity matching logs a warning if
 it finds the same external ID in more than one space.
 
-#### `contextualizationInstanceSpace`
+In the rare case where an instance's own space cannot be determined — for example a manual
+mapping naming a target outside the configured filter — the link is written to the first
+space in the list and a warning names the instance, since that link dangles if the target
+lives elsewhere.
 
-The source system node and the match type node that this module deploys must each live in
-exactly one space, so this variable takes a **single space and never a list**. Set it to
-one of the spaces above — usually the asset instance space:
-
-```yaml
-assetInstanceSpace:
-  - inst_location
-  - springfield_instances
-contextualizationInstanceSpace: inst_location
-```
+The source system and match type nodes that this module deploys are not instance data, so
+they are not affected by these variables — they live in `functionSpace` alongside the
+function code nodes.
 
 ### Environment Variables
 
@@ -243,7 +238,6 @@ variables:
       viewVersion: v1
       assetInstanceSpace: your_instances
       timeseriesInstanceSpace: your_instances
-      contextualizationInstanceSpace: your_instances
       functionSpace: sp_entity_matching_fn
       AssetViewExternalId: CogniteAsset
       TimeSeriesViewExternalId: CogniteTimeSeries
