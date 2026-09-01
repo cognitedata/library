@@ -26,7 +26,8 @@ documentation: >
    assetView - View to to access assets
 
    schemaSpace - Schema space for the views, same or different for each view
-   instanceSpace - Instance space ( where data is stored) for the views, same or different for each view
+   instanceSpace - Instance space ( where data is stored) for the views, same or different for each view.
+                   A single space or a list of spaces; instances are updated in the space they were read from.
    externalId: External id of the view
    version: Version of the view
 

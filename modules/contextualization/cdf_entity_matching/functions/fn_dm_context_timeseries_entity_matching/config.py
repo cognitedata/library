@@ -4,7 +4,7 @@ from cognite.client import CogniteClient
 from cognite.client import data_modeling as dm
 from cognite.client.exceptions import CogniteAPIError
 from pipeline_types import FunctionInputData
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from pydantic.alias_generators import to_camel
 
 
@@ -25,12 +25,29 @@ class Parameters(BaseModel, alias_generator=to_camel):
 
 class ViewPropertyConfig(BaseModel, alias_generator=to_camel):
     schema_space: str
-    instance_space: str
+    instance_space: str | list[str]
     external_id: str
     version: str
     search_property: str = "alias"
     filter_property: str = None
     filter_values: list[str] = None
+
+    @field_validator("instance_space")
+    @classmethod
+    def validate_instance_space(cls, value: str | list[str]) -> str | list[str]:
+        if isinstance(value, list) and not value:
+            raise ValueError("instanceSpace must name at least one space")
+        return value
+
+    @property
+    def instance_spaces(self) -> list[str]:
+        """All configured instance spaces, as a list even when a single space is configured."""
+        return [self.instance_space] if isinstance(self.instance_space, str) else list(self.instance_space)
+
+    @property
+    def default_instance_space(self) -> str:
+        """Space to write an instance to when its own space is unknown - the first configured space."""
+        return self.instance_spaces[0]
 
     def as_view_id(self) -> dm.ViewId:
         return dm.ViewId(space=self.schema_space, external_id=self.external_id, version=self.version)

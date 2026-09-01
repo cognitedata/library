@@ -32,6 +32,7 @@ from constants import (
     COL_KEY_RULE_REGEXP_TARGET,
     COL_MATCH_KEY,
     FILTER_PATH_NODE_EXTERNAL_ID,
+    FILTER_PATH_NODE_SPACE,
     FUNCTION_ID,
     JOB_RESULT_ITEMS,
     KEY_ENTITY_EXISTING_TARGETS,
@@ -39,6 +40,7 @@ from constants import (
     KEY_ENTITY_MATCH_VALUE,
     KEY_ENTITY_NAME,
     KEY_ENTITY_RULE_KEYS,
+    KEY_ENTITY_SPACE,
     KEY_ENTITY_VIEW_ID,
     KEY_MATCH_TYPE,
     KEY_MATCHES,
@@ -54,6 +56,7 @@ from constants import (
     KEY_TARGET_MATCH_VALUE,
     KEY_TARGET_NAME,
     KEY_TARGET_RULE_KEYS,
+    KEY_TARGET_SPACE,
     KEY_TARGET_VIEW_ID,
     LOG_LEVEL_DEBUG,
     LOG_LEVEL_INFO,
@@ -383,6 +386,7 @@ def apply_manual_mappings(
 
     try:
         targets_lookup = {target[KEY_TARGET_EXT_ID]: target for target in targets}
+        target_spaces = {target[KEY_TARGET_EXT_ID]: target[KEY_TARGET_SPACE] for target in targets}
         entity_list = [mapping[COL_KEY_MAN_MAPPING_ENTITY] for mapping in manual_mappings]
         lookup_mapping = {mapping[COL_KEY_MAN_MAPPING_ENTITY]: mapping[COL_KEY_MAN_MAPPING_TARGET] for mapping in manual_mappings}
         key_lookup = {mapping[COL_KEY_MAN_MAPPING_ENTITY]: mapping[KEY_RULE] for mapping in manual_mappings}
@@ -427,8 +431,9 @@ def apply_manual_mappings(
                     links_property = entity.properties[entity_view_id][PROP_COL_LINK_NAME]
                     if links_property:
                         entity_targets = get_links_from_entity(links_property)
+                        remember_link_spaces(target_spaces, links_property)
                 else:
-                    clean_target_list = clean_links(config, entity.external_id, clean_target_list)
+                    clean_target_list = clean_links(config, entity.space, entity.external_id, clean_target_list)
 
                 entity_targets = [*entity_targets, target_ext_id]
 
@@ -437,7 +442,9 @@ def apply_manual_mappings(
                                            item_update,
                                            entity_targets,
                                            entity.external_id,
-                                           entity_view_id)
+                                           entity_view_id,
+                                           entity_space=entity.space,
+                                           target_spaces=target_spaces)
 
                 if target_ext_id in targets_lookup:
                     target = targets_lookup[target_ext_id]
@@ -451,6 +458,7 @@ def apply_manual_mappings(
                     {
                         KEY_MATCH_TYPE: MATCH_TYPE_MANUAL,
                         KEY_ENTITY_EXT_ID: entity.external_id,
+                        KEY_ENTITY_SPACE: entity.space,
                         KEY_ENTITY_NAME: entity.properties[entity_view_id][PROP_COL_NAME],
                         KEY_ENTITY_MATCH_VALUE: entity.external_id,
                         KEY_ENTITY_VIEW_ID: str(config.data.entity_view.as_view_id()),
@@ -459,6 +467,7 @@ def apply_manual_mappings(
                         KEY_TARGET_NAME: target_name,
                         KEY_TARGET_MATCH_VALUE: target_ext_id,
                         KEY_TARGET_EXT_ID: target_ext_id,
+                        KEY_TARGET_SPACE: target_spaces.get(target_ext_id),
                         KEY_TARGET_VIEW_ID: target_view_id,
                     }
                 )
@@ -545,7 +554,7 @@ def list_instances_by_external_id_direct(
     combined_filter = dm.filters.And(has_data_filter, external_id_filter)
     
     matching_instances = client.data_modeling.instances.list(
-        space=config.data.entity_view.instance_space,
+        space=config.data.entity_view.instance_spaces,
         sources=[entity_view_id],
         filter=combined_filter,
         limit=-1
@@ -637,6 +646,7 @@ def get_all_targets(
     retry_backoff_seconds = 2
     all_targets = []
     last_external_id: str | None = None
+    last_space: str | None = None
 
     while True:
         page_filters: list[dm.filters.Filter] = []
@@ -648,7 +658,18 @@ def get_all_targets(
         if is_selected is not None:
             page_filters.append(is_selected)
         if last_external_id is not None:
-            page_filters.append(dm.filters.Range(FILTER_PATH_NODE_EXTERNAL_ID, gt=last_external_id))
+            # External IDs are only unique within a space, so paging on externalId alone
+            # would skip instances that share an externalId across the configured spaces
+            # when a page boundary falls between them. Page on (externalId, space) instead.
+            page_filters.append(
+                dm.filters.Or(
+                    dm.filters.Range(FILTER_PATH_NODE_EXTERNAL_ID, gt=last_external_id),
+                    dm.filters.And(
+                        dm.filters.Equals(FILTER_PATH_NODE_EXTERNAL_ID, last_external_id),
+                        dm.filters.Range(FILTER_PATH_NODE_SPACE, gt=last_space),
+                    ),
+                )
+            )
 
         page_filter = None
         if len(page_filters) == 1:
@@ -660,10 +681,13 @@ def get_all_targets(
         for retry in range(max_page_retries + 1):
             try:
                 page = client.data_modeling.instances.list(
-                    space=job_config.target_view.instance_space,
+                    space=job_config.target_view.instance_spaces,
                     sources=[job_config.target_view.as_view_id()],
                     filter=page_filter,
-                    sort=dm.InstanceSort(FILTER_PATH_NODE_EXTERNAL_ID, direction="ascending"),
+                    sort=[
+                        dm.InstanceSort(FILTER_PATH_NODE_EXTERNAL_ID, direction="ascending"),
+                        dm.InstanceSort(FILTER_PATH_NODE_SPACE, direction="ascending"),
+                    ],
                     limit=batch_size,
                 )
                 break
@@ -671,7 +695,7 @@ def get_all_targets(
                 if retry >= max_page_retries:
                     logger.error(
                         f"Failed to fetch {QUERY_FILTER_TYPE_TARGETS} page after {max_page_retries + 1} attempts. "
-                        f"Last cursor externalId: {last_external_id}. Error: {type(e)}({e})"
+                        f"Last cursor: {last_space}/{last_external_id}. Error: {type(e)}({e})"
                     )
                     raise
 
@@ -679,7 +703,7 @@ def get_all_targets(
                 logger.warning(
                     f"Retry {retry + 1}/{max_page_retries} for {QUERY_FILTER_TYPE_TARGETS} page failed. "
                     f"Sleeping {sleep_seconds}s before retry. "
-                    f"Cursor externalId: {last_external_id}. Error: {type(e)}({e})"
+                    f"Cursor: {last_space}/{last_external_id}. Error: {type(e)}({e})"
                 )
                 time.sleep(sleep_seconds)
 
@@ -688,10 +712,11 @@ def get_all_targets(
 
         all_targets.extend(page)
         last_external_id = page[-1].external_id
+        last_space = page[-1].space
 
         logger.debug(
             f"Fetched {len(page)} {QUERY_FILTER_TYPE_TARGETS} in batch, "
-            f"total so far: {len(all_targets)}, last externalId cursor: {last_external_id}"
+            f"total so far: {len(all_targets)}, last cursor: {last_space}/{last_external_id}"
         )
 
         if len(page) < batch_size:
@@ -725,6 +750,7 @@ def get_all_targets(
             targets.append(
                 {
                     KEY_TARGET_EXT_ID: target.external_id,
+                    KEY_TARGET_SPACE: target.space,
                     KEY_ORG_NAME: org_name,
                     KEY_NAME: match_property,
                     KEY_RULE_KEYS: rule_keys if rule_keys else None,
@@ -752,7 +778,7 @@ def get_new_entities(
     is_selected = get_query_filter(QUERY_FILTER_TYPE_ENTITIES, entity_view_config, config.parameters.run_all, logger)
 
     new_entities = client.data_modeling.instances.list(
-        space=entity_view_config.instance_space,
+        space=entity_view_config.instance_spaces,
         sources=[entity_view_id],
         filter=is_selected,
         limit=-1
@@ -788,7 +814,7 @@ def get_new_entities(
             # keep old target links
             targets = entity.properties[entity_view_id][PROP_COL_LINK_NAME]
         else:
-            item_update = clean_links(config, entity.external_id, item_update)
+            item_update = clean_links(config, entity.space, entity.external_id, item_update)
 
         # add entities for files used to match between file references in P&ID to other files
         search_prop = entity_view_config.search_property
@@ -802,6 +828,7 @@ def get_new_entities(
             entities_source.append(
                 {
                     KEY_ENTITY_EXT_ID: entity.external_id,
+                    KEY_ENTITY_SPACE: entity.space,
                     KEY_NAME: entity_name,
                     KEY_ORG_NAME: org_name,
                     KEY_TARGET_LINKS: json.dumps(targets),
@@ -821,6 +848,7 @@ def get_new_entities(
 
 def clean_links(
     config: Config,
+    entity_space: str,
     entity_ext_id: str,
     item_update: list[NodeApply]
 ) -> list[NodeApply]:
@@ -829,7 +857,7 @@ def clean_links(
 
     item_update.append(
         NodeApply(
-            space=config.data.entity_view.instance_space,
+            space=entity_space,
             external_id=entity_ext_id,
             sources=[
                 NodeOrEdgeData(
@@ -949,6 +977,8 @@ def apply_rule_mappings(
         # Format: { 'rule_key_value': [dict_from_target_dest_1, dict_from_target_dest_2, ...] }
         index1 = defaultdict(list)
         matches = defaultdict(list)  # defaultdict(lambda: [[], []])
+        entity_spaces: dict[str, str] = {}
+        target_spaces = {target[KEY_TARGET_EXT_ID]: target[KEY_TARGET_SPACE] for target in target_dest}
 
         for d1 in target_dest:
             if not d1.get(key_field, []):  # Ensure the key_field exists
@@ -987,6 +1017,7 @@ def apply_rule_mappings(
                             good_matches_set.add(match_key)
 
                             entity_id = d2[KEY_ENTITY_EXT_ID]
+                            entity_spaces[entity_id] = d2[KEY_ENTITY_SPACE]
                             unique_target_list = list(set(matches.get(entity_id, ())))
                             if d1_match[KEY_TARGET_EXT_ID] and d1_match[KEY_TARGET_EXT_ID] not in unique_target_list:
                                 unique_target_list = [*unique_target_list, d1_match[KEY_TARGET_EXT_ID]]
@@ -994,6 +1025,7 @@ def apply_rule_mappings(
                                     {
                                         KEY_MATCH_TYPE: MATCH_TYPE_RULE,
                                         KEY_ENTITY_EXT_ID: d2[KEY_ENTITY_EXT_ID],
+                                        KEY_ENTITY_SPACE: d2[KEY_ENTITY_SPACE],
                                         KEY_ENTITY_NAME: d2[KEY_ORG_NAME],
                                         KEY_ENTITY_MATCH_VALUE: d2[KEY_NAME],
                                         KEY_ENTITY_VIEW_ID: str(config.data.entity_view.as_view_id()),
@@ -1003,6 +1035,7 @@ def apply_rule_mappings(
                                         KEY_TARGET_NAME: d1_match[KEY_ORG_NAME],
                                         KEY_TARGET_MATCH_VALUE: d1_match[KEY_NAME],
                                         KEY_TARGET_EXT_ID: d1_match[KEY_TARGET_EXT_ID],
+                                        KEY_TARGET_SPACE: d1_match[KEY_TARGET_SPACE],
                                         KEY_TARGET_VIEW_ID: str(config.data.target_view.as_view_id()),
                                         KEY_TARGET_RULE_KEYS: json.dumps(d1_match[KEY_RULE_KEYS]),
                                     }
@@ -1010,6 +1043,7 @@ def apply_rule_mappings(
 
                             existing_target_list = json.loads(d2[KEY_TARGET_LINKS])
                             if len(existing_target_list) > 0:
+                                remember_link_spaces(target_spaces, existing_target_list)
                                 for target in existing_target_list:
                                     if PROP_COL_EXTERNAL_ID in target and target[PROP_COL_EXTERNAL_ID] not in unique_target_list:
                                         unique_target_list = [
@@ -1032,7 +1066,9 @@ def apply_rule_mappings(
                                     item_update,
                                     target_ext_ids,
                                     entity_ext_id,
-                                    config.data.entity_view.as_view_id())
+                                    config.data.entity_view.as_view_id(),
+                                    entity_space=entity_spaces.get(entity_ext_id),
+                                    target_spaces=target_spaces)
             
             # Apply the updates to the data model in batches of BATCH_SIZE_API_SUBMIT
             if not config.parameters.debug and config.parameters.dm_update and cnt % BATCH_SIZE_API_SUBMIT == 0:
@@ -1125,14 +1161,17 @@ def select_and_apply_matches(
             entity_ext_id = match[KEY_ENTITY_EXT_ID]
             target_ext_id = match[KEY_TARGET_EXT_ID]
             entity_targets = match[KEY_ENTITY_EXISTING_TARGETS]
- 
+            target_space = match[KEY_TARGET_SPACE]
+
             item_update = add_to_items(config, 
                                        logger, 
                                        item_update,
                                        [target_ext_id],
                                        entity_ext_id,
                                        entity_view_id,
-                                       entity_targets)
+                                       entity_targets,
+                                       entity_space=match[KEY_ENTITY_SPACE],
+                                       target_spaces={target_ext_id: target_space} if target_space else None)
 
             # Apply the updates to the data model in batches of BATCH_SIZE_API_SUBMIT
             if not config.parameters.debug and config.parameters.dm_update and cnt % BATCH_SIZE_API_SUBMIT == 0:
@@ -1154,6 +1193,18 @@ def select_and_apply_matches(
         print(f"ERROR: Failed to parse results from entity matching - error: {type(e)}({e})")
         return good_matches, [], len(new_good_matches)  # type: ignore
 
+def remember_link_spaces(target_spaces: dict[str, str], links: list[dict[str, Any]]) -> None:
+    """Record the space each existing target link points into.
+
+    Links are re-applied by external ID only, so without this a link to a target outside
+    the current target set would fall back to the first configured target space and be
+    moved. Spaces read from the target view win, hence `setdefault` rather than assignment.
+    """
+    for link in links:
+        if PROP_COL_EXTERNAL_ID in link and PROP_COL_SPACE in link:
+            target_spaces.setdefault(link[PROP_COL_EXTERNAL_ID], link[PROP_COL_SPACE])
+
+
 def add_to_items(
     config: Config,
     logger: CogniteFunctionLogger,
@@ -1161,8 +1212,21 @@ def add_to_items(
     target_ext_ids: list[str],
     entity_ext_id: str,
     entity_view_id: dm.ViewId,
-    entity_targets: str | None = None  
+    entity_targets: str | None = None,
+    entity_space: str | None = None,
+    target_spaces: dict[str, str] | None = None,
 ) -> list[NodeApply]:
+    """Queue a node update linking an entity to its targets.
+
+    Args:
+        entity_space: Space the entity lives in. Falls back to the first configured
+            entity instance space when the caller does not know it.
+        target_spaces: Target external ID to the space it lives in. Targets missing from
+            the mapping fall back to the first configured target instance space.
+    """
+    entity_space = entity_space or config.data.entity_view.default_instance_space
+    target_spaces = target_spaces or {}
+    default_target_space = config.data.target_view.default_instance_space
 
     targets = []
 
@@ -1183,7 +1247,7 @@ def add_to_items(
         logger.debug(f"Adding target: {target_ext_id} to entity: {entity_ext_id}")   
         targets.append(
             DirectRelationReference(
-                space=config.data.target_view.instance_space,
+                space=target_spaces.get(target_ext_id, default_target_space),
                 external_id=target_ext_id
             )
         )
@@ -1195,7 +1259,7 @@ def add_to_items(
 
     item_update.append(
         NodeApply(
-            space=config.data.entity_view.instance_space,
+            space=entity_space,
             external_id=entity_ext_id,
             sources=[
                 NodeOrEdgeData(
@@ -1230,15 +1294,20 @@ def add_to_dict(
         target_name = target[KEY_ORG_NAME]
         target_match_value = target[KEY_NAME]
         target_ext_id = target[KEY_TARGET_EXT_ID]
+        # The matching API echoes the source/target dicts we submitted, but fall back to
+        # the configured space if a field is dropped.
+        target_space = target.get(KEY_TARGET_SPACE)
     else:
         score = 0
         target_name = PLACEHOLDER_NO_MATCH
         target_match_value = PLACEHOLDER_NO_MATCH
         target_ext_id = PLACEHOLDER_NO_MATCH
         target_view_id = PLACEHOLDER_NO_MATCH
+        target_space = None
     return {
         KEY_MATCH_TYPE: MATCH_TYPE_ENTITY,
         KEY_ENTITY_EXT_ID: source[KEY_ENTITY_EXT_ID],
+        KEY_ENTITY_SPACE: source.get(KEY_ENTITY_SPACE),
         KEY_ENTITY_NAME: source[KEY_ORG_NAME],
         KEY_ENTITY_MATCH_VALUE: source[KEY_NAME],
         KEY_ENTITY_VIEW_ID: str(entity_view_id),
@@ -1247,6 +1316,7 @@ def add_to_dict(
         KEY_TARGET_NAME: target_name,
         KEY_TARGET_MATCH_VALUE: target_match_value,
         KEY_TARGET_EXT_ID: target_ext_id,
+        KEY_TARGET_SPACE: target_space,
         KEY_TARGET_VIEW_ID: str(target_view_id),
     }
 

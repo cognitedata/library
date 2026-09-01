@@ -197,7 +197,7 @@ def _process_timeseries_optimized(
             update = metadata_processor.process_timeseries_metadata(
                 node,
                 ts_view_id,
-                config.data.job.timeseries_view.instance_space,
+                node.space,
                 update_all=config.parameters.update_all,
             )
             if update:
@@ -261,7 +261,7 @@ def _process_assets_optimized(
             update = metadata_processor.process_asset_metadata(
                 node,
                 asset_view_id,
-                config.data.job.asset_view.instance_space,
+                node.space,
                 update_all=config.parameters.update_all,
             )
             if update:
@@ -353,7 +353,7 @@ def get_new_items(
             try:
                 result = client.data_modeling.instances.list(
                     instance_type="node",
-                    space=view_config.instance_space,
+                    space=view_config.instance_spaces,
                     sources=[view_id],
                     filter=filter_query,
                     limit=BATCH_SIZE

@@ -80,6 +80,9 @@ data:
 | `runAll` | Fetch all instances (not only those missing `aliases`) |
 | `updateAll` | Reset managed metadata and reprocess every fetched instance (implies `runAll`) |
 
+`instanceSpace` on each view takes either a single space or a list of spaces. Instances
+are read from every listed space and updated in the space they were read from.
+
 For a full metadata refresh, set `updateAll: true` in the extraction pipeline config.
 "Reset" covers only the values this function generates — aliases of the form
 `23_KA_9101` and `root:*` tags. Hand-curated aliases and tags are preserved, including

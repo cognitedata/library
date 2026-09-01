@@ -170,6 +170,21 @@ targetViewFilterValues: []
 entityViewFilterValues: []
 ```
 
+#### `assetInstanceSpace` and `timeseriesInstanceSpace`
+
+Both variables take a single space or a list of spaces, so assets and time series can be
+spread across several instance spaces:
+
+```yaml
+assetInstanceSpace: inst_location
+timeseriesInstanceSpace:
+  - inst_timeseries_pi
+  - inst_timeseries_sap
+```
+
+Instances are read from every listed space, and both the entity matching and metadata
+update functions write each instance back to the space it was read from.
+
 ### Environment Variables
 
 ```bash

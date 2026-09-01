@@ -11,6 +11,7 @@ contextualizationId: entity_matcher
 contextualizationName: Entity Matcher
 schemaSpace: cdf_cdm
 viewVersion: v1
+# A single space, or a YAML list of spaces when instances are spread across several spaces
 assetInstanceSpace: inst_location
 timeseriesInstanceSpace: inst_location
 functionSpace: sp_entity_matching_fn # space where function code nodes are stored — created by this module

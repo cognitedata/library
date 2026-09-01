@@ -3,11 +3,13 @@
 import sys
 from pathlib import Path
 
+import pytest
 import yaml
+from pydantic import ValidationError
 
 sys.path.append(str(Path(__file__).parent))
 
-from config import Config
+from config import Config, ViewPropertyConfig
 
 
 def test_config_accepts_raw_table_ctx_keys_from_pipeline_yaml() -> None:
@@ -52,3 +54,36 @@ def test_config_accepts_raw_table_ctx_keys_from_pipeline_yaml() -> None:
     assert config.parameters.raw_table_ctx_bad == "contextualization_bad"
     assert config.parameters.raw_table_ctx_manual == "contextualization_manual_input"
     assert config.parameters.raw_table_ctx_rule == "contextualization_rule_input"
+
+
+def _view_config(instance_space: str | list[str]) -> ViewPropertyConfig:
+    return ViewPropertyConfig.model_validate(
+        {
+            "schemaSpace": "cdf_cdm",
+            "instanceSpace": instance_space,
+            "externalId": "CogniteTimeSeries",
+            "version": "v1",
+        }
+    )
+
+
+def test_single_instance_space_is_exposed_as_one_element_list() -> None:
+    """A plain string stays valid and reads back as a single-space list."""
+    view = _view_config("inst_location")
+
+    assert view.instance_spaces == ["inst_location"]
+    assert view.default_instance_space == "inst_location"
+
+
+def test_multiple_instance_spaces_keep_config_order() -> None:
+    """Several spaces can be queried, and the first one is the write fallback."""
+    view = _view_config(["inst_location", "inst_timeseries"])
+
+    assert view.instance_spaces == ["inst_location", "inst_timeseries"]
+    assert view.default_instance_space == "inst_location"
+
+
+def test_empty_instance_space_list_is_rejected() -> None:
+    """An empty list would leave no space to read from or write to."""
+    with pytest.raises(ValidationError):
+        _view_config([])

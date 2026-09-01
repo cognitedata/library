@@ -21,6 +21,7 @@ PROP_COL_SPACE = "space"
 
 # DM filter path for instance lookup
 FILTER_PATH_NODE_EXTERNAL_ID = ["node", "externalId"]
+FILTER_PATH_NODE_SPACE = ["node", "space"]
 
 # Placeholder strings for unmatched entities/assets
 PLACEHOLDER_NO_MATCH_TARGET = "_no_match_on_asset_ext_id_"
@@ -46,7 +47,9 @@ QUERY_FILTER_TYPE_ENTITIES = "entities"  # entities property name in the entity 
 KEY_RULE_KEYS = "rule_keys"
 KEY_RULE = "key"
 KEY_ENTITY_EXT_ID = "entity_ext_id"
+KEY_ENTITY_SPACE = "entity_space"
 KEY_TARGET_EXT_ID = "asset_ext_id"
+KEY_TARGET_SPACE = "asset_space"
 KEY_ORG_NAME = "org_name"
 KEY_NAME = "name"
 KEY_TARGET_LINKS = "assets"

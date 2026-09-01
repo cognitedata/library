@@ -126,6 +126,24 @@ data:
 | `rawTableCtxManual` | Table for manual mappings | `contextualization_manual_input` |
 | `rawTableCtxRule` | Table for rule-based mapping inputs | `contextualization_rule_input` |
 
+### Instance spaces
+
+`instanceSpace` on `targetView` and `entityView` takes either a single space or a list of
+spaces:
+
+```yaml
+  entityView:
+    instanceSpace:
+      - inst_timeseries_pi
+      - inst_timeseries_sap
+```
+
+Instances are read from every listed space, and each match is written back to the space
+the instance was read from — so entities and targets spread across several spaces stay
+where they are. Target links that already exist on an entity keep the space they point
+into, even when that target is not part of the current target set. The first space in the
+list is only used as a fallback when the space of an instance cannot be determined.
+
 ### Process Flow
 
 The pipeline executes in the following order:
