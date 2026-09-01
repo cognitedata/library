@@ -19,6 +19,7 @@ from config import Config, ViewPropertyConfig
 from constants import (
     FILTER_PATH_NODE_EXTERNAL_ID,
     KEY_TARGET_EXT_ID,
+    KEY_TARGET_LINKS,
     KEY_TARGET_SPACE,
     PROP_COL_LINK_NAME,
     PROP_COL_NAME,
@@ -250,6 +251,24 @@ def test_entities_are_read_from_every_configured_space() -> None:
 
     assert client.data_modeling.instances.list.call_args.kwargs["space"] == ["inst_ts_pi", "inst_ts_sap"]
     assert len(entities) == 2
+
+
+def test_entity_without_links_is_recorded_as_an_empty_list() -> None:
+    """An entity with no links must not be serialised as JSON null.
+
+    "null" reads back as None, and both the rule matching and the write path call len()
+    on it.
+    """
+    config = _config("inst_asset", "inst_ts")
+    view_id = config.data.entity_view.as_view_id()
+    client = MagicMock()
+    client.data_modeling.instances.list.return_value = [
+        Instance("inst_ts", "ts:1", {view_id: {PROP_COL_NAME: "ts:1", PROP_COL_LINK_NAME: None}})
+    ]
+
+    entities = get_new_entities(client, config, MagicMock())
+
+    assert json.loads(entities[0][KEY_TARGET_LINKS]) == []
 
 
 def test_single_space_string_is_read_as_that_one_space() -> None:

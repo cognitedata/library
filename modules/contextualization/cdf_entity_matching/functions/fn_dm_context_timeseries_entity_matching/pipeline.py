@@ -632,6 +632,9 @@ def warn_on_cross_space_duplicates(
     Matches, lookups and link de-duplication are all keyed on external ID alone, so such
     duplicates collapse into one and can end up linked to the wrong space. Skipped unless
     several spaces are configured, where the situation cannot arise.
+
+    Args:
+        instance_type: What to call these instances in the warning, e.g. "assets".
     """
     if len(view_config.instance_spaces) < 2:
         return
@@ -681,6 +684,10 @@ def fetch_instances_by_space(
     Paging is a keyset cursor on external ID, which is only unique within a space - hence
     one space per call. A cursor over (externalId, space) is not an option: the API
     rejects range filters on space.
+
+    Args:
+        is_selected: Filter narrowing which instances to fetch, or None for all of them.
+        instance_type: What to call these instances when logging, e.g. "assets".
     """
     batch_size = 1000
     max_page_retries = 4
@@ -877,8 +884,9 @@ def get_new_entities(
                     
         targets = []
         if not config.parameters.remove_old_links or not config.parameters.dm_update: # if dmUpdate is False, keep old target links    
-            # keep old target links
-            targets = entity.properties[entity_view_id][PROP_COL_LINK_NAME]
+            # keep old target links - an entity without links reads back as None, which
+            # would serialise to JSON null and break len() in the consumers
+            targets = entity.properties[entity_view_id][PROP_COL_LINK_NAME] or []
         else:
             item_update = clean_links(config, entity.space, entity.external_id, item_update)
 
@@ -1289,8 +1297,12 @@ def add_to_items(
     configured with a single space, where the fallback is always correct.
 
     Args:
+        item_update: Queue of pending node updates, appended to in place.
         entity_space: Space the entity lives in.
         target_spaces: Target external ID to the space it lives in.
+
+    Returns:
+        The same queue, with this entity's update appended.
     """
     target_spaces = target_spaces or {}
     default_target_space = config.data.target_view.default_instance_space
