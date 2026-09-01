@@ -546,19 +546,28 @@ def test_generate_actions_ado_writes_pipelines_and_docs(tmp_path: Path) -> None:
     )
 
     dry_run_path = tmp_path / ".devops" / "dry-run-pipeline.yml"
-    deploy_path = tmp_path / ".devops" / "deploy-pipeline.yml"
+    deploy_dev_path = tmp_path / ".devops" / "deploy-dev-pipeline.yml"
+    deploy_test_path = tmp_path / ".devops" / "deploy-test-pipeline.yml"
+    deploy_prod_path = tmp_path / ".devops" / "deploy-prod-pipeline.yml"
     assert dry_run_path.is_file()
-    assert deploy_path.is_file()
+    assert deploy_dev_path.is_file()
+    assert deploy_test_path.is_file()
+    assert deploy_prod_path.is_file()
     assert (tmp_path / "docs" / "FOUNDATION_CICD.md").is_file()
     # Nothing GitHub-specific should leak into ado's own output tree.
     assert not (tmp_path / ".github").exists()
 
     dry_run_yaml = yaml.safe_load(dry_run_path.read_text(encoding="utf-8"))
-    deploy_yaml = yaml.safe_load(deploy_path.read_text(encoding="utf-8"))
+    deploy_dev_yaml = yaml.safe_load(deploy_dev_path.read_text(encoding="utf-8"))
+    deploy_test_yaml = yaml.safe_load(deploy_test_path.read_text(encoding="utf-8"))
+    deploy_prod_yaml = yaml.safe_load(deploy_prod_path.read_text(encoding="utf-8"))
     job_names = {job["job"] for job in dry_run_yaml["jobs"]}
     assert job_names == {"lint", "dry_run_dev", "dry_run_test"}
-    deploy_job_names = {job["job"] for job in deploy_yaml["jobs"]}
-    assert deploy_job_names == {"deploy_dev", "deploy_test", "deploy_prod"}
+    # Each environment gets its own pipeline file with a single job, so Azure's
+    # resource authorization for one registration never needs another env's group.
+    assert {job["job"] for job in deploy_dev_yaml["jobs"]} == {"deploy_dev"}
+    assert {job["job"] for job in deploy_test_yaml["jobs"]} == {"deploy_test"}
+    assert {job["job"] for job in deploy_prod_yaml["jobs"]} == {"deploy_prod"}
 
     # Azure Repos doesn't support YAML `pr:` triggers — a `pr:` block here would be
     # dead config that misleads readers into thinking it controls PR execution.
@@ -580,35 +589,49 @@ def test_generate_actions_ado_writes_pipelines_and_docs(tmp_path: Path) -> None:
     assert "dev-toolkit-credentials" in dry_run_text
     assert "test-toolkit-credentials" in dry_run_text
 
-    deploy_text = deploy_path.read_text(encoding="utf-8")
-    assert "startsWith(variables['Build.SourceBranch'], 'refs/tags/v')" in deploy_text
-    assert "prod-toolkit-credentials" in deploy_text
-    assert "Enforce release tag pattern" in deploy_text
-    for job in deploy_yaml["jobs"]:
-        # Same succeeded() requirement as the dry-run jobs: an explicit condition
-        # without it would let a deploy job start after a canceled run.
-        assert job["condition"].startswith("and(succeeded(), ")
+    deploy_dev_text = deploy_dev_path.read_text(encoding="utf-8")
+    deploy_test_text = deploy_test_path.read_text(encoding="utf-8")
+    deploy_prod_text = deploy_prod_path.read_text(encoding="utf-8")
+    assert "dev-toolkit-credentials" in deploy_dev_text
+    assert "test-toolkit-credentials" not in deploy_dev_text
+    assert "prod-toolkit-credentials" not in deploy_dev_text
+    assert "test-toolkit-credentials" in deploy_test_text
+    assert "dev-toolkit-credentials" not in deploy_test_text
+    assert "startsWith(variables['Build.SourceBranch'], 'refs/tags/v')" in deploy_prod_text
+    assert "prod-toolkit-credentials" in deploy_prod_text
+    assert "dev-toolkit-credentials" not in deploy_prod_text
+    assert "Enforce release tag pattern" in deploy_prod_text
+    for deploy_yaml in (deploy_dev_yaml, deploy_test_yaml, deploy_prod_yaml):
+        for job in deploy_yaml["jobs"]:
+            # Same succeeded() requirement as the dry-run jobs: an explicit condition
+            # without it would let a deploy job start after a canceled run.
+            assert job["condition"].startswith("and(succeeded(), ")
     # Azure Pipelines does not auto-map secret variable-group values into script
     # environments (only plain variables get that treatment) — cdf deploy needs
     # IDP_CLIENT_SECRET mapped explicitly or authentication fails.
-    assert deploy_text.count("IDP_CLIENT_SECRET: $(IDP_CLIENT_SECRET)") == 4
+    assert deploy_dev_text.count("IDP_CLIENT_SECRET: $(IDP_CLIENT_SECRET)") == 1
+    assert deploy_test_text.count("IDP_CLIENT_SECRET: $(IDP_CLIENT_SECRET)") == 1
+    assert deploy_prod_text.count("IDP_CLIENT_SECRET: $(IDP_CLIENT_SECRET)") == 2
     assert "IDP_CLIENT_SECRET: $(IDP_CLIENT_SECRET)" in dry_run_text
     # checkout doesn't persist git credentials by default — the prod job's own
     # `git fetch origin main` step needs them to authenticate.
-    prod_job = next(job for job in deploy_yaml["jobs"] if job["job"] == "deploy_prod")
+    prod_job = next(job for job in deploy_prod_yaml["jobs"] if job["job"] == "deploy_prod")
     assert prod_job["steps"][0]["checkout"] == "self"
     assert prod_job["steps"][0]["persistCredentials"] is True
     # A shallow/single-branch CI checkout may not have origin/main as a valid
     # remote-tracking ref; FETCH_HEAD is always populated by the preceding fetch.
-    assert "git merge-base --is-ancestor HEAD FETCH_HEAD" in deploy_text
-    assert "origin/main; then" not in deploy_text
-    assert all(len(line) <= 120 for line in deploy_text.splitlines())
-    assert all(len(line) <= 120 for line in dry_run_text.splitlines())
+    assert "git merge-base --is-ancestor HEAD FETCH_HEAD" in deploy_prod_text
+    assert "origin/main; then" not in deploy_prod_text
+    for text in (deploy_dev_text, deploy_test_text, deploy_prod_text, dry_run_text):
+        assert all(len(line) <= 120 for line in text.splitlines())
 
     docs = (tmp_path / "docs" / "FOUNDATION_CICD.md").read_text(encoding="utf-8")
     assert "toolkit-deploy-dev" in docs
     assert "toolkit-deploy-test" in docs
     assert "toolkit-deploy-prod" in docs
+    assert "deploy-dev-pipeline.yml" in docs
+    assert "deploy-test-pipeline.yml" in docs
+    assert "deploy-prod-pipeline.yml" in docs
     assert "Build Validation" in docs
     assert "Branch control" in docs
     assert "Pipeline permissions alone are not sufficient" in docs
@@ -629,15 +652,19 @@ def test_generate_actions_ado_dev_only_has_branch_condition(tmp_path: Path) -> N
     )
 
     dry_run_path = tmp_path / ".devops" / "dry-run-pipeline.yml"
-    deploy_path = tmp_path / ".devops" / "deploy-pipeline.yml"
+    deploy_dev_path = tmp_path / ".devops" / "deploy-dev-pipeline.yml"
     dry_run_yaml = yaml.safe_load(dry_run_path.read_text(encoding="utf-8"))
-    deploy_yaml = yaml.safe_load(deploy_path.read_text(encoding="utf-8"))
+    deploy_dev_yaml = yaml.safe_load(deploy_dev_path.read_text(encoding="utf-8"))
 
     dry_run_dev_job = next(job for job in dry_run_yaml["jobs"] if job["job"] == "dry_run_dev")
     assert dry_run_dev_job["condition"] == (
         "and(succeeded(), eq(variables['System.PullRequest.TargetBranch'], 'refs/heads/dev'))"
     )
-    assert {job["job"] for job in deploy_yaml["jobs"]} == {"deploy_dev"}
+    assert {job["job"] for job in deploy_dev_yaml["jobs"]} == {"deploy_dev"}
+    # Only the dev environment was configured — test and prod deploy pipelines
+    # must not be written at all.
+    assert not (tmp_path / ".devops" / "deploy-test-pipeline.yml").exists()
+    assert not (tmp_path / ".devops" / "deploy-prod-pipeline.yml").exists()
     # The promotion-flow guard only applies to the main/test job.
     assert "Enforce promotion flow" not in dry_run_path.read_text(encoding="utf-8")
 

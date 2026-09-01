@@ -352,6 +352,11 @@ def ado_dry_run_jobs(toolkit_version: str, org_dir: str | None, setup_check_cmd:
 
 
 ADO_DEPLOY_PIPELINE_NAMES = {"dev": "toolkit-deploy-dev", "test": "toolkit-deploy-test", "prod": "toolkit-deploy-prod"}
+ADO_DEPLOY_PIPELINE_FILES = {
+    "dev": "deploy-dev-pipeline.yml",
+    "test": "deploy-test-pipeline.yml",
+    "prod": "deploy-prod-pipeline.yml",
+}
 ADO_DEPLOY_PIPELINE_TRIGGERS = {
     "dev": "Push to `dev`",
     "test": "Push to `main`",
@@ -361,7 +366,8 @@ ADO_DEPLOY_PIPELINE_TRIGGERS = {
 
 def ado_deploy_pipeline_rows(projects: dict[str, str]) -> str:
     rows = [
-        f"| `{ADO_DEPLOY_PIPELINE_NAMES[env]}` | `.devops/deploy-pipeline.yml` | {ADO_DEPLOY_PIPELINE_TRIGGERS[env]} |"
+        f"| `{ADO_DEPLOY_PIPELINE_NAMES[env]}` | `.devops/{ADO_DEPLOY_PIPELINE_FILES[env]}` | "
+        f"{ADO_DEPLOY_PIPELINE_TRIGGERS[env]} |"
         for env in ENVIRONMENTS
         if env in projects
     ]
@@ -376,97 +382,92 @@ def _ado_deploy_condition(env: str) -> str:
     return "startsWith(variables['Build.SourceBranch'], 'refs/tags/v')"
 
 
-def ado_deploy_jobs(toolkit_version: str, org_dir: str | None, setup_check_cmd: str, projects: dict[str, str]) -> str:
-    """Azure DevOps jobs for the single, reusable deploy-pipeline.yml: one job per
-    environment present in config.<env>.yaml, each gated on the branch or tag that
-    should trigger it and scoped to its own ``<env>-toolkit-credentials`` group.
-    Register the generated file three times in Azure DevOps (toolkit-deploy-dev,
-    toolkit-deploy-test, toolkit-deploy-prod) so history and permissions stay
-    per-environment; the job conditions make each registration a no-op outside its
-    own trigger.
+def ado_deploy_job(env: str, toolkit_version: str, org_dir: str | None, setup_check_cmd: str, project: str) -> str:
+    """Azure DevOps job for one environment's own deploy-<env>-pipeline.yml, scoped
+    only to that environment's ``<env>-toolkit-credentials`` variable group. Each
+    environment gets its own file (and its own pipeline registration) so Azure's
+    resource authorization — which covers every variable group referenced anywhere
+    in a pipeline's YAML, not just the group a runtime condition ends up using —
+    never requires authorizing a group outside the pipeline that actually needs it.
     """
-    envs = [env for env in ENVIRONMENTS if env in projects]
-    jobs: list[str] = []
-    for env in envs:
-        lines = [
-            f"  - job: deploy_{env}",
-            f"    displayName: 'Deploy to {projects[env]}'",
-            f"    condition: and(succeeded(), {_ado_deploy_condition(env)})",
-            "    variables:",
-            f"      - group: {env}-toolkit-credentials",
-            "    steps:",
-        ]
-        if env == "prod":
-            lines.extend(
-                [
-                    "      - checkout: self",
-                    "        fetchDepth: 0",
-                    "        persistCredentials: true",
-                    "",
-                    "      - script: |",
-                    "          set -euo pipefail",
-                    '          TAG="$(Build.SourceBranchName)"',
-                    '          if [[ ! "$TAG" =~ ^v[0-9]+\\.[0-9]+\\.[0-9]+$ ]]; then',
-                    '            MSG="Release tag must match vX.Y.Z (got: $TAG)"',
-                    '            echo "##vso[task.logissue type=error]${MSG}"',
-                    "            exit 1",
-                    "          fi",
-                    "        displayName: 'Enforce release tag pattern'",
-                    "",
-                    "      - script: |",
-                    "          set -euo pipefail",
-                    "          git fetch origin main",
-                    "          if ! git merge-base --is-ancestor HEAD FETCH_HEAD; then",
-                    '            MSG="Production releases must be published from a commit reachable from main"',
-                    '            echo "##vso[task.logissue type=error]${MSG}"',
-                    "            exit 1",
-                    "          fi",
-                    "        displayName: 'Reject releases not reachable from main'",
-                    "",
-                ]
-            )
-        else:
-            lines.extend(["      - checkout: self", ""])
+    lines = [
+        f"  - job: deploy_{env}",
+        f"    displayName: 'Deploy to {project}'",
+        f"    condition: and(succeeded(), {_ado_deploy_condition(env)})",
+        "    variables:",
+        f"      - group: {env}-toolkit-credentials",
+        "    steps:",
+    ]
+    if env == "prod":
         lines.extend(
             [
-                "      - script: rm -f .env",
-                "        displayName: 'Remove local .env'",
+                "      - checkout: self",
+                "        fetchDepth: 0",
+                "        persistCredentials: true",
                 "",
-                "      - task: UsePythonVersion@0",
-                "        inputs:",
-                "          versionSpec: '3.13'",
+                "      - script: |",
+                "          set -euo pipefail",
+                '          TAG="$(Build.SourceBranchName)"',
+                '          if [[ ! "$TAG" =~ ^v[0-9]+\\.[0-9]+\\.[0-9]+$ ]]; then',
+                '            MSG="Release tag must match vX.Y.Z (got: $TAG)"',
+                '            echo "##vso[task.logissue type=error]${MSG}"',
+                "            exit 1",
+                "          fi",
+                "        displayName: 'Enforce release tag pattern'",
                 "",
-                f'      - script: pip install "cognite-toolkit=={toolkit_version}"',
-                "        displayName: 'Install Cognite Toolkit'",
+                "      - script: |",
+                "          set -euo pipefail",
+                "          git fetch origin main",
+                "          if ! git merge-base --is-ancestor HEAD FETCH_HEAD; then",
+                '            MSG="Production releases must be published from a commit reachable from main"',
+                '            echo "##vso[task.logissue type=error]${MSG}"',
+                "            exit 1",
+                "          fi",
+                "        displayName: 'Reject releases not reachable from main'",
                 "",
-                f"      - script: {setup_check_cmd}",
-                "        displayName: 'Verify project config is in sync'",
-                "",
-                f"      - script: cdf build {build_args(toolkit_version, org_dir, env)}",
-                "        displayName: 'cdf build'",
             ]
         )
-        if env == "prod":
-            lines.extend(
-                [
-                    "",
-                    "      - script: cdf deploy --dry-run",
-                    "        displayName: 'cdf deploy --dry-run'",
-                    "        env:",
-                    "          IDP_CLIENT_SECRET: $(IDP_CLIENT_SECRET)",
-                ]
-            )
+    else:
+        lines.extend(["      - checkout: self", ""])
+    lines.extend(
+        [
+            "      - script: rm -f .env",
+            "        displayName: 'Remove local .env'",
+            "",
+            "      - task: UsePythonVersion@0",
+            "        inputs:",
+            "          versionSpec: '3.13'",
+            "",
+            f'      - script: pip install "cognite-toolkit=={toolkit_version}"',
+            "        displayName: 'Install Cognite Toolkit'",
+            "",
+            f"      - script: {setup_check_cmd}",
+            "        displayName: 'Verify project config is in sync'",
+            "",
+            f"      - script: cdf build {build_args(toolkit_version, org_dir, env)}",
+            "        displayName: 'cdf build'",
+        ]
+    )
+    if env == "prod":
         lines.extend(
             [
                 "",
-                "      - script: cdf deploy",
-                "        displayName: 'cdf deploy'",
+                "      - script: cdf deploy --dry-run",
+                "        displayName: 'cdf deploy --dry-run'",
                 "        env:",
                 "          IDP_CLIENT_SECRET: $(IDP_CLIENT_SECRET)",
             ]
         )
-        jobs.append("\n".join(lines))
-    return "\n\n".join(jobs)
+    lines.extend(
+        [
+            "",
+            "      - script: cdf deploy",
+            "        displayName: 'cdf deploy'",
+            "        env:",
+            "          IDP_CLIENT_SECRET: $(IDP_CLIENT_SECRET)",
+        ]
+    )
+    return "\n".join(lines)
 
 
 def branching_rows(projects: dict[str, str], provider: str) -> str:
@@ -647,7 +648,6 @@ def main() -> None:
 
     elif args.provider == "ado":
         base_values["DRY_RUN_JOBS"] = ado_dry_run_jobs(str(toolkit_version), org_dir, setup_check_cmd, projects)
-        base_values["DEPLOY_JOBS"] = ado_deploy_jobs(str(toolkit_version), org_dir, setup_check_cmd, projects)
         base_values["DEPLOY_PIPELINE_ROWS"] = ado_deploy_pipeline_rows(projects)
 
         if deployable_envs(projects):
@@ -667,11 +667,16 @@ def main() -> None:
         if not deploy_pipeline_template.is_file():
             print(f"Missing template: {deploy_pipeline_template}", file=sys.stderr)
             sys.exit(1)
-        write_file(
-            workflows_dir / "deploy-pipeline.yml",
-            render_template(deploy_pipeline_template, base_values),
-            args.force,
-        )
+        for env in ENVIRONMENTS:
+            out = workflows_dir / ADO_DEPLOY_PIPELINE_FILES[env]
+            if env not in projects:
+                remove_file(out)
+                continue
+            env_values = {
+                **base_values,
+                "DEPLOY_JOBS": ado_deploy_job(env, str(toolkit_version), org_dir, setup_check_cmd, projects[env]),
+            }
+            write_file(out, render_template(deploy_pipeline_template, env_values), args.force)
 
     readme_template = templates / "FOUNDATION_CICD.md"
     if not readme_template.is_file():
@@ -695,10 +700,14 @@ def main() -> None:
             branches = ", ".join(branch_envs(projects))
             print(f"  3. Open a PR to {branches} to validate dry-run.yml")
     else:
-        pipeline_names = [ADO_DEPLOY_PIPELINE_NAMES[env] for env in ENVIRONMENTS if env in projects]
+        pipeline_registrations = [
+            f"{ADO_DEPLOY_PIPELINE_NAMES[env]} ({ADO_DEPLOY_PIPELINE_FILES[env]})"
+            for env in ENVIRONMENTS
+            if env in projects
+        ]
         print(f"  1. Create Azure DevOps variable groups: {', '.join(environments)}")
         print("     (see docs/FOUNDATION_CICD.md)")
-        print(f"  2. Register deploy-pipeline.yml as: {', '.join(pipeline_names)}")
+        print(f"  2. Register each deploy pipeline: {', '.join(pipeline_registrations)}")
         if deployable_envs(projects):
             branches = ", ".join(branch_envs(projects))
             print(f"  3. Add dry-run-pipeline.yml as a Build Validation policy on {branches}")

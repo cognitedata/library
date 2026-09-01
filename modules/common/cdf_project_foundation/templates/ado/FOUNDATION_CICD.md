@@ -61,7 +61,7 @@ Import the generated YAML as Azure DevOps pipelines under **Pipelines → New pi
 | `toolkit-pr-validate` | `.devops/dry-run-pipeline.yml` | PR to `dev` or `main` (via Build Validation policy above) |
 {{DEPLOY_PIPELINE_ROWS}}
 
-`deploy-pipeline.yml` is the same file for all three deploy registrations — each job inside it is gated on its own branch or tag, so only the matching registration actually deploys. Both `dry-run-pipeline.yml` and `deploy-pipeline.yml` set `trigger: none`; for each of the three deploy registrations, open **Edit → Triggers → Continuous integration** and override it to the one branch or tag pattern from the table above, so each registration's run history stays scoped to its own environment.
+Each deploy pipeline has its own YAML file, scoped to only that environment's variable group — Azure authorizes every variable group referenced anywhere in a pipeline's YAML, not just the one an eventual runtime condition ends up using, so a shared file would force authorizing all three groups on all three registrations. With one file per environment, `dev-toolkit-credentials` only ever needs to be authorized for `toolkit-deploy-dev`, and so on. Both `dry-run-pipeline.yml` and every `deploy-*-pipeline.yml` set `trigger: none`; for each pipeline above, open **Edit → Triggers → Continuous integration** and override it to that pipeline's branch or tag pattern from the table, so it actually runs when its branch/tag is pushed.
 
 ## Toolkit configs
 
