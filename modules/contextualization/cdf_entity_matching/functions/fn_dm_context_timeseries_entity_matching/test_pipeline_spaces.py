@@ -89,30 +89,20 @@ def _view(instance_space: str | list[str]) -> ViewPropertyConfig:
 # --- Fake DMS list endpoint ------------------------------------------------------------
 # Honours the space scope, sort and paging cursor so the keyset pagination in
 # get_all_targets is genuinely exercised instead of being handed scripted pages.
-
-
-def _property_value(property_ref: list[str], instance: Instance) -> str:
-    if property_ref == ["node", "externalId"]:
-        return instance.external_id
-    if property_ref == ["node", "space"]:
-        return instance.space
-    raise AssertionError(f"Unexpected property in paging cursor: {property_ref}")
+# Range filters on space are rejected, as the real API does.
 
 
 def _matches(clause: dict[str, Any], instance: Instance) -> bool:
     """Evaluate the subset of the filter DSL that the paging cursor uses."""
-    if "or" in clause:
-        return any(_matches(sub, instance) for sub in clause["or"])
     if "and" in clause:
         return all(_matches(sub, instance) for sub in clause["and"])
-    if "equals" in clause:
-        body = clause["equals"]
-        return _property_value(body["property"], instance) == body["value"]
     if "range" in clause:
         body = clause["range"]
+        if body["property"] != ["node", "externalId"]:
+            raise AssertionError(f"The API only supports range filters on externalId: {body}")
         if set(body) != {"property", "gt"}:
             raise AssertionError(f"Only 'gt' ranges are expected in the cursor: {body}")
-        return _property_value(body["property"], instance) > body["gt"]
+        return instance.external_id > body["gt"]
     raise AssertionError(f"Unexpected filter clause in paging cursor: {clause}")
 
 
@@ -125,7 +115,8 @@ def _fake_instances_list(dataset: list[Instance]) -> MagicMock:
         limit: int | None = None,
         **_: Any,
     ) -> list[Instance]:
-        rows = [item for item in dataset if item.space in space]
+        scope = [space] if isinstance(space, str) else space
+        rows = [item for item in dataset if item.space in scope]
         rows.sort(key=lambda item: (item.external_id, item.space))
         if filter is not None:
             rows = [item for item in rows if _matches(filter.dump(), item)]
@@ -134,6 +125,10 @@ def _fake_instances_list(dataset: list[Instance]) -> MagicMock:
         return rows
 
     return MagicMock(side_effect=_list)
+
+
+def _requested_spaces(list_mock: MagicMock) -> set[str]:
+    return {call.kwargs["space"] for call in list_mock.call_args_list}
 
 
 def _target(view_id: Any, space: str, external_id: str) -> Instance:
@@ -148,7 +143,7 @@ def _entity(view_id: Any, space: str, external_id: str) -> Instance:
 
 
 def test_targets_are_read_from_every_configured_space() -> None:
-    """A target list must be scoped to all configured spaces, not just the first."""
+    """A target list must cover all configured spaces, not just the first."""
     config = _config(["inst_asset_a", "inst_asset_b"], "inst_ts")
     view_id = config.data.target_view.as_view_id()
     client = MagicMock()
@@ -158,15 +153,16 @@ def test_targets_are_read_from_every_configured_space() -> None:
 
     targets = get_all_targets(client, MagicMock(), config)
 
-    assert client.data_modeling.instances.list.call_args.kwargs["space"] == ["inst_asset_a", "inst_asset_b"]
+    assert _requested_spaces(client.data_modeling.instances.list) == {"inst_asset_a", "inst_asset_b"}
     assert {target[KEY_TARGET_SPACE] for target in targets} == {"inst_asset_a", "inst_asset_b"}
 
 
 def test_page_boundary_does_not_skip_a_duplicate_external_id_in_another_space() -> None:
-    """External IDs are unique per space, so the paging cursor must include the space.
+    """External IDs are unique per space only, so paging must run one space at a time.
 
-    The dataset is built so a full page ends on the first of two instances sharing an
-    external ID. A cursor keyed on external ID alone would never return the second.
+    The dataset is built so a full page of one space ends on an external ID that also
+    exists in the other space. Paging all spaces in one query with a cursor on external
+    ID alone would never return the second instance.
     """
     config = _config(["inst_asset_a", "inst_asset_b"], "inst_ts")
     view_id = config.data.target_view.as_view_id()
@@ -181,6 +177,24 @@ def test_page_boundary_does_not_skip_a_duplicate_external_id_in_another_space() 
     assert len(targets) == len(dataset)
     duplicate_spaces = {t[KEY_TARGET_SPACE] for t in targets if t[KEY_TARGET_EXT_ID] == "asset-dup"}
     assert duplicate_spaces == {"inst_asset_a", "inst_asset_b"}
+
+
+def test_target_paging_never_filters_on_space() -> None:
+    """The API rejects range filters on space, so the cursor must only use externalId.
+
+    The fake list endpoint raises on any other property, so a full page - which forces a
+    second, cursor-carrying request - is enough to pin this.
+    """
+    config = _config(["inst_asset_a", "inst_asset_b"], "inst_ts")
+    view_id = config.data.target_view.as_view_id()
+    dataset = [_target(view_id, "inst_asset_a", f"asset-{i:04d}") for i in range(PAGE_SIZE)]
+    client = MagicMock()
+    client.data_modeling.instances.list = _fake_instances_list(dataset)
+
+    targets = get_all_targets(client, MagicMock(), config)
+
+    assert len(targets) == PAGE_SIZE
+    assert client.data_modeling.instances.list.call_count > len(config.data.target_view.instance_spaces)
 
 
 def test_entities_are_read_from_every_configured_space() -> None:
@@ -208,7 +222,7 @@ def test_single_space_string_is_read_as_that_one_space() -> None:
 
     targets = get_all_targets(client, MagicMock(), config)
 
-    assert client.data_modeling.instances.list.call_args.kwargs["space"] == ["inst_asset"]
+    assert _requested_spaces(client.data_modeling.instances.list) == {"inst_asset"}
     assert [target[KEY_TARGET_SPACE] for target in targets] == ["inst_asset"]
 
 

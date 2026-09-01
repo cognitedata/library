@@ -138,8 +138,9 @@ spaces:
       - inst_timeseries_sap
 ```
 
-Instances are read from every listed space, and each match is written back to the space
-the instance was read from — so entities and targets spread across several spaces stay
+Entities are read from all listed spaces in one query; targets are read one space at a
+time, because their paging cursor relies on external IDs being unique. Each match is
+written back to the space the instance was read from — so entities and targets spread across several spaces stay
 where they are. Target links that already exist on an entity keep the space they point
 into, even when that target is not part of the current target set. The first space in the
 list is only used as a fallback when the space of an instance cannot be determined.
