@@ -144,6 +144,13 @@ where they are. Target links that already exist on an entity keep the space they
 into, even when that target is not part of the current target set. The first space in the
 list is only used as a fallback when the space of an instance cannot be determined.
 
+Matching itself ignores space: an entity in one space can match a target in another, which
+is what makes per-source entity spaces work against a shared target space. Because of that,
+**external IDs must be unique across the spaces you list** — matches, lookups and link
+de-duplication are keyed on external ID alone, so the same external ID in two spaces
+collapses into one and may be linked to the wrong space. The pipeline logs a warning
+listing examples when it reads such duplicates.
+
 ### Process Flow
 
 The pipeline executes in the following order:

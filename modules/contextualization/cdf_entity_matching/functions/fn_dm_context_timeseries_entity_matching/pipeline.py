@@ -5,6 +5,7 @@ import sys
 import time
 import traceback
 from collections import defaultdict
+from collections.abc import Sequence
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -16,6 +17,7 @@ from cognite.client import data_modeling as dm
 from cognite.client.data_classes import ExtractionPipelineRun, Row
 from cognite.client.data_classes.data_modeling import (
     DirectRelationReference,
+    Node,
     NodeApply,
     NodeOrEdgeData,
 )
@@ -620,6 +622,41 @@ def read_rule_mappings(
     return rule_mappings
 
 
+def warn_on_cross_space_duplicates(
+    instances: Sequence[Node],
+    instance_type: str,
+    view_config: ViewPropertyConfig,
+    logger: CogniteFunctionLogger,
+) -> None:
+    """Warn when one external ID exists in several of the configured instance spaces.
+
+    Matches, lookups and link de-duplication are all keyed on external ID alone, so such
+    duplicates collapse into one and can end up linked to the wrong space. Skipped unless
+    several spaces are configured, where the situation cannot arise.
+    """
+    if len(view_config.instance_spaces) < 2:
+        return
+
+    space_by_external_id: dict[str, str] = {}
+    duplicates: dict[str, tuple[str, str]] = {}
+    for instance in instances:
+        first_space = space_by_external_id.setdefault(instance.external_id, instance.space)
+        if first_space != instance.space and instance.external_id not in duplicates:
+            duplicates[instance.external_id] = (first_space, instance.space)
+
+    if not duplicates:
+        return
+
+    examples = ", ".join(
+        f"{ext_id} in {spaces[0]} and {spaces[1]}" for ext_id, spaces in list(duplicates.items())[:5]
+    )
+    logger.warning(
+        f"{len(duplicates)} {instance_type} external IDs exist in more than one configured instance space. "
+        f"Matching is keyed on external ID only, so these collapse into one and may be linked to the wrong "
+        f"space - give each space unique external IDs or configure a single space. Examples: {examples}"
+    )
+
+
 def get_all_targets(
     client: CogniteClient,
     logger: CogniteFunctionLogger,
@@ -722,6 +759,8 @@ def get_all_targets(
         if len(page) < batch_size:
             break
 
+    warn_on_cross_space_duplicates(all_targets, QUERY_FILTER_TYPE_TARGETS, job_config.target_view, logger)
+
     logger.info(f"Number of {QUERY_FILTER_TYPE_TARGETS} to process: {len(all_targets)}, NOTE: Rule based regular expressions are applied to the '{PROP_COL_NAME}' property")
     for target in all_targets:
         org_name = str(target.properties[job_config.target_view.as_view_id()][PROP_COL_NAME])
@@ -783,7 +822,9 @@ def get_new_entities(
         filter=is_selected,
         limit=-1
     )
- 
+
+    warn_on_cross_space_duplicates(new_entities, QUERY_FILTER_TYPE_ENTITIES, entity_view_config, logger)
+
     item_update = []
 
 

@@ -183,7 +183,10 @@ timeseriesInstanceSpace:
 ```
 
 Instances are read from every listed space, and both the entity matching and metadata
-update functions write each instance back to the space it was read from.
+update functions write each instance back to the space it was read from. Matching is not
+restricted by space — a time series in one space can match an asset in another — so
+external IDs must be unique across the spaces you list. Entity matching logs a warning if
+it finds the same external ID in more than one space.
 
 ### Environment Variables
 
