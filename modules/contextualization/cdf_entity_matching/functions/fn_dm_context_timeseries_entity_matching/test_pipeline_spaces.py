@@ -17,6 +17,7 @@ sys.path.append(str(Path(__file__).parent))
 
 from config import Config, ViewPropertyConfig
 from constants import (
+    FILTER_PATH_NODE_EXTERNAL_ID,
     KEY_TARGET_EXT_ID,
     KEY_TARGET_SPACE,
     PROP_COL_LINK_NAME,
@@ -100,12 +101,28 @@ def _matches(clause: dict[str, Any], instance: Instance) -> bool:
         return all(_matches(sub, instance) for sub in clause["and"])
     if "range" in clause:
         body = clause["range"]
-        if body["property"] != ["node", "externalId"]:
+        if body["property"] != FILTER_PATH_NODE_EXTERNAL_ID:
             raise AssertionError(f"The API only supports range filters on externalId: {body}")
         if set(body) != {"property", "gt"}:
             raise AssertionError(f"Only 'gt' ranges are expected in the cursor: {body}")
         return instance.external_id > body["gt"]
     raise AssertionError(f"Unexpected filter clause in paging cursor: {clause}")
+
+
+def _ordered(rows: list[Instance], sort: Any) -> list[Instance]:
+    """Order rows the way the query asked to have them ordered.
+
+    Without a sort the API gives no ordering guarantee, so rows come back in an order a
+    keyset cursor cannot accidentally page through correctly. That way dropping the sort
+    from a paged query fails the paging tests instead of passing by luck.
+    """
+    if sort is None:
+        return list(reversed(rows))
+
+    for entry in sort if isinstance(sort, list) else [sort]:
+        if list(entry.property) != FILTER_PATH_NODE_EXTERNAL_ID or entry.direction != "ascending":
+            raise AssertionError(f"Unexpected sort for a paged query: {entry.property} {entry.direction}")
+    return sorted(rows, key=lambda item: item.external_id)
 
 
 def _fake_instances_list(dataset: list[Instance]) -> MagicMock:
@@ -118,8 +135,7 @@ def _fake_instances_list(dataset: list[Instance]) -> MagicMock:
         **_: Any,
     ) -> list[Instance]:
         scope = [space] if isinstance(space, str) else space
-        rows = [item for item in dataset if item.space in scope]
-        rows.sort(key=lambda item: (item.external_id, item.space))
+        rows = _ordered([item for item in dataset if item.space in scope], sort)
         if filter is not None:
             rows = [item for item in rows if _matches(filter.dump(), item)]
         if limit is not None and limit > 0:
@@ -204,6 +220,20 @@ def test_target_paging_never_filters_on_space() -> None:
 
     assert len(targets) == PAGE_SIZE
     assert client.data_modeling.instances.list.call_count > len(config.data.target_view.instance_spaces)
+
+
+def test_target_paging_sorts_by_external_id() -> None:
+    """The cursor is a keyset on externalId, which only pages correctly on ordered pages."""
+    config = _config("inst_asset", "inst_ts")
+    view_id = config.data.target_view.as_view_id()
+    client = MagicMock()
+    client.data_modeling.instances.list = _fake_instances_list([_target(view_id, "inst_asset", "asset-a")])
+
+    get_all_targets(client, MagicMock(), config)
+
+    sort = client.data_modeling.instances.list.call_args.kwargs["sort"]
+    assert list(sort.property) == FILTER_PATH_NODE_EXTERNAL_ID
+    assert sort.direction == "ascending"
 
 
 def test_entities_are_read_from_every_configured_space() -> None:
@@ -297,6 +327,26 @@ def test_existing_links_keep_their_space_when_reapplied() -> None:
 
     links = {link.external_id: link.space for link in _links(items[0])}
     assert links == {"asset-old": "inst_asset_b", "asset-new": "inst_asset_a"}
+
+
+def test_target_view_space_wins_over_a_stale_existing_link() -> None:
+    """The target query is authoritative, so a re-applied link must not keep a stale space."""
+    config = _config(["inst_asset_a", "inst_asset_b"], "inst_ts")
+    existing = json.dumps([{"space": "inst_asset_b", "externalId": "asset-1"}])
+
+    items = add_to_items(
+        config,
+        MagicMock(),
+        [],
+        ["asset-1"],
+        "ts:1",
+        config.data.entity_view.as_view_id(),
+        existing,
+        entity_space="inst_ts",
+        target_spaces={"asset-1": "inst_asset_a"},
+    )
+
+    assert {link.external_id: link.space for link in _links(items[0])} == {"asset-1": "inst_asset_a"}
 
 
 def test_clean_links_resets_the_entity_in_its_own_space() -> None:

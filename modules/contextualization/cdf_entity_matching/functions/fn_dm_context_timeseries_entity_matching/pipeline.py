@@ -1313,7 +1313,14 @@ def add_to_items(
         entity_targets_array = json.loads(entity_targets)
         if len(entity_targets_array) > 0:  # Check if there are existing targets
             for target in entity_targets_array:
-                targets.append(DirectRelationReference(space=target[PROP_COL_SPACE], external_id=target[PROP_COL_EXTERNAL_ID]))
+                # The target view is authoritative; the link's own space is only a fallback
+                # for targets outside the current target set.
+                targets.append(
+                    DirectRelationReference(
+                        space=target_spaces.get(target[PROP_COL_EXTERNAL_ID], target[PROP_COL_SPACE]),
+                        external_id=target[PROP_COL_EXTERNAL_ID],
+                    )
+                )
 
     # Add new targets to the entity
     for target_ext_id in target_ext_ids:  
