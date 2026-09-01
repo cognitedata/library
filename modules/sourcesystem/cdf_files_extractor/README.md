@@ -10,16 +10,21 @@ cdf_files_extractor/
 │   └── producer.ep.files.Group.yaml                         # Scoped extractor service-principal group
 ├── data_modeling/
 │   └── sp_files_extractor.Space.yaml                        # Per-extractor DM instance space
+├── data_sets/
+│   └── ds_files.DataSet.yaml                                # Data set for uploaded files and pipeline
 ├── extraction_pipelines/
 │   ├── ep_files_sharepoint.ExtractionPipeline.yaml         # Pipeline definition (contacts, schedule, source)
 │   └── ep_files_sharepoint.ExtractionPipeline.Config.yaml  # Files Extractor runtime config (file provider, paths, filters)
+├── raw/
+│   └── db_files.Database.yaml                               # db_{{location}}_files (optional RAW-backed state store)
 └── module.toml
 ```
 
-> **Note:** Files written by this pipeline land in CDF Files (with `CogniteFile`
-> instances in `{{instanceSpace}}` because the example uses
-> `destination-mode: cdm`). Files Extractor does **not** stage to RAW, so this
-> module ships no `raw/` folder.
+> **Note:** File bytes and `CogniteFile` metadata land in CDF Files and
+> `{{instanceSpace}}` (the shipped example uses `destination-mode: cdm`). The
+> module does **not** stage file content to RAW. The `raw/` folder deploys
+> `db_{{location}}_files` so the producer group can use RAW for an optional
+> extractor state store (see `state-store` in `ExtractionPipeline.Config.yaml`).
 
 ## Data Flow
 
@@ -38,6 +43,8 @@ Files Extractor   (destination-mode: cdm)
 | Resource | External ID | Purpose |
 |---|---|---|
 | ExtractionPipeline | `ep_{{location}}_files_sharepoint` | Pipeline health tracking and config delivery |
+| Data set | `{{dataset}}` | Groups uploaded files and pipeline resources |
+| RAW Database | `db_{{location}}_files` | Optional RAW-backed extractor state store (not used for file ingestion) |
 | DM Space | `{{instanceSpace}}` | Per-extractor instance space for DM instances |
 | Access Group | `producer_{{location}}_ep_files_{{environment}}` | Scoped service-principal group for the Files extractor |
 
@@ -95,8 +102,10 @@ SharePoint Online example with a single extraction path. Before production use:
    keep deleted files visible with a `deleted` metadata flag.
 5. **Pick a state-store path** in `Config.yaml` that the extractor service
    account can write to (default: `/path/to/state-store.json` is a placeholder
-   — change before running). Optionally switch to RAW-backed state-store for
-   cluster deployments.
+   — change before running). For cluster deployments, uncomment the RAW
+   `state-store` block and point `database` at `db_{{location}}_files` (deployed
+   from `raw/db_files.Database.yaml`). Add a `*.Table.yaml` under `raw/` if you
+   want Toolkit to create the state table at deploy time.
 6. **Confirm `data_model.space`** matches your `instanceSpace` — `CogniteFile`
    instances are written there. The CDM destination requires that the space
    already exists (this module deploys it automatically).
