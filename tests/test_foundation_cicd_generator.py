@@ -584,6 +584,15 @@ def test_generate_actions_ado_writes_pipelines_and_docs(tmp_path: Path) -> None:
     assert "startsWith(variables['Build.SourceBranch'], 'refs/tags/v')" in deploy_text
     assert "prod-toolkit-credentials" in deploy_text
     assert "Enforce release tag pattern" in deploy_text
+    for job in deploy_yaml["jobs"]:
+        # Same succeeded() requirement as the dry-run jobs: an explicit condition
+        # without it would let a deploy job start after a canceled run.
+        assert job["condition"].startswith("and(succeeded(), ")
+    # Azure Pipelines does not auto-map secret variable-group values into script
+    # environments (only plain variables get that treatment) — cdf deploy needs
+    # IDP_CLIENT_SECRET mapped explicitly or authentication fails.
+    assert deploy_text.count("IDP_CLIENT_SECRET: $(IDP_CLIENT_SECRET)") == 4
+    assert "IDP_CLIENT_SECRET: $(IDP_CLIENT_SECRET)" in dry_run_text
     # checkout doesn't persist git credentials by default — the prod job's own
     # `git fetch origin main` step needs them to authenticate.
     prod_job = next(job for job in deploy_yaml["jobs"] if job["job"] == "deploy_prod")
@@ -607,7 +616,10 @@ def test_generate_actions_ado_writes_pipelines_and_docs(tmp_path: Path) -> None:
     assert "GitHub Release" not in docs
 
 
-def test_generate_actions_ado_dev_only_has_no_branch_condition(tmp_path: Path) -> None:
+def test_generate_actions_ado_dev_only_has_branch_condition(tmp_path: Path) -> None:
+    """Even with a single deployable branch, the dry-run job must stay gated on
+    System.PullRequest.TargetBranch -- otherwise a manual or non-PR pipeline run
+    would load live credentials and run cdf deploy --dry-run unconditionally."""
     _scaffold_project_with_envs(tmp_path, ("dev",))
 
     subprocess.run(
@@ -622,17 +634,18 @@ def test_generate_actions_ado_dev_only_has_no_branch_condition(tmp_path: Path) -
     deploy_yaml = yaml.safe_load(deploy_path.read_text(encoding="utf-8"))
 
     dry_run_dev_job = next(job for job in dry_run_yaml["jobs"] if job["job"] == "dry_run_dev")
-    assert "condition" not in dry_run_dev_job
+    assert dry_run_dev_job["condition"] == (
+        "and(succeeded(), eq(variables['System.PullRequest.TargetBranch'], 'refs/heads/dev'))"
+    )
     assert {job["job"] for job in deploy_yaml["jobs"]} == {"deploy_dev"}
     # The promotion-flow guard only applies to the main/test job.
     assert "Enforce promotion flow" not in dry_run_path.read_text(encoding="utf-8")
 
 
 def test_generate_actions_ado_test_only_promotion_guard_skips_non_pr_runs(tmp_path: Path) -> None:
-    """With only config.test.yaml present, dry_run_test is the sole branch (main) so it
-    gets no job-level condition (single-branch case) -- it runs on any pipeline trigger,
-    including a manual run where System.PullRequest.SourceBranch is empty. The promotion
-    guard must skip itself in that case instead of always rejecting on an empty HEAD."""
+    """With only config.test.yaml present, dry_run_test is the sole branch (main). The
+    job-level condition already keeps non-PR runs from starting, but the promotion
+    guard script is kept as defense-in-depth and must not blow up on an empty HEAD."""
     _scaffold_project_with_envs(tmp_path, ("test",))
 
     subprocess.run(
@@ -644,7 +657,9 @@ def test_generate_actions_ado_test_only_promotion_guard_skips_non_pr_runs(tmp_pa
     dry_run_path = tmp_path / ".devops" / "dry-run-pipeline.yml"
     dry_run_yaml = yaml.safe_load(dry_run_path.read_text(encoding="utf-8"))
     dry_run_test_job = next(job for job in dry_run_yaml["jobs"] if job["job"] == "dry_run_test")
-    assert "condition" not in dry_run_test_job
+    assert dry_run_test_job["condition"] == (
+        "and(succeeded(), eq(variables['System.PullRequest.TargetBranch'], 'refs/heads/main'))"
+    )
 
     dry_run_text = dry_run_path.read_text(encoding="utf-8")
     assert "Enforce promotion flow" in dry_run_text

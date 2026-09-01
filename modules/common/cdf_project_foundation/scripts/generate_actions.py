@@ -294,15 +294,14 @@ def _ado_promotion_guard_lines() -> list[str]:
 def ado_dry_run_jobs(toolkit_version: str, org_dir: str | None, setup_check_cmd: str, projects: dict[str, str]) -> str:
     """Azure DevOps jobs for the dry-run pipeline: one job per deployable branch,
     each scoped to its own ``<env>-toolkit-credentials`` variable group and gated
-    on ``System.PullRequest.TargetBranch`` when more than one branch is deployable.
-    Avoids ever loading two environments' variable groups into the same job.
+    on ``System.PullRequest.TargetBranch``. Avoids ever loading two environments'
+    variable groups into the same job.
     """
     branches = branch_envs(projects)
     if not branches:
         return ""
     if len(branches) > 2:
         raise ValueError(f"Unsupported number of deployable branches: {len(branches)}")
-    gate_on_branch = len(branches) > 1
 
     jobs: list[str] = []
     for branch, env in branches.items():
@@ -310,12 +309,9 @@ def ado_dry_run_jobs(toolkit_version: str, org_dir: str | None, setup_check_cmd:
             f"  - job: dry_run_{env}",
             f"    displayName: 'cdf build & deploy --dry-run ({env})'",
             "    dependsOn: lint",
+            "    condition: and(succeeded(), "
+            f"eq(variables['System.PullRequest.TargetBranch'], 'refs/heads/{branch}'))",
         ]
-        if gate_on_branch:
-            lines.append(
-                "    condition: and(succeeded(), "
-                f"eq(variables['System.PullRequest.TargetBranch'], 'refs/heads/{branch}'))"
-            )
         lines.extend(
             [
                 "    variables:",
@@ -347,6 +343,8 @@ def ado_dry_run_jobs(toolkit_version: str, org_dir: str | None, setup_check_cmd:
                 "",
                 "      - script: cdf deploy --dry-run",
                 "        displayName: 'cdf deploy --dry-run'",
+                "        env:",
+                "          IDP_CLIENT_SECRET: $(IDP_CLIENT_SECRET)",
             ]
         )
         jobs.append("\n".join(lines))
@@ -393,7 +391,7 @@ def ado_deploy_jobs(toolkit_version: str, org_dir: str | None, setup_check_cmd: 
         lines = [
             f"  - job: deploy_{env}",
             f"    displayName: 'Deploy to {projects[env]}'",
-            f"    condition: {_ado_deploy_condition(env)}",
+            f"    condition: and(succeeded(), {_ado_deploy_condition(env)})",
             "    variables:",
             f"      - group: {env}-toolkit-credentials",
             "    steps:",
@@ -454,6 +452,8 @@ def ado_deploy_jobs(toolkit_version: str, org_dir: str | None, setup_check_cmd: 
                     "",
                     "      - script: cdf deploy --dry-run",
                     "        displayName: 'cdf deploy --dry-run'",
+                    "        env:",
+                    "          IDP_CLIENT_SECRET: $(IDP_CLIENT_SECRET)",
                 ]
             )
         lines.extend(
@@ -461,6 +461,8 @@ def ado_deploy_jobs(toolkit_version: str, org_dir: str | None, setup_check_cmd: 
                 "",
                 "      - script: cdf deploy",
                 "        displayName: 'cdf deploy'",
+                "        env:",
+                "          IDP_CLIENT_SECRET: $(IDP_CLIENT_SECRET)",
             ]
         )
         jobs.append("\n".join(lines))
