@@ -365,6 +365,35 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
 
         print("✅ Asset incremental tag order no-op test passed")
 
+    def test_asset_metadata_uses_configured_filter_property(self) -> None:
+        """Asset tag reads/writes use the configured view filter property name"""
+        print("🧪 Testing configured view filter property...")
+
+        processor = OptimizedMetadataProcessor(self.logger, view_filter_property="labels")
+        asset_view_id = ViewId(space="cdf_cdm", external_id="CogniteAsset", version="v1")
+        node = MagicMock()
+        node.external_id = "23-KA-9101"
+        node.properties = {
+            asset_view_id: {
+                "name": "23-KA-9101",
+                "aliases": ["23_KA_9101"],
+                "labels": ["discipline:KA"],
+                "root": {"space": "inst_location", "externalId": "VAL-PH"},
+            }
+        }
+
+        result = processor.process_asset_metadata(
+            node, asset_view_id, "inst_location", update_all=False
+        )
+
+        self.assertIsNotNone(result)
+        properties = result.sources[0].properties
+        self.assertIn("labels", properties)
+        self.assertNotIn("tags", properties)
+        self.assertIn("root:VAL-PH", properties["labels"])
+
+        print("✅ Configured view filter property test passed")
+
     def test_asset_update_all_skips_node_without_view_properties(self) -> None:
         """updateAll must not blank managed properties when the view payload is empty"""
         print("🧪 Testing asset skip on empty view properties...")

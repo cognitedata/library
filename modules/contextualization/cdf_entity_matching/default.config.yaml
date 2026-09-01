@@ -19,9 +19,10 @@ TimeSeriesViewExternalId: CogniteTimeSeries
 targetViewExternalId: CogniteAsset
 entityViewExternalId: CogniteTimeSeries
 targetViewSearchProperty: name
+viewFilterProperty: tags  # NOTE: in CFIHOS example data model (dm_dom_oil_and_gas.DataModel.yaml), the filter property is labels
 targetViewFilterValues: []
 entityViewSearchProperty: name
-entityViewFilterValues: []
+entityViewFilterValues: []  
 
 workflow: EntityMatching
 ### UPDATE THE FOLLOWING VALUES FOR YOUR IDP CONFIGURATION ###

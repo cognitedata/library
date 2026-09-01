@@ -12,11 +12,12 @@ from pydantic.alias_generators import to_camel
 # Configuration classes
 class Parameters(BaseModel, alias_generator=to_camel):
     debug: bool
-    debug_timeseries: str = None
     run_all: bool
-    update_all: bool = False
     raw_db: str
     raw_table_state: str
+    debug_timeseries: str | None = None
+    update_all: bool = False
+    view_filter_property: str = "tags"
 
 
 class ViewPropertyConfig(BaseModel, alias_generator=to_camel):

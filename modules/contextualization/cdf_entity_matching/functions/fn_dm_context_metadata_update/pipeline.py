@@ -90,7 +90,9 @@ def metadata_update(
         with time_operation("Configuration processing", logger):
             # Initialize processors. BATCH_SIZE is the instance fetch limit, not an
             # apply batch size, so BatchProcessor keeps its own default.
-            metadata_processor = OptimizedMetadataProcessor(logger)
+            metadata_processor = OptimizedMetadataProcessor(
+                logger, config.parameters.view_filter_property
+            )
             if config.parameters.debug:
                 logger.debug("Debug mode enabled - processing limited data")
                 batch_processor = BatchProcessor(batch_size=100)

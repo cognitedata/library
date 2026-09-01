@@ -135,7 +135,12 @@ TimeSeriesViewExternalId: CogniteTimeSeries
 targetViewExternalId: CogniteAsset
 entityViewExternalId: CogniteTimeSeries
 targetViewSearchProperty: name
-entityViewSearchProperty: aliases
+entityViewSearchProperty: name
+# Property used to filter assets/timeseries and to read/write asset metadata tags.
+# Default is tags (CDM). Use labels when deploying with the CFIHOS data model pack.
+viewFilterProperty: tags
+targetViewFilterValues: []
+entityViewFilterValues: []
 
 # Authentication
 workflowClientId: ${IDP_CLIENT_ID}
@@ -144,6 +149,25 @@ entity_matching_processing_group_source_id: ${GROUP_SOURCE_ID}
 
 # Workflow Settings
 workflow: EntityMatching
+```
+
+#### `viewFilterProperty`
+
+`{{ viewFilterProperty }}` is a shared module variable that controls which view property is used for:
+
+- **Entity matching** — `filterProperty` on both `targetView` and `entityView` in the timeseries entity matching extraction pipeline config
+- **Metadata update** — reading and writing asset classification values in the metadata update function (for example tag-style values on assets)
+
+**Default:** `tags` — matches Cognite Data Model (CDM) views such as `CogniteAsset`, where filtering and metadata use the `tags` property.
+
+**CFIHOS / custom models:** set `viewFilterProperty: labels` when your deployed data model uses `labels` instead of `tags` (for example the CFIHOS oil and gas domain model in `dm_dom_oil_and_gas`). Any valid property name on the configured views can be used; keep `targetViewFilterValues` and `entityViewFilterValues` aligned with how you tag or label instances in that property.
+
+Example for CFIHOS:
+
+```yaml
+viewFilterProperty: labels
+targetViewFilterValues: []
+entityViewFilterValues: []
 ```
 
 ### Environment Variables
@@ -192,6 +216,11 @@ variables:
       TimeSeriesViewExternalId: CogniteTimeSeries
       targetViewExternalId: CogniteAsset
       entityViewExternalId: CogniteTimeSeries
+      targetViewSearchProperty: name
+      entityViewSearchProperty: name
+      viewFilterProperty: tags  # use labels for CFIHOS (dm_dom_oil_and_gas)
+      targetViewFilterValues: []
+      entityViewFilterValues: []
       workflowClientId: ${IDP_CLIENT_ID}
       workflowClientSecret: ${IDP_CLIENT_SECRET}
       entity_matching_processing_group_source_id: ${GROUP_SOURCE_ID}
