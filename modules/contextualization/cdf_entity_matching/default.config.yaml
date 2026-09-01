@@ -14,6 +14,9 @@ viewVersion: v1
 # A single space, or a YAML list of spaces when instances are spread across several spaces
 assetInstanceSpace: inst_location
 timeseriesInstanceSpace: inst_location
+# Must be a single space: holds the source system and match type nodes this module deploys,
+# and a node lives in exactly one space
+contextualizationInstanceSpace: inst_location
 functionSpace: sp_entity_matching_fn # space where function code nodes are stored — created by this module
 # The view external IDs must exist in schemaSpace above. CogniteAsset and
 # CogniteTimeSeries live in cdf_cdm only - in the CFIHOS example data model
