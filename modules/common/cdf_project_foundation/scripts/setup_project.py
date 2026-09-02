@@ -265,6 +265,16 @@ def _cdm_instance_space(site: str) -> str:
     return f"sp_{site}_instances" if site else "sp_cdm_instances"
 
 
+def _cfihos_instance_space(site: str) -> str:
+    """Instance space for CFIHOS: ``inst_{site}_cfihos_oil_and_gas``"""
+    return f"inst_{site}_cfihos_oil_and_gas" if site else "inst_cfihos_oil_and_gas"
+
+
+def _isa_instance_space(site: str) -> str:
+    """Instance space for ISA manufacturing: ``inst_{site}_isa_manufacturing``"""
+    return f"inst_{site}_isa_manufacturing" if site else "inst_isa_manufacturing"
+
+
 def resolve_contextualization_variables(
     variant: str,
     instance_space: str,
@@ -366,6 +376,10 @@ def build_foundation_vars(
     ingestion["site"] = site
     if variant == "cdm":
         ingestion["instanceSpace"] = _cdm_instance_space(site)
+    elif variant == "isa_manufacturing_extension":
+        ingestion["instanceSpace"] = _isa_instance_space(site)
+    elif variant == "cfihos_oil_and_gas_extension":
+        ingestion["instanceSpace"] = _cfihos_instance_space(site)
     # Always write dataset so the key exists; empty list when no SS modules installed.
     ingestion["dataset"] = datasets_for_variant(variant, datasets)
     ingestion["additionalSchemaSpaces"] = additional_schema_spaces_for_variant(variant)
@@ -403,6 +417,10 @@ def build_overlay(
     instance_space = INGESTION_FOUNDATION_VARIABLES[variant]["instanceSpace"]
     if variant == "cdm":
         instance_space = _cdm_instance_space(site)
+    elif variant == "isa_manufacturing_extension":
+        instance_space = _isa_instance_space(site)
+    elif variant == "cfihos_oil_and_gas_extension":
+        instance_space = _cfihos_instance_space(site)
 
     installed_ss = list_installed_source_system_modules(repo_root)
     ctx_vars = resolve_contextualization_variables(variant, instance_space, installed_ctx)
@@ -432,8 +450,9 @@ def build_overlay(
     )
     if variant == "cfihos_oil_and_gas_extension":
         # CFIHOS uses its own space / instance_space variables — not the ISA ones.
-        # Both instance_space and space are fixed, domain-named defaults.
-        cfihos_dm_vars: dict[str, str] = {"instance_space": "inst_cfihos_oil_and_gas", "environment": env}
+        # instance_space is site-derived (falls back to the domain-only default
+        # when no site has been entered yet); space is fixed.
+        cfihos_dm_vars: dict[str, str] = {"instance_space": _cfihos_instance_space(site), "environment": env}
         if cfihos_admin_user:
             cfihos_dm_vars["admin_user"] = cfihos_admin_user
         if cfihos_integration_owner_name:
@@ -447,16 +466,22 @@ def build_overlay(
         data_models_dir = get_data_models_dir(repo_root)
         if (data_models_dir / "cfihos_oil_and_gas_extension_search").is_dir():
             modules_vars["cfihos_oil_and_gas_extension_search"] = {
-                "instance_space": "inst_cfihos_oil_and_gas",
+                "instance_space": _cfihos_instance_space(site),
                 "environment": env,
             }
-    else:
+    elif variant == "isa_manufacturing_extension":
+        # ISA's instance_space is site-derived the same way (falls back to the
+        # domain-only default when no site has been entered yet).
+        modules_vars["isa_manufacturing_extension"] = {
+            "instance_space": _isa_instance_space(site),
+            "environment": env,
+        }
         # If the ISA search solution module is also installed, keep its
         # instance_space in sync with the enterprise module.
         data_models_dir = get_data_models_dir(repo_root)
         if (data_models_dir / "isa_manufacturing_extension_search").is_dir():
             modules_vars["isa_manufacturing_extension_search"] = {
-                "instance_space": "inst_isa_manufacturing",
+                "instance_space": _isa_instance_space(site),
                 "environment": env,
             }
 

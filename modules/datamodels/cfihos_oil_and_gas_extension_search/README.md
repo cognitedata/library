@@ -17,7 +17,7 @@ Specifically:
 - No view in this module `implements: CogniteAsset`. Asset-hierarchy properties (`parent`, `root`, `path`, `children`) are exposed on the search `Tag` view by referencing the `cdf_cdm:CogniteAsset` container directly and self-referencing within this space, so search-side traversal stays inside the search model. Use the enterprise `Tag` view for canonical `CogniteAsset` semantics in Asset Explorer / Industry Canvas.
 - All reverse direct relations whose **forward** relation lives on a solution-shaped view (`WorkOrder.assets`, `Notification.assets`, `TimeSeriesData.assets`, …) live on the matching view here (`Tag.workOrders`, `Tag.notifications`, `Tag.timeSeries`, …) — not on the enterprise side.
 - View externalIds in this module (`Tag`, `Equipment`, `WorkOrder`, `Notification`, …) intentionally match the enterprise externalIds. Because the views live in a different space (`dm_sol_oil_and_gas_search` vs. `dm_dom_oil_and_gas`), this is not a collision; it gives consumers consistent names whether they read the enterprise or search model.
-- Both modules write/read instances in the **shared instance space** (`inst_cfihos_oil_and_gas`). External IDs are stable across modules.
+- Both modules write/read instances in the **shared instance space** (`inst_cfihos_oil_and_gas` by default, or `inst_{site}_cfihos_oil_and_gas` once the setup wizard has a site — the two modules' `instance_space` configs are kept in sync by the wizard). External IDs are stable across modules.
 
 ### Why the model is split into enterprise + search
 
