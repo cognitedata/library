@@ -25,24 +25,19 @@ class Parameters(BaseModel, alias_generator=to_camel):
 
 class ViewPropertyConfig(BaseModel, alias_generator=to_camel):
     schema_space: str
-    instance_space: str | list[str]
+    # Configured as "instanceSpace", either one space or a list of them, and normalised to
+    # a list here so callers never have to tell the two apart.
+    instance_spaces: list[str] = Field(alias="instanceSpace", min_length=1)
     external_id: str
     version: str
     search_property: str = "alias"
     filter_property: str = None
     filter_values: list[str] = None
 
-    @field_validator("instance_space")
+    @field_validator("instance_spaces", mode="before")
     @classmethod
-    def validate_instance_space(cls, value: str | list[str]) -> str | list[str]:
-        if isinstance(value, list) and not value:
-            raise ValueError("instanceSpace must name at least one space")
-        return value
-
-    @property
-    def instance_spaces(self) -> list[str]:
-        """All configured instance spaces, as a list even when a single space is configured."""
-        return [self.instance_space] if isinstance(self.instance_space, str) else list(self.instance_space)
+    def wrap_single_space(cls, value: object) -> object:
+        return [value] if isinstance(value, str) else value
 
     @property
     def default_instance_space(self) -> str:

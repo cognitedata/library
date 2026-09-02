@@ -18,6 +18,15 @@ sys.path.append(str(Path(__file__).parent))
 from config import Config, ViewPropertyConfig
 from constants import (
     FILTER_PATH_NODE_EXTERNAL_ID,
+    KEY_ENTITY_EXT_ID,
+    KEY_ENTITY_SPACE,
+    KEY_MATCHES,
+    KEY_NAME,
+    KEY_ORG_NAME,
+    KEY_RULE_KEYS,
+    KEY_SCORE,
+    KEY_SOURCE,
+    KEY_TARGET,
     KEY_TARGET_EXT_ID,
     KEY_TARGET_LINKS,
     KEY_TARGET_SPACE,
@@ -26,11 +35,14 @@ from constants import (
 )
 from pipeline import (
     add_to_items,
+    apply_rule_mappings,
     clean_links,
     get_all_targets,
     get_new_entities,
     remember_link_spaces,
+    select_and_apply_matches,
     warn_on_cross_space_duplicates,
+    write_mapping_to_raw,
 )
 
 PAGE_SIZE = 1000  # batch_size used by get_all_targets
@@ -368,6 +380,23 @@ def test_target_view_space_wins_over_a_stale_existing_link() -> None:
     assert {link.external_id: link.space for link in _links(items[0])} == {"asset-1": "inst_asset_a"}
 
 
+def test_null_existing_links_do_not_break_the_write() -> None:
+    """The links string round-trips through the matching API, so tolerate a JSON null."""
+    config = _config("inst_asset", "inst_ts")
+
+    items = add_to_items(
+        config,
+        MagicMock(),
+        [],
+        ["asset-a"],
+        "ts:1",
+        config.data.entity_view.as_view_id(),
+        "null",
+    )
+
+    assert [link.external_id for link in _links(items[0])] == ["asset-a"]
+
+
 def test_clean_links_resets_the_entity_in_its_own_space() -> None:
     """Clearing links must target the existing node, not a new one in another space."""
     config = _config("inst_asset", ["inst_ts_pi", "inst_ts_sap"])
@@ -476,7 +505,7 @@ def _node(space: str, external_id: str) -> MagicMock:
 
 
 def test_duplicate_external_id_across_spaces_warns() -> None:
-    """Matching is keyed on external ID, so the operator must be told about collisions."""
+    """Target links are resolved by external ID, so the operator must hear about collisions."""
     logger = MagicMock()
     instances = [_node("inst_a", "23-KA-9101"), _node("inst_b", "23-KA-9101")]
 
@@ -504,3 +533,155 @@ def test_single_space_skips_the_check() -> None:
     warn_on_cross_space_duplicates(instances, "assets", _view("inst_a"), logger)
 
     logger.warning.assert_not_called()
+
+
+# --- Duplicate external IDs across spaces ---------------------------------------------
+# An external ID is unique per space only, so the same one in two spaces is two distinct
+# instances. Both must be matched and each written to its own space, rather than one
+# standing in for the other.
+
+
+def _entity_record(space: str, external_id: str, rule_keys: list[str] | None = None) -> dict[str, Any]:
+    """A source record shaped the way get_new_entities builds it."""
+    return {
+        KEY_ENTITY_EXT_ID: external_id,
+        KEY_ENTITY_SPACE: space,
+        KEY_NAME: external_id,
+        KEY_ORG_NAME: external_id,
+        KEY_TARGET_LINKS: json.dumps([]),
+        KEY_RULE_KEYS: rule_keys,
+    }
+
+
+def _target_record(space: str, external_id: str, rule_keys: list[str] | None = None) -> dict[str, Any]:
+    """A target record shaped the way get_all_targets builds it."""
+    return {
+        KEY_TARGET_EXT_ID: external_id,
+        KEY_TARGET_SPACE: space,
+        KEY_NAME: external_id,
+        KEY_ORG_NAME: external_id,
+        KEY_RULE_KEYS: rule_keys,
+    }
+
+
+def _match_result(entity_space: str, entity_ext_id: str, target: dict[str, Any], score: float) -> dict[str, Any]:
+    """A prediction as the entity matching API returns it, echoing our own dicts."""
+    return {
+        KEY_SOURCE: _entity_record(entity_space, entity_ext_id),
+        KEY_MATCHES: [{KEY_SCORE: score, KEY_TARGET: target}],
+    }
+
+
+def _applied(client: MagicMock) -> list[NodeApply]:
+    """Every node update handed to instances.apply."""
+    items: list[NodeApply] = []
+    for call in client.data_modeling.instances.apply.call_args_list:
+        items.extend(call.args[0])
+    return items
+
+
+def test_entity_matched_in_one_space_keeps_its_twin_in_another() -> None:
+    """Skipping already-matched entities must not skip a same-named one elsewhere."""
+    config = _config("inst_asset", ["inst_ts_pi", "inst_ts_sap"])
+    view_id = config.data.entity_view.as_view_id()
+    client = MagicMock()
+    client.data_modeling.instances.list.return_value = [
+        _entity(view_id, "inst_ts_pi", "pi:1"),
+        _entity(view_id, "inst_ts_sap", "pi:1"),
+    ]
+
+    entities = get_new_entities(client, config, MagicMock(), [("inst_ts_pi", "pi:1")])
+
+    assert [(entity[KEY_ENTITY_SPACE], entity[KEY_ENTITY_EXT_ID]) for entity in entities] == [
+        ("inst_ts_sap", "pi:1")
+    ]
+
+
+def test_rule_match_links_both_copies_in_their_own_space() -> None:
+    """Two entities sharing an external ID each need their own node update."""
+    config = _config("inst_asset", ["inst_ts_pi", "inst_ts_sap"])
+    client = MagicMock()
+    targets = [_target_record("inst_asset", "asset-a", ["k1"])]
+    entities = [
+        _entity_record("inst_ts_pi", "pi:1", ["k1"]),
+        _entity_record("inst_ts_sap", "pi:1", ["k1"]),
+    ]
+
+    good_matches, _ = apply_rule_mappings(client, config, MagicMock(), [], targets, entities)
+
+    assert {(match[KEY_ENTITY_SPACE], match[KEY_ENTITY_EXT_ID]) for match in good_matches} == {
+        ("inst_ts_pi", "pi:1"),
+        ("inst_ts_sap", "pi:1"),
+    }
+    applied = _applied(client)
+    assert {item.space for item in applied} == {"inst_ts_pi", "inst_ts_sap"}
+    for item in applied:
+        assert [(link.space, link.external_id) for link in _links(item)] == [("inst_asset", "asset-a")]
+
+
+def test_ml_match_links_both_copies_in_their_own_space() -> None:
+    """The same holds for matches coming back from the matching model."""
+    config = _config("inst_asset", ["inst_ts_pi", "inst_ts_sap"])
+    client = MagicMock()
+    target = _target_record("inst_asset", "asset-a")
+    match_results = [
+        _match_result("inst_ts_pi", "pi:1", target, 0.95),
+        _match_result("inst_ts_sap", "pi:1", target, 0.95),
+    ]
+
+    good_matches, _, count = select_and_apply_matches(client, config, MagicMock(), [], match_results)
+
+    assert count == 2
+    assert {(match[KEY_ENTITY_SPACE], match[KEY_ENTITY_EXT_ID]) for match in good_matches} == {
+        ("inst_ts_pi", "pi:1"),
+        ("inst_ts_sap", "pi:1"),
+    }
+    assert {item.space for item in _applied(client)} == {"inst_ts_pi", "inst_ts_sap"}
+
+
+def test_manually_matched_entity_does_not_block_its_twin() -> None:
+    """A manual match in one space must leave the other space's entity to be matched."""
+    config = _config("inst_asset", ["inst_ts_pi", "inst_ts_sap"])
+    client = MagicMock()
+    target = _target_record("inst_asset", "asset-a")
+    already_matched = [
+        {
+            KEY_ENTITY_EXT_ID: "pi:1",
+            KEY_ENTITY_SPACE: "inst_ts_pi",
+            KEY_TARGET_EXT_ID: "asset-a",
+            KEY_TARGET_SPACE: "inst_asset",
+        }
+    ]
+
+    _, _, count = select_and_apply_matches(
+        client, config, MagicMock(), already_matched, [_match_result("inst_ts_sap", "pi:1", target, 0.95)]
+    )
+
+    assert count == 1
+    assert [item.space for item in _applied(client)] == ["inst_ts_sap"]
+
+
+def test_raw_report_keeps_a_row_per_space() -> None:
+    """The good/bad tables are keyed per entity, so the key needs the space too."""
+    config = _config("inst_asset", ["inst_ts_pi", "inst_ts_sap"])
+    raw_uploader = MagicMock()
+    good_matches = [
+        {KEY_ENTITY_EXT_ID: "pi:1", KEY_ENTITY_SPACE: "inst_ts_pi"},
+        {KEY_ENTITY_EXT_ID: "pi:1", KEY_ENTITY_SPACE: "inst_ts_sap"},
+    ]
+
+    write_mapping_to_raw(MagicMock(), config, raw_uploader, good_matches, [], MagicMock())
+
+    row_keys = [call.args[2].key for call in raw_uploader.add_to_upload_queue.call_args_list]
+    assert len(set(row_keys)) == 2
+
+
+def test_raw_report_row_key_is_the_external_id_with_one_space() -> None:
+    """A single-space project must keep the row keys it already has."""
+    config = _config("inst_asset", "inst_ts")
+    raw_uploader = MagicMock()
+    good_matches = [{KEY_ENTITY_EXT_ID: "pi:1", KEY_ENTITY_SPACE: "inst_ts"}]
+
+    write_mapping_to_raw(MagicMock(), config, raw_uploader, good_matches, [], MagicMock())
+
+    assert [call.args[2].key for call in raw_uploader.add_to_upload_queue.call_args_list] == ["pi:1"]

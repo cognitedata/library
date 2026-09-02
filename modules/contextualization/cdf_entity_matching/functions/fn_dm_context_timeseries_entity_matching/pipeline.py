@@ -110,6 +110,17 @@ def _retry_apply(
     )
 
 
+def instance_key(space: str | None, external_id: str) -> tuple[str, str]:
+    """Identity of an instance for de-duplication and skip bookkeeping.
+
+    An external ID is unique within a space, not across them, so the same one in two
+    configured spaces is two distinct instances that each need matching and a write of
+    their own. An unknown space keys as the empty string so such matches still
+    de-duplicate against each other.
+    """
+    return (space or "", external_id)
+
+
 def entity_matching(
     client: CogniteClient,
     logger: CogniteFunctionLogger,
@@ -181,8 +192,8 @@ def entity_matching(
 
         with time_operation("Read new entities", logger):
             logger.info("Read new entities (ex: time series) that has been updated since last run")
-            list_good_matches = [match[KEY_ENTITY_EXT_ID] for match in good_matches]
-            new_entities = get_new_entities(client, config, logger, list_good_matches, rule_mappings)
+            matched_entities = [instance_key(match[KEY_ENTITY_SPACE], match[KEY_ENTITY_EXT_ID]) for match in good_matches]
+            new_entities = get_new_entities(client, config, logger, matched_entities, rule_mappings)
         monitor_memory_usage(logger, "After new entities loaded")
         cleanup_memory()
 
@@ -629,9 +640,10 @@ def warn_on_cross_space_duplicates(
 ) -> None:
     """Warn when one external ID exists in several of the configured instance spaces.
 
-    Matches, lookups and link de-duplication are all keyed on external ID alone, so such
-    duplicates collapse into one and can end up linked to the wrong space. Skipped unless
-    several spaces are configured, where the situation cannot arise.
+    Each instance is matched and updated in the space it was read from, so duplicates are
+    handled independently. What remains keyed on external ID alone is the manual mapping
+    table in RAW, which has no space column, and the space a target link resolves to.
+    Skipped unless several spaces are configured, where the situation cannot arise.
 
     Args:
         instance_type: What to call these instances in the warning, e.g. "assets".
@@ -654,8 +666,9 @@ def warn_on_cross_space_duplicates(
     )
     logger.warning(
         f"{len(duplicates)} {instance_type} external IDs exist in more than one configured instance space. "
-        f"Matching is keyed on external ID only, so these collapse into one and may be linked to the wrong "
-        f"space - give each space unique external IDs or configure a single space. Examples: {examples}"
+        f"Each instance is matched and updated in its own space, but manual mappings and target links are "
+        f"resolved by external ID alone and so apply to every copy - give each space unique external IDs "
+        f"or configure a single space. Examples: {examples}"
     )
 
 
@@ -836,7 +849,7 @@ def get_new_entities(
     client: CogniteClient,
     config: Config,
     logger: CogniteFunctionLogger,
-    list_good_entities: list[str] | None = None,
+    list_good_entities: list[tuple[str, str]] | None = None,
     rule_mappings: list[Row] | None = None
 ) -> list[dict[str, Any]]:
 
@@ -861,10 +874,13 @@ def get_new_entities(
 
 
     logger.info(f"Number of new entities to process: {len(new_entities)} NOTE: Rule based regular expressions are applied to the '{PROP_COL_NAME}' property")
+    matched_entities = set(list_good_entities or ())
+
     for entity in new_entities:
-        # test if just matched and skip if so
-        if list_good_entities and entity.external_id in list_good_entities:
-            logger.debug(f"Entity: {entity.external_id} just matched, skipping")
+        # test if just matched and skip if so - keyed on space as well, so an entity
+        # sharing an external ID with an already matched one elsewhere is still processed
+        if instance_key(entity.space, entity.external_id) in matched_entities:
+            logger.debug(f"Entity: {entity.external_id} in {entity.space} just matched, skipping")
             continue
         # Rule based matching uses the name property to match entities to targets
         org_name = str(entity.properties[entity_view_id][PROP_COL_NAME])
@@ -1038,10 +1054,16 @@ def apply_rule_mappings(
     new_entities: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
 
-    # Use set instead of list for O(1) lookups
-    good_matches_set = {f"{match[KEY_TARGET_EXT_ID]}_{match[KEY_ENTITY_EXT_ID]}"
-                        for match in good_matches}
-    matched_entity_ids = {match[KEY_ENTITY_EXT_ID] for match in good_matches}
+    # Use set instead of list for O(1) lookups. Both sides are keyed on space and external
+    # ID, so a pair is only a duplicate when it is the same pair of instances.
+    good_matches_set = {
+        (
+            instance_key(match.get(KEY_ENTITY_SPACE), match[KEY_ENTITY_EXT_ID]),
+            instance_key(match.get(KEY_TARGET_SPACE), match[KEY_TARGET_EXT_ID]),
+        )
+        for match in good_matches
+    }
+    matched_entities = {instance_key(match.get(KEY_ENTITY_SPACE), match[KEY_ENTITY_EXT_ID]) for match in good_matches}
 
     key_field = KEY_RULE_KEYS  # The field in the dictionaries that contains the rule keys
     cnt = 0
@@ -1050,8 +1072,9 @@ def apply_rule_mappings(
         # Build an inverted index for target_dest
         # Format: { 'rule_key_value': [dict_from_target_dest_1, dict_from_target_dest_2, ...] }
         index1 = defaultdict(list)
-        matches = defaultdict(list)  # defaultdict(lambda: [[], []])
-        entity_spaces: dict[str, str] = {}
+        # Keyed on (space, external ID) so two entities sharing an external ID keep their
+        # own link lists and are each written to the space they came from.
+        matches: dict[tuple[str, str], list[str]] = defaultdict(list)
         target_spaces = {target[KEY_TARGET_EXT_ID]: target[KEY_TARGET_SPACE] for target in target_dest}
 
         for d1 in target_dest:
@@ -1072,27 +1095,25 @@ def apply_rule_mappings(
             set2 = set(d2.get(key_field, [])) # Convert to set once
 
             # Skip if entity already has been matched
-            if d2[KEY_ENTITY_EXT_ID] in matched_entity_ids:
-                logger.debug(f"Entity: {d2['entity_ext_id']} already has been matched manually, skipping")
+            entity = instance_key(d2[KEY_ENTITY_SPACE], d2[KEY_ENTITY_EXT_ID])
+            if entity in matched_entities:
+                logger.debug(f"Entity: {d2[KEY_ENTITY_EXT_ID]} in {d2[KEY_ENTITY_SPACE]} already has been matched manually, skipping")
                 continue
         
             for r_key_from_d2 in set2:
                 if r_key_from_d2 in index1:
                     for d1_match in index1[r_key_from_d2]:
-                        # Create a canonical tuple for uniqueness tracking
-                        # Ensure consistent order (e.g., by ID)
-                        pair = tuple(sorted((d2[KEY_ENTITY_EXT_ID], d1_match[KEY_TARGET_EXT_ID])))
+                        # Both instances are identified by space and external ID, so the
+                        # same external ID in another space is a separate pair
+                        pair = (entity, instance_key(d1_match[KEY_TARGET_SPACE], d1_match[KEY_TARGET_EXT_ID]))
 
                         if pair not in unique_matches_tracker:
-                            match_key = f"{d1_match[KEY_TARGET_EXT_ID]}_{d2[KEY_ENTITY_EXT_ID]}"
-                            if match_key in good_matches_set:
+                            if pair in good_matches_set:
                                 logger.debug(f"Match already exists in good matches: {d1_match[KEY_TARGET_EXT_ID]} - {d2[KEY_ENTITY_EXT_ID]}")
                                 continue
-                            good_matches_set.add(match_key)
+                            good_matches_set.add(pair)
 
-                            entity_id = d2[KEY_ENTITY_EXT_ID]
-                            entity_spaces[entity_id] = d2[KEY_ENTITY_SPACE]
-                            unique_target_list = list(set(matches.get(entity_id, ())))
+                            unique_target_list = list(set(matches.get(entity, ())))
                             if d1_match[KEY_TARGET_EXT_ID] and d1_match[KEY_TARGET_EXT_ID] not in unique_target_list:
                                 unique_target_list = [*unique_target_list, d1_match[KEY_TARGET_EXT_ID]]
                                 good_matches.append(
@@ -1125,15 +1146,14 @@ def apply_rule_mappings(
                                             target[PROP_COL_EXTERNAL_ID],
                                         ]
 
-                            matches[entity_id] = unique_target_list
+                            matches[entity] = unique_target_list
                             unique_matches_tracker.add(pair)
 
         item_update = []
         
         # Iterate through the matches and prepare the item updates
         
-        for entity_ext_id in matches:
-            target_ext_ids = matches[entity_ext_id] # Assuming the first target is the one to match with
+        for (entity_space, entity_ext_id), target_ext_ids in matches.items():
 
             item_update = add_to_items(config, 
                                     logger, 
@@ -1141,7 +1161,7 @@ def apply_rule_mappings(
                                     target_ext_ids,
                                     entity_ext_id,
                                     config.data.entity_view.as_view_id(),
-                                    entity_space=entity_spaces.get(entity_ext_id),
+                                    entity_space=entity_space or None,
                                     target_spaces=target_spaces)
             
             # Apply the updates to the data model in batches of BATCH_SIZE_API_SUBMIT
@@ -1197,28 +1217,38 @@ def select_and_apply_matches(
     entity_view_id = config.data.entity_view.as_view_id()
     target_view_id = config.data.target_view.as_view_id()
 
-    # Use set instead of list for O(1) lookups
-    good_matches_set = {f"{match[KEY_TARGET_EXT_ID]}_{match[KEY_ENTITY_EXT_ID]}"
-                        for match in good_matches}
-    matched_entity_ids = {match[KEY_ENTITY_EXT_ID] for match in good_matches}
+    # Use set instead of list for O(1) lookups. Both sides are keyed on space and external
+    # ID, so a pair is only a duplicate when it is the same pair of instances.
+    good_matches_set = {
+        (
+            instance_key(match.get(KEY_ENTITY_SPACE), match[KEY_ENTITY_EXT_ID]),
+            instance_key(match.get(KEY_TARGET_SPACE), match[KEY_TARGET_EXT_ID]),
+        )
+        for match in good_matches
+    }
+    matched_entities = {instance_key(match.get(KEY_ENTITY_SPACE), match[KEY_ENTITY_EXT_ID]) for match in good_matches}
     new_good_matches = []
     try:
         for match in match_results:
-            # Skip if entity already has been matched
-            if match[KEY_SOURCE][KEY_ENTITY_EXT_ID] in matched_entity_ids:
+            # Skip if entity already has been matched - an entity sharing an external ID
+            # with an already matched one in another space is a different instance
+            source = match[KEY_SOURCE]
+            entity = instance_key(source.get(KEY_ENTITY_SPACE), source[KEY_ENTITY_EXT_ID])
+            if entity in matched_entities:
                 continue
 
             if match[KEY_MATCHES]:
                 if match[KEY_MATCHES][0][KEY_SCORE] >= config.parameters.auto_approval_threshold:
-                    entity_ext_id = match[KEY_SOURCE][KEY_ENTITY_EXT_ID]
-                    target_ext_id = match[KEY_MATCHES][0][KEY_TARGET][KEY_TARGET_EXT_ID]
+                    entity_ext_id = source[KEY_ENTITY_EXT_ID]
+                    target = match[KEY_MATCHES][0][KEY_TARGET]
+                    target_ext_id = target[KEY_TARGET_EXT_ID]
 
-                    match_key = f"{target_ext_id}_{entity_ext_id}"
-                    if match_key in good_matches_set:
+                    pair = (entity, instance_key(target.get(KEY_TARGET_SPACE), target_ext_id))
+                    if pair in good_matches_set:
                         logger.debug(f"Match already exists in good matches: {target_ext_id} - {entity_ext_id}")
                         continue
                     else:
-                        good_matches_set.add(match_key)
+                        good_matches_set.add(pair)
 
                     new_good_matches.append(add_to_dict(match, str(entity_view_id), str(target_view_id)))
                 else:
@@ -1322,17 +1352,17 @@ def add_to_items(
     targets = []
 
     if entity_targets:
-        entity_targets_array = json.loads(entity_targets)
-        if len(entity_targets_array) > 0:  # Check if there are existing targets
-            for target in entity_targets_array:
-                # The target view is authoritative; the link's own space is only a fallback
-                # for targets outside the current target set.
-                targets.append(
-                    DirectRelationReference(
-                        space=target_spaces.get(target[PROP_COL_EXTERNAL_ID], target[PROP_COL_SPACE]),
-                        external_id=target[PROP_COL_EXTERNAL_ID],
-                    )
+        # The string round-trips through the matching API, so a JSON null reaching this
+        # point cannot be ruled out - `or []` keeps that from breaking the write.
+        for target in json.loads(entity_targets) or []:
+            # The target view is authoritative; the link's own space is only a fallback
+            # for targets outside the current target set.
+            targets.append(
+                DirectRelationReference(
+                    space=target_spaces.get(target[PROP_COL_EXTERNAL_ID], target[PROP_COL_SPACE]),
+                    external_id=target[PROP_COL_EXTERNAL_ID],
                 )
+            )
 
     # Add new targets to the entity
     for target_ext_id in target_ext_ids:  
@@ -1428,6 +1458,19 @@ def add_to_dict(
     }
 
 
+def raw_row_key(config: Config, match: dict[str, Any]) -> str:
+    """Row key for a match in the good/bad RAW tables.
+
+    An external ID is unique per space only, so with several entity spaces configured the
+    space has to be part of the key or one copy silently overwrites the other. A project
+    with a single space keeps the bare external ID it has always been keyed on.
+    """
+    external_id = str(match[KEY_ENTITY_EXT_ID])
+    if len(config.data.entity_view.instance_spaces) < 2:
+        return external_id
+    return f"{match.get(KEY_ENTITY_SPACE, '')}:{external_id}"
+
+
 def write_mapping_to_raw(
     client: CogniteClient,
     config: Config,
@@ -1464,11 +1507,11 @@ def write_mapping_to_raw(
             create_table(client, raw_db, raw_table_ctx_good)
 
             for match in good_matches:
-                raw_uploader.add_to_upload_queue(raw_db, raw_table_ctx_good, Row(match[KEY_ENTITY_EXT_ID], match))  # type: ignore
+                raw_uploader.add_to_upload_queue(raw_db, raw_table_ctx_good, Row(raw_row_key(config, match), match))  # type: ignore
                 logger.debug(f"Added matched entity: {match[KEY_ENTITY_EXT_ID]} to {raw_db}/{raw_table_ctx_good}")
 
             for not_match in bad_matches:
-                raw_uploader.add_to_upload_queue(raw_db, raw_table_ctx_bad, Row(not_match[KEY_ENTITY_EXT_ID], not_match))  # type: ignore
+                raw_uploader.add_to_upload_queue(raw_db, raw_table_ctx_bad, Row(raw_row_key(config, not_match), not_match))  # type: ignore
                 logger.debug(f"Added NOT matched entity: {not_match[KEY_ENTITY_EXT_ID]} to {raw_db}/{raw_table_ctx_bad}")
 
             # Upload any remaining RAW cols in queue

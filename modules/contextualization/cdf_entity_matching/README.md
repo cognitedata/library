@@ -184,9 +184,34 @@ timeseriesInstanceSpace:
 
 Instances are read from every listed space, and both the entity matching and metadata
 update functions write each instance back to the space it was read from. Matching is not
-restricted by space — a time series in one space can match an asset in another — so
-external IDs must be unique across the spaces you list. Entity matching logs a warning if
-it finds the same external ID in more than one space.
+restricted by space — a time series in one space can match an asset in another — which is
+what lets per-source time series spaces work against a shared asset space.
+
+##### Duplicate external IDs across spaces
+
+An external ID is unique within a space, not across spaces, so the same external ID in two
+of the spaces you list is two distinct instances. Instances are identified by space and
+external ID together, so each copy is matched, linked and updated independently and lands
+in its own space. Nothing collapses into a single instance and no copy is skipped because
+another one was already matched.
+
+Two things remain keyed on external ID alone:
+
+- **Manual mappings.** The manual mapping RAW table has only `TsExternalId` and
+  `AssetExternalId` columns, with no space, so a manual mapping applies to *every* copy of
+  that external ID.
+- **Asset links.** Where an asset external ID exists in several of the spaces listed in
+  `assetInstanceSpace`, the assets are indistinguishable by name and which space a link
+  points at is arbitrary.
+
+Entity matching logs a warning listing examples whenever it reads duplicated external IDs,
+once for `entities` (the time series) and once for `assets`, so the log tells you which of
+the two above applies to your project. Giving each space unique external IDs, or
+configuring a single space, avoids both.
+
+The good and bad match tables in RAW are keyed per time series. When more than one time
+series space is configured, the space becomes part of the row key so the copies do not
+overwrite each other; with a single space the key stays the bare external ID.
 
 In the rare case where an instance's own space cannot be determined — for example a manual
 mapping naming a target outside the configured filter — the link is written to the first
@@ -418,6 +443,14 @@ cdf workflows logs EntityMatching
    - Check extraction pipeline configurations
    - Verify data model compatibility
    - Review authentication and permissions
+
+4. **`external IDs exist in more than one configured instance space` warning**
+   - Expected when you list several spaces that reuse external IDs; each instance is still
+     matched and updated in its own space
+   - Check whether the warning names `entities` or `assets` — for `assets`, the space an
+     asset link points at is arbitrary, so confirm the links landed where you expect
+   - Remember that a manual mapping applies to every copy of an external ID
+   - See [`assetInstanceSpace` and `timeseriesInstanceSpace`](#assetinstancespace-and-timeseriesinstancespace)
 
 ### Debug Mode
 

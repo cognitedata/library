@@ -146,11 +146,17 @@ into, even when that target is not part of the current target set. The first spa
 list is only used as a fallback when the space of an instance cannot be determined.
 
 Matching itself ignores space: an entity in one space can match a target in another, which
-is what makes per-source entity spaces work against a shared target space. Because of that,
-**external IDs must be unique across the spaces you list** — matches, lookups and link
-de-duplication are keyed on external ID alone, so the same external ID in two spaces
-collapses into one and may be linked to the wrong space. The pipeline logs a warning
-listing examples when it reads such duplicates.
+is what makes per-source entity spaces work against a shared target space.
+
+An external ID is unique within a space, not across spaces, so the same external ID in two
+configured spaces is two distinct instances. Instances are identified by space and external
+ID together, so each one is matched and written back to the space it was read from.
+
+Two things stay keyed on external ID alone. The manual mapping table in RAW has no space
+column, so a manual mapping applies to every copy of that external ID. And where a
+**target** external ID exists in several of the configured target spaces, which space the
+link points at is arbitrary. The pipeline logs a warning listing examples when it reads
+such duplicates.
 
 ### Process Flow
 
