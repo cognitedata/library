@@ -1098,7 +1098,10 @@ def apply_rule_mappings(
             # Skip if entity already has been matched
             entity = instance_key(d2[KEY_ENTITY_SPACE], d2[KEY_ENTITY_EXT_ID])
             if entity in matched_entities:
-                logger.debug(f"Entity: {d2[KEY_ENTITY_EXT_ID]} in {d2[KEY_ENTITY_SPACE]} already has been matched manually, skipping")
+                logger.debug(
+                    f"Entity: {d2[KEY_ENTITY_EXT_ID]} in {d2[KEY_ENTITY_SPACE]} "
+                    "already has been matched manually, skipping"
+                )
                 continue
         
             for r_key_from_d2 in set2:
@@ -1508,11 +1511,19 @@ def write_mapping_to_raw(
             create_table(client, raw_db, raw_table_ctx_good)
 
             for match in good_matches:
-                raw_uploader.add_to_upload_queue(raw_db, raw_table_ctx_good, Row(raw_row_key(config, match), match))  # type: ignore
+                raw_uploader.add_to_upload_queue(
+                    raw_db,
+                    raw_table_ctx_good,
+                    Row(raw_row_key(config, match), match),  # type: ignore
+                )
                 logger.debug(f"Added matched entity: {match[KEY_ENTITY_EXT_ID]} to {raw_db}/{raw_table_ctx_good}")
 
             for not_match in bad_matches:
-                raw_uploader.add_to_upload_queue(raw_db, raw_table_ctx_bad, Row(raw_row_key(config, not_match), not_match))  # type: ignore
+                raw_uploader.add_to_upload_queue(
+                    raw_db,
+                    raw_table_ctx_bad,
+                    Row(raw_row_key(config, not_match), not_match),  # type: ignore
+                )
                 logger.debug(f"Added NOT matched entity: {not_match[KEY_ENTITY_EXT_ID]} to {raw_db}/{raw_table_ctx_bad}")
 
             # Upload any remaining RAW cols in queue
