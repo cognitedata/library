@@ -900,9 +900,10 @@ def get_new_entities(
                     
         targets = []
         if not config.parameters.remove_old_links or not config.parameters.dm_update: # if dmUpdate is False, keep old target links    
-            # keep old target links - an entity without links reads back as None, which
-            # would serialise to JSON null and break len() in the consumers
-            targets = entity.properties[entity_view_id][PROP_COL_LINK_NAME] or []
+            # Keep old target links. An entity that has never been linked either omits the
+            # property or reads back as None; both would serialise to JSON null and break
+            # len() in the consumers.
+            targets = entity.properties[entity_view_id].get(PROP_COL_LINK_NAME) or []
         else:
             item_update = clean_links(config, entity.space, entity.external_id, item_update)
 
@@ -1297,7 +1298,7 @@ def select_and_apply_matches(
         print(f"ERROR: Failed to parse results from entity matching - error: {type(e)}({e})")
         return good_matches, [], len(new_good_matches)  # type: ignore
 
-def remember_link_spaces(target_spaces: dict[str, str], links: list[dict[str, Any]]) -> None:
+def remember_link_spaces(target_spaces: dict[str, str], links: list[dict[str, str]]) -> None:
     """Record the space each existing target link points into.
 
     Links are re-applied by external ID only, so without this a link to a target outside

@@ -283,6 +283,18 @@ def test_entity_without_links_is_recorded_as_an_empty_list() -> None:
     assert json.loads(entities[0][KEY_TARGET_LINKS]) == []
 
 
+def test_entity_with_no_link_property_at_all_is_recorded_as_an_empty_list() -> None:
+    """An unset property is left out of the response, so the key itself can be missing."""
+    config = _config("inst_asset", "inst_ts")
+    view_id = config.data.entity_view.as_view_id()
+    client = MagicMock()
+    client.data_modeling.instances.list.return_value = [Instance("inst_ts", "ts:1", {view_id: {PROP_COL_NAME: "ts:1"}})]
+
+    entities = get_new_entities(client, config, MagicMock())
+
+    assert json.loads(entities[0][KEY_TARGET_LINKS]) == []
+
+
 def test_single_space_string_is_read_as_that_one_space() -> None:
     """The single-space configuration must keep behaving exactly as before."""
     config = _config("inst_asset", "inst_ts")
