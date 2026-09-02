@@ -276,7 +276,7 @@ def _ado_promotion_guard_lines() -> list[str]:
     return [
         "      - script: |",
         "          set -euo pipefail",
-        '          HEAD="$(System.PullRequest.SourceBranch)"',
+        '          HEAD="${SYSTEM_PULLREQUEST_SOURCEBRANCH:-}"',
         '          if [ -n "${HEAD}" ]; then',
         '            HEAD="${HEAD#refs/heads/}"',
         '            if [ "${HEAD}" != "dev" ] && [[ "${HEAD}" != hotfix/* ]]; then',
@@ -407,7 +407,7 @@ def ado_deploy_job(env: str, toolkit_version: str, org_dir: str | None, setup_ch
                 "",
                 "      - script: |",
                 "          set -euo pipefail",
-                '          TAG="$(Build.SourceBranchName)"',
+                '          TAG="${BUILD_SOURCEBRANCHNAME:-}"',
                 '          if [[ ! "$TAG" =~ ^v[0-9]+\\.[0-9]+\\.[0-9]+$ ]]; then',
                 '            MSG="Release tag must match vX.Y.Z (got: $TAG)"',
                 '            echo "##vso[task.logissue type=error]${MSG}"',
