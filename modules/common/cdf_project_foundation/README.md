@@ -322,7 +322,7 @@ The wizard (`scripts/setup_project.py`) is split across four helper modules:
 site: ""                                   # optional site segment for group names
 dataset: []                                # auto-populated from installed source system modules
 schemaSpace: "dm_dom_isa_manufacturing"    # ISA default; CFIHOS uses dm_dom_oil_and_gas
-instanceSpace: "inst_isa_manufacturing"    # ISA default; CFIHOS uses inst_location
+instanceSpace: "inst_isa_manufacturing"    # ISA default; CFIHOS uses inst_cfihos_oil_and_gas
 instanceSpaces: ["inst_isa_manufacturing"] # project-level space + per-extractor spaces (computed by wizard)
 dataModelVariant: isa_manufacturing_extension
 

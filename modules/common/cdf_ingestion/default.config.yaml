@@ -11,7 +11,7 @@ schemaSpace2: cdf_cdm
 schemaSpace3: cdf_idm
 schemaSpace4: dm_sol_oil_and_gas_search
 instanceSpaces:
-  - inst_location
+  - inst_cfihos_oil_and_gas
   - cdf_cdm_units
 
 runWorkflowSchedule: "0 0 29 2 *"

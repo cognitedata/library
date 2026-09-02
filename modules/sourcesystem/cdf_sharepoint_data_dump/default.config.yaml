@@ -1,5 +1,5 @@
 space: dm_dom_oil_and_gas
-instance_space: inst_location
+instance_space: inst_cfihos_oil_and_gas
 dm_version: v1
 data_model_external_id: dm_oil_and_gas_domain_model
 dataset_external_id: ds_oil_and_gas_domain_model

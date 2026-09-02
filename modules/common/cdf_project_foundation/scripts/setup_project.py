@@ -80,7 +80,7 @@ INGESTION_FOUNDATION_VARIABLES: dict[str, dict[str, str]] = {
     "cfihos_oil_and_gas_extension": {
         "dataModelVariant": "cfihos_oil_and_gas_extension",
         "schemaSpace": "dm_dom_oil_and_gas",
-        "instanceSpace": "inst_location",
+        "instanceSpace": "inst_cfihos_oil_and_gas",
     },
 }
 
@@ -432,8 +432,8 @@ def build_overlay(
     )
     if variant == "cfihos_oil_and_gas_extension":
         # CFIHOS uses its own space / instance_space variables — not the ISA ones.
-        # instance_space is derived from site; space is fixed.
-        cfihos_dm_vars: dict[str, str] = {"instance_space": "inst_location", "environment": env}
+        # Both instance_space and space are fixed, domain-named defaults.
+        cfihos_dm_vars: dict[str, str] = {"instance_space": "inst_cfihos_oil_and_gas", "environment": env}
         if cfihos_admin_user:
             cfihos_dm_vars["admin_user"] = cfihos_admin_user
         if cfihos_integration_owner_name:
@@ -447,7 +447,7 @@ def build_overlay(
         data_models_dir = get_data_models_dir(repo_root)
         if (data_models_dir / "cfihos_oil_and_gas_extension_search").is_dir():
             modules_vars["cfihos_oil_and_gas_extension_search"] = {
-                "instance_space": "inst_location",
+                "instance_space": "inst_cfihos_oil_and_gas",
                 "environment": env,
             }
     else:

@@ -333,7 +333,7 @@ class TestBuildFoundationVars:
         from setup_project import build_foundation_vars
         vars_ = build_foundation_vars("cfihos_oil_and_gas_extension", "prod", "")
         assert vars_["schemaSpace"] == "dm_dom_oil_and_gas"
-        assert vars_["instanceSpace"] == "inst_location"
+        assert vars_["instanceSpace"] == "inst_cfihos_oil_and_gas"
 
     def test_cfihos_variant_dataset_includes_dm_dataset(self) -> None:
         """Demo DP always uses this variant — cfihos_oil_and_gas_extension's own
@@ -444,7 +444,7 @@ class TestBuildOverlay:
         dm = mods["cfihos_oil_and_gas_extension"]
         assert "isaSchemaSpace" not in dm
         assert "isaInstanceSpace" not in dm
-        assert dm["instance_space"] == "inst_location"
+        assert dm["instance_space"] == "inst_cfihos_oil_and_gas"
         assert dm["environment"] == "dev"
 
     def test_cfihos_search_module_added_when_present(self, tmp_path: Path) -> None:
@@ -457,7 +457,7 @@ class TestBuildOverlay:
         )
         mods = overlay["variables"]["modules"]
         assert "cfihos_oil_and_gas_extension_search" in mods
-        assert mods["cfihos_oil_and_gas_extension_search"]["instance_space"] == "inst_location"
+        assert mods["cfihos_oil_and_gas_extension_search"]["instance_space"] == "inst_cfihos_oil_and_gas"
 
     def test_cfihos_search_module_absent_when_not_installed(self, tmp_path: Path) -> None:
         from setup_project import build_overlay
@@ -573,8 +573,8 @@ class TestModuleInstanceSpace:
         from setup_project import build_overlay
         overlay = build_overlay("cfihos_oil_and_gas_extension", "dev", "oslo", [], repo_root=tmp_path)
         pf = overlay["variables"]["modules"]["cdf_project_foundation"]
-        # CFIHOS uses inst_location as project-level space
-        assert pf["instanceSpaces"] == ["inst_location"]
+        # CFIHOS uses inst_cfihos_oil_and_gas as project-level space
+        assert pf["instanceSpaces"] == ["inst_cfihos_oil_and_gas"]
 
 
 # ── setup_project — config file writers ───────────────────────────────────────
@@ -1998,7 +1998,7 @@ class TestStaleKeyRemoval:
                 cfihos_oil_and_gas_extension:
                   owner_source_id: abc123
                   read_source_id: xyz789
-                  instance_space: inst_location
+                  instance_space: inst_cfihos_oil_and_gas
                   environment: dev
         """))
         overlay = build_overlay("cfihos_oil_and_gas_extension", "dev", "", [])
