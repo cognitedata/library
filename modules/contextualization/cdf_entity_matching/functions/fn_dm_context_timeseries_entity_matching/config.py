@@ -18,8 +18,8 @@ class Parameters(BaseModel, alias_generator=to_camel):
     raw_table_state: str
     raw_table_ctx_good: str
     raw_table_ctx_bad: str
-    raw_table_ctx_manual: str = None
-    raw_table_ctx_rule: str = None
+    raw_table_ctx_manual: str | None = None
+    raw_table_ctx_rule: str | None = None
     auto_approval_threshold: float = Field(gt=0.0, le=1.0)
 
 
@@ -31,8 +31,8 @@ class ViewPropertyConfig(BaseModel, alias_generator=to_camel):
     external_id: str
     version: str
     search_property: str = "alias"
-    filter_property: str = None
-    filter_values: list[str] = None
+    filter_property: str | None = None
+    filter_values: list[str] | None = None
 
     @field_validator("instance_spaces", mode="before")
     @classmethod

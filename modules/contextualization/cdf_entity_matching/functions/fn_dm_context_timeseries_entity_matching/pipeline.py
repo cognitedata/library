@@ -194,7 +194,9 @@ def entity_matching(
             logger.info("Read new entities (ex: time series) that has been updated since last run")
             # Only manual mappings have run, and those carry the space of the node they
             # were read from - unlike matches from the matching API, where it can be None.
-            matched_entities = [instance_key(match[KEY_ENTITY_SPACE], match[KEY_ENTITY_EXT_ID]) for match in good_matches]
+            matched_entities = [
+                instance_key(match[KEY_ENTITY_SPACE], match[KEY_ENTITY_EXT_ID]) for match in good_matches
+            ]
             new_entities = get_new_entities(client, config, logger, matched_entities, rule_mappings)
         monitor_memory_usage(logger, "After new entities loaded")
         cleanup_memory()
@@ -808,7 +810,10 @@ def get_all_targets(
 
     warn_on_cross_space_duplicates(all_targets, QUERY_FILTER_TYPE_TARGETS, job_config.target_view, logger)
 
-    logger.info(f"Number of {QUERY_FILTER_TYPE_TARGETS} to process: {len(all_targets)}, NOTE: Rule based regular expressions are applied to the '{PROP_COL_NAME}' property")
+    logger.info(
+        f"Number of {QUERY_FILTER_TYPE_TARGETS} to process: {len(all_targets)}, "
+        f"NOTE: Rule based regular expressions are applied to the '{PROP_COL_NAME}' property"
+    )
     for target in all_targets:
         org_name = str(target.properties[job_config.target_view.as_view_id()][PROP_COL_NAME])
 
@@ -875,7 +880,10 @@ def get_new_entities(
     item_update = []
 
 
-    logger.info(f"Number of new entities to process: {len(new_entities)} NOTE: Rule based regular expressions are applied to the '{PROP_COL_NAME}' property")
+    logger.info(
+        f"Number of new entities to process: {len(new_entities)} "
+        f"NOTE: Rule based regular expressions are applied to the '{PROP_COL_NAME}' property"
+    )
     matched_entities = set(list_good_entities or ())
 
     for entity in new_entities:
