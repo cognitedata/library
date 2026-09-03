@@ -16,8 +16,8 @@ If a pre-production environment is present, PRs to `main` must come from `dev` o
 
 Protect the branches used above under **Repos → Branches → Branch policies**. This is required, not optional:
 
-| Branch | Required reviewers | Required status checks |
-|--------|---------------------|--------------------------|
+| Branch | Minimum number of reviewers | Required status checks |
+|--------|------------------------------|--------------------------|
 {{BRANCH_PROTECTION_ROWS}}
 
 {{BRANCH_PROTECTION_NOTE}}
@@ -61,7 +61,7 @@ Import the generated YAML as Azure DevOps pipelines under **Pipelines → New pi
 | `toolkit-pr-validate` | `.devops/dry-run-pipeline.yml` | PR to `dev` or `main` (via Build Validation policy above) |
 {{DEPLOY_PIPELINE_ROWS}}
 
-Each deploy pipeline has its own YAML file, scoped to only that environment's variable group — Azure authorizes every variable group referenced anywhere in a pipeline's YAML, not just the one an eventual runtime condition ends up using, so a shared file would force authorizing all three groups on all three registrations. With one file per environment, `dev-toolkit-credentials` only ever needs to be authorized for `toolkit-deploy-dev`, and so on. Both `dry-run-pipeline.yml` and every `deploy-*-pipeline.yml` set `trigger: none`; for each pipeline above, open **Edit → Triggers → Continuous integration** and override it to that pipeline's branch or tag pattern from the table, so it actually runs when its branch/tag is pushed.
+Each deploy pipeline has its own YAML file, scoped to only that environment's variable group — Azure authorizes every variable group referenced anywhere in a pipeline's YAML, not just the one an eventual runtime condition ends up using, so a shared file would force authorizing all three groups on all three registrations. With one file per environment, `dev-toolkit-credentials` only ever needs to be authorized for `toolkit-deploy-dev`, and so on. Each `deploy-*-pipeline.yml` declares its own trigger directly in the YAML (the branch or tag pattern from the table above), so importing it is enough — no manual **Edit → Triggers** step, which wouldn't be visible in git history and would be lost if the pipeline is ever re-registered. `dry-run-pipeline.yml` still sets `trigger: none`, since a Build Validation policy invokes it directly rather than a push trigger.
 
 ## Toolkit configs
 

@@ -562,7 +562,13 @@ def test_generate_actions_ado_writes_pipelines_and_docs(tmp_path: Path) -> None:
     deploy_test_yaml = yaml.safe_load(deploy_test_path.read_text(encoding="utf-8"))
     deploy_prod_yaml = yaml.safe_load(deploy_prod_path.read_text(encoding="utf-8"))
     job_names = {job["job"] for job in dry_run_yaml["jobs"]}
-    assert job_names == {"lint", "dry_run_dev", "dry_run_test"}
+    assert job_names == {
+        "lint",
+        "validate_target_branch",
+        "source_branch_guard",
+        "dry_run_dev",
+        "dry_run_test",
+    }
     # Each environment gets its own pipeline file with a single job, so Azure's
     # resource authorization for one registration never needs another env's group.
     assert {job["job"] for job in deploy_dev_yaml["jobs"]} == {"deploy_dev"}
@@ -574,13 +580,22 @@ def test_generate_actions_ado_writes_pipelines_and_docs(tmp_path: Path) -> None:
     assert "pr" not in dry_run_yaml
     dry_run_raw = dry_run_path.read_text(encoding="utf-8")
     assert "Build Validation branch policy" in dry_run_raw
+    # dry-run-pipeline.yml is only ever invoked via a Build Validation policy, not
+    # a push trigger, so it correctly keeps trigger: none.
+    assert dry_run_yaml["trigger"] == "none"
 
     for job in dry_run_yaml["jobs"]:
-        if job["job"] in ("dry_run_dev", "dry_run_test"):
+        if job["job"] in ("dry_run_dev", "dry_run_test", "source_branch_guard"):
             # An explicit condition replaces the default succeeded() gate in Azure
             # Pipelines — without succeeded() here, a PR could still build/deploy
             # against live CDF credentials even when the lint job failed.
             assert job["condition"].startswith("and(succeeded(), ")
+    dry_run_dev_job = next(job for job in dry_run_yaml["jobs"] if job["job"] == "dry_run_dev")
+    dry_run_test_job = next(job for job in dry_run_yaml["jobs"] if job["job"] == "dry_run_test")
+    # dependsOn includes validate_target_branch so a manual/non-PR run can't reach
+    # a credentialed job before the target-branch check has had a chance to fail.
+    assert set(dry_run_dev_job["dependsOn"]) == {"lint", "validate_target_branch"}
+    assert set(dry_run_test_job["dependsOn"]) == {"lint", "validate_target_branch", "source_branch_guard"}
 
     dry_run_text = dry_run_path.read_text(encoding="utf-8")
     assert "GITHUB_BASE_REF" not in dry_run_text
@@ -588,10 +603,22 @@ def test_generate_actions_ado_writes_pipelines_and_docs(tmp_path: Path) -> None:
     assert "System.PullRequest.TargetBranch" in dry_run_text
     assert "dev-toolkit-credentials" in dry_run_text
     assert "test-toolkit-credentials" in dry_run_text
+    # Azure's script: task runs cmd.exe on a Windows agent; these scripts rely on
+    # bash-only syntax ([[ ]], set -euo pipefail), so they must use bash: instead.
+    assert "- script:" not in dry_run_text
+    # validate_target_branch must fail loudly rather than silently pass when the
+    # target branch doesn't match a known value (e.g. a format the job conditions
+    # don't recognize) — otherwise the required check reports success having
+    # validated nothing.
+    assert "Unsupported target branch" in dry_run_text
+    assert "exit 1" in dry_run_text
 
     deploy_dev_text = deploy_dev_path.read_text(encoding="utf-8")
     deploy_test_text = deploy_test_path.read_text(encoding="utf-8")
     deploy_prod_text = deploy_prod_path.read_text(encoding="utf-8")
+    assert "- script:" not in deploy_dev_text
+    assert "- script:" not in deploy_test_text
+    assert "- script:" not in deploy_prod_text
     assert "dev-toolkit-credentials" in deploy_dev_text
     assert "test-toolkit-credentials" not in deploy_dev_text
     assert "prod-toolkit-credentials" not in deploy_dev_text
@@ -601,6 +628,14 @@ def test_generate_actions_ado_writes_pipelines_and_docs(tmp_path: Path) -> None:
     assert "prod-toolkit-credentials" in deploy_prod_text
     assert "dev-toolkit-credentials" not in deploy_prod_text
     assert "Enforce release tag pattern" in deploy_prod_text
+    # The prod tag name comes from the full ref, not just its last segment — a tag
+    # like `x/v1.0.0` must not slip through as if it were `v1.0.0`.
+    assert 'TAG="${BUILD_SOURCEBRANCH#refs/tags/}"' in deploy_prod_text
+    assert "BUILD_SOURCEBRANCHNAME" not in deploy_prod_text
+    # Each deploy pipeline declares its own trigger directly, no manual UI override.
+    assert deploy_dev_yaml["trigger"] == {"branches": {"include": ["dev"]}}
+    assert deploy_test_yaml["trigger"] == {"branches": {"include": ["main"]}}
+    assert deploy_prod_yaml["trigger"] == {"branches": {"exclude": ["*"]}, "tags": {"include": ["v*"]}}
     for deploy_yaml in (deploy_dev_yaml, deploy_test_yaml, deploy_prod_yaml):
         for job in deploy_yaml["jobs"]:
             # Same succeeded() requirement as the dry-run jobs: an explicit condition
@@ -637,6 +672,13 @@ def test_generate_actions_ado_writes_pipelines_and_docs(tmp_path: Path) -> None:
     assert "Pipeline permissions alone are not sufficient" in docs
     assert "IDP_TOKEN_URL" in docs
     assert "GitHub Release" not in docs
+    # ADO's Build Validation policy references a pipeline, not a job display name
+    # inside it — the branch-protection table must not carry over GitHub wording.
+    assert "Source branch guardrail" not in docs
+    assert "cdf build & deploy --dry-run" not in docs
+    assert "toolkit-pr-validate` (Build Validation)" in docs
+    assert "Minimum number of reviewers" in docs
+    assert "Required reviewers" not in docs
 
 
 def test_generate_actions_ado_dev_only_has_branch_condition(tmp_path: Path) -> None:
@@ -658,8 +700,12 @@ def test_generate_actions_ado_dev_only_has_branch_condition(tmp_path: Path) -> N
 
     dry_run_dev_job = next(job for job in dry_run_yaml["jobs"] if job["job"] == "dry_run_dev")
     assert dry_run_dev_job["condition"] == (
-        "and(succeeded(), eq(variables['System.PullRequest.TargetBranch'], 'refs/heads/dev'))"
+        "and(succeeded(), "
+        "in(variables['System.PullRequest.TargetBranch'], 'refs/heads/dev', 'dev'))"
     )
+    # No test/main branch configured, so the promotion-flow guard job is never
+    # generated at all -- only the always-on target-branch validator exists.
+    assert {job["job"] for job in dry_run_yaml["jobs"]} == {"lint", "validate_target_branch", "dry_run_dev"}
     assert {job["job"] for job in deploy_dev_yaml["jobs"]} == {"deploy_dev"}
     # Only the dev environment was configured — test and prod deploy pipelines
     # must not be written at all.
@@ -670,9 +716,10 @@ def test_generate_actions_ado_dev_only_has_branch_condition(tmp_path: Path) -> N
 
 
 def test_generate_actions_ado_test_only_promotion_guard_skips_non_pr_runs(tmp_path: Path) -> None:
-    """With only config.test.yaml present, dry_run_test is the sole branch (main). The
-    job-level condition already keeps non-PR runs from starting, but the promotion
-    guard script is kept as defense-in-depth and must not blow up on an empty HEAD."""
+    """With only config.test.yaml present, dry_run_test is the sole branch (main), and
+    the promotion guard now lives in its own source_branch_guard job rather than a
+    step inside dry_run_test. Its script must not blow up on an empty HEAD (manual
+    or non-PR runs), even though the job condition already keeps those from mattering."""
     _scaffold_project_with_envs(tmp_path, ("test",))
 
     subprocess.run(
@@ -685,12 +732,22 @@ def test_generate_actions_ado_test_only_promotion_guard_skips_non_pr_runs(tmp_pa
     dry_run_yaml = yaml.safe_load(dry_run_path.read_text(encoding="utf-8"))
     dry_run_test_job = next(job for job in dry_run_yaml["jobs"] if job["job"] == "dry_run_test")
     assert dry_run_test_job["condition"] == (
-        "and(succeeded(), eq(variables['System.PullRequest.TargetBranch'], 'refs/heads/main'))"
+        "and(succeeded(), "
+        "in(variables['System.PullRequest.TargetBranch'], 'refs/heads/main', 'main'))"
+    )
+    assert set(dry_run_test_job["dependsOn"]) == {"lint", "validate_target_branch", "source_branch_guard"}
+    source_branch_guard_job = next(job for job in dry_run_yaml["jobs"] if job["job"] == "source_branch_guard")
+    assert source_branch_guard_job["condition"] == (
+        "and(succeeded(), "
+        "in(variables['System.PullRequest.TargetBranch'], 'refs/heads/main', 'main'))"
     )
 
     dry_run_text = dry_run_path.read_text(encoding="utf-8")
     assert "Enforce promotion flow" in dry_run_text
     assert 'if [ -n "${HEAD}" ]; then' in dry_run_text
+    # The guard is its own job now, not a step buried inside the credentialed
+    # dry_run_test job -- a PR can no longer delete it by editing that job away.
+    assert "source_branch_guard" in {job["job"] for job in dry_run_yaml["jobs"]}
 
 
 def test_generate_actions_rejects_invalid_provider(tmp_path: Path) -> None:

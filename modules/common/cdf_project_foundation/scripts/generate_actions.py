@@ -272,23 +272,75 @@ def github_dry_run_build_script(toolkit_version: str, org_dir: str | None, proje
     return "\n".join(cases)
 
 
-def _ado_promotion_guard_lines() -> list[str]:
-    return [
-        "      - script: |",
+def _ado_target_branch_condition(branch: str) -> str:
+    """System.PullRequest.TargetBranch is documented as refs/heads/<branch>, but
+    some ADO/GitHub-repo integrations surface it without the refs/heads/ prefix.
+    Tolerating both forms here (rather than only detecting the mismatch after the
+    fact) keeps a format quirk from silently skipping every dry_run_<env> job.
+    """
+    return f"in(variables['System.PullRequest.TargetBranch'], 'refs/heads/{branch}', '{branch}')"
+
+
+def _ado_validate_target_branch_job(branches: dict[str, str]) -> str:
+    """Unconditioned job: fails the whole run loudly if System.PullRequest.TargetBranch
+    doesn't match any deployable branch. Without this, a value the per-branch job
+    conditions don't recognize makes every dry_run_<env> job skip while lint still
+    succeeds, so the required check reports success having validated nothing.
+    """
+    case_lines: list[str] = []
+    for branch in branches:
+        case_lines.append(f"            refs/heads/{branch}|{branch})")
+        case_lines.append(f'              echo "Target branch OK: {branch}"')
+        case_lines.append("              ;;")
+    lines = [
+        "  - job: validate_target_branch",
+        "    displayName: 'Validate target branch'",
+        "    steps:",
+        "      - bash: |",
         "          set -euo pipefail",
-        '          HEAD="${SYSTEM_PULLREQUEST_SOURCEBRANCH:-}"',
-        '          if [ -n "${HEAD}" ]; then',
-        '            HEAD="${HEAD#refs/heads/}"',
-        '            if [ "${HEAD}" != "dev" ] && [[ "${HEAD}" != hotfix/* ]]; then',
-        "              MSG=\"PRs to 'main' must come from 'dev' or 'hotfix/*' only (head: ${HEAD})\"",
+        '          TARGET="${SYSTEM_PULLREQUEST_TARGETBRANCH:-}"',
+        '          case "${TARGET}" in',
+        *case_lines,
+        "            *)",
+        '              MSG="Unsupported target branch: ${TARGET:-<empty>}"',
         '              echo "##vso[task.logissue type=error]${MSG}"',
         "              exit 1",
-        "            fi",
-        '            echo "Promotion flow OK: ${HEAD} -> main"',
-        "          fi",
-        "        displayName: 'Enforce promotion flow (main <- dev or hotfix/* only)'",
+        "              ;;",
+        "          esac",
+        "        displayName: 'Enforce known target branch'",
         "",
     ]
+    return "\n".join(lines)
+
+
+def _ado_source_branch_guard_job() -> str:
+    """Own job (mirrors GitHub's separate source-branch-guard job) instead of a step
+    nested inside a credentialed dry_run_<env> job. That way the check runs before
+    any variable group is loaded, and a PR can't delete the guard along with the
+    rest of a job it also controls.
+    """
+    return "\n".join(
+        [
+            "  - job: source_branch_guard",
+            "    displayName: 'Source branch guardrail'",
+            f"    condition: and(succeeded(), {_ado_target_branch_condition('main')})",
+            "    steps:",
+            "      - bash: |",
+            "          set -euo pipefail",
+            '          HEAD="${SYSTEM_PULLREQUEST_SOURCEBRANCH:-}"',
+            '          if [ -n "${HEAD}" ]; then',
+            '            HEAD="${HEAD#refs/heads/}"',
+            '            if [ "${HEAD}" != "dev" ] && [[ "${HEAD}" != hotfix/* ]]; then',
+            "              MSG=\"PRs to 'main' must come from 'dev' or 'hotfix/*' only (head: ${HEAD})\"",
+            '              echo "##vso[task.logissue type=error]${MSG}"',
+            "              exit 1",
+            "            fi",
+            '            echo "Promotion flow OK: ${HEAD} -> main"',
+            "          fi",
+            "        displayName: 'Enforce promotion flow (main <- dev or hotfix/* only)'",
+            "",
+        ]
+    )
 
 
 def ado_dry_run_jobs(toolkit_version: str, org_dir: str | None, setup_check_cmd: str, projects: dict[str, str]) -> str:
@@ -303,14 +355,20 @@ def ado_dry_run_jobs(toolkit_version: str, org_dir: str | None, setup_check_cmd:
     if len(branches) > 2:
         raise ValueError(f"Unsupported number of deployable branches: {len(branches)}")
 
-    jobs: list[str] = []
+    jobs: list[str] = [_ado_validate_target_branch_job(branches)]
+    if "main" in branches:
+        jobs.append(_ado_source_branch_guard_job())
+
     for branch, env in branches.items():
+        depends_on = ["lint", "validate_target_branch"]
+        if branch == "main":
+            depends_on.append("source_branch_guard")
         lines = [
             f"  - job: dry_run_{env}",
             f"    displayName: 'cdf build & deploy --dry-run ({env})'",
-            "    dependsOn: lint",
-            "    condition: and(succeeded(), "
-            f"eq(variables['System.PullRequest.TargetBranch'], 'refs/heads/{branch}'))",
+            "    dependsOn:",
+            *[f"      - {dep}" for dep in depends_on],
+            f"    condition: and(succeeded(), {_ado_target_branch_condition(branch)})",
         ]
         lines.extend(
             [
@@ -319,29 +377,23 @@ def ado_dry_run_jobs(toolkit_version: str, org_dir: str | None, setup_check_cmd:
                 "    steps:",
                 "      - checkout: self",
                 "",
-            ]
-        )
-        if branch == "main":
-            lines.extend(_ado_promotion_guard_lines())
-        lines.extend(
-            [
-                "      - script: rm -f .env",
+                "      - bash: rm -f .env",
                 "        displayName: 'Remove local .env'",
                 "",
                 "      - task: UsePythonVersion@0",
                 "        inputs:",
                 "          versionSpec: '3.13'",
                 "",
-                f'      - script: pip install "cognite-toolkit=={toolkit_version}"',
+                f'      - bash: pip install "cognite-toolkit=={toolkit_version}"',
                 "        displayName: 'Install Cognite Toolkit'",
                 "",
-                f"      - script: {setup_check_cmd}",
+                f"      - bash: {setup_check_cmd}",
                 "        displayName: 'Verify project config is in sync'",
                 "",
-                f"      - script: cdf build {build_args(toolkit_version, org_dir, env)}",
+                f"      - bash: cdf build {build_args(toolkit_version, org_dir, env)}",
                 "        displayName: 'cdf build'",
                 "",
-                "      - script: cdf deploy --dry-run",
+                "      - bash: cdf deploy --dry-run",
                 "        displayName: 'cdf deploy --dry-run'",
                 "        env:",
                 "          IDP_CLIENT_SECRET: $(IDP_CLIENT_SECRET)",
@@ -405,9 +457,9 @@ def ado_deploy_job(env: str, toolkit_version: str, org_dir: str | None, setup_ch
                 "        fetchDepth: 0",
                 "        persistCredentials: true",
                 "",
-                "      - script: |",
+                "      - bash: |",
                 "          set -euo pipefail",
-                '          TAG="${BUILD_SOURCEBRANCHNAME:-}"',
+                '          TAG="${BUILD_SOURCEBRANCH#refs/tags/}"',
                 '          if [[ ! "$TAG" =~ ^v[0-9]+\\.[0-9]+\\.[0-9]+$ ]]; then',
                 '            MSG="Release tag must match vX.Y.Z (got: $TAG)"',
                 '            echo "##vso[task.logissue type=error]${MSG}"',
@@ -415,7 +467,7 @@ def ado_deploy_job(env: str, toolkit_version: str, org_dir: str | None, setup_ch
                 "          fi",
                 "        displayName: 'Enforce release tag pattern'",
                 "",
-                "      - script: |",
+                "      - bash: |",
                 "          set -euo pipefail",
                 "          git fetch origin main",
                 "          if ! git merge-base --is-ancestor HEAD FETCH_HEAD; then",
@@ -431,20 +483,20 @@ def ado_deploy_job(env: str, toolkit_version: str, org_dir: str | None, setup_ch
         lines.extend(["      - checkout: self", ""])
     lines.extend(
         [
-            "      - script: rm -f .env",
+            "      - bash: rm -f .env",
             "        displayName: 'Remove local .env'",
             "",
             "      - task: UsePythonVersion@0",
             "        inputs:",
             "          versionSpec: '3.13'",
             "",
-            f'      - script: pip install "cognite-toolkit=={toolkit_version}"',
+            f'      - bash: pip install "cognite-toolkit=={toolkit_version}"',
             "        displayName: 'Install Cognite Toolkit'",
             "",
-            f"      - script: {setup_check_cmd}",
+            f"      - bash: {setup_check_cmd}",
             "        displayName: 'Verify project config is in sync'",
             "",
-            f"      - script: cdf build {build_args(toolkit_version, org_dir, env)}",
+            f"      - bash: cdf build {build_args(toolkit_version, org_dir, env)}",
             "        displayName: 'cdf build'",
         ]
     )
@@ -452,7 +504,7 @@ def ado_deploy_job(env: str, toolkit_version: str, org_dir: str | None, setup_ch
         lines.extend(
             [
                 "",
-                "      - script: cdf deploy --dry-run",
+                "      - bash: cdf deploy --dry-run",
                 "        displayName: 'cdf deploy --dry-run'",
                 "        env:",
                 "          IDP_CLIENT_SECRET: $(IDP_CLIENT_SECRET)",
@@ -461,13 +513,24 @@ def ado_deploy_job(env: str, toolkit_version: str, org_dir: str | None, setup_ch
     lines.extend(
         [
             "",
-            "      - script: cdf deploy",
+            "      - bash: cdf deploy",
             "        displayName: 'cdf deploy'",
             "        env:",
             "          IDP_CLIENT_SECRET: $(IDP_CLIENT_SECRET)",
         ]
     )
     return "\n".join(lines)
+
+
+def ado_deploy_trigger(env: str) -> str:
+    """Real trigger embedded in each deploy-<env>-pipeline.yml, instead of
+    `trigger: none` plus a manual 'override the CI trigger in the UI' step. A UI
+    override isn't visible in git and is lost if the pipeline is ever re-registered;
+    with one file per environment there's no longer a reason to rely on it.
+    """
+    if env == "prod":
+        return "trigger:\n  branches:\n    exclude:\n      - '*'\n  tags:\n    include:\n      - v*"
+    return f"trigger:\n  branches:\n    include:\n      - {DEPLOY_BRANCHES[env]}"
 
 
 def branching_rows(projects: dict[str, str], provider: str) -> str:
@@ -490,32 +553,56 @@ def branching_rows(projects: dict[str, str], provider: str) -> str:
     return "\n".join(rows or ["| *(none)* | *(none)* | No CI/CD workflows generated |"])
 
 
-def branch_protection_rows(projects: dict[str, str]) -> str:
+def branch_protection_rows(projects: dict[str, str], provider: str) -> str:
+    """Required-check names are provider-specific: GitHub registers individual job
+    names as status checks, but ADO's Build Validation policy references a pipeline
+    (toolkit-pr-validate), not a job name inside it — job names aren't registrable
+    checks there at all.
+    """
     rows: list[str] = []
     for env in deployable_envs(projects):
         branch = DEPLOY_BRANCHES[env]
-        if branch == "main":
-            rows.append("| `main` | 1 | `Source branch guardrail`, `cdf build & deploy --dry-run` |")
+        if provider == "github":
+            reviewers = "1" if branch == "main" else "none"
+            checks = (
+                "`Source branch guardrail`, `cdf build & deploy --dry-run`"
+                if branch == "main"
+                else "`cdf build & deploy --dry-run`"
+            )
         else:
-            rows.append(f"| `{branch}` | none | `cdf build & deploy --dry-run` |")
+            reviewers = "1" if branch == "main" else "0"
+            checks = "`toolkit-pr-validate` (Build Validation)"
+        rows.append(f"| `{branch}` | {reviewers} | {checks} |")
     return "\n".join(rows or ["| *(none)* | *(none)* | No PR workflow generated |"])
 
 
-def branch_protection_note(projects: dict[str, str]) -> str:
+def branch_protection_note(projects: dict[str, str], provider: str) -> str:
     branches = {DEPLOY_BRANCHES[env] for env in deployable_envs(projects)}
     if not branches:
         return "No PR workflow is generated without a dev or test environment configured."
+    if provider == "github":
+        if branches == {"dev"}:
+            return "PRs to `dev` only run dry-run CI (0 reviewers)."
+        if branches == {"main"}:
+            return (
+                "PRs to `main` require a reviewer and the `Source branch guardrail` check, which"
+                " enforces that changes are promoted from `dev` or `hotfix/*`, in addition to dry-run CI."
+            )
+        return (
+            "PRs to `dev` only run dry-run CI (0 reviewers). The `Source branch guardrail` check does"
+            " not run on `dev` — it only applies to PRs targeting `main`, where it enforces that changes"
+            " are promoted from `dev` or `hotfix/*`."
+        )
     if branches == {"dev"}:
-        return "PRs to `dev` only run dry-run CI (0 reviewers)."
+        return "PRs to `dev` only run the `toolkit-pr-validate` Build Validation policy (0 required reviewers)."
     if branches == {"main"}:
         return (
-            "PRs to `main` require a reviewer and the `Source branch guardrail` check, which"
-            " enforces that changes are promoted from `dev` or `hotfix/*`, in addition to dry-run CI."
+            "PRs to `main` require 1 reviewer and the `toolkit-pr-validate` Build Validation policy, whose"
+            " `source_branch_guard` job enforces that changes are promoted from `dev` or `hotfix/*`."
         )
     return (
-        "PRs to `dev` only run dry-run CI (0 reviewers). The `Source branch guardrail` check does"
-        " not run on `dev` — it only applies to PRs targeting `main`, where it enforces that changes"
-        " are promoted from `dev` or `hotfix/*`."
+        "PRs to `dev` only run the `toolkit-pr-validate` Build Validation policy (0 required reviewers)."
+        " Its `source_branch_guard` job only enforces the promotion rule for PRs targeting `main`, not `dev`."
     )
 
 
@@ -583,8 +670,8 @@ def main() -> None:
         "ENVIRONMENT_ROWS": environment_rows(projects, args.provider),
         "EXAMPLE_BUILD_ARGS": example_build_args(str(toolkit_version), org_dir, projects),
         "ENV_CONFIG_LIST": env_config_list(projects),
-        "BRANCH_PROTECTION_ROWS": branch_protection_rows(projects),
-        "BRANCH_PROTECTION_NOTE": branch_protection_note(projects),
+        "BRANCH_PROTECTION_ROWS": branch_protection_rows(projects, args.provider),
+        "BRANCH_PROTECTION_NOTE": branch_protection_note(projects, args.provider),
         "TOOLKIT_VERSION": str(toolkit_version),
         "LINT_PATHS": build_lint_paths(org_dir, args.provider),
         "SETUP_PROJECT_CHECK_CMD": setup_check_cmd,
@@ -675,6 +762,7 @@ def main() -> None:
             env_values = {
                 **base_values,
                 "DEPLOY_JOBS": ado_deploy_job(env, str(toolkit_version), org_dir, setup_check_cmd, projects[env]),
+                "DEPLOY_TRIGGER": ado_deploy_trigger(env),
             }
             write_file(out, render_template(deploy_pipeline_template, env_values), args.force)
 

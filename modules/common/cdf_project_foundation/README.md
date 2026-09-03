@@ -227,7 +227,7 @@ The script reads `org-dir` and toolkit version from `cdf.toml` automatically. It
 
 **GitHub (default):** writes `.github/workflows/` (`dry-run.yml`, `deploy-dev.yml`, `deploy-prod.yml`, and `deploy-test.yml` when `config.test.yaml` exists) and `docs/FOUNDATION_CICD.md` (GitHub Environments and secrets). Configure `ADMIN_SOURCE_ID`, `CONSUMER_SOURCE_ID`, and `PRODUCER_SOURCE_ID` as GitHub Environment variables alongside the CDF auth variables.
 
-**Azure DevOps (`--provider ado`):** writes `.devops/` (`dry-run-pipeline.yml` and the reusable `deploy-pipeline.yml`) and `docs/FOUNDATION_CICD.md` (variable groups, the three `deploy-pipeline.yml` registrations, and the Build Validation branch policy). See `docs/FOUNDATION_CICD.md` for the exact setup steps — variable groups follow the same `<env>-toolkit-credentials` naming as GitHub Environments.
+**Azure DevOps (`--provider ado`):** writes `.devops/` (`dry-run-pipeline.yml` and one `deploy-<env>-pipeline.yml` per configured environment) and `docs/FOUNDATION_CICD.md` (variable groups, the per-environment deploy pipeline registrations, and the Build Validation branch policy). See `docs/FOUNDATION_CICD.md` for the exact setup steps — variable groups follow the same `<env>-toolkit-credentials` naming as GitHub Environments.
 
 Branching model: PRs to `dev`; PRs to `main` and deploy **test** on merge to `main` only when `config.test.yaml` exists; deploy **dev** on merge to `dev`, and **prod** on a GitHub Release (or, for Azure DevOps, a `vX.Y.Z` tag) from `main`.
 

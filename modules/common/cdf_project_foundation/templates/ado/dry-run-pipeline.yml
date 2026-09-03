@@ -18,10 +18,10 @@ jobs:
         inputs:
           versionSpec: '3.13'
 
-      - script: pip install pyyaml
+      - bash: pip install pyyaml
         displayName: 'Install pyyaml'
 
-      - script: |
+      - bash: |
           python - <<'PY'
           from pathlib import Path
           import yaml
@@ -32,7 +32,7 @@ jobs:
           PY
         displayName: 'Validate pipeline YAML'
 
-      - script: |
+      - bash: |
           set -euo pipefail
           if [ -f .pre-commit-config.yaml ]; then
             pip install pre-commit
@@ -46,7 +46,7 @@ jobs:
           fi
         displayName: 'Config lint (Toolkit templates; skip strict YAML on modules)'
 
-      - script: |
+      - bash: |
           set -euo pipefail
           mapfile -t PY_FILES < <(git ls-files | grep -E '/functions/.*\.py$' || true)
           if [ "${#PY_FILES[@]}" -eq 0 ]; then
