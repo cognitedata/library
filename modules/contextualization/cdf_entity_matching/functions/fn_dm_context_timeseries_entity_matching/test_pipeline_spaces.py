@@ -17,12 +17,15 @@ sys.path.append(str(Path(__file__).parent))
 
 from config import Config, ViewPropertyConfig
 from constants import (
+    COL_KEY_MAN_MAPPING_ENTITY,
+    COL_KEY_MAN_MAPPING_TARGET,
     FILTER_PATH_NODE_EXTERNAL_ID,
     KEY_ENTITY_EXT_ID,
     KEY_ENTITY_SPACE,
     KEY_MATCHES,
     KEY_NAME,
     KEY_ORG_NAME,
+    KEY_RULE,
     KEY_RULE_KEYS,
     KEY_SCORE,
     KEY_SOURCE,
@@ -35,6 +38,7 @@ from constants import (
 )
 from pipeline import (
     add_to_items,
+    apply_manual_mappings,
     apply_rule_mappings,
     clean_links,
     get_all_targets,
@@ -293,6 +297,34 @@ def test_entity_with_no_link_property_at_all_is_recorded_as_an_empty_list() -> N
     entities = get_new_entities(client, config, MagicMock())
 
     assert json.loads(entities[0][KEY_TARGET_LINKS]) == []
+
+
+def test_manual_mapping_of_a_never_linked_entity_is_applied() -> None:
+    """The link property is missing for an entity that has never been linked.
+
+    That is the normal state of an entity someone maps by hand, and reading the property
+    unguarded aborts every mapping in the run through the surrounding error handler.
+    """
+    config = _config("inst_asset", "inst_ts")
+    view_id = config.data.entity_view.as_view_id()
+    client = MagicMock()
+    client.data_modeling.instances.list.return_value = [
+        Instance("inst_ts", "ts:1", {view_id: {PROP_COL_NAME: "ts:1"}})
+    ]
+    mappings = [
+        {
+            KEY_RULE: "row-1",
+            COL_KEY_MAN_MAPPING_ENTITY: "ts:1",
+            COL_KEY_MAN_MAPPING_TARGET: "asset-a",
+        }
+    ]
+
+    good_matches, count = apply_manual_mappings(
+        client, MagicMock(), config, MagicMock(), mappings, {"row-1": {}}
+    )
+
+    assert [match[KEY_ENTITY_EXT_ID] for match in good_matches] == ["ts:1"]
+    assert count == 1
 
 
 def test_single_space_string_is_read_as_that_one_space() -> None:

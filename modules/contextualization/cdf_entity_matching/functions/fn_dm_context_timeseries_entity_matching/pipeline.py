@@ -441,10 +441,13 @@ def apply_manual_mappings(
                     logger.warning(f"Manual mapping target ref is empty for entity: {entity.external_id}, skipping")
                     continue
 
+                # An entity that has never been linked - the normal state of one mapped by
+                # hand - leaves the property out of the response altogether.
+                links_property = entity.properties[entity_view_id].get(PROP_COL_LINK_NAME)
+
                 entity_targets: list[str] = []
                 if not config.parameters.remove_old_links:
                     # keep old target links
-                    links_property = entity.properties[entity_view_id][PROP_COL_LINK_NAME]
                     if links_property:
                         entity_targets = get_links_from_entity(links_property)
                         remember_link_spaces(target_spaces, links_property)
@@ -478,7 +481,7 @@ def apply_manual_mappings(
                         KEY_ENTITY_NAME: entity.properties[entity_view_id][PROP_COL_NAME],
                         KEY_ENTITY_MATCH_VALUE: entity.external_id,
                         KEY_ENTITY_VIEW_ID: str(config.data.entity_view.as_view_id()),
-                        KEY_ENTITY_EXISTING_TARGETS: entity.properties[entity_view_id][PROP_COL_LINK_NAME],
+                        KEY_ENTITY_EXISTING_TARGETS: links_property,
                         KEY_SCORE: SCORE_MANUAL_RULE_MATCH,
                         KEY_TARGET_NAME: target_name,
                         KEY_TARGET_MATCH_VALUE: target_ext_id,
