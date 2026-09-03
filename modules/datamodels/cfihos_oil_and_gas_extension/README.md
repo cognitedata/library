@@ -89,7 +89,9 @@ PI and OPC UA properties are merged into `TimeSeriesData` with `pi_` and `opcua_
 
 Only `Tag` implements `CogniteAsset`. This avoids UI navigation conflicts in CDF applications (IndustryCanvas, Asset Explorer) that expect one asset hierarchy. Equipment, functional locations, and other entities link to tags via direct relations.
 
-> **Naming note — `labels` vs `tags`:** Because the CogniteAsset view is named `Tag` in this model, the inherited `tags` property from `CogniteDescribable` (text-based labels) creates a naming conflict. The view exposes this property as `labels` to avoid confusion. In transformations, queries, and API access, always use `labels` — never `tags` — when referring to the text-based label list. Using `tags` may be interpreted as a reference to the `Tag` view or its direct relations, leading to errors or unexpected results.
+> **Naming note — `labels` vs `tags` on the CFIHOS `Tag` view:** Because the CogniteAsset view in this model is itself named `Tag`, the inherited `tags` property from `CogniteDescribable` (text-based labels) creates a naming conflict specifically on that view. The `Tag` view exposes this property as `labels` to avoid confusion there. When working with the CFIHOS `Tag` view specifically, prefer `labels` over `tags` to avoid ambiguity with the view name or its direct relations.
+>
+> This is scoped to the `Tag` view only — it is not a repo-wide convention. Other modules (e.g. contextualization's file-annotation and entity-matching pipelines) use the real `CogniteDescribable.tags` property directly for their own operational flags (`DetectInDiagrams`, `AnnotationInProcess`, etc.), which is required by Core CDM and unrelated to this naming conflict.
 
 ### Polymorphic equipment classes
 

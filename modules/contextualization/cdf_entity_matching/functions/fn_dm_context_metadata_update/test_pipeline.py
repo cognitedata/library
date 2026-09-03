@@ -25,7 +25,7 @@ class TestPipelineHelpers(unittest.TestCase):
         self.logger = CogniteFunctionLogger("DEBUG")
         self.view_config = ViewPropertyConfig(
             schemaSpace="cdf_cdm",
-            instanceSpace="inst_location",
+            instanceSpace="inst_cfihos_oil_and_gas",
             externalId="CogniteTimeSeries",
             version="v1",
         )
@@ -33,7 +33,7 @@ class TestPipelineHelpers(unittest.TestCase):
     def _config(self, run_all: bool, update_all: bool) -> Config:
         view = ViewPropertyConfig(
             schemaSpace="cdf_cdm",
-            instanceSpace="inst_location",
+            instanceSpace="inst_cfihos_oil_and_gas",
             externalId="CogniteAsset",
             version="v1",
         )

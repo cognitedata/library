@@ -17,7 +17,7 @@ Specifically:
 - No view in this module `implements: CogniteAsset`, `CogniteFile`, `CogniteTimeSeries`, or `CogniteSourceable`. Asset-hierarchy properties (`parent`, `root`, `path`, `children`) are exposed on the search `ISAAsset` view by referencing the `cdf_cdm:CogniteAsset` container directly and self-referencing within this space. `ISAFile` and `ISATimeSeries` expose CDM file/time-series properties the same way via explicit `CogniteFile` / `CogniteTimeSeries` container mappings. Use the enterprise views for canonical CDM semantics in Asset Explorer / Industry Canvas.
 - All reverse direct relations whose **forward** relation lives on a solution-shaped view (`WorkOrder.assets`, `WorkOrder.equipment`, `ISATimeSeries.assets`, `Equipment.activities`, …) live on the matching view here (`ISAAsset.activities`, `ISAAsset.timeSeries`, `Equipment.activities`, …) — not on the enterprise side.
 - View externalIds in this module (`ISAAsset`, `Equipment`, `WorkOrder`, `Batch`, …) intentionally match the enterprise externalIds. Because the views live in a different space (`dm_sol_isa_manufacturing_search` vs. `dm_dom_isa_manufacturing`), this is not a collision; it gives consumers consistent names whether they read the enterprise or search model.
-- Both modules write/read instances in the **shared instance space** (`inst_isa_manufacturing`). External IDs are stable across modules.
+- Both modules write/read instances in the **shared instance space** (`inst_isa_manufacturing` by default, or `inst_{site}_isa_manufacturing` once the setup wizard has a site — the two modules' `instance_space` configs are kept in sync by the wizard). External IDs are stable across modules.
 
 ### Why the model is split into enterprise + search
 

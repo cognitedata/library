@@ -1,9 +1,9 @@
 dataset: ingestion
-instanceSpace: inst_location
+instanceSpace: inst_cfihos_oil_and_gas
 directRelationJob: ctx_files_direct_relation_write
 rawSourceDatabase: ingestion
 rawStateDatabase: contextualizationState
 rawStateTable: diagramParsing
 schemaSpace: cdf_cdm
-annotationSpace: inst_location
+annotationSpace: inst_cfihos_oil_and_gas
 functionSpace: springfield_functions

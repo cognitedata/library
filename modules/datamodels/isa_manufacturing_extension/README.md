@@ -235,7 +235,7 @@ When deploying alongside the search module, align `enterprise_space`, `enterpris
 | Variable | Purpose |
 |----------|---------|
 | `enterprise_space` | Schema space for containers and enterprise views |
-| `instance_space` | Instance space for all ISA manufacturing nodes |
+| `instance_space` | Instance space for all ISA manufacturing nodes. When using `common/cdf_project_foundation`'s setup wizard, this becomes `inst_{site}_isa_manufacturing` once a site is entered — the value shown above is the domain-only fallback used before a site is set. |
 | `enterprise_dm_version` | Version pin for enterprise views and data model |
 | `dataModelExternalId` | External ID of the DOM data model |
 | `datasetExternalId` | Dataset for transformation lineage |
