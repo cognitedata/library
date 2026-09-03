@@ -409,6 +409,35 @@ def test_null_existing_links_do_not_break_the_write() -> None:
     assert [link.external_id for link in _links(items[0])] == ["asset-a"]
 
 
+def test_incomplete_existing_links_are_skipped_on_write() -> None:
+    """Links missing space or externalId are ignored, matching remember_link_spaces."""
+    config = _config("inst_asset", "inst_ts")
+    existing = json.dumps(
+        [
+            {"externalId": "asset-broken"},
+            {"space": "inst_asset"},
+            {"space": "inst_asset", "externalId": "asset-keep"},
+        ]
+    )
+
+    items = add_to_items(
+        config,
+        MagicMock(),
+        [],
+        ["asset-new"],
+        "ts:1",
+        config.data.entity_view.as_view_id(),
+        existing,
+        entity_space="inst_ts",
+        target_spaces={"asset-keep": "inst_asset", "asset-new": "inst_asset"},
+    )
+
+    assert {link.external_id: link.space for link in _links(items[0])} == {
+        "asset-keep": "inst_asset",
+        "asset-new": "inst_asset",
+    }
+
+
 def test_clean_links_resets_the_entity_in_its_own_space() -> None:
     """Clearing links must target the existing node, not a new one in another space."""
     config = _config("inst_asset", ["inst_ts_pi", "inst_ts_sap"])

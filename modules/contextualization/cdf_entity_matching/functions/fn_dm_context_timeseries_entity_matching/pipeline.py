@@ -192,6 +192,8 @@ def entity_matching(
 
         with time_operation("Read new entities", logger):
             logger.info("Read new entities (ex: time series) that has been updated since last run")
+            # Only manual mappings have run, and those carry the space of the node they
+            # were read from - unlike matches from the matching API, where it can be None.
             matched_entities = [instance_key(match[KEY_ENTITY_SPACE], match[KEY_ENTITY_EXT_ID]) for match in good_matches]
             new_entities = get_new_entities(client, config, logger, matched_entities, rule_mappings)
         monitor_memory_usage(logger, "After new entities loaded")
@@ -1359,6 +1361,14 @@ def add_to_items(
         # The string round-trips through the matching API, so a JSON null reaching this
         # point cannot be ruled out - `or []` keeps that from breaking the write.
         for target in json.loads(entity_targets) or []:
+            if PROP_COL_EXTERNAL_ID not in target or PROP_COL_SPACE not in target:
+                # This list replaces the whole link property, so skipping drops the link
+                # from the entity - never silently.
+                logger.warning(
+                    f"Existing link on entity: {entity_ext_id} is missing "
+                    f"{PROP_COL_EXTERNAL_ID} or {PROP_COL_SPACE} - dropping it: {target}"
+                )
+                continue
             # The target view is authoritative; the link's own space is only a fallback
             # for targets outside the current target set.
             targets.append(
@@ -1472,7 +1482,7 @@ def raw_row_key(config: Config, match: dict[str, Any]) -> str:
     external_id = str(match[KEY_ENTITY_EXT_ID])
     if len(config.data.entity_view.instance_spaces) < 2:
         return external_id
-    return f"{match.get(KEY_ENTITY_SPACE, '')}:{external_id}"
+    return f"{match.get(KEY_ENTITY_SPACE) or ''}:{external_id}"
 
 
 def write_mapping_to_raw(
