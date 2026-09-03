@@ -502,7 +502,10 @@ def apply_manual_mappings(
                     _retry_apply(client, logger, clean_target_list)
                     clean_target_list = []
 
-                    logger.info(f"==> Mapping table based matching - Adding batch of {len(item_update)} items to data model, total count/matches: {cnt} / {len(manual_mappings)}")
+                    logger.info(
+                        f"==> Mapping table based matching - Adding batch of {len(item_update)} items "
+                        f"to data model, total count/matches: {cnt} / {len(manual_mappings)}"
+                    )
                     _retry_apply(client, logger, item_update)
                     item_update = []  # Reset item_update after applying
 
@@ -518,7 +521,10 @@ def apply_manual_mappings(
                 if cnt == 0:
                     logger.info("==> Mapping table based matching - No items added to data model based on new items found and manual mappings")
                 else:
-                    logger.info(f"==> Mapping table based matching - Adding batch of {len(item_update)} items to data model, total count/matches: {cnt} / {len(manual_mappings)}")
+                    logger.info(
+                        f"==> Mapping table based matching - Adding batch of {len(item_update)} items "
+                        f"to data model, total count/matches: {cnt} / {len(manual_mappings)}"
+                    )
 
             raw_uploader.upload()
 
@@ -1192,7 +1198,10 @@ def apply_rule_mappings(
             # holding every update until the end.
             batch_is_full = len(item_update) >= BATCH_SIZE_API_SUBMIT
             if not config.parameters.debug and config.parameters.dm_update and batch_is_full:
-                logger.info(f"==> Rule based matching - Adding batch of {len(item_update)} items to data model, total count/matches: {cnt} / {len(matches)}")
+                logger.info(
+                    f"==> Rule based matching - Adding batch of {len(item_update)} items to data model, "
+                    f"total count/matches: {cnt} / {len(matches)}"
+                )
                 _retry_apply(client, logger, item_update)
                 item_update = []  # Reset item_update after applying
 
@@ -1203,7 +1212,10 @@ def apply_rule_mappings(
             if cnt == 0:
                 logger.info("==> Rule based matching - No items added to data model based on new items found and rule based mappings")
             else:
-                logger.info(f"==> Rule based matching - Adding batch of {len(item_update)} items to data model, total count/matches: {cnt} / {len(matches)}")
+                logger.info(
+                    f"==> Rule based matching - Adding batch of {len(item_update)} items to data model, "
+                    f"total count/matches: {cnt} / {len(matches)}"
+                )
 
         return good_matches, len(matches)
 
@@ -1307,7 +1319,10 @@ def select_and_apply_matches(
             # holding every update until the end.
             batch_is_full = len(item_update) >= BATCH_SIZE_API_SUBMIT
             if not config.parameters.debug and config.parameters.dm_update and batch_is_full:
-                logger.info(f"==> Entity matching - Adding batch of {len(item_update)} items to data model, total count/matches: {cnt} / {len(new_good_matches)}")
+                logger.info(
+                    f"==> Entity matching - Adding batch of {len(item_update)} items to data model, "
+                    f"total count/matches: {cnt} / {len(new_good_matches)}"
+                )
                 _retry_apply(client, logger, item_update)
                 item_update = []  # Reset item_update after applying
 
@@ -1316,7 +1331,10 @@ def select_and_apply_matches(
             if cnt == 0:
                 logger.info("==> Entity matching - No items added to data model based on new items found and entity matching")
             else:
-                logger.info(f"==> Entity matching - Adding batch of {len(item_update)} items to data model, total count/matches: {cnt} / {len(new_good_matches)}")
+                logger.info(
+                    f"==> Entity matching - Adding batch of {len(item_update)} items to data model, "
+                    f"total count/matches: {cnt} / {len(new_good_matches)}"
+                )
 
 
         return good_matches + new_good_matches, bad_matches, len(new_good_matches)
