@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock
 
+import pytest
 from cognite.client.data_classes.data_modeling import DirectRelationReference, NodeApply
 
 sys.path.append(str(Path(__file__).parent))
@@ -564,10 +565,16 @@ def test_space_from_target_view_wins_over_link() -> None:
 
 
 def test_incomplete_links_are_ignored() -> None:
-    """Links without both space and externalId carry no usable space."""
+    """Links that are not a complete space/externalId object carry no usable space."""
     target_spaces: dict[str, str] = {}
+    links: list[Any] = [
+        "not-a-link",
+        42,
+        {"externalId": "23-KA-9101"},
+        {"space": "inst_asset_sap"},
+    ]
 
-    remember_link_spaces(target_spaces, [{"externalId": "23-KA-9101"}, {"space": "inst_asset_sap"}])
+    remember_link_spaces(target_spaces, links)
 
     assert target_spaces == {}
 
@@ -734,6 +741,14 @@ def test_manually_matched_entity_does_not_block_its_twin() -> None:
 
     assert count == 1
     assert [item.space for item in _applied(client)] == ["inst_ts_sap"]
+
+
+def test_unreadable_match_results_fail_the_run() -> None:
+    """A parse failure must fail the run rather than read back as "nothing matched"."""
+    config = _config("inst_asset", "inst_ts")
+
+    with pytest.raises(KeyError):
+        select_and_apply_matches(MagicMock(), config, MagicMock(), [], [{"unexpected": "shape"}])
 
 
 def test_raw_report_keeps_a_row_per_space() -> None:

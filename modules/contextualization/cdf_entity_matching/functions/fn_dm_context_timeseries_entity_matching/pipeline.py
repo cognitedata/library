@@ -746,6 +746,10 @@ def fetch_instances_by_space(
                     limit=batch_size,
                 )
                 break
+            # Deliberately broad: `is_retryable` decides what is worth another attempt,
+            # and everything else is logged with the space and cursor - the only record of
+            # where a long paging run died - and re-raised unchanged. Narrowing the catch
+            # to Cognite errors would let read timeouts escape without that context.
             except Exception as e:
                 if retry >= max_page_retries or not is_retryable(e):
                     logger.error(
@@ -1313,8 +1317,10 @@ def select_and_apply_matches(
         return good_matches + new_good_matches, bad_matches, len(new_good_matches)
 
     except Exception as e:
-        print(f"ERROR: Failed to parse results from entity matching - error: {type(e)}({e})")
-        return good_matches, [], len(new_good_matches)  # type: ignore
+        # Reporting no matches here would be indistinguishable from a run that genuinely
+        # found none, so let the caller mark the pipeline run failed.
+        logger.error(f"Failed to parse results from entity matching - error: {type(e)}({e})")
+        raise
 
 def remember_link_spaces(target_spaces: dict[str, str], links: list[dict[str, str]]) -> None:
     """Record the space each existing target link points into.
@@ -1324,7 +1330,7 @@ def remember_link_spaces(target_spaces: dict[str, str], links: list[dict[str, st
     moved. Spaces read from the target view win, hence `setdefault` rather than assignment.
     """
     for link in links:
-        if PROP_COL_EXTERNAL_ID in link and PROP_COL_SPACE in link:
+        if isinstance(link, dict) and PROP_COL_EXTERNAL_ID in link and PROP_COL_SPACE in link:
             target_spaces.setdefault(link[PROP_COL_EXTERNAL_ID], link[PROP_COL_SPACE])
 
 
