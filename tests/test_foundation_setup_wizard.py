@@ -308,7 +308,7 @@ class TestBuildFoundationVars:
         vars_ = build_foundation_vars("isa_manufacturing_extension", "dev", "oslo")
         assert vars_["dataModelVariant"] == "isa_manufacturing_extension"
         assert vars_["schemaSpace"] == "dm_dom_isa_manufacturing"
-        assert vars_["instanceSpace"] == "inst_isa_manufacturing"
+        assert vars_["instanceSpace"] == "inst_oslo_isa_manufacturing"
         assert vars_["site"] == "oslo"
         assert vars_["consumerGroupName"] == "consumer_oslo_all_dev"
         assert vars_["producerGroupName"] == "producer_oslo_all_dev"
@@ -333,7 +333,7 @@ class TestBuildFoundationVars:
         from setup_project import build_foundation_vars
         vars_ = build_foundation_vars("cfihos_oil_and_gas_extension", "prod", "")
         assert vars_["schemaSpace"] == "dm_dom_oil_and_gas"
-        assert vars_["instanceSpace"] == "inst_location"
+        assert vars_["instanceSpace"] == "inst_cfihos_oil_and_gas"
 
     def test_cfihos_variant_dataset_includes_dm_dataset(self) -> None:
         """Demo DP always uses this variant — cfihos_oil_and_gas_extension's own
@@ -370,6 +370,16 @@ class TestBuildFoundationVars:
         from setup_project import build_foundation_vars
         vars_ = build_foundation_vars("cdm", "dev", "oslo")
         assert vars_["instanceSpace"] == "sp_oslo_instances"
+
+    def test_isa_variant_instance_space_falls_back_without_site(self) -> None:
+        from setup_project import build_foundation_vars
+        vars_ = build_foundation_vars("isa_manufacturing_extension", "dev", "")
+        assert vars_["instanceSpace"] == "inst_isa_manufacturing"
+
+    def test_cfihos_variant_instance_space_derived_from_site(self) -> None:
+        from setup_project import build_foundation_vars
+        vars_ = build_foundation_vars("cfihos_oil_and_gas_extension", "dev", "oslo")
+        assert vars_["instanceSpace"] == "inst_oslo_cfihos_oil_and_gas"
 
     def test_additional_schema_spaces_present_for_every_variant(self) -> None:
         """additionalSchemaSpaces backs producer.Group.yaml's second dataModelsAcl
@@ -429,13 +439,39 @@ class TestCdmInstanceSpace:
         assert _cdm_instance_space("") == "sp_cdm_instances"
 
 
+class TestCfihosInstanceSpace:
+    def test_uses_site_when_set(self) -> None:
+        from setup_project import _cfihos_instance_space
+        assert _cfihos_instance_space("oslo") == "inst_oslo_cfihos_oil_and_gas"
+
+    def test_falls_back_to_static_placeholder_when_site_blank(self) -> None:
+        from setup_project import _cfihos_instance_space
+        assert _cfihos_instance_space("") == "inst_cfihos_oil_and_gas"
+
+
+class TestIsaInstanceSpace:
+    def test_uses_site_when_set(self) -> None:
+        from setup_project import _isa_instance_space
+        assert _isa_instance_space("oslo") == "inst_oslo_isa_manufacturing"
+
+    def test_falls_back_to_static_placeholder_when_site_blank(self) -> None:
+        from setup_project import _isa_instance_space
+        assert _isa_instance_space("") == "inst_isa_manufacturing"
+
+
 class TestBuildOverlay:
     def test_isa_overlay_structure(self) -> None:
         from setup_project import build_overlay
         overlay = build_overlay("isa_manufacturing_extension", "dev", "", [])
         mods = overlay["variables"]["modules"]
         assert "cdf_project_foundation" in mods
-        assert "isa_manufacturing_extension" not in mods
+        assert mods["isa_manufacturing_extension"]["instance_space"] == "inst_isa_manufacturing"
+
+    def test_isa_overlay_instance_space_derived_from_site(self) -> None:
+        from setup_project import build_overlay
+        overlay = build_overlay("isa_manufacturing_extension", "dev", "oslo", [])
+        mods = overlay["variables"]["modules"]
+        assert mods["isa_manufacturing_extension"]["instance_space"] == "inst_oslo_isa_manufacturing"
 
     def test_cfihos_overlay_has_no_isa_keys(self) -> None:
         from setup_project import build_overlay
@@ -444,7 +480,7 @@ class TestBuildOverlay:
         dm = mods["cfihos_oil_and_gas_extension"]
         assert "isaSchemaSpace" not in dm
         assert "isaInstanceSpace" not in dm
-        assert dm["instance_space"] == "inst_location"
+        assert dm["instance_space"] == "inst_cfihos_oil_and_gas"
         assert dm["environment"] == "dev"
 
     def test_cfihos_search_module_added_when_present(self, tmp_path: Path) -> None:
@@ -457,7 +493,27 @@ class TestBuildOverlay:
         )
         mods = overlay["variables"]["modules"]
         assert "cfihos_oil_and_gas_extension_search" in mods
-        assert mods["cfihos_oil_and_gas_extension_search"]["instance_space"] == "inst_location"
+        assert mods["cfihos_oil_and_gas_extension_search"]["instance_space"] == "inst_cfihos_oil_and_gas"
+
+    def test_cfihos_search_module_instance_space_derived_from_site(self, tmp_path: Path) -> None:
+        from setup_project import build_overlay
+        search_dir = tmp_path / "modules" / "datamodels" / "cfihos_oil_and_gas_extension_search"
+        search_dir.mkdir(parents=True)
+        overlay = build_overlay(
+            "cfihos_oil_and_gas_extension", "dev", "oslo", [], repo_root=tmp_path
+        )
+        mods = overlay["variables"]["modules"]
+        assert mods["cfihos_oil_and_gas_extension_search"]["instance_space"] == "inst_oslo_cfihos_oil_and_gas"
+
+    def test_isa_search_module_instance_space_derived_from_site(self, tmp_path: Path) -> None:
+        from setup_project import build_overlay
+        search_dir = tmp_path / "modules" / "datamodels" / "isa_manufacturing_extension_search"
+        search_dir.mkdir(parents=True)
+        overlay = build_overlay(
+            "isa_manufacturing_extension", "dev", "oslo", [], repo_root=tmp_path
+        )
+        mods = overlay["variables"]["modules"]
+        assert mods["isa_manufacturing_extension_search"]["instance_space"] == "inst_oslo_isa_manufacturing"
 
     def test_cfihos_search_module_absent_when_not_installed(self, tmp_path: Path) -> None:
         from setup_project import build_overlay
@@ -732,7 +788,7 @@ class TestModuleInstanceSpace:
         # Use tmp_path as repo_root so no SS modules are found
         overlay = build_overlay("isa_manufacturing_extension", "dev", "oslo", [], repo_root=tmp_path)
         pf = overlay["variables"]["modules"]["cdf_project_foundation"]
-        assert pf["instanceSpaces"] == ["inst_isa_manufacturing"]
+        assert pf["instanceSpaces"] == ["inst_oslo_isa_manufacturing"]
 
     def test_build_overlay_instancespaces_with_ss_modules(self, tmp_path: Path) -> None:
         from setup_project import build_overlay
@@ -744,7 +800,7 @@ class TestModuleInstanceSpace:
             "isa_manufacturing_extension", "dev", "oslo", [], repo_root=tmp_path
         )
         pf = overlay["variables"]["modules"]["cdf_project_foundation"]
-        assert "inst_isa_manufacturing" in pf["instanceSpaces"]
+        assert "inst_oslo_isa_manufacturing" in pf["instanceSpaces"]
         assert "sp_oslo_sap" in pf["instanceSpaces"]
         assert "sp_oslo_pi" in pf["instanceSpaces"]
         assert len(pf["instanceSpaces"]) == 3
@@ -753,8 +809,14 @@ class TestModuleInstanceSpace:
         from setup_project import build_overlay
         overlay = build_overlay("cfihos_oil_and_gas_extension", "dev", "oslo", [], repo_root=tmp_path)
         pf = overlay["variables"]["modules"]["cdf_project_foundation"]
-        # CFIHOS uses inst_location as project-level space
-        assert pf["instanceSpaces"] == ["inst_location"]
+        # CFIHOS's project-level space is site-derived, same as ISA.
+        assert pf["instanceSpaces"] == ["inst_oslo_cfihos_oil_and_gas"]
+
+    def test_build_overlay_instancespaces_cfihos_variant_no_site(self, tmp_path: Path) -> None:
+        from setup_project import build_overlay
+        overlay = build_overlay("cfihos_oil_and_gas_extension", "dev", "", [], repo_root=tmp_path)
+        pf = overlay["variables"]["modules"]["cdf_project_foundation"]
+        assert pf["instanceSpaces"] == ["inst_cfihos_oil_and_gas"]
 
 
 # ── setup_project — config file writers ───────────────────────────────────────
@@ -2225,7 +2287,7 @@ class TestStaleKeyRemoval:
                 cfihos_oil_and_gas_extension:
                   owner_source_id: abc123
                   read_source_id: xyz789
-                  instance_space: inst_location
+                  instance_space: inst_cfihos_oil_and_gas
                   environment: dev
         """))
         overlay = build_overlay("cfihos_oil_and_gas_extension", "dev", "", [])

@@ -86,6 +86,12 @@ schemaSpace: cdf_cdm
 annotationSpace: springfield_instances
 ```
 
+   Name instance-space defaults after the domain or data model they belong to (e.g.
+   `inst_isa_manufacturing`, `inst_cfihos_oil_and_gas`), not a generic term like
+   `inst_location` — a generic name reads as a leftover template placeholder rather
+   than an intentional value, and makes it harder to tell which module owns a space
+   when several are deployed together.
+
 5. **If the module has a `raw/` directory, give every RAW database its own `.Database.yaml`** — every `dbName` referenced by a `*.Table.yaml` file must have a matching `<name>.Database.yaml` file **in the same module's `raw/` directory**. The Cognite Toolkit only creates RAW databases from `*.Database.yaml` files, and RAW tables depend on their database, so a module that references a database declared only in a *different* module fails at `cdf deploy` with a "DB not found" error the moment someone deploys it on its own (deployment packs are independently selectable — don't assume a sibling module is always deployed alongside it). `validate_packages.py` enforces this automatically; run it after touching any `raw/` file.
 
 6. **Reference shared assets with `[[extra_resources]]`** — only when files live **outside** the module folder. Each `location` is relative to `modules/`. Prefer keeping assets inside the module when possible; use `extra_resources` for shared YAML under `common/cdf_common` and similar. `validate_packages.py` fails if a path does not exist.

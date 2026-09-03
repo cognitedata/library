@@ -103,7 +103,7 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
             }
         }
 
-        result = self.processor.process_timeseries_metadata(node, self.view_id, "inst_location")
+        result = self.processor.process_timeseries_metadata(node, self.view_id, "inst_cfihos_oil_and_gas")
 
         self.assertIsNotNone(result)
         properties = result.sources[0].properties
@@ -127,7 +127,7 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
             }
         }
 
-        result = self.processor.process_timeseries_metadata(node, self.view_id, "inst_location")
+        result = self.processor.process_timeseries_metadata(node, self.view_id, "inst_cfihos_oil_and_gas")
         self.assertIsNone(result)
 
         print("✅ Timeseries skip unchanged aliases test passed")
@@ -146,7 +146,7 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
         }
 
         result = self.processor.process_timeseries_metadata(
-            node, self.view_id, "inst_location", update_all=True
+            node, self.view_id, "inst_cfihos_oil_and_gas", update_all=True
         )
 
         self.assertIsNotNone(result)
@@ -171,7 +171,7 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
         }
 
         result = self.processor.process_timeseries_metadata(
-            node, self.view_id, "inst_location", update_all=True
+            node, self.view_id, "inst_cfihos_oil_and_gas", update_all=True
         )
 
         self.assertIsNotNone(result)
@@ -196,7 +196,7 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
         }
 
         result = self.processor.process_timeseries_metadata(
-            node, self.view_id, "inst_location", update_all=True
+            node, self.view_id, "inst_cfihos_oil_and_gas", update_all=True
         )
 
         self.assertIsNotNone(result)
@@ -216,12 +216,12 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
                 "name": "23-KA-9101",
                 "aliases": ["operator note", "11_PT_2222", "spare for 23-AB-1234"],
                 "tags": ["discipline:KA", "tag", "root:old_root"],
-                "root": {"space": "inst_location", "externalId": "VAL-PH"},
+                "root": {"space": "inst_cfihos_oil_and_gas", "externalId": "VAL-PH"},
             }
         }
 
         result = self.processor.process_asset_metadata(
-            node, asset_view_id, "inst_location", update_all=True
+            node, asset_view_id, "inst_cfihos_oil_and_gas", update_all=True
         )
 
         self.assertIsNotNone(result)
@@ -249,12 +249,12 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
                 "name": "23-KA-9101",
                 "aliases": ["23_KA_9101"],
                 "tags": ["discipline:KA", "root:VAL-PH"],
-                "root": {"space": "inst_location", "externalId": "VAL-PH"},
+                "root": {"space": "inst_cfihos_oil_and_gas", "externalId": "VAL-PH"},
             }
         }
 
         result = self.processor.process_asset_metadata(
-            node, asset_view_id, "inst_location", update_all=True
+            node, asset_view_id, "inst_cfihos_oil_and_gas", update_all=True
         )
 
         self.assertIsNotNone(result)
@@ -276,12 +276,12 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
                 "name": "23-KA-9101",
                 "aliases": ["23_KA_9101"],
                 "tags": ["discipline:KA"],
-                "root": {"space": "inst_location", "externalId": "VAL-PH"},
+                "root": {"space": "inst_cfihos_oil_and_gas", "externalId": "VAL-PH"},
             }
         }
 
         result = self.processor.process_asset_metadata(
-            node, asset_view_id, "inst_location", update_all=False
+            node, asset_view_id, "inst_cfihos_oil_and_gas", update_all=False
         )
 
         self.assertIsNotNone(result)
@@ -302,12 +302,12 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
                 "name": "23-KA-9101",
                 "aliases": ["23_KA_9101"],
                 "tags": ["root:OLD-PH", "discipline:KA"],
-                "root": {"space": "inst_location", "externalId": "VAL-PH"},
+                "root": {"space": "inst_cfihos_oil_and_gas", "externalId": "VAL-PH"},
             }
         }
 
         result = self.processor.process_asset_metadata(
-            node, asset_view_id, "inst_location", update_all=False
+            node, asset_view_id, "inst_cfihos_oil_and_gas", update_all=False
         )
 
         self.assertIsNotNone(result)
@@ -333,7 +333,7 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
         }
 
         result = self.processor.process_asset_metadata(
-            node, asset_view_id, "inst_location", update_all=False
+            node, asset_view_id, "inst_cfihos_oil_and_gas", update_all=False
         )
 
         self.assertIsNotNone(result)
@@ -353,12 +353,12 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
                 "name": "23-KA-9101",
                 "aliases": ["23_KA_9101"],
                 "tags": ["root:VAL-PH", "discipline:KA"],
-                "root": {"space": "inst_location", "externalId": "VAL-PH"},
+                "root": {"space": "inst_cfihos_oil_and_gas", "externalId": "VAL-PH"},
             }
         }
 
         result = self.processor.process_asset_metadata(
-            node, asset_view_id, "inst_location", update_all=False
+            node, asset_view_id, "inst_cfihos_oil_and_gas", update_all=False
         )
 
         self.assertIsNone(result)
@@ -405,7 +405,7 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
         node.properties = {other_view_id: {"name": "23-KA-9101"}}
 
         result = self.processor.process_asset_metadata(
-            node, asset_view_id, "inst_location", update_all=True
+            node, asset_view_id, "inst_cfihos_oil_and_gas", update_all=True
         )
 
         self.assertIsNone(result)
@@ -421,7 +421,7 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
         node.properties = {self.view_id: {}}
 
         result = self.processor.process_timeseries_metadata(
-            node, self.view_id, "inst_location", update_all=True
+            node, self.view_id, "inst_cfihos_oil_and_gas", update_all=True
         )
 
         self.assertIsNone(result)
@@ -438,7 +438,7 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
         node.properties = None
 
         result = self.processor.process_asset_metadata(
-            node, asset_view_id, "inst_location", update_all=True
+            node, asset_view_id, "inst_cfihos_oil_and_gas", update_all=True
         )
 
         self.assertIsNone(result)
@@ -454,7 +454,7 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
         node.properties = None
 
         result = self.processor.process_timeseries_metadata(
-            node, self.view_id, "inst_location", update_all=True
+            node, self.view_id, "inst_cfihos_oil_and_gas", update_all=True
         )
 
         self.assertIsNone(result)

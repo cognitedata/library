@@ -119,7 +119,6 @@ cdf_entity_matching/
 ```yaml
 # Core Settings
 function_version: v1.0.0
-organization: ORG
 location_name: Springfield  # Update to your location
 source_name: springfield    # Update to your source system, e.g. 'workmate', 'sap'
 
@@ -255,7 +254,6 @@ variables:
   modules:
     cdf_entity_matching:
       function_version: v1.0.0
-      organization: YOUR_ORG
       location_name: Your Location
       source_name: your_source
       dbName: db_asset_entity_matching

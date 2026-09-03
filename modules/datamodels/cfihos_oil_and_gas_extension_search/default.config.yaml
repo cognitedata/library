@@ -14,7 +14,7 @@ enterprise_dm_version: v1                      # Enterprise view version (used o
 
 # Search solution spaces
 search_space: "dm_sol_oil_and_gas_search"     # Space for the search solution model and its Search* views
-instance_space: "inst_location"                # Shared instance space (must match enterprise instance_space)
+instance_space: "inst_cfihos_oil_and_gas"                # Shared instance space (must match enterprise instance_space)
 
 # Search solution data model
 search_dm_version: v1

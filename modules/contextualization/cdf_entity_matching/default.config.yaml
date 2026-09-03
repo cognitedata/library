@@ -1,4 +1,3 @@
-organization: ORG
 function_version: v1.0.0
 # Update your location
 location_name: Springfield
@@ -11,15 +10,9 @@ contextualizationId: entity_matcher
 contextualizationName: Entity Matcher
 schemaSpace: cdf_cdm
 viewVersion: v1
-# A single space, or a YAML list of spaces when instances are spread across several spaces
-assetInstanceSpace: inst_location
-timeseriesInstanceSpace: inst_location
-# Space for this module's own nodes - function code, source system, match type.
-# Created by this module.
-functionSpace: sp_entity_matching_fn
-# The view external IDs must exist in schemaSpace above. CogniteAsset and
-# CogniteTimeSeries live in cdf_cdm only - in the CFIHOS example data model
-# (dm_dom_oil_and_gas) use Tag and TimeSeriesData, which implement them.
+assetInstanceSpace: inst_cfihos_oil_and_gas
+timeseriesInstanceSpace: inst_cfihos_oil_and_gas
+functionSpace: sp_entity_matching_fn # space where function code nodes are stored — created by this module
 AssetViewExternalId: CogniteAsset
 TimeSeriesViewExternalId: CogniteTimeSeries
 targetViewExternalId: CogniteAsset

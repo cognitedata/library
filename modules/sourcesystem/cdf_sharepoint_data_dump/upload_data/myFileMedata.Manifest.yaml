@@ -7,7 +7,7 @@ viewId:
   version: v1
 template:
   instanceId:
-    space: inst_location
+    space: inst_cfihos_oil_and_gas
     externalId: file_$FILENAME
   name: $FILENAME
   mimeType: application/pdf
