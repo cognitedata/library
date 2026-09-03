@@ -370,6 +370,29 @@ def test_target_missing_view_properties_is_skipped() -> None:
     assert "asset-empty" in warned
 
 
+def test_entity_missing_view_properties_is_skipped() -> None:
+    """A node without the entity view payload must not abort the rest of the run."""
+    config = _config("inst_asset", "inst_ts")
+    view_id = config.data.entity_view.as_view_id()
+    other_view_id = config.data.target_view.as_view_id()
+    client = MagicMock()
+    logger = MagicMock()
+    client.data_modeling.instances.list.return_value = [
+        Instance("inst_ts", "ts-none", None),
+        Instance("inst_ts", "ts-other", {other_view_id: {PROP_COL_NAME: "other"}}),
+        Instance("inst_ts", "ts-empty", {view_id: {}}),
+        _entity(view_id, "inst_ts", "ts-ok"),
+    ]
+
+    entities = get_new_entities(client, config, logger)
+
+    assert [entity[KEY_ENTITY_EXT_ID] for entity in entities] == ["ts-ok"]
+    warned = " ".join(call[0][0] for call in logger.warning.call_args_list)
+    assert "ts-none" in warned
+    assert "ts-other" in warned
+    assert "ts-empty" in warned
+
+
 # --- Empty search property ------------------------------------------------------------
 # An unset property is left out of the response, but an empty one is not. Both carry
 # nothing to match on, so both fall back to the name instead of dropping the instance or
@@ -533,6 +556,48 @@ def test_null_existing_links_do_not_break_the_write() -> None:
     )
 
     assert [link.external_id for link in _links(items[0])] == ["asset-a"]
+
+
+def test_invalid_json_existing_links_do_not_break_the_write() -> None:
+    """A truncated or non-JSON string from the matching API must not abort the write."""
+    logger = MagicMock()
+    config = _config("inst_asset", "inst_ts")
+
+    items = add_to_items(
+        config,
+        logger,
+        [],
+        ["asset-a"],
+        "ts:1",
+        config.data.entity_view.as_view_id(),
+        "{not-json",
+    )
+
+    assert [link.external_id for link in _links(items[0])] == ["asset-a"]
+    assert any("ts:1" in call[0][0] for call in logger.warning.call_args_list)
+
+
+def test_existing_links_as_a_list_are_applied() -> None:
+    """The matching API may echo existing links already parsed, not as a JSON string."""
+    config = _config("inst_asset", "inst_ts")
+    existing = [{"space": "inst_asset", "externalId": "asset-old"}]
+
+    items = add_to_items(
+        config,
+        MagicMock(),
+        [],
+        ["asset-new"],
+        "ts:1",
+        config.data.entity_view.as_view_id(),
+        existing,
+        entity_space="inst_ts",
+        target_spaces={"asset-old": "inst_asset", "asset-new": "inst_asset"},
+    )
+
+    assert {link.external_id: link.space for link in _links(items[0])} == {
+        "asset-old": "inst_asset",
+        "asset-new": "inst_asset",
+    }
 
 
 def test_incomplete_existing_links_are_skipped_on_write() -> None:

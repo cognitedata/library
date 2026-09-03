@@ -5,6 +5,7 @@ malformed filter is not - the identical request fails again - so it must surface
 instead of burning the whole backoff schedule.
 """
 
+import json
 import sys
 from pathlib import Path
 from typing import Any
@@ -72,6 +73,29 @@ def test_rate_limiting_is_retried() -> None:
 def test_server_error_is_retried() -> None:
     client = MagicMock()
     client.data_modeling.instances.list.side_effect = [CogniteAPIError("Service unavailable", code=503), []]
+
+    assert _fetch(client) == []
+    assert client.data_modeling.instances.list.call_count == 2
+
+
+def test_a_bug_in_the_fetch_is_not_retried() -> None:
+    """A KeyError is our own mistake - it fails identically every time."""
+    client = MagicMock()
+    client.data_modeling.instances.list.side_effect = KeyError("space")
+
+    with pytest.raises(KeyError):
+        _fetch(client)
+
+    assert client.data_modeling.instances.list.call_count == 1
+
+
+def test_a_truncated_response_is_retried() -> None:
+    """A half-read body raises JSONDecodeError, a ValueError - and reading again may work.
+
+    This is why ValueError as a whole is not treated as a permanent failure.
+    """
+    client = MagicMock()
+    client.data_modeling.instances.list.side_effect = [json.JSONDecodeError("Expecting value", "", 0), []]
 
     assert _fetch(client) == []
     assert client.data_modeling.instances.list.call_count == 2

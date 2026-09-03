@@ -696,11 +696,13 @@ def is_retryable(error: Exception) -> bool:
     request itself is wrong, so repeating it only delays the failure. Rate limiting and
     server-side errors are transient, as is anything the SDK re-raises unclassified from
     its transport layer, which is why the default is to retry. Bugs in this function are
-    the exception: they fail the same way every time.
+    the exception: they fail the same way every time. ValueError is deliberately not one
+    of them - it covers JSONDecodeError, which a half-read response raises and a second
+    read can clear.
     """
     if isinstance(error, CogniteAPIError):
         return error.code == 429 or error.code >= 500
-    return not isinstance(error, (TypeError, AttributeError, NameError))
+    return not isinstance(error, (TypeError, AttributeError, NameError, KeyError, IndexError))
 
 
 def fetch_instances_by_space(
@@ -929,8 +931,12 @@ def get_new_entities(
         if instance_key(entity.space, entity.external_id) in matched_entities:
             logger.debug(f"Entity: {entity.external_id} in {entity.space} just matched, skipping")
             continue
+        properties = entity.properties.get(entity_view_id) if entity.properties else None
+        if not properties or PROP_COL_NAME not in properties:
+            logger.warning(f"Entity: {entity.external_id} is missing properties or name, skipping")
+            continue
         # Rule based matching uses the name property to match entities to targets
-        org_name = str(entity.properties[entity_view_id][PROP_COL_NAME])
+        org_name = str(properties[PROP_COL_NAME])
 
         rule_keys = []
         if rule_mappings:
@@ -950,13 +956,13 @@ def get_new_entities(
             # Keep old target links. An entity that has never been linked either omits the
             # property or reads back as None; both would serialise to JSON null and break
             # len() in the consumers.
-            targets = entity.properties[entity_view_id].get(PROP_COL_LINK_NAME) or []
+            targets = properties.get(PROP_COL_LINK_NAME) or []
         else:
             item_update = clean_links(config, entity.space, entity.external_id, item_update)
 
         # add entities for files used to match between file references in P&ID to other files
         search_prop = entity_view_config.search_property
-        entity_names = match_values(entity.properties[entity_view_id], search_prop, org_name)
+        entity_names = match_values(properties, search_prop, org_name)
         for entity_name in entity_names: 
             
             entities_source.append(
@@ -1382,7 +1388,7 @@ def add_to_items(
     target_ext_ids: list[str],
     entity_ext_id: str,
     entity_view_id: dm.ViewId,
-    entity_targets: str | None = None,
+    entity_targets: str | list[Any] | None = None,
     entity_space: str | None = None,
     target_spaces: dict[str, str] | None = None,
 ) -> list[NodeApply]:
@@ -1418,9 +1424,15 @@ def add_to_items(
     targets = []
 
     if entity_targets:
-        # The string round-trips through the matching API, so a JSON null reaching this
-        # point cannot be ruled out - `or []` keeps that from breaking the write.
-        for target in json.loads(entity_targets) or []:
+        # The string round-trips through the matching API, so a JSON null or an already
+        # parsed list reaching this point cannot be ruled out.
+        try:
+            targets_list = json.loads(entity_targets) if isinstance(entity_targets, str) else entity_targets
+        except (json.JSONDecodeError, TypeError):
+            logger.warning(f"Failed to parse existing targets for entity: {entity_ext_id}")
+            targets_list = []
+
+        for target in targets_list or []:
             if not isinstance(target, dict) or PROP_COL_EXTERNAL_ID not in target or PROP_COL_SPACE not in target:
                 # This list replaces the whole link property, so skipping drops the link
                 # from the entity - never silently.
