@@ -775,3 +775,41 @@ def test_raw_report_row_key_is_the_external_id_with_one_space() -> None:
     write_mapping_to_raw(MagicMock(), config, raw_uploader, good_matches, [], MagicMock())
 
     assert [call.args[2].key for call in raw_uploader.add_to_upload_queue.call_args_list] == ["pi:1"]
+
+
+# --- Batched writes -------------------------------------------------------------------
+# Node updates are flushed every BATCH_SIZE_API_SUBMIT items so a long run makes
+# incremental progress instead of holding every update until the end.
+
+
+def _applied_batch_sizes(client: MagicMock) -> list[int]:
+    """How many nodes went out in each call to instances.apply."""
+    return [len(call.args[0]) for call in client.data_modeling.instances.apply.call_args_list]
+
+
+def test_rule_matches_are_written_in_capped_batches(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The batch counter has to advance with the write loop, not sit at a constant."""
+    monkeypatch.setattr("pipeline.BATCH_SIZE_API_SUBMIT", 2)
+    config = _config("inst_asset", "inst_ts")
+    client = MagicMock()
+    targets = [_target_record("inst_asset", f"asset-{idx}", [f"k{idx}"]) for idx in range(3)]
+    entities = [_entity_record("inst_ts", f"ts:{idx}", [f"k{idx}"]) for idx in range(3)]
+
+    apply_rule_mappings(client, config, MagicMock(), [], targets, entities)
+
+    assert _applied_batch_sizes(client) == [2, 1]
+
+
+def test_ml_matches_are_written_in_capped_batches(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The same counter mistake sat in the matching-model write loop."""
+    monkeypatch.setattr("pipeline.BATCH_SIZE_API_SUBMIT", 2)
+    config = _config("inst_asset", "inst_ts")
+    client = MagicMock()
+    match_results = [
+        _match_result("inst_ts", f"ts:{idx}", _target_record("inst_asset", f"asset-{idx}"), 0.95)
+        for idx in range(3)
+    ]
+
+    select_and_apply_matches(client, config, MagicMock(), [], match_results)
+
+    assert _applied_batch_sizes(client) == [2, 1]

@@ -1108,8 +1108,9 @@ def apply_rule_mappings(
         # we use a set of unique pairs.
         unique_matches_tracker = set()
 
+        cnt = len(new_entities)
+
         for d2 in new_entities:
-            cnt = len(new_entities)
             if not d2.get(key_field, []):  # Ensure the key_field exists
                 continue  # Skip if no rule keys are present
             set2 = set(d2.get(key_field, [])) # Convert to set once
@@ -1186,9 +1187,11 @@ def apply_rule_mappings(
                                     config.data.entity_view.as_view_id(),
                                     entity_space=entity_space or None,
                                     target_spaces=target_spaces)
-            
-            # Apply the updates to the data model in batches of BATCH_SIZE_API_SUBMIT
-            if not config.parameters.debug and config.parameters.dm_update and cnt % BATCH_SIZE_API_SUBMIT == 0:
+
+            # Flush the queue once it is full, so a long run writes as it goes instead of
+            # holding every update until the end.
+            batch_is_full = len(item_update) >= BATCH_SIZE_API_SUBMIT
+            if not config.parameters.debug and config.parameters.dm_update and batch_is_full:
                 logger.info(f"==> Rule based matching - Adding batch of {len(item_update)} items to data model, total count/matches: {cnt} / {len(matches)}")
                 _retry_apply(client, logger, item_update)
                 item_update = []  # Reset item_update after applying
@@ -1300,8 +1303,10 @@ def select_and_apply_matches(
                                        entity_space=match[KEY_ENTITY_SPACE],
                                        target_spaces={target_ext_id: target_space} if target_space else None)
 
-            # Apply the updates to the data model in batches of BATCH_SIZE_API_SUBMIT
-            if not config.parameters.debug and config.parameters.dm_update and cnt % BATCH_SIZE_API_SUBMIT == 0:
+            # Flush the queue once it is full, so a long run writes as it goes instead of
+            # holding every update until the end.
+            batch_is_full = len(item_update) >= BATCH_SIZE_API_SUBMIT
+            if not config.parameters.debug and config.parameters.dm_update and batch_is_full:
                 logger.info(f"==> Entity matching - Adding batch of {len(item_update)} items to data model, total count/matches: {cnt} / {len(new_good_matches)}")
                 _retry_apply(client, logger, item_update)
                 item_update = []  # Reset item_update after applying
