@@ -410,10 +410,12 @@ def test_null_existing_links_do_not_break_the_write() -> None:
 
 
 def test_incomplete_existing_links_are_skipped_on_write() -> None:
-    """Links missing space or externalId are ignored, matching remember_link_spaces."""
+    """Malformed existing links are dropped; complete ones and new targets still write."""
     config = _config("inst_asset", "inst_ts")
     existing = json.dumps(
         [
+            "not-a-link",
+            42,
             {"externalId": "asset-broken"},
             {"space": "inst_asset"},
             {"space": "inst_asset", "externalId": "asset-keep"},

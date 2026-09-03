@@ -681,11 +681,13 @@ def is_retryable(error: Exception) -> bool:
 
     A client error - a missing view, a rejected filter, missing capabilities - means the
     request itself is wrong, so repeating it only delays the failure. Rate limiting and
-    server-side errors are transient.
+    server-side errors are transient, as is anything the SDK re-raises unclassified from
+    its transport layer, which is why the default is to retry. Bugs in this function are
+    the exception: they fail the same way every time.
     """
     if isinstance(error, CogniteAPIError):
         return error.code == 429 or error.code >= 500
-    return True
+    return not isinstance(error, (TypeError, AttributeError, NameError))
 
 
 def fetch_instances_by_space(
@@ -1369,12 +1371,12 @@ def add_to_items(
         # The string round-trips through the matching API, so a JSON null reaching this
         # point cannot be ruled out - `or []` keeps that from breaking the write.
         for target in json.loads(entity_targets) or []:
-            if PROP_COL_EXTERNAL_ID not in target or PROP_COL_SPACE not in target:
+            if not isinstance(target, dict) or PROP_COL_EXTERNAL_ID not in target or PROP_COL_SPACE not in target:
                 # This list replaces the whole link property, so skipping drops the link
                 # from the entity - never silently.
                 logger.warning(
-                    f"Existing link on entity: {entity_ext_id} is missing "
-                    f"{PROP_COL_EXTERNAL_ID} or {PROP_COL_SPACE} - dropping it: {target}"
+                    f"Existing link on entity: {entity_ext_id} is not a complete "
+                    f"space/externalId object - dropping it: {target}"
                 )
                 continue
             # The target view is authoritative; the link's own space is only a fallback
