@@ -322,6 +322,16 @@ def update_pipeline_run(
 
 
 
+def is_retryable(error: CogniteAPIError) -> bool:
+    """Whether a failed query stands a chance of succeeding on a retry.
+
+    A client error - a missing view, a rejected filter, missing capabilities - means the
+    request itself is wrong, so repeating it only delays the failure. Rate limiting and
+    server-side errors are transient.
+    """
+    return error.code == 429 or error.code >= 500
+
+
 def get_new_items(
     client: CogniteClient,
     logger: CogniteFunctionLogger,
@@ -363,8 +373,8 @@ def get_new_items(
                 return result
                 
             except CogniteAPIError as e:
-                if e.code == 400 and attempt < max_retries - 1:
-                    logger.warning(f"API error (attempt {attempt + 1}): {e}")
+                if is_retryable(e) and attempt < max_retries - 1:
+                    logger.warning(f"Transient API error (attempt {attempt + 1}): {e}")
                     continue
                 else:
                     raise

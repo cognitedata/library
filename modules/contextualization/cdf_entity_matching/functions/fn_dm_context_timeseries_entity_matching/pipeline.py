@@ -497,8 +497,12 @@ def apply_manual_mappings(
                 mapping[COL_KEY_MAN_CONTEXTUALIZED] = True
                 raw_uploader.add_to_upload_queue(config.parameters.raw_db, config.parameters.raw_table_ctx_manual, Row(row_key, mapping))
             
-                # Apply the updates to the data model in batches of BATCH_SIZE_API_SUBMIT
-                if not config.parameters.debug and config.parameters.dm_update and cnt % BATCH_SIZE_API_SUBMIT == 0:
+                # Flush the queue once it is full. `cnt` counts every instance read,
+                # including the ones skipped above, so it cannot stand in for the queue
+                # length: the batch would overshoot the cap and a skip landing on a
+                # multiple of it would miss the flush entirely.
+                batch_is_full = len(item_update) >= BATCH_SIZE_API_SUBMIT
+                if not config.parameters.debug and config.parameters.dm_update and batch_is_full:
                     _retry_apply(client, logger, clean_target_list)
                     clean_target_list = []
 
@@ -847,8 +851,13 @@ def get_all_targets(
         f"Number of {QUERY_FILTER_TYPE_TARGETS} to process: {len(all_targets)}, "
         f"NOTE: Rule based regular expressions are applied to the '{PROP_COL_NAME}' property"
     )
+    view_id = job_config.target_view.as_view_id()
     for target in all_targets:
-        org_name = str(target.properties[job_config.target_view.as_view_id()][PROP_COL_NAME])
+        properties = target.properties.get(view_id) if target.properties else None
+        if not properties or PROP_COL_NAME not in properties:
+            logger.warning(f"Target: {target.external_id} is missing properties or name, skipping")
+            continue
+        org_name = str(properties[PROP_COL_NAME])
 
         rule_keys = []
         if rule_mappings:
@@ -863,9 +872,7 @@ def get_all_targets(
                     logger.debug(f"Cleaned value (using capture groups): {cleaned_value}")
                     rule_keys.append(cleaned_value)
 
-        match_properties = match_values(
-            target.properties[job_config.target_view.as_view_id()], search_property, org_name
-        )  
+        match_properties = match_values(properties, search_property, org_name)  
 
         for match_property in match_properties:
             targets.append(

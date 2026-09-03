@@ -345,6 +345,31 @@ def test_single_space_string_is_read_as_that_one_space() -> None:
     assert [target[KEY_TARGET_SPACE] for target in targets] == ["inst_asset"]
 
 
+def test_target_missing_view_properties_is_skipped() -> None:
+    """A node without the target view payload must not abort the rest of the run."""
+    config = _config("inst_asset", "inst_ts")
+    view_id = config.data.target_view.as_view_id()
+    other_view_id = config.data.entity_view.as_view_id()
+    client = MagicMock()
+    logger = MagicMock()
+    client.data_modeling.instances.list = _fake_instances_list(
+        [
+            Instance("inst_asset", "asset-none", None),
+            Instance("inst_asset", "asset-other", {other_view_id: {PROP_COL_NAME: "other"}}),
+            Instance("inst_asset", "asset-empty", {view_id: {}}),
+            _target(view_id, "inst_asset", "asset-ok"),
+        ]
+    )
+
+    targets = get_all_targets(client, logger, config)
+
+    assert [target[KEY_TARGET_EXT_ID] for target in targets] == ["asset-ok"]
+    warned = " ".join(call[0][0] for call in logger.warning.call_args_list)
+    assert "asset-none" in warned
+    assert "asset-other" in warned
+    assert "asset-empty" in warned
+
+
 # --- Empty search property ------------------------------------------------------------
 # An unset property is left out of the response, but an empty one is not. Both carry
 # nothing to match on, so both fall back to the name instead of dropping the instance or
@@ -864,6 +889,36 @@ def test_rule_matches_are_written_in_capped_batches(monkeypatch: pytest.MonkeyPa
     entities = [_entity_record("inst_ts", f"ts:{idx}", [f"k{idx}"]) for idx in range(3)]
 
     apply_rule_mappings(client, config, MagicMock(), [], targets, entities)
+
+    assert _applied_batch_sizes(client) == [2, 1]
+
+
+def test_manual_matches_are_written_in_capped_batches(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A skipped entity advances the counter without queueing anything.
+
+    Counting entities rather than queued updates lets the batch overshoot the cap, and a
+    skipped entity landing on a multiple of it misses the flush altogether.
+    """
+    monkeypatch.setattr("pipeline.BATCH_SIZE_API_SUBMIT", 2)
+    config = _config("inst_asset", "inst_ts", ALIAS_PROP)
+    view_id = config.data.entity_view.as_view_id()
+    client = MagicMock()
+    client.data_modeling.instances.list.return_value = [
+        Instance("inst_ts", f"ts:{idx}", {view_id: {PROP_COL_NAME: f"ts:{idx}"}}) for idx in range(1, 5)
+    ]
+    # ts:2 has no target, so it is skipped after the counter has already moved on.
+    targets_by_entity = {"ts:1": "asset-1", "ts:2": "", "ts:3": "asset-3", "ts:4": "asset-4"}
+    mappings = [
+        {
+            KEY_RULE: f"row-{entity}",
+            COL_KEY_MAN_MAPPING_ENTITY: entity,
+            COL_KEY_MAN_MAPPING_TARGET: target,
+        }
+        for entity, target in targets_by_entity.items()
+    ]
+    mapping_input = {f"row-{entity}": {} for entity in targets_by_entity}
+
+    apply_manual_mappings(client, MagicMock(), config, MagicMock(), mappings, mapping_input)
 
     assert _applied_batch_sizes(client) == [2, 1]
 

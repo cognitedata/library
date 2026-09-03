@@ -8,7 +8,9 @@ from unittest.mock import MagicMock, patch
 sys.path.append(str(Path(__file__).parent))
 
 from cognite.client import data_modeling as dm
+from cognite.client.exceptions import CogniteAPIError
 from config import Config, ConfigData, JobConfig, Parameters, ViewPropertyConfig
+from constants import TS_NODE
 from logger import CogniteFunctionLogger
 from pipeline import (
     _process_assets_optimized,
@@ -16,6 +18,7 @@ from pipeline import (
     describe_processing_mode,
     effective_run_all,
     get_asset_filter,
+    get_new_items,
     get_ts_filter,
 )
 
@@ -52,6 +55,25 @@ class TestPipelineHelpers(unittest.TestCase):
                 )
             ),
         )
+
+    def test_a_rejected_request_is_not_retried(self) -> None:
+        """A 400 means the request itself is wrong, so retrying only delays the failure."""
+        client = MagicMock()
+        client.data_modeling.instances.list.side_effect = CogniteAPIError("Bad request", code=400)
+
+        get_new_items(client, self.logger, self.view_config.as_view_id(), self._config(True, False), TS_NODE)
+
+        self.assertEqual(client.data_modeling.instances.list.call_count, 1)
+
+    def test_a_server_error_is_retried(self) -> None:
+        """A 5xx is transient, so the next attempt stands a chance of succeeding."""
+        client = MagicMock()
+        client.data_modeling.instances.list.side_effect = [CogniteAPIError("Unavailable", code=503), ["node"]]
+
+        result = get_new_items(client, self.logger, self.view_config.as_view_id(), self._config(True, False), TS_NODE)
+
+        self.assertEqual(result, ["node"])
+        self.assertEqual(client.data_modeling.instances.list.call_count, 2)
 
     def test_effective_run_all_when_update_all_enabled(self) -> None:
         config = self._config(run_all=False, update_all=True)
