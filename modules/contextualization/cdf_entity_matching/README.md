@@ -169,6 +169,25 @@ targetViewFilterValues: []
 entityViewFilterValues: []
 ```
 
+#### `targetViewSearchProperty` and `entityViewSearchProperty`
+
+These name the property whose value is handed to the matching model — `name` by default,
+often `aliases` when a source system tag differs from the display name. A list-valued
+property such as `aliases` contributes one match candidate per entry, so an instance with
+three aliases is offered to the model three times and keeps whichever match scores best.
+
+When the property holds nothing usable the instance falls back to matching on its `name`.
+That covers all three ways "nothing usable" can look, which are not distinguishable in
+practice: the property is unset and therefore absent from the API response, it is set to
+an empty list, or it is set to a blank string. Empty entries in an otherwise populated
+list are dropped rather than triggering the fallback, so `["pi:1", ""]` matches on
+`pi:1` alone.
+
+One consequence worth checking on setup: if you configure a property name that does not
+exist on the view — `alias` instead of `aliases`, say — every instance takes the fallback
+and the whole run silently matches on `name`. Matching still produces results, just not
+on the property you intended, so confirm the property name against your deployed view.
+
 #### `assetInstanceSpace` and `timeseriesInstanceSpace`
 
 Both variables take a single space or a list of spaces, so assets and time series can be

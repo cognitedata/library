@@ -62,7 +62,11 @@ class Instance:
         self.properties = properties
 
 
-def _config(target_space: str | list[str], entity_space: str | list[str]) -> Config:
+def _config(
+    target_space: str | list[str],
+    entity_space: str | list[str],
+    search_property: str = PROP_COL_NAME,
+) -> Config:
     return Config.model_validate(
         {
             "parameters": {
@@ -82,14 +86,14 @@ def _config(target_space: str | list[str], entity_space: str | list[str]) -> Con
                     "instanceSpace": target_space,
                     "externalId": "CogniteAsset",
                     "version": "v1",
-                    "searchProperty": PROP_COL_NAME,
+                    "searchProperty": search_property,
                 },
                 "entityView": {
                     "schemaSpace": "cdf_cdm",
                     "instanceSpace": entity_space,
                     "externalId": "CogniteTimeSeries",
                     "version": "v1",
-                    "searchProperty": PROP_COL_NAME,
+                    "searchProperty": search_property,
                 },
             },
         }
@@ -339,6 +343,70 @@ def test_single_space_string_is_read_as_that_one_space() -> None:
 
     assert _requested_spaces(client.data_modeling.instances.list) == {"inst_asset"}
     assert [target[KEY_TARGET_SPACE] for target in targets] == ["inst_asset"]
+
+
+# --- Empty search property ------------------------------------------------------------
+# An unset property is left out of the response, but an empty one is not. Both carry
+# nothing to match on, so both fall back to the name instead of dropping the instance or
+# matching it on an empty string.
+
+ALIAS_PROP = "aliases"
+
+
+def test_entity_with_an_empty_alias_list_matches_on_its_name() -> None:
+    """An empty list used to leave the entity out of the match set entirely."""
+    config = _config("inst_asset", "inst_ts", ALIAS_PROP)
+    view_id = config.data.entity_view.as_view_id()
+    client = MagicMock()
+    client.data_modeling.instances.list.return_value = [
+        Instance("inst_ts", "ts:1", {view_id: {PROP_COL_NAME: "23-KA-9101", ALIAS_PROP: []}})
+    ]
+
+    entities = get_new_entities(client, config, MagicMock())
+
+    assert [entity[KEY_NAME] for entity in entities] == ["23-KA-9101"]
+
+
+def test_entity_with_a_blank_alias_matches_on_its_name() -> None:
+    """A blank string is not something the matching model can use either."""
+    config = _config("inst_asset", "inst_ts", ALIAS_PROP)
+    view_id = config.data.entity_view.as_view_id()
+    client = MagicMock()
+    client.data_modeling.instances.list.return_value = [
+        Instance("inst_ts", "ts:1", {view_id: {PROP_COL_NAME: "23-KA-9101", ALIAS_PROP: "  "}})
+    ]
+
+    entities = get_new_entities(client, config, MagicMock())
+
+    assert [entity[KEY_NAME] for entity in entities] == ["23-KA-9101"]
+
+
+def test_entity_keeps_the_usable_aliases_and_drops_the_empty_ones() -> None:
+    """A partly populated list must still match on the values it does have."""
+    config = _config("inst_asset", "inst_ts", ALIAS_PROP)
+    view_id = config.data.entity_view.as_view_id()
+    client = MagicMock()
+    client.data_modeling.instances.list.return_value = [
+        Instance("inst_ts", "ts:1", {view_id: {PROP_COL_NAME: "23-KA-9101", ALIAS_PROP: ["pi:1", ""]}})
+    ]
+
+    entities = get_new_entities(client, config, MagicMock())
+
+    assert [entity[KEY_NAME] for entity in entities] == ["pi:1"]
+
+
+def test_target_with_an_empty_alias_list_matches_on_its_name() -> None:
+    """The target side reads the search property the same way."""
+    config = _config("inst_asset", "inst_ts", ALIAS_PROP)
+    view_id = config.data.target_view.as_view_id()
+    client = MagicMock()
+    client.data_modeling.instances.list = _fake_instances_list(
+        [Instance("inst_asset", "asset-a", {view_id: {PROP_COL_NAME: "23-KA-9101", ALIAS_PROP: []}})]
+    )
+
+    targets = get_all_targets(client, MagicMock(), config)
+
+    assert [target[KEY_NAME] for target in targets] == ["23-KA-9101"]
 
 
 # --- Writes ---------------------------------------------------------------------------

@@ -789,6 +789,24 @@ def fetch_instances_by_space(
     return instances
 
 
+def match_values(properties: dict[str, Any], search_property: str, org_name: str) -> list[str]:
+    """Values to match an instance on, falling back to its name.
+
+    An unset property is left out of the response entirely, but one set to `[]` or to a
+    blank string is not, and neither carries anything to match on. All three mean the
+    same thing here, so all three fall back to the name - otherwise an empty list leaves
+    the instance out of the match set altogether and a blank string matches it on nothing.
+
+    Args:
+        properties: The instance's properties for the view being read.
+        org_name: The instance's name, used when the search property has nothing usable.
+    """
+    value = properties.get(search_property)
+    candidates = value if isinstance(value, list) else [value]
+    usable = [str(item) for item in candidates if item is not None and str(item).strip()]
+    return usable or [org_name]
+
+
 def get_all_targets(
     client: CogniteClient,
     logger: CogniteFunctionLogger,
@@ -845,12 +863,9 @@ def get_all_targets(
                     logger.debug(f"Cleaned value (using capture groups): {cleaned_value}")
                     rule_keys.append(cleaned_value)
 
-        if search_property in target.properties[job_config.target_view.as_view_id()]:
-            match_properties = target.properties[job_config.target_view.as_view_id()][search_property]
-            if not isinstance(match_properties, list):
-                match_properties = [match_properties]
-        else:
-            match_properties = [org_name]  
+        match_properties = match_values(
+            target.properties[job_config.target_view.as_view_id()], search_property, org_name
+        )  
 
         for match_property in match_properties:
             targets.append(
@@ -934,11 +949,7 @@ def get_new_entities(
 
         # add entities for files used to match between file references in P&ID to other files
         search_prop = entity_view_config.search_property
-        if search_prop in entity.properties[entity_view_id]:
-            prop_value = entity.properties[entity_view_id][search_prop]
-            entity_names = prop_value if isinstance(prop_value, list) else [str(prop_value)]
-        else:
-            entity_names = [org_name]
+        entity_names = match_values(entity.properties[entity_view_id], search_prop, org_name)
         for entity_name in entity_names: 
             
             entities_source.append(
