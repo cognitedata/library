@@ -518,12 +518,19 @@ cdf workflows logs EntityMatching
    - Enable debug mode for limited processing
    - Monitor memory usage in function logs
 
-3. **Workflow Failures**
+3. **`Property '<name>' does not exist in view '<view>'` (400) when applying updates**
+   - `viewFilterProperty` names a property the configured views do not have. The
+     `cdf_cdm` views expose it as `tags`; the CFIHOS views in `dm_dom_oil_and_gas` call
+     it `labels`. Set it to match the views you deployed
+   - Reading tolerates the wrong name — a property that is absent looks the same as one
+     that is unset — so the mismatch only surfaces when the first batch is written
+
+4. **Workflow Failures**
    - Check extraction pipeline configurations
    - Verify data model compatibility
    - Review authentication and permissions
 
-4. **`external IDs exist in more than one configured instance space` warning**
+5. **`external IDs exist in more than one configured instance space` warning**
    - Expected when you list several spaces that reuse external IDs; each instance is still
      matched and updated in its own space
    - Check whether the warning names `entities` or `assets` — for `assets`, the space an

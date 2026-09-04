@@ -39,6 +39,7 @@ from metadata_optimizations import (
     OptimizedMetadataProcessor,
     PerformanceBenchmark,
     cleanup_memory,
+    is_retryable,
     monitor_memory_usage,
     optimize_metadata_processing,
     time_operation,
@@ -436,16 +437,6 @@ def update_pipeline_run(
     except Exception as e:
         logger.warning(f"Failed to update pipeline run: {e}")
 
-
-
-def is_retryable(error: CogniteAPIError) -> bool:
-    """Whether a failed query stands a chance of succeeding on a retry.
-
-    A client error - a missing view, a rejected filter, missing capabilities - means the
-    request itself is wrong, so repeating it only delays the failure. Rate limiting and
-    server-side errors are transient.
-    """
-    return error.code == 429 or (error.code is not None and error.code >= 500)
 
 
 def get_new_items(

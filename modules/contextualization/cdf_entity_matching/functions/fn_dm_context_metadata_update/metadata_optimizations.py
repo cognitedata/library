@@ -17,7 +17,7 @@ from cognite.client import CogniteClient
 from cognite.client.data_classes.data_modeling import Node, NodeApply, NodeOrEdgeData, ViewId
 from cognite.client.exceptions import CogniteAPIError
 from psutil import Process
-from tenacity import retry, stop_after_attempt, wait_exponential
+from tenacity import retry, retry_if_exception, stop_after_attempt, wait_exponential
 
 from constants import DEFAULT_ALIAS_PATTERN, INVALID_ASSET_TAG, MANAGED_ASSET_TAG_PREFIX  # isort: skip
 from logger import CogniteFunctionLogger  # isort: skip
@@ -86,6 +86,21 @@ def cleanup_memory():
 
 # ===== BATCH PROCESSING UTILITIES =====
 
+def is_retryable(error: CogniteAPIError) -> bool:
+    """Whether a failed request stands a chance of succeeding on a retry.
+
+    A client error - a rejected property, a missing view, missing capabilities - means
+    the request itself is wrong, so repeating it only delays the failure. Rate limiting
+    and server-side errors are transient.
+    """
+    return error.code == 429 or (error.code is not None and error.code >= 500)
+
+
+def _worth_another_attempt(error: BaseException) -> bool:
+    """Retry anything except an API error the server is bound to reject again."""
+    return not isinstance(error, CogniteAPIError) or is_retryable(error)
+
+
 class BatchProcessor:
     """Applies metadata updates to CDF in retried batches"""
     
@@ -113,7 +128,11 @@ class BatchProcessor:
                     total_applied += len(batch)
                     logger.info(f"Applied batch {i//batch_size + 1}: {len(batch)} updates")
                     
-                except Exception as e:
+                except CogniteAPIError as e:
+                    # Splitting only helps a batch the API refused for its size. A
+                    # rejected property or view fails identically in a smaller batch.
+                    if not is_retryable(e) and e.code != 413:
+                        raise
                     logger.warning(f"Large batch failed, retrying with smaller chunks: {e}")
                     # Split batch and retry smaller chunks
                     small_batch_size = batch_size // 4
@@ -124,9 +143,16 @@ class BatchProcessor:
         
         return total_applied
     
-    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=4, max=10),
+        retry=retry_if_exception(_worth_another_attempt),
+        # Raise the API error itself rather than a RetryError wrapping it, so the
+        # message that names the offending property survives to the pipeline run.
+        reraise=True,
+    )
     def _apply_batch_with_retry(self, client: CogniteClient, batch: list[NodeApply], logger: CogniteFunctionLogger):
-        """Apply batch with retry logic"""
+        """Apply batch, retrying only errors that could succeed on another attempt"""
         try:
             client.data_modeling.instances.apply(batch)
         except CogniteAPIError as e:

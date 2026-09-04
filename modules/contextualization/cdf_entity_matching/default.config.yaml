@@ -34,10 +34,10 @@ viewFilterProperty: tags  # NOTE: in CFIHOS example data model (dm_dom_oil_and_g
 # only the longest - the most specific reading of the name.
 timeseriesAliasPattern:
   - '([0-9]{2})[-_.:]([A-Z]{2,3})[-_.:]([0-9]{4,5})'
-timeseriesAliasSelection: all
+timeseriesAliasSelection: longest
 assetAliasPattern:
   - '([0-9]{2})[-_.:]([A-Z]{2,3})[-_.:]([0-9]{4,5})'
-assetAliasSelection: all
+assetAliasSelection: longest
 # Files also get their file name without the extension as an alias, in addition to these.
 # The document number patterns keep their dashes by capturing the whole number in one
 # group - the alias is the groups joined by "_", so several groups would rewrite the

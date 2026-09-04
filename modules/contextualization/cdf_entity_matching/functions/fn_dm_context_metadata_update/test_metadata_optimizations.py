@@ -10,11 +10,12 @@ import sys
 import time
 import unittest
 from pathlib import Path
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 sys.path.append(str(Path(__file__).parent))
 
 from cognite.client.data_classes.data_modeling import NodeApply, ViewId
+from cognite.client.exceptions import CogniteAPIError
 
 from constants import DEFAULT_ALIAS_PATTERN  # isort: skip
 from logger import CogniteFunctionLogger  # isort: skip
@@ -81,6 +82,39 @@ class TestBatchProcessing(unittest.TestCase):
 
         self.assertEqual(applied, 0)
         client.data_modeling.instances.apply.assert_not_called()
+
+    def test_a_rejected_property_is_not_retried_or_split(self) -> None:
+        """A misconfigured property fails the same way in a smaller batch, so try it once.
+
+        Retrying and then splitting spends a minute of the function's runtime on a
+        request the API can never accept, and buries the one message that explains why.
+        """
+        client = MagicMock()
+        client.data_modeling.instances.apply.side_effect = CogniteAPIError(
+            "Property 'labels' does not exist in view 'cdf_cdm:CogniteAsset/v1'", code=400
+        )
+        updates = [NodeApply(space="sp", external_id=f"item-{i}") for i in range(4)]
+
+        with patch("tenacity.nap.time.sleep"), self.assertRaises(CogniteAPIError) as caught:
+            BatchProcessor(batch_size=4).apply_updates_in_batches(client, updates, self.logger)
+
+        self.assertIn("does not exist in view", str(caught.exception))
+        self.assertEqual(client.data_modeling.instances.apply.call_count, 1)
+
+    def test_a_rate_limited_batch_is_still_retried(self) -> None:
+        """Rate limiting is transient, so it keeps its retry."""
+        client = MagicMock()
+        client.data_modeling.instances.apply.side_effect = [
+            CogniteAPIError("Too many requests", code=429),
+            None,
+        ]
+        updates = [NodeApply(space="sp", external_id="item-0")]
+
+        with patch("tenacity.nap.time.sleep"):
+            applied = BatchProcessor(batch_size=1).apply_updates_in_batches(client, updates, self.logger)
+
+        self.assertEqual(applied, 1)
+        self.assertEqual(client.data_modeling.instances.apply.call_count, 2)
 
 
 # A site-specific pattern used to check that configuration, not the built-in default,
