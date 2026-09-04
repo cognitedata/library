@@ -1393,7 +1393,7 @@ def add_to_items(
     target_ext_ids: list[str],
     entity_ext_id: str,
     entity_view_id: dm.ViewId,
-    entity_targets: str | list[Any] | None = None,
+    entity_targets: str | list[object] | None = None,
     entity_space: str | None = None,
     target_spaces: dict[str, str] | None = None,
 ) -> list[NodeApply]:

@@ -330,7 +330,7 @@ def is_retryable(error: CogniteAPIError) -> bool:
     request itself is wrong, so repeating it only delays the failure. Rate limiting and
     server-side errors are transient.
     """
-    return error.code == 429 or error.code >= 500
+    return error.code == 429 or (error.code is not None and error.code >= 500)
 
 
 def get_new_items(
