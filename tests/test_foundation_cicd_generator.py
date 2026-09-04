@@ -605,8 +605,16 @@ def test_generate_actions_ado_writes_pipelines_and_docs(tmp_path: Path) -> None:
     assert "GITHUB_BASE_REF" not in dry_run_text
     assert "github." not in dry_run_text
     assert "System.PullRequest.TargetBranch" in dry_run_text
-    assert "dev-toolkit-credentials" in dry_run_text
-    assert "test-toolkit-credentials" in dry_run_text
+    # PR validation only loads the non-secret config group -- never credentials,
+    # since a Build Validation run compiles this file's own YAML from the PR's
+    # merge ref, which the PR author controls.
+    assert "dev-toolkit-config" in dry_run_text
+    assert "test-toolkit-config" in dry_run_text
+    assert "dev-toolkit-credentials" not in dry_run_text
+    assert "test-toolkit-credentials" not in dry_run_text
+    assert "IDP_CLIENT_SECRET" not in dry_run_text
+    assert "cdf deploy" not in dry_run_text
+    assert "cdf build" in dry_run_text
     # Azure's script: task runs cmd.exe on a Windows agent; these scripts rely on
     # bash-only syntax ([[ ]], set -euo pipefail), so they must use bash: instead.
     assert "- script:" not in dry_run_text
@@ -624,11 +632,20 @@ def test_generate_actions_ado_writes_pipelines_and_docs(tmp_path: Path) -> None:
     assert "- script:" not in deploy_dev_text
     assert "- script:" not in deploy_test_text
     assert "- script:" not in deploy_prod_text
+    # Deploy pipelines load both groups -- config (for cdf build) and credentials
+    # (for cdf deploy --dry-run / cdf deploy), since this is the pipeline whose
+    # YAML a pull request can't modify.
+    assert "dev-toolkit-config" in deploy_dev_text
     assert "dev-toolkit-credentials" in deploy_dev_text
     assert "test-toolkit-credentials" not in deploy_dev_text
     assert "prod-toolkit-credentials" not in deploy_dev_text
+    assert "test-toolkit-config" in deploy_test_text
     assert "test-toolkit-credentials" in deploy_test_text
     assert "dev-toolkit-credentials" not in deploy_test_text
+    # cdf deploy --dry-run now runs in every environment's deploy pipeline, not
+    # just prod -- that's the whole point of moving it out of PR validation.
+    assert "cdf deploy --dry-run" in deploy_dev_text
+    assert "cdf deploy --dry-run" in deploy_test_text
     assert "startsWith(variables['Build.SourceBranch'], 'refs/tags/v')" in deploy_prod_text
     assert "prod-toolkit-credentials" in deploy_prod_text
     assert "dev-toolkit-credentials" not in deploy_prod_text
@@ -657,11 +674,12 @@ def test_generate_actions_ado_writes_pipelines_and_docs(tmp_path: Path) -> None:
             assert job["condition"].startswith("and(succeeded(), ")
     # Azure Pipelines does not auto-map secret variable-group values into script
     # environments (only plain variables get that treatment) — cdf deploy needs
-    # IDP_CLIENT_SECRET mapped explicitly or authentication fails.
-    assert deploy_dev_text.count("IDP_CLIENT_SECRET: $(IDP_CLIENT_SECRET)") == 1
-    assert deploy_test_text.count("IDP_CLIENT_SECRET: $(IDP_CLIENT_SECRET)") == 1
+    # IDP_CLIENT_SECRET mapped explicitly or authentication fails. Every deploy
+    # pipeline now runs both cdf deploy --dry-run and cdf deploy, so each needs
+    # the mapping twice.
+    assert deploy_dev_text.count("IDP_CLIENT_SECRET: $(IDP_CLIENT_SECRET)") == 2
+    assert deploy_test_text.count("IDP_CLIENT_SECRET: $(IDP_CLIENT_SECRET)") == 2
     assert deploy_prod_text.count("IDP_CLIENT_SECRET: $(IDP_CLIENT_SECRET)") == 2
-    assert "IDP_CLIENT_SECRET: $(IDP_CLIENT_SECRET)" in dry_run_text
     # checkout doesn't persist git credentials by default — the prod job's own
     # `git fetch origin main` step needs them to authenticate.
     prod_job = next(job for job in deploy_prod_yaml["jobs"] if job["job"] == "deploy_prod")
@@ -682,8 +700,13 @@ def test_generate_actions_ado_writes_pipelines_and_docs(tmp_path: Path) -> None:
     assert "deploy-test-pipeline.yml" in docs
     assert "deploy-prod-pipeline.yml" in docs
     assert "Build Validation" in docs
-    assert "Branch control" in docs
-    assert "Pipeline permissions alone are not sufficient" in docs
+    # Branch control is no longer part of the story: PR validation never loads
+    # a secret, so there's nothing for the (broken) Branch control workaround
+    # to protect. Philippe's finding is resolved by removing the exposure, not
+    # by patching around it.
+    assert "Branch control" not in docs
+    assert "Pipeline permissions are sufficient" in docs
+    assert "toolkit-config" in docs
     assert "IDP_TOKEN_URL" in docs
     assert "GitHub Release" not in docs
     # ADO's Build Validation policy references a pipeline, not a job display name
@@ -701,6 +724,12 @@ def test_generate_actions_ado_writes_pipelines_and_docs(tmp_path: Path) -> None:
     # expected failure message on a manual smoke-test run.
     assert "Unsupported target branch" in docs
     assert "falls back to its default of validating PRs to any branch" in docs
+    # ADO's PR check never runs cdf deploy --dry-run anymore -- that's the point
+    # of the #3 fix. GitHub's branching-model wording is unaffected (separate,
+    # not-yet-fixed exposure), so only assert on ADO's own row here.
+    assert "| PR → `dev` | `acme-dev` | Validate (`cdf build`) |" in docs
+    assert "| PR → `main` | `acme-test` | Validate (`cdf build`) |" in docs
+    assert "cdf deploy --dry-run" not in docs.split("## Branch policies")[0]
 
 
 def test_generate_actions_ado_prod_only_has_no_dry_run_pipeline(tmp_path: Path) -> None:
@@ -722,9 +751,11 @@ def test_generate_actions_ado_prod_only_has_no_dry_run_pipeline(tmp_path: Path) 
     assert "toolkit-pr-validate" not in docs
     assert "dry-run-pipeline.yml" not in docs
     assert "dev-toolkit-credentials" not in docs
+    assert "dev-toolkit-config" not in docs
     assert "No dry-run pipeline is generated without a dev or test environment" in docs
     # The prod-only example must name a group/pipeline that's actually configured.
-    assert "the `prod-toolkit-credentials` group should grant access to `toolkit-deploy-prod` only" in docs
+    assert "the `prod-toolkit-config` and `prod-toolkit-credentials` groups should each grant" in docs
+    assert "access to `toolkit-deploy-prod` only" in docs
     assert "`prod-toolkit-credentials` only ever needs to be authorized for `toolkit-deploy-prod`" in docs
 
 
@@ -742,8 +773,12 @@ def test_generate_actions_ado_test_and_prod_examples_do_not_mention_dev(tmp_path
 
     docs = (tmp_path / "docs" / "FOUNDATION_CICD.md").read_text(encoding="utf-8")
     assert "dev-toolkit-credentials" not in docs
+    assert "dev-toolkit-config" not in docs
     assert "toolkit-deploy-dev" not in docs
-    assert "the `test-toolkit-credentials` group should grant access to `toolkit-pr-validate`" in docs
+    # Only the non-secret config group grants access to toolkit-pr-validate --
+    # the credentials group is deploy-only.
+    assert "the `test-toolkit-config` group should grant access to `toolkit-pr-validate`" in docs
+    assert "`test-toolkit-credentials` should grant access to `toolkit-deploy-test` only" in docs
     assert "`test-toolkit-credentials` only ever needs to be authorized for `toolkit-deploy-test`" in docs
     # Only `main` is a deployable branch here (test only) -- the row must not claim
     # a `dev` PR trigger that was never generated.

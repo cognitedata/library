@@ -26,7 +26,7 @@ Protect the branches used above under **Repos → Branches → Branch policies**
 
 ## Variable groups
 
-Create one variable group per environment under **Pipelines → Library**:
+{{VARIABLE_GROUPS_INTRO}}
 
 | Variable group | Used by | `CDF_PROJECT` example |
 |----------------|---------|-------------------------|
@@ -34,9 +34,9 @@ Create one variable group per environment under **Pipelines → Library**:
 
 Scope each group via **Pipeline permissions** to only the pipeline(s) that need it — {{VARIABLE_GROUP_SCOPING_EXAMPLE}}, and so on per environment.
 
-{{BRANCH_CONTROL_WARNING}}
+{{TRUST_BOUNDARY_NOTE}}
 
-Each group needs these **variables**:
+Each `-toolkit-config` group needs these **variables**:
 
 - `CDF_CLUSTER`
 - `CDF_PROJECT` (must match `config.<env>.yaml`)
@@ -48,7 +48,7 @@ Each group needs these **variables**:
 - `CONSUMER_SOURCE_ID`
 - `PRODUCER_SOURCE_ID`
 
-And this **secret** (mark it secret in the Library UI):
+Each `-toolkit-credentials` group needs only this **secret** (mark it secret in the Library UI):
 
 - `IDP_CLIENT_SECRET`
 

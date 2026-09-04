@@ -347,9 +347,15 @@ def _ado_source_branch_guard_job() -> str:
 
 def ado_dry_run_jobs(toolkit_version: str, org_dir: str | None, setup_check_cmd: str, projects: dict[str, str]) -> str:
     """Azure DevOps jobs for the dry-run pipeline: one job per deployable branch,
-    each scoped to its own ``<env>-toolkit-credentials`` variable group and gated
-    on ``System.PullRequest.TargetBranch``. Avoids ever loading two environments'
-    variable groups into the same job.
+    each scoped to its own non-secret ``<env>-toolkit-config`` variable group and
+    gated on ``System.PullRequest.TargetBranch``.
+
+    PR validation never loads the ``<env>-toolkit-credentials`` group. A Build
+    Validation run compiles the pipeline YAML from the PR's own merge ref, so a
+    PR author effectively controls that YAML -- there's no branch- or
+    approval-based control that closes that gap (see the FOUNDATION_CICD.md trust
+    boundary note). ``cdf deploy --dry-run`` runs in the deploy pipeline instead,
+    where the YAML is trusted; this job only ever runs ``cdf build``.
     """
     branches = branch_envs(projects)
     if not branches:
@@ -367,7 +373,7 @@ def ado_dry_run_jobs(toolkit_version: str, org_dir: str | None, setup_check_cmd:
             depends_on.append("source_branch_guard")
         lines = [
             f"  - job: dry_run_{env}",
-            f"    displayName: 'cdf build & deploy --dry-run ({env})'",
+            f"    displayName: 'cdf build ({env})'",
             "    dependsOn:",
             *[f"      - {dep}" for dep in depends_on],
             f"    condition: and(succeeded(), {_ado_target_branch_condition(branch)})",
@@ -375,7 +381,7 @@ def ado_dry_run_jobs(toolkit_version: str, org_dir: str | None, setup_check_cmd:
         lines.extend(
             [
                 "    variables:",
-                f"      - group: {env}-toolkit-credentials",
+                f"      - group: {env}-toolkit-config",
                 "    steps:",
                 "      - checkout: self",
                 "",
@@ -394,11 +400,6 @@ def ado_dry_run_jobs(toolkit_version: str, org_dir: str | None, setup_check_cmd:
                 "",
                 f"      - bash: cdf build {build_args(toolkit_version, org_dir, env)}",
                 "        displayName: 'cdf build'",
-                "",
-                "      - bash: cdf deploy --dry-run",
-                "        displayName: 'cdf deploy --dry-run'",
-                "        env:",
-                "          IDP_CLIENT_SECRET: $(IDP_CLIENT_SECRET)",
             ]
         )
         jobs.append("\n".join(lines))
@@ -474,26 +475,55 @@ def ado_dry_run_registration_notes(projects: dict[str, str]) -> str:
     return "\n\n".join([register_note, hosted_repo_note, manual_run_note])
 
 
-def ado_branch_control_warning(projects: dict[str, str]) -> str:
-    """Only relevant when toolkit-pr-validate actually exists -- a prod-only (or
-    otherwise dry-run-less) project has no PR-validation pipeline for a PR author
-    to exfiltrate secrets through, so the warning would refer to nothing.
+def ado_trust_boundary_note(projects: dict[str, str]) -> str:
+    """States the real trust boundary now that PR validation never loads a secret.
+    Only mentions toolkit-pr-validate when it actually exists -- a prod-only (or
+    otherwise dry-run-less) project has no PR-validation pipeline for this to say
+    anything about.
 
-    NOTE: the warning's content (Branch control) is not itself a fix -- Philippe's
-    review established it doesn't provide the protection this text claims. Leave
-    the wording as-is pending that decision; this only controls whether it's shown.
+    Philippe's review established that Branch control doesn't provide the
+    protection it looks like it should: a Build Validation run compiles the
+    pipeline YAML from the PR's own merge ref, so `Build.SourceBranch` is
+    `refs/pull/<id>/merge` there, not a real branch -- a `refs/heads/*` allow-list
+    rejects every PR run, and allowing merge refs protects nothing. Rather than
+    patch that with an approval someone has to remember to actually scrutinize
+    every time, `cdf deploy --dry-run` (and the secret it needs) moved out of
+    `toolkit-pr-validate` entirely and into the deploy pipelines, whose YAML a
+    pull request can't modify. With no secret in play, Pipeline permissions
+    alone are sufficient, and no Branch control or approval workaround is needed.
     """
     if not branch_envs(projects):
-        return ""
+        return (
+            "**Pipeline permissions are sufficient here.** Each `-toolkit-credentials` group only"
+            " ever needs to be authorized for its one deploy pipeline."
+        )
     return (
-        "**Pipeline permissions alone are not sufficient for `toolkit-pr-validate`.** It runs as a"
-        " Build Validation policy, which executes the pipeline YAML as modified by the pull request"
-        " itself — a PR author who edits `.devops/dry-run-pipeline.yml` could otherwise use that"
-        " access to exfiltrate the loaded secrets, including `IDP_CLIENT_SECRET`. On every variable"
-        " group, also add an **Approvals and checks → Branch control** check (and/or a required"
-        " approval) under **Pipelines → Library**, so secrets are only released to runs building from"
-        " a trusted target branch and pipeline definition, not to arbitrary PR-modified YAML. Do this"
-        " before using any of these variable groups against a real customer project."
+        "**Pipeline permissions are sufficient here.** `toolkit-pr-validate` never loads a"
+        " `-toolkit-credentials` group — it only needs `-toolkit-config` for `cdf build`, and that"
+        " group holds no secret, so a PR author editing `.devops/dry-run-pipeline.yml` has nothing to"
+        " exfiltrate. `cdf deploy --dry-run` and `cdf deploy` both run in the deploy pipelines instead,"
+        " whose YAML a pull request cannot modify. Each `-toolkit-credentials` group only ever needs to"
+        " be authorized for its one deploy pipeline."
+    )
+
+
+def ado_variable_groups_intro(projects: dict[str, str]) -> str:
+    """The config group's 'used by' description depends on whether toolkit-pr-
+    validate actually exists -- a prod-only (or otherwise dry-run-less) project
+    has no PR-validation pipeline for the config group to be shared with.
+    """
+    if branch_envs(projects):
+        return (
+            "Create **two** variable groups per environment under **Pipelines → Library**: a"
+            " non-secret `<env>-toolkit-config` group used by both `toolkit-pr-validate` and the"
+            " deploy pipeline, and an `<env>-toolkit-credentials` group holding only the secret,"
+            " used by the deploy pipeline alone. PR validation never loads the credentials group —"
+            " see the trust boundary note below."
+        )
+    return (
+        "Create **two** variable groups per environment under **Pipelines → Library**: a non-secret"
+        " `<env>-toolkit-config` group and an `<env>-toolkit-credentials` group holding only the"
+        " secret, both used by the deploy pipeline."
     )
 
 
@@ -518,20 +548,25 @@ def ado_deploy_authorization_example(projects: dict[str, str]) -> str:
 
 
 def ado_variable_group_scoping_example(projects: dict[str, str]) -> str:
-    """Concrete example for the 'scope each group narrowly' sentence. Must name a
-    group that's actually configured for this project -- a hardcoded 'dev-toolkit-
-    credentials' example is simply wrong on a project with no dev environment
+    """Concrete example for the 'scope each group narrowly' sentence. Must name
+    groups that are actually configured for this project -- a hardcoded 'dev-
+    toolkit-config' example is simply wrong on a project with no dev environment
     (prod-only, or test+prod without dev).
     """
     dry_run_envs = deployable_envs(projects)
     if dry_run_envs:
         env = dry_run_envs[0]
+        pipeline = ADO_DEPLOY_PIPELINE_NAMES[env]
         return (
-            f"the `{env}-toolkit-credentials` group should grant access to "
-            f"`toolkit-pr-validate` and `{ADO_DEPLOY_PIPELINE_NAMES[env]}` only"
+            f"the `{env}-toolkit-config` group should grant access to `toolkit-pr-validate` and"
+            f" `{pipeline}`, while `{env}-toolkit-credentials` should grant access to `{pipeline}` only"
         )
     env = next(iter(projects))
-    return f"the `{env}-toolkit-credentials` group should grant access to `{ADO_DEPLOY_PIPELINE_NAMES[env]}` only"
+    pipeline = ADO_DEPLOY_PIPELINE_NAMES[env]
+    return (
+        f"the `{env}-toolkit-config` and `{env}-toolkit-credentials` groups should each grant"
+        f" access to `{pipeline}` only"
+    )
 
 
 def _ado_deploy_condition(env: str) -> str:
@@ -543,12 +578,15 @@ def _ado_deploy_condition(env: str) -> str:
 
 
 def ado_deploy_job(env: str, toolkit_version: str, org_dir: str | None, setup_check_cmd: str, project: str) -> str:
-    """Azure DevOps job for one environment's own deploy-<env>-pipeline.yml, scoped
-    only to that environment's ``<env>-toolkit-credentials`` variable group. Each
-    environment gets its own file (and its own pipeline registration) so Azure's
-    resource authorization — which covers every variable group referenced anywhere
-    in a pipeline's YAML, not just the group a runtime condition ends up using —
-    never requires authorizing a group outside the pipeline that actually needs it.
+    """Azure DevOps job for one environment's own deploy-<env>-pipeline.yml. Loads
+    both that environment's non-secret ``<env>-toolkit-config`` group (for cdf
+    build) and its ``<env>-toolkit-credentials`` group (for cdf deploy --dry-run
+    and cdf deploy) -- this is the only pipeline scoped to the secret, since PR
+    validation's YAML is PR-controlled and this pipeline's isn't. Each environment
+    gets its own file (and its own pipeline registration) so Azure's resource
+    authorization — which covers every variable group referenced anywhere in a
+    pipeline's YAML, not just the group a runtime condition ends up using — never
+    requires authorizing a group outside the pipeline that actually needs it.
 
     The branch/tag `condition:` looks redundant with the file's own `trigger:` block
     (only the right branch/tag ever triggers a run), but don't drop it: it's what
@@ -560,6 +598,7 @@ def ado_deploy_job(env: str, toolkit_version: str, org_dir: str | None, setup_ch
         f"    displayName: 'Deploy to {project}'",
         f"    condition: and(succeeded(), {_ado_deploy_condition(env)})",
         "    variables:",
+        f"      - group: {env}-toolkit-config",
         f"      - group: {env}-toolkit-credentials",
         "    steps:",
     ]
@@ -612,20 +651,11 @@ def ado_deploy_job(env: str, toolkit_version: str, org_dir: str | None, setup_ch
             "",
             f"      - bash: cdf build {build_args(toolkit_version, org_dir, env)}",
             "        displayName: 'cdf build'",
-        ]
-    )
-    if env == "prod":
-        lines.extend(
-            [
-                "",
-                "      - bash: cdf deploy --dry-run",
-                "        displayName: 'cdf deploy --dry-run'",
-                "        env:",
-                "          IDP_CLIENT_SECRET: $(IDP_CLIENT_SECRET)",
-            ]
-        )
-    lines.extend(
-        [
+            "",
+            "      - bash: cdf deploy --dry-run",
+            "        displayName: 'cdf deploy --dry-run'",
+            "        env:",
+            "          IDP_CLIENT_SECRET: $(IDP_CLIENT_SECRET)",
             "",
             "      - bash: cdf deploy",
             "        displayName: 'cdf deploy'",
@@ -648,12 +678,18 @@ def ado_deploy_trigger(env: str) -> str:
 
 
 def branching_rows(projects: dict[str, str], provider: str) -> str:
+    """PR-check description is provider-specific: GitHub's PR validation still
+    runs `cdf deploy --dry-run` with live credentials (a separate, not-yet-fixed
+    exposure -- see the ADO trust boundary note). ADO's toolkit-pr-validate never
+    loads a secret, so it only ever runs `cdf build`.
+    """
     rows: list[str] = []
     for env in deployable_envs(projects):
         branch = DEPLOY_BRANCHES[env]
+        pr_check = "Dry-run (`cdf build`, `cdf deploy --dry-run`)" if provider == "github" else "Validate (`cdf build`)"
         rows.extend(
             [
-                f"| PR → `{branch}` | `{projects[env]}` | Dry-run (`cdf build`, `cdf deploy --dry-run`) |",
+                f"| PR → `{branch}` | `{projects[env]}` | {pr_check} |",
                 f"| Push to `{branch}` | `{projects[env]}` | Deploy |",
             ]
         )
@@ -739,6 +775,23 @@ def environment_rows(projects: dict[str, str], provider: str) -> str:
     if "prod" in projects:
         prod_trigger = "Release published" if provider == "github" else "Tag pushed"
         rows.append(f"| `prod-toolkit-credentials` | {prod_trigger} | `{projects['prod']}` |")
+    return "\n".join(rows)
+
+
+def ado_environment_rows(projects: dict[str, str]) -> str:
+    """Two variable groups per environment: <env>-toolkit-config (non-secret,
+    used by both toolkit-pr-validate and the deploy pipeline for cdf build) and
+    <env>-toolkit-credentials (secret, used by the deploy pipeline only -- PR
+    validation never loads it).
+    """
+    rows: list[str] = []
+    for env in deployable_envs(projects):
+        branch = DEPLOY_BRANCHES[env]
+        rows.append(f"| `{env}-toolkit-config` | PR → {branch}, push `{branch}` | `{projects[env]}` |")
+        rows.append(f"| `{env}-toolkit-credentials` | Push `{branch}` | `{projects[env]}` |")
+    if "prod" in projects:
+        rows.append(f"| `prod-toolkit-config` | Tag pushed | `{projects['prod']}` |")
+        rows.append(f"| `prod-toolkit-credentials` | Tag pushed | `{projects['prod']}` |")
     return "\n".join(rows)
 
 
@@ -854,13 +907,15 @@ def main() -> None:
             write_file(out, render_template(deploy_template, merged), args.force)
 
     elif args.provider == "ado":
+        base_values["ENVIRONMENT_ROWS"] = ado_environment_rows(projects)
+        base_values["VARIABLE_GROUPS_INTRO"] = ado_variable_groups_intro(projects)
         base_values["TARGET_BRANCH_GUARD_STEP"] = ado_target_branch_guard_step(branch_envs(projects))
         base_values["DRY_RUN_JOBS"] = ado_dry_run_jobs(str(toolkit_version), org_dir, setup_check_cmd, projects)
         base_values["PIPELINE_ROWS"] = ado_pipeline_rows(projects)
         base_values["DRY_RUN_REGISTRATION_NOTES"] = ado_dry_run_registration_notes(projects)
         base_values["VARIABLE_GROUP_SCOPING_EXAMPLE"] = ado_variable_group_scoping_example(projects)
         base_values["DEPLOY_AUTHORIZATION_EXAMPLE"] = ado_deploy_authorization_example(projects)
-        base_values["BRANCH_CONTROL_WARNING"] = ado_branch_control_warning(projects)
+        base_values["TRUST_BOUNDARY_NOTE"] = ado_trust_boundary_note(projects)
         base_values["DRY_RUN_TRIGGER_NOTE"] = ado_dry_run_trigger_note(projects)
 
         if deployable_envs(projects):
@@ -904,9 +959,9 @@ def main() -> None:
     )
 
     print()
-    environments = [f"{env}-toolkit-credentials" for env in ENVIRONMENTS if env in projects]
     print("Next steps:")
     if args.provider == "github":
+        environments = [f"{env}-toolkit-credentials" for env in ENVIRONMENTS if env in projects]
         print(f"  1. Create GitHub Environments: {', '.join(environments)}")
         print("     (see docs/FOUNDATION_CICD.md)")
         print("  2. Create and protect the branches used by the generated workflows")
@@ -914,12 +969,18 @@ def main() -> None:
             branches = ", ".join(branch_envs(projects))
             print(f"  3. Open a PR to {branches} to validate dry-run.yml")
     else:
+        ado_groups: list[str] = []
+        for env in ENVIRONMENTS:
+            if env not in projects:
+                continue
+            ado_groups.append(f"{env}-toolkit-config")
+            ado_groups.append(f"{env}-toolkit-credentials")
         pipeline_registrations = [
             f"{ADO_DEPLOY_PIPELINE_NAMES[env]} ({ADO_DEPLOY_PIPELINE_FILES[env]})"
             for env in ENVIRONMENTS
             if env in projects
         ]
-        print(f"  1. Create Azure DevOps variable groups: {', '.join(environments)}")
+        print(f"  1. Create Azure DevOps variable groups: {', '.join(ado_groups)}")
         print("     (see docs/FOUNDATION_CICD.md)")
         print(f"  2. Register each deploy pipeline: {', '.join(pipeline_registrations)}")
         if deployable_envs(projects):
