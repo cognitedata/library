@@ -703,6 +703,54 @@ def test_generate_actions_ado_writes_pipelines_and_docs(tmp_path: Path) -> None:
     assert "falls back to its default of validating PRs to any branch" in docs
 
 
+def test_generate_actions_ado_prod_only_has_no_dry_run_pipeline(tmp_path: Path) -> None:
+    """A prod-only project (no dev/test) has no dry-run pipeline at all -- the docs
+    must not reference toolkit-pr-validate/dry-run-pipeline.yml as if it exists, or
+    give a `dev-toolkit-credentials` example when no dev environment is configured."""
+    _scaffold_project_with_envs(tmp_path, ("prod",))
+
+    subprocess.run(
+        [sys.executable, str(GENERATE_ACTIONS), "--force", "--provider", "ado"],
+        check=True,
+        cwd=tmp_path,
+    )
+
+    assert not (tmp_path / ".devops" / "dry-run-pipeline.yml").exists()
+    assert (tmp_path / ".devops" / "deploy-prod-pipeline.yml").is_file()
+
+    docs = (tmp_path / "docs" / "FOUNDATION_CICD.md").read_text(encoding="utf-8")
+    assert "toolkit-pr-validate" not in docs
+    assert "dry-run-pipeline.yml" not in docs
+    assert "dev-toolkit-credentials" not in docs
+    assert "No dry-run pipeline is generated without a dev or test environment" in docs
+    # The prod-only example must name a group/pipeline that's actually configured.
+    assert "the `prod-toolkit-credentials` group should grant access to `toolkit-deploy-prod` only" in docs
+    assert "`prod-toolkit-credentials` only ever needs to be authorized for `toolkit-deploy-prod`" in docs
+
+
+def test_generate_actions_ado_test_and_prod_examples_do_not_mention_dev(tmp_path: Path) -> None:
+    """With test+prod configured (no dev), the doc's illustrative examples must name
+    an environment that actually exists -- a hardcoded 'dev-toolkit-credentials'
+    example would refer to a variable group this project never creates."""
+    _scaffold_project_with_envs(tmp_path, ("test", "prod"))
+
+    subprocess.run(
+        [sys.executable, str(GENERATE_ACTIONS), "--force", "--provider", "ado"],
+        check=True,
+        cwd=tmp_path,
+    )
+
+    docs = (tmp_path / "docs" / "FOUNDATION_CICD.md").read_text(encoding="utf-8")
+    assert "dev-toolkit-credentials" not in docs
+    assert "toolkit-deploy-dev" not in docs
+    assert "the `test-toolkit-credentials` group should grant access to `toolkit-pr-validate`" in docs
+    assert "`test-toolkit-credentials` only ever needs to be authorized for `toolkit-deploy-test`" in docs
+    # Only `main` is a deployable branch here (test only) -- the row must not claim
+    # a `dev` PR trigger that was never generated.
+    assert "| `toolkit-pr-validate` | `.devops/dry-run-pipeline.yml` | PR to `main`" in docs
+    assert "PR to `dev`" not in docs
+
+
 def test_generate_actions_ado_dev_only_has_branch_condition(tmp_path: Path) -> None:
     """Even with a single deployable branch, the dry-run job must stay gated on
     System.PullRequest.TargetBranch -- otherwise a manual or non-PR pipeline run

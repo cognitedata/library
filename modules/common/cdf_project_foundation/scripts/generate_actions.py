@@ -418,14 +418,117 @@ ADO_DEPLOY_PIPELINE_TRIGGERS = {
 }
 
 
-def ado_deploy_pipeline_rows(projects: dict[str, str]) -> str:
-    rows = [
+def ado_pipeline_rows(projects: dict[str, str]) -> str:
+    """Full 'Pipelines to register' table: toolkit-pr-validate only when a
+    dry-run pipeline is actually generated (a dev-only, test-only, or prod-only
+    project may have none), plus one row per configured deploy environment.
+    """
+    rows: list[str] = []
+    branches = branch_envs(projects)
+    if branches:
+        branches_text = " or ".join(f"`{branch}`" for branch in branches)
+        rows.append(
+            f"| `toolkit-pr-validate` | `.devops/dry-run-pipeline.yml` | PR to {branches_text}"
+            " (via Build Validation policy above) |"
+        )
+    rows.extend(
         f"| `{ADO_DEPLOY_PIPELINE_NAMES[env]}` | `.devops/{ADO_DEPLOY_PIPELINE_FILES[env]}` | "
         f"{ADO_DEPLOY_PIPELINE_TRIGGERS[env]} |"
         for env in ENVIRONMENTS
         if env in projects
-    ]
+    )
     return "\n".join(rows)
+
+
+def ado_dry_run_registration_notes(projects: dict[str, str]) -> str:
+    """Registration guidance for toolkit-pr-validate. Only relevant when a
+    dry-run pipeline is actually generated -- referencing a file and pipeline
+    that don't exist (e.g. on a prod-only, or dev+prod-without-test project)
+    would be actively misleading rather than just unhelpful.
+    """
+    if not branch_envs(projects):
+        return (
+            "No dry-run pipeline is generated without a dev or test environment"
+            " configured, so there is nothing to register as a Build Validation policy."
+        )
+    return "\n\n".join(
+        [
+            "Register `dry-run-pipeline.yml` (the `toolkit-pr-validate` pipeline, see below)"
+            " as a **Build Validation** policy on every branch listed above, so it runs"
+            " automatically as a required check on each PR.",
+            "If this repository is hosted on GitHub or Bitbucket Cloud with Azure Pipelines"
+            " as the CI (rather than Azure Repos Git), `dry-run-pipeline.yml` also runs"
+            " automatically on every pull request even before you register the Build"
+            " Validation policy above — it has no `pr:` block, so Azure Pipelines falls back"
+            " to its default of validating PRs to any branch. Register the Build Validation"
+            " policy anyway, since that's what makes it a *required* check rather than an"
+            " informational one.",
+            "A manual or non-PR run of `toolkit-pr-validate` is expected to fail with"
+            " `Unsupported target branch: <empty>` — `System.PullRequest.TargetBranch` is"
+            " only populated for an actual PR-triggered run. That's not a broken pipeline;"
+            " it's the guard working as intended.",
+        ]
+    )
+
+
+def ado_branch_control_warning(projects: dict[str, str]) -> str:
+    """Only relevant when toolkit-pr-validate actually exists -- a prod-only (or
+    otherwise dry-run-less) project has no PR-validation pipeline for a PR author
+    to exfiltrate secrets through, so the warning would refer to nothing.
+
+    NOTE: the warning's content (Branch control) is not itself a fix -- Philippe's
+    review established it doesn't provide the protection this text claims. Leave
+    the wording as-is pending that decision; this only controls whether it's shown.
+    """
+    if not branch_envs(projects):
+        return ""
+    return (
+        "**Pipeline permissions alone are not sufficient for `toolkit-pr-validate`.** It runs as a"
+        " Build Validation policy, which executes the pipeline YAML as modified by the pull request"
+        " itself — a PR author who edits `.devops/dry-run-pipeline.yml` could otherwise use that"
+        " access to exfiltrate the loaded secrets, including `IDP_CLIENT_SECRET`. On every variable"
+        " group, also add an **Approvals and checks → Branch control** check (and/or a required"
+        " approval) under **Pipelines → Library**, so secrets are only released to runs building from"
+        " a trusted target branch and pipeline definition, not to arbitrary PR-modified YAML. Do this"
+        " before using any of these variable groups against a real customer project."
+    )
+
+
+def ado_dry_run_trigger_note(projects: dict[str, str]) -> str:
+    """Only relevant when dry-run-pipeline.yml is actually generated."""
+    if not branch_envs(projects):
+        return ""
+    return (
+        " `dry-run-pipeline.yml` still sets `trigger: none`, since a Build Validation"
+        " policy invokes it directly rather than a push trigger."
+    )
+
+
+def ado_deploy_authorization_example(projects: dict[str, str]) -> str:
+    """Concrete example for the 'a shared file would force over-authorizing'
+    sentence. Must name a group/pipeline pair that's actually configured --
+    hardcoding `dev-toolkit-credentials`/`toolkit-deploy-dev` is simply wrong
+    on a project with no dev environment.
+    """
+    env = next(iter(projects))
+    return f"`{env}-toolkit-credentials` only ever needs to be authorized for `{ADO_DEPLOY_PIPELINE_NAMES[env]}`"
+
+
+def ado_variable_group_scoping_example(projects: dict[str, str]) -> str:
+    """Concrete example for the 'scope each group narrowly' sentence. Must name a
+    group that's actually configured for this project -- a hardcoded 'dev-toolkit-
+    credentials' example is simply wrong on a project with no dev environment
+    (prod-only, or test+prod without dev).
+    """
+    dry_run_envs = deployable_envs(projects)
+    if dry_run_envs:
+        env = dry_run_envs[0]
+        return (
+            f"the `{env}-toolkit-credentials` group should grant access to "
+            f"`toolkit-pr-validate` and `{ADO_DEPLOY_PIPELINE_NAMES[env]}` only"
+        )
+    env = next(iter(projects))
+    return f"the `{env}-toolkit-credentials` group should grant access to `{ADO_DEPLOY_PIPELINE_NAMES[env]}` only"
 
 
 def _ado_deploy_condition(env: str) -> str:
@@ -750,7 +853,12 @@ def main() -> None:
     elif args.provider == "ado":
         base_values["TARGET_BRANCH_GUARD_STEP"] = ado_target_branch_guard_step(branch_envs(projects))
         base_values["DRY_RUN_JOBS"] = ado_dry_run_jobs(str(toolkit_version), org_dir, setup_check_cmd, projects)
-        base_values["DEPLOY_PIPELINE_ROWS"] = ado_deploy_pipeline_rows(projects)
+        base_values["PIPELINE_ROWS"] = ado_pipeline_rows(projects)
+        base_values["DRY_RUN_REGISTRATION_NOTES"] = ado_dry_run_registration_notes(projects)
+        base_values["VARIABLE_GROUP_SCOPING_EXAMPLE"] = ado_variable_group_scoping_example(projects)
+        base_values["DEPLOY_AUTHORIZATION_EXAMPLE"] = ado_deploy_authorization_example(projects)
+        base_values["BRANCH_CONTROL_WARNING"] = ado_branch_control_warning(projects)
+        base_values["DRY_RUN_TRIGGER_NOTE"] = ado_dry_run_trigger_note(projects)
 
         if deployable_envs(projects):
             dry_run_template = templates / "dry-run-pipeline.yml"

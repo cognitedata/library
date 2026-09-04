@@ -22,11 +22,7 @@ Protect the branches used above under **Repos → Branches → Branch policies**
 
 {{BRANCH_PROTECTION_NOTE}}
 
-Register `dry-run-pipeline.yml` (the `toolkit-pr-validate` pipeline, see below) as a **Build Validation** policy on every branch listed above, so it runs automatically as a required check on each PR.
-
-If this repository is hosted on GitHub or Bitbucket Cloud with Azure Pipelines as the CI (rather than Azure Repos Git), `dry-run-pipeline.yml` also runs automatically on every pull request even before you register the Build Validation policy above — it has no `pr:` block, so Azure Pipelines falls back to its default of validating PRs to any branch. Register the Build Validation policy anyway, since that's what makes it a *required* check rather than an informational one.
-
-A manual or non-PR run of `toolkit-pr-validate` is expected to fail with `Unsupported target branch: <empty>` — `System.PullRequest.TargetBranch` is only populated for an actual PR-triggered run. That's not a broken pipeline; it's the guard working as intended.
+{{DRY_RUN_REGISTRATION_NOTES}}
 
 ## Variable groups
 
@@ -36,9 +32,9 @@ Create one variable group per environment under **Pipelines → Library**:
 |----------------|---------|-------------------------|
 {{ENVIRONMENT_ROWS}}
 
-Scope each group via **Pipeline permissions** to only the pipeline(s) that need it — the `dev-toolkit-credentials` group should grant access to `toolkit-pr-validate` and `toolkit-deploy-dev` only, and so on per environment.
+Scope each group via **Pipeline permissions** to only the pipeline(s) that need it — {{VARIABLE_GROUP_SCOPING_EXAMPLE}}, and so on per environment.
 
-**Pipeline permissions alone are not sufficient for `toolkit-pr-validate`.** It runs as a Build Validation policy, which executes the pipeline YAML as modified by the pull request itself — a PR author who edits `.devops/dry-run-pipeline.yml` could otherwise use that access to exfiltrate the loaded secrets, including `IDP_CLIENT_SECRET`. On every variable group, also add an **Approvals and checks → Branch control** check (and/or a required approval) under **Pipelines → Library**, so secrets are only released to runs building from a trusted target branch and pipeline definition, not to arbitrary PR-modified YAML. Do this before using any of these variable groups against a real customer project.
+{{BRANCH_CONTROL_WARNING}}
 
 Each group needs these **variables**:
 
@@ -62,10 +58,9 @@ Import the generated YAML as Azure DevOps pipelines under **Pipelines → New pi
 
 | Pipeline name | YAML file | Trigger |
 |---------------|-----------|---------|
-| `toolkit-pr-validate` | `.devops/dry-run-pipeline.yml` | PR to `dev` or `main` (via Build Validation policy above) |
-{{DEPLOY_PIPELINE_ROWS}}
+{{PIPELINE_ROWS}}
 
-Each deploy pipeline has its own YAML file, scoped to only that environment's variable group — Azure authorizes every variable group referenced anywhere in a pipeline's YAML, not just the one an eventual runtime condition ends up using, so a shared file would force authorizing all three groups on all three registrations. With one file per environment, `dev-toolkit-credentials` only ever needs to be authorized for `toolkit-deploy-dev`, and so on. Each `deploy-*-pipeline.yml` declares its own trigger directly in the YAML (the branch or tag pattern from the table above), so importing it is enough — no manual **Edit → Triggers** step, which wouldn't be visible in git history and would be lost if the pipeline is ever re-registered. `dry-run-pipeline.yml` still sets `trigger: none`, since a Build Validation policy invokes it directly rather than a push trigger.
+Each deploy pipeline has its own YAML file, scoped to only that environment's variable group — Azure authorizes every variable group referenced anywhere in a pipeline's YAML, not just the one an eventual runtime condition ends up using, so a shared file would force authorizing all three groups on all three registrations. With one file per environment, {{DEPLOY_AUTHORIZATION_EXAMPLE}}, and so on. Each `deploy-*-pipeline.yml` declares its own trigger directly in the YAML (the branch or tag pattern from the table above), so importing it is enough — no manual **Edit → Triggers** step, which wouldn't be visible in git history and would be lost if the pipeline is ever re-registered.{{DRY_RUN_TRIGGER_NOTE}}
 
 ## Toolkit configs
 
