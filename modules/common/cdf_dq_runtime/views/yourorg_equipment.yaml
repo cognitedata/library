@@ -1,0 +1,16 @@
+view:
+  space: sp_enterprise_process_industry
+  external_id: YourOrgEquipment
+  version: v1
+instance_spaces:
+  - springfield_instances
+validation:
+  auto_load_depth: 2
+  verbose: true
+partition_count: 10
+partition_field: lastUpdatedTime
+chunk_size: 100
+sync_batch_size: 1000
+use_sync_cursor_mode: true
+max_concurrent_executions: 1
+uniqueness_cron: "0 */4 * * *"

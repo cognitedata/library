@@ -1,0 +1,3 @@
+space: sp_enterprise_process_industry
+name: sp_enterprise_process_industry
+description: YourOrg operational schema space (cog-ai). Usually already exists; do not store instances here.
