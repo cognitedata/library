@@ -874,8 +874,11 @@ def get_all_targets(
                 match = pattern.search(org_name)
 
                 if match:
-                    # Concatenate the captured groups directly
-                    cleaned_value = rule[KEY_RULE] + "_" + "".join(match.groups())  # groups() returns a tuple of all captured groups
+                    # Concatenate the captured groups directly. An operator's regex may
+                    # make a group optional, and one that does not participate in the
+                    # match captures None, which cannot be joined.
+                    matched_groups = [group for group in match.groups() if group is not None]
+                    cleaned_value = rule[KEY_RULE] + "_" + "".join(matched_groups)
                     logger.debug(f"Cleaned value (using capture groups): {cleaned_value}")
                     rule_keys.append(cleaned_value)
 
@@ -951,8 +954,11 @@ def get_new_entities(
                 match = pattern.search(org_name)
 
                 if match:
-                    # Concatenate the captured groups directly
-                    cleaned_value = rule[KEY_RULE] + "_" + "".join(match.groups())  # groups() returns a tuple of all captured groups
+                    # Concatenate the captured groups directly. An operator's regex may
+                    # make a group optional, and one that does not participate in the
+                    # match captures None, which cannot be joined.
+                    matched_groups = [group for group in match.groups() if group is not None]
+                    cleaned_value = rule[KEY_RULE] + "_" + "".join(matched_groups)
                     logger.debug(f"Cleaned value (using capture groups): {cleaned_value}")
                     rule_keys.append(cleaned_value)
                     

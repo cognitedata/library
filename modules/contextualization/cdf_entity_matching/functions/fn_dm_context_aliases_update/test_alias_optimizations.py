@@ -250,6 +250,23 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
 
         self.assertEqual(result.sources[0].properties["aliases"], ["PMP_1234"])
 
+    def test_an_unmatched_optional_group_is_left_out_of_the_alias(self) -> None:
+        """A configured pattern may make a group optional, and then it captures None.
+
+        Joining that straight into the alias raises a TypeError, so a name matching only
+        the mandatory part of the pattern would take the whole run down.
+        """
+        processor = OptimizedMetadataProcessor(
+            self.logger, timeseries_alias_rule=AliasRule.from_config([r"([A-Z]{3})?[-_]?(\d{4})"])
+        )
+        node = MagicMock()
+        node.external_id = "pi:160030"
+        node.properties = {self.view_id: {"name": "1234 discharge pressure", "aliases": []}}
+
+        result = processor.process_timeseries_metadata(node, self.view_id, "inst_cfihos_oil_and_gas")
+
+        self.assertEqual(result.sources[0].properties["aliases"], ["1234"])
+
     def test_each_view_uses_its_own_pattern(self) -> None:
         """The asset pattern must not be applied to timeseries names, or the reverse."""
         processor = OptimizedMetadataProcessor(

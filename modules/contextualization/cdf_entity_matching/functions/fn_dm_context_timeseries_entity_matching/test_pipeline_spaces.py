@@ -6,6 +6,7 @@ never in a fixed space from the config.
 """
 
 import json
+import re
 import sys
 from pathlib import Path
 from typing import Any
@@ -20,6 +21,7 @@ from config import Config, ViewPropertyConfig
 from constants import (
     COL_KEY_MAN_MAPPING_ENTITY,
     COL_KEY_MAN_MAPPING_TARGET,
+    COL_KEY_RULE_REGEXP_ENTITY,
     FILTER_PATH_NODE_EXTERNAL_ID,
     KEY_ENTITY_EXT_ID,
     KEY_ENTITY_SPACE,
@@ -423,6 +425,25 @@ def test_entity_missing_view_properties_is_skipped() -> None:
     assert "ts-none" in warned
     assert "ts-other" in warned
     assert "ts-empty" in warned
+
+
+def test_rule_key_leaves_out_an_unmatched_optional_group() -> None:
+    """Rule regexes are operator-authored, so an optional group is theirs to configure.
+
+    An optional group that does not participate captures None, which cannot be joined
+    into the rule key.
+    """
+    config = _config("inst_asset", "inst_ts")
+    view_id = config.data.entity_view.as_view_id()
+    client = MagicMock()
+    client.data_modeling.instances.list.return_value = [
+        Instance("inst_ts", "ts:1", {view_id: {PROP_COL_NAME: "1234 discharge"}})
+    ]
+    rules = [{KEY_RULE: "pump", COL_KEY_RULE_REGEXP_ENTITY: re.compile(r"([A-Z]{3})?[-_]?(\d{4})")}]
+
+    entities = get_new_entities(client, config, MagicMock(), None, rules)
+
+    assert [entity[KEY_RULE_KEYS] for entity in entities] == [["pump_1234"]]
 
 
 # --- Empty search property ------------------------------------------------------------

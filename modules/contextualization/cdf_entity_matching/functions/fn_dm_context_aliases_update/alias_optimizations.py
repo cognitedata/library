@@ -474,11 +474,17 @@ class PerformanceBenchmark:
 def _generated_alias(name: str, pattern: re.Pattern[str]) -> str | None:
     """The alias derived from a name - the pattern's capture groups joined by "_".
 
+    A configured pattern may make a group optional, and an optional group that does not
+    participate in the match captures None. Those are left out rather than joined, which
+    would raise a TypeError.
+
     Returns:
         The alias, or None when the name holds no tag.
     """
     match = pattern.search(name)
-    return "_".join(match.groups()) if match else None
+    if not match:
+        return None
+    return "_".join(group for group in match.groups() if group is not None)
 
 
 def _file_name_without_extension(name: str) -> str:
