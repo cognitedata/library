@@ -12,6 +12,8 @@ jobs:
   - job: lint
     displayName: 'Lint (pipeline YAML, config, functions)'
     steps:
+{{TARGET_BRANCH_GUARD_STEP}}
+
       - checkout: self
 
       - task: UsePythonVersion@0

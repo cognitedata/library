@@ -281,11 +281,13 @@ def _ado_target_branch_condition(branch: str) -> str:
     return f"in(variables['System.PullRequest.TargetBranch'], 'refs/heads/{branch}', '{branch}')"
 
 
-def _ado_validate_target_branch_job(branches: dict[str, str]) -> str:
-    """Unconditioned job: fails the whole run loudly if System.PullRequest.TargetBranch
-    doesn't match any deployable branch. Without this, a value the per-branch job
-    conditions don't recognize makes every dry_run_<env> job skip while lint still
-    succeeds, so the required check reports success having validated nothing.
+def ado_target_branch_guard_step(branches: dict[str, str]) -> str:
+    """First step of the (always-unconditioned) lint job: fails the whole run loudly
+    if System.PullRequest.TargetBranch doesn't match any deployable branch. Without
+    this, a value the per-branch job conditions don't recognize makes every
+    dry_run_<env> job skip while lint still succeeds, so the required check reports
+    success having validated nothing. Lives inside lint (rather than its own job) so
+    it doesn't cost a second implicit full-repo checkout for a plain string compare.
     """
     case_lines: list[str] = []
     for branch in branches:
@@ -293,9 +295,6 @@ def _ado_validate_target_branch_job(branches: dict[str, str]) -> str:
         case_lines.append(f'              echo "Target branch OK: {branch}"')
         case_lines.append("              ;;")
     lines = [
-        "  - job: validate_target_branch",
-        "    displayName: 'Validate target branch'",
-        "    steps:",
         "      - bash: |",
         "          set -euo pipefail",
         '          TARGET="${SYSTEM_PULLREQUEST_TARGETBRANCH:-}"',
@@ -308,7 +307,6 @@ def _ado_validate_target_branch_job(branches: dict[str, str]) -> str:
         "              ;;",
         "          esac",
         "        displayName: 'Enforce known target branch'",
-        "",
     ]
     return "\n".join(lines)
 
@@ -317,14 +315,19 @@ def _ado_source_branch_guard_job() -> str:
     """Own job (mirrors GitHub's separate source-branch-guard job) instead of a step
     nested inside a credentialed dry_run_<env> job. That way the check runs before
     any variable group is loaded, and a PR can't delete the guard along with the
-    rest of a job it also controls.
+    rest of a job it also controls. dependsOn: lint makes the succeeded() below mean
+    something (skip this check if lint already failed) instead of trivially passing.
+    checkout: none — the script only inspects a variable, so no repo content is needed.
     """
     return "\n".join(
         [
             "  - job: source_branch_guard",
             "    displayName: 'Source branch guardrail'",
+            "    dependsOn: lint",
             f"    condition: and(succeeded(), {_ado_target_branch_condition('main')})",
             "    steps:",
+            "      - checkout: none",
+            "",
             "      - bash: |",
             "          set -euo pipefail",
             '          HEAD="${SYSTEM_PULLREQUEST_SOURCEBRANCH:-}"',
@@ -338,7 +341,6 @@ def _ado_source_branch_guard_job() -> str:
             '            echo "Promotion flow OK: ${HEAD} -> main"',
             "          fi",
             "        displayName: 'Enforce promotion flow (main <- dev or hotfix/* only)'",
-            "",
         ]
     )
 
@@ -355,12 +357,12 @@ def ado_dry_run_jobs(toolkit_version: str, org_dir: str | None, setup_check_cmd:
     if len(branches) > 2:
         raise ValueError(f"Unsupported number of deployable branches: {len(branches)}")
 
-    jobs: list[str] = [_ado_validate_target_branch_job(branches)]
+    jobs: list[str] = []
     if "main" in branches:
         jobs.append(_ado_source_branch_guard_job())
 
     for branch, env in branches.items():
-        depends_on = ["lint", "validate_target_branch"]
+        depends_on = ["lint"]
         if branch == "main":
             depends_on.append("source_branch_guard")
         lines = [
@@ -441,6 +443,11 @@ def ado_deploy_job(env: str, toolkit_version: str, org_dir: str | None, setup_ch
     resource authorization — which covers every variable group referenced anywhere
     in a pipeline's YAML, not just the group a runtime condition ends up using —
     never requires authorizing a group outside the pipeline that actually needs it.
+
+    The branch/tag `condition:` looks redundant with the file's own `trigger:` block
+    (only the right branch/tag ever triggers a run), but don't drop it: it's what
+    turns an accidental manual "Save and run" during pipeline registration into a
+    harmlessly skipped job instead of a real deploy.
     """
     lines = [
         f"  - job: deploy_{env}",
@@ -459,7 +466,8 @@ def ado_deploy_job(env: str, toolkit_version: str, org_dir: str | None, setup_ch
                 "",
                 "      - bash: |",
                 "          set -euo pipefail",
-                '          TAG="${BUILD_SOURCEBRANCH#refs/tags/}"',
+                '          SRC="${BUILD_SOURCEBRANCH:-}"',
+                '          TAG="${SRC#refs/tags/}"',
                 '          if [[ ! "$TAG" =~ ^v[0-9]+\\.[0-9]+\\.[0-9]+$ ]]; then',
                 '            MSG="Release tag must match vX.Y.Z (got: $TAG)"',
                 '            echo "##vso[task.logissue type=error]${MSG}"',
@@ -570,7 +578,9 @@ def branch_protection_rows(projects: dict[str, str], provider: str) -> str:
                 else "`cdf build & deploy --dry-run`"
             )
         else:
-            reviewers = "1" if branch == "main" else "0"
+            # ADO's reviewer-count policy is either off or >=1 -- there's no "0"
+            # setting to configure, unlike GitHub's approval count.
+            reviewers = "1" if branch == "main" else "none (policy not enabled)"
             checks = "`toolkit-pr-validate` (Build Validation)"
         rows.append(f"| `{branch}` | {reviewers} | {checks} |")
     return "\n".join(rows or ["| *(none)* | *(none)* | No PR workflow generated |"])
@@ -594,15 +604,19 @@ def branch_protection_note(projects: dict[str, str], provider: str) -> str:
             " are promoted from `dev` or `hotfix/*`."
         )
     if branches == {"dev"}:
-        return "PRs to `dev` only run the `toolkit-pr-validate` Build Validation policy (0 required reviewers)."
+        return (
+            "PRs to `dev` only run the `toolkit-pr-validate` Build Validation policy"
+            " (no reviewer requirement enabled)."
+        )
     if branches == {"main"}:
         return (
             "PRs to `main` require 1 reviewer and the `toolkit-pr-validate` Build Validation policy, whose"
             " `source_branch_guard` job enforces that changes are promoted from `dev` or `hotfix/*`."
         )
     return (
-        "PRs to `dev` only run the `toolkit-pr-validate` Build Validation policy (0 required reviewers)."
-        " Its `source_branch_guard` job only enforces the promotion rule for PRs targeting `main`, not `dev`."
+        "PRs to `dev` only run the `toolkit-pr-validate` Build Validation policy (no reviewer requirement"
+        " enabled). Its `source_branch_guard` job only enforces the promotion rule for PRs targeting"
+        " `main`, not `dev`."
     )
 
 
@@ -734,6 +748,7 @@ def main() -> None:
             write_file(out, render_template(deploy_template, merged), args.force)
 
     elif args.provider == "ado":
+        base_values["TARGET_BRANCH_GUARD_STEP"] = ado_target_branch_guard_step(branch_envs(projects))
         base_values["DRY_RUN_JOBS"] = ado_dry_run_jobs(str(toolkit_version), org_dir, setup_check_cmd, projects)
         base_values["DEPLOY_PIPELINE_ROWS"] = ado_deploy_pipeline_rows(projects)
 

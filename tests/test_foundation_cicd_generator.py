@@ -562,13 +562,7 @@ def test_generate_actions_ado_writes_pipelines_and_docs(tmp_path: Path) -> None:
     deploy_test_yaml = yaml.safe_load(deploy_test_path.read_text(encoding="utf-8"))
     deploy_prod_yaml = yaml.safe_load(deploy_prod_path.read_text(encoding="utf-8"))
     job_names = {job["job"] for job in dry_run_yaml["jobs"]}
-    assert job_names == {
-        "lint",
-        "validate_target_branch",
-        "source_branch_guard",
-        "dry_run_dev",
-        "dry_run_test",
-    }
+    assert job_names == {"lint", "source_branch_guard", "dry_run_dev", "dry_run_test"}
     # Each environment gets its own pipeline file with a single job, so Azure's
     # resource authorization for one registration never needs another env's group.
     assert {job["job"] for job in deploy_dev_yaml["jobs"]} == {"deploy_dev"}
@@ -584,6 +578,13 @@ def test_generate_actions_ado_writes_pipelines_and_docs(tmp_path: Path) -> None:
     # a push trigger, so it correctly keeps trigger: none.
     assert dry_run_yaml["trigger"] == "none"
 
+    lint_job = next(job for job in dry_run_yaml["jobs"] if job["job"] == "lint")
+    # lint must stay unconditioned -- that's what guarantees the target-branch check
+    # inside it always runs, even when the value is something no job condition
+    # recognizes. A future refactor adding a condition here would silently
+    # reintroduce the false-green bug item 4 fixed.
+    assert "condition" not in lint_job
+
     for job in dry_run_yaml["jobs"]:
         if job["job"] in ("dry_run_dev", "dry_run_test", "source_branch_guard"):
             # An explicit condition replaces the default succeeded() gate in Azure
@@ -592,10 +593,13 @@ def test_generate_actions_ado_writes_pipelines_and_docs(tmp_path: Path) -> None:
             assert job["condition"].startswith("and(succeeded(), ")
     dry_run_dev_job = next(job for job in dry_run_yaml["jobs"] if job["job"] == "dry_run_dev")
     dry_run_test_job = next(job for job in dry_run_yaml["jobs"] if job["job"] == "dry_run_test")
-    # dependsOn includes validate_target_branch so a manual/non-PR run can't reach
-    # a credentialed job before the target-branch check has had a chance to fail.
-    assert set(dry_run_dev_job["dependsOn"]) == {"lint", "validate_target_branch"}
-    assert set(dry_run_test_job["dependsOn"]) == {"lint", "validate_target_branch", "source_branch_guard"}
+    assert set(dry_run_dev_job["dependsOn"]) == {"lint"}
+    assert set(dry_run_test_job["dependsOn"]) == {"lint", "source_branch_guard"}
+    source_branch_guard_job = next(job for job in dry_run_yaml["jobs"] if job["job"] == "source_branch_guard")
+    assert source_branch_guard_job["dependsOn"] == "lint"
+    # Neither job needs repo content -- an implicit checkout would be a wasted full
+    # clone just to compare short strings, doubling agent time on constrained orgs.
+    assert source_branch_guard_job["steps"][0]["checkout"] == "none"
 
     dry_run_text = dry_run_path.read_text(encoding="utf-8")
     assert "GITHUB_BASE_REF" not in dry_run_text
@@ -606,12 +610,13 @@ def test_generate_actions_ado_writes_pipelines_and_docs(tmp_path: Path) -> None:
     # Azure's script: task runs cmd.exe on a Windows agent; these scripts rely on
     # bash-only syntax ([[ ]], set -euo pipefail), so they must use bash: instead.
     assert "- script:" not in dry_run_text
-    # validate_target_branch must fail loudly rather than silently pass when the
-    # target branch doesn't match a known value (e.g. a format the job conditions
-    # don't recognize) — otherwise the required check reports success having
-    # validated nothing.
+    # The target-branch check (now lint's first step) must fail loudly rather than
+    # silently pass when the value doesn't match a known branch — otherwise the
+    # required check reports success having validated nothing.
     assert "Unsupported target branch" in dry_run_text
     assert "exit 1" in dry_run_text
+    # It must run before the repo is even checked out, not after.
+    assert dry_run_text.index("Enforce known target branch") < dry_run_text.index("checkout: self")
 
     deploy_dev_text = deploy_dev_path.read_text(encoding="utf-8")
     deploy_test_text = deploy_test_path.read_text(encoding="utf-8")
@@ -629,13 +634,22 @@ def test_generate_actions_ado_writes_pipelines_and_docs(tmp_path: Path) -> None:
     assert "dev-toolkit-credentials" not in deploy_prod_text
     assert "Enforce release tag pattern" in deploy_prod_text
     # The prod tag name comes from the full ref, not just its last segment — a tag
-    # like `x/v1.0.0` must not slip through as if it were `v1.0.0`.
-    assert 'TAG="${BUILD_SOURCEBRANCH#refs/tags/}"' in deploy_prod_text
+    # like `x/v1.0.0` must not slip through as if it were `v1.0.0` -- and the
+    # unset-variable case must still be a clean "tag must match" failure, not a
+    # bare `set -u` crash.
+    assert 'SRC="${BUILD_SOURCEBRANCH:-}"' in deploy_prod_text
+    assert 'TAG="${SRC#refs/tags/}"' in deploy_prod_text
     assert "BUILD_SOURCEBRANCHNAME" not in deploy_prod_text
     # Each deploy pipeline declares its own trigger directly, no manual UI override.
     assert deploy_dev_yaml["trigger"] == {"branches": {"include": ["dev"]}}
     assert deploy_test_yaml["trigger"] == {"branches": {"include": ["main"]}}
     assert deploy_prod_yaml["trigger"] == {"branches": {"exclude": ["*"]}, "tags": {"include": ["v*"]}}
+    # On a GitHub/Bitbucket-hosted repo, an absent `pr:` block defaults to PR
+    # validation on every branch -- without `pr: none`, every PR would queue a
+    # toolkit-deploy-prod run (harmlessly skipped, but alarming to see).
+    assert deploy_dev_yaml["pr"] == "none"
+    assert deploy_test_yaml["pr"] == "none"
+    assert deploy_prod_yaml["pr"] == "none"
     for deploy_yaml in (deploy_dev_yaml, deploy_test_yaml, deploy_prod_yaml):
         for job in deploy_yaml["jobs"]:
             # Same succeeded() requirement as the dry-run jobs: an explicit condition
@@ -679,6 +693,14 @@ def test_generate_actions_ado_writes_pipelines_and_docs(tmp_path: Path) -> None:
     assert "toolkit-pr-validate` (Build Validation)" in docs
     assert "Minimum number of reviewers" in docs
     assert "Required reviewers" not in docs
+    # ADO's reviewer-count policy is either off or >=1 -- there's no "0" setting,
+    # unlike GitHub's approval count.
+    assert "none (policy not enabled)" in docs
+    assert "| dev | 0 |" not in docs
+    # Documents the GitHub/Bitbucket-hosted-repo default PR trigger and the
+    # expected failure message on a manual smoke-test run.
+    assert "Unsupported target branch" in docs
+    assert "falls back to its default of validating PRs to any branch" in docs
 
 
 def test_generate_actions_ado_dev_only_has_branch_condition(tmp_path: Path) -> None:
@@ -704,8 +726,8 @@ def test_generate_actions_ado_dev_only_has_branch_condition(tmp_path: Path) -> N
         "in(variables['System.PullRequest.TargetBranch'], 'refs/heads/dev', 'dev'))"
     )
     # No test/main branch configured, so the promotion-flow guard job is never
-    # generated at all -- only the always-on target-branch validator exists.
-    assert {job["job"] for job in dry_run_yaml["jobs"]} == {"lint", "validate_target_branch", "dry_run_dev"}
+    # generated at all -- the target-branch check lives inside lint regardless.
+    assert {job["job"] for job in dry_run_yaml["jobs"]} == {"lint", "dry_run_dev"}
     assert {job["job"] for job in deploy_dev_yaml["jobs"]} == {"deploy_dev"}
     # Only the dev environment was configured — test and prod deploy pipelines
     # must not be written at all.
@@ -735,7 +757,7 @@ def test_generate_actions_ado_test_only_promotion_guard_skips_non_pr_runs(tmp_pa
         "and(succeeded(), "
         "in(variables['System.PullRequest.TargetBranch'], 'refs/heads/main', 'main'))"
     )
-    assert set(dry_run_test_job["dependsOn"]) == {"lint", "validate_target_branch", "source_branch_guard"}
+    assert set(dry_run_test_job["dependsOn"]) == {"lint", "source_branch_guard"}
     source_branch_guard_job = next(job for job in dry_run_yaml["jobs"] if job["job"] == "source_branch_guard")
     assert source_branch_guard_job["condition"] == (
         "and(succeeded(), "
