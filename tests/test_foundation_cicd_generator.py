@@ -6,6 +6,7 @@ import sys
 from pathlib import Path
 
 import pytest
+import yaml
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 MODULE_ROOT = REPO_ROOT / "modules" / "common" / "cdf_project_foundation"
@@ -18,7 +19,7 @@ def test_generator_scripts_exist() -> None:
     assert (TEMPLATES / "dry-run.yml").is_file()
 
 
-def test_dry_run_environment_rejects_more_than_two_branches(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_github_dry_run_environment_rejects_more_than_two_branches(monkeypatch: pytest.MonkeyPatch) -> None:
     sys.path.insert(0, str(MODULE_ROOT / "scripts"))
     import generate_actions  # pyright: ignore[reportMissingImports]
 
@@ -26,7 +27,23 @@ def test_dry_run_environment_rejects_more_than_two_branches(monkeypatch: pytest.
     monkeypatch.setitem(generate_actions.DEPLOY_BRANCHES, "qa", "qa")
 
     with pytest.raises(ValueError, match="Unsupported number of deployable branches: 3"):
-        generate_actions.dry_run_environment({"dev": "acme-dev", "test": "acme-test", "qa": "acme-qa"})
+        generate_actions.github_dry_run_environment({"dev": "acme-dev", "test": "acme-test", "qa": "acme-qa"})
+
+
+def test_ado_dry_run_jobs_rejects_more_than_two_branches(monkeypatch: pytest.MonkeyPatch) -> None:
+    sys.path.insert(0, str(MODULE_ROOT / "scripts"))
+    import generate_actions  # pyright: ignore[reportMissingImports]
+
+    monkeypatch.setattr(generate_actions, "deployable_envs", lambda projects: ["dev", "test", "qa"])
+    monkeypatch.setitem(generate_actions.DEPLOY_BRANCHES, "qa", "qa")
+
+    with pytest.raises(ValueError, match="Unsupported number of deployable branches: 3"):
+        generate_actions.ado_dry_run_jobs(
+            "0.8.0",
+            None,
+            "python scripts/setup_project.py --check",
+            {"dev": "acme-dev", "test": "acme-test", "qa": "acme-qa"},
+        )
 
 
 def test_workflows_output_dir_rejects_unsupported_provider(tmp_path: Path) -> None:
@@ -513,6 +530,351 @@ def test_generate_actions_explicit_provider_github_is_byte_identical_to_default(
     assert not (explicit_dir / ".devops").exists()
 
 
+def _scaffold_project_with_envs(project_dir: Path, envs: tuple[str, ...], org_dir: str | None = None) -> None:
+    (project_dir / "cdf.toml").write_text(
+        """
+[modules]
+version = "0.8.0"
+""".strip(),
+        encoding="utf-8",
+    )
+    base = (project_dir / org_dir) if org_dir else project_dir
+    modules = base / "modules" / "common" / "cdf_project_foundation"
+    modules.mkdir(parents=True)
+    (modules / "module.toml").write_text(
+        'id = "cdf_project_foundation"\npackage_id = "dp:foundation"\n',
+        encoding="utf-8",
+    )
+    for env in envs:
+        (base / f"config.{env}.yaml").write_text(
+            f"""
+environment:
+  name: {env}
+  project: acme-{env}
+""".lstrip(),
+            encoding="utf-8",
+        )
+
+
+def test_generate_actions_ado_writes_pipelines_and_docs(tmp_path: Path) -> None:
+    _scaffold_project_with_envs(tmp_path, ("dev", "test", "prod"))
+
+    subprocess.run(
+        [sys.executable, str(GENERATE_ACTIONS), "--force", "--provider", "ado"],
+        check=True,
+        cwd=tmp_path,
+    )
+
+    dry_run_path = tmp_path / ".devops" / "dry-run-pipeline.yml"
+    deploy_dev_path = tmp_path / ".devops" / "deploy-dev-pipeline.yml"
+    deploy_test_path = tmp_path / ".devops" / "deploy-test-pipeline.yml"
+    deploy_prod_path = tmp_path / ".devops" / "deploy-prod-pipeline.yml"
+    assert dry_run_path.is_file()
+    assert deploy_dev_path.is_file()
+    assert deploy_test_path.is_file()
+    assert deploy_prod_path.is_file()
+    assert (tmp_path / "docs" / "FOUNDATION_CICD.md").is_file()
+    # Nothing GitHub-specific should leak into ado's own output tree.
+    assert not (tmp_path / ".github").exists()
+
+    dry_run_yaml = yaml.safe_load(dry_run_path.read_text(encoding="utf-8"))
+    deploy_dev_yaml = yaml.safe_load(deploy_dev_path.read_text(encoding="utf-8"))
+    deploy_test_yaml = yaml.safe_load(deploy_test_path.read_text(encoding="utf-8"))
+    deploy_prod_yaml = yaml.safe_load(deploy_prod_path.read_text(encoding="utf-8"))
+    job_names = {job["job"] for job in dry_run_yaml["jobs"]}
+    assert job_names == {"lint", "source_branch_guard", "dry_run_dev", "dry_run_test"}
+    # Each environment gets its own pipeline file with a single job, so Azure's
+    # resource authorization for one registration never needs another env's group.
+    assert {job["job"] for job in deploy_dev_yaml["jobs"]} == {"deploy_dev"}
+    assert {job["job"] for job in deploy_test_yaml["jobs"]} == {"deploy_test"}
+    assert {job["job"] for job in deploy_prod_yaml["jobs"]} == {"deploy_prod"}
+
+    # Azure Repos doesn't support YAML `pr:` triggers — a `pr:` block here would be
+    # dead config that misleads readers into thinking it controls PR execution.
+    assert "pr" not in dry_run_yaml
+    dry_run_raw = dry_run_path.read_text(encoding="utf-8")
+    assert "Build Validation branch policy" in dry_run_raw
+    # dry-run-pipeline.yml is only ever invoked via a Build Validation policy, not
+    # a push trigger, so it correctly keeps trigger: none.
+    assert dry_run_yaml["trigger"] == "none"
+
+    lint_job = next(job for job in dry_run_yaml["jobs"] if job["job"] == "lint")
+    # lint must stay unconditioned -- that's what guarantees the target-branch check
+    # inside it always runs, even when the value is something no job condition
+    # recognizes. A future refactor adding a condition here would silently
+    # reintroduce the false-green bug item 4 fixed.
+    assert "condition" not in lint_job
+
+    for job in dry_run_yaml["jobs"]:
+        if job["job"] in ("dry_run_dev", "dry_run_test", "source_branch_guard"):
+            # An explicit condition replaces the default succeeded() gate in Azure
+            # Pipelines — without succeeded() here, a PR could still build/deploy
+            # against live CDF credentials even when the lint job failed.
+            assert job["condition"].startswith("and(succeeded(), ")
+    dry_run_dev_job = next(job for job in dry_run_yaml["jobs"] if job["job"] == "dry_run_dev")
+    dry_run_test_job = next(job for job in dry_run_yaml["jobs"] if job["job"] == "dry_run_test")
+    assert set(dry_run_dev_job["dependsOn"]) == {"lint"}
+    assert set(dry_run_test_job["dependsOn"]) == {"lint", "source_branch_guard"}
+    source_branch_guard_job = next(job for job in dry_run_yaml["jobs"] if job["job"] == "source_branch_guard")
+    assert source_branch_guard_job["dependsOn"] == "lint"
+    # Neither job needs repo content -- an implicit checkout would be a wasted full
+    # clone just to compare short strings, doubling agent time on constrained orgs.
+    assert source_branch_guard_job["steps"][0]["checkout"] == "none"
+
+    dry_run_text = dry_run_path.read_text(encoding="utf-8")
+    assert "GITHUB_BASE_REF" not in dry_run_text
+    assert "github." not in dry_run_text
+    assert "System.PullRequest.TargetBranch" in dry_run_text
+    # PR validation only loads the non-secret config group -- never credentials,
+    # since a Build Validation run compiles this file's own YAML from the PR's
+    # merge ref, which the PR author controls.
+    assert "dev-toolkit-config" in dry_run_text
+    assert "test-toolkit-config" in dry_run_text
+    assert "dev-toolkit-credentials" not in dry_run_text
+    assert "test-toolkit-credentials" not in dry_run_text
+    assert "IDP_CLIENT_SECRET" not in dry_run_text
+    assert "cdf deploy --dry-run" not in dry_run_text
+    assert "cdf build" in dry_run_text
+    # Azure's script: task runs cmd.exe on a Windows agent; these scripts rely on
+    # bash-only syntax ([[ ]], set -euo pipefail), so they must use bash: instead.
+    assert "- script:" not in dry_run_text
+    # The target-branch check (now lint's first step) must fail loudly rather than
+    # silently pass when the value doesn't match a known branch — otherwise the
+    # required check reports success having validated nothing.
+    assert "Unsupported target branch" in dry_run_text
+    assert "exit 1" in dry_run_text
+    # It must run before the repo is even checked out, not after.
+    assert dry_run_text.index("Enforce known target branch") < dry_run_text.index("checkout: self")
+
+    deploy_dev_text = deploy_dev_path.read_text(encoding="utf-8")
+    deploy_test_text = deploy_test_path.read_text(encoding="utf-8")
+    deploy_prod_text = deploy_prod_path.read_text(encoding="utf-8")
+    assert "- script:" not in deploy_dev_text
+    assert "- script:" not in deploy_test_text
+    assert "- script:" not in deploy_prod_text
+    # Deploy pipelines load both groups -- config (for cdf build) and credentials
+    # (for cdf deploy --dry-run / cdf deploy), since this is the pipeline whose
+    # YAML a pull request can't modify.
+    assert "dev-toolkit-config" in deploy_dev_text
+    assert "dev-toolkit-credentials" in deploy_dev_text
+    assert "test-toolkit-credentials" not in deploy_dev_text
+    assert "prod-toolkit-credentials" not in deploy_dev_text
+    assert "test-toolkit-config" in deploy_test_text
+    assert "test-toolkit-credentials" in deploy_test_text
+    assert "dev-toolkit-credentials" not in deploy_test_text
+    # cdf deploy --dry-run now runs in every environment's deploy pipeline, not
+    # just prod -- that's the whole point of moving it out of PR validation.
+    assert "cdf deploy --dry-run" in deploy_dev_text
+    assert "cdf deploy --dry-run" in deploy_test_text
+    assert "startsWith(variables['Build.SourceBranch'], 'refs/tags/v')" in deploy_prod_text
+    assert "prod-toolkit-credentials" in deploy_prod_text
+    assert "dev-toolkit-credentials" not in deploy_prod_text
+    assert "Enforce release tag pattern" in deploy_prod_text
+    # The prod tag name comes from the full ref, not just its last segment — a tag
+    # like `x/v1.0.0` must not slip through as if it were `v1.0.0` -- and the
+    # unset-variable case must still be a clean "tag must match" failure, not a
+    # bare `set -u` crash.
+    assert 'SRC="${BUILD_SOURCEBRANCH:-}"' in deploy_prod_text
+    assert 'TAG="${SRC#refs/tags/}"' in deploy_prod_text
+    assert "BUILD_SOURCEBRANCHNAME" not in deploy_prod_text
+    # Each deploy pipeline declares its own trigger directly, no manual UI override.
+    assert deploy_dev_yaml["trigger"] == {"branches": {"include": ["dev"]}}
+    assert deploy_test_yaml["trigger"] == {"branches": {"include": ["main"]}}
+    assert deploy_prod_yaml["trigger"] == {"branches": {"exclude": ["*"]}, "tags": {"include": ["v*"]}}
+    # On a GitHub/Bitbucket-hosted repo, an absent `pr:` block defaults to PR
+    # validation on every branch -- without `pr: none`, every PR would queue a
+    # toolkit-deploy-prod run (harmlessly skipped, but alarming to see).
+    assert deploy_dev_yaml["pr"] == "none"
+    assert deploy_test_yaml["pr"] == "none"
+    assert deploy_prod_yaml["pr"] == "none"
+    for deploy_yaml in (deploy_dev_yaml, deploy_test_yaml, deploy_prod_yaml):
+        for job in deploy_yaml["jobs"]:
+            # Same succeeded() requirement as the dry-run jobs: an explicit condition
+            # without it would let a deploy job start after a canceled run.
+            assert job["condition"].startswith("and(succeeded(), ")
+    # Azure Pipelines does not auto-map secret variable-group values into script
+    # environments (only plain variables get that treatment) — cdf deploy needs
+    # IDP_CLIENT_SECRET mapped explicitly or authentication fails. Every deploy
+    # pipeline now runs both cdf deploy --dry-run and cdf deploy, so each needs
+    # the mapping twice.
+    assert deploy_dev_text.count("IDP_CLIENT_SECRET: $(IDP_CLIENT_SECRET)") == 2
+    assert deploy_test_text.count("IDP_CLIENT_SECRET: $(IDP_CLIENT_SECRET)") == 2
+    assert deploy_prod_text.count("IDP_CLIENT_SECRET: $(IDP_CLIENT_SECRET)") == 2
+    # checkout doesn't persist git credentials by default — the prod job's own
+    # `git fetch origin main` step needs them to authenticate.
+    prod_job = next(job for job in deploy_prod_yaml["jobs"] if job["job"] == "deploy_prod")
+    assert prod_job["steps"][0]["checkout"] == "self"
+    assert prod_job["steps"][0]["persistCredentials"] is True
+    # A shallow/single-branch CI checkout may not have origin/main as a valid
+    # remote-tracking ref; FETCH_HEAD is always populated by the preceding fetch.
+    assert "git merge-base --is-ancestor HEAD FETCH_HEAD" in deploy_prod_text
+    assert "origin/main; then" not in deploy_prod_text
+    for text in (deploy_dev_text, deploy_test_text, deploy_prod_text, dry_run_text):
+        assert all(len(line) <= 120 for line in text.splitlines())
+
+    docs = (tmp_path / "docs" / "FOUNDATION_CICD.md").read_text(encoding="utf-8")
+    assert "toolkit-deploy-dev" in docs
+    assert "toolkit-deploy-test" in docs
+    assert "toolkit-deploy-prod" in docs
+    assert "deploy-dev-pipeline.yml" in docs
+    assert "deploy-test-pipeline.yml" in docs
+    assert "deploy-prod-pipeline.yml" in docs
+    assert "Build Validation" in docs
+    # Branch control is no longer part of the story: PR validation never loads
+    # a secret, so there's nothing for the (broken) Branch control workaround
+    # to protect. Philippe's finding is resolved by removing the exposure, not
+    # by patching around it.
+    assert "Branch control" not in docs
+    assert "Pipeline permissions are sufficient" in docs
+    assert "toolkit-config" in docs
+    assert "IDP_TOKEN_URL" in docs
+    assert "GitHub Release" not in docs
+    # ADO's Build Validation policy references a pipeline, not a job display name
+    # inside it — the branch-protection table must not carry over GitHub wording.
+    assert "Source branch guardrail" not in docs
+    assert "cdf build & deploy --dry-run" not in docs
+    assert "toolkit-pr-validate` (Build Validation)" in docs
+    assert "Minimum number of reviewers" in docs
+    assert "Required reviewers" not in docs
+    # ADO's reviewer-count policy is either off or >=1 -- there's no "0" setting,
+    # unlike GitHub's approval count.
+    assert "none (policy not enabled)" in docs
+    assert "| dev | 0 |" not in docs
+    # Documents the GitHub/Bitbucket-hosted-repo default PR trigger and the
+    # expected failure message on a manual smoke-test run.
+    assert "Unsupported target branch" in docs
+    assert "falls back to its default of validating PRs to any branch" in docs
+    # ADO's PR check never runs cdf deploy --dry-run anymore -- that's the point
+    # of the #3 fix. GitHub's branching-model wording is unaffected (separate,
+    # not-yet-fixed exposure), so only assert on ADO's own row here.
+    assert "| PR → `dev` | `acme-dev` | Validate (`cdf build`) |" in docs
+    assert "| PR → `main` | `acme-test` | Validate (`cdf build`) |" in docs
+    assert "cdf deploy --dry-run" not in docs.split("## Branch policies")[0]
+
+
+def test_generate_actions_ado_prod_only_has_no_dry_run_pipeline(tmp_path: Path) -> None:
+    """A prod-only project (no dev/test) has no dry-run pipeline at all -- the docs
+    must not reference toolkit-pr-validate/dry-run-pipeline.yml as if it exists, or
+    give a `dev-toolkit-credentials` example when no dev environment is configured."""
+    _scaffold_project_with_envs(tmp_path, ("prod",))
+
+    subprocess.run(
+        [sys.executable, str(GENERATE_ACTIONS), "--force", "--provider", "ado"],
+        check=True,
+        cwd=tmp_path,
+    )
+
+    assert not (tmp_path / ".devops" / "dry-run-pipeline.yml").exists()
+    assert (tmp_path / ".devops" / "deploy-prod-pipeline.yml").is_file()
+
+    docs = (tmp_path / "docs" / "FOUNDATION_CICD.md").read_text(encoding="utf-8")
+    assert "toolkit-pr-validate" not in docs
+    assert "dry-run-pipeline.yml" not in docs
+    assert "dev-toolkit-credentials" not in docs
+    assert "dev-toolkit-config" not in docs
+    assert "No dry-run pipeline is generated without a dev or test environment" in docs
+    # The prod-only example must name a group/pipeline that's actually configured.
+    assert "the `prod-toolkit-config` and `prod-toolkit-credentials` groups should each grant" in docs
+    assert "access to `toolkit-deploy-prod` only" in docs
+    assert "`prod-toolkit-credentials` only ever needs to be authorized for `toolkit-deploy-prod`" in docs
+
+
+def test_generate_actions_ado_test_and_prod_examples_do_not_mention_dev(tmp_path: Path) -> None:
+    """With test+prod configured (no dev), the doc's illustrative examples must name
+    an environment that actually exists -- a hardcoded 'dev-toolkit-credentials'
+    example would refer to a variable group this project never creates."""
+    _scaffold_project_with_envs(tmp_path, ("test", "prod"))
+
+    subprocess.run(
+        [sys.executable, str(GENERATE_ACTIONS), "--force", "--provider", "ado"],
+        check=True,
+        cwd=tmp_path,
+    )
+
+    docs = (tmp_path / "docs" / "FOUNDATION_CICD.md").read_text(encoding="utf-8")
+    assert "dev-toolkit-credentials" not in docs
+    assert "dev-toolkit-config" not in docs
+    assert "toolkit-deploy-dev" not in docs
+    # Only the non-secret config group grants access to toolkit-pr-validate --
+    # the credentials group is deploy-only.
+    assert "the `test-toolkit-config` group should grant access to `toolkit-pr-validate`" in docs
+    assert "`test-toolkit-credentials` should grant access to `toolkit-deploy-test` only" in docs
+    assert "`test-toolkit-credentials` only ever needs to be authorized for `toolkit-deploy-test`" in docs
+    # Only `main` is a deployable branch here (test only) -- the row must not claim
+    # a `dev` PR trigger that was never generated.
+    assert "| `toolkit-pr-validate` | `.devops/dry-run-pipeline.yml` | PR to `main`" in docs
+    assert "PR to `dev`" not in docs
+
+
+def test_generate_actions_ado_dev_only_has_branch_condition(tmp_path: Path) -> None:
+    """Even with a single deployable branch, the dry-run job must stay gated on
+    System.PullRequest.TargetBranch -- otherwise a manual or non-PR pipeline run
+    would load the non-secret config group and run `cdf build` unconditionally."""
+    _scaffold_project_with_envs(tmp_path, ("dev",))
+
+    subprocess.run(
+        [sys.executable, str(GENERATE_ACTIONS), "--force", "--provider", "ado"],
+        check=True,
+        cwd=tmp_path,
+    )
+
+    dry_run_path = tmp_path / ".devops" / "dry-run-pipeline.yml"
+    deploy_dev_path = tmp_path / ".devops" / "deploy-dev-pipeline.yml"
+    dry_run_yaml = yaml.safe_load(dry_run_path.read_text(encoding="utf-8"))
+    deploy_dev_yaml = yaml.safe_load(deploy_dev_path.read_text(encoding="utf-8"))
+
+    dry_run_dev_job = next(job for job in dry_run_yaml["jobs"] if job["job"] == "dry_run_dev")
+    assert dry_run_dev_job["condition"] == (
+        "and(succeeded(), "
+        "in(variables['System.PullRequest.TargetBranch'], 'refs/heads/dev', 'dev'))"
+    )
+    # No test/main branch configured, so the promotion-flow guard job is never
+    # generated at all -- the target-branch check lives inside lint regardless.
+    assert {job["job"] for job in dry_run_yaml["jobs"]} == {"lint", "dry_run_dev"}
+    assert {job["job"] for job in deploy_dev_yaml["jobs"]} == {"deploy_dev"}
+    # Only the dev environment was configured — test and prod deploy pipelines
+    # must not be written at all.
+    assert not (tmp_path / ".devops" / "deploy-test-pipeline.yml").exists()
+    assert not (tmp_path / ".devops" / "deploy-prod-pipeline.yml").exists()
+    # The promotion-flow guard only applies to the main/test job.
+    assert "Enforce promotion flow" not in dry_run_path.read_text(encoding="utf-8")
+
+
+def test_generate_actions_ado_test_only_promotion_guard_skips_non_pr_runs(tmp_path: Path) -> None:
+    """With only config.test.yaml present, dry_run_test is the sole branch (main), and
+    the promotion guard now lives in its own source_branch_guard job rather than a
+    step inside dry_run_test. Its script must not blow up on an empty HEAD (manual
+    or non-PR runs), even though the job condition already keeps those from mattering."""
+    _scaffold_project_with_envs(tmp_path, ("test",))
+
+    subprocess.run(
+        [sys.executable, str(GENERATE_ACTIONS), "--force", "--provider", "ado"],
+        check=True,
+        cwd=tmp_path,
+    )
+
+    dry_run_path = tmp_path / ".devops" / "dry-run-pipeline.yml"
+    dry_run_yaml = yaml.safe_load(dry_run_path.read_text(encoding="utf-8"))
+    dry_run_test_job = next(job for job in dry_run_yaml["jobs"] if job["job"] == "dry_run_test")
+    assert dry_run_test_job["condition"] == (
+        "and(succeeded(), "
+        "in(variables['System.PullRequest.TargetBranch'], 'refs/heads/main', 'main'))"
+    )
+    assert set(dry_run_test_job["dependsOn"]) == {"lint", "source_branch_guard"}
+    source_branch_guard_job = next(job for job in dry_run_yaml["jobs"] if job["job"] == "source_branch_guard")
+    assert source_branch_guard_job["condition"] == (
+        "and(succeeded(), "
+        "in(variables['System.PullRequest.TargetBranch'], 'refs/heads/main', 'main'))"
+    )
+
+    dry_run_text = dry_run_path.read_text(encoding="utf-8")
+    assert "Enforce promotion flow" in dry_run_text
+    assert 'if [ -n "${HEAD}" ]; then' in dry_run_text
+    # The guard is its own job now, not a step buried inside the credentialed
+    # dry_run_test job -- a PR can no longer delete it by editing that job away.
+    assert "source_branch_guard" in {job["job"] for job in dry_run_yaml["jobs"]}
+
+
 def test_generate_actions_rejects_invalid_provider(tmp_path: Path) -> None:
     _scaffold_dev_only_project(tmp_path)
 
@@ -530,24 +892,36 @@ def test_generate_actions_rejects_invalid_provider(tmp_path: Path) -> None:
     assert not (tmp_path / ".devops").exists()
 
 
-def test_generate_actions_provider_ado_fails_with_missing_template_error(tmp_path: Path) -> None:
-    _scaffold_dev_only_project(tmp_path)
+def test_generate_actions_ado_missing_dry_run_template_fails_gracefully(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    sys.path.insert(0, str(MODULE_ROOT / "scripts"))
+    import generate_actions  # pyright: ignore[reportMissingImports]
 
-    result = subprocess.run(
-        [sys.executable, str(GENERATE_ACTIONS), "--force", "--provider", "ado"],
-        cwd=tmp_path,
-        check=False,
-        capture_output=True,
-        text=True,
-    )
+    project_dir = tmp_path / "project"
+    project_dir.mkdir()
+    _scaffold_dev_only_project(project_dir)
 
-    assert result.returncode != 0
-    assert "Missing template" in result.stderr
-    assert "templates/ado" in result.stderr
-    # No-op: nothing should be written for a provider whose templates don't exist yet.
-    assert not (tmp_path / ".devops").exists()
-    assert not (tmp_path / ".github").exists()
-    assert not (tmp_path / "docs" / "FOUNDATION_CICD.md").exists()
+    # An ado template set missing dry-run-pipeline.yml — simulates an incomplete install.
+    ado_templates = MODULE_ROOT / "templates" / "ado"
+    fake_templates_root = tmp_path / "templates"
+    fake_ado_dir = fake_templates_root / "ado"
+    fake_ado_dir.mkdir(parents=True)
+    for name in ("deploy-pipeline.yml", "FOUNDATION_CICD.md"):
+        (fake_ado_dir / name).write_text((ado_templates / name).read_text(encoding="utf-8"), encoding="utf-8")
+
+    monkeypatch.setattr(generate_actions, "TEMPLATES_ROOT", fake_templates_root)
+    monkeypatch.setattr(sys, "argv", ["generate_actions.py", "--force", "--provider", "ado"])
+    monkeypatch.chdir(project_dir)
+
+    with pytest.raises(SystemExit) as exc_info:
+        generate_actions.main()
+
+    assert exc_info.value.code == 1
+    captured = capsys.readouterr()
+    assert "Missing template" in captured.err
+    assert "dry-run-pipeline.yml" in captured.err
+    assert not (project_dir / ".devops").exists()
 
 
 def test_generate_actions_missing_readme_template_fails_gracefully(
@@ -560,16 +934,15 @@ def test_generate_actions_missing_readme_template_fails_gracefully(
     project_dir.mkdir()
     _scaffold_dev_only_project(project_dir)
 
-    # A provider whose template set is missing FOUNDATION_CICD.md — everything else is present.
-    fake_provider_dir = tmp_path / "templates" / "fake"
-    fake_provider_dir.mkdir(parents=True)
+    # A github template set missing FOUNDATION_CICD.md — everything else is present.
+    fake_templates_root = tmp_path / "templates"
+    fake_github_dir = fake_templates_root / "github"
+    fake_github_dir.mkdir(parents=True)
     for name in ("dry-run.yml", "deploy.yml"):
-        (fake_provider_dir / name).write_text((TEMPLATES / name).read_text(encoding="utf-8"), encoding="utf-8")
+        (fake_github_dir / name).write_text((TEMPLATES / name).read_text(encoding="utf-8"), encoding="utf-8")
 
-    monkeypatch.setattr(generate_actions, "TEMPLATES_ROOT", tmp_path / "templates")
-    monkeypatch.setattr(generate_actions, "PROVIDERS", (*generate_actions.PROVIDERS, "fake"))
-    monkeypatch.setitem(generate_actions.PROVIDER_WORKFLOWS_DIR, "fake", Path(".github") / "workflows")
-    monkeypatch.setattr(sys, "argv", ["generate_actions.py", "--force", "--provider", "fake"])
+    monkeypatch.setattr(generate_actions, "TEMPLATES_ROOT", fake_templates_root)
+    monkeypatch.setattr(sys, "argv", ["generate_actions.py", "--force", "--provider", "github"])
     monkeypatch.chdir(project_dir)
 
     with pytest.raises(SystemExit) as exc_info:

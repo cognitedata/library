@@ -1,0 +1,16 @@
+{{DEPLOY_TRIGGER}}
+
+# On a GitHub- or Bitbucket-hosted repo, Azure Pipelines enables PR validation on
+# every branch by default when `pr:` is omitted -- without this, every PR would
+# queue a run of this pipeline (including toolkit-deploy-prod). The job's own
+# condition still skips it (Build.SourceBranch is a PR merge ref, not a real
+# branch/tag), but a prod-deploy pipeline visibly queuing on every PR raises
+# questions it shouldn't. Azure Repos Git doesn't support `pr:` at all, so this
+# is a no-op there.
+pr: none
+
+pool:
+  vmImage: ubuntu-latest
+
+jobs:
+{{DEPLOY_JOBS}}
