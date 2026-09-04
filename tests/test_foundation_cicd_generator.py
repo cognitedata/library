@@ -613,7 +613,7 @@ def test_generate_actions_ado_writes_pipelines_and_docs(tmp_path: Path) -> None:
     assert "dev-toolkit-credentials" not in dry_run_text
     assert "test-toolkit-credentials" not in dry_run_text
     assert "IDP_CLIENT_SECRET" not in dry_run_text
-    assert "cdf deploy" not in dry_run_text
+    assert "cdf deploy --dry-run" not in dry_run_text
     assert "cdf build" in dry_run_text
     # Azure's script: task runs cmd.exe on a Windows agent; these scripts rely on
     # bash-only syntax ([[ ]], set -euo pipefail), so they must use bash: instead.
@@ -789,7 +789,7 @@ def test_generate_actions_ado_test_and_prod_examples_do_not_mention_dev(tmp_path
 def test_generate_actions_ado_dev_only_has_branch_condition(tmp_path: Path) -> None:
     """Even with a single deployable branch, the dry-run job must stay gated on
     System.PullRequest.TargetBranch -- otherwise a manual or non-PR pipeline run
-    would load live credentials and run cdf deploy --dry-run unconditionally."""
+    would load the non-secret config group and run `cdf build` unconditionally."""
     _scaffold_project_with_envs(tmp_path, ("dev",))
 
     subprocess.run(

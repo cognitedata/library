@@ -60,7 +60,7 @@ Import the generated YAML as Azure DevOps pipelines under **Pipelines → New pi
 |---------------|-----------|---------|
 {{PIPELINE_ROWS}}
 
-Each deploy pipeline has its own YAML file, scoped to only that environment's variable group — Azure authorizes every variable group referenced anywhere in a pipeline's YAML, not just the one an eventual runtime condition ends up using, so a shared file would force authorizing all three groups on all three registrations. With one file per environment, {{DEPLOY_AUTHORIZATION_EXAMPLE}}, and so on. Each `deploy-*-pipeline.yml` declares its own trigger directly in the YAML (the branch or tag pattern from the table above), so importing it is enough — no manual **Edit → Triggers** step, which wouldn't be visible in git history and would be lost if the pipeline is ever re-registered.{{DRY_RUN_TRIGGER_NOTE}}
+Each deploy pipeline has its own YAML file, scoped to only that environment's variable groups (`-toolkit-config` and `-toolkit-credentials`) — Azure authorizes every variable group referenced anywhere in a pipeline's YAML, not just the one an eventual runtime condition ends up using, so a shared file would force authorizing every environment's groups on all three registrations. With one file per environment, {{DEPLOY_AUTHORIZATION_EXAMPLE}}, and so on. Each `deploy-*-pipeline.yml` declares its own trigger directly in the YAML (the branch or tag pattern from the table above), so importing it is enough — no manual **Edit → Triggers** step, which wouldn't be visible in git history and would be lost if the pipeline is ever re-registered.{{DRY_RUN_TRIGGER_NOTE}}
 
 ## Toolkit configs
 
