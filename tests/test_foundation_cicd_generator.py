@@ -463,6 +463,26 @@ environment:
     )
 
 
+def test_generate_actions_force_regenerates_tag_pinned_workflows_to_digests(tmp_path: Path) -> None:
+    """An existing customer repo generated before actions were digest-pinned must get
+    digest-pinned workflows after re-running the generator with --force."""
+    _scaffold_dev_only_project(tmp_path)
+    workflows_dir = tmp_path / ".github" / "workflows"
+    workflows_dir.mkdir(parents=True)
+    (workflows_dir / "dry-run.yml").write_text(
+        "        - uses: actions/checkout@v4\n        - uses: actions/setup-python@v5\n",
+        encoding="utf-8",
+    )
+
+    subprocess.run([sys.executable, str(GENERATE_ACTIONS), "--force"], check=True, cwd=tmp_path)
+
+    regenerated = (workflows_dir / "dry-run.yml").read_text(encoding="utf-8")
+    assert "actions/checkout@v4\n" not in regenerated
+    assert "actions/setup-python@v5\n" not in regenerated
+    assert "actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4" in regenerated
+    assert "actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5" in regenerated
+
+
 def test_generate_actions_explicit_provider_github_is_byte_identical_to_default(tmp_path: Path) -> None:
     default_dir = tmp_path / "default"
     explicit_dir = tmp_path / "explicit"
