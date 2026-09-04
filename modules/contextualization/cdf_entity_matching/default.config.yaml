@@ -29,10 +29,15 @@ viewFilterProperty: tags  # NOTE: in CFIHOS example data model (dm_dom_oil_and_g
 #   - Keep "_" among the accepted separators. That is how the function recognises the
 #     aliases it generated earlier and rebuilds them when updateAll is set, rather than
 #     leaving a stale alias behind.
+# Each view also has its own AliasSelection, deciding what to keep when several of its
+# patterns match one name: 'all' for one alias per matching pattern, or 'longest' for
+# only the longest - the most specific reading of the name.
 timeseriesAliasPattern:
   - '([0-9]{2})[-_.:]([A-Z]{2,3})[-_.:]([0-9]{4,5})'
+timeseriesAliasSelection: all
 assetAliasPattern:
   - '([0-9]{2})[-_.:]([A-Z]{2,3})[-_.:]([0-9]{4,5})'
+assetAliasSelection: all
 # Files also get their file name without the extension as an alias, in addition to these.
 # The document number patterns keep their dashes by capturing the whole number in one
 # group - the alias is the groups joined by "_", so several groups would rewrite the
@@ -45,9 +50,9 @@ fileAliasPattern:
   - '(?<![A-Z])([A-Z]{2,4}-[0-9]+-[A-Z]-[0-9]+-[0-9]+)'
   - '(?<![A-Z])([A-Z]{2,4}-[0-9]+-[A-Z]-[0-9]+)(?:-[0-9]+)?'
   - '([0-9]{2})[-_.:]([A-Z]{2,3})[-_.:]([0-9]{4,5})'
-# What to keep when several patterns match one name: 'all' for one alias per matching
-# pattern, or 'longest' for only the longest - the most specific reading of the name
-aliasSelection: all
+# Keep 'all' here: the document patterns above are written to give both the number with
+# and without its sheet number, and 'longest' would discard the shorter one
+fileAliasSelection: all
 targetViewFilterValues: []
 entityViewSearchProperty: name
 entityViewFilterValues: []  

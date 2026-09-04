@@ -20,7 +20,6 @@ from pipeline import (
     effective_run_all,
     get_alias_filter,
     get_new_items,
-    get_ts_filter,
 )
 from pydantic import ValidationError
 
@@ -230,12 +229,16 @@ class TestPipelineHelpers(unittest.TestCase):
         config = self._config(run_all=False, update_all=False)
         self.assertIn("incremental", describe_processing_mode(config))
 
-    def test_get_ts_filter_skips_alias_exists_when_incremental(self) -> None:
-        filter_query = get_ts_filter(self.view_config, None, run_all=False, logger=self.logger)
-        self.assertIsInstance(filter_query, dm.filters.And)
+    def test_timeseries_are_fetched_on_aliases_alone(self) -> None:
+        """Time series are selected like assets and files: nothing but the alias check."""
+        client = MagicMock()
+        client.data_modeling.instances.list.return_value = ["node"]
 
-    def test_get_ts_filter_fetches_all_when_run_all(self) -> None:
-        filter_query = get_ts_filter(self.view_config, None, run_all=True, logger=self.logger)
+        get_new_items(
+            client, self.logger, self.view_config.as_view_id(), self._config(True, False), TS_NODE
+        )
+
+        filter_query = client.data_modeling.instances.list.call_args.kwargs["filter"]
         self.assertIsInstance(filter_query, dm.filters.HasData)
 
     def test_get_alias_filter_skips_alias_exists_when_incremental(self) -> None:

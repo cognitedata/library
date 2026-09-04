@@ -92,8 +92,13 @@ data:
 
 | Parameter | Purpose |
 |-----------|---------|
+| `debug` | Write DEBUG log messages; it does not narrow which instances are processed |
 | `runAll` | Fetch all instances (not only those missing `aliases`) |
 | `updateAll` | Reset managed metadata and reprocess every fetched instance (implies `runAll`) |
+
+Every view is fetched on the presence of `aliases` alone, so `runAll` and `updateAll` are
+the only settings that change what gets processed. Time series have no separate
+single-instance filter.
 
 `instanceSpace` on each view takes either a single space or a list of spaces. Instances
 are read from every listed space and updated in the space they were read from.
@@ -112,8 +117,8 @@ generated alias. Every pattern defaults to the shape above, so a configuration w
 before this setting existed keeps behaving the same.
 
 A view can list **several patterns** when its names follow more than one convention.
-Each pattern that matches contributes one alias, and `aliasSelection` decides what to
-keep:
+Each pattern that matches contributes one alias, and the view's own `aliasSelection`
+decides what to keep — every view sets it independently:
 
 | `aliasSelection` | Result |
 |------------------|--------|
@@ -373,7 +378,6 @@ psutil>=5.9.0
 
 1. **Memory Issues**
    - Reduce batch size in configuration
-   - Enable debug mode for limited processing
    - Monitor memory usage in logs
 
 2. **API Rate Limits**

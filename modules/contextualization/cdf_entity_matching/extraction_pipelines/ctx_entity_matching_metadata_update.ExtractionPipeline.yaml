@@ -15,8 +15,7 @@ documentation: >
 
 
   ```
-   debug -  write DEBUG messages and only process one file if True
-   debugTimeseries - if debug is True, process only this file name
+   debug -  write DEBUG messages if True
    runAll - if True run on all found documents, if False only run on instances without aliases
    updateAll - if True reset managed metadata properties and reprocess all instances (implies runAll)
    rawdb - Raw database where status Information is stored

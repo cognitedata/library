@@ -149,15 +149,17 @@ entityViewFilterValues: []
 # groups joined by "_". aliasSelection: all | longest when several patterns match
 timeseriesAliasPattern:
   - '([0-9]{2})[-_.:]([A-Z]{2,3})[-_.:]([0-9]{4,5})'
+timeseriesAliasSelection: all
 assetAliasPattern:
   - '([0-9]{2})[-_.:]([A-Z]{2,3})[-_.:]([0-9]{4,5})'
+assetAliasSelection: all
 # Files default to document numbers as well: PH-25578-P-4110006-001.pdf gives
 # PH-25578-P-4110006-001 and PH-25578-P-4110006
 fileAliasPattern:
   - '(?<![A-Z])([A-Z]{2,4}-[0-9]+-[A-Z]-[0-9]+-[0-9]+)'
   - '(?<![A-Z])([A-Z]{2,4}-[0-9]+-[A-Z]-[0-9]+)(?:-[0-9]+)?'
   - '([0-9]{2})[-_.:]([A-Z]{2,3})[-_.:]([0-9]{4,5})'
-aliasSelection: all
+fileAliasSelection: all
 
 # Authentication
 workflowClientId: ${IDP_CLIENT_ID}
@@ -219,7 +221,7 @@ timeseriesInstanceSpace:
   - inst_timeseries_sap
 ```
 
-#### `timeseriesAliasPattern`, `assetAliasPattern`, `fileAliasPattern` and `aliasSelection`
+#### `timeseriesAliasPattern`, `assetAliasPattern`, `fileAliasPattern` and their `AliasSelection`
 
 The regular expressions the metadata update function uses to find the tag inside an
 instance's `name`. One list per view, so time series, assets and files can follow
@@ -227,25 +229,25 @@ different naming conventions. The alias it writes back is a pattern's capture gr
 joined by `_`, so the default turns `VAL_23-KA-9101:X.Value` into the alias `23_KA_9101` —
 which is what makes entity matching on `aliases` work across differently formatted names.
 
-List several patterns for a view whose names follow more than one convention.
-`aliasSelection` then decides what to keep when more than one matches: `all` (the
+List several patterns for a view whose names follow more than one convention. That view's
+`AliasSelection` then decides what to keep when more than one matches: `all` (the
 default) writes one alias per matching pattern, `longest` writes only the longest one.
+Each view has its own, so time series can keep every alias while files keep one:
 
 ```yaml
 timeseriesAliasPattern:
   - '([0-9]{2})[-_.:]([A-Z]{2,3})[-_.:]([0-9]{4,5})'
   - '([A-Z]{3})[-_]?([0-9]{4})'
+timeseriesAliasSelection: all
 assetAliasPattern:
   - '([0-9]{2})[-_.:]([A-Z]{2,3})[-_.:]([0-9]{4,5})'
-aliasSelection: all
+assetAliasSelection: longest
 ```
-
-`aliasSelection` is one variable applied to all three views. Set it per view by editing
-`aliasSelection` in the metadata update extraction pipeline config directly.
 
 `fileAliasPattern` defaults to document numbers as well as the equipment tag, so
 `PH-25578-P-4110006-001.pdf` yields `PH-25578-P-4110006-001` and `PH-25578-P-4110006`.
-Files also get their file name without its final extension, which `aliasSelection` never
+That pair needs `fileAliasSelection: all`, since `longest` would drop the shorter number.
+Files also get their file name without its final extension, which the selection never
 discards. See
 [Document numbers](functions/fn_dm_context_metadata_update/README.md#document-numbers)
 before adapting those patterns — capturing a number in several groups would rewrite its

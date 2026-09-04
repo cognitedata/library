@@ -2,31 +2,30 @@ externalId: 'ep_ctx_entity_matching_metadata_update'
 config:
   parameters:
     debug: False
-    debugTimeseries: 'VAL_23-KA-9101-M01_E_stop_active:VALUE'
     runAll: True
-    updateAll: False
+    updateAll: True
     viewFilterProperty: '{{ viewFilterProperty }}'
     rawDb: '{{ dbName }}'
     rawTableState: 'ts_state_store'
   data:
     job:
-      # aliasPattern takes one regex or a list of them; aliasSelection decides what to
-      # keep when several match - 'all' for one alias each, 'longest' for only the
-      # longest. Set them per view here if the views need to differ.
+      # aliasPattern takes one regex or a list of them, and aliasSelection decides what
+      # to keep when several of them match one name - 'all' for one alias each,
+      # 'longest' for only the longest. Both are configured per view.
       timeseriesView:
         schemaSpace: {{ schemaSpace }}
         instanceSpace: {{ timeseriesInstanceSpace }}
         externalId: {{ TimeSeriesViewExternalId }}
         version: {{ viewVersion }}
         aliasPattern: {{ timeseriesAliasPattern }}
-        aliasSelection: {{ aliasSelection }}
+        aliasSelection: {{ timeseriesAliasSelection }}
       assetView:
         schemaSpace: {{ schemaSpace }}
         instanceSpace: {{ assetInstanceSpace }}
         externalId: {{ AssetViewExternalId }}
         version: {{ viewVersion }}
         aliasPattern: {{ assetAliasPattern }}
-        aliasSelection: {{ aliasSelection }}
+        aliasSelection: {{ assetAliasSelection }}
       # Optional. Remove this section to leave file metadata untouched.
       fileView:
         schemaSpace: {{ schemaSpace }}
@@ -34,4 +33,4 @@ config:
         externalId: {{ FileViewExternalId }}
         version: {{ viewVersion }}
         aliasPattern: {{ fileAliasPattern }}
-        aliasSelection: {{ aliasSelection }}
+        aliasSelection: {{ fileAliasSelection }}

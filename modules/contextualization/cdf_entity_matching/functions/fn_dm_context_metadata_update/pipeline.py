@@ -19,7 +19,7 @@ from cognite.client.data_classes.data_modeling import (
     NodeList,
     ViewId,
 )
-from cognite.client.data_classes.filters import Equals, HasData
+from cognite.client.data_classes.filters import HasData
 from cognite.client.exceptions import CogniteAPIError
 from cognite.client.utils._text import shorten
 from config import Config, ViewPropertyConfig
@@ -465,10 +465,7 @@ def get_new_items(
         # Set the filter for the query
         if node_type == TS_NODE:
             view_config = config.data.job.timeseries_view
-            debug_item = config.parameters.debug_timeseries if config.parameters.debug else None
-            filter_query = get_ts_filter(
-                view_config, debug_item, effective_run_all(config), logger
-            )
+            filter_query = get_alias_filter(view_config, logger, effective_run_all(config))
         elif node_type == FILE_NODE:
             view_config = config.data.job.file_view
             if view_config is None:
@@ -515,35 +512,6 @@ def get_new_items(
         return None
 
 
-def get_ts_filter(
-    view_config: ViewPropertyConfig,
-    debug_ts: str | None,
-    run_all: bool,
-    logger: CogniteFunctionLogger,
-) -> dm.filters.Filter:
-    """
-    Create timeseries filter with enhanced logic
-    """
-    
-    filters: list[dm.filters.Filter] = [HasData(views=[view_config.as_view_id()])]
-    
-
-        # Check if the view entity already is matched or not
-    dbg_msg = ""
-    if not run_all:
-        has_alias = dm.filters.Exists(view_config.as_property_ref("aliases"))
-        not_alias = dm.filters.Not(has_alias)
-        filters.append(not_alias)
-        dbg_msg = "Entity filtering on: 'aliases' - NOT EXISTS"
-    
-    if debug_ts:
-        logger.debug(f"Debug timeseries filter: {dbg_msg} {debug_ts}")
-        filters.append(Equals(view_config.external_id, debug_ts))
-    
-    return dm.filters.And(*filters) if len(filters) > 1 else filters[0]
-
-
-
 def get_alias_filter(
     view_config: ViewPropertyConfig,
     logger: CogniteFunctionLogger,
@@ -551,8 +519,8 @@ def get_alias_filter(
 ) -> dm.filters.Filter:
     """Select instances of a view, or only those still missing aliases.
 
-    Used for assets and files alike, which are both fetched on nothing but the presence
-    of aliases.
+    Used for time series, assets and files alike, which are all fetched on nothing but
+    the presence of aliases.
     """
     
     logger.debug(f"Creating alias filter for {view_config.external_id}")
@@ -575,7 +543,6 @@ __all__ = [
     'effective_run_all',
     'get_alias_filter',
     'get_new_items',
-    'get_ts_filter',
     'metadata_update',
     'update_pipeline_run'
 ]
