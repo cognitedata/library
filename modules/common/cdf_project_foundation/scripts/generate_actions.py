@@ -451,24 +451,27 @@ def ado_dry_run_registration_notes(projects: dict[str, str]) -> str:
             "No dry-run pipeline is generated without a dev or test environment"
             " configured, so there is nothing to register as a Build Validation policy."
         )
-    return "\n\n".join(
-        [
-            "Register `dry-run-pipeline.yml` (the `toolkit-pr-validate` pipeline, see below)"
-            " as a **Build Validation** policy on every branch listed above, so it runs"
-            " automatically as a required check on each PR.",
-            "If this repository is hosted on GitHub or Bitbucket Cloud with Azure Pipelines"
-            " as the CI (rather than Azure Repos Git), `dry-run-pipeline.yml` also runs"
-            " automatically on every pull request even before you register the Build"
-            " Validation policy above — it has no `pr:` block, so Azure Pipelines falls back"
-            " to its default of validating PRs to any branch. Register the Build Validation"
-            " policy anyway, since that's what makes it a *required* check rather than an"
-            " informational one.",
-            "A manual or non-PR run of `toolkit-pr-validate` is expected to fail with"
-            " `Unsupported target branch: <empty>` — `System.PullRequest.TargetBranch` is"
-            " only populated for an actual PR-triggered run. That's not a broken pipeline;"
-            " it's the guard working as intended.",
-        ]
+    register_note = (
+        "Register `dry-run-pipeline.yml` (the `toolkit-pr-validate` pipeline, see below)"
+        " as a **Build Validation** policy on every branch listed above, so it runs"
+        " automatically as a required check on each PR."
     )
+    hosted_repo_note = (
+        "If this repository is hosted on GitHub or Bitbucket Cloud with Azure Pipelines"
+        " as the CI (rather than Azure Repos Git), `dry-run-pipeline.yml` also runs"
+        " automatically on every pull request even before you register the Build"
+        " Validation policy above — it has no `pr:` block, so Azure Pipelines falls back"
+        " to its default of validating PRs to any branch. Register the Build Validation"
+        " policy anyway, since that's what makes it a *required* check rather than an"
+        " informational one."
+    )
+    manual_run_note = (
+        "A manual or non-PR run of `toolkit-pr-validate` is expected to fail with"
+        " `Unsupported target branch: <empty>` — `System.PullRequest.TargetBranch` is"
+        " only populated for an actual PR-triggered run. That's not a broken pipeline;"
+        " it's the guard working as intended."
+    )
+    return "\n\n".join([register_note, hosted_repo_note, manual_run_note])
 
 
 def ado_branch_control_warning(projects: dict[str, str]) -> str:
