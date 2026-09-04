@@ -332,6 +332,38 @@ def test_manual_mapping_of_a_never_linked_entity_is_applied() -> None:
     assert count == 1
 
 
+def test_manual_mapping_missing_view_properties_is_skipped() -> None:
+    """A node without the entity view payload must not abort the rest of the run."""
+    config = _config("inst_asset", "inst_ts")
+    view_id = config.data.entity_view.as_view_id()
+    other_view_id = config.data.target_view.as_view_id()
+    client = MagicMock()
+    logger = MagicMock()
+    client.data_modeling.instances.list.return_value = [
+        Instance("inst_ts", "ts-none", None),
+        Instance("inst_ts", "ts-other", {other_view_id: {PROP_COL_NAME: "other"}}),
+        Instance("inst_ts", "ts-empty", {view_id: {}}),
+        Instance("inst_ts", "ts-ok", {view_id: {PROP_COL_NAME: "ts-ok"}}),
+    ]
+    mappings = [
+        {
+            KEY_RULE: f"row-{entity}",
+            COL_KEY_MAN_MAPPING_ENTITY: entity,
+            COL_KEY_MAN_MAPPING_TARGET: "asset-a",
+        }
+        for entity in ("ts-none", "ts-other", "ts-empty", "ts-ok")
+    ]
+    mapping_input = {f"row-{entity}": {} for entity in ("ts-none", "ts-other", "ts-empty", "ts-ok")}
+
+    good_matches, _count = apply_manual_mappings(client, logger, config, MagicMock(), mappings, mapping_input)
+
+    assert [match[KEY_ENTITY_EXT_ID] for match in good_matches] == ["ts-ok"]
+    warned = " ".join(call[0][0] for call in logger.warning.call_args_list)
+    assert "ts-none" in warned
+    assert "ts-other" in warned
+    assert "ts-empty" in warned
+
+
 def test_single_space_string_is_read_as_that_one_space() -> None:
     """The single-space configuration must keep behaving exactly as before."""
     config = _config("inst_asset", "inst_ts")
@@ -575,6 +607,23 @@ def test_invalid_json_existing_links_do_not_break_the_write() -> None:
 
     assert [link.external_id for link in _links(items[0])] == ["asset-a"]
     assert any("ts:1" in call[0][0] for call in logger.warning.call_args_list)
+
+
+def test_non_list_existing_links_do_not_break_the_write() -> None:
+    """JSON that is not a list (e.g. a boolean) must not abort the write."""
+    config = _config("inst_asset", "inst_ts")
+
+    items = add_to_items(
+        config,
+        MagicMock(),
+        [],
+        ["asset-a"],
+        "ts:1",
+        config.data.entity_view.as_view_id(),
+        "true",
+    )
+
+    assert [link.external_id for link in _links(items[0])] == ["asset-a"]
 
 
 def test_existing_links_as_a_list_are_applied() -> None:

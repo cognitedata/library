@@ -6,6 +6,7 @@ with improved performance, caching, batch processing, and error handling.
 """
 
 import sys
+import time
 import traceback
 from pathlib import Path
 from typing import Any
@@ -359,6 +360,7 @@ def get_new_items(
         
         # Query with retry logic
         max_retries = 3
+        retry_backoff_seconds = 2
         for attempt in range(max_retries):
             try:
                 result = client.data_modeling.instances.list(
@@ -374,7 +376,14 @@ def get_new_items(
                 
             except CogniteAPIError as e:
                 if is_retryable(e) and attempt < max_retries - 1:
-                    logger.warning(f"Transient API error (attempt {attempt + 1}): {e}")
+                    # Rate limiting is the main reason to be here, and retrying it
+                    # immediately only spends another request on the same limit.
+                    sleep_seconds = retry_backoff_seconds * (2 ** attempt)
+                    logger.warning(
+                        f"Transient API error (attempt {attempt + 1}), sleeping "
+                        f"{sleep_seconds}s before retry: {e}"
+                    )
+                    time.sleep(sleep_seconds)
                     continue
                 else:
                     raise

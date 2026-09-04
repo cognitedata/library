@@ -441,9 +441,14 @@ def apply_manual_mappings(
                     logger.warning(f"Manual mapping target ref is empty for entity: {entity.external_id}, skipping")
                     continue
 
+                properties = entity.properties.get(entity_view_id) if entity.properties else None
+                if not properties or PROP_COL_NAME not in properties:
+                    logger.warning(f"Entity: {entity.external_id} is missing properties or name, skipping")
+                    continue
+
                 # An entity that has never been linked - the normal state of one mapped by
                 # hand - leaves the property out of the response altogether.
-                links_property = entity.properties[entity_view_id].get(PROP_COL_LINK_NAME)
+                links_property = properties.get(PROP_COL_LINK_NAME)
 
                 entity_targets: list[str] = []
                 if not config.parameters.remove_old_links:
@@ -478,7 +483,7 @@ def apply_manual_mappings(
                         KEY_MATCH_TYPE: MATCH_TYPE_MANUAL,
                         KEY_ENTITY_EXT_ID: entity.external_id,
                         KEY_ENTITY_SPACE: entity.space,
-                        KEY_ENTITY_NAME: entity.properties[entity_view_id][PROP_COL_NAME],
+                        KEY_ENTITY_NAME: properties[PROP_COL_NAME],
                         KEY_ENTITY_MATCH_VALUE: entity.external_id,
                         KEY_ENTITY_VIEW_ID: str(config.data.entity_view.as_view_id()),
                         KEY_ENTITY_EXISTING_TARGETS: links_property,
@@ -701,7 +706,7 @@ def is_retryable(error: Exception) -> bool:
     read can clear.
     """
     if isinstance(error, CogniteAPIError):
-        return error.code == 429 or error.code >= 500
+        return error.code == 429 or (error.code is not None and error.code >= 500)
     return not isinstance(error, (TypeError, AttributeError, NameError, KeyError, IndexError))
 
 
@@ -1427,7 +1432,8 @@ def add_to_items(
         # The string round-trips through the matching API, so a JSON null or an already
         # parsed list reaching this point cannot be ruled out.
         try:
-            targets_list = json.loads(entity_targets) if isinstance(entity_targets, str) else entity_targets
+            decoded = json.loads(entity_targets) if isinstance(entity_targets, str) else entity_targets
+            targets_list = decoded if isinstance(decoded, list) else []
         except (json.JSONDecodeError, TypeError):
             logger.warning(f"Failed to parse existing targets for entity: {entity_ext_id}")
             targets_list = []

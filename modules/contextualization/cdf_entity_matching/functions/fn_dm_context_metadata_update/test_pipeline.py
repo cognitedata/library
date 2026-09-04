@@ -70,10 +70,30 @@ class TestPipelineHelpers(unittest.TestCase):
         client = MagicMock()
         client.data_modeling.instances.list.side_effect = [CogniteAPIError("Unavailable", code=503), ["node"]]
 
-        result = get_new_items(client, self.logger, self.view_config.as_view_id(), self._config(True, False), TS_NODE)
+        with patch("pipeline.time.sleep"):
+            result = get_new_items(
+                client, self.logger, self.view_config.as_view_id(), self._config(True, False), TS_NODE
+            )
 
         self.assertEqual(result, ["node"])
         self.assertEqual(client.data_modeling.instances.list.call_count, 2)
+
+    def test_a_retry_backs_off_before_trying_again(self) -> None:
+        """Retrying a rate-limited request with no delay just hits the limiter again."""
+        client = MagicMock()
+        client.data_modeling.instances.list.side_effect = [
+            CogniteAPIError("Too many requests", code=429),
+            CogniteAPIError("Too many requests", code=429),
+            ["node"],
+        ]
+
+        with patch("pipeline.time.sleep") as sleep:
+            result = get_new_items(
+                client, self.logger, self.view_config.as_view_id(), self._config(True, False), TS_NODE
+            )
+
+        self.assertEqual(result, ["node"])
+        self.assertEqual([call.args[0] for call in sleep.call_args_list], [2, 4])
 
     def test_effective_run_all_when_update_all_enabled(self) -> None:
         config = self._config(run_all=False, update_all=True)
