@@ -16,10 +16,13 @@ sys.path.append(str(Path(__file__).parent))
 
 from cognite.client.data_classes.data_modeling import NodeApply, ViewId
 
+from constants import DEFAULT_ALIAS_PATTERN  # isort: skip
 from logger import CogniteFunctionLogger  # isort: skip
 from metadata_optimizations import (  # isort: skip
     BatchProcessor,
+    AliasRule,
     OptimizedMetadataProcessor,
+    _unmanaged_aliases,
     PerformanceBenchmark,
     cleanup_memory,
     monitor_memory_usage,
@@ -80,6 +83,20 @@ class TestBatchProcessing(unittest.TestCase):
         client.data_modeling.instances.apply.assert_not_called()
 
 
+# A site-specific pattern used to check that configuration, not the built-in default,
+# decides the alias. The "_" in the separator class is deliberate: the generated alias
+# joins the groups with "_", and the pattern has to match that to recognise its own work.
+PUMP_PATTERN = r"([A-Z]{3})[-_]?(\d{4})"
+
+# The document number patterns shipped in the module's default.config.yaml, for
+# fileAliasPattern. Kept in sync by hand; the tests below pin the behaviour they promise.
+DOCUMENT_PATTERNS = [
+    r"(?<![A-Z])([A-Z]{2,4}-[0-9]+-[A-Z]-[0-9]+-[0-9]+)",
+    r"(?<![A-Z])([A-Z]{2,4}-[0-9]+-[A-Z]-[0-9]+)(?:-[0-9]+)?",
+    r"([0-9]{2})[-_.:]([A-Z]{2,3})[-_.:]([0-9]{4,5})",
+]
+
+
 class TestOptimizedMetadataProcessor(unittest.TestCase):
     """Test optimized metadata processing"""
 
@@ -87,6 +104,7 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
         self.logger = CogniteFunctionLogger("DEBUG")
         self.processor = OptimizedMetadataProcessor(self.logger)
         self.view_id = ViewId(space="cdf_cdm", external_id="CogniteTimeSeries", version="v1")
+        self.file_view_id = ViewId(space="cdf_cdm", external_id="CogniteFile", version="v1")
 
     def test_timeseries_alias_enrichment(self) -> None:
         """Test timeseries metadata updates aliases only"""
@@ -113,6 +131,258 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
         self.assertNotIn("description", properties)
 
         print("✅ Timeseries alias enrichment test passed")
+
+    def test_every_matching_pattern_contributes_an_alias(self) -> None:
+        """Names that follow two conventions at once yield an alias for each."""
+        processor = OptimizedMetadataProcessor(
+            self.logger,
+            timeseries_alias_rule=AliasRule.from_config([DEFAULT_ALIAS_PATTERN, PUMP_PATTERN]),
+        )
+        node = MagicMock()
+        node.external_id = "pi:160020"
+        node.properties = {self.view_id: {"name": "VAL_23-KA-9101_PMP1234", "aliases": []}}
+
+        result = processor.process_timeseries_metadata(node, self.view_id, "inst_cfihos_oil_and_gas")
+
+        self.assertEqual(result.sources[0].properties["aliases"], ["23_KA_9101", "PMP_1234"])
+
+    def test_longest_selection_keeps_only_the_most_specific_alias(self) -> None:
+        """With overlapping conventions, the longest match is the most specific one."""
+        processor = OptimizedMetadataProcessor(
+            self.logger,
+            timeseries_alias_rule=AliasRule.from_config(
+                [DEFAULT_ALIAS_PATTERN, PUMP_PATTERN], selection="longest"
+            ),
+        )
+        node = MagicMock()
+        node.external_id = "pi:160021"
+        node.properties = {self.view_id: {"name": "VAL_23-KA-9101_PMP1234", "aliases": []}}
+
+        result = processor.process_timeseries_metadata(node, self.view_id, "inst_cfihos_oil_and_gas")
+
+        self.assertEqual(result.sources[0].properties["aliases"], ["23_KA_9101"])
+
+    def test_equally_long_aliases_are_resolved_by_configured_order(self) -> None:
+        """A tie must not depend on dict or set ordering, so the first pattern wins."""
+        first = r"([A-Z]{3})[-_]?(\d{4})"
+        second = r"(\d{4})[-_]?([A-Z]{3})"
+        node = MagicMock()
+        node.external_id = "pi:160022"
+        node.properties = {self.view_id: {"name": "PMP1234 and 5678XYZ", "aliases": []}}
+
+        processor = OptimizedMetadataProcessor(
+            self.logger, timeseries_alias_rule=AliasRule.from_config([second, first], selection="longest")
+        )
+        result = processor.process_timeseries_metadata(node, self.view_id, "inst_cfihos_oil_and_gas")
+
+        self.assertEqual(result.sources[0].properties["aliases"], ["5678_XYZ"])
+
+    def test_update_all_reclaims_aliases_from_every_configured_pattern(self) -> None:
+        """Selecting only the longest must not orphan aliases an earlier run wrote."""
+        processor = OptimizedMetadataProcessor(
+            self.logger,
+            timeseries_alias_rule=AliasRule.from_config(
+                [DEFAULT_ALIAS_PATTERN, PUMP_PATTERN], selection="longest"
+            ),
+        )
+        node = MagicMock()
+        node.external_id = "pi:160023"
+        node.properties = {
+            self.view_id: {
+                "name": "VAL_23-KA-9101_PMP1234",
+                # PMP_1234 was written when the mode was "all"; it is still ours to remove.
+                "aliases": ["operator note", "23_KA_9101", "PMP_1234"],
+            }
+        }
+
+        result = processor.process_timeseries_metadata(
+            node, self.view_id, "inst_cfihos_oil_and_gas", update_all=True
+        )
+
+        self.assertEqual(
+            result.sources[0].properties["aliases"], ["operator note", "23_KA_9101"]
+        )
+
+    def test_configured_pattern_drives_timeseries_alias_generation(self) -> None:
+        """A site whose tags do not follow the default shape configures its own pattern."""
+        processor = OptimizedMetadataProcessor(
+            self.logger, timeseries_alias_rule=AliasRule.from_config([PUMP_PATTERN])
+        )
+        node = MagicMock()
+        node.external_id = "pi:160010"
+        node.properties = {self.view_id: {"name": "PMP1234 discharge pressure", "aliases": []}}
+
+        result = processor.process_timeseries_metadata(node, self.view_id, "inst_cfihos_oil_and_gas")
+
+        self.assertEqual(result.sources[0].properties["aliases"], ["PMP_1234"])
+
+    def test_each_view_uses_its_own_pattern(self) -> None:
+        """The asset pattern must not be applied to timeseries names, or the reverse."""
+        processor = OptimizedMetadataProcessor(
+            self.logger,
+            timeseries_alias_rule=AliasRule.from_config([PUMP_PATTERN]),
+            asset_alias_rule=AliasRule.from_config([r"(\d{2})[-_]([A-Z]{2,3})"]),
+        )
+        asset_view = ViewId(space="cdf_cdm", external_id="CogniteAsset", version="v1")
+        node = MagicMock()
+        node.external_id = "23-KA-9101"
+        node.properties = {asset_view: {"name": "23-KA pump", "aliases": [], "tags": []}}
+
+        result = processor.process_asset_metadata(node, asset_view, "inst_cfihos_oil_and_gas")
+
+        self.assertEqual(result.sources[0].properties["aliases"], ["23_KA"])
+
+    def test_update_all_rebuilds_only_aliases_the_configured_pattern_generates(self) -> None:
+        """Managed aliases follow the configured pattern, not the built-in default shape."""
+        processor = OptimizedMetadataProcessor(self.logger, timeseries_alias_rule=AliasRule.from_config([PUMP_PATTERN]))
+        node = MagicMock()
+        node.external_id = "pi:160011"
+        node.properties = {
+            self.view_id: {
+                "name": "PMP1234 discharge pressure",
+                # The first is what this pattern generates and is rebuilt; the second is
+                # the default pattern's shape, which is now someone else's data.
+                "aliases": ["PMP_1234", "23_KA_9101"],
+            }
+        }
+
+        result = processor.process_timeseries_metadata(
+            node, self.view_id, "inst_cfihos_oil_and_gas", update_all=True
+        )
+
+        self.assertEqual(result.sources[0].properties["aliases"], ["23_KA_9101", "PMP_1234"])
+
+    def test_a_stale_generated_alias_is_dropped_when_the_name_changes(self) -> None:
+        """The point of rebuilding: an alias from a previous name must not linger.
+
+        This is why a pattern has to tolerate "_" between its groups - that is the
+        separator the generated alias uses, and how the function recognises its own work.
+        """
+        processor = OptimizedMetadataProcessor(self.logger, timeseries_alias_rule=AliasRule.from_config([PUMP_PATTERN]))
+        node = MagicMock()
+        node.external_id = "pi:160012"
+        node.properties = {self.view_id: {"name": "PMP9999 discharge pressure", "aliases": ["PMP_1234"]}}
+
+        result = processor.process_timeseries_metadata(
+            node, self.view_id, "inst_cfihos_oil_and_gas", update_all=True
+        )
+
+        self.assertEqual(result.sources[0].properties["aliases"], ["PMP_9999"])
+
+    def test_file_aliases_cover_the_name_without_extension_and_the_tag(self) -> None:
+        """A document is findable both by its bare file name and by the tag it carries."""
+        node = MagicMock()
+        node.external_id = "file:4001"
+        node.properties = {self.file_view_id: {"name": "PID_23-KA-9101_rev3.pdf", "aliases": []}}
+
+        result = self.processor.process_file_metadata(node, self.file_view_id, "inst_cfihos_oil_and_gas")
+
+        self.assertEqual(
+            result.sources[0].properties["aliases"],
+            ["PID_23-KA-9101_rev3", "23_KA_9101"],
+        )
+
+    def test_a_file_name_without_an_extension_is_used_as_is(self) -> None:
+        """Nothing to strip, so the name itself becomes the alias."""
+        node = MagicMock()
+        node.external_id = "file:4002"
+        node.properties = {self.file_view_id: {"name": "23-KA-9101", "aliases": []}}
+
+        result = self.processor.process_file_metadata(node, self.file_view_id, "inst_cfihos_oil_and_gas")
+
+        self.assertEqual(result.sources[0].properties["aliases"], ["23-KA-9101", "23_KA_9101"])
+
+    def test_files_use_their_own_configured_pattern(self) -> None:
+        """Documents may be named on a different convention than the assets they describe."""
+        processor = OptimizedMetadataProcessor(
+            self.logger,
+            asset_alias_rule=AliasRule.from_config([r"(\d{2})[-_]([A-Z]{2,3})"]),
+            file_alias_rule=AliasRule.from_config([PUMP_PATTERN]),
+        )
+        node = MagicMock()
+        node.external_id = "file:4003"
+        node.properties = {self.file_view_id: {"name": "PMP1234_datasheet.pdf", "aliases": []}}
+
+        result = processor.process_file_metadata(node, self.file_view_id, "inst_cfihos_oil_and_gas")
+
+        self.assertEqual(result.sources[0].properties["aliases"], ["PMP1234_datasheet", "PMP_1234"])
+
+    def test_document_number_aliases_keep_their_separators(self) -> None:
+        """The shipped document patterns, which must not rewrite dashes as underscores.
+
+        A single capture group per pattern is what preserves them, since the alias is the
+        groups joined by "_".
+        """
+        processor = OptimizedMetadataProcessor(
+            self.logger, file_alias_rule=AliasRule.from_config(DOCUMENT_PATTERNS)
+        )
+        node = MagicMock()
+        node.external_id = "file:4010"
+        node.properties = {self.file_view_id: {"name": "PH-25578-P-4110006-001.pdf", "aliases": []}}
+
+        result = processor.process_file_metadata(node, self.file_view_id, "inst_cfihos_oil_and_gas")
+
+        self.assertEqual(
+            result.sources[0].properties["aliases"],
+            ["PH-25578-P-4110006-001", "PH-25578-P-4110006"],
+        )
+
+    def test_a_document_alias_without_its_sheet_number_is_still_ours(self) -> None:
+        """The sheet number sits outside the group, so the short alias must round-trip.
+
+        Without that, updateAll would treat the alias it just wrote as hand-curated.
+        """
+        rule = AliasRule.from_config(DOCUMENT_PATTERNS)
+
+        self.assertEqual(_unmanaged_aliases(["PH-25578-P-4110006", "operator note"], rule), ["operator note"])
+
+    def test_a_longer_prefix_does_not_yield_a_truncated_document_alias(self) -> None:
+        """Matching from the second letter of a prefix would write a wrong document number."""
+        processor = OptimizedMetadataProcessor(
+            self.logger, file_alias_rule=AliasRule.from_config(DOCUMENT_PATTERNS)
+        )
+        node = MagicMock()
+        node.external_id = "file:4011"
+        node.properties = {self.file_view_id: {"name": "SHEET-1-A-2.pdf", "aliases": []}}
+
+        result = processor.process_file_metadata(node, self.file_view_id, "inst_cfihos_oil_and_gas")
+
+        self.assertEqual(result.sources[0].properties["aliases"], ["SHEET-1-A-2"])
+
+    def test_file_skips_update_when_aliases_already_present(self) -> None:
+        """No write when there is nothing to add, so reruns stay cheap."""
+        node = MagicMock()
+        node.external_id = "file:4004"
+        node.properties = {
+            self.file_view_id: {
+                "name": "PID_23-KA-9101_rev3.pdf",
+                "aliases": ["PID_23-KA-9101_rev3", "23_KA_9101"],
+            }
+        }
+
+        result = self.processor.process_file_metadata(node, self.file_view_id, "inst_cfihos_oil_and_gas")
+
+        self.assertIsNone(result)
+
+    def test_file_update_all_rebuilds_generated_aliases_and_keeps_curated_ones(self) -> None:
+        """A tag alias left over from a previous name is replaced, a curated note is not."""
+        node = MagicMock()
+        node.external_id = "file:4005"
+        node.properties = {
+            self.file_view_id: {
+                "name": "PID_23-KA-9101_rev3.pdf",
+                "aliases": ["manual note", "23_AB_0001"],
+            }
+        }
+
+        result = self.processor.process_file_metadata(
+            node, self.file_view_id, "inst_cfihos_oil_and_gas", update_all=True
+        )
+
+        self.assertEqual(
+            result.sources[0].properties["aliases"],
+            ["manual note", "PID_23-KA-9101_rev3", "23_KA_9101"],
+        )
 
     def test_timeseries_skips_update_when_aliases_unchanged(self) -> None:
         """Test timeseries processing skips DM update when aliases already match"""

@@ -1,10 +1,12 @@
 
-from typing import Any
+import re
+from typing import Any, Literal
 
 import yaml
 from cognite.client import CogniteClient
 from cognite.client import data_modeling as dm
 from cognite.client.exceptions import CogniteAPIError
+from constants import DEFAULT_ALIAS_PATTERN
 from pydantic import BaseModel, Field, field_validator
 from pydantic.alias_generators import to_camel
 
@@ -27,11 +29,43 @@ class ViewPropertyConfig(BaseModel, alias_generator=to_camel):
     instance_spaces: list[str] = Field(alias="instanceSpace", min_length=1)
     external_id: str
     version: str
+    # Configured as "aliasPattern", one regular expression or a list of them, normalised
+    # to a list here. Each pattern finds the tag inside a name; the alias it yields is
+    # that pattern's capture groups joined by "_", so the groups decide the alias rather
+    # than the whole match.
+    alias_patterns: list[str] = Field(
+        alias="aliasPattern",
+        default_factory=lambda: [DEFAULT_ALIAS_PATTERN],
+        min_length=1,
+    )
+    # What to keep when several patterns match one name: every alias they yield, or only
+    # the longest - the most specific reading of the name.
+    alias_selection: Literal["all", "longest"] = "all"
 
     @field_validator("instance_spaces", mode="before")
     @classmethod
     def wrap_single_space(cls, value: object) -> object:
         return [value] if isinstance(value, str) else value
+
+    @field_validator("alias_patterns", mode="before")
+    @classmethod
+    def wrap_single_pattern(cls, value: object) -> object:
+        return [value] if isinstance(value, str) else value
+
+    @field_validator("alias_patterns")
+    @classmethod
+    def validate_alias_patterns(cls, value: list[str]) -> list[str]:
+        for pattern in value:
+            try:
+                compiled = re.compile(pattern)
+            except re.error as e:
+                raise ValueError(f"aliasPattern {pattern!r} is not a valid regular expression: {e}") from e
+            if not compiled.groups:
+                raise ValueError(
+                    f"aliasPattern {pattern!r} must have at least one capture group - "
+                    "the alias is the groups joined by '_'"
+                )
+        return value
 
     def as_view_id(self) -> dm.ViewId:
         return dm.ViewId(space=self.schema_space, external_id=self.external_id, version=self.version)
@@ -43,6 +77,9 @@ class ViewPropertyConfig(BaseModel, alias_generator=to_camel):
 class JobConfig(BaseModel, alias_generator=to_camel):
     timeseries_view: ViewPropertyConfig
     asset_view: ViewPropertyConfig
+    # Optional so a configuration written before file support existed still loads; file
+    # metadata is then skipped rather than failing the run.
+    file_view: ViewPropertyConfig | None = None
 
 class ConfigData(BaseModel, alias_generator=to_camel):
     job: JobConfig

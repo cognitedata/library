@@ -10,13 +10,28 @@ config:
     rawTableState: 'ts_state_store'
   data:
     job:
+      # aliasPattern takes one regex or a list of them; aliasSelection decides what to
+      # keep when several match - 'all' for one alias each, 'longest' for only the
+      # longest. Set them per view here if the views need to differ.
       timeseriesView:
         schemaSpace: {{ schemaSpace }}
         instanceSpace: {{ timeseriesInstanceSpace }}
         externalId: {{ TimeSeriesViewExternalId }}
         version: {{ viewVersion }}
+        aliasPattern: {{ timeseriesAliasPattern }}
+        aliasSelection: {{ aliasSelection }}
       assetView:
         schemaSpace: {{ schemaSpace }}
         instanceSpace: {{ assetInstanceSpace }}
         externalId: {{ AssetViewExternalId }}
         version: {{ viewVersion }}
+        aliasPattern: {{ assetAliasPattern }}
+        aliasSelection: {{ aliasSelection }}
+      # Optional. Remove this section to leave file metadata untouched.
+      fileView:
+        schemaSpace: {{ schemaSpace }}
+        instanceSpace: {{ fileInstanceSpace }}
+        externalId: {{ FileViewExternalId }}
+        version: {{ viewVersion }}
+        aliasPattern: {{ fileAliasPattern }}
+        aliasSelection: {{ aliasSelection }}

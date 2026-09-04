@@ -10,17 +10,19 @@ sys.path.append(str(Path(__file__).parent))
 from cognite.client import data_modeling as dm
 from cognite.client.exceptions import CogniteAPIError
 from config import Config, ConfigData, JobConfig, Parameters, ViewPropertyConfig
-from constants import TS_NODE
+from constants import DEFAULT_ALIAS_PATTERN, TS_NODE
 from logger import CogniteFunctionLogger
 from pipeline import (
     _process_assets_optimized,
+    _process_files_optimized,
     _process_timeseries_optimized,
     describe_processing_mode,
     effective_run_all,
-    get_asset_filter,
+    get_alias_filter,
     get_new_items,
     get_ts_filter,
 )
+from pydantic import ValidationError
 
 
 class TestPipelineHelpers(unittest.TestCase):
@@ -33,12 +35,23 @@ class TestPipelineHelpers(unittest.TestCase):
             version="v1",
         )
 
-    def _config(self, run_all: bool, update_all: bool) -> Config:
+    def _config(self, run_all: bool, update_all: bool, file_alias_pattern: str | None = None) -> Config:
         view = ViewPropertyConfig(
             schemaSpace="cdf_cdm",
             instanceSpace="inst_cfihos_oil_and_gas",
             externalId="CogniteAsset",
             version="v1",
+        )
+        file_view = (
+            ViewPropertyConfig(
+                schemaSpace="cdf_cdm",
+                instanceSpace="inst_cfihos_oil_and_gas",
+                externalId="CogniteFile",
+                version="v1",
+                aliasPattern=file_alias_pattern,
+            )
+            if file_alias_pattern
+            else None
         )
         return Config(
             parameters=Parameters(
@@ -52,9 +65,119 @@ class TestPipelineHelpers(unittest.TestCase):
                 job=JobConfig(
                     timeseriesView=self.view_config,
                     assetView=view,
+                    fileView=file_view,
                 )
             ),
         )
+
+    def test_file_view_is_optional(self) -> None:
+        """A config written before file support existed must still load."""
+        self.assertIsNone(self._config(run_all=False, update_all=False).data.job.file_view)
+
+    def test_files_are_skipped_when_no_file_view_is_configured(self) -> None:
+        """Without a fileView there is nothing to fetch, so no query is issued."""
+        client = MagicMock()
+        config = self._config(run_all=True, update_all=False)
+
+        updates = _process_files_optimized(
+            client, self.logger, config, MagicMock(), MagicMock()
+        )
+
+        self.assertEqual(updates, 0)
+        client.data_modeling.instances.list.assert_not_called()
+
+    def test_file_view_carries_its_own_alias_pattern(self) -> None:
+        """Documents can follow a different naming convention than assets."""
+        config = self._config(run_all=False, update_all=False, file_alias_pattern=r"([A-Z]{3})[-_]?([0-9]{4})")
+
+        self.assertEqual(config.data.job.file_view.alias_patterns, [r"([A-Z]{3})[-_]?([0-9]{4})"])
+
+    def test_alias_pattern_defaults_to_the_shared_tag_shape(self) -> None:
+        """A config written before the pattern was configurable keeps working unchanged."""
+        self.assertEqual(self.view_config.alias_patterns, [DEFAULT_ALIAS_PATTERN])
+
+    def test_each_view_carries_its_own_alias_pattern(self) -> None:
+        """Timeseries and asset names can follow different conventions."""
+        view = ViewPropertyConfig(
+            schemaSpace="cdf_cdm",
+            instanceSpace="inst_cfihos_oil_and_gas",
+            externalId="CogniteAsset",
+            version="v1",
+            aliasPattern=r"(\d{3})-([A-Z]{4})",
+        )
+
+        self.assertEqual(view.alias_patterns, [r"(\d{3})-([A-Z]{4})"])
+
+    def test_several_alias_patterns_are_accepted(self) -> None:
+        """A view whose names follow more than one convention configures a pattern each."""
+        view = ViewPropertyConfig(
+            schemaSpace="cdf_cdm",
+            instanceSpace="inst_cfihos_oil_and_gas",
+            externalId="CogniteAsset",
+            version="v1",
+            aliasPattern=[r"(\d{3})-([A-Z]{4})", r"([A-Z]{3})[-_]?(\d{4})"],
+        )
+
+        self.assertEqual(view.alias_patterns, [r"(\d{3})-([A-Z]{4})", r"([A-Z]{3})[-_]?(\d{4})"])
+
+    def test_an_empty_alias_pattern_list_is_rejected(self) -> None:
+        """Configuring no pattern at all is a mistake, not a way to disable aliases."""
+        with self.assertRaises(ValidationError):
+            ViewPropertyConfig(
+                schemaSpace="cdf_cdm",
+                instanceSpace="inst",
+                externalId="CogniteAsset",
+                version="v1",
+                aliasPattern=[],
+            )
+
+    def test_an_invalid_pattern_anywhere_in_the_list_is_rejected(self) -> None:
+        """A broken pattern must not hide behind a valid first entry."""
+        with self.assertRaises(ValidationError):
+            ViewPropertyConfig(
+                schemaSpace="cdf_cdm",
+                instanceSpace="inst",
+                externalId="CogniteAsset",
+                version="v1",
+                aliasPattern=[DEFAULT_ALIAS_PATTERN, r"(\d{2}"],
+            )
+
+    def test_alias_selection_defaults_to_keeping_every_alias(self) -> None:
+        """Existing behaviour: one pattern, one alias, nothing discarded."""
+        self.assertEqual(self.view_config.alias_selection, "all")
+
+    def test_an_unknown_alias_selection_is_rejected(self) -> None:
+        """A typo here would silently change which aliases are written."""
+        with self.assertRaises(ValidationError):
+            ViewPropertyConfig(
+                schemaSpace="cdf_cdm",
+                instanceSpace="inst",
+                externalId="CogniteAsset",
+                version="v1",
+                aliasSelection="shortest",
+            )
+
+    def test_an_invalid_alias_pattern_is_rejected(self) -> None:
+        """A broken regex must fail at config load, not on the first node processed."""
+        with self.assertRaises(ValidationError):
+            ViewPropertyConfig(
+                schemaSpace="cdf_cdm",
+                instanceSpace="inst",
+                externalId="CogniteAsset",
+                version="v1",
+                aliasPattern=r"(\d{2}",
+            )
+
+    def test_an_alias_pattern_without_capture_groups_is_rejected(self) -> None:
+        """The alias is the capture groups joined, so no groups means no alias at all."""
+        with self.assertRaises(ValidationError):
+            ViewPropertyConfig(
+                schemaSpace="cdf_cdm",
+                instanceSpace="inst",
+                externalId="CogniteAsset",
+                version="v1",
+                aliasPattern=r"\d{2}-[A-Z]{2,3}",
+            )
 
     def test_a_rejected_request_is_not_retried(self) -> None:
         """A 400 means the request itself is wrong, so retrying only delays the failure."""
@@ -115,12 +238,12 @@ class TestPipelineHelpers(unittest.TestCase):
         filter_query = get_ts_filter(self.view_config, None, run_all=True, logger=self.logger)
         self.assertIsInstance(filter_query, dm.filters.HasData)
 
-    def test_get_asset_filter_skips_alias_exists_when_incremental(self) -> None:
-        filter_query = get_asset_filter(self.view_config, self.logger, run_all=False)
+    def test_get_alias_filter_skips_alias_exists_when_incremental(self) -> None:
+        filter_query = get_alias_filter(self.view_config, self.logger, run_all=False)
         self.assertIsInstance(filter_query, dm.filters.And)
 
-    def test_get_asset_filter_fetches_all_when_run_all(self) -> None:
-        filter_query = get_asset_filter(self.view_config, self.logger, run_all=True)
+    def test_get_alias_filter_fetches_all_when_run_all(self) -> None:
+        filter_query = get_alias_filter(self.view_config, self.logger, run_all=True)
         self.assertIsInstance(filter_query, dm.filters.HasData)
 
     def test_process_timeseries_fetches_once_in_incremental_mode(self) -> None:

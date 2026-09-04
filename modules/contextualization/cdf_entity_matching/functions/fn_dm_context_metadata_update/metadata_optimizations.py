@@ -8,8 +8,9 @@ performance, reduce memory usage, and enhance reliability.
 import gc
 import re
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from contextlib import contextmanager
+from dataclasses import dataclass
 from functools import lru_cache
 
 from cognite.client import CogniteClient
@@ -18,16 +19,42 @@ from cognite.client.exceptions import CogniteAPIError
 from psutil import Process
 from tenacity import retry, stop_after_attempt, wait_exponential
 
-from constants import INVALID_ASSET_TAG, MANAGED_ASSET_TAG_PREFIX  # isort: skip
+from constants import DEFAULT_ALIAS_PATTERN, INVALID_ASSET_TAG, MANAGED_ASSET_TAG_PREFIX  # isort: skip
 from logger import CogniteFunctionLogger  # isort: skip
 
-# Tag pattern shared by timeseries and asset aliases, e.g. VAL_23-KA-9101 -> 23_KA_9101
-ALIAS_PATTERN = re.compile(r"(\d{2})[-_.:]([A-Z]{2,3})[-_.:](\d{4,5})")
+@dataclass(frozen=True)
+class AliasRule:
+    """How aliases are derived from a name for one view.
 
-# The exact shape of an alias this function generates: the ALIAS_PATTERN groups joined
-# by "_" and nothing else. Matched in full, so an alias that merely contains a tag
-# pattern (e.g. "spare for 23-AB-1234") is someone else's data and is left alone.
-MANAGED_ALIAS_PATTERN = re.compile(r"\d{2}_[A-Z]{2,3}_\d{4,5}")
+    Frozen so it stays hashable and can key the alias caches: the aliases a name yields
+    depend on the rule as much as on the name itself.
+
+    Attributes:
+        patterns: Patterns tried against a name, in configured order.
+        keep_longest_only: Keep only the longest alias when several patterns match,
+            rather than one alias per matching pattern.
+    """
+
+    patterns: tuple[re.Pattern[str], ...]
+    keep_longest_only: bool = False
+
+    @classmethod
+    def from_config(cls, patterns: Sequence[str], selection: str = "all") -> "AliasRule":
+        """Build a rule from configured pattern strings.
+
+        Args:
+            patterns: Regular expressions, each with at least one capture group.
+            selection: "longest" to keep only the longest alias, "all" to keep each.
+
+        Returns:
+            The compiled rule.
+        """
+        return cls(tuple(re.compile(pattern) for pattern in patterns), selection == "longest")
+
+
+# Fallback for callers that configure nothing; each view configures its own rule through
+# aliasPattern and aliasSelection.
+_DEFAULT_ALIAS_RULE = AliasRule((re.compile(DEFAULT_ALIAS_PATTERN),))
 
 # ===== PERFORMANCE MONITORING =====
 
@@ -112,9 +139,21 @@ class BatchProcessor:
 class OptimizedMetadataProcessor:
     """Optimized metadata processing with caching and batch operations"""
     
-    def __init__(self, logger: CogniteFunctionLogger, view_filter_property: str = "tags"):
+    def __init__(
+        self,
+        logger: CogniteFunctionLogger,
+        view_filter_property: str = "tags",
+        timeseries_alias_rule: AliasRule = _DEFAULT_ALIAS_RULE,
+        asset_alias_rule: AliasRule = _DEFAULT_ALIAS_RULE,
+        file_alias_rule: AliasRule = _DEFAULT_ALIAS_RULE,
+    ):
         self.logger = logger
         self.view_filter_property = view_filter_property
+        # Each rule drives both alias generation and the check for which existing
+        # aliases this function owns.
+        self.timeseries_alias_rule = timeseries_alias_rule
+        self.asset_alias_rule = asset_alias_rule
+        self.file_alias_rule = file_alias_rule
         self.stats = {
             'processed': 0,
             'updated': 0,
@@ -144,9 +183,13 @@ class OptimizedMetadataProcessor:
                 [str(x) for x in aliases_raw] if isinstance(aliases_raw, list) else []
             )
             # Only the generated aliases are rebuilt; hand-curated ones are preserved.
-            aliases = _unmanaged_aliases(org_aliases) if update_all else org_aliases.copy()
+            aliases = (
+                _unmanaged_aliases(org_aliases, self.timeseries_alias_rule) if update_all else org_aliases.copy()
+            )
 
-            upd_aliases = self._get_timeseries_alias_list_optimized(name, tuple(aliases))
+            upd_aliases = self._get_timeseries_alias_list_optimized(
+                name, tuple(aliases), self.timeseries_alias_rule
+            )
 
             update_needed = False
             properties_dict = {}
@@ -204,7 +247,9 @@ class OptimizedMetadataProcessor:
             )
             org_tags = [str(x) for x in tags_raw] if isinstance(tags_raw, list) else []
             # Only the generated aliases are rebuilt; hand-curated ones are preserved.
-            aliases = _unmanaged_aliases(org_aliases) if update_all else org_aliases.copy()
+            aliases = (
+                _unmanaged_aliases(org_aliases, self.asset_alias_rule) if update_all else org_aliases.copy()
+            )
             # Managed tags are always rebuilt so a changed or removed root relation
             # cannot leave a stale root:* tag behind.
             tags = [
@@ -256,6 +301,66 @@ class OptimizedMetadataProcessor:
             self.logger.error(f"Error processing asset {node.external_id}: {e}")
             return None
     
+    def process_file_metadata(
+        self,
+        node: Node,
+        view_id: ViewId,
+        node_space: str,
+        update_all: bool = False,
+    ) -> NodeApply | None:
+        """Add search aliases to a file from its name.
+
+        Args:
+            node: The file instance to process.
+            view_id: View the aliases are written to.
+            node_space: Space the file was read from, and the one it is written back to.
+            update_all: Rebuild the generated aliases instead of merging with them.
+
+        Returns:
+            The update to apply, or None when the file needs no change.
+        """
+        try:
+            ext_id = node.external_id
+            # Skip rather than recompute from an empty payload, which under updateAll
+            # would overwrite the managed properties with empty values.
+            properties = node.properties.get(view_id) if node.properties else None
+            if not properties:
+                self.logger.warning(f"No properties for view {view_id} on file: {ext_id}")
+                return None
+
+            name = str(properties.get("name", ""))
+            aliases_raw = properties.get("aliases", [])
+            org_aliases = [str(x) for x in aliases_raw] if isinstance(aliases_raw, list) else []
+            # Only the generated aliases are rebuilt; hand-curated ones are preserved.
+            aliases = (
+                _unmanaged_aliases(org_aliases, self.file_alias_rule) if update_all else org_aliases.copy()
+            )
+
+            upd_aliases = self._get_file_alias_list_optimized(name, tuple(aliases), self.file_alias_rule)
+
+            self.stats['processed'] += 1
+
+            if not update_all and upd_aliases == org_aliases:
+                return None
+
+            self.stats['updated'] += 1
+            self.logger.debug(f"Updating file: {ext_id} with {len(upd_aliases)} aliases")
+
+            return NodeApply(
+                space=node_space,
+                external_id=ext_id,
+                sources=[
+                    NodeOrEdgeData(
+                        source=view_id,
+                        properties={"aliases": upd_aliases},
+                    )
+                ],
+            )
+
+        except Exception as e:
+            self.logger.error(f"Error processing file {node.external_id}: {e}")
+            return None
+
     def _parse_asset_tag_optimized(
         self,
         name: str,
@@ -264,7 +369,7 @@ class OptimizedMetadataProcessor:
         tags: list[str],
     ) -> tuple[list[str], list[str]]:
         """Build asset aliases and root tag from the root relation external id."""
-        upd_aliases = self._get_asset_alias_list_optimized(name, tuple(aliases))
+        upd_aliases = self._get_asset_alias_list_optimized(name, tuple(aliases), self.asset_alias_rule)
 
         if root_external_id:
             managed_tag = f"{MANAGED_ASSET_TAG_PREFIX}{root_external_id}"
@@ -275,34 +380,57 @@ class OptimizedMetadataProcessor:
 
     @staticmethod
     @lru_cache(maxsize=5000)
-    def _get_timeseries_alias_list_optimized(name: str, aliases_tuple: tuple[str, ...] = ()) -> list[str]:
+    def _get_timeseries_alias_list_optimized(
+        name: str,
+        aliases_tuple: tuple[str, ...] = (),
+        rule: AliasRule = _DEFAULT_ALIAS_RULE,
+    ) -> list[str]:
         """Optimized timeseries alias generation with caching"""
         aliases = list(aliases_tuple)
 
-        match = ALIAS_PATTERN.search(name)
-
-        cleaned_value = None if not match else "_".join(match.groups())
-
-        if cleaned_value and cleaned_value not in aliases:
-            aliases.append(cleaned_value)
+        for alias in _generated_aliases(name, rule):
+            if alias not in aliases:
+                aliases.append(alias)
 
         return aliases
     
     @staticmethod
     @lru_cache(maxsize=5000)
-    def _get_asset_alias_list_optimized(name: str, aliases_tuple: tuple[str, ...]) -> list[str]:
+    def _get_asset_alias_list_optimized(
+        name: str,
+        aliases_tuple: tuple[str, ...],
+        rule: AliasRule = _DEFAULT_ALIAS_RULE,
+    ) -> list[str]:
         """Optimized asset alias generation with caching"""
         aliases = list(aliases_tuple)
 
-        match = ALIAS_PATTERN.search(name)
-
-        cleaned_value = None if not match else "_".join(match.groups())
-
-        if cleaned_value and cleaned_value not in aliases:
-            aliases.append(cleaned_value)
+        for alias in _generated_aliases(name, rule):
+            if alias not in aliases:
+                aliases.append(alias)
         
         return aliases
     
+    @staticmethod
+    @lru_cache(maxsize=5000)
+    def _get_file_alias_list_optimized(
+        name: str,
+        aliases_tuple: tuple[str, ...],
+        rule: AliasRule = _DEFAULT_ALIAS_RULE,
+    ) -> list[str]:
+        """Optimized file alias generation with caching.
+
+        A document is searched for both by its bare file name and by the tag it refers
+        to, so it gets the name with the extension removed plus the usual tag aliases.
+        The name is not a pattern match, so aliasSelection does not apply to it.
+        """
+        aliases = list(aliases_tuple)
+
+        for candidate in [_file_name_without_extension(name), *_generated_aliases(name, rule)]:
+            if candidate and candidate not in aliases:
+                aliases.append(candidate)
+
+        return aliases
+
     def get_stats(self) -> dict[str, float | int]:
         """Get processing statistics"""
         return {
@@ -354,9 +482,62 @@ class PerformanceBenchmark:
 
 # ===== UTILITY FUNCTIONS =====
 
-def _unmanaged_aliases(aliases: list[str]) -> list[str]:
-    """Return the aliases this function did not generate, preserving their order."""
-    return [alias for alias in aliases if not MANAGED_ALIAS_PATTERN.fullmatch(alias)]
+def _generated_alias(name: str, pattern: re.Pattern[str]) -> str | None:
+    """The alias derived from a name - the pattern's capture groups joined by "_".
+
+    Returns:
+        The alias, or None when the name holds no tag.
+    """
+    match = pattern.search(name)
+    return "_".join(match.groups()) if match else None
+
+
+def _file_name_without_extension(name: str) -> str:
+    """The file name with its final extension removed, e.g. 23-KA-9101.pdf -> 23-KA-9101.
+
+    Returns:
+        The shortened name, or the name unchanged when it carries no extension.
+    """
+    stem, _, extension = name.rpartition(".")
+    return stem if stem and extension else name
+
+
+def _generated_aliases(name: str, rule: AliasRule) -> list[str]:
+    """The aliases a name yields under a rule.
+
+    Returns:
+        One alias per matching pattern in configured order, or a single longest one when
+        the rule says so. Empty when no pattern matches.
+    """
+    aliases: list[str] = []
+    for pattern in rule.patterns:
+        alias = _generated_alias(name, pattern)
+        if alias and alias not in aliases:
+            aliases.append(alias)
+
+    if rule.keep_longest_only and aliases:
+        # max returns the first of equally long aliases, so pattern order breaks ties.
+        return [max(aliases, key=len)]
+
+    return aliases
+
+
+def _unmanaged_aliases(aliases: list[str], rule: AliasRule) -> list[str]:
+    """Return the aliases this function did not generate, preserving their order.
+
+    An alias is ours when feeding it back through any of the rule's patterns reproduces
+    it exactly. That leaves hand-curated values alone whether they merely contain a tag
+    ("spare for 23-AB-1234") or spell one differently ("23-KA-9101").
+
+    Every pattern is checked even under "longest", so an alias a previous run wrote from
+    a pattern that no longer wins - or from a longer pattern list - is still recognised
+    and rebuilt rather than left behind.
+    """
+    return [
+        alias
+        for alias in aliases
+        if not any(_generated_alias(alias, pattern) == alias for pattern in rule.patterns)
+    ]
 
 
 def _direct_relation_external_id(relation: object) -> str:
@@ -392,6 +573,7 @@ def optimize_metadata_processing():
 # ===== EXPORT MAIN CLASSES =====
 
 __all__ = [
+    'AliasRule',
     'BatchProcessor',
     'OptimizedMetadataProcessor',
     'PerformanceBenchmark',

@@ -97,11 +97,13 @@ cdf_entity_matching/
 
 ### 2. [Metadata Update Function](./functions/fn_dm_context_metadata_update/README.md)
 
-**Purpose**: Optimizes metadata for timeseries and assets to improve searchability
+**Purpose**: Optimizes metadata for timeseries, assets and files to improve searchability
 
 **Key Features**:
 - ⚡ **Optimized processing** with caching and batch operations
-- 🏷️ **Alias normalization** for PI-style tags to improve matching
+- 🏷️ **Alias normalization** for PI-style tags to improve matching, with one or more tag
+  patterns per view
+- 📄 **File aliases** from the file name without its extension, plus the tag it carries
 - 🧠 **Memory optimization** with automatic cleanup
 - 📊 **Performance monitoring** with detailed benchmarking
 - 🛡️ **Enhanced error handling** with comprehensive logging
@@ -128,9 +130,11 @@ schemaSpace: cdf_cdm
 viewVersion: v1
 assetInstanceSpace: sp_cdm_instances
 timeseriesInstanceSpace: sp_cdm_instances
+fileInstanceSpace: sp_cdm_instances
 functionSpace: sp_entity_matching_fn  # space for this module's own nodes
 AssetViewExternalId: CogniteAsset
 TimeSeriesViewExternalId: CogniteTimeSeries
+FileViewExternalId: CogniteFile
 targetViewExternalId: CogniteAsset
 entityViewExternalId: CogniteTimeSeries
 targetViewSearchProperty: name
@@ -140,6 +144,20 @@ entityViewSearchProperty: name
 viewFilterProperty: tags
 targetViewFilterValues: []
 entityViewFilterValues: []
+# Regex per view that finds the tag in a name; the alias is the capture groups joined by "_"
+# One or more regexes per view that find the tag in a name; the alias is the capture
+# groups joined by "_". aliasSelection: all | longest when several patterns match
+timeseriesAliasPattern:
+  - '([0-9]{2})[-_.:]([A-Z]{2,3})[-_.:]([0-9]{4,5})'
+assetAliasPattern:
+  - '([0-9]{2})[-_.:]([A-Z]{2,3})[-_.:]([0-9]{4,5})'
+# Files default to document numbers as well: PH-25578-P-4110006-001.pdf gives
+# PH-25578-P-4110006-001 and PH-25578-P-4110006
+fileAliasPattern:
+  - '(?<![A-Z])([A-Z]{2,4}-[0-9]+-[A-Z]-[0-9]+-[0-9]+)'
+  - '(?<![A-Z])([A-Z]{2,4}-[0-9]+-[A-Z]-[0-9]+)(?:-[0-9]+)?'
+  - '([0-9]{2})[-_.:]([A-Z]{2,3})[-_.:]([0-9]{4,5})'
+aliasSelection: all
 
 # Authentication
 workflowClientId: ${IDP_CLIENT_ID}
@@ -188,17 +206,57 @@ exist on the view — `alias` instead of `aliases`, say — every instance takes
 and the whole run silently matches on `name`. Matching still produces results, just not
 on the property you intended, so confirm the property name against your deployed view.
 
-#### `assetInstanceSpace` and `timeseriesInstanceSpace`
+#### `assetInstanceSpace`, `timeseriesInstanceSpace` and `fileInstanceSpace`
 
-Both variables take a single space or a list of spaces, so assets and time series can be
-spread across several instance spaces:
+Each variable takes a single space or a list of spaces, so assets, time series and files
+can be spread across several instance spaces:
 
 ```yaml
 assetInstanceSpace: inst_location
+fileInstanceSpace: inst_documents
 timeseriesInstanceSpace:
   - inst_timeseries_pi
   - inst_timeseries_sap
 ```
+
+#### `timeseriesAliasPattern`, `assetAliasPattern`, `fileAliasPattern` and `aliasSelection`
+
+The regular expressions the metadata update function uses to find the tag inside an
+instance's `name`. One list per view, so time series, assets and files can follow
+different naming conventions. The alias it writes back is a pattern's capture groups
+joined by `_`, so the default turns `VAL_23-KA-9101:X.Value` into the alias `23_KA_9101` —
+which is what makes entity matching on `aliases` work across differently formatted names.
+
+List several patterns for a view whose names follow more than one convention.
+`aliasSelection` then decides what to keep when more than one matches: `all` (the
+default) writes one alias per matching pattern, `longest` writes only the longest one.
+
+```yaml
+timeseriesAliasPattern:
+  - '([0-9]{2})[-_.:]([A-Z]{2,3})[-_.:]([0-9]{4,5})'
+  - '([A-Z]{3})[-_]?([0-9]{4})'
+assetAliasPattern:
+  - '([0-9]{2})[-_.:]([A-Z]{2,3})[-_.:]([0-9]{4,5})'
+aliasSelection: all
+```
+
+`aliasSelection` is one variable applied to all three views. Set it per view by editing
+`aliasSelection` in the metadata update extraction pipeline config directly.
+
+`fileAliasPattern` defaults to document numbers as well as the equipment tag, so
+`PH-25578-P-4110006-001.pdf` yields `PH-25578-P-4110006-001` and `PH-25578-P-4110006`.
+Files also get their file name without its final extension, which `aliasSelection` never
+discards. See
+[Document numbers](functions/fn_dm_context_metadata_update/README.md#document-numbers)
+before adapting those patterns — capturing a number in several groups would rewrite its
+dashes as underscores.
+
+Write character classes rather than backslash escapes — `[0-9]`, not `\d` — because
+Toolkit substitutes variables as a regex replacement and a backslash escape fails the
+build. Keep `_` among the separators the pattern accepts, so the function still
+recognises the aliases it generated on earlier runs. Both rules and the `updateAll`
+interaction are covered in the
+[metadata update README](functions/fn_dm_context_metadata_update/README.md#alias-pattern).
 
 Instances are read from every listed space, and both the entity matching and metadata
 update functions write each instance back to the space it was read from. Matching is not
@@ -280,9 +338,11 @@ variables:
       viewVersion: v1
       assetInstanceSpace: your_instances
       timeseriesInstanceSpace: your_instances
+      fileInstanceSpace: your_instances
       functionSpace: sp_entity_matching_fn
       AssetViewExternalId: CogniteAsset
       TimeSeriesViewExternalId: CogniteTimeSeries
+      FileViewExternalId: CogniteFile
       targetViewExternalId: CogniteAsset
       entityViewExternalId: CogniteTimeSeries
       targetViewSearchProperty: name
@@ -467,7 +527,7 @@ cdf workflows logs EntityMatching
    - Check whether the warning names `entities` or `assets` — for `assets`, the space an
      asset link points at is arbitrary, so confirm the links landed where you expect
    - Remember that a manual mapping applies to every copy of an external ID
-   - See [`assetInstanceSpace` and `timeseriesInstanceSpace`](#assetinstancespace-and-timeseriesinstancespace)
+   - See [`assetInstanceSpace`, `timeseriesInstanceSpace` and `fileInstanceSpace`](#assetinstancespace-timeseriesinstancespace-and-fileinstancespace)
 
 ### Debug Mode
 
