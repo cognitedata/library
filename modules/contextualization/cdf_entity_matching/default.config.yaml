@@ -20,7 +20,9 @@ FileViewExternalId: CogniteFile
 targetViewExternalId: CogniteAsset
 entityViewExternalId: CogniteTimeSeries
 targetViewSearchProperty: name
-viewFilterProperty: tags  # NOTE: in CFIHOS example data model (dm_dom_oil_and_gas.DataModel.yaml), the filter property is labels
+# Property entity matching filters on, applied only when the filter values below are set.
+# NOTE: in CFIHOS example data model (dm_dom_oil_and_gas.DataModel.yaml) it is labels
+viewFilterProperty: tags
 # Regexes that find the tag inside a name, per view. List as many as the view's names
 # need; each contributes an alias built from its capture groups joined by "_", so
 # VAL_23-KA-9101 gives 23_KA_9101. Two rules when changing these:

@@ -52,7 +52,7 @@ The CDF Entity Matching module is designed to:
 cdf_entity_matching/
 ├── 📁 functions/                           # CDF Functions
 │   ├── 📁 fn_dm_context_timeseries_entity_matching/  # Entity matching logic
-│   ├── 📁 fn_dm_context_metadata_update/            # Metadata optimization
+│   ├── 📁 fn_dm_context_aliases_update/            # Metadata optimization
 │   └── 📄 functions.Function.yaml                   # Function definitions
 ├── 📁 workflows/                           # CDF Workflows
 │   ├── 📄 entity_matching.Workflow.yaml             # Main workflow definition
@@ -95,7 +95,7 @@ cdf_entity_matching/
 - Industrial IoT data organization
 - Process optimization and monitoring
 
-### 2. [Metadata Update Function](./functions/fn_dm_context_metadata_update/README.md)
+### 2. [Metadata Update Function](./functions/fn_dm_context_aliases_update/README.md)
 
 **Purpose**: Optimizes metadata for timeseries, assets and files to improve searchability
 
@@ -139,8 +139,8 @@ targetViewExternalId: CogniteAsset
 entityViewExternalId: CogniteTimeSeries
 targetViewSearchProperty: name
 entityViewSearchProperty: name
-# Property used to filter assets/timeseries and to read/write asset metadata tags.
-# Default is tags (CDM). Use labels when deploying with the CFIHOS data model pack.
+# Property entity matching filters assets/timeseries on, together with the filter
+# values below. Default is tags (CDM); use labels with the CFIHOS data model pack.
 viewFilterProperty: tags
 targetViewFilterValues: []
 entityViewFilterValues: []
@@ -172,10 +172,11 @@ workflow: EntityMatching
 
 #### `viewFilterProperty`
 
-`{{ viewFilterProperty }}` is a shared module variable that controls which view property is used for:
-
-- **Entity matching** — `filterProperty` on both `targetView` and `entityView` in the timeseries entity matching extraction pipeline config
-- **Metadata update** — reading and writing asset classification values in the metadata update function (for example tag-style values on assets)
+`{{ viewFilterProperty }}` is the view property entity matching filters on: `filterProperty`
+on both `targetView` and `entityView` in the timeseries entity matching extraction
+pipeline config. It only narrows the instances considered when the matching
+`targetViewFilterValues` or `entityViewFilterValues` is non-empty. The metadata update
+function does not use it — that function writes `aliases` and nothing else.
 
 **Default:** `tags` — matches Cognite Data Model (CDM) views such as `CogniteAsset`, where filtering and metadata use the `tags` property.
 
@@ -249,7 +250,7 @@ assetAliasSelection: longest
 That pair needs `fileAliasSelection: all`, since `longest` would drop the shorter number.
 Files also get their file name without its final extension, which the selection never
 discards. See
-[Document numbers](functions/fn_dm_context_metadata_update/README.md#document-numbers)
+[Document numbers](functions/fn_dm_context_aliases_update/README.md#document-numbers)
 before adapting those patterns — capturing a number in several groups would rewrite its
 dashes as underscores.
 
@@ -258,7 +259,7 @@ Toolkit substitutes variables as a regex replacement and a backslash escape fail
 build. Keep `_` among the separators the pattern accepts, so the function still
 recognises the aliases it generated on earlier runs. Both rules and the `updateAll`
 interaction are covered in the
-[metadata update README](functions/fn_dm_context_metadata_update/README.md#alias-pattern).
+[metadata update README](functions/fn_dm_context_aliases_update/README.md#alias-pattern).
 
 Instances are read from every listed space, and both the entity matching and metadata
 update functions write each instance back to the space it was read from. Matching is not
@@ -467,7 +468,7 @@ From the **repository root**:
 ```bash
 uv sync --group dev
 uv run pytest modules/contextualization/cdf_entity_matching/functions/fn_dm_context_timeseries_entity_matching/ -q
-uv run pytest modules/contextualization/cdf_entity_matching/functions/fn_dm_context_metadata_update/test_metadata_optimizations.py -q
+uv run pytest modules/contextualization/cdf_entity_matching/functions/fn_dm_context_aliases_update/test_alias_optimizations.py -q
 ```
 
 Run a handler locally (set `CDF_*` / `IDP_*` env vars first):
@@ -488,8 +489,8 @@ cd functions/fn_dm_context_timeseries_entity_matching
 uv run python test_optimizations.py
 
 # Metadata update tests
-cd functions/fn_dm_context_metadata_update
-uv run python test_metadata_optimizations.py
+cd functions/fn_dm_context_aliases_update
+uv run python test_alias_optimizations.py
 ```
 
 ### Integration Testing
@@ -518,12 +519,13 @@ cdf workflows logs EntityMatching
    - Enable debug mode for limited processing
    - Monitor memory usage in function logs
 
-3. **`Property '<name>' does not exist in view '<view>'` (400) when applying updates**
+3. **`Property '<name>' does not exist in view '<view>'` (400)**
    - `viewFilterProperty` names a property the configured views do not have. The
      `cdf_cdm` views expose it as `tags`; the CFIHOS views in `dm_dom_oil_and_gas` call
      it `labels`. Set it to match the views you deployed
-   - Reading tolerates the wrong name — a property that is absent looks the same as one
-     that is unset — so the mismatch only surfaces when the first batch is written
+   - Only entity matching uses it, and only once `targetViewFilterValues` or
+     `entityViewFilterValues` is non-empty — an empty filter value list never builds the
+     filter, so a wrong name can sit unnoticed until you start filtering
 
 4. **Workflow Failures**
    - Check extraction pipeline configurations
@@ -553,7 +555,7 @@ parameters:
 ## 📚 Documentation
 
 - [**Timeseries Entity Matching Function**](./functions/fn_dm_context_timeseries_entity_matching/README.md) - Detailed documentation for entity matching
-- [**Metadata Update Function**](./functions/fn_dm_context_metadata_update/README.md) - Comprehensive guide for metadata optimization
+- [**Metadata Update Function**](./functions/fn_dm_context_aliases_update/README.md) - Comprehensive guide for metadata optimization
 - **CDF Toolkit Documentation** - General deployment and configuration guidance
 
 ## 🤝 Contributing

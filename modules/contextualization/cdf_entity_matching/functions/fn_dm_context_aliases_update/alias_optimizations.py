@@ -19,7 +19,7 @@ from cognite.client.exceptions import CogniteAPIError
 from psutil import Process
 from tenacity import retry, retry_if_exception, stop_after_attempt, wait_exponential
 
-from constants import DEFAULT_ALIAS_PATTERN, INVALID_ASSET_TAG, MANAGED_ASSET_TAG_PREFIX  # isort: skip
+from constants import DEFAULT_ALIAS_PATTERN  # isort: skip
 from logger import CogniteFunctionLogger  # isort: skip
 
 @dataclass(frozen=True)
@@ -168,13 +168,11 @@ class OptimizedMetadataProcessor:
     def __init__(
         self,
         logger: CogniteFunctionLogger,
-        view_filter_property: str = "tags",
         timeseries_alias_rule: AliasRule = _DEFAULT_ALIAS_RULE,
         asset_alias_rule: AliasRule = _DEFAULT_ALIAS_RULE,
         file_alias_rule: AliasRule = _DEFAULT_ALIAS_RULE,
     ):
         self.logger = logger
-        self.view_filter_property = view_filter_property
         # Each rule drives both alias generation and the check for which existing
         # aliases this function owns.
         self.timeseries_alias_rule = timeseries_alias_rule
@@ -267,42 +265,24 @@ class OptimizedMetadataProcessor:
 
             name = str(properties.get("name", ""))
             aliases_raw = properties.get("aliases", [])
-            tags_raw = properties.get(self.view_filter_property, [])
             org_aliases = (
                 [str(x) for x in aliases_raw] if isinstance(aliases_raw, list) else []
             )
-            org_tags = [str(x) for x in tags_raw] if isinstance(tags_raw, list) else []
             # Only the generated aliases are rebuilt; hand-curated ones are preserved.
             aliases = (
                 _unmanaged_aliases(org_aliases, self.asset_alias_rule) if update_all else org_aliases.copy()
             )
-            # Managed tags are always rebuilt so a changed or removed root relation
-            # cannot leave a stale root:* tag behind.
-            tags = [
-                tag
-                for tag in org_tags
-                if not tag.startswith(MANAGED_ASSET_TAG_PREFIX) and tag != INVALID_ASSET_TAG
-            ]
 
-            root_external_id = _direct_relation_external_id(properties.get("root"))
-            upd_tags, upd_aliases = self._parse_asset_tag_optimized(
-                name, aliases, root_external_id, tags
+            upd_aliases = self._get_asset_alias_list_optimized(
+                name, tuple(aliases), self.asset_alias_rule
             )
 
             update_needed = False
             properties_dict = {}
 
-            if update_all:
+            if update_all or upd_aliases != org_aliases:
                 properties_dict["aliases"] = upd_aliases
-                properties_dict[self.view_filter_property] = upd_tags
                 update_needed = True
-            else:
-                if upd_aliases != org_aliases:
-                    properties_dict["aliases"] = upd_aliases
-                    update_needed = True
-                if set(upd_tags) != set(org_tags):
-                    properties_dict[self.view_filter_property] = upd_tags
-                    update_needed = True
             
             self.stats['processed'] += 1
             
@@ -386,23 +366,6 @@ class OptimizedMetadataProcessor:
         except Exception as e:
             self.logger.error(f"Error processing file {node.external_id}: {e}")
             return None
-
-    def _parse_asset_tag_optimized(
-        self,
-        name: str,
-        aliases: list[str],
-        root_external_id: str,
-        tags: list[str],
-    ) -> tuple[list[str], list[str]]:
-        """Build asset aliases and root tag from the root relation external id."""
-        upd_aliases = self._get_asset_alias_list_optimized(name, tuple(aliases), self.asset_alias_rule)
-
-        if root_external_id:
-            managed_tag = f"{MANAGED_ASSET_TAG_PREFIX}{root_external_id}"
-            if managed_tag not in tags:
-                tags.append(managed_tag)
-
-        return tags, upd_aliases
 
     @staticmethod
     @lru_cache(maxsize=5000)
@@ -564,19 +527,6 @@ def _unmanaged_aliases(aliases: list[str], rule: AliasRule) -> list[str]:
         for alias in aliases
         if not any(_generated_alias(alias, pattern) == alias for pattern in rule.patterns)
     ]
-
-
-def _direct_relation_external_id(relation: object) -> str:
-    """Return the external id from a direct relation property value."""
-    if relation is None:
-        return ""
-
-    if isinstance(relation, dict):
-        external_id = relation.get("externalId") or relation.get("external_id")
-        return str(external_id) if external_id else ""
-
-    external_id = getattr(relation, "external_id", None) or getattr(relation, "externalId", None)
-    return str(external_id) if external_id else ""
 
 
 def optimize_metadata_processing():

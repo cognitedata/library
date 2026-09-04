@@ -44,7 +44,7 @@ export const DEPLOYMENT_PACKS: DeploymentPackDefinition[] = [
     signals: {
       functionExternalIds: [
         "fn_dm_context_timeseries_entity_matching",
-        "fn_dm_context_metadata_update",
+        "fn_dm_context_aliases_update",
       ],
     },
   },

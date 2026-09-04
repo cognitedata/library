@@ -15,16 +15,16 @@ This module provides optimized metadata update functionality for timeseries, ass
 ## 📁 Module Structure
 
 ```
-fn_dm_context_metadata_update/
+fn_dm_context_aliases_update/
 ├── handler.py                    # Main function handler with optimizations
 ├── pipeline.py                   # Core pipeline logic with batch processing
-├── metadata_optimizations.py     # Optimization utilities and classes
+├── alias_optimizations.py        # Optimization utilities and classes
 ├── config.py                     # Configuration management
 ├── logger.py                     # Enhanced logging functionality
 ├── constants.py                  # Module constants
 ├── requirements.txt              # Direct deploy dependencies for CDF
 ├── pyproject.toml                # uv package definition
-├── test_metadata_optimizations.py # Comprehensive test suite
+├── test_alias_optimizations.py   # Comprehensive test suite
 └── README.md                     # This file
 ```
 
@@ -53,7 +53,7 @@ The module reads configuration from the extraction pipeline in CDF:
 
 ```yaml
 # Example extraction pipeline config
-ExtractionPipelineExtId: "ep_ctx_entity_matching_metadata_update"
+ExtractionPipelineExtId: "ep_ctx_aliases_update"
 parameters:
   debug: false
   run_all: false
@@ -202,8 +202,8 @@ hand if that matters.
 
 For a full metadata refresh, set `updateAll: true` in the extraction pipeline config.
 "Reset" covers only the values this function generates — aliases matching the view's
-`aliasPattern` and `root:*` tags. Hand-curated aliases and tags are preserved, including
-aliases that merely mention a tag (for example `spare for 23-AB-1234`).
+`aliasPattern`. Hand-curated aliases are preserved, including aliases that merely mention
+a tag (for example `spare for 23-AB-1234`).
 
 ## 🏃‍♂️ How to Run
 
@@ -231,7 +231,7 @@ export IDP_CLIENT_SECRET=your-secret
 export IDP_TOKEN_URL=your-token-url
 
 # Run the handler directly
-cd modules/contextualization/cdf_entity_matching/functions/fn_dm_context_metadata_update
+cd modules/contextualization/cdf_entity_matching/functions/fn_dm_context_aliases_update
 uv run python handler.py
 ```
 
@@ -247,7 +247,7 @@ client = CogniteClient.default()
 # Configure data
 data = {
     "logLevel": "INFO",
-    "ExtractionPipelineExtId": "ep_ctx_entity_matching_metadata_update"
+    "ExtractionPipelineExtId": "ep_ctx_aliases_update"
 }
 
 # Run the optimized handler
@@ -285,8 +285,6 @@ print(f"Status: {result['status']}")
 4. **Asset Processing**:
    - Fetch every asset in scope in one call (the SDK paginates internally)
    - Add normalized aliases when tag patterns match
-   - Rebuild the `root:<externalId>` tag from the `root` relation on every run, so a
-     changed or removed relation cannot leave a stale `root:*` tag behind
    - Update with batch operations
 5. **File Processing** (only when `fileView` is configured):
    - Fetch every file in scope in one call (the SDK paginates internally)
@@ -309,31 +307,31 @@ print(f"Status: {result['status']}")
 From the repository root:
 
 ```bash
-uv run pytest modules/contextualization/cdf_entity_matching/functions/fn_dm_context_metadata_update/test_metadata_optimizations.py -q
+uv run pytest modules/contextualization/cdf_entity_matching/functions/fn_dm_context_aliases_update/test_alias_optimizations.py -q
 ```
 
 Or run the script directly:
 
 ```bash
-cd modules/contextualization/cdf_entity_matching/functions/fn_dm_context_metadata_update
-uv run python test_metadata_optimizations.py
+cd modules/contextualization/cdf_entity_matching/functions/fn_dm_context_aliases_update
+uv run python test_alias_optimizations.py
 ```
 
 ### Test Categories
 
 #### 1. **Unit Tests**
 ```bash
-uv run pytest modules/contextualization/cdf_entity_matching/functions/fn_dm_context_metadata_update/test_metadata_optimizations.py::TestOptimizedMetadataProcessor -v
+uv run pytest modules/contextualization/cdf_entity_matching/functions/fn_dm_context_aliases_update/test_alias_optimizations.py::TestOptimizedMetadataProcessor -v
 ```
 
 #### 2. **Performance Tests**
 ```bash
-uv run pytest modules/contextualization/cdf_entity_matching/functions/fn_dm_context_metadata_update/test_metadata_optimizations.py::TestPerformanceBenchmark -v
+uv run pytest modules/contextualization/cdf_entity_matching/functions/fn_dm_context_aliases_update/test_alias_optimizations.py::TestPerformanceBenchmark -v
 ```
 
 #### 3. **Integration Tests**
 ```bash
-uv run pytest modules/contextualization/cdf_entity_matching/functions/fn_dm_context_metadata_update/test_metadata_optimizations.py::TestIntegrationScenarios -v
+uv run pytest modules/contextualization/cdf_entity_matching/functions/fn_dm_context_aliases_update/test_alias_optimizations.py::TestIntegrationScenarios -v
 ```
 
 ### Test Coverage
@@ -414,7 +412,7 @@ data = {
 
 ```
 🚀 Starting OPTIMIZED metadata update with loglevel = INFO
-📝 Reading parameters from extraction pipeline config: ep_ctx_entity_matching_metadata_update
+📝 Reading parameters from extraction pipeline config: ep_ctx_aliases_update
 ⏱️ Time: Configuration processing took 0.12 seconds
 📊 Processing Stats: 1000 processed, 800 updated, 80.00% update rate
 🎉 Optimized metadata update completed successfully!

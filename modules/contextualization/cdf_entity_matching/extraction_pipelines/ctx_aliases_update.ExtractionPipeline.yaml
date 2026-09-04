@@ -1,0 +1,40 @@
+externalId: 'ep_ctx_aliases_update'
+name: 'ctx:aliases_update'
+dataSetExternalId: 'ds_timeseries_{{location_name}}'
+description: 'Update / add aliases on timeseries, assets and files'
+source: '{{source_name}}'
+documentation: >
+  # Create aliases for timeseries, assets and files
+
+  Uses the DM sync api to get all timeseries, assets and files and creates aliases for each object.
+  The aliases are used in the entity matching process to link matched timeseries to assets.
+  The alias process is used to make it possible to generalize the entity matching process. So that the same process can be used for different sites/assets/facilities.
+
+  Default configuration is provided as part of the deployment, but can be overwritten
+  by configuration provided in configuration section below
+
+
+  ```
+   debug -  write DEBUG messages if True
+   runAll - if True run on all found instances, if False only run on instances without aliases
+   updateAll - if True rebuild the generated aliases on all instances (implies runAll)
+   rawDb - Raw database where status Information is stored
+   rawTableState - Raw table to store state related to process
+
+   timeseriesView - View to to access time series
+   assetView - View to to access assets
+   fileView - View to to access files. Optional: remove it to leave files untouched
+
+   Each view takes:
+
+   schemaSpace - Schema space for the views, same or different for each view
+   instanceSpace - Instance space ( where data is stored) for the views, same or different for each view.
+                   A single space or a list of spaces; instances are updated in the space they were read from.
+   externalId - External id of the view
+   version - Version of the view
+   aliasPattern - One regex, or a list of them, that finds the tag in an instance's name.
+                  The alias is the capture groups of a matching pattern joined by "_"
+   aliasSelection - What to keep when several patterns match one name: 'all' for one alias
+                    per matching pattern, or 'longest' for only the longest
+
+  ```

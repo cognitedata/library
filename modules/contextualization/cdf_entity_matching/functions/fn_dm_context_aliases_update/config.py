@@ -18,7 +18,6 @@ class Parameters(BaseModel, alias_generator=to_camel):
     raw_db: str
     raw_table_state: str
     update_all: bool = False
-    view_filter_property: str = "tags"
 
 
 class ViewPropertyConfig(BaseModel, alias_generator=to_camel):

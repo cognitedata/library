@@ -1,10 +1,9 @@
-externalId: 'ep_ctx_entity_matching_metadata_update'
+externalId: 'ep_ctx_aliases_update'
 config:
   parameters:
     debug: False
     runAll: True
     updateAll: True
-    viewFilterProperty: '{{ viewFilterProperty }}'
     rawDb: '{{ dbName }}'
     rawTableState: 'ts_state_store'
   data:

@@ -19,7 +19,7 @@ from cognite.client.exceptions import CogniteAPIError
 
 from constants import DEFAULT_ALIAS_PATTERN  # isort: skip
 from logger import CogniteFunctionLogger  # isort: skip
-from metadata_optimizations import (  # isort: skip
+from alias_optimizations import (  # isort: skip
     BatchProcessor,
     AliasRule,
     OptimizedMetadataProcessor,
@@ -534,10 +534,7 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
             properties["aliases"],
             ["operator note", "spare for 23-AB-1234", "23_KA_9101"],
         )
-        self.assertIn("discipline:KA", properties["tags"])
-        self.assertIn("root:VAL-PH", properties["tags"])
-        self.assertNotIn("tag", properties["tags"])
-        self.assertNotIn("root:old_root", properties["tags"])
+        self.assertNotIn("tags", properties)
 
         print("✅ Asset updateAll test passed")
 
@@ -564,13 +561,13 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
         self.assertIsNotNone(result)
         properties = result.sources[0].properties
         self.assertEqual(properties["aliases"], ["23_KA_9101"])
-        self.assertIn("root:VAL-PH", properties["tags"])
+        self.assertNotIn("tags", properties)
 
         print("✅ Asset updateAll re-apply test passed")
 
-    def test_asset_incremental_adds_root_tag_from_relation(self) -> None:
-        """Test incremental asset processing adds root tag from relation external id"""
-        print("🧪 Testing asset incremental root tag...")
+    def test_asset_incremental_adds_missing_alias(self) -> None:
+        """Test incremental asset processing adds the alias its name yields"""
+        print("🧪 Testing asset incremental alias...")
 
         asset_view_id = ViewId(space="cdf_cdm", external_id="CogniteAsset", version="v1")
         node = MagicMock()
@@ -578,8 +575,7 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
         node.properties = {
             asset_view_id: {
                 "name": "23-KA-9101",
-                "aliases": ["23_KA_9101"],
-                "tags": ["discipline:KA"],
+                "aliases": [],
                 "root": {"space": "inst_cfihos_oil_and_gas", "externalId": "VAL-PH"},
             }
         }
@@ -589,14 +585,17 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
         )
 
         self.assertIsNotNone(result)
-        properties = result.sources[0].properties
-        self.assertEqual(properties["tags"], ["discipline:KA", "root:VAL-PH"])
+        self.assertEqual(result.sources[0].properties["aliases"], ["23_KA_9101"])
 
-        print("✅ Asset incremental root tag test passed")
+        print("✅ Asset incremental alias test passed")
 
-    def test_asset_incremental_replaces_stale_root_tag(self) -> None:
-        """Test incremental asset processing replaces a root tag from an old relation"""
-        print("🧪 Testing asset incremental stale root tag...")
+    def test_asset_tags_are_never_written(self) -> None:
+        """This function manages aliases only, so tags stay exactly as the site set them.
+
+        Writing a tag property the configured view does not have is rejected for the
+        whole batch, so the safe thing is to touch none of them.
+        """
+        print("🧪 Testing asset tags left untouched...")
 
         asset_view_id = ViewId(space="cdf_cdm", external_id="CogniteAsset", version="v1")
         node = MagicMock()
@@ -604,8 +603,8 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
         node.properties = {
             asset_view_id: {
                 "name": "23-KA-9101",
-                "aliases": ["23_KA_9101"],
-                "tags": ["root:OLD-PH", "discipline:KA"],
+                "aliases": [],
+                "tags": ["discipline:KA", "root:OLD-PH"],
                 "root": {"space": "inst_cfihos_oil_and_gas", "externalId": "VAL-PH"},
             }
         }
@@ -615,39 +614,13 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
         )
 
         self.assertIsNotNone(result)
-        properties = result.sources[0].properties
-        self.assertEqual(properties["tags"], ["discipline:KA", "root:VAL-PH"])
+        self.assertEqual(list(result.sources[0].properties), ["aliases"])
 
-        print("✅ Asset incremental stale root tag test passed")
+        print("✅ Asset tags untouched test passed")
 
-    def test_asset_incremental_removes_root_tag_when_relation_missing(self) -> None:
-        """Test incremental asset processing drops the root tag when root is unset"""
-        print("🧪 Testing asset incremental root tag removal...")
-
-        asset_view_id = ViewId(space="cdf_cdm", external_id="CogniteAsset", version="v1")
-        node = MagicMock()
-        node.external_id = "23-KA-9101"
-        node.properties = {
-            asset_view_id: {
-                "name": "23-KA-9101",
-                "aliases": ["23_KA_9101"],
-                "tags": ["root:OLD-PH", "discipline:KA"],
-                "root": None,
-            }
-        }
-
-        result = self.processor.process_asset_metadata(
-            node, asset_view_id, "inst_cfihos_oil_and_gas", update_all=False
-        )
-
-        self.assertIsNotNone(result)
-        self.assertEqual(result.sources[0].properties["tags"], ["discipline:KA"])
-
-        print("✅ Asset incremental root tag removal test passed")
-
-    def test_asset_incremental_skips_update_when_only_tag_order_differs(self) -> None:
-        """Test incremental asset processing does not rewrite reordered tags"""
-        print("🧪 Testing asset incremental tag order no-op...")
+    def test_asset_incremental_skips_update_when_aliases_already_complete(self) -> None:
+        """Test incremental asset processing writes nothing when the alias is present"""
+        print("🧪 Testing asset incremental no-op...")
 
         asset_view_id = ViewId(space="cdf_cdm", external_id="CogniteAsset", version="v1")
         node = MagicMock()
@@ -667,36 +640,7 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
 
         self.assertIsNone(result)
 
-        print("✅ Asset incremental tag order no-op test passed")
-
-    def test_asset_metadata_uses_configured_filter_property(self) -> None:
-        """Asset tag reads/writes use the configured view filter property name"""
-        print("🧪 Testing configured view filter property...")
-
-        processor = OptimizedMetadataProcessor(self.logger, view_filter_property="labels")
-        asset_view_id = ViewId(space="cdf_cdm", external_id="CogniteAsset", version="v1")
-        node = MagicMock()
-        node.external_id = "23-KA-9101"
-        node.properties = {
-            asset_view_id: {
-                "name": "23-KA-9101",
-                "aliases": ["23_KA_9101"],
-                "labels": ["discipline:KA"],
-                "root": {"space": "inst_location", "externalId": "VAL-PH"},
-            }
-        }
-
-        result = processor.process_asset_metadata(
-            node, asset_view_id, "inst_location", update_all=False
-        )
-
-        self.assertIsNotNone(result)
-        properties = result.sources[0].properties
-        self.assertIn("labels", properties)
-        self.assertNotIn("tags", properties)
-        self.assertIn("root:VAL-PH", properties["labels"])
-
-        print("✅ Configured view filter property test passed")
+        print("✅ Asset incremental no-op test passed")
 
     def test_asset_update_all_skips_node_without_view_properties(self) -> None:
         """updateAll must not blank managed properties when the view payload is empty"""

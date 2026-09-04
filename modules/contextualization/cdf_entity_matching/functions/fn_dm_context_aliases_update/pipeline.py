@@ -11,6 +11,18 @@ import traceback
 from pathlib import Path
 from typing import Any
 
+# Import optimizations
+from alias_optimizations import (
+    AliasRule,
+    BatchProcessor,
+    OptimizedMetadataProcessor,
+    PerformanceBenchmark,
+    cleanup_memory,
+    is_retryable,
+    monitor_memory_usage,
+    optimize_metadata_processing,
+    time_operation,
+)
 from cognite.client import CogniteClient
 from cognite.client import data_modeling as dm
 from cognite.client.data_classes import ExtractionPipelineRun
@@ -31,19 +43,6 @@ from constants import (
     TS_NODE,
 )
 from logger import CogniteFunctionLogger
-
-# Import optimizations
-from metadata_optimizations import (
-    AliasRule,
-    BatchProcessor,
-    OptimizedMetadataProcessor,
-    PerformanceBenchmark,
-    cleanup_memory,
-    is_retryable,
-    monitor_memory_usage,
-    optimize_metadata_processing,
-    time_operation,
-)
 
 sys.path.append(str(Path(__file__).parent))
 
@@ -113,7 +112,6 @@ def metadata_update(
             file_view = config.data.job.file_view
             metadata_processor = OptimizedMetadataProcessor(
                 logger,
-                config.parameters.view_filter_property,
                 alias_rule(config.data.job.timeseries_view),
                 alias_rule(config.data.job.asset_view),
                 alias_rule(file_view),

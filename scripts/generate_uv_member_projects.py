@@ -87,8 +87,8 @@ PACKAGE_SPECS: list[dict[str, object]] = [
         ],
     },
     {
-        "path": "modules/contextualization/cdf_entity_matching/functions/fn_dm_context_metadata_update",
-        "name": "fn-dm-context-metadata-update",
+        "path": "modules/contextualization/cdf_entity_matching/functions/fn_dm_context_aliases_update",
+        "name": "fn-dm-context-aliases-update",
         "requires_python": ">=3.11,<3.14",
         "dependencies": [
             "cognite-extractor-utils>=7",
