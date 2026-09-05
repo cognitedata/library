@@ -20,7 +20,6 @@ from cognite.client.data_classes.data_modeling import (
     ViewId,
 )
 from cognite.client.data_classes.filters import HasData
-from cognite.client.exceptions import CogniteAPIError
 from cognite.client.utils._text import shorten
 
 from alias_optimizations import (  # isort: skip
@@ -480,13 +479,14 @@ def get_new_items(
                 logger.debug(f"Query returned {len(result)} {node_type} instances")
                 return result
                 
-            except CogniteAPIError as e:
+            except Exception as e:
                 if is_retryable(e) and attempt < max_retries - 1:
-                    # Rate limiting is the main reason to be here, and retrying it
-                    # immediately only spends another request on the same limit.
+                    # Rate limiting and dropped connections are the main reasons to be
+                    # here, and retrying immediately only spends another request on the
+                    # same limit or a still-dead socket.
                     sleep_seconds = retry_backoff_seconds * (2 ** attempt)
                     logger.warning(
-                        f"Transient API error (attempt {attempt + 1}), sleeping "
+                        f"Transient error (attempt {attempt + 1}), sleeping "
                         f"{sleep_seconds}s before retry: {e}"
                     )
                     time.sleep(sleep_seconds)

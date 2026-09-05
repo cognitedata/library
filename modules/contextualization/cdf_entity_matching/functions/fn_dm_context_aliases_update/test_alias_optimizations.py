@@ -15,7 +15,7 @@ from unittest.mock import MagicMock, patch
 sys.path.append(str(Path(__file__).parent))
 
 from cognite.client.data_classes.data_modeling import NodeApply, ViewId
-from cognite.client.exceptions import CogniteAPIError
+from cognite.client.exceptions import CogniteAPIError, CogniteConnectionError
 
 from constants import DEFAULT_ALIAS_PATTERN  # isort: skip
 from logger import CogniteFunctionLogger  # isort: skip
@@ -99,6 +99,32 @@ class TestBatchProcessing(unittest.TestCase):
             BatchProcessor(batch_size=4).apply_updates_in_batches(client, updates, self.logger)
 
         self.assertIn("does not exist in view", str(caught.exception))
+        self.assertEqual(client.data_modeling.instances.apply.call_count, 1)
+
+    def test_a_dropped_connection_is_retried(self) -> None:
+        """A connection error carries no status code, and the next attempt may connect."""
+        client = MagicMock()
+        client.data_modeling.instances.apply.side_effect = [
+            CogniteConnectionError("Connection reset"),
+            None,
+        ]
+        updates = [NodeApply(space="sp", external_id="item-0")]
+
+        with patch("tenacity.nap.time.sleep"):
+            applied = BatchProcessor(batch_size=1).apply_updates_in_batches(client, updates, self.logger)
+
+        self.assertEqual(applied, 1)
+        self.assertEqual(client.data_modeling.instances.apply.call_count, 2)
+
+    def test_a_bug_is_not_retried(self) -> None:
+        """A bug in our own code fails identically every attempt, so it fails once."""
+        client = MagicMock()
+        client.data_modeling.instances.apply.side_effect = TypeError("bad argument")
+        updates = [NodeApply(space="sp", external_id="item-0")]
+
+        with patch("tenacity.nap.time.sleep"), self.assertRaises(TypeError):
+            BatchProcessor(batch_size=1).apply_updates_in_batches(client, updates, self.logger)
+
         self.assertEqual(client.data_modeling.instances.apply.call_count, 1)
 
     def test_a_rate_limited_batch_is_still_retried(self) -> None:

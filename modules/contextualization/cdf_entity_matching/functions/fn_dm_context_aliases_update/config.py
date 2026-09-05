@@ -69,8 +69,8 @@ class ViewPropertyConfig(BaseModel, alias_generator=to_camel):
     def as_view_id(self) -> dm.ViewId:
         return dm.ViewId(space=self.schema_space, external_id=self.external_id, version=self.version)
 
-    def as_property_ref(self, property) -> list[str]:
-        return [self.schema_space, f"{self.external_id}/{self.version}", property]
+    def as_property_ref(self, property_name: str) -> list[str]:
+        return [self.schema_space, f"{self.external_id}/{self.version}", property_name]
 
 
 class JobConfig(BaseModel, alias_generator=to_camel):
@@ -86,12 +86,6 @@ class ConfigData(BaseModel, alias_generator=to_camel):
 class Config(BaseModel, alias_generator=to_camel):
     parameters: Parameters
     data: ConfigData
-
-    @classmethod
-    def pares_direct_relation(cls, value: Any) -> Any:
-        if isinstance(value, dict):
-            return dm.DirectRelationReference.load(value)
-        return value
 
 
 def load_config_parameters(client: CogniteClient, function_data: dict[str, Any]) -> Config:

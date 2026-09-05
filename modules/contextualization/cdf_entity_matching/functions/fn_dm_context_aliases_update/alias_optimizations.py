@@ -86,19 +86,30 @@ def cleanup_memory():
 
 # ===== BATCH PROCESSING UTILITIES =====
 
-def is_retryable(error: CogniteAPIError) -> bool:
+def is_retryable(error: Exception) -> bool:
     """Whether a failed request stands a chance of succeeding on a retry.
 
     A client error - a rejected property, a missing view, missing capabilities - means
     the request itself is wrong, so repeating it only delays the failure. Rate limiting
-    and server-side errors are transient.
+    and server-side errors are transient, as is anything the SDK re-raises unclassified
+    from its transport layer, which is why the default is to retry. Bugs in this function
+    are the exception: they fail the same way every time. ValueError is deliberately not
+    one of them - it covers JSONDecodeError, which a half-read response raises and a
+    second read can clear.
     """
-    return error.code == 429 or (error.code is not None and error.code >= 500)
+    if isinstance(error, CogniteAPIError):
+        return error.code == 429 or (error.code is not None and error.code >= 500)
+    return not isinstance(error, (TypeError, AttributeError, NameError, KeyError, IndexError))
 
 
 def _worth_another_attempt(error: BaseException) -> bool:
-    """Retry anything except an API error the server is bound to reject again."""
-    return not isinstance(error, CogniteAPIError) or is_retryable(error)
+    """Adapt `is_retryable` to what tenacity catches.
+
+    Everything an attempt could raise goes through the one classifier, so the write path
+    treats an error the same way the read path does. A KeyboardInterrupt is not a failed
+    request and is never worth repeating.
+    """
+    return isinstance(error, Exception) and is_retryable(error)
 
 
 class BatchProcessor:

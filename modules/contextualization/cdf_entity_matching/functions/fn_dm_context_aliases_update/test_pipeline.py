@@ -8,7 +8,7 @@ from unittest.mock import MagicMock, patch
 sys.path.append(str(Path(__file__).parent))
 
 from cognite.client import data_modeling as dm
-from cognite.client.exceptions import CogniteAPIError
+from cognite.client.exceptions import CogniteAPIError, CogniteConnectionError
 from pydantic import ValidationError
 
 from config import Config, ConfigData, JobConfig, Parameters, ViewPropertyConfig  # isort: skip
@@ -192,6 +192,22 @@ class TestPipelineHelpers(unittest.TestCase):
         """A 5xx is transient, so the next attempt stands a chance of succeeding."""
         client = MagicMock()
         client.data_modeling.instances.list.side_effect = [CogniteAPIError("Unavailable", code=503), ["node"]]
+
+        with patch("pipeline.time.sleep"):
+            result = get_new_items(
+                client, self.logger, self.view_config.as_view_id(), self._config(True, False), TS_NODE
+            )
+
+        self.assertEqual(result, ["node"])
+        self.assertEqual(client.data_modeling.instances.list.call_count, 2)
+
+    def test_a_connection_error_is_retried(self) -> None:
+        """A dropped connection is transient, so the next attempt stands a chance."""
+        client = MagicMock()
+        client.data_modeling.instances.list.side_effect = [
+            CogniteConnectionError("Connection reset"),
+            ["node"],
+        ]
 
         with patch("pipeline.time.sleep"):
             result = get_new_items(
