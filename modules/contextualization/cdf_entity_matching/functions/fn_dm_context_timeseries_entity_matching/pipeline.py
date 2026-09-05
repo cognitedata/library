@@ -5,6 +5,7 @@ import sys
 import time
 import traceback
 from collections import defaultdict
+from collections.abc import Sequence
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -16,6 +17,7 @@ from cognite.client import data_modeling as dm
 from cognite.client.data_classes import ExtractionPipelineRun, Row
 from cognite.client.data_classes.data_modeling import (
     DirectRelationReference,
+    Node,
     NodeApply,
     NodeOrEdgeData,
 )
@@ -39,6 +41,7 @@ from constants import (
     KEY_ENTITY_MATCH_VALUE,
     KEY_ENTITY_NAME,
     KEY_ENTITY_RULE_KEYS,
+    KEY_ENTITY_SPACE,
     KEY_ENTITY_VIEW_ID,
     KEY_MATCH_TYPE,
     KEY_MATCHES,
@@ -54,6 +57,7 @@ from constants import (
     KEY_TARGET_MATCH_VALUE,
     KEY_TARGET_NAME,
     KEY_TARGET_RULE_KEYS,
+    KEY_TARGET_SPACE,
     KEY_TARGET_VIEW_ID,
     LOG_LEVEL_DEBUG,
     LOG_LEVEL_INFO,
@@ -104,6 +108,17 @@ def _retry_apply(
     RobustAPIClient(client, logger).robust_api_call(
         client.data_modeling.instances.apply, items
     )
+
+
+def instance_key(space: str | None, external_id: str) -> tuple[str, str]:
+    """Identity of an instance for de-duplication and skip bookkeeping.
+
+    An external ID is unique within a space, not across them, so the same one in two
+    configured spaces is two distinct instances that each need matching and a write of
+    their own. An unknown space keys as the empty string so such matches still
+    de-duplicate against each other.
+    """
+    return (space or "", external_id)
 
 
 def entity_matching(
@@ -177,8 +192,12 @@ def entity_matching(
 
         with time_operation("Read new entities", logger):
             logger.info("Read new entities (ex: time series) that has been updated since last run")
-            list_good_matches = [match[KEY_ENTITY_EXT_ID] for match in good_matches]
-            new_entities = get_new_entities(client, config, logger, list_good_matches, rule_mappings)
+            # Only manual mappings have run, and those carry the space of the node they
+            # were read from - unlike matches from the matching API, where it can be None.
+            matched_entities = [
+                instance_key(match[KEY_ENTITY_SPACE], match[KEY_ENTITY_EXT_ID]) for match in good_matches
+            ]
+            new_entities = get_new_entities(client, config, logger, matched_entities, rule_mappings)
         monitor_memory_usage(logger, "After new entities loaded")
         cleanup_memory()
 
@@ -383,6 +402,7 @@ def apply_manual_mappings(
 
     try:
         targets_lookup = {target[KEY_TARGET_EXT_ID]: target for target in targets}
+        target_spaces = {target[KEY_TARGET_EXT_ID]: target[KEY_TARGET_SPACE] for target in targets}
         entity_list = [mapping[COL_KEY_MAN_MAPPING_ENTITY] for mapping in manual_mappings]
         lookup_mapping = {mapping[COL_KEY_MAN_MAPPING_ENTITY]: mapping[COL_KEY_MAN_MAPPING_TARGET] for mapping in manual_mappings}
         key_lookup = {mapping[COL_KEY_MAN_MAPPING_ENTITY]: mapping[KEY_RULE] for mapping in manual_mappings}
@@ -421,14 +441,23 @@ def apply_manual_mappings(
                     logger.warning(f"Manual mapping target ref is empty for entity: {entity.external_id}, skipping")
                     continue
 
+                properties = entity.properties.get(entity_view_id) if entity.properties else None
+                if not properties or PROP_COL_NAME not in properties:
+                    logger.warning(f"Entity: {entity.external_id} is missing properties or name, skipping")
+                    continue
+
+                # An entity that has never been linked - the normal state of one mapped by
+                # hand - leaves the property out of the response altogether.
+                links_property = properties.get(PROP_COL_LINK_NAME)
+
                 entity_targets: list[str] = []
                 if not config.parameters.remove_old_links:
                     # keep old target links
-                    links_property = entity.properties[entity_view_id][PROP_COL_LINK_NAME]
                     if links_property:
                         entity_targets = get_links_from_entity(links_property)
+                        remember_link_spaces(target_spaces, links_property)
                 else:
-                    clean_target_list = clean_links(config, entity.external_id, clean_target_list)
+                    clean_target_list = clean_links(config, entity.space, entity.external_id, clean_target_list)
 
                 entity_targets = [*entity_targets, target_ext_id]
 
@@ -437,7 +466,9 @@ def apply_manual_mappings(
                                            item_update,
                                            entity_targets,
                                            entity.external_id,
-                                           entity_view_id)
+                                           entity_view_id,
+                                           entity_space=entity.space,
+                                           target_spaces=target_spaces)
 
                 if target_ext_id in targets_lookup:
                     target = targets_lookup[target_ext_id]
@@ -451,14 +482,16 @@ def apply_manual_mappings(
                     {
                         KEY_MATCH_TYPE: MATCH_TYPE_MANUAL,
                         KEY_ENTITY_EXT_ID: entity.external_id,
-                        KEY_ENTITY_NAME: entity.properties[entity_view_id][PROP_COL_NAME],
+                        KEY_ENTITY_SPACE: entity.space,
+                        KEY_ENTITY_NAME: properties[PROP_COL_NAME],
                         KEY_ENTITY_MATCH_VALUE: entity.external_id,
                         KEY_ENTITY_VIEW_ID: str(config.data.entity_view.as_view_id()),
-                        KEY_ENTITY_EXISTING_TARGETS: entity.properties[entity_view_id][PROP_COL_LINK_NAME],
+                        KEY_ENTITY_EXISTING_TARGETS: links_property,
                         KEY_SCORE: SCORE_MANUAL_RULE_MATCH,
                         KEY_TARGET_NAME: target_name,
                         KEY_TARGET_MATCH_VALUE: target_ext_id,
                         KEY_TARGET_EXT_ID: target_ext_id,
+                        KEY_TARGET_SPACE: target_spaces.get(target_ext_id),
                         KEY_TARGET_VIEW_ID: target_view_id,
                     }
                 )
@@ -469,12 +502,19 @@ def apply_manual_mappings(
                 mapping[COL_KEY_MAN_CONTEXTUALIZED] = True
                 raw_uploader.add_to_upload_queue(config.parameters.raw_db, config.parameters.raw_table_ctx_manual, Row(row_key, mapping))
             
-                # Apply the updates to the data model in batches of BATCH_SIZE_API_SUBMIT
-                if not config.parameters.debug and config.parameters.dm_update and cnt % BATCH_SIZE_API_SUBMIT == 0:
+                # Flush the queue once it is full. `cnt` counts every instance read,
+                # including the ones skipped above, so it cannot stand in for the queue
+                # length: the batch would overshoot the cap and a skip landing on a
+                # multiple of it would miss the flush entirely.
+                batch_is_full = len(item_update) >= BATCH_SIZE_API_SUBMIT
+                if not config.parameters.debug and config.parameters.dm_update and batch_is_full:
                     _retry_apply(client, logger, clean_target_list)
                     clean_target_list = []
 
-                    logger.info(f"==> Mapping table based matching - Adding batch of {len(item_update)} items to data model, total count/matches: {cnt} / {len(manual_mappings)}")
+                    logger.info(
+                        f"==> Mapping table based matching - Adding batch of {len(item_update)} items "
+                        f"to data model, total count/matches: {cnt} / {len(manual_mappings)}"
+                    )
                     _retry_apply(client, logger, item_update)
                     item_update = []  # Reset item_update after applying
 
@@ -490,7 +530,10 @@ def apply_manual_mappings(
                 if cnt == 0:
                     logger.info("==> Mapping table based matching - No items added to data model based on new items found and manual mappings")
                 else:
-                    logger.info(f"==> Mapping table based matching - Adding batch of {len(item_update)} items to data model, total count/matches: {cnt} / {len(manual_mappings)}")
+                    logger.info(
+                        f"==> Mapping table based matching - Adding batch of {len(item_update)} items "
+                        f"to data model, total count/matches: {cnt} / {len(manual_mappings)}"
+                    )
 
             raw_uploader.upload()
 
@@ -545,7 +588,7 @@ def list_instances_by_external_id_direct(
     combined_filter = dm.filters.And(has_data_filter, external_id_filter)
     
     matching_instances = client.data_modeling.instances.list(
-        space=config.data.entity_view.instance_space,
+        space=config.data.entity_view.instance_spaces,
         sources=[entity_view_id],
         filter=combined_filter,
         limit=-1
@@ -611,31 +654,84 @@ def read_rule_mappings(
     return rule_mappings
 
 
-def get_all_targets(
-    client: CogniteClient,
+def warn_on_cross_space_duplicates(
+    instances: Sequence[Node],
+    instance_type: str,
+    view_config: ViewPropertyConfig,
     logger: CogniteFunctionLogger,
-    config: Config,
-    rule_mappings: list[Row] | None = None
-) -> list[dict[str, Any]]:
+) -> None:
+    """Warn when one external ID exists in several of the configured instance spaces.
 
-    targets = []
-    job_config = config.data
-    search_property = job_config.target_view.search_property
+    Each instance is matched and updated in the space it was read from, so duplicates are
+    handled independently. What remains keyed on external ID alone is the manual mapping
+    table in RAW, which has no space column, and the space a target link resolves to.
+    Skipped unless several spaces are configured, where the situation cannot arise.
 
-    # `instances.list(..., sources=[view])` already scopes to instances with data in the view.
-    # Skipping extra HasData in the filter significantly reduces graph query load.
-    is_selected = get_query_filter(
-        QUERY_FILTER_TYPE_TARGETS,
-        job_config.target_view,
-        config.parameters.run_all,
-        logger,
-        include_has_data=False,
+    Args:
+        instance_type: What to call these instances in the warning, e.g. "assets".
+    """
+    if len(view_config.instance_spaces) < 2:
+        return
+
+    space_by_external_id: dict[str, str] = {}
+    duplicates: dict[str, tuple[str, str]] = {}
+    for instance in instances:
+        first_space = space_by_external_id.setdefault(instance.external_id, instance.space)
+        if first_space != instance.space and instance.external_id not in duplicates:
+            duplicates[instance.external_id] = (first_space, instance.space)
+
+    if not duplicates:
+        return
+
+    examples = ", ".join(
+        f"{ext_id} in {spaces[0]} and {spaces[1]}" for ext_id, spaces in list(duplicates.items())[:5]
+    )
+    logger.warning(
+        f"{len(duplicates)} {instance_type} external IDs exist in more than one configured instance space. "
+        f"Each instance is matched and updated in its own space, but manual mappings and target links are "
+        f"resolved by external ID alone and so apply to every copy - give each space unique external IDs "
+        f"or configure a single space. Examples: {examples}"
     )
 
+
+def is_retryable(error: Exception) -> bool:
+    """Whether a failed page fetch stands a chance of succeeding on a retry.
+
+    A client error - a missing view, a rejected filter, missing capabilities - means the
+    request itself is wrong, so repeating it only delays the failure. Rate limiting and
+    server-side errors are transient, as is anything the SDK re-raises unclassified from
+    its transport layer, which is why the default is to retry. Bugs in this function are
+    the exception: they fail the same way every time. ValueError is deliberately not one
+    of them - it covers JSONDecodeError, which a half-read response raises and a second
+    read can clear.
+    """
+    if isinstance(error, CogniteAPIError):
+        return error.code == 429 or (error.code is not None and error.code >= 500)
+    return not isinstance(error, (TypeError, AttributeError, NameError, KeyError, IndexError))
+
+
+def fetch_instances_by_space(
+    client: CogniteClient,
+    logger: CogniteFunctionLogger,
+    instance_space: str,
+    view_id: dm.ViewId,
+    is_selected: "dm.filters.Filter | None",
+    instance_type: str,
+) -> list[Node]:
+    """Fetch every instance of a view in one space, one page at a time.
+
+    Paging is a keyset cursor on external ID, which is only unique within a space - hence
+    one space per call. A cursor over (externalId, space) is not an option: the API
+    rejects range filters on space.
+
+    Args:
+        is_selected: Filter narrowing which instances to fetch, or None for all of them.
+        instance_type: What to call these instances when logging, e.g. "assets".
+    """
     batch_size = 1000
     max_page_retries = 4
     retry_backoff_seconds = 2
-    all_targets = []
+    instances: list[Node] = []
     last_external_id: str | None = None
 
     while True:
@@ -660,46 +756,115 @@ def get_all_targets(
         for retry in range(max_page_retries + 1):
             try:
                 page = client.data_modeling.instances.list(
-                    space=job_config.target_view.instance_space,
-                    sources=[job_config.target_view.as_view_id()],
+                    space=instance_space,
+                    sources=[view_id],
                     filter=page_filter,
                     sort=dm.InstanceSort(FILTER_PATH_NODE_EXTERNAL_ID, direction="ascending"),
                     limit=batch_size,
                 )
                 break
+            # Deliberately broad: `is_retryable` decides what is worth another attempt,
+            # and everything else is logged with the space and cursor - the only record of
+            # where a long paging run died - and re-raised unchanged. Narrowing the catch
+            # to Cognite errors would let read timeouts escape without that context.
             except Exception as e:
-                if retry >= max_page_retries:
+                if retry >= max_page_retries or not is_retryable(e):
                     logger.error(
-                        f"Failed to fetch {QUERY_FILTER_TYPE_TARGETS} page after {max_page_retries + 1} attempts. "
-                        f"Last cursor externalId: {last_external_id}. Error: {type(e)}({e})"
+                        f"Failed to fetch {instance_type} page after {retry + 1} attempt(s). "
+                        f"Space: {instance_space}, last cursor externalId: {last_external_id}. Error: {type(e)}({e})"
                     )
                     raise
 
                 sleep_seconds = retry_backoff_seconds * (2 ** retry)
                 logger.warning(
-                    f"Retry {retry + 1}/{max_page_retries} for {QUERY_FILTER_TYPE_TARGETS} page failed. "
+                    f"Retry {retry + 1}/{max_page_retries} for {instance_type} page failed. "
                     f"Sleeping {sleep_seconds}s before retry. "
-                    f"Cursor externalId: {last_external_id}. Error: {type(e)}({e})"
+                    f"Space: {instance_space}, cursor externalId: {last_external_id}. Error: {type(e)}({e})"
                 )
                 time.sleep(sleep_seconds)
 
         if not page:
             break
 
-        all_targets.extend(page)
+        instances.extend(page)
         last_external_id = page[-1].external_id
 
         logger.debug(
-            f"Fetched {len(page)} {QUERY_FILTER_TYPE_TARGETS} in batch, "
-            f"total so far: {len(all_targets)}, last externalId cursor: {last_external_id}"
+            f"Fetched {len(page)} {instance_type} in batch from {instance_space}, "
+            f"total so far: {len(instances)}, last externalId cursor: {last_external_id}"
         )
 
         if len(page) < batch_size:
             break
 
-    logger.info(f"Number of {QUERY_FILTER_TYPE_TARGETS} to process: {len(all_targets)}, NOTE: Rule based regular expressions are applied to the '{PROP_COL_NAME}' property")
+    return instances
+
+
+def match_values(properties: dict[str, Any], search_property: str, org_name: str) -> list[str]:
+    """Values to match an instance on, falling back to its name.
+
+    An unset property is left out of the response entirely, but one set to `[]` or to a
+    blank string is not, and neither carries anything to match on. All three mean the
+    same thing here, so all three fall back to the name - otherwise an empty list leaves
+    the instance out of the match set altogether and a blank string matches it on nothing.
+
+    Args:
+        properties: The instance's properties for the view being read.
+        org_name: The instance's name, used when the search property has nothing usable.
+    """
+    value = properties.get(search_property)
+    candidates = value if isinstance(value, list) else [value]
+    usable = [str(item) for item in candidates if item is not None and str(item).strip()]
+    return usable or [org_name]
+
+
+def get_all_targets(
+    client: CogniteClient,
+    logger: CogniteFunctionLogger,
+    config: Config,
+    rule_mappings: list[Row] | None = None
+) -> list[dict[str, Any]]:
+
+    targets = []
+    job_config = config.data
+    search_property = job_config.target_view.search_property
+
+    # `instances.list(..., sources=[view])` already scopes to instances with data in the view.
+    # Skipping extra HasData in the filter significantly reduces graph query load.
+    is_selected = get_query_filter(
+        QUERY_FILTER_TYPE_TARGETS,
+        job_config.target_view,
+        config.parameters.run_all,
+        logger,
+        include_has_data=False,
+    )
+
+    all_targets: list[Node] = []
+    for instance_space in job_config.target_view.instance_spaces:
+        all_targets.extend(
+            fetch_instances_by_space(
+                client,
+                logger,
+                instance_space,
+                job_config.target_view.as_view_id(),
+                is_selected,
+                QUERY_FILTER_TYPE_TARGETS,
+            )
+        )
+
+    warn_on_cross_space_duplicates(all_targets, QUERY_FILTER_TYPE_TARGETS, job_config.target_view, logger)
+
+    logger.info(
+        f"Number of {QUERY_FILTER_TYPE_TARGETS} to process: {len(all_targets)}, "
+        f"NOTE: Rule based regular expressions are applied to the '{PROP_COL_NAME}' property"
+    )
+    view_id = job_config.target_view.as_view_id()
     for target in all_targets:
-        org_name = str(target.properties[job_config.target_view.as_view_id()][PROP_COL_NAME])
+        properties = target.properties.get(view_id) if target.properties else None
+        if not properties or PROP_COL_NAME not in properties:
+            logger.warning(f"Target: {target.external_id} is missing properties or name, skipping")
+            continue
+        org_name = str(properties[PROP_COL_NAME])
 
         rule_keys = []
         if rule_mappings:
@@ -709,22 +874,21 @@ def get_all_targets(
                 match = pattern.search(org_name)
 
                 if match:
-                    # Concatenate the captured groups directly
-                    cleaned_value = rule[KEY_RULE] + "_" + "".join(match.groups())  # groups() returns a tuple of all captured groups
+                    # Concatenate the captured groups directly. An operator's regex may
+                    # make a group optional, and one that does not participate in the
+                    # match captures None, which cannot be joined.
+                    matched_groups = [group for group in match.groups() if group is not None]
+                    cleaned_value = rule[KEY_RULE] + "_" + "".join(matched_groups)
                     logger.debug(f"Cleaned value (using capture groups): {cleaned_value}")
                     rule_keys.append(cleaned_value)
 
-        if search_property in target.properties[job_config.target_view.as_view_id()]:
-            match_properties = target.properties[job_config.target_view.as_view_id()][search_property]
-            if not isinstance(match_properties, list):
-                match_properties = [match_properties]
-        else:
-            match_properties = [org_name]  
+        match_properties = match_values(properties, search_property, org_name)  
 
         for match_property in match_properties:
             targets.append(
                 {
                     KEY_TARGET_EXT_ID: target.external_id,
+                    KEY_TARGET_SPACE: target.space,
                     KEY_ORG_NAME: org_name,
                     KEY_NAME: match_property,
                     KEY_RULE_KEYS: rule_keys if rule_keys else None,
@@ -739,7 +903,7 @@ def get_new_entities(
     client: CogniteClient,
     config: Config,
     logger: CogniteFunctionLogger,
-    list_good_entities: list[str] | None = None,
+    list_good_entities: list[tuple[str, str]] | None = None,
     rule_mappings: list[Row] | None = None
 ) -> list[dict[str, Any]]:
 
@@ -752,23 +916,35 @@ def get_new_entities(
     is_selected = get_query_filter(QUERY_FILTER_TYPE_ENTITIES, entity_view_config, config.parameters.run_all, logger)
 
     new_entities = client.data_modeling.instances.list(
-        space=entity_view_config.instance_space,
+        space=entity_view_config.instance_spaces,
         sources=[entity_view_id],
         filter=is_selected,
         limit=-1
     )
- 
+
+    warn_on_cross_space_duplicates(new_entities, QUERY_FILTER_TYPE_ENTITIES, entity_view_config, logger)
+
     item_update = []
 
 
-    logger.info(f"Number of new entities to process: {len(new_entities)} NOTE: Rule based regular expressions are applied to the '{PROP_COL_NAME}' property")
+    logger.info(
+        f"Number of new entities to process: {len(new_entities)} "
+        f"NOTE: Rule based regular expressions are applied to the '{PROP_COL_NAME}' property"
+    )
+    matched_entities = set(list_good_entities or ())
+
     for entity in new_entities:
-        # test if just matched and skip if so
-        if list_good_entities and entity.external_id in list_good_entities:
-            logger.debug(f"Entity: {entity.external_id} just matched, skipping")
+        # test if just matched and skip if so - keyed on space as well, so an entity
+        # sharing an external ID with an already matched one elsewhere is still processed
+        if instance_key(entity.space, entity.external_id) in matched_entities:
+            logger.debug(f"Entity: {entity.external_id} in {entity.space} just matched, skipping")
+            continue
+        properties = entity.properties.get(entity_view_id) if entity.properties else None
+        if not properties or PROP_COL_NAME not in properties:
+            logger.warning(f"Entity: {entity.external_id} is missing properties or name, skipping")
             continue
         # Rule based matching uses the name property to match entities to targets
-        org_name = str(entity.properties[entity_view_id][PROP_COL_NAME])
+        org_name = str(properties[PROP_COL_NAME])
 
         rule_keys = []
         if rule_mappings:
@@ -778,30 +954,32 @@ def get_new_entities(
                 match = pattern.search(org_name)
 
                 if match:
-                    # Concatenate the captured groups directly
-                    cleaned_value = rule[KEY_RULE] + "_" + "".join(match.groups())  # groups() returns a tuple of all captured groups
+                    # Concatenate the captured groups directly. An operator's regex may
+                    # make a group optional, and one that does not participate in the
+                    # match captures None, which cannot be joined.
+                    matched_groups = [group for group in match.groups() if group is not None]
+                    cleaned_value = rule[KEY_RULE] + "_" + "".join(matched_groups)
                     logger.debug(f"Cleaned value (using capture groups): {cleaned_value}")
                     rule_keys.append(cleaned_value)
                     
         targets = []
         if not config.parameters.remove_old_links or not config.parameters.dm_update: # if dmUpdate is False, keep old target links    
-            # keep old target links
-            targets = entity.properties[entity_view_id][PROP_COL_LINK_NAME]
+            # Keep old target links. An entity that has never been linked either omits the
+            # property or reads back as None; both would serialise to JSON null and break
+            # len() in the consumers.
+            targets = properties.get(PROP_COL_LINK_NAME) or []
         else:
-            item_update = clean_links(config, entity.external_id, item_update)
+            item_update = clean_links(config, entity.space, entity.external_id, item_update)
 
         # add entities for files used to match between file references in P&ID to other files
         search_prop = entity_view_config.search_property
-        if search_prop in entity.properties[entity_view_id]:
-            prop_value = entity.properties[entity_view_id][search_prop]
-            entity_names = prop_value if isinstance(prop_value, list) else [str(prop_value)]
-        else:
-            entity_names = [org_name]
+        entity_names = match_values(properties, search_prop, org_name)
         for entity_name in entity_names: 
             
             entities_source.append(
                 {
                     KEY_ENTITY_EXT_ID: entity.external_id,
+                    KEY_ENTITY_SPACE: entity.space,
                     KEY_NAME: entity_name,
                     KEY_ORG_NAME: org_name,
                     KEY_TARGET_LINKS: json.dumps(targets),
@@ -821,6 +999,7 @@ def get_new_entities(
 
 def clean_links(
     config: Config,
+    entity_space: str,
     entity_ext_id: str,
     item_update: list[NodeApply]
 ) -> list[NodeApply]:
@@ -829,7 +1008,7 @@ def clean_links(
 
     item_update.append(
         NodeApply(
-            space=config.data.entity_view.instance_space,
+            space=entity_space,
             external_id=entity_ext_id,
             sources=[
                 NodeOrEdgeData(
@@ -936,10 +1115,16 @@ def apply_rule_mappings(
     new_entities: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
 
-    # Use set instead of list for O(1) lookups
-    good_matches_set = {f"{match[KEY_TARGET_EXT_ID]}_{match[KEY_ENTITY_EXT_ID]}"
-                        for match in good_matches}
-    matched_entity_ids = {match[KEY_ENTITY_EXT_ID] for match in good_matches}
+    # Use set instead of list for O(1) lookups. Both sides are keyed on space and external
+    # ID, so a pair is only a duplicate when it is the same pair of instances.
+    good_matches_set = {
+        (
+            instance_key(match.get(KEY_ENTITY_SPACE), match[KEY_ENTITY_EXT_ID]),
+            instance_key(match.get(KEY_TARGET_SPACE), match[KEY_TARGET_EXT_ID]),
+        )
+        for match in good_matches
+    }
+    matched_entities = {instance_key(match.get(KEY_ENTITY_SPACE), match[KEY_ENTITY_EXT_ID]) for match in good_matches}
 
     key_field = KEY_RULE_KEYS  # The field in the dictionaries that contains the rule keys
     cnt = 0
@@ -948,7 +1133,10 @@ def apply_rule_mappings(
         # Build an inverted index for target_dest
         # Format: { 'rule_key_value': [dict_from_target_dest_1, dict_from_target_dest_2, ...] }
         index1 = defaultdict(list)
-        matches = defaultdict(list)  # defaultdict(lambda: [[], []])
+        # Keyed on (space, external ID) so two entities sharing an external ID keep their
+        # own link lists and are each written to the space they came from.
+        matches: dict[tuple[str, str], list[str]] = defaultdict(list)
+        target_spaces = {target[KEY_TARGET_EXT_ID]: target[KEY_TARGET_SPACE] for target in target_dest}
 
         for d1 in target_dest:
             if not d1.get(key_field, []):  # Ensure the key_field exists
@@ -961,39 +1149,43 @@ def apply_rule_mappings(
         # we use a set of unique pairs.
         unique_matches_tracker = set()
 
+        cnt = len(new_entities)
+
         for d2 in new_entities:
-            cnt = len(new_entities)
             if not d2.get(key_field, []):  # Ensure the key_field exists
                 continue  # Skip if no rule keys are present
             set2 = set(d2.get(key_field, [])) # Convert to set once
 
             # Skip if entity already has been matched
-            if d2[KEY_ENTITY_EXT_ID] in matched_entity_ids:
-                logger.debug(f"Entity: {d2['entity_ext_id']} already has been matched manually, skipping")
+            entity = instance_key(d2[KEY_ENTITY_SPACE], d2[KEY_ENTITY_EXT_ID])
+            if entity in matched_entities:
+                logger.debug(
+                    f"Entity: {d2[KEY_ENTITY_EXT_ID]} in {d2[KEY_ENTITY_SPACE]} "
+                    "already has been matched manually, skipping"
+                )
                 continue
         
             for r_key_from_d2 in set2:
                 if r_key_from_d2 in index1:
                     for d1_match in index1[r_key_from_d2]:
-                        # Create a canonical tuple for uniqueness tracking
-                        # Ensure consistent order (e.g., by ID)
-                        pair = tuple(sorted((d2[KEY_ENTITY_EXT_ID], d1_match[KEY_TARGET_EXT_ID])))
+                        # Both instances are identified by space and external ID, so the
+                        # same external ID in another space is a separate pair
+                        pair = (entity, instance_key(d1_match[KEY_TARGET_SPACE], d1_match[KEY_TARGET_EXT_ID]))
 
                         if pair not in unique_matches_tracker:
-                            match_key = f"{d1_match[KEY_TARGET_EXT_ID]}_{d2[KEY_ENTITY_EXT_ID]}"
-                            if match_key in good_matches_set:
+                            if pair in good_matches_set:
                                 logger.debug(f"Match already exists in good matches: {d1_match[KEY_TARGET_EXT_ID]} - {d2[KEY_ENTITY_EXT_ID]}")
                                 continue
-                            good_matches_set.add(match_key)
+                            good_matches_set.add(pair)
 
-                            entity_id = d2[KEY_ENTITY_EXT_ID]
-                            unique_target_list = list(set(matches.get(entity_id, ())))
+                            unique_target_list = list(set(matches.get(entity, ())))
                             if d1_match[KEY_TARGET_EXT_ID] and d1_match[KEY_TARGET_EXT_ID] not in unique_target_list:
                                 unique_target_list = [*unique_target_list, d1_match[KEY_TARGET_EXT_ID]]
                                 good_matches.append(
                                     {
                                         KEY_MATCH_TYPE: MATCH_TYPE_RULE,
                                         KEY_ENTITY_EXT_ID: d2[KEY_ENTITY_EXT_ID],
+                                        KEY_ENTITY_SPACE: d2[KEY_ENTITY_SPACE],
                                         KEY_ENTITY_NAME: d2[KEY_ORG_NAME],
                                         KEY_ENTITY_MATCH_VALUE: d2[KEY_NAME],
                                         KEY_ENTITY_VIEW_ID: str(config.data.entity_view.as_view_id()),
@@ -1003,6 +1195,7 @@ def apply_rule_mappings(
                                         KEY_TARGET_NAME: d1_match[KEY_ORG_NAME],
                                         KEY_TARGET_MATCH_VALUE: d1_match[KEY_NAME],
                                         KEY_TARGET_EXT_ID: d1_match[KEY_TARGET_EXT_ID],
+                                        KEY_TARGET_SPACE: d1_match[KEY_TARGET_SPACE],
                                         KEY_TARGET_VIEW_ID: str(config.data.target_view.as_view_id()),
                                         KEY_TARGET_RULE_KEYS: json.dumps(d1_match[KEY_RULE_KEYS]),
                                     }
@@ -1010,6 +1203,7 @@ def apply_rule_mappings(
 
                             existing_target_list = json.loads(d2[KEY_TARGET_LINKS])
                             if len(existing_target_list) > 0:
+                                remember_link_spaces(target_spaces, existing_target_list)
                                 for target in existing_target_list:
                                     if PROP_COL_EXTERNAL_ID in target and target[PROP_COL_EXTERNAL_ID] not in unique_target_list:
                                         unique_target_list = [
@@ -1017,26 +1211,32 @@ def apply_rule_mappings(
                                             target[PROP_COL_EXTERNAL_ID],
                                         ]
 
-                            matches[entity_id] = unique_target_list
+                            matches[entity] = unique_target_list
                             unique_matches_tracker.add(pair)
 
         item_update = []
         
         # Iterate through the matches and prepare the item updates
         
-        for entity_ext_id in matches:
-            target_ext_ids = matches[entity_ext_id] # Assuming the first target is the one to match with
+        for (entity_space, entity_ext_id), target_ext_ids in matches.items():
 
             item_update = add_to_items(config, 
                                     logger, 
                                     item_update,
                                     target_ext_ids,
                                     entity_ext_id,
-                                    config.data.entity_view.as_view_id())
-            
-            # Apply the updates to the data model in batches of BATCH_SIZE_API_SUBMIT
-            if not config.parameters.debug and config.parameters.dm_update and cnt % BATCH_SIZE_API_SUBMIT == 0:
-                logger.info(f"==> Rule based matching - Adding batch of {len(item_update)} items to data model, total count/matches: {cnt} / {len(matches)}")
+                                    config.data.entity_view.as_view_id(),
+                                    entity_space=entity_space or None,
+                                    target_spaces=target_spaces)
+
+            # Flush the queue once it is full, so a long run writes as it goes instead of
+            # holding every update until the end.
+            batch_is_full = len(item_update) >= BATCH_SIZE_API_SUBMIT
+            if not config.parameters.debug and config.parameters.dm_update and batch_is_full:
+                logger.info(
+                    f"==> Rule based matching - Adding batch of {len(item_update)} items to data model, "
+                    f"total count/matches: {cnt} / {len(matches)}"
+                )
                 _retry_apply(client, logger, item_update)
                 item_update = []  # Reset item_update after applying
 
@@ -1047,7 +1247,10 @@ def apply_rule_mappings(
             if cnt == 0:
                 logger.info("==> Rule based matching - No items added to data model based on new items found and rule based mappings")
             else:
-                logger.info(f"==> Rule based matching - Adding batch of {len(item_update)} items to data model, total count/matches: {cnt} / {len(matches)}")
+                logger.info(
+                    f"==> Rule based matching - Adding batch of {len(item_update)} items to data model, "
+                    f"total count/matches: {cnt} / {len(matches)}"
+                )
 
         return good_matches, len(matches)
 
@@ -1087,28 +1290,38 @@ def select_and_apply_matches(
     entity_view_id = config.data.entity_view.as_view_id()
     target_view_id = config.data.target_view.as_view_id()
 
-    # Use set instead of list for O(1) lookups
-    good_matches_set = {f"{match[KEY_TARGET_EXT_ID]}_{match[KEY_ENTITY_EXT_ID]}"
-                        for match in good_matches}
-    matched_entity_ids = {match[KEY_ENTITY_EXT_ID] for match in good_matches}
+    # Use set instead of list for O(1) lookups. Both sides are keyed on space and external
+    # ID, so a pair is only a duplicate when it is the same pair of instances.
+    good_matches_set = {
+        (
+            instance_key(match.get(KEY_ENTITY_SPACE), match[KEY_ENTITY_EXT_ID]),
+            instance_key(match.get(KEY_TARGET_SPACE), match[KEY_TARGET_EXT_ID]),
+        )
+        for match in good_matches
+    }
+    matched_entities = {instance_key(match.get(KEY_ENTITY_SPACE), match[KEY_ENTITY_EXT_ID]) for match in good_matches}
     new_good_matches = []
     try:
         for match in match_results:
-            # Skip if entity already has been matched
-            if match[KEY_SOURCE][KEY_ENTITY_EXT_ID] in matched_entity_ids:
+            # Skip if entity already has been matched - an entity sharing an external ID
+            # with an already matched one in another space is a different instance
+            source = match[KEY_SOURCE]
+            entity = instance_key(source.get(KEY_ENTITY_SPACE), source[KEY_ENTITY_EXT_ID])
+            if entity in matched_entities:
                 continue
 
             if match[KEY_MATCHES]:
                 if match[KEY_MATCHES][0][KEY_SCORE] >= config.parameters.auto_approval_threshold:
-                    entity_ext_id = match[KEY_SOURCE][KEY_ENTITY_EXT_ID]
-                    target_ext_id = match[KEY_MATCHES][0][KEY_TARGET][KEY_TARGET_EXT_ID]
+                    entity_ext_id = source[KEY_ENTITY_EXT_ID]
+                    target = match[KEY_MATCHES][0][KEY_TARGET]
+                    target_ext_id = target[KEY_TARGET_EXT_ID]
 
-                    match_key = f"{target_ext_id}_{entity_ext_id}"
-                    if match_key in good_matches_set:
+                    pair = (entity, instance_key(target.get(KEY_TARGET_SPACE), target_ext_id))
+                    if pair in good_matches_set:
                         logger.debug(f"Match already exists in good matches: {target_ext_id} - {entity_ext_id}")
                         continue
                     else:
-                        good_matches_set.add(match_key)
+                        good_matches_set.add(pair)
 
                     new_good_matches.append(add_to_dict(match, str(entity_view_id), str(target_view_id)))
                 else:
@@ -1125,18 +1338,26 @@ def select_and_apply_matches(
             entity_ext_id = match[KEY_ENTITY_EXT_ID]
             target_ext_id = match[KEY_TARGET_EXT_ID]
             entity_targets = match[KEY_ENTITY_EXISTING_TARGETS]
- 
+            target_space = match[KEY_TARGET_SPACE]
+
             item_update = add_to_items(config, 
                                        logger, 
                                        item_update,
                                        [target_ext_id],
                                        entity_ext_id,
                                        entity_view_id,
-                                       entity_targets)
+                                       entity_targets,
+                                       entity_space=match[KEY_ENTITY_SPACE],
+                                       target_spaces={target_ext_id: target_space} if target_space else None)
 
-            # Apply the updates to the data model in batches of BATCH_SIZE_API_SUBMIT
-            if not config.parameters.debug and config.parameters.dm_update and cnt % BATCH_SIZE_API_SUBMIT == 0:
-                logger.info(f"==> Entity matching - Adding batch of {len(item_update)} items to data model, total count/matches: {cnt} / {len(new_good_matches)}")
+            # Flush the queue once it is full, so a long run writes as it goes instead of
+            # holding every update until the end.
+            batch_is_full = len(item_update) >= BATCH_SIZE_API_SUBMIT
+            if not config.parameters.debug and config.parameters.dm_update and batch_is_full:
+                logger.info(
+                    f"==> Entity matching - Adding batch of {len(item_update)} items to data model, "
+                    f"total count/matches: {cnt} / {len(new_good_matches)}"
+                )
                 _retry_apply(client, logger, item_update)
                 item_update = []  # Reset item_update after applying
 
@@ -1145,14 +1366,31 @@ def select_and_apply_matches(
             if cnt == 0:
                 logger.info("==> Entity matching - No items added to data model based on new items found and entity matching")
             else:
-                logger.info(f"==> Entity matching - Adding batch of {len(item_update)} items to data model, total count/matches: {cnt} / {len(new_good_matches)}")
+                logger.info(
+                    f"==> Entity matching - Adding batch of {len(item_update)} items to data model, "
+                    f"total count/matches: {cnt} / {len(new_good_matches)}"
+                )
 
 
         return good_matches + new_good_matches, bad_matches, len(new_good_matches)
 
     except Exception as e:
-        print(f"ERROR: Failed to parse results from entity matching - error: {type(e)}({e})")
-        return good_matches, [], len(new_good_matches)  # type: ignore
+        # Reporting no matches here would be indistinguishable from a run that genuinely
+        # found none, so let the caller mark the pipeline run failed.
+        logger.error(f"Failed to parse results from entity matching - error: {type(e)}({e})")
+        raise
+
+def remember_link_spaces(target_spaces: dict[str, str], links: list[dict[str, str]]) -> None:
+    """Record the space each existing target link points into.
+
+    Links are re-applied by external ID only, so without this a link to a target outside
+    the current target set would fall back to the first configured target space and be
+    moved. Spaces read from the target view win, hence `setdefault` rather than assignment.
+    """
+    for link in links:
+        if isinstance(link, dict) and PROP_COL_EXTERNAL_ID in link and PROP_COL_SPACE in link:
+            target_spaces.setdefault(link[PROP_COL_EXTERNAL_ID], link[PROP_COL_SPACE])
+
 
 def add_to_items(
     config: Config,
@@ -1161,16 +1399,68 @@ def add_to_items(
     target_ext_ids: list[str],
     entity_ext_id: str,
     entity_view_id: dm.ViewId,
-    entity_targets: str | None = None  
+    entity_targets: str | list[object] | None = None,
+    entity_space: str | None = None,
+    target_spaces: dict[str, str] | None = None,
 ) -> list[NodeApply]:
+    """Queue a node update linking an entity to its targets.
+
+    Each instance is written to the space it was read from. Where a space is unknown the
+    first configured space is used and the fallback is logged, unless the view is
+    configured with a single space, where the fallback is always correct.
+
+    Args:
+        item_update: Queue of pending node updates, appended to in place.
+        entity_space: Space the entity lives in.
+        target_spaces: Target external ID to the space it lives in.
+
+    Returns:
+        The same queue, with this entity's update appended.
+    """
+    target_spaces = target_spaces or {}
+    default_target_space = config.data.target_view.default_instance_space
+    # With one space per view the fallback is by definition the right space. With several,
+    # it is a guess that can point the update at a space the instance does not live in.
+    warn_on_entity_fallback = len(config.data.entity_view.instance_spaces) > 1
+    warn_on_target_fallback = len(config.data.target_view.instance_spaces) > 1
+
+    if entity_space is None:
+        entity_space = config.data.entity_view.default_instance_space
+        if warn_on_entity_fallback:
+            logger.warning(
+                f"Unknown instance space for entity: {entity_ext_id} - writing the update to "
+                f"{entity_space}. A new node is created there if the entity lives in another space."
+            )
 
     targets = []
 
     if entity_targets:
-        entity_targets_array = json.loads(entity_targets)
-        if len(entity_targets_array) > 0:  # Check if there are existing targets
-            for target in entity_targets_array:
-                targets.append(DirectRelationReference(space=target[PROP_COL_SPACE], external_id=target[PROP_COL_EXTERNAL_ID]))
+        # The string round-trips through the matching API, so a JSON null or an already
+        # parsed list reaching this point cannot be ruled out.
+        try:
+            decoded = json.loads(entity_targets) if isinstance(entity_targets, str) else entity_targets
+            targets_list = decoded if isinstance(decoded, list) else []
+        except (json.JSONDecodeError, TypeError):
+            logger.warning(f"Failed to parse existing targets for entity: {entity_ext_id}")
+            targets_list = []
+
+        for target in targets_list or []:
+            if not isinstance(target, dict) or PROP_COL_EXTERNAL_ID not in target or PROP_COL_SPACE not in target:
+                # This list replaces the whole link property, so skipping drops the link
+                # from the entity - never silently.
+                logger.warning(
+                    f"Existing link on entity: {entity_ext_id} is not a complete "
+                    f"space/externalId object - dropping it: {target}"
+                )
+                continue
+            # The target view is authoritative; the link's own space is only a fallback
+            # for targets outside the current target set.
+            targets.append(
+                DirectRelationReference(
+                    space=target_spaces.get(target[PROP_COL_EXTERNAL_ID], target[PROP_COL_SPACE]),
+                    external_id=target[PROP_COL_EXTERNAL_ID],
+                )
+            )
 
     # Add new targets to the entity
     for target_ext_id in target_ext_ids:  
@@ -1181,9 +1471,18 @@ def add_to_items(
             logger.debug(f"Asset: {target_ext_id} already exists in entity: {entity_ext_id}, skipping")
             continue
         logger.debug(f"Adding target: {target_ext_id} to entity: {entity_ext_id}")   
+        target_space = target_spaces.get(target_ext_id)
+        if target_space is None:
+            target_space = default_target_space
+            if warn_on_target_fallback:
+                logger.warning(
+                    f"Unknown instance space for target: {target_ext_id} linked from entity: "
+                    f"{entity_ext_id} - linking to {target_space}. The link dangles if the target "
+                    f"lives in another space."
+                )
         targets.append(
             DirectRelationReference(
-                space=config.data.target_view.instance_space,
+                space=target_space,
                 external_id=target_ext_id
             )
         )
@@ -1195,7 +1494,7 @@ def add_to_items(
 
     item_update.append(
         NodeApply(
-            space=config.data.entity_view.instance_space,
+            space=entity_space,
             external_id=entity_ext_id,
             sources=[
                 NodeOrEdgeData(
@@ -1230,15 +1529,20 @@ def add_to_dict(
         target_name = target[KEY_ORG_NAME]
         target_match_value = target[KEY_NAME]
         target_ext_id = target[KEY_TARGET_EXT_ID]
+        # The matching API echoes the source/target dicts we submitted, but fall back to
+        # the configured space if a field is dropped.
+        target_space = target.get(KEY_TARGET_SPACE)
     else:
         score = 0
         target_name = PLACEHOLDER_NO_MATCH
         target_match_value = PLACEHOLDER_NO_MATCH
         target_ext_id = PLACEHOLDER_NO_MATCH
         target_view_id = PLACEHOLDER_NO_MATCH
+        target_space = None
     return {
         KEY_MATCH_TYPE: MATCH_TYPE_ENTITY,
         KEY_ENTITY_EXT_ID: source[KEY_ENTITY_EXT_ID],
+        KEY_ENTITY_SPACE: source.get(KEY_ENTITY_SPACE),
         KEY_ENTITY_NAME: source[KEY_ORG_NAME],
         KEY_ENTITY_MATCH_VALUE: source[KEY_NAME],
         KEY_ENTITY_VIEW_ID: str(entity_view_id),
@@ -1247,8 +1551,22 @@ def add_to_dict(
         KEY_TARGET_NAME: target_name,
         KEY_TARGET_MATCH_VALUE: target_match_value,
         KEY_TARGET_EXT_ID: target_ext_id,
+        KEY_TARGET_SPACE: target_space,
         KEY_TARGET_VIEW_ID: str(target_view_id),
     }
+
+
+def raw_row_key(config: Config, match: dict[str, Any]) -> str:
+    """Row key for a match in the good/bad RAW tables.
+
+    An external ID is unique per space only, so with several entity spaces configured the
+    space has to be part of the key or one copy silently overwrites the other. A project
+    with a single space keeps the bare external ID it has always been keyed on.
+    """
+    external_id = str(match[KEY_ENTITY_EXT_ID])
+    if len(config.data.entity_view.instance_spaces) < 2:
+        return external_id
+    return f"{match.get(KEY_ENTITY_SPACE) or ''}:{external_id}"
 
 
 def write_mapping_to_raw(
@@ -1287,11 +1605,19 @@ def write_mapping_to_raw(
             create_table(client, raw_db, raw_table_ctx_good)
 
             for match in good_matches:
-                raw_uploader.add_to_upload_queue(raw_db, raw_table_ctx_good, Row(match[KEY_ENTITY_EXT_ID], match))  # type: ignore
+                raw_uploader.add_to_upload_queue(
+                    raw_db,
+                    raw_table_ctx_good,
+                    Row(raw_row_key(config, match), match),  # type: ignore
+                )
                 logger.debug(f"Added matched entity: {match[KEY_ENTITY_EXT_ID]} to {raw_db}/{raw_table_ctx_good}")
 
             for not_match in bad_matches:
-                raw_uploader.add_to_upload_queue(raw_db, raw_table_ctx_bad, Row(not_match[KEY_ENTITY_EXT_ID], not_match))  # type: ignore
+                raw_uploader.add_to_upload_queue(
+                    raw_db,
+                    raw_table_ctx_bad,
+                    Row(raw_row_key(config, not_match), not_match),  # type: ignore
+                )
                 logger.debug(f"Added NOT matched entity: {not_match[KEY_ENTITY_EXT_ID]} to {raw_db}/{raw_table_ctx_bad}")
 
             # Upload any remaining RAW cols in queue

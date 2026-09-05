@@ -126,6 +126,38 @@ data:
 | `rawTableCtxManual` | Table for manual mappings | `contextualization_manual_input` |
 | `rawTableCtxRule` | Table for rule-based mapping inputs | `contextualization_rule_input` |
 
+### Instance spaces
+
+`instanceSpace` on `targetView` and `entityView` takes either a single space or a list of
+spaces:
+
+```yaml
+  entityView:
+    instanceSpace:
+      - inst_timeseries_pi
+      - inst_timeseries_sap
+```
+
+Entities are read from all listed spaces in one query; targets are read one space at a
+time, because their paging cursor relies on external IDs being unique. Each match is
+written back to the space the instance was read from — so entities and targets spread across several spaces stay
+where they are. Target links that already exist on an entity keep the space they point
+into, even when that target is not part of the current target set. The first space in the
+list is only used as a fallback when the space of an instance cannot be determined.
+
+Matching itself ignores space: an entity in one space can match a target in another, which
+is what makes per-source entity spaces work against a shared target space.
+
+An external ID is unique within a space, not across spaces, so the same external ID in two
+configured spaces is two distinct instances. Instances are identified by space and external
+ID together, so each one is matched and written back to the space it was read from.
+
+Two things stay keyed on external ID alone. The manual mapping table in RAW has no space
+column, so a manual mapping applies to every copy of that external ID. And where a
+**target** external ID exists in several of the configured target spaces, which space the
+link points at is arbitrary. The pipeline logs a warning listing examples when it reads
+such duplicates.
+
 ### Process Flow
 
 The pipeline executes in the following order:

@@ -1,11 +1,12 @@
 """
 Optimized Metadata Update Pipeline
 
-This module provides optimized metadata update functionality for timeseries and assets
-with improved performance, caching, batch processing, and error handling.
+This module provides optimized metadata update functionality for timeseries, assets and
+files with improved performance, caching, batch processing, and error handling.
 """
 
 import sys
+import time
 import traceback
 from pathlib import Path
 from typing import Any
@@ -18,27 +19,29 @@ from cognite.client.data_classes.data_modeling import (
     NodeList,
     ViewId,
 )
-from cognite.client.data_classes.filters import Equals, HasData
-from cognite.client.exceptions import CogniteAPIError
+from cognite.client.data_classes.filters import HasData
 from cognite.client.utils._text import shorten
-from config import Config, ViewPropertyConfig
-from constants import (
-    ASSET_NODE,
-    BATCH_SIZE,
-    TS_NODE,
-)
-from logger import CogniteFunctionLogger
 
-# Import optimizations
-from metadata_optimizations import (
+from alias_optimizations import (  # isort: skip
+    AliasRule,
     BatchProcessor,
     OptimizedMetadataProcessor,
     PerformanceBenchmark,
     cleanup_memory,
+    is_retryable,
     monitor_memory_usage,
     optimize_metadata_processing,
     time_operation,
 )
+from config import Config, ViewPropertyConfig  # isort: skip
+from constants import (  # isort: skip
+    ASSET_NODE,
+    BATCH_SIZE,
+    DEFAULT_ALIAS_PATTERN,
+    FILE_NODE,
+    TS_NODE,
+)
+from logger import CogniteFunctionLogger  # isort: skip
 
 sys.path.append(str(Path(__file__).parent))
 
@@ -46,6 +49,21 @@ sys.path.append(str(Path(__file__).parent))
 def effective_run_all(config: Config) -> bool:
     """Return whether to fetch all instances (not only those missing aliases)."""
     return config.parameters.run_all or config.parameters.update_all
+
+
+def alias_rule(view: ViewPropertyConfig | None) -> AliasRule:
+    """The alias rule a view configures.
+
+    Args:
+        view: The view configuration, or None when the view is not configured at all.
+
+    Returns:
+        The compiled rule, or the default one when there is no view to read it from.
+    """
+    if view is None:
+        return AliasRule.from_config([DEFAULT_ALIAS_PATTERN])
+
+    return AliasRule.from_config(view.alias_patterns, view.alias_selection)
 
 
 def describe_processing_mode(config: Config) -> str:
@@ -90,8 +108,12 @@ def metadata_update(
         with time_operation("Configuration processing", logger):
             # Initialize processors. BATCH_SIZE is the instance fetch limit, not an
             # apply batch size, so BatchProcessor keeps its own default.
+            file_view = config.data.job.file_view
             metadata_processor = OptimizedMetadataProcessor(
-                logger, config.parameters.view_filter_property
+                logger,
+                alias_rule(config.data.job.timeseries_view),
+                alias_rule(config.data.job.asset_view),
+                alias_rule(file_view),
             )
             if config.parameters.debug:
                 logger.debug("Debug mode enabled - processing limited data")
@@ -140,7 +162,30 @@ def metadata_update(
                     f"({describe_processing_mode(config)})"
                 )
                 update_pipeline_run(client, logger, pipeline_ext_id, "success", msg)
-        
+
+        # Process files, when a fileView is configured
+        if file_view:
+            with time_operation("File processing", logger):
+                file_updates = benchmark.benchmark_function(
+                    "Process file metadata",
+                    _process_files_optimized,
+                    client, logger, config, metadata_processor, batch_processor
+                )
+
+                if file_updates > 0:
+                    msg = (
+                        f"File metadata finished — {file_updates} instance(s) updated "
+                        f"({describe_processing_mode(config)})"
+                    )
+                else:
+                    msg = (
+                        f"File metadata finished — no updates required "
+                        f"({describe_processing_mode(config)})"
+                    )
+                update_pipeline_run(client, logger, pipeline_ext_id, "success", msg)
+        else:
+            logger.info("File metadata skipped — no fileView configured")
+
         # Log performance statistics
         processor_stats = metadata_processor.get_stats()
         logger.info(
@@ -197,7 +242,7 @@ def _process_timeseries_optimized(
             update = metadata_processor.process_timeseries_metadata(
                 node,
                 ts_view_id,
-                config.data.job.timeseries_view.instance_space,
+                node.space,
                 update_all=config.parameters.update_all,
             )
             if update:
@@ -261,7 +306,7 @@ def _process_assets_optimized(
             update = metadata_processor.process_asset_metadata(
                 node,
                 asset_view_id,
-                config.data.job.asset_view.instance_space,
+                node.space,
                 update_all=config.parameters.update_all,
             )
             if update:
@@ -284,6 +329,75 @@ def _process_assets_optimized(
 
     logger.info(
         f"Assets complete — {mode}: {batch_count} examined, {total_updates} updated"
+    )
+
+    return total_updates
+
+
+def _process_files_optimized(
+    client: CogniteClient,
+    logger: CogniteFunctionLogger,
+    config: Config,
+    metadata_processor: OptimizedMetadataProcessor,
+    batch_processor: BatchProcessor
+) -> int:
+    """Process file metadata with optimizations"""
+
+    file_view = config.data.job.file_view
+    if file_view is None:
+        logger.info("Files skipped — no fileView configured")
+        return 0
+
+    total_updates = 0
+    mode = describe_processing_mode(config)
+    run_all = effective_run_all(config)
+
+    logger.info(f"Starting file metadata — mode: {mode}")
+
+    file_view_id = file_view.as_view_id()
+
+    # BATCH_SIZE is -1, so a single call returns every instance in scope.
+    with time_operation("Fetch files", logger):
+        new_files = get_new_items(client, logger, file_view_id, config, FILE_NODE)
+
+    if not new_files:
+        logger.info("Files complete — no instances returned")
+        return total_updates
+
+    batch_count = len(new_files)
+    fetch_scope = "all instances in scope" if run_all else "instances missing aliases"
+    logger.info(f"Files: fetched {batch_count} instances ({fetch_scope})")
+
+    with time_operation(f"Process {batch_count} files", logger):
+        updates = []
+
+        for node in new_files:
+            update = metadata_processor.process_file_metadata(
+                node,
+                file_view_id,
+                node.space,
+                update_all=config.parameters.update_all,
+            )
+            if update:
+                updates.append(update)
+
+        if updates:
+            total_updates = batch_processor.apply_updates_in_batches(
+                client, updates, logger
+            )
+            logger.info(
+                f"Files: applied {total_updates} updates "
+                f"({len(updates)} of {batch_count} examined instances changed)"
+            )
+        else:
+            logger.info(
+                f"Files: no metadata changes needed ({batch_count} instances examined)"
+            )
+
+    cleanup_memory()
+
+    logger.info(
+        f"Files complete — {mode}: {batch_count} examined, {total_updates} updated"
     )
 
     return total_updates
@@ -339,21 +453,24 @@ def get_new_items(
         # Set the filter for the query
         if node_type == TS_NODE:
             view_config = config.data.job.timeseries_view
-            debug_item = config.parameters.debug_timeseries if config.parameters.debug else None
-            filter_query = get_ts_filter(
-                view_config, debug_item, effective_run_all(config), logger
-            )
+            filter_query = get_alias_filter(view_config, logger, effective_run_all(config))
+        elif node_type == FILE_NODE:
+            view_config = config.data.job.file_view
+            if view_config is None:
+                raise ValueError("Cannot fetch files without a fileView in the configuration")
+            filter_query = get_alias_filter(view_config, logger, effective_run_all(config))
         else:  # ASSET_NODE
             view_config = config.data.job.asset_view
-            filter_query = get_asset_filter(view_config, logger, effective_run_all(config))
+            filter_query = get_alias_filter(view_config, logger, effective_run_all(config))
         
         # Query with retry logic
         max_retries = 3
+        retry_backoff_seconds = 2
         for attempt in range(max_retries):
             try:
                 result = client.data_modeling.instances.list(
                     instance_type="node",
-                    space=view_config.instance_space,
+                    space=view_config.instance_spaces,
                     sources=[view_id],
                     filter=filter_query,
                     limit=BATCH_SIZE
@@ -362,9 +479,17 @@ def get_new_items(
                 logger.debug(f"Query returned {len(result)} {node_type} instances")
                 return result
                 
-            except CogniteAPIError as e:
-                if e.code == 400 and attempt < max_retries - 1:
-                    logger.warning(f"API error (attempt {attempt + 1}): {e}")
+            except Exception as e:
+                if is_retryable(e) and attempt < max_retries - 1:
+                    # Rate limiting and dropped connections are the main reasons to be
+                    # here, and retrying immediately only spends another request on the
+                    # same limit or a still-dead socket.
+                    sleep_seconds = retry_backoff_seconds * (2 ** attempt)
+                    logger.warning(
+                        f"Transient error (attempt {attempt + 1}), sleeping "
+                        f"{sleep_seconds}s before retry: {e}"
+                    )
+                    time.sleep(sleep_seconds)
                     continue
                 else:
                     raise
@@ -376,45 +501,18 @@ def get_new_items(
         return None
 
 
-def get_ts_filter(
-    view_config: ViewPropertyConfig,
-    debug_ts: str | None,
-    run_all: bool,
-    logger: CogniteFunctionLogger,
-) -> dm.filters.Filter:
-    """
-    Create timeseries filter with enhanced logic
-    """
-    
-    filters: list[dm.filters.Filter] = [HasData(views=[view_config.as_view_id()])]
-    
-
-        # Check if the view entity already is matched or not
-    dbg_msg = ""
-    if not run_all:
-        has_alias = dm.filters.Exists(view_config.as_property_ref("aliases"))
-        not_alias = dm.filters.Not(has_alias)
-        filters.append(not_alias)
-        dbg_msg = "Entity filtering on: 'aliases' - NOT EXISTS"
-    
-    if debug_ts:
-        logger.debug(f"Debug timeseries filter: {dbg_msg} {debug_ts}")
-        filters.append(Equals(view_config.external_id, debug_ts))
-    
-    return dm.filters.And(*filters) if len(filters) > 1 else filters[0]
-
-
-
-def get_asset_filter(
+def get_alias_filter(
     view_config: ViewPropertyConfig,
     logger: CogniteFunctionLogger,
     run_all: bool,
 ) -> dm.filters.Filter:
-    """
-    Create asset filter with enhanced logic
+    """Select instances of a view, or only those still missing aliases.
+
+    Used for time series, assets and files alike, which are all fetched on nothing but
+    the presence of aliases.
     """
     
-    logger.debug("Creating asset filter")
+    logger.debug(f"Creating alias filter for {view_config.external_id}")
 
     filters: list[dm.filters.Filter] = [HasData(views=[view_config.as_view_id()])]
     
@@ -429,11 +527,11 @@ def get_asset_filter(
 
 # Export all functions for backward compatibility
 __all__ = [
+    'alias_rule',
     'describe_processing_mode',
     'effective_run_all',
-    'get_asset_filter',
+    'get_alias_filter',
     'get_new_items',
-    'get_ts_filter',
     'metadata_update',
     'update_pipeline_run'
 ]

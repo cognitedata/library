@@ -12,13 +12,49 @@ schemaSpace: cdf_cdm
 viewVersion: v1
 assetInstanceSpace: inst_cfihos_oil_and_gas
 timeseriesInstanceSpace: inst_cfihos_oil_and_gas
+fileInstanceSpace: inst_cfihos_oil_and_gas
 functionSpace: sp_entity_matching_fn # space where function code nodes are stored — created by this module
 AssetViewExternalId: CogniteAsset
 TimeSeriesViewExternalId: CogniteTimeSeries
+FileViewExternalId: CogniteFile
 targetViewExternalId: CogniteAsset
 entityViewExternalId: CogniteTimeSeries
 targetViewSearchProperty: name
-viewFilterProperty: tags  # NOTE: in CFIHOS example data model (dm_dom_oil_and_gas.DataModel.yaml), the filter property is labels
+# Property entity matching filters on, applied only when the filter values below are set.
+# NOTE: in CFIHOS example data model (dm_dom_oil_and_gas.DataModel.yaml) it is labels
+viewFilterProperty: tags
+# Regexes that find the tag inside a name, per view. List as many as the view's names
+# need; each contributes an alias built from its capture groups joined by "_", so
+# VAL_23-KA-9101 gives 23_KA_9101. Two rules when changing these:
+#   - Write character classes, not backslash escapes: use [0-9] rather than \d. Toolkit
+#     substitutes variables as a regex replacement, where a backslash escape fails the build.
+#   - Keep "_" among the accepted separators. That is how the function recognises the
+#     aliases it generated earlier and rebuilds them when updateAll is set, rather than
+#     leaving a stale alias behind.
+# Each view also has its own AliasSelection, deciding what to keep when several of its
+# patterns match one name: 'all' for one alias per matching pattern, or 'longest' for
+# only the longest - the most specific reading of the name.
+timeseriesAliasPattern:
+  - '([0-9]{2})[-_.:]([A-Z]{2,3})[-_.:]([0-9]{4,5})'
+timeseriesAliasSelection: longest
+assetAliasPattern:
+  - '([0-9]{2})[-_.:]([A-Z]{2,3})[-_.:]([0-9]{4,5})'
+assetAliasSelection: longest
+# Files also get their file name without the extension as an alias, in addition to these.
+# The document number patterns keep their dashes by capturing the whole number in one
+# group - the alias is the groups joined by "_", so several groups would rewrite the
+# separators. PH-25578-P-4110006-001.pdf gives PH-25578-P-4110006-001 (from the first
+# pattern, and from the file name) and PH-25578-P-4110006 (from the second, whose sheet
+# number is outside the group and optional, so the shortened alias is still recognised as
+# generated later). (?<![A-Z]) stops a longer prefix matching from its second letter,
+# which would write a truncated alias.
+fileAliasPattern:
+  - '(?<![A-Z])([A-Z]{2,4}-[0-9]+-[A-Z]-[0-9]+-[0-9]+)'
+  - '(?<![A-Z])([A-Z]{2,4}-[0-9]+-[A-Z]-[0-9]+)(?:-[0-9]+)?'
+  - '([0-9]{2})[-_.:]([A-Z]{2,3})[-_.:]([0-9]{4,5})'
+# Keep 'all' here: the document patterns above are written to give both the number with
+# and without its sheet number, and 'longest' would discard the shorter one
+fileAliasSelection: all
 targetViewFilterValues: []
 entityViewSearchProperty: name
 entityViewFilterValues: []  

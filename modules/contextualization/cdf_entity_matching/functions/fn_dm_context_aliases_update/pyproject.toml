@@ -1,5 +1,5 @@
 [project]
-name = "fn-dm-context-metadata-update"
+name = "fn-dm-context-aliases-update"
 version = "0.0.0"
 requires-python = ">=3.11,<3.14"
 dependencies = [

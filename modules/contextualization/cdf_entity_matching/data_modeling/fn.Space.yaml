@@ -1,3 +1,3 @@
-- description: Space for entity matching CDF Function code nodes
+- description: Space for the entity matching module's own nodes - function code, source system, match type
   name: "{{functionSpace}}"
   space: "{{functionSpace}}"

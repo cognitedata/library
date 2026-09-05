@@ -1,26 +1,24 @@
 
+import re
+from typing import Any, Literal
+
 import yaml
 from cognite.client import CogniteClient
 from cognite.client import data_modeling as dm
 from cognite.client.exceptions import CogniteAPIError
-from pipeline_types import FunctionInputData
 from pydantic import BaseModel, Field, field_validator
 from pydantic.alias_generators import to_camel
+
+from constants import DEFAULT_ALIAS_PATTERN  # isort: skip
 
 
 # Configuration classes
 class Parameters(BaseModel, alias_generator=to_camel):
     debug: bool
-    dm_update: bool
     run_all: bool
-    remove_old_links: bool
     raw_db: str
     raw_table_state: str
-    raw_table_ctx_good: str
-    raw_table_ctx_bad: str
-    raw_table_ctx_manual: str | None = None
-    raw_table_ctx_rule: str | None = None
-    auto_approval_threshold: float = Field(gt=0.0, le=1.0)
+    update_all: bool = False
 
 
 class ViewPropertyConfig(BaseModel, alias_generator=to_camel):
@@ -30,19 +28,43 @@ class ViewPropertyConfig(BaseModel, alias_generator=to_camel):
     instance_spaces: list[str] = Field(alias="instanceSpace", min_length=1)
     external_id: str
     version: str
-    search_property: str = "alias"
-    filter_property: str | None = None
-    filter_values: list[str] | None = None
+    # Configured as "aliasPattern", one regular expression or a list of them, normalised
+    # to a list here. Each pattern finds the tag inside a name; the alias it yields is
+    # that pattern's capture groups joined by "_", so the groups decide the alias rather
+    # than the whole match.
+    alias_patterns: list[str] = Field(
+        alias="aliasPattern",
+        default_factory=lambda: [DEFAULT_ALIAS_PATTERN],
+        min_length=1,
+    )
+    # What to keep when several patterns match one name: every alias they yield, or only
+    # the longest - the most specific reading of the name.
+    alias_selection: Literal["all", "longest"] = "all"
 
     @field_validator("instance_spaces", mode="before")
     @classmethod
     def wrap_single_space(cls, value: object) -> object:
         return [value] if isinstance(value, str) else value
 
-    @property
-    def default_instance_space(self) -> str:
-        """Space to write an instance to when its own space is unknown - the first configured space."""
-        return self.instance_spaces[0]
+    @field_validator("alias_patterns", mode="before")
+    @classmethod
+    def wrap_single_pattern(cls, value: object) -> object:
+        return [value] if isinstance(value, str) else value
+
+    @field_validator("alias_patterns")
+    @classmethod
+    def validate_alias_patterns(cls, value: list[str]) -> list[str]:
+        for pattern in value:
+            try:
+                compiled = re.compile(pattern)
+            except re.error as e:
+                raise ValueError(f"aliasPattern {pattern!r} is not a valid regular expression: {e}") from e
+            if not compiled.groups:
+                raise ValueError(
+                    f"aliasPattern {pattern!r} must have at least one capture group - "
+                    "the alias is the groups joined by '_'"
+                )
+        return value
 
     def as_view_id(self) -> dm.ViewId:
         return dm.ViewId(space=self.schema_space, external_id=self.external_id, version=self.version)
@@ -50,22 +72,23 @@ class ViewPropertyConfig(BaseModel, alias_generator=to_camel):
     def as_property_ref(self, property_name: str) -> list[str]:
         return [self.schema_space, f"{self.external_id}/{self.version}", property_name]
 
+
+class JobConfig(BaseModel, alias_generator=to_camel):
+    timeseries_view: ViewPropertyConfig
+    asset_view: ViewPropertyConfig
+    # Optional so a configuration written before file support existed still loads; file
+    # metadata is then skipped rather than failing the run.
+    file_view: ViewPropertyConfig | None = None
+
 class ConfigData(BaseModel, alias_generator=to_camel):
-    entity_view: ViewPropertyConfig
-    target_view: ViewPropertyConfig
+    job: JobConfig
 
 class Config(BaseModel, alias_generator=to_camel):
     parameters: Parameters
     data: ConfigData
 
-    @classmethod
-    def pares_direct_relation(cls, value: object) -> object:
-        if isinstance(value, dict):
-            return dm.DirectRelationReference.load(value)
-        return value
 
-
-def load_config_parameters(client: CogniteClient, function_data: FunctionInputData) -> Config:
+def load_config_parameters(client: CogniteClient, function_data: dict[str, Any]) -> Config:
     """Retrieves the configuration parameters from the function data and loads the configuration from CDF."""
     if "ExtractionPipelineExtId" not in function_data:
         raise ValueError("Missing key 'ExtractionPipelineExtId' in input data to the function")

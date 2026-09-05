@@ -12,8 +12,8 @@ members = [
     "file-annotation-dashboard-annotation-quality",
     "file-annotation-dashboard-pipeline-health",
     "fn-ai-property-extractor",
+    "fn-dm-context-aliases-update",
     "fn-dm-context-files-annotation",
-    "fn-dm-context-metadata-update",
     "fn-dm-context-timeseries-entity-matching",
     "fn-file-annotation-finalize",
     "fn-file-annotation-launch",
@@ -635,28 +635,9 @@ requires-dist = [
 ]
 
 [[package]]
-name = "fn-dm-context-files-annotation"
+name = "fn-dm-context-aliases-update"
 version = "0.0.0"
-source = { virtual = "modules/contextualization/cdf_p_and_id_annotation/functions/fn_dm_context_files_annotation" }
-dependencies = [
-    { name = "cognite-extractor-utils" },
-    { name = "cognite-sdk" },
-    { name = "mixpanel" },
-    { name = "pyyaml" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "cognite-extractor-utils", specifier = ">=7" },
-    { name = "cognite-sdk", specifier = ">=7,<8" },
-    { name = "mixpanel", specifier = ">=4.10.0" },
-    { name = "pyyaml", specifier = ">=6.0.1" },
-]
-
-[[package]]
-name = "fn-dm-context-metadata-update"
-version = "0.0.0"
-source = { virtual = "modules/contextualization/cdf_entity_matching/functions/fn_dm_context_metadata_update" }
+source = { virtual = "modules/contextualization/cdf_entity_matching/functions/fn_dm_context_aliases_update" }
 dependencies = [
     { name = "cognite-extractor-utils" },
     { name = "cognite-sdk" },
@@ -674,6 +655,25 @@ requires-dist = [
     { name = "psutil", specifier = ">=5.9.0" },
     { name = "pyyaml", specifier = ">=6.0.1" },
     { name = "tenacity", specifier = ">=8.0.0" },
+]
+
+[[package]]
+name = "fn-dm-context-files-annotation"
+version = "0.0.0"
+source = { virtual = "modules/contextualization/cdf_p_and_id_annotation/functions/fn_dm_context_files_annotation" }
+dependencies = [
+    { name = "cognite-extractor-utils" },
+    { name = "cognite-sdk" },
+    { name = "mixpanel" },
+    { name = "pyyaml" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "cognite-extractor-utils", specifier = ">=7" },
+    { name = "cognite-sdk", specifier = ">=7,<8" },
+    { name = "mixpanel", specifier = ">=4.10.0" },
+    { name = "pyyaml", specifier = ">=6.0.1" },
 ]
 
 [[package]]

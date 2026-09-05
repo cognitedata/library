@@ -1,4 +1,4 @@
-space: {{ assetInstanceSpace }}
+space: {{ functionSpace }}
 externalId: {{ contextualizationId }}
 sources:
   - source:
