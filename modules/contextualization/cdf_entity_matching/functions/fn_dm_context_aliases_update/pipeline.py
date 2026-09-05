@@ -11,18 +11,6 @@ import traceback
 from pathlib import Path
 from typing import Any
 
-# Import optimizations
-from alias_optimizations import (
-    AliasRule,
-    BatchProcessor,
-    OptimizedMetadataProcessor,
-    PerformanceBenchmark,
-    cleanup_memory,
-    is_retryable,
-    monitor_memory_usage,
-    optimize_metadata_processing,
-    time_operation,
-)
 from cognite.client import CogniteClient
 from cognite.client import data_modeling as dm
 from cognite.client.data_classes import ExtractionPipelineRun
@@ -34,15 +22,27 @@ from cognite.client.data_classes.data_modeling import (
 from cognite.client.data_classes.filters import HasData
 from cognite.client.exceptions import CogniteAPIError
 from cognite.client.utils._text import shorten
-from config import Config, ViewPropertyConfig
-from constants import (
+
+from alias_optimizations import (  # isort: skip
+    AliasRule,
+    BatchProcessor,
+    OptimizedMetadataProcessor,
+    PerformanceBenchmark,
+    cleanup_memory,
+    is_retryable,
+    monitor_memory_usage,
+    optimize_metadata_processing,
+    time_operation,
+)
+from config import Config, ViewPropertyConfig  # isort: skip
+from constants import (  # isort: skip
     ASSET_NODE,
     BATCH_SIZE,
     DEFAULT_ALIAS_PATTERN,
     FILE_NODE,
     TS_NODE,
 )
-from logger import CogniteFunctionLogger
+from logger import CogniteFunctionLogger  # isort: skip
 
 sys.path.append(str(Path(__file__).parent))
 

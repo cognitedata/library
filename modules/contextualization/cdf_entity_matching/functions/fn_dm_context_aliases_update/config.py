@@ -6,9 +6,10 @@ import yaml
 from cognite.client import CogniteClient
 from cognite.client import data_modeling as dm
 from cognite.client.exceptions import CogniteAPIError
-from constants import DEFAULT_ALIAS_PATTERN
 from pydantic import BaseModel, Field, field_validator
 from pydantic.alias_generators import to_camel
+
+from constants import DEFAULT_ALIAS_PATTERN  # isort: skip
 
 
 # Configuration classes

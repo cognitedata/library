@@ -9,10 +9,12 @@ sys.path.append(str(Path(__file__).parent))
 
 from cognite.client import data_modeling as dm
 from cognite.client.exceptions import CogniteAPIError
-from config import Config, ConfigData, JobConfig, Parameters, ViewPropertyConfig
-from constants import DEFAULT_ALIAS_PATTERN, TS_NODE
-from logger import CogniteFunctionLogger
-from pipeline import (
+from pydantic import ValidationError
+
+from config import Config, ConfigData, JobConfig, Parameters, ViewPropertyConfig  # isort: skip
+from constants import DEFAULT_ALIAS_PATTERN, TS_NODE  # isort: skip
+from logger import CogniteFunctionLogger  # isort: skip
+from pipeline import (  # isort: skip
     _process_assets_optimized,
     _process_files_optimized,
     _process_timeseries_optimized,
@@ -21,7 +23,6 @@ from pipeline import (
     get_alias_filter,
     get_new_items,
 )
-from pydantic import ValidationError
 
 
 class TestPipelineHelpers(unittest.TestCase):

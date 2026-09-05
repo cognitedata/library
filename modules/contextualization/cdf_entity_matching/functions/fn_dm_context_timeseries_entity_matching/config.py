@@ -47,8 +47,8 @@ class ViewPropertyConfig(BaseModel, alias_generator=to_camel):
     def as_view_id(self) -> dm.ViewId:
         return dm.ViewId(space=self.schema_space, external_id=self.external_id, version=self.version)
 
-    def as_property_ref(self, property) -> list[str]:
-        return [self.schema_space, f"{self.external_id}/{self.version}", property]
+    def as_property_ref(self, property_name: str) -> list[str]:
+        return [self.schema_space, f"{self.external_id}/{self.version}", property_name]
 
 class ConfigData(BaseModel, alias_generator=to_camel):
     entity_view: ViewPropertyConfig
