@@ -101,6 +101,25 @@ class TestBatchProcessing(unittest.TestCase):
         self.assertIn("does not exist in view", str(caught.exception))
         self.assertEqual(client.data_modeling.instances.apply.call_count, 1)
 
+    def test_a_batch_the_api_calls_too_large_is_split_at_any_batch_size(self) -> None:
+        """Splitting takes a quarter of the batch size, which rounds to zero below four.
+
+        The chunk size then has to stay at least one, or the split loop raises a
+        ValueError that buries the API error it was trying to recover from.
+        """
+        client = MagicMock()
+        client.data_modeling.instances.apply.side_effect = [
+            CogniteAPIError("Request too large", code=413),
+            None,
+        ]
+        updates = [NodeApply(space="sp", external_id="item-0")]
+
+        with patch("tenacity.nap.time.sleep"):
+            applied = BatchProcessor(batch_size=1).apply_updates_in_batches(client, updates, self.logger)
+
+        self.assertEqual(applied, 1)
+        self.assertEqual(client.data_modeling.instances.apply.call_count, 2)
+
     def test_a_dropped_connection_is_retried(self) -> None:
         """A connection error carries no status code, and the next attempt may connect."""
         client = MagicMock()

@@ -145,8 +145,9 @@ class BatchProcessor:
                     if not is_retryable(e) and e.code != 413:
                         raise
                     logger.warning(f"Large batch failed, retrying with smaller chunks: {e}")
-                    # Split batch and retry smaller chunks
-                    small_batch_size = batch_size // 4
+                    # Split batch and retry smaller chunks. A batch size below four
+                    # divides to zero, which range() rejects.
+                    small_batch_size = max(1, batch_size // 4)
                     for j in range(0, len(batch), small_batch_size):
                         small_batch = batch[j:j + small_batch_size]
                         self._apply_batch_with_retry(client, small_batch, logger)
