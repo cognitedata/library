@@ -476,34 +476,91 @@ def ado_dry_run_registration_notes(projects: dict[str, str]) -> str:
 
 
 def ado_trust_boundary_note(projects: dict[str, str]) -> str:
-    """States the real trust boundary now that PR validation never loads a secret.
-    Only mentions toolkit-pr-validate when it actually exists -- a prod-only (or
-    otherwise dry-run-less) project has no PR-validation pipeline for this to say
-    anything about.
+    """States the trust boundary in two parts, because Pipeline permissions
+    alone only cover one of two attack paths.
 
-    Philippe's review established that Branch control doesn't provide the
-    protection it looks like it should: a Build Validation run compiles the
-    pipeline YAML from the PR's own merge ref, so `Build.SourceBranch` is
-    `refs/pull/<id>/merge` there, not a real branch -- a `refs/heads/*` allow-list
-    rejects every PR run, and allowing merge refs protects nothing. Rather than
-    patch that with an approval someone has to remember to actually scrutinize
-    every time, `cdf deploy --dry-run` (and the secret it needs) moved out of
-    `toolkit-pr-validate` entirely and into the deploy pipelines, whose YAML a
-    pull request can't modify. With no secret in play, Pipeline permissions
-    alone are sufficient, and no Branch control or approval workaround is needed.
+    Part 1 (Pipeline permissions): closes the pull-request path. Philippe's
+    review established that Branch control can't do this itself -- a Build
+    Validation run compiles the pipeline YAML from the PR's own merge ref, so
+    `Build.SourceBranch` is `refs/pull/<id>/merge` there, not a real branch; a
+    `refs/heads/*` allow-list rejects every PR run, and allowing merge refs
+    protects nothing. That's why `cdf deploy --dry-run` (and the secret) moved
+    out of `toolkit-pr-validate` entirely.
+
+    Part 2 (Branch control): closes a *different* path that moving the secret
+    doesn't touch. A deploy pipeline is a registered pipeline like any other --
+    it can be started by hand via **Run pipeline** against *any* branch, and
+    Azure compiles that run from the selected branch's own YAML. Pipeline
+    permissions authorize the pipeline *definition* to use a group; they don't
+    care which branch a manual run picks. So a branch with a modified
+    deploy-<env>-pipeline.yml (condition deleted, exfiltration step added) can
+    be manually run against a legitimately-authorized deploy pipeline and the
+    credentials group still loads. Unlike PR validation, a manual/push/tag run's
+    `Build.SourceBranch` *is* a real ref (not the merge-ref), so a Branch control
+    allow-list on each `-toolkit-credentials` group genuinely blocks this.
     """
-    if not branch_envs(projects):
-        return (
-            "**Pipeline permissions are sufficient here.** Each `-toolkit-credentials` group only"
-            " ever needs to be authorized for its one deploy pipeline."
+    branches = branch_envs(projects)
+    parts: list[str] = []
+    if branches:
+        parts.append(
+            "**Pipeline permissions close the pull-request path.** `toolkit-pr-validate` never loads a"
+            " `-toolkit-credentials` group — it only needs `-toolkit-config` for `cdf build`, and that"
+            " group holds no secret, so a PR author editing `.devops/dry-run-pipeline.yml` has nothing"
+            " to exfiltrate."
         )
+    parts.append(
+        "**Branch control closes the manual-run path.** A deploy pipeline can also be started by hand"
+        " from **Run pipeline** against any branch, and the run compiles *that branch's* YAML — so a"
+        " branch carrying a modified `deploy-<env>-pipeline.yml` would otherwise run with that"
+        " environment's credentials, regardless of what the file's own `condition:` says (the attacker"
+        " controls that too). Add an **Approvals and checks → Branch control** check to each"
+        " `-toolkit-credentials` group, allowing only the ref that environment legitimately deploys"
+        " from. Unlike PR validation, where `Build.SourceBranch` is `refs/pull/<id>/merge` and no"
+        " allow-list can work, a manual run carries a real branch ref, so the check applies."
+    )
+    rows = [
+        f"| `{env}-toolkit-credentials` | `refs/heads/{DEPLOY_BRANCHES[env]}` |" for env in deployable_envs(projects)
+    ]
+    if "prod" in projects:
+        rows.append("| `prod-toolkit-credentials` | see note below |")
+    if rows:
+        parts.append("\n".join(["| Variable group | Branch control — allowed ref |", "|---|---|", *rows]))
+    if "prod" in projects:
+        parts.append(
+            "⚠️ Verify how Branch control treats `refs/tags/*` before configuring the"
+            " `prod-toolkit-credentials` row above. If it can't express a tag allow-list, use a required"
+            " **approval** on `prod-toolkit-credentials` instead — worth having on prod regardless."
+        )
+    parts.append(
+        "Each `-toolkit-credentials` group only ever needs to be authorized for its one deploy pipeline."
+    )
+    return "\n\n".join(parts)
+
+
+def ado_open_access_warning(projects: dict[str, str]) -> str:
+    """The entire trust boundary above depends on each `-toolkit-credentials`
+    group actually being scoped to one pipeline. Azure DevOps variable groups
+    have an "Allow access to all pipelines" toggle that, left on, lets any
+    pipeline in the project use the group just by adding a `- group:`
+    reference to its own YAML.
+
+    When toolkit-pr-validate exists, that's a PR-controlled pipeline -- a PR
+    could add the reference to dry-run-pipeline.yml itself and reopen the exact
+    hole removing the secret from PR validation was meant to close, without
+    touching any pipeline file we generated. A prod-only (or otherwise
+    dry-run-less) project has no such pipeline, but the same toggle still
+    matters: any other pipeline already registered in the ADO project could
+    add the reference and reach the secret just as easily.
+    """
+    if branch_envs(projects):
+        example = "a pull request could add `- group: <env>-toolkit-credentials` to `.devops/dry-run-pipeline.yml`"
+    else:
+        example = "any other pipeline registered in this ADO project could add `- group: <env>-toolkit-credentials`"
     return (
-        "**Pipeline permissions are sufficient here.** `toolkit-pr-validate` never loads a"
-        " `-toolkit-credentials` group — it only needs `-toolkit-config` for `cdf build`, and that"
-        " group holds no secret, so a PR author editing `.devops/dry-run-pipeline.yml` has nothing to"
-        " exfiltrate. `cdf deploy --dry-run` and `cdf deploy` both run in the deploy pipelines instead,"
-        " whose YAML a pull request cannot modify. Each `-toolkit-credentials` group only ever needs to"
-        " be authorized for its one deploy pipeline."
+        "For each `-toolkit-credentials` group, make sure **Allow access to all pipelines** is **off**"
+        " (in newer UI, don't use **Open access** in the Pipeline permissions panel) and grant access"
+        f" only to its one deploy pipeline. The trust boundary above depends on this: with open access,"
+        f" {example} and load the secret directly."
     )
 
 
@@ -916,6 +973,7 @@ def main() -> None:
         base_values["VARIABLE_GROUP_SCOPING_EXAMPLE"] = ado_variable_group_scoping_example(projects)
         base_values["DEPLOY_AUTHORIZATION_EXAMPLE"] = ado_deploy_authorization_example(projects)
         base_values["TRUST_BOUNDARY_NOTE"] = ado_trust_boundary_note(projects)
+        base_values["OPEN_ACCESS_WARNING"] = ado_open_access_warning(projects)
         base_values["DRY_RUN_TRIGGER_NOTE"] = ado_dry_run_trigger_note(projects)
 
         if deployable_envs(projects):

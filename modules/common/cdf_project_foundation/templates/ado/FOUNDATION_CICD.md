@@ -34,6 +34,8 @@ Protect the branches used above under **Repos → Branches → Branch policies**
 
 Scope each group via **Pipeline permissions** to only the pipeline(s) that need it — {{VARIABLE_GROUP_SCOPING_EXAMPLE}}, and so on per environment.
 
+{{OPEN_ACCESS_WARNING}}
+
 {{TRUST_BOUNDARY_NOTE}}
 
 Each `-toolkit-config` group needs these **variables**:
