@@ -9,7 +9,7 @@ The **Foundation Deployment Pack** (`dp:foundation`) is the recommended starting
 - **Highly extensible** — simple to plug in your own data sources and processing logic
 - **Reliable** — everything included works out of the box
 
-This module provides the **project-level foundation** shared by two deployment packs: three persona-based access groups and a project setup wizard, aligned with the [project-setup SOP](https://cogdocs.mintlify.io/gvd) *(password-protected — request access via [#topic-deployment-packs](https://cognitedata.slack.com/archives/C098QJ09YKX) or contact [Valeriya Naumova](https://cognitedata.slack.com/team/U051XA95S0G)).*
+This module provides the **project-level foundation** shared by two deployment packs: three persona-based access groups and a project setup wizard, aligned with the project-setup SOP.
 
 ## Foundation vs. Demo
 
@@ -28,7 +28,7 @@ Both packs include this module (`cdf_project_foundation`) for the persona access
 
 ### Step 0 — Prerequisites
 
-> 📖 Before starting, read the [project-setup SOP](https://cogdocs.mintlify.io/gvd) *(password-protected — request access via [#topic-deployment-packs](https://cognitedata.slack.com/archives/C098QJ09YKX) or contact [Valeriya Naumova](https://cognitedata.slack.com/team/U051XA95S0G))* — it is required reading before any deployment step.
+> 📖 Before starting, read the project-setup SOP — it is required reading before any deployment step.
 
 Ensure the following are in place:
 
@@ -358,7 +358,7 @@ Self-contained. The group ACLs reference `{{ dataset }}`, `{{ instanceSpaces }}`
 
 On `dp:quickstart`, this module's persona groups replace `common/cdf_ingestion`'s own auth files (removed by the wizard as redundant) — `cdf_ingestion` itself (workflows, datasets) stays installed and required.
 
-See the [project-setup SOP](https://cogdocs.mintlify.io/gvd) *(password-protected — request access via [#topic-deployment-packs](https://cognitedata.slack.com/archives/C098QJ09YKX) or contact [Valeriya Naumova](https://cognitedata.slack.com/team/U051XA95S0G))* for the authoritative procedure covering environments, Entra ID integration, CI/CD, and sign-off.
+See the project-setup SOP for the authoritative procedure covering environments, Entra ID integration, CI/CD, and sign-off.
 
 ---
 
