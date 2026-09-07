@@ -9,7 +9,7 @@ The **Foundation Deployment Pack** (`dp:foundation`) is the recommended starting
 - **Highly extensible** — simple to plug in your own data sources and processing logic
 - **Reliable** — everything included works out of the box
 
-This module provides the **project-level foundation** shared by two deployment packs: three persona-based access groups and a project setup wizard, aligned with the [project-setup SOP](https://cogdocs.mintlify.io/gvd) *(password-protected — request access via [#topic-deployment-packs](https://cognitedata.slack.com/archives/C098QJ09YKX) or contact [Valeriya Naumova](https://cognitedata.slack.com/team/U051XA95S0G)).*
+This module provides the **project-level foundation** shared by two deployment packs: three persona-based access groups and a project setup wizard, aligned with the project-setup SOP.
 
 ## Foundation vs. Demo
 
@@ -28,7 +28,7 @@ Both packs include this module (`cdf_project_foundation`) for the persona access
 
 ### Step 0 — Prerequisites
 
-> 📖 Before starting, read the [project-setup SOP](https://cogdocs.mintlify.io/gvd) *(password-protected — request access via [#topic-deployment-packs](https://cognitedata.slack.com/archives/C098QJ09YKX) or contact [Valeriya Naumova](https://cognitedata.slack.com/team/U051XA95S0G))* — it is required reading before any deployment step.
+> 📖 Before starting, read the project-setup SOP — it is required reading before any deployment step.
 
 Ensure the following are in place:
 
@@ -216,17 +216,20 @@ cdf deploy
 
 ### Step 6 — Set up CI/CD (optional)
 
-Generate GitHub Actions workflows that automate build, dry-run, and deploy on PR / merge / release. This can also be triggered through the setup wizard (Step 3):
+Generate CI/CD that automates build, dry-run, and deploy on PR / merge / release, for either GitHub Actions (default) or Azure DevOps. This can also be triggered through the setup wizard (Step 3):
 
 ```bash
 python modules/common/cdf_project_foundation/scripts/generate_actions.py --force
+python modules/common/cdf_project_foundation/scripts/generate_actions.py --force --provider ado
 ```
 
 The script reads `org-dir` and toolkit version from `cdf.toml` automatically. It uses `environment.project` from each `config.<env>.yaml` as the CDF project name and validates that `environment.name` matches the expected environment.
 
-This writes `.github/workflows/` (`dry-run.yml`, `deploy-dev.yml`, `deploy-prod.yml`, and `deploy-test.yml` when `config.test.yaml` exists) and `docs/FOUNDATION_CICD.md` (GitHub Environments and secrets). Configure `ADMIN_SOURCE_ID`, `CONSUMER_SOURCE_ID`, and `PRODUCER_SOURCE_ID` as GitHub Environment variables alongside the CDF auth variables.
+**GitHub (default):** writes `.github/workflows/` (`dry-run.yml`, `deploy-dev.yml`, `deploy-prod.yml`, and `deploy-test.yml` when `config.test.yaml` exists) and `docs/FOUNDATION_CICD.md` (GitHub Environments and secrets). Configure `ADMIN_SOURCE_ID`, `CONSUMER_SOURCE_ID`, and `PRODUCER_SOURCE_ID` as GitHub Environment variables alongside the CDF auth variables.
 
-Branching model: PRs to `dev`; PRs to `main` and deploy **test** on merge to `main` only when `config.test.yaml` exists; deploy **dev** on merge to `dev`, and **prod** on GitHub Release from `main`.
+**Azure DevOps (`--provider ado`):** writes `.devops/` (`dry-run-pipeline.yml` and one `deploy-<env>-pipeline.yml` per configured environment) and `docs/FOUNDATION_CICD.md` (variable groups, the per-environment deploy pipeline registrations, and the Build Validation branch policy). See `docs/FOUNDATION_CICD.md` for the exact setup steps. Unlike GitHub's single per-environment Environment, each environment gets two variable groups: a non-secret `<env>-toolkit-config` group used by both `toolkit-pr-validate` and the deploy pipeline, and an `<env>-toolkit-credentials` group used by the deploy pipeline only — PR validation never loads a secret, since Build Validation runs compile the pipeline YAML from the PR's own merge ref and can't be trusted with one.
+
+Branching model: PRs to `dev`; PRs to `main` and deploy **test** on merge to `main` only when `config.test.yaml` exists; deploy **dev** on merge to `dev`, and **prod** on a GitHub Release (or, for Azure DevOps, a `vX.Y.Z` tag) from `main`.
 
 ---
 
@@ -245,10 +248,11 @@ cdf_project_foundation/
 │   ├── _env_io.py                 # .env file parse / upsert helpers
 │   ├── _yaml_patch.py             # line-preserving YAML scalar patcher
 │   ├── setup_project.py           # interactive wizard — creates / updates config.<env>.yaml
-│   ├── generate_actions.py        # generates GitHub Actions CI/CD workflows
+│   ├── generate_actions.py        # generates GitHub Actions or Azure DevOps CI/CD (--provider)
 │   └── generate_env_configs.py    # generates config.{dev,test,prod}.yaml skeletons
 ├── templates/
-│   └── github/                    # GitHub Actions workflow templates
+│   ├── github/                    # GitHub Actions workflow templates
+│   └── ado/                       # Azure DevOps pipeline templates
 ├── default.config.yaml
 └── module.toml
 ```
@@ -357,7 +361,7 @@ Self-contained. The group ACLs reference `{{ dataset }}`, `{{ instanceSpaces }}`
 
 On `dp:quickstart`, this module's persona groups replace `common/cdf_ingestion`'s own auth files (removed by the wizard as redundant) — `cdf_ingestion` itself (workflows, datasets) stays installed and required.
 
-See the [project-setup SOP](https://cogdocs.mintlify.io/gvd) *(password-protected — request access via [#topic-deployment-packs](https://cognitedata.slack.com/archives/C098QJ09YKX) or contact [Valeriya Naumova](https://cognitedata.slack.com/team/U051XA95S0G))* for the authoritative procedure covering environments, Entra ID integration, CI/CD, and sign-off.
+See the project-setup SOP for the authoritative procedure covering environments, Entra ID integration, CI/CD, and sign-off.
 
 ---
 
