@@ -487,17 +487,28 @@ def ado_trust_boundary_note(projects: dict[str, str]) -> str:
     protects nothing. That's why `cdf deploy --dry-run` (and the secret) moved
     out of `toolkit-pr-validate` entirely.
 
-    Part 2 (Branch control): closes a *different* path that moving the secret
-    doesn't touch. A deploy pipeline is a registered pipeline like any other --
-    it can be started by hand via **Run pipeline** against *any* branch, and
-    Azure compiles that run from the selected branch's own YAML. Pipeline
-    permissions authorize the pipeline *definition* to use a group; they don't
-    care which branch a manual run picks. So a branch with a modified
-    deploy-<env>-pipeline.yml (condition deleted, exfiltration step added) can
-    be manually run against a legitimately-authorized deploy pipeline and the
-    credentials group still loads. Unlike PR validation, a manual/push/tag run's
-    `Build.SourceBranch` *is* a real ref (not the merge-ref), so a Branch control
-    allow-list on each `-toolkit-credentials` group genuinely blocks this.
+    Part 2 (the manual-run path): a deploy pipeline is a registered pipeline
+    like any other -- it can be started by hand via **Run pipeline** against
+    *any* ref, and Azure compiles that run from the selected ref's own YAML.
+    Pipeline permissions authorize the pipeline *definition* to use a group;
+    they don't care which ref a manual run picks.
+
+    For dev/test, Branch control genuinely closes this: a manual/push run's
+    `Build.SourceBranch` is a real branch ref (not the merge-ref), and that
+    branch is itself branch-policy protected, so its YAML can't change without
+    a reviewed PR -- an allow-list there restricts to a ref whose content is
+    already trustworthy.
+
+    For prod, Branch control does NOT close this even if it supports tag
+    patterns: `git tag v9.9.9 <evil-commit>` gives `Build.SourceBranch` =
+    `refs/tags/v9.9.9`, matched by any `refs/tags/v*` allow-list, but the run
+    still compiles from the attacker's tagged commit -- a tag allow-list
+    restricts the ref *pattern*, not which commit the tag points at, and tags
+    aren't branch-policy protected the way dev/test are. The pipeline's own
+    "Reject releases not reachable from main" check lives in that same
+    attacker-supplied YAML, so it guards against an accidental tag on the
+    wrong commit, not a deliberate one. Prod needs a different control:
+    a required approval, and/or restricting who can create tags at all.
     """
     branches = branch_envs(projects)
     parts: list[str] = []
@@ -509,27 +520,36 @@ def ado_trust_boundary_note(projects: dict[str, str]) -> str:
             " to exfiltrate."
         )
     parts.append(
-        "**Branch control closes the manual-run path.** A deploy pipeline can also be started by hand"
-        " from **Run pipeline** against any branch, and the run compiles *that branch's* YAML — so a"
-        " branch carrying a modified `deploy-<env>-pipeline.yml` would otherwise run with that"
-        " environment's credentials, regardless of what the file's own `condition:` says (the attacker"
-        " controls that too). Add an **Approvals and checks → Branch control** check to each"
-        " `-toolkit-credentials` group, allowing only the ref that environment legitimately deploys"
-        " from. Unlike PR validation, where `Build.SourceBranch` is `refs/pull/<id>/merge` and no"
-        " allow-list can work, a manual run carries a real branch ref, so the check applies."
+        "**The manual-run path needs its own control.** A deploy pipeline can also be started by hand"
+        " from **Run pipeline** against any ref, and the run compiles *that ref's* YAML — so a ref"
+        " carrying a modified `deploy-<env>-pipeline.yml` would otherwise run with that environment's"
+        " credentials, regardless of what the file's own `condition:` says (the attacker controls that"
+        " too)."
     )
-    rows = [
+    branch_rows = [
         f"| `{env}-toolkit-credentials` | `refs/heads/{DEPLOY_BRANCHES[env]}` |" for env in deployable_envs(projects)
     ]
-    if "prod" in projects:
-        rows.append("| `prod-toolkit-credentials` | see note below |")
-    if rows:
-        parts.append("\n".join(["| Variable group | Branch control — allowed ref |", "|---|---|", *rows]))
+    if branch_rows:
+        parts.append(
+            "**Branch control covers the branch-deployed environments.** Add an **Approvals and checks"
+            " → Branch control** check to each group below, allowing only the branch that environment"
+            " deploys from. Unlike PR validation, where `Build.SourceBranch` is `refs/pull/<id>/merge`"
+            " and no allow-list can work, a manual run carries a real branch ref — and that branch is"
+            " itself protected by the branch policies above, so its YAML can't be changed without a PR."
+        )
+        parts.append("\n".join(["| Variable group | Branch control — allowed ref |", "|---|---|", *branch_rows]))
     if "prod" in projects:
         parts.append(
-            "⚠️ Verify how Branch control treats `refs/tags/*` before configuring the"
-            " `prod-toolkit-credentials` row above. If it can't express a tag allow-list, use a required"
-            " **approval** on `prod-toolkit-credentials` instead — worth having on prod regardless."
+            "**Branch control is not sufficient for prod.** `prod-toolkit-credentials` is reached by a"
+            " tag run, and a `refs/tags/v*` allow-list restricts the ref *pattern*, not which commit the"
+            " tag points at — anyone who can push `v9.9.9` at an arbitrary commit gets a run compiled"
+            " from that commit's YAML. Protect it with a required **approval** on"
+            " `prod-toolkit-credentials` (**Approvals and checks → Approvals**), so a human sees which"
+            " tag and commit is deploying, and/or deny **Create tag** on `refs/tags/*` for Contributors"
+            " under **Repos → Security**, granting it only to release managers. The pipeline's own"
+            " `Reject releases not reachable from main` step guards against an accidental tag on the"
+            " wrong commit, not against someone who can push one — it lives in the YAML the tag itself"
+            " supplies."
         )
     parts.append(
         "Each `-toolkit-credentials` group only ever needs to be authorized for its one deploy pipeline."
@@ -538,7 +558,7 @@ def ado_trust_boundary_note(projects: dict[str, str]) -> str:
 
 
 def ado_open_access_warning(projects: dict[str, str]) -> str:
-    """The entire trust boundary above depends on each `-toolkit-credentials`
+    """The entire trust boundary below depends on each `-toolkit-credentials`
     group actually being scoped to one pipeline. Azure DevOps variable groups
     have an "Allow access to all pipelines" toggle that, left on, lets any
     pipeline in the project use the group just by adding a `- group:`
@@ -559,7 +579,7 @@ def ado_open_access_warning(projects: dict[str, str]) -> str:
     return (
         "For each `-toolkit-credentials` group, make sure **Allow access to all pipelines** is **off**"
         " (in newer UI, don't use **Open access** in the Pipeline permissions panel) and grant access"
-        f" only to its one deploy pipeline. The trust boundary above depends on this: with open access,"
+        " only to its one deploy pipeline. The trust boundary below depends on this: with open access,"
         f" {example} and load the secret directly."
     )
 

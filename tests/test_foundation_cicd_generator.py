@@ -700,13 +700,16 @@ def test_generate_actions_ado_writes_pipelines_and_docs(tmp_path: Path) -> None:
     assert "deploy-test-pipeline.yml" in docs
     assert "deploy-prod-pipeline.yml" in docs
     assert "Build Validation" in docs
-    # Branch control doesn't help the PR-validation path (Build.SourceBranch is
-    # a merge ref there) -- but it's back for a different reason: a deploy
-    # pipeline can be run manually against an arbitrary branch, where
-    # Build.SourceBranch *is* a real ref, so an allow-list on each
-    # -toolkit-credentials group genuinely restricts that path.
+    # Branch control genuinely restricts the manual-run path for dev/test,
+    # because that branch is itself branch-policy protected -- but NOT for prod,
+    # since a tag allow-list restricts the ref pattern, not which commit an
+    # attacker-pushed tag points at. Prod needs an approval / tag-creation
+    # restriction instead.
     assert "Branch control" in docs
-    assert "closes the manual-run path" in docs
+    assert "manual-run path needs its own control" in docs
+    assert "Branch control covers the branch-deployed environments" in docs
+    assert "Branch control is not sufficient for prod" in docs
+    assert "Create tag" in docs
     assert "Pipeline permissions close the pull-request path" in docs
     assert "refs/heads/dev" in docs
     assert "refs/heads/main" in docs
@@ -766,14 +769,16 @@ def test_generate_actions_ado_prod_only_has_no_dry_run_pipeline(tmp_path: Path) 
     assert "the `prod-toolkit-config` and `prod-toolkit-credentials` groups should each grant" in docs
     assert "access to `toolkit-deploy-prod` only" in docs
     # No PR-validation pipeline exists here, so that half of the trust boundary
-    # note must not appear -- but the manual-run path still applies (any
-    # registered pipeline, including others in the project, can be run by hand
-    # against an arbitrary branch), so Branch control guidance must still show,
-    # worded generically rather than pointing at a nonexistent dry-run pipeline.
+    # note must not appear. No dev/test either, so deployable_envs() is empty --
+    # the branch-deployed Branch control paragraph/table must not appear (there's
+    # no branch-triggered environment for it to cover), but the manual-run path
+    # intro and the prod-specific "not sufficient" paragraph still apply.
     assert "Pipeline permissions close the pull-request path" not in docs
-    assert "closes the manual-run path" in docs
-    assert "prod-toolkit-credentials` | `refs/heads/" not in docs
-    assert "prod-toolkit-credentials` | see note below" in docs
+    assert "manual-run path needs its own control" in docs
+    assert "Branch control covers the branch-deployed environments" not in docs
+    assert "| Variable group | Branch control" not in docs
+    assert "Branch control is not sufficient for prod" in docs
+    assert "Create tag" in docs
     assert "any other pipeline registered in this ADO project could add" in docs
     assert ".devops/dry-run-pipeline.yml" not in docs
     assert "`prod-toolkit-credentials` only ever needs to be authorized for `toolkit-deploy-prod`" in docs
