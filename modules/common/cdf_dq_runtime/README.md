@@ -28,7 +28,10 @@ python modules/common/cdf_dq_runtime/scripts/deploy_infrastructure.py \
   --toolkit-config config.dev.yaml
 ```
 
-Credentials come from environment variables (same as [data-quality-validation-deploy](https://github.com/cognitedata/data-quality-validation-deploy)): `COGNITE_PROJECT`, `COGNITE_CLIENT_ID`, `COGNITE_CLIENT_SECRET`, and `AZURE_TENANT_ID` or `COGNITE_TOKEN_URL`. In Toolkit projects, `CDF_*` / `IDP_*` work too. Optionally pass `--config-toml` for a local gitignored TOML file (notebooks).
+Credentials come from the Toolkit project ``.env`` (next to ``cdf.toml``) when present,
+then environment variables (same as [data-quality-validation-deploy](https://github.com/cognitedata/data-quality-validation-deploy)):
+``COGNITE_PROJECT``, ``COGNITE_CLIENT_ID``, ``COGNITE_CLIENT_SECRET``, and ``AZURE_TENANT_ID`` or ``COGNITE_TOKEN_URL``.
+In Toolkit projects, ``CDF_*`` / ``IDP_*`` work too. Optionally pass ``--config-toml`` for a local gitignored TOML file (notebooks).
 
 Optional historic enqueue (same as deploy repo `--enqueue-historic`):
 

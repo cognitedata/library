@@ -3,14 +3,89 @@
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import re
+import warnings
 from dataclasses import dataclass
 from pathlib import Path
 
 import yaml
 
 _PLACEHOLDER = re.compile(r"\{\{\s*([a-zA-Z0-9_]+)\s*\}\}")
+_ENV_LOADED_FROM: Path | None = None
+
+
+def find_toolkit_project_root(start: Path | None = None) -> Path | None:
+    """Return the nearest ancestor directory that contains ``cdf.toml``."""
+    current = (start or Path.cwd()).resolve()
+    for directory in (current, *current.parents):
+        if (directory / "cdf.toml").is_file():
+            return directory
+    return None
+
+
+def resolve_env_file_path(env_file: Path | str | None = None) -> Path | None:
+    """Resolve a Toolkit ``.env`` file path.
+
+    Resolution order:
+    1. Explicit ``--env-file`` path
+    2. ``.env`` next to ``cdf.toml`` (walk up from cwd)
+    3. Nearest ``.env`` walking up from cwd
+    """
+    if env_file is not None:
+        path = Path(env_file).expanduser().resolve()
+        return path if path.is_file() else None
+
+    project_root = find_toolkit_project_root()
+    if project_root is not None:
+        candidate = project_root / ".env"
+        if candidate.is_file():
+            return candidate
+
+    current = Path.cwd().resolve()
+    for directory in (current, *current.parents):
+        candidate = directory / ".env"
+        if candidate.is_file():
+            return candidate
+    return None
+
+
+def _parse_env_line(line: str) -> tuple[str, str] | None:
+    stripped = line.strip()
+    if not stripped or stripped.startswith("#") or "=" not in stripped:
+        return None
+    if stripped.startswith("export "):
+        stripped = stripped.removeprefix("export ").lstrip()
+    key, _, value = stripped.partition("=")
+    key = key.strip()
+    if not key:
+        return None
+    value = value.strip()
+    if len(value) >= 2 and value[0] == value[-1] and value[0] in {'"', "'"}:
+        value = value[1:-1]
+    return key, value
+
+
+def load_project_env(env_file: Path | str | None = None) -> Path | None:
+    """Load Toolkit ``.env`` values into ``os.environ`` without overriding existing keys."""
+    global _ENV_LOADED_FROM
+    path = resolve_env_file_path(env_file)
+    if path is None:
+        return None
+    if _ENV_LOADED_FROM == path:
+        return path
+
+    for line in path.read_text(encoding="utf-8").splitlines():
+        parsed = _parse_env_line(line)
+        if parsed is None:
+            continue
+        key, value = parsed
+        if key not in os.environ:
+            os.environ[key] = value
+
+    _ENV_LOADED_FROM = path
+    return path
 
 
 def module_root() -> Path:
@@ -257,8 +332,157 @@ class MaterializedPack:
     variables: dict[str, str]
 
 
+def configure_deploy_cli() -> None:
+    """Reduce noisy third-party warnings for operator-facing deploy scripts."""
+    warnings.filterwarnings(
+        "ignore",
+        message=".*httpx module is deprecated.*",
+        category=DeprecationWarning,
+    )
+    warnings.filterwarnings("ignore", module=r"authlib\..*", category=DeprecationWarning)
+    try:
+        from cognite.client.config import global_config
+
+        global_config.disable_pypi_version_check = True
+    except ImportError:
+        pass
+
+
+def print_deploy_context(
+    *,
+    project: str | None,
+    package_version: str,
+    credentials_source: str | None,
+    toolkit_config: Path | str | None,
+    data_product_sync_cron: str | None = None,
+) -> None:
+    """Print a compact pre-deploy context block."""
+    print("Data quality deploy")
+    if project:
+        print(f"  Project:     {project}")
+    print(f"  Package:     cognite-data-quality=={package_version}")
+    if credentials_source:
+        print(f"  Credentials: {credentials_source}")
+    if toolkit_config:
+        print(f"  Toolkit:     {toolkit_config}")
+    if data_product_sync_cron:
+        print(f"  DP sync:     cron {data_product_sync_cron}")
+
+
+def _workflow_status_counts(workflows: list[object]) -> tuple[int, int]:
+    deployed = 0
+    skipped = 0
+    for item in workflows:
+        if not isinstance(item, dict):
+            continue
+        status = str(item.get("status", "")).lower()
+        if status == "deployed":
+            deployed += 1
+        elif status == "skipped":
+            skipped += 1
+    return deployed, skipped
+
+
+def _print_workflow_group(label: str, workflows: list[object]) -> None:
+    if not workflows:
+        return
+    deployed, skipped = _workflow_status_counts(workflows)
+    print(f"\n{label}: {len(workflows)}")
+    print(f"  deployed: {deployed}")
+    if skipped:
+        print(f"  skipped:  {skipped}")
+    for item in workflows:
+        if not isinstance(item, dict):
+            continue
+        workflow_id = item.get("workflow_external_id") or item.get("workflow")
+        trigger = item.get("trigger")
+        status = str(item.get("status", "unknown")).lower()
+        if workflow_id:
+            line = f"  - {workflow_id} ({status})"
+            if trigger:
+                line += f", trigger {trigger}"
+            print(line)
+
+
+def print_infrastructure_summary(results: dict[str, object], *, dry_run: bool = False) -> None:
+    """Print a human-readable deployment summary."""
+    print(f"\n{'=' * 60}")
+    print("DEPLOYMENT SUMMARY")
+    print(f"{'=' * 60}")
+
+    function_results = results.get("functions", {})
+    if isinstance(function_results, dict):
+        func_result = function_results.get("function", {})
+        if isinstance(func_result, dict):
+            name = func_result.get("function", "N/A")
+            status = str(func_result.get("status", "unknown")).lower()
+            print(f"\nFunction: {name} ({status})")
+
+    external = results.get("external_dataproduct_workflows", [])
+    if isinstance(external, list) and external:
+        print("\nExternal DataProducts:")
+        for item in external:
+            if not isinstance(item, dict):
+                continue
+            dp_name = item.get("dataProduct", "unknown")
+            dp_version = item.get("version", "?")
+            status = str(item.get("status", "unknown")).lower()
+            views = item.get("views")
+            views_suffix = f", {views} views" if views is not None else ""
+            print(f"  - {dp_name} @ {dp_version} ({status}{views_suffix})")
+            nested = item.get("workflows", [])
+            if isinstance(nested, list):
+                for workflow in nested:
+                    if not isinstance(workflow, dict):
+                        continue
+                    for key, label in (
+                        ("workflow_external_id", "sync-cursor"),
+                        ("uniqueness_workflow_external_id", "uniqueness"),
+                        ("edge_existence_workflow_external_id", "edge-existence"),
+                    ):
+                        workflow_id = workflow.get(key)
+                        if workflow_id:
+                            print(f"      {label}: {workflow_id}")
+
+    for label, key in (
+        ("Instance workflows", "workflows"),
+        ("Time series workflows", "timeseries_workflows"),
+        ("Rule engine sync", "rule_engine_result_sync_workflows"),
+        ("RAW table workflows", "raw_tables"),
+    ):
+        workflows = results.get(key, [])
+        if isinstance(workflows, list):
+            _print_workflow_group(label, workflows)
+
+    _print_workflow_group("data_product_sync", results.get("data_product_sync", []))
+    _print_workflow_group("historic_queue_manager", results.get("historic_queue_manager", []))
+
+    historic_enqueue = results.get("historic_enqueue")
+    if isinstance(historic_enqueue, dict):
+        print(
+            f"\nHistoric enqueue: {historic_enqueue.get('total_enqueued', 0)} enqueued, "
+            f"{historic_enqueue.get('total_skipped', 0)} skipped"
+        )
+
+    if dry_run:
+        print("\n[DRY RUN] No changes were made")
+
+
+def print_verbose_results(results: dict[str, object]) -> None:
+    """Print full deployment results as formatted JSON."""
+    print(json.dumps(results, indent=2, default=str))
+
+
 def add_common_args(parser: argparse.ArgumentParser) -> None:
     """Add flags shared by deploy_infrastructure.py and deploy_pipeline.py."""
+    parser.add_argument(
+        "--env-file",
+        default=None,
+        help=(
+            "Optional .env file with CDF credentials (default: .env next to cdf.toml, "
+            "or nearest .env walking up from cwd). Existing environment variables win."
+        ),
+    )
     parser.add_argument(
         "--config-toml",
         default="config.toml",
@@ -291,6 +515,11 @@ def add_common_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--force", action="store_true", help="Force redeployment of function and workflows")
     parser.add_argument("--force-function", action="store_true", help="Force function redeploy only")
     parser.add_argument("--force-workflows", action="store_true", help="Force workflow redeploy only")
+    parser.add_argument(
+        "--verbose",
+        action="store_true",
+        help="Print materialized pack paths and full JSON results",
+    )
 
 
 def resolve_materialized_pack(args: argparse.Namespace, dest_dir: Path) -> MaterializedPack:
