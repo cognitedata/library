@@ -142,7 +142,7 @@ class BatchProcessor:
                 except CogniteAPIError as e:
                     # Splitting only helps a batch the API refused for its size. A
                     # rejected property or view fails identically in a smaller batch.
-                    if not is_retryable(e) and e.code != 413:
+                    if e.code != 413:
                         raise
                     logger.warning(f"Large batch failed, retrying with smaller chunks: {e}")
                     # Split batch and retry smaller chunks. A batch size below four
