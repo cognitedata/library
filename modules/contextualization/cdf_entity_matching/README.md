@@ -230,10 +230,9 @@ different naming conventions. The alias it writes back is a pattern's capture gr
 joined by `_`, so the default turns `VAL_23-KA-9101:X.Value` into the alias `23_KA_9101` —
 which is what makes entity matching on `aliases` work across differently formatted names.
 
-A name no pattern reads falls back to being its own alias, but only for an instance that
-holds no alias at all, so nothing piles up on re-runs. It is logged as `No alias extracted
-based on input regular expression - defaulting to content of name property`, and a run full
-of those warnings points at the pattern, not the data.
+A name no pattern reads produces no alias. It is logged as `No alias extracted based on
+input regular expression for name: …`, and a run full of those warnings points at the
+pattern, not the data.
 
 List several patterns for a view whose names follow more than one convention. That view's
 `AliasSelection` then decides what to keep when more than one matches: `all` (the

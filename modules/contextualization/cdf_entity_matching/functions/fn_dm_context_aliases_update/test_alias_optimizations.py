@@ -345,8 +345,8 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
 
         self.assertEqual(result.sources[0].properties["aliases"], ["1234"])
 
-    def test_a_name_holding_no_tag_falls_back_to_the_name_as_its_alias(self) -> None:
-        """A name no pattern reads still has to be searchable, so it aliases itself."""
+    def test_a_name_holding_no_tag_leaves_aliases_empty(self) -> None:
+        """A name no pattern reads produces no alias."""
         processor = OptimizedMetadataProcessor(
             self.logger, timeseries_alias_rule=AliasRule.from_config([DEFAULT_ALIAS_PATTERN])
         )
@@ -356,10 +356,10 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
 
         result = processor.process_timeseries_metadata(node, self.view_id, "inst_cfihos_oil_and_gas")
 
-        self.assertEqual(result.sources[0].properties["aliases"], ["Reactor outlet temperature"])
+        self.assertIsNone(result)
 
-    def test_an_asset_name_holding_no_tag_falls_back_to_the_name_as_its_alias(self) -> None:
-        """Assets fall back the same way timeseries do."""
+    def test_an_asset_name_holding_no_tag_leaves_aliases_empty(self) -> None:
+        """Assets leave aliases empty when no pattern matches."""
         processor = OptimizedMetadataProcessor(
             self.logger, asset_alias_rule=AliasRule.from_config([DEFAULT_ALIAS_PATTERN])
         )
@@ -370,7 +370,7 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
 
         result = processor.process_asset_metadata(node, asset_view, "inst_cfihos_oil_and_gas")
 
-        self.assertEqual(result.sources[0].properties["aliases"], ["Feed pump A"])
+        self.assertIsNone(result)
 
     def _process_names_without_alias(self, processor: OptimizedMetadataProcessor, count: int) -> None:
         """Run `count` timeseries whose names no configured pattern reads."""
@@ -405,8 +405,8 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
 
         self.assertEqual(warning.call_count, 3)
 
-    def test_a_suppressed_warning_still_leaves_the_name_as_an_alias(self) -> None:
-        """Throttling the log must not change which aliases are written."""
+    def test_a_suppressed_warning_still_leaves_aliases_empty(self) -> None:
+        """Throttling the log must not change that no alias is written."""
         processor = OptimizedMetadataProcessor(
             self.logger, timeseries_alias_rule=AliasRule.from_config([PUMP_PATTERN])
         )
@@ -417,14 +417,10 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
         node.properties = {self.view_id: {"name": "Reactor outlet temperature", "aliases": []}}
         result = processor.process_timeseries_metadata(node, self.view_id, "inst_cfihos_oil_and_gas")
 
-        self.assertEqual(result.sources[0].properties["aliases"], ["Reactor outlet temperature"])
+        self.assertIsNone(result)
 
-    def test_an_instance_that_already_has_an_alias_does_not_gain_its_name(self) -> None:
-        """The fallback is there to make an unsearchable instance searchable.
-
-        One that already carries an alias is searchable, so adding the name on top only
-        adds noise to the matcher.
-        """
+    def test_an_instance_that_already_has_an_alias_is_unchanged_when_no_pattern_matches(self) -> None:
+        """Hand-curated aliases are kept when the name does not match the pattern."""
         processor = OptimizedMetadataProcessor(
             self.logger, timeseries_alias_rule=AliasRule.from_config([DEFAULT_ALIAS_PATTERN])
         )
@@ -438,12 +434,8 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
 
         self.assertIsNone(result)
 
-    def test_a_renamed_instance_does_not_collect_a_second_name_alias(self) -> None:
-        """A name alias does not read back through the pattern, so updateAll keeps it.
-
-        The fallback therefore has to stay off an instance that already has one, or every
-        rename would leave the previous name behind next to the current one.
-        """
+    def test_a_renamed_instance_keeps_a_hand_curated_alias_under_update_all(self) -> None:
+        """updateAll keeps hand-curated aliases that do not round-trip through the pattern."""
         processor = OptimizedMetadataProcessor(
             self.logger, timeseries_alias_rule=AliasRule.from_config([DEFAULT_ALIAS_PATTERN])
         )
@@ -760,6 +752,24 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
         )
 
         self.assertIsNone(result)
+
+    def test_remove_old_aliases_clears_the_property_when_no_alias_is_produced(self) -> None:
+        """Nothing produced must reach CDF as null, otherwise the old aliases survive."""
+        node = MagicMock()
+        node.external_id = "pi:160008"
+        node.properties = {
+            self.view_id: {"name": "Reactor outlet temperature", "aliases": ["operator note"]}
+        }
+
+        result = self.processor.process_timeseries_metadata(
+            node,
+            self.view_id,
+            "inst_cfihos_oil_and_gas",
+            remove_old_aliases=True,
+        )
+
+        self.assertIsNotNone(result)
+        self.assertIsNone(result.sources[0].properties["aliases"])
 
     def test_timeseries_update_all_applies_even_when_aliases_already_correct(self) -> None:
         """Test updateAll writes managed metadata even when values already match"""

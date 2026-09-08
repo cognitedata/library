@@ -270,6 +270,15 @@ def _dedupe_preserve_order(aliases: Sequence[str]) -> list[str]:
     return unique
 
 
+def _alias_property_value(aliases: list[str]) -> list[str] | None:
+    """Return the value to write to the aliases property.
+
+    Writing an empty list leaves the stored aliases untouched, so null is written when
+    nothing was produced to clear them.
+    """
+    return aliases or None
+
+
 def _starting_aliases(
     org_aliases: list[str],
     rule: AliasRule,
@@ -361,7 +370,7 @@ class OptimizedMetadataProcessor:
         if self.stats['names_without_alias'] <= _MAX_MISSING_ALIAS_WARNINGS:
             self.logger.warning(
                 "No alias extracted based on input regular expression "
-                f"for name: {name} - no alias created"
+                f"for name: {name}"
             )
 
     def log_missing_alias_summary(self) -> None:
@@ -372,9 +381,8 @@ class OptimizedMetadataProcessor:
         total = self.stats['names_without_alias']
         if total > _MAX_MISSING_ALIAS_WARNINGS:
             self.logger.warning(
-                f"No alias could be extracted from {total} names in total, each defaulting to "
-                f"the content of its name property. Only the first {_MAX_MISSING_ALIAS_WARNINGS} "
-                "are listed above."
+                f"No alias could be extracted from {total} names in total. "
+                f"Only the first {_MAX_MISSING_ALIAS_WARNINGS} are listed above."
             )
 
     
@@ -416,22 +424,16 @@ class OptimizedMetadataProcessor:
                     name, tuple(aliases), self.timeseries_alias_rule
                 )
             )
-            # A name no pattern reads leaves nothing to search on, so it falls back to
-            # the name itself - but only for an instance that holds no alias at all. A
-            # name alias does not read back through the pattern, so updateAll keeps it as
-            # hand-curated, and a rename would otherwise leave the old name behind next to
-            # the new one.
             if name and not upd_aliases and not _generated_aliases(name, self.timeseries_alias_rule):
                 self._warn_name_without_alias(name)
-                upd_aliases = ['']
 
             upd_aliases = _dedupe_preserve_order(upd_aliases)
 
             update_needed = False
-            properties_dict = {}
+            properties_dict: dict[str, list[str] | None] = {}
 
             if update_all or upd_aliases != org_aliases:
-                properties_dict["aliases"] = upd_aliases
+                properties_dict["aliases"] = _alias_property_value(upd_aliases)
                 update_needed = True
             
             self.stats['processed'] += 1
@@ -495,22 +497,16 @@ class OptimizedMetadataProcessor:
                     name, tuple(aliases), self.asset_alias_rule
                 )
             )
-            # A name no pattern reads leaves nothing to search on, so it falls back to
-            # the name itself - but only for an instance that holds no alias at all. A
-            # name alias does not read back through the pattern, so updateAll keeps it as
-            # hand-curated, and a rename would otherwise leave the old name behind next to
-            # the new one.
             if name and not upd_aliases and not _generated_aliases(name, self.asset_alias_rule):
                 self._warn_name_without_alias(name)
-                upd_aliases = ['']
 
             upd_aliases = _dedupe_preserve_order(upd_aliases)
 
             update_needed = False
-            properties_dict = {}
+            properties_dict: dict[str, list[str] | None] = {}
 
             if update_all or upd_aliases != org_aliases:
-                properties_dict["aliases"] = upd_aliases
+                properties_dict["aliases"] = _alias_property_value(upd_aliases)
                 update_needed = True
             
             self.stats['processed'] += 1
@@ -581,15 +577,8 @@ class OptimizedMetadataProcessor:
                 self._get_file_alias_list_optimized(name, tuple(aliases), self.file_alias_rule)
             )
 
-
-            # A name no pattern reads leaves nothing to search on, so it falls back to
-            # the name itself - but only for an instance that holds no alias at all. A
-            # name alias does not read back through the pattern, so updateAll keeps it as
-            # hand-curated, and a rename would otherwise leave the old name behind next to
-            # the new one.
             if name and not upd_aliases and not _generated_aliases(name, self.file_alias_rule):
                 self._warn_name_without_alias(name)
-                upd_aliases = ['']
 
             upd_aliases = _dedupe_preserve_order(upd_aliases)
 
@@ -607,7 +596,7 @@ class OptimizedMetadataProcessor:
                 sources=[
                     NodeOrEdgeData(
                         source=view_id,
-                        properties={"aliases": upd_aliases},
+                        properties={"aliases": _alias_property_value(upd_aliases)},
                     )
                 ],
             )

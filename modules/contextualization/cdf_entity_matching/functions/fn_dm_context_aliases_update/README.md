@@ -120,21 +120,13 @@ for equipment tags starting with a two-digit area code. Document numbers and pum
 are left unchanged. Every pattern defaults to the shape above, so a configuration written
 before this setting existed keeps behaving the same.
 
-When no pattern extracts anything from a name, and the instance **holds no alias at all**,
-the `name` itself becomes the alias so the instance stays searchable. The run logs `No
-alias extracted based on input regular expression - defaulting to content of name property`
-followed by the name. Only the first ten such names are logged individually; after that
-they are counted, and the run ends with a single warning giving the total. A pattern that
-matches none of your names therefore fills `aliases` with full names, so a large total
-means the pattern is wrong rather than the data.
-
-The fallback stays off an instance that already carries an alias, hand-curated or
-generated. That is what keeps it from piling up: a name alias does not read back through
-the pattern, so `updateAll` treats it as hand-curated and keeps it, and without this
-condition every rename would add the new name beside the old one. The flip side is that an
-instance which picked up a name alias and was later renamed keeps the **old** name as its
-alias — correct that by editing or clearing `aliases` on that instance. Files are
-unaffected either way: they already fall back to the file name without its extension.
+When no pattern extracts anything from a name, **no alias is produced**. The `aliases`
+property is then written as null, which clears whatever was stored — an empty list would
+leave the old values in place, so `removeOldAliases` would not remove anything. Instances
+that had no aliases to begin with are left untouched. The run logs `No alias extracted based on input regular expression for name: …` for
+the first ten such names, then counts the rest and reports the total once at the end. A run
+full of those warnings means the pattern does not match your names, not that the data is
+wrong.
 
 An invalid regular expression, or one with no capture group, is a configuration error
 rather than a missing alias. It fails the run at config load with a message naming the
