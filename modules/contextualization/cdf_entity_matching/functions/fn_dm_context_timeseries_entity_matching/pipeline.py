@@ -1174,7 +1174,10 @@ def apply_rule_mappings(
 
                         if pair not in unique_matches_tracker:
                             if pair in good_matches_set:
-                                logger.debug(f"Match already exists in good matches: {d1_match[KEY_TARGET_EXT_ID]} - {d2[KEY_ENTITY_EXT_ID]}")
+                                logger.debug(
+                                    f"Match already exists in good matches: "
+                                    f"{d1_match[KEY_TARGET_EXT_ID]} - {d2[KEY_ENTITY_EXT_ID]}"
+                                )
                                 continue
                             good_matches_set.add(pair)
 
