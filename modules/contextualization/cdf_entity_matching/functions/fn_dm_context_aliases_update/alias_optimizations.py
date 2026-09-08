@@ -172,316 +172,24 @@ class BatchProcessor:
             raise
 
 
-# ===== OPTIMIZED METADATA PROCESSOR =====
-
-class OptimizedMetadataProcessor:
-    """Optimized metadata processing with caching and batch operations"""
-    
-    def __init__(
-        self,
-        logger: CogniteFunctionLogger,
-        timeseries_alias_rule: AliasRule = _DEFAULT_ALIAS_RULE,
-        asset_alias_rule: AliasRule = _DEFAULT_ALIAS_RULE,
-        file_alias_rule: AliasRule = _DEFAULT_ALIAS_RULE,
-    ):
-        self.logger = logger
-        # Each rule drives both alias generation and the check for which existing
-        # aliases this function owns.
-        self.timeseries_alias_rule = timeseries_alias_rule
-        self.asset_alias_rule = asset_alias_rule
-        self.file_alias_rule = file_alias_rule
-        self.stats = {
-            'processed': 0,
-            'updated': 0,
-        }
-    
-    def process_timeseries_metadata(
-        self,
-        node: Node,
-        view_id: ViewId,
-        node_space: str,
-        update_all: bool = False,
-    ) -> NodeApply | None:
-        """Process timeseries metadata with optimizations"""
-        
-        try:
-            ext_id = node.external_id
-            # Skip rather than recompute from an empty payload, which under updateAll
-            # would overwrite the managed properties with empty values.
-            properties = node.properties.get(view_id) if node.properties else None
-            if not properties:
-                self.logger.warning(f"No properties for view {view_id} on timeseries: {ext_id}")
-                return None
-
-            name = str(properties.get("name", ""))
-            aliases_raw = properties.get("aliases", [])
-            org_aliases = (
-                [str(x) for x in aliases_raw] if isinstance(aliases_raw, list) else []
-            )
-            # Only the generated aliases are rebuilt; hand-curated ones are preserved.
-            aliases = (
-                _unmanaged_aliases(org_aliases, self.timeseries_alias_rule) if update_all else org_aliases.copy()
-            )
-
-            upd_aliases = self._get_timeseries_alias_list_optimized(
-                name, tuple(aliases), self.timeseries_alias_rule
-            )
-
-            update_needed = False
-            properties_dict = {}
-
-            if update_all or upd_aliases != org_aliases:
-                properties_dict["aliases"] = upd_aliases
-                update_needed = True
-            
-            self.stats['processed'] += 1
-            
-            if update_needed:
-                self.stats['updated'] += 1
-                self.logger.debug(f"Updating TS: {name} with {len(properties_dict)} properties")
-                
-                return NodeApply(
-                    space=node_space,
-                    external_id=ext_id,
-                    sources=[
-                        NodeOrEdgeData(
-                            source=view_id,
-                            properties=properties_dict,
-                        )
-                    ],
-                )
-            
-            return None
-            
-        except Exception as e:
-            self.logger.error(f"Error processing timeseries {node.external_id}: {e}")
-            return None
-    
-    def process_asset_metadata(
-        self,
-        node: Node,
-        view_id: ViewId,
-        node_space: str,
-        update_all: bool = False,
-    ) -> NodeApply | None:
-        """Process asset metadata with optimizations"""
-        
-        try:
-            ext_id = node.external_id
-            # Skip rather than recompute from an empty payload, which under updateAll
-            # would overwrite the managed properties with empty values.
-            properties = node.properties.get(view_id) if node.properties else None
-            if not properties:
-                self.logger.warning(f"No properties for view {view_id} on asset: {ext_id}")
-                return None
-
-            name = str(properties.get("name", ""))
-            aliases_raw = properties.get("aliases", [])
-            org_aliases = (
-                [str(x) for x in aliases_raw] if isinstance(aliases_raw, list) else []
-            )
-            # Only the generated aliases are rebuilt; hand-curated ones are preserved.
-            aliases = (
-                _unmanaged_aliases(org_aliases, self.asset_alias_rule) if update_all else org_aliases.copy()
-            )
-
-            upd_aliases = self._get_asset_alias_list_optimized(
-                name, tuple(aliases), self.asset_alias_rule
-            )
-
-            update_needed = False
-            properties_dict = {}
-
-            if update_all or upd_aliases != org_aliases:
-                properties_dict["aliases"] = upd_aliases
-                update_needed = True
-            
-            self.stats['processed'] += 1
-            
-            if update_needed:
-                self.stats['updated'] += 1
-                self.logger.debug(f"Updating asset: {ext_id} with {len(properties_dict)} properties")
-                
-                return NodeApply(
-                    space=node_space,
-                    external_id=ext_id,
-                    sources=[
-                        NodeOrEdgeData(
-                            source=view_id,
-                            properties=properties_dict,
-                        )
-                    ],
-                )
-            
-            return None
-            
-        except Exception as e:
-            self.logger.error(f"Error processing asset {node.external_id}: {e}")
-            return None
-    
-    def process_file_metadata(
-        self,
-        node: Node,
-        view_id: ViewId,
-        node_space: str,
-        update_all: bool = False,
-    ) -> NodeApply | None:
-        """Add search aliases to a file from its name.
-
-        Args:
-            node: The file instance to process.
-            view_id: View the aliases are written to.
-            node_space: Space the file was read from, and the one it is written back to.
-            update_all: Rebuild the generated aliases instead of merging with them.
-
-        Returns:
-            The update to apply, or None when the file needs no change.
-        """
-        try:
-            ext_id = node.external_id
-            # Skip rather than recompute from an empty payload, which under updateAll
-            # would overwrite the managed properties with empty values.
-            properties = node.properties.get(view_id) if node.properties else None
-            if not properties:
-                self.logger.warning(f"No properties for view {view_id} on file: {ext_id}")
-                return None
-
-            name = str(properties.get("name", ""))
-            aliases_raw = properties.get("aliases", [])
-            org_aliases = [str(x) for x in aliases_raw] if isinstance(aliases_raw, list) else []
-            # Only the generated aliases are rebuilt; hand-curated ones are preserved.
-            aliases = (
-                _unmanaged_aliases(org_aliases, self.file_alias_rule) if update_all else org_aliases.copy()
-            )
-
-            upd_aliases = self._get_file_alias_list_optimized(name, tuple(aliases), self.file_alias_rule)
-
-            self.stats['processed'] += 1
-
-            if not update_all and upd_aliases == org_aliases:
-                return None
-
-            self.stats['updated'] += 1
-            self.logger.debug(f"Updating file: {ext_id} with {len(upd_aliases)} aliases")
-
-            return NodeApply(
-                space=node_space,
-                external_id=ext_id,
-                sources=[
-                    NodeOrEdgeData(
-                        source=view_id,
-                        properties={"aliases": upd_aliases},
-                    )
-                ],
-            )
-
-        except Exception as e:
-            self.logger.error(f"Error processing file {node.external_id}: {e}")
-            return None
-
-    @staticmethod
-    @lru_cache(maxsize=5000)
-    def _get_timeseries_alias_list_optimized(
-        name: str,
-        aliases_tuple: tuple[str, ...] = (),
-        rule: AliasRule = _DEFAULT_ALIAS_RULE,
-    ) -> list[str]:
-        """Optimized timeseries alias generation with caching"""
-        aliases = list(aliases_tuple)
-
-        for alias in _generated_aliases(name, rule):
-            if alias not in aliases:
-                aliases.append(alias)
-
-        return aliases
-    
-    @staticmethod
-    @lru_cache(maxsize=5000)
-    def _get_asset_alias_list_optimized(
-        name: str,
-        aliases_tuple: tuple[str, ...],
-        rule: AliasRule = _DEFAULT_ALIAS_RULE,
-    ) -> list[str]:
-        """Optimized asset alias generation with caching"""
-        aliases = list(aliases_tuple)
-
-        for alias in _generated_aliases(name, rule):
-            if alias not in aliases:
-                aliases.append(alias)
-        
-        return aliases
-    
-    @staticmethod
-    @lru_cache(maxsize=5000)
-    def _get_file_alias_list_optimized(
-        name: str,
-        aliases_tuple: tuple[str, ...],
-        rule: AliasRule = _DEFAULT_ALIAS_RULE,
-    ) -> list[str]:
-        """Optimized file alias generation with caching.
-
-        A document is searched for both by its bare file name and by the tag it refers
-        to, so it gets the name with the extension removed plus the usual tag aliases.
-        The name is not a pattern match, so aliasSelection does not apply to it.
-        """
-        aliases = list(aliases_tuple)
-
-        for candidate in [_file_name_without_extension(name), *_generated_aliases(name, rule)]:
-            if candidate and candidate not in aliases:
-                aliases.append(candidate)
-
-        return aliases
-
-    def get_stats(self) -> dict[str, float | int]:
-        """Get processing statistics"""
-        return {
-            'processed': self.stats['processed'],
-            'updated': self.stats['updated'],
-            'update_rate': self.stats['updated'] / self.stats['processed'] if self.stats['processed'] > 0 else 0,
-        }
-
-
-# ===== PERFORMANCE BENCHMARK =====
-
-class PerformanceBenchmark:
-    """Performance benchmarking utilities"""
-    
-    def __init__(self, logger: CogniteFunctionLogger):
-        self.logger = logger
-        self.benchmarks: dict[str, list[float]] = {}
-    
-    def benchmark_function(self, name: str, func: Callable[..., object], *args: object, **kwargs: object) -> object:
-        """Benchmark a function call"""
-        start = time.time()
-        try:
-            result = func(*args, **kwargs)
-            duration = time.time() - start
-            
-            if name not in self.benchmarks:
-                self.benchmarks[name] = []
-            
-            self.benchmarks[name].append(duration)
-            self.logger.info(f"🚀 {name} took {duration:.2f}s")
-            
-            return result
-        except Exception as e:
-            duration = time.time() - start
-            self.logger.error(f"❌ {name} failed after {duration:.2f}s: {e}")
-            raise
-    
-    def log_summary(self):
-        """Log performance summary"""
-        if not self.benchmarks:
-            return
-        
-        self.logger.info("📊 Performance Summary:")
-        for name, times in self.benchmarks.items():
-            avg_time = sum(times) / len(times)
-            total_time = sum(times)
-            self.logger.info(f"  {name}: {len(times)} calls, avg {avg_time:.2f}s, total {total_time:.2f}s")
-
-
 # ===== UTILITY FUNCTIONS =====
+
+# Equipment tags start with a two-digit area code. Document numbers and pump codes do not,
+# so only tag-shaped aliases get separator normalization.
+_TAG_ALIAS_SHAPE = re.compile(r"^[0-9]{2}[-_.:[A-Z0-9]")
+
+
+def _normalize_alias_tokens(alias: str) -> str:
+    """Replace tag separator characters with underscores between tokens.
+
+    Multi-group patterns already join their groups with "_". A single capture group that
+    holds the whole tag still carries "-", "." or ":" from the name unless those are
+    rewritten here.
+    """
+    if not _TAG_ALIAS_SHAPE.match(alias):
+        return alias
+    return re.sub(r"[-_.:]+", "_", alias)
+
 
 def _generated_alias(name: str, pattern: re.Pattern[str]) -> str | None:
     """The alias derived from a name - the pattern's capture groups joined by "_".
@@ -490,13 +198,17 @@ def _generated_alias(name: str, pattern: re.Pattern[str]) -> str | None:
     participate in the match captures None. Those are left out rather than joined, which
     would raise a TypeError.
 
+    Tag-shaped aliases always use "_" between tokens, whether the pattern captured several
+    groups or one group holding the whole tag.
+
     Returns:
         The alias, or None when the name holds no tag.
     """
     match = pattern.search(name)
     if not match:
         return None
-    return "_".join(group for group in match.groups() if group is not None)
+    alias = "_".join(group for group in match.groups() if group is not None)
+    return _normalize_alias_tokens(alias) if alias else None
 
 
 def _file_name_without_extension(name: str) -> str:
@@ -545,6 +257,447 @@ def _unmanaged_aliases(aliases: list[str], rule: AliasRule) -> list[str]:
         for alias in aliases
         if not any(_generated_alias(alias, pattern) == alias for pattern in rule.patterns)
     ]
+
+
+def _dedupe_preserve_order(aliases: Sequence[str]) -> list[str]:
+    """Return aliases with duplicates removed, keeping the first occurrence of each."""
+    seen: set[str] = set()
+    unique: list[str] = []
+    for alias in aliases:
+        if alias not in seen:
+            seen.add(alias)
+            unique.append(alias)
+    return unique
+
+
+def _starting_aliases(
+    org_aliases: list[str],
+    rule: AliasRule,
+    *,
+    update_all: bool,
+    remove_old_aliases: bool,
+) -> list[str]:
+    """Return the alias list to merge newly produced values into.
+
+    Args:
+        org_aliases: Aliases currently stored on the instance.
+        rule: The view's alias rule.
+        update_all: Rebuild generated aliases while keeping hand-curated ones.
+        remove_old_aliases: Discard every existing alias before producing new ones.
+
+    Returns:
+        The working alias list passed into the merge helpers.
+    """
+    if remove_old_aliases:
+        return []
+    if update_all:
+        return _unmanaged_aliases(org_aliases, rule)
+    return org_aliases.copy()
+
+
+def _merge_generated_aliases(
+    existing: Sequence[str],
+    name: str,
+    rule: AliasRule,
+) -> tuple[str, ...]:
+    """Return existing aliases plus any new ones the name yields under the rule."""
+    aliases = list(existing)
+    for alias in _generated_aliases(name, rule):
+        if alias and alias not in aliases:
+            aliases.append(alias)
+    return tuple(aliases)
+
+
+def _merge_file_aliases(
+    existing: Sequence[str],
+    name: str,
+    rule: AliasRule,
+) -> tuple[str, ...]:
+    """Return existing aliases plus the file name stem and any tag aliases from the name."""
+    aliases = list(existing)
+    for candidate in [_file_name_without_extension(name), *_generated_aliases(name, rule)]:
+        if candidate and candidate not in aliases:
+            aliases.append(candidate)
+    return tuple(aliases)
+
+
+# ===== OPTIMIZED METADATA PROCESSOR =====
+
+# A naming convention the configured patterns do not cover produces one warning per
+# instance, which on a large space hides everything else the run logged. Past this many,
+# the names are only counted and reported as a total.
+_MAX_MISSING_ALIAS_WARNINGS = 10
+
+
+class OptimizedMetadataProcessor:
+    """Optimized metadata processing with caching and batch operations"""
+    
+    def __init__(
+        self,
+        logger: CogniteFunctionLogger,
+        timeseries_alias_rule: AliasRule = _DEFAULT_ALIAS_RULE,
+        asset_alias_rule: AliasRule = _DEFAULT_ALIAS_RULE,
+        file_alias_rule: AliasRule = _DEFAULT_ALIAS_RULE,
+    ):
+        self.logger = logger
+        # Each rule drives both alias generation and the check for which existing
+        # aliases this function owns.
+        self.timeseries_alias_rule = timeseries_alias_rule
+        self.asset_alias_rule = asset_alias_rule
+        self.file_alias_rule = file_alias_rule
+        self.stats = {
+            'processed': 0,
+            'updated': 0,
+            'names_without_alias': 0,
+        }
+
+    def _warn_name_without_alias(self, name: str) -> None:
+        """Note a name no pattern reads, warning about only the first few.
+
+        Every such name is counted, so `log_missing_alias_summary` can report the total
+        once the run is over.
+        """
+        self.stats['names_without_alias'] += 1
+        if self.stats['names_without_alias'] <= _MAX_MISSING_ALIAS_WARNINGS:
+            self.logger.warning(
+                "No alias extracted based on input regular expression "
+                f"for name: {name} - no alias created"
+            )
+
+    def log_missing_alias_summary(self) -> None:
+        """Report the total of names no pattern read, when some were left unlogged.
+
+        Below the cap every name is already in the log, and a total would only repeat it.
+        """
+        total = self.stats['names_without_alias']
+        if total > _MAX_MISSING_ALIAS_WARNINGS:
+            self.logger.warning(
+                f"No alias could be extracted from {total} names in total, each defaulting to "
+                f"the content of its name property. Only the first {_MAX_MISSING_ALIAS_WARNINGS} "
+                "are listed above."
+            )
+
+    
+    def process_timeseries_metadata(
+        self,
+        node: Node,
+        view_id: ViewId,
+        node_space: str,
+        update_all: bool = False,
+        remove_old_aliases: bool = False,
+    ) -> NodeApply | None:
+        """Process timeseries metadata with optimizations"""
+        
+        try:
+            ext_id = node.external_id
+            # Skip rather than recompute from an empty payload, which under updateAll
+            # would overwrite the managed properties with empty values.
+            properties = node.properties.get(view_id) if node.properties else None
+            if not properties:
+                self.logger.warning(f"No properties for view {view_id} on timeseries: {ext_id}")
+                return None
+
+            name = str(properties.get("name", ""))
+            aliases_raw = properties.get("aliases", [])
+            org_aliases = (
+                [str(x) for x in aliases_raw] if isinstance(aliases_raw, list) else []
+            )
+            # Only the generated aliases are rebuilt; hand-curated ones are preserved unless
+            # removeOldAliases clears the list first.
+            aliases = _starting_aliases(
+                org_aliases,
+                self.timeseries_alias_rule,
+                update_all=update_all,
+                remove_old_aliases=remove_old_aliases,
+            )
+
+            upd_aliases = list(
+                self._get_timeseries_alias_list_optimized(
+                    name, tuple(aliases), self.timeseries_alias_rule
+                )
+            )
+            # A name no pattern reads leaves nothing to search on, so it falls back to
+            # the name itself - but only for an instance that holds no alias at all. A
+            # name alias does not read back through the pattern, so updateAll keeps it as
+            # hand-curated, and a rename would otherwise leave the old name behind next to
+            # the new one.
+            if name and not upd_aliases and not _generated_aliases(name, self.timeseries_alias_rule):
+                self._warn_name_without_alias(name)
+                upd_aliases = ['']
+
+            upd_aliases = _dedupe_preserve_order(upd_aliases)
+
+            update_needed = False
+            properties_dict = {}
+
+            if update_all or upd_aliases != org_aliases:
+                properties_dict["aliases"] = upd_aliases
+                update_needed = True
+            
+            self.stats['processed'] += 1
+            
+            if update_needed:
+                self.stats['updated'] += 1
+                self.logger.debug(f"Updating TS: {name} with {len(properties_dict)} properties")
+                
+                return NodeApply(
+                    space=node_space,
+                    external_id=ext_id,
+                    sources=[
+                        NodeOrEdgeData(
+                            source=view_id,
+                            properties=properties_dict,
+                        )
+                    ],
+                )
+            
+            return None
+            
+        except Exception as e:
+            self.logger.error(f"Error processing timeseries {node.external_id}: {e}")
+            return None
+    
+    def process_asset_metadata(
+        self,
+        node: Node,
+        view_id: ViewId,
+        node_space: str,
+        update_all: bool = False,
+        remove_old_aliases: bool = False,
+    ) -> NodeApply | None:
+        """Process asset metadata with optimizations"""
+        
+        try:
+            ext_id = node.external_id
+            # Skip rather than recompute from an empty payload, which under updateAll
+            # would overwrite the managed properties with empty values.
+            properties = node.properties.get(view_id) if node.properties else None
+            if not properties:
+                self.logger.warning(f"No properties for view {view_id} on asset: {ext_id}")
+                return None
+
+            name = str(properties.get("name", ""))
+            aliases_raw = properties.get("aliases", [])
+            org_aliases = (
+                [str(x) for x in aliases_raw] if isinstance(aliases_raw, list) else []
+            )
+            # Only the generated aliases are rebuilt; hand-curated ones are preserved unless
+            # removeOldAliases clears the list first.
+            aliases = _starting_aliases(
+                org_aliases,
+                self.asset_alias_rule,
+                update_all=update_all,
+                remove_old_aliases=remove_old_aliases,
+            )
+
+            upd_aliases = list(
+                self._get_asset_alias_list_optimized(
+                    name, tuple(aliases), self.asset_alias_rule
+                )
+            )
+            # A name no pattern reads leaves nothing to search on, so it falls back to
+            # the name itself - but only for an instance that holds no alias at all. A
+            # name alias does not read back through the pattern, so updateAll keeps it as
+            # hand-curated, and a rename would otherwise leave the old name behind next to
+            # the new one.
+            if name and not upd_aliases and not _generated_aliases(name, self.asset_alias_rule):
+                self._warn_name_without_alias(name)
+                upd_aliases = ['']
+
+            upd_aliases = _dedupe_preserve_order(upd_aliases)
+
+            update_needed = False
+            properties_dict = {}
+
+            if update_all or upd_aliases != org_aliases:
+                properties_dict["aliases"] = upd_aliases
+                update_needed = True
+            
+            self.stats['processed'] += 1
+            
+            if update_needed:
+                self.stats['updated'] += 1
+                self.logger.debug(f"Updating asset: {ext_id} with {len(properties_dict)} properties")
+                
+                return NodeApply(
+                    space=node_space,
+                    external_id=ext_id,
+                    sources=[
+                        NodeOrEdgeData(
+                            source=view_id,
+                            properties=properties_dict,
+                        )
+                    ],
+                )
+            
+            return None
+            
+        except Exception as e:
+            self.logger.error(f"Error processing asset {node.external_id}: {e}")
+            return None
+    
+    def process_file_metadata(
+        self,
+        node: Node,
+        view_id: ViewId,
+        node_space: str,
+        update_all: bool = False,
+        remove_old_aliases: bool = False,
+    ) -> NodeApply | None:
+        """Add search aliases to a file from its name.
+
+        Args:
+            node: The file instance to process.
+            view_id: View the aliases are written to.
+            node_space: Space the file was read from, and the one it is written back to.
+            update_all: Rebuild the generated aliases instead of merging with them.
+            remove_old_aliases: Discard every existing alias before producing new ones.
+
+        Returns:
+            The update to apply, or None when the file needs no change.
+        """
+        try:
+            ext_id = node.external_id
+            # Skip rather than recompute from an empty payload, which under updateAll
+            # would overwrite the managed properties with empty values.
+            properties = node.properties.get(view_id) if node.properties else None
+            if not properties:
+                self.logger.warning(f"No properties for view {view_id} on file: {ext_id}")
+                return None
+
+            name = str(properties.get("name", ""))
+            aliases_raw = properties.get("aliases", [])
+            org_aliases = [str(x) for x in aliases_raw] if isinstance(aliases_raw, list) else []
+            # Only the generated aliases are rebuilt; hand-curated ones are preserved unless
+            # removeOldAliases clears the list first.
+            aliases = _starting_aliases(
+                org_aliases,
+                self.file_alias_rule,
+                update_all=update_all,
+                remove_old_aliases=remove_old_aliases,
+            )
+
+            upd_aliases = list(
+                self._get_file_alias_list_optimized(name, tuple(aliases), self.file_alias_rule)
+            )
+
+
+            # A name no pattern reads leaves nothing to search on, so it falls back to
+            # the name itself - but only for an instance that holds no alias at all. A
+            # name alias does not read back through the pattern, so updateAll keeps it as
+            # hand-curated, and a rename would otherwise leave the old name behind next to
+            # the new one.
+            if name and not upd_aliases and not _generated_aliases(name, self.file_alias_rule):
+                self._warn_name_without_alias(name)
+                upd_aliases = ['']
+
+            upd_aliases = _dedupe_preserve_order(upd_aliases)
+
+            self.stats['processed'] += 1
+
+            if not update_all and not remove_old_aliases and upd_aliases == org_aliases:
+                return None
+
+            self.stats['updated'] += 1
+            self.logger.debug(f"Updating file: {ext_id} with {len(upd_aliases)} aliases")
+
+            return NodeApply(
+                space=node_space,
+                external_id=ext_id,
+                sources=[
+                    NodeOrEdgeData(
+                        source=view_id,
+                        properties={"aliases": upd_aliases},
+                    )
+                ],
+            )
+
+        except Exception as e:
+            self.logger.error(f"Error processing file {node.external_id}: {e}")
+            return None
+
+    @staticmethod
+    @lru_cache(maxsize=5000)
+    def _get_timeseries_alias_list_optimized(
+        name: str,
+        aliases_tuple: tuple[str, ...] = (),
+        rule: AliasRule = _DEFAULT_ALIAS_RULE,
+    ) -> tuple[str, ...]:
+        """Optimized timeseries alias generation with caching"""
+        return _merge_generated_aliases(aliases_tuple, name, rule)
+    
+    @staticmethod
+    @lru_cache(maxsize=5000)
+    def _get_asset_alias_list_optimized(
+        name: str,
+        aliases_tuple: tuple[str, ...],
+        rule: AliasRule = _DEFAULT_ALIAS_RULE,
+    ) -> tuple[str, ...]:
+        """Optimized asset alias generation with caching"""
+        return _merge_generated_aliases(aliases_tuple, name, rule)
+    
+    @staticmethod
+    @lru_cache(maxsize=5000)
+    def _get_file_alias_list_optimized(
+        name: str,
+        aliases_tuple: tuple[str, ...],
+        rule: AliasRule = _DEFAULT_ALIAS_RULE,
+    ) -> tuple[str, ...]:
+        """Optimized file alias generation with caching.
+
+        A document is searched for both by its bare file name and by the tag it refers
+        to, so it gets the name with the extension removed plus the usual tag aliases.
+        The name is not a pattern match, so aliasSelection does not apply to it.
+        """
+        return _merge_file_aliases(aliases_tuple, name, rule)
+
+    def get_stats(self) -> dict[str, float | int]:
+        """Get processing statistics"""
+        return {
+            'processed': self.stats['processed'],
+            'updated': self.stats['updated'],
+            'update_rate': self.stats['updated'] / self.stats['processed'] if self.stats['processed'] > 0 else 0,
+        }
+
+
+# ===== PERFORMANCE BENCHMARK =====
+
+class PerformanceBenchmark:
+    """Performance benchmarking utilities"""
+    
+    def __init__(self, logger: CogniteFunctionLogger):
+        self.logger = logger
+        self.benchmarks: dict[str, list[float]] = {}
+    
+    def benchmark_function(self, name: str, func: Callable[..., object], *args: object, **kwargs: object) -> object:
+        """Benchmark a function call"""
+        start = time.time()
+        try:
+            result = func(*args, **kwargs)
+            duration = time.time() - start
+            
+            if name not in self.benchmarks:
+                self.benchmarks[name] = []
+            
+            self.benchmarks[name].append(duration)
+            self.logger.info(f"🚀 {name} took {duration:.2f}s")
+            
+            return result
+        except Exception as e:
+            duration = time.time() - start
+            self.logger.error(f"❌ {name} failed after {duration:.2f}s: {e}")
+            raise
+    
+    def log_summary(self):
+        """Log performance summary"""
+        if not self.benchmarks:
+            return
+        
+        self.logger.info("📊 Performance Summary:")
+        for name, times in self.benchmarks.items():
+            avg_time = sum(times) / len(times)
+            total_time = sum(times)
+            self.logger.info(f"  {name}: {len(times)} calls, avg {avg_time:.2f}s, total {total_time:.2f}s")
 
 
 def optimize_metadata_processing():

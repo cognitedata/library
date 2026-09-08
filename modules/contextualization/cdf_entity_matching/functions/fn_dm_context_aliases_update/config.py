@@ -19,6 +19,7 @@ class Parameters(BaseModel, alias_generator=to_camel):
     raw_db: str
     raw_table_state: str
     update_all: bool = False
+    remove_old_aliases: bool = False
 
 
 class ViewPropertyConfig(BaseModel, alias_generator=to_camel):

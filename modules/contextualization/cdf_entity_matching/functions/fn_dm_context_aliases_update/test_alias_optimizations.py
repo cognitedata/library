@@ -282,6 +282,39 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
             result.sources[0].properties["aliases"], ["operator note", "23_KA_9101"]
         )
 
+    def test_a_single_group_tag_pattern_still_normalizes_separators(self) -> None:
+        """One capture group for the whole tag must still yield underscores between tokens."""
+        single_group = r"([0-9]{2}[-_.:][A-Z]{2,4}[-_.:][0-9]{4,5})"
+        processor = OptimizedMetadataProcessor(
+            self.logger,
+            timeseries_alias_rule=AliasRule.from_config([single_group]),
+            asset_alias_rule=AliasRule.from_config([single_group]),
+            file_alias_rule=AliasRule.from_config([single_group]),
+        )
+        ts_node = MagicMock()
+        ts_node.external_id = "pi:160040"
+        ts_node.properties = {self.view_id: {"name": "VAL_23-KA-9101:X.Value", "aliases": []}}
+
+        asset_view = ViewId(space="cdf_cdm", external_id="CogniteAsset", version="v1")
+        asset_node = MagicMock()
+        asset_node.external_id = "23-KA-9101"
+        asset_node.properties = {asset_view: {"name": "23-KA-9101", "aliases": []}}
+
+        file_node = MagicMock()
+        file_node.external_id = "file:4020"
+        file_node.properties = {self.file_view_id: {"name": "23-KA-9101.pdf", "aliases": []}}
+
+        ts_result = processor.process_timeseries_metadata(ts_node, self.view_id, "inst_location")
+        asset_result = processor.process_asset_metadata(asset_node, asset_view, "inst_location")
+        file_result = processor.process_file_metadata(file_node, self.file_view_id, "inst_location")
+
+        self.assertEqual(ts_result.sources[0].properties["aliases"], ["23_KA_9101"])
+        self.assertEqual(asset_result.sources[0].properties["aliases"], ["23_KA_9101"])
+        self.assertEqual(
+            file_result.sources[0].properties["aliases"],
+            ["23-KA-9101", "23_KA_9101"],
+        )
+
     def test_configured_pattern_drives_timeseries_alias_generation(self) -> None:
         """A site whose tags do not follow the default shape configures its own pattern."""
         processor = OptimizedMetadataProcessor(
@@ -311,6 +344,150 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
         result = processor.process_timeseries_metadata(node, self.view_id, "inst_cfihos_oil_and_gas")
 
         self.assertEqual(result.sources[0].properties["aliases"], ["1234"])
+
+    def test_a_name_holding_no_tag_falls_back_to_the_name_as_its_alias(self) -> None:
+        """A name no pattern reads still has to be searchable, so it aliases itself."""
+        processor = OptimizedMetadataProcessor(
+            self.logger, timeseries_alias_rule=AliasRule.from_config([DEFAULT_ALIAS_PATTERN])
+        )
+        node = MagicMock()
+        node.external_id = "pi:160031"
+        node.properties = {self.view_id: {"name": "Reactor outlet temperature", "aliases": []}}
+
+        result = processor.process_timeseries_metadata(node, self.view_id, "inst_cfihos_oil_and_gas")
+
+        self.assertEqual(result.sources[0].properties["aliases"], ["Reactor outlet temperature"])
+
+    def test_an_asset_name_holding_no_tag_falls_back_to_the_name_as_its_alias(self) -> None:
+        """Assets fall back the same way timeseries do."""
+        processor = OptimizedMetadataProcessor(
+            self.logger, asset_alias_rule=AliasRule.from_config([DEFAULT_ALIAS_PATTERN])
+        )
+        asset_view = ViewId(space="cdf_cdm", external_id="CogniteAsset", version="v1")
+        node = MagicMock()
+        node.external_id = "pump-a"
+        node.properties = {asset_view: {"name": "Feed pump A", "aliases": []}}
+
+        result = processor.process_asset_metadata(node, asset_view, "inst_cfihos_oil_and_gas")
+
+        self.assertEqual(result.sources[0].properties["aliases"], ["Feed pump A"])
+
+    def _process_names_without_alias(self, processor: OptimizedMetadataProcessor, count: int) -> None:
+        """Run `count` timeseries whose names no configured pattern reads."""
+        for i in range(count):
+            node = MagicMock()
+            node.external_id = f"pi:{i}"
+            node.properties = {self.view_id: {"name": f"Reactor outlet {i}", "aliases": []}}
+            processor.process_timeseries_metadata(node, self.view_id, "inst_cfihos_oil_and_gas")
+
+    def test_the_missing_alias_warning_stops_after_ten_names(self) -> None:
+        """A naming convention no pattern covers must not bury the rest of the run log."""
+        processor = OptimizedMetadataProcessor(
+            self.logger, timeseries_alias_rule=AliasRule.from_config([PUMP_PATTERN])
+        )
+
+        with patch.object(self.logger, "warning") as warning:
+            self._process_names_without_alias(processor, 12)
+            self.assertEqual(warning.call_count, 10)
+
+            processor.log_missing_alias_summary()
+            self.assertIn("12", warning.call_args.args[0])
+
+    def test_no_summary_is_logged_when_no_warning_was_suppressed(self) -> None:
+        """With nothing held back, a total only repeats what the log already shows."""
+        processor = OptimizedMetadataProcessor(
+            self.logger, timeseries_alias_rule=AliasRule.from_config([PUMP_PATTERN])
+        )
+
+        with patch.object(self.logger, "warning") as warning:
+            self._process_names_without_alias(processor, 3)
+            processor.log_missing_alias_summary()
+
+        self.assertEqual(warning.call_count, 3)
+
+    def test_a_suppressed_warning_still_leaves_the_name_as_an_alias(self) -> None:
+        """Throttling the log must not change which aliases are written."""
+        processor = OptimizedMetadataProcessor(
+            self.logger, timeseries_alias_rule=AliasRule.from_config([PUMP_PATTERN])
+        )
+        self._process_names_without_alias(processor, 10)
+
+        node = MagicMock()
+        node.external_id = "pi:beyond-the-cap"
+        node.properties = {self.view_id: {"name": "Reactor outlet temperature", "aliases": []}}
+        result = processor.process_timeseries_metadata(node, self.view_id, "inst_cfihos_oil_and_gas")
+
+        self.assertEqual(result.sources[0].properties["aliases"], ["Reactor outlet temperature"])
+
+    def test_an_instance_that_already_has_an_alias_does_not_gain_its_name(self) -> None:
+        """The fallback is there to make an unsearchable instance searchable.
+
+        One that already carries an alias is searchable, so adding the name on top only
+        adds noise to the matcher.
+        """
+        processor = OptimizedMetadataProcessor(
+            self.logger, timeseries_alias_rule=AliasRule.from_config([DEFAULT_ALIAS_PATTERN])
+        )
+        node = MagicMock()
+        node.external_id = "pi:160033"
+        node.properties = {
+            self.view_id: {"name": "Reactor outlet temp", "aliases": ["spare for 23-AB-1234"]}
+        }
+
+        result = processor.process_timeseries_metadata(node, self.view_id, "inst_cfihos_oil_and_gas")
+
+        self.assertIsNone(result)
+
+    def test_a_renamed_instance_does_not_collect_a_second_name_alias(self) -> None:
+        """A name alias does not read back through the pattern, so updateAll keeps it.
+
+        The fallback therefore has to stay off an instance that already has one, or every
+        rename would leave the previous name behind next to the current one.
+        """
+        processor = OptimizedMetadataProcessor(
+            self.logger, timeseries_alias_rule=AliasRule.from_config([DEFAULT_ALIAS_PATTERN])
+        )
+        node = MagicMock()
+        node.external_id = "pi:160034"
+        node.properties = {
+            self.view_id: {"name": "Reactor outlet temperature", "aliases": ["Reactor outlet temp"]}
+        }
+
+        result = processor.process_timeseries_metadata(
+            node, self.view_id, "inst_cfihos_oil_and_gas", update_all=True
+        )
+
+        self.assertEqual(result.sources[0].properties["aliases"], ["Reactor outlet temp"])
+
+    def test_a_produced_alias_already_in_org_is_not_added_again(self) -> None:
+        """The generated tag must not be appended when aliases already hold it."""
+        processor = OptimizedMetadataProcessor(
+            self.logger, timeseries_alias_rule=AliasRule.from_config([DEFAULT_ALIAS_PATTERN])
+        )
+        node = MagicMock()
+        node.external_id = "pi:160035"
+        node.properties = {self.view_id: {"name": "VAL_23-KA-9101", "aliases": ["23_KA_9101"]}}
+
+        result = processor.process_timeseries_metadata(node, self.view_id, "inst_cfihos_oil_and_gas")
+
+        self.assertIsNone(result)
+
+    def test_a_name_that_yields_its_existing_alias_does_not_gain_the_name(self) -> None:
+        """The steady state: the pattern matched, and its alias is already stored.
+
+        Nothing was extracted *anew*, but the fallback must not read that as a failure
+        and append the whole name on every run.
+        """
+        processor = OptimizedMetadataProcessor(
+            self.logger, timeseries_alias_rule=AliasRule.from_config([DEFAULT_ALIAS_PATTERN])
+        )
+        node = MagicMock()
+        node.external_id = "pi:160032"
+        node.properties = {self.view_id: {"name": "VAL_23-KA-9101", "aliases": ["23_KA_9101"]}}
+
+        result = processor.process_timeseries_metadata(node, self.view_id, "inst_cfihos_oil_and_gas")
+
+        self.assertIsNone(result)
 
     def test_each_view_uses_its_own_pattern(self) -> None:
         """The asset pattern must not be applied to timeseries names, or the reverse."""
@@ -547,6 +724,42 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
         )
 
         print("✅ Timeseries updateAll unmanaged alias test passed")
+
+    def test_remove_old_aliases_drops_hand_curated_aliases(self) -> None:
+        """removeOldAliases replaces the whole list, unlike updateAll."""
+        node = MagicMock()
+        node.external_id = "pi:160006"
+        node.properties = {
+            self.view_id: {
+                "name": "VAL_23-KA-9101:X.Value",
+                "aliases": ["operator note", "spare for 23-AB-1234", "23_KA_9101"],
+            }
+        }
+
+        result = self.processor.process_timeseries_metadata(
+            node,
+            self.view_id,
+            "inst_cfihos_oil_and_gas",
+            remove_old_aliases=True,
+        )
+
+        self.assertIsNotNone(result)
+        self.assertEqual(result.sources[0].properties["aliases"], ["23_KA_9101"])
+
+    def test_remove_old_aliases_skips_update_when_output_already_matches(self) -> None:
+        """No write when the produced aliases already equal what is stored."""
+        node = MagicMock()
+        node.external_id = "pi:160007"
+        node.properties = {self.view_id: {"name": "VAL_23-KA-9101:X.Value", "aliases": ["23_KA_9101"]}}
+
+        result = self.processor.process_timeseries_metadata(
+            node,
+            self.view_id,
+            "inst_cfihos_oil_and_gas",
+            remove_old_aliases=True,
+        )
+
+        self.assertIsNone(result)
 
     def test_timeseries_update_all_applies_even_when_aliases_already_correct(self) -> None:
         """Test updateAll writes managed metadata even when values already match"""
@@ -921,7 +1134,7 @@ class TestIntegrationScenarios(unittest.TestCase):
             aliases = processor._get_timeseries_alias_list_optimized(
                 f"test-item-{i % 10}", ("existing",)  # Reuse names to test caching
             )
-            self.assertIsInstance(aliases, list)
+            self.assertIsInstance(aliases, tuple)
 
         end_time = time.time()
         processing_time = end_time - start_time

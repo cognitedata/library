@@ -35,7 +35,13 @@ class TestPipelineHelpers(unittest.TestCase):
             version="v1",
         )
 
-    def _config(self, run_all: bool, update_all: bool, file_alias_pattern: str | None = None) -> Config:
+    def _config(
+        self,
+        run_all: bool,
+        update_all: bool,
+        file_alias_pattern: str | None = None,
+        remove_old_aliases: bool = False,
+    ) -> Config:
         view = ViewPropertyConfig(
             schemaSpace="cdf_cdm",
             instanceSpace="inst_cfihos_oil_and_gas",
@@ -58,6 +64,7 @@ class TestPipelineHelpers(unittest.TestCase):
                 debug=False,
                 runAll=run_all,
                 updateAll=update_all,
+                removeOldAliases=remove_old_aliases,
                 rawDb="db",
                 rawTableState="state",
             ),
@@ -238,9 +245,17 @@ class TestPipelineHelpers(unittest.TestCase):
         config = self._config(run_all=False, update_all=True)
         self.assertTrue(effective_run_all(config))
 
+    def test_effective_run_all_when_remove_old_aliases_enabled(self) -> None:
+        config = self._config(run_all=False, update_all=False, remove_old_aliases=True)
+        self.assertTrue(effective_run_all(config))
+
     def test_describe_processing_mode_update_all(self) -> None:
         config = self._config(run_all=False, update_all=True)
         self.assertIn("updateAll", describe_processing_mode(config))
+
+    def test_describe_processing_mode_remove_old_aliases(self) -> None:
+        config = self._config(run_all=False, update_all=False, remove_old_aliases=True)
+        self.assertIn("removeOldAliases", describe_processing_mode(config))
 
     def test_describe_processing_mode_incremental(self) -> None:
         config = self._config(run_all=False, update_all=False)

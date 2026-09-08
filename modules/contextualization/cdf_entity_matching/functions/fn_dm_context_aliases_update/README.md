@@ -58,6 +58,7 @@ parameters:
   debug: false
   run_all: false
   update_all: false
+  remove_old_aliases: false
   batch_size: 1000
   raw_db: "contextualization_state"
   raw_table_state: "state_store"
@@ -95,10 +96,11 @@ data:
 | `debug` | Write DEBUG log messages; it does not narrow which instances are processed |
 | `runAll` | Fetch all instances (not only those missing `aliases`) |
 | `updateAll` | Reset managed metadata and reprocess every fetched instance (implies `runAll`) |
+| `removeOldAliases` | Discard every existing alias and write only what this run produces (implies `runAll`) |
 
-Every view is fetched on the presence of `aliases` alone, so `runAll` and `updateAll` are
-the only settings that change what gets processed. Time series have no separate
-single-instance filter.
+Every view is fetched on the presence of `aliases` alone, so `runAll`, `updateAll` and
+`removeOldAliases` are the settings that change what gets processed. Time series have no
+separate single-instance filter.
 
 `instanceSpace` on each view takes either a single space or a list of spaces. Instances
 are read from every listed space and updated in the space they were read from.
@@ -112,9 +114,31 @@ before file support existed keeps working untouched.
 Each view configures its own, so timeseries, assets and files can follow different naming
 conventions. The alias written back is the pattern's **capture groups joined by `_`** —
 the groups decide the alias, not the whole match — so with the default pattern
-`VAL_23-KA-9101:X.Value` yields `23_KA_9101`. A name the pattern does not match gets no
-generated alias. Every pattern defaults to the shape above, so a configuration written
+`VAL_23-KA-9101:X.Value` yields `23_KA_9101`. When a pattern uses one capture group for
+the whole tag, separators inside that group (`-`, `.`, `:`) are still rewritten to `_`
+for equipment tags starting with a two-digit area code. Document numbers and pump codes
+are left unchanged. Every pattern defaults to the shape above, so a configuration written
 before this setting existed keeps behaving the same.
+
+When no pattern extracts anything from a name, and the instance **holds no alias at all**,
+the `name` itself becomes the alias so the instance stays searchable. The run logs `No
+alias extracted based on input regular expression - defaulting to content of name property`
+followed by the name. Only the first ten such names are logged individually; after that
+they are counted, and the run ends with a single warning giving the total. A pattern that
+matches none of your names therefore fills `aliases` with full names, so a large total
+means the pattern is wrong rather than the data.
+
+The fallback stays off an instance that already carries an alias, hand-curated or
+generated. That is what keeps it from piling up: a name alias does not read back through
+the pattern, so `updateAll` treats it as hand-curated and keeps it, and without this
+condition every rename would add the new name beside the old one. The flip side is that an
+instance which picked up a name alias and was later renamed keeps the **old** name as its
+alias — correct that by editing or clearing `aliases` on that instance. Files are
+unaffected either way: they already fall back to the file name without its extension.
+
+An invalid regular expression, or one with no capture group, is a configuration error
+rather than a missing alias. It fails the run at config load with a message naming the
+offending pattern, and nothing is written.
 
 A view can list **several patterns** when its names follow more than one convention.
 Each pattern that matches contributes one alias, and the view's own `aliasSelection`
@@ -204,6 +228,11 @@ For a full metadata refresh, set `updateAll: true` in the extraction pipeline co
 "Reset" covers only the values this function generates — aliases matching the view's
 `aliasPattern`. Hand-curated aliases are preserved, including aliases that merely mention
 a tag (for example `spare for 23-AB-1234`).
+
+To replace the entire `aliases` list — generated and hand-curated alike — set
+`removeOldAliases: true`. The function then writes only the aliases it produces on this
+run, similar to `removeOldLinks` on the entity matching function. Like `updateAll`, it
+implies `runAll` so instances that already carry aliases are fetched and rewritten.
 
 ## 🏃‍♂️ How to Run
 

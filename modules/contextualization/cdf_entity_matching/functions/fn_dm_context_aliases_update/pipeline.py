@@ -48,7 +48,11 @@ sys.path.append(str(Path(__file__).parent))
 
 def effective_run_all(config: Config) -> bool:
     """Return whether to fetch all instances (not only those missing aliases)."""
-    return config.parameters.run_all or config.parameters.update_all
+    return (
+        config.parameters.run_all
+        or config.parameters.update_all
+        or config.parameters.remove_old_aliases
+    )
 
 
 def alias_rule(view: ViewPropertyConfig | None) -> AliasRule:
@@ -70,6 +74,8 @@ def describe_processing_mode(config: Config) -> str:
     """Human-readable description of the configured fetch/update mode."""
     if config.parameters.update_all:
         return "updateAll — all instances, managed metadata reset before recompute"
+    if config.parameters.remove_old_aliases:
+        return "removeOldAliases — all instances, existing aliases cleared before recompute"
     if config.parameters.run_all:
         return "runAll — all instances, merge with existing metadata"
     return "incremental — instances without aliases only"
@@ -99,6 +105,11 @@ def metadata_update(
             logger.warning(
                 "updateAll enabled — fetching all instances and resetting "
                 "managed metadata properties before reprocessing"
+            )
+        elif config.parameters.remove_old_aliases:
+            logger.warning(
+                "removeOldAliases enabled — fetching all instances and replacing "
+                "every alias with freshly produced values"
             )
 
         # Monitor initial memory usage
@@ -193,6 +204,8 @@ def metadata_update(
             f"{processor_stats['updated']} updated, "
             f"{processor_stats['update_rate']:.2%} update rate"
         )
+        # Counted across all three passes, so this has to wait until they are all done.
+        metadata_processor.log_missing_alias_summary()
         
         # Final cleanup and monitoring
         cleanup_memory()
@@ -244,6 +257,7 @@ def _process_timeseries_optimized(
                 ts_view_id,
                 node.space,
                 update_all=config.parameters.update_all,
+                remove_old_aliases=config.parameters.remove_old_aliases,
             )
             if update:
                 updates.append(update)
@@ -308,6 +322,7 @@ def _process_assets_optimized(
                 asset_view_id,
                 node.space,
                 update_all=config.parameters.update_all,
+                remove_old_aliases=config.parameters.remove_old_aliases,
             )
             if update:
                 updates.append(update)
@@ -377,6 +392,7 @@ def _process_files_optimized(
                 file_view_id,
                 node.space,
                 update_all=config.parameters.update_all,
+                remove_old_aliases=config.parameters.remove_old_aliases,
             )
             if update:
                 updates.append(update)

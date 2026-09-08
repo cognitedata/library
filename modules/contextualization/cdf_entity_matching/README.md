@@ -230,6 +230,11 @@ different naming conventions. The alias it writes back is a pattern's capture gr
 joined by `_`, so the default turns `VAL_23-KA-9101:X.Value` into the alias `23_KA_9101` —
 which is what makes entity matching on `aliases` work across differently formatted names.
 
+A name no pattern reads falls back to being its own alias, but only for an instance that
+holds no alias at all, so nothing piles up on re-runs. It is logged as `No alias extracted
+based on input regular expression - defaulting to content of name property`, and a run full
+of those warnings points at the pattern, not the data.
+
 List several patterns for a view whose names follow more than one convention. That view's
 `AliasSelection` then decides what to keep when more than one matches: `all` (the
 default) writes one alias per matching pattern, `longest` writes only the longest one.
@@ -257,8 +262,8 @@ dashes as underscores.
 Write character classes rather than backslash escapes — `[0-9]`, not `\d` — because
 Toolkit substitutes variables as a regex replacement and a backslash escape fails the
 build. Keep `_` among the separators the pattern accepts, so the function still
-recognises the aliases it generated on earlier runs. Both rules and the `updateAll`
-interaction are covered in the
+recognises the aliases it generated on earlier runs. Both rules and the `updateAll` /
+`removeOldAliases` interaction are covered in the
 [metadata update README](functions/fn_dm_context_aliases_update/README.md#alias-pattern).
 
 Instances are read from every listed space, and both the entity matching and metadata
