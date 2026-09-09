@@ -735,6 +735,39 @@ class TestModuleDataset:
         assert pf["dataset"] == ["ds_custom_ingestion", "ds_oil_and_gas_domain_model"]
 
 
+class TestSourceSystemSendNotification:
+    """sendNotification must default to false and only flip to true once an email is
+    actually configured — otherwise the pipeline silently fails trying to notify a
+    blank address (contacts default.config.yaml still has integration_owner_email:
+    "" until the wizard runs)."""
+
+    def test_send_notification_false_when_no_owners_passed(self) -> None:
+        from setup_project import resolve_sourcesystem_variables
+        result = resolve_sourcesystem_variables(["cdf_pi_extractor"], "dev", "oslo")
+        assert "integration_owner_send_notification" not in result["cdf_pi_extractor"]
+        assert "data_owner_send_notification" not in result["cdf_pi_extractor"]
+
+    def test_send_notification_false_when_owner_has_no_email(self) -> None:
+        from setup_project import resolve_sourcesystem_variables
+        result = resolve_sourcesystem_variables(
+            ["cdf_pi_extractor"], "dev", "oslo",
+            integration_owners={"cdf_pi_extractor": ("Jane Doe", "")},
+            data_owners={"cdf_pi_extractor": ("", "")},
+        )
+        assert result["cdf_pi_extractor"]["integration_owner_send_notification"] == "false"
+        assert result["cdf_pi_extractor"]["data_owner_send_notification"] == "false"
+
+    def test_send_notification_true_when_email_configured(self) -> None:
+        from setup_project import resolve_sourcesystem_variables
+        result = resolve_sourcesystem_variables(
+            ["cdf_pi_extractor"], "dev", "oslo",
+            integration_owners={"cdf_pi_extractor": ("Jane Doe", "jane@example.com")},
+            data_owners={"cdf_pi_extractor": ("John Doe", "john@example.com")},
+        )
+        assert result["cdf_pi_extractor"]["integration_owner_send_notification"] == "true"
+        assert result["cdf_pi_extractor"]["data_owner_send_notification"] == "true"
+
+
 class TestExtractorDataSetResources:
     """The DataSet resource must resolve from {{dataset}} — the same variable the
     extraction pipeline and the producer group already scope themselves to. A

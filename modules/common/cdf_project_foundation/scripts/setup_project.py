@@ -392,12 +392,14 @@ def resolve_sourcesystem_variables(
                 vars_["integration_owner_name"] = name
             if email:
                 vars_["integration_owner_email"] = email
+            vars_["integration_owner_send_notification"] = "true" if email else "false"
         if data_owners and module in data_owners:
             name, email = data_owners[module]
             if name:
                 vars_["data_owner_name"] = name
             if email:
                 vars_["data_owner_email"] = email
+            vars_["data_owner_send_notification"] = "true" if email else "false"
         if extractor_group_source_ids and module in extractor_group_source_ids:
             env_var = extractor_group_source_ids[module]
             vars_["extractor_group_source_id"] = f"${{{env_var}}}"
