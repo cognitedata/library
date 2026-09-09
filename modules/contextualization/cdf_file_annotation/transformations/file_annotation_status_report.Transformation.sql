@@ -121,7 +121,7 @@ file_keys AS (
 )
 
 SELECT
-    concat(fileKeys.fileSpace, ':', fileKeys.fileExternalId) AS externalId
+    concat(fileKeys.fileSpace, ':', fileKeys.fileExternalId) AS key
   , fileKeys.fileExternalId
   , fileKeys.fileSpace
   , coalesce(matched_rows.fileSourceId, unmatched_rows.fileSourceId) AS fileSourceId
