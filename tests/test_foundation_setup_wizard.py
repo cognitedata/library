@@ -568,8 +568,9 @@ class TestBuildOverlay:
         mods = overlay["variables"]["modules"]
         em = mods["cdf_entity_matching"]
         assert em["schemaSpace"] == "cdf_cdm"
-        assert em["AssetViewExternalId"] == "CogniteAsset"
-        assert em["TimeSeriesViewExternalId"] == "CogniteTimeSeries"
+        assert em["assetViewExternalId"] == "CogniteAsset"
+        assert em["timeseriesViewExternalId"] == "CogniteTimeSeries"
+        assert em["fileViewExternalId"] == "CogniteFile"
         assert em["assetInstanceSpace"] == "sp_oslo_instances"
         fa = mods["cdf_file_annotation"]
         assert fa["fileSchemaSpace"] == "cdf_cdm"
