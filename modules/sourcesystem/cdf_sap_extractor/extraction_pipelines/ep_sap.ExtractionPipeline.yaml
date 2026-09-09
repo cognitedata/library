@@ -23,7 +23,7 @@ contacts:
   - name: {{integration_owner_name}}
     email: {{integration_owner_email}}
     role: Owner
-    sendNotification: true
+    sendNotification: {{integration_owner_send_notification}}
   - name: Cognite Support
     email: support@cognite.com
     role: Operational Owner
@@ -31,7 +31,7 @@ contacts:
   - name: {{data_owner_name}}
     email: {{data_owner_email}}
     role: Data Owner
-    sendNotification: true
+    sendNotification: {{data_owner_send_notification}}
 notificationConfig:
   # Longest endpoint cadence is weekly (Funcloc/Equipment masters) — 8 days + buffer
   allowedNotSeenRangeInMinutes: 12960
