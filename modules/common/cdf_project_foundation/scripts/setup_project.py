@@ -1240,6 +1240,13 @@ def _prompt_owner(
         _warn("Invalid email. Use format: name@domain.com")
 
 
+def _warn_if_no_email(label: str, email: str) -> None:
+    """Blank email means sendNotification is written as false for this contact —
+    surface that now, not as a silent gap discovered during an incident."""
+    if not email:
+        _warn(f"No email set for {label} — pipeline notifications will be disabled (sendNotification: false).")
+
+
 def _all_same(owners: dict[str, tuple[str, str]]) -> bool:
     """Return True if all modules share the same owner (name, email) pair."""
     vals = list(owners.values())
@@ -1272,13 +1279,16 @@ def _prompt_source_system_ownership(
     if prompt_yes_no("Same integration owner for all source systems?", default=shared_int_default):
         first = next(iter(ei.values()), ("", "")) if ei else ("", "")
         name, email = _prompt_owner("  Integration owner", *first)
+        _warn_if_no_email("integration owner", email)
         for m in installed_ss:
             integration_owners[m] = (name, email)
     else:
         for m in installed_ss:
             print(f"\n  {_module_label(m)}")
             dn, de = ei.get(m, ("", ""))
-            integration_owners[m] = _prompt_owner("    Integration owner", dn, de)
+            name, email = _prompt_owner("    Integration owner", dn, de)
+            _warn_if_no_email(f"integration owner ({_module_label(m)})", email)
+            integration_owners[m] = (name, email)
 
     # ── Data owner ────────────────────────────────────────────────────────────
     print()
@@ -1287,13 +1297,16 @@ def _prompt_source_system_ownership(
     if prompt_yes_no("Same data owner for all source systems?", default=shared_data_default):
         first = next(iter(ed.values()), ("", "")) if ed else ("", "")
         name, email = _prompt_owner("  Data owner", *first)
+        _warn_if_no_email("data owner", email)
         for m in installed_ss:
             data_owners[m] = (name, email)
     else:
         for m in installed_ss:
             print(f"\n  {_module_label(m)}")
             dn, de = ed.get(m, ("", ""))
-            data_owners[m] = _prompt_owner("    Data owner", dn, de)
+            name, email = _prompt_owner("    Data owner", dn, de)
+            _warn_if_no_email(f"data owner ({_module_label(m)})", email)
+            data_owners[m] = (name, email)
 
     return integration_owners, data_owners
 
@@ -1952,6 +1965,38 @@ def _read_check_context(pack_root: Path) -> tuple[str, list[str]]:
     return "", []
 
 
+def _warn_disabled_notifications(repo_root: Path | None, pack_root: Path) -> None:
+    """Non-fatal heads-up: any installed extractor with no owner email configured has
+    sendNotification disabled for that contact. Surfaced in --check, not just the
+    interactive wizard, so a silently-disabled alert doesn't only surface at build time."""
+    installed_ss = list_installed_source_system_modules(repo_root)
+    if not installed_ss:
+        return
+
+    config: dict | None = None
+    for env in ENVIRONMENTS:
+        path = pack_root / f"config.{env}.yaml"
+        if path.exists():
+            config = load_yaml(path)
+            break
+    if config is None:
+        return
+
+    disabled: list[str] = []
+    for module in installed_ss:
+        label = _module_label(module)
+        if not get_actual_value(config, f"{module}.integration_owner_email"):
+            disabled.append(f"{label}: integration owner")
+        if not get_actual_value(config, f"{module}.data_owner_email"):
+            disabled.append(f"{label}: data owner")
+
+    if disabled:
+        print("WARNING: sendNotification disabled (no email configured) for:")
+        for entry in disabled:
+            print(f"  - {entry}")
+        print("  These contacts will not be notified on pipeline failure. Run: python scripts/setup_project.py -y\n")
+
+
 def _run_check(
     args_variant: str | None,
     repo_root: Path | None = None,
@@ -2026,6 +2071,7 @@ def _run_check(
             print(f"  {p.relative_to(get_pack_root(repo_root))}")
         print("\n  Run: python scripts/setup_project.py -y")
         sys.exit(1)
+    _warn_disabled_notifications(repo_root, pack_root)
     print(f"OK: All config file(s) match variant '{variant}'. No stale auth files.")
 
 

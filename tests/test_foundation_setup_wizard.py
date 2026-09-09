@@ -2248,6 +2248,64 @@ class TestResolvePackKindForCheck:
         assert resolve_pack_kind_for_check("isa_manufacturing_extension", sourcesystem_dir) == "foundation"
 
 
+class TestWarnIfNoEmail:
+    """Blank email silently disables sendNotification for that contact — the wizard
+    must say so on the spot, not leave the user to discover it during an incident."""
+
+    def test_warns_when_email_blank(self, capsys: pytest.CaptureFixture[str]) -> None:
+        from setup_project import _warn_if_no_email
+        _warn_if_no_email("integration owner", "")
+        assert "No email set for integration owner" in capsys.readouterr().out
+
+    def test_silent_when_email_present(self, capsys: pytest.CaptureFixture[str]) -> None:
+        from setup_project import _warn_if_no_email
+        _warn_if_no_email("integration owner", "jane@example.com")
+        assert capsys.readouterr().out == ""
+
+
+class TestWarnDisabledNotifications:
+    """--check must surface the same disabled-notification gap as the interactive
+    wizard, since a CI run with no email configured never sees the wizard's prompt."""
+
+    def test_warns_for_missing_owner_emails(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        from setup_project import _warn_disabled_notifications
+        (tmp_path / "modules" / "sourcesystem" / "cdf_pi_extractor").mkdir(parents=True)
+        (tmp_path / "config.dev.yaml").write_text(yaml.dump({
+            "variables": {"modules": {"sourcesystem": {"cdf_pi_extractor": {}}}},
+        }, sort_keys=False))
+
+        _warn_disabled_notifications(tmp_path, tmp_path)
+
+        out = capsys.readouterr().out
+        assert "PI Extractor: integration owner" in out
+        assert "PI Extractor: data owner" in out
+
+    def test_silent_when_owner_emails_configured(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        from setup_project import _warn_disabled_notifications
+        (tmp_path / "modules" / "sourcesystem" / "cdf_pi_extractor").mkdir(parents=True)
+        (tmp_path / "config.dev.yaml").write_text(yaml.dump({
+            "variables": {"modules": {"sourcesystem": {"cdf_pi_extractor": {
+                "integration_owner_email": "jane@example.com",
+                "data_owner_email": "john@example.com",
+            }}}},
+        }, sort_keys=False))
+
+        _warn_disabled_notifications(tmp_path, tmp_path)
+
+        assert "WARNING" not in capsys.readouterr().out
+
+    def test_silent_when_no_source_system_modules_installed(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        from setup_project import _warn_disabled_notifications
+        _warn_disabled_notifications(tmp_path, tmp_path)
+        assert capsys.readouterr().out == ""
+
+
 class TestWizardHeaderTitle:
 
     def test_foundation_banner(self, tmp_path: Path, capsys: pytest.CaptureFixture) -> None:
