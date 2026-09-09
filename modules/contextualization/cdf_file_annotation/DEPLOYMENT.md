@@ -13,7 +13,25 @@ Before deploying this module, ensure you have the following:
 
 ### Data Preparation Requirements
 
-Alias and tag generation is abstracted out of the annotation function. You'll need to create a transformation that populates the `aliases` and `tags` properties of your file and target entity views:
+Alias and tag generation is abstracted out of the annotation function. You'll need to populate the `aliases` and `tags` properties on your file and target entity views before running the workflow.
+
+The module ships helper transformations under `transformations/` that merge tags without overwriting existing values (using `array_union`):
+
+| Transformation | Tag added | View |
+|---|---|---|
+| `tr_tag_assets_detect_in_diagrams` | `DetectInDiagrams` | Target entity view (`targetEntityExternalId`) |
+| `tr_tag_files_detect_in_diagrams` | `DetectInDiagrams` | File view (`fileExternalId`) |
+| `tr_tag_files_to_annotate` | `ToAnnotate` | File view (`fileExternalId`) |
+
+Configure `targetEntityInstanceSpace`, `fileInstanceSpace`, schema spaces, view versions, and `cdmDataModelExternalId` in `default.config.yaml`, then run:
+
+```bash
+cdf transformations run tr_tag_assets_detect_in_diagrams
+cdf transformations run tr_tag_files_detect_in_diagrams
+cdf transformations run tr_tag_files_to_annotate
+```
+
+You still need a separate transformation (or upstream pipeline) to populate `aliases`.
 
 #### Aliases Property
 

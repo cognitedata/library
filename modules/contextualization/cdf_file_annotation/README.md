@@ -67,7 +67,11 @@ cdf_file_annotation/
 │   ├── 📄 wf_file_annotation.WorkflowVersion.yaml # Workflow version config
 │   └── 📄 wf_file_annotation.WorkflowTrigger.yaml # Workflow triggers
 ├── 📁 transformations/                     # SQL transformations
-│   └── 📄 file_to_asset.Transformation.{yaml,sql} # Populate Files.assets from annotations
+│   ├── 📄 tag_assets_detect_in_diagrams.Transformation.{yaml,sql}   # Helper: merge DetectInDiagrams on assets
+│   ├── 📄 tag_files_detect_in_diagrams.Transformation.{yaml,sql}    # Helper: merge DetectInDiagrams on files
+│   ├── 📄 tag_files_to_annotate.Transformation.{yaml,sql}         # Helper: merge ToAnnotate on files
+│   ├── 📄 file_to_asset.Transformation.{yaml,sql}                 # Populate Files.assets from annotations
+│   └── 📄 file_annotation_status_report.Transformation.{yaml,sql}   # Per-file matched/unmatched tag report
 ├── 📁 data_modeling/                       # Data model definitions
 │   ├── 📁 containers/                             # Container definitions
 │   ├── 📁 views/                                  # View definitions
@@ -79,6 +83,7 @@ cdf_file_annotation/
 │   ├── 📄 rawTableDocPattern.Table.yaml           # Pattern detection results
 │   ├── 📄 rawTableCache.Table.yaml                # Entity cache
 │   ├── 📄 rawTablePromoteCache.Table.yaml         # Promote cache
+│   ├── 📄 rawTableAnnotationStatusReport.Table.yaml  # Per-file status report output
 │   └── 📄 rawManualPatternsCatalog.Table.yaml     # Manual pattern overrides
 ├── 📁 extraction_pipelines/                # Pipeline configurations
 │   ├── 📄 ep_file_annotation.ExtractionPipeline.yaml
@@ -149,6 +154,8 @@ flowchart TD
 **Key Features**:
 - 📦 **Scope-Based Batching**: Groups files by site/unit for efficient processing
 - 🧠 **Intelligent Caching**: Checks RAW cache before querying data model
+- 🎯 **Entity Selection**: Loads assets and files tagged `DetectInDiagrams` within scope (plus `ScopeWideDetect` across secondary scope)
+- 🔤 **Alias-Driven Matching**: Sends entity `aliases` to Diagram Detect as search candidates (falls back to `name` when aliases are absent)
 - 🎯 **Pattern Generation**: Auto-generates regex patterns from entity aliases
 - 📋 **Manual Override Support**: Merges manual patterns from RAW catalog
 - 🔄 **Dual Job Submission**: Launches standard + pattern mode jobs
@@ -261,8 +268,8 @@ flowchart TD
 **Purpose**: Automatically resolve pattern-mode annotations by finding matching entities
 
 **Key Features**:
-- 🔍 **Text Variation Generation**: Handles case, special characters, leading zeros
-- 🧠 **Multi-Tier Caching**: In-memory → RAW → Entity search strategy
+- 🔍 **Text Variation Generation**: `textNormalization` config generates variations of detected diagram text for alias lookup
+- 🧠 **Multi-Tier Caching**: In-memory → RAW → Entity search strategy (queries **`aliases`** via server-side IN filter)
 - ✅ **Automatic Resolution**: Single match → Approved, No match → Rejected, Multiple → Manual review
 - 🏷️ **Tagging**: Adds `PromotedAuto`, `PromoteAttempted`, `AmbiguousMatch` tags
 - 📈 **Self-Improving**: Cache grows over time with successful mappings
@@ -327,6 +334,88 @@ flowchart TD
 
 </details>
 
+## 📋 Data Preparation
+
+Annotation does not populate `aliases` or pipeline tags for you. Before running the workflow, instances need the correct **tags** (pipeline membership) and **aliases** (text matched on diagrams).
+
+### Tags vs aliases
+
+| Property | Purpose | Examples |
+|---|---|---|
+| **`tags`** | Controls which instances the pipeline includes | `ToAnnotate`, `DetectInDiagrams`, `Annotated` |
+| **`aliases`** | Strings Diagram Detect and promote search for on drawings | `23_KA_9101`, `23-KA-9101`, `VAL_23-KA-9101` |
+
+**`tags` are not matched against diagram text.** They gate pipeline behaviour only:
+
+| Tag | Applied to | Effect |
+|---|---|---|
+| `ToAnnotate` | Files | Prepare picks up the file for annotation |
+| `DetectInDiagrams` | Assets and files | Launch includes the instance in the entity cache for diagram detect |
+| `ScopeWideDetect` | Assets and files | Included across secondary scope (primary scope only) |
+
+**`aliases`** are what launch and promote match against. Configure `targetEntitiesSearchProperty` / `fileSearchProperty` in the extraction pipeline (default: `aliases`).
+
+### Helper tagging transformations
+
+The module ships transformations under `transformations/` that **merge** tags without overwriting existing values (`array_union`):
+
+| Transformation | Tag added | View |
+|---|---|---|
+| `tr_tag_assets_detect_in_diagrams` | `DetectInDiagrams` | Target entity view (`targetEntityExternalId`) |
+| `tr_tag_files_detect_in_diagrams` | `DetectInDiagrams` | File view (`fileExternalId`) |
+| `tr_tag_files_to_annotate` | `ToAnnotate` | File view (`fileExternalId`) |
+
+Each reads from `cdf_data_models(schemaSpace, dataModelId, version, viewId)` filtered by the configured instance space, and upserts only the `tags` property (`ignoreNullFields: true`).
+
+```bash
+cdf transformations run tr_tag_assets_detect_in_diagrams
+cdf transformations run tr_tag_files_detect_in_diagrams
+cdf transformations run tr_tag_files_to_annotate
+```
+
+Configure `cdmDataModelExternalId`, view spaces/versions, and instance spaces in `default.config.yaml`. You still need a separate pipeline (for example entity matching / alias update) to populate **`aliases`**.
+
+## 📊 Reporting & RAW Tables
+
+Finalize and promote write annotation results to RAW. Use these tables for auditing — not the helper `FileAnnotationState` view, which tracks job status per file rather than individual tag strings.
+
+| RAW table | Contents |
+|---|---|
+| `annotation_documents_tags` | **Matched assets only** — regular diagram detect links (typically `status = Approved`) |
+| `annotation_documents_docs` | File-to-file cross-references |
+| `annotation_documents_patterns` | Pattern-mode detections and promote outcomes (`Suggested`, `Approved`, `Rejected`) |
+| `annotation_file_status_report` | **Per-file summary** produced by the reporting transformation (see below) |
+
+### Finding matched vs unmatched tags
+
+| What you need | Where to look |
+|---|---|
+| Tags linked to assets (regular detect) | `annotation_documents_tags` |
+| Tags found on a diagram but not in the asset hierarchy | `annotation_documents_patterns` where `status = 'Rejected'` (or `Suggested` before/at failed promote) |
+| Per-file lists of matched and unmatched tag text | Run `tr_file_annotation_status_report` → `annotation_file_status_report` |
+| Text that never matched any entity or regex pattern | **Not stored** — dropped in finalize when diagram detect returns no entities |
+
+Pattern rows with `status = 'Rejected'` and tag `PromoteAttempted` are retained in RAW even when promote deletes the corresponding DMS edges (default `deleteRejectedEdges: true`).
+
+The **Annotation Quality** Streamlit dashboard reads the same RAW tables and maps `Rejected` → "No Match".
+
+### Status report transformation
+
+`tr_file_annotation_status_report` aggregates `annotation_documents_tags` and `annotation_documents_patterns` **per file** for a configured instance space (`fileInstanceSpace`):
+
+| Output column | Description |
+|---|---|
+| `matchedTagsAndAssets` | Semicolon-separated `tagText -> assetExternalId` pairs (`status = Approved`) |
+| `unmatchedTags` | Semicolon-separated tag text from pattern rows (`Rejected` or `Suggested`) |
+| `matchedCount` / `unmatchedCount` | Distinct tag counts |
+
+```bash
+cdf transformations run tr_file_annotation_status_report
+cdf raw rows list db_file_annotation annotation_file_status_report --limit 20
+```
+
+Run after finalize and promote so pattern rows have final status values.
+
 ## 🔧 Configuration
 
 ### Module Configuration (`default.config.yaml`)
@@ -350,12 +439,13 @@ fileVersion: <insert>
 
 # RAW Tables
 rawDb: db_file_annotation
-rawTableDocTag: annotation_documents_tags       # Doc-to-tag results
+rawTableDocTag: annotation_documents_tags       # Doc-to-tag results (matched assets)
 rawTableDocDoc: annotation_documents_docs       # Doc-to-doc results
 rawTableDocPattern: annotation_documents_patterns
 rawTableCache: annotation_entities_cache
 rawManualPatternsCatalog: manual_patterns_catalog
 rawTablePromoteCache: annotation_tags_cache
+rawTableAnnotationStatusReport: annotation_file_status_report
 
 # Extraction Pipeline
 extractionPipelineExternalId: ep_file_annotation
@@ -365,6 +455,14 @@ targetEntitySchemaSpace: <insert>
 targetEntityInstanceSpace: <insert>
 targetEntityExternalId: <insert>
 targetEntityVersion: <insert>
+cdmDataModelExternalId: CogniteCore             # Data model ID for helper tagging SQL
+
+# Transformations
+fileToAssetTransformationExternalId: tr_file_to_asset_from_annotations
+fileAnnotationStatusReportTransformationExternalId: tr_file_annotation_status_report
+tagAssetsDetectInDiagramsTransformationExternalId: tr_tag_assets_detect_in_diagrams
+tagFilesDetectInDiagramsTransformationExternalId: tr_tag_files_detect_in_diagrams
+tagFilesToAnnotateTransformationExternalId: tr_tag_files_to_annotate
 
 # Authentication
 functionClientId: ${IDP_CLIENT_ID}
@@ -428,12 +526,15 @@ finalizeFunction:
 # Promote Function
 promoteFunction:
   getCandidatesQuery: ...      # Query for edges to promote
+  deleteRejectedEdges: true    # Remove DMS edges after failed promote (RAW rows kept)
+  deleteSuggestedEdges: true
   entitySearchService:
-    normalizeCase: true        # Handle case variations
-    normalizeSpecialChars: true
-    normalizeLeadingZeros: true
+    textNormalization:           # Applies to detected text when querying asset aliases
+      removeSpecialCharacters: true
+      convertToLowercase: false
+      stripLeadingZeros: true
   cacheService:
-    rawDb: ...                 # Persistent cache location
+    rawDb: ...                 # Persistent cache location (positive matches only)
     rawTable: ...
 ```
 
@@ -458,10 +559,23 @@ DEBUG_MODE=false
 
 - CDF project with appropriate permissions
 - Data models deployed with file and entity views
-- Files tagged for annotation (e.g., "ToAnnotate")
+- **`aliases`** populated on assets and files (from your own transformation or entity matching)
+- Pipeline tags applied — use the helper transformations or equivalent (`ToAnnotate` on files, `DetectInDiagrams` on assets and files)
 - Authentication credentials configured
 
-### 2. Configure the Module
+### 2. Tag and Alias Instances
+
+Run the helper tagging transformations (after `cdf deploy`), then populate aliases separately:
+
+```bash
+cdf transformations run tr_tag_assets_detect_in_diagrams
+cdf transformations run tr_tag_files_detect_in_diagrams
+cdf transformations run tr_tag_files_to_annotate
+```
+
+Set `fileInstanceSpace`, `targetEntityInstanceSpace`, and `cdmDataModelExternalId` in your environment config so the SQL reads and writes the correct space and data model.
+
+### 3. Configure the Module
 
 Update your `config.<env>.yaml` under the module variables section:
 
@@ -484,6 +598,7 @@ variables:
       targetEntityInstanceSpace: your_instances
       targetEntityExternalId: YourAsset
       targetEntityVersion: v1.0
+      cdmDataModelExternalId: CogniteCore
       functionClientId: ${IDP_CLIENT_ID}
       functionClientSecret: ${IDP_CLIENT_SECRET}
       functionSpace: your_functions_space       # UPDATE REQUIRED
@@ -492,7 +607,7 @@ variables:
       groupSourceId: your-azure-ad-group-source-id  # UPDATE REQUIRED
 ```
 
-### 3. Deploy the Module
+### 4. Deploy the Module
 
 > **Note**: To upload sample pattern data, enable the data plugin in your `cdf.toml` file:
 > ```toml
@@ -513,7 +628,7 @@ cdf functions deploy
 cdf workflows deploy
 ```
 
-### 4. Configure Runtime Behavior
+### 5. Configure Runtime Behavior
 
 Update `ep_file_annotation.config.yaml` with:
 1. Data model view references for your file and entity types
@@ -521,7 +636,7 @@ Update `ep_file_annotation.config.yaml` with:
 3. Confidence thresholds based on your quality requirements
 4. Pattern mode settings for comprehensive detection
 
-### 5. Monitor Execution
+### 6. Monitor Execution and Reporting
 
 ```bash
 # Check function logs
@@ -536,36 +651,49 @@ cdf workflows status wf_file_annotation
 # View annotation results in RAW
 cdf raw rows list <db> rawTableDocTag
 cdf raw rows list <db> rawTableDocPattern
+
+# Build per-file matched/unmatched report (after promote)
+cdf transformations run tr_file_annotation_status_report
+cdf raw rows list <db> annotation_file_status_report
 ```
 
 ## 📊 Data Flow
 
 ```mermaid
 graph TD
+    H[Helper tagging transformations] --> A
     A[Files with ToAnnotate Tag] --> B[Prepare Function]
     B --> C[AnnotationState: New]
     C --> D[Launch Function]
-    
+
+    I[Assets/Files with DetectInDiagrams + aliases] --> D
     E[Entity Cache] --> D
     F[Manual Patterns] --> D
-    
+
     D --> G[Diagram Detect API]
-    G --> H[Standard Job]
-    G --> I[Pattern Job]
-    
-    H --> J[Finalize Function]
-    I --> J
-    
+    G --> H2[Standard Job]
+    G --> I2[Pattern Job]
+
+    H2 --> J[Finalize Function]
+    I2 --> J
+
     J --> K[doc_tag RAW Table]
     J --> L[doc_doc RAW Table]
     J --> M[doc_pattern RAW Table]
     J --> N[Data Model Edges]
-    
+
     M --> O[Promote Function]
     O --> P[Resolved Edges]
     O --> Q[Promote Cache]
-    
-    R[Workflow Trigger] --> B
+
+    K --> R[Status Report Transformation]
+    M --> R
+    R --> S[annotation_file_status_report RAW]
+
+    K --> T[file_to_asset Transformation]
+    T --> U[Files.assets property]
+
+    V[Workflow Trigger] --> B
 ```
 
 ## 🎯 Use Cases
@@ -581,7 +709,8 @@ graph TD
 - **Batch Optimization**: Process file chunks efficiently
 
 ### Quality and Compliance
-- **Comprehensive Reporting**: Full audit trail in RAW tables
+- **Comprehensive Reporting**: Full audit trail in RAW tables plus per-file status report
+- **Unmatched Tag Analysis**: Query `annotation_documents_patterns` or run `tr_file_annotation_status_report`
 - **Confidence Thresholds**: Separate auto-approve from manual review
 - **Pattern Validation**: Review pattern detections before promotion
 
@@ -647,21 +776,36 @@ cdf raw rows list <db> rawTableDocTag --limit 10
 ### Common Issues
 
 1. **Files Not Being Picked Up**
-   - Verify files have the correct tag (e.g., "ToAnnotate")
-   - Check `findFilesQuery` in configuration matches your data model
-   - Ensure `AnnotationState` view is deployed
+   - Verify files have the `ToAnnotate` tag (run `tr_tag_files_to_annotate` or check manually)
+   - Check `getFilesToAnnotateQuery` in the extraction pipeline config
+   - Ensure `FileAnnotationState` view is deployed
 
-2. **Annotation Jobs Failing**
+2. **No Entities Sent to Diagram Detect**
+   - Assets and reference files need the `DetectInDiagrams` tag (run `tr_tag_assets_detect_in_diagrams` / `tr_tag_files_detect_in_diagrams`)
+   - Verify `aliases` are populated — launch searches aliases, not `name`, unless aliases are missing entirely
+   - Check scope properties match your instance data (`primaryScopeProperty`, `secondaryScopeProperty`)
+
+3. **Pattern Promotion Failures / Unmatched Tags**
+   - Unmatched tag text is in `annotation_documents_patterns` (`status = Rejected`), not `annotation_documents_tags`
+   - Ensure asset `aliases` include the formats found on drawings (including `-` vs `_` variants)
+   - Tune `promoteFunction.entitySearchService.textNormalization` — it generates variations of detected text for an IN filter on `aliases`
+   - Set `deleteRejectedEdges: false` if you need to query failed matches as DMS edges
+
+4. **Status Report Returns Zero Rows**
+   - Confirm RAW tables contain data for your `fileInstanceSpace` (`startNodeSpace`)
+   - Run the report after promote so pattern rows have final status
+   - Rebuild with `cdf build` so `{{ fileInstanceSpace }}` substitutes correctly
+
+5. **Annotation Jobs Failing**
    - Check Diagram Detect API quotas and limits
    - Verify entity data is available in configured views
    - Review `maxRetryAttempts` setting
 
-3. **Pattern Promotion Not Working**
-   - Verify `sinkNode` configuration points to valid node
-   - Check `entitySearchService` normalization settings
-   - Review RAW cache table for existing mappings
+6. **Pattern Promotion Configuration**
+   - Verify `sinkNode` points to a valid node in `patternModeInstanceSpace`
+   - Review `annotation_tags_cache` for previously cached positive mappings
 
-4. **Parallel Execution Conflicts**
+7. **Parallel Execution Conflicts**
    - Optimistic locking should handle conflicts automatically
    - Check for version conflict errors in logs
    - Verify `AnnotationState` view supports versioning
