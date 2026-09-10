@@ -1973,28 +1973,25 @@ def _warn_disabled_notifications(repo_root: Path | None, pack_root: Path) -> Non
     if not installed_ss:
         return
 
-    config: dict | None = None
     for env in ENVIRONMENTS:
         path = pack_root / f"config.{env}.yaml"
-        if path.exists():
-            config = load_yaml(path)
-            break
-    if config is None:
-        return
+        if not path.exists():
+            continue
+        config = load_yaml(path)
 
-    disabled: list[str] = []
-    for module in installed_ss:
-        label = _module_label(module)
-        if not get_actual_value(config, f"{module}.integration_owner_email"):
-            disabled.append(f"{label}: integration owner")
-        if not get_actual_value(config, f"{module}.data_owner_email"):
-            disabled.append(f"{label}: data owner")
+        disabled: list[str] = []
+        for module in installed_ss:
+            label = _module_label(module)
+            if not get_actual_value(config, f"{module}.integration_owner_email"):
+                disabled.append(f"{label}: integration owner")
+            if not get_actual_value(config, f"{module}.data_owner_email"):
+                disabled.append(f"{label}: data owner")
 
-    if disabled:
-        print("WARNING: sendNotification disabled (no email configured) for:")
-        for entry in disabled:
-            print(f"  - {entry}")
-        print("  These contacts will not be notified on pipeline failure. Run: python scripts/setup_project.py -y\n")
+        if disabled:
+            print(f"WARNING: sendNotification disabled (no email configured) in config.{env}.yaml for:")
+            for entry in disabled:
+                print(f"  - {entry}")
+            print("  These contacts will not be notified on pipeline failure. Run setup_project.py with -y flag to enable notifications.\n")
 
 
 def _run_check(

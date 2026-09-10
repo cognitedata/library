@@ -2305,6 +2305,31 @@ class TestWarnDisabledNotifications:
         _warn_disabled_notifications(tmp_path, tmp_path)
         assert capsys.readouterr().out == ""
 
+    def test_warns_per_environment_not_just_the_first(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        """dev and prod configs are independent — an email configured in dev must not
+        mask a missing one in prod (or vice versa)."""
+        from setup_project import _warn_disabled_notifications
+        (tmp_path / "modules" / "sourcesystem" / "cdf_pi_extractor").mkdir(parents=True)
+        (tmp_path / "config.dev.yaml").write_text(yaml.dump({
+            "variables": {"modules": {"sourcesystem": {"cdf_pi_extractor": {
+                "integration_owner_email": "jane@example.com",
+                "data_owner_email": "john@example.com",
+            }}}},
+        }, sort_keys=False))
+        (tmp_path / "config.prod.yaml").write_text(yaml.dump({
+            "variables": {"modules": {"sourcesystem": {"cdf_pi_extractor": {}}}},
+        }, sort_keys=False))
+
+        _warn_disabled_notifications(tmp_path, tmp_path)
+
+        out = capsys.readouterr().out
+        assert "config.dev.yaml" not in out
+        assert "config.prod.yaml" in out
+        assert "PI Extractor: integration owner" in out
+        assert "PI Extractor: data owner" in out
+
 
 class TestWizardHeaderTitle:
 
