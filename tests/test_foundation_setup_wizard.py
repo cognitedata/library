@@ -2298,6 +2298,39 @@ class TestWarnDisabledNotifications:
 
         assert "WARNING" not in capsys.readouterr().out
 
+    def test_silent_when_owner_emails_configured_flat(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        """Fresh configs are written flat (variables.modules.<module>.*, no category
+        wrapper) — the common case must not produce a false warning."""
+        from setup_project import _warn_disabled_notifications
+        (tmp_path / "modules" / "sourcesystem" / "cdf_pi_extractor").mkdir(parents=True)
+        (tmp_path / "config.dev.yaml").write_text(yaml.dump({
+            "variables": {"modules": {"cdf_pi_extractor": {
+                "integration_owner_email": "jane@example.com",
+                "data_owner_email": "john@example.com",
+            }}},
+        }, sort_keys=False))
+
+        _warn_disabled_notifications(tmp_path, tmp_path)
+
+        assert "WARNING" not in capsys.readouterr().out
+
+    def test_warns_when_owner_emails_missing_flat(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        from setup_project import _warn_disabled_notifications
+        (tmp_path / "modules" / "sourcesystem" / "cdf_pi_extractor").mkdir(parents=True)
+        (tmp_path / "config.dev.yaml").write_text(yaml.dump({
+            "variables": {"modules": {"cdf_pi_extractor": {}}},
+        }, sort_keys=False))
+
+        _warn_disabled_notifications(tmp_path, tmp_path)
+
+        out = capsys.readouterr().out
+        assert "PI Extractor: integration owner" in out
+        assert "PI Extractor: data owner" in out
+
     def test_silent_when_no_source_system_modules_installed(
         self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
     ) -> None:

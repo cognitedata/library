@@ -1981,12 +1981,24 @@ def _warn_disabled_notifications(repo_root: Path | None, pack_root: Path) -> Non
         if not isinstance(config, dict):
             continue
 
+        modules_cfg = config.get("variables", {}).get("modules", {})
+        if not isinstance(modules_cfg, dict):
+            modules_cfg = {}
+
         disabled: list[str] = []
         for module in installed_ss:
             label = _module_label(module)
-            if not get_actual_value(config, f"{module}.integration_owner_email"):
+            # Config may be flat (variables.modules.<module>.*, the current default)
+            # or nested under the legacy category (variables.modules.sourcesystem.<module>.*).
+            category = _MODULE_CATEGORY_FALLBACK.get(module)
+            mod_cfg = modules_cfg.get(module) or (
+                modules_cfg.get(category, {}).get(module) if category else None
+            ) or {}
+            if not isinstance(mod_cfg, dict):
+                mod_cfg = {}
+            if not mod_cfg.get("integration_owner_email"):
                 disabled.append(f"{label}: integration owner")
-            if not get_actual_value(config, f"{module}.data_owner_email"):
+            if not mod_cfg.get("data_owner_email"):
                 disabled.append(f"{label}: data owner")
 
         if disabled:
