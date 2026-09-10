@@ -39,6 +39,19 @@ DEPLOY_BRANCHES = {"dev": "dev", "test": "main"}
 ENV_LABELS = {"dev": "Dev", "test": "Test"}
 CONFIG_FLAG_MIN_VERSION = (0, 8, 0)
 
+# Module domains vendored in by the deployment packs. modules/custom/ is deliberately
+# absent — that is where team-authored modules live, and their code must stay linted.
+PACK_MODULE_DOMAINS = (
+    "atlas_ai",
+    "common",
+    "contextualization",
+    "dashboards",
+    "datamodels",
+    "solutions",
+    "sourcesystem",
+    "tools",
+)
+
 PROVIDERS = ("github", "ado")
 DEFAULT_PROVIDER = "github"
 PROVIDER_WORKFLOWS_DIR = {
@@ -131,6 +144,17 @@ def build_lint_paths(org_dir: str | None, provider: str) -> str:
     else:
         entries.insert(0, "'config*.yaml'")
     return " \\\n            ".join(entries)
+
+
+def function_lint_exclude(repo_root: Path, org_dir: str | None) -> str:
+    """Extended-regex alternation matching every vendored pack module tree.
+
+    ruff and pyright should only judge code the team wrote. Modules installed by a
+    deployment pack ship function code the destination repository cannot fix, and
+    their requirements.txt files would otherwise be installed on every PR.
+    """
+    modules_root = resolve_modules_root(repo_root, org_dir).relative_to(repo_root).as_posix()
+    return f"{modules_root}/({'|'.join(PACK_MODULE_DOMAINS)})/"
 
 
 def parse_version(version: str) -> tuple[int, int, int]:
@@ -925,6 +949,7 @@ def main() -> None:
         "TOOLKIT_VERSION": str(toolkit_version),
         "LINT_PATHS": build_lint_paths(org_dir, args.provider),
         "SETUP_PROJECT_CHECK_CMD": setup_check_cmd,
+        "FUNCTION_LINT_EXCLUDE": function_lint_exclude(repo_root, org_dir),
     }
 
     if args.provider == "github":

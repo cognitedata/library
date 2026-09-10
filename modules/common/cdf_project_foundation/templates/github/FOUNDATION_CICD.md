@@ -62,10 +62,11 @@ CI validates the committed configs as-is; it does not regenerate them.
 If the repository does not have a root `.pre-commit-config.yaml`, the generated
 PR workflow skips the pre-commit config lint step.
 
-If any CDF Function under a `functions/` folder has Python source, the PR workflow
-also runs `ruff check` and `pyright` against it, installing each function's
-`requirements.txt` first so imports resolve. Projects with no `functions/` Python
-code skip this step.
+If a team-authored module has Python source under a `functions/` folder, the PR workflow
+also runs `ruff check` and `pyright` against it, installing that function's
+`requirements.txt` first so imports resolve. Modules installed by a deployment pack are
+excluded — their code is not the team's to fix — so a project whose only functions come
+from packs skips this step.
 
 ## Regenerate workflows
 

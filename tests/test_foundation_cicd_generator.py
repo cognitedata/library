@@ -107,7 +107,12 @@ environment:
     assert "No .pre-commit-config.yaml found; skipping pre-commit config lint." in dry_run
     assert "ruff check" in dry_run
     assert "pyright --pythonversion 3.13" in dry_run
-    assert "No Python found under functions/; skipping ruff and pyright." in dry_run
+    assert "No team-authored Python under functions/; skipping ruff and pyright." in dry_run
+    # Vendored pack modules are excluded from ruff/pyright; modules/custom/ — where
+    # team-authored modules live — must stay linted.
+    assert "EXCLUDE='industrial/modules/(atlas_ai|" in dry_run
+    assert "|sourcesystem|tools)/'" in dry_run
+    assert "custom" not in dry_run
     assert "cdf build --env dev" in dry_run
     assert "cdf deploy --dry-run | tee dryrun-output.txt" in dry_run
     assert "cdf deploy --dry-run --env" not in dry_run
@@ -635,6 +640,11 @@ def test_generate_actions_ado_writes_pipelines_and_docs(tmp_path: Path) -> None:
     assert "IDP_CLIENT_SECRET" not in dry_run_text
     assert "cdf deploy --dry-run" not in dry_run_text
     assert "cdf build" in dry_run_text
+    # The lint step is shared with the GitHub template: vendored pack modules are
+    # excluded from ruff/pyright, modules/custom/ is not.
+    assert "No team-authored Python under functions/; skipping ruff and pyright." in dry_run_text
+    assert "EXCLUDE='modules/(atlas_ai|" in dry_run_text
+    assert "custom" not in dry_run_text
     # Azure's script: task runs cmd.exe on a Windows agent; these scripts rely on
     # bash-only syntax ([[ ]], set -euo pipefail), so they must use bash: instead.
     assert "- script:" not in dry_run_text
@@ -1009,3 +1019,28 @@ def test_setup_project_check_cmd_modules_nested_under_org_dir(tmp_path: Path) ->
 
     cmd = generate_actions.setup_project_check_cmd(tmp_path, "industrial")
     assert cmd == "python industrial/modules/common/cdf_project_foundation/scripts/setup_project.py --check"
+
+
+def test_function_lint_exclude_org_dir_set_but_modules_at_repo_root(tmp_path: Path) -> None:
+    """Same trap as setup_project_check_cmd: org_dir in cdf.toml doesn't mean
+    modules/ is nested under it. A blindly prefixed exclude would match nothing
+    and lint the vendored pack modules anyway."""
+    sys.path.insert(0, str(MODULE_ROOT / "scripts"))
+    import generate_actions  # pyright: ignore[reportMissingImports]
+
+    _make_foundation_module(tmp_path / "modules")
+
+    exclude = generate_actions.function_lint_exclude(tmp_path, "industrial")
+    assert exclude == "modules/(atlas_ai|common|contextualization|dashboards|datamodels|solutions|sourcesystem|tools)/"
+    assert "custom" not in exclude
+
+
+def test_function_lint_exclude_modules_nested_under_org_dir(tmp_path: Path) -> None:
+    sys.path.insert(0, str(MODULE_ROOT / "scripts"))
+    import generate_actions  # pyright: ignore[reportMissingImports]
+
+    _make_foundation_module(tmp_path / "industrial" / "modules")
+
+    exclude = generate_actions.function_lint_exclude(tmp_path, "industrial")
+    assert exclude.startswith("industrial/modules/(atlas_ai|")
+    assert exclude.endswith("|sourcesystem|tools)/")
