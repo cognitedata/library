@@ -3,13 +3,13 @@ version: 'v1'
 workflowDefinition:
   description: 'Workflow for entity matching'
   tasks:
-    - externalId: 'fn_dm_context_metadata_update'
+    - externalId: 'fn_dm_context_aliases_update'
       type: 'function'
       parameters:
         function:
-          externalId: 'fn_dm_context_metadata_update'
-          data: { "ExtractionPipelineExtId": "ep_ctx_entity_matching_metadata_update" }
-      name: 'Metadata Update Function'
+          externalId: 'fn_dm_context_aliases_update'
+          data: { "ExtractionPipelineExtId": "ep_ctx_aliases_update" }
+      name: 'Aliases Update Function'
       description: 'Update aliases for timeseries and assets as prep for entity matching'
       retries: 3
       timeout: 9000
@@ -26,4 +26,4 @@ workflowDefinition:
       timeout: 9000
       onFailure: 'abortWorkflow'
       dependsOn:
-        - externalId: 'fn_dm_context_metadata_update'
+        - externalId: 'fn_dm_context_aliases_update'
