@@ -142,6 +142,11 @@ environment:
         "setup_project.py --check"
     ) in deploy_prod
 
+    provider_env = "PROVIDER: ${{ vars.PROVIDER || 'entra_id' }}"
+    assert provider_env in dry_run
+    assert provider_env in deploy_dev
+    assert provider_env in deploy_prod
+
     cicd_docs = (tmp_path / "docs" / "FOUNDATION_CICD.md").read_text(encoding="utf-8")
     assert "`acme-dev`" in cicd_docs
     assert "`acme-test`" in cicd_docs
@@ -151,6 +156,8 @@ environment:
     assert "`PRODUCER_SOURCE_ID`" in cicd_docs
     assert "skips the pre-commit config lint step" in cicd_docs
     assert "ruff check` and `pyright`" in cicd_docs
+    assert "`PROVIDER`" in cicd_docs
+    assert "Cognite IdP" in cicd_docs
 
 
 def test_generate_actions_validates_environment_name(tmp_path: Path) -> None:
@@ -740,6 +747,8 @@ def test_generate_actions_ado_writes_pipelines_and_docs(tmp_path: Path) -> None:
     assert "Allow access to all pipelines" in docs
     assert "toolkit-config" in docs
     assert "IDP_TOKEN_URL" in docs
+    assert "`PROVIDER`" in docs
+    assert "Cognite IdP" in docs
     assert "GitHub Release" not in docs
     # ADO's Build Validation policy references a pipeline, not a job display name
     # inside it — the branch-protection table must not carry over GitHub wording.
