@@ -736,6 +736,39 @@ class TestModuleDataset:
         assert pf["dataset"] == ["ds_custom_ingestion", "ds_oil_and_gas_domain_model"]
 
 
+class TestSourceSystemSendNotification:
+    """sendNotification must default to false and only flip to true once an email is
+    actually configured — otherwise the pipeline silently fails trying to notify a
+    blank address (contacts default.config.yaml still has integration_owner_email:
+    "" until the wizard runs)."""
+
+    def test_send_notification_false_when_no_owners_passed(self) -> None:
+        from setup_project import resolve_sourcesystem_variables
+        result = resolve_sourcesystem_variables(["cdf_pi_extractor"], "dev", "oslo")
+        assert "integration_owner_send_notification" not in result["cdf_pi_extractor"]
+        assert "data_owner_send_notification" not in result["cdf_pi_extractor"]
+
+    def test_send_notification_false_when_owner_has_no_email(self) -> None:
+        from setup_project import resolve_sourcesystem_variables
+        result = resolve_sourcesystem_variables(
+            ["cdf_pi_extractor"], "dev", "oslo",
+            integration_owners={"cdf_pi_extractor": ("Jane Doe", "")},
+            data_owners={"cdf_pi_extractor": ("", "")},
+        )
+        assert result["cdf_pi_extractor"]["integration_owner_send_notification"] == "false"
+        assert result["cdf_pi_extractor"]["data_owner_send_notification"] == "false"
+
+    def test_send_notification_true_when_email_configured(self) -> None:
+        from setup_project import resolve_sourcesystem_variables
+        result = resolve_sourcesystem_variables(
+            ["cdf_pi_extractor"], "dev", "oslo",
+            integration_owners={"cdf_pi_extractor": ("Jane Doe", "jane@example.com")},
+            data_owners={"cdf_pi_extractor": ("John Doe", "john@example.com")},
+        )
+        assert result["cdf_pi_extractor"]["integration_owner_send_notification"] == "true"
+        assert result["cdf_pi_extractor"]["data_owner_send_notification"] == "true"
+
+
 class TestExtractorDataSetResources:
     """The DataSet resource must resolve from {{dataset}} — the same variable the
     extraction pipeline and the producer group already scope themselves to. A
@@ -2214,6 +2247,135 @@ class TestResolvePackKindForCheck:
         # Sourcesystem dir missing entirely -> would raise SystemExit for any other variant.
         sourcesystem_dir = tmp_path / "modules" / "sourcesystem"
         assert resolve_pack_kind_for_check("isa_manufacturing_extension", sourcesystem_dir) == "foundation"
+
+
+class TestWarnIfNoEmail:
+    """Blank email silently disables sendNotification for that contact — the wizard
+    must say so on the spot, not leave the user to discover it during an incident."""
+
+    def test_warns_when_email_blank(self, capsys: pytest.CaptureFixture[str]) -> None:
+        from setup_project import _warn_if_no_email
+        _warn_if_no_email("integration owner", "")
+        assert "No email set for integration owner" in capsys.readouterr().out
+
+    def test_silent_when_email_present(self, capsys: pytest.CaptureFixture[str]) -> None:
+        from setup_project import _warn_if_no_email
+        _warn_if_no_email("integration owner", "jane@example.com")
+        assert capsys.readouterr().out == ""
+
+
+class TestWarnDisabledNotifications:
+    """--check must surface the same disabled-notification gap as the interactive
+    wizard, since a CI run with no email configured never sees the wizard's prompt."""
+
+    def test_warns_for_missing_owner_emails(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        from setup_project import _warn_disabled_notifications
+        (tmp_path / "modules" / "sourcesystem" / "cdf_pi_extractor").mkdir(parents=True)
+        (tmp_path / "config.dev.yaml").write_text(yaml.dump({
+            "variables": {"modules": {"sourcesystem": {"cdf_pi_extractor": {}}}},
+        }, sort_keys=False))
+
+        _warn_disabled_notifications(tmp_path, tmp_path)
+
+        out = capsys.readouterr().out
+        assert "PI Extractor: integration owner" in out
+        assert "PI Extractor: data owner" in out
+
+    def test_silent_when_owner_emails_configured(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        from setup_project import _warn_disabled_notifications
+        (tmp_path / "modules" / "sourcesystem" / "cdf_pi_extractor").mkdir(parents=True)
+        (tmp_path / "config.dev.yaml").write_text(yaml.dump({
+            "variables": {"modules": {"sourcesystem": {"cdf_pi_extractor": {
+                "integration_owner_email": "jane@example.com",
+                "data_owner_email": "john@example.com",
+            }}}},
+        }, sort_keys=False))
+
+        _warn_disabled_notifications(tmp_path, tmp_path)
+
+        assert "WARNING" not in capsys.readouterr().out
+
+    def test_silent_when_owner_emails_configured_flat(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        """Fresh configs are written flat (variables.modules.<module>.*, no category
+        wrapper) — the common case must not produce a false warning."""
+        from setup_project import _warn_disabled_notifications
+        (tmp_path / "modules" / "sourcesystem" / "cdf_pi_extractor").mkdir(parents=True)
+        (tmp_path / "config.dev.yaml").write_text(yaml.dump({
+            "variables": {"modules": {"cdf_pi_extractor": {
+                "integration_owner_email": "jane@example.com",
+                "data_owner_email": "john@example.com",
+            }}},
+        }, sort_keys=False))
+
+        _warn_disabled_notifications(tmp_path, tmp_path)
+
+        assert "WARNING" not in capsys.readouterr().out
+
+    def test_warns_when_owner_emails_missing_flat(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        from setup_project import _warn_disabled_notifications
+        (tmp_path / "modules" / "sourcesystem" / "cdf_pi_extractor").mkdir(parents=True)
+        (tmp_path / "config.dev.yaml").write_text(yaml.dump({
+            "variables": {"modules": {"cdf_pi_extractor": {}}},
+        }, sort_keys=False))
+
+        _warn_disabled_notifications(tmp_path, tmp_path)
+
+        out = capsys.readouterr().out
+        assert "PI Extractor: integration owner" in out
+        assert "PI Extractor: data owner" in out
+
+    def test_silent_when_no_source_system_modules_installed(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        from setup_project import _warn_disabled_notifications
+        _warn_disabled_notifications(tmp_path, tmp_path)
+        assert capsys.readouterr().out == ""
+
+    def test_skips_env_with_non_dict_config_instead_of_crashing(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        """A config.yaml that parses to a scalar/list (valid YAML, not a mapping) must
+        be skipped, not crash --check with an AttributeError on config.get(...)."""
+        from setup_project import _warn_disabled_notifications
+        (tmp_path / "modules" / "sourcesystem" / "cdf_pi_extractor").mkdir(parents=True)
+        (tmp_path / "config.dev.yaml").write_text("just a string\n", encoding="utf-8")
+
+        _warn_disabled_notifications(tmp_path, tmp_path)
+
+        assert capsys.readouterr().out == ""
+
+    def test_warns_per_environment_not_just_the_first(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        """dev and prod configs are independent — an email configured in dev must not
+        mask a missing one in prod (or vice versa)."""
+        from setup_project import _warn_disabled_notifications
+        (tmp_path / "modules" / "sourcesystem" / "cdf_pi_extractor").mkdir(parents=True)
+        (tmp_path / "config.dev.yaml").write_text(yaml.dump({
+            "variables": {"modules": {"sourcesystem": {"cdf_pi_extractor": {
+                "integration_owner_email": "jane@example.com",
+                "data_owner_email": "john@example.com",
+            }}}},
+        }, sort_keys=False))
+        (tmp_path / "config.prod.yaml").write_text(yaml.dump({
+            "variables": {"modules": {"sourcesystem": {"cdf_pi_extractor": {}}}},
+        }, sort_keys=False))
+
+        _warn_disabled_notifications(tmp_path, tmp_path)
+
+        out = capsys.readouterr().out
+        assert "config.dev.yaml" not in out
+        assert "config.prod.yaml" in out
+        assert "PI Extractor: integration owner" in out
+        assert "PI Extractor: data owner" in out
 
 
 class TestWizardHeaderTitle:

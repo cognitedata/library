@@ -24,11 +24,13 @@ sapDisableSsl: false
 # Populated by setup_project.py wizard.
 integration_owner_name: ""
 integration_owner_email: ""
+integration_owner_send_notification: false
 
 # Data owner (business contact for the data)
 # Populated by setup_project.py wizard.
 data_owner_name: ""
 data_owner_email: ""
+data_owner_send_notification: false
 
 # Extractor group source ID — one scoped producer group per extractor.
 extractor_group_source_id: ""
