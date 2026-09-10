@@ -154,7 +154,7 @@ def function_lint_exclude(repo_root: Path, org_dir: str | None) -> str:
     their requirements.txt files would otherwise be installed on every PR.
     """
     modules_root = resolve_modules_root(repo_root, org_dir).relative_to(repo_root).as_posix()
-    return f"{modules_root}/({'|'.join(PACK_MODULE_DOMAINS)})/"
+    return f"^{modules_root}/({'|'.join(PACK_MODULE_DOMAINS)})/"
 
 
 def parse_version(version: str) -> tuple[int, int, int]:
