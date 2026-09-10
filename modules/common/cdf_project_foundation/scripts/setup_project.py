@@ -1978,6 +1978,8 @@ def _warn_disabled_notifications(repo_root: Path | None, pack_root: Path) -> Non
         if not path.exists():
             continue
         config = load_yaml(path)
+        if not isinstance(config, dict):
+            continue
 
         disabled: list[str] = []
         for module in installed_ss:
@@ -1991,7 +1993,10 @@ def _warn_disabled_notifications(repo_root: Path | None, pack_root: Path) -> Non
             print(f"WARNING: sendNotification disabled (no email configured) in config.{env}.yaml for:")
             for entry in disabled:
                 print(f"  - {entry}")
-            print("  These contacts will not be notified on pipeline failure. Run setup_project.py with -y flag to enable notifications.\n")
+            print(
+                "  These contacts will not be notified on pipeline failure. "
+                "Run: python scripts/setup_project.py -y\n"
+            )
 
 
 def _run_check(

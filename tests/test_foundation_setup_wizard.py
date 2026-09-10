@@ -2305,6 +2305,19 @@ class TestWarnDisabledNotifications:
         _warn_disabled_notifications(tmp_path, tmp_path)
         assert capsys.readouterr().out == ""
 
+    def test_skips_env_with_non_dict_config_instead_of_crashing(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        """A config.yaml that parses to a scalar/list (valid YAML, not a mapping) must
+        be skipped, not crash --check with an AttributeError on config.get(...)."""
+        from setup_project import _warn_disabled_notifications
+        (tmp_path / "modules" / "sourcesystem" / "cdf_pi_extractor").mkdir(parents=True)
+        (tmp_path / "config.dev.yaml").write_text("just a string\n", encoding="utf-8")
+
+        _warn_disabled_notifications(tmp_path, tmp_path)
+
+        assert capsys.readouterr().out == ""
+
     def test_warns_per_environment_not_just_the_first(
         self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
     ) -> None:
