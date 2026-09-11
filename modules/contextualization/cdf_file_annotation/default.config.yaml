@@ -20,6 +20,7 @@ rawTableDocPattern: annotation_documents_patterns
 rawTableCache: annotation_entities_cache
 rawManualPatternsCatalog: manual_patterns_catalog
 rawTablePromoteCache: annotation_tags_cache
+rawTableAnnotationStatusReport: annotation_file_status_report
 
 # used in /extraction_pipelines
 extractionPipelineExternalId: ep_file_annotation
@@ -49,6 +50,10 @@ workflowSchedule: "0 0 29 2 *"
 
 # used in /transformations
 fileToAssetTransformationExternalId: tr_file_to_asset_from_annotations
+fileAnnotationStatusReportTransformationExternalId: tr_file_annotation_status_report
+tagAssetsDetectInDiagramsTransformationExternalId: tr_tag_assets_detect_in_diagrams
+tagFilesDetectInDiagramsTransformationExternalId: tr_tag_files_detect_in_diagrams
+tagFilesToAnnotateTransformationExternalId: tr_tag_files_to_annotate
 
 # used in /auth
 # Update GROUP_SOURCE_ID to your group source ID

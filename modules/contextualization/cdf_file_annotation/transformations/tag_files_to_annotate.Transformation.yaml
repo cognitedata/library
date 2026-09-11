@@ -1,0 +1,13 @@
+externalId: {{ tagFilesToAnnotateTransformationExternalId }}
+dataSetExternalId: {{ annotationDatasetExternalId }}
+name: Tag Files ToAnnotate
+destination:
+  type: nodes
+  view:
+    space: {{ fileSchemaSpace }}
+    externalId: {{ fileExternalId }}
+    version: {{ fileVersion }}
+  instanceSpace: {{ fileInstanceSpace }}
+ignoreNullFields: true
+isPublic: true
+conflictMode: upsert
