@@ -89,6 +89,39 @@ class Config(BaseModel, alias_generator=to_camel):
     data: ConfigData
 
 
+def _format_view_block(label: str, view: ViewPropertyConfig | None) -> list[str]:
+    if view is None:
+        return [f"    {label}: (not configured — skipped)"]
+    pattern_display = view.alias_patterns if len(view.alias_patterns) > 1 else view.alias_patterns[0]
+    return [
+        f"    {label}:",
+        f"      view: {view.external_id} ({view.schema_space}/{view.version})",
+        f"      instanceSpace: {view.instance_spaces}",
+        f"      aliasPattern: {pattern_display}",
+        f"      aliasSelection: {view.alias_selection}",
+    ]
+
+
+def format_config_for_log(config: Config) -> str:
+    """Return a multi-line summary of the loaded extraction pipeline configuration."""
+    params = config.parameters
+    lines = [
+        "Loaded extraction pipeline configuration:",
+        "  parameters:",
+        f"    debug: {params.debug}",
+        f"    runAll: {params.run_all}",
+        f"    updateAll: {params.update_all}",
+        f"    removeOldAliases: {params.remove_old_aliases}",
+        f"    rawDb: {params.raw_db}",
+        f"    rawTableState: {params.raw_table_state}",
+        "  data.job:",
+    ]
+    lines.extend(_format_view_block("timeseriesView", config.data.job.timeseries_view))
+    lines.extend(_format_view_block("assetView", config.data.job.asset_view))
+    lines.extend(_format_view_block("fileView", config.data.job.file_view))
+    return "\n".join(lines)
+
+
 def load_config_parameters(client: CogniteClient, function_data: dict[str, Any]) -> Config:
     """Retrieves the configuration parameters from the function data and loads the configuration from CDF."""
     if "ExtractionPipelineExtId" not in function_data:
