@@ -1,2 +1,2 @@
-space: {{ assetInstanceSpace }}
+space: {{ functionSpace }}
 externalId: "entity.match"

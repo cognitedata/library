@@ -11,7 +11,7 @@ _FLAT_MODULE_NAMES = (
     "config",
     "constants",
     "logger",
-    "metadata_optimizations",
+    "alias_optimizations",
     "pipeline_optimizations",
 )
 

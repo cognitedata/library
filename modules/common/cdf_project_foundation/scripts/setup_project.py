@@ -136,8 +136,10 @@ CONTEXTUALIZATION_VARIABLES: dict[str, dict[str, dict]] = {
             "schemaSpace": "cdf_cdm",
             "assetInstanceSpace": None,
             "timeseriesInstanceSpace": None,
-            "AssetViewExternalId": "CogniteAsset",
-            "TimeSeriesViewExternalId": "CogniteTimeSeries",
+            "fileInstanceSpace": None,
+            "assetViewExternalId": "CogniteAsset",
+            "timeseriesViewExternalId": "CogniteTimeSeries",
+            "fileViewExternalId": "CogniteFile",
             "targetViewExternalId": "CogniteAsset",
             "entityViewExternalId": "CogniteTimeSeries",
             "targetViewSearchProperty": "name",
@@ -159,8 +161,10 @@ CONTEXTUALIZATION_VARIABLES: dict[str, dict[str, dict]] = {
             "schemaSpace": "dm_dom_isa_manufacturing",
             "assetInstanceSpace": None,
             "timeseriesInstanceSpace": None,
-            "AssetViewExternalId": "ISAAsset",
-            "TimeSeriesViewExternalId": "ISATimeSeries",
+            "fileInstanceSpace": None,
+            "assetViewExternalId": "ISAAsset",
+            "timeseriesViewExternalId": "ISATimeSeries",
+            "fileViewExternalId": "ISAFile",
             "targetViewExternalId": "ISAAsset",
             "entityViewExternalId": "ISATimeSeries",
             "targetViewSearchProperty": "name",
@@ -182,8 +186,10 @@ CONTEXTUALIZATION_VARIABLES: dict[str, dict[str, dict]] = {
             "schemaSpace": "dm_dom_oil_and_gas",
             "assetInstanceSpace": None,
             "timeseriesInstanceSpace": None,
-            "AssetViewExternalId": "Tag",
-            "TimeSeriesViewExternalId": "TimeSeriesData",
+            "fileInstanceSpace": None,
+            "assetViewExternalId": "Tag",
+            "timeseriesViewExternalId": "TimeSeriesData",
+            "fileViewExternalId": "Files",
             "targetViewExternalId": "Tag",
             "entityViewExternalId": "TimeSeriesData",
             "targetViewSearchProperty": "name",
@@ -392,12 +398,14 @@ def resolve_sourcesystem_variables(
                 vars_["integration_owner_name"] = name
             if email:
                 vars_["integration_owner_email"] = email
+            vars_["integration_owner_send_notification"] = "true" if email else "false"
         if data_owners and module in data_owners:
             name, email = data_owners[module]
             if name:
                 vars_["data_owner_name"] = name
             if email:
                 vars_["data_owner_email"] = email
+            vars_["data_owner_send_notification"] = "true" if email else "false"
         if extractor_group_source_ids and module in extractor_group_source_ids:
             env_var = extractor_group_source_ids[module]
             vars_["extractor_group_source_id"] = f"${{{env_var}}}"
@@ -1238,6 +1246,13 @@ def _prompt_owner(
         _warn("Invalid email. Use format: name@domain.com")
 
 
+def _warn_if_no_email(label: str, email: str) -> None:
+    """Blank email means sendNotification is written as false for this contact —
+    surface that now, not as a silent gap discovered during an incident."""
+    if not email:
+        _warn(f"No email set for {label} — pipeline notifications will be disabled (sendNotification: false).")
+
+
 def _all_same(owners: dict[str, tuple[str, str]]) -> bool:
     """Return True if all modules share the same owner (name, email) pair."""
     vals = list(owners.values())
@@ -1270,13 +1285,16 @@ def _prompt_source_system_ownership(
     if prompt_yes_no("Same integration owner for all source systems?", default=shared_int_default):
         first = next(iter(ei.values()), ("", "")) if ei else ("", "")
         name, email = _prompt_owner("  Integration owner", *first)
+        _warn_if_no_email("integration owner", email)
         for m in installed_ss:
             integration_owners[m] = (name, email)
     else:
         for m in installed_ss:
             print(f"\n  {_module_label(m)}")
             dn, de = ei.get(m, ("", ""))
-            integration_owners[m] = _prompt_owner("    Integration owner", dn, de)
+            name, email = _prompt_owner("    Integration owner", dn, de)
+            _warn_if_no_email(f"integration owner ({_module_label(m)})", email)
+            integration_owners[m] = (name, email)
 
     # ── Data owner ────────────────────────────────────────────────────────────
     print()
@@ -1285,13 +1303,16 @@ def _prompt_source_system_ownership(
     if prompt_yes_no("Same data owner for all source systems?", default=shared_data_default):
         first = next(iter(ed.values()), ("", "")) if ed else ("", "")
         name, email = _prompt_owner("  Data owner", *first)
+        _warn_if_no_email("data owner", email)
         for m in installed_ss:
             data_owners[m] = (name, email)
     else:
         for m in installed_ss:
             print(f"\n  {_module_label(m)}")
             dn, de = ed.get(m, ("", ""))
-            data_owners[m] = _prompt_owner("    Data owner", dn, de)
+            name, email = _prompt_owner("    Data owner", dn, de)
+            _warn_if_no_email(f"data owner ({_module_label(m)})", email)
+            data_owners[m] = (name, email)
 
     return integration_owners, data_owners
 
@@ -1950,6 +1971,52 @@ def _read_check_context(pack_root: Path) -> tuple[str, list[str]]:
     return "", []
 
 
+def _warn_disabled_notifications(repo_root: Path | None, pack_root: Path) -> None:
+    """Non-fatal heads-up: any installed extractor with no owner email configured has
+    sendNotification disabled for that contact. Surfaced in --check, not just the
+    interactive wizard, so a silently-disabled alert doesn't only surface at build time."""
+    installed_ss = list_installed_source_system_modules(repo_root)
+    if not installed_ss:
+        return
+
+    for env in ENVIRONMENTS:
+        path = pack_root / f"config.{env}.yaml"
+        if not path.exists():
+            continue
+        config = load_yaml(path)
+        if not isinstance(config, dict):
+            continue
+
+        modules_cfg = config.get("variables", {}).get("modules", {})
+        if not isinstance(modules_cfg, dict):
+            modules_cfg = {}
+
+        disabled: list[str] = []
+        for module in installed_ss:
+            label = _module_label(module)
+            # Config may be flat (variables.modules.<module>.*, the current default)
+            # or nested under the legacy category (variables.modules.sourcesystem.<module>.*).
+            category = _MODULE_CATEGORY_FALLBACK.get(module)
+            mod_cfg = modules_cfg.get(module) or (
+                modules_cfg.get(category, {}).get(module) if category else None
+            ) or {}
+            if not isinstance(mod_cfg, dict):
+                mod_cfg = {}
+            if not mod_cfg.get("integration_owner_email"):
+                disabled.append(f"{label}: integration owner")
+            if not mod_cfg.get("data_owner_email"):
+                disabled.append(f"{label}: data owner")
+
+        if disabled:
+            print(f"WARNING: sendNotification disabled (no email configured) in config.{env}.yaml for:")
+            for entry in disabled:
+                print(f"  - {entry}")
+            print(
+                "  These contacts will not be notified on pipeline failure. "
+                "Run: python scripts/setup_project.py -y\n"
+            )
+
+
 def _run_check(
     args_variant: str | None,
     repo_root: Path | None = None,
@@ -2024,6 +2091,7 @@ def _run_check(
             print(f"  {p.relative_to(get_pack_root(repo_root))}")
         print("\n  Run: python scripts/setup_project.py -y")
         sys.exit(1)
+    _warn_disabled_notifications(repo_root, pack_root)
     print(f"OK: All config file(s) match variant '{variant}'. No stale auth files.")
 
 

@@ -15,15 +15,15 @@ from cognite.client.credentials import OAuthClientCredentials
 
 sys.path.append(str(Path(__file__).parent))
 
-from config import load_config_parameters
-from logger import CogniteFunctionLogger
-from metadata_optimizations import (
+from alias_optimizations import (
     PerformanceBenchmark,
     cleanup_memory,
     monitor_memory_usage,
     optimize_metadata_processing,
     time_operation,
 )
+from config import load_config_parameters
+from logger import CogniteFunctionLogger
 from pipeline import metadata_update
 
 # ---------------------------------------------------------------------------
@@ -171,7 +171,7 @@ def run_locally() -> dict[str, Any]:
         # Test data
         data = {
             "logLevel": "INFO",
-            "ExtractionPipelineExtId": "ep_ctx_entity_matching_metadata_update"
+            "ExtractionPipelineExtId": "ep_ctx_aliases_update"
         }
         
         print("🔄 Starting optimized metadata update...")
