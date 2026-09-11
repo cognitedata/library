@@ -66,7 +66,7 @@ def time_operation(operation_name: str, logger: CogniteFunctionLogger):
         yield
     finally:
         duration = time.time() - start
-        logger.info(f"⏱️ {operation_name} took {duration:.2f} seconds")
+        logger.debug(f"⏱️ {operation_name} took {duration:.2f} seconds")
 
 
 def monitor_memory_usage(logger: CogniteFunctionLogger, operation_name: str = ""):
@@ -74,7 +74,7 @@ def monitor_memory_usage(logger: CogniteFunctionLogger, operation_name: str = ""
     try:
         process = Process()
         memory_mb = process.memory_info().rss / 1024 / 1024
-        logger.info(f"📊 Memory: {operation_name} - {memory_mb:.1f} MB")
+        logger.debug(f"📊 Memory: {operation_name} - {memory_mb:.1f} MB")
     except Exception as e:
         logger.debug(f"Could not monitor memory: {e}")
 
@@ -360,16 +360,20 @@ class OptimizedMetadataProcessor:
             'names_without_alias': 0,
         }
 
-    def _warn_name_without_alias(self, name: str) -> None:
+    def _warn_name_without_alias(self, name: str, entity_label: str) -> None:
         """Note a name no pattern reads, warning about only the first few.
 
         Every such name is counted, so `log_missing_alias_summary` can report the total
         once the run is over.
+
+        Args:
+            name: Instance name property value that did not match any pattern.
+            entity_label: Human-readable view kind, e.g. ``Configured timeseries``.
         """
         self.stats['names_without_alias'] += 1
         if self.stats['names_without_alias'] <= _MAX_MISSING_ALIAS_WARNINGS:
             self.logger.warning(
-                "No alias extracted based on input regular expression "
+                f"No alias extracted based on {entity_label} regular expression "
                 f"for name: {name}"
             )
 
@@ -425,7 +429,7 @@ class OptimizedMetadataProcessor:
                 )
             )
             if name and not upd_aliases and not _generated_aliases(name, self.timeseries_alias_rule):
-                self._warn_name_without_alias(name)
+                self._warn_name_without_alias(name, "Configured timeseries")
 
             upd_aliases = _dedupe_preserve_order(upd_aliases)
 
@@ -498,7 +502,7 @@ class OptimizedMetadataProcessor:
                 )
             )
             if name and not upd_aliases and not _generated_aliases(name, self.asset_alias_rule):
-                self._warn_name_without_alias(name)
+                self._warn_name_without_alias(name, "Configured asset")
 
             upd_aliases = _dedupe_preserve_order(upd_aliases)
 
@@ -578,7 +582,7 @@ class OptimizedMetadataProcessor:
             )
 
             if name and not upd_aliases and not _generated_aliases(name, self.file_alias_rule):
-                self._warn_name_without_alias(name)
+                self._warn_name_without_alias(name, "Configured file")
 
             upd_aliases = _dedupe_preserve_order(upd_aliases)
 
@@ -669,7 +673,7 @@ class PerformanceBenchmark:
                 self.benchmarks[name] = []
             
             self.benchmarks[name].append(duration)
-            self.logger.info(f"🚀 {name} took {duration:.2f}s")
+            self.logger.debug(f"🚀 {name} took {duration:.2f}s")
             
             return result
         except Exception as e:
@@ -682,11 +686,11 @@ class PerformanceBenchmark:
         if not self.benchmarks:
             return
         
-        self.logger.info("📊 Performance Summary:")
+        self.logger.debug("📊 Performance Summary:")
         for name, times in self.benchmarks.items():
             avg_time = sum(times) / len(times)
             total_time = sum(times)
-            self.logger.info(f"  {name}: {len(times)} calls, avg {avg_time:.2f}s, total {total_time:.2f}s")
+            self.logger.debug(f"  {name}: {len(times)} calls, avg {avg_time:.2f}s, total {total_time:.2f}s")
 
 
 def optimize_metadata_processing():

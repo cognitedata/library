@@ -213,7 +213,7 @@ def metadata_update(
         benchmark.log_summary()
         
     except Exception as e:
-        msg = f"Optimized metadata update failed: {e!s}, traceback:\n{traceback.format_exc()}"
+        msg = f"Aliases Update failed: {e!s}, traceback:\n{traceback.format_exc()}"
         logger.error(msg)
         update_pipeline_run(client, logger, pipeline_ext_id, "failure", msg)
         raise
