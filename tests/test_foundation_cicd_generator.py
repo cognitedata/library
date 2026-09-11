@@ -1,6 +1,7 @@
 """Tests for Foundation Deployment Pack CI/CD generator (cdf_project_foundation)."""
 
-
+import json
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -99,9 +100,7 @@ environment:
     assert (tmp_path / ".github" / "workflows" / "deploy-prod.yml").is_file()
     assert (tmp_path / "docs" / "FOUNDATION_CICD.md").is_file()
 
-    dry_run = (tmp_path / ".github" / "workflows" / "dry-run.yml").read_text(
-        encoding="utf-8"
-    )
+    dry_run = (tmp_path / ".github" / "workflows" / "dry-run.yml").read_text(encoding="utf-8")
     assert "'industrial/config*.yaml'" in dry_run
     assert "'industrial/modules/sourcesystem/cdf_pi_extractor/'" not in dry_run
     assert "No .pre-commit-config.yaml found; skipping pre-commit config lint." in dry_run
@@ -116,16 +115,11 @@ environment:
     assert "cdf build --env dev" in dry_run
     assert "cdf deploy --dry-run | tee dryrun-output.txt" in dry_run
     assert "cdf deploy --dry-run --env" not in dry_run
-    assert (
-        "run: python industrial/modules/common/cdf_project_foundation/scripts/"
-        "setup_project.py --check"
-    ) in dry_run
+    assert ("run: python industrial/modules/common/cdf_project_foundation/scripts/setup_project.py --check") in dry_run
     # The check step must run before the "cdf build" step, not after.
     assert dry_run.index("Verify project config is in sync") < dry_run.index("- name: cdf build")
 
-    deploy_dev = (tmp_path / ".github" / "workflows" / "deploy-dev.yml").read_text(
-        encoding="utf-8"
-    )
+    deploy_dev = (tmp_path / ".github" / "workflows" / "deploy-dev.yml").read_text(encoding="utf-8")
     assert "name: Deploy to acme-dev" in deploy_dev
     assert "run: cdf build --env dev" in deploy_dev
     assert "run: cdf deploy" in deploy_dev
@@ -134,18 +128,19 @@ environment:
     assert "CONSUMER_SOURCE_ID: ${{ vars.CONSUMER_SOURCE_ID }}" in deploy_dev
     assert "PRODUCER_SOURCE_ID: ${{ vars.PRODUCER_SOURCE_ID }}" in deploy_dev
     assert (
-        "run: python industrial/modules/common/cdf_project_foundation/scripts/"
-        "setup_project.py --check"
+        "run: python industrial/modules/common/cdf_project_foundation/scripts/setup_project.py --check"
     ) in deploy_dev
     assert deploy_dev.index("Verify project config is in sync") < deploy_dev.index("- name: cdf build")
 
-    deploy_prod = (tmp_path / ".github" / "workflows" / "deploy-prod.yml").read_text(
-        encoding="utf-8"
-    )
+    deploy_prod = (tmp_path / ".github" / "workflows" / "deploy-prod.yml").read_text(encoding="utf-8")
     assert (
-        "run: python industrial/modules/common/cdf_project_foundation/scripts/"
-        "setup_project.py --check"
+        "run: python industrial/modules/common/cdf_project_foundation/scripts/setup_project.py --check"
     ) in deploy_prod
+
+    provider_env = "PROVIDER: ${{ vars.PROVIDER || 'entra_id' }}"
+    assert provider_env in dry_run
+    assert provider_env in deploy_dev
+    assert provider_env in deploy_prod
 
     cicd_docs = (tmp_path / "docs" / "FOUNDATION_CICD.md").read_text(encoding="utf-8")
     assert "`acme-dev`" in cicd_docs
@@ -156,6 +151,58 @@ environment:
     assert "`PRODUCER_SOURCE_ID`" in cicd_docs
     assert "skips the pre-commit config lint step" in cicd_docs
     assert "ruff check` and `pyright`" in cicd_docs
+    assert "`PROVIDER`" in cicd_docs
+    assert "Cognite IdP" in cicd_docs
+
+
+def _parse_github_workflow(text: str) -> dict[str, object]:
+    """Quote ${{ }} expressions so PyYAML can load GitHub workflow YAML."""
+    quoted = re.sub(r"\$\{\{.*?\}\}", lambda m: json.dumps(m.group(0)), text)
+    loaded = yaml.safe_load(quoted)
+    assert isinstance(loaded, dict)
+    return loaded
+
+
+def test_github_cdf_jobs_pass_provider_so_cogidp_can_authenticate(tmp_path: Path) -> None:
+    """GitHub Actions only injects env vars listed on the job.
+
+    Without PROVIDER the Toolkit stays on entra_id and a CogIdP project fails at
+    auth. An empty value is also invalid — the fallback must be the literal entra_id.
+    IDP_TOKEN_URL is unused when PROVIDER=cdf; do not plumb it.
+    """
+    _scaffold_project_with_envs(tmp_path, ("dev", "test", "prod"))
+    subprocess.run(
+        [sys.executable, str(GENERATE_ACTIONS), "--force"],
+        check=True,
+        cwd=tmp_path,
+    )
+
+    provider = "${{ vars.PROVIDER || 'entra_id' }}"
+    cdf_jobs = 0
+    workflows = sorted((tmp_path / ".github" / "workflows").glob("*.yml"))
+    assert workflows, "generator wrote no GitHub workflows"
+    for path in workflows:
+        parsed = _parse_github_workflow(path.read_text(encoding="utf-8"))
+        jobs = parsed["jobs"]
+        assert isinstance(jobs, dict)
+        for job in jobs.values():
+            assert isinstance(job, dict)
+            steps = job.get("steps", [])
+            assert isinstance(steps, list)
+            runs_cdf = any(isinstance(step, dict) and "cdf " in str(step.get("run", "")) for step in steps)
+            if not runs_cdf:
+                continue
+            cdf_jobs += 1
+            env = job.get("env", {})
+            assert isinstance(env, dict)
+            assert env.get("PROVIDER") == provider, f"{path.name} cdf job is missing PROVIDER"
+            assert "IDP_TOKEN_URL" not in env
+            assert "IDP_AUDIENCE" not in env
+    # dry-run + deploy-dev + deploy-test + deploy-prod
+    assert cdf_jobs == 4
+
+    docs = (tmp_path / "docs" / "FOUNDATION_CICD.md").read_text(encoding="utf-8")
+    assert "| Cognite IdP (CogIdP) | `cdf`" in docs
 
 
 def test_generate_actions_validates_environment_name(tmp_path: Path) -> None:
@@ -237,18 +284,14 @@ environment:
         cwd=tmp_path,
     )
 
-    dry_run = (tmp_path / ".github" / "workflows" / "dry-run.yml").read_text(
-        encoding="utf-8"
-    )
+    dry_run = (tmp_path / ".github" / "workflows" / "dry-run.yml").read_text(encoding="utf-8")
     assert "cdf build -c industrial/config.dev.yaml" in dry_run
     assert "cdf build -c industrial/config.test.yaml" in dry_run
     assert 'case "$GITHUB_BASE_REF" in' in dry_run
     assert "Unsupported base branch $GITHUB_BASE_REF" in dry_run
     assert "cdf build --env" not in dry_run
 
-    deploy_prod = (tmp_path / ".github" / "workflows" / "deploy-prod.yml").read_text(
-        encoding="utf-8"
-    )
+    deploy_prod = (tmp_path / ".github" / "workflows" / "deploy-prod.yml").read_text(encoding="utf-8")
     assert "run: cdf build -c industrial/config.prod.yaml" in deploy_prod
     assert "run: cdf deploy" in deploy_prod
     assert "cdf deploy --env" not in deploy_prod
@@ -300,9 +343,7 @@ environment:
     assert not stale_test_workflow.exists()
     assert (tmp_path / ".github" / "workflows" / "deploy-prod.yml").is_file()
 
-    dry_run = (tmp_path / ".github" / "workflows" / "dry-run.yml").read_text(
-        encoding="utf-8"
-    )
+    dry_run = (tmp_path / ".github" / "workflows" / "dry-run.yml").read_text(encoding="utf-8")
     assert "      - dev" in dry_run
     assert "      - main" not in dry_run
     assert "deploy-test.yml" not in dry_run
@@ -750,6 +791,8 @@ def test_generate_actions_ado_writes_pipelines_and_docs(tmp_path: Path) -> None:
     assert "Allow access to all pipelines" in docs
     assert "toolkit-config" in docs
     assert "IDP_TOKEN_URL" in docs
+    assert "`PROVIDER`" in docs
+    assert "Cognite IdP" in docs
     assert "GitHub Release" not in docs
     # ADO's Build Validation policy references a pipeline, not a job display name
     # inside it — the branch-protection table must not carry over GitHub wording.
@@ -860,8 +903,7 @@ def test_generate_actions_ado_dev_only_has_branch_condition(tmp_path: Path) -> N
 
     dry_run_dev_job = next(job for job in dry_run_yaml["jobs"] if job["job"] == "dry_run_dev")
     assert dry_run_dev_job["condition"] == (
-        "and(succeeded(), "
-        "in(variables['System.PullRequest.TargetBranch'], 'refs/heads/dev', 'dev'))"
+        "and(succeeded(), in(variables['System.PullRequest.TargetBranch'], 'refs/heads/dev', 'dev'))"
     )
     # No test/main branch configured, so the promotion-flow guard job is never
     # generated at all -- the target-branch check lives inside lint regardless.
@@ -892,14 +934,12 @@ def test_generate_actions_ado_test_only_promotion_guard_skips_non_pr_runs(tmp_pa
     dry_run_yaml = yaml.safe_load(dry_run_path.read_text(encoding="utf-8"))
     dry_run_test_job = next(job for job in dry_run_yaml["jobs"] if job["job"] == "dry_run_test")
     assert dry_run_test_job["condition"] == (
-        "and(succeeded(), "
-        "in(variables['System.PullRequest.TargetBranch'], 'refs/heads/main', 'main'))"
+        "and(succeeded(), in(variables['System.PullRequest.TargetBranch'], 'refs/heads/main', 'main'))"
     )
     assert set(dry_run_test_job["dependsOn"]) == {"lint", "source_branch_guard"}
     source_branch_guard_job = next(job for job in dry_run_yaml["jobs"] if job["job"] == "source_branch_guard")
     assert source_branch_guard_job["condition"] == (
-        "and(succeeded(), "
-        "in(variables['System.PullRequest.TargetBranch'], 'refs/heads/main', 'main'))"
+        "and(succeeded(), in(variables['System.PullRequest.TargetBranch'], 'refs/heads/main', 'main'))"
     )
 
     dry_run_text = dry_run_path.read_text(encoding="utf-8")

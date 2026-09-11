@@ -21,6 +21,7 @@ jobs:
       CDF_CLUSTER: ${{ vars.CDF_CLUSTER }}
       CDF_PROJECT: ${{ vars.CDF_PROJECT }}
       LOGIN_FLOW: ${{ vars.LOGIN_FLOW }}
+      PROVIDER: ${{ vars.PROVIDER || 'entra_id' }}
       IDP_TENANT_ID: ${{ vars.IDP_TENANT_ID }}
       IDP_CLIENT_ID: ${{ vars.IDP_CLIENT_ID }}
       ADMIN_SOURCE_ID: ${{ vars.ADMIN_SOURCE_ID }}

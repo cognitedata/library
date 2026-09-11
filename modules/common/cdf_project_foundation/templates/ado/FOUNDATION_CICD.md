@@ -43,8 +43,8 @@ Each `-toolkit-config` group needs these **variables**:
 - `CDF_CLUSTER`
 - `CDF_PROJECT` (must match `config.<env>.yaml`)
 - `LOGIN_FLOW` (typically `client_credentials`)
+- `PROVIDER` (only for a non-Entra identity provider — see below)
 - `IDP_TENANT_ID`
-- `IDP_TOKEN_URL` — token URL for non-Entra identity providers; for Entra ID, use the standard Entra configuration and `IDP_TENANT_ID`.
 - `IDP_CLIENT_ID`
 - `ADMIN_SOURCE_ID`
 - `CONSUMER_SOURCE_ID`
@@ -53,6 +53,21 @@ Each `-toolkit-config` group needs these **variables**:
 Each `-toolkit-credentials` group needs only this **secret** (mark it secret in the Library UI):
 
 - `IDP_CLIENT_SECRET`
+
+### Identity provider
+
+`PROVIDER` tells the Toolkit which identity provider to authenticate against. Leave it out
+of the group for Entra ID — the Toolkit already defaults to `entra_id`.
+
+| Identity provider | `PROVIDER` | `IDP_TENANT_ID` | `IDP_TOKEN_URL` |
+|-------------------|------------|-----------------|-----------------|
+| Microsoft Entra ID | `entra_id` (or unset) | required | not used |
+| Cognite IdP (CogIdP) | `cdf` | not used | not used — the Toolkit authenticates against `https://auth.cognite.com/oauth2/token` |
+| Other OIDC provider | `other` | not used | required, together with `IDP_AUDIENCE` |
+
+Azure DevOps exports every non-secret variable-group value to the pipeline, so the third row
+needs no pipeline change: add `IDP_TOKEN_URL` and `IDP_AUDIENCE` to the `-toolkit-config`
+group and they reach `cdf build` and `cdf deploy` on their own.
 
 ## Pipelines to register
 
