@@ -23,7 +23,7 @@ The module ships helper transformations under `transformations/` that merge tags
 | `tr_tag_files_detect_in_diagrams` | `DetectInDiagrams` | File view (`fileExternalId`) |
 | `tr_tag_files_to_annotate` | `ToAnnotate` | File view (`fileExternalId`) |
 
-Configure `targetEntityInstanceSpace`, `fileInstanceSpace`, schema spaces, view versions, and `cdmDataModelExternalId` in `default.config.yaml`, then run:
+Configure `targetEntityInstanceSpace`, `fileInstanceSpace`, view external IDs, and versions in `default.config.yaml`, then run:
 
 ```bash
 cdf transformations run tr_tag_assets_detect_in_diagrams
@@ -32,6 +32,8 @@ cdf transformations run tr_tag_files_to_annotate
 ```
 
 You still need a separate transformation (or upstream pipeline) to populate `aliases`.
+
+**Re-annotation:** Helper tag transformations only add tags. Files that already carry `Annotated`, `AnnotationInProcess`, or `AnnotationFailed` are excluded by `getFilesToAnnotateQuery` and will not re-enter the workflow if you only re-run `tr_tag_files_to_annotate`. Use `prepareFunction.getFilesForAnnotationResetQuery` in `extraction_pipelines/ep_file_annotation.config.yaml` (commented template at lines 34–43) to strip those status tags for files you want to process again; see `detailed_guides/CONFIG_PATTERNS.md` Recipe 2.
 
 #### Aliases Property
 

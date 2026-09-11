@@ -365,7 +365,7 @@ The module ships transformations under `transformations/` that **merge** tags wi
 | `tr_tag_files_detect_in_diagrams` | `DetectInDiagrams` | File view (`fileExternalId`) |
 | `tr_tag_files_to_annotate` | `ToAnnotate` | File view (`fileExternalId`) |
 
-Each reads from `cdf_data_models(schemaSpace, dataModelId, version, viewId)` filtered by the configured instance space, and upserts only the `tags` property (`ignoreNullFields: true`).
+Each reads from `cdf_nodes(instanceSpace, viewExternalId, version)` and upserts only the `tags` property (`ignoreNullFields: true`).
 
 ```bash
 cdf transformations run tr_tag_assets_detect_in_diagrams
@@ -373,7 +373,9 @@ cdf transformations run tr_tag_files_detect_in_diagrams
 cdf transformations run tr_tag_files_to_annotate
 ```
 
-Configure `cdmDataModelExternalId`, view spaces/versions, and instance spaces in `default.config.yaml`. You still need a separate pipeline (for example entity matching / alias update) to populate **`aliases`**.
+Configure view external IDs, versions, and instance spaces in `default.config.yaml`. You still need a separate pipeline (for example entity matching / alias update) to populate **`aliases`**.
+
+**Re-annotation:** These transformations only **add** tags; they never remove `Annotated`, `AnnotationInProcess`, or `AnnotationFailed`. Prepare discovers files with `prepareFunction.getFilesToAnnotateQuery` in [`extraction_pipelines/ep_file_annotation.config.yaml`](./extraction_pipelines/ep_file_annotation.config.yaml), which requires `ToAnnotate` and excludes those three status tags. Re-running `tr_tag_files_to_annotate` on an already-annotated file is therefore a silent no-op—the file still will not be picked up. To force another pass, uncomment and configure `prepareFunction.getFilesForAnnotationResetQuery` (example at lines 34–43 in the same file); prepare runs it **before** `getFilesToAnnotateQuery` and clears the status tags on matching files. See [CONFIG_PATTERNS.md — Recipe 2](./detailed_guides/CONFIG_PATTERNS.md#recipe-2-reprocessing-specific-files-for-debugging) for filter examples.
 
 ## 📊 Reporting & RAW Tables
 
@@ -455,7 +457,6 @@ targetEntitySchemaSpace: <insert>
 targetEntityInstanceSpace: <insert>
 targetEntityExternalId: <insert>
 targetEntityVersion: <insert>
-cdmDataModelExternalId: CogniteCore             # Data model ID for helper tagging SQL
 
 # Transformations
 fileToAssetTransformationExternalId: tr_file_to_asset_from_annotations
@@ -573,7 +574,7 @@ cdf transformations run tr_tag_files_detect_in_diagrams
 cdf transformations run tr_tag_files_to_annotate
 ```
 
-Set `fileInstanceSpace`, `targetEntityInstanceSpace`, and `cdmDataModelExternalId` in your environment config so the SQL reads and writes the correct space and data model.
+Set `fileInstanceSpace`, `targetEntityInstanceSpace`, and the file/target view external IDs and versions in your environment config so the SQL reads and writes the correct instances.
 
 ### 3. Configure the Module
 
@@ -598,7 +599,6 @@ variables:
       targetEntityInstanceSpace: your_instances
       targetEntityExternalId: YourAsset
       targetEntityVersion: v1.0
-      cdmDataModelExternalId: CogniteCore
       functionClientId: ${IDP_CLIENT_ID}
       functionClientSecret: ${IDP_CLIENT_SECRET}
       functionSpace: your_functions_space       # UPDATE REQUIRED
@@ -777,6 +777,7 @@ cdf raw rows list <db> rawTableDocTag --limit 10
 
 1. **Files Not Being Picked Up**
    - Verify files have the `ToAnnotate` tag (run `tr_tag_files_to_annotate` or check manually)
+   - If the file was annotated before, check for `Annotated`, `AnnotationInProcess`, or `AnnotationFailed` — `getFilesToAnnotateQuery` excludes them; tagging alone does not clear them (see **Re-annotation** under Helper tagging transformations, or enable `getFilesForAnnotationResetQuery` in `ep_file_annotation.config.yaml`)
    - Check `getFilesToAnnotateQuery` in the extraction pipeline config
    - Ensure `FileAnnotationState` view is deployed
 

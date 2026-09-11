@@ -28,7 +28,6 @@ targetEntitySchemaSpace: cdf_cdm
 targetEntityInstanceSpace: sp_cdm_instances
 targetEntityExternalId: CogniteAsset
 targetEntityVersion: v1
-cdmDataModelExternalId: CogniteCore
 
 # used in /functions
 functionClientId: ${IDP_CLIENT_ID}

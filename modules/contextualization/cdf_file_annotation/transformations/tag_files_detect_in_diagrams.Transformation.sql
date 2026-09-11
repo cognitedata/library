@@ -12,10 +12,8 @@ SELECT
       WHEN array_contains(tags, 'DetectInDiagrams') THEN tags
       ELSE array_union(tags, array('DetectInDiagrams'))
     END AS tags
-FROM cdf_data_models(
-    '{{ fileSchemaSpace }}'
-  , '{{ cdmDataModelExternalId }}'
-  , '{{ fileVersion }}'
+FROM cdf_nodes(
+    '{{ fileInstanceSpace }}'
   , '{{ fileExternalId }}'
+  , '{{ fileVersion }}'
 )
-WHERE space = '{{ fileInstanceSpace }}'

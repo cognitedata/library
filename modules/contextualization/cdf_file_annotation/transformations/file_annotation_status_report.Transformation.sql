@@ -52,6 +52,11 @@ pattern_asset_annotations AS (
     AND startNodeText IS NOT NULL
     AND trim(cast(startNodeText AS STRING)) != ''
     -- Skip file-to-file pattern hits; this report is asset/tag focused.
+    -- Depends on launchFunction.fileResourceProperty and targetEntitiesResourceProperty
+    -- being unset in extraction_pipelines/ep_file_annotation.config.yaml (default empty).
+    -- If either is set, finalize/promote populate endNodeResourceType from that mapping
+    -- instead of the view external ID, so this filter may not exclude file-to-file rows
+    -- and they can show up as unmatched tags without an obvious signal.
     AND coalesce(cast(endNodeResourceType AS STRING), '{{ targetEntityExternalId }}') != '{{ fileExternalId }}'
 ),
 
