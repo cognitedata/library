@@ -51,7 +51,10 @@ The CDF Entity Matching module is designed to:
 ```
 cdf_entity_matching/
 ├── 📁 functions/                           # CDF Functions
-│   ├── 📁 fn_dm_context_timeseries_entity_matching/  # Entity matching logic
+│   ├── 📁 fn_dm_context_timeseries_entity_matching/  # Entity matching, single run
+│   ├── 📁 fn_dm_context_entity_matching_submit/    # Entity matching, starts predict job
+│   ├── 📁 fn_dm_context_entity_matching_collect/   # Entity matching, collects predict job
+│   ├── 📁 _entity_matching_core/                   # Code shared by submit and collect
 │   ├── 📁 fn_dm_context_aliases_update/            # Metadata optimization
 │   └── 📄 functions.Function.yaml                   # Function definitions
 ├── 📁 workflows/                           # CDF Workflows
@@ -95,7 +98,37 @@ cdf_entity_matching/
 - Industrial IoT data organization
 - Process optimization and monitoring
 
-### 2. [Metadata Update Function](./functions/fn_dm_context_aliases_update/README.md)
+### 2. Asynchronous entity matching: [submit](./functions/fn_dm_context_entity_matching_submit/README.md) and [collect](./functions/fn_dm_context_entity_matching_collect/README.md)
+
+**Purpose**: The same matching, split in two so a long prediction cannot time the
+function out. This is the pair the workflow runs.
+
+Matching in CDF is a job on the platform, and waiting for it is what makes a large run
+time out. **Submit** applies manual and rule based mappings, starts the predict job
+without waiting for it, stages its matches in RAW and adds the job to a queue in the
+state store table. **Collect** works through that queue oldest first, polling each job
+(5s, 15s, then 30s between polls) for at most 8 minutes per run, merges finished results
+with the staged matches, writes them, and removes the job from the queue. Anything still
+running is picked up by the next collect run.
+
+Both functions read the same extraction pipeline configuration as the single-run function
+— no new parameters. Manual and rule based matches always win over model matches for the
+same entity, because collect merges them in before the model's results are considered.
+
+| RAW key | Written by | Meaning |
+|---|---|---|
+| `state_predict_job_<jobId>` | submit | A predict job waiting to be collected |
+| `pending:<jobId>:<row key>` | submit | Manual and rule matches staged for that job |
+
+The single-run [Timeseries Entity Matching Function](./functions/fn_dm_context_timeseries_entity_matching/README.md)
+is unchanged and still deployed; use it when a run comfortably fits inside one function
+invocation.
+
+The code shared by the two functions lives in
+[`functions/_entity_matching_core`](./functions/_entity_matching_core/README.md) and is
+copied into both by `python scripts/sync_entity_matching_core.py`.
+
+### 3. [Metadata Update Function](./functions/fn_dm_context_aliases_update/README.md)
 
 **Purpose**: Optimizes metadata for timeseries, assets and files to improve searchability
 

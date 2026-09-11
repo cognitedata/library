@@ -21,6 +21,8 @@ package = false
 members = [
     "modules/common/cdf_common/functions/contextualization_connection_writer",
     "modules/contextualization/cdf_entity_matching/functions/fn_dm_context_aliases_update",
+    "modules/contextualization/cdf_entity_matching/functions/fn_dm_context_entity_matching_collect",
+    "modules/contextualization/cdf_entity_matching/functions/fn_dm_context_entity_matching_submit",
     "modules/contextualization/cdf_entity_matching/functions/fn_dm_context_timeseries_entity_matching",
     "modules/contextualization/cdf_file_annotation/functions/fn_file_annotation_finalize",
     "modules/contextualization/cdf_file_annotation/functions/fn_file_annotation_launch",

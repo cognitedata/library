@@ -13,6 +13,8 @@ members = [
     "file-annotation-dashboard-pipeline-health",
     "fn-ai-property-extractor",
     "fn-dm-context-aliases-update",
+    "fn-dm-context-entity-matching-collect",
+    "fn-dm-context-entity-matching-submit",
     "fn-dm-context-files-annotation",
     "fn-dm-context-timeseries-entity-matching",
     "fn-file-annotation-finalize",
@@ -656,6 +658,68 @@ requires-dist = [
     { name = "pyyaml", specifier = ">=6.0.1" },
     { name = "tenacity", specifier = ">=8.0.0" },
 ]
+
+[[package]]
+name = "fn-dm-context-entity-matching-collect"
+version = "0.0.0"
+source = { virtual = "modules/contextualization/cdf_entity_matching/functions/fn_dm_context_entity_matching_collect" }
+dependencies = [
+    { name = "cognite-extractor-utils" },
+    { name = "cognite-sdk" },
+    { name = "mixpanel" },
+    { name = "psutil" },
+    { name = "pyyaml" },
+    { name = "tenacity" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "pytest" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "cognite-extractor-utils", specifier = ">=7" },
+    { name = "cognite-sdk", specifier = ">=7,<8" },
+    { name = "mixpanel", specifier = ">=4.10.0" },
+    { name = "psutil", specifier = ">=5.9.0" },
+    { name = "pyyaml", specifier = ">=6.0.1" },
+    { name = "tenacity", specifier = ">=8.0.0" },
+]
+
+[package.metadata.requires-dev]
+dev = [{ name = "pytest", specifier = ">=7.0.0" }]
+
+[[package]]
+name = "fn-dm-context-entity-matching-submit"
+version = "0.0.0"
+source = { virtual = "modules/contextualization/cdf_entity_matching/functions/fn_dm_context_entity_matching_submit" }
+dependencies = [
+    { name = "cognite-extractor-utils" },
+    { name = "cognite-sdk" },
+    { name = "mixpanel" },
+    { name = "psutil" },
+    { name = "pyyaml" },
+    { name = "tenacity" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "pytest" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "cognite-extractor-utils", specifier = ">=7" },
+    { name = "cognite-sdk", specifier = ">=7,<8" },
+    { name = "mixpanel", specifier = ">=4.10.0" },
+    { name = "psutil", specifier = ">=5.9.0" },
+    { name = "pyyaml", specifier = ">=6.0.1" },
+    { name = "tenacity", specifier = ">=8.0.0" },
+]
+
+[package.metadata.requires-dev]
+dev = [{ name = "pytest", specifier = ">=7.0.0" }]
 
 [[package]]
 name = "fn-dm-context-files-annotation"

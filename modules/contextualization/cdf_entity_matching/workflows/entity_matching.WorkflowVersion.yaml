@@ -14,16 +14,31 @@ workflowDefinition:
       retries: 3
       timeout: 9000
       onFailure: 'abortWorkflow'
-    - externalId: 'fn_dm_context_timeseries_entity_matching'
+    - externalId: 'fn_dm_context_entity_matching_submit'
       type: 'function'
       parameters:
         function:
-          externalId: 'fn_dm_context_timeseries_entity_matching'
+          externalId: 'fn_dm_context_entity_matching_submit'
           data: { "ExtractionPipelineExtId": "ep_ctx_timeseries_{{location_name}}_{{source_name}}_entity_matching" }
-      name: 'Entity matching Function'
-      description: 'Contextualization of timeseries and assets using entity matching'
+      name: 'Entity matching submit Function'
+      description: 'Manual and rule based matching, then start the entity matching predict job'
       retries: 3
       timeout: 9000
       onFailure: 'abortWorkflow'
       dependsOn:
         - externalId: 'fn_dm_context_aliases_update'
+    # Collects the jobs submit started. A job that is still running when this task's poll
+    # budget is spent stays queued and is picked up by the next run of this workflow.
+    - externalId: 'fn_dm_context_entity_matching_collect'
+      type: 'function'
+      parameters:
+        function:
+          externalId: 'fn_dm_context_entity_matching_collect'
+          data: { "ExtractionPipelineExtId": "ep_ctx_timeseries_{{location_name}}_{{source_name}}_entity_matching" }
+      name: 'Entity matching collect Function'
+      description: 'Collect finished predict jobs and write matches to RAW and the data model'
+      retries: 3
+      timeout: 9000
+      onFailure: 'abortWorkflow'
+      dependsOn:
+        - externalId: 'fn_dm_context_entity_matching_submit'
