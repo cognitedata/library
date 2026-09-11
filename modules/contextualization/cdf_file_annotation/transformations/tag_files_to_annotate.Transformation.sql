@@ -13,7 +13,7 @@ SELECT
       ELSE array_union(tags, array('ToAnnotate'))
     END AS tags
 FROM cdf_nodes(
-    '{{ fileInstanceSpace }}'
+    '{{ fileSchemaSpace }}'
   , '{{ fileExternalId }}'
   , '{{ fileVersion }}'
 )

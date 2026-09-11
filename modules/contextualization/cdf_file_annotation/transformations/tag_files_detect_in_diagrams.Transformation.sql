@@ -13,7 +13,7 @@ SELECT
       ELSE array_union(tags, array('DetectInDiagrams'))
     END AS tags
 FROM cdf_nodes(
-    '{{ fileInstanceSpace }}'
+    '{{ fileSchemaSpace }}'
   , '{{ fileExternalId }}'
   , '{{ fileVersion }}'
 )
