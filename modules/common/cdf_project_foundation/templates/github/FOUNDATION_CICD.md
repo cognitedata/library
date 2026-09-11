@@ -58,8 +58,7 @@ workflows default it to `entra_id`, so Entra ID projects can leave the variable 
 | Other OIDC provider | `other` | not used | required, together with `IDP_AUDIENCE` |
 
 The generated workflows do not pass `IDP_TOKEN_URL` or `IDP_AUDIENCE`, so the third row
-needs a change to the workflow templates — raise it in
-[#topic-deployment-packs](https://cognitedata.slack.com/archives/C098QJ09YKX).
+needs a change to the workflow templates.
 
 ## Toolkit configs
 
