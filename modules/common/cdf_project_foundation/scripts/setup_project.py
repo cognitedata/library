@@ -179,6 +179,7 @@ CONTEXTUALIZATION_VARIABLES: dict[str, dict[str, dict]] = {
             "targetEntitySchemaSpace": "dm_dom_isa_manufacturing",
             "targetEntityInstanceSpace": None,
             "targetEntityExternalId": "ISAAsset",
+            "cdmDataModelExternalId": "ISA_Manufacturing_DOM",
         },
     },
     "cfihos_oil_and_gas_extension": {
@@ -205,6 +206,7 @@ CONTEXTUALIZATION_VARIABLES: dict[str, dict[str, dict]] = {
             "targetEntitySchemaSpace": "dm_dom_oil_and_gas",
             "targetEntityInstanceSpace": None,
             "targetEntityExternalId": "Tag",
+            "cdmDataModelExternalId": "dm_oil_and_gas_domain_model",
         },
     },
 }
