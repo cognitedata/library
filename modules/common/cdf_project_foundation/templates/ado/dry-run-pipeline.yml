@@ -50,13 +50,14 @@ jobs:
 
       - bash: |
           set -euo pipefail
-          mapfile -t PY_FILES < <(git ls-files | grep -E '/functions/.*\.py$' || true)
+          EXCLUDE='{{FUNCTION_LINT_EXCLUDE}}'
+          mapfile -t PY_FILES < <(git ls-files | grep -E '/functions/.*\.py$' | grep -Ev "$EXCLUDE" || true)
           if [ "${#PY_FILES[@]}" -eq 0 ]; then
-            echo "No Python found under functions/; skipping ruff and pyright."
+            echo "No team-authored Python under functions/; skipping ruff and pyright."
             exit 0
           fi
           pip install ruff pyright
-          mapfile -t REQS < <(git ls-files | grep -E '/functions/.*requirements\.txt$' || true)
+          mapfile -t REQS < <(git ls-files | grep -E '/functions/.*requirements\.txt$' | grep -Ev "$EXCLUDE" || true)
           for req in "${REQS[@]}"; do
             pip install -r "$req"
           done
