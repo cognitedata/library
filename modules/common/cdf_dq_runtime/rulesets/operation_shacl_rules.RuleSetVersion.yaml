@@ -1,0 +1,337 @@
+ruleSetExternalId: operation_shacl_rules
+version: "1.0.0"
+rules:
+  - |
+    @prefix sh: <http://www.w3.org/ns/shacl#> .
+    @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+    @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+    @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+    @prefix dqs: <http://purl.org/cognite/dqs#> .
+
+    # Namespace for the data model
+    @prefix sp: <http://purl.org/cognite/sp_enterprise_process_industry/YourOrgOperation/> .
+    @prefix dq: <http://example.org/dataquality/> .
+
+    # =============================================================================
+    # SHACL Rules for YourOrgOperation
+    # =============================================================================
+    # This rule set validates Operations and includes cross-reference validation
+    # to check that Operation tags match the tags of related Equipment.
+    # =============================================================================
+
+    # =============================================================================
+    # Equipment Shape (for sh:node reference - triggers auto-loading)
+    # =============================================================================
+    sp:EquipmentShape
+        a sh:NodeShape ;
+        sh:targetClass sp:YourOrgEquipment ;
+        sh:name "Equipment Shape" ;
+        sh:description "Shape for validating Equipment instances referenced by Operations" ;
+
+        # Equipment should have a name
+        sh:property [
+            sh:path sp:name ;
+            dq:dimension "Completeness" ;
+            sh:minCount 1 ;
+            sh:datatype xsd:string ;
+            sh:message "Equipment must have a name" ;
+            sh:severity sh:Warning ;
+        ] ;
+
+        # Equipment tags (for cross-reference validation)
+        sh:property [
+            sh:path sp:tags ;
+            sh:datatype xsd:string ;
+            sh:message "Equipment tags must be strings" ;
+            sh:severity sh:Warning ;
+        ] .
+
+
+    # =============================================================================
+    # Operation Shape - Main Validation Rules
+    # =============================================================================
+    sp:OperationShape
+        a sh:NodeShape ;
+        sh:targetClass sp:YourOrgOperation ;
+        sh:name "Operation Validation" ;
+        sh:description "Validates YourOrgOperation instances including relationship constraints" ;
+
+        # ===========================================================================
+        # REQUIRED FIELDS
+        # ===========================================================================
+
+        # Name is required
+        sh:property [
+            sh:path sp:name ;
+            dq:dimension "Completeness" ;
+            sh:minCount 1 ;
+            sh:datatype xsd:string ;
+            sh:message "Operation must have a name" ;
+            sh:severity sh:Violation ;
+        ] ;
+
+        # Maintenance order reference is required
+        sh:property [
+            sh:path sp:maintenanceOrder ;
+            dq:dimension "Completeness" ;
+            sh:minCount 1 ;
+            sh:message "Operation must be linked to a maintenance order" ;
+            sh:severity sh:Violation ;
+        ] ;
+
+        # ===========================================================================
+        # OPTIONAL FIELDS WITH CONSTRAINTS
+        # ===========================================================================
+
+        # Description (optional)
+        sh:property [
+            sh:path sp:description ;
+            dq:dimension "Validity" ;
+            sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:message "Description must be a string if provided" ;
+            sh:severity sh:Warning ;
+        ] ;
+
+        # Status (optional)
+        sh:property [
+            sh:path sp:status ;
+            dq:dimension "Validity" ;
+            sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:message "Status must be a string" ;
+            sh:severity sh:Warning ;
+        ] ;
+
+        # Phase (optional)
+        sh:property [
+            sh:path sp:phase ;
+            dq:dimension "Validity" ;
+            sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:message "Phase must be a string" ;
+            sh:severity sh:Warning ;
+        ] ;
+
+        # Sequence (optional, but if present must be non-negative)
+        sh:property [
+            sh:path sp:sequence ;
+            dq:dimension "Validity" ;
+            sh:datatype xsd:integer ;
+            sh:minInclusive 0 ;
+            sh:maxCount 1 ;
+            sh:message "Sequence must be a non-negative integer" ;
+            sh:severity sh:Warning ;
+        ] ;
+
+        # Person hours (optional, but if present must be positive)
+        sh:property [
+            sh:path sp:personHours ;
+            dq:dimension "Validity" ;
+            sh:minExclusive 0 ;
+            sh:maxCount 1 ;
+            sh:message "Person hours must be a positive number" ;
+            sh:severity sh:Warning ;
+        ] ;
+
+        # Number of main discipline (optional, but if present must be positive)
+        sh:property [
+            sh:path sp:numberOfMainDiscipline ;
+            dq:dimension "Validity" ;
+            sh:datatype xsd:integer ;
+            sh:minInclusive 1 ;
+            sh:maxCount 1 ;
+            sh:message "Number of main discipline must be at least 1" ;
+            sh:severity sh:Warning ;
+        ] ;
+
+        # ===========================================================================
+        # EQUIPMENT REFERENCE WITH sh:node (TRIGGERS AUTO-LOADING!)
+        # ===========================================================================
+
+        # Equipment list - uses sh:node to reference EquipmentShape
+        # This will trigger NEAT to auto-load the Equipment instances from DMS
+        sh:property [
+            sh:path sp:equipment ;
+            dq:dimension "Conformity" ;
+            sh:node sp:EquipmentShape ;
+            sh:message "Related equipment must conform to EquipmentShape" ;
+            sh:severity sh:Warning ;
+        ] ;
+
+        # ===========================================================================
+        # CROSS-REFERENCE VALIDATION: Operation tags must match Equipment tags
+        # ===========================================================================
+        # This SPARQL constraint checks that:
+        # - For each tag on the Operation
+        # - At least one related Equipment has that same tag
+        # ===========================================================================
+
+        sh:sparql [
+            a sh:SPARQLConstraint ;
+            sh:message "Operation tag '{?operationTag}' is not found on any related equipment" ;
+            sh:severity sh:Warning ;
+            sh:select """
+                PREFIX sp: <http://purl.org/cognite/sp_enterprise_process_industry/YourOrgOperation/>
+
+                SELECT $this ?operationTag
+                WHERE {
+                    # Get operation's tags
+                    $this sp:tags ?operationTag .
+
+                    # Get related equipment
+                    $this sp:equipment ?equipment .
+
+                    # Check if ANY equipment has this tag
+                    # VIOLATION: No equipment has the operation's tag
+                    FILTER NOT EXISTS {
+                        ?equipment sp:tags ?equipmentTag .
+                        FILTER(?operationTag = ?equipmentTag)
+                    }
+                }
+            """ ;
+        ] ;
+
+        # ===========================================================================
+        # REVERSE CHECK: Equipment tags should be on Operation
+        # ===========================================================================
+        # This validates that if equipment has tags, those tags should also
+        # be present on the operation (ensuring consistency)
+        # ===========================================================================
+
+        sh:sparql [
+            a sh:SPARQLConstraint ;
+            sh:message "Equipment tag '{?equipmentTag}' from equipment '{?equipmentId}' is not on the operation" ;
+            sh:severity sh:Info ;
+            sh:select """
+                PREFIX sp: <http://purl.org/cognite/sp_enterprise_process_industry/YourOrgOperation/>
+
+                SELECT $this ?equipmentTag ?equipmentId
+                WHERE {
+                    # Get related equipment and its tags
+                    $this sp:equipment ?equipment .
+                    ?equipment sp:tags ?equipmentTag .
+
+                    # Get equipment ID for the message
+                    BIND(STR(?equipment) AS ?equipmentId)
+
+                    # Check if operation has this tag
+                    # VIOLATION: Operation doesn't have the equipment's tag
+                    FILTER NOT EXISTS {
+                        $this sp:tags ?operationTag .
+                        FILTER(?operationTag = ?equipmentTag)
+                    }
+                }
+            """ ;
+        ] .
+
+
+    # =============================================================================
+    # Operation with Equipment - Strict Tag Matching
+    # =============================================================================
+    # This shape enforces that Operations MUST have equipment assigned
+    # and their tags MUST match exactly
+    # =============================================================================
+
+    sp:OperationWithEquipmentTagMatchingShape
+        a sh:NodeShape ;
+        sh:targetClass sp:YourOrgOperation ;
+        sh:name "Operation-Equipment Tag Matching (Strict)" ;
+        sh:description "Strict validation that operation tags match equipment tags exactly" ;
+
+        # Must have at least one equipment
+        sh:property [
+            sh:path sp:equipment ;
+            dq:dimension "Completeness" ;
+            sh:minCount 1 ;
+            sh:node sp:EquipmentShape ;  # This triggers auto-loading!
+            sh:message "Operation must have at least one equipment assigned" ;
+            sh:severity sh:Violation ;
+        ] ;
+
+        # All operation tags must exist on at least one equipment
+        sh:sparql [
+            a sh:SPARQLConstraint ;
+            sh:message "STRICT: Operation tag '{?tag}' not found on any related equipment. Tags must match!" ;
+            sh:severity sh:Violation ;
+            sh:select """
+                PREFIX sp: <http://purl.org/cognite/sp_enterprise_process_industry/YourOrgOperation/>
+
+                SELECT $this ?tag
+                WHERE {
+                    # Operation has tags
+                    $this sp:tags ?tag .
+
+                    # Has equipment
+                    $this sp:equipment ?equipment .
+
+                    # But no equipment has this tag
+                    FILTER NOT EXISTS {
+                        ?equipment sp:tags ?tag .
+                    }
+                }
+            """ ;
+        ] .
+
+
+    # =============================================================================
+    # TIME VALIDATION
+    # =============================================================================
+
+    sp:OperationTimeValidationShape
+        a sh:NodeShape ;
+        sh:targetClass sp:YourOrgOperation ;
+        sh:name "Operation Time Validation" ;
+        sh:description "Validates time constraints for operations" ;
+
+        # End time must be after start time
+        sh:sparql [
+            a sh:SPARQLConstraint ;
+            sh:message "Operation end time must be after start time" ;
+            sh:severity sh:Violation ;
+            sh:select """
+                PREFIX sp: <http://purl.org/cognite/sp_enterprise_process_industry/YourOrgOperation/>
+                PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+
+                SELECT $this ?startTime ?endTime
+                WHERE {
+                    $this sp:startTime ?startTime ;
+                          sp:endTime ?endTime .
+
+                    FILTER(xsd:dateTime(?endTime) <= xsd:dateTime(?startTime))
+                }
+            """ ;
+        ] ;
+
+        # Scheduled end time must be after scheduled start time
+        sh:sparql [
+            a sh:SPARQLConstraint ;
+            sh:message "Scheduled end time must be after scheduled start time" ;
+            sh:severity sh:Violation ;
+            sh:select """
+                PREFIX sp: <http://purl.org/cognite/sp_enterprise_process_industry/YourOrgOperation/>
+                PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+
+                SELECT $this ?schedStart ?schedEnd
+                WHERE {
+                    $this sp:scheduledStartTime ?schedStart ;
+                          sp:scheduledEndTime ?schedEnd .
+
+                    FILTER(xsd:dateTime(?schedEnd) <= xsd:dateTime(?schedStart))
+                }
+            """ ;
+        ] .
+
+
+    # =============================================================================
+    # Uniqueness Rule: Operation name must be unique
+    # =============================================================================
+    sp:OperationNameUniqueness
+        a sh:NodeShape ;
+        sh:targetClass sp:YourOrgOperation ;
+        sh:name "Operation Name Uniqueness Validation" ;
+        sh:description "Ensures operation names are unique across the target class." ;
+        sh:severity sh:Violation ;
+        dqs:uniquenessConstraint [
+            dqs:property "name" ;
+        ] .

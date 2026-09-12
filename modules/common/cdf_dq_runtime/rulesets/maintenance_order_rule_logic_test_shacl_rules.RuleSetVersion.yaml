@@ -1,0 +1,111 @@
+ruleSetExternalId: maintenance_order_rule_logic_test_shacl_rules
+version: "1.0.0"
+rules:
+  - |
+    @prefix sh: <http://www.w3.org/ns/shacl#> .
+    @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+    @prefix dqs: <http://purl.org/cognite/dqs#> .
+    @prefix sp: <http://purl.org/cognite/sp_enterprise_process_industry/YourOrgMaintenanceOrder/> .
+
+    # ============================================================================
+    # Rule Logic Test Pack for YourOrgMaintenanceOrder
+    # ============================================================================
+    # This file intentionally exercises three behaviors against live cog-ai data:
+    # 1) Uniqueness: duplicate maintenance-order names
+    # 2) Conditional logic: status-driven check
+    # 3) Chained conditional logic: ordered SHACL-AF rules with dqs:dependsOn
+    # ============================================================================
+
+    sp:MaintenanceOrderNameUniquenessTest
+        a sh:NodeShape ;
+        sh:targetClass sp:YourOrgMaintenanceOrder ;
+        sh:name "Maintenance Order Name Uniqueness Test" ;
+        sh:description "Ensures maintenance order names are unique across the target class." ;
+        sh:severity sh:Violation ;
+        dqs:uniquenessConstraint [
+            dqs:property "name" ;
+        ] .
+
+    # Conditional logic:
+    # If status is 900 (completed code in this dataset), endTime must exist.
+    sp:CompletedStatusMustHaveEndTime
+        a sh:NodeShape ;
+        sh:targetClass sp:YourOrgMaintenanceOrder ;
+        sh:name "Completed Status Requires End Time" ;
+        sh:description "Rows with status=900 must have endTime." ;
+        sh:severity sh:Violation ;
+        sh:sparql [
+            a sh:SPARQLConstraint ;
+            sh:message "Status 900 requires endTime, but endTime is missing." ;
+            sh:severity sh:Violation ;
+            sh:select """
+                PREFIX sp: <http://purl.org/cognite/sp_enterprise_process_industry/YourOrgMaintenanceOrder/>
+                SELECT $this
+                WHERE {
+                    $this sp:status ?status .
+                    FILTER(STR(?status) = "900")
+                    FILTER NOT EXISTS { $this sp:endTime ?endTime }
+                }
+            """ ;
+        ] .
+
+    # Chained conditional logic:
+    # Rule 1 tags completed rows. Rule 2 depends on Rule 1 and emits a follow-up
+    # inference for completed rows missing endTime.
+    sp:MaintenanceOrderRuleChain
+        a sh:NodeShape ;
+        sh:targetClass sp:YourOrgMaintenanceOrder ;
+        sh:rule [
+            a sh:SPARQLRule ;
+            sh:order 1 ;
+            dqs:ruleId "MO_Completed_Status_Tag" ;
+            sh:construct """
+                PREFIX sp: <http://purl.org/cognite/sp_enterprise_process_industry/YourOrgMaintenanceOrder/>
+                PREFIX dqs: <http://purl.org/cognite/dqs#>
+                CONSTRUCT {
+                    ?result a dqs:RuleEngineResult ;
+                            dqs:focusNode $this ;
+                            dqs:ruleId "MO_Completed_Status_Tag" ;
+                            dqs:resultType "Inference" ;
+                            dqs:resultValue "CompletedStatus900" ;
+                            dqs:resultPayload ?payload .
+                }
+                WHERE {
+                    $this sp:status ?status .
+                    FILTER(STR(?status) = "900")
+                    BIND(CONCAT('{"status":"', STR(?status), '"}') AS ?payload)
+                    BIND(IRI(CONCAT("urn:dqs:mo:completed:", STR($this))) AS ?result)
+                }
+            """ ;
+        ] ;
+        sh:rule [
+            a sh:SPARQLRule ;
+            sh:order 2 ;
+            dqs:ruleId "MO_Completed_Missing_EndTime" ;
+            dqs:dependsOn "MO_Completed_Status_Tag" ;
+            sh:construct """
+                PREFIX sp: <http://purl.org/cognite/sp_enterprise_process_industry/YourOrgMaintenanceOrder/>
+                PREFIX dqs: <http://purl.org/cognite/dqs#>
+                CONSTRUCT {
+                    ?result a dqs:RuleEngineResult ;
+                            dqs:focusNode $this ;
+                            dqs:ruleId "MO_Completed_Missing_EndTime" ;
+                            dqs:resultType "Inference" ;
+                            dqs:resultValue "MissingEndTimeForCompleted" ;
+                            dqs:resultPayload ?payload ;
+                            dqs:causedBy ?completedTag .
+                }
+                WHERE {
+                    $this sp:status ?status .
+                    FILTER(STR(?status) = "900")
+                    FILTER NOT EXISTS { $this sp:endTime ?endTime }
+                    OPTIONAL {
+                        ?completedTag a dqs:RuleEngineResult ;
+                                      dqs:focusNode $this ;
+                                      dqs:ruleId "MO_Completed_Status_Tag" .
+                    }
+                    BIND(CONCAT('{"status":"', STR(?status), '","missing":"endTime"}') AS ?payload)
+                    BIND(IRI(CONCAT("urn:dqs:mo:completed-missing-endtime:", STR($this))) AS ?result)
+                }
+            """ ;
+        ] .
