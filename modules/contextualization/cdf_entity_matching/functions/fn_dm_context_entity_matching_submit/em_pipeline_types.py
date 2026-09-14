@@ -1,4 +1,4 @@
-# Generated from functions/_entity_matching_core/pipeline_types.py - do not edit this copy.
+# Generated from functions/_entity_matching_core/em_pipeline_types.py - do not edit this copy.
 # Change the source and run: python scripts/sync_entity_matching_core.py
 """Typed structures for the entity matching pipeline."""
 

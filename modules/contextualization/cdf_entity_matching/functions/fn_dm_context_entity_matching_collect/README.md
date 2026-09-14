@@ -50,7 +50,7 @@ collected, and a warning naming the job it left running when the 8 minutes were 
 
 ## Code layout
 
-`handler.py` is the entry point. Every other `.py` file is generated from
+`handler.py` is the entry point. Every `em_*.py` file is generated from
 [`../_entity_matching_core`](../_entity_matching_core/README.md) — edit it there and run
 `python scripts/sync_entity_matching_core.py`.
 

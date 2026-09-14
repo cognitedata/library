@@ -1,4 +1,4 @@
-# Generated from functions/_entity_matching_core/staging.py - do not edit this copy.
+# Generated from functions/_entity_matching_core/em_staging.py - do not edit this copy.
 # Change the source and run: python scripts/sync_entity_matching_core.py
 """Matches parked in RAW while a predict job runs.
 
@@ -16,10 +16,10 @@ from cognite.client.data_classes import Row
 if TYPE_CHECKING:
     from cognite.extractorutils.uploader import RawUploadQueue
 
-from config import Config  # isort: skip
-from constants import STAGING_COL_JOB_ID, STAGING_ROW_KEY_PREFIX  # isort: skip
-from logger import CogniteFunctionLogger  # isort: skip
-from pipeline import create_table, raw_row_key  # isort: skip
+from em_config import Config  # isort: skip
+from em_constants import STAGING_COL_JOB_ID, STAGING_ROW_KEY_PREFIX  # isort: skip
+from em_logger import CogniteFunctionLogger  # isort: skip
+from em_pipeline import create_table, raw_row_key  # isort: skip
 
 
 def staging_prefix(job_id: str) -> str:

@@ -34,8 +34,8 @@ from cognite.client.data_classes.data_modeling.query import (
 )
 from cognite.client.exceptions import CogniteAPIError, CogniteException
 
-from config import Config, ViewPropertyConfig  # isort: skip
-from constants import (  # isort: skip
+from em_config import Config, ViewPropertyConfig  # isort: skip
+from em_constants import (  # isort: skip
     COL_KEY_RULE_REGEXP_TARGET,
     HTTP_STATUS_BAD_REQUEST,
     HTTP_STATUS_REQUEST_TIMEOUT,
@@ -64,8 +64,8 @@ from constants import (  # isort: skip
     TARGET_SYNC_QUERY_NAME,
     TARGET_SYNC_RETRY_BACKOFF_SECONDS,
 )
-from logger import CogniteFunctionLogger  # isort: skip
-from pipeline import (  # isort: skip
+from em_logger import CogniteFunctionLogger  # isort: skip
+from em_pipeline import (  # isort: skip
     create_table,
     get_query_filter,
     is_retryable,
@@ -369,7 +369,6 @@ def sync_target_changes(
     )
 
     changes: list[Node] = []
-    next_cursor = cursor
     while True:
         result, batch_size = sync_page(client, logger, query, expression, batch_size)
         page = list(result[TARGET_SYNC_QUERY_NAME])

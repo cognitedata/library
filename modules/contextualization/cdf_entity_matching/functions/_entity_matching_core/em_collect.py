@@ -13,8 +13,8 @@ from typing import Any
 from cognite.client import CogniteClient
 from cognite.client.data_classes import ContextualizationJob
 
-from config import Config  # isort: skip
-from constants import (  # isort: skip
+from em_config import Config  # isort: skip
+from em_constants import (  # isort: skip
     ENTITY_MATCHING_JOB_STATUS_PATH,
     JOB_API_STATUS_COMPLETED,
     JOB_API_STATUS_FAILED,
@@ -26,20 +26,20 @@ from constants import (  # isort: skip
     STATUS_FAILURE,
     STATUS_SUCCESS,
 )
-from job_state import (  # isort: skip
+from em_job_state import (  # isort: skip
     PredictJob,
     delete_predict_job,
     list_predict_jobs,
     mark_job_running,
 )
-from logger import CogniteFunctionLogger  # isort: skip
-from pipeline import (  # isort: skip
+from em_logger import CogniteFunctionLogger  # isort: skip
+from em_pipeline import (  # isort: skip
     select_and_apply_matches,
     update_pipeline_run,
     write_mapping_to_raw,
 )
-from pipeline_optimizations import cleanup_memory, monitor_memory_usage, time_operation  # isort: skip
-from staging import delete_staged_matches, read_staged_matches  # isort: skip
+from em_pipeline_optimizations import cleanup_memory, monitor_memory_usage, time_operation  # isort: skip
+from em_staging import delete_staged_matches, read_staged_matches  # isort: skip
 
 
 def poll_intervals() -> Iterator[int]:

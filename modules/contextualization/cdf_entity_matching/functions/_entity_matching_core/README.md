@@ -22,15 +22,24 @@ This folder is not a function: it has no `handler.py` and the Toolkit does not d
 
 | Module | Contents |
 |---|---|
-| `submit.py` | Function 1: manual and rule mappings, staging, starting the predict job |
-| `collect.py` | Function 2: polling the queue, merging results, writing them |
-| `job_state.py` | The predict job queue in the RAW state store |
-| `staging.py` | Manual and rule matches parked in RAW while a predict job runs |
-| `targets.py` | Reading the targets: sync cursor in RAW, target content cached in a CDF file |
-| `pipeline.py` | The matching steps both functions use |
-| `config.py` | Extraction pipeline configuration, and the summary written to the log |
-| `constants.py`, `logger.py`, `pipeline_types.py`, `pipeline_optimizations.py` | Supporting code |
+| `em_submit.py` | Function 1: manual and rule mappings, staging, starting the predict job |
+| `em_collect.py` | Function 2: polling the queue, merging results, writing them |
+| `em_job_state.py` | The predict job queue in the RAW state store |
+| `em_staging.py` | Manual and rule matches parked in RAW while a predict job runs |
+| `em_targets.py` | Reading the targets: sync cursor in RAW, target content cached in a CDF file |
+| `em_pipeline.py` | The matching steps both functions use |
+| `em_config.py` | Extraction pipeline configuration, and the summary written to the log |
+| `em_constants.py`, `em_logger.py`, `em_pipeline_types.py`, `em_pipeline_optimizations.py` | Supporting code |
+
+## Why the `em_` prefix
+
+A function folder is deployed flat, so every module in it is a top-level module — and
+other functions in this repo ship their own `pipeline.py`, `config.py` and `logger.py`.
+Tools that analyse the repository as a whole, CodeQL and `pytest` among them, cannot tell
+those apart and resolve an import to whichever one they meet first, which reports calls
+against the wrong function's signature. The prefix makes each module name unique.
 
 ## Adding a module
 
-Add the `.py` file here and run the sync script; it copies every module in the folder.
+Add the `.py` file here, named `em_*.py`, and run the sync script; it copies every module
+in the folder.

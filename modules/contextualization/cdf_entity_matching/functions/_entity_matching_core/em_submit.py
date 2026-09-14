@@ -1,5 +1,3 @@
-# Generated from functions/_entity_matching_core/submit.py - do not edit this copy.
-# Change the source and run: python scripts/sync_entity_matching_core.py
 """Entity matching, part one: everything up to starting the predict job in CDF.
 
 Manual and rule based matches are found here and staged in RAW, the predict job is
@@ -12,8 +10,8 @@ from typing import Any
 
 from cognite.client import CogniteClient
 
-from config import Config  # isort: skip
-from constants import (  # isort: skip
+from em_config import Config  # isort: skip
+from em_constants import (  # isort: skip
     KEY_ENTITY_EXT_ID,
     KEY_ENTITY_SPACE,
     LOG_LEVEL_DEBUG,
@@ -24,9 +22,9 @@ from constants import (  # isort: skip
     STATUS_FAILURE,
     STATUS_SUCCESS,
 )
-from job_state import append_predict_job  # isort: skip
-from logger import CogniteFunctionLogger  # isort: skip
-from pipeline import (  # isort: skip
+from em_job_state import append_predict_job  # isort: skip
+from em_logger import CogniteFunctionLogger  # isort: skip
+from em_pipeline import (  # isort: skip
     apply_manual_mappings,
     apply_rule_mappings,
     get_new_entities,
@@ -37,9 +35,9 @@ from pipeline import (  # isort: skip
     submit_predict_job,
     update_pipeline_run,
 )
-from pipeline_optimizations import cleanup_memory, monitor_memory_usage, time_operation  # isort: skip
-from staging import clear_finished_matches, staging_prefix, write_staged_matches  # isort: skip
-from targets import get_all_targets  # isort: skip
+from em_pipeline_optimizations import cleanup_memory, monitor_memory_usage, time_operation  # isort: skip
+from em_staging import clear_finished_matches, staging_prefix, write_staged_matches  # isort: skip
+from em_targets import get_all_targets  # isort: skip
 
 
 def submit_entity_matching(

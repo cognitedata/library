@@ -1,4 +1,4 @@
-# Generated from functions/_entity_matching_core/constants.py - do not edit this copy.
+# Generated from functions/_entity_matching_core/em_constants.py - do not edit this copy.
 # Change the source and run: python scripts/sync_entity_matching_core.py
 STAT_STORE_MATCH_MODEL_ID = "state_match_model_id"
 STAT_STORE_VALUE = "value"

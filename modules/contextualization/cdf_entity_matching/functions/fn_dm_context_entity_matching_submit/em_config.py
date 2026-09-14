@@ -1,11 +1,11 @@
-# Generated from functions/_entity_matching_core/config.py - do not edit this copy.
+# Generated from functions/_entity_matching_core/em_config.py - do not edit this copy.
 # Change the source and run: python scripts/sync_entity_matching_core.py
 
 import yaml
 from cognite.client import CogniteClient
 from cognite.client import data_modeling as dm
 from cognite.client.exceptions import CogniteAPIError
-from pipeline_types import FunctionInputData
+from em_pipeline_types import FunctionInputData
 from pydantic import BaseModel, Field, field_validator
 from pydantic.alias_generators import to_camel
 

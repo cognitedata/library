@@ -1,3 +1,5 @@
+# Generated from functions/_entity_matching_core/em_pipeline_optimizations.py - do not edit this copy.
+# Change the source and run: python scripts/sync_entity_matching_core.py
 """
 Pipeline Optimizations Module
 
@@ -19,7 +21,7 @@ import time
 from contextlib import contextmanager
 
 import psutil
-from logger import CogniteFunctionLogger
+from em_logger import CogniteFunctionLogger
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 # ===== PERFORMANCE MONITORING ===============================================

@@ -22,8 +22,8 @@ from cognite.client.data_classes.data_modeling import (
 )
 from cognite.client.exceptions import CogniteAPIError
 from cognite.client.utils._text import shorten
-from config import Config, ViewPropertyConfig
-from constants import (
+from em_config import Config, ViewPropertyConfig
+from em_constants import (
     BATCH_SIZE_API_SUBMIT,
     BATCH_SIZE_ENTITIES,
     COL_KEY_MAN_CONTEXTUALIZED,
@@ -76,8 +76,8 @@ from constants import (
     STAT_STORE_VALUE,
     STATUS_SUCCESS,
 )
-from logger import CogniteFunctionLogger
-from pipeline_optimizations import RobustAPIClient
+from em_logger import CogniteFunctionLogger
+from em_pipeline_optimizations import RobustAPIClient
 
 sys.path.append(str(Path(__file__).parent))
 

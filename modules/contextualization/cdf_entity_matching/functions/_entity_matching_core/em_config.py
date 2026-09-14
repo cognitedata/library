@@ -3,7 +3,7 @@ import yaml
 from cognite.client import CogniteClient
 from cognite.client import data_modeling as dm
 from cognite.client.exceptions import CogniteAPIError
-from pipeline_types import FunctionInputData
+from em_pipeline_types import FunctionInputData
 from pydantic import BaseModel, Field, field_validator
 from pydantic.alias_generators import to_camel
 

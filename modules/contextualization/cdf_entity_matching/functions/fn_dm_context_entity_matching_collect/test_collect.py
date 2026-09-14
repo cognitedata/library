@@ -8,10 +8,9 @@ from pathlib import Path
 
 sys.path.append(str(Path(__file__).parent))
 
-import collect  # isort: skip
-from collect import poll_intervals, wait_for_job  # isort: skip
-from job_state import PredictJob  # isort: skip
-from logger import CogniteFunctionLogger  # isort: skip
+import em_collect  # isort: skip
+from em_job_state import PredictJob  # isort: skip
+from em_logger import CogniteFunctionLogger  # isort: skip
 
 
 class StubJob:
@@ -41,7 +40,7 @@ def queued_job(job_id: str = "1001") -> PredictJob:
 
 class TestPollIntervals(unittest.TestCase):
     def test_backs_off_to_thirty_seconds(self) -> None:
-        self.assertEqual(list(itertools.islice(poll_intervals(), 5)), [5, 15, 30, 30, 30])
+        self.assertEqual(list(itertools.islice(em_collect.poll_intervals(), 5)), [5, 15, 30, 30, 30])
 
 
 class TestWaitForJob(unittest.TestCase):
@@ -60,12 +59,12 @@ class TestWaitForJob(unittest.TestCase):
 
     def _wait(self, statuses: list[str], seconds_left: float) -> tuple[StubJob, str]:
         stub = StubJob(statuses)
-        original = collect._as_contextualization_job
-        collect._as_contextualization_job = lambda client, job: stub  # type: ignore[assignment]
+        original = em_collect._as_contextualization_job
+        em_collect._as_contextualization_job = lambda client, job: stub  # type: ignore[assignment]
         try:
-            _, status = wait_for_job(None, self.logger, queued_job(), seconds_left)  # type: ignore[arg-type]
+            _, status = em_collect.wait_for_job(None, self.logger, queued_job(), seconds_left)  # type: ignore[arg-type]
         finally:
-            collect._as_contextualization_job = original  # type: ignore[assignment]
+            em_collect._as_contextualization_job = original  # type: ignore[assignment]
         return stub, status
 
     def test_waits_five_then_fifteen_then_thirty_seconds(self) -> None:

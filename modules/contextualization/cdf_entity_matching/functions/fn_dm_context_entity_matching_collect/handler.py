@@ -15,10 +15,10 @@ from cognite.client.credentials import OAuthClientCredentials
 
 sys.path.append(str(Path(__file__).parent))
 
-from collect import collect_entity_matching  # isort: skip
-from config import format_config_summary, load_config_parameters  # isort: skip
-from logger import CogniteFunctionLogger  # isort: skip
-from pipeline_optimizations import (  # isort: skip
+from em_collect import collect_entity_matching  # isort: skip
+from em_config import format_config_summary, load_config_parameters  # isort: skip
+from em_logger import CogniteFunctionLogger  # isort: skip
+from em_pipeline_optimizations import (  # isort: skip
     PerformanceBenchmark,
     cleanup_memory,
     monitor_memory_usage,

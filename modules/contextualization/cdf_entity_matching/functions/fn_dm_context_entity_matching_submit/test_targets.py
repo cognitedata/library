@@ -21,16 +21,16 @@ from cognite.client.exceptions import CogniteAPIError, CogniteConnectionError
 
 sys.path.append(str(Path(__file__).parent))
 
-from config import Config, ConfigData, Parameters, ViewPropertyConfig  # isort: skip
-from constants import (  # isort: skip
+from em_config import Config, ConfigData, Parameters, ViewPropertyConfig  # isort: skip
+from em_constants import (  # isort: skip
     TARGET_SYNC_BATCH_SIZE,
     TARGET_SYNC_COL_BATCH_SIZE,
     TARGET_SYNC_COL_CURSOR,
     TARGET_SYNC_COL_FILE,
     TARGET_SYNC_QUERY_NAME,
 )
-from logger import CogniteFunctionLogger  # isort: skip
-from targets import cache_file_external_id, get_all_targets, load_targets, target_cache_key, target_state_row_key  # isort: skip
+from em_logger import CogniteFunctionLogger  # isort: skip
+from em_targets import cache_file_external_id, get_all_targets, load_targets, target_cache_key, target_state_row_key  # isort: skip
 
 VIEW_ID = dm.ViewId("cdf_cdm", "CogniteAsset", "v1")
 INSTANCE_SPACE = "inst_location"
@@ -177,7 +177,7 @@ def logger() -> CogniteFunctionLogger:
 
 @pytest.fixture(autouse=True)
 def _no_sleep(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr("targets.time.sleep", lambda _: None)
+    monkeypatch.setattr("em_targets.time.sleep", lambda _: None)
 
 
 def state_row(client: FakeClient, config: Config) -> dict[str, Any]:

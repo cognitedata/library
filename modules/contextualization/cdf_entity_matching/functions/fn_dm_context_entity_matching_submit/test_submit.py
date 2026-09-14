@@ -8,11 +8,11 @@ sys.path.append(str(Path(__file__).parent))
 
 from cognite.client.data_classes import Row  # isort: skip
 
-from config import Config, ConfigData, Parameters, ViewPropertyConfig  # isort: skip
-from constants import STAT_STORE_MATCH_MODEL_ID, STAT_STORE_VALUE  # isort: skip
-from job_state import append_predict_job, job_row_key, list_predict_jobs  # isort: skip
-from logger import CogniteFunctionLogger  # isort: skip
-from staging import (  # isort: skip
+from em_config import Config, ConfigData, Parameters, ViewPropertyConfig  # isort: skip
+from em_constants import STAT_STORE_MATCH_MODEL_ID, STAT_STORE_VALUE  # isort: skip
+from em_job_state import append_predict_job, job_row_key, list_predict_jobs  # isort: skip
+from em_logger import CogniteFunctionLogger  # isort: skip
+from em_staging import (  # isort: skip
     clear_finished_matches,
     read_staged_matches,
     staging_prefix,

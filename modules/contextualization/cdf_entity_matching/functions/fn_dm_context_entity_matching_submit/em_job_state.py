@@ -1,3 +1,5 @@
+# Generated from functions/_entity_matching_core/em_job_state.py - do not edit this copy.
+# Change the source and run: python scripts/sync_entity_matching_core.py
 """The queue of predict jobs submit hands over to collect.
 
 Each running predict job is one row in the state store table already used for the
@@ -13,8 +15,8 @@ from typing import Any
 from cognite.client import CogniteClient
 from cognite.client.data_classes import Row
 
-from config import Config  # isort: skip
-from constants import (  # isort: skip
+from em_config import Config  # isort: skip
+from em_constants import (  # isort: skip
     JOB_COL_CREATED_AT,
     JOB_COL_JOB_ID,
     JOB_COL_JOB_TOKEN,
@@ -26,8 +28,8 @@ from constants import (  # isort: skip
     JOB_STATUS_SUBMITTED,
     STAT_STORE_PREDICT_JOB_PREFIX,
 )
-from logger import CogniteFunctionLogger  # isort: skip
-from pipeline import create_table  # isort: skip
+from em_logger import CogniteFunctionLogger  # isort: skip
+from em_pipeline import create_table  # isort: skip
 
 
 @dataclass(frozen=True)
