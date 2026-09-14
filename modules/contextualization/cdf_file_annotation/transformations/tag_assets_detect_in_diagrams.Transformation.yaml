@@ -1,0 +1,13 @@
+externalId: {{ tagAssetsDetectInDiagramsTransformationExternalId }}
+dataSetExternalId: {{ annotationDatasetExternalId }}
+name: Tag Assets DetectInDiagrams
+destination:
+  type: nodes
+  view:
+    space: {{ targetEntitySchemaSpace }}
+    externalId: {{ targetEntityExternalId }}
+    version: {{ targetEntityVersion }}
+  instanceSpace: {{ targetEntityInstanceSpace }}
+ignoreNullFields: true
+isPublic: true
+conflictMode: upsert

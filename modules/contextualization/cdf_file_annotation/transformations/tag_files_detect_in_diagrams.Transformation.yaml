@@ -1,0 +1,13 @@
+externalId: {{ tagFilesDetectInDiagramsTransformationExternalId }}
+dataSetExternalId: {{ annotationDatasetExternalId }}
+name: Tag Files DetectInDiagrams
+destination:
+  type: nodes
+  view:
+    space: {{ fileSchemaSpace }}
+    externalId: {{ fileExternalId }}
+    version: {{ fileVersion }}
+  instanceSpace: {{ fileInstanceSpace }}
+ignoreNullFields: true
+isPublic: true
+conflictMode: upsert

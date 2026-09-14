@@ -104,9 +104,7 @@ environment:
     assert (tmp_path / ".github" / "workflows" / "deploy-prod.yml").is_file()
     assert (tmp_path / "docs" / "FOUNDATION_CICD.md").is_file()
 
-    dry_run = (tmp_path / ".github" / "workflows" / "dry-run.yml").read_text(
-        encoding="utf-8"
-    )
+    dry_run = (tmp_path / ".github" / "workflows" / "dry-run.yml").read_text(encoding="utf-8")
     assert "'industrial/config*.yaml'" in dry_run
     assert "'industrial/modules/sourcesystem/cdf_pi_extractor/'" not in dry_run
     assert "No .pre-commit-config.yaml found; skipping pre-commit config lint." in dry_run
@@ -124,16 +122,11 @@ environment:
     assert "environment:" not in dry_run
     assert "actions/github-script" not in dry_run
     assert "pull-requests:" not in dry_run
-    assert (
-        "run: python industrial/modules/common/cdf_project_foundation/scripts/"
-        "setup_project.py --check"
-    ) in dry_run
+    assert ("run: python industrial/modules/common/cdf_project_foundation/scripts/setup_project.py --check") in dry_run
     # The check step must run before the "cdf build" step, not after.
     assert dry_run.index("Verify project config is in sync") < dry_run.index("- name: cdf build")
 
-    deploy_dev = (tmp_path / ".github" / "workflows" / "deploy-dev.yml").read_text(
-        encoding="utf-8"
-    )
+    deploy_dev = (tmp_path / ".github" / "workflows" / "deploy-dev.yml").read_text(encoding="utf-8")
     assert "name: Deploy to acme-dev" in deploy_dev
     assert "run: cdf build --env dev" in deploy_dev
     assert "run: cdf deploy --dry-run" in deploy_dev
@@ -143,21 +136,20 @@ environment:
     assert "ADMIN_SOURCE_ID: ${{ vars.ADMIN_SOURCE_ID }}" in deploy_dev
     assert "CONSUMER_SOURCE_ID: ${{ vars.CONSUMER_SOURCE_ID }}" in deploy_dev
     assert "PRODUCER_SOURCE_ID: ${{ vars.PRODUCER_SOURCE_ID }}" in deploy_dev
-    assert "PROVIDER: ${{ vars.PROVIDER || 'entra_id' }}" in deploy_dev
-    assert "PROVIDER: ${{ vars.PROVIDER || 'entra_id' }}" not in dry_run
     assert (
-        "run: python industrial/modules/common/cdf_project_foundation/scripts/"
-        "setup_project.py --check"
+        "run: python industrial/modules/common/cdf_project_foundation/scripts/setup_project.py --check"
     ) in deploy_dev
     assert deploy_dev.index("Verify project config is in sync") < deploy_dev.index("- name: cdf build")
 
-    deploy_prod = (tmp_path / ".github" / "workflows" / "deploy-prod.yml").read_text(
-        encoding="utf-8"
-    )
+    deploy_prod = (tmp_path / ".github" / "workflows" / "deploy-prod.yml").read_text(encoding="utf-8")
     assert (
-        "run: python industrial/modules/common/cdf_project_foundation/scripts/"
-        "setup_project.py --check"
+        "run: python industrial/modules/common/cdf_project_foundation/scripts/setup_project.py --check"
     ) in deploy_prod
+
+    provider_env = "PROVIDER: ${{ vars.PROVIDER || 'entra_id' }}"
+    assert provider_env not in dry_run
+    assert provider_env in deploy_dev
+    assert provider_env in deploy_prod
 
     cicd_docs = (tmp_path / "docs" / "FOUNDATION_CICD.md").read_text(encoding="utf-8")
     assert "`acme-dev`" in cicd_docs
@@ -319,18 +311,14 @@ environment:
         cwd=tmp_path,
     )
 
-    dry_run = (tmp_path / ".github" / "workflows" / "dry-run.yml").read_text(
-        encoding="utf-8"
-    )
+    dry_run = (tmp_path / ".github" / "workflows" / "dry-run.yml").read_text(encoding="utf-8")
     assert "cdf build -c industrial/config.dev.yaml" in dry_run
     assert "cdf build -c industrial/config.test.yaml" in dry_run
     assert 'case "$GITHUB_BASE_REF" in' in dry_run
     assert "Unsupported base branch $GITHUB_BASE_REF" in dry_run
     assert "cdf build --env" not in dry_run
 
-    deploy_prod = (tmp_path / ".github" / "workflows" / "deploy-prod.yml").read_text(
-        encoding="utf-8"
-    )
+    deploy_prod = (tmp_path / ".github" / "workflows" / "deploy-prod.yml").read_text(encoding="utf-8")
     assert "run: cdf build -c industrial/config.prod.yaml" in deploy_prod
     assert "run: cdf deploy" in deploy_prod
     assert "cdf deploy --env" not in deploy_prod
@@ -382,9 +370,7 @@ environment:
     assert not stale_test_workflow.exists()
     assert (tmp_path / ".github" / "workflows" / "deploy-prod.yml").is_file()
 
-    dry_run = (tmp_path / ".github" / "workflows" / "dry-run.yml").read_text(
-        encoding="utf-8"
-    )
+    dry_run = (tmp_path / ".github" / "workflows" / "dry-run.yml").read_text(encoding="utf-8")
     assert "      - dev" in dry_run
     assert "      - main" not in dry_run
     assert "deploy-test.yml" not in dry_run
@@ -832,6 +818,8 @@ def test_generate_actions_ado_writes_pipelines_and_docs(tmp_path: Path) -> None:
     assert "Allow access to all pipelines" in docs
     assert "toolkit-config" in docs
     assert "IDP_TOKEN_URL" in docs
+    assert "`PROVIDER`" in docs
+    assert "Cognite IdP" in docs
     assert "GitHub Release" not in docs
     # ADO's Build Validation policy references a pipeline, not a job display name
     # inside it — the branch-protection table must not carry over GitHub wording.
@@ -941,8 +929,7 @@ def test_generate_actions_ado_dev_only_has_branch_condition(tmp_path: Path) -> N
 
     dry_run_dev_job = next(job for job in dry_run_yaml["jobs"] if job["job"] == "dry_run_dev")
     assert dry_run_dev_job["condition"] == (
-        "and(succeeded(), "
-        "in(variables['System.PullRequest.TargetBranch'], 'refs/heads/dev', 'dev'))"
+        "and(succeeded(), in(variables['System.PullRequest.TargetBranch'], 'refs/heads/dev', 'dev'))"
     )
     # No test/main branch configured, so the promotion-flow guard job is never
     # generated at all -- the target-branch check lives inside lint regardless.
@@ -973,14 +960,12 @@ def test_generate_actions_ado_test_only_promotion_guard_skips_non_pr_runs(tmp_pa
     dry_run_yaml = yaml.safe_load(dry_run_path.read_text(encoding="utf-8"))
     dry_run_test_job = next(job for job in dry_run_yaml["jobs"] if job["job"] == "dry_run_test")
     assert dry_run_test_job["condition"] == (
-        "and(succeeded(), "
-        "in(variables['System.PullRequest.TargetBranch'], 'refs/heads/main', 'main'))"
+        "and(succeeded(), in(variables['System.PullRequest.TargetBranch'], 'refs/heads/main', 'main'))"
     )
     assert set(dry_run_test_job["dependsOn"]) == {"lint", "source_branch_guard"}
     source_branch_guard_job = next(job for job in dry_run_yaml["jobs"] if job["job"] == "source_branch_guard")
     assert source_branch_guard_job["condition"] == (
-        "and(succeeded(), "
-        "in(variables['System.PullRequest.TargetBranch'], 'refs/heads/main', 'main'))"
+        "and(succeeded(), in(variables['System.PullRequest.TargetBranch'], 'refs/heads/main', 'main'))"
     )
 
     dry_run_text = dry_run_path.read_text(encoding="utf-8")
