@@ -140,7 +140,7 @@ def submit_entity_matching(
         with time_operation("Apply rule based mappings", logger):
             good_matches, cnt_rule_mappings = apply_rule_mappings(
                 client, config, logger, good_matches, targets, new_entities
-            )  # type: ignore
+            )
         logger.info(f"Rule mappings: {cnt_rule_mappings} additional match(es)")
 
         with time_operation("Start entity matching predict job", logger):

@@ -174,7 +174,7 @@ def collect_entity_matching(
             staged_matches = read_staged_matches(client, config, logger, job.job_id)
 
             with time_operation("Select and apply matches", logger):
-                good_matches, bad_matches, cnt_entity_matching = select_and_apply_matches(  # type: ignore
+                good_matches, bad_matches, cnt_entity_matching = select_and_apply_matches(
                     client, config, logger, staged_matches, match_results
                 )
 

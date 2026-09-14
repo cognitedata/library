@@ -268,7 +268,7 @@ def apply_manual_mappings(
     manual_mappings_input: dict[str, dict[str, Any]],
     good_matches: list[dict[str, Any]] | None = None,
     targets: list[dict[str, Any]] | None = None,
-) -> list[dict[str, Any]]:
+) -> tuple[list[dict[str, Any]], int]:
     good_matches = [] if good_matches is None else list(good_matches)
     targets = [] if targets is None else list(targets)
 
@@ -439,8 +439,8 @@ def list_instances_by_external_id_direct(
     client: CogniteClient,
     config: Config,
     external_id: list[str],
-    logger: CogniteFunctionLogger = None
-) -> list:
+    logger: CogniteFunctionLogger | None = None,
+) -> list[Any]:
     """
     List instances by their direct external ID match.
     
@@ -827,7 +827,7 @@ def apply_rule_mappings(
     good_matches: list[dict[str, Any]],
     target_dest: list[dict[str, Any]], 
     new_entities: list[dict[str, Any]],
-) -> list[dict[str, Any]]:
+) -> tuple[list[dict[str, Any]], int]:
 
     # Use set instead of list for O(1) lookups. Both sides are keyed on space and external
     # ID, so a pair is only a duplicate when it is the same pair of instances.
@@ -984,7 +984,7 @@ def select_and_apply_matches(
     logger: CogniteFunctionLogger,
     good_matches: list[dict[str, Any]],
     match_results: list[dict[str, Any]],
-) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]], int]:
     """
     Select and apply matches based on filtering threshold. Matches with score above threshold are updating time series
     with target ID When matches are updated, metadata property with information about the match is added to time series

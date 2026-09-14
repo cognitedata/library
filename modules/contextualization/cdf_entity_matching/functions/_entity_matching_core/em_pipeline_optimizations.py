@@ -16,7 +16,9 @@ workload.
 
 import gc
 import time
+from collections.abc import Callable, Iterator
 from contextlib import contextmanager
+from typing import Any
 
 import psutil
 from em_logger import CogniteFunctionLogger
@@ -25,9 +27,9 @@ from tenacity import retry, stop_after_attempt, wait_exponential
 # ===== PERFORMANCE MONITORING ===============================================
 
 @contextmanager
-def time_operation(operation_name: str, logger: CogniteFunctionLogger):
+def time_operation(operation_name: str, logger: CogniteFunctionLogger) -> Iterator[None]:
     """Context manager that logs how long the wrapped block ran.
-
+    
     Timings are diagnostics rather than results, so they are logged at DEBUG and an INFO
     run reads as what the function did rather than how long each step took.
     """
@@ -59,7 +61,7 @@ def cleanup_memory() -> None:
 class RobustAPIClient:
     """Wrap arbitrary CDF API calls with bounded exponential-backoff retry."""
 
-    def __init__(self, client, logger: CogniteFunctionLogger):
+    def __init__(self, client: Any, logger: CogniteFunctionLogger) -> None:
         self.client = client
         self.logger = logger
 
@@ -67,7 +69,7 @@ class RobustAPIClient:
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=4, max=10),
     )
-    def robust_api_call(self, operation, *args, **kwargs):
+    def robust_api_call(self, operation: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
         """Retry the wrapped operation up to 3 times with exponential backoff.
 
         On each failure tenacity sleeps according to the wait policy
@@ -83,7 +85,7 @@ class RobustAPIClient:
 
 # ===== STARTUP TUNING =======================================================
 
-def patch_existing_pipeline():
+def patch_existing_pipeline() -> bool:
     """Apply quick global optimizations once at function start.
 
     - Tighten the GC threshold so transient allocations get reaped sooner.
@@ -111,11 +113,18 @@ class PerformanceBenchmark:
     a roll-up summary at the end of the run.
     """
 
-    def __init__(self, logger: CogniteFunctionLogger):
+    def __init__(self, logger: CogniteFunctionLogger) -> None:
         self.logger = logger
         self.benchmarks: dict[str, list[float]] = {}
 
-    def benchmark_function(self, name: str, func, *args, log_duration_at_info: bool = False, **kwargs):
+    def benchmark_function(
+        self,
+        name: str,
+        func: Callable[..., Any],
+        *args: Any,
+        log_duration_at_info: bool = False,
+        **kwargs: Any,
+    ) -> Any:
         """Time a single function call and record the duration.
 
         Args:
@@ -154,7 +163,7 @@ class PerformanceBenchmark:
             }
         return summary
 
-    def log_summary(self):
+    def log_summary(self) -> None:
         """Log the summary stats at DEBUG level."""
         summary = self.get_summary()
         self.logger.debug("Performance Summary:")
