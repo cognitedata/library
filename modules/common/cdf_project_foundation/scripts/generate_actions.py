@@ -2,7 +2,9 @@
 """
 Generate CI/CD for a Toolkit project using the Foundation Deployment Pack.
 
-Implements the branching model and workflows from sop-cdf-project-setup.md (Step 5):
+Implements the branching model and workflows from the Cognite documentation
+on setting up CI/CD pipelines
+(https://docs.cognite.com/cdf/deploy/cdf_toolkit/guides/cicd/index):
   - PR to dev, and PR to main when config.test.yaml exists → cdf build (no credentials)
   - Push to dev → deploy to config.dev.yaml's environment.project
   - Push to main → deploy to config.test.yaml's environment.project when present
