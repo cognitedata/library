@@ -36,6 +36,10 @@ class FakeRowsAPI:
             return [Row(key, {}) for key in rows]
         return [Row(key, dict(values)) for key, values in rows.items()]
 
+    def retrieve(self, db_name: str, table_name: str, key: str) -> Row | None:
+        columns = self._table(db_name, table_name).get(key)
+        return Row(key, dict(columns)) if columns is not None else None
+
     def delete(self, db_name: str, table_name: str, key) -> None:
         keys = [key] if isinstance(key, str) else key
         table = self._table(db_name, table_name)

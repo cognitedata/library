@@ -10,7 +10,6 @@ for the next run, which is a normal outcome rather than a failure.
 
 import time
 from collections.abc import Iterator
-from typing import Any
 
 from cognite.client import CogniteClient
 from cognite.client.data_classes import ContextualizationJob
@@ -41,6 +40,7 @@ from em_pipeline import (  # isort: skip
     write_mapping_to_raw,
 )
 from em_pipeline_optimizations import cleanup_memory, monitor_memory_usage, time_operation  # isort: skip
+from em_pipeline_types import FunctionInputData  # isort: skip
 from em_staging import delete_staged_matches, read_staged_matches  # isort: skip
 
 
@@ -102,7 +102,7 @@ def wait_for_job(
 def collect_entity_matching(
     client: CogniteClient,
     logger: CogniteFunctionLogger,
-    data: dict[str, Any],
+    data: FunctionInputData,
     config: Config,
 ) -> None:
     """Work through the queue of predict jobs until it is empty or the time is up.
@@ -172,7 +172,7 @@ def collect_entity_matching(
                 break
 
             logger.info(f"Predict job {job.job_id} completed - collecting results")
-            match_results = sdk_job.result[JOB_RESULT_ITEMS]
+            match_results = sdk_job.result.get(JOB_RESULT_ITEMS, []) if sdk_job.result else []
             staged_matches = read_staged_matches(client, config, logger, job.job_id)
 
             with time_operation("Select and apply matches", logger):

@@ -1,14 +1,14 @@
 """Typed structures for the entity matching pipeline."""
 
 import re
-from typing import TypedDict
+from typing import NotRequired, TypedDict
 
 
-class FunctionInputData(TypedDict, total=False):
+class FunctionInputData(TypedDict):
     """CDF function invocation payload."""
 
     ExtractionPipelineExtId: str
-    logLevel: str
+    logLevel: NotRequired[str]
 
 
 class RawRowColumns(TypedDict, total=False):
@@ -31,30 +31,33 @@ class RuleMappingDefinition(TypedDict):
     AssetRegExp: re.Pattern[str]
 
 
-class TargetMatchRecord(TypedDict, total=False):
+class TargetMatchRecord(TypedDict):
     """Target used as ML/rule matching input."""
 
     asset_ext_id: str
+    asset_space: str
     org_name: str
     name: str
     rule_keys: list[str] | None
 
 
-class EntityMatchSource(TypedDict, total=False):
+class EntityMatchSource(TypedDict):
     """Entity submitted for ML/rule matching."""
 
     entity_ext_id: str
+    entity_space: str
     org_name: str
     name: str
     assets: str
     rule_keys: list[str] | None
 
 
-class StoredMatch(TypedDict, total=False):
+class StoredMatch(TypedDict):
     """Match row written to RAW or carried through the pipeline."""
 
     match_type: str
     entity_ext_id: str
+    entity_space: str
     entity_name: str
     entity_match_value: str
     entity_view_id: str
@@ -63,7 +66,10 @@ class StoredMatch(TypedDict, total=False):
     asset_name: str
     asset_match_value: str
     asset_ext_id: str
+    asset_space: str
     asset_view_id: str
+    entity_rule_keys: NotRequired[str]
+    asset_rule_keys: NotRequired[str]
 
 
 class EntityMatchTarget(TypedDict, total=False):

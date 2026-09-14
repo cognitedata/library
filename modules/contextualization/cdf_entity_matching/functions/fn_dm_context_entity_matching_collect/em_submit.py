@@ -8,8 +8,6 @@ The run ends as soon as CDF has accepted the job, so a long prediction can no lo
 time the function out.
 """
 
-from typing import Any
-
 from cognite.client import CogniteClient
 
 from em_config import Config  # isort: skip
@@ -38,6 +36,7 @@ from em_pipeline import (  # isort: skip
     update_pipeline_run,
 )
 from em_pipeline_optimizations import cleanup_memory, monitor_memory_usage, time_operation  # isort: skip
+from em_pipeline_types import FunctionInputData, StoredMatch  # isort: skip
 from em_staging import clear_finished_matches, staging_prefix, write_staged_matches  # isort: skip
 from em_targets import get_all_targets  # isort: skip
 
@@ -45,7 +44,7 @@ from em_targets import get_all_targets  # isort: skip
 def submit_entity_matching(
     client: CogniteClient,
     logger: CogniteFunctionLogger,
-    data: dict[str, Any],
+    data: FunctionInputData,
     config: Config,
 ) -> None:
     """Find the matches that need no model, then start the predict job for the rest.
@@ -60,7 +59,7 @@ def submit_entity_matching(
         Exception: Whatever the pipeline steps raise, after the failure is reported on
             the extraction pipeline run.
     """
-    good_matches: list[dict[str, Any]] = []
+    good_matches: list[StoredMatch] = []
     match_count = 0
 
     pipeline_ext_id = data["ExtractionPipelineExtId"]

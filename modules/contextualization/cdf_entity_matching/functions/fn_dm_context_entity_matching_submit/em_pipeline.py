@@ -80,6 +80,14 @@ from em_constants import (
 )
 from em_logger import CogniteFunctionLogger
 from em_pipeline_optimizations import RobustAPIClient
+from em_pipeline_types import (
+    EntityMatchSource,
+    ManualMappingDefinition,
+    RawRowColumns,
+    RuleMappingDefinition,
+    StoredMatch,
+    TargetMatchRecord,
+)
 
 sys.path.append(str(Path(__file__).parent))
 
@@ -155,7 +163,6 @@ def read_state_store(
     logger: CogniteFunctionLogger,
     key: str,
 ) -> str:
-    value = None
     db = config.parameters.raw_db
     table = config.parameters.raw_table_state
 
@@ -164,12 +171,10 @@ def read_state_store(
     logger.debug("Create DB / Table for state if it does not exist")
     create_table(client, db, table)
 
-    row_list = client.raw.rows.list(db_name=db, table_name=table, columns=[STAT_STORE_VALUE], limit=-1)
-    for row in row_list:
-        if row.key == key and row.columns:
-            value = row.columns[STAT_STORE_VALUE]
-
-    return value or ""
+    row = client.raw.rows.retrieve(db_name=db, table_name=table, key=key)
+    if row and row.columns:
+        return str(row.columns.get(STAT_STORE_VALUE, ""))
+    return ""
 
 
 def update_state_store(
@@ -209,7 +214,7 @@ def read_manual_mappings(
     client: CogniteClient,
     logger: CogniteFunctionLogger,
     config: Config,
-) -> tuple[list[dict[str, Any]], dict[str, dict[str, Any]]]:
+) -> tuple[list[ManualMappingDefinition], dict[str, RawRowColumns]]:
     """Read manual mapping rows from RAW.
 
     Returns a `(mappings, mappings_input)` pair so the caller can do
@@ -217,8 +222,8 @@ def read_manual_mappings(
     Both elements are empty when the manual mapping table doesn't exist or
     the read fails — never partial — so the unpack is always safe.
     """
-    manual_mappings: list[dict[str, Any]] = []
-    manual_mappings_input: dict[str, dict[str, Any]] = {}
+    manual_mappings: list[ManualMappingDefinition] = []
+    manual_mappings_input: dict[str, RawRowColumns] = {}
     seen_mappings: set[str] = set()
     try:
         if not manual_table_exists(client, config):
@@ -247,7 +252,7 @@ def read_manual_mappings(
                         COL_KEY_MAN_MAPPING_TARGET: row.columns[COL_KEY_MAN_MAPPING_TARGET].strip(),
                     }
                 )
-                manual_mappings_input[row.key] = row.columns
+                manual_mappings_input[row.key] = row.columns  # type: ignore[assignment]
 
         logger.info(
             f"Number of manual mappings in table: {config.parameters.raw_db}/"
@@ -266,11 +271,11 @@ def apply_manual_mappings(
     logger: CogniteFunctionLogger,
     config: Config, 
     raw_uploader: "RawUploadQueue", 
-    manual_mappings: list[Row],
-    manual_mappings_input: dict[str, dict[str, Any]],
-    good_matches: list[dict[str, Any]] | None = None,
-    targets: list[dict[str, Any]] | None = None,
-) -> tuple[list[dict[str, Any]], int]:
+    manual_mappings: list[ManualMappingDefinition],
+    manual_mappings_input: dict[str, RawRowColumns],
+    good_matches: list[StoredMatch] | None = None,
+    targets: list[TargetMatchRecord] | None = None,
+) -> tuple[list[StoredMatch], int]:
     good_matches = [] if good_matches is None else list(good_matches)
     targets = [] if targets is None else list(targets)
 
@@ -485,8 +490,8 @@ def list_instances_by_external_id_direct(
 def read_rule_mappings(
     client: CogniteClient,
     logger: CogniteFunctionLogger,
-    config: Config
-) -> list[Row]:
+    config: Config,
+) -> list[RuleMappingDefinition]:
     """Read rule-based mapping definitions from RAW.
 
     Each rule's entity/target regex is compiled once here and stored as a
@@ -496,7 +501,7 @@ def read_rule_mappings(
     thousands of entities and a handful of rules this is a measurable hot
     path.
     """
-    rule_mappings: list[dict[str, Any]] = []
+    rule_mappings: list[RuleMappingDefinition] = []
 
     try:
         if not rule_table_exists(client, config):
@@ -524,8 +529,8 @@ def read_rule_mappings(
             rule_mappings.append(
                 {
                     KEY_RULE: f"{idx}",
-                    COL_KEY_RULE_REGEXP_ENTITY: entity_pattern,
-                    COL_KEY_RULE_REGEXP_TARGET: target_pattern,
+                    COL_KEY_RULE_REGEXP_ENTITY: entity_pattern,  # type: ignore[misc]
+                    COL_KEY_RULE_REGEXP_TARGET: target_pattern,  # type: ignore[misc]
                 }
             )
             idx += 1
@@ -615,10 +620,10 @@ def get_new_entities(
     config: Config,
     logger: CogniteFunctionLogger,
     list_good_entities: list[tuple[str, str]] | None = None,
-    rule_mappings: list[Row] | None = None
-) -> list[dict[str, Any]]:
+    rule_mappings: list[RuleMappingDefinition] | None = None,
+) -> list[EntityMatchSource]:
 
-    entities_source = []
+    entities_source: list[EntityMatchSource] = []
 
     entity_view_config= config.data.entity_view
     entity_view_id = entity_view_config.as_view_id()
@@ -826,10 +831,10 @@ def apply_rule_mappings(
     client: CogniteClient, 
     config: Config, 
     logger: CogniteFunctionLogger,
-    good_matches: list[dict[str, Any]],
-    target_dest: list[dict[str, Any]], 
-    new_entities: list[dict[str, Any]],
-) -> tuple[list[dict[str, Any]], int]:
+    good_matches: list[StoredMatch],
+    target_dest: list[TargetMatchRecord], 
+    new_entities: list[EntityMatchSource],
+) -> tuple[list[StoredMatch], int]:
 
     # Use set instead of list for O(1) lookups. Both sides are keyed on space and external
     # ID, so a pair is only a duplicate when it is the same pair of instances.
@@ -855,9 +860,10 @@ def apply_rule_mappings(
         target_spaces = {target[KEY_TARGET_EXT_ID]: target[KEY_TARGET_SPACE] for target in target_dest}
 
         for d1 in target_dest:
-            if not d1.get(key_field, []):  # Ensure the key_field exists
+            r_keys = d1.get(key_field)
+            if not r_keys:  # Ensure the key_field exists
                 continue  # Skip if no rule keys are present
-            for r_key in d1.get(key_field, []): # Use .get() for safety
+            for r_key in r_keys:
                 index1[r_key].append(d1)
 
         # To avoid duplicate matches (e.g., if A1 matches B1, we don't want B1 matching A1 back)
@@ -868,9 +874,10 @@ def apply_rule_mappings(
         cnt = len(new_entities)
 
         for d2 in new_entities:
-            if not d2.get(key_field, []):  # Ensure the key_field exists
+            r_keys = d2.get(key_field)
+            if not r_keys:  # Ensure the key_field exists
                 continue  # Skip if no rule keys are present
-            set2 = set(d2.get(key_field, [])) # Convert to set once
+            set2 = set(r_keys)  # Convert to set once
 
             # Skip if entity already has been matched
             entity = instance_key(d2[KEY_ENTITY_SPACE], d2[KEY_ENTITY_EXT_ID])
@@ -984,9 +991,9 @@ def select_and_apply_matches(
     client: CogniteClient,
     config: Config,
     logger: CogniteFunctionLogger,
-    good_matches: list[dict[str, Any]],
+    good_matches: list[StoredMatch],
     match_results: list[dict[str, Any]],
-) -> tuple[list[dict[str, Any]], list[dict[str, Any]], int]:
+) -> tuple[list[StoredMatch], list[dict[str, Any]], int]:
     """
     Select and apply matches based on filtering threshold. Matches with score above threshold are updating time series
     with target ID When matches are updated, metadata property with information about the match is added to time series
@@ -1349,14 +1356,14 @@ def write_mapping_to_raw(
 def create_table(client: CogniteClient, raw_db: str, tbl: str) -> None:
     try:
         client.raw.databases.create(raw_db)
-    except Exception:
+    except CogniteAPIError:
         # Resource may already exist when the pipeline is re-run.
         # Expected failure; continue without affecting the caller.
         pass
 
     try:
         client.raw.tables.create(raw_db, tbl)
-    except Exception:
+    except CogniteAPIError:
         # Resource may already exist when the pipeline is re-run.
         # Expected failure; continue without affecting the caller.
         pass

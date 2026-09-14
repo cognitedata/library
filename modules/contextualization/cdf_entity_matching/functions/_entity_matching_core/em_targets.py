@@ -72,6 +72,7 @@ from em_pipeline import (  # isort: skip
     match_values,
     warn_on_cross_space_duplicates,
 )
+from em_pipeline_types import RuleMappingDefinition, TargetMatchRecord  # isort: skip
 
 
 @dataclass(frozen=True)
@@ -453,10 +454,10 @@ def get_all_targets(
     client: CogniteClient,
     logger: CogniteFunctionLogger,
     config: Config,
-    rule_mappings: list[Row] | None = None
-) -> list[dict[str, Any]]:
+    rule_mappings: list[RuleMappingDefinition] | None = None,
+) -> list[TargetMatchRecord]:
 
-    targets = []
+    targets: list[TargetMatchRecord] = []
     all_targets = load_targets(client, config, logger)
 
     warn_on_cross_space_duplicates(all_targets, QUERY_FILTER_TYPE_TARGETS, config.data.target_view, logger)
