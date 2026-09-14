@@ -147,8 +147,13 @@ def run_locally() -> dict[str, Any]:
 
     data = {
         "logLevel": os.environ.get("LOG_LEVEL", "INFO"),
-        "ExtractionPipelineExtId": os.environ["EXTRACTION_PIPELINE_EXT_ID"],
+        # Built from location_name and source_name in default.config.yaml; override with
+        # EXTRACTION_PIPELINE_EXT_ID when running against another location or source.
+        "ExtractionPipelineExtId": os.environ.get(
+            "EXTRACTION_PIPELINE_EXT_ID", "ep_ctx_timeseries_Springfield_springfield_entity_matching"
+        ),
     }
+    print(f"Running against extraction pipeline: {data['ExtractionPipelineExtId']}")
     return handle(data, client)
 
 
