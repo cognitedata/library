@@ -119,3 +119,46 @@ POLL_BACKOFF_SECONDS = (5, 15, 30)
 # Collect gives up polling this long after the invocation started and leaves the
 # remaining jobs queued for the next run.
 POLL_BUDGET_SECONDS = 8 * 60
+
+# ===== Target read: sync cursor and cached content =====
+
+# One state store row per target configuration, keyed by this prefix plus a fingerprint
+# of that configuration, so functions reading different targets never share a cursor.
+STAT_STORE_TARGET_SYNC_PREFIX = "state_target_sync_"
+
+# Columns on a target sync row.
+TARGET_SYNC_COL_CURSOR = "syncCursor"
+TARGET_SYNC_COL_FILE = "fileExternalId"
+TARGET_SYNC_COL_BATCH_SIZE = "batchSize"
+TARGET_SYNC_COL_COUNT = "targetCount"
+TARGET_SYNC_COL_VIEW = "targetView"
+TARGET_SYNC_COL_UPDATED_AT = "updatedAt"
+
+# External id of the CDF file holding the cached target content, plus that fingerprint.
+TARGET_CACHE_FILE_PREFIX = "em_target_cache_"
+
+# Part of that fingerprint. Raise it when a change to the read alters what ends up in
+# the cache, so content written by the previous version is read again rather than reused.
+TARGET_CACHE_VERSION = 2
+
+# Name of the result set expression in the sync query, and so of its cursor.
+TARGET_SYNC_QUERY_NAME = "targets"
+
+# Page size for the sync read. A page that times out is read again 20% smaller, down to
+# the minimum, and the size that worked is kept in the state store for the next run.
+TARGET_SYNC_BATCH_SIZE = 1000
+TARGET_SYNC_MIN_BATCH_SIZE = 100
+TARGET_SYNC_BATCH_SIZE_FACTOR = 0.8
+TARGET_SYNC_MAX_RETRIES = 4
+TARGET_SYNC_RETRY_BACKOFF_SECONDS = 2
+
+# Retries for the cache file itself. Fewer than for the sync read: the cache is an
+# optimisation, and a run that cannot reach it reads the data model instead of spending
+# its budget on retries.
+TARGET_CACHE_MAX_RETRIES = 2
+
+# The read did not finish in time, and the same read over fewer instances may still do.
+HTTP_STATUS_REQUEST_TIMEOUT = 408
+
+# The request itself was rejected - for a sync call, that is the cursor.
+HTTP_STATUS_BAD_REQUEST = 400

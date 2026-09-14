@@ -31,11 +31,48 @@ Each submit run appends a row of its own. A run never rewrites, and never delete
 row of a job that is still running, so repeated runs simply lengthen the queue and
 collect works through it oldest first.
 
+### Reading the targets
+
+Paging every target instance out of the data model is the slowest part of step 1, and on
+a large model it is what returns `408 Request timed out`. Targets are therefore read with
+the **sync endpoint** and kept in a cache:
+
+- The cursor lives in the state store table, in a row `state_target_sync_<key>`, together
+  with the external ID of the cache file, the page size that last worked and the target
+  count. `<key>` is a fingerprint of the target configuration — view, spaces, search
+  property and filter — so functions reading different targets never share a cursor.
+- The target content lives in the CDF file `em_target_cache_<key>.json`, written after
+  every run that saw a change.
+- A run where sync reports no changes reads the content from that file and writes only
+  the new cursor back. A run with changes merges them (a deleted instance is dropped) and
+  stores the file again.
+- A page that times out is read again 20% smaller, down to 100 instances, and the size
+  that worked is stored for the next run.
+- A cursor the API rejects, or a cache file that is gone, falls back to reading every
+  target again.
+
+The cache is an optimisation, so no failure to reach it fails the run. A transient error
+on the file is retried twice; after that a download falls back to reading the targets
+from the data model, and a failed upload leaves the run with the targets it has already
+read. The cursor is stored **only** once the content it describes has been written, so
+the cursor and the cache file always describe the same targets — a run that could not
+write the file syncs the same changes again next time rather than merging them onto an
+older copy. A cursor that cannot be written back is harmless for the same reason.
+
+This needs `filesAcl: READ, WRITE` in addition to the usual capabilities. Only the name
+and the search property are selected, so a page stays small; when `filterProperty` is
+configured, an index on that property in the container behind the target view is what
+keeps the filter itself cheap.
+
+Sync reports instances that were created, changed or deleted — but not ones that stopped
+matching the configured filter, so the cache can hold a target the filter no longer
+selects. Run with `runAll` to read every target again and rebuild it.
+
 ### `runAll`
 
-A full re-run clears the good and bad tables, but leaves the staged matches of queued
-predict jobs — and the queue itself — alone. Deleting those would leave collect with
-results it cannot merge.
+A full re-run clears the good and bad tables and reads every target from the data model
+again, but leaves the staged matches of queued predict jobs — and the queue itself —
+alone. Deleting those would leave collect with results it cannot merge.
 
 ## Configuration
 

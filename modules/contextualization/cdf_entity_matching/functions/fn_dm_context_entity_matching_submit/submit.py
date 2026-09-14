@@ -29,7 +29,6 @@ from logger import CogniteFunctionLogger  # isort: skip
 from pipeline import (  # isort: skip
     apply_manual_mappings,
     apply_rule_mappings,
-    get_all_targets,
     get_new_entities,
     instance_key,
     read_manual_mappings,
@@ -40,6 +39,7 @@ from pipeline import (  # isort: skip
 )
 from pipeline_optimizations import cleanup_memory, monitor_memory_usage, time_operation  # isort: skip
 from staging import clear_finished_matches, staging_prefix, write_staged_matches  # isort: skip
+from targets import get_all_targets  # isort: skip
 
 
 def submit_entity_matching(

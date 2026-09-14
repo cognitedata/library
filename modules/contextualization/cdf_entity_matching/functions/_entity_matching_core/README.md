@@ -26,6 +26,7 @@ This folder is not a function: it has no `handler.py` and the Toolkit does not d
 | `collect.py` | Function 2: polling the queue, merging results, writing them |
 | `job_state.py` | The predict job queue in the RAW state store |
 | `staging.py` | Manual and rule matches parked in RAW while a predict job runs |
+| `targets.py` | Reading the targets: sync cursor in RAW, target content cached in a CDF file |
 | `pipeline.py` | The matching steps both functions use |
 | `config.py` | Extraction pipeline configuration, and the summary written to the log |
 | `constants.py`, `logger.py`, `pipeline_types.py`, `pipeline_optimizations.py` | Supporting code |

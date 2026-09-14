@@ -4,7 +4,6 @@
 import json
 import re
 import sys
-import time
 import traceback
 from collections import defaultdict
 from collections.abc import Sequence
@@ -36,6 +35,7 @@ from constants import (
     COL_KEY_RULE_REGEXP_TARGET,
     COL_MATCH_KEY,
     FILTER_PATH_NODE_EXTERNAL_ID,
+    HTTP_STATUS_REQUEST_TIMEOUT,
     KEY_ENTITY_EXISTING_TARGETS,
     KEY_ENTITY_EXT_ID,
     KEY_ENTITY_MATCH_VALUE,
@@ -574,106 +574,16 @@ def is_retryable(error: Exception) -> bool:
     """Whether a failed page fetch stands a chance of succeeding on a retry.
 
     A client error - a missing view, a rejected filter, missing capabilities - means the
-    request itself is wrong, so repeating it only delays the failure. Rate limiting and
-    server-side errors are transient, as is anything the SDK re-raises unclassified from
-    its transport layer, which is why the default is to retry. Bugs in this function are
-    the exception: they fail the same way every time. ValueError is deliberately not one
-    of them - it covers JSONDecodeError, which a half-read response raises and a second
-    read can clear.
+    request itself is wrong, so repeating it only delays the failure. Rate limiting,
+    read timeouts and server-side errors are transient, as is anything the SDK re-raises
+    unclassified from its transport layer, which is why the default is to retry. Bugs in
+    this function are the exception: they fail the same way every time. ValueError is
+    deliberately not one of them - it covers JSONDecodeError, which a half-read response
+    raises and a second read can clear.
     """
     if isinstance(error, CogniteAPIError):
-        return error.code == 429 or (error.code is not None and error.code >= 500)
+        return error.code in (HTTP_STATUS_REQUEST_TIMEOUT, 429) or (error.code is not None and error.code >= 500)
     return not isinstance(error, (TypeError, AttributeError, NameError, KeyError, IndexError))
-
-
-def fetch_instances_by_space(
-    client: CogniteClient,
-    logger: CogniteFunctionLogger,
-    instance_space: str,
-    view_id: dm.ViewId,
-    is_selected: "dm.filters.Filter | None",
-    instance_type: str,
-) -> list[Node]:
-    """Fetch every instance of a view in one space, one page at a time.
-
-    Paging is a keyset cursor on external ID, which is only unique within a space - hence
-    one space per call. A cursor over (externalId, space) is not an option: the API
-    rejects range filters on space.
-
-    Args:
-        is_selected: Filter narrowing which instances to fetch, or None for all of them.
-        instance_type: What to call these instances when logging, e.g. "assets".
-    """
-    batch_size = 1000
-    max_page_retries = 4
-    retry_backoff_seconds = 2
-    instances: list[Node] = []
-    last_external_id: str | None = None
-
-    while True:
-        page_filters: list[dm.filters.Filter] = []
-        # `get_query_filter` returns `dm.filters.Filter | None`. Use an explicit
-        # `is not None` check rather than truthiness, because the SDK's Filter
-        # classes override `__bool__` / `__and__` / `__or__` to support
-        # `flt1 & flt2` syntax and emit a UserWarning when evaluated in a
-        # boolean context.
-        if is_selected is not None:
-            page_filters.append(is_selected)
-        if last_external_id is not None:
-            page_filters.append(dm.filters.Range(FILTER_PATH_NODE_EXTERNAL_ID, gt=last_external_id))
-
-        page_filter = None
-        if len(page_filters) == 1:
-            page_filter = page_filters[0]
-        elif len(page_filters) > 1:
-            page_filter = dm.filters.And(*page_filters)
-
-        page = None
-        for retry in range(max_page_retries + 1):
-            try:
-                page = client.data_modeling.instances.list(
-                    space=instance_space,
-                    sources=[view_id],
-                    filter=page_filter,
-                    sort=dm.InstanceSort(FILTER_PATH_NODE_EXTERNAL_ID, direction="ascending"),
-                    limit=batch_size,
-                )
-                break
-            # Deliberately broad: `is_retryable` decides what is worth another attempt,
-            # and everything else is logged with the space and cursor - the only record of
-            # where a long paging run died - and re-raised unchanged. Narrowing the catch
-            # to Cognite errors would let read timeouts escape without that context.
-            except Exception as e:
-                if retry >= max_page_retries or not is_retryable(e):
-                    logger.error(
-                        f"Failed to fetch {instance_type} page after {retry + 1} attempt(s). "
-                        f"Space: {instance_space}, last cursor externalId: {last_external_id}. Error: {type(e)}({e})"
-                    )
-                    raise
-
-                sleep_seconds = retry_backoff_seconds * (2 ** retry)
-                logger.warning(
-                    f"Retry {retry + 1}/{max_page_retries} for {instance_type} page failed. "
-                    f"Sleeping {sleep_seconds}s before retry. "
-                    f"Space: {instance_space}, cursor externalId: {last_external_id}. Error: {type(e)}({e})"
-                )
-                time.sleep(sleep_seconds)
-
-        if not page:
-            break
-
-        instances.extend(page)
-        last_external_id = page[-1].external_id
-
-        logger.debug(
-            f"Fetched {len(page)} {instance_type} in batch from {instance_space}, "
-            f"total so far: {len(instances)}, last externalId cursor: {last_external_id}"
-        )
-
-        if len(page) < batch_size:
-            break
-
-    return instances
 
 
 def match_values(properties: dict[str, Any], search_property: str, org_name: str) -> list[str]:
@@ -692,87 +602,6 @@ def match_values(properties: dict[str, Any], search_property: str, org_name: str
     candidates = value if isinstance(value, list) else [value]
     usable = [str(item) for item in candidates if item is not None and str(item).strip()]
     return usable or [org_name]
-
-
-def get_all_targets(
-    client: CogniteClient,
-    logger: CogniteFunctionLogger,
-    config: Config,
-    rule_mappings: list[Row] | None = None
-) -> list[dict[str, Any]]:
-
-    targets = []
-    job_config = config.data
-    search_property = job_config.target_view.search_property
-
-    # `instances.list(..., sources=[view])` already scopes to instances with data in the view.
-    # Skipping extra HasData in the filter significantly reduces graph query load.
-    is_selected = get_query_filter(
-        QUERY_FILTER_TYPE_TARGETS,
-        job_config.target_view,
-        config.parameters.run_all,
-        logger,
-        include_has_data=False,
-    )
-
-    all_targets: list[Node] = []
-    for instance_space in job_config.target_view.instance_spaces:
-        all_targets.extend(
-            fetch_instances_by_space(
-                client,
-                logger,
-                instance_space,
-                job_config.target_view.as_view_id(),
-                is_selected,
-                QUERY_FILTER_TYPE_TARGETS,
-            )
-        )
-
-    warn_on_cross_space_duplicates(all_targets, QUERY_FILTER_TYPE_TARGETS, job_config.target_view, logger)
-
-    logger.info(
-        f"Number of {QUERY_FILTER_TYPE_TARGETS} to process: {len(all_targets)}, "
-        f"NOTE: Rule based regular expressions are applied to the '{PROP_COL_NAME}' property"
-    )
-    view_id = job_config.target_view.as_view_id()
-    for target in all_targets:
-        properties = target.properties.get(view_id) if target.properties else None
-        if not properties or PROP_COL_NAME not in properties:
-            logger.warning(f"Target: {target.external_id} is missing properties or name, skipping")
-            continue
-        org_name = str(properties[PROP_COL_NAME])
-
-        rule_keys = []
-        if rule_mappings:
-            for rule in rule_mappings:
-                # Pattern was pre-compiled in read_rule_mappings (re.Pattern object).
-                pattern = rule[COL_KEY_RULE_REGEXP_TARGET]
-                match = pattern.search(org_name)
-
-                if match:
-                    # Concatenate the captured groups directly. An operator's regex may
-                    # make a group optional, and one that does not participate in the
-                    # match captures None, which cannot be joined.
-                    matched_groups = [group for group in match.groups() if group is not None]
-                    cleaned_value = rule[KEY_RULE] + "_" + "".join(matched_groups)
-                    logger.debug(f"Cleaned value (using capture groups): {cleaned_value}")
-                    rule_keys.append(cleaned_value)
-
-        match_properties = match_values(properties, search_property, org_name)  
-
-        for match_property in match_properties:
-            targets.append(
-                {
-                    KEY_TARGET_EXT_ID: target.external_id,
-                    KEY_TARGET_SPACE: target.space,
-                    KEY_ORG_NAME: org_name,
-                    KEY_NAME: match_property,
-                    KEY_RULE_KEYS: rule_keys if rule_keys else None,
-                }
-            )
-    logger.debug(f"Number {QUERY_FILTER_TYPE_TARGETS} added as entities: {len(targets)}")
-
-    return targets
 
 
 def get_new_entities(
