@@ -1,6 +1,7 @@
 """Tests for Foundation Deployment Pack CI/CD generator (cdf_project_foundation)."""
 
-
+import json
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -19,7 +20,7 @@ def test_generator_scripts_exist() -> None:
     assert (TEMPLATES / "dry-run.yml").is_file()
 
 
-def test_github_dry_run_environment_rejects_more_than_two_branches(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_github_dry_run_build_script_rejects_more_than_two_branches(monkeypatch: pytest.MonkeyPatch) -> None:
     sys.path.insert(0, str(MODULE_ROOT / "scripts"))
     import generate_actions  # pyright: ignore[reportMissingImports]
 
@@ -27,7 +28,11 @@ def test_github_dry_run_environment_rejects_more_than_two_branches(monkeypatch: 
     monkeypatch.setitem(generate_actions.DEPLOY_BRANCHES, "qa", "qa")
 
     with pytest.raises(ValueError, match="Unsupported number of deployable branches: 3"):
-        generate_actions.github_dry_run_environment({"dev": "acme-dev", "test": "acme-test", "qa": "acme-qa"})
+        generate_actions.github_dry_run_build_script(
+            "0.8.0",
+            None,
+            {"dev": "acme-dev", "test": "acme-test", "qa": "acme-qa"},
+        )
 
 
 def test_ado_dry_run_jobs_rejects_more_than_two_branches(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -114,8 +119,11 @@ environment:
     assert "|sourcesystem|tools)/'" in dry_run
     assert "custom" not in dry_run
     assert "cdf build --env dev" in dry_run
-    assert "cdf deploy --dry-run | tee dryrun-output.txt" in dry_run
-    assert "cdf deploy --dry-run --env" not in dry_run
+    assert "cdf deploy --dry-run" not in dry_run
+    assert "IDP_CLIENT_SECRET" not in dry_run
+    assert "environment:" not in dry_run
+    assert "actions/github-script" not in dry_run
+    assert "pull-requests:" not in dry_run
     assert (
         "run: python industrial/modules/common/cdf_project_foundation/scripts/"
         "setup_project.py --check"
@@ -128,11 +136,15 @@ environment:
     )
     assert "name: Deploy to acme-dev" in deploy_dev
     assert "run: cdf build --env dev" in deploy_dev
+    assert "run: cdf deploy --dry-run" in deploy_dev
     assert "run: cdf deploy" in deploy_dev
     assert "cdf deploy --env" not in deploy_dev
+    assert deploy_dev.index("cdf deploy --dry-run") < deploy_dev.index("run: cdf deploy\n")
     assert "ADMIN_SOURCE_ID: ${{ vars.ADMIN_SOURCE_ID }}" in deploy_dev
     assert "CONSUMER_SOURCE_ID: ${{ vars.CONSUMER_SOURCE_ID }}" in deploy_dev
     assert "PRODUCER_SOURCE_ID: ${{ vars.PRODUCER_SOURCE_ID }}" in deploy_dev
+    assert "PROVIDER: ${{ vars.PROVIDER || 'entra_id' }}" in deploy_dev
+    assert "PROVIDER: ${{ vars.PROVIDER || 'entra_id' }}" not in dry_run
     assert (
         "run: python industrial/modules/common/cdf_project_foundation/scripts/"
         "setup_project.py --check"
@@ -156,6 +168,76 @@ environment:
     assert "`PRODUCER_SOURCE_ID`" in cicd_docs
     assert "skips the pre-commit config lint step" in cicd_docs
     assert "ruff check` and `pyright`" in cicd_docs
+    assert "| PR → `dev` | `acme-dev` | Validate (`cdf build`) |" in cicd_docs
+    assert "| PR → `main` | `acme-test` | Validate (`cdf build`) |" in cicd_docs
+    assert "cdf deploy --dry-run" not in cicd_docs.split("## Branch protection")[0]
+    assert "| `dev-toolkit-credentials` | Push `dev` |" in cicd_docs
+    assert "| `test-toolkit-credentials` | Push `main` |" in cicd_docs
+    assert "PR →" not in cicd_docs.split("## GitHub Environments")[1].split("## Toolkit configs")[0]
+    assert "never loads `IDP_CLIENT_SECRET`" in cicd_docs
+    assert "repository or organization secret" in cicd_docs
+    assert "refs/pull/*/merge" in cicd_docs
+    assert "Deployment branches and tags" in cicd_docs
+    assert "`Source branch guardrail`, `cdf build`" in cicd_docs
+    assert "cdf build & deploy --dry-run" in cicd_docs
+    assert "`PROVIDER`" in cicd_docs
+    assert "Cognite IdP" in cicd_docs
+
+
+def _parse_github_workflow(text: str) -> dict[str, object]:
+    """Quote ${{ }} expressions so PyYAML can load GitHub workflow YAML."""
+    quoted = re.sub(r"\$\{\{.*?\}\}", lambda m: json.dumps(m.group(0)), text)
+    loaded = yaml.safe_load(quoted)
+    assert isinstance(loaded, dict)
+    return loaded
+
+
+def test_github_cdf_jobs_pass_provider_so_cogidp_can_authenticate(tmp_path: Path) -> None:
+    """Deploy jobs must pass PROVIDER; PR validation must not load CDF credentials.
+
+    Without PROVIDER the Toolkit stays on entra_id and a CogIdP project fails at
+    auth. An empty value is also invalid — the fallback must be the literal entra_id.
+    IDP_TOKEN_URL is unused when PROVIDER=cdf; do not plumb it.
+    """
+    _scaffold_project_with_envs(tmp_path, ("dev", "test", "prod"))
+    subprocess.run(
+        [sys.executable, str(GENERATE_ACTIONS), "--force"],
+        check=True,
+        cwd=tmp_path,
+    )
+
+    provider = "${{ vars.PROVIDER || 'entra_id' }}"
+    deploy_jobs = 0
+    workflows = sorted((tmp_path / ".github" / "workflows").glob("*.yml"))
+    assert workflows, "generator wrote no GitHub workflows"
+    for path in workflows:
+        parsed = _parse_github_workflow(path.read_text(encoding="utf-8"))
+        jobs = parsed["jobs"]
+        assert isinstance(jobs, dict)
+        for job in jobs.values():
+            assert isinstance(job, dict)
+            steps = job.get("steps", [])
+            assert isinstance(steps, list)
+            runs_deploy = any(
+                isinstance(step, dict) and "cdf deploy" in str(step.get("run", "")) for step in steps
+            )
+            env = job.get("env", {})
+            if path.name == "dry-run.yml":
+                assert isinstance(env, dict)
+                assert "IDP_CLIENT_SECRET" not in env
+                assert "PROVIDER" not in env
+                continue
+            if not runs_deploy:
+                continue
+            deploy_jobs += 1
+            assert isinstance(env, dict)
+            assert env.get("PROVIDER") == provider, f"{path.name} deploy job is missing PROVIDER"
+            assert "IDP_TOKEN_URL" not in env
+            assert "IDP_AUDIENCE" not in env
+    assert deploy_jobs == 3
+
+    docs = (tmp_path / "docs" / "FOUNDATION_CICD.md").read_text(encoding="utf-8")
+    assert "| Cognite IdP (CogIdP) | `cdf`" in docs
 
 
 def test_generate_actions_validates_environment_name(tmp_path: Path) -> None:
@@ -766,9 +848,8 @@ def test_generate_actions_ado_writes_pipelines_and_docs(tmp_path: Path) -> None:
     # expected failure message on a manual smoke-test run.
     assert "Unsupported target branch" in docs
     assert "falls back to its default of validating PRs to any branch" in docs
-    # ADO's PR check never runs cdf deploy --dry-run anymore -- that's the point
-    # of the #3 fix. GitHub's branching-model wording is unaffected (separate,
-    # not-yet-fixed exposure), so only assert on ADO's own row here.
+    # PR validation never runs cdf deploy --dry-run — that's the point of
+    # keeping the secret out of a PR-controlled pipeline.
     assert "| PR → `dev` | `acme-dev` | Validate (`cdf build`) |" in docs
     assert "| PR → `main` | `acme-test` | Validate (`cdf build`) |" in docs
     assert "cdf deploy --dry-run" not in docs.split("## Branch policies")[0]

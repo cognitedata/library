@@ -3,7 +3,7 @@
 Generate CI/CD for a Toolkit project using the Foundation Deployment Pack.
 
 Implements the branching model and workflows from sop-cdf-project-setup.md (Step 5):
-  - PR to dev, and PR to main when config.test.yaml exists → dry-run
+  - PR to dev, and PR to main when config.test.yaml exists → cdf build (no credentials)
   - Push to dev → deploy to config.dev.yaml's environment.project
   - Push to main → deploy to config.test.yaml's environment.project when present
   - Release published from main → deploy to config.prod.yaml's environment.project
@@ -240,47 +240,27 @@ def pr_branches(projects: dict[str, str]) -> str:
     return "\n".join(f"      - {branch}" for branch in branches)
 
 
-def github_dry_run_environment(projects: dict[str, str]) -> str:
-    """GitHub Actions ``environment:`` expression for the dry-run job.
-
-    GitHub Actions-specific: relies on the ``github.base_ref`` expression context,
-    which has no equivalent on other providers. See ``ado_dry_run_jobs`` for the
-    Azure DevOps approach (one conditioned job per target branch).
-    """
-    branches = branch_envs(projects)
-    if not branches:
-        return ""
-    if len(branches) == 1:
-        env = next(iter(branches.values()))
-        return f"{env}-toolkit-credentials"
-    if len(branches) > 2:
-        raise ValueError(f"Unsupported number of deployable branches: {len(branches)}")
-    first_branch, first_env = next(iter(branches.items()))
-    fallback_env = next(env for branch, env in branches.items() if branch != first_branch)
-    return (
-        f"${{{{ github.base_ref == '{first_branch}' && "
-        f"'{first_env}-toolkit-credentials' || '{fallback_env}-toolkit-credentials' }}}}"
-    )
-
-
 def github_dry_run_build_script(toolkit_version: str, org_dir: str | None, projects: dict[str, str]) -> str:
-    """Bash build script for the dry-run job, keyed on ``$GITHUB_BASE_REF``.
+    """Bash build script for the PR validation job, keyed on ``$GITHUB_BASE_REF``.
 
     GitHub Actions-specific: ``GITHUB_BASE_REF`` is a GitHub Actions runner
     environment variable. See ``ado_dry_run_jobs`` for the Azure DevOps approach.
+    This job never loads credentials and never calls CDF.
     """
     branches = branch_envs(projects)
     if not branches:
         return ""
     if len(branches) == 1:
         env = next(iter(branches.values()))
-        return f"cdf build {build_args(toolkit_version, org_dir, env)} | tee build-output.txt"
+        return f"cdf build {build_args(toolkit_version, org_dir, env)}"
+    if len(branches) > 2:
+        raise ValueError(f"Unsupported number of deployable branches: {len(branches)}")
     cases: list[str] = ['case "$GITHUB_BASE_REF" in']
     for branch, env in branches.items():
         cases.extend(
             [
                 f"  {branch})",
-                f"    cdf build {build_args(toolkit_version, org_dir, env)} | tee build-output.txt",
+                f"    cdf build {build_args(toolkit_version, org_dir, env)}",
                 "    ;;",
             ]
         )
@@ -779,18 +759,15 @@ def ado_deploy_trigger(env: str) -> str:
 
 
 def branching_rows(projects: dict[str, str], provider: str) -> str:
-    """PR-check description is provider-specific: GitHub's PR validation still
-    runs `cdf deploy --dry-run` with live credentials (a separate, not-yet-fixed
-    exposure -- see the ADO trust boundary note). ADO's toolkit-pr-validate never
-    loads a secret, so it only ever runs `cdf build`.
+    """PR validation is ``cdf build`` only on both providers — the PR-controlled
+    YAML must never load a deploy secret.
     """
     rows: list[str] = []
     for env in deployable_envs(projects):
         branch = DEPLOY_BRANCHES[env]
-        pr_check = "Dry-run (`cdf build`, `cdf deploy --dry-run`)" if provider == "github" else "Validate (`cdf build`)"
         rows.extend(
             [
-                f"| PR → `{branch}` | `{projects[env]}` | {pr_check} |",
+                f"| PR → `{branch}` | `{projects[env]}` | Validate (`cdf build`) |",
                 f"| Push to `{branch}` | `{projects[env]}` | Deploy |",
             ]
         )
@@ -815,11 +792,7 @@ def branch_protection_rows(projects: dict[str, str], provider: str) -> str:
         branch = DEPLOY_BRANCHES[env]
         if provider == "github":
             reviewers = "1" if branch == "main" else "none"
-            checks = (
-                "`Source branch guardrail`, `cdf build & deploy --dry-run`"
-                if branch == "main"
-                else "`cdf build & deploy --dry-run`"
-            )
+            checks = "`Source branch guardrail`, `cdf build`" if branch == "main" else "`cdf build`"
         else:
             # ADO's reviewer-count policy is either off or >=1 -- there's no "0"
             # setting to configure, unlike GitHub's approval count.
@@ -834,17 +807,24 @@ def branch_protection_note(projects: dict[str, str], provider: str) -> str:
     if not branches:
         return "No PR workflow is generated without a dev or test environment configured."
     if provider == "github":
+        regen_note = (
+            " After regenerating, the required status check is `cdf build` — if branch protection still"
+            " requires `cdf build & deploy --dry-run`, update it or PRs will wait on a check that no"
+            " longer runs."
+        )
         if branches == {"dev"}:
-            return "PRs to `dev` only run dry-run CI (0 reviewers)."
+            return "PRs to `dev` only run `cdf build` CI (0 reviewers)." + regen_note
         if branches == {"main"}:
             return (
                 "PRs to `main` require a reviewer and the `Source branch guardrail` check, which"
-                " enforces that changes are promoted from `dev` or `hotfix/*`, in addition to dry-run CI."
+                " enforces that changes are promoted from `dev` or `hotfix/*`, in addition to `cdf build` CI."
+                + regen_note
             )
         return (
-            "PRs to `dev` only run dry-run CI (0 reviewers). The `Source branch guardrail` check does"
+            "PRs to `dev` only run `cdf build` CI (0 reviewers). The `Source branch guardrail` check does"
             " not run on `dev` — it only applies to PRs targeting `main`, where it enforces that changes"
             " are promoted from `dev` or `hotfix/*`."
+            + regen_note
         )
     if branches == {"dev"}:
         return (
@@ -872,11 +852,51 @@ def environment_rows(projects: dict[str, str], provider: str) -> str:
     rows: list[str] = []
     for env in deployable_envs(projects):
         branch = DEPLOY_BRANCHES[env]
-        rows.append(f"| `{env}-toolkit-credentials` | PR → {branch}, push `{branch}` | `{projects[env]}` |")
+        rows.append(f"| `{env}-toolkit-credentials` | Push `{branch}` | `{projects[env]}` |")
     if "prod" in projects:
         prod_trigger = "Release published" if provider == "github" else "Tag pushed"
         rows.append(f"| `prod-toolkit-credentials` | {prod_trigger} | `{projects['prod']}` |")
     return "\n".join(rows)
+
+
+def github_trust_boundary_note(projects: dict[str, str]) -> str:
+    """PR workflows compile from the PR's merge ref, so they must never load
+    ``IDP_CLIENT_SECRET``. Restrict each GitHub Environment to the branch/tag
+    it deploys from, or a PR can re-add ``environment:`` to ``dry-run.yml`` and
+    pick up the secret.
+    """
+    branches = branch_envs(projects)
+    parts: list[str] = []
+    if branches:
+        parts.append(
+            "**PR validation never loads `IDP_CLIENT_SECRET`.** `pull_request` runs the workflow YAML from"
+            " the PR's own merge ref, so a PR author effectively controls `.github/workflows/dry-run.yml`."
+            " That workflow only runs `cdf build`; it does not reference a GitHub Environment."
+        )
+        parts.append(
+            "**Keep `IDP_CLIENT_SECRET` on the Environment only.** Do not also add it as a repository"
+            " or organization secret — a same-repo `pull_request` can read those without an"
+            " `environment:` block, which would bypass the branch restriction below."
+        )
+        rows = [f"| `{env}-toolkit-credentials` | `{DEPLOY_BRANCHES[env]}` |" for env in deployable_envs(projects)]
+        parts.append(
+            "**Restrict Environment deployment branches.** A PR can still add `environment:"
+            " <env>-toolkit-credentials` to the workflow and receive the secret on a same-repo PR."
+            " Under **Settings → Environments → Deployment branches and tags**, allow only the branch"
+            " that environment deploys from. A `pull_request` run's ref is `refs/pull/<id>/merge`,"
+            " which matches no branch name, so the Environment (and the secret) stay unreachable."
+            " Do not add a `refs/pull/*/merge` rule — that is GitHub's documented way to re-open PR"
+            " access. Leave this at **No restriction** and a PR can opt into the Environment."
+        )
+        parts.append("\n".join(["| Environment | Allowed branch |", "|---|---|", *rows]))
+    if "prod" in projects:
+        parts.append(
+            "**Tag allow-lists are not sufficient for prod.** `prod-toolkit-credentials` is reached by a"
+            " GitHub Release, and a `v*` tag rule restricts the tag *pattern*, not which commit the tag"
+            " points at. Add required **Environment protection rules → Required reviewers** on"
+            " `prod-toolkit-credentials`, and/or limit who can create tags and publish releases."
+        )
+    return "\n\n".join(parts)
 
 
 def ado_environment_rows(projects: dict[str, str]) -> str:
@@ -953,7 +973,7 @@ def main() -> None:
     }
 
     if args.provider == "github":
-        base_values["DRY_RUN_ENVIRONMENT"] = github_dry_run_environment(projects)
+        base_values["TRUST_BOUNDARY_NOTE"] = github_trust_boundary_note(projects)
         base_values["DRY_RUN_BUILD_SCRIPT"] = indent(
             github_dry_run_build_script(str(toolkit_version), org_dir, projects), 10
         )
