@@ -39,17 +39,17 @@ def time_operation(operation_name: str, logger: CogniteFunctionLogger):
         logger.debug(f" Time: {operation_name} took {duration:.2f} seconds")
 
 
-def monitor_memory_usage(logger: CogniteFunctionLogger, operation_name: str = ""):
+def monitor_memory_usage(logger: CogniteFunctionLogger, operation_name: str = "") -> None:
     """Log current resident-set memory usage (best effort), at DEBUG."""
     try:
         process = psutil.Process()
         memory_mb = process.memory_info().rss / 1024 / 1024
         logger.debug(f"Monitor Memory: {operation_name} Memory usage: {memory_mb:.1f} MB")
-    except Exception as e:
+    except (psutil.Error, OSError) as e:
         logger.debug(f"Could not monitor memory: {e}")
 
 
-def cleanup_memory():
+def cleanup_memory() -> None:
     """Force a garbage-collection pass."""
     gc.collect()
 

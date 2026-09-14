@@ -249,10 +249,13 @@ def read_manual_mappings(
                 )
                 manual_mappings_input[row.key] = row.columns
 
-        logger.info(f"Number of manual mappings in table: {config.parameters.raw_db}/{config.parameters.raw_table_ctx_manual}: {len(manual_mappings)}")
+        logger.info(
+            f"Number of manual mappings in table: {config.parameters.raw_db}/"
+            f"{config.parameters.raw_table_ctx_manual}: {len(manual_mappings)}"
+        )
 
-    except Exception as e:
-        logger.error(f"Read manual mappings. Error: {type(e)}({e})")
+    except CogniteAPIError as e:
+        logger.error(f"Read manual mappings failed. Error: {e}")
 
     return manual_mappings, manual_mappings_input
 
@@ -280,7 +283,10 @@ def apply_manual_mappings(
         targets_lookup = {target[KEY_TARGET_EXT_ID]: target for target in targets}
         target_spaces = {target[KEY_TARGET_EXT_ID]: target[KEY_TARGET_SPACE] for target in targets}
         entity_list = [mapping[COL_KEY_MAN_MAPPING_ENTITY] for mapping in manual_mappings]
-        lookup_mapping = {mapping[COL_KEY_MAN_MAPPING_ENTITY]: mapping[COL_KEY_MAN_MAPPING_TARGET] for mapping in manual_mappings}
+        lookup_mapping = {
+            mapping[COL_KEY_MAN_MAPPING_ENTITY]: mapping[COL_KEY_MAN_MAPPING_TARGET]
+            for mapping in manual_mappings
+        }
         key_lookup = {mapping[COL_KEY_MAN_MAPPING_ENTITY]: mapping[KEY_RULE] for mapping in manual_mappings}
 
         # Split entity_list into batches
@@ -524,8 +530,8 @@ def read_rule_mappings(
             )
             idx += 1
         logger.info(f"Number of mapping rules : {len(rule_mappings)}")
-    except Exception as e:
-        logger.error(f"Read rule based mappings. Error: {type(e)}({e})")
+    except CogniteAPIError as e:
+        logger.error(f"Read rule based mappings failed. Error: {e}")
 
     return rule_mappings
 
@@ -1201,7 +1207,11 @@ def add_to_items(
         )
 
     if len(targets) > MAX_LINKS_PER_ENTITY:
-        logger.warning(f"Entity: {entity_ext_id} has more than {MAX_LINKS_PER_ENTITY} targets - has {len(targets)} targets, will only add {MAX_LINKS_PER_ENTITY} - TODO look into your rule/matching model to prevent to wide matching")
+        logger.warning(
+            f"Entity: {entity_ext_id} has more than {MAX_LINKS_PER_ENTITY} targets - "
+            f"has {len(targets)} targets, will only add {MAX_LINKS_PER_ENTITY}. "
+            "Please review your rule/matching model to prevent overly broad matching."
+        )
         targets = targets[:MAX_LINKS_PER_ENTITY]
         
 
@@ -1331,9 +1341,9 @@ def write_mapping_to_raw(
 
         # Upload any remaining RAW cols in queue
         raw_uploader.upload()
-    except Exception as e:
-        logger.error(f"ERROR: Failed to write mapping to RAW DB - error: {type(e)}({e})")
-        raise Exception(f"Failed to write mapping to RAW DB - error: {type(e)}({e})") from e
+    except CogniteAPIError as e:
+        logger.error(f"Failed to write mapping to RAW DB: {e}")
+        raise RuntimeError("Failed to write mapping to RAW DB") from e
 
 
 def create_table(client: CogniteClient, raw_db: str, tbl: str) -> None:

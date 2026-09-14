@@ -101,7 +101,16 @@ def submit_entity_matching(
             return
 
         with time_operation("Apply manual mappings", logger):
-            good_matches, cnt_manual_mappings = apply_manual_mappings(client, logger, config, raw_uploader, manual_mappings, manual_mappings_input, good_matches, targets)
+            good_matches, cnt_manual_mappings = apply_manual_mappings(
+                client,
+                logger,
+                config,
+                raw_uploader,
+                manual_mappings,
+                manual_mappings_input,
+                good_matches,
+                targets,
+            )
         logger.info(f"Manual mappings: {cnt_manual_mappings} match(es) applied")
 
         with time_operation("Read new entities", logger):
@@ -117,11 +126,21 @@ def submit_entity_matching(
         logger.info(f"New entities to match: {len(new_entities)}")
         if len(new_entities) == 0:
             logger.info("No new entities to process - predict not started")
-            update_pipeline_run(client, logger, pipeline_ext_id, STATUS_SUCCESS, cnt_manual_mappings, 0, "No new entities, predict not started")
+            update_pipeline_run(
+                client,
+                logger,
+                pipeline_ext_id,
+                STATUS_SUCCESS,
+                cnt_manual_mappings,
+                0,
+                "No new entities, predict not started",
+            )
             return
 
         with time_operation("Apply rule based mappings", logger):
-            good_matches, cnt_rule_mappings = apply_rule_mappings(client, config, logger, good_matches, targets, new_entities)  # type: ignore
+            good_matches, cnt_rule_mappings = apply_rule_mappings(
+                client, config, logger, good_matches, targets, new_entities
+            )  # type: ignore
         logger.info(f"Rule mappings: {cnt_rule_mappings} additional match(es)")
 
         with time_operation("Start entity matching predict job", logger):
