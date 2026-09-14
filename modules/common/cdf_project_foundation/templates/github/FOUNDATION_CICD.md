@@ -35,6 +35,7 @@ Each environment needs these **variables**:
 - `CDF_CLUSTER`
 - `CDF_PROJECT` (must match `config.<env>.yaml`)
 - `LOGIN_FLOW` (typically `client_credentials`)
+- `PROVIDER` (only for a non-Entra identity provider — see below)
 - `IDP_TENANT_ID`
 - `IDP_CLIENT_ID`
 - `ADMIN_SOURCE_ID`
@@ -44,6 +45,20 @@ Each environment needs these **variables**:
 And this **secret**:
 
 - `IDP_CLIENT_SECRET`
+
+### Identity provider
+
+`PROVIDER` tells the Toolkit which identity provider to authenticate against. The generated
+workflows default it to `entra_id`, so Entra ID projects can leave the variable unset.
+
+| Identity provider | `PROVIDER` | `IDP_TENANT_ID` | `IDP_TOKEN_URL` |
+|-------------------|------------|-----------------|-----------------|
+| Microsoft Entra ID | `entra_id` (or unset) | required | not used |
+| Cognite IdP (CogIdP) | `cdf` | not used | not used — the Toolkit authenticates against `https://auth.cognite.com/oauth2/token` |
+| Other OIDC provider | `other` | not used | required, together with `IDP_AUDIENCE` |
+
+The generated workflows do not pass `IDP_TOKEN_URL` or `IDP_AUDIENCE`, so the third row
+needs a change to the workflow templates.
 
 ## Toolkit configs
 
