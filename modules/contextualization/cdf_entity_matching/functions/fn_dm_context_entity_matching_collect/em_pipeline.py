@@ -242,14 +242,19 @@ def read_manual_mappings(
             # Make sure we don't add duplicate TS external IDs
             if not row.columns:
                 continue
-            entity = row.columns[COL_KEY_MAN_MAPPING_ENTITY].strip()
+            entity_val = row.columns.get(COL_KEY_MAN_MAPPING_ENTITY)
+            target_val = row.columns.get(COL_KEY_MAN_MAPPING_TARGET)
+            if not entity_val or not target_val:
+                logger.warning(f"Skipping malformed manual mapping row {row.key}: missing entity or target")
+                continue
+            entity = str(entity_val).strip()
             if entity not in seen_mappings:
                 seen_mappings.add(entity)
                 manual_mappings.append(
                     {
                         KEY_RULE: row.key,
                         COL_KEY_MAN_MAPPING_ENTITY: entity,
-                        COL_KEY_MAN_MAPPING_TARGET: row.columns[COL_KEY_MAN_MAPPING_TARGET].strip(),
+                        COL_KEY_MAN_MAPPING_TARGET: str(target_val).strip(),
                     }
                 )
                 manual_mappings_input[row.key] = row.columns  # type: ignore[assignment]
@@ -513,8 +518,15 @@ def read_rule_mappings(
             if not row.columns:
                 continue
 
-            entity_pattern_str = row.columns[COL_KEY_RULE_REGEXP_ENTITY].strip()
-            target_pattern_str = row.columns[COL_KEY_RULE_REGEXP_TARGET].strip()
+            entity_pattern_val = row.columns.get(COL_KEY_RULE_REGEXP_ENTITY)
+            target_pattern_val = row.columns.get(COL_KEY_RULE_REGEXP_TARGET)
+            if not entity_pattern_val or not target_pattern_val:
+                logger.warning(f"Skipping malformed rule mapping row {row.key}: missing entity or target regex")
+                idx += 1
+                continue
+
+            entity_pattern_str = str(entity_pattern_val).strip()
+            target_pattern_str = str(target_pattern_val).strip()
             try:
                 entity_pattern = re.compile(entity_pattern_str)
                 target_pattern = re.compile(target_pattern_str)
@@ -1228,7 +1240,7 @@ def add_to_items(
             external_id=entity_ext_id,
             sources=[
                 NodeOrEdgeData(
-                    source=dm.ViewId.load(entity_view_id),  # type: ignore
+                    source=entity_view_id,
                     properties={PROP_COL_LINK_NAME: targets},
                 )
             ],

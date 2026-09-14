@@ -347,7 +347,7 @@ def sync_target_changes(
     # A sync read is scoped by its filter alone: `sources` in the select decides which
     # properties come back, not which instances do. Without HasData the read returns
     # every node in the configured spaces - state nodes, annotation nodes and all.
-    filters: list[dm.filters.Filter] = [dm.filters.SpaceFilter(space=view.instance_spaces)]
+    filters: list[dm.filters.Filter] = [dm.filters.In(["node", "space"], view.instance_spaces)]
     is_selected = get_query_filter(
         QUERY_FILTER_TYPE_TARGETS,
         view,

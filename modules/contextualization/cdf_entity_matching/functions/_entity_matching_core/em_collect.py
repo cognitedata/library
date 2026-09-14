@@ -19,7 +19,6 @@ from em_constants import (  # isort: skip
     JOB_API_STATUS_FAILED,
     JOB_RESULT_ITEMS,
     LOG_LEVEL_DEBUG,
-    LOG_LEVEL_INFO,
     POLL_BACKOFF_SECONDS,
     POLL_BUDGET_SECONDS,
     STATUS_FAILURE,
@@ -124,9 +123,11 @@ def collect_entity_matching(
             logger = CogniteFunctionLogger(LOG_LEVEL_DEBUG)
             logger.debug("**** Write debug messages *****")
 
+        import logging
+
         from cognite.extractorutils.uploader import RawUploadQueue
 
-        raw_uploader = RawUploadQueue(cdf_client=client, max_queue_size=500000, trigger_log_level=LOG_LEVEL_INFO)
+        raw_uploader = RawUploadQueue(cdf_client=client, max_queue_size=500000, trigger_log_level=logging.INFO)
         monitor_memory_usage(logger, "Pipeline start")
 
         jobs = list_predict_jobs(client, config, logger)
