@@ -73,7 +73,7 @@ from em_constants import (
     STATUS_SUCCESS,
 )
 from em_logger import CogniteFunctionLogger
-from em_pipeline_optimizations import RobustAPIClient, is_retryable
+from em_pipeline_optimizations import RobustAPIClient
 from em_pipeline_types import (
     EntityMatchingApiMatch,
     EntityMatchSource,
@@ -607,12 +607,6 @@ def warn_on_cross_space_duplicates(
     )
 
 
-<<<<<<< Updated upstream
-# is_retryable is imported from em_pipeline_optimizations
-
-
-=======
->>>>>>> Stashed changes
 def match_values(properties: Mapping[str, object], search_property: str, org_name: str) -> list[str]:
     """Values to match an instance on, falling back to its name.
 
