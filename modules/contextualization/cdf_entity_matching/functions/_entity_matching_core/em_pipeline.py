@@ -30,7 +30,6 @@ from em_constants import (
     COL_KEY_RULE_REGEXP_TARGET,
     COL_MATCH_KEY,
     FILTER_PATH_NODE_EXTERNAL_ID,
-    HTTP_STATUS_REQUEST_TIMEOUT,
     KEY_ENTITY_EXISTING_TARGETS,
     KEY_ENTITY_EXT_ID,
     KEY_ENTITY_MATCH_VALUE,
@@ -608,9 +607,12 @@ def warn_on_cross_space_duplicates(
     )
 
 
+<<<<<<< Updated upstream
 # is_retryable is imported from em_pipeline_optimizations
 
 
+=======
+>>>>>>> Stashed changes
 def match_values(properties: Mapping[str, object], search_property: str, org_name: str) -> list[str]:
     """Values to match an instance on, falling back to its name.
 

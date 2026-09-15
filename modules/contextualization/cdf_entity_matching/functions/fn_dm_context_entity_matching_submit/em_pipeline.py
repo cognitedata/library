@@ -32,7 +32,6 @@ from em_constants import (
     COL_KEY_RULE_REGEXP_TARGET,
     COL_MATCH_KEY,
     FILTER_PATH_NODE_EXTERNAL_ID,
-    HTTP_STATUS_REQUEST_TIMEOUT,
     KEY_ENTITY_EXISTING_TARGETS,
     KEY_ENTITY_EXT_ID,
     KEY_ENTITY_MATCH_VALUE,
@@ -608,22 +607,6 @@ def warn_on_cross_space_duplicates(
         f"resolved by external ID alone and so apply to every copy - give each space unique external IDs "
         f"or configure a single space. Examples: {examples}"
     )
-
-
-def is_retryable(error: Exception) -> bool:
-    """Whether a failed page fetch stands a chance of succeeding on a retry.
-
-    A client error - a missing view, a rejected filter, missing capabilities - means the
-    request itself is wrong, so repeating it only delays the failure. Rate limiting,
-    read timeouts and server-side errors are transient, as is anything the SDK re-raises
-    unclassified from its transport layer, which is why the default is to retry. Bugs in
-    this function are the exception: they fail the same way every time. ValueError is
-    deliberately not one of them - it covers JSONDecodeError, which a half-read response
-    raises and a second read can clear.
-    """
-    if isinstance(error, CogniteAPIError):
-        return error.code in (HTTP_STATUS_REQUEST_TIMEOUT, 429) or (error.code is not None and error.code >= 500)
-    return not isinstance(error, (TypeError, AttributeError, NameError, KeyError, IndexError))
 
 
 def match_values(properties: Mapping[str, object], search_property: str, org_name: str) -> list[str]:

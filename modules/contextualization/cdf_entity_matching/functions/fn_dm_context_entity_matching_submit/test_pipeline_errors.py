@@ -5,6 +5,7 @@ from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
+from cognite.client.exceptions import CogniteAPIError
 
 sys.path.append(str(Path(__file__).parent))
 
@@ -76,3 +77,25 @@ def test_rule_mapping_propagates_unexpected_errors(monkeypatch: pytest.MonkeyPat
 
     with pytest.raises(RuntimeError, match="programming error"):
         em_pipeline.apply_rule_mappings(MagicMock(), build_config(), MagicMock(), [], targets, entities)
+
+
+def test_create_table_ignores_conflict_and_propagates_other_api_errors() -> None:
+    client = MagicMock()
+    client.raw.databases.create.side_effect = CogniteAPIError("Already exists", code=409)
+    client.raw.tables.create.side_effect = CogniteAPIError("Forbidden", code=403)
+
+    with pytest.raises(CogniteAPIError) as failed:
+        em_pipeline.create_table(client, "db", "tbl")
+
+    assert failed.value.code == 403
+    client.raw.tables.create.assert_called_once_with("db", "tbl")
+
+
+def test_is_retryable_lives_with_the_retry_helpers() -> None:
+    from em_pipeline_optimizations import is_retryable
+
+    assert is_retryable(CogniteAPIError("timed out", code=408))
+    assert is_retryable(CogniteAPIError("too many requests", code=429))
+    assert is_retryable(CogniteAPIError("unavailable", code=503))
+    assert not is_retryable(CogniteAPIError("forbidden", code=403))
+    assert not is_retryable(TypeError("bug"))

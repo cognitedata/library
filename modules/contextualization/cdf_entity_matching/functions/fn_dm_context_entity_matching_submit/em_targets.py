@@ -69,10 +69,10 @@ from em_logger import CogniteFunctionLogger  # isort: skip
 from em_pipeline import (  # isort: skip
     create_table,
     get_query_filter,
-    is_retryable,
     match_values,
     warn_on_cross_space_duplicates,
 )
+from em_pipeline_optimizations import is_retryable  # isort: skip
 from em_pipeline_types import RuleMappingDefinition, TargetMatchRecord  # isort: skip
 
 
