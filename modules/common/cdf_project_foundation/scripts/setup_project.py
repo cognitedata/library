@@ -596,11 +596,16 @@ def resolve_pack_kind_for_check(variant: str, sourcesystem_dir: Path) -> Literal
     detected = detect_pack_kind(sourcesystem_dir)
     if detected == "ambiguous":
         raise SystemExit(
-            "ERROR: Could not determine deployment pack kind from installed sourcesystem "
-            "modules under 'modules/sourcesystem/'\n"
-            "  (found both extractor and data-dump modules, or neither).\n"
-            "  A project should have either *_extractor modules (Foundation) or\n"
-            "  *_data_dump modules (Demo), not both or neither — fix the module selection."
+            "\n".join(
+                [
+                    t(
+                        "ERROR: Could not determine deployment pack kind from installed sourcesystem modules under 'modules/sourcesystem/'"
+                    ),
+                    t("  (found both extractor and data-dump modules, or neither)."),
+                    t("  A project should have either *_extractor modules (Foundation) or"),
+                    t("  *_data_dump modules (Demo), not both or neither — fix the module selection."),
+                ]
+            )
         )
     return detected
 
@@ -1431,7 +1436,7 @@ def _prompt_environments(pack_root: Path) -> tuple[str, ...]:
             if prompt_yes_no(_include_prompt(env), default=(env in installed_envs))
         )
         if not selected:
-            raise SystemExit("No environments selected — nothing to do.")
+            raise SystemExit(t("No environments selected — nothing to do."))
         return selected
 
     which_envs = t("Which environments would you like to set up?")
@@ -1456,7 +1461,7 @@ def _prompt_environments(pack_root: Path) -> tuple[str, ...]:
         if prompt_yes_no(_include_environment_prompt(env), default=True)
     )
     if not selected:
-        raise SystemExit("No environments selected — nothing to do.")
+        raise SystemExit(t("No environments selected — nothing to do."))
     return selected
 
 
