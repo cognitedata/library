@@ -8,11 +8,13 @@ taken off the queue. A job that is still running when the run's time is up stays
 for the next run, which is a normal outcome rather than a failure.
 """
 
+import logging
 import time
 from collections.abc import Iterator
 
 from cognite.client import CogniteClient
 from cognite.client.data_classes import ContextualizationJob
+from cognite.extractorutils.uploader import RawUploadQueue
 
 from em_config import Config  # isort: skip
 from em_constants import (  # isort: skip
@@ -124,10 +126,6 @@ def collect_entity_matching(
         if config.parameters.debug:
             logger = CogniteFunctionLogger(LOG_LEVEL_DEBUG)
             logger.debug("**** Write debug messages *****")
-
-        import logging
-
-        from cognite.extractorutils.uploader import RawUploadQueue
 
         raw_uploader = RawUploadQueue(cdf_client=client, max_queue_size=500000, trigger_log_level=logging.INFO)
         monitor_memory_usage(logger, "Pipeline start")

@@ -62,6 +62,8 @@ class PredictJob:
     @classmethod
     def from_columns(cls, columns: Mapping[str, object]) -> "PredictJob":
         source_count = columns.get(JOB_COL_SOURCE_COUNT)
+        if source_count is not None and not isinstance(source_count, (int, float, str)):
+            raise TypeError(f"{JOB_COL_SOURCE_COUNT} must be a number or numeric string")
         return cls(
             job_id=str(columns[JOB_COL_JOB_ID]),
             job_token=str(columns[JOB_COL_JOB_TOKEN]) if columns.get(JOB_COL_JOB_TOKEN) else None,
@@ -69,7 +71,7 @@ class PredictJob:
             created_at=str(columns.get(JOB_COL_CREATED_AT) or ""),
             staging_prefix=str(columns.get(JOB_COL_STAGING_PREFIX) or ""),
             model_id=str(columns[JOB_COL_MODEL_ID]) if columns.get(JOB_COL_MODEL_ID) else None,
-            source_count=int(source_count) if source_count is not None else None,  # type: ignore[arg-type]
+            source_count=int(source_count) if source_count is not None else None,
         )
 
 

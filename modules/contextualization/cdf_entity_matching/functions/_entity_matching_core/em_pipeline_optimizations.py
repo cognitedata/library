@@ -15,6 +15,7 @@ workload.
 """
 
 import gc
+import os
 import time
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
@@ -100,8 +101,6 @@ def patch_existing_pipeline() -> bool:
     gc.set_threshold(700, 10, 10)
 
     try:
-        import os
-
         if hasattr(os, "nice"):
             os.nice(-5)
     except OSError:

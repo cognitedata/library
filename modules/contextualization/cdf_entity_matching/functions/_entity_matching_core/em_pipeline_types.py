@@ -72,25 +72,27 @@ class StoredMatch(TypedDict):
     asset_rule_keys: NotRequired[str]
 
 
-class EntityMatchTarget(TypedDict, total=False):
+class EntityMatchTarget(TypedDict):
     asset_ext_id: str
+    asset_space: NotRequired[str]
     org_name: str
     name: str
 
 
-class EntityMatchResultItem(TypedDict, total=False):
+class EntityMatchResultItem(TypedDict):
     target: EntityMatchTarget
     score: float
 
 
-class EntityMatchApiSource(TypedDict, total=False):
+class EntityMatchApiSource(TypedDict):
     entity_ext_id: str
+    entity_space: NotRequired[str]
     org_name: str
     name: str
     assets: str
 
 
-class EntityMatchingApiMatch(TypedDict, total=False):
+class EntityMatchingApiMatch(TypedDict):
     """Single item returned from entity matching prediction."""
 
     source: EntityMatchApiSource

@@ -5,10 +5,7 @@ import traceback
 from collections import defaultdict
 from collections.abc import Mapping, Sequence
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
-
-if TYPE_CHECKING:
-    from cognite.extractorutils.uploader import RawUploadQueue
+from typing import TYPE_CHECKING
 
 from cognite.client import CogniteClient
 from cognite.client import data_modeling as dm
@@ -21,6 +18,9 @@ from cognite.client.data_classes.data_modeling import (
 )
 from cognite.client.exceptions import CogniteAPIError
 from cognite.client.utils._text import shorten
+
+# isort: split
+
 from em_config import Config, ViewPropertyConfig
 from em_constants import (
     BATCH_SIZE_API_SUBMIT,
@@ -78,6 +78,7 @@ from em_constants import (
 from em_logger import CogniteFunctionLogger
 from em_pipeline_optimizations import RobustAPIClient
 from em_pipeline_types import (
+    EntityMatchingApiMatch,
     EntityMatchSource,
     ManualMappingDefinition,
     RawRowColumns,
@@ -85,6 +86,9 @@ from em_pipeline_types import (
     StoredMatch,
     TargetMatchRecord,
 )
+
+if TYPE_CHECKING:
+    from cognite.extractorutils.uploader import RawUploadQueue
 
 sys.path.append(str(Path(__file__).parent))
 
@@ -421,9 +425,9 @@ def apply_manual_mappings(
 
         return good_matches, cnt
 
-    except Exception as e:
-        logger.error(f"ERROR: Not able run manual mapping for {manual_mappings} - error: {e}")
-        return good_matches, cnt
+    except CogniteAPIError as e:
+        logger.error(f"Cognite API error while applying manual mappings: {e}")
+        raise
 
 
 def _link_identity(link: object) -> tuple[str, str] | None:
@@ -829,11 +833,11 @@ def submit_predict_job(
             update_state_store(client, config, logger, str(model.id), STAT_STORE_MATCH_MODEL_ID)
 
         if not model:
-            raise Exception("Failed to create or retrieve matching model")
+            raise RuntimeError("Failed to create or retrieve matching model")
 
         return model.predict(sources=match_from, targets=match_to, num_matches=1)
 
-    except Exception as e:
+    except (CogniteAPIError, ValueError) as e:
         logger.error(f"ERROR: Failed to get matching model and start prediction. Error: {type(e)}({e})")
         raise
 
@@ -992,9 +996,9 @@ def apply_rule_mappings(
 
         return good_matches, len(matches)
 
-    except Exception as e:
-        logger.error(f"ERROR: Not able run rule based mapping - error: {e}")
-        return good_matches, len(matches)
+    except CogniteAPIError as e:
+        logger.error(f"Cognite API error while applying rule-based mappings: {e}")
+        raise
 
 
 def select_and_apply_matches(
@@ -1002,7 +1006,7 @@ def select_and_apply_matches(
     config: Config,
     logger: CogniteFunctionLogger,
     good_matches: list[StoredMatch],
-    match_results: list[dict[str, Any]],
+    match_results: list[EntityMatchingApiMatch],
 ) -> tuple[list[StoredMatch], list[StoredMatch], int]:
     """
     Select and apply matches based on filtering threshold. Matches with score above threshold are updating time series
@@ -1113,7 +1117,7 @@ def select_and_apply_matches(
 
         return good_matches + new_good_matches, bad_matches, len(new_good_matches)
 
-    except Exception as e:
+    except (KeyError, TypeError, ValueError) as e:
         # Reporting no matches here would be indistinguishable from a run that genuinely
         # found none, so let the caller mark the pipeline run failed.
         logger.error(f"Failed to parse results from entity matching - error: {type(e)}({e})")
@@ -1252,7 +1256,7 @@ def add_to_items(
 
 
 def add_to_dict(
-    match: dict[str, Any],
+    match: EntityMatchingApiMatch,
     entity_view_id: str,
     target_view_id: str,
 ) -> StoredMatch:
