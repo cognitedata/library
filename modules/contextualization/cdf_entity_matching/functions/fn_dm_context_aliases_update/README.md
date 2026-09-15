@@ -123,7 +123,7 @@ before this setting existed keeps behaving the same.
 When no pattern extracts anything from a name, **no alias is produced**. The `aliases`
 property is then written as null, which clears whatever was stored — an empty list would
 leave the old values in place, so `removeOldAliases` would not remove anything. Instances
-that had no aliases to begin with are left untouched. The run logs `No alias extracted based on input regular expression for name: …` for
+that had no aliases to begin with are left untouched. The run logs `No alias extracted based on configured <view> regular expression for name: …` for
 the first ten such names, then counts the rest and reports the total once at the end. A run
 full of those warnings means the pattern does not match your names, not that the data is
 wrong.
@@ -431,12 +431,19 @@ data = {
 
 ### Performance Logs
 
+At **INFO**, expect startup, extraction pipeline id, loaded configuration summary, per-view progress, batch apply counts, and processing stats. Timing, memory, and performance summaries are **DEBUG** only.
+
 ```
-🚀 Starting OPTIMIZED metadata update with loglevel = INFO
-📝 Reading parameters from extraction pipeline config: ep_ctx_aliases_update
-⏱️ Time: Configuration processing took 0.12 seconds
+Starting Aliases Update with loglevel = INFO
+Reading parameters from extraction pipeline config: ep_ctx_aliases_update
+Configuration loading took 0.13s
+Loaded extraction pipeline configuration:
+  parameters:
+    debug: False
+    runAll: True
+    ...
 📊 Processing Stats: 1000 processed, 800 updated, 80.00% update rate
-🎉 Optimized metadata update completed successfully!
+Aliases Update completed successfully!
 ```
 
 ## 🤝 Contributing
