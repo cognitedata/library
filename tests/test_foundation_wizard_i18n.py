@@ -176,16 +176,18 @@ class TestRunCheck:
         sp._run_check(None, repo_root=tmp_path)
         assert "OK: All config file(s) match variant 'cdm'. No stale auth files." in capsys.readouterr().out
 
-    def test_ok_message_in_japanese_with_same_behavior(
+    def test_ok_message_stays_english_when_locale_is_japanese(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
     ) -> None:
+        # --check is consumed by CI/tooling — its output must not vary by locale (AT-113).
         monkeypatch.setattr(_i18n, "_LOCALE", "ja")
         self._scaffold(tmp_path)
         sp._run_check(None, repo_root=tmp_path)  # must not raise SystemExit
         out = capsys.readouterr().out
-        assert "OK: すべての設定ファイルがデータモデル 'cdm' と一致しています。不要な認証ファイルはありません。" in out
+        assert "OK: All config file(s) match variant 'cdm'. No stale auth files." in out
+        assert _i18n._LOCALE == "ja"  # restored after the check completes
 
-    def test_out_of_sync_error_exits_1_and_is_translated_in_japanese(
+    def test_out_of_sync_error_exits_1_and_stays_english_when_locale_is_japanese(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
     ) -> None:
         monkeypatch.setattr(_i18n, "_LOCALE", "ja")
@@ -197,5 +199,6 @@ class TestRunCheck:
             sp._run_check(None, repo_root=tmp_path)
         assert exc_info.value.code == 1
         out = capsys.readouterr().out
-        assert "エラー: 設定ファイルがデータモデル 'cdm' と一致していません:" in out
-        assert "実行: python scripts/setup_project.py -y" in out
+        assert "ERROR: Config file(s) out of sync with variant 'cdm':" in out
+        assert "Run: python scripts/setup_project.py -y" in out
+        assert _i18n._LOCALE == "ja"  # restored even though the check exited via sys.exit(1)
