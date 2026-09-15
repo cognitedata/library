@@ -65,6 +65,7 @@ ignore = [
 "**/test_*.py" = ["S101", "B017", "S105", "S603"]
 "**/run_tests.py" = ["S603"]
 "modules/common/cdf_project_foundation/scripts/setup_project.py" = ["S603"]
+"modules/common/cdf_project_foundation/scripts/_messages_ja.py" = ["RUF001"]
 "scripts/**" = ["S603"]
 
 [tool.pytest.ini_options]
