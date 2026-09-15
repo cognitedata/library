@@ -197,10 +197,13 @@ def detect_data_model_variant(data_models_dir: Path) -> str:
     if not present:
         return DEFAULT_DATA_MODEL_VARIANT
     if len(present) > 1:
+        header = t("ERROR: Multiple data models found under {data_models_dir}: {present}").format(
+            data_models_dir=data_models_dir, present=present
+        )
         raise SystemExit(
-            f"ERROR: Multiple data models found under {data_models_dir}: {present}\n"
-            "  Keep only one model directory per deployment pack,\n"
-            "  or pass --variant to select one explicitly."
+            f"{header}\n"
+            f"{t('  Keep only one model directory per deployment pack,')}\n"
+            f"{t('  or pass --variant to select one explicitly.')}"
         )
     return present[0]
 
@@ -230,7 +233,8 @@ def load_yaml(path: Path) -> dict:
     try:
         return yaml.safe_load(path.read_text()) or {}
     except yaml.YAMLError as e:
-        raise SystemExit(f"ERROR: Failed to parse YAML file {path}:\n  {e}") from e
+        header = t("ERROR: Failed to parse YAML file {path}:").format(path=path)
+        raise SystemExit(f"{header}\n  {e}") from e
 
 
 def deep_merge(base: dict, overlay: dict) -> dict:
