@@ -74,7 +74,7 @@ from em_constants import (
     STATUS_SUCCESS,
 )
 from em_logger import CogniteFunctionLogger
-from em_pipeline_optimizations import RobustAPIClient
+from em_pipeline_optimizations import RobustAPIClient, is_retryable
 from em_pipeline_types import (
     EntityMatchingApiMatch,
     EntityMatchSource,
