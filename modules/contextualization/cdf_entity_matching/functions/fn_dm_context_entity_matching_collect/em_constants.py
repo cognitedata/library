@@ -77,8 +77,9 @@ JOB_RESULT_ITEMS: Final = "items"
 STATUS_SUCCESS: Final = "success"
 STATUS_FAILURE: Final = "failure"
 
-# Log levels
+# Log levels. extractorutils resolves these by name, so they are strings, not logging ints.
 LOG_LEVEL_DEBUG: Final = "DEBUG"
+LOG_LEVEL_INFO: Final = "INFO"
 
 # ===== Asynchronous predict: submit (F1) and collect (F2) =====
 

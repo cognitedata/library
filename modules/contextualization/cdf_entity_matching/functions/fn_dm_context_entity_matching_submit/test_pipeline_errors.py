@@ -121,6 +121,20 @@ def test_robust_api_call_does_not_retry_client_errors(monkeypatch: pytest.Monkey
     assert operation.call_count == 1
 
 
+def test_raw_upload_queue_trigger_log_level_is_a_name() -> None:
+    """extractorutils calls .upper() on this, so an int like logging.INFO fails at runtime."""
+    from em_constants import LOG_LEVEL_DEBUG, LOG_LEVEL_INFO
+
+    assert LOG_LEVEL_INFO == "INFO"
+    assert LOG_LEVEL_DEBUG == "DEBUG"
+
+    core = Path(__file__).parents[1] / "_entity_matching_core"
+    for module in ("em_submit.py", "em_collect.py"):
+        source = (core / module).read_text(encoding="utf-8")
+        assert "trigger_log_level=LOG_LEVEL_INFO" in source
+        assert "trigger_log_level=logging." not in source
+
+
 def test_robust_api_call_retries_transient_errors(monkeypatch: pytest.MonkeyPatch) -> None:
     client = _api_client_without_backoff(monkeypatch)
     operation = MagicMock(

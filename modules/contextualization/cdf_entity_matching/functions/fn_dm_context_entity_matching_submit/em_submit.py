@@ -8,8 +8,6 @@ The run ends as soon as CDF has accepted the job, so a long prediction can no lo
 time the function out.
 """
 
-import logging
-
 from cognite.client import CogniteClient
 from cognite.extractorutils.uploader import RawUploadQueue
 
@@ -18,6 +16,7 @@ from em_constants import (  # isort: skip
     KEY_ENTITY_EXT_ID,
     KEY_ENTITY_SPACE,
     LOG_LEVEL_DEBUG,
+    LOG_LEVEL_INFO,
     PROP_COL_NAME,
     QUERY_FILTER_TYPE_TARGETS,
     STAT_STORE_MATCH_MODEL_ID,
@@ -71,7 +70,7 @@ def submit_entity_matching(
             logger.debug("**** Write debug messages *****")
 
         logger.debug("Initiate RAW upload queue used to store output from entity matching")
-        raw_uploader = RawUploadQueue(cdf_client=client, max_queue_size=500000, trigger_log_level=logging.INFO)
+        raw_uploader = RawUploadQueue(cdf_client=client, max_queue_size=500000, trigger_log_level=LOG_LEVEL_INFO)
 
         matching_model_id = ""
         if config.parameters.run_all:
