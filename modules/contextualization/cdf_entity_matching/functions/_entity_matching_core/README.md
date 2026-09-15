@@ -20,16 +20,42 @@ This folder is not a function: it has no `handler.py` and the Toolkit does not d
 
 ## Modules
 
-| Module | Contents |
-|---|---|
-| `em_submit.py` | Function 1: manual and rule mappings, staging, starting the predict job |
-| `em_collect.py` | Function 2: polling the queue, merging results, writing them |
-| `em_job_state.py` | The predict job queue in the RAW state store |
-| `em_staging.py` | Manual and rule matches parked in RAW while a predict job runs |
-| `em_targets.py` | Reading the targets: sync cursor in RAW, target content cached in a CDF file |
-| `em_pipeline.py` | The matching steps both functions use |
-| `em_config.py` | Extraction pipeline configuration, and the summary written to the log |
-| `em_constants.py`, `em_logger.py`, `em_pipeline_types.py`, `em_pipeline_optimizations.py` | Supporting code |
+| Module | Copied into | Contents |
+|---|---|---|
+| `em_submit.py` | submit | Manual and rule mappings, staging, starting the predict job |
+| `em_collect.py` | collect | Polling the queue, merging results, writing them |
+| `em_targets.py` | submit | Reading targets: sync cursor in RAW, content cached in a CDF file |
+| `em_job_state.py` | both | The predict job queue in the RAW state store |
+| `em_staging.py` | both | Manual and rule matches parked in RAW while a predict job runs |
+| `em_pipeline.py` | both | The matching steps both functions use |
+| `em_config.py` | both | Extraction pipeline configuration, and the summary written to the log |
+| `em_constants.py`, `em_logger.py`, `em_pipeline_types.py`, `em_pipeline_optimizations.py` | both | Supporting code |
+
+Submit does not ship `em_collect.py`. Collect does not ship `em_submit.py` or `em_targets.py`.
+
+## Target cache (`em_targets.py`)
+
+The cursor lives in RAW (`state_target_sync_<key>`). The instance content lives in a CDF
+file (`em_target_cache_<key>.json`). When sync reports changes, that file is **overwritten**
+(`overwrite=True`) and the RAW row is **upserted**. Neither is deleted. A configuration
+change produces a new `<key>` and therefore a new file and row; previous ones are left
+in place unused.
+
+A 408 on a sync page shrinks the page size by 20% (1000 down to 100). Every failure,
+including timeouts, counts toward `TARGET_SYNC_MAX_RETRIES` (4).
+
+## Retries (`em_pipeline_optimizations.py`)
+
+`is_retryable` decides what is worth another attempt (408, 429, 5xx, and unclassified
+transport errors — not 4xx or programming mistakes). `RobustAPIClient` uses that filter
+on its `@retry` decorator so a 403 or `TypeError` fails immediately.
+
+Creating a RAW database or table ignores only HTTP 409 (already exists) and re-raises
+other `CogniteAPIError`s.
+
+A failed extraction-pipeline run message includes a traceback only when the call is
+inside an active exception. A logical collect failure (predict job status `Failed`) does
+not append `NoneType: None`.
 
 ## Why the `em_` prefix
 

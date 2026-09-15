@@ -41,15 +41,19 @@ the **sync endpoint** and kept in a cache:
   with the external ID of the cache file, the page size that last worked and the target
   count. `<key>` is a fingerprint of the target configuration — view, spaces, search
   property and filter — so functions reading different targets never share a cursor.
-- The target content lives in the CDF file `em_target_cache_<key>.json`, written after
-  every run that saw a change.
+- The target content lives in the CDF file `em_target_cache_<key>.json`. When sync reports
+  changes, that **same** file is overwritten (`overwrite=True`) and the RAW row is
+  upserted. The file and the row are **not** deleted. A deleted target instance is dropped
+  from the in-memory list, then the whole JSON is written back.
 - A run where sync reports no changes reads the content from that file and writes only
-  the new cursor back. A run with changes merges them (a deleted instance is dropped) and
-  stores the file again.
-- A page that times out is read again 20% smaller, down to 100 instances, and the size
+  the new cursor back.
+- A page that times out is read again 20% smaller, down to 100 instances. Timeouts count
+  toward the same retry limit as other failures (`TARGET_SYNC_MAX_RETRIES` = 4). The size
   that worked is stored for the next run.
 - A cursor the API rejects, or a cache file that is gone, falls back to reading every
-  target again.
+  target again — still into the same file and row.
+- If the target configuration changes, `<key>` changes, so a **new** file and RAW row are
+  created. The previous cache is left in CDF unused; submit does not clean it up.
 
 The cache is an optimisation, so no failure to reach it fails the run. A transient error
 on the file is retried twice; after that a download falls back to reading the targets
@@ -89,6 +93,10 @@ existing entity matching function uses (`parameters` and `data.entityView` /
 `INFO` is what the run did; `DEBUG` adds timing and memory. A run at `INFO` shows the
 extraction pipeline it read, the effective configuration, the match counts, and the
 **job id** it created.
+
+`debug: true` in the extraction pipeline config enables DEBUG logging and skips writing
+matches to the data model. It still processes **all** entities — it does not limit the
+run to one.
 
 ## Code layout
 

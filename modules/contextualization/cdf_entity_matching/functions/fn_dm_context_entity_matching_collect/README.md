@@ -21,7 +21,9 @@ normal outcome, not a failure.
    - Writes good and bad matches to RAW, updates the data model when `dmUpdate` is set,
      then deletes the staging rows and the job's queue row.
    - On `Failed`: logs the error, clears the job's staging and queue row so it cannot
-     block the queue, and reports the failure on the extraction pipeline run.
+     block the queue, and reports the failure on the extraction pipeline run. That
+     message does **not** include a traceback — there is no exception, only a job status.
+   - On an unexpected exception, the pipeline-run message **does** include the traceback.
 3. Stops when the queue is empty or **8 minutes** have passed since the run started,
    whichever comes first.
 
@@ -48,11 +50,16 @@ workflow runs.
 shows how many jobs were queued, the **job id** of each one it worked on, what it
 collected, and a warning naming the job it left running when the 8 minutes were up.
 
+`debug: true` enables DEBUG logging and skips writing matches to the data model. It still
+collects every finished job in the queue — it does not limit the run to one entity.
+
 ## Code layout
 
 `handler.py` is the entry point. Every `em_*.py` file is generated from
 [`../_entity_matching_core`](../_entity_matching_core/README.md) — edit it there and run
-`python scripts/sync_entity_matching_core.py`.
+`python scripts/sync_entity_matching_core.py`. Collect ships `em_collect.py` and the
+shared modules; it does **not** ship `em_submit.py` or `em_targets.py`, and it does not
+read or write the target cache.
 
 ## Tests
 
