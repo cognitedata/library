@@ -7,6 +7,7 @@ performance monitoring, error handling, and logging as the default implementatio
 
 import os
 import sys
+import time
 from pathlib import Path
 from typing import Any
 
@@ -22,7 +23,7 @@ from alias_optimizations import (
     optimize_metadata_processing,
     time_operation,
 )
-from config import load_config_parameters
+from config import format_config_for_log, load_config_parameters
 from logger import CogniteFunctionLogger
 from pipeline import metadata_update
 
@@ -82,19 +83,18 @@ def handle(data: dict[str, Any], client: CogniteClient) -> dict[str, Any]:
         logger = CogniteFunctionLogger(loglevel)
         benchmark = PerformanceBenchmark(logger)
         
-        logger.info(f"🚀 Starting OPTIMIZED metadata update with loglevel = {loglevel}")
-        logger.info(f"📝 Reading parameters from extraction pipeline config: {data.get('ExtractionPipelineExtId')}")
+        logger.info(f"Starting Aliases Update with loglevel = {loglevel}")
+        pipeline_ext_id = data.get("ExtractionPipelineExtId")
+        logger.info(f"Reading parameters from extraction pipeline config: {pipeline_ext_id}")
         
         # Monitor initial memory usage
         monitor_memory_usage(logger, "Handler start")
         
-        # Load configuration with timing
-        config = benchmark.benchmark_function(
-            "Configuration loading",
-            load_config_parameters,
-            client, data
-        )
-        logger.debug("✅ Configuration loaded successfully")
+        load_start = time.time()
+        config = load_config_parameters(client, data)
+        load_duration = time.time() - load_start
+        logger.info(f"Configuration loading took {load_duration:.2f}s")
+        logger.info(format_config_for_log(config))
         
         # Execute optimized metadata update pipeline
         with time_operation("Complete metadata update pipeline", logger):
@@ -112,11 +112,11 @@ def handle(data: dict[str, Any], client: CogniteClient) -> dict[str, Any]:
         if benchmark:
             benchmark.log_summary()
         
-        logger.info("🎉 Optimized metadata update completed successfully!")
+        logger.info("Aliases Update completed successfully!")
         return {"status": "succeeded", "data": data}
         
     except Exception as e:
-        message = f"Optimized metadata update failed: {e!s}"
+        message = f"Aliases Update failed: {e!s}"
         
         if logger:
             logger.error(message)

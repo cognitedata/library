@@ -11,7 +11,7 @@ from cognite.client import data_modeling as dm
 from cognite.client.exceptions import CogniteAPIError, CogniteConnectionError
 from pydantic import ValidationError
 
-from config import Config, ConfigData, JobConfig, Parameters, ViewPropertyConfig  # isort: skip
+from config import Config, ConfigData, JobConfig, Parameters, ViewPropertyConfig, format_config_for_log  # isort: skip
 from constants import DEFAULT_ALIAS_PATTERN, TS_NODE  # isort: skip
 from logger import CogniteFunctionLogger  # isort: skip
 from pipeline import (  # isort: skip
@@ -76,6 +76,14 @@ class TestPipelineHelpers(unittest.TestCase):
                 )
             ),
         )
+
+    def test_format_config_for_log_includes_parameters_and_views(self) -> None:
+        summary = format_config_for_log(self._config(run_all=True, update_all=False))
+        self.assertIn("runAll: True", summary)
+        self.assertIn("updateAll: False", summary)
+        self.assertIn("timeseriesView:", summary)
+        self.assertIn("CogniteTimeSeries", summary)
+        self.assertIn("assetView:", summary)
 
     def test_file_view_is_optional(self) -> None:
         """A config written before file support existed must still load."""
