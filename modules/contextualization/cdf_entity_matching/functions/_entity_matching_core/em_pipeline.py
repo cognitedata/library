@@ -31,6 +31,7 @@ from em_constants import (
     COL_KEY_RULE_REGEXP_TARGET,
     COL_MATCH_KEY,
     FILTER_PATH_NODE_EXTERNAL_ID,
+    HTTP_STATUS_BAD_REQUEST,
     KEY_ENTITY_EXISTING_TARGETS,
     KEY_ENTITY_EXT_ID,
     KEY_ENTITY_MATCH_VALUE,
@@ -1356,15 +1357,27 @@ def write_mapping_to_raw(
         raise RuntimeError("Failed to write mapping to RAW DB") from e
 
 
+def _raise_unless_already_exists(error: CogniteAPIError) -> None:
+    """Swallow the error a re-run gets for a database or table it already created.
+
+    RAW answers that with `400`, not the `409` a conflict would suggest, and words it
+    differently per resource - "Databases with the following names already exists" but
+    "Tables already created" - so the status is what can be relied on. A name RAW will
+    not take answers `400` as well, and fails loudly on the first row written to it.
+    Everything that says the run cannot proceed - `401`, `403`, `5xx` - is re-raised.
+    """
+    if error.code != HTTP_STATUS_BAD_REQUEST:
+        raise error
+
+
 def create_table(client: CogniteClient, raw_db: str, tbl: str) -> None:
+    """Create the RAW database and table unless a previous run already did."""
     try:
         client.raw.databases.create(raw_db)
     except CogniteAPIError as e:
-        if e.code != 409:
-            raise
+        _raise_unless_already_exists(e)
 
     try:
         client.raw.tables.create(raw_db, tbl)
     except CogniteAPIError as e:
-        if e.code != 409:
-            raise
+        _raise_unless_already_exists(e)

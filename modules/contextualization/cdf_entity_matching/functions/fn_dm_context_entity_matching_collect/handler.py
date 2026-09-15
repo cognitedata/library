@@ -76,7 +76,11 @@ def handle(data: dict[str, Any], client: CogniteClient) -> dict[str, Any]:
         client: Authenticated CogniteClient instance.
 
     Returns:
-        Status of the run, and the input data on success.
+        Status of the run, and the input data.
+
+    Raises:
+        Exception: Whatever the run raised. A handler that returns normally is a
+            succeeded function call in CDF, so a failure has to leave by raising.
     """
     _report_usage(client)
     logger = None
@@ -122,7 +126,7 @@ def handle(data: dict[str, Any], client: CogniteClient) -> dict[str, Any]:
         else:
             print(f"[ERROR] {message}")
 
-        return {"status": "failure", "message": message}
+        raise
 
 
 def run_locally() -> dict[str, Any]:

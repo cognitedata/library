@@ -82,16 +82,29 @@ def test_rule_mapping_propagates_unexpected_errors(monkeypatch: pytest.MonkeyPat
         em_pipeline.apply_rule_mappings(MagicMock(), build_config(), MagicMock(), [], targets, entities)
 
 
-def test_create_table_ignores_conflict_and_propagates_other_api_errors() -> None:
+def test_create_table_ignores_an_existing_database_and_table() -> None:
+    """RAW answers 400, not 409, and words it differently for databases and tables."""
     client = MagicMock()
-    client.raw.databases.create.side_effect = CogniteAPIError("Already exists", code=409)
-    client.raw.tables.create.side_effect = CogniteAPIError("Forbidden", code=403)
+    client.raw.databases.create.side_effect = CogniteAPIError(
+        "Databases with the following names already exists: db_asset_entity_matching", code=400
+    )
+    client.raw.tables.create.side_effect = CogniteAPIError("Tables already created: contextualization_bad", code=400)
+
+    em_pipeline.create_table(client, "db", "tbl")
+
+    client.raw.tables.create.assert_called_once_with("db", "tbl")
+
+
+@pytest.mark.parametrize("code", [401, 403, 500])
+def test_create_table_propagates_errors_that_stop_the_run(code: int) -> None:
+    client = MagicMock()
+    client.raw.databases.create.side_effect = CogniteAPIError("Nope", code=code)
 
     with pytest.raises(CogniteAPIError) as failed:
         em_pipeline.create_table(client, "db", "tbl")
 
-    assert failed.value.code == 403
-    client.raw.tables.create.assert_called_once_with("db", "tbl")
+    assert failed.value.code == code
+    client.raw.tables.create.assert_not_called()
 
 
 def test_is_retryable_lives_with_the_retry_helpers() -> None:
@@ -143,6 +156,19 @@ def test_robust_api_call_retries_transient_errors(monkeypatch: pytest.MonkeyPatc
 
     assert client.robust_api_call(operation) == "ok"
     assert operation.call_count == 2
+
+
+def test_handler_raises_so_cdf_marks_the_call_failed(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A handler that returns normally is a succeeded function call in the CDF UI."""
+    import handler
+
+    def fail(*args: object, **kwargs: object) -> None:
+        raise RuntimeError("submit exploded")
+
+    monkeypatch.setattr(handler, "load_config_parameters", fail)
+
+    with pytest.raises(RuntimeError, match="submit exploded"):
+        handler.handle({"ExtractionPipelineExtId": "ep", "logLevel": "INFO"}, MagicMock())
 
 
 def _failure_run_message(client: MagicMock) -> str:

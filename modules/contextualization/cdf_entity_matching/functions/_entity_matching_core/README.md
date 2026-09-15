@@ -50,8 +50,13 @@ including timeouts, counts toward `TARGET_SYNC_MAX_RETRIES` (4).
 transport errors — not 4xx or programming mistakes). `RobustAPIClient` uses that filter
 on its `@retry` decorator so a 403 or `TypeError` fails immediately.
 
-Creating a RAW database or table ignores only HTTP 409 (already exists) and re-raises
-other `CogniteAPIError`s.
+Creating a RAW database or table ignores the **400** a re-run gets for one that is
+already there, and re-raises `401`, `403` and `5xx`. RAW does not use `409` for this, and
+words it differently per resource ("Databases with the following names already exists"
+but "Tables already created"), so the status code is what is matched on.
+
+Both handlers **re-raise** on failure. A handler that returns normally is a succeeded
+function call in the CDF UI, so returning `{"status": "failure"}` would hide the error.
 
 A failed extraction-pipeline run message includes a traceback only when the call is
 inside an active exception. A logical collect failure (predict job status `Failed`) does
