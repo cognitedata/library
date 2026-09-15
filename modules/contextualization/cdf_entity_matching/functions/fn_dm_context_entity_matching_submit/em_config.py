@@ -61,12 +61,6 @@ class Config(BaseModel, alias_generator=to_camel):
     parameters: Parameters
     data: ConfigData
 
-    @classmethod
-    def pares_direct_relation(cls, value: object) -> object:
-        if isinstance(value, dict):
-            return dm.DirectRelationReference.load(value)
-        return value
-
 
 def load_config_parameters(client: CogniteClient, function_data: FunctionInputData) -> Config:
     """Retrieves the configuration parameters from the function data and loads the configuration from CDF."""

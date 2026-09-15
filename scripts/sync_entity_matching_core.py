@@ -20,11 +20,24 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 FUNCTIONS_DIR = REPO_ROOT / "modules" / "contextualization" / "cdf_entity_matching" / "functions"
 CORE_DIR = FUNCTIONS_DIR / "_entity_matching_core"
 
-# Functions the shared code is copied into.
-TARGET_FUNCTIONS = (
-    "fn_dm_context_entity_matching_submit",
-    "fn_dm_context_entity_matching_collect",
+# Shared modules both functions import.
+SHARED_MODULES = (
+    "em_config.py",
+    "em_constants.py",
+    "em_job_state.py",
+    "em_logger.py",
+    "em_pipeline.py",
+    "em_pipeline_optimizations.py",
+    "em_pipeline_types.py",
+    "em_staging.py",
 )
+
+# Only copy what each function actually imports. Extra copies inflate the deploy zip
+# and give CodeQL two copies of code that never runs in that function.
+FUNCTION_MODULES = {
+    "fn_dm_context_entity_matching_submit": (*SHARED_MODULES, "em_submit.py", "em_targets.py"),
+    "fn_dm_context_entity_matching_collect": (*SHARED_MODULES, "em_collect.py"),
+}
 
 BANNER = (
     "# Generated from functions/_entity_matching_core/{name} - do not edit this copy.\n"
@@ -33,8 +46,13 @@ BANNER = (
 
 
 def core_modules() -> list[Path]:
-    """The shared modules, in a stable order."""
+    """Every shared module in the core folder, in a stable order."""
     return sorted(path for path in CORE_DIR.glob("*.py") if path.name != "__init__.py")
+
+
+def modules_for(function_name: str) -> list[Path]:
+    """The shared modules copied into one function."""
+    return [CORE_DIR / name for name in FUNCTION_MODULES[function_name]]
 
 
 def rendered(module: Path) -> str:
@@ -43,7 +61,7 @@ def rendered(module: Path) -> str:
 
 
 def sync(check_only: bool) -> int:
-    """Write, or verify, the copies of every shared module.
+    """Write, or verify, the copies of the modules each function needs.
 
     Args:
         check_only: Report stale copies instead of writing them.
@@ -52,19 +70,29 @@ def sync(check_only: bool) -> int:
         Number of copies that were written, or that are stale in check mode.
     """
     stale = 0
-    for function_name in TARGET_FUNCTIONS:
+    for function_name, module_names in FUNCTION_MODULES.items():
         target_dir = FUNCTIONS_DIR / function_name
         target_dir.mkdir(parents=True, exist_ok=True)
-        for module in core_modules():
+        expected = set(module_names)
+        for extra in target_dir.glob("em_*.py"):
+            if extra.name in expected:
+                continue
+            stale += 1
+            if check_only:
+                print(f"Unexpected copy: {extra.relative_to(REPO_ROOT)}")
+            else:
+                extra.unlink()
+                print(f"Removed {extra.relative_to(REPO_ROOT)}")
+        for module in modules_for(function_name):
             target = target_dir / module.name
-            expected = rendered(module)
-            if target.exists() and target.read_text(encoding="utf-8") == expected:
+            expected_text = rendered(module)
+            if target.exists() and target.read_text(encoding="utf-8") == expected_text:
                 continue
             stale += 1
             if check_only:
                 print(f"Out of date: {target.relative_to(REPO_ROOT)}")
             else:
-                target.write_text(expected, encoding="utf-8")
+                target.write_text(expected_text, encoding="utf-8")
                 print(f"Wrote {target.relative_to(REPO_ROOT)}")
     return stale
 
@@ -79,7 +107,7 @@ def main() -> None:
         print(f"{stale} copy/copies out of date - run: python scripts/sync_entity_matching_core.py")
         sys.exit(1)
     if not args.check:
-        print(f"Synced {len(core_modules())} module(s) into {len(TARGET_FUNCTIONS)} function(s).")
+        print(f"Synced shared modules into {len(FUNCTION_MODULES)} function(s).")
 
 
 if __name__ == "__main__":

@@ -440,6 +440,21 @@ def test_a_cursor_that_cannot_be_stored_does_not_fail_the_run(logger: CogniteFun
     assert [node.external_id for node in targets] == ["A-1"]
 
 
+def test_a_timed_out_page_fails_when_max_retries_exceeded(logger: CogniteFunctionLogger) -> None:
+    client = FakeClient(
+        pages=[
+            CogniteAPIError("Request timed out", code=408),
+            CogniteAPIError("Request timed out", code=408),
+            CogniteAPIError("Request timed out", code=408),
+            CogniteAPIError("Request timed out", code=408),
+            CogniteAPIError("Request timed out", code=408),
+        ]
+    )
+
+    with pytest.raises(CogniteAPIError):
+        load_targets(client, build_config(), logger)  # type: ignore[arg-type]
+
+
 def test_targets_are_built_from_the_cached_content(logger: CogniteFunctionLogger) -> None:
     """A cached read produces the same match entities as a read from the data model."""
     client = FakeClient(pages=[([], "cursor-2")])

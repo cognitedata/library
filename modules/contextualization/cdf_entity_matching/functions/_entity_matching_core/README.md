@@ -3,8 +3,8 @@
 Code shared by the two asynchronous entity matching functions. **This folder is the only
 place it is edited.**
 
-A Cognite Function is deployed as one self-contained folder, so the same modules have to
-exist inside `fn_dm_context_entity_matching_submit/` and
+A Cognite Function is deployed as one self-contained folder, so the modules each
+function imports have to exist inside `fn_dm_context_entity_matching_submit/` and
 `fn_dm_context_entity_matching_collect/`. Those copies are generated:
 
 ```bash
@@ -41,5 +41,6 @@ against the wrong function's signature. The prefix makes each module name unique
 
 ## Adding a module
 
-Add the `.py` file here, named `em_*.py`, and run the sync script; it copies every module
-in the folder.
+Add the `.py` file here, named `em_*.py`, list it in `FUNCTION_MODULES` in
+`scripts/sync_entity_matching_core.py` for the function(s) that import it, and run the
+sync script.

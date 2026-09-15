@@ -21,14 +21,11 @@ import os
 import time
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import psutil
 from em_logger import CogniteFunctionLogger
 from tenacity import retry, stop_after_attempt, wait_exponential
-
-if TYPE_CHECKING:
-    from cognite.client import CogniteClient
 
 # ===== PERFORMANCE MONITORING ===============================================
 
@@ -69,8 +66,7 @@ def cleanup_memory() -> None:
 class RobustAPIClient:
     """Wrap arbitrary CDF API calls with bounded exponential-backoff retry."""
 
-    def __init__(self, client: "CogniteClient", logger: CogniteFunctionLogger) -> None:
-        self.client = client
+    def __init__(self, logger: CogniteFunctionLogger) -> None:
         self.logger = logger
 
     @retry(

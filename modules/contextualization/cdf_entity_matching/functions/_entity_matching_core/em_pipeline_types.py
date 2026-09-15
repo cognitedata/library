@@ -97,8 +97,3 @@ class EntityMatchingApiMatch(TypedDict):
 
     source: EntityMatchApiSource
     matches: list[EntityMatchResultItem]
-
-
-class DirectRelationLink(TypedDict):
-    externalId: str
-    space: str

@@ -66,7 +66,7 @@ def submit_entity_matching(
     try:
         if config.parameters.debug:
             logger = CogniteFunctionLogger(LOG_LEVEL_DEBUG)
-            logger.debug("**** Write debug messages and only process one entity *****")
+            logger.debug("**** Write debug messages *****")
 
         logger.debug("Initiate RAW upload queue used to store output from entity matching")
         raw_uploader = RawUploadQueue(cdf_client=client, max_queue_size=500000, trigger_log_level=logging.INFO)

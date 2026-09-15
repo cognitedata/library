@@ -2,11 +2,9 @@
 # Change the source and run: python scripts/sync_entity_matching_core.py
 import json
 import re
-import sys
 import traceback
 from collections import defaultdict
 from collections.abc import Mapping, Sequence
-from pathlib import Path
 from typing import TYPE_CHECKING
 
 from cognite.client import CogniteClient
@@ -92,8 +90,6 @@ from em_pipeline_types import (
 if TYPE_CHECKING:
     from cognite.extractorutils.uploader import RawUploadQueue
 
-sys.path.append(str(Path(__file__).parent))
-
 
 def _retry_apply(
     client: CogniteClient,
@@ -108,7 +104,7 @@ def _retry_apply(
     """
     if not items:
         return
-    RobustAPIClient(client, logger).robust_api_call(client.data_modeling.instances.apply, items)
+    RobustAPIClient(logger).robust_api_call(client.data_modeling.instances.apply, items)
 
 
 def instance_key(space: str | None, external_id: str) -> tuple[str, str]:
@@ -382,7 +378,6 @@ def apply_manual_mappings(
                     }
                 )
 
-                mapping = {}
                 row_key = key_lookup[entity.external_id]
                 mapping = manual_mappings_input[row_key].copy()
                 mapping[COL_KEY_MAN_CONTEXTUALIZED] = True
@@ -1381,14 +1376,12 @@ def write_mapping_to_raw(
 def create_table(client: CogniteClient, raw_db: str, tbl: str) -> None:
     try:
         client.raw.databases.create(raw_db)
-    except CogniteAPIError:
-        # Resource may already exist when the pipeline is re-run.
-        # Expected failure; continue without affecting the caller.
-        pass
+    except CogniteAPIError as e:
+        if e.code != 409:
+            raise
 
     try:
         client.raw.tables.create(raw_db, tbl)
-    except CogniteAPIError:
-        # Resource may already exist when the pipeline is re-run.
-        # Expected failure; continue without affecting the caller.
-        pass
+    except CogniteAPIError as e:
+        if e.code != 409:
+            raise

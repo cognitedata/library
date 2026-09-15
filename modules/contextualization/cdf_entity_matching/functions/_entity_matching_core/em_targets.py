@@ -303,8 +303,9 @@ def sync_page(
         # Deliberately broad: `is_retryable` decides what is worth another attempt, and
         # everything else is logged with the page size it died on and re-raised unchanged.
         except Exception as e:
+            attempt += 1
             timed_out = isinstance(e, CogniteAPIError) and e.code == HTTP_STATUS_REQUEST_TIMEOUT
-            if timed_out and batch_size > TARGET_SYNC_MIN_BATCH_SIZE:
+            if timed_out and batch_size > TARGET_SYNC_MIN_BATCH_SIZE and attempt <= TARGET_SYNC_MAX_RETRIES:
                 batch_size = max(
                     TARGET_SYNC_MIN_BATCH_SIZE,
                     int(batch_size * TARGET_SYNC_BATCH_SIZE_FACTOR),
@@ -314,7 +315,6 @@ def sync_page(
                 )
                 continue
 
-            attempt += 1
             if attempt > TARGET_SYNC_MAX_RETRIES or not is_retryable(e):
                 logger.error(
                     f"Failed to sync {QUERY_FILTER_TYPE_TARGETS} after {attempt} attempt(s) "

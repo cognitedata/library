@@ -4,7 +4,6 @@ from typing import Final
 
 STAT_STORE_MATCH_MODEL_ID: Final = "state_match_model_id"
 STAT_STORE_VALUE: Final = "value"
-FUNCTION_ID: Final = "entity_matching"
 ML_MODEL_FEATURE_TYPE: Final = "bigram-combo"
 COL_MATCH_KEY: Final = "name"
 
@@ -80,7 +79,6 @@ STATUS_FAILURE: Final = "failure"
 
 # Log levels
 LOG_LEVEL_DEBUG: Final = "DEBUG"
-LOG_LEVEL_INFO: Final = "INFO"
 
 # ===== Asynchronous predict: submit (F1) and collect (F2) =====
 
