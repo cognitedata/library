@@ -176,20 +176,53 @@ class TestStaging(unittest.TestCase):
             {"entity_ext_id": "TS-2", "asset_ext_id": "A-2", "match_type": "Rule Based Mapping"},
         ]
 
-        write_staged_matches(self.client, self.config, self.uploader, self.logger, "1001", matches)  # type: ignore[arg-type]
+        write_staged_matches(
+            self.client,
+            self.config,
+            self.uploader,
+            self.logger,
+            "1001",
+            matches,  # type: ignore[arg-type]
+        )
         restored = read_staged_matches(self.client, self.config, self.logger, "1001")  # type: ignore[arg-type]
 
         self.assertEqual(sorted(restored, key=lambda m: m["entity_ext_id"]), matches)
 
     def test_staged_matches_of_another_job_are_not_read(self) -> None:
-        write_staged_matches(self.client, self.config, self.uploader, self.logger, "1001", [{"entity_ext_id": "TS-1"}])  # type: ignore[arg-type]
-        write_staged_matches(self.client, self.config, self.uploader, self.logger, "1002", [{"entity_ext_id": "TS-2"}])  # type: ignore[arg-type]
+        ts1_match = [{"entity_ext_id": "TS-1"}]
+        ts2_match = [{"entity_ext_id": "TS-2"}]
+        write_staged_matches(
+            self.client,
+            self.config,
+            self.uploader,
+            self.logger,
+            "1001",
+            ts1_match,  # type: ignore[arg-type]
+        )
+        write_staged_matches(
+            self.client,
+            self.config,
+            self.uploader,
+            self.logger,
+            "1002",
+            ts2_match,  # type: ignore[arg-type]
+        )
 
-        self.assertEqual(read_staged_matches(self.client, self.config, self.logger, "1002"), [{"entity_ext_id": "TS-2"}])  # type: ignore[arg-type]
+        self.assertEqual(
+            read_staged_matches(self.client, self.config, self.logger, "1002"),  # type: ignore[arg-type]
+            ts2_match,
+        )
 
     def test_run_all_clears_results_but_keeps_staged_matches(self) -> None:
         self.client.raw.rows.insert("db", "good", Row("TS-9", {"entity_ext_id": "TS-9"}))
-        write_staged_matches(self.client, self.config, self.uploader, self.logger, "1001", [{"entity_ext_id": "TS-1"}])  # type: ignore[arg-type]
+        write_staged_matches(
+            self.client,
+            self.config,
+            self.uploader,
+            self.logger,
+            "1001",
+            [{"entity_ext_id": "TS-1"}],  # type: ignore[arg-type]
+        )
 
         clear_finished_matches(self.client, self.config, self.logger, "good")  # type: ignore[arg-type]
 

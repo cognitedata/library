@@ -305,7 +305,10 @@ def sync_page(
         except Exception as e:
             timed_out = isinstance(e, CogniteAPIError) and e.code == HTTP_STATUS_REQUEST_TIMEOUT
             if timed_out and batch_size > TARGET_SYNC_MIN_BATCH_SIZE:
-                batch_size = max(TARGET_SYNC_MIN_BATCH_SIZE, int(batch_size * TARGET_SYNC_BATCH_SIZE_FACTOR))
+                batch_size = max(
+                    TARGET_SYNC_MIN_BATCH_SIZE,
+                    int(batch_size * TARGET_SYNC_BATCH_SIZE_FACTOR),
+                )
                 logger.warning(
                     f"Reading {QUERY_FILTER_TYPE_TARGETS} timed out - reading again with page size: {batch_size}"
                 )
@@ -321,7 +324,8 @@ def sync_page(
 
             sleep_seconds = TARGET_SYNC_RETRY_BACKOFF_SECONDS * (2 ** (attempt - 1))
             logger.warning(
-                f"Retry {attempt}/{TARGET_SYNC_MAX_RETRIES} of {QUERY_FILTER_TYPE_TARGETS} sync in {sleep_seconds}s. "
+                f"Retry {attempt}/{TARGET_SYNC_MAX_RETRIES} of "
+                f"{QUERY_FILTER_TYPE_TARGETS} sync in {sleep_seconds}s. "
                 f"Error: {type(e)}({e})"
             )
             time.sleep(sleep_seconds)

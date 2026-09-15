@@ -38,23 +38,30 @@ def _report_usage(client: CogniteClient) -> None:
         import threading
 
         from mixpanel import Consumer, Mixpanel
+
         mp = Mixpanel("8f28374a6614237dd49877a0d27daa78", consumer=Consumer(api_host="api-eu.mixpanel.com"))
         distinct_id = f"{client.config.project}:{client.config.cdf_cluster}"
+
         def _send() -> None:
             # Exceptions raised inside the thread body need their own guard, otherwise
             # they surface as unhandled thread exceptions in production stderr.
             try:
-                mp.track(distinct_id, "fn-handle", {
-                    "source": _SOURCE,
-                    "tracker_version": _TRACKER_VERSION,
-                    "dp_version": _DP_VERSION,
-                    "type": "py-function",
-                    "cdf_cluster": client.config.cdf_cluster,
-                    "cdf_project": client.config.project,
-                })
+                mp.track(
+                    distinct_id,
+                    "fn-handle",
+                    {
+                        "source": _SOURCE,
+                        "tracker_version": _TRACKER_VERSION,
+                        "dp_version": _DP_VERSION,
+                        "type": "py-function",
+                        "cdf_cluster": client.config.cdf_cluster,
+                        "cdf_project": client.config.project,
+                    },
+                )
             except Exception:
                 # Usage tracking is best-effort; must not affect the handler.
                 pass
+
         threading.Thread(target=_send, daemon=True).start()
     except Exception:
         # Usage tracking is best-effort; must not affect the handler.
@@ -96,11 +103,7 @@ def handle(data: dict[str, Any], client: CogniteClient) -> dict[str, Any]:
         )
         logger.info(format_config_summary(config))
 
-        benchmark.benchmark_function(
-            "Collect pipeline",
-            collect_entity_matching,
-            client, logger, data, config
-        )
+        benchmark.benchmark_function("Collect pipeline", collect_entity_matching, client, logger, data, config)
 
         cleanup_memory()
         monitor_memory_usage(logger, "Handler end")

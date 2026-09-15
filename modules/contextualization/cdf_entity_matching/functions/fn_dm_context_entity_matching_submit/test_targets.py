@@ -30,7 +30,13 @@ from em_constants import (  # isort: skip
     TARGET_SYNC_QUERY_NAME,
 )
 from em_logger import CogniteFunctionLogger  # isort: skip
-from em_targets import cache_file_external_id, get_all_targets, load_targets, target_cache_key, target_state_row_key  # isort: skip
+from em_targets import (  # isort: skip
+    cache_file_external_id,
+    get_all_targets,
+    load_targets,
+    target_cache_key,
+    target_state_row_key,
+)
 
 VIEW_ID = dm.ViewId("cdf_cdm", "CogniteAsset", "v1")
 INSTANCE_SPACE = "inst_location"
@@ -412,7 +418,7 @@ def test_a_transient_upload_failure_is_retried(logger: CogniteFunctionLogger) ->
 
 
 def test_a_cache_that_cannot_be_stored_leaves_the_cursor_alone(logger: CogniteFunctionLogger) -> None:
-    """The stored cursor has to describe the targets in the cache file, or the next run merges onto the wrong content."""
+    """The stored cursor has to describe targets in cache file, or next run merges onto wrong content."""
     client = FakeClient(pages=[([target_node("A-2", "Pump 2")], "cursor-2")])
     config = build_config()
     file_external_id = seed_cache(client, config, [target_node("A-1", "Pump 1")])

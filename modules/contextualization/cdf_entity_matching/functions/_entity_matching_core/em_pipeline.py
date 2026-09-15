@@ -187,7 +187,8 @@ def update_state_store(
     client.raw.rows.insert(config.parameters.raw_db, config.parameters.raw_table_state, state_row)
 
     logger.debug(
-        f"Update state store DB: {config.parameters.raw_db} Table: {config.parameters.raw_table_state} Key: {type} Value: {value}"
+        f"Update state store DB: {config.parameters.raw_db} "
+        f"Table: {config.parameters.raw_table_state} Key: {type} Value: {value}"
     )
 
 
@@ -293,7 +294,8 @@ def apply_manual_mappings(
 
         if num_batches > 1:
             logger.info(
-                f"Entity list has {len(entity_list)} items, splitting into {num_batches} batches of up to {BATCH_SIZE_ENTITIES}"
+                f"Entity list has {len(entity_list)} items, "
+                f"splitting into {num_batches} batches of up to {BATCH_SIZE_ENTITIES}"
             )
 
         # Process in batches
@@ -383,7 +385,9 @@ def apply_manual_mappings(
                 mapping = manual_mappings_input[row_key].copy()
                 mapping[COL_KEY_MAN_CONTEXTUALIZED] = True
                 raw_uploader.add_to_upload_queue(
-                    config.parameters.raw_db, config.parameters.raw_table_ctx_manual, Row(row_key, mapping)
+                    config.parameters.raw_db,
+                    config.parameters.raw_table_ctx_manual,
+                    Row(row_key, mapping),
                 )
 
                 # Flush the queue once it is full. `cnt` counts every instance read,
@@ -413,7 +417,8 @@ def apply_manual_mappings(
             if len(item_update) > 0:
                 if cnt == 0:
                     logger.info(
-                        "==> Mapping table based matching - No items added to data model based on new items found and manual mappings"
+                        "==> Mapping table based matching - "
+                        "No items added to data model based on new items found and manual mappings"
                     )
                 else:
                     logger.info(
@@ -920,8 +925,9 @@ def apply_rule_mappings(
                             good_matches_set.add(pair)
 
                             unique_target_list = list(set(matches.get(entity, ())))
-                            if d1_match[KEY_TARGET_EXT_ID] and d1_match[KEY_TARGET_EXT_ID] not in unique_target_list:
-                                unique_target_list = [*unique_target_list, d1_match[KEY_TARGET_EXT_ID]]
+                            target_id = d1_match[KEY_TARGET_EXT_ID]
+                            if target_id and target_id not in unique_target_list:
+                                unique_target_list = [*unique_target_list, target_id]
                                 good_matches.append(
                                     {
                                         KEY_MATCH_TYPE: MATCH_TYPE_RULE,
@@ -986,7 +992,8 @@ def apply_rule_mappings(
 
             if cnt == 0:
                 logger.info(
-                    "==> Rule based matching - No items added to data model based on new items found and rule based mappings"
+                    "==> Rule based matching - "
+                    "No items added to data model based on new items found and rule based mappings"
                 )
             else:
                 logger.info(

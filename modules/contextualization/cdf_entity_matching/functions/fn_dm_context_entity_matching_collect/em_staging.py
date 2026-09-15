@@ -52,10 +52,11 @@ def write_staged_matches(
 
     prefix = staging_prefix(job_id)
     for match in matches:
+        row_key = f"{prefix}{raw_row_key(config, match)}"
         raw_uploader.add_to_upload_queue(
             db,
             table,
-            Row(f"{prefix}{raw_row_key(config, match)}", {**match, STAGING_COL_JOB_ID: job_id}),  # type: ignore[arg-type]
+            Row(row_key, {**match, STAGING_COL_JOB_ID: job_id}),  # type: ignore[arg-type]
         )
     raw_uploader.upload()
 
