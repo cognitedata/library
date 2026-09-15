@@ -1379,14 +1379,12 @@ def write_mapping_to_raw(
 def create_table(client: CogniteClient, raw_db: str, tbl: str) -> None:
     try:
         client.raw.databases.create(raw_db)
-    except CogniteAPIError:
-        # Resource may already exist when the pipeline is re-run.
-        # Expected failure; continue without affecting the caller.
-        pass
+    except CogniteAPIError as e:
+        if e.code != 409:
+            raise
 
     try:
         client.raw.tables.create(raw_db, tbl)
-    except CogniteAPIError:
-        # Resource may already exist when the pipeline is re-run.
-        # Expected failure; continue without affecting the caller.
-        pass
+    except CogniteAPIError as e:
+        if e.code != 409:
+            raise
