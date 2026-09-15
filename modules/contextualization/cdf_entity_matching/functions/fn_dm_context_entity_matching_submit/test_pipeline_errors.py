@@ -22,6 +22,7 @@ from em_constants import (  # isort: skip
     KEY_TARGET_EXT_ID,
     KEY_TARGET_LINKS,
     KEY_TARGET_SPACE,
+    STATUS_FAILURE,
 )
 from test_submit import build_config  # isort: skip
 
@@ -99,3 +100,51 @@ def test_is_retryable_lives_with_the_retry_helpers() -> None:
     assert is_retryable(CogniteAPIError("unavailable", code=503))
     assert not is_retryable(CogniteAPIError("forbidden", code=403))
     assert not is_retryable(TypeError("bug"))
+
+
+def _failure_run_message(client: MagicMock) -> str:
+    run = client.extraction_pipelines.runs.create.call_args.args[0]
+    return run.message
+
+
+def test_failed_pipeline_run_without_exception_does_not_log_a_traceback() -> None:
+    client = MagicMock()
+    logger = MagicMock()
+
+    em_pipeline.update_pipeline_run(
+        client,
+        logger,
+        "ep-entity-matching",
+        STATUS_FAILURE,
+        2,
+        1,
+        "Predict job(s) failed: 42",
+    )
+
+    message = _failure_run_message(client)
+    assert "Predict job(s) failed: 42" in message
+    assert "traceback" not in message
+    assert "NoneType: None" not in message
+
+
+def test_failed_pipeline_run_inside_except_includes_the_traceback() -> None:
+    client = MagicMock()
+    logger = MagicMock()
+
+    try:
+        raise RuntimeError("predict exploded")
+    except RuntimeError as e:
+        em_pipeline.update_pipeline_run(
+            client,
+            logger,
+            "ep-entity-matching",
+            STATUS_FAILURE,
+            0,
+            0,
+            f"failed, Message: {e!s}",
+        )
+
+    message = _failure_run_message(client)
+    assert "failed, Message: predict exploded" in message
+    assert "traceback" in message
+    assert "RuntimeError: predict exploded" in message

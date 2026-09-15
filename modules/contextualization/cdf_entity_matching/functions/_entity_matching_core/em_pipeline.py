@@ -1,5 +1,6 @@
 import json
 import re
+import sys
 import traceback
 from collections import defaultdict
 from collections.abc import Mapping, Sequence
@@ -135,10 +136,11 @@ def update_pipeline_run(
         if input_msg:
             logger.info(input_msg)
     else:
+        tb = f", traceback:\n{traceback.format_exc()}" if sys.exception() is not None else ""
         msg = (
             f"Entity matching of: {total_entities} input entities, Matched: {match_count} "
             f" - NOT matched due to low score: {not_matches_count}, "
-            f"{input_msg or 'Unknown error'}, traceback:\n{traceback.format_exc()}"
+            f"{input_msg or 'Unknown error'}{tb}"
         )
         logger.error(msg)
 
