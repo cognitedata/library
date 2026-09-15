@@ -25,7 +25,7 @@ import psutil
 from cognite.client.exceptions import CogniteAPIError
 from em_constants import HTTP_STATUS_REQUEST_TIMEOUT
 from em_logger import CogniteFunctionLogger
-from tenacity import retry, stop_after_attempt, wait_exponential
+from tenacity import retry, retry_if_exception, stop_after_attempt, wait_exponential
 
 # ===== PERFORMANCE MONITORING ===============================================
 
@@ -86,20 +86,24 @@ class RobustAPIClient:
         self.logger = logger
 
     @retry(
+        retry=retry_if_exception(is_retryable),
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=4, max=10),
+        reraise=True,
     )
     def robust_api_call[T](self, operation: Callable[..., T], *args: Any, **kwargs: Any) -> T:
         """Retry the wrapped operation up to 3 times with exponential backoff.
 
-        On each failure tenacity sleeps according to the wait policy
-        (4s capped at 10s, exponentially) and re-invokes `operation`. If all
-        attempts fail, the last exception is wrapped in tenacity.RetryError.
+        Only errors that `is_retryable` accepts are retried. Client errors and
+        programming mistakes fail on the first attempt. Transient failures sleep
+        according to the wait policy (4s capped at 10s, exponentially). If those
+        attempts still fail, the last exception is re-raised unchanged.
         """
         try:
             return operation(*args, **kwargs)
         except Exception as e:
-            self.logger.warning(f"API call failed, retrying: {e}")
+            if is_retryable(e):
+                self.logger.warning(f"API call failed, retrying: {e}")
             raise
 
 

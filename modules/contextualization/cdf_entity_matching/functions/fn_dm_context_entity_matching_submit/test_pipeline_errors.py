@@ -6,10 +6,12 @@ from unittest.mock import MagicMock
 
 import pytest
 from cognite.client.exceptions import CogniteAPIError
+from tenacity import wait_none
 
 sys.path.append(str(Path(__file__).parent))
 
 import em_pipeline  # isort: skip
+from em_pipeline_optimizations import RobustAPIClient  # isort: skip
 from em_constants import (  # isort: skip
     COL_KEY_MAN_MAPPING_ENTITY,
     COL_KEY_MAN_MAPPING_TARGET,
@@ -100,6 +102,33 @@ def test_is_retryable_lives_with_the_retry_helpers() -> None:
     assert is_retryable(CogniteAPIError("unavailable", code=503))
     assert not is_retryable(CogniteAPIError("forbidden", code=403))
     assert not is_retryable(TypeError("bug"))
+
+
+def _api_client_without_backoff(monkeypatch: pytest.MonkeyPatch) -> RobustAPIClient:
+    monkeypatch.setattr(getattr(RobustAPIClient.robust_api_call, "retry"), "wait", wait_none())
+    return RobustAPIClient(MagicMock())
+
+
+def test_robust_api_call_does_not_retry_client_errors(monkeypatch: pytest.MonkeyPatch) -> None:
+    client = _api_client_without_backoff(monkeypatch)
+    forbidden = CogniteAPIError("Forbidden", code=403)
+    operation = MagicMock(side_effect=forbidden)
+
+    with pytest.raises(CogniteAPIError) as failed:
+        client.robust_api_call(operation)
+
+    assert failed.value is forbidden
+    assert operation.call_count == 1
+
+
+def test_robust_api_call_retries_transient_errors(monkeypatch: pytest.MonkeyPatch) -> None:
+    client = _api_client_without_backoff(monkeypatch)
+    operation = MagicMock(
+        side_effect=[CogniteAPIError("Unavailable", code=503), "ok"],
+    )
+
+    assert client.robust_api_call(operation) == "ok"
+    assert operation.call_count == 2
 
 
 def _failure_run_message(client: MagicMock) -> str:
