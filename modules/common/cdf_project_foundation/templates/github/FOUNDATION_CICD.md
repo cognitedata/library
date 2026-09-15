@@ -35,6 +35,7 @@ Each environment needs these **variables**:
 - `CDF_CLUSTER`
 - `CDF_PROJECT` (must match `config.<env>.yaml`)
 - `LOGIN_FLOW` (typically `client_credentials`)
+- `PROVIDER` (only for a non-Entra identity provider — see below)
 - `IDP_TENANT_ID`
 - `IDP_CLIENT_ID`
 - `ADMIN_SOURCE_ID`
@@ -44,6 +45,20 @@ Each environment needs these **variables**:
 And this **secret**:
 
 - `IDP_CLIENT_SECRET`
+
+### Identity provider
+
+`PROVIDER` tells the Toolkit which identity provider to authenticate against. The generated
+workflows default it to `entra_id`, so Entra ID projects can leave the variable unset.
+
+| Identity provider | `PROVIDER` | `IDP_TENANT_ID` | `IDP_TOKEN_URL` |
+|-------------------|------------|-----------------|-----------------|
+| Microsoft Entra ID | `entra_id` (or unset) | required | not used |
+| Cognite IdP (CogIdP) | `cdf` | not used | not used — the Toolkit authenticates against `https://auth.cognite.com/oauth2/token` |
+| Other OIDC provider | `other` | not used | required, together with `IDP_AUDIENCE` |
+
+The generated workflows do not pass `IDP_TOKEN_URL` or `IDP_AUDIENCE`, so the third row
+needs a change to the workflow templates.
 
 ## Toolkit configs
 
@@ -62,10 +77,11 @@ CI validates the committed configs as-is; it does not regenerate them.
 If the repository does not have a root `.pre-commit-config.yaml`, the generated
 PR workflow skips the pre-commit config lint step.
 
-If any CDF Function under a `functions/` folder has Python source, the PR workflow
-also runs `ruff check` and `pyright` against it, installing each function's
-`requirements.txt` first so imports resolve. Projects with no `functions/` Python
-code skip this step.
+If a team-authored module has Python source under a `functions/` folder, the PR workflow
+also runs `ruff check` and `pyright` against it, installing that function's
+`requirements.txt` first so imports resolve. Modules installed by a deployment pack are
+excluded — their code is not the team's to fix — so a project whose only functions come
+from packs skips this step.
 
 ## Regenerate workflows
 
