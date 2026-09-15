@@ -22,8 +22,10 @@ from contextlib import contextmanager
 from typing import Any
 
 import psutil
+from cognite.client.exceptions import CogniteAPIError
+from em_constants import HTTP_STATUS_REQUEST_TIMEOUT
 from em_logger import CogniteFunctionLogger
-from tenacity import retry, stop_after_attempt, wait_exponential
+from tenacity import retry, retry_if_exception, stop_after_attempt, wait_exponential
 
 # ===== PERFORMANCE MONITORING ===============================================
 
