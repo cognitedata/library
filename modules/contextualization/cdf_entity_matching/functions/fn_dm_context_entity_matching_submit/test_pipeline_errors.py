@@ -105,7 +105,7 @@ def test_is_retryable_lives_with_the_retry_helpers() -> None:
 
 
 def _api_client_without_backoff(monkeypatch: pytest.MonkeyPatch) -> RobustAPIClient:
-    monkeypatch.setattr(getattr(RobustAPIClient.robust_api_call, "retry"), "wait", wait_none())
+    monkeypatch.setattr(RobustAPIClient.robust_api_call.retry, "wait", wait_none())  # pyright: ignore[reportFunctionMemberAccess]
     return RobustAPIClient(MagicMock())
 
 
