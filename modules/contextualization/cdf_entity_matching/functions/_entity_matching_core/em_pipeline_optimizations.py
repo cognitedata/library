@@ -18,18 +18,22 @@ import gc
 import time
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import psutil
 from em_logger import CogniteFunctionLogger
 from tenacity import retry, stop_after_attempt, wait_exponential
 
+if TYPE_CHECKING:
+    from cognite.client import CogniteClient
+
 # ===== PERFORMANCE MONITORING ===============================================
+
 
 @contextmanager
 def time_operation(operation_name: str, logger: CogniteFunctionLogger) -> Iterator[None]:
     """Context manager that logs how long the wrapped block ran.
-    
+
     Timings are diagnostics rather than results, so they are logged at DEBUG and an INFO
     run reads as what the function did rather than how long each step took.
     """
@@ -58,10 +62,11 @@ def cleanup_memory() -> None:
 
 # ===== RETRY WRAPPER ========================================================
 
+
 class RobustAPIClient:
     """Wrap arbitrary CDF API calls with bounded exponential-backoff retry."""
 
-    def __init__(self, client: Any, logger: CogniteFunctionLogger) -> None:
+    def __init__(self, client: "CogniteClient", logger: CogniteFunctionLogger) -> None:
         self.client = client
         self.logger = logger
 
@@ -69,7 +74,7 @@ class RobustAPIClient:
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=4, max=10),
     )
-    def robust_api_call(self, operation: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
+    def robust_api_call[T](self, operation: Callable[..., T], *args: Any, **kwargs: Any) -> T:
         """Retry the wrapped operation up to 3 times with exponential backoff.
 
         On each failure tenacity sleeps according to the wait policy
@@ -85,6 +90,7 @@ class RobustAPIClient:
 
 # ===== STARTUP TUNING =======================================================
 
+
 def patch_existing_pipeline() -> bool:
     """Apply quick global optimizations once at function start.
 
@@ -95,6 +101,7 @@ def patch_existing_pipeline() -> bool:
 
     try:
         import os
+
         if hasattr(os, "nice"):
             os.nice(-5)
     except OSError:
@@ -105,6 +112,7 @@ def patch_existing_pipeline() -> bool:
 
 
 # ===== PERFORMANCE BENCHMARKING =============================================
+
 
 class PerformanceBenchmark:
     """Lightweight per-function benchmarking accumulator.
@@ -117,14 +125,14 @@ class PerformanceBenchmark:
         self.logger = logger
         self.benchmarks: dict[str, list[float]] = {}
 
-    def benchmark_function(
+    def benchmark_function[T](
         self,
         name: str,
-        func: Callable[..., Any],
+        func: Callable[..., T],
         *args: Any,
         log_duration_at_info: bool = False,
         **kwargs: Any,
-    ) -> Any:
+    ) -> T:
         """Time a single function call and record the duration.
 
         Args:
@@ -169,8 +177,7 @@ class PerformanceBenchmark:
         self.logger.debug("Performance Summary:")
         for name, stats in summary.items():
             self.logger.debug(
-                f"  {name}: {stats['count']} calls, avg {stats['average']:.2f}s, "
-                f"total {stats['total']:.2f}s"
+                f"  {name}: {stats['count']} calls, avg {stats['average']:.2f}s, total {stats['total']:.2f}s"
             )
 
 

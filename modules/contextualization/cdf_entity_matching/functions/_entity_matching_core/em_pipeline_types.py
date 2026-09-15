@@ -57,7 +57,7 @@ class StoredMatch(TypedDict):
 
     match_type: str
     entity_ext_id: str
-    entity_space: str
+    entity_space: str | None
     entity_name: str
     entity_match_value: str
     entity_view_id: str
@@ -66,7 +66,7 @@ class StoredMatch(TypedDict):
     asset_name: str
     asset_match_value: str
     asset_ext_id: str
-    asset_space: str
+    asset_space: str | None
     asset_view_id: str
     entity_rule_keys: NotRequired[str]
     asset_rule_keys: NotRequired[str]

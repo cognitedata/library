@@ -94,7 +94,9 @@ def submit_entity_matching(
         monitor_memory_usage(logger, "After targets loaded")
 
         if len(targets) == 0:
-            logger.warning(f"No {QUERY_FILTER_TYPE_TARGETS} found based on configuration, please check the configuration")
+            logger.warning(
+                f"No {QUERY_FILTER_TYPE_TARGETS} found based on configuration, please check the configuration"
+            )
             update_pipeline_run(client, logger, pipeline_ext_id, STATUS_SUCCESS, 0, 0, "No targets to match against")
             return
 
@@ -142,7 +144,7 @@ def submit_entity_matching(
         logger.info(f"Rule mappings: {cnt_rule_mappings} additional match(es)")
 
         with time_operation("Start entity matching predict job", logger):
-            job = submit_predict_job(client, config, logger, matching_model_id, targets, new_entities)  # type: ignore
+            job = submit_predict_job(client, config, logger, matching_model_id, targets, new_entities)
 
         job_id = str(job.job_id)
         logger.info(f"Predict job submitted - jobId: {job_id}")

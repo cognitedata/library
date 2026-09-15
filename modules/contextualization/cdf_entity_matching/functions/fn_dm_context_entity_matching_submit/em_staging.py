@@ -8,7 +8,7 @@ of its own so collect can read them back and let them win over any model match f
 same entity.
 """
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, cast
 
 from cognite.client import CogniteClient
 from cognite.client.data_classes import Row
@@ -20,6 +20,7 @@ from em_config import Config  # isort: skip
 from em_constants import STAGING_COL_JOB_ID, STAGING_ROW_KEY_PREFIX  # isort: skip
 from em_logger import CogniteFunctionLogger  # isort: skip
 from em_pipeline import create_table, raw_row_key  # isort: skip
+from em_pipeline_types import StoredMatch  # isort: skip
 
 
 def staging_prefix(job_id: str) -> str:
@@ -38,7 +39,7 @@ def write_staged_matches(
     raw_uploader: "RawUploadQueue",
     logger: CogniteFunctionLogger,
     job_id: str,
-    matches: list[dict[str, Any]],
+    matches: list[StoredMatch],
 ) -> int:
     """Stage the matches submit already has, so collect can merge them with the ML ones.
 
@@ -54,7 +55,7 @@ def write_staged_matches(
         raw_uploader.add_to_upload_queue(
             db,
             table,
-            Row(f"{prefix}{raw_row_key(config, match)}", {**match, STAGING_COL_JOB_ID: job_id}),
+            Row(f"{prefix}{raw_row_key(config, match)}", {**match, STAGING_COL_JOB_ID: job_id}),  # type: ignore[arg-type]
         )
     raw_uploader.upload()
 
@@ -67,17 +68,18 @@ def read_staged_matches(
     config: Config,
     logger: CogniteFunctionLogger,
     job_id: str,
-) -> list[dict[str, Any]]:
+) -> list[StoredMatch]:
     """The matches submit staged for this job, as they were before staging."""
     prefix = staging_prefix(job_id)
-    matches = []
+    matches: list[StoredMatch] = []
     for row in client.raw.rows.list(
         db_name=config.parameters.raw_db,
         table_name=config.parameters.raw_table_ctx_good,
         limit=-1,
     ):
         if row.key.startswith(prefix) and row.columns:
-            matches.append({key: value for key, value in row.columns.items() if key != STAGING_COL_JOB_ID})
+            cleaned = {key: value for key, value in row.columns.items() if key != STAGING_COL_JOB_ID}
+            matches.append(cast(StoredMatch, cleaned))
 
     logger.info(f"Read {len(matches)} staged manual/rule match(es) for job {job_id}")
     return matches

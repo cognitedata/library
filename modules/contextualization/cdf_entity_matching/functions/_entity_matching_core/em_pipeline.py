@@ -1,10 +1,9 @@
-
 import json
 import re
 import sys
 import traceback
 from collections import defaultdict
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -93,7 +92,7 @@ sys.path.append(str(Path(__file__).parent))
 def _retry_apply(
     client: CogniteClient,
     logger: CogniteFunctionLogger,
-    items: list,
+    items: list[NodeApply],
 ) -> None:
     """Apply DM instance updates with bounded exponential-backoff retry.
 
@@ -103,9 +102,7 @@ def _retry_apply(
     """
     if not items:
         return
-    RobustAPIClient(client, logger).robust_api_call(
-        client.data_modeling.instances.apply, items
-    )
+    RobustAPIClient(client, logger).robust_api_call(client.data_modeling.instances.apply, items)
 
 
 def instance_key(space: str | None, external_id: str) -> tuple[str, str]:
@@ -126,7 +123,7 @@ def update_pipeline_run(
     status: str,
     match_count: int = 0,
     not_matches_count: int = 0,
-    input_msg: str | None = None
+    input_msg: str | None = None,
 ) -> None:
 
     total_entities = match_count + not_matches_count
@@ -147,11 +144,7 @@ def update_pipeline_run(
         logger.error(msg)
 
     client.extraction_pipelines.runs.create(
-        ExtractionPipelineRun(
-            extpipe_external_id=xid,
-            status=status,
-            message=shorten(msg, 1000)
-        )
+        ExtractionPipelineRun(extpipe_external_id=xid, status=status, message=shorten(msg, 1000))
     )
 
 
@@ -189,21 +182,17 @@ def update_state_store(
     state_row = Row(type, {STAT_STORE_VALUE: value})
     client.raw.rows.insert(config.parameters.raw_db, config.parameters.raw_table_state, state_row)
 
-    logger.debug(f"Update state store DB: {config.parameters.raw_db} Table: {config.parameters.raw_table_state} Key: {type} Value: {value}")
+    logger.debug(
+        f"Update state store DB: {config.parameters.raw_db} Table: {config.parameters.raw_table_state} Key: {type} Value: {value}"
+    )
 
 
-def manual_table_exists(
-    client: CogniteClient, 
-    config: Config
-) -> bool:
+def manual_table_exists(client: CogniteClient, config: Config) -> bool:
     tables = client.raw.tables.list(config.parameters.raw_db, limit=None)
     return any(tbl.name == config.parameters.raw_table_ctx_manual for tbl in tables)
 
 
-def rule_table_exists(
-    client: CogniteClient, 
-    config: Config
-) -> bool:
+def rule_table_exists(client: CogniteClient, config: Config) -> bool:
     tables = client.raw.tables.list(config.parameters.raw_db, limit=None)
     return any(tbl.name == config.parameters.raw_table_ctx_rule for tbl in tables)
 
@@ -268,12 +257,11 @@ def read_manual_mappings(
     return manual_mappings, manual_mappings_input
 
 
-
 def apply_manual_mappings(
-    client: CogniteClient, 
+    client: CogniteClient,
     logger: CogniteFunctionLogger,
-    config: Config, 
-    raw_uploader: "RawUploadQueue", 
+    config: Config,
+    raw_uploader: "RawUploadQueue",
     manual_mappings: list[ManualMappingDefinition],
     manual_mappings_input: dict[str, RawRowColumns],
     good_matches: list[StoredMatch] | None = None,
@@ -292,40 +280,38 @@ def apply_manual_mappings(
         target_spaces = {target[KEY_TARGET_EXT_ID]: target[KEY_TARGET_SPACE] for target in targets}
         entity_list = [mapping[COL_KEY_MAN_MAPPING_ENTITY] for mapping in manual_mappings]
         lookup_mapping = {
-            mapping[COL_KEY_MAN_MAPPING_ENTITY]: mapping[COL_KEY_MAN_MAPPING_TARGET]
-            for mapping in manual_mappings
+            mapping[COL_KEY_MAN_MAPPING_ENTITY]: mapping[COL_KEY_MAN_MAPPING_TARGET] for mapping in manual_mappings
         }
         key_lookup = {mapping[COL_KEY_MAN_MAPPING_ENTITY]: mapping[KEY_RULE] for mapping in manual_mappings}
 
         # Split entity_list into batches
         num_batches = (len(entity_list) - 1) // BATCH_SIZE_ENTITIES + 1 if entity_list else 0
-        
+
         if num_batches > 1:
-            logger.info(f"Entity list has {len(entity_list)} items, splitting into {num_batches} batches of up to {BATCH_SIZE_ENTITIES}")
-        
+            logger.info(
+                f"Entity list has {len(entity_list)} items, splitting into {num_batches} batches of up to {BATCH_SIZE_ENTITIES}"
+            )
+
         # Process in batches
         for batch_idx in range(0, len(entity_list), BATCH_SIZE_ENTITIES):
-            batch_entity_list = entity_list[batch_idx:batch_idx + BATCH_SIZE_ENTITIES]
+            batch_entity_list = entity_list[batch_idx : batch_idx + BATCH_SIZE_ENTITIES]
             batch_num = batch_idx // BATCH_SIZE_ENTITIES + 1
-            
+
             if num_batches > 1:
                 logger.info(f"Processing batch {batch_num}/{num_batches} with {len(batch_entity_list)} entities")
-            
+
             # Get instances for current batch
             instances = list_instances_by_external_id_direct(
-                client=client,
-                config=config,
-                external_id=batch_entity_list,
-                logger=logger
+                client=client, config=config, external_id=batch_entity_list, logger=logger
             )
 
             # Process entities in current batch
-            
+
             for entity in instances:
                 cnt += 1
                 if entity.external_id not in lookup_mapping:
                     continue
-                    
+
                 target_ext_id = lookup_mapping[entity.external_id]
                 if not target_ext_id:
                     logger.warning(f"Manual mapping target ref is empty for entity: {entity.external_id}, skipping")
@@ -351,14 +337,16 @@ def apply_manual_mappings(
 
                 entity_targets = [*entity_targets, target_ext_id]
 
-                item_update = add_to_items(config, 
-                                           logger, 
-                                           item_update,
-                                           entity_targets,
-                                           entity.external_id,
-                                           entity_view_id,
-                                           entity_space=entity.space,
-                                           target_spaces=target_spaces)
+                item_update = add_to_items(
+                    config,
+                    logger,
+                    item_update,
+                    entity_targets,
+                    entity.external_id,
+                    entity_view_id,
+                    entity_space=entity.space,
+                    target_spaces=target_spaces,
+                )
 
                 if target_ext_id in targets_lookup:
                     target = targets_lookup[target_ext_id]
@@ -376,7 +364,7 @@ def apply_manual_mappings(
                         KEY_ENTITY_NAME: properties[PROP_COL_NAME],
                         KEY_ENTITY_MATCH_VALUE: entity.external_id,
                         KEY_ENTITY_VIEW_ID: str(config.data.entity_view.as_view_id()),
-                        KEY_ENTITY_EXISTING_TARGETS: links_property,
+                        KEY_ENTITY_EXISTING_TARGETS: _links_as_json(links_property or []),
                         KEY_SCORE: SCORE_MANUAL_RULE_MATCH,
                         KEY_TARGET_NAME: target_name,
                         KEY_TARGET_MATCH_VALUE: target_ext_id,
@@ -390,8 +378,10 @@ def apply_manual_mappings(
                 row_key = key_lookup[entity.external_id]
                 mapping = manual_mappings_input[row_key].copy()
                 mapping[COL_KEY_MAN_CONTEXTUALIZED] = True
-                raw_uploader.add_to_upload_queue(config.parameters.raw_db, config.parameters.raw_table_ctx_manual, Row(row_key, mapping))
-            
+                raw_uploader.add_to_upload_queue(
+                    config.parameters.raw_db, config.parameters.raw_table_ctx_manual, Row(row_key, mapping)
+                )
+
                 # Flush the queue once it is full. `cnt` counts every instance read,
                 # including the ones skipped above, so it cannot stand in for the queue
                 # length: the batch would overshoot the cap and a skip landing on a
@@ -418,7 +408,9 @@ def apply_manual_mappings(
             _retry_apply(client, logger, item_update)
             if len(item_update) > 0:
                 if cnt == 0:
-                    logger.info("==> Mapping table based matching - No items added to data model based on new items found and manual mappings")
+                    logger.info(
+                        "==> Mapping table based matching - No items added to data model based on new items found and manual mappings"
+                    )
                 else:
                     logger.info(
                         f"==> Mapping table based matching - Adding batch of {len(item_update)} items "
@@ -434,14 +426,42 @@ def apply_manual_mappings(
         return good_matches, cnt
 
 
-def get_links_from_entity(
-    links_property: list[dict[str, Any]]
-) -> list[str]:
+def _link_identity(link: object) -> tuple[str, str] | None:
+    """(external_id, space) of a direct relation, or None if the value is not a link.
 
-    links = []
-    if len(links_property) > 0:
-        for link in links_property:
-            links.append(link[PROP_COL_EXTERNAL_ID])
+    The SDK returns `DirectRelationReference` objects. JSON round-trips through RAW as
+    dictionaries. Both have to be accepted, or existing links are dropped or crash the run.
+    """
+    if isinstance(link, DirectRelationReference):
+        if link.external_id and link.space:
+            return link.external_id, link.space
+        return None
+    if isinstance(link, dict):
+        ext_id = link.get(PROP_COL_EXTERNAL_ID)
+        space = link.get(PROP_COL_SPACE)
+        if ext_id and space:
+            return str(ext_id), str(space)
+    return None
+
+
+def _links_as_json(links: list[object]) -> str:
+    """JSON for existing links, so they survive the matching API round-trip."""
+    serialized = []
+    for link in links:
+        identity = _link_identity(link)
+        if identity is None:
+            continue
+        ext_id, space = identity
+        serialized.append({PROP_COL_SPACE: space, PROP_COL_EXTERNAL_ID: ext_id})
+    return json.dumps(serialized)
+
+
+def get_links_from_entity(links_property: list[object] | None) -> list[str]:
+    links: list[str] = []
+    for link in links_property or []:
+        identity = _link_identity(link)
+        if identity:
+            links.append(identity[0])
     return links
 
 
@@ -450,45 +470,40 @@ def list_instances_by_external_id_direct(
     config: Config,
     external_id: list[str],
     logger: CogniteFunctionLogger | None = None,
-) -> list[Any]:
+) -> Sequence[Node]:
     """
     List instances by their direct external ID match.
-    
+
     Args:
         client: CogniteClient instance
         config: Configuration object containing entity_view settings
         external_id: The external ID to search for (could be timeseries external ID)
         logger: Optional logger for debugging
-        
+
     Returns:
         List of matching instances
     """
     if logger:
         logger.debug(f"Searching for instances with external ID: {external_id}")
-    
+
     entity_view_id = config.data.entity_view.as_view_id()
-    
+
     # Filter by external_id
-    external_id_filter = dm.filters.In(
-        FILTER_PATH_NODE_EXTERNAL_ID,
-        external_id
-    )
-    
+    external_id_filter = dm.filters.In(FILTER_PATH_NODE_EXTERNAL_ID, external_id)
+
     has_data_filter = dm.filters.HasData(views=[entity_view_id])
     combined_filter = dm.filters.And(has_data_filter, external_id_filter)
-    
+
     matching_instances = client.data_modeling.instances.list(
-        space=config.data.entity_view.instance_spaces,
-        sources=[entity_view_id],
-        filter=combined_filter,
-        limit=-1
+        space=config.data.entity_view.instance_spaces, sources=[entity_view_id], filter=combined_filter, limit=-1
     )
-    
+
     if logger:
         logger.info(f"Found {len(matching_instances)} instances with for manual mappings")
         logger.debug(f"Found instances with external ID: {external_id}")
-    
+
     return matching_instances
+
 
 def read_rule_mappings(
     client: CogniteClient,
@@ -580,9 +595,7 @@ def warn_on_cross_space_duplicates(
     if not duplicates:
         return
 
-    examples = ", ".join(
-        f"{ext_id} in {spaces[0]} and {spaces[1]}" for ext_id, spaces in list(duplicates.items())[:5]
-    )
+    examples = ", ".join(f"{ext_id} in {spaces[0]} and {spaces[1]}" for ext_id, spaces in list(duplicates.items())[:5])
     logger.warning(
         f"{len(duplicates)} {instance_type} external IDs exist in more than one configured instance space. "
         f"Each instance is matched and updated in its own space, but manual mappings and target links are "
@@ -607,7 +620,7 @@ def is_retryable(error: Exception) -> bool:
     return not isinstance(error, (TypeError, AttributeError, NameError, KeyError, IndexError))
 
 
-def match_values(properties: dict[str, Any], search_property: str, org_name: str) -> list[str]:
+def match_values(properties: Mapping[str, object], search_property: str, org_name: str) -> list[str]:
     """Values to match an instance on, falling back to its name.
 
     An unset property is left out of the response entirely, but one set to `[]` or to a
@@ -635,23 +648,19 @@ def get_new_entities(
 
     entities_source: list[EntityMatchSource] = []
 
-    entity_view_config= config.data.entity_view
+    entity_view_config = config.data.entity_view
     entity_view_id = entity_view_config.as_view_id()
 
     logger.debug(f"Get new entities from view: {entity_view_id}, based on config: {entity_view_config}")
     is_selected = get_query_filter(QUERY_FILTER_TYPE_ENTITIES, entity_view_config, config.parameters.run_all, logger)
 
     new_entities = client.data_modeling.instances.list(
-        space=entity_view_config.instance_spaces,
-        sources=[entity_view_id],
-        filter=is_selected,
-        limit=-1
+        space=entity_view_config.instance_spaces, sources=[entity_view_id], filter=is_selected, limit=-1
     )
 
     warn_on_cross_space_duplicates(new_entities, QUERY_FILTER_TYPE_ENTITIES, entity_view_config, logger)
 
     item_update = []
-
 
     logger.info(
         f"Number of new entities to process: {len(new_entities)} "
@@ -687,9 +696,11 @@ def get_new_entities(
                     cleaned_value = rule[KEY_RULE] + "_" + "".join(matched_groups)
                     logger.debug(f"Cleaned value (using capture groups): {cleaned_value}")
                     rule_keys.append(cleaned_value)
-                    
+
         targets = []
-        if not config.parameters.remove_old_links or not config.parameters.dm_update: # if dmUpdate is False, keep old target links    
+        if (
+            not config.parameters.remove_old_links or not config.parameters.dm_update
+        ):  # if dmUpdate is False, keep old target links
             # Keep old target links. An entity that has never been linked either omits the
             # property or reads back as None; both would serialise to JSON null and break
             # len() in the consumers.
@@ -700,15 +711,15 @@ def get_new_entities(
         # add entities for files used to match between file references in P&ID to other files
         search_prop = entity_view_config.search_property
         entity_names = match_values(properties, search_prop, org_name)
-        for entity_name in entity_names: 
-            
+        targets_json = _links_as_json(targets)
+        for entity_name in entity_names:
             entities_source.append(
                 {
                     KEY_ENTITY_EXT_ID: entity.external_id,
                     KEY_ENTITY_SPACE: entity.space,
                     KEY_NAME: entity_name,
                     KEY_ORG_NAME: org_name,
-                    KEY_TARGET_LINKS: json.dumps(targets),
+                    KEY_TARGET_LINKS: targets_json,
                     KEY_RULE_KEYS: rule_keys if rule_keys else None,
                 }
             )
@@ -723,12 +734,7 @@ def get_new_entities(
     return entities_source
 
 
-def clean_links(
-    config: Config,
-    entity_space: str,
-    entity_ext_id: str,
-    item_update: list[NodeApply]
-) -> list[NodeApply]:
+def clean_links(config: Config, entity_space: str, entity_ext_id: str, item_update: list[NodeApply]) -> list[NodeApply]:
 
     entity_view_id = config.data.entity_view.as_view_id()
 
@@ -743,9 +749,10 @@ def clean_links(
                 )
             ],
         )
-    )  
+    )
 
     return item_update
+
 
 def get_query_filter(
     type: str,
@@ -772,9 +779,7 @@ def get_query_filter(
 
     if view_config.filter_property and view_config.filter_values:
         is_filter_param = dm.filters.In(
-            view_config.as_property_ref(
-                view_config.filter_property),
-                view_config.filter_values
+            view_config.as_property_ref(view_config.filter_property), view_config.filter_values
         )
         filters.append(is_filter_param)
         dbg_msg = f"{dbg_msg} Entity filtering on: '{view_config.filter_values}' IN: '{view_config.filter_property}'"
@@ -793,8 +798,8 @@ def submit_predict_job(
     config: Config,
     logger: CogniteFunctionLogger,
     matching_model_id: str,
-    match_to: list[dict[str, Any]],
-    match_from: list[dict[str, Any]],
+    match_to: list[TargetMatchRecord],
+    match_from: list[EntityMatchSource],
 ) -> ContextualizationJob:
     """Create or reuse the matching model and start a predict job for the entities.
 
@@ -826,11 +831,7 @@ def submit_predict_job(
         if not model:
             raise Exception("Failed to create or retrieve matching model")
 
-        return model.predict(
-            sources=match_from,
-            targets=match_to,
-            num_matches=1
-        )
+        return model.predict(sources=match_from, targets=match_to, num_matches=1)
 
     except Exception as e:
         logger.error(f"ERROR: Failed to get matching model and start prediction. Error: {type(e)}({e})")
@@ -838,11 +839,11 @@ def submit_predict_job(
 
 
 def apply_rule_mappings(
-    client: CogniteClient, 
-    config: Config, 
+    client: CogniteClient,
+    config: Config,
     logger: CogniteFunctionLogger,
     good_matches: list[StoredMatch],
-    target_dest: list[TargetMatchRecord], 
+    target_dest: list[TargetMatchRecord],
     new_entities: list[EntityMatchSource],
 ) -> tuple[list[StoredMatch], int]:
 
@@ -859,7 +860,7 @@ def apply_rule_mappings(
 
     key_field = KEY_RULE_KEYS  # The field in the dictionaries that contains the rule keys
     cnt = 0
-    
+
     try:
         # Build an inverted index for target_dest
         # Format: { 'rule_key_value': [dict_from_target_dest_1, dict_from_target_dest_2, ...] }
@@ -897,7 +898,7 @@ def apply_rule_mappings(
                     "already has been matched manually, skipping"
                 )
                 continue
-        
+
             for r_key_from_d2 in set2:
                 if r_key_from_d2 in index1:
                     for d1_match in index1[r_key_from_d2]:
@@ -941,29 +942,28 @@ def apply_rule_mappings(
                             if len(existing_target_list) > 0:
                                 remember_link_spaces(target_spaces, existing_target_list)
                                 for target in existing_target_list:
-                                    if PROP_COL_EXTERNAL_ID in target and target[PROP_COL_EXTERNAL_ID] not in unique_target_list:
-                                        unique_target_list = [
-                                            *unique_target_list,
-                                            target[PROP_COL_EXTERNAL_ID],
-                                        ]
+                                    identity = _link_identity(target)
+                                    if identity and identity[0] not in unique_target_list:
+                                        unique_target_list = [*unique_target_list, identity[0]]
 
                             matches[entity] = unique_target_list
                             unique_matches_tracker.add(pair)
 
         item_update = []
-        
-        # Iterate through the matches and prepare the item updates
-        
-        for (entity_space, entity_ext_id), target_ext_ids in matches.items():
 
-            item_update = add_to_items(config, 
-                                    logger, 
-                                    item_update,
-                                    target_ext_ids,
-                                    entity_ext_id,
-                                    config.data.entity_view.as_view_id(),
-                                    entity_space=entity_space or None,
-                                    target_spaces=target_spaces)
+        # Iterate through the matches and prepare the item updates
+
+        for (entity_space, entity_ext_id), target_ext_ids in matches.items():
+            item_update = add_to_items(
+                config,
+                logger,
+                item_update,
+                target_ext_ids,
+                entity_ext_id,
+                config.data.entity_view.as_view_id(),
+                entity_space=entity_space or None,
+                target_spaces=target_spaces,
+            )
 
             # Flush the queue once it is full, so a long run writes as it goes instead of
             # holding every update until the end.
@@ -979,9 +979,11 @@ def apply_rule_mappings(
         if not config.parameters.debug and config.parameters.dm_update:
             # Apply the updates to the data model
             _retry_apply(client, logger, item_update)
- 
+
             if cnt == 0:
-                logger.info("==> Rule based matching - No items added to data model based on new items found and rule based mappings")
+                logger.info(
+                    "==> Rule based matching - No items added to data model based on new items found and rule based mappings"
+                )
             else:
                 logger.info(
                     f"==> Rule based matching - Adding batch of {len(item_update)} items to data model, "
@@ -995,15 +997,13 @@ def apply_rule_mappings(
         return good_matches, len(matches)
 
 
-
-
 def select_and_apply_matches(
     client: CogniteClient,
     config: Config,
     logger: CogniteFunctionLogger,
     good_matches: list[StoredMatch],
     match_results: list[dict[str, Any]],
-) -> tuple[list[StoredMatch], list[dict[str, Any]], int]:
+) -> tuple[list[StoredMatch], list[StoredMatch], int]:
     """
     Select and apply matches based on filtering threshold. Matches with score above threshold are updating time series
     with target ID When matches are updated, metadata property with information about the match is added to time series
@@ -1076,15 +1076,17 @@ def select_and_apply_matches(
             entity_targets = match[KEY_ENTITY_EXISTING_TARGETS]
             target_space = match[KEY_TARGET_SPACE]
 
-            item_update = add_to_items(config, 
-                                       logger, 
-                                       item_update,
-                                       [target_ext_id],
-                                       entity_ext_id,
-                                       entity_view_id,
-                                       entity_targets,
-                                       entity_space=match[KEY_ENTITY_SPACE],
-                                       target_spaces={target_ext_id: target_space} if target_space else None)
+            item_update = add_to_items(
+                config,
+                logger,
+                item_update,
+                [target_ext_id],
+                entity_ext_id,
+                entity_view_id,
+                entity_targets,
+                entity_space=match[KEY_ENTITY_SPACE],
+                target_spaces={target_ext_id: target_space} if target_space else None,
+            )
 
             # Flush the queue once it is full, so a long run writes as it goes instead of
             # holding every update until the end.
@@ -1100,13 +1102,14 @@ def select_and_apply_matches(
         if not config.parameters.debug and config.parameters.dm_update:
             _retry_apply(client, logger, item_update)
             if cnt == 0:
-                logger.info("==> Entity matching - No items added to data model based on new items found and entity matching")
+                logger.info(
+                    "==> Entity matching - No items added to data model based on new items found and entity matching"
+                )
             else:
                 logger.info(
                     f"==> Entity matching - Adding batch of {len(item_update)} items to data model, "
                     f"total count/matches: {cnt} / {len(new_good_matches)}"
                 )
-
 
         return good_matches + new_good_matches, bad_matches, len(new_good_matches)
 
@@ -1116,16 +1119,19 @@ def select_and_apply_matches(
         logger.error(f"Failed to parse results from entity matching - error: {type(e)}({e})")
         raise
 
-def remember_link_spaces(target_spaces: dict[str, str], links: list[dict[str, str]]) -> None:
+
+def remember_link_spaces(target_spaces: dict[str, str], links: list[object] | None) -> None:
     """Record the space each existing target link points into.
 
     Links are re-applied by external ID only, so without this a link to a target outside
     the current target set would fall back to the first configured target space and be
     moved. Spaces read from the target view win, hence `setdefault` rather than assignment.
     """
-    for link in links:
-        if isinstance(link, dict) and PROP_COL_EXTERNAL_ID in link and PROP_COL_SPACE in link:
-            target_spaces.setdefault(link[PROP_COL_EXTERNAL_ID], link[PROP_COL_SPACE])
+    for link in links or []:
+        identity = _link_identity(link)
+        if identity:
+            ext_id, space = identity
+            target_spaces.setdefault(ext_id, space)
 
 
 def add_to_items(
@@ -1181,7 +1187,8 @@ def add_to_items(
             targets_list = []
 
         for target in targets_list or []:
-            if not isinstance(target, dict) or PROP_COL_EXTERNAL_ID not in target or PROP_COL_SPACE not in target:
+            identity = _link_identity(target)
+            if identity is None:
                 # This list replaces the whole link property, so skipping drops the link
                 # from the entity - never silently.
                 logger.warning(
@@ -1189,24 +1196,25 @@ def add_to_items(
                     f"space/externalId object - dropping it: {target}"
                 )
                 continue
+            ext_id, space = identity
             # The target view is authoritative; the link's own space is only a fallback
             # for targets outside the current target set.
             targets.append(
                 DirectRelationReference(
-                    space=target_spaces.get(target[PROP_COL_EXTERNAL_ID], target[PROP_COL_SPACE]),
-                    external_id=target[PROP_COL_EXTERNAL_ID],
+                    space=target_spaces.get(ext_id, space),
+                    external_id=ext_id,
                 )
             )
 
     # Add new targets to the entity
-    for target_ext_id in target_ext_ids:  
+    for target_ext_id in target_ext_ids:
         if not target_ext_id:
             logger.warning(f"Asset external ID is empty for entity: {entity_ext_id}, skipping")
             continue
         if target_ext_id in [target.external_id for target in targets]:
             logger.debug(f"Asset: {target_ext_id} already exists in entity: {entity_ext_id}, skipping")
             continue
-        logger.debug(f"Adding target: {target_ext_id} to entity: {entity_ext_id}")   
+        logger.debug(f"Adding target: {target_ext_id} to entity: {entity_ext_id}")
         target_space = target_spaces.get(target_ext_id)
         if target_space is None:
             target_space = default_target_space
@@ -1216,12 +1224,7 @@ def add_to_items(
                     f"{entity_ext_id} - linking to {target_space}. The link dangles if the target "
                     f"lives in another space."
                 )
-        targets.append(
-            DirectRelationReference(
-                space=target_space,
-                external_id=target_ext_id
-            )
-        )
+        targets.append(DirectRelationReference(space=target_space, external_id=target_ext_id))
 
     if len(targets) > MAX_LINKS_PER_ENTITY:
         logger.warning(
@@ -1230,7 +1233,6 @@ def add_to_items(
             "Please review your rule/matching model to prevent overly broad matching."
         )
         targets = targets[:MAX_LINKS_PER_ENTITY]
-        
 
     item_update.append(
         NodeApply(
@@ -1243,17 +1245,17 @@ def add_to_items(
                 )
             ],
         )
-    )       
+    )
 
     logger.debug(f"Added entity: {entity_ext_id} to targets: {target_ext_ids}")
     return item_update
 
 
 def add_to_dict(
-        match: dict[str, Any],
-        entity_view_id: str,
-        target_view_id: str,
-) -> dict[str, Any]:
+    match: dict[str, Any],
+    entity_view_id: str,
+    target_view_id: str,
+) -> StoredMatch:
     """
     Add match to dictionary
 
@@ -1296,7 +1298,7 @@ def add_to_dict(
     }
 
 
-def raw_row_key(config: Config, match: dict[str, Any]) -> str:
+def raw_row_key(config: Config, match: StoredMatch | Mapping[str, object]) -> str:
     """Row key for a match in the good/bad RAW tables.
 
     An external ID is unique per space only, so with several entity spaces configured the
@@ -1313,9 +1315,9 @@ def write_mapping_to_raw(
     client: CogniteClient,
     config: Config,
     raw_uploader: "RawUploadQueue",
-    good_matches: list[dict[str, Any]],
-    bad_matches: list[dict[str, Any]],
-    logger: CogniteFunctionLogger
+    good_matches: list[StoredMatch],
+    bad_matches: list[StoredMatch],
+    logger: CogniteFunctionLogger,
 ) -> None:
     """
     Write matching results to RAW DB
@@ -1344,7 +1346,7 @@ def write_mapping_to_raw(
             raw_uploader.add_to_upload_queue(
                 raw_db,
                 raw_table_ctx_good,
-                Row(raw_row_key(config, match), match),  # type: ignore
+                Row(raw_row_key(config, match), match),  # type: ignore[arg-type]
             )
             logger.debug(f"Added matched entity: {match[KEY_ENTITY_EXT_ID]} to {raw_db}/{raw_table_ctx_good}")
 
@@ -1352,7 +1354,7 @@ def write_mapping_to_raw(
             raw_uploader.add_to_upload_queue(
                 raw_db,
                 raw_table_ctx_bad,
-                Row(raw_row_key(config, not_match), not_match),  # type: ignore
+                Row(raw_row_key(config, not_match), not_match),  # type: ignore[arg-type]
             )
             logger.debug(f"Added NOT matched entity: {not_match[KEY_ENTITY_EXT_ID]} to {raw_db}/{raw_table_ctx_bad}")
 
@@ -1377,12 +1379,3 @@ def create_table(client: CogniteClient, raw_db: str, tbl: str) -> None:
         # Resource may already exist when the pipeline is re-run.
         # Expected failure; continue without affecting the caller.
         pass
-
-def delete_table(client: CogniteClient, db: str, tbl: str) -> None:
-    try:
-        client.raw.tables.delete(db, [tbl])
-    except CogniteAPIError as e:
-        # Any other error than table not found, and we re-raise
-        if e.code != 404:
-            raise
-

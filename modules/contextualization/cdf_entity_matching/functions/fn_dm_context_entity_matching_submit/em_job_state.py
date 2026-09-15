@@ -8,9 +8,9 @@ it has finished, so two functions share the table without either overwriting the
 work.
 """
 
+from collections.abc import Mapping
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime
-from typing import Any
 
 from cognite.client import CogniteClient
 from cognite.client.data_classes import Row
@@ -48,7 +48,7 @@ class PredictJob:
     def row_key(self) -> str:
         return job_row_key(self.job_id)
 
-    def as_columns(self) -> dict[str, Any]:
+    def as_columns(self) -> dict[str, object]:
         return {
             JOB_COL_JOB_ID: self.job_id,
             JOB_COL_JOB_TOKEN: self.job_token,
@@ -60,16 +60,16 @@ class PredictJob:
         }
 
     @classmethod
-    def from_columns(cls, columns: dict[str, Any]) -> "PredictJob":
+    def from_columns(cls, columns: Mapping[str, object]) -> "PredictJob":
         source_count = columns.get(JOB_COL_SOURCE_COUNT)
         return cls(
             job_id=str(columns[JOB_COL_JOB_ID]),
-            job_token=columns.get(JOB_COL_JOB_TOKEN) or None,
+            job_token=str(columns[JOB_COL_JOB_TOKEN]) if columns.get(JOB_COL_JOB_TOKEN) else None,
             status=str(columns.get(JOB_COL_STATUS) or JOB_STATUS_SUBMITTED),
             created_at=str(columns.get(JOB_COL_CREATED_AT) or ""),
             staging_prefix=str(columns.get(JOB_COL_STAGING_PREFIX) or ""),
             model_id=str(columns[JOB_COL_MODEL_ID]) if columns.get(JOB_COL_MODEL_ID) else None,
-            source_count=int(source_count) if source_count is not None else None,
+            source_count=int(source_count) if source_count is not None else None,  # type: ignore[arg-type]
         )
 
 

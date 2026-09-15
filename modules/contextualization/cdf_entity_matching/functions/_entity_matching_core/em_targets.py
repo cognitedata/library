@@ -19,7 +19,6 @@ import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import Any
 
 from cognite.client import CogniteClient
 from cognite.client import data_modeling as dm
@@ -139,8 +138,7 @@ def read_sync_state(
         batch_size=int(batch_size) if batch_size else TARGET_SYNC_BATCH_SIZE,
     )
     logger.debug(
-        f"Target sync state - cursor: {state.cursor}, file: {state.file_external_id}, "
-        f"page size: {state.batch_size}"
+        f"Target sync state - cursor: {state.cursor}, file: {state.file_external_id}, page size: {state.batch_size}"
     )
     return state
 
@@ -158,7 +156,7 @@ def write_sync_state(
     table = config.parameters.raw_table_state
     create_table(client, db, table)
 
-    columns: dict[str, Any] = {
+    columns: dict[str, object] = {
         TARGET_SYNC_COL_CURSOR: state.cursor,
         TARGET_SYNC_COL_FILE: state.file_external_id,
         TARGET_SYNC_COL_BATCH_SIZE: state.batch_size,
@@ -176,7 +174,9 @@ def write_sync_state(
     except CogniteException as e:
         # The cursor that is already stored still matches the cached content, so the next
         # run syncs the same changes again rather than reading from the wrong place.
-        logger.warning(f"Could not store the target sync cursor - the next run syncs from the previous one. Error: {type(e)}({e})")
+        logger.warning(
+            f"Could not store the target sync cursor - the next run syncs from the previous one. Error: {type(e)}({e})"
+        )
         return
 
     logger.debug(f"Stored target sync cursor in {db}.{table} - key: {row_key}")
@@ -306,7 +306,9 @@ def sync_page(
             timed_out = isinstance(e, CogniteAPIError) and e.code == HTTP_STATUS_REQUEST_TIMEOUT
             if timed_out and batch_size > TARGET_SYNC_MIN_BATCH_SIZE:
                 batch_size = max(TARGET_SYNC_MIN_BATCH_SIZE, int(batch_size * TARGET_SYNC_BATCH_SIZE_FACTOR))
-                logger.warning(f"Reading {QUERY_FILTER_TYPE_TARGETS} timed out - reading again with page size: {batch_size}")
+                logger.warning(
+                    f"Reading {QUERY_FILTER_TYPE_TARGETS} timed out - reading again with page size: {batch_size}"
+                )
                 continue
 
             attempt += 1

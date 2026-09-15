@@ -52,7 +52,7 @@ def poll_intervals() -> Iterator[int]:
 
 def _as_contextualization_job(client: CogniteClient, job: PredictJob) -> ContextualizationJob:
     """Rebuild the SDK job from what the state store row holds."""
-    return ContextualizationJob(
+    return ContextualizationJob(  # type: ignore[abstract]
         job_id=int(job.job_id),
         model_id=int(job.model_id) if job.model_id else None,
         status=job.status,
@@ -230,5 +230,7 @@ def collect_entity_matching(
 
     except Exception as e:
         msg = f"failed, Message: {e!s}"
-        update_pipeline_run(client, logger, pipeline_ext_id, STATUS_FAILURE, collected_matches, collected_bad_matches, msg)
+        update_pipeline_run(
+            client, logger, pipeline_ext_id, STATUS_FAILURE, collected_matches, collected_bad_matches, msg
+        )
         raise
