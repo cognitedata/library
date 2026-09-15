@@ -84,7 +84,7 @@ messages_ja: dict[str, str] = {
     "CI/CD workflows generated.  See docs/FOUNDATION_CICD.md for next steps.": "CI/CD ワークフローを生成しました。次の手順については docs/FOUNDATION_CICD.md を参照してください。",
     "Deployment pack    : {pack_kind}": "デプロイメントパック    : {pack_kind}",
     "Data model variant : {variant}": "データモデルバリアント : {variant}",
-    "Pack root          : {pack_root}": "デプロイメントパックのルートパス",
+    "Pack root          : {pack_root}": "デプロイメントパックのルートパス: {pack_root}",
     "Organization dir   : {org_dir}  (from cdf.toml)": "組織ディレクトリ   : {org_dir}（cdf.toml より）",
     "Contextualization  : {list}": "コンテキスト化  : {list}",
     "[{state}] {path.name}  —  project: {project_names[env]}": "[{state}] {path.name}  —  プロジェクト: {project_names[env]}",
