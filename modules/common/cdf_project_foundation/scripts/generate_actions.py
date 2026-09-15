@@ -70,7 +70,7 @@ def templates_dir(provider: str) -> Path:
 def workflows_output_dir(provider: str, repo_root: Path) -> Path:
     """Where generated CI/CD files are written for this provider."""
     if provider not in PROVIDER_WORKFLOWS_DIR:
-        raise ValueError(f"Unsupported provider: {provider}")
+        raise ValueError(t("Unsupported provider: {provider}").format(provider=provider))
     return repo_root / PROVIDER_WORKFLOWS_DIR[provider]
 
 
@@ -83,7 +83,7 @@ def resolve_modules_root(repo_root: Path, org_dir: str | None) -> Path:
         if candidate.is_dir():
             return candidate
     searched = ", ".join(str(c) for c in candidates)
-    raise FileNotFoundError(f"No modules directory found under: {searched}")
+    raise FileNotFoundError(t("No modules directory found under: {searched}").format(searched=searched))
 
 
 def find_repo_root(start: Path) -> Path:
@@ -91,7 +91,7 @@ def find_repo_root(start: Path) -> Path:
     for candidate in [current, *current.parents]:
         if (candidate / "cdf.toml").is_file():
             return candidate
-    raise FileNotFoundError("cdf.toml not found — run from a Cognite Toolkit project root")
+    raise FileNotFoundError(t("cdf.toml not found — run from a Cognite Toolkit project root"))
 
 
 def load_cdf_toml(repo_root: Path) -> dict[str, Any]:
@@ -104,7 +104,7 @@ def render_template(path: Path, values: dict[str, str]) -> str:
         text = text.replace(f"{{{{{key}}}}}", value)
     remaining = re.findall(r"\{\{[A-Z0-9_]+\}\}", text)
     if remaining:
-        raise ValueError(f"Unfilled placeholders in {path.name}: {remaining}")
+        raise ValueError(t("Unfilled placeholders in {path.name}: {remaining}").format(path=path, remaining=remaining))
     return text
 
 
@@ -210,14 +210,16 @@ def load_environment_projects(repo_root: Path, org_dir: str | None) -> dict[str,
         project = environment.get("project")
         if name != env:
             raise ValueError(
-                f"{path.relative_to(repo_root)} has environment.name={name!r}; expected {env!r}."
+                t("{path} has environment.name={name!r}; expected {env!r}.").format(
+                    path=path.relative_to(repo_root), name=name, env=env
+                )
             )
         if not project:
-            raise ValueError(f"{path.relative_to(repo_root)} is missing environment.project.")
+            raise ValueError(t("{path} is missing environment.project.").format(path=path.relative_to(repo_root)))
         projects[env] = str(project)
     if not projects:
         raise FileNotFoundError(
-            "No config.<env>.yaml files found. Run setup_project.py before generating workflows."
+            t("No config.<env>.yaml files found. Run setup_project.py before generating workflows.")
         )
     return projects
 
@@ -232,7 +234,9 @@ def branch_envs(projects: dict[str, str]) -> dict[str, str]:
         branch = DEPLOY_BRANCHES[env]
         if branch in envs_by_branch:
             raise ValueError(
-                f"Both {envs_by_branch[branch]!r} and {env!r} map to branch {branch!r}."
+                t("Both {first!r} and {second!r} map to branch {branch!r}.").format(
+                    first=envs_by_branch[branch], second=env, branch=branch
+                )
             )
         envs_by_branch[branch] = env
     return envs_by_branch
@@ -257,7 +261,7 @@ def github_dry_run_environment(projects: dict[str, str]) -> str:
         env = next(iter(branches.values()))
         return f"{env}-toolkit-credentials"
     if len(branches) > 2:
-        raise ValueError(f"Unsupported number of deployable branches: {len(branches)}")
+        raise ValueError(t("Unsupported number of deployable branches: {n}").format(n=len(branches)))
     first_branch, first_env = next(iter(branches.items()))
     fallback_env = next(env for branch, env in branches.items() if branch != first_branch)
     return (
@@ -388,7 +392,7 @@ def ado_dry_run_jobs(toolkit_version: str, org_dir: str | None, setup_check_cmd:
     if not branches:
         return ""
     if len(branches) > 2:
-        raise ValueError(f"Unsupported number of deployable branches: {len(branches)}")
+        raise ValueError(t("Unsupported number of deployable branches: {n}").format(n=len(branches)))
 
     jobs: list[str] = []
     if "main" in branches:
@@ -1075,7 +1079,6 @@ def main() -> None:
             branches = ", ".join(branch_envs(projects))
             print(t("  3. Open a PR to {branches} to validate dry-run.yml").format(branches=branches))
     else:
-        # NOTE: Azure DevOps checklist strings below are not yet in the reviewed catalogue
         ado_groups: list[str] = []
         for env in ENVIRONMENTS:
             if env not in projects:
@@ -1087,12 +1090,18 @@ def main() -> None:
             for env in ENVIRONMENTS
             if env in projects
         ]
-        print(f"  1. Create Azure DevOps variable groups: {', '.join(ado_groups)}")
-        print("     (see docs/FOUNDATION_CICD.md)")
-        print(f"  2. Register each deploy pipeline: {', '.join(pipeline_registrations)}")
+        print(t("  1. Create Azure DevOps variable groups: {ado_groups}").format(ado_groups=", ".join(ado_groups)))
+        print(t("     (see docs/FOUNDATION_CICD.md)"))
+        print(
+            t("  2. Register each deploy pipeline: {pipeline_registrations}").format(
+                pipeline_registrations=", ".join(pipeline_registrations)
+            )
+        )
         if deployable_envs(projects):
             branches = ", ".join(branch_envs(projects))
-            print(f"  3. Add dry-run-pipeline.yml as a Build Validation policy on {branches}")
+            print(
+                t("  3. Add dry-run-pipeline.yml as a Build Validation policy on {branches}").format(branches=branches)
+            )
 
 
 if __name__ == "__main__":

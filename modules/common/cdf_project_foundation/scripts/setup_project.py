@@ -606,11 +606,16 @@ def resolve_pack_kind_for_check(variant: str, sourcesystem_dir: Path) -> Literal
     detected = detect_pack_kind(sourcesystem_dir)
     if detected == "ambiguous":
         raise SystemExit(
-            "ERROR: Could not determine deployment pack kind from installed sourcesystem "
-            "modules under 'modules/sourcesystem/'\n"
-            "  (found both extractor and data-dump modules, or neither).\n"
-            "  A project should have either *_extractor modules (Foundation) or\n"
-            "  *_data_dump modules (Demo), not both or neither — fix the module selection."
+            "\n".join(
+                [
+                    t(
+                        "ERROR: Could not determine deployment pack kind from installed sourcesystem modules under 'modules/sourcesystem/'"
+                    ),
+                    t("  (found both extractor and data-dump modules, or neither)."),
+                    t("  A project should have either *_extractor modules (Foundation) or"),
+                    t("  *_data_dump modules (Demo), not both or neither — fix the module selection."),
+                ]
+            )
         )
     return detected
 
@@ -1252,7 +1257,11 @@ def _warn_if_no_email(label: str, email: str) -> None:
     """Blank email means sendNotification is written as false for this contact —
     surface that now, not as a silent gap discovered during an incident."""
     if not email:
-        _warn(f"No email set for {label} — pipeline notifications will be disabled (sendNotification: false).")
+        _warn(
+            t("No email set for {label} — pipeline notifications will be disabled (sendNotification: false).").format(
+                label=label
+            )
+        )
 
 
 def _all_same(owners: dict[str, tuple[str, str]]) -> bool:
@@ -1440,7 +1449,7 @@ def _prompt_environments(pack_root: Path) -> tuple[str, ...]:
             if prompt_yes_no(_include_prompt(env), default=(env in installed_envs))
         )
         if not selected:
-            raise SystemExit("No environments selected — nothing to do.")
+            raise SystemExit(t("No environments selected — nothing to do."))
         return selected
 
     which_envs = t("Which environments would you like to set up?")
@@ -1465,7 +1474,7 @@ def _prompt_environments(pack_root: Path) -> tuple[str, ...]:
         if prompt_yes_no(_include_environment_prompt(env), default=True)
     )
     if not selected:
-        raise SystemExit("No environments selected — nothing to do.")
+        raise SystemExit(t("No environments selected — nothing to do."))
     return selected
 
 
@@ -2032,13 +2041,10 @@ def _warn_disabled_notifications(repo_root: Path | None, pack_root: Path) -> Non
                 disabled.append(f"{label}: data owner")
 
         if disabled:
-            print(f"WARNING: sendNotification disabled (no email configured) in config.{env}.yaml for:")
+            print(t("WARNING: sendNotification disabled (no email configured) in config.{env}.yaml for:").format(env=env))
             for entry in disabled:
                 print(f"  - {entry}")
-            print(
-                "  These contacts will not be notified on pipeline failure. "
-                "Run: python scripts/setup_project.py -y\n"
-            )
+            print(f"{t('  These contacts will not be notified on pipeline failure. Run: python scripts/setup_project.py -y')}\n")
 
 
 def _run_check(
