@@ -1,0 +1,43 @@
+# Runtime settings for deploy_validation_infrastructure().
+# Mirrors config/environments/cog-ai/settings.yaml in data-quality-validation-deploy.
+# RuleSets and DataProducts are published by Toolkit (cdf deploy); this file lists
+# them as external_dataproducts so Python deploy does not republish.
+
+workflow:
+  external_id_prefix: dq-shacl
+  version: "1"
+  task:
+    retries: 3
+    timeout: 600
+    on_failure: abortWorkflow
+
+timeseries_workflow:
+  external_id_prefix: dq-ts-shacl
+  version: "1"
+  task:
+    retries: 3
+    timeout: 1800
+    on_failure: abortWorkflow
+
+trigger:
+  external_id_prefix: dq-shacl-trigger
+  batch_size: 10
+  batch_timeout: 60
+
+records:
+  space: dataQuality
+  stream_id: test_stream_1
+
+config_space: dataQuality
+
+function_code_dataset_external_id: dq_shacl_rules
+
+config_source: dataproduct
+data_product_sync_cron: "13 * * * *"
+
+timeseries:
+  config_dir: timeseries
+
+external_dataproducts:
+  - external_id: enterprise-process-industry
+    version: "1.1.10"

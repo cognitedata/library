@@ -1,0 +1,335 @@
+ruleSetExternalId: maintenance_order_shacl_rules
+version: "1.0.0"
+rules:
+  - |
+    @prefix sh: <http://www.w3.org/ns/shacl#> .
+    @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+    @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+    @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+    @prefix dqs: <http://purl.org/cognite/dqs#> .
+    @prefix sp: <http://purl.org/cognite/sp_enterprise_process_industry/YourOrgMaintenanceOrder/> .
+    @prefix sp_asset: <http://purl.org/cognite/sp_enterprise_process_industry/YourOrgAsset/> .
+
+    # ==============================================================================
+    # Shape for YourOrgAsset (referenced by MaintenanceOrder.mainAsset)
+    # This triggers auto-loading of Asset instances
+    # ==============================================================================
+    sp:AssetShape
+        a sh:NodeShape ;
+        sh:targetClass sp_asset:YourOrgAsset ;
+        sh:name "Asset Shape" ;
+        sh:description "Shape for YourOrgAsset instances referenced by MaintenanceOrder." ;
+        sh:severity sh:Info .
+
+    # ==============================================================================
+    # Main Shape for YourOrgMaintenanceOrder
+    # ==============================================================================
+    sp:MaintenanceOrderShape
+        a sh:NodeShape ;
+        sh:targetClass sp:YourOrgMaintenanceOrder ;
+        sh:name "Maintenance Order Validation" ;
+        sh:description "Validates YourOrgMaintenanceOrder instances." ;
+        sh:severity sh:Violation ;
+
+        # Relation to mainAsset (triggers auto-loading of Asset)
+        sh:property [
+            sh:path sp:mainAsset ;
+            sh:node sp:AssetShape ;
+            sh:message "Main asset must conform to AssetShape" ;
+        ] .
+
+    # ==============================================================================
+    # Priority Validation
+    # ==============================================================================
+    sp:MaintenanceOrderPriorityShape
+        a sh:NodeShape ;
+        sh:targetClass sp:YourOrgMaintenanceOrder ;
+        sh:name "Priority Validation" ;
+        sh:description "Validates priority is within acceptable range (1-5)." ;
+        sh:severity sh:Violation ;
+
+        sh:property [
+            sh:path sp:priority ;
+            sh:minInclusive 1 ;
+            sh:maxInclusive 5 ;
+            sh:datatype xsd:integer ;
+            sh:message "Priority must be between 1 (highest) and 5 (lowest)" ;
+        ] .
+
+    # ==============================================================================
+    # Status Validation
+    # ==============================================================================
+    sp:MaintenanceOrderStatusShape
+        a sh:NodeShape ;
+        sh:targetClass sp:YourOrgMaintenanceOrder ;
+        sh:name "Status Validation" ;
+        sh:description "Validates status is one of the allowed values." ;
+        sh:severity sh:Violation ;
+
+        # Status must be one of the allowed values
+        sh:sparql [
+            a sh:SPARQLConstraint ;
+            sh:message "Invalid status '{?status}'. Must be one of: CREATED, IN_PROGRESS, COMPLETED, CANCELLED, ON_HOLD" ;
+            sh:severity sh:Violation ;
+            sh:select """
+                PREFIX sp: <http://purl.org/cognite/sp_enterprise_process_industry/YourOrgMaintenanceOrder/>
+
+                SELECT $this ?status
+                WHERE {
+                    $this sp:status ?status .
+                    FILTER(! (?status IN ("CREATED", "IN_PROGRESS", "COMPLETED", "CANCELLED", "ON_HOLD")))
+                }
+            """ ;
+        ] .
+
+    # ==============================================================================
+    # Type/Order Type Validation
+    # ==============================================================================
+    sp:MaintenanceOrderTypeShape
+        a sh:NodeShape ;
+        sh:targetClass sp:YourOrgMaintenanceOrder ;
+        sh:name "Order Type Validation" ;
+        sh:description "Validates order type follows expected patterns." ;
+        sh:severity sh:Warning ;
+
+        # Type should match pattern (e.g., CM01, PM01, etc.)
+        sh:sparql [
+            a sh:SPARQLConstraint ;
+            sh:message "Order type '{?orderType}' does not follow expected pattern (e.g., CM01, PM01, EM01)" ;
+            sh:severity sh:Warning ;
+            sh:select """
+                PREFIX sp: <http://purl.org/cognite/sp_enterprise_process_industry/YourOrgMaintenanceOrder/>
+
+                SELECT $this ?orderType
+                WHERE {
+                    $this sp:type ?orderType .
+                    FILTER(!REGEX(?orderType, "^(CM|PM|EM|SM)[0-9]{2}$"))
+                }
+            """ ;
+        ] .
+
+    # ==============================================================================
+    # Schedule Validation - End time must be after Start time
+    # ==============================================================================
+    sp:MaintenanceOrderScheduleShape
+        a sh:NodeShape ;
+        sh:targetClass sp:YourOrgMaintenanceOrder ;
+        sh:name "Schedule Validation" ;
+        sh:description "Validates scheduling constraints." ;
+        sh:severity sh:Violation ;
+
+        # Scheduled end time must be after scheduled start time
+        sh:sparql [
+            a sh:SPARQLConstraint ;
+            sh:message "Scheduled end time '{?endTime}' is before or equal to start time '{?startTime}'" ;
+            sh:severity sh:Violation ;
+            sh:select """
+                PREFIX sp: <http://purl.org/cognite/sp_enterprise_process_industry/YourOrgMaintenanceOrder/>
+                PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+
+                SELECT $this ?startTime ?endTime
+                WHERE {
+                    $this sp:scheduledStartTime ?startTime .
+                    $this sp:scheduledEndTime ?endTime .
+                    FILTER(xsd:dateTime(?endTime) <= xsd:dateTime(?startTime))
+                }
+            """ ;
+        ] .
+
+    # ==============================================================================
+    # Duration Validation - Work order should not exceed 24 hours
+    # ==============================================================================
+    sp:MaintenanceOrderDurationShape
+        a sh:NodeShape ;
+        sh:targetClass sp:YourOrgMaintenanceOrder ;
+        sh:name "Duration Validation" ;
+        sh:description "Warns if scheduled duration exceeds 24 hours." ;
+        sh:severity sh:Warning ;
+
+        sh:sparql [
+            a sh:SPARQLConstraint ;
+            sh:message "Scheduled duration exceeds 24 hours (start: {?startTime}, end: {?endTime})" ;
+            sh:severity sh:Warning ;
+            sh:select """
+                PREFIX sp: <http://purl.org/cognite/sp_enterprise_process_industry/YourOrgMaintenanceOrder/>
+                PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+
+                SELECT $this ?startTime ?endTime
+                WHERE {
+                    $this sp:scheduledStartTime ?startTime .
+                    $this sp:scheduledEndTime ?endTime .
+                    # Duration > 24 hours (86400 seconds)
+                    BIND(xsd:dateTime(?endTime) - xsd:dateTime(?startTime) AS ?duration)
+                    FILTER(?duration > "PT24H"^^xsd:dayTimeDuration)
+                }
+            """ ;
+        ] .
+
+    # ==============================================================================
+    # Business Rule: High Priority Orders should have mainAsset
+    # ==============================================================================
+    sp:HighPriorityMainAssetShape
+        a sh:NodeShape ;
+        sh:targetClass sp:YourOrgMaintenanceOrder ;
+        sh:name "High Priority Asset Validation" ;
+        sh:description "High priority orders (1-2) should have a main asset assigned." ;
+        sh:severity sh:Warning ;
+
+        sh:sparql [
+            a sh:SPARQLConstraint ;
+            sh:message "High priority order (priority={?priority}) has no main asset assigned" ;
+            sh:severity sh:Warning ;
+            sh:select """
+                PREFIX sp: <http://purl.org/cognite/sp_enterprise_process_industry/YourOrgMaintenanceOrder/>
+
+                SELECT $this ?priority
+                WHERE {
+                    $this sp:priority ?priority .
+                    FILTER(?priority <= 2)
+                    FILTER NOT EXISTS { $this sp:mainAsset ?asset }
+                }
+            """ ;
+        ] .
+
+    # ==============================================================================
+    # Business Rule: Completed orders should have at least one related asset or equipment
+    # ==============================================================================
+    sp:CompletedOrderAssetsShape
+        a sh:NodeShape ;
+        sh:targetClass sp:YourOrgMaintenanceOrder ;
+        sh:name "Completed Order Assets Validation" ;
+        sh:description "Completed orders should have related assets or equipment recorded." ;
+        sh:severity sh:Info ;
+
+        sh:sparql [
+            a sh:SPARQLConstraint ;
+            sh:message "Completed order has no assets or equipment recorded (status={?status})" ;
+            sh:severity sh:Info ;
+            sh:select """
+                PREFIX sp: <http://purl.org/cognite/sp_enterprise_process_industry/YourOrgMaintenanceOrder/>
+
+                SELECT $this ?status
+                WHERE {
+                    $this sp:status ?status .
+                    FILTER(?status = "COMPLETED")
+                    FILTER NOT EXISTS { $this sp:assets ?asset }
+                    FILTER NOT EXISTS { $this sp:equipment ?equipment }
+                }
+            """ ;
+        ] .
+
+    # ==============================================================================
+    # Name Quality Validation
+    # ==============================================================================
+    sp:MaintenanceOrderNameShape
+        a sh:NodeShape ;
+        sh:targetClass sp:YourOrgMaintenanceOrder ;
+        sh:name "Name Quality Validation" ;
+        sh:description "Validates name quality." ;
+        sh:severity sh:Warning ;
+
+        # Name should be descriptive (at least 10 characters)
+        sh:sparql [
+            a sh:SPARQLConstraint ;
+            sh:message "Order name '{?name}' is too short (less than 10 characters)" ;
+            sh:severity sh:Warning ;
+            sh:select """
+                PREFIX sp: <http://purl.org/cognite/sp_enterprise_process_industry/YourOrgMaintenanceOrder/>
+
+                SELECT $this ?name
+                WHERE {
+                    $this sp:name ?name .
+                    FILTER(STRLEN(?name) < 10)
+                }
+            """ ;
+        ] .
+
+    # ==============================================================================
+    # Uniqueness Rule: Maintenance order name must be unique
+    # ==============================================================================
+    sp:MaintenanceOrderNameUniqueness
+        a sh:NodeShape ;
+        sh:targetClass sp:YourOrgMaintenanceOrder ;
+        sh:name "Name Uniqueness Validation" ;
+        sh:description "Ensures maintenance order names are unique across the target class." ;
+        sh:severity sh:Violation ;
+        dqs:uniquenessConstraint [
+            dqs:property "name" ;
+        ] .
+
+    # ==============================================================================
+    # Inference Rules (SHACL-AF)
+    #
+    # These rules use sh:SPARQLRule / sh:construct to materialise derived state
+    # for each maintenance order into the RuleEngineResult container in CDF
+    # Records API. Both rules share one NodeShape so sh:order governs execution
+    # sequence and dqs:dependsOn is verifiable at deploy time.
+    #
+    # MO_Criticality (order 1) — classifies priority into a criticality label.
+    # MO_Overdue     (order 2) — flags open orders past their scheduled end time;
+    #                            links back to the criticality result via causedBy.
+    # ==============================================================================
+    sp:MaintenanceOrderInferenceRules
+        a sh:NodeShape ;
+        sh:targetClass sp:YourOrgMaintenanceOrder ;
+
+        sh:rule [
+            a sh:SPARQLRule ;
+            sh:order 1 ;
+            dqs:ruleId "MO_Criticality" ;
+            sh:construct """
+                PREFIX sp:  <http://purl.org/cognite/sp_enterprise_process_industry/YourOrgMaintenanceOrder/>
+                PREFIX dqs: <http://purl.org/cognite/dqs#>
+                CONSTRUCT {
+                    ?result a dqs:RuleEngineResult ;
+                            dqs:focusNode    $this ;
+                            dqs:ruleId       "MO_Criticality" ;
+                            dqs:resultType   "Inference" ;
+                            dqs:resultValue  ?critLabel ;
+                            dqs:resultPayload ?payload .
+                }
+                WHERE {
+                    $this sp:priority ?priority .
+                    BIND(
+                        IF(?priority <= 2, "Critical",
+                        IF(?priority = 3, "High", "Normal")) AS ?critLabel
+                    )
+                    BIND(CONCAT('{"priority":', STR(?priority), ',"criticality":"', ?critLabel, '"}') AS ?payload)
+                    BIND(IRI(CONCAT("urn:dqs:mo:criticality:", STR($this))) AS ?result)
+                }
+            """ ;
+        ] ;
+
+        sh:rule [
+            a sh:SPARQLRule ;
+            sh:order 2 ;
+            dqs:ruleId    "MO_Overdue" ;
+            dqs:dependsOn "MO_Criticality" ;
+            sh:construct """
+                PREFIX sp:  <http://purl.org/cognite/sp_enterprise_process_industry/YourOrgMaintenanceOrder/>
+                PREFIX dqs: <http://purl.org/cognite/dqs#>
+                PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+                CONSTRUCT {
+                    ?result a dqs:RuleEngineResult ;
+                            dqs:focusNode    $this ;
+                            dqs:ruleId       "MO_Overdue" ;
+                            dqs:resultType   "Inference" ;
+                            dqs:resultValue  "Overdue" ;
+                            dqs:resultPayload ?payload ;
+                            dqs:causedBy     ?critResult .
+                }
+                WHERE {
+                    $this sp:status ?status ;
+                          sp:scheduledEndTime ?endTime .
+                    FILTER(?status IN ("CREATED", "IN_PROGRESS"))
+                    FILTER(xsd:dateTime(?endTime) < NOW())
+                    OPTIONAL {
+                        ?critResult a dqs:RuleEngineResult ;
+                                    dqs:focusNode $this ;
+                                    dqs:ruleId "MO_Criticality" .
+                    }
+                    BIND(CONCAT('{"status":"', ?status, '","scheduledEndTime":"', STR(?endTime), '"}') AS ?payload)
+                    BIND(IRI(CONCAT("urn:dqs:mo:overdue:", STR($this))) AS ?result)
+                }
+            """ ;
+        ] .

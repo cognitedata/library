@@ -1,0 +1,416 @@
+ruleSetExternalId: timeseries_quality_rules
+version: "1.0.0"
+rules:
+  - |
+    @prefix sh: <http://www.w3.org/ns/shacl#> .
+    @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+    @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+    @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+    @prefix cdm_ts: <http://purl.org/cognite/cdf_cdm/CogniteTimeSeries/> .
+    @prefix cdf_sdk: <https://cognite.com/cdf/sdk/> .
+    @prefix cdf_indsl: <https://cognite.com/cdf/indsl/> .
+
+    # Cog-ai Time Series Quality SHACL rules
+    # - Ensures recent data and minimum datapoint count (>=50 over 60m)
+    # - Flags gaps using 5x normal interval (for 1-min data: gaps >5 min)
+    # - Outlier detection via INDSL extreme_outliers
+    # - Value range checks and existence check
+    # - The "unexpected decreases" shape is commented out; enable only for cumulative counters
+
+    # ==============================================================================
+    # Time Series Quality Validation Rules
+    # 
+    # Schedule: Every 60 minutes at XX:02
+    # Time Window: Exact 60 minutes, aligned to hour boundaries
+    #
+    # These rules use CDF SPARQL functions to check time series data quality:
+    # - cdf_sdk: functions call the Cognite Python SDK
+    # - cdf_indsl: functions call the Industrial Data Science Library (INDSL)
+    #
+    # IMPORTANT: "60m-ago" and "now" are replaced with actual timestamps at runtime
+    # to ensure exact, non-overlapping windows (e.g., 06:00-07:00, 07:00-08:00).
+    #
+    # Available functions:
+    #   cdf_sdk:datapoints_count(?ts, start, end) - Count datapoints in range
+    #   cdf_sdk:datapoints_average(?ts, start, end) - Average value in range
+    #   cdf_sdk:datapoints_min(?ts, start, end) - Minimum value in range
+    #   cdf_sdk:datapoints_max(?ts, start, end) - Maximum value in range
+    #   cdf_sdk:timeseries_exists(?ts) - Check if time series exists
+    #   cdf_indsl:extreme_outliers(?ts, alpha) - Count extreme outliers
+    #   cdf_indsl:gaps_identification(?ts, cutoff) - Count gaps in data
+    #   cdf_indsl:value_decrease_check(?ts) - Count unexpected value decreases
+    # ==============================================================================
+
+    # ==============================================================================
+    # Shape: Time Series Must Have Recent Data
+    # Checks that time series has at least some data in the time window
+    # ==============================================================================
+    cdm_ts:HasRecentDataShape
+        a sh:NodeShape ;
+        sh:targetClass cdm_ts:CogniteTimeSeries ;
+        sh:name "Time Series Has Recent Data" ;
+        sh:description "Validates that time series has data in the last 90 minutes." ;
+        sh:severity sh:Violation ;
+
+        sh:sparql [
+            a sh:SPARQLConstraint ;
+            sh:message "Time series has no data in the time window (count: {?count})" ;
+            sh:severity sh:Violation ;
+            sh:prefixes [
+                sh:declare [
+                    sh:prefix "cdf_sdk" ;
+                    sh:namespace "https://cognite.com/cdf/sdk/"^^xsd:anyURI ;
+                ] ;
+            ] ;
+            sh:select """
+                PREFIX cdf_sdk: <https://cognite.com/cdf/sdk/>
+
+                SELECT $this ?count
+                WHERE {
+                    BIND(cdf_sdk:datapoints_count($this, "60m-ago", "now") AS ?count)
+                    FILTER(?count = 0)
+                }
+            """ ;
+        ] .
+
+    # ==============================================================================
+    # Shape: Time Series Must Have Minimum Data Points
+    # For 60-min window with 1-min data, expect ~60 points, allow 50 as minimum
+    # ==============================================================================
+    cdm_ts:MinimumDataPointsShape
+        a sh:NodeShape ;
+        sh:targetClass cdm_ts:CogniteTimeSeries ;
+        sh:name "Minimum Data Points Check" ;
+        sh:description "Validates that time series has sufficient data points." ;
+        sh:severity sh:Warning ;
+
+        sh:sparql [
+            a sh:SPARQLConstraint ;
+            sh:message "Time series has insufficient data points: {?count} (expected >= 50)" ;
+            sh:severity sh:Warning ;
+            sh:select """
+                PREFIX cdf_sdk: <https://cognite.com/cdf/sdk/>
+
+                SELECT $this ?count
+                WHERE {
+                    BIND(cdf_sdk:datapoints_count($this, "60m-ago", "now") AS ?count)
+                    FILTER(?count < 50 && ?count > 0)
+                }
+            """ ;
+        ] .
+
+    # ==============================================================================
+    # Shape: Detect Extreme Outliers
+    # Uses INDSL extreme_outliers to find anomalous values
+    # Returns count of outliers (0 = no outliers)
+    # ==============================================================================
+    cdm_ts:NoExtremeOutliersShape
+        a sh:NodeShape ;
+        sh:targetClass cdm_ts:CogniteTimeSeries ;
+        sh:name "No Extreme Outliers" ;
+        sh:description "Validates that time series has no extreme outlier values." ;
+        sh:severity sh:Warning ;
+
+        sh:sparql [
+            a sh:SPARQLConstraint ;
+            sh:message "Time series contains {?outlierCount} extreme outliers" ;
+            sh:severity sh:Warning ;
+            sh:select """
+                PREFIX cdf_indsl: <https://cognite.com/cdf/indsl/>
+
+                SELECT $this ?outlierCount
+                WHERE {
+                    BIND(cdf_indsl:extreme_outliers($this, 0.05) AS ?outlierCount)
+                    FILTER(?outlierCount > 0)
+                }
+            """ ;
+        ] .
+
+    # ==============================================================================
+    # Shape: Detect Gaps in Time Series Data
+    # Uses INDSL gaps_identification to find missing data periods
+    # cutoff_multiple=5.0 means gaps > 5x the median interval are flagged
+    # For 1-min data, this would flag gaps > 5 minutes
+    # ==============================================================================
+    cdm_ts:NoGapsShape
+        a sh:NodeShape ;
+        sh:targetClass cdm_ts:CogniteTimeSeries ;
+        sh:name "No Data Gaps" ;
+        sh:description "Validates that time series has no significant gaps." ;
+        sh:severity sh:Warning ;
+
+        sh:sparql [
+            a sh:SPARQLConstraint ;
+            sh:message "Time series has {?gapCount} data gaps (> 5x normal interval)" ;
+            sh:severity sh:Warning ;
+            sh:select """
+                PREFIX cdf_indsl: <https://cognite.com/cdf/indsl/>
+
+                SELECT $this ?gapCount
+                WHERE {
+                    BIND(cdf_indsl:gaps_identification($this, 5.0) AS ?gapCount)
+                    FILTER(?gapCount > 0)
+                }
+            """ ;
+        ] .
+
+    # ==============================================================================
+    # Shape: Detect Unexpected Value Decreases
+    # Uses INDSL value_decrease_check for cumulative metrics ONLY
+    # NOTE: Disabled by default - only enable for cumulative counter time series
+    #       Regular time series naturally fluctuate up and down
+    # ==============================================================================
+    # cdm_ts:NoUnexpectedDecreasesShape
+    #     a sh:NodeShape ;
+    #     sh:targetClass cdm_ts:CogniteTimeSeries ;
+    #     sh:name "No Unexpected Decreases" ;
+    #     sh:description "Validates that cumulative time series values don't decrease." ;
+    #     sh:severity sh:Violation ;
+    #     
+    #     sh:sparql [
+    #         a sh:SPARQLConstraint ;
+    #         sh:message "Time series has {?decreaseCount} unexpected value decreases" ;
+    #         sh:severity sh:Violation ;
+    #         sh:select """
+    #             PREFIX cdf_indsl: <https://cognite.com/cdf/indsl/>
+    #             
+    #             SELECT $this ?decreaseCount
+    #             WHERE {
+    #                 BIND(cdf_indsl:value_decrease_check($this, 0.0) AS ?decreaseCount)
+    #                 FILTER(?decreaseCount > 0)
+    #             }
+    #         """ ;
+    #     ] .
+
+    # ==============================================================================
+    # Shape: Value Range Check (using SDK aggregations)
+    # Checks that values are within expected min/max bounds
+    # ==============================================================================
+    cdm_ts:ValueRangeCheckShape
+        a sh:NodeShape ;
+        sh:targetClass cdm_ts:CogniteTimeSeries ;
+        sh:name "Value Range Check" ;
+        sh:description "Validates that time series min/max values are within bounds." ;
+        sh:severity sh:Warning ;
+
+        # Check for suspiciously low minimum (potential sensor failure)
+        sh:sparql [
+            a sh:SPARQLConstraint ;
+            sh:message "Minimum value ({?minVal}) is suspiciously low (< -1000)" ;
+            sh:severity sh:Warning ;
+            sh:select """
+                PREFIX cdf_sdk: <https://cognite.com/cdf/sdk/>
+
+                SELECT $this ?minVal
+                WHERE {
+                    BIND(cdf_sdk:datapoints_min($this, "60m-ago", "now") AS ?minVal)
+                    FILTER(?minVal < -1000)
+                }
+            """ ;
+        ] ;
+
+        # Check for suspiciously high maximum (potential sensor failure)
+        sh:sparql [
+            a sh:SPARQLConstraint ;
+            sh:message "Maximum value ({?maxVal}) is suspiciously high (> 10000)" ;
+            sh:severity sh:Warning ;
+            sh:select """
+                PREFIX cdf_sdk: <https://cognite.com/cdf/sdk/>
+
+                SELECT $this ?maxVal
+                WHERE {
+                    BIND(cdf_sdk:datapoints_max($this, "60m-ago", "now") AS ?maxVal)
+                    FILTER(?maxVal > 10000)
+                }
+            """ ;
+        ] .
+
+    # ==============================================================================
+    # Shape: Time Series Exists
+    # Basic check that the time series actually exists in CDF
+    # ==============================================================================
+    cdm_ts:TimeSeriesExistsShape
+        a sh:NodeShape ;
+        sh:targetClass cdm_ts:CogniteTimeSeries ;
+        sh:name "Time Series Exists" ;
+        sh:description "Validates that the time series exists in CDF." ;
+        sh:severity sh:Violation ;
+
+        sh:sparql [
+            a sh:SPARQLConstraint ;
+            sh:message "Time series does not exist in CDF" ;
+            sh:severity sh:Violation ;
+            sh:select """
+                PREFIX cdf_sdk: <https://cognite.com/cdf/sdk/>
+
+                SELECT $this
+                WHERE {
+                    BIND(cdf_sdk:timeseries_exists($this) AS ?exists)
+                    FILTER(?exists = false)
+                }
+            """ ;
+        ] .
+
+    # ==============================================================================
+    # Additional YourOrgTimeSeries datapoint examples (cog-ai)
+    # - stale latest datapoint
+    # - value range bounds
+    # - flatline detection
+    # - cross-signal consistency
+    # These are concrete examples for specific series and run on the same hourly
+    # schedule/window as the other rules in this file.
+    # ==============================================================================
+
+    cdm_ts:YourOrgStaleLatestDatapointShape
+        a sh:NodeShape ;
+        sh:targetNode <http://purl.org/cognite/springfield_instances/pi:160554> ;
+        sh:name "YourOrg Stale Latest Datapoint" ;
+        sh:description "Flags stale series with no datapoints in the active window." ;
+        sh:severity sh:Violation ;
+        sh:sparql [
+            a sh:SPARQLConstraint ;
+            sh:message "No datapoints in the last hour for stale-check target (count: {?count})" ;
+            sh:severity sh:Violation ;
+            sh:select """
+                PREFIX cdf_sdk: <https://cognite.com/cdf/sdk/>
+
+                SELECT $this ?count
+                WHERE {
+                    BIND(cdf_sdk:datapoints_count($this, "60m-ago", "now") AS ?count)
+                    FILTER(?count = 0)
+                }
+            """ ;
+        ] .
+
+    cdm_ts:YourOrgValueRangeBoundsShape
+        a sh:NodeShape ;
+        sh:targetNode <http://purl.org/cognite/springfield_instances/pi:160245> ;
+        sh:name "YourOrg Value Range Bounds" ;
+        sh:description "Example min/max bounds checks for a concrete time series." ;
+        sh:severity sh:Warning ;
+        sh:sparql [
+            a sh:SPARQLConstraint ;
+            sh:message "Minimum value ({?minVal}) below expected floor (-1000)" ;
+            sh:severity sh:Warning ;
+            sh:select """
+                PREFIX cdf_sdk: <https://cognite.com/cdf/sdk/>
+
+                SELECT $this ?minVal
+                WHERE {
+                    BIND(cdf_sdk:datapoints_min($this, "60m-ago", "now") AS ?minVal)
+                    FILTER(?minVal < -1000)
+                }
+            """ ;
+        ] ;
+        sh:sparql [
+            a sh:SPARQLConstraint ;
+            sh:message "Maximum value ({?maxVal}) above expected ceiling (10000)" ;
+            sh:severity sh:Warning ;
+            sh:select """
+                PREFIX cdf_sdk: <https://cognite.com/cdf/sdk/>
+
+                SELECT $this ?maxVal
+                WHERE {
+                    BIND(cdf_sdk:datapoints_max($this, "60m-ago", "now") AS ?maxVal)
+                    FILTER(?maxVal > 10000)
+                }
+            """ ;
+        ] .
+
+    cdm_ts:YourOrgFlatlineDetectionShape
+        a sh:NodeShape ;
+        sh:targetNode <http://purl.org/cognite/springfield_instances/pi:160554> ;
+        sh:name "YourOrg Flatline Detection" ;
+        sh:description "Flags near-flat signal behavior in the active window." ;
+        sh:severity sh:Warning ;
+        sh:sparql [
+            a sh:SPARQLConstraint ;
+            sh:message "Potential flatline detected (span: {?span}, count: {?count})" ;
+            sh:severity sh:Warning ;
+            sh:select """
+                PREFIX cdf_sdk: <https://cognite.com/cdf/sdk/>
+
+                SELECT $this ?span ?count
+                WHERE {
+                    BIND(cdf_sdk:datapoints_min($this, "60m-ago", "now") AS ?minVal)
+                    BIND(cdf_sdk:datapoints_max($this, "60m-ago", "now") AS ?maxVal)
+                    BIND(cdf_sdk:datapoints_count($this, "60m-ago", "now") AS ?count)
+                    BIND((?maxVal - ?minVal) AS ?span)
+                    FILTER(?count >= 2 && ?span <= 0.001)
+                }
+            """ ;
+        ] .
+
+    cdm_ts:YourOrgCrossSignalConsistencyShape
+        a sh:NodeShape ;
+        sh:targetNode <http://purl.org/cognite/springfield_instances/pi:160245> ;
+        sh:name "YourOrg Cross-Signal Consistency" ;
+        sh:description "Compares one signal's average to a reference signal in the same window." ;
+        sh:severity sh:Warning ;
+        sh:sparql [
+            a sh:SPARQLConstraint ;
+            sh:message "Cross-signal average mismatch delta={?delta} exceeds threshold" ;
+            sh:severity sh:Warning ;
+            sh:select """
+                PREFIX cdf_sdk: <https://cognite.com/cdf/sdk/>
+
+                SELECT $this ?avgA ?avgB ?delta
+                WHERE {
+                    BIND(cdf_sdk:datapoints_average($this, "60m-ago", "now") AS ?avgA)
+                    BIND(cdf_sdk:datapoints_average(
+                        <http://purl.org/cognite/springfield_instances/pi:160554>, "60m-ago", "now"
+                    ) AS ?avgB)
+                    BIND(ABS(?avgA - ?avgB) AS ?delta)
+                    FILTER(?delta > 1.0)
+                }
+            """ ;
+        ] .
+
+    # Canary checks for deployment validation:
+    # - strict cross-signal mismatch threshold
+    # - strict datapoint count threshold for stale target
+    cdm_ts:YourOrgCanaryCrossSignalStrictShape
+        a sh:NodeShape ;
+        sh:targetNode <http://purl.org/cognite/springfield_instances/pi:160245> ;
+        sh:name "YourOrg Canary Cross-Signal Strict" ;
+        sh:description "Canary rule to force detectable cross-signal mismatch failures." ;
+        sh:severity sh:Violation ;
+        sh:sparql [
+            a sh:SPARQLConstraint ;
+            sh:message "Canary cross-signal delta={?delta} exceeds strict threshold 0.01" ;
+            sh:severity sh:Violation ;
+            sh:select """
+                PREFIX cdf_sdk: <https://cognite.com/cdf/sdk/>
+
+                SELECT $this ?avgA ?avgB ?delta
+                WHERE {
+                    BIND(cdf_sdk:datapoints_average($this, "60m-ago", "now") AS ?avgA)
+                    BIND(cdf_sdk:datapoints_average(
+                        <http://purl.org/cognite/springfield_instances/pi:160554>, "60m-ago", "now"
+                    ) AS ?avgB)
+                    BIND(ABS(?avgA - ?avgB) AS ?delta)
+                    FILTER(?delta > 0.01)
+                }
+            """ ;
+        ] .
+
+    cdm_ts:YourOrgCanaryMinimumCountShape
+        a sh:NodeShape ;
+        sh:targetNode <http://purl.org/cognite/springfield_instances/pi:160554> ;
+        sh:name "YourOrg Canary Minimum Count" ;
+        sh:description "Canary rule to force datapoint count failures for the stale example series." ;
+        sh:severity sh:Violation ;
+        sh:sparql [
+            a sh:SPARQLConstraint ;
+            sh:message "Canary count check failed: expected >= 1 datapoint, got {?count}" ;
+            sh:severity sh:Violation ;
+            sh:select """
+                PREFIX cdf_sdk: <https://cognite.com/cdf/sdk/>
+
+                SELECT $this ?count
+                WHERE {
+                    BIND(cdf_sdk:datapoints_count($this, "60m-ago", "now") AS ?count)
+                    FILTER(?count < 1)
+                }
+            """ ;
+        ] .

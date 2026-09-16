@@ -1,0 +1,5 @@
+# Pin for deploy_infrastructure.py and the CDF Function (PyPI cognite-data-quality).
+# All other values in this module match the cog-ai YourOrg sample in
+# https://github.com/cognitedata/data-quality-validation-deploy (views/asset.yaml).
+
+dq_pypi_version: "0.4.9"
