@@ -28,7 +28,7 @@ from typing import Literal
 
 import yaml
 from _env_io import parse_env_file
-from _i18n import t
+from _i18n import locale_override, t
 from _pack_config import (
     CONTEXTUALIZATION_REDUNDANT_AUTH,
     DEMO_SOURCE_SYSTEM_MODULE_DIRS,
@@ -2045,79 +2045,84 @@ def _run_check(
     args_variant: str | None,
     repo_root: Path | None = None,
 ) -> None:
-    pack_root = get_pack_root(repo_root)
-    variant = resolve_variant(args_variant, get_data_models_dir(repo_root))
-    resolve_pack_kind_for_check(variant, get_sourcesystem_dir(repo_root))
-    # Read site and datasets from existing configs so user-configured values
-    # (group names, location, dataset list) don't produce false positives.
-    site, datasets = _read_check_context(pack_root)
-    installed_ctx = list_installed_contextualization_modules(repo_root)
+    # --check is consumed by CI/tooling, not read interactively — its output and
+    # exit codes must stay identical regardless of the caller's locale (AT-113).
+    with locale_override("en"):
+        pack_root = get_pack_root(repo_root)
+        variant = resolve_variant(args_variant, get_data_models_dir(repo_root))
+        resolve_pack_kind_for_check(variant, get_sourcesystem_dir(repo_root))
+        # Read site and datasets from existing configs so user-configured values
+        # (group names, location, dataset list) don't produce false positives.
+        site, datasets = _read_check_context(pack_root)
+        installed_ctx = list_installed_contextualization_modules(repo_root)
 
-    # Only validate config files that actually exist — skip missing ones silently.
-    all_errors: dict[str, list[str]] = {}
-    for env in ENVIRONMENTS:
-        path = pack_root / f"config.{env}.yaml"
-        if not path.exists():
-            continue
-        errs = check_config_file(path, variant, env, site, installed_ctx, datasets)
-        if errs:
-            all_errors[path.name] = errs
+        # Only validate config files that actually exist — skip missing ones silently.
+        all_errors: dict[str, list[str]] = {}
+        for env in ENVIRONMENTS:
+            path = pack_root / f"config.{env}.yaml"
+            if not path.exists():
+                continue
+            errs = check_config_file(path, variant, env, site, installed_ctx, datasets)
+            if errs:
+                all_errors[path.name] = errs
 
-    for path in find_env_configs(repo_root):
-        if (pack_root / path.name) in {pack_root / f"config.{e}.yaml" for e in ENVIRONMENTS}:
-            continue
-        env_guess = path.name.split(".")[1] if "." in path.name else "dev"
-        env_guess = env_guess if env_guess in ENVIRONMENTS else "dev"
-        errs = check_config_file(path, variant, env_guess, site, installed_ctx, datasets)
-        if errs:
-            all_errors[path.name] = errs
+        for path in find_env_configs(repo_root):
+            if (pack_root / path.name) in {pack_root / f"config.{e}.yaml" for e in ENVIRONMENTS}:
+                continue
+            env_guess = path.name.split(".")[1] if "." in path.name else "dev"
+            env_guess = env_guess if env_guess in ENVIRONMENTS else "dev"
+            errs = check_config_file(path, variant, env_guess, site, installed_ctx, datasets)
+            if errs:
+                all_errors[path.name] = errs
 
-    ctx_dir = get_contextualization_dir(repo_root)
-    stale_auth: list[Path] = []
-    for module_dir in list_installed_contextualization_modules(repo_root):
-        for rel_path in CONTEXTUALIZATION_REDUNDANT_AUTH[module_dir]:
-            if (ctx_dir / module_dir / rel_path).exists():
-                stale_auth.append(ctx_dir / module_dir / rel_path)
+        ctx_dir = get_contextualization_dir(repo_root)
+        stale_auth: list[Path] = []
+        for module_dir in list_installed_contextualization_modules(repo_root):
+            for rel_path in CONTEXTUALIZATION_REDUNDANT_AUTH[module_dir]:
+                if (ctx_dir / module_dir / rel_path).exists():
+                    stale_auth.append(ctx_dir / module_dir / rel_path)
 
-    missing_cdm_space = variant == "cdm" and not (
-        get_pack_root(repo_root) / _CDM_INSTANCE_SPACE_REL_PATH
-    ).exists()
+        missing_cdm_space = variant == "cdm" and not (
+            get_pack_root(repo_root) / _CDM_INSTANCE_SPACE_REL_PATH
+        ).exists()
 
-    stale_diagram_annotation = diagram_annotation_stale_paths(repo_root)
+        stale_diagram_annotation = diagram_annotation_stale_paths(repo_root)
 
-    if all_errors:
-        out_of_sync = t("ERROR: Config file(s) out of sync with variant '{variant}':").format(variant=variant)
-        print(f"{out_of_sync}\n")
-        for filename, errs in all_errors.items():
-            print(f"  {filename}")
-            for e in errs:
-                print(e)
-        print(f"\n  {t('Run: python scripts/setup_project.py -y')}")
-        sys.exit(1)
-    if stale_auth:
-        print(t("ERROR: Redundant auth file(s) still present (covered by cdf_project_foundation):"))
-        for p in stale_auth:
-            print(f"  {p.relative_to(ctx_dir.parent.parent)}")
-        print(f"\n  {t('Run: python scripts/setup_project.py -y')}")
-        sys.exit(1)
-    if missing_cdm_space:
-        print(
-            f"ERROR: CDM instance space file missing for variant '{variant}':\n"
-            f"  {_CDM_INSTANCE_SPACE_REL_PATH}"
-        )
-        print(f"\n  {t('Run: python scripts/setup_project.py -y')}")
-        sys.exit(1)
-    if stale_diagram_annotation:
-        print(
-            "ERROR: Redundant diagram-annotation file(s) still present "
-            "(superseded by cdf_file_annotation):"
-        )
-        for p in stale_diagram_annotation:
-            print(f"  {p.relative_to(get_pack_root(repo_root))}")
-        print(f"\n  {t('Run: python scripts/setup_project.py -y')}")
-        sys.exit(1)
-    _warn_disabled_notifications(repo_root, pack_root)
-    print(t("OK: All config file(s) match variant '{variant}'. No stale auth files.").format(variant=variant))
+        if all_errors:
+            out_of_sync = t("ERROR: Config file(s) out of sync with variant '{variant}':").format(
+                variant=variant
+            )
+            print(f"{out_of_sync}\n")
+            for filename, errs in all_errors.items():
+                print(f"  {filename}")
+                for e in errs:
+                    print(e)
+            print(f"\n  {t('Run: python scripts/setup_project.py -y')}")
+            sys.exit(1)
+        if stale_auth:
+            print(t("ERROR: Redundant auth file(s) still present (covered by cdf_project_foundation):"))
+            for p in stale_auth:
+                print(f"  {p.relative_to(ctx_dir.parent.parent)}")
+            print(f"\n  {t('Run: python scripts/setup_project.py -y')}")
+            sys.exit(1)
+        if missing_cdm_space:
+            print(
+                f"ERROR: CDM instance space file missing for variant '{variant}':\n"
+                f"  {_CDM_INSTANCE_SPACE_REL_PATH}"
+            )
+            print(f"\n  {t('Run: python scripts/setup_project.py -y')}")
+            sys.exit(1)
+        if stale_diagram_annotation:
+            print(
+                "ERROR: Redundant diagram-annotation file(s) still present "
+                "(superseded by cdf_file_annotation):"
+            )
+            for p in stale_diagram_annotation:
+                print(f"  {p.relative_to(get_pack_root(repo_root))}")
+            print(f"\n  {t('Run: python scripts/setup_project.py -y')}")
+            sys.exit(1)
+        _warn_disabled_notifications(repo_root, pack_root)
+        print(t("OK: All config file(s) match variant '{variant}'. No stale auth files.").format(variant=variant))
 
 
 # ── Entry point ────────────────────────────────────────────────────────────────
