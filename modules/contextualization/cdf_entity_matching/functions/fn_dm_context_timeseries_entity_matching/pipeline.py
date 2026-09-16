@@ -535,6 +535,7 @@ def apply_manual_mappings(
                         f"to data model, total count/matches: {cnt} / {len(manual_mappings)}"
                     )
 
+        if not config.parameters.debug:
             raw_uploader.upload()
 
         return good_matches, cnt

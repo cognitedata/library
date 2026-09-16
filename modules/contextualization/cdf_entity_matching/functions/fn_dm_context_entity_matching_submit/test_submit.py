@@ -3,6 +3,7 @@
 import sys
 import unittest
 from pathlib import Path
+from unittest.mock import MagicMock
 
 sys.path.append(str(Path(__file__).parent))
 
@@ -205,6 +206,26 @@ class TestStaging(unittest.TestCase):
         restored = read_staged_matches(self.client, self.logger, "1001")  # type: ignore[arg-type]
 
         self.assertEqual(sorted(restored, key=lambda m: m["entity_ext_id"]), matches)
+
+    def test_staging_log_separates_pairs_from_entities(self) -> None:
+        """One entity can match many targets, so the row count is not the entity count."""
+        logger = MagicMock()
+        matches = [
+            {"entity_ext_id": "TS-1", "entity_space": "sp", "asset_ext_id": "A-1"},
+            {"entity_ext_id": "TS-1", "entity_space": "sp", "asset_ext_id": "A-2"},
+            {"entity_ext_id": "TS-2", "entity_space": "sp", "asset_ext_id": "A-3"},
+        ]
+
+        write_staged_matches(
+            self.client,  # type: ignore[arg-type]
+            logger,
+            "1001",
+            matches,  # type: ignore[arg-type]
+        )
+
+        message = logger.info.call_args.args[0]
+        self.assertIn("3 entity-target pair(s)", message)
+        self.assertIn("2 entities", message)
 
     def test_staged_matches_of_another_job_are_not_read(self) -> None:
         ts1_match = [{"entity_ext_id": "TS-1"}]

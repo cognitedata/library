@@ -111,7 +111,7 @@ def submit_entity_matching(
                 good_matches,
                 targets,
             )
-        logger.info(f"Manual mappings: {cnt_manual_mappings} match(es) applied")
+        logger.info(f"Manual mappings: {cnt_manual_mappings} entity(ies) matched")
 
         with time_operation("Read new entities", logger):
             # Only manual mappings have run, and those carry the space of the node they
@@ -123,7 +123,10 @@ def submit_entity_matching(
         monitor_memory_usage(logger, "After new entities loaded")
         cleanup_memory()
 
-        logger.info(f"New entities to match: {len(new_entities)}")
+        # An entity with several search property values is submitted once per value, so
+        # the source record count is not the entity count.
+        submitted_entities = len({instance_key(e[KEY_ENTITY_SPACE], e[KEY_ENTITY_EXT_ID]) for e in new_entities})
+        logger.info(f"New entities to match: {submitted_entities} ({len(new_entities)} source record(s) submitted)")
         if len(new_entities) == 0:
             logger.info("No new entities to process - predict not started")
             update_pipeline_run(
@@ -141,7 +144,7 @@ def submit_entity_matching(
             good_matches, cnt_rule_mappings = apply_rule_mappings(
                 client, config, logger, good_matches, targets, new_entities
             )
-        logger.info(f"Rule mappings: {cnt_rule_mappings} additional match(es)")
+        logger.info(f"Rule mappings: {cnt_rule_mappings} additional entity(ies) matched")
 
         with time_operation("Start entity matching predict job", logger):
             job = submit_predict_job(client, config, logger, matching_model_id, targets, new_entities)
@@ -178,6 +181,7 @@ def submit_entity_matching(
             match_count,
             0,
             f"Predict submitted (jobId={job_id}), collect pending",
+            input_count=cnt_manual_mappings + submitted_entities,
         )
 
     except Exception as e:

@@ -125,9 +125,17 @@ def update_pipeline_run(
     match_count: int = 0,
     not_matches_count: int = 0,
     input_msg: str | None = None,
+    input_count: int | None = None,
 ) -> None:
+    """Report a run on the extraction pipeline.
 
-    total_entities = match_count + not_matches_count
+    Args:
+        match_count: Entities that got at least one match.
+        not_matches_count: Entities left unmatched because every candidate scored too low.
+        input_count: Entities considered. Submit knows this up front; callers that do not
+            fall back to the matched plus unmatched total.
+    """
+    total_entities = input_count if input_count is not None else match_count + not_matches_count
     if status == STATUS_SUCCESS:
         msg = (
             f"Entity matching of: {total_entities} input entities, Matched: {match_count} "
@@ -423,6 +431,7 @@ def apply_manual_mappings(
                         f"to data model, total count/matches: {cnt} / {len(manual_mappings)}"
                     )
 
+        if not config.parameters.debug:
             raw_uploader.upload()
 
         return good_matches, cnt

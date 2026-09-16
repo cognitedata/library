@@ -46,6 +46,23 @@ that `instances.list` uses. `NOT exists(assets)` therefore matches nothing for e
 whose links were written as `[]` instead of being left unset, and the run reads zero
 entities while plenty are unlinked.
 
+## What the counts mean
+
+Two different units show up in the logs and they are easy to confuse.
+
+- **Entities** — `apply_manual_mappings` and `apply_rule_mappings` return a count of
+  entities that got at least one match. That is what the extraction pipeline run reports
+  as `Matched`, and what submit passes as `input_count` so the run shows the entities it
+  actually looked at rather than `matched + low score`.
+- **Entity-target pairs** — `good_matches` holds one row per entity-target pair, so an
+  entity matching many targets contributes many rows. That is the number `em_staging.py`
+  logs when it writes and reads the staging file.
+
+A pair count far above the entity count means a rule key resolves to many targets. Check
+the `entity_rule_keys` and `asset_rule_keys` columns on the good table to see which key
+caused it, and tighten `EntityRegExp` / `AssetRegExp` if it is too broad. `add_to_items`
+only intervenes at `MAX_LINKS_PER_ENTITY` (1000) links on a single entity.
+
 ## Target cache (`em_targets.py`)
 
 The cursor lives in RAW (`state_target_sync_<key>`). The instance content lives in a CDF

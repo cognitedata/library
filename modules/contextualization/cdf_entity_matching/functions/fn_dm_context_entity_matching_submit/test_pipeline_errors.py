@@ -13,6 +13,7 @@ sys.path.append(str(Path(__file__).parent))
 import em_pipeline  # isort: skip
 from em_pipeline_optimizations import RobustAPIClient  # isort: skip
 from em_constants import (  # isort: skip
+    COL_KEY_MAN_CONTEXTUALIZED,
     COL_KEY_MAN_MAPPING_ENTITY,
     COL_KEY_MAN_MAPPING_TARGET,
     KEY_ENTITY_EXT_ID,
@@ -24,7 +25,9 @@ from em_constants import (  # isort: skip
     KEY_TARGET_EXT_ID,
     KEY_TARGET_LINKS,
     KEY_TARGET_SPACE,
+    PROP_COL_NAME,
     STATUS_FAILURE,
+    STATUS_SUCCESS,
 )
 from test_submit import build_config  # isort: skip
 
@@ -51,6 +54,54 @@ def test_manual_mapping_propagates_unexpected_errors(monkeypatch: pytest.MonkeyP
             mappings,
             {"row-1": {}},
         )
+
+
+def test_manual_mapping_uploads_raw_even_when_dm_update_is_disabled(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Contextualized flags must be persisted even when dmUpdate skips DMS writes."""
+    config = build_config().model_copy(
+        update={
+            "parameters": build_config().parameters.model_copy(update={"raw_table_ctx_manual": "manual"}),
+        }
+    )
+    assert config.parameters.dm_update is False
+
+    view_id = config.data.entity_view.as_view_id()
+    entity = MagicMock()
+    entity.external_id = "entity-1"
+    entity.space = "inst_location"
+    entity.properties = {view_id: {PROP_COL_NAME: "Entity 1"}}
+
+    monkeypatch.setattr(
+        em_pipeline,
+        "list_instances_by_external_id_direct",
+        lambda *args, **kwargs: [entity],
+    )
+
+    client = MagicMock()
+    raw_uploader = MagicMock()
+    mappings = [
+        {
+            KEY_RULE: "row-1",
+            COL_KEY_MAN_MAPPING_ENTITY: "entity-1",
+            COL_KEY_MAN_MAPPING_TARGET: "target-1",
+        }
+    ]
+
+    em_pipeline.apply_manual_mappings(
+        client,
+        MagicMock(),
+        config,
+        raw_uploader,
+        mappings,
+        {"row-1": {}},
+    )
+
+    client.data_modeling.instances.apply.assert_not_called()
+    raw_uploader.upload.assert_called_once()
+    queued_row = raw_uploader.add_to_upload_queue.call_args.args[2]
+    assert queued_row.columns[COL_KEY_MAN_CONTEXTUALIZED] is True
 
 
 def test_rule_mapping_propagates_unexpected_errors(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -171,9 +222,27 @@ def test_handler_raises_so_cdf_marks_the_call_failed(monkeypatch: pytest.MonkeyP
         handler.handle({"ExtractionPipelineExtId": "ep", "logLevel": "INFO"}, MagicMock())
 
 
-def _failure_run_message(client: MagicMock) -> str:
+def _run_message(client: MagicMock) -> str:
     run = client.extraction_pipelines.runs.create.call_args.args[0]
     return run.message
+
+
+def test_pipeline_run_reports_the_input_count_it_is_given() -> None:
+    """Submit knows how many entities it looked at; matched plus low score is not that number."""
+    client = MagicMock()
+
+    em_pipeline.update_pipeline_run(
+        client,
+        MagicMock(),
+        "ep-entity-matching",
+        STATUS_SUCCESS,
+        350,
+        0,
+        "Predict submitted",
+        input_count=1200,
+    )
+
+    assert "Entity matching of: 1200 input entities, Matched: 350" in _run_message(client)
 
 
 def test_failed_pipeline_run_without_exception_does_not_log_a_traceback() -> None:
@@ -190,7 +259,7 @@ def test_failed_pipeline_run_without_exception_does_not_log_a_traceback() -> Non
         "Predict job(s) failed: 42",
     )
 
-    message = _failure_run_message(client)
+    message = _run_message(client)
     assert "Predict job(s) failed: 42" in message
     assert "traceback" not in message
     assert "NoneType: None" not in message
@@ -213,7 +282,7 @@ def test_failed_pipeline_run_inside_except_includes_the_traceback() -> None:
             f"failed, Message: {e!s}",
         )
 
-    message = _failure_run_message(client)
+    message = _run_message(client)
     assert "failed, Message: predict exploded" in message
     assert "traceback" in message
     assert "RuntimeError: predict exploded" in message

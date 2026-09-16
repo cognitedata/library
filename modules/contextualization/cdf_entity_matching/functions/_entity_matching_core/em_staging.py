@@ -12,10 +12,15 @@ from cognite.client import CogniteClient
 from cognite.client.exceptions import CogniteAPIError
 
 from em_config import Config  # isort: skip
-from em_constants import STAGING_FILE_PREFIX  # isort: skip
+from em_constants import KEY_ENTITY_EXT_ID, KEY_ENTITY_SPACE, STAGING_FILE_PREFIX  # isort: skip
 from em_logger import CogniteFunctionLogger  # isort: skip
 from em_pipeline import create_table  # isort: skip
 from em_pipeline_types import StoredMatch  # isort: skip
+
+
+def _entity_count(matches: list[StoredMatch]) -> int:
+    """Distinct entities behind the match rows - one entity can match many targets."""
+    return len({(m.get(KEY_ENTITY_SPACE), m[KEY_ENTITY_EXT_ID]) for m in matches})
 
 
 def staging_file_external_id(job_id: str) -> str:
@@ -37,7 +42,7 @@ def write_staged_matches(
     """Stage the matches submit already has in a CDF file, so collect can merge them with the ML ones.
 
     Returns:
-        Number of matches staged.
+        Number of entity-target pairs staged.
     """
     file_external_id = staging_file_external_id(job_id)
     content = json.dumps(matches).encode("utf-8")
@@ -48,7 +53,10 @@ def write_staged_matches(
         mime_type="application/json",
         overwrite=True,
     )
-    logger.info(f"Staged {len(matches)} manual/rule match(es) for job {job_id} in file {file_external_id}")
+    logger.info(
+        f"Staged {len(matches)} entity-target pair(s) from manual/rule matching across "
+        f"{_entity_count(matches)} entities for job {job_id} in file {file_external_id}"
+    )
     return len(matches)
 
 
@@ -61,9 +69,12 @@ def read_staged_matches(
     file_external_id = staging_file_external_id(job_id)
     try:
         content = client.files.download_bytes(external_id=file_external_id)
-        matches = json.loads(content.decode("utf-8"))
-        logger.info(f"Read {len(matches)} staged manual/rule match(es) for job {job_id} from {file_external_id}")
-        return [cast(StoredMatch, m) for m in matches]
+        matches = [cast(StoredMatch, m) for m in json.loads(content.decode("utf-8"))]
+        logger.info(
+            f"Read {len(matches)} staged entity-target pair(s) across {_entity_count(matches)} entities "
+            f"for job {job_id} from {file_external_id}"
+        )
+        return matches
     except CogniteAPIError as e:
         if e.code in (400, 404):
             logger.info(f"No staged matches file found for job {job_id} ({file_external_id})")
