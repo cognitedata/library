@@ -11,7 +11,6 @@ concurrency:
 
 permissions:
   contents: read
-  pull-requests: write
 
 jobs:
   source-branch-guard:
@@ -99,8 +98,8 @@ jobs:
           done
           exit "$status"
 
-  cdf-dry-run:
-    name: cdf build & deploy --dry-run
+  cdf-build:
+    name: cdf build
     needs:
       - source-branch-guard
       - lint
@@ -109,18 +108,6 @@ jobs:
       needs.lint.result == 'success' &&
       (github.base_ref == 'dev' || needs.source-branch-guard.result == 'success')
     runs-on: ubuntu-latest
-    environment: {{DRY_RUN_ENVIRONMENT}}
-    env:
-      CDF_CLUSTER: ${{ vars.CDF_CLUSTER }}
-      CDF_PROJECT: ${{ vars.CDF_PROJECT }}
-      LOGIN_FLOW: ${{ vars.LOGIN_FLOW }}
-      PROVIDER: ${{ vars.PROVIDER || 'entra_id' }}
-      IDP_TENANT_ID: ${{ vars.IDP_TENANT_ID }}
-      IDP_CLIENT_ID: ${{ vars.IDP_CLIENT_ID }}
-      ADMIN_SOURCE_ID: ${{ vars.ADMIN_SOURCE_ID }}
-      CONSUMER_SOURCE_ID: ${{ vars.CONSUMER_SOURCE_ID }}
-      PRODUCER_SOURCE_ID: ${{ vars.PRODUCER_SOURCE_ID }}
-      IDP_CLIENT_SECRET: ${{ secrets.IDP_CLIENT_SECRET }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
@@ -138,72 +125,5 @@ jobs:
         run: {{SETUP_PROJECT_CHECK_CMD}}
 
       - name: cdf build
-        id: build
         run: |
 {{DRY_RUN_BUILD_SCRIPT}}
-
-      - name: cdf deploy --dry-run
-        id: deploy
-        run: cdf deploy --dry-run | tee dryrun-output.txt
-
-      - name: Comment PR with dry-run output
-        if: always() && github.event_name == 'pull_request' && (steps.build.outcome == 'success' || steps.build.outcome == 'failure')
-        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
-        with:
-          script: |
-            const fs = require('fs');
-            const buildOutput = fs.existsSync('build-output.txt')
-              ? fs.readFileSync('build-output.txt', 'utf8')
-              : 'Build step did not run or produce output.';
-            const dryrunOutput = fs.existsSync('dryrun-output.txt')
-              ? fs.readFileSync('dryrun-output.txt', 'utf8')
-              : 'Dry-run step did not run or produce output.';
-            const buildSuccess = '${{ steps.build.outcome }}' === 'success';
-            const deploySuccess = '${{ steps.deploy.outcome }}' === 'success';
-            const header = buildSuccess && deploySuccess
-              ? '✅ Toolkit dry-run finished — review before merging'
-              : '❌ Toolkit dry-run failed — please check the errors';
-            const marker = '<!-- toolkit-dry-run-marker -->';
-            const body = [
-              marker,
-              header,
-              '',
-              '<details><summary>Build output</summary>',
-              '',
-              '```',
-              buildOutput.slice(-12000),
-              '```',
-              '',
-              '</details>',
-              '',
-              '<details><summary>Deploy dry-run output</summary>',
-              '',
-              '```',
-              dryrunOutput.slice(-12000),
-              '```',
-              '',
-              '</details>',
-            ].join('\n');
-            const { data: comments } = await github.rest.issues.listComments({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-            });
-            const existing = comments.find(
-              (c) => c.user.type === 'Bot' && c.body.includes(marker),
-            );
-            if (existing) {
-              await github.rest.issues.updateComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                comment_id: existing.id,
-                body,
-              });
-            } else {
-              await github.rest.issues.createComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: context.issue.number,
-                body,
-              });
-            }

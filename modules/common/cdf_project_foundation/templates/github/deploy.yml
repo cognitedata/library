@@ -47,5 +47,8 @@ jobs:
       - name: cdf build
         run: cdf build {{BUILD_ARGS}}
 
+      - name: cdf deploy --dry-run
+        run: cdf deploy --dry-run
+
       - name: cdf deploy
         run: cdf deploy
