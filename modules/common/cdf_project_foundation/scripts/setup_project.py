@@ -28,6 +28,7 @@ from typing import Literal
 
 import yaml
 from _env_io import parse_env_file
+from _i18n import t
 from _pack_config import (
     CONTEXTUALIZATION_REDUNDANT_AUTH,
     DEMO_SOURCE_SYSTEM_MODULE_DIRS,
@@ -641,7 +642,7 @@ def _write_config_fresh(path: Path, env: str, project: str, overlay: dict) -> No
         _YAML_HEADER
         + yaml.dump(merged, sort_keys=False, allow_unicode=True, default_flow_style=False)
     )
-    _ok(f"Created  {path.name}")
+    _ok(t("Created  {path.name}").format(path=path))
 
 
 def _write_config_update(
@@ -703,8 +704,7 @@ def _write_config_update(
         shutil.copy2(path, backup)
     path.write_text("".join(lines))
     if not skip_backup:
-        from _style import _C
-        _ok(f"Updated  {path.name}  {_C.DIM}(backup: {backup.name}){_C.RESET}")
+        _ok(t("Updated  {path.name}  (backup: {backup.name})").format(path=path, backup=backup))
     return True
 
 
@@ -742,7 +742,7 @@ def write_config(path: Path, env: str, project: str, overlay: dict) -> bool:
         # Try to replicate from an existing env config first; fall back to fresh skeleton.
         replicated = _replicate_config_from_existing(path.parent, env, project)
         if replicated:
-            _ok(f"Created  {path.name}  (replicated from existing config)")
+            _ok(t("Created  {path.name}  (replicated from existing config)").format(path=path))
             # Apply the overlay in-place. Skip backup — the file was just created.
             # Always return True regardless of whether the overlay changed anything,
             # since the file itself is new.
@@ -781,7 +781,7 @@ def remove_redundant_auth_files(repo_root: Path | None = None) -> list[Path]:
             if auth_file.exists():
                 auth_file.unlink()
                 removed.append(auth_file)
-                _ok(f"Removed redundant auth: {auth_file.relative_to(modules_root)}")
+                _ok(t("Removed redundant auth: {auth_file}").format(auth_file=auth_file.relative_to(modules_root)))
         _rmdir_if_empty(auth_dir)
 
     # Tools / apps modules.
@@ -795,7 +795,7 @@ def remove_redundant_auth_files(repo_root: Path | None = None) -> list[Path]:
             if auth_file.exists():
                 auth_file.unlink()
                 removed.append(auth_file)
-                _ok(f"Removed redundant auth: {auth_file.relative_to(modules_root)}")
+                _ok(t("Removed redundant auth: {auth_file}").format(auth_file=auth_file.relative_to(modules_root)))
         _rmdir_if_empty(auth_dir)
 
     return removed
@@ -827,7 +827,7 @@ def restore_cdm_space_file(variant: str, repo_root: Path | None = None) -> Path 
         return None
     space_file.parent.mkdir(parents=True, exist_ok=True)
     space_file.write_text(_CDM_INSTANCE_SPACE_CONTENT)
-    _ok(f"Created CDM instance space file: {_CDM_INSTANCE_SPACE_REL_PATH}")
+    _ok(t("Created CDM instance space file: {path}").format(path=_CDM_INSTANCE_SPACE_REL_PATH))
     return space_file
 
 
@@ -849,8 +849,8 @@ def _migrate_staging_to_test(pack_root: Path) -> bool:
         return False
     if test.exists():
         _warn(
-            "Both config.staging.yaml and config.test.yaml exist — "
-            "skipping automatic staging migration. Remove one manually."
+            t("Both config.staging.yaml and config.test.yaml exist — "
+              "skipping automatic staging migration. Remove one manually.")
         )
         return False
 
@@ -859,7 +859,7 @@ def _migrate_staging_to_test(pack_root: Path) -> bool:
     _yaml_set_value(lines, "environment.validation-type", "prod")
     test.write_text("".join(lines))
     staging.unlink()
-    _ok("Migrated config.staging.yaml → config.test.yaml  (validation-type: prod)")
+    _ok(t("Migrated config.staging.yaml → config.test.yaml  (validation-type: prod)"))
     return True
 
 
@@ -1060,7 +1060,7 @@ def remove_redundant_diagram_annotation(repo_root: Path | None = None) -> list[P
         if f.exists():
             f.unlink()
             removed.append(f)
-            _ok(f"Removed redundant diagram-annotation file: {f.relative_to(modules_root)}")
+            _ok(t("Removed redundant diagram-annotation file: {f}").format(f=f.relative_to(modules_root)))
 
     workflow_path = _ingestion_workflow_path(repo_root)
     if workflow_path.exists():
@@ -1069,7 +1069,11 @@ def remove_redundant_diagram_annotation(repo_root: Path | None = None) -> list[P
         if task_count:
             workflow_path.write_text("".join(lines))
             removed.append(workflow_path)
-            _ok(f"Removed {task_count} redundant diagram-annotation task(s) from cdf_ingestion workflow.")
+            _ok(
+                t("Removed {n} redundant diagram-annotation task(s) from cdf_ingestion workflow.").format(
+                    n=task_count
+                )
+            )
 
     config_path = _ingestion_config_path(repo_root)
     if config_path.exists():
@@ -1115,10 +1119,8 @@ def patch_cfihos_auth_for_missing_search(repo_root: Path | None = None) -> list[
         if len(new_lines) < len(original.splitlines()):
             auth_file.write_text("".join(new_lines))
             patched.append(auth_file)
-            _ok(
-                f"Removed {{{{search_space}}}} from: "
-                f"{auth_file.relative_to(data_models_dir.parent)}"
-            )
+            rel_auth_file = auth_file.relative_to(data_models_dir.parent)
+            _ok(t("Removed {{search_space}} from: {auth_file}").replace("{auth_file}", str(rel_auth_file)))
     return patched
 
 
@@ -1238,12 +1240,12 @@ def _prompt_owner(
     default_email: str = "",
 ) -> tuple[str, str]:
     """Prompt for an owner's name and a validated email. Both are optional (blank skips)."""
-    name = prompt(f"{label} name", default=default_name or None).strip()
+    name = prompt(t("{label} name").format(label=label), default=default_name or None).strip()
     while True:
-        email = prompt(f"{label} email", default=default_email or None).strip()
+        email = prompt(t("{label} email").format(label=label), default=default_email or None).strip()
         if not email or re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", email):
             return name, email
-        _warn("Invalid email. Use format: name@domain.com")
+        _warn(t("Invalid email. Use format: name@domain.com"))
 
 
 def _warn_if_no_email(label: str, email: str) -> None:
@@ -1275,16 +1277,16 @@ def _prompt_source_system_ownership(
     ei = existing_integration or {}
     ed = existing_data or {}
 
-    _section("Source System Ownership")
-    _hint(f"Installed: {', '.join(_module_label(m) for m in installed_ss)}")
+    _section(t("Source System Ownership"))
+    _hint(t("Installed: {modules}").format(modules=", ".join(_module_label(m) for m in installed_ss)))
 
     # ── Integration owner ─────────────────────────────────────────────────────
     print()
     integration_owners: dict[str, tuple[str, str]] = {}
     shared_int_default = _all_same(ei) if ei else True
-    if prompt_yes_no("Same integration owner for all source systems?", default=shared_int_default):
+    if prompt_yes_no(t("Same integration owner for all source systems?"), default=shared_int_default):
         first = next(iter(ei.values()), ("", "")) if ei else ("", "")
-        name, email = _prompt_owner("  Integration owner", *first)
+        name, email = _prompt_owner(f"  {t('Integration owner')}", *first)
         _warn_if_no_email("integration owner", email)
         for m in installed_ss:
             integration_owners[m] = (name, email)
@@ -1292,7 +1294,7 @@ def _prompt_source_system_ownership(
         for m in installed_ss:
             print(f"\n  {_module_label(m)}")
             dn, de = ei.get(m, ("", ""))
-            name, email = _prompt_owner("    Integration owner", dn, de)
+            name, email = _prompt_owner(f"    {t('Integration owner')}", dn, de)
             _warn_if_no_email(f"integration owner ({_module_label(m)})", email)
             integration_owners[m] = (name, email)
 
@@ -1300,9 +1302,9 @@ def _prompt_source_system_ownership(
     print()
     data_owners: dict[str, tuple[str, str]] = {}
     shared_data_default = _all_same(ed) if ed else True
-    if prompt_yes_no("Same data owner for all source systems?", default=shared_data_default):
+    if prompt_yes_no(t("Same data owner for all source systems?"), default=shared_data_default):
         first = next(iter(ed.values()), ("", "")) if ed else ("", "")
-        name, email = _prompt_owner("  Data owner", *first)
+        name, email = _prompt_owner(f"  {t('Data owner')}", *first)
         _warn_if_no_email("data owner", email)
         for m in installed_ss:
             data_owners[m] = (name, email)
@@ -1310,7 +1312,7 @@ def _prompt_source_system_ownership(
         for m in installed_ss:
             print(f"\n  {_module_label(m)}")
             dn, de = ed.get(m, ("", ""))
-            name, email = _prompt_owner("    Data owner", dn, de)
+            name, email = _prompt_owner(f"    {t('Data owner')}", dn, de)
             _warn_if_no_email(f"data owner ({_module_label(m)})", email)
             data_owners[m] = (name, email)
 
@@ -1337,18 +1339,18 @@ def _cleanup_file_annotation_module(repo_root: Path | None = None) -> None:
 
 def _run_cicd_wizard(pack_root: Path) -> list[Path]:
     """Run the CI/CD generation step.  Returns the list of files written (empty if skipped)."""
-    _section("CI/CD Pipeline Generation")
-    if not prompt_yes_no("Generate GitHub Actions workflows for this project?", default=False):
+    _section(t("CI/CD Pipeline Generation"))
+    if not prompt_yes_no(t("Generate GitHub Actions workflows for this project?"), default=False):
         return []
 
     generate_script = Path(__file__).parent / "generate_actions.py"
     if not generate_script.exists():
-        _warn(f"Could not find generate_actions.py at {generate_script} — skipping.")
+        _warn(t("Could not find generate_actions.py at {generate_script} — skipping.").format(generate_script=generate_script))
         return []
 
     cmd = [sys.executable, str(generate_script), "--force"]
     from _style import _C
-    print(f"\n  {_C.DIM}Running: {' '.join(cmd)}{_C.RESET}")
+    print(f"\n  {_C.DIM}{t('Running: {cmd}').format(cmd=' '.join(cmd))}{_C.RESET}")
     result = subprocess.run(cmd, cwd=str(REPO_ROOT), capture_output=True, text=True)
     if result.stdout:
         print(result.stdout, end="" if result.stdout.endswith("\n") else "\n")
@@ -1359,9 +1361,9 @@ def _run_cicd_wizard(pack_root: Path) -> list[Path]:
             written.append(Path(line[6:].strip()))
 
     if result.returncode == 0:
-        _ok("CI/CD workflows generated.  See docs/FOUNDATION_CICD.md for next steps.")
+        _ok(t("CI/CD workflows generated.  See docs/FOUNDATION_CICD.md for next steps."))
     else:
-        _warn("CI/CD generation completed with warnings — review the output above.")
+        _warn(t("CI/CD generation completed with warnings — review the output above."))
         for line in result.stderr.splitlines():
             _hint(f"  {line}")
 
@@ -1395,48 +1397,60 @@ def _print_wizard_header(
     installed_ctx: list[str],
     pack_kind: Literal["foundation", "demo"],
 ) -> None:
-    _banner(f"{_PACK_KIND_TITLE[pack_kind]} — Project Setup")
-    _ok(f"Deployment pack    : {pack_kind}")
-    _ok(f"Data model variant : {variant}")
-    _ok(f"Pack root          : {pack_root}")
+    _banner(t("{pack_title} — Project Setup").format(pack_title=_PACK_KIND_TITLE[pack_kind]))
+    _ok(t("Deployment pack    : {pack_kind}").format(pack_kind=pack_kind))
+    _ok(t("Data model variant : {variant}").format(variant=variant))
+    _ok(t("Pack root          : {pack_root}").format(pack_root=pack_root))
     org_dir = get_org_dir_name()
     if org_dir:
-        _ok(f"Organization dir   : {org_dir}  (from cdf.toml)")
+        _ok(t("Organization dir   : {org_dir}  (from cdf.toml)").format(org_dir=org_dir))
     else:
-        _hint("No organization directory set in cdf.toml — config files written to repo root.")
+        _hint(t("No organization directory set in cdf.toml — config files written to repo root."))
     if installed_ctx:
-        _ok(f"Contextualization  : {', '.join(installed_ctx)}")
+        _ok(t("Contextualization  : {list}").format(list=", ".join(installed_ctx)))
     else:
-        _hint("No contextualization modules detected.")
+        _hint(t("No contextualization modules detected."))
+
+
+def _include_prompt(env: str) -> str:
+    text = t("Include '{env}'?").format(env=env)
+    return f"  {text}"
+
+
+def _include_environment_prompt(env: str) -> str:
+    text = t("Include environment '{env}'?").format(env=env)
+    return f"  {text}"
 
 
 def _prompt_environments(pack_root: Path) -> tuple[str, ...]:
-    _section("Environment Selection")
+    _section(t("Environment Selection"))
     installed_envs = _detect_installed_envs(pack_root)
 
     if installed_envs:
         env_list = ", ".join(installed_envs)
-        _hint(f"You selected {env_list} while installing the DP.")
-        _hint("(staging = test; dev/prod/test are the three supported environments.)")
+        _hint(t("You selected {env_list} while installing the DP.").format(env_list=env_list))
+        _hint(t("(staging = test; dev/prod/test are the three supported environments.)"))
         print()
-        if prompt_yes_no(f"  Continue with current selection ({env_list})?", default=True):
+        continue_prompt = f"  {t('Continue with current selection ({env_list})?').format(env_list=env_list)}"
+        if prompt_yes_no(continue_prompt, default=True):
             return installed_envs
-        _hint("Select which environments to set up:")
+        _hint(t("Select which environments to set up:"))
         selected = tuple(
             env for env in ENVIRONMENTS
-            if prompt_yes_no(f"  Include '{env}'?", default=(env in installed_envs))
+            if prompt_yes_no(_include_prompt(env), default=(env in installed_envs))
         )
         if not selected:
             raise SystemExit("No environments selected — nothing to do.")
         return selected
 
-    print("  Which environments would you like to set up?\n")
+    which_envs = t("Which environments would you like to set up?")
+    print(f"  {which_envs}\n")
     choice = prompt_choice(
         [
-            "All three — dev, test, prod  (recommended)",
-            "dev only",
-            "dev + prod  (skip test / staging)",
-            "Custom — choose individually",
+            t("All three — dev, test, prod  (recommended)"),
+            t("dev only"),
+            t("dev + prod  (skip test / staging)"),
+            t("Custom — choose individually"),
         ],
         default=1,
     )
@@ -1448,7 +1462,7 @@ def _prompt_environments(pack_root: Path) -> tuple[str, ...]:
         return ("dev", "prod")
     selected = tuple(
         env for env in ENVIRONMENTS
-        if prompt_yes_no(f"  Include environment '{env}'?", default=True)
+        if prompt_yes_no(_include_environment_prompt(env), default=True)
     )
     if not selected:
         raise SystemExit("No environments selected — nothing to do.")
@@ -1459,71 +1473,71 @@ def _prompt_project_names(
     selected_envs: tuple[str, ...],
     existing_project_names: dict[str, str],
 ) -> dict[str, str]:
-    _section("CDF Project Names")
-    _hint("Format: <enterprise>-<env>  e.g. acme-dev, acme-test, acme-prod")
-    _hint("Only lowercase letters, digits, and hyphens. Cannot be empty.")
+    _section(t("CDF Project Names"))
+    _hint(t("Format: <enterprise>-<env>  e.g. acme-dev, acme-test, acme-prod"))
+    _hint(t("Only lowercase letters, digits, and hyphens. Cannot be empty."))
     project_names: dict[str, str] = {}
     for env in selected_envs:
         while True:
             val = prompt(
-                f"Project name for {env}",
+                t("Project name for {env}").format(env=env),
                 default=existing_project_names.get(env) or None,
             ).strip()
             if not val:
-                _warn("Project name cannot be empty.")
+                _warn(t("Project name cannot be empty."))
                 continue
             if not re.fullmatch(r"[a-z0-9][a-z0-9-]*[a-z0-9]", val):
-                _warn("Use only lowercase letters, digits, and hyphens (e.g. acme-dev).")
+                _warn(t("Use only lowercase letters, digits, and hyphens (e.g. acme-dev)."))
                 continue
             project_names[env] = val
             break
     return project_names
 
 def _prompt_site(existing_site: str) -> str:
-    _section("Site / Location Name")
-    _hint("Required. Used in access-group names (<persona>_<site>_all_<env>),")
-    _hint("location for source system external IDs, and location_name in entity-matching.")
-    _hint("Only lowercase letters, digits, hyphens, and underscores (e.g. oslo).")
+    _section(t("Site / Location Name"))
+    _hint(t("Required. Used in access-group names (<persona>_<site>_all_<env>),"))
+    _hint(t("location for source system external IDs, and location_name in entity-matching."))
+    _hint(t("Only lowercase letters, digits, hyphens, and underscores (e.g. oslo)."))
     while True:
-        site = prompt("Site / location name", default=existing_site or None).strip().lower()
+        site = prompt(t("Site / location name"), default=existing_site or None).strip().lower()
         if not site:
-            _warn("Site / location name is required and cannot be empty.")
+            _warn(t("Site / location name is required and cannot be empty."))
             continue
         if re.fullmatch(r"[a-z0-9_-]+", site):
             return site
-        _warn("Use only lowercase letters, digits, hyphens, and underscores.")
+        _warn(t("Use only lowercase letters, digits, hyphens, and underscores."))
 
 
 def _prompt_cfihos_owners(existing: dict) -> tuple[str, str, str]:
     """Prompt for CFIHOS data-model owner fields. Returns admin user and owner name/email."""
-    _section("CFIHOS Data Model — Data Model Owner Configuration")
-    _hint("Configures admin_user, integrationOwnerName, and integrationOwnerEmail")
-    _hint("in the cfihos_oil_and_gas_extension module. Leave blank to skip.")
+    _section(t("CFIHOS Data Model — Data Model Owner Configuration"))
+    _hint(t("Configures admin_user, integrationOwnerName, and integrationOwnerEmail"))
+    _hint(t("in the cfihos_oil_and_gas_extension module. Leave blank to skip."))
 
     while True:
         cfihos_admin_user = prompt(
-            "Admin user email",
+            t("Admin user email"),
             default=existing.get("cfihos_admin_user") or None,
         ).strip()
         if not cfihos_admin_user or re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", cfihos_admin_user):
             break
-        _warn("Invalid email. Use format: name@domain.com")
+        _warn(t("Invalid email. Use format: name@domain.com"))
 
     cfihos_integration_owner_name = prompt(
-        "Data Model owner name",
+        t("Data Model owner name"),
         default=existing.get("cfihos_integration_owner_name") or None,
     ).strip()
 
     while True:
         cfihos_integration_owner_email = prompt(
-            "Data Model owner email",
+            t("Data Model owner email"),
             default=existing.get("cfihos_integration_owner_email") or None,
         ).strip()
         if not cfihos_integration_owner_email or re.fullmatch(
             r"[^@\s]+@[^@\s]+\.[^@\s]+", cfihos_integration_owner_email
         ):
             break
-        _warn("Invalid email. Use format: name@domain.com")
+        _warn(t("Invalid email. Use format: name@domain.com"))
 
     return cfihos_admin_user, cfihos_integration_owner_name, cfihos_integration_owner_email
 
@@ -1534,25 +1548,25 @@ def _prompt_group_source_ids(
     repo_root: Path | None,
 ) -> tuple[Path, list[str], dict[str, str], dict[str, int], dict[str, str]]:
     """Prompt for persona and extractor group source IDs. Returns .env file state."""
-    _section("Group Source IDs  (Entra ID object IDs)")
-    _hint("The source ID is the group's object ID in your identity provider (e.g. Entra ID).")
-    _hint("See: https://docs.cognite.com/cdf/access/entra/guides/create_groups_oidc")
-    _hint("Values stored in .env — leave blank to fill manually later.")
+    _section(t("Group Source IDs  (Entra ID object IDs)"))
+    _hint(t("The source ID is the group's object ID in your identity provider (e.g. Entra ID)."))
+    _hint(t("See: https://docs.cognite.com/cdf/access/entra/guides/create_groups_oidc"))
+    _hint(t("Values stored in .env — leave blank to fill manually later."))
     env_path = (repo_root or REPO_ROOT) / ".env"
     env_lines, env_vals, env_key_idx = parse_env_file(env_path)
     original_env_vals = dict(env_vals)
 
     for persona in PERSONAS:
         var = f"{persona.upper()}_SOURCE_ID"
-        print(f"\n  {persona.capitalize()} persona group  →  {var}")
-        _hint(f"  Source ID of the '{group_name(persona, site, 'dev')}' group in your IdP.")
+        print(f"\n  {t('{persona} persona group  →  {var}').format(persona=persona.capitalize(), var=var)}")
+        _hint(t("  Source ID of the '{group}' group in your IdP.").format(group=group_name(persona, site, 'dev')))
         prompt_env_var(var, env_vals, env_lines, env_key_idx)
 
     if installed_ss:
-        _section("Extractor Group Source IDs  (per source system)")
-        _hint("One scoped producer group per extractor — write access limited to its")
-        _hint("dataset, instance space, and RAW tables only (SOP Step 3c).")
-        _hint("See: https://docs.cognite.com/cdf/access/entra/guides/create_groups_oidc")
+        _section(t("Extractor Group Source IDs  (per source system)"))
+        _hint(t("One scoped producer group per extractor — write access limited to its"))
+        _hint(t("dataset, instance space, and RAW tables only (SOP Step 3c)."))
+        _hint(t("See: https://docs.cognite.com/cdf/access/entra/guides/create_groups_oidc"))
         for module in installed_ss:
             var = _MODULE_EXTRACTOR_ENV_VAR.get(module, "")
             if not var:
@@ -1566,12 +1580,12 @@ def _prompt_group_source_ids(
 def _prompt_app_owner(installed_ctx: list[str], existing_app_owner: str) -> str:
     if "cdf_file_annotation" not in installed_ctx:
         return ""
-    _section("Streamlit Application Owner  (file annotation)")
-    _hint("Email address(es) of the Streamlit app owner for cdf_file_annotation.")
-    _hint("Separate multiple addresses with a comma.")
+    _section(t("Streamlit Application Owner  (file annotation)"))
+    _hint(t("Email address(es) of the Streamlit app owner for cdf_file_annotation."))
+    _hint(t("Separate multiple addresses with a comma."))
     while True:
         app_owner = prompt(
-            "Application owner email(s)",
+            t("Application owner email(s)"),
             default=existing_app_owner or None,
         ).strip()
         if not app_owner:
@@ -1579,26 +1593,26 @@ def _prompt_app_owner(installed_ctx: list[str], existing_app_owner: str) -> str:
         emails = [e.strip() for e in app_owner.split(",") if e.strip()]
         if all(re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", e) for e in emails):
             return app_owner
-        _warn("One or more addresses look invalid. Use format: name@domain.com")
+        _warn(t("One or more addresses look invalid. Use format: name@domain.com"))
 
 
 def _prompt_synthetic_data() -> bool:
-    _section("Synthetic / Example Data")
-    _hint("Data model modules contain synthetic data, example files, and diagram images")
-    _hint("that are not needed in production deployments.")
-    return prompt_yes_no("Keep synthetic data, example files, and diagram images?", default=False)
+    _section(t("Synthetic / Example Data"))
+    _hint(t("Data model modules contain synthetic data, example files, and diagram images"))
+    _hint(t("that are not needed in production deployments."))
+    return prompt_yes_no(t("Keep synthetic data, example files, and diagram images?"), default=False)
 
 
 def _prompt_pack_kind() -> Literal["foundation", "demo"]:
     """Ask which pack this project is set up for when auto-detection is ambiguous
     (both extractor and data-dump sourcesystem modules installed, or neither)."""
-    _section("Deployment Pack")
-    _hint("Could not determine from the installed sourcesystem modules whether this")
-    _hint("project is set up for the Foundation pack or the Demo pack.")
+    _section(t("Deployment Pack"))
+    _hint(t("Could not determine from the installed sourcesystem modules whether this"))
+    _hint(t("project is set up for the Foundation pack or the Demo pack."))
     choice = prompt_choice(
         [
-            "Foundation project (no synthetic data)",
-            "Demo project with synthetic data (recreated transformations and workflows)",
+            t("Foundation project (no synthetic data)"),
+            t("Demo project with synthetic data (recreated transformations and workflows)"),
         ],
         default=1,
     )
@@ -1628,11 +1642,11 @@ def _exit_if_demo_has_no_source_system_modules(
     if any((sourcesystem_dir / name).is_dir() for name in DEMO_SOURCE_SYSTEM_MODULE_DIRS):
         return
 
-    _section("Demo Pack — Source System Modules Required")
-    _hint("No extractor or data-dump modules are installed yet. The Demo pack needs the")
-    _hint("synthetic data-dump modules and cdf_ingestion to populate the data model.")
+    _section(t("Demo Pack — Source System Modules Required"))
+    _hint(t("No extractor or data-dump modules are installed yet. The Demo pack needs the"))
+    _hint(t("synthetic data-dump modules and cdf_ingestion to populate the data model."))
     print()
-    _hint("Add them using below commands, then re-run the setup_project.py script:")
+    _hint(t("Add them using below commands, then re-run the setup_project.py script:"))
     print()
     for module in _DEMO_SOURCE_SYSTEM_INSTALL_MODULES:
         print(f"  cdf modules add -d {module}")
@@ -1659,18 +1673,26 @@ def _show_wizard_review(
     project_names: dict[str, str],
     env_dirty: bool,
 ) -> None:
-    _section("Review")
+    _section(t("Review"))
     for env, path in targets.items():
         state = "create" if not path.exists() else "update"
-        _ok(f"[{state}] {path.name}  —  project: {project_names[env]}")
+        # str.format()'s "{project_names[env]}" index syntax treats "env" as a literal
+        # key, not the loop variable — use .replace() to substitute it correctly.
+        line = (
+            t("[{state}] {path.name}  —  project: {project_names[env]}")
+            .replace("{state}", state)
+            .replace("{path.name}", path.name)
+            .replace("{project_names[env]}", project_names[env])
+        )
+        _ok(line)
     if env_dirty:
-        _ok(".env  —  group source IDs updated")
+        _ok(t(".env  —  group source IDs updated"))
 
 
 def _confirm_wizard_apply(args_yes: bool) -> None:
     print()
-    if not args_yes and not prompt_yes_no("Apply these changes?", default=True):
-        print("  Aborted — no changes written.")
+    if not args_yes and not prompt_yes_no(t("Apply these changes?"), default=True):
+        print(f"  {t('Aborted — no changes written.')}")
         sys.exit(0)
 
 
@@ -1691,7 +1713,7 @@ def _write_wizard_configs(
     cfihos_integration_owner_email: str,
     repo_root: Path | None,
 ) -> int:
-    _section("Writing Config Files")
+    _section(t("Writing Config Files"))
     changed_count = 0
     for env, path in targets.items():
         overlay = build_overlay(
@@ -1712,7 +1734,7 @@ def _write_wizard_configs(
         if write_config(path, env, project_names[env], overlay):
             changed_count += 1
         else:
-            _hint(f"No change: {path.name}")
+            _hint(t("No change: {path.name}").format(path=path))
     return changed_count
 
 
@@ -1723,14 +1745,14 @@ def _write_env_if_dirty(
 ) -> None:
     if not env_dirty or not env_lines:
         return
-    _section("Writing .env")
+    _section(t("Writing .env"))
     if env_path.exists():
         timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
         backup_env = env_path.with_suffix(f".{timestamp}.bak")
         shutil.copy2(env_path, backup_env)
-        _ok(f"Updated .env  (backup: {backup_env.name})")
+        _ok(t("Updated .env  (backup: {backup_env.name})").format(backup_env=backup_env))
     else:
-        _ok("Created .env")
+        _ok(t("Created .env"))
     env_path.write_text("".join(env_lines))
 
 
@@ -1751,14 +1773,14 @@ def _finalize_wizard(
         staging_path = pack_root / "config.staging.yaml"
         if staging_path.exists():
             staging_path.unlink()
-            _ok("Deleted  config.staging.yaml  (test not in selected environments)")
+            _ok(t("Deleted  config.staging.yaml  (test not in selected environments)"))
 
     for env in ENVIRONMENTS:
         if env not in selected_envs:
             path = pack_root / f"config.{env}.yaml"
             if path.exists():
                 path.unlink()
-                _ok(f"Deleted  {path.name}  (not in selected environments)")
+                _ok(t("Deleted  {path.name}  (not in selected environments)").format(path=path))
 
     removed = remove_redundant_auth_files(repo_root)
     patched = patch_cfihos_auth_for_missing_search(repo_root)
@@ -1770,42 +1792,44 @@ def _finalize_wizard(
     if not keep_synthetic:
         synthetic_removed = remove_synthetic_data(variant, repo_root)
         if synthetic_removed:
-            _ok(f"Removed {synthetic_removed} synthetic data file(s) from upload_data/ directories.")
+            _ok(t("Removed {n} synthetic data file(s) from upload_data/ directories.").format(n=synthetic_removed))
 
     cicd_files = _run_cicd_wizard(pack_root) if pack_kind == "foundation" else []
 
-    _section("Done")
-    _ok(f"{changed_count} config file(s) created/updated.")
+    _section(t("Done"))
+    _ok(t("{n} config file(s) created/updated.").format(n=changed_count))
     if removed:
-        _ok(f"{len(removed)} redundant auth file(s) removed.")
+        _ok(t("{n} redundant auth file(s) removed.").format(n=len(removed)))
     if patched:
-        _ok(f"{len(patched)} cfihos auth file(s) patched (search_space removed).")
+        _ok(t("{n} cfihos auth file(s) patched (search_space removed).").format(n=len(patched)))
     if created_cdm_space:
-        _ok("CDM instance space file created (no data model extension installed).")
+        _ok(t("CDM instance space file created (no data model extension installed)."))
     if env_dirty:
-        _ok(".env updated with group source IDs.")
+        _ok(t(".env updated with group source IDs."))
     if synthetic_removed:
-        _ok(f"{synthetic_removed} synthetic data file(s) removed.")
+        _ok(t("{n} synthetic data file(s) removed.").format(n=synthetic_removed))
     if diagram_annotation_removed:
         _ok(
-            f"{len(diagram_annotation_removed)} redundant diagram-annotation file(s) "
-            "removed (cdf_file_annotation is installed)."
+            t(
+                "{n} redundant diagram-annotation file(s) "
+                "removed (cdf_file_annotation is installed)."
+            ).format(n=len(diagram_annotation_removed))
         )
     if cicd_files:
-        _ok(f"{len(cicd_files)} CI/CD workflow file(s) generated.")
+        _ok(t("{n} CI/CD workflow file(s) generated.").format(n=len(cicd_files)))
     print()
-    _hint("Next steps:")
-    _hint("  1. Verify group source IDs in .env match your Entra ID object IDs.")
-    _hint("  2. Confirm environment.project names in each config.<env>.yaml file.")
+    _hint(t("Next steps:"))
+    _hint(t("  1. Verify group source IDs in .env match your Entra ID object IDs."))
+    _hint(t("  2. Confirm environment.project names in each config.<env>.yaml file."))
     if cicd_files:
-        _hint("  3. Create GitHub Environments: dev-toolkit-credentials,")
-        _hint("     test-toolkit-credentials, prod-toolkit-credentials")
-        _hint("     (see docs/FOUNDATION_CICD.md for variable and secret details).")
-        _hint("  4. Add IDP_CLIENT_SECRET to each GitHub Environment.")
-        _hint("  5. Create and protect branches dev and main;")
-        _hint("     open a PR to dev to validate dry-run.yml.")
+        _hint(t("  3. Create GitHub Environments: dev-toolkit-credentials,"))
+        _hint(t("     test-toolkit-credentials, prod-toolkit-credentials"))
+        _hint(t("     (see docs/FOUNDATION_CICD.md for variable and secret details)."))
+        _hint(t("  4. Add IDP_CLIENT_SECRET to each GitHub Environment."))
+        _hint(t("  5. Create and protect branches dev and main;"))
+        _hint(t("     open a PR to dev to validate dry-run.yml."))
     elif pack_kind == "foundation":
-        _hint("  3. Add CI/CD secrets to GitHub Environments (IDP_CLIENT_SECRET).")
+        _hint(t("  3. Add CI/CD secrets to GitHub Environments (IDP_CLIENT_SECRET)."))
     print()
 
 
@@ -2062,25 +2086,26 @@ def _run_check(
     stale_diagram_annotation = diagram_annotation_stale_paths(repo_root)
 
     if all_errors:
-        print(f"ERROR: Config file(s) out of sync with variant '{variant}':\n")
+        out_of_sync = t("ERROR: Config file(s) out of sync with variant '{variant}':").format(variant=variant)
+        print(f"{out_of_sync}\n")
         for filename, errs in all_errors.items():
             print(f"  {filename}")
             for e in errs:
                 print(e)
-        print("\n  Run: python scripts/setup_project.py -y")
+        print(f"\n  {t('Run: python scripts/setup_project.py -y')}")
         sys.exit(1)
     if stale_auth:
-        print("ERROR: Redundant auth file(s) still present (covered by cdf_project_foundation):")
+        print(t("ERROR: Redundant auth file(s) still present (covered by cdf_project_foundation):"))
         for p in stale_auth:
             print(f"  {p.relative_to(ctx_dir.parent.parent)}")
-        print("\n  Run: python scripts/setup_project.py -y")
+        print(f"\n  {t('Run: python scripts/setup_project.py -y')}")
         sys.exit(1)
     if missing_cdm_space:
         print(
             f"ERROR: CDM instance space file missing for variant '{variant}':\n"
             f"  {_CDM_INSTANCE_SPACE_REL_PATH}"
         )
-        print("\n  Run: python scripts/setup_project.py -y")
+        print(f"\n  {t('Run: python scripts/setup_project.py -y')}")
         sys.exit(1)
     if stale_diagram_annotation:
         print(
@@ -2089,10 +2114,10 @@ def _run_check(
         )
         for p in stale_diagram_annotation:
             print(f"  {p.relative_to(get_pack_root(repo_root))}")
-        print("\n  Run: python scripts/setup_project.py -y")
+        print(f"\n  {t('Run: python scripts/setup_project.py -y')}")
         sys.exit(1)
     _warn_disabled_notifications(repo_root, pack_root)
-    print(f"OK: All config file(s) match variant '{variant}'. No stale auth files.")
+    print(t("OK: All config file(s) match variant '{variant}'. No stale auth files.").format(variant=variant))
 
 
 # ── Entry point ────────────────────────────────────────────────────────────────
@@ -2130,5 +2155,5 @@ if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:
-        print("\n\n  Cancelled by user.")
+        print(f"\n\n  {t('Cancelled by user.')}")
         sys.exit(130)
