@@ -2,13 +2,13 @@
 
 ``t()`` looks up strings by their canonical English source text, so the English
 literal at each call site doubles as the catalogue key — no separate ID scheme to
-maintain. Locale is not wired in yet; ``_LOCALE`` is a fixed default until locale
+maintain. Locale is not wired in yet; ``_locale`` is a fixed default until locale
 detection (``CDF_LOCALE`` / terminal locale) is added on top of this module.
 """
 
 from _messages_ja import messages_ja
 
-_LOCALE = "en"
+_locale = "en"
 
 
 def t(key: str) -> str:
@@ -17,6 +17,6 @@ def t(key: str) -> str:
     Returns *key* unchanged when the active locale is English, or when *key* has
     no entry in the catalogue for the active locale. Never raises on an unknown key.
     """
-    if _LOCALE != "ja":
+    if _locale != "ja":
         return key
     return messages_ja.get(key, key)
