@@ -87,26 +87,34 @@ def main(argv: list[str] | None = None) -> int:
         )
         return 1
 
-    client = resolve_cognite_client(args.config_toml)
-    print(f"Connected to project: {client.config.project}")
-
     with tempfile.TemporaryDirectory(prefix="dq-toolkit-pack-") as tmp:
         pack = resolve_materialized_pack(args, Path(tmp))
         settings = load_settings(pack.settings_path)
         data_product_external_id = args.data_product_external_id
         if not data_product_external_id and settings.external_dataproducts:
             data_product_external_id = settings.external_dataproducts[0].external_id
-        result = deploy_validation_pipeline(
-            client,
-            settings_path=str(pack.settings_path),
-            view_external_id=args.view_external_id,
-            view_space=args.view_space,
-            data_product_external_id=data_product_external_id,
-            data_quality_space=settings.effective_config_space,
-            historic_mode=args.historic_mode,
-            trigger_queue_manager=args.trigger_queue_manager,
-            wait=args.historic_mode == "orchestrator",
-        )
+
+        if args.dry_run:
+            result = {
+                "status": "dry-run",
+                "historic_mode": args.historic_mode,
+                "view_external_id": args.view_external_id,
+                "data_product_external_id": data_product_external_id,
+            }
+        else:
+            client = resolve_cognite_client(args.config_toml)
+            print(f"Connected to project: {client.config.project}")
+            result = deploy_validation_pipeline(
+                client,
+                settings_path=str(pack.settings_path),
+                view_external_id=args.view_external_id,
+                view_space=args.view_space,
+                data_product_external_id=data_product_external_id,
+                data_quality_space=settings.effective_config_space,
+                historic_mode=args.historic_mode,
+                trigger_queue_manager=args.trigger_queue_manager,
+                wait=args.historic_mode == "orchestrator",
+            )
 
     if hasattr(result, "to_dict"):
         payload = result.to_dict()
@@ -116,6 +124,9 @@ def main(argv: list[str] | None = None) -> int:
         payload = {"result": str(result)}
 
     _print_pipeline_summary(payload)
+
+    if args.dry_run:
+        print("\n[DRY RUN] No changes were made")
 
     if args.output:
         with Path(args.output).open("w", encoding="utf-8") as handle:

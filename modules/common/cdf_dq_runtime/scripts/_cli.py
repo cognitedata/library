@@ -6,14 +6,18 @@ import argparse
 import json
 import os
 import re
+import tomllib
 import warnings
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import yaml
 
+if TYPE_CHECKING:
+    from cognite.client import CogniteClient
+
 _PLACEHOLDER = re.compile(r"\{\{\s*([a-zA-Z0-9_]+)\s*\}\}")
-_ENV_LOADED_FROM: Path | None = None
 
 
 def find_toolkit_project_root(start: Path | None = None) -> Path | None:
@@ -69,12 +73,9 @@ def _parse_env_line(line: str) -> tuple[str, str] | None:
 
 def load_project_env(env_file: Path | str | None = None) -> Path | None:
     """Load Toolkit ``.env`` values into ``os.environ`` without overriding existing keys."""
-    global _ENV_LOADED_FROM
     path = resolve_env_file_path(env_file)
     if path is None:
         return None
-    if _ENV_LOADED_FROM == path:
-        return path
 
     for line in path.read_text(encoding="utf-8").splitlines():
         parsed = _parse_env_line(line)
@@ -84,7 +85,6 @@ def load_project_env(env_file: Path | str | None = None) -> Path | None:
         if key not in os.environ:
             os.environ[key] = value
 
-    _ENV_LOADED_FROM = path
     return path
 
 
@@ -226,14 +226,10 @@ def data_quality_space(settings_raw: dict[str, object]) -> str:
 
 def function_secrets_from_toml(toml_path: Path, section: str = "cognite") -> dict[str, str] | None:
     """Build function secret dict from a Toolkit config.toml credentials file."""
-    try:
-        import toml
-    except ImportError:  # pragma: no cover
-        import tomli as toml  # type: ignore[no-redef]
-
     if not toml_path.is_file():
         return None
-    data = toml.load(toml_path)
+    with toml_path.open("rb") as handle:
+        data = tomllib.load(handle)
     cog = data.get(section, data) if section else data
     if not isinstance(cog, dict):
         return None
@@ -256,7 +252,7 @@ def resolve_function_secrets(config_toml: Path) -> dict[str, str] | None:
     return None
 
 
-def create_client_from_env():
+def create_client_from_env() -> CogniteClient:
     """Create a Cognite client from environment variables.
 
     Matches ``data-quality-validation-deploy/scripts/shared.py:create_client`` and
@@ -312,7 +308,7 @@ def create_client_from_env():
     return CogniteClient(config)
 
 
-def resolve_cognite_client(config_toml: Path | str):
+def resolve_cognite_client(config_toml: Path | str) -> CogniteClient:
     """Load client from optional TOML, otherwise from environment (deploy-repo / CI default)."""
     path = Path(config_toml)
     if path.is_file():
@@ -345,6 +341,7 @@ def configure_deploy_cli() -> None:
 
         global_config.disable_pypi_version_check = True
     except ImportError:
+        # cognite-sdk is only required when a deploy script creates a client.
         pass
 
 

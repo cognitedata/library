@@ -3,7 +3,9 @@
 import importlib.util
 import os
 import sys
+import types
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -19,15 +21,27 @@ def _load_cli():
     assert spec.loader is not None
     module = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = module
+    sys.modules["_cli"] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+def _load_pipeline(cli_module):
+    sys.modules["_cli"] = cli_module
+    name = "cdf_dq_runtime_deploy_pipeline"
+    sys.modules.pop(name, None)
+    spec = importlib.util.spec_from_file_location(name, _SCRIPTS / "deploy_pipeline.py")
+    assert spec is not None
+    assert spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[name] = module
     spec.loader.exec_module(module)
     return module
 
 
 @pytest.fixture
 def cli():
-    module = _load_cli()
-    module._ENV_LOADED_FROM = None
-    return module
+    return _load_cli()
 
 
 def test_flatten_keeps_global_and_module_variables(cli) -> None:
@@ -150,3 +164,86 @@ def test_print_infrastructure_summary_formats_external_dataproducts(cli, capsys)
     assert "sync-cursor: dq-shacl-enterprise-process-industry" in output
     assert "dq-data-product-sync (deployed)" in output
     assert "dq-historic-queue-manager (deployed)" in output
+
+
+def test_function_secrets_from_toml(cli, tmp_path: Path) -> None:
+    toml_path = tmp_path / "config.toml"
+    toml_path.write_text(
+        '[cognite]\nclient_id = "abc"\nclient_secret = "s3cret"\n',
+        encoding="utf-8",
+    )
+    assert cli.function_secrets_from_toml(toml_path) == {
+        "client-id": "abc",
+        "client-secret": "s3cret",
+    }
+    assert cli.function_secrets_from_toml(tmp_path / "missing.toml") is None
+
+
+def _install_fake_data_quality(monkeypatch: pytest.MonkeyPatch, *, pipeline_impl, settings) -> None:
+    fake_cdq = types.ModuleType("cognite_data_quality")
+    fake_cdq.deploy_validation_pipeline = pipeline_impl
+    fake_deploy = types.ModuleType("cognite_data_quality.deploy")
+    fake_deploy.load_settings = lambda _path: settings
+    monkeypatch.setitem(sys.modules, "cognite_data_quality", fake_cdq)
+    monkeypatch.setitem(sys.modules, "cognite_data_quality.deploy", fake_deploy)
+
+
+def test_deploy_pipeline_dry_run_does_not_call_pipeline(
+    cli, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys
+) -> None:
+    pipeline = _load_pipeline(cli)
+    settings_path = tmp_path / "settings.yaml"
+    settings_path.write_text("config_space: dataQuality\n", encoding="utf-8")
+
+    def fail_if_called(*_args, **_kwargs):
+        raise AssertionError("deploy_validation_pipeline must not run during --dry-run")
+
+    _install_fake_data_quality(
+        monkeypatch,
+        pipeline_impl=fail_if_called,
+        settings=SimpleNamespace(
+            external_dataproducts=[SimpleNamespace(external_id="dp-1")],
+            effective_config_space="dataQuality",
+        ),
+    )
+    monkeypatch.setattr(
+        pipeline,
+        "resolve_cognite_client",
+        lambda _path: (_ for _ in ()).throw(AssertionError("client must not be created during --dry-run")),
+    )
+
+    assert pipeline.main(["--dry-run", "--settings-path", str(settings_path)]) == 0
+    output = capsys.readouterr().out
+    assert "[DRY RUN] No changes were made" in output
+    assert "historic_mode: enqueue" in output
+    assert "data_product_external_id: dp-1" in output
+
+
+def test_deploy_pipeline_live_calls_package(cli, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    pipeline = _load_pipeline(cli)
+    settings_path = tmp_path / "settings.yaml"
+    settings_path.write_text("config_space: dataQuality\n", encoding="utf-8")
+    captured: dict[str, object] = {}
+
+    def fake_pipeline(*_args, **kwargs):
+        captured.update(kwargs)
+        return {"status": "ok", "total_enqueued": 2}
+
+    _install_fake_data_quality(
+        monkeypatch,
+        pipeline_impl=fake_pipeline,
+        settings=SimpleNamespace(
+            external_dataproducts=[SimpleNamespace(external_id="dp-1")],
+            effective_config_space="dataQuality",
+        ),
+    )
+
+    class _Client:
+        config = SimpleNamespace(project="demo")
+
+    monkeypatch.setattr(pipeline, "resolve_cognite_client", lambda _path: _Client())
+
+    assert pipeline.main(["--settings-path", str(settings_path), "--historic-mode", "enqueue"]) == 0
+    assert captured["historic_mode"] == "enqueue"
+    assert captured["data_product_external_id"] == "dp-1"
+    assert "dry_run" not in captured
