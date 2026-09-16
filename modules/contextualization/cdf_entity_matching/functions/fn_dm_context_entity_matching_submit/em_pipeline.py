@@ -1214,11 +1214,12 @@ def add_to_items(
             )
 
     # Add new targets to the entity
+    existing_target_ids = {target.external_id for target in targets}
     for target_ext_id in target_ext_ids:
         if not target_ext_id:
             logger.warning(f"Asset external ID is empty for entity: {entity_ext_id}, skipping")
             continue
-        if target_ext_id in [target.external_id for target in targets]:
+        if target_ext_id in existing_target_ids:
             logger.debug(f"Asset: {target_ext_id} already exists in entity: {entity_ext_id}, skipping")
             continue
         logger.debug(f"Adding target: {target_ext_id} to entity: {entity_ext_id}")
@@ -1232,6 +1233,7 @@ def add_to_items(
                     f"lives in another space."
                 )
         targets.append(DirectRelationReference(space=target_space, external_id=target_ext_id))
+        existing_target_ids.add(target_ext_id)
 
     if len(targets) > MAX_LINKS_PER_ENTITY:
         logger.warning(

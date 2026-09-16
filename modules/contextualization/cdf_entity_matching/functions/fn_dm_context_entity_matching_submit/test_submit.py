@@ -7,6 +7,7 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).parent))
 
 from cognite.client.data_classes import Row  # isort: skip
+from cognite.client.exceptions import CogniteAPIError  # isort: skip
 
 from em_config import Config, ConfigData, Parameters, ViewPropertyConfig  # isort: skip
 from em_constants import STAT_STORE_MATCH_MODEL_ID, STAT_STORE_VALUE  # isort: skip
@@ -14,7 +15,9 @@ from em_job_state import append_predict_job, job_row_key, list_predict_jobs  # i
 from em_logger import CogniteFunctionLogger  # isort: skip
 from em_staging import (  # isort: skip
     clear_finished_matches,
+    delete_staged_matches,
     read_staged_matches,
+    staging_file_external_id,
     staging_prefix,
     write_staged_matches,
 )
@@ -59,9 +62,27 @@ class FakeRawAPI:
         self.tables = FakeCreateAPI()
 
 
+class FakeFilesAPI:
+    def __init__(self) -> None:
+        self.files: dict[str, bytes] = {}
+
+    def upload_bytes(self, content: bytes, name: str, external_id: str, **kwargs: object) -> None:
+        self.files[external_id] = content
+
+    def download_bytes(self, external_id: str) -> bytes:
+        if external_id not in self.files:
+            raise CogniteAPIError("File not found", code=404)
+        return self.files[external_id]
+
+    def delete(self, id: object = None, external_id: str | None = None) -> None:
+        if external_id:
+            self.files.pop(external_id, None)
+
+
 class FakeClient:
     def __init__(self) -> None:
         self.raw = FakeRawAPI()
+        self.files = FakeFilesAPI()
 
 
 class FakeUploadQueue:
@@ -168,7 +189,6 @@ class TestStaging(unittest.TestCase):
         self.client = FakeClient()
         self.config = build_config()
         self.logger = CogniteFunctionLogger("DEBUG")
-        self.uploader = FakeUploadQueue(self.client)
 
     def test_staged_matches_round_trip(self) -> None:
         matches = [
@@ -177,14 +197,12 @@ class TestStaging(unittest.TestCase):
         ]
 
         write_staged_matches(
-            self.client,
-            self.config,
-            self.uploader,
+            self.client,  # type: ignore[arg-type]
             self.logger,
             "1001",
             matches,  # type: ignore[arg-type]
         )
-        restored = read_staged_matches(self.client, self.config, self.logger, "1001")  # type: ignore[arg-type]
+        restored = read_staged_matches(self.client, self.logger, "1001")  # type: ignore[arg-type]
 
         self.assertEqual(sorted(restored, key=lambda m: m["entity_ext_id"]), matches)
 
@@ -192,33 +210,40 @@ class TestStaging(unittest.TestCase):
         ts1_match = [{"entity_ext_id": "TS-1"}]
         ts2_match = [{"entity_ext_id": "TS-2"}]
         write_staged_matches(
-            self.client,
-            self.config,
-            self.uploader,
+            self.client,  # type: ignore[arg-type]
             self.logger,
             "1001",
             ts1_match,  # type: ignore[arg-type]
         )
         write_staged_matches(
-            self.client,
-            self.config,
-            self.uploader,
+            self.client,  # type: ignore[arg-type]
             self.logger,
             "1002",
             ts2_match,  # type: ignore[arg-type]
         )
 
         self.assertEqual(
-            read_staged_matches(self.client, self.config, self.logger, "1002"),  # type: ignore[arg-type]
+            read_staged_matches(self.client, self.logger, "1002"),  # type: ignore[arg-type]
             ts2_match,
         )
+
+    def test_delete_staged_matches_removes_file(self) -> None:
+        write_staged_matches(
+            self.client,  # type: ignore[arg-type]
+            self.logger,
+            "1001",
+            [{"entity_ext_id": "TS-1"}],  # type: ignore[arg-type]
+        )
+        self.assertIn(staging_file_external_id("1001"), self.client.files.files)
+
+        delete_staged_matches(self.client, self.logger, "1001")  # type: ignore[arg-type]
+        self.assertNotIn(staging_file_external_id("1001"), self.client.files.files)
+        self.assertEqual(read_staged_matches(self.client, self.logger, "1001"), [])
 
     def test_run_all_clears_results_but_keeps_staged_matches(self) -> None:
         self.client.raw.rows.insert("db", "good", Row("TS-9", {"entity_ext_id": "TS-9"}))
         write_staged_matches(
-            self.client,
-            self.config,
-            self.uploader,
+            self.client,  # type: ignore[arg-type]
             self.logger,
             "1001",
             [{"entity_ext_id": "TS-1"}],  # type: ignore[arg-type]
@@ -227,7 +252,11 @@ class TestStaging(unittest.TestCase):
         clear_finished_matches(self.client, self.config, self.logger, "good")  # type: ignore[arg-type]
 
         remaining = list(self.client.raw.rows.tables[("db", "good")])
-        self.assertEqual(remaining, [f"{staging_prefix('1001')}TS-1"])
+        self.assertEqual(remaining, [])
+        self.assertEqual(
+            read_staged_matches(self.client, self.logger, "1001"),  # type: ignore[arg-type]
+            [{"entity_ext_id": "TS-1"}],
+        )
 
 
 if __name__ == "__main__":

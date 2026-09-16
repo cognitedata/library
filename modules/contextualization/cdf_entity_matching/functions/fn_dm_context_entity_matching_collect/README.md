@@ -19,8 +19,8 @@ normal outcome, not a failure.
      same selection step as before. Manual and rule matches are already in the list, so
      an entity they cover is never overwritten by a model match.
    - Writes good and bad matches to RAW, updates the data model when `dmUpdate` is set,
-     then deletes the staging rows and the job's queue row.
-   - On `Failed`: logs the error, clears the job's staging and queue row so it cannot
+     then deletes the temporary staging file and the job's queue row.
+   - On `Failed`: logs the error, clears the job's staging file and queue row so it cannot
      block the queue, and reports the failure on the extraction pipeline run. That
      message does **not** include a traceback — there is no exception, only a job status.
    - On an unexpected exception, the pipeline-run message **does** include the traceback.

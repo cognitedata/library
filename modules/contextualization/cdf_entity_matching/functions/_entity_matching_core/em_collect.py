@@ -156,7 +156,7 @@ def collect_entity_matching(
 
             if status == JOB_API_STATUS_FAILED:
                 logger.error(f"Predict job {job.job_id} failed: {sdk_job.error_message}")
-                delete_staged_matches(client, config, logger, job.job_id)
+                delete_staged_matches(client, logger, job.job_id)
                 delete_predict_job(client, config, logger, job)
                 failed_jobs.append(job.job_id)
                 continue
@@ -170,7 +170,7 @@ def collect_entity_matching(
 
             logger.info(f"Predict job {job.job_id} completed - collecting results")
             match_results = sdk_job.result.get(JOB_RESULT_ITEMS, []) if sdk_job.result else []
-            staged_matches = read_staged_matches(client, config, logger, job.job_id)
+            staged_matches = read_staged_matches(client, logger, job.job_id)
 
             with time_operation("Select and apply matches", logger):
                 good_matches, bad_matches, cnt_entity_matching = select_and_apply_matches(
@@ -180,7 +180,7 @@ def collect_entity_matching(
             with time_operation("Write mapping to RAW", logger):
                 write_mapping_to_raw(client, config, raw_uploader, good_matches, bad_matches, logger)
 
-            delete_staged_matches(client, config, logger, job.job_id)
+            delete_staged_matches(client, logger, job.job_id)
             delete_predict_job(client, config, logger, job)
 
             collected_matches += cnt_entity_matching

@@ -26,7 +26,7 @@ This folder is not a function: it has no `handler.py` and the Toolkit does not d
 | `em_collect.py` | collect | Polling the queue, merging results, writing them |
 | `em_targets.py` | submit | Reading targets: sync cursor in RAW, content cached in a CDF file |
 | `em_job_state.py` | both | The predict job queue in the RAW state store |
-| `em_staging.py` | both | Manual and rule matches parked in RAW while a predict job runs |
+| `em_staging.py` | both | Manual and rule matches parked in temporary CDF files while a predict job runs |
 | `em_pipeline.py` | both | The matching steps both functions use |
 | `em_config.py` | both | Extraction pipeline configuration, and the summary written to the log |
 | `em_constants.py`, `em_logger.py`, `em_pipeline_types.py`, `em_pipeline_optimizations.py` | both | Supporting code |

@@ -17,9 +17,9 @@ It reads the same extraction pipeline configuration as the original
 2. Applies manual mappings, reads the entities that still need a match, applies rule
    based mappings.
 3. Starts the predict job with `model.predict(...)` **without** reading its result.
-4. Stages the manual and rule matches in the good RAW table under `pending:<jobId>:`.
+4. Stages the manual and rule matches in a temporary CDF file `em_staged_matches_<jobId>.json`.
 5. Appends a row `state_predict_job_<jobId>` to the state store table, holding the job
-   id, job token, status, creation time and staging prefix.
+   id, job token, status, creation time and staging file reference.
 6. Reports success on the extraction pipeline run, noting that collect is pending.
 
 The queue row is written **last**: collect only ever sees a job whose matches are already

@@ -99,10 +99,9 @@ JOB_COL_SOURCE_COUNT: Final = "sourceCount"
 JOB_STATUS_SUBMITTED: Final = "submitted"
 JOB_STATUS_RUNNING: Final = "running"
 
-# Matches from manual and rule mappings are staged in the good table under this row key
+# Matches from manual and rule mappings are staged in temporary CDF files under this
 # prefix while the predict job runs, so collect can merge them with the ML matches.
-STAGING_ROW_KEY_PREFIX: Final = "pending"
-STAGING_COL_JOB_ID: Final = "pendingJobId"
+STAGING_FILE_PREFIX: Final = "em_staged_matches"
 
 # Terminal job states reported by the entity matching API.
 JOB_API_STATUS_COMPLETED: Final = "Completed"

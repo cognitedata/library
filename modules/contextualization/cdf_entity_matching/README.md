@@ -122,7 +122,7 @@ single-run timeseries function.
 | RAW / CDF key | Written by | Meaning |
 |---|---|---|
 | `state_predict_job_<jobId>` | submit | A predict job waiting to be collected |
-| `pending:<jobId>:<row key>` | submit | Manual and rule matches staged for that job |
+| CDF file `em_staged_matches_<jobId>.json` | submit | Manual and rule matches staged for that job |
 | `state_target_sync_<key>` | submit | Sync cursor, cache file id, page size and target count |
 | CDF file `em_target_cache_<key>.json` | submit | Cached targets; **overwritten** on change, never deleted |
 

@@ -153,7 +153,7 @@ def submit_entity_matching(
         # already staged, so a failure in between leaves an ignored job rather than a
         # job whose manual and rule matches it cannot find.
         with time_operation("Stage manual and rule matches", logger):
-            write_staged_matches(client, config, raw_uploader, logger, job_id, good_matches)
+            write_staged_matches(client, logger, job_id, good_matches)
 
         append_predict_job(
             client,
