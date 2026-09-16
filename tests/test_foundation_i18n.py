@@ -49,9 +49,9 @@ class TestT:
         assert _i18n.t("") == ""
 
     def test_returns_translation_when_locale_is_japanese(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setattr(_i18n, "_LOCALE", "ja")
+        monkeypatch.setattr(_i18n, "_locale", "ja")
         assert _i18n.t("Review") == "確認"
 
     def test_unknown_key_falls_back_to_english_in_japanese_locale(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setattr(_i18n, "_LOCALE", "ja")
+        monkeypatch.setattr(_i18n, "_locale", "ja")
         assert _i18n.t("Some string not in any catalogue") == "Some string not in any catalogue"
