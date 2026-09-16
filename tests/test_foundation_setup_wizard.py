@@ -2041,6 +2041,24 @@ class TestGetOrgDirName:
         (tmp_path / "cdf.toml").write_text('default_organization_dir = "wrong"\n')
         assert get_org_dir_name(tmp_path) is None
 
+    def test_malformed_toml_warns_and_returns_none(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        from _pack_config import get_org_dir_name
+        (tmp_path / "cdf.toml").write_text("[cdf\nbroken =\n")
+        assert get_org_dir_name(tmp_path) is None
+        assert "WARNING: Failed to parse TOML file" in capsys.readouterr().out
+
+    def test_malformed_toml_warning_in_japanese_locale(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        import _i18n
+        from _pack_config import get_org_dir_name
+        monkeypatch.setattr(_i18n, "_LOCALE", "ja")
+        (tmp_path / "cdf.toml").write_text("[cdf\nbroken =\n")
+        get_org_dir_name(tmp_path)
+        assert "警告: TOML ファイル" in capsys.readouterr().out
+
 
 class TestDetectDataModelVariant:
     def test_missing_directory_falls_back_to_cdm(self, tmp_path: Path) -> None:
