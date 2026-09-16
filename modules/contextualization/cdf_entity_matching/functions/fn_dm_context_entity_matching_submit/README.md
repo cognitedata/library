@@ -31,6 +31,23 @@ Each submit run appends a row of its own. A run never rewrites, and never delete
 row of a job that is still running, so repeated runs simply lengthen the queue and
 collect works through it oldest first.
 
+### Reading the entities
+
+Entities are read from the configured view and spaces with a `hasData` filter only.
+Whether an entity is already linked is decided **after** the read, from the value of its
+link property, and an entity is skipped when that list is non-empty and `runAll` is off.
+
+The filter deliberately does not carry a `NOT exists(<link property>)` clause. On the
+query endpoint that `instances.list` uses, [`exists` counts an empty array as a
+value](https://docs.cognite.com/cdf/dm/dm_concepts/dm_search#exists-filter-with-empty-array),
+so such a clause silently drops every entity whose links were written as `[]` rather than
+left unset — which is how an upstream transformation that always writes the property
+leaves an unlinked instance. The run then finds nothing to match at all.
+
+The cost is that the read returns already-linked entities too. They are dropped before
+the duplicate-space warning and the `Number of entities to process` line, which also
+reports how many were skipped.
+
 ### Reading the targets
 
 Paging every target instance out of the data model is the slowest part of step 1, and on

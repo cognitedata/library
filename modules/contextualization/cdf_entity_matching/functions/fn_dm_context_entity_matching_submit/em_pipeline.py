@@ -644,18 +644,33 @@ def get_new_entities(
     entity_view_id = entity_view_config.as_view_id()
 
     logger.debug(f"Get new entities from view: {entity_view_id}, based on config: {entity_view_config}")
-    is_selected = get_query_filter(QUERY_FILTER_TYPE_ENTITIES, entity_view_config, config.parameters.run_all, logger)
+    is_selected = get_query_filter(entity_view_config, logger)
 
-    new_entities = client.data_modeling.instances.list(
+    listed_entities: Sequence[Node] = client.data_modeling.instances.list(
         space=entity_view_config.instance_spaces, sources=[entity_view_id], filter=is_selected, limit=-1
     )
+
+    # Drop already-linked entities before the duplicate warning and the count log.
+    # A link list of None or `[]` still counts as unmatched; `runAll` keeps every entity.
+    already_linked = 0
+    new_entities: Sequence[Node] = listed_entities
+    if not config.parameters.run_all:
+        unmatched: list[Node] = []
+        for entity in listed_entities:
+            properties = entity.properties.get(entity_view_id) if entity.properties else None
+            if properties and properties.get(PROP_COL_LINK_NAME):
+                already_linked += 1
+                continue
+            unmatched.append(entity)
+        new_entities = unmatched
 
     warn_on_cross_space_duplicates(new_entities, QUERY_FILTER_TYPE_ENTITIES, entity_view_config, logger)
 
     item_update = []
 
+    skipped = f" (skipped {already_linked} already linked)" if already_linked else ""
     logger.info(
-        f"Number of new entities to process: {len(new_entities)} "
+        f"Number of entities to process: {len(new_entities)}{skipped} "
         f"NOTE: Rule based regular expressions are applied to the '{PROP_COL_NAME}' property"
     )
     matched_entities = set(list_good_entities or ())
@@ -670,6 +685,7 @@ def get_new_entities(
         if not properties or PROP_COL_NAME not in properties:
             logger.warning(f"Entity: {entity.external_id} is missing properties or name, skipping")
             continue
+
         # Rule based matching uses the name property to match entities to targets
         org_name = str(properties[PROP_COL_NAME])
 
@@ -747,27 +763,24 @@ def clean_links(config: Config, entity_space: str, entity_ext_id: str, item_upda
 
 
 def get_query_filter(
-    type: str,
     view_config: ViewPropertyConfig,
-    run_all: bool,
     logger: CogniteFunctionLogger,
     include_has_data: bool = True,
 ) -> dm.filters.Filter | None:
+    """Build the DMS filter that scopes a read to the configured view.
+
+    Whether an entity is already matched is decided in `get_new_entities` rather than
+    here: `exists` counts an empty array as a value on the query endpoint, so
+    `NOT exists(links)` would drop every entity whose link list was written as `[]`.
+    """
     filters: list[dm.filters.Filter] = []
-    dbg_msg = f"For view: {view_config.as_view_id()}"
+    dbg_msg = f"For view: {view_config.as_view_id()}, instance spaces: {view_config.instance_spaces}"
 
     if include_has_data:
         filters.append(dm.filters.HasData(views=[view_config.as_view_id()]))
         dbg_msg = f"{dbg_msg} - Entity filter: HasData = True"
     else:
         dbg_msg = f"{dbg_msg} - Entity filter: HasData skipped (sources already scope instances)"
-
-    # Check if the view entity already is matched or not
-    if type == QUERY_FILTER_TYPE_ENTITIES and not run_all:
-        is_matched = dm.filters.Exists(view_config.as_property_ref(PROP_COL_LINK_NAME))
-        not_matched = dm.filters.Not(is_matched)
-        filters.append(not_matched)
-        dbg_msg = f"{dbg_msg} Entity filtering on: '{PROP_COL_LINK_NAME}' - NOT EXISTS"
 
     if view_config.filter_property and view_config.filter_values:
         is_filter_param = dm.filters.In(

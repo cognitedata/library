@@ -33,6 +33,19 @@ This folder is not a function: it has no `handler.py` and the Toolkit does not d
 
 Submit does not ship `em_collect.py`. Collect does not ship `em_submit.py` or `em_targets.py`.
 
+## Selecting unmatched entities (`em_pipeline.py`)
+
+`get_query_filter` scopes a read to the view, spaces and configured `filterProperty`. It
+does **not** filter on the link property. Already-linked entities are dropped in
+`get_new_entities` immediately after the read, before the duplicate-space warning and the
+entity count, by reading the link value off each instance.
+
+The reason is that [`exists` counts an empty array as a value on the query
+endpoint](https://docs.cognite.com/cdf/dm/dm_concepts/dm_search#exists-filter-with-empty-array)
+that `instances.list` uses. `NOT exists(assets)` therefore matches nothing for entities
+whose links were written as `[]` instead of being left unset, and the run reads zero
+entities while plenty are unlinked.
+
 ## Target cache (`em_targets.py`)
 
 The cursor lives in RAW (`state_target_sync_<key>`). The instance content lives in a CDF

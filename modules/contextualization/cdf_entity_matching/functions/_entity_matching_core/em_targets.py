@@ -354,13 +354,7 @@ def sync_target_changes(
     # properties come back, not which instances do. Without HasData the read returns
     # every node in the configured spaces - state nodes, annotation nodes and all.
     filters: list[dm.filters.Filter] = [dm.filters.In(["node", "space"], view.instance_spaces)]
-    is_selected = get_query_filter(
-        QUERY_FILTER_TYPE_TARGETS,
-        view,
-        config.parameters.run_all,
-        logger,
-        include_has_data=True,
-    )
+    is_selected = get_query_filter(view, logger, include_has_data=True)
     if is_selected is not None:
         filters.append(is_selected)
 
