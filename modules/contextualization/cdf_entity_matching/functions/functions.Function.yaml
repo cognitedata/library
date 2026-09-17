@@ -14,6 +14,34 @@
   # Number of cores, not available in Azure
   runtime: 'py313'
   functionPath: 'handler.py'
+- name: 'dm:context:entity_matching:submit'
+  externalId: 'fn_dm_context_entity_matching_submit'
+  owner: 'Anonymous'
+  description: 'Apply manual and rule based matching, then start the CDF entity matching predict job'
+  space: {{ functionSpace }}
+  metadata:
+    version: '{{function_version}}'
+  envVars:
+    # The below two environment variables are set by the Toolkit
+    ENV_TYPE: '${CDF_BUILD_TYPE}'
+    CDF_ENV: '${CDF_ENVIRON}'
+  # Number of cores, not available in Azure
+  runtime: 'py313'
+  functionPath: 'handler.py'
+- name: 'dm:context:entity_matching:collect'
+  externalId: 'fn_dm_context_entity_matching_collect'
+  owner: 'Anonymous'
+  description: 'Collect finished entity matching predict jobs and write the matches to RAW and the data model'
+  space: {{ functionSpace }}
+  metadata:
+    version: '{{function_version}}'
+  envVars:
+    # The below two environment variables are set by the Toolkit
+    ENV_TYPE: '${CDF_BUILD_TYPE}'
+    CDF_ENV: '${CDF_ENVIRON}'
+  # Number of cores, not available in Azure
+  runtime: 'py313'
+  functionPath: 'handler.py'
 - name: 'dm:context:aliases_update'
   externalId: 'fn_dm_context_aliases_update'
   owner: 'Anonymous'

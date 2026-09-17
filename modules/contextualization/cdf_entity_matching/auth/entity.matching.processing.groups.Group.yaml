@@ -41,6 +41,14 @@ capabilities:
         - WRITE
       scope:
         all: {}
+  # The target content read from the data model is cached as a JSON file, so an
+  # unchanged target set is not read again on the next run.
+  - filesAcl:
+      actions:
+        - READ
+        - WRITE
+      scope:
+        all: {}
   # - annotationsAcl:
   #     actions:
   #       - READ
