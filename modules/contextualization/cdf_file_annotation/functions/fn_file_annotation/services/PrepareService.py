@@ -192,7 +192,7 @@ class GeneralPrepareService(AbstractPrepareService):
                 message=f"Added 'AnnotationInProcess' to the tag property for {len(update_results)} files",
                 section="END",
             )
-        except Exception as e:
+        except CogniteAPIError as e:
             self.logger.error(message="Ran into the following error", error=e, section="END")
             raise
 

@@ -160,3 +160,76 @@ def test_local_rate_limit_policy_waits_and_continues(monkeypatch: pytest.MonkeyP
 
     assert launch_service.LocalRateLimitPolicy().handle(MagicMock()) is None
     sleep.assert_called_once_with(900)
+
+
+def test_logger_skips_blank_lines(capsys: pytest.CaptureFixture[str]) -> None:
+    from services.LoggerService import CogniteFunctionLogger
+
+    logger = CogniteFunctionLogger("INFO")
+
+    logger.info("first\n\nsecond")
+    logger.info("")
+
+    lines = capsys.readouterr().out.splitlines()
+    assert len(lines) == 2
+    assert lines[0].endswith("first")
+    assert lines[1].endswith("second")
+
+
+def test_logger_prefixes_lines_with_run_number(capsys: pytest.CaptureFixture[str]) -> None:
+    from services.LoggerService import CogniteFunctionLogger
+
+    logger = CogniteFunctionLogger("INFO")
+
+    logger.info("config")
+    logger.start_run()
+    logger.info("files launched")
+    logger.start_run()
+    logger.info("No files found to launch")
+
+    lines = capsys.readouterr().out.splitlines()
+    assert "[run" not in lines[0]
+    assert "[run 1]" in lines[1]
+    assert "[run 2]" in lines[2]
+
+
+def test_config_log_names_extraction_pipeline_source() -> None:
+    from services.ConfigService import (
+        Config,
+        format_finalize_config,
+        format_launch_config,
+        format_prepare_config,
+        format_promote_config,
+    )
+
+    config = Config.model_validate(
+        {
+            "parameters": {"rawDb": "db_file_annotation"},
+            "data": {
+                "fileView": {
+                    "schemaSpace": "cdf_cdm",
+                    "instanceSpace": "files",
+                    "externalId": "CogniteFile",
+                    "version": "v1",
+                },
+                "targetEntitiesView": {
+                    "schemaSpace": "cdf_cdm",
+                    "instanceSpace": "assets",
+                    "externalId": "CogniteAsset",
+                    "version": "v1",
+                },
+                "annotationStateView": {
+                    "schemaSpace": "sp_hdm",
+                    "instanceSpace": "files",
+                    "externalId": "FileAnnotationState",
+                    "version": "v1",
+                },
+                "sinkNode": {"space": "patterns", "externalId": "pattern_sink"},
+            },
+        }
+    )
+
+    for formatter in (format_prepare_config, format_launch_config, format_finalize_config, format_promote_config):
+        report = formatter(config, "ep_file_annotation")
+        assert "CONFIG SOURCE: extraction pipeline 'ep_file_annotation'" in report
+        assert "" not in report.split("\n")

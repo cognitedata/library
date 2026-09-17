@@ -10,7 +10,7 @@ from cognite.client.data_classes import Row, RowWrite
 from cognite.client.data_classes.data_modeling import (
     NodeList,
 )
-from cognite.client.exceptions import CogniteNotFoundError
+from cognite.client.exceptions import CogniteAPIError, CogniteNotFoundError
 from services.ConfigService import Config, ViewPropertyConfig
 from services.DataModelService import IDataModelService
 from services.LoggerService import CogniteFunctionLogger
@@ -94,7 +94,7 @@ class GeneralCacheService(ICacheService):
 
         try:
             row: Row | None = self.client.raw.rows.retrieve(db_name=self.db_name, table_name=self.tbl_name, key=key)
-        except Exception:
+        except (CogniteAPIError, CogniteNotFoundError):
             row = None
 
         # Attempt to retrieve from the cache
@@ -449,7 +449,7 @@ class GeneralCacheService(ICacheService):
                     all_manual_patterns.extend(patterns)
             except CogniteNotFoundError:
                 self.logger.info(f"No manual patterns found for key: {key}. This may be expected.")
-            except Exception as e:
+            except CogniteAPIError as e:
                 self.logger.error(f"Failed to retrieve manual patterns for key {key}: {e}")
 
         return all_manual_patterns

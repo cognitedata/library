@@ -6,6 +6,7 @@ from datetime import UTC, datetime
 from cognite.client import CogniteClient
 from cognite.client.data_classes.data_modeling import Node, NodeList
 from cognite.client.data_classes.raw import Row
+from cognite.client.exceptions import CogniteAPIError
 from services.ConfigService import Config, ViewPropertyConfig
 from services.LoggerService import CogniteFunctionLogger
 from utils.DataStructures import CacheMarker
@@ -341,7 +342,7 @@ class CacheService(ICacheService):
                 resource_type=cached_resource_type,
             )
 
-        except Exception as e:
+        except CogniteAPIError as e:
             # Cache miss or error - just continue without cache
             self.logger.debug(f"[CACHE] Cache check failed for '{text}': {e}")
             return None
@@ -386,7 +387,7 @@ class CacheService(ICacheService):
                 ensure_parent=True,
             )
 
-        except Exception as e:
+        except CogniteAPIError as e:
             # Don't fail the run if cache update fails
             self.logger.warning(f"Failed to update cache for '{text}': {e}")
 

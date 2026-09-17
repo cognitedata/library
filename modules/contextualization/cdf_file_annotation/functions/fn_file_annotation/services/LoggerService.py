@@ -15,6 +15,7 @@ class CogniteFunctionLogger:
         self.write = write
         self.filepath = filepath
         self.file_handler = None
+        self.run_number = 0
 
         if self.filepath and self.write:
             try:
@@ -22,16 +23,29 @@ class CogniteFunctionLogger:
                 if dir_name:
                     os.makedirs(dir_name, exist_ok=True)
                 self.file_handler = open(self.filepath, "a", encoding="utf-8")
-            except Exception as e:
+            except OSError as e:
                 print(f"[LOGGER_SETUP_ERROR] Could not open log file {self.filepath}: {e}")
                 self.write = False
 
     def _get_timestamp(self) -> str:
         return datetime.utcnow().isoformat(sep=" ", timespec="milliseconds")
 
+    def start_run(self) -> int:
+        """
+        Starts a new run so that following log lines are tagged with its number.
+
+        Returns:
+            The number of the run that was just started.
+        """
+        self.run_number += 1
+        return self.run_number
+
     def _format_message_lines(self, prefix: str, message: str) -> list[str]:
         """
         Formats multi-line messages with consistent indentation.
+
+        Blank lines are dropped since the CDF log viewer renders them as "undefined".
+
         Args:
             prefix: The log level prefix (e.g., "[INFO]", "[ERROR]").
             message: The message to format.
@@ -40,17 +54,16 @@ class CogniteFunctionLogger:
             List of formatted message lines with proper indentation.
         """
         timestamp = self._get_timestamp()
-        formatted_prefix = f"[{timestamp}] {prefix}"
+        run_tag = f" [run {self.run_number}]" if self.run_number else ""
+        formatted_prefix = f"[{timestamp}] {prefix}{run_tag}"
+        padding = " " * len(formatted_prefix)
 
-        formatted_lines = []
-        if "\n" not in message:
-            formatted_lines.append(f"{formatted_prefix} {message}")
-        else:
-            lines = message.split("\n")
-            formatted_lines.append(f"{formatted_prefix} {lines[0]}")
-            padding = " " * len(formatted_prefix)
-            for line_content in lines[1:]:
-                formatted_lines.append(f"{padding} {line_content}")
+        formatted_lines: list[str] = []
+        for line_content in message.split("\n"):
+            if not line_content.strip():
+                continue
+            lead = padding if formatted_lines else formatted_prefix
+            formatted_lines.append(f"{lead} {line_content}")
         return formatted_lines
 
     def _print(self, prefix: str, message: str) -> None:
@@ -71,7 +84,7 @@ class CogniteFunctionLogger:
                     print(line)
                     self.file_handler.write(line + "\n")
                 self.file_handler.flush()
-            except Exception as e:
+            except OSError as e:
                 print(f"[LOGGER_SETUP_ERROR] Could not write to {self.filepath}: {e}")
         elif not self.write:
             for line in lines_to_log:
@@ -192,6 +205,6 @@ class CogniteFunctionLogger:
         if self.file_handler:
             try:
                 self.file_handler.close()
-            except Exception as e:
+            except OSError as e:
                 print(f"[LOGGER_CLEANUP_ERROR] Error closing log file: {e}")
             self.file_handler = None

@@ -64,8 +64,8 @@ class ViewPropertyConfig(BaseModel, alias_generator=to_camel):
     def as_view_id(self) -> dm.ViewId:
         return dm.ViewId(space=self.schema_space, external_id=self.external_id, version=self.version)
 
-    def as_property_ref(self, property) -> list[str]:
-        return [self.schema_space, f"{self.external_id}/{self.version}", property]
+    def as_property_ref(self, property_name: str) -> list[str]:
+        return [self.schema_space, f"{self.external_id}/{self.version}", property_name]
 
 
 class FilterConfig(BaseModel, alias_generator=to_camel):
@@ -577,6 +577,17 @@ def build_filter_from_query(query: QueryConfig | list[QueryConfig]) -> Filter:
 
 
 # Helper functions for config logging
+def _format_config_header(function_name: str, pipeline_ext_id: str) -> list[str]:
+    """Build the header lines naming the stage and the pipeline the config was read from."""
+    separator = "=" * 80
+    return [
+        separator,
+        f"FUNCTION: {function_name}",
+        f"CONFIG SOURCE: extraction pipeline '{pipeline_ext_id}'",
+        separator,
+    ]
+
+
 def _format_query_summary(query: QueryConfig | list[QueryConfig], query_name: str) -> str:
     """Format a query configuration into a readable summary string."""
     lines = [f"  {query_name}:"]
@@ -680,21 +691,20 @@ def format_prepare_config(config: Config, pipeline_ext_id: str) -> str:
     Returns:
         Formatted configuration string ready for logging
     """
-    lines = ["=" * 80, f"FUNCTION: Prepare ({pipeline_ext_id})", "=" * 80, "", "PREPARE SERVICE CONFIG"]
+    lines = [*_format_config_header("Prepare", pipeline_ext_id), "PREPARE SERVICE CONFIG"]
 
     # Files to Annotate Query
     lines.append(_format_query_summary(config.prepare_function.get_files_to_annotate_query, "Files to Annotate Query"))
 
     # Files for Annotation Reset Query (if configured)
     if config.prepare_function.get_files_for_annotation_reset_query is not None:
-        lines.append("")
         lines.append(
             _format_query_summary(
                 config.prepare_function.get_files_for_annotation_reset_query, "Files for Annotation Reset Query"
             )
         )
 
-    lines.extend(["", "=" * 80])
+    lines.append("=" * 80)
     return "\n".join(lines)
 
 
@@ -712,10 +722,7 @@ def format_launch_config(config: Config, pipeline_ext_id: str) -> str:
     launch = config.launch_function
 
     lines = [
-        "=" * 80,
-        f"FUNCTION: Launch ({pipeline_ext_id})",
-        "=" * 80,
-        "",
+        *_format_config_header("Launch", pipeline_ext_id),
         "LAUNCH SERVICE CONFIG",
         f"  • Batch size: {launch.batch_size}",
         f"  • Pattern mode: {launch.pattern_mode}",
@@ -723,15 +730,12 @@ def format_launch_config(config: Config, pipeline_ext_id: str) -> str:
         f"  • Secondary scope property: {launch.secondary_scope_property}",
         f"  • File search property: {launch.file_search_property}",
         f"  • Target entities search property: {launch.target_entities_search_property}",
-        "",
         "DATA MODEL SERVICE",
     ]
 
     # Add queries
     lines.append(_format_query_summary(launch.data_model_service.get_files_to_process_query, "Files to Process Query"))
-    lines.append("")
     lines.append(_format_query_summary(launch.data_model_service.get_target_entities_query, "Target Entities Query"))
-    lines.append("")
     lines.append(_format_query_summary(launch.data_model_service.get_file_entities_query, "File Entities Query"))
 
     # Cache service
@@ -739,7 +743,6 @@ def format_launch_config(config: Config, pipeline_ext_id: str) -> str:
     raw = config.raw_tables
     lines.extend(
         [
-            "",
             "CACHE SERVICE",
             f"  • Cache time limit: {cache.cache_time_limit} hours",
             f"  • RAW DB: {raw.raw_db}",
@@ -752,7 +755,6 @@ def format_launch_config(config: Config, pipeline_ext_id: str) -> str:
     annot = launch.annotation_service
     lines.extend(
         [
-            "",
             "ANNOTATION SERVICE",
             f"  • Page range: {annot.page_range} pages",
             f"  • Partial match: {annot.partial_match}",
@@ -762,7 +764,7 @@ def format_launch_config(config: Config, pipeline_ext_id: str) -> str:
 
     lines.append(_format_diagram_detect_config(annot.diagram_detect_config))
 
-    lines.extend(["", "=" * 80])
+    lines.append("=" * 80)
     return "\n".join(lines)
 
 
@@ -780,14 +782,10 @@ def format_finalize_config(config: Config, pipeline_ext_id: str) -> str:
     finalize = config.finalize_function
 
     lines = [
-        "=" * 80,
-        f"FUNCTION: Finalize ({pipeline_ext_id})",
-        "=" * 80,
-        "",
+        *_format_config_header("Finalize", pipeline_ext_id),
         "FINALIZE SERVICE CONFIG",
         f"  • Clean old annotations: {finalize.clean_old_annotations}",
         f"  • Max retry attempts: {finalize.max_retry_attempts}",
-        "",
         "RETRIEVE SERVICE",
     ]
 
@@ -798,7 +796,6 @@ def format_finalize_config(config: Config, pipeline_ext_id: str) -> str:
     raw = config.raw_tables
     lines.extend(
         [
-            "",
             "APPLY SERVICE",
             f"  • Auto approval threshold: {apply.auto_approval_threshold}",
             f"  • Auto suggest threshold: {apply.auto_suggest_threshold}",
@@ -810,7 +807,7 @@ def format_finalize_config(config: Config, pipeline_ext_id: str) -> str:
         ]
     )
 
-    lines.extend(["", "=" * 80])
+    lines.append("=" * 80)
     return "\n".join(lines)
 
 
@@ -828,10 +825,7 @@ def format_promote_config(config: Config, pipeline_ext_id: str) -> str:
     promote = config.promote_function
     raw = config.raw_tables
     lines = [
-        "=" * 80,
-        f"FUNCTION: Promote ({pipeline_ext_id})",
-        "=" * 80,
-        "",
+        *_format_config_header("Promote", pipeline_ext_id),
         "PROMOTE SERVICE CONFIG",
         f"  • Delete rejected edges: {promote.delete_rejected_edges}",
         f"  • Delete suggested edges: {promote.delete_suggested_edges}",
@@ -842,7 +836,6 @@ def format_promote_config(config: Config, pipeline_ext_id: str) -> str:
         f"  • Doc-Doc table: {raw.raw_table_doc_doc}",
         f"  • Doc-Pattern table: {raw.raw_table_doc_pattern}",
         f"  • Promote cache table: {raw.raw_table_promote_cache}",
-        "",
     ]
 
     lines.append(_format_query_summary(promote.get_candidates_query, "Candidates Query"))
@@ -852,7 +845,6 @@ def format_promote_config(config: Config, pipeline_ext_id: str) -> str:
     text_norm = entity_search.text_normalization
     lines.extend(
         [
-            "",
             "ENTITY SEARCH SERVICE",
             f"  • Max entity search limit: {entity_search.max_entity_search_limit}",
             "  • Text normalization:",
@@ -862,7 +854,7 @@ def format_promote_config(config: Config, pipeline_ext_id: str) -> str:
         ]
     )
 
-    lines.extend(["", "=" * 80])
+    lines.append("=" * 80)
     return "\n".join(lines)
 
 

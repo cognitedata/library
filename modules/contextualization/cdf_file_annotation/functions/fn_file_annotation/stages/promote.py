@@ -15,6 +15,8 @@ from services.PromoteCacheService import CacheService
 from services.PromoteService import GeneralPromoteService
 from utils.DataStructures import PromoteTracker
 
+from stages.stage_runtime import STAGE_REPORTABLE_ERRORS, failure_response
+
 
 def handle(data: dict, function_call_info: dict, client: CogniteClient) -> dict[str, str]:
     """
@@ -44,7 +46,7 @@ def handle(data: dict, function_call_info: dict, client: CogniteClient) -> dict[
         - {"status": "failure", "message": "..."} on error
 
     Raises:
-        Exception: Any unexpected errors are caught, logged, and returned in status dict
+        STAGE_REPORTABLE_ERRORS: Re-raised from ``run_locally`` after logging.
     """
     start_time: datetime = datetime.now(UTC)
 
@@ -71,6 +73,7 @@ def handle(data: dict, function_call_info: dict, client: CogniteClient) -> dict[
     try:
         # Run in a loop for a maximum of 7 minutes b/c serverless functions can run for max 10 minutes before hardware dies
         while datetime.now(UTC) - start_time < timedelta(minutes=FUNCTION_TIME_BUDGET_MINUTES):
+            logger_instance.start_run()
             result: str | None = promote_service.run()
             if result == "Done":
                 logger_instance.info("No more candidates to process. Exiting.", section="END")
@@ -78,10 +81,9 @@ def handle(data: dict, function_call_info: dict, client: CogniteClient) -> dict[
             # Log batch report and pause between batches
             logger_instance.info(tracker_instance.generate_local_report(), section="START")
         return {"status": run_status, "data": data}
-    except Exception as e:
-        msg = str(e)
-        logger_instance.error(f"An unexpected error occurred: {msg}", section="BOTH")
-        return {"status": "failure", "message": msg}
+    except STAGE_REPORTABLE_ERRORS as e:
+        logger_instance.error(message="Promote stage failed", error=e, section="BOTH")
+        return failure_response(e)
     finally:
         # Generate overall summary report
         logger_instance.info(tracker_instance.generate_overall_report(), section="BOTH")
@@ -141,15 +143,16 @@ def run_locally(config_file: dict) -> None:
     try:
         # Run in a loop for a maximum of 7 minutes b/c serverless functions can run for max 10 minutes before hardware dies
         while True:
+            logger_instance.start_run()
             result: str | None = promote_service.run()
             if result == "Done":
                 logger_instance.info("No more candidates to process. Exiting.", section="END")
                 break
             # Log batch report and pause between batches
             logger_instance.info(tracker_instance.generate_local_report(), section="START")
-    except Exception as e:
-        msg = str(e)
-        logger_instance.error(f"An unexpected error occurred: {msg}", section="BOTH")
+    except STAGE_REPORTABLE_ERRORS as e:
+        logger_instance.error(message="Promote stage failed", error=e, section="BOTH")
+        raise
     finally:
         # Generate overall summary report
         logger_instance.info(tracker_instance.generate_overall_report(), section="BOTH")

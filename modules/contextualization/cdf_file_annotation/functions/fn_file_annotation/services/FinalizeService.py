@@ -137,7 +137,7 @@ class GeneralFinalizeService(AbstractFinalizeService):
             if pattern_mode_job is not None:
                 self.logger.info("(Pattern) Retrieving diagram detect job results")
                 pattern_mode_job_results = self.retrieve_service.get_diagram_detect_job_result(*pattern_mode_job)
-        except Exception as e:
+        except CogniteAPIError as e:
             self.logger.error(
                 message=f"Unfinalizing {len(file_to_state_map.keys())} files. Encountered an error.",
                 error=e,
@@ -260,7 +260,7 @@ class GeneralFinalizeService(AbstractFinalizeService):
                     )
                     count_success += 1  # Still a success for this batch
 
-            except Exception as e:
+            except (CogniteAPIError, ValueError, RuntimeError) as e:
                 self.logger.error(f"Failed to process annotations for file {file_id}", error=e)
                 if next_attempt >= self.max_retries:
                     file_node_apply: NodeApply = remove_protected_properties(file_node.as_apply())
@@ -305,12 +305,13 @@ class GeneralFinalizeService(AbstractFinalizeService):
                 self.logger.info(
                     f"\t- {count_success} set to Annotated/New\n\t- {count_retry} set to Retry\n\t- {count_failed} set to Failed"
                 )
-            except Exception as e:
+            except CogniteAPIError as e:
                 self.logger.error(
                     "Error during batch update of annotation states",
                     error=e,
                     section="END",
                 )
+                raise
 
         self.tracker.add_files(success=count_success, failed=(count_failed + count_retry))
         return None
@@ -482,7 +483,7 @@ class GeneralFinalizeService(AbstractFinalizeService):
         try:
             self.apply_service.update_instances(list_node_apply=batch.apply)
             self.logger.info(f"- set annotation status to {status}")
-        except Exception as e:
+        except CogniteAPIError as e:
             self.logger.error(
                 "Ran into the following error. Trying again in 30 seconds",
                 error=e,

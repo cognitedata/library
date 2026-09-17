@@ -25,6 +25,8 @@ from services.LaunchService import (
 from services.PipelineService import IPipelineService
 from utils.DataStructures import PerformanceTracker
 
+from stages.stage_runtime import STAGE_REPORTABLE_ERRORS, failure_response
+
 
 def handle(data: dict, function_call_info: dict, client: CogniteClient) -> dict:
     """
@@ -61,15 +63,15 @@ def handle(data: dict, function_call_info: dict, client: CogniteClient) -> dict:
     run_status: str = "success"
     try:
         while datetime.now(UTC) - start_time < timedelta(minutes=FUNCTION_TIME_BUDGET_MINUTES):
+            logger_instance.start_run()
             if launch_instance.run() == "Done":
                 return {"status": run_status, "data": data}
             logger_instance.info(tracker_instance.generate_local_report())
         return {"status": run_status, "data": data}
-    except Exception as e:
+    except STAGE_REPORTABLE_ERRORS as e:
         run_status = "failure"
-        msg = f"{e!s}"
-        logger_instance.error(message=msg, section="BOTH")
-        return {"status": run_status, "message": msg}
+        logger_instance.error(message="Launch stage failed", error=e, section="BOTH")
+        return failure_response(e)
     finally:
         logger_instance.info(tracker_instance.generate_overall_report(), "BOTH")
         function_id = function_call_info.get("function_id")
@@ -108,14 +110,13 @@ def run_locally(config_file: dict[str, str], log_path: str | None = None):
     logger_instance.info(format_launch_config(config_instance, config_file["ExtractionPipelineExtId"]), section="START")
     try:
         while True:
+            logger_instance.start_run()
             if launch_instance.run() == "Done":
                 break
             logger_instance.info(tracker_instance.generate_local_report())
-    except Exception as e:
-        logger_instance.error(
-            message=f"Ran into the following error: \n{e}",
-            section="END",
-        )
+    except STAGE_REPORTABLE_ERRORS as e:
+        logger_instance.error(message="Launch stage failed", error=e, section="END")
+        raise
     finally:
         logger_instance.info(tracker_instance.generate_overall_report(), "BOTH")
         logger_instance.close()

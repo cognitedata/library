@@ -31,9 +31,9 @@ def report_usage(client: CogniteClient) -> None:
                         "cdf_project": client.config.project,
                     },
                 )
-            except Exception:
+            except OSError:
                 pass
 
         threading.Thread(target=send, daemon=False).start()
-    except Exception:
+    except OSError:
         pass

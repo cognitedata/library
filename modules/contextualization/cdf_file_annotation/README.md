@@ -833,6 +833,18 @@ data:
   }
 ```
 
+Each function call starts by logging the stage and the extraction pipeline the
+configuration was read from, then tags every line of a processing loop with its run
+number so repeated passes stay distinguishable:
+
+```text
+[2026-09-17 11:36:12.004] [INFO] ================================================
+[2026-09-17 11:36:12.004] [INFO] FUNCTION: Launch
+[2026-09-17 11:36:12.004] [INFO] CONFIG SOURCE: extraction pipeline 'ep_file_annotation'
+[2026-09-17 11:36:20.412] [INFO] [run 1] Launched 12 files
+[2026-09-17 11:36:30.031] [INFO] [run 2] No files found to launch
+```
+
 ## 🏛️ Architecture & Design Philosophy
 
 ### Stateful Processing with Data Models

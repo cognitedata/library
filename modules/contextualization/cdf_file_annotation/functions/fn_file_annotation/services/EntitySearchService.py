@@ -3,6 +3,7 @@ import abc
 from cognite.client import CogniteClient
 from cognite.client.data_classes.data_modeling import EdgeList, Node, NodeList, ViewId
 from cognite.client.data_classes.filters import Filter, In
+from cognite.client.exceptions import CogniteAPIError
 from fa_constants import MAX_ENTITY_SEARCH_LIMIT
 from normalization import normalize_text, text_variations
 from services.ConfigService import Config
@@ -242,7 +243,7 @@ class EntitySearchService(IEntitySearchService):
 
             return matched_nodes
 
-        except Exception as e:
+        except CogniteAPIError as e:
             self.logger.error(f"Error searching existing annotations for '{original_text}': {e}")
             return []
 
@@ -296,7 +297,7 @@ class EntitySearchService(IEntitySearchService):
 
             return matched_entities
 
-        except Exception as e:
+        except CogniteAPIError as e:
             self.logger.error(f"Error searching for entity '{original_text}' in space '{entity_space}': {e}")
             return []
 

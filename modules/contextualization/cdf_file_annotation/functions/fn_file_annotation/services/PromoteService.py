@@ -15,6 +15,7 @@ from cognite.client.data_classes.data_modeling import (
     NodeOrEdgeData,
     ViewId,
 )
+from cognite.client.exceptions import CogniteAPIError
 from services.ConfigService import Config, build_filter_from_query, get_limit_from_query
 from services.EntitySearchService import EntitySearchService
 from services.LoggerService import CogniteFunctionLogger
@@ -170,7 +171,7 @@ class GeneralPromoteService(IPromoteService):
             if not candidates:
                 self.logger.info("No Promote candidates found.", section="END")
                 return "Done"
-        except Exception as e:
+        except CogniteAPIError as e:
             self.logger.error("Ran into the following error", error=e)
             self.logger.info("Retrying in 15 seconds")
             time.sleep(15)
@@ -296,8 +297,9 @@ class GeneralPromoteService(IPromoteService):
                         f"  └─ Ambiguous: {batch_ambiguous}",
                         section="BOTH",
                     )
-            except Exception as e:
+            except CogniteAPIError as e:
                 self.logger.error("Error updating edges", error=e, section="BOTH")
+                raise
 
             try:
                 if edges_to_delete:
@@ -305,8 +307,9 @@ class GeneralPromoteService(IPromoteService):
                     self.logger.info(
                         f"Successfully deleted {len(edges_to_delete)} edges from data model.", section="END"
                     )
-            except Exception as e:
+            except CogniteAPIError as e:
                 self.logger.error("Error deleting edges", error=e, section="BOTH")
+                raise
 
             try:
                 if raw_rows_to_update:
@@ -319,8 +322,9 @@ class GeneralPromoteService(IPromoteService):
                     self.logger.info(
                         f"Successfully updated {len(raw_rows_to_update)} rows in RAW table.", section="END"
                     )
-            except Exception as e:
+            except CogniteAPIError as e:
                 self.logger.error("Error updating RAW table", error=e, section="BOTH")
+                raise
 
             if not edges_to_update and not edges_to_delete and not raw_rows_to_update:
                 self.logger.info("No edges were updated in this run.", section="END")
@@ -415,8 +419,8 @@ class GeneralPromoteService(IPromoteService):
             try:
                 self.cache_service.set_ambiguous(text, annotation_type)
                 self.logger.debug(f"✓ [CACHE] Marked '{text}' as ambiguous in memory")
-            except Exception:
-                self.logger.debug(f"[CACHE] Failed to set ambiguous marker for '{text}' (continuing)")
+            except (CogniteAPIError, ValueError, TypeError) as e:
+                self.logger.debug(f"[CACHE] Failed to set ambiguous marker for '{text}' (continuing): {e}")
 
             return [MatchedEntity.from_node(node, target_view_id) for node in found_nodes]
 
@@ -466,7 +470,7 @@ class GeneralPromoteService(IPromoteService):
             )
             if existing_row and existing_row.columns:
                 raw_data = dict(existing_row.columns.items())
-        except Exception as e:
+        except CogniteAPIError as e:
             self.logger.warning(f"Could not retrieve RAW row for edge {edge.external_id}: {e}")
 
         # Prepare update properties for the edge

@@ -19,6 +19,8 @@ from services.PipelineService import IPipelineService
 from services.RetrieveService import IRetrieveService
 from utils.DataStructures import PerformanceTracker
 
+from stages.stage_runtime import STAGE_REPORTABLE_ERRORS, failure_response
+
 
 def handle(data: dict, function_call_info: dict, client: CogniteClient) -> dict:
     """
@@ -54,15 +56,15 @@ def handle(data: dict, function_call_info: dict, client: CogniteClient) -> dict:
     time.sleep(delay)
     try:
         while datetime.now(UTC) - start_time < timedelta(minutes=FUNCTION_TIME_BUDGET_MINUTES):
+            logger_instance.start_run()
             if finalize_instance.run() == "Done":
                 return {"status": run_status, "data": data}
             logger_instance.info(tracker_instance.generate_local_report(), "START")
         return {"status": run_status, "data": data}
-    except Exception as e:
+    except STAGE_REPORTABLE_ERRORS as e:
         run_status = "failure"
-        msg = f"{e!s}"
-        logger_instance.error(message=msg, section="BOTH")
-        return {"status": run_status, "message": msg}
+        logger_instance.error(message="Finalize stage failed", error=e, section="BOTH")
+        return failure_response(e)
     finally:
         logger_instance.info(tracker_instance.generate_overall_report(), "BOTH")
         function_id = function_call_info.get("function_id")
@@ -105,14 +107,13 @@ def run_locally(config_file: dict[str, str], log_path: str | None = None):
     )
     try:
         while True:
+            logger_instance.start_run()
             if finalize_instance.run():
                 break
             logger_instance.info(tracker_instance.generate_local_report(), "START")
-    except Exception as e:
-        logger_instance.error(
-            message=f"Ran into the following error: \n{e}",
-            section="BOTH",
-        )
+    except STAGE_REPORTABLE_ERRORS as e:
+        logger_instance.error(message="Finalize stage failed", error=e, section="BOTH")
+        raise
     finally:
         logger_instance.info(tracker_instance.generate_overall_report(), "BOTH")
         logger_instance.close()
