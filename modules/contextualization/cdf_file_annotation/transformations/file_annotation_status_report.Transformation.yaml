@@ -3,8 +3,8 @@ dataSetExternalId: {{ annotationDatasetExternalId }}
 name: File Annotation Status Report
 destination:
   type: raw
-  rawDatabase: {{ rawDb }}
-  rawTable: {{ rawTableAnnotationStatusReport }}
+  database: {{ rawDb }}
+  table: {{ rawTableAnnotationStatusReport }}
 ignoreNullFields: true
 isPublic: true
 conflictMode: upsert
