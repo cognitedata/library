@@ -52,7 +52,7 @@ class FakeRowsAPI:
 
 
 class FakeCreateAPI:
-    def create(self, *args, **kwargs) -> None:
+    def create(self, *args: object, **kwargs: object) -> None:
         return None
 
 
