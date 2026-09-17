@@ -434,6 +434,8 @@ fileSchemaSpace: <insert>
 fileInstanceSpace: <insert>
 fileExternalId: <insert>
 fileVersion: <insert>
+fileSearchProperty: aliases
+fileResourceProperty: ""
 
 # RAW Tables
 rawDb: db_file_annotation
@@ -447,12 +449,22 @@ rawTableAnnotationStatusReport: annotation_file_status_report
 
 # Extraction Pipeline
 extractionPipelineExternalId: ep_file_annotation
+patternMode: true
+cleanOldAnnotations: true
+autoApprovalThreshold: 1.0
+autoSuggestThreshold: 1.0
+primaryScopeProperty: ""
+secondaryScopeProperty: ""
+convertToLowercase: false
+textNormalizationSubstitutions: []
 
 # Target Entity View Configuration (UPDATE REQUIRED)
 targetEntitySchemaSpace: <insert>
 targetEntityInstanceSpace: <insert>
 targetEntityExternalId: <insert>
 targetEntityVersion: <insert>
+targetEntitySearchProperty: aliases
+targetEntityResourceProperty: ""
 
 # Transformations
 fileToAssetTransformationExternalId: tr_file_to_asset_from_annotations
@@ -481,8 +493,9 @@ groupSourceId: ${GROUP_SOURCE_ID}
 ### Pipeline Configuration (`ep_file_annotation.config.yaml`)
 
 The extraction pipeline follows the same concise `parameters` / `data` structure as the
-entity-matching module. Fixed limits, queries, tags, table names, and cleanup behavior
-live in `functions/fn_file_annotation/fa_constants.py`.
+entity-matching module. Operator knobs, view property names, and RAW table names are
+Toolkit variables in `default.config.yaml`. Fixed limits, queries, tags, and cleanup
+behavior live in `functions/fn_file_annotation/fa_constants.py`.
 
 ```yaml
 parameters:
@@ -493,6 +506,12 @@ parameters:
   primaryScopeProperty:
   secondaryScopeProperty:
   rawDb: db_file_annotation
+  rawTableDocTag: annotation_documents_tags
+  rawTableDocDoc: annotation_documents_docs
+  rawTableDocPattern: annotation_documents_patterns
+  rawTableCache: annotation_entities_cache
+  rawManualPatternsCatalog: manual_patterns_catalog
+  rawTablePromoteCache: annotation_tags_cache
   patternPromote:
     textNormalization:
       convertToLowercase: false
@@ -570,11 +589,21 @@ variables:
       fileInstanceSpace: your_instances         # UPDATE REQUIRED
       fileExternalId: YourFile                  # UPDATE REQUIRED
       fileVersion: v1.0                         # UPDATE REQUIRED
+      fileSearchProperty: aliases
       rawDb: db_file_annotation
+      patternMode: true
+      cleanOldAnnotations: true
+      autoApprovalThreshold: 1.0
+      autoSuggestThreshold: 1.0
+      primaryScopeProperty: ""
+      secondaryScopeProperty: ""
+      convertToLowercase: false
+      textNormalizationSubstitutions: []
       targetEntitySchemaSpace: your_schema_space
       targetEntityInstanceSpace: your_instances
       targetEntityExternalId: YourAsset
       targetEntityVersion: v1.0
+      targetEntitySearchProperty: aliases
       functionClientId: ${IDP_CLIENT_ID}
       functionClientSecret: ${IDP_CLIENT_SECRET}
       functionSpace: your_functions_space       # UPDATE REQUIRED

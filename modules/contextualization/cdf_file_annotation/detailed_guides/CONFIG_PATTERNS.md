@@ -4,7 +4,7 @@ The public extraction-pipeline configuration is intentionally small. Fixed state
 
 ## Group entity caches by location
 
-Set view properties once and use scope properties only for grouping:
+Set view properties once in `default.config.yaml` (`fileSearchProperty`, `fileResourceProperty`, and the matching `targetEntity*` keys) and use scope properties only for grouping:
 
 ```yaml
 parameters:
@@ -32,7 +32,7 @@ data:
 
 ## Normalize site-specific tag formats
 
-Project replacements run in list order before the built-in removal of non-alphanumeric characters and leading zeros:
+Set `convertToLowercase` and `textNormalizationSubstitutions` in `default.config.yaml`. Project replacements run in list order before the built-in removal of non-alphanumeric characters and leading zeros:
 
 ```yaml
 parameters:

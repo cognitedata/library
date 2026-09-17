@@ -4,17 +4,19 @@ dataSetExternalId: {{ annotationDatasetExternalId }}
 description: "Pipeline holding configuration and run history for file annotation."
 rawTables:
   - dbName: {{ rawDb }}
-    tableName: annotation_documents_tags
+    tableName: {{ rawTableDocTag }}
   - dbName: {{ rawDb }}
-    tableName: annotation_documents_docs
+    tableName: {{ rawTableDocDoc }}
   - dbName: {{ rawDb }}
-    tableName: annotation_documents_patterns
+    tableName: {{ rawTableDocPattern }}
   - dbName: {{ rawDb }}
-    tableName: annotation_entities_cache
+    tableName: {{ rawTableCache }}
   - dbName: {{ rawDb }}
-    tableName: manual_patterns_catalog
+    tableName: {{ rawManualPatternsCatalog }}
   - dbName: {{ rawDb }}
-    tableName: annotation_tags_cache
+    tableName: {{ rawTablePromoteCache }}
+  - dbName: {{ rawDb }}
+    tableName: {{ rawTableAnnotationStatusReport }}
 source: "Files"
 documentation: >
   ## File annotation
@@ -23,8 +25,8 @@ documentation: >
   prepare, launch, finalize, and promote. One workflow runs those stages in order and
   then runs the file-to-asset transformation.
 
-  The extraction-pipeline config uses `parameters` for operator choices and `data` for
-  view identities and matching properties. Fixed limits, tags, state filters, table
-  names, and promote cleanup behavior are constants in the function code.
+  The extraction-pipeline config uses `parameters` for operator choices, RAW table
+  names, and `data` for view identities and matching properties. Fixed limits, tags,
+  state filters, and promote cleanup behavior are constants in the function code.
 
   See `detailed_guides/CONFIG.md` in the deployment pack for the complete contract.

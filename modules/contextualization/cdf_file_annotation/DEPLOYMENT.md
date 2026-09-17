@@ -149,6 +149,8 @@ variables:
         fileSchemaSpace: sp_enterprise_process_industry
         fileExternalId: txFile
         fileVersion: v1
+        fileSearchProperty: aliases
+        fileResourceProperty: ""
 
         # used in /raw and /extraction_pipelines
         rawDb: db_file_annotation
@@ -158,9 +160,19 @@ variables:
 
         # used in /extraction_pipelines
         extractionPipelineExternalId: ep_file_annotation
+        patternMode: true
+        cleanOldAnnotations: true
+        autoApprovalThreshold: 1.0
+        autoSuggestThreshold: 1.0
+        primaryScopeProperty: ""
+        secondaryScopeProperty: ""
+        convertToLowercase: false
+        textNormalizationSubstitutions: []
         targetEntitySchemaSpace: sp_enterprise_process_industry
         targetEntityExternalId: txEquipment
         targetEntityVersion: v1
+        targetEntitySearchProperty: aliases
+        targetEntityResourceProperty: ""
 
         # used in /functions and /workflows
         functionExternalId: fn_file_annotation

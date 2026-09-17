@@ -11,6 +11,14 @@ fileSchemaSpace: cdf_cdm
 fileInstanceSpace: sp_cdm_instances
 fileExternalId: CogniteFile
 fileVersion: v1
+fileSearchProperty: aliases
+fileResourceProperty: ""
+targetEntitySchemaSpace: cdf_cdm
+targetEntityInstanceSpace: sp_cdm_instances
+targetEntityExternalId: CogniteAsset
+targetEntityVersion: v1
+targetEntitySearchProperty: aliases
+targetEntityResourceProperty: ""
 
 # used in /raw and /extraction_pipelines
 rawDb: db_file_annotation
@@ -24,17 +32,30 @@ rawTableAnnotationStatusReport: annotation_file_status_report
 
 # used in /extraction_pipelines
 extractionPipelineExternalId: ep_file_annotation
-targetEntitySchemaSpace: cdf_cdm
-targetEntityInstanceSpace: sp_cdm_instances
-targetEntityExternalId: CogniteAsset
-targetEntityVersion: v1
+patternMode: true
+cleanOldAnnotations: true
+autoApprovalThreshold: 1.0
+autoSuggestThreshold: 1.0
+# Scope properties must exist on data.fileView when set. Empty disables that grouping level.
+primaryScopeProperty: ""
+secondaryScopeProperty: ""
+convertToLowercase: false
+# Project-specific replacements run in order before built-in hygiene rules.
+# Toolkit substitutes variables as a regex replacement, so prefer character classes
+# over backslash escapes ([0-9] rather than \d). Capture groups such as \1 are fine
+# inside a quoted replacement string.
+# Example:
+#   textNormalizationSubstitutions:
+#     - pattern: '^[A-Z]{2}-'
+#       replacement: ''
+#     - pattern: '[/_.]'
+#       replacement: '-'
+textNormalizationSubstitutions: []
 
 # used in /functions
 functionClientId: ${IDP_CLIENT_ID}
 functionClientSecret: ${IDP_CLIENT_SECRET}
 functionSpace: sp_file_annotation_fn # space where function code nodes are stored — created by this module
-
-# used in /functions
 functionExternalId: fn_file_annotation
 functionVersion: v1.0.0
 

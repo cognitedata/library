@@ -1,37 +1,38 @@
 externalId: {{ extractionPipelineExternalId }}
 config:
   parameters:
-    patternMode: true
-    cleanOldAnnotations: true
-    autoApprovalThreshold: 1.0
-    autoSuggestThreshold: 1.0
-    primaryScopeProperty:
-    secondaryScopeProperty:
+    patternMode: {{ patternMode }}
+    cleanOldAnnotations: {{ cleanOldAnnotations }}
+    autoApprovalThreshold: {{ autoApprovalThreshold }}
+    autoSuggestThreshold: {{ autoSuggestThreshold }}
+    primaryScopeProperty: {{ primaryScopeProperty }}
+    secondaryScopeProperty: {{ secondaryScopeProperty }}
     rawDb: {{ rawDb }}
+    rawTableDocTag: {{ rawTableDocTag }}
+    rawTableDocDoc: {{ rawTableDocDoc }}
+    rawTableDocPattern: {{ rawTableDocPattern }}
+    rawTableCache: {{ rawTableCache }}
+    rawManualPatternsCatalog: {{ rawManualPatternsCatalog }}
+    rawTablePromoteCache: {{ rawTablePromoteCache }}
     patternPromote:
       textNormalization:
-        convertToLowercase: false
-        substitutions: []
-        # Project-specific replacements run in order before built-in hygiene rules.
-        # - pattern: '^[A-Z]{2}-'
-        #   replacement: ''
-        # - pattern: '[/_.]'
-        #   replacement: '-'
+        convertToLowercase: {{ convertToLowercase }}
+        substitutions: {{ textNormalizationSubstitutions }}
   data:
     fileView:
       schemaSpace: {{ fileSchemaSpace }}
       instanceSpace: {{ fileInstanceSpace }}
       externalId: {{ fileExternalId }}
       version: {{ fileVersion }}
-      searchProperty: aliases
-      resourceProperty:
+      searchProperty: {{ fileSearchProperty }}
+      resourceProperty: {{ fileResourceProperty }}
     targetEntitiesView:
       schemaSpace: {{ targetEntitySchemaSpace }}
       instanceSpace: {{ targetEntityInstanceSpace }}
       externalId: {{ targetEntityExternalId }}
       version: {{ targetEntityVersion }}
-      searchProperty: aliases
-      resourceProperty:
+      searchProperty: {{ targetEntitySearchProperty }}
+      resourceProperty: {{ targetEntityResourceProperty }}
     annotationStateView:
       schemaSpace: {{ annotationStateSchemaSpace }}
       instanceSpace: {{ fileInstanceSpace }}

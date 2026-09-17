@@ -1,6 +1,6 @@
 # File annotation configuration
 
-The extraction pipeline uses the same shape as the entity-matching module: operator choices are under `parameters`, while data-model identities and property mappings are under `data`. Fixed pipeline behavior is defined in `functions/fn_file_annotation/fa_constants.py`.
+The extraction pipeline uses the same shape as the entity-matching module: operator choices are under `parameters`, while data-model identities and property mappings are under `data`. Deployment defaults for those fields live in `default.config.yaml` and are substituted into `ep_file_annotation.config.yaml`. Fixed pipeline behavior is defined in `functions/fn_file_annotation/fa_constants.py`.
 
 ## Runtime input
 
@@ -16,17 +16,23 @@ Valid stages are `prepare`, `launch`, `finalize`, and `promote`.
 
 ```yaml
 parameters:
-  patternMode: true
-  cleanOldAnnotations: true
-  autoApprovalThreshold: 1.0
-  autoSuggestThreshold: 1.0
-  primaryScopeProperty:
-  secondaryScopeProperty:
+  patternMode: {{ patternMode }}
+  cleanOldAnnotations: {{ cleanOldAnnotations }}
+  autoApprovalThreshold: {{ autoApprovalThreshold }}
+  autoSuggestThreshold: {{ autoSuggestThreshold }}
+  primaryScopeProperty: {{ primaryScopeProperty }}
+  secondaryScopeProperty: {{ secondaryScopeProperty }}
   rawDb: {{ rawDb }}
+  rawTableDocTag: {{ rawTableDocTag }}
+  rawTableDocDoc: {{ rawTableDocDoc }}
+  rawTableDocPattern: {{ rawTableDocPattern }}
+  rawTableCache: {{ rawTableCache }}
+  rawManualPatternsCatalog: {{ rawManualPatternsCatalog }}
+  rawTablePromoteCache: {{ rawTablePromoteCache }}
   patternPromote:
     textNormalization:
-      convertToLowercase: false
-      substitutions: []
+      convertToLowercase: {{ convertToLowercase }}
+      substitutions: {{ textNormalizationSubstitutions }}
 ```
 
 - `patternMode` enables pattern-mode Diagram Detect alongside regular entity matching.
@@ -34,6 +40,7 @@ parameters:
 - `autoApprovalThreshold` and `autoSuggestThreshold` control regular annotation status.
 - `primaryScopeProperty` and `secondaryScopeProperty` group files so launch can reuse a scoped entity cache.
 - `rawDb` is the shared database for result and cache tables.
+- The `rawTable*` keys name the function's result, cache, and catalog tables. They must match the Toolkit RAW resources and the extraction pipeline's `rawTables` list.
 - `patternPromote.textNormalization.substitutions` is an ordered list of Python regular-expression replacements. Each item has `pattern` and `replacement`; capture-group replacements such as `\\1` are supported.
 - `convertToLowercase` runs after project substitutions. Built-in rules then remove non-alphanumeric characters and strip leading zeros.
 
@@ -60,15 +67,15 @@ data:
     instanceSpace: {{ fileInstanceSpace }}
     externalId: {{ fileExternalId }}
     version: {{ fileVersion }}
-    searchProperty: aliases
-    resourceProperty:
+    searchProperty: {{ fileSearchProperty }}
+    resourceProperty: {{ fileResourceProperty }}
   targetEntitiesView:
     schemaSpace: {{ targetEntitySchemaSpace }}
     instanceSpace: {{ targetEntityInstanceSpace }}
     externalId: {{ targetEntityExternalId }}
     version: {{ targetEntityVersion }}
-    searchProperty: aliases
-    resourceProperty:
+    searchProperty: {{ targetEntitySearchProperty }}
+    resourceProperty: {{ targetEntityResourceProperty }}
   annotationStateView:
     schemaSpace: {{ annotationStateSchemaSpace }}
     instanceSpace: {{ fileInstanceSpace }}
@@ -95,11 +102,11 @@ These values are intentionally constants, not deployment configuration:
 - Promote searches file and target entities
 - Rejected pattern edges are deleted from DMS after their RAW audit row is updated
 - Ambiguous Suggested edges remain in DMS for review
-- RAW table names, annotation types, state/status filters, and standard tags
+- Annotation types, state/status filters, and standard tags
 
 ## Migration from the four-function config
 
-Remove `dataModelViews`, `rawTables`, `prepareFunction`, `launchFunction`, `finalizeFunction`, and `promoteFunction`. Replace them with the `parameters` and `data` blocks above. Query target views, fixed tags/statuses, limits, table names, and promote cleanup flags are no longer configurable.
+Remove `dataModelViews`, `rawTables`, `prepareFunction`, `launchFunction`, `finalizeFunction`, and `promoteFunction`. Replace them with the `parameters` and `data` blocks above, and add the matching keys to `default.config.yaml` (or your `config.<env>.yaml` module variables). Query target views, fixed tags/statuses, limits, and promote cleanup flags are no longer configurable. RAW table names stay in `parameters` and `default.config.yaml`.
 
 Function calls must use `fn_file_annotation` and include `stage`. The supplied workflow
 invokes all four stages in order and finishes with the file-to-asset transformation.

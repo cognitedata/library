@@ -77,6 +77,54 @@ def test_config_uses_parameters_and_data_shape() -> None:
 
     assert config.parameters.raw_db == "db_file_annotation"
     assert config.data.file_view.search_property == "aliases"
+    assert config.raw_tables.raw_table_doc_tag == "annotation_documents_tags"
+
+
+def test_config_uses_raw_table_names_from_parameters() -> None:
+    from services.ConfigService import Config
+
+    config = Config.model_validate(
+        {
+            "parameters": {
+                "rawDb": "db_custom",
+                "rawTableCache": "custom_cache",
+                "rawTableDocTag": "custom_tags",
+                "rawTableDocDoc": "custom_docs",
+                "rawTableDocPattern": "custom_patterns",
+                "rawTablePromoteCache": "custom_promote",
+                "rawManualPatternsCatalog": "custom_manual",
+            },
+            "data": {
+                "fileView": {
+                    "schemaSpace": "cdf_cdm",
+                    "instanceSpace": "files",
+                    "externalId": "CogniteFile",
+                    "version": "v1",
+                },
+                "targetEntitiesView": {
+                    "schemaSpace": "cdf_cdm",
+                    "instanceSpace": "assets",
+                    "externalId": "CogniteAsset",
+                    "version": "v1",
+                },
+                "annotationStateView": {
+                    "schemaSpace": "sp_hdm",
+                    "instanceSpace": "files",
+                    "externalId": "FileAnnotationState",
+                    "version": "v1",
+                },
+                "sinkNode": {"space": "patterns", "externalId": "pattern_sink"},
+            },
+        }
+    )
+
+    assert config.raw_tables.raw_db == "db_custom"
+    assert config.raw_tables.raw_table_cache == "custom_cache"
+    assert config.raw_tables.raw_table_doc_tag == "custom_tags"
+    assert config.raw_tables.raw_table_doc_doc == "custom_docs"
+    assert config.raw_tables.raw_table_doc_pattern == "custom_patterns"
+    assert config.raw_tables.raw_table_promote_cache == "custom_promote"
+    assert config.raw_tables.raw_manual_patterns_catalog == "custom_manual"
 
 
 def test_normalization_applies_customer_then_builtin_substitutions() -> None:

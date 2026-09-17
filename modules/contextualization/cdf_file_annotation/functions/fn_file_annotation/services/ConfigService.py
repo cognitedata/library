@@ -351,6 +351,12 @@ class Parameters(BaseModel, alias_generator=to_camel):
     primary_scope_property: str | None = None
     secondary_scope_property: str | None = None
     raw_db: str
+    raw_table_cache: str = RAW_TABLE_CACHE
+    raw_table_doc_tag: str = RAW_TABLE_DOC_TAG
+    raw_table_doc_doc: str = RAW_TABLE_DOC_DOC
+    raw_table_doc_pattern: str = RAW_TABLE_DOC_PATTERN
+    raw_table_promote_cache: str = RAW_TABLE_PROMOTE_CACHE
+    raw_manual_patterns_catalog: str = RAW_TABLE_MANUAL_PATTERNS
     pattern_promote: PatternPromoteParameters = Field(default_factory=PatternPromoteParameters)
 
 
@@ -399,12 +405,12 @@ class Config(BaseModel, alias_generator=to_camel):
             {
                 "rawTables": {
                     "rawDb": raw_db,
-                    "rawTableCache": RAW_TABLE_CACHE,
-                    "rawTableDocTag": RAW_TABLE_DOC_TAG,
-                    "rawTableDocDoc": RAW_TABLE_DOC_DOC,
-                    "rawTableDocPattern": RAW_TABLE_DOC_PATTERN,
-                    "rawTablePromoteCache": RAW_TABLE_PROMOTE_CACHE,
-                    "rawManualPatternsCatalog": RAW_TABLE_MANUAL_PATTERNS,
+                    "rawTableCache": parameters.get("rawTableCache", RAW_TABLE_CACHE),
+                    "rawTableDocTag": parameters.get("rawTableDocTag", RAW_TABLE_DOC_TAG),
+                    "rawTableDocDoc": parameters.get("rawTableDocDoc", RAW_TABLE_DOC_DOC),
+                    "rawTableDocPattern": parameters.get("rawTableDocPattern", RAW_TABLE_DOC_PATTERN),
+                    "rawTablePromoteCache": parameters.get("rawTablePromoteCache", RAW_TABLE_PROMOTE_CACHE),
+                    "rawManualPatternsCatalog": parameters.get("rawManualPatternsCatalog", RAW_TABLE_MANUAL_PATTERNS),
                 },
                 "dataModelViews": {
                     "coreAnnotationView": core_view,
