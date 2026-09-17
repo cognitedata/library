@@ -49,23 +49,14 @@ The CDF File Annotation module is designed to:
 ```
 cdf_file_annotation/
 ├── 📁 functions/                           # CDF Functions
-│   ├── 📁 fn_file_annotation_prepare/             # Identify files for annotation
+│   ├── 📁 fn_file_annotation/              # All four stages
 │   │   ├── 📄 handler.py
-│   │   └── 📁 services/
-│   ├── 📁 fn_file_annotation_launch/              # Launch annotation jobs
-│   │   ├── 📄 handler.py
-│   │   └── 📁 services/
-│   ├── 📁 fn_file_annotation_finalize/            # Process annotation results
-│   │   ├── 📄 handler.py
-│   │   └── 📁 services/
-│   ├── 📁 fn_file_annotation_promote/             # Auto-resolve pattern annotations
-│   │   ├── 📄 handler.py
-│   │   └── 📁 services/
-│   └── 📄 functions.Function.yaml                 # Function definitions
-├── 📁 workflows/                           # CDF Workflows
-│   ├── 📄 wf_file_annotation.Workflow.yaml        # Main workflow definition
-│   ├── 📄 wf_file_annotation.WorkflowVersion.yaml # Workflow version config
-│   └── 📄 wf_file_annotation.WorkflowTrigger.yaml # Workflow triggers
+│   │   ├── 📁 stages/                      # prepare, launch, finalize, promote
+│   │   ├── 📁 services/
+│   │   └── 📁 utils/
+│   └── 📄 functions.Function.yaml          # Single Function resource
+├── 📁 workflows/                           # One end-to-end workflow
+│   └── 📄 wf_file_annotation.*
 ├── 📁 transformations/                     # SQL transformations
 │   ├── 📄 tag_assets_detect_in_diagrams.Transformation.{yaml,sql}   # Helper: merge DetectInDiagrams on assets
 │   ├── 📄 tag_files_detect_in_diagrams.Transformation.{yaml,sql}    # Helper: merge DetectInDiagrams on files
@@ -375,7 +366,10 @@ cdf transformations run tr_tag_files_to_annotate
 
 Configure view external IDs, versions, and instance spaces in `default.config.yaml`. You still need a separate pipeline (for example entity matching / alias update) to populate **`aliases`**.
 
-**Re-annotation:** These transformations only **add** tags; they never remove `Annotated`, `AnnotationInProcess`, or `AnnotationFailed`. Prepare discovers files with `prepareFunction.getFilesToAnnotateQuery` in [`extraction_pipelines/ep_file_annotation.config.yaml`](./extraction_pipelines/ep_file_annotation.config.yaml), which requires `ToAnnotate` and excludes those three status tags. Re-running `tr_tag_files_to_annotate` on an already-annotated file is therefore a silent no-op—the file still will not be picked up. To force another pass, uncomment and configure `prepareFunction.getFilesForAnnotationResetQuery` (example at lines 34–43 in the same file); prepare runs it **before** `getFilesToAnnotateQuery` and clears the status tags on matching files. See [CONFIG_PATTERNS.md — Recipe 2](./detailed_guides/CONFIG_PATTERNS.md#recipe-2-reprocessing-specific-files-for-debugging) for filter examples.
+**Re-annotation:** These transformations only add tags. Prepare always requires
+`ToAnnotate` and excludes `AnnotationInProcess`, `Annotated`, and `AnnotationFailed`.
+Clear the prior annotation state/status for selected files before running the submit
+workflow again.
 
 ## 📊 Reporting & RAW Tables
 
@@ -397,7 +391,9 @@ Finalize and promote write annotation results to RAW. Use these tables for audit
 | Per-file lists of matched and unmatched tag text | Run `tr_file_annotation_status_report` → `annotation_file_status_report` |
 | Text that never matched any entity or regex pattern | **Not stored** — dropped in finalize when diagram detect returns no entities |
 
-Pattern rows with `status = 'Rejected'` and tag `PromoteAttempted` are retained in RAW even when promote deletes the corresponding DMS edges (default `deleteRejectedEdges: true`).
+Pattern rows with `status = 'Rejected'` and tag `PromoteAttempted` remain in RAW after
+promote deletes their sink-pointing DMS edges. Ambiguous `Suggested` edges remain in DMS
+for review.
 
 The **Annotation Quality** Streamlit dashboard reads the same RAW tables and maps `Rejected` → "No Match".
 
@@ -470,15 +466,13 @@ functionClientId: ${IDP_CLIENT_ID}
 functionClientSecret: ${IDP_CLIENT_SECRET}
 functionSpace: <insert>                         # Space for function code files
 
-# Function External IDs
-prepareFunctionExternalId: fn_file_annotation_prepare
-launchFunctionExternalId: fn_file_annotation_launch
-finalizeFunctionExternalId: fn_file_annotation_finalize
-promoteFunctionExternalId: fn_file_annotation_promote
+# Function
+functionExternalId: fn_file_annotation
+functionVersion: v1.0.0
 
 # Workflow Settings
 workflowExternalId: wf_file_annotation
-workflowSchedule: "3-59/15 * * * *"             # Every 15 min with 3 min offset
+workflowSchedule: "0 0 29 2 *"
 
 # Auth Group (UPDATE REQUIRED)
 groupSourceId: ${GROUP_SOURCE_ID}
@@ -486,73 +480,55 @@ groupSourceId: ${GROUP_SOURCE_ID}
 
 ### Pipeline Configuration (`ep_file_annotation.config.yaml`)
 
-The extraction pipeline config controls runtime behavior, parsed by Pydantic models for strong typing and validation.
-
-**Key Configuration Sections:**
+The extraction pipeline follows the same concise `parameters` / `data` structure as the
+entity-matching module. Fixed limits, queries, tags, table names, and cleanup behavior
+live in `functions/fn_file_annotation/fa_constants.py`.
 
 ```yaml
-# Data Model Views
-dataModelViews:
-  fileView: ...           # View for files to annotate
-  annotationStateView: ... # View for tracking annotation state
-  coreAnnotationView: ...  # View for core annotation data
-  targetEntityView: ...    # View for target entities
-
-# Prepare Function
-prepareFunction:
-  findFilesQuery: ...      # Query to find files for annotation
-  resetQuery: ...          # Optional query for files to reset
-
-# Launch Function
-launchFunction:
-  batchSize: 50            # Files per diagram detect call (1-50)
-  patternMode: true        # Enable pattern-based detection
-  primaryScopeProperty: site    # Property for batching
-  secondaryScopeProperty: unit  # Optional secondary scope
-  cacheService:
-    timeLimitMinutes: 1440     # Cache validity period
-  annotationService:
-    pageRange: 50              # Pages per processing chunk
-
-# Finalize Function
-finalizeFunction:
-  autoApprovalThreshold: 0.9   # Auto-approve above this confidence
-  autoSuggestThreshold: 0.5    # Suggest above this threshold
-  cleanOldAnnotations: true    # Remove existing annotations first
-  maxRetryAttempts: 3          # Retry limit for failed files
-  sinkNode:                    # Target for pattern annotations
-    space: ...
-    externalId: ...
-
-# Promote Function
-promoteFunction:
-  getCandidatesQuery: ...      # Query for edges to promote
-  deleteRejectedEdges: true    # Remove DMS edges after failed promote (RAW rows kept)
-  deleteSuggestedEdges: true
-  entitySearchService:
-    textNormalization:           # Applies to detected text when querying asset aliases
-      removeSpecialCharacters: true
+parameters:
+  patternMode: true
+  cleanOldAnnotations: true
+  autoApprovalThreshold: 1.0
+  autoSuggestThreshold: 1.0
+  primaryScopeProperty:
+  secondaryScopeProperty:
+  rawDb: db_file_annotation
+  patternPromote:
+    textNormalization:
       convertToLowercase: false
-      stripLeadingZeros: true
-  cacheService:
-    rawDb: ...                 # Persistent cache location (positive matches only)
-    rawTable: ...
+      substitutions: []
+data:
+  fileView:
+    schemaSpace: cdf_cdm
+    instanceSpace: sp_cdm_instances
+    externalId: CogniteFile
+    version: v1
+    searchProperty: aliases
+    resourceProperty:
+  targetEntitiesView:
+    # Same fields as fileView
+  annotationStateView:
+    # schemaSpace, instanceSpace, externalId, version
+  sinkNode:
+    space: sp_dat_pattern_mode_results
+    externalId: pattern_detection_sink_node
 ```
+
+See [CONFIG.md](./detailed_guides/CONFIG.md) for all fields, fixed behavior, and migration guidance.
 
 ### Environment Variables
 
+Only used for local runs; deployed functions authenticate through the Functions runtime.
+
 ```bash
-# CDF Connection
 CDF_PROJECT=your-cdf-project
 CDF_CLUSTER=your-cdf-cluster
+IDP_TENANT_ID=your-tenant-id
 IDP_CLIENT_ID=your-client-id
 IDP_CLIENT_SECRET=your-client-secret
-IDP_TOKEN_URL=https://your-idp-url/oauth2/token
-
-# Optional Settings
-LOG_LEVEL=INFO
-DEBUG_MODE=false
 ```
+
+Log level is passed as a function argument (`logLevel`), not an environment variable.
 
 ## 🏃‍♂️ Getting Started
 
@@ -602,12 +578,19 @@ variables:
       functionClientId: ${IDP_CLIENT_ID}
       functionClientSecret: ${IDP_CLIENT_SECRET}
       functionSpace: your_functions_space       # UPDATE REQUIRED
+      functionExternalId: fn_file_annotation
+      functionVersion: v1.0.0
       workflowExternalId: wf_file_annotation
-      workflowSchedule: "3-59/15 * * * *"
+      workflowSchedule: "0 0 29 2 *"
       groupSourceId: your-azure-ad-group-source-id  # UPDATE REQUIRED
 ```
 
 ### 4. Deploy the Module
+
+> **Migration:** This version replaces the four former Function resources with
+> `fn_file_annotation`. A Toolkit clean removes the old prepare, launch, finalize, and
+> promote functions. Update custom schedules/callers to pass `stage`, and migrate the
+> extraction-pipeline config to `parameters` / `data` before deploying.
 
 > **Note**: To upload sample pattern data, enable the data plugin in your `cdf.toml` file:
 > ```toml
@@ -640,10 +623,7 @@ Update `ep_file_annotation.config.yaml` with:
 
 ```bash
 # Check function logs
-cdf functions logs fn_file_annotation_prepare
-cdf functions logs fn_file_annotation_launch
-cdf functions logs fn_file_annotation_finalize
-cdf functions logs fn_file_annotation_promote
+cdf functions logs fn_file_annotation
 
 # Monitor workflow execution
 cdf workflows status wf_file_annotation
@@ -751,17 +731,17 @@ After changing local dependencies: `uv lock`. After changing CDF deploy dependen
 Run handlers locally (set `CDF_*` / `IDP_*` in `.env` first):
 
 ```bash
-cd functions/fn_file_annotation_prepare
+cd functions/fn_file_annotation
 uv run python handler.py
 
-cd functions/fn_file_annotation_launch
+cd functions/fn_file_annotation
 uv run python handler.py
 ```
 
 ### Integration Testing
 
 ```bash
-# Test complete workflow
+# Test the end-to-end workflow
 cdf workflows trigger wf_file_annotation
 
 # Monitor test execution
@@ -777,8 +757,7 @@ cdf raw rows list <db> rawTableDocTag --limit 10
 
 1. **Files Not Being Picked Up**
    - Verify files have the `ToAnnotate` tag (run `tr_tag_files_to_annotate` or check manually)
-   - If the file was annotated before, check for `Annotated`, `AnnotationInProcess`, or `AnnotationFailed` — `getFilesToAnnotateQuery` excludes them; tagging alone does not clear them (see **Re-annotation** under Helper tagging transformations, or enable `getFilesForAnnotationResetQuery` in `ep_file_annotation.config.yaml`)
-   - Check `getFilesToAnnotateQuery` in the extraction pipeline config
+   - If the file was annotated before, check for `Annotated`, `AnnotationInProcess`, or `AnnotationFailed`; tagging alone does not clear prior state
    - Ensure `FileAnnotationState` view is deployed
 
 2. **No Entities Sent to Diagram Detect**
@@ -789,8 +768,8 @@ cdf raw rows list <db> rawTableDocTag --limit 10
 3. **Pattern Promotion Failures / Unmatched Tags**
    - Unmatched tag text is in `annotation_documents_patterns` (`status = Rejected`), not `annotation_documents_tags`
    - Ensure asset `aliases` include the formats found on drawings (including `-` vs `_` variants)
-   - Tune `promoteFunction.entitySearchService.textNormalization` — it generates variations of detected text for an IN filter on `aliases`
-   - Set `deleteRejectedEdges: false` if you need to query failed matches as DMS edges
+   - Tune `parameters.patternPromote.textNormalization` for site-specific tag substitutions
+   - Failed matches remain in RAW; rejected sink edges are intentionally removed from DMS
 
 4. **Status Report Returns Zero Rows**
    - Confirm RAW tables contain data for your `fileInstanceSpace` (`startNodeSpace`)
@@ -811,15 +790,18 @@ cdf raw rows list <db> rawTableDocTag --limit 10
    - Check for version conflict errors in logs
    - Verify `AnnotationState` view supports versioning
 
-### Debug Mode
+### Debug Logging
 
-Enable detailed logging for troubleshooting:
+Log level is set per function call, not in the extraction pipeline config. Change
+`logLevel` on the relevant workflow task to get verbose output:
 
 ```yaml
-# In extraction pipeline config or function call
-parameters:
-  debug: true
-  log_level: DEBUG
+data:
+  {
+    "stage": "promote",
+    "ExtractionPipelineExtId": ep_file_annotation,
+    "logLevel": "DEBUG"
+  }
 ```
 
 ## 🏛️ Architecture & Design Philosophy

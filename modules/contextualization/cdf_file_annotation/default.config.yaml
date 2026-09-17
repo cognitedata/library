@@ -34,17 +34,11 @@ functionClientId: ${IDP_CLIENT_ID}
 functionClientSecret: ${IDP_CLIENT_SECRET}
 functionSpace: sp_file_annotation_fn # space where function code nodes are stored — created by this module
 
-# function external IDs (folder names must match these)
-prepareFunctionExternalId: fn_file_annotation_prepare
-prepareFunctionVersion: v1.0.0
-launchFunctionExternalId: fn_file_annotation_launch
-launchFunctionVersion: v1.0.0
-finalizeFunctionExternalId: fn_file_annotation_finalize
-finalizeFunctionVersion: v1.0.0
-promoteFunctionExternalId: fn_file_annotation_promote
-promoteFunctionVersion: v1.0.0
+# used in /functions
+functionExternalId: fn_file_annotation
+functionVersion: v1.0.0
 
-# used in /workflows (single v1 version runs: prepare → launch → finalize → promote)
+# used in /workflows
 workflowExternalId: wf_file_annotation
 workflowSchedule: "0 0 29 2 *"
 

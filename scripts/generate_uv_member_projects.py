@@ -6,7 +6,6 @@ Run from the repository root after editing PACKAGE_SPECS:
     python scripts/export_deploy_requirements.py
 """
 
-
 import json
 from pathlib import Path
 
@@ -131,29 +130,8 @@ PACKAGE_SPECS: list[dict[str, object]] = [
         "pytest": True,
     },
     {
-        "path": "modules/contextualization/cdf_file_annotation/functions/fn_file_annotation_finalize",
-        "name": "fn-file-annotation-finalize",
-        "requires_python": ">=3.11,<3.14",
-        "dependencies": FILE_ANNOTATION_RUNTIME,
-        "deploy_dependencies": FILE_ANNOTATION_DEPLOY,
-    },
-    {
-        "path": "modules/contextualization/cdf_file_annotation/functions/fn_file_annotation_launch",
-        "name": "fn-file-annotation-launch",
-        "requires_python": ">=3.11,<3.14",
-        "dependencies": FILE_ANNOTATION_RUNTIME,
-        "deploy_dependencies": FILE_ANNOTATION_DEPLOY,
-    },
-    {
-        "path": "modules/contextualization/cdf_file_annotation/functions/fn_file_annotation_prepare",
-        "name": "fn-file-annotation-prepare",
-        "requires_python": ">=3.11,<3.14",
-        "dependencies": FILE_ANNOTATION_RUNTIME,
-        "deploy_dependencies": FILE_ANNOTATION_DEPLOY,
-    },
-    {
-        "path": "modules/contextualization/cdf_file_annotation/functions/fn_file_annotation_promote",
-        "name": "fn-file-annotation-promote",
+        "path": "modules/contextualization/cdf_file_annotation/functions/fn_file_annotation",
+        "name": "fn-file-annotation",
         "requires_python": ">=3.11,<3.14",
         "dependencies": FILE_ANNOTATION_RUNTIME,
         "deploy_dependencies": FILE_ANNOTATION_DEPLOY,

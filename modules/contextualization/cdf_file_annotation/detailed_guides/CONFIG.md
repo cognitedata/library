@@ -1,176 +1,105 @@
-# Guide to Configuring the Annotation Function via YAML
+# File annotation configuration
 
-This document outlines how to use the `ep_file_annotation.config.yaml` file to control the behavior of the Annotation Function. The Python code, particularly `ConfigService.py`, uses Pydantic models to parse this YAML, making the function adaptable to different data models and operational parameters.
+The extraction pipeline uses the same shape as the entity-matching module: operator choices are under `parameters`, while data-model identities and property mappings are under `data`. Fixed pipeline behavior is defined in `functions/fn_file_annotation/fa_constants.py`.
 
-## Overall Structure
+## Runtime input
 
-The YAML configuration is organized into logical blocks that correspond to different phases and components of the toolkit:
+Every call requires a stage and the extraction-pipeline external ID:
 
-- `dataModelViews`: Defines common Data Model views used across functions.
-- `prepareFunction`: Settings for the initial file preparation phase.
-- `launchFunction`: Settings for launching annotation tasks.
-- `finalizeFunction`: Settings for processing and finalizing annotation results.
+```json
+{"stage":"prepare","ExtractionPipelineExtId":"ep_file_annotation","logLevel":"INFO"}
+```
 
-The entire structure is parsed into a main `Config` Pydantic model.
+Valid stages are `prepare`, `launch`, `finalize`, and `promote`.
 
----
+## Parameters
 
-## 1. `dataModelViews`
+```yaml
+parameters:
+  patternMode: true
+  cleanOldAnnotations: true
+  autoApprovalThreshold: 1.0
+  autoSuggestThreshold: 1.0
+  primaryScopeProperty:
+  secondaryScopeProperty:
+  rawDb: {{ rawDb }}
+  patternPromote:
+    textNormalization:
+      convertToLowercase: false
+      substitutions: []
+```
 
-This section specifies the Data Model views the function will interact with. Each view is defined using a structure mapping to the `ViewPropertyConfig` Pydantic model.
+- `patternMode` enables pattern-mode Diagram Detect alongside regular entity matching.
+- `cleanOldAnnotations` removes prior annotations on the first finalize pass.
+- `autoApprovalThreshold` and `autoSuggestThreshold` control regular annotation status.
+- `primaryScopeProperty` and `secondaryScopeProperty` group files so launch can reuse a scoped entity cache.
+- `rawDb` is the shared database for result and cache tables.
+- `patternPromote.textNormalization.substitutions` is an ordered list of Python regular-expression replacements. Each item has `pattern` and `replacement`; capture-group replacements such as `\\1` are supported.
+- `convertToLowercase` runs after project substitutions. Built-in rules then remove non-alphanumeric characters and strip leading zeros.
 
-- **Fields for each view (in `ViewPropertyConfig`):**
+Example:
 
-  - `schemaSpace` (str): The schema space of the view (e.g., `sp_hdm`).
-  - `instanceSpace` (str, optional): The data space where instances of the view are stored (e.g., `sp_dat_cdf_annotation_states`). Defaults to `None`.
-  - `externalId` (str): The external ID of the view (e.g., `FileAnnotationState`).
-  - `version` (str): The version of the view (e.g., `v1.0.0`).
-  - `annotationType` (str, optional): For entity views, specifies the type of annotation link (e.g., `diagrams.FileLink`, `diagrams.AssetLink`). Defaults to `None`.
+```yaml
+textNormalization:
+  convertToLowercase: false
+  substitutions:
+    - pattern: '^[A-Z]{2}-'
+      replacement: ''
+    - pattern: '[/_.]'
+      replacement: '-'
+```
 
-- **Configured Views in `ep_file_annotation.config.yaml`:**
-  - `coreAnnotationView`: For storing annotation edges (e.g., `CogniteDiagramAnnotation`).
-  - `annotationStateView`: For `FileAnnotationState` instances tracking file annotation progress.
-  - `fileView`: For the primary files to be annotated (e.g., `CogniteFile`).
-  - `targetEntitiesView`: For target entities like assets (e.g., `CogniteAsset`) to be detected.
+## Data
 
----
+Properties used to search and classify entities belong to their views:
 
-## 2. `prepareFunction`
+```yaml
+data:
+  fileView:
+    schemaSpace: {{ fileSchemaSpace }}
+    instanceSpace: {{ fileInstanceSpace }}
+    externalId: {{ fileExternalId }}
+    version: {{ fileVersion }}
+    searchProperty: aliases
+    resourceProperty:
+  targetEntitiesView:
+    schemaSpace: {{ targetEntitySchemaSpace }}
+    instanceSpace: {{ targetEntityInstanceSpace }}
+    externalId: {{ targetEntityExternalId }}
+    version: {{ targetEntityVersion }}
+    searchProperty: aliases
+    resourceProperty:
+  annotationStateView:
+    schemaSpace: {{ annotationStateSchemaSpace }}
+    instanceSpace: {{ fileInstanceSpace }}
+    externalId: {{ annotationStateExternalId }}
+    version: {{ annotationStateVersion }}
+  sinkNode:
+    space: {{ patternModeInstanceSpace }}
+    externalId: {{ patternDetectSink }}
+```
 
-Configures the initial setup phase, primarily for selecting files to be annotated. Parsed by the `PrepareFunction` Pydantic model.
+`searchProperty` is sent to Diagram Detect and queried by promote. `resourceProperty` optionally classifies entities in pattern samples and reports; when omitted, the view external ID is used.
 
-**Note:** For the query configurations below, you can provide a single query object or a list of query objects. If a list is provided, the queries are combined with a logical **OR**.
+## Fixed behavior
 
-- **`getFilesForAnnotationResetQuery`** (`QueryConfig | list[QueryConfig]`, optional):
+These values are intentionally constants, not deployment configuration:
 
-  - **Purpose:** Selects specific files to have their annotation status reset (e.g., remove "Annotated"/"AnnotationInProcess" tags) to make them eligible for re-annotation.
-  - **Usage:** If present, `LaunchService.prepare()` uses this query first.
+- Batch size: 50 files
+- Page range: 50 pages
+- Entity-cache lifetime: 0 hours (always refresh)
+- Finalize retries: 3
+- Global entity-search limit: 1000
+- Function work budget: 7 minutes
+- Local HTTP 429 wait: 900 seconds
+- Promote searches file and target entities
+- Rejected pattern edges are deleted from DMS after their RAW audit row is updated
+- Ambiguous Suggested edges remain in DMS for review
+- RAW table names, annotation types, state/status filters, and standard tags
 
-- **`getFilesToAnnotateQuery`** (`QueryConfig | list[QueryConfig]`):
-  - **Purpose:** The main query to find files that are ready for the annotation process (e.g., tagged "ToAnnotate" and not "AnnotationInProcess" or "Annotated").
-  - **Usage:** `LaunchService.prepare()` uses this to identify files for creating `AnnotationState` instances.
+## Migration from the four-function config
 
----
+Remove `dataModelViews`, `rawTables`, `prepareFunction`, `launchFunction`, `finalizeFunction`, and `promoteFunction`. Replace them with the `parameters` and `data` blocks above. Query target views, fixed tags/statuses, limits, table names, and promote cleanup flags are no longer configurable.
 
-## 3. `launchFunction`
-
-Settings for the main annotation job launching process. Parsed by the `LaunchFunction` Pydantic model.
-
-- **Direct Parameters:**
-
-  - `batchSize` (int): Max files per diagram detection API call (e.g., `50`).
-  - `fileSearchProperty` (str): Property on `fileView` used for matching entities (e.g., `aliases`).
-  - `targetEntitiesSearchProperty` (str): Property on `targetEntitiesView` for matching (e.g., `aliases`).
-  - `primaryScopeProperty` (str, optional): File property for primary grouping/context (e.g., `site`). If set to `None` or omitted, the function processes files without a primary scope grouping. _(Pydantic field: `primary_scope_property`)_
-  - `secondaryScopeProperty` (str, optional): File property for secondary grouping/context (e.g., `unit`). Defaults to `None`. _(Pydantic field: `secondary_scope_property`)_
-  - `patternMode` (bool): Enables pattern-based detection mode alongside standard entity matching. When `True`, automatically generates regex-like patterns from entity aliases and detects all matching text in files. Defaults to `False`. _(Pydantic field: `pattern_mode`)_
-  - `fileResourceProperty` (str, optional): Property on `fileView` to use for file-to-file link resource matching. Defaults to `None`. _(Pydantic field: `file_resource_property`)_
-  - `targetEntitiesResourceProperty` (str, optional): Property on `targetEntitiesView` to use for resource matching. Defaults to `None`. _(Pydantic field: `target_entities_resource_property`)_
-
-- **`dataModelService`** (`DataModelServiceConfig`):
-  **Note:** For the query configurations below, you can provide a single query object or a list of query objects. If a list is provided, the queries are combined with a logical **OR**.
-
-  - `getFilesToProcessQuery` (`QueryConfig | list[QueryConfig]`): Selects `AnnotationState` nodes ready for launching (e.g., status "New", "Retry").
-  - `getTargetEntitiesQuery` (`QueryConfig | list[QueryConfig]`): Queries entities from `targetEntitiesView` for the cache (e.g., assets tagged "DetectInDiagrams").
-  - `getFileEntitiesQuery` (`QueryConfig | list[QueryConfig]`): Queries file entities from `fileView` for the cache, enabling file-to-file linking (e.g., files tagged "DetectInDiagrams").
-
-- **`cacheService`** (`CacheServiceConfig`):
-
-  - `cacheTimeLimit` (int): Cache validity in hours (e.g., `24`).
-  - `rawDb` (str): RAW database for the entity cache (e.g., `db_file_annotation`).
-  - `rawTableCache` (str): RAW table for the entity cache (e.g., `annotation_entities_cache`).
-  - `rawManualPatternsCatalog` (str): RAW table for storing manual pattern overrides at GLOBAL, site, or unit levels (e.g., `manual_patterns_catalog`). _(Pydantic field: `raw_manual_patterns_catalog`)_
-
-- **`annotationService`** (`AnnotationServiceConfig`):
-  - `pageRange` (int): Number of pages to process per batch for large documents. For files with more than `pageRange` pages, the file is processed iteratively in chunks (e.g., `50`).
-  - `partialMatch` (bool): Parameter for `client.diagrams.detect()`. Enables partial text matching.
-  - `minTokens` (int, optional): Parameter for `client.diagrams.detect()`. Minimum number of tokens required for a match.
-  - `diagramDetectConfig` (`DiagramDetectConfigModel`, optional): Detailed API configuration for diagram detection.
-    - Contains fields like `connectionFlags` (`ConnectionFlagsConfig`), `customizeFuzziness` (`CustomizeFuzzinessConfig`), `readEmbeddedText`, etc.
-    - The Pydantic model's `as_config()` method converts this into an SDK `DiagramDetectConfig` object.
-
----
-
-## 4. `finalizeFunction`
-
-Settings for processing completed annotation jobs. Parsed by the `FinalizeFunction` Pydantic model.
-
-- **Direct Parameters:**
-
-  - `cleanOldAnnotations` (bool): If `True`, deletes existing annotations before applying new ones (only on the first run for multi-page files). _(Pydantic field: `clean_old_annotations`)_
-  - `maxRetryAttempts` (int): Maximum number of retry attempts for a file before marking it as "Failed". _(Pydantic field: `max_retry_attempts`)_
-
-- **`retrieveService`** (`RetrieveServiceConfig`):
-
-  - `getJobIdQuery` (`QueryConfig`): Selects `AnnotationState` nodes whose jobs are ready for result retrieval. Uses optimistic locking to claim jobs (e.g., status "Processing", `diagramDetectJobId` exists). _(Pydantic field: `get_job_id_query`)_
-
-- **`applyService`** (`ApplyServiceConfig`):
-
-  - `autoApprovalThreshold` (float): Confidence score threshold for automatically approving standard annotations (e.g., `1.0` for exact matches only). _(Pydantic field: `auto_approval_threshold`)_
-  - `autoSuggestThreshold` (float): Confidence score threshold for suggesting standard annotations for review (e.g., `1.0`). _(Pydantic field: `auto_suggest_threshold`)_
-  - `sinkNode` (`NodeId`): Configuration for the target node where pattern mode annotations are linked for review. _(Pydantic field: `sink_node`)_
-    - `space` (str): The space where the sink node resides.
-    - `externalId` (str): The external ID of the sink node. _(Pydantic field: `external_id`)_
-  - `rawDb` (str): RAW database for storing annotation reports. _(Pydantic field: `raw_db`)_
-  - `rawTableDocTag` (str): RAW table name for document-to-asset annotation links (e.g., `doc_tag`). _(Pydantic field: `raw_table_doc_tag`)_
-  - `rawTableDocDoc` (str): RAW table name for document-to-document annotation links (e.g., `doc_doc`). _(Pydantic field: `raw_table_doc_doc`)_
-  - `rawTableDocPattern` (str): RAW table name for pattern mode detections, creating a searchable catalog of potential entity matches (e.g., `doc_pattern`). _(Pydantic field: `raw_table_doc_pattern`)_
-
----
-
-## 5. `promoteFunction`
-
-Settings for automatically resolving pattern-mode annotations. Parsed by the `PromoteFunctionConfig` Pydantic model.
-
-The promote function resolves pattern-mode annotations by finding matching entities and updating annotation edges from pointing to a sink node to pointing to actual entities. Batch size is controlled via `getCandidatesQuery.limit` field.
-
-- **Direct Parameters:**
-
-  - `getCandidatesQuery` (`QueryConfig | list[QueryConfig]`): Query to find pattern-mode edges to promote. The batch size is controlled by the `limit` field in the query configuration. _(Pydantic field: `get_candidates_query`)_
-  - `rawDb` (str): RAW database for storing promotion results. _(Pydantic field: `raw_db`)_
-  - `rawTableDocPattern` (str): RAW table name for pattern mode detections (e.g., `doc_pattern`). _(Pydantic field: `raw_table_doc_pattern`)_
-  - `rawTableDocTag` (str): RAW table name for document-to-asset annotation links (e.g., `doc_tag`). _(Pydantic field: `raw_table_doc_tag`)_
-  - `rawTableDocDoc` (str): RAW table name for document-to-document annotation links (e.g., `doc_doc`). _(Pydantic field: `raw_table_doc_doc`)_
-  - `deleteRejectedEdges` (bool): If `True`, deletes edges that have been rejected (no match found). _(Pydantic field: `delete_rejected_edges`)_
-  - `deleteSuggestedEdges` (bool): If `True`, deletes edges with ambiguous matches that remain as "Suggested". _(Pydantic field: `delete_suggested_edges`)_
-
-- **`entitySearchService`** (`EntitySearchServiceConfig`):
-
-  Controls entity search strategies and text normalization behavior. Uses efficient server-side filtering on the smaller entity dataset rather than the larger annotation edge dataset for better performance at scale.
-
-  - `enableGlobalEntitySearch` (bool): Enables searching for matching entities via data model queries. _(Pydantic field: `enable_global_entity_search`)_
-  - `maxEntitySearchLimit` (int): Maximum number of entities to retrieve in a single search query (default: `1000`, range: 1-10000). _(Pydantic field: `max_entity_search_limit`)_
-  - `textNormalization` (`TextNormalizationConfig`): Controls how text is normalized for matching and what variations are generated to improve match rates across different naming conventions. _(Pydantic field: `text_normalization`)_
-    - `removeSpecialCharacters` (bool): If `True`, removes special characters from text for matching (default: `True`). _(Pydantic field: `remove_special_characters`)_
-    - `convertToLowercase` (bool): If `True`, converts text to lowercase for matching (default: `True`). _(Pydantic field: `convert_to_lowercase`)_
-    - `stripLeadingZeros` (bool): If `True`, strips leading zeros from numeric portions of text (default: `True`). _(Pydantic field: `strip_leading_zeros`)_
-
-- **`cacheService`** (`PromoteCacheServiceConfig`):
-
-  Controls caching behavior for text→entity mappings. The persistent RAW cache accumulates successful mappings over time and is shared between automated promotions and manual promotions from the Streamlit dashboard.
-
-  - `cacheTableName` (str): RAW table name for the persistent text→entity cache (e.g., `promote_cache`). _(Pydantic field: `cache_table_name`)_
-
----
-
-## Query Configuration Details (`QueryConfig`)
-
-Used by various services to define data model queries. Parsed by `QueryConfig` Pydantic model.
-
-- **Query Logic:**
-
-  - **AND Logic**: Within a single `QueryConfig` block, all conditions listed under the `filters` key are combined with a logical **AND**.
-  - **OR Logic**: For query fields (like `getFilesToAnnotateQuery`), you can provide a YAML list of `QueryConfig` blocks. These will be combined with a logical **OR**, allowing you to select items that match _any_ of the provided query blocks.
-
-- **`targetView`** (`ViewPropertyConfig`): Specifies the view to query against. See [dataModelViews].
-
-- **`filters`** (list of `FilterConfig`): A list of conditions that are **ANDed** together. Each condition is a `FilterConfig` object:
-
-  - `values` (str, list of str, `AnnotationStatus` Enum/list, optional): Value(s) for the filter. Can be `AnnotationStatus` Enum members (e.g., "New", "Processing") or plain strings/numbers. Omit for `Exists`.
-  - `negate` (bool, default `False`): If `True`, inverts the condition (e.g., NOT IN).
-  - `operator` (`FilterOperator` Enum): The comparison type (e.g., "In", "Equals", "Exists"). Values from `utils.DataStructures.FilterOperator`.
-  - `targetProperty` (str): The property in `targetView` to filter on (e.g., "tags", "annotationStatus").
-
-- **`limit`** (Optional[int], default `-1`): Specifies the upper limit of instances that can be retrieved from the query.
-
-The Python code uses `QueryConfig.build_filter()` (which internally uses `FilterConfig.as_filter()`) to convert these YAML definitions into Cognite SDK `Filter` objects for querying CDF.
+Function calls must use `fn_file_annotation` and include `stage`. The supplied workflow
+invokes all four stages in order and finishes with the file-to-asset transformation.

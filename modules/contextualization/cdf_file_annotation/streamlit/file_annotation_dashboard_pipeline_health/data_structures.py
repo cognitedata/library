@@ -68,6 +68,7 @@ class ApplyServiceConfig:
             raw_table_file_tags=d.get(FieldNames.RAW_TABLE_DOC_DOC_CAMEL_CASE),
         )
 
+
 @dataclass
 class CacheServiceConfig:
     raw_db: str
@@ -78,12 +79,7 @@ class CacheServiceConfig:
     @classmethod
     def from_dict(cls, d: dict | None):
         if not isinstance(d, dict):
-            return cls(
-                raw_db=None,
-                raw_table_pattern_tags=None,
-                raw_table_asset_tags=None,
-                raw_table_file_tags=None
-            )
+            return cls(raw_db=None, raw_table_pattern_tags=None, raw_table_asset_tags=None, raw_table_file_tags=None)
 
         return cls(
             raw_db=d.get(FieldNames.RAW_DATABASE_CAMEL_CASE),
@@ -91,6 +87,7 @@ class CacheServiceConfig:
             raw_table_asset_tags=d.get(FieldNames.RAW_TABLE_DOC_TAG_CAMEL_CASE),
             raw_table_file_tags=d.get(FieldNames.RAW_TABLE_DOC_DOC_CAMEL_CASE),
         )
+
 
 @dataclass
 class LaunchFunctionConfig:
@@ -112,7 +109,7 @@ class LaunchFunctionConfig:
             file_resource_property=d.get(FieldNames.FILE_RESOURCE_PROPERTY_CAMEL_CASE),
             cache_service=CacheServiceConfig.from_dict(cache_service),
         )
-    
+
 
 @dataclass
 class FinalizeFunctionConfig:
@@ -121,9 +118,7 @@ class FinalizeFunctionConfig:
     @classmethod
     def from_dict(cls, d: dict | None):
         if not isinstance(d, dict):
-            return cls(
-                apply_service=ApplyServiceConfig.from_dict(None)
-            )
+            return cls(apply_service=ApplyServiceConfig.from_dict(None))
 
         apply_service = d.get(FieldNames.APPLY_SERVICE_CAMEL_CASE)
 
@@ -143,8 +138,34 @@ class ExtractionPipelineConfig:
         if not isinstance(d, dict):
             return cls(
                 launch_function=LaunchFunctionConfig.from_dict(None),
-                finalize_function=FinalizeFunctionConfig.from_dict(None)
+                finalize_function=FinalizeFunctionConfig.from_dict(None),
             )
+
+        if "parameters" in d and "data" in d:
+            parameters = d["parameters"]
+            views = d["data"]
+            raw_tables = {
+                "rawDb": parameters.get("rawDb"),
+                "rawTableDocPattern": "annotation_documents_patterns",
+                "rawTableDocTag": "annotation_documents_tags",
+                "rawTableDocDoc": "annotation_documents_docs",
+            }
+            file_view_data = views.get("fileView", {})
+            target_view_data = views.get("targetEntitiesView", {})
+            d = {
+                "launchFunction": {
+                    "secondaryScopeProperty": parameters.get("secondaryScopeProperty"),
+                    "fileResourceProperty": file_view_data.get("resourceProperty"),
+                    "targetEntityResourceProperty": target_view_data.get("resourceProperty"),
+                    "cacheService": raw_tables,
+                },
+                "finalizeFunction": {"applyService": raw_tables},
+                "dataModelViews": {
+                    "annotationStateView": views.get("annotationStateView"),
+                    "fileView": file_view_data,
+                    "targetEntityView": target_view_data,
+                },
+            }
 
         launch_function = d.get(FieldNames.LAUNCH_FUNCTION_CAMEL_CASE)
         finalize_function = d.get(FieldNames.FINALIZE_FUNCTION_CAMEL_CASE)
@@ -200,16 +221,22 @@ class ExtractionPipelineConfig:
     def pattern_table_name(self) -> str | None:
         cache = getattr(self.launch_function, FieldNames.CACHE_SERVICE_SNAKE_CASE, None)
         apply = getattr(self.finalize_function, FieldNames.APPLY_SERVICE_SNAKE_CASE, None)
-        return (getattr(cache, FieldNames.RAW_TABLE_PATTERN_TAGS_SNAKE_CASE, None) or getattr(apply, FieldNames.RAW_TABLE_PATTERN_TAGS_SNAKE_CASE, None))
+        return getattr(cache, FieldNames.RAW_TABLE_PATTERN_TAGS_SNAKE_CASE, None) or getattr(
+            apply, FieldNames.RAW_TABLE_PATTERN_TAGS_SNAKE_CASE, None
+        )
 
     @property
     def asset_table_name(self) -> str | None:
         cache = getattr(self.launch_function, FieldNames.CACHE_SERVICE_SNAKE_CASE, None)
         apply = getattr(self.finalize_function, FieldNames.APPLY_SERVICE_SNAKE_CASE, None)
-        return (getattr(cache, FieldNames.RAW_TABLE_ASSET_TAGS_SNAKE_CASE, None) or getattr(apply, FieldNames.RAW_TABLE_ASSET_TAGS_SNAKE_CASE, None))
+        return getattr(cache, FieldNames.RAW_TABLE_ASSET_TAGS_SNAKE_CASE, None) or getattr(
+            apply, FieldNames.RAW_TABLE_ASSET_TAGS_SNAKE_CASE, None
+        )
 
     @property
     def file_table_name(self) -> str | None:
         cache = getattr(self.launch_function, FieldNames.CACHE_SERVICE_SNAKE_CASE, None)
         apply = getattr(self.finalize_function, FieldNames.APPLY_SERVICE_SNAKE_CASE, None)
-        return (getattr(cache, FieldNames.RAW_TABLE_FILE_TAGS_SNAKE_CASE, None) or getattr(apply, FieldNames.RAW_TABLE_FILE_TAGS_SNAKE_CASE, None))
+        return getattr(cache, FieldNames.RAW_TABLE_FILE_TAGS_SNAKE_CASE, None) or getattr(
+            apply, FieldNames.RAW_TABLE_FILE_TAGS_SNAKE_CASE, None
+        )

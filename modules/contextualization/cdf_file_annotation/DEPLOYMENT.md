@@ -33,7 +33,9 @@ cdf transformations run tr_tag_files_to_annotate
 
 You still need a separate transformation (or upstream pipeline) to populate `aliases`.
 
-**Re-annotation:** Helper tag transformations only add tags. Files that already carry `Annotated`, `AnnotationInProcess`, or `AnnotationFailed` are excluded by `getFilesToAnnotateQuery` and will not re-enter the workflow if you only re-run `tr_tag_files_to_annotate`. Use `prepareFunction.getFilesForAnnotationResetQuery` in `extraction_pipelines/ep_file_annotation.config.yaml` (commented template at lines 34–43) to strip those status tags for files you want to process again; see `detailed_guides/CONFIG_PATTERNS.md` Recipe 2.
+**Re-annotation:** Helper tag transformations only add tags. Files that already carry
+`Annotated`, `AnnotationInProcess`, or `AnnotationFailed` do not re-enter the submit
+workflow until their prior annotation state/status is cleared.
 
 #### Aliases Property
 
@@ -161,17 +163,14 @@ variables:
         targetEntityVersion: v1
 
         # used in /functions and /workflows
-        launchFunctionExternalId: fn_file_annotation_launch #NOTE: if this is changed, then the folder holding the launch function must be named the same as the new external ID
-        launchFunctionVersion: v1.0.0
-        finalizeFunctionExternalId: fn_file_annotation_finalize #NOTE: if this is changed, then the folder holding the finalize function must be named the same as the new external ID
-        finalizeFunctionVersion: v1.0.0
+        functionExternalId: fn_file_annotation
+        functionVersion: v1.0.0
         functionClientId: ${IDP_CLIENT_ID}
         functionClientSecret: ${IDP_CLIENT_SECRET}
 
         # used in /workflows
-        workflowSchedule: "*/10 * * * *"
         workflowExternalId: wf_file_annotation
-        workflowVersion: v1
+        workflowSchedule: "0 0 29 2 *"
 
         # used in /auth
         groupSourceId: <insert> # source ID from Azure AD for the corresponding groups
