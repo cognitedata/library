@@ -51,7 +51,10 @@ The CDF Entity Matching module is designed to:
 ```
 cdf_entity_matching/
 ├── 📁 functions/                           # CDF Functions
-│   ├── 📁 fn_dm_context_timeseries_entity_matching/  # Entity matching logic
+│   ├── 📁 fn_dm_context_timeseries_entity_matching/  # Entity matching, single run
+│   ├── 📁 fn_dm_context_entity_matching_submit/    # Entity matching, starts predict job
+│   ├── 📁 fn_dm_context_entity_matching_collect/   # Entity matching, collects predict job
+│   ├── 📁 _entity_matching_core/                   # Code shared by submit and collect
 │   ├── 📁 fn_dm_context_aliases_update/            # Metadata optimization
 │   └── 📄 functions.Function.yaml                   # Function definitions
 ├── 📁 workflows/                           # CDF Workflows
@@ -95,7 +98,52 @@ cdf_entity_matching/
 - Industrial IoT data organization
 - Process optimization and monitoring
 
-### 2. [Metadata Update Function](./functions/fn_dm_context_aliases_update/README.md)
+### 2. Asynchronous entity matching: [submit](./functions/fn_dm_context_entity_matching_submit/README.md) and [collect](./functions/fn_dm_context_entity_matching_collect/README.md)
+
+**Purpose**: The same matching, split in two so a long prediction cannot time the
+function out. This is the pair the workflow runs.
+
+Matching in CDF is a job on the platform, and waiting for it is what makes a large run
+time out. **Submit** applies manual and rule based mappings, starts the predict job
+without waiting for it, stages its matches in RAW and adds the job to a queue in the
+state store table. **Collect** works through that queue oldest first, polling each job
+(5s, 15s, then 30s between polls) for at most 8 minutes per run, merges finished results
+with the staged matches, writes them, and removes the job from the queue. Anything still
+running is picked up by the next collect run.
+
+Both functions read the same extraction pipeline configuration as the single-run function
+— no new parameters. Manual and rule based matches always win over model matches for the
+same entity, because collect merges them in before the model's results are considered.
+
+`debug: true` on that config turns on DEBUG logs and **skips data-model writes**. It does
+**not** limit the run to one entity. That one-entity behaviour exists only on the
+single-run timeseries function.
+
+| RAW / CDF key | Written by | Meaning |
+|---|---|---|
+| `state_predict_job_<jobId>` | submit | A predict job waiting to be collected |
+| CDF file `em_staged_matches_<jobId>.json` | submit | Manual and rule matches staged for that job |
+| `state_target_sync_<key>` | submit | Sync cursor, cache file id, page size and target count |
+| CDF file `em_target_cache_<key>.json` | submit | Cached targets; **overwritten** on change, never deleted |
+
+Submit reads assets (targets) through the DMS sync endpoint and caches them in that CDF
+file so a later run does not page the whole view. Sync changes are merged in memory
+(deleted instances are dropped) and the **same** file and RAW row are written again. If
+the target view, spaces or filter change, `<key>` changes and a new file and row are
+created; the old ones stay unused.
+
+The processing group needs `filesAcl: READ, WRITE` for that cache. Collect does not
+read or write it.
+
+The single-run [Timeseries Entity Matching Function](./functions/fn_dm_context_timeseries_entity_matching/README.md)
+is unchanged and still deployed; use it when a run comfortably fits inside one function
+invocation.
+
+The code shared by the two functions lives in
+[`functions/_entity_matching_core`](./functions/_entity_matching_core/README.md) and is
+copied into both by `python scripts/sync_entity_matching_core.py`.
+
+### 3. [Metadata Update Function](./functions/fn_dm_context_aliases_update/README.md)
 
 **Purpose**: Optimizes metadata for timeseries, assets and files to improve searchability
 
@@ -408,17 +456,22 @@ cdf raw rows list contextualization_state contextualization_state_store
 
 ```mermaid
 graph TD
-    A[Timeseries Data] --> B[Entity Matching Function]
-    C[Asset Data] --> B
-    D[Rule Definitions] --> B
-    B --> E[Matched Relationships]
-    E --> F[Metadata Update Function]
-    F --> G[Enhanced Metadata]
-    G --> H[Improved Search & Discovery]
-    
-    I[Workflow Trigger] --> B
-    B --> J[State Storage]
-    J --> K[Incremental Processing]
+    A[Timeseries Data] --> S[Submit Function]
+    C[Asset Data] --> S
+    D[Rule and Manual Mappings] --> S
+    S --> Q[Predict job queue in RAW]
+    S --> F[Target cache file in CDF]
+    S --> P[Predict job on CDF]
+    P --> L[Collect Function]
+    Q --> L
+    L --> E[Matched Relationships]
+    E --> M[Metadata Update Function]
+    M --> G[Enhanced Metadata]
+    G --> H[Improved Search and Discovery]
+
+    I[Workflow Trigger] --> S
+    S --> J[State Storage]
+    L --> J
 ```
 
 ## 🎯 Use Cases
@@ -471,8 +524,12 @@ From the **repository root**:
 
 ```bash
 uv sync --group dev
+uv run pytest modules/contextualization/cdf_entity_matching/functions/fn_dm_context_entity_matching_submit -q
+uv run pytest modules/contextualization/cdf_entity_matching/functions/fn_dm_context_entity_matching_collect -q
+uv run pytest tests/test_entity_matching_core_sync.py -q
 uv run pytest modules/contextualization/cdf_entity_matching/functions/fn_dm_context_timeseries_entity_matching/ -q
 uv run pytest modules/contextualization/cdf_entity_matching/functions/fn_dm_context_aliases_update/test_alias_optimizations.py -q
+python scripts/sync_entity_matching_core.py --check
 ```
 
 Run a handler locally (set `CDF_*` / `IDP_*` env vars first):
@@ -520,7 +577,7 @@ cdf workflows logs EntityMatching
 
 2. **Memory Issues**
    - Reduce batch sizes in function configurations
-   - Enable debug mode for limited processing
+   - On submit/collect, `debug` does not shrink the run — it only skips DM writes
    - Monitor memory usage in function logs
 
 3. **`Property '<name>' does not exist in view '<view>'` (400)**
@@ -558,7 +615,10 @@ parameters:
 
 ## 📚 Documentation
 
-- [**Timeseries Entity Matching Function**](./functions/fn_dm_context_timeseries_entity_matching/README.md) - Detailed documentation for entity matching
+- [**Submit Function**](./functions/fn_dm_context_entity_matching_submit/README.md) - Starts predict without waiting; caches targets
+- [**Collect Function**](./functions/fn_dm_context_entity_matching_collect/README.md) - Polls the queue and writes matches
+- [**Shared core**](./functions/_entity_matching_core/README.md) - Source of truth for the `em_*.py` modules
+- [**Timeseries Entity Matching Function**](./functions/fn_dm_context_timeseries_entity_matching/README.md) - Single-run entity matching
 - [**Metadata Update Function**](./functions/fn_dm_context_aliases_update/README.md) - Comprehensive guide for metadata optimization
 - **CDF Toolkit Documentation** - General deployment and configuration guidance
 
