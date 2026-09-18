@@ -241,6 +241,7 @@ class LaunchFunction(BaseModel, alias_generator=to_camel):
     file_search_property: str = "aliases"
     target_entities_search_property: str = "aliases"
     pattern_mode: bool
+    structural_auto_patterns: bool = False
     file_resource_property: str | None = None
     target_entities_resource_property: str | None = None
     data_model_service: DataModelServiceConfig
@@ -269,23 +270,22 @@ class FinalizeFunction(BaseModel, alias_generator=to_camel):
 # Promote Related Configs
 class TextNormalizationConfig(BaseModel, alias_generator=to_camel):
     """
-    Configuration for text normalization and variation generation during promote.
+    Configuration for text normalization during promote.
 
     Same capture-group semantics as cdf_entity_matching aliases_update:
-    - normalizePattern: one regex or a list; each match yields capture groups joined by "_"
-    - normalizeSelection: keep every extracted form ("all") or only the longest ("longest")
+    - normalizePatterns: one regex or a list; each match yields capture groups joined by "_"
+    - When several patterns match, the longest form is always kept (single promote search path)
 
+    Texts that match none of the patterns are not searched (rejected without alias lookup).
     Built-in hygiene (strip non-alphanumeric, leading zeros) still runs after extraction.
-    The canonical value is used for cache keys; search also keeps intermediate variations.
+    Casing is preserved — DMS alias IN filters are case-sensitive.
     """
 
-    convert_to_lowercase: bool = False
     normalize_patterns: list[str] = Field(
-        alias="normalizePattern",
+        alias="normalizePatterns",
         default_factory=lambda: [DEFAULT_NORMALIZE_PATTERN],
         min_length=1,
     )
-    normalize_selection: Literal["all", "longest"] = Field(default="all", alias="normalizeSelection")
 
     @field_validator("normalize_patterns", mode="before")
     @classmethod
@@ -299,14 +299,13 @@ class TextNormalizationConfig(BaseModel, alias_generator=to_camel):
             try:
                 compiled = re.compile(pattern)
             except re.error as e:
-                raise ValueError(f"normalizePattern {pattern!r} is not a valid regular expression: {e}") from e
+                raise ValueError(f"normalizePatterns entry {pattern!r} is not a valid regular expression: {e}") from e
             if not compiled.groups:
                 raise ValueError(
-                    f"normalizePattern {pattern!r} must have at least one capture group - "
+                    f"normalizePatterns entry {pattern!r} must have at least one capture group - "
                     "the normalized form is the groups joined by '_'"
                 )
         return value
-
 
 
 class EntitySearchServiceConfig(BaseModel, alias_generator=to_camel):
@@ -369,6 +368,7 @@ class PatternPromoteParameters(BaseModel, alias_generator=to_camel):
 
 class Parameters(BaseModel, alias_generator=to_camel):
     pattern_mode: bool = True
+    structural_auto_patterns: bool = True
     clean_old_annotations: bool = True
     auto_approval_threshold: float = Field(default=1.0, gt=0.0, le=1.0)
     auto_suggest_threshold: float = Field(default=1.0, gt=0.0, le=1.0)
@@ -382,6 +382,27 @@ class Parameters(BaseModel, alias_generator=to_camel):
     raw_table_promote_cache: str = RAW_TABLE_PROMOTE_CACHE
     raw_manual_patterns_catalog: str = RAW_TABLE_MANUAL_PATTERNS
     pattern_promote: PatternPromoteParameters = Field(default_factory=PatternPromoteParameters)
+    files_to_annotate_tags: list[str] = Field(default_factory=lambda: [TAG_TO_ANNOTATE])
+    files_to_annotate_exclude_tags: list[str] = Field(default_factory=lambda: list(EXCLUDED_PREPARE_TAGS))
+    file_entities_tags: list[str] = Field(default_factory=lambda: [TAG_DETECT_IN_DIAGRAMS])
+    target_entities_tags: list[str] = Field(default_factory=lambda: [TAG_DETECT_IN_DIAGRAMS])
+
+
+def _tag_list(value: object, default: list[str], *, allow_empty: bool = False) -> list[str]:
+    """Coerce a config tag value to a list of non-empty strings."""
+    if value is None:
+        return list(default)
+    if isinstance(value, str):
+        stripped = value.strip()
+        if stripped:
+            return [stripped]
+        return [] if allow_empty else list(default)
+    if isinstance(value, list):
+        tags = [str(item).strip() for item in value if str(item).strip()]
+        if tags or allow_empty:
+            return tags
+        return list(default)
+    return list(default)
 
 
 class ConfigData(BaseModel, alias_generator=to_camel):
@@ -448,6 +469,31 @@ class Config(BaseModel, alias_generator=to_camel):
         if not isinstance(text_normalization, dict):
             text_normalization = {}
 
+        files_to_annotate_tags = _tag_list(parameters.get("filesToAnnotateTags"), [TAG_TO_ANNOTATE])
+        files_to_annotate_exclude_tags = [
+            tag
+            for tag in _tag_list(
+                parameters.get("filesToAnnotateExcludeTags"),
+                list(EXCLUDED_PREPARE_TAGS),
+                allow_empty=True,
+            )
+            if tag not in files_to_annotate_tags
+        ]
+        file_entities_tags = _tag_list(parameters.get("fileEntitiesTags"), [TAG_DETECT_IN_DIAGRAMS])
+        target_entities_tags = _tag_list(parameters.get("targetEntitiesTags"), [TAG_DETECT_IN_DIAGRAMS])
+        prepare_filters: list[dict[str, object]] = [
+            {"values": files_to_annotate_tags, "operator": "In", "targetProperty": "tags"}
+        ]
+        if files_to_annotate_exclude_tags:
+            prepare_filters.append(
+                {
+                    "values": files_to_annotate_exclude_tags,
+                    "negate": True,
+                    "operator": "In",
+                    "targetProperty": "tags",
+                }
+            )
+
         config.update(
             {
                 "rawTables": {
@@ -468,15 +514,7 @@ class Config(BaseModel, alias_generator=to_camel):
                 "prepareFunction": {
                     "getFilesToAnnotateQuery": {
                         "targetView": file_view,
-                        "filters": [
-                            {"values": [TAG_TO_ANNOTATE], "operator": "In", "targetProperty": "tags"},
-                            {
-                                "values": EXCLUDED_PREPARE_TAGS,
-                                "negate": True,
-                                "operator": "In",
-                                "targetProperty": "tags",
-                            },
-                        ],
+                        "filters": prepare_filters,
                         "limit": PREPARE_FILE_LIMIT,
                     }
                 },
@@ -487,6 +525,7 @@ class Config(BaseModel, alias_generator=to_camel):
                     "primaryScopeProperty": parameters.get("primaryScopeProperty"),
                     "secondaryScopeProperty": parameters.get("secondaryScopeProperty"),
                     "patternMode": parameters.get("patternMode", True),
+                    "structuralAutoPatterns": parameters.get("structuralAutoPatterns", True),
                     "fileResourceProperty": file_view.get("resourceProperty"),
                     "targetEntitiesResourceProperty": target_view.get("resourceProperty"),
                     "dataModelService": {
@@ -506,7 +545,7 @@ class Config(BaseModel, alias_generator=to_camel):
                             "targetView": target_view,
                             "filters": [
                                 {
-                                    "values": [TAG_DETECT_IN_DIAGRAMS],
+                                    "values": target_entities_tags,
                                     "operator": "In",
                                     "targetProperty": "tags",
                                 }
@@ -516,7 +555,7 @@ class Config(BaseModel, alias_generator=to_camel):
                             "targetView": file_view,
                             "filters": [
                                 {
-                                    "values": [TAG_DETECT_IN_DIAGRAMS],
+                                    "values": file_entities_tags,
                                     "operator": "In",
                                     "targetProperty": "tags",
                                 }
@@ -773,6 +812,7 @@ def format_launch_config(config: Config, pipeline_ext_id: str) -> str:
         "LAUNCH SERVICE CONFIG",
         f"  • Batch size: {launch.batch_size}",
         f"  • Pattern mode: {launch.pattern_mode}",
+        f"  • Structural auto patterns: {launch.structural_auto_patterns}",
         f"  • Primary scope property: {launch.primary_scope_property}",
         f"  • Secondary scope property: {launch.secondary_scope_property}",
         f"  • File search property: {launch.file_search_property}",
@@ -895,10 +935,11 @@ def format_promote_config(config: Config, pipeline_ext_id: str) -> str:
             "ENTITY SEARCH SERVICE",
             f"  • Max entity search limit: {entity_search.max_entity_search_limit}",
             "  • Text normalization:",
-            f"    - Convert to lowercase: {text_norm.convert_to_lowercase}",
-            f"    - Normalize pattern: {text_norm.normalize_patterns}",
-            f"    - Normalize selection: {text_norm.normalize_selection}",
+            f"    - Normalize patterns: {text_norm.normalize_patterns}",
+            "    - Selection: longest matching form (always)",
+            "    - Non-matching text is not searched",
             "    - Built-in: remove non-alphanumeric characters and strip leading zeros",
+            "    - Casing preserved (DMS alias match is case-sensitive)",
         ]
     )
 

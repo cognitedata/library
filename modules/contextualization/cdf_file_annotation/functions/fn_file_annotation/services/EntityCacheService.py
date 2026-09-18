@@ -17,6 +17,37 @@ from services.LoggerService import CogniteFunctionLogger
 from utils.DataStructures import entity
 
 
+def count_pattern_sample_strings(pattern_groups: list[dict]) -> int:
+    """Count sample strings across pattern-mode entity groups."""
+    return sum(len(group.get("sample") or []) for group in pattern_groups)
+
+
+def split_entities_by_kind(entities: list[dict]) -> tuple[list[dict], list[dict]]:
+    """
+    Split diagram-detect entities into asset-like vs file-like lists.
+
+    Uses annotation_type when present; otherwise treats unknown as assets.
+    """
+    assets: list[dict] = []
+    files: list[dict] = []
+    for row in entities:
+        if row.get("annotation_type") == "diagrams.FileLink":
+            files.append(row)
+        else:
+            assets.append(row)
+    return assets, files
+
+
+def entities_missing_search_property(entities: list[dict]) -> list[dict]:
+    """Return entities with empty or missing search_property (aliases)."""
+    missing: list[dict] = []
+    for row in entities:
+        search = row.get("search_property")
+        if not search:
+            missing.append(row)
+    return missing
+
+
 class ICacheService(abc.ABC):
     """
     Manages a persistent cache of entities to pass into diagram detect (e.g., assets, files)
@@ -103,7 +134,15 @@ class GeneralCacheService(ICacheService):
             asset_entities: list[dict] = row.columns.get("AssetEntities", [])
             file_entities: list[dict] = row.columns.get("FileEntities", [])
             combined_pattern_samples: list[dict] = row.columns.get("CombinedPatternSamples", [])
-            return (asset_entities + file_entities), combined_pattern_samples
+            entities = asset_entities + file_entities
+            self._log_launch_input_summary(
+                scope_key=key,
+                source="CACHE",
+                asset_entities=asset_entities,
+                file_entities=file_entities,
+                pattern_samples=combined_pattern_samples,
+            )
+            return entities, combined_pattern_samples
 
         self.logger.info(f"Cache is out-of-date for key: {key}\nEntities and patterns loaded from: CDF (Fresh Fetch)")
 
@@ -127,6 +166,15 @@ class GeneralCacheService(ICacheService):
         # Merge the auto and manual patterns
         combined_pattern_samples = self._merge_patterns(auto_pattern_samples, manual_pattern_samples)
 
+        self._log_launch_input_summary(
+            scope_key=key,
+            source="CDF",
+            asset_entities=asset_entities,
+            file_entities=file_entities,
+            pattern_samples=combined_pattern_samples,
+            manual_pattern_groups=len(manual_pattern_samples),
+        )
+
         # Update cache
         new_row = RowWrite(
             key=key,
@@ -142,6 +190,70 @@ class GeneralCacheService(ICacheService):
         )
         self._update_cache(new_row)
         return entities, combined_pattern_samples
+
+    def _log_launch_input_summary(
+        self,
+        *,
+        scope_key: str,
+        source: str,
+        asset_entities: list[dict],
+        file_entities: list[dict],
+        pattern_samples: list[dict],
+        manual_pattern_groups: int | None = None,
+    ) -> None:
+        """Log INFO counts and DEBUG details for launch entity/pattern input."""
+        pattern_string_count = count_pattern_sample_strings(pattern_samples)
+        assets_missing = entities_missing_search_property(asset_entities)
+        files_missing = entities_missing_search_property(file_entities)
+        structural = self.config.launch_function.structural_auto_patterns
+        pattern_mode = self.config.launch_function.pattern_mode
+
+        info_lines = [
+            f"Launch input summary (scope={scope_key!r}, source={source}):",
+            f"  • Target entities (assets): {len(asset_entities)}"
+            f" ({len(assets_missing)} missing searchProperty/aliases)",
+            f"  • File entities: {len(file_entities)} ({len(files_missing)} missing searchProperty/aliases)",
+            f"  • Total entities for regular detect: {len(asset_entities) + len(file_entities)}",
+            f"  • Pattern mode: {pattern_mode} | structuralAutoPatterns: {structural}",
+            f"  • Pattern sample strings: {pattern_string_count} across {len(pattern_samples)} group(s)",
+        ]
+        if manual_pattern_groups is not None:
+            info_lines.append(f"  • Manual pattern groups merged: {manual_pattern_groups}")
+        self.logger.info("\n".join(info_lines))
+
+        if self.logger.log_level != "DEBUG":
+            return
+
+        debug_lines = ["Launch input details (DEBUG):"]
+        for label, rows in (("assets", asset_entities), ("files", file_entities)):
+            debug_lines.append(f"  {label} ({len(rows)}):")
+            preview = rows[:40]
+            for row in preview:
+                aliases = row.get("search_property") or []
+                debug_lines.append(
+                    f"    - {row.get('space')}/{row.get('external_id')}"
+                    f" resource_type={row.get('resource_type')!r}"
+                    f" aliases={aliases!r}"
+                )
+            if len(rows) > len(preview):
+                debug_lines.append(f"    ... +{len(rows) - len(preview)} more")
+
+        if assets_missing or files_missing:
+            debug_lines.append("  Entities missing aliases:")
+            for row in (assets_missing + files_missing)[:30]:
+                debug_lines.append(f"    - {row.get('space')}/{row.get('external_id')} name={row.get('name')!r}")
+
+        debug_lines.append(f"  Pattern samples ({pattern_string_count}):")
+        for group in pattern_samples:
+            samples = group.get("sample") or []
+            debug_lines.append(
+                f"    [{group.get('resource_type')}/{group.get('annotation_type')}] {len(samples)} sample(s)"
+            )
+            for sample in samples[:80]:
+                debug_lines.append(f"      - {sample}")
+            if len(samples) > 80:
+                debug_lines.append(f"      ... +{len(samples) - 80} more")
+        self.logger.debug("\n".join(debug_lines))
 
     def _update_cache(self, row_to_write: RowWrite) -> None:
         """
@@ -262,8 +374,15 @@ class GeneralCacheService(ICacheService):
         """
         Generates regex-like pattern samples from entity search properties for pattern mode detection.
 
-        Analyzes entity aliases to extract common patterns and variations, creating consolidated
-        pattern samples that can match multiple similar tags (e.g., "[FT]-000[A|B]").
+        Two modes (parameters.structuralAutoPatterns / launchFunction.structuralAutoPatterns):
+
+        - structural (True): emit digit/letter *shape* templates such as ``00-AA-0000``.
+          Letter codes are not enumerated, so ``23-XX-9106`` and ``23-KA-9101`` share a shape.
+        - legacy (False): expand observed letter groups into required constants
+          (e.g. ``[FE|KA|PC|VA]``).
+
+        Separators are never required constants: ``_``, ``-``, ``.``, ``:``, ``;``, ``/``,
+        and space are always normalized to an unbracketed ``-`` (never ``[_]``), in both modes.
 
         Args:
             entities: List of entity dictionaries containing search properties (aliases).
@@ -276,18 +395,20 @@ class GeneralCacheService(ICacheService):
         """
         # Structure: { resource_type: {"patterns": { template_key: [...] }, "annotation_type": "..."} }
         pattern_builders: dict[str, dict[str, object]] = defaultdict(lambda: {"patterns": {}, "annotation_type": None})
-        self.logger.info(f"Generating pattern samples from {len(entities)} entities.")
+        structural = self.config.launch_function.structural_auto_patterns
+        self.logger.info(
+            f"Generating {'structural' if structural else 'legacy'} pattern samples from {len(entities)} entities."
+        )
 
         def _parse_alias(alias: str, resource_type_key: str) -> tuple[str, list[list[str]]]:
             """
             Parse an alias into a normalized template string and collect variable letter groups.
 
-            - Treat hyphens '-' and spaces ' ' as literal characters.
-            - Wrap all other non-alphanumeric characters in brackets to mark them as required literals (e.g., [+], [.]).
+            - All separators normalize to unbracketed '-' (never bracketed required literals).
             - Replace digits with '0' and letters with 'A' in alphanumeric segments.
-            - If an alphanumeric segment equals the resource type and is token-boundary isolated, wrap it in brackets to mark it constant.
+            - If an alphanumeric segment equals the resource type and is token-boundary isolated,
+              wrap it in brackets to mark it constant.
             """
-            # Tokenize alias into alphanumeric runs and single-character separators
             tokens: list[str] = []
             current_alnum: list[str] = []
             for ch in alias:
@@ -311,19 +432,14 @@ class GeneralCacheService(ICacheService):
                 if not part:
                     continue
                 if is_separator(part):
-                    # Hyphen and space are plain literals; other specials must be wrapped in brackets
-                    # Bracket characters coming from aliases should be ignored in the resulting
-                    # template (they can't match literal brackets in the docs).
-                    # We still treat them as separators so token-boundary checks work.
-                    if part == "-" or part == " ":
-                        full_template_key_parts.append(part)
-                    elif part in ("[", "]"):
+                    # Bracket characters from aliases cannot match literal brackets in docs.
+                    if part in ("[", "]"):
                         pass
                     else:
-                        full_template_key_parts.append(f"[{part}]")
+                        # Never emit [_] / [.] etc. — separators stay optional for detect.
+                        full_template_key_parts.append("-")
                     continue
 
-                # Alphanumeric segment
                 left_ok = (i == 0) or is_separator(tokens[i - 1])
                 right_ok = (i == len(tokens) - 1) or is_separator(tokens[i + 1])
                 if left_ok and right_ok and part == resource_type_key:
@@ -334,9 +450,10 @@ class GeneralCacheService(ICacheService):
                 segment_template = re.sub(r"[A-Za-z]", "A", segment_template)
                 full_template_key_parts.append(segment_template)
 
-                variable_letters = re.findall(r"[A-Za-z]+", part)
-                if variable_letters:
-                    all_variable_parts.append(variable_letters)
+                if not structural:
+                    variable_letters = re.findall(r"[A-Za-z]+", part)
+                    if variable_letters:
+                        all_variable_parts.append(variable_letters)
 
             return "".join(full_template_key_parts), all_variable_parts
 
@@ -372,6 +489,10 @@ class GeneralCacheService(ICacheService):
             templates: dict[str, list[list[set[str]]]] = data.get("patterns") or {}
             annotation_type = data["annotation_type"]
             for template_key, collected_vars in templates.items():
+                if structural:
+                    final_samples.append(template_key)
+                    continue
+
                 var_iter: Iterator[list[set[str]]] = iter(collected_vars)
 
                 def build_segment(segment_template: str) -> str:
@@ -381,7 +502,7 @@ class GeneralCacheService(ICacheService):
                         letter_groups_for_segment: list[set[str]] = next(var_iter)
                         letter_group_iter: Iterator[set[str]] = iter(letter_groups_for_segment)
 
-                        def replace_A(match):
+                        def replace_A(match: re.Match[str]) -> str:
                             alternatives = sorted(next(letter_group_iter))
                             return f"[{'|'.join(alternatives)}]"
 
@@ -389,16 +510,13 @@ class GeneralCacheService(ICacheService):
                     except StopIteration:
                         return segment_template
 
-                # Split by bracketed constants or any single non-alphanumeric separator to preserve them as tokens
                 parts = [p for p in re.split(r"(\[[^\]]+\]|[^A-Za-z0-9])", template_key) if p != ""]
                 final_pattern_parts = [build_segment(p) if re.search(r"A", p) else p for p in parts]
                 final_samples.append("".join(final_pattern_parts))
 
-            # Sanity filter: drop overly generic numeric-only patterns (must contain a letter or a character class)
             def _has_alpha_or_class(s: str) -> bool:
                 if re.search(r"[A-Za-z]", s):
                     return True
-                # Character class: bracketed alternatives like [A|B] or [1|2]
                 return bool(re.search(r"\[[^\]]*\|[^\]]*\]", s))
 
             final_samples = [s for s in final_samples if _has_alpha_or_class(s)]

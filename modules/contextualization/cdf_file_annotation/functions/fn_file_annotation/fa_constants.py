@@ -27,10 +27,28 @@ RAW_TABLE_DOC_PATTERN: Final = "annotation_documents_patterns"
 RAW_TABLE_PROMOTE_CACHE: Final = "annotation_tags_cache"
 RAW_TABLE_MANUAL_PATTERNS: Final = "manual_patterns_catalog"
 
-TAG_TO_ANNOTATE: Final = "ToAnnotate"
+TAG_ANNOTATED: Final = "Annotated"
+TAG_ANNOTATION_FAILED: Final = "AnnotationFailed"
+TAG_ANNOTATION_IN_PROCESS: Final = "AnnotationInProcess"
 TAG_DETECT_IN_DIAGRAMS: Final = "DetectInDiagrams"
 TAG_PROMOTE_ATTEMPTED: Final = "PromoteAttempted"
-EXCLUDED_PREPARE_TAGS: Final = ["AnnotationInProcess", "Annotated", "AnnotationFailed"]
+TAG_PROMOTED_AUTO: Final = "PromotedAuto"
+TAG_AMBIGUOUS_MATCH: Final = "AmbiguousMatch"
+TAG_SCOPE_WIDE_DETECT: Final = "ScopeWideDetect"
+TAG_TO_ANNOTATE: Final = "ToAnnotate"
+EXCLUDED_PREPARE_TAGS: Final = [TAG_ANNOTATION_IN_PROCESS, TAG_ANNOTATED, TAG_ANNOTATION_FAILED]
+# All tags the pipeline reads or writes. Shown in default.config.yaml comments.
+PIPELINE_TAGS: Final = [
+    TAG_TO_ANNOTATE,
+    TAG_DETECT_IN_DIAGRAMS,
+    TAG_SCOPE_WIDE_DETECT,
+    TAG_ANNOTATION_IN_PROCESS,
+    TAG_ANNOTATED,
+    TAG_ANNOTATION_FAILED,
+    TAG_PROMOTE_ATTEMPTED,
+    TAG_PROMOTED_AUTO,
+    TAG_AMBIGUOUS_MATCH,
+]
 LAUNCH_STATUSES: Final = ["New", "Retry"]
 PROCESSING_STATUS: Final = "Processing"
 SUGGESTED_STATUS: Final = "Suggested"

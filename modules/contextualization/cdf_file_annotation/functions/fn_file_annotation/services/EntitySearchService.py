@@ -53,7 +53,7 @@ class EntitySearchService(IEntitySearchService):
 
     **Utilities:**
     - `generate_text_variations()`: Creates common variations (case, leading zeros, special chars)
-    - `normalize()`: Normalizes text for cache keys (removes special chars, lowercase, strips zeros)
+    - `normalize()`: Normalizes text for cache keys (removes special chars, strips zeros)
     """
 
     def __init__(
@@ -121,9 +121,15 @@ class EntitySearchService(IEntitySearchService):
             - [node] if single unambiguous match
             - [node1, node2] if ambiguous (multiple matches)
         """
-        # Generate text variations once
-        text_variations: list[str] = self.generate_text_variations(text)
-        self.logger.info(f"Generated {len(text_variations)} text variation(s) for '{text}': {text_variations}")
+        # Normalize first: no pattern match → do not search (e.g. drawing words like "REPEATED")
+        search_texts: list[str] = self.generate_text_variations(text)
+        if not search_texts:
+            self.logger.debug(
+                f"✗ Skipping search for '{text}': does not match normalizePatterns."
+            )
+            return []
+
+        self.logger.info(f"Generated {len(search_texts)} text variation(s) for '{text}': {search_texts}")
 
         # Determine which view to query based on annotation type
         if annotation_type == "diagrams.FileLink":
@@ -132,7 +138,7 @@ class EntitySearchService(IEntitySearchService):
             source = self.target_entities_view_id
 
         # Query entities directly by aliases
-        found_nodes: list[Node] = self.find_global_entity(text_variations, source, entity_space)
+        found_nodes: list[Node] = self.find_global_entity(search_texts, source, entity_space)
 
         return found_nodes
 
@@ -303,52 +309,29 @@ class EntitySearchService(IEntitySearchService):
 
     def generate_text_variations(self, text: str) -> list[str]:
         """
-        Generates common variations of a text string to improve matching.
+        Builds search variations from the longest form extracted by normalizePatterns.
 
-        Respects text_normalization_config settings:
-        - removeSpecialCharacters: Generate variations without special characters
-        - convertToLowercase: Generate lowercase variations
-        - stripLeadingZeros: Generate variations with leading zeros removed
-
-        Examples (all flags enabled):
-            "V-0912" → ["V-0912", "v-0912", "V-912", "v-912", "V0912", "v0912", "V912", "v912"]
-            "P&ID-001" → ["P&ID-001", "p&id-001", "P&ID-1", "p&id-1", "PID001", "pid001", "PID1", "pid1"]
-
-        Examples (all flags disabled):
-            "V-0912" → ["V-0912"]  # Only original
+        Returns an empty list when text matches none of the patterns so callers skip search.
+        When a pattern matches, includes the original text, the longest extracted form, and
+        built-in hygiene variants (strip non-alphanumeric / leading zeros). Casing is preserved.
 
         Args:
             text: Original text from pattern detection
 
         Returns:
-            List of text variations based on config settings
+            Search strings, or [] when normalizePatterns does not match.
         """
         return text_variations(
             text,
             self.text_normalization_config.normalize_patterns,
-            self.text_normalization_config.normalize_selection,
-            convert_to_lowercase=self.text_normalization_config.convert_to_lowercase,
         )
 
     def normalize(self, s: str) -> str:
         """
-        Normalizes a string for comparison based on text_normalization_config settings.
+        Canonical cache-key form: longest normalizePatterns extraction then built-in hygiene.
 
-        Applies transformations in sequence based on config:
-        1. removeSpecialCharacters: Remove non-alphanumeric characters
-        2. convertToLowercase: Convert to lowercase
-        3. stripLeadingZeros: Remove leading zeros from number sequences
-
-        Examples (all flags enabled):
-            "V-0912" -> "v912"
-            "FT-101A" -> "ft101a"
-            "P&ID-0001" -> "pid1"
-
-        Examples (all flags disabled):
-            "V-0912" -> "V-0912"  # No transformation
-
-        Examples (only removeSpecialCharacters):
-            "V-0912" -> "V0912"  # Special chars removed, case and zeros preserved
+        Falls back to the original string (with hygiene) when no pattern matches.
+        Casing is preserved.
 
         Args:
             s: String to normalize
@@ -361,6 +344,4 @@ class EntitySearchService(IEntitySearchService):
         return normalize_text(
             s,
             self.text_normalization_config.normalize_patterns,
-            self.text_normalization_config.normalize_selection,
-            convert_to_lowercase=self.text_normalization_config.convert_to_lowercase,
         )

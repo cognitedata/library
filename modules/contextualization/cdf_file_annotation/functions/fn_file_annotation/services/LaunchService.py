@@ -15,7 +15,7 @@ from fa_constants import LOCAL_RATE_LIMIT_SLEEP_SECONDS
 from services.AnnotationService import IAnnotationService
 from services.ConfigService import Config, ViewPropertyConfig
 from services.DataModelService import IDataModelService
-from services.EntityCacheService import ICacheService
+from services.EntityCacheService import ICacheService, count_pattern_sample_strings, split_entities_by_kind
 from services.LoggerService import CogniteFunctionLogger
 from utils.DataStructures import (
     AnnotationStatus,
@@ -168,10 +168,12 @@ class GeneralLaunchService(AbstractLaunchService):
             for batch in processing_batches:
                 primary_scope_value = batch.primary_scope_value
                 secondary_scope_value = batch.secondary_scope_value
-                msg = f"{self.primary_scope_property}: {primary_scope_value}"
-                if secondary_scope_value:
-                    msg += f", {self.secondary_scope_property}: {secondary_scope_value}"
-                self.logger.info(message=f"Processing {len(batch.files)} files in {msg}")
+                scoped = bool(self.primary_scope_property)
+                if scoped:
+                    msg = f"{self.primary_scope_property}: {primary_scope_value}"
+                    if secondary_scope_value:
+                        msg += f", {self.secondary_scope_property}: {secondary_scope_value}"
+                    self.logger.info(message=f"Processing {len(batch.files)} files in {msg}")
                 self._ensure_cache_for_batch(primary_scope_value, secondary_scope_value)
 
                 current_batch = BatchOfPairedNodes(file_to_state_map=file_to_state_map)
@@ -189,7 +191,8 @@ class GeneralLaunchService(AbstractLaunchService):
                 if not current_batch.is_empty():
                     self.logger.info(message=f"Processing remaining {current_batch.size()} files in batch")
                     self._process_batch(current_batch)
-                self.logger.info(message=f"Finished processing for {msg}", section="END")
+                if scoped:
+                    self.logger.info(message=f"Finished processing for {msg}", section="END")
         except CogniteAPIError as e:
             if e.code == 429:
                 self.logger.debug(f"{e!s}")
@@ -242,10 +245,15 @@ class GeneralLaunchService(AbstractLaunchService):
                         files=files_in_batch,
                     )
                 )
-                self.logger.info(
-                    message=f"Created batch of {len(files_in_batch)} files for {self.primary_scope_property}: {primary_property}, {self.secondary_scope_property}: {secondary_property}",
-                    section="END",
-                )
+                if self.primary_scope_property:
+                    self.logger.info(
+                        message=(
+                            f"Created batch of {len(files_in_batch)} files for "
+                            f"{self.primary_scope_property}: {primary_property}, "
+                            f"{self.secondary_scope_property}: {secondary_property}"
+                        ),
+                        section="END",
+                    )
         return final_processing_batches
 
     def _ensure_cache_for_batch(self, primary_scope_value: str, secondary_scope_value: str | None):
@@ -279,6 +287,13 @@ class GeneralLaunchService(AbstractLaunchService):
                 )
                 self._cached_primary_scope = primary_scope_value
                 self._cached_secondary_scope = secondary_scope_value
+                assets, files = split_entities_by_kind(self.in_memory_cache)
+                self.logger.info(
+                    f"In-memory cache ready for scope primary={primary_scope_value!r} "
+                    f"secondary={secondary_scope_value!r}: "
+                    f"{len(assets)} assets, {len(files)} files, "
+                    f"{count_pattern_sample_strings(self.in_memory_patterns)} pattern sample string(s)"
+                )
             except CogniteAPIError as e:
                 raise e
 
@@ -306,8 +321,16 @@ class GeneralLaunchService(AbstractLaunchService):
             job_id: int | None = None
             job_token: str | None = None
             if self.in_memory_cache:
+                assets, files = split_entities_by_kind(self.in_memory_cache)
                 self.logger.info(
-                    f"Running diagram detect on {batch.size()} files with {len(self.in_memory_cache)} entities"
+                    f"Running diagram detect on {batch.size()} files with "
+                    f"{len(self.in_memory_cache)} entities "
+                    f"({len(assets)} assets, {len(files)} files)"
+                )
+                self.logger.debug(
+                    "Regular detect entity external IDs: "
+                    + ", ".join(f"{e.get('space')}/{e.get('external_id')}" for e in self.in_memory_cache[:100])
+                    + (" ..." if len(self.in_memory_cache) > 100 else "")
                 )
                 job_id, job_token = self.annotation_service.run_diagram_detect(
                     files=batch.file_references, entities=self.in_memory_cache
@@ -329,17 +352,20 @@ class GeneralLaunchService(AbstractLaunchService):
             pattern_job_id: int | None = None
             pattern_job_token: str | None = None
             if self.config.launch_function.pattern_mode:
-                total_patterns = 0
-                if self.in_memory_patterns and len(self.in_memory_patterns) >= 2:
-                    total_patterns = len(self.in_memory_patterns[0].get("sample", [])) + len(
-                        self.in_memory_patterns[1].get("sample", [])
-                    )
-                elif self.in_memory_patterns and len(self.in_memory_patterns) >= 1:
-                    total_patterns = len(self.in_memory_patterns[0].get("sample", []))
+                total_patterns = count_pattern_sample_strings(self.in_memory_patterns)
                 self.logger.info(
-                    f"Running pattern mode diagram detect on {batch.size()} files with {total_patterns} sample patterns"
+                    f"Running pattern mode diagram detect on {batch.size()} files with "
+                    f"{total_patterns} sample patterns "
+                    f"(structuralAutoPatterns={self.config.launch_function.structural_auto_patterns})"
                 )
                 if total_patterns:
+                    for group in self.in_memory_patterns:
+                        samples = group.get("sample") or []
+                        self.logger.debug(
+                            f"Pattern group {group.get('resource_type')}/{group.get('annotation_type')}: "
+                            f"{len(samples)} samples → {samples[:20]}"
+                            + (" ..." if len(samples) > 20 else "")
+                        )
                     pattern_job_id, pattern_job_token = self.annotation_service.run_pattern_mode_detect(
                         files=batch.file_references, pattern_samples=self.in_memory_patterns
                     )

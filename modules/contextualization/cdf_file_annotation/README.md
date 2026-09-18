@@ -259,7 +259,7 @@ flowchart TD
 **Purpose**: Automatically resolve pattern-mode annotations by finding matching entities
 
 **Key Features**:
-- 🔍 **Text Normalization**: `normalizePattern` / `normalizeSelection` extract tag forms from diagram text the same way aliases_update builds aliases (capture groups joined by `_`), then generate case / hygiene variations for alias lookup
+- 🔍 **Text Normalization**: `normalizePatterns` extract tag forms from diagram text the same way aliases_update builds aliases (capture groups joined by `_`; longest match kept). Texts that match none of the patterns are not searched. Matching texts get case / hygiene variations for alias lookup
 - 🧠 **Multi-Tier Caching**: In-memory → RAW → Entity search strategy (queries **`aliases`** via server-side IN filter)
 - ✅ **Automatic Resolution**: Single match → Approved, No match → Rejected, Multiple → Manual review
 - 🏷️ **Tagging**: Adds `PromotedAuto`, `PromoteAttempted`, `AmbiguousMatch` tags
@@ -366,10 +366,17 @@ cdf transformations run tr_tag_files_to_annotate
 
 Configure view external IDs, versions, and instance spaces in `default.config.yaml`. You still need a separate pipeline (for example entity matching / alias update) to populate **`aliases`**.
 
-**Re-annotation:** These transformations only add tags. Prepare always requires
-`ToAnnotate` and excludes `AnnotationInProcess`, `Annotated`, and `AnnotationFailed`.
-Clear the prior annotation state/status for selected files before running the submit
-workflow again.
+**Re-annotation:** Helper tagging transformations only add tags. Prepare defaults to
+files tagged `ToAnnotate` and excludes `AnnotationInProcess`, `Annotated`, and
+`AnnotationFailed`. To reprocess already finished files, add those tags to
+`filesToAnnotateTags` (they are then dropped from the exclude list automatically):
+
+```yaml
+filesToAnnotateTags:
+  - ToAnnotate
+  - Annotated
+  - AnnotationFailed
+```
 
 ## 📊 Reporting & RAW Tables
 
@@ -450,14 +457,13 @@ rawTableAnnotationStatusReport: annotation_file_status_report
 # Extraction Pipeline
 extractionPipelineExternalId: ep_file_annotation
 patternMode: true
+structuralAutoPatterns: true
 cleanOldAnnotations: true
 autoApprovalThreshold: 1.0
 autoSuggestThreshold: 1.0
 primaryScopeProperty: ""
 secondaryScopeProperty: ""
-convertToLowercase: false
-textNormalizationPattern: '([0-9]{2})[-_.:]([A-Z]{2,3})[-_.:]([0-9]{4,5})'
-textNormalizationSelection: all
+textNormalizationPatterns: '([0-9]{2})[-_.:]([A-Z]{2,3})[-_.:]([0-9]{4,5})'
 
 # Target Entity View Configuration (UPDATE REQUIRED)
 targetEntitySchemaSpace: <insert>
@@ -494,18 +500,31 @@ groupSourceId: ${GROUP_SOURCE_ID}
 ### Pipeline Configuration (`ep_file_annotation.config.yaml`)
 
 The extraction pipeline follows the same concise `parameters` / `data` structure as the
-entity-matching module. Operator knobs, view property names, and RAW table names are
-Toolkit variables in `default.config.yaml`. Fixed limits, queries, tags, and cleanup
-behavior live in `functions/fn_file_annotation/fa_constants.py`.
+entity-matching module. Operator knobs, view property names, RAW table names, and tag
+filters are Toolkit variables in `default.config.yaml`. Fixed limits, queries, and
+cleanup behavior live in `functions/fn_file_annotation/fa_constants.py`.
 
 ```yaml
 parameters:
   patternMode: true
+  structuralAutoPatterns: true
   cleanOldAnnotations: true
   autoApprovalThreshold: 1.0
   autoSuggestThreshold: 1.0
   primaryScopeProperty:
   secondaryScopeProperty:
+  # Pipeline tags: ToAnnotate, DetectInDiagrams, ScopeWideDetect, AnnotationInProcess,
+  # Annotated, AnnotationFailed, PromoteAttempted, PromotedAuto, AmbiguousMatch.
+  filesToAnnotateTags:
+    - ToAnnotate
+  filesToAnnotateExcludeTags:
+    - AnnotationInProcess
+    - Annotated
+    - AnnotationFailed
+  fileEntitiesTags:
+    - DetectInDiagrams
+  targetEntitiesTags:
+    - DetectInDiagrams
   rawDb: db_file_annotation
   rawTableDocTag: annotation_documents_tags
   rawTableDocDoc: annotation_documents_docs
@@ -515,9 +534,7 @@ parameters:
   rawTablePromoteCache: annotation_tags_cache
   patternPromote:
     textNormalization:
-      convertToLowercase: false
-      normalizePattern: '([0-9]{2})[-_.:]([A-Z]{2,3})[-_.:]([0-9]{4,5})'
-      normalizeSelection: all
+      normalizePatterns: '([0-9]{2})[-_.:]([A-Z]{2,3})[-_.:]([0-9]{4,5})'
 data:
   fileView:
     schemaSpace: cdf_cdm
@@ -535,20 +552,32 @@ data:
     externalId: pattern_detection_sink_node
 ```
 
-### Text normalization for promote (`normalizePattern` / `normalizeSelection`)
+### `searchProperty` vs `resourceProperty`
+
+On both `fileView` and `targetEntitiesView`:
+
+| Field | Role |
+|-------|------|
+| `searchProperty` | Property Diagram Detect (and promote) use to **match text** on drawings. Usually `aliases`. |
+| `resourceProperty` | Optional property used only to **classify** entities (stored as `resource_type` in the entity/pattern cache, RAW rows, and dashboards). Examples: `equipmentType`, `documentType`. |
+
+`resourceProperty` is **not** used for matching. If it is empty or omitted, the view external ID is used instead (e.g. `CogniteAsset` / `CogniteFile`).
+
+Toolkit variables: `fileSearchProperty` / `fileResourceProperty` and `targetEntitySearchProperty` / `targetEntityResourceProperty`.
+
+### Text normalization for promote (`normalizePatterns`)
 
 Promote resolves pattern-mode annotations by searching entity **`aliases`**. The text
 normalization block uses the **same capture-group model as**
-`cdf_entity_matching` aliases_update (`aliasPattern` / `aliasSelection`):
+`cdf_entity_matching` aliases_update (`aliasPattern`):
 
-- `normalizePattern` — one regular expression or a list. Each match yields its **capture
-  groups joined by `_`** (the groups decide the form, not the whole match).
-- `normalizeSelection` — when several patterns match one diagram string:
-  | Value | Result |
-  |-------|--------|
-  | `all` (default) | Keep every extracted form as a search candidate |
-  | `longest` | Keep only the longest form |
-- `convertToLowercase` — optional extra variations after extraction.
+- `normalizePatterns` — one regular expression or a list. Each match yields its **capture
+  groups joined by `_`** (the groups decide the form, not the whole match). When several
+  patterns match one diagram string, the **longest** form is always kept (one promote
+  search candidate lineage).
+- Text that matches **none** of the patterns is **not searched** (rejected without alias
+  lookup). This filters drawing words such as `REPEATED` before promote search.
+- Casing is preserved — DMS alias `IN` filters are case-sensitive exact matches.
 - Built-in hygiene still expands candidates (strip non-alphanumeric characters, leading zeros).
 
 Configure the **same patterns** you use in aliases_update so OCR / diagram text normalizes
@@ -560,36 +589,32 @@ escapes.
 
 ```yaml
 # default.config.yaml
-textNormalizationPattern: '([0-9]{2})[-_.:]([A-Z]{2,3})[-_.:]([0-9]{4,5})'
-textNormalizationSelection: all
+textNormalizationPatterns: '([0-9]{2})[-_.:]([A-Z]{2,3})[-_.:]([0-9]{4,5})'
 ```
 
 ```yaml
 # ep_file_annotation.config.yaml → parameters.patternPromote.textNormalization
-normalizePattern: '([0-9]{2})[-_.:]([A-Z]{2,3})[-_.:]([0-9]{4,5})'
-normalizeSelection: all
+normalizePatterns: '([0-9]{2})[-_.:]([A-Z]{2,3})[-_.:]([0-9]{4,5})'
 ```
 
-**Several patterns** — keep every form, or only the longest:
+**Several patterns** — longest form wins:
 
 ```yaml
-textNormalizationPattern:
+textNormalizationPatterns:
   - '([0-9]{2})[-_.:]([A-Z]{2,3})[-_.:]([0-9]{4,5})'
   - '([A-Z]{3})[-_]?([0-9]{4})'
-textNormalizationSelection: longest
 ```
 
-Given diagram text `VAL_23-KA-9101_PMP1234`, that config yields `23_KA_9101` and
-`PMP_1234` under `all`, or only `23_KA_9101` under `longest`. Pattern order breaks ties
-when two forms are equally long.
+Given diagram text `VAL_23-KA-9101_PMP1234`, that config yields only `23_KA_9101` (the
+longest of `23_KA_9101` and `PMP_1234`). Pattern order breaks ties when two forms are
+equally long. `REPEATED` matches neither pattern and is rejected without search.
 
 **Site prefix on drawings** — extract the tag after a two-letter plant code:
 
 ```yaml
-textNormalizationPattern:
+textNormalizationPatterns:
   - '^([A-Z]{2})-(.+)$'                          # AT-V-009_1 → AT_V-009_1
   - '([0-9]{2})[-_.:]([A-Z]{2,3})[-_.:]([0-9]{4,5})'
-textNormalizationSelection: all
 ```
 
 An invalid regular expression, or one with no capture group, fails at config load.
@@ -655,14 +680,13 @@ variables:
       fileSearchProperty: aliases
       rawDb: db_file_annotation
       patternMode: true
+      structuralAutoPatterns: true
       cleanOldAnnotations: true
       autoApprovalThreshold: 1.0
       autoSuggestThreshold: 1.0
       primaryScopeProperty: ""
       secondaryScopeProperty: ""
-      convertToLowercase: false
-      textNormalizationPattern: '([0-9]{2})[-_.:]([A-Z]{2,3})[-_.:]([0-9]{4,5})'
-      textNormalizationSelection: all
+      textNormalizationPatterns: '([0-9]{2})[-_.:]([A-Z]{2,3})[-_.:]([0-9]{4,5})'
       targetEntitySchemaSpace: your_schema_space
       targetEntityInstanceSpace: your_instances
       targetEntityExternalId: YourAsset
@@ -861,7 +885,7 @@ cdf raw rows list <db> rawTableDocTag --limit 10
 3. **Pattern Promotion Failures / Unmatched Tags**
    - Unmatched tag text is in `annotation_documents_patterns` (`status = Rejected`), not `annotation_documents_tags`
    - Ensure asset `aliases` include the formats found on drawings (including `-` vs `_` variants)
-   - Tune `parameters.patternPromote.textNormalization` (`normalizePattern` / `normalizeSelection`) to match aliases_update
+   - Tune `parameters.patternPromote.textNormalization` (`normalizePatterns`) to match aliases_update
    - Failed matches remain in RAW; rejected sink edges are intentionally removed from DMS
 
 4. **Status Report Returns Zero Rows**
@@ -876,7 +900,7 @@ cdf raw rows list <db> rawTableDocTag --limit 10
 
 6. **Pattern Promotion Configuration**
    - Verify `sinkNode` points to a valid node in `patternModeInstanceSpace`
-   - Align `normalizePattern` / `normalizeSelection` with aliases_update `aliasPattern` / `aliasSelection`
+   - Align `normalizePatterns` with aliases_update `aliasPattern` (longest match is always kept)
    - Confirm patterns have at least one capture group (config load fails otherwise)
    - Review `annotation_tags_cache` for previously cached positive mappings
 

@@ -474,6 +474,36 @@ def get_source_properties(node_apply: NodeApply) -> dict:
     return node_apply.sources[0].properties or {}
 
 
+def unique_tags(tags: list[str]) -> list[str]:
+    """Return tags with duplicates removed, preserving first-seen order."""
+    seen: set[str] = set()
+    result: list[str] = []
+    for tag in tags:
+        if tag not in seen:
+            seen.add(tag)
+            result.append(tag)
+    return result
+
+
+def add_unique_tags(tags: list[str], *new_tags: str) -> list[str]:
+    """Append tags that are not already present, preserving order."""
+    result = unique_tags(tags)
+    existing = set(result)
+    for tag in new_tags:
+        if tag not in existing:
+            result.append(tag)
+            existing.add(tag)
+    return result
+
+
+def replace_tag(tags: list[str], old: str, new: str) -> list[str]:
+    """Remove `old` and ensure `new` is present once."""
+    result = [tag for tag in unique_tags(tags) if tag != old]
+    if new not in result:
+        result.append(new)
+    return result
+
+
 def set_describable_tags(node_apply: NodeApply, tags: list[str]) -> None:
     """Write tags on a node apply.
 
@@ -486,4 +516,4 @@ def set_describable_tags(node_apply: NodeApply, tags: list[str]) -> None:
         node_apply.sources[0].properties = {}
     properties = node_apply.sources[0].properties
     properties.pop("labels", None)
-    properties["tags"] = tags
+    properties["tags"] = unique_tags(tags)

@@ -21,6 +21,7 @@ from utils.DataStructures import (
     PerformanceTracker,
     get_source_properties,
     remove_protected_properties,
+    replace_tag,
     set_describable_tags,
 )
 
@@ -171,6 +172,8 @@ class GeneralFinalizeService(AbstractFinalizeService):
             f"Jobs complete (regular={regular_job}, pattern={pattern_mode_job}). Applying all annotations.",
             section="END",
         )
+        self._log_detect_job_summary("regular", job_results)
+        self._log_detect_job_summary("pattern", pattern_mode_job_results)
 
         regular_items = job_results["items"] if job_results is not None else []
         merged_results = {
@@ -233,7 +236,7 @@ class GeneralFinalizeService(AbstractFinalizeService):
                     file_node_apply.existing_version = None
                     tags = list(cast(list[str], get_source_properties(file_node_apply).get("tags") or []))
                     if "AnnotationInProcess" in tags:
-                        tags[tags.index("AnnotationInProcess")] = "Annotated"
+                        tags = replace_tag(tags, "AnnotationInProcess", "Annotated")
                     elif "Annotated" not in tags:
                         self.logger.warning(
                             f"File {file_id.external_id} was processed, but 'AnnotationInProcess' tag was not found."
@@ -269,7 +272,7 @@ class GeneralFinalizeService(AbstractFinalizeService):
                     file_node_apply.existing_version = None
                     tags = list(cast(list[str], get_source_properties(file_node_apply).get("tags") or []))
                     if "AnnotationInProcess" in tags:
-                        tags[tags.index("AnnotationInProcess")] = "AnnotationFailed"
+                        tags = replace_tag(tags, "AnnotationInProcess", "AnnotationFailed")
                     elif "AnnotationFailed" not in tags:
                         self.logger.warning(
                             f"File {file_id.external_id} failed processing, but 'AnnotationInProcess' tag was not found."
@@ -435,6 +438,50 @@ class GeneralFinalizeService(AbstractFinalizeService):
             )
 
         return annotated_page_count
+
+    def _log_detect_job_summary(self, label: str, job_results: dict | None) -> None:
+        """Log INFO/DEBUG summary of a diagram detect job payload."""
+        if job_results is None:
+            self.logger.info(f"Detect job summary ({label}): no results payload")
+            return
+
+        status_count = job_results.get("statusCount") or {}
+        items = job_results.get("items") or []
+        ok_annotations = 0
+        failed_items = 0
+        error_preview: list[str] = []
+        for item in items:
+            error = item.get("errorMessage")
+            if error:
+                failed_items += 1
+                file_id = item.get("fileInstanceId") or {}
+                error_preview.append(f"{file_id.get('space')}/{file_id.get('externalId')}: {error}")
+            else:
+                ok_annotations += len(item.get("annotations") or [])
+
+        self.logger.info(
+            f"Detect job summary ({label}): statusCount={status_count}, "
+            f"items={len(items)}, failedItems={failed_items}, "
+            f"annotationHits={ok_annotations}"
+        )
+        if error_preview:
+            preview = error_preview[:10]
+            self.logger.info(
+                f"Detect job errors ({label}) — showing {len(preview)}/{len(error_preview)}:\n"
+                + "\n".join(f"  • {line}" for line in preview)
+            )
+        if self.logger.log_level == "DEBUG":
+            for item in items:
+                file_id = item.get("fileInstanceId") or {}
+                anns = item.get("annotations") or []
+                texts = [a.get("text") for a in anns[:40]]
+                self.logger.debug(
+                    f"Detect item ({label}) {file_id.get('space')}/{file_id.get('externalId')}: "
+                    f"{len(anns)} annotation(s)"
+                    + (f" texts={texts}" if texts else "")
+                    + (" ..." if len(anns) > 40 else "")
+                    + (f" error={item.get('errorMessage')!r}" if item.get("errorMessage") else "")
+                )
 
     def _update_batch_state(
         self,

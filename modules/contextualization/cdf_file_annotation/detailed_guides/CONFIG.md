@@ -17,11 +17,18 @@ Valid stages are `prepare`, `launch`, `finalize`, and `promote`.
 ```yaml
 parameters:
   patternMode: {{ patternMode }}
+  structuralAutoPatterns: {{ structuralAutoPatterns }}
   cleanOldAnnotations: {{ cleanOldAnnotations }}
   autoApprovalThreshold: {{ autoApprovalThreshold }}
   autoSuggestThreshold: {{ autoSuggestThreshold }}
   primaryScopeProperty: {{ primaryScopeProperty }}
   secondaryScopeProperty: {{ secondaryScopeProperty }}
+  # Pipeline tags: ToAnnotate, DetectInDiagrams, ScopeWideDetect, AnnotationInProcess,
+  # Annotated, AnnotationFailed, PromoteAttempted, PromotedAuto, AmbiguousMatch.
+  filesToAnnotateTags: {{ filesToAnnotateTags }}
+  filesToAnnotateExcludeTags: {{ filesToAnnotateExcludeTags }}
+  fileEntitiesTags: {{ fileEntitiesTags }}
+  targetEntitiesTags: {{ targetEntitiesTags }}
   rawDb: {{ rawDb }}
   rawTableDocTag: {{ rawTableDocTag }}
   rawTableDocDoc: {{ rawTableDocDoc }}
@@ -31,29 +38,31 @@ parameters:
   rawTablePromoteCache: {{ rawTablePromoteCache }}
   patternPromote:
     textNormalization:
-      convertToLowercase: {{ convertToLowercase }}
-      normalizePattern: {{ textNormalizationPattern }}
-      normalizeSelection: {{ textNormalizationSelection }}
+      normalizePatterns: {{ textNormalizationPatterns }}
 ```
 
 - `patternMode` enables pattern-mode Diagram Detect alongside regular entity matching.
+- `structuralAutoPatterns` (default `true`) makes auto patterns digit/letter **structure** templates such as `00-AA-0000` instead of enumerating letter codes like `[FE|KA|PC|VA]`. Separators from aliases (`_`, `-`, `.`, `:`, `;`, `/`) are never required constants (never `[_]`); they normalize to unbracketed `-`. Set `false` for legacy letter-enum expansion.
 - `cleanOldAnnotations` removes prior annotations on the first finalize pass.
 - `autoApprovalThreshold` and `autoSuggestThreshold` control regular annotation status.
 - `primaryScopeProperty` and `secondaryScopeProperty` group files so launch can reuse a scoped entity cache.
+- `filesToAnnotateTags` is the Prepare IN filter for files to process (default `ToAnnotate`).
+- `filesToAnnotateExcludeTags` is the Prepare NOT IN filter (default `AnnotationInProcess`, `Annotated`, `AnnotationFailed`). Tags also listed in `filesToAnnotateTags` are dropped from the exclude list, so adding `Annotated` reprocesses those files.
+- `fileEntitiesTags` is the Launch IN filter for files used as diagram-detect match entities (default `DetectInDiagrams`).
+- `targetEntitiesTags` is the Launch IN filter for assets used as diagram-detect match entities (default `DetectInDiagrams`).
+- Possible pipeline tags: `ToAnnotate`, `DetectInDiagrams`, `ScopeWideDetect`, `AnnotationInProcess`, `Annotated`, `AnnotationFailed`, `PromoteAttempted`, `PromotedAuto`, `AmbiguousMatch`.
 - `rawDb` is the shared database for result and cache tables.
 - The `rawTable*` keys name the function's result, cache, and catalog tables. They must match the Toolkit RAW resources and the extraction pipeline's `rawTables` list.
-- `patternPromote.textNormalization.normalizePattern` is one regular expression or a list of them (same capture-group semantics as aliases_update `aliasPattern`). The normalized form is the capture groups joined by `_`.
-- `normalizeSelection` is `all` or `longest` when several patterns match (same as aliases_update `aliasSelection`).
-- `convertToLowercase` runs after extraction. Built-in rules then remove non-alphanumeric characters and strip leading zeros.
+- `patternPromote.textNormalization.normalizePatterns` is one regular expression or a list of them (same capture-group semantics as aliases_update `aliasPattern`). The normalized form is the capture groups joined by `_`. When several patterns match, the **longest** form is always kept (one promote search candidate lineage).
+- Text that matches **none** of the patterns is not searched (rejected without alias lookup), so drawing words like `REPEATED` never become promote search queries.
+- Casing is preserved: DMS alias `IN` filters are case-sensitive exact matches. Built-in rules remove non-alphanumeric characters and strip leading zeros after extraction.
 
 Example:
 
 ```yaml
 textNormalization:
-  convertToLowercase: false
-  normalizePattern:
+  normalizePatterns:
     - '([0-9]{2})[-_.:]([A-Z]{2,3})[-_.:]([0-9]{4,5})'
-  normalizeSelection: all
 ```
 
 ## Data

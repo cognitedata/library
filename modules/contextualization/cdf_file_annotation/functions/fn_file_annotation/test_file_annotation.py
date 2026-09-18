@@ -65,9 +65,7 @@ def test_config_uses_parameters_and_data_shape() -> None:
                 "rawDb": "db_file_annotation",
                 "patternPromote": {
                     "textNormalization": {
-                        "convertToLowercase": False,
-                        "normalizePattern": r"^([A-Z]{2})-(.+)$",
-                        "normalizeSelection": "all",
+                        "normalizePatterns": r"^([A-Z]{2})-(.+)$",
                     }
                 },
             },
@@ -101,7 +99,6 @@ def test_config_uses_parameters_and_data_shape() -> None:
     assert config.data.file_view.search_property == "aliases"
     assert config.raw_tables.raw_table_doc_tag == "annotation_documents_tags"
     assert config.parameters.pattern_promote.text_normalization.normalize_patterns == [r"^([A-Z]{2})-(.+)$"]
-    assert config.parameters.pattern_promote.text_normalization.normalize_selection == "all"
 
 
 def test_config_uses_raw_table_names_from_parameters() -> None:
@@ -151,25 +148,117 @@ def test_config_uses_raw_table_names_from_parameters() -> None:
     assert config.raw_tables.raw_manual_patterns_catalog == "custom_manual"
 
 
+def test_config_uses_default_tag_filters() -> None:
+    from fa_constants import EXCLUDED_PREPARE_TAGS, TAG_DETECT_IN_DIAGRAMS, TAG_TO_ANNOTATE
+    from services.ConfigService import Config
+
+    config = Config.model_validate(
+        {
+            "parameters": {"rawDb": "db_file_annotation"},
+            "data": {
+                "fileView": {
+                    "schemaSpace": "cdf_cdm",
+                    "instanceSpace": "files",
+                    "externalId": "CogniteFile",
+                    "version": "v1",
+                },
+                "targetEntitiesView": {
+                    "schemaSpace": "cdf_cdm",
+                    "instanceSpace": "assets",
+                    "externalId": "CogniteAsset",
+                    "version": "v1",
+                },
+                "annotationStateView": {
+                    "schemaSpace": "sp_hdm",
+                    "instanceSpace": "files",
+                    "externalId": "FileAnnotationState",
+                    "version": "v1",
+                },
+                "sinkNode": {"space": "patterns", "externalId": "pattern_sink"},
+            },
+        }
+    )
+
+    prepare_query = config.prepare_function.get_files_to_annotate_query
+    assert not isinstance(prepare_query, list)
+    prepare_filters = prepare_query.filters
+    assert prepare_filters[0].values == [TAG_TO_ANNOTATE]
+    assert prepare_filters[1].values == EXCLUDED_PREPARE_TAGS
+    assert prepare_filters[1].negate is True
+    file_entities_query = config.launch_function.data_model_service.get_file_entities_query
+    target_entities_query = config.launch_function.data_model_service.get_target_entities_query
+    assert not isinstance(file_entities_query, list)
+    assert not isinstance(target_entities_query, list)
+    assert file_entities_query.filters[0].values == [TAG_DETECT_IN_DIAGRAMS]
+    assert target_entities_query.filters[0].values == [TAG_DETECT_IN_DIAGRAMS]
+
+
+def test_config_uses_custom_tag_filters_and_include_overrides_exclude() -> None:
+    from services.ConfigService import Config
+
+    config = Config.model_validate(
+        {
+            "parameters": {
+                "rawDb": "db_file_annotation",
+                "filesToAnnotateTags": ["ToAnnotate", "Annotated"],
+                "fileEntitiesTags": ["DetectInDiagrams", "ToAnnotate"],
+                "targetEntitiesTags": ["DetectInDiagrams"],
+            },
+            "data": {
+                "fileView": {
+                    "schemaSpace": "cdf_cdm",
+                    "instanceSpace": "files",
+                    "externalId": "CogniteFile",
+                    "version": "v1",
+                },
+                "targetEntitiesView": {
+                    "schemaSpace": "cdf_cdm",
+                    "instanceSpace": "assets",
+                    "externalId": "CogniteAsset",
+                    "version": "v1",
+                },
+                "annotationStateView": {
+                    "schemaSpace": "sp_hdm",
+                    "instanceSpace": "files",
+                    "externalId": "FileAnnotationState",
+                    "version": "v1",
+                },
+                "sinkNode": {"space": "patterns", "externalId": "pattern_sink"},
+            },
+        }
+    )
+
+    prepare_query = config.prepare_function.get_files_to_annotate_query
+    assert not isinstance(prepare_query, list)
+    prepare_filters = prepare_query.filters
+    assert prepare_filters[0].values == ["ToAnnotate", "Annotated"]
+    assert prepare_filters[1].values == ["AnnotationInProcess", "AnnotationFailed"]
+    file_entities_query = config.launch_function.data_model_service.get_file_entities_query
+    target_entities_query = config.launch_function.data_model_service.get_target_entities_query
+    assert not isinstance(file_entities_query, list)
+    assert not isinstance(target_entities_query, list)
+    assert file_entities_query.filters[0].values == ["DetectInDiagrams", "ToAnnotate"]
+    assert target_entities_query.filters[0].values == ["DetectInDiagrams"]
+
+
 def test_normalization_extracts_capture_groups_then_applies_hygiene() -> None:
     from normalization import extract_forms, normalize_text, text_variations
 
     patterns = [r"^([A-Z]{2})-(.+)$", r"^AT-(.+)$"]
-    assert extract_forms("AT-V-009_1", patterns, "all") == ["AT_V-009_1", "V-009_1"]
-    assert extract_forms("AT-V-009_1", patterns, "longest") == ["AT_V-009_1"]
-    assert normalize_text("AT-V-009_1", [r"^([A-Z]{2})-(.+)$"], "all", convert_to_lowercase=False) == "ATV91"
-    assert set(text_variations("V-0912", [], "all", convert_to_lowercase=False)) == {
-        "V-0912",
-        "V0912",
-        "V-912",
-        "V912",
-    }
+    assert extract_forms("AT-V-009_1", patterns) == ["AT_V-009_1"]
+    assert extract_forms("REPEATED", patterns) == []
+    assert normalize_text("AT-V-009_1", [r"^([A-Z]{2})-(.+)$"]) == "ATV91"
+    # No pattern match → empty variations (do not search)
+    assert text_variations("REPEATED", [r"^([A-Z]{2})-(.+)$"]) == []
+    # Hygiene still applies after a successful extraction
     assert "23_KA_9101" in text_variations(
         "VAL_23-KA-9101",
         [r"([0-9]{2})[-_.:]([A-Z]{2,3})[-_.:]([0-9]{4,5})"],
-        "all",
-        convert_to_lowercase=False,
     )
+    # Matching text also keeps original + hygiene forms for alias lookup
+    matched = set(text_variations("V-0912", [r"^([A-Z])-(.+)$"]))
+    assert "V-0912" in matched
+    assert "V_0912" in matched or "V0912" in matched
 
 
 def test_promote_cleanup_policy_is_fixed() -> None:
@@ -530,6 +619,71 @@ def test_launch_service_handles_file_node_with_none_properties() -> None:
     assert batches[0].files == [file_node]
 
 
+def test_launch_omits_scope_logs_when_unscoped() -> None:
+    from cognite.client.data_classes.data_modeling import NodeId
+    import services.LaunchService as launch_service
+    from services.ConfigService import Config
+
+    config = Config.model_validate(
+        {
+            "parameters": {"rawDb": "db_file_annotation"},
+            "data": {
+                "fileView": {
+                    "schemaSpace": "cdf_cdm",
+                    "instanceSpace": "files",
+                    "externalId": "CogniteFile",
+                    "version": "v1",
+                },
+                "targetEntitiesView": {
+                    "schemaSpace": "cdf_cdm",
+                    "instanceSpace": "assets",
+                    "externalId": "CogniteAsset",
+                    "version": "v1",
+                },
+                "annotationStateView": {
+                    "schemaSpace": "sp_hdm",
+                    "instanceSpace": "files",
+                    "externalId": "FileAnnotationState",
+                    "version": "v1",
+                },
+                "sinkNode": {"space": "patterns", "externalId": "pattern_sink"},
+            },
+        }
+    )
+    logger = MagicMock()
+    file_id = NodeId("files", "file-1")
+    file_node = MagicMock()
+    file_node.properties = None
+    file_node.as_id.return_value = file_id
+    state_node = MagicMock()
+    state_node.properties = None
+    data_model_service = MagicMock()
+    data_model_service.get_files_to_process.return_value = ([file_node], {file_id: state_node})
+    launch_svc = launch_service.GeneralLaunchService(
+        client=MagicMock(),
+        config=config,
+        logger=logger,
+        tracker=MagicMock(),
+        data_model_service=data_model_service,
+        cache_service=MagicMock(),
+        annotation_service=MagicMock(),
+        function_call_info={},
+        rate_limit_policy=MagicMock(),
+    )
+    launch_svc._process_batch = MagicMock()
+    launch_svc._ensure_cache_for_batch = MagicMock()
+
+    launch_svc.run()
+
+    messages = [call.kwargs["message"] for call in logger.info.call_args_list if "message" in call.kwargs]
+    assert not any(
+        message.startswith("Processing ") and " files in " in message and "remaining" not in message
+        for message in messages
+    )
+    assert not any(message.startswith("Created batch of") for message in messages)
+    assert not any(message.startswith("Finished processing for") for message in messages)
+
+
 def test_batch_of_paired_nodes_create_file_reference_handles_none_properties() -> None:
     from cognite.client.data_classes.data_modeling import NodeId, ViewId
     from utils.DataStructures import BatchOfPairedNodes
@@ -544,3 +698,46 @@ def test_batch_of_paired_nodes_create_file_reference_handles_none_properties() -
 
     assert ref.first_page == 1
     assert ref.last_page == 50
+
+
+def test_unique_tags_keeps_first_occurrence() -> None:
+    from utils.DataStructures import unique_tags
+
+    assert unique_tags(["ToAnnotate", "DetectInDiagrams", "Annotated", "Annotated"]) == [
+        "ToAnnotate",
+        "DetectInDiagrams",
+        "Annotated",
+    ]
+
+
+def test_replace_tag_does_not_duplicate_existing() -> None:
+    from utils.DataStructures import replace_tag
+
+    tags = ["ToAnnotate", "DetectInDiagrams", "Annotated", "AnnotationInProcess"]
+
+    assert replace_tag(tags, "AnnotationInProcess", "Annotated") == [
+        "ToAnnotate",
+        "DetectInDiagrams",
+        "Annotated",
+    ]
+
+
+def test_add_unique_tags_skips_existing() -> None:
+    from utils.DataStructures import add_unique_tags
+
+    assert add_unique_tags(["PromoteAttempted"], "PromoteAttempted", "AmbiguousMatch") == [
+        "PromoteAttempted",
+        "AmbiguousMatch",
+    ]
+
+
+def test_set_describable_tags_deduplicates() -> None:
+    from utils.DataStructures import set_describable_tags
+
+    node_apply = MagicMock()
+    node_apply.sources = [MagicMock()]
+    node_apply.sources[0].properties = {"tags": ["old"]}
+
+    set_describable_tags(node_apply, ["ToAnnotate", "Annotated", "Annotated"])
+
+    assert node_apply.sources[0].properties["tags"] == ["ToAnnotate", "Annotated"]

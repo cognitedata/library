@@ -33,9 +33,10 @@ cdf transformations run tr_tag_files_to_annotate
 
 You still need a separate transformation (or upstream pipeline) to populate `aliases`.
 
-**Re-annotation:** Helper tag transformations only add tags. Files that already carry
-`Annotated`, `AnnotationInProcess`, or `AnnotationFailed` do not re-enter the submit
-workflow until their prior annotation state/status is cleared.
+**Re-annotation:** Helper tag transformations only add tags. Prepare defaults to
+`ToAnnotate` and excludes `AnnotationInProcess`, `Annotated`, and `AnnotationFailed`.
+Add `Annotated` (and/or `AnnotationFailed`) to `filesToAnnotateTags` in
+`default.config.yaml` to reprocess those files.
 
 #### Aliases Property
 
@@ -166,9 +167,7 @@ variables:
         autoSuggestThreshold: 1.0
         primaryScopeProperty: ""
         secondaryScopeProperty: ""
-        convertToLowercase: false
-        textNormalizationPattern: '([0-9]{2})[-_.:]([A-Z]{2,3})[-_.:]([0-9]{4,5})'
-        textNormalizationSelection: all
+        textNormalizationPatterns: '([0-9]{2})[-_.:]([A-Z]{2,3})[-_.:]([0-9]{4,5})'
         targetEntitySchemaSpace: sp_enterprise_process_industry
         targetEntityExternalId: txEquipment
         targetEntityVersion: v1

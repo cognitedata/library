@@ -20,7 +20,7 @@ from services.ConfigService import Config, build_filter_from_query, get_limit_fr
 from services.EntitySearchService import EntitySearchService
 from services.LoggerService import CogniteFunctionLogger
 from services.PromoteCacheService import CachedEntityInfo, CacheService
-from utils.DataStructures import DiagramAnnotationStatus, PromoteTracker
+from utils.DataStructures import DiagramAnnotationStatus, PromoteTracker, add_unique_tags
 
 
 @dataclass
@@ -382,6 +382,14 @@ class GeneralPromoteService(IPromoteService):
             - Single-element list [entity] if unambiguous match
             - Two-element list [entity1, entity2] if ambiguous (data quality issue)
         """
+        # Gate: normalizePatterns must match before cache/search (filters drawing words like "REPEATED")
+        if not self.entity_search_service.generate_text_variations(text):
+            self.logger.debug(
+                f"✗ Text '{text}' does not match normalizePatterns — skipping search."
+            )
+            self.cache_service.set_no_match(text, annotation_type)
+            return []
+
         # TIER 1 & 2: Check cache (in-memory + persistent) - no API calls on hit
         cached_info: CachedEntityInfo | None = self.cache_service.get(text, annotation_type)
 
@@ -488,7 +496,7 @@ class GeneralPromoteService(IPromoteService):
             # Update edge to point to the found entity
             edge_apply.end_node = DirectRelationReference(matched_entity.space, matched_entity.external_id)
             update_properties["status"] = DiagramAnnotationStatus.APPROVED.value
-            updated_tags.append("PromotedAuto")
+            updated_tags = add_unique_tags(updated_tags, "PromotedAuto")
 
             # Update RAW row with new end node information
             raw_data["endNode"] = matched_entity.external_id
@@ -507,16 +515,27 @@ class GeneralPromoteService(IPromoteService):
                 f"✗ Only self-reference match for '{edge_props.get('startNodeText')}'.\n\t- Rejecting edge: ({edge.space}, {edge.external_id})\n\t- Start node: ({edge.start_node.space}, {edge.start_node.external_id})."
             )
             update_properties["status"] = DiagramAnnotationStatus.REJECTED.value
-            updated_tags.append("PromoteAttempted")
+            updated_tags = add_unique_tags(updated_tags, "PromoteAttempted")
             # Update RAW row status
             raw_data["status"] = DiagramAnnotationStatus.REJECTED.value
 
-        elif len(found_entities) == 0:  # Failure - no match found
-            self.logger.debug(
-                f"✗ No match found for '{edge_props.get('startNodeText')}'.\n\t- Rejecting edge: ({edge.space}, {edge.external_id})\n\t- Start node: ({edge.start_node.space}, {edge.start_node.external_id})."
-            )
+        elif len(found_entities) == 0:  # Failure - no match found (or normalizePatterns filtered the text)
+            start_text = edge_props.get("startNodeText")
+            start_text_str = str(start_text) if start_text is not None else ""
+            if not self.entity_search_service.generate_text_variations(start_text_str):
+                self.logger.debug(
+                    f"✗ Text '{start_text}' does not match normalizePatterns — rejecting without search.\n"
+                    f"\t- Rejecting edge: ({edge.space}, {edge.external_id})\n"
+                    f"\t- Start node: ({edge.start_node.space}, {edge.start_node.external_id})."
+                )
+            else:
+                self.logger.debug(
+                    f"✗ No match found for '{start_text}'.\n"
+                    f"\t- Rejecting edge: ({edge.space}, {edge.external_id})\n"
+                    f"\t- Start node: ({edge.start_node.space}, {edge.start_node.external_id})."
+                )
             update_properties["status"] = DiagramAnnotationStatus.REJECTED.value
-            updated_tags.append("PromoteAttempted")
+            updated_tags = add_unique_tags(updated_tags, "PromoteAttempted")
 
             # Update RAW row status
             raw_data["status"] = DiagramAnnotationStatus.REJECTED.value
@@ -525,7 +544,7 @@ class GeneralPromoteService(IPromoteService):
             self.logger.debug(
                 f"⚠ Multiple matches found for '{edge_props.get('startNodeText')}'.\n\t- Ambiguous edge: ({edge.space}, {edge.external_id})\n\t- Start node: ({edge.start_node.space}, {edge.start_node.external_id})."
             )
-            updated_tags.extend(["PromoteAttempted", "AmbiguousMatch"])
+            updated_tags = add_unique_tags(updated_tags, "PromoteAttempted", "AmbiguousMatch")
 
             # Don't change status, just add tags to RAW
             raw_data["status"] = edge_props.get("status", DiagramAnnotationStatus.SUGGESTED.value)

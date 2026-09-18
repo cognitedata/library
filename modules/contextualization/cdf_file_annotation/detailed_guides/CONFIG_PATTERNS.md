@@ -33,20 +33,20 @@ data:
 ## Normalize site-specific tag formats
 
 Promote uses the same capture-group model as `cdf_entity_matching` aliases_update.
-Set `convertToLowercase`, `textNormalizationPattern`, and `textNormalizationSelection`
-in `default.config.yaml`. Each matching pattern yields its capture groups joined by `_`;
-when several patterns match, `all` keeps every form and `longest` keeps only the longest.
-Built-in hygiene (strip non-alphanumeric characters and leading zeros) still runs afterward:
+Set `textNormalizationPatterns` in `default.config.yaml`.
+Each matching pattern yields its capture groups joined by `_`. When several patterns
+match, the **longest** form is always kept. Text that matches none of the patterns is
+not searched (for example drawing words like `REPEATED`). Casing is preserved (DMS
+alias match is case-sensitive). Built-in hygiene (strip non-alphanumeric characters and
+leading zeros) still runs afterward:
 
 ```yaml
 parameters:
   patternPromote:
     textNormalization:
-      convertToLowercase: false
-      normalizePattern:
+      normalizePatterns:
         - '([0-9]{2})[-_.:]([A-Z]{2,3})[-_.:]([0-9]{4,5})'
         - '([A-Z]{2,3})[-_.:]([0-9]{4,5})'
-      normalizeSelection: longest
 ```
 
 Use the same patterns you configure for aliases_update so diagram text normalizes to the

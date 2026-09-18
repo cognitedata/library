@@ -2,11 +2,18 @@ externalId: {{ extractionPipelineExternalId }}
 config:
   parameters:
     patternMode: {{ patternMode }}
+    structuralAutoPatterns: {{ structuralAutoPatterns }}
     cleanOldAnnotations: {{ cleanOldAnnotations }}
     autoApprovalThreshold: {{ autoApprovalThreshold }}
     autoSuggestThreshold: {{ autoSuggestThreshold }}
     primaryScopeProperty: {{ primaryScopeProperty }}
     secondaryScopeProperty: {{ secondaryScopeProperty }}
+    # Pipeline tags: ToAnnotate, DetectInDiagrams, ScopeWideDetect, AnnotationInProcess,
+    # Annotated, AnnotationFailed, PromoteAttempted, PromotedAuto, AmbiguousMatch.
+    filesToAnnotateTags: {{ filesToAnnotateTags }}
+    filesToAnnotateExcludeTags: {{ filesToAnnotateExcludeTags }}
+    fileEntitiesTags: {{ fileEntitiesTags }}
+    targetEntitiesTags: {{ targetEntitiesTags }}
     rawDb: {{ rawDb }}
     rawTableDocTag: {{ rawTableDocTag }}
     rawTableDocDoc: {{ rawTableDocDoc }}
@@ -16,11 +23,12 @@ config:
     rawTablePromoteCache: {{ rawTablePromoteCache }}
     patternPromote:
       textNormalization:
-        convertToLowercase: {{ convertToLowercase }}
-        # Same capture-group semantics as aliases_update aliasPattern/aliasSelection:
-        # each match yields groups joined by "_"; selection is all|longest.
-        normalizePattern: {{ textNormalizationPattern }}
-        normalizeSelection: {{ textNormalizationSelection }}
+        # Same capture-group semantics as aliases_update aliasPattern:
+        # each match yields groups joined by "_". When several patterns match,
+        # the longest form is always kept. Text that matches none of the patterns
+        # is not searched (e.g. drawing words like "REPEATED").
+        # Casing is preserved — DMS alias IN filters are case-sensitive.
+        normalizePatterns: {{ textNormalizationPatterns }}
   data:
     fileView:
       schemaSpace: {{ fileSchemaSpace }}
