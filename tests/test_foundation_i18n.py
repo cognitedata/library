@@ -12,30 +12,30 @@ if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
 
 import _i18n  # pyright: ignore[reportMissingImports]
-from _messages_ja import messages_ja  # pyright: ignore[reportMissingImports]
+from _messages_ja import MESSAGES_JA  # pyright: ignore[reportMissingImports]
 
 
 class TestMessagesJaCatalogue:
     def test_catalogue_is_non_empty(self) -> None:
-        assert len(messages_ja) > 100
+        assert len(MESSAGES_JA) > 100
 
     def test_catalogue_has_no_duplicate_or_empty_values(self) -> None:
-        for key, value in messages_ja.items():
+        for key, value in MESSAGES_JA.items():
             assert key != ""
             assert value != ""
 
     def test_product_names_are_not_in_the_catalogue(self) -> None:
         # These stay English everywhere and are excluded, not identity-mapped.
         for excluded in ("Foundation Deployment Pack", "PI Extractor", "SAP Extractor"):
-            assert excluded not in messages_ja
+            assert excluded not in MESSAGES_JA
 
     def test_unchanged_literals_are_not_in_the_catalogue(self) -> None:
-        assert "[Y/n]" not in messages_ja
-        assert "[y/N]" not in messages_ja
+        assert "[Y/n]" not in MESSAGES_JA
+        assert "[y/N]" not in MESSAGES_JA
 
     def test_known_key_maps_to_reviewed_translation(self) -> None:
-        assert messages_ja["Review"] == "確認"
-        assert messages_ja["Environment Selection"] == "環境の選択"
+        assert MESSAGES_JA["Review"] == "確認"
+        assert MESSAGES_JA["Environment Selection"] == "環境の選択"
 
 
 class TestT:

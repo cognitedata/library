@@ -6,7 +6,7 @@ maintain. Locale is not wired in yet; ``_locale`` is a fixed default until local
 detection (``CDF_LOCALE`` / terminal locale) is added on top of this module.
 """
 
-from _messages_ja import messages_ja
+from _messages_ja import MESSAGES_JA
 
 _locale = "en"
 
@@ -19,4 +19,4 @@ def t(key: str) -> str:
     """
     if _locale != "ja":
         return key
-    return messages_ja.get(key, key)
+    return MESSAGES_JA.get(key, key)
