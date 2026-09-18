@@ -1,3 +1,4 @@
+import re
 from enum import Enum
 from typing import Literal
 
@@ -19,6 +20,7 @@ from fa_constants import (
     CORE_ANNOTATION_EXTERNAL_ID,
     CORE_ANNOTATION_SCHEMA_SPACE,
     CORE_ANNOTATION_VERSION,
+    DEFAULT_NORMALIZE_PATTERN,
     DELETE_REJECTED_EDGES,
     DELETE_SUGGESTED_EDGES,
     EXCLUDED_PREPARE_TAGS,
@@ -46,7 +48,7 @@ from fa_constants import (
     TAG_TO_ANNOTATE,
     TARGET_ANNOTATION_TYPE,
 )
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 from pydantic.alias_generators import to_camel
 from utils.DataStructures import AnnotationStatus, FilterOperator
 
@@ -265,24 +267,46 @@ class FinalizeFunction(BaseModel, alias_generator=to_camel):
 
 
 # Promote Related Configs
-class TextSubstitution(BaseModel):
-    pattern: str
-    replacement: str
-
-
 class TextNormalizationConfig(BaseModel, alias_generator=to_camel):
     """
-    Configuration for text normalization and variation generation.
+    Configuration for text normalization and variation generation during promote.
 
-    Controls how text is normalized for matching and what variations are generated
-    to improve match rates across different naming conventions.
+    Same capture-group semantics as cdf_entity_matching aliases_update:
+    - normalizePattern: one regex or a list; each match yields capture groups joined by "_"
+    - normalizeSelection: keep every extracted form ("all") or only the longest ("longest")
 
-    Project substitutions run before the fixed hygiene substitutions. The canonical
-    value is used for cache keys; search also keeps intermediate variations.
+    Built-in hygiene (strip non-alphanumeric, leading zeros) still runs after extraction.
+    The canonical value is used for cache keys; search also keeps intermediate variations.
     """
 
     convert_to_lowercase: bool = False
-    substitutions: list[TextSubstitution] = Field(default_factory=list)
+    normalize_patterns: list[str] = Field(
+        alias="normalizePattern",
+        default_factory=lambda: [DEFAULT_NORMALIZE_PATTERN],
+        min_length=1,
+    )
+    normalize_selection: Literal["all", "longest"] = Field(default="all", alias="normalizeSelection")
+
+    @field_validator("normalize_patterns", mode="before")
+    @classmethod
+    def wrap_single_pattern(cls, value: object) -> object:
+        return [value] if isinstance(value, str) else value
+
+    @field_validator("normalize_patterns")
+    @classmethod
+    def validate_normalize_patterns(cls, value: list[str]) -> list[str]:
+        for pattern in value:
+            try:
+                compiled = re.compile(pattern)
+            except re.error as e:
+                raise ValueError(f"normalizePattern {pattern!r} is not a valid regular expression: {e}") from e
+            if not compiled.groups:
+                raise ValueError(
+                    f"normalizePattern {pattern!r} must have at least one capture group - "
+                    "the normalized form is the groups joined by '_'"
+                )
+        return value
+
 
 
 class EntitySearchServiceConfig(BaseModel, alias_generator=to_camel):
@@ -393,13 +417,20 @@ class Config(BaseModel, alias_generator=to_camel):
         file_view = data.get("fileView")
         target_view = data.get("targetEntitiesView")
         state_view = data.get("annotationStateView")
-        if not isinstance(file_view, dict) or not isinstance(target_view, dict) or not isinstance(state_view, dict):
+        sink_node = data.get("sinkNode")
+        if (
+            not isinstance(file_view, dict)
+            or not isinstance(target_view, dict)
+            or not isinstance(state_view, dict)
+            or not isinstance(sink_node, dict)
+        ):
             return value
 
         parameters = dict(parameters)
         file_view = dict(file_view)
         target_view = dict(target_view)
         state_view = dict(state_view)
+        sink_node = dict(sink_node)
         file_view["annotationType"] = FILE_ANNOTATION_TYPE
         target_view["annotationType"] = TARGET_ANNOTATION_TYPE
         core_view = {
@@ -518,7 +549,7 @@ class Config(BaseModel, alias_generator=to_camel):
                     "applyService": {
                         "autoApprovalThreshold": parameters.get("autoApprovalThreshold", 1.0),
                         "autoSuggestThreshold": parameters.get("autoSuggestThreshold", 1.0),
-                        "sinkNode": data["sinkNode"],
+                        "sinkNode": sink_node,
                     },
                 },
                 "promoteFunction": {
@@ -861,7 +892,8 @@ def format_promote_config(config: Config, pipeline_ext_id: str) -> str:
             f"  • Max entity search limit: {entity_search.max_entity_search_limit}",
             "  • Text normalization:",
             f"    - Convert to lowercase: {text_norm.convert_to_lowercase}",
-            f"    - Project substitutions: {len(text_norm.substitutions)}",
+            f"    - Normalize pattern: {text_norm.normalize_patterns}",
+            f"    - Normalize selection: {text_norm.normalize_selection}",
             "    - Built-in: remove non-alphanumeric characters and strip leading zeros",
         ]
     )

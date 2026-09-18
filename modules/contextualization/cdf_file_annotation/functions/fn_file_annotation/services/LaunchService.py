@@ -222,7 +222,7 @@ class GeneralLaunchService(AbstractLaunchService):
         organized_data: dict[str, dict[str, list[Node]]] = defaultdict(lambda: defaultdict(list))
 
         for file_node in list_files:
-            node_props = file_node.properties[self.file_view.as_view_id()]
+            node_props = (file_node.properties or {}).get(self.file_view.as_view_id(), {})
             primary_value = node_props.get(self.primary_scope_property) if self.primary_scope_property else ""
             secondary_value = "__NONE__"
             if self.secondary_scope_property:

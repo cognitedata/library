@@ -187,7 +187,7 @@ class EntitySearchService(IEntitySearchService):
             matched_end_nodes: dict[tuple[str, str], int] = {}  # {(space, externalId): count}
             for edge in edges:
                 # Check annotation type matches
-                edge_props: dict[str, object] = edge.properties.get(self.core_annotation_view_id, {})
+                edge_props: dict[str, object] = (edge.properties or {}).get(self.core_annotation_view_id, {})
                 edge_type: object = edge_props.get("type")
 
                 if edge_type != annotation_type:
@@ -323,13 +323,10 @@ class EntitySearchService(IEntitySearchService):
         Returns:
             List of text variations based on config settings
         """
-        substitutions = [
-            (substitution.pattern, substitution.replacement)
-            for substitution in self.text_normalization_config.substitutions
-        ]
         return text_variations(
             text,
-            substitutions,
+            self.text_normalization_config.normalize_patterns,
+            self.text_normalization_config.normalize_selection,
             convert_to_lowercase=self.text_normalization_config.convert_to_lowercase,
         )
 
@@ -361,12 +358,9 @@ class EntitySearchService(IEntitySearchService):
         """
         if not isinstance(s, str):
             return ""
-        substitutions = [
-            (substitution.pattern, substitution.replacement)
-            for substitution in self.text_normalization_config.substitutions
-        ]
         return normalize_text(
             s,
-            substitutions,
+            self.text_normalization_config.normalize_patterns,
+            self.text_normalization_config.normalize_selection,
             convert_to_lowercase=self.text_normalization_config.convert_to_lowercase,
         )

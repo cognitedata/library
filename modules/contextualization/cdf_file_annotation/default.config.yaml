@@ -40,17 +40,16 @@ autoSuggestThreshold: 1.0
 primaryScopeProperty: ""
 secondaryScopeProperty: ""
 convertToLowercase: false
-# Project-specific replacements run in order before built-in hygiene rules.
+# Same semantics as cdf_entity_matching aliases_update (aliasPattern / aliasSelection):
+# capture groups joined by "_"; when several patterns match, keep all or only the longest.
 # Toolkit substitutes variables as a regex replacement, so prefer character classes
-# over backslash escapes ([0-9] rather than \d). Capture groups such as \1 are fine
-# inside a quoted replacement string.
-# Example:
-#   textNormalizationSubstitutions:
-#     - pattern: '^[A-Z]{2}-'
-#       replacement: ''
-#     - pattern: '[/_.]'
-#       replacement: '-'
-textNormalizationSubstitutions: []
+# over backslash escapes ([0-9] rather than \d).
+# Example list:
+#   textNormalizationPattern:
+#     - '([0-9]{2})[-_.:]([A-Z]{2,3})[-_.:]([0-9]{4,5})'
+#     - '([A-Z]{2,3})[-_.:]([0-9]{4,5})'
+textNormalizationPattern: '([0-9]{2})[-_.:]([A-Z]{2,3})[-_.:]([0-9]{4,5})'
+textNormalizationSelection: all
 
 # used in /functions
 functionClientId: ${IDP_CLIENT_ID}

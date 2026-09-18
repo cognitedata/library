@@ -32,7 +32,8 @@ parameters:
   patternPromote:
     textNormalization:
       convertToLowercase: {{ convertToLowercase }}
-      substitutions: {{ textNormalizationSubstitutions }}
+      normalizePattern: {{ textNormalizationPattern }}
+      normalizeSelection: {{ textNormalizationSelection }}
 ```
 
 - `patternMode` enables pattern-mode Diagram Detect alongside regular entity matching.
@@ -41,19 +42,18 @@ parameters:
 - `primaryScopeProperty` and `secondaryScopeProperty` group files so launch can reuse a scoped entity cache.
 - `rawDb` is the shared database for result and cache tables.
 - The `rawTable*` keys name the function's result, cache, and catalog tables. They must match the Toolkit RAW resources and the extraction pipeline's `rawTables` list.
-- `patternPromote.textNormalization.substitutions` is an ordered list of Python regular-expression replacements. Each item has `pattern` and `replacement`; capture-group replacements such as `\\1` are supported.
-- `convertToLowercase` runs after project substitutions. Built-in rules then remove non-alphanumeric characters and strip leading zeros.
+- `patternPromote.textNormalization.normalizePattern` is one regular expression or a list of them (same capture-group semantics as aliases_update `aliasPattern`). The normalized form is the capture groups joined by `_`.
+- `normalizeSelection` is `all` or `longest` when several patterns match (same as aliases_update `aliasSelection`).
+- `convertToLowercase` runs after extraction. Built-in rules then remove non-alphanumeric characters and strip leading zeros.
 
 Example:
 
 ```yaml
 textNormalization:
   convertToLowercase: false
-  substitutions:
-    - pattern: '^[A-Z]{2}-'
-      replacement: ''
-    - pattern: '[/_.]'
-      replacement: '-'
+  normalizePattern:
+    - '([0-9]{2})[-_.:]([A-Z]{2,3})[-_.:]([0-9]{4,5})'
+  normalizeSelection: all
 ```
 
 ## Data

@@ -182,7 +182,7 @@ class GeneralPromoteService(IPromoteService):
         # Group candidates by (startNodeText, annotationType) for deduplication
         grouped_candidates: dict[tuple[str, str], list[Edge]] = {}
         for edge in candidates:
-            properties: dict[str, object] = edge.properties[self.core_annotation_view.as_view_id()]
+            properties: dict[str, object] = (edge.properties or {}).get(self.core_annotation_view.as_view_id(), {})
             text: object = properties.get("startNodeText")
             annotation_type: str = edge.type.external_id
 

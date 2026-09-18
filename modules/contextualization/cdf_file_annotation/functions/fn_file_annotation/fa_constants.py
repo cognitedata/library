@@ -44,3 +44,6 @@ DEFAULT_NORMALIZATION_SUBSTITUTIONS: Final = [
     (r"[^A-Za-z0-9]", ""),
     (r"(?<!\d)0+(\d+)", r"\1"),
 ]
+# Same default tag shape as cdf_entity_matching aliases_update: capture groups joined by "_".
+# Spelled with [0-9] rather than \d so Toolkit variable substitution accepts it.
+DEFAULT_NORMALIZE_PATTERN: Final = r"([0-9]{2})[-_.:]([A-Z]{2,3})[-_.:]([0-9]{4,5})"

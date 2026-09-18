@@ -143,7 +143,7 @@ class GeneralRetrieveService(IRetrieveService):
             return None, None, None
 
         job_node: Node = annotation_state_instance.pop(-1)
-        props = job_node.properties[self.annotation_state_view.as_view_id()]
+        props = (job_node.properties or {}).get(self.annotation_state_view.as_view_id(), {})
 
         job_id: int | None = props.get("diagramDetectJobId")
         job_token: str | None = props.get("diagramDetectJobToken")
@@ -178,7 +178,9 @@ class GeneralRetrieveService(IRetrieveService):
         # NOTE: could bundle this with the attempt to claim loop. Chose not to since the run time gains is negligible and improves readability.
         file_to_state_map: dict[NodeId, Node] = {}
         for node in list_job_nodes:
-            file_reference = node.properties.get(self.annotation_state_view.as_view_id()).get("linkedFile")
+            file_reference = (node.properties or {}).get(self.annotation_state_view.as_view_id(), {}).get("linkedFile")
+            if not file_reference or not isinstance(file_reference, dict):
+                continue
             file_node_id = NodeId(space=file_reference["space"], external_id=file_reference["externalId"])
             file_to_state_map[file_node_id] = node
 
@@ -225,9 +227,12 @@ class GeneralRetrieveService(IRetrieveService):
         must manually raise an error to prevent the duplicate claim.
         """
         for node_apply in list_job_nodes_to_claim:
-            if node_apply.sources[0].properties["annotationStatus"] == AnnotationStatus.PROCESSING:
+            if not node_apply.sources or node_apply.sources[0].properties is None:
+                continue
+            status = node_apply.sources[0].properties.get("annotationStatus")
+            if status == AnnotationStatus.PROCESSING:
                 node_apply.sources[0].properties["annotationStatus"] = AnnotationStatus.FINALIZING  # type: ignore
-            elif node_apply.sources[0].properties["annotationStatus"] == AnnotationStatus.FINALIZING:
+            elif status == AnnotationStatus.FINALIZING:
                 self.logger.debug("Lock bypassed. Caught on the client-side.")
                 raise CogniteAPIError(message="A version conflict caused the ingest to fail.", code=400)
 

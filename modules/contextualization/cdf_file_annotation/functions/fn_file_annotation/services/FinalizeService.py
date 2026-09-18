@@ -203,7 +203,9 @@ class GeneralFinalizeService(AbstractFinalizeService):
             annotation_state_node = file_to_state_map[file_id]
             current_attempt = cast(
                 int,
-                annotation_state_node.properties[self.annotation_state_view.as_view_id()]["attemptCount"],
+                (annotation_state_node.properties or {})
+                .get(self.annotation_state_view.as_view_id(), {})
+                .get("attemptCount", 0),
             )
             next_attempt = current_attempt + 1
 
@@ -214,9 +216,9 @@ class GeneralFinalizeService(AbstractFinalizeService):
                     results.get("regular"),
                     results.get("pattern"),
                     self.clean_old_annotations
-                    and annotation_state_node.properties[self.annotation_state_view.as_view_id()].get(
-                        "annotatedPageCount"
-                    )
+                    and (annotation_state_node.properties or {})
+                    .get(self.annotation_state_view.as_view_id(), {})
+                    .get("annotatedPageCount")
                     is None,
                 )
                 self.logger.info(f"\t- {annotation_msg}")
@@ -416,7 +418,7 @@ class GeneralFinalizeService(AbstractFinalizeService):
         """
         annotated_page_count: int | None = cast(
             int,
-            node.properties[self.annotation_state_view.as_view_id()].get("annotatedPageCount"),
+            (node.properties or {}).get(self.annotation_state_view.as_view_id(), {}).get("annotatedPageCount"),
         )
 
         if not annotated_page_count:
@@ -466,7 +468,11 @@ class GeneralFinalizeService(AbstractFinalizeService):
                 "patternModeJobId": None,
             }
         elif status == AnnotationStatus.PROCESSING:
-            claimed_time = batch.nodes[0].properties[self.annotation_state_view.as_view_id()]["sourceUpdatedTime"]
+            claimed_time = (
+                (batch.nodes[0].properties or {})
+                .get(self.annotation_state_view.as_view_id(), {})
+                .get("sourceUpdatedTime", datetime.now(UTC).replace(microsecond=0).isoformat())
+            )
             node_update_properties = {
                 "annotationStatus": status,
                 "sourceUpdatedTime": claimed_time,

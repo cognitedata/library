@@ -32,21 +32,29 @@ data:
 
 ## Normalize site-specific tag formats
 
-Set `convertToLowercase` and `textNormalizationSubstitutions` in `default.config.yaml`. Project replacements run in list order before the built-in removal of non-alphanumeric characters and leading zeros:
+Promote uses the same capture-group model as `cdf_entity_matching` aliases_update.
+Set `convertToLowercase`, `textNormalizationPattern`, and `textNormalizationSelection`
+in `default.config.yaml`. Each matching pattern yields its capture groups joined by `_`;
+when several patterns match, `all` keeps every form and `longest` keeps only the longest.
+Built-in hygiene (strip non-alphanumeric characters and leading zeros) still runs afterward:
 
 ```yaml
 parameters:
   patternPromote:
     textNormalization:
       convertToLowercase: false
-      substitutions:
-        - pattern: '^[A-Z]{2}-'
-          replacement: ''
-        - pattern: '[/_.]'
-          replacement: '-'
+      normalizePattern:
+        - '([0-9]{2})[-_.:]([A-Z]{2,3})[-_.:]([0-9]{4,5})'
+        - '([A-Z]{2,3})[-_.:]([0-9]{4,5})'
+      normalizeSelection: longest
 ```
 
-Keep patterns specific. A broad prefix rule can make distinct tags normalize to the same value and produce ambiguous matches.
+Use the same patterns you configure for aliases_update so diagram text normalizes to the
+same strings written on entity aliases. Prefer character classes (`[0-9]`) over `\d`
+because Toolkit substitutes variables as a regex replacement.
+
+Keep patterns specific. A broad rule can make distinct tags normalize to the same value
+and produce ambiguous matches.
 
 ## Reprocess files
 

@@ -66,7 +66,8 @@ def test_config_uses_parameters_and_data_shape() -> None:
                 "patternPromote": {
                     "textNormalization": {
                         "convertToLowercase": False,
-                        "substitutions": [{"pattern": "^[A-Z]{2}-", "replacement": ""}],
+                        "normalizePattern": r"^([A-Z]{2})-(.+)$",
+                        "normalizeSelection": "all",
                     }
                 },
             },
@@ -99,6 +100,8 @@ def test_config_uses_parameters_and_data_shape() -> None:
     assert config.parameters.raw_db == "db_file_annotation"
     assert config.data.file_view.search_property == "aliases"
     assert config.raw_tables.raw_table_doc_tag == "annotation_documents_tags"
+    assert config.parameters.pattern_promote.text_normalization.normalize_patterns == [r"^([A-Z]{2})-(.+)$"]
+    assert config.parameters.pattern_promote.text_normalization.normalize_selection == "all"
 
 
 def test_config_uses_raw_table_names_from_parameters() -> None:
@@ -148,16 +151,25 @@ def test_config_uses_raw_table_names_from_parameters() -> None:
     assert config.raw_tables.raw_manual_patterns_catalog == "custom_manual"
 
 
-def test_normalization_applies_customer_then_builtin_substitutions() -> None:
-    from normalization import normalize_text, text_variations
+def test_normalization_extracts_capture_groups_then_applies_hygiene() -> None:
+    from normalization import extract_forms, normalize_text, text_variations
 
-    assert normalize_text("AT-V-009_1", [(r"^[A-Z]{2}-", "")], convert_to_lowercase=False) == "V91"
-    assert set(text_variations("V-0912", [], convert_to_lowercase=False)) == {
+    patterns = [r"^([A-Z]{2})-(.+)$", r"^AT-(.+)$"]
+    assert extract_forms("AT-V-009_1", patterns, "all") == ["AT_V-009_1", "V-009_1"]
+    assert extract_forms("AT-V-009_1", patterns, "longest") == ["AT_V-009_1"]
+    assert normalize_text("AT-V-009_1", [r"^([A-Z]{2})-(.+)$"], "all", convert_to_lowercase=False) == "ATV91"
+    assert set(text_variations("V-0912", [], "all", convert_to_lowercase=False)) == {
         "V-0912",
         "V0912",
         "V-912",
         "V912",
     }
+    assert "23_KA_9101" in text_variations(
+        "VAL_23-KA-9101",
+        [r"([0-9]{2})[-_.:]([A-Z]{2,3})[-_.:]([0-9]{4,5})"],
+        "all",
+        convert_to_lowercase=False,
+    )
 
 
 def test_promote_cleanup_policy_is_fixed() -> None:
@@ -311,6 +323,35 @@ def test_config_validator_lets_pydantic_report_missing_raw_db() -> None:
         )
 
 
+def test_config_validator_lets_pydantic_report_missing_sink_node() -> None:
+    from pydantic import ValidationError
+    from services.ConfigService import Config
+
+    with pytest.raises(ValidationError):
+        Config.model_validate(
+            {
+                "parameters": {"rawDb": "db_file_annotation"},
+                "data": {
+                    "fileView": {
+                        "schemaSpace": "cdf_cdm",
+                        "externalId": "CogniteFile",
+                        "version": "v1",
+                    },
+                    "targetEntitiesView": {
+                        "schemaSpace": "cdf_cdm",
+                        "externalId": "CogniteAsset",
+                        "version": "v1",
+                    },
+                    "annotationStateView": {
+                        "schemaSpace": "sp_hdm",
+                        "externalId": "FileAnnotationState",
+                        "version": "v1",
+                    },
+                },
+            }
+        )
+
+
 def test_file_entity_resource_type_falls_back_when_property_is_missing() -> None:
     from services.ConfigService import Config
     from services.EntityCacheService import GeneralCacheService
@@ -436,3 +477,70 @@ def test_asset_entity_conversion_uses_empty_properties_when_view_is_missing() ->
 
     assert target_entities[0]["resource_type"] == "CogniteAsset"
     assert target_entities[0]["name"] is None
+
+
+def test_launch_service_handles_file_node_with_none_properties() -> None:
+    from services.ConfigService import Config
+    from services.LaunchService import GeneralLaunchService
+
+    config = Config.model_validate(
+        {
+            "parameters": {"rawDb": "db_file_annotation", "primaryScopeProperty": "site"},
+            "data": {
+                "fileView": {
+                    "schemaSpace": "cdf_cdm",
+                    "instanceSpace": "files",
+                    "externalId": "CogniteFile",
+                    "version": "v1",
+                },
+                "targetEntitiesView": {
+                    "schemaSpace": "cdf_cdm",
+                    "instanceSpace": "assets",
+                    "externalId": "CogniteAsset",
+                    "version": "v1",
+                },
+                "annotationStateView": {
+                    "schemaSpace": "sp_hdm",
+                    "instanceSpace": "files",
+                    "externalId": "FileAnnotationState",
+                    "version": "v1",
+                },
+                "sinkNode": {"space": "patterns", "externalId": "pattern_sink"},
+            },
+        }
+    )
+    launch_svc = GeneralLaunchService(
+        client=MagicMock(),
+        config=config,
+        logger=MagicMock(),
+        tracker=MagicMock(),
+        data_model_service=MagicMock(),
+        cache_service=MagicMock(),
+        annotation_service=MagicMock(),
+        function_call_info={},
+        rate_limit_policy=MagicMock(),
+    )
+    file_node = MagicMock()
+    file_node.properties = None
+
+    batches = launch_svc._organize_files_for_processing([file_node])
+
+    assert len(batches) == 1
+    assert batches[0].primary_scope_value is None
+    assert batches[0].files == [file_node]
+
+
+def test_batch_of_paired_nodes_create_file_reference_handles_none_properties() -> None:
+    from cognite.client.data_classes.data_modeling import NodeId, ViewId
+    from utils.DataStructures import BatchOfPairedNodes
+
+    state_view_id = ViewId("sp_hdm", "FileAnnotationState", "v1")
+    file_node_id = NodeId("files", "file-1")
+    state_node = MagicMock()
+    state_node.properties = None
+
+    paired = BatchOfPairedNodes(file_to_state_map={file_node_id: state_node})
+    ref = paired.create_file_reference(file_node_id, page_range=50, annotation_state_view_id=state_view_id)
+
+    assert ref.first_page == 1
+    assert ref.last_page == 50
