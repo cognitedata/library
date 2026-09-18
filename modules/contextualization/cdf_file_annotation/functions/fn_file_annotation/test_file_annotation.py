@@ -1,33 +1,54 @@
 """Behavior tests for the unified file annotation function."""
 
+import importlib.util
 import sys
 from pathlib import Path
+from types import ModuleType
 from unittest.mock import MagicMock
 
 import pytest
 
-sys.path.append(str(Path(__file__).parent))
+_FUNCTION_DIR = Path(__file__).parent
+sys.path.append(str(_FUNCTION_DIR))
+
+
+def _load_file_annotation_handler() -> ModuleType:
+    """Load this function's handler.py under a unique module name.
+
+    Several CDF functions ship a file named handler.py. Importing that as
+    ``handler`` makes pytest and CodeQL bind the wrong ``handle``.
+    """
+    name = "fn_file_annotation_handler"
+    loaded = sys.modules.get(name)
+    if loaded is not None:
+        return loaded
+    spec = importlib.util.spec_from_file_location(name, _FUNCTION_DIR / "handler.py")
+    if spec is None or spec.loader is None:
+        raise ImportError(f"Cannot load {_FUNCTION_DIR / 'handler.py'}")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+file_annotation_handler = _load_file_annotation_handler()
 
 
 def test_dispatch_rejects_unknown_stage() -> None:
-    import handler
-
     with pytest.raises(ValueError, match="stage"):
-        handler.handle({"stage": "unknown"}, {}, MagicMock())
+        file_annotation_handler.handle({"stage": "unknown"}, {}, MagicMock())
 
 
 @pytest.mark.parametrize("stage", ["prepare", "launch", "finalize", "promote"])
 def test_dispatch_routes_each_stage(monkeypatch: pytest.MonkeyPatch, stage: str) -> None:
-    import handler
-
     expected = {"status": "success"}
     stage_handler = MagicMock(return_value=expected)
-    monkeypatch.setattr(handler, "report_usage", MagicMock())
-    monkeypatch.setitem(handler.STAGE_HANDLERS, stage, stage_handler)
+    monkeypatch.setattr(file_annotation_handler, "report_usage", MagicMock())
+    monkeypatch.setitem(file_annotation_handler.STAGE_HANDLERS, stage, stage_handler)
     data = {"stage": stage}
     client = MagicMock()
 
-    assert handler.handle(data, {"call_id": 1}, client) == expected
+    assert file_annotation_handler.handle(data, {"call_id": 1}, client) == expected
     stage_handler.assert_called_once_with(data, {"call_id": 1}, client)
 
 
@@ -147,9 +168,9 @@ def test_promote_cleanup_policy_is_fixed() -> None:
 
 
 def test_deployed_rate_limit_policy_stops_the_stage() -> None:
-    from services.LaunchService import DeployedRateLimitPolicy
+    import services.LaunchService as launch_service
 
-    assert DeployedRateLimitPolicy().handle(MagicMock()) == "Done"
+    assert launch_service.DeployedRateLimitPolicy().handle(MagicMock()) == "Done"
 
 
 def test_local_rate_limit_policy_waits_and_continues(monkeypatch: pytest.MonkeyPatch) -> None:
