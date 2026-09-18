@@ -393,3 +393,46 @@ def test_file_entity_conversion_uses_empty_properties_when_view_is_missing() -> 
 
     assert file_entities[0]["resource_type"] == "CogniteFile"
     assert file_entities[0]["name"] is None
+
+
+def test_asset_entity_conversion_uses_empty_properties_when_view_is_missing() -> None:
+    from services.ConfigService import Config
+    from services.EntityCacheService import GeneralCacheService
+
+    config = Config.model_validate(
+        {
+            "parameters": {"rawDb": "db_file_annotation"},
+            "data": {
+                "fileView": {
+                    "schemaSpace": "cdf_cdm",
+                    "instanceSpace": "files",
+                    "externalId": "CogniteFile",
+                    "version": "v1",
+                },
+                "targetEntitiesView": {
+                    "schemaSpace": "cdf_cdm",
+                    "instanceSpace": "assets",
+                    "externalId": "CogniteAsset",
+                    "version": "v1",
+                    "resourceProperty": "type",
+                },
+                "annotationStateView": {
+                    "schemaSpace": "sp_hdm",
+                    "instanceSpace": "files",
+                    "externalId": "FileAnnotationState",
+                    "version": "v1",
+                },
+                "sinkNode": {"space": "patterns", "externalId": "pattern_sink"},
+            },
+        }
+    )
+    cache = GeneralCacheService(config, MagicMock(), MagicMock())
+    asset_node = MagicMock()
+    asset_node.external_id = "asset-1"
+    asset_node.space = "assets"
+    asset_node.properties.get.return_value = None
+
+    target_entities, _ = cache._convert_instances_to_entities([asset_node], [])
+
+    assert target_entities[0]["resource_type"] == "CogniteAsset"
+    assert target_entities[0]["name"] is None

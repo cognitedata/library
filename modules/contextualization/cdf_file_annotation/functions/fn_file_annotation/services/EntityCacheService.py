@@ -211,12 +211,10 @@ class GeneralCacheService(ICacheService):
         target_entities: list[dict] = []
 
         for instance in asset_instances:
-            instance_properties = instance.properties.get(self.target_entities_view.as_view_id())
+            instance_properties = instance.properties.get(self.target_entities_view.as_view_id()) or {}
             asset_resource_type: str = (
-                instance_properties.get(target_entities_resource_type)
-                if target_entities_resource_type
-                else self.target_entities_view.external_id
-            )
+                instance_properties.get(target_entities_resource_type) if target_entities_resource_type else None
+            ) or self.target_entities_view.external_id
             if target_entities_search_property in instance_properties:
                 asset_entity = entity(
                     external_id=instance.external_id,
