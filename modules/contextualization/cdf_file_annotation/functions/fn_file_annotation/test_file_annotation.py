@@ -480,8 +480,9 @@ def test_asset_entity_conversion_uses_empty_properties_when_view_is_missing() ->
 
 
 def test_launch_service_handles_file_node_with_none_properties() -> None:
+    import services.LaunchService as launch_service
+
     from services.ConfigService import Config
-    from services.LaunchService import GeneralLaunchService
 
     config = Config.model_validate(
         {
@@ -509,7 +510,7 @@ def test_launch_service_handles_file_node_with_none_properties() -> None:
             },
         }
     )
-    launch_svc = GeneralLaunchService(
+    launch_svc = launch_service.GeneralLaunchService(
         client=MagicMock(),
         config=config,
         logger=MagicMock(),
