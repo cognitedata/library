@@ -179,7 +179,7 @@ class GeneralRetrieveService(IRetrieveService):
         file_to_state_map: dict[NodeId, Node] = {}
         for node in list_job_nodes:
             file_reference = (node.properties or {}).get(self.annotation_state_view.as_view_id(), {}).get("linkedFile")
-            if not file_reference or not isinstance(file_reference, dict):
+            if not file_reference or not isinstance(file_reference, dict) or "space" not in file_reference or "externalId" not in file_reference:
                 continue
             file_node_id = NodeId(space=file_reference["space"], external_id=file_reference["externalId"])
             file_to_state_map[file_node_id] = node
