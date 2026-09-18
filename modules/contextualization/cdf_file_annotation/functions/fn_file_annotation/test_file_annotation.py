@@ -254,3 +254,70 @@ def test_config_log_names_extraction_pipeline_source() -> None:
         report = formatter(config, "ep_file_annotation")
         assert "CONFIG SOURCE: extraction pipeline 'ep_file_annotation'" in report
         assert "" not in report.split("\n")
+
+
+def test_config_validator_lets_pydantic_report_malformed_nested_dicts() -> None:
+    from pydantic import ValidationError
+    from services.ConfigService import Config
+
+    with pytest.raises(ValidationError):
+        Config.model_validate(
+            {
+                "parameters": {"rawDb": "db_file_annotation"},
+                "data": {
+                    "targetEntitiesView": {
+                        "schemaSpace": "cdf_cdm",
+                        "externalId": "CogniteAsset",
+                        "version": "v1",
+                    },
+                    "annotationStateView": {
+                        "schemaSpace": "sp_hdm",
+                        "externalId": "FileAnnotationState",
+                        "version": "v1",
+                    },
+                    "sinkNode": {"space": "patterns", "externalId": "pattern_sink"},
+                },
+            }
+        )
+
+
+def test_file_entity_resource_type_falls_back_when_property_is_missing() -> None:
+    from services.ConfigService import Config
+    from services.EntityCacheService import GeneralCacheService
+
+    config = Config.model_validate(
+        {
+            "parameters": {"rawDb": "db_file_annotation"},
+            "data": {
+                "fileView": {
+                    "schemaSpace": "cdf_cdm",
+                    "instanceSpace": "files",
+                    "externalId": "CogniteFile",
+                    "version": "v1",
+                    "resourceProperty": "type",
+                },
+                "targetEntitiesView": {
+                    "schemaSpace": "cdf_cdm",
+                    "instanceSpace": "assets",
+                    "externalId": "CogniteAsset",
+                    "version": "v1",
+                },
+                "annotationStateView": {
+                    "schemaSpace": "sp_hdm",
+                    "instanceSpace": "files",
+                    "externalId": "FileAnnotationState",
+                    "version": "v1",
+                },
+                "sinkNode": {"space": "patterns", "externalId": "pattern_sink"},
+            },
+        }
+    )
+    cache = GeneralCacheService(config, MagicMock(), MagicMock())
+    file_node = MagicMock()
+    file_node.external_id = "doc-1"
+    file_node.space = "files"
+    file_node.properties.get.return_value = {"name": "P&ID-1"}
+
+    _, file_entities = cache._convert_instances_to_entities([], [file_node])
+
+    assert file_entities[0]["resource_type"] == "CogniteFile"

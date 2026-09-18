@@ -385,11 +385,21 @@ class Config(BaseModel, alias_generator=to_camel):
             return value
 
         config = dict(value)
-        parameters = dict(config["parameters"])
-        data = dict(config["data"])
-        file_view = dict(data["fileView"])
-        target_view = dict(data["targetEntitiesView"])
-        state_view = dict(data["annotationStateView"])
+        parameters = config.get("parameters")
+        data = config.get("data")
+        if not isinstance(parameters, dict) or not isinstance(data, dict):
+            return value
+
+        file_view = data.get("fileView")
+        target_view = data.get("targetEntitiesView")
+        state_view = data.get("annotationStateView")
+        if not isinstance(file_view, dict) or not isinstance(target_view, dict) or not isinstance(state_view, dict):
+            return value
+
+        parameters = dict(parameters)
+        file_view = dict(file_view)
+        target_view = dict(target_view)
+        state_view = dict(state_view)
         file_view["annotationType"] = FILE_ANNOTATION_TYPE
         target_view["annotationType"] = TARGET_ANNOTATION_TYPE
         core_view = {
