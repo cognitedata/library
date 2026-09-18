@@ -481,7 +481,6 @@ def test_asset_entity_conversion_uses_empty_properties_when_view_is_missing() ->
 
 def test_launch_service_handles_file_node_with_none_properties() -> None:
     import services.LaunchService as launch_service
-
     from services.ConfigService import Config
 
     config = Config.model_validate(
