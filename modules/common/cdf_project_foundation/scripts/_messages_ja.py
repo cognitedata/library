@@ -5,7 +5,7 @@ Product names and unchanged literals (e.g. "[Y/n]") are intentionally excluded �
 un-migrated or excluded key simply falls back to English via ``t()``.
 """
 
-messages_ja: dict[str, str] = {
+MESSAGES_JA: dict[str, str] = {
     "Choice [{default}]: ": "選択 [{default}]: ",
     "Please enter a number between 1 and {n}.": "1 から {n} の間の数字を入力してください。",
     "Found {var} in .env  (current: {masked})": ".env に {var} が見つかりました（現在の値: {masked}）",
