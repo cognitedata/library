@@ -34,6 +34,8 @@ try:
 except ImportError:
     import tomli as tomllib  # type: ignore[no-redef]
 
+from _i18n import t
+
 MODULE_DIR = Path(__file__).resolve().parents[1]
 TEMPLATES_ROOT = MODULE_DIR / "templates"
 ENVIRONMENTS = ("dev", "test", "prod")
@@ -111,21 +113,22 @@ def render_template(path: Path, values: dict[str, str]) -> str:
 def write_file(path: Path, content: str, force: bool) -> None:
     if path.exists() and not force:
         try:
-            answer = input(f"{path} already exists. Overwrite? [y/N] ").strip().lower()
+            prompt = t("{path} already exists. Overwrite? [y/N]").format(path=path)
+            answer = input(f"{prompt} ").strip().lower()
         except EOFError:
             answer = "n"
         if answer not in ("y", "yes"):
-            print(f"Skipped {path}")
+            print(t("Skipped {path}").format(path=path))
             return
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(content, encoding="utf-8")
-    print(f"Wrote {path}")
+    print(t("Wrote {path}").format(path=path))
 
 
 def remove_file(path: Path) -> None:
     if path.exists():
         path.unlink()
-        print(f"Removed {path}")
+        print(t("Removed {path}").format(path=path))
 
 
 def build_lint_paths(org_dir: str | None, provider: str) -> str:
@@ -983,7 +986,7 @@ def main() -> None:
         if deployable_envs(projects):
             template = templates / "dry-run.yml"
             if not template.is_file():
-                print(f"Missing template: {template}", file=sys.stderr)
+                print(t("Missing template: {template}").format(template=template), file=sys.stderr)
                 sys.exit(1)
             write_file(
                 workflows_dir / "dry-run.yml",
@@ -996,7 +999,7 @@ def main() -> None:
         if "prod" in projects:
             deploy_prod_template = templates / "deploy-prod.yml"
             if not deploy_prod_template.is_file():
-                print(f"Missing template: {deploy_prod_template}", file=sys.stderr)
+                print(t("Missing template: {template}").format(template=deploy_prod_template), file=sys.stderr)
                 sys.exit(1)
             prod_values = {
                 **base_values,
@@ -1013,7 +1016,7 @@ def main() -> None:
 
         deploy_template = templates / "deploy.yml"
         if not deploy_template.is_file():
-            print(f"Missing template: {deploy_template}", file=sys.stderr)
+            print(t("Missing template: {template}").format(template=deploy_template), file=sys.stderr)
             sys.exit(1)
         for env in ("dev", "test"):
             if env not in projects:
@@ -1046,7 +1049,7 @@ def main() -> None:
         if deployable_envs(projects):
             dry_run_template = templates / "dry-run-pipeline.yml"
             if not dry_run_template.is_file():
-                print(f"Missing template: {dry_run_template}", file=sys.stderr)
+                print(t("Missing template: {template}").format(template=dry_run_template), file=sys.stderr)
                 sys.exit(1)
             write_file(
                 workflows_dir / "dry-run-pipeline.yml",
@@ -1058,7 +1061,7 @@ def main() -> None:
 
         deploy_pipeline_template = templates / "deploy-pipeline.yml"
         if not deploy_pipeline_template.is_file():
-            print(f"Missing template: {deploy_pipeline_template}", file=sys.stderr)
+            print(t("Missing template: {template}").format(template=deploy_pipeline_template), file=sys.stderr)
             sys.exit(1)
         for env in ENVIRONMENTS:
             out = workflows_dir / ADO_DEPLOY_PIPELINE_FILES[env]
@@ -1074,7 +1077,7 @@ def main() -> None:
 
     readme_template = templates / "FOUNDATION_CICD.md"
     if not readme_template.is_file():
-        print(f"Missing template: {readme_template}", file=sys.stderr)
+        print(t("Missing template: {template}").format(template=readme_template), file=sys.stderr)
         sys.exit(1)
     cicd_readme = repo_root / "docs" / "FOUNDATION_CICD.md"
     write_file(
@@ -1084,16 +1087,17 @@ def main() -> None:
     )
 
     print()
-    print("Next steps:")
+    print(t("Next steps:"))
     if args.provider == "github":
         environments = [f"{env}-toolkit-credentials" for env in ENVIRONMENTS if env in projects]
-        print(f"  1. Create GitHub Environments: {', '.join(environments)}")
-        print("     (see docs/FOUNDATION_CICD.md)")
-        print("  2. Create and protect the branches used by the generated workflows")
+        print(t("  1. Create GitHub Environments: {environments}").format(environments=", ".join(environments)))
+        print(t("     (see docs/FOUNDATION_CICD.md)"))
+        print(t("  2. Create and protect the branches used by the generated workflows"))
         if deployable_envs(projects):
             branches = ", ".join(branch_envs(projects))
-            print(f"  3. Open a PR to {branches} to validate dry-run.yml")
+            print(t("  3. Open a PR to {branches} to validate dry-run.yml").format(branches=branches))
     else:
+        # NOTE: Azure DevOps checklist strings below are not yet in the reviewed catalogue
         ado_groups: list[str] = []
         for env in ENVIRONMENTS:
             if env not in projects:
