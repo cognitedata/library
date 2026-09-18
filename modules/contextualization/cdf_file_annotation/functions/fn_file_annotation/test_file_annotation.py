@@ -620,8 +620,8 @@ def test_launch_service_handles_file_node_with_none_properties() -> None:
 
 
 def test_launch_omits_scope_logs_when_unscoped() -> None:
-    from cognite.client.data_classes.data_modeling import NodeId
     import services.LaunchService as launch_service
+    from cognite.client.data_classes.data_modeling import NodeId
     from services.ConfigService import Config
 
     config = Config.model_validate(
