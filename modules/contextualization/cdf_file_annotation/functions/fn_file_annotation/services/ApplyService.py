@@ -570,9 +570,10 @@ class GeneralApplyService(IApplyService):
             BoundingBox object with computed x_min, x_max, y_min, y_max boundaries.
         """
         vertices = region.get("vertices", [])
-        x_coords = [v.get("x", 0) for v in vertices]
-        y_coords = [v.get("y", 0) for v in vertices]
-
+        if not vertices:
+            return BoundingBox(x_min=0.0, x_max=0.0, y_min=0.0, y_max=0.0)
+        x_coords = [v.get("x", 0.0) for v in vertices]
+        y_coords = [v.get("y", 0.0) for v in vertices]
         return BoundingBox(x_min=min(x_coords), x_max=max(x_coords), y_min=min(y_coords), y_max=max(y_coords))
 
     def _bounding_box_to_coords(self, bounding_box: BoundingBox) -> tuple[float, float, float, float]:
