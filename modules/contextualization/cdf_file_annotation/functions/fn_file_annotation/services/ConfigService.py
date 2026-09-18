@@ -441,8 +441,12 @@ class Config(BaseModel, alias_generator=to_camel):
         raw_db = parameters.get("rawDb")
         if not raw_db:
             return value
-        pattern_promote = parameters.get("patternPromote") or {}
-        text_normalization = pattern_promote.get("textNormalization") or {}
+        pattern_promote = parameters.get("patternPromote")
+        if not isinstance(pattern_promote, dict):
+            pattern_promote = {}
+        text_normalization = pattern_promote.get("textNormalization")
+        if not isinstance(text_normalization, dict):
+            text_normalization = {}
 
         config.update(
             {
