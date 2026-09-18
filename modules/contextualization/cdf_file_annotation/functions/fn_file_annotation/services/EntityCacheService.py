@@ -244,11 +244,9 @@ class GeneralCacheService(ICacheService):
         file_entities: list[dict] = []
 
         for instance in file_instances:
-            instance_properties = instance.properties.get(self.file_view.as_view_id())
+            instance_properties = instance.properties.get(self.file_view.as_view_id()) or {}
             file_entity_resource_type: str = (
-                instance_properties.get(file_resource_type_prop)
-                if instance_properties and file_resource_type_prop
-                else None
+                instance_properties.get(file_resource_type_prop) if file_resource_type_prop else None
             ) or self.file_view.external_id
             file_entity = entity(
                 external_id=instance.external_id,

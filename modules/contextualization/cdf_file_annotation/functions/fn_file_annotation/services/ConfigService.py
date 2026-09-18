@@ -407,7 +407,9 @@ class Config(BaseModel, alias_generator=to_camel):
             "externalId": CORE_ANNOTATION_EXTERNAL_ID,
             "version": CORE_ANNOTATION_VERSION,
         }
-        raw_db = parameters["rawDb"]
+        raw_db = parameters.get("rawDb")
+        if not raw_db:
+            return value
         pattern_promote = parameters.get("patternPromote") or {}
         text_normalization = pattern_promote.get("textNormalization") or {}
 
