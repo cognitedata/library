@@ -87,7 +87,7 @@ messages_ja: dict[str, str] = {
     "Pack root          : {pack_root}": "デプロイメントパックのルートパス : {pack_root}",
     "Organization dir   : {org_dir}  (from cdf.toml)": "組織ディレクトリ   : {org_dir}（cdf.toml より）",
     "Contextualization  : {list}": "コンテキスト化  : {list}",
-    "[{state}] {path.name}  —  project: {project_names[env]}": "[{state}] {path.name}  —  プロジェクト: {project_names[env]}",
+    "[{state}] {path.name}  —  project: {project_name}": "[{state}] {path.name}  —  プロジェクト: {project_name}",
     ".env  —  group source IDs updated": "アクセスグループ Source ID を更新しました。",
     "Updated .env  (backup: {backup_env.name})": ".env を更新しました（バックアップ: {backup_env.name}）",
     "Created .env": ".env を作成しました",
