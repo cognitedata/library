@@ -3,7 +3,7 @@
 
 from _env_io import upsert_env
 from _i18n import t
-from _style import _C, _warn
+from _style import _C, _display_width, _warn
 
 
 def prompt(msg: str, default: str | None = None) -> str:
@@ -30,9 +30,14 @@ def prompt_yes_no(msg: str, default: bool = True) -> bool:
 
 def prompt_choice(options: list[str], default: int = 1) -> int:
     """Display a numbered menu and return the 1-based index of the chosen option."""
+    # Right-align the index so option text starts in the same column for every
+    # row, using display width (not len()) so this stays correct once options
+    # are Japanese text.
+    index_width = _display_width(str(len(options)))
     for i, opt in enumerate(options, 1):
         marker = f"{_C.CYAN}▶{_C.RESET}" if i == default else " "
-        print(f"  {marker} [{i}] {opt}")
+        index_str = str(i).rjust(index_width)
+        print(f"  {marker} [{index_str}] {opt}")
     while True:
         try:
             raw = input(f"  {t('Choice [{default}]: ').format(default=default)}").strip()
