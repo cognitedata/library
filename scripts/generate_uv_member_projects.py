@@ -6,7 +6,6 @@ Run from the repository root after editing PACKAGE_SPECS:
     python scripts/export_deploy_requirements.py
 """
 
-
 import json
 from pathlib import Path
 
@@ -34,28 +33,14 @@ FILE_ANNOTATION_STREAMLIT_RUNTIME = [
 ]
 
 # CDF deploy: direct packages installed on top of the Functions runtime.
+# cryptography is not imported directly; it is pinned to a floor because versions
+# 44.0.0 to 49.x expose a Bleichenbacher oracle in the PKCS#7 decrypt helpers.
 FILE_ANNOTATION_DEPLOY = [
-    "annotated-types==0.7.0",
-    "certifi==2025.4.26",
-    "cffi>=1.17.1",
-    "charset-normalizer==3.4.2",
     "cognite-sdk==7.76.0",
-    "cryptography==50.0.0",
-    "idna==3.15",
-    "msal==1.37.0",
-    "oauthlib==3.2.2",
-    "packaging==25.0",
-    "protobuf>=6.33.5",
-    "pycparser==2.22",
+    "cryptography>=50.0.0",
     "pydantic>=2.12.4,<3.0.0",
-    "PyJWT==2.13.0",
     "python-dotenv==1.2.2",
-    "PyYAML==6.0.2",
-    "requests==2.33.0",
-    "requests-oauthlib==1.3.1",
-    "typing-inspection==0.4.2",
-    "typing_extensions==4.16.0",
-    "urllib3==2.7.0",
+    "PyYAML==6.0.3",
     "mixpanel>=4.10.0",
 ]
 
@@ -131,29 +116,8 @@ PACKAGE_SPECS: list[dict[str, object]] = [
         "pytest": True,
     },
     {
-        "path": "modules/contextualization/cdf_file_annotation/functions/fn_file_annotation_finalize",
-        "name": "fn-file-annotation-finalize",
-        "requires_python": ">=3.11,<3.14",
-        "dependencies": FILE_ANNOTATION_RUNTIME,
-        "deploy_dependencies": FILE_ANNOTATION_DEPLOY,
-    },
-    {
-        "path": "modules/contextualization/cdf_file_annotation/functions/fn_file_annotation_launch",
-        "name": "fn-file-annotation-launch",
-        "requires_python": ">=3.11,<3.14",
-        "dependencies": FILE_ANNOTATION_RUNTIME,
-        "deploy_dependencies": FILE_ANNOTATION_DEPLOY,
-    },
-    {
-        "path": "modules/contextualization/cdf_file_annotation/functions/fn_file_annotation_prepare",
-        "name": "fn-file-annotation-prepare",
-        "requires_python": ">=3.11,<3.14",
-        "dependencies": FILE_ANNOTATION_RUNTIME,
-        "deploy_dependencies": FILE_ANNOTATION_DEPLOY,
-    },
-    {
-        "path": "modules/contextualization/cdf_file_annotation/functions/fn_file_annotation_promote",
-        "name": "fn-file-annotation-promote",
+        "path": "modules/contextualization/cdf_file_annotation/functions/fn_file_annotation",
+        "name": "fn-file-annotation",
         "requires_python": ">=3.11,<3.14",
         "dependencies": FILE_ANNOTATION_RUNTIME,
         "deploy_dependencies": FILE_ANNOTATION_DEPLOY,

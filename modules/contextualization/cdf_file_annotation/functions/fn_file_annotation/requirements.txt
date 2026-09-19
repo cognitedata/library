@@ -1,0 +1,6 @@
+cognite-sdk==7.76.0
+cryptography>=50.0.0
+pydantic>=2.12.4,<3.0.0
+python-dotenv==1.2.2
+PyYAML==6.0.3
+mixpanel>=4.10.0

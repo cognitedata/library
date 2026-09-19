@@ -1,89 +1,80 @@
 - workflowExternalId: {{ workflowExternalId }}
   version: v1
   workflowDefinition:
-    description: "Complete file annotation pipeline: prepare → launch → finalize → promote → link assets"
+    description: "Submit file annotations, collect results, and link files to assets"
     tasks:
-      # Step 1: Prepare - Create annotation state instances for files marked to annotate
       - externalId: fn_prepare
-        type: "function"
+        type: function
         parameters:
           function:
-            externalId: {{ prepareFunctionExternalId }}
+            externalId: {{ functionExternalId }}
             data:
               {
+                "stage": "prepare",
                 "ExtractionPipelineExtId": {{ extractionPipelineExternalId }},
-                "logLevel": "INFO"
+                "logLevel": "DEBUG"
               }
           isAsyncComplete: false
         name: Prepare File Annotations
-        description: Create annotation state instances for files marked ToAnnotate
         retries: 0
         timeout: 600
-        onFailure: "abortWorkflow"
-
-      # Step 2: Launch - Create diagram detect jobs
+        onFailure: abortWorkflow
       - externalId: fn_launch
-        type: "function"
+        type: function
         dependsOn:
           - externalId: fn_prepare
         parameters:
           function:
-            externalId: {{ launchFunctionExternalId }}
+            externalId: {{ functionExternalId }}
             data:
               {
+                "stage": "launch",
                 "ExtractionPipelineExtId": {{ extractionPipelineExternalId }},
-                "logLevel": "INFO"
+                "logLevel": "DEBUG"
               }
           isAsyncComplete: false
         name: Launch File Annotations
-        description: Create diagram detect jobs for annotation state instances
         retries: 0
         timeout: 600
-        onFailure: "abortWorkflow"
-
-      # Step 3: Finalize - Process diagram detect jobs
+        onFailure: abortWorkflow
       - externalId: fn_finalize
-        type: "function"
+        type: function
         dependsOn:
           - externalId: fn_launch
         parameters:
           function:
-            externalId: {{ finalizeFunctionExternalId }}
+            externalId: {{ functionExternalId }}
             data:
               {
+                "stage": "finalize",
                 "ExtractionPipelineExtId": {{ extractionPipelineExternalId }},
-                "logLevel": "INFO"
+                "logLevel": "DEBUG"
               }
           isAsyncComplete: false
         name: Finalize File Annotations
-        description: Process diagram detect jobs
         retries: 0
         timeout: 600
-        onFailure: "abortWorkflow"
-
-      # Step 4: Promote - Auto-promote suggested annotations
+        onFailure: abortWorkflow
       - externalId: fn_promote
-        type: "function"
+        type: function
         dependsOn:
           - externalId: fn_finalize
         parameters:
           function:
-            externalId: {{ promoteFunctionExternalId }}
+            externalId: {{ functionExternalId }}
             data:
               {
+                "stage": "promote",
                 "ExtractionPipelineExtId": {{ extractionPipelineExternalId }},
-                "logLevel": "INFO"
+                "logLevel": "DEBUG"
               }
           isAsyncComplete: false
         name: Promote File Annotations
-        description: Auto-promote suggested pattern mode annotations
         retries: 0
         timeout: 600
-        onFailure: "abortWorkflow"
-
-      # Step 5: Link Assets - Populate assets property on File instances
+        onFailure: abortWorkflow
       - externalId: tr_file_to_asset
-        type: "transformation"
+        type: transformation
         dependsOn:
           - externalId: fn_promote
         parameters:
@@ -91,7 +82,6 @@
             externalId: {{ fileToAssetTransformationExternalId }}
             concurrencyPolicy: fail
         name: Link Files to Assets
-        description: Populate assets property on File instances from approved annotations
         retries: 1
         timeout: 1800
-        onFailure: "abortWorkflow"
+        onFailure: abortWorkflow

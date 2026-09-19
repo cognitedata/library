@@ -29,6 +29,7 @@ class AnnotationTag:
     status: str
     annotation_type: str | None = None
 
+
 class NormalizedStatus(StrEnum):
     REGULARLY_ANNOTATED = "Regularly Annotated"
     AUTOMATICALLY_PROMOTED = "Automatically Promoted"
@@ -37,11 +38,13 @@ class NormalizedStatus(StrEnum):
     NO_MATCH = "No Match"
     AMBIGUOUS = "Ambiguous"
 
+
 class TagsStatus(StrEnum):
     PROMOTED_AUTO = "PromotedAuto"
     PROMOTED_MANUALLY = "PromotedManually"
     PROMOTE_ATTEMPTED = "PromoteAttempted"
-    AMBIGUOUS_MATCH = "AmbiguousMatch"  
+    AMBIGUOUS_MATCH = "AmbiguousMatch"
+
 
 @dataclass
 class ViewPropertyConfig:
@@ -56,17 +59,20 @@ class ViewPropertyConfig:
     def as_property_ref(self, property_name: str) -> list[str]:
         return [self.schema_space, f"{self.external_id}/{self.version}", property_name]
 
+
 class CallerType(StrEnum):
     PREPARE = "Prepare"
     LAUNCH = "Launch"
     FINALIZE = "Finalize"
     PROMOTE = "Promote"
 
+
 @dataclass
 class AnnotationStatus(StrEnum):
     APPROVED = "Approved"
     SUGGESTED = "Suggested"
     REJECTED = "Rejected"
+
 
 @dataclass
 class AnnotationCoverageData:
@@ -75,17 +81,20 @@ class AnnotationCoverageData:
     potential_count: int
     total_possible: int
 
+
 @dataclass
 class ActualAnnotationStatus(StrEnum):
     REGULARLY_ANNOTATED = "Regularly Annotated"
     AUTOMATICALLY_PROMOTED = "Automatically Promoted"
     MANUALLY_PROMOTED = "Manually Promoted"
 
+
 @dataclass
 class PotentialAnnotationStatus(StrEnum):
     PATTERN_FOUND = "Pattern Found"
     AMBIGUOUS = "Ambiguous"
     NO_MATCH = "No Match"
+
 
 @dataclass
 class FunctionRunConfig:
@@ -101,6 +110,7 @@ class AnnotationFrames:
     actual_df: pd.DataFrame
     potential_df: pd.DataFrame
 
+
 @dataclass
 class RawTablesConfig:
     raw_db: str
@@ -109,7 +119,6 @@ class RawTablesConfig:
     raw_table_file_tags: str
     raw_table_pattern_cache: str
     raw_manual_patterns_catalog: str
-
 
     @classmethod
     def from_dict(cls, d: dict | None):
@@ -120,7 +129,7 @@ class RawTablesConfig:
                 raw_table_asset_tags=None,
                 raw_table_file_tags=None,
                 raw_table_pattern_cache=None,
-                raw_manual_patterns_catalog=None
+                raw_manual_patterns_catalog=None,
             )
         return cls(
             raw_db=d.get(FieldNames.RAW_DATABASE_CAMEL_CASE),
@@ -130,6 +139,7 @@ class RawTablesConfig:
             raw_table_pattern_cache=d.get(FieldNames.RAW_TABLE_CACHE_CAMEL_CASE),
             raw_manual_patterns_catalog=d.get(FieldNames.RAW_TABLE_MANUAL_PATTERNS_CATALOG_CAMEL_CASE),
         )
+
 
 @dataclass
 class ApplyServiceConfig:
@@ -149,7 +159,7 @@ class ApplyServiceConfig:
                 raw_table_asset_tags=None,
                 raw_table_file_tags=None,
                 raw_manual_patterns_catalog=None,
-                raw_table_pattern_cache=None
+                raw_table_pattern_cache=None,
             )
         return cls(
             raw_db=d.get(FieldNames.RAW_DATABASE_CAMEL_CASE),
@@ -159,6 +169,7 @@ class ApplyServiceConfig:
             raw_manual_patterns_catalog=d.get(FieldNames.RAW_TABLE_MANUAL_PATTERNS_CATALOG_CAMEL_CASE),
             raw_table_pattern_cache=d.get(FieldNames.RAW_TABLE_CACHE_CAMEL_CASE),
         )
+
 
 @dataclass
 class CacheServiceConfig:
@@ -178,7 +189,7 @@ class CacheServiceConfig:
                 raw_table_asset_tags=None,
                 raw_table_file_tags=None,
                 raw_manual_patterns_catalog=None,
-                raw_table_pattern_cache=None
+                raw_table_pattern_cache=None,
             )
 
         return cls(
@@ -189,6 +200,7 @@ class CacheServiceConfig:
             raw_manual_patterns_catalog=d.get(FieldNames.RAW_TABLE_MANUAL_PATTERNS_CATALOG_CAMEL_CASE),
             raw_table_pattern_cache=d.get(FieldNames.RAW_TABLE_CACHE_CAMEL_CASE),
         )
+
 
 @dataclass
 class LaunchFunctionConfig:
@@ -211,6 +223,7 @@ class LaunchFunctionConfig:
             cache_service=CacheServiceConfig.from_dict(cache_service),
         )
 
+
 @dataclass
 class FinalizeFunctionConfig:
     apply_service: ApplyServiceConfig
@@ -218,13 +231,12 @@ class FinalizeFunctionConfig:
     @classmethod
     def from_dict(cls, d: dict | None):
         if not isinstance(d, dict):
-            return cls(
-                apply_service=ApplyServiceConfig.from_dict(None)
-            )
+            return cls(apply_service=ApplyServiceConfig.from_dict(None))
 
         apply_service = d.get(FieldNames.APPLY_SERVICE_CAMEL_CASE)
 
         return cls(apply_service=ApplyServiceConfig.from_dict(apply_service))
+
 
 @dataclass
 class ExtractionPipelineConfig:
@@ -243,6 +255,36 @@ class ExtractionPipelineConfig:
                 finalize_function=FinalizeFunctionConfig.from_dict(None),
                 raw_tables=RawTablesConfig.from_dict(None),
             )
+
+        if "parameters" in d and "data" in d:
+            parameters = d["parameters"]
+            views = d["data"]
+            raw_tables = {
+                "rawDb": parameters.get("rawDb"),
+                "rawTableDocPattern": "annotation_documents_patterns",
+                "rawTableDocTag": "annotation_documents_tags",
+                "rawTableDocDoc": "annotation_documents_docs",
+                "rawManualPatternsCatalog": "manual_patterns_catalog",
+                "rawTableCache": "annotation_entities_cache",
+                "rawTablePromoteCache": "annotation_tags_cache",
+            }
+            file_view_data = views.get("fileView", {})
+            target_view_data = views.get("targetEntitiesView", {})
+            d = {
+                "launchFunction": {
+                    "secondaryScopeProperty": parameters.get("secondaryScopeProperty"),
+                    "fileResourceProperty": file_view_data.get("resourceProperty"),
+                    "targetEntityResourceProperty": target_view_data.get("resourceProperty"),
+                    "cacheService": raw_tables,
+                },
+                "finalizeFunction": {"applyService": raw_tables},
+                "rawTables": raw_tables,
+                "dataModelViews": {
+                    "annotationStateView": views.get("annotationStateView"),
+                    "fileView": file_view_data,
+                    "targetEntityView": target_view_data,
+                },
+            }
 
         launch_function = d.get(FieldNames.LAUNCH_FUNCTION_CAMEL_CASE)
         finalize_function = d.get(FieldNames.FINALIZE_FUNCTION_CAMEL_CASE)
@@ -303,7 +345,7 @@ class ExtractionPipelineConfig:
 
         return (
             getattr(self.raw_tables, FieldNames.RAW_TABLE_ASSET_TAGS_SNAKE_CASE, None)
-            or getattr(cache, FieldNames.RAW_TABLE_ASSET_TAGS_SNAKE_CASE, None) 
+            or getattr(cache, FieldNames.RAW_TABLE_ASSET_TAGS_SNAKE_CASE, None)
             or getattr(apply, FieldNames.RAW_TABLE_ASSET_TAGS_SNAKE_CASE, None)
         )
 
@@ -317,7 +359,7 @@ class ExtractionPipelineConfig:
             or getattr(cache, FieldNames.RAW_TABLE_FILE_TAGS_SNAKE_CASE, None)
             or getattr(apply, FieldNames.RAW_TABLE_FILE_TAGS_SNAKE_CASE, None)
         )
-    
+
     @property
     def raw_manual_patterns_catalog(self) -> str | None:
         cache = getattr(self.launch_function, FieldNames.CACHE_SERVICE_SNAKE_CASE, None)
@@ -328,7 +370,7 @@ class ExtractionPipelineConfig:
             or getattr(cache, FieldNames.RAW_TABLE_MANUAL_PATTERNS_CATALOG_SNAKE_CASE, None)
             or getattr(apply, FieldNames.RAW_TABLE_MANUAL_PATTERNS_CATALOG_SNAKE_CASE, None)
         )
-    
+
     @property
     def raw_table_pattern_tags(self) -> str | None:
         cache = getattr(self.launch_function, FieldNames.CACHE_SERVICE_SNAKE_CASE, None)
