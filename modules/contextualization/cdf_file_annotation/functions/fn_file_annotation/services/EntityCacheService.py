@@ -22,6 +22,24 @@ def count_pattern_sample_strings(pattern_groups: list[dict]) -> int:
     return sum(len(group.get("sample") or []) for group in pattern_groups)
 
 
+def format_pattern_groups_for_log(pattern_groups: list[dict], *, max_samples_per_group: int = 80) -> list[str]:
+    """Format pattern sample groups as indented log lines."""
+    lines: list[str] = []
+    for group in pattern_groups:
+        samples = group.get("sample") or []
+        if isinstance(samples, str):
+            samples = [samples]
+        lines.append(
+            f"  [{group.get('resource_type')}/{group.get('annotation_type')}] {len(samples)} sample(s)"
+        )
+        preview = samples[:max_samples_per_group]
+        for sample in preview:
+            lines.append(f"    - {sample}")
+        if len(samples) > len(preview):
+            lines.append(f"    ... +{len(samples) - len(preview)} more")
+    return lines
+
+
 def split_entities_by_kind(entities: list[dict]) -> tuple[list[dict], list[dict]]:
     """
     Split diagram-detect entities into asset-like vs file-like lists.
@@ -73,7 +91,7 @@ class ICacheService(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def _generate_tag_samples_from_entities(self, entities: list[dict]) -> list[dict]:
+    def _generate_tag_samples_from_entities(self, entities: list[dict], *, source_view: str) -> list[dict]:
         pass
 
 
@@ -133,6 +151,8 @@ class GeneralCacheService(ICacheService):
             self.logger.info(f"Cache is up-to-date for key: {key}\nEntities and patterns loaded from: CACHE.")
             asset_entities: list[dict] = row.columns.get("AssetEntities", [])
             file_entities: list[dict] = row.columns.get("FileEntities", [])
+            asset_pattern_samples: list[dict] = row.columns.get("AssetPatternSamples", [])
+            file_pattern_samples: list[dict] = row.columns.get("FilePatternSamples", [])
             combined_pattern_samples: list[dict] = row.columns.get("CombinedPatternSamples", [])
             entities = asset_entities + file_entities
             self._log_launch_input_summary(
@@ -140,11 +160,13 @@ class GeneralCacheService(ICacheService):
                 source="CACHE",
                 asset_entities=asset_entities,
                 file_entities=file_entities,
+                asset_pattern_samples=asset_pattern_samples,
+                file_pattern_samples=file_pattern_samples,
                 pattern_samples=combined_pattern_samples,
             )
             return entities, combined_pattern_samples
 
-        self.logger.info(f"Cache is out-of-date for key: {key}\nEntities and patterns loaded from: CDF (Fresh Fetch)")
+        self.logger.info(f"Cache is out-of-date for key: {key}\nEntities and patterns loaded from: CDF (fresh fetch)")
 
         # Fetch data
         asset_instances, file_instances = data_model_service.get_instances_entities(
@@ -156,8 +178,14 @@ class GeneralCacheService(ICacheService):
         entities = asset_entities + file_entities
 
         # Generate pattern samples from the same entities
-        asset_pattern_samples = self._generate_tag_samples_from_entities(asset_entities)
-        file_pattern_samples = self._generate_tag_samples_from_entities(file_entities)
+        asset_pattern_samples = self._generate_tag_samples_from_entities(
+            asset_entities,
+            source_view=f"targetEntitiesView ({self.target_entities_view.external_id})",
+        )
+        file_pattern_samples = self._generate_tag_samples_from_entities(
+            file_entities,
+            source_view=f"fileView ({self.file_view.external_id})",
+        )
         auto_pattern_samples = asset_pattern_samples + file_pattern_samples
 
         # Grab the manual pattern samples
@@ -171,8 +199,11 @@ class GeneralCacheService(ICacheService):
             source="CDF",
             asset_entities=asset_entities,
             file_entities=file_entities,
+            asset_pattern_samples=asset_pattern_samples,
+            file_pattern_samples=file_pattern_samples,
             pattern_samples=combined_pattern_samples,
             manual_pattern_groups=len(manual_pattern_samples),
+            manual_pattern_strings=count_pattern_sample_strings(manual_pattern_samples),
         )
 
         # Update cache
@@ -199,7 +230,10 @@ class GeneralCacheService(ICacheService):
         asset_entities: list[dict],
         file_entities: list[dict],
         pattern_samples: list[dict],
+        asset_pattern_samples: list[dict] | None = None,
+        file_pattern_samples: list[dict] | None = None,
         manual_pattern_groups: int | None = None,
+        manual_pattern_strings: int | None = None,
     ) -> None:
         """Log INFO counts and DEBUG details for launch entity/pattern input."""
         pattern_string_count = count_pattern_sample_strings(pattern_samples)
@@ -208,51 +242,101 @@ class GeneralCacheService(ICacheService):
         structural = self.config.launch_function.structural_auto_patterns
         pattern_mode = self.config.launch_function.pattern_mode
 
+        target_search = self.target_entities_view.search_property
+        file_search = self.file_view.search_property
+        asset_patterns = asset_pattern_samples or []
+        file_patterns = file_pattern_samples or []
+        asset_pattern_count = count_pattern_sample_strings(asset_patterns)
+        file_pattern_count = count_pattern_sample_strings(file_patterns)
+
+        if not scope_key:
+            scope_desc = (
+                "unscoped — primaryScopeProperty is empty, so all DetectInDiagrams "
+                "entities are loaded project-wide (cache key '')"
+            )
+        else:
+            scope_desc = (
+                f"scoped cache key {scope_key!r} — entities filtered by "
+                "primaryScopeProperty / secondaryScopeProperty values on the files being annotated"
+            )
+
+        if source == "CACHE":
+            source_desc = (
+                f"CACHE — reused from RAW table {self.db_name}/{self.tbl_name} "
+                "(still within cacheTimeLimit)"
+            )
+        else:
+            source_desc = (
+                "CDF — fresh query of targetEntitiesView + fileView instances "
+                f"(then written to RAW {self.db_name}/{self.tbl_name})"
+            )
+
         info_lines = [
-            f"Launch input summary (scope={scope_key!r}, source={source}):",
-            f"  • Target entities (assets): {len(asset_entities)}"
-            f" ({len(assets_missing)} missing searchProperty/aliases)",
-            f"  • File entities: {len(file_entities)} ({len(files_missing)} missing searchProperty/aliases)",
+            "Launch input summary:",
+            f"  • Scope: {scope_desc}",
+            f"  • Entity source: {source_desc}",
+            f"  • Target entities ({self.target_entities_view.external_id}): {len(asset_entities)} "
+            f"({len(assets_missing)} without '{target_search}' — Diagram Detect cannot match those)",
+            f"  • File entities ({self.file_view.external_id}): {len(file_entities)} "
+            f"({len(files_missing)} without '{file_search}' — Diagram Detect cannot match those)",
             f"  • Total entities for regular detect: {len(asset_entities) + len(file_entities)}",
             f"  • Pattern mode: {pattern_mode} | structuralAutoPatterns: {structural}",
-            f"  • Pattern sample strings: {pattern_string_count} across {len(pattern_samples)} group(s)",
+            f"  • Auto patterns from targetEntitiesView ({self.target_entities_view.external_id}): "
+            f"{asset_pattern_count} sample string(s) in {len(asset_patterns)} group(s)",
+            f"  • Auto patterns from fileView ({self.file_view.external_id}): "
+            f"{file_pattern_count} sample string(s) in {len(file_patterns)} group(s)",
         ]
         if manual_pattern_groups is not None:
-            info_lines.append(f"  • Manual pattern groups merged: {manual_pattern_groups}")
+            manual_strings = manual_pattern_strings if manual_pattern_strings is not None else 0
+            info_lines.append(
+                f"  • Manual patterns merged: {manual_pattern_groups} group(s), "
+                f"{manual_strings} sample string(s)"
+            )
+        info_lines.append(
+            f"  • Combined patterns sent to pattern-mode detect: "
+            f"{pattern_string_count} sample string(s) in {len(pattern_samples)} group(s)"
+        )
         self.logger.info("\n".join(info_lines))
 
         if self.logger.log_level != "DEBUG":
             return
 
         debug_lines = ["Launch input details (DEBUG):"]
-        for label, rows in (("assets", asset_entities), ("files", file_entities)):
+        for label, rows, search_name in (
+            ("assets", asset_entities, target_search),
+            ("files", file_entities, file_search),
+        ):
             debug_lines.append(f"  {label} ({len(rows)}):")
             preview = rows[:40]
             for row in preview:
-                aliases = row.get("search_property") or []
+                search_values = row.get("search_property") or []
                 debug_lines.append(
                     f"    - {row.get('space')}/{row.get('external_id')}"
                     f" resource_type={row.get('resource_type')!r}"
-                    f" aliases={aliases!r}"
+                    f" {search_name}={search_values!r}"
                 )
             if len(rows) > len(preview):
                 debug_lines.append(f"    ... +{len(rows) - len(preview)} more")
 
         if assets_missing or files_missing:
-            debug_lines.append("  Entities missing aliases:")
+            debug_lines.append(f"  Entities missing '{target_search}' / '{file_search}':")
             for row in (assets_missing + files_missing)[:30]:
                 debug_lines.append(f"    - {row.get('space')}/{row.get('external_id')} name={row.get('name')!r}")
 
-        debug_lines.append(f"  Pattern samples ({pattern_string_count}):")
-        for group in pattern_samples:
-            samples = group.get("sample") or []
+        if asset_patterns:
             debug_lines.append(
-                f"    [{group.get('resource_type')}/{group.get('annotation_type')}] {len(samples)} sample(s)"
+                f"  Auto patterns — targetEntitiesView ({self.target_entities_view.external_id}) "
+                f"({asset_pattern_count}):"
             )
-            for sample in samples[:80]:
-                debug_lines.append(f"      - {sample}")
-            if len(samples) > 80:
-                debug_lines.append(f"      ... +{len(samples) - 80} more")
+            debug_lines.extend(format_pattern_groups_for_log(asset_patterns))
+        if file_patterns:
+            debug_lines.append(
+                f"  Auto patterns — fileView ({self.file_view.external_id}) ({file_pattern_count}):"
+            )
+            debug_lines.extend(format_pattern_groups_for_log(file_patterns))
+
+        debug_lines.append(f"  Combined pattern samples ({pattern_string_count}):")
+        debug_lines.extend(format_pattern_groups_for_log(pattern_samples))
         self.logger.debug("\n".join(debug_lines))
 
     def _update_cache(self, row_to_write: RowWrite) -> None:
@@ -370,7 +454,7 @@ class GeneralCacheService(ICacheService):
 
         return target_entities, file_entities
 
-    def _generate_tag_samples_from_entities(self, entities: list[dict]) -> list[dict]:
+    def _generate_tag_samples_from_entities(self, entities: list[dict], *, source_view: str) -> list[dict]:
         """
         Generates regex-like pattern samples from entity search properties for pattern mode detection.
 
@@ -386,6 +470,7 @@ class GeneralCacheService(ICacheService):
 
         Args:
             entities: List of entity dictionaries containing search properties (aliases).
+            source_view: Human-readable source for logs (e.g. ``fileView (CogniteFile)``).
 
         Returns:
             List of pattern sample dictionaries, each containing:
@@ -397,7 +482,8 @@ class GeneralCacheService(ICacheService):
         pattern_builders: dict[str, dict[str, object]] = defaultdict(lambda: {"patterns": {}, "annotation_type": None})
         structural = self.config.launch_function.structural_auto_patterns
         self.logger.info(
-            f"Generating {'structural' if structural else 'legacy'} pattern samples from {len(entities)} entities."
+            f"Generating {'structural' if structural else 'legacy'} pattern samples "
+            f"from {len(entities)} entities in {source_view}."
         )
 
         def _parse_alias(alias: str, resource_type_key: str) -> tuple[str, list[list[str]]]:
@@ -529,6 +615,16 @@ class GeneralCacheService(ICacheService):
                         "annotation_type": annotation_type,
                     }
                 )
+
+        if self.logger.log_level == "DEBUG":
+            sample_count = count_pattern_sample_strings(result)
+            debug_lines = [
+                f"Generated {'structural' if structural else 'legacy'} patterns for {source_view}: "
+                f"{sample_count} sample string(s) in {len(result)} group(s):",
+                *format_pattern_groups_for_log(result),
+            ]
+            self.logger.debug("\n".join(debug_lines))
+
         return result
 
     def _get_manual_patterns(self, primary_scope: str, secondary_scope: str | None) -> list[dict]:
@@ -551,8 +647,10 @@ class GeneralCacheService(ICacheService):
         if primary_scope and secondary_scope:
             keys_to_fetch.append(f"{primary_scope}_{secondary_scope}")
 
-        self.logger.info(f"Fetching manual patterns for keys: {keys_to_fetch}")
-        all_manual_patterns = []
+        source = f"RAW {self.db_name}/{self.manual_patterns_tbl_name}"
+        self.logger.info(f"Fetching manual patterns from {source} for keys: {keys_to_fetch}")
+        all_manual_patterns: list[dict] = []
+        per_key_counts: list[str] = []
         for key in keys_to_fetch:
             try:
                 row: Row | None = self.client.raw.rows.retrieve(
@@ -562,12 +660,37 @@ class GeneralCacheService(ICacheService):
                 )
                 if row:
                     patterns = (row.columns or {}).get("patterns", [])
+                    if not isinstance(patterns, list):
+                        patterns = []
+                    group_count = len(patterns)
+                    sample_count = count_pattern_sample_strings(patterns)
+                    per_key_counts.append(f"{key!r}: {group_count} group(s), {sample_count} sample string(s)")
                     all_manual_patterns.extend(patterns)
+                    if self.logger.log_level == "DEBUG" and patterns:
+                        self.logger.debug(
+                            "\n".join(
+                                [
+                                    f"Manual patterns from {source} key={key!r}:",
+                                    *format_pattern_groups_for_log(patterns),
+                                ]
+                            )
+                        )
+                else:
+                    per_key_counts.append(f"{key!r}: no row")
+                    self.logger.debug(f"No manual patterns row for key={key!r} in {source}.")
             except CogniteNotFoundError:
-                self.logger.info(f"No manual patterns found for key: {key}. This may be expected.")
+                per_key_counts.append(f"{key!r}: not found")
+                self.logger.debug(f"No manual patterns found for key={key!r} in {source}. This may be expected.")
             except CogniteAPIError as e:
-                self.logger.error(f"Failed to retrieve manual patterns for key {key}: {e}")
+                per_key_counts.append(f"{key!r}: error")
+                self.logger.error(f"Failed to retrieve manual patterns for key {key} from {source}: {e}")
 
+        total_samples = count_pattern_sample_strings(all_manual_patterns)
+        self.logger.info(
+            f"Loaded {len(all_manual_patterns)} manual pattern group(s) "
+            f"({total_samples} sample string(s)) from {source}. "
+            f"Per key: {'; '.join(per_key_counts)}"
+        )
         return all_manual_patterns
 
     def _merge_patterns(self, auto_patterns: list[dict], manual_patterns: list[dict]) -> list[dict]:

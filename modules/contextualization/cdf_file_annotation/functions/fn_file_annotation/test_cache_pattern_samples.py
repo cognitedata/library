@@ -19,6 +19,10 @@ def _cache_service(*, structural_auto_patterns: bool) -> GeneralCacheService:
     service = GeneralCacheService.__new__(GeneralCacheService)
     service.logger = CogniteFunctionLogger("ERROR")
     service.config = SimpleNamespace(launch_function=SimpleNamespace(structural_auto_patterns=structural_auto_patterns))
+    service.db_name = "db_file_annotation"
+    service.tbl_name = "annotation_entities_cache"
+    service.file_view = SimpleNamespace(external_id="CogniteFile", search_property="aliases")
+    service.target_entities_view = SimpleNamespace(external_id="CogniteAsset", search_property="aliases")
     return service
 
 
@@ -41,7 +45,7 @@ def test_structural_patterns_use_letter_wildcards_not_code_enums() -> None:
         _entity("23-FE-92537", ["23_FE_92537"]),
     ]
 
-    result = service._generate_tag_samples_from_entities(entities)
+    result = service._generate_tag_samples_from_entities(entities, source_view="test")
 
     assert len(result) == 1
     samples = result[0]["sample"]
@@ -60,7 +64,7 @@ def test_structural_patterns_collapse_underscore_and_hyphen_aliases() -> None:
         _entity("c", ["23.XX.9106"]),
     ]
 
-    result = service._generate_tag_samples_from_entities(entities)
+    result = service._generate_tag_samples_from_entities(entities, source_view="test")
     samples = result[0]["sample"]
 
     assert samples == ["00-AA-0000"]
@@ -73,7 +77,7 @@ def test_separators_never_become_required_constants_even_in_legacy_mode() -> Non
         _entity("23-KA-9101-A", ["23_KA_9101_A"]),
     ]
 
-    result = service._generate_tag_samples_from_entities(entities)
+    result = service._generate_tag_samples_from_entities(entities, source_view="test")
     samples = result[0]["sample"]
 
     assert not any("[_]" in s for s in samples), samples
@@ -151,13 +155,24 @@ def test_launch_input_summary_logs_info_counts(capsys) -> None:
         source="CDF",
         asset_entities=[_entity("a1", ["23_PT_1"]), _entity("a2", [])],
         file_entities=[_entity("f1", ["DOC"], annotation_type="diagrams.FileLink")],
-        pattern_samples=[{"sample": ["00-AA-0000", "00-AA-00000"], "resource_type": "CogniteAsset"}],
+        asset_pattern_samples=[{"sample": ["00-AA-0000", "00-AA-00000"], "resource_type": "CogniteAsset"}],
+        file_pattern_samples=[{"sample": ["AA-0000"], "resource_type": "CogniteFile"}],
+        pattern_samples=[
+            {"sample": ["00-AA-0000", "00-AA-00000"], "resource_type": "CogniteAsset"},
+            {"sample": ["AA-0000"], "resource_type": "CogniteFile"},
+        ],
         manual_pattern_groups=0,
+        manual_pattern_strings=0,
     )
     out = capsys.readouterr().out
-    assert "Target entities (assets): 2" in out
-    assert "File entities: 1" in out
-    assert "Pattern sample strings: 2" in out
+    assert "Target entities (CogniteAsset): 2" in out
+    assert "without 'aliases'" in out
+    assert "File entities (CogniteFile): 1" in out
+    assert "Auto patterns from targetEntitiesView (CogniteAsset): 2 sample string(s)" in out
+    assert "Auto patterns from fileView (CogniteFile): 1 sample string(s)" in out
+    assert "Combined patterns sent to pattern-mode detect: 3 sample string(s)" in out
+    assert "unscoped" in out
+    assert "CDF — fresh query" in out
     assert "[DEBUG]" not in out
 
 
