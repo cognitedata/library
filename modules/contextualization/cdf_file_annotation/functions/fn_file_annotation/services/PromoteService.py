@@ -382,10 +382,15 @@ class GeneralPromoteService(IPromoteService):
             - Single-element list [entity] if unambiguous match
             - Two-element list [entity1, entity2] if ambiguous (data quality issue)
         """
-        # Gate: normalizePatterns must match before cache/search (filters drawing words like "REPEATED")
-        if not self.entity_search_service.generate_text_variations(text):
+        # Gate: source normalizePatterns must match before cache/search
+        if not self.entity_search_service.generate_text_variations(text, annotation_type):
+            pattern_label = (
+                "fileNormalizationPatterns"
+                if annotation_type == "diagrams.FileLink"
+                else "entityNormalizationPatterns"
+            )
             self.logger.debug(
-                f"✗ Text '{text}' does not match normalizePatterns — skipping search."
+                f"✗ Text '{text}' does not match {pattern_label} — skipping search."
             )
             self.cache_service.set_no_match(text, annotation_type)
             return []
@@ -522,9 +527,15 @@ class GeneralPromoteService(IPromoteService):
         elif len(found_entities) == 0:  # Failure - no match found (or normalizePatterns filtered the text)
             start_text = edge_props.get("startNodeText")
             start_text_str = str(start_text) if start_text is not None else ""
-            if not self.entity_search_service.generate_text_variations(start_text_str):
+            annotation_type = edge.type.external_id
+            pattern_label = (
+                "fileNormalizationPatterns"
+                if annotation_type == "diagrams.FileLink"
+                else "entityNormalizationPatterns"
+            )
+            if not self.entity_search_service.generate_text_variations(start_text_str, annotation_type):
                 self.logger.debug(
-                    f"✗ Text '{start_text}' does not match normalizePatterns — rejecting without search.\n"
+                    f"✗ Text '{start_text}' does not match {pattern_label} — rejecting without search.\n"
                     f"\t- Rejecting edge: ({edge.space}, {edge.external_id})\n"
                     f"\t- Start node: ({edge.start_node.space}, {edge.start_node.external_id})."
                 )

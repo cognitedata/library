@@ -288,11 +288,16 @@ class GeneralLaunchService(AbstractLaunchService):
                 self._cached_primary_scope = primary_scope_value
                 self._cached_secondary_scope = secondary_scope_value
                 assets, files = split_entities_by_kind(self.in_memory_cache)
+                pattern_count = count_pattern_sample_strings(self.in_memory_patterns)
+                self.tracker.set_detect_input(
+                    entities=len(self.in_memory_cache),
+                    patterns=pattern_count if self.config.launch_function.pattern_mode else None,
+                )
                 self.logger.info(
                     f"In-memory cache ready for scope primary={primary_scope_value!r} "
                     f"secondary={secondary_scope_value!r}: "
                     f"{len(assets)} assets, {len(files)} files, "
-                    f"{count_pattern_sample_strings(self.in_memory_patterns)} pattern sample string(s)"
+                    f"{pattern_count} pattern sample string(s)"
                 )
             except CogniteAPIError as e:
                 raise e

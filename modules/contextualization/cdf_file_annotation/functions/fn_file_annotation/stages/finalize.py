@@ -66,7 +66,7 @@ def handle(data: dict, function_call_info: dict, client: CogniteClient) -> dict:
         logger_instance.error(message="Finalize stage failed", error=e, section="BOTH")
         return failure_response(e)
     finally:
-        logger_instance.info(tracker_instance.generate_overall_report(), "BOTH")
+        logger_instance.info(tracker_instance.generate_overall_report("Finalize"), "BOTH")
         function_id = function_call_info.get("function_id")
         call_id = function_call_info.get("call_id")
         pipeline_instance.update_extraction_pipeline(
@@ -115,7 +115,7 @@ def run_locally(config_file: dict[str, str], log_path: str | None = None):
         logger_instance.error(message="Finalize stage failed", error=e, section="BOTH")
         raise
     finally:
-        logger_instance.info(tracker_instance.generate_overall_report(), "BOTH")
+        logger_instance.info(tracker_instance.generate_overall_report("Finalize"), "BOTH")
         logger_instance.close()
 
 

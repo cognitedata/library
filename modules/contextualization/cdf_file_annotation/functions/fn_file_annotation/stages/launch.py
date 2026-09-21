@@ -73,7 +73,7 @@ def handle(data: dict, function_call_info: dict, client: CogniteClient) -> dict:
         logger_instance.error(message="Launch stage failed", error=e, section="BOTH")
         return failure_response(e)
     finally:
-        logger_instance.info(tracker_instance.generate_overall_report(), "BOTH")
+        logger_instance.info(tracker_instance.generate_overall_report("Launch"), "BOTH")
         function_id = function_call_info.get("function_id")
         call_id = function_call_info.get("call_id")
         pipeline_instance.update_extraction_pipeline(
@@ -118,7 +118,7 @@ def run_locally(config_file: dict[str, str], log_path: str | None = None):
         logger_instance.error(message="Launch stage failed", error=e, section="END")
         raise
     finally:
-        logger_instance.info(tracker_instance.generate_overall_report(), "BOTH")
+        logger_instance.info(tracker_instance.generate_overall_report("Launch"), "BOTH")
         logger_instance.close()
 
 

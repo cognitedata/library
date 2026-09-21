@@ -118,7 +118,7 @@ class CacheService(ICacheService):
         config: Config,
         client: CogniteClient,
         logger: CogniteFunctionLogger,
-        normalize_fn: Callable[[str], str],
+        normalize_fn: Callable[[str, str], str],
     ):
         """
         Initializes the cache service.
@@ -127,7 +127,7 @@ class CacheService(ICacheService):
             config: Configuration object containing data model views and cache settings
             client: Cognite client
             logger: Logger instance
-            normalize_fn: Function to normalize text for cache keys
+            normalize_fn: Function ``(text, annotation_type) -> cache_key``
         """
         self.client = client
         self.logger = logger
@@ -310,7 +310,7 @@ class CacheService(ICacheService):
         """
         try:
             # Normalize text for consistent cache keys
-            cache_key: str = self.normalize(text)
+            cache_key: str = self.normalize(text, annotation_type)
 
             row: Row | None = self.client.raw.rows.retrieve(
                 db_name=self.raw_db,
@@ -363,7 +363,7 @@ class CacheService(ICacheService):
         and will be a usersId for the manual promotions.
         """
         try:
-            cache_key: str = self.normalize(text)
+            cache_key: str = self.normalize(text, annotation_type)
 
             cache_columns: dict[str, object] = {
                 "originalText": text,

@@ -1,11 +1,12 @@
-"""Normalization shared by promote search and cache keys.
+"""Normalization shared by promote search, auto pattern sample generation, and cache keys.
 
 Uses the same capture-group semantics as cdf_entity_matching aliases_update:
 each pattern yields an alias from its groups joined by "_". When several patterns
 match, only the longest form is kept (single search candidate lineage).
 
-Texts that match none of the patterns must not be searched (e.g. drawing words like
-"REPEATED").
+Callers choose entity vs file pattern lists. When the chosen list is empty, no filtering
+is applied (all aliases/text kept). When patterns are set, texts that match none must
+not be searched and must not contribute auto-generated structural pattern samples.
 
 Casing is preserved: DMS alias IN filters are case-sensitive exact matches.
 """
@@ -42,14 +43,19 @@ def extract_forms(text: str, patterns: list[str]) -> list[str]:
 def text_variations(text: str, patterns: list[str]) -> list[str]:
     """Build search variations from the longest extracted form.
 
-    Returns an empty list when no pattern matches so callers skip entity search.
-    When a pattern matches, includes the original text plus extracted/hygiene forms.
+    When ``patterns`` is empty, no filtering is applied — variations are built from the
+    original text (hygiene only). When patterns are set, returns an empty list if none
+    match so callers skip entity search. On a match, includes the original text plus
+    extracted/hygiene forms.
     """
-    forms = extract_forms(text, patterns)
-    if not forms:
-        return []
+    if patterns:
+        forms = extract_forms(text, patterns)
+        if not forms:
+            return []
+        variations = {text, *forms}
+    else:
+        variations = {text}
 
-    variations = {text, *forms}
     for pattern, replacement in DEFAULT_NORMALIZATION_SUBSTITUTIONS:
         variations.update(re.sub(pattern, replacement, value) for value in tuple(variations))
     return list(variations)
@@ -58,10 +64,11 @@ def text_variations(text: str, patterns: list[str]) -> list[str]:
 def normalize_text(text: str, patterns: list[str]) -> str:
     """Canonical cache-key form: longest extraction then built-in hygiene.
 
-    Falls back to the original text when no pattern matches (used only for cache keys).
+    When ``patterns`` is empty, hygiene is applied to the original text only.
+    Falls back to the original text when patterns are set but none match.
     Casing is preserved to match case-sensitive alias lookup.
     """
-    forms = extract_forms(text, patterns)
+    forms = extract_forms(text, patterns) if patterns else []
     value = forms[0] if forms else text
     for pattern, replacement in DEFAULT_NORMALIZATION_SUBSTITUTIONS:
         value = re.sub(pattern, replacement, value)

@@ -38,7 +38,8 @@ parameters:
   rawTablePromoteCache: {{ rawTablePromoteCache }}
   patternPromote:
     textNormalization:
-      normalizePatterns: {{ textNormalizationPatterns }}
+      entityNormalizationPatterns: {{ entityNormalizationPatterns }}
+      fileNormalizationPatterns: {{ fileNormalizationPatterns }}
 ```
 
 - `patternMode` enables pattern-mode Diagram Detect alongside regular entity matching.
@@ -53,16 +54,17 @@ parameters:
 - Possible pipeline tags: `ToAnnotate`, `DetectInDiagrams`, `ScopeWideDetect`, `AnnotationInProcess`, `Annotated`, `AnnotationFailed`, `PromoteAttempted`, `PromotedAuto`, `AmbiguousMatch`.
 - `rawDb` is the shared database for result and cache tables.
 - The `rawTable*` keys name the function's result, cache, and catalog tables. They must match the Toolkit RAW resources and the extraction pipeline's `rawTables` list.
-- `patternPromote.textNormalization.normalizePatterns` is one regular expression or a list of them (same capture-group semantics as aliases_update `aliasPattern`). The normalized form is the capture groups joined by `_`. When several patterns match, the **longest** form is always kept (one promote search candidate lineage).
-- Text that matches **none** of the patterns is not searched (rejected without alias lookup), so drawing words like `REPEATED` never become promote search queries.
+- `entityNormalizationPatterns` / `fileNormalizationPatterns` are separate lists (same capture-group semantics as aliases_update `aliasPattern`). Asset aliases and AssetLink promote use the entity list; file aliases and FileLink promote use the file list. Longest match wins. An **empty list** disables filtering for that source only (avoids false-positive structural samples from mixing unrelated shapes).
 - Casing is preserved: DMS alias `IN` filters are case-sensitive exact matches. Built-in rules remove non-alphanumeric characters and strip leading zeros after extraction.
 
 Example:
 
 ```yaml
 textNormalization:
-  normalizePatterns:
+  entityNormalizationPatterns:
     - '([0-9]{2})[-_.:]([A-Z]{2,3})[-_.:]([0-9]{4,5})'
+  fileNormalizationPatterns:
+    - '(?<![A-Z])([A-Z]{2,4}-[A-Z0-9]+-[A-Z]-[0-9]+)'
 ```
 
 ## Data

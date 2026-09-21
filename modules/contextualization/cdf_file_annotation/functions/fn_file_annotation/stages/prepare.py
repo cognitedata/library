@@ -62,7 +62,7 @@ def handle(data: dict, function_call_info: dict, client: CogniteClient) -> dict:
         logger_instance.error(message="Prepare stage failed", error=e, section="BOTH")
         return failure_response(e)
     finally:
-        logger_instance.info(tracker_instance.generate_overall_report(), "BOTH")
+        logger_instance.info(tracker_instance.generate_overall_report("Prepare"), "BOTH")
         # only want to report on the count of successful and failed files in ep_logs if there were files that were processed or an error occured
         # else run log will be too messy.
         function_id = function_call_info.get("function_id")
@@ -110,7 +110,7 @@ def run_locally(config_file: dict[str, str], log_path: str | None = None):
         logger_instance.error(message="Prepare stage failed", error=e, section="END")
         raise
     finally:
-        logger_instance.info(tracker_instance.generate_overall_report(), "BOTH")
+        logger_instance.info(tracker_instance.generate_overall_report("Prepare"), "BOTH")
         logger_instance.close()
 
 

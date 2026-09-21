@@ -259,7 +259,7 @@ flowchart TD
 **Purpose**: Automatically resolve pattern-mode annotations by finding matching entities
 
 **Key Features**:
-- 🔍 **Text Normalization**: `normalizePatterns` extract tag forms from diagram text the same way aliases_update builds aliases (capture groups joined by `_`; longest match kept). Texts that match none of the patterns are not searched. Matching texts get case / hygiene variations for alias lookup
+- 🔍 **Text Normalization**: separate `entityNormalizationPatterns` / `fileNormalizationPatterns` extract tag forms (capture groups joined by `_`; longest match kept). Used for promote search and to filter aliases before auto pattern sample generation per source. Empty list disables filtering for that source.
 - 🧠 **Multi-Tier Caching**: In-memory → RAW → Entity search strategy (queries **`aliases`** via server-side IN filter)
 - ✅ **Automatic Resolution**: Single match → Approved, No match → Rejected, Multiple → Manual review
 - 🏷️ **Tagging**: Adds `PromotedAuto`, `PromoteAttempted`, `AmbiguousMatch` tags
@@ -463,7 +463,8 @@ autoApprovalThreshold: 1.0
 autoSuggestThreshold: 1.0
 primaryScopeProperty: ""
 secondaryScopeProperty: ""
-textNormalizationPatterns: '([0-9]{2})[-_.:]([A-Z]{2,3})[-_.:]([0-9]{4,5})'
+entityNormalizationPatterns: '([0-9]{2})[-_.:]([A-Z]{2,3})[-_.:]([0-9]{4,5})'
+fileNormalizationPatterns: []
 
 # Target Entity View Configuration (UPDATE REQUIRED)
 targetEntitySchemaSpace: <insert>
@@ -534,7 +535,8 @@ parameters:
   rawTablePromoteCache: annotation_tags_cache
   patternPromote:
     textNormalization:
-      normalizePatterns: '([0-9]{2})[-_.:]([A-Z]{2,3})[-_.:]([0-9]{4,5})'
+      entityNormalizationPatterns: '([0-9]{2})[-_.:]([A-Z]{2,3})[-_.:]([0-9]{4,5})'
+      fileNormalizationPatterns: []
 data:
   fileView:
     schemaSpace: cdf_cdm
@@ -565,44 +567,48 @@ On both `fileView` and `targetEntitiesView`:
 
 Toolkit variables: `fileSearchProperty` / `fileResourceProperty` and `targetEntitySearchProperty` / `targetEntityResourceProperty`.
 
-### Text normalization for promote (`normalizePatterns`)
+### Text normalization for promote (`entityNormalizationPatterns` / `fileNormalizationPatterns`)
 
 Promote resolves pattern-mode annotations by searching entity **`aliases`**. The text
 normalization block uses the **same capture-group model as**
-`cdf_entity_matching` aliases_update (`aliasPattern`):
+`cdf_entity_matching` aliases_update (`aliasPattern`), with **separate lists** for assets
+and files so unrelated shapes do not create false-positive structural samples:
 
-- `normalizePatterns` — one regular expression or a list. Each match yields its **capture
-  groups joined by `_`** (the groups decide the form, not the whole match). When several
-  patterns match one diagram string, the **longest** form is always kept (one promote
-  search candidate lineage).
-- Text that matches **none** of the patterns is **not searched** (rejected without alias
-  lookup). This filters drawing words such as `REPEATED` before promote search.
+- `entityNormalizationPatterns` — for targetEntitiesView aliases and `diagrams.AssetLink` promote
+- `fileNormalizationPatterns` — for fileView aliases and `diagrams.FileLink` promote
+- Each match yields its **capture groups joined by `_`**. When several patterns match,
+  the **longest** form is always kept.
+- An **empty list** disables filtering for that source only.
+- When patterns are set, non-matching text is not searched / aliases are not used for
+  auto pattern sample generation.
 - Casing is preserved — DMS alias `IN` filters are case-sensitive exact matches.
 - Built-in hygiene still expands candidates (strip non-alphanumeric characters, leading zeros).
 
-Configure the **same patterns** you use in aliases_update so OCR / diagram text normalizes
-to the same strings written on asset and file aliases. Prefer character classes (`[0-9]`)
-over `\d` — Toolkit substitutes variables as a regex replacement and rejects backslash
-escapes.
+Configure patterns to match the aliases written by aliases_update. Prefer character classes
+(`[0-9]`) over `\d` — Toolkit substitutes variables as a regex replacement and rejects
+backslash escapes.
 
-**Single pattern (default tag shape)** — `VAL_23-KA-9101` → `23_KA_9101`:
+**Single entity pattern (default tag shape)** — `VAL_23-KA-9101` → `23_KA_9101`:
 
 ```yaml
 # default.config.yaml
-textNormalizationPatterns: '([0-9]{2})[-_.:]([A-Z]{2,3})[-_.:]([0-9]{4,5})'
+entityNormalizationPatterns: '([0-9]{2})[-_.:]([A-Z]{2,3})[-_.:]([0-9]{4,5})'
+fileNormalizationPatterns: []
 ```
 
 ```yaml
 # ep_file_annotation.config.yaml → parameters.patternPromote.textNormalization
-normalizePatterns: '([0-9]{2})[-_.:]([A-Z]{2,3})[-_.:]([0-9]{4,5})'
+entityNormalizationPatterns: '([0-9]{2})[-_.:]([A-Z]{2,3})[-_.:]([0-9]{4,5})'
+fileNormalizationPatterns: []
 ```
 
-**Several patterns** — longest form wins:
+**Several entity patterns** — longest form wins:
 
 ```yaml
-textNormalizationPatterns:
+entityNormalizationPatterns:
   - '([0-9]{2})[-_.:]([A-Z]{2,3})[-_.:]([0-9]{4,5})'
   - '([A-Z]{3})[-_]?([0-9]{4})'
+fileNormalizationPatterns: []
 ```
 
 Given diagram text `VAL_23-KA-9101_PMP1234`, that config yields only `23_KA_9101` (the
@@ -612,9 +618,10 @@ equally long. `REPEATED` matches neither pattern and is rejected without search.
 **Site prefix on drawings** — extract the tag after a two-letter plant code:
 
 ```yaml
-textNormalizationPatterns:
+entityNormalizationPatterns:
   - '^([A-Z]{2})-(.+)$'                          # AT-V-009_1 → AT_V-009_1
   - '([0-9]{2})[-_.:]([A-Z]{2,3})[-_.:]([0-9]{4,5})'
+fileNormalizationPatterns: []
 ```
 
 An invalid regular expression, or one with no capture group, fails at config load.
@@ -686,7 +693,8 @@ variables:
       autoSuggestThreshold: 1.0
       primaryScopeProperty: ""
       secondaryScopeProperty: ""
-      textNormalizationPatterns: '([0-9]{2})[-_.:]([A-Z]{2,3})[-_.:]([0-9]{4,5})'
+      entityNormalizationPatterns: '([0-9]{2})[-_.:]([A-Z]{2,3})[-_.:]([0-9]{4,5})'
+fileNormalizationPatterns: []
       targetEntitySchemaSpace: your_schema_space
       targetEntityInstanceSpace: your_instances
       targetEntityExternalId: YourAsset
@@ -885,7 +893,7 @@ cdf raw rows list <db> rawTableDocTag --limit 10
 3. **Pattern Promotion Failures / Unmatched Tags**
    - Unmatched tag text is in `annotation_documents_patterns` (`status = Rejected`), not `annotation_documents_tags`
    - Ensure asset `aliases` include the formats found on drawings (including `-` vs `_` variants)
-   - Tune `parameters.patternPromote.textNormalization` (`normalizePatterns`) to match aliases_update
+   - Tune `parameters.patternPromote.textNormalization` (`entityNormalizationPatterns` / `fileNormalizationPatterns`) to match aliases_update
    - Failed matches remain in RAW; rejected sink edges are intentionally removed from DMS
 
 4. **Status Report Returns Zero Rows**
@@ -900,7 +908,7 @@ cdf raw rows list <db> rawTableDocTag --limit 10
 
 6. **Pattern Promotion Configuration**
    - Verify `sinkNode` points to a valid node in `patternModeInstanceSpace`
-   - Align `normalizePatterns` with aliases_update `aliasPattern` (longest match is always kept)
+   - Align `entityNormalizationPatterns` / `fileNormalizationPatterns` with aliases_update `aliasPattern` (longest match is always kept)
    - Confirm patterns have at least one capture group (config load fails otherwise)
    - Review `annotation_tags_cache` for previously cached positive mappings
 

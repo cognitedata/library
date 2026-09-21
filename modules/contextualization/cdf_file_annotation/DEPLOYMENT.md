@@ -167,7 +167,8 @@ variables:
         autoSuggestThreshold: 1.0
         primaryScopeProperty: ""
         secondaryScopeProperty: ""
-        textNormalizationPatterns: '([0-9]{2})[-_.:]([A-Z]{2,3})[-_.:]([0-9]{4,5})'
+        entityNormalizationPatterns: '([0-9]{2})[-_.:]([A-Z]{2,3})[-_.:]([0-9]{4,5})'
+        fileNormalizationPatterns: []
         targetEntitySchemaSpace: sp_enterprise_process_industry
         targetEntityExternalId: txEquipment
         targetEntityVersion: v1

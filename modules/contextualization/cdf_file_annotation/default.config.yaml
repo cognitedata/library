@@ -58,20 +58,21 @@ fileEntitiesTags:
 # Launch: assets used as diagram-detect match entities (IN).
 targetEntitiesTags:
   - DetectInDiagrams
-# Same semantics as cdf_entity_matching aliases_update aliasPattern:
-# capture groups joined by "_". When several patterns match, the longest form is
-# always kept. Text that matches none of the patterns is not searched for promote.
+# Separate normalize pattern lists for assets vs files (avoids false-positive
+# structural samples when alias shapes differ). Capture groups joined by "_";
+# longest match kept. Empty list ([]) disables filtering for that source.
 # Casing is preserved (DMS alias match is case-sensitive).
 # Toolkit substitutes variables as a regex replacement, so prefer character classes
 # over backslash escapes ([0-9] rather than \d).
-# Example list:
-#   textNormalizationPatterns:
-#     - '([0-9]{2})[-_.:]([A-Z]{2,3})[-_.:]([0-9]{4,5})'
-#     - '([A-Z]{2,3})[-_.:]([0-9]{4,5})'
-textNormalizationPatterns: 
+# entityNormalizationPatterns: []
+# fileNormalizationPatterns: []
+entityNormalizationPatterns:
   - '([0-9]{2}[-_.:][A-Z]{2,4}[-_.:][0-9]{4,5}[A-Z][-_][A-Z]{1,3})'
   - '([0-9]{2}[-_.:][A-Z]{2,4}[-_.:][0-9]{4,5}[-_][A-Z]{1,3})'
   - '([0-9]{2}[-_.:][A-Z]{2,4}[-_.:][0-9]{4,5})'
+fileNormalizationPatterns:
+  - '(?<![A-Z])([A-Z]{2,4}-[A-Z0-9]+-[A-Z]-[0-9]+-[0-9]+)'
+  - '(?<![A-Z])([A-Z]{2,4}-[A-Z0-9]+-[A-Z]-[0-9]+)(?=-[0-9]+)'
 
 # used in /functions
 functionClientId: ${IDP_CLIENT_ID}

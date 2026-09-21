@@ -32,21 +32,22 @@ data:
 
 ## Normalize site-specific tag formats
 
-Promote uses the same capture-group model as `cdf_entity_matching` aliases_update.
-Set `textNormalizationPatterns` in `default.config.yaml`.
+Promote and auto pattern generation use separate capture-group lists for assets and files
+(same model as `cdf_entity_matching` aliases_update). Set `entityNormalizationPatterns`
+and `fileNormalizationPatterns` in `default.config.yaml`.
 Each matching pattern yields its capture groups joined by `_`. When several patterns
-match, the **longest** form is always kept. Text that matches none of the patterns is
-not searched (for example drawing words like `REPEATED`). Casing is preserved (DMS
-alias match is case-sensitive). Built-in hygiene (strip non-alphanumeric characters and
-leading zeros) still runs afterward:
+match, the **longest** form is always kept. An empty list disables filtering for that
+source only. Splitting the lists avoids false-positive structural samples when asset and
+file alias shapes differ.
 
 ```yaml
 parameters:
   patternPromote:
     textNormalization:
-      normalizePatterns:
+      entityNormalizationPatterns:
         - '([0-9]{2})[-_.:]([A-Z]{2,3})[-_.:]([0-9]{4,5})'
-        - '([A-Z]{2,3})[-_.:]([0-9]{4,5})'
+      fileNormalizationPatterns:
+        - '(?<![A-Z])([A-Z]{2,4}-[A-Z0-9]+-[A-Z]-[0-9]+)'
 ```
 
 Use the same patterns you configure for aliases_update so diagram text normalizes to the

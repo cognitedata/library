@@ -284,6 +284,8 @@ class PerformanceTracker:
     total_runs: int = 0
     total_time_delta: timedelta = timedelta(0)
     latest_run_time: datetime = field(default_factory=lambda: datetime.now(UTC))
+    entities_found: int | None = None
+    patterns_created: int | None = None
 
     def _run_time(self) -> timedelta:
         time_delta = datetime.now(UTC) - self.latest_run_time
@@ -298,6 +300,11 @@ class PerformanceTracker:
         self.files_success += success
         self.files_failed += failed
 
+    def set_detect_input(self, *, entities: int, patterns: int | None) -> None:
+        """Record Launch detect inputs: entities, and pattern samples when pattern mode is on."""
+        self.entities_found = entities
+        self.patterns_created = patterns
+
     def generate_local_report(self) -> str:
         self.total_runs += 1
         time_delta = self._run_time()
@@ -307,9 +314,22 @@ class PerformanceTracker:
         report = f"run time: {time_delta}"
         return report
 
-    def generate_overall_report(self) -> str:
-        report = f" Run started {datetime.now(UTC)}\n- total runs: {self.total_runs}\n- total files processed: {self.files_success + self.files_failed}\n- successful files: {self.files_success}\n- failed files: {self.files_failed}\n- total run time: {self.total_time_delta}\n- average run time: {self._average_run_time()}"
-        return report
+    def generate_overall_report(self, stage: str | None = None) -> str:
+        heading = f"{stage} run started" if stage else "Run started"
+        lines = [
+            f" {heading} {datetime.now(UTC)}",
+            f"- total runs: {self.total_runs}",
+            f"- total files processed: {self.files_success + self.files_failed}",
+            f"- successful files: {self.files_success}",
+            f"- failed files: {self.files_failed}",
+        ]
+        if self.entities_found is not None:
+            lines.append(f"- entities found: {self.entities_found}")
+        if self.patterns_created is not None:
+            lines.append(f"- patterns created: {self.patterns_created}")
+        lines.append(f"- total run time: {self.total_time_delta}")
+        lines.append(f"- average run time: {self._average_run_time()}")
+        return "\n".join(lines)
 
     def generate_ep_run(
         self,
@@ -332,6 +352,8 @@ class PerformanceTracker:
         self.total_runs: int = 0
         self.total_time_delta = timedelta(0)
         self.latest_run_time = datetime.now(UTC)
+        self.entities_found = None
+        self.patterns_created = None
         print("PerformanceTracker state has been reset")
 
 

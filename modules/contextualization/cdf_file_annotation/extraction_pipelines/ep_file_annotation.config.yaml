@@ -23,12 +23,12 @@ config:
     rawTablePromoteCache: {{ rawTablePromoteCache }}
     patternPromote:
       textNormalization:
-        # Same capture-group semantics as aliases_update aliasPattern:
-        # each match yields groups joined by "_". When several patterns match,
-        # the longest form is always kept. Text that matches none of the patterns
-        # is not searched (e.g. drawing words like "REPEATED").
+        # Separate lists avoid false-positive structural samples when asset vs file
+        # alias shapes differ. Capture-group semantics as aliases_update aliasPattern;
+        # longest match kept. Empty list disables filtering for that source.
         # Casing is preserved — DMS alias IN filters are case-sensitive.
-        normalizePatterns: {{ textNormalizationPatterns }}
+        entityNormalizationPatterns: {{ entityNormalizationPatterns }}
+        fileNormalizationPatterns: {{ fileNormalizationPatterns }}
   data:
     fileView:
       schemaSpace: {{ fileSchemaSpace }}

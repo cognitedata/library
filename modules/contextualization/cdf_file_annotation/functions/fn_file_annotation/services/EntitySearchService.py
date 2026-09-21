@@ -122,10 +122,11 @@ class EntitySearchService(IEntitySearchService):
             - [node1, node2] if ambiguous (multiple matches)
         """
         # Normalize first: no pattern match → do not search (e.g. drawing words like "REPEATED")
-        search_texts: list[str] = self.generate_text_variations(text)
+        search_texts: list[str] = self.generate_text_variations(text, annotation_type)
         if not search_texts:
             self.logger.debug(
-                f"✗ Skipping search for '{text}': does not match normalizePatterns."
+                f"✗ Skipping search for '{text}': does not match "
+                f"{'file' if annotation_type == 'diagrams.FileLink' else 'entity'}NormalizationPatterns."
             )
             return []
 
@@ -307,34 +308,36 @@ class EntitySearchService(IEntitySearchService):
             self.logger.error(f"Error searching for entity '{original_text}' in space '{entity_space}': {e}")
             return []
 
-    def generate_text_variations(self, text: str) -> list[str]:
+    def generate_text_variations(self, text: str, annotation_type: str) -> list[str]:
         """
-        Builds search variations from the longest form extracted by normalizePatterns.
+        Builds search variations from the longest form extracted by source normalize patterns.
 
-        Returns an empty list when text matches none of the patterns so callers skip search.
-        When a pattern matches, includes the original text, the longest extracted form, and
-        built-in hygiene variants (strip non-alphanumeric / leading zeros). Casing is preserved.
+        Uses entityNormalizationPatterns for AssetLink and fileNormalizationPatterns for FileLink.
+        Returns an empty list when patterns are set and text matches none of them.
+        When patterns are empty for that source, hygiene variations of the original text are returned.
 
         Args:
             text: Original text from pattern detection
+            annotation_type: ``diagrams.FileLink`` or ``diagrams.AssetLink``
 
         Returns:
-            Search strings, or [] when normalizePatterns does not match.
+            Search strings, or [] when configured patterns do not match.
         """
         return text_variations(
             text,
-            self.text_normalization_config.normalize_patterns,
+            self.text_normalization_config.patterns_for_annotation_type(annotation_type),
         )
 
-    def normalize(self, s: str) -> str:
+    def normalize(self, s: str, annotation_type: str = "diagrams.AssetLink") -> str:
         """
-        Canonical cache-key form: longest normalizePatterns extraction then built-in hygiene.
+        Canonical cache-key form: longest source-specific extraction then built-in hygiene.
 
-        Falls back to the original string (with hygiene) when no pattern matches.
-        Casing is preserved.
+        Falls back to the original string (with hygiene) when no pattern matches or patterns
+        are empty. Defaults to entity patterns when annotation_type is omitted.
 
         Args:
             s: String to normalize
+            annotation_type: ``diagrams.FileLink`` or ``diagrams.AssetLink``
 
         Returns:
             Normalized string based on config settings
@@ -343,5 +346,5 @@ class EntitySearchService(IEntitySearchService):
             return ""
         return normalize_text(
             s,
-            self.text_normalization_config.normalize_patterns,
+            self.text_normalization_config.patterns_for_annotation_type(annotation_type),
         )

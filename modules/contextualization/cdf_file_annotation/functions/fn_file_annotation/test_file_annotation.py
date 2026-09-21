@@ -65,7 +65,8 @@ def test_config_uses_parameters_and_data_shape() -> None:
                 "rawDb": "db_file_annotation",
                 "patternPromote": {
                     "textNormalization": {
-                        "normalizePatterns": r"^([A-Z]{2})-(.+)$",
+                        "entityNormalizationPatterns": r"^([A-Z]{2})-(.+)$",
+                        "fileNormalizationPatterns": r"^DOC-(.+)$",
                     }
                 },
             },
@@ -98,7 +99,10 @@ def test_config_uses_parameters_and_data_shape() -> None:
     assert config.parameters.raw_db == "db_file_annotation"
     assert config.data.file_view.search_property == "aliases"
     assert config.raw_tables.raw_table_doc_tag == "annotation_documents_tags"
-    assert config.parameters.pattern_promote.text_normalization.normalize_patterns == [r"^([A-Z]{2})-(.+)$"]
+    assert config.parameters.pattern_promote.text_normalization.entity_normalization_patterns == [
+        r"^([A-Z]{2})-(.+)$"
+    ]
+    assert config.parameters.pattern_promote.text_normalization.file_normalization_patterns == [r"^DOC-(.+)$"]
 
 
 def test_config_uses_raw_table_names_from_parameters() -> None:
@@ -741,3 +745,34 @@ def test_set_describable_tags_deduplicates() -> None:
     set_describable_tags(node_apply, ["ToAnnotate", "Annotated", "Annotated"])
 
     assert node_apply.sources[0].properties["tags"] == ["ToAnnotate", "Annotated"]
+
+
+def test_launch_overall_report_includes_stage_entities_and_patterns() -> None:
+    from datetime import timedelta
+    from utils.DataStructures import PerformanceTracker
+
+    tracker = PerformanceTracker()
+    tracker.add_files(success=20)
+    tracker.total_runs = 1
+    tracker.total_time_delta = timedelta(seconds=3)
+    tracker.set_detect_input(entities=1094, patterns=16)
+
+    report = tracker.generate_overall_report("Launch")
+
+    assert report.startswith(" Launch run started")
+    assert "- total files processed: 20" in report
+    assert "- successful files: 20" in report
+    assert "- entities found: 1094" in report
+    assert "- patterns created: 16" in report
+
+
+def test_launch_overall_report_omits_patterns_when_not_used() -> None:
+    from utils.DataStructures import PerformanceTracker
+
+    tracker = PerformanceTracker()
+    tracker.set_detect_input(entities=10, patterns=None)
+
+    report = tracker.generate_overall_report("Launch")
+
+    assert "- entities found: 10" in report
+    assert "patterns created" not in report

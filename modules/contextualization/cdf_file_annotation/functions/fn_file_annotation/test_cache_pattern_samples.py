@@ -18,12 +18,31 @@ from services.LoggerService import CogniteFunctionLogger
 def _cache_service(*, structural_auto_patterns: bool) -> GeneralCacheService:
     service = GeneralCacheService.__new__(GeneralCacheService)
     service.logger = CogniteFunctionLogger("ERROR")
-    service.config = SimpleNamespace(launch_function=SimpleNamespace(structural_auto_patterns=structural_auto_patterns))
+    # Source-specific capture-group patterns (entity vs file).
+    entity_patterns = [
+        r"([0-9]{2})[-_.:]([A-Z]{2,3})[-_.:]([0-9]{4,5})[-_]([A-Za-z0-9]+)",
+        r"([0-9]{2})[-_.:]([A-Z]{2,3})[-_.:]([0-9]{4,5})",
+    ]
+    service.config = SimpleNamespace(
+        launch_function=SimpleNamespace(structural_auto_patterns=structural_auto_patterns),
+        promote_function=SimpleNamespace(
+            entity_search_service=SimpleNamespace(
+                text_normalization=SimpleNamespace(
+                    entity_normalization_patterns=entity_patterns,
+                    file_normalization_patterns=[],
+                )
+            )
+        ),
+    )
     service.db_name = "db_file_annotation"
     service.tbl_name = "annotation_entities_cache"
     service.file_view = SimpleNamespace(external_id="CogniteFile", search_property="aliases")
     service.target_entities_view = SimpleNamespace(external_id="CogniteAsset", search_property="aliases")
     return service
+
+
+def _entity_patterns(service: GeneralCacheService) -> list[str]:
+    return service.config.promote_function.entity_search_service.text_normalization.entity_normalization_patterns
 
 
 def _entity(external_id: str, aliases: list[str], *, annotation_type: str = "diagrams.AssetLink") -> dict:
@@ -45,7 +64,9 @@ def test_structural_patterns_use_letter_wildcards_not_code_enums() -> None:
         _entity("23-FE-92537", ["23_FE_92537"]),
     ]
 
-    result = service._generate_tag_samples_from_entities(entities, source_view="test")
+    result = service._generate_tag_samples_from_entities(
+        entities, source_view="test", normalize_patterns=_entity_patterns(service)
+    )
 
     assert len(result) == 1
     samples = result[0]["sample"]
@@ -64,7 +85,9 @@ def test_structural_patterns_collapse_underscore_and_hyphen_aliases() -> None:
         _entity("c", ["23.XX.9106"]),
     ]
 
-    result = service._generate_tag_samples_from_entities(entities, source_view="test")
+    result = service._generate_tag_samples_from_entities(
+        entities, source_view="test", normalize_patterns=_entity_patterns(service)
+    )
     samples = result[0]["sample"]
 
     assert samples == ["00-AA-0000"]
@@ -77,13 +100,46 @@ def test_separators_never_become_required_constants_even_in_legacy_mode() -> Non
         _entity("23-KA-9101-A", ["23_KA_9101_A"]),
     ]
 
-    result = service._generate_tag_samples_from_entities(entities, source_view="test")
+    result = service._generate_tag_samples_from_entities(
+        entities, source_view="test", normalize_patterns=_entity_patterns(service)
+    )
     samples = result[0]["sample"]
 
     assert not any("[_]" in s for s in samples), samples
     assert any("-" in s for s in samples), samples
     # Legacy still expands letter codes into required constants
     assert any("XX" in s or "KA" in s for s in samples), samples
+
+
+def test_structural_patterns_skip_aliases_not_matching_normalize_patterns() -> None:
+    service = _cache_service(structural_auto_patterns=True)
+    entities = [
+        _entity("23-KA-9101", ["23_KA_9101"]),
+        _entity("noise", ["REPEATED", "PUMP STATUS", "AAAAAAAA"]),
+    ]
+
+    result = service._generate_tag_samples_from_entities(
+        entities, source_view="test", normalize_patterns=_entity_patterns(service)
+    )
+
+    assert len(result) == 1
+    assert result[0]["sample"] == ["00-AA-0000"]
+
+
+def test_empty_normalize_patterns_does_not_filter_structural_samples() -> None:
+    service = _cache_service(structural_auto_patterns=True)
+    entities = [
+        _entity("23-KA-9101", ["23_KA_9101"]),
+        _entity("noise", ["AAAAAAAA"]),
+    ]
+
+    result = service._generate_tag_samples_from_entities(
+        entities, source_view="test", normalize_patterns=[]
+    )
+    samples = result[0]["sample"]
+
+    assert "00-AA-0000" in samples
+    assert "AAAAAAAA" in samples
 
 
 def test_config_wires_structural_auto_patterns_from_parameters() -> None:
@@ -176,7 +232,30 @@ def test_launch_input_summary_logs_info_counts(capsys) -> None:
     assert "[DEBUG]" not in out
 
 
-def test_launch_input_summary_logs_debug_aliases(capsys) -> None:
+def test_launch_input_summary_debug_does_not_dump_entities(capsys) -> None:
+    service = _cache_service(structural_auto_patterns=True)
+    service.logger = CogniteFunctionLogger("DEBUG")
+    service.config = SimpleNamespace(launch_function=SimpleNamespace(structural_auto_patterns=True, pattern_mode=True))
+    service._log_launch_input_summary(
+        scope_key="",
+        source="CDF",
+        asset_entities=[_entity("23-PT-1", ["23_PT_1"])],
+        file_entities=[_entity("23-DB-9101", ["23_DB_9101"], annotation_type="diagrams.FileLink")],
+        asset_pattern_samples=[{"sample": ["00-AA-00000"], "resource_type": "CogniteAsset"}],
+        file_pattern_samples=[{"sample": ["00-AA-0000"], "resource_type": "CogniteFile"}],
+        pattern_samples=[
+            {"sample": ["00-AA-00000"], "resource_type": "CogniteAsset"},
+            {"sample": ["00-AA-0000"], "resource_type": "CogniteFile"},
+        ],
+    )
+    out = capsys.readouterr().out
+    assert "23_PT_1" not in out
+    assert "23_DB_9101" not in out
+    assert "resource_type=" not in out
+    assert "00-AA-00000" not in out
+
+
+def test_launch_input_summary_cache_debug_lists_combined_patterns_once(capsys) -> None:
     service = _cache_service(structural_auto_patterns=True)
     service.logger = CogniteFunctionLogger("DEBUG")
     service.config = SimpleNamespace(launch_function=SimpleNamespace(structural_auto_patterns=True, pattern_mode=True))
@@ -185,9 +264,10 @@ def test_launch_input_summary_logs_debug_aliases(capsys) -> None:
         source="CACHE",
         asset_entities=[_entity("23-PT-1", ["23_PT_1"])],
         file_entities=[],
+        asset_pattern_samples=[{"sample": ["00-AA-00000"], "resource_type": "CogniteAsset"}],
         pattern_samples=[{"sample": ["00-AA-00000"], "resource_type": "CogniteAsset", "annotation_type": "x"}],
     )
     out = capsys.readouterr().out
     assert "[DEBUG]" in out
-    assert "23_PT_1" in out
-    assert "00-AA-00000" in out
+    assert "23_PT_1" not in out
+    assert out.count("00-AA-00000") == 1

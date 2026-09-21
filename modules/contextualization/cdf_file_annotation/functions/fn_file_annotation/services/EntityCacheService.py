@@ -11,6 +11,7 @@ from cognite.client.data_classes.data_modeling import (
     NodeList,
 )
 from cognite.client.exceptions import CogniteAPIError, CogniteNotFoundError
+from normalization import extract_forms
 from services.ConfigService import Config, ViewPropertyConfig
 from services.DataModelService import IDataModelService
 from services.LoggerService import CogniteFunctionLogger
@@ -91,7 +92,9 @@ class ICacheService(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def _generate_tag_samples_from_entities(self, entities: list[dict], *, source_view: str) -> list[dict]:
+    def _generate_tag_samples_from_entities(
+        self, entities: list[dict], *, source_view: str, normalize_patterns: list[str]
+    ) -> list[dict]:
         pass
 
 
@@ -177,14 +180,17 @@ class GeneralCacheService(ICacheService):
         asset_entities, file_entities = self._convert_instances_to_entities(asset_instances, file_instances)
         entities = asset_entities + file_entities
 
-        # Generate pattern samples from the same entities
+        # Generate pattern samples from the same entities (source-specific normalize filters)
+        text_norm = self.config.promote_function.entity_search_service.text_normalization
         asset_pattern_samples = self._generate_tag_samples_from_entities(
             asset_entities,
             source_view=f"targetEntitiesView ({self.target_entities_view.external_id})",
+            normalize_patterns=text_norm.entity_normalization_patterns,
         )
         file_pattern_samples = self._generate_tag_samples_from_entities(
             file_entities,
             source_view=f"fileView ({self.file_view.external_id})",
+            normalize_patterns=text_norm.file_normalization_patterns,
         )
         auto_pattern_samples = asset_pattern_samples + file_pattern_samples
 
@@ -302,41 +308,18 @@ class GeneralCacheService(ICacheService):
             return
 
         debug_lines = ["Launch input details (DEBUG):"]
-        for label, rows, search_name in (
-            ("assets", asset_entities, target_search),
-            ("files", file_entities, file_search),
-        ):
-            debug_lines.append(f"  {label} ({len(rows)}):")
-            preview = rows[:40]
-            for row in preview:
-                search_values = row.get("search_property") or []
-                debug_lines.append(
-                    f"    - {row.get('space')}/{row.get('external_id')}"
-                    f" resource_type={row.get('resource_type')!r}"
-                    f" {search_name}={search_values!r}"
-                )
-            if len(rows) > len(preview):
-                debug_lines.append(f"    ... +{len(rows) - len(preview)} more")
-
         if assets_missing or files_missing:
             debug_lines.append(f"  Entities missing '{target_search}' / '{file_search}':")
             for row in (assets_missing + files_missing)[:30]:
                 debug_lines.append(f"    - {row.get('space')}/{row.get('external_id')} name={row.get('name')!r}")
 
-        if asset_patterns:
-            debug_lines.append(
-                f"  Auto patterns — targetEntitiesView ({self.target_entities_view.external_id}) "
-                f"({asset_pattern_count}):"
-            )
-            debug_lines.extend(format_pattern_groups_for_log(asset_patterns))
-        if file_patterns:
-            debug_lines.append(
-                f"  Auto patterns — fileView ({self.file_view.external_id}) ({file_pattern_count}):"
-            )
-            debug_lines.extend(format_pattern_groups_for_log(file_patterns))
-
-        debug_lines.append(f"  Combined pattern samples ({pattern_string_count}):")
-        debug_lines.extend(format_pattern_groups_for_log(pattern_samples))
+        # Fresh CDF fetch already listed auto patterns while generating them. On a cache hit
+        # list the combined samples once so DEBUG still shows what detect will use.
+        if source == "CACHE" and pattern_samples:
+            debug_lines.append(f"  Combined pattern samples ({pattern_string_count}):")
+            debug_lines.extend(format_pattern_groups_for_log(pattern_samples))
+        if len(debug_lines) == 1:
+            return
         self.logger.debug("\n".join(debug_lines))
 
     def _update_cache(self, row_to_write: RowWrite) -> None:
@@ -454,7 +437,13 @@ class GeneralCacheService(ICacheService):
 
         return target_entities, file_entities
 
-    def _generate_tag_samples_from_entities(self, entities: list[dict], *, source_view: str) -> list[dict]:
+    def _generate_tag_samples_from_entities(
+        self,
+        entities: list[dict],
+        *,
+        source_view: str,
+        normalize_patterns: list[str],
+    ) -> list[dict]:
         """
         Generates regex-like pattern samples from entity search properties for pattern mode detection.
 
@@ -468,9 +457,14 @@ class GeneralCacheService(ICacheService):
         Separators are never required constants: ``_``, ``-``, ``.``, ``:``, ``;``, ``/``,
         and space are always normalized to an unbracketed ``-`` (never ``[_]``), in both modes.
 
+        Aliases are first filtered/extracted with the source-specific normalize patterns
+        (entityNormalizationPatterns for assets, fileNormalizationPatterns for files).
+        Empty normalize_patterns disables filtering for that source.
+
         Args:
             entities: List of entity dictionaries containing search properties (aliases).
             source_view: Human-readable source for logs (e.g. ``fileView (CogniteFile)``).
+            normalize_patterns: Capture-group regexes for this source; empty = no filter.
 
         Returns:
             List of pattern sample dictionaries, each containing:
@@ -481,9 +475,13 @@ class GeneralCacheService(ICacheService):
         # Structure: { resource_type: {"patterns": { template_key: [...] }, "annotation_type": "..."} }
         pattern_builders: dict[str, dict[str, object]] = defaultdict(lambda: {"patterns": {}, "annotation_type": None})
         structural = self.config.launch_function.structural_auto_patterns
+        if normalize_patterns:
+            filter_note = "aliases filtered by source normalizePatterns first"
+        else:
+            filter_note = "source normalizePatterns empty — no alias filtering"
         self.logger.info(
             f"Generating {'structural' if structural else 'legacy'} pattern samples "
-            f"from {len(entities)} entities in {source_view}."
+            f"from {len(entities)} entities in {source_view} ({filter_note})."
         )
 
         def _parse_alias(alias: str, resource_type_key: str) -> tuple[str, list[list[str]]]:
@@ -543,6 +541,8 @@ class GeneralCacheService(ICacheService):
 
             return "".join(full_template_key_parts), all_variable_parts
 
+        aliases_kept = 0
+        aliases_skipped = 0
         for entity_row in entities:
             key = entity_row["resource_type"]
             if pattern_builders[key]["annotation_type"] is None:
@@ -556,7 +556,16 @@ class GeneralCacheService(ICacheService):
             for alias in aliases:
                 if not alias:
                     continue
-                template_key, variable_parts_from_alias = _parse_alias(alias, key)
+                if normalize_patterns:
+                    forms = extract_forms(alias, normalize_patterns)
+                    if not forms:
+                        aliases_skipped += 1
+                        continue
+                    alias_for_pattern = forms[0]
+                else:
+                    alias_for_pattern = alias
+                aliases_kept += 1
+                template_key, variable_parts_from_alias = _parse_alias(alias_for_pattern, key)
                 resource_patterns = pattern_builders[key]["patterns"]
                 if template_key in resource_patterns:
                     existing_variable_sets = resource_patterns[template_key]
@@ -568,6 +577,16 @@ class GeneralCacheService(ICacheService):
                     for part_group in variable_parts_from_alias:
                         new_variable_sets.append([{lg} for lg in part_group])
                     resource_patterns[template_key] = new_variable_sets
+
+        if normalize_patterns:
+            self.logger.info(
+                f"normalizePatterns kept {aliases_kept} alias form(s) and skipped {aliases_skipped} "
+                f"non-matching alias(es) for {source_view}."
+            )
+        else:
+            self.logger.info(
+                f"normalizePatterns empty — used all {aliases_kept} alias(es) for {source_view}."
+            )
 
         result = []
         for resource_type, data in pattern_builders.items():

@@ -20,7 +20,6 @@ from fa_constants import (
     CORE_ANNOTATION_EXTERNAL_ID,
     CORE_ANNOTATION_SCHEMA_SPACE,
     CORE_ANNOTATION_VERSION,
-    DEFAULT_NORMALIZE_PATTERN,
     DELETE_REJECTED_EDGES,
     DELETE_SUGGESTED_EDGES,
     EXCLUDED_PREPARE_TAGS,
@@ -268,44 +267,69 @@ class FinalizeFunction(BaseModel, alias_generator=to_camel):
 
 
 # Promote Related Configs
+def _coerce_pattern_list(value: object) -> object:
+    if value is None:
+        return []
+    return [value] if isinstance(value, str) else value
+
+
+def _validate_capture_group_patterns(value: list[str], *, field_name: str) -> list[str]:
+    for pattern in value:
+        try:
+            compiled = re.compile(pattern)
+        except re.error as e:
+            raise ValueError(f"{field_name} entry {pattern!r} is not a valid regular expression: {e}") from e
+        if not compiled.groups:
+            raise ValueError(
+                f"{field_name} entry {pattern!r} must have at least one capture group - "
+                "the normalized form is the groups joined by '_'"
+            )
+    return value
+
+
 class TextNormalizationConfig(BaseModel, alias_generator=to_camel):
     """
-    Configuration for text normalization during promote.
+    Configuration for text normalization during promote and auto pattern generation.
+
+    Separate pattern lists avoid false positives when asset and file aliases differ:
+
+    - entityNormalizationPatterns: assets / targetEntitiesView (diagrams.AssetLink)
+    - fileNormalizationPatterns: files / fileView (diagrams.FileLink)
 
     Same capture-group semantics as cdf_entity_matching aliases_update:
-    - normalizePatterns: one regex or a list; each match yields capture groups joined by "_"
-    - When several patterns match, the longest form is always kept (single promote search path)
-
-    Texts that match none of the patterns are not searched (rejected without alias lookup).
-    Built-in hygiene (strip non-alphanumeric, leading zeros) still runs after extraction.
-    Casing is preserved — DMS alias IN filters are case-sensitive.
+    each match yields capture groups joined by "_"; longest match wins.
+    Empty list disables filtering for that source.
     """
 
-    normalize_patterns: list[str] = Field(
-        alias="normalizePatterns",
-        default_factory=lambda: [DEFAULT_NORMALIZE_PATTERN],
-        min_length=1,
+    entity_normalization_patterns: list[str] = Field(
+        alias="entityNormalizationPatterns",
+        default_factory=list,
+    )
+    file_normalization_patterns: list[str] = Field(
+        alias="fileNormalizationPatterns",
+        default_factory=list,
     )
 
-    @field_validator("normalize_patterns", mode="before")
+    @field_validator("entity_normalization_patterns", "file_normalization_patterns", mode="before")
     @classmethod
     def wrap_single_pattern(cls, value: object) -> object:
-        return [value] if isinstance(value, str) else value
+        return _coerce_pattern_list(value)
 
-    @field_validator("normalize_patterns")
+    @field_validator("entity_normalization_patterns")
     @classmethod
-    def validate_normalize_patterns(cls, value: list[str]) -> list[str]:
-        for pattern in value:
-            try:
-                compiled = re.compile(pattern)
-            except re.error as e:
-                raise ValueError(f"normalizePatterns entry {pattern!r} is not a valid regular expression: {e}") from e
-            if not compiled.groups:
-                raise ValueError(
-                    f"normalizePatterns entry {pattern!r} must have at least one capture group - "
-                    "the normalized form is the groups joined by '_'"
-                )
-        return value
+    def validate_entity_patterns(cls, value: list[str]) -> list[str]:
+        return _validate_capture_group_patterns(value, field_name="entityNormalizationPatterns")
+
+    @field_validator("file_normalization_patterns")
+    @classmethod
+    def validate_file_patterns(cls, value: list[str]) -> list[str]:
+        return _validate_capture_group_patterns(value, field_name="fileNormalizationPatterns")
+
+    def patterns_for_annotation_type(self, annotation_type: str) -> list[str]:
+        """Return entity or file patterns based on annotation type."""
+        if annotation_type == "diagrams.FileLink":
+            return self.file_normalization_patterns
+        return self.entity_normalization_patterns
 
 
 class EntitySearchServiceConfig(BaseModel, alias_generator=to_camel):
@@ -935,9 +959,11 @@ def format_promote_config(config: Config, pipeline_ext_id: str) -> str:
             "ENTITY SEARCH SERVICE",
             f"  • Max entity search limit: {entity_search.max_entity_search_limit}",
             "  • Text normalization:",
-            f"    - Normalize patterns: {text_norm.normalize_patterns}",
+            f"    - Entity normalize patterns: {text_norm.entity_normalization_patterns}",
+            f"    - File normalize patterns: {text_norm.file_normalization_patterns}",
             "    - Selection: longest matching form (always)",
-            "    - Non-matching text is not searched",
+            "    - Empty list disables filtering for that source",
+            "    - Non-matching text is not searched when patterns are set",
             "    - Built-in: remove non-alphanumeric characters and strip leading zeros",
             "    - Casing preserved (DMS alias match is case-sensitive)",
         ]
