@@ -749,6 +749,7 @@ def test_set_describable_tags_deduplicates() -> None:
 
 def test_launch_overall_report_includes_stage_entities_and_patterns() -> None:
     from datetime import timedelta
+
     from utils.DataStructures import PerformanceTracker
 
     tracker = PerformanceTracker()
