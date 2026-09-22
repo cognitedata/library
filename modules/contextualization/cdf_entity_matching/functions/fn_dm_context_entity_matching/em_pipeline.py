@@ -183,18 +183,18 @@ def update_state_store(
     config: Config,
     logger: CogniteFunctionLogger,
     value: str,
-    type: str,
+    state_key: str,
 ) -> None:
 
     # Create DB / Table for state if it does not exist
     create_table(client, config.parameters.raw_db, config.parameters.raw_table_state)
 
-    state_row = Row(type, {STAT_STORE_VALUE: value})
+    state_row = Row(state_key, {STAT_STORE_VALUE: value})
     client.raw.rows.insert(config.parameters.raw_db, config.parameters.raw_table_state, state_row)
 
     logger.debug(
         f"Update state store DB: {config.parameters.raw_db} "
-        f"Table: {config.parameters.raw_table_state} Key: {type} Value: {value}"
+        f"Table: {config.parameters.raw_table_state} Key: {state_key} Value: {value}"
     )
 
 
