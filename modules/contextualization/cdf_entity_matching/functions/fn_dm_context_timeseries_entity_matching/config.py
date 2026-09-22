@@ -10,7 +10,6 @@ from pydantic.alias_generators import to_camel
 
 # Configuration classes
 class Parameters(BaseModel, alias_generator=to_camel):
-    debug: bool
     dm_update: bool
     run_all: bool
     remove_old_links: bool

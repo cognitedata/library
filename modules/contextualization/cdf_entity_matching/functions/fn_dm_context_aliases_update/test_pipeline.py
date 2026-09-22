@@ -61,7 +61,6 @@ class TestPipelineHelpers(unittest.TestCase):
         )
         return Config(
             parameters=Parameters(
-                debug=False,
                 runAll=run_all,
                 updateAll=update_all,
                 removeOldAliases=remove_old_aliases,

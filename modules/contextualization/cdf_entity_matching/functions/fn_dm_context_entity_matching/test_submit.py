@@ -44,7 +44,8 @@ class FakeRowsAPI:
         columns = self._table(db_name, table_name).get(key)
         return Row(key, dict(columns)) if columns is not None else None
 
-    def delete(self, db_name: str, table_name: str, key: str | list[str]) -> None:
+    # The annotation is quoted because `list` above shadows the builtin in this class body.
+    def delete(self, db_name: str, table_name: str, key: "str | list[str]") -> None:
         keys = [key] if isinstance(key, str) else key
         table = self._table(db_name, table_name)
         for row_key in keys:
@@ -109,7 +110,6 @@ def build_config() -> Config:
     )
     return Config(
         parameters=Parameters(
-            debug=False,
             dmUpdate=False,
             runAll=False,
             removeOldLinks=False,

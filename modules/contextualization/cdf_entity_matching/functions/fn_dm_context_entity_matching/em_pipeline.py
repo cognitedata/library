@@ -4,7 +4,7 @@ import sys
 import traceback
 from collections import defaultdict
 from collections.abc import Mapping, Sequence
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 from cognite.client import CogniteClient
 from cognite.client import data_modeling as dm
@@ -400,7 +400,7 @@ def apply_manual_mappings(
                 # length: the batch would overshoot the cap and a skip landing on a
                 # multiple of it would miss the flush entirely.
                 batch_is_full = len(item_update) >= BATCH_SIZE_API_SUBMIT
-                if not config.parameters.debug and config.parameters.dm_update and batch_is_full:
+                if config.parameters.dm_update and batch_is_full:
                     _retry_apply(client, logger, clean_target_list)
                     clean_target_list = []
 
@@ -414,7 +414,7 @@ def apply_manual_mappings(
             if num_batches > 1:
                 logger.info(f"Completed batch {batch_num}/{num_batches}")
 
-        if not config.parameters.debug and config.parameters.dm_update:
+        if config.parameters.dm_update:
             _retry_apply(client, logger, clean_target_list)
 
             # Apply the updates to the data model
@@ -431,8 +431,7 @@ def apply_manual_mappings(
                         f"to data model, total count/matches: {cnt} / {len(manual_mappings)}"
                     )
 
-        if not config.parameters.debug:
-            raw_uploader.upload()
+        raw_uploader.upload()
 
         return good_matches, cnt
 
@@ -619,7 +618,13 @@ def warn_on_cross_space_duplicates(
     )
 
 
-def match_values(properties: Mapping[str, object], search_property: str, org_name: str) -> list[str]:
+def match_values(
+    properties: Mapping[str, object],
+    search_property: str,
+    org_name: str,
+    *,
+    list_selection: Literal["all", "longest"] = "longest",
+) -> list[str]:
     """Values to match an instance on, falling back to its name.
 
     An unset property is left out of the response entirely, but one set to `[]` or to a
@@ -627,21 +632,26 @@ def match_values(properties: Mapping[str, object], search_property: str, org_nam
     same thing here, so all three fall back to the name - otherwise an empty list leaves
     the instance out of the match set altogether and a blank string matches it on nothing.
 
-    A list (aliases, or any other list-valued search property) contributes only its
-    longest usable entry. Shorter spellings of the same tag would otherwise be offered as
-    extra match candidates and can steal the result from the more specific one.
+    For list-valued search properties (typically aliases):
+    - ``list_selection="longest"`` (input entities, default): keep only the longest usable
+      entry so one source instance is not duplicated into several match candidates.
+    - ``list_selection="all"`` (targets): keep every usable entry so alternate spellings
+      remain matchable.
 
     Args:
         properties: The instance's properties for the view being read.
         search_property: Property whose value is handed to the matching model.
         org_name: The instance's name, used when the search property has nothing usable.
+        list_selection: How to reduce a list-valued search property.
     """
     value = properties.get(search_property)
     candidates = value if isinstance(value, list) else [value]
     usable = [str(item) for item in candidates if item is not None and str(item).strip()]
     if not usable:
         return [org_name]
-    return [max(usable, key=len)]
+    if list_selection == "longest":
+        return [max(usable, key=len)]
+    return usable
 
 
 def get_new_entities(
@@ -732,7 +742,7 @@ def get_new_entities(
 
         # add entities for files used to match between file references in P&ID to other files
         search_prop = entity_view_config.search_property
-        entity_names = match_values(properties, search_prop, org_name)
+        entity_names = match_values(properties, search_prop, org_name, list_selection="longest")
         targets_json = _links_as_json(targets)
         for entity_name in entity_names:
             entities_source.append(
@@ -988,7 +998,7 @@ def apply_rule_mappings(
             # Flush the queue once it is full, so a long run writes as it goes instead of
             # holding every update until the end.
             batch_is_full = len(item_update) >= BATCH_SIZE_API_SUBMIT
-            if not config.parameters.debug and config.parameters.dm_update and batch_is_full:
+            if config.parameters.dm_update and batch_is_full:
                 logger.info(
                     f"==> Rule based matching - Adding batch of {len(item_update)} items to data model, "
                     f"total count/matches: {cnt} / {len(matches)}"
@@ -996,7 +1006,7 @@ def apply_rule_mappings(
                 _retry_apply(client, logger, item_update)
                 item_update = []  # Reset item_update after applying
 
-        if not config.parameters.debug and config.parameters.dm_update:
+        if config.parameters.dm_update:
             # Apply the updates to the data model
             _retry_apply(client, logger, item_update)
 
@@ -1112,7 +1122,7 @@ def select_and_apply_matches(
             # Flush the queue once it is full, so a long run writes as it goes instead of
             # holding every update until the end.
             batch_is_full = len(item_update) >= BATCH_SIZE_API_SUBMIT
-            if not config.parameters.debug and config.parameters.dm_update and batch_is_full:
+            if config.parameters.dm_update and batch_is_full:
                 logger.info(
                     f"==> Entity matching - Adding batch of {len(item_update)} items to data model, "
                     f"total count/matches: {cnt} / {len(new_good_matches)}"
@@ -1120,7 +1130,7 @@ def select_and_apply_matches(
                 _retry_apply(client, logger, item_update)
                 item_update = []  # Reset item_update after applying
 
-        if not config.parameters.debug and config.parameters.dm_update:
+        if config.parameters.dm_update:
             _retry_apply(client, logger, item_update)
             if cnt == 0:
                 logger.info(

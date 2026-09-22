@@ -1,5 +1,3 @@
-# Generated from functions/_entity_matching_core/em_targets.py - do not edit this copy.
-# Change the source and run: python scripts/sync_entity_matching_core.py
 """Reading the targets to match against, without reading them all every run.
 
 Paging every target instance out of the data model is the slowest step of a submit run,
@@ -493,7 +491,7 @@ def get_all_targets(
                     logger.debug(f"Cleaned value (using capture groups): {cleaned_value}")
                     rule_keys.append(cleaned_value)
 
-        match_properties = match_values(properties, search_property, org_name)
+        match_properties = match_values(properties, search_property, org_name, list_selection="all")
 
         for match_property in match_properties:
             targets.append(

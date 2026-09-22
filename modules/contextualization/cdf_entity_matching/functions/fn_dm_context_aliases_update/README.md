@@ -55,7 +55,6 @@ The module reads configuration from the extraction pipeline in CDF:
 # Example extraction pipeline config
 ExtractionPipelineExtId: "ep_ctx_aliases_update"
 parameters:
-  debug: false
   run_all: false
   update_all: false
   remove_old_aliases: false
@@ -93,7 +92,6 @@ data:
 
 | Parameter | Purpose |
 |-----------|---------|
-| `debug` | Write DEBUG log messages; it does not narrow which instances are processed |
 | `runAll` | Fetch all instances (not only those missing `aliases`) |
 | `updateAll` | Reset managed metadata and reprocess every fetched instance (implies `runAll`) |
 | `removeOldAliases` | Discard every existing alias and write only what this run produces (implies `runAll`) |
@@ -440,7 +438,6 @@ Reading parameters from extraction pipeline config: ep_ctx_aliases_update
 Configuration loading took 0.13s
 Loaded extraction pipeline configuration:
   parameters:
-    debug: False
     runAll: True
     ...
 📊 Processing Stats: 1000 processed, 800 updated, 80.00% update rate

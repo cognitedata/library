@@ -1,5 +1,3 @@
-# Generated from functions/_entity_matching_core/em_collect.py - do not edit this copy.
-# Change the source and run: python scripts/sync_entity_matching_core.py
 """Entity matching, part two: collecting the predict jobs submit started.
 
 Queued jobs are polled oldest first. A job that finishes has its matches merged with the
@@ -21,7 +19,6 @@ from em_constants import (  # isort: skip
     JOB_API_STATUS_COMPLETED,
     JOB_API_STATUS_FAILED,
     JOB_RESULT_ITEMS,
-    LOG_LEVEL_DEBUG,
     LOG_LEVEL_INFO,
     POLL_BACKOFF_SECONDS,
     POLL_BUDGET_SECONDS,
@@ -123,10 +120,6 @@ def collect_entity_matching(
     collected_matches, collected_bad_matches = 0, 0
 
     try:
-        if config.parameters.debug:
-            logger = CogniteFunctionLogger(LOG_LEVEL_DEBUG)
-            logger.debug("**** Write debug messages *****")
-
         raw_uploader = RawUploadQueue(cdf_client=client, max_queue_size=500000, trigger_log_level=LOG_LEVEL_INFO)
         monitor_memory_usage(logger, "Pipeline start")
 

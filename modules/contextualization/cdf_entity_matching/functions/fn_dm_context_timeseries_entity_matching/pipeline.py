@@ -7,7 +7,7 @@ import traceback
 from collections import defaultdict
 from collections.abc import Sequence
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 if TYPE_CHECKING:
     from cognite.extractorutils.uploader import RawUploadQueue
@@ -59,7 +59,6 @@ from constants import (
     KEY_TARGET_RULE_KEYS,
     KEY_TARGET_SPACE,
     KEY_TARGET_VIEW_ID,
-    LOG_LEVEL_DEBUG,
     LOG_LEVEL_INFO,
     MATCH_TYPE_ENTITY,
     MATCH_TYPE_MANUAL,
@@ -147,9 +146,6 @@ def entity_matching(
 
         not_matches_count, match_count = 0, 0
         matching_model_id = None
-        if config.parameters.debug:
-            logger = CogniteFunctionLogger(LOG_LEVEL_DEBUG)
-            logger.debug("**** Write debug messages and only process one entity *****")
 
         logger.debug("Initiate RAW upload queue used to store output from entity matching")
         from cognite.extractorutils.uploader import RawUploadQueue
@@ -507,7 +503,7 @@ def apply_manual_mappings(
                 # length: the batch would overshoot the cap and a skip landing on a
                 # multiple of it would miss the flush entirely.
                 batch_is_full = len(item_update) >= BATCH_SIZE_API_SUBMIT
-                if not config.parameters.debug and config.parameters.dm_update and batch_is_full:
+                if config.parameters.dm_update and batch_is_full:
                     _retry_apply(client, logger, clean_target_list)
                     clean_target_list = []
 
@@ -521,7 +517,7 @@ def apply_manual_mappings(
             if num_batches > 1:
                 logger.info(f"Completed batch {batch_num}/{num_batches}")
 
-        if not config.parameters.debug and config.parameters.dm_update:
+        if config.parameters.dm_update:
             _retry_apply(client, logger, clean_target_list)
 
             # Apply the updates to the data model
@@ -535,8 +531,7 @@ def apply_manual_mappings(
                         f"to data model, total count/matches: {cnt} / {len(manual_mappings)}"
                     )
 
-        if not config.parameters.debug:
-            raw_uploader.upload()
+        raw_uploader.upload()
 
         return good_matches, cnt
 
@@ -801,7 +796,13 @@ def fetch_instances_by_space(
     return instances
 
 
-def match_values(properties: dict[str, Any], search_property: str, org_name: str) -> list[str]:
+def match_values(
+    properties: dict[str, Any],
+    search_property: str,
+    org_name: str,
+    *,
+    list_selection: Literal["all", "longest"] = "all",
+) -> list[str]:
     """Values to match an instance on, falling back to its name.
 
     An unset property is left out of the response entirely, but one set to `[]` or to a
@@ -809,14 +810,26 @@ def match_values(properties: dict[str, Any], search_property: str, org_name: str
     same thing here, so all three fall back to the name - otherwise an empty list leaves
     the instance out of the match set altogether and a blank string matches it on nothing.
 
+    For list-valued search properties (typically aliases):
+    - ``list_selection="all"`` (targets): keep every usable entry so alternate spellings
+      remain matchable.
+    - ``list_selection="longest"`` (input entities): keep only the longest usable entry so
+      one timeseries is not duplicated into several match candidates.
+
     Args:
         properties: The instance's properties for the view being read.
+        search_property: Property whose value is handed to the matching model.
         org_name: The instance's name, used when the search property has nothing usable.
+        list_selection: How to reduce a list-valued search property.
     """
     value = properties.get(search_property)
     candidates = value if isinstance(value, list) else [value]
     usable = [str(item) for item in candidates if item is not None and str(item).strip()]
-    return usable or [org_name]
+    if not usable:
+        return [org_name]
+    if list_selection == "longest":
+        return [max(usable, key=len)]
+    return usable
 
 
 def get_all_targets(
@@ -883,7 +896,7 @@ def get_all_targets(
                     logger.debug(f"Cleaned value (using capture groups): {cleaned_value}")
                     rule_keys.append(cleaned_value)
 
-        match_properties = match_values(properties, search_property, org_name)  
+        match_properties = match_values(properties, search_property, org_name, list_selection="all")
 
         for match_property in match_properties:
             targets.append(
@@ -974,7 +987,7 @@ def get_new_entities(
 
         # add entities for files used to match between file references in P&ID to other files
         search_prop = entity_view_config.search_property
-        entity_names = match_values(properties, search_prop, org_name)
+        entity_names = match_values(properties, search_prop, org_name, list_selection="longest")
         for entity_name in entity_names: 
             
             entities_source.append(
@@ -1236,7 +1249,7 @@ def apply_rule_mappings(
             # Flush the queue once it is full, so a long run writes as it goes instead of
             # holding every update until the end.
             batch_is_full = len(item_update) >= BATCH_SIZE_API_SUBMIT
-            if not config.parameters.debug and config.parameters.dm_update and batch_is_full:
+            if config.parameters.dm_update and batch_is_full:
                 logger.info(
                     f"==> Rule based matching - Adding batch of {len(item_update)} items to data model, "
                     f"total count/matches: {cnt} / {len(matches)}"
@@ -1244,7 +1257,7 @@ def apply_rule_mappings(
                 _retry_apply(client, logger, item_update)
                 item_update = []  # Reset item_update after applying
 
-        if not config.parameters.debug and config.parameters.dm_update:
+        if config.parameters.dm_update:
             # Apply the updates to the data model
             _retry_apply(client, logger, item_update)
  
@@ -1357,7 +1370,7 @@ def select_and_apply_matches(
             # Flush the queue once it is full, so a long run writes as it goes instead of
             # holding every update until the end.
             batch_is_full = len(item_update) >= BATCH_SIZE_API_SUBMIT
-            if not config.parameters.debug and config.parameters.dm_update and batch_is_full:
+            if config.parameters.dm_update and batch_is_full:
                 logger.info(
                     f"==> Entity matching - Adding batch of {len(item_update)} items to data model, "
                     f"total count/matches: {cnt} / {len(new_good_matches)}"
@@ -1365,7 +1378,7 @@ def select_and_apply_matches(
                 _retry_apply(client, logger, item_update)
                 item_update = []  # Reset item_update after applying
 
-        if not config.parameters.debug and config.parameters.dm_update:
+        if config.parameters.dm_update:
             _retry_apply(client, logger, item_update)
             if cnt == 0:
                 logger.info("==> Entity matching - No items added to data model based on new items found and entity matching")
@@ -1597,7 +1610,7 @@ def write_mapping_to_raw(
     raw_table_ctx_good = config.parameters.raw_table_ctx_good
 
     try:
-        if config.parameters.run_all and not config.parameters.debug:
+        if config.parameters.run_all:
             logger.info(f"Clean up BAD table: {raw_db}/{raw_table_ctx_bad} before writing new status")
             delete_table(client, raw_db, raw_table_ctx_bad)
 

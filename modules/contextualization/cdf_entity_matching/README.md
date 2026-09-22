@@ -52,9 +52,7 @@ The CDF Entity Matching module is designed to:
 cdf_entity_matching/
 ├── 📁 functions/                           # CDF Functions
 │   ├── 📁 fn_dm_context_timeseries_entity_matching/  # Entity matching, single run
-│   ├── 📁 fn_dm_context_entity_matching_submit/    # Entity matching, starts predict job
-│   ├── 📁 fn_dm_context_entity_matching_collect/   # Entity matching, collects predict job
-│   ├── 📁 _entity_matching_core/                   # Code shared by submit and collect
+│   ├── 📁 fn_dm_context_entity_matching/           # Submit + collect (data.stage)
 │   ├── 📁 fn_dm_context_aliases_update/            # Metadata optimization
 │   └── 📄 functions.Function.yaml                   # Function definitions
 ├── 📁 workflows/                           # CDF Workflows
@@ -98,10 +96,11 @@ cdf_entity_matching/
 - Industrial IoT data organization
 - Process optimization and monitoring
 
-### 2. Asynchronous entity matching: [submit](./functions/fn_dm_context_entity_matching_submit/README.md) and [collect](./functions/fn_dm_context_entity_matching_collect/README.md)
+### 2. Asynchronous entity matching: [fn_dm_context_entity_matching](./functions/fn_dm_context_entity_matching/README.md)
 
-**Purpose**: The same matching, split in two so a long prediction cannot time the
-function out. This is the pair the workflow runs.
+**Purpose**: The same matching as the single-run function, split into `submit` and
+`collect` stages so a long prediction cannot time the function out. One CDF Function
+selects the stage with `data.stage`; the workflow still runs those stages in sequence.
 
 Matching in CDF is a job on the platform, and waiting for it is what makes a large run
 time out. **Submit** applies manual and rule based mappings, starts the predict job
@@ -111,13 +110,13 @@ state store table. **Collect** works through that queue oldest first, polling ea
 with the staged matches, writes them, and removes the job from the queue. Anything still
 running is picked up by the next collect run.
 
-Both functions read the same extraction pipeline configuration as the single-run function
+Both stages read the same extraction pipeline configuration as the single-run function
 — no new parameters. Manual and rule based matches always win over model matches for the
 same entity, because collect merges them in before the model's results are considered.
 
-`debug: true` on that config turns on DEBUG logs and **skips data-model writes**. It does
-**not** limit the run to one entity. That one-entity behaviour exists only on the
-single-run timeseries function.
+Logging verbosity is set by `logLevel` in the function input data (workflow already sets
+`DEBUG`). Set `dmUpdate: false` on the extraction pipeline config to skip data-model
+writes while still writing RAW.
 
 | RAW / CDF key | Written by | Meaning |
 |---|---|---|
@@ -138,10 +137,6 @@ read or write it.
 The single-run [Timeseries Entity Matching Function](./functions/fn_dm_context_timeseries_entity_matching/README.md)
 is unchanged and still deployed; use it when a run comfortably fits inside one function
 invocation.
-
-The code shared by the two functions lives in
-[`functions/_entity_matching_core`](./functions/_entity_matching_core/README.md) and is
-copied into both by `python scripts/sync_entity_matching_core.py`.
 
 ### 3. [Metadata Update Function](./functions/fn_dm_context_aliases_update/README.md)
 
@@ -456,13 +451,13 @@ cdf raw rows list contextualization_state contextualization_state_store
 
 ```mermaid
 graph TD
-    A[Timeseries Data] --> S[Submit Function]
+    A[Timeseries Data] --> S[Submit stage]
     C[Asset Data] --> S
     D[Rule and Manual Mappings] --> S
     S --> Q[Predict job queue in RAW]
     S --> F[Target cache file in CDF]
     S --> P[Predict job on CDF]
-    P --> L[Collect Function]
+    P --> L[Collect stage]
     Q --> L
     L --> E[Matched Relationships]
     E --> M[Metadata Update Function]
@@ -524,19 +519,17 @@ From the **repository root**:
 
 ```bash
 uv sync --group dev
-uv run pytest modules/contextualization/cdf_entity_matching/functions/fn_dm_context_entity_matching_submit -q
-uv run pytest modules/contextualization/cdf_entity_matching/functions/fn_dm_context_entity_matching_collect -q
-uv run pytest tests/test_entity_matching_core_sync.py -q
+uv run pytest modules/contextualization/cdf_entity_matching/functions/fn_dm_context_entity_matching -q
 uv run pytest modules/contextualization/cdf_entity_matching/functions/fn_dm_context_timeseries_entity_matching/ -q
 uv run pytest modules/contextualization/cdf_entity_matching/functions/fn_dm_context_aliases_update/test_alias_optimizations.py -q
-python scripts/sync_entity_matching_core.py --check
 ```
 
 Run a handler locally (set `CDF_*` / `IDP_*` env vars first):
 
 ```bash
-cd modules/contextualization/cdf_entity_matching/functions/fn_dm_context_timeseries_entity_matching
-uv run python handler.py
+cd modules/contextualization/cdf_entity_matching/functions/fn_dm_context_entity_matching
+uv run python handler.py submit
+uv run python handler.py collect
 ```
 
 - **Local deps:** edit `pyproject.toml`, then `uv lock` and `uv sync --group dev`.
@@ -577,7 +570,7 @@ cdf workflows logs EntityMatching
 
 2. **Memory Issues**
    - Reduce batch sizes in function configurations
-   - On submit/collect, `debug` does not shrink the run — it only skips DM writes
+   - Set `dmUpdate: false` to skip data-model writes while still writing RAW
    - Monitor memory usage in function logs
 
 3. **`Property '<name>' does not exist in view '<view>'` (400)**
@@ -601,23 +594,23 @@ cdf workflows logs EntityMatching
    - Remember that a manual mapping applies to every copy of an external ID
    - See [`assetInstanceSpace`, `timeseriesInstanceSpace` and `fileInstanceSpace`](#assetinstancespace-timeseriesinstancespace-and-fileinstancespace)
 
-### Debug Mode
+### Logging
 
-Enable debug mode for detailed troubleshooting:
+Set log verbosity in the function input data (workflow already uses `DEBUG`):
 
-```yaml
-# In extraction pipeline config
-parameters:
-  debug: true
-  batch_size: 100
-  log_level: DEBUG
+```json
+{
+  "stage": "submit",
+  "logLevel": "DEBUG",
+  "ExtractionPipelineExtId": "ep_ctx_timeseries_<location>_<source>_entity_matching"
+}
 ```
+
+Use `dmUpdate: false` in the extraction pipeline config to skip data-model writes.
 
 ## 📚 Documentation
 
-- [**Submit Function**](./functions/fn_dm_context_entity_matching_submit/README.md) - Starts predict without waiting; caches targets
-- [**Collect Function**](./functions/fn_dm_context_entity_matching_collect/README.md) - Polls the queue and writes matches
-- [**Shared core**](./functions/_entity_matching_core/README.md) - Source of truth for the `em_*.py` modules
+- [**Entity Matching Function**](./functions/fn_dm_context_entity_matching/README.md) - Submit and collect stages (`data.stage`)
 - [**Timeseries Entity Matching Function**](./functions/fn_dm_context_timeseries_entity_matching/README.md) - Single-run entity matching
 - [**Metadata Update Function**](./functions/fn_dm_context_aliases_update/README.md) - Comprehensive guide for metadata optimization
 - **CDF Toolkit Documentation** - General deployment and configuration guidance

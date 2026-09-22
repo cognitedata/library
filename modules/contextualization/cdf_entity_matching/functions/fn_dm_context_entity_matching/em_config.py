@@ -9,7 +9,6 @@ from pydantic.alias_generators import to_camel
 
 # Configuration classes
 class Parameters(BaseModel, alias_generator=to_camel):
-    debug: bool
     dm_update: bool
     run_all: bool
     remove_old_links: bool
@@ -99,7 +98,6 @@ def format_config_summary(config: Config) -> str:
     parameters = config.parameters
     lines = [
         "Extraction pipeline parameters:",
-        f"  debug: {parameters.debug}",
         f"  runAll: {parameters.run_all}",
         f"  dmUpdate: {parameters.dm_update}",
         f"  removeOldLinks: {parameters.remove_old_links}",

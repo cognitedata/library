@@ -162,7 +162,6 @@ def build_config(version: str = "v1", filter_values: list[str] | None = None) ->
     )
     return Config(
         parameters=Parameters(
-            debug=False,
             dmUpdate=False,
             runAll=False,
             removeOldLinks=False,

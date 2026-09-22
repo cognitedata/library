@@ -1,7 +1,6 @@
 externalId: 'ep_ctx_aliases_update'
 config:
   parameters:
-    debug: False
     runAll: True
     updateAll: True
     removeOldAliases: True

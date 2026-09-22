@@ -15,7 +15,6 @@ documentation: >
 
 
   ```
-   debug -  write DEBUG messages if True
    runAll - if True run on all found instances, if False only run on instances without aliases
    updateAll - if True rebuild the generated aliases on all instances (implies runAll)
    removeOldAliases - if True discard every existing alias and write only what this run

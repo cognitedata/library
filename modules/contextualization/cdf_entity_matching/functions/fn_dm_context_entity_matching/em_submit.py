@@ -1,5 +1,3 @@
-# Generated from functions/_entity_matching_core/em_submit.py - do not edit this copy.
-# Change the source and run: python scripts/sync_entity_matching_core.py
 """Entity matching, part one: everything up to starting the predict job in CDF.
 
 Manual and rule based matches are found here and staged in RAW, the predict job is
@@ -15,7 +13,6 @@ from em_config import Config  # isort: skip
 from em_constants import (  # isort: skip
     KEY_ENTITY_EXT_ID,
     KEY_ENTITY_SPACE,
-    LOG_LEVEL_DEBUG,
     LOG_LEVEL_INFO,
     PROP_COL_NAME,
     QUERY_FILTER_TYPE_TARGETS,
@@ -65,10 +62,6 @@ def submit_entity_matching(
 
     pipeline_ext_id = data["ExtractionPipelineExtId"]
     try:
-        if config.parameters.debug:
-            logger = CogniteFunctionLogger(LOG_LEVEL_DEBUG)
-            logger.debug("**** Write debug messages *****")
-
         logger.debug("Initiate RAW upload queue used to store output from entity matching")
         raw_uploader = RawUploadQueue(cdf_client=client, max_queue_size=500000, trigger_log_level=LOG_LEVEL_INFO)
 

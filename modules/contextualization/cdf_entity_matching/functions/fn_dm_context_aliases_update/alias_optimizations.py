@@ -459,7 +459,7 @@ class OptimizedMetadataProcessor:
             update_needed = False
             properties_dict: dict[str, list[str] | None] = {}
 
-            if update_all or upd_aliases != org_aliases:
+            if update_all and upd_aliases != org_aliases or upd_aliases != org_aliases:
                 properties_dict["aliases"] = _alias_property_value(upd_aliases)
                 update_needed = True
             
@@ -532,7 +532,7 @@ class OptimizedMetadataProcessor:
             update_needed = False
             properties_dict: dict[str, list[str] | None] = {}
 
-            if update_all or upd_aliases != org_aliases:
+            if update_all and upd_aliases != org_aliases or upd_aliases != org_aliases:
                 properties_dict["aliases"] = _alias_property_value(upd_aliases)
                 update_needed = True
             

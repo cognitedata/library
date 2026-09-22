@@ -79,7 +79,6 @@ The pipeline reads configuration from CDF extraction pipeline config in YAML for
 
 ```yaml
 parameters:
-  debug: false
   runAll: false
   dmUpdate: false
   removeOldLinks: false
@@ -114,7 +113,6 @@ data:
 
 | Parameter | Description | Default |
 |-----------|-------------|---------|
-| `debug` | Enable debug logging; when true, only process one entity | `false` |
 | `runAll` | Process all entities (`true`) or incremental (only entities updated since last run) | `false` |
 | `dmUpdate` | Update relationships in the Data Model (`true`) or only write to RAW tables | `false` |
 | `removeOldLinks` | Remove existing target links before applying new matches | `false` |

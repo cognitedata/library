@@ -192,9 +192,9 @@ def test_raw_upload_queue_trigger_log_level_is_a_name() -> None:
     assert LOG_LEVEL_INFO == "INFO"
     assert LOG_LEVEL_DEBUG == "DEBUG"
 
-    core = Path(__file__).parents[1] / "_entity_matching_core"
+    function_dir = Path(__file__).parent
     for module in ("em_submit.py", "em_collect.py"):
-        source = (core / module).read_text(encoding="utf-8")
+        source = (function_dir / module).read_text(encoding="utf-8")
         assert "trigger_log_level=LOG_LEVEL_INFO" in source
         assert "trigger_log_level=logging." not in source
 
@@ -212,14 +212,25 @@ def test_robust_api_call_retries_transient_errors(monkeypatch: pytest.MonkeyPatc
 def test_handler_raises_so_cdf_marks_the_call_failed(monkeypatch: pytest.MonkeyPatch) -> None:
     """A handler that returns normally is a succeeded function call in the CDF UI."""
     import handler
+    from stages import stage_runtime
 
     def fail(*args: object, **kwargs: object) -> None:
         raise RuntimeError("submit exploded")
 
-    monkeypatch.setattr(handler, "load_config_parameters", fail)
+    monkeypatch.setattr(stage_runtime, "load_config_parameters", fail)
 
     with pytest.raises(RuntimeError, match="submit exploded"):
+        handler.handle({"stage": "submit", "ExtractionPipelineExtId": "ep", "logLevel": "INFO"}, MagicMock())
+
+
+def test_handler_rejects_missing_or_invalid_stage() -> None:
+    import handler
+
+    with pytest.raises(ValueError, match="Invalid or missing 'stage'"):
         handler.handle({"ExtractionPipelineExtId": "ep", "logLevel": "INFO"}, MagicMock())
+
+    with pytest.raises(ValueError, match="Invalid or missing 'stage'"):
+        handler.handle({"stage": "promote", "ExtractionPipelineExtId": "ep"}, MagicMock())
 
 
 def _run_message(client: MagicMock) -> str:
