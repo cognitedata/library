@@ -1,7 +1,7 @@
 [project]
 name = "fn-dm-context-entity-matching"
 version = "0.0.0"
-requires-python = ">=3.11,<3.14"
+requires-python = ">=3.13,<3.14"
 dependencies = [
     "cognite-extractor-utils>=7",
     "cognite-sdk>=7,<8",
