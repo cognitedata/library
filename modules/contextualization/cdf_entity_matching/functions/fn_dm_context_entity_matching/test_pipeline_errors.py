@@ -239,7 +239,7 @@ def _run_message(client: MagicMock) -> str:
 
 
 def test_pipeline_run_reports_the_input_count_it_is_given() -> None:
-    """Submit knows how many entities it looked at; matched plus low score is not that number."""
+    """Collect knows how many entities it looked at; matched plus low score is not that number."""
     client = MagicMock()
 
     em_pipeline.update_pipeline_run(
@@ -249,11 +249,31 @@ def test_pipeline_run_reports_the_input_count_it_is_given() -> None:
         STATUS_SUCCESS,
         350,
         0,
-        "Predict submitted",
+        "Collected 1 predict job(s)",
         input_count=1200,
     )
 
     assert "Entity matching of: 1200 input entities, Matched: 350" in _run_message(client)
+
+
+def test_a_run_that_has_not_scored_anything_reports_no_score_counts() -> None:
+    """Submit only matches manual and rule mappings; the model scores in collect."""
+    client = MagicMock()
+
+    em_pipeline.update_pipeline_run(
+        client,
+        MagicMock(),
+        "ep-entity-matching",
+        STATUS_SUCCESS,
+        0,
+        None,
+        "Predict submitted (jobId=8114603307314696), collect pending",
+        input_count=738,
+    )
+
+    message = _run_message(client)
+    assert "738 input entities, 0 matched by manual or rule mapping" in message
+    assert "low score" not in message
 
 
 def test_failed_pipeline_run_without_exception_does_not_log_a_traceback() -> None:

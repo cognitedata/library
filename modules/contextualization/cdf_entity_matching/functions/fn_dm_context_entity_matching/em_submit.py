@@ -90,7 +90,7 @@ def submit_entity_matching(
             logger.warning(
                 f"No {QUERY_FILTER_TYPE_TARGETS} found based on configuration, please check the configuration"
             )
-            update_pipeline_run(client, logger, pipeline_ext_id, STATUS_SUCCESS, 0, 0, "No targets to match against")
+            update_pipeline_run(client, logger, pipeline_ext_id, STATUS_SUCCESS, 0, None, "No targets to match against")
             return
 
         with time_operation("Apply manual mappings", logger):
@@ -128,7 +128,7 @@ def submit_entity_matching(
                 pipeline_ext_id,
                 STATUS_SUCCESS,
                 cnt_manual_mappings,
-                0,
+                None,
                 "No new entities, predict not started",
             )
             return
@@ -172,12 +172,12 @@ def submit_entity_matching(
             pipeline_ext_id,
             STATUS_SUCCESS,
             match_count,
-            0,
+            None,
             f"Predict submitted (jobId={job_id}), collect pending",
             input_count=cnt_manual_mappings + submitted_entities,
         )
 
     except Exception as e:
         msg = f"failed, Message: {e!s}"
-        update_pipeline_run(client, logger, pipeline_ext_id, STATUS_FAILURE, match_count, 0, msg)
+        update_pipeline_run(client, logger, pipeline_ext_id, STATUS_FAILURE, match_count, None, msg)
         raise

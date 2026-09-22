@@ -123,7 +123,7 @@ def update_pipeline_run(
     xid: str,
     status: str,
     match_count: int = 0,
-    not_matches_count: int = 0,
+    not_matches_count: int | None = None,
     input_msg: str | None = None,
     input_count: int | None = None,
 ) -> None:
@@ -131,26 +131,30 @@ def update_pipeline_run(
 
     Args:
         match_count: Entities that got at least one match.
-        not_matches_count: Entities left unmatched because every candidate scored too low.
+        not_matches_count: Entities left unmatched because every candidate scored too low,
+            or None when nothing has been scored yet. Submit only matches manual and rule
+            mappings - the model scores in collect - so a score count there would read as
+            a result the stage never produced.
         input_count: Entities considered. Submit knows this up front; callers that do not
             fall back to the matched plus unmatched total.
     """
-    total_entities = input_count if input_count is not None else match_count + not_matches_count
-    if status == STATUS_SUCCESS:
-        msg = (
+    total_entities = input_count if input_count is not None else match_count + (not_matches_count or 0)
+    if not_matches_count is None:
+        counts = f"Entity matching of: {total_entities} input entities, {match_count} matched by manual or rule mapping"
+    else:
+        counts = (
             f"Entity matching of: {total_entities} input entities, Matched: {match_count} "
             f" - NOT matched due to low score: {not_matches_count}"
         )
+
+    if status == STATUS_SUCCESS:
+        msg = counts
         logger.info(msg)
         if input_msg:
             logger.info(input_msg)
     else:
         tb = f", traceback:\n{traceback.format_exc()}" if sys.exception() is not None else ""
-        msg = (
-            f"Entity matching of: {total_entities} input entities, Matched: {match_count} "
-            f" - NOT matched due to low score: {not_matches_count}, "
-            f"{input_msg or 'Unknown error'}{tb}"
-        )
+        msg = f"{counts}, {input_msg or 'Unknown error'}{tb}"
         logger.error(msg)
 
     client.extraction_pipelines.runs.create(
