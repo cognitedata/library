@@ -462,7 +462,10 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
         self.assertIsNone(result)
 
     def test_a_renamed_instance_keeps_a_hand_curated_alias_under_update_all(self) -> None:
-        """updateAll keeps hand-curated aliases that do not round-trip through the pattern."""
+        """updateAll keeps hand-curated aliases that do not round-trip through the pattern.
+
+        When the rebuilt list matches what is already stored, no DM write is issued.
+        """
         processor = OptimizedMetadataProcessor(
             self.logger, timeseries_alias_rule=AliasRule.from_config([DEFAULT_ALIAS_PATTERN])
         )
@@ -476,7 +479,7 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
             node, self.view_id, "inst_cfihos_oil_and_gas", update_all=True
         )
 
-        self.assertEqual(result.sources[0].properties["aliases"], ["Reactor outlet temp"])
+        self.assertIsNone(result)
 
     def test_a_produced_alias_already_in_org_is_not_added_again(self) -> None:
         """The generated tag must not be appended when aliases already hold it."""
@@ -656,8 +659,8 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
             node, self.file_view_id, "inst_cfihos_oil_and_gas", update_all=True
         )
 
-        self.assertIsNotNone(result)
-        self.assertIsNone(result.sources[0].properties["aliases"])
+        # No pattern match and no existing aliases → nothing to write.
+        self.assertIsNone(result)
 
     def test_file_skips_update_when_aliases_already_present(self) -> None:
         """No write when there is nothing to add, so reruns stay cheap."""
@@ -817,8 +820,8 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
         self.assertIsNone(result.sources[0].properties["aliases"])
 
     def test_timeseries_update_all_applies_even_when_aliases_already_correct(self) -> None:
-        """Test updateAll writes managed metadata even when values already match"""
-        print("🧪 Testing timeseries updateAll re-apply...")
+        """updateAll does not write when the rebuilt aliases already match storage."""
+        print("🧪 Testing timeseries updateAll skip when unchanged...")
 
         node = MagicMock()
         node.external_id = "pi:160004"
@@ -833,10 +836,9 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
             node, self.view_id, "inst_cfihos_oil_and_gas", update_all=True
         )
 
-        self.assertIsNotNone(result)
-        self.assertEqual(result.sources[0].properties["aliases"], ["23_KA_9101"])
+        self.assertIsNone(result)
 
-        print("✅ Timeseries updateAll re-apply test passed")
+        print("✅ Timeseries updateAll skip-when-unchanged test passed")
 
     def test_asset_update_all_replaces_stale_managed_alias(self) -> None:
         """Test updateAll drops managed aliases but keeps unmanaged ones"""
@@ -869,8 +871,8 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
         print("✅ Asset updateAll test passed")
 
     def test_asset_update_all_applies_even_when_metadata_already_correct(self) -> None:
-        """Test updateAll writes managed asset metadata even when values already match"""
-        print("🧪 Testing asset updateAll re-apply...")
+        """updateAll does not write when the rebuilt aliases already match storage."""
+        print("🧪 Testing asset updateAll skip when unchanged...")
 
         asset_view_id = ViewId(space="cdf_cdm", external_id="CogniteAsset", version="v1")
         node = MagicMock()
@@ -888,12 +890,9 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
             node, asset_view_id, "inst_cfihos_oil_and_gas", update_all=True
         )
 
-        self.assertIsNotNone(result)
-        properties = result.sources[0].properties
-        self.assertEqual(properties["aliases"], ["23_KA_9101"])
-        self.assertNotIn("tags", properties)
+        self.assertIsNone(result)
 
-        print("✅ Asset updateAll re-apply test passed")
+        print("✅ Asset updateAll skip-when-unchanged test passed")
 
     def test_asset_incremental_adds_missing_alias(self) -> None:
         """Test incremental asset processing adds the alias its name yields"""
