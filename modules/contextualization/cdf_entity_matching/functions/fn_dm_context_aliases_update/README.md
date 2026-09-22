@@ -116,8 +116,8 @@ conventions. The alias written back is the pattern's **capture groups joined by 
 the groups decide the alias, not the whole match — so with the default pattern
 `VAL_23-KA-9101:X.Value` yields `23_KA_9101`. When a pattern uses one capture group for
 the whole tag, separators inside that group (`-`, `.`, `:`) are still rewritten to `_`
-for equipment tags starting with a two-digit area code. Document numbers and pump codes
-are left unchanged. Every pattern defaults to the shape above, so a configuration written
+for every generated alias, including letter-prefixed tags (`DB-9101` → `DB_9101`) and
+document numbers. Every pattern defaults to the shape above, so a configuration written
 before this setting existed keeps behaving the same.
 
 When no pattern extracts anything from a name, **no alias is produced**. The `aliases`
@@ -175,9 +175,10 @@ are no longer recognised as generated and are treated as hand-curated from then 
 ### File aliases
 
 Files get the name with its final extension removed **in addition to** the usual
-pattern-derived aliases, so a document is findable both by its bare file name and by the
-tag it refers to. `PID_23-KA-9101_rev3.pdf` yields `PID_23-KA-9101_rev3` and
-`23_KA_9101`. A name with no extension is used as it stands.
+pattern-derived aliases **only when a pattern matches**, so a document is findable both
+by its bare file name and by the tag it refers to. `PID_23-KA-9101_rev3.pdf` yields
+`PID_23_KA_9101_rev3` and `23_KA_9101`. A name that matches no pattern, such as
+`23-1ST STAGE COMP ENCLOSURE-PH.pdf`, produces no alias.
 
 `aliasSelection` does not apply to the extension-stripped name — that alias is not a
 pattern match, so it is always kept.
@@ -185,23 +186,23 @@ pattern match, so it is always kept.
 #### Document numbers
 
 The module's default `fileAliasPattern` recognises document numbers as well as equipment
-tags, so `PH-25578-P-4110006-001.pdf` gets both `PH-25578-P-4110006-001` and the same
-number without its sheet number, `PH-25578-P-4110006`:
+tags, so `PH-25578-P-4110006-001.pdf` gets both `PH_25578_P_4110006_001` and the same
+number without its sheet number, `PH_25578_P_4110006`:
 
 ```yaml
 fileAliasPattern:
-  - '(?<![A-Z])([A-Z]{2,4}-[0-9]+-[A-Z]-[0-9]+-[0-9]+)'
-  - '(?<![A-Z])([A-Z]{2,4}-[0-9]+-[A-Z]-[0-9]+)(?:-[0-9]+)?'
+  - '(?<![A-Z])([A-Z]{2,4}[-_][0-9]+[-_][A-Z][-_][0-9]+[-_][0-9]+)'
+  - '(?<![A-Z])([A-Z]{2,4}[-_][0-9]+[-_][A-Z][-_][0-9]+)(?:[-_][0-9]+)?'
   - '([0-9]{2})[-_.:]([A-Z]{2,3})[-_.:]([0-9]{4,5})'
 ```
 
 Three details make that work, and are worth copying when adapting the patterns to a
 different document numbering scheme:
 
-- **One capture group per pattern.** The alias is the groups joined by `_`, so capturing
-  the number in four groups would write `PH_25578_P_4110006` instead. A single group
-  spanning the whole number keeps the dashes as they are.
-- **The sheet number sits outside the group and is optional** — `(?:-[0-9]+)?`. Optional
+- **Accept `_` as well as `-` between segments.** Generated aliases always use `_`, and
+  the function identifies its own earlier output by feeding a stored alias back through
+  the pattern.
+- **The sheet number sits outside the group and is optional** — `(?:[-_][0-9]+)?`. Optional
   is what lets the shortened alias be recognised as generated when it is read back, so
   `updateAll` rebuilds it instead of treating it as hand-curated.
 - **`(?<![A-Z])` stops a match starting mid-prefix.** Without it a name like
@@ -209,7 +210,7 @@ different document numbering scheme:
   prefix itself allows two to four letters.
 
 This list needs `aliasSelection: all` to produce both aliases; `longest` would keep only
-`PH-25578-P-4110006-001`.
+`PH_25578_P_4110006_001`.
 
 The extension-stripped alias cannot be recognised as generated the way a tag alias can —
 it is ordinary text, not a pattern match. So renaming a file and rerunning with

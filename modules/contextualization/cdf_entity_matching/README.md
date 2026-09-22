@@ -202,10 +202,10 @@ assetAliasPattern:
   - '([0-9]{2})[-_.:]([A-Z]{2,3})[-_.:]([0-9]{4,5})'
 assetAliasSelection: all
 # Files default to document numbers as well: PH-25578-P-4110006-001.pdf gives
-# PH-25578-P-4110006-001 and PH-25578-P-4110006
+# PH_25578_P_4110006_001 and PH_25578_P_4110006
 fileAliasPattern:
-  - '(?<![A-Z])([A-Z]{2,4}-[0-9]+-[A-Z]-[0-9]+-[0-9]+)'
-  - '(?<![A-Z])([A-Z]{2,4}-[0-9]+-[A-Z]-[0-9]+)(?:-[0-9]+)?'
+  - '(?<![A-Z])([A-Z]{2,4}[-_][0-9]+[-_][A-Z][-_][0-9]+[-_][0-9]+)'
+  - '(?<![A-Z])([A-Z]{2,4}[-_][0-9]+[-_][A-Z][-_][0-9]+)(?:[-_][0-9]+)?'
   - '([0-9]{2})[-_.:]([A-Z]{2,3})[-_.:]([0-9]{4,5})'
 fileAliasSelection: all
 
@@ -242,8 +242,9 @@ entityViewFilterValues: []
 
 These name the property whose value is handed to the matching model — `name` by default,
 often `aliases` when a source system tag differs from the display name. A list-valued
-property such as `aliases` contributes one match candidate per entry, so an instance with
-three aliases is offered to the model three times and keeps whichever match scores best.
+property such as `aliases` contributes only its longest usable entry, so
+`["DB_9101", "23_DB_9101"]` is matched as `23_DB_9101`. Equal-length values keep the
+first. A single string is used as-is.
 
 When the property holds nothing usable the instance falls back to matching on its `name`.
 That covers all three ways "nothing usable" can look, which are not distinguishable in
@@ -298,13 +299,12 @@ assetAliasSelection: longest
 ```
 
 `fileAliasPattern` defaults to document numbers as well as the equipment tag, so
-`PH-25578-P-4110006-001.pdf` yields `PH-25578-P-4110006-001` and `PH-25578-P-4110006`.
+`PH-25578-P-4110006-001.pdf` yields `PH_25578_P_4110006_001` and `PH_25578_P_4110006`.
 That pair needs `fileAliasSelection: all`, since `longest` would drop the shorter number.
 Files also get their file name without its final extension, which the selection never
-discards. See
+discards. Separators in every generated alias are rewritten to `_`. See
 [Document numbers](functions/fn_dm_context_aliases_update/README.md#document-numbers)
-before adapting those patterns — capturing a number in several groups would rewrite its
-dashes as underscores.
+before adapting those patterns.
 
 Write character classes rather than backslash escapes — `[0-9]`, not `\d` — because
 Toolkit substitutes variables as a regex replacement and a backslash escape fails the

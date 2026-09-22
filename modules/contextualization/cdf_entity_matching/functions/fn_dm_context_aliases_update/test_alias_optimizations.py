@@ -170,9 +170,19 @@ PUMP_PATTERN = r"([A-Z]{3})[-_]?(\d{4})"
 # The document number patterns shipped in the module's default.config.yaml, for
 # fileAliasPattern. Kept in sync by hand; the tests below pin the behaviour they promise.
 DOCUMENT_PATTERNS = [
-    r"(?<![A-Z])([A-Z]{2,4}-[0-9]+-[A-Z]-[0-9]+-[0-9]+)",
-    r"(?<![A-Z])([A-Z]{2,4}-[0-9]+-[A-Z]-[0-9]+)(?:-[0-9]+)?",
+    r"(?<![A-Z])([A-Z]{2,4}[-_][0-9]+[-_][A-Z][-_][0-9]+[-_][0-9]+)",
+    r"(?<![A-Z])([A-Z]{2,4}[-_][0-9]+[-_][A-Z][-_][0-9]+)(?:[-_][0-9]+)?",
     r"([0-9]{2})[-_.:]([A-Z]{2,3})[-_.:]([0-9]{4,5})",
+]
+
+# The equipment tag patterns shipped in the module's default.config.yaml, for
+# assetAliasPattern. The first one reads the tag without its unit prefix, so a name such
+# as 23-DB-9101 has to yield both the short and the full tag under 'all'.
+SHIPPED_ASSET_PATTERNS = [
+    r"([A-Z]{2,4}[-_.:][0-9]{4,5})",
+    r"([0-9]{2}[-_.:][A-Z]{2,4}[-_.:][0-9]{4,5}[A-Z][-_][A-Z]{1,3})",
+    r"([0-9]{2}[-_.:][A-Z]{2,4}[-_.:][0-9]{4,5}[-_][A-Z]{1,3})",
+    r"([0-9]{2}[-_.:][A-Z]{2,4}[-_.:][0-9]{4,5})",
 ]
 
 
@@ -282,6 +292,23 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
             result.sources[0].properties["aliases"], ["operator note", "23_KA_9101"]
         )
 
+    def test_letter_prefixed_aliases_are_normalized(self) -> None:
+        """Separators are rewritten for every generated alias, not only two-digit tags."""
+        processor = OptimizedMetadataProcessor(
+            self.logger,
+            asset_alias_rule=AliasRule.from_config(SHIPPED_ASSET_PATTERNS, selection="all"),
+        )
+        asset_view = ViewId(space="cdf_cdm", external_id="CogniteAsset", version="v1")
+        node = MagicMock()
+        node.external_id = "23-DB-9101"
+        node.properties = {asset_view: {"name": "23-DB-9101", "aliases": ["23-DB-9101", "DB-9101"]}}
+
+        result = processor.process_asset_metadata(
+            node, asset_view, "inst_location", update_all=True
+        )
+
+        self.assertEqual(result.sources[0].properties["aliases"], ["DB_9101", "23_DB_9101"])
+
     def test_a_single_group_tag_pattern_still_normalizes_separators(self) -> None:
         """One capture group for the whole tag must still yield underscores between tokens."""
         single_group = r"([0-9]{2}[-_.:][A-Z]{2,4}[-_.:][0-9]{4,5})"
@@ -312,7 +339,7 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
         self.assertEqual(asset_result.sources[0].properties["aliases"], ["23_KA_9101"])
         self.assertEqual(
             file_result.sources[0].properties["aliases"],
-            ["23-KA-9101", "23_KA_9101"],
+            ["23_KA_9101"],
         )
 
     def test_configured_pattern_drives_timeseries_alias_generation(self) -> None:
@@ -544,7 +571,7 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
 
         self.assertEqual(
             result.sources[0].properties["aliases"],
-            ["PID_23-KA-9101_rev3", "23_KA_9101"],
+            ["PID_23_KA_9101_rev3", "23_KA_9101"],
         )
 
     def test_a_file_name_without_an_extension_is_used_as_is(self) -> None:
@@ -555,7 +582,7 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
 
         result = self.processor.process_file_metadata(node, self.file_view_id, "inst_cfihos_oil_and_gas")
 
-        self.assertEqual(result.sources[0].properties["aliases"], ["23-KA-9101", "23_KA_9101"])
+        self.assertEqual(result.sources[0].properties["aliases"], ["23_KA_9101"])
 
     def test_files_use_their_own_configured_pattern(self) -> None:
         """Documents may be named on a different convention than the assets they describe."""
@@ -572,12 +599,24 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
 
         self.assertEqual(result.sources[0].properties["aliases"], ["PMP1234_datasheet", "PMP_1234"])
 
-    def test_document_number_aliases_keep_their_separators(self) -> None:
-        """The shipped document patterns, which must not rewrite dashes as underscores.
+    def test_file_without_a_pattern_match_does_not_use_the_name_as_an_alias(self) -> None:
+        """A descriptive file name is not a tag; it must not be rewritten into aliases."""
+        node = MagicMock()
+        node.external_id = "file:4021"
+        node.properties = {
+            self.file_view_id: {
+                "name": "23-1ST STAGE COMP ENCLOSURE-PH.pdf",
+                "aliases": ["23_1ST STAGE COMP ENCLOSURE_PH"],
+            }
+        }
 
-        A single capture group per pattern is what preserves them, since the alias is the
-        groups joined by "_".
-        """
+        result = self.processor.process_file_metadata(node, self.file_view_id, "inst_cfihos_oil_and_gas")
+
+        self.assertIsNotNone(result)
+        self.assertIsNone(result.sources[0].properties["aliases"])
+
+    def test_document_number_aliases_are_normalized(self) -> None:
+        """Document numbers get the same separator rewrite as equipment tags."""
         processor = OptimizedMetadataProcessor(
             self.logger, file_alias_rule=AliasRule.from_config(DOCUMENT_PATTERNS)
         )
@@ -589,7 +628,7 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
 
         self.assertEqual(
             result.sources[0].properties["aliases"],
-            ["PH-25578-P-4110006-001", "PH-25578-P-4110006"],
+            ["PH_25578_P_4110006_001", "PH_25578_P_4110006"],
         )
 
     def test_a_document_alias_without_its_sheet_number_is_still_ours(self) -> None:
@@ -599,7 +638,10 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
         """
         rule = AliasRule.from_config(DOCUMENT_PATTERNS)
 
-        self.assertEqual(_unmanaged_aliases(["PH-25578-P-4110006", "operator note"], rule), ["operator note"])
+        self.assertEqual(
+            _unmanaged_aliases(["PH-25578-P-4110006", "PH_25578_P_4110006", "operator note"], rule),
+            ["operator note"],
+        )
 
     def test_a_longer_prefix_does_not_yield_a_truncated_document_alias(self) -> None:
         """Matching from the second letter of a prefix would write a wrong document number."""
@@ -610,9 +652,12 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
         node.external_id = "file:4011"
         node.properties = {self.file_view_id: {"name": "SHEET-1-A-2.pdf", "aliases": []}}
 
-        result = processor.process_file_metadata(node, self.file_view_id, "inst_cfihos_oil_and_gas")
+        result = processor.process_file_metadata(
+            node, self.file_view_id, "inst_cfihos_oil_and_gas", update_all=True
+        )
 
-        self.assertEqual(result.sources[0].properties["aliases"], ["SHEET-1-A-2"])
+        self.assertIsNotNone(result)
+        self.assertIsNone(result.sources[0].properties["aliases"])
 
     def test_file_skips_update_when_aliases_already_present(self) -> None:
         """No write when there is nothing to add, so reruns stay cheap."""
@@ -621,7 +666,7 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
         node.properties = {
             self.file_view_id: {
                 "name": "PID_23-KA-9101_rev3.pdf",
-                "aliases": ["PID_23-KA-9101_rev3", "23_KA_9101"],
+                "aliases": ["PID_23_KA_9101_rev3", "23_KA_9101"],
             }
         }
 
@@ -646,7 +691,7 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
 
         self.assertEqual(
             result.sources[0].properties["aliases"],
-            ["manual note", "PID_23-KA-9101_rev3", "23_KA_9101"],
+            ["manual note", "PID_23_KA_9101_rev3", "23_KA_9101"],
         )
 
     def test_timeseries_skips_update_when_aliases_unchanged(self) -> None:

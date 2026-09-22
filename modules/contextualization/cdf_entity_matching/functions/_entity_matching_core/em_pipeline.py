@@ -627,14 +627,21 @@ def match_values(properties: Mapping[str, object], search_property: str, org_nam
     same thing here, so all three fall back to the name - otherwise an empty list leaves
     the instance out of the match set altogether and a blank string matches it on nothing.
 
+    A list (aliases, or any other list-valued search property) contributes only its
+    longest usable entry. Shorter spellings of the same tag would otherwise be offered as
+    extra match candidates and can steal the result from the more specific one.
+
     Args:
         properties: The instance's properties for the view being read.
+        search_property: Property whose value is handed to the matching model.
         org_name: The instance's name, used when the search property has nothing usable.
     """
     value = properties.get(search_property)
     candidates = value if isinstance(value, list) else [value]
     usable = [str(item) for item in candidates if item is not None and str(item).strip()]
-    return usable or [org_name]
+    if not usable:
+        return [org_name]
+    return [max(usable, key=len)]
 
 
 def get_new_entities(

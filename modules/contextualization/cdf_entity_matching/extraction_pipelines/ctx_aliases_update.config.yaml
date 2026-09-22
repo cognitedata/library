@@ -4,7 +4,7 @@ config:
     debug: False
     runAll: True
     updateAll: True
-    removeOldAliases: False
+    removeOldAliases: True
     rawDb: '{{ dbName }}'
     rawTableState: 'ts_state_store'
   data:
