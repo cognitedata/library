@@ -236,17 +236,25 @@ entityViewFilterValues: []
 #### `targetViewSearchProperty` and `entityViewSearchProperty`
 
 These name the property whose value is handed to the matching model — `name` by default,
-often `aliases` when a source system tag differs from the display name. A list-valued
-property such as `aliases` contributes only its longest usable entry, so
-`["DB_9101", "23_DB_9101"]` is matched as `23_DB_9101`. Equal-length values keep the
-first. A single string is used as-is.
+often `aliases` when a source system tag differs from the display name. The aliases
+update function writes those normalized tags beforehand so entity matching can compare
+like-for-like strings (for example `23_KA_9101`) even when the display `name` still
+carries prefixes or separators.
 
-When the property holds nothing usable the instance falls back to matching on its `name`.
-That covers all three ways "nothing usable" can look, which are not distinguishable in
-practice: the property is unset and therefore absent from the API response, it is set to
-an empty list, or it is set to a blank string. Empty entries in an otherwise populated
-list are dropped rather than triggering the fallback, so `["pi:1", ""]` matches on
-`pi:1` alone.
+List-valued properties are reduced differently on each side:
+
+- **Entities** (`entityViewSearchProperty`): only the **longest** usable entry is used, so
+  one timeseries is not submitted as several match candidates.
+  `["DB_9101", "23_DB_9101"]` becomes `23_DB_9101`. Equal-length values keep the first.
+- **Targets** (`targetViewSearchProperty`): **every** usable entry is kept, so alternate
+  spellings on an asset remain matchable.
+
+A single string is used as-is. When the property holds nothing usable the instance falls
+back to matching on its `name`. That covers all three ways "nothing usable" can look,
+which are not distinguishable in practice: the property is unset and therefore absent
+from the API response, it is set to an empty list, or it is set to a blank string. Empty
+entries in an otherwise populated list are dropped rather than triggering the fallback,
+so `["pi:1", ""]` matches on `pi:1` alone.
 
 One consequence worth checking on setup: if you configure a property name that does not
 exist on the view — `alias` instead of `aliases`, say — every instance takes the fallback

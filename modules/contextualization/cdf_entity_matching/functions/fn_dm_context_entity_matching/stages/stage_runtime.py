@@ -4,7 +4,9 @@ from collections.abc import Callable
 from typing import Any
 
 from cognite.client import CogniteClient
-from em_config import format_config_summary, load_config_parameters
+
+# isort: split
+from em_config import Config, format_config_summary, load_config_parameters
 from em_logger import CogniteFunctionLogger
 from em_pipeline_optimizations import (
     PerformanceBenchmark,
@@ -12,8 +14,9 @@ from em_pipeline_optimizations import (
     monitor_memory_usage,
     patch_existing_pipeline,
 )
+from em_pipeline_types import FunctionInputData
 
-PipelineFn = Callable[[CogniteClient, CogniteFunctionLogger, dict[str, Any], Any], None]
+PipelineFn = Callable[[CogniteClient, CogniteFunctionLogger, FunctionInputData, Config], None]
 
 
 def run_stage(

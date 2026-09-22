@@ -47,6 +47,40 @@ ID.
 The queue row is written **last**: collect only ever sees a job whose matches are already
 staged.
 
+### What the counts mean (entities vs pairs)
+
+Two different units show up in INFO logs and are easy to confuse:
+
+- **Entities** — how many source instances got at least one manual or rule match (for
+  example “across 350 entities”). That is also what the extraction-pipeline run reports
+  as matched entities.
+- **Entity–target pairs** — one row per link, so one entity that matches many targets
+  contributes many rows. Staging logs this as
+  `Staged N entity-target pair(s) from manual/rule matching across M entities`.
+
+Those staged pairs are **finished matches** from the manual and rule steps — not
+candidates still waiting for the ML predict job. Collect merges them with the model’s
+results later; for any entity already covered by a staged pair, the model result does
+not overwrite it.
+
+A pair count far above the entity count usually means a rule key resolved to many
+targets (check `entity_rule_keys` / `asset_rule_keys` on the good RAW table and tighten
+`EntityRegExp` / `AssetRegExp` if needed). The same `(entity, target)` pair is only kept
+once when matches are merged; `MAX_LINKS_PER_ENTITY` (1000) caps how many links a single
+entity can receive when writing to the data model.
+
+### How aliases are used
+
+Aliases are prepared by the workflow’s aliases-update step. Submit/collect then read
+`entityViewSearchProperty` / `targetViewSearchProperty` (often `aliases`):
+
+- On **entities**, only the longest alias is used as the match string.
+- On **targets**, every alias is kept so alternate forms still match.
+
+Rule-based matching still applies its regexes to the instance `name`, not to aliases.
+See the [module README](../../README.md#targetviewsearchproperty-and-entityviewsearchproperty)
+for the full property behaviour.
+
 ### Reading the entities
 
 Entities are read from the configured view and spaces with a `hasData` filter only.
@@ -85,6 +119,11 @@ Pass `"logLevel": "INFO"` or `"DEBUG"` in the function input (workflow already s
 `INFO` is what the run did; `DEBUG` adds timing, memory, and poll status. Each run
 brackets the log with `===== SUBMIT =====` / `===== COLLECT =====` at INFO so the stage
 is obvious for a shared function external ID in the CDF log viewer.
+
+On submit, expect lines such as
+`Staged N entity-target pair(s) from manual/rule matching across M entities` — see
+[What the counts mean](#what-the-counts-mean-entities-vs-pairs). Collect logs the same
+pair/entity counts when it reads the staging file back.
 
 Set `dmUpdate: false` in the extraction pipeline config to skip writing matches to the
 data model. It still processes **all** entities / finished jobs — it does not limit the

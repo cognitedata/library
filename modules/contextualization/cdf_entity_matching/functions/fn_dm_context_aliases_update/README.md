@@ -93,7 +93,7 @@ data:
 | Parameter | Purpose |
 |-----------|---------|
 | `runAll` | Fetch all instances (not only those missing `aliases`) |
-| `updateAll` | Reset managed metadata and reprocess every fetched instance (implies `runAll`) |
+| `updateAll` | Rebuild generated aliases on every fetched instance (implies `runAll`). A DM write — and the “updated” count — happens only when the rebuilt list differs from what is already stored |
 | `removeOldAliases` | Discard every existing alias and write only what this run produces (implies `runAll`) |
 
 Every view is fetched on the presence of `aliases` alone, so `runAll`, `updateAll` and
@@ -216,9 +216,13 @@ it is ordinary text, not a pattern match. So renaming a file and rerunning with
 hand if that matters.
 
 For a full metadata refresh, set `updateAll: true` in the extraction pipeline config.
-"Reset" covers only the values this function generates — aliases matching the view's
-`aliasPattern`. Hand-curated aliases are preserved, including aliases that merely mention
-a tag (for example `spare for 23-AB-1234`).
+That rebuilds only the values this function generates — aliases matching the view's
+`aliasPattern` — while hand-curated aliases are preserved, including aliases that merely
+mention a tag (for example `spare for 23-AB-1234`). After the rebuild, the function
+compares the new list to what is already on the instance: if they are the same, it
+skips the DM write and does not count the instance as updated. Use `updateAll` to retire
+stale generated aliases or pick up a changed pattern; do not expect every fetched
+instance to appear in the update count on a no-op rerun.
 
 To replace the entire `aliases` list — generated and hand-curated alike — set
 `removeOldAliases: true`. The function then writes only the aliases it produces on this
@@ -284,6 +288,11 @@ print(f"Status: {result['status']}")
 - Adds normalized tag aliases for entity matching, and for files the file name without
   its extension
 - Handles batch updates with memory management
+
+Entity matching (submit/collect) then reads those aliases via
+`entityViewSearchProperty` / `targetViewSearchProperty`: entities use the **longest**
+alias as the match string; targets keep **all** aliases. See
+[fn_dm_context_entity_matching](../fn_dm_context_entity_matching/README.md#how-aliases-are-used).
 
 #### 2. **BatchProcessor**
 - Applies node updates in configurable batches (default 1000, the SDK's own chunk size)
