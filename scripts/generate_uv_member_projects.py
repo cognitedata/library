@@ -133,7 +133,7 @@ PACKAGE_SPECS: list[dict[str, object]] = [
     {
         "path": "modules/contextualization/cdf_entity_matching/functions/fn_dm_context_entity_matching",
         "name": "fn-dm-context-entity-matching",
-        "requires_python": ">=3.11,<3.14",
+        "requires_python": ">=3.13,<3.14",
         "dependencies": [
             "cognite-extractor-utils>=7",
             "cognite-sdk>=7,<8",
