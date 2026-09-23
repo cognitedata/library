@@ -67,6 +67,42 @@ def entities_missing_search_property(entities: list[dict]) -> list[dict]:
     return missing
 
 
+def detectable_entities(entities: list[dict]) -> list[dict]:
+    """Return the entities diagram detect can match on.
+
+    An instance whose aliases were never set, or were cleared, has nothing to search for
+    and the API rejects the whole request over it ("must be a string or list of strings"),
+    so it is left out rather than allowed to fail every file in the batch.
+    """
+    return [row for row in entities if row.get("search_property")]
+
+
+def search_values(value: object, *, fallback: object = None) -> list[str]:
+    """Return a search property as the list of non-blank strings the detect API requires.
+
+    The property comes straight from the view, where it can be absent, null, a single
+    string, or a list that a previous run left blanks in. Assets and files alike fall back
+    to their name when it holds nothing to search for - aliases are cleared whenever no
+    pattern matches, and the name is then all that is left to match the instance on.
+
+    Args:
+        value: The search property as read from the view.
+        fallback: Used when the search property carries no usable string, normally the
+            instance name.
+    """
+    usable = _non_blank_strings(value)
+    return usable or _non_blank_strings(fallback)
+
+
+def _non_blank_strings(value: object) -> list[str]:
+    """The strings in a property value that are worth searching for."""
+    if isinstance(value, str):
+        return [value] if value.strip() else []
+    if isinstance(value, list):
+        return [item for item in value if isinstance(item, str) and item.strip()]
+    return []
+
+
 class ICacheService(abc.ABC):
     """
     Manages a persistent cache of entities to pass into diagram detect (e.g., assets, files)
@@ -157,7 +193,7 @@ class GeneralCacheService(ICacheService):
             asset_pattern_samples: list[dict] = row.columns.get("AssetPatternSamples", [])
             file_pattern_samples: list[dict] = row.columns.get("FilePatternSamples", [])
             combined_pattern_samples: list[dict] = row.columns.get("CombinedPatternSamples", [])
-            entities = asset_entities + file_entities
+            entities = detectable_entities(asset_entities + file_entities)
             self._log_launch_input_summary(
                 scope_key=key,
                 source="CACHE",
@@ -178,7 +214,7 @@ class GeneralCacheService(ICacheService):
 
         # Convert to entities for diagram detect job
         asset_entities, file_entities = self._convert_instances_to_entities(asset_instances, file_instances)
-        entities = asset_entities + file_entities
+        entities = detectable_entities(asset_entities + file_entities)
 
         # Generate pattern samples from the same entities (source-specific normalize filters)
         text_norm = self.config.promote_function.entity_search_service.text_normalization
@@ -394,27 +430,19 @@ class GeneralCacheService(ICacheService):
             asset_resource_type: str = (
                 instance_properties.get(target_entities_resource_type) if target_entities_resource_type else None
             ) or self.target_entities_view.external_id
-            if target_entities_search_property in instance_properties:
-                asset_entity = entity(
-                    external_id=instance.external_id,
-                    name=instance_properties.get("name"),
-                    space=instance.space,
-                    annotation_type=self.target_entities_view.annotation_type,
-                    resource_type=asset_resource_type,
-                    search_property=instance_properties.get(target_entities_search_property),
-                )
-                target_entities.append(asset_entity.to_dict())
-            else:
-                search_value: list = [instance_properties.get("name")]
-                asset_entity = entity(
-                    external_id=instance.external_id,
-                    name=instance_properties.get("name"),
-                    space=instance.space,
-                    annotation_type=self.target_entities_view.annotation_type,
-                    resource_type=asset_resource_type,
-                    search_property=search_value,
-                )
-                target_entities.append(asset_entity.to_dict())
+            asset_search_values = search_values(
+                instance_properties.get(target_entities_search_property),
+                fallback=instance_properties.get("name"),
+            )
+            asset_entity = entity(
+                external_id=instance.external_id,
+                name=instance_properties.get("name"),
+                space=instance.space,
+                annotation_type=self.target_entities_view.annotation_type,
+                resource_type=asset_resource_type,
+                search_property=asset_search_values,
+            )
+            target_entities.append(asset_entity.to_dict())
 
         file_resource_type_prop: str | None = self.config.launch_function.file_resource_property
         file_search_property: str = self.config.launch_function.file_search_property
@@ -431,7 +459,10 @@ class GeneralCacheService(ICacheService):
                 space=instance.space,
                 annotation_type=self.file_view.annotation_type,
                 resource_type=file_entity_resource_type,
-                search_property=instance_properties.get(file_search_property),
+                search_property=search_values(
+                    instance_properties.get(file_search_property),
+                    fallback=instance_properties.get("name"),
+                ),
             )
             file_entities.append(file_entity.to_dict())
 

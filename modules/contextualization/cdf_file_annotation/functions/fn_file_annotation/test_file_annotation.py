@@ -265,6 +265,17 @@ def test_normalization_extracts_capture_groups_then_applies_hygiene() -> None:
     assert "V_0912" in matched or "V0912" in matched
 
 
+def test_hyphenated_drawing_text_searches_for_the_underscore_alias() -> None:
+    """aliases_update stores a tag with "_" between tokens; drawings print it with "-"."""
+    from normalization import text_variations
+
+    file_patterns = [r"(?<![A-Z])([A-Z]{2,4}[-_][A-Z0-9]+[-_][A-Z][-_][0-9]+[-_][0-9]+)"]
+    entity_patterns = [r"([0-9]{2}[-_.:][A-Z]{2,4}[-_.:][0-9]{4,5})"]
+
+    assert "PH_ME_P_0151_001" in text_variations("PH-ME-P-0151-001", file_patterns)
+    assert "23_DB_9101" in text_variations("23-DB-9101", entity_patterns)
+
+
 def test_promote_cleanup_policy_is_fixed() -> None:
     from fa_constants import DELETE_REJECTED_EDGES, DELETE_SUGGESTED_EDGES
 
@@ -572,6 +583,145 @@ def test_asset_entity_conversion_uses_empty_properties_when_view_is_missing() ->
     assert target_entities[0]["name"] is None
 
 
+def test_a_cleared_alias_property_falls_back_to_the_name() -> None:
+    """Aliases can be cleared on either view; the name is what is left to match on."""
+    from services.ConfigService import Config
+    from services.EntityCacheService import GeneralCacheService
+
+    config = Config.model_validate(
+        {
+            "parameters": {"rawDb": "db_file_annotation"},
+            "data": {
+                "fileView": {
+                    "schemaSpace": "cdf_cdm",
+                    "instanceSpace": "files",
+                    "externalId": "CogniteFile",
+                    "version": "v1",
+                },
+                "targetEntitiesView": {
+                    "schemaSpace": "cdf_cdm",
+                    "instanceSpace": "assets",
+                    "externalId": "CogniteAsset",
+                    "version": "v1",
+                },
+                "annotationStateView": {
+                    "schemaSpace": "sp_hdm",
+                    "instanceSpace": "files",
+                    "externalId": "FileAnnotationState",
+                    "version": "v1",
+                },
+                "sinkNode": {"space": "patterns", "externalId": "pattern_sink"},
+            },
+        }
+    )
+    cache = GeneralCacheService(config, MagicMock(), MagicMock())
+
+    file_node = MagicMock()
+    file_node.external_id = "doc-1"
+    file_node.space = "files"
+    file_node.properties.get.return_value = {"name": "P&ID-1", "aliases": None}
+
+    asset_node = MagicMock()
+    asset_node.external_id = "asset-1"
+    asset_node.space = "assets"
+    asset_node.properties.get.return_value = {"name": "23-DB-9101", "aliases": []}
+
+    target_entities, file_entities = cache._convert_instances_to_entities([asset_node], [file_node])
+
+    assert file_entities[0]["search_property"] == ["P&ID-1"]
+    assert target_entities[0]["search_property"] == ["23-DB-9101"]
+
+
+def test_an_instance_without_aliases_or_a_name_has_nothing_to_search_on() -> None:
+    """With neither, the entity is left out rather than sent as a null search field."""
+    from services.ConfigService import Config
+    from services.EntityCacheService import GeneralCacheService
+
+    config = Config.model_validate(
+        {
+            "parameters": {"rawDb": "db_file_annotation"},
+            "data": {
+                "fileView": {
+                    "schemaSpace": "cdf_cdm",
+                    "instanceSpace": "files",
+                    "externalId": "CogniteFile",
+                    "version": "v1",
+                },
+                "targetEntitiesView": {
+                    "schemaSpace": "cdf_cdm",
+                    "instanceSpace": "assets",
+                    "externalId": "CogniteAsset",
+                    "version": "v1",
+                },
+                "annotationStateView": {
+                    "schemaSpace": "sp_hdm",
+                    "instanceSpace": "files",
+                    "externalId": "FileAnnotationState",
+                    "version": "v1",
+                },
+                "sinkNode": {"space": "patterns", "externalId": "pattern_sink"},
+            },
+        }
+    )
+    cache = GeneralCacheService(config, MagicMock(), MagicMock())
+
+    file_node = MagicMock()
+    file_node.external_id = "doc-1"
+    file_node.space = "files"
+    file_node.properties.get.return_value = {"name": None, "aliases": None}
+
+    asset_node = MagicMock()
+    asset_node.external_id = "asset-1"
+    asset_node.space = "assets"
+    asset_node.properties.get.return_value = {"name": "   ", "aliases": None}
+
+    target_entities, file_entities = cache._convert_instances_to_entities([asset_node], [file_node])
+
+    assert file_entities[0]["search_property"] == []
+    assert target_entities[0]["search_property"] == []
+
+
+def test_an_asset_without_aliases_still_matches_on_its_name() -> None:
+    from services.ConfigService import Config
+    from services.EntityCacheService import GeneralCacheService
+
+    config = Config.model_validate(
+        {
+            "parameters": {"rawDb": "db_file_annotation"},
+            "data": {
+                "fileView": {
+                    "schemaSpace": "cdf_cdm",
+                    "instanceSpace": "files",
+                    "externalId": "CogniteFile",
+                    "version": "v1",
+                },
+                "targetEntitiesView": {
+                    "schemaSpace": "cdf_cdm",
+                    "instanceSpace": "assets",
+                    "externalId": "CogniteAsset",
+                    "version": "v1",
+                },
+                "annotationStateView": {
+                    "schemaSpace": "sp_hdm",
+                    "instanceSpace": "files",
+                    "externalId": "FileAnnotationState",
+                    "version": "v1",
+                },
+                "sinkNode": {"space": "patterns", "externalId": "pattern_sink"},
+            },
+        }
+    )
+    cache = GeneralCacheService(config, MagicMock(), MagicMock())
+    asset_node = MagicMock()
+    asset_node.external_id = "asset-1"
+    asset_node.space = "assets"
+    asset_node.properties.get.return_value = {"name": "23-DB-9101"}
+
+    target_entities, _ = cache._convert_instances_to_entities([asset_node], [])
+
+    assert target_entities[0]["search_property"] == ["23-DB-9101"]
+
+
 def test_launch_service_handles_file_node_with_none_properties() -> None:
     import services.LaunchService as launch_service
     from services.ConfigService import Config
@@ -686,6 +836,137 @@ def test_launch_omits_scope_logs_when_unscoped() -> None:
     )
     assert not any(message.startswith("Created batch of") for message in messages)
     assert not any(message.startswith("Finished processing for") for message in messages)
+
+
+def _file_node_with_tags(file_id, tags: list[str]) -> MagicMock:
+    """A file node carrying `tags` on the configured file view."""
+    from cognite.client.data_classes.data_modeling import ViewId
+
+    file_node = MagicMock()
+    file_node.space = file_id.space
+    file_node.external_id = file_id.external_id
+    file_node.as_id.return_value = file_id
+    file_node.properties = {ViewId("cdf_cdm", "CogniteFile", "v1"): {"tags": tags}}
+    return file_node
+
+
+def test_a_failed_launch_releases_the_files_it_claimed() -> None:
+    """A stuck 'AnnotationInProcess' tag keeps Prepare from ever picking the file up again."""
+    import services.LaunchService as launch_service
+    from cognite.client.data_classes.data_modeling import NodeId
+    from cognite.client.exceptions import CogniteAPIError
+    from services.ConfigService import Config
+
+    config = Config.model_validate(
+        {
+            "parameters": {"rawDb": "db_file_annotation"},
+            "data": {
+                "fileView": {
+                    "schemaSpace": "cdf_cdm",
+                    "instanceSpace": "files",
+                    "externalId": "CogniteFile",
+                    "version": "v1",
+                },
+                "targetEntitiesView": {
+                    "schemaSpace": "cdf_cdm",
+                    "instanceSpace": "assets",
+                    "externalId": "CogniteAsset",
+                    "version": "v1",
+                },
+                "annotationStateView": {
+                    "schemaSpace": "sp_hdm",
+                    "instanceSpace": "files",
+                    "externalId": "FileAnnotationState",
+                    "version": "v1",
+                },
+                "sinkNode": {"space": "patterns", "externalId": "pattern_sink"},
+            },
+        }
+    )
+    file_id = NodeId("files", "file-1")
+    file_node = _file_node_with_tags(file_id, ["ToAnnotate", "AnnotationInProcess"])
+    data_model_service = MagicMock()
+    data_model_service.get_files_to_process.return_value = ([file_node], {file_id: MagicMock(properties=None)})
+
+    launch_svc = launch_service.GeneralLaunchService(
+        client=MagicMock(),
+        config=config,
+        logger=MagicMock(),
+        tracker=MagicMock(),
+        data_model_service=data_model_service,
+        cache_service=MagicMock(),
+        annotation_service=MagicMock(),
+        function_call_info={},
+        rate_limit_policy=MagicMock(),
+    )
+    launch_svc._ensure_cache_for_batch = MagicMock()
+    launch_svc._process_batch = MagicMock(
+        side_effect=CogniteAPIError("Entity[searchField=search_property] must be a string", code=400)
+    )
+
+    with pytest.raises(CogniteAPIError):
+        launch_svc.run()
+
+    released = data_model_service.update_annotation_state.call_args.args[0]
+    assert [node.external_id for node in released] == ["file-1"]
+    assert released[0].sources[0].properties["tags"] == ["ToAnnotate"]
+
+
+def test_a_rate_limited_launch_keeps_the_files_claimed() -> None:
+    """429 means try again shortly, so the claim has to survive for the next run."""
+    import services.LaunchService as launch_service
+    from cognite.client.data_classes.data_modeling import NodeId
+    from cognite.client.exceptions import CogniteAPIError
+    from services.ConfigService import Config
+
+    config = Config.model_validate(
+        {
+            "parameters": {"rawDb": "db_file_annotation"},
+            "data": {
+                "fileView": {
+                    "schemaSpace": "cdf_cdm",
+                    "instanceSpace": "files",
+                    "externalId": "CogniteFile",
+                    "version": "v1",
+                },
+                "targetEntitiesView": {
+                    "schemaSpace": "cdf_cdm",
+                    "instanceSpace": "assets",
+                    "externalId": "CogniteAsset",
+                    "version": "v1",
+                },
+                "annotationStateView": {
+                    "schemaSpace": "sp_hdm",
+                    "instanceSpace": "files",
+                    "externalId": "FileAnnotationState",
+                    "version": "v1",
+                },
+                "sinkNode": {"space": "patterns", "externalId": "pattern_sink"},
+            },
+        }
+    )
+    file_id = NodeId("files", "file-1")
+    file_node = _file_node_with_tags(file_id, ["ToAnnotate", "AnnotationInProcess"])
+    data_model_service = MagicMock()
+    data_model_service.get_files_to_process.return_value = ([file_node], {file_id: MagicMock(properties=None)})
+
+    launch_svc = launch_service.GeneralLaunchService(
+        client=MagicMock(),
+        config=config,
+        logger=MagicMock(),
+        tracker=MagicMock(),
+        data_model_service=data_model_service,
+        cache_service=MagicMock(),
+        annotation_service=MagicMock(),
+        function_call_info={},
+        rate_limit_policy=MagicMock(),
+    )
+    launch_svc._ensure_cache_for_batch = MagicMock()
+    launch_svc._process_batch = MagicMock(side_effect=CogniteAPIError("too many jobs", code=429))
+
+    launch_svc.run()
+
+    data_model_service.update_annotation_state.assert_not_called()
 
 
 def test_batch_of_paired_nodes_create_file_reference_handles_none_properties() -> None:

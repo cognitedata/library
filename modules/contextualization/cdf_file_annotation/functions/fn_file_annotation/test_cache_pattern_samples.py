@@ -9,6 +9,7 @@ sys.path.append(str(Path(__file__).parent))
 from services.EntityCacheService import (
     GeneralCacheService,
     count_pattern_sample_strings,
+    detectable_entities,
     entities_missing_search_property,
     split_entities_by_kind,
 )
@@ -200,6 +201,17 @@ def test_split_entities_by_kind_and_missing_aliases() -> None:
     assert len(files) == 1
     missing = entities_missing_search_property(entities)
     assert [m["external_id"] for m in missing] == ["a2"]
+
+
+def test_entities_without_a_search_value_are_kept_out_of_the_detect_payload() -> None:
+    """Diagram detect rejects an entity whose search field is not a string or list of strings."""
+    entities = [
+        _entity("a1", ["23_PT_1"]),
+        _entity("a2", []),
+        _entity("f1", None, annotation_type="diagrams.FileLink"),
+    ]
+
+    assert [row["external_id"] for row in detectable_entities(entities)] == ["a1"]
 
 
 def test_launch_input_summary_logs_info_counts(capsys) -> None:

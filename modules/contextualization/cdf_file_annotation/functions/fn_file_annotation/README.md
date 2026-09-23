@@ -33,7 +33,7 @@ Pass `"logLevel": "INFO"` or `"DEBUG"` in the function input (workflow already s
 | Level | What you get |
 |-------|----------------|
 | **INFO** | Launch input counts (assets, files, missing aliases, pattern sample count, structural flag); detect job `statusCount` / failed items / annotation hit totals; apply messages |
-| **DEBUG** | Per-entity aliases (first 40), pattern sample strings, detect per-file texts/errors, entity external IDs submitted to regular detect |
+| **DEBUG** | Per-entity aliases (first 40), pattern sample strings, detect per-file texts/errors, full entities JSON submitted to regular detect |
 
 If you set DEBUG but see no `[DEBUG]` lines, redeploy this function — older builds had almost no DEBUG statements.
 

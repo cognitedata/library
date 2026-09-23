@@ -1,4 +1,4 @@
-name: File Annotations
+name: 'ctx:file:annotation'
 externalId: {{ extractionPipelineExternalId }}
 dataSetExternalId: {{ annotationDatasetExternalId }}
 description: "Pipeline holding configuration and run history for file annotation."

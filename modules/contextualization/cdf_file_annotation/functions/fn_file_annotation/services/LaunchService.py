@@ -1,17 +1,21 @@
 import abc
+import json
 import time
 from collections import defaultdict
 from datetime import UTC, datetime
-from typing import Literal
+from typing import Literal, cast
 
 from cognite.client import CogniteClient
 from cognite.client.data_classes.contextualization import FileReference
 from cognite.client.data_classes.data_modeling import (
     Node,
+    NodeApply,
+    NodeId,
     NodeList,
+    NodeOrEdgeData,
 )
 from cognite.client.exceptions import CogniteAPIError
-from fa_constants import LOCAL_RATE_LIMIT_SLEEP_SECONDS
+from fa_constants import LOCAL_RATE_LIMIT_SLEEP_SECONDS, TAG_ANNOTATION_IN_PROCESS
 from services.AnnotationService import IAnnotationService
 from services.ConfigService import Config, ViewPropertyConfig
 from services.DataModelService import IDataModelService
@@ -22,6 +26,7 @@ from utils.DataStructures import (
     BatchOfPairedNodes,
     FileProcessingBatch,
     PerformanceTracker,
+    unique_tags,
 )
 
 
@@ -164,6 +169,7 @@ class GeneralLaunchService(AbstractLaunchService):
         processing_batches: list[FileProcessingBatch] = self._organize_files_for_processing(file_nodes)
 
         total_files_processed = 0
+        launched_file_ids: set[NodeId] = set()
         try:
             for batch in processing_batches:
                 primary_scope_value = batch.primary_scope_value
@@ -187,10 +193,14 @@ class GeneralLaunchService(AbstractLaunchService):
                     total_files_processed += 1
                     if current_batch.size() == self.max_batch_size:
                         self.logger.info(message=f"Processing batch - Max batch size ({self.max_batch_size}) reached")
+                        batch_file_ids = list(current_batch.batch_files.ids)
                         self._process_batch(current_batch)
+                        launched_file_ids.update(batch_file_ids)
                 if not current_batch.is_empty():
                     self.logger.info(message=f"Processing remaining {current_batch.size()} files in batch")
+                    batch_file_ids = list(current_batch.batch_files.ids)
                     self._process_batch(current_batch)
+                    launched_file_ids.update(batch_file_ids)
                 if scoped:
                     self.logger.info(message=f"Finished processing for {msg}", section="END")
         except CogniteAPIError as e:
@@ -202,11 +212,62 @@ class GeneralLaunchService(AbstractLaunchService):
                 time.sleep(30)
                 return None
             else:
+                self._release_unlaunched_files(file_nodes, launched_file_ids)
                 raise e
+        except (ValueError, RuntimeError):
+            self._release_unlaunched_files(file_nodes, launched_file_ids)
+            raise
         finally:
             self.tracker.add_files(success=total_files_processed)
 
         return None
+
+    def _release_unlaunched_files(self, file_nodes: NodeList, launched_file_ids: set[NodeId]) -> None:
+        """
+        Removes the 'AnnotationInProcess' tag from the files this run claimed but never launched.
+
+        Prepare skips files that carry the tag, so a failed launch would otherwise leave them
+        out of the pipeline until someone removes the tag by hand.
+
+        Args:
+            file_nodes: The files retrieved for this run.
+            launched_file_ids: NodeIds of the files that made it into a diagram detect job.
+
+        Returns:
+            None
+        """
+        file_view_id = self.file_view.as_view_id()
+        release_applies: list[NodeApply] = []
+        for file_node in file_nodes:
+            if file_node.as_id() in launched_file_ids:
+                continue
+            tags: list[str] = cast(list[str], (file_node.properties or {}).get(file_view_id, {}).get("tags") or [])
+            if TAG_ANNOTATION_IN_PROCESS not in tags:
+                continue
+            remaining_tags = [tag for tag in unique_tags(tags) if tag != TAG_ANNOTATION_IN_PROCESS]
+            release_applies.append(
+                NodeApply(
+                    space=file_node.space,
+                    external_id=file_node.external_id,
+                    sources=[NodeOrEdgeData(source=file_view_id, properties={"tags": remaining_tags})],
+                )
+            )
+
+        if not release_applies:
+            return
+        try:
+            self.data_model_service.update_annotation_state(release_applies)
+            self.logger.info(
+                message=(
+                    f"Launch failed: removed '{TAG_ANNOTATION_IN_PROCESS}' from {len(release_applies)} files "
+                    "so they can be picked up again"
+                )
+            )
+        except CogniteAPIError as e:
+            self.logger.error(
+                message=f"Could not remove '{TAG_ANNOTATION_IN_PROCESS}' from the files of the failed launch",
+                error=e,
+            )
 
     def _organize_files_for_processing(self, list_files: NodeList) -> list[FileProcessingBatch]:
         """
@@ -333,9 +394,8 @@ class GeneralLaunchService(AbstractLaunchService):
                     f"({len(assets)} assets, {len(files)} files)"
                 )
                 self.logger.debug(
-                    "Regular detect entity external IDs: "
-                    + ", ".join(f"{e.get('space')}/{e.get('external_id')}" for e in self.in_memory_cache[:100])
-                    + (" ..." if len(self.in_memory_cache) > 100 else "")
+                    "Regular detect entities JSON: "
+                    + json.dumps(self.in_memory_cache, default=str)
                 )
                 job_id, job_token = self.annotation_service.run_diagram_detect(
                     files=batch.file_references, entities=self.in_memory_cache

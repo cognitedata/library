@@ -56,9 +56,19 @@ def text_variations(text: str, patterns: list[str]) -> list[str]:
     else:
         variations = {text}
 
+    variations.update(_with_underscore_separators(value) for value in tuple(variations))
     for pattern, replacement in DEFAULT_NORMALIZATION_SUBSTITUTIONS:
         variations.update(re.sub(pattern, replacement, value) for value in tuple(variations))
     return list(variations)
+
+
+def _with_underscore_separators(value: str) -> str:
+    """The tag written with "_" between tokens, the spelling aliases_update stores.
+
+    A pattern whose single capture group holds the whole tag keeps the separators the
+    drawing used, so "PH-ME-P-0151-001" would never find the alias "PH_ME_P_0151_001".
+    """
+    return re.sub(r"[-_.:]+", "_", value)
 
 
 def normalize_text(text: str, patterns: list[str]) -> str:
