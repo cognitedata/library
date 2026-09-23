@@ -83,7 +83,7 @@ functionExternalId: fn_file_annotation
 functionVersion: v1.0.0
 
 # used in /workflows
-workflowExternalId: wf_file_annotation
+workflowExternalId: wf_ctx_file_annotation
 workflowSchedule: "0 0 29 2 *"
 
 # used in /transformations
