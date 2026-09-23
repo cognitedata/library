@@ -12,7 +12,7 @@ workflows:
   source: instance
   generated_artifacts: true
   created_at: '2026-06-01T18:26:15+00:00'
-  updated_at: '2026-07-09T20:56:29+00:00'
+  updated_at: '2026-09-17T21:44:42+00:00'
 - id: etl_wf_pbf_aliasing
   label: etl_wf_pbf_aliasing
   template_id: aliasing_workflow
@@ -38,3 +38,28 @@ workflows:
   template_id: null
   created_at: '2026-06-29T19:04:53+00:00'
   updated_at: '2026-06-29T19:04:53+00:00'
+- id: hfs_timeseries_aliasing_sandbox
+  label: hfs_timeseries
+  template_id: null
+  created_at: '2026-09-01T19:36:59+00:00'
+  updated_at: '2026-09-03T13:03:44+00:00'
+- id: hfs_asset_aliasing_demo
+  label: PSR HFS asset aliasing
+  template_id: null
+  created_at: '2026-09-09T20:06:56+00:00'
+  updated_at: '2026-09-23T20:11:45+00:00'
+- id: timeseries_aliasing
+  label: timeseries_aliasing
+  template_id: null
+  created_at: '2026-09-15T14:29:15+00:00'
+  updated_at: '2026-09-15T16:04:50+00:00'
+- id: assets_aliasing
+  label: assets_aliasing
+  template_id: null
+  created_at: '2026-09-15T15:47:01+00:00'
+  updated_at: '2026-09-17T18:44:24+00:00'
+- id: wf_psr_hfs_asset_instantiation
+  label: PSR HfsAsset Instantiation
+  template_id: null
+  created_at: '2026-09-17T18:48:43+00:00'
+  updated_at: '2026-09-17T18:48:43+00:00'

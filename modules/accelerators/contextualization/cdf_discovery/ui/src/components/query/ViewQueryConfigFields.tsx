@@ -8,6 +8,7 @@ import { SourceViewFiltersSection } from "./SourceViewFiltersSection";
 import { DeferredCommitInput } from "./DeferredCommitTextField";
 import { ViewPropertyPicker } from "./ViewPropertyPicker";
 import { fetchJson, postPreviewJson } from "./queryApi";
+import { DEFAULT_VIEW_QUERY_LIMIT, readViewQueryLimit } from "../../utils/viewQueryConfigModel";
 
 type Props = {
   value: JsonObject;
@@ -37,9 +38,9 @@ async function fetchViewPreview(config: JsonObject, limit: number): Promise<Quer
 }
 
 function readPreviewLimit(cfg: JsonObject): number {
-  const raw = cfg.batch_size ?? cfg.limit ?? 100;
+  const raw = cfg.batch_size ?? cfg.limit ?? DEFAULT_VIEW_QUERY_LIMIT;
   const n = typeof raw === "number" ? raw : parseInt(String(raw), 10);
-  if (!Number.isFinite(n)) return 100;
+  if (!Number.isFinite(n)) return DEFAULT_VIEW_QUERY_LIMIT;
   return Math.min(1000, Math.max(1, Math.floor(n)));
 }
 
@@ -71,8 +72,17 @@ export function ViewQueryConfigFields({
   const [cdfPickNonce, setCdfPickNonce] = useState(0);
   const [cdfDmPickNonce, setCdfDmPickNonce] = useState(0);
   const cdfViewsReq = useRef(0);
+  const seededLimitFor = useRef<string | null>(null);
 
   const patch = (p: JsonObject) => onChange({ ...value, ...p });
+
+  useEffect(() => {
+    if (!queryOnly) return;
+    if (seededLimitFor.current === fieldKey) return;
+    seededLimitFor.current = fieldKey;
+    if (value.limit != null || value.read_limit != null) return;
+    onChange({ ...value, limit: DEFAULT_VIEW_QUERY_LIMIT });
+  }, [queryOnly, fieldKey, value, onChange]);
 
   const setFilters = (filters: JsonObject[]) => patch({ filters });
 
@@ -353,6 +363,32 @@ export function ViewQueryConfigFields({
     <>
       <p className="transform-query-hint transform-query-fields__intro">{t("transform.query.viewEditorIntro")}</p>
       {viewTargetingFields}
+      <label className="transform-query-label transform-query-label--block">
+        {t("transform.query.viewLimit")}
+        <input
+          className="gov-input"
+          type="number"
+          min={0}
+          style={{ marginTop: "0.35rem", maxWidth: "12rem" }}
+          value={String(readViewQueryLimit(value))}
+          onChange={(e) => {
+            const val = e.target.value.trim();
+            if (!val) {
+              patch({ limit: DEFAULT_VIEW_QUERY_LIMIT });
+              return;
+            }
+            const n = Number(val);
+            if (Number.isFinite(n) && n >= 0) {
+              const next: JsonObject = { ...value, limit: Math.floor(n) };
+              delete next.read_limit;
+              onChange(next);
+            }
+          }}
+        />
+        <span className="transform-query-hint" style={{ display: "block", marginTop: "0.25rem" }}>
+          {t("transform.query.viewLimitHint")}
+        </span>
+      </label>
       <label className="transform-query-label transform-query-label--block">
         {t("transform.filters.batchSize")}
         <input

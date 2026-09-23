@@ -1,0 +1,550 @@
+schemaVersion: 1
+id: hfs_asset_aliasing_demo
+label: PSR HFS asset aliasing
+template_id: null
+parameters:
+  incremental: true
+  incremental_change_processing: true
+  incremental_skip_unchanged: true
+  max_records_per_run: 0
+  raw_db: etl_staging
+  raw_table_key: cohort
+  preview_raw_table_key: etl_preview
+  instance_space: inst_assets
+  etl_state_instance_space: null
+  workflow_scope: hfs_asset_aliasing_demo
+scope: null
+sources: []
+canvas:
+  schemaVersion: 1
+  handle_orientation: lr
+  layout_method: layered
+  edge_path_style: smoothstep
+  nodes:
+  - id: end
+    kind: end
+    position:
+      x: 1940
+      y: -34
+    data:
+      label: End
+      config:
+        description: ''
+    width: 148
+    height: 68
+  - id: join_muef2b4h
+    kind: join
+    position:
+      x: 700
+      y: -65
+    data:
+      label: Merge Generated Aliases and PI Unit Mappings
+      config: &id001
+        description: ''
+        join_on:
+          and:
+          - operator: EQUALS
+            left_property: unit
+            right_property: raw_columns.unit_number
+          - operator: IEQUALS
+            left_property: areaName
+            right_property: raw_columns.plant_name
+        join_type: left
+        enabled: true
+        right_prefix: map_
+      node_color: '#475569'
+    width: 192
+    height: 130
+  - id: node_preview_muefq8t4
+    kind: node_preview
+    position:
+      x: 1444
+      y: -65
+    data:
+      label: ''
+      config:
+        description: ''
+        record_kind: entity
+        row_cap: 10000
+      node_color: '#9333ea'
+    width: 192
+    height: 130
+  - id: node_preview_muegn97x
+    kind: node_preview
+    position:
+      x: 452
+      y: -148
+    data:
+      label: ''
+      config:
+        description: ''
+        record_kind: entity
+        row_cap: 10000
+      node_color: '#9333ea'
+    width: 192
+    height: 130
+  - id: node_preview_mueh47ol
+    kind: node_preview
+    position:
+      x: 948
+      y: -148
+    data:
+      label: ''
+      config:
+        description: ''
+        record_kind: entity
+        row_cap: 10000
+      node_color: '#9333ea'
+    width: 192
+    height: 130
+  - id: query_raw_muef0oy3
+    kind: query_raw
+    position:
+      x: 204
+      y: -148
+    data:
+      label: Query PI Unit Mapping Table
+      config: &id002
+        description: ''
+        source_raw_db: db_pi_psr_raw
+        source_raw_table_key: tb_pi_sap_unit_mapping
+        lookup_full_scan: true
+        query_scope_mode: all
+      node_color: '#2563eb'
+    width: 192
+    height: 130
+  - id: query_view_mu5vfefs
+    kind: query_view
+    position:
+      x: 204
+      y: 18
+    data:
+      label: CogniteAsset (v1)
+      config: &id003
+        description: ''
+        view_space: sp-edm-hfs-model
+        view_external_id: HfsAsset
+        view_version: v2.0.3
+        batch_size: 5000
+        limit: 0
+        include_properties:
+        - areaName
+        - areaNumber
+        - name
+        - unit
+        - unitName
+        instance_space: sp_dat_sap_floc_psr
+    width: 192
+    height: 130
+  - id: save_view_mu5vgsmm
+    kind: save_view
+    position:
+      x: 1692
+      y: -65
+    data:
+      label: HFsAsset
+      config: &id004
+        description: HfsAsset
+        view_space: sp-edm-hfs-model
+        view_external_id: HfsAsset
+        view_version: v2.0.3
+        save_field_policies:
+        - property: aliases
+          strategy: merge_list
+          merge_list:
+            unique: true
+            branch_order: by_score
+        instance_space: sp_dat_sap_floc_psr
+    width: 192
+    height: 130
+  - id: score_mu5vgdtc
+    kind: score
+    position:
+      x: 1196
+      y: -65
+    data:
+      label: "Asset validation \u2014 ISA \u2192 shape \u2192 blacklist \u2014 isa_compliant\
+        \ \u2014 isa_compliant \u2014 isa_compliant"
+      config: &id005
+        description: isa_compliant
+        score_fields:
+        - aliases
+        scoring_rules:
+        - name: isa_compliant
+          enabled: true
+          match:
+            expressions:
+            - pattern: \bP[-_]?\d{1,6}[A-Z]?\b
+              description: Standard pump tags (P-101, P101A, P-2001)
+            - pattern: \b[A-Z]{2,4}P[-_]?\d{1,6}[A-Z]?\b
+              description: Pump with service designation (FWP-101, CWP-201)
+            - pattern: \bCP[-_]?\d{1,6}[A-Z]?\b
+              description: Centrifugal pump tags
+            - pattern: \bC[-_]?\d{1,6}[A-Z]?\b
+              description: Standard compressor tags (C-101, C101A)
+            - pattern: \b[A-Z]{2}C[-_]?\d{1,6}[A-Z]?\b
+              description: Compressor with type designation (AC-101, RC-201)
+            - pattern: \b[A-Z]{2,3}V[-_]?\d{1,6}[A-Z]?\b
+              description: Control valve tags (FCV-101, PCV-201, TCV-301)
+            - pattern: \bV[-_]?\d{1,6}[A-Z]?\b
+              description: Manual valve and vessel tags (V-101, V101A)
+            - pattern: \b[A-Z]{2,3}SV[-_]?\d{1,6}[A-Z]?\b
+              description: Safety valve tags (PSV-101, TSV-201)
+            - pattern: \bT[-_]?\d{1,6}[A-Z]?\b
+              description: Standard tank tags (T-101, T101A)
+            - pattern: \bR[-_]?\d{1,6}[A-Z]?\b
+              description: Reactor tags (R-101, R101A)
+            - pattern: \bE[-_]?\d{1,6}[A-Z]?\b
+              description: Heat exchanger tags (E-101, E101A)
+            - pattern: \b[A-Z]{2}E[-_]?\d{1,6}[A-Z]?\b
+              description: Heat exchanger with type (HE-101, CE-201)
+            - pattern: \bF[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b
+              description: Flow instruments (FIC-101, FIT-201, FCV-301)
+            - pattern: \bP[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b
+              description: Pressure instruments (PIC-101, PIT-201, PCV-301)
+            - pattern: \bT[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b
+              description: Temperature instruments (TIC-101, TIT-201, TCV-301)
+            - pattern: \bL[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b
+              description: Level instruments (LIC-101, LIT-201, LCV-301)
+            - pattern: \bA[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b
+              description: Analytical instruments (AIC-101, AIT-201, ACV-301)
+            - pattern: \b[A-Z]?C[-_]?\d{1,6}[A-Z]?\b
+              description: Distillation column tags (C-101, DC-201)
+            keywords: []
+          score_modifier:
+            mode: explicit
+            value: 1
+          priority: 10
+          on_no_match:
+            score_modifier:
+              mode: offset
+              value: -0.2
+        - name: alias_shape_invalid
+          enabled: true
+          match:
+            expressions:
+            - pattern: ^[0-9]{0,3}$
+              description: Alias is only digits and shorter than 4 characters (empty
+                counts as invalid)
+            - pattern: ^.{81,}$
+              description: Alias exceeds maximum length 80
+            - pattern: '[^A-Za-z0-9-_/. ]'
+              description: Character outside allowed set (letters, digits, _ / . -
+                and space)
+            - pattern: ^(?=.*\d).{4,}$
+              description: String must be at least 4 characters long and contain one
+                number
+            keywords: []
+          score_modifier:
+            mode: explicit
+            value: 0
+          priority: 0
+          expression_match: fullmatch
+        - name: Blacklist
+          enabled: true
+          match:
+            expressions: []
+            keywords:
+            - test
+            - example
+            - sample
+            - dummy
+            - temp
+            - temporary
+            - 'null'
+            - none
+            - n/a
+            - na
+            - unknown
+          score_modifier:
+            mode: explicit
+            value: 0
+          priority: 10
+        - name: No Duplicate Units
+          enabled: true
+          match:
+            expressions: []
+            keywords: []
+          score_modifier:
+            mode: offset
+            value: 0
+          priority: 11
+        initial_score: 1
+        min_score: 0
+    width: 192
+    height: 130
+  - id: start
+    kind: start
+    position:
+      x: 0
+      y: -34
+    data:
+      label: Workflow trigger
+      config:
+        description: Workflow trigger
+        trigger_type: schedule
+        cron_expression: 0 2 * * *
+        workflow_version: '1'
+        workflow_base: wf_discovery_etl_hfs_asset_aliasing_demo
+        workflow_external_id: wf_discovery_etl_hfs_asset_aliasing_demo
+        trigger_external_id: trg_wf_discovery_etl_hfs_asset_aliasing_demo
+        workflow_scope: hfs_asset_aliasing_demo
+        incremental_change_processing: true
+        run_id: ''
+    width: 148
+    height: 68
+  - id: transform_mu5vo5t0
+    kind: transform
+    position:
+      x: 452
+      y: 18
+    data:
+      label: Extract ISA-style tag tokens from CogniteAsset name via regex
+      config: &id006
+        execution:
+          mode: parallel
+        steps:
+        - handler_id: trim_whitespace
+          trim_whitespace:
+            mode: ends_only
+          fields:
+          - field_name: name
+            regex: (?<![\d-])(?:\b|(?<=_))(?:\d{1,8}-?)?[A-Z]{1,8}-?\d{1,10}(?:-\d{1,6})*[A-Z]?\b
+          output_field: aliases
+          description: Extract ISA-style tag tokens from CogniteAsset name via regex
+        - handler_id: heuristic_sampler
+          heuristic_sampler:
+            on_no_match: keep_working
+            samples:
+            - 10-P-1234
+          output_field: aliases
+          fields:
+          - field_name: name
+          description: Infer tag-like aliases from asset name using heuristic sample
+            patterns
+        - handler_id: regex_substitution
+          trim_whitespace:
+            mode: ends_only
+          output_field: aliases
+          fields:
+          - field_name: name
+            regex: ''
+          regex_substitution:
+            patterns:
+            - pattern: ^[^-]+-(?=[^ -]+-[^ -])
+              replacement: ''
+          description: Strip leading unit prefix segment from name before alias merge
+        description: Extract ISA-style tag tokens from CogniteAsset name via regex
+        field_policies:
+        - property: aliases
+          strategy: merge_list
+          merge_list:
+            unique: true
+            branch_order: by_score
+        - property: unit
+          strategy: tie_break
+        - property: areaName
+          strategy: tie_break
+        - property: name
+          strategy: tie_break
+        - property: areaNumber
+          strategy: tie_break
+        - property: unitName
+          strategy: tie_break
+    width: 192
+    height: 130
+  - id: transform_muef03d7
+    kind: transform
+    position:
+      x: 948
+      y: 18
+    data:
+      label: Append PI Unit to Aliases
+      config: &id007
+        handler_id: compose_template
+        enabled: true
+        fields:
+        - field_name: aliases
+        output_field: aliases
+        output_template: '{map_pi_unit}{aliases}'
+        output_mode: append
+        compose_template:
+          iterate_field: aliases
+          skip_if:
+            operator: STARTS_WITH
+            property: map_pi_unit
+        output_field_type: list
+        description: Compose an output string from a template with list-aware substitution.
+          When the iterate field is a list (e.g. aliases), each element is formatted
+          individually and the output stays a list. When it is a string (e.g. name),
+          the template is applied once and the output stays a string. Use after a
+          join to prefix/suffix values with enrichment fields such as pi_unit. Pair
+          with output_mode=append to keep originals and add composed variants. skip_if
+          STARTS_WITH map_pi_unit avoids duplicating the unit prefix (12PTE3089 stays
+          as-is; PTE3089 becomes 12PTE3089).
+      node_color: '#db2777'
+    width: 192
+    height: 130
+  edges:
+  - id: xy-edge__startout-query_view_mu5vfefsin
+    source: start
+    target: query_view_mu5vfefs
+    source_handle: out
+    target_handle: in
+    kind: data
+  - id: xy-edge__save_view_mu5vgsmmout-endin
+    source: save_view_mu5vgsmm
+    target: end
+    source_handle: out
+    target_handle: in
+    kind: data
+  - id: xy-edge__query_view_mu5vfefsout-transform_mu5vo5t0in
+    source: query_view_mu5vfefs
+    target: transform_mu5vo5t0
+    source_handle: out
+    target_handle: in
+    kind: data
+  - id: xy-edge__startout-query_raw_muef0oy3in
+    source: start
+    target: query_raw_muef0oy3
+    source_handle: out
+    target_handle: in
+    kind: data
+  - id: xy-edge__node_preview_muefq8t4out-save_view_mu5vgsmmin
+    source: node_preview_muefq8t4
+    target: save_view_mu5vgsmm
+    source_handle: out
+    target_handle: in
+    kind: data
+  - id: xy-edge__join_muef2b4hout-transform_muef03d7in
+    source: join_muef2b4h
+    target: transform_muef03d7
+    source_handle: out
+    target_handle: in
+    kind: data
+  - id: xy-edge__transform_muef03d7out-score_mu5vgdtcin
+    source: transform_muef03d7
+    target: score_mu5vgdtc
+    source_handle: out
+    target_handle: in
+    kind: data
+  - id: xy-edge__query_raw_muef0oy3out-join_muef2b4hin__right
+    source: query_raw_muef0oy3
+    target: join_muef2b4h
+    source_handle: out
+    target_handle: in__right
+    kind: data
+  - id: xy-edge__transform_mu5vo5t0out-join_muef2b4hin__left
+    source: transform_mu5vo5t0
+    target: join_muef2b4h
+    source_handle: out
+    target_handle: in__left
+    kind: data
+  - id: xy-edge__score_mu5vgdtcout-node_preview_muefq8t4in
+    source: score_mu5vgdtc
+    target: node_preview_muefq8t4
+    source_handle: out
+    target_handle: in
+    kind: data
+  - id: xy-edge__query_raw_muef0oy3out-node_preview_muegn97xin
+    source: query_raw_muef0oy3
+    target: node_preview_muegn97x
+    source_handle: out
+    target_handle: in
+    kind: data
+  - id: xy-edge__join_muef2b4hout-node_preview_mueh47olin
+    source: join_muef2b4h
+    target: node_preview_mueh47ol
+    source_handle: out
+    target_handle: in
+    kind: data
+  viewport:
+    x: 172
+    y: 481
+    zoom: 1.1010536398467432
+scope_suffix: ''
+compiled_workflow:
+  schema_version: 1
+  tasks:
+  - id: join_muef2b4h
+    function_external_id: fn_discovery_etl_join
+    executable_kind: join
+    task_type: function
+    canvas_node_id: join_muef2b4h
+    label: Merge Generated Aliases and PI Unit Mappings
+    depends_on:
+    - query_raw_muef0oy3
+    - transform_mu5vo5t0
+    payload:
+      config: *id001
+      join_left_task_id: transform_mu5vo5t0
+      join_right_task_id: query_raw_muef0oy3
+  - id: query_raw_muef0oy3
+    function_external_id: fn_discovery_etl_raw_query
+    executable_kind: query_raw
+    task_type: function
+    canvas_node_id: query_raw_muef0oy3
+    label: Query PI Unit Mapping Table
+    depends_on: []
+    payload:
+      config: *id002
+  - id: query_view_mu5vfefs
+    function_external_id: fn_discovery_etl_view_query
+    executable_kind: query_view
+    task_type: function
+    canvas_node_id: query_view_mu5vfefs
+    label: CogniteAsset (v1)
+    depends_on: []
+    payload:
+      config: *id003
+  - id: save_view_mu5vgsmm
+    function_external_id: fn_discovery_etl_view_save
+    executable_kind: save_view
+    task_type: function
+    canvas_node_id: save_view_mu5vgsmm
+    label: HFsAsset
+    depends_on:
+    - score_mu5vgdtc
+    payload:
+      config: *id004
+  - id: score_mu5vgdtc
+    function_external_id: fn_discovery_etl_score
+    executable_kind: score
+    task_type: function
+    canvas_node_id: score_mu5vgdtc
+    label: "Asset validation \u2014 ISA \u2192 shape \u2192 blacklist \u2014 isa_compliant\
+      \ \u2014 isa_compliant \u2014 isa_compliant"
+    depends_on:
+    - transform_muef03d7
+    payload:
+      config: *id005
+  - id: transform_mu5vo5t0
+    function_external_id: fn_discovery_etl_transform
+    executable_kind: transform
+    task_type: function
+    canvas_node_id: transform_mu5vo5t0
+    label: Extract ISA-style tag tokens from CogniteAsset name via regex
+    depends_on:
+    - query_view_mu5vfefs
+    payload:
+      config: *id006
+  - id: transform_muef03d7
+    function_external_id: fn_discovery_etl_transform
+    executable_kind: transform
+    task_type: function
+    canvas_node_id: transform_muef03d7
+    label: Append PI Unit to Aliases
+    depends_on:
+    - join_muef2b4h
+    payload:
+      config: *id007
+  - id: end
+    function_external_id: fn_discovery_etl_raw_cleanup
+    executable_kind: raw_cleanup
+    task_type: function
+    canvas_node_id: end
+    depends_on:
+    - save_view_mu5vgsmm
+    payload:
+      config:
+        description: ''

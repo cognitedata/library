@@ -99,15 +99,19 @@ def run_pipeline_document(
     else:
         seed_predecessor_mode(shared, MODE_IN_MEMORY if dry_run else MODE_COHORT)
     run_id = ensure_shared_run_id(shared)
-    log.info(
-        "Local pipeline run_id=%s dry_run=%s predecessor_mode=%s max_workers=%s",
-        run_id,
-        dry_run,
-        shared.get("local_predecessor_mode"),
-        max_workers,
-    )
 
     with ui_progress_log_forwarding():
+        # Emit before DAG work so the UI banner can show run_id immediately.
+        from local_runner.ui_progress import emit_ui_progress
+
+        emit_ui_progress("run_start", run_id=run_id)
+        log.info(
+            "Local pipeline run_id=%s dry_run=%s predecessor_mode=%s max_workers=%s",
+            run_id,
+            dry_run,
+            shared.get("local_predecessor_mode"),
+            max_workers,
+        )
         summaries = run_compiled_workflow_dag(
             compiled,
             client=client,

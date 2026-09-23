@@ -1,0 +1,319 @@
+schemaVersion: 1
+id: timeseries_aliasing
+label: timeseries_aliasing
+template_id: null
+parameters:
+  incremental: true
+  incremental_change_processing: true
+  incremental_skip_unchanged: true
+  max_records_per_run: 0
+  raw_db: etl_staging
+  raw_table_key: cohort
+  preview_raw_table_key: etl_preview
+  instance_space: inst_assets
+  etl_state_instance_space: null
+  workflow_scope: timeseries_aliasing
+scope: null
+sources: []
+canvas:
+  schemaVersion: 1
+  handle_orientation: lr
+  layout_method: layered
+  edge_path_style: smoothstep
+  nodes:
+  - id: end
+    kind: end
+    position:
+      x: 1196
+      y: -34
+    data:
+      label: End
+      config:
+        description: ''
+    width: 148
+    height: 68
+  - id: query_view_mu2rw844
+    kind: query_view
+    position:
+      x: 204
+      y: -65
+    data:
+      label: CogniteTimeSeries (v1)
+      config:
+        description: CogniteTimeSeries (v1)
+        view_space: cdf_cdm
+        view_external_id: CogniteTimeSeries
+        view_version: v1
+        batch_size: 5000
+        limit: 0
+        include_properties:
+        - name
+    width: 192
+    height: 130
+  - id: save_view_mu2rydwq
+    kind: save_view
+    position:
+      x: 948
+      y: -65
+    data:
+      label: CogniteTimeSeries (v1)
+      config:
+        description: CogniteTimeSeries (v1)
+        view_space: cdf_cdm
+        view_external_id: CogniteTimeSeries
+        view_version: v1
+    width: 192
+    height: 130
+  - id: score_mu2tqe4v
+    kind: score
+    position:
+      x: 700
+      y: -65
+    data:
+      label: Asset validation — ISA → shape → blacklist — isa_compliant — isa_compliant
+        — isa_compliant
+      config:
+        description: isa_compliant
+        score_fields:
+        - aliases
+        scoring_rules:
+        - name: isa_compliant
+          enabled: true
+          match:
+            expressions:
+            - pattern: \bP[-_]?\d{1,6}[A-Z]?\b
+              description: Standard pump tags (P-101, P101A, P-2001)
+            - pattern: \b[A-Z]{2,4}P[-_]?\d{1,6}[A-Z]?\b
+              description: Pump with service designation (FWP-101, CWP-201)
+            - pattern: \bCP[-_]?\d{1,6}[A-Z]?\b
+              description: Centrifugal pump tags
+            - pattern: \bC[-_]?\d{1,6}[A-Z]?\b
+              description: Standard compressor tags (C-101, C101A)
+            - pattern: \b[A-Z]{2}C[-_]?\d{1,6}[A-Z]?\b
+              description: Compressor with type designation (AC-101, RC-201)
+            - pattern: \b[A-Z]{2,3}V[-_]?\d{1,6}[A-Z]?\b
+              description: Control valve tags (FCV-101, PCV-201, TCV-301)
+            - pattern: \bV[-_]?\d{1,6}[A-Z]?\b
+              description: Manual valve and vessel tags (V-101, V101A)
+            - pattern: \b[A-Z]{2,3}SV[-_]?\d{1,6}[A-Z]?\b
+              description: Safety valve tags (PSV-101, TSV-201)
+            - pattern: \bT[-_]?\d{1,6}[A-Z]?\b
+              description: Standard tank tags (T-101, T101A)
+            - pattern: \bR[-_]?\d{1,6}[A-Z]?\b
+              description: Reactor tags (R-101, R101A)
+            - pattern: \bE[-_]?\d{1,6}[A-Z]?\b
+              description: Heat exchanger tags (E-101, E101A)
+            - pattern: \b[A-Z]{2}E[-_]?\d{1,6}[A-Z]?\b
+              description: Heat exchanger with type (HE-101, CE-201)
+            - pattern: \bF[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b
+              description: Flow instruments (FIC-101, FIT-201, FCV-301)
+            - pattern: \bP[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b
+              description: Pressure instruments (PIC-101, PIT-201, PCV-301)
+            - pattern: \bT[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b
+              description: Temperature instruments (TIC-101, TIT-201, TCV-301)
+            - pattern: \bL[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b
+              description: Level instruments (LIC-101, LIT-201, LCV-301)
+            - pattern: \bA[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b
+              description: Analytical instruments (AIC-101, AIT-201, ACV-301)
+            - pattern: \b[A-Z]?C[-_]?\d{1,6}[A-Z]?\b
+              description: Distillation column tags (C-101, DC-201)
+            keywords: []
+          score_modifier:
+            mode: explicit
+            value: 1
+          priority: 10
+          on_no_match:
+            score_modifier:
+              mode: offset
+              value: -0.2
+        - name: alias_shape_invalid
+          enabled: true
+          match:
+            expressions:
+            - pattern: ^[0-9]{0,3}$
+              description: Alias is only digits and shorter than 4 characters (empty
+                counts as invalid)
+            - pattern: ^.{81,}$
+              description: Alias exceeds maximum length 80
+            - pattern: '[^A-Za-z0-9-_/. ]'
+              description: Character outside allowed set (letters, digits, _ / . -
+                and space)
+            keywords: []
+          score_modifier:
+            mode: explicit
+            value: 0
+          priority: 0
+          expression_match: fullmatch
+        - name: blacklist
+          enabled: true
+          match:
+            expressions: []
+            keywords:
+            - test
+            - example
+            - sample
+            - dummy
+            - temp
+            - temporary
+            - 'null'
+            - none
+            - n/a
+            - na
+            - unknown
+            - INACTIVE
+          score_modifier:
+            mode: explicit
+            value: 0
+          priority: 10
+        initial_score: 1
+        min_score: 0
+    width: 192
+    height: 130
+  - id: start
+    kind: start
+    position:
+      x: 0
+      y: -34
+    data:
+      label: Workflow trigger
+      config:
+        description: Workflow trigger
+        trigger_type: schedule
+        cron_expression: 0 2 * * *
+        workflow_version: '1'
+        workflow_base: ''
+        workflow_external_id: ''
+        trigger_external_id: ''
+        workflow_scope: timeseries_aliasing
+        incremental_change_processing: true
+        run_id: ''
+    width: 148
+    height: 68
+  - id: transform_mu2rzuwu
+    kind: transform
+    position:
+      x: 452
+      y: -65
+    data:
+      label: Regex substitution · CogniteTimeSeries (v1)
+      notes: A regex substitution to extract the file extension
+      config:
+        handler_id: regex_substitution
+        enabled: true
+        fields:
+        - field_name: name
+          regex: (?<![\d-])(?:\b|(?<=_))(?:\d{1,8}-?)?(?:[A-Z]{1,8}(?:-[A-Z]{1,8})*-?\d{1,10}|[A-Z]{1,8}\d{1,10})(?:-\d{1,6})*(?:-[A-Z]{1,8}\d{1,10})*[A-Z]?(?=\b|_)
+        output_field: aliases
+        output_template: ''
+        output_mode: append
+        regex_substitution:
+          patterns:
+          - pattern: \.[^/.]+$
+            replacement: ''
+        description: Regex substitution · CogniteTimeSeries (v1)
+      node_color: '#0891b2'
+    width: 192
+    height: 130
+  edges:
+  - id: xy-edge__startout-query_view_mu2rw844in
+    source: start
+    target: query_view_mu2rw844
+    source_handle: out
+    target_handle: in
+    kind: data
+  - id: xy-edge__save_view_mu2rydwqout-endin
+    source: save_view_mu2rydwq
+    target: end
+    source_handle: out
+    target_handle: in
+    kind: data
+  - id: xy-edge__query_view_mu2rw844out-transform_mu2rzuwuin
+    source: query_view_mu2rw844
+    target: transform_mu2rzuwu
+    source_handle: out
+    target_handle: in
+    kind: data
+  - id: xy-edge__score_mu2tqe4vout-save_view_mu2rydwqin
+    source: score_mu2tqe4v
+    target: save_view_mu2rydwq
+    source_handle: out
+    target_handle: in
+    kind: data
+  - id: xy-edge__transform_mu2rzuwuout-score_mu2tqe4vin
+    source: transform_mu2rzuwu
+    target: score_mu2tqe4v
+    source_handle: out
+    target_handle: in
+    kind: data
+  viewport:
+    x: 60
+    y: 290
+    zoom: 0.6034226190476191
+scope_suffix: ''
+compiled_workflow:
+  schema_version: 1
+  tasks:
+  - id: query_view_mu2rw844
+    function_external_id: fn_discovery_etl_view_query
+    executable_kind: query_view
+    task_type: function
+    canvas_node_id: query_view_mu2rw844
+    label: CogniteTimeSeries (v1)
+    depends_on: []
+    payload:
+      config:
+        description: CogniteTimeSeries (v1)
+        view_space: cdf_cdm
+        view_external_id: CogniteTimeSeries
+        view_version: v1
+        batch_size: 5000
+        limit: 0
+        include_properties:
+        - name
+  - id: save_view_mu2rydwq
+    function_external_id: fn_discovery_etl_view_save
+    executable_kind: save_view
+    task_type: function
+    canvas_node_id: save_view_mu2rydwq
+    label: CogniteTimeSeries (v1)
+    depends_on:
+    - transform_mu2rzuwu
+    payload:
+      config:
+        description: CogniteTimeSeries (v1)
+        view_space: cdf_cdm
+        view_external_id: CogniteTimeSeries
+        view_version: v1
+  - id: transform_mu2rzuwu
+    function_external_id: fn_discovery_etl_transform
+    executable_kind: transform
+    task_type: function
+    canvas_node_id: transform_mu2rzuwu
+    label: Regex substitution · CogniteTimeSeries (v1)
+    depends_on:
+    - query_view_mu2rw844
+    payload:
+      config:
+        handler_id: regex_substitution
+        enabled: true
+        fields:
+        - field_name: name
+          regex: (?<![\d-])(?:\b|(?<=_))(?:\d{1,8}-?)?(?:[A-Z]{1,8}(?:-[A-Z]{1,8})*-?\d{1,10}|[A-Z]{1,8}\d{1,10})(?:-\d{1,6})*(?:-[A-Z]{1,8}\d{1,10})*[A-Z]?(?=\b|_)
+        output_field: aliases
+        output_template: ''
+        output_mode: append
+        regex_substitution:
+          patterns:
+          - pattern: \.[^/.]+$
+            replacement: ''
+        description: Regex substitution · CogniteTimeSeries (v1)
+  - id: end
+    function_external_id: fn_discovery_etl_raw_cleanup
+    executable_kind: raw_cleanup
+    task_type: function
+    canvas_node_id: end
+    depends_on:
+    - save_view_mu2rydwq
+    payload:
+      config:
+        description: ''

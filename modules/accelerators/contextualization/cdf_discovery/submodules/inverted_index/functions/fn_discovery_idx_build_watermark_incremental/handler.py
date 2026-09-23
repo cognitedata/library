@@ -10,8 +10,13 @@ _staging_root = Path(__file__).resolve().parent.parent
 if str(_staging_root) not in sys.path:
     sys.path.insert(0, str(_staging_root))
 
-from cdf_fn_common.fn_runtime import require_client, resolve_handler_payload  # noqa: E402
-from inverted_index.index_build_watermark import run_watermark_incremental_build  # noqa: E402
+from cdf_fn_common.fn_runtime import (
+    require_client,
+    resolve_handler_payload,
+)
+from inverted_index.index_build_watermark import (
+    run_watermark_incremental_build,
+)
 
 
 def handle(data: dict[str, Any] | None = None, client: Any = None) -> dict[str, Any]:

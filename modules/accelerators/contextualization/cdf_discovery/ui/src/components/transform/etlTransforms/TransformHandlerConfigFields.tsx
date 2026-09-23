@@ -301,9 +301,7 @@ export function TransformHandlerConfigFields({
     const patterns = readPatterns(block);
     const setPatterns = (next: { pattern: string; replacement: string }[]) => {
       patch({
-        patterns: next
-          .filter((p) => p.pattern.trim())
-          .map((p) => ({ pattern: p.pattern, replacement: p.replacement })),
+        patterns: next.map((p) => ({ pattern: p.pattern, replacement: p.replacement })),
       });
     };
     return (
@@ -396,7 +394,7 @@ export function TransformHandlerConfigFields({
     const pairs = readReplacements(block);
     const setPairs = (next: { from: string; to: string }[]) => {
       patch({
-        replacements: next.filter((p) => p.from.trim()).map((p) => ({ from: p.from, to: p.to })),
+        replacements: next.map((p) => ({ from: p.from, to: p.to })),
       });
     };
     return (
@@ -821,6 +819,118 @@ export function TransformHandlerConfigFields({
         </label>
         <p className="transform-node-editor-modal__hint" style={{ marginTop: "0.35rem" }}>
           {t("transforms.handlerFields.heuristicMaxResultsHint")}
+        </p>
+      </div>
+    );
+  }
+
+  if (handler === "compose_template") {
+    const skipIf =
+      block.skip_if && typeof block.skip_if === "object" && !Array.isArray(block.skip_if)
+        ? (block.skip_if as Record<string, unknown>)
+        : {};
+    const skipOp = String(skipIf.operator ?? "STARTS_WITH");
+    const patchSkip = (next: Record<string, unknown> | undefined) => {
+      if (!next || Object.keys(next).length === 0) {
+        patch({ skip_if: undefined });
+        return;
+      }
+      patch({ skip_if: next });
+    };
+    return (
+      <div className="discovery-handler-fields">
+        <label className="gov-label gov-label--block">
+          {t("transforms.handlerFields.iterateField")}
+          <input
+            className="gov-input"
+            style={{ marginTop: "0.35rem" }}
+            value={String(block.iterate_field ?? "")}
+            onChange={(e) => patch({ iterate_field: e.target.value || undefined })}
+            placeholder="aliases"
+            spellCheck={false}
+          />
+        </label>
+        <p className="transform-node-editor-modal__hint" style={{ marginTop: "0.35rem" }}>
+          {t("transforms.handlerFields.iterateFieldHint")}
+        </p>
+        <label className="gov-label gov-label--block" style={{ marginTop: "0.75rem" }}>
+          {t("transforms.handlerFields.composeSkipIfOperator")}
+          <select
+            className="gov-input"
+            style={{ marginTop: "0.35rem" }}
+            value={skipIf.operator || skipIf.property || skipIf.pattern ? skipOp : ""}
+            onChange={(e) => {
+              const v = e.target.value;
+              if (!v) {
+                patchSkip(undefined);
+                return;
+              }
+              patchSkip({
+                ...skipIf,
+                operator: v,
+                ...(v === "REGEX"
+                  ? { pattern: String(skipIf.pattern ?? "^{map_pi_unit}"), property: undefined }
+                  : {
+                      property: String(skipIf.property ?? "map_pi_unit"),
+                      pattern: undefined,
+                    }),
+              });
+            }}
+          >
+            <option value="">{t("transforms.handlerFields.composeSkipIfNone")}</option>
+            <option value="STARTS_WITH">STARTS_WITH</option>
+            <option value="ISTARTS_WITH">ISTARTS_WITH</option>
+            <option value="ENDS_WITH">ENDS_WITH</option>
+            <option value="IENDS_WITH">IENDS_WITH</option>
+            <option value="CONTAINS">CONTAINS</option>
+            <option value="ICONTAINS">ICONTAINS</option>
+            <option value="EQUALS">EQUALS</option>
+            <option value="IEQUALS">IEQUALS</option>
+            <option value="REGEX">REGEX</option>
+          </select>
+        </label>
+        {skipIf.operator || skipIf.property || skipIf.pattern ? (
+          skipOp === "REGEX" ? (
+            <label className="gov-label gov-label--block" style={{ marginTop: "0.5rem" }}>
+              {t("transforms.handlerFields.composeSkipIfPattern")}
+              <input
+                className="gov-input"
+                style={{ marginTop: "0.35rem" }}
+                value={String(skipIf.pattern ?? "")}
+                onChange={(e) =>
+                  patchSkip({
+                    operator: "REGEX",
+                    pattern: e.target.value || undefined,
+                  })
+                }
+                placeholder="^{map_pi_unit}"
+                spellCheck={false}
+              />
+            </label>
+          ) : (
+            <label className="gov-label gov-label--block" style={{ marginTop: "0.5rem" }}>
+              {t("transforms.handlerFields.composeSkipIfProperty")}
+              <input
+                className="gov-input"
+                style={{ marginTop: "0.35rem" }}
+                value={String(skipIf.property ?? "")}
+                onChange={(e) =>
+                  patchSkip({
+                    operator: skipOp || "STARTS_WITH",
+                    property: e.target.value || undefined,
+                  })
+                }
+                placeholder="map_pi_unit"
+                spellCheck={false}
+              />
+            </label>
+          )
+        ) : null}
+        <p className="transform-node-editor-modal__hint" style={{ marginTop: "0.5rem" }}>
+          {t("transforms.handlerFields.composeSkipIfHint")}
+        </p>
+        <p className="transform-node-editor-modal__hint" style={{ marginTop: "0.5rem" }}>
+          {t("transforms.handlerFields.composeTemplateHint")}
         </p>
       </div>
     );

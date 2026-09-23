@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import sys
+from collections.abc import MutableMapping
 from pathlib import Path
-from typing import Any, Dict, MutableMapping
+from typing import Any
 
 _staging_root = Path(__file__).resolve().parent.parent
 if str(_staging_root) not in sys.path:
@@ -25,13 +26,13 @@ from cdf_fn_common.etl_discovery_cohort import (
 from cdf_fn_common.etl_discovery_query_shared import _flush_rows, resolve_query_sink
 from cdf_fn_common.etl_predecessor_mode import use_in_memory_predecessors
 from cdf_fn_common.etl_raw_upload import RawRowsUploadQueue
-from cdf_fn_common.etl_ui_progress import COHORT_WRITE_ROW_INTERVAL
 from cdf_fn_common.etl_score_validate import (
-    score_primary_value_field,
     materialize_scoring_rules,
+    score_primary_value_field,
     score_row_properties,
     validate_scoring_config,
 )
+from cdf_fn_common.etl_ui_progress import COHORT_WRITE_ROW_INTERVAL
 
 
 def etl_handle_score(
@@ -39,7 +40,7 @@ def etl_handle_score(
     data: MutableMapping[str, Any],
     client: Any,
     log: Any,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     merge_compiled_task_into_data(data)
     cfg = resolve_task_config(data)
     validate_scoring_config(cfg)
@@ -91,7 +92,7 @@ def etl_handle_score(
                 _flush_rows(queue, sink_db, sink_table, pending, client=client)
         _flush_rows(queue, sink_db, sink_table, pending, client=client)
 
-    summary: Dict[str, Any] = {
+    summary: dict[str, Any] = {
         "function_external_id": fn_external_id,
         "task_id": task_id,
         "rows_read": rows_read,
@@ -109,5 +110,5 @@ def etl_handle_score(
     return summary
 
 
-def handle(data: Dict[str, Any], client: Any = None) -> Dict[str, Any]:
+def handle(data: dict[str, Any], client: Any = None) -> dict[str, Any]:
     return etl_handle_score("fn_discovery_etl_score", data, client, log=None)

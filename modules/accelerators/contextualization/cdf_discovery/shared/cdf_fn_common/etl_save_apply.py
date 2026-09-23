@@ -44,6 +44,7 @@ from cdf_fn_common.etl_discovery_query_shared import (
     resolve_raw_save_sink,
     resolve_task_config,
 )
+from cdf_fn_common.etl_dm_query import _view_property_name_set
 from cdf_fn_common.etl_predecessor_mode import use_in_memory_predecessors
 from cdf_fn_common.etl_property_merge import FieldPolicy, STRATEGY_MERGE_LIST, parse_field_policies
 from cdf_fn_common.etl_raw_upload import RawRowsUploadQueue
@@ -150,12 +151,20 @@ def _prepare_view_apply_properties(
     props: Mapping[str, Any],
     *,
     list_properties: frozenset[str],
+    allowed_properties: Optional[frozenset[str]] = None,
 ) -> Optional[Dict[str, Any]]:
+    """Build the DM apply payload.
+
+    When *allowed_properties* is set (destination view schema), drop any cohort keys that
+    are not on the view — e.g. join enrichment fields like ``map_pi_unit`` / ``raw_columns``.
+    """
     out: Dict[str, Any] = {}
     for key, val in props.items():
         # score stage emits synthetic "<field>_score" arrays for in-pipeline filtering.
         # Do not persist these helper fields to destination views unless explicitly modeled.
         if key.endswith("_score"):
+            continue
+        if allowed_properties is not None and key not in allowed_properties:
             continue
         if key in list_properties:
             coerced = _coerce_dm_list_property_value(val)
@@ -167,6 +176,29 @@ def _prepare_view_apply_properties(
         else:
             out[key] = val
     return out or None
+
+
+def _resolve_view_allowed_properties(
+    client: Any,
+    view_id: ViewId,
+    *,
+    log: Any = None,
+) -> Optional[frozenset[str]]:
+    """Return writable property names for *view_id*, or None when the schema is unavailable."""
+    if client is None:
+        return None
+    names = _view_property_name_set(client, view_id)
+    if not names:
+        if log and hasattr(log, "warning"):
+            log.warning(
+                "save_view: could not resolve properties for view %s/%s/%s; "
+                "writing all cohort fields (may fail if enrichment keys are present)",
+                view_id.space,
+                view_id.external_id,
+                view_id.version,
+            )
+        return None
+    return frozenset(names)
 
 
 def _classic_instance_key(cols: Mapping[str, Any]) -> Tuple[str, str]:
@@ -277,6 +309,7 @@ def etl_apply_view_save(
     fan_mode = str(cfg.get("save_fan_in_mode") or "").strip()
     policy_map = parse_field_policies(cfg)
     list_properties = _list_property_names_for_view_apply(policy_map)
+    allowed_properties = _resolve_view_allowed_properties(client, view_id, log=log)
 
     pred_locations = iter_predecessor_raw_locations(data, task_id)
     rows_read = 0
@@ -296,6 +329,7 @@ def etl_apply_view_save(
         prepared = _prepare_view_apply_properties(
             props,
             list_properties=list_properties,
+            allowed_properties=allowed_properties,
         )
         if not prepared:
             skipped += 1

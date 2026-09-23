@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import sys
+from collections.abc import MutableMapping
 from pathlib import Path
-from typing import Any, Dict, MutableMapping
+from typing import Any
 
 _staging_root = Path(__file__).resolve().parent.parent
 if str(_staging_root) not in sys.path:
@@ -37,7 +38,7 @@ def etl_handle_transform(
     data: MutableMapping[str, Any],
     client: Any,
     log: Any,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     merge_compiled_task_into_data(data)
     cfg = resolve_task_config(data)
     pre_run_id = _first_nonempty(data.get("run_id"), "pre-run")
@@ -132,5 +133,5 @@ def etl_handle_transform(
     }
 
 
-def handle(data: Dict[str, Any], client: Any = None) -> Dict[str, Any]:
+def handle(data: dict[str, Any], client: Any = None) -> dict[str, Any]:
     return etl_handle_transform("fn_discovery_etl_transform", data, client, log=None)

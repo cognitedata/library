@@ -1,4 +1,6 @@
-from fn_discovery_etl_file_annotation_launch.handler import etl_handle_file_annotation_launch
+from fn_discovery_etl_file_annotation_launch.handler import (
+    etl_handle_file_annotation_launch,
+)
 
 
 def file_annotation_launch(fn_external_id, data, client, log):

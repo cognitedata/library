@@ -10,20 +10,20 @@ _staging_root = Path(__file__).resolve().parent.parent
 if str(_staging_root) not in sys.path:
     sys.path.insert(0, str(_staging_root))
 
-from cdf_fn_common.fn_runtime import (  # noqa: E402
+from cdf_fn_common.fn_runtime import (
     require_client,
     resolve_handler_payload,
     storage_adapter_for,
 )
 from inverted_index.cdm_relations import view_external_id
-from inverted_index.target_driven import (  # noqa: E402
+from inverted_index.target_driven import (
     effective_query_fallbacks,
     process_target_driven_contextualization,
     require_incoming_view_key,
     resolve_query_property,
     run_target_driven_for_instance_ids,
 )
-from inverted_index.target_driven_dedupe import (  # noqa: E402
+from inverted_index.target_driven_dedupe import (
     record_target_driven_run,
     should_skip_target_driven,
 )

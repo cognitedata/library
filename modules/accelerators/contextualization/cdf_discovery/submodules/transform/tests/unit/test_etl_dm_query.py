@@ -22,6 +22,7 @@ from cdf_fn_common.etl_dm_query import (  # noqa: E402
     view_cache_key,
     ViewQueryStats,
 )
+from cdf_fn_common.query_enumeration import resolve_view_query_max_items  # noqa: E402
 
 
 def test_resolve_property_names_strips_external_id_from_explicit_list() -> None:
@@ -95,3 +96,16 @@ def test_query_all_view_instances_requires_query_api() -> None:
     view_id = ViewId(space="s", external_id="V", version="v1")
     with pytest.raises(TypeError, match="instances.query is required"):
         list(query_all_view_instances(client, view_id=view_id, dm_filter=MagicMock()))
+
+
+def test_resolve_view_query_max_items() -> None:
+    assert resolve_view_query_max_items({}, {}) == 1000
+    assert resolve_view_query_max_items({}, {"limit": 0}) == 0
+    assert resolve_view_query_max_items({}, {"limit": 1000}) == 1000
+    assert resolve_view_query_max_items({}, {"read_limit": 50}) == 50
+    assert resolve_view_query_max_items(
+        {"configuration": {"parameters": {"max_records_per_run": 10}}},
+        {"limit": 1000},
+    ) == 10
+    assert resolve_view_query_max_items({}, {"limit": 1000, "lookup_full_scan": True}) == 0
+    assert resolve_view_query_max_items({}, {"lookup_full_scan": True}) == 0

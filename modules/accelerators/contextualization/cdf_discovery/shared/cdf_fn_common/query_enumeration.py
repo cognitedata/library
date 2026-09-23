@@ -1,7 +1,9 @@
 """
 Shared limit / pagination semantics for discovery query handlers.
 
-``batch_size`` and ``limit`` on view/classic tasks are API **page sizes**, not total row caps.
+``batch_size`` on view/classic tasks is the API **page size** (``limit`` is a fallback alias).
+``limit`` / ``read_limit`` on view query is a **total** row cap (unset defaults to
+``DEFAULT_VIEW_QUERY_LIMIT``; 0 = unlimited).
 ``read_limit`` on RAW and explicit ``limit`` on SQL are optional **total** caps (0 = unlimited).
 """
 
@@ -14,6 +16,8 @@ from cdf_fn_common.etl_run_scope import is_lookup_full_scan, pipeline_parameters
 # Cognite DM / classic list APIs typically allow up to 1000 per request.
 DEFAULT_PAGE_SIZE = 1000
 MAX_PAGE_SIZE = 1000
+# Canvas/editor default total row cap for new CDM view-query nodes.
+DEFAULT_VIEW_QUERY_LIMIT = 1000
 
 # SQL transformations.preview ceiling used when limit is unset or 0.
 SQL_PREVIEW_MAX_ROWS = 10_000
@@ -101,6 +105,35 @@ def resolve_run_record_cap(data: Mapping[str, Any], cfg: Mapping[str, Any]) -> i
         return max(0, int(raw))
     except (TypeError, ValueError):
         return 0
+
+
+def resolve_view_query_limit(cfg: Mapping[str, Any]) -> int:
+    """
+    Total row cap for CDM view query.
+
+    ``read_limit`` then ``limit``. Unset defaults to ``DEFAULT_VIEW_QUERY_LIMIT`` (1000).
+    Explicit 0 means unlimited. Lookup full scan is handled by ``resolve_view_query_max_items``.
+    """
+    raw = cfg.get("read_limit")
+    if raw is None:
+        raw = cfg.get("limit")
+    if raw is None or raw == "":
+        return DEFAULT_VIEW_QUERY_LIMIT
+    try:
+        n = int(raw)
+    except (TypeError, ValueError):
+        return DEFAULT_VIEW_QUERY_LIMIT
+    return max(0, n)
+
+
+def resolve_view_query_max_items(data: Mapping[str, Any], cfg: Mapping[str, Any]) -> int:
+    """Effective listing cap: node limit, then ``max_records_per_run`` (min of positives)."""
+    if is_lookup_full_scan(cfg):
+        return 0
+    node_limit = resolve_view_query_limit(cfg)
+    run_cap = resolve_run_record_cap(data, cfg)
+    caps = [c for c in (node_limit, run_cap) if c > 0]
+    return min(caps) if caps else 0
 
 
 def resolve_sql_row_limit(cfg: Mapping[str, Any]) -> int:

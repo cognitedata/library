@@ -3,13 +3,15 @@
 from __future__ import annotations
 
 import sys
+from collections.abc import MutableMapping
 from pathlib import Path
-from typing import Any, Dict, MutableMapping
+from typing import Any
 
 _staging_root = Path(__file__).resolve().parent.parent
 if str(_staging_root) not in sys.path:
     sys.path.insert(0, str(_staging_root))
 
+from cdf_fn_common.etl_cohort_handoff import maybe_handoff_predecessor_rows
 from cdf_fn_common.etl_common import (
     _first_nonempty,
     merge_compiled_task_into_data,
@@ -17,6 +19,14 @@ from cdf_fn_common.etl_common import (
     resolve_task_config,
 )
 from cdf_fn_common.etl_filter_eval import parse_etl_filters, row_passes_filter
+from cdf_fn_common.etl_query_predecessor import (
+    raw_query_rows_from_predecessor_buffer,
+    resolve_raw_query_source,
+)
+from cdf_fn_common.etl_query_recovery import (
+    load_query_checkpoint_state,
+    save_query_checkpoint_state,
+)
 from cdf_fn_common.etl_raw_read import (
     EXTERNAL_ID_COLUMN,
     NODE_INSTANCE_ID_COLUMN,
@@ -26,14 +36,6 @@ from cdf_fn_common.etl_raw_read import (
     iter_raw_table_rows_chunked,
     parse_raw_row_properties,
     raw_row_columns,
-)
-from cdf_fn_common.etl_query_predecessor import (
-    raw_query_rows_from_predecessor_buffer,
-    resolve_raw_query_source,
-)
-from cdf_fn_common.etl_query_recovery import (
-    load_query_checkpoint_state,
-    save_query_checkpoint_state,
 )
 from cdf_fn_common.etl_run_scope import (
     incremental_listing_narrowed,
@@ -53,7 +55,7 @@ def etl_handle_query_raw(
     data: MutableMapping[str, Any],
     client: Any,
     log: Any,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     merge_compiled_task_into_data(data)
     cfg = resolve_task_config(data)
     lookup_full_scan = is_lookup_full_scan(cfg)
@@ -127,10 +129,33 @@ def etl_handle_query_raw(
                 }
             )
 
-    data["_predecessor_rows"] = rows
     if checkpoint is not None and checkpoint.rows_completed > 0 and rows:
         rows = rows[checkpoint.rows_completed :]
+
+    # Persist to per-node cohort RAW in cohort mode (default local/deployed), or keep
+    # in-memory ``_predecessor_rows`` when local_predecessor_mode=in_memory. Do not set
+    # ``_predecessor_rows`` before this call — that heuristic forces in_memory mode.
+    scope_key_handoff = _first_nonempty(cfg.get("scope_key"), data.get("scope_key"), "default")
+    entity_type = _first_nonempty(cfg.get("entity_type"), source_table, "raw")
+    cohort_summary = None
+    if client is None:
         data["_predecessor_rows"] = rows
+    else:
+        cohort_summary = maybe_handoff_predecessor_rows(
+            client,
+            data,
+            run_id=run_id,
+            scope_key=scope_key_handoff,
+            task_id=task_id,
+            query_source="raw",
+            entity_type=entity_type,
+            view_space=_first_nonempty(cfg.get("view_space")),
+            view_external_id=_first_nonempty(cfg.get("view_external_id"), source_table),
+            view_version=_first_nonempty(cfg.get("view_version")),
+            rows=rows,
+            log=log,
+        )
+
     enum_stats.rows_read = n_read
     enum_stats.rows_written = len(rows)
     enum_stats.list_complete = not enum_stats.rows_truncated
@@ -143,27 +168,28 @@ def etl_handle_query_raw(
             rows_completed=checkpoint.rows_completed + len(rows),
             is_complete=not enum_stats.rows_truncated,
         )
-    return enumeration_summary(
-        enum_stats,
-        extra={
-            "function_external_id": fn_external_id,
-            "task_id": task_id,
-            "instances_listed": len(rows),
-            "instances_written": len(rows),
-            "run_id": run_id,
-            "source_raw_db": source_db,
-            "source_raw_table": source_table,
-            "read_limit": read_limit,
-            "query_scope_mode": query_scope_mode,
-            "effective_scope_mode": "all" if lookup_full_scan else query_scope_mode,
-            "listing_narrowed": listing_narrowed,
-            "lookup_full_scan": lookup_full_scan,
-            "effective_run_cap": read_limit if read_limit > 0 else None,
-            "resume_checkpoint_rows": checkpoint.rows_completed if checkpoint is not None else 0,
-            "resume_checkpoint_complete": checkpoint.is_complete if checkpoint is not None else False,
-        },
-    )
+    extra: dict[str, Any] = {
+        "function_external_id": fn_external_id,
+        "task_id": task_id,
+        "instances_listed": len(rows),
+        "instances_written": len(rows),
+        "run_id": run_id,
+        "source_raw_db": source_db,
+        "source_raw_table": source_table,
+        "read_limit": read_limit,
+        "query_scope_mode": query_scope_mode,
+        "effective_scope_mode": "all" if lookup_full_scan else query_scope_mode,
+        "listing_narrowed": listing_narrowed,
+        "lookup_full_scan": lookup_full_scan,
+        "effective_run_cap": read_limit if read_limit > 0 else None,
+        "resume_checkpoint_rows": checkpoint.rows_completed if checkpoint is not None else 0,
+        "resume_checkpoint_complete": checkpoint.is_complete if checkpoint is not None else False,
+        "predecessor_mode": "cohort" if cohort_summary else "in_memory",
+    }
+    if cohort_summary:
+        extra.update(cohort_summary)
+    return enumeration_summary(enum_stats, extra=extra)
 
 
-def handle(data: Dict[str, Any], client: Any = None) -> Dict[str, Any]:
+def handle(data: dict[str, Any], client: Any = None) -> dict[str, Any]:
     return etl_handle_query_raw("fn_discovery_etl_raw_query", data, client, log=None)

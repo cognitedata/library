@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useAppSettings } from "../../context/AppSettingsContext";
 import type { JsonObject } from "../../types/jsonConfig";
 import {
@@ -6,6 +6,7 @@ import {
   readScoreFields,
   readScoringRules,
   serializeScoringRuleRows,
+  type ScoringRuleRow,
 } from "../../utils/scoreNodeConfigModel";
 import { ScoringRulesEditor } from "./ScoringRulesEditor";
 
@@ -35,10 +36,21 @@ export function EtlScoreNodeConfigFields({ value, onChange }: Props) {
     setFieldsDraft(fieldsToText(fields));
   }, [fields.join("\0")]);
 
-  const rules = useMemo(
-    () => parseScoringRuleRows(readScoringRules(value as Record<string, unknown>)),
-    [value]
+  // Keep parsed rows in local state. Re-parsing serialized config on every
+  // keystroke would trim trailing spaces and drop draft descriptions.
+  const [rules, setRules] = useState(() =>
+    parseScoringRuleRows(readScoringRules(value as Record<string, unknown>))
   );
+
+  const commitRules = (nextRules: ScoringRuleRow[]) => {
+    setRules(nextRules);
+    const next: JsonObject = {
+      ...value,
+      scoring_rules: serializeScoringRuleRows(nextRules),
+    };
+    delete next.score_rules;
+    onChange(next);
+  };
 
   const commitFields = (raw: string) => {
     const nextFields = textToFields(raw);
@@ -145,18 +157,7 @@ export function EtlScoreNodeConfigFields({ value, onChange }: Props) {
       </div>
       <p className="transform-node-editor-modal__hint">{t("transform.score.minThresholdFilterHint")}</p>
 
-      <ScoringRulesEditor
-        rules={rules}
-        onChange={(nextRules) => {
-          const serialized = serializeScoringRuleRows(nextRules);
-          const next: JsonObject = {
-            ...value,
-            scoring_rules: serialized,
-          };
-          delete next.score_rules;
-          onChange(next);
-        }}
-      />
+      <ScoringRulesEditor rules={rules} onChange={commitRules} />
     </div>
   );
 }

@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import sys
+from collections.abc import MutableMapping
 from pathlib import Path
-from typing import Any, Dict, MutableMapping
+from typing import Any
 
 _staging_root = Path(__file__).resolve().parent.parent
 if str(_staging_root) not in sys.path:
@@ -17,7 +18,11 @@ from cdf_fn_common.etl_common import (
     require_pipeline_run_key,
     resolve_task_config,
 )
-from cdf_fn_common.etl_filter_eval import parse_etl_filters, row_passes_filter, validate_filter_config
+from cdf_fn_common.etl_filter_eval import (
+    parse_etl_filters,
+    row_passes_filter,
+    validate_filter_config,
+)
 
 
 def etl_handle_filter(
@@ -25,7 +30,7 @@ def etl_handle_filter(
     data: MutableMapping[str, Any],
     client: Any,
     log: Any,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     merge_compiled_task_into_data(data)
     cfg = resolve_task_config(data)
     validate_filter_config(cfg)
@@ -58,5 +63,5 @@ def etl_handle_filter(
     }
 
 
-def handle(data: Dict[str, Any], client: Any = None) -> Dict[str, Any]:
+def handle(data: dict[str, Any], client: Any = None) -> dict[str, Any]:
     return etl_handle_filter("fn_discovery_etl_filter", data, client, log=None)

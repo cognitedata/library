@@ -26,6 +26,7 @@ describe("dataTreeEntityDrop", () => {
       description: "Asset",
       view_external_id: "CogniteAsset",
       batch_size: 1000,
+      limit: 1000,
     });
     const s = seedConfigForEntityDrop(dmView, "save_view");
     expect(s).toMatchObject({
@@ -33,6 +34,7 @@ describe("dataTreeEntityDrop", () => {
       view_external_id: "CogniteAsset",
     });
     expect(s).not.toHaveProperty("batch_size");
+    expect(s).not.toHaveProperty("limit");
   });
 
   it("offers query, save, and query+save pair menu options for droppable entities", () => {

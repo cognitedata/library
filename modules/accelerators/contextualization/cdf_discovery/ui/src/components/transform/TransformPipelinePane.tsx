@@ -33,6 +33,7 @@ import { TransformLocalRunDryRunField } from "./TransformLocalRunDryRunField";
 import { TransformFlowPanel } from "./TransformFlowPanel";
 import { canvasValidationNodeIds } from "../../utils/canvasValidationNodeIds";
 import { TransformRunResultsPanel } from "./TransformRunResultsPanel";
+import { extractRunIdFromLog, TransformRunIdBanner } from "./TransformRunIdBanner";
 import {
   TransformSaveAsDialog,
   type TransformSaveAsResult,
@@ -151,6 +152,15 @@ export function TransformPipelinePane(props: Props) {
     }
     return parts.join("\n\n");
   }, [runLog, cdfLog]);
+
+  const displayRunId = useMemo(() => {
+    const fromLog = extractRunIdFromLog(combinedConsoleLog);
+    // While a run is active, prefer the id from the live log (avoids showing the previous run).
+    if (effectiveRunBusy && fromLog) return fromLog;
+    const fromLast = String(lastRun?.run_id ?? "").trim();
+    if (fromLast) return fromLast;
+    return fromLog;
+  }, [effectiveRunBusy, lastRun?.run_id, combinedConsoleLog]);
 
   useEffect(() => {
     if (editorSubTab !== "console") return;
@@ -546,7 +556,7 @@ export function TransformPipelinePane(props: Props) {
           }
           if (runCancelled()) return;
         } else {
-          patchRunSession({ runLog: "" });
+          patchRunSession({ runLog: "", lastRun: null });
         }
 
         if (runCancelled()) return;
@@ -750,6 +760,7 @@ export function TransformPipelinePane(props: Props) {
         <div className="transform-pipeline-console">
           <div className="transform-pipeline-console__section">
             <p className="transform-pipeline-console__section-title">{t("transform.editorSubtabs.console")}</p>
+            <TransformRunIdBanner t={t} runId={displayRunId} showEmpty />
             <div className="transform-pipeline-console__controls">
               <div className="transform-flow-toolbar" role="toolbar" aria-label={t("transform.toolbar.aria")}>
                 {effectiveRunBusy ? (

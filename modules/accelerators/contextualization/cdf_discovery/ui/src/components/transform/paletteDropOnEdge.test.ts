@@ -180,4 +180,28 @@ describe("transform paletteDropOnEdge", () => {
     const toEnd = result!.edges.find((e) => e.source === save!.id && e.target === "end1");
     expect(toEnd).toBeDefined();
   });
+
+  it("seeds query_view palette drops with limit 1000", () => {
+    const nodes = [node("end1", "etlEnd", { x: 400, y: 0 })];
+    const getNode = (id: string) => nodes.find((n) => n.id === id);
+    const event = {
+      dataTransfer: {
+        getData: () => JSON.stringify({ kind: "etl_stage", stage: "query_view" }),
+      },
+      clientX: 100,
+      clientY: 100,
+    } as unknown as React.DragEvent;
+    const result = applyTransformCanvasDrop({
+      event,
+      screenToFlowPosition: () => ({ x: 100, y: 100 }),
+      getNode,
+      getEdges: () => [],
+      nodes,
+    });
+    expect(result).not.toBeNull();
+    const query = result!.nodes.find((n) => n.type === "etlQueryView");
+    expect(query).toBeDefined();
+    const cfg = (query!.data as { config?: Record<string, unknown> }).config;
+    expect(cfg?.limit).toBe(1000);
+  });
 });

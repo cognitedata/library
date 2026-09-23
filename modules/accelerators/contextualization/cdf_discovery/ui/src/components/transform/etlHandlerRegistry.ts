@@ -27,6 +27,7 @@ export const ELT_TRANSFORM_HANDLER_IDS = [
   "mask_string",
   "static_lookup_map",
   "heuristic_sampler",
+  "compose_template",
 ] as const;
 export type EltTransformHandlerId = (typeof ELT_TRANSFORM_HANDLER_IDS)[number];
 
@@ -111,6 +112,11 @@ export const TRANSFORM_HANDLER_DEFINITIONS: readonly TransformHandlerDefinition[
   {
     id: "heuristic_sampler",
     nameKey: "transforms.handlerName.heuristic_sampler",
+    category: "derive",
+  },
+  {
+    id: "compose_template",
+    nameKey: "transforms.handlerName.compose_template",
     category: "derive",
   },
 ] as const;

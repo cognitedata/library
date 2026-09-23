@@ -69,6 +69,7 @@ def test_etl_handle_query_raw_filters_and_populates_predecessor_rows() -> None:
     data = {
         "task_id": "raw_q",
         "run_id": "run-new",
+        "local_predecessor_mode": "in_memory",
         "config": {
             "source_raw_db": "db_src",
             "source_raw_table": "tbl",
@@ -81,6 +82,7 @@ def test_etl_handle_query_raw_filters_and_populates_predecessor_rows() -> None:
     summary = etl_handle_query_raw("fn_discovery_etl_raw_query", data, client, None)
     assert summary["instances_written"] == 1
     assert summary["query_scope_mode"] == "inherit"
+    assert summary["predecessor_mode"] == "in_memory"
     assert len(data["_predecessor_rows"]) == 1
     row = data["_predecessor_rows"][0]
     assert row["columns"]["external_id"] == "E1"
@@ -216,6 +218,7 @@ def test_etl_handle_query_raw_reads_predecessor_buffer_without_source() -> None:
     data = {
         "task_id": "raw_downstream",
         "run_id": "run-1",
+        "local_predecessor_mode": "in_memory",
         "config": {},
         "compiled_workflow": {
             "tasks": [
@@ -238,12 +241,70 @@ def test_etl_handle_query_raw_reads_predecessor_buffer_without_source() -> None:
     assert data["_predecessor_rows"][0]["columns"]["external_id"] == "E1"
 
 
+def test_etl_handle_query_raw_cohort_handoff_persists_rows(monkeypatch) -> None:
+    """Cohort mode must write rows to the node sink so join/right side is not empty."""
+    captured: dict = {}
+
+    def _fake_handoff(client, data, **kwargs):  # noqa: ANN001
+        captured["rows"] = list(kwargs.get("rows") or [])
+        captured["query_source"] = kwargs.get("query_source")
+        captured["task_id"] = kwargs.get("task_id")
+        data.pop("_predecessor_rows", None)
+        return {
+            "rows_written": len(captured["rows"]),
+            "raw_db": "etl_staging",
+            "raw_table": "cohort__run__raw_q",
+            "predecessor_mode": "cohort",
+        }
+
+    monkeypatch.setattr(
+        "fn_discovery_etl_raw_query.handler.maybe_handoff_predecessor_rows",
+        _fake_handoff,
+    )
+    rows_iter = [
+        _raw_row(
+            "k1",
+            {
+                RECORD_KIND_COLUMN: RECORD_KIND_ENTITY,
+                EXTERNAL_ID_COLUMN: "E1",
+                NODE_INSTANCE_ID_COLUMN: "sp:E1",
+                PROPERTIES_JSON_COLUMN: json.dumps({"raw_columns": {"unit_number": "10"}}),
+            },
+        ),
+    ]
+    client = MagicMock()
+    client.raw.rows = MagicMock(return_value=iter(rows_iter))
+    data = {
+        "task_id": "raw_q",
+        "run_id": "run-cohort",
+        "local_predecessor_mode": "cohort",
+        "config": {"source_raw_db": "db_src", "source_raw_table": "tbl"},
+    }
+    summary = etl_handle_query_raw("fn_discovery_etl_raw_query", data, client, None)
+    assert summary["predecessor_mode"] == "cohort"
+    assert summary["rows_written"] == 1
+    assert "_predecessor_rows" not in data
+    assert captured["query_source"] == "raw"
+    assert captured["task_id"] == "raw_q"
+    assert len(captured["rows"]) == 1
+    assert captured["rows"][0]["properties"]["raw_columns"]["unit_number"] == "10"
+
+
 def test_etl_handle_query_raw_returns_early_when_checkpoint_complete(monkeypatch) -> None:
     monkeypatch.setattr(
         "fn_discovery_etl_raw_query.handler.load_query_checkpoint_state",
         lambda *_a, **_k: SimpleNamespace(rows_completed=0, is_complete=True, continuation_token=""),
     )
-    data = {"task_id": "raw_q", "run_id": "run-1", "config": {"source_raw_db": "d", "source_raw_table": "t"}}
+    monkeypatch.setattr(
+        "fn_discovery_etl_raw_query.handler.maybe_handoff_predecessor_rows",
+        lambda *_a, **_k: {"rows_written": 0, "predecessor_mode": "cohort"},
+    )
+    data = {
+        "task_id": "raw_q",
+        "run_id": "run-1",
+        "local_predecessor_mode": "cohort",
+        "config": {"source_raw_db": "d", "source_raw_table": "t"},
+    }
     summary = etl_handle_query_raw("fn_discovery_etl_raw_query", data, MagicMock(), None)
     assert summary["resume_checkpoint_complete"] is True
 
