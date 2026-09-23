@@ -179,24 +179,24 @@ _ALIAS_SEPARATORS = re.compile(r"[-_.:]+")
 
 
 def _normalize_alias_tokens(alias: str) -> str:
-    """Replace separator characters with underscores between tokens.
+    """Replace separator characters with hyphens between tokens.
 
-    Multi-group patterns already join their groups with "_". A single capture group that
-    holds the whole tag still carries "-", "." or ":" from the name unless those are
+    Multi-group patterns already join their groups with "-". A single capture group that
+    holds the whole tag still carries "_", "." or ":" from the name unless those are
     rewritten here. Applied to every generated alias, including letter-prefixed tags and
     document numbers.
     """
-    return _ALIAS_SEPARATORS.sub("_", alias)
+    return _ALIAS_SEPARATORS.sub("-", alias)
 
 
 def _generated_alias(name: str, pattern: re.Pattern[str]) -> str | None:
-    """The alias derived from a name - the pattern's capture groups joined by "_".
+    """The alias derived from a name - the pattern's capture groups joined by "-".
 
     A configured pattern may make a group optional, and an optional group that does not
     participate in the match captures None. Those are left out rather than joined, which
     would raise a TypeError.
 
-    Tag-shaped aliases always use "_" between tokens, whether the pattern captured several
+    Tag-shaped aliases always use "-" between tokens, whether the pattern captured several
     groups or one group holding the whole tag. Letter-prefixed tags and document numbers
     are rewritten the same way.
 
@@ -206,7 +206,7 @@ def _generated_alias(name: str, pattern: re.Pattern[str]) -> str | None:
     match = pattern.search(name)
     if not match:
         return None
-    alias = "_".join(group for group in match.groups() if group is not None)
+    alias = "-".join(group for group in match.groups() if group is not None)
     return _normalize_alias_tokens(alias) if alias else None
 
 
@@ -244,8 +244,8 @@ def _is_generated_alias(alias: str, rule: AliasRule) -> bool:
     """Whether this function produced `alias`, including a pre-normalization spelling.
 
     An alias is ours when feeding it back through any of the rule's patterns yields the
-    same string after separator rewrite. That treats `23-DB-9101` as generated once the
-    function writes `23_DB_9101`, so updateAll rebuilds it instead of keeping both.
+    same string after separator rewrite. That treats `23_DB_9101` as generated once the
+    function writes `23-DB-9101`, so updateAll rebuilds it instead of keeping both.
     """
     normalized = _normalize_alias_tokens(alias)
     return any(

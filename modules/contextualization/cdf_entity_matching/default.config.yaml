@@ -66,7 +66,7 @@ targetViewFilterValues: []
 entityViewSearchProperty: name
 entityViewFilterValues: []  
 
-workflow: EntityMatching
+workflow: wf_ctx_entity_matching
 ### UPDATE THE FOLLOWING VALUES FOR YOUR IDP CONFIGURATION ###
 workflowClientId: ${IDP_CLIENT_ID}
 workflowClientSecret: ${IDP_CLIENT_SECRET}

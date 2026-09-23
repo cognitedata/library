@@ -163,8 +163,8 @@ class TestBatchProcessing(unittest.TestCase):
 
 
 # A site-specific pattern used to check that configuration, not the built-in default,
-# decides the alias. The "_" in the separator class is deliberate: the generated alias
-# joins the groups with "_", and the pattern has to match that to recognise its own work.
+# decides the alias. The "-" in the separator class is deliberate: the generated alias
+# joins the groups with "-", and the pattern has to match that to recognise its own work.
 PUMP_PATTERN = r"([A-Z]{3})[-_]?(\d{4})"
 
 # The document number patterns shipped in the module's default.config.yaml, for
@@ -215,7 +215,7 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
         self.assertIsNotNone(result)
         properties = result.sources[0].properties
         self.assertIn("aliases", properties)
-        self.assertIn("23_KA_9101", properties["aliases"])
+        self.assertIn("23-KA-9101", properties["aliases"])
         self.assertNotIn("tags", properties)
         self.assertNotIn("description", properties)
 
@@ -233,7 +233,7 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
 
         result = processor.process_timeseries_metadata(node, self.view_id, "inst_cfihos_oil_and_gas")
 
-        self.assertEqual(result.sources[0].properties["aliases"], ["23_KA_9101", "PMP_1234"])
+        self.assertEqual(result.sources[0].properties["aliases"], ["23-KA-9101", "PMP-1234"])
 
     def test_longest_selection_keeps_only_the_most_specific_alias(self) -> None:
         """With overlapping conventions, the longest match is the most specific one."""
@@ -249,7 +249,7 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
 
         result = processor.process_timeseries_metadata(node, self.view_id, "inst_cfihos_oil_and_gas")
 
-        self.assertEqual(result.sources[0].properties["aliases"], ["23_KA_9101"])
+        self.assertEqual(result.sources[0].properties["aliases"], ["23-KA-9101"])
 
     def test_equally_long_aliases_are_resolved_by_configured_order(self) -> None:
         """A tie must not depend on dict or set ordering, so the first pattern wins."""
@@ -264,7 +264,7 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
         )
         result = processor.process_timeseries_metadata(node, self.view_id, "inst_cfihos_oil_and_gas")
 
-        self.assertEqual(result.sources[0].properties["aliases"], ["5678_XYZ"])
+        self.assertEqual(result.sources[0].properties["aliases"], ["5678-XYZ"])
 
     def test_update_all_reclaims_aliases_from_every_configured_pattern(self) -> None:
         """Selecting only the longest must not orphan aliases an earlier run wrote."""
@@ -279,8 +279,8 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
         node.properties = {
             self.view_id: {
                 "name": "VAL_23-KA-9101_PMP1234",
-                # PMP_1234 was written when the mode was "all"; it is still ours to remove.
-                "aliases": ["operator note", "23_KA_9101", "PMP_1234"],
+                # PMP-1234 was written when the mode was "all"; it is still ours to remove.
+                "aliases": ["operator note", "23-KA-9101", "PMP-1234"],
             }
         }
 
@@ -289,7 +289,7 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
         )
 
         self.assertEqual(
-            result.sources[0].properties["aliases"], ["operator note", "23_KA_9101"]
+            result.sources[0].properties["aliases"], ["operator note", "23-KA-9101"]
         )
 
     def test_letter_prefixed_aliases_are_normalized(self) -> None:
@@ -307,10 +307,10 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
             node, asset_view, "inst_location", update_all=True
         )
 
-        self.assertEqual(result.sources[0].properties["aliases"], ["DB_9101", "23_DB_9101"])
+        self.assertEqual(result.sources[0].properties["aliases"], ["DB-9101", "23-DB-9101"])
 
     def test_a_single_group_tag_pattern_still_normalizes_separators(self) -> None:
-        """One capture group for the whole tag must still yield underscores between tokens."""
+        """One capture group for the whole tag must still yield hyphens between tokens."""
         single_group = r"([0-9]{2}[-_.:][A-Z]{2,4}[-_.:][0-9]{4,5})"
         processor = OptimizedMetadataProcessor(
             self.logger,
@@ -335,11 +335,11 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
         asset_result = processor.process_asset_metadata(asset_node, asset_view, "inst_location")
         file_result = processor.process_file_metadata(file_node, self.file_view_id, "inst_location")
 
-        self.assertEqual(ts_result.sources[0].properties["aliases"], ["23_KA_9101"])
-        self.assertEqual(asset_result.sources[0].properties["aliases"], ["23_KA_9101"])
+        self.assertEqual(ts_result.sources[0].properties["aliases"], ["23-KA-9101"])
+        self.assertEqual(asset_result.sources[0].properties["aliases"], ["23-KA-9101"])
         self.assertEqual(
             file_result.sources[0].properties["aliases"],
-            ["23_KA_9101"],
+            ["23-KA-9101"],
         )
 
     def test_configured_pattern_drives_timeseries_alias_generation(self) -> None:
@@ -353,7 +353,7 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
 
         result = processor.process_timeseries_metadata(node, self.view_id, "inst_cfihos_oil_and_gas")
 
-        self.assertEqual(result.sources[0].properties["aliases"], ["PMP_1234"])
+        self.assertEqual(result.sources[0].properties["aliases"], ["PMP-1234"])
 
     def test_an_unmatched_optional_group_is_left_out_of_the_alias(self) -> None:
         """A configured pattern may make a group optional, and then it captures None.
@@ -488,7 +488,7 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
         )
         node = MagicMock()
         node.external_id = "pi:160035"
-        node.properties = {self.view_id: {"name": "VAL_23-KA-9101", "aliases": ["23_KA_9101"]}}
+        node.properties = {self.view_id: {"name": "VAL_23-KA-9101", "aliases": ["23-KA-9101"]}}
 
         result = processor.process_timeseries_metadata(node, self.view_id, "inst_cfihos_oil_and_gas")
 
@@ -505,7 +505,7 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
         )
         node = MagicMock()
         node.external_id = "pi:160032"
-        node.properties = {self.view_id: {"name": "VAL_23-KA-9101", "aliases": ["23_KA_9101"]}}
+        node.properties = {self.view_id: {"name": "VAL_23-KA-9101", "aliases": ["23-KA-9101"]}}
 
         result = processor.process_timeseries_metadata(node, self.view_id, "inst_cfihos_oil_and_gas")
 
@@ -525,7 +525,7 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
 
         result = processor.process_asset_metadata(node, asset_view, "inst_cfihos_oil_and_gas")
 
-        self.assertEqual(result.sources[0].properties["aliases"], ["23_KA"])
+        self.assertEqual(result.sources[0].properties["aliases"], ["23-KA"])
 
     def test_update_all_rebuilds_only_aliases_the_configured_pattern_generates(self) -> None:
         """Managed aliases follow the configured pattern, not the built-in default shape."""
@@ -537,7 +537,7 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
                 "name": "PMP1234 discharge pressure",
                 # The first is what this pattern generates and is rebuilt; the second is
                 # the default pattern's shape, which is now someone else's data.
-                "aliases": ["PMP_1234", "23_KA_9101"],
+                "aliases": ["PMP-1234", "23-KA-9101"],
             }
         }
 
@@ -545,24 +545,24 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
             node, self.view_id, "inst_cfihos_oil_and_gas", update_all=True
         )
 
-        self.assertEqual(result.sources[0].properties["aliases"], ["23_KA_9101", "PMP_1234"])
+        self.assertEqual(result.sources[0].properties["aliases"], ["23-KA-9101", "PMP-1234"])
 
     def test_a_stale_generated_alias_is_dropped_when_the_name_changes(self) -> None:
         """The point of rebuilding: an alias from a previous name must not linger.
 
-        This is why a pattern has to tolerate "_" between its groups - that is the
+        This is why a pattern has to tolerate "-" between its groups - that is the
         separator the generated alias uses, and how the function recognises its own work.
         """
         processor = OptimizedMetadataProcessor(self.logger, timeseries_alias_rule=AliasRule.from_config([PUMP_PATTERN]))
         node = MagicMock()
         node.external_id = "pi:160012"
-        node.properties = {self.view_id: {"name": "PMP9999 discharge pressure", "aliases": ["PMP_1234"]}}
+        node.properties = {self.view_id: {"name": "PMP9999 discharge pressure", "aliases": ["PMP-1234"]}}
 
         result = processor.process_timeseries_metadata(
             node, self.view_id, "inst_cfihos_oil_and_gas", update_all=True
         )
 
-        self.assertEqual(result.sources[0].properties["aliases"], ["PMP_9999"])
+        self.assertEqual(result.sources[0].properties["aliases"], ["PMP-9999"])
 
     def test_file_aliases_cover_the_name_without_extension_and_the_tag(self) -> None:
         """A document is findable both by its bare file name and by the tag it carries."""
@@ -574,7 +574,7 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
 
         self.assertEqual(
             result.sources[0].properties["aliases"],
-            ["PID_23_KA_9101_rev3", "23_KA_9101"],
+            ["PID-23-KA-9101-rev3", "23-KA-9101"],
         )
 
     def test_a_file_name_without_an_extension_is_used_as_is(self) -> None:
@@ -585,7 +585,7 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
 
         result = self.processor.process_file_metadata(node, self.file_view_id, "inst_cfihos_oil_and_gas")
 
-        self.assertEqual(result.sources[0].properties["aliases"], ["23_KA_9101"])
+        self.assertEqual(result.sources[0].properties["aliases"], ["23-KA-9101"])
 
     def test_files_use_their_own_configured_pattern(self) -> None:
         """Documents may be named on a different convention than the assets they describe."""
@@ -600,7 +600,7 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
 
         result = processor.process_file_metadata(node, self.file_view_id, "inst_cfihos_oil_and_gas")
 
-        self.assertEqual(result.sources[0].properties["aliases"], ["PMP1234_datasheet", "PMP_1234"])
+        self.assertEqual(result.sources[0].properties["aliases"], ["PMP1234-datasheet", "PMP-1234"])
 
     def test_file_without_a_pattern_match_does_not_use_the_name_as_an_alias(self) -> None:
         """A descriptive file name is not a tag; it must not be rewritten into aliases."""
@@ -609,7 +609,7 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
         node.properties = {
             self.file_view_id: {
                 "name": "23-1ST STAGE COMP ENCLOSURE-PH.pdf",
-                "aliases": ["23_1ST STAGE COMP ENCLOSURE_PH"],
+                "aliases": ["23-1ST STAGE COMP ENCLOSURE-PH"],
             }
         }
 
@@ -631,7 +631,7 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
 
         self.assertEqual(
             result.sources[0].properties["aliases"],
-            ["PH_25578_P_4110006_001", "PH_25578_P_4110006"],
+            ["PH-25578-P-4110006-001", "PH-25578-P-4110006"],
         )
 
     def test_a_document_alias_without_its_sheet_number_is_still_ours(self) -> None:
@@ -669,7 +669,7 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
         node.properties = {
             self.file_view_id: {
                 "name": "PID_23-KA-9101_rev3.pdf",
-                "aliases": ["PID_23_KA_9101_rev3", "23_KA_9101"],
+                "aliases": ["PID-23-KA-9101-rev3", "23-KA-9101"],
             }
         }
 
@@ -694,7 +694,7 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
 
         self.assertEqual(
             result.sources[0].properties["aliases"],
-            ["manual note", "PID_23_KA_9101_rev3", "23_KA_9101"],
+            ["manual note", "PID-23-KA-9101-rev3", "23-KA-9101"],
         )
 
     def test_timeseries_skips_update_when_aliases_unchanged(self) -> None:
@@ -706,7 +706,7 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
         node.properties = {
             self.view_id: {
                 "name": "VAL_23-KA-9101:X.Value",
-                "aliases": ["existing", "23_KA_9101"],
+                "aliases": ["existing", "23-KA-9101"],
             }
         }
 
@@ -724,7 +724,7 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
         node.properties = {
             self.view_id: {
                 "name": "VAL_23-KA-9101:X.Value",
-                "aliases": ["11_PT_2222", "23_KA_9101"],
+                "aliases": ["11-PT-2222", "23-KA-9101"],
             }
         }
 
@@ -734,7 +734,7 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
 
         self.assertIsNotNone(result)
         properties = result.sources[0].properties
-        self.assertEqual(properties["aliases"], ["23_KA_9101"])
+        self.assertEqual(properties["aliases"], ["23-KA-9101"])
 
         print("✅ Timeseries updateAll test passed")
 
@@ -760,7 +760,7 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
         self.assertIsNotNone(result)
         self.assertEqual(
             result.sources[0].properties["aliases"],
-            ["operator note", "spare for 23-AB-1234", "23_KA_9101"],
+            ["operator note", "spare for 23-AB-1234", "23-KA-9101"],
         )
 
         print("✅ Timeseries updateAll unmanaged alias test passed")
@@ -772,7 +772,7 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
         node.properties = {
             self.view_id: {
                 "name": "VAL_23-KA-9101:X.Value",
-                "aliases": ["operator note", "spare for 23-AB-1234", "23_KA_9101"],
+                "aliases": ["operator note", "spare for 23-AB-1234", "23-KA-9101"],
             }
         }
 
@@ -784,13 +784,13 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
         )
 
         self.assertIsNotNone(result)
-        self.assertEqual(result.sources[0].properties["aliases"], ["23_KA_9101"])
+        self.assertEqual(result.sources[0].properties["aliases"], ["23-KA-9101"])
 
     def test_remove_old_aliases_skips_update_when_output_already_matches(self) -> None:
         """No write when the produced aliases already equal what is stored."""
         node = MagicMock()
         node.external_id = "pi:160007"
-        node.properties = {self.view_id: {"name": "VAL_23-KA-9101:X.Value", "aliases": ["23_KA_9101"]}}
+        node.properties = {self.view_id: {"name": "VAL_23-KA-9101:X.Value", "aliases": ["23-KA-9101"]}}
 
         result = self.processor.process_timeseries_metadata(
             node,
@@ -828,7 +828,7 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
         node.properties = {
             self.view_id: {
                 "name": "VAL_23-KA-9101:X.Value",
-                "aliases": ["23_KA_9101"],
+                "aliases": ["23-KA-9101"],
             }
         }
 
@@ -850,7 +850,7 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
         node.properties = {
             asset_view_id: {
                 "name": "23-KA-9101",
-                "aliases": ["operator note", "11_PT_2222", "spare for 23-AB-1234"],
+                "aliases": ["operator note", "11-PT-2222", "spare for 23-AB-1234"],
                 "tags": ["discipline:KA", "tag", "root:old_root"],
                 "root": {"space": "inst_cfihos_oil_and_gas", "externalId": "VAL-PH"},
             }
@@ -864,7 +864,7 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
         properties = result.sources[0].properties
         self.assertEqual(
             properties["aliases"],
-            ["operator note", "spare for 23-AB-1234", "23_KA_9101"],
+            ["operator note", "spare for 23-AB-1234", "23-KA-9101"],
         )
         self.assertNotIn("tags", properties)
 
@@ -880,7 +880,7 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
         node.properties = {
             asset_view_id: {
                 "name": "23-KA-9101",
-                "aliases": ["23_KA_9101"],
+                "aliases": ["23-KA-9101"],
                 "tags": ["discipline:KA", "root:VAL-PH"],
                 "root": {"space": "inst_cfihos_oil_and_gas", "externalId": "VAL-PH"},
             }
@@ -914,7 +914,7 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
         )
 
         self.assertIsNotNone(result)
-        self.assertEqual(result.sources[0].properties["aliases"], ["23_KA_9101"])
+        self.assertEqual(result.sources[0].properties["aliases"], ["23-KA-9101"])
 
         print("✅ Asset incremental alias test passed")
 
@@ -957,7 +957,7 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
         node.properties = {
             asset_view_id: {
                 "name": "23-KA-9101",
-                "aliases": ["23_KA_9101"],
+                "aliases": ["23-KA-9101"],
                 "tags": ["root:VAL-PH", "discipline:KA"],
                 "root": {"space": "inst_cfihos_oil_and_gas", "externalId": "VAL-PH"},
             }
@@ -1054,14 +1054,14 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
 
         self.assertEqual(aliases1, aliases2)
         self.assertIn("existing", aliases1)
-        self.assertIn("23_KA_9101", aliases1)
+        self.assertIn("23-KA-9101", aliases1)
 
         # Test asset alias generation
         asset_aliases = self.processor._get_asset_alias_list_optimized(
             "23-KA-9101", ("existing",)
         )
         self.assertIn("existing", asset_aliases)
-        self.assertIn("23_KA_9101", asset_aliases)
+        self.assertIn("23-KA-9101", asset_aliases)
 
         print("✅ Alias generation caching test passed")
 

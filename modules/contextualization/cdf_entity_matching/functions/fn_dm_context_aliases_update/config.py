@@ -30,7 +30,7 @@ class ViewPropertyConfig(BaseModel, alias_generator=to_camel):
     version: str
     # Configured as "aliasPattern", one regular expression or a list of them, normalised
     # to a list here. Each pattern finds the tag inside a name; the alias it yields is
-    # that pattern's capture groups joined by "_", so the groups decide the alias rather
+    # that pattern's capture groups joined by "-", so the groups decide the alias rather
     # than the whole match.
     alias_patterns: list[str] = Field(
         alias="aliasPattern",
@@ -62,7 +62,7 @@ class ViewPropertyConfig(BaseModel, alias_generator=to_camel):
             if not compiled.groups:
                 raise ValueError(
                     f"aliasPattern {pattern!r} must have at least one capture group - "
-                    "the alias is the groups joined by '_'"
+                    "the alias is the groups joined by '-'"
                 )
         return value
 
