@@ -214,7 +214,8 @@ class GeneralLaunchService(AbstractLaunchService):
             else:
                 self._release_unlaunched_files(file_nodes, launched_file_ids)
                 raise e
-        except (ValueError, RuntimeError):
+        except Exception:
+            # Re-raised after releasing, so any failure frees the files this run claimed.
             self._release_unlaunched_files(file_nodes, launched_file_ids)
             raise
         finally:

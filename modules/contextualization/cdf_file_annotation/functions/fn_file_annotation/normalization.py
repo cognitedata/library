@@ -26,6 +26,8 @@ def extract_forms(text: str, patterns: list[str]) -> list[str]:
     Returns:
         A single-element list with the longest extracted form, or [] when nothing matches.
     """
+    if not isinstance(text, str):
+        return []
     forms: list[str] = []
     for pattern in patterns:
         match = re.search(pattern, text)
@@ -48,6 +50,8 @@ def text_variations(text: str, patterns: list[str]) -> list[str]:
     match so callers skip entity search. On a match, includes the original text plus
     extracted/hygiene forms.
     """
+    if not isinstance(text, str):
+        return []
     if patterns:
         forms = extract_forms(text, patterns)
         if not forms:

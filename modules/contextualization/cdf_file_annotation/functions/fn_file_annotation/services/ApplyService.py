@@ -303,8 +303,9 @@ class GeneralApplyService(IApplyService):
         removed_external_ids: set[str] = set()
 
         for detect_annotation in result_item.get("annotations", []):
-            bounding_box: BoundingBox = self._extract_bounding_box_from_region(detect_annotation["region"])
-            page = detect_annotation["region"].get("page")
+            region = detect_annotation.get("region") or {}
+            bounding_box: BoundingBox = self._extract_bounding_box_from_region(region)
+            page = region.get("page")
 
             if self._is_bounding_box_covered(existing_bounding_boxes, page, bounding_box):
                 continue
@@ -412,8 +413,9 @@ class GeneralApplyService(IApplyService):
         edges = []
         # NOTE: File annotation endpoint returns multiple of the same entities when matched on different aliases
         edge_external_id: list[str] = []
-        bounding_box: BoundingBox = self._extract_bounding_box_from_region(detect_annotation["region"])
-        page = detect_annotation["region"].get("page")
+        region = detect_annotation.get("region") or {}
+        bounding_box: BoundingBox = self._extract_bounding_box_from_region(region)
+        page = region.get("page")
         for entity in detect_annotation.get("entities", []):
             # NOTE: Remove self references
             if file_instance_id.as_tuple() == (entity.get("space"), entity.get("external_id")):

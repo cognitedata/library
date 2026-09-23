@@ -263,6 +263,42 @@ def test_normalization_extracts_capture_groups_then_applies_hygiene() -> None:
     assert "V_0912" in matched or "V0912" in matched
 
 
+def test_normalization_ignores_text_that_is_not_a_string() -> None:
+    """Detect results can carry a null text; that must not crash promote or pattern sampling."""
+    from normalization import extract_forms, text_variations
+
+    assert extract_forms(None, [r"^([A-Z]{2})-(.+)$"]) == []  # type: ignore[arg-type]
+    assert text_variations(None, [r"^([A-Z]{2})-(.+)$"]) == []  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize("factory", ["create_logger_service", "create_write_logger_service"])
+def test_log_level_is_case_insensitive(factory: str, tmp_path: Path) -> None:
+    import dependencies
+
+    logger = getattr(dependencies, factory)("debug", str(tmp_path / "run.log"))
+
+    assert logger.log_level == "DEBUG"
+
+
+def test_launch_releases_claimed_files_on_an_unexpected_error() -> None:
+    """Files tagged AnnotationInProcess would otherwise stay locked out of Prepare forever."""
+    from services.LaunchService import GeneralLaunchService
+
+    service = GeneralLaunchService(
+        MagicMock(), MagicMock(), MagicMock(), MagicMock(), MagicMock(), MagicMock(), MagicMock(), {}, MagicMock()
+    )
+    file_nodes = [MagicMock()]
+    service.data_model_service.get_files_to_process.return_value = (file_nodes, {"file": "state"})
+    service._organize_files_for_processing = MagicMock(return_value=[MagicMock()])
+    service._ensure_cache_for_batch = MagicMock(side_effect=KeyError("primary"))
+    service._release_unlaunched_files = MagicMock()
+
+    with pytest.raises(KeyError):
+        service.run()
+
+    service._release_unlaunched_files.assert_called_once_with(file_nodes, set())
+
+
 def test_hyphenated_drawing_text_searches_for_the_underscore_alias() -> None:
     """aliases_update stores a tag with "_" between tokens; drawings print it with "-"."""
     from normalization import text_variations

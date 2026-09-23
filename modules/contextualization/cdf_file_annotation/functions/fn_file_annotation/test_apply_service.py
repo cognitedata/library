@@ -146,6 +146,15 @@ def test_a_file_link_below_its_own_suggest_threshold_is_dropped() -> None:
     assert edges == []
 
 
+def test_detections_without_a_region_do_not_crash_the_apply_step() -> None:
+    regular = {"confidence": 1.0, "entities": [LINKED_FILE], "text": "PH-ME-P-0152-001"}
+    pattern = {"annotations": [{"entities": [LINKED_FILE], "text": "PH-ME-P-0152-001"}]}
+
+    edges, _ = _apply(_config(), [regular], pattern)
+
+    assert _status_by_end_node(edges)["file_PH-ME-P-0152-001.pdf"] == "Approved"
+
+
 def test_file_link_thresholds_default_to_the_general_thresholds() -> None:
     apply = _config(assetAutoApprovalThreshold=0.9, assetAutoSuggestThreshold=0.6).finalize_function.apply_service
 

@@ -204,12 +204,10 @@ class GeneralFinalizeService(AbstractFinalizeService):
                 continue
 
             annotation_state_node = file_to_state_map[file_id]
-            current_attempt = cast(
-                int,
-                (annotation_state_node.properties or {})
-                .get(self.annotation_state_view.as_view_id(), {})
-                .get("attemptCount", 0),
-            )
+            state_properties = (annotation_state_node.properties or {}).get(
+                self.annotation_state_view.as_view_id()
+            ) or {}
+            current_attempt = cast(int, state_properties.get("attemptCount") or 0)
             next_attempt = current_attempt + 1
 
             try:

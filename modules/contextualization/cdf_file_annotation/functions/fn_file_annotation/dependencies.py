@@ -76,16 +76,17 @@ def create_config_service(
     return config, client
 
 
+def _valid_log_level(log_level: str) -> str:
+    level = log_level.upper()
+    return level if level in {"DEBUG", "INFO", "WARNING", "ERROR"} else "INFO"
+
+
 def create_logger_service(log_level: str, filepath: str | None = None) -> CogniteFunctionLogger:
-    valid_levels = {"DEBUG", "INFO", "WARNING", "ERROR"}
-    level = log_level if log_level in valid_levels else "INFO"
-    return CogniteFunctionLogger(log_level=level, write=filepath is not None, filepath=filepath)
+    return CogniteFunctionLogger(log_level=_valid_log_level(log_level), write=filepath is not None, filepath=filepath)
 
 
 def create_write_logger_service(log_level: str, filepath: str) -> CogniteFunctionLogger:
-    valid_levels = {"DEBUG", "INFO", "WARNING", "ERROR"}
-    level = log_level if log_level in valid_levels else "INFO"
-    return CogniteFunctionLogger(log_level=level, write=True, filepath=filepath)
+    return CogniteFunctionLogger(log_level=_valid_log_level(log_level), write=True, filepath=filepath)
 
 
 def create_general_data_model_service(
