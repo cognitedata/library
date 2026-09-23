@@ -254,8 +254,11 @@ class RetrieveServiceConfig(BaseModel, alias_generator=to_camel):
 
 
 class ApplyServiceConfig(BaseModel, alias_generator=to_camel):
-    auto_approval_threshold: float = Field(gt=0.0, le=1.0)
-    auto_suggest_threshold: float = Field(gt=0.0, le=1.0)
+    # Asset links (diagrams.AssetLink) use these; file links use the file_* pair below.
+    asset_auto_approval_threshold: float = Field(gt=0.0, le=1.0)
+    asset_auto_suggest_threshold: float = Field(gt=0.0, le=1.0)
+    file_auto_approval_threshold: float = Field(gt=0.0, le=1.0)
+    file_auto_suggest_threshold: float = Field(gt=0.0, le=1.0)
     sink_node: NodeId
 
 
@@ -394,8 +397,11 @@ class Parameters(BaseModel, alias_generator=to_camel):
     pattern_mode: bool = True
     structural_auto_patterns: bool = True
     clean_old_annotations: bool = True
-    auto_approval_threshold: float = Field(default=1.0, gt=0.0, le=1.0)
-    auto_suggest_threshold: float = Field(default=1.0, gt=0.0, le=1.0)
+    asset_auto_approval_threshold: float = Field(default=1.0, gt=0.0, le=1.0)
+    asset_auto_suggest_threshold: float = Field(default=1.0, gt=0.0, le=1.0)
+    # Thresholds for diagrams.FileLink; unset falls back to the two above.
+    file_auto_approval_threshold: float | None = Field(default=None, gt=0.0, le=1.0)
+    file_auto_suggest_threshold: float | None = Field(default=None, gt=0.0, le=1.0)
     primary_scope_property: str | None = None
     secondary_scope_property: str | None = None
     raw_db: str
@@ -486,6 +492,8 @@ class Config(BaseModel, alias_generator=to_camel):
         raw_db = parameters.get("rawDb")
         if not raw_db:
             return value
+        asset_approval_threshold = parameters.get("assetAutoApprovalThreshold", 1.0)
+        asset_suggest_threshold = parameters.get("assetAutoSuggestThreshold", 1.0)
         pattern_promote = parameters.get("patternPromote")
         if not isinstance(pattern_promote, dict):
             pattern_promote = {}
@@ -614,8 +622,12 @@ class Config(BaseModel, alias_generator=to_camel):
                         }
                     },
                     "applyService": {
-                        "autoApprovalThreshold": parameters.get("autoApprovalThreshold", 1.0),
-                        "autoSuggestThreshold": parameters.get("autoSuggestThreshold", 1.0),
+                        "assetAutoApprovalThreshold": asset_approval_threshold,
+                        "assetAutoSuggestThreshold": asset_suggest_threshold,
+                        "fileAutoApprovalThreshold": parameters.get("fileAutoApprovalThreshold")
+                        or asset_approval_threshold,
+                        "fileAutoSuggestThreshold": parameters.get("fileAutoSuggestThreshold")
+                        or asset_suggest_threshold,
                         "sinkNode": sink_node,
                     },
                 },
@@ -908,8 +920,9 @@ def format_finalize_config(config: Config, pipeline_ext_id: str) -> str:
     lines.extend(
         [
             "APPLY SERVICE",
-            f"  • Auto approval threshold: {apply.auto_approval_threshold}",
-            f"  • Auto suggest threshold: {apply.auto_suggest_threshold}",
+            f"  • Asset link approval / suggest threshold: {apply.asset_auto_approval_threshold} / {apply.asset_auto_suggest_threshold}",
+            f"  • File link approval / suggest threshold: "
+            f"{apply.file_auto_approval_threshold} / {apply.file_auto_suggest_threshold}",
             f"  • Sink node: {apply.sink_node.space}/{apply.sink_node.external_id}",
             f"  • RAW DB: {raw.raw_db}",
             f"  • Doc-Tag table: {raw.raw_table_doc_tag}",

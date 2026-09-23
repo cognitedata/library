@@ -60,8 +60,8 @@ def test_config_uses_parameters_and_data_shape() -> None:
             "parameters": {
                 "patternMode": True,
                 "cleanOldAnnotations": True,
-                "autoApprovalThreshold": 1.0,
-                "autoSuggestThreshold": 1.0,
+                "assetAutoApprovalThreshold": 1.0,
+                "assetAutoSuggestThreshold": 1.0,
                 "rawDb": "db_file_annotation",
                 "patternPromote": {
                     "textNormalization": {
@@ -99,9 +99,7 @@ def test_config_uses_parameters_and_data_shape() -> None:
     assert config.parameters.raw_db == "db_file_annotation"
     assert config.data.file_view.search_property == "aliases"
     assert config.raw_tables.raw_table_doc_tag == "annotation_documents_tags"
-    assert config.parameters.pattern_promote.text_normalization.entity_normalization_patterns == [
-        r"^([A-Z]{2})-(.+)$"
-    ]
+    assert config.parameters.pattern_promote.text_normalization.entity_normalization_patterns == [r"^([A-Z]{2})-(.+)$"]
     assert config.parameters.pattern_promote.text_normalization.file_normalization_patterns == [r"^DOC-(.+)$"]
 
 

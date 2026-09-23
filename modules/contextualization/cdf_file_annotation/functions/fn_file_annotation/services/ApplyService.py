@@ -66,8 +66,11 @@ class GeneralApplyService(IApplyService):
         self.core_annotation_view_id: ViewId = config.data_model_views.core_annotation_view.as_view_id()
         self.file_view_id: ViewId = config.data_model_views.file_view.as_view_id()
         self.file_annotation_type = config.data_model_views.file_view.annotation_type
-        self.approve_threshold = config.finalize_function.apply_service.auto_approval_threshold
-        self.suggest_threshold = config.finalize_function.apply_service.auto_suggest_threshold
+        apply_config = config.finalize_function.apply_service
+        self.asset_approve_threshold = apply_config.asset_auto_approval_threshold
+        self.asset_suggest_threshold = apply_config.asset_auto_suggest_threshold
+        self.file_approve_threshold = apply_config.file_auto_approval_threshold
+        self.file_suggest_threshold = apply_config.file_auto_suggest_threshold
         self.sink_node_ref = DirectRelationReference(
             space=config.finalize_function.apply_service.sink_node.space,
             external_id=config.finalize_function.apply_service.sink_node.external_id,
@@ -413,11 +416,11 @@ class GeneralApplyService(IApplyService):
             # NOTE: Remove self references
             if file_instance_id.as_tuple() == (entity.get("space"), entity.get("external_id")):
                 continue
-            if detect_annotation.get("confidence", 0.0) >= self.approve_threshold:
-                status = DiagramAnnotationStatus.APPROVED.value
-            elif detect_annotation.get("confidence", 0.0) >= self.suggest_threshold:
-                status = DiagramAnnotationStatus.SUGGESTED.value
-            else:
+            status = self._status_for_confidence(
+                cast(str | None, entity.get("annotation_type")),
+                cast(float, detect_annotation.get("confidence", 0.0)),
+            )
+            if status is None:
                 continue
 
             external_id = self._create_annotation_id(file_instance_id, entity, detect_annotation, bounding_box)
@@ -474,6 +477,27 @@ class GeneralApplyService(IApplyService):
             else:
                 doc_tag.append(RowWrite(key=external_id, columns=doc_log))
         return edges
+
+    def _status_for_confidence(self, annotation_type: str | None, confidence: float) -> str | None:
+        """
+        Classifies a regular detection by the thresholds of its link type.
+
+        Args:
+            annotation_type: ``diagrams.FileLink`` or ``diagrams.AssetLink``.
+            confidence: Confidence reported by diagram detect.
+
+        Returns:
+            The annotation status, or None when the confidence is below the suggest threshold.
+        """
+        if annotation_type == self.file_annotation_type:
+            approve, suggest = self.file_approve_threshold, self.file_suggest_threshold
+        else:
+            approve, suggest = self.asset_approve_threshold, self.asset_suggest_threshold
+        if confidence >= approve:
+            return DiagramAnnotationStatus.APPROVED.value
+        if confidence >= suggest:
+            return DiagramAnnotationStatus.SUGGESTED.value
+        return None
 
     def _create_stable_hash(self, raw_annotation: dict[str, object], bounding_box: BoundingBox) -> str:
         """

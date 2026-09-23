@@ -4,8 +4,10 @@ config:
     patternMode: {{ patternMode }}
     structuralAutoPatterns: {{ structuralAutoPatterns }}
     cleanOldAnnotations: {{ cleanOldAnnotations }}
-    autoApprovalThreshold: {{ autoApprovalThreshold }}
-    autoSuggestThreshold: {{ autoSuggestThreshold }}
+    assetAutoApprovalThreshold: {{ assetAutoApprovalThreshold }}
+    assetAutoSuggestThreshold: {{ assetAutoSuggestThreshold }}
+    fileAutoApprovalThreshold: {{ fileAutoApprovalThreshold }}
+    fileAutoSuggestThreshold: {{ fileAutoSuggestThreshold }}
     primaryScopeProperty: {{ primaryScopeProperty }}
     secondaryScopeProperty: {{ secondaryScopeProperty }}
     # Pipeline tags: ToAnnotate, DetectInDiagrams, ScopeWideDetect, AnnotationInProcess,

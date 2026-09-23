@@ -19,8 +19,10 @@ parameters:
   patternMode: {{ patternMode }}
   structuralAutoPatterns: {{ structuralAutoPatterns }}
   cleanOldAnnotations: {{ cleanOldAnnotations }}
-  autoApprovalThreshold: {{ autoApprovalThreshold }}
-  autoSuggestThreshold: {{ autoSuggestThreshold }}
+  assetAutoApprovalThreshold: {{ assetAutoApprovalThreshold }}
+  assetAutoSuggestThreshold: {{ assetAutoSuggestThreshold }}
+  fileAutoApprovalThreshold: {{ fileAutoApprovalThreshold }}
+  fileAutoSuggestThreshold: {{ fileAutoSuggestThreshold }}
   primaryScopeProperty: {{ primaryScopeProperty }}
   secondaryScopeProperty: {{ secondaryScopeProperty }}
   # Pipeline tags: ToAnnotate, DetectInDiagrams, ScopeWideDetect, AnnotationInProcess,
@@ -45,8 +47,7 @@ parameters:
 - `patternMode` enables pattern-mode Diagram Detect alongside regular entity matching.
 - `structuralAutoPatterns` (default `true`) makes auto patterns digit/letter **structure** templates such as `00-AA-0000` instead of enumerating letter codes like `[FE|KA|PC|VA]`. Separators from aliases (`_`, `-`, `.`, `:`, `;`, `/`) are never required constants (never `[_]`); they normalize to unbracketed `-`. Set `false` for legacy letter-enum expansion.
 - `cleanOldAnnotations` removes prior annotations on the first finalize pass.
-- `autoApprovalThreshold` and `autoSuggestThreshold` control regular annotation status.
-- `primaryScopeProperty` and `secondaryScopeProperty` group files so launch can reuse a scoped entity cache.
+- `assetAutoApprovalThreshold` and `assetAutoSuggestThreshold` control regular annotation status for asset links (`diagrams.AssetLink`). `fileAutoApprovalThreshold` and `fileAutoSuggestThreshold` do the same for file links (`diagrams.FileLink`); leave them empty to reuse the asset-link values. A detection at or above the approval threshold is `Approved`, at or above the suggest threshold `Suggested`, and below that it is dropped.- `primaryScopeProperty` and `secondaryScopeProperty` group files so launch can reuse a scoped entity cache.
 - `filesToAnnotateTags` is the Prepare IN filter for files to process (default `ToAnnotate`).
 - `filesToAnnotateExcludeTags` is the Prepare NOT IN filter (default `AnnotationInProcess`, `Annotated`, `AnnotationFailed`). Tags also listed in `filesToAnnotateTags` are dropped from the exclude list, so adding `Annotated` reprocesses those files.
 - `fileEntitiesTags` is the Launch IN filter for files used as diagram-detect match entities (default `DetectInDiagrams`).

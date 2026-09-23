@@ -34,9 +34,13 @@ rawTableAnnotationStatusReport: annotation_file_status_report
 extractionPipelineExternalId: ep_ctx_file_annotation
 patternMode: true
 structuralAutoPatterns: true
-cleanOldAnnotations: true
-autoApprovalThreshold: 1.0
-autoSuggestThreshold: 1.0
+cleanOldAnnotations: false
+# Regular-detect thresholds. assetAuto* apply to asset links (diagrams.AssetLink);
+# fileAuto* apply to file links (diagrams.FileLink).
+assetAutoApprovalThreshold: 0.85
+assetAutoSuggestThreshold: 0.7
+fileAutoApprovalThreshold: 0.25
+fileAutoSuggestThreshold: 0.2
 # Scope properties must exist on data.fileView when set. Empty disables that grouping level.
 primaryScopeProperty: ""
 secondaryScopeProperty: ""

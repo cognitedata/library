@@ -198,8 +198,7 @@ flowchart TD
 **Key Features**:
 - 🔒 **Optimistic Locking**: Claims jobs to prevent race conditions
 - 🔀 **Result Merging**: Combines standard and pattern results with deduplication
-- 📊 **Confidence Filtering**: Auto-approve vs. suggest based on thresholds
-- 📁 **RAW Reporting**: Writes to `doc_tag`, `doc_doc`, and `doc_pattern` tables
+- 📊 **Confidence Filtering**: Auto-approve vs. suggest based on thresholds, set separately for asset links and file links- 📁 **RAW Reporting**: Writes to `doc_tag`, `doc_doc`, and `doc_pattern` tables
 - 📄 **Multi-Page Tracking**: Handles progress for large documents
 
 <details>
@@ -221,7 +220,7 @@ flowchart TD
     RetrieveResults --> MergeResults[Merge regular and pattern<br/>results by file ID<br/>Creates unified result per file]
     MergeResults --> LoopFiles[For each file in merged results]
 
-    LoopFiles --> ProcessResults[Process file results:<br/>- Filter standard by confidence threshold<br/>- Capture regular annotations bounding box and page in a set<br/>- Skip pattern duplicates by checking if bounding box exist in set]
+    LoopFiles --> ProcessResults[Process file results:<br/>- Filter standard by AssetLink / FileLink confidence thresholds<br/>- Capture regular annotations bounding box and page in a set<br/>- Skip pattern duplicates by checking if bounding box exist in set]
 
     ProcessResults --> CheckClean{First run for<br/>multi-page file?}
     CheckClean -->|Yes| CleanOld[Clean old annotations]
@@ -459,8 +458,10 @@ extractionPipelineExternalId: ep_file_annotation
 patternMode: true
 structuralAutoPatterns: true
 cleanOldAnnotations: true
-autoApprovalThreshold: 1.0
-autoSuggestThreshold: 1.0
+assetAutoApprovalThreshold: 1.0
+assetAutoSuggestThreshold: 1.0
+fileAutoApprovalThreshold: 1.0
+fileAutoSuggestThreshold: 1.0
 primaryScopeProperty: ""
 secondaryScopeProperty: ""
 entityNormalizationPatterns: '([0-9]{2})[-_.:]([A-Z]{2,3})[-_.:]([0-9]{4,5})'
@@ -510,8 +511,10 @@ parameters:
   patternMode: true
   structuralAutoPatterns: true
   cleanOldAnnotations: true
-  autoApprovalThreshold: 1.0
-  autoSuggestThreshold: 1.0
+  assetAutoApprovalThreshold: 1.0
+  assetAutoSuggestThreshold: 1.0
+  fileAutoApprovalThreshold: 1.0
+  fileAutoSuggestThreshold: 1.0
   primaryScopeProperty:
   secondaryScopeProperty:
   # Pipeline tags: ToAnnotate, DetectInDiagrams, ScopeWideDetect, AnnotationInProcess,
@@ -689,8 +692,10 @@ variables:
       patternMode: true
       structuralAutoPatterns: true
       cleanOldAnnotations: true
-      autoApprovalThreshold: 1.0
-      autoSuggestThreshold: 1.0
+      assetAutoApprovalThreshold: 1.0
+      assetAutoSuggestThreshold: 1.0
+      fileAutoApprovalThreshold: 1.0
+      fileAutoSuggestThreshold: 1.0
       primaryScopeProperty: ""
       secondaryScopeProperty: ""
       entityNormalizationPatterns: '([0-9]{2})[-_.:]([A-Z]{2,3})[-_.:]([0-9]{4,5})'

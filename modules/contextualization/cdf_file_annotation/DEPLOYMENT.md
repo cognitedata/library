@@ -163,8 +163,10 @@ variables:
         extractionPipelineExternalId: ep_file_annotation
         patternMode: true
         cleanOldAnnotations: true
-        autoApprovalThreshold: 1.0
-        autoSuggestThreshold: 1.0
+        assetAutoApprovalThreshold: 1.0
+        assetAutoSuggestThreshold: 1.0
+        fileAutoApprovalThreshold: 1.0
+        fileAutoSuggestThreshold: 1.0
         primaryScopeProperty: ""
         secondaryScopeProperty: ""
         entityNormalizationPatterns: '([0-9]{2})[-_.:]([A-Z]{2,3})[-_.:]([0-9]{4,5})'
