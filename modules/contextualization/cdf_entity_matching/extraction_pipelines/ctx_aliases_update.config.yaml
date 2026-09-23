@@ -1,9 +1,8 @@
 externalId: 'ep_ctx_aliases_update'
 config:
   parameters:
-    debug: False
     runAll: True
-    updateAll: True
+    updateAll: False
     removeOldAliases: False
     rawDb: '{{ dbName }}'
     rawTableState: 'ts_state_store'

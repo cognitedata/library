@@ -126,11 +126,7 @@ def metadata_update(
                 alias_rule(config.data.job.asset_view),
                 alias_rule(file_view),
             )
-            if config.parameters.debug:
-                logger.debug("Debug mode enabled - processing limited data")
-                batch_processor = BatchProcessor(batch_size=100)
-            else:
-                batch_processor = BatchProcessor()
+            batch_processor = BatchProcessor()
         
         # Process timeseries
         with time_operation("Timeseries processing", logger):

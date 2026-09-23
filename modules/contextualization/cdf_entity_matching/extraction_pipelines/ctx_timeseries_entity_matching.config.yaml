@@ -1,7 +1,6 @@
 externalId: 'ep_ctx_timeseries_{{location_name}}_{{source_name}}_entity_matching'
 config:
   parameters:
-    debug: False
     runAll: True
     dmUpdate: True
     removeOldLinks: False
@@ -18,7 +17,7 @@ config:
       instanceSpace: {{ assetInstanceSpace }}
       externalId: {{ targetViewExternalId }}
       version: {{ viewVersion }}
-      searchProperty: {{ targetViewSearchProperty }}
+      searchProperty: {{ targetViewSearchProperty }}  # list OK — all values used as match targets
       filterProperty: {{ viewFilterProperty }}
       filterValues: {{ targetViewFilterValues }}
     entityView: # entity our source for values to be matched against, ex: TimeSeries, etc.
@@ -26,6 +25,6 @@ config:
       instanceSpace: {{ timeseriesInstanceSpace }}
       externalId: {{ entityViewExternalId }}
       version: {{ viewVersion }}
-      searchProperty: {{ entityViewSearchProperty }}
+      searchProperty: {{ entityViewSearchProperty }}  # if list, only the longest value is used
       filterProperty: {{ viewFilterProperty }}
       filterValues: {{ entityViewFilterValues }}

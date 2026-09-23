@@ -47,7 +47,6 @@ documentation: >
    version: Version of the view
    searchProperty: Property used to create the entity matching link, typically alias
 
-   debug -  write DEBUG messages and only process one timeseries if True
    runAll - if True run on all found timeseries,
             if False only run on document not updated since last entity matching
    dmUpdate - if True, update the metadata in the DM, if False, only update the RAW tables
