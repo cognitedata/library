@@ -421,7 +421,7 @@ class GeneralFinalizeService(AbstractFinalizeService):
         """
         annotated_page_count: int | None = cast(
             int,
-            (node.properties or {}).get(self.annotation_state_view.as_view_id(), {}).get("annotatedPageCount"),
+            ((node.properties or {}).get(self.annotation_state_view.as_view_id()) or {}).get("annotatedPageCount"),
         )
 
         if not annotated_page_count:

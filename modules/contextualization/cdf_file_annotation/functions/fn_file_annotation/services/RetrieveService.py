@@ -143,7 +143,7 @@ class GeneralRetrieveService(IRetrieveService):
             return None, None, None
 
         job_node: Node = annotation_state_instance.pop(-1)
-        props = (job_node.properties or {}).get(self.annotation_state_view.as_view_id(), {})
+        props = (job_node.properties or {}).get(self.annotation_state_view.as_view_id()) or {}
 
         job_id: int | None = props.get("diagramDetectJobId")
         job_token: str | None = props.get("diagramDetectJobToken")
@@ -178,8 +178,14 @@ class GeneralRetrieveService(IRetrieveService):
         # NOTE: could bundle this with the attempt to claim loop. Chose not to since the run time gains is negligible and improves readability.
         file_to_state_map: dict[NodeId, Node] = {}
         for node in list_job_nodes:
-            file_reference = (node.properties or {}).get(self.annotation_state_view.as_view_id(), {}).get("linkedFile")
-            if not file_reference or not isinstance(file_reference, dict) or "space" not in file_reference or "externalId" not in file_reference:
+            state_properties = (node.properties or {}).get(self.annotation_state_view.as_view_id()) or {}
+            file_reference = state_properties.get("linkedFile")
+            if (
+                not file_reference
+                or not isinstance(file_reference, dict)
+                or "space" not in file_reference
+                or "externalId" not in file_reference
+            ):
                 continue
             file_node_id = NodeId(space=file_reference["space"], external_id=file_reference["externalId"])
             file_to_state_map[file_node_id] = node

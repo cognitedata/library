@@ -229,7 +229,7 @@ class BatchOfPairedNodes:
         Instead, this approach makes it just O(N)
         """
         annotation_state_node: Node = self.file_to_state_map[file_node_id]
-        state_properties = (annotation_state_node.properties or {}).get(annotation_state_view_id, {})
+        state_properties = (annotation_state_node.properties or {}).get(annotation_state_view_id) or {}
         annotated_page_count: int | None = cast(
             int,
             state_properties.get("annotatedPageCount"),

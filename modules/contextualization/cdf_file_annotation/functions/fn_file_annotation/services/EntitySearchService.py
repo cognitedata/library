@@ -194,7 +194,7 @@ class EntitySearchService(IEntitySearchService):
             matched_end_nodes: dict[tuple[str, str], int] = {}  # {(space, externalId): count}
             for edge in edges:
                 # Check annotation type matches
-                edge_props: dict[str, object] = (edge.properties or {}).get(self.core_annotation_view_id, {})
+                edge_props: dict[str, object] = (edge.properties or {}).get(self.core_annotation_view_id) or {}
                 edge_type: object = edge_props.get("type")
 
                 if edge_type != annotation_type:

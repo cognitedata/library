@@ -241,7 +241,7 @@ class GeneralLaunchService(AbstractLaunchService):
         for file_node in file_nodes:
             if file_node.as_id() in launched_file_ids:
                 continue
-            tags: list[str] = cast(list[str], (file_node.properties or {}).get(file_view_id, {}).get("tags") or [])
+            tags: list[str] = cast(list[str], ((file_node.properties or {}).get(file_view_id) or {}).get("tags") or [])
             if TAG_ANNOTATION_IN_PROCESS not in tags:
                 continue
             remaining_tags = [tag for tag in unique_tags(tags) if tag != TAG_ANNOTATION_IN_PROCESS]
@@ -286,7 +286,7 @@ class GeneralLaunchService(AbstractLaunchService):
         organized_data: dict[str, dict[str, list[Node]]] = defaultdict(lambda: defaultdict(list))
 
         for file_node in list_files:
-            node_props = (file_node.properties or {}).get(self.file_view.as_view_id(), {})
+            node_props = (file_node.properties or {}).get(self.file_view.as_view_id()) or {}
             primary_value = node_props.get(self.primary_scope_property) if self.primary_scope_property else ""
             secondary_value = "__NONE__"
             if self.secondary_scope_property:

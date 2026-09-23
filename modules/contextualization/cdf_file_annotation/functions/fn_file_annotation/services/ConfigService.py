@@ -920,7 +920,8 @@ def format_finalize_config(config: Config, pipeline_ext_id: str) -> str:
     lines.extend(
         [
             "APPLY SERVICE",
-            f"  • Asset link approval / suggest threshold: {apply.asset_auto_approval_threshold} / {apply.asset_auto_suggest_threshold}",
+            f"  • Asset link approval / suggest threshold: "
+            f"{apply.asset_auto_approval_threshold} / {apply.asset_auto_suggest_threshold}",
             f"  • File link approval / suggest threshold: "
             f"{apply.file_auto_approval_threshold} / {apply.file_auto_suggest_threshold}",
             f"  • Sink node: {apply.sink_node.space}/{apply.sink_node.external_id}",

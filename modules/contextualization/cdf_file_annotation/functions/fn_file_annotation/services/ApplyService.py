@@ -106,7 +106,8 @@ class GeneralApplyService(IApplyService):
                 - Summary message of pattern annotations created
         """
         file_id = file_node.as_id()
-        source_id = cast(str, (file_node.properties or {}).get(self.file_view_id, {}).get("sourceId"))
+        file_properties = (file_node.properties or {}).get(self.file_view_id) or {}
+        source_id = cast(str, file_properties.get("sourceId"))
 
         if clean_old:
             deleted_counts = self._delete_annotations_for_file(file_id)
@@ -296,7 +297,8 @@ class GeneralApplyService(IApplyService):
                 - List of RowWrite objects for RAW table entries
         """
         file_id = file_node.as_id()
-        source_id = cast(str, (file_node.properties or {}).get(self.file_view_id, {}).get("sourceId"))
+        file_properties = (file_node.properties or {}).get(self.file_view_id) or {}
+        source_id = cast(str, file_properties.get("sourceId"))
         doc_patterns, edge_applies = [], []
         removed_external_ids: set[str] = set()
 

@@ -40,7 +40,7 @@ class MatchedEntity:
     @classmethod
     def from_node(cls, node: Node, target_view_id: ViewId) -> "MatchedEntity":
         """Creates MatchedEntity from a Node object."""
-        entity_props = node.properties.get(target_view_id, {}) if node.properties else {}
+        entity_props = (node.properties or {}).get(target_view_id) or {}
         resource_type_value = entity_props.get("resourceType") or entity_props.get("type")
         # Ensure resource_type is a string or None
         resource_type: str | None = str(resource_type_value) if resource_type_value is not None else None
@@ -182,7 +182,7 @@ class GeneralPromoteService(IPromoteService):
         # Group candidates by (startNodeText, annotationType) for deduplication
         grouped_candidates: dict[tuple[str, str], list[Edge]] = {}
         for edge in candidates:
-            properties: dict[str, object] = (edge.properties or {}).get(self.core_annotation_view.as_view_id(), {})
+            properties: dict[str, object] = (edge.properties or {}).get(self.core_annotation_view.as_view_id()) or {}
             text: object = properties.get("startNodeText")
             annotation_type: str = edge.type.external_id
 
