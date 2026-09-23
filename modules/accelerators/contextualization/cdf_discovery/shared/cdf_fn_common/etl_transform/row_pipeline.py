@@ -14,6 +14,11 @@ from .constants import (
 )
 from .field_template import apply_output_template, extract_field_values
 from .output_type import coerce_transform_output, validate_output_field_type
+from .handlers.compose_template import (
+    compose_template_values,
+    resolve_compose_iterate_field,
+    validate_compose_skip_if,
+)
 from .handlers.heuristic_sampler import (
     heuristic_sampler_multi_value,
     validate_heuristic_sampler_block,
@@ -87,6 +92,21 @@ def validate_transform_config(cfg: Mapping[str, Any]) -> None:
         validate_split_parts_block(resolve_handler_block(cfg, handler_id))
     if handler_id == "split_join":
         validate_split_join_block(resolve_handler_block(cfg, handler_id))
+    if handler_id == "compose_template":
+        block = resolve_handler_block(cfg, handler_id)
+        iterate_field = resolve_compose_iterate_field(block, cfg.get("fields"))
+        if not iterate_field:
+            raise ValueError(
+                "compose_template requires compose_template.iterate_field or fields[0].field_name"
+            )
+        template = AbstractTransformHandler.first_nonempty(
+            cfg.get("output_template"), block.get("template")
+        )
+        if not template:
+            raise ValueError("compose_template requires a non-empty output_template")
+        skip_raw = block.get("skip_if")
+        if skip_raw is not None:
+            validate_compose_skip_if(skip_raw)
     validate_transform_step_io(cfg, context="transform config")
 
 
@@ -143,12 +163,35 @@ def write_output_to_props(
         props[output_field] = coerced
 
 
+def _transform_compose_template(
+    props: Mapping[str, Any], cfg: Mapping[str, Any]
+) -> List[Dict[str, Any]]:
+    """List-aware template composition; preserves string vs list output type."""
+    block = resolve_handler_block(cfg, "compose_template")
+    iterate_field = resolve_compose_iterate_field(block, cfg.get("fields"))
+    template = AbstractTransformHandler.first_nonempty(
+        cfg.get("output_template"), block.get("template")
+    )
+    skip_raw = block.get("skip_if")
+    skip_if = skip_raw if isinstance(skip_raw, dict) else None
+    result = compose_template_values(props, template, iterate_field, skip_if=skip_if)
+    output_field = AbstractTransformHandler.first_nonempty(cfg.get("output_field"))
+    output_mode = AbstractTransformHandler.first_nonempty(cfg.get("output_mode"), "append")
+    oft = AbstractTransformHandler.first_nonempty(cfg.get("output_field_type"), "auto")
+    out_props = deepcopy(dict(props))
+    write_output_to_props(out_props, output_field, result, output_mode, output_field_type=oft)
+    return [out_props]
+
+
 def transform_row_properties(
     props: Mapping[str, Any], cfg: Mapping[str, Any]
 ) -> List[Dict[str, Any]]:
     """Return one or more property dicts after applying the configured transform."""
     validate_transform_config(cfg)
     handler_id = resolve_handler_id(cfg)
+    if handler_id == "compose_template":
+        return _transform_compose_template(props, cfg)
+
     block = resolve_handler_block(cfg, handler_id)
     fields = cfg.get("fields") or []
     field_values = extract_field_values(props, fields if isinstance(fields, list) else [])
@@ -194,6 +237,10 @@ def transform_row_properties(
 
     if result is None:
         write_output_to_props(out_props, output_field, "", output_mode, output_field_type=oft)
+        return [out_props]
+    if isinstance(result, list):
+        # List-preserving handlers (non-explode): write the list as the field value.
+        write_output_to_props(out_props, output_field, result, output_mode, output_field_type=oft)
         return [out_props]
     if isinstance(result, (int, float, bool)):
         write_output_to_props(out_props, output_field, result, output_mode, output_field_type=oft)

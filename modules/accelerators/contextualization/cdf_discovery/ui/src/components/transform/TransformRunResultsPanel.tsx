@@ -6,6 +6,7 @@ import {
 } from "../../utils/transformCanvasFlowSearch";
 import type { TransformPipelineRunResult } from "../../types/transformTabRun";
 import { resolveReadCount, resolveWriteCount } from "./localRunRowCounts";
+import { extractRunIdFromLog, TransformRunIdBanner } from "./TransformRunIdBanner";
 
 type TaskSummary = Record<string, unknown>;
 
@@ -60,12 +61,17 @@ function canvasNodeDisplayForTask(
 export function TransformRunResultsPanel({ t, canvas, lastRun, emptyMessage }: Props) {
   const summaries = lastRun?.task_summaries ?? {};
   const rows = Object.entries(summaries).sort(([a], [b]) => a.localeCompare(b));
+  const runId =
+    String(lastRun?.run_id ?? "").trim() ||
+    extractRunIdFromLog(String(lastRun?.detail ?? "")) ||
+    null;
 
   return (
     <section className="transform-run-results" aria-label={t("transform.runResults.title")}>
       <header className="transform-run-results__header">
         <h3 className="transform-run-results__title">{t("transform.runResults.title")}</h3>
         <p className="transform-run-results__hint">{t("transform.runResults.hint")}</p>
+        <TransformRunIdBanner t={t} runId={runId} showEmpty />
       </header>
       {!lastRun ? (
         <p className="transform-run-results__empty">{emptyMessage ?? t("transform.runResults.empty")}</p>
@@ -76,12 +82,6 @@ export function TransformRunResultsPanel({ t, canvas, lastRun, emptyMessage }: P
               <dt>{t("transform.runResults.summaryStatus")}</dt>
               <dd>{lastRun.ok ? t("transform.runResults.statusOk") : t("transform.runResults.statusFailed")}</dd>
             </div>
-            {lastRun.run_id ? (
-              <div>
-                <dt>{t("transform.runResults.summaryRunId")}</dt>
-                <dd>{lastRun.run_id}</dd>
-              </div>
-            ) : null}
             {lastRun.detail ? (
               <div>
                 <dt>{t("transform.runResults.summaryDetail")}</dt>

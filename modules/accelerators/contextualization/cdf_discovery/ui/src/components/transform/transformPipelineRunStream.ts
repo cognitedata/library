@@ -41,6 +41,7 @@ type ProgressEv = {
   progress_current?: number;
   progress_total?: number;
   progress_label?: string;
+  run_id?: string;
 } & LocalRunProgressRowCounts;
 
 export type TransformRunStreamCallbacks = {
@@ -237,6 +238,12 @@ export async function streamTransformPipelineRun(
   let buf = "";
   let exitCode = -1;
   let cancelled = false;
+  let streamRunId = "";
+
+  const noteRunId = (raw: unknown) => {
+    const id = String(raw ?? "").trim();
+    if (id) streamRunId = id;
+  };
 
   const handleLine = (line: string) => {
     if (!line.trim()) return;
@@ -246,9 +253,19 @@ export async function streamTransformPipelineRun(
     } catch {
       return;
     }
+    if (ev.event === "run_start") {
+      noteRunId(ev.run_id);
+      if (streamRunId) {
+        callbacks.onLogAppend(`run_id=${streamRunId}\n`);
+      }
+      return;
+    }
     if (ev.event === "log" && typeof ev.message === "string") {
       const prefix = ev.level ? `[${ev.level}] ` : "";
       callbacks.onLogAppend(`${prefix}${ev.message}\n`);
+      // Fallback if run_start was missed (older runners): parse from log text.
+      const fromMsg = ev.message.match(/Local pipeline run_id=([^\s]+)/);
+      if (fromMsg?.[1]) noteRunId(fromMsg[1]);
       return;
     }
     if (ev.event === "task_progress") {
@@ -417,13 +434,14 @@ export async function streamTransformPipelineRun(
     const detail = cancelled
       ? t("run.localCancelled")
       : Object.keys(taskSummaries).length > 0
-        ? formatLocalRunDetail(taskSummaries, t)
+        ? formatLocalRunDetail(taskSummaries, t, streamRunId)
         : exitCode === 0
           ? t("transform.toolbar.runOk")
           : t("transform.toolbar.runFailed");
     callbacks.onComplete({
       ok: !cancelled && exitCode === 0,
       detail,
+      run_id: streamRunId || undefined,
       task_summaries: taskSummaries,
     });
   }

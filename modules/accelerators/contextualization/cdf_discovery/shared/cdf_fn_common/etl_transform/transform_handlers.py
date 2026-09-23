@@ -14,6 +14,7 @@ from .constants import (
     TRANSFORM_HANDLERS,
     V1_TRANSFORM_HANDLERS,
 )
+from .handlers.compose_template import compose_template_values
 from .handlers.default_if_empty import DefaultIfEmptyHandler
 from .field_template import apply_output_template, extract_field_values
 from .handlers.format_datetime import FormatDatetimeHandler
@@ -113,6 +114,16 @@ def apply_static_lookup_map(working: str, block: Mapping[str, Any]) -> str:
     return str(StaticLookupMapHandler.apply(working, block))
 
 
+def apply_compose_template(
+    props: Mapping[str, Any],
+    template: str,
+    iterate_field: str,
+    *,
+    skip_if: Mapping[str, Any] | None = None,
+) -> Any:
+    return compose_template_values(props, template, iterate_field, skip_if=skip_if)
+
+
 __all__ = [
     "ASSET_TAG_FROM_NAME_REGEX",
     "AbstractTransformHandler",
@@ -125,6 +136,7 @@ __all__ = [
     "TransformScalar",
     "apply_change_case",
     "apply_coerce_scalar",
+    "apply_compose_template",
     "apply_default_if_empty",
     "apply_format_datetime",
     "apply_hash_stable",

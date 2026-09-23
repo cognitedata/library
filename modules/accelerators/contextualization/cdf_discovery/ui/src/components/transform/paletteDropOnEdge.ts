@@ -30,6 +30,7 @@ import { readFlowNodeSize, withEtlNodeDimensions } from "./etlFlowNodeSizing";
 import type { CanvasNodeTranslate } from "../../utils/canvasNodeKindLabel";
 import { defaultNodeColorForStage } from "../../utils/etlPaletteGroupColors";
 import { applyWiredCreationLabel } from "../../utils/etlNodeCreationLabel";
+import { defaultQueryViewNodeConfig } from "../../utils/viewQueryConfigModel";
 
 /** Horizontal gap between query and save nodes when dropping a wired pair. */
 const ENTITY_DROP_PAIR_NODE_GAP = 48;
@@ -178,6 +179,8 @@ function materializeDropNode(
       config = { description: label, record_kind: "entity", row_cap: 10_000 };
     } else if (stage === "cdf_task") {
       config = { description: label, on_failure: "skipTask" };
+    } else if (stage === "query_view") {
+      config = defaultQueryViewNodeConfig({ description: label });
     } else if (stage !== "start" && stage !== "end") {
       config = { description: label };
     }

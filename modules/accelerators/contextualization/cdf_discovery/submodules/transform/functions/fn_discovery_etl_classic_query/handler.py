@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import sys
+from collections.abc import MutableMapping
 from pathlib import Path
-from typing import Any, Dict, MutableMapping
+from typing import Any
 
 _staging_root = Path(__file__).resolve().parent.parent
 if str(_staging_root) not in sys.path:
@@ -44,7 +45,7 @@ def _classic_external_id(item: Any) -> str:
     return ""
 
 
-def _classic_dump(item: Any) -> Dict[str, Any]:
+def _classic_dump(item: Any) -> dict[str, Any]:
     if hasattr(item, "dump"):
         d = item.dump()
         return dict(d) if isinstance(d, dict) else {"value": d}
@@ -59,7 +60,7 @@ def etl_handle_query_classic(
     data: MutableMapping[str, Any],
     client: Any,
     log: Any,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     merge_compiled_task_into_data(data)
     cfg = resolve_task_config(data)
     lookup_full_scan = is_lookup_full_scan(cfg)
@@ -143,5 +144,5 @@ def etl_handle_query_classic(
     )
 
 
-def handle(data: Dict[str, Any], client: Any = None) -> Dict[str, Any]:
+def handle(data: dict[str, Any], client: Any = None) -> dict[str, Any]:
     return etl_handle_query_classic("fn_discovery_etl_classic_query", data, client, log=None)

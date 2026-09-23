@@ -24,6 +24,7 @@ const TRANSFORM_DEFAULTS: Record<EtlTransformHandlerId, Record<string, unknown>>
     samples: ["P-101"],
     on_no_match: "keep_working",
   },
+  compose_template: { iterate_field: "aliases" },
 };
 
 const TRANSFORM_DOC: Record<EtlTransformHandlerId, MessageKey> = {
@@ -43,6 +44,7 @@ const TRANSFORM_DOC: Record<EtlTransformHandlerId, MessageKey> = {
   mask_string: "transforms.handlerDoc.mask_string",
   static_lookup_map: "transforms.handlerDoc.static_lookup_map",
   heuristic_sampler: "transforms.handlerDoc.heuristic_sampler",
+  compose_template: "transforms.handlerDoc.compose_template",
 };
 
 export function isEtlTransformHandlerId(h: string): h is EtlTransformHandlerId {
@@ -92,14 +94,25 @@ export function defaultTransformNodeConfig(
     description: transformHandlerDescription(handler),
     handler_id: handler,
     enabled: true,
-    fields: [{ field_name: prev }],
-    output_field: prev,
-    output_template: prev ? `{${prev}}` : "",
+    fields: [{ field_name: prev || (handler === "compose_template" ? "aliases" : "") }],
+    output_field: prev || (handler === "compose_template" ? "aliases" : ""),
+    output_template:
+      handler === "compose_template"
+        ? prev
+          ? `{pi_unit}-{${prev}}`
+          : "{pi_unit}-{aliases}"
+        : prev
+          ? `{${prev}}`
+          : "",
     output_mode: "append",
     [handler]: defaultTransformHandlerBlock(handler),
   };
   if (handler === "split_string") {
     cfg.output_multi_value = "array_json";
+  }
+  if (handler === "compose_template") {
+    const iterate = prev || "aliases";
+    cfg.compose_template = { iterate_field: iterate };
   }
   return cfg;
 }

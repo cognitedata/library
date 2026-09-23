@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, MutableMapping
+from collections.abc import MutableMapping
+from typing import Any
 
 from fn_discovery_etl_view_query.handler import etl_handle_view_query
 
@@ -12,5 +13,5 @@ def query_view(
     data: MutableMapping[str, Any],
     client: Any,
     log: Any,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     return etl_handle_view_query(fn_external_id, data, client, log)

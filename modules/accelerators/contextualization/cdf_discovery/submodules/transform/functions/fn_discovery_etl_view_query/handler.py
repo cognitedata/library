@@ -4,21 +4,19 @@ from __future__ import annotations
 
 import sys
 import time
+from collections.abc import MutableMapping
 from pathlib import Path
-from typing import Any, Dict, MutableMapping, Optional
+from typing import Any
 
 _staging_root = Path(__file__).resolve().parent.parent
 if str(_staging_root) not in sys.path:
     sys.path.insert(0, str(_staging_root))
 
 from cdf_fn_common.etl_cohort_handoff import maybe_handoff_predecessor_rows
-from cdf_fn_common.etl_dm_query import combine_view_query_filter
-from cdf_fn_common.etl_query_predecessor import (
-    build_predecessor_instance_dm_filter,
-    predecessor_external_ids,
-    should_restrict_view_query_to_predecessors,
+from cdf_fn_common.etl_cohort_storage import (
+    predecessor_canvas_node_ids,
+    resolve_incremental_state_sink,
 )
-from cdf_fn_common.etl_cohort_storage import predecessor_canvas_node_ids, resolve_incremental_state_sink
 from cdf_fn_common.etl_common import (
     _first_nonempty,
     emit_agent_debug_log,
@@ -27,34 +25,50 @@ from cdf_fn_common.etl_common import (
     require_pipeline_run_key,
     resolve_task_config,
 )
-from cdf_fn_common.etl_dm_query import query_all_view_instances, query_stats_to_enumeration, ViewQueryStats
+from cdf_fn_common.etl_dm_query import (
+    ViewQueryStats,
+    combine_view_query_filter,
+    query_all_view_instances,
+    query_stats_to_enumeration,
+)
 from cdf_fn_common.etl_incremental_hash import row_content_hash, should_skip_unchanged
-from cdf_fn_common.etl_rule_inclusion_hash import compute_rule_inclusion_hash
 from cdf_fn_common.etl_incremental_scope import (
     incremental_state_table_exists,
     load_incremental_hashes_for_nodes,
     node_last_updated_time_ms,
+    read_watermark_high_ms,
     scope_key_from_view_dict,
     scope_watermark_row_key,
-    read_watermark_high_ms,
     upsert_incremental_entity_hashes_raw,
     write_incremental_watermark_raw,
+)
+from cdf_fn_common.etl_query_predecessor import (
+    build_predecessor_instance_dm_filter,
+    predecessor_external_ids,
+    should_restrict_view_query_to_predecessors,
 )
 from cdf_fn_common.etl_query_recovery import (
     load_query_checkpoint_state,
     save_query_checkpoint_state,
 )
+from cdf_fn_common.etl_rule_inclusion_hash import compute_rule_inclusion_hash
 from cdf_fn_common.etl_run_scope import (
     incremental_change_processing_enabled,
     incremental_listing_narrowed,
     incremental_skip_unchanged,
     is_lookup_full_scan,
-    resolve_query_scope_mode,
     resolve_effective_incremental_change_processing,
+    resolve_query_scope_mode,
     resolve_workflow_scope,
 )
 from cdf_fn_common.etl_task_runtime import merge_compiled_task_into_data
-from cdf_fn_common.query_enumeration import enumeration_summary, mark_truncated, resolve_run_record_cap
+from cdf_fn_common.query_enumeration import (
+    enumeration_summary,
+    mark_truncated,
+    resolve_run_record_cap,
+    resolve_view_query_max_items,
+)
+
 
 def _watermark_filter(high_ms: int) -> Any:
     from cognite.client import data_modeling as dm
@@ -66,9 +80,9 @@ def _can_skip_hash_by_watermark(
     *,
     hash_skip: bool,
     listing_narrowed: bool,
-    wm_before: Optional[int],
-    lu: Optional[int],
-    previous_hash: Optional[str],
+    wm_before: int | None,
+    lu: int | None,
+    previous_hash: str | None,
 ) -> bool:
     if not hash_skip or not listing_narrowed or wm_before is None:
         return False
@@ -84,7 +98,7 @@ def etl_handle_view_query(
     data: MutableMapping[str, Any],
     client: Any,
     log: Any,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     wall_t0 = time.perf_counter()
     merge_compiled_task_into_data(data)
     cfg = resolve_task_config(data)
@@ -168,7 +182,7 @@ def etl_handle_view_query(
 
     state_t0 = time.perf_counter()
     query_cfg = dict(cfg)
-    wm_before: Optional[int] = None
+    wm_before: int | None = None
     latest_by_node_count = 0
     inc_raw_db = ""
     inc_raw_table = ""
@@ -234,11 +248,12 @@ def etl_handle_view_query(
     stats = ViewQueryStats()
     n_listed = 0
     n_skipped_hash = 0
-    max_last_updated: Optional[int] = wm_before if listing_narrowed else None
+    max_last_updated: int | None = wm_before if listing_narrowed else None
     incremental_hash_pending: list[dict[str, Any]] = []
     query_scope_mode = resolve_query_scope_mode(cfg)
     run_record_cap = resolve_run_record_cap(data, cfg)
-    checkpoint_enabled = (not lookup_full_scan) and (incremental_change_processing or run_record_cap > 0)
+    max_items = resolve_view_query_max_items(data, cfg)
+    checkpoint_enabled = (not lookup_full_scan) and (incremental_change_processing or max_items > 0)
     checkpoint = (
         load_query_checkpoint_state(client, data, task_id=task_id)
         if checkpoint_enabled
@@ -258,7 +273,7 @@ def etl_handle_view_query(
             stats_out=stats,
             property_names_cache=data["etl_view_property_names_cache"],
             initial_cursor=(checkpoint.continuation_token if checkpoint is not None else "") or None,
-            max_items=run_record_cap,
+            max_items=max_items,
         ):
             ext_id = _first_nonempty(getattr(inst, "external_id", None))
             if not ext_id:
@@ -320,9 +335,10 @@ def etl_handle_view_query(
                         "last_updated_ms": lu,
                     }
                 )
-    if run_record_cap > 0 and len(rows) >= run_record_cap and stats.next_cursor:
+    if max_items > 0 and (n_listed >= max_items or len(rows) >= max_items) and stats.next_cursor:
         enum_stats = query_stats_to_enumeration(stats)
-        mark_truncated(enum_stats, reason="max_records_per_run")
+        reason = "max_records_per_run" if run_record_cap > 0 and max_items == run_record_cap else "limit"
+        mark_truncated(enum_stats, reason=reason)
     else:
         enum_stats = query_stats_to_enumeration(stats)
 
@@ -370,7 +386,7 @@ def etl_handle_view_query(
         log=log,
     )
     total_duration_sec = round(time.perf_counter() - wall_t0, 6)
-    extra: Dict[str, Any] = {
+    extra: dict[str, Any] = {
         "function_external_id": fn_external_id,
         "task_id": task_id,
         "instances_listed": n_listed,
@@ -425,11 +441,11 @@ def etl_handle_view_query(
     extra["query_scope_mode"] = query_scope_mode
     extra["effective_scope_mode"] = "all" if lookup_full_scan else query_scope_mode
     extra["lookup_full_scan"] = lookup_full_scan
-    extra["effective_run_cap"] = run_record_cap if run_record_cap > 0 else None
+    extra["effective_run_cap"] = max_items if max_items > 0 else None
     extra["resume_checkpoint_rows"] = checkpoint.rows_completed if checkpoint is not None else 0
     extra["resume_checkpoint_complete"] = checkpoint.is_complete if checkpoint is not None else False
     return enumeration_summary(enum_stats, extra=extra)
 
 
-def handle(data: Dict[str, Any], client: Any = None) -> Dict[str, Any]:
+def handle(data: dict[str, Any], client: Any = None) -> dict[str, Any]:
     return etl_handle_view_query("fn_discovery_etl_view_query", data, client, log=None)

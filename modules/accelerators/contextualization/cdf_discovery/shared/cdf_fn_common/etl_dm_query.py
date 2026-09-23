@@ -52,14 +52,17 @@ def _view_property_name_set(client: Any, view_id: Any) -> set[str]:
         return set()
     view = batch[0]
     raw_props = getattr(view, "properties", None) or {}
-    if hasattr(raw_props, "keys"):
-        return {str(k) for k in raw_props.keys()}
+    if isinstance(raw_props, dict):
+        return {str(k) for k in raw_props.keys() if str(k).strip()}
     if hasattr(view, "dump"):
-        dumped = view.dump(camel_case=False)
+        try:
+            dumped = view.dump(camel_case=False)
+        except Exception:
+            return set()
         if isinstance(dumped, dict):
             props = dumped.get("properties") or {}
             if isinstance(props, dict):
-                return {str(k) for k in props.keys()}
+                return {str(k) for k in props.keys() if str(k).strip()}
     return set()
 
 

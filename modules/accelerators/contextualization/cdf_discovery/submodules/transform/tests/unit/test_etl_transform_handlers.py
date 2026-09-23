@@ -6,6 +6,7 @@ import pytest
 
 from cdf_fn_common.etl_transform_api import (
     ASSET_TAG_FROM_NAME_REGEX,
+    apply_compose_template,
     apply_heuristic_sampler,
     apply_leading_zero_normalize,
     apply_regex_substitution,
@@ -282,3 +283,121 @@ def test_validate_heuristic_sampler_pattern_without_samples() -> None:
             "heuristic_sampler": {"pattern": r"P-\d+"},
         }
     )
+
+
+def test_compose_template_list_preserves_list_and_iterates() -> None:
+    assert apply_compose_template(
+        {"aliases": ["P-1234", "FT-10"], "pi_unit": "10"},
+        "{pi_unit}-{aliases}",
+        "aliases",
+    ) == ["10-P-1234", "10-FT-10"]
+
+
+def test_compose_template_string_preserves_string() -> None:
+    assert (
+        apply_compose_template(
+            {"name": "Pump A", "pi_unit": "10"},
+            "{pi_unit}-{name}",
+            "name",
+        )
+        == "10-Pump A"
+    )
+
+
+def test_compose_template_append_doubles_aliases() -> None:
+    cfg = {
+        "handler_id": "compose_template",
+        "fields": [{"field_name": "aliases"}],
+        "output_template": "{pi_unit}-{aliases}",
+        "output_field": "aliases",
+        "output_mode": "append",
+        "compose_template": {"iterate_field": "aliases"},
+    }
+    rows = transform_row_properties(
+        {"aliases": ["P-1234", "FT-10"], "pi_unit": "10", "unit": "050"},
+        cfg,
+    )
+    assert len(rows) == 1
+    assert rows[0]["aliases"] == ["P-1234", "FT-10", "10-P-1234", "10-FT-10"]
+
+
+def test_compose_template_overwrite_list() -> None:
+    cfg = {
+        "handler_id": "compose_template",
+        "fields": [{"field_name": "aliases"}],
+        "output_template": "{pi_unit}{aliases}",
+        "output_field": "aliases",
+        "output_mode": "overwrite",
+        "compose_template": {"iterate_field": "aliases"},
+    }
+    rows = transform_row_properties(
+        {"aliases": ["P-1234", "FT-10"], "pi_unit": "10"},
+        cfg,
+    )
+    assert rows[0]["aliases"] == ["10P-1234", "10FT-10"]
+
+
+def test_compose_template_skip_if_startswith_omits_already_prefixed() -> None:
+    """Aliases that already start with map_pi_unit are not composed again."""
+    cfg = {
+        "handler_id": "compose_template",
+        "fields": [{"field_name": "aliases"}],
+        "output_template": "{map_pi_unit}{aliases}",
+        "output_field": "aliases",
+        "output_mode": "append",
+        "compose_template": {
+            "iterate_field": "aliases",
+            "skip_if": {"operator": "STARTS_WITH", "property": "map_pi_unit"},
+        },
+    }
+    rows = transform_row_properties(
+        {
+            "aliases": ["12PTE3089", "PTE3089", "12FT-10"],
+            "map_pi_unit": "12",
+        },
+        cfg,
+    )
+    # skip_if drops 12PTE3089 and 12FT-10 from compose; PTE3089 → 12PTE3089 but unique
+    # append does not re-add it because it is already in the list.
+    assert rows[0]["aliases"] == ["12PTE3089", "PTE3089", "12FT-10"]
+
+
+def test_compose_template_skip_if_startswith_adds_missing_prefix() -> None:
+    cfg = {
+        "handler_id": "compose_template",
+        "fields": [{"field_name": "aliases"}],
+        "output_template": "{map_pi_unit}{aliases}",
+        "output_field": "aliases",
+        "output_mode": "append",
+        "compose_template": {
+            "iterate_field": "aliases",
+            "skip_if": {"operator": "STARTS_WITH", "property": "map_pi_unit"},
+        },
+    }
+    rows = transform_row_properties(
+        {"aliases": ["PTE3089", "FT-10"], "map_pi_unit": "12"},
+        cfg,
+    )
+    assert rows[0]["aliases"] == ["PTE3089", "FT-10", "12PTE3089", "12FT-10"]
+
+
+def test_compose_template_skip_if_regex() -> None:
+    assert apply_compose_template(
+        {"aliases": ["12PTE3089", "PTE3089"], "map_pi_unit": "12"},
+        "{map_pi_unit}{aliases}",
+        "aliases",
+        skip_if={"operator": "REGEX", "pattern": "^{map_pi_unit}"},
+    ) == ["12PTE3089"]
+
+
+def test_compose_template_requires_template() -> None:
+    with pytest.raises(ValueError, match="output_template"):
+        validate_transform_config(
+            {
+                "handler_id": "compose_template",
+                "fields": [{"field_name": "aliases"}],
+                "output_field": "aliases",
+                "output_mode": "append",
+                "compose_template": {"iterate_field": "aliases"},
+            }
+        )

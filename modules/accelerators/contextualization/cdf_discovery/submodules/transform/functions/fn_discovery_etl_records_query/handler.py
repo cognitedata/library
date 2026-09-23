@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import sys
+from collections.abc import MutableMapping
 from pathlib import Path
-from typing import Any, Dict, MutableMapping
+from typing import Any
 
 _staging_root = Path(__file__).resolve().parent.parent
 if str(_staging_root) not in sys.path:
@@ -13,10 +14,13 @@ if str(_staging_root) not in sys.path:
 from cdf_fn_common.etl_common import _first_nonempty, require_pipeline_run_key
 from cdf_fn_common.etl_discovery_query_shared import resolve_task_config
 from cdf_fn_common.etl_filter_eval import parse_etl_filters, row_passes_filter
-from cdf_fn_common.etl_records_cohort import QUERY_SOURCE_RECORDS, maybe_handoff_record_rows
 from cdf_fn_common.etl_query_recovery import (
     load_query_checkpoint_state,
     save_query_checkpoint_state,
+)
+from cdf_fn_common.etl_records_cohort import (
+    QUERY_SOURCE_RECORDS,
+    maybe_handoff_record_rows,
 )
 from cdf_fn_common.etl_run_scope import (
     incremental_listing_narrowed,
@@ -42,7 +46,7 @@ def etl_handle_query_records(
     data: MutableMapping[str, Any],
     client: Any,
     log: Any,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     merge_compiled_task_into_data(data)
     cfg = resolve_task_config(data)
     lookup_full_scan = is_lookup_full_scan(cfg)
@@ -134,7 +138,7 @@ def etl_handle_query_records(
             is_complete=not enum_stats.rows_truncated,
             continuation_token=continuation_token,
         )
-    extra: Dict[str, Any] = {
+    extra: dict[str, Any] = {
         "function_external_id": fn_external_id,
         "task_id": task_id,
         "instances_listed": len(rows),
@@ -156,5 +160,5 @@ def etl_handle_query_records(
     return enumeration_summary(enum_stats, extra=extra)
 
 
-def handle(data: Dict[str, Any], client: Any = None) -> Dict[str, Any]:
+def handle(data: dict[str, Any], client: Any = None) -> dict[str, Any]:
     return etl_handle_query_records("fn_discovery_etl_records_query", data, client, log=None)

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
-from typing import Any, Dict, MutableMapping
+from typing import Any
 
 _staging_root = Path(__file__).resolve().parent.parent
 if str(_staging_root) not in sys.path:
@@ -15,5 +15,5 @@ from cdf_fn_common.etl_merge_orchestration import etl_handle_merge
 __all__ = ["etl_handle_merge", "handle"]
 
 
-def handle(data: Dict[str, Any], client: Any = None) -> Dict[str, Any]:
+def handle(data: dict[str, Any], client: Any = None) -> dict[str, Any]:
     return etl_handle_merge("fn_discovery_etl_merge", data, client, log=None)

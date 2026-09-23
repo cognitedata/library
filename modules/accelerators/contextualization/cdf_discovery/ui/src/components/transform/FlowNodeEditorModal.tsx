@@ -232,7 +232,7 @@ function ConfigEditorBody({
   if (kind === "dynamic_fanout") {
     return <EtlDynamicFanoutNodeConfigFields value={config} onChange={onChange} flowNodes={flowNodes} />;
   }
-  if (kind === "score") return <EtlScoreNodeConfigFields value={config} onChange={onChange} />;
+  if (kind === "score") return <EtlScoreNodeConfigFields key={nodeId} value={config} onChange={onChange} />;
   if (kind === "save_records") {
     return <RecordsSaveConfigFields value={config} onChange={onChange} fieldKey={nodeId} />;
   }

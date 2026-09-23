@@ -60,6 +60,20 @@ def test_cohort_instance_space_falls_back_to_pipeline_default() -> None:
     assert ext_id == "ext1"
 
 
+def test_prepare_view_apply_properties_drops_keys_not_on_view() -> None:
+    assert _prepare_view_apply_properties(
+        {
+            "aliases": ["P-101"],
+            "name": "Pump",
+            "map_pi_unit": "10",
+            "map_unit_name_2": "x",
+            "raw_columns": {"unit_number": "10"},
+        },
+        list_properties=frozenset({"aliases"}),
+        allowed_properties=frozenset({"aliases", "name"}),
+    ) == {"aliases": ["P-101"], "name": "Pump"}
+
+
 def test_coerce_dm_list_property_value() -> None:
     assert _coerce_dm_list_property_value(["a", "b"]) == ["a", "b"]
     assert _coerce_dm_list_property_value([{"value": "a", "confidence": 0.9}]) == ["a"]

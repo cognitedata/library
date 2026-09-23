@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import sys
+from collections.abc import MutableMapping
 from pathlib import Path
-from typing import Any, Dict, MutableMapping
+from typing import Any
 
 _staging_root = Path(__file__).resolve().parent.parent
 if str(_staging_root) not in sys.path:
@@ -27,8 +28,8 @@ from cdf_fn_common.etl_run_scope import (
 )
 from cdf_fn_common.etl_sql_run import resolve_sql_row_external_id, run_sql_preview
 from cdf_fn_common.query_enumeration import (
-    QueryEnumerationStats,
     SQL_PREVIEW_MAX_ROWS,
+    QueryEnumerationStats,
     enumeration_summary,
     mark_truncated,
     resolve_run_record_cap,
@@ -41,7 +42,7 @@ def etl_handle_query_sql(
     data: MutableMapping[str, Any],
     client: Any,
     log: Any,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     merge_compiled_task_into_data(data)
     cfg = resolve_task_config(data)
     lookup_full_scan = is_lookup_full_scan(cfg)
@@ -153,5 +154,5 @@ def etl_handle_query_sql(
     )
 
 
-def handle(data: Dict[str, Any], client: Any = None) -> Dict[str, Any]:
+def handle(data: dict[str, Any], client: Any = None) -> dict[str, Any]:
     return etl_handle_query_sql("fn_discovery_etl_sql_query", data, client, log=None)

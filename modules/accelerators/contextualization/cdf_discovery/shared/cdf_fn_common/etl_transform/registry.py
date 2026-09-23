@@ -7,6 +7,7 @@ from typing import Any, Dict, List, Type
 from .handlers.base import AbstractTransformHandler
 from .handlers.change_case import ChangeCaseHandler
 from .handlers.coerce_scalar import CoerceScalarHandler
+from .handlers.compose_template import ComposeTemplateHandler
 from .handlers.default_if_empty import DefaultIfEmptyHandler
 from .handlers.format_datetime import FormatDatetimeHandler
 from .handlers.hash_stable import HashStableHandler
@@ -39,6 +40,7 @@ _HANDLERS: tuple[Type[AbstractTransformHandler], ...] = (
     MaskStringHandler,
     StaticLookupMapHandler,
     HeuristicSamplerHandler,
+    ComposeTemplateHandler,
 )
 
 HANDLER_BY_ID: Dict[str, Type[AbstractTransformHandler]] = {cls.handler_id: cls for cls in _HANDLERS}

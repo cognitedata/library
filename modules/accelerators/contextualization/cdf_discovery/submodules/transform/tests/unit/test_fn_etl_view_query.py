@@ -163,6 +163,92 @@ def test_view_query_uses_checkpoint_cursor_and_run_cap(monkeypatch) -> None:
     assert saved["continuation_token"] == "cursor-next"
 
 
+def test_view_query_applies_node_limit(monkeypatch) -> None:
+    inst = SimpleNamespace(
+        external_id="ext1",
+        space="sp1",
+        instance_id="uuid-1",
+        properties={"cdf_cdm": {"CogniteAsset/v1": {"name": "A"}}},
+        last_updated_time=500,
+    )
+    seen: dict[str, object] = {}
+
+    def _fake_query(_client, **kwargs):
+        seen["max_items"] = kwargs.get("max_items")
+        stats_out = kwargs.get("stats_out")
+        if stats_out is not None:
+            stats_out.next_cursor = "cursor-next"
+            stats_out.page_count = 1
+            stats_out.instances_yielded = 1
+        yield inst
+
+    monkeypatch.setattr("fn_discovery_etl_view_query.handler.query_all_view_instances", _fake_query)
+    monkeypatch.setattr("fn_discovery_etl_view_query.handler.maybe_handoff_predecessor_rows", lambda *_a, **_k: None)
+    monkeypatch.setattr(
+        "fn_discovery_etl_view_query.handler.load_query_checkpoint_state",
+        lambda *_a, **_k: SimpleNamespace(rows_completed=0, is_complete=False, continuation_token=""),
+    )
+    monkeypatch.setattr("fn_discovery_etl_view_query.handler.save_query_checkpoint_state", lambda *_a, **_k: None)
+
+    client = MagicMock()
+    data = {
+        "run_id": "00000000-0000-4000-8000-000000000004",
+        "configuration": {"parameters": {}},
+        "config": {
+            "view_space": "cdf_cdm",
+            "view_external_id": "CogniteAsset",
+            "view_version": "v1",
+            "limit": 1000,
+        },
+    }
+    summary = etl_handle_view_query("fn_discovery_etl_view_query", data, client, None)
+    assert seen["max_items"] == 1000
+    assert summary["effective_run_cap"] == 1000
+
+
+def test_view_query_truncates_at_node_limit(monkeypatch) -> None:
+    inst = SimpleNamespace(
+        external_id="ext1",
+        space="sp1",
+        instance_id="uuid-1",
+        properties={"cdf_cdm": {"CogniteAsset/v1": {"name": "A"}}},
+        last_updated_time=500,
+    )
+    seen: dict[str, object] = {}
+
+    def _fake_query(_client, **kwargs):
+        seen["max_items"] = kwargs.get("max_items")
+        stats_out = kwargs.get("stats_out")
+        if stats_out is not None:
+            stats_out.next_cursor = "cursor-next"
+            stats_out.page_count = 1
+            stats_out.instances_yielded = 1
+        yield inst
+
+    monkeypatch.setattr("fn_discovery_etl_view_query.handler.query_all_view_instances", _fake_query)
+    monkeypatch.setattr("fn_discovery_etl_view_query.handler.maybe_handoff_predecessor_rows", lambda *_a, **_k: None)
+    monkeypatch.setattr(
+        "fn_discovery_etl_view_query.handler.load_query_checkpoint_state",
+        lambda *_a, **_k: SimpleNamespace(rows_completed=0, is_complete=False, continuation_token=""),
+    )
+    monkeypatch.setattr("fn_discovery_etl_view_query.handler.save_query_checkpoint_state", lambda *_a, **_k: None)
+
+    client = MagicMock()
+    data = {
+        "run_id": "00000000-0000-4000-8000-000000000004",
+        "configuration": {"parameters": {}},
+        "config": {
+            "view_space": "cdf_cdm",
+            "view_external_id": "CogniteAsset",
+            "view_version": "v1",
+            "limit": 1,
+        },
+    }
+    summary = etl_handle_view_query("fn_discovery_etl_view_query", data, client, None)
+    assert seen["max_items"] == 1
+    assert summary["truncation_reason"] == "limit"
+
+
 def test_view_query_lookup_full_scan_skips_checkpoint(monkeypatch) -> None:
     inst = SimpleNamespace(
         external_id="ext1",
@@ -209,7 +295,44 @@ def test_view_query_lookup_full_scan_skips_checkpoint(monkeypatch) -> None:
     assert seen["max_items"] == 0
 
 
-def test_view_query_non_incremental_without_cap_skips_checkpoint(monkeypatch) -> None:
+def test_view_query_defaults_unset_limit_to_1000(monkeypatch) -> None:
+    inst = SimpleNamespace(
+        external_id="ext1",
+        space="sp1",
+        instance_id="uuid-1",
+        properties={"cdf_cdm": {"CogniteAsset/v1": {"name": "A"}}},
+        last_updated_time=500,
+    )
+    seen: dict[str, object] = {}
+
+    def _fake_query(_client, **kwargs):
+        seen["max_items"] = kwargs.get("max_items")
+        yield inst
+
+    monkeypatch.setattr("fn_discovery_etl_view_query.handler.query_all_view_instances", _fake_query)
+    monkeypatch.setattr("fn_discovery_etl_view_query.handler.maybe_handoff_predecessor_rows", lambda *_a, **_k: None)
+    monkeypatch.setattr(
+        "fn_discovery_etl_view_query.handler.load_query_checkpoint_state",
+        lambda *_a, **_k: SimpleNamespace(rows_completed=0, is_complete=False, continuation_token=""),
+    )
+    monkeypatch.setattr("fn_discovery_etl_view_query.handler.save_query_checkpoint_state", lambda *_a, **_k: None)
+
+    client = MagicMock()
+    data = {
+        "run_id": "00000000-0000-4000-8000-000000000004",
+        "configuration": {"parameters": {"incremental_change_processing": False}},
+        "config": {
+            "view_space": "cdf_cdm",
+            "view_external_id": "CogniteAsset",
+            "view_version": "v1",
+        },
+    }
+    summary = etl_handle_view_query("fn_discovery_etl_view_query", data, client, None)
+    assert seen["max_items"] == 1000
+    assert summary["effective_run_cap"] == 1000
+
+
+def test_view_query_limit_zero_is_unlimited_and_skips_checkpoint(monkeypatch) -> None:
     inst = SimpleNamespace(
         external_id="ext1",
         space="sp1",
@@ -242,6 +365,7 @@ def test_view_query_non_incremental_without_cap_skips_checkpoint(monkeypatch) ->
             "view_space": "cdf_cdm",
             "view_external_id": "CogniteAsset",
             "view_version": "v1",
+            "limit": 0,
         },
     }
     summary = etl_handle_view_query("fn_discovery_etl_view_query", data, client, None)

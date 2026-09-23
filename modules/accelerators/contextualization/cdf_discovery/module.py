@@ -84,13 +84,49 @@ def _run_ui(argv: List[str]) -> int:
     p.add_argument("--no-reload", action="store_true", help="Disable uvicorn --reload")
     args = p.parse_args(argv)
 
+    # #region agent log
+    import json as _json
+    _log_path = _REPO_ROOT / ".cursor" / "debug-e2a6dd.log"
+    try:
+        import importlib.util as _iu
+        _has_uvicorn = _iu.find_spec("uvicorn") is not None
+        _has_node_modules = (_UI_DIR / "node_modules").is_dir()
+        _has_vite = (_UI_DIR / "node_modules" / ".bin" / "vite").is_file()
+        with _log_path.open("a", encoding="utf-8") as _lf:
+            _lf.write(_json.dumps({
+                "sessionId": "e2a6dd",
+                "hypothesisId": "A-B",
+                "location": "module.py:_run_ui:deps_check",
+                "message": "UI dependency preflight",
+                "data": {
+                    "python": sys.executable,
+                    "has_uvicorn": _has_uvicorn,
+                    "has_node_modules": _has_node_modules,
+                    "has_vite": _has_vite,
+                    "npm_on_path": shutil.which("npm") is not None,
+                },
+                "timestamp": int(time.time() * 1000),
+            }) + "\n")
+    except OSError:
+        pass
+    # #endregion
+
     if not shutil.which("npm"):
         print("npm not found on PATH; install Node.js.", file=sys.stderr)
+        return 1
+    try:
+        import uvicorn  # noqa: F401
+    except ImportError:
+        print("Missing Python dependencies for the Discovery API.", file=sys.stderr)
+        print(
+            f"  python3 -m pip install -r {_MODULE_ROOT / 'requirements.txt'}",
+            file=sys.stderr,
+        )
         return 1
     if not (_UI_DIR / "package.json").is_file():
         print(f"Missing {_UI_DIR / 'package.json'}", file=sys.stderr)
         return 1
-    if not (_UI_DIR / "node_modules").is_dir():
+    if not (_UI_DIR / "node_modules" / ".bin" / "vite").is_file():
         print("Installing UI dependencies (npm install)…")
         r = subprocess.run(["npm", "install"], cwd=str(_UI_DIR), check=False)
         if r.returncode != 0:

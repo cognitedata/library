@@ -10,12 +10,12 @@ _staging_root = Path(__file__).resolve().parent.parent
 if str(_staging_root) not in sys.path:
     sys.path.insert(0, str(_staging_root))
 
-from cdf_fn_common.fn_runtime import (  # noqa: E402
+from cdf_fn_common.fn_runtime import (
     require_client,
     resolve_handler_payload,
     storage_adapter_for,
 )
-from inverted_index.incremental import (  # noqa: E402
+from inverted_index.incremental import (
     build_metadata_index_for_instance,
     build_metadata_index_for_instance_ids,
 )

@@ -1,6 +1,7 @@
 import type { MessageKey } from "../i18n";
 import type { TransformCanvasNodeKind } from "../types/transformCanvas";
 import type { OpenTarget, TreeNode } from "../types/discoveryNodes";
+import { DEFAULT_VIEW_QUERY_LIMIT } from "./viewQueryConfigModel";
 
 const QUERYABLE_KINDS = new Set([
   "classic_resource",
@@ -102,7 +103,7 @@ export function seedConfigForEntityDrop(
       view_version: target.view_version,
     };
     if (stage === "query_view") {
-      return { ...base, batch_size: 1000 };
+      return { ...base, batch_size: 1000, limit: DEFAULT_VIEW_QUERY_LIMIT };
     }
     return base;
   }

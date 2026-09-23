@@ -34,7 +34,7 @@ type SourceRow = {
 
 function parseGuidedBuilderFields(queryText: string): GuidedBuilderFields {
   const fallback: GuidedBuilderFields = {
-    withClauses: [{ alias: "items", limit: 100, filterJson: "" }],
+    withClauses: [{ alias: "items", limit: 1000, filterJson: "" }],
     sources: [
       {
         selectAlias: "items",
@@ -58,7 +58,7 @@ function parseGuidedBuilderFields(queryText: string): GuidedBuilderFields {
       const nodesDef = (withDef.nodes as JsonObject | undefined) ?? {};
       const filterObj = nodesDef.filter;
       const limitRaw = Number(nodesDef.limit);
-      const limit = Number.isFinite(limitRaw) ? Math.max(1, Math.min(1000, limitRaw)) : 100;
+      const limit = Number.isFinite(limitRaw) ? Math.max(1, Math.min(1000, limitRaw)) : 1000;
       return {
         alias,
         limit,

@@ -114,13 +114,24 @@ export function parseScoringRuleRows(raw: unknown): ScoringRuleRow[] {
 export function serializeScoringRuleRows(rules: ScoringRuleRow[]): unknown[] {
   return rules.map((r, ruleIdx) => {
     const keywords = splitCommaSegments(r.keywordsText);
-    const expressions = r.expressions
-      .map((e) => ({
-        pattern: e.pattern.trim(),
-        description: e.description.trim() || undefined,
-      }))
-      .filter((e) => e.pattern.length > 0)
-      .map((e) => (e.description ? { pattern: e.pattern, description: e.description } : { pattern: e.pattern }));
+    // Keep blank pattern rows so "Add expression" survives the editor round-trip
+    // (parent re-parses serialized config). Runtime already skips empty patterns.
+    // Do not trim: the editor commits on every keystroke, and trimming would eat
+    // spaces in description/pattern while the user is still typing.
+    // Collapse a single placeholder row back to [] so opening/saving a rule does
+    // not persist the empty draft the parser injects when expressions is missing.
+    const expressionItems = r.expressions.map((e) => {
+      const pattern = e.pattern;
+      const description = e.description;
+      if (!pattern.trim()) {
+        return description ? { pattern: "", description } : { pattern: "" };
+      }
+      return description ? { pattern, description } : { pattern };
+    });
+    const filledCount = expressionItems.filter((e) => e.pattern.trim().length > 0).length;
+    const onlyPlaceholder =
+      expressionItems.length <= 1 && filledCount === 0 && !expressionItems[0]?.description;
+    const expressions = onlyPlaceholder ? [] : expressionItems;
 
     const priorityTrim = r.priority.trim();
     const priority = priorityTrim === "" ? undefined : Number(priorityTrim);

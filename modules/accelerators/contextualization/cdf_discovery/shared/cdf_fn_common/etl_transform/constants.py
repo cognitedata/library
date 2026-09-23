@@ -25,6 +25,7 @@ ELT_TRANSFORM_HANDLERS = frozenset(
         "mask_string",
         "static_lookup_map",
         "heuristic_sampler",
+        "compose_template",
     }
 )
 

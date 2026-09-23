@@ -103,4 +103,5 @@ Other modules’ default ports: [Accelerators README](../../README.md#dev-port-m
 | [docs/guides/howto_operator_ui.md](docs/guides/howto_operator_ui.md) | Operator UI procedures |
 | [submodules/transform/docs/BUILD.md](submodules/transform/docs/BUILD.md) | Workflow build and deploy layout |
 | [submodules/transform/docs/LOCAL_RUN.md](submodules/transform/docs/LOCAL_RUN.md) | Local DAG runner |
+| [submodules/transform/docs/TRANSFORM.md](submodules/transform/docs/TRANSFORM.md) | Transform handlers (including `compose_template` list-aware templates after join) |
 | [OPERATOR_UI_STANDARD.md](../../OPERATOR_UI_STANDARD.md) | Shared UI conventions |

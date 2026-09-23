@@ -21,7 +21,48 @@ The **transform** canvas node applies string transforms to cohort row properties
 
 **Core:** `regex_substitution`, `leading_zero_normalize`, `sequential_literal_replace`, `substitution_variants`
 
-**ELT:** `trim_whitespace`, `change_case`, `coerce_scalar`, `default_if_empty`, `split_string`, `split_join`, `parse_json_extract`, `format_datetime`, `hash_stable`, `mask_string`, `static_lookup_map`, `heuristic_sampler`
+**ELT:** `trim_whitespace`, `change_case`, `coerce_scalar`, `default_if_empty`, `split_string`, `split_join`, `parse_json_extract`, `format_datetime`, `hash_stable`, `mask_string`, `static_lookup_map`, `heuristic_sampler`, `compose_template`
+
+### `compose_template` (list-aware field composition)
+
+Use after a **join** that enriched the row with lookup fields (e.g. `pi_unit` from a RAW mapping table). Formats a template once for scalar inputs, or **per element** when the iterate field is a list — output type matches input type.
+
+| Config | Purpose |
+|--------|---------|
+| `compose_template.iterate_field` | Property to transform (`aliases`, `name`, …). Defaults to `fields[0].field_name`. |
+| `compose_template.skip_if` | Optional per-element guard. When it matches, that iterate value is **not** composed (so `output_mode=append` does not add a redundant variant). |
+| `output_template` | Composition pattern, e.g. `{map_pi_unit}{aliases}`. The iterate placeholder expands per list element; other `{keys}` are filled from the same row as scalars. |
+| `output_field` | Destination property (often the same as the iterate field). |
+| `output_mode` | `append` keeps originals and adds composed variants (alias doubling); `overwrite` replaces with composed values only. |
+
+**`skip_if` operators:** `STARTS_WITH`, `ISTARTS_WITH`, `ENDS_WITH`, `IENDS_WITH`, `CONTAINS`, `ICONTAINS`, `EQUALS`, `IEQUALS`, `REGEX`.
+
+- Comparison operators take `property` (row field, e.g. `map_pi_unit`) or literal `value`.
+- `REGEX` takes `pattern` (may include `{field}` placeholders, escaped into the regex).
+- Empty compare values never match (avoids `startswith("")` skipping everything).
+
+**Example — double aliases with PI unit after join, without re-prefixing:**
+
+```yaml
+handler_id: compose_template
+fields:
+  - field_name: aliases
+output_template: "{map_pi_unit}{aliases}"
+output_field: aliases
+output_mode: append
+compose_template:
+  iterate_field: aliases
+  skip_if:
+    operator: STARTS_WITH
+    property: map_pi_unit
+```
+
+Given `aliases: ["12PTE3089", "PTE3089"]` and `map_pi_unit: "12"`, compose only runs on `PTE3089` → append yields  
+`["12PTE3089", "PTE3089"]` (unique append does not re-add `12PTE3089`).
+
+Without `skip_if`, `12PTE3089` would become the erroneous `1212PTE3089`.
+
+**Canvas wiring:** `query_view` → alias `transform` → `query_raw` (mapping table) → `join` (`unit` ↔ `raw_columns.unit_number`) → `compose_template` transform → score/save.
 
 ## Python modules
 

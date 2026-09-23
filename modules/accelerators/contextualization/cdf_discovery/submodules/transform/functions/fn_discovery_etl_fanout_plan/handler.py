@@ -4,14 +4,16 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 _staging_root = Path(__file__).resolve().parent.parent
 if str(_staging_root) not in sys.path:
     sys.path.insert(0, str(_staging_root))
 
-from cdf_fn_common.etl_workflow_fanout_orchestration import etl_handle_workflow_fanout_plan
+from cdf_fn_common.etl_workflow_fanout_orchestration import (
+    etl_handle_workflow_fanout_plan,
+)
 
 
-def handle(data: Dict[str, Any], client: Any = None) -> Dict[str, Any]:
+def handle(data: dict[str, Any], client: Any = None) -> dict[str, Any]:
     return etl_handle_workflow_fanout_plan("fn_discovery_etl_fanout_plan", data, client, log=None)
