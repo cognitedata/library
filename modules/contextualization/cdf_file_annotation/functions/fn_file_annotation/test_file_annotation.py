@@ -282,9 +282,9 @@ def test_log_level_is_case_insensitive(factory: str, tmp_path: Path) -> None:
 
 def test_launch_releases_claimed_files_on_an_unexpected_error() -> None:
     """Files tagged AnnotationInProcess would otherwise stay locked out of Prepare forever."""
-    from services.LaunchService import GeneralLaunchService
+    import services.LaunchService as launch_service
 
-    service = GeneralLaunchService(
+    service = launch_service.GeneralLaunchService(
         MagicMock(), MagicMock(), MagicMock(), MagicMock(), MagicMock(), MagicMock(), MagicMock(), {}, MagicMock()
     )
     file_nodes = [MagicMock()]
