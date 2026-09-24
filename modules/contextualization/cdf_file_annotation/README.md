@@ -503,8 +503,13 @@ groupSourceId: ${GROUP_SOURCE_ID}
 
 The extraction pipeline follows the same concise `parameters` / `data` structure as the
 entity-matching module. Operator knobs, view property names, RAW table names, and tag
-filters are Toolkit variables in `default.config.yaml`. Fixed limits, queries, and
-cleanup behavior live in `functions/fn_file_annotation/fa_constants.py`.
+filters are Toolkit variables in `default.config.yaml`. Fixed limits, queries,
+cleanup behavior, and Diagram Detect matching defaults
+(`DiagramDetectConfig` fields such as `minFuzzyScore`, connection flags, and
+fuzziness) live in `functions/fn_file_annotation/fa_constants.py` — edit that file
+and redeploy the function to change them; they are not Toolkit variables. See
+[CONFIG.md](./detailed_guides/CONFIG.md#diagram-detect-matching-diagramdetectconfig)
+for the constant table and SDK / API links.
 
 ```yaml
 parameters:

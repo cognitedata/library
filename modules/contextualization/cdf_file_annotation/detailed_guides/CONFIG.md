@@ -104,7 +104,11 @@ data:
 
 ## Fixed behavior
 
-These values are intentionally constants, not deployment configuration:
+These values are intentionally constants in
+`functions/fn_file_annotation/fa_constants.py`, not Toolkit / extraction-pipeline
+variables. Change them by editing that file and redeploying the function.
+
+Pipeline limits and promote cleanup:
 
 - Batch size: 50 files
 - Page range: 50 pages
@@ -117,6 +121,35 @@ These values are intentionally constants, not deployment configuration:
 - Rejected pattern edges are deleted from DMS after their RAW audit row is updated
 - Ambiguous Suggested edges remain in DMS for review
 - Annotation types, state/status filters, and standard tags
+
+### Diagram Detect matching (`DiagramDetectConfig`)
+
+Launch passes these constants into Cognite Diagram Detect via
+[`DiagramDetectConfig`](https://cognite-sdk-python.readthedocs-hosted.com/en/latest/contextualization.html#cognite.client.data_classes.contextualization.DiagramDetectConfig)
+(also documented on the [engineering diagrams detect API](https://api-docs.cognite.com/20230101-beta/tag/Engineering-diagrams/operation/diagramDetect/)).
+`None` means the parameter is omitted and the API default applies.
+
+| Constant | Current default | SDK / API field |
+|----------|-----------------|-----------------|
+| `MIN_TOKENS` | `2` | `minTokens` (annotation service, not inside `DiagramDetectConfig`) |
+| `ANNOTATION_EXTRACT` | `None` | `annotationExtract` — cannot be `True` together with `READ_EMBEDDED_TEXT` |
+| `CASE_SENSITIVE` | `None` | `caseSensitive` |
+| `NO_TEXT_INBETWEEN` | `True` | `connectionFlags.noTextInbetween` |
+| `NATURAL_READING_ORDER` | `True` | `connectionFlags.naturalReadingOrder` |
+| `FUZZINESS_FUZZY_SCORE` | `None` | `customizeFuzziness.fuzzyScore` |
+| `FUZZINESS_MAX_BOXES` | `None` | `customizeFuzziness.maxBoxes` |
+| `FUZZINESS_MIN_CHARS` | `4` | `customizeFuzziness.minChars` |
+| `DIRECTION_DELTA` | `None` | `directionDelta` |
+| `DIRECTION_WEIGHTS` | `{"left": 1.0, "right": 1.0, "up": 1.0, "down": 1.0}` | `directionWeights` |
+| `MIN_FUZZY_SCORE` | `1` | `minFuzzyScore` (`1` disables OCR character substitutions) |
+| `READ_EMBEDDED_TEXT` | `True` | `readEmbeddedText` |
+| `REMOVE_LEADING_ZEROS` | `None` | `removeLeadingZeros` |
+| `SUBSTITUTIONS` | `None` | `substitutions` — when set, replaces the API's default look-alike map |
+
+Confidence thresholds that decide Approved / Suggested / drop after detect
+(`assetAutoApprovalThreshold`, `assetAutoSuggestThreshold`, and the optional
+`fileAuto*` pair) remain Toolkit variables under `parameters` (see above). They are
+not part of `DiagramDetectConfig`.
 
 ## Migration from the four-function config
 
