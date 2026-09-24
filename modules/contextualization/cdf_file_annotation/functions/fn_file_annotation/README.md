@@ -32,8 +32,14 @@ Pass `"logLevel": "INFO"` or `"DEBUG"` in the function input (workflow already s
 
 | Level | What you get |
 |-------|----------------|
+| **WARNING** | Warnings and errors only, plus the peak memory of the stage |
 | **INFO** | Launch input counts (assets, files, missing aliases, pattern sample count, structural flag); detect job `statusCount` / failed items / annotation hit totals; apply messages |
 | **DEBUG** | Per-entity aliases (first 40), pattern sample strings, detect per-file texts/errors, full entities JSON submitted to regular detect |
+
+To measure memory, set `"logLevel": "WARNING"` on the workflow task. Each call then ends with
+`Peak memory for stage '<stage>': <n> MiB`. It is measured with `tracemalloc`, so it counts the Python allocations
+the stage made and excludes the interpreter and imported modules. Compare it between stages and runs, not against
+the function's memory limit. Tracing slows the run and adds memory of its own, so INFO, DEBUG and ERROR runs skip it.
 
 If you set DEBUG but see no `[DEBUG]` lines, redeploy this function — older builds had almost no DEBUG statements.
 

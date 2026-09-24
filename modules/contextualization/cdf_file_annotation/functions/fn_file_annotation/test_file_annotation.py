@@ -52,6 +52,46 @@ def test_dispatch_routes_each_stage(monkeypatch: pytest.MonkeyPatch, stage: str)
     stage_handler.assert_called_once_with(data, {"call_id": 1}, client)
 
 
+@pytest.mark.parametrize("stage", ["prepare", "launch", "finalize", "promote"])
+def test_warning_run_reports_peak_memory_of_the_stage(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], stage: str
+) -> None:
+    def allocate_5_mib(data: dict, function_call_info: dict, client: object) -> dict:
+        _ = bytearray(5 * 1024 * 1024)
+        return {"status": "success"}
+
+    monkeypatch.setattr(file_annotation_handler, "report_usage", MagicMock())
+    monkeypatch.setitem(file_annotation_handler.STAGE_HANDLERS, stage, allocate_5_mib)
+
+    file_annotation_handler.handle({"stage": stage, "logLevel": "WARNING"}, {}, MagicMock())
+
+    (report,) = [line for line in capsys.readouterr().out.splitlines() if "Peak memory" in line]
+    assert "[WARNING]" in report
+    assert f"'{stage}'" in report
+    assert float(report.split("Peak memory")[1].split(":")[1].split("MiB")[0]) >= 5
+
+
+@pytest.mark.parametrize("log_level", ["DEBUG", "INFO", "ERROR"])
+def test_only_warning_runs_trace_memory(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], log_level: str
+) -> None:
+    import tracemalloc
+
+    tracing_during_stage: list[bool] = []
+
+    def stage_handler(data: dict, function_call_info: dict, client: object) -> dict:
+        tracing_during_stage.append(tracemalloc.is_tracing())
+        return {"status": "success"}
+
+    monkeypatch.setattr(file_annotation_handler, "report_usage", MagicMock())
+    monkeypatch.setitem(file_annotation_handler.STAGE_HANDLERS, "launch", stage_handler)
+
+    file_annotation_handler.handle({"stage": "launch", "logLevel": log_level}, {}, MagicMock())
+
+    assert tracing_during_stage == [False]
+    assert "Peak memory" not in capsys.readouterr().out
+
+
 def test_config_uses_parameters_and_data_shape() -> None:
     from services.ConfigService import Config
 
