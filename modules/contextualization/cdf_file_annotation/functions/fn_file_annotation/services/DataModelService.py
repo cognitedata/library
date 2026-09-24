@@ -160,7 +160,9 @@ class GeneralDataModelService(IDataModelService):
             instance_type="node",
             sources=self.file_view.as_view_id(),
             space=self.file_view.instance_space,
-            limit=self.get_files_to_annotate_retrieve_limit,  # NOTE: the amount of instances that are returned may or may not matter depending on how the memory constraints of azure/aws functions
+            # NOTE: the amount of instances that are returned may or may not matter
+            # depending on how the memory constraints of azure/aws functions
+            limit=self.get_files_to_annotate_retrieve_limit,
             filter=filter_files_to_annotate,
         )
 

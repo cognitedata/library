@@ -24,7 +24,12 @@ FUZZINESS_FUZZY_SCORE: Final[float | None] = None
 FUZZINESS_MAX_BOXES: Final[int | None] = None
 FUZZINESS_MIN_CHARS: Final = 4
 DIRECTION_DELTA: Final[float | None] = None
-DIRECTION_WEIGHTS: Final[dict[str, float] | None] = {"left": 1.0, "right": 1.0, "up": 1.0, "down": 1.0}  # keys: left, right, up, down
+DIRECTION_WEIGHTS: Final[dict[str, float] | None] = {
+    "left": 1.0,
+    "right": 1.0,
+    "up": 1.0,
+    "down": 1.0,
+}
 MIN_FUZZY_SCORE: Final = 1
 READ_EMBEDDED_TEXT: Final = True
 REMOVE_LEADING_ZEROS: Final[bool | None] = None

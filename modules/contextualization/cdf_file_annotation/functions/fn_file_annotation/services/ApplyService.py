@@ -112,7 +112,9 @@ class GeneralApplyService(IApplyService):
         if clean_old:
             deleted_counts = self._delete_annotations_for_file(file_id)
             self.logger.info(
-                f"\t- Deleted {deleted_counts['doc']} doc, {deleted_counts['tag']} tag, and {deleted_counts['pattern']} pattern annotations."
+                f"\t- Deleted {deleted_counts['doc']} doc, "
+                f"{deleted_counts['tag']} tag, and "
+                f"{deleted_counts['pattern']} pattern annotations."
             )
 
         # Step 1: Process regular annotations and collect their spatial locations

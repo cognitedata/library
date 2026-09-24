@@ -448,7 +448,12 @@ class GeneralLaunchService(AbstractLaunchService):
             )
             self.data_model_service.update_annotation_state(batch.batch_states.apply)
             self.logger.info(
-                message=f"Updated the annotation state instances:\n- annotation status set to 'Processing'\n- job set to (id: {job_id}, token: {job_token})\n- pattern mode job set to (id: {pattern_job_id}, token: {pattern_job_token})",
+                message=(
+                    "Updated the annotation state instances:\n"
+                    "- annotation status set to 'Processing'\n"
+                    f"- job set to (id: {job_id}, token: {job_token})\n"
+                    f"- pattern mode job set to (id: {pattern_job_id}, token: {pattern_job_token})"
+                ),
                 section="END",
             )
         finally:
