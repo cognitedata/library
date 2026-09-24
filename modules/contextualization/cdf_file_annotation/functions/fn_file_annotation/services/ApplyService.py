@@ -17,7 +17,7 @@ from cognite.client.data_classes.data_modeling import (
     NodeOrEdgeData,
     ViewId,
 )
-from cognite.client.data_classes.filters import Equals
+from cognite.client.data_classes.filters import And, Equals
 from services.ConfigService import Config
 from services.LoggerService import CogniteFunctionLogger
 from utils.DataStructures import DiagramAnnotationStatus
@@ -190,7 +190,7 @@ class GeneralApplyService(IApplyService):
 
     def _delete_annotations_for_file(self, file_id: NodeId) -> dict[str, int]:
         """
-        Removes all existing annotations for a file from both data model and RAW tables.
+        Removes existing annotations created by this function for a file from both data model and RAW tables.
 
         Deletes annotation edges (doc-to-doc, doc-to-tag, and pattern annotations) and their
         corresponding RAW table entries to prepare for fresh annotations.
@@ -249,25 +249,30 @@ class GeneralApplyService(IApplyService):
 
     def _list_annotations_for_file(self, node_id: NodeId, edge_instance_space: str):
         """
-        Retrieves all annotation edges for a specific file from a given instance space.
+        Retrieves the annotation edges this function created for a specific file in a given instance space.
+
+        Manual and third-party annotations are excluded so they survive a clean.
 
         Args:
             node_id: NodeId of the file to query annotations for.
             edge_instance_space: Instance space where the annotation edges are stored.
 
         Returns:
-            EdgeList of all annotation edges connected to the file node.
+            EdgeList of annotation edges connected to the file node and created by this function.
         """
-        start_node_filter = Equals(
-            ["edge", "startNode"],
-            {"space": node_id.space, "externalId": node_id.external_id},
+        own_edges_filter = And(
+            Equals(
+                ["edge", "startNode"],
+                {"space": node_id.space, "externalId": node_id.external_id},
+            ),
+            Equals(self.core_annotation_view_id.as_property_ref("sourceCreatedUser"), self.FUNCTION_ID),
         )
 
         return self.client.data_modeling.instances.list(
             instance_type="edge",
             sources=[self.core_annotation_view_id],
             space=edge_instance_space,
-            filter=start_node_filter,
+            filter=own_edges_filter,
             limit=-1,
         )
 

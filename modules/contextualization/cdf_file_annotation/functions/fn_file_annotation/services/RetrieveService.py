@@ -52,6 +52,12 @@ class GeneralRetrieveService(IRetrieveService):
         self.file_view: ViewPropertyConfig = self.config.data_model_views.file_view
 
         self.filter_jobs: Filter = build_filter_from_query(config.finalize_function.retrieve_service.get_job_id_query)
+        debug_file = config.debug_file
+        if debug_file:
+            self.filter_jobs &= Equals(
+                self.annotation_state_view.as_property_ref("linkedFile"),
+                {"space": debug_file.space, "externalId": debug_file.external_id},
+            )
         self.job_api: str = f"/api/v1/projects/{self.client.config.project}/context/diagram/detect"
 
     def get_diagram_detect_job_result(self, job_id: int, job_token: str) -> dict | None:

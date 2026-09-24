@@ -4,7 +4,7 @@ A Streamlit app to monitor and manage file annotation quality for a selected pip
 
 ## Overview
 
-- The dashboard helps teams inspect annotation coverage percentage, review annotation tags, promote potential annotations to actual annotations, inspect automatic patterns and manage manual patterns.
+- The dashboard helps teams inspect annotation coverage percentage, review annotation tags, inspect automatic patterns and manage manual patterns.
 
 ## Tabs and Components
 

@@ -1092,3 +1092,118 @@ def test_launch_overall_report_omits_patterns_when_not_used() -> None:
 
     assert "- entities found: 10" in report
     assert "patterns created" not in report
+
+
+def _config_with_debug_file(debug_file_external_id: str | None, file_instance_space: str | None = "files"):
+    from services.ConfigService import Config
+
+    parameters: dict[str, object] = {"rawDb": "db_file_annotation"}
+    if debug_file_external_id is not None:
+        parameters["debugFileExternalId"] = debug_file_external_id
+    return Config.model_validate(
+        {
+            "parameters": parameters,
+            "data": {
+                "fileView": {
+                    "schemaSpace": "cdf_cdm",
+                    "instanceSpace": file_instance_space,
+                    "externalId": "CogniteFile",
+                    "version": "v1",
+                },
+                "targetEntitiesView": {
+                    "schemaSpace": "cdf_cdm",
+                    "instanceSpace": "assets",
+                    "externalId": "CogniteAsset",
+                    "version": "v1",
+                },
+                "annotationStateView": {
+                    "schemaSpace": "sp_hdm",
+                    "instanceSpace": "files",
+                    "externalId": "FileAnnotationState",
+                    "version": "v1",
+                },
+                "sinkNode": {"space": "patterns", "externalId": "pattern_sink"},
+            },
+        }
+    )
+
+
+@pytest.mark.parametrize("value", [None, "", "  "])
+def test_debug_file_is_off_when_unset_or_blank(value: str | None) -> None:
+    assert _config_with_debug_file(value).debug_file is None
+
+
+def test_debug_file_uses_file_view_instance_space() -> None:
+    from cognite.client.data_classes.data_modeling import NodeId
+
+    assert _config_with_debug_file("PID-001").debug_file == NodeId("files", "PID-001")
+
+
+def test_debug_file_requires_file_view_instance_space() -> None:
+    from pydantic import ValidationError
+
+    with pytest.raises(ValidationError, match="instanceSpace"):
+        _config_with_debug_file("PID-001", file_instance_space=None)
+
+
+def test_prepare_in_debug_mode_only_retrieves_the_debug_file() -> None:
+    from services.DataModelService import GeneralDataModelService
+
+    client = MagicMock()
+    GeneralDataModelService(_config_with_debug_file("PID-001"), client, MagicMock()).get_files_to_annotate()
+
+    query_filter = str(client.data_modeling.instances.list.call_args.kwargs["filter"].dump())
+    assert "PID-001" in query_filter
+    assert "ToAnnotate" not in query_filter
+    assert "AnnotationInProcess" in query_filter
+
+
+def test_launch_in_debug_mode_only_retrieves_the_debug_file_state() -> None:
+    from services.DataModelService import GeneralDataModelService
+
+    client = MagicMock()
+    client.data_modeling.instances.list.return_value = []
+    GeneralDataModelService(_config_with_debug_file("PID-001"), client, MagicMock()).get_files_to_process()
+
+    query_filter = str(client.data_modeling.instances.list.call_args.kwargs["filter"].dump())
+    assert "linkedFile" in query_filter
+    assert "PID-001" in query_filter
+    assert "Finalizing" not in query_filter
+
+
+def test_finalize_in_debug_mode_only_claims_jobs_for_the_debug_file() -> None:
+    from services.RetrieveService import GeneralRetrieveService
+
+    service = GeneralRetrieveService(MagicMock(), _config_with_debug_file("PID-001"), MagicMock())
+
+    query_filter = str(service.filter_jobs.dump())
+    assert "linkedFile" in query_filter
+    assert "PID-001" in query_filter
+
+
+def test_promote_in_debug_mode_only_retrieves_edges_from_the_debug_file() -> None:
+    from services.PromoteService import GeneralPromoteService
+
+    client = MagicMock()
+    service = GeneralPromoteService(
+        client, _config_with_debug_file("PID-001"), MagicMock(), MagicMock(), MagicMock(), MagicMock()
+    )
+    service._get_promote_candidates()
+
+    query_filter = str(client.data_modeling.instances.list.call_args.kwargs["filter"].dump())
+    assert "startNode" in query_filter
+    assert "PID-001" in query_filter
+
+
+def test_debug_mode_still_retrieves_all_match_entities() -> None:
+    """The debug file limits what is annotated, not which assets and files it can be matched against."""
+    from services.DataModelService import GeneralDataModelService
+
+    client = MagicMock()
+    GeneralDataModelService(_config_with_debug_file("PID-001"), client, MagicMock()).get_instances_entities("", None)
+
+    entity_filters = [str(call.kwargs["filter"].dump()) for call in client.data_modeling.instances.list.call_args_list]
+    assert len(entity_filters) == 2
+    for entity_filter in entity_filters:
+        assert "PID-001" not in entity_filter
+        assert "DetectInDiagrams" in entity_filter

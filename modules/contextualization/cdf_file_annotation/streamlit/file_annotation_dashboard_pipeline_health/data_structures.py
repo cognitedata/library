@@ -14,13 +14,6 @@ class KPI:
 
 
 @dataclass
-class RunRecord:
-    timestamp: object = None
-    count: int = 0
-    type: str | None = None
-
-
-@dataclass
 class ViewPropertyConfig:
     schema_space: str
     external_id: str
@@ -51,126 +44,21 @@ class FunctionRunConfig:
 
 
 @dataclass
-class ApplyServiceConfig:
-    raw_db: str
-    raw_table_pattern_tags: str
-    raw_table_asset_tags: str
-    raw_table_file_tags: str
-
-    @classmethod
-    def from_dict(cls, d: dict | None):
-        if not isinstance(d, dict):
-            return cls(raw_db=None, raw_table_pattern_tags=None, raw_table_asset_tags=None, raw_table_file_tags=None)
-        return cls(
-            raw_db=d.get(FieldNames.RAW_DATABASE_CAMEL_CASE),
-            raw_table_pattern_tags=d.get(FieldNames.RAW_TABLE_DOC_PATTERN_CAMEL_CASE),
-            raw_table_asset_tags=d.get(FieldNames.RAW_TABLE_DOC_TAG_CAMEL_CASE),
-            raw_table_file_tags=d.get(FieldNames.RAW_TABLE_DOC_DOC_CAMEL_CASE),
-        )
-
-
-@dataclass
-class CacheServiceConfig:
-    raw_db: str
-    raw_table_pattern_tags: str
-    raw_table_asset_tags: str
-    raw_table_file_tags: str
-
-    @classmethod
-    def from_dict(cls, d: dict | None):
-        if not isinstance(d, dict):
-            return cls(raw_db=None, raw_table_pattern_tags=None, raw_table_asset_tags=None, raw_table_file_tags=None)
-
-        return cls(
-            raw_db=d.get(FieldNames.RAW_DATABASE_CAMEL_CASE),
-            raw_table_pattern_tags=d.get(FieldNames.RAW_TABLE_DOC_PATTERN_CAMEL_CASE),
-            raw_table_asset_tags=d.get(FieldNames.RAW_TABLE_DOC_TAG_CAMEL_CASE),
-            raw_table_file_tags=d.get(FieldNames.RAW_TABLE_DOC_DOC_CAMEL_CASE),
-        )
-
-
-@dataclass
-class LaunchFunctionConfig:
-    secondary_scope_property: str
-    asset_resource_property: str
-    file_resource_property: str
-    cache_service: CacheServiceConfig
-
-    @classmethod
-    def from_dict(cls, d: dict | None):
-        if not isinstance(d, dict):
-            return cls(cache_service=CacheServiceConfig.from_dict(None))
-
-        cache_service = d.get(FieldNames.CACHE_SERVICE_CAMEL_CASE)
-
-        return cls(
-            secondary_scope_property=d.get(FieldNames.SECONDARY_SCOPE_PROPERTY_CAMEL_CASE),
-            asset_resource_property=d.get(FieldNames.ASSET_RESOURCE_PROPERTY_CAMEL_CASE),
-            file_resource_property=d.get(FieldNames.FILE_RESOURCE_PROPERTY_CAMEL_CASE),
-            cache_service=CacheServiceConfig.from_dict(cache_service),
-        )
-
-
-@dataclass
-class FinalizeFunctionConfig:
-    apply_service: ApplyServiceConfig
-
-    @classmethod
-    def from_dict(cls, d: dict | None):
-        if not isinstance(d, dict):
-            return cls(apply_service=ApplyServiceConfig.from_dict(None))
-
-        apply_service = d.get(FieldNames.APPLY_SERVICE_CAMEL_CASE)
-
-        return cls(apply_service=ApplyServiceConfig.from_dict(apply_service))
-
-
-@dataclass
 class ExtractionPipelineConfig:
-    launch_function: LaunchFunctionConfig
-    finalize_function: FinalizeFunctionConfig
     file_view_cfg: ViewPropertyConfig | None = None
-    asset_view_cfg: ViewPropertyConfig | None = None
     annotation_state_view_cfg: ViewPropertyConfig | None = None
 
     @classmethod
     def from_dict(cls, d: dict | None):
         if not isinstance(d, dict):
-            return cls(
-                launch_function=LaunchFunctionConfig.from_dict(None),
-                finalize_function=FinalizeFunctionConfig.from_dict(None),
-            )
+            return cls()
 
+        # fn_file_annotation keeps its views under "data"; pipelines from the four-function
+        # version keep them under "dataModelViews".
         if "parameters" in d and "data" in d:
-            parameters = d["parameters"]
-            views = d["data"]
-            raw_tables = {
-                "rawDb": parameters.get("rawDb"),
-                "rawTableDocPattern": "annotation_documents_patterns",
-                "rawTableDocTag": "annotation_documents_tags",
-                "rawTableDocDoc": "annotation_documents_docs",
-            }
-            file_view_data = views.get("fileView", {})
-            target_view_data = views.get("targetEntitiesView", {})
-            d = {
-                "launchFunction": {
-                    "secondaryScopeProperty": parameters.get("secondaryScopeProperty"),
-                    "fileResourceProperty": file_view_data.get("resourceProperty"),
-                    "targetEntityResourceProperty": target_view_data.get("resourceProperty"),
-                    "cacheService": raw_tables,
-                },
-                "finalizeFunction": {"applyService": raw_tables},
-                "dataModelViews": {
-                    "annotationStateView": views.get("annotationStateView"),
-                    "fileView": file_view_data,
-                    "targetEntityView": target_view_data,
-                },
-            }
-
-        launch_function = d.get(FieldNames.LAUNCH_FUNCTION_CAMEL_CASE)
-        finalize_function = d.get(FieldNames.FINALIZE_FUNCTION_CAMEL_CASE)
-
-        data_model_views = d.get(FieldNames.DATA_MODEL_VIEWS_CAMEL_CASE, {}) or {}
+            views = d["data"] or {}
+        else:
+            views = d.get(FieldNames.DATA_MODEL_VIEWS_CAMEL_CASE, {}) or {}
 
         def _build_view(cfg_dict):
             if not cfg_dict:
@@ -182,61 +70,7 @@ class ExtractionPipelineConfig:
                 instance_space=cfg_dict.get(FieldNames.INSTANCE_SPACE_CAMEL_CASE),
             )
 
-        annotation_state_view = _build_view(data_model_views.get(FieldNames.ANNOTATION_STATE_VIEW_CAMEL_CASE))
-        file_view = _build_view(data_model_views.get(FieldNames.FILE_VIEW_CAMEL_CASE))
-        asset_view = _build_view(data_model_views.get(FieldNames.ASSET_VIEW_CAMEL_CASE))
-
         return cls(
-            launch_function=LaunchFunctionConfig.from_dict(launch_function),
-            finalize_function=FinalizeFunctionConfig.from_dict(finalize_function),
-            file_view_cfg=file_view,
-            asset_view_cfg=asset_view,
-            annotation_state_view_cfg=annotation_state_view,
-        )
-
-    @property
-    def file_resource_property(self) -> str | None:
-        return getattr(self.launch_function, FieldNames.FILE_RESOURCE_PROPERTY_SNAKE_CASE, None)
-
-    @property
-    def asset_resource_property(self) -> str | None:
-        return getattr(self.launch_function, FieldNames.ASSET_RESOURCE_PROPERTY_SNAKE_CASE, None)
-
-    @property
-    def secondary_scope_property(self) -> str | None:
-        return getattr(self.launch_function, FieldNames.SECONDARY_SCOPE_PROPERTY_SNAKE_CASE, None)
-
-    @property
-    def db_name(self) -> str | None:
-        cache = getattr(self.launch_function, FieldNames.CACHE_SERVICE_SNAKE_CASE, None)
-        apply = getattr(self.finalize_function, FieldNames.APPLY_SERVICE_SNAKE_CASE, None)
-
-        if cache and getattr(cache, FieldNames.RAW_DB_SNAKE_CASE, None):
-            return cache.raw_db
-        if apply and getattr(apply, FieldNames.RAW_DB_SNAKE_CASE, None):
-            return apply.raw_db
-        return None
-
-    @property
-    def pattern_table_name(self) -> str | None:
-        cache = getattr(self.launch_function, FieldNames.CACHE_SERVICE_SNAKE_CASE, None)
-        apply = getattr(self.finalize_function, FieldNames.APPLY_SERVICE_SNAKE_CASE, None)
-        return getattr(cache, FieldNames.RAW_TABLE_PATTERN_TAGS_SNAKE_CASE, None) or getattr(
-            apply, FieldNames.RAW_TABLE_PATTERN_TAGS_SNAKE_CASE, None
-        )
-
-    @property
-    def asset_table_name(self) -> str | None:
-        cache = getattr(self.launch_function, FieldNames.CACHE_SERVICE_SNAKE_CASE, None)
-        apply = getattr(self.finalize_function, FieldNames.APPLY_SERVICE_SNAKE_CASE, None)
-        return getattr(cache, FieldNames.RAW_TABLE_ASSET_TAGS_SNAKE_CASE, None) or getattr(
-            apply, FieldNames.RAW_TABLE_ASSET_TAGS_SNAKE_CASE, None
-        )
-
-    @property
-    def file_table_name(self) -> str | None:
-        cache = getattr(self.launch_function, FieldNames.CACHE_SERVICE_SNAKE_CASE, None)
-        apply = getattr(self.finalize_function, FieldNames.APPLY_SERVICE_SNAKE_CASE, None)
-        return getattr(cache, FieldNames.RAW_TABLE_FILE_TAGS_SNAKE_CASE, None) or getattr(
-            apply, FieldNames.RAW_TABLE_FILE_TAGS_SNAKE_CASE, None
+            file_view_cfg=_build_view(views.get(FieldNames.FILE_VIEW_CAMEL_CASE)),
+            annotation_state_view_cfg=_build_view(views.get(FieldNames.ANNOTATION_STATE_VIEW_CAMEL_CASE)),
         )

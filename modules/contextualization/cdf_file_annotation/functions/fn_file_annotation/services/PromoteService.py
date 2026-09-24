@@ -15,6 +15,7 @@ from cognite.client.data_classes.data_modeling import (
     NodeOrEdgeData,
     ViewId,
 )
+from cognite.client.data_classes.filters import Equals
 from cognite.client.exceptions import CogniteAPIError
 from services.ConfigService import Config, build_filter_from_query, get_limit_from_query
 from services.EntitySearchService import EntitySearchService
@@ -345,6 +346,11 @@ class GeneralPromoteService(IPromoteService):
             Limited by getCandidatesQuery.limit (default 500 if -1/unlimited).
         """
         query_filter = build_filter_from_query(self.config.promote_function.get_candidates_query)
+        debug_file = self.config.debug_file
+        if debug_file:
+            query_filter &= Equals(
+                ["edge", "startNode"], {"space": debug_file.space, "externalId": debug_file.external_id}
+            )
         limit = get_limit_from_query(self.config.promote_function.get_candidates_query)
         # If limit is -1 (unlimited), use sensible default
         if limit == -1:

@@ -1,6 +1,6 @@
 import re
 from enum import Enum
-from typing import Literal
+from typing import Literal, Self
 
 import yaml
 from cognite.client import CogniteClient
@@ -15,20 +15,30 @@ from cognite.client.data_classes.data_modeling import NodeId
 from cognite.client.data_classes.filters import Filter
 from cognite.client.exceptions import CogniteAPIError
 from fa_constants import (
+    ANNOTATION_EXTRACT,
     BATCH_SIZE,
     CACHE_TIME_LIMIT_HOURS,
+    CASE_SENSITIVE,
     CORE_ANNOTATION_EXTERNAL_ID,
     CORE_ANNOTATION_SCHEMA_SPACE,
     CORE_ANNOTATION_VERSION,
     DELETE_REJECTED_EDGES,
     DELETE_SUGGESTED_EDGES,
+    DIRECTION_DELTA,
+    DIRECTION_WEIGHTS,
     EXCLUDED_PREPARE_TAGS,
     FILE_ANNOTATION_TYPE,
+    FUZZINESS_FUZZY_SCORE,
+    FUZZINESS_MAX_BOXES,
+    FUZZINESS_MIN_CHARS,
     LAUNCH_STATE_LIMIT,
     LAUNCH_STATUSES,
     MAX_ENTITY_SEARCH_LIMIT,
     MAX_RETRY_ATTEMPTS,
+    MIN_FUZZY_SCORE,
     MIN_TOKENS,
+    NATURAL_READING_ORDER,
+    NO_TEXT_INBETWEEN,
     PAGE_RANGE,
     PREPARE_FILE_LIMIT,
     PROCESSING_STATUS,
@@ -41,6 +51,9 @@ from fa_constants import (
     RAW_TABLE_DOC_TAG,
     RAW_TABLE_MANUAL_PATTERNS,
     RAW_TABLE_PROMOTE_CACHE,
+    READ_EMBEDDED_TEXT,
+    REMOVE_LEADING_ZEROS,
+    SUBSTITUTIONS,
     SUGGESTED_STATUS,
     TAG_DETECT_IN_DIAGRAMS,
     TAG_PROMOTE_ATTEMPTED,
@@ -351,16 +364,6 @@ class EntitySearchServiceConfig(BaseModel, alias_generator=to_camel):
     text_normalization: TextNormalizationConfig
 
 
-class PromoteCacheServiceConfig(BaseModel, alias_generator=to_camel):
-    """
-    Configuration for the CacheService in the promote function.
-
-    Controls caching behavior for text→entity mappings.
-    """
-
-    cache_table_name: str
-
-
 class PromoteFunctionConfig(BaseModel, alias_generator=to_camel):
     """
     Configuration for the promote function.
@@ -416,6 +419,14 @@ class Parameters(BaseModel, alias_generator=to_camel):
     files_to_annotate_exclude_tags: list[str] = Field(default_factory=lambda: list(EXCLUDED_PREPARE_TAGS))
     file_entities_tags: list[str] = Field(default_factory=lambda: [TAG_DETECT_IN_DIAGRAMS])
     target_entities_tags: list[str] = Field(default_factory=lambda: [TAG_DETECT_IN_DIAGRAMS])
+    debug_file_external_id: str | None = None
+
+    @field_validator("debug_file_external_id", mode="before")
+    @classmethod
+    def blank_debug_file_to_none(cls, value: object) -> object:
+        if isinstance(value, str):
+            return value.strip() or None
+        return value
 
 
 def _tag_list(value: object, default: list[str], *, allow_empty: bool = False) -> list[str]:
@@ -600,8 +611,23 @@ class Config(BaseModel, alias_generator=to_camel):
                         "partialMatch": True,
                         "minTokens": MIN_TOKENS,
                         "diagramDetectConfig": {
-                            "connectionFlags": {"noTextInbetween": True, "naturalReadingOrder": True},
-                            "readEmbeddedText": True,
+                            "annotationExtract": ANNOTATION_EXTRACT,
+                            "caseSensitive": CASE_SENSITIVE,
+                            "connectionFlags": {
+                                "noTextInbetween": NO_TEXT_INBETWEEN,
+                                "naturalReadingOrder": NATURAL_READING_ORDER,
+                            },
+                            "customizeFuzziness": {
+                                "fuzzyScore": FUZZINESS_FUZZY_SCORE,
+                                "maxBoxes": FUZZINESS_MAX_BOXES,
+                                "minChars": FUZZINESS_MIN_CHARS,
+                            },
+                            "directionDelta": DIRECTION_DELTA,
+                            "directionWeights": DIRECTION_WEIGHTS,
+                            "minFuzzyScore": MIN_FUZZY_SCORE,
+                            "readEmbeddedText": READ_EMBEDDED_TEXT,
+                            "removeLeadingZeros": REMOVE_LEADING_ZEROS,
+                            "substitutions": SUBSTITUTIONS,
                         },
                     },
                 },
@@ -659,11 +685,20 @@ class Config(BaseModel, alias_generator=to_camel):
         config["data"] = data
         return config
 
-    @classmethod
-    def parse_direct_relation(cls, value: object) -> object:
-        if isinstance(value, dict):
-            return dm.DirectRelationReference.load(value)
-        return value
+    @model_validator(mode="after")
+    def validate_debug_file(self) -> Self:
+        if self.parameters.debug_file_external_id and not self.data_model_views.file_view.instance_space:
+            raise ValueError("debugFileExternalId requires data.fileView.instanceSpace to be set")
+        return self
+
+    @property
+    def debug_file(self) -> NodeId | None:
+        """The single file to process when debugFileExternalId is set, otherwise None."""
+        external_id = self.parameters.debug_file_external_id
+        space = self.data_model_views.file_view.instance_space
+        if not external_id or not space:
+            return None
+        return NodeId(space, external_id)
 
 
 # Functions to construct queries
@@ -699,15 +734,18 @@ def build_filter_from_query(query: QueryConfig | list[QueryConfig]) -> Filter:
 
 
 # Helper functions for config logging
-def _format_config_header(function_name: str, pipeline_ext_id: str) -> list[str]:
+def _format_config_header(function_name: str, pipeline_ext_id: str, debug_file: NodeId | None) -> list[str]:
     """Build the header lines naming the stage and the pipeline the config was read from."""
     separator = "=" * 80
-    return [
+    lines = [
         separator,
         f"FUNCTION: {function_name}",
         f"CONFIG SOURCE: extraction pipeline '{pipeline_ext_id}'",
-        separator,
     ]
+    if debug_file:
+        lines.append(f"DEBUG MODE: only processing file {debug_file.space}/{debug_file.external_id}")
+    lines.append(separator)
+    return lines
 
 
 def _format_query_summary(query: QueryConfig | list[QueryConfig], query_name: str) -> str:
@@ -813,7 +851,7 @@ def format_prepare_config(config: Config, pipeline_ext_id: str) -> str:
     Returns:
         Formatted configuration string ready for logging
     """
-    lines = [*_format_config_header("Prepare", pipeline_ext_id), "PREPARE SERVICE CONFIG"]
+    lines = [*_format_config_header("Prepare", pipeline_ext_id, config.debug_file), "PREPARE SERVICE CONFIG"]
 
     # Files to Annotate Query
     lines.append(_format_query_summary(config.prepare_function.get_files_to_annotate_query, "Files to Annotate Query"))
@@ -844,7 +882,7 @@ def format_launch_config(config: Config, pipeline_ext_id: str) -> str:
     launch = config.launch_function
 
     lines = [
-        *_format_config_header("Launch", pipeline_ext_id),
+        *_format_config_header("Launch", pipeline_ext_id, config.debug_file),
         "LAUNCH SERVICE CONFIG",
         f"  • Batch size: {launch.batch_size}",
         f"  • Pattern mode: {launch.pattern_mode}",
@@ -905,7 +943,7 @@ def format_finalize_config(config: Config, pipeline_ext_id: str) -> str:
     finalize = config.finalize_function
 
     lines = [
-        *_format_config_header("Finalize", pipeline_ext_id),
+        *_format_config_header("Finalize", pipeline_ext_id, config.debug_file),
         "FINALIZE SERVICE CONFIG",
         f"  • Clean old annotations: {finalize.clean_old_annotations}",
         f"  • Max retry attempts: {finalize.max_retry_attempts}",
@@ -950,7 +988,7 @@ def format_promote_config(config: Config, pipeline_ext_id: str) -> str:
     promote = config.promote_function
     raw = config.raw_tables
     lines = [
-        *_format_config_header("Promote", pipeline_ext_id),
+        *_format_config_header("Promote", pipeline_ext_id, config.debug_file),
         "PROMOTE SERVICE CONFIG",
         f"  • Delete rejected edges: {promote.delete_rejected_edges}",
         f"  • Delete suggested edges: {promote.delete_suggested_edges}",

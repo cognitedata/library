@@ -1,5 +1,6 @@
 """Behavior tests for how detect results become annotation edges and RAW rows."""
 
+import json
 import sys
 from pathlib import Path
 from unittest.mock import MagicMock
@@ -153,6 +154,37 @@ def test_detections_without_a_region_do_not_crash_the_apply_step() -> None:
     edges, _ = _apply(_config(), [regular], pattern)
 
     assert _status_by_end_node(edges)["file_PH-ME-P-0152-001.pdf"] == "Approved"
+
+
+def test_cleaning_old_annotations_only_targets_edges_created_by_this_function() -> None:
+    """Manual and third-party annotations on the same file must survive a re-annotation."""
+    client = MagicMock()
+    file_node = MagicMock()
+    file_node.as_id.return_value = FILE_ID
+    file_node.properties = {}
+
+    GeneralApplyService(client, _config(), MagicMock()).process_and_apply_annotations_for_file(
+        file_node, None, None, clean_old=True
+    )
+
+    list_calls = client.data_modeling.instances.list.call_args_list
+    assert len(list_calls) == 2
+    for call in list_calls:
+        dumped = json.dumps(call.kwargs["filter"].dump())
+        assert '"sourceCreatedUser"' in dumped
+        assert '"fn_file_annotation"' in dumped
+
+
+def test_diagram_detect_config_sends_only_the_configured_parameters() -> None:
+    detect = _config().launch_function.annotation_service.diagram_detect_config
+
+    assert detect is not None
+    assert detect.as_config().dump(camel_case=True) == {
+        "connectionFlags": ["natural_reading_order", "no_text_inbetween"],
+        "customizeFuzziness": {"minChars": 4},
+        "minFuzzyScore": 1,
+        "readEmbeddedText": True,
+    }
 
 
 def test_file_link_thresholds_default_to_the_general_thresholds() -> None:

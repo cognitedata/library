@@ -346,17 +346,6 @@ class PerformanceTracker:
         )
         return report
 
-    def reset(self) -> None:
-        self.files_success = 0
-        self.files_failed = 0
-        self.total_runs: int = 0
-        self.total_time_delta = timedelta(0)
-        self.latest_run_time = datetime.now(UTC)
-        self.entities_found = None
-        self.patterns_created = None
-        print("PerformanceTracker state has been reset")
-
-
 @dataclass
 class PromoteTracker:
     """
@@ -456,17 +445,6 @@ class PromoteTracker:
             f"ambiguous: {self.edges_ambiguous}"
         )
         return report
-
-    def reset(self) -> None:
-        """Resets all tracker metrics to initial state."""
-        self.edges_promoted = 0
-        self.edges_rejected = 0
-        self.edges_ambiguous = 0
-        self.total_runs = 0
-        self.total_time_delta = timedelta(0)
-        self.latest_run_time = datetime.now(UTC)
-        print("PromoteTracker state has been reset")
-
 
 def remove_protected_properties(node_apply: NodeApply) -> NodeApply:
     """

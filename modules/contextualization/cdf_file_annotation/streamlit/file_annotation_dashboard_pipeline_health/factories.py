@@ -6,13 +6,6 @@ from constants import FieldNames
 
 class FactoryHandler:
     @staticmethod
-    def make_reset_selection_handler(selected_state_key: str) -> Callable[[], None]:
-        def _handler() -> None:
-            st.session_state[selected_state_key] = None
-
-        return _handler
-
-    @staticmethod
     def make_single_selection_handler(
         editor_key: str,
         selected_index_state_key: str | None = None,
@@ -72,9 +65,3 @@ class FactoryHandler:
 
         return _handler
 
-    @staticmethod
-    def make_clear_meta_values_handler(key: str) -> Callable:
-        def _handler():
-            st.session_state[key] = []
-
-        return _handler

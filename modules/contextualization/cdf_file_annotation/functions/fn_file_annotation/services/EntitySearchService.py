@@ -1,7 +1,7 @@
 import abc
 
 from cognite.client import CogniteClient
-from cognite.client.data_classes.data_modeling import EdgeList, Node, NodeList, ViewId
+from cognite.client.data_classes.data_modeling import Node, NodeList, ViewId
 from cognite.client.data_classes.filters import Filter, In
 from cognite.client.exceptions import CogniteAPIError
 from fa_constants import MAX_ENTITY_SEARCH_LIMIT
@@ -142,117 +142,6 @@ class EntitySearchService(IEntitySearchService):
         found_nodes: list[Node] = self.find_global_entity(search_texts, source, entity_space)
 
         return found_nodes
-
-    def find_from_existing_annotations(self, text_variations: list[str], annotation_type: str) -> list[Node]:
-        """
-        [UNUSED] Searches for existing successful annotations with matching startNodeText.
-
-        ** WHY THIS FUNCTION IS NOT USED: **
-        While this was originally designed as a "smart" optimization to find proven matches,
-        it actually queries the LARGER dataset:
-
-        - Annotation edges grow quadratically: O(Files x Entities) = potentially millions
-        - Entity/file nodes grow linearly: O(Entities) = thousands
-        - Neither startNodeText nor aliases properties are indexed
-        - Without indexes, querying the smaller dataset (entities) is always faster
-
-        Performance comparison at scale:
-        - This function: Scans ~500,000+ annotation edges (grows over time)
-        - Global entity search: Scans ~1,000-10,000 entities (relatively stable)
-
-        Result: Global entity search is 50-500x faster at scale.
-
-        This function is kept for reference but should not be used in production.
-
-        Args:
-            text_variations: List of text variations to search for (e.g., ["V-0912", "v-0912", "V-912", ...])
-            annotation_type: "diagrams.FileLink" or "diagrams.AssetLink"
-
-        Returns:
-            List of matched entity nodes (0, 1, or 2+ for ambiguous)
-        """
-        # Use first text variation (original text) for logging
-        original_text: str = text_variations[0] if text_variations else "unknown"
-
-        try:
-            # Query edges directly with IN filter
-            # These are annotation edges that are from regular diagram detect (not pattern mode)
-            # NOTE: manually promoted results from pattern mode are added to the
-            text_filter: Filter = In(self.core_annotation_view_id.as_property_ref("startNodeText"), text_variations)
-            edges: EdgeList = self.client.data_modeling.instances.list(
-                instance_type="edge",
-                sources=[self.core_annotation_view_id],
-                filter=text_filter,
-                space=self.regular_annotation_space,  # Where regular annotations live
-                limit=1000,  # Reasonable limit
-            )
-
-            if not edges:
-                return []
-
-            # Count occurrences of each endNode
-            matched_end_nodes: dict[tuple[str, str], int] = {}  # {(space, externalId): count}
-            for edge in edges:
-                # Check annotation type matches
-                edge_props: dict[str, object] = (edge.properties or {}).get(self.core_annotation_view_id) or {}
-                edge_type: object = edge_props.get("type")
-
-                if edge_type != annotation_type:
-                    continue  # Skip edges of different type
-
-                # Extract endNode from the edge
-                end_node_ref = edge.end_node
-                if end_node_ref:
-                    key: tuple[str, str] = (end_node_ref.space, end_node_ref.external_id)
-                    matched_end_nodes[key] = matched_end_nodes.get(key, 0) + 1
-
-            if not matched_end_nodes:
-                return []
-
-            # If multiple different endNodes found, it's ambiguous
-            top_matches: list[tuple[str, str]]
-            if len(matched_end_nodes) > 1:
-                self.logger.warning(
-                    f"Found {len(matched_end_nodes)} different entities for '{original_text}' in existing annotations. "
-                    f"This indicates data quality issues or legitimate ambiguity."
-                )
-                # Return list of most common matches (limit to 2 for ambiguity detection)
-                sorted_matches: list[tuple[tuple[str, str], int]] = sorted(
-                    matched_end_nodes.items(), key=lambda x: x[1], reverse=True
-                )
-                top_matches = [match[0] for match in sorted_matches[:2]]
-            else:
-                # Single consistent match found
-                top_matches = [next(iter(matched_end_nodes.keys()))]
-
-            # Fetch the actual node objects for the matched entities
-            view_to_use: ViewId = (
-                self.file_view_id if annotation_type == "diagrams.FileLink" else self.target_entities_view_id
-            )
-
-            matched_nodes: list[Node] = []
-            for space, ext_id in top_matches:
-                retrieved: NodeList[Node] = self.client.data_modeling.instances.retrieve_nodes(
-                    nodes=(space, ext_id), sources=view_to_use
-                )
-                # Handle both single Node and NodeList returns
-                if retrieved:
-                    if isinstance(retrieved, list):
-                        matched_nodes.extend(retrieved)
-                    else:
-                        matched_nodes.append(retrieved)
-
-            if matched_nodes:
-                self.logger.info(
-                    f"Found {len(matched_nodes)} match(es) for '{original_text}' from existing annotations "
-                    f"(appeared {matched_end_nodes.get((matched_nodes[0].space, matched_nodes[0].external_id), 0)} times)"
-                )
-
-            return matched_nodes
-
-        except CogniteAPIError as e:
-            self.logger.error(f"Error searching existing annotations for '{original_text}': {e}")
-            return []
 
     def find_global_entity(self, text_variations: list[str], source: ViewId, entity_space: str) -> list[Node]:
         """

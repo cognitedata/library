@@ -529,6 +529,7 @@ parameters:
     - DetectInDiagrams
   targetEntitiesTags:
     - DetectInDiagrams
+  debugFileExternalId: "" # set to one file's externalId to process only that file
   rawDb: db_file_annotation
   rawTableDocTag: annotation_documents_tags
   rawTableDocDoc: annotation_documents_docs

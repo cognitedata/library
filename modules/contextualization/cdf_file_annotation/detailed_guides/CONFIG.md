@@ -31,6 +31,7 @@ parameters:
   filesToAnnotateExcludeTags: {{ filesToAnnotateExcludeTags }}
   fileEntitiesTags: {{ fileEntitiesTags }}
   targetEntitiesTags: {{ targetEntitiesTags }}
+  debugFileExternalId: {{ debugFileExternalId }}
   rawDb: {{ rawDb }}
   rawTableDocTag: {{ rawTableDocTag }}
   rawTableDocDoc: {{ rawTableDocDoc }}
@@ -46,12 +47,13 @@ parameters:
 
 - `patternMode` enables pattern-mode Diagram Detect alongside regular entity matching.
 - `structuralAutoPatterns` (default `true`) makes auto patterns digit/letter **structure** templates such as `00-AA-0000` instead of enumerating letter codes like `[FE|KA|PC|VA]`. Separators from aliases (`_`, `-`, `.`, `:`, `;`, `/`) are never required constants (never `[_]`); they normalize to unbracketed `-`. Set `false` for legacy letter-enum expansion.
-- `cleanOldAnnotations` removes prior annotations on the first finalize pass.
+- `cleanOldAnnotations` removes this function's prior annotations (edges with `sourceCreatedUser = fn_file_annotation`, plus their RAW rows) on the first finalize pass of a file that is re-annotated. Manual and third-party annotations are kept. Files that are no longer selected for annotation are not cleaned.
 - `assetAutoApprovalThreshold` and `assetAutoSuggestThreshold` control regular annotation status for asset links (`diagrams.AssetLink`). `fileAutoApprovalThreshold` and `fileAutoSuggestThreshold` do the same for file links (`diagrams.FileLink`); leave them empty to reuse the asset-link values. A detection at or above the approval threshold is `Approved`, at or above the suggest threshold `Suggested`, and below that it is dropped.- `primaryScopeProperty` and `secondaryScopeProperty` group files so launch can reuse a scoped entity cache.
 - `filesToAnnotateTags` is the Prepare IN filter for files to process (default `ToAnnotate`).
 - `filesToAnnotateExcludeTags` is the Prepare NOT IN filter (default `AnnotationInProcess`, `Annotated`, `AnnotationFailed`). Tags also listed in `filesToAnnotateTags` are dropped from the exclude list, so adding `Annotated` reprocesses those files.
 - `fileEntitiesTags` is the Launch IN filter for files used as diagram-detect match entities (default `DetectInDiagrams`).
 - `targetEntitiesTags` is the Launch IN filter for assets used as diagram-detect match entities (default `DetectInDiagrams`).
+- `debugFileExternalId` (default empty) restricts every stage to one file, for debugging. The file is looked up in `data.fileView.instanceSpace` (required when this is set). Prepare picks the file regardless of its `ToAnnotate`/`Annotated` tags (only `AnnotationInProcess` is skipped), Launch and Finalize only handle that file's annotation state, Promote only handles edges that start at the file, and no other files are annotated. Match entities are still read in full: Launch retrieves all `DetectInDiagrams`/`ScopeWideDetect` assets and files as usual, so the debug file is matched against the same entities as in a normal run. Each stage logs a `DEBUG MODE` line in its config header. Leave empty for normal runs.
 - Possible pipeline tags: `ToAnnotate`, `DetectInDiagrams`, `ScopeWideDetect`, `AnnotationInProcess`, `Annotated`, `AnnotationFailed`, `PromoteAttempted`, `PromotedAuto`, `AmbiguousMatch`.
 - `rawDb` is the shared database for result and cache tables.
 - The `rawTable*` keys name the function's result, cache, and catalog tables. They must match the Toolkit RAW resources and the extraction pipeline's `rawTables` list.

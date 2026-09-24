@@ -12,7 +12,22 @@ LAUNCH_STATE_LIMIT: Final = 1000
 PROMOTE_CANDIDATE_LIMIT: Final = 500
 FUNCTION_TIME_BUDGET_MINUTES: Final = 7
 LOCAL_RATE_LIMIT_SLEEP_SECONDS: Final = 900
-MIN_TOKENS: Final = 1
+
+# Diagram detect config - see DiagramDetectConfig in the Cognite SDK docs. None = use API default.
+MIN_TOKENS: Final = 2
+ANNOTATION_EXTRACT: Final[bool | None] = None  # cannot be True together with READ_EMBEDDED_TEXT
+CASE_SENSITIVE: Final[bool | None] = None
+NO_TEXT_INBETWEEN: Final = True
+NATURAL_READING_ORDER: Final = True
+FUZZINESS_FUZZY_SCORE: Final[float | None] = None
+FUZZINESS_MAX_BOXES: Final[int | None] = None
+FUZZINESS_MIN_CHARS: Final = 4
+DIRECTION_DELTA: Final[float | None] = None
+DIRECTION_WEIGHTS: Final[dict[str, float] | None] = {"left": 1.0, "right": 1.0, "up": 1.0, "down": 1.0}  # keys: left, right, up, down
+MIN_FUZZY_SCORE: Final = 1
+READ_EMBEDDED_TEXT: Final = True
+REMOVE_LEADING_ZEROS: Final[bool | None] = None
+SUBSTITUTIONS: Final[dict[str, list[str]] | None] = None  # e.g. {"0": ["O", "Q"]}
 
 CORE_ANNOTATION_SCHEMA_SPACE: Final = "cdf_cdm"
 CORE_ANNOTATION_EXTERNAL_ID: Final = "CogniteDiagramAnnotation"
@@ -32,23 +47,8 @@ TAG_ANNOTATION_FAILED: Final = "AnnotationFailed"
 TAG_ANNOTATION_IN_PROCESS: Final = "AnnotationInProcess"
 TAG_DETECT_IN_DIAGRAMS: Final = "DetectInDiagrams"
 TAG_PROMOTE_ATTEMPTED: Final = "PromoteAttempted"
-TAG_PROMOTED_AUTO: Final = "PromotedAuto"
-TAG_AMBIGUOUS_MATCH: Final = "AmbiguousMatch"
-TAG_SCOPE_WIDE_DETECT: Final = "ScopeWideDetect"
 TAG_TO_ANNOTATE: Final = "ToAnnotate"
 EXCLUDED_PREPARE_TAGS: Final = [TAG_ANNOTATION_IN_PROCESS, TAG_ANNOTATED, TAG_ANNOTATION_FAILED]
-# All tags the pipeline reads or writes. Shown in default.config.yaml comments.
-PIPELINE_TAGS: Final = [
-    TAG_TO_ANNOTATE,
-    TAG_DETECT_IN_DIAGRAMS,
-    TAG_SCOPE_WIDE_DETECT,
-    TAG_ANNOTATION_IN_PROCESS,
-    TAG_ANNOTATED,
-    TAG_ANNOTATION_FAILED,
-    TAG_PROMOTE_ATTEMPTED,
-    TAG_PROMOTED_AUTO,
-    TAG_AMBIGUOUS_MATCH,
-]
 LAUNCH_STATUSES: Final = ["New", "Retry"]
 PROCESSING_STATUS: Final = "Processing"
 SUGGESTED_STATUS: Final = "Suggested"
@@ -62,6 +62,3 @@ DEFAULT_NORMALIZATION_SUBSTITUTIONS: Final = [
     (r"[^A-Za-z0-9]", ""),
     (r"(?<!\d)0+(\d+)", r"\1"),
 ]
-# Same default tag shape as cdf_entity_matching aliases_update: capture groups joined by "_".
-# Spelled with [0-9] rather than \d so Toolkit variable substitution accepts it.
-DEFAULT_NORMALIZE_PATTERN: Final = r"([0-9]{2})[-_.:]([A-Z]{2,3})[-_.:]([0-9]{4,5})"

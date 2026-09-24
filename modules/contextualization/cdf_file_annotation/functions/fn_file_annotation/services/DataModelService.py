@@ -15,8 +15,10 @@ from cognite.client.data_classes.filters import (
     Exists,
     Filter,
     In,
+    Not,
     Range,
 )
+from fa_constants import TAG_ANNOTATION_IN_PROCESS
 from services.ConfigService import (
     Config,
     ViewPropertyConfig,
@@ -141,13 +143,22 @@ class GeneralDataModelService(IDataModelService):
 
         Returns:
             NodeList of file instances ready for annotation, or None if no files found.
+
+        NOTE: With debugFileExternalId set, only that file is returned, regardless of its ToAnnotate/Annotated tags.
+              AnnotationInProcess is still excluded so the file is not prepared again while it is being processed.
         """
+        filter_files_to_annotate = self.filter_files_to_annotate
+        debug_file = self.config.debug_file
+        if debug_file:
+            filter_files_to_annotate = Equals(["node", "externalId"], debug_file.external_id) & Not(
+                In(self.file_view.as_property_ref("tags"), [TAG_ANNOTATION_IN_PROCESS])
+            )
         result: NodeList | None = self.client.data_modeling.instances.list(
             instance_type="node",
             sources=self.file_view.as_view_id(),
             space=self.file_view.instance_space,
             limit=self.get_files_to_annotate_retrieve_limit,  # NOTE: the amount of instances that are returned may or may not matter depending on how the memory constraints of azure/aws functions
-            filter=self.filter_files_to_annotate,
+            filter=filter_files_to_annotate,
         )
 
         return result
@@ -221,7 +232,15 @@ class GeneralDataModelService(IDataModelService):
         - (annotationStatus == Processing | Finalizing && now() - lastUpdatedTime) > 720 minutes/12 hours -> hardcoded -> reprocesses any file that's stuck
             - Edge case that occurs very rarely but can happen.
         NOTE: Implementation of a more complex query that can't be handled in config should come from an implementation of the interface.
+        NOTE: With debugFileExternalId set, only the debug file's state is returned and the stuck-job retry is skipped.
         """
+        debug_file = self.config.debug_file
+        if debug_file:
+            return self.filter_files_to_process & Equals(
+                self.annotation_state_view.as_property_ref("linkedFile"),
+                {"space": debug_file.space, "externalId": debug_file.external_id},
+            )
+
         annotation_status_property = self.annotation_state_view.as_property_ref("annotationStatus")
         annotation_last_updated_property = self.annotation_state_view.as_property_ref("sourceUpdatedTime")
         # NOTE: While this number is hard coded, I believe it doesn't need to be configured. Number comes from my experience with the pipeline. Feel free to change if your experience leads to a different number

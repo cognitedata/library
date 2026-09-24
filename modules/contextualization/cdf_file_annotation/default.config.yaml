@@ -62,6 +62,10 @@ fileEntitiesTags:
 # Launch: assets used as diagram-detect match entities (IN).
 targetEntitiesTags:
   - DetectInDiagrams
+# Debugging: externalId of one file (in fileInstanceSpace) to run through all stages.
+# Other files are neither retrieved nor processed, and the file's tags are ignored
+# (it is re-annotated even if already Annotated). Leave empty for normal runs.
+debugFileExternalId: ""
 # Separate normalize pattern lists for assets vs files (avoids false-positive
 # structural samples when alias shapes differ). Capture groups joined by "_";
 # longest match kept. Empty list ([]) disables filtering for that source.

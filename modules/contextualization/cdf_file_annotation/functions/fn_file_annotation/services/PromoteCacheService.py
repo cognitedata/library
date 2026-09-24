@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 
 from cognite.client import CogniteClient
-from cognite.client.data_classes.data_modeling import Node, NodeList
+from cognite.client.data_classes.data_modeling import Node
 from cognite.client.data_classes.raw import Row
 from cognite.client.exceptions import CogniteAPIError
 from services.ConfigService import Config, ViewPropertyConfig
@@ -24,16 +24,6 @@ class CachedEntityInfo:
     space: str
     external_id: str
     resource_type: str | None = None
-
-    def to_tuple(self) -> tuple[str, str, str | None]:
-        """Returns tuple representation for storage."""
-        return (self.space, self.external_id, self.resource_type)
-
-    @classmethod
-    def from_tuple(cls, data: tuple[str, str, str | None]) -> "CachedEntityInfo":
-        """Creates instance from tuple."""
-        return cls(space=data[0], external_id=data[1], resource_type=data[2] if len(data) > 2 else None)
-
 
 class ICacheService(abc.ABC):
     """
@@ -66,21 +56,6 @@ class ICacheService(abc.ABC):
             resource_type: Optional resource type to cache alongside the node
         """
         pass
-
-    @abc.abstractmethod
-    def get_from_memory(self, text: str, annotation_type: str) -> CachedEntityInfo | None:
-        """
-        Retrieves from in-memory cache only (no persistent storage lookup).
-
-        Args:
-            text: Text to look up
-            annotation_type: Type of annotation
-
-        Returns:
-            CachedEntityInfo if found in memory, None otherwise
-        """
-        pass
-
 
 class CacheService(ICacheService):
     """
@@ -197,28 +172,6 @@ class CacheService(ICacheService):
 
         # Cache miss
         return None
-
-    def get_from_memory(self, text: str, annotation_type: str) -> CachedEntityInfo | None:
-        """
-        Retrieves from in-memory cache only (no persistent storage lookup, no API calls).
-
-        Useful for checking if we've already looked up this text in this run.
-
-        Args:
-            text: The text to look up
-            annotation_type: Type of annotation
-
-        Returns:
-            CachedEntityInfo if found in memory, None otherwise
-        """
-        cache_key: tuple[str, str] = (text, annotation_type)
-        if cache_key not in self._memory_cache:
-            return None
-
-        # Return cached info directly - no API call needed
-        # If the value is a CacheMarker, treat it as a cache miss (None)
-        val = self._memory_cache[cache_key]
-        return None if val is CacheMarker.AMBIGUOUS or val is CacheMarker.NO_MATCH else val
 
     def is_ambiguous_in_memory(self, text: str, annotation_type: str) -> bool:
         """
@@ -391,38 +344,3 @@ class CacheService(ICacheService):
             # Don't fail the run if cache update fails
             self.logger.warning(f"Failed to update cache for '{text}': {e}")
 
-    def _extract_single_node(self, retrieved: Node | NodeList) -> Node | None:
-        """
-        Extracts a single Node from the retrieved result.
-
-        Handles both single Node and NodeList returns from the SDK.
-        """
-        if isinstance(retrieved, NodeList) and len(retrieved) > 0:
-            first_node = next(iter(retrieved))
-            return first_node if isinstance(first_node, Node) else None
-        elif isinstance(retrieved, Node):
-            return retrieved
-        else:
-            return None
-
-    def get_stats(self) -> dict[str, int]:
-        """
-        Returns statistics about the in-memory cache.
-
-        Returns:
-            Dictionary with cache statistics
-        """
-        total_entries = len(self._memory_cache)
-        negative_entries = sum(1 for v in self._memory_cache.values() if v is CacheMarker.NO_MATCH)
-        positive_entries = total_entries - negative_entries
-
-        return {
-            "total_entries": total_entries,
-            "positive_entries": positive_entries,
-            "negative_entries": negative_entries,
-        }
-
-    def clear_memory_cache(self) -> None:
-        """Clears the in-memory cache. Useful for testing."""
-        self._memory_cache.clear()
-        self.logger.debug("In-memory cache cleared")

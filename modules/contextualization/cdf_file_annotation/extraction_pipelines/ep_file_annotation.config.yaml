@@ -1,6 +1,8 @@
 externalId: {{ extractionPipelineExternalId }}
 config:
   parameters:
+    # Debug file external id for the extraction pipeline, empty string for no debug file.
+    debugFileExternalId: {{ debugFileExternalId }}
     patternMode: {{ patternMode }}
     structuralAutoPatterns: {{ structuralAutoPatterns }}
     cleanOldAnnotations: {{ cleanOldAnnotations }}
@@ -16,6 +18,7 @@ config:
     filesToAnnotateExcludeTags: {{ filesToAnnotateExcludeTags }}
     fileEntitiesTags: {{ fileEntitiesTags }}
     targetEntitiesTags: {{ targetEntitiesTags }}
+    
     rawDb: {{ rawDb }}
     rawTableDocTag: {{ rawTableDocTag }}
     rawTableDocDoc: {{ rawTableDocDoc }}
