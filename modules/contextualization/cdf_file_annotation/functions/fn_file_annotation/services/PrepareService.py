@@ -1,5 +1,5 @@
 import abc
-from typing import Literal, cast
+from typing import Literal
 
 from cognite.client import CogniteClient
 from cognite.client.data_classes.data_modeling import NodeApply, NodeList
@@ -11,9 +11,8 @@ from utils.DataStructures import (
     AnnotationState,
     AnnotationStatus,
     PerformanceTracker,
-    get_source_properties,
-    remove_protected_properties,
-    set_describable_tags,
+    node_tags,
+    tags_apply,
 )
 
 
@@ -107,16 +106,12 @@ class GeneralPrepareService(AbstractPrepareService):
                     self.logger.info(f"Resetting {len(file_nodes_to_reset)} files")
                     reset_node_apply: list[NodeApply] = []
                     tags_to_remove = {"AnnotationInProcess", "Annotated", "AnnotationFailed"}
+                    file_view_id = self.file_view.as_view_id()
                     for file_node in file_nodes_to_reset:
-                        file_node_apply: NodeApply = remove_protected_properties(file_node.as_write())
-                        tags_property: list[str] = cast(
-                            list[str], get_source_properties(file_node_apply).get("tags") or []
+                        tags_property = node_tags(file_node, file_view_id)
+                        reset_node_apply.append(
+                            tags_apply(file_node, file_view_id, [t for t in tags_property if t not in tags_to_remove])
                         )
-                        set_describable_tags(
-                            file_node_apply,
-                            [t for t in tags_property if t not in tags_to_remove],
-                        )
-                        reset_node_apply.append(file_node_apply)
                     update_results = self.data_model_service.update_annotation_state(reset_node_apply)
                     self.logger.info(
                         f"Removed the AnnotationInProcess/Annotated/AnnotationFailed tag of {len(update_results)} files"
@@ -177,12 +172,10 @@ class GeneralPrepareService(AbstractPrepareService):
             )
             annotation_state_instances.append(annotation_node_apply)
 
-            file_node_apply: NodeApply = remove_protected_properties(file_node.as_write())
-            tags_property: list[str] = list(cast(list[str], get_source_properties(file_node_apply).get("tags") or []))
+            tags_property = node_tags(file_node, self.file_view.as_view_id())
             if "AnnotationInProcess" not in tags_property:
                 tags_property.append("AnnotationInProcess")
-                set_describable_tags(file_node_apply, tags_property)
-                file_apply_instances.append(file_node_apply)
+                file_apply_instances.append(tags_apply(file_node, self.file_view.as_view_id(), tags_property))
 
         try:
             create_results = self.data_model_service.create_annotation_state(annotation_state_instances)

@@ -446,32 +446,32 @@ class PromoteTracker:
         )
         return report
 
-def remove_protected_properties(node_apply: NodeApply) -> NodeApply:
+
+def node_tags(node: Node, view_id: ViewId) -> list[str]:
+    """Return a copy of the node's tags in the given view, or [] when it has none."""
+    return list(cast(list[str], ((node.properties or {}).get(view_id) or {}).get("tags") or []))
+
+
+def tags_apply(node: Node, view_id: ViewId, tags: list[str]) -> NodeApply:
     """
-    In mid November the product team pushed a change that adds write-protection for 'isUploaded' and 'uploadedTime' to staging clusters.
-    The rationale is that CogniteFile and CogniteAsset forced the team to implement a system managed field concept.
-    This function effectively deletes the protected properties from the json object and adheres to the new standard set in place.
-    We don't use typed nodes like CogniteFile in this deployment pack since we need the properties associated with the view that we extended.
+    Build a NodeApply that changes only the node's tags.
+
+    Sending the node's other properties back would make the request as large as the node and could
+    overwrite changes made to them since the node was read. Use with replace=False.
+
+    Args:
+        node: The node to update.
+        view_id: View that exposes the tags property.
+        tags: The new tags; duplicates are removed.
+
+    Returns:
+        NodeApply carrying only the tags.
     """
-    protected_properties = [
-        "isUploaded",
-        "uploadedTime",
-    ]  # NOTE: These are just the protected properties of CogniteFile. There are also protected properties for CogniteAsset, though we don't use it in this deployment pack.
-    for source in node_apply.sources:
-        if source.properties is None:
-            source.properties = {}
-        # Safely remove the keys if they exist using .pop(key, None)
-        for property in protected_properties:
-            source.properties.pop(property, None)
-
-    return node_apply
-
-
-def get_source_properties(node_apply: NodeApply) -> dict:
-    """Return the first source's properties dict, or {} if there are no sources or properties is None."""
-    if not node_apply.sources:
-        return {}
-    return node_apply.sources[0].properties or {}
+    return NodeApply(
+        space=node.space,
+        external_id=node.external_id,
+        sources=[NodeOrEdgeData(source=view_id, properties={"tags": unique_tags(tags)})],
+    )
 
 
 def unique_tags(tags: list[str]) -> list[str]:
@@ -502,18 +502,3 @@ def replace_tag(tags: list[str], old: str, new: str) -> list[str]:
     if new not in result:
         result.append(new)
     return result
-
-
-def set_describable_tags(node_apply: NodeApply, tags: list[str]) -> None:
-    """Write tags on a node apply.
-
-    CFIHOS Files/Tag views map both `labels` and `tags` to CogniteDescribable.tags.
-    as_write() can include both; writing only one avoids 400 conflicting-property errors.
-    """
-    if not node_apply.sources:
-        return
-    if node_apply.sources[0].properties is None:
-        node_apply.sources[0].properties = {}
-    properties = node_apply.sources[0].properties
-    properties.pop("labels", None)
-    properties["tags"] = unique_tags(tags)

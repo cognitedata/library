@@ -1050,16 +1050,15 @@ def test_add_unique_tags_skips_existing() -> None:
     ]
 
 
-def test_set_describable_tags_deduplicates() -> None:
-    from utils.DataStructures import set_describable_tags
+def test_tags_apply_deduplicates() -> None:
+    from cognite.client.data_classes.data_modeling import ViewId
+    from utils.DataStructures import tags_apply
 
-    node_apply = MagicMock()
-    node_apply.sources = [MagicMock()]
-    node_apply.sources[0].properties = {"tags": ["old"]}
+    node_apply = tags_apply(
+        MagicMock(), ViewId("cdf_cdm", "CogniteFile", "v1"), ["ToAnnotate", "Annotated", "Annotated"]
+    )
 
-    set_describable_tags(node_apply, ["ToAnnotate", "Annotated", "Annotated"])
-
-    assert node_apply.sources[0].properties["tags"] == ["ToAnnotate", "Annotated"]
+    assert node_apply.sources[0].properties == {"tags": ["ToAnnotate", "Annotated"]}
 
 
 def test_launch_overall_report_includes_stage_entities_and_patterns() -> None:
@@ -1200,10 +1199,160 @@ def test_debug_mode_still_retrieves_all_match_entities() -> None:
     from services.DataModelService import GeneralDataModelService
 
     client = MagicMock()
-    GeneralDataModelService(_config_with_debug_file("PID-001"), client, MagicMock()).get_instances_entities("", None)
+    client.data_modeling.instances.query.return_value = _query_page([], cursor=None)
+    targets, files = GeneralDataModelService(
+        _config_with_debug_file("PID-001"), client, MagicMock()
+    ).get_instances_entities("", None)
+    list(targets), list(files)
 
-    entity_filters = [str(call.kwargs["filter"].dump()) for call in client.data_modeling.instances.list.call_args_list]
+    entity_filters = [
+        str(call.args[0].with_["entities"].filter.dump())
+        for call in client.data_modeling.instances.query.call_args_list
+    ]
     assert len(entity_filters) == 2
     for entity_filter in entity_filters:
         assert "PID-001" not in entity_filter
         assert "DetectInDiagrams" in entity_filter
+
+
+def _query_page(nodes: list, cursor: str | None) -> MagicMock:
+    page = MagicMock()
+    page.__getitem__.return_value = nodes
+    page.cursors = {"entities": cursor}
+    return page
+
+
+def test_match_entities_are_paged_and_carry_only_the_properties_detect_uses() -> None:
+    """Every matched asset and file is fetched, so full nodes with all view properties ran the function out of memory."""
+    from services.DataModelService import GeneralDataModelService
+
+    client = MagicMock()
+    first, second = MagicMock(), MagicMock()
+    client.data_modeling.instances.query.side_effect = [
+        _query_page([first], cursor="next"),
+        _query_page([second], cursor=None),
+        _query_page([], cursor=None),
+    ]
+    targets, files = GeneralDataModelService(_config_with_debug_file(None), client, MagicMock()).get_instances_entities(
+        "", None
+    )
+
+    assert list(targets) == [first, second]
+    assert list(files) == []
+    client.data_modeling.instances.list.assert_not_called()
+    queries = [call.args[0] for call in client.data_modeling.instances.query.call_args_list]
+    assert queries[0].cursors == {"entities": None} and queries[1].cursors == {"entities": "next"}
+    for query in queries:
+        assert set(query.select["entities"].sources[0].properties) == {"name", "aliases"}
+        assert "hasData" in str(query.with_["entities"].filter.dump())
+
+
+def _file_node(tags: list[str]):
+    from cognite.client.data_classes.data_modeling import Node
+
+    return Node.load(
+        {
+            "instanceType": "node",
+            "space": "files",
+            "externalId": "doc-1",
+            "version": 1,
+            "lastUpdatedTime": 0,
+            "createdTime": 0,
+            "properties": {"cdf_cdm": {"CogniteFile/v1": {"name": "doc-1", "description": "big text", "tags": tags}}},
+        }
+    )
+
+
+def test_prepare_writes_only_the_tags_of_a_file() -> None:
+    from services.PrepareService import GeneralPrepareService
+
+    data_model_service = MagicMock()
+    data_model_service.get_files_to_annotate.return_value = [_file_node(["ToAnnotate"])]
+    service = GeneralPrepareService(
+        MagicMock(), _config_with_debug_file(None), MagicMock(), MagicMock(), data_model_service, {}
+    )
+
+    service.run()
+
+    (file_apply,) = data_model_service.update_annotation_state.call_args.args[0]
+    assert file_apply.sources[0].properties == {"tags": ["ToAnnotate", "AnnotationInProcess"]}
+
+
+def test_finalize_writes_only_the_tags_of_an_annotated_file() -> None:
+    from cognite.client.data_classes.data_modeling import Node, NodeId
+    from services.FinalizeService import GeneralFinalizeService
+
+    state_node = Node.load(
+        {
+            "instanceType": "node",
+            "space": "files",
+            "externalId": "state-1",
+            "version": 1,
+            "lastUpdatedTime": 0,
+            "createdTime": 0,
+            "properties": {"sp_hdm": {"FileAnnotationState/v1": {"annotationStatus": "Finalizing"}}},
+        }
+    )
+    retrieve_service = MagicMock()
+    retrieve_service.get_job_id.return_value = ((1, "token"), None, {NodeId("files", "doc-1"): state_node})
+    retrieve_service.get_diagram_detect_job_result.return_value = {
+        "items": [{"fileInstanceId": {"space": "files", "externalId": "doc-1"}, "pageCount": 1, "annotations": []}]
+    }
+    client = MagicMock()
+    client.data_modeling.instances.retrieve_nodes.return_value = _file_node(["ToAnnotate", "AnnotationInProcess"])
+    apply_service = MagicMock()
+    apply_service.process_and_apply_annotations_for_file.return_value = ("regular", "pattern")
+    service = GeneralFinalizeService(
+        client,
+        _config_with_debug_file(None),
+        MagicMock(log_level="INFO"),
+        MagicMock(),
+        retrieve_service,
+        apply_service,
+        {},
+    )
+
+    service.run()
+
+    applies = apply_service.update_instances.call_args.kwargs["list_node_apply"]
+    (file_apply,) = [apply for apply in applies if apply.external_id == "doc-1"]
+    assert file_apply.sources[0].properties == {"tags": ["ToAnnotate", "Annotated"]}
+
+
+def test_launch_does_not_serialize_entities_below_debug(monkeypatch: pytest.MonkeyPatch) -> None:
+    import services.LaunchService as launch_service
+
+    dumps = MagicMock(return_value="")
+    monkeypatch.setattr(launch_service.json, "dumps", dumps)
+    launch_svc = launch_service.GeneralLaunchService(
+        client=MagicMock(),
+        config=_config_with_debug_file(None),
+        logger=MagicMock(log_level="INFO"),
+        tracker=MagicMock(),
+        data_model_service=MagicMock(),
+        cache_service=MagicMock(),
+        annotation_service=MagicMock(**{"run_diagram_detect.return_value": (1, "token")}),
+        function_call_info={},
+        rate_limit_policy=MagicMock(),
+    )
+    launch_svc.in_memory_cache = [{"external_id": "asset-1", "search_property": ["P-101"]}]
+
+    launch_svc._process_batch(MagicMock(**{"is_empty.return_value": False}))
+
+    dumps.assert_not_called()
+
+
+@pytest.mark.parametrize("status", ["Completed", "Running"])
+def test_finalize_does_not_decode_job_response_text_below_debug(status: str) -> None:
+    from unittest.mock import PropertyMock
+
+    from services.RetrieveService import GeneralRetrieveService
+
+    client = MagicMock()
+    response = client.get.return_value
+    response.status_code = 200
+    response.json.return_value = {"status": status, "items": []}
+    type(response).text = PropertyMock(side_effect=AssertionError("response.text decoded below DEBUG"))
+    service = GeneralRetrieveService(client, _config_with_debug_file(None), MagicMock(log_level="INFO"))
+
+    service.get_diagram_detect_job_result(1, "token")

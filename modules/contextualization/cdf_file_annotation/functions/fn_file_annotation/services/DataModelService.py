@@ -1,4 +1,5 @@
 import abc
+from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta
 
 from cognite.client import CogniteClient
@@ -10,15 +11,17 @@ from cognite.client.data_classes.data_modeling import (
     NodeId,
     NodeList,
 )
+from cognite.client.data_classes.data_modeling.query import NodeResultSetExpression, Query, Select, SourceSelector
 from cognite.client.data_classes.filters import (
     Equals,
     Exists,
     Filter,
+    HasData,
     In,
     Not,
     Range,
 )
-from fa_constants import TAG_ANNOTATION_IN_PROCESS
+from fa_constants import ENTITY_QUERY_PAGE_SIZE, TAG_ANNOTATION_IN_PROCESS
 from services.ConfigService import (
     Config,
     ViewPropertyConfig,
@@ -65,7 +68,7 @@ class IDataModelService(abc.ABC):
     @abc.abstractmethod
     def get_instances_entities(
         self, primary_scope_value: str, secondary_scope_value: str | None
-    ) -> tuple[NodeList, NodeList]:
+    ) -> tuple[Iterator[Node], Iterator[Node]]:
         pass
 
 
@@ -289,7 +292,7 @@ class GeneralDataModelService(IDataModelService):
 
     def get_instances_entities(
         self, primary_scope_value: str, secondary_scope_value: str | None
-    ) -> tuple[NodeList, NodeList]:
+    ) -> tuple[Iterator[Node], Iterator[Node]]:
         """
         Retrieves target entities and file entities for use in diagram detection.
 
@@ -302,8 +305,8 @@ class GeneralDataModelService(IDataModelService):
 
         Returns:
             A tuple containing:
-                - NodeList of target entity instances (typically assets)
-                - NodeList of file entity instances
+                - Iterator over target entity instances (typically assets)
+                - Iterator over file entity instances
 
         NOTE: 1. grab assets that meet the filter requirement
         NOTE: 2. grab files that meet the filter requirement
@@ -311,21 +314,54 @@ class GeneralDataModelService(IDataModelService):
         target_filter: Filter = self._get_target_entities_filter(primary_scope_value, secondary_scope_value)
         file_filter: Filter = self._get_file_entities_filter(primary_scope_value, secondary_scope_value)
 
-        target_entities: NodeList = self.client.data_modeling.instances.list(
-            instance_type="node",
-            sources=self.target_entities_view.as_view_id(),
-            space=self.target_entities_view.instance_space,
-            filter=target_filter,
-            limit=-1,  # NOTE: this should always be kept at -1 so that all entities are retrieved
+        launch = self.config.launch_function
+        target_entities = self._iterate_entities(
+            self.target_entities_view,
+            target_filter,
+            ["name", launch.target_entities_search_property, launch.target_entities_resource_property],
         )
-        file_entities: NodeList = self.client.data_modeling.instances.list(
-            instance_type="node",
-            sources=self.file_view.as_view_id(),
-            space=self.file_view.instance_space,
-            filter=file_filter,
-            limit=-1,  # NOTE: this should always be kept at -1 so that all entities are retrieved
+        file_entities = self._iterate_entities(
+            self.file_view,
+            file_filter,
+            ["name", launch.file_search_property, launch.file_resource_property],
         )
         return target_entities, file_entities
+
+    def _iterate_entities(
+        self, view: ViewPropertyConfig, entity_filter: Filter, properties: list[str | None]
+    ) -> Iterator[Node]:
+        """
+        Yields every node matching the filter, one page at a time, carrying only the given view properties.
+
+        Every entity in scope is needed for diagram detect, so a full node with all view properties
+        for each of them is what exhausts function memory on large projects.
+
+        Args:
+            view: View the entities are read from.
+            entity_filter: Filter selecting the entities.
+            properties: View properties to return; None entries (unset optional properties) are skipped.
+
+        Returns:
+            Iterator over the matching nodes.
+        """
+        view_id = view.as_view_id()
+        node_filter: Filter = entity_filter & HasData(views=[view_id])
+        if view.instance_space:
+            node_filter &= Equals(["node", "space"], view.instance_space)
+        selected = [SourceSelector(view_id, list(dict.fromkeys(p for p in properties if p)))]
+        cursor: str | None = None
+        while True:
+            query = Query(
+                with_={"entities": NodeResultSetExpression(filter=node_filter, limit=ENTITY_QUERY_PAGE_SIZE)},
+                select={"entities": Select(selected)},
+                cursors={"entities": cursor},
+            )
+            result = self.client.data_modeling.instances.query(query)
+            page = result["entities"]
+            yield from page
+            cursor = result.cursors.get("entities")
+            if not page or not cursor:
+                return
 
     def _get_target_entities_filter(self, primary_scope_value: str, secondary_scope_value: str | None) -> Filter:
         """

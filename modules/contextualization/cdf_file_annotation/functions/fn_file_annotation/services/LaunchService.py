@@ -394,10 +394,8 @@ class GeneralLaunchService(AbstractLaunchService):
                     f"{len(self.in_memory_cache)} entities "
                     f"({len(assets)} assets, {len(files)} files)"
                 )
-                self.logger.debug(
-                    "Regular detect entities JSON: "
-                    + json.dumps(self.in_memory_cache, default=str)
-                )
+                if self.logger.log_level == "DEBUG":
+                    self.logger.debug("Regular detect entities JSON: " + json.dumps(self.in_memory_cache, default=str))
                 job_id, job_token = self.annotation_service.run_diagram_detect(
                     files=batch.file_references, entities=self.in_memory_cache
                 )

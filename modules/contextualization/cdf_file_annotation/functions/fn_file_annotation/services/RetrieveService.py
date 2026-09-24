@@ -83,12 +83,14 @@ class GeneralRetrieveService(IRetrieveService):
             )
             if job_results.get("status") == "Completed":
                 self.logger.info(f"Job complete - {status_count} - {job_id}")
-                self.logger.debug(f"Below is the full response:\n{response.text}")
+                if self.logger.log_level == "DEBUG":
+                    self.logger.debug(f"Below is the full response:\n{response.text}")
                 result = job_results
                 return result
             else:
                 self.logger.info(f"Job not complete - {status_count} - {job_id}")
-                self.logger.debug(f"Below is the full response:\n{response.text}")
+                if self.logger.log_level == "DEBUG":
+                    self.logger.debug(f"Below is the full response:\n{response.text}")
         else:
             self.logger.info(f"Request to get the job results failed - {response.url}")
             self.logger.info(f"Below is the full response:\n{response.text}")

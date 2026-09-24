@@ -1,15 +1,13 @@
 import abc
 import re
 from collections import defaultdict
-from collections.abc import Iterator
+from collections.abc import Iterable, Iterator
 from datetime import UTC, datetime, timedelta
 from typing import cast
 
 from cognite.client import CogniteClient
 from cognite.client.data_classes import Row, RowWrite
-from cognite.client.data_classes.data_modeling import (
-    NodeList,
-)
+from cognite.client.data_classes.data_modeling import Node
 from cognite.client.exceptions import CogniteAPIError, CogniteNotFoundError
 from normalization import extract_forms
 from services.ConfigService import Config, ViewPropertyConfig
@@ -404,7 +402,7 @@ class GeneralCacheService(ICacheService):
         return not time_difference > cache_validity_period
 
     def _convert_instances_to_entities(
-        self, asset_instances: NodeList, file_instances: NodeList
+        self, asset_instances: Iterable[Node], file_instances: Iterable[Node]
     ) -> tuple[list[dict], list[dict]]:
         """
         Transforms data model node instances into entity dictionaries for diagram detection.
@@ -413,8 +411,8 @@ class GeneralCacheService(ICacheService):
         dictionaries compatible with the diagram detect API.
 
         Args:
-            asset_instances: NodeList of asset instances from the data model.
-            file_instances: NodeList of file instances from the data model.
+            asset_instances: Asset instances from the data model.
+            file_instances: File instances from the data model.
 
         Returns:
             A tuple containing:
