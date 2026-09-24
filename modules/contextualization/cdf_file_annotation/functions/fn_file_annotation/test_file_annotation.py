@@ -303,6 +303,14 @@ def test_normalization_extracts_capture_groups_then_applies_hygiene() -> None:
     assert "V_0912" in matched or "V0912" in matched
 
 
+def test_normalization_strips_leading_zeros_from_every_numeric_segment() -> None:
+    """Removing separators first merged "0151" and "001", so the zeros of "001" were kept."""
+    from normalization import normalize_text
+
+    assert normalize_text("PH_ME_P_0151_001", []) == "PHMEP1511"
+    assert normalize_text("PH-ME-P-151-1", []) == normalize_text("PH_ME_P_0151_001", [])
+
+
 def test_normalization_ignores_text_that_is_not_a_string() -> None:
     """Detect results can carry a null text; that must not crash promote or pattern sampling."""
     from normalization import extract_forms, text_variations

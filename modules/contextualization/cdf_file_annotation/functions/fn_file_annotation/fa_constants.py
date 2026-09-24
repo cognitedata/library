@@ -65,6 +65,6 @@ DELETE_REJECTED_EDGES: Final = True
 DELETE_SUGGESTED_EDGES: Final = False
 
 DEFAULT_NORMALIZATION_SUBSTITUTIONS: Final = [
-    (r"[^A-Za-z0-9]", ""),
     (r"(?<!\d)0+(\d+)", r"\1"),
+    (r"[^A-Za-z0-9]", ""),
 ]
