@@ -180,23 +180,21 @@ class GeneralPromoteService(IPromoteService):
 
         self.logger.info(f"Found {len(candidates)} Promote candidates. Starting processing.")
 
-        # Group candidates by (startNodeText, annotationType) for deduplication
-        grouped_candidates: dict[tuple[str, str], list[Edge]] = {}
+        # Group candidates by (startNodeText, annotationType, entity space) for deduplication
+        grouped_candidates: dict[tuple[str, str, str], list[Edge]] = {}
         for edge in candidates:
             properties: dict[str, object] = (edge.properties or {}).get(self.core_annotation_view.as_view_id()) or {}
             text: object = properties.get("startNodeText")
             annotation_type: str = edge.type.external_id
 
-            if text and annotation_type:
-                key: tuple[str, str] = (text, annotation_type)
-                if key not in grouped_candidates:
-                    grouped_candidates[key] = []
-                grouped_candidates[key].append(edge)
+            if isinstance(text, str) and text and annotation_type:
+                key = (text, annotation_type, self._entity_space(annotation_type, edge))
+                grouped_candidates.setdefault(key, []).append(edge)
 
-        grouped_by_type: dict[str, dict[str, list[Edge]]] = {}
+        grouped_by_type: dict[str, dict[tuple[str, str], list[Edge]]] = {}
 
-        for (text_to_find, annotation_type), edges_with_same_text in grouped_candidates.items():
-            grouped_by_type.setdefault(annotation_type, {})[text_to_find] = edges_with_same_text
+        for (text_to_find, annotation_type, entity_space), edges_with_same_text in grouped_candidates.items():
+            grouped_by_type.setdefault(annotation_type, {})[(text_to_find, entity_space)] = edges_with_same_text
 
         total_grouped = sum(len(m) for m in grouped_by_type.values())
 
@@ -224,19 +222,6 @@ class GeneralPromoteService(IPromoteService):
             # Process each unique text/type combination once
             # Iterate per annotation type so we can check the search flag once per type
             for annotation_type, texts_map in grouped_by_type.items():
-                # Determine entity space once per type
-                entity_space: str | None = (
-                    self.file_view.instance_space
-                    if annotation_type == "diagrams.FileLink"
-                    else self.target_entities_view.instance_space
-                )
-
-                if not entity_space:
-                    self.logger.warning(
-                        f"Could not determine entity space for type '{annotation_type}'. Skipping all texts for this type."
-                    )
-                    continue
-
                 if annotation_type == "diagrams.FileLink":
                     is_searching_annotation_type = self.promote_file_entities
                 else:
@@ -248,7 +233,7 @@ class GeneralPromoteService(IPromoteService):
                         section="START",
                     )
 
-                for text_to_find, edges_with_same_text in texts_map.items():
+                for (text_to_find, entity_space), edges_with_same_text in texts_map.items():
                     # Strategy: Check cache → query edges → fallback to global search
                     found_entities: list[MatchedEntity] | list = []
 
@@ -332,6 +317,11 @@ class GeneralPromoteService(IPromoteService):
 
         return None  # Continue running if more candidates might exist
 
+    def _entity_space(self, annotation_type: str, edge: Edge) -> str:
+        """The space to search for the entity: the view's instanceSpace, else the space of the annotated file."""
+        view = self.file_view if annotation_type == "diagrams.FileLink" else self.target_entities_view
+        return view.instance_space or edge.start_node.space
+
     def _get_promote_candidates(self) -> EdgeList | None:
         """
         Retrieves pattern-mode annotation edges that are candidates for promotion.
@@ -398,20 +388,20 @@ class GeneralPromoteService(IPromoteService):
             self.logger.debug(
                 f"✗ Text '{text}' does not match {pattern_label} — skipping search."
             )
-            self.cache_service.set_no_match(text, annotation_type)
+            self.cache_service.set_no_match(text, annotation_type, entity_space)
             return []
 
         # TIER 1 & 2: Check cache (in-memory + persistent) - no API calls on hit
-        cached_info: CachedEntityInfo | None = self.cache_service.get(text, annotation_type)
+        cached_info: CachedEntityInfo | None = self.cache_service.get(text, annotation_type, entity_space)
 
         if cached_info is not None:
             return [MatchedEntity.from_cached_info(cached_info)]
 
-        if self.cache_service.is_ambiguous_in_memory(text, annotation_type):
+        if self.cache_service.is_ambiguous_in_memory(text, annotation_type, entity_space):
             self.logger.debug(f"✓ [CACHE] Using in-memory ambiguous marker for '{text}' (skipping search)")
             return [MatchedEntity(space="", external_id=""), MatchedEntity(space="", external_id="")]
 
-        if self.cache_service.is_no_match_in_memory(text, annotation_type):
+        if self.cache_service.is_no_match_in_memory(text, annotation_type, entity_space):
             self.logger.debug(f"✓ [CACHE] Using in-memory NO_MATCH marker for '{text}' (skipping search)")
             return []
 
@@ -427,16 +417,16 @@ class GeneralPromoteService(IPromoteService):
             node = found_nodes[0]
             matched = MatchedEntity.from_node(node, target_view_id)
             # Cache with resource type to avoid future retrieve_nodes calls
-            self.cache_service.set(text, annotation_type, node, matched.resource_type)
+            self.cache_service.set(text, annotation_type, entity_space, node, matched.resource_type)
             return [matched]
         elif not found_nodes:
             # No match - cache negative result (in-memory NO_MATCH)
-            self.cache_service.set_no_match(text, annotation_type)
+            self.cache_service.set_no_match(text, annotation_type, entity_space)
             return []
         else:
             # Ambiguous - cache negative result (in-memory AMBIGUOUS)
             try:
-                self.cache_service.set_ambiguous(text, annotation_type)
+                self.cache_service.set_ambiguous(text, annotation_type, entity_space)
                 self.logger.debug(f"✓ [CACHE] Marked '{text}' as ambiguous in memory")
             except (CogniteAPIError, ValueError, TypeError) as e:
                 self.logger.debug(f"[CACHE] Failed to set ambiguous marker for '{text}' (continuing): {e}")

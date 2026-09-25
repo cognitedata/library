@@ -69,9 +69,6 @@ class EntitySearchService(IEntitySearchService):
             config: Configuration object containing data model views and entity search settings
             client: Cognite client
             logger: Logger instance
-
-        Raises:
-            ValueError: If regular_annotation_space (file_view.instance_space) is None
         """
         self.client = client
         self.logger = logger
@@ -85,11 +82,6 @@ class EntitySearchService(IEntitySearchService):
             self.file_view_id: config.data.file_view.search_property,
             self.target_entities_view_id: config.data.target_entities_view.search_property,
         }
-
-        # Extract regular annotation space
-        self.regular_annotation_space: str | None = config.data_model_views.file_view.instance_space
-        if not self.regular_annotation_space:
-            raise ValueError("regular_annotation_space (file_view.instance_space) is required but was None")
 
         # Extract text normalization config
         self.text_normalization_config = config.promote_function.entity_search_service.text_normalization

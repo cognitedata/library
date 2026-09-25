@@ -10,6 +10,14 @@ config:
     assetAutoSuggestThreshold: {{ assetAutoSuggestThreshold }}
     fileAutoApprovalThreshold: {{ fileAutoApprovalThreshold }}
     fileAutoSuggestThreshold: {{ fileAutoSuggestThreshold }}
+    # Scope properties are property NAMES, not values. Set them in default.config.yaml
+    # (primaryScopeProperty / secondaryScopeProperty). Each value comes from the instances:
+    # the property must be a text property with the same name on both fileView and
+    # targetEntitiesView. Launch groups files by their value and matches each group only
+    # against assets/files with the same value. Empty string disables scoping.
+    # Example: primaryScopeProperty: site, secondaryScopeProperty: unit
+    #   A file with site = "PlantA", unit = "U100" is matched only against DetectInDiagrams
+    #   assets/files with site = "PlantA" and unit = "U100", plus ScopeWideDetect ones in "PlantA".
     primaryScopeProperty: {{ primaryScopeProperty }}
     secondaryScopeProperty: {{ secondaryScopeProperty }}
     # Pipeline tags: ToAnnotate, DetectInDiagrams, ScopeWideDetect, AnnotationInProcess,
@@ -35,6 +43,12 @@ config:
         entityNormalizationPatterns: {{ entityNormalizationPatterns }}
         fileNormalizationPatterns: {{ fileNormalizationPatterns }}
   data:
+    # instanceSpace: a set value limits the view to that one space. An empty value means
+    # "the space of the file being annotated": Prepare picks up files from every space, Launch
+    # and Promote match each file only against entities in its own space, and the annotation
+    # state is stored next to the file. Example with sites in separate spaces:
+    #   fileView.instanceSpace: (empty), targetEntitiesView.instanceSpace: (empty)
+    #   A file in inst_plant_a is matched only against assets and files in inst_plant_a.
     fileView:
       schemaSpace: {{ fileSchemaSpace }}
       instanceSpace: {{ fileInstanceSpace }}

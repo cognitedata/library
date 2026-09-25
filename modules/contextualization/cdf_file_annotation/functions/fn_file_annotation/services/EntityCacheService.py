@@ -2,16 +2,15 @@ import abc
 import re
 from collections import defaultdict
 from collections.abc import Iterable, Iterator
-from datetime import UTC, datetime, timedelta
 from typing import cast
 
 from cognite.client import CogniteClient
-from cognite.client.data_classes import Row, RowWrite
-from cognite.client.data_classes.data_modeling import Node
+from cognite.client.data_classes import Row
 from cognite.client.exceptions import CogniteAPIError, CogniteNotFoundError
 from normalization import extract_forms
 from services.ConfigService import Config, ViewPropertyConfig
 from services.DataModelService import IDataModelService
+from services.EntitySyncService import EntityInstance
 from services.LoggerService import CogniteFunctionLogger
 from utils.DataStructures import entity
 
@@ -28,9 +27,7 @@ def format_pattern_groups_for_log(pattern_groups: list[dict], *, max_samples_per
         samples = group.get("sample") or []
         if isinstance(samples, str):
             samples = [samples]
-        lines.append(
-            f"  [{group.get('resource_type')}/{group.get('annotation_type')}] {len(samples)} sample(s)"
-        )
+        lines.append(f"  [{group.get('resource_type')}/{group.get('annotation_type')}] {len(samples)} sample(s)")
         preview = samples[:max_samples_per_group]
         for sample in preview:
             lines.append(f"    - {sample}")
@@ -103,9 +100,9 @@ def _non_blank_strings(value: object) -> list[str]:
 
 class ICacheService(abc.ABC):
     """
-    Manages a persistent cache of entities to pass into diagram detect (e.g., assets, files)
-    stored in a CDF RAW table. This avoids repeatedly fetching the same data for files
-    that share the same operational context.
+    Builds the entities and pattern samples to pass into diagram detect (e.g., assets, files)
+    for the scope of a batch. The entities come from the data model service, which keeps
+    them in the entity sync cache.
     """
 
     @abc.abstractmethod
@@ -114,15 +111,8 @@ class ICacheService(abc.ABC):
         data_model_service: IDataModelService,
         primary_scope_value: str,
         secondary_scope_value: str | None,
+        file_space: str | None,
     ) -> tuple[list[dict], list[dict]]:
-        pass
-
-    @abc.abstractmethod
-    def _update_cache(self, row_to_write: RowWrite) -> None:
-        pass
-
-    @abc.abstractmethod
-    def _validate_cache(self, last_update_datetime_str: str) -> bool:
         pass
 
     @abc.abstractmethod
@@ -134,9 +124,9 @@ class ICacheService(abc.ABC):
 
 class GeneralCacheService(ICacheService):
     """
-    Manages a persistent cache of entities to pass into diagram detect (e.g., assets, files)
-    stored in a CDF RAW table. This avoids repeatedly fetching the same data for files
-    that share the same operational context.
+    Builds the entities and pattern samples to pass into diagram detect (e.g., assets, files)
+    for the scope of a batch. The entities come from the data model service, which keeps
+    them in the entity sync cache.
     """
 
     def __init__(self, config: Config, client: CogniteClient, logger: CogniteFunctionLogger):
@@ -145,9 +135,7 @@ class GeneralCacheService(ICacheService):
         self.logger = logger
 
         self.db_name: str = config.raw_tables.raw_db
-        self.tbl_name: str = config.raw_tables.raw_table_cache
         self.manual_patterns_tbl_name: str = config.raw_tables.raw_manual_patterns_catalog
-        self.cache_time_limit: int = config.launch_function.cache_service.cache_time_limit  # in hours
 
         self.file_view: ViewPropertyConfig = config.data_model_views.file_view
         self.target_entities_view: ViewPropertyConfig = config.data_model_views.target_entities_view
@@ -157,57 +145,31 @@ class GeneralCacheService(ICacheService):
         data_model_service: IDataModelService,
         primary_scope_value: str,
         secondary_scope_value: str | None,
+        file_space: str | None,
     ) -> tuple[list[dict], list[dict]]:
         """
-        Retrieves or generates entities and pattern samples for diagram detection.
+        Builds the entities and pattern samples for diagram detection in one scope.
 
-        This method orchestrates the cache lifecycle: checking validity, fetching fresh data if needed,
-        generating pattern samples, and updating the cache. The cache is scoped by primary and secondary
-        scope values to ensure relevant entities are used for each file context.
+        The scope is the file space and the primary and secondary scope values, so each
+        file context is matched only against its own entities.
 
         Args:
             data_model_service: Service instance for querying data model instances.
             primary_scope_value: Primary scope identifier (e.g., site, facility).
             secondary_scope_value: Optional secondary scope identifier (e.g., unit, area).
+            file_space: Instance space of the files when entities are read per file space, else None.
 
         Returns:
             A tuple containing:
                 - Combined list of entity dictionaries (assets + files) for diagram detection.
                 - Combined list of pattern sample dictionaries for pattern mode detection.
         """
-        entities: list[dict] = []
         key = f"{primary_scope_value}_{secondary_scope_value}" if secondary_scope_value else f"{primary_scope_value}"
+        if file_space is not None:
+            key = f"{file_space}:{key}"
 
-        try:
-            row: Row | None = self.client.raw.rows.retrieve(db_name=self.db_name, table_name=self.tbl_name, key=key)
-        except (CogniteAPIError, CogniteNotFoundError):
-            row = None
-
-        # Attempt to retrieve from the cache
-        if row and row.columns and self._validate_cache(row.columns["LastUpdateTimeUtcIso"]):
-            self.logger.info(f"Cache is up-to-date for key: {key}\nEntities and patterns loaded from: CACHE.")
-            asset_entities: list[dict] = row.columns.get("AssetEntities", [])
-            file_entities: list[dict] = row.columns.get("FileEntities", [])
-            asset_pattern_samples: list[dict] = row.columns.get("AssetPatternSamples", [])
-            file_pattern_samples: list[dict] = row.columns.get("FilePatternSamples", [])
-            combined_pattern_samples: list[dict] = row.columns.get("CombinedPatternSamples", [])
-            entities = detectable_entities(asset_entities + file_entities)
-            self._log_launch_input_summary(
-                scope_key=key,
-                source="CACHE",
-                asset_entities=asset_entities,
-                file_entities=file_entities,
-                asset_pattern_samples=asset_pattern_samples,
-                file_pattern_samples=file_pattern_samples,
-                pattern_samples=combined_pattern_samples,
-            )
-            return entities, combined_pattern_samples
-
-        self.logger.info(f"Cache is out-of-date for key: {key}\nEntities and patterns loaded from: CDF (fresh fetch)")
-
-        # Fetch data
         asset_instances, file_instances = data_model_service.get_instances_entities(
-            primary_scope_value, secondary_scope_value
+            primary_scope_value, secondary_scope_value, file_space
         )
 
         # Convert to entities for diagram detect job
@@ -236,7 +198,6 @@ class GeneralCacheService(ICacheService):
 
         self._log_launch_input_summary(
             scope_key=key,
-            source="CDF",
             asset_entities=asset_entities,
             file_entities=file_entities,
             asset_pattern_samples=asset_pattern_samples,
@@ -245,35 +206,19 @@ class GeneralCacheService(ICacheService):
             manual_pattern_groups=len(manual_pattern_samples),
             manual_pattern_strings=count_pattern_sample_strings(manual_pattern_samples),
         )
-
-        # Update cache
-        new_row = RowWrite(
-            key=key,
-            columns={
-                "AssetEntities": asset_entities,
-                "FileEntities": file_entities,
-                "AssetPatternSamples": asset_pattern_samples,
-                "FilePatternSamples": file_pattern_samples,
-                "ManualPatternSamples": manual_pattern_samples,
-                "CombinedPatternSamples": combined_pattern_samples,
-                "LastUpdateTimeUtcIso": datetime.now(UTC).isoformat(),
-            },
-        )
-        self._update_cache(new_row)
         return entities, combined_pattern_samples
 
     def _log_launch_input_summary(
         self,
         *,
         scope_key: str,
-        source: str,
         asset_entities: list[dict],
         file_entities: list[dict],
         pattern_samples: list[dict],
-        asset_pattern_samples: list[dict] | None = None,
-        file_pattern_samples: list[dict] | None = None,
-        manual_pattern_groups: int | None = None,
-        manual_pattern_strings: int | None = None,
+        asset_pattern_samples: list[dict],
+        file_pattern_samples: list[dict],
+        manual_pattern_groups: int,
+        manual_pattern_strings: int,
     ) -> None:
         """Log INFO counts and DEBUG details for launch entity/pattern input."""
         pattern_string_count = count_pattern_sample_strings(pattern_samples)
@@ -284,37 +229,22 @@ class GeneralCacheService(ICacheService):
 
         target_search = self.target_entities_view.search_property
         file_search = self.file_view.search_property
-        asset_patterns = asset_pattern_samples or []
-        file_patterns = file_pattern_samples or []
-        asset_pattern_count = count_pattern_sample_strings(asset_patterns)
-        file_pattern_count = count_pattern_sample_strings(file_patterns)
+        asset_pattern_count = count_pattern_sample_strings(asset_pattern_samples)
+        file_pattern_count = count_pattern_sample_strings(file_pattern_samples)
 
         if not scope_key:
             scope_desc = (
-                "unscoped — primaryScopeProperty is empty, so all DetectInDiagrams "
-                "entities are loaded project-wide (cache key '')"
+                "unscoped — primaryScopeProperty is empty, so all DetectInDiagrams entities are loaded project-wide"
             )
         else:
             scope_desc = (
-                f"scoped cache key {scope_key!r} — entities filtered by "
-                "primaryScopeProperty / secondaryScopeProperty values on the files being annotated"
-            )
-
-        if source == "CACHE":
-            source_desc = (
-                f"CACHE — reused from RAW table {self.db_name}/{self.tbl_name} "
-                "(still within cacheTimeLimit)"
-            )
-        else:
-            source_desc = (
-                "CDF — fresh query of targetEntitiesView + fileView instances "
-                f"(then written to RAW {self.db_name}/{self.tbl_name})"
+                f"scope {scope_key!r} — entities filtered by the instance space ('<space>:' prefix) "
+                "and/or primaryScopeProperty / secondaryScopeProperty values of the files being annotated"
             )
 
         info_lines = [
             "Launch input summary:",
             f"  • Scope: {scope_desc}",
-            f"  • Entity source: {source_desc}",
             f"  • Target entities ({self.target_entities_view.external_id}): {len(asset_entities)} "
             f"({len(assets_missing)} without '{target_search}' — Diagram Detect cannot match those)",
             f"  • File entities ({self.file_view.external_id}): {len(file_entities)} "
@@ -322,20 +252,13 @@ class GeneralCacheService(ICacheService):
             f"  • Total entities for regular detect: {len(asset_entities) + len(file_entities)}",
             f"  • Pattern mode: {pattern_mode} | structuralAutoPatterns: {structural}",
             f"  • Auto patterns from targetEntitiesView ({self.target_entities_view.external_id}): "
-            f"{asset_pattern_count} sample string(s) in {len(asset_patterns)} group(s)",
+            f"{asset_pattern_count} sample string(s) in {len(asset_pattern_samples)} group(s)",
             f"  • Auto patterns from fileView ({self.file_view.external_id}): "
-            f"{file_pattern_count} sample string(s) in {len(file_patterns)} group(s)",
-        ]
-        if manual_pattern_groups is not None:
-            manual_strings = manual_pattern_strings if manual_pattern_strings is not None else 0
-            info_lines.append(
-                f"  • Manual patterns merged: {manual_pattern_groups} group(s), "
-                f"{manual_strings} sample string(s)"
-            )
-        info_lines.append(
+            f"{file_pattern_count} sample string(s) in {len(file_pattern_samples)} group(s)",
+            f"  • Manual patterns merged: {manual_pattern_groups} group(s), {manual_pattern_strings} sample string(s)",
             f"  • Combined patterns sent to pattern-mode detect: "
-            f"{pattern_string_count} sample string(s) in {len(pattern_samples)} group(s)"
-        )
+            f"{pattern_string_count} sample string(s) in {len(pattern_samples)} group(s)",
+        ]
         self.logger.info("\n".join(info_lines))
 
         if self.logger.log_level != "DEBUG":
@@ -347,62 +270,12 @@ class GeneralCacheService(ICacheService):
             for row in (assets_missing + files_missing)[:30]:
                 debug_lines.append(f"    - {row.get('space')}/{row.get('external_id')} name={row.get('name')!r}")
 
-        # Fresh CDF fetch already listed auto patterns while generating them. On a cache hit
-        # list the combined samples once so DEBUG still shows what detect will use.
-        if source == "CACHE" and pattern_samples:
-            debug_lines.append(f"  Combined pattern samples ({pattern_string_count}):")
-            debug_lines.extend(format_pattern_groups_for_log(pattern_samples))
         if len(debug_lines) == 1:
             return
         self.logger.debug("\n".join(debug_lines))
 
-    def _update_cache(self, row_to_write: RowWrite) -> None:
-        """
-        Writes a cache entry to the RAW database table.
-
-        This method's only responsibility is the database insertion. All data preparation
-        and formatting should be done before calling this method.
-
-        Args:
-            row_to_write: Fully-formed RowWrite object containing cache data to persist.
-
-        Returns:
-            None
-        """
-        self.client.raw.rows.insert(
-            db_name=self.db_name,
-            table_name=self.tbl_name,
-            row=row_to_write,
-            ensure_parent=True,
-        )
-        self.logger.info("Successfully updated RAW cache")
-        return
-
-    def _validate_cache(self, last_update_datetime_str: str) -> bool:
-        """
-        Validates whether cached data is still fresh based on time elapsed since last update.
-
-        Compares the cache's last update timestamp against the configured cache time limit
-        to determine if a refresh is needed.
-
-        Args:
-            last_update_datetime_str: ISO-formatted datetime string of the cache's last update.
-
-        Returns:
-            True if the cache is still valid (within time limit), False if expired.
-        """
-        last_update_datetime_utc = datetime.fromisoformat(last_update_datetime_str)
-        current_datetime_utc = datetime.now(UTC)
-        time_difference: timedelta = current_datetime_utc - last_update_datetime_utc
-
-        cache_validity_period = timedelta(hours=self.cache_time_limit)
-        self.logger.debug(f"Cache time limit: {cache_validity_period}")
-        self.logger.debug(f"Time difference: {time_difference}")
-
-        return not time_difference > cache_validity_period
-
     def _convert_instances_to_entities(
-        self, asset_instances: Iterable[Node], file_instances: Iterable[Node]
+        self, asset_instances: Iterable[EntityInstance], file_instances: Iterable[EntityInstance]
     ) -> tuple[list[dict], list[dict]]:
         """
         Transforms data model node instances into entity dictionaries for diagram detection.
@@ -613,9 +486,7 @@ class GeneralCacheService(ICacheService):
                 f"non-matching alias(es) for {source_view}."
             )
         else:
-            self.logger.info(
-                f"normalizePatterns empty — used all {aliases_kept} alias(es) for {source_view}."
-            )
+            self.logger.info(f"normalizePatterns empty — used all {aliases_kept} alias(es) for {source_view}.")
 
         result = []
         for resource_type, data in pattern_builders.items():

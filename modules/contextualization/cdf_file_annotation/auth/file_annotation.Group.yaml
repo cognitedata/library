@@ -47,6 +47,15 @@ capabilities:
         - WRITE
       scope:
         all: {}
+  # Launch caches the match entities in a JSON file in the annotation data set
+  - filesAcl:
+      actions:
+        - READ
+        - WRITE
+      scope:
+        datasetScope:
+          ids:
+            - {{ annotationDatasetExternalId }}
   # - annotationsAcl:
   #     actions:
   #       - READ

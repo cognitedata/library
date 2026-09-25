@@ -119,6 +119,8 @@ class FileProcessingBatch:
     primary_scope_value: str
     secondary_scope_value: str | None
     files: list[Node]
+    # Set when a view has no instanceSpace, so match entities are read from the files' own space.
+    file_space: str | None = None
 
 
 @dataclass

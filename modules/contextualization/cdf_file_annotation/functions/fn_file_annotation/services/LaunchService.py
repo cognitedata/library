@@ -20,6 +20,7 @@ from services.AnnotationService import IAnnotationService
 from services.ConfigService import Config, ViewPropertyConfig
 from services.DataModelService import IDataModelService
 from services.EntityCacheService import ICacheService, count_pattern_sample_strings, split_entities_by_kind
+from services.EntitySyncService import EntitySyncIncompleteError
 from services.LoggerService import CogniteFunctionLogger
 from utils.DataStructures import (
     AnnotationStatus,
@@ -118,11 +119,12 @@ class GeneralLaunchService(AbstractLaunchService):
 
         self.in_memory_cache: list[dict] = []
         self.in_memory_patterns: list[dict] = []
-        self._cached_primary_scope: str | None = None
-        self._cached_secondary_scope: str | None = None
+        self._cached_scope: tuple[str | None, str, str | None] | None = None
 
         self.primary_scope_property: str | None = self.config.launch_function.primary_scope_property
         self.secondary_scope_property: str | None = self.config.launch_function.secondary_scope_property
+        target_view = config.data_model_views.target_entities_view
+        self.group_by_file_space: bool = not self.file_view.instance_space or not target_view.instance_space
 
         self.function_id: int | None = function_call_info.get("function_id")
         self.call_id: int | None = function_call_info.get("call_id")
@@ -174,13 +176,11 @@ class GeneralLaunchService(AbstractLaunchService):
             for batch in processing_batches:
                 primary_scope_value = batch.primary_scope_value
                 secondary_scope_value = batch.secondary_scope_value
-                scoped = bool(self.primary_scope_property)
+                scoped = bool(self.primary_scope_property) or batch.file_space is not None
                 if scoped:
-                    msg = f"{self.primary_scope_property}: {primary_scope_value}"
-                    if secondary_scope_value:
-                        msg += f", {self.secondary_scope_property}: {secondary_scope_value}"
+                    msg = self._describe_scope(batch)
                     self.logger.info(message=f"Processing {len(batch.files)} files in {msg}")
-                self._ensure_cache_for_batch(primary_scope_value, secondary_scope_value)
+                self._ensure_cache_for_batch(primary_scope_value, secondary_scope_value, batch.file_space)
 
                 current_batch = BatchOfPairedNodes(file_to_state_map=file_to_state_map)
                 for file_node in batch.files:
@@ -214,6 +214,10 @@ class GeneralLaunchService(AbstractLaunchService):
             else:
                 self._release_unlaunched_files(file_nodes, launched_file_ids)
                 raise e
+        except EntitySyncIncompleteError as e:
+            # The files keep their claim, so the next run launches them once the read has finished.
+            self.logger.warning(f"{e}. Unlaunched files are launched on a later run.")
+            return "Done"
         except Exception:
             # Re-raised after releasing, so any failure frees the files this run claimed.
             self._release_unlaunched_files(file_nodes, launched_file_ids)
@@ -274,9 +278,10 @@ class GeneralLaunchService(AbstractLaunchService):
         """
         Organizes files into batches grouped by scope for efficient processing.
 
-        Groups files based on primary and secondary scope properties defined in configuration.
-        This strategy enables loading a relevant entity cache once per group, significantly
-        reducing redundant CDF queries for files sharing the same operational context.
+        Groups files by their instance space (when a view has no instanceSpace) and by the
+        primary and secondary scope properties defined in configuration. This strategy enables
+        loading a relevant entity cache once per group, significantly reducing redundant CDF
+        queries for files sharing the same operational context.
 
         Args:
             list_files: NodeList of file instances to organize into batches.
@@ -284,7 +289,7 @@ class GeneralLaunchService(AbstractLaunchService):
         Returns:
             List of FileProcessingBatch objects, each containing files from the same scope.
         """
-        organized_data: dict[str, dict[str, list[Node]]] = defaultdict(lambda: defaultdict(list))
+        organized_data: dict[tuple[str | None, str, str], list[Node]] = defaultdict(list)
 
         for file_node in list_files:
             node_props = (file_node.properties or {}).get(self.file_view.as_view_id()) or {}
@@ -292,33 +297,39 @@ class GeneralLaunchService(AbstractLaunchService):
             secondary_value = "__NONE__"
             if self.secondary_scope_property:
                 secondary_value = node_props.get(self.secondary_scope_property)
-            organized_data[primary_value][secondary_value].append(file_node)
+            file_space = file_node.space if self.group_by_file_space else None
+            organized_data[(file_space, primary_value, secondary_value)].append(file_node)
 
         final_processing_batches: list[FileProcessingBatch] = []
-        for primary_property in sorted(organized_data.keys()):
-            groups = organized_data[primary_property]
-            for secondary_property in sorted(groups.keys()):
-                files_in_batch = groups[secondary_property]
-                actual_secondary_property = None if secondary_property == "__NONE__" else secondary_property
-                final_processing_batches.append(
-                    FileProcessingBatch(
-                        primary_scope_value=primary_property,
-                        secondary_scope_value=actual_secondary_property,
-                        files=files_in_batch,
-                    )
+        for file_space, primary_property, secondary_property in sorted(organized_data):
+            batch = FileProcessingBatch(
+                primary_scope_value=primary_property,
+                secondary_scope_value=None if secondary_property == "__NONE__" else secondary_property,
+                files=organized_data[(file_space, primary_property, secondary_property)],
+                file_space=file_space,
+            )
+            final_processing_batches.append(batch)
+            if self.primary_scope_property or file_space is not None:
+                self.logger.info(
+                    message=f"Created batch of {len(batch.files)} files for {self._describe_scope(batch)}",
+                    section="END",
                 )
-                if self.primary_scope_property:
-                    self.logger.info(
-                        message=(
-                            f"Created batch of {len(files_in_batch)} files for "
-                            f"{self.primary_scope_property}: {primary_property}, "
-                            f"{self.secondary_scope_property}: {secondary_property}"
-                        ),
-                        section="END",
-                    )
         return final_processing_batches
 
-    def _ensure_cache_for_batch(self, primary_scope_value: str, secondary_scope_value: str | None):
+    def _describe_scope(self, batch: FileProcessingBatch) -> str:
+        """Human-readable scope of a batch for logs, e.g. 'space: plant_a, site: PlantA'."""
+        parts: list[str] = []
+        if batch.file_space is not None:
+            parts.append(f"space: {batch.file_space}")
+        if self.primary_scope_property:
+            parts.append(f"{self.primary_scope_property}: {batch.primary_scope_value}")
+        if batch.secondary_scope_value:
+            parts.append(f"{self.secondary_scope_property}: {batch.secondary_scope_value}")
+        return ", ".join(parts)
+
+    def _ensure_cache_for_batch(
+        self, primary_scope_value: str, secondary_scope_value: str | None, file_space: str | None
+    ) -> None:
         """
         Ensures the in-memory entity cache is loaded and current for the given scope.
 
@@ -328,6 +339,7 @@ class GeneralLaunchService(AbstractLaunchService):
         Args:
             primary_scope_value: Primary scope identifier for the batch being processed.
             secondary_scope_value: Optional secondary scope identifier for the batch.
+            file_space: Instance space of the batch's files when entities are read per file space.
 
         Returns:
             None
@@ -335,20 +347,17 @@ class GeneralLaunchService(AbstractLaunchService):
         Raises:
             CogniteAPIError: If query timeout (408) occurs, handled gracefully by returning early.
         """
-        if (
-            self._cached_primary_scope != primary_scope_value
-            or self._cached_secondary_scope != secondary_scope_value
-            or not self.in_memory_cache
-        ):
+        scope = (file_space, primary_scope_value, secondary_scope_value)
+        if self._cached_scope != scope or not self.in_memory_cache:
             self.logger.info("Refreshing in memory cache")
             try:
                 self.in_memory_cache, self.in_memory_patterns = self.cache_service.get_entities(
                     self.data_model_service,
                     primary_scope_value,
                     secondary_scope_value,
+                    file_space,
                 )
-                self._cached_primary_scope = primary_scope_value
-                self._cached_secondary_scope = secondary_scope_value
+                self._cached_scope = scope
                 assets, files = split_entities_by_kind(self.in_memory_cache)
                 pattern_count = count_pattern_sample_strings(self.in_memory_patterns)
                 self.tracker.set_detect_input(
@@ -356,7 +365,7 @@ class GeneralLaunchService(AbstractLaunchService):
                     patterns=pattern_count if self.config.launch_function.pattern_mode else None,
                 )
                 self.logger.info(
-                    f"In-memory cache ready for scope primary={primary_scope_value!r} "
+                    f"In-memory cache ready for scope space={file_space!r} primary={primary_scope_value!r} "
                     f"secondary={secondary_scope_value!r}: "
                     f"{len(assets)} assets, {len(files)} files, "
                     f"{pattern_count} pattern sample string(s)"
@@ -427,8 +436,7 @@ class GeneralLaunchService(AbstractLaunchService):
                         samples = group.get("sample") or []
                         self.logger.debug(
                             f"Pattern group {group.get('resource_type')}/{group.get('annotation_type')}: "
-                            f"{len(samples)} samples → {samples[:20]}"
-                            + (" ..." if len(samples) > 20 else "")
+                            f"{len(samples)} samples → {samples[:20]}" + (" ..." if len(samples) > 20 else "")
                         )
                     pattern_job_id, pattern_job_token = self.annotation_service.run_pattern_mode_detect(
                         files=batch.file_references, pattern_samples=self.in_memory_patterns

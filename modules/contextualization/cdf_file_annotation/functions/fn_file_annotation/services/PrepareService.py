@@ -158,14 +158,7 @@ class GeneralPrepareService(AbstractPrepareService):
                 annotationStatus=AnnotationStatus.NEW,
                 linkedFile=node_id,
             )
-            if not self.annotation_state_view.instance_space:
-                msg = (
-                    "Need an instance space in DataModelViews/AnnotationStateView config to store the annotation state"
-                )
-                self.logger.error(msg)
-                raise ValueError(msg)
-            annotation_instance_space: str = self.annotation_state_view.instance_space
-
+            annotation_instance_space: str = self.annotation_state_view.instance_space or file_node.space
             annotation_node_apply: NodeApply = annotation_instance.to_node_apply(
                 node_space=annotation_instance_space,
                 annotation_state_view=self.annotation_state_view.as_view_id(),

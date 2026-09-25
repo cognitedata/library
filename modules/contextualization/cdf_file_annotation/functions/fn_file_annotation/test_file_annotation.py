@@ -1247,20 +1247,18 @@ def test_debug_mode_still_retrieves_all_match_entities() -> None:
     from services.DataModelService import GeneralDataModelService
 
     client = MagicMock()
-    client.data_modeling.instances.query.return_value = _query_page([], cursor=None)
-    targets, files = GeneralDataModelService(
-        _config_with_debug_file("PID-001"), client, MagicMock()
-    ).get_instances_entities("", None)
-    list(targets), list(files)
+    client.raw.rows.retrieve.return_value = None
+    client.data_modeling.instances.sync.return_value = _query_page([], cursor=None)
+    GeneralDataModelService(_config_with_debug_file("PID-001"), client, MagicMock()).get_instances_entities(
+        "", None, None
+    )
 
     entity_filters = [
-        str(call.args[0].with_["entities"].filter.dump())
-        for call in client.data_modeling.instances.query.call_args_list
+        str(call.args[0].with_["entities"].filter.dump()) for call in client.data_modeling.instances.sync.call_args_list
     ]
     assert len(entity_filters) == 2
     for entity_filter in entity_filters:
         assert "PID-001" not in entity_filter
-        assert "DetectInDiagrams" in entity_filter
 
 
 def _query_page(nodes: list, cursor: str | None) -> MagicMock:
@@ -1270,29 +1268,19 @@ def _query_page(nodes: list, cursor: str | None) -> MagicMock:
     return page
 
 
-def test_match_entities_are_paged_and_carry_only_the_properties_detect_uses() -> None:
-    """Every matched asset and file is fetched, so full nodes with all view properties ran the function out of memory."""
+def test_match_entities_carry_only_the_properties_launch_uses() -> None:
+    """Full nodes with every view property ran the function out of memory on large projects."""
     from services.DataModelService import GeneralDataModelService
 
     client = MagicMock()
-    first, second = MagicMock(), MagicMock()
-    client.data_modeling.instances.query.side_effect = [
-        _query_page([first], cursor="next"),
-        _query_page([second], cursor=None),
-        _query_page([], cursor=None),
-    ]
-    targets, files = GeneralDataModelService(_config_with_debug_file(None), client, MagicMock()).get_instances_entities(
-        "", None
-    )
+    client.raw.rows.retrieve.return_value = None
+    client.data_modeling.instances.sync.return_value = _query_page([], cursor=None)
+    GeneralDataModelService(_config_with_debug_file(None), client, MagicMock()).get_instances_entities("", None, None)
 
-    assert list(targets) == [first, second]
-    assert list(files) == []
     client.data_modeling.instances.list.assert_not_called()
-    queries = [call.args[0] for call in client.data_modeling.instances.query.call_args_list]
-    assert queries[0].cursors == {"entities": None} and queries[1].cursors == {"entities": "next"}
-    for query in queries:
-        assert set(query.select["entities"].sources[0].properties) == {"name", "aliases"}
-        assert "hasData" in str(query.with_["entities"].filter.dump())
+    client.data_modeling.instances.query.assert_not_called()
+    for call in client.data_modeling.instances.sync.call_args_list:
+        assert set(call.args[0].select["entities"].sources[0].properties) == {"name", "tags", "aliases"}
 
 
 def _file_node(tags: list[str]):

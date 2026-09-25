@@ -9,6 +9,7 @@ from dependencies import (
     create_general_pipeline_service,
     create_logger_service,
     create_write_logger_service,
+    get_pipeline_data_set_id,
 )
 from fa_constants import FUNCTION_TIME_BUDGET_MINUTES
 from services.AnnotationService import IAnnotationService
@@ -57,6 +58,7 @@ def handle(data: dict, function_call_info: dict, client: CogniteClient) -> dict:
         tracker=tracker_instance,
         function_call_info=function_call_info,
         rate_limit_policy=DeployedRateLimitPolicy(),
+        data_set_id=get_pipeline_data_set_id(client, data["ExtractionPipelineExtId"]),
     )
 
     logger_instance.info(format_launch_config(config_instance, data["ExtractionPipelineExtId"]), section="START")
@@ -105,6 +107,7 @@ def run_locally(config_file: dict[str, str], log_path: str | None = None):
         tracker=tracker_instance,
         function_call_info={"function_id": None, "call_id": None},
         rate_limit_policy=LocalRateLimitPolicy(),
+        data_set_id=get_pipeline_data_set_id(client, config_file["ExtractionPipelineExtId"]),
     )
 
     logger_instance.info(format_launch_config(config_instance, config_file["ExtractionPipelineExtId"]), section="START")
@@ -123,10 +126,10 @@ def run_locally(config_file: dict[str, str], log_path: str | None = None):
 
 
 def _create_launch_service(
-    config, client, logger, tracker, function_call_info, rate_limit_policy: RateLimitPolicy
+    config, client, logger, tracker, function_call_info, rate_limit_policy: RateLimitPolicy, data_set_id: int | None
 ) -> AbstractLaunchService:
     cache_instance: ICacheService = create_general_entity_cache_service(config, client, logger)
-    data_model_instance: IDataModelService = create_general_data_model_service(config, client, logger)
+    data_model_instance: IDataModelService = create_general_data_model_service(config, client, logger, data_set_id)
     annotation_instance: IAnnotationService = create_general_annotation_service(config, client, logger)
     launch_instance: AbstractLaunchService = GeneralLaunchService(
         client=client,

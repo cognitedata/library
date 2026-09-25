@@ -8,6 +8,12 @@ annotationStateVersion: v1.0.0
 patternModeInstanceSpace: sp_dat_pattern_mode_results
 patternDetectSink: pattern_detection_sink_node
 fileSchemaSpace: cdf_cdm
+# Instance spaces. Leave fileInstanceSpace / targetEntityInstanceSpace empty ("") to annotate
+# files from several instance spaces with one configuration: each file is then matched only
+# against assets and files in its own space, and its annotation state is stored next to it.
+# See README "Multiple instance spaces in one configuration". Example:
+#   fileInstanceSpace: ""          # files from inst_plant_a, inst_plant_b, ...
+#   targetEntityInstanceSpace: ""  # assets from the same space as each file
 fileInstanceSpace: sp_cdm_instances
 fileExternalId: CogniteFile
 fileVersion: v1
@@ -41,7 +47,12 @@ assetAutoApprovalThreshold: 0.85
 assetAutoSuggestThreshold: 0.7
 fileAutoApprovalThreshold: 0.25
 fileAutoSuggestThreshold: 0.2
-# Scope properties must exist on data.fileView when set. Empty disables that grouping level.
+# Scope properties are property NAMES (for example site / unit), not values. The property must
+# be a text property with the same name on both the file view and the target entity view; the
+# site value is read from each instance. Empty disables that grouping level. See README
+# "Scoping by site". Example:
+#   primaryScopeProperty: site
+#   secondaryScopeProperty: unit
 primaryScopeProperty: ""
 secondaryScopeProperty: ""
 # Tag filters for Prepare (files to process) and Launch (match entities).

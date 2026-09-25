@@ -17,7 +17,6 @@ from cognite.client.exceptions import CogniteAPIError
 from fa_constants import (
     ANNOTATION_EXTRACT,
     BATCH_SIZE,
-    CACHE_TIME_LIMIT_HOURS,
     CASE_SENSITIVE,
     CORE_ANNOTATION_EXTERNAL_ID,
     CORE_ANNOTATION_SCHEMA_SPACE,
@@ -230,10 +229,6 @@ class RawTablesConfig(BaseModel, alias_generator=to_camel):
     raw_manual_patterns_catalog: str
 
 
-class CacheServiceConfig(BaseModel, alias_generator=to_camel):
-    cache_time_limit: int
-
-
 class AnnotationServiceConfig(BaseModel, alias_generator=to_camel):
     page_range: int = Field(gt=0, le=50)
     partial_match: bool = True
@@ -257,7 +252,6 @@ class LaunchFunction(BaseModel, alias_generator=to_camel):
     file_resource_property: str | None = None
     target_entities_resource_property: str | None = None
     data_model_service: DataModelServiceConfig
-    cache_service: CacheServiceConfig
     annotation_service: AnnotationServiceConfig
 
 
@@ -605,7 +599,6 @@ class Config(BaseModel, alias_generator=to_camel):
                             ],
                         },
                     },
-                    "cacheService": {"cacheTimeLimit": CACHE_TIME_LIMIT_HOURS},
                     "annotationService": {
                         "pageRange": PAGE_RANGE,
                         "partialMatch": True,
@@ -899,15 +892,12 @@ def format_launch_config(config: Config, pipeline_ext_id: str) -> str:
     lines.append(_format_query_summary(launch.data_model_service.get_target_entities_query, "Target Entities Query"))
     lines.append(_format_query_summary(launch.data_model_service.get_file_entities_query, "File Entities Query"))
 
-    # Cache service
-    cache = launch.cache_service
     raw = config.raw_tables
     lines.extend(
         [
-            "CACHE SERVICE",
-            f"  • Cache time limit: {cache.cache_time_limit} hours",
+            "ENTITY CACHE",
             f"  • RAW DB: {raw.raw_db}",
-            f"  • Cache table: {raw.raw_table_cache}",
+            f"  • Sync state table: {raw.raw_table_cache}",
             f"  • Manual patterns catalog: {raw.raw_manual_patterns_catalog}",
         ]
     )

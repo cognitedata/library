@@ -31,13 +31,14 @@ class ICacheService(abc.ABC):
     """
 
     @abc.abstractmethod
-    def get(self, text: str, annotation_type: str) -> CachedEntityInfo | None:
+    def get(self, text: str, annotation_type: str, space: str) -> CachedEntityInfo | None:
         """
-        Retrieves cached entity info for the given text and annotation type.
+        Retrieves cached entity info for the given text and annotation type in a space.
 
         Args:
             text: Text to look up
             annotation_type: Type of annotation
+            space: Instance space the entity must be in
 
         Returns:
             CachedEntityInfo if found, None if cache miss
@@ -45,13 +46,16 @@ class ICacheService(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def set(self, text: str, annotation_type: str, node: Node | None, resource_type: str | None = None) -> None:
+    def set(
+        self, text: str, annotation_type: str, space: str, node: Node | None, resource_type: str | None = None
+    ) -> None:
         """
-        Caches an entity node for the given text and annotation type.
+        Caches an entity node for the given text and annotation type in a space.
 
         Args:
             text: Text being cached
             annotation_type: Type of annotation
+            space: Instance space that was searched
             node: Entity node to cache, or None for negative caching
             resource_type: Optional resource type to cache alongside the node
         """
@@ -123,16 +127,16 @@ class CacheService(ICacheService):
 
         self.function_id = "fn_file_annotation"
 
-        # In-memory cache: {(text, type): CachedEntityInfo or CacheMarker}
+        # In-memory cache: {(text, type, space): CachedEntityInfo or CacheMarker}
         # Memory cache values can be:
         # - CachedEntityInfo: positive single match
         # - CacheMarker.NO_MATCH: negative cache (no match) stored in-memory only
         # - CacheMarker.AMBIGUOUS: ambiguous marker (more than one match)
-        self._memory_cache: dict[tuple[str, str], CachedEntityInfo | CacheMarker] = {}
+        self._memory_cache: dict[tuple[str, str, str], CachedEntityInfo | CacheMarker] = {}
 
-    def get(self, text: str, annotation_type: str) -> CachedEntityInfo | None:
+    def get(self, text: str, annotation_type: str, space: str) -> CachedEntityInfo | None:
         """
-        Retrieves cached entity info for the given text and annotation type.
+        Retrieves cached entity info for the given text and annotation type in a space.
 
         Checks in-memory cache first, then falls back to persistent RAW cache.
         Returns CachedEntityInfo directly without making API calls.
@@ -140,11 +144,12 @@ class CacheService(ICacheService):
         Args:
             text: The text to look up
             annotation_type: Type of annotation ("diagrams.FileLink" or "diagrams.AssetLink")
+            space: Instance space the entity must be in
 
         Returns:
             CachedEntityInfo if found, None if cache miss
         """
-        cache_key: tuple[str, str] = (text, annotation_type)
+        cache_key: tuple[str, str, str] = (text, annotation_type, space)
 
         # TIER 1: In-memory cache (instant, no API calls)
         if cache_key in self._memory_cache:
@@ -164,7 +169,7 @@ class CacheService(ICacheService):
 
         # TIER 2: Persistent RAW cache (fast, no retrieve_nodes call)
         cached_info: CachedEntityInfo | None = self._get_from_persistent_cache(text, annotation_type)
-        if cached_info:
+        if cached_info and cached_info.space == space:
             self.logger.info(f"✓ [CACHE] Persistent cache HIT for '{text}'")
             # Populate in-memory cache for future lookups in this run
             self._memory_cache[cache_key] = cached_info
@@ -173,44 +178,46 @@ class CacheService(ICacheService):
         # Cache miss
         return None
 
-    def is_ambiguous_in_memory(self, text: str, annotation_type: str) -> bool:
+    def is_ambiguous_in_memory(self, text: str, annotation_type: str, space: str) -> bool:
         """
         Returns True if this text/type combination was previously seen as ambiguous
-        during the current run (in-memory only).
+        in the space during the current run (in-memory only).
         """
-        cache_key: tuple[str, str] = (text, annotation_type)
+        cache_key: tuple[str, str, str] = (text, annotation_type, space)
         return cache_key in self._memory_cache and self._memory_cache[cache_key] is CacheMarker.AMBIGUOUS
 
-    def is_no_match_in_memory(self, text: str, annotation_type: str) -> bool:
+    def is_no_match_in_memory(self, text: str, annotation_type: str, space: str) -> bool:
         """
         Returns True if this text/type combination was determined to have no match
-        during the current run (in-memory only).
+        in the space during the current run (in-memory only).
         """
-        cache_key: tuple[str, str] = (text, annotation_type)
+        cache_key: tuple[str, str, str] = (text, annotation_type, space)
         return cache_key in self._memory_cache and self._memory_cache[cache_key] is CacheMarker.NO_MATCH
 
-    def set_ambiguous(self, text: str, annotation_type: str) -> None:
+    def set_ambiguous(self, text: str, annotation_type: str, space: str) -> None:
         """
-        Marks the given text/type as ambiguous in in-memory cache only.
+        Marks the given text/type as ambiguous in the space, in in-memory cache only.
 
         This avoids re-querying repeatedly for known ambiguous cases
         within the same function run. Ambiguous entries are NOT persisted to RAW.
         """
-        cache_key: tuple[str, str] = (text, annotation_type)
+        cache_key: tuple[str, str, str] = (text, annotation_type, space)
         self._memory_cache[cache_key] = CacheMarker.AMBIGUOUS
         self.logger.debug(f"✓ [CACHE] Cached ambiguous marker for '{text}' (in-memory only)")
 
-    def set_no_match(self, text: str, annotation_type: str) -> None:
+    def set_no_match(self, text: str, annotation_type: str, space: str) -> None:
         """
-        Marks the given text/type as a negative (no match) result in in-memory cache only.
+        Marks the given text/type as a negative (no match) result in the space, in in-memory cache only.
 
         Useful to avoid repeated searches within the same function run. Not persisted.
         """
-        cache_key: tuple[str, str] = (text, annotation_type)
+        cache_key: tuple[str, str, str] = (text, annotation_type, space)
         self._memory_cache[cache_key] = CacheMarker.NO_MATCH
         self.logger.debug(f"✓ [CACHE] Cached NO_MATCH marker for '{text}' (in-memory only)")
 
-    def set(self, text: str, annotation_type: str, node: Node | None, resource_type: str | None = None) -> None:
+    def set(
+        self, text: str, annotation_type: str, space: str, node: Node | None, resource_type: str | None = None
+    ) -> None:
         """
         Caches an entity node for the given text and annotation type.
 
@@ -226,12 +233,13 @@ class CacheService(ICacheService):
         Args:
             text: The text being cached
             annotation_type: Type of annotation
+            space: Instance space that was searched
             node: The entity node to cache. For negative caching (no match), use `set_no_match`
                 or pass `None` to record an in-memory NO_MATCH marker. For ambiguous
                 search outcomes prefer `set_ambiguous` to mark the key as ambiguous in-memory.
             resource_type: Optional resource type to cache (avoids needing to retrieve node later)
         """
-        cache_key: tuple[str, str] = (text, annotation_type)
+        cache_key: tuple[str, str, str] = (text, annotation_type, space)
 
         if node is None:
             # Negative cache entry (IN-MEMORY ONLY - not persisted to RAW)

@@ -90,9 +90,15 @@ def create_write_logger_service(log_level: str, filepath: str) -> CogniteFunctio
 
 
 def create_general_data_model_service(
-    config: Config, client: CogniteClient, logger: CogniteFunctionLogger
+    config: Config, client: CogniteClient, logger: CogniteFunctionLogger, data_set_id: int | None = None
 ) -> GeneralDataModelService:
-    return GeneralDataModelService(config=config, client=client, logger=logger)
+    return GeneralDataModelService(config=config, client=client, logger=logger, data_set_id=data_set_id)
+
+
+def get_pipeline_data_set_id(client: CogniteClient, pipeline_ext_id: str) -> int | None:
+    """The data set of the extraction pipeline, which the files the function writes are put in."""
+    pipeline = client.extraction_pipelines.retrieve(external_id=pipeline_ext_id)
+    return pipeline.data_set_id if pipeline else None
 
 
 def create_general_entity_cache_service(

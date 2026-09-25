@@ -4,15 +4,25 @@ from typing import Final
 
 BATCH_SIZE: Final = 50
 PAGE_RANGE: Final = 50
-CACHE_TIME_LIMIT_HOURS: Final = 0
 MAX_RETRY_ATTEMPTS: Final = 3
 MAX_ENTITY_SEARCH_LIMIT: Final = 1000
-ENTITY_QUERY_PAGE_SIZE: Final = 1000
 PREPARE_FILE_LIMIT: Final = 10000
 LAUNCH_STATE_LIMIT: Final = 1000
 PROMOTE_CANDIDATE_LIMIT: Final = 500
 FUNCTION_TIME_BUDGET_MINUTES: Final = 7
 LOCAL_RATE_LIMIT_SLEEP_SECONDS: Final = 900
+
+# Match entities are read through the DMS sync endpoint on top of a cached copy in a CDF file.
+ENTITY_SYNC_CACHE_VERSION: Final = 1  # bump when what a read selects changes, to start new caches
+ENTITY_SYNC_QUERY_NAME: Final = "entities"
+ENTITY_SYNC_STATE_KEY_PREFIX: Final = "entity_sync_state_"
+ENTITY_SYNC_CACHE_FILE_PREFIX: Final = "fa_entity_cache_"
+ENTITY_SYNC_BATCH_SIZE: Final = 1000
+ENTITY_SYNC_MIN_BATCH_SIZE: Final = 100
+ENTITY_SYNC_BATCH_SIZE_FACTOR: Final = 0.8
+ENTITY_SYNC_MAX_RETRIES: Final = 4
+ENTITY_SYNC_RETRY_BACKOFF_SECONDS: Final = 2
+ENTITY_SYNC_TIME_BUDGET_SECONDS: Final = 300
 
 # Diagram detect config - see DiagramDetectConfig in the Cognite SDK docs. None = use API default.
 MIN_TOKENS: Final = 2
@@ -53,6 +63,7 @@ TAG_ANNOTATION_FAILED: Final = "AnnotationFailed"
 TAG_ANNOTATION_IN_PROCESS: Final = "AnnotationInProcess"
 TAG_DETECT_IN_DIAGRAMS: Final = "DetectInDiagrams"
 TAG_PROMOTE_ATTEMPTED: Final = "PromoteAttempted"
+TAG_SCOPE_WIDE_DETECT: Final = "ScopeWideDetect"
 TAG_TO_ANNOTATE: Final = "ToAnnotate"
 EXCLUDED_PREPARE_TAGS: Final = [TAG_ANNOTATION_IN_PROCESS, TAG_ANNOTATED, TAG_ANNOTATION_FAILED]
 LAUNCH_STATUSES: Final = ["New", "Retry"]

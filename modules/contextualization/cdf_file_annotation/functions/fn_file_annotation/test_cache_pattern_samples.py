@@ -36,7 +36,6 @@ def _cache_service(*, structural_auto_patterns: bool) -> GeneralCacheService:
         ),
     )
     service.db_name = "db_file_annotation"
-    service.tbl_name = "annotation_entities_cache"
     service.file_view = SimpleNamespace(external_id="CogniteFile", search_property="aliases")
     service.target_entities_view = SimpleNamespace(external_id="CogniteAsset", search_property="aliases")
     return service
@@ -134,9 +133,7 @@ def test_empty_normalize_patterns_does_not_filter_structural_samples() -> None:
         _entity("noise", ["AAAAAAAA"]),
     ]
 
-    result = service._generate_tag_samples_from_entities(
-        entities, source_view="test", normalize_patterns=[]
-    )
+    result = service._generate_tag_samples_from_entities(entities, source_view="test", normalize_patterns=[])
     samples = result[0]["sample"]
 
     assert "00-AA-0000" in samples
@@ -220,7 +217,6 @@ def test_launch_input_summary_logs_info_counts(capsys) -> None:
     service.config = SimpleNamespace(launch_function=SimpleNamespace(structural_auto_patterns=True, pattern_mode=True))
     service._log_launch_input_summary(
         scope_key="",
-        source="CDF",
         asset_entities=[_entity("a1", ["23_PT_1"]), _entity("a2", [])],
         file_entities=[_entity("f1", ["DOC"], annotation_type="diagrams.FileLink")],
         asset_pattern_samples=[{"sample": ["00-AA-0000", "00-AA-00000"], "resource_type": "CogniteAsset"}],
@@ -240,7 +236,6 @@ def test_launch_input_summary_logs_info_counts(capsys) -> None:
     assert "Auto patterns from fileView (CogniteFile): 1 sample string(s)" in out
     assert "Combined patterns sent to pattern-mode detect: 3 sample string(s)" in out
     assert "unscoped" in out
-    assert "CDF — fresh query" in out
     assert "[DEBUG]" not in out
 
 
@@ -250,7 +245,6 @@ def test_launch_input_summary_debug_does_not_dump_entities(capsys) -> None:
     service.config = SimpleNamespace(launch_function=SimpleNamespace(structural_auto_patterns=True, pattern_mode=True))
     service._log_launch_input_summary(
         scope_key="",
-        source="CDF",
         asset_entities=[_entity("23-PT-1", ["23_PT_1"])],
         file_entities=[_entity("23-DB-9101", ["23_DB_9101"], annotation_type="diagrams.FileLink")],
         asset_pattern_samples=[{"sample": ["00-AA-00000"], "resource_type": "CogniteAsset"}],
@@ -259,27 +253,11 @@ def test_launch_input_summary_debug_does_not_dump_entities(capsys) -> None:
             {"sample": ["00-AA-00000"], "resource_type": "CogniteAsset"},
             {"sample": ["00-AA-0000"], "resource_type": "CogniteFile"},
         ],
+        manual_pattern_groups=0,
+        manual_pattern_strings=0,
     )
     out = capsys.readouterr().out
     assert "23_PT_1" not in out
     assert "23_DB_9101" not in out
     assert "resource_type=" not in out
     assert "00-AA-00000" not in out
-
-
-def test_launch_input_summary_cache_debug_lists_combined_patterns_once(capsys) -> None:
-    service = _cache_service(structural_auto_patterns=True)
-    service.logger = CogniteFunctionLogger("DEBUG")
-    service.config = SimpleNamespace(launch_function=SimpleNamespace(structural_auto_patterns=True, pattern_mode=True))
-    service._log_launch_input_summary(
-        scope_key="",
-        source="CACHE",
-        asset_entities=[_entity("23-PT-1", ["23_PT_1"])],
-        file_entities=[],
-        asset_pattern_samples=[{"sample": ["00-AA-00000"], "resource_type": "CogniteAsset"}],
-        pattern_samples=[{"sample": ["00-AA-00000"], "resource_type": "CogniteAsset", "annotation_type": "x"}],
-    )
-    out = capsys.readouterr().out
-    assert "[DEBUG]" in out
-    assert "23_PT_1" not in out
-    assert out.count("00-AA-00000") == 1

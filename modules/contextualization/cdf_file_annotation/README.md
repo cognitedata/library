@@ -72,7 +72,7 @@ cdf_file_annotation/
 │   ├── 📄 rawTableDocDoc.Table.yaml               # Doc-to-doc link results
 │   ├── 📄 rawTableDocTag.Table.yaml               # Doc-to-tag link results
 │   ├── 📄 rawTableDocPattern.Table.yaml           # Pattern detection results
-│   ├── 📄 rawTableCache.Table.yaml                # Entity cache
+│   ├── 📄 rawTableCache.Table.yaml                # Entity sync state
 │   ├── 📄 rawTablePromoteCache.Table.yaml         # Promote cache
 │   ├── 📄 rawTableAnnotationStatusReport.Table.yaml  # Per-file status report output
 │   └── 📄 rawManualPatternsCatalog.Table.yaml     # Manual pattern overrides
@@ -144,8 +144,8 @@ flowchart TD
 
 **Key Features**:
 - 📦 **Scope-Based Batching**: Groups files by site/unit for efficient processing
-- 🧠 **Intelligent Caching**: Checks RAW cache before querying data model
 - 🎯 **Entity Selection**: Loads assets and files tagged `DetectInDiagrams` within scope (plus `ScopeWideDetect` across secondary scope)
+- 🔁 **Incremental Entity Read**: Reads each entity view through the DMS sync endpoint and keeps the tagged instances in a CDF file (see [Reading the match entities](#reading-the-match-entities))
 - 🔤 **Alias-Driven Matching**: Sends entity `aliases` to Diagram Detect as search candidates (falls back to `name` when aliases are absent)
 - 🎯 **Pattern Generation**: Auto-generates regex patterns from entity aliases
 - 📋 **Manual Override Support**: Merges manual patterns from RAW catalog
@@ -162,17 +162,13 @@ flowchart TD
     CheckFiles -->|Yes| GroupFiles[Group files by<br/>primary scope<br/>e.g., site, unit]
 
     GroupFiles --> NextScope{Next scope<br/>group?}
-    NextScope -->|Yes| CheckCache{Valid cache<br/>exists in RAW?}
+    NextScope -->|Yes| SyncEntities[Sync entity views into<br/>the cached entity file<br/>once per space]
 
-    CheckCache -->|No - Stale/Missing| QueryEntities[Query data model for<br/>entities within scope]
-    QueryEntities --> GenPatterns[Auto-generate pattern samples<br/>from entity aliases<br/>e.g., FT-101A → &#91;FT&#93;-000&#91;A&#93;]
+    SyncEntities --> FilterScope[Filter entities by tag<br/>and scope in memory]
+    FilterScope --> GenPatterns[Auto-generate pattern samples<br/>from entity aliases<br/>e.g., FT-101A → &#91;FT&#93;-000&#91;A&#93;]
     GenPatterns --> GetManual[Retrieve manual pattern<br/>overrides from RAW catalog<br/>GLOBAL, site, or unit level]
     GetManual --> MergePatterns[Merge and deduplicate<br/>auto-generated and<br/>manual patterns]
-    MergePatterns --> StoreCache[Store entity list and<br/>pattern samples in<br/>RAW cache]
-    StoreCache --> UseCache[Use entities and patterns]
-
-    CheckCache -->|Yes - Valid| LoadCache[Load entities and<br/>patterns from RAW cache]
-    LoadCache --> UseCache
+    MergePatterns --> UseCache[Use entities and patterns]
 
     UseCache --> ProcessBatch[Process files in batches<br/>up to max batch size]
     ProcessBatch --> SubmitJobs[Submit Diagram Detect jobs:<br/>1 Standard annotation<br/>2 Pattern mode if enabled]
@@ -183,7 +179,6 @@ flowchart TD
     style Start fill:#d4f1d4
     style End fill:#f1d4d4
     style CheckFiles fill:#fff4e6
-    style CheckCache fill:#fff4e6
     style NextScope fill:#fff4e6
     style UseCache fill:#e6f3ff
     style UpdateState fill:#e6f3ff
@@ -562,6 +557,144 @@ data:
     space: sp_dat_pattern_mode_results
     externalId: pattern_detection_sink_node
 ```
+
+### Scoping by site (`primaryScopeProperty` / `secondaryScopeProperty`)
+
+By default (both empty) every file is matched against **all** `DetectInDiagrams` assets and
+files in the instance space. On large projects this can exceed the Diagram Detect limit of
+500,000 entities per call and fail with `entities: Length must be between 1 and 500000`.
+Scoping splits the entity set per site (and optionally per unit).
+
+**You configure the property name, not the value.** The value is read from each instance:
+
+| What | Where it is set | Example |
+|---|---|---|
+| Property name | `primaryScopeProperty` / `secondaryScopeProperty` in `default.config.yaml` (or your `config.<env>.yaml`) | `site`, `unit` |
+| Property value | On each file and asset instance in CDF (for example set by a transformation) | `"PlantA"`, `"U100"` |
+
+Requirements:
+
+- The property is a **text** property with the **same name** on both the file view
+  (`fileExternalId`) and the target entity view (`targetEntityExternalId`). Core
+  `CogniteFile` / `CogniteAsset` have no such property, so use views that extend them.
+  Direct relations are not supported (the filter compares against a string).
+- **Every file to annotate has a value.** Files without one are treated as unscoped and are
+  matched against all entities again.
+- Assets and files used as match entities need the value too, otherwise no scoped file sees them.
+
+**Example.** With this config:
+
+```yaml
+# config.<env>.yaml -> variables -> modules -> ... -> cdf_file_annotation
+primaryScopeProperty: site
+secondaryScopeProperty: unit    # optional, "" to scope by site only
+```
+
+and these instances:
+
+| Instance | `site` | `unit` | `tags` |
+|---|---|---|---|
+| File `PID-0001` | `PlantA` | `U100` | `ToAnnotate` |
+| File `PID-0002` | `PlantB` | `U200` | `ToAnnotate` |
+| Asset `23-KA-9101` | `PlantA` | `U100` | `DetectInDiagrams` |
+| Asset `23-KA-9102` | `PlantA` | `U300` | `DetectInDiagrams` |
+| Asset `PA-FLARE-01` | `PlantA` | `U300` | `DetectInDiagrams`, `ScopeWideDetect` |
+| Asset `45-PB-2001` | `PlantB` | `U200` | `DetectInDiagrams` |
+
+Launch creates one batch per `site` + `unit` combination:
+
+- `PID-0001` (PlantA / U100) is matched against `23-KA-9101` and `PA-FLARE-01`.
+  `ScopeWideDetect` makes an entity visible to every unit **within the same site**, never across sites.
+- `PID-0002` (PlantB / U200) is matched against `45-PB-2001` only.
+
+Each scope gets its own manual patterns lookup in `rawManualPatternsCatalog` (keys `GLOBAL`,
+`PlantA`, `PlantA_U100`). The 500,000-entity limit then applies per scope, so if one site is still too
+large, add `secondaryScopeProperty`. The entities of all scopes come from one read of the view
+(see [Reading the match entities](#reading-the-match-entities)).
+
+### Reading the match entities
+
+Launch reads the target entity view and the file view once per instance space, with only a
+space and `hasData` filter, and applies the tag and scope rules above in memory. A query that
+filtered on tags and scope timed out on large views: the scope property and `tags` sit in
+different containers, and the OR with `ScopeWideDetect` keeps DMS from paging it with an index.
+
+- The views are read through the DMS sync endpoint, with only the properties Launch uses.
+  A page that times out is read again 20% smaller, down to 100 instances.
+- The instances carrying one of the configured tags or `ScopeWideDetect` are kept in the CDF
+  file `fa_entity_cache_<key>.json` in the annotation data set. The sync cursor is stored in
+  `rawTableCache` under `entity_sync_state_<key>`. The key changes with the view, space,
+  selected properties and tags.
+- A run with no changes downloads the file instead of reading the data model. Changes, a tag
+  added or removed included, are merged into the file.
+- A first read that takes longer than 5 minutes is stored and continued by the next Launch run;
+  the files waiting to be launched keep their claim until then.
+
+This needs `filesAcl: READ, WRITE` on the annotation data set, which the `gp_file_annotation`
+group includes.
+
+### Multiple instance spaces in one configuration
+
+Use this when each site keeps its files and assets in **its own instance space**, for example
+`inst_plant_a` and `inst_plant_b`. You don't need one deployment per space: leave the view
+instance spaces empty and every file is matched only against entities in its own space.
+
+The rule for `data.fileView.instanceSpace`, `data.targetEntitiesView.instanceSpace` and
+`data.annotationStateView.instanceSpace` is:
+
+| `instanceSpace` | Meaning |
+|---|---|
+| Set, for example `inst_location` | Only that space is used (the default behaviour) |
+| Empty | The space of the file being annotated |
+
+**Configuration** (`default.config.yaml` or your `config.<env>.yaml`):
+
+```yaml
+fileInstanceSpace: ""          # also used for annotationStateView.instanceSpace
+targetEntityInstanceSpace: ""
+```
+
+**Example.** With these instances:
+
+| Instance | Space | `tags` |
+|---|---|---|
+| File `PID-0001` | `inst_plant_a` | `ToAnnotate` |
+| File `PID-0002` | `inst_plant_b` | `ToAnnotate` |
+| Asset `23-KA-9101` | `inst_plant_a` | `DetectInDiagrams` |
+| Asset `23-KA-9101` | `inst_plant_b` | `DetectInDiagrams` |
+| Asset `45-PB-2001` | `inst_plant_b` | `DetectInDiagrams` |
+
+each stage works per space:
+
+- **Prepare** picks up `ToAnnotate` files from every space. It stores each file's
+  `FileAnnotationState` node in the file's own space.
+- **Launch** makes one batch per space: `PID-0001` is matched against the
+  `inst_plant_a` assets only, and `PID-0002` against the two `inst_plant_b` assets. Each space has its
+  own entity cache file and sync cursor (see [Reading the match entities](#reading-the-match-entities)).
+- **Finalize** writes annotation edges in the file's space. This is the same as before.
+- **Promote** looks up pattern-mode tags in the file's space. `23-KA-9101` on `PID-0001`
+  resolves to the `inst_plant_a` asset and is never ambiguous with the `inst_plant_b` one.
+
+**Mixing both.** You can set one space and leave the other empty. For example, if all
+sites share one asset space, set `targetEntityInstanceSpace: inst_assets` and
+`fileInstanceSpace: ""`. Files then come from every space, and all of them are matched against
+`inst_assets`.
+
+**Combining with site scoping.** `primaryScopeProperty` / `secondaryScopeProperty` still apply
+inside each space, so batches are made per space and per site. The 500,000-entity limit applies to each batch.
+
+**Limitations when a space is empty:**
+
+- The helper transformations (`tr_tag_*`, `tr_file_to_asset_from_annotations`,
+  `tr_file_annotation_status_report`) take their instance space from the same variables, so each one
+  only works for a single space. Don't run them with an empty space. Create one copy per space, or tag
+  instances with your own transformations.
+- `debugFileExternalId` still requires `fileInstanceSpace` to be set.
+- The function's access group needs read and write on every space you annotate.
+
+**Behaviour change:** `targetEntityInstanceSpace: ""` used to make Launch read assets from **all**
+spaces, while Promote skipped asset promotion entirely. An empty value now means the space of the
+file being annotated. If your assets are in a different space from your files, set it explicitly.
 
 ### `searchProperty` vs `resourceProperty`
 

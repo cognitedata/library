@@ -12,7 +12,21 @@ parameters:
   secondaryScopeProperty: unit
 ```
 
-The named properties must exist on `data.fileView`. Empty values disable that grouping level.
+The named properties must be text properties with the same name on both `data.fileView` and `data.targetEntitiesView`. Empty values disable that grouping level. See [Scoping by site](../README.md#scoping-by-site-primaryscopeproperty--secondaryscopeproperty) for a full example.
+
+## Annotate several instance spaces with one configuration
+
+When each site keeps its files and assets in its own instance space, leave the view spaces empty
+in `default.config.yaml`:
+
+```yaml
+fileInstanceSpace: ""
+targetEntityInstanceSpace: ""
+```
+
+Each file is then matched only against entities in its own space. See
+[Multiple instance spaces in one configuration](../README.md#multiple-instance-spaces-in-one-configuration)
+for the full behaviour and limitations.
 
 ## Use another matching property
 

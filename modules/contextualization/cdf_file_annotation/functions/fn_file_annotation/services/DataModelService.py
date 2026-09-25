@@ -1,5 +1,4 @@
 import abc
-from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta
 
 from cognite.client import CogniteClient
@@ -10,24 +9,23 @@ from cognite.client.data_classes.data_modeling import (
     NodeApplyResultList,
     NodeId,
     NodeList,
+    ViewId,
 )
-from cognite.client.data_classes.data_modeling.query import NodeResultSetExpression, Query, Select, SourceSelector
 from cognite.client.data_classes.filters import (
     Equals,
-    Exists,
     Filter,
-    HasData,
     In,
     Not,
     Range,
 )
-from fa_constants import ENTITY_QUERY_PAGE_SIZE, TAG_ANNOTATION_IN_PROCESS
+from fa_constants import TAG_ANNOTATION_IN_PROCESS, TAG_SCOPE_WIDE_DETECT
 from services.ConfigService import (
     Config,
     ViewPropertyConfig,
     build_filter_from_query,
     get_limit_from_query,
 )
+from services.EntitySyncService import EntityInstance, EntitySyncService
 from services.LoggerService import CogniteFunctionLogger
 from utils.DataStructures import AnnotationStatus
 
@@ -67,8 +65,8 @@ class IDataModelService(abc.ABC):
 
     @abc.abstractmethod
     def get_instances_entities(
-        self, primary_scope_value: str, secondary_scope_value: str | None
-    ) -> tuple[Iterator[Node], Iterator[Node]]:
+        self, primary_scope_value: str, secondary_scope_value: str | None, file_space: str | None
+    ) -> tuple[list[EntityInstance], list[EntityInstance]]:
         pass
 
 
@@ -77,10 +75,15 @@ class GeneralDataModelService(IDataModelService):
     Implementation used for real runs
     """
 
-    def __init__(self, config: Config, client: CogniteClient, logger: CogniteFunctionLogger):
+    def __init__(
+        self, config: Config, client: CogniteClient, logger: CogniteFunctionLogger, data_set_id: int | None = None
+    ):
         self.client: CogniteClient = client
         self.config: Config = config
         self.logger: CogniteFunctionLogger = logger
+        self.entity_sync = EntitySyncService(client, config, logger, data_set_id)
+        # Latest read per view, so the scopes of one space share a single read.
+        self._synced_entities: dict[ViewId, tuple[str | None, list[EntityInstance]]] = {}
 
         self.annotation_state_view: ViewPropertyConfig = config.data_model_views.annotation_state_view
         self.file_view: ViewPropertyConfig = config.data_model_views.file_view
@@ -98,12 +101,6 @@ class GeneralDataModelService(IDataModelService):
         )
         self.filter_files_to_process: Filter = build_filter_from_query(
             config.launch_function.data_model_service.get_files_to_process_query
-        )
-        self.filter_target_entities: Filter = build_filter_from_query(
-            config.launch_function.data_model_service.get_target_entities_query
-        )
-        self.filter_file_entities: Filter = build_filter_from_query(
-            config.launch_function.data_model_service.get_file_entities_query
         )
 
     def get_files_for_annotation_reset(self) -> NodeList | None:
@@ -293,179 +290,88 @@ class GeneralDataModelService(IDataModelService):
         return update_results.nodes
 
     def get_instances_entities(
-        self, primary_scope_value: str, secondary_scope_value: str | None
-    ) -> tuple[Iterator[Node], Iterator[Node]]:
+        self, primary_scope_value: str, secondary_scope_value: str | None, file_space: str | None
+    ) -> tuple[list[EntityInstance], list[EntityInstance]]:
         """
         Retrieves target entities and file entities for use in diagram detection.
 
-        Queries the data model for entities (assets) and files that match the configured filters
-        and scope values, which will be used to create the entity cache for diagram detection.
+        Each view is read whole through the entity sync cache, from its configured instanceSpace
+        or from file_space when it has none, and then narrowed to the scope in memory:
+            - entities in the primary and secondary scope carrying one of the configured tags
+              (files must also have their search property set)
+            - or entities in the primary scope tagged ScopeWideDetect, whatever their secondary scope
 
         Args:
             primary_scope_value: Primary scope identifier (e.g., site, facility).
             secondary_scope_value: Optional secondary scope identifier (e.g., unit, area).
+            file_space: Instance space of the files being annotated, used for views without an instanceSpace.
 
         Returns:
             A tuple containing:
-                - Iterator over target entity instances (typically assets)
-                - Iterator over file entity instances
+                - Target entity instances (typically assets)
+                - File entity instances
 
-        NOTE: 1. grab assets that meet the filter requirement
-        NOTE: 2. grab files that meet the filter requirement
+        Raises:
+            EntitySyncIncompleteError: The first read of a view did not finish within the time budget.
         """
-        target_filter: Filter = self._get_target_entities_filter(primary_scope_value, secondary_scope_value)
-        file_filter: Filter = self._get_file_entities_filter(primary_scope_value, secondary_scope_value)
-
         launch = self.config.launch_function
-        target_entities = self._iterate_entities(
+        parameters = self.config.parameters
+        target_entities = self._entities_in_scope(
             self.target_entities_view,
-            target_filter,
-            ["name", launch.target_entities_search_property, launch.target_entities_resource_property],
+            self.target_entities_view.instance_space or file_space,
+            parameters.target_entities_tags,
+            [launch.target_entities_search_property, launch.target_entities_resource_property],
+            None,
+            primary_scope_value,
+            secondary_scope_value,
         )
-        file_entities = self._iterate_entities(
+        file_entities = self._entities_in_scope(
             self.file_view,
-            file_filter,
-            ["name", launch.file_search_property, launch.file_resource_property],
+            self.file_view.instance_space or file_space,
+            parameters.file_entities_tags,
+            [launch.file_search_property, launch.file_resource_property],
+            launch.file_search_property,
+            primary_scope_value,
+            secondary_scope_value,
         )
         return target_entities, file_entities
 
-    def _iterate_entities(
-        self, view: ViewPropertyConfig, entity_filter: Filter, properties: list[str | None]
-    ) -> Iterator[Node]:
-        """
-        Yields every node matching the filter, one page at a time, carrying only the given view properties.
-
-        Every entity in scope is needed for diagram detect, so a full node with all view properties
-        for each of them is what exhausts function memory on large projects.
-
-        Args:
-            view: View the entities are read from.
-            entity_filter: Filter selecting the entities.
-            properties: View properties to return; None entries (unset optional properties) are skipped.
-
-        Returns:
-            Iterator over the matching nodes.
-        """
+    def _entities_in_scope(
+        self,
+        view: ViewPropertyConfig,
+        space: str | None,
+        entity_tags: list[str],
+        extra_properties: list[str | None],
+        required_property: str | None,
+        primary_scope_value: str,
+        secondary_scope_value: str | None,
+    ) -> list[EntityInstance]:
+        """The entities of the view that the scope matches against; see get_instances_entities."""
+        launch = self.config.launch_function
+        primary_property = launch.primary_scope_property if primary_scope_value else None
+        secondary_property = launch.secondary_scope_property if secondary_scope_value else None
         view_id = view.as_view_id()
-        node_filter: Filter = entity_filter & HasData(views=[view_id])
-        if view.instance_space:
-            node_filter &= Equals(["node", "space"], view.instance_space)
-        selected = [SourceSelector(view_id, list(dict.fromkeys(p for p in properties if p)))]
-        cursor: str | None = None
-        while True:
-            query = Query(
-                with_={"entities": NodeResultSetExpression(filter=node_filter, limit=ENTITY_QUERY_PAGE_SIZE)},
-                select={"entities": Select(selected)},
-                cursors={"entities": cursor},
-            )
-            result = self.client.data_modeling.instances.query(query)
-            page = result["entities"]
-            yield from page
-            cursor = result.cursors.get("entities")
-            if not page or not cursor:
-                return
 
-    def _get_target_entities_filter(self, primary_scope_value: str, secondary_scope_value: str | None) -> Filter:
-        """
-        Builds a filter for target entities (assets) based on scope and configuration.
+        # The read does not depend on the scope, so it is shared by every scope in the space.
+        synced = self._synced_entities.get(view_id)
+        if synced is None or synced[0] != space:
+            selected = ["name", "tags", launch.primary_scope_property, launch.secondary_scope_property]
+            selected = list(dict.fromkeys(p for p in [*selected, *extra_properties] if p))
+            kept_tags = list(dict.fromkeys([*entity_tags, TAG_SCOPE_WIDE_DETECT]))
+            synced = (space, self.entity_sync.load(view, space, selected, kept_tags))
+            self._synced_entities[view_id] = synced
 
-        Creates a filter combining scope-specific filtering with global 'ScopeWideDetect' entities.
-
-        Args:
-            primary_scope_value: Primary scope identifier for filtering entities.
-            secondary_scope_value: Optional secondary scope identifier for more specific filtering.
-
-        Returns:
-            Combined Filter for querying target entities.
-
-        NOTE: Create a filter that...
-            - grabs assets in the primary_scope_value and secondary_scope_value provided with detectInDiagram in the tags property
-            or
-            - grabs assets in the primary_scope_value with ScopeWideDetect in the tags property (hard coded) -> provides an option to include entities outside of the secondary_scope_value
-        """
-        filter_entities: Filter = self.filter_target_entities
-        # NOTE: ScopeWideDetect is an optional string that allows annotating across scopes
-        filter_scope_wide: Filter = In(
-            property=self.target_entities_view.as_property_ref("tags"),
-            values=["ScopeWideDetect"],
-        )
-        if not primary_scope_value:
-            target_filter = filter_entities | filter_scope_wide
-        else:
-            primary_scope_property = self.config.launch_function.primary_scope_property
-            if not primary_scope_property:
-                raise ValueError("primaryScopeProperty is required when a primary scope value is used")
-            filter_primary_scope: Filter = Equals(
-                property=self.target_entities_view.as_property_ref(primary_scope_property),
-                value=primary_scope_value,
-            )
-            if secondary_scope_value:
-                secondary_scope_property = self.config.launch_function.secondary_scope_property
-                if not secondary_scope_property:
-                    raise ValueError("secondaryScopeProperty is required when a secondary scope value is used")
-                filter_secondary_scope: Filter = Equals(
-                    property=self.target_entities_view.as_property_ref(secondary_scope_property),
-                    value=secondary_scope_value,
-                )
-                target_filter = (filter_primary_scope & filter_secondary_scope & filter_entities) | (
-                    filter_primary_scope & filter_scope_wide
-                )
-            else:
-                target_filter = (filter_primary_scope & filter_entities) | (filter_primary_scope & filter_scope_wide)
-        return target_filter
-
-    def _get_file_entities_filter(self, primary_scope_value: str, secondary_scope_value: str | None) -> Filter:
-        """
-        Builds a filter for file entities based on scope and configuration.
-
-        Creates a filter combining scope-specific filtering with global 'ScopeWideDetect' files,
-        ensuring file entities have the required search properties.
-
-        Args:
-            primary_scope_value: Primary scope identifier for filtering file entities.
-            secondary_scope_value: Optional secondary scope identifier for more specific filtering.
-
-        Returns:
-            Combined Filter for querying file entities.
-
-        NOTE: Create a filter that...
-            - grabs assets in the primary_scope_value and secondary_scope_value provided with DetectInDiagram in the tags property
-            or
-            - grabs assets in the primary_scope_value with ScopeWideDetect in the tags property (hard coded) -> provides an option to include entities outside of the secondary_scope_value
-        """
-        filter_entities: Filter = self.filter_file_entities
-        filter_search_property_exists: Filter = Exists(
-            property=self.file_view.as_property_ref(self.config.launch_function.file_search_property),
-        )
-        # NOTE: ScopeWideDetect is an optional string that allows annotating across scopes
-        filter_scope_wide: Filter = In(
-            property=self.file_view.as_property_ref("tags"),
-            values=["ScopeWideDetect"],
-        )
-        if not primary_scope_value:
-            file_filter = (filter_entities & filter_search_property_exists) | (filter_scope_wide)
-        else:
-            primary_scope_property = self.config.launch_function.primary_scope_property
-            if not primary_scope_property:
-                raise ValueError("primaryScopeProperty is required when a primary scope value is used")
-            filter_primary_scope: Filter = Equals(
-                property=self.file_view.as_property_ref(primary_scope_property),
-                value=primary_scope_value,
-            )
-            if secondary_scope_value:
-                secondary_scope_property = self.config.launch_function.secondary_scope_property
-                if not secondary_scope_property:
-                    raise ValueError("secondaryScopeProperty is required when a secondary scope value is used")
-                filter_secondary_scope: Filter = Equals(
-                    property=self.file_view.as_property_ref(secondary_scope_property),
-                    value=secondary_scope_value,
-                )
-                file_filter = (
-                    filter_primary_scope & filter_entities & filter_secondary_scope & filter_search_property_exists
-                ) | (filter_primary_scope & filter_scope_wide)
-            else:
-                file_filter = (filter_primary_scope & filter_entities & filter_search_property_exists) | (
-                    filter_primary_scope & filter_scope_wide
-                )
-
-        return file_filter
+        in_scope: list[EntityInstance] = []
+        wanted_tags = set(entity_tags)
+        for entity in synced[1]:
+            properties = entity.properties[view_id]
+            if primary_property and properties.get(primary_property) != primary_scope_value:
+                continue
+            raw_tags = properties.get("tags")
+            tags = set(raw_tags) if isinstance(raw_tags, list) else set()
+            scope_wide = TAG_SCOPE_WIDE_DETECT in tags
+            in_secondary_scope = not secondary_property or properties.get(secondary_property) == secondary_scope_value
+            searchable = not required_property or properties.get(required_property) is not None
+            if scope_wide or (not wanted_tags.isdisjoint(tags) and in_secondary_scope and searchable):
+                in_scope.append(entity)
+        return in_scope
