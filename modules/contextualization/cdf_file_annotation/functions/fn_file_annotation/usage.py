@@ -31,11 +31,11 @@ def report_usage(client: CogniteClient) -> None:
                         "cdf_project": client.config.project,
                     },
                 )
-            except OSError:
+            except Exception:
                 # Usage tracking is best-effort; must not affect the handler.
                 pass
 
         threading.Thread(target=send, daemon=False).start()
-    except OSError:
+    except Exception:
         # Usage tracking is best-effort; must not affect the handler.
         pass

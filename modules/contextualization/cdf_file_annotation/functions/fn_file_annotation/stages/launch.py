@@ -14,7 +14,7 @@ from dependencies import (
 )
 from fa_constants import FUNCTION_TIME_BUDGET_MINUTES
 from services.AnnotationService import IAnnotationService
-from services.ConfigService import format_launch_config
+from services.ConfigService import Config, format_launch_config
 from services.DataModelService import IDataModelService
 from services.EntityCacheService import ICacheService
 from services.LaunchService import (
@@ -24,6 +24,7 @@ from services.LaunchService import (
     LocalRateLimitPolicy,
     RateLimitPolicy,
 )
+from services.LoggerService import CogniteFunctionLogger
 from services.PipelineService import IPipelineService
 from utils.DataStructures import PerformanceTracker
 
@@ -130,11 +131,11 @@ def run_locally(config_file: dict[str, str], log_path: str | None = None):
 
 
 def _create_launch_service(
-    config,
-    client,
-    logger,
-    tracker,
-    function_call_info,
+    config: Config,
+    client: CogniteClient,
+    logger: CogniteFunctionLogger,
+    tracker: PerformanceTracker,
+    function_call_info: dict,
     rate_limit_policy: RateLimitPolicy,
     data_set_id: int | None,
     entity_read_deadline: float | None,

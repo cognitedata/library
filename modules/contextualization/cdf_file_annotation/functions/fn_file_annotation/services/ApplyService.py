@@ -709,7 +709,7 @@ class GeneralApplyService(IApplyService):
         Returns:
             Dictionary of annotation properties ready for EdgeApply or RAW table insertion, including standard fields and bounding box coordinates.
         """
-        region = detect_annotation.get("region", {})
+        region = detect_annotation.get("region") or {}
         if bounding_box is None:
             bounding_box = self._extract_bounding_box_from_region(region)
 

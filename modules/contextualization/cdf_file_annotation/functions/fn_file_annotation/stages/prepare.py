@@ -9,8 +9,9 @@ from dependencies import (
     create_write_logger_service,
 )
 from fa_constants import FUNCTION_TIME_BUDGET_MINUTES
-from services.ConfigService import format_prepare_config
+from services.ConfigService import Config, format_prepare_config
 from services.DataModelService import IDataModelService
+from services.LoggerService import CogniteFunctionLogger
 from services.PipelineService import IPipelineService
 from services.PrepareService import AbstractPrepareService, GeneralPrepareService
 from utils.DataStructures import PerformanceTracker
@@ -114,7 +115,13 @@ def run_locally(config_file: dict[str, str], log_path: str | None = None):
         logger_instance.close()
 
 
-def _create_prepare_service(config, client, logger, tracker, function_call_info) -> AbstractPrepareService:
+def _create_prepare_service(
+    config: Config,
+    client: CogniteClient,
+    logger: CogniteFunctionLogger,
+    tracker: PerformanceTracker,
+    function_call_info: dict,
+) -> AbstractPrepareService:
     data_model_instance: IDataModelService = create_general_data_model_service(config, client, logger)
     prepare_instance: AbstractPrepareService = GeneralPrepareService(
         client=client,
