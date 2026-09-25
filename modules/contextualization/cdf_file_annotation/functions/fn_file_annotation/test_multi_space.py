@@ -191,15 +191,37 @@ def test_promote_searches_each_text_in_the_space_of_the_file_it_was_found_in() -
 def test_promote_cache_does_not_return_an_entity_from_another_space() -> None:
     from services.PromoteCacheService import CacheService
 
+    rows = {
+        "plant_b:P-101": Row(
+            key="plant_b:P-101",
+            columns={"annotationType": ASSET_LINK, "endNode": "asset-b", "endNodeSpace": "plant_b"},
+        )
+    }
     client = MagicMock()
-    client.raw.rows.retrieve.return_value = Row(
-        key="P-101", columns={"annotationType": ASSET_LINK, "endNode": "asset-b", "endNodeSpace": "plant_b"}
-    )
+    client.raw.rows.retrieve.side_effect = lambda db_name, table_name, key: rows.get(key)
     cache = CacheService(_config(None, None), client, MagicMock(), normalize_fn=lambda text, _: text)
 
     assert cache.get("P-101", ASSET_LINK, "plant_a") is None
     cached = cache.get("P-101", ASSET_LINK, "plant_b")
     assert cached is not None and cached.external_id == "asset-b"
+
+
+def test_promote_cache_persistent_key_includes_space() -> None:
+    """Same text in different spaces must not overwrite each other's RAW rows."""
+    from services.PromoteCacheService import CacheService
+
+    client = MagicMock()
+    cache = CacheService(_config(None, None), client, MagicMock(), normalize_fn=lambda text, _: text)
+
+    node_a, node_b = MagicMock(), MagicMock()
+    node_a.space, node_a.external_id = "plant_a", "asset-a"
+    node_b.space, node_b.external_id = "plant_b", "asset-b"
+
+    cache.set("P-101", ASSET_LINK, "plant_a", node_a)
+    cache.set("P-101", ASSET_LINK, "plant_b", node_b)
+
+    keys = [call.kwargs["row"].key for call in client.raw.rows.insert.call_args_list]
+    assert keys == ["plant_a:P-101", "plant_b:P-101"]
 
 
 def test_promote_runs_without_a_file_view_space() -> None:

@@ -82,6 +82,7 @@ class CacheService(ICacheService):
     **TIER 2: Persistent RAW Cache** (All Runs):
     - Fast lookup (single database query)
     - Stored in RAW table: promote_text_to_entity_cache
+    - Row key is ``{space}:{normalized_text}`` so multi-space deployments do not thrash
     - Benefits all future function runs indefinitely
     - Includes resourceType column for complete entity info
     - **Only persists positive matches** (unambiguous single entities found)
@@ -170,8 +171,8 @@ class CacheService(ICacheService):
             return cached_result
 
         # TIER 2: Persistent RAW cache (fast, no retrieve_nodes call)
-        cached_info: CachedEntityInfo | None = self._get_from_persistent_cache(text, annotation_type)
-        if cached_info and cached_info.space == space:
+        cached_info: CachedEntityInfo | None = self._get_from_persistent_cache(text, annotation_type, space)
+        if cached_info:
             self.logger.info(f"✓ [CACHE] Persistent cache HIT for '{text}'")
             # Populate in-memory cache for future lookups in this run
             self._memory_cache[cache_key] = cached_info
@@ -259,12 +260,16 @@ class CacheService(ICacheService):
 
         # Positive cache entry (BOTH in-memory AND persistent RAW)
         self._memory_cache[cache_key] = cached_info
-        self._set_in_persistent_cache(text, annotation_type, node, resource_type)
+        self._set_in_persistent_cache(text, annotation_type, space, node, resource_type)
         self.logger.debug(f"✓ [CACHE] Cached positive match for '{text}' → {node.external_id} (in-memory + RAW)")
 
-    def _get_from_persistent_cache(self, text: str, annotation_type: str) -> CachedEntityInfo | None:
+    def _persistent_cache_key(self, text: str, annotation_type: str, space: str) -> str:
+        """RAW row key scoped by instance space so multi-space deployments do not thrash."""
+        return f"{space}:{self.normalize(text, annotation_type)}"
+
+    def _get_from_persistent_cache(self, text: str, annotation_type: str, space: str) -> CachedEntityInfo | None:
         """
-        Checks persistent RAW cache for text → entity mapping.
+        Checks persistent RAW cache for text → entity mapping in a space.
 
         Returns CachedEntityInfo directly without calling retrieve_nodes.
 
@@ -272,8 +277,7 @@ class CacheService(ICacheService):
             CachedEntityInfo if cache hit, None if miss
         """
         try:
-            # Normalize text for consistent cache keys
-            cache_key: str = self.normalize(text, annotation_type)
+            cache_key: str = self._persistent_cache_key(text, annotation_type, space)
 
             row: Row | None = self.client.raw.rows.retrieve(
                 db_name=self.raw_db,
@@ -296,6 +300,10 @@ class CacheService(ICacheService):
             if not isinstance(end_node_space, str) or not isinstance(end_node_ext_id, str):
                 return None
 
+            # Reject rows whose stored space does not match the key (corrupt / legacy data)
+            if end_node_space != space:
+                return None
+
             cached_resource_type: str | None = resource_type if isinstance(resource_type, str) else None
 
             # Return CachedEntityInfo directly - no retrieve_nodes call needed
@@ -311,10 +319,10 @@ class CacheService(ICacheService):
             return None
 
     def _set_in_persistent_cache(
-        self, text: str, annotation_type: str, node: Node, resource_type: str | None = None
+        self, text: str, annotation_type: str, space: str, node: Node, resource_type: str | None = None
     ) -> None:
         """
-        Updates persistent RAW cache with text → entity mapping.
+        Updates persistent RAW cache with text → entity mapping for a space.
         Only caches unambiguous single matches.
         Includes resourceType to avoid needing retrieve_nodes on cache hits.
 
@@ -326,7 +334,7 @@ class CacheService(ICacheService):
         and will be a usersId for the manual promotions.
         """
         try:
-            cache_key: str = self.normalize(text, annotation_type)
+            cache_key: str = self._persistent_cache_key(text, annotation_type, space)
 
             cache_columns: dict[str, object] = {
                 "originalText": text,

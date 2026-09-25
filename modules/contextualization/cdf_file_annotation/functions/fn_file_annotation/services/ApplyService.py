@@ -55,10 +55,10 @@ class GeneralApplyService(IApplyService):
     Implementation of the ApplyService interface.
     """
 
-    EXTERNAL_ID_LIMIT = 256
-    FUNCTION_ID = "fn_file_annotation"
+    EXTERNAL_ID_LIMIT: int = 256
+    FUNCTION_ID: str = "fn_file_annotation"
     # Legacy finalize function ID — still present on annotations from older deployments.
-    OWN_SOURCE_CREATED_USERS = (FUNCTION_ID, "fn_file_annotation_finalize")
+    OWN_SOURCE_CREATED_USERS: tuple[str, ...] = (FUNCTION_ID, "fn_file_annotation_finalize")
 
     def __init__(self, client: CogniteClient, config: Config, logger: CogniteFunctionLogger):
         self.client: CogniteClient = client
