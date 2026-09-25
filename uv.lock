@@ -721,7 +721,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "cognite-sdk", specifier = ">=7.76.0,<8" },
+    { name = "cognite-sdk", specifier = ">=7.94.0,<8" },
     { name = "mixpanel", specifier = ">=4.10.0" },
     { name = "msal", specifier = "==1.37.0" },
     { name = "protobuf", specifier = ">=6.33.5,<7.0" },

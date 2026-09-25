@@ -13,7 +13,8 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 
 # Local dev / uv lock dependencies (may include broader ranges than deploy).
 FILE_ANNOTATION_RUNTIME = [
-    "cognite-sdk>=7.76.0,<8",
+    # Floor matches the deploy pin, so tests never run on a newer SDK than CDF installs.
+    "cognite-sdk>=7.94.0,<8",
     "msal==1.37.0",
     "pydantic>=2.12.4,<3.0.0",
     "PyJWT>=2.13.0,<3.0",
@@ -36,7 +37,8 @@ FILE_ANNOTATION_STREAMLIT_RUNTIME = [
 # cryptography is not imported directly; it is pinned to a floor because versions
 # 44.0.0 to 49.x expose a Bleichenbacher oracle in the PKCS#7 decrypt helpers.
 FILE_ANNOTATION_DEPLOY = [
-    "cognite-sdk==7.76.0",
+    # 7.94.0 or later: the entity read uses NodeResultSetExpression(sync_mode=...).
+    "cognite-sdk==7.94.0",
     "cryptography>=50.0.0",
     "pydantic>=2.12.4,<3.0.0",
     "python-dotenv==1.2.2",
