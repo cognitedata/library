@@ -157,7 +157,11 @@ def test_detections_without_a_region_do_not_crash_the_apply_step() -> None:
 
 
 def test_cleaning_old_annotations_only_targets_edges_created_by_this_function() -> None:
-    """Manual and third-party annotations on the same file must survive a re-annotation."""
+    """Manual and third-party annotations on the same file must survive a re-annotation.
+
+    Cleanup must also match the legacy finalize function ID so older deployments do not leave
+    orphaned duplicates.
+    """
     client = MagicMock()
     file_node = MagicMock()
     file_node.as_id.return_value = FILE_ID
@@ -174,6 +178,7 @@ def test_cleaning_old_annotations_only_targets_edges_created_by_this_function() 
         dumped = json.dumps(call.args[0].with_["edges"].filter.dump())
         assert '"sourceCreatedUser"' in dumped
         assert '"fn_file_annotation"' in dumped
+        assert '"fn_file_annotation_finalize"' in dumped
         # Only the ids and types of the edges are used to delete them.
         assert call.args[0].select["edges"].sources == []
 

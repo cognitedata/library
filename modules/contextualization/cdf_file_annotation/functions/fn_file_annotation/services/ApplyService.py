@@ -19,7 +19,7 @@ from cognite.client.data_classes.data_modeling import (
     ViewId,
 )
 from cognite.client.data_classes.data_modeling.query import EdgeResultSetExpression, Query, Select
-from cognite.client.data_classes.filters import And, Equals, HasData
+from cognite.client.data_classes.filters import And, Equals, HasData, In
 from fa_constants import QUERY_PAGE_SIZE
 from services.ConfigService import Config
 from services.LoggerService import CogniteFunctionLogger
@@ -57,6 +57,8 @@ class GeneralApplyService(IApplyService):
 
     EXTERNAL_ID_LIMIT = 256
     FUNCTION_ID = "fn_file_annotation"
+    # Legacy finalize function ID — still present on annotations from older deployments.
+    OWN_SOURCE_CREATED_USERS = (FUNCTION_ID, "fn_file_annotation_finalize")
 
     def __init__(self, client: CogniteClient, config: Config, logger: CogniteFunctionLogger):
         self.client: CogniteClient = client
@@ -254,7 +256,8 @@ class GeneralApplyService(IApplyService):
 
     def _list_annotations_for_file(self, node_id: NodeId, edge_instance_space: str) -> list[Edge]:
         """
-        Retrieves the annotation edges this function created for a specific file in a given instance space.
+        Retrieves the annotation edges this function (or its legacy finalize predecessor) created for a
+        specific file in a given instance space.
 
         Manual and third-party annotations are excluded so they survive a clean.
 
@@ -273,7 +276,10 @@ class GeneralApplyService(IApplyService):
                 {"space": node_id.space, "externalId": node_id.external_id},
             ),
             HasData(views=[self.core_annotation_view_id]),
-            Equals(self.core_annotation_view_id.as_property_ref("sourceCreatedUser"), self.FUNCTION_ID),
+            In(
+                self.core_annotation_view_id.as_property_ref("sourceCreatedUser"),
+                list(self.OWN_SOURCE_CREATED_USERS),
+            ),
         )
 
         edges: list[Edge] = []

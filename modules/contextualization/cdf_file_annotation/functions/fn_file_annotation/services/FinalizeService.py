@@ -196,11 +196,12 @@ class GeneralFinalizeService(AbstractFinalizeService):
 
         for (space, external_id), results in merged_results.items():
             file_id = NodeId(space, external_id)
-            file_node = self.client.data_modeling.instances.retrieve_nodes(
+            file_nodes = self.client.data_modeling.instances.retrieve_nodes(
                 nodes=file_id, sources=self.file_view.as_view_id()
             )
-            if not file_node:
+            if not file_nodes:
                 continue
+            file_node = file_nodes[0]
 
             annotation_state_node = file_to_state_map[file_id]
             state_properties = (annotation_state_node.properties or {}).get(

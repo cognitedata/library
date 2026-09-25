@@ -1317,7 +1317,7 @@ def test_prepare_writes_only_the_tags_of_a_file() -> None:
 
 
 def test_finalize_writes_only_the_tags_of_an_annotated_file() -> None:
-    from cognite.client.data_classes.data_modeling import Node, NodeId
+    from cognite.client.data_classes.data_modeling import Node, NodeId, NodeList
     from services.FinalizeService import GeneralFinalizeService
 
     state_node = Node.load(
@@ -1337,7 +1337,9 @@ def test_finalize_writes_only_the_tags_of_an_annotated_file() -> None:
         "items": [{"fileInstanceId": {"space": "files", "externalId": "doc-1"}, "pageCount": 1, "annotations": []}]
     }
     client = MagicMock()
-    client.data_modeling.instances.retrieve_nodes.return_value = _file_node(["ToAnnotate", "AnnotationInProcess"])
+    client.data_modeling.instances.retrieve_nodes.return_value = NodeList(
+        [_file_node(["ToAnnotate", "AnnotationInProcess"])]
+    )
     apply_service = MagicMock()
     apply_service.process_and_apply_annotations_for_file.return_value = ("regular", "pattern")
     service = GeneralFinalizeService(
