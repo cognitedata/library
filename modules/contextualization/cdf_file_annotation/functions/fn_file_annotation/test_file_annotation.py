@@ -4,9 +4,13 @@ import importlib.util
 import sys
 from pathlib import Path
 from types import ModuleType
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
 import pytest
+
+if TYPE_CHECKING:
+    from services.FinalizeService import GeneralFinalizeService
 
 _FUNCTION_DIR = Path(__file__).parent
 sys.path.append(str(_FUNCTION_DIR))
@@ -1317,8 +1321,8 @@ def test_prepare_writes_only_the_tags_of_a_file() -> None:
     assert file_apply.sources[0].properties == {"tags": ["ToAnnotate", "AnnotationInProcess"]}
 
 
-def test_finalize_writes_only_the_tags_of_an_annotated_file() -> None:
-    from cognite.client.data_classes.data_modeling import Node, NodeId, NodeList
+def _finalize_service_for_one_file(apply_service: MagicMock) -> "GeneralFinalizeService":
+    from cognite.client.data_classes.data_modeling import Node, NodeId
     from services.FinalizeService import GeneralFinalizeService
 
     state_node = Node.load(
@@ -1338,12 +1342,9 @@ def test_finalize_writes_only_the_tags_of_an_annotated_file() -> None:
         "items": [{"fileInstanceId": {"space": "files", "externalId": "doc-1"}, "pageCount": 1, "annotations": []}]
     }
     client = MagicMock()
-    client.data_modeling.instances.retrieve_nodes.return_value = NodeList(
-        [_file_node(["ToAnnotate", "AnnotationInProcess"])]
-    )
-    apply_service = MagicMock()
-    apply_service.process_and_apply_annotations_for_file.return_value = ("regular", "pattern")
-    service = GeneralFinalizeService(
+    # A single NodeId returns a single Node, not a NodeList.
+    client.data_modeling.instances.retrieve_nodes.return_value = _file_node(["ToAnnotate", "AnnotationInProcess"])
+    return GeneralFinalizeService(
         client,
         _config_with_debug_file(None),
         MagicMock(log_level="INFO"),
@@ -1353,11 +1354,29 @@ def test_finalize_writes_only_the_tags_of_an_annotated_file() -> None:
         {},
     )
 
-    service.run()
+
+def test_finalize_writes_only_the_tags_of_an_annotated_file() -> None:
+    apply_service = MagicMock()
+    apply_service.process_and_apply_annotations_for_file.return_value = ("regular", "pattern")
+
+    _finalize_service_for_one_file(apply_service).run()
 
     applies = apply_service.update_instances.call_args.kwargs["list_node_apply"]
     (file_apply,) = [apply for apply in applies if apply.external_id == "doc-1"]
     assert file_apply.sources[0].properties == {"tags": ["ToAnnotate", "Annotated"]}
+
+
+def test_a_crashed_finalize_hands_the_claimed_job_back() -> None:
+    """A claim left in Finalizing is only relaunched after 12 hours, although the detect job is done."""
+    apply_service = MagicMock()
+    apply_service.process_and_apply_annotations_for_file.side_effect = KeyError(0)
+
+    with pytest.raises(KeyError):
+        _finalize_service_for_one_file(apply_service).run()
+
+    (released,) = apply_service.update_instances.call_args.kwargs["list_node_apply"]
+    assert released.external_id == "state-1"
+    assert released.sources[0].properties["annotationStatus"] == "Processing"
 
 
 def test_launch_does_not_serialize_entities_below_debug(monkeypatch: pytest.MonkeyPatch) -> None:

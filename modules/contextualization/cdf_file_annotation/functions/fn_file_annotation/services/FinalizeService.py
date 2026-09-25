@@ -128,6 +128,35 @@ class GeneralFinalizeService(AbstractFinalizeService):
                 raise e
         self.query_timeout.reset()
 
+        try:
+            self._finalize_job(regular_job, pattern_mode_job, file_to_state_map)
+        except Exception:
+            # Re-raised after releasing, so the next run reads the finished detect jobs instead of waiting 12 hours.
+            self.logger.info(f"Finalize failed: handing {len(file_to_state_map)} claimed files back to Processing")
+            self._update_batch_state(
+                batch=BatchOfNodes(nodes=list(file_to_state_map.values())),
+                status=AnnotationStatus.PROCESSING,
+            )
+            raise
+        return None
+
+    def _finalize_job(
+        self,
+        regular_job: tuple[int, str] | None,
+        pattern_mode_job: tuple[int, str] | None,
+        file_to_state_map: dict[NodeId, Node],
+    ) -> None:
+        """
+        Reads the results of the claimed detect jobs and applies them to their files and annotation states.
+
+        Args:
+            regular_job: Regular diagram detect job ID and token, if any.
+            pattern_mode_job: Pattern mode diagram detect job ID and token, if any.
+            file_to_state_map: The claimed annotation state node of each file in the jobs.
+
+        Returns:
+            None
+        """
         job_results: dict | None = None
         pattern_mode_job_results: dict | None = None
         try:
