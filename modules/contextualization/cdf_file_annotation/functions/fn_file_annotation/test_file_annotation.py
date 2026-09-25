@@ -1197,9 +1197,10 @@ def test_prepare_in_debug_mode_only_retrieves_the_debug_file() -> None:
     from services.DataModelService import GeneralDataModelService
 
     client = MagicMock()
+    client.data_modeling.instances.query.return_value = _query_page([], cursor=None)
     GeneralDataModelService(_config_with_debug_file("PID-001"), client, MagicMock()).get_files_to_annotate()
 
-    query_filter = str(client.data_modeling.instances.list.call_args.kwargs["filter"].dump())
+    query_filter = str(client.data_modeling.instances.query.call_args.args[0].with_["files"].filter.dump())
     assert "PID-001" in query_filter
     assert "ToAnnotate" not in query_filter
     assert "AnnotationInProcess" in query_filter
@@ -1209,10 +1210,11 @@ def test_launch_in_debug_mode_only_retrieves_the_debug_file_state() -> None:
     from services.DataModelService import GeneralDataModelService
 
     client = MagicMock()
-    client.data_modeling.instances.list.return_value = []
+    client.data_modeling.instances.query.return_value = _query_page([], cursor=None)
     GeneralDataModelService(_config_with_debug_file("PID-001"), client, MagicMock()).get_files_to_process()
 
-    query_filter = str(client.data_modeling.instances.list.call_args.kwargs["filter"].dump())
+    query = client.data_modeling.instances.query.call_args.args[0]
+    query_filter = str({name: expression.dump() for name, expression in query.with_.items()})
     assert "linkedFile" in query_filter
     assert "PID-001" in query_filter
     assert "Finalizing" not in query_filter

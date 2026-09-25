@@ -5,9 +5,10 @@ from typing import Final
 BATCH_SIZE: Final = 50
 PAGE_RANGE: Final = 50
 MAX_RETRY_ATTEMPTS: Final = 3
-MAX_ENTITY_SEARCH_LIMIT: Final = 1000
+MAX_ENTITY_SEARCH_LIMIT: Final = 2  # Promote needs one match, or a second to tell the text is ambiguous
 PREPARE_FILE_LIMIT: Final = 10000
 LAUNCH_STATE_LIMIT: Final = 1000
+QUERY_PAGE_SIZE: Final = 1000
 PROMOTE_CANDIDATE_LIMIT: Final = 500
 FUNCTION_TIME_BUDGET_MINUTES: Final = 7
 LOCAL_RATE_LIMIT_SLEEP_SECONDS: Final = 900

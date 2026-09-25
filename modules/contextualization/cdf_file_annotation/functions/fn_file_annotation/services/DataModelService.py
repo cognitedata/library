@@ -11,14 +11,22 @@ from cognite.client.data_classes.data_modeling import (
     NodeList,
     ViewId,
 )
+from cognite.client.data_classes.data_modeling.query import (
+    NodeResultSetExpression,
+    Query,
+    ResultSetExpression,
+    Select,
+    SourceSelector,
+)
 from cognite.client.data_classes.filters import (
     Equals,
     Filter,
+    HasData,
     In,
     Not,
     Range,
 )
-from fa_constants import TAG_ANNOTATION_IN_PROCESS, TAG_SCOPE_WIDE_DETECT
+from fa_constants import LAUNCH_STATE_LIMIT, QUERY_PAGE_SIZE, TAG_ANNOTATION_IN_PROCESS, TAG_SCOPE_WIDE_DETECT
 from services.ConfigService import (
     Config,
     ViewPropertyConfig,
@@ -158,17 +166,55 @@ class GeneralDataModelService(IDataModelService):
             filter_files_to_annotate = Equals(["node", "externalId"], debug_file.external_id) & Not(
                 In(self.file_view.as_property_ref("tags"), [TAG_ANNOTATION_IN_PROCESS])
             )
-        result: NodeList | None = self.client.data_modeling.instances.list(
-            instance_type="node",
-            sources=self.file_view.as_view_id(),
-            space=self.file_view.instance_space,
-            # NOTE: the amount of instances that are returned may or may not matter
-            # depending on how the memory constraints of azure/aws functions
-            limit=self.get_files_to_annotate_retrieve_limit,
-            filter=filter_files_to_annotate,
+        return self._query_nodes(
+            "files",
+            self.file_view,
+            filter_files_to_annotate,
+            ["tags"],
+            self.get_files_to_annotate_retrieve_limit or -1,
         )
 
-        return result
+    def _query_nodes(
+        self, name: str, view: ViewPropertyConfig, node_filter: Filter, properties: list[str], limit: int
+    ) -> NodeList:
+        """
+        Reads the nodes of a view matching the filter, a page at a time, carrying only the given properties.
+
+        Args:
+            name: Name of the result set, as it shows up in the query.
+            view: View the nodes are read from, in its instanceSpace when it has one.
+            node_filter: Filter selecting the nodes.
+            properties: View properties to return.
+            limit: Maximum number of nodes; -1 reads them all.
+
+        Returns:
+            The matching nodes.
+        """
+        view_id = view.as_view_id()
+        node_filter = self._in_view(view, node_filter)
+        nodes: list[Node] = []
+        cursor: str | None = None
+        while True:
+            page_size = QUERY_PAGE_SIZE if limit < 0 else min(QUERY_PAGE_SIZE, limit - len(nodes))
+            query = Query(
+                with_={name: NodeResultSetExpression(filter=node_filter, limit=page_size)},
+                select={name: Select([SourceSelector(view_id, properties)])},
+                cursors={name: cursor},
+            )
+            result = self.client.data_modeling.instances.query(query)
+            page = list(result[name])
+            nodes.extend(page)
+            cursor = result.cursors.get(name)
+            if not cursor or len(page) < page_size or (limit >= 0 and len(nodes) >= limit):
+                return NodeList(nodes)
+
+    @staticmethod
+    def _in_view(view: ViewPropertyConfig, node_filter: Filter) -> Filter:
+        """The filter narrowed to nodes with data in the view, in its instanceSpace when it has one."""
+        scoped: Filter = HasData(views=[view.as_view_id()]) & node_filter
+        if view.instance_space:
+            scoped = Equals(["node", "space"], view.instance_space) & scoped
+        return scoped
 
     def get_files_to_process(
         self,
@@ -176,8 +222,11 @@ class GeneralDataModelService(IDataModelService):
         """
         Retrieves files with annotation state instances that are ready for diagram detection.
 
-        Queries for FileAnnotationStateInstances based on the getFilesToProcess config parameter,
-        extracts the linked file NodeIds, and retrieves the corresponding file nodes.
+        The states and their linked files are read in one query: the states that are New/Retry
+        (the getFilesToProcess filter) and those stuck in Processing/Finalizing for more than
+        12 hours are separate result sets, since one OR across both keeps DMS from paging it with
+        an index. The files are reached through the linkedFile relation and carry only the
+        properties Launch uses. Stuck states come first, then new ones, up to the retrieve limit.
 
         Args:
             None
@@ -187,79 +236,79 @@ class GeneralDataModelService(IDataModelService):
                 - NodeList of file instances to process
                 - Dictionary mapping file NodeIds to their annotation state Node instances
             Returns (None, None) if no files are found.
+
+        NOTE: With debugFileExternalId set, only the debug file's state is read and the stuck-job retry is skipped.
         """
-        annotation_state_filter = self._get_annotation_state_filter()
-        annotation_state_instances: NodeList = self.client.data_modeling.instances.list(
-            instance_type="node",
-            sources=self.annotation_state_view.as_view_id(),
-            space=self.annotation_state_view.instance_space,
-            limit=self.get_files_to_process_retrieve_limit,
-            filter=annotation_state_filter,
+        state_view_id = self.annotation_state_view.as_view_id()
+        file_view_id = self.file_view.as_view_id()
+        launch = self.config.launch_function
+        file_properties = list(
+            dict.fromkeys(p for p in ["tags", launch.primary_scope_property, launch.secondary_scope_property] if p)
         )
+        limit = self.get_files_to_process_retrieve_limit
+        page_size = LAUNCH_STATE_LIMIT if not limit or limit < 0 else limit
 
-        if not annotation_state_instances:
-            return None, None
-
-        file_to_state_map: dict[NodeId, Node] = {}
-        list_file_node_ids: list[NodeId] = []
-
-        for node in annotation_state_instances:
-            file_reference = node.properties.get(self.annotation_state_view.as_view_id()).get("linkedFile")
-            if self.file_view.instance_space is None or self.file_view.instance_space == file_reference["space"]:
-                file_node_id = NodeId(
-                    space=file_reference["space"],
-                    external_id=file_reference["externalId"],
-                )
-
-                file_to_state_map[file_node_id] = node
-                list_file_node_ids.append(file_node_id)
-
-        file_instances: NodeList = self.client.data_modeling.instances.retrieve_nodes(
-            nodes=list_file_node_ids,
-            sources=self.file_view.as_view_id(),
-        )
-
-        return file_instances, file_to_state_map
-
-    def _get_annotation_state_filter(self) -> Filter:
-        """
-        Builds a filter for annotation state instances, including automatic retry logic for stuck jobs.
-
-        Combines the configured filter with a fallback filter that catches annotation state instances
-        stuck in Processing/Finalizing status for more than 12 hours.
-
-        Args:
-            None
-
-        Returns:
-            Combined Filter for querying annotation state instances.
-
-        NOTE: filter = (getFilesToProcess filter || (annotationStatus == Processing && now() - lastUpdatedTime) > 1440 minutes)
-        - getFilesToProcess filter comes from extraction pipeline
-        - (annotationStatus == Processing | Finalizing && now() - lastUpdatedTime) > 720 minutes/12 hours -> hardcoded -> reprocesses any file that's stuck
-            - Edge case that occurs very rarely but can happen.
-        NOTE: Implementation of a more complex query that can't be handled in config should come from an implementation of the interface.
-        NOTE: With debugFileExternalId set, only the debug file's state is returned and the stuck-job retry is skipped.
-        """
+        state_sets = {"new_states": self.filter_files_to_process}
         debug_file = self.config.debug_file
         if debug_file:
-            return self.filter_files_to_process & Equals(
+            state_sets["new_states"] = self.filter_files_to_process & Equals(
                 self.annotation_state_view.as_property_ref("linkedFile"),
                 {"space": debug_file.space, "externalId": debug_file.external_id},
             )
+        else:
+            state_sets = {"stuck_states": self._get_stuck_state_filter(), **state_sets}
 
-        annotation_status_property = self.annotation_state_view.as_property_ref("annotationStatus")
-        annotation_last_updated_property = self.annotation_state_view.as_property_ref("sourceUpdatedTime")
-        # NOTE: While this number is hard coded, I believe it doesn't need to be configured. Number comes from my experience with the pipeline. Feel free to change if your experience leads to a different number
+        with_: dict[str, ResultSetExpression] = {}
+        select: dict[str, Select] = {}
+        for states in state_sets:
+            files = states.replace("_states", "_files")
+            with_[states] = NodeResultSetExpression(
+                filter=self._in_view(self.annotation_state_view, state_sets[states]), limit=page_size
+            )
+            with_[files] = NodeResultSetExpression(
+                from_=states,
+                through=state_view_id.as_property_ref("linkedFile"),
+                direction="outwards",
+                limit=page_size,
+            )
+            select[states] = Select([SourceSelector(state_view_id, ["*"])])
+            select[files] = Select([SourceSelector(file_view_id, file_properties)])
+        result = self.client.data_modeling.instances.query(Query(with_=with_, select=select))
+
+        files_by_id: dict[NodeId, Node] = {}
+        file_to_state_map: dict[NodeId, Node] = {}
+        for states in state_sets:
+            files_by_id.update({file.as_id(): file for file in result[states.replace("_states", "_files")]})
+            for state in result[states]:
+                if len(file_to_state_map) >= page_size:
+                    break
+                file_reference = ((state.properties or {}).get(state_view_id) or {}).get("linkedFile")
+                if not isinstance(file_reference, dict):
+                    continue
+                file_node_id = NodeId(file_reference["space"], file_reference["externalId"])
+                in_file_space = self.file_view.instance_space in (None, file_node_id.space)
+                if in_file_space and file_node_id in files_by_id:
+                    file_to_state_map.setdefault(file_node_id, state)
+
+        if not file_to_state_map:
+            return None, None
+        return NodeList([files_by_id[file_id] for file_id in file_to_state_map]), file_to_state_map
+
+    def _get_stuck_state_filter(self) -> Filter:
+        """
+        The annotation states stuck in Processing/Finalizing for more than 12 hours, which Launch runs again.
+
+        NOTE: While this number is hard coded, I believe it doesn't need to be configured. Number comes from my
+        experience with the pipeline. Feel free to change if your experience leads to a different number.
+        """
         latest_permissible_time_utc = datetime.now(UTC) - timedelta(minutes=720)
-        latest_permissible_time_utc = latest_permissible_time_utc.isoformat(timespec="milliseconds")
-        filter_stuck = In(
-            annotation_status_property,
+        return In(
+            self.annotation_state_view.as_property_ref("annotationStatus"),
             [AnnotationStatus.PROCESSING, AnnotationStatus.FINALIZING],
-        ) & Range(annotation_last_updated_property, lt=latest_permissible_time_utc)
-
-        filter = self.filter_files_to_process | filter_stuck  # | == OR
-        return filter
+        ) & Range(
+            self.annotation_state_view.as_property_ref("sourceUpdatedTime"),
+            lt=latest_permissible_time_utc.isoformat(timespec="milliseconds"),
+        )
 
     def update_annotation_state(self, list_node_apply: list[NodeApply]) -> NodeApplyResultList:
         """

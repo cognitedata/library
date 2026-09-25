@@ -173,7 +173,7 @@ class EntitySearchService(IEntitySearchService):
 
             if len(matched_entities) > 1:
                 self.logger.warning(
-                    f"Found {len(matched_entities)} entities with aliases matching '{original_text}' in space '{entity_space}'. "
+                    f"Found more than one entity with aliases matching '{original_text}' in space '{entity_space}'. "
                     f"This is ambiguous. Returning first 2 for ambiguity detection."
                 )
                 return matched_entities[:2]
