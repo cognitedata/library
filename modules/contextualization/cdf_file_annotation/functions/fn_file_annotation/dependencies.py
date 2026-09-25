@@ -82,7 +82,11 @@ def _valid_log_level(log_level: str) -> str:
 
 
 def create_logger_service(log_level: str, filepath: str | None = None) -> CogniteFunctionLogger:
-    return CogniteFunctionLogger(log_level=_valid_log_level(log_level), write=filepath is not None, filepath=filepath)
+    return CogniteFunctionLogger(
+        log_level=_valid_log_level(log_level),
+        write=filepath is not None,
+        filepath=filepath,
+    )
 
 
 def create_write_logger_service(log_level: str, filepath: str) -> CogniteFunctionLogger:

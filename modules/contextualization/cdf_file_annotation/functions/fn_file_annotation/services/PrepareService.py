@@ -112,7 +112,11 @@ class GeneralPrepareService(AbstractPrepareService):
                     for file_node in file_nodes_to_reset:
                         tags_property = node_tags(file_node, file_view_id)
                         reset_node_apply.append(
-                            tags_apply(file_node, file_view_id, [t for t in tags_property if t not in tags_to_remove])
+                            tags_apply(
+                                file_node,
+                                file_view_id,
+                                [t for t in tags_property if t not in tags_to_remove],
+                            )
                         )
                     update_results = self.data_model_service.update_annotation_state(reset_node_apply)
                     self.logger.info(
