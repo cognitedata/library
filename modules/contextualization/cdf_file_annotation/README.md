@@ -72,7 +72,7 @@ cdf_file_annotation/
 │   ├── 📄 rawTableDocDoc.Table.yaml               # Doc-to-doc link results
 │   ├── 📄 rawTableDocTag.Table.yaml               # Doc-to-tag link results
 │   ├── 📄 rawTableDocPattern.Table.yaml           # Pattern detection results
-│   ├── 📄 rawTableCache.Table.yaml                # Entity sync state
+│   ├── 📄 rawTableCache.Table.yaml                # Entity sync state and pattern samples
 │   ├── 📄 rawTablePromoteCache.Table.yaml         # Promote cache
 │   ├── 📄 rawTableAnnotationStatusReport.Table.yaml  # Per-file status report output
 │   └── 📄 rawManualPatternsCatalog.Table.yaml     # Manual pattern overrides
@@ -627,6 +627,9 @@ different containers, and the OR with `ScopeWideDetect` keeps DMS from paging it
   selected properties and tags.
 - A run with no changes downloads the file instead of reading the data model. Changes, a tag
   added or removed included, are merged into the file.
+- The auto pattern samples of each scope are stored in `rawTableCache` under
+  `pattern_samples:<scope>` and reused while the scope's entities and the normalization settings
+  are unchanged.
 - A long first read is stored every 5 minutes and Launch keeps reading until it is complete,
   then launches the files. A read still unfinished at the end of the function's 7-minute budget
   is continued by the next Launch call; the files waiting to be launched keep their claim until then.

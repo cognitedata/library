@@ -1,4 +1,6 @@
 import abc
+import hashlib
+import json
 import re
 from collections import defaultdict
 from collections.abc import Iterable, Iterator
@@ -7,6 +9,7 @@ from typing import cast
 from cognite.client import CogniteClient
 from cognite.client.data_classes import Row
 from cognite.client.exceptions import CogniteAPIError, CogniteNotFoundError
+from fa_constants import PATTERN_SAMPLES_KEY_PREFIX, PATTERN_SAMPLES_VERSION
 from normalization import extract_forms
 from services.ConfigService import Config, ViewPropertyConfig
 from services.DataModelService import IDataModelService
@@ -136,6 +139,7 @@ class GeneralCacheService(ICacheService):
 
         self.db_name: str = config.raw_tables.raw_db
         self.manual_patterns_tbl_name: str = config.raw_tables.raw_manual_patterns_catalog
+        self.pattern_samples_tbl_name: str = config.raw_tables.raw_table_cache
 
         self.file_view: ViewPropertyConfig = config.data_model_views.file_view
         self.target_entities_view: ViewPropertyConfig = config.data_model_views.target_entities_view
@@ -176,18 +180,26 @@ class GeneralCacheService(ICacheService):
         asset_entities, file_entities = self._convert_instances_to_entities(asset_instances, file_instances)
         entities = detectable_entities(asset_entities + file_entities)
 
-        # Generate pattern samples from the same entities (source-specific normalize filters)
+        # Generate pattern samples from the same entities (source-specific normalize filters),
+        # unless the samples stored for these exact entities and settings can be reused.
         text_norm = self.config.promote_function.entity_search_service.text_normalization
-        asset_pattern_samples = self._generate_tag_samples_from_entities(
-            asset_entities,
-            source_view=f"targetEntitiesView ({self.target_entities_view.external_id})",
-            normalize_patterns=text_norm.entity_normalization_patterns,
-        )
-        file_pattern_samples = self._generate_tag_samples_from_entities(
-            file_entities,
-            source_view=f"fileView ({self.file_view.external_id})",
-            normalize_patterns=text_norm.file_normalization_patterns,
-        )
+        fingerprint = self._pattern_sample_fingerprint(asset_entities, file_entities)
+        stored = self._read_pattern_samples(key, fingerprint)
+        if stored is not None:
+            asset_pattern_samples, file_pattern_samples = stored
+            self.logger.info(f"Entities of scope {key!r} unchanged - reusing the stored pattern samples")
+        else:
+            asset_pattern_samples = self._generate_tag_samples_from_entities(
+                asset_entities,
+                source_view=f"targetEntitiesView ({self.target_entities_view.external_id})",
+                normalize_patterns=text_norm.entity_normalization_patterns,
+            )
+            file_pattern_samples = self._generate_tag_samples_from_entities(
+                file_entities,
+                source_view=f"fileView ({self.file_view.external_id})",
+                normalize_patterns=text_norm.file_normalization_patterns,
+            )
+            self._write_pattern_samples(key, fingerprint, asset_pattern_samples, file_pattern_samples)
         auto_pattern_samples = asset_pattern_samples + file_pattern_samples
 
         # Grab the manual pattern samples
@@ -207,6 +219,66 @@ class GeneralCacheService(ICacheService):
             manual_pattern_strings=count_pattern_sample_strings(manual_pattern_samples),
         )
         return entities, combined_pattern_samples
+
+    def _pattern_sample_fingerprint(self, asset_entities: list[dict], file_entities: list[dict]) -> str:
+        """Fingerprint of everything the auto pattern samples of a scope are generated from."""
+        text_norm = self.config.promote_function.entity_search_service.text_normalization
+
+        def sample_inputs(entities: list[dict]) -> list[str]:
+            return sorted(
+                {
+                    json.dumps([row.get("resource_type"), row.get("annotation_type"), row.get("search_property")])
+                    for row in entities
+                }
+            )
+
+        content = json.dumps(
+            {
+                "version": PATTERN_SAMPLES_VERSION,
+                "structural": self.config.launch_function.structural_auto_patterns,
+                "entityPatterns": text_norm.entity_normalization_patterns,
+                "filePatterns": text_norm.file_normalization_patterns,
+                "assets": sample_inputs(asset_entities),
+                "files": sample_inputs(file_entities),
+            }
+        )
+        return hashlib.sha256(content.encode("utf-8")).hexdigest()
+
+    def _read_pattern_samples(self, scope_key: str, fingerprint: str) -> tuple[list[dict], list[dict]] | None:
+        """The auto pattern samples stored for the scope, if they were generated from the same inputs."""
+        try:
+            row = self.client.raw.rows.retrieve(
+                self.db_name, self.pattern_samples_tbl_name, f"{PATTERN_SAMPLES_KEY_PREFIX}{scope_key}"
+            )
+        except CogniteAPIError as e:
+            self.logger.warning(f"Could not read the stored pattern samples - generating them: {e}")
+            return None
+        columns = row.columns if row and row.columns else {}
+        if columns.get("fingerprint") != fingerprint:
+            return None
+        return (
+            cast(list[dict], columns.get("assetPatternSamples") or []),
+            cast(list[dict], columns.get("filePatternSamples") or []),
+        )
+
+    def _write_pattern_samples(
+        self, scope_key: str, fingerprint: str, asset_samples: list[dict], file_samples: list[dict]
+    ) -> None:
+        columns: dict[str, object] = {
+            "fingerprint": fingerprint,
+            "assetPatternSamples": asset_samples,
+            "filePatternSamples": file_samples,
+        }
+        try:
+            self.client.raw.rows.insert(
+                self.db_name,
+                self.pattern_samples_tbl_name,
+                Row(f"{PATTERN_SAMPLES_KEY_PREFIX}{scope_key}", columns),
+                ensure_parent=True,
+            )
+        except CogniteAPIError as e:
+            # The samples are only reused to save time; the next run generates them again.
+            self.logger.warning(f"Could not store the pattern samples of scope {scope_key!r}: {e}")
 
     def _log_launch_input_summary(
         self,

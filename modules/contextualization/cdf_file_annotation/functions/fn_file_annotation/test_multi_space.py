@@ -144,7 +144,7 @@ def test_a_configured_target_space_is_shared_by_files_from_every_space() -> None
 
 
 def test_scope_entities_come_from_the_file_space_and_are_not_written_to_raw() -> None:
-    """The entity sync cache holds the entities; a per-scope RAW row would only duplicate them."""
+    """The entity sync cache holds the entities; a per-scope RAW row keeps only their pattern samples."""
     from services.EntityCacheService import GeneralCacheService
 
     client = MagicMock()
@@ -156,7 +156,9 @@ def test_scope_entities_come_from_the_file_space_and_are_not_written_to_raw() ->
     cache.get_entities(data_model_service, "PlantA", None, "plant_a")
 
     data_model_service.get_instances_entities.assert_called_once_with("PlantA", None, "plant_a")
-    client.raw.rows.insert.assert_not_called()
+    (row,) = [call.args[2] for call in client.raw.rows.insert.call_args_list]
+    assert row.key == "pattern_samples:plant_a:PlantA"
+    assert set(row.columns) == {"fingerprint", "assetPatternSamples", "filePatternSamples"}
 
 
 def _edge(space: str, text: str) -> MagicMock:

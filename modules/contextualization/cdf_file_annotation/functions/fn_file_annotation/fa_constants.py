@@ -17,7 +17,7 @@ QUERY_TIMEOUT_MAX_RETRIES: Final = 3
 QUERY_TIMEOUT_BACKOFF_SECONDS: Final = 15
 
 # Match entities are read through the DMS sync endpoint on top of a cached copy in a CDF file.
-ENTITY_SYNC_CACHE_VERSION: Final = 1  # bump when what a read selects changes, to start new caches
+ENTITY_SYNC_CACHE_VERSION: Final = 2  # bump when what a read selects changes, to start new caches
 ENTITY_SYNC_QUERY_NAME: Final = "entities"
 ENTITY_SYNC_STATE_KEY_PREFIX: Final = "entity_sync_state_"
 ENTITY_SYNC_CACHE_FILE_PREFIX: Final = "fa_entity_cache_"
@@ -27,6 +27,9 @@ ENTITY_SYNC_BATCH_SIZE_FACTOR: Final = 0.8
 ENTITY_SYNC_MAX_RETRIES: Final = 4
 ENTITY_SYNC_RETRY_BACKOFF_SECONDS: Final = 2
 ENTITY_SYNC_CHECKPOINT_SECONDS: Final = 300  # a long read is stored this often, so a crash loses little
+# Auto pattern samples of a scope are stored in the RAW entity cache table and reused while their inputs match.
+PATTERN_SAMPLES_KEY_PREFIX: Final = "pattern_samples:"
+PATTERN_SAMPLES_VERSION: Final = 1  # bump when the sample generation changes, so stored samples are regenerated
 
 # Diagram detect config - see DiagramDetectConfig in the Cognite SDK docs. None = use API default.
 MIN_TOKENS: Final = 2

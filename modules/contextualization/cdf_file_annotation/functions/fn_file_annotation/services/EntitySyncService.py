@@ -178,7 +178,8 @@ class EntitySyncService:
         read_filter: Filter = HasData(views=[view_id])
         if space:
             read_filter = Equals(["node", "space"], space) & read_filter
-        expression = NodeResultSetExpression(filter=read_filter, limit=batch_size)
+        # Two-phase lets DMS use an index while it reads the existing instances of a hasData filter.
+        expression = NodeResultSetExpression(filter=read_filter, limit=batch_size, sync_mode="two_phase")
         query = Query(
             with_={ENTITY_SYNC_QUERY_NAME: expression},
             select={ENTITY_SYNC_QUERY_NAME: Select([SourceSelector(view_id, properties)])},

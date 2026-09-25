@@ -94,6 +94,8 @@ def test_the_entity_read_filters_on_space_and_view_only() -> None:
     _targets(_config(primary="site"), client, primary="S1")
 
     for call in client.data_modeling.instances.sync.call_args_list:
+        # Two-phase lets DMS use an index for the initial read of a hasData filter.
+        assert call.args[0].with_["entities"].sync_mode == "two_phase"
         read_filter = str(call.args[0].with_["entities"].filter.dump())
         assert "hasData" in read_filter
         assert "'or'" not in read_filter and "tags" not in read_filter and "S1" not in read_filter
@@ -161,6 +163,47 @@ def test_a_timed_out_page_is_read_again_smaller() -> None:
     _targets(_config(), client)
 
     assert limits[:2] == [1000, 800]
+
+
+def _raw_store(client: MagicMock) -> None:
+    """Makes the mocked RAW table return the rows written to it."""
+    rows: dict[str, Row] = {}
+
+    def insert(db_name: str, table_name: str, row: Row, ensure_parent: bool = False) -> None:
+        rows[row.key] = row
+
+    client.raw.rows.insert.side_effect = insert
+    client.raw.rows.retrieve.side_effect = lambda db_name, table_name, key: rows.get(key)
+
+
+def _scope_entities(aliases: list[str]):
+    from cognite.client.data_classes.data_modeling import ViewId
+    from services.EntitySyncService import EntityInstance
+
+    view_id = ViewId("cdf_cdm", "CogniteAsset", "v1")
+    return [EntityInstance("assets", alias, {view_id: {"name": alias, "aliases": [alias]}}) for alias in aliases]
+
+
+def test_pattern_samples_are_reused_while_the_scope_entities_are_unchanged(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Generating samples runs regexes over every alias, which is wasted work when nothing changed."""
+    from services.EntityCacheService import GeneralCacheService
+
+    client = MagicMock()
+    _raw_store(client)
+    cache = GeneralCacheService(_config(), client, MagicMock(log_level="INFO"))
+    generate = MagicMock(wraps=cache._generate_tag_samples_from_entities)
+    monkeypatch.setattr(cache, "_generate_tag_samples_from_entities", generate)
+    data_model_service = MagicMock()
+
+    data_model_service.get_instances_entities.return_value = (_scope_entities(["23-KA-9101"]), [])
+    _, first = cache.get_entities(data_model_service, "", None, None)
+    _, reused = cache.get_entities(data_model_service, "", None, None)
+    assert generate.call_count == 2  # assets and files, once
+    assert reused == first
+
+    data_model_service.get_instances_entities.return_value = (_scope_entities(["23-KA-9101", "23-PB-2001"]), [])
+    cache.get_entities(data_model_service, "", None, None)
+    assert generate.call_count == 4
 
 
 def test_a_first_read_that_outlasts_the_budget_is_stored_and_continued_next_run(
