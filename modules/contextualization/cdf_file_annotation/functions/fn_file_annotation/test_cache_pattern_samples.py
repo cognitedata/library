@@ -229,9 +229,10 @@ def test_launch_input_summary_logs_info_counts(capsys) -> None:
         manual_pattern_strings=0,
     )
     out = capsys.readouterr().out
-    assert "Target entities (CogniteAsset): 2" in out
-    assert "without 'aliases'" in out
-    assert "File entities (CogniteFile): 1" in out
+    assert "Target entities (CogniteAsset): 1 for Diagram Detect" in out
+    assert "1 excluded — no 'aliases' or name" in out
+    assert "File entities (CogniteFile): 1 for Diagram Detect" in out
+    assert "Total entities for regular detect: 2" in out
     assert "Auto patterns from targetEntitiesView (CogniteAsset): 2 sample string(s)" in out
     assert "Auto patterns from fileView (CogniteFile): 1 sample string(s)" in out
     assert "Combined patterns sent to pattern-mode detect: 3 sample string(s)" in out

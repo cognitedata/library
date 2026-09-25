@@ -56,7 +56,7 @@ def split_entities_by_kind(entities: list[dict]) -> tuple[list[dict], list[dict]
 
 
 def entities_missing_search_property(entities: list[dict]) -> list[dict]:
-    """Return entities with empty or missing search_property (aliases)."""
+    """Return entities with nothing to search on (empty search_property after alias→name fallback)."""
     missing: list[dict] = []
     for row in entities:
         search = row.get("search_property")
@@ -68,9 +68,10 @@ def entities_missing_search_property(entities: list[dict]) -> list[dict]:
 def detectable_entities(entities: list[dict]) -> list[dict]:
     """Return the entities diagram detect can match on.
 
-    An instance whose aliases were never set, or were cleared, has nothing to search for
-    and the API rejects the whole request over it ("must be a string or list of strings"),
-    so it is left out rather than allowed to fail every file in the batch.
+    Conversion already falls back from aliases to ``name`` when aliases are empty. Only
+    instances with neither usable aliases nor a usable name end up with an empty
+    search_property; those are left out because the API rejects the whole request
+    ("must be a string or list of strings").
     """
     return [row for row in entities if row.get("search_property")]
 
@@ -292,10 +293,18 @@ class GeneralCacheService(ICacheService):
         manual_pattern_groups: int,
         manual_pattern_strings: int,
     ) -> None:
-        """Log INFO counts and DEBUG details for launch entity/pattern input."""
+        """Log INFO counts and DEBUG details for launch entity/pattern input.
+
+        Counts are the entities that remain after configuration filters (tags, instance
+        space, and primary/secondary scope). Headline numbers are entities sent to
+        regular Diagram Detect (aliases, or ``name`` when aliases are empty). Entities
+        with neither aliases nor name are reported separately as excluded.
+        """
         pattern_string_count = count_pattern_sample_strings(pattern_samples)
         assets_missing = entities_missing_search_property(asset_entities)
         files_missing = entities_missing_search_property(file_entities)
+        detectable_assets = detectable_entities(asset_entities)
+        detectable_files = detectable_entities(file_entities)
         structural = self.config.launch_function.structural_auto_patterns
         pattern_mode = self.config.launch_function.pattern_mode
 
@@ -306,22 +315,40 @@ class GeneralCacheService(ICacheService):
 
         if not scope_key:
             scope_desc = (
-                "unscoped — primaryScopeProperty is empty, so all DetectInDiagrams entities are loaded project-wide"
+                "unscoped — primaryScopeProperty is empty, so tagged entities are loaded "
+                "project-wide (still limited to configured tags / instanceSpace)"
             )
         else:
             scope_desc = (
-                f"scope {scope_key!r} — entities filtered by the instance space ('<space>:' prefix) "
-                "and/or primaryScopeProperty / secondaryScopeProperty values of the files being annotated"
+                f"scope {scope_key!r} — after filters: configured tags, instance space "
+                "('<space>:' prefix when set), and primaryScopeProperty / secondaryScopeProperty "
+                "of the files being annotated"
             )
+
+        def _entity_line(label: str, view_id: str, detectable: list[dict], missing: list[dict], search: str) -> str:
+            line = f"  • {label} ({view_id}): {len(detectable)} for Diagram Detect"
+            if missing:
+                line += f" ({len(missing)} excluded — no '{search}' or name)"
+            return line
 
         info_lines = [
             "Launch input summary:",
             f"  • Scope: {scope_desc}",
-            f"  • Target entities ({self.target_entities_view.external_id}): {len(asset_entities)} "
-            f"({len(assets_missing)} without '{target_search}' — Diagram Detect cannot match those)",
-            f"  • File entities ({self.file_view.external_id}): {len(file_entities)} "
-            f"({len(files_missing)} without '{file_search}' — Diagram Detect cannot match those)",
-            f"  • Total entities for regular detect: {len(asset_entities) + len(file_entities)}",
+            _entity_line(
+                "Target entities",
+                self.target_entities_view.external_id,
+                detectable_assets,
+                assets_missing,
+                target_search,
+            ),
+            _entity_line(
+                "File entities",
+                self.file_view.external_id,
+                detectable_files,
+                files_missing,
+                file_search,
+            ),
+            f"  • Total entities for regular detect: {len(detectable_assets) + len(detectable_files)}",
             f"  • Pattern mode: {pattern_mode} | structuralAutoPatterns: {structural}",
             f"  • Auto patterns from targetEntitiesView ({self.target_entities_view.external_id}): "
             f"{asset_pattern_count} sample string(s) in {len(asset_pattern_samples)} group(s)",
@@ -338,7 +365,7 @@ class GeneralCacheService(ICacheService):
 
         debug_lines = ["Launch input details (DEBUG):"]
         if assets_missing or files_missing:
-            debug_lines.append(f"  Entities missing '{target_search}' / '{file_search}':")
+            debug_lines.append(f"  Entities with no '{target_search}' / '{file_search}' and no usable name:")
             for row in (assets_missing + files_missing)[:30]:
                 debug_lines.append(f"    - {row.get('space')}/{row.get('external_id')} name={row.get('name')!r}")
 
