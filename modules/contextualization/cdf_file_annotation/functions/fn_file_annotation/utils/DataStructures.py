@@ -348,6 +348,7 @@ class PerformanceTracker:
         )
         return report
 
+
 @dataclass
 class PromoteTracker:
     """

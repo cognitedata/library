@@ -381,13 +381,9 @@ class GeneralPromoteService(IPromoteService):
         # Gate: source normalizePatterns must match before cache/search
         if not self.entity_search_service.generate_text_variations(text, annotation_type):
             pattern_label = (
-                "fileNormalizationPatterns"
-                if annotation_type == "diagrams.FileLink"
-                else "entityNormalizationPatterns"
+                "fileNormalizationPatterns" if annotation_type == "diagrams.FileLink" else "entityNormalizationPatterns"
             )
-            self.logger.debug(
-                f"✗ Text '{text}' does not match {pattern_label} — skipping search."
-            )
+            self.logger.debug(f"✗ Text '{text}' does not match {pattern_label} — skipping search.")
             self.cache_service.set_no_match(text, annotation_type, entity_space)
             return []
 
@@ -525,9 +521,7 @@ class GeneralPromoteService(IPromoteService):
             start_text_str = str(start_text) if start_text is not None else ""
             annotation_type = edge.type.external_id
             pattern_label = (
-                "fileNormalizationPatterns"
-                if annotation_type == "diagrams.FileLink"
-                else "entityNormalizationPatterns"
+                "fileNormalizationPatterns" if annotation_type == "diagrams.FileLink" else "entityNormalizationPatterns"
             )
             if not self.entity_search_service.generate_text_variations(start_text_str, annotation_type):
                 self.logger.debug(

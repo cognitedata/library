@@ -25,6 +25,7 @@ class CachedEntityInfo:
     external_id: str
     resource_type: str | None = None
 
+
 class ICacheService(abc.ABC):
     """
     Interface for services that cache text → entity mappings to improve lookup performance.
@@ -60,6 +61,7 @@ class ICacheService(abc.ABC):
             resource_type: Optional resource type to cache alongside the node
         """
         pass
+
 
 class CacheService(ICacheService):
     """
@@ -351,4 +353,3 @@ class CacheService(ICacheService):
         except CogniteAPIError as e:
             # Don't fail the run if cache update fails
             self.logger.warning(f"Failed to update cache for '{text}': {e}")
-

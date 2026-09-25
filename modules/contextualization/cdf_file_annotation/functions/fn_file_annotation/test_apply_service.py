@@ -185,6 +185,7 @@ def test_diagram_detect_config_sends_only_the_configured_parameters() -> None:
     assert detect.as_config().dump(camel_case=True) == {
         "connectionFlags": ["natural_reading_order", "no_text_inbetween"],
         "customizeFuzziness": {"minChars": 4},
+        "directionWeights": {"left": 1.0, "right": 1.0, "up": 1.0, "down": 1.0},
         "minFuzzyScore": 1,
         "readEmbeddedText": True,
     }

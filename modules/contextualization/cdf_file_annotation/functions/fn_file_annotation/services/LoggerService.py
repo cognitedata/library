@@ -1,6 +1,6 @@
 import inspect
 import os
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Literal
 
 
@@ -28,7 +28,7 @@ class CogniteFunctionLogger:
                 self.write = False
 
     def _get_timestamp(self) -> str:
-        return datetime.utcnow().isoformat(sep=" ", timespec="milliseconds")
+        return datetime.now(UTC).replace(tzinfo=None).isoformat(sep=" ", timespec="milliseconds")
 
     def start_run(self) -> int:
         """
