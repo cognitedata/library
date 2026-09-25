@@ -1,7 +1,7 @@
-name: File Annotations
+name: 'ctx:file:annotation'
 externalId: {{ extractionPipelineExternalId }}
 dataSetExternalId: {{ annotationDatasetExternalId }}
-description: "Pipeline holding configurations for annotating P&ID and documents."
+description: "Pipeline holding configuration and run history for file annotation."
 rawTables:
   - dbName: {{ rawDb }}
     tableName: {{ rawTableDocTag }}
@@ -15,91 +15,18 @@ rawTables:
     tableName: {{ rawManualPatternsCatalog }}
   - dbName: {{ rawDb }}
     tableName: {{ rawTablePromoteCache }}
+  - dbName: {{ rawDb }}
+    tableName: {{ rawTableAnnotationStatusReport }}
 source: "Files"
 documentation: >
-  ## Configuration Structure
+  ## File annotation
 
-  Configuration parsed by Pydantic models in Python. See detailed_guides/CONFIG.md for comprehensive documentation.
+  The `fn_file_annotation` function runs four stages selected by its input `stage`:
+  prepare, launch, finalize, and promote. One workflow runs those stages in order and
+  then runs the file-to-asset transformation.
 
-  ### 1. dataModelViews (ViewPropertyConfig)
+  The extraction-pipeline config uses `parameters` for operator choices, RAW table
+  names, and `data` for view identities and matching properties. Fixed limits, tags,
+  state filters, and promote cleanup behavior are constants in the function code.
 
-  - `coreAnnotationView`: Annotation edges (CogniteDiagramAnnotation)
-
-  - `annotationStateView`: FileAnnotationState instances
-
-  - `fileView`: Files to annotate (CogniteFile)
-
-  - `targetEntitiesView`: Target entities (CogniteAsset)
-
-  **Fields:** schemaSpace, instanceSpace, externalId, version, annotationType
-
-  ### 2. prepareFunction (PrepareFunction)
-
-  - `getFilesForAnnotationResetQuery` (QueryConfig, optional): Reset file annotation status
-
-  - `getFilesToAnnotateQuery` (QueryConfig): Select files ready for annotation
-
-  ### 3. launchFunction (LaunchFunction)
-
-
-  **Direct params:**
-
-
-  batchSize, fileSearchProperty, targetEntitiesSearchProperty, primaryScopeProperty, secondaryScopeProperty, patternMode, fileResourceProperty, targetEntitiesResourceProperty
-
-
-  - **dataModelService:** getFilesToProcessQuery, getTargetEntitiesQuery, getFileEntitiesQuery
-
-  - **cacheService:** cacheTimeLimit, rawDb, rawTableCache, rawManualPatternsCatalog
-
-  - **annotationService:** pageRange, partialMatch, minTokens, diagramDetectConfig (ConnectionFlags, CustomizeFuzziness, DirectionWeights, etc.)
-
-
-  ### 4. finalizeFunction (FinalizeFunction)
-
-
-  **Direct params:**
-
-
-  cleanOldAnnotations, maxRetryAttempts
-
-
-  - **retrieveService:** getJobIdQuery (uses optimistic locking)
-
-  - **applyService:** autoApprovalThreshold, autoSuggestThreshold, sinkNode (space, externalId), rawDb, rawTableDocTag, rawTableDocDoc, rawTableDocPattern
-
-
-  ### 5. promoteFunction (PromoteFunctionConfig)
-
-  **Direct params:**
-
-
-  getCandidatesQuery, rawDb, rawTableDocPattern, rawTableDocTag, rawTableDocDoc, deleteRejectedEdges, deleteSuggestedEdges
-
-
-  - **entitySearchService:** enableGlobalEntitySearch, maxEntitySearchLimit, textNormalization (removeSpecialCharacters, convertToLowercase, stripLeadingZeros)
-
-  - **cacheService:** cacheTableName (persistent text→entity cache)
-
-
-  ### QueryConfig Structure
-
-  - `targetView` (ViewPropertyConfig): View to query
-
-  - `filters` (list[FilterConfig]): AND-combined conditions
-
-    - `values`: Filter values (strings, enums, lists)
-
-    - `negate` (bool): Invert condition
-
-    - `operator` (FilterOperator): In, Equals, Exists, ContainsAll, Search
-
-    - `targetProperty`: Property to filter on
-
-  - `limit` (int): Max instances to retrieve (-1 = unlimited)
-
-
-  **OR Logic:** Provide list of QueryConfig objects to combine with OR.
-
-
-  **AND Logic:** Multiple filters in single QueryConfig are ANDed together.
+  See `detailed_guides/CONFIG.md` in the deployment pack for the complete contract.

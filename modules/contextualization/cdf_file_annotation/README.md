@@ -49,23 +49,14 @@ The CDF File Annotation module is designed to:
 ```
 cdf_file_annotation/
 ├── 📁 functions/                           # CDF Functions
-│   ├── 📁 fn_file_annotation_prepare/             # Identify files for annotation
+│   ├── 📁 fn_file_annotation/              # All four stages
 │   │   ├── 📄 handler.py
-│   │   └── 📁 services/
-│   ├── 📁 fn_file_annotation_launch/              # Launch annotation jobs
-│   │   ├── 📄 handler.py
-│   │   └── 📁 services/
-│   ├── 📁 fn_file_annotation_finalize/            # Process annotation results
-│   │   ├── 📄 handler.py
-│   │   └── 📁 services/
-│   ├── 📁 fn_file_annotation_promote/             # Auto-resolve pattern annotations
-│   │   ├── 📄 handler.py
-│   │   └── 📁 services/
-│   └── 📄 functions.Function.yaml                 # Function definitions
-├── 📁 workflows/                           # CDF Workflows
-│   ├── 📄 wf_file_annotation.Workflow.yaml        # Main workflow definition
-│   ├── 📄 wf_file_annotation.WorkflowVersion.yaml # Workflow version config
-│   └── 📄 wf_file_annotation.WorkflowTrigger.yaml # Workflow triggers
+│   │   ├── 📁 stages/                      # prepare, launch, finalize, promote
+│   │   ├── 📁 services/
+│   │   └── 📁 utils/
+│   └── 📄 functions.Function.yaml          # Single Function resource
+├── 📁 workflows/                           # One end-to-end workflow
+│   └── 📄 wf_file_annotation.*
 ├── 📁 transformations/                     # SQL transformations
 │   ├── 📄 tag_assets_detect_in_diagrams.Transformation.{yaml,sql}   # Helper: merge DetectInDiagrams on assets
 │   ├── 📄 tag_files_detect_in_diagrams.Transformation.{yaml,sql}    # Helper: merge DetectInDiagrams on files
@@ -81,7 +72,7 @@ cdf_file_annotation/
 │   ├── 📄 rawTableDocDoc.Table.yaml               # Doc-to-doc link results
 │   ├── 📄 rawTableDocTag.Table.yaml               # Doc-to-tag link results
 │   ├── 📄 rawTableDocPattern.Table.yaml           # Pattern detection results
-│   ├── 📄 rawTableCache.Table.yaml                # Entity cache
+│   ├── 📄 rawTableCache.Table.yaml                # Entity sync state and pattern samples
 │   ├── 📄 rawTablePromoteCache.Table.yaml         # Promote cache
 │   ├── 📄 rawTableAnnotationStatusReport.Table.yaml  # Per-file status report output
 │   └── 📄 rawManualPatternsCatalog.Table.yaml     # Manual pattern overrides
@@ -153,8 +144,8 @@ flowchart TD
 
 **Key Features**:
 - 📦 **Scope-Based Batching**: Groups files by site/unit for efficient processing
-- 🧠 **Intelligent Caching**: Checks RAW cache before querying data model
 - 🎯 **Entity Selection**: Loads assets and files tagged `DetectInDiagrams` within scope (plus `ScopeWideDetect` across secondary scope)
+- 🔁 **Incremental Entity Read**: Reads each entity view through the DMS sync endpoint and keeps the tagged instances in a CDF file (see [Reading the match entities](#reading-the-match-entities))
 - 🔤 **Alias-Driven Matching**: Sends entity `aliases` to Diagram Detect as search candidates (falls back to `name` when aliases are absent)
 - 🎯 **Pattern Generation**: Auto-generates regex patterns from entity aliases
 - 📋 **Manual Override Support**: Merges manual patterns from RAW catalog
@@ -171,17 +162,13 @@ flowchart TD
     CheckFiles -->|Yes| GroupFiles[Group files by<br/>primary scope<br/>e.g., site, unit]
 
     GroupFiles --> NextScope{Next scope<br/>group?}
-    NextScope -->|Yes| CheckCache{Valid cache<br/>exists in RAW?}
+    NextScope -->|Yes| SyncEntities[Sync entity views into<br/>the cached entity file<br/>once per space]
 
-    CheckCache -->|No - Stale/Missing| QueryEntities[Query data model for<br/>entities within scope]
-    QueryEntities --> GenPatterns[Auto-generate pattern samples<br/>from entity aliases<br/>e.g., FT-101A → &#91;FT&#93;-000&#91;A&#93;]
+    SyncEntities --> FilterScope[Filter entities by tag<br/>and scope in memory]
+    FilterScope --> GenPatterns[Auto-generate pattern samples<br/>from entity aliases<br/>e.g., FT-101A → &#91;FT&#93;-000&#91;A&#93;]
     GenPatterns --> GetManual[Retrieve manual pattern<br/>overrides from RAW catalog<br/>GLOBAL, site, or unit level]
     GetManual --> MergePatterns[Merge and deduplicate<br/>auto-generated and<br/>manual patterns]
-    MergePatterns --> StoreCache[Store entity list and<br/>pattern samples in<br/>RAW cache]
-    StoreCache --> UseCache[Use entities and patterns]
-
-    CheckCache -->|Yes - Valid| LoadCache[Load entities and<br/>patterns from RAW cache]
-    LoadCache --> UseCache
+    MergePatterns --> UseCache[Use entities and patterns]
 
     UseCache --> ProcessBatch[Process files in batches<br/>up to max batch size]
     ProcessBatch --> SubmitJobs[Submit Diagram Detect jobs:<br/>1 Standard annotation<br/>2 Pattern mode if enabled]
@@ -192,7 +179,6 @@ flowchart TD
     style Start fill:#d4f1d4
     style End fill:#f1d4d4
     style CheckFiles fill:#fff4e6
-    style CheckCache fill:#fff4e6
     style NextScope fill:#fff4e6
     style UseCache fill:#e6f3ff
     style UpdateState fill:#e6f3ff
@@ -207,8 +193,7 @@ flowchart TD
 **Key Features**:
 - 🔒 **Optimistic Locking**: Claims jobs to prevent race conditions
 - 🔀 **Result Merging**: Combines standard and pattern results with deduplication
-- 📊 **Confidence Filtering**: Auto-approve vs. suggest based on thresholds
-- 📁 **RAW Reporting**: Writes to `doc_tag`, `doc_doc`, and `doc_pattern` tables
+- 📊 **Confidence Filtering**: Auto-approve vs. suggest based on thresholds, set separately for asset links and file links- 📁 **RAW Reporting**: Writes to `doc_tag`, `doc_doc`, and `doc_pattern` tables
 - 📄 **Multi-Page Tracking**: Handles progress for large documents
 
 <details>
@@ -230,7 +215,7 @@ flowchart TD
     RetrieveResults --> MergeResults[Merge regular and pattern<br/>results by file ID<br/>Creates unified result per file]
     MergeResults --> LoopFiles[For each file in merged results]
 
-    LoopFiles --> ProcessResults[Process file results:<br/>- Filter standard by confidence threshold<br/>- Capture regular annotations bounding box and page in a set<br/>- Skip pattern duplicates by checking if bounding box exist in set]
+    LoopFiles --> ProcessResults[Process file results:<br/>- Filter standard by AssetLink / FileLink confidence thresholds<br/>- Capture regular annotations bounding box and page in a set<br/>- Skip pattern duplicates by checking if bounding box exist in set]
 
     ProcessResults --> CheckClean{First run for<br/>multi-page file?}
     CheckClean -->|Yes| CleanOld[Clean old annotations]
@@ -268,7 +253,7 @@ flowchart TD
 **Purpose**: Automatically resolve pattern-mode annotations by finding matching entities
 
 **Key Features**:
-- 🔍 **Text Variation Generation**: `textNormalization` config generates variations of detected diagram text for alias lookup
+- 🔍 **Text Normalization**: separate `entityNormalizationPatterns` / `fileNormalizationPatterns` extract tag forms (capture groups joined by `_`; longest match kept). Used for promote search and to filter aliases before auto pattern sample generation per source. Empty list disables filtering for that source.
 - 🧠 **Multi-Tier Caching**: In-memory → RAW → Entity search strategy (queries **`aliases`** via server-side IN filter)
 - ✅ **Automatic Resolution**: Single match → Approved, No match → Rejected, Multiple → Manual review
 - 🏷️ **Tagging**: Adds `PromotedAuto`, `PromoteAttempted`, `AmbiguousMatch` tags
@@ -375,7 +360,17 @@ cdf transformations run tr_tag_files_to_annotate
 
 Configure view external IDs, versions, and instance spaces in `default.config.yaml`. You still need a separate pipeline (for example entity matching / alias update) to populate **`aliases`**.
 
-**Re-annotation:** These transformations only **add** tags; they never remove `Annotated`, `AnnotationInProcess`, or `AnnotationFailed`. Prepare discovers files with `prepareFunction.getFilesToAnnotateQuery` in [`extraction_pipelines/ep_file_annotation.config.yaml`](./extraction_pipelines/ep_file_annotation.config.yaml), which requires `ToAnnotate` and excludes those three status tags. Re-running `tr_tag_files_to_annotate` on an already-annotated file is therefore a silent no-op—the file still will not be picked up. To force another pass, uncomment and configure `prepareFunction.getFilesForAnnotationResetQuery` (example at lines 34–43 in the same file); prepare runs it **before** `getFilesToAnnotateQuery` and clears the status tags on matching files. See [CONFIG_PATTERNS.md — Recipe 2](./detailed_guides/CONFIG_PATTERNS.md#recipe-2-reprocessing-specific-files-for-debugging) for filter examples.
+**Re-annotation:** Helper tagging transformations only add tags. Prepare defaults to
+files tagged `ToAnnotate` and excludes `AnnotationInProcess`, `Annotated`, and
+`AnnotationFailed`. To reprocess already finished files, add those tags to
+`filesToAnnotateTags` (they are then dropped from the exclude list automatically):
+
+```yaml
+filesToAnnotateTags:
+  - ToAnnotate
+  - Annotated
+  - AnnotationFailed
+```
 
 ## 📊 Reporting & RAW Tables
 
@@ -397,7 +392,9 @@ Finalize and promote write annotation results to RAW. Use these tables for audit
 | Per-file lists of matched and unmatched tag text | Run `tr_file_annotation_status_report` → `annotation_file_status_report` |
 | Text that never matched any entity or regex pattern | **Not stored** — dropped in finalize when diagram detect returns no entities |
 
-Pattern rows with `status = 'Rejected'` and tag `PromoteAttempted` are retained in RAW even when promote deletes the corresponding DMS edges (default `deleteRejectedEdges: true`).
+Pattern rows with `status = 'Rejected'` and tag `PromoteAttempted` remain in RAW after
+promote deletes their sink-pointing DMS edges. Ambiguous `Suggested` edges remain in DMS
+for review.
 
 The **Annotation Quality** Streamlit dashboard reads the same RAW tables and maps `Rejected` → "No Match".
 
@@ -438,6 +435,8 @@ fileSchemaSpace: <insert>
 fileInstanceSpace: <insert>
 fileExternalId: <insert>
 fileVersion: <insert>
+fileSearchProperty: aliases
+fileResourceProperty: ""
 
 # RAW Tables
 rawDb: db_file_annotation
@@ -451,12 +450,25 @@ rawTableAnnotationStatusReport: annotation_file_status_report
 
 # Extraction Pipeline
 extractionPipelineExternalId: ep_file_annotation
+patternMode: true
+structuralAutoPatterns: true
+cleanOldAnnotations: true
+assetAutoApprovalThreshold: 1.0
+assetAutoSuggestThreshold: 1.0
+fileAutoApprovalThreshold: 1.0
+fileAutoSuggestThreshold: 1.0
+primaryScopeProperty: ""
+secondaryScopeProperty: ""
+entityNormalizationPatterns: '([0-9]{2})[-_.:]([A-Z]{2,3})[-_.:]([0-9]{4,5})'
+fileNormalizationPatterns: []
 
 # Target Entity View Configuration (UPDATE REQUIRED)
 targetEntitySchemaSpace: <insert>
 targetEntityInstanceSpace: <insert>
 targetEntityExternalId: <insert>
 targetEntityVersion: <insert>
+targetEntitySearchProperty: aliases
+targetEntityResourceProperty: ""
 
 # Transformations
 fileToAssetTransformationExternalId: tr_file_to_asset_from_annotations
@@ -470,15 +482,13 @@ functionClientId: ${IDP_CLIENT_ID}
 functionClientSecret: ${IDP_CLIENT_SECRET}
 functionSpace: <insert>                         # Space for function code files
 
-# Function External IDs
-prepareFunctionExternalId: fn_file_annotation_prepare
-launchFunctionExternalId: fn_file_annotation_launch
-finalizeFunctionExternalId: fn_file_annotation_finalize
-promoteFunctionExternalId: fn_file_annotation_promote
+# Function
+functionExternalId: fn_file_annotation
+functionVersion: v1.0.0
 
 # Workflow Settings
 workflowExternalId: wf_file_annotation
-workflowSchedule: "3-59/15 * * * *"             # Every 15 min with 3 min offset
+workflowSchedule: "0 0 29 2 *"
 
 # Auth Group (UPDATE REQUIRED)
 groupSourceId: ${GROUP_SOURCE_ID}
@@ -486,73 +496,301 @@ groupSourceId: ${GROUP_SOURCE_ID}
 
 ### Pipeline Configuration (`ep_file_annotation.config.yaml`)
 
-The extraction pipeline config controls runtime behavior, parsed by Pydantic models for strong typing and validation.
-
-**Key Configuration Sections:**
+The extraction pipeline follows the same concise `parameters` / `data` structure as the
+entity-matching module. Operator knobs, view property names, RAW table names, and tag
+filters are Toolkit variables in `default.config.yaml`. Fixed limits, queries,
+cleanup behavior, and Diagram Detect matching defaults
+(`DiagramDetectConfig` fields such as `minFuzzyScore`, connection flags, and
+fuzziness) live in `functions/fn_file_annotation/fa_constants.py` — edit that file
+and redeploy the function to change them; they are not Toolkit variables. See
+[CONFIG.md](./detailed_guides/CONFIG.md#diagram-detect-matching-diagramdetectconfig)
+for the constant table and SDK / API links.
 
 ```yaml
-# Data Model Views
-dataModelViews:
-  fileView: ...           # View for files to annotate
-  annotationStateView: ... # View for tracking annotation state
-  coreAnnotationView: ...  # View for core annotation data
-  targetEntityView: ...    # View for target entities
-
-# Prepare Function
-prepareFunction:
-  findFilesQuery: ...      # Query to find files for annotation
-  resetQuery: ...          # Optional query for files to reset
-
-# Launch Function
-launchFunction:
-  batchSize: 50            # Files per diagram detect call (1-50)
-  patternMode: true        # Enable pattern-based detection
-  primaryScopeProperty: site    # Property for batching
-  secondaryScopeProperty: unit  # Optional secondary scope
-  cacheService:
-    timeLimitMinutes: 1440     # Cache validity period
-  annotationService:
-    pageRange: 50              # Pages per processing chunk
-
-# Finalize Function
-finalizeFunction:
-  autoApprovalThreshold: 0.9   # Auto-approve above this confidence
-  autoSuggestThreshold: 0.5    # Suggest above this threshold
-  cleanOldAnnotations: true    # Remove existing annotations first
-  maxRetryAttempts: 3          # Retry limit for failed files
-  sinkNode:                    # Target for pattern annotations
-    space: ...
-    externalId: ...
-
-# Promote Function
-promoteFunction:
-  getCandidatesQuery: ...      # Query for edges to promote
-  deleteRejectedEdges: true    # Remove DMS edges after failed promote (RAW rows kept)
-  deleteSuggestedEdges: true
-  entitySearchService:
-    textNormalization:           # Applies to detected text when querying asset aliases
-      removeSpecialCharacters: true
-      convertToLowercase: false
-      stripLeadingZeros: true
-  cacheService:
-    rawDb: ...                 # Persistent cache location (positive matches only)
-    rawTable: ...
+parameters:
+  patternMode: true
+  structuralAutoPatterns: true
+  cleanOldAnnotations: true
+  assetAutoApprovalThreshold: 1.0
+  assetAutoSuggestThreshold: 1.0
+  fileAutoApprovalThreshold: 1.0
+  fileAutoSuggestThreshold: 1.0
+  primaryScopeProperty:
+  secondaryScopeProperty:
+  # Pipeline tags: ToAnnotate, DetectInDiagrams, ScopeWideDetect, AnnotationInProcess,
+  # Annotated, AnnotationFailed, PromoteAttempted, PromotedAuto, AmbiguousMatch.
+  filesToAnnotateTags:
+    - ToAnnotate
+  filesToAnnotateExcludeTags:
+    - AnnotationInProcess
+    - Annotated
+    - AnnotationFailed
+  fileEntitiesTags:
+    - DetectInDiagrams
+  targetEntitiesTags:
+    - DetectInDiagrams
+  debugFileExternalId: "" # set to one file's externalId to process only that file
+  rawDb: db_file_annotation
+  rawTableDocTag: annotation_documents_tags
+  rawTableDocDoc: annotation_documents_docs
+  rawTableDocPattern: annotation_documents_patterns
+  rawTableCache: annotation_entities_cache
+  rawManualPatternsCatalog: manual_patterns_catalog
+  rawTablePromoteCache: annotation_tags_cache
+  patternPromote:
+    textNormalization:
+      entityNormalizationPatterns: '([0-9]{2})[-_.:]([A-Z]{2,3})[-_.:]([0-9]{4,5})'
+      fileNormalizationPatterns: []
+data:
+  fileView:
+    schemaSpace: cdf_cdm
+    instanceSpace: sp_cdm_instances
+    externalId: CogniteFile
+    version: v1
+    searchProperty: aliases
+    resourceProperty:
+  targetEntitiesView:
+    # Same fields as fileView
+  annotationStateView:
+    # schemaSpace, instanceSpace, externalId, version
+  sinkNode:
+    space: sp_dat_pattern_mode_results
+    externalId: pattern_detection_sink_node
 ```
+
+### Scoping by site (`primaryScopeProperty` / `secondaryScopeProperty`)
+
+By default (both empty) every file is matched against **all** `DetectInDiagrams` assets and
+files in the instance space. On large projects this can exceed the Diagram Detect limit of
+500,000 entities per call and fail with `entities: Length must be between 1 and 500000`.
+Scoping splits the entity set per site (and optionally per unit).
+
+**You configure the property name, not the value.** The value is read from each instance:
+
+| What | Where it is set | Example |
+|---|---|---|
+| Property name | `primaryScopeProperty` / `secondaryScopeProperty` in `default.config.yaml` (or your `config.<env>.yaml`) | `site`, `unit` |
+| Property value | On each file and asset instance in CDF (for example set by a transformation) | `"PlantA"`, `"U100"` |
+
+Requirements:
+
+- The property is a **text** property with the **same name** on both the file view
+  (`fileExternalId`) and the target entity view (`targetEntityExternalId`). Core
+  `CogniteFile` / `CogniteAsset` have no such property, so use views that extend them.
+  Direct relations are not supported (the filter compares against a string).
+- **Every file to annotate has a value.** Files without one are treated as unscoped and are
+  matched against all entities again.
+- Assets and files used as match entities need the value too, otherwise no scoped file sees them.
+
+**Example.** With this config:
+
+```yaml
+# config.<env>.yaml -> variables -> modules -> ... -> cdf_file_annotation
+primaryScopeProperty: site
+secondaryScopeProperty: unit    # optional, "" to scope by site only
+```
+
+and these instances:
+
+| Instance | `site` | `unit` | `tags` |
+|---|---|---|---|
+| File `PID-0001` | `PlantA` | `U100` | `ToAnnotate` |
+| File `PID-0002` | `PlantB` | `U200` | `ToAnnotate` |
+| Asset `23-KA-9101` | `PlantA` | `U100` | `DetectInDiagrams` |
+| Asset `23-KA-9102` | `PlantA` | `U300` | `DetectInDiagrams` |
+| Asset `PA-FLARE-01` | `PlantA` | `U300` | `DetectInDiagrams`, `ScopeWideDetect` |
+| Asset `45-PB-2001` | `PlantB` | `U200` | `DetectInDiagrams` |
+
+Launch creates one batch per `site` + `unit` combination:
+
+- `PID-0001` (PlantA / U100) is matched against `23-KA-9101` and `PA-FLARE-01`.
+  `ScopeWideDetect` makes an entity visible to every unit **within the same site**, never across sites.
+- `PID-0002` (PlantB / U200) is matched against `45-PB-2001` only.
+
+Each scope gets its own manual patterns lookup in `rawManualPatternsCatalog` (keys `GLOBAL`,
+`PlantA`, `PlantA_U100`). The 500,000-entity limit then applies per scope, so if one site is still too
+large, add `secondaryScopeProperty`. The entities of all scopes come from one read of the view
+(see [Reading the match entities](#reading-the-match-entities)).
+
+### Reading the match entities
+
+Launch reads the target entity view and the file view once per instance space, with only a
+space and `hasData` filter, and applies the tag and scope rules above in memory. A query that
+filtered on tags and scope timed out on large views: the scope property and `tags` sit in
+different containers, and the OR with `ScopeWideDetect` keeps DMS from paging it with an index.
+
+- The views are read through the DMS sync endpoint, with only the properties Launch uses.
+  A page that times out is read again 20% smaller, down to 100 instances.
+- The instances carrying one of the configured tags or `ScopeWideDetect` are kept in the CDF
+  file `fa_entity_cache_<key>.json` in the annotation data set. The sync cursor is stored in
+  `rawTableCache` under `entity_sync_state_<key>`. The key changes with the view, space,
+  selected properties and tags.
+- A run with no changes downloads the file instead of reading the data model. Changes, a tag
+  added or removed included, are merged into the file.
+- The auto pattern samples of each scope are stored in `rawTableCache` under
+  `pattern_samples:<scope>` and reused while the scope's entities and the normalization settings
+  are unchanged.
+- A long first read is stored every 5 minutes and Launch keeps reading until it is complete,
+  then launches the files. A read still unfinished at the end of the function's 7-minute budget
+  is continued by the next Launch call; the files waiting to be launched keep their claim until then.
+- A query that times out (408) is retried by the stage after 15, 30 and 60 seconds. If it still
+  times out, the stage fails with the error, and Launch releases the files it had claimed.
+
+This needs `filesAcl: READ, WRITE` on the annotation data set, which the `gp_file_annotation`
+group includes.
+
+### Multiple instance spaces in one configuration
+
+Use this when each site keeps its files and assets in **its own instance space**, for example
+`inst_plant_a` and `inst_plant_b`. You don't need one deployment per space: leave the view
+instance spaces empty and every file is matched only against entities in its own space.
+
+The rule for `data.fileView.instanceSpace`, `data.targetEntitiesView.instanceSpace` and
+`data.annotationStateView.instanceSpace` is:
+
+| `instanceSpace` | Meaning |
+|---|---|
+| Set, for example `inst_location` | Only that space is used (the default behaviour) |
+| Empty | The space of the file being annotated |
+
+**Configuration** (`default.config.yaml` or your `config.<env>.yaml`):
+
+```yaml
+fileInstanceSpace: ""          # also used for annotationStateView.instanceSpace
+targetEntityInstanceSpace: ""
+```
+
+**Example.** With these instances:
+
+| Instance | Space | `tags` |
+|---|---|---|
+| File `PID-0001` | `inst_plant_a` | `ToAnnotate` |
+| File `PID-0002` | `inst_plant_b` | `ToAnnotate` |
+| Asset `23-KA-9101` | `inst_plant_a` | `DetectInDiagrams` |
+| Asset `23-KA-9101` | `inst_plant_b` | `DetectInDiagrams` |
+| Asset `45-PB-2001` | `inst_plant_b` | `DetectInDiagrams` |
+
+each stage works per space:
+
+- **Prepare** picks up `ToAnnotate` files from every space. It stores each file's
+  `FileAnnotationState` node in the file's own space.
+- **Launch** makes one batch per space: `PID-0001` is matched against the
+  `inst_plant_a` assets only, and `PID-0002` against the two `inst_plant_b` assets. Each space has its
+  own entity cache file and sync cursor (see [Reading the match entities](#reading-the-match-entities)).
+- **Finalize** writes annotation edges in the file's space. This is the same as before.
+- **Promote** looks up pattern-mode tags in the file's space. `23-KA-9101` on `PID-0001`
+  resolves to the `inst_plant_a` asset and is never ambiguous with the `inst_plant_b` one.
+
+**Mixing both.** You can set one space and leave the other empty. For example, if all
+sites share one asset space, set `targetEntityInstanceSpace: inst_assets` and
+`fileInstanceSpace: ""`. Files then come from every space, and all of them are matched against
+`inst_assets`.
+
+**Combining with site scoping.** `primaryScopeProperty` / `secondaryScopeProperty` still apply
+inside each space, so batches are made per space and per site. The 500,000-entity limit applies to each batch.
+
+**Limitations when a space is empty:**
+
+- The helper transformations (`tr_tag_*`, `tr_file_to_asset_from_annotations`,
+  `tr_file_annotation_status_report`) take their instance space from the same variables, so each one
+  only works for a single space. Don't run them with an empty space. Create one copy per space, or tag
+  instances with your own transformations.
+- `debugFileExternalId` still requires `fileInstanceSpace` to be set.
+- The function's access group needs read and write on every space you annotate.
+
+**Behaviour change:** `targetEntityInstanceSpace: ""` used to make Launch read assets from **all**
+spaces, while Promote skipped asset promotion entirely. An empty value now means the space of the
+file being annotated. If your assets are in a different space from your files, set it explicitly.
+
+### `searchProperty` vs `resourceProperty`
+
+On both `fileView` and `targetEntitiesView`:
+
+| Field | Role |
+|-------|------|
+| `searchProperty` | Property Diagram Detect (and promote) use to **match text** on drawings. Usually `aliases`. |
+| `resourceProperty` | Optional property used only to **classify** entities (stored as `resource_type` in the entity/pattern cache, RAW rows, and dashboards). Examples: `equipmentType`, `documentType`. |
+
+`resourceProperty` is **not** used for matching. If it is empty or omitted, the view external ID is used instead (e.g. `CogniteAsset` / `CogniteFile`).
+
+Toolkit variables: `fileSearchProperty` / `fileResourceProperty` and `targetEntitySearchProperty` / `targetEntityResourceProperty`.
+
+### Text normalization for promote (`entityNormalizationPatterns` / `fileNormalizationPatterns`)
+
+Promote resolves pattern-mode annotations by searching entity **`aliases`**. The text
+normalization block uses the **same capture-group model as**
+`cdf_entity_matching` aliases_update (`aliasPattern`), with **separate lists** for assets
+and files so unrelated shapes do not create false-positive structural samples:
+
+- `entityNormalizationPatterns` — for targetEntitiesView aliases and `diagrams.AssetLink` promote
+- `fileNormalizationPatterns` — for fileView aliases and `diagrams.FileLink` promote
+- Each match yields its **capture groups joined by `_`**. When several patterns match,
+  the **longest** form is always kept.
+- An **empty list** disables filtering for that source only.
+- When patterns are set, non-matching text is not searched / aliases are not used for
+  auto pattern sample generation.
+- Casing is preserved — DMS alias `IN` filters are case-sensitive exact matches.
+- Built-in hygiene still expands candidates (strip non-alphanumeric characters, leading zeros).
+
+Configure patterns to match the aliases written by aliases_update. Prefer character classes
+(`[0-9]`) over `\d` — Toolkit substitutes variables as a regex replacement and rejects
+backslash escapes.
+
+**Single entity pattern (default tag shape)** — `VAL_23-KA-9101` → `23_KA_9101`:
+
+```yaml
+# default.config.yaml
+entityNormalizationPatterns: '([0-9]{2})[-_.:]([A-Z]{2,3})[-_.:]([0-9]{4,5})'
+fileNormalizationPatterns: []
+```
+
+```yaml
+# ep_file_annotation.config.yaml → parameters.patternPromote.textNormalization
+entityNormalizationPatterns: '([0-9]{2})[-_.:]([A-Z]{2,3})[-_.:]([0-9]{4,5})'
+fileNormalizationPatterns: []
+```
+
+**Several entity patterns** — longest form wins:
+
+```yaml
+entityNormalizationPatterns:
+  - '([0-9]{2})[-_.:]([A-Z]{2,3})[-_.:]([0-9]{4,5})'
+  - '([A-Z]{3})[-_]?([0-9]{4})'
+fileNormalizationPatterns: []
+```
+
+Given diagram text `VAL_23-KA-9101_PMP1234`, that config yields only `23_KA_9101` (the
+longest of `23_KA_9101` and `PMP_1234`). Pattern order breaks ties when two forms are
+equally long. `REPEATED` matches neither pattern and is rejected without search.
+
+**Site prefix on drawings** — extract the tag after a two-letter plant code:
+
+```yaml
+entityNormalizationPatterns:
+  - '^([A-Z]{2})-(.+)$'                          # AT-V-009_1 → AT_V-009_1
+  - '([0-9]{2})[-_.:]([A-Z]{2,3})[-_.:]([0-9]{4,5})'
+fileNormalizationPatterns: []
+```
+
+An invalid regular expression, or one with no capture group, fails at config load.
+
+See [CONFIG.md](./detailed_guides/CONFIG.md) and
+[CONFIG_PATTERNS.md](./detailed_guides/CONFIG_PATTERNS.md) for field reference and more
+patterns.
 
 ### Environment Variables
 
+Only used for local runs; deployed functions authenticate through the Functions runtime.
+
 ```bash
-# CDF Connection
 CDF_PROJECT=your-cdf-project
 CDF_CLUSTER=your-cdf-cluster
+IDP_TENANT_ID=your-tenant-id
 IDP_CLIENT_ID=your-client-id
 IDP_CLIENT_SECRET=your-client-secret
-IDP_TOKEN_URL=https://your-idp-url/oauth2/token
-
-# Optional Settings
-LOG_LEVEL=INFO
-DEBUG_MODE=false
 ```
+
+Log level is passed as a function argument (`logLevel`), not an environment variable.
 
 ## 🏃‍♂️ Getting Started
 
@@ -594,20 +832,40 @@ variables:
       fileInstanceSpace: your_instances         # UPDATE REQUIRED
       fileExternalId: YourFile                  # UPDATE REQUIRED
       fileVersion: v1.0                         # UPDATE REQUIRED
+      fileSearchProperty: aliases
       rawDb: db_file_annotation
+      patternMode: true
+      structuralAutoPatterns: true
+      cleanOldAnnotations: true
+      assetAutoApprovalThreshold: 1.0
+      assetAutoSuggestThreshold: 1.0
+      fileAutoApprovalThreshold: 1.0
+      fileAutoSuggestThreshold: 1.0
+      primaryScopeProperty: ""
+      secondaryScopeProperty: ""
+      entityNormalizationPatterns: '([0-9]{2})[-_.:]([A-Z]{2,3})[-_.:]([0-9]{4,5})'
+fileNormalizationPatterns: []
       targetEntitySchemaSpace: your_schema_space
       targetEntityInstanceSpace: your_instances
       targetEntityExternalId: YourAsset
       targetEntityVersion: v1.0
+      targetEntitySearchProperty: aliases
       functionClientId: ${IDP_CLIENT_ID}
       functionClientSecret: ${IDP_CLIENT_SECRET}
       functionSpace: your_functions_space       # UPDATE REQUIRED
+      functionExternalId: fn_file_annotation
+      functionVersion: v1.0.0
       workflowExternalId: wf_file_annotation
-      workflowSchedule: "3-59/15 * * * *"
+      workflowSchedule: "0 0 29 2 *"
       groupSourceId: your-azure-ad-group-source-id  # UPDATE REQUIRED
 ```
 
 ### 4. Deploy the Module
+
+> **Migration:** This version replaces the four former Function resources with
+> `fn_file_annotation`. A Toolkit clean removes the old prepare, launch, finalize, and
+> promote functions. Update custom schedules/callers to pass `stage`, and migrate the
+> extraction-pipeline config to `parameters` / `data` before deploying.
 
 > **Note**: To upload sample pattern data, enable the data plugin in your `cdf.toml` file:
 > ```toml
@@ -640,10 +898,7 @@ Update `ep_file_annotation.config.yaml` with:
 
 ```bash
 # Check function logs
-cdf functions logs fn_file_annotation_prepare
-cdf functions logs fn_file_annotation_launch
-cdf functions logs fn_file_annotation_finalize
-cdf functions logs fn_file_annotation_promote
+cdf functions logs fn_file_annotation
 
 # Monitor workflow execution
 cdf workflows status wf_file_annotation
@@ -751,17 +1006,17 @@ After changing local dependencies: `uv lock`. After changing CDF deploy dependen
 Run handlers locally (set `CDF_*` / `IDP_*` in `.env` first):
 
 ```bash
-cd functions/fn_file_annotation_prepare
+cd functions/fn_file_annotation
 uv run python handler.py
 
-cd functions/fn_file_annotation_launch
+cd functions/fn_file_annotation
 uv run python handler.py
 ```
 
 ### Integration Testing
 
 ```bash
-# Test complete workflow
+# Test the end-to-end workflow
 cdf workflows trigger wf_file_annotation
 
 # Monitor test execution
@@ -777,8 +1032,7 @@ cdf raw rows list <db> rawTableDocTag --limit 10
 
 1. **Files Not Being Picked Up**
    - Verify files have the `ToAnnotate` tag (run `tr_tag_files_to_annotate` or check manually)
-   - If the file was annotated before, check for `Annotated`, `AnnotationInProcess`, or `AnnotationFailed` — `getFilesToAnnotateQuery` excludes them; tagging alone does not clear them (see **Re-annotation** under Helper tagging transformations, or enable `getFilesForAnnotationResetQuery` in `ep_file_annotation.config.yaml`)
-   - Check `getFilesToAnnotateQuery` in the extraction pipeline config
+   - If the file was annotated before, check for `Annotated`, `AnnotationInProcess`, or `AnnotationFailed`; tagging alone does not clear prior state
    - Ensure `FileAnnotationState` view is deployed
 
 2. **No Entities Sent to Diagram Detect**
@@ -789,8 +1043,8 @@ cdf raw rows list <db> rawTableDocTag --limit 10
 3. **Pattern Promotion Failures / Unmatched Tags**
    - Unmatched tag text is in `annotation_documents_patterns` (`status = Rejected`), not `annotation_documents_tags`
    - Ensure asset `aliases` include the formats found on drawings (including `-` vs `_` variants)
-   - Tune `promoteFunction.entitySearchService.textNormalization` — it generates variations of detected text for an IN filter on `aliases`
-   - Set `deleteRejectedEdges: false` if you need to query failed matches as DMS edges
+   - Tune `parameters.patternPromote.textNormalization` (`entityNormalizationPatterns` / `fileNormalizationPatterns`) to match aliases_update
+   - Failed matches remain in RAW; rejected sink edges are intentionally removed from DMS
 
 4. **Status Report Returns Zero Rows**
    - Confirm RAW tables contain data for your `fileInstanceSpace` (`startNodeSpace`)
@@ -804,6 +1058,8 @@ cdf raw rows list <db> rawTableDocTag --limit 10
 
 6. **Pattern Promotion Configuration**
    - Verify `sinkNode` points to a valid node in `patternModeInstanceSpace`
+   - Align `entityNormalizationPatterns` / `fileNormalizationPatterns` with aliases_update `aliasPattern` (longest match is always kept)
+   - Confirm patterns have at least one capture group (config load fails otherwise)
    - Review `annotation_tags_cache` for previously cached positive mappings
 
 7. **Parallel Execution Conflicts**
@@ -811,15 +1067,30 @@ cdf raw rows list <db> rawTableDocTag --limit 10
    - Check for version conflict errors in logs
    - Verify `AnnotationState` view supports versioning
 
-### Debug Mode
+### Debug Logging
 
-Enable detailed logging for troubleshooting:
+Log level is set per function call, not in the extraction pipeline config. Change
+`logLevel` on the relevant workflow task to get verbose output:
 
 ```yaml
-# In extraction pipeline config or function call
-parameters:
-  debug: true
-  log_level: DEBUG
+data:
+  {
+    "stage": "promote",
+    "ExtractionPipelineExtId": ep_file_annotation,
+    "logLevel": "DEBUG"
+  }
+```
+
+Each function call starts by logging the stage and the extraction pipeline the
+configuration was read from, then tags every line of a processing loop with its run
+number so repeated passes stay distinguishable:
+
+```text
+[2026-09-17 11:36:12.004] [INFO] ================================================
+[2026-09-17 11:36:12.004] [INFO] FUNCTION: Launch
+[2026-09-17 11:36:12.004] [INFO] CONFIG SOURCE: extraction pipeline 'ep_file_annotation'
+[2026-09-17 11:36:20.412] [INFO] [run 1] Launched 12 files
+[2026-09-17 11:36:30.031] [INFO] [run 2] No files found to launch
 ```
 
 ## 🏛️ Architecture & Design Philosophy

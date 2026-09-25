@@ -2,7 +2,7 @@
 -- FILE ANNOTATION STATUS REPORT
 -- =============================================================================
 -- Builds a per-file summary of diagram tag matching from the file annotation RAW
--- tables written by fn_file_annotation_finalize and fn_file_annotation_promote.
+-- tables written by the finalize and promote stages of fn_file_annotation.
 --
 -- Sources:
 --   - {{ rawTableDocTag }}     Regular diagram detect → asset links

@@ -8,7 +8,7 @@ from cognite.client import CogniteClient
 from constants import FieldNames
 from data_fetcher import DataFetcher
 from data_processor import DataProcessor
-from data_structures import AnnotationTag, ExtractionPipelineConfig
+from data_structures import ExtractionPipelineConfig
 from data_updater import DataUpdater
 from factories import DataEditorChangeCaptureFactory
 
@@ -115,7 +115,7 @@ class AnnotationComparisonComponent(Component):
 
         st.write(f"Row Count: {len(editable_data)}")
 
-    def render_potential(self, potential_df: pd.DataFrame | None) -> AnnotationTag | None:
+    def render_potential(self, potential_df: pd.DataFrame | None) -> None:
         if potential_df is None or potential_df.empty:
             st.info("No potential annotations available.")
             return
@@ -159,57 +159,25 @@ class AnnotationComparisonComponent(Component):
         if secondary_scope_column and secondary_scope_property and secondary_scope_column in display_df.columns:
             display_df = display_df.rename(columns={secondary_scope_column: secondary_scope_property})
 
-        display_df.insert(0, FieldNames.SELECT_TITLE_CASE, False)
-        editor_key = f"{FieldNames.POTENTIAL_LOWER_CASE}_selectable_potentials"
-
-        potential_column_config = {
-            FieldNames.SELECT_TITLE_CASE: st.column_config.CheckboxColumn(required=True),
-            FieldNames.TAG_TITLE_CASE: FieldNames.TAG_TITLE_CASE,
-            FieldNames.END_NODE_RESOURCE_TYPE_CAMEL_CASE: FieldNames.RESOURCE_TYPE_TITLE_CASE,
-            secondary_scope_column: secondary_scope_column,
-            FieldNames.OCCURRENCES_TITLE_CASE: FieldNames.OCCURRENCES_TITLE_CASE,
-            FieldNames.ASSOCIATED_FILES_TITLE_CASE: FieldNames.ASSOCIATED_FILES_TITLE_CASE,
-            normalized_status_property: FieldNames.STATUS_TITLE_CASE,
-        }
-
         editable_data = st.data_editor(
             display_df,
-            key=editor_key,
-            column_config=potential_column_config,
+            key=f"{FieldNames.POTENTIAL_LOWER_CASE}_potential_display",
+            column_config={
+                FieldNames.TAG_TITLE_CASE: FieldNames.TAG_TITLE_CASE,
+                FieldNames.END_NODE_RESOURCE_TYPE_CAMEL_CASE: FieldNames.RESOURCE_TYPE_TITLE_CASE,
+                secondary_scope_column: secondary_scope_column,
+                FieldNames.OCCURRENCES_TITLE_CASE: FieldNames.OCCURRENCES_TITLE_CASE,
+                FieldNames.ASSOCIATED_FILES_TITLE_CASE: FieldNames.ASSOCIATED_FILES_TITLE_CASE,
+                normalized_status_property: FieldNames.STATUS_TITLE_CASE,
+            },
             use_container_width=True,
             hide_index=True,
-            disabled=display_df.columns.difference([FieldNames.SELECT_TITLE_CASE]),
+            disabled=True,
         )
 
         st.write(f"Row Count: {len(editable_data)}")
 
-        selected_rows = editable_data[editable_data[FieldNames.SELECT_TITLE_CASE]]
-
-        if selected_rows.empty:
-            st.session_state["selected_potential_tags"] = []
-            return
-
-        if FieldNames.TAG_TITLE_CASE in selected_rows.columns:
-            selected_tags = selected_rows[FieldNames.TAG_TITLE_CASE].tolist()
-        else:
-            selected_tags = selected_rows[tag_column].tolist()
-
-        selected_grouped = grouped_df[grouped_df[tag_column].isin(selected_tags)].drop_duplicates(subset=[tag_column])
-
-        selected_annotation_tags: list[AnnotationTag] = []
-        for _, row in selected_grouped.iterrows():
-            selected_annotation_tags.append(
-                AnnotationTag(
-                    tag_text=row[tag_column],
-                    resource_type=row.get(FieldNames.END_NODE_RESOURCE_TYPE_CAMEL_CASE),
-                    secondary_scope=row.get(secondary_scope_column) if secondary_scope_column else None,
-                    status=row.get(normalized_status_property),
-                )
-            )
-
-        st.session_state["selected_potential_tags"] = selected_annotation_tags
-
-    def render(self) -> AnnotationTag | None:
+    def render(self) -> None:
         secondary_scope_property = self.extraction_pipeline_cfg.secondary_scope_property
         self.actual_df = self._apply_perfile_filters(self.actual_df, secondary_scope_property)
         self.potential_df = self._apply_perfile_filters(self.potential_df, secondary_scope_property)
@@ -219,7 +187,7 @@ class AnnotationComparisonComponent(Component):
         self.potential_df = self._filter_by_files(self.potential_df, selected_files)
 
         st.markdown("### Annotation Comparison")
-        st.caption("❔ Hover the metrics for help. Use the checkboxes to select a potential annotation to promote.")
+        st.caption("❔ Hover the metrics for help.")
 
         left, right = st.columns(2)
 
@@ -276,17 +244,6 @@ class AnnotationComparisonComponent(Component):
                 df = df[df[prefixed_secondary_scope_property] == secondary_scope_filter_value]
 
         return df
-
-class ManualPromotingComponent(Component):
-    def __init__(self, client: CogniteClient | None = None, extraction_pipeline_cfg: ExtractionPipelineConfig | None = None, actual_df: pd.DataFrame | None = None, potential_df: pd.DataFrame | None = None):
-        self.client = client
-        self.extraction_pipeline_cfg = extraction_pipeline_cfg
-        self.actual_df = actual_df
-        self.potential_df = potential_df
-
-    def render(self) -> None:
-        st.markdown(f"### {FieldNames.MANUAL_PROMOTION_TITLE}")
-        st.info("Manual promotion functionality is under development.")
 
 class TagEntityResourceTypeCoverageComponent(Component):
     def __init__(self, actual_df: pd.DataFrame | None = None, potential_df: pd.DataFrame | None = None):

@@ -22,7 +22,7 @@ class AnnotationQualityUI:
             st.session_state.manual_patterns_changes = set()
         
         st.title("Annotation Quality")
-        st.caption("See the quality metrics, manage patterns and promote annotations manually. Choose a pipeline to begin.")
+        st.caption("See the quality metrics and manage patterns. Choose a pipeline to begin.")
 
         st.write(f"Project selected: {self.client.config.project if self.client else 'No CDF client available yet'}")
 

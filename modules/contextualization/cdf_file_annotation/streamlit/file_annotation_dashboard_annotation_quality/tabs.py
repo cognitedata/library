@@ -4,7 +4,6 @@ from components import (
     AnnotationComparisonComponent,
     FileAggregationComponent,
     FileResourceTypeCoverageComponent,
-    ManualPromotingComponent,
     OverallAnnotationCoverageComponent,
     PatternCatalogComponent,
     PerFileFiltersComponent,
@@ -26,7 +25,6 @@ class PerFileTab:
         PerFileFiltersComponent(extraction_pipeline_cfg, actual_df=actual_df, potential_df=potential_df).render()
         FileAggregationComponent(extraction_pipeline_cfg, actual_df=actual_df, potential_df=potential_df).render()
         AnnotationComparisonComponent(extraction_pipeline_cfg, actual_df=actual_df, potential_df=potential_df).render()
-        ManualPromotingComponent(client, extraction_pipeline_cfg, actual_df, potential_df).render()
 
 class PatternManagementTab:
     def render(self, client, extraction_pipeline_cfg) -> None:

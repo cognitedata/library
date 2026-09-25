@@ -1,162 +1,73 @@
 externalId: {{ extractionPipelineExternalId }}
 config:
-  dataModelViews:
-    coreAnnotationView:
-      schemaSpace: cdf_cdm
-      externalId: CogniteDiagramAnnotation
-      version: v1
-    annotationStateView:
-      schemaSpace: {{ annotationStateSchemaSpace }}
-      instanceSpace: {{fileInstanceSpace}}
-      externalId: {{ annotationStateExternalId }}
-      version: {{ annotationStateVersion }}
-    fileView:
-      schemaSpace: {{ fileSchemaSpace }}
-      instanceSpace: {{fileInstanceSpace}}
-      externalId: {{ fileExternalId }}
-      version: {{ fileVersion }}
-      annotationType: diagrams.FileLink
-    targetEntitiesView:
-      schemaSpace: {{ targetEntitySchemaSpace }}
-      instanceSpace: {{targetEntityInstanceSpace}}
-      externalId: {{ targetEntityExternalId }}
-      version: {{ targetEntityVersion }}
-      annotationType: diagrams.AssetLink
-  rawTables:
+  parameters:
+    # Debug file external id for the extraction pipeline, empty string for no debug file.
+    debugFileExternalId: {{ debugFileExternalId }}
+    patternMode: {{ patternMode }}
+    structuralAutoPatterns: {{ structuralAutoPatterns }}
+    cleanOldAnnotations: {{ cleanOldAnnotations }}
+    assetAutoApprovalThreshold: {{ assetAutoApprovalThreshold }}
+    assetAutoSuggestThreshold: {{ assetAutoSuggestThreshold }}
+    fileAutoApprovalThreshold: {{ fileAutoApprovalThreshold }}
+    fileAutoSuggestThreshold: {{ fileAutoSuggestThreshold }}
+    # Scope properties are property NAMES, not values. Set them in default.config.yaml
+    # (primaryScopeProperty / secondaryScopeProperty). Each value comes from the instances:
+    # the property must be a text property with the same name on both fileView and
+    # targetEntitiesView. Launch groups files by their value and matches each group only
+    # against assets/files with the same value. Empty string disables scoping.
+    # Example: primaryScopeProperty: site, secondaryScopeProperty: unit
+    #   A file with site = "PlantA", unit = "U100" is matched only against DetectInDiagrams
+    #   assets/files with site = "PlantA" and unit = "U100", plus ScopeWideDetect ones in "PlantA".
+    primaryScopeProperty: {{ primaryScopeProperty }}
+    secondaryScopeProperty: {{ secondaryScopeProperty }}
+    # Pipeline tags: ToAnnotate, DetectInDiagrams, ScopeWideDetect, AnnotationInProcess,
+    # Annotated, AnnotationFailed, PromoteAttempted, PromotedAuto, AmbiguousMatch.
+    filesToAnnotateTags: {{ filesToAnnotateTags }}
+    filesToAnnotateExcludeTags: {{ filesToAnnotateExcludeTags }}
+    fileEntitiesTags: {{ fileEntitiesTags }}
+    targetEntitiesTags: {{ targetEntitiesTags }}
+    
     rawDb: {{ rawDb }}
-    rawTableCache: {{ rawTableCache }}
     rawTableDocTag: {{ rawTableDocTag }}
     rawTableDocDoc: {{ rawTableDocDoc }}
     rawTableDocPattern: {{ rawTableDocPattern }}
-    rawTablePromoteCache: {{ rawTablePromoteCache }}
+    rawTableCache: {{ rawTableCache }}
     rawManualPatternsCatalog: {{ rawManualPatternsCatalog }}
-  prepareFunction:
-    # getFilesForAnnotationResetQuery:
-    #   targetView:
-    #     schemaSpace: {{fileSchemaSpace}}
-    #     externalId: {{fileExternalId}}
-    #     version: {{fileVersion}}
-    #   filters:
-    #     - values: ["AnnotationFailed", "Annotated"]
-    #       negate: False
-    #       operator: In
-    #       targetProperty: tags
-    getFilesToAnnotateQuery:
-      targetView:
-        schemaSpace: {{ fileSchemaSpace }}
-        externalId: {{ fileExternalId }}
-        version: {{ fileVersion }}
-      filters:
-        - values: ["ToAnnotate"] # NOTE: Do not change unless there's a good reason
-          negate: False
-          operator: In
-          targetProperty: tags
-        - values: ["AnnotationInProcess", "Annotated", "AnnotationFailed"] # NOTE: Do not change unless there's a good reason
-          negate: True
-          operator: In
-          targetProperty: tags
-      limit: 10000
-  launchFunction:
-    batchSize: 50
-    fileSearchProperty: aliases
-    targetEntitiesSearchProperty: aliases
-    primaryScopeProperty: None
-    secondaryScopeProperty:
-    patternMode: True
-    fileResourceProperty:
-    targetEntitiesResourceProperty:
-    dataModelService:
-      getFilesToProcessQuery:
-        targetView:
-          schemaSpace: {{ annotationStateSchemaSpace }}
-          externalId: {{ annotationStateExternalId }}
-          version: {{ annotationStateVersion }}
-        filters:
-          - values: ["New", "Retry"] # NOTE: Do not change unless there's a good reason
-            negate: False
-            operator: In
-            targetProperty: annotationStatus
-          - negate: False
-            operator: Exists
-            targetProperty: linkedFile
-        limit: 1000
-      getTargetEntitiesQuery:
-        targetView:
-          schemaSpace: {{ targetEntitySchemaSpace }}
-          externalId: {{ targetEntityExternalId }}
-          version: {{ targetEntityVersion }}
-        filters:
-          - values: ["DetectInDiagrams"] # NOTE: Do not change unless there's a good reason
-            negate: False
-            operator: In
-            targetProperty: tags
-      getFileEntitiesQuery:
-        targetView:
-          schemaSpace: {{ fileSchemaSpace }}
-          externalId: {{ fileExternalId }}
-          version: {{ fileVersion }}
-        filters:
-          - values: ["DetectInDiagrams"] # NOTE: Do not change unless there's a good reason
-            negate: False
-            operator: In
-            targetProperty: tags
-    cacheService:
-      cacheTimeLimit: 0 # NOTE: Please set this variable when aliasing rules are standardized. Recommendation is to set to 24 (measured in hours).
-    annotationService:
-      pageRange: 50
-      partialMatch: True
-      diagramDetectConfig:
-        connectionFlags:
-          noTextInbetween: True
-          naturalReadingOrder: True
-        readEmbeddedText: True
-  finalizeFunction:
-    cleanOldAnnotations: True
-    maxRetryAttempts: 3
-    retrieveService:
-      getJobIdQuery:
-        targetView:
-          schemaSpace: {{ annotationStateSchemaSpace }}
-          externalId: {{ annotationStateExternalId }}
-          version: {{ annotationStateVersion }}
-        filters:
-          - values: "Processing" # NOTE: Do not change unless there's a good reason
-            negate: False
-            operator: Equals
-            targetProperty: annotationStatus
-          - negate: False # NOTE: Do not change unless there's a good reason
-            operator: Exists
-            targetProperty: diagramDetectJobId
-    applyService:
-      autoApprovalThreshold: 1.0
-      autoSuggestThreshold: 1.0
-      sinkNode:
-          space: {{ patternModeInstanceSpace }}
-          externalId: {{patternDetectSink}}
-  promoteFunction:
-    getCandidatesQuery:
-      targetView:
-        schemaSpace: cdf_cdm
-        externalId: CogniteDiagramAnnotation
-        version: v1
-      filters:
-        - values: "Suggested"  # Only process suggested annotations
-          negate: False
-          operator: Equals
-          targetProperty: status
-        - values: ["PromoteAttempted"]  # Skip already attempted edges
-          negate: True
-          operator: In
-          targetProperty: tags
-      limit: 500  # Number of edges to process per batch
-    promoteFileEntities: True # Controls if promote is run on file entities
-    promoteTargetEntities: True # Controls if promote is run on target entities
-    deleteRejectedEdges: True
-    deleteSuggestedEdges: True
-    entitySearchService:
-      enableGlobalEntitySearch: True
-      maxEntitySearchLimit: 1000  # Max entities to fetch in global search
+    rawTablePromoteCache: {{ rawTablePromoteCache }}
+    patternPromote:
       textNormalization:
-        removeSpecialCharacters: True  # Remove non-alphanumeric characters (e.g., "V-0912" → "V0912")
-        convertToLowercase: False  # Convert to lowercase (e.g., "V0912" → "v0912")
-        stripLeadingZeros: True  # Remove leading zeros (e.g., "v0912" → "v912")
+        # Separate lists avoid false-positive structural samples when asset vs file
+        # alias shapes differ. Capture-group semantics as aliases_update aliasPattern;
+        # longest match kept. Empty list disables filtering for that source.
+        # Casing is preserved — DMS alias IN filters are case-sensitive.
+        entityNormalizationPatterns: {{ entityNormalizationPatterns }}
+        fileNormalizationPatterns: {{ fileNormalizationPatterns }}
+  data:
+    # instanceSpace: a set value limits the view to that one space. An empty value means
+    # "the space of the file being annotated": Prepare picks up files from every space, Launch
+    # and Promote match each file only against entities in its own space, and the annotation
+    # state is stored next to the file. Example with sites in separate spaces:
+    #   fileView.instanceSpace: (empty), targetEntitiesView.instanceSpace: (empty)
+    #   A file in inst_plant_a is matched only against assets and files in inst_plant_a.
+    fileView:
+      schemaSpace: {{ fileSchemaSpace }}
+      instanceSpace: {{ fileInstanceSpace }}
+      externalId: {{ fileExternalId }}
+      version: {{ fileVersion }}
+      searchProperty: {{ fileSearchProperty }}
+      resourceProperty: {{ fileResourceProperty }}
+    targetEntitiesView:
+      schemaSpace: {{ targetEntitySchemaSpace }}
+      instanceSpace: {{ targetEntityInstanceSpace }}
+      externalId: {{ targetEntityExternalId }}
+      version: {{ targetEntityVersion }}
+      searchProperty: {{ targetEntitySearchProperty }}
+      resourceProperty: {{ targetEntityResourceProperty }}
+    annotationStateView:
+      schemaSpace: {{ annotationStateSchemaSpace }}
+      instanceSpace: {{ fileInstanceSpace }}
+      externalId: {{ annotationStateExternalId }}
+      version: {{ annotationStateVersion }}
+    sinkNode:
+      space: {{ patternModeInstanceSpace }}
+      externalId: {{ patternDetectSink }}
