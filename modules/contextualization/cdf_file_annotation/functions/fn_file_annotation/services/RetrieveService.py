@@ -3,7 +3,7 @@ import abc
 from cognite.client import CogniteClient
 from cognite.client.data_classes.data_modeling import (
     Node,
-    NodeApplyList,
+    NodeApply,
     NodeId,
     NodeList,
     instances,
@@ -200,7 +200,7 @@ class GeneralRetrieveService(IRetrieveService):
 
         return regular_job, pattern_mode_job, file_to_state_map
 
-    def _attempt_to_claim(self, list_job_nodes_to_claim: NodeApplyList) -> None:
+    def _attempt_to_claim(self, list_job_nodes_to_claim: list[NodeApply]) -> None:
         """
         Attempts to claim annotation state nodes using optimistic locking.
 
@@ -209,7 +209,7 @@ class GeneralRetrieveService(IRetrieveService):
         consistency edge cases.
 
         Args:
-            list_job_nodes_to_claim: NodeApplyList of annotation state nodes to claim.
+            list_job_nodes_to_claim: Annotation state nodes to claim.
 
         Returns:
             None

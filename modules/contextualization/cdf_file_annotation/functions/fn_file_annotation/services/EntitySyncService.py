@@ -267,7 +267,10 @@ class EntitySyncService:
         }
         try:
             self.client.raw.rows.insert(
-                self.db_name, self.table_name, Row(f"{ENTITY_SYNC_STATE_KEY_PREFIX}{key}", columns), ensure_parent=True
+                self.db_name,
+                self.table_name,
+                Row(f"{ENTITY_SYNC_STATE_KEY_PREFIX}{key}", columns),
+                ensure_parent=True,
             )
         except CogniteAPIError as e:
             # The stored cursor still matches the stored file, so the next run just syncs the same changes again.
@@ -295,7 +298,8 @@ class EntitySyncService:
         """Stores the entities; False when they could not be, so the cursor is left where it was."""
         file_external_id = self._file_external_id(key)
         content = json.dumps(
-            [[e.space, e.external_id, next(iter(e.properties.values()))] for e in entities], separators=(",", ":")
+            [[e.space, e.external_id, next(iter(e.properties.values()))] for e in entities],
+            separators=(",", ":"),
         ).encode("utf-8")
         try:
             self.client.files.upload_bytes(

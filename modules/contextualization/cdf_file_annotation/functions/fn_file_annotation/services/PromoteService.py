@@ -509,7 +509,9 @@ class GeneralPromoteService(IPromoteService):
             and found_entities[0].external_id == edge.start_node.external_id
         ):  # Failure - single match, but it's a self-reference
             self.logger.info(
-                f"✗ Only self-reference match for '{edge_props.get('startNodeText')}'.\n\t- Rejecting edge: ({edge.space}, {edge.external_id})\n\t- Start node: ({edge.start_node.space}, {edge.start_node.external_id})."
+                f"✗ Only self-reference match for '{edge_props.get('startNodeText')}'.\n"
+                f"\t- Rejecting edge: ({edge.space}, {edge.external_id})\n"
+                f"\t- Start node: ({edge.start_node.space}, {edge.start_node.external_id})."
             )
             update_properties["status"] = DiagramAnnotationStatus.REJECTED.value
             updated_tags = add_unique_tags(updated_tags, "PromoteAttempted")
