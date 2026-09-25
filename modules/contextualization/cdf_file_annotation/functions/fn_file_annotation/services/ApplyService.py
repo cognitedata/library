@@ -9,6 +9,7 @@ from cognite.client.data_classes import RowWrite
 from cognite.client.data_classes.annotation_types.primitives import BoundingBox
 from cognite.client.data_classes.data_modeling import (
     DirectRelationReference,
+    Edge,
     EdgeApply,
     InstancesApplyResult,
     Node,
@@ -17,7 +18,9 @@ from cognite.client.data_classes.data_modeling import (
     NodeOrEdgeData,
     ViewId,
 )
-from cognite.client.data_classes.filters import And, Equals
+from cognite.client.data_classes.data_modeling.query import EdgeResultSetExpression, Query, Select
+from cognite.client.data_classes.filters import And, Equals, HasData
+from fa_constants import QUERY_PAGE_SIZE
 from services.ConfigService import Config
 from services.LoggerService import CogniteFunctionLogger
 from utils.DataStructures import DiagramAnnotationStatus
@@ -249,7 +252,7 @@ class GeneralApplyService(IApplyService):
             counts["pattern"] = len(row_keys)
         return counts
 
-    def _list_annotations_for_file(self, node_id: NodeId, edge_instance_space: str):
+    def _list_annotations_for_file(self, node_id: NodeId, edge_instance_space: str) -> list[Edge]:
         """
         Retrieves the annotation edges this function created for a specific file in a given instance space.
 
@@ -260,23 +263,33 @@ class GeneralApplyService(IApplyService):
             edge_instance_space: Instance space where the annotation edges are stored.
 
         Returns:
-            EdgeList of annotation edges connected to the file node and created by this function.
+            The annotation edges connected to the file node and created by this function, read a page at a
+            time and without properties: deleting them only needs their ids and types.
         """
         own_edges_filter = And(
+            Equals(["edge", "space"], edge_instance_space),
             Equals(
                 ["edge", "startNode"],
                 {"space": node_id.space, "externalId": node_id.external_id},
             ),
+            HasData(views=[self.core_annotation_view_id]),
             Equals(self.core_annotation_view_id.as_property_ref("sourceCreatedUser"), self.FUNCTION_ID),
         )
 
-        return self.client.data_modeling.instances.list(
-            instance_type="edge",
-            sources=[self.core_annotation_view_id],
-            space=edge_instance_space,
-            filter=own_edges_filter,
-            limit=-1,
-        )
+        edges: list[Edge] = []
+        cursor: str | None = None
+        while True:
+            query = Query(
+                with_={"edges": EdgeResultSetExpression(filter=own_edges_filter, limit=QUERY_PAGE_SIZE)},
+                select={"edges": Select()},
+                cursors={"edges": cursor},
+            )
+            result = self.client.data_modeling.instances.query(query)
+            page = list(result["edges"])
+            edges.extend(page)
+            cursor = result.cursors.get("edges")
+            if not cursor or len(page) < QUERY_PAGE_SIZE:
+                return edges
 
     def _process_pattern_results(
         self,

@@ -135,14 +135,8 @@ class GeneralDataModelService(IDataModelService):
         filter_files_for_annotation_reset: Filter = build_filter_from_query(
             self.config.prepare_function.get_files_for_annotation_reset_query
         )
-        result: NodeList | None = self.client.data_modeling.instances.list(
-            instance_type="node",
-            sources=self.file_view.as_view_id(),
-            space=self.file_view.instance_space,
-            limit=-1,  # NOTE: this should always be kept at -1 so that all files defined in the query will get reset
-            filter=filter_files_for_annotation_reset,
-        )
-        return result
+        # Every file the query selects is reset, so all pages are read; only the tags are changed.
+        return self._query_nodes("files", self.file_view, filter_files_for_annotation_reset, ["tags"], -1)
 
     def get_files_to_annotate(self) -> NodeList | None:
         """

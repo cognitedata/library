@@ -174,7 +174,7 @@ class GeneralRetrieveService(IRetrieveService):
             instance_type="node",
             sources=self.annotation_state_view.as_view_id(),
             space=self.annotation_state_view.instance_space,
-            limit=-1,  # Grab all instances of annotation_state_node
+            limit=self.config.launch_function.batch_size,  # Launch puts at most one batch of files in a job
             filter=filter_job_id,
             sort=sort_by_time,
         )

@@ -6,7 +6,7 @@ from unittest.mock import MagicMock
 
 sys.path.append(str(Path(__file__).parent))
 
-from cognite.client.data_classes.data_modeling import Node, NodeId
+from cognite.client.data_classes.data_modeling import Node, NodeId, NodeList
 from services.ConfigService import Config
 
 
@@ -118,6 +118,41 @@ def test_launch_in_debug_mode_reads_only_the_debug_file_state() -> None:
     assert set(query.with_) == {"new_states", "new_files"}
     state_filter = str(query.with_["new_states"].filter.dump())
     assert "linkedFile" in state_filter and "PID-001" in state_filter
+
+
+def test_the_reset_query_is_paged_and_reads_only_the_file_tags() -> None:
+    first_page = _result({"files": [_file(f"f{i}") for i in range(1000)]})
+    first_page.cursors = {"files": "next"}
+    client = MagicMock()
+    client.data_modeling.instances.query.side_effect = [first_page, _result({"files": [_file("last")]})]
+    config = _config()
+    config.prepare_function.get_files_for_annotation_reset_query = config.prepare_function.get_files_to_annotate_query
+
+    files = _data_model_service(config, client).get_files_for_annotation_reset()
+
+    assert files is not None and len(files) == 1001
+    client.data_modeling.instances.list.assert_not_called()
+    for call in client.data_modeling.instances.query.call_args_list:
+        assert call.args[0].select["files"].sources[0].properties == ["tags"]
+
+
+def test_finalize_reads_at_most_one_launch_batch_of_states_per_job() -> None:
+    from services.RetrieveService import GeneralRetrieveService
+
+    job_state = _node(
+        "files",
+        "state-1",
+        ("sp_hdm", "FileAnnotationState/v1"),
+        {"linkedFile": {"space": "files", "externalId": "f1"}, "diagramDetectJobId": 7},
+    )
+    client = MagicMock()
+    client.data_modeling.instances.list.side_effect = [NodeList([job_state]), NodeList([])]
+    service = GeneralRetrieveService(client, _config(), MagicMock())
+
+    service.get_job_id()
+
+    job_lookup = client.data_modeling.instances.list.call_args_list[1]
+    assert job_lookup.kwargs["limit"] == _config().launch_function.batch_size
 
 
 def test_prepare_reads_only_the_file_tags() -> None:

@@ -167,12 +167,15 @@ def test_cleaning_old_annotations_only_targets_edges_created_by_this_function() 
         file_node, None, None, clean_old=True
     )
 
-    list_calls = client.data_modeling.instances.list.call_args_list
-    assert len(list_calls) == 2
-    for call in list_calls:
-        dumped = json.dumps(call.kwargs["filter"].dump())
+    query_calls = client.data_modeling.instances.query.call_args_list
+    assert len(query_calls) == 2
+    client.data_modeling.instances.list.assert_not_called()
+    for call in query_calls:
+        dumped = json.dumps(call.args[0].with_["edges"].filter.dump())
         assert '"sourceCreatedUser"' in dumped
         assert '"fn_file_annotation"' in dumped
+        # Only the ids and types of the edges are used to delete them.
+        assert call.args[0].select["edges"].sources == []
 
 
 def test_diagram_detect_config_sends_only_the_configured_parameters() -> None:
