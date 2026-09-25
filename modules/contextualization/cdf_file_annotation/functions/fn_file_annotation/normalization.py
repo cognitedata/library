@@ -82,6 +82,8 @@ def normalize_text(text: str, patterns: list[str]) -> str:
     Falls back to the original text when patterns are set but none match.
     Casing is preserved to match case-sensitive alias lookup.
     """
+    if not isinstance(text, str):
+        return ""
     forms = extract_forms(text, patterns) if patterns else []
     value = forms[0] if forms else text
     for pattern, replacement in DEFAULT_NORMALIZATION_SUBSTITUTIONS:

@@ -313,10 +313,11 @@ def test_normalization_strips_leading_zeros_from_every_numeric_segment() -> None
 
 def test_normalization_ignores_text_that_is_not_a_string() -> None:
     """Detect results can carry a null text; that must not crash promote or pattern sampling."""
-    from normalization import extract_forms, text_variations
+    from normalization import extract_forms, normalize_text, text_variations
 
     assert extract_forms(None, [r"^([A-Z]{2})-(.+)$"]) == []  # type: ignore[arg-type]
     assert text_variations(None, [r"^([A-Z]{2})-(.+)$"]) == []  # type: ignore[arg-type]
+    assert normalize_text(None, []) == ""  # type: ignore[arg-type]
 
 
 @pytest.mark.parametrize("factory", ["create_logger_service", "create_write_logger_service"])

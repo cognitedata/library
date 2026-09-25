@@ -18,7 +18,7 @@ from utils.DataStructures import PromoteTracker
 from stages.stage_runtime import STAGE_REPORTABLE_ERRORS, failure_response
 
 
-def handle(data: dict, function_call_info: dict, client: CogniteClient) -> dict[str, str]:
+def handle(data: dict, function_call_info: dict, client: CogniteClient) -> dict:
     """
     Main entry point for the Cognite Function - promotes pattern-mode annotations.
 

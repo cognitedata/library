@@ -624,10 +624,12 @@ class GeneralApplyService(IApplyService):
             BoundingBox object with computed x_min, x_max, y_min, y_max boundaries.
         """
         vertices = region.get("vertices", [])
-        if not vertices:
+        if not vertices or not isinstance(vertices, list):
             return BoundingBox(x_min=0.0, x_max=0.0, y_min=0.0, y_max=0.0)
-        x_coords = [v.get("x", 0.0) for v in vertices]
-        y_coords = [v.get("y", 0.0) for v in vertices]
+        x_coords = [v.get("x") for v in vertices if isinstance(v, dict) and v.get("x") is not None]
+        y_coords = [v.get("y") for v in vertices if isinstance(v, dict) and v.get("y") is not None]
+        if not x_coords or not y_coords:
+            return BoundingBox(x_min=0.0, x_max=0.0, y_min=0.0, y_max=0.0)
         return BoundingBox(x_min=min(x_coords), x_max=max(x_coords), y_min=min(y_coords), y_max=max(y_coords))
 
     def _bounding_box_to_coords(self, bounding_box: BoundingBox) -> tuple[float, float, float, float]:

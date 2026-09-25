@@ -277,7 +277,12 @@ class GeneralDataModelService(IDataModelService):
                 if len(file_to_state_map) >= page_size:
                     break
                 file_reference = ((state.properties or {}).get(state_view_id) or {}).get("linkedFile")
-                if not isinstance(file_reference, dict):
+                if (
+                    not file_reference
+                    or not isinstance(file_reference, dict)
+                    or "space" not in file_reference
+                    or "externalId" not in file_reference
+                ):
                     continue
                 file_node_id = NodeId(file_reference["space"], file_reference["externalId"])
                 in_file_space = self.file_view.instance_space in (None, file_node_id.space)

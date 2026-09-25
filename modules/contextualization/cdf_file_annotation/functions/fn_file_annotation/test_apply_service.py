@@ -200,3 +200,13 @@ def test_file_link_thresholds_default_to_the_general_thresholds() -> None:
     apply = _config(assetAutoApprovalThreshold=0.9, assetAutoSuggestThreshold=0.6).finalize_function.apply_service
 
     assert (apply.file_auto_approval_threshold, apply.file_auto_suggest_threshold) == (0.9, 0.6)
+
+
+def test_extract_bounding_box_ignores_vertices_with_null_coordinates() -> None:
+    service = GeneralApplyService(MagicMock(), _config(), MagicMock())
+
+    box = service._extract_bounding_box_from_region(
+        {"vertices": [{"x": None, "y": 0.1}, {"x": 0.2, "y": None}, {"x": 0.5, "y": 0.8}]}
+    )
+
+    assert (box.x_min, box.x_max, box.y_min, box.y_max) == (0.2, 0.5, 0.8, 0.8)
