@@ -1,4 +1,4 @@
-- name: File Annotation
+- name: dm:context:file_annotation
   externalId: {{ functionExternalId }}
   owner: "Anonymous"
   description: "Prepare and launch file annotation jobs, then finalize and promote their results."
