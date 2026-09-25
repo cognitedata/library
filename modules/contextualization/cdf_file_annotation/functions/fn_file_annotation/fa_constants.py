@@ -11,6 +11,9 @@ LAUNCH_STATE_LIMIT: Final = 1000
 PROMOTE_CANDIDATE_LIMIT: Final = 500
 FUNCTION_TIME_BUDGET_MINUTES: Final = 7
 LOCAL_RATE_LIMIT_SLEEP_SECONDS: Final = 900
+# A stage retries a run whose query timed out this many times in a row, waiting 15s, 30s, 60s, then fails.
+QUERY_TIMEOUT_MAX_RETRIES: Final = 3
+QUERY_TIMEOUT_BACKOFF_SECONDS: Final = 15
 
 # Match entities are read through the DMS sync endpoint on top of a cached copy in a CDF file.
 ENTITY_SYNC_CACHE_VERSION: Final = 1  # bump when what a read selects changes, to start new caches
@@ -22,7 +25,7 @@ ENTITY_SYNC_MIN_BATCH_SIZE: Final = 100
 ENTITY_SYNC_BATCH_SIZE_FACTOR: Final = 0.8
 ENTITY_SYNC_MAX_RETRIES: Final = 4
 ENTITY_SYNC_RETRY_BACKOFF_SECONDS: Final = 2
-ENTITY_SYNC_TIME_BUDGET_SECONDS: Final = 300
+ENTITY_SYNC_CHECKPOINT_SECONDS: Final = 300  # a long read is stored this often, so a crash loses little
 
 # Diagram detect config - see DiagramDetectConfig in the Cognite SDK docs. None = use API default.
 MIN_TOKENS: Final = 2

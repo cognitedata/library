@@ -34,12 +34,12 @@ from fa_constants import (
     ENTITY_SYNC_BATCH_SIZE_FACTOR,
     ENTITY_SYNC_CACHE_FILE_PREFIX,
     ENTITY_SYNC_CACHE_VERSION,
+    ENTITY_SYNC_CHECKPOINT_SECONDS,
     ENTITY_SYNC_MAX_RETRIES,
     ENTITY_SYNC_MIN_BATCH_SIZE,
     ENTITY_SYNC_QUERY_NAME,
     ENTITY_SYNC_RETRY_BACKOFF_SECONDS,
     ENTITY_SYNC_STATE_KEY_PREFIX,
-    ENTITY_SYNC_TIME_BUDGET_SECONDS,
 )
 from services.ConfigService import Config, ViewPropertyConfig
 from services.LoggerService import CogniteFunctionLogger
@@ -59,7 +59,7 @@ class EntityInstance:
 
 
 class EntitySyncIncompleteError(RuntimeError):
-    """The first read of a view outlasted the time budget; what was read is stored and the next run continues."""
+    """A read of a view was stopped part way; what was read is stored and the next load continues it."""
 
 
 def entity_cache_key(view: ViewPropertyConfig, space: str | None, properties: list[str], tags: list[str]) -> str:
@@ -86,13 +86,24 @@ class EntitySyncService:
     """Keeps the tagged instances of a view in a CDF file, brought up to date through DMS sync."""
 
     def __init__(
-        self, client: CogniteClient, config: Config, logger: CogniteFunctionLogger, data_set_id: int | None = None
+        self,
+        client: CogniteClient,
+        config: Config,
+        logger: CogniteFunctionLogger,
+        data_set_id: int | None = None,
+        deadline: float | None = None,
     ):
+        """
+        Args:
+            data_set_id: Data set the cache files are written to.
+            deadline: `time.monotonic()` value a read stops at, so it is stored before the function is killed.
+        """
         self.client = client
         self.logger = logger
         self.db_name = config.raw_tables.raw_db
         self.table_name = config.raw_tables.raw_table_cache
         self.data_set_id = data_set_id
+        self.deadline = deadline
 
     def load(
         self, view: ViewPropertyConfig, space: str | None, properties: list[str], tags: list[str]
@@ -109,7 +120,7 @@ class EntitySyncService:
             The entities, with only the requested properties.
 
         Raises:
-            EntitySyncIncompleteError: The first read of the view did not finish within the time budget.
+            EntitySyncIncompleteError: The read reached a checkpoint or the deadline before it caught up.
         """
         key = entity_cache_key(view, space, properties, tags)
         cursor, batch_size = self._read_state(key)
@@ -143,7 +154,7 @@ class EntitySyncService:
 
         if not caught_up:
             raise EntitySyncIncompleteError(
-                f"Read {len(result)} entities of {view.external_id} so far; the next run continues the read"
+                f"Read {len(result)} tagged entities of {view.external_id} so far; the next run continues the read"
             )
         return result
 
@@ -174,7 +185,9 @@ class EntitySyncService:
             cursors={ENTITY_SYNC_QUERY_NAME: cursor},
         )
 
-        deadline = time.monotonic() + ENTITY_SYNC_TIME_BUDGET_SECONDS
+        deadline = time.monotonic() + ENTITY_SYNC_CHECKPOINT_SECONDS
+        if self.deadline is not None:
+            deadline = min(deadline, self.deadline)
         changes = 0
         while True:
             result, batch_size = self._sync_page(query, expression, batch_size)

@@ -14,6 +14,7 @@ from utils.DataStructures import (
     node_tags,
     tags_apply,
 )
+from utils.QueryTimeout import QueryTimeoutRetry, is_query_timeout
 
 
 class AbstractPrepareService(abc.ABC):
@@ -70,6 +71,7 @@ class GeneralPrepareService(AbstractPrepareService):
         self.function_id: int | None = function_call_info.get("function_id")
         self.call_id: int | None = function_call_info.get("call_id")
 
+        self.query_timeout = QueryTimeoutRetry(logger)
         self.reset_files: bool = False
         if self.config.prepare_function.get_files_for_annotation_reset_query:
             self.reset_files = True
@@ -88,7 +90,7 @@ class GeneralPrepareService(AbstractPrepareService):
             "Done" if no more files need preparation, None if processing should continue.
 
         Raises:
-            CogniteAPIError: If query timeout or other API errors occur (408 errors are handled gracefully).
+            CogniteAPIError: On API errors, and on a query that keeps timing out (408) after a few retries.
             ValueError: If annotation state view instance space is not configured.
         """
         self.logger.info(
@@ -118,16 +120,10 @@ class GeneralPrepareService(AbstractPrepareService):
                     )
                 self.reset_files = False
         except CogniteAPIError as e:
-            # NOTE: Reliant on the CogniteAPI message to stay the same across new releases. If unexpected changes were to occur please refer to this section of the code and check if error message is now different.
-            if (
-                e.code == 408
-                and e.message == "Graph query timed out. Reduce load or contention, or optimise your query."
-            ):
-                # NOTE: 408 indicates a timeout error. Keep retrying the query if a timeout occurs.
-                self.logger.error(message="Ran into the following error", error=e)
-                return None
-            else:
-                raise e
+            if not is_query_timeout(e):
+                raise
+            self.query_timeout.wait(e)
+            return None
 
         try:
             file_nodes: NodeList | None = self.data_model_service.get_files_to_annotate()
@@ -139,16 +135,11 @@ class GeneralPrepareService(AbstractPrepareService):
                 return "Done"
             self.logger.info(f"Preparing {len(file_nodes)} files")
         except CogniteAPIError as e:
-            # NOTE: Reliant on the CogniteAPI message to stay the same across new releases. If unexpected changes were to occur please refer to this section of the code and check if error message is now different.
-            if (
-                e.code == 408
-                and e.message == "Graph query timed out. Reduce load or contention, or optimise your query."
-            ):
-                # NOTE: 408 indicates a timeout error. Keep retrying the query if a timeout occurs.
-                self.logger.error(message="Ran into the following error", error=e)
-                return None
-            else:
-                raise e
+            if not is_query_timeout(e):
+                raise
+            self.query_timeout.wait(e)
+            return None
+        self.query_timeout.reset()
 
         annotation_state_instances: list[NodeApply] = []
         file_apply_instances: list[NodeApply] = []

@@ -29,6 +29,7 @@ from utils.DataStructures import (
     PerformanceTracker,
     unique_tags,
 )
+from utils.QueryTimeout import QueryTimeoutRetry, is_query_timeout
 
 
 class RateLimitPolicy(abc.ABC):
@@ -129,6 +130,7 @@ class GeneralLaunchService(AbstractLaunchService):
         self.function_id: int | None = function_call_info.get("function_id")
         self.call_id: int | None = function_call_info.get("call_id")
         self.rate_limit_policy = rate_limit_policy
+        self.query_timeout = QueryTimeoutRetry(logger)
 
     def run(self) -> Literal["Done"] | None:
         """
@@ -157,16 +159,10 @@ class GeneralLaunchService(AbstractLaunchService):
                 return "Done"
             self.logger.info(message=f"Launching {len(file_nodes)} files", section="END")
         except CogniteAPIError as e:
-            # NOTE: Reliant on the CogniteAPI message to stay the same across new releases. If unexpected changes were to occur please refer to this section of the code and check if error message is now different.
-            if (
-                e.code == 408
-                and e.message == "Graph query timed out. Reduce load or contention, or optimise your query."
-            ):
-                # NOTE: 408 indicates a timeout error. Keep retrying the query if a timeout occurs.
-                self.logger.error(message="Ran into the following error", error=e)
-                return None
-            else:
-                raise e
+            if not is_query_timeout(e):
+                raise
+            self.query_timeout.wait(e)
+            return None
 
         processing_batches: list[FileProcessingBatch] = self._organize_files_for_processing(file_nodes)
 
@@ -207,17 +203,20 @@ class GeneralLaunchService(AbstractLaunchService):
             if e.code == 429:
                 self.logger.debug(f"{e!s}")
                 return self.rate_limit_policy.handle(self.logger)
-            elif e.code == 408:
-                self.logger.error(message="Query timeout. Retrying in 30 seconds.", error=e)
-                time.sleep(30)
+            elif is_query_timeout(e):
+                try:
+                    self.query_timeout.wait(e)
+                except CogniteAPIError:
+                    self._release_unlaunched_files(file_nodes, launched_file_ids)
+                    raise
                 return None
             else:
                 self._release_unlaunched_files(file_nodes, launched_file_ids)
                 raise e
         except EntitySyncIncompleteError as e:
-            # The files keep their claim, so the next run launches them once the read has finished.
-            self.logger.warning(f"{e}. Unlaunched files are launched on a later run.")
-            return "Done"
+            # The files keep their claim; the next run continues the read from the stored cursor.
+            self.logger.info(f"{e}. Unlaunched files are launched once the read has finished.")
+            return None
         except Exception:
             # Re-raised after releasing, so any failure frees the files this run claimed.
             self._release_unlaunched_files(file_nodes, launched_file_ids)
@@ -225,6 +224,7 @@ class GeneralLaunchService(AbstractLaunchService):
         finally:
             self.tracker.add_files(success=total_files_processed)
 
+        self.query_timeout.reset()
         return None
 
     def _release_unlaunched_files(self, file_nodes: NodeList, launched_file_ids: set[NodeId]) -> None:

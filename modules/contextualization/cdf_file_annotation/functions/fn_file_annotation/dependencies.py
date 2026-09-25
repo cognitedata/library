@@ -90,9 +90,19 @@ def create_write_logger_service(log_level: str, filepath: str) -> CogniteFunctio
 
 
 def create_general_data_model_service(
-    config: Config, client: CogniteClient, logger: CogniteFunctionLogger, data_set_id: int | None = None
+    config: Config,
+    client: CogniteClient,
+    logger: CogniteFunctionLogger,
+    data_set_id: int | None = None,
+    entity_read_deadline: float | None = None,
 ) -> GeneralDataModelService:
-    return GeneralDataModelService(config=config, client=client, logger=logger, data_set_id=data_set_id)
+    return GeneralDataModelService(
+        config=config,
+        client=client,
+        logger=logger,
+        data_set_id=data_set_id,
+        entity_read_deadline=entity_read_deadline,
+    )
 
 
 def get_pipeline_data_set_id(client: CogniteClient, pipeline_ext_id: str) -> int | None:

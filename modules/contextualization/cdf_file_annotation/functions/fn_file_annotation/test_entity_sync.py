@@ -169,7 +169,7 @@ def test_a_first_read_that_outlasts_the_budget_is_stored_and_continued_next_run(
     import services.EntitySyncService as entity_sync
     from services.EntitySyncService import EntitySyncIncompleteError
 
-    monkeypatch.setattr(entity_sync, "ENTITY_SYNC_TIME_BUDGET_SECONDS", 0)
+    monkeypatch.setattr(entity_sync, "ENTITY_SYNC_CHECKPOINT_SECONDS", 0)
     client = _client([_page([_asset("A-1", tags=["OMD"])], cursor="partial")], state=Row("state", {"batchSize": 1}))
 
     with pytest.raises(EntitySyncIncompleteError):

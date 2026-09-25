@@ -23,6 +23,7 @@ from utils.DataStructures import (
     replace_tag,
     tags_apply,
 )
+from utils.QueryTimeout import QueryTimeoutRetry, is_query_timeout
 
 
 class AbstractFinalizeService(abc.ABC):
@@ -82,6 +83,7 @@ class GeneralFinalizeService(AbstractFinalizeService):
         self.page_range: int = config.launch_function.annotation_service.page_range
         self.max_retries: int = config.finalize_function.max_retry_attempts
         self.clean_old_annotations: bool = config.finalize_function.clean_old_annotations
+        self.query_timeout = QueryTimeoutRetry(logger)
         self.function_id: int | None = function_call_info.get("function_id")
         self.call_id: int | None = function_call_info.get("call_id")
 
@@ -119,14 +121,12 @@ class GeneralFinalizeService(AbstractFinalizeService):
                     section="END",
                 )
                 return None
-            elif (
-                e.code == 408
-                and e.message == "Graph query timed out. Reduce load or contention, or optimise your query."
-            ):
-                self.logger.error(message="Ran into the following error", error=e, section="END")
+            elif is_query_timeout(e):
+                self.query_timeout.wait(e)
                 return None
             else:
                 raise e
+        self.query_timeout.reset()
 
         job_results: dict | None = None
         pattern_mode_job_results: dict | None = None

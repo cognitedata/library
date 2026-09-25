@@ -1,3 +1,4 @@
+import time
 from datetime import UTC, datetime, timedelta
 
 from cognite.client import CogniteClient
@@ -43,6 +44,7 @@ def handle(data: dict, function_call_info: dict, client: CogniteClient) -> dict:
     documentation on the calling a function can be found here...  https://api-docs.cognite.com/20230101/tag/Function-calls/operation/postFunctionsCall
     """
     start_time = datetime.now(UTC)
+    deadline = time.monotonic() + FUNCTION_TIME_BUDGET_MINUTES * 60
     log_level = data.get("logLevel", "INFO")
 
     config_instance, client = create_config_service(function_data=data, client=client)
@@ -59,6 +61,7 @@ def handle(data: dict, function_call_info: dict, client: CogniteClient) -> dict:
         function_call_info=function_call_info,
         rate_limit_policy=DeployedRateLimitPolicy(),
         data_set_id=get_pipeline_data_set_id(client, data["ExtractionPipelineExtId"]),
+        entity_read_deadline=deadline,
     )
 
     logger_instance.info(format_launch_config(config_instance, data["ExtractionPipelineExtId"]), section="START")
@@ -108,6 +111,7 @@ def run_locally(config_file: dict[str, str], log_path: str | None = None):
         function_call_info={"function_id": None, "call_id": None},
         rate_limit_policy=LocalRateLimitPolicy(),
         data_set_id=get_pipeline_data_set_id(client, config_file["ExtractionPipelineExtId"]),
+        entity_read_deadline=None,
     )
 
     logger_instance.info(format_launch_config(config_instance, config_file["ExtractionPipelineExtId"]), section="START")
@@ -126,10 +130,19 @@ def run_locally(config_file: dict[str, str], log_path: str | None = None):
 
 
 def _create_launch_service(
-    config, client, logger, tracker, function_call_info, rate_limit_policy: RateLimitPolicy, data_set_id: int | None
+    config,
+    client,
+    logger,
+    tracker,
+    function_call_info,
+    rate_limit_policy: RateLimitPolicy,
+    data_set_id: int | None,
+    entity_read_deadline: float | None,
 ) -> AbstractLaunchService:
     cache_instance: ICacheService = create_general_entity_cache_service(config, client, logger)
-    data_model_instance: IDataModelService = create_general_data_model_service(config, client, logger, data_set_id)
+    data_model_instance: IDataModelService = create_general_data_model_service(
+        config, client, logger, data_set_id, entity_read_deadline
+    )
     annotation_instance: IAnnotationService = create_general_annotation_service(config, client, logger)
     launch_instance: AbstractLaunchService = GeneralLaunchService(
         client=client,

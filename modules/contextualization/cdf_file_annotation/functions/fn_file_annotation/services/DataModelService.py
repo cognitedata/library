@@ -76,12 +76,17 @@ class GeneralDataModelService(IDataModelService):
     """
 
     def __init__(
-        self, config: Config, client: CogniteClient, logger: CogniteFunctionLogger, data_set_id: int | None = None
+        self,
+        config: Config,
+        client: CogniteClient,
+        logger: CogniteFunctionLogger,
+        data_set_id: int | None = None,
+        entity_read_deadline: float | None = None,
     ):
         self.client: CogniteClient = client
         self.config: Config = config
         self.logger: CogniteFunctionLogger = logger
-        self.entity_sync = EntitySyncService(client, config, logger, data_set_id)
+        self.entity_sync = EntitySyncService(client, config, logger, data_set_id, entity_read_deadline)
         # Latest read per view, so the scopes of one space share a single read.
         self._synced_entities: dict[ViewId, tuple[str | None, list[EntityInstance]]] = {}
 
