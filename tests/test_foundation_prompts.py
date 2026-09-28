@@ -51,7 +51,7 @@ class TestPromptYesNo:
         self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
     ) -> None:
         # [Y/n] / [y/N] are intentionally excluded from the catalogue — do not translate.
-        monkeypatch.setattr(_i18n, "_LOCALE", "ja")
+        monkeypatch.setattr(_i18n, "_locale", "ja")
         monkeypatch.setattr("builtins.input", _echo_input(""))
         _prompts.prompt_yes_no("Proceed?", default=True)
         assert "[Y/n]" in capsys.readouterr().out
@@ -72,7 +72,7 @@ class TestPromptChoice:
     def test_invalid_choice_warns_in_japanese(
         self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
     ) -> None:
-        monkeypatch.setattr(_i18n, "_LOCALE", "ja")
+        monkeypatch.setattr(_i18n, "_locale", "ja")
         monkeypatch.setattr("builtins.input", _echo_input("abc", "1"))
         _prompts.prompt_choice(["a", "b"], default=1)
         assert "1 から 2 の間の数字を入力してください。" in capsys.readouterr().out
@@ -113,7 +113,7 @@ class TestPromptEnvVar:
     def test_found_and_keep_messages_in_japanese_locale(
         self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
     ) -> None:
-        monkeypatch.setattr(_i18n, "_LOCALE", "ja")
+        monkeypatch.setattr(_i18n, "_locale", "ja")
         monkeypatch.setattr("builtins.input", _echo_input("y"))
         env_vals = {"FOO": "secretvalue123"}
         _prompts.prompt_env_var("FOO", env_vals, [], {})
@@ -124,7 +124,7 @@ class TestPromptEnvVar:
     def test_not_found_and_new_value_messages_in_japanese_locale(
         self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
     ) -> None:
-        monkeypatch.setattr(_i18n, "_LOCALE", "ja")
+        monkeypatch.setattr(_i18n, "_locale", "ja")
         monkeypatch.setattr("builtins.input", _echo_input("created-value"))
         env_vals: dict[str, str] = {}
         _prompts.prompt_env_var("BAR", env_vals, [], {})

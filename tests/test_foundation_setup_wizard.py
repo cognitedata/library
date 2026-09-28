@@ -2086,7 +2086,7 @@ class TestGetOrgDirName:
     ) -> None:
         import _i18n
         from _pack_config import get_org_dir_name
-        monkeypatch.setattr(_i18n, "_LOCALE", "ja")
+        monkeypatch.setattr(_i18n, "_locale", "ja")
         (tmp_path / "cdf.toml").write_text("[cdf\nbroken =\n")
         get_org_dir_name(tmp_path)
         assert "警告: TOML ファイル" in capsys.readouterr().out
