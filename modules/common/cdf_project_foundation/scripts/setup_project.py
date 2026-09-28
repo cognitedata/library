@@ -609,7 +609,8 @@ def resolve_pack_kind_for_check(variant: str, sourcesystem_dir: Path) -> Literal
             "\n".join(
                 [
                     t(
-                        "ERROR: Could not determine deployment pack kind from installed sourcesystem modules under 'modules/sourcesystem/'"
+                        "ERROR: Could not determine deployment pack kind from installed "
+                        "sourcesystem modules under 'modules/sourcesystem/'"
                     ),
                     t("  (found both extractor and data-dump modules, or neither)."),
                     t("  A project should have either *_extractor modules (Foundation) or"),
@@ -2059,10 +2060,18 @@ def _warn_disabled_notifications(repo_root: Path | None, pack_root: Path) -> Non
                 disabled.append(f"{label}: data owner")
 
         if disabled:
-            print(t("WARNING: sendNotification disabled (no email configured) in config.{env}.yaml for:").format(env=env))
+            print(
+                t("WARNING: sendNotification disabled (no email configured) in config.{env}.yaml for:").format(
+                    env=env
+                )
+            )
             for entry in disabled:
                 print(f"  - {entry}")
-            print(f"{t('  These contacts will not be notified on pipeline failure. Run: python scripts/setup_project.py -y')}\n")
+            msg = t(
+                "  These contacts will not be notified on pipeline failure. "
+                "Run: python scripts/setup_project.py -y"
+            )
+            print(f"{msg}\n")
 
 
 def _run_check(
