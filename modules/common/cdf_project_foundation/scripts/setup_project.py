@@ -1252,7 +1252,11 @@ def _warn_if_no_email(label: str, email: str) -> None:
     """Blank email means sendNotification is written as false for this contact —
     surface that now, not as a silent gap discovered during an incident."""
     if not email:
-        _warn(f"No email set for {label} — pipeline notifications will be disabled (sendNotification: false).")
+        _warn(
+            t("No email set for {label} — pipeline notifications will be disabled (sendNotification: false).").format(
+                label=label
+            )
+        )
 
 
 def _all_same(owners: dict[str, tuple[str, str]]) -> bool:
@@ -1287,7 +1291,7 @@ def _prompt_source_system_ownership(
     if prompt_yes_no(t("Same integration owner for all source systems?"), default=shared_int_default):
         first = next(iter(ei.values()), ("", "")) if ei else ("", "")
         name, email = _prompt_owner(f"  {t('Integration owner')}", *first)
-        _warn_if_no_email("integration owner", email)
+        _warn_if_no_email(t("Integration owner").lower(), email)
         for m in installed_ss:
             integration_owners[m] = (name, email)
     else:
@@ -1295,7 +1299,7 @@ def _prompt_source_system_ownership(
             print(f"\n  {_module_label(m)}")
             dn, de = ei.get(m, ("", ""))
             name, email = _prompt_owner(f"    {t('Integration owner')}", dn, de)
-            _warn_if_no_email(f"integration owner ({_module_label(m)})", email)
+            _warn_if_no_email(f"{t('Integration owner').lower()} ({_module_label(m)})", email)
             integration_owners[m] = (name, email)
 
     # ── Data owner ────────────────────────────────────────────────────────────
@@ -1305,7 +1309,7 @@ def _prompt_source_system_ownership(
     if prompt_yes_no(t("Same data owner for all source systems?"), default=shared_data_default):
         first = next(iter(ed.values()), ("", "")) if ed else ("", "")
         name, email = _prompt_owner(f"  {t('Data owner')}", *first)
-        _warn_if_no_email("data owner", email)
+        _warn_if_no_email(t("Data owner").lower(), email)
         for m in installed_ss:
             data_owners[m] = (name, email)
     else:
@@ -1313,7 +1317,7 @@ def _prompt_source_system_ownership(
             print(f"\n  {_module_label(m)}")
             dn, de = ed.get(m, ("", ""))
             name, email = _prompt_owner(f"    {t('Data owner')}", dn, de)
-            _warn_if_no_email(f"data owner ({_module_label(m)})", email)
+            _warn_if_no_email(f"{t('Data owner').lower()} ({_module_label(m)})", email)
             data_owners[m] = (name, email)
 
     return integration_owners, data_owners
@@ -2050,13 +2054,10 @@ def _warn_disabled_notifications(repo_root: Path | None, pack_root: Path) -> Non
                 disabled.append(f"{label}: data owner")
 
         if disabled:
-            print(f"WARNING: sendNotification disabled (no email configured) in config.{env}.yaml for:")
+            print(t("WARNING: sendNotification disabled (no email configured) in config.{env}.yaml for:").format(env=env))
             for entry in disabled:
                 print(f"  - {entry}")
-            print(
-                "  These contacts will not be notified on pipeline failure. "
-                "Run: python scripts/setup_project.py -y\n"
-            )
+            print(f"{t('  These contacts will not be notified on pipeline failure. Run: python scripts/setup_project.py -y')}\n")
 
 
 def _run_check(
