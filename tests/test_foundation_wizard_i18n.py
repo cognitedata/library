@@ -257,3 +257,44 @@ class TestRunCheck:
         out = capsys.readouterr().out
         assert "エラー: 不要な diagram-annotation ファイルが残っています（cdf_file_annotation に置き換えられています）:" in out
         assert "実行: python scripts/setup_project.py -y" in out
+
+
+class TestWarnIfNoEmail:
+    def test_message_is_english_by_default(self, capsys: pytest.CaptureFixture[str]) -> None:
+        sp._warn_if_no_email("integration owner", "")
+        assert "No email set for integration owner" in capsys.readouterr().out
+
+    def test_message_is_translated_in_japanese(
+        self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        monkeypatch.setattr(_i18n, "_locale", "ja")
+        label = f"{_i18n.t('Integration owner').lower()}"
+        sp._warn_if_no_email(label, "")
+        out = capsys.readouterr().out
+        assert "インテグレーション管理者 のメールアドレスが設定されていません" in out
+        assert "sendNotification: false" in out
+
+
+class TestWarnDisabledNotifications:
+    def _scaffold(self, tmp_path: Path) -> None:
+        (tmp_path / "modules" / "sourcesystem" / "cdf_pi_extractor").mkdir(parents=True)
+        (tmp_path / "config.dev.yaml").write_text(
+            "variables:\n  modules:\n    sourcesystem:\n      cdf_pi_extractor: {}\n"
+        )
+
+    def test_warning_header_is_english_by_default(self, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+        self._scaffold(tmp_path)
+        sp._warn_disabled_notifications(tmp_path, tmp_path)
+        out = capsys.readouterr().out
+        assert "WARNING: sendNotification disabled (no email configured) in config.dev.yaml for:" in out
+        assert "These contacts will not be notified on pipeline failure." in out
+
+    def test_warning_header_is_translated_in_japanese(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        monkeypatch.setattr(_i18n, "_locale", "ja")
+        self._scaffold(tmp_path)
+        sp._warn_disabled_notifications(tmp_path, tmp_path)
+        out = capsys.readouterr().out
+        assert "警告: config.dev.yaml でメールアドレスが未設定のため sendNotification が無効になっています:" in out
+        assert "これらの連絡先にはパイプライン失敗時の通知が送信されません。実行: python scripts/setup_project.py -y" in out
