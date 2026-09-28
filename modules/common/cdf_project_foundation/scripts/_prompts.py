@@ -18,7 +18,7 @@ def prompt(msg: str, default: str | None = None) -> str:
 
 def prompt_yes_no(msg: str, default: bool = True) -> bool:
     """Prompt for a yes/no answer, returning *default* on empty input."""
-    hint = t("[Y/n]") if default else t("[y/N]")
+    hint = "[Y/n]" if default else "[y/N]"
     try:
         raw = input(f"  {msg} {hint}: ").strip().lower()
     except EOFError:
