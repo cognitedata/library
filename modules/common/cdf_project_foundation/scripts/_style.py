@@ -18,8 +18,14 @@ def _display_width(text: str) -> int:
     menus) once the string contains CJK characters. Ambiguous-width characters are
     genuinely terminal-dependent (narrow in some configurations, wide in others) —
     counting them as wide errs toward overflow-safe rather than under-counting.
+
+    Normalizes to NFC first: on macOS, kana with dakuten/handakuten (e.g. ``が``)
+    can arrive NFD-decomposed into a base character plus a combining mark (``か``
+    + ``゙``) — both of which independently report a wide east_asian_width,
+    which would double-count a single rendered column pair as two.
     """
-    return sum(2 if unicodedata.east_asian_width(ch) in ("W", "F", "A") else 1 for ch in text)
+    normalized = unicodedata.normalize("NFC", text)
+    return sum(2 if unicodedata.east_asian_width(ch) in ("W", "F", "A") else 1 for ch in normalized)
 
 
 class _C:

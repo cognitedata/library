@@ -7,6 +7,7 @@ a Japanese-only, and a mixed EN/JA string, using real strings from
 """
 
 import sys
+import unicodedata
 from pathlib import Path
 
 import pytest
@@ -52,6 +53,16 @@ class TestDisplayWidth:
         # error-prone.
         assert _display_width(title) == 59
         assert len(title) == 46
+
+    def test_nfd_decomposed_dakuten_kana_is_not_double_counted(self) -> None:
+        # On macOS, kana with dakuten/handakuten (e.g. "が") can arrive
+        # NFD-decomposed into a base kana + a separate combining mark — both of
+        # which independently report a wide east_asian_width. Real catalogue
+        # string, deliberately chosen because it contains "が".
+        text = "環境が選択されていません — 処理を中止します。"
+        nfd_text = unicodedata.normalize("NFD", text)
+        assert nfd_text != text  # confirms this string actually decomposes
+        assert _display_width(nfd_text) == _display_width(text)
 
 
 class TestBannerWidth:
