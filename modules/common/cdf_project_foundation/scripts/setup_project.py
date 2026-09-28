@@ -2102,13 +2102,14 @@ def _run_check(
         print(f"\n  {t('Run: python scripts/setup_project.py -y')}")
         sys.exit(1)
     if missing_cdm_space:
-        print(
-            f"ERROR: CDM instance space file missing for variant '{variant}':\n  {_CDM_INSTANCE_SPACE_REL_PATH}"
+        missing_space_header = t("ERROR: CDM instance space file missing for variant '{variant}':").format(
+            variant=variant
         )
+        print(f"{missing_space_header}\n  {_CDM_INSTANCE_SPACE_REL_PATH}")
         print(f"\n  {t('Run: python scripts/setup_project.py -y')}")
         sys.exit(1)
     if stale_diagram_annotation:
-        print("ERROR: Redundant diagram-annotation file(s) still present (superseded by cdf_file_annotation):")
+        print(t("ERROR: Redundant diagram-annotation file(s) still present (superseded by cdf_file_annotation):"))
         for p in stale_diagram_annotation:
             print(f"  {p.relative_to(get_pack_root(repo_root))}")
         print(f"\n  {t('Run: python scripts/setup_project.py -y')}")
