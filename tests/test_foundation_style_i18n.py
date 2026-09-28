@@ -38,6 +38,21 @@ class TestDisplayWidth:
     def test_empty_string_is_zero(self) -> None:
         assert _display_width("") == 0
 
+    def test_ambiguous_width_em_dash_counts_as_two(self) -> None:
+        # East Asian Width "Ambiguous" — the em dash used throughout the Japanese
+        # catalogue (e.g. "Foundation Deployment Pack Demo — プロジェクトセットアップ")
+        # renders as 2 columns in CJK-configured terminals.
+        assert _display_width("—") == 2
+
+    def test_mixed_title_with_em_dash_counts_ambiguous_width_correctly(self) -> None:
+        title = "Foundation Deployment Pack Demo — プロジェクトセットアップ"
+        # len() undercounts by 1 per wide/ambiguous char that isn't already
+        # double-width in len()'s eyes — verified directly rather than
+        # hand-computed, since the em dash (ambiguous) makes manual counting
+        # error-prone.
+        assert _display_width(title) == 59
+        assert len(title) == 46
+
 
 class TestBannerWidth:
     def test_ascii_title_keeps_the_original_56_column_box(self, capsys: pytest.CaptureFixture[str]) -> None:

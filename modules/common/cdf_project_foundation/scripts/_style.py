@@ -10,13 +10,16 @@ _USE_COLOR = sys.stdout.isatty()
 def _display_width(text: str) -> int:
     """Terminal display width of *text*.
 
-    East Asian Wide and Fullwidth characters (most Japanese kana/kanji and
-    full-width punctuation) render as 2 terminal columns; everything else is 1.
-    ``len()`` counts one column per character regardless of script, so it
-    undercounts Japanese text and breaks fixed-width layout (box borders,
-    padded menus) once the string contains CJK characters.
+    East Asian Wide, Fullwidth, and Ambiguous characters (most Japanese kana/kanji,
+    full-width punctuation, and symbols like the em-dash used throughout the
+    catalogue) render as 2 terminal columns in CJK-configured terminals; everything
+    else is 1. ``len()`` counts one column per character regardless of script, so it
+    undercounts Japanese text and breaks fixed-width layout (box borders, padded
+    menus) once the string contains CJK characters. Ambiguous-width characters are
+    genuinely terminal-dependent (narrow in some configurations, wide in others) —
+    counting them as wide errs toward overflow-safe rather than under-counting.
     """
-    return sum(2 if unicodedata.east_asian_width(ch) in ("W", "F") else 1 for ch in text)
+    return sum(2 if unicodedata.east_asian_width(ch) in ("W", "F", "A") else 1 for ch in text)
 
 
 class _C:
