@@ -43,15 +43,15 @@ class TestBannerWidth:
     def test_ascii_title_keeps_the_original_56_column_box(self, capsys: pytest.CaptureFixture[str]) -> None:
         _banner("Environment Selection")
         lines = capsys.readouterr().out.splitlines()
-        assert lines[1] == "─" * 56
-        assert lines[3] == "─" * 56
+        assert lines[1] == "=" * 56
+        assert lines[3] == "=" * 56
         assert "  Environment Selection" in lines[2]
 
     def test_short_japanese_title_does_not_shrink_the_box(self, capsys: pytest.CaptureFixture[str]) -> None:
         _banner("環境の選択")
         lines = capsys.readouterr().out.splitlines()
-        assert lines[1] == "─" * 56
-        assert lines[3] == "─" * 56
+        assert lines[1] == "=" * 56
+        assert lines[3] == "=" * 56
         assert "  環境の選択" in lines[2]
 
     def test_long_mixed_title_grows_the_box_to_fit(self, capsys: pytest.CaptureFixture[str]) -> None:
