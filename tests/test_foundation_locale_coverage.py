@@ -6,7 +6,7 @@ fail here without needing a dedicated new test per string. Covers:
     English key and its Japanese translation (catches e.g. a translator dropping
     a ``{var}``, which would silently hide a real value in Japanese mode);
   - every entry's placeholders can be filled without KeyError/IndexError;
-  - a key missing from ``messages_ja`` falls back to the English key rather than
+  - a key missing from ``MESSAGES_JA`` falls back to the English key rather than
     failing;
   - a representative slice of the wizard's own call sites runs without error
     under both supported locales.
@@ -26,7 +26,7 @@ if str(SCRIPTS_DIR) not in sys.path:
 
 import _i18n  # pyright: ignore[reportMissingImports]
 import setup_project as sp  # pyright: ignore[reportMissingImports]
-from _messages_ja import messages_ja  # pyright: ignore[reportMissingImports]
+from _messages_ja import MESSAGES_JA  # pyright: ignore[reportMissingImports]
 
 _PLACEHOLDER_RE = re.compile(r"\{([a-zA-Z_][a-zA-Z0-9_]*)")
 
@@ -65,13 +65,12 @@ class TestCatalogueLoadsCleanly:
     def test_catalogue_is_non_empty_and_reloads_without_error(self) -> None:
         import importlib
 
-        import _messages_ja as messages_ja_module
-
+        messages_ja_module = importlib.import_module("_messages_ja")
         importlib.reload(messages_ja_module)
-        assert len(messages_ja_module.messages_ja) > 100
+        assert len(messages_ja_module.MESSAGES_JA) > 100
 
     def test_every_entry_is_a_non_empty_string_pair(self) -> None:
-        for key, value in messages_ja.items():
+        for key, value in MESSAGES_JA.items():
             assert isinstance(key, str) and key
             assert isinstance(value, str) and value
 
@@ -80,13 +79,13 @@ class TestCataloguePlaceholderParity:
     def test_every_entry_has_matching_placeholders_between_english_and_japanese(self) -> None:
         mismatches = {
             key: (_placeholders(key), _placeholders(value))
-            for key, value in messages_ja.items()
+            for key, value in MESSAGES_JA.items()
             if _placeholders(key) != _placeholders(value)
         }
         assert not mismatches, mismatches
 
     def test_every_entry_fills_without_keyerror_or_indexerror(self) -> None:
-        for key, value in messages_ja.items():
+        for key, value in MESSAGES_JA.items():
             names = _placeholders(key) | _placeholders(value)
             if not names:
                 continue
@@ -98,18 +97,18 @@ class TestCataloguePlaceholderParity:
     def test_t_resolves_every_catalogue_key_in_both_locales(
         self, active_locale: str, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        monkeypatch.setattr(_i18n, "_LOCALE", active_locale)
-        for key in messages_ja:
+        monkeypatch.setattr(_i18n, "_locale", active_locale)
+        for key in MESSAGES_JA:
             result = _i18n.t(key)
             assert isinstance(result, str) and result
 
 
 class TestMissingKeyFallsBackToEnglish:
     def test_a_real_key_removed_from_the_catalogue_falls_back_to_english(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setattr(_i18n, "_LOCALE", "ja")
-        patched = dict(messages_ja)
+        monkeypatch.setattr(_i18n, "_locale", "ja")
+        patched = dict(MESSAGES_JA)
         del patched["Review"]
-        monkeypatch.setattr(_i18n, "messages_ja", patched)
+        monkeypatch.setattr(_i18n, "MESSAGES_JA", patched)
         assert _i18n.t("Review") == "Review"
 
 
@@ -122,7 +121,7 @@ class TestWizardCoreFlowUnderBothLocales:
         tmp_path: Path,
         capsys: pytest.CaptureFixture[str],
     ) -> None:
-        monkeypatch.setattr(_i18n, "_LOCALE", active_locale)
+        monkeypatch.setattr(_i18n, "_locale", active_locale)
         sp._print_wizard_header("cdm", tmp_path, [], "foundation")
         out = capsys.readouterr().out
         assert "Foundation Deployment Pack" in out  # product name — never translated
@@ -132,7 +131,7 @@ class TestWizardCoreFlowUnderBothLocales:
     def test_environment_menu_renders_without_error(
         self, active_locale: str, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     ) -> None:
-        monkeypatch.setattr(_i18n, "_LOCALE", active_locale)
+        monkeypatch.setattr(_i18n, "_locale", active_locale)
         monkeypatch.setattr("builtins.input", lambda _: "1")
         assert sp._prompt_environments(tmp_path) == ("dev", "test", "prod")
 
@@ -143,7 +142,7 @@ class TestWizardCoreFlowUnderBothLocales:
         tmp_path: Path,
         capsys: pytest.CaptureFixture[str],
     ) -> None:
-        monkeypatch.setattr(_i18n, "_LOCALE", active_locale)
+        monkeypatch.setattr(_i18n, "_locale", active_locale)
         space_rel = sp._CDM_INSTANCE_SPACE_REL_PATH
         (tmp_path / space_rel).parent.mkdir(parents=True)
         (tmp_path / space_rel).write_text("space: x\n")
