@@ -351,7 +351,6 @@ class GeneralDataModelService(IDataModelService):
         Each view is read whole through the entity sync cache, from its configured instanceSpace
         or from file_space when it has none, and then narrowed to the scope in memory:
             - entities in the primary and secondary scope carrying one of the configured tags
-              (files must also have their search property set)
             - or entities in the primary scope tagged ScopeWideDetect, whatever their secondary scope
 
         Args:
@@ -374,7 +373,6 @@ class GeneralDataModelService(IDataModelService):
             self.target_entities_view.instance_space or file_space,
             parameters.target_entities_tags,
             [launch.target_entities_search_property, launch.target_entities_resource_property],
-            None,
             primary_scope_value,
             secondary_scope_value,
         )
@@ -383,7 +381,6 @@ class GeneralDataModelService(IDataModelService):
             self.file_view.instance_space or file_space,
             parameters.file_entities_tags,
             [launch.file_search_property, launch.file_resource_property],
-            launch.file_search_property,
             primary_scope_value,
             secondary_scope_value,
         )
@@ -395,7 +392,6 @@ class GeneralDataModelService(IDataModelService):
         space: str | None,
         entity_tags: list[str],
         extra_properties: list[str | None],
-        required_property: str | None,
         primary_scope_value: str,
         secondary_scope_value: str | None,
     ) -> list[EntityInstance]:
@@ -424,7 +420,6 @@ class GeneralDataModelService(IDataModelService):
             tags = set(raw_tags) if isinstance(raw_tags, list) else set()
             scope_wide = TAG_SCOPE_WIDE_DETECT in tags
             in_secondary_scope = not secondary_property or properties.get(secondary_property) == secondary_scope_value
-            searchable = not required_property or properties.get(required_property) is not None
-            if scope_wide or (not wanted_tags.isdisjoint(tags) and in_secondary_scope and searchable):
+            if scope_wide or (not wanted_tags.isdisjoint(tags) and in_secondary_scope):
                 in_scope.append(entity)
         return in_scope

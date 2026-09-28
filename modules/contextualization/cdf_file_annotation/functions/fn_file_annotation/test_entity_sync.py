@@ -119,6 +119,28 @@ def test_entities_are_filtered_by_tag_and_grouped_by_scope_in_memory() -> None:
     assert _targets(_config("site", "unit"), client, "S1", "U1") == ["in-scope", "scope-wide"]
 
 
+def test_a_file_entity_without_aliases_is_kept_to_match_on_its_name() -> None:
+    from services.DataModelService import GeneralDataModelService
+
+    file_node = Node.load(
+        {
+            "instanceType": "node",
+            "space": "files",
+            "externalId": "PID-0001",
+            "version": 1,
+            "lastUpdatedTime": 0,
+            "createdTime": 0,
+            "properties": {"cdf_cdm": {"CogniteFile/v1": {"name": "PID-0001", "tags": ["DetectInDiagrams"]}}},
+        }
+    )
+    client = _client([])
+    client.data_modeling.instances.sync.side_effect = [_page([]), _page([file_node]), _page([])]
+
+    _, files = GeneralDataModelService(_config(), client, MagicMock()).get_instances_entities("", None, None)
+
+    assert [file.external_id for file in files] == ["PID-0001"]
+
+
 def test_an_unchanged_view_is_read_from_the_cached_file() -> None:
     cached = [["assets", "A-1", {"name": "A-1", "tags": ["OMD"]}]]
     client = _client([], state=Row("state", columns={"cursor": "c1", "batchSize": 1000}), cached=cached)
