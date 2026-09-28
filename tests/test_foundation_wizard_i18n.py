@@ -35,9 +35,10 @@ def _echo_input(*answers: str) -> Callable[[str], str]:
 
 
 class TestShowWizardReview:
-    """Regression test: {project_names[env]} uses str.format() index syntax, which
-    treats "env" as a literal key, not the loop variable — a real bug caught while
-    migrating this call site."""
+    """Regression test for a bug caught while migrating this call site: the original
+    catalogue placeholder {project_names[env]} used str.format() index syntax, which
+    treats "env" as a literal key, not the loop variable. Fixed by renaming the
+    catalogue placeholder to {project_name} and passing the pre-evaluated value."""
 
     def test_review_line_substitutes_the_correct_project_name_in_english(
         self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
@@ -50,7 +51,7 @@ class TestShowWizardReview:
     def test_review_line_substitutes_the_correct_project_name_in_japanese(
         self, tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        monkeypatch.setattr(_i18n, "_LOCALE", "ja")
+        monkeypatch.setattr(_i18n, "_locale", "ja")
         targets = {"dev": tmp_path / "config.dev.yaml"}
         sp._show_wizard_review(targets, {"dev": "acme-dev"}, env_dirty=False)
         out = capsys.readouterr().out
@@ -59,7 +60,7 @@ class TestShowWizardReview:
     def test_env_dirty_line_in_japanese(
         self, tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        monkeypatch.setattr(_i18n, "_LOCALE", "ja")
+        monkeypatch.setattr(_i18n, "_locale", "ja")
         sp._show_wizard_review({}, {}, env_dirty=True)
         assert "アクセスグループ Source ID を更新しました。" in capsys.readouterr().out
 
@@ -77,7 +78,7 @@ class TestPromptEnvironments:
     def test_continue_with_current_selection_in_japanese(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
     ) -> None:
-        monkeypatch.setattr(_i18n, "_LOCALE", "ja")
+        monkeypatch.setattr(_i18n, "_locale", "ja")
         (tmp_path / "config.dev.yaml").write_text("environment:\n  name: dev\n")
         monkeypatch.setattr("builtins.input", _echo_input("y"))
         result = sp._prompt_environments(tmp_path)
@@ -87,7 +88,7 @@ class TestPromptEnvironments:
     def test_custom_selection_prompts_include_env_name_in_japanese(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
     ) -> None:
-        monkeypatch.setattr(_i18n, "_LOCALE", "ja")
+        monkeypatch.setattr(_i18n, "_locale", "ja")
         (tmp_path / "config.dev.yaml").write_text("environment:\n  name: dev\n")
         # Decline "continue with current selection", then answer per-env include prompts.
         monkeypatch.setattr("builtins.input", _echo_input("n", "y", "n", "n"))
@@ -105,7 +106,7 @@ class TestPromptEnvironments:
     def test_menu_custom_branch_prompts_include_environment_name_in_japanese(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
     ) -> None:
-        monkeypatch.setattr(_i18n, "_LOCALE", "ja")
+        monkeypatch.setattr(_i18n, "_locale", "ja")
         monkeypatch.setattr("builtins.input", _echo_input("4", "y", "n", "n"))
         result = sp._prompt_environments(tmp_path)
         assert result == ("dev",)
@@ -128,7 +129,7 @@ class TestPromptOwnerLabelComposition:
     def test_labels_are_translated_in_japanese(
         self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
     ) -> None:
-        monkeypatch.setattr(_i18n, "_LOCALE", "ja")
+        monkeypatch.setattr(_i18n, "_locale", "ja")
         label = f"  {_i18n.t('Integration owner')}"
         monkeypatch.setattr("builtins.input", _echo_input("Jane Doe", ""))
         sp._prompt_owner(label)
@@ -139,7 +140,7 @@ class TestPromptOwnerLabelComposition:
     def test_invalid_email_warning_in_japanese(
         self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
     ) -> None:
-        monkeypatch.setattr(_i18n, "_LOCALE", "ja")
+        monkeypatch.setattr(_i18n, "_locale", "ja")
         monkeypatch.setattr("builtins.input", _echo_input("Jane Doe", "not-an-email", ""))
         sp._prompt_owner("  Data owner")
         assert "メールアドレスが無効です。形式: name@domain.com" in capsys.readouterr().out
@@ -149,7 +150,7 @@ class TestPromptSiteAndProjectNames:
     def test_site_validation_error_in_japanese(
         self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
     ) -> None:
-        monkeypatch.setattr(_i18n, "_LOCALE", "ja")
+        monkeypatch.setattr(_i18n, "_locale", "ja")
         monkeypatch.setattr("builtins.input", _echo_input("Invalid Site!", "oslo"))
         assert sp._prompt_site("") == "oslo"
         assert "小文字の英字、数字、ハイフン、アンダースコアのみを使用してください。" in capsys.readouterr().out
@@ -157,7 +158,7 @@ class TestPromptSiteAndProjectNames:
     def test_project_name_validation_error_in_japanese(
         self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
     ) -> None:
-        monkeypatch.setattr(_i18n, "_LOCALE", "ja")
+        monkeypatch.setattr(_i18n, "_locale", "ja")
         monkeypatch.setattr("builtins.input", _echo_input("Not Valid!", "acme-dev"))
         result = sp._prompt_project_names(("dev",), {})
         assert result == {"dev": "acme-dev"}
@@ -179,7 +180,7 @@ class TestRunCheck:
     def test_ok_message_in_japanese_with_same_behavior(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
     ) -> None:
-        monkeypatch.setattr(_i18n, "_LOCALE", "ja")
+        monkeypatch.setattr(_i18n, "_locale", "ja")
         self._scaffold(tmp_path)
         sp._run_check(None, repo_root=tmp_path)  # must not raise SystemExit
         out = capsys.readouterr().out
@@ -188,7 +189,7 @@ class TestRunCheck:
     def test_out_of_sync_error_exits_1_and_is_translated_in_japanese(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
     ) -> None:
-        monkeypatch.setattr(_i18n, "_LOCALE", "ja")
+        monkeypatch.setattr(_i18n, "_locale", "ja")
         self._scaffold(tmp_path)
         (tmp_path / "config.dev.yaml").write_text(
             "environment:\n  name: dev\n  project: acme-dev\nvariables:\n  modules: {}\n"
