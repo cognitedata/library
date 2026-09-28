@@ -200,3 +200,60 @@ class TestRunCheck:
         out = capsys.readouterr().out
         assert "エラー: 設定ファイルがデータモデル 'cdm' と一致していません:" in out
         assert "実行: python scripts/setup_project.py -y" in out
+
+    def test_missing_cdm_space_error_exits_1_in_english(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        (tmp_path / "modules" / "sourcesystem" / "cdf_pi_extractor").mkdir(parents=True)
+        with pytest.raises(SystemExit) as exc_info:
+            sp._run_check(None, repo_root=tmp_path)
+        assert exc_info.value.code == 1
+        out = capsys.readouterr().out
+        assert "ERROR: CDM instance space file missing for variant 'cdm':" in out
+        assert "Run: python scripts/setup_project.py -y" in out
+
+    def test_missing_cdm_space_error_exits_1_and_is_translated_in_japanese(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        monkeypatch.setattr(_i18n, "_locale", "ja")
+        (tmp_path / "modules" / "sourcesystem" / "cdf_pi_extractor").mkdir(parents=True)
+        with pytest.raises(SystemExit) as exc_info:
+            sp._run_check(None, repo_root=tmp_path)
+        assert exc_info.value.code == 1
+        out = capsys.readouterr().out
+        assert "エラー: データモデル 'cdm' の CDM インスタンス用 space定義ファイルが見つかりません:" in out
+        assert "実行: python scripts/setup_project.py -y" in out
+
+    def _scaffold_stale_diagram_annotation(self, tmp_path: Path) -> None:
+        # ISA variant short-circuits pack-kind detection to "foundation" (see
+        # resolve_pack_kind_for_check), so no sourcesystem extractor module is needed
+        # here — keeps this scaffold from tripping the (unrelated) pack-kind-ambiguous
+        # check before ever reaching the diagram-annotation check.
+        sharepoint_dir = tmp_path / "modules" / "sourcesystem" / "cdf_sharepoint_data_dump"
+        stale_file = sharepoint_dir / "raw" / "diagram_annotation.Table.yaml"
+        stale_file.parent.mkdir(parents=True)
+        stale_file.write_text("externalId: db_sharepoint\n")
+        (tmp_path / "modules" / "contextualization" / "cdf_file_annotation").mkdir(parents=True)
+
+    def test_stale_diagram_annotation_error_exits_1_in_english(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        self._scaffold_stale_diagram_annotation(tmp_path)
+        with pytest.raises(SystemExit) as exc_info:
+            sp._run_check("isa_manufacturing_extension", repo_root=tmp_path)
+        assert exc_info.value.code == 1
+        out = capsys.readouterr().out
+        assert "ERROR: Redundant diagram-annotation file(s) still present (superseded by cdf_file_annotation):" in out
+        assert "Run: python scripts/setup_project.py -y" in out
+
+    def test_stale_diagram_annotation_error_exits_1_and_is_translated_in_japanese(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        monkeypatch.setattr(_i18n, "_locale", "ja")
+        self._scaffold_stale_diagram_annotation(tmp_path)
+        with pytest.raises(SystemExit) as exc_info:
+            sp._run_check("isa_manufacturing_extension", repo_root=tmp_path)
+        assert exc_info.value.code == 1
+        out = capsys.readouterr().out
+        assert "エラー: 不要な diagram-annotation ファイルが残っています（cdf_file_annotation に置き換えられています）:" in out
+        assert "実行: python scripts/setup_project.py -y" in out
