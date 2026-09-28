@@ -58,7 +58,7 @@ class TestWriteFile:
     def test_writes_new_file_and_prints_japanese_message(
         self, tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        monkeypatch.setattr(_i18n, "_LOCALE", "ja")
+        monkeypatch.setattr(_i18n, "_locale", "ja")
         target = tmp_path / "out.txt"
         generate_actions.write_file(target, "content", force=False)
         assert f"書き込みました: {target}" in capsys.readouterr().out
@@ -76,7 +76,7 @@ class TestWriteFile:
     def test_skip_message_in_japanese_when_overwrite_declined(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
     ) -> None:
-        monkeypatch.setattr(_i18n, "_LOCALE", "ja")
+        monkeypatch.setattr(_i18n, "_locale", "ja")
         target = tmp_path / "out.txt"
         target.write_text("old")
         monkeypatch.setattr("builtins.input", lambda _: "n")
@@ -86,7 +86,7 @@ class TestWriteFile:
     def test_overwrite_prompt_echoes_japanese_text(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
     ) -> None:
-        monkeypatch.setattr(_i18n, "_LOCALE", "ja")
+        monkeypatch.setattr(_i18n, "_locale", "ja")
         target = tmp_path / "out.txt"
         target.write_text("old")
 
@@ -112,7 +112,7 @@ class TestRemoveFile:
     def test_prints_japanese_message(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
     ) -> None:
-        monkeypatch.setattr(_i18n, "_LOCALE", "ja")
+        monkeypatch.setattr(_i18n, "_locale", "ja")
         target = tmp_path / "gone.txt"
         target.write_text("x")
         generate_actions.remove_file(target)
@@ -139,7 +139,7 @@ class TestNextStepsChecklist:
     def test_github_checklist_is_japanese_when_locale_is_ja(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
     ) -> None:
-        monkeypatch.setattr(_i18n, "_LOCALE", "ja")
+        monkeypatch.setattr(_i18n, "_locale", "ja")
         _scaffold_dev_only_project(tmp_path)
         monkeypatch.setattr(sys, "argv", ["generate_actions.py", "--force"])
         monkeypatch.chdir(tmp_path)
