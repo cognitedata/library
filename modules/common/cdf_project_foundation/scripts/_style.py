@@ -37,8 +37,11 @@ def _banner(title: str) -> None:
     # The box is at least 56 columns wide (the original fixed width, kept for
     # short titles) and grows to fit longer titles — including Japanese ones,
     # where _display_width() counts wide characters as 2 columns, not 1.
+    # Uses "=" rather than "─" (U+2500): the box-drawing character has an
+    # East Asian Width of Ambiguous, so CJK-configured terminals may render it
+    # as 2 columns, silently doubling the actual line width vs. what we computed.
     width = max(56, _display_width(title) + 2)
-    line = "─" * width
+    line = "=" * width
     print(f"\n{_C.BOLD}{line}{_C.RESET}")
     print(f"{_C.BOLD}  {title}{_C.RESET}")
     print(f"{_C.BOLD}{line}{_C.RESET}")
