@@ -1345,7 +1345,11 @@ def _run_cicd_wizard(pack_root: Path) -> list[Path]:
 
     generate_script = Path(__file__).parent / "generate_actions.py"
     if not generate_script.exists():
-        _warn(t("Could not find generate_actions.py at {generate_script} — skipping.").format(generate_script=generate_script))
+        _warn(
+            t("Could not find generate_actions.py at {generate_script} — skipping.").format(
+                generate_script=generate_script
+            )
+        )
         return []
 
     cmd = [sys.executable, str(generate_script), "--force"]
@@ -1676,13 +1680,8 @@ def _show_wizard_review(
     _section(t("Review"))
     for env, path in targets.items():
         state = "create" if not path.exists() else "update"
-        # str.format()'s "{project_names[env]}" index syntax treats "env" as a literal
-        # key, not the loop variable — use .replace() to substitute it correctly.
-        line = (
-            t("[{state}] {path.name}  —  project: {project_names[env]}")
-            .replace("{state}", state)
-            .replace("{path.name}", path.name)
-            .replace("{project_names[env]}", project_names[env])
+        line = t("[{state}] {path.name}  —  project: {project_name}").format(
+            state=state, path=path, project_name=project_names[env]
         )
         _ok(line)
     if env_dirty:
