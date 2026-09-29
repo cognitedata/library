@@ -387,12 +387,22 @@ class DataModelViews(BaseModel, alias_generator=to_camel):
 
 
 class PatternPromoteParameters(BaseModel, alias_generator=to_camel):
+    pattern_mode: bool = True
+    structural_auto_patterns: bool = True
     text_normalization: TextNormalizationConfig = Field(default_factory=TextNormalizationConfig)
 
 
+class RawDataParameters(BaseModel, alias_generator=to_camel):
+    raw_db: str
+    raw_table_cache: str = RAW_TABLE_CACHE
+    raw_table_doc_tag: str = RAW_TABLE_DOC_TAG
+    raw_table_doc_doc: str = RAW_TABLE_DOC_DOC
+    raw_table_doc_pattern: str = RAW_TABLE_DOC_PATTERN
+    raw_table_promote_cache: str = RAW_TABLE_PROMOTE_CACHE
+    raw_manual_patterns_catalog: str = RAW_TABLE_MANUAL_PATTERNS
+
+
 class Parameters(BaseModel, alias_generator=to_camel):
-    pattern_mode: bool = True
-    structural_auto_patterns: bool = True
     clean_old_annotations: bool = True
     asset_auto_approval_threshold: float = Field(default=1.0, gt=0.0, le=1.0)
     asset_auto_suggest_threshold: float = Field(default=1.0, gt=0.0, le=1.0)
@@ -401,13 +411,7 @@ class Parameters(BaseModel, alias_generator=to_camel):
     file_auto_suggest_threshold: float | None = Field(default=None, gt=0.0, le=1.0)
     primary_scope_property: str | None = None
     secondary_scope_property: str | None = None
-    raw_db: str
-    raw_table_cache: str = RAW_TABLE_CACHE
-    raw_table_doc_tag: str = RAW_TABLE_DOC_TAG
-    raw_table_doc_doc: str = RAW_TABLE_DOC_DOC
-    raw_table_doc_pattern: str = RAW_TABLE_DOC_PATTERN
-    raw_table_promote_cache: str = RAW_TABLE_PROMOTE_CACHE
-    raw_manual_patterns_catalog: str = RAW_TABLE_MANUAL_PATTERNS
+    raw_data: RawDataParameters
     pattern_promote: PatternPromoteParameters = Field(default_factory=PatternPromoteParameters)
     files_to_annotate_tags: list[str] = Field(default_factory=lambda: [TAG_TO_ANNOTATE])
     files_to_annotate_exclude_tags: list[str] = Field(default_factory=lambda: list(EXCLUDED_PREPARE_TAGS))
@@ -494,7 +498,10 @@ class Config(BaseModel, alias_generator=to_camel):
             "externalId": CORE_ANNOTATION_EXTERNAL_ID,
             "version": CORE_ANNOTATION_VERSION,
         }
-        raw_db = parameters.get("rawDb")
+        raw_data = parameters.get("rawData")
+        if not isinstance(raw_data, dict):
+            return value
+        raw_db = raw_data.get("rawDb")
         if not raw_db:
             return value
         asset_approval_threshold = parameters.get("assetAutoApprovalThreshold", 1.0)
@@ -535,12 +542,12 @@ class Config(BaseModel, alias_generator=to_camel):
             {
                 "rawTables": {
                     "rawDb": raw_db,
-                    "rawTableCache": parameters.get("rawTableCache", RAW_TABLE_CACHE),
-                    "rawTableDocTag": parameters.get("rawTableDocTag", RAW_TABLE_DOC_TAG),
-                    "rawTableDocDoc": parameters.get("rawTableDocDoc", RAW_TABLE_DOC_DOC),
-                    "rawTableDocPattern": parameters.get("rawTableDocPattern", RAW_TABLE_DOC_PATTERN),
-                    "rawTablePromoteCache": parameters.get("rawTablePromoteCache", RAW_TABLE_PROMOTE_CACHE),
-                    "rawManualPatternsCatalog": parameters.get("rawManualPatternsCatalog", RAW_TABLE_MANUAL_PATTERNS),
+                    "rawTableCache": raw_data.get("rawTableCache", RAW_TABLE_CACHE),
+                    "rawTableDocTag": raw_data.get("rawTableDocTag", RAW_TABLE_DOC_TAG),
+                    "rawTableDocDoc": raw_data.get("rawTableDocDoc", RAW_TABLE_DOC_DOC),
+                    "rawTableDocPattern": raw_data.get("rawTableDocPattern", RAW_TABLE_DOC_PATTERN),
+                    "rawTablePromoteCache": raw_data.get("rawTablePromoteCache", RAW_TABLE_PROMOTE_CACHE),
+                    "rawManualPatternsCatalog": raw_data.get("rawManualPatternsCatalog", RAW_TABLE_MANUAL_PATTERNS),
                 },
                 "dataModelViews": {
                     "coreAnnotationView": core_view,
@@ -561,8 +568,8 @@ class Config(BaseModel, alias_generator=to_camel):
                     "targetEntitiesSearchProperty": target_view.get("searchProperty", "aliases"),
                     "primaryScopeProperty": parameters.get("primaryScopeProperty"),
                     "secondaryScopeProperty": parameters.get("secondaryScopeProperty"),
-                    "patternMode": parameters.get("patternMode", True),
-                    "structuralAutoPatterns": parameters.get("structuralAutoPatterns", True),
+                    "patternMode": pattern_promote.get("patternMode", True),
+                    "structuralAutoPatterns": pattern_promote.get("structuralAutoPatterns", True),
                     "fileResourceProperty": file_view.get("resourceProperty"),
                     "targetEntitiesResourceProperty": target_view.get("resourceProperty"),
                     "dataModelService": {

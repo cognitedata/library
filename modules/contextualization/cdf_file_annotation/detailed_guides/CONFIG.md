@@ -16,8 +16,6 @@ Valid stages are `prepare`, `launch`, `finalize`, and `promote`.
 
 ```yaml
 parameters:
-  patternMode: {{ patternMode }}
-  structuralAutoPatterns: {{ structuralAutoPatterns }}
   cleanOldAnnotations: {{ cleanOldAnnotations }}
   assetAutoApprovalThreshold: {{ assetAutoApprovalThreshold }}
   assetAutoSuggestThreshold: {{ assetAutoSuggestThreshold }}
@@ -32,21 +30,24 @@ parameters:
   fileEntitiesTags: {{ fileEntitiesTags }}
   targetEntitiesTags: {{ targetEntitiesTags }}
   debugFileExternalId: {{ debugFileExternalId }}
-  rawDb: {{ rawDb }}
-  rawTableDocTag: {{ rawTableDocTag }}
-  rawTableDocDoc: {{ rawTableDocDoc }}
-  rawTableDocPattern: {{ rawTableDocPattern }}
-  rawTableCache: {{ rawTableCache }}
-  rawManualPatternsCatalog: {{ rawManualPatternsCatalog }}
-  rawTablePromoteCache: {{ rawTablePromoteCache }}
+  rawData:
+    rawDb: {{ rawDb }}
+    rawTableDocTag: {{ rawTableDocTag }}
+    rawTableDocDoc: {{ rawTableDocDoc }}
+    rawTableDocPattern: {{ rawTableDocPattern }}
+    rawTableCache: {{ rawTableCache }}
+    rawManualPatternsCatalog: {{ rawManualPatternsCatalog }}
+    rawTablePromoteCache: {{ rawTablePromoteCache }}
   patternPromote:
+    patternMode: {{ patternMode }}
+    structuralAutoPatterns: {{ structuralAutoPatterns }}
     textNormalization:
       entityNormalizationPatterns: {{ entityNormalizationPatterns }}
       fileNormalizationPatterns: {{ fileNormalizationPatterns }}
 ```
 
-- `patternMode` enables pattern-mode Diagram Detect alongside regular entity matching.
-- `structuralAutoPatterns` (default `true`) makes auto patterns digit/letter **structure** templates such as `00-AA-0000` instead of enumerating letter codes like `[FE|KA|PC|VA]`. Separators from aliases (`_`, `-`, `.`, `:`, `;`, `/`) are never required constants (never `[_]`); they normalize to unbracketed `-`. Set `false` for legacy letter-enum expansion.
+- `patternPromote.patternMode` enables pattern-mode Diagram Detect alongside regular entity matching.
+- `patternPromote.structuralAutoPatterns` (default `true`) makes auto patterns digit/letter **structure** templates such as `00-AA-0000` instead of enumerating letter codes like `[FE|KA|PC|VA]`. Separators from aliases (`_`, `-`, `.`, `:`, `;`, `/`) are never required constants (never `[_]`); they normalize to unbracketed `-`. Set `false` for legacy letter-enum expansion.
 - `cleanOldAnnotations` removes this function's prior annotations (edges with `sourceCreatedUser = fn_file_annotation`, plus their RAW rows) on the first finalize pass of a file that is re-annotated. Manual and third-party annotations are kept. Files that are no longer selected for annotation are not cleaned.
 - `assetAutoApprovalThreshold` and `assetAutoSuggestThreshold` control regular annotation status for asset links (`diagrams.AssetLink`). `fileAutoApprovalThreshold` and `fileAutoSuggestThreshold` do the same for file links (`diagrams.FileLink`); leave them empty to reuse the asset-link values. A detection at or above the approval threshold is `Approved`, at or above the suggest threshold `Suggested`, and below that it is dropped.- `primaryScopeProperty` and `secondaryScopeProperty` group files so launch can reuse a scoped entity cache.
 - `filesToAnnotateTags` is the Prepare IN filter for files to process (default `ToAnnotate`).
@@ -55,8 +56,8 @@ parameters:
 - `targetEntitiesTags` is the Launch IN filter for assets used as diagram-detect match entities (default `DetectInDiagrams`).
 - `debugFileExternalId` (default empty) restricts every stage to one file, for debugging. The file is looked up in `data.fileView.instanceSpace` (required when this is set). Prepare picks the file regardless of its `ToAnnotate`/`Annotated` tags (only `AnnotationInProcess` is skipped), Launch and Finalize only handle that file's annotation state, Promote only handles edges that start at the file, and no other files are annotated. Match entities are still read in full: Launch retrieves all `DetectInDiagrams`/`ScopeWideDetect` assets and files as usual, so the debug file is matched against the same entities as in a normal run. Each stage logs a `DEBUG MODE` line in its config header. Leave empty for normal runs.
 - Possible pipeline tags: `ToAnnotate`, `DetectInDiagrams`, `ScopeWideDetect`, `AnnotationInProcess`, `Annotated`, `AnnotationFailed`, `PromoteAttempted`, `PromotedAuto`, `AmbiguousMatch`.
-- `rawDb` is the shared database for result and cache tables.
-- The `rawTable*` keys name the function's result, cache, and catalog tables. They must match the Toolkit RAW resources and the extraction pipeline's `rawTables` list.
+- `rawData.rawDb` is the shared database for result and cache tables.
+- The `rawData.rawTable*` and `rawData.rawManualPatternsCatalog` keys name the function's result, cache, and catalog tables. They must match the Toolkit RAW resources and the extraction pipeline's `rawTables` list.
 - `entityNormalizationPatterns` / `fileNormalizationPatterns` are separate lists (same capture-group semantics as aliases_update `aliasPattern`). Asset aliases and AssetLink promote use the entity list; file aliases and FileLink promote use the file list. Longest match wins. An **empty list** disables filtering for that source only (avoids false-positive structural samples from mixing unrelated shapes).
 - Casing is preserved: DMS alias `IN` filters are case-sensitive exact matches. Built-in rules remove non-alphanumeric characters and strip leading zeros after extraction.
 
@@ -153,7 +154,9 @@ not part of `DiagramDetectConfig`.
 
 ## Migration from the four-function config
 
-Remove `dataModelViews`, `rawTables`, `prepareFunction`, `launchFunction`, `finalizeFunction`, and `promoteFunction`. Replace them with the `parameters` and `data` blocks above, and add the matching keys to `default.config.yaml` (or your `config.<env>.yaml` module variables). Query target views, fixed tags/statuses, limits, and promote cleanup flags are no longer configurable. RAW table names stay in `parameters` and `default.config.yaml`.
+Remove `dataModelViews`, `rawTables`, `prepareFunction`, `launchFunction`, `finalizeFunction`, and `promoteFunction`. Replace them with the `parameters` and `data` blocks above, and add the matching keys to `default.config.yaml` (or your `config.<env>.yaml` module variables). Query target views, fixed tags/statuses, limits, and promote cleanup flags are no longer configurable. RAW table names stay in `default.config.yaml` and go under `parameters.rawData`.
+
+`patternMode` and `structuralAutoPatterns` are read from `parameters.patternPromote`. Left directly under `parameters`, they are ignored and both default to `true`.
 
 Function calls must use `fn_file_annotation` and include `stage`. The supplied workflow
 invokes all four stages in order and finishes with the file-to-asset transformation.

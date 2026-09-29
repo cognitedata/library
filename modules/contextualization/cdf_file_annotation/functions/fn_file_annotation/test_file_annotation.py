@@ -102,16 +102,16 @@ def test_config_uses_parameters_and_data_shape() -> None:
     config = Config.model_validate(
         {
             "parameters": {
-                "patternMode": True,
                 "cleanOldAnnotations": True,
                 "assetAutoApprovalThreshold": 1.0,
                 "assetAutoSuggestThreshold": 1.0,
-                "rawDb": "db_file_annotation",
+                "rawData": {"rawDb": "db_file_annotation"},
                 "patternPromote": {
+                    "patternMode": True,
                     "textNormalization": {
                         "entityNormalizationPatterns": r"^([A-Z]{2})-(.+)$",
                         "fileNormalizationPatterns": r"^DOC-(.+)$",
-                    }
+                    },
                 },
             },
             "data": {
@@ -140,26 +140,28 @@ def test_config_uses_parameters_and_data_shape() -> None:
         }
     )
 
-    assert config.parameters.raw_db == "db_file_annotation"
+    assert config.parameters.raw_data.raw_db == "db_file_annotation"
     assert config.data.file_view.search_property == "aliases"
     assert config.raw_tables.raw_table_doc_tag == "annotation_documents_tags"
     assert config.parameters.pattern_promote.text_normalization.entity_normalization_patterns == [r"^([A-Z]{2})-(.+)$"]
     assert config.parameters.pattern_promote.text_normalization.file_normalization_patterns == [r"^DOC-(.+)$"]
 
 
-def test_config_uses_raw_table_names_from_parameters() -> None:
+def test_config_uses_raw_table_names_from_raw_data() -> None:
     from services.ConfigService import Config
 
     config = Config.model_validate(
         {
             "parameters": {
-                "rawDb": "db_custom",
-                "rawTableCache": "custom_cache",
-                "rawTableDocTag": "custom_tags",
-                "rawTableDocDoc": "custom_docs",
-                "rawTableDocPattern": "custom_patterns",
-                "rawTablePromoteCache": "custom_promote",
-                "rawManualPatternsCatalog": "custom_manual",
+                "rawData": {
+                    "rawDb": "db_custom",
+                    "rawTableCache": "custom_cache",
+                    "rawTableDocTag": "custom_tags",
+                    "rawTableDocDoc": "custom_docs",
+                    "rawTableDocPattern": "custom_patterns",
+                    "rawTablePromoteCache": "custom_promote",
+                    "rawManualPatternsCatalog": "custom_manual",
+                },
             },
             "data": {
                 "fileView": {
@@ -200,7 +202,7 @@ def test_config_uses_default_tag_filters() -> None:
 
     config = Config.model_validate(
         {
-            "parameters": {"rawDb": "db_file_annotation"},
+            "parameters": {"rawData": {"rawDb": "db_file_annotation"}},
             "data": {
                 "fileView": {
                     "schemaSpace": "cdf_cdm",
@@ -245,7 +247,7 @@ def test_config_uses_custom_tag_filters_and_include_overrides_exclude() -> None:
     config = Config.model_validate(
         {
             "parameters": {
-                "rawDb": "db_file_annotation",
+                "rawData": {"rawDb": "db_file_annotation"},
                 "filesToAnnotateTags": ["ToAnnotate", "Annotated"],
                 "fileEntitiesTags": ["DetectInDiagrams", "ToAnnotate"],
                 "targetEntitiesTags": ["DetectInDiagrams"],
@@ -428,7 +430,7 @@ def test_config_log_names_extraction_pipeline_source() -> None:
 
     config = Config.model_validate(
         {
-            "parameters": {"rawDb": "db_file_annotation"},
+            "parameters": {"rawData": {"rawDb": "db_file_annotation"}},
             "data": {
                 "fileView": {
                     "schemaSpace": "cdf_cdm",
@@ -466,7 +468,7 @@ def test_config_validator_lets_pydantic_report_malformed_nested_dicts() -> None:
     with pytest.raises(ValidationError):
         Config.model_validate(
             {
-                "parameters": {"rawDb": "db_file_annotation"},
+                "parameters": {"rawData": {"rawDb": "db_file_annotation"}},
                 "data": {
                     "targetEntitiesView": {
                         "schemaSpace": "cdf_cdm",
@@ -521,7 +523,7 @@ def test_config_validator_lets_pydantic_report_missing_sink_node() -> None:
     with pytest.raises(ValidationError):
         Config.model_validate(
             {
-                "parameters": {"rawDb": "db_file_annotation"},
+                "parameters": {"rawData": {"rawDb": "db_file_annotation"}},
                 "data": {
                     "fileView": {
                         "schemaSpace": "cdf_cdm",
@@ -549,7 +551,7 @@ def test_file_entity_resource_type_falls_back_when_property_is_missing() -> None
 
     config = Config.model_validate(
         {
-            "parameters": {"rawDb": "db_file_annotation"},
+            "parameters": {"rawData": {"rawDb": "db_file_annotation"}},
             "data": {
                 "fileView": {
                     "schemaSpace": "cdf_cdm",
@@ -591,7 +593,7 @@ def test_file_entity_conversion_uses_empty_properties_when_view_is_missing() -> 
 
     config = Config.model_validate(
         {
-            "parameters": {"rawDb": "db_file_annotation"},
+            "parameters": {"rawData": {"rawDb": "db_file_annotation"}},
             "data": {
                 "fileView": {
                     "schemaSpace": "cdf_cdm",
@@ -633,7 +635,7 @@ def test_asset_entity_conversion_uses_empty_properties_when_view_is_missing() ->
 
     config = Config.model_validate(
         {
-            "parameters": {"rawDb": "db_file_annotation"},
+            "parameters": {"rawData": {"rawDb": "db_file_annotation"}},
             "data": {
                 "fileView": {
                     "schemaSpace": "cdf_cdm",
@@ -677,7 +679,7 @@ def test_a_cleared_alias_property_falls_back_to_the_name() -> None:
 
     config = Config.model_validate(
         {
-            "parameters": {"rawDb": "db_file_annotation"},
+            "parameters": {"rawData": {"rawDb": "db_file_annotation"}},
             "data": {
                 "fileView": {
                     "schemaSpace": "cdf_cdm",
@@ -726,7 +728,7 @@ def test_an_instance_without_aliases_or_a_name_has_nothing_to_search_on() -> Non
 
     config = Config.model_validate(
         {
-            "parameters": {"rawDb": "db_file_annotation"},
+            "parameters": {"rawData": {"rawDb": "db_file_annotation"}},
             "data": {
                 "fileView": {
                     "schemaSpace": "cdf_cdm",
@@ -774,7 +776,7 @@ def test_an_asset_without_aliases_still_matches_on_its_name() -> None:
 
     config = Config.model_validate(
         {
-            "parameters": {"rawDb": "db_file_annotation"},
+            "parameters": {"rawData": {"rawDb": "db_file_annotation"}},
             "data": {
                 "fileView": {
                     "schemaSpace": "cdf_cdm",
@@ -815,7 +817,7 @@ def test_launch_service_handles_file_node_with_none_properties() -> None:
 
     config = Config.model_validate(
         {
-            "parameters": {"rawDb": "db_file_annotation", "primaryScopeProperty": "site"},
+            "parameters": {"rawData": {"rawDb": "db_file_annotation"}, "primaryScopeProperty": "site"},
             "data": {
                 "fileView": {
                     "schemaSpace": "cdf_cdm",
@@ -867,7 +869,7 @@ def test_launch_omits_scope_logs_when_unscoped() -> None:
 
     config = Config.model_validate(
         {
-            "parameters": {"rawDb": "db_file_annotation"},
+            "parameters": {"rawData": {"rawDb": "db_file_annotation"}},
             "data": {
                 "fileView": {
                     "schemaSpace": "cdf_cdm",
@@ -946,7 +948,7 @@ def test_a_failed_launch_releases_the_files_it_claimed() -> None:
 
     config = Config.model_validate(
         {
-            "parameters": {"rawDb": "db_file_annotation"},
+            "parameters": {"rawData": {"rawDb": "db_file_annotation"}},
             "data": {
                 "fileView": {
                     "schemaSpace": "cdf_cdm",
@@ -1008,7 +1010,7 @@ def test_a_rate_limited_launch_keeps_the_files_claimed() -> None:
 
     config = Config.model_validate(
         {
-            "parameters": {"rawDb": "db_file_annotation"},
+            "parameters": {"rawData": {"rawDb": "db_file_annotation"}},
             "data": {
                 "fileView": {
                     "schemaSpace": "cdf_cdm",
@@ -1149,7 +1151,7 @@ def test_launch_overall_report_omits_patterns_when_not_used() -> None:
 def _config_with_debug_file(debug_file_external_id: str | None, file_instance_space: str | None = "files"):
     from services.ConfigService import Config
 
-    parameters: dict[str, object] = {"rawDb": "db_file_annotation"}
+    parameters: dict[str, object] = {"rawData": {"rawDb": "db_file_annotation"}}
     if debug_file_external_id is not None:
         parameters["debugFileExternalId"] = debug_file_external_id
     return Config.model_validate(

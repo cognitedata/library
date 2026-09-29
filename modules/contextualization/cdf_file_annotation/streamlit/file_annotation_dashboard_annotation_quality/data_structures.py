@@ -191,15 +191,16 @@ class ExtractionPipelineConfig:
         if "parameters" in d and "data" in d:
             parameters = d["parameters"]
             views = d["data"]
+            raw_data = parameters.get("rawData") or {}
             # Defaults match fa_constants in fn_file_annotation, used when a table name is not configured.
             raw_tables = {
-                "rawDb": parameters.get("rawDb"),
-                "rawTableDocPattern": parameters.get("rawTableDocPattern") or "annotation_documents_patterns",
-                "rawTableDocTag": parameters.get("rawTableDocTag") or "annotation_documents_tags",
-                "rawTableDocDoc": parameters.get("rawTableDocDoc") or "annotation_documents_docs",
-                "rawManualPatternsCatalog": parameters.get("rawManualPatternsCatalog") or "manual_patterns_catalog",
-                "rawTableCache": parameters.get("rawTableCache") or "annotation_entities_cache",
-                "rawTablePromoteCache": parameters.get("rawTablePromoteCache") or "annotation_tags_cache",
+                "rawDb": raw_data.get("rawDb"),
+                "rawTableDocPattern": raw_data.get("rawTableDocPattern") or "annotation_documents_patterns",
+                "rawTableDocTag": raw_data.get("rawTableDocTag") or "annotation_documents_tags",
+                "rawTableDocDoc": raw_data.get("rawTableDocDoc") or "annotation_documents_docs",
+                "rawManualPatternsCatalog": raw_data.get("rawManualPatternsCatalog") or "manual_patterns_catalog",
+                "rawTableCache": raw_data.get("rawTableCache") or "annotation_entities_cache",
+                "rawTablePromoteCache": raw_data.get("rawTablePromoteCache") or "annotation_tags_cache",
             }
             file_view_data = views.get("fileView", {})
             target_view_data = views.get("targetEntitiesView", {})

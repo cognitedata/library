@@ -508,8 +508,6 @@ for the constant table and SDK / API links.
 
 ```yaml
 parameters:
-  patternMode: true
-  structuralAutoPatterns: true
   cleanOldAnnotations: true
   assetAutoApprovalThreshold: 1.0
   assetAutoSuggestThreshold: 1.0
@@ -530,14 +528,17 @@ parameters:
   targetEntitiesTags:
     - DetectInDiagrams
   debugFileExternalId: "" # set to one file's externalId to process only that file
-  rawDb: db_file_annotation
-  rawTableDocTag: annotation_documents_tags
-  rawTableDocDoc: annotation_documents_docs
-  rawTableDocPattern: annotation_documents_patterns
-  rawTableCache: annotation_entities_cache
-  rawManualPatternsCatalog: manual_patterns_catalog
-  rawTablePromoteCache: annotation_tags_cache
+  rawData:
+    rawDb: db_file_annotation
+    rawTableDocTag: annotation_documents_tags
+    rawTableDocDoc: annotation_documents_docs
+    rawTableDocPattern: annotation_documents_patterns
+    rawTableCache: annotation_entities_cache
+    rawManualPatternsCatalog: manual_patterns_catalog
+    rawTablePromoteCache: annotation_tags_cache
   patternPromote:
+    patternMode: true
+    structuralAutoPatterns: true
     textNormalization:
       entityNormalizationPatterns: '([0-9]{2})[-_.:]([A-Z]{2,3})[-_.:]([0-9]{4,5})'
       fileNormalizationPatterns: []

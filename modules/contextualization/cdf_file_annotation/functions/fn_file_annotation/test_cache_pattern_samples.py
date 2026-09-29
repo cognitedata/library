@@ -140,15 +140,14 @@ def test_empty_normalize_patterns_does_not_filter_structural_samples() -> None:
     assert "AAAAAAAA" in samples
 
 
-def test_config_wires_structural_auto_patterns_from_parameters() -> None:
+def test_config_wires_pattern_flags_from_pattern_promote() -> None:
     from services.ConfigService import Config
 
     config = Config.model_validate(
         {
             "parameters": {
-                "rawDb": "db_file_annotation",
-                "patternMode": True,
-                "structuralAutoPatterns": True,
+                "rawData": {"rawDb": "db_file_annotation"},
+                "patternPromote": {"patternMode": False, "structuralAutoPatterns": False},
             },
             "data": {
                 "fileView": {
@@ -173,8 +172,10 @@ def test_config_wires_structural_auto_patterns_from_parameters() -> None:
             },
         }
     )
-    assert config.parameters.structural_auto_patterns is True
-    assert config.launch_function.structural_auto_patterns is True
+    assert config.parameters.pattern_promote.pattern_mode is False
+    assert config.parameters.pattern_promote.structural_auto_patterns is False
+    assert config.launch_function.pattern_mode is False
+    assert config.launch_function.structural_auto_patterns is False
 
 
 def test_count_pattern_sample_strings_sums_all_groups() -> None:

@@ -448,7 +448,7 @@ class GeneralCacheService(ICacheService):
         """
         Generates regex-like pattern samples from entity search properties for pattern mode detection.
 
-        Two modes (parameters.structuralAutoPatterns / launchFunction.structuralAutoPatterns):
+        Two modes (parameters.patternPromote.structuralAutoPatterns / launchFunction.structuralAutoPatterns):
 
         - structural (True): emit digit/letter *shape* templates such as ``00-AA-0000``.
           Letter codes are not enumerated, so ``23-XX-9106`` and ``23-KA-9101`` share a shape.

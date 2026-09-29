@@ -16,7 +16,10 @@ from services.ConfigService import Config
 
 
 def _config(primary: str | None = None, secondary: str | None = None) -> Config:
-    parameters: dict[str, object] = {"rawDb": "db_file_annotation", "targetEntitiesTags": ["DetectInDiagrams", "OMD"]}
+    parameters: dict[str, object] = {
+        "rawData": {"rawDb": "db_file_annotation"},
+        "targetEntitiesTags": ["DetectInDiagrams", "OMD"],
+    }
     if primary:
         parameters["primaryScopeProperty"] = primary
     if secondary:

@@ -28,12 +28,14 @@ def test_configured_raw_table_names_are_used() -> None:
     config = ExtractionPipelineConfig.from_dict(
         {
             "parameters": {
-                "rawDb": "db_custom",
-                "rawTableDocTag": "custom_tags",
-                "rawTableDocDoc": "custom_docs",
-                "rawTableDocPattern": "custom_patterns",
-                "rawTableCache": "custom_cache",
-                "rawManualPatternsCatalog": "custom_manual",
+                "rawData": {
+                    "rawDb": "db_custom",
+                    "rawTableDocTag": "custom_tags",
+                    "rawTableDocDoc": "custom_docs",
+                    "rawTableDocPattern": "custom_patterns",
+                    "rawTableCache": "custom_cache",
+                    "rawManualPatternsCatalog": "custom_manual",
+                },
             },
             "data": VIEWS,
         }
@@ -48,7 +50,9 @@ def test_configured_raw_table_names_are_used() -> None:
 
 
 def test_raw_table_names_default_to_the_module_defaults() -> None:
-    config = ExtractionPipelineConfig.from_dict({"parameters": {"rawDb": "db_file_annotation"}, "data": VIEWS})
+    config = ExtractionPipelineConfig.from_dict(
+        {"parameters": {"rawData": {"rawDb": "db_file_annotation"}}, "data": VIEWS}
+    )
 
     assert config.raw_table_asset_tags == "annotation_documents_tags"
     assert config.raw_table_file_tags == "annotation_documents_docs"
@@ -58,7 +62,7 @@ def test_raw_table_names_default_to_the_module_defaults() -> None:
 
 
 def test_views_are_read_from_data() -> None:
-    config = ExtractionPipelineConfig.from_dict({"parameters": {"rawDb": "db"}, "data": VIEWS})
+    config = ExtractionPipelineConfig.from_dict({"parameters": {"rawData": {"rawDb": "db"}}, "data": VIEWS})
 
     assert config.file_view_cfg.instance_space == "files"
     assert config.asset_view_cfg.external_id == "CogniteAsset"

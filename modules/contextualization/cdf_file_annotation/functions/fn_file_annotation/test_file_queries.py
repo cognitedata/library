@@ -11,7 +11,7 @@ from services.ConfigService import Config
 
 
 def _config(debug_file: str | None = None) -> Config:
-    parameters: dict[str, object] = {"rawDb": "db_file_annotation", "primaryScopeProperty": "site"}
+    parameters: dict[str, object] = {"rawData": {"rawDb": "db_file_annotation"}, "primaryScopeProperty": "site"}
     if debug_file:
         parameters["debugFileExternalId"] = debug_file
     return Config.model_validate(
