@@ -28,7 +28,7 @@ transformation as one dependency chain.
 
 ## Logging (`logLevel`)
 
-Pass `"logLevel": "INFO"` or `"DEBUG"` in the function input (workflow already sets DEBUG).
+Pass `"logLevel": "INFO"` or `"DEBUG"` in the function input. The workflow sets `INFO`.
 
 | Level | What you get |
 |-------|----------------|
