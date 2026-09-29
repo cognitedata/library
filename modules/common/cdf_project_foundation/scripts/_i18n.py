@@ -7,8 +7,10 @@ or the terminal's locale environment — see ``resolve_locale()``.
 """
 
 import contextlib
+import ctypes
 import locale as _locale_module
 import os
+import subprocess
 import sys
 from collections.abc import Iterator
 
@@ -40,19 +42,58 @@ def _parse_locale_code(value: str | None) -> str | None:
     return _WINDOWS_LANGUAGE_ALIASES.get(lang)
 
 
+def _detect_macos_ui_language() -> str | None:
+    """Read the user's macOS UI language via ``defaults read -g AppleLocale``.
+    """
+    try:
+        result = subprocess.run(
+            ["/usr/bin/defaults", "read", "-g", "AppleLocale"],
+            capture_output=True,
+            text=True,
+            timeout=2,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if result.returncode != 0:
+        return None
+    return _parse_locale_code(result.stdout.strip())
+
+
+def _detect_windows_ui_language() -> str | None:
+    """Read the user's Windows UI language via the Win32 API.
+    """
+    try:
+        langid = ctypes.windll.kernel32.GetUserDefaultUILanguage()  # type: ignore[attr-defined]
+    except (AttributeError, OSError):
+        return None
+    language_code = _locale_module.windows_locale.get(langid)
+    return _parse_locale_code(language_code)
+
+
 def resolve_locale() -> str:
     """Resolve the active locale for the wizard.
 
-    Resolution order: the ``CDF_LOCALE`` environment variable, then — on Unix —
-    ``LC_ALL`` -> ``LC_MESSAGES`` -> ``LANG``, then — on Windows —
-    ``locale.getlocale()``. Falls back to ``"en"`` silently when nothing resolves
-    to a supported locale — never raises, never prompts.
+    Resolution order: the ``CDF_LOCALE`` environment variable (always wins), then
+    the OS's own UI-language setting — ``AppleLocale`` on macOS,
+    ``GetUserDefaultUILanguage`` on Windows — then, as a fallback for platforms
+    with no separate "UI language" concept (Linux/CI/containers) or when OS
+    detection fails, the POSIX locale env vars ``LC_ALL`` -> ``LC_MESSAGES`` ->
+    ``LANG``. Falls back to ``"en"`` silently when nothing resolves to a supported
+    locale — never raises, never prompts.
     """
     override = _parse_locale_code(os.environ.get("CDF_LOCALE"))
     if override:
         return override
 
-    if sys.platform == "win32":
+    if sys.platform == "darwin":
+        detected = _detect_macos_ui_language()
+        if detected:
+            return detected
+    elif sys.platform == "win32":
+        detected = _detect_windows_ui_language()
+        if detected:
+            return detected
         try:
             language_code, _ = _locale_module.getlocale()
         except ValueError:
