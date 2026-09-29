@@ -209,4 +209,5 @@ def test_extract_bounding_box_ignores_vertices_with_null_coordinates() -> None:
         {"vertices": [{"x": None, "y": 0.1}, {"x": 0.2, "y": None}, {"x": 0.5, "y": 0.8}]}
     )
 
-    assert (box.x_min, box.x_max, box.y_min, box.y_max) == (0.2, 0.5, 0.8, 0.8)
+    # Null coordinates are dropped per axis. The remaining values are x=0.2, x=0.5 and y=0.1, y=0.8.
+    assert (box.x_min, box.x_max, box.y_min, box.y_max) == (0.2, 0.5, 0.1, 0.8)

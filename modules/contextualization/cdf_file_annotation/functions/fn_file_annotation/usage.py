@@ -1,9 +1,7 @@
 """Best-effort deployment-pack usage reporting."""
 
 import os
-import sys
 import threading
-from pathlib import Path
 from typing import Protocol
 
 from cognite.client import CogniteClient
@@ -19,27 +17,11 @@ class _UsageTracker(Protocol):
         """Send one usage event."""
 
 
-def _hides_installed_mixpanel(path_entry: str) -> bool:
-    """True when this path entry is the repo's mixpanel lookup folder, not the installed library."""
-    folder = Path(path_entry) / "mixpanel"
-    return folder.is_dir() and not (folder / "__init__.py").is_file()
-
-
 def _tracker() -> _UsageTracker:
-    """Import the installed Mixpanel client.
+    """Import Mixpanel lazily so a missing client cannot break the handler."""
+    from mixpanel import Consumer, Mixpanel
 
-    CI sets PYTHONPATH to the repository root. That root contains mixpanel/module_lookup.csv,
-    so a bare import loads that folder instead of the library.
-    """
-    saved_path = sys.path
-    sys.path = [entry for entry in saved_path if not _hides_installed_mixpanel(entry)]
-    sys.modules.pop("mixpanel", None)
-    try:
-        from mixpanel import Consumer, Mixpanel
-
-        return Mixpanel("8f28374a6614237dd49877a0d27daa78", consumer=Consumer(api_host="api-eu.mixpanel.com"))
-    finally:
-        sys.path = saved_path
+    return Mixpanel("8f28374a6614237dd49877a0d27daa78", consumer=Consumer(api_host="api-eu.mixpanel.com"))
 
 
 def report_usage(client: CogniteClient) -> None:
