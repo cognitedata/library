@@ -75,7 +75,7 @@ def handle(data: dict, function_call_info: dict, client: CogniteClient) -> dict:
         pipeline_instance.upload_extraction_pipeline(status=run_status)
 
 
-def run_locally(config_file: dict[str, str], log_path: str | None = None):
+def run_locally(config_file: dict[str, str], log_path: str | None = None) -> None:
     """
     Main entry point for local runs/debugging.
     (mimics parallel execution by using threads. Not the same as cognite functions but similar.)

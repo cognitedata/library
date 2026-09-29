@@ -111,6 +111,15 @@ def test_separators_never_become_required_constants_even_in_legacy_mode() -> Non
     assert any("XX" in s or "KA" in s for s in samples), samples
 
 
+def test_legacy_mode_keeps_a_bracketed_resource_type_constant_containing_a() -> None:
+    service = _cache_service(structural_auto_patterns=False)
+    entity = {**_entity("KA-XX-9101", ["KA-XX-9101"]), "resource_type": "KA"}
+
+    result = service._generate_tag_samples_from_entities([entity], source_view="test", normalize_patterns=[])
+
+    assert result[0]["sample"] == ["[KA]-[XX]-0000"]
+
+
 def test_structural_patterns_skip_aliases_not_matching_normalize_patterns() -> None:
     service = _cache_service(structural_auto_patterns=True)
     entities = [

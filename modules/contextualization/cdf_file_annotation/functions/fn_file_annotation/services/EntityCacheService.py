@@ -615,7 +615,7 @@ class GeneralCacheService(ICacheService):
                         return segment_template
 
                 parts = [p for p in re.split(r"(\[[^\]]+\]|[^A-Za-z0-9])", template_key) if p != ""]
-                final_pattern_parts = [build_segment(p) if re.search(r"A", p) else p for p in parts]
+                final_pattern_parts = [p if p.startswith("[") else build_segment(p) for p in parts]
                 final_samples.append("".join(final_pattern_parts))
 
             def _has_alpha_or_class(s: str) -> bool:

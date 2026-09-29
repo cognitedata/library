@@ -88,7 +88,7 @@ def handle(data: dict, function_call_info: dict, client: CogniteClient) -> dict:
         pipeline_instance.upload_extraction_pipeline(status=run_status)
 
 
-def run_locally(config_file: dict[str, str], log_path: str | None = None):
+def run_locally(config_file: dict[str, str], log_path: str | None = None) -> None:
     """
     Main entry point for the cognite function.
     1. Create an instance of config, logger, and tracker
