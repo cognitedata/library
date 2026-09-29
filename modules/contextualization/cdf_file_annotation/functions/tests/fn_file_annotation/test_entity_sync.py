@@ -234,12 +234,12 @@ def test_pattern_samples_are_reused_while_the_scope_entities_are_unchanged(monke
 def test_a_first_read_that_outlasts_the_budget_is_stored_and_continued_next_run(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import services.EntitySyncService as entity_sync
+    from services.EntitySyncService import EntitySyncIncompleteError
 
-    monkeypatch.setattr(entity_sync, "ENTITY_SYNC_CHECKPOINT_SECONDS", 0)
+    monkeypatch.setattr("services.EntitySyncService.ENTITY_SYNC_CHECKPOINT_SECONDS", 0)
     client = _client([_page([_asset("A-1", tags=["OMD"])], cursor="partial")], state=Row("state", {"batchSize": 1}))
 
-    with pytest.raises(entity_sync.EntitySyncIncompleteError):
+    with pytest.raises(EntitySyncIncompleteError):
         _targets(_config(), client)
 
     assert client.files.upload_bytes.called
