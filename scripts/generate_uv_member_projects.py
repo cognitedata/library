@@ -35,7 +35,7 @@ FILE_ANNOTATION_STREAMLIT_RUNTIME = [
 
 # CDF deploy: direct packages installed on top of the Functions runtime.
 # cryptography is not imported directly. 50.0.0 is the first release that closes
-# the Bleichenbacher oracle in the PKCS#7 decrypt helpers (44.0.0–49.x).
+# the Bleichenbacher oracle in the PKCS#7 decrypt helpers (44.0.0-49.x).
 # python-dotenv stays in the local runtime list; the Functions runtime does not need it.
 FILE_ANNOTATION_DEPLOY = [
     # 7.94.0 or later: the entity read uses NodeResultSetExpression(sync_mode=...).
