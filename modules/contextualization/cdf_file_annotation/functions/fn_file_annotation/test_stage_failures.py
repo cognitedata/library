@@ -1,0 +1,85 @@
+"""A caught stage error fails the CDF call after the extraction pipeline run is recorded."""
+
+import sys
+from pathlib import Path
+from unittest.mock import MagicMock
+
+import pytest
+from cognite.client.exceptions import CogniteAPIError
+
+sys.path.append(str(Path(__file__).parent))
+
+
+def _patch_common(monkeypatch: pytest.MonkeyPatch, module: object, format_name: str) -> MagicMock:
+    pipeline = MagicMock()
+    monkeypatch.setattr(module, "create_config_service", lambda **kwargs: (MagicMock(), MagicMock()))
+    monkeypatch.setattr(module, "create_logger_service", lambda *args, **kwargs: MagicMock())
+    monkeypatch.setattr(module, format_name, lambda *args, **kwargs: "")
+    if hasattr(module, "create_general_pipeline_service"):
+        monkeypatch.setattr(module, "create_general_pipeline_service", lambda *args, **kwargs: pipeline)
+    return pipeline
+
+
+def _run(handle: object, error: BaseException) -> None:
+    data = {"ExtractionPipelineExtId": "ep_file_annotation", "logLevel": "INFO"}
+    assert callable(handle)
+    message = "cdf down" if isinstance(error, CogniteAPIError) else "bad config"
+    with pytest.raises(type(error), match=message):
+        handle(data, {"function_id": 1, "call_id": 2}, MagicMock())
+
+
+@pytest.mark.parametrize("error", [CogniteAPIError("cdf down", code=503), ValueError("bad config")])
+def test_prepare_records_pipeline_failure_and_reraises(monkeypatch: pytest.MonkeyPatch, error: BaseException) -> None:
+    import stages.prepare as prepare_stage
+
+    pipeline = _patch_common(monkeypatch, prepare_stage, "format_prepare_config")
+    service = MagicMock()
+    service.run.side_effect = error
+    monkeypatch.setattr(prepare_stage, "_create_prepare_service", lambda *args, **kwargs: service)
+
+    _run(prepare_stage.handle, error)
+
+    pipeline.upload_extraction_pipeline.assert_called_once_with(status="failure")
+
+
+def test_launch_records_pipeline_failure_and_reraises(monkeypatch: pytest.MonkeyPatch) -> None:
+    import stages.launch as launch_stage
+
+    error = CogniteAPIError("cdf down", code=503)
+    pipeline = _patch_common(monkeypatch, launch_stage, "format_launch_config")
+    service = MagicMock()
+    service.run.side_effect = error
+    monkeypatch.setattr(launch_stage, "_create_launch_service", lambda *args, **kwargs: service)
+
+    _run(launch_stage.handle, error)
+
+    pipeline.upload_extraction_pipeline.assert_called_once_with(status="failure")
+
+
+def test_finalize_records_pipeline_failure_and_reraises(monkeypatch: pytest.MonkeyPatch) -> None:
+    import stages.finalize as finalize_stage
+
+    error = ValueError("bad config")
+    pipeline = _patch_common(monkeypatch, finalize_stage, "format_finalize_config")
+    monkeypatch.setattr(finalize_stage.time, "sleep", lambda seconds: None)
+    service = MagicMock()
+    service.run.side_effect = error
+    monkeypatch.setattr(finalize_stage, "_create_finalize_service", lambda *args, **kwargs: service)
+
+    _run(finalize_stage.handle, error)
+
+    pipeline.upload_extraction_pipeline.assert_called_once_with(status="failure")
+
+
+def test_promote_reraises_a_stage_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    import stages.promote as promote_stage
+
+    error = ValueError("bad config")
+    _patch_common(monkeypatch, promote_stage, "format_promote_config")
+    monkeypatch.setattr(promote_stage, "create_entity_search_service", lambda *args, **kwargs: MagicMock())
+    monkeypatch.setattr(promote_stage, "create_promote_cache_service", lambda *args, **kwargs: MagicMock())
+    service = MagicMock()
+    service.run.side_effect = error
+    monkeypatch.setattr(promote_stage, "GeneralPromoteService", lambda *args, **kwargs: service)
+
+    _run(promote_stage.handle, error)

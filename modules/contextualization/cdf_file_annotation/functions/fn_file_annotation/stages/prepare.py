@@ -16,7 +16,7 @@ from services.PipelineService import IPipelineService
 from services.PrepareService import AbstractPrepareService, GeneralPrepareService
 from utils.DataStructures import PerformanceTracker
 
-from stages.stage_runtime import STAGE_REPORTABLE_ERRORS, failure_response
+from stages.stage_runtime import STAGE_REPORTABLE_ERRORS
 
 
 def handle(data: dict, function_call_info: dict, client: CogniteClient) -> dict:
@@ -61,7 +61,7 @@ def handle(data: dict, function_call_info: dict, client: CogniteClient) -> dict:
     except STAGE_REPORTABLE_ERRORS as e:
         run_status = "failure"
         logger_instance.error(message="Prepare stage failed", error=e, section="BOTH")
-        return failure_response(e)
+        raise
     finally:
         logger_instance.info(tracker_instance.generate_overall_report("Prepare"), "BOTH")
         # only want to report on the count of successful and failed files in ep_logs if there were files that were processed or an error occured

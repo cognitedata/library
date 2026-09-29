@@ -26,6 +26,11 @@ from utils.DataStructures import (
 from utils.QueryTimeout import QueryTimeoutRetry, is_query_timeout
 
 
+def claimed_jobs_message(regular_job_id: int | None, pattern_job_id: int | None, claimed_files: int) -> str:
+    """Summary of the jobs just claimed. Job tokens are not included."""
+    return f"Retrieved regular job {regular_job_id}, pattern job {pattern_job_id} and claimed {claimed_files} files"
+
+
 class AbstractFinalizeService(abc.ABC):
     """
     Orchestrates the file annotation finalize process.
@@ -112,7 +117,11 @@ class GeneralFinalizeService(AbstractFinalizeService):
                 self.logger.info("No diagram detect jobs found", section="END")
                 return "Done"
             self.logger.info(
-                f"Retrieved regular job {regular_job}, pattern job {pattern_mode_job} and claimed {len(file_to_state_map.values())} files"
+                claimed_jobs_message(
+                    regular_job[0] if regular_job else None,
+                    pattern_mode_job[0] if pattern_mode_job else None,
+                    len(file_to_state_map),
+                )
             )
         except CogniteAPIError as e:
             if e.code == 400 and e.message == "A version conflict caused the ingest to fail.":

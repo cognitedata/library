@@ -101,6 +101,37 @@ def test_launch_batches_files_per_instance_space_when_file_view_has_no_space() -
     assert [(batch.file_space, batch.files) for batch in batches] == [("plant_a", [plant_a]), ("plant_b", [plant_b])]
 
 
+def test_launch_groups_files_when_a_scope_value_is_missing() -> None:
+    """A file with no scope text used to put None in the sort key and raise TypeError."""
+    from cognite.client.data_classes.data_modeling import Node
+
+    def scoped_file(external_id: str, properties: dict[str, object]) -> Node:
+        return Node.load(
+            {
+                "instanceType": "node",
+                "space": "files",
+                "externalId": external_id,
+                "version": 1,
+                "lastUpdatedTime": 0,
+                "createdTime": 0,
+                "properties": {"cdf_cdm": {"CogniteFile/v1": properties}},
+            }
+        )
+
+    present = scoped_file("with-site", {"site": "PlantA", "unit": "U100"})
+    missing = scoped_file("without-site", {})
+    config = _config("files", "assets")
+    config.launch_function.primary_scope_property = "site"
+    config.launch_function.secondary_scope_property = "unit"
+
+    batches = _launch_service(config)._organize_files_for_processing([missing, present])
+
+    assert [(batch.primary_scope_value, batch.secondary_scope_value) for batch in batches] == [
+        ("", None),
+        ("PlantA", "U100"),
+    ]
+
+
 def test_launch_keeps_a_single_batch_when_every_view_has_a_space() -> None:
     files = [_file_node("files", "PID-1"), _file_node("files", "PID-2")]
 
@@ -230,7 +261,7 @@ def test_promote_runs_without_a_file_view_space() -> None:
     EntitySearchService(_config(None, None), MagicMock(), MagicMock())
 
 
-def test_promote_finds_entities_with_search_and_an_exact_alias_filter() -> None:
+def test_promote_finds_entities_with_search_and_contains_any_on_aliases() -> None:
     """A /list filter on aliases is not index-backed and times out on large spaces."""
     from services.EntitySearchService import EntitySearchService
 
@@ -243,5 +274,5 @@ def test_promote_finds_entities_with_search_and_an_exact_alias_filter() -> None:
     assert call.kwargs["space"] == "plant_a"
     assert call.kwargs.get("query") is None
     alias_filter = call.kwargs["filter"].dump()
-    assert list(alias_filter["in"]["property"]) == ["cdf_cdm", "CogniteAsset/v1", "aliases"]
-    assert "P-101" in alias_filter["in"]["values"]
+    assert list(alias_filter["containsAny"]["property"]) == ["cdf_cdm", "CogniteAsset/v1", "aliases"]
+    assert "P-101" in alias_filter["containsAny"]["values"]

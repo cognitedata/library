@@ -858,7 +858,7 @@ def test_launch_service_handles_file_node_with_none_properties() -> None:
     batches = launch_svc._organize_files_for_processing([file_node])
 
     assert len(batches) == 1
-    assert batches[0].primary_scope_value is None
+    assert batches[0].primary_scope_value == ""
     assert batches[0].files == [file_node]
 
 

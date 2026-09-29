@@ -15,7 +15,7 @@ from services.PromoteCacheService import CacheService
 from services.PromoteService import GeneralPromoteService
 from utils.DataStructures import PromoteTracker
 
-from stages.stage_runtime import STAGE_REPORTABLE_ERRORS, failure_response
+from stages.stage_runtime import STAGE_REPORTABLE_ERRORS
 
 
 def handle(data: dict, function_call_info: dict, client: CogniteClient) -> dict:
@@ -41,12 +41,10 @@ def handle(data: dict, function_call_info: dict, client: CogniteClient) -> dict:
         client: Pre-initialized CogniteClient for API interactions
 
     Returns:
-        Dictionary with execution status:
-        - {"status": "success", "message": "..."} on normal completion
-        - {"status": "failure", "message": "..."} on error
+        {"status": "success", "data": ...} when the stage finishes or hits its time budget.
 
     Raises:
-        STAGE_REPORTABLE_ERRORS: Re-raised from ``run_locally`` after logging.
+        STAGE_REPORTABLE_ERRORS: Logged, then re-raised so the CDF function call fails.
     """
     start_time: datetime = datetime.now(UTC)
 
@@ -83,7 +81,7 @@ def handle(data: dict, function_call_info: dict, client: CogniteClient) -> dict:
         return {"status": run_status, "data": data}
     except STAGE_REPORTABLE_ERRORS as e:
         logger_instance.error(message="Promote stage failed", error=e, section="BOTH")
-        return failure_response(e)
+        raise
     finally:
         # Generate overall summary report
         logger_instance.info(tracker_instance.generate_overall_report(), section="BOTH")

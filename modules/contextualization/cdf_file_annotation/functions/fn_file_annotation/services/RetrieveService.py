@@ -92,8 +92,7 @@ class GeneralRetrieveService(IRetrieveService):
                 if self.logger.log_level == "DEBUG":
                     self.logger.debug(f"Below is the full response:\n{response.text}")
         else:
-            self.logger.info(f"Request to get the job results failed - {response.url}")
-            self.logger.info(f"Below is the full response:\n{response.text}")
+            self.logger.info(f"Request to get job {job_id} failed - HTTP {response.status_code}")
         return None
 
     def get_job_id(

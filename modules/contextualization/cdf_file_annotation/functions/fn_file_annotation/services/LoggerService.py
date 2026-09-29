@@ -1,5 +1,6 @@
 import inspect
 import os
+import traceback
 from datetime import UTC, datetime
 from typing import Literal
 
@@ -173,7 +174,8 @@ class CogniteFunctionLogger:
 
         error_info = ""
         if error:
-            error_info = f"\nError Type: {type(error).__name__}\nError Message: {error!s}"
+            traceback_text = "".join(traceback.format_exception(type(error), error, error.__traceback__))
+            error_info = f"\nError Type: {type(error).__name__}\nError Message: {error!s}\n{traceback_text}"
 
         full_message = f"{message}{context_info}{error_info}"
 

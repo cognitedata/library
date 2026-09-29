@@ -32,6 +32,26 @@ from utils.DataStructures import (
 from utils.QueryTimeout import QueryTimeoutRetry, is_query_timeout
 
 
+def _scope_group_value(node_props: object, property_name: str | None) -> str:
+    """Text of a scope property. A missing or non-text value is '' so batch sorting never sees None."""
+    if not property_name or not isinstance(node_props, dict):
+        return ""
+    raw_value = node_props.get(property_name)
+    if isinstance(raw_value, str):
+        return raw_value
+    return ""
+
+
+def launch_state_update_message(job_id: int | None, pattern_job_id: int | None) -> str:
+    """Summary of the jobs stored on the annotation state. Job tokens are not included."""
+    return (
+        "Updated the annotation state instances:\n"
+        "- annotation status set to 'Processing'\n"
+        f"- diagram detect job id: {job_id}\n"
+        f"- pattern mode job id: {pattern_job_id}"
+    )
+
+
 class RateLimitPolicy(abc.ABC):
     """Define how a runtime reacts when Diagram Detect returns HTTP 429."""
 
@@ -293,10 +313,12 @@ class GeneralLaunchService(AbstractLaunchService):
 
         for file_node in list_files:
             node_props = (file_node.properties or {}).get(self.file_view.as_view_id()) or {}
-            primary_value = node_props.get(self.primary_scope_property) if self.primary_scope_property else ""
-            secondary_value = "__NONE__"
-            if self.secondary_scope_property:
-                secondary_value = node_props.get(self.secondary_scope_property)
+            primary_value = _scope_group_value(node_props, self.primary_scope_property)
+            secondary_value = (
+                _scope_group_value(node_props, self.secondary_scope_property)
+                if self.secondary_scope_property
+                else "__NONE__"
+            )
             file_space = file_node.space if self.group_by_file_space else None
             organized_data[(file_space, primary_value, secondary_value)].append(file_node)
 
@@ -304,7 +326,7 @@ class GeneralLaunchService(AbstractLaunchService):
         for file_space, primary_property, secondary_property in sorted(organized_data):
             batch = FileProcessingBatch(
                 primary_scope_value=primary_property,
-                secondary_scope_value=None if secondary_property == "__NONE__" else secondary_property,
+                secondary_scope_value=None if secondary_property in {"__NONE__", ""} else secondary_property,
                 files=organized_data[(file_space, primary_property, secondary_property)],
                 file_space=file_space,
             )
@@ -456,12 +478,7 @@ class GeneralLaunchService(AbstractLaunchService):
             )
             self.data_model_service.update_annotation_state(batch.batch_states.apply)
             self.logger.info(
-                message=(
-                    "Updated the annotation state instances:\n"
-                    "- annotation status set to 'Processing'\n"
-                    f"- job set to (id: {job_id}, token: {job_token})\n"
-                    f"- pattern mode job set to (id: {pattern_job_id}, token: {pattern_job_token})"
-                ),
+                message=launch_state_update_message(job_id, pattern_job_id),
                 section="END",
             )
         finally:

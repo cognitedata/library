@@ -108,6 +108,12 @@ class FilterConfig(BaseModel, alias_generator=to_camel):
             if not isinstance(find_values, list):
                 raise ValueError(f"Operator 'IN' requires a list of values for property {self.target_property}")
             filter = dm.filters.In(property=property_reference, values=find_values)
+        elif self.operator == FilterOperator.CONTAINSANY:
+            if not isinstance(find_values, list):
+                raise ValueError(
+                    f"Operator 'CONTAINSANY' requires a list of values for property {self.target_property}"
+                )
+            filter = dm.filters.ContainsAny(property=property_reference, values=find_values)
         elif self.operator == FilterOperator.EQUALS:
             filter = dm.filters.Equals(property=property_reference, value=find_values)
         elif self.operator == FilterOperator.CONTAINSALL:
@@ -267,6 +273,15 @@ class ApplyServiceConfig(BaseModel, alias_generator=to_camel):
     file_auto_approval_threshold: float = Field(gt=0.0, le=1.0)
     file_auto_suggest_threshold: float = Field(gt=0.0, le=1.0)
     sink_node: NodeId
+
+    @model_validator(mode="after")
+    def approval_threshold_covers_suggest(self) -> Self:
+        """An approval threshold below the suggest threshold would approve that band."""
+        if self.asset_auto_approval_threshold < self.asset_auto_suggest_threshold:
+            raise ValueError("assetAutoApprovalThreshold must be greater than or equal to assetAutoSuggestThreshold")
+        if self.file_auto_approval_threshold < self.file_auto_suggest_threshold:
+            raise ValueError("fileAutoApprovalThreshold must be greater than or equal to fileAutoSuggestThreshold")
+        return self
 
 
 class FinalizeFunction(BaseModel, alias_generator=to_camel):
@@ -526,14 +541,14 @@ class Config(BaseModel, alias_generator=to_camel):
         file_entities_tags = _tag_list(parameters.get("fileEntitiesTags"), [TAG_DETECT_IN_DIAGRAMS])
         target_entities_tags = _tag_list(parameters.get("targetEntitiesTags"), [TAG_DETECT_IN_DIAGRAMS])
         prepare_filters: list[dict[str, object]] = [
-            {"values": files_to_annotate_tags, "operator": "In", "targetProperty": "tags"}
+            {"values": files_to_annotate_tags, "operator": "ContainsAny", "targetProperty": "tags"}
         ]
         if files_to_annotate_exclude_tags:
             prepare_filters.append(
                 {
                     "values": files_to_annotate_exclude_tags,
                     "negate": True,
-                    "operator": "In",
+                    "operator": "ContainsAny",
                     "targetProperty": "tags",
                 }
             )
@@ -590,7 +605,7 @@ class Config(BaseModel, alias_generator=to_camel):
                             "filters": [
                                 {
                                     "values": target_entities_tags,
-                                    "operator": "In",
+                                    "operator": "ContainsAny",
                                     "targetProperty": "tags",
                                 }
                             ],
@@ -600,7 +615,7 @@ class Config(BaseModel, alias_generator=to_camel):
                             "filters": [
                                 {
                                     "values": file_entities_tags,
-                                    "operator": "In",
+                                    "operator": "ContainsAny",
                                     "targetProperty": "tags",
                                 }
                             ],
@@ -665,7 +680,7 @@ class Config(BaseModel, alias_generator=to_camel):
                             {
                                 "values": [TAG_PROMOTE_ATTEMPTED],
                                 "negate": True,
-                                "operator": "In",
+                                "operator": "ContainsAny",
                                 "targetProperty": "tags",
                             },
                         ],
@@ -774,6 +789,9 @@ def _format_query_summary(query: QueryConfig | list[QueryConfig], query_name: st
             elif f.operator == FilterOperator.IN:
                 values_str = str(f.values) if isinstance(f.values, list) else f"[{f.values}]"
                 filter_str = f"{f.target_property} IN {values_str}"
+            elif f.operator == FilterOperator.CONTAINSANY:
+                values_str = str(f.values) if isinstance(f.values, list) else f"[{f.values}]"
+                filter_str = f"{f.target_property} CONTAINS ANY {values_str}"
             elif f.operator == FilterOperator.EQUALS:
                 filter_str = f"{f.target_property} = {f.values}"
             else:
@@ -1046,5 +1064,5 @@ def load_config_parameters(
         return Config.model_validate(loaded_yaml_data)
     else:
         raise ValueError(
-            "Invalid configuration structure from CDF: \nExpected a YAML dictionary with a top-level 'config' key."
+            "Invalid configuration structure from CDF: expected a YAML dictionary with 'parameters' and 'data'."
         )

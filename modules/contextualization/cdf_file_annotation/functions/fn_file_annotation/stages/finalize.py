@@ -19,7 +19,7 @@ from services.PipelineService import IPipelineService
 from services.RetrieveService import IRetrieveService
 from utils.DataStructures import PerformanceTracker
 
-from stages.stage_runtime import STAGE_REPORTABLE_ERRORS, failure_response
+from stages.stage_runtime import STAGE_REPORTABLE_ERRORS
 
 
 def handle(data: dict, function_call_info: dict, client: CogniteClient) -> dict:
@@ -64,7 +64,7 @@ def handle(data: dict, function_call_info: dict, client: CogniteClient) -> dict:
     except STAGE_REPORTABLE_ERRORS as e:
         run_status = "failure"
         logger_instance.error(message="Finalize stage failed", error=e, section="BOTH")
-        return failure_response(e)
+        raise
     finally:
         logger_instance.info(tracker_instance.generate_overall_report("Finalize"), "BOTH")
         function_id = function_call_info.get("function_id")

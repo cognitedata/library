@@ -4,6 +4,8 @@ import sys
 from pathlib import Path
 from unittest.mock import MagicMock
 
+import pytest
+
 sys.path.append(str(Path(__file__).parent))
 
 from cognite.client.data_classes.data_modeling import Node, NodeId, NodeList
@@ -166,3 +168,97 @@ def test_prepare_reads_only_the_file_tags() -> None:
     query = client.data_modeling.instances.query.call_args.args[0]
     assert query.select["files"].sources[0].properties == ["tags"]
     assert "hasData" in str(query.with_["files"].filter.dump())
+
+
+def _single_query(query: object):
+    from services.ConfigService import QueryConfig
+
+    assert isinstance(query, QueryConfig)
+    return query
+
+
+def test_tag_filters_use_contains_any_and_status_stays_in() -> None:
+    """tags and aliases are lists. annotationStatus is a scalar and stays an In filter."""
+    config = _config()
+    prepare = _single_query(config.prepare_function.get_files_to_annotate_query)
+    prepare_ops = [(item.target_property, item.operator.value, item.negate) for item in prepare.filters]
+    assert ("tags", "ContainsAny", False) in prepare_ops
+    assert ("tags", "ContainsAny", True) in prepare_ops
+    assert "containsAny" in str(prepare.build_filter().dump())
+
+    launch = config.launch_function.data_model_service
+    status = _single_query(launch.get_files_to_process_query)
+    status_filter = next(item for item in status.filters if item.target_property == "annotationStatus")
+    assert status_filter.operator.value == "In"
+    for query in (launch.get_target_entities_query, launch.get_file_entities_query):
+        entity_query = _single_query(query)
+        assert entity_query.filters[0].operator.value == "ContainsAny"
+        assert entity_query.filters[0].target_property == "tags"
+
+    candidates = _single_query(config.promote_function.get_candidates_query)
+    candidate_ops = [(item.target_property, item.operator.value, item.negate) for item in candidates.filters]
+    assert ("status", "Equals", False) in candidate_ops
+    assert ("tags", "ContainsAny", True) in candidate_ops
+    assert "PromoteAttempted" in str(candidates.build_filter().dump())
+
+
+def test_debug_prepare_excludes_in_process_tags_with_contains_any() -> None:
+    client = MagicMock()
+    client.data_modeling.instances.query.return_value = _result({})
+
+    _data_model_service(_config("PID-001"), client).get_files_to_annotate()
+
+    dumped = str(client.data_modeling.instances.query.call_args.args[0].with_["files"].filter.dump())
+    assert "containsAny" in dumped
+    assert "AnnotationInProcess" in dumped
+
+
+def test_alias_search_uses_contains_any() -> None:
+    from services.EntitySearchService import EntitySearchService
+
+    client = MagicMock()
+    client.data_modeling.instances.search.return_value = []
+    service = EntitySearchService(_config(), client, MagicMock())
+
+    service.find_global_entity(["P-101"], service.target_entities_view_id, "assets")
+
+    search_filter = client.data_modeling.instances.search.call_args.kwargs["filter"]
+    dumped = str(search_filter.dump())
+    assert "containsAny" in dumped
+    assert "P-101" in dumped
+
+
+def test_swapped_approval_threshold_is_rejected() -> None:
+    from pydantic import ValidationError
+
+    parameters = {
+        "rawData": {"rawDb": "db_file_annotation"},
+        "assetAutoApprovalThreshold": 0.5,
+        "assetAutoSuggestThreshold": 0.8,
+    }
+    with pytest.raises(ValidationError, match="assetAutoApprovalThreshold"):
+        Config.model_validate({"parameters": parameters, "data": _config().model_dump(by_alias=True)["data"]})
+
+
+def test_swapped_file_threshold_is_rejected() -> None:
+    from pydantic import ValidationError
+
+    parameters = {
+        "rawData": {"rawDb": "db_file_annotation"},
+        "fileAutoApprovalThreshold": 0.2,
+        "fileAutoSuggestThreshold": 0.5,
+    }
+    with pytest.raises(ValidationError, match="fileAutoApprovalThreshold"):
+        Config.model_validate({"parameters": parameters, "data": _config().model_dump(by_alias=True)["data"]})
+
+
+def test_pipeline_config_must_be_a_parameters_and_data_document() -> None:
+    from services.ConfigService import load_config_parameters
+
+    client = MagicMock()
+    raw_config = MagicMock()
+    raw_config.config = "- not-a-mapping\n"
+    client.extraction_pipelines.config.retrieve.return_value = raw_config
+
+    with pytest.raises(ValueError, match="parameters"):
+        load_config_parameters(client, {"ExtractionPipelineExtId": "ep_file_annotation"})

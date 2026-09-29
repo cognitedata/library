@@ -67,7 +67,8 @@ class FilterOperator(StrEnum):
     EQUALS = "Equals"  # Checks for equality against a single value.
     EXISTS = "Exists"  # Checks if a property exists (is not null).
     CONTAINSALL = "ContainsAll"  # Checks if an item contains all specified values for a given property
-    IN = "In"  # Checks if a value is within a list of specified values. Not implementing CONTAINSANY b/c IN is usually more suitable
+    IN = "In"  # Scalar property equals one of the values.
+    CONTAINSANY = "ContainsAny"  # List property contains any of the values.
     SEARCH = "Search"  # Performs full text search on a specified property
 
 

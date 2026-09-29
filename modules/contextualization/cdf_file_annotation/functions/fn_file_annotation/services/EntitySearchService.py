@@ -2,7 +2,7 @@ import abc
 
 from cognite.client import CogniteClient
 from cognite.client.data_classes.data_modeling import Node, NodeList, ViewId
-from cognite.client.data_classes.filters import Filter, In
+from cognite.client.data_classes.filters import ContainsAny, Filter
 from cognite.client.exceptions import CogniteAPIError
 from fa_constants import MAX_ENTITY_SEARCH_LIMIT
 from normalization import normalize_text, text_variations
@@ -35,7 +35,7 @@ class EntitySearchService(IEntitySearchService):
     """
     Finds entities by text using server-side filtering on entity aliases.
 
-    This service queries entities directly using an IN filter on the aliases property,
+    This service queries entities directly using a containsAny filter on the aliases property,
     which is more efficient than querying annotation edges:
 
     **Why query entities directly instead of annotation edges?**
@@ -47,7 +47,7 @@ class EntitySearchService(IEntitySearchService):
 
     **Search Strategy:**
     - Generate text variations (e.g., "V-0912" → ["V-0912", "v-0912", "V-912", "v912", ...])
-    - Search entities with an exact IN filter on the aliases property
+        - Search entities with a containsAny filter on the aliases property
     - Uses text variations to handle different naming conventions
     - Returns matches from specified entity space
 
@@ -94,7 +94,7 @@ class EntitySearchService(IEntitySearchService):
 
         Strategy:
         1. Generate text variations (e.g., "V-0912" → ["V-0912", "v-0912", "V-912", "v912", ...])
-        2. Search entities with an exact IN filter on the aliases property
+        2. Search entities with a containsAny filter on the aliases property
 
         Note: We query entities directly rather than annotation edges because:
         - Entity dataset is smaller and more stable (~1,000-10,000 entities)
@@ -140,7 +140,7 @@ class EntitySearchService(IEntitySearchService):
         Performs a global, un-scoped search for an entity matching the given text variations.
         Uses server-side IN filter with text variations to handle different naming conventions.
 
-        Uses the search endpoint with an exact IN filter on the aliases property. A /list filter
+        Uses the search endpoint with a containsAny filter on the aliases list. A /list filter
         on aliases is not index-backed and times out on large spaces.
 
         Args:
@@ -155,9 +155,9 @@ class EntitySearchService(IEntitySearchService):
         original_text: str = text_variations[0] if text_variations else "unknown"
 
         try:
-            search_filter: Filter = In(source.as_property_ref(self.search_properties[source]), text_variations)
+            search_filter: Filter = ContainsAny(source.as_property_ref(self.search_properties[source]), text_variations)
 
-            # No query text: tokenized matching is not exact, so the In filter alone decides the match.
+            # No query text: tokenized matching is not exact, so the containsAny filter alone decides the match.
             entities: NodeList[Node] = self.client.data_modeling.instances.search(
                 view=source,
                 instance_type="node",

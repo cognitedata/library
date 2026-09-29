@@ -19,6 +19,7 @@ from cognite.client.data_classes.data_modeling.query import (
     SourceSelector,
 )
 from cognite.client.data_classes.filters import (
+    ContainsAny,
     Equals,
     Filter,
     HasData,
@@ -158,7 +159,7 @@ class GeneralDataModelService(IDataModelService):
         debug_file = self.config.debug_file
         if debug_file:
             filter_files_to_annotate = Equals(["node", "externalId"], debug_file.external_id) & Not(
-                In(self.file_view.as_property_ref("tags"), [TAG_ANNOTATION_IN_PROCESS])
+                ContainsAny(self.file_view.as_property_ref("tags"), [TAG_ANNOTATION_IN_PROCESS])
             )
         return self._query_nodes(
             "files",
