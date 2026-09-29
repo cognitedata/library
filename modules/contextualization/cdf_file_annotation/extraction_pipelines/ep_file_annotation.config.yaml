@@ -25,16 +25,17 @@ config:
     fileEntitiesTags: {{ fileEntitiesTags }}
     targetEntitiesTags: {{ targetEntitiesTags }}
     
-    rawDb: {{ rawDb }}
-    rawTableDocTag: {{ rawTableDocTag }}
-    rawTableDocDoc: {{ rawTableDocDoc }}
-    rawTableDocPattern: {{ rawTableDocPattern }}
-    rawTableCache: {{ rawTableCache }}
-    rawManualPatternsCatalog: {{ rawManualPatternsCatalog }}
-    rawTablePromoteCache: {{ rawTablePromoteCache }}
-    patternMode: {{ patternMode }}
-    structuralAutoPatterns: {{ structuralAutoPatterns }}
+    rawData:
+      rawDb: {{ rawDb }}
+      rawTableDocTag: {{ rawTableDocTag }}
+      rawTableDocDoc: {{ rawTableDocDoc }}
+      rawTableDocPattern: {{ rawTableDocPattern }}
+      rawTableCache: {{ rawTableCache }}
+      rawManualPatternsCatalog: {{ rawManualPatternsCatalog }}
+      rawTablePromoteCache: {{ rawTablePromoteCache }}
     patternPromote:
+      patternMode: {{ patternMode }}
+      structuralAutoPatterns: {{ structuralAutoPatterns }}
       textNormalization:
         # Separate lists avoid false-positive structural samples when asset vs file
         # alias shapes differ. Capture-group semantics as aliases_update aliasPattern;
