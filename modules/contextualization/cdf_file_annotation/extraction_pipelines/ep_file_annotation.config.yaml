@@ -3,8 +3,6 @@ config:
   parameters:
     # Debug file external id for the extraction pipeline, empty string for no debug file.
     debugFileExternalId: {{ debugFileExternalId }}
-    patternMode: {{ patternMode }}
-    structuralAutoPatterns: {{ structuralAutoPatterns }}
     cleanOldAnnotations: {{ cleanOldAnnotations }}
     assetAutoApprovalThreshold: {{ assetAutoApprovalThreshold }}
     assetAutoSuggestThreshold: {{ assetAutoSuggestThreshold }}
@@ -34,6 +32,8 @@ config:
     rawTableCache: {{ rawTableCache }}
     rawManualPatternsCatalog: {{ rawManualPatternsCatalog }}
     rawTablePromoteCache: {{ rawTablePromoteCache }}
+    patternMode: {{ patternMode }}
+    structuralAutoPatterns: {{ structuralAutoPatterns }}
     patternPromote:
       textNormalization:
         # Separate lists avoid false-positive structural samples when asset vs file
