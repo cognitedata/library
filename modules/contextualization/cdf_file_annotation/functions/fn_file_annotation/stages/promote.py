@@ -4,6 +4,7 @@ from cognite.client import CogniteClient
 from dependencies import (
     create_config_service,
     create_entity_search_service,
+    create_general_pipeline_service,
     create_logger_service,
     create_promote_cache_service,
 )
@@ -11,6 +12,7 @@ from fa_constants import FUNCTION_TIME_BUDGET_MINUTES
 from services.ConfigService import Config, format_promote_config
 from services.EntitySearchService import EntitySearchService
 from services.LoggerService import CogniteFunctionLogger
+from services.PipelineService import IPipelineService
 from services.PromoteCacheService import CacheService
 from services.PromoteService import GeneralPromoteService
 from utils.DataStructures import PromoteTracker
@@ -50,8 +52,11 @@ def handle(data: dict, function_call_info: dict, client: CogniteClient) -> dict:
 
     config_instance: Config
     config_instance, client = create_config_service(function_data=data, client=client)
-    logger_instance: CogniteFunctionLogger = create_logger_service(data.get("logLevel", "DEBUG"), data.get("logPath"))
+    logger_instance: CogniteFunctionLogger = create_logger_service(data.get("logLevel", "INFO"), data.get("logPath"))
     tracker_instance: PromoteTracker = PromoteTracker()
+    pipeline_instance: IPipelineService = create_general_pipeline_service(
+        client, pipeline_ext_id=data["ExtractionPipelineExtId"]
+    )
 
     entity_search_service: EntitySearchService = create_entity_search_service(config_instance, client, logger_instance)
     cache_service: CacheService = create_promote_cache_service(
@@ -80,11 +85,16 @@ def handle(data: dict, function_call_info: dict, client: CogniteClient) -> dict:
             logger_instance.info(tracker_instance.generate_local_report(), section="START")
         return {"status": run_status, "data": data}
     except STAGE_REPORTABLE_ERRORS as e:
+        run_status = "failure"
         logger_instance.error(message="Promote stage failed", error=e, section="BOTH")
         raise
     finally:
         # Generate overall summary report
         logger_instance.info(tracker_instance.generate_overall_report(), section="BOTH")
+        function_id = function_call_info.get("function_id")
+        call_id = function_call_info.get("call_id")
+        pipeline_instance.update_extraction_pipeline(msg=tracker_instance.generate_ep_run(function_id, call_id))
+        pipeline_instance.upload_extraction_pipeline(status=run_status)
 
 
 def run_locally(config_file: dict) -> None:

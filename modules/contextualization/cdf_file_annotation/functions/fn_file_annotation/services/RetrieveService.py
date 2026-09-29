@@ -1,4 +1,6 @@
 import abc
+from dataclasses import dataclass
+from enum import StrEnum
 
 from cognite.client import CogniteClient
 from cognite.client.data_classes.data_modeling import (
@@ -22,13 +24,34 @@ from services.LoggerService import CogniteFunctionLogger
 from utils.DataStructures import AnnotationStatus
 
 
+class JobPollStatus(StrEnum):
+    """Outcome of one diagram-detect status check."""
+
+    COMPLETED = "completed"
+    RUNNING = "running"
+    FAILED = "failed"
+
+
+@dataclass(frozen=True)
+class DiagramDetectJobPoll:
+    """A detect job that finished, is still running, or ended in a terminal failure.
+
+    Attributes:
+        status: Completed, still running, or failed/cancelled.
+        results: Job payload when the job completed. Empty while running or failed.
+    """
+
+    status: JobPollStatus
+    results: dict | None = None
+
+
 class IRetrieveService(abc.ABC):
     """
     Interface for retrieving diagram detect jobs
     """
 
     @abc.abstractmethod
-    def get_diagram_detect_job_result(self, job_id: int, job_token: str) -> dict | None:
+    def get_diagram_detect_job_result(self, job_id: int, job_token: str) -> DiagramDetectJobPoll:
         pass
 
     @abc.abstractmethod
@@ -60,40 +83,42 @@ class GeneralRetrieveService(IRetrieveService):
             )
         self.job_api: str = f"/api/v1/projects/{self.client.config.project}/context/diagram/detect"
 
-    def get_diagram_detect_job_result(self, job_id: int, job_token: str) -> dict | None:
+    def get_diagram_detect_job_result(self, job_id: int, job_token: str) -> DiagramDetectJobPoll:
         """
         Retrieves the results of a diagram detection job by job ID.
 
-        Polls the diagram detect API to check if a job has completed and returns the results
-        if available.
+        A non-200 response is treated as still running, so the next workflow pass retries it.
+        Failed and Cancelled are terminal and are not retried.
 
         Args:
             job_id: The diagram detection job ID to retrieve results for.
+            job_token: Header token for the diagram detect job. Not logged.
 
         Returns:
-            Dictionary containing job results if completed, None if still processing or failed.
+            Completed with the payload, still running, or terminally failed.
         """
         url = f"{self.job_api}/{job_id}"
-        result = None
         response = self.client.get(url, headers={"X-Job-Token": job_token})
-        if response.status_code == 200:
-            job_results: dict = response.json()
-            status_count = job_results.get(
-                "statusCount", "Unable to fetch the status of the files being processed by this job"
-            )
-            if job_results.get("status") == "Completed":
-                self.logger.info(f"Job complete - {status_count} - {job_id}")
-                if self.logger.log_level == "DEBUG":
-                    self.logger.debug(f"Below is the full response:\n{response.text}")
-                result = job_results
-                return result
-            else:
-                self.logger.info(f"Job not complete - {status_count} - {job_id}")
-                if self.logger.log_level == "DEBUG":
-                    self.logger.debug(f"Below is the full response:\n{response.text}")
-        else:
+        if response.status_code != 200:
             self.logger.info(f"Request to get job {job_id} failed - HTTP {response.status_code}")
-        return None
+            return DiagramDetectJobPoll(status=JobPollStatus.RUNNING)
+
+        job_results: dict = response.json()
+        status_count = job_results.get(
+            "statusCount", "Unable to fetch the status of the files being processed by this job"
+        )
+        status = job_results.get("status")
+        if self.logger.log_level == "DEBUG":
+            self.logger.debug(f"Below is the full response:\n{response.text}")
+        if status == "Completed":
+            self.logger.info(f"Job complete - {status_count} - {job_id}")
+            return DiagramDetectJobPoll(status=JobPollStatus.COMPLETED, results=job_results)
+        if status in {"Failed", "Cancelled"}:
+            self.logger.info(f"Job {job_id} ended with status {status}.")
+            return DiagramDetectJobPoll(status=JobPollStatus.FAILED)
+
+        self.logger.info(f"Job not complete - {status_count} - {job_id}")
+        return DiagramDetectJobPoll(status=JobPollStatus.RUNNING)
 
     def get_job_id(
         self,
@@ -132,7 +157,7 @@ class GeneralRetrieveService(IRetrieveService):
         sort_by_time = []
         sort_by_time.append(
             instances.InstanceSort(
-                property=self.annotation_state_view.as_property_ref("sourceUpdatedTime"),
+                property=self.annotation_state_view.as_property_ref("pipelineUpdatedTime"),
                 direction="ascending",
             )
         )

@@ -185,6 +185,8 @@ variables:
 
         # used in /workflows
         workflowExternalId: wf_file_annotation
+        # 00:00 on 29 February. This cron does not run the workflow.
+        # Paste a daily cron when annotation should start unattended, for example "0 0 * * *".
         workflowSchedule: "0 0 29 2 *"
 
         # used in /auth
@@ -200,7 +202,13 @@ variables:
 
 ### Step 4: Run the Workflow
 
-After deployment, the annotation process is managed by a workflow that orchestrates the `Launch` and `Finalize` functions. The workflow is automatically triggered based on the schedule defined in the configuration. You can monitor the progress and logs of the functions in the CDF UI.
+After deployment, the annotation process is managed by a workflow that orchestrates prepare, launch, finalize, and promote. The shipped `workflowSchedule` is `0 0 29 2 *` (00:00 on 29 February). That cron does not run the workflow, so copied defaults do not start annotation on their own. Start it from the CDF UI, or replace the schedule with a real cron when you want it to run unattended, for example a daily run at midnight:
+
+```yaml
+workflowSchedule: "0 0 * * *"
+```
+
+You can monitor the progress and logs of the functions in the CDF UI.
 
 **Optional preparatory steps:**
 

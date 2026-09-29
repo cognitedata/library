@@ -72,6 +72,19 @@ class FilterOperator(StrEnum):
     SEARCH = "Search"  # Performs full text search on a specified property
 
 
+def annotation_clock(preserved: str | None = None) -> dict[str, str]:
+    """sourceUpdatedTime and pipelineUpdatedTime for one annotation-state write.
+
+    Args:
+        preserved: Existing timestamp to keep, so a still-running job does not reset the stuck-job clock.
+
+    Returns:
+        Both timestamp properties set to the same instant.
+    """
+    moment = preserved if preserved is not None else datetime.now(UTC).replace(microsecond=0).isoformat()
+    return {"sourceUpdatedTime": moment, "pipelineUpdatedTime": moment}
+
+
 @dataclass
 class AnnotationState:
     """
@@ -85,6 +98,7 @@ class AnnotationState:
     diagramDetectJobId: int | None = None
     sourceCreatedTime: str = field(default_factory=lambda: datetime.now(UTC).replace(microsecond=0).isoformat())
     sourceUpdatedTime: str = field(default_factory=lambda: datetime.now(UTC).replace(microsecond=0).isoformat())
+    pipelineUpdatedTime: str = field(default_factory=lambda: datetime.now(UTC).replace(microsecond=0).isoformat())
     sourceCreatedUser: str = "fn_file_annotation"
     sourceUpdatedUser: str = "fn_file_annotation"
 

@@ -650,17 +650,31 @@ class Config(BaseModel, alias_generator=to_camel):
                     "cleanOldAnnotations": parameters.get("cleanOldAnnotations", True),
                     "maxRetryAttempts": MAX_RETRY_ATTEMPTS,
                     "retrieveService": {
-                        "getJobIdQuery": {
-                            "targetView": state_view,
-                            "filters": [
-                                {
-                                    "values": PROCESSING_STATUS,
-                                    "operator": "Equals",
-                                    "targetProperty": "annotationStatus",
-                                },
-                                {"operator": "Exists", "targetProperty": "diagramDetectJobId"},
-                            ],
-                        }
+                        # A launch with no entities writes only patternModeJobId. Either job id is enough to claim.
+                        "getJobIdQuery": [
+                            {
+                                "targetView": state_view,
+                                "filters": [
+                                    {
+                                        "values": PROCESSING_STATUS,
+                                        "operator": "Equals",
+                                        "targetProperty": "annotationStatus",
+                                    },
+                                    {"operator": "Exists", "targetProperty": "diagramDetectJobId"},
+                                ],
+                            },
+                            {
+                                "targetView": state_view,
+                                "filters": [
+                                    {
+                                        "values": PROCESSING_STATUS,
+                                        "operator": "Equals",
+                                        "targetProperty": "annotationStatus",
+                                    },
+                                    {"operator": "Exists", "targetProperty": "patternModeJobId"},
+                                ],
+                            },
+                        ],
                     },
                     "applyService": {
                         "assetAutoApprovalThreshold": asset_approval_threshold,

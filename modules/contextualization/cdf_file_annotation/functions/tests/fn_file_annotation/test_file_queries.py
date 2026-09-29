@@ -103,11 +103,25 @@ def test_launch_reads_new_and_stuck_states_in_separate_and_only_reads() -> None:
     client.data_modeling.instances.retrieve_nodes.assert_not_called()
     (call,) = client.data_modeling.instances.query.call_args_list
     query = call.args[0]
-    for name in ("new_states", "stuck_states"):
-        assert "'or'" not in str(query.with_[name].filter.dump())
+    assert "'or'" not in str(query.with_["new_states"].filter.dump())
     for name in ("new_files", "stuck_files"):
         assert query.with_[name].through.property == "linkedFile"
         assert set(query.select[name].sources[0].properties) == {"tags", "site"}
+    state_properties = {
+        "annotationStatus",
+        "linkedFile",
+        "annotatedPageCount",
+        "pageCount",
+        "sourceUpdatedTime",
+        "pipelineUpdatedTime",
+    }
+    assert set(query.select["new_states"].sources[0].properties) == state_properties
+    assert query.select["stuck_states"].sources[0].properties == query.select["new_states"].sources[0].properties
+    assert "diagramDetectJobToken" not in query.select["new_states"].sources[0].properties
+    stuck = str(query.with_["stuck_states"].filter.dump())
+    assert "pipelineUpdatedTime" in stuck
+    assert "sourceUpdatedTime" in stuck
+    assert "exists" in stuck
 
 
 def test_launch_in_debug_mode_reads_only_the_debug_file_state() -> None:
@@ -136,6 +150,38 @@ def test_the_reset_query_is_paged_and_reads_only_the_file_tags() -> None:
     client.data_modeling.instances.list.assert_not_called()
     for call in client.data_modeling.instances.query.call_args_list:
         assert call.args[0].select["files"].sources[0].properties == ["tags"]
+
+
+def test_finalize_claims_a_pattern_only_job() -> None:
+    from services.ConfigService import build_filter_from_query
+    from services.RetrieveService import GeneralRetrieveService
+
+    dumped = str(build_filter_from_query(_config().finalize_function.retrieve_service.get_job_id_query).dump())
+    assert "or" in dumped
+    assert "diagramDetectJobId" in dumped
+    assert "patternModeJobId" in dumped
+
+    job_state = _node(
+        "files",
+        "state-1",
+        ("sp_hdm", "FileAnnotationState/v1"),
+        {
+            "linkedFile": {"space": "files", "externalId": "f1"},
+            "patternModeJobId": 9,
+            "patternModeJobToken": "pattern-token",
+        },
+    )
+    client = MagicMock()
+    client.data_modeling.instances.list.side_effect = [NodeList([job_state]), NodeList([job_state])]
+    service = GeneralRetrieveService(client, _config(), MagicMock())
+
+    regular, pattern, mapping = service.get_job_id()
+
+    assert regular is None
+    assert pattern == (9, "pattern-token")
+    assert NodeId("files", "f1") in mapping
+    sort = client.data_modeling.instances.list.call_args_list[0].kwargs["sort"]
+    assert sort[0].property[-1] == "pipelineUpdatedTime"
 
 
 def test_finalize_reads_at_most_one_launch_batch_of_states_per_job() -> None:

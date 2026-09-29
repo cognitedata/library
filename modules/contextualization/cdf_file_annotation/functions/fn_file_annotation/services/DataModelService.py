@@ -19,12 +19,15 @@ from cognite.client.data_classes.data_modeling.query import (
     SourceSelector,
 )
 from cognite.client.data_classes.filters import (
+    And,
     ContainsAny,
     Equals,
+    Exists,
     Filter,
     HasData,
     In,
     Not,
+    Or,
     Range,
 )
 from fa_constants import LAUNCH_STATE_LIMIT, QUERY_PAGE_SIZE, TAG_ANNOTATION_IN_PROCESS, TAG_SCOPE_WIDE_DETECT
@@ -37,6 +40,16 @@ from services.ConfigService import (
 from services.EntitySyncService import EntityInstance, EntitySyncService
 from services.LoggerService import CogniteFunctionLogger
 from utils.DataStructures import AnnotationStatus
+
+# Properties Launch reads off the annotation state. Job tokens stay on the node and are not selected.
+LAUNCH_STATE_PROPERTIES = [
+    "annotationStatus",
+    "linkedFile",
+    "annotatedPageCount",
+    "pageCount",
+    "sourceUpdatedTime",
+    "pipelineUpdatedTime",
+]
 
 
 class IDataModelService(abc.ABC):
@@ -266,7 +279,7 @@ class GeneralDataModelService(IDataModelService):
                 direction="outwards",
                 limit=page_size,
             )
-            select[states] = Select([SourceSelector(state_view_id, ["*"])])
+            select[states] = Select([SourceSelector(state_view_id, LAUNCH_STATE_PROPERTIES)])
             select[files] = Select([SourceSelector(file_view_id, file_properties)])
         result = self.client.data_modeling.instances.query(Query(with_=with_, select=select))
 
@@ -302,12 +315,19 @@ class GeneralDataModelService(IDataModelService):
         experience with the pipeline. Feel free to change if your experience leads to a different number.
         """
         latest_permissible_time_utc = datetime.now(UTC) - timedelta(minutes=720)
-        return In(
-            self.annotation_state_view.as_property_ref("annotationStatus"),
-            [AnnotationStatus.PROCESSING, AnnotationStatus.FINALIZING],
-        ) & Range(
-            self.annotation_state_view.as_property_ref("sourceUpdatedTime"),
-            lt=latest_permissible_time_utc.isoformat(timespec="milliseconds"),
+        cutoff = latest_permissible_time_utc.isoformat(timespec="milliseconds")
+        # States written before pipelineUpdatedTime existed still match on sourceUpdatedTime.
+        stale_pipeline_time = Range(self.annotation_state_view.as_property_ref("pipelineUpdatedTime"), lt=cutoff)
+        legacy_source_time = And(
+            Not(Exists(self.annotation_state_view.as_property_ref("pipelineUpdatedTime"))),
+            Range(self.annotation_state_view.as_property_ref("sourceUpdatedTime"), lt=cutoff),
+        )
+        return And(
+            In(
+                self.annotation_state_view.as_property_ref("annotationStatus"),
+                [AnnotationStatus.PROCESSING, AnnotationStatus.FINALIZING],
+            ),
+            Or(stale_pipeline_time, legacy_source_time),
         )
 
     def update_annotation_state(self, list_node_apply: list[NodeApply]) -> NodeApplyResultList:

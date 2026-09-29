@@ -128,6 +128,14 @@
       nullable: true
       autoIncrement: false
       name: Finalize function call Id
+    pipelineUpdatedTime:
+      type:
+        list: false
+        type: timestamp
+      immutable: false
+      nullable: true
+      autoIncrement: false
+      name: Pipeline updated time
   space: {{ annotationStateSchemaSpace }}
   usedFor: node
   indexes:
@@ -152,4 +160,9 @@
       properties:
         - finalizeFunctionId
         - finalizeFunctionCallId
+      cursorable: true
+    pipelineUpdatedTime:
+      indexType: btree
+      properties:
+        - pipelineUpdatedTime
       cursorable: true

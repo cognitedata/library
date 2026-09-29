@@ -48,7 +48,7 @@ If you set DEBUG but see no `[DEBUG]` lines, redeploy this function — older bu
 Run the tests from the repository root:
 
 ```bash
-uv run pytest modules/contextualization/cdf_file_annotation/functions/fn_file_annotation -q
+uv run pytest modules/contextualization/cdf_file_annotation/functions/tests/fn_file_annotation -q
 ```
 
 Local debug configurations in `local_setup/launch.json` point to the same handler and

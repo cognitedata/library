@@ -38,6 +38,7 @@ jobs:
         uv run pytest modules/contextualization/cdf_entity_matching/functions/fn_dm_context_timeseries_entity_matching/ --rootdir=. -q
         uv run pytest modules/contextualization/cdf_entity_matching/functions/fn_dm_context_aliases_update/test_alias_optimizations.py --rootdir=. -q
         uv run pytest modules/contextualization/cdf_p_and_id_annotation/functions/fn_dm_context_files_annotation/ --rootdir=. -q
+        uv run pytest modules/contextualization/cdf_file_annotation/functions/tests/fn_file_annotation --rootdir=. -q
 
     - name: Validate packages.toml
       run: |

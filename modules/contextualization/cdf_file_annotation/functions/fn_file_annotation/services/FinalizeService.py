@@ -1,6 +1,5 @@
 import abc
 import time
-from datetime import UTC, datetime
 from typing import Literal, cast
 
 from cognite.client import CogniteClient
@@ -14,16 +13,22 @@ from cognite.client.exceptions import CogniteAPIError
 from services.ApplyService import IApplyService
 from services.ConfigService import Config, ViewPropertyConfig
 from services.LoggerService import CogniteFunctionLogger
-from services.RetrieveService import IRetrieveService
+from services.RetrieveService import DiagramDetectJobPoll, IRetrieveService, JobPollStatus
 from utils.DataStructures import (
     AnnotationStatus,
     BatchOfNodes,
     PerformanceTracker,
+    annotation_clock,
     node_tags,
     replace_tag,
     tags_apply,
 )
 from utils.QueryTimeout import QueryTimeoutRetry, is_query_timeout
+
+
+def _poll_completed(job: tuple[int, str] | None, poll: DiagramDetectJobPoll | None) -> bool:
+    """True when this job was not launched, or its detect job has completed."""
+    return job is None or (poll is not None and poll.status == JobPollStatus.COMPLETED)
 
 
 def claimed_jobs_message(regular_job_id: int | None, pattern_job_id: int | None, claimed_files: int) -> str:
@@ -166,15 +171,15 @@ class GeneralFinalizeService(AbstractFinalizeService):
         Returns:
             None
         """
-        job_results: dict | None = None
-        pattern_mode_job_results: dict | None = None
+        regular_poll: DiagramDetectJobPoll | None = None
+        pattern_poll: DiagramDetectJobPoll | None = None
         try:
             if regular_job is not None:
                 self.logger.info("(Regular) Retrieving diagram detect job results", "START")
-                job_results = self.retrieve_service.get_diagram_detect_job_result(*regular_job)
+                regular_poll = self.retrieve_service.get_diagram_detect_job_result(*regular_job)
             if pattern_mode_job is not None:
                 self.logger.info("(Pattern) Retrieving diagram detect job results")
-                pattern_mode_job_results = self.retrieve_service.get_diagram_detect_job_result(*pattern_mode_job)
+                pattern_poll = self.retrieve_service.get_diagram_detect_job_result(*pattern_mode_job)
         except CogniteAPIError as e:
             self.logger.error(
                 message=f"Unfinalizing {len(file_to_state_map.keys())} files. Encountered an error.",
@@ -188,13 +193,29 @@ class GeneralFinalizeService(AbstractFinalizeService):
             )
             return None
 
-        jobs_complete: bool = (regular_job is None or job_results is not None) and (
-            pattern_mode_job is None or pattern_mode_job_results is not None
-        )
+        polls = [poll for poll in (regular_poll, pattern_poll) if poll is not None]
+        regular_job_id = None if regular_job is None else regular_job[0]
+        pattern_job_id = None if pattern_mode_job is None else pattern_mode_job[0]
+        if any(poll.status == JobPollStatus.FAILED for poll in polls):
+            self.logger.info(
+                message=(
+                    f"Detect job failed for {len(file_to_state_map)} files "
+                    f"(regular job {regular_job_id}, pattern job {pattern_job_id}). "
+                    "Marking them AnnotationFailed."
+                ),
+                section="BOTH",
+            )
+            self._mark_claimed_files_failed(file_to_state_map)
+            return None
+
+        jobs_complete = _poll_completed(regular_job, regular_poll) and _poll_completed(pattern_mode_job, pattern_poll)
 
         if not jobs_complete:
             self.logger.info(
-                message=f"Unfinalizing {len(file_to_state_map.keys())} files - regular job {regular_job} and/or pattern job {pattern_mode_job} not complete",
+                message=(
+                    f"Unfinalizing {len(file_to_state_map)} files - "
+                    f"regular job {regular_job_id} and/or pattern job {pattern_job_id} not complete"
+                ),
                 section="BOTH",
             )
             self._update_batch_state(
@@ -205,8 +226,10 @@ class GeneralFinalizeService(AbstractFinalizeService):
             time.sleep(30)
             return None
 
+        job_results = regular_poll.results if regular_poll is not None else None
+        pattern_mode_job_results = pattern_poll.results if pattern_poll is not None else None
         self.logger.info(
-            f"Jobs complete (regular={regular_job}, pattern={pattern_mode_job}). Applying all annotations.",
+            (f"Jobs complete (regular={regular_job_id}, pattern={pattern_job_id}). Applying all annotations."),
             section="END",
         )
         self._log_detect_job_summary("regular", job_results)
@@ -231,12 +254,11 @@ class GeneralFinalizeService(AbstractFinalizeService):
         count_retry, count_failed, count_success = 0, 0, 0
         annotation_state_node_applies: list[NodeApply] = []
         file_node_applies: list[NodeApply] = []
+        files_by_id = self._files_by_id([NodeId(space, external_id) for space, external_id in merged_results])
 
         for (space, external_id), results in merged_results.items():
             file_id = NodeId(space, external_id)
-            file_node = self.client.data_modeling.instances.retrieve_nodes(
-                nodes=file_id, sources=self.file_view.as_view_id()
-            )
+            file_node = files_by_id.get(file_id)
             if file_node is None:
                 continue
 
@@ -397,7 +419,7 @@ class GeneralFinalizeService(AbstractFinalizeService):
         """
         update_properties = {
             "annotationStatus": status,
-            "sourceUpdatedTime": datetime.now(UTC).replace(microsecond=0).isoformat(),
+            **annotation_clock(),
             "annotationMessage": annotation_message,
             "patternModeMessage": pattern_mode_message,
             "attemptCount": attempt_count,
@@ -512,6 +534,39 @@ class GeneralFinalizeService(AbstractFinalizeService):
                     + (f" error={item.get('errorMessage')!r}" if item.get("errorMessage") else "")
                 )
 
+    def _files_by_id(self, file_ids: list[NodeId]) -> dict[NodeId, Node]:
+        """Read every file in one retrieve. A single-node response is accepted for callers that still return one."""
+        if not file_ids:
+            return {}
+        retrieved = self.client.data_modeling.instances.retrieve_nodes(
+            nodes=file_ids, sources=self.file_view.as_view_id()
+        )
+        if retrieved is None:
+            return {}
+        if isinstance(retrieved, Node):
+            return {retrieved.as_id(): retrieved}
+        return {node.as_id(): node for node in retrieved}
+
+    def _mark_claimed_files_failed(self, file_to_state_map: dict[NodeId, Node]) -> None:
+        """Terminal detect failure: AnnotationFailed on the state and on the file tag, with both job ids cleared."""
+        self._update_batch_state(
+            batch=BatchOfNodes(nodes=list(file_to_state_map.values())),
+            status=AnnotationStatus.FAILED,
+            failed=True,
+        )
+        file_applies: list[NodeApply] = []
+        for file_id, file_node in self._files_by_id(list(file_to_state_map)).items():
+            tags = node_tags(file_node, self.file_view.as_view_id())
+            if "AnnotationInProcess" in tags:
+                tags = replace_tag(tags, "AnnotationInProcess", "AnnotationFailed")
+            elif "AnnotationFailed" not in tags:
+                self.logger.warning(
+                    f"File {file_id.external_id} failed processing, but 'AnnotationInProcess' tag was not found."
+                )
+            file_applies.append(tags_apply(file_node, self.file_view.as_view_id(), tags))
+        if file_applies:
+            self.apply_service.update_instances(list_node_apply=file_applies)
+
     def _update_batch_state(
         self,
         batch: BatchOfNodes,
@@ -539,24 +594,21 @@ class GeneralFinalizeService(AbstractFinalizeService):
         if failed:
             node_update_properties = {
                 "annotationStatus": status,
-                "sourceUpdatedTime": datetime.now(UTC).replace(microsecond=0).isoformat(),
+                **annotation_clock(),
                 "diagramDetectJobId": None,
                 "patternModeJobId": None,
             }
         elif status == AnnotationStatus.PROCESSING:
-            claimed_time = (
-                (batch.nodes[0].properties or {})
-                .get(self.annotation_state_view.as_view_id(), {})
-                .get("sourceUpdatedTime", datetime.now(UTC).replace(microsecond=0).isoformat())
-            )
+            state_properties = (batch.nodes[0].properties or {}).get(self.annotation_state_view.as_view_id(), {})
+            raw_time = state_properties.get("sourceUpdatedTime")
             node_update_properties = {
                 "annotationStatus": status,
-                "sourceUpdatedTime": claimed_time,
+                **annotation_clock(raw_time if isinstance(raw_time, str) else None),
             }
         else:
             node_update_properties = {
                 "annotationStatus": status,
-                "sourceUpdatedTime": datetime.now(UTC).replace(microsecond=0).isoformat(),
+                **annotation_clock(),
             }
         batch.update_node_properties(
             new_properties=node_update_properties,

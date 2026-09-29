@@ -37,7 +37,9 @@ def test_failed_job_result_request_logs_status_without_the_body() -> None:
     client.get.return_value = response
     service = GeneralRetrieveService(client, _config(), logger)
 
-    assert service.get_diagram_detect_job_result(7, token) is None
+    from services.RetrieveService import JobPollStatus
+
+    assert service.get_diagram_detect_job_result(7, token).status == JobPollStatus.RUNNING
 
     logged = " ".join(str(call.args) for call in logger.info.call_args_list)
     assert token not in logged

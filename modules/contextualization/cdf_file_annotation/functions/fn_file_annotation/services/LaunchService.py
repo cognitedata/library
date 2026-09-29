@@ -2,7 +2,6 @@ import abc
 import json
 import time
 from collections import defaultdict
-from datetime import UTC, datetime
 from typing import Literal, cast
 
 from cognite.client import CogniteClient
@@ -27,6 +26,7 @@ from utils.DataStructures import (
     BatchOfPairedNodes,
     FileProcessingBatch,
     PerformanceTracker,
+    annotation_clock,
     unique_tags,
 )
 from utils.QueryTimeout import QueryTimeoutRetry, is_query_timeout
@@ -435,7 +435,7 @@ class GeneralLaunchService(AbstractLaunchService):
 
             update_properties = {
                 "annotationStatus": AnnotationStatus.PROCESSING,
-                "sourceUpdatedTime": datetime.now(UTC).replace(microsecond=0).isoformat(),
+                **annotation_clock(),
                 "launchFunctionId": self.function_id,
                 "launchFunctionCallId": self.call_id,
             }

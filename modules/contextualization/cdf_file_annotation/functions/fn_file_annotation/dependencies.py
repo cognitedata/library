@@ -3,7 +3,6 @@ from pathlib import Path
 
 from cognite.client import ClientConfig, CogniteClient
 from cognite.client.credentials import OAuthClientCredentials
-from dotenv import load_dotenv
 from services.AnnotationService import GeneralAnnotationService
 from services.ApplyService import GeneralApplyService
 from services.ConfigService import Config, load_config_parameters
@@ -18,6 +17,9 @@ from utils.DataStructures import EnvConfig
 
 
 def get_env_variables() -> EnvConfig:
+    """Read CDF credentials from the environment. Used by local runs, not the CDF Functions runtime."""
+    from dotenv import load_dotenv
+
     print("Loading environment variables from .env...")
 
     project_path = (Path(__file__).parent / ".env").resolve()

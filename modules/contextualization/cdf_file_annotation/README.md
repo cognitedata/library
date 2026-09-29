@@ -54,6 +54,7 @@ cdf_file_annotation/
 │   │   ├── 📁 stages/                      # prepare, launch, finalize, promote
 │   │   ├── 📁 services/
 │   │   └── 📁 utils/
+│   ├── 📁 tests/fn_file_annotation/        # Tests, kept out of the function zip
 │   └── 📄 functions.Function.yaml          # Single Function resource
 ├── 📁 workflows/                           # One end-to-end workflow
 │   └── 📄 wf_file_annotation.*
@@ -376,6 +377,8 @@ filesToAnnotateTags:
 
 Finalize and promote write annotation results to RAW. Use these tables for auditing — not the helper `FileAnnotationState` view, which tracks job status per file rather than individual tag strings.
 
+`FileAnnotationState.pipelineUpdatedTime` is the clock launch and finalize write when they change a file's annotation state. Stuck-job recovery and the finalize claim order use that property. States written before this property existed are still recovered from `sourceUpdatedTime` until the next stage touches them.
+
 | RAW table | Contents |
 |---|---|
 | `annotation_documents_tags` | **Matched assets only** — regular diagram detect links (typically `status = Approved`) |
@@ -488,6 +491,8 @@ functionVersion: v1.0.0
 
 # Workflow Settings
 workflowExternalId: wf_file_annotation
+# 00:00 on 29 February. This cron does not run the workflow.
+# Paste a daily cron when annotation should start unattended, for example "0 0 * * *".
 workflowSchedule: "0 0 29 2 *"
 
 # Auth Group (UPDATE REQUIRED)
@@ -857,6 +862,8 @@ fileNormalizationPatterns: []
       functionExternalId: fn_file_annotation
       functionVersion: v1.0.0
       workflowExternalId: wf_file_annotation
+      # 00:00 on 29 February. This cron does not run the workflow.
+      # Paste a daily cron when annotation should start unattended, for example "0 0 * * *".
       workflowSchedule: "0 0 29 2 *"
       groupSourceId: your-azure-ad-group-source-id  # UPDATE REQUIRED
 ```

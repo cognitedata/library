@@ -34,16 +34,16 @@ FILE_ANNOTATION_STREAMLIT_RUNTIME = [
 ]
 
 # CDF deploy: direct packages installed on top of the Functions runtime.
-# cryptography is not imported directly; it is pinned to a floor because versions
-# 44.0.0 to 49.x expose a Bleichenbacher oracle in the PKCS#7 decrypt helpers.
+# cryptography is not imported directly. 50.0.0 is the first release that closes
+# the Bleichenbacher oracle in the PKCS#7 decrypt helpers (44.0.0–49.x).
+# python-dotenv stays in the local runtime list; the Functions runtime does not need it.
 FILE_ANNOTATION_DEPLOY = [
     # 7.94.0 or later: the entity read uses NodeResultSetExpression(sync_mode=...).
     "cognite-sdk==7.94.0",
-    "cryptography>=50.0.0",
-    "pydantic>=2.12.4,<3.0.0",
-    "python-dotenv==1.2.2",
+    "cryptography==50.0.0",
+    "pydantic==2.12.4",
     "PyYAML==6.0.3",
-    "mixpanel>=4.10.0",
+    "mixpanel==4.10.0",
 ]
 
 FILE_ANNOTATION_STREAMLIT_DEPLOY = [

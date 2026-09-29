@@ -12,7 +12,7 @@ import pytest
 if TYPE_CHECKING:
     from services.FinalizeService import GeneralFinalizeService
 
-_FUNCTION_DIR = Path(__file__).parent
+_FUNCTION_DIR = Path(__file__).resolve().parents[2] / "fn_file_annotation"
 sys.path.append(str(_FUNCTION_DIR))
 
 
@@ -1323,9 +1323,12 @@ def test_prepare_writes_only_the_tags_of_a_file() -> None:
     assert file_apply.sources[0].properties == {"tags": ["ToAnnotate", "AnnotationInProcess"]}
 
 
-def _finalize_service_for_one_file(apply_service: MagicMock) -> "GeneralFinalizeService":
+def _finalize_service_for_one_file(
+    apply_service: MagicMock, job_result: object | None = None
+) -> "GeneralFinalizeService":
     from cognite.client.data_classes.data_modeling import Node, NodeId
     from services.FinalizeService import GeneralFinalizeService
+    from services.RetrieveService import DiagramDetectJobPoll, JobPollStatus
 
     state_node = Node.load(
         {
@@ -1340,11 +1343,14 @@ def _finalize_service_for_one_file(apply_service: MagicMock) -> "GeneralFinalize
     )
     retrieve_service = MagicMock()
     retrieve_service.get_job_id.return_value = ((1, "token"), None, {NodeId("files", "doc-1"): state_node})
-    retrieve_service.get_diagram_detect_job_result.return_value = {
-        "items": [{"fileInstanceId": {"space": "files", "externalId": "doc-1"}, "pageCount": 1, "annotations": []}]
-    }
+    retrieve_service.get_diagram_detect_job_result.return_value = job_result or DiagramDetectJobPoll(
+        status=JobPollStatus.COMPLETED,
+        results={
+            "items": [{"fileInstanceId": {"space": "files", "externalId": "doc-1"}, "pageCount": 1, "annotations": []}]
+        },
+    )
     client = MagicMock()
-    # A single NodeId returns a single Node, not a NodeList.
+    # A list of NodeIds returns a NodeList. A single Node is still accepted.
     client.data_modeling.instances.retrieve_nodes.return_value = _file_node(["ToAnnotate", "AnnotationInProcess"])
     return GeneralFinalizeService(
         client,
@@ -1366,6 +1372,140 @@ def test_finalize_writes_only_the_tags_of_an_annotated_file() -> None:
     applies = apply_service.update_instances.call_args.kwargs["list_node_apply"]
     (file_apply,) = [apply for apply in applies if apply.external_id == "doc-1"]
     assert file_apply.sources[0].properties == {"tags": ["ToAnnotate", "Annotated"]}
+
+
+def test_failed_detect_job_marks_the_file_failed_and_does_not_sleep(monkeypatch: pytest.MonkeyPatch) -> None:
+    from services.RetrieveService import DiagramDetectJobPoll, JobPollStatus
+
+    sleep = MagicMock()
+    monkeypatch.setattr("services.FinalizeService.time.sleep", sleep)
+    apply_service = MagicMock()
+    service = _finalize_service_for_one_file(
+        apply_service, job_result=DiagramDetectJobPoll(status=JobPollStatus.FAILED)
+    )
+
+    service.run()
+
+    sleep.assert_not_called()
+    applies: list = []
+    for call in apply_service.update_instances.call_args_list:
+        applies.extend(call.kwargs["list_node_apply"])
+    state_apply = next(apply for apply in applies if apply.external_id == "state-1")
+    assert state_apply.sources[0].properties["annotationStatus"] == "Failed"
+    assert state_apply.sources[0].properties["diagramDetectJobId"] is None
+    assert state_apply.sources[0].properties["patternModeJobId"] is None
+    file_apply = next(apply for apply in applies if apply.external_id == "doc-1")
+    assert file_apply.sources[0].properties["tags"] == ["ToAnnotate", "AnnotationFailed"]
+    apply_service.process_and_apply_annotations_for_file.assert_not_called()
+
+
+def test_a_failed_pattern_job_fails_the_batch_when_the_regular_job_completed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from cognite.client.data_classes.data_modeling import NodeId
+    from services.RetrieveService import DiagramDetectJobPoll, JobPollStatus
+
+    sleep = MagicMock()
+    monkeypatch.setattr("services.FinalizeService.time.sleep", sleep)
+    apply_service = MagicMock()
+    service = _finalize_service_for_one_file(apply_service)
+    file_id = NodeId("files", "doc-1")
+    state = service.retrieve_service.get_job_id.return_value[2][file_id]
+    service.retrieve_service.get_job_id.return_value = ((1, "token"), (2, "pattern-token"), {file_id: state})
+    completed = DiagramDetectJobPoll(
+        status=JobPollStatus.COMPLETED,
+        results={
+            "items": [{"fileInstanceId": {"space": "files", "externalId": "doc-1"}, "pageCount": 1, "annotations": []}]
+        },
+    )
+    service.retrieve_service.get_diagram_detect_job_result.side_effect = [
+        completed,
+        DiagramDetectJobPoll(status=JobPollStatus.FAILED),
+    ]
+
+    service.run()
+
+    sleep.assert_not_called()
+    applies: list = []
+    for call in apply_service.update_instances.call_args_list:
+        applies.extend(call.kwargs["list_node_apply"])
+    state_apply = next(apply for apply in applies if apply.external_id == "state-1")
+    assert state_apply.sources[0].properties["annotationStatus"] == "Failed"
+    apply_service.process_and_apply_annotations_for_file.assert_not_called()
+
+
+def test_finalize_retrieves_every_file_in_the_job_once() -> None:
+    from cognite.client.data_classes.data_modeling import Node, NodeId, NodeList
+    from services.FinalizeService import GeneralFinalizeService
+    from services.RetrieveService import DiagramDetectJobPoll, JobPollStatus
+
+    def state_node(external_id: str, file_external_id: str) -> Node:
+        return Node.load(
+            {
+                "instanceType": "node",
+                "space": "files",
+                "externalId": external_id,
+                "version": 1,
+                "lastUpdatedTime": 0,
+                "createdTime": 0,
+                "properties": {
+                    "sp_hdm": {
+                        "FileAnnotationState/v1": {
+                            "annotationStatus": "Finalizing",
+                            "linkedFile": {"space": "files", "externalId": file_external_id},
+                        }
+                    }
+                },
+            }
+        )
+
+    def file_node(external_id: str) -> Node:
+        return Node.load(
+            {
+                "instanceType": "node",
+                "space": "files",
+                "externalId": external_id,
+                "version": 1,
+                "lastUpdatedTime": 0,
+                "createdTime": 0,
+                "properties": {
+                    "cdf_cdm": {"CogniteFile/v1": {"name": external_id, "tags": ["ToAnnotate", "AnnotationInProcess"]}}
+                },
+            }
+        )
+
+    mapping = {
+        NodeId("files", "doc-1"): state_node("state-1", "doc-1"),
+        NodeId("files", "doc-2"): state_node("state-2", "doc-2"),
+    }
+    retrieve_service = MagicMock()
+    retrieve_service.get_job_id.return_value = ((1, "token"), None, mapping)
+    retrieve_service.get_diagram_detect_job_result.return_value = DiagramDetectJobPoll(
+        status=JobPollStatus.COMPLETED,
+        results={
+            "items": [
+                {"fileInstanceId": {"space": "files", "externalId": "doc-1"}, "pageCount": 1, "annotations": []},
+                {"fileInstanceId": {"space": "files", "externalId": "doc-2"}, "pageCount": 1, "annotations": []},
+            ]
+        },
+    )
+    client = MagicMock()
+    client.data_modeling.instances.retrieve_nodes.return_value = NodeList([file_node("doc-1"), file_node("doc-2")])
+    apply_service = MagicMock()
+    apply_service.process_and_apply_annotations_for_file.return_value = ("regular", "pattern")
+    GeneralFinalizeService(
+        client,
+        _config_with_debug_file(None),
+        MagicMock(log_level="INFO"),
+        MagicMock(),
+        retrieve_service,
+        apply_service,
+        {},
+    ).run()
+
+    retrieve_nodes = client.data_modeling.instances.retrieve_nodes
+    assert retrieve_nodes.call_count == 1
+    assert {node.external_id for node in retrieve_nodes.call_args.kwargs["nodes"]} == {"doc-1", "doc-2"}
 
 
 def test_a_crashed_finalize_hands_the_claimed_job_back() -> None:

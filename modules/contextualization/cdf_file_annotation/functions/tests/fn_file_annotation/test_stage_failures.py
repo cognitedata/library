@@ -75,7 +75,7 @@ def test_promote_reraises_a_stage_error(monkeypatch: pytest.MonkeyPatch) -> None
     import stages.promote as promote_stage
 
     error = ValueError("bad config")
-    _patch_common(monkeypatch, promote_stage, "format_promote_config")
+    pipeline = _patch_common(monkeypatch, promote_stage, "format_promote_config")
     monkeypatch.setattr(promote_stage, "create_entity_search_service", lambda *args, **kwargs: MagicMock())
     monkeypatch.setattr(promote_stage, "create_promote_cache_service", lambda *args, **kwargs: MagicMock())
     service = MagicMock()
@@ -83,3 +83,51 @@ def test_promote_reraises_a_stage_error(monkeypatch: pytest.MonkeyPatch) -> None
     monkeypatch.setattr(promote_stage, "GeneralPromoteService", lambda *args, **kwargs: service)
 
     _run(promote_stage.handle, error)
+
+    pipeline.upload_extraction_pipeline.assert_called_once_with(status="failure")
+
+
+def test_promote_defaults_to_info_and_records_a_successful_pipeline_run(monkeypatch: pytest.MonkeyPatch) -> None:
+    import stages.promote as promote_stage
+
+    pipeline = MagicMock()
+    seen: dict[str, str] = {}
+
+    def create_logger(level: str, path: str | None = None) -> MagicMock:
+        seen["level"] = level
+        return MagicMock()
+
+    monkeypatch.setattr(promote_stage, "create_config_service", lambda **kwargs: (MagicMock(), MagicMock()))
+    monkeypatch.setattr(promote_stage, "create_logger_service", create_logger)
+    monkeypatch.setattr(promote_stage, "format_promote_config", lambda *args, **kwargs: "")
+    monkeypatch.setattr(promote_stage, "create_general_pipeline_service", lambda *args, **kwargs: pipeline)
+    monkeypatch.setattr(promote_stage, "create_entity_search_service", lambda *args, **kwargs: MagicMock())
+    monkeypatch.setattr(promote_stage, "create_promote_cache_service", lambda *args, **kwargs: MagicMock())
+    service = MagicMock()
+    service.run.return_value = "Done"
+    monkeypatch.setattr(promote_stage, "GeneralPromoteService", lambda *args, **kwargs: service)
+
+    result = promote_stage.handle({"ExtractionPipelineExtId": "ep_file_annotation"}, {}, MagicMock())
+
+    assert seen["level"] == "INFO"
+    assert result["status"] == "success"
+    pipeline.upload_extraction_pipeline.assert_called_once_with(status="success")
+
+
+def test_handler_imports_without_python_dotenv(monkeypatch: pytest.MonkeyPatch) -> None:
+    """CDF Functions does not install python-dotenv. The handler must still import."""
+    import importlib
+    import importlib.util
+    import sys
+
+    monkeypatch.setitem(sys.modules, "dotenv", None)
+    monkeypatch.delitem(sys.modules, "dependencies", raising=False)
+    importlib.import_module("dependencies")
+
+    name = "fn_file_annotation_handler_without_dotenv"
+    handler_path = Path(__file__).resolve().parents[2] / "fn_file_annotation" / "handler.py"
+    spec = importlib.util.spec_from_file_location(name, handler_path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    monkeypatch.setitem(sys.modules, name, module)
+    spec.loader.exec_module(module)
