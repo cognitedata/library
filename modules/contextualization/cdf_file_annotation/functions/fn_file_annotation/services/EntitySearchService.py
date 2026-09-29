@@ -47,7 +47,7 @@ class EntitySearchService(IEntitySearchService):
 
     **Search Strategy:**
     - Generate text variations (e.g., "V-0912" → ["V-0912", "v-0912", "V-912", "v912", ...])
-    - Query entities with server-side IN filter on aliases property
+    - Search entities with an exact IN filter on the aliases property
     - Uses text variations to handle different naming conventions
     - Returns matches from specified entity space
 
@@ -94,7 +94,7 @@ class EntitySearchService(IEntitySearchService):
 
         Strategy:
         1. Generate text variations (e.g., "V-0912" → ["V-0912", "v-0912", "V-912", "v912", ...])
-        2. Query entities with server-side IN filter on aliases property
+        2. Search entities with an exact IN filter on the aliases property
 
         Note: We query entities directly rather than annotation edges because:
         - Entity dataset is smaller and more stable (~1,000-10,000 entities)
@@ -140,8 +140,8 @@ class EntitySearchService(IEntitySearchService):
         Performs a global, un-scoped search for an entity matching the given text variations.
         Uses server-side IN filter with text variations to handle different naming conventions.
 
-        This approach uses server-side filtering on the aliases property, making it efficient
-        and scalable even with large numbers of entities in a space.
+        Uses the search endpoint with an exact IN filter on the aliases property. A /list filter
+        on aliases is not index-backed and times out on large spaces.
 
         Args:
             text_variations: List of text variations to search for (e.g., ["V-0912", "v-0912", "V-912", ...])
@@ -157,9 +157,10 @@ class EntitySearchService(IEntitySearchService):
         try:
             search_filter: Filter = In(source.as_property_ref(self.search_properties[source]), text_variations)
 
-            entities: NodeList[Node] = self.client.data_modeling.instances.list(
+            # No query text: tokenized matching is not exact, so the In filter alone decides the match.
+            entities: NodeList[Node] = self.client.data_modeling.instances.search(
+                view=source,
                 instance_type="node",
-                sources=source,
                 filter=search_filter,
                 space=entity_space,
                 limit=MAX_ENTITY_SEARCH_LIMIT,

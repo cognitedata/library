@@ -228,3 +228,20 @@ def test_promote_runs_without_a_file_view_space() -> None:
     from services.EntitySearchService import EntitySearchService
 
     EntitySearchService(_config(None, None), MagicMock(), MagicMock())
+
+
+def test_promote_finds_entities_with_search_and_an_exact_alias_filter() -> None:
+    """A /list filter on aliases is not index-backed and times out on large spaces."""
+    from services.EntitySearchService import EntitySearchService
+
+    client = MagicMock()
+    client.data_modeling.instances.search.return_value = []
+    EntitySearchService(_config(None, None), client, MagicMock()).find_entity("P-101", ASSET_LINK, "plant_a")
+
+    client.data_modeling.instances.list.assert_not_called()
+    call = client.data_modeling.instances.search.call_args
+    assert call.kwargs["space"] == "plant_a"
+    assert call.kwargs.get("query") is None
+    alias_filter = call.kwargs["filter"].dump()
+    assert list(alias_filter["in"]["property"]) == ["cdf_cdm", "CogniteAsset/v1", "aliases"]
+    assert "P-101" in alias_filter["in"]["values"]
