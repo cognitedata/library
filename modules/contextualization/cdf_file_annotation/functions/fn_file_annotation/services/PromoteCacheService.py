@@ -208,15 +208,22 @@ class CacheService(ICacheService):
         self._memory_cache[cache_key] = CacheMarker.AMBIGUOUS
         self.logger.debug(f"✓ [CACHE] Cached ambiguous marker for '{text}' (in-memory only)")
 
-    def set_no_match(self, text: str, annotation_type: str, space: str) -> None:
+    def set_no_match(self, text: str, annotation_type: str, space: str, *, reason: str) -> None:
         """
         Marks the given text/type as a negative (no match) result in the space, in in-memory cache only.
 
         Useful to avoid repeated searches within the same function run. Not persisted.
+
+        Args:
+            text: Text being cached
+            annotation_type: Type of annotation
+            space: Instance space that was considered
+            reason: Why there is no match, included in the debug log. Distinguish a source
+                normalization-pattern miss (no API search) from an API search that returned nothing.
         """
         cache_key: tuple[str, str, str] = (text, annotation_type, space)
         self._memory_cache[cache_key] = CacheMarker.NO_MATCH
-        self.logger.debug(f"✓ [CACHE] Cached NO_MATCH marker for '{text}' (in-memory only)")
+        self.logger.debug(f"✓ [CACHE] Cached NO_MATCH marker for '{text}' ({reason}; in-memory only)")
 
     def set(
         self, text: str, annotation_type: str, space: str, node: Node | None, resource_type: str | None = None
@@ -246,9 +253,7 @@ class CacheService(ICacheService):
 
         if node is None:
             # Negative cache entry (IN-MEMORY ONLY - not persisted to RAW)
-            # Store explicit NO_MATCH marker to make cache states self-descriptive
-            self._memory_cache[cache_key] = CacheMarker.NO_MATCH
-            self.logger.debug(f"✓ [CACHE] Cached NO_MATCH marker for '{text}' (in-memory only)")
+            self.set_no_match(text, annotation_type, space, reason="no entity node")
             return
 
         # Create CachedEntityInfo with all needed properties

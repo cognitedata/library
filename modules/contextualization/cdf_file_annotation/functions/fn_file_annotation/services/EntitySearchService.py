@@ -122,7 +122,7 @@ class EntitySearchService(IEntitySearchService):
             )
             return []
 
-        self.logger.info(f"Generated {len(search_texts)} text variation(s) for '{text}': {search_texts}")
+        self.logger.debug(f"Generated {len(search_texts)} text variation(s) for '{text}': {search_texts}")
 
         # Determine which view to query based on annotation type
         if annotation_type == "diagrams.FileLink":

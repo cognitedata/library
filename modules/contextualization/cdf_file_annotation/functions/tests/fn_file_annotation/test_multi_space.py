@@ -255,6 +255,51 @@ def test_promote_cache_persistent_key_includes_space() -> None:
     assert keys == ["plant_a:P-101", "plant_b:P-101"]
 
 
+def _debug_messages(logger: MagicMock) -> list[str]:
+    return [call.args[0] for call in logger.debug.call_args_list if call.args]
+
+
+def test_no_match_cache_log_says_pattern_check_skipped_api_search() -> None:
+    """A pattern miss must not read as if the text was searched and then cached."""
+    from services.PromoteCacheService import CacheService
+    from services.PromoteService import GeneralPromoteService
+
+    logger = MagicMock()
+    cache = CacheService(_config(None, None), MagicMock(), logger, normalize_fn=lambda text, _: text)
+    entity_search = MagicMock()
+    entity_search.generate_text_variations.return_value = []
+    service = GeneralPromoteService(MagicMock(), _config(None, None), logger, MagicMock(), entity_search, cache)
+
+    assert service._find_entity_with_cache("12-TW-96195", ASSET_LINK, "plant_a") == []
+
+    entity_search.find_entity.assert_not_called()
+    cache_logs = [message for message in _debug_messages(logger) if "[CACHE] Cached NO_MATCH" in message]
+    assert cache_logs == [
+        "✓ [CACHE] Cached NO_MATCH marker for '12-TW-96195' "
+        "(entityNormalizationPatterns did not match; API search skipped; in-memory only)"
+    ]
+
+
+def test_no_match_cache_log_says_api_search_returned_no_entity() -> None:
+    from services.PromoteCacheService import CacheService
+    from services.PromoteService import GeneralPromoteService
+
+    logger = MagicMock()
+    cache = CacheService(_config(None, None), MagicMock(), logger, normalize_fn=lambda text, _: text)
+    entity_search = MagicMock()
+    entity_search.generate_text_variations.return_value = ["12-TW-96195"]
+    entity_search.find_entity.return_value = []
+    service = GeneralPromoteService(MagicMock(), _config(None, None), logger, MagicMock(), entity_search, cache)
+
+    assert service._find_entity_with_cache("12-TW-96195", ASSET_LINK, "plant_a") == []
+
+    entity_search.find_entity.assert_called_once_with("12-TW-96195", ASSET_LINK, "plant_a")
+    cache_logs = [message for message in _debug_messages(logger) if "[CACHE] Cached NO_MATCH" in message]
+    assert cache_logs == [
+        "✓ [CACHE] Cached NO_MATCH marker for '12-TW-96195' (API search returned no entity; in-memory only)"
+    ]
+
+
 def test_promote_runs_without_a_file_view_space() -> None:
     from services.EntitySearchService import EntitySearchService
 
@@ -267,8 +312,18 @@ def test_promote_finds_entities_with_search_and_contains_any_on_aliases() -> Non
 
     client = MagicMock()
     client.data_modeling.instances.search.return_value = []
-    EntitySearchService(_config(None, None), client, MagicMock()).find_entity("P-101", ASSET_LINK, "plant_a")
+    logger = MagicMock()
+    EntitySearchService(_config(None, None), client, logger).find_entity("P-101", ASSET_LINK, "plant_a")
 
+    variation_logs = [
+        call.args[0] for call in logger.debug.call_args_list if call.args and "text variation" in call.args[0]
+    ]
+    assert len(variation_logs) == 1
+    assert variation_logs[0].startswith("Generated 3 text variation(s) for 'P-101':")
+    assert "'P-101'" in variation_logs[0]
+    assert "'P_101'" in variation_logs[0]
+    assert "'P101'" in variation_logs[0]
+    assert not any(call.args and "text variation" in call.args[0] for call in logger.info.call_args_list)
     client.data_modeling.instances.list.assert_not_called()
     call = client.data_modeling.instances.search.call_args
     assert call.kwargs["space"] == "plant_a"

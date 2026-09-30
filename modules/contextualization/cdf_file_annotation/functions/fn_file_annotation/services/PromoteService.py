@@ -383,8 +383,13 @@ class GeneralPromoteService(IPromoteService):
             pattern_label = (
                 "fileNormalizationPatterns" if annotation_type == "diagrams.FileLink" else "entityNormalizationPatterns"
             )
-            self.logger.debug(f"✗ Text '{text}' does not match {pattern_label} — skipping search.")
-            self.cache_service.set_no_match(text, annotation_type, entity_space)
+            self.logger.debug(f"✗ Text '{text}' does not match {pattern_label} — skipping API search.")
+            self.cache_service.set_no_match(
+                text,
+                annotation_type,
+                entity_space,
+                reason=f"{pattern_label} did not match; API search skipped",
+            )
             return []
 
         # TIER 1 & 2: Check cache (in-memory + persistent) - no API calls on hit
@@ -416,8 +421,13 @@ class GeneralPromoteService(IPromoteService):
             self.cache_service.set(text, annotation_type, entity_space, node, matched.resource_type)
             return [matched]
         elif not found_nodes:
-            # No match - cache negative result (in-memory NO_MATCH)
-            self.cache_service.set_no_match(text, annotation_type, entity_space)
+            # API search ran and returned nothing — cache that for the rest of this run
+            self.cache_service.set_no_match(
+                text,
+                annotation_type,
+                entity_space,
+                reason="API search returned no entity",
+            )
             return []
         else:
             # Ambiguous - cache negative result (in-memory AMBIGUOUS)
