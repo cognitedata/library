@@ -212,6 +212,8 @@ class GeneralPromoteService(IPromoteService):
         # Think about whether we need to delete the corresponding raw row of edges that we delete OR if it should be placed in another RAW table when rejected
         # raw_rows_to_delete: list[RowWrite] = []
         edges_to_delete: list[EdgeId] = []
+        rejected_to_delete: int = 0
+        ambiguous_to_delete: int = 0
 
         # Track results for this batch
         batch_promoted: int = 0
@@ -262,6 +264,10 @@ class GeneralPromoteService(IPromoteService):
 
                         if should_delete:
                             edges_to_delete.append(EdgeId(edge.space, edge.external_id))
+                            if len(found_entities) == 0 or is_self_reference:
+                                rejected_to_delete += 1
+                            else:
+                                ambiguous_to_delete += 1
                             if raw_row is not None:
                                 raw_rows_to_update.append(raw_row)
                         else:
@@ -290,9 +296,16 @@ class GeneralPromoteService(IPromoteService):
             try:
                 if edges_to_delete:
                     self.client.data_modeling.instances.delete(edges=edges_to_delete)
-                    self.logger.info(
-                        f"Successfully deleted {len(edges_to_delete)} edges from data model.", section="END"
-                    )
+                    if rejected_to_delete:
+                        self.logger.info(
+                            f"Sent {rejected_to_delete} rejected edges to the data model for deletion.",
+                            section="END",
+                        )
+                    if ambiguous_to_delete:
+                        self.logger.info(
+                            f"Sent {ambiguous_to_delete} ambiguous edges to the data model for deletion.",
+                            section="END",
+                        )
             except CogniteAPIError as e:
                 self.logger.error("Error deleting edges", error=e, section="BOTH")
                 raise

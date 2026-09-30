@@ -714,16 +714,18 @@ On both `fileView` and `targetEntitiesView`:
 
 | Field | Role |
 |-------|------|
-| `searchProperty` | Property Diagram Detect (and promote) use to **match text** on drawings. Usually `aliases`. |
+| `searchProperty` | List property Diagram Detect uses to **match text** on drawings, and that promote queries with `containsAny`. Usually `aliases`. |
 | `resourceProperty` | Optional property used only to **classify** entities (stored as `resource_type` in the entity/pattern cache, RAW rows, and dashboards). Examples: `equipmentType`, `documentType`. |
 
 `resourceProperty` is **not** used for matching. If it is empty or omitted, the view external ID is used instead (e.g. `CogniteAsset` / `CogniteFile`).
+
+Promote also matches the same text variations exactly against `name` and `description`. The file and asset views must include those properties (`CogniteFile` and `CogniteAsset` do). Diagram Detect still uses only `searchProperty`, and falls back to `name` when that property is empty.
 
 Toolkit variables: `fileSearchProperty` / `fileResourceProperty` and `targetEntitySearchProperty` / `targetEntityResourceProperty`.
 
 ### Text normalization for promote (`entityNormalizationPatterns` / `fileNormalizationPatterns`)
 
-Promote resolves pattern-mode annotations by searching entity **`aliases`**. The text
+Promote resolves pattern-mode annotations by searching the configured list property (usually **`aliases`**) and the exact text of **`name`** and **`description`**. The text
 normalization block uses the **same capture-group model as**
 `cdf_entity_matching` aliases_update (`aliasPattern`), with **separate lists** for assets
 and files so unrelated shapes do not create false-positive structural samples:

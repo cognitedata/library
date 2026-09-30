@@ -2,12 +2,16 @@ import abc
 
 from cognite.client import CogniteClient
 from cognite.client.data_classes.data_modeling import Node, NodeList, ViewId
-from cognite.client.data_classes.filters import ContainsAny, Filter
+from cognite.client.data_classes.filters import ContainsAny, Filter, In, Or
 from cognite.client.exceptions import CogniteAPIError
 from fa_constants import MAX_ENTITY_SEARCH_LIMIT
 from normalization import normalize_text, text_variations
 from services.ConfigService import Config
 from services.LoggerService import CogniteFunctionLogger
+
+# Text properties matched exactly, in addition to the configured list search property.
+# CogniteFile and CogniteAsset both carry these; a view without them fails the search.
+EXACT_MATCH_PROPERTIES: tuple[str, ...] = ("name", "description")
 
 
 class IEntitySearchService(abc.ABC):
@@ -47,8 +51,8 @@ class EntitySearchService(IEntitySearchService):
 
     **Search Strategy:**
     - Generate text variations (e.g., "V-0912" → ["V-0912", "v-0912", "V-912", "v912", ...])
-        - Search entities with a containsAny filter on the aliases property
-    - Uses text variations to handle different naming conventions
+    - Match the configured list property (usually aliases) with containsAny
+    - Also match name and description exactly (In) against the same variations
     - Returns matches from specified entity space
 
     **Utilities:**
@@ -94,7 +98,7 @@ class EntitySearchService(IEntitySearchService):
 
         Strategy:
         1. Generate text variations (e.g., "V-0912" → ["V-0912", "v-0912", "V-912", "v912", ...])
-        2. Search entities with a containsAny filter on the aliases property
+        2. Search the configured list property, plus exact name and description
 
         Note: We query entities directly rather than annotation edges because:
         - Entity dataset is smaller and more stable (~1,000-10,000 entities)
@@ -130,7 +134,6 @@ class EntitySearchService(IEntitySearchService):
         else:
             source = self.target_entities_view_id
 
-        # Query entities directly by aliases
         found_nodes: list[Node] = self.find_global_entity(search_texts, source, entity_space)
 
         return found_nodes
@@ -140,8 +143,10 @@ class EntitySearchService(IEntitySearchService):
         Performs a global, un-scoped search for an entity matching the given text variations.
         Uses server-side IN filter with text variations to handle different naming conventions.
 
-        Uses the search endpoint with a containsAny filter on the aliases list. A /list filter
-        on aliases is not index-backed and times out on large spaces.
+        Uses the search endpoint. The configured property (usually aliases) is a list, so it
+        is filtered with containsAny. name and description are text, so they are filtered with
+        In on the same variations. A /list filter on aliases is not index-backed and times out
+        on large spaces.
 
         Args:
             text_variations: List of text variations to search for (e.g., ["V-0912", "v-0912", "V-912", ...])
@@ -155,15 +160,17 @@ class EntitySearchService(IEntitySearchService):
         original_text: str = text_variations[0] if text_variations else "unknown"
 
         try:
-            search_filter: Filter = ContainsAny(source.as_property_ref(self.search_properties[source]), text_variations)
+            search_filter: Filter = self._entity_match_filter(source, text_variations)
 
-            # No query text: tokenized matching is not exact, so the containsAny filter alone decides the match.
+            # No query text: tokenized matching is not exact, so the property filter alone decides the match.
+            # operator is set explicitly; the SDK default changes from OR to AND in v8.
             entities: NodeList[Node] = self.client.data_modeling.instances.search(
                 view=source,
                 instance_type="node",
                 filter=search_filter,
                 space=entity_space,
                 limit=MAX_ENTITY_SEARCH_LIMIT,
+                operator="AND",
             )
 
             if not entities:
@@ -174,7 +181,7 @@ class EntitySearchService(IEntitySearchService):
 
             if len(matched_entities) > 1:
                 self.logger.warning(
-                    f"Found more than one entity with aliases matching '{original_text}' in space '{entity_space}'. "
+                    f"Found more than one entity matching '{original_text}' in space '{entity_space}'. "
                     f"This is ambiguous. Returning first 2 for ambiguity detection."
                 )
                 return matched_entities[:2]
@@ -189,6 +196,29 @@ class EntitySearchService(IEntitySearchService):
         except CogniteAPIError as e:
             self.logger.error(f"Error searching for entity '{original_text}' in space '{entity_space}': {e}")
             return []
+
+    def _entity_match_filter(self, source: ViewId, text_variations: list[str]) -> Filter:
+        """Match the configured list property, or an exact name or description.
+
+        Args:
+            source: View to query (file_view or target_entities_view)
+            text_variations: Text variations to match
+
+        Returns:
+            A filter that is true when any searched property matches a variation.
+        """
+        configured: str = self.search_properties[source]
+        property_ref = source.as_property_ref
+        clauses: list[Filter] = []
+        if configured in EXACT_MATCH_PROPERTIES:
+            clauses.append(In(property_ref(configured), text_variations))
+        else:
+            clauses.append(ContainsAny(property_ref(configured), text_variations))
+        for property_name in EXACT_MATCH_PROPERTIES:
+            if property_name == configured:
+                continue
+            clauses.append(In(property_ref(property_name), text_variations))
+        return Or(*clauses)
 
     def generate_text_variations(self, text: str, annotation_type: str) -> list[str]:
         """

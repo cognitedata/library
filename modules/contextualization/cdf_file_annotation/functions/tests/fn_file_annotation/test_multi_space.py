@@ -328,6 +328,13 @@ def test_promote_finds_entities_with_search_and_contains_any_on_aliases() -> Non
     call = client.data_modeling.instances.search.call_args
     assert call.kwargs["space"] == "plant_a"
     assert call.kwargs.get("query") is None
-    alias_filter = call.kwargs["filter"].dump()
-    assert list(alias_filter["containsAny"]["property"]) == ["cdf_cdm", "CogniteAsset/v1", "aliases"]
-    assert "P-101" in alias_filter["containsAny"]["values"]
+    assert call.kwargs["operator"] == "AND"
+    match_filter = call.kwargs["filter"].dump()
+    clauses = {next(iter(clause.values()))["property"][-1]: clause for clause in match_filter["or"]}
+    alias_filter = clauses["aliases"]["containsAny"]
+    assert list(alias_filter["property"]) == ["cdf_cdm", "CogniteAsset/v1", "aliases"]
+    assert "P-101" in alias_filter["values"]
+    assert list(clauses["name"]["in"]["property"]) == ["cdf_cdm", "CogniteAsset/v1", "name"]
+    assert alias_filter["values"] == clauses["name"]["in"]["values"]
+    assert list(clauses["description"]["in"]["property"]) == ["cdf_cdm", "CogniteAsset/v1", "description"]
+    assert alias_filter["values"] == clauses["description"]["in"]["values"]

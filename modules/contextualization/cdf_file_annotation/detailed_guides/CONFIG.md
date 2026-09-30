@@ -101,7 +101,7 @@ data:
     externalId: {{ patternDetectSink }}
 ```
 
-`searchProperty` is sent to Diagram Detect and queried by promote. `resourceProperty` optionally classifies entities in pattern samples and reports; when omitted, the view external ID is used.
+`searchProperty` is sent to Diagram Detect and queried by promote with `containsAny`. Promote also matches `name` and `description` exactly. `resourceProperty` optionally classifies entities in pattern samples and reports; when omitted, the view external ID is used.
 
 ## Fixed behavior
 
