@@ -605,6 +605,12 @@ class TestCheckConfigDiff:
         errors = diff_config({"variables": {"modules": {}}}, expected)
         assert errors == ["    my_datamodel.dm_version: got None, expected 'v1'"]
 
+    def test_invalid_config_type_is_reported(self) -> None:
+        from setup_project import diff_config
+        expected = {"my_datamodel.dm_version": "v1"}
+        errors = diff_config([], expected)
+        assert errors == ["    (invalid config file format — expected a dictionary)"]
+
 
 class TestModuleDataset:
     """Extractor data sets follow ds_<data_type>_<location>, the same location scoping

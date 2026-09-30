@@ -1932,6 +1932,8 @@ def diff_config(config: dict[str, object], expected: dict[str, object]) -> list[
     projects are expected to extend and evolve past, so a value diverging from the
     base template is not necessarily a mistake.
     """
+    if not isinstance(config, dict):
+        return ["    (invalid config file format — expected a dictionary)"]
     errors: list[str] = []
     for dotted, expected_value in expected.items():
         actual = get_actual_value(config, dotted)
