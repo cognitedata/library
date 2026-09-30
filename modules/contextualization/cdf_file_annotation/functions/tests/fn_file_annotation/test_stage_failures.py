@@ -6,6 +6,7 @@ from unittest.mock import MagicMock
 
 import pytest
 from cognite.client.exceptions import CogniteAPIError
+from pydantic import TypeAdapter, ValidationError
 
 sys.path.append(str(Path(__file__).parent))
 
@@ -112,6 +113,42 @@ def test_promote_defaults_to_info_and_records_a_successful_pipeline_run(monkeypa
     assert seen["level"] == "INFO"
     assert result["status"] == "success"
     pipeline.upload_extraction_pipeline.assert_called_once_with(status="success")
+
+
+def _validation_error() -> ValidationError:
+    try:
+        TypeAdapter(int).validate_python("not-an-int")
+    except ValidationError as error:
+        return error
+    raise AssertionError("expected a ValidationError")
+
+
+@pytest.mark.parametrize("stage_name", ["prepare", "launch", "finalize", "promote"])
+def test_config_validation_error_records_pipeline_failure_and_reraises(
+    monkeypatch: pytest.MonkeyPatch, stage_name: str
+) -> None:
+    import importlib
+
+    stage = importlib.import_module(f"stages.{stage_name}")
+    error = _validation_error()
+    pipeline = MagicMock()
+    logger = MagicMock()
+
+    def fail_config(**kwargs: object) -> None:
+        raise error
+
+    monkeypatch.setattr(stage, "create_config_service", fail_config)
+    monkeypatch.setattr(stage, "create_logger_service", lambda *args, **kwargs: logger)
+    monkeypatch.setattr(stage, "create_general_pipeline_service", lambda *args, **kwargs: pipeline)
+    if stage_name == "finalize":
+        monkeypatch.setattr(stage.time, "sleep", lambda seconds: None)
+
+    data = {"ExtractionPipelineExtId": "ep_file_annotation", "logLevel": "INFO"}
+    with pytest.raises(ValidationError):
+        stage.handle(data, {"function_id": 1, "call_id": 2}, MagicMock())
+
+    logger.error.assert_called_once()
+    pipeline.upload_extraction_pipeline.assert_called_once_with(status="failure")
 
 
 def test_handler_imports_without_python_dotenv(monkeypatch: pytest.MonkeyPatch) -> None:

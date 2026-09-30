@@ -39,22 +39,22 @@ def handle(data: dict, function_call_info: dict, client: CogniteClient) -> dict:
     start_time = datetime.now(UTC)
     log_level = data.get("logLevel", "INFO")
 
-    config_instance, client = create_config_service(function_data=data, client=client)
     logger_instance = create_logger_service(log_level)
     tracker_instance = PerformanceTracker()
     pipeline_instance: IPipelineService = create_general_pipeline_service(
         client, pipeline_ext_id=data["ExtractionPipelineExtId"]
     )
-    finalize_instance = _create_finalize_service(
-        config_instance, client, logger_instance, tracker_instance, function_call_info
-    )
-
-    logger_instance.info(format_finalize_config(config_instance, data["ExtractionPipelineExtId"]), section="START")
     run_status: str = "success"
-    # NOTE: a random delay to stagger API requests. Used to prevent API load shedding that can return empty results under high concurrency.
-    delay = random.uniform(0.1, 1.0)
-    time.sleep(delay)
     try:
+        config_instance, client = create_config_service(function_data=data, client=client)
+        finalize_instance = _create_finalize_service(
+            config_instance, client, logger_instance, tracker_instance, function_call_info
+        )
+
+        logger_instance.info(format_finalize_config(config_instance, data["ExtractionPipelineExtId"]), section="START")
+        # NOTE: a random delay to stagger API requests. Used to prevent API load shedding that can return empty results under high concurrency.
+        delay = random.uniform(0.1, 1.0)
+        time.sleep(delay)
         while datetime.now(UTC) - start_time < timedelta(minutes=FUNCTION_TIME_BUDGET_MINUTES):
             logger_instance.start_run()
             if finalize_instance.run() == "Done":
@@ -86,26 +86,25 @@ def run_locally(config_file: dict[str, str], log_path: str | None = None) -> Non
     5. Generate a report that includes capturing the annotations in RAW
     """
     log_level = config_file.get("logLevel", "DEBUG")
-    config_instance, client = create_config_service(function_data=config_file)
-
     if log_path:
         logger_instance = create_write_logger_service(log_level=log_level, filepath=log_path)
     else:
         logger_instance = create_logger_service(log_level=log_level)
 
     tracker_instance = PerformanceTracker()
-    finalize_instance = _create_finalize_service(
-        config_instance,
-        client,
-        logger_instance,
-        tracker_instance,
-        function_call_info={"function_id": None, "call_id": None},
-    )
-
-    logger_instance.info(
-        format_finalize_config(config_instance, config_file["ExtractionPipelineExtId"]), section="START"
-    )
     try:
+        config_instance, client = create_config_service(function_data=config_file)
+        finalize_instance = _create_finalize_service(
+            config_instance,
+            client,
+            logger_instance,
+            tracker_instance,
+            function_call_info={"function_id": None, "call_id": None},
+        )
+
+        logger_instance.info(
+            format_finalize_config(config_instance, config_file["ExtractionPipelineExtId"]), section="START"
+        )
         while True:
             logger_instance.start_run()
             if finalize_instance.run():

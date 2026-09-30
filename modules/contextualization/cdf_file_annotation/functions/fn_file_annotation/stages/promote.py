@@ -50,30 +50,31 @@ def handle(data: dict, function_call_info: dict, client: CogniteClient) -> dict:
     """
     start_time: datetime = datetime.now(UTC)
 
-    config_instance: Config
-    config_instance, client = create_config_service(function_data=data, client=client)
     logger_instance: CogniteFunctionLogger = create_logger_service(data.get("logLevel", "INFO"), data.get("logPath"))
     tracker_instance: PromoteTracker = PromoteTracker()
     pipeline_instance: IPipelineService = create_general_pipeline_service(
         client, pipeline_ext_id=data["ExtractionPipelineExtId"]
     )
-
-    entity_search_service: EntitySearchService = create_entity_search_service(config_instance, client, logger_instance)
-    cache_service: CacheService = create_promote_cache_service(
-        config_instance, client, logger_instance, entity_search_service
-    )
-    promote_service: GeneralPromoteService = GeneralPromoteService(
-        client=client,
-        config=config_instance,
-        logger=logger_instance,
-        tracker=tracker_instance,
-        entity_search_service=entity_search_service,
-        cache_service=cache_service,
-    )
-
-    logger_instance.info(format_promote_config(config_instance, data["ExtractionPipelineExtId"]), section="START")
     run_status: str = "success"
     try:
+        config_instance: Config
+        config_instance, client = create_config_service(function_data=data, client=client)
+        entity_search_service: EntitySearchService = create_entity_search_service(
+            config_instance, client, logger_instance
+        )
+        cache_service: CacheService = create_promote_cache_service(
+            config_instance, client, logger_instance, entity_search_service
+        )
+        promote_service: GeneralPromoteService = GeneralPromoteService(
+            client=client,
+            config=config_instance,
+            logger=logger_instance,
+            tracker=tracker_instance,
+            entity_search_service=entity_search_service,
+            cache_service=cache_service,
+        )
+
+        logger_instance.info(format_promote_config(config_instance, data["ExtractionPipelineExtId"]), section="START")
         # Run in a loop for a maximum of 7 minutes b/c serverless functions can run for max 10 minutes before hardware dies
         while datetime.now(UTC) - start_time < timedelta(minutes=FUNCTION_TIME_BUDGET_MINUTES):
             logger_instance.start_run()
@@ -122,33 +123,30 @@ def run_locally(config_file: dict) -> None:
     env_vars: EnvConfig = get_env_variables()
     client: CogniteClient = create_client(env_vars)
 
-    # Mock function_call_info for local runs
-    config_instance: Config
-    config_instance, client = create_config_service(function_data=config_file)
     logger_instance: CogniteFunctionLogger = create_logger_service(
         config_file.get("logLevel", "DEBUG"), config_file.get("logPath")
     )
     tracker_instance: PromoteTracker = PromoteTracker()
-
-    # Create service dependencies
-    entity_search_service: EntitySearchService = create_entity_search_service(config_instance, client, logger_instance)
-    cache_service: CacheService = create_promote_cache_service(
-        config_instance, client, logger_instance, entity_search_service
-    )
-
-    # Create promote service with injected dependencies
-    promote_service: GeneralPromoteService = GeneralPromoteService(
-        client=client,
-        config=config_instance,
-        logger=logger_instance,
-        tracker=tracker_instance,
-        entity_search_service=entity_search_service,
-        cache_service=cache_service,
-    )
-    logger_instance.info(
-        format_promote_config(config_instance, config_file["ExtractionPipelineExtId"]), section="START"
-    )
     try:
+        config_instance: Config
+        config_instance, client = create_config_service(function_data=config_file)
+        entity_search_service: EntitySearchService = create_entity_search_service(
+            config_instance, client, logger_instance
+        )
+        cache_service: CacheService = create_promote_cache_service(
+            config_instance, client, logger_instance, entity_search_service
+        )
+        promote_service: GeneralPromoteService = GeneralPromoteService(
+            client=client,
+            config=config_instance,
+            logger=logger_instance,
+            tracker=tracker_instance,
+            entity_search_service=entity_search_service,
+            cache_service=cache_service,
+        )
+        logger_instance.info(
+            format_promote_config(config_instance, config_file["ExtractionPipelineExtId"]), section="START"
+        )
         # Run in a loop for a maximum of 7 minutes b/c serverless functions can run for max 10 minutes before hardware dies
         while True:
             logger_instance.start_run()

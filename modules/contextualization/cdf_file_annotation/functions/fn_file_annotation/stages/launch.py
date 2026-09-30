@@ -48,26 +48,26 @@ def handle(data: dict, function_call_info: dict, client: CogniteClient) -> dict:
     deadline = time.monotonic() + FUNCTION_TIME_BUDGET_MINUTES * 60
     log_level = data.get("logLevel", "INFO")
 
-    config_instance, client = create_config_service(function_data=data, client=client)
     logger_instance = create_logger_service(log_level)
     tracker_instance = PerformanceTracker()
     pipeline_instance: IPipelineService = create_general_pipeline_service(
         client, pipeline_ext_id=data["ExtractionPipelineExtId"]
     )
-    launch_instance: AbstractLaunchService = _create_launch_service(
-        config=config_instance,
-        client=client,
-        logger=logger_instance,
-        tracker=tracker_instance,
-        function_call_info=function_call_info,
-        rate_limit_policy=DeployedRateLimitPolicy(),
-        data_set_id=get_pipeline_data_set_id(client, data["ExtractionPipelineExtId"]),
-        entity_read_deadline=deadline,
-    )
-
-    logger_instance.info(format_launch_config(config_instance, data["ExtractionPipelineExtId"]), section="START")
     run_status: str = "success"
     try:
+        config_instance, client = create_config_service(function_data=data, client=client)
+        launch_instance: AbstractLaunchService = _create_launch_service(
+            config=config_instance,
+            client=client,
+            logger=logger_instance,
+            tracker=tracker_instance,
+            function_call_info=function_call_info,
+            rate_limit_policy=DeployedRateLimitPolicy(),
+            data_set_id=get_pipeline_data_set_id(client, data["ExtractionPipelineExtId"]),
+            entity_read_deadline=deadline,
+        )
+
+        logger_instance.info(format_launch_config(config_instance, data["ExtractionPipelineExtId"]), section="START")
         while datetime.now(UTC) - start_time < timedelta(minutes=FUNCTION_TIME_BUDGET_MINUTES):
             logger_instance.start_run()
             if launch_instance.run() == "Done":
@@ -97,26 +97,27 @@ def run_locally(config_file: dict[str, str], log_path: str | None = None) -> Non
         4. There are no files left that need to be launched
     """
     log_level = config_file.get("logLevel", "DEBUG")
-    config_instance, client = create_config_service(function_data=config_file)
-
     if log_path:
         logger_instance = create_write_logger_service(log_level=log_level, filepath=log_path)
     else:
         logger_instance = create_logger_service(log_level=log_level)
     tracker_instance = PerformanceTracker()
-    launch_instance: AbstractLaunchService = _create_launch_service(
-        config=config_instance,
-        client=client,
-        logger=logger_instance,
-        tracker=tracker_instance,
-        function_call_info={"function_id": None, "call_id": None},
-        rate_limit_policy=LocalRateLimitPolicy(),
-        data_set_id=get_pipeline_data_set_id(client, config_file["ExtractionPipelineExtId"]),
-        entity_read_deadline=None,
-    )
-
-    logger_instance.info(format_launch_config(config_instance, config_file["ExtractionPipelineExtId"]), section="START")
     try:
+        config_instance, client = create_config_service(function_data=config_file)
+        launch_instance: AbstractLaunchService = _create_launch_service(
+            config=config_instance,
+            client=client,
+            logger=logger_instance,
+            tracker=tracker_instance,
+            function_call_info={"function_id": None, "call_id": None},
+            rate_limit_policy=LocalRateLimitPolicy(),
+            data_set_id=get_pipeline_data_set_id(client, config_file["ExtractionPipelineExtId"]),
+            entity_read_deadline=None,
+        )
+
+        logger_instance.info(
+            format_launch_config(config_instance, config_file["ExtractionPipelineExtId"]), section="START"
+        )
         while True:
             logger_instance.start_run()
             if launch_instance.run() == "Done":
