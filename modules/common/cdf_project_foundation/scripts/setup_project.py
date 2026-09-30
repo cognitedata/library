@@ -1924,7 +1924,7 @@ def get_actual_value(config: dict, dotted: str) -> object:
     return node
 
 
-def diff_config(config: dict, expected: dict[str, object]) -> list[str]:
+def diff_config(config: dict[str, object], expected: dict[str, object]) -> list[str]:
     """Compare actual config values against the expected variant defaults.
 
     Any mismatch here (including a version bump on an extended module) is reported
