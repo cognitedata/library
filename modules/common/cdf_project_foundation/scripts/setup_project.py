@@ -1931,6 +1931,13 @@ def diff_config(config: dict[str, object], expected: dict[str, object]) -> list[
     as a warning by the caller, never a hard failure — foundation DP is a base that
     projects are expected to extend and evolve past, so a value diverging from the
     base template is not necessarily a mistake.
+
+    Args:
+        config: the actual parsed config file contents.
+        expected: dotted-path -> expected value, from ``collect_expected``.
+
+    Returns:
+        human-readable mismatch descriptions; empty if ``config`` matches ``expected``.
     """
     if not isinstance(config, dict):
         return ["    (invalid config file format — expected a dictionary)"]
@@ -2108,7 +2115,8 @@ def _run_check(
         print("\n  Run: python scripts/setup_project.py -y")
         sys.exit(1)
     _warn_disabled_notifications(repo_root, pack_root)
-    print(f"OK: All config file(s) match variant '{variant}'. No stale auth files.")
+    if not all_errors:
+        print(f"OK: All config file(s) match variant '{variant}'. No stale auth files.")
 
 
 # ── Entry point ────────────────────────────────────────────────────────────────
