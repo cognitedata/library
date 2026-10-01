@@ -47,6 +47,13 @@ capabilities:
         - WRITE
       scope:
         all: {}
+  # Promote sets isAssetVerified on diagram-parsing entities for single-match approvals
+  - diagramParsingAcl:
+      actions:
+        - READ
+        - WRITE
+      scope:
+        all: {}
   # Launch caches the match entities in a JSON file in the annotation data set
   - filesAcl:
       actions:

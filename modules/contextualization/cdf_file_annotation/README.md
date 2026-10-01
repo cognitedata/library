@@ -256,7 +256,7 @@ flowchart TD
 **Key Features**:
 - 🔍 **Text Normalization**: separate `entityNormalizationPatterns` / `fileNormalizationPatterns` extract tag forms (capture groups joined by `_`; longest match kept). Used for promote search and to filter aliases before auto pattern sample generation per source. Empty list disables filtering for that source.
 - 🧠 **Multi-Tier Caching**: In-memory → RAW → Entity search strategy (queries **`aliases`** via server-side IN filter)
-- ✅ **Automatic Resolution**: Single match → Approved, No match → Rejected, Multiple → Manual review
+- ✅ **Automatic Resolution**: Single match → Approved, and `isAssetVerified` on the linked Diagram parsing entity when that flag is not already true. No match → Rejected, Multiple → Manual review
 - 🏷️ **Tagging**: Adds `PromotedAuto`, `PromoteAttempted`, `AmbiguousMatch` tags
 - 📈 **Self-Improving**: Cache grows over time with successful mappings
 
@@ -292,7 +292,7 @@ flowchart TD
     NoCache --> ProcessResult
 
     ProcessResult --> UpdateEdges{Result type?}
-    UpdateEdges -->|Single Match| ApproveEdges[Update ALL edges with this text:<br/>- Point to matched entity<br/>- Status: Approved<br/>- Tag: PromotedAuto<br/>- Update RAW pattern table]
+    UpdateEdges -->|Single Match| ApproveEdges[Update ALL edges with this text:<br/>- Point to matched entity<br/>- Status: Approved<br/>- Tag: PromotedAuto<br/>- Update RAW pattern table<br/>- Set isAssetVerified on the linked diagram entity]
     UpdateEdges -->|No Match| RejectEdges[Update ALL edges with this text:<br/>- Keep on sink node<br/>- Status: Rejected<br/>- Tag: PromoteAttempted<br/>- Update RAW pattern table]
     UpdateEdges -->|Ambiguous| FlagEdges[Update ALL edges with this text:<br/>- Keep on sink node<br/>- Status: Suggested<br/>- Tags: PromoteAttempted,<br/>  AmbiguousMatch<br/>- Update RAW pattern table]
 
