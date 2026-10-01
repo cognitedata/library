@@ -40,6 +40,11 @@ rawTableAnnotationStatusReport: annotation_file_status_report
 extractionPipelineExternalId: ep_ctx_file_annotation
 patternMode: true
 structuralAutoPatterns: true
+# When true, Promote matches a pattern tag only against entities that share the
+# annotated file's primaryScopeProperty / secondaryScopeProperty values.
+# Ignored when both scope properties are empty. Default false keeps the previous
+# whole-space lookup. See README "Scoping by site".
+filterPatternPromoteByScope: false
 cleanOldAnnotations: false
 # Regular-detect thresholds. assetAuto* apply to asset links (diagrams.AssetLink);
 # fileAuto* apply to file links (diagrams.FileLink).

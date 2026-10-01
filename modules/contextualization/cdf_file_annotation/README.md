@@ -544,6 +544,7 @@ parameters:
   patternPromote:
     patternMode: true
     structuralAutoPatterns: true
+    filterPatternPromoteByScope: false
     textNormalization:
       entityNormalizationPatterns: '([0-9]{2})[-_.:]([A-Z]{2,3})[-_.:]([0-9]{4,5})'
       fileNormalizationPatterns: []
@@ -617,6 +618,14 @@ Each scope gets its own manual patterns lookup in `rawManualPatternsCatalog` (ke
 `PlantA`, `PlantA_U100`). The 500,000-entity limit then applies per scope, so if one site is still too
 large, add `secondaryScopeProperty`. The entities of all scopes come from one read of the view
 (see [Reading the match entities](#reading-the-match-entities)).
+
+**Promote.** Launch scoping does not by itself limit Promote. Set `filterPatternPromoteByScope: true`
+(`patternPromote` in the pipeline config, variable `filterPatternPromoteByScope`) to apply the same
+property names when resolving pattern-mode tags. Promote reads the values from the annotated file and
+adds them to the entity search. With both properties set, a file `site=PlantA`, `unit=U100` matches
+assets with that site and unit, plus `ScopeWideDetect` assets in `PlantA`. The promote cache key
+includes those values, so a hit in one scope is not reused in another. The flag does nothing when
+both scope properties are empty. A file missing a configured value is not filtered on that property.
 
 ### Reading the match entities
 
@@ -719,13 +728,13 @@ On both `fileView` and `targetEntitiesView`:
 
 `resourceProperty` is **not** used for matching. If it is empty or omitted, the view external ID is used instead (e.g. `CogniteAsset` / `CogniteFile`).
 
-Promote also matches the same text variations exactly against `name` and `description`. The file and asset views must include those properties (`CogniteFile` and `CogniteAsset` do). Diagram Detect still uses only `searchProperty`, and falls back to `name` when that property is empty.
+When `searchProperty` does not match, promote searches `name` and `description` with a query. The operator is `AND`, so every token of the input must occur, and those fields may contain further text. Diagram Detect still uses only `searchProperty`, and falls back to `name` when that property is empty.
 
 Toolkit variables: `fileSearchProperty` / `fileResourceProperty` and `targetEntitySearchProperty` / `targetEntityResourceProperty`.
 
 ### Text normalization for promote (`entityNormalizationPatterns` / `fileNormalizationPatterns`)
 
-Promote resolves pattern-mode annotations by searching the configured list property (usually **`aliases`**) and the exact text of **`name`** and **`description`**. The text
+Promote resolves pattern-mode annotations by searching the configured list property (usually **`aliases`**). On a miss it queries **`name`** and **`description`** with operator `AND`. The text
 normalization block uses the **same capture-group model as**
 `cdf_entity_matching` aliases_update (`aliasPattern`), with **separate lists** for assets
 and files so unrelated shapes do not create false-positive structural samples:
@@ -851,6 +860,7 @@ variables:
       fileAutoSuggestThreshold: 1.0
       primaryScopeProperty: ""
       secondaryScopeProperty: ""
+      filterPatternPromoteByScope: false
       entityNormalizationPatterns: '([0-9]{2})[-_.:]([A-Z]{2,3})[-_.:]([0-9]{4,5})'
 fileNormalizationPatterns: []
       targetEntitySchemaSpace: your_schema_space

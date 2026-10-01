@@ -156,7 +156,12 @@ def test_config_wires_pattern_flags_from_pattern_promote() -> None:
         {
             "parameters": {
                 "rawData": {"rawDb": "db_file_annotation"},
-                "patternPromote": {"patternMode": False, "structuralAutoPatterns": False},
+                "patternPromote": {
+                    "patternMode": False,
+                    "structuralAutoPatterns": False,
+                    "filterPatternPromoteByScope": True,
+                },
+                "primaryScopeProperty": "site",
             },
             "data": {
                 "fileView": {
@@ -183,6 +188,8 @@ def test_config_wires_pattern_flags_from_pattern_promote() -> None:
     )
     assert config.parameters.pattern_promote.pattern_mode is False
     assert config.parameters.pattern_promote.structural_auto_patterns is False
+    assert config.parameters.pattern_promote.filter_pattern_promote_by_scope is True
+    assert config.parameters.primary_scope_property == "site"
     assert config.launch_function.pattern_mode is False
     assert config.launch_function.structural_auto_patterns is False
 

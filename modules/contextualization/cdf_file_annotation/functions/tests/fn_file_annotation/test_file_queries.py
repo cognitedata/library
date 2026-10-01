@@ -266,10 +266,10 @@ def test_alias_search_uses_contains_any() -> None:
     client.data_modeling.instances.search.return_value = []
     service = EntitySearchService(_config(), client, MagicMock())
 
-    service.find_global_entity(["P-101"], service.target_entities_view_id, "assets")
+    service.find_global_entity(["P-101"], service.target_entities_view_id, "assets", "P-101")
 
-    search_filter = client.data_modeling.instances.search.call_args.kwargs["filter"]
-    dumped = str(search_filter.dump())
+    alias_call = client.data_modeling.instances.search.call_args_list[0]
+    dumped = str(alias_call.kwargs["filter"].dump())
     assert "containsAny" in dumped
     assert "P-101" in dumped
 

@@ -36,6 +36,11 @@ config:
     patternPromote:
       patternMode: {{ patternMode }}
       structuralAutoPatterns: {{ structuralAutoPatterns }}
+      # When true, and primaryScopeProperty and/or secondaryScopeProperty are set,
+      # Promote filters entity search by those property values on the annotated file.
+      # A secondary value also keeps ScopeWideDetect entities in the same primary scope.
+      # Empty scope property names, or false, leave Promote searching the whole space.
+      filterPatternPromoteByScope: {{ filterPatternPromoteByScope }}
       textNormalization:
         # Separate lists avoid false-positive structural samples when asset vs file
         # alias shapes differ. Capture-group semantics as aliases_update aliasPattern;

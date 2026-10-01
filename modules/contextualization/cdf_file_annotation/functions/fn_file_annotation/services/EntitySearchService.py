@@ -2,16 +2,16 @@ import abc
 
 from cognite.client import CogniteClient
 from cognite.client.data_classes.data_modeling import Node, NodeList, ViewId
-from cognite.client.data_classes.filters import ContainsAny, Filter, In, Or
+from cognite.client.data_classes.filters import And, ContainsAny, Filter
 from cognite.client.exceptions import CogniteAPIError
 from fa_constants import MAX_ENTITY_SEARCH_LIMIT
 from normalization import normalize_text, text_variations
 from services.ConfigService import Config
 from services.LoggerService import CogniteFunctionLogger
 
-# Text properties matched exactly, in addition to the configured list search property.
-# CogniteFile and CogniteAsset both carry these; a view without them fails the search.
-EXACT_MATCH_PROPERTIES: tuple[str, ...] = ("name", "description")
+# Token search on these text properties. AND requires every token of the input;
+# the property value may contain additional tokens.
+TEXT_QUERY_PROPERTIES: tuple[str, ...] = ("name", "description")
 
 
 class IEntitySearchService(abc.ABC):
@@ -20,7 +20,14 @@ class IEntitySearchService(abc.ABC):
     """
 
     @abc.abstractmethod
-    def find_entity(self, text: str, annotation_type: str, entity_space: str) -> list[Node]:
+    def find_entity(
+        self,
+        text: str,
+        annotation_type: str,
+        entity_space: str,
+        *,
+        scope_filter: Filter | None = None,
+    ) -> list[Node]:
         """
         Finds entities matching the given text using multiple strategies.
 
@@ -28,6 +35,7 @@ class IEntitySearchService(abc.ABC):
             text: Text to search for
             annotation_type: Type of annotation being searched
             entity_space: Space to search in for global fallback
+            scope_filter: Extra filter ANDed with the alias match and applied to the text query.
 
         Returns:
             List of matched Node objects
@@ -52,7 +60,7 @@ class EntitySearchService(IEntitySearchService):
     **Search Strategy:**
     - Generate text variations (e.g., "V-0912" → ["V-0912", "v-0912", "V-912", "v912", ...])
     - Match the configured list property (usually aliases) with containsAny
-    - Also match name and description exactly (In) against the same variations
+    - When that misses, search name and description with query operator AND
     - Returns matches from specified entity space
 
     **Utilities:**
@@ -90,7 +98,14 @@ class EntitySearchService(IEntitySearchService):
         # Extract text normalization config
         self.text_normalization_config = config.promote_function.entity_search_service.text_normalization
 
-    def find_entity(self, text: str, annotation_type: str, entity_space: str) -> list[Node]:
+    def find_entity(
+        self,
+        text: str,
+        annotation_type: str,
+        entity_space: str,
+        *,
+        scope_filter: Filter | None = None,
+    ) -> list[Node]:
         """
         Finds entities matching the given text by querying entity aliases.
 
@@ -98,7 +113,7 @@ class EntitySearchService(IEntitySearchService):
 
         Strategy:
         1. Generate text variations (e.g., "V-0912" → ["V-0912", "v-0912", "V-912", "v912", ...])
-        2. Search the configured list property, plus exact name and description
+        2. Search the configured list property. On a miss, query name and description with AND
 
         Note: We query entities directly rather than annotation edges because:
         - Entity dataset is smaller and more stable (~1,000-10,000 entities)
@@ -110,6 +125,7 @@ class EntitySearchService(IEntitySearchService):
             text: Text to search for (e.g., "V-123", "G18A-921")
             annotation_type: Type of annotation ("diagrams.FileLink" or "diagrams.AssetLink")
             entity_space: Space to search in
+            scope_filter: Optional scope constraint from the annotated file. None searches the whole space.
 
         Returns:
             List of matched nodes:
@@ -134,91 +150,119 @@ class EntitySearchService(IEntitySearchService):
         else:
             source = self.target_entities_view_id
 
-        found_nodes: list[Node] = self.find_global_entity(search_texts, source, entity_space)
+        found_nodes: list[Node] = self.find_global_entity(
+            search_texts, source, entity_space, text, scope_filter=scope_filter
+        )
 
         return found_nodes
 
-    def find_global_entity(self, text_variations: list[str], source: ViewId, entity_space: str) -> list[Node]:
+    def find_global_entity(
+        self,
+        text_variations: list[str],
+        source: ViewId,
+        entity_space: str,
+        query_text: str,
+        *,
+        scope_filter: Filter | None = None,
+    ) -> list[Node]:
         """
         Performs a global, un-scoped search for an entity matching the given text variations.
-        Uses server-side IN filter with text variations to handle different naming conventions.
 
-        Uses the search endpoint. The configured property (usually aliases) is a list, so it
-        is filtered with containsAny. name and description are text, so they are filtered with
-        In on the same variations. A /list filter on aliases is not index-backed and times out
-        on large spaces.
+        The configured property (usually aliases) is a list, matched with containsAny.
+        When that returns nothing, name and description are searched with a query.
+        AND requires every token of query_text; those fields may contain further tokens.
+        A /list filter on aliases is not index-backed and times out on large spaces.
 
         Args:
             text_variations: List of text variations to search for (e.g., ["V-0912", "v-0912", "V-912", ...])
             source: View to query (file_view or target_entities_view)
             entity_space: Space to search in
+            query_text: Original input, tokenized against name and description
+            scope_filter: ANDed with the alias filter, and applied as-is to the name/description query.
 
         Returns:
             List of matched nodes (0, 1, or 2 for ambiguity detection)
         """
-        # Use first text variation (original text) for logging
-        original_text: str = text_variations[0] if text_variations else "unknown"
+        list_filter: Filter = ContainsAny(source.as_property_ref(self.search_properties[source]), text_variations)
+        if scope_filter is not None:
+            list_filter = And(list_filter, scope_filter)
+        list_matches: list[Node] = self._search_nodes(query_text, source, entity_space, search_filter=list_filter)
+        if list_matches:
+            return self._cap_matches(list_matches, query_text, entity_space)
 
+        text_matches: list[Node] = self._search_nodes(
+            query_text,
+            source,
+            entity_space,
+            query=query_text,
+            properties=list(TEXT_QUERY_PROPERTIES),
+            search_filter=scope_filter,
+        )
+        return self._cap_matches(text_matches, query_text, entity_space)
+
+    def _search_nodes(
+        self,
+        log_text: str,
+        source: ViewId,
+        entity_space: str,
+        *,
+        query: str | None = None,
+        properties: list[str] | None = None,
+        search_filter: Filter | None = None,
+    ) -> list[Node]:
+        """Run one instances.search call. Returns [] when the API call fails.
+
+        Args:
+            log_text: Text used in the error log
+            source: View to query
+            entity_space: Space to search in
+            query: Token query. None keeps the call filter-only.
+            properties: Properties the query searches. None searches every text property.
+            search_filter: Hard filter applied together with the query.
+
+        Returns:
+            Matching nodes, or [] on API error.
+        """
         try:
-            search_filter: Filter = self._entity_match_filter(source, text_variations)
-
-            # No query text: tokenized matching is not exact, so the property filter alone decides the match.
-            # operator is set explicitly; the SDK default changes from OR to AND in v8.
+            # operator AND: every query token must match. Unused when query is omitted.
+            # Set explicitly; the SDK default changes from OR to AND in v8.
             entities: NodeList[Node] = self.client.data_modeling.instances.search(
                 view=source,
                 instance_type="node",
+                query=query,
+                properties=properties,
                 filter=search_filter,
                 space=entity_space,
                 limit=MAX_ENTITY_SEARCH_LIMIT,
                 operator="AND",
             )
-
-            if not entities:
-                return []
-
-            # Convert to list and check for ambiguity
-            matched_entities: list[Node] = list(entities)
-
-            if len(matched_entities) > 1:
-                self.logger.warning(
-                    f"Found more than one entity matching '{original_text}' in space '{entity_space}'. "
-                    f"This is ambiguous. Returning first 2 for ambiguity detection."
-                )
-                return matched_entities[:2]
-
-            if matched_entities:
-                self.logger.debug(
-                    f"Found {len(matched_entities)} match(es) for '{original_text}' via global entity search"
-                )
-
-            return matched_entities
-
         except CogniteAPIError as e:
-            self.logger.error(f"Error searching for entity '{original_text}' in space '{entity_space}': {e}")
+            self.logger.error(f"Error searching for entity '{log_text}' in space '{entity_space}': {e}")
             return []
+        return list(entities)
 
-    def _entity_match_filter(self, source: ViewId, text_variations: list[str]) -> Filter:
-        """Match the configured list property, or an exact name or description.
+    def _cap_matches(self, matched_entities: list[Node], text: str, entity_space: str) -> list[Node]:
+        """Keep a single match, or the first two when several entities match.
 
         Args:
-            source: View to query (file_view or target_entities_view)
-            text_variations: Text variations to match
+            matched_entities: Nodes returned by one search call
+            text: Text that was searched, for logs
+            entity_space: Space that was searched, for logs
 
         Returns:
-            A filter that is true when any searched property matches a variation.
+            [] , [node], or the first two nodes
         """
-        configured: str = self.search_properties[source]
-        property_ref = source.as_property_ref
-        clauses: list[Filter] = []
-        if configured in EXACT_MATCH_PROPERTIES:
-            clauses.append(In(property_ref(configured), text_variations))
-        else:
-            clauses.append(ContainsAny(property_ref(configured), text_variations))
-        for property_name in EXACT_MATCH_PROPERTIES:
-            if property_name == configured:
-                continue
-            clauses.append(In(property_ref(property_name), text_variations))
-        return Or(*clauses)
+        if len(matched_entities) > 1:
+            self.logger.warning(
+                f"Found more than one entity matching '{text}' in space '{entity_space}'. "
+                f"This is ambiguous. Returning first 2 for ambiguity detection."
+            )
+            return matched_entities[:2]
+
+        if matched_entities:
+            self.logger.debug(f"Found {len(matched_entities)} match(es) for '{text}' via global entity search")
+
+        return matched_entities
 
     def generate_text_variations(self, text: str, annotation_type: str) -> list[str]:
         """

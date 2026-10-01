@@ -41,6 +41,7 @@ parameters:
   patternPromote:
     patternMode: {{ patternMode }}
     structuralAutoPatterns: {{ structuralAutoPatterns }}
+    filterPatternPromoteByScope: {{ filterPatternPromoteByScope }}
     textNormalization:
       entityNormalizationPatterns: {{ entityNormalizationPatterns }}
       fileNormalizationPatterns: {{ fileNormalizationPatterns }}
@@ -48,6 +49,7 @@ parameters:
 
 - `patternPromote.patternMode` enables pattern-mode Diagram Detect alongside regular entity matching.
 - `patternPromote.structuralAutoPatterns` (default `true`) makes auto patterns digit/letter **structure** templates such as `00-AA-0000` instead of enumerating letter codes like `[FE|KA|PC|VA]`. Separators from aliases (`_`, `-`, `.`, `:`, `;`, `/`) are never required constants (never `[_]`); they normalize to unbracketed `-`. Set `false` for legacy letter-enum expansion.
+- `patternPromote.filterPatternPromoteByScope` (default `false`) makes Promote apply `primaryScopeProperty` / `secondaryScopeProperty` as filters. The values are read from the annotated file. Primary must match. When a secondary value is set, the entity must match it or carry `ScopeWideDetect` (still inside the primary scope). A file with no value for a configured property is not filtered on that property.
 - `cleanOldAnnotations` removes this function's prior annotations (edges with `sourceCreatedUser = fn_file_annotation`, plus their RAW rows) on the first finalize pass of a file that is re-annotated. Manual and third-party annotations are kept. Files that are no longer selected for annotation are not cleaned.
 - `assetAutoApprovalThreshold` and `assetAutoSuggestThreshold` control regular annotation status for asset links (`diagrams.AssetLink`). `fileAutoApprovalThreshold` and `fileAutoSuggestThreshold` do the same for file links (`diagrams.FileLink`); leave them empty to reuse the asset-link values. A detection at or above the approval threshold is `Approved`, at or above the suggest threshold `Suggested`, and below that it is dropped.- `primaryScopeProperty` and `secondaryScopeProperty` group files so launch can reuse a scoped entity cache.
 - `filesToAnnotateTags` is the Prepare IN filter for files to process (default `ToAnnotate`).
@@ -101,7 +103,7 @@ data:
     externalId: {{ patternDetectSink }}
 ```
 
-`searchProperty` is sent to Diagram Detect and queried by promote with `containsAny`. Promote also matches `name` and `description` exactly. `resourceProperty` optionally classifies entities in pattern samples and reports; when omitted, the view external ID is used.
+`searchProperty` is sent to Diagram Detect and queried by promote with `containsAny`. When that misses, promote queries `name` and `description` with operator `AND`. `resourceProperty` optionally classifies entities in pattern samples and reports; when omitted, the view external ID is used.
 
 ## Fixed behavior
 
@@ -156,7 +158,7 @@ not part of `DiagramDetectConfig`.
 
 Remove `dataModelViews`, `rawTables`, `prepareFunction`, `launchFunction`, `finalizeFunction`, and `promoteFunction`. Replace them with the `parameters` and `data` blocks above, and add the matching keys to `default.config.yaml` (or your `config.<env>.yaml` module variables). Query target views, fixed tags/statuses, limits, and promote cleanup flags are no longer configurable. RAW table names stay in `default.config.yaml` and go under `parameters.rawData`.
 
-`patternMode` and `structuralAutoPatterns` are read from `parameters.patternPromote`. Left directly under `parameters`, they are ignored and both default to `true`.
+`patternMode`, `structuralAutoPatterns`, and `filterPatternPromoteByScope` are read from `parameters.patternPromote`. Left directly under `parameters`, they are ignored. The first two default to `true`; the scope filter defaults to `false`.
 
 Function calls must use `fn_file_annotation` and include `stage`. The supplied workflow
 invokes all four stages in order and finishes with the file-to-asset transformation.

@@ -12,11 +12,13 @@ from cognite.client.data_classes.data_modeling import (
     EdgeId,
     EdgeList,
     Node,
+    NodeId,
     NodeOrEdgeData,
     ViewId,
 )
-from cognite.client.data_classes.filters import Equals
+from cognite.client.data_classes.filters import And, ContainsAny, Equals, Filter, Or
 from cognite.client.exceptions import CogniteAPIError
+from fa_constants import TAG_SCOPE_WIDE_DETECT
 from services.ConfigService import Config, build_filter_from_query, get_limit_from_query
 from services.EntitySearchService import EntitySearchService
 from services.LoggerService import CogniteFunctionLogger
@@ -59,6 +61,16 @@ class MatchedEntity:
             external_id=cached.external_id,
             resource_type=cached.resource_type,
         )
+
+
+def _scope_text(properties: dict[str, object], name: str) -> str:
+    """Text value of a scope property, or empty when the property is absent."""
+    if not name:
+        return ""
+    value = properties.get(name)
+    if isinstance(value, str):
+        return value.strip()
+    return ""
 
 
 class IPromoteService(abc.ABC):
@@ -180,21 +192,40 @@ class GeneralPromoteService(IPromoteService):
 
         self.logger.info(f"Found {len(candidates)} Promote candidates. Starting processing.")
 
-        # Group candidates by (startNodeText, annotationType, entity space) for deduplication
-        grouped_candidates: dict[tuple[str, str, str], list[Edge]] = {}
+        scope_by_file = self._scope_values_by_file(list(candidates))
+
+        # Group by text, type, space, and scope so two sites do not share one search result.
+        grouped_candidates: dict[tuple[str, str, str, str, str], list[Edge]] = {}
         for edge in candidates:
             properties: dict[str, object] = (edge.properties or {}).get(self.core_annotation_view.as_view_id()) or {}
             text: object = properties.get("startNodeText")
             annotation_type: str = edge.type.external_id
 
             if isinstance(text, str) and text and annotation_type:
-                key = (text, annotation_type, self._entity_space(annotation_type, edge))
+                primary_value, secondary_value = scope_by_file.get(
+                    (edge.start_node.space, edge.start_node.external_id), ("", "")
+                )
+                key = (
+                    text,
+                    annotation_type,
+                    self._entity_space(annotation_type, edge),
+                    primary_value,
+                    secondary_value,
+                )
                 grouped_candidates.setdefault(key, []).append(edge)
 
-        grouped_by_type: dict[str, dict[tuple[str, str], list[Edge]]] = {}
+        grouped_by_type: dict[str, dict[tuple[str, str, str, str], list[Edge]]] = {}
 
-        for (text_to_find, annotation_type, entity_space), edges_with_same_text in grouped_candidates.items():
-            grouped_by_type.setdefault(annotation_type, {})[(text_to_find, entity_space)] = edges_with_same_text
+        for (
+            text_to_find,
+            annotation_type,
+            entity_space,
+            primary_value,
+            secondary_value,
+        ), edges_with_same_text in grouped_candidates.items():
+            grouped_by_type.setdefault(annotation_type, {})[
+                (text_to_find, entity_space, primary_value, secondary_value)
+            ] = edges_with_same_text
 
         total_grouped = sum(len(m) for m in grouped_by_type.values())
 
@@ -235,13 +266,24 @@ class GeneralPromoteService(IPromoteService):
                         section="START",
                     )
 
-                for (text_to_find, entity_space), edges_with_same_text in texts_map.items():
+                for (
+                    text_to_find,
+                    entity_space,
+                    primary_value,
+                    secondary_value,
+                ), edges_with_same_text in texts_map.items():
                     # Strategy: Check cache → query edges → fallback to global search
                     found_entities: list[MatchedEntity] | list = []
 
                     if is_searching_annotation_type:
                         # Strategy: Check cache → query edges → fallback to global search
-                        found_entities = self._find_entity_with_cache(text_to_find, annotation_type, entity_space)
+                        found_entities = self._find_entity_with_cache(
+                            text_to_find,
+                            annotation_type,
+                            entity_space,
+                            scope_filter=self._scope_filter(annotation_type, primary_value, secondary_value),
+                            scope_key=self._scope_cache_key(primary_value, secondary_value),
+                        )
 
                     for edge in edges_with_same_text:
                         is_self_reference = (
@@ -330,6 +372,106 @@ class GeneralPromoteService(IPromoteService):
 
         return None  # Continue running if more candidates might exist
 
+    def _scope_property_names(self) -> tuple[str, str]:
+        """Configured scope property names. Empty string means that level is off."""
+        primary = (self.config.parameters.primary_scope_property or "").strip()
+        secondary = (self.config.parameters.secondary_scope_property or "").strip()
+        return primary, secondary
+
+    def _promote_scope_enabled(self) -> bool:
+        """True when the flag is on and at least one scope property name is set."""
+        if not self.config.parameters.pattern_promote.filter_pattern_promote_by_scope:
+            return False
+        primary_name, secondary_name = self._scope_property_names()
+        return bool(primary_name or secondary_name)
+
+    def _scope_values_by_file(self, edges: list[Edge]) -> dict[tuple[str, str], tuple[str, str]]:
+        """Primary and secondary scope values on each annotated file. Empty when scoping is off."""
+        if not self._promote_scope_enabled():
+            return {}
+
+        primary_name, secondary_name = self._scope_property_names()
+        file_ids: list[NodeId] = []
+        seen: set[tuple[str, str]] = set()
+        for edge in edges:
+            key = (edge.start_node.space, edge.start_node.external_id)
+            if key in seen:
+                continue
+            seen.add(key)
+            file_ids.append(NodeId(space=key[0], external_id=key[1]))
+        if not file_ids:
+            return {}
+
+        retrieved = self.client.data_modeling.instances.retrieve_nodes(
+            nodes=file_ids, sources=self.file_view.as_view_id()
+        )
+        if retrieved is None:
+            nodes: list[Node] = []
+        elif isinstance(retrieved, Node):
+            nodes = [retrieved]
+        else:
+            nodes = list(retrieved)
+
+        by_id = {(node.space, node.external_id): node for node in nodes}
+        view_id = self.file_view.as_view_id()
+        values: dict[tuple[str, str], tuple[str, str]] = {}
+        for file_id in file_ids:
+            key = (file_id.space, file_id.external_id)
+            node = by_id.get(key)
+            properties: dict[str, object] = {}
+            if node is not None and node.properties:
+                raw_properties = node.properties.get(view_id)
+                if isinstance(raw_properties, dict):
+                    properties = raw_properties
+            primary_value = _scope_text(properties, primary_name)
+            secondary_value = _scope_text(properties, secondary_name)
+            if primary_name and not primary_value:
+                self.logger.warning(
+                    f"File {key[0]}/{key[1]} has no '{primary_name}' value. "
+                    "Promote will not apply that scope filter for its annotations."
+                )
+            if secondary_name and not secondary_value:
+                self.logger.warning(
+                    f"File {key[0]}/{key[1]} has no '{secondary_name}' value. "
+                    "Promote will not apply that scope filter for its annotations."
+                )
+            values[key] = (primary_value, secondary_value)
+        return values
+
+    def _scope_filter(self, annotation_type: str, primary_value: str, secondary_value: str) -> Filter | None:
+        """Equals filters for the file's scope. Secondary also keeps ScopeWideDetect entities."""
+        if not self._promote_scope_enabled():
+            return None
+        view = self.file_view if annotation_type == "diagrams.FileLink" else self.target_entities_view
+        primary_name, secondary_name = self._scope_property_names()
+        clauses: list[Filter] = []
+        if primary_name and primary_value:
+            clauses.append(Equals(view.as_property_ref(primary_name), primary_value))
+        if secondary_name and secondary_value:
+            clauses.append(
+                Or(
+                    Equals(view.as_property_ref(secondary_name), secondary_value),
+                    ContainsAny(view.as_property_ref("tags"), [TAG_SCOPE_WIDE_DETECT]),
+                )
+            )
+        if not clauses:
+            return None
+        if len(clauses) == 1:
+            return clauses[0]
+        return And(*clauses)
+
+    def _scope_cache_key(self, primary_value: str, secondary_value: str) -> str:
+        """Cache discriminator so a match in one scope is not reused in another."""
+        if not self._promote_scope_enabled():
+            return ""
+        primary_name, secondary_name = self._scope_property_names()
+        parts: list[str] = []
+        if primary_name and primary_value:
+            parts.append(f"{primary_name}={primary_value}")
+        if secondary_name and secondary_value:
+            parts.append(f"{secondary_name}={secondary_value}")
+        return "|".join(parts)
+
     def _entity_space(self, annotation_type: str, edge: Edge) -> str:
         """The space to search for the entity: the view's instanceSpace, else the space of the annotated file."""
         view = self.file_view if annotation_type == "diagrams.FileLink" else self.target_entities_view
@@ -367,7 +509,15 @@ class GeneralPromoteService(IPromoteService):
             space=self.sink_node_ref.space,
         )
 
-    def _find_entity_with_cache(self, text: str, annotation_type: str, entity_space: str) -> list[MatchedEntity]:
+    def _find_entity_with_cache(
+        self,
+        text: str,
+        annotation_type: str,
+        entity_space: str,
+        *,
+        scope_filter: Filter | None = None,
+        scope_key: str = "",
+    ) -> list[MatchedEntity]:
         """
         Finds entity for text using multi-tier caching strategy.
 
@@ -384,6 +534,8 @@ class GeneralPromoteService(IPromoteService):
             text: Text to search for (e.g., "V-123", "G18A-921")
             annotation_type: Type of annotation ("diagrams.FileLink" or "diagrams.AssetLink")
             entity_space: Space to search in for global fallback
+            scope_filter: Scope constraint applied to the entity search. None searches the whole space.
+            scope_key: Cache discriminator for that scope. Empty when the search is not scope-filtered.
 
         Returns:
             List of MatchedEntity objects:
@@ -406,21 +558,28 @@ class GeneralPromoteService(IPromoteService):
             return []
 
         # TIER 1 & 2: Check cache (in-memory + persistent) - no API calls on hit
-        cached_info: CachedEntityInfo | None = self.cache_service.get(text, annotation_type, entity_space)
+        cached_info: CachedEntityInfo | None = self.cache_service.get(
+            text, annotation_type, entity_space, scope_key=scope_key
+        )
 
         if cached_info is not None:
             return [MatchedEntity.from_cached_info(cached_info)]
 
-        if self.cache_service.is_ambiguous_in_memory(text, annotation_type, entity_space):
+        if self.cache_service.is_ambiguous_in_memory(text, annotation_type, entity_space, scope_key=scope_key):
             self.logger.debug(f"✓ [CACHE] Using in-memory ambiguous marker for '{text}' (skipping search)")
             return [MatchedEntity(space="", external_id=""), MatchedEntity(space="", external_id="")]
 
-        if self.cache_service.is_no_match_in_memory(text, annotation_type, entity_space):
+        if self.cache_service.is_no_match_in_memory(text, annotation_type, entity_space, scope_key=scope_key):
             self.logger.debug(f"✓ [CACHE] Using in-memory NO_MATCH marker for '{text}' (skipping search)")
             return []
 
         # TIER 3: Use EntitySearchService
-        found_nodes: list[Node] = self.entity_search_service.find_entity(text, annotation_type, entity_space)
+        if scope_filter is None:
+            found_nodes: list[Node] = self.entity_search_service.find_entity(text, annotation_type, entity_space)
+        else:
+            found_nodes = self.entity_search_service.find_entity(
+                text, annotation_type, entity_space, scope_filter=scope_filter
+            )
 
         # Determine view for extracting resource type
         target_view_id = self.target_entities_view.as_view_id()
@@ -431,7 +590,9 @@ class GeneralPromoteService(IPromoteService):
             node = found_nodes[0]
             matched = MatchedEntity.from_node(node, target_view_id)
             # Cache with resource type to avoid future retrieve_nodes calls
-            self.cache_service.set(text, annotation_type, entity_space, node, matched.resource_type)
+            self.cache_service.set(
+                text, annotation_type, entity_space, node, matched.resource_type, scope_key=scope_key
+            )
             return [matched]
         elif not found_nodes:
             # API search ran and returned nothing — cache that for the rest of this run
@@ -440,12 +601,13 @@ class GeneralPromoteService(IPromoteService):
                 annotation_type,
                 entity_space,
                 reason="API search returned no entity",
+                scope_key=scope_key,
             )
             return []
         else:
             # Ambiguous - cache negative result (in-memory AMBIGUOUS)
             try:
-                self.cache_service.set_ambiguous(text, annotation_type, entity_space)
+                self.cache_service.set_ambiguous(text, annotation_type, entity_space, scope_key=scope_key)
                 self.logger.debug(f"✓ [CACHE] Marked '{text}' as ambiguous in memory")
             except (CogniteAPIError, ValueError, TypeError) as e:
                 self.logger.debug(f"[CACHE] Failed to set ambiguous marker for '{text}' (continuing): {e}")

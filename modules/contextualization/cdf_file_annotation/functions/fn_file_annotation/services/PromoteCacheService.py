@@ -32,7 +32,7 @@ class ICacheService(abc.ABC):
     """
 
     @abc.abstractmethod
-    def get(self, text: str, annotation_type: str, space: str) -> CachedEntityInfo | None:
+    def get(self, text: str, annotation_type: str, space: str, scope_key: str = "") -> CachedEntityInfo | None:
         """
         Retrieves cached entity info for the given text and annotation type in a space.
 
@@ -40,6 +40,7 @@ class ICacheService(abc.ABC):
             text: Text to look up
             annotation_type: Type of annotation
             space: Instance space the entity must be in
+            scope_key: Scope values that were filtered, empty when promote is not scope-filtered
 
         Returns:
             CachedEntityInfo if found, None if cache miss
@@ -48,7 +49,13 @@ class ICacheService(abc.ABC):
 
     @abc.abstractmethod
     def set(
-        self, text: str, annotation_type: str, space: str, node: Node | None, resource_type: str | None = None
+        self,
+        text: str,
+        annotation_type: str,
+        space: str,
+        node: Node | None,
+        resource_type: str | None = None,
+        scope_key: str = "",
     ) -> None:
         """
         Caches an entity node for the given text and annotation type in a space.
@@ -59,6 +66,7 @@ class ICacheService(abc.ABC):
             space: Instance space that was searched
             node: Entity node to cache, or None for negative caching
             resource_type: Optional resource type to cache alongside the node
+            scope_key: Scope values that were filtered, empty when promote is not scope-filtered
         """
         pass
 
@@ -135,9 +143,14 @@ class CacheService(ICacheService):
         # - CachedEntityInfo: positive single match
         # - CacheMarker.NO_MATCH: negative cache (no match) stored in-memory only
         # - CacheMarker.AMBIGUOUS: ambiguous marker (more than one match)
-        self._memory_cache: dict[tuple[str, str, str], CachedEntityInfo | CacheMarker] = {}
+        self._memory_cache: dict[tuple[str, ...], CachedEntityInfo | CacheMarker] = {}
 
-    def get(self, text: str, annotation_type: str, space: str) -> CachedEntityInfo | None:
+    def _memory_key(self, text: str, annotation_type: str, space: str, scope_key: str) -> tuple[str, ...]:
+        if scope_key:
+            return (text, annotation_type, space, scope_key)
+        return (text, annotation_type, space)
+
+    def get(self, text: str, annotation_type: str, space: str, scope_key: str = "") -> CachedEntityInfo | None:
         """
         Retrieves cached entity info for the given text and annotation type in a space.
 
@@ -148,11 +161,12 @@ class CacheService(ICacheService):
             text: The text to look up
             annotation_type: Type of annotation ("diagrams.FileLink" or "diagrams.AssetLink")
             space: Instance space the entity must be in
+            scope_key: Scope values that were filtered. Empty keeps the unscoped key.
 
         Returns:
             CachedEntityInfo if found, None if cache miss
         """
-        cache_key: tuple[str, str, str] = (text, annotation_type, space)
+        cache_key = self._memory_key(text, annotation_type, space, scope_key)
 
         # TIER 1: In-memory cache (instant, no API calls)
         if cache_key in self._memory_cache:
@@ -171,7 +185,7 @@ class CacheService(ICacheService):
             return cached_result
 
         # TIER 2: Persistent RAW cache (fast, no retrieve_nodes call)
-        cached_info: CachedEntityInfo | None = self._get_from_persistent_cache(text, annotation_type, space)
+        cached_info: CachedEntityInfo | None = self._get_from_persistent_cache(text, annotation_type, space, scope_key)
         if cached_info:
             self.logger.info(f"✓ [CACHE] Persistent cache HIT for '{text}'")
             # Populate in-memory cache for future lookups in this run
@@ -181,34 +195,34 @@ class CacheService(ICacheService):
         # Cache miss
         return None
 
-    def is_ambiguous_in_memory(self, text: str, annotation_type: str, space: str) -> bool:
+    def is_ambiguous_in_memory(self, text: str, annotation_type: str, space: str, scope_key: str = "") -> bool:
         """
         Returns True if this text/type combination was previously seen as ambiguous
         in the space during the current run (in-memory only).
         """
-        cache_key: tuple[str, str, str] = (text, annotation_type, space)
+        cache_key = self._memory_key(text, annotation_type, space, scope_key)
         return cache_key in self._memory_cache and self._memory_cache[cache_key] is CacheMarker.AMBIGUOUS
 
-    def is_no_match_in_memory(self, text: str, annotation_type: str, space: str) -> bool:
+    def is_no_match_in_memory(self, text: str, annotation_type: str, space: str, scope_key: str = "") -> bool:
         """
         Returns True if this text/type combination was determined to have no match
         in the space during the current run (in-memory only).
         """
-        cache_key: tuple[str, str, str] = (text, annotation_type, space)
+        cache_key = self._memory_key(text, annotation_type, space, scope_key)
         return cache_key in self._memory_cache and self._memory_cache[cache_key] is CacheMarker.NO_MATCH
 
-    def set_ambiguous(self, text: str, annotation_type: str, space: str) -> None:
+    def set_ambiguous(self, text: str, annotation_type: str, space: str, scope_key: str = "") -> None:
         """
         Marks the given text/type as ambiguous in the space, in in-memory cache only.
 
         This avoids re-querying repeatedly for known ambiguous cases
         within the same function run. Ambiguous entries are NOT persisted to RAW.
         """
-        cache_key: tuple[str, str, str] = (text, annotation_type, space)
+        cache_key = self._memory_key(text, annotation_type, space, scope_key)
         self._memory_cache[cache_key] = CacheMarker.AMBIGUOUS
         self.logger.debug(f"✓ [CACHE] Cached ambiguous marker for '{text}' (in-memory only)")
 
-    def set_no_match(self, text: str, annotation_type: str, space: str, *, reason: str) -> None:
+    def set_no_match(self, text: str, annotation_type: str, space: str, *, reason: str, scope_key: str = "") -> None:
         """
         Marks the given text/type as a negative (no match) result in the space, in in-memory cache only.
 
@@ -220,13 +234,20 @@ class CacheService(ICacheService):
             space: Instance space that was considered
             reason: Why there is no match, included in the debug log. Distinguish a source
                 normalization-pattern miss (no API search) from an API search that returned nothing.
+            scope_key: Scope values that were filtered. Empty keeps the unscoped key.
         """
-        cache_key: tuple[str, str, str] = (text, annotation_type, space)
+        cache_key = self._memory_key(text, annotation_type, space, scope_key)
         self._memory_cache[cache_key] = CacheMarker.NO_MATCH
         self.logger.debug(f"✓ [CACHE] Cached NO_MATCH marker for '{text}' ({reason}; in-memory only)")
 
     def set(
-        self, text: str, annotation_type: str, space: str, node: Node | None, resource_type: str | None = None
+        self,
+        text: str,
+        annotation_type: str,
+        space: str,
+        node: Node | None,
+        resource_type: str | None = None,
+        scope_key: str = "",
     ) -> None:
         """
         Caches an entity node for the given text and annotation type.
@@ -248,12 +269,13 @@ class CacheService(ICacheService):
                 or pass `None` to record an in-memory NO_MATCH marker. For ambiguous
                 search outcomes prefer `set_ambiguous` to mark the key as ambiguous in-memory.
             resource_type: Optional resource type to cache (avoids needing to retrieve node later)
+            scope_key: Scope values that were filtered. Empty keeps the unscoped key.
         """
-        cache_key: tuple[str, str, str] = (text, annotation_type, space)
+        cache_key = self._memory_key(text, annotation_type, space, scope_key)
 
         if node is None:
             # Negative cache entry (IN-MEMORY ONLY - not persisted to RAW)
-            self.set_no_match(text, annotation_type, space, reason="no entity node")
+            self.set_no_match(text, annotation_type, space, reason="no entity node", scope_key=scope_key)
             return
 
         # Create CachedEntityInfo with all needed properties
@@ -265,14 +287,19 @@ class CacheService(ICacheService):
 
         # Positive cache entry (BOTH in-memory AND persistent RAW)
         self._memory_cache[cache_key] = cached_info
-        self._set_in_persistent_cache(text, annotation_type, space, node, resource_type)
+        self._set_in_persistent_cache(text, annotation_type, space, node, resource_type, scope_key)
         self.logger.debug(f"✓ [CACHE] Cached positive match for '{text}' → {node.external_id} (in-memory + RAW)")
 
-    def _persistent_cache_key(self, text: str, annotation_type: str, space: str) -> str:
-        """RAW row key scoped by instance space so multi-space deployments do not thrash."""
-        return f"{space}:{self.normalize(text, annotation_type)}"
+    def _persistent_cache_key(self, text: str, annotation_type: str, space: str, scope_key: str = "") -> str:
+        """RAW row key scoped by instance space, and by scope when promote filters on it."""
+        normalized = self.normalize(text, annotation_type)
+        if scope_key:
+            return f"{space}:{scope_key}:{normalized}"
+        return f"{space}:{normalized}"
 
-    def _get_from_persistent_cache(self, text: str, annotation_type: str, space: str) -> CachedEntityInfo | None:
+    def _get_from_persistent_cache(
+        self, text: str, annotation_type: str, space: str, scope_key: str = ""
+    ) -> CachedEntityInfo | None:
         """
         Checks persistent RAW cache for text → entity mapping in a space.
 
@@ -282,7 +309,7 @@ class CacheService(ICacheService):
             CachedEntityInfo if cache hit, None if miss
         """
         try:
-            cache_key: str = self._persistent_cache_key(text, annotation_type, space)
+            cache_key: str = self._persistent_cache_key(text, annotation_type, space, scope_key)
 
             row: Row | None = self.client.raw.rows.retrieve(
                 db_name=self.raw_db,
@@ -324,7 +351,13 @@ class CacheService(ICacheService):
             return None
 
     def _set_in_persistent_cache(
-        self, text: str, annotation_type: str, space: str, node: Node, resource_type: str | None = None
+        self,
+        text: str,
+        annotation_type: str,
+        space: str,
+        node: Node,
+        resource_type: str | None = None,
+        scope_key: str = "",
     ) -> None:
         """
         Updates persistent RAW cache with text → entity mapping for a space.
@@ -339,7 +372,7 @@ class CacheService(ICacheService):
         and will be a usersId for the manual promotions.
         """
         try:
-            cache_key: str = self._persistent_cache_key(text, annotation_type, space)
+            cache_key: str = self._persistent_cache_key(text, annotation_type, space, scope_key)
 
             cache_columns: dict[str, object] = {
                 "originalText": text,

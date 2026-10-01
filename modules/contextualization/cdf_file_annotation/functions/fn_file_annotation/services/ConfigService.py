@@ -404,6 +404,8 @@ class DataModelViews(BaseModel, alias_generator=to_camel):
 class PatternPromoteParameters(BaseModel, alias_generator=to_camel):
     pattern_mode: bool = True
     structural_auto_patterns: bool = True
+    # When true, Promote filters entity search by the annotated file's scope property values.
+    filter_pattern_promote_by_scope: bool = False
     text_normalization: TextNormalizationConfig = Field(default_factory=TextNormalizationConfig)
 
 
@@ -1023,6 +1025,7 @@ def format_promote_config(config: Config, pipeline_ext_id: str) -> str:
         f"  • Delete suggested edges: {promote.delete_suggested_edges}",
         f"  • Promote file entities: {promote.promote_file_entities}",
         f"  • Promote target entities: {promote.promote_target_entities}",
+        f"  • Filter by scope: {config.parameters.pattern_promote.filter_pattern_promote_by_scope}",
         f"  • RAW DB: {raw.raw_db}",
         f"  • Doc-Tag table: {raw.raw_table_doc_tag}",
         f"  • Doc-Doc table: {raw.raw_table_doc_doc}",
