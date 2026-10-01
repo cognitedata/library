@@ -16,7 +16,7 @@ def parse_env_file(path: Path) -> tuple[list[str], dict[str, str], dict[str, int
     values: dict[str, str] = {}
     key_idx: dict[str, int] = {}
     if path.exists():
-        lines = path.read_text().splitlines(keepends=True)
+        lines = path.read_text(encoding="utf-8").splitlines(keepends=True)
         # Normalise: ensure every line ends with a newline so appended entries
         # never run onto the last line of an existing file that lacks a trailing \n.
         if lines and not lines[-1].endswith("\n"):
