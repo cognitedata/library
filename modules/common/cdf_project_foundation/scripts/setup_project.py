@@ -646,7 +646,8 @@ def _write_config_fresh(path: Path, env: str, project: str, overlay: dict) -> No
     merged = deep_merge(_skeleton_config(env, project), overlay)
     path.write_text(
         _YAML_HEADER
-        + yaml.dump(merged, sort_keys=False, allow_unicode=True, default_flow_style=False)
+        + yaml.dump(merged, sort_keys=False, allow_unicode=True, default_flow_style=False),
+        encoding="utf-8",
     )
     _ok(t("Created  {path.name}").format(path=path))
 
@@ -659,7 +660,7 @@ def _write_config_update(
     Returns ``True`` when at least one value changed.
     Set ``skip_backup=True`` when the file was just created (no prior version to back up).
     """
-    lines = path.read_text().splitlines(keepends=True)
+    lines = path.read_text(encoding="utf-8").splitlines(keepends=True)
     changed = False
 
     # Update environment.project.
@@ -708,7 +709,7 @@ def _write_config_update(
         timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
         backup = path.with_suffix(f".{timestamp}.bak")
         shutil.copy2(path, backup)
-    path.write_text("".join(lines))
+    path.write_text("".join(lines), encoding="utf-8")
     if not skip_backup:
         _ok(t("Updated  {path.name}  (backup: {backup.name})").format(path=path, backup=backup))
     return True
@@ -734,11 +735,11 @@ def _replicate_config_from_existing(
 
     dest = pack_root / f"config.{env}.yaml"
     shutil.copy2(source, dest)
-    lines = dest.read_text().splitlines(keepends=True)
+    lines = dest.read_text(encoding="utf-8").splitlines(keepends=True)
     _yaml_set_value(lines, "environment.name", env)
     _yaml_set_value(lines, "environment.validation-type", ENVIRONMENT_VALIDATION_TYPE.get(env, "dev"))
     _yaml_set_value(lines, "environment.project", project)
-    dest.write_text("".join(lines))
+    dest.write_text("".join(lines), encoding="utf-8")
     return dest
 
 
@@ -832,7 +833,7 @@ def restore_cdm_space_file(variant: str, repo_root: Path | None = None) -> Path 
     if space_file.exists():
         return None
     space_file.parent.mkdir(parents=True, exist_ok=True)
-    space_file.write_text(_CDM_INSTANCE_SPACE_CONTENT)
+    space_file.write_text(_CDM_INSTANCE_SPACE_CONTENT, encoding="utf-8")
     _ok(t("Created CDM instance space file: {path}").format(path=_CDM_INSTANCE_SPACE_REL_PATH))
     return space_file
 
@@ -860,10 +861,10 @@ def _migrate_staging_to_test(pack_root: Path) -> bool:
         )
         return False
 
-    lines = staging.read_text().splitlines(keepends=True)
+    lines = staging.read_text(encoding="utf-8").splitlines(keepends=True)
     _yaml_set_value(lines, "environment.name", "test")
     _yaml_set_value(lines, "environment.validation-type", "prod")
-    test.write_text("".join(lines))
+    test.write_text("".join(lines), encoding="utf-8")
     staging.unlink()
     _ok(t("Migrated config.staging.yaml → config.test.yaml  (validation-type: prod)"))
     return True
@@ -1034,13 +1035,13 @@ def diagram_annotation_stale_paths(repo_root: Path | None = None) -> list[Path]:
 
     workflow_path = _ingestion_workflow_path(repo_root)
     if workflow_path.exists():
-        text = workflow_path.read_text()
+        text = workflow_path.read_text(encoding="utf-8")
         if any(re.search(r"{{\s*" + var + r"\s*}}", text) for var in _INGESTION_DIAGRAM_ANNOTATION_TASK_VARS):
             stale.append(workflow_path)
 
     config_path = _ingestion_config_path(repo_root)
     if config_path.exists():
-        text = config_path.read_text()
+        text = config_path.read_text(encoding="utf-8")
         if any(f"{var}:" in text for var in _INGESTION_DIAGRAM_ANNOTATION_TASK_VARS):
             stale.append(config_path)
 
@@ -1070,10 +1071,10 @@ def remove_redundant_diagram_annotation(repo_root: Path | None = None) -> list[P
 
     workflow_path = _ingestion_workflow_path(repo_root)
     if workflow_path.exists():
-        lines = workflow_path.read_text().splitlines(keepends=True)
+        lines = workflow_path.read_text(encoding="utf-8").splitlines(keepends=True)
         task_count = _remove_ingestion_diagram_annotation_tasks(lines)
         if task_count:
-            workflow_path.write_text("".join(lines))
+            workflow_path.write_text("".join(lines), encoding="utf-8")
             removed.append(workflow_path)
             _ok(
                 t("Removed {n} redundant diagram-annotation task(s) from cdf_ingestion workflow.").format(
@@ -1083,10 +1084,10 @@ def remove_redundant_diagram_annotation(repo_root: Path | None = None) -> list[P
 
     config_path = _ingestion_config_path(repo_root)
     if config_path.exists():
-        lines = config_path.read_text().splitlines(keepends=True)
+        lines = config_path.read_text(encoding="utf-8").splitlines(keepends=True)
         changed = [_yaml_delete_key(lines, var) for var in _INGESTION_DIAGRAM_ANNOTATION_TASK_VARS]
         if any(changed):
-            config_path.write_text("".join(lines))
+            config_path.write_text("".join(lines), encoding="utf-8")
             removed.append(config_path)
 
     return removed
@@ -1116,14 +1117,14 @@ def patch_cfihos_auth_for_missing_search(repo_root: Path | None = None) -> list[
 
     patched: list[Path] = []
     for auth_file in sorted(cfihos_auth_dir.glob("*.yaml")):
-        original = auth_file.read_text()
+        original = auth_file.read_text(encoding="utf-8")
         # Remove any line that contains only the {{search_space}} list item.
         new_lines = [
             line for line in original.splitlines(keepends=True)
             if "{{search_space}}" not in line
         ]
         if len(new_lines) < len(original.splitlines()):
-            auth_file.write_text("".join(new_lines))
+            auth_file.write_text("".join(new_lines), encoding="utf-8")
             patched.append(auth_file)
             rel_auth_file = auth_file.relative_to(data_models_dir.parent)
             _ok(t("Removed {{search_space}} from: {auth_file}").replace("{auth_file}", str(rel_auth_file)))
@@ -1762,7 +1763,7 @@ def _write_env_if_dirty(
         _ok(t("Updated .env  (backup: {backup_env.name})").format(backup_env=backup_env))
     else:
         _ok(t("Created .env"))
-    env_path.write_text("".join(env_lines))
+    env_path.write_text("".join(env_lines), encoding="utf-8")
 
 
 def _finalize_wizard(
