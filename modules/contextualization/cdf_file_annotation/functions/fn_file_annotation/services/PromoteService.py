@@ -2,7 +2,6 @@ import abc
 import time
 from dataclasses import dataclass
 from typing import Literal
-from urllib.parse import quote
 
 from cognite.client import CogniteClient
 from cognite.client.data_classes import Row, RowWrite
@@ -92,7 +91,6 @@ class IPromoteService(abc.ABC):
 
 
 class GeneralPromoteService(IPromoteService):
-    _DIAGRAM_PARSING_VERSION = "20230101-alpha"
     """
     Promotes pattern-mode annotations by finding matching entities and updating annotation edges.
 
@@ -252,7 +250,6 @@ class GeneralPromoteService(IPromoteService):
         batch_promoted: int = 0
         batch_rejected: int = 0
         batch_ambiguous: int = 0
-        promoted_edges: list[Edge] = []
 
         try:
             # Process each unique text/type combination once
@@ -298,7 +295,6 @@ class GeneralPromoteService(IPromoteService):
                         if len(found_entities) == 1 and not is_self_reference:
                             batch_promoted += 1
                             should_delete = False
-                            promoted_edges.append(edge)
                         elif len(found_entities) == 0 or is_self_reference:
                             batch_rejected += 1
                             should_delete = self.delete_rejected_edges
@@ -325,11 +321,9 @@ class GeneralPromoteService(IPromoteService):
             # Update tracker with batch results
             self.tracker.add_edges(promoted=batch_promoted, rejected=batch_rejected, ambiguous=batch_ambiguous)
 
-            edges_applied = False
             try:
                 if edges_to_update:
                     self.client.data_modeling.instances.apply(edges=edges_to_update)
-                    edges_applied = True
                     self.logger.info(
                         f"Successfully updated {len(edges_to_update)} edges in data model:\n"
                         f"  ├─ Promoted: {batch_promoted}\n"
@@ -340,8 +334,6 @@ class GeneralPromoteService(IPromoteService):
             except CogniteAPIError as e:
                 self.logger.error("Error updating edges", error=e, section="BOTH")
                 raise
-            if edges_applied:
-                self._verify_promoted_diagram_entities(promoted_edges)
 
             try:
                 if edges_to_delete:
@@ -621,106 +613,6 @@ class GeneralPromoteService(IPromoteService):
                 self.logger.debug(f"[CACHE] Failed to set ambiguous marker for '{text}' (continuing): {e}")
 
             return [MatchedEntity.from_node(node, target_view_id) for node in found_nodes]
-
-    def _verify_promoted_diagram_entities(self, edges: list[Edge]) -> None:
-        """Set isAssetVerified on diagram-parsing entities linked to single-match promotions.
-
-        Diagram parsing keeps its own entity per tag. A CogniteDiagramAnnotation status of
-        Approved does not set that entity's isAssetVerified flag. Only entities whose
-        annotationId is one of these edges, and whose flag is not already true, are updated.
-
-        Args:
-            edges: Pattern edges that this batch promoted with a single match.
-        """
-        annotations_by_diagram: dict[tuple[str, str, int], set[tuple[str, str]]] = {}
-        for edge in edges:
-            diagram_key = (edge.start_node.space, edge.start_node.external_id, self._annotation_page(edge))
-            annotations_by_diagram.setdefault(diagram_key, set()).add((edge.space, edge.external_id))
-
-        updates: list[dict[str, object]] = []
-        for (file_space, file_external_id, page), annotation_ids in annotations_by_diagram.items():
-            entities = self._list_diagram_entities(file_space, file_external_id, page)
-            linked: set[tuple[str, str]] = set()
-            for entity in entities:
-                annotation = entity.get("annotationId")
-                if not isinstance(annotation, dict):
-                    continue
-                annotation_space = annotation.get("space")
-                annotation_external_id = annotation.get("externalId")
-                if not isinstance(annotation_space, str) or not isinstance(annotation_external_id, str):
-                    continue
-                identity = (annotation_space, annotation_external_id)
-                if identity not in annotation_ids:
-                    continue
-                linked.add(identity)
-                if entity.get("isAssetVerified") is True:
-                    continue
-                entity_external_id = entity.get("externalId")
-                if isinstance(entity_external_id, str) and entity_external_id:
-                    updates.append({"externalId": entity_external_id, "update": {"isAssetVerified": True}})
-            missing = len(annotation_ids - linked)
-            if missing:
-                self.logger.debug(
-                    f"No diagram entity linked to {missing} approved annotation(s) on "
-                    f"({file_space}, {file_external_id}) page {page}."
-                )
-
-        if not updates:
-            return
-        self._update_diagram_entities(updates)
-
-    def _annotation_page(self, edge: Edge) -> int:
-        """Page number Diagram parsing uses for this annotation. The first page is 1."""
-        properties: dict[str, object] = (edge.properties or {}).get(self.core_annotation_view.as_view_id()) or {}
-        page = properties.get("startNodePageNumber")
-        if isinstance(page, int) and page >= 1:
-            return page
-        return 1
-
-    def _diagram_parsing_path(self, suffix: str) -> str:
-        project = quote(self.client.config.project, safe="")
-        return f"/api/v1/projects/{project}{suffix}"
-
-    def _diagram_parsing_headers(self) -> dict[str, str]:
-        return {"cdf-version": self._DIAGRAM_PARSING_VERSION}
-
-    def _list_diagram_entities(self, file_space: str, file_external_id: str, page: int) -> list[dict[str, object]]:
-        path = f"/diagram-parsing/diagrams/{quote(file_space, safe='')}/{quote(file_external_id, safe='')}/{page}"
-        try:
-            response = self.client.get(self._diagram_parsing_path(path), headers=self._diagram_parsing_headers())
-        except CogniteAPIError as error:
-            if error.code == 404:
-                self.logger.debug(
-                    f"No parsed diagram for ({file_space}, {file_external_id}) page {page}; isAssetVerified was not set."
-                )
-            else:
-                self.logger.warning(
-                    f"Could not read diagram entities for ({file_space}, {file_external_id}) page {page}: {error}"
-                )
-            return []
-        try:
-            payload: object = response.json()
-        except ValueError as error:
-            self.logger.warning(f"Diagram parsing returned a body that is not JSON: {error}")
-            return []
-        if not isinstance(payload, dict):
-            return []
-        entities = payload.get("entities")
-        if not isinstance(entities, list):
-            return []
-        return [entity for entity in entities if isinstance(entity, dict)]
-
-    def _update_diagram_entities(self, items: list[dict[str, object]]) -> None:
-        try:
-            self.client.post(
-                self._diagram_parsing_path("/diagram-parsing/entities/update"),
-                json={"items": items},
-                headers=self._diagram_parsing_headers(),
-            )
-        except CogniteAPIError as error:
-            self.logger.warning(f"Could not set isAssetVerified on {len(items)} diagram entities: {error}")
-            return
-        self.logger.info(f"Set isAssetVerified on {len(items)} diagram entities.")
 
     def _prepare_edge_update(
         self, edge: Edge, found_entities: list[MatchedEntity]
