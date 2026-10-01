@@ -580,6 +580,38 @@ class TestBuildOverlay:
         assert "cdm" not in mods
 
 
+class TestCheckConfigDiff:
+    """``diff_config`` just reports divergence from the base template — any key,
+    including a data-model version bump on an extended module. The caller
+    (``_run_check``) treats every entry as a warning, never a hard failure:
+    foundation DP is a base that projects are expected to extend and evolve past."""
+
+    def test_mismatch_is_reported(self) -> None:
+        from setup_project import diff_config
+        config = {"variables": {"modules": {"my_datamodel": {"dm_version": "v2"}}}}
+        expected = {"my_datamodel.dm_version": "v1"}
+        errors = diff_config(config, expected)
+        assert errors == ["    my_datamodel.dm_version: got 'v2', expected 'v1'"]
+
+    def test_matching_value_reports_nothing(self) -> None:
+        from setup_project import diff_config
+        config = {"variables": {"modules": {"my_datamodel": {"dm_version": "v1"}}}}
+        expected = {"my_datamodel.dm_version": "v1"}
+        assert diff_config(config, expected) == []
+
+    def test_missing_key_is_reported(self) -> None:
+        from setup_project import diff_config
+        expected = {"my_datamodel.dm_version": "v1"}
+        errors = diff_config({"variables": {"modules": {}}}, expected)
+        assert errors == ["    my_datamodel.dm_version: got None, expected 'v1'"]
+
+    def test_invalid_config_type_is_reported(self) -> None:
+        from setup_project import diff_config
+        expected = {"my_datamodel.dm_version": "v1"}
+        errors = diff_config([], expected)
+        assert errors == ["    (invalid config file format — expected a dictionary)"]
+
+
 class TestModuleDataset:
     """Extractor data sets follow ds_<data_type>_<location>, the same location scoping
     the extraction pipelines (ep_<location>_<type>) and instance spaces already use.
