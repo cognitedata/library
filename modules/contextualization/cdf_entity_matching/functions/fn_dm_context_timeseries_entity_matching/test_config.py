@@ -17,7 +17,6 @@ def test_config_accepts_raw_table_ctx_keys_from_pipeline_yaml() -> None:
     raw_config = yaml.safe_load(
         """
         parameters:
-          debug: false
           runAll: true
           dmUpdate: true
           removeOldLinks: false

@@ -174,32 +174,31 @@ class BatchProcessor:
 
 # ===== UTILITY FUNCTIONS =====
 
-# Equipment tags start with a two-digit area code. Document numbers and pump codes do not,
-# so only tag-shaped aliases get separator normalization.
-_TAG_ALIAS_SHAPE = re.compile(r"^[0-9]{2}[-_.:[A-Z0-9]")
+# Separators that aliases always rewrite to a single underscore.
+_ALIAS_SEPARATORS = re.compile(r"[-_.:]+")
 
 
 def _normalize_alias_tokens(alias: str) -> str:
-    """Replace tag separator characters with underscores between tokens.
+    """Replace separator characters with hyphens between tokens.
 
-    Multi-group patterns already join their groups with "_". A single capture group that
-    holds the whole tag still carries "-", "." or ":" from the name unless those are
-    rewritten here.
+    Multi-group patterns already join their groups with "-". A single capture group that
+    holds the whole tag still carries "_", "." or ":" from the name unless those are
+    rewritten here. Applied to every generated alias, including letter-prefixed tags and
+    document numbers.
     """
-    if not _TAG_ALIAS_SHAPE.match(alias):
-        return alias
-    return re.sub(r"[-_.:]+", "_", alias)
+    return _ALIAS_SEPARATORS.sub("-", alias)
 
 
 def _generated_alias(name: str, pattern: re.Pattern[str]) -> str | None:
-    """The alias derived from a name - the pattern's capture groups joined by "_".
+    """The alias derived from a name - the pattern's capture groups joined by "-".
 
     A configured pattern may make a group optional, and an optional group that does not
     participate in the match captures None. Those are left out rather than joined, which
     would raise a TypeError.
 
-    Tag-shaped aliases always use "_" between tokens, whether the pattern captured several
-    groups or one group holding the whole tag.
+    Tag-shaped aliases always use "-" between tokens, whether the pattern captured several
+    groups or one group holding the whole tag. Letter-prefixed tags and document numbers
+    are rewritten the same way.
 
     Returns:
         The alias, or None when the name holds no tag.
@@ -207,7 +206,7 @@ def _generated_alias(name: str, pattern: re.Pattern[str]) -> str | None:
     match = pattern.search(name)
     if not match:
         return None
-    alias = "_".join(group for group in match.groups() if group is not None)
+    alias = "-".join(group for group in match.groups() if group is not None)
     return _normalize_alias_tokens(alias) if alias else None
 
 
@@ -241,22 +240,32 @@ def _generated_aliases(name: str, rule: AliasRule) -> list[str]:
     return aliases
 
 
+def _is_generated_alias(alias: str, rule: AliasRule) -> bool:
+    """Whether this function produced `alias`, including a pre-normalization spelling.
+
+    An alias is ours when feeding it back through any of the rule's patterns yields the
+    same string after separator rewrite. That treats `23_DB_9101` as generated once the
+    function writes `23-DB-9101`, so updateAll rebuilds it instead of keeping both.
+    """
+    normalized = _normalize_alias_tokens(alias)
+    return any(
+        generated is not None and generated in {alias, normalized}
+        for generated in (_generated_alias(alias, pattern) for pattern in rule.patterns)
+    )
+
+
 def _unmanaged_aliases(aliases: list[str], rule: AliasRule) -> list[str]:
     """Return the aliases this function did not generate, preserving their order.
 
     An alias is ours when feeding it back through any of the rule's patterns reproduces
-    it exactly. That leaves hand-curated values alone whether they merely contain a tag
-    ("spare for 23-AB-1234") or spell one differently ("23-KA-9101").
+    it after separator normalization. That leaves hand-curated values alone, including
+    notes that merely mention a tag ("spare for 23-AB-1234").
 
     Every pattern is checked even under "longest", so an alias a previous run wrote from
     a pattern that no longer wins - or from a longer pattern list - is still recognised
     and rebuilt rather than left behind.
     """
-    return [
-        alias
-        for alias in aliases
-        if not any(_generated_alias(alias, pattern) == alias for pattern in rule.patterns)
-    ]
+    return [alias for alias in aliases if not _is_generated_alias(alias, rule)]
 
 
 def _dedupe_preserve_order(aliases: Sequence[str]) -> list[str]:
@@ -322,11 +331,25 @@ def _merge_file_aliases(
     name: str,
     rule: AliasRule,
 ) -> tuple[str, ...]:
-    """Return existing aliases plus the file name stem and any tag aliases from the name."""
+    """Return existing aliases plus pattern aliases, and the file stem when a pattern hit.
+
+    The stem is only added when a pattern produced a tag. A name that matches nothing
+    must not be rewritten into an alias, and a leftover stem from an earlier run is
+    dropped.
+    """
+    generated = _generated_aliases(name, rule)
+    stem = _file_name_without_extension(name)
+    stem_spellings = {stem, _normalize_alias_tokens(stem)} if stem else set()
+    if not generated:
+        return tuple(alias for alias in existing if alias not in stem_spellings)
+
     aliases = list(existing)
-    for candidate in [_file_name_without_extension(name), *_generated_aliases(name, rule)]:
-        if candidate and candidate not in aliases:
-            aliases.append(candidate)
+    normalized_stem = _normalize_alias_tokens(stem) if stem else ""
+    if normalized_stem and normalized_stem not in aliases:
+        aliases.append(normalized_stem)
+    for alias in generated:
+        if alias not in aliases:
+            aliases.append(alias)
     return tuple(aliases)
 
 
@@ -436,7 +459,7 @@ class OptimizedMetadataProcessor:
             update_needed = False
             properties_dict: dict[str, list[str] | None] = {}
 
-            if update_all or upd_aliases != org_aliases:
+            if upd_aliases != org_aliases:
                 properties_dict["aliases"] = _alias_property_value(upd_aliases)
                 update_needed = True
             
@@ -509,7 +532,7 @@ class OptimizedMetadataProcessor:
             update_needed = False
             properties_dict: dict[str, list[str] | None] = {}
 
-            if update_all or upd_aliases != org_aliases:
+            if upd_aliases != org_aliases:
                 properties_dict["aliases"] = _alias_property_value(upd_aliases)
                 update_needed = True
             
@@ -588,7 +611,7 @@ class OptimizedMetadataProcessor:
 
             self.stats['processed'] += 1
 
-            if not update_all and not remove_old_aliases and upd_aliases == org_aliases:
+            if upd_aliases == org_aliases:
                 return None
 
             self.stats['updated'] += 1
@@ -638,9 +661,8 @@ class OptimizedMetadataProcessor:
     ) -> tuple[str, ...]:
         """Optimized file alias generation with caching.
 
-        A document is searched for both by its bare file name and by the tag it refers
-        to, so it gets the name with the extension removed plus the usual tag aliases.
-        The name is not a pattern match, so aliasSelection does not apply to it.
+        A document that matches a pattern is searched for both by its bare file name and
+        by the tag it refers to. A name that matches no pattern produces no alias.
         """
         return _merge_file_aliases(aliases_tuple, name, rule)
 

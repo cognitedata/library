@@ -72,7 +72,6 @@ def _config(
     return Config.model_validate(
         {
             "parameters": {
-                "debug": False,
                 "runAll": True,
                 "dmUpdate": True,
                 "removeOldLinks": False,
@@ -494,6 +493,44 @@ def test_entity_keeps_the_usable_aliases_and_drops_the_empty_ones() -> None:
     entities = get_new_entities(client, config, MagicMock())
 
     assert [entity[KEY_NAME] for entity in entities] == ["pi:1"]
+
+
+def test_entity_keeps_only_the_longest_alias_from_a_list() -> None:
+    """Multiple entity aliases would otherwise duplicate one timeseries in the match set."""
+    config = _config("inst_asset", "inst_ts", ALIAS_PROP)
+    view_id = config.data.entity_view.as_view_id()
+    client = MagicMock()
+    client.data_modeling.instances.list.return_value = [
+        Instance(
+            "inst_ts",
+            "ts:1",
+            {view_id: {PROP_COL_NAME: "23-KA-9101", ALIAS_PROP: ["KA_9101", "23_KA_9101", "KA-9101"]}},
+        )
+    ]
+
+    entities = get_new_entities(client, config, MagicMock())
+
+    assert [entity[KEY_NAME] for entity in entities] == ["23_KA_9101"]
+
+
+def test_target_keeps_all_usable_aliases_from_a_list() -> None:
+    """Targets may expose every alias spelling so any of them can match."""
+    config = _config("inst_asset", "inst_ts", ALIAS_PROP)
+    view_id = config.data.target_view.as_view_id()
+    client = MagicMock()
+    client.data_modeling.instances.list = _fake_instances_list(
+        [
+            Instance(
+                "inst_asset",
+                "asset-a",
+                {view_id: {PROP_COL_NAME: "23-KA-9101", ALIAS_PROP: ["KA_9101", "23_KA_9101"]}},
+            )
+        ]
+    )
+
+    targets = get_all_targets(client, MagicMock(), config)
+
+    assert [target[KEY_NAME] for target in targets] == ["KA_9101", "23_KA_9101"]
 
 
 def test_target_with_an_empty_alias_list_matches_on_its_name() -> None:

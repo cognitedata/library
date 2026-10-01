@@ -1,11 +1,12 @@
-
 import yaml
 from cognite.client import CogniteClient
 from cognite.client import data_modeling as dm
 from cognite.client.exceptions import CogniteAPIError
-from pipeline_types import FunctionInputData
 from pydantic import BaseModel, Field, field_validator
 from pydantic.alias_generators import to_camel
+
+# isort: split
+from em_pipeline_types import FunctionInputData
 
 
 # Configuration classes
@@ -49,19 +50,15 @@ class ViewPropertyConfig(BaseModel, alias_generator=to_camel):
     def as_property_ref(self, property_name: str) -> list[str]:
         return [self.schema_space, f"{self.external_id}/{self.version}", property_name]
 
+
 class ConfigData(BaseModel, alias_generator=to_camel):
     entity_view: ViewPropertyConfig
     target_view: ViewPropertyConfig
 
+
 class Config(BaseModel, alias_generator=to_camel):
     parameters: Parameters
     data: ConfigData
-
-    @classmethod
-    def pares_direct_relation(cls, value: object) -> object:
-        if isinstance(value, dict):
-            return dm.DirectRelationReference.load(value)
-        return value
 
 
 def load_config_parameters(client: CogniteClient, function_data: FunctionInputData) -> Config:
@@ -78,3 +75,43 @@ def load_config_parameters(client: CogniteClient, function_data: FunctionInputDa
         raise RuntimeError(f"Not able to retrieve pipeline config for extraction pipeline: {pipeline_ext_id!r}") from e
 
     return Config.model_validate(yaml.safe_load(raw_config.config))
+
+
+def _view_summary_lines(label: str, view: ViewPropertyConfig) -> list[str]:
+    return [
+        f"  {label}:",
+        f"    schemaSpace: {view.schema_space}",
+        f"    instanceSpace: {', '.join(view.instance_spaces)}",
+        f"    externalId: {view.external_id}",
+        f"    version: {view.version}",
+        f"    searchProperty: {view.search_property}",
+        f"    filterProperty: {view.filter_property}",
+        f"    filterValues: {view.filter_values}",
+    ]
+
+
+def format_config_summary(config: Config) -> str:
+    """The effective configuration, formatted for the startup log.
+
+    Both functions read the same extraction pipeline configuration, so an operator
+    comparing a submit run with the collect run that finishes it sees the same block in
+    both logs.
+    """
+    parameters = config.parameters
+    lines = [
+        "Extraction pipeline parameters:",
+        f"  runAll: {parameters.run_all}",
+        f"  dmUpdate: {parameters.dm_update}",
+        f"  removeOldLinks: {parameters.remove_old_links}",
+        f"  autoApprovalThreshold: {parameters.auto_approval_threshold}",
+        f"  rawDb: {parameters.raw_db}",
+        f"  rawTableState: {parameters.raw_table_state}",
+        f"  rawTableCtxGood: {parameters.raw_table_ctx_good}",
+        f"  rawTableCtxBad: {parameters.raw_table_ctx_bad}",
+        f"  rawTableCtxManual: {parameters.raw_table_ctx_manual}",
+        f"  rawTableCtxRule: {parameters.raw_table_ctx_rule}",
+        "Views:",
+    ]
+    lines.extend(_view_summary_lines("entityView", config.data.entity_view))
+    lines.extend(_view_summary_lines("targetView", config.data.target_view))
+    return "\n".join(lines)
