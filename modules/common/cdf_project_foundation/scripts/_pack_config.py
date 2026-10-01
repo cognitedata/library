@@ -95,7 +95,7 @@ def get_org_dir_name(repo_root: Path | None = None) -> str | None:
     if not toml_path.exists():
         return None
     try:
-        data = tomllib.loads(toml_path.read_text())
+        data = tomllib.loads(toml_path.read_text(encoding="utf-8"))
         default_dir = data.get("cdf", {}).get("default_organization_dir")
         if isinstance(default_dir, str):
             value = default_dir.strip()
@@ -231,7 +231,7 @@ def detect_pack_kind(sourcesystem_dir: Path) -> PackKind:
 
 def load_yaml(path: Path) -> dict:
     try:
-        return yaml.safe_load(path.read_text()) or {}
+        return yaml.safe_load(path.read_text(encoding="utf-8")) or {}
     except yaml.YAMLError as e:
         header = t("ERROR: Failed to parse YAML file {path}:").format(path=path)
         raise SystemExit(f"{header}\n  {e}") from e
