@@ -239,7 +239,7 @@ def _run_promote(config: Config, files: list[object], edges: list[MagicMock]) ->
     logger = MagicMock()
     service = GeneralPromoteService(client, config, logger, MagicMock(), entity_search, cache)
     service._get_promote_candidates = MagicMock(return_value=edges)
-    service._prepare_edge_update = MagicMock(return_value=(None, None))
+    service._prepare_edge_update = MagicMock(return_value=(None, None, None))
     service.run()
     return client, entity_search, cache
 
@@ -255,7 +255,7 @@ def test_promote_searches_each_text_in_the_space_of_the_file_it_was_found_in() -
     cache.is_no_match_in_memory.return_value = False
     service = GeneralPromoteService(MagicMock(), _config(None, None), MagicMock(), MagicMock(), entity_search, cache)
     service._get_promote_candidates = MagicMock(return_value=[_edge("plant_a", "P-101"), _edge("plant_b", "P-101")])
-    service._prepare_edge_update = MagicMock(return_value=(None, None))
+    service._prepare_edge_update = MagicMock(return_value=(None, None, None))
 
     service.run()
 

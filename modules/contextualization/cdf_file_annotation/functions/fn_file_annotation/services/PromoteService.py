@@ -148,6 +148,9 @@ class GeneralPromoteService(IPromoteService):
         self.delete_suggested_edges: bool = self.config.promote_function.delete_suggested_edges
         self.promote_file_entities: bool = self.config.promote_function.promote_file_entities
         self.promote_target_entities: bool = self.config.promote_function.promote_target_entities
+        apply_config = self.config.finalize_function.apply_service
+        self.asset_suggest_threshold: float = apply_config.asset_auto_suggest_threshold
+        self.file_suggest_threshold: float = apply_config.file_auto_suggest_threshold
 
         # Injected service dependencies
         self.entity_search_service = entity_search_service
@@ -292,27 +295,37 @@ class GeneralPromoteService(IPromoteService):
                             and found_entities[0].external_id == edge.start_node.external_id
                         )
 
+                        if len(found_entities) >= 2:
+                            batch_ambiguous += 1
+                            edge_apply, raw_row, original_to_delete = self._prepare_ambiguous_edge(
+                                edge, found_entities
+                            )
+                            if edge_apply is not None:
+                                edges_to_update.append(edge_apply)
+                            if raw_row is not None:
+                                raw_rows_to_update.append(raw_row)
+                            if original_to_delete is not None:
+                                edges_to_delete.append(original_to_delete)
+                                ambiguous_to_delete += 1
+                            continue
+
                         if len(found_entities) == 1 and not is_self_reference:
                             batch_promoted += 1
                             should_delete = False
-                        elif len(found_entities) == 0 or is_self_reference:
+                        else:  # No match or self-reference
                             batch_rejected += 1
                             should_delete = self.delete_rejected_edges
-                        else:  # Multiple matches
-                            batch_ambiguous += 1
-                            should_delete = self.delete_suggested_edges
 
-                        edge_apply, raw_row = self._prepare_edge_update(edge, found_entities)
+                        edge_apply, raw_row, edge_to_relocate = self._prepare_edge_update(edge, found_entities)
 
                         if should_delete:
                             edges_to_delete.append(EdgeId(edge.space, edge.external_id))
-                            if len(found_entities) == 0 or is_self_reference:
-                                rejected_to_delete += 1
-                            else:
-                                ambiguous_to_delete += 1
+                            rejected_to_delete += 1
                             if raw_row is not None:
                                 raw_rows_to_update.append(raw_row)
                         else:
+                            if edge_to_relocate is not None:
+                                edges_to_delete.append(edge_to_relocate)
                             if edge_apply is not None:
                                 edges_to_update.append(edge_apply)
                             if raw_row is not None:
@@ -345,7 +358,7 @@ class GeneralPromoteService(IPromoteService):
                         )
                     if ambiguous_to_delete:
                         self.logger.info(
-                            f"Sent {ambiguous_to_delete} ambiguous edges to the data model for deletion.",
+                            f"Replaced {ambiguous_to_delete} ambiguous sink edge(s) with Suggested candidate edge(s).",
                             section="END",
                         )
             except CogniteAPIError as e:
@@ -566,8 +579,13 @@ class GeneralPromoteService(IPromoteService):
             return [MatchedEntity.from_cached_info(cached_info)]
 
         if self.cache_service.is_ambiguous_in_memory(text, annotation_type, entity_space, scope_key=scope_key):
-            self.logger.debug(f"✓ [CACHE] Using in-memory ambiguous marker for '{text}' (skipping search)")
-            return [MatchedEntity(space="", external_id=""), MatchedEntity(space="", external_id="")]
+            cached_ambiguous = self.cache_service.get_ambiguous_entities(
+                text, annotation_type, entity_space, scope_key=scope_key
+            )
+            if cached_ambiguous:
+                self.logger.debug(f"✓ [CACHE] Using in-memory ambiguous candidates for '{text}' (skipping search)")
+                return [MatchedEntity.from_cached_info(info) for info in cached_ambiguous]
+            self.logger.debug(f"✓ [CACHE] Ambiguous marker for '{text}' without candidates — re-searching")
 
         if self.cache_service.is_no_match_in_memory(text, annotation_type, entity_space, scope_key=scope_key):
             self.logger.debug(f"✓ [CACHE] Using in-memory NO_MATCH marker for '{text}' (skipping search)")
@@ -605,25 +623,41 @@ class GeneralPromoteService(IPromoteService):
             )
             return []
         else:
-            # Ambiguous - cache negative result (in-memory AMBIGUOUS)
+            # Ambiguous - cache candidates in-memory for Suggested edge expansion
+            matched_entities = [MatchedEntity.from_node(node, target_view_id) for node in found_nodes]
             try:
-                self.cache_service.set_ambiguous(text, annotation_type, entity_space, scope_key=scope_key)
+                self.cache_service.set_ambiguous(
+                    text,
+                    annotation_type,
+                    entity_space,
+                    scope_key=scope_key,
+                    entities=[
+                        CachedEntityInfo(
+                            space=matched.space,
+                            external_id=matched.external_id,
+                            resource_type=matched.resource_type,
+                        )
+                        for matched in matched_entities
+                    ],
+                )
                 self.logger.debug(f"✓ [CACHE] Marked '{text}' as ambiguous in memory")
             except (CogniteAPIError, ValueError, TypeError) as e:
                 self.logger.debug(f"[CACHE] Failed to set ambiguous marker for '{text}' (continuing): {e}")
 
-            return [MatchedEntity.from_node(node, target_view_id) for node in found_nodes]
+            return matched_entities
 
     def _prepare_edge_update(
         self, edge: Edge, found_entities: list[MatchedEntity]
-    ) -> tuple[EdgeApply | None, RowWrite | None]:
+    ) -> tuple[EdgeApply | None, RowWrite | None, EdgeId | None]:
         """
         Prepares updates for both data model edge and RAW table based on entity search results.
 
         Handles three scenarios:
         1. Single match (len==1): Mark as "Approved", point edge to entity, add "PromotedAuto" tag
         2. No match (len==0): Mark as "Rejected", keep pointing to sink, add "PromoteAttempted" tag
-        3. Ambiguous (len>=2): Keep "Suggested", add "PromoteAttempted" and "AmbiguousMatch" tags
+        3. Self-reference (len==1 to start node): Mark as "Rejected"
+
+        Ambiguous matches (len>=2) are handled by ``_prepare_ambiguous_edge``.
 
         For all cases:
         - Retrieves existing RAW row to preserve all data
@@ -631,23 +665,28 @@ class GeneralPromoteService(IPromoteService):
         - Updates RAW row with same changes
         - Returns both for atomic update
 
+        When a pattern-mode edge is promoted, it is written in the file instance space (same as
+        regular diagram-detect annotations) and the caller deletes the copy in the pattern space.
+
         Args:
             edge: The annotation edge to update (pattern-mode annotation)
             found_entities: List of matched entities from cache or search
                 - [] = no match
-                - [entity] = single unambiguous match
-                - [entity1, entity2] = ambiguous (multiple matches)
+                - [entity] = single unambiguous match (or self-reference)
 
         Returns:
-            Tuple of (EdgeApply, RowWrite):
+            Tuple of (EdgeApply, RowWrite, EdgeId | None):
             - EdgeApply: Edge update for data model
             - RowWrite: Row update for RAW table
-            Both will always be returned (never None).
+            - EdgeId: Pattern-space edge to delete after a successful relocate, if any
         """
         # Get the current edge properties before creating the write version
         edge_props: dict[str, object] = edge.properties.get(self.core_annotation_view.as_view_id(), {})
         current_tags: object = edge_props.get("tags", [])
         updated_tags: list[str] = list(current_tags) if isinstance(current_tags, list) else []
+
+        file_instance_space = edge.start_node.space
+        edge_to_relocate: EdgeId | None = None
 
         # Now create the write version
         edge_apply: EdgeApply = edge.as_write()
@@ -680,6 +719,16 @@ class GeneralPromoteService(IPromoteService):
             update_properties["status"] = DiagramAnnotationStatus.APPROVED.value
             updated_tags = add_unique_tags(updated_tags, "PromotedAuto")
 
+            if edge.space != file_instance_space:
+                edge_to_relocate = EdgeId(edge.space, edge.external_id)
+                edge_apply.space = file_instance_space
+                # as_write() copies the pattern-space version; the file-space edge is a create.
+                edge_apply.existing_version = None
+                self.logger.debug(
+                    f"\t- Relocating promoted edge from ({edge.space}, {edge.external_id}) "
+                    f"to file space {file_instance_space}."
+                )
+
             # Update RAW row with new end node information
             raw_data["endNode"] = matched_entity.external_id
             raw_data["endNodeSpace"] = matched_entity.space
@@ -703,7 +752,7 @@ class GeneralPromoteService(IPromoteService):
             # Update RAW row status
             raw_data["status"] = DiagramAnnotationStatus.REJECTED.value
 
-        elif len(found_entities) == 0:  # Failure - no match found (or normalizePatterns filtered the text)
+        else:  # Failure - no match found (or normalizePatterns filtered the text)
             start_text = edge_props.get("startNodeText")
             start_text_str = str(start_text) if start_text is not None else ""
             annotation_type = edge.type.external_id
@@ -728,23 +777,128 @@ class GeneralPromoteService(IPromoteService):
             # Update RAW row status
             raw_data["status"] = DiagramAnnotationStatus.REJECTED.value
 
-        else:  # Ambiguous - multiple matches found
-            self.logger.debug(
-                f"⚠ Multiple matches found for '{edge_props.get('startNodeText')}'.\n\t- Ambiguous edge: ({edge.space}, {edge.external_id})\n\t- Start node: ({edge.start_node.space}, {edge.start_node.external_id})."
-            )
-            updated_tags = add_unique_tags(updated_tags, "PromoteAttempted", "AmbiguousMatch")
-
-            # Don't change status, just add tags to RAW
-            raw_data["status"] = edge_props.get("status", DiagramAnnotationStatus.SUGGESTED.value)
-
-        # Update edge properties
+        # Update edge properties. Merge into the existing props so a relocate create
+        # (new space) still carries startNodeText, bbox, sourceCreatedUser, etc.
         update_properties["tags"] = updated_tags
         raw_data["tags"] = updated_tags
+        merged_properties = dict(edge_props)
+        merged_properties.update(update_properties)
         edge_apply.sources[0] = NodeOrEdgeData(
-            source=self.core_annotation_view.as_view_id(), properties=update_properties
+            source=self.core_annotation_view.as_view_id(), properties=merged_properties
         )
 
         # Create RowWrite object for RAW table update
         raw_row: RowWrite | None = RowWrite(key=edge.external_id, columns=raw_data) if raw_data else None
 
-        return edge_apply, raw_row
+        return edge_apply, raw_row, edge_to_relocate
+
+    def _suggest_threshold_for_type(self, annotation_type: str) -> float:
+        """Configured auto-suggest threshold for this annotation type."""
+        if annotation_type == "diagrams.FileLink":
+            return self.file_suggest_threshold
+        return self.asset_suggest_threshold
+
+    def _prepare_ambiguous_edge(
+        self, edge: Edge, found_entities: list[MatchedEntity]
+    ) -> tuple[EdgeApply | None, RowWrite | None, EdgeId | None]:
+        """
+        Replaces a sink-pointing pattern edge with one Suggested edge to the first candidate.
+
+        Other candidates are listed in ``description`` for a custom picker. Confidence is set to
+        the configured auto-suggest threshold (not the pattern detect confidence of 1). The edge
+        is written in the file instance space so Fusion can resolve the end node; the caller
+        deletes the original pattern-space edge when relocating.
+
+        Args:
+            edge: Pattern-mode annotation still pointing at the sink.
+            found_entities: Two or more matched entities from search/cache.
+
+        Returns:
+            EdgeApply, RAW row, and the original edge id to delete when space changes (or always
+            when replacing the sink stub in pattern space).
+        """
+        view_id = self.core_annotation_view.as_view_id()
+        edge_props: dict[str, object] = dict(edge.properties.get(view_id, {}) or {})
+        current_tags: object = edge_props.get("tags", [])
+        base_tags: list[str] = list(current_tags) if isinstance(current_tags, list) else []
+        candidate_tags = add_unique_tags(base_tags, "PromoteAttempted", "AmbiguousMatch")
+        file_instance_space = edge.start_node.space
+        annotation_type = edge.type.external_id
+        confidence = self._suggest_threshold_for_type(annotation_type)
+
+        raw_data: dict[str, object] = {}
+        try:
+            existing_row: Row | None = self.client.raw.rows.retrieve(
+                db_name=self.raw_db, table_name=self.raw_pattern_table, key=edge.external_id
+            )
+            if existing_row and existing_row.columns:
+                raw_data = dict(existing_row.columns.items())
+        except CogniteAPIError as e:
+            self.logger.warning(f"Could not retrieve RAW row for edge {edge.external_id}: {e}")
+
+        candidates = [
+            entity
+            for entity in found_entities
+            if entity.external_id
+            and not (entity.space == edge.start_node.space and entity.external_id == edge.start_node.external_id)
+        ]
+        if not candidates:
+            self.logger.warning(
+                f"Ambiguous match for '{edge_props.get('startNodeText')}' had no usable candidates; "
+                f"leaving sink edge ({edge.space}, {edge.external_id}) unchanged."
+            )
+            return None, None, None
+
+        primary = candidates[0]
+        alternatives = candidates[1:]
+        description = self._ambiguous_alternatives_description(alternatives)
+        self.logger.debug(
+            f"⚠ Ambiguous match for '{edge_props.get('startNodeText')}': "
+            f"linking Suggested edge to {primary.external_id} "
+            f"(alternatives: {', '.join(f'{a.space}/{a.external_id}' for a in alternatives) or 'none'}); "
+            f"confidence={confidence}."
+        )
+
+        properties = dict(edge_props)
+        properties["status"] = DiagramAnnotationStatus.SUGGESTED.value
+        properties["confidence"] = confidence
+        properties["tags"] = list(candidate_tags)
+        properties["description"] = description
+
+        edge_to_delete: EdgeId | None = None
+        edge_space = edge.space
+        existing_version: int | None = edge.version if hasattr(edge, "version") else None
+        if edge.space != file_instance_space:
+            edge_to_delete = EdgeId(edge.space, edge.external_id)
+            edge_space = file_instance_space
+            existing_version = None
+
+        edge_apply = EdgeApply(
+            space=edge_space,
+            external_id=edge.external_id,
+            type=edge.type,
+            start_node=edge.start_node,
+            end_node=DirectRelationReference(primary.space, primary.external_id),
+            existing_version=existing_version,
+            sources=[NodeOrEdgeData(source=view_id, properties=properties)],
+        )
+
+        raw_data["endNode"] = primary.external_id
+        raw_data["endNodeSpace"] = primary.space
+        raw_data["status"] = DiagramAnnotationStatus.SUGGESTED.value
+        raw_data["confidence"] = confidence
+        raw_data["tags"] = list(candidate_tags)
+        raw_data["description"] = description
+        if primary.resource_type:
+            raw_data["endNodeResourceType"] = primary.resource_type
+        raw_row = RowWrite(key=edge.external_id, columns=raw_data)
+
+        return edge_apply, raw_row, edge_to_delete
+
+    @staticmethod
+    def _ambiguous_alternatives_description(alternatives: list[MatchedEntity]) -> str:
+        """Parseable description listing candidate entities not used as endNode."""
+        if not alternatives:
+            return "AmbiguousMatch alternatives: none"
+        refs = "; ".join(f"{entity.space}/{entity.external_id}" for entity in alternatives)
+        return f"AmbiguousMatch alternatives: {refs}"

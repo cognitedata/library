@@ -292,9 +292,9 @@ flowchart TD
     NoCache --> ProcessResult
 
     ProcessResult --> UpdateEdges{Result type?}
-    UpdateEdges -->|Single Match| ApproveEdges[Update ALL edges with this text:<br/>- Point to matched entity<br/>- Status: Approved<br/>- Tag: PromotedAuto<br/>- Update RAW pattern table]
+    UpdateEdges -->|Single Match| ApproveEdges[Update ALL edges with this text:<br/>- Point to matched entity<br/>- Move edge to file instance space<br/>- Status: Approved<br/>- Tag: PromotedAuto<br/>- Update RAW pattern table]
     UpdateEdges -->|No Match| RejectEdges[Update ALL edges with this text:<br/>- Keep on sink node<br/>- Status: Rejected<br/>- Tag: PromoteAttempted<br/>- Update RAW pattern table]
-    UpdateEdges -->|Ambiguous| FlagEdges[Update ALL edges with this text:<br/>- Keep on sink node<br/>- Status: Suggested<br/>- Tags: PromoteAttempted,<br/>  AmbiguousMatch<br/>- Update RAW pattern table]
+    UpdateEdges -->|Ambiguous| FlagEdges[Replace sink edge with one Suggested<br/>edge to first candidate in file space<br/>Other IDs in description<br/>confidence = AutoSuggestThreshold<br/>Tags: PromoteAttempted, AmbiguousMatch]
 
     ApproveEdges --> BatchUpdate[Batch update edges<br/>and RAW rows in CDF]
     RejectEdges --> BatchUpdate
@@ -396,8 +396,10 @@ Finalize and promote write annotation results to RAW. Use these tables for audit
 | Text that never matched any entity or regex pattern | **Not stored** — dropped in finalize when diagram detect returns no entities |
 
 Pattern rows with `status = 'Rejected'` and tag `PromoteAttempted` remain in RAW after
-promote deletes their sink-pointing DMS edges. Ambiguous `Suggested` edges remain in DMS
-for review.
+promote deletes their sink-pointing DMS edges. Ambiguous matches replace the sink edge with one
+`Suggested` edge to the first candidate (in the file instance space, confidence set to the
+configured auto-suggest threshold, other candidates listed in `description`, tagged
+`AmbiguousMatch`) so reviewers can approve or reject the link in the UI.
 
 The **Annotation Quality** Streamlit dashboard reads the same RAW tables and maps `Rejected` → "No Match".
 

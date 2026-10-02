@@ -144,6 +144,8 @@ class CacheService(ICacheService):
         # - CacheMarker.NO_MATCH: negative cache (no match) stored in-memory only
         # - CacheMarker.AMBIGUOUS: ambiguous marker (more than one match)
         self._memory_cache: dict[tuple[str, ...], CachedEntityInfo | CacheMarker] = {}
+        # Candidate entities for ambiguous texts (in-memory only, for Suggested edge expansion).
+        self._ambiguous_entities: dict[tuple[str, ...], list[CachedEntityInfo]] = {}
 
     def _memory_key(self, text: str, annotation_type: str, space: str, scope_key: str) -> tuple[str, ...]:
         if scope_key:
@@ -211,16 +213,34 @@ class CacheService(ICacheService):
         cache_key = self._memory_key(text, annotation_type, space, scope_key)
         return cache_key in self._memory_cache and self._memory_cache[cache_key] is CacheMarker.NO_MATCH
 
-    def set_ambiguous(self, text: str, annotation_type: str, space: str, scope_key: str = "") -> None:
+    def set_ambiguous(
+        self,
+        text: str,
+        annotation_type: str,
+        space: str,
+        scope_key: str = "",
+        entities: list[CachedEntityInfo] | None = None,
+    ) -> None:
         """
         Marks the given text/type as ambiguous in the space, in in-memory cache only.
 
         This avoids re-querying repeatedly for known ambiguous cases
         within the same function run. Ambiguous entries are NOT persisted to RAW.
+        When ``entities`` is provided they are kept so promote can create one Suggested
+        edge per candidate without searching again.
         """
         cache_key = self._memory_key(text, annotation_type, space, scope_key)
         self._memory_cache[cache_key] = CacheMarker.AMBIGUOUS
+        if entities is not None:
+            self._ambiguous_entities[cache_key] = entities
         self.logger.debug(f"✓ [CACHE] Cached ambiguous marker for '{text}' (in-memory only)")
+
+    def get_ambiguous_entities(
+        self, text: str, annotation_type: str, space: str, scope_key: str = ""
+    ) -> list[CachedEntityInfo] | None:
+        """Returns candidate entities stored with an ambiguous marker, if any."""
+        cache_key = self._memory_key(text, annotation_type, space, scope_key)
+        return self._ambiguous_entities.get(cache_key)
 
     def set_no_match(self, text: str, annotation_type: str, space: str, *, reason: str, scope_key: str = "") -> None:
         """
