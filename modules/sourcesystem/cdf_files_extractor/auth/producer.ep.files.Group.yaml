@@ -1,4 +1,4 @@
-name: producer_{{location}}_ep_files_{{environment}}
+name: producer_{{location}}_ep_file_{{sourceSystem}}_{{environment}}
 sourceId: {{extractor_group_source_id}}
 capabilities:
   - sessionsAcl:

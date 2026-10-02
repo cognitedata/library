@@ -47,11 +47,15 @@ SAP OData Extractor (single pipeline, 6 entity queries)
 
 | Resource | External ID | Purpose |
 |---|---|---|
-| ExtractionPipeline | `ep_{{location}}_sap` | Pipeline health tracking and config delivery |
+| ExtractionPipeline | `ep_maintenance_{{location}}_{{sourceSystem}}` | Pipeline health tracking and config delivery |
 | RAW Database | `db_{{location}}_sap` | SAP entity landing zone |
 | RAW Tables | `functional_location`, `equipment`, `workorder`, `workpackage`, `worktask`, `workitem`, `state_store` | One per OData query plus an extractor-managed state-store table |
 | DM Space | `{{instanceSpace}}` | Per-extractor instance space for DM instances |
-| Access Group | `producer_{{location}}_ep_sap_{{environment}}` | Scoped service-principal group for the SAP extractor |
+| Access Group | `producer_{{location}}_ep_sap_{{sourceSystem}}_{{environment}}` | Scoped service-principal group — one per extractor type × source system |
+
+Names follow the [CDF resource naming conventions](https://docs.cognite.com/cdf/deploy/reference/cdf_resource_naming_conventions):
+pipelines use `ep_{data_type}_{location}_{source}` and access groups use the persona-led
+pattern `producer_[{site}_]ep_{extractortype}_{sourcesystem}_{environment}`.
 
 ## Configuration
 
@@ -61,7 +65,8 @@ All variables are declared locally in `config.<env>.yaml` (no inheritance):
 variables:
   modules:
     cdf_sap_extractor:
-      location: "oslo"                                        # Site code, used in externalIds (ep_<location>_sap, db_<location>_sap)
+      location: "oslo"                                        # Site code, used in externalIds (ep_maintenance_<location>_<sourceSystem>, db_<location>_sap)
+      sourceSystem: "sap"                                     # Source system token, used in the pipeline ID and group name
       instanceSpace: "sp_oslo_sap"                           # Per-extractor DM instance space — computed by setup_project.py
       dataset: "ds_sap_oslo"                                  # ds_<data_type>_<location> — computed by setup_project.py
       sapPlant: "1000"                                        # SAP plant code, used in OData filter expressions (MaintPlant eq '<sapPlant>')
@@ -130,7 +135,23 @@ cdf deploy modules/sourcesystem/cdf_sap_extractor --env your-environment
 
 ### Configure and run the extractor
 
-The extractor config is delivered via the `ep_{{location}}_sap` extraction pipeline in CDF. Set the environment variables on the extractor host and start the extractor — it will pull its config from CDF automatically.
+The extractor config is delivered via the `ep_maintenance_{{location}}_{{sourceSystem}}` extraction pipeline in CDF. Set the environment variables on the extractor host and start the extractor — it will pull its config from CDF automatically.
+
+### Migrating from earlier versions
+
+The pipeline external ID changed from `ep_{{location}}_sap` to
+`ep_maintenance_{{location}}_{{sourceSystem}}`, and the access group from
+`producer_{{location}}_ep_sap_{{environment}}` to
+`producer_{{location}}_ep_sap_{{sourceSystem}}_{{environment}}`. To upgrade an existing
+deployment:
+
+1. Add `sourceSystem` to `cdf_sap_extractor` in each `config.<env>.yaml`.
+2. Run `cdf deploy`. This creates the new pipeline and group alongside the old ones.
+3. Update `extraction-pipeline.external-id` in the extractor host's local `config.yaml`,
+   then restart the extractor.
+4. Once the extractor reports runs on the new pipeline, delete the old pipeline and group
+   in Fusion. Toolkit does not remove them for you, and the new group keeps the same
+   `sourceId`, so no IdP change is needed.
 
 ### Verify
 

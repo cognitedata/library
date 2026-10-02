@@ -33,10 +33,14 @@ DB Extractor
 
 | Resource | External ID | Purpose |
 |---|---|---|
-| ExtractionPipeline | `ep_{{location}}_db_postgres` | Pipeline health tracking and config delivery |
+| ExtractionPipeline | `ep_table_{{location}}_{{sourceSystem}}` | Pipeline health tracking and config delivery |
 | RAW Database | `db_{{location}}_db_postgres` | Landing zone for query result rows |
 | DM Space | `{{instanceSpace}}` | Per-extractor instance space for DM instances |
-| Access Group | `producer_{{location}}_ep_db_{{environment}}` | Scoped service-principal group for the DB extractor |
+| Access Group | `producer_{{location}}_ep_db_{{sourceSystem}}_{{environment}}` | Scoped service-principal group — one per extractor type × source system |
+
+Names follow the [CDF resource naming conventions](https://docs.cognite.com/cdf/deploy/reference/cdf_resource_naming_conventions):
+pipelines use `ep_{data_type}_{location}_{source}` and access groups use the persona-led
+pattern `producer_[{site}_]ep_{extractortype}_{sourcesystem}_{environment}`.
 
 ## Configuration
 
@@ -46,7 +50,8 @@ All variables are declared locally in `config.<env>.yaml` (no inheritance):
 variables:
   modules:
     cdf_db_extractor:
-      location: "oslo"                                        # Site code, used in externalIds (ep_<location>_db_postgres, db_<location>_db_postgres)
+      location: "oslo"                                        # Site code, used in externalIds (ep_table_<location>_<sourceSystem>, db_<location>_db_postgres)
+      sourceSystem: "postgres"                                # Source system token, used in the pipeline ID and group name
       instanceSpace: "sp_oslo_db"                            # Per-extractor DM instance space — computed by setup_project.py
       dataset: "ds_db_postgres_oslo"                          # ds_<data_type>_<location> — computed by setup_project.py
 
@@ -92,8 +97,9 @@ example with a single query against `mytable`. Before production use:
 4. **Verify the RAW database name** in `destination.database` matches
    `db_{{location}}_db_postgres` so rows land in the database declared by this
    module.
-5. **If targeting a different DB engine**, rename this pipeline (and `dataset`)
-   accordingly, e.g. `ep_{{location}}_db_mssql` / `ds_db_mssql_{{location}}`.
+5. **If targeting a different DB engine**, set `sourceSystem` (e.g. `mssql`) so the
+   pipeline becomes `ep_table_{{location}}_mssql` and the group
+   `producer_{{location}}_ep_db_mssql_{{environment}}`.
 
 See `.cursor/rules/cdf-transformations.mdc` for AI-assisted guidance when
 authoring the downstream transformation from RAW into a data model.
@@ -114,7 +120,23 @@ cdf deploy modules/sourcesystem/cdf_db_extractor --env your-environment
 
 ### Configure and run the extractor
 
-The extractor config is delivered via the `ep_{{location}}_db_postgres` extraction pipeline in CDF. Set the environment variables on the extractor host and start the extractor — it will pull its config from CDF automatically.
+The extractor config is delivered via the `ep_table_{{location}}_{{sourceSystem}}` extraction pipeline in CDF. Set the environment variables on the extractor host and start the extractor — it will pull its config from CDF automatically.
+
+### Migrating from earlier versions
+
+The pipeline external ID changed from `ep_{{location}}_db_postgres` to
+`ep_table_{{location}}_{{sourceSystem}}`, and the access group from
+`producer_{{location}}_ep_db_{{environment}}` to
+`producer_{{location}}_ep_db_{{sourceSystem}}_{{environment}}`. To upgrade an existing
+deployment:
+
+1. Add `sourceSystem` to `cdf_db_extractor` in each `config.<env>.yaml`.
+2. Run `cdf deploy`. This creates the new pipeline and group alongside the old ones.
+3. Update `extraction-pipeline.pipeline-id` in the extractor host's local `config.yaml`,
+   then restart the extractor.
+4. Once the extractor reports runs on the new pipeline, delete the old pipeline and group
+   in Fusion. Toolkit does not remove them for you, and the new group keeps the same
+   `sourceId`, so no IdP change is needed.
 
 ### Verify
 

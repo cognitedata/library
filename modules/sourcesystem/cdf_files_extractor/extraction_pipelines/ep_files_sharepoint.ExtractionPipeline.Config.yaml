@@ -1,4 +1,4 @@
-externalId: "ep_{{location}}_files_sharepoint"
+externalId: "ep_files_{{location}}_{{sourceSystem}}"
 config:
   # Runtime config for the Files Extractor — see ep_files.ExtractionPipeline.yaml
   # documentation block for required environment variables and install steps.

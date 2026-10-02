@@ -1,5 +1,5 @@
-externalId: "ep_{{location}}_opcua"
-name: "ep:{{location}}:opcua"
+externalId: "ep_timeseries_{{location}}_{{sourceSystem}}"
+name: "OPC UA time series extraction for site {{location}}"
 dataSetExternalId: "{{dataset}}"
 description: "OPC-UA Extractor pipeline for site {{location}} — reads node hierarchy and Variable subscriptions, writes timeseries values directly to CDF and node metadata + browse/state caches to RAW"
 # RAW tables used by the OPC-UA extractor for staging and state storage.
@@ -93,7 +93,7 @@ documentation: |
          scopes:
            - $${CDF_URL}/.default
        extraction-pipeline:
-         pipeline-id: ep_{{location}}_opcua
+         pipeline-id: ep_timeseries_{{location}}_{{sourceSystem}}
      ```
 
      The full runtime configuration (source, extraction filters, history,

@@ -1,5 +1,5 @@
-externalId: "ep_{{location}}_files_sharepoint"
-name: "ep:{{location}}:files_sharepoint"
+externalId: "ep_files_{{location}}_{{sourceSystem}}"
+name: "SharePoint file extraction for site {{location}}"
 dataSetExternalId: "{{dataset}}"
 description: "Files Extractor pipeline for site {{location}} — reads files from a SharePoint Online site and uploads them to CDF Files (with CogniteFile instances in {{instanceSpace}} when destination-mode: cdm)"
 source: SHAREPOINT
@@ -86,7 +86,7 @@ documentation: |
          scopes:
            - $${CDF_URL}/.default
        extraction-pipeline:
-         pipeline-id: ep_{{location}}_files_sharepoint
+         pipeline-id: ep_files_{{location}}_{{sourceSystem}}
      ```
 
   ### References

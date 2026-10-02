@@ -1,4 +1,4 @@
-externalId: "ep_{{location}}_opcua"
+externalId: "ep_timeseries_{{location}}_{{sourceSystem}}"
 config:
   version: 1
   source:

@@ -1,4 +1,4 @@
-externalId: "ep_{{location}}_sap"
+externalId: "ep_maintenance_{{location}}_{{sourceSystem}}"
 
 config:
   # Runtime config for the SAP OData Extractor — see ep_sap.ExtractionPipeline.yaml
@@ -36,7 +36,7 @@ config:
       scopes:
         - ${CDF_URL}/.default
     extraction-pipeline:
-      external-id: "ep_{{location}}_sap"
+      external-id: "ep_maintenance_{{location}}_{{sourceSystem}}"
 
   sap:
     - type: odata
