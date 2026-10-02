@@ -1,6 +1,6 @@
 # SAP Extractor — configuration variables
 
-# Site/location code, used in externalIds (e.g. ep_maintenance_{{location}}_{{sourceSystem}}, db_{{location}}_sap)
+# Site/location code, used in externalIds (e.g. ep_maintenance_{{location}}_{{sourceSystem}}, raw_maintenance_{{location}}_{{sourceSystem}})
 # Populated automatically from the site / location name entered in setup_project.py.
 location: ""
 

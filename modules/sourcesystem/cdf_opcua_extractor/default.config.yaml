@@ -1,6 +1,6 @@
 # OPC-UA Extractor — configuration variables
 
-# Site/location code, used in externalIds (e.g. ep_timeseries_{{location}}_{{sourceSystem}}, db_{{location}}_opcua)
+# Site/location code, used in externalIds (e.g. ep_timeseries_{{location}}_{{sourceSystem}}, raw_timeseries_{{location}}_{{sourceSystem}})
 # Populated automatically from the site / location name entered in setup_project.py.
 location: ""
 

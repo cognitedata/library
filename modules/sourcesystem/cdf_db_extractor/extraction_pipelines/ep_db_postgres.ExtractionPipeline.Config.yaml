@@ -34,6 +34,6 @@ config:
       initial-start: 0
       destination:
         type: raw
-        database: "db_{{location}}_db_postgres"
+        database: "raw_table_{{location}}_{{sourceSystem}}"
         table: "mytable"
       primary-key: "{id}"

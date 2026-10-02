@@ -14,7 +14,7 @@ cdf_db_extractor/
 │   ├── ep_db_postgres.ExtractionPipeline.yaml          # Pipeline definition with RAW table reference
 │   └── ep_db_postgres.ExtractionPipeline.Config.yaml   # DB Extractor runtime config (queries, ODBC)
 ├── raw/
-│   └── db_postgres.Database.yaml                       # db_{{location}}_db_postgres
+│   └── db_postgres.Database.yaml                       # raw_table_{{location}}_{{sourceSystem}}
 └── module.toml
 ```
 
@@ -26,7 +26,7 @@ Relational Database (PostgreSQL / MSSQL / Oracle / MySQL / …)
       ▼  (ODBC + SQL queries)
 DB Extractor
       │
-      └── Query result rows ──────────► RAW: db_{{location}}_db_postgres.<query.destination.table>
+      └── Query result rows ──────────► RAW: raw_table_{{location}}_{{sourceSystem}}.<query.destination.table>
 ```
 
 ## Resources Created
@@ -34,7 +34,7 @@ DB Extractor
 | Resource | External ID | Purpose |
 |---|---|---|
 | ExtractionPipeline | `ep_table_{{location}}_{{sourceSystem}}` | Pipeline health tracking and config delivery |
-| RAW Database | `db_{{location}}_db_postgres` | Landing zone for query result rows |
+| RAW Database | `raw_table_{{location}}_{{sourceSystem}}` | Landing zone for query result rows |
 | DM Space | `{{instanceSpace}}` | Per-extractor instance space for DM instances |
 | Access Group | `producer_{{location}}_ep_db_{{sourceSystem}}_{{environment}}` | Scoped service-principal group — one per extractor type × source system |
 
@@ -50,7 +50,7 @@ All variables are declared locally in `config.<env>.yaml` (no inheritance):
 variables:
   modules:
     cdf_db_extractor:
-      location: "oslo"                                        # Site code, used in externalIds (ep_table_<location>_<sourceSystem>, db_<location>_db_postgres)
+      location: "oslo"                                        # Site code, used in externalIds (ep_table_<location>_<sourceSystem>, raw_table_<location>_<sourceSystem>)
       sourceSystem: "postgres"                                # Source system token, used in the pipeline ID and group name
       instanceSpace: "sp_oslo_db"                            # Per-extractor DM instance space — computed by setup_project.py
       dataset: "ds_db_postgres_oslo"                          # ds_<data_type>_<location> — computed by setup_project.py
@@ -95,7 +95,7 @@ example with a single query against `mytable`. Before production use:
    RAW table — and add a corresponding `*.Table.yaml` under `raw/` if you want
    the toolkit to provision the table at deploy time.
 4. **Verify the RAW database name** in `destination.database` matches
-   `db_{{location}}_db_postgres` so rows land in the database declared by this
+   `raw_table_{{location}}_{{sourceSystem}}` so rows land in the database declared by this
    module.
 5. **If targeting a different DB engine**, set `sourceSystem` (e.g. `mssql`) so the
    pipeline becomes `ep_table_{{location}}_mssql` and the group
@@ -110,7 +110,7 @@ authoring the downstream transformation from RAW into a data model.
 
 - Source database reachable from the extractor host with appropriate ODBC driver installed
 - DB Extractor service account with read access to the source database
-- Cognite service account with read/write to the `db_{{location}}_db_postgres` RAW database and read access to the `{{dataset}}` data set (`ds_db_postgres_{{location}}`)
+- Cognite service account with read/write to the `raw_table_{{location}}_{{sourceSystem}}` RAW database and read access to the `{{dataset}}` data set (`ds_db_postgres_{{location}}`)
 
 ### Deploy
 
@@ -138,6 +138,11 @@ deployment:
    in Fusion. Toolkit does not remove them for you, and the new group keeps the same
    `sourceId`, so no IdP change is needed.
 
+The RAW database also changed from `db_{{location}}_db_postgres` to
+`raw_table_{{location}}_{{sourceSystem}}`. Rows already in the old database are not
+moved: either let the extractor re-extract from `initial-start`, or copy the tables across
+before deleting the old database. Point any downstream transformations at the new name.
+
 ### Verify
 
-Check that the configured RAW table(s) under `db_{{location}}_db_postgres` are populated in CDF Data Explorer.
+Check that the configured RAW table(s) under `raw_table_{{location}}_{{sourceSystem}}` are populated in CDF Data Explorer.
