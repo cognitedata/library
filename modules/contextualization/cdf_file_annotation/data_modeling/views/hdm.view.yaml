@@ -128,6 +128,14 @@
       containerPropertyIdentifier: sourceUpdatedTime
       description: Last updated time
       name: Last updated time
+    pipelineUpdatedTime:
+      container:
+        externalId: {{ annotationStateExternalId }}
+        space: {{ annotationStateSchemaSpace }}
+        type: container
+      containerPropertyIdentifier: pipelineUpdatedTime
+      description: When launch or finalize last wrote this annotation state. Stuck-job recovery uses this time.
+      name: Pipeline updated time
     launchFunctionId:
       container:
         externalId: {{ annotationStateExternalId }}

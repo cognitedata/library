@@ -108,7 +108,7 @@ class HighPriorityLaunchService(GeneralLaunchService):
 ### Step 2: Use Your Custom Implementation
 
 ```python
-# In fn_file_annotation_launch/handler.py
+# In fn_file_annotation/handler.py
 
 # ... (other imports)
 from services.LaunchService import AbstractLaunchService

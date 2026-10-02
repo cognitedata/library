@@ -5,7 +5,6 @@ import pandas as pd
 import streamlit as st
 import yaml
 from cognite.client import CogniteClient
-from cognite.client.data_classes import RowList
 from cognite.client.data_classes.data_modeling import NodeId, filters
 from cognite.client.exceptions import CogniteAPIError
 from constants import FieldNames
@@ -46,25 +45,6 @@ class DataFetcher:
         if not ep_configuration:
             return None
         return yaml.safe_load(ep_configuration.config)
-
-    @staticmethod
-    def _list_raw_rows(_client: CogniteClient, db_name: str, table_name: str, filter: dict | None = None, chunk_size: int = 1000):
-        if filter:
-            return _client.raw.rows.list(db_name=db_name, table_name=table_name, filter=filter, limit=-1)
-        all_rows = RowList([])
-        for chunk in _client.raw.rows(db_name=db_name, table_name=table_name, chunk_size=chunk_size, limit=None):
-            all_rows.extend(chunk)
-        return all_rows
-
-    @staticmethod
-    def fetch_raw_table_as_dataframe(_client: CogniteClient, db_name: str, table_name: str) -> pd.DataFrame:
-        try:
-            rows = DataFetcher._list_raw_rows(_client=_client, db_name=db_name, table_name=table_name)
-        except Exception:
-            return pd.DataFrame()
-        if not rows:
-            return pd.DataFrame()
-        return pd.DataFrame([r.columns for r in rows])
 
     @staticmethod
     @st.cache_data(ttl=3600)

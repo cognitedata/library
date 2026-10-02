@@ -15,10 +15,7 @@ members = [
     "fn-dm-context-aliases-update",
     "fn-dm-context-files-annotation",
     "fn-dm-context-timeseries-entity-matching",
-    "fn-file-annotation-finalize",
-    "fn-file-annotation-launch",
-    "fn-file-annotation-prepare",
-    "fn-file-annotation-promote",
+    "fn-file-annotation",
 ]
 
 [[package]]
@@ -708,9 +705,9 @@ requires-dist = [
 dev = [{ name = "pytest", specifier = ">=7.0.0" }]
 
 [[package]]
-name = "fn-file-annotation-finalize"
+name = "fn-file-annotation"
 version = "0.0.0"
-source = { virtual = "modules/contextualization/cdf_file_annotation/functions/fn_file_annotation_finalize" }
+source = { virtual = "modules/contextualization/cdf_file_annotation/functions/fn_file_annotation" }
 dependencies = [
     { name = "cognite-sdk" },
     { name = "mixpanel" },
@@ -724,88 +721,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "cognite-sdk", specifier = ">=7.76.0,<8" },
-    { name = "mixpanel", specifier = ">=4.10.0" },
-    { name = "msal", specifier = "==1.37.0" },
-    { name = "protobuf", specifier = ">=6.33.5,<7.0" },
-    { name = "pydantic", specifier = ">=2.12.4,<3.0.0" },
-    { name = "pyjwt", specifier = ">=2.13.0,<3.0" },
-    { name = "python-dotenv", specifier = ">=1.2.2,<2.0" },
-    { name = "pyyaml", specifier = ">=6.0.2,<7.0" },
-]
-
-[[package]]
-name = "fn-file-annotation-launch"
-version = "0.0.0"
-source = { virtual = "modules/contextualization/cdf_file_annotation/functions/fn_file_annotation_launch" }
-dependencies = [
-    { name = "cognite-sdk" },
-    { name = "mixpanel" },
-    { name = "msal" },
-    { name = "protobuf" },
-    { name = "pydantic" },
-    { name = "pyjwt" },
-    { name = "python-dotenv" },
-    { name = "pyyaml" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "cognite-sdk", specifier = ">=7.76.0,<8" },
-    { name = "mixpanel", specifier = ">=4.10.0" },
-    { name = "msal", specifier = "==1.37.0" },
-    { name = "protobuf", specifier = ">=6.33.5,<7.0" },
-    { name = "pydantic", specifier = ">=2.12.4,<3.0.0" },
-    { name = "pyjwt", specifier = ">=2.13.0,<3.0" },
-    { name = "python-dotenv", specifier = ">=1.2.2,<2.0" },
-    { name = "pyyaml", specifier = ">=6.0.2,<7.0" },
-]
-
-[[package]]
-name = "fn-file-annotation-prepare"
-version = "0.0.0"
-source = { virtual = "modules/contextualization/cdf_file_annotation/functions/fn_file_annotation_prepare" }
-dependencies = [
-    { name = "cognite-sdk" },
-    { name = "mixpanel" },
-    { name = "msal" },
-    { name = "protobuf" },
-    { name = "pydantic" },
-    { name = "pyjwt" },
-    { name = "python-dotenv" },
-    { name = "pyyaml" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "cognite-sdk", specifier = ">=7.76.0,<8" },
-    { name = "mixpanel", specifier = ">=4.10.0" },
-    { name = "msal", specifier = "==1.37.0" },
-    { name = "protobuf", specifier = ">=6.33.5,<7.0" },
-    { name = "pydantic", specifier = ">=2.12.4,<3.0.0" },
-    { name = "pyjwt", specifier = ">=2.13.0,<3.0" },
-    { name = "python-dotenv", specifier = ">=1.2.2,<2.0" },
-    { name = "pyyaml", specifier = ">=6.0.2,<7.0" },
-]
-
-[[package]]
-name = "fn-file-annotation-promote"
-version = "0.0.0"
-source = { virtual = "modules/contextualization/cdf_file_annotation/functions/fn_file_annotation_promote" }
-dependencies = [
-    { name = "cognite-sdk" },
-    { name = "mixpanel" },
-    { name = "msal" },
-    { name = "protobuf" },
-    { name = "pydantic" },
-    { name = "pyjwt" },
-    { name = "python-dotenv" },
-    { name = "pyyaml" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "cognite-sdk", specifier = ">=7.76.0,<8" },
+    { name = "cognite-sdk", specifier = ">=7.94.0,<8" },
     { name = "mixpanel", specifier = ">=4.10.0" },
     { name = "msal", specifier = "==1.37.0" },
     { name = "protobuf", specifier = ">=6.33.5,<7.0" },

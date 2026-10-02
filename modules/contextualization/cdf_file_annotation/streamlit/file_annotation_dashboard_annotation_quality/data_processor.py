@@ -1,4 +1,3 @@
-import re
 
 import pandas as pd
 from constants import FieldNames
@@ -17,12 +16,6 @@ class DataProcessor:
             return col
         return f"file{col[0].upper()}{col[1:]}"
     @staticmethod
-    def normalized_status_for_row(row: pd.Series, derive_fn: callable) -> str:
-        try:
-            return derive_fn(row)
-        except Exception:
-            return None
-    @staticmethod
     def derive_normalized_status(row: pd.Series) -> str:
         tags = row.get(FieldNames.TAGS_LOWER_CASE)
         raw_status = row.get(FieldNames.STATUS_LOWER_CASE)
@@ -37,8 +30,6 @@ class DataProcessor:
         if raw_status == AnnotationStatus.APPROVED.value:
             if FieldNames.PROMOTED_AUTO_PASCAL_CASE in tag_set:
                 return NormalizedStatus.AUTOMATICALLY_PROMOTED.value
-            if FieldNames.PROMOTED_MANUALLY_PASCAL_CASE in tag_set:
-                return NormalizedStatus.MANUALLY_PROMOTED.value
             return NormalizedStatus.REGULARLY_ANNOTATED.value
 
         if not raw_status:
@@ -53,24 +44,6 @@ class DataProcessor:
             return NormalizedStatus.NO_MATCH.value
 
         return NormalizedStatus.PATTERN_FOUND.value
-
-    @staticmethod
-    def parse_annotation_message_counts(annotation_message: str) -> tuple[int, int]:
-        matches = re.findall(r"(-?\d+)", str(annotation_message))
-
-        if len(matches) < 2:
-            raise ValueError(f"annotationMessage doesn't contain two integers: '{annotation_message}'")
-
-        return int(matches[0]), int(matches[1])
-
-    @staticmethod
-    def parse_pattern_mode_count(pattern_mode_message: str) -> int:
-        matches = re.findall(r"(-?\d+)", str(pattern_mode_message))
-
-        if not matches:
-            raise ValueError(f"patternModeMessage doesn't contain an integer: '{pattern_mode_message}'")
-
-        return int(matches[0])
 
     @staticmethod
     def coverage_row_based(actual_df: pd.DataFrame | None, potential_df: pd.DataFrame | None) -> AnnotationCoverageData:
@@ -123,22 +96,6 @@ class DataProcessor:
             df[FieldNames.TOTAL_POSSIBLE_SNAKE_CASE] = df[FieldNames.TOTAL_POSSIBLE_SNAKE_CASE].astype(int)
 
         return df
-
-    @staticmethod
-    def coverage_by_tag_entity_resource_row_based_dict(actual_df: pd.DataFrame | None, potential_df: pd.DataFrame | None) -> dict:
-        df = DataProcessor.coverage_by_tag_entity_resource_row_based(actual_df, potential_df)
-        result = {}
-
-        for _, r in df.iterrows():
-            result[r[FieldNames.END_NODE_RESOURCE_TYPE_CAMEL_CASE]] = AnnotationCoverageData(
-                coverage_pct=float(r.get(FieldNames.COVERAGE_PERCENTAGE_SNAKE_CASE, 0.0)),
-                actual_count=int(r.get(FieldNames.ACTUAL_COUNT_SNAKE_CASE, 0)),
-                potential_count=int(r.get(FieldNames.POTENTIAL_COUNT_SNAKE_CASE, 0)),
-                total_possible=int(r.get(FieldNames.TOTAL_POSSIBLE_SNAKE_CASE, 0)),
-            )
-        return result
-
-
 
     @staticmethod
     def enrich_annotation_frames_with_files_metadata(annotation_frames: AnnotationFrames, files_metadata: pd.DataFrame) -> AnnotationFrames:
