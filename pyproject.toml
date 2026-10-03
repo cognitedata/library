@@ -68,6 +68,7 @@ ignore = [
 "modules/common/cdf_project_foundation/scripts/_messages_ja.py" = ["RUF001"]
 "tests/test_foundation_prompts.py" = ["RUF001"]
 "tests/test_foundation_generate_actions_i18n.py" = ["RUF001"]
+"tests/test_foundation_wizard_i18n.py" = ["RUF001"]
 "scripts/**" = ["S603"]
 
 [tool.pytest.ini_options]
