@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Literal
 
 import yaml
+from _i18n import t
 
 MODULE_ROOT = Path(__file__).parent.parent
 
@@ -100,7 +101,7 @@ def get_org_dir_name(repo_root: Path | None = None) -> str | None:
             value = default_dir.strip()
             return value or None
     except tomllib.TOMLDecodeError as e:
-        print(f"WARNING: Failed to parse TOML file {toml_path}: {e}")
+        print(t("WARNING: Failed to parse TOML file {toml_path}: {e}").format(toml_path=toml_path, e=e))
     return None
 
 
