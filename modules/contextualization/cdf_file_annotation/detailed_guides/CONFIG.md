@@ -144,7 +144,7 @@ Launch passes these constants into Cognite Diagram Detect via
 | `FUZZINESS_MIN_CHARS` | `4` | `customizeFuzziness.minChars` |
 | `DIRECTION_DELTA` | `None` | `directionDelta` |
 | `DIRECTION_WEIGHTS` | `{"left": 1.0, "right": 1.0, "up": 1.0, "down": 1.0}` | `directionWeights` |
-| `MIN_FUZZY_SCORE` | `1` | `minFuzzyScore` (`1` disables OCR character substitutions) |
+| `MIN_FUZZY_SCORE` | `0.99` | `minFuzzyScore` (`1` disables OCR character substitutions) |
 | `READ_EMBEDDED_TEXT` | `True` | `readEmbeddedText` |
 | `REMOVE_LEADING_ZEROS` | `None` | `removeLeadingZeros` |
 | `SUBSTITUTIONS` | `None` | `substitutions` — when set, replaces the API's default look-alike map |

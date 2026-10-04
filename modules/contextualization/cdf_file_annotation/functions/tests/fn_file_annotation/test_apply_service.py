@@ -9,6 +9,7 @@ from cognite.client.data_classes.data_modeling import EdgeApply, NodeId
 
 sys.path.append(str(Path(__file__).parent))
 
+from fa_constants import MIN_FUZZY_SCORE  # isort: skip
 from services.ApplyService import GeneralApplyService  # isort: skip
 from services.ConfigService import Config  # isort: skip
 
@@ -191,7 +192,7 @@ def test_diagram_detect_config_sends_only_the_configured_parameters() -> None:
         "connectionFlags": ["natural_reading_order", "no_text_inbetween"],
         "customizeFuzziness": {"minChars": 4},
         "directionWeights": {"left": 1.0, "right": 1.0, "up": 1.0, "down": 1.0},
-        "minFuzzyScore": 1,
+        "minFuzzyScore": MIN_FUZZY_SCORE,
         "readEmbeddedText": True,
     }
 
