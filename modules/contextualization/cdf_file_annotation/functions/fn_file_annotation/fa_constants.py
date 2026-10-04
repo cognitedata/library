@@ -47,7 +47,7 @@ DIRECTION_WEIGHTS: Final[dict[str, float] | None] = {
     "up": 1.0,
     "down": 1.0,
 }
-MIN_FUZZY_SCORE: Final = 1
+MIN_FUZZY_SCORE: Final = 0.99
 READ_EMBEDDED_TEXT: Final = True
 REMOVE_LEADING_ZEROS: Final[bool | None] = None
 SUBSTITUTIONS: Final[dict[str, list[str]] | None] = None  # e.g. {"0": ["O", "Q"]}
