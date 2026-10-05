@@ -38,6 +38,7 @@ def write_staged_matches(
     logger: CogniteFunctionLogger,
     job_id: str,
     matches: list[StoredMatch],
+    data_set_id: int | None = None,
 ) -> int:
     """Stage the matches submit already has in a CDF file, so collect can merge them with the ML ones.
 
@@ -51,6 +52,7 @@ def write_staged_matches(
         name=file_external_id,
         external_id=file_external_id,
         mime_type="application/json",
+        data_set_id=data_set_id,
         overwrite=True,
     )
     logger.info(
@@ -65,25 +67,28 @@ def read_staged_matches(
     logger: CogniteFunctionLogger,
     job_id: str,
 ) -> list[StoredMatch]:
-    """The matches submit staged for this job, as they were before staging."""
+    """The matches submit staged for this job, as they were before staging.
+
+    Raises:
+        CogniteAPIError: The file exists but could not be read. Collect deletes the file
+            once a job is written, so carrying on with nothing would lose those matches.
+        ValueError: The file content is not the JSON submit wrote.
+    """
     file_external_id = staging_file_external_id(job_id)
     try:
         content = client.files.download_bytes(external_id=file_external_id)
-        matches = [cast(StoredMatch, m) for m in json.loads(content.decode("utf-8"))]
-        logger.info(
-            f"Read {len(matches)} staged entity-target pair(s) across {_entity_count(matches)} entities "
-            f"for job {job_id} from {file_external_id}"
-        )
-        return matches
     except CogniteAPIError as e:
         if e.code in (400, 404):
             logger.info(f"No staged matches file found for job {job_id} ({file_external_id})")
             return []
-        logger.warning(f"Could not read staged matches file {file_external_id}: {type(e)}({e})")
-        return []
-    except Exception as e:
-        logger.warning(f"Failed to parse staged matches from {file_external_id}: {type(e)}({e})")
-        return []
+        logger.error(f"Could not read staged matches file {file_external_id}: {type(e)}({e})")
+        raise
+    matches = [cast(StoredMatch, m) for m in json.loads(content.decode("utf-8"))]
+    logger.info(
+        f"Read {len(matches)} staged entity-target pair(s) across {_entity_count(matches)} entities "
+        f"for job {job_id} from {file_external_id}"
+    )
+    return matches
 
 
 def delete_staged_matches(

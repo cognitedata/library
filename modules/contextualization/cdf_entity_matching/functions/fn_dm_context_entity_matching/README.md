@@ -8,13 +8,17 @@ helpers, and staging code exist once.
 
 Matching in CDF is a job on the platform, and waiting for it is what makes a large run
 time out. **Submit** applies manual and rule based mappings, starts the predict job
-without waiting, stages its matches, and queues the job. **Collect** works through that
-queue oldest first, polls each job, merges finished results with the staged matches,
-writes them, and removes the job. Anything still running is picked up by the next collect
-run.
+without waiting, stages its matches, and queues the job. **Collect** polls that queue in
+parallel (one worker per job, at most 10) every 30s for up to 7 minutes, merges finished
+results with the staged matches, writes them, and removes the job. Anything still running
+is picked up by the next collect run.
 
-It reads the same extraction pipeline configuration as
-`fn_dm_context_timeseries_entity_matching`, which stays in place and unchanged.
+It reads the `ep_ctx_entity_matching` extraction pipeline configuration.
+
+Time series are read a page at a time with only the properties matching uses, and each
+page is retried on transient errors. A failed read of the time series, the manual or rule
+mappings, or a staged match file fails the call rather than matching on partial input. A
+job whose staged matches cannot be read stays queued for the next collect run.
 
 ## Stages
 
@@ -29,7 +33,7 @@ ID.
 ```json
 {
   "stage": "submit",
-  "ExtractionPipelineExtId": "ep_ctx_timeseries_<location>_<source>_entity_matching",
+  "ExtractionPipelineExtId": "ep_ctx_entity_matching",
   "logLevel": "INFO"
 }
 ```
@@ -101,13 +105,47 @@ Targets are read with the DMS sync endpoint and kept in a cache:
 
 This needs `filesAcl: READ, WRITE` in addition to the usual capabilities.
 
+### Primary and secondary scope
+
+Set `primaryScopeProperty` (and optionally `secondaryScopeProperty`) in the extraction
+pipeline parameters. Both are read from the entity view and the target view, so they
+must exist on both. Both empty (the default) is unscoped matching: one predict job of
+every entity against every target.
+
+When scoping is on, submit groups entities by `(primary, secondary)` and queues **one
+predict job (and one staging file) per group** that has work to do. Rule matching uses
+the same groups. Manual mappings stay global and are staged with the first job; the
+model fitted for that job is reused by the later ones. The scope properties and `tags`
+are added to the target sync read, which gives a scoped configuration a target cache of
+its own.
+
+A missing property value is read as empty. That yields two different empty cases:
+
+- **No scope** — primary and secondary both empty. Those entities get a job against
+  **all** targets. Submit logs
+  `Entities without scope (primary='', secondary='') - N is tried matched against all Targets`.
+- **Partial scope** — primary set, secondary empty (or the other way around if only
+  secondary were populated). That is a scope of its own: the entity only meets targets
+  with the same pair of values, plus `ScopeWideDetect` targets of the same primary.
+
+Other rules:
+
+- An entity with a non-empty scope is only matched to targets with the same primary,
+  and the same secondary when that value is set.
+- A target whose `tags` include `ScopeWideDetect` is a candidate in every **secondary**
+  scope of its own primary — never in another primary.
+- A non-empty scope with no matching targets is skipped. Submit logs
+  `No assets in scope (primary=…, secondary=…) - N source record(s) not matched`.
+
 ## What collect does
 
 1. Reads every `state_predict_job_*` row and orders them oldest first.
-2. For each job: poll (5s, then 15s, then 30s). On `Completed`, merge staged matches with
-   model results, write good/bad tables and the data model, then clear staging and the
-   queue row. On `Failed`, clear staging/queue and report failure without a traceback.
-3. Stops when the queue is empty or **8 minutes** have passed.
+2. Polls queued jobs in parallel — one worker per job, at most **10** at a time — every
+   **30s**. When a worker finishes and time remains, the next queued job is started.
+   On `Completed`, merge staged matches with model results, write good/bad tables and the
+   data model, then clear staging and the queue row. On `Failed`, clear staging/queue and
+   report failure without a traceback.
+3. Stops when the queue is empty or **7 minutes** have passed.
 
 When predictions regularly outlast a single run, schedule collect as well (every 5–15
 minutes) so the queue keeps draining between workflow runs.
@@ -116,7 +154,7 @@ minutes) so the queue keeps draining between workflow runs.
 
 Pass `"logLevel": "INFO"` or `"DEBUG"` in the function input (workflow already sets DEBUG).
 
-`INFO` is what the run did; `DEBUG` adds timing, memory, and poll status. Each run
+`INFO` is what the run did; `DEBUG` adds step timings and poll status. Each run
 brackets the log with `===== SUBMIT =====` / `===== COLLECT =====` at INFO so the stage
 is obvious for a shared function external ID in the CDF log viewer.
 
@@ -124,6 +162,11 @@ On submit, expect lines such as
 `Staged N entity-target pair(s) from manual/rule matching across M entities` — see
 [What the counts mean](#what-the-counts-mean-entities-vs-pairs). Collect logs the same
 pair/entity counts when it reads the staging file back.
+
+Each predict job logs how many unique entities it still has to match after manual/rule
+mapping (`Predict job submitted - jobId: …, N entities to match`). Those N values across
+jobs should add up to input entities minus the manual/rule total. Collect then logs how
+many result rows the matching API returned versus how many source records were submitted.
 
 Set `dmUpdate: false` in the extraction pipeline config to skip writing matches to the
 data model. It still processes **all** entities / finished jobs — it does not limit the

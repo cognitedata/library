@@ -532,13 +532,14 @@ class TestBuildOverlay:
         fa = overlay["variables"]["modules"]["cdf_file_annotation"]
         assert fa["ApplicationOwner"] == "owner@example.com"
 
-    def test_entity_matching_location_name_set_from_site(self) -> None:
+    def test_entity_matching_is_installed_without_location_or_source_name(self) -> None:
         from setup_project import build_overlay
         overlay = build_overlay(
             "isa_manufacturing_extension", "dev", "oslo", ["cdf_entity_matching"]
         )
         em = overlay["variables"]["modules"]["cdf_entity_matching"]
-        assert em["location_name"] == "oslo"
+        assert "location_name" not in em
+        assert "source_name" not in em
 
     def test_no_contextualization_vars_when_not_installed(self) -> None:
         from setup_project import build_overlay

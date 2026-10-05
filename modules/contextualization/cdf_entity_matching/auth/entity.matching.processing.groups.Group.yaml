@@ -1,5 +1,5 @@
-# This role is used for the processing of asset data, creating an asset hierarchy
-name: 'gp_entity_matching_{{location_name}}_processing'
+# Service principal that runs the entity matching workflow and its functions
+name: 'gp_entity_matching_processing'
 sourceId: '{{entity_matching_processing_group_source_id}}'
 metadata:
   origin: 'cdf-project-templates'
@@ -9,12 +9,6 @@ capabilities:
         - LIST
         - CREATE
         - DELETE
-      scope:
-        all: {}
-  - groupsAcl:
-      actions:
-        - LIST
-        - READ
       scope:
         all: {}
   - extractionConfigsAcl:
@@ -29,16 +23,31 @@ capabilities:
         - WRITE
       scope:
         all: {}
-  - dataModelsAcl:
+  # State store, good/bad results and manual/rule input tables
+  - rawAcl:
       actions:
         - READ
         - WRITE
+      scope:
+        tableScope:
+          dbsToTables:
+            {{ dbName }}: []
+  # Views are read, never written
+  - dataModelsAcl:
+      actions:
+        - READ
       scope:
         all: {}
   - dataModelInstancesAcl:
       actions:
         - READ
         - WRITE
+      scope:
+        all: {}
+  # Resolves dataSetExternalId for the files below
+  - datasetsAcl:
+      actions:
+        - READ
       scope:
         all: {}
   # The target content read from the data model is cached as a JSON file, so an
@@ -49,14 +58,6 @@ capabilities:
         - WRITE
       scope:
         all: {}
-  # - annotationsAcl:
-  #     actions:
-  #       - READ
-  #       - WRITE
-  #       - SUGGEST
-  #       - REVIEW
-  #     scope:
-  #       all: {}
   - entitymatchingAcl:
       actions:
         - READ

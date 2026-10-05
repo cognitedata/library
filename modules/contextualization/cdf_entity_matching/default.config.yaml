@@ -1,21 +1,26 @@
 function_version: v1.0.0
-# Update your location
-location_name: Springfield
-# specify the name of the source making it possible to identify where the data originates
-# from, ex: 'workmate', 'sap', 'oracle',..
-# Update SOURCE to your source
-source_name: springfield
+# Team or person that owns the functions, shown in CDF
+functionOwner: cdf_entity_matching
 dbName: db_asset_entity_matching
 contextualizationId: entity_matcher
 contextualizationName: Entity Matcher
+# Matching views: CogniteAsset and CogniteTimeSeries in cdf_cdm. Point these at your
+# enterprise views when you do not match against CDM directly.
 schemaSpace: cdf_cdm
 viewVersion: v1
 assetInstanceSpace: inst_location
 timeseriesInstanceSpace: inst_location
 fileInstanceSpace: inst_location
 functionSpace: sp_entity_matching_fn # space where function code nodes are stored — created by this module
+# Used only after testing/apply_scoped_matching.py copies the test-only scope model
+# into this module. Harmless when those files are not present.
+scopeSchemaSpace: sp_entity_matching_scope
+scopeDmVersion: v1
+scopeDataModelExternalId: EntityMatchingScope_SOL
 assetViewExternalId: CogniteAsset
 timeseriesViewExternalId: CogniteTimeSeries
+# Files stay on CDM; aliases update uses fileSchemaSpace so it is not tied to asset/ts views.
+fileSchemaSpace: cdf_cdm
 fileViewExternalId: CogniteFile
 targetViewExternalId: CogniteAsset
 entityViewExternalId: CogniteTimeSeries
@@ -65,8 +70,18 @@ fileAliasSelection: all
 targetViewFilterValues: []
 entityViewSearchProperty: name
 entityViewFilterValues: []  
+# Optional scope for the submit/collect matcher (fn_dm_context_entity_matching): entities are
+# only matched to targets with the same primary (and secondary, when set). Targets tagged
+# 'ScopeWideDetect' join every secondary of their primary. Entities with no scope value
+# are matched against all targets. Both properties must exist on entity and target views.
+# Leave empty to match unscoped.
+primaryScopeProperty: ''
+secondaryScopeProperty: ''
 
 workflow: wf_ctx_entity_matching
+# Cron schedule for the workflow. The default only fires on 29 February, which leaves runs
+# to be started by hand; set e.g. '0 2 * * *' for a nightly run.
+workflowSchedule: '0 0 29 2 *'
 ### UPDATE THE FOLLOWING VALUES FOR YOUR IDP CONFIGURATION ###
 workflowClientId: ${IDP_CLIENT_ID}
 workflowClientSecret: ${IDP_CLIENT_SECRET}

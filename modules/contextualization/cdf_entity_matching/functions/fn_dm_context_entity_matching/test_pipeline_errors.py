@@ -32,6 +32,18 @@ from em_constants import (  # isort: skip
 from test_submit import build_config  # isort: skip
 
 
+@pytest.mark.parametrize("read", [em_pipeline.read_manual_mappings, em_pipeline.read_rule_mappings])
+def test_a_failed_mapping_read_fails_the_run(monkeypatch: pytest.MonkeyPatch, read: object) -> None:
+    """Carrying on without the mappings would silently match on the model alone."""
+    monkeypatch.setattr(em_pipeline, "manual_table_exists", lambda *a: True)
+    monkeypatch.setattr(em_pipeline, "rule_table_exists", lambda *a: True)
+    client = MagicMock()
+    client.raw.rows.list.side_effect = CogniteAPIError("Service unavailable", code=503)
+
+    with pytest.raises(CogniteAPIError):
+        read(client, MagicMock(), build_config())  # type: ignore[operator]
+
+
 def test_manual_mapping_propagates_unexpected_errors(monkeypatch: pytest.MonkeyPatch) -> None:
     def fail_to_read_instances(*args: object, **kwargs: object) -> list[object]:
         raise RuntimeError("programming error")
@@ -226,11 +238,30 @@ def test_handler_raises_so_cdf_marks_the_call_failed(monkeypatch: pytest.MonkeyP
 def test_handler_rejects_missing_or_invalid_stage() -> None:
     import handler
 
-    with pytest.raises(ValueError, match="Invalid or missing 'stage'"):
+    with pytest.raises(ValueError, match="stage"):
         handler.handle({"ExtractionPipelineExtId": "ep", "logLevel": "INFO"}, MagicMock())
 
-    with pytest.raises(ValueError, match="Invalid or missing 'stage'"):
+    with pytest.raises(ValueError, match="stage"):
         handler.handle({"stage": "promote", "ExtractionPipelineExtId": "ep"}, MagicMock())
+
+
+@pytest.mark.parametrize(
+    "data",
+    [
+        {"stage": "submit"},
+        {"stage": "submit", "ExtractionPipelineExtId": ""},
+        {"stage": "submit", "ExtractionPipelineExtId": "ep", "logLevel": "VERBOSE"},
+    ],
+)
+def test_handler_rejects_invalid_input_before_any_cdf_call(data: dict[str, str]) -> None:
+    import handler
+
+    client = MagicMock()
+
+    with pytest.raises(ValueError):
+        handler.handle(data, client)
+
+    assert client.mock_calls == []
 
 
 def _run_message(client: MagicMock) -> str:

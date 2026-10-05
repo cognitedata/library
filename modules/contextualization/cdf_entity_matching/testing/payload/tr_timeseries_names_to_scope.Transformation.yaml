@@ -1,0 +1,13 @@
+externalId: tr_timeseries_names_to_scope
+name: Time series names to site and unit scope
+destination:
+  type: nodes
+  view:
+    space: "{{ scopeSchemaSpace }}"
+    externalId: ScopedTimeSeries
+    version: "{{ scopeDmVersion }}"
+  instanceSpace: "{{ assetInstanceSpace }}"
+dataSetExternalId: ds_entity_matching
+ignoreNullFields: true
+isPublic: true
+conflictMode: upsert

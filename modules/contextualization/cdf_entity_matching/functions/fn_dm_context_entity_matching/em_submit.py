@@ -25,6 +25,7 @@ from em_logger import CogniteFunctionLogger  # isort: skip
 from em_pipeline import (  # isort: skip
     apply_manual_mappings,
     apply_rule_mappings,
+    file_data_set_id,
     get_new_entities,
     instance_key,
     read_manual_mappings,
@@ -33,10 +34,30 @@ from em_pipeline import (  # isort: skip
     submit_predict_job,
     update_pipeline_run,
 )
-from em_pipeline_optimizations import cleanup_memory, monitor_memory_usage, time_operation  # isort: skip
-from em_pipeline_types import FunctionInputData, StoredMatch  # isort: skip
+from em_pipeline_optimizations import time_operation  # isort: skip
+from em_pipeline_types import EntityMatchSource, FunctionInputData, StoredMatch  # isort: skip
+from em_scope import scope_batches  # isort: skip
 from em_staging import clear_finished_matches, staging_prefix, write_staged_matches  # isort: skip
 from em_targets import get_all_targets  # isort: skip
+
+
+def predict_job_entity_counts(
+    scoped_entities: list[EntityMatchSource],
+    staged_matches: list[StoredMatch],
+) -> tuple[int, int, int, int]:
+    """How many records this predict job covers, and how many unique entities are still to match.
+
+    Args:
+        scoped_entities: Sources that would be sent to the matching API for this scope.
+        staged_matches: Manual/rule matches already found for this job (or carried on the first job).
+
+    Returns:
+        Source-record count, unique entity count, unique entities already matched, unique entities left for the model.
+    """
+    entity_ids = {instance_key(e[KEY_ENTITY_SPACE], e[KEY_ENTITY_EXT_ID]) for e in scoped_entities}
+    already = {instance_key(match.get(KEY_ENTITY_SPACE), match[KEY_ENTITY_EXT_ID]) for match in staged_matches}
+    already_in_job = entity_ids & already
+    return len(scoped_entities), len(entity_ids), len(already_in_job), len(entity_ids - already)
 
 
 def submit_entity_matching(
@@ -73,8 +94,6 @@ def submit_entity_matching(
         else:
             matching_model_id = read_state_store(client, config, logger, STAT_STORE_MATCH_MODEL_ID)
 
-        monitor_memory_usage(logger, "Pipeline start")
-
         with time_operation("Read manual mappings", logger):
             manual_mappings, manual_mappings_input = read_manual_mappings(client, logger, config)
 
@@ -84,7 +103,6 @@ def submit_entity_matching(
 
         with time_operation("Read targets", logger):
             targets = get_all_targets(client, logger, config, rule_mappings)
-        monitor_memory_usage(logger, "After targets loaded")
 
         if len(targets) == 0:
             logger.warning(
@@ -113,8 +131,6 @@ def submit_entity_matching(
                 instance_key(match[KEY_ENTITY_SPACE], match[KEY_ENTITY_EXT_ID]) for match in good_matches
             ]
             new_entities = get_new_entities(client, config, logger, matched_entities, rule_mappings)
-        monitor_memory_usage(logger, "After new entities loaded")
-        cleanup_memory()
 
         # An entity with several search property values is submitted once per value, so
         # the source record count is not the entity count.
@@ -133,38 +149,77 @@ def submit_entity_matching(
             )
             return
 
-        with time_operation("Apply rule based mappings", logger):
-            good_matches, cnt_rule_mappings = apply_rule_mappings(
-                client, config, logger, good_matches, targets, new_entities
+        # Scoping matches each scope against its own targets, with a predict job of its own.
+        batches = scope_batches(config.parameters, logger, targets, new_entities)
+        if not batches:
+            update_pipeline_run(
+                client,
+                logger,
+                pipeline_ext_id,
+                STATUS_SUCCESS,
+                cnt_manual_mappings,
+                None,
+                f"No {QUERY_FILTER_TYPE_TARGETS} in scope of the new entities, predict not started",
             )
+            return
+
+        # Manual matches are staged once, with the first job.
+        staged_matches = good_matches
+        data_set_id = file_data_set_id(client, config)
+        cnt_rule_mappings = 0
+        job_ids: list[str] = []
+        total_entities_to_match = 0
+        total_source_records = 0
+        for scoped_targets, scoped_entities in batches:
+            with time_operation("Apply rule based mappings", logger):
+                staged_matches, cnt_scope_rules = apply_rule_mappings(
+                    client, config, logger, staged_matches, scoped_targets, scoped_entities
+                )
+            cnt_rule_mappings += cnt_scope_rules
+
+            source_records, unique_entities, already_matched, entities_to_match = predict_job_entity_counts(
+                scoped_entities, staged_matches
+            )
+            total_entities_to_match += entities_to_match
+            total_source_records += source_records
+
+            with time_operation("Start entity matching predict job", logger):
+                job = submit_predict_job(client, config, logger, matching_model_id, scoped_targets, scoped_entities)
+            if job.model_id:
+                matching_model_id = str(job.model_id)
+
+            job_id = str(job.job_id)
+            already_note = f", {already_matched} already matched by rule" if already_matched else ""
+            logger.info(
+                f"Predict job submitted - jobId: {job_id}, {entities_to_match} entities to match "
+                f"({source_records} source record(s) of {unique_entities} unique{already_note})"
+            )
+
+            # The queue entry is written last: collect only ever sees a job whose matches are
+            # already staged, so a failure in between leaves an ignored job rather than a
+            # job whose manual and rule matches it cannot find.
+            with time_operation("Stage manual and rule matches", logger):
+                write_staged_matches(client, logger, job_id, staged_matches, data_set_id)
+
+            append_predict_job(
+                client,
+                config,
+                logger,
+                job_id=job_id,
+                job_token=job.job_token,
+                staging_prefix=staging_prefix(job_id),
+                model_id=str(job.model_id) if job.model_id else None,
+                source_count=len(scoped_entities),
+            )
+            job_ids.append(job_id)
+            staged_matches = []
         logger.info(f"Rule mappings: {cnt_rule_mappings} additional entity(ies) matched")
-
-        with time_operation("Start entity matching predict job", logger):
-            job = submit_predict_job(client, config, logger, matching_model_id, targets, new_entities)
-
-        job_id = str(job.job_id)
-        logger.info(f"Predict job submitted - jobId: {job_id}")
-
-        # The queue entry is written last: collect only ever sees a job whose matches are
-        # already staged, so a failure in between leaves an ignored job rather than a
-        # job whose manual and rule matches it cannot find.
-        with time_operation("Stage manual and rule matches", logger):
-            write_staged_matches(client, logger, job_id, good_matches)
-
-        append_predict_job(
-            client,
-            config,
-            logger,
-            job_id=job_id,
-            job_token=job.job_token,
-            staging_prefix=staging_prefix(job_id),
-            model_id=str(job.model_id) if job.model_id else None,
-            source_count=len(new_entities),
+        logger.info(
+            f"Submitted {len(job_ids)} predict job(s) totalling {total_entities_to_match} entities to match "
+            f"({total_source_records} source record(s) sent)"
         )
 
         match_count = cnt_manual_mappings + cnt_rule_mappings
-        cleanup_memory()
-        monitor_memory_usage(logger, "Pipeline end")
 
         update_pipeline_run(
             client,
@@ -173,7 +228,7 @@ def submit_entity_matching(
             STATUS_SUCCESS,
             match_count,
             None,
-            f"Predict submitted (jobId={job_id}), collect pending",
+            f"Predict submitted (jobId={', '.join(job_ids)}), collect pending",
             input_count=cnt_manual_mappings + submitted_entities,
         )
 

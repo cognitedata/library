@@ -479,9 +479,6 @@ def build_overlay(
 
     if app_owner and "cdf_file_annotation" in ctx_vars:
         ctx_vars["cdf_file_annotation"]["ApplicationOwner"] = app_owner
-    if site and "cdf_entity_matching" in ctx_vars:
-        ctx_vars["cdf_entity_matching"]["location_name"] = site
-        ctx_vars["cdf_entity_matching"]["source_name"] = site
 
     # Extractor data sets are derived from the installed modules and the site, not
     # taken from the config — the value on disk is stale whenever the site changes.
@@ -1482,7 +1479,7 @@ def _prompt_project_names(
 def _prompt_site(existing_site: str) -> str:
     _section("Site / Location Name")
     _hint("Required. Used in access-group names (<persona>_<site>_all_<env>),")
-    _hint("location for source system external IDs, and location_name in entity-matching.")
+    _hint("location for source system external IDs.")
     _hint("Only lowercase letters, digits, hyphens, and underscores (e.g. oslo).")
     while True:
         site = prompt("Site / location name", default=existing_site or None).strip().lower()

@@ -11,6 +11,7 @@ from cognite.client.credentials import OAuthClientCredentials
 
 sys.path.append(str(Path(__file__).parent))
 
+from em_pipeline_types import FunctionInput  # isort: skip
 from stages import collect, submit  # isort: skip
 from usage import report_usage  # isort: skip
 
@@ -33,15 +34,12 @@ def handle(data: dict[str, Any], client: CogniteClient) -> dict[str, Any]:
         Status of the run, and the input data.
 
     Raises:
-        ValueError: When ``stage`` is missing or not one of the known stages.
+        ValueError: When the input is invalid (``pydantic.ValidationError``).
         Exception: Whatever the selected stage raised.
     """
-    stage = data.get("stage")
-    if stage not in STAGE_HANDLERS:
-        allowed = ", ".join(STAGE_HANDLERS)
-        raise ValueError(f"Invalid or missing 'stage'. Expected one of: {allowed}")
+    function_input = FunctionInput.model_validate(data)
     report_usage(client)
-    return STAGE_HANDLERS[stage](data, client)
+    return STAGE_HANDLERS[function_input.stage](data, client)
 
 
 def run_locally(stage: str | None = None) -> dict[str, Any]:
@@ -76,11 +74,7 @@ def run_locally(stage: str | None = None) -> dict[str, Any]:
     data = {
         "stage": resolved_stage,
         "logLevel": os.environ.get("LOG_LEVEL", "INFO"),
-        # Built from location_name and source_name in default.config.yaml; override with
-        # EXTRACTION_PIPELINE_EXT_ID when running against another location or source.
-        "ExtractionPipelineExtId": os.environ.get(
-            "EXTRACTION_PIPELINE_EXT_ID", "ep_ctx_timeseries_Springfield_springfield_entity_matching"
-        ),
+        "ExtractionPipelineExtId": os.environ.get("EXTRACTION_PIPELINE_EXT_ID", "ep_ctx_entity_matching"),
     }
     print(f"Running stage={resolved_stage} against extraction pipeline: {data['ExtractionPipelineExtId']}")
     return handle(data, client)

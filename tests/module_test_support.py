@@ -3,6 +3,7 @@
 import importlib.util
 import sys
 from pathlib import Path
+from types import ModuleType
 
 # Flat module basenames reused across deployed function directories.
 _FLAT_MODULE_NAMES = (
@@ -63,3 +64,16 @@ def isolate_function_directory(function_dir: Path) -> None:
             continue
         if loaded_from != resolved:
             del sys.modules[name]
+
+
+def bind_flat_modules_from_test(test_module: ModuleType) -> None:
+    """Re-register flat modules the test imported so ``patch("handler.…")`` stays correct.
+
+    Isolation at collection time loads the right modules, but a later function's tests
+    can replace ``sys.modules["handler"]``. Tests that keep ``import handler`` (the module
+    object) let us put that exact object back before each test runs.
+    """
+    for name in _FLAT_MODULE_NAMES:
+        candidate = getattr(test_module, name, None)
+        if isinstance(candidate, ModuleType) and candidate.__name__ == name:
+            sys.modules[name] = candidate

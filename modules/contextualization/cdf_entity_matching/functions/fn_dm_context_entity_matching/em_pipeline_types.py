@@ -1,7 +1,17 @@
 """Typed structures for the entity matching pipeline."""
 
 import re
-from typing import NotRequired, TypedDict
+from typing import Literal, NotRequired, TypedDict
+
+from pydantic import BaseModel, Field
+
+
+class FunctionInput(BaseModel):
+    """Validated function input; the handler checks it before any CDF call."""
+
+    stage: Literal["submit", "collect"]
+    extraction_pipeline_ext_id: str = Field(alias="ExtractionPipelineExtId", min_length=1)
+    log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = Field(alias="logLevel", default="INFO")
 
 
 class FunctionInputData(TypedDict):
@@ -39,6 +49,9 @@ class TargetMatchRecord(TypedDict):
     org_name: str
     name: str
     rule_keys: list[str] | None
+    scope_primary: NotRequired[str]
+    scope_secondary: NotRequired[str]
+    scope_wide: NotRequired[bool]
 
 
 class EntityMatchSource(TypedDict):
@@ -50,6 +63,8 @@ class EntityMatchSource(TypedDict):
     name: str
     assets: str
     rule_keys: list[str] | None
+    scope_primary: NotRequired[str]
+    scope_secondary: NotRequired[str]
 
 
 class StoredMatch(TypedDict):

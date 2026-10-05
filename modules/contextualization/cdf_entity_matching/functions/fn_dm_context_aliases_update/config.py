@@ -12,6 +12,13 @@ from pydantic.alias_generators import to_camel
 from constants import DEFAULT_ALIAS_PATTERN  # isort: skip
 
 
+class FunctionInput(BaseModel):
+    """Validated function input; the handler checks it before any CDF call."""
+
+    extraction_pipeline_ext_id: str = Field(alias="ExtractionPipelineExtId", min_length=1)
+    log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = Field(alias="logLevel", default="INFO")
+
+
 # Configuration classes
 class Parameters(BaseModel, alias_generator=to_camel):
     run_all: bool

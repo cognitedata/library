@@ -1,7 +1,7 @@
-externalId: 'ep_ctx_timeseries_{{location_name}}_{{source_name}}_entity_matching'
-name: 'ctx:timeseries:{{location_name}}:{{source_name}}:_entity_matching'
-dataSetExternalId: 'ds_timeseries_{{location_name}}'
-description: 'Entity Matching of timeseries and assets from source  {{location_name}}:{{source_name}}'
+externalId: 'ep_ctx_entity_matching'
+name: 'ctx:entity:matching'
+dataSetExternalId: 'ds_entity_matching'
+description: 'Entity Matching of entities (timeseries) to targets (assets)'
 rawTables:
   - dbName: '{{ dbName }}'
     tableName: 'contextualization_good'
@@ -10,8 +10,10 @@ rawTables:
   - dbName: '{{ dbName }}'
     tableName: 'contextualization_manual_input'
   - dbName: '{{ dbName }}'
+    tableName: 'contextualization_rule_input'
+  - dbName: '{{ dbName }}'
     tableName: 'contextualization_state_store'
-source: '{{source_name}}'
+source: entity_matching
 documentation: >
  # Time series and assets Contextualization
 
@@ -56,6 +58,11 @@ documentation: >
    rawTableCtxBad: Table to store entities with score lower than the autoApprovalThreshold
    rawTableCtxManual: Raw table to store manual mappings
    autoApprovalThreshold - Threshold for auto approval of entity matching
+   dataSetExternalId - Data set for the function's own files (target cache, staged matches)
+   primaryScopeProperty - Optional property on both views; entities only match targets with the same value.
+                   Entities with no scope are matched against all targets.
+   secondaryScopeProperty - Optional second level within the primary scope; targets tagged
+                   ScopeWideDetect match every secondary scope of their primary scope
 
    ```
 
@@ -66,7 +73,7 @@ documentation: >
   ```
   data = {
     "logLevel":"INFO",
-    "ExtractionPipelineExtId": "ep_ctx_timeseries_{{location_name}}_{{source_name}}_entity_matching"
+    "ExtractionPipelineExtId": "ep_ctx_entity_matching"
   }
 
   ```

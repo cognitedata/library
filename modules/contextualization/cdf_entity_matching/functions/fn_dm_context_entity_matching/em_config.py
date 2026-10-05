@@ -21,6 +21,16 @@ class Parameters(BaseModel, alias_generator=to_camel):
     raw_table_ctx_manual: str | None = None
     raw_table_ctx_rule: str | None = None
     auto_approval_threshold: float = Field(gt=0.0, le=1.0)
+    # Data set the function's own CDF files (target cache, staged matches) are written to.
+    data_set_external_id: str | None = None
+    # Property on both views that entities and targets must share to be matched; empty turns scoping off.
+    primary_scope_property: str | None = None
+    secondary_scope_property: str | None = None
+
+    @field_validator("primary_scope_property", "secondary_scope_property", mode="before")
+    @classmethod
+    def blank_is_unset(cls, value: object) -> object:
+        return value.strip() or None if isinstance(value, str) else value
 
 
 class ViewPropertyConfig(BaseModel, alias_generator=to_camel):
@@ -110,6 +120,9 @@ def format_config_summary(config: Config) -> str:
         f"  rawTableCtxBad: {parameters.raw_table_ctx_bad}",
         f"  rawTableCtxManual: {parameters.raw_table_ctx_manual}",
         f"  rawTableCtxRule: {parameters.raw_table_ctx_rule}",
+        f"  dataSetExternalId: {parameters.data_set_external_id}",
+        f"  primaryScopeProperty: {parameters.primary_scope_property}",
+        f"  secondaryScopeProperty: {parameters.secondary_scope_property}",
         "Views:",
     ]
     lines.extend(_view_summary_lines("entityView", config.data.entity_view))

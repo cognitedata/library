@@ -22,6 +22,9 @@ PROP_COL_SPACE: Final = "space"
 
 # DM filter path for instance lookup
 FILTER_PATH_NODE_EXTERNAL_ID: Final = ["node", "externalId"]
+FILTER_PATH_NODE_SPACE: Final = ["node", "space"]
+ENTITY_PAGE_SIZE: Final = 1000
+ENTITY_QUERY_NAME: Final = "entities"
 
 # Placeholder strings for unmatched entities/assets
 PLACEHOLDER_NO_MATCH_TARGET: Final = "_no_match_on_asset_ext_id_"
@@ -38,6 +41,8 @@ MATCHING_LIMIT_SOURCES_TARGETS: Final = 10000
 MAX_LINKS_PER_ENTITY: Final = 1000
 SCORE_MANUAL_RULE_MATCH: Final = 1
 BATCH_SIZE_API_SUBMIT: Final = 1000
+# Per-item "missing properties or name" skips: first N at WARNING, rest at DEBUG, then a summary.
+SKIP_MISSING_LOG_LIMIT: Final = 5
 
 # Query filter types for get_query_filter
 QUERY_FILTER_TYPE_TARGETS: Final = "assets"  # assets property name in the asset view
@@ -67,6 +72,13 @@ KEY_ENTITY_VIEW_ID: Final = "entity_view_id"
 KEY_TARGET_NAME: Final = "asset_name"
 KEY_TARGET_MATCH_VALUE: Final = "asset_match_value"
 KEY_TARGET_VIEW_ID: Final = "asset_view_id"
+KEY_SCOPE_PRIMARY: Final = "scope_primary"
+KEY_SCOPE_SECONDARY: Final = "scope_secondary"
+KEY_SCOPE_WIDE: Final = "scope_wide"
+
+# A target tagged with this is matched across every secondary scope of its primary scope.
+PROP_COL_TAGS: Final = "tags"
+TAG_SCOPE_WIDE_DETECT: Final = "ScopeWideDetect"
 
 # Entity matching job result
 JOB_RESULT_ITEMS: Final = "items"
@@ -111,12 +123,14 @@ JOB_API_STATUS_FAILED: Final = "Failed"
 # has to be restated here because collect rebuilds the job from the state store row.
 ENTITY_MATCHING_JOB_STATUS_PATH: Final = "/context/entitymatching/jobs/"
 
-# Seconds to wait between polls: 5, then 15, then 30 for every poll after that.
-POLL_BACKOFF_SECONDS: Final = (5, 15, 30)
+# Seconds to wait between polls while a predict job is still running.
+POLL_INTERVAL_SECONDS: Final = 30
 
-# Collect gives up polling this long after the invocation started and leaves the
-# remaining jobs queued for the next run.
-POLL_BUDGET_SECONDS: Final = 8 * 60
+# Collect keeps polling queued jobs this long, then leaves the rest for the next run.
+POLL_BUDGET_SECONDS: Final = 7 * 60
+
+# Parallel collect: one worker per queued job, capped so the function stays within CDF limits.
+COLLECT_MAX_WORKERS: Final = 10
 
 # ===== Target read: sync cursor and cached content =====
 

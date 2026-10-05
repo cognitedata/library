@@ -1,22 +1,8 @@
 # The directory with the function code should have the same name
 # and externalId as the function itself as defined below.
-- name: 'dm:context:timeseries:entity_matching'
-  externalId: 'fn_dm_context_timeseries_entity_matching'
-  owner: 'Anonymous'
-  description: 'Contextualization of P&ID files creating annotations in Data model'
-  space: {{ functionSpace }}
-  metadata:
-    version: '{{function_version}}'
-  envVars:
-    # The below two environment variables are set by the Toolkit
-    ENV_TYPE: '${CDF_BUILD_TYPE}'
-    CDF_ENV: '${CDF_ENVIRON}'
-  # Number of cores, not available in Azure
-  runtime: 'py313'
-  functionPath: 'handler.py'
-- name: 'dm:context:entity_matching'
+- name: 'Entity matching submit and collect'
   externalId: 'fn_dm_context_entity_matching'
-  owner: 'Anonymous'
+  owner: '{{ functionOwner }}'
   description: 'Submit entity matching predict jobs and collect their results (data.stage selects submit or collect)'
   space: {{ functionSpace }}
   metadata:
@@ -25,12 +11,11 @@
     # The below two environment variables are set by the Toolkit
     ENV_TYPE: '${CDF_BUILD_TYPE}'
     CDF_ENV: '${CDF_ENVIRON}'
-  # Number of cores, not available in Azure
   runtime: 'py313'
   functionPath: 'handler.py'
-- name: 'dm:context:aliases_update'
+- name: 'Aliases update'
   externalId: 'fn_dm_context_aliases_update'
-  owner: 'Anonymous'
+  owner: '{{ functionOwner }}'
   description: 'Update aliases for timeseries and assets as prep for entity matching'
   space: {{ functionSpace }}
   metadata:
@@ -39,6 +24,5 @@
     # The below two environment variables are set by the Toolkit
     ENV_TYPE: '${CDF_BUILD_TYPE}'
     CDF_ENV: '${CDF_ENVIRON}'
-  # Number of cores, not available in Azure
   runtime: 'py313'
   functionPath: 'handler.py'

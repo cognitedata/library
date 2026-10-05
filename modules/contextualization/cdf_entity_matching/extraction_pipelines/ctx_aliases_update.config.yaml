@@ -1,7 +1,7 @@
 externalId: 'ep_ctx_aliases_update'
 config:
   parameters:
-    runAll: True
+    runAll: False
     updateAll: False
     removeOldAliases: False
     rawDb: '{{ dbName }}'
@@ -27,9 +27,9 @@ config:
         aliasSelection: {{ assetAliasSelection }}
       # Optional. Remove this section to leave file metadata untouched.
       fileView:
-        schemaSpace: {{ schemaSpace }}
+        schemaSpace: {{ fileSchemaSpace }}
         instanceSpace: {{ fileInstanceSpace }}
         externalId: {{ fileViewExternalId }}
-        version: {{ viewVersion }}
+        version: v1
         aliasPattern: {{ fileAliasPattern }}
         aliasSelection: {{ fileAliasSelection }}

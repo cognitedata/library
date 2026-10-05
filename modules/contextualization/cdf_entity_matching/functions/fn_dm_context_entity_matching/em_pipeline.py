@@ -15,6 +15,7 @@ from cognite.client.data_classes.data_modeling import (
     NodeApply,
     NodeOrEdgeData,
 )
+from cognite.client.data_classes.data_modeling.query import NodeResultSetExpression, Query, Select, SourceSelector
 from cognite.client.exceptions import CogniteAPIError
 from cognite.client.utils._text import shorten
 
@@ -30,7 +31,10 @@ from em_constants import (
     COL_KEY_RULE_REGEXP_ENTITY,
     COL_KEY_RULE_REGEXP_TARGET,
     COL_MATCH_KEY,
+    ENTITY_PAGE_SIZE,
+    ENTITY_QUERY_NAME,
     FILTER_PATH_NODE_EXTERNAL_ID,
+    FILTER_PATH_NODE_SPACE,
     HTTP_STATUS_BAD_REQUEST,
     KEY_ENTITY_EXISTING_TARGETS,
     KEY_ENTITY_EXT_ID,
@@ -45,6 +49,8 @@ from em_constants import (
     KEY_ORG_NAME,
     KEY_RULE,
     KEY_RULE_KEYS,
+    KEY_SCOPE_PRIMARY,
+    KEY_SCOPE_SECONDARY,
     KEY_SCORE,
     KEY_SOURCE,
     KEY_TARGET,
@@ -85,6 +91,7 @@ from em_pipeline_types import (
     StoredMatch,
     TargetMatchRecord,
 )
+from em_scope import scope_of, scope_properties
 
 if TYPE_CHECKING:
     from cognite.extractorutils.uploader import RawUploadQueue
@@ -104,6 +111,59 @@ def _retry_apply(
     if not items:
         return
     RobustAPIClient(logger).robust_api_call(client.data_modeling.instances.apply, items)
+
+
+def _flush_when_full(
+    client: CogniteClient,
+    config: Config,
+    logger: CogniteFunctionLogger,
+    item_update: list[NodeApply],
+    label: str,
+    progress: str,
+) -> list[NodeApply]:
+    """Write the pending updates once a batch is full, so a long run writes as it goes.
+
+    Returns:
+        The updates still pending: none after a write, the same list otherwise.
+    """
+    if not config.parameters.dm_update or len(item_update) < BATCH_SIZE_API_SUBMIT:
+        return item_update
+    logger.info(
+        f"==> {label} - Adding batch of {len(item_update)} items to data model, total count/matches: {progress}"
+    )
+    _retry_apply(client, logger, item_update)
+    return []
+
+
+def rule_keys(name: str, rule_mappings: list[RuleMappingDefinition] | None, pattern_key: str) -> list[str]:
+    """Keys a name gets from the rules whose pattern matches it.
+
+    Each key is the rule id and the captured groups concatenated. An operator's regex may
+    make a group optional, and one that does not take part in the match captures None.
+
+    Args:
+        pattern_key: Which of the rule's patterns to apply, the entity or the target one.
+    """
+    keys: list[str] = []
+    for rule in rule_mappings or ():
+        if match := rule[pattern_key].search(name):  # type: ignore[literal-required]
+            keys.append(rule[KEY_RULE] + "_" + "".join(group for group in match.groups() if group is not None))
+    return keys
+
+
+def file_data_set_id(client: CogniteClient, config: Config) -> int | None:
+    """Internal id of the data set the function's CDF files go to, or None when none is configured.
+
+    Raises:
+        ValueError: The configured data set does not exist.
+    """
+    external_id = config.parameters.data_set_external_id
+    if not external_id:
+        return None
+    data_set = client.data_sets.retrieve(external_id=external_id)
+    if data_set is None:
+        raise ValueError(f"Data set {external_id!r} in dataSetExternalId does not exist")
+    return data_set.id
 
 
 def instance_key(space: str | None, external_id: str) -> tuple[str, str]:
@@ -221,8 +281,9 @@ def read_manual_mappings(
 
     Returns a `(mappings, mappings_input)` pair so the caller can do
     `manual_mappings, manual_mappings_input = read_manual_mappings(...)`.
-    Both elements are empty when the manual mapping table doesn't exist or
-    the read fails — never partial — so the unpack is always safe.
+    Both elements are empty when the manual mapping table doesn't exist. A failed
+    read raises: carrying on without the mappings would silently leave the matching
+    to the model.
     """
     manual_mappings: list[ManualMappingDefinition] = []
     manual_mappings_input: dict[str, RawRowColumns] = {}
@@ -268,6 +329,7 @@ def read_manual_mappings(
 
     except CogniteAPIError as e:
         logger.error(f"Read manual mappings failed. Error: {e}")
+        raise
 
     return manual_mappings, manual_mappings_input
 
@@ -403,17 +465,17 @@ def apply_manual_mappings(
                 # including the ones skipped above, so it cannot stand in for the queue
                 # length: the batch would overshoot the cap and a skip landing on a
                 # multiple of it would miss the flush entirely.
-                batch_is_full = len(item_update) >= BATCH_SIZE_API_SUBMIT
-                if config.parameters.dm_update and batch_is_full:
+                if config.parameters.dm_update and len(item_update) >= BATCH_SIZE_API_SUBMIT:
                     _retry_apply(client, logger, clean_target_list)
                     clean_target_list = []
-
-                    logger.info(
-                        f"==> Mapping table based matching - Adding batch of {len(item_update)} items "
-                        f"to data model, total count/matches: {cnt} / {len(manual_mappings)}"
-                    )
-                    _retry_apply(client, logger, item_update)
-                    item_update = []  # Reset item_update after applying
+                item_update = _flush_when_full(
+                    client,
+                    config,
+                    logger,
+                    item_update,
+                    "Mapping table based matching",
+                    f"{cnt} / {len(manual_mappings)}",
+                )
 
             if num_batches > 1:
                 logger.info(f"Completed batch {batch_num}/{num_batches}")
@@ -483,43 +545,56 @@ def get_links_from_entity(links_property: list[object] | None) -> list[str]:
     return links
 
 
+def read_entities(
+    client: CogniteClient,
+    config: Config,
+    logger: CogniteFunctionLogger,
+    is_selected: dm.filters.Filter | None,
+) -> list[Node]:
+    """Entities in the configured spaces that match the filter, read a page at a time.
+
+    Only the properties matching uses are read, and each page is retried on transient errors.
+    """
+    view_config = config.data.entity_view
+    view_id = view_config.as_view_id()
+    parameters = config.parameters
+    properties = [PROP_COL_NAME, view_config.search_property, PROP_COL_LINK_NAME]
+    properties += [name for name in (parameters.primary_scope_property, parameters.secondary_scope_property) if name]
+    in_spaces = dm.filters.In(FILTER_PATH_NODE_SPACE, view_config.instance_spaces)
+    query = Query(
+        with_={
+            ENTITY_QUERY_NAME: NodeResultSetExpression(
+                filter=dm.filters.And(in_spaces, is_selected) if is_selected is not None else in_spaces,
+                limit=ENTITY_PAGE_SIZE,
+            )
+        },
+        select={ENTITY_QUERY_NAME: Select([SourceSelector(view_id, list(dict.fromkeys(properties)))])},
+    )
+    api = RobustAPIClient(logger)
+    entities: list[Node] = []
+    while True:
+        result = api.robust_api_call(client.data_modeling.instances.query, query)
+        page = list(result[ENTITY_QUERY_NAME])
+        entities.extend(page)
+        cursor = result.cursors.get(ENTITY_QUERY_NAME)
+        if not cursor or len(page) < ENTITY_PAGE_SIZE:
+            return entities
+        query.cursors = {ENTITY_QUERY_NAME: cursor}
+
+
 def list_instances_by_external_id_direct(
     client: CogniteClient,
     config: Config,
     external_id: list[str],
-    logger: CogniteFunctionLogger | None = None,
+    logger: CogniteFunctionLogger,
 ) -> Sequence[Node]:
-    """
-    List instances by their direct external ID match.
-
-    Args:
-        client: CogniteClient instance
-        config: Configuration object containing entity_view settings
-        external_id: The external ID to search for (could be timeseries external ID)
-        logger: Optional logger for debugging
-
-    Returns:
-        List of matching instances
-    """
-    if logger:
-        logger.debug(f"Searching for instances with external ID: {external_id}")
-
+    """Entities with one of the given external IDs, for applying manual mappings."""
     entity_view_id = config.data.entity_view.as_view_id()
-
-    # Filter by external_id
-    external_id_filter = dm.filters.In(FILTER_PATH_NODE_EXTERNAL_ID, external_id)
-
-    has_data_filter = dm.filters.HasData(views=[entity_view_id])
-    combined_filter = dm.filters.And(has_data_filter, external_id_filter)
-
-    matching_instances = client.data_modeling.instances.list(
-        space=config.data.entity_view.instance_spaces, sources=[entity_view_id], filter=combined_filter, limit=-1
+    is_selected = dm.filters.And(
+        dm.filters.HasData(views=[entity_view_id]), dm.filters.In(FILTER_PATH_NODE_EXTERNAL_ID, external_id)
     )
-
-    if logger:
-        logger.info(f"Found {len(matching_instances)} instances with for manual mappings")
-        logger.debug(f"Found instances with external ID: {external_id}")
-
+    matching_instances = read_entities(client, config, logger, is_selected)
+    logger.info(f"Found {len(matching_instances)} instances for manual mappings")
     return matching_instances
 
 
@@ -580,6 +655,7 @@ def read_rule_mappings(
         logger.info(f"Number of mapping rules : {len(rule_mappings)}")
     except CogniteAPIError as e:
         logger.error(f"Read rule based mappings failed. Error: {e}")
+        raise
 
     return rule_mappings
 
@@ -674,9 +750,7 @@ def get_new_entities(
     logger.debug(f"Get new entities from view: {entity_view_id}, based on config: {entity_view_config}")
     is_selected = get_query_filter(entity_view_config, logger)
 
-    listed_entities: Sequence[Node] = client.data_modeling.instances.list(
-        space=entity_view_config.instance_spaces, sources=[entity_view_id], filter=is_selected, limit=-1
-    )
+    listed_entities = read_entities(client, config, logger, is_selected)
 
     # Drop already-linked entities before the duplicate warning and the count log.
     # A link list of None or `[]` still counts as unmatched; `runAll` keeps every entity.
@@ -702,6 +776,8 @@ def get_new_entities(
         f"NOTE: Rule based regular expressions are applied to the '{PROP_COL_NAME}' property"
     )
     matched_entities = set(list_good_entities or ())
+    scoped = bool(scope_properties(config.parameters))
+    skipped_missing = 0
 
     for entity in new_entities:
         # test if just matched and skip if so - keyed on space as well, so an entity
@@ -711,27 +787,13 @@ def get_new_entities(
             continue
         properties = entity.properties.get(entity_view_id) if entity.properties else None
         if not properties or PROP_COL_NAME not in properties:
-            logger.warning(f"Entity: {entity.external_id} is missing properties or name, skipping")
+            skipped_missing += 1
+            logger.missing_property_skip("Entity", entity.external_id, skipped_missing)
             continue
 
         # Rule based matching uses the name property to match entities to targets
         org_name = str(properties[PROP_COL_NAME])
-
-        rule_keys = []
-        if rule_mappings:
-            for rule in rule_mappings:
-                # Pattern was pre-compiled in read_rule_mappings (re.Pattern object).
-                pattern = rule[COL_KEY_RULE_REGEXP_ENTITY]
-                match = pattern.search(org_name)
-
-                if match:
-                    # Concatenate the captured groups directly. An operator's regex may
-                    # make a group optional, and one that does not participate in the
-                    # match captures None, which cannot be joined.
-                    matched_groups = [group for group in match.groups() if group is not None]
-                    cleaned_value = rule[KEY_RULE] + "_" + "".join(matched_groups)
-                    logger.debug(f"Cleaned value (using capture groups): {cleaned_value}")
-                    rule_keys.append(cleaned_value)
+        entity_rule_keys = rule_keys(org_name, rule_mappings, COL_KEY_RULE_REGEXP_ENTITY)
 
         targets = []
         if (
@@ -749,18 +811,20 @@ def get_new_entities(
         entity_names = match_values(properties, search_prop, org_name, list_selection="longest")
         targets_json = _links_as_json(targets)
         for entity_name in entity_names:
-            entities_source.append(
-                {
-                    KEY_ENTITY_EXT_ID: entity.external_id,
-                    KEY_ENTITY_SPACE: entity.space,
-                    KEY_NAME: entity_name,
-                    KEY_ORG_NAME: org_name,
-                    KEY_TARGET_LINKS: targets_json,
-                    KEY_RULE_KEYS: rule_keys if rule_keys else None,
-                }
-            )
+            record: EntityMatchSource = {
+                KEY_ENTITY_EXT_ID: entity.external_id,
+                KEY_ENTITY_SPACE: entity.space,
+                KEY_NAME: entity_name,
+                KEY_ORG_NAME: org_name,
+                KEY_TARGET_LINKS: targets_json,
+                KEY_RULE_KEYS: entity_rule_keys or None,
+            }
+            if scoped:
+                record[KEY_SCOPE_PRIMARY], record[KEY_SCOPE_SECONDARY] = scope_of(properties, config.parameters)
+            entities_source.append(record)
             logger.debug(f"Entity: {entity.external_id} - {entity_name} ({org_name})")
 
+    logger.missing_property_skip_summary(QUERY_FILTER_TYPE_ENTITIES, skipped_missing)
     logger.info(f"Num new entities: {len(entities_source)} from view: {entity_view_id}")
 
     if config.parameters.remove_old_links and len(item_update) > 0:
@@ -999,16 +1063,9 @@ def apply_rule_mappings(
                 target_spaces=target_spaces,
             )
 
-            # Flush the queue once it is full, so a long run writes as it goes instead of
-            # holding every update until the end.
-            batch_is_full = len(item_update) >= BATCH_SIZE_API_SUBMIT
-            if config.parameters.dm_update and batch_is_full:
-                logger.info(
-                    f"==> Rule based matching - Adding batch of {len(item_update)} items to data model, "
-                    f"total count/matches: {cnt} / {len(matches)}"
-                )
-                _retry_apply(client, logger, item_update)
-                item_update = []  # Reset item_update after applying
+            item_update = _flush_when_full(
+                client, config, logger, item_update, "Rule based matching", f"{cnt} / {len(matches)}"
+            )
 
         if config.parameters.dm_update:
             # Apply the updates to the data model
@@ -1072,6 +1129,7 @@ def select_and_apply_matches(
     }
     matched_entities = {instance_key(match.get(KEY_ENTITY_SPACE), match[KEY_ENTITY_EXT_ID]) for match in good_matches}
     new_good_matches = []
+    skipped_already_matched = 0
     try:
         for match in match_results:
             # Skip if entity already has been matched - an entity sharing an external ID
@@ -1079,6 +1137,7 @@ def select_and_apply_matches(
             source = match[KEY_SOURCE]
             entity = instance_key(source.get(KEY_ENTITY_SPACE), source[KEY_ENTITY_EXT_ID])
             if entity in matched_entities:
+                skipped_already_matched += 1
                 continue
 
             if match[KEY_MATCHES]:
@@ -1100,6 +1159,10 @@ def select_and_apply_matches(
             else:
                 bad_matches.append(add_to_dict(match, str(entity_view_id), str(target_view_id)))
 
+        logger.info(
+            f"Predict returned {len(match_results)} result(s); "
+            f"skipped {skipped_already_matched} already matched by manual or rule mapping"
+        )
         logger.info(f"Got {len(new_good_matches)} matches with score >= {config.parameters.auto_approval_threshold}")
         logger.info(f"Got {len(bad_matches)} matches with score < {config.parameters.auto_approval_threshold}")
 
@@ -1123,16 +1186,9 @@ def select_and_apply_matches(
                 target_spaces={target_ext_id: target_space} if target_space else None,
             )
 
-            # Flush the queue once it is full, so a long run writes as it goes instead of
-            # holding every update until the end.
-            batch_is_full = len(item_update) >= BATCH_SIZE_API_SUBMIT
-            if config.parameters.dm_update and batch_is_full:
-                logger.info(
-                    f"==> Entity matching - Adding batch of {len(item_update)} items to data model, "
-                    f"total count/matches: {cnt} / {len(new_good_matches)}"
-                )
-                _retry_apply(client, logger, item_update)
-                item_update = []  # Reset item_update after applying
+            item_update = _flush_when_full(
+                client, config, logger, item_update, "Entity matching", f"{cnt} / {len(new_good_matches)}"
+            )
 
         if config.parameters.dm_update:
             _retry_apply(client, logger, item_update)

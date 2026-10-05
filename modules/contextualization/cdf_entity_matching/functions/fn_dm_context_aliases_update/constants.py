@@ -1,7 +1,9 @@
-# Limit used when listing instances: -1 means fetch all matches, letting the SDK
-# paginate internally. A positive value is not supported, as get_new_items has no
-# cursor and would re-read the first page on every pass.
-BATCH_SIZE = -1
+# Instances are read and written one page at a time, so memory stays bounded by the page
+# rather than by the number of instances in the configured spaces.
+ALIAS_PAGE_SIZE = 1000
+ITEMS_QUERY_NAME = "items"
+# The only properties alias generation reads.
+ALIAS_SOURCE_PROPERTIES = ["name", "aliases"]
 TS_NODE = "timeseries"
 ASSET_NODE = "assets"
 FILE_NODE = "files"

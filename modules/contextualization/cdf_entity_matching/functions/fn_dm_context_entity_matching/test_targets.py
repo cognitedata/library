@@ -7,6 +7,7 @@ that a timed-out page comes back with a smaller page size rather than failing th
 """
 
 import json
+import re
 import sys
 from pathlib import Path
 from typing import Any
@@ -23,6 +24,8 @@ sys.path.append(str(Path(__file__).parent))
 
 from em_config import Config, ConfigData, Parameters, ViewPropertyConfig  # isort: skip
 from em_constants import (  # isort: skip
+    COL_KEY_RULE_REGEXP_TARGET,
+    KEY_RULE,
     TARGET_SYNC_BATCH_SIZE,
     TARGET_SYNC_COL_BATCH_SIZE,
     TARGET_SYNC_COL_CURSOR,
@@ -92,9 +95,11 @@ class FakeFilesAPI:
         self.upload_errors: list[Exception] = []
         self.download_errors: list[Exception] = []
         self.download_attempts = 0
+        self.data_set_ids: dict[str, Any] = {}
 
     def upload_bytes(self, content: bytes, name: str, external_id: str, **kwargs: Any) -> None:
         self.uploads.append(external_id)
+        self.data_set_ids[external_id] = kwargs.get("data_set_id")
         if self.upload_errors:
             raise self.upload_errors.pop(0)
         self.files[external_id] = content
@@ -136,10 +141,20 @@ class FakeInstancesAPI:
         return QueryResult({TARGET_SYNC_QUERY_NAME: NodeListWithCursor(nodes, cursor=cursor)})
 
 
+class FakeDataSetsAPI:
+    def __init__(self) -> None:
+        self.ids: dict[str, int] = {}
+
+    def retrieve(self, external_id: str) -> Any:
+        data_set_id = self.ids.get(external_id)
+        return None if data_set_id is None else type("FakeDataSet", (), {"id": data_set_id})()
+
+
 class FakeClient:
     def __init__(self, pages: list[Any] | None = None) -> None:
         self.raw = FakeRawAPI()
         self.files = FakeFilesAPI()
+        self.data_sets = FakeDataSetsAPI()
         self.data_modeling = type("FakeDataModeling", (), {})()
         self.data_modeling.instances = FakeInstancesAPI(pages or [])
 
@@ -219,6 +234,27 @@ def test_first_run_syncs_every_target_and_caches_the_content(logger: CogniteFunc
     assert [node.external_id for node in client.files.nodes(file_external_id)] == ["A-1", "A-2"]
     assert state_row(client, config)[TARGET_SYNC_COL_CURSOR] == "cursor-1"
     assert state_row(client, config)[TARGET_SYNC_COL_FILE] == file_external_id
+
+
+def test_the_cache_is_written_to_the_configured_data_set(logger: CogniteFunctionLogger) -> None:
+    client = FakeClient(pages=[([target_node("A-1", "Pump 1")], "cursor-1")])
+    client.data_sets.ids["ds_entity_matching"] = 7
+    config = build_config()
+    config.parameters.data_set_external_id = "ds_entity_matching"
+
+    load_targets(client, config, logger)  # type: ignore[arg-type]
+
+    file_external_id = cache_file_external_id(target_cache_key(config.data.target_view))
+    assert client.files.data_set_ids[file_external_id] == 7
+
+
+def test_a_data_set_that_does_not_exist_fails_the_run(logger: CogniteFunctionLogger) -> None:
+    client = FakeClient(pages=[([target_node("A-1", "Pump 1")], "cursor-1")])
+    config = build_config()
+    config.parameters.data_set_external_id = "ds_missing"
+
+    with pytest.raises(ValueError, match="ds_missing"):
+        load_targets(client, config, logger)  # type: ignore[arg-type]
 
 
 def test_unchanged_targets_are_read_from_the_cached_file(logger: CogniteFunctionLogger) -> None:
@@ -454,6 +490,18 @@ def test_a_timed_out_page_fails_when_max_retries_exceeded(logger: CogniteFunctio
         load_targets(client, build_config(), logger)  # type: ignore[arg-type]
 
 
+def test_targets_carry_the_captured_groups_of_each_matching_rule(logger: CogniteFunctionLogger) -> None:
+    client = FakeClient(pages=[([target_node("A-1", "23-KA-9101")], "cursor-1")])
+    rules = [
+        {KEY_RULE: "1", COL_KEY_RULE_REGEXP_TARGET: re.compile("([0-9]+)-(X)?-?([A-Z]+)")},
+        {KEY_RULE: "2", COL_KEY_RULE_REGEXP_TARGET: re.compile("no match")},
+    ]
+
+    targets = get_all_targets(client, logger, build_config(), rules)  # type: ignore[arg-type]
+
+    assert targets[0]["rule_keys"] == ["1_23KA"], "a group outside the match is left out"
+
+
 def test_targets_are_built_from_the_cached_content(logger: CogniteFunctionLogger) -> None:
     """A cached read produces the same match entities as a read from the data model."""
     client = FakeClient(pages=[([], "cursor-2")])
@@ -480,3 +528,70 @@ def test_targets_are_built_from_the_cached_content(logger: CogniteFunctionLogger
             "rule_keys": None,
         }
     ]
+
+
+def test_scoped_targets_carry_their_scope(logger: CogniteFunctionLogger) -> None:
+    node = target_node("A-1", "Pump 1")
+    node.properties[VIEW_ID].update({"site": "site_a", "tags": ["ScopeWideDetect"]})
+    client = FakeClient(pages=[([node], "cursor-1")])
+    config = build_config()
+    config.parameters.primary_scope_property = "site"
+    config.parameters.secondary_scope_property = "unit"
+
+    targets = get_all_targets(client, logger, config)  # type: ignore[arg-type]
+
+    assert [(t.get("scope_primary"), t.get("scope_secondary"), t.get("scope_wide")) for t in targets] == [
+        ("site_a", "", True)
+    ]
+
+
+def test_scoped_targets_select_the_scope_properties_into_a_cache_of_their_own() -> None:
+    config = build_config()
+    unscoped_key = target_cache_key(config.data.target_view)
+    scoped_key = target_cache_key(config.data.target_view, ["site", "tags"])
+
+    assert unscoped_key != scoped_key
+
+
+def test_missing_name_skips_are_sampled_at_warning_and_summarised() -> None:
+    """INFO-level runs keep the first five skip warnings; the rest need DEBUG."""
+
+    class RecordingLogger(CogniteFunctionLogger):
+        def __init__(self) -> None:
+            super().__init__("DEBUG")
+            self.warnings: list[str] = []
+            self.debugs: list[str] = []
+
+        def warning(self, message: str) -> None:
+            self.warnings.append(message)
+
+        def debug(self, message: str) -> None:
+            self.debugs.append(message)
+
+        def info(self, message: str) -> None:
+            return None
+
+    nameless = [
+        Node(
+            space=INSTANCE_SPACE,
+            external_id=f"ast_{i}",
+            version=1,
+            last_updated_time=1,
+            created_time=1,
+            deleted_time=None,
+            type=None,
+            properties=Properties({VIEW_ID: {}}),
+        )
+        for i in range(7)
+    ]
+    client = FakeClient(pages=[(nameless + [target_node("A-1", "Pump 1")], "cursor-1")])
+    logger = RecordingLogger()
+
+    targets = get_all_targets(client, logger, build_config())  # type: ignore[arg-type]
+
+    assert [t["asset_ext_id"] for t in targets] == ["A-1"]
+    per_target = [w for w in logger.warnings if w.startswith("Target:") and "missing properties or name" in w]
+    assert len(per_target) == 5
+    assert per_target[0] == "Target: ast_0 is missing properties or name, skipping"
+    assert any("Skipped 7 assets missing properties or name" in w and "DEBUG" in w for w in logger.warnings)
+    assert len([d for d in logger.debugs if "missing properties or name" in d]) == 2

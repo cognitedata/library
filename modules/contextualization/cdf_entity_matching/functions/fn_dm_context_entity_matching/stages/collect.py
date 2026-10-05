@@ -1,4 +1,4 @@
-"""Collect stage: poll finished predict jobs and write matches."""
+"""Collect stage: poll queued predict jobs and write matches."""
 
 from typing import Any
 

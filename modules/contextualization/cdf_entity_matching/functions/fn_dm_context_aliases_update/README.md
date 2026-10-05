@@ -5,9 +5,8 @@ This module provides optimized metadata update functionality for timeseries, ass
 ## 🚀 Features
 
 - **35-55% faster execution** compared to legacy implementation
-- **Memory usage optimization** with automatic cleanup
+- **Paged reads** of only the properties aliases need, written page by page
 - **Batch processing** with retry logic for robust API interactions
-- **Performance monitoring** with detailed benchmarking
 - **Enhanced error handling** with comprehensive logging
 - **Caching mechanisms** for improved performance
 - **Automatic optimization** applied by default
@@ -278,7 +277,7 @@ data = {
 
 # Run the optimized handler
 result = handle(data, client)
-print(f"Status: {result['status']}")
+print(result)
 ```
 
 ## 🔍 Functionality
@@ -289,7 +288,7 @@ print(f"Status: {result['status']}")
 - Processes timeseries, asset and file metadata with caching
 - Adds normalized tag aliases for entity matching, and for files the file name without
   its extension
-- Handles batch updates with memory management
+- Handles batch updates one page at a time
 
 Entity matching (submit/collect) then reads those aliases via
 `entityViewSearchProperty` / `targetViewSearchProperty`: entities use the **longest**
@@ -300,35 +299,27 @@ alias as the match string; targets keep **all** aliases. See
 - Applies node updates in configurable batches (default 1000, the SDK's own chunk size)
 - Retries each batch with exponential backoff, then splits into smaller chunks on failure
 
-#### 3. **PerformanceBenchmark**
-- Monitors execution time for all operations
-- Tracks memory usage throughout processing
-- Provides detailed performance statistics
-
 ### Processing Flow
 
-1. **Initialization**: Apply global optimizations and setup monitoring
+1. **Initialization**: Set up logging
 2. **Configuration**: Load parameters from extraction pipeline
 3. **Timeseries Processing**:
-   - Fetch every timeseries in scope in one call (the SDK paginates internally)
+   - Read the timeseries in scope 1000 at a time, with only `name` and `aliases`, and
+     retry a page that fails on a transient error
    - Add normalized aliases when tag patterns match
-   - Update metadata with optimized batch operations
-4. **Asset Processing**:
-   - Fetch every asset in scope in one call (the SDK paginates internally)
-   - Add normalized aliases when tag patterns match
-   - Update with batch operations
-5. **File Processing** (only when `fileView` is configured):
-   - Fetch every file in scope in one call (the SDK paginates internally)
-   - Add the file name without its extension, plus a normalized alias when the tag
-     pattern matches
-   - Update with batch operations
-6. **Cleanup**: Memory cleanup and performance reporting
+   - Write each page's updates before reading the next
+4. **Asset Processing**: as for timeseries
+5. **File Processing** (only when `fileView` is configured): as for timeseries, adding
+   the file name without its extension as well
+6. **Summary**: Log processed and updated counts, and names no pattern could read
+
+A failed read or write fails the function call rather than returning a failure status,
+so the workflow stops before entity matching runs on stale aliases.
 
 ### Performance Optimizations
 
 - **Caching**: LRU-cached alias generation for repeated tag patterns
 - **Batch Processing**: Configurable batch sizes with retry logic
-- **Memory Management**: Automatic cleanup and monitoring
 - **Error Recovery**: Robust error handling with fallback mechanisms
 
 ## 🧪 Testing
@@ -338,7 +329,7 @@ alias as the match string; targets keep **all** aliases. See
 From the repository root:
 
 ```bash
-uv run pytest modules/contextualization/cdf_entity_matching/functions/fn_dm_context_aliases_update/test_alias_optimizations.py -q
+uv run pytest modules/contextualization/cdf_entity_matching/functions/fn_dm_context_aliases_update -q
 ```
 
 Or run the script directly:
@@ -355,12 +346,7 @@ uv run python test_alias_optimizations.py
 uv run pytest modules/contextualization/cdf_entity_matching/functions/fn_dm_context_aliases_update/test_alias_optimizations.py::TestOptimizedMetadataProcessor -v
 ```
 
-#### 2. **Performance Tests**
-```bash
-uv run pytest modules/contextualization/cdf_entity_matching/functions/fn_dm_context_aliases_update/test_alias_optimizations.py::TestPerformanceBenchmark -v
-```
-
-#### 3. **Integration Tests**
+#### 2. **Integration Tests**
 ```bash
 uv run pytest modules/contextualization/cdf_entity_matching/functions/fn_dm_context_aliases_update/test_alias_optimizations.py::TestIntegrationScenarios -v
 ```
@@ -369,8 +355,6 @@ uv run pytest modules/contextualization/cdf_entity_matching/functions/fn_dm_cont
 
 The test suite covers:
 - ✅ All optimization classes and functions
-- ✅ Performance benchmarking
-- ✅ Memory management
 - ✅ Error handling scenarios
 - ✅ Batch processing logic
 - ✅ Caching mechanisms
@@ -387,9 +371,9 @@ The module provides detailed monitoring:
 ⏱️ Time: Configuration processing took 0.15 seconds
 ⏱️ Time: Timeseries processing took 45.30 seconds
 ⏱️ Time: Asset processing took 32.10 seconds
-🧠 Memory: Pipeline start Memory usage: 145.2 MB
-🧠 Memory: Pipeline end Memory usage: 152.1 MB
 ```
+
+Step timings are logged at DEBUG.
 
 ## 🛠️ Dependencies
 
@@ -398,7 +382,6 @@ See `pyproject.toml` for local dev dependencies; `requirements.txt` lists direct
 ```txt
 cognite-sdk>=7.0.0
 tenacity>=8.0.0
-psutil>=5.9.0
 ```
 
 ## 🔧 Troubleshooting
@@ -407,7 +390,6 @@ psutil>=5.9.0
 
 1. **Memory Issues**
    - Reduce batch size in configuration
-   - Monitor memory usage in logs
 
 2. **API Rate Limits**
    - Retry logic handles temporary failures
@@ -441,7 +423,7 @@ data = {
 
 ### Performance Logs
 
-At **INFO**, expect startup, extraction pipeline id, loaded configuration summary, per-view progress, batch apply counts, and processing stats. Timing, memory, and performance summaries are **DEBUG** only.
+At **INFO**, expect startup, extraction pipeline id, loaded configuration summary, per-view progress, batch apply counts, and processing stats. Step timings are **DEBUG** only.
 
 ```
 Starting Aliases Update with loglevel = INFO

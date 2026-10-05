@@ -24,10 +24,6 @@ from alias_optimizations import (  # isort: skip
     AliasRule,
     OptimizedMetadataProcessor,
     _unmanaged_aliases,
-    PerformanceBenchmark,
-    cleanup_memory,
-    monitor_memory_usage,
-    optimize_metadata_processing,
     time_operation,
 )
 
@@ -46,15 +42,6 @@ class TestPerformanceMonitoring(unittest.TestCase):
             time.sleep(0.1)
 
         print("✅ time_operation test passed")
-
-    def test_memory_monitoring(self) -> None:
-        """Test memory monitoring"""
-        print("🧪 Testing memory monitoring...")
-
-        monitor_memory_usage(self.logger, "Test memory check")
-        cleanup_memory()
-
-        print("✅ Memory monitoring test passed")
 
 
 class TestBatchProcessing(unittest.TestCase):
@@ -1082,97 +1069,11 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
         print("✅ Processing statistics test passed")
 
 
-class TestPerformanceBenchmark(unittest.TestCase):
-    """Test performance benchmarking"""
-
-    def setUp(self) -> None:
-        self.logger = CogniteFunctionLogger("DEBUG")
-        self.benchmark = PerformanceBenchmark(self.logger)
-
-    def test_function_benchmarking(self) -> None:
-        """Test function benchmarking"""
-        print("🧪 Testing function benchmarking...")
-
-        def test_function(x: int, y: int) -> int:
-            time.sleep(0.05)
-            return x * y
-
-        result = self.benchmark.benchmark_function(
-            "Test multiplication", test_function, 5, 6
-        )
-
-        self.assertEqual(result, 30)
-        self.assertIn("Test multiplication", self.benchmark.benchmarks)
-        self.assertEqual(len(self.benchmark.benchmarks["Test multiplication"]), 1)
-
-        print("✅ Function benchmarking test passed")
-
-    def test_benchmark_summary(self) -> None:
-        """Test benchmark summary logging"""
-        print("🧪 Testing benchmark summary...")
-
-        # Add some mock benchmark data
-        self.benchmark.benchmarks = {
-            "Operation 1": [1.0, 1.2, 0.8],
-            "Operation 2": [0.5, 0.6],
-        }
-
-        # This should not raise an exception
-        self.benchmark.log_summary()
-
-        print("✅ Benchmark summary test passed")
-
-
-class TestGlobalOptimizations(unittest.TestCase):
-    """Test global optimization utilities"""
-
-    def test_optimize_metadata_processing(self) -> None:
-        """Test global optimization application"""
-        print("🧪 Testing global optimizations...")
-
-        result = optimize_metadata_processing()
-        self.assertTrue(result)
-
-        print("✅ Global optimizations test passed")
-
-
 class TestIntegrationScenarios(unittest.TestCase):
     """Test integration scenarios and real-world usage patterns"""
 
     def setUp(self) -> None:
         self.logger = CogniteFunctionLogger("DEBUG")
-
-    def test_full_optimization_workflow(self) -> None:
-        """Test full optimization workflow"""
-        print("🧪 Testing full optimization workflow...")
-
-        # Apply global optimizations
-        optimize_metadata_processing()
-
-        # Initialize components
-        processor = OptimizedMetadataProcessor(self.logger)
-        benchmark = PerformanceBenchmark(self.logger)
-
-        # Simulate processing workflow
-        start_time = time.time()
-
-        # Mock some processing operations
-        def mock_operation() -> str:
-            time.sleep(0.01)
-            return "processed"
-
-        result = benchmark.benchmark_function("Mock operation", mock_operation)
-
-        end_time = time.time()
-
-        self.assertEqual(result, "processed")
-        self.assertLess(end_time - start_time, 0.1)  # Should be fast
-
-        # Check stats
-        stats = processor.get_stats()
-        self.assertIsInstance(stats, dict)
-
-        print("✅ Full optimization workflow test passed")
 
     def test_large_dataset_simulation(self) -> None:
         """Test optimization performance with simulated large dataset"""

@@ -67,9 +67,11 @@ class FakeRawAPI:
 class FakeFilesAPI:
     def __init__(self) -> None:
         self.files: dict[str, bytes] = {}
+        self.data_set_ids: dict[str, object] = {}
 
     def upload_bytes(self, content: bytes, name: str, external_id: str, **kwargs: object) -> None:
         self.files[external_id] = content
+        self.data_set_ids[external_id] = kwargs.get("data_set_id")
 
     def download_bytes(self, external_id: str) -> bytes:
         if external_id not in self.files:
@@ -207,6 +209,17 @@ class TestStaging(unittest.TestCase):
 
         self.assertEqual(sorted(restored, key=lambda m: m["entity_ext_id"]), matches)
 
+    def test_staged_matches_are_written_to_the_data_set(self) -> None:
+        write_staged_matches(
+            self.client,  # type: ignore[arg-type]
+            self.logger,
+            "1001",
+            [],
+            data_set_id=7,
+        )
+
+        self.assertEqual(self.client.files.data_set_ids[staging_file_external_id("1001")], 7)
+
     def test_staging_log_separates_pairs_from_entities(self) -> None:
         """One entity can match many targets, so the row count is not the entity count."""
         logger = MagicMock()
@@ -260,6 +273,19 @@ class TestStaging(unittest.TestCase):
         delete_staged_matches(self.client, self.logger, "1001")  # type: ignore[arg-type]
         self.assertNotIn(staging_file_external_id("1001"), self.client.files.files)
         self.assertEqual(read_staged_matches(self.client, self.logger, "1001"), [])
+
+    def test_a_staging_file_that_cannot_be_read_fails_collect(self) -> None:
+        """Returning nothing would let collect delete the file and lose the staged matches."""
+        self.client.files.download_bytes = MagicMock(side_effect=CogniteAPIError("Unavailable", code=503))
+
+        with self.assertRaises(CogniteAPIError):
+            read_staged_matches(self.client, self.logger, "1001")  # type: ignore[arg-type]
+
+    def test_a_staging_file_that_cannot_be_parsed_fails_collect(self) -> None:
+        self.client.files.files[staging_file_external_id("1001")] = b"not json"
+
+        with self.assertRaises(ValueError):
+            read_staged_matches(self.client, self.logger, "1001")  # type: ignore[arg-type]
 
     def test_run_all_clears_results_but_keeps_staged_matches(self) -> None:
         self.client.raw.rows.insert("db", "good", Row("TS-9", {"entity_ext_id": "TS-9"}))

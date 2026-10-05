@@ -40,8 +40,10 @@ from em_constants import (  # isort: skip
     HTTP_STATUS_REQUEST_TIMEOUT,
     KEY_NAME,
     KEY_ORG_NAME,
-    KEY_RULE,
     KEY_RULE_KEYS,
+    KEY_SCOPE_PRIMARY,
+    KEY_SCOPE_SECONDARY,
+    KEY_SCOPE_WIDE,
     KEY_TARGET_EXT_ID,
     KEY_TARGET_SPACE,
     PROP_COL_NAME,
@@ -66,12 +68,15 @@ from em_constants import (  # isort: skip
 from em_logger import CogniteFunctionLogger  # isort: skip
 from em_pipeline import (  # isort: skip
     create_table,
+    file_data_set_id,
     get_query_filter,
     match_values,
+    rule_keys,
     warn_on_cross_space_duplicates,
 )
 from em_pipeline_optimizations import is_retryable  # isort: skip
 from em_pipeline_types import RuleMappingDefinition, TargetMatchRecord  # isort: skip
+from em_scope import is_scope_wide, scope_of, scope_properties  # isort: skip
 
 
 @dataclass(frozen=True)
@@ -83,16 +88,24 @@ class TargetSyncState:
     batch_size: int
 
 
-def target_cache_key(view: ViewPropertyConfig) -> str:
+def target_cache_key(view: ViewPropertyConfig, extra_properties: list[str] | None = None) -> str:
     """Fingerprint of the target configuration a cursor and a cache file belong to.
 
     Functions reading the same view, spaces and filter share one cache; change any of
     them and the run gets a cache of its own, so a cursor is never applied to content it
     was not taken from. `TARGET_CACHE_VERSION` does the same for a change to what the
     read itself selects, which no configuration reflects.
+
+    Args:
+        view: The target view configuration.
+        extra_properties: Properties selected beyond the name and search property, such
+            as the scope properties. Left out of the fingerprint when there are none, so
+            an unscoped configuration keeps the cache it already has.
     """
+    extra = {"extraProperties": sorted(extra_properties)} if extra_properties else {}
     configuration = json.dumps(
         {
+            **extra,
             "cacheVersion": TARGET_CACHE_VERSION,
             "schemaSpace": view.schema_space,
             "externalId": view.external_id,
@@ -247,6 +260,7 @@ def write_cached_targets(
     logger: CogniteFunctionLogger,
     file_external_id: str,
     targets: list[Node],
+    data_set_id: int | None = None,
 ) -> bool:
     """Store the target content so the next run can read it instead of the data model.
 
@@ -265,6 +279,7 @@ def write_cached_targets(
                 name=file_external_id,
                 external_id=file_external_id,
                 mime_type="application/json",
+                data_set_id=data_set_id,
                 overwrite=True,
             ),
         )
@@ -359,8 +374,9 @@ def sync_target_changes(
         filters.append(is_selected)
 
     properties = [PROP_COL_NAME]
-    if view.search_property != PROP_COL_NAME:
-        properties.append(view.search_property)
+    for extra_property in [view.search_property, *scope_properties(config.parameters)]:
+        if extra_property not in properties:
+            properties.append(extra_property)
 
     expression = NodeResultSetExpression(filter=dm.filters.And(*filters), limit=batch_size)
     query = Query(
@@ -412,7 +428,7 @@ def load_targets(
     them into that content and stores it again.
     """
     view = config.data.target_view
-    cache_key = target_cache_key(view)
+    cache_key = target_cache_key(view, scope_properties(config.parameters))
     state = read_sync_state(client, config, logger, cache_key)
 
     cached: list[Node] | None = None
@@ -445,7 +461,7 @@ def load_targets(
     # The cursor is only moved on once the content it describes has been stored. Moving
     # it on a failed write would leave the next run merging changes onto the targets of
     # an earlier one.
-    if write_cached_targets(client, logger, state.file_external_id, targets):
+    if write_cached_targets(client, logger, state.file_external_id, targets, file_data_set_id(client, config)):
         write_sync_state(client, config, logger, cache_key, synced, len(targets))
     return targets
 
@@ -468,41 +484,32 @@ def get_all_targets(
     )
     search_property = config.data.target_view.search_property
     view_id = config.data.target_view.as_view_id()
+    scoped = bool(scope_properties(config.parameters))
+    skipped_missing = 0
     for target in all_targets:
         properties = target.properties.get(view_id) if target.properties else None
         if not properties or PROP_COL_NAME not in properties:
-            logger.warning(f"Target: {target.external_id} is missing properties or name, skipping")
+            skipped_missing += 1
+            logger.missing_property_skip("Target", target.external_id, skipped_missing)
             continue
         org_name = str(properties[PROP_COL_NAME])
-
-        rule_keys = []
-        if rule_mappings:
-            for rule in rule_mappings:
-                # Pattern was pre-compiled in read_rule_mappings (re.Pattern object).
-                pattern = rule[COL_KEY_RULE_REGEXP_TARGET]
-                match = pattern.search(org_name)
-
-                if match:
-                    # Concatenate the captured groups directly. An operator's regex may
-                    # make a group optional, and one that does not participate in the
-                    # match captures None, which cannot be joined.
-                    matched_groups = [group for group in match.groups() if group is not None]
-                    cleaned_value = rule[KEY_RULE] + "_" + "".join(matched_groups)
-                    logger.debug(f"Cleaned value (using capture groups): {cleaned_value}")
-                    rule_keys.append(cleaned_value)
+        target_rule_keys = rule_keys(org_name, rule_mappings, COL_KEY_RULE_REGEXP_TARGET)
 
         match_properties = match_values(properties, search_property, org_name, list_selection="all")
 
         for match_property in match_properties:
-            targets.append(
-                {
-                    KEY_TARGET_EXT_ID: target.external_id,
-                    KEY_TARGET_SPACE: target.space,
-                    KEY_ORG_NAME: org_name,
-                    KEY_NAME: match_property,
-                    KEY_RULE_KEYS: rule_keys if rule_keys else None,
-                }
-            )
+            record: TargetMatchRecord = {
+                KEY_TARGET_EXT_ID: target.external_id,
+                KEY_TARGET_SPACE: target.space,
+                KEY_ORG_NAME: org_name,
+                KEY_NAME: match_property,
+                KEY_RULE_KEYS: target_rule_keys or None,
+            }
+            if scoped:
+                record[KEY_SCOPE_PRIMARY], record[KEY_SCOPE_SECONDARY] = scope_of(properties, config.parameters)
+                record[KEY_SCOPE_WIDE] = is_scope_wide(properties)
+            targets.append(record)
+    logger.missing_property_skip_summary(QUERY_FILTER_TYPE_TARGETS, skipped_missing)
     logger.debug(f"Number {QUERY_FILTER_TYPE_TARGETS} added as entities: {len(targets)}")
 
     return targets
