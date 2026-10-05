@@ -53,7 +53,7 @@ variables:
       location: "oslo"                                        # Site code, used in externalIds (ep_table_<location>_<sourceSystem>, raw_table_<location>_<sourceSystem>)
       sourceSystem: "postgres"                                # Source system token, used in the pipeline ID and group name
       instanceSpace: "sp_oslo_db"                            # Per-extractor DM instance space — computed by setup_project.py
-      dataset: "ds_db_postgres_oslo"                          # ds_<data_type>_<location> — computed by setup_project.py
+      dataset: "ds_db_oslo"                                   # ds_<data_type>_<location> — computed by setup_project.py
 
       integration_owner_name: "Integration Owner"             # Technical contact for the pipeline
       integration_owner_email: "integration.owner@example.com"
@@ -110,7 +110,7 @@ authoring the downstream transformation from RAW into a data model.
 
 - Source database reachable from the extractor host with appropriate ODBC driver installed
 - DB Extractor service account with read access to the source database
-- Cognite service account with read/write to the `raw_table_{{location}}_{{sourceSystem}}` RAW database and read access to the `{{dataset}}` data set (`ds_db_postgres_{{location}}`)
+- Cognite service account with read/write to the `raw_table_{{location}}_{{sourceSystem}}` RAW database and read access to the `{{dataset}}` data set (`ds_db_{{location}}`)
 
 ### Deploy
 
@@ -142,6 +142,11 @@ The RAW database also changed from `db_{{location}}_db_postgres` to
 `raw_table_{{location}}_{{sourceSystem}}`. Rows already in the old database are not
 moved: either let the extractor re-extract from `initial-start`, or copy the tables across
 before deleting the old database. Point any downstream transformations at the new name.
+
+The data set changed from `ds_db_postgres_{{location}}` to `ds_db_{{location}}` so it no
+longer hard-codes the database engine (`sourceSystem` now carries it).
+`setup_project.py` writes the new ID on its next run but keeps the old one in
+`cdf_project_foundation`'s `dataset` list; remove it there once nothing references it.
 
 ### Verify
 

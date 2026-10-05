@@ -339,7 +339,7 @@ _MODULE_DATASET_BASE: dict[str, str] = {
     "cdf_pi_extractor":    "ds_pi",
     "cdf_sap_extractor":   "ds_sap",
     "cdf_opcua_extractor": "ds_opcua",
-    "cdf_db_extractor":    "ds_db_postgres",
+    "cdf_db_extractor":    "ds_db",
     "cdf_files_extractor": "ds_files",
 }
 
