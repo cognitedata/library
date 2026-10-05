@@ -34,9 +34,8 @@ OPC-UA Server
       ▼
 OPC-UA Extractor
       │
-      ├── Variable values  ──────────► CDF Timeseries (direct write)
+      ├── Variable nodes + values ───► CogniteTimeSeries in {{instanceSpace}} (direct write, not staged in RAW)
       ├── Object nodes     ──────────► RAW: assets
-      ├── Variable nodes   ──────────► RAW: timeseries
       ├── References       ──────────► RAW: relationships
       ├── Browse cache     ──────────► RAW: known_objects, known_references, known_variables
       └── Subscription state ────────► RAW: state_store_variables
@@ -54,9 +53,9 @@ OPC-UA Extractor
 Names follow the [CDF resource naming conventions](https://docs.cognite.com/cdf/deploy/reference/cdf_resource_naming_conventions):
 pipelines use `ep_{data_type}_{location}_{source}` and access groups use the persona-led
 pattern `producer_[{site}_]ep_{extractortype}_{sourcesystem}_{environment}`.
-The pipeline uses the `timeseries` data type because datapoints go straight to
-`CogniteTimeSeries`; the RAW database uses `asset` because it only holds node metadata,
-references, and extractor state.
+The pipeline uses the `timeseries` data type because time series go straight to
+`CogniteTimeSeries` and are never staged in RAW. The RAW database uses `asset` because it
+only holds Object-node (asset) metadata, references, and extractor state.
 
 The producer group follows the least-privilege scoping in the GVD data onboarding SOP:
 `extractionConfigs:READ`, `extractionRuns:WRITE`, and `extractionPipelines:READ` on the
@@ -166,6 +165,11 @@ The RAW database also changed from `db_{{location}}_opcua` to
 `state_store_events`. The browse caches and state stores live in that database, so the
 extractor starts with an empty state: expect a full browse and a history re-read on first
 start. Point any downstream transformations at the new name, then delete the old database.
+
+The extractor also no longer writes time series metadata to RAW: the `timeseries` table
+and the `raw-node-buffer` startup cache (which read that table back) are removed. Time
+series are written only to `CogniteTimeSeries`, so read their metadata from there instead
+of the old RAW `timeseries` table.
 
 The instance space also changed from `sp_{{location}}_opcua` to `inst_{{location}}_opcua`
 (`setup_project.py` writes the new name on its next run). Instances already in the old
