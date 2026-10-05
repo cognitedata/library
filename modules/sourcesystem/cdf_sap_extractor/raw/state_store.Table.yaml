@@ -1,4 +1,4 @@
 # Extractor state checkpoints — managed by the SAP OData Extractor.
 # Do not write to this table from transformations or external clients.
-dbName: "raw_maintenance_{{location}}_{{sourceSystem}}"
+dbName: "raw_asset_{{location}}_{{sourceSystem}}"
 tableName: state_store

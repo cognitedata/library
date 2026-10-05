@@ -14,7 +14,7 @@ cdf_db_extractor/
 │   ├── ep_db_postgres.ExtractionPipeline.yaml          # Pipeline definition with RAW table reference
 │   └── ep_db_postgres.ExtractionPipeline.Config.yaml   # DB Extractor runtime config (queries, ODBC)
 ├── raw/
-│   └── db_postgres.Database.yaml                       # raw_table_{{location}}_{{sourceSystem}}
+│   └── db_postgres.Database.yaml                       # raw_asset_{{location}}_{{sourceSystem}}
 └── module.toml
 ```
 
@@ -26,15 +26,15 @@ Relational Database (PostgreSQL / MSSQL / Oracle / MySQL / …)
       ▼  (ODBC + SQL queries)
 DB Extractor
       │
-      └── Query result rows ──────────► RAW: raw_table_{{location}}_{{sourceSystem}}.<query.destination.table>
+      └── Query result rows ──────────► RAW: raw_asset_{{location}}_{{sourceSystem}}.<query.destination.table>
 ```
 
 ## Resources Created
 
 | Resource | External ID | Purpose |
 |---|---|---|
-| ExtractionPipeline | `ep_table_{{location}}_{{sourceSystem}}` | Pipeline health tracking and config delivery |
-| RAW Database | `raw_table_{{location}}_{{sourceSystem}}` | Landing zone for query result rows |
+| ExtractionPipeline | `ep_asset_{{location}}_{{sourceSystem}}` | Pipeline health tracking and config delivery |
+| RAW Database | `raw_asset_{{location}}_{{sourceSystem}}` | Landing zone for query result rows |
 | DM Space | `{{instanceSpace}}` | Per-extractor instance space for DM instances |
 | Access Group | `producer_{{location}}_ep_db_{{sourceSystem}}_{{environment}}` | Scoped service-principal group — one per extractor type × source system |
 
@@ -50,7 +50,7 @@ All variables are declared locally in `config.<env>.yaml` (no inheritance):
 variables:
   modules:
     cdf_db_extractor:
-      location: "oslo"                                        # Site code, used in externalIds (ep_table_<location>_<sourceSystem>, raw_table_<location>_<sourceSystem>)
+      location: "oslo"                                        # Site code, used in externalIds (ep_asset_<location>_<sourceSystem>, raw_asset_<location>_<sourceSystem>)
       sourceSystem: "postgres"                                # Source system token, used in the pipeline ID and group name
       instanceSpace: "sp_oslo_db"                            # Per-extractor DM instance space — computed by setup_project.py
       dataset: "ds_db_oslo"                                   # ds_<data_type>_<location> — computed by setup_project.py
@@ -95,11 +95,14 @@ example with a single query against `mytable`. Before production use:
    RAW table — and add a corresponding `*.Table.yaml` under `raw/` if you want
    the toolkit to provision the table at deploy time.
 4. **Verify the RAW database name** in `destination.database` matches
-   `raw_table_{{location}}_{{sourceSystem}}` so rows land in the database declared by this
+   `raw_asset_{{location}}_{{sourceSystem}}` so rows land in the database declared by this
    module.
 5. **If targeting a different DB engine**, set `sourceSystem` (e.g. `mssql`) so the
-   pipeline becomes `ep_table_{{location}}_mssql` and the group
+   pipeline becomes `ep_asset_{{location}}_mssql` and the group
    `producer_{{location}}_ep_db_mssql_{{environment}}`.
+6. **Check the data type token.** The pipeline and RAW database use `asset`
+   (`ep_asset_…`, `raw_asset_…`). If your queries extract a different data type, change
+   that token in the pipeline, RAW, and group files to the matching approved value.
 
 See `.cursor/rules/cdf-transformations.mdc` for AI-assisted guidance when
 authoring the downstream transformation from RAW into a data model.
@@ -110,7 +113,7 @@ authoring the downstream transformation from RAW into a data model.
 
 - Source database reachable from the extractor host with appropriate ODBC driver installed
 - DB Extractor service account with read access to the source database
-- Cognite service account with read/write to the `raw_table_{{location}}_{{sourceSystem}}` RAW database and read access to the `{{dataset}}` data set (`ds_db_{{location}}`)
+- Cognite service account with read/write to the `raw_asset_{{location}}_{{sourceSystem}}` RAW database and read access to the `{{dataset}}` data set (`ds_db_{{location}}`)
 
 ### Deploy
 
@@ -120,12 +123,12 @@ cdf deploy modules/sourcesystem/cdf_db_extractor --env your-environment
 
 ### Configure and run the extractor
 
-The extractor config is delivered via the `ep_table_{{location}}_{{sourceSystem}}` extraction pipeline in CDF. Set the environment variables on the extractor host and start the extractor — it will pull its config from CDF automatically.
+The extractor config is delivered via the `ep_asset_{{location}}_{{sourceSystem}}` extraction pipeline in CDF. Set the environment variables on the extractor host and start the extractor — it will pull its config from CDF automatically.
 
 ### Migrating from earlier versions
 
 The pipeline external ID changed from `ep_{{location}}_db_postgres` to
-`ep_table_{{location}}_{{sourceSystem}}`, and the access group from
+`ep_asset_{{location}}_{{sourceSystem}}`, and the access group from
 `producer_{{location}}_ep_db_{{environment}}` to
 `producer_{{location}}_ep_db_{{sourceSystem}}_{{environment}}`. To upgrade an existing
 deployment:
@@ -139,7 +142,7 @@ deployment:
    `sourceId`, so no IdP change is needed.
 
 The RAW database also changed from `db_{{location}}_db_postgres` to
-`raw_table_{{location}}_{{sourceSystem}}`. Rows already in the old database are not
+`raw_asset_{{location}}_{{sourceSystem}}`. Rows already in the old database are not
 moved: either let the extractor re-extract from `initial-start`, or copy the tables across
 before deleting the old database. Point any downstream transformations at the new name.
 
@@ -150,4 +153,4 @@ longer hard-codes the database engine (`sourceSystem` now carries it).
 
 ### Verify
 
-Check that the configured RAW table(s) under `raw_table_{{location}}_{{sourceSystem}}` are populated in CDF Data Explorer.
+Check that the configured RAW table(s) under `raw_asset_{{location}}_{{sourceSystem}}` are populated in CDF Data Explorer.

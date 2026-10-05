@@ -1,2 +1,2 @@
-dbName: "raw_timeseries_{{location}}_{{sourceSystem}}"
+dbName: "raw_asset_{{location}}_{{sourceSystem}}"
 tableName: timeseries

@@ -1,11 +1,11 @@
 # SAP Extractor — configuration variables
 
-# Site/location code, used in externalIds (e.g. ep_maintenance_{{location}}_{{sourceSystem}}, raw_maintenance_{{location}}_{{sourceSystem}})
+# Site/location code, used in externalIds (e.g. ep_asset_{{location}}_{{sourceSystem}}, raw_asset_{{location}}_{{sourceSystem}})
 # Populated automatically from the site / location name entered in setup_project.py.
 location: ""
 
 # Source system token — the SAP system this extractor reads from (e.g. sap, s4hana, ecc).
-# Used in the pipeline externalId (ep_maintenance_{{location}}_{{sourceSystem}}) and in the
+# Used in the pipeline externalId (ep_asset_{{location}}_{{sourceSystem}}) and in the
 # producer group name (producer_{{location}}_ep_sap_{{sourceSystem}}_{{environment}}).
 # Lowercase, [a-z0-9] only.
 sourceSystem: "sap"

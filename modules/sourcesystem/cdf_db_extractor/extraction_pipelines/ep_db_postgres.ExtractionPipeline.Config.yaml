@@ -1,4 +1,4 @@
-externalId: "ep_table_{{location}}_{{sourceSystem}}"
+externalId: "ep_asset_{{location}}_{{sourceSystem}}"
 config:
   # Runtime config for the DB Extractor — see ep_db_postgres.ExtractionPipeline.yaml
   # documentation block for required environment variables and install steps.
@@ -34,6 +34,6 @@ config:
       initial-start: 0
       destination:
         type: raw
-        database: "raw_table_{{location}}_{{sourceSystem}}"
+        database: "raw_asset_{{location}}_{{sourceSystem}}"
         table: "mytable"
       primary-key: "{id}"

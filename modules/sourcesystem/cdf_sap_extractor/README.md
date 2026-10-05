@@ -14,7 +14,7 @@ cdf_sap_extractor/
 │   ├── ep_sap.ExtractionPipeline.yaml          # Single pipeline, all entity types
 │   └── ep_sap.ExtractionPipeline.Config.yaml   # Full SAP OData extractor config template
 ├── raw/
-│   ├── db_sap.Database.yaml                    # raw_maintenance_{{location}}_{{sourceSystem}}
+│   ├── db_sap.Database.yaml                    # raw_asset_{{location}}_{{sourceSystem}}
 │   ├── functional_location.Table.yaml          # SAP FunclocListSet  (master, weekly)
 │   ├── equipment.Table.yaml                    # SAP EquipmentListSet (master, weekly)
 │   ├── workorder.Table.yaml                    # SAP ExHeaderSet      (orders, daily)
@@ -47,8 +47,8 @@ SAP OData Extractor (single pipeline, 6 entity queries)
 
 | Resource | External ID | Purpose |
 |---|---|---|
-| ExtractionPipeline | `ep_maintenance_{{location}}_{{sourceSystem}}` | Pipeline health tracking and config delivery |
-| RAW Database | `raw_maintenance_{{location}}_{{sourceSystem}}` | SAP entity landing zone |
+| ExtractionPipeline | `ep_asset_{{location}}_{{sourceSystem}}` | Pipeline health tracking and config delivery |
+| RAW Database | `raw_asset_{{location}}_{{sourceSystem}}` | SAP entity landing zone |
 | RAW Tables | `functional_location`, `equipment`, `workorder`, `workpackage`, `worktask`, `workitem`, `state_store` | One per OData query plus an extractor-managed state-store table |
 | DM Space | `{{instanceSpace}}` | Per-extractor instance space for DM instances |
 | Access Group | `producer_{{location}}_ep_sap_{{sourceSystem}}_{{environment}}` | Scoped service-principal group — one per extractor type × source system |
@@ -65,7 +65,7 @@ All variables are declared locally in `config.<env>.yaml` (no inheritance):
 variables:
   modules:
     cdf_sap_extractor:
-      location: "oslo"                                        # Site code, used in externalIds (ep_maintenance_<location>_<sourceSystem>, raw_maintenance_<location>_<sourceSystem>)
+      location: "oslo"                                        # Site code, used in externalIds (ep_asset_<location>_<sourceSystem>, raw_asset_<location>_<sourceSystem>)
       sourceSystem: "sap"                                     # Source system token, used in the pipeline ID and group name
       instanceSpace: "sp_oslo_sap"                           # Per-extractor DM instance space — computed by setup_project.py
       dataset: "ds_sap_oslo"                                  # ds_<data_type>_<location> — computed by setup_project.py
@@ -123,7 +123,7 @@ authoring the downstream transformations into ISA Manufacturing Extension.
 
 - `models/isa_manufacturing_extension` deployed (downstream target)
 - SAP OData Extractor installed with network access to SAP NW Gateway
-- Extractor service account with read/write to the `raw_maintenance_{{location}}_{{sourceSystem}}` RAW
+- Extractor service account with read/write to the `raw_asset_{{location}}_{{sourceSystem}}` RAW
   database and read access to the `{{dataset}}` data set
 - SAP service account with READ access to PM/AM entities
 
@@ -135,12 +135,12 @@ cdf deploy modules/sourcesystem/cdf_sap_extractor --env your-environment
 
 ### Configure and run the extractor
 
-The extractor config is delivered via the `ep_maintenance_{{location}}_{{sourceSystem}}` extraction pipeline in CDF. Set the environment variables on the extractor host and start the extractor — it will pull its config from CDF automatically.
+The extractor config is delivered via the `ep_asset_{{location}}_{{sourceSystem}}` extraction pipeline in CDF. Set the environment variables on the extractor host and start the extractor — it will pull its config from CDF automatically.
 
 ### Migrating from earlier versions
 
 The pipeline external ID changed from `ep_{{location}}_sap` to
-`ep_maintenance_{{location}}_{{sourceSystem}}`, and the access group from
+`ep_asset_{{location}}_{{sourceSystem}}`, and the access group from
 `producer_{{location}}_ep_sap_{{environment}}` to
 `producer_{{location}}_ep_sap_{{sourceSystem}}_{{environment}}`. To upgrade an existing
 deployment:
@@ -154,11 +154,11 @@ deployment:
    `sourceId`, so no IdP change is needed.
 
 The RAW database also changed from `db_{{location}}_sap` to
-`raw_maintenance_{{location}}_{{sourceSystem}}`. The `state_store` table lives in that
+`raw_asset_{{location}}_{{sourceSystem}}`. The `state_store` table lives in that
 database, so the extractor starts without delta checkpoints and runs a full extraction of
 every endpoint. Point downstream transformations at the new name, then delete the old
 database.
 
 ### Verify
 
-Check that all seven RAW tables under `raw_maintenance_{{location}}_{{sourceSystem}}` are populated in CDF Data Explorer (the master tables — `functional_location`, `equipment` — populate weekly; the order/notification tables populate daily).
+Check that all seven RAW tables under `raw_asset_{{location}}_{{sourceSystem}}` are populated in CDF Data Explorer (the master tables — `functional_location`, `equipment` — populate weekly; the order/notification tables populate daily).
