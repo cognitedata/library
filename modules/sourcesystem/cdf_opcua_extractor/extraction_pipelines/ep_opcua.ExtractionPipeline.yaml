@@ -7,19 +7,19 @@ description: "OPC-UA Extractor pipeline for site {{location}} — reads node hie
 # ep_opcua.ExtractionPipeline.Config.yaml (raw-node-buffer, metadata-targets.raw,
 # and state-storage). Update the suffix per site if you run multiple pipelines.
 rawTables:
-- dbName: 'raw_asset_{{location}}_{{sourceSystem}}'
+- dbName: 'raw_timeseries_{{location}}_{{sourceSystem}}'
   tableName: assets
-- dbName: 'raw_asset_{{location}}_{{sourceSystem}}'
+- dbName: 'raw_timeseries_{{location}}_{{sourceSystem}}'
   tableName: timeseries
-- dbName: 'raw_asset_{{location}}_{{sourceSystem}}'
+- dbName: 'raw_timeseries_{{location}}_{{sourceSystem}}'
   tableName: relationships
-- dbName: 'raw_asset_{{location}}_{{sourceSystem}}'
+- dbName: 'raw_timeseries_{{location}}_{{sourceSystem}}'
   tableName: known_objects
-- dbName: 'raw_asset_{{location}}_{{sourceSystem}}'
+- dbName: 'raw_timeseries_{{location}}_{{sourceSystem}}'
   tableName: known_references
-- dbName: 'raw_asset_{{location}}_{{sourceSystem}}'
+- dbName: 'raw_timeseries_{{location}}_{{sourceSystem}}'
   tableName: known_variables
-- dbName: 'raw_asset_{{location}}_{{sourceSystem}}'
+- dbName: 'raw_timeseries_{{location}}_{{sourceSystem}}'
   tableName: state_store_variables
 schedule: Continuous
 contacts:

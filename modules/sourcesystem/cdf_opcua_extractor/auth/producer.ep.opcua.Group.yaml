@@ -15,7 +15,7 @@ capabilities:
       scope:
         tableScope:
           dbsToTables:
-            raw_asset_{{location}}_{{sourceSystem}}: []
+            raw_timeseries_{{location}}_{{sourceSystem}}: []
   - timeSeriesAcl:
       actions: [READ, WRITE]
       scope:
