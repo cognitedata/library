@@ -584,7 +584,7 @@ def test_missing_name_skips_are_sampled_at_warning_and_summarised() -> None:
         )
         for i in range(7)
     ]
-    client = FakeClient(pages=[(nameless + [target_node("A-1", "Pump 1")], "cursor-1")])
+    client = FakeClient(pages=[([*nameless, target_node("A-1", "Pump 1")], "cursor-1")])
     logger = RecordingLogger()
 
     targets = get_all_targets(client, logger, build_config())  # type: ignore[arg-type]
