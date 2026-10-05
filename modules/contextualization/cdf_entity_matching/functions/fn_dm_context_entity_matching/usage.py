@@ -4,8 +4,6 @@ import threading
 
 from cognite.client import CogniteClient
 
-from mixpanel import Consumer, Mixpanel
-
 _SOURCE = "dp:contextualization:cdf_entity_matching"
 _DP_VERSION = "1"
 _TRACKER_VERSION = "1"
@@ -14,6 +12,8 @@ _TRACKER_VERSION = "1"
 def report_usage(client: CogniteClient) -> None:
     """Report one function invocation without affecting pipeline behavior."""
     try:
+        from mixpanel import Consumer, Mixpanel
+
         mixpanel = Mixpanel("8f28374a6614237dd49877a0d27daa78", consumer=Consumer(api_host="api-eu.mixpanel.com"))
         distinct_id = f"{client.config.project}:{client.config.cdf_cluster}"
 
