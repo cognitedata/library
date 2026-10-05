@@ -182,7 +182,7 @@ def test_predict_job_log_includes_entities_to_match(monkeypatch: pytest.MonkeyPa
         job_id = str(len(predicted))
         return SimpleNamespace(job_id=job_id, job_token=f"token-{job_id}", model_id=42)
 
-    monkeypatch.setattr(em_submit, "RawUploadQueue", MagicMock())
+    monkeypatch.setattr(em_submit, "_raw_upload_queue", MagicMock())
     monkeypatch.setattr(em_submit, "read_state_store", lambda *a: "")
     monkeypatch.setattr(em_submit, "read_manual_mappings", lambda *a: ([], {}))
     monkeypatch.setattr(em_submit, "read_rule_mappings", lambda *a: [])
@@ -228,7 +228,7 @@ def test_submit_starts_one_predict_job_per_scope(monkeypatch: pytest.MonkeyPatch
         predicted.append((model_id, ids(targets, "asset_ext_id")))
         return SimpleNamespace(job_id=job_id, job_token=f"token-{job_id}", model_id=42)
 
-    monkeypatch.setattr(em_submit, "RawUploadQueue", MagicMock())
+    monkeypatch.setattr(em_submit, "_raw_upload_queue", MagicMock())
     monkeypatch.setattr(em_submit, "read_state_store", lambda *a: "")
     monkeypatch.setattr(em_submit, "read_manual_mappings", lambda *a: ([], {}))
     monkeypatch.setattr(em_submit, "read_rule_mappings", lambda *a: [])

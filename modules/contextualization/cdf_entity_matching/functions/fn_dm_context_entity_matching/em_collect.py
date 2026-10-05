@@ -11,10 +11,10 @@ import time
 from collections.abc import Callable, Iterator
 from concurrent.futures import FIRST_COMPLETED, Future, ThreadPoolExecutor, wait
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from cognite.client import CogniteClient
 from cognite.client.data_classes import ContextualizationJob
-from cognite.extractorutils.uploader import RawUploadQueue
 
 from em_config import Config  # isort: skip
 from em_constants import (  # isort: skip
@@ -45,6 +45,16 @@ from em_pipeline_optimizations import time_operation  # isort: skip
 from em_pipeline_types import FunctionInputData  # isort: skip
 from em_staging import delete_staged_matches, read_staged_matches  # isort: skip
 
+# RawUploadQueue is only constructed at runtime; importing it lazily lets em_collect be
+# imported (e.g. for unit tests) without cognite-extractor-utils installed.
+if TYPE_CHECKING:
+    from cognite.extractorutils.uploader import RawUploadQueue
+
+
+def _raw_upload_queue(client: CogniteClient) -> "RawUploadQueue":
+    from cognite.extractorutils.uploader import RawUploadQueue
+
+    return RawUploadQueue(cdf_client=client, max_queue_size=500000, trigger_log_level=LOG_LEVEL_INFO)
 
 @dataclass(frozen=True)
 class CollectJobOutcome:
@@ -183,7 +193,7 @@ def collect_entity_matching(
     collected_matches, collected_bad_matches = 0, 0
 
     try:
-        raw_uploader = RawUploadQueue(cdf_client=client, max_queue_size=500000, trigger_log_level=LOG_LEVEL_INFO)
+        raw_uploader = _raw_upload_queue(client)
 
         jobs = list_predict_jobs(client, config, logger)
         logger.info(f"Found {len(jobs)} pending predict job(s) in state table")
@@ -254,7 +264,7 @@ def _collect_one_job(
     client: CogniteClient,
     logger: CogniteFunctionLogger,
     config: Config,
-    raw_uploader: RawUploadQueue,
+    raw_uploader: "RawUploadQueue",
     cdf_lock: threading.Lock,
     job: PredictJob,
     seconds_left: float,

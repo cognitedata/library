@@ -6,8 +6,9 @@ The run ends as soon as CDF has accepted the job, so a long prediction can no lo
 time the function out.
 """
 
+from typing import TYPE_CHECKING
+
 from cognite.client import CogniteClient
-from cognite.extractorutils.uploader import RawUploadQueue
 
 from em_config import Config  # isort: skip
 from em_constants import (  # isort: skip
@@ -40,6 +41,16 @@ from em_scope import scope_batches  # isort: skip
 from em_staging import clear_finished_matches, staging_prefix, write_staged_matches  # isort: skip
 from em_targets import get_all_targets  # isort: skip
 
+# RawUploadQueue is only constructed at runtime; importing it lazily lets em_submit be
+# imported (e.g. for unit tests) without cognite-extractor-utils installed.
+if TYPE_CHECKING:
+    from cognite.extractorutils.uploader import RawUploadQueue
+
+
+def _raw_upload_queue(client: CogniteClient) -> "RawUploadQueue":
+    from cognite.extractorutils.uploader import RawUploadQueue
+
+    return RawUploadQueue(cdf_client=client, max_queue_size=500000, trigger_log_level=LOG_LEVEL_INFO)
 
 def predict_job_entity_counts(
     scoped_entities: list[EntityMatchSource],
@@ -84,7 +95,7 @@ def submit_entity_matching(
     pipeline_ext_id = data["ExtractionPipelineExtId"]
     try:
         logger.debug("Initiate RAW upload queue used to store output from entity matching")
-        raw_uploader = RawUploadQueue(cdf_client=client, max_queue_size=500000, trigger_log_level=LOG_LEVEL_INFO)
+        raw_uploader = _raw_upload_queue(client)
 
         matching_model_id = ""
         if config.parameters.run_all:
