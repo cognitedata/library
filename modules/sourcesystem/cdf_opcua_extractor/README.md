@@ -39,7 +39,7 @@ OPC-UA Extractor
       ├── Variable nodes   ──────────► RAW: timeseries
       ├── References       ──────────► RAW: relationships
       ├── Browse cache     ──────────► RAW: known_objects, known_references, known_variables
-      └── Subscription state ────────► RAW: state-store-variables
+      └── Subscription state ────────► RAW: state_store_variables
 ```
 
 ## Resources Created
@@ -151,7 +151,8 @@ deployment:
    `sourceId`, so no IdP change is needed.
 
 The RAW database also changed from `db_{{location}}_opcua` to
-`raw_timeseries_{{location}}_{{sourceSystem}}`. The browse caches and
-`state-store-variables` live in that database, so the extractor starts with an empty
-state: expect a full browse and a history re-read on first start. Point any downstream
-transformations at the new name, then delete the old database.
+`raw_timeseries_{{location}}_{{sourceSystem}}`, and the state-store tables from
+`state-store-variables` / `state-store-events` to `state_store_variables` /
+`state_store_events`. The browse caches and state stores live in that database, so the
+extractor starts with an empty state: expect a full browse and a history re-read on first
+start. Point any downstream transformations at the new name, then delete the old database.

@@ -20,7 +20,7 @@ rawTables:
 - dbName: 'raw_timeseries_{{location}}_{{sourceSystem}}'
   tableName: known_variables
 - dbName: 'raw_timeseries_{{location}}_{{sourceSystem}}'
-  tableName: state-store-variables
+  tableName: state_store_variables
 schedule: Continuous
 contacts:
 - name: {{integration_owner_name}}
@@ -122,8 +122,8 @@ documentation: |
   | `known_objects`          | Browse cache of seen Object nodes                          |
   | `known_references`       | Browse cache of seen References                            |
   | `known_variables`        | Browse cache of seen Variable nodes                        |
-  | `state-store-variables`  | Extractor state for variable subscriptions / history       |
-  | `state-store-events`     | Extractor state for event subscriptions / history          |
+  | `state_store_variables`  | Extractor state for variable subscriptions / history       |
+  | `state_store_events`     | Extractor state for event subscriptions / history          |
 
   ### Browse / rebrowse behaviour
 
