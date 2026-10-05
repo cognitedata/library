@@ -214,9 +214,9 @@ cdf deploy
 
 ---
 
-### Step 6 — Set up CI/CD (optional)
+### Step 6 — Set up CI/CD (recommended)
 
-Generate CI/CD that automates build, dry-run, and deploy on PR / merge / release, for either GitHub Actions (default) or Azure DevOps. This can also be triggered through the setup wizard (Step 3):
+CI/CD is recommended for every delivery project so later deploys follow the branch promotion flow instead of running from a laptop. Generate pipelines that run `cdf build` on pull requests and deploy on merge / release, for either GitHub Actions (default) or Azure DevOps. This can also be triggered through the setup wizard (Step 3):
 
 ```bash
 python modules/common/cdf_project_foundation/scripts/generate_actions.py --force
@@ -225,7 +225,7 @@ python modules/common/cdf_project_foundation/scripts/generate_actions.py --force
 
 The script reads `org-dir` and toolkit version from `cdf.toml` automatically. It uses `environment.project` from each `config.<env>.yaml` as the CDF project name and validates that `environment.name` matches the expected environment.
 
-**GitHub (default):** writes `.github/workflows/` (`dry-run.yml`, `deploy-dev.yml`, `deploy-prod.yml`, and `deploy-test.yml` when `config.test.yaml` exists) and `docs/FOUNDATION_CICD.md` (GitHub Environments and secrets). Configure `ADMIN_SOURCE_ID`, `CONSUMER_SOURCE_ID`, and `PRODUCER_SOURCE_ID` as GitHub Environment variables alongside the CDF auth variables.
+**GitHub (default):** writes `.github/workflows/` (`dry-run.yml`, `deploy-dev.yml`, `deploy-prod.yml`, and `deploy-test.yml` when `config.test.yaml` exists) and `docs/FOUNDATION_CICD.md` (GitHub Environments and secrets). Configure `ADMIN_SOURCE_ID`, `CONSUMER_SOURCE_ID`, and `PRODUCER_SOURCE_ID` as GitHub Environment variables alongside the CDF auth variables. PR validation never loads `IDP_CLIENT_SECRET` — it only runs `cdf build`, because `pull_request` compiles the workflow YAML from the PR's own merge ref.
 
 **Azure DevOps (`--provider ado`):** writes `.devops/` (`dry-run-pipeline.yml` and one `deploy-<env>-pipeline.yml` per configured environment) and `docs/FOUNDATION_CICD.md` (variable groups, the per-environment deploy pipeline registrations, and the Build Validation branch policy). See `docs/FOUNDATION_CICD.md` for the exact setup steps. Unlike GitHub's single per-environment Environment, each environment gets two variable groups: a non-secret `<env>-toolkit-config` group used by both `toolkit-pr-validate` and the deploy pipeline, and an `<env>-toolkit-credentials` group used by the deploy pipeline only — PR validation never loads a secret, since Build Validation runs compile the pipeline YAML from the PR's own merge ref and can't be trusted with one.
 
@@ -309,7 +309,7 @@ The wizard (`scripts/setup_project.py`) is split across four helper modules:
 9. Creates new config files or updates existing ones in-place (preserving comments).
 10. Removes redundant auth files from contextualization, tools, and (Demo pack) `cdf_ingestion` modules covered by the foundation.
 11. Removes the synthetic diagram-annotation pipeline if both `cdf_sharepoint_data_dump` and `cdf_file_annotation` are installed — see [Demo pack: synthetic diagram-annotation cleanup](#demo-pack-synthetic-diagram-annotation-cleanup).
-12. Optionally generates GitHub Actions CI/CD workflows (this now includes a `setup_project.py --check` step before every `cdf build`, so a project with stale config fails with an actionable message instead of a raw Toolkit build error).
+12. Offers to generate GitHub Actions or Azure DevOps CI/CD workflows (recommended — this includes a `setup_project.py --check` step before every `cdf build`, so a project with stale config fails with an actionable message instead of a raw Toolkit build error).
 
 | Env key | Maps to | Config file |
 |---------|---------|------------|

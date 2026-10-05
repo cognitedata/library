@@ -1486,9 +1486,9 @@ def _prompt_site(existing_site: str) -> str:
         if not site:
             _warn("Site / location name is required and cannot be empty.")
             continue
-        if re.fullmatch(r"[a-z0-9_-]+", site):
+        if re.fullmatch(r"[a-z0-9_]+", site):
             return site
-        _warn("Use only lowercase letters, digits, hyphens, and underscores.")
+        _warn("Use only lowercase letters, digits, and underscores — hyphens are not allowed in CDF external IDs.")
 
 
 def _prompt_cfihos_owners(existing: dict) -> tuple[str, str, str]:
@@ -1921,6 +1921,31 @@ def get_actual_value(config: dict, dotted: str) -> object:
     return node
 
 
+def diff_config(config: dict[str, object], expected: dict[str, object]) -> list[str]:
+    """Compare actual config values against the expected variant defaults.
+
+    Any mismatch here (including a version bump on an extended module) is reported
+    as a warning by the caller, never a hard failure — foundation DP is a base that
+    projects are expected to extend and evolve past, so a value diverging from the
+    base template is not necessarily a mistake.
+
+    Args:
+        config: the actual parsed config file contents.
+        expected: dotted-path -> expected value, from ``collect_expected``.
+
+    Returns:
+        human-readable mismatch descriptions; empty if ``config`` matches ``expected``.
+    """
+    if not isinstance(config, dict):
+        return ["    (invalid config file format — expected a dictionary)"]
+    errors: list[str] = []
+    for dotted, expected_value in expected.items():
+        actual = get_actual_value(config, dotted)
+        if actual != expected_value:
+            errors.append(f"    {dotted}: got {actual!r}, expected {expected_value!r}")
+    return errors
+
+
 def check_config_file(
     path: Path,
     variant: str,
@@ -1932,14 +1957,8 @@ def check_config_file(
     if not path.exists():
         return ["    (file missing — run without --check to create it)"]
     config = load_yaml(path)
-    errors: list[str] = []
-    for dotted, expected_value in collect_expected(
-        variant, env, site, installed_ctx, datasets
-    ).items():
-        actual = get_actual_value(config, dotted)
-        if actual != expected_value:
-            errors.append(f"    {dotted}: got {actual!r}, expected {expected_value!r}")
-    return errors
+    expected = collect_expected(variant, env, site, installed_ctx, datasets)
+    return diff_config(config, expected)
 
 
 def _read_check_context(pack_root: Path) -> tuple[str, list[str]]:
@@ -2059,13 +2078,17 @@ def _run_check(
     stale_diagram_annotation = diagram_annotation_stale_paths(repo_root)
 
     if all_errors:
-        print(f"ERROR: Config file(s) out of sync with variant '{variant}':\n")
+        print(f"WARNING: Config file(s) diverge from variant '{variant}' base defaults:\n")
         for filename, errs in all_errors.items():
             print(f"  {filename}")
             for e in errs:
                 print(e)
-        print("\n  Run: python scripts/setup_project.py -y")
-        sys.exit(1)
+        print(
+            "\n  This is expected once a project extends or upgrades beyond the "
+            "foundation base (e.g. a data-model version bump). Run "
+            "python scripts/setup_project.py -y to re-sync intentionally, or "
+            "ignore if the divergence is intentional.\n"
+        )
     if stale_auth:
         print("ERROR: Redundant auth file(s) still present (covered by cdf_project_foundation):")
         for p in stale_auth:
@@ -2089,7 +2112,8 @@ def _run_check(
         print("\n  Run: python scripts/setup_project.py -y")
         sys.exit(1)
     _warn_disabled_notifications(repo_root, pack_root)
-    print(f"OK: All config file(s) match variant '{variant}'. No stale auth files.")
+    if not all_errors:
+        print(f"OK: All config file(s) match variant '{variant}'. No stale auth files.")
 
 
 # ── Entry point ────────────────────────────────────────────────────────────────

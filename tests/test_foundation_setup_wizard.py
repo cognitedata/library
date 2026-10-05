@@ -302,6 +302,15 @@ class TestGroupName:
         assert group_name("admin", "oslo", "test") == "admin_oslo_all_dev"
 
 
+class TestPromptSite:
+    def test_rejects_hyphen_and_reprompts(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """The site becomes a token in external IDs, where hyphens are not allowed."""
+        import setup_project
+        answers = iter(["north-sea", "northsea"])
+        monkeypatch.setattr(setup_project, "prompt", lambda *_args, **_kwargs: next(answers))
+        assert setup_project._prompt_site("") == "northsea"
+
+
 class TestBuildFoundationVars:
     def test_isa_variant_contains_required_keys(self) -> None:
         from setup_project import build_foundation_vars
@@ -579,6 +588,38 @@ class TestBuildOverlay:
         assert fa["targetEntityExternalId"] == "CogniteAsset"
         # No CDM-specific module block — CDM has no extension module to configure.
         assert "cdm" not in mods
+
+
+class TestCheckConfigDiff:
+    """``diff_config`` just reports divergence from the base template — any key,
+    including a data-model version bump on an extended module. The caller
+    (``_run_check``) treats every entry as a warning, never a hard failure:
+    foundation DP is a base that projects are expected to extend and evolve past."""
+
+    def test_mismatch_is_reported(self) -> None:
+        from setup_project import diff_config
+        config = {"variables": {"modules": {"my_datamodel": {"dm_version": "v2"}}}}
+        expected = {"my_datamodel.dm_version": "v1"}
+        errors = diff_config(config, expected)
+        assert errors == ["    my_datamodel.dm_version: got 'v2', expected 'v1'"]
+
+    def test_matching_value_reports_nothing(self) -> None:
+        from setup_project import diff_config
+        config = {"variables": {"modules": {"my_datamodel": {"dm_version": "v1"}}}}
+        expected = {"my_datamodel.dm_version": "v1"}
+        assert diff_config(config, expected) == []
+
+    def test_missing_key_is_reported(self) -> None:
+        from setup_project import diff_config
+        expected = {"my_datamodel.dm_version": "v1"}
+        errors = diff_config({"variables": {"modules": {}}}, expected)
+        assert errors == ["    my_datamodel.dm_version: got None, expected 'v1'"]
+
+    def test_invalid_config_type_is_reported(self) -> None:
+        from setup_project import diff_config
+        expected = {"my_datamodel.dm_version": "v1"}
+        errors = diff_config([], expected)
+        assert errors == ["    (invalid config file format — expected a dictionary)"]
 
 
 class TestModuleDataset:
