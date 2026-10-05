@@ -157,12 +157,17 @@ config:
         space: '{{instanceSpace}}'
         source: "OPCUA"
 
-      # Time series go straight to CogniteTimeSeries through `clean` above, so RAW only
-      # holds asset and relationship metadata — no timeseries-table.
       raw:
         database: 'raw_asset_{{location}}_{{sourceSystem}}'
         assets-table: 'assets'
+        timeseries-table: 'timeseries'
         relationships-table: 'relationships'
+    raw-node-buffer:
+      enable: true
+      database: 'raw_asset_{{location}}_{{sourceSystem}}'
+      assets-table: 'assets'
+      timeseries-table: 'timeseries'
+      browse-on-empty: true
     metadata-mapping:
       timeseries:
         "EngineeringUnits": "unit"
