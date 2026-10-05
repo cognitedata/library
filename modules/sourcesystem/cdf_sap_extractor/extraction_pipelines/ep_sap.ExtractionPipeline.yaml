@@ -3,19 +3,19 @@ name: "SAP maintenance extraction for site {{location}}"
 dataSetExternalId: "{{dataset}}"
 description: "SAP OData Extractor pipeline for site {{location}} — single pipeline with multiple entity queries writing to RAW"
 rawTables:
-  - dbName: "db_{{location}}_sap"
+  - dbName: "raw_maintenance_{{location}}_{{sourceSystem}}"
     tableName: "functional_location"
-  - dbName: "db_{{location}}_sap"
+  - dbName: "raw_maintenance_{{location}}_{{sourceSystem}}"
     tableName: "equipment"
-  - dbName: "db_{{location}}_sap"
+  - dbName: "raw_maintenance_{{location}}_{{sourceSystem}}"
     tableName: "workorder"
-  - dbName: "db_{{location}}_sap"
+  - dbName: "raw_maintenance_{{location}}_{{sourceSystem}}"
     tableName: "workpackage"
-  - dbName: "db_{{location}}_sap"
+  - dbName: "raw_maintenance_{{location}}_{{sourceSystem}}"
     tableName: "worktask"
-  - dbName: "db_{{location}}_sap"
+  - dbName: "raw_maintenance_{{location}}_{{sourceSystem}}"
     tableName: "workitem"
-  - dbName: "db_{{location}}_sap"
+  - dbName: "raw_maintenance_{{location}}_{{sourceSystem}}"
     tableName: "state_store"
 source: SAP_ODATA
 schedule: On trigger
@@ -49,7 +49,7 @@ documentation: |
   fetched by the SAP OData Extractor using its `pipeline-id`. A single pipeline
   covers all entity types: functional locations, equipment, work orders, work
   packages, work tasks, and notifications — each landing in its own RAW table in
-  `db_{{location}}_sap`.
+  `raw_maintenance_{{location}}_{{sourceSystem}}`.
 
   RAW data is then mapped to data-model instances in `{{instanceSpace}}` by six
   transformations (one per entity type) targeting the ISA Manufacturing Extension

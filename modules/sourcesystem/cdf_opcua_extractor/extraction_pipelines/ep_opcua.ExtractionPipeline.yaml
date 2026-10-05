@@ -7,20 +7,20 @@ description: "OPC-UA Extractor pipeline for site {{location}} — reads node hie
 # ep_opcua.ExtractionPipeline.Config.yaml (raw-node-buffer, metadata-targets.raw,
 # and state-storage). Update the suffix per site if you run multiple pipelines.
 rawTables:
-- dbName: 'db_{{location}}_opcua'
+- dbName: 'raw_timeseries_{{location}}_{{sourceSystem}}'
   tableName: assets
-- dbName: 'db_{{location}}_opcua'
+- dbName: 'raw_timeseries_{{location}}_{{sourceSystem}}'
   tableName: timeseries
-- dbName: 'db_{{location}}_opcua'
+- dbName: 'raw_timeseries_{{location}}_{{sourceSystem}}'
   tableName: relationships
-- dbName: 'db_{{location}}_opcua'
+- dbName: 'raw_timeseries_{{location}}_{{sourceSystem}}'
   tableName: known_objects
-- dbName: 'db_{{location}}_opcua'
+- dbName: 'raw_timeseries_{{location}}_{{sourceSystem}}'
   tableName: known_references
-- dbName: 'db_{{location}}_opcua'
+- dbName: 'raw_timeseries_{{location}}_{{sourceSystem}}'
   tableName: known_variables
-- dbName: 'db_{{location}}_opcua'
-  tableName: state-store-variables
+- dbName: 'raw_timeseries_{{location}}_{{sourceSystem}}'
+  tableName: state_store_variables
 schedule: Continuous
 contacts:
 - name: {{integration_owner_name}}
@@ -122,8 +122,8 @@ documentation: |
   | `known_objects`          | Browse cache of seen Object nodes                          |
   | `known_references`       | Browse cache of seen References                            |
   | `known_variables`        | Browse cache of seen Variable nodes                        |
-  | `state-store-variables`  | Extractor state for variable subscriptions / history       |
-  | `state-store-events`     | Extractor state for event subscriptions / history          |
+  | `state_store_variables`  | Extractor state for variable subscriptions / history       |
+  | `state_store_events`     | Extractor state for event subscriptions / history          |
 
   ### Browse / rebrowse behaviour
 

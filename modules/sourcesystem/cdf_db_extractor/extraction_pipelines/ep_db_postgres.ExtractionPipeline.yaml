@@ -3,7 +3,7 @@ name: "Database table extraction for site {{location}}"
 dataSetExternalId: "{{dataset}}"
 description: "DB Extractor pipeline for site {{location}} — reads from a relational database (default example: PostgreSQL) and writes rows to RAW for downstream transformation"
 rawTables:
-  - dbName: "db_{{location}}_db_postgres"
+  - dbName: "raw_table_{{location}}_{{sourceSystem}}"
     tableName: "mytable"
 source: POSTGRESQL
 schedule: Continuous

@@ -17,7 +17,7 @@ cdf_opcua_extractor/
 │   ├── ep_opcua.ExtractionPipeline.yaml          # Pipeline definition with RAW table references
 │   └── ep_opcua.ExtractionPipeline.Config.yaml   # Full OPC-UA Extractor config template
 ├── raw/
-│   └── db_opcua.Database.yaml                    # db_{{location}}_opcua
+│   └── db_opcua.Database.yaml                    # raw_timeseries_{{location}}_{{sourceSystem}}
 └── module.toml
 ```
 
@@ -39,7 +39,7 @@ OPC-UA Extractor
       ├── Variable nodes   ──────────► RAW: timeseries
       ├── References       ──────────► RAW: relationships
       ├── Browse cache     ──────────► RAW: known_objects, known_references, known_variables
-      └── Subscription state ────────► RAW: state-store-variables
+      └── Subscription state ────────► RAW: state_store_variables
 ```
 
 ## Resources Created
@@ -47,7 +47,7 @@ OPC-UA Extractor
 | Resource | External ID | Purpose |
 |---|---|---|
 | ExtractionPipeline | `ep_timeseries_{{location}}_{{sourceSystem}}` | Pipeline health tracking and config delivery |
-| RAW Database | `db_{{location}}_opcua` | OPC-UA node metadata + state landing zone |
+| RAW Database | `raw_timeseries_{{location}}_{{sourceSystem}}` | OPC-UA node metadata + state landing zone |
 | DM Space | `{{instanceSpace}}` | Per-extractor instance space for DM instances |
 | Access Group | `producer_{{location}}_ep_opcua_{{sourceSystem}}_{{environment}}` | Scoped service-principal group — one per extractor type × source system |
 
@@ -63,7 +63,7 @@ All variables are declared locally in `config.<env>.yaml` (no inheritance):
 variables:
   modules:
     cdf_opcua_extractor:
-      location: "oslo"                                        # Site code, used in externalIds (ep_timeseries_<location>_<sourceSystem>, db_<location>_opcua)
+      location: "oslo"                                        # Site code, used in externalIds (ep_timeseries_<location>_<sourceSystem>, raw_timeseries_<location>_<sourceSystem>)
       sourceSystem: "scada"                                   # Source system token, used in the pipeline ID and group name
       instanceSpace: "sp_oslo_opcua"                         # Per-extractor DM instance space — computed by setup_project.py
       dataset: "ds_opcua_oslo"                               # ds_<data_type>_<location> — computed by setup_project.py
@@ -120,7 +120,7 @@ authoring the downstream transformations into ISA Manufacturing Extension.
 
 - `models/isa_manufacturing_extension` deployed (downstream target)
 - OPC-UA Extractor installed and network-accessible to the OPC-UA server
-- Extractor service account with read/write to the `db_{{location}}_opcua` RAW
+- Extractor service account with read/write to the `raw_timeseries_{{location}}_{{sourceSystem}}` RAW
   database and read access to the `{{dataset}}` data set
 - Node filters configured in the extractor config
 
@@ -149,3 +149,10 @@ deployment:
 4. Once the extractor reports runs on the new pipeline, delete the old pipeline and group
    in Fusion. Toolkit does not remove them for you, and the new group keeps the same
    `sourceId`, so no IdP change is needed.
+
+The RAW database also changed from `db_{{location}}_opcua` to
+`raw_timeseries_{{location}}_{{sourceSystem}}`, and the state-store tables from
+`state-store-variables` / `state-store-events` to `state_store_variables` /
+`state_store_events`. The browse caches and state stores live in that database, so the
+extractor starts with an empty state: expect a full browse and a history re-read on first
+start. Point any downstream transformations at the new name, then delete the old database.

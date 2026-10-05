@@ -16,14 +16,14 @@ cdf_files_extractor/
 │   ├── ep_files_sharepoint.ExtractionPipeline.yaml         # Pipeline definition (contacts, schedule, source)
 │   └── ep_files_sharepoint.ExtractionPipeline.Config.yaml  # Files Extractor runtime config (file provider, paths, filters)
 ├── raw/
-│   └── db_files.Database.yaml                               # db_{{location}}_files (optional RAW-backed state store)
+│   └── db_files.Database.yaml                               # raw_files_{{location}}_{{sourceSystem}} (optional RAW-backed state store)
 └── module.toml
 ```
 
 > **Note:** File bytes and `CogniteFile` metadata land in CDF Files and
 > `{{instanceSpace}}` (the shipped example uses `destination-mode: cdm`). The
 > module does **not** stage file content to RAW. The `raw/` folder deploys
-> `db_{{location}}_files` so the producer group can use RAW for an optional
+> `raw_files_{{location}}_{{sourceSystem}}` so the producer group can use RAW for an optional
 > extractor state store (see `state-store` in `ExtractionPipeline.Config.yaml`).
 
 ## Data Flow
@@ -44,7 +44,7 @@ Files Extractor   (destination-mode: cdm)
 |---|---|---|
 | ExtractionPipeline | `ep_files_{{location}}_{{sourceSystem}}` | Pipeline health tracking and config delivery |
 | Data set | `{{dataset}}` | Groups uploaded files and pipeline resources |
-| RAW Database | `db_{{location}}_files` | Optional RAW-backed extractor state store (not used for file ingestion) |
+| RAW Database | `raw_files_{{location}}_{{sourceSystem}}` | Optional RAW-backed extractor state store (not used for file ingestion) |
 | DM Space | `{{instanceSpace}}` | Per-extractor instance space for DM instances |
 | Access Group | `producer_{{location}}_ep_file_{{sourceSystem}}_{{environment}}` | Scoped service-principal group — one per extractor type × source system |
 
@@ -108,7 +108,7 @@ SharePoint Online example with a single extraction path. Before production use:
 5. **Pick a state-store path** in `Config.yaml` that the extractor service
    account can write to (default: `/path/to/state-store.json` is a placeholder
    — change before running). For cluster deployments, uncomment the RAW
-   `state-store` block and point `database` at `db_{{location}}_files` (deployed
+   `state-store` block and point `database` at `raw_files_{{location}}_{{sourceSystem}}` (deployed
    from `raw/db_files.Database.yaml`). Add a `*.Table.yaml` under `raw/` if you
    want Toolkit to create the state table at deploy time.
 6. **Confirm `data_model.space`** matches your `instanceSpace` — `CogniteFile`
@@ -152,6 +152,11 @@ deployment:
 4. Once the extractor reports runs on the new pipeline, delete the old pipeline and group
    in Fusion. Toolkit does not remove them for you, and the new group keeps the same
    `sourceId`, so no IdP change is needed.
+
+The optional RAW state-store database also changed from `db_{{location}}_files` to
+`raw_files_{{location}}_{{sourceSystem}}`. If you enabled the RAW state store, update
+`state-store.database` in `Config.yaml`. The extractor starts with an empty state, so the
+first run re-checks every file.
 
 ### Verify
 

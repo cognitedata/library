@@ -1,6 +1,6 @@
 # DB Extractor — configuration variables
 
-# Site/location code, used in externalIds (e.g. ep_table_{{location}}_{{sourceSystem}}, db_{{location}}_db_postgres)
+# Site/location code, used in externalIds (e.g. ep_table_{{location}}_{{sourceSystem}}, raw_table_{{location}}_{{sourceSystem}})
 # Populated automatically from the site / location name entered in setup_project.py.
 location: ""
 
@@ -14,8 +14,8 @@ sourceSystem: "postgres"
 # Computed by setup_project.py as sp_{location}_db.
 instanceSpace: "sp_db_instance_space"
 # dataSetExternalId for the extraction pipeline, RAW database, and the data set this
-# module deploys. Computed by setup_project.py as ds_db_postgres_{location}.
-dataset: "ds_db_postgres"
+# module deploys. Computed by setup_project.py as ds_db_{location}.
+dataset: "ds_db"
 
 # Integration owner (technical contact for the pipeline)
 # Populated by setup_project.py wizard.

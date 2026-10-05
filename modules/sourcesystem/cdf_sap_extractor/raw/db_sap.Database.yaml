@@ -1,1 +1,1 @@
-dbName: "db_{{location}}_sap"
+dbName: "raw_maintenance_{{location}}_{{sourceSystem}}"

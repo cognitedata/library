@@ -117,10 +117,10 @@ config:
       max-parallelism: 1
       max-node-parallelism: 0
   state-storage:
-    location: 'db_{{location}}_opcua'
+    location: 'raw_timeseries_{{location}}_{{sourceSystem}}'
     database: Raw
-    variable-store: state-store-variables
-    event-store: state-store-events
+    variable-store: state_store_variables
+    event-store: state_store_events
     interval: 10
   cognite:
     cdf-throttling:
@@ -158,13 +158,13 @@ config:
         source: "OPCUA"
 
       raw:
-        database: 'db_{{location}}_opcua'
+        database: 'raw_timeseries_{{location}}_{{sourceSystem}}'
         assets-table: 'assets'
         timeseries-table: 'timeseries'
         relationships-table: 'relationships'
     raw-node-buffer:
       enable: true
-      database: 'db_{{location}}_opcua'
+      database: 'raw_timeseries_{{location}}_{{sourceSystem}}'
       assets-table: 'assets'
       timeseries-table: 'timeseries'
       browse-on-empty: true
