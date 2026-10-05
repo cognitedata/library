@@ -42,6 +42,14 @@ Names follow the [CDF resource naming conventions](https://docs.cognite.com/cdf/
 pipelines use `ep_{data_type}_{location}_{source}` and access groups use the persona-led
 pattern `producer_[{site}_]ep_{extractortype}_{sourcesystem}_{environment}`.
 
+The producer group follows the least-privilege scoping in the GVD data onboarding SOP:
+`extractionConfigs:READ`, `extractionRuns:WRITE`, and `extractionPipelines:READ` on the
+pipeline's data set, with no `extractionPipelines:WRITE`. There is no `sessions:CREATE`
+either: the extractor authenticates with its own client credentials, and
+[sessions](https://docs.cognite.com/api-reference/concepts/20230101/sessions) are only
+needed by background workloads such as transformations, functions, and workflows. The
+extractor only stages data in RAW, so the group has no data-model instance access.
+
 ## Configuration
 
 All variables are declared locally in `config.<env>.yaml` (no inheritance):
@@ -154,6 +162,10 @@ space are not moved: the extractor creates new instances in the new space on its
 run. Verify the new instances, then delete the old space. To keep the old space instead,
 set `instanceSpace` back to its old value after running the wizard;
 `setup_project.py --check` then reports it as drift.
+
+The producer group's capabilities were also narrowed (see [Resources Created](#resources-created)).
+If anything else uses this group's service principal, check that it does not rely on the
+removed capabilities.
 
 ### Verify
 

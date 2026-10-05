@@ -1,10 +1,6 @@
 name: producer_{{location}}_ep_sap_{{sourceSystem}}_{{environment}}
 sourceId: {{extractor_group_source_id}}
 capabilities:
-  - sessionsAcl:
-      actions: [CREATE]
-      scope:
-        all: {}
   - datasetsAcl:
       actions: [READ]
       scope:
@@ -16,23 +12,18 @@ capabilities:
         tableScope:
           dbsToTables:
             raw_maintenance_{{location}}_{{sourceSystem}}: []
-  - dataModelInstancesAcl:
-      actions: [READ, WRITE, WRITE_PROPERTIES]
-      scope:
-        spaceIdScope:
-          spaceIds: ["{{instanceSpace}}"]
   - extractionPipelinesAcl:
-      actions: [READ, WRITE]
+      actions: [READ]
       scope:
         datasetScope:
           ids: ["{{dataset}}"]
   - extractionConfigsAcl:
-      actions: [READ, WRITE]
+      actions: [READ]
       scope:
         datasetScope:
           ids: ["{{dataset}}"]
   - extractionRunsAcl:
-      actions: [READ, WRITE]
+      actions: [WRITE]
       scope:
         datasetScope:
           ids: ["{{dataset}}"]
