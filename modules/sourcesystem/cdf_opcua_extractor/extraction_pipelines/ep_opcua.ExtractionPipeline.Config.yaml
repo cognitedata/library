@@ -117,7 +117,7 @@ config:
       max-parallelism: 1
       max-node-parallelism: 0
   state-storage:
-    location: 'raw_asset_{{location}}_{{sourceSystem}}'
+    location: 'raw_timeseries_{{location}}_{{sourceSystem}}'
     database: Raw
     variable-store: state_store_variables
     event-store: state_store_events
@@ -157,12 +157,17 @@ config:
         space: '{{instanceSpace}}'
         source: "OPCUA"
 
-      # Time series go straight to CogniteTimeSeries through `clean` above, so RAW only
-      # holds asset and relationship metadata — no timeseries-table.
       raw:
-        database: 'raw_asset_{{location}}_{{sourceSystem}}'
+        database: 'raw_timeseries_{{location}}_{{sourceSystem}}'
         assets-table: 'assets'
+        timeseries-table: 'timeseries'
         relationships-table: 'relationships'
+    raw-node-buffer:
+      enable: true
+      database: 'raw_timeseries_{{location}}_{{sourceSystem}}'
+      assets-table: 'assets'
+      timeseries-table: 'timeseries'
+      browse-on-empty: true
     metadata-mapping:
       timeseries:
         "EngineeringUnits": "unit"

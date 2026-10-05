@@ -17,7 +17,7 @@ cdf_opcua_extractor/
 │   ├── ep_opcua.ExtractionPipeline.yaml          # Pipeline definition with RAW table references
 │   └── ep_opcua.ExtractionPipeline.Config.yaml   # Full OPC-UA Extractor config template
 ├── raw/
-│   └── db_opcua.Database.yaml                    # raw_asset_{{location}}_{{sourceSystem}}
+│   └── db_opcua.Database.yaml                    # raw_timeseries_{{location}}_{{sourceSystem}}
 └── module.toml
 ```
 
@@ -34,8 +34,9 @@ OPC-UA Server
       ▼
 OPC-UA Extractor
       │
-      ├── Variable nodes + values ───► CogniteTimeSeries in {{instanceSpace}} (direct write, not staged in RAW)
+      ├── Variable values  ──────────► CDF Timeseries (direct write)
       ├── Object nodes     ──────────► RAW: assets
+      ├── Variable nodes   ──────────► RAW: timeseries
       ├── References       ──────────► RAW: relationships
       ├── Browse cache     ──────────► RAW: known_objects, known_references, known_variables
       └── Subscription state ────────► RAW: state_store_variables
@@ -46,16 +47,16 @@ OPC-UA Extractor
 | Resource | External ID | Purpose |
 |---|---|---|
 | ExtractionPipeline | `ep_timeseries_{{location}}_{{sourceSystem}}` | Pipeline health tracking and config delivery |
-| RAW Database | `raw_asset_{{location}}_{{sourceSystem}}` | OPC-UA node metadata + state landing zone |
+| RAW Database | `raw_timeseries_{{location}}_{{sourceSystem}}` | OPC-UA node metadata + state landing zone |
 | DM Space | `{{instanceSpace}}` | Per-extractor instance space for DM instances |
 | Access Group | `producer_{{location}}_ep_opcua_{{sourceSystem}}_{{environment}}` | Scoped service-principal group — one per extractor type × source system |
 
 Names follow the [CDF resource naming conventions](https://docs.cognite.com/cdf/deploy/reference/cdf_resource_naming_conventions):
 pipelines use `ep_{data_type}_{location}_{source}` and access groups use the persona-led
 pattern `producer_[{site}_]ep_{extractortype}_{sourcesystem}_{environment}`.
-The pipeline uses the `timeseries` data type because time series go straight to
-`CogniteTimeSeries` and are never staged in RAW. The RAW database uses `asset` because it
-only holds Object-node (asset) metadata, references, and extractor state.
+Both the pipeline and the RAW database use the `timeseries` data type. Datapoints go
+straight to `CogniteTimeSeries`; the RAW database only holds metadata (Variable and Object
+node metadata, references) and extractor state.
 
 The producer group follows the least-privilege scoping in the GVD data onboarding SOP:
 `extractionConfigs:READ`, `extractionRuns:WRITE`, and `extractionPipelines:READ` on the
@@ -72,7 +73,7 @@ All variables are declared locally in `config.<env>.yaml` (no inheritance):
 variables:
   modules:
     cdf_opcua_extractor:
-      location: "oslo"                                        # Site code, used in externalIds (ep_timeseries_<location>_<sourceSystem>, raw_asset_<location>_<sourceSystem>)
+      location: "oslo"                                        # Site code, used in externalIds (ep_timeseries_<location>_<sourceSystem>, raw_timeseries_<location>_<sourceSystem>)
       sourceSystem: "scada"                                   # Source system token, used in the pipeline ID and group name
       instanceSpace: "inst_oslo_opcua"                         # Per-extractor DM instance space — computed by setup_project.py
       dataset: "ds_opcua_oslo"                               # ds_<data_type>_<location> — computed by setup_project.py
@@ -129,7 +130,7 @@ authoring the downstream transformations into ISA Manufacturing Extension.
 
 - `models/isa_manufacturing_extension` deployed (downstream target)
 - OPC-UA Extractor installed and network-accessible to the OPC-UA server
-- Extractor service account with read/write to the `raw_asset_{{location}}_{{sourceSystem}}` RAW
+- Extractor service account with read/write to the `raw_timeseries_{{location}}_{{sourceSystem}}` RAW
   database and read access to the `{{dataset}}` data set
 - Node filters configured in the extractor config
 
@@ -160,16 +161,11 @@ deployment:
    `sourceId`, so no IdP change is needed.
 
 The RAW database also changed from `db_{{location}}_opcua` to
-`raw_asset_{{location}}_{{sourceSystem}}`, and the state-store tables from
+`raw_timeseries_{{location}}_{{sourceSystem}}`, and the state-store tables from
 `state-store-variables` / `state-store-events` to `state_store_variables` /
 `state_store_events`. The browse caches and state stores live in that database, so the
 extractor starts with an empty state: expect a full browse and a history re-read on first
 start. Point any downstream transformations at the new name, then delete the old database.
-
-The extractor also no longer writes time series metadata to RAW: the `timeseries` table
-and the `raw-node-buffer` startup cache (which read that table back) are removed. Time
-series are written only to `CogniteTimeSeries`, so read their metadata from there instead
-of the old RAW `timeseries` table.
 
 The instance space also changed from `sp_{{location}}_opcua` to `inst_{{location}}_opcua`
 (`setup_project.py` writes the new name on its next run). Instances already in the old

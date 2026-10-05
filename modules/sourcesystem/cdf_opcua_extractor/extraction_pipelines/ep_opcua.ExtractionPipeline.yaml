@@ -1,23 +1,25 @@
 externalId: "ep_timeseries_{{location}}_{{sourceSystem}}"
 name: "OPC UA time series extraction for site {{location}}"
 dataSetExternalId: "{{dataset}}"
-description: "OPC-UA Extractor pipeline for site {{location}} — reads node hierarchy and Variable subscriptions, writes time series directly to CogniteTimeSeries and asset/relationship metadata + browse/state caches to RAW"
+description: "OPC-UA Extractor pipeline for site {{location}} — reads node hierarchy and Variable subscriptions, writes timeseries values directly to CDF and node metadata + browse/state caches to RAW"
 # RAW tables used by the OPC-UA extractor for staging and state storage.
 # These names align with the database/table references in
-# ep_opcua.ExtractionPipeline.Config.yaml (metadata-targets.raw and state-storage).
-# Time series are not staged in RAW. Update the suffix per site if you run multiple pipelines.
+# ep_opcua.ExtractionPipeline.Config.yaml (raw-node-buffer, metadata-targets.raw,
+# and state-storage). Update the suffix per site if you run multiple pipelines.
 rawTables:
-- dbName: 'raw_asset_{{location}}_{{sourceSystem}}'
+- dbName: 'raw_timeseries_{{location}}_{{sourceSystem}}'
   tableName: assets
-- dbName: 'raw_asset_{{location}}_{{sourceSystem}}'
+- dbName: 'raw_timeseries_{{location}}_{{sourceSystem}}'
+  tableName: timeseries
+- dbName: 'raw_timeseries_{{location}}_{{sourceSystem}}'
   tableName: relationships
-- dbName: 'raw_asset_{{location}}_{{sourceSystem}}'
+- dbName: 'raw_timeseries_{{location}}_{{sourceSystem}}'
   tableName: known_objects
-- dbName: 'raw_asset_{{location}}_{{sourceSystem}}'
+- dbName: 'raw_timeseries_{{location}}_{{sourceSystem}}'
   tableName: known_references
-- dbName: 'raw_asset_{{location}}_{{sourceSystem}}'
+- dbName: 'raw_timeseries_{{location}}_{{sourceSystem}}'
   tableName: known_variables
-- dbName: 'raw_asset_{{location}}_{{sourceSystem}}'
+- dbName: 'raw_timeseries_{{location}}_{{sourceSystem}}'
   tableName: state_store_variables
 schedule: Continuous
 contacts:
@@ -115,6 +117,7 @@ documentation: |
   | Table                    | Purpose                                                    |
   | ------------------------ | ---------------------------------------------------------- |
   | `assets`                 | Asset rows staged from OPC-UA Object nodes                 |
+  | `timeseries`             | Timeseries rows staged from OPC-UA Variable nodes          |
   | `relationships`          | Relationship rows derived from OPC-UA references           |
   | `known_objects`          | Browse cache of seen Object nodes                          |
   | `known_references`       | Browse cache of seen References                            |
