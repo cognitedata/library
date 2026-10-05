@@ -67,7 +67,7 @@ variables:
     cdf_sap_extractor:
       location: "oslo"                                        # Site code, used in externalIds (ep_maintenance_<location>_<sourceSystem>, raw_maintenance_<location>_<sourceSystem>)
       sourceSystem: "sap"                                     # Source system token, used in the pipeline ID and group name
-      instanceSpace: "sp_oslo_sap"                           # Per-extractor DM instance space — computed by setup_project.py
+      instanceSpace: "inst_oslo_sap"                           # Per-extractor DM instance space — computed by setup_project.py
       dataset: "ds_sap_oslo"                                  # ds_<data_type>_<location> — computed by setup_project.py
       sapPlant: "1000"                                        # SAP plant code, used in OData filter expressions (MaintPlant eq '<sapPlant>')
       sapDisableSsl: false                                    # Set true only if SAP server uses an untrusted self-signed certificate
@@ -158,6 +158,13 @@ The RAW database also changed from `db_{{location}}_sap` to
 database, so the extractor starts without delta checkpoints and runs a full extraction of
 every endpoint. Point downstream transformations at the new name, then delete the old
 database.
+
+The instance space also changed from `sp_{{location}}_sap` to `inst_{{location}}_sap`
+(`setup_project.py` writes the new name on its next run). Instances already in the old
+space are not moved: the extractor creates new instances in the new space on its next
+run. Verify the new instances, then delete the old space. To keep the old space instead,
+set `instanceSpace` back to its old value after running the wizard;
+`setup_project.py --check` then reports it as drift.
 
 ### Verify
 

@@ -50,7 +50,7 @@ variables:
     cdf_pi_extractor:
       location: "oslo"                                       # Site code, used in externalIds (ep_timeseries_<location>_<sourceSystem>)
       sourceSystem: "pi"                                     # Source system token, used in the pipeline ID and group name
-      instanceSpace: "sp_oslo_pi"                           # Per-extractor DM instance space — computed by setup_project.py
+      instanceSpace: "inst_oslo_pi"                           # Per-extractor DM instance space — computed by setup_project.py
       dataset: "ds_pi_oslo"                                 # ds_<data_type>_<location> — computed by setup_project.py
       piIdPrefix: "pi:"                                     # External ID prefix for all PI tag timeseries
 
@@ -130,6 +130,14 @@ deployment:
 4. Once the extractor reports runs on the new pipeline, delete the old pipeline and group
    in Fusion. Toolkit does not remove them for you, and the new group keeps the same
    `sourceId`, so no IdP change is needed.
+
+The instance space also changed from `sp_{{location}}_pi` to `inst_{{location}}_pi`
+(`setup_project.py` writes the new name on its next run). Instances already in the old
+space are not moved: the extractor creates new time series in the new space on its next
+run and backfills datapoint history into them from the PI Data Archive. Verify the new
+time series, then delete the old space. To keep the old space instead, set
+`instanceSpace` back to its old value after running the wizard;
+`setup_project.py --check` then reports it as drift.
 
 ### Verify
 

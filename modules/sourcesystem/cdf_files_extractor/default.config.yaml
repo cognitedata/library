@@ -17,8 +17,8 @@ sourceSystem: "sharepoint"
 dataset: "ds_files"
 
 # DM space where CogniteFile instances are written — one space per extractor.
-# Computed by setup_project.py as sp_{location}_files.
-instanceSpace: "sp_files_instance_space"
+# Computed by setup_project.py as inst_{location}_files.
+instanceSpace: "inst_files"
 
 # Integration owner (technical contact for the pipeline)
 # Populated by setup_project.py wizard.

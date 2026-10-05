@@ -52,7 +52,7 @@ variables:
     cdf_db_extractor:
       location: "oslo"                                        # Site code, used in externalIds (ep_table_<location>_<sourceSystem>, raw_table_<location>_<sourceSystem>)
       sourceSystem: "postgres"                                # Source system token, used in the pipeline ID and group name
-      instanceSpace: "sp_oslo_db"                            # Per-extractor DM instance space — computed by setup_project.py
+      instanceSpace: "inst_oslo_db"                            # Per-extractor DM instance space — computed by setup_project.py
       dataset: "ds_db_oslo"                                   # ds_<data_type>_<location> — computed by setup_project.py
 
       integration_owner_name: "Integration Owner"             # Technical contact for the pipeline
@@ -147,6 +147,13 @@ The data set changed from `ds_db_postgres_{{location}}` to `ds_db_{{location}}` 
 longer hard-codes the database engine (`sourceSystem` now carries it).
 `setup_project.py` writes the new ID on its next run but keeps the old one in
 `cdf_project_foundation`'s `dataset` list; remove it there once nothing references it.
+
+The instance space also changed from `sp_{{location}}_db` to `inst_{{location}}_db`
+(`setup_project.py` writes the new name on its next run). Instances already in the old
+space are not moved: the extractor creates new instances in the new space on its next
+run. Verify the new instances, then delete the old space. To keep the old space instead,
+set `instanceSpace` back to its old value after running the wizard;
+`setup_project.py --check` then reports it as drift.
 
 ### Verify
 

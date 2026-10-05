@@ -63,7 +63,7 @@ variables:
       location: "oslo"                                       # Site code, used in externalIds (ep_files_<location>_<sourceSystem>)
       sourceSystem: "sharepoint"                             # Source system token, used in the pipeline ID and group name
       dataset: "ds_files_oslo"                               # ds_<data_type>_<location> — computed by setup_project.py
-      instanceSpace: "sp_oslo_files"                        # Per-extractor DM instance space — computed by setup_project.py
+      instanceSpace: "inst_oslo_files"                        # Per-extractor DM instance space — computed by setup_project.py
 
       integration_owner_name: "Integration Owner"            # Technical contact for the pipeline
       integration_owner_email: "integration.owner@example.com"
@@ -157,6 +157,13 @@ The optional RAW state-store database also changed from `db_{{location}}_files` 
 `raw_files_{{location}}_{{sourceSystem}}`. If you enabled the RAW state store, update
 `state-store.database` in `Config.yaml`. The extractor starts with an empty state, so the
 first run re-checks every file.
+
+The instance space also changed from `sp_{{location}}_files` to `inst_{{location}}_files`
+(`setup_project.py` writes the new name on its next run). Instances already in the old
+space are not moved: the extractor creates new instances in the new space on its next
+run. Verify the new instances, then delete the old space. To keep the old space instead,
+set `instanceSpace` back to its old value after running the wizard;
+`setup_project.py --check` then reports it as drift.
 
 ### Verify
 
