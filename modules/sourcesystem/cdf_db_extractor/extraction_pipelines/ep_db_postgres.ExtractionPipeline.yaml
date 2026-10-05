@@ -1,9 +1,9 @@
-externalId: "ep_table_{{location}}_{{sourceSystem}}"
+externalId: "ep_asset_{{location}}_{{sourceSystem}}"
 name: "Database table extraction for site {{location}}"
 dataSetExternalId: "{{dataset}}"
 description: "DB Extractor pipeline for site {{location}} — reads from a relational database (default example: PostgreSQL) and writes rows to RAW for downstream transformation"
 rawTables:
-  - dbName: "raw_table_{{location}}_{{sourceSystem}}"
+  - dbName: "raw_asset_{{location}}_{{sourceSystem}}"
     tableName: "mytable"
 source: POSTGRESQL
 schedule: Continuous
@@ -82,7 +82,7 @@ documentation: |
          scopes:
            - $${CDF_URL}/.default
        extraction-pipeline:
-         pipeline-id: ep_table_{{location}}_{{sourceSystem}}
+         pipeline-id: ep_asset_{{location}}_{{sourceSystem}}
      ```
 
   ### RAW tables written by this pipeline

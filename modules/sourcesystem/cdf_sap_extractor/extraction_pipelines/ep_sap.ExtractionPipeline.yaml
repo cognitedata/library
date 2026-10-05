@@ -1,21 +1,21 @@
-externalId: "ep_maintenance_{{location}}_{{sourceSystem}}"
+externalId: "ep_asset_{{location}}_{{sourceSystem}}"
 name: "SAP maintenance extraction for site {{location}}"
 dataSetExternalId: "{{dataset}}"
 description: "SAP OData Extractor pipeline for site {{location}} — single pipeline with multiple entity queries writing to RAW"
 rawTables:
-  - dbName: "raw_maintenance_{{location}}_{{sourceSystem}}"
+  - dbName: "raw_asset_{{location}}_{{sourceSystem}}"
     tableName: "functional_location"
-  - dbName: "raw_maintenance_{{location}}_{{sourceSystem}}"
+  - dbName: "raw_asset_{{location}}_{{sourceSystem}}"
     tableName: "equipment"
-  - dbName: "raw_maintenance_{{location}}_{{sourceSystem}}"
+  - dbName: "raw_asset_{{location}}_{{sourceSystem}}"
     tableName: "workorder"
-  - dbName: "raw_maintenance_{{location}}_{{sourceSystem}}"
+  - dbName: "raw_asset_{{location}}_{{sourceSystem}}"
     tableName: "workpackage"
-  - dbName: "raw_maintenance_{{location}}_{{sourceSystem}}"
+  - dbName: "raw_asset_{{location}}_{{sourceSystem}}"
     tableName: "worktask"
-  - dbName: "raw_maintenance_{{location}}_{{sourceSystem}}"
+  - dbName: "raw_asset_{{location}}_{{sourceSystem}}"
     tableName: "workitem"
-  - dbName: "raw_maintenance_{{location}}_{{sourceSystem}}"
+  - dbName: "raw_asset_{{location}}_{{sourceSystem}}"
     tableName: "state_store"
 source: SAP_ODATA
 schedule: On trigger
@@ -49,7 +49,7 @@ documentation: |
   fetched by the SAP OData Extractor using its `pipeline-id`. A single pipeline
   covers all entity types: functional locations, equipment, work orders, work
   packages, work tasks, and notifications — each landing in its own RAW table in
-  `raw_maintenance_{{location}}_{{sourceSystem}}`.
+  `raw_asset_{{location}}_{{sourceSystem}}`.
 
   RAW data is then mapped to data-model instances in `{{instanceSpace}}` by six
   transformations (one per entity type) targeting the ISA Manufacturing Extension
@@ -97,7 +97,7 @@ documentation: |
          scopes:
            - $${CDF_URL}/.default
        extraction-pipeline:
-         external-id: ep_maintenance_{{location}}_{{sourceSystem}}
+         external-id: ep_asset_{{location}}_{{sourceSystem}}
      ```
 
   ### RAW tables written by this pipeline
