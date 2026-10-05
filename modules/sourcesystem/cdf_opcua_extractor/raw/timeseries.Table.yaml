@@ -1,2 +1,0 @@
-dbName: "raw_asset_{{location}}_{{sourceSystem}}"
-tableName: timeseries
