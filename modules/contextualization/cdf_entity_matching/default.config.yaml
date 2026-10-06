@@ -24,7 +24,7 @@ fileSchemaSpace: cdf_cdm
 fileViewExternalId: CogniteFile
 targetViewExternalId: CogniteAsset
 entityViewExternalId: CogniteTimeSeries
-targetViewSearchProperty: name
+targetViewSearchProperty: aliases
 # Property entity matching filters on, applied only when the filter values below are set.
 # NOTE: in CFIHOS example data model (dm_dom_oil_and_gas.DataModel.yaml) it is labels
 viewFilterProperty: tags
@@ -68,7 +68,7 @@ fileAliasPattern:
 # and without its sheet number, and 'longest' would discard the shorter one
 fileAliasSelection: all
 targetViewFilterValues: []
-entityViewSearchProperty: name
+entityViewSearchProperty: aliases
 entityViewFilterValues: []  
 # Optional scope for the submit/collect matcher (fn_dm_context_entity_matching): entities are
 # only matched to targets with the same primary (and secondary, when set). Targets tagged
