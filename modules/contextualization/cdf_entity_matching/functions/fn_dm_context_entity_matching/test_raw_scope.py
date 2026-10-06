@@ -73,8 +73,8 @@ def test_add_to_dict_copies_primary_and_secondary_scope_onto_the_raw_row() -> No
 
     row = em_pipeline.add_to_dict(match, "entity_view", "target_view")
 
-    assert row[KEY_SCOPE_PRIMARY] == "VAL"
-    assert row[KEY_SCOPE_SECONDARY] == "23"
+    assert row.get(KEY_SCOPE_PRIMARY) == "VAL"
+    assert row.get(KEY_SCOPE_SECONDARY) == "23"
 
 
 def test_add_to_dict_omits_scope_when_the_source_has_none() -> None:
@@ -126,5 +126,5 @@ def test_rule_match_row_keeps_entity_scope(monkeypatch: pytest.MonkeyPatch) -> N
     good, cnt = em_pipeline.apply_rule_mappings(MagicMock(), build_config(), MagicMock(), [], targets, entities)
 
     assert cnt == 1
-    assert good[0][KEY_SCOPE_PRIMARY] == "VAL"
-    assert good[0][KEY_SCOPE_SECONDARY] == "23"
+    assert good[0].get(KEY_SCOPE_PRIMARY) == "VAL"
+    assert good[0].get(KEY_SCOPE_SECONDARY) == "23"
